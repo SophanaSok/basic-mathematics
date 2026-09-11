@@ -1,0 +1,526 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Interlude: On Logic and Mathematical Expressions — Basic Mathematics</title>
+<meta name="description" content="How to read mathematics, implication and its converse, quantifiers and counterexamples, sets, and notation as a tool.">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.11/katex.min.css">
+<link rel="stylesheet" href="../../assets/site.css">
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.11/katex.min.js"></script>
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.11/contrib/auto-render.min.js"></script>
+<script defer src="../../data/curriculum.js"></script>
+<script defer src="../../assets/widgets.js"></script>
+<script defer src="../../assets/site.js"></script>
+</head>
+<body data-depth="2" data-chapter="interlude">
+<a class="skip-link" href="#main">Skip to content</a>
+
+<header class="topbar">
+  <a class="brand" href="../../index.html"><span class="glyph">∑</span> Basic Mathematics</a>
+  <nav>
+    <a href="../../index.html">Contents</a>
+    <a href="../../about.html">How to use this</a>
+    <button class="icon-btn" type="button" data-theme-toggle>☾ Dark</button>
+  </nav>
+</header>
+
+<div class="wrap">
+<div class="layout">
+  <aside class="sidebar" data-sidebar></aside>
+  <main id="main">
+
+    <p class="eyebrow">Part I — Algebra · Interlude</p>
+    <h1>On Logic and Mathematical Expressions</h1>
+    <p class="lede">
+      A pause between the algebra and the geometry, to look at the language itself. Most
+      mathematical mistakes are not arithmetic slips; they are misreadings of a sentence.
+    </p>
+
+    <div class="goal">
+      <strong>By the end of this interlude you can</strong>
+      distinguish a statement from its converse and its contrapositive, disprove a claim with a
+      single counterexample, negate a "for all" or "there exists" statement correctly, use the
+      basic vocabulary of sets, and choose notation that keeps an argument readable.
+    </div>
+
+    <h2 id="reading">On reading mathematics</h2>
+    <p>
+      A page of mathematics is not read at the speed of a page of prose. It is compressed: a single
+      line may take ten minutes to unpack, and that is normal, not a sign of weakness.
+    </p>
+    <div class="callout idea">
+      <span class="tag">A working method</span>
+      <ol>
+        <li><b>Read with a pencil.</b> When a computation is shown, do it yourself before reading
+          the next line.</li>
+        <li><b>Test every definition on examples.</b> Given a definition, immediately produce two
+          things that satisfy it and one that does not.</li>
+        <li><b>Attempt before reading.</b> Try to prove a stated result yourself first; even a
+          failed attempt tells you what the difficulty is, so the proof lands somewhere.</li>
+        <li><b>Ask what each hypothesis is doing.</b> If a theorem says "let $a \neq 0$", find the
+          step that would collapse without it.</li>
+        <li><b>Do not move on from a sentence you cannot justify.</b> Debt compounds quickly in
+          mathematics.</li>
+      </ol>
+    </div>
+
+    <h2 id="logic">Implication, converse, contrapositive</h2>
+    <p>
+      Most mathematical statements have the form <b>if $P$ then $Q$</b>, written $P \Rightarrow Q$.
+      $P$ is the <b>hypothesis</b>, $Q$ the <b>conclusion</b>. The statement promises one thing
+      only: that you never have $P$ true while $Q$ is false.
+    </p>
+    <p>
+      That single arrow spawns two relatives, and telling them apart is the most valuable habit in
+      this interlude.
+    </p>
+
+    <div class="rule">
+      <span class="tag">Three statements built from the same pieces</span>
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr><th>Name</th><th>Form</th><th>Relation to $P \Rightarrow Q$</th></tr></thead>
+          <tbody>
+            <tr><td>Statement</td><td>$P \Rightarrow Q$</td><td>—</td></tr>
+            <tr><td>Converse</td><td>$Q \Rightarrow P$</td><td><b>Different statement.</b> May be
+              true or false, independently.</td></tr>
+            <tr><td>Contrapositive</td><td>$\text{not }Q \Rightarrow \text{not }P$</td>
+              <td><b>Equivalent.</b> Always has the same truth value.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <p>
+      An example makes the difference vivid. Let $P$ be "$n$ is divisible by $4$" and $Q$ be "$n$ is
+      even".
+    </p>
+    <ul>
+      <li>$P \Rightarrow Q$: if $n$ is divisible by $4$ then $n$ is even. <b>True.</b></li>
+      <li>Converse $Q \Rightarrow P$: if $n$ is even then $n$ is divisible by $4$. <b>False</b> —
+        take $n = 6$.</li>
+      <li>Contrapositive: if $n$ is not even then $n$ is not divisible by $4$. <b>True</b>, as it
+        must be.</li>
+    </ul>
+    <p>
+      We have already used the equivalence with the contrapositive twice for real work: in
+      <a href="01-numbers.html#even-odd">Chapter 1</a>, proving "$n^2$ even $\Rightarrow$ $n$ even"
+      by proving "$n$ odd $\Rightarrow$ $n^2$ odd" instead.
+    </p>
+
+    <figure>
+      <div class="widget" data-widget="truthtable"></div>
+      <figcaption>
+        <b>Two columns that never disagree.</b> Toggle $P$ and $Q$ and compare the column for
+        $P \Rightarrow Q$ with the one for its contrapositive; then compare it with the converse,
+        which differs in two rows out of four.
+      </figcaption>
+    </figure>
+
+    <div class="callout warn">
+      <span class="tag">Watch out — the vacuous case</span>
+      <p>
+        When $P$ is false, $P \Rightarrow Q$ counts as <em>true</em>, whatever $Q$ says. "If
+        $1 = 2$ then I am the Pope" is a true implication. This looks like a trick, but it is
+        forced: the implication promises only that $P$ true with $Q$ false never happens, and if
+        $P$ never happens, the promise is never broken.
+      </p>
+    </div>
+
+    <p>
+      When both $P \Rightarrow Q$ and $Q \Rightarrow P$ hold, write $P \iff Q$ and say <b>$P$ if and
+      only if $Q$</b>. Proving an "if and only if" is always two jobs, and it is worth labelling
+      them: ($\Rightarrow$) and ($\Leftarrow$).
+    </p>
+
+    <h2 id="quantifiers">For all, there exists, and counterexamples</h2>
+    <p>
+      Two phrases carry most of the weight in mathematical statements:
+    </p>
+    <ul>
+      <li><b>For all</b> $x$, $P(x)$ — written $\forall x$. A universal claim.</li>
+      <li><b>There exists</b> $x$ such that $P(x)$ — written $\exists x$. An existence claim.</li>
+    </ul>
+    <p>
+      The asymmetry between proving and disproving them is the practical point:
+    </p>
+
+    <div class="rule">
+      <span class="tag">Proving versus disproving</span>
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr><th>Statement</th><th>To prove it</th><th>To disprove it</th></tr></thead>
+          <tbody>
+            <tr><td>For all $x$, $P(x)$</td>
+              <td>An argument covering every $x$ — examples are never enough.</td>
+              <td><b>One counterexample.</b></td></tr>
+            <tr><td>There exists $x$ with $P(x)$</td>
+              <td><b>One example.</b></td>
+              <td>An argument covering every $x$.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <p>
+      So the negation of "for all $x$, $P(x)$" is "there exists an $x$ with $P(x)$ false" — and
+      <em>not</em> "for all $x$, $P(x)$ is false". The opposite of "every prime is odd" is not
+      "every prime is even"; it is "some prime is not odd", and $2$ settles it.
+    </p>
+
+    <div class="worked">
+      <h4><span class="num">Example 1.</span> Killing a plausible rule</h4>
+      <div class="body">
+        <p>
+          Is it true that $\sqrt{a + b} = \sqrt a + \sqrt b$ for all $a, b \ge 0$?
+        </p>
+        <ol class="steps">
+          <li>This is a "for all" claim, so one counterexample destroys it.</li>
+          <li>Take $a = b = 9$. Left side: $\sqrt{18} \approx 4.243$. Right side:
+            $3 + 3 = 6$.</li>
+          <li>They differ, so the rule is false. $\blacksquare$</li>
+        </ol>
+        <p class="note">
+          Notice that $a = 0$ would <em>not</em> have refuted it — the rule happens to hold there.
+          A counterexample must be a genuine failure, so hunt where cancellation or degeneracy is
+          absent.
+        </p>
+      </div>
+    </div>
+
+    <div class="callout idea">
+      <span class="tag">Order of quantifiers matters</span>
+      <p>
+        "For every $x$ there exists $y$ with $y &gt; x$" is true of the real numbers. Swap the
+        order — "there exists $y$ such that for every $x$, $y &gt; x$" — and it claims a number
+        bigger than every number, which is false. Same words, different sentence.
+      </p>
+    </div>
+
+    <h2 id="sets">Sets and elements</h2>
+    <p>
+      A <b>set</b> is a collection of objects, its <b>elements</b>. Write $x \in S$ for "$x$ is an
+      element of $S$", and $x \notin S$ for the denial. A set is determined entirely by which
+      objects belong to it — order and repetition are not part of the idea.
+    </p>
+    <p>Sets are described either by listing, or by a property:</p>
+    <div class="display">
+      $$\{1, 2, 3, 4\}, \qquad \{\,x \in \mathbb{Z} : x \text{ is even}\,\}.$$
+    </div>
+    <p>
+      Read the second as "the set of integers $x$ such that $x$ is even". Some sets get permanent
+      names: $\mathbb{Z}$ the integers, $\mathbb{Q}$ the rationals, $\mathbb{R}$ the reals, and
+      $\varnothing$ the <b>empty set</b>, which has no elements at all.
+    </p>
+
+    <div class="rule">
+      <span class="tag">Vocabulary</span>
+      <ul>
+        <li><b>Subset:</b> $A \subseteq B$ means every element of $A$ is an element of $B$. Note
+          this is a "for all" statement — which is why $\varnothing \subseteq B$ always holds,
+          vacuously.</li>
+        <li><b>Union:</b> $A \cup B = \{x : x \in A \text{ or } x \in B\}$. In mathematics "or"
+          always includes "both".</li>
+        <li><b>Intersection:</b> $A \cap B = \{x : x \in A \text{ and } x \in B\}$.</li>
+        <li><b>Difference:</b> $A \setminus B = \{x : x \in A \text{ and } x \notin B\}$.</li>
+        <li><b>Equality:</b> $A = B$ means $A \subseteq B$ and $B \subseteq A$ — and that is how
+          set equalities get proved, in two halves.</li>
+      </ul>
+    </div>
+
+    <figure>
+      <div class="widget" data-widget="venn"></div>
+      <figcaption>
+        <b>The operations, drawn.</b> Each button highlights the set it names. Notice that
+        $A \cup B$ includes the overlap — mathematical "or" is never exclusive.
+      </figcaption>
+    </figure>
+
+    <p>
+      Set language is not decoration: it is how solution sets are described. "Solve
+      $x^2 = 4$" produces the set $\{-2, 2\}$; the solution set of $x^2 = -1$ over the reals is
+      $\varnothing$; and the trichotomy of
+      <a href="02-linear-equations.html#two-unknowns">Chapter 2</a> was a statement about the size
+      of a solution set — one element, none, or infinitely many.
+    </p>
+
+    <h2 id="notation">Notation as a tool</h2>
+    <p>
+      Notation exists to make thinking cheaper. A few habits pay for themselves immediately:
+    </p>
+    <ul>
+      <li><b>Name a thing once, then use the name.</b> If "the number of adult tickets" appears
+        three times in a problem, it should be $a$ from the first line.</li>
+      <li><b>Use different letters for different objects.</b> In Chapter 1 we wrote $m = 2j$ and
+        $n = 2k$ precisely because reusing $k$ would have silently assumed $m = n$.</li>
+      <li><b>Say what your letters denote, with units.</b> "Let $t$ be the time in seconds" prevents
+        an entire class of errors.</li>
+      <li><b>Let the notation carry meaning.</b> $\Delta$ for the discriminant, $|x - a|$ for a
+        distance: good notation reminds you what the object is for.</li>
+      <li><b>Keep the equals sign honest.</b> $=$ asserts that two things are the same number. A
+        chain of steps in a derivation is a chain of equalities, each of which must actually be
+        true — not a record of the order in which you wrote things down.</li>
+    </ul>
+
+    <div class="callout warn">
+      <span class="tag">Watch out</span>
+      <p>
+        $\Rightarrow$ and $=$ are not interchangeable. $=$ joins two <em>numbers</em>;
+        $\Rightarrow$ joins two <em>statements</em>. "$x + 1 = 4 \Rightarrow x = 3$" is correct;
+        "$x + 1 = 4 = x = 3$" is meaningless.
+      </p>
+    </div>
+
+    <!-- ====================================================== practice ==== -->
+    <section class="practice" id="practice">
+      <div class="practice-head">
+        <h2 style="margin-top:0">Practice</h2>
+        <span class="practice-score" data-practice-score></span>
+      </div>
+
+      <div class="ex" data-answer="2"
+           data-hint="Swap hypothesis and conclusion — do not negate anything.">
+        <div class="ex-q">
+          <p>What is the converse of "if $n$ is divisible by $6$ then $n$ is even"?</p>
+        </div>
+        <ul class="choices">
+          <li>If $n$ is not divisible by $6$ then $n$ is not even.</li>
+          <li>If $n$ is even then $n$ is divisible by $6$.</li>
+          <li>If $n$ is not even then $n$ is not divisible by $6$.</li>
+          <li>$n$ is even and divisible by $6$.</li>
+        </ul>
+        <div class="ex-solution">
+          <p class="answer">Answer: if $n$ is even then $n$ is divisible by $6$</p>
+          <p>
+            The converse swaps hypothesis and conclusion. The third option is the contrapositive,
+            which is equivalent to the original and therefore true; the converse here is false
+            ($n = 4$).
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" data-answer="3"
+           data-hint="The contrapositive negates both parts and reverses the arrow.">
+        <div class="ex-q">
+          <p>
+            What is the contrapositive of "if $x &gt; 2$ then $x^2 &gt; 4$"?
+          </p>
+        </div>
+        <ul class="choices">
+          <li>If $x^2 &gt; 4$ then $x &gt; 2$.</li>
+          <li>If $x \le 2$ then $x^2 \le 4$.</li>
+          <li>If $x^2 \le 4$ then $x \le 2$.</li>
+          <li>If $x &gt; 2$ then $x^2 \le 4$.</li>
+        </ul>
+        <div class="ex-solution">
+          <p class="answer">Answer: if $x^2 \le 4$ then $x \le 2$</p>
+          <p>
+            Negate both parts <em>and</em> reverse the direction. The second option negates without
+            reversing — that is the <b>inverse</b>, which is equivalent to the converse, not to the
+            original. Here the converse is false: $x = -3$ has $x^2 = 9 &gt; 4$ but $x &lt; 2$.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" data-type="number" data-answer="2"
+           data-hint="You want a prime that is not odd.">
+        <div class="ex-q">
+          <p>
+            Give a counterexample to "every prime number is odd": state the number.
+          </p>
+        </div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $2$</p>
+          <p>
+            $2$ is prime (its only positive divisors are $1$ and itself) and even. One
+            counterexample is enough to refute a "for all" statement permanently — and $2$ is the
+            only one here, which is why it is called the odd prime out.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" data-answer="1"
+           data-hint="Negating 'for all' gives 'there exists ... not'.">
+        <div class="ex-q">
+          <p>What is the negation of "every student passed the exam"?</p>
+        </div>
+        <ul class="choices">
+          <li>At least one student did not pass.</li>
+          <li>Every student failed.</li>
+          <li>No student passed.</li>
+          <li>Most students failed.</li>
+        </ul>
+        <div class="ex-solution">
+          <p class="answer">Answer: at least one student did not pass</p>
+          <p>
+            The negation of $\forall x\, P(x)$ is $\exists x\, \text{not } P(x)$. "Every student
+            failed" is a far stronger claim — it could be false while the original is still false.
+            Denying a universal statement requires only one exception.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" data-type="set" data-answer="3,4"
+           data-placeholder="e.g. 3,4"
+           data-hint="Which elements are in both sets at once?">
+        <div class="ex-q">
+          <p>
+            Let $A = \{1,2,3,4\}$ and $B = \{3,4,5\}$. List the elements of $A \cap B$.
+          </p>
+        </div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $\{3, 4\}$</p>
+          <p>
+            The intersection collects exactly the elements belonging to both sets. For comparison,
+            $A \cup B = \{1,2,3,4,5\}$ and $A \setminus B = \{1,2\}$.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" data-answer="4"
+           data-hint="Check each against the definitions — and remember the empty set.">
+        <div class="ex-q">
+          <p>Let $A = \{1,2,3\}$. Which statement is <em>false</em>?</p>
+        </div>
+        <ul class="choices">
+          <li>$\varnothing \subseteq A$</li>
+          <li>$\{1,2\} \subseteq A$</li>
+          <li>$2 \in A$</li>
+          <li>$\{2\} \in A$</li>
+        </ul>
+        <div class="ex-solution">
+          <p class="answer">Answer: $\{2\} \in A$</p>
+          <p>
+            The elements of $A$ are the numbers $1$, $2$, $3$ — not sets. So $\{2\} \subseteq A$ is
+            true, but $\{2\} \in A$ is false: the one-element set $\{2\}$ is not itself one of the
+            three elements.
+          </p>
+          <p>
+            $\varnothing \subseteq A$ holds because "every element of $\varnothing$ lies in $A$" is
+            vacuously true — there are no elements to check.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" data-answer="2"
+           data-hint="Ask whether either statement can hold while the other fails.">
+        <div class="ex-q">
+          <p>
+            "If it is raining then the pavement is wet." Given that the pavement is wet, what may
+            you conclude?
+          </p>
+        </div>
+        <ul class="choices">
+          <li>It is raining.</li>
+          <li>Nothing — the pavement could be wet for another reason.</li>
+          <li>It is not raining.</li>
+          <li>It rained earlier.</li>
+        </ul>
+        <div class="ex-solution">
+          <p class="answer">Answer: nothing</p>
+          <p>
+            Concluding "it is raining" uses the converse, which was never claimed. What you
+            <em>may</em> conclude from a dry pavement is that it is not raining — the
+            contrapositive, which is equivalent to the original.
+          </p>
+          <p>
+            This error has a name, affirming the consequent, and in mathematics it usually appears
+            as a chain of steps run in the wrong direction.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" data-answer="3"
+           data-hint="Try to build a single number that works for every x.">
+        <div class="ex-q">
+          <p>
+            Consider two statements about real numbers:<br>
+            (i) for every $x$ there exists $y$ with $y &gt; x$;<br>
+            (ii) there exists $y$ such that for every $x$, $y &gt; x$.
+          </p>
+        </div>
+        <ul class="choices">
+          <li>Both are true.</li>
+          <li>Both are false.</li>
+          <li>(i) is true and (ii) is false.</li>
+          <li>(i) is false and (ii) is true.</li>
+        </ul>
+        <div class="ex-solution">
+          <p class="answer">Answer: (i) is true and (ii) is false</p>
+          <p>
+            For (i), given any $x$ take $y = x + 1$ — the choice of $y$ is allowed to depend on
+            $x$. For (ii), the same $y$ must beat every $x$ at once, including $x = y$, which would
+            need $y &gt; y$. So (ii) fails.
+          </p>
+          <p>The order of the quantifiers is the entire difference between the two sentences.</p>
+        </div>
+      </div>
+
+      <div class="ex" data-answer="1"
+           data-hint="How many separate implications does an 'if and only if' contain?">
+        <div class="ex-q">
+          <p>To prove "$P$ if and only if $Q$", what must you do?</p>
+        </div>
+        <ul class="choices">
+          <li>Prove $P \Rightarrow Q$ and prove $Q \Rightarrow P$.</li>
+          <li>Prove $P \Rightarrow Q$ only.</li>
+          <li>Prove the contrapositive of $P \Rightarrow Q$ only.</li>
+          <li>Find one example where $P$ and $Q$ are both true.</li>
+        </ul>
+        <div class="ex-solution">
+          <p class="answer">Answer: prove both directions</p>
+          <p>
+            $P \iff Q$ asserts two implications, and each needs its own argument. Option 3 proves
+            only one direction, since the contrapositive is equivalent to $P \Rightarrow Q$ and says
+            nothing about the converse. An example proves nothing at all about a general claim.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" data-type="number" data-answer="1"
+           data-hint="Try to make the left side and right side differ; a = b = 1 is a good first test.">
+        <div class="ex-q">
+          <p>
+            Someone claims $\dfrac{1}{a+b} = \dfrac1a + \dfrac1b$ for all non-zero $a, b$. Give a
+            value of $a$ that, with $b = a$, refutes it.
+          </p>
+        </div>
+        <div class="ex-solution">
+          <p class="answer">Answer: any non-zero value works — for example $a = 1$</p>
+          <p>
+            With $a = b = 1$: the left side is $\frac{1}{2}$ and the right side is $2$. Refuted.
+          </p>
+          <p>
+            In fact taking $b = a$ makes the left side $\frac{1}{2a}$ and the right side
+            $\frac{2}{a}$; these are equal only if $\frac{1}{2a} = \frac2a$, which never happens.
+            So every choice is a counterexample — the claimed rule is not merely usually false, it
+            is always false along this line.
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <div class="recap">
+      <h2>Recap</h2>
+      <ul>
+        <li>$P \Rightarrow Q$, its converse $Q \Rightarrow P$, and its contrapositive
+          $\text{not }Q \Rightarrow \text{not }P$: the contrapositive is equivalent, the converse is
+          a different statement.</li>
+        <li>An implication with a false hypothesis is true, vacuously.</li>
+        <li>"For all" is refuted by one counterexample; "there exists" is proved by one example.</li>
+        <li>Negating "for all $x$, $P$" gives "there exists $x$ with not $P$" — and the order of
+          quantifiers changes the meaning.</li>
+        <li>Sets: $\in$, $\subseteq$, $\cup$, $\cap$, $\setminus$, $\varnothing$; and $A = B$ is
+          proved in two halves.</li>
+        <li>Notation should carry meaning: name things once, keep different objects on different
+          letters, and never write $=$ where you mean $\Rightarrow$.</li>
+      </ul>
+    </div>
+
+    <nav class="chapter-nav" data-chapter-nav></nav>
+  </main>
+</div>
+</div>
+</body>
+</html>

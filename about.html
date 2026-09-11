@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>How to use this course — Basic Mathematics</title>
+<meta name="description" content="How to study this course: reading with a pencil, using the exercises, and how progress is stored.">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.11/katex.min.css">
+<link rel="stylesheet" href="assets/site.css">
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.11/katex.min.js"></script>
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.11/contrib/auto-render.min.js"></script>
+<script defer src="data/curriculum.js"></script>
+<script defer src="assets/widgets.js"></script>
+<script defer src="assets/site.js"></script>
+</head>
+<body data-depth="0">
+<a class="skip-link" href="#main">Skip to content</a>
+
+<header class="topbar">
+  <a class="brand" href="index.html"><span class="glyph">∑</span> Basic Mathematics</a>
+  <nav>
+    <a href="index.html">Contents</a>
+    <button class="icon-btn" type="button" data-theme-toggle>☾ Dark</button>
+  </nav>
+</header>
+
+<div class="wrap-narrow">
+  <main id="main">
+    <p class="eyebrow">Before you start</p>
+    <h1>How to use this course</h1>
+    <p class="lede">
+      Read slowly, write constantly, and do not move on from a sentence you cannot justify.
+      That is the whole method.
+    </p>
+
+    <h2 id="pencil">Read with a pencil</h2>
+    <p>
+      Mathematics is not readable at the speed of prose. Every time a line of algebra appears,
+      work it out yourself on paper before reading the next line. If the site says
+      $(a+b)^2 = a^2 + 2ab + b^2$, multiply it out. The habit feels slow for a week and then
+      becomes the reason you understand anything.
+    </p>
+    <p>
+      When a chapter states a rule, try to see <em>why</em> it must hold before reading the
+      justification. Even a failed attempt makes the explanation land, because you already know
+      where the difficulty is.
+    </p>
+
+    <h2 id="exercises">The exercises are the course</h2>
+    <p>
+      Each chapter ends with practice problems that check themselves. A few notes on them:
+    </p>
+    <ul>
+      <li>Answers are matched forgivingly. For a number, <code>0.5</code>, <code>1/2</code> and
+        <code>2/4</code> are all accepted; spaces never matter; <code>-3</code> and
+        <code>−3</code> (unicode minus) are the same.</li>
+      <li>When an exercise wants several numbers, separate them with commas in any order:
+        <code>2,-3</code> is the same as <code>-3, 2</code>.</li>
+      <li>Every problem has a full worked solution, not just an answer. Open it after a genuine
+        attempt — and open it <em>always</em>, even when you were right, to compare your route
+        with the one shown.</li>
+      <li>Getting one wrong is information, not failure. The first wrong attempt usually gets a
+        hint rather than the answer.</li>
+    </ul>
+
+    <h2 id="order">Order matters</h2>
+    <p>
+      Chapters are written to depend only on earlier ones. Skipping ahead mostly works inside a
+      part, but Part III genuinely needs Part I, and the trigonometry chapter needs the geometry
+      before it. If a chapter feels impossible, the problem is usually two chapters back.
+    </p>
+
+    <h2 id="book">Relation to Serge Lang's book</h2>
+    <p>
+      The course follows the topic sequence of Serge Lang's <cite>Basic Mathematics</cite>: the
+      same four parts, the same chapters, in the same order. That sequence is the pedagogical
+      heart of the book — it starts from the rules of arithmetic and refuses to use anything it
+      has not established.
+    </p>
+    <p>
+      The writing here is independent: all explanations, figures, worked examples, and exercises
+      were written for this site. If you own the book, the best use of this site is as a second
+      voice — read a chapter there, then work the same ideas here, or the reverse. Nothing here
+      reproduces the book's text or its problem sets.
+    </p>
+
+    <h2 id="progress">Progress and privacy</h2>
+    <p>
+      Solved exercises are recorded in this browser's local storage, under the single key
+      <code>bm.progress.v1</code>. Nothing is sent anywhere; there is no account and no server.
+      Progress therefore does not follow you to another browser or device, and clearing site data
+      clears it. If storage is blocked, everything still works — the rings on the contents page
+      just stay empty.
+    </p>
+    <p class="practice-score" data-course-stats></p>
+    <p>
+      <button class="btn ghost" type="button" data-action="reset-progress">Reset all progress</button>
+    </p>
+
+    <h2 id="keyboard">Keyboard and accessibility</h2>
+    <ul>
+      <li>Answer fields accept <kbd>Enter</kbd> to check.</li>
+      <li>Interactive figures are operable from the keyboard: <kbd>Tab</kbd> to a slider, then
+        arrow keys. Every figure also states its conclusion in text below it, so nothing is
+        available only by dragging.</li>
+      <li>The theme follows your system setting until you press the light/dark button, after which
+        your choice is remembered.</li>
+    </ul>
+
+    <nav class="chapter-nav">
+      <a class="prev" href="index.html"><span class="dir">← Back</span><b>Course contents</b></a>
+      <a class="next" href="parts/1-algebra/01-numbers.html"><span class="dir">Start →</span><b>1. Numbers</b></a>
+    </nav>
+  </main>
+</div>
+</body>
+</html>

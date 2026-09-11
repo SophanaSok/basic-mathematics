@@ -1,0 +1,487 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>2. Linear Equations — Basic Mathematics</title>
+<meta name="description" content="Solving linear equations and systems by elimination, and reading off whether there is one solution, none, or infinitely many.">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.11/katex.min.css">
+<link rel="stylesheet" href="../../assets/site.css">
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.11/katex.min.js"></script>
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.11/contrib/auto-render.min.js"></script>
+<script defer src="../../data/curriculum.js"></script>
+<script defer src="../../assets/widgets.js"></script>
+<script defer src="../../assets/site.js"></script>
+</head>
+<body data-depth="2" data-chapter="ch02">
+<a class="skip-link" href="#main">Skip to content</a>
+
+<header class="topbar">
+  <a class="brand" href="../../index.html"><span class="glyph">∑</span> Basic Mathematics</a>
+  <nav>
+    <a href="../../index.html">Contents</a>
+    <a href="../../about.html">How to use this</a>
+    <button class="icon-btn" type="button" data-theme-toggle>☾ Dark</button>
+  </nav>
+</header>
+
+<div class="wrap">
+<div class="layout">
+  <aside class="sidebar" data-sidebar></aside>
+  <main id="main">
+
+    <p class="eyebrow">Part I — Algebra · Chapter 2</p>
+    <h1>Linear Equations</h1>
+    <p class="lede">
+      An equation is a question: for which values of the unknowns is this true? Solving it means
+      replacing the question with an easier one that has the same answers.
+    </p>
+
+    <div class="goal">
+      <strong>By the end of this chapter you can</strong>
+      solve a linear equation in one unknown and justify each step, solve systems in two and three
+      unknowns by elimination, recognise from the arithmetic alone whether a system has one
+      solution, none, or infinitely many, and turn a word problem into equations.
+    </div>
+
+    <h2 id="one-unknown">2.1 One unknown</h2>
+    <p>
+      A <b>linear equation</b> in the unknown $x$ is one that can be written
+      $ax + b = 0$ with $a$ and $b$ numbers. "Linear" means: $x$ appears to the first power only —
+      no $x^2$, no $\frac1x$, no $\sqrt{x}$.
+    </p>
+    <p>
+      A <b>solution</b> is a number which, substituted for $x$, makes the statement true. To
+      <b>solve</b> is to find all of them. Only two moves are ever needed, and both are safe
+      because both can be undone:
+    </p>
+
+    <div class="rule">
+      <span class="tag">The two legal moves</span>
+      <ol>
+        <li><b>Add the same number to both sides.</b> If $u = v$ then $u + c = v + c$; and adding
+          $-c$ brings you back. Nothing is gained or lost.</li>
+        <li><b>Multiply both sides by the same <em>non-zero</em> number.</b> If $u = v$ then
+          $cu = cv$; multiplying by $c^{-1}$ brings you back — which is exactly why $c \neq 0$ is
+          required.</li>
+      </ol>
+    </div>
+
+    <div class="callout warn">
+      <span class="tag">Watch out</span>
+      <p>
+        Multiplying both sides by $0$ turns any equation into $0 = 0$, which is true for every $x$
+        and tells you nothing. The step cannot be undone, so it loses information. This is the
+        same prohibition as in <a href="01-numbers.html#inverses">Chapter 1</a>: $0$ has no
+        inverse.
+      </p>
+    </div>
+
+    <div class="worked">
+      <h4><span class="num">Example 1.</span> Solving with the reason for every step</h4>
+      <div class="body">
+        <p>Solve $5x - 3 = 2x + 9$.</p>
+        <ol class="steps">
+          <li>Add $-2x$ to both sides: $3x - 3 = 9$.
+            <span class="note">Move 1, collecting the unknown on one side.</span></li>
+          <li>Add $3$ to both sides: $3x = 12$.</li>
+          <li>Multiply both sides by $\frac13$ — legal, since $\frac13 \neq 0$: $x = 4$.</li>
+          <li>Check by substituting into the <em>original</em> equation:
+            $5(4) - 3 = 17$ and $2(4) + 9 = 17$. ✓</li>
+        </ol>
+        <p class="note">
+          The check is not optional politeness. It is the only step that catches an arithmetic slip,
+          and it costs ten seconds.
+        </p>
+      </div>
+    </div>
+
+    <p>
+      Not every linear equation has exactly one solution. Consider what happens when the unknown
+      disappears:
+    </p>
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr><th>Equation</th><th>Reduces to</th><th>Solutions</th></tr></thead>
+        <tbody>
+          <tr><td>$3x + 1 = 7$</td><td>$x = 2$</td><td>exactly one</td></tr>
+          <tr><td>$2x + 5 = 2x + 5$</td><td>$0 = 0$</td><td>every number — an identity</td></tr>
+          <tr><td>$2x + 5 = 2x + 1$</td><td>$5 = 1$</td><td>none — a contradiction</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p>
+      Those three outcomes — one, all, none — are the only possibilities, and the same trichotomy
+      will reappear for systems in a moment. When the unknown cancels out, read the surviving
+      numerical statement: if it is true, every number is a solution; if it is false, none is.
+    </p>
+
+    <h2 id="two-unknowns">2.2 Equations in two unknowns</h2>
+    <p>
+      One equation in two unknowns, such as $x + y = 5$, has infinitely many solutions — a solution
+      is now a <em>pair</em> $(x, y)$, and pairs like $(0,5)$, $(2,3)$, $(-1,6)$ all qualify. To pin
+      the pair down you generally need two equations at once:
+    </p>
+    <div class="display">
+      $$\begin{aligned} a_1x + b_1y &= c_1 \\ a_2x + b_2y &= c_2 \end{aligned}$$
+    </div>
+    <p>
+      A solution of the <b>system</b> is a pair satisfying <em>both</em> equations. The method is
+      <b>elimination</b>: combine the two equations so that one unknown vanishes, leaving one
+      equation in one unknown — which we already know how to solve.
+    </p>
+
+    <div class="rule">
+      <span class="tag">The third legal move</span>
+      <p>
+        Replacing one equation of a system by (that equation) $+$ $c \times$ (another equation)
+        does not change the solution set. Any pair satisfying both originals satisfies the
+        combination; and the move is undone by subtracting $c$ times the same equation.
+      </p>
+    </div>
+
+    <div class="worked">
+      <h4><span class="num">Example 2.</span> Elimination</h4>
+      <div class="body">
+        <p>Solve $\;\begin{aligned}[t] 2x + 3y &= 12\\ x - y &= 1\end{aligned}$</p>
+        <ol class="steps">
+          <li>Multiply the second equation by $3$: $3x - 3y = 3$. The $y$-coefficients are now
+            $+3$ and $-3$.</li>
+          <li>Add the two equations. The $y$ terms cancel:
+            $(2x + 3y) + (3x - 3y) = 12 + 3$, that is $5x = 15$.</li>
+          <li>So $x = 3$.</li>
+          <li>Back-substitute into either original equation — the simpler one, $x - y = 1$:
+            $3 - y = 1$, so $y = 2$.</li>
+          <li>Check in <em>both</em> originals: $2(3) + 3(2) = 12$ ✓ and $3 - 2 = 1$ ✓.
+            The solution is $(x,y) = (3,2)$. $\blacksquare$</li>
+        </ol>
+      </div>
+    </div>
+
+    <p>
+      When does elimination fail to produce an answer? Exactly when the unknown cancels out
+      completely. Multiply the first equation by $a_2$, the second by $a_1$, and subtract; the $x$
+      terms vanish and you are left with
+    </p>
+    <div class="display">$$(a_1b_2 - a_2b_1)\,y = a_1c_2 - a_2c_1.$$</div>
+    <p>
+      Everything now depends on the single number $a_1b_2 - a_2b_1$.
+    </p>
+
+    <div class="rule">
+      <span class="tag">The trichotomy for a 2 × 2 system</span>
+      <ul>
+        <li>If $a_1b_2 - a_2b_1 \neq 0$: divide, and there is <b>exactly one</b> solution.</li>
+        <li>If $a_1b_2 - a_2b_1 = 0$ and the right-hand side is also $0$: the two equations say the
+          same thing, and there are <b>infinitely many</b> solutions.</li>
+        <li>If $a_1b_2 - a_2b_1 = 0$ but the right-hand side is not: you have derived
+          $0 = (\text{something non-zero})$, so there is <b>no</b> solution.</li>
+      </ul>
+    </div>
+    <p>
+      That number $a_1b_2 - a_2b_1$ has a name — the <b>determinant</b> of the system — and a
+      geometric meaning we will meet in
+      <a href="../4-topics/16-determinants.html">Chapter 16</a>. Geometrically, each equation
+      describes a line (<a href="../3-coordinates/10-segments-rays-lines.html">Chapter 10</a>);
+      the three cases are lines crossing once, the same line twice, and parallel lines.
+    </p>
+
+    <figure>
+      <div class="widget" data-widget="linsys"></div>
+      <figcaption>
+        <b>Two equations, three outcomes.</b> Drag the coefficients and watch the determinant
+        $a_1b_2 - a_2b_1$ in the readout. Try making it $0$ with matching right-hand sides
+        (one line drawn twice), then with mismatched ones (parallel lines, no solution).
+      </figcaption>
+    </figure>
+
+    <h2 id="three-unknowns">2.3 Equations in three unknowns</h2>
+    <p>
+      Nothing new happens — only bookkeeping. With three unknowns you use one equation to eliminate
+      one unknown from the others, reducing to a $2\times2$ system, then solve that and work
+      backwards. Being systematic is the whole skill.
+    </p>
+
+    <div class="worked">
+      <h4><span class="num">Example 3.</span> A 3 × 3 system</h4>
+      <div class="body">
+        <p>
+          Solve
+          $\;\begin{aligned}[t]
+            x + y + z &= 6 \\
+            2x - y + z &= 3 \\
+            x + 2y - z &= 2
+          \end{aligned}$
+        </p>
+        <ol class="steps">
+          <li><b>Eliminate $x$ from equations 2 and 3</b> using equation 1.
+            Equation 2 minus $2\times$ equation 1: $(2x - y + z) - 2(x + y + z) = 3 - 12$, i.e.
+            $-3y - z = -9$. Equation 3 minus equation 1: $y - 2z = -4$.</li>
+          <li>Now a $2\times2$ system in $y, z$:
+            $\begin{aligned}[t] -3y - z &= -9 \\ y - 2z &= -4 \end{aligned}$</li>
+          <li>Eliminate $y$: add $3\times$ the second equation to the first:
+            $(-3y - z) + 3(y - 2z) = -9 + (-12)$, giving $-7z = -21$, so $z = 3$.</li>
+          <li>Back-substitute into $y - 2z = -4$: $y - 6 = -4$, so $y = 2$.</li>
+          <li>Back-substitute into equation 1: $x + 2 + 3 = 6$, so $x = 1$.</li>
+          <li>Check all three originals: $1+2+3 = 6$ ✓, $2 - 2 + 3 = 3$ ✓,
+            $1 + 4 - 3 = 2$ ✓. So $(x,y,z) = (1,2,3)$. $\blacksquare$</li>
+        </ol>
+      </div>
+    </div>
+
+    <div class="callout idea">
+      <span class="tag">Keeping it tidy</span>
+      <p>
+        Write each new system on its own line, aligned in columns, and label which equation you
+        combined with which. Most errors in this chapter are transcription errors, not
+        misunderstandings — and an aligned layout makes them visible. The same trichotomy holds:
+        if every unknown cancels and you are left with a true statement, there are infinitely many
+        solutions; with a false one, none.
+      </p>
+    </div>
+
+    <h2 id="word-problems">2.4 Turning words into equations</h2>
+    <p>
+      The mathematics above is mechanical. The genuinely difficult step is the translation, and it
+      has a reliable procedure:
+    </p>
+    <ol>
+      <li><b>Name the unknowns</b> with letters, and write down what each letter means, including
+        its units. Vagueness here is fatal later.</li>
+      <li><b>Find one equation per independent fact</b> in the problem. A system in three unknowns
+        needs three facts.</li>
+      <li><b>Solve</b>, then <b>interpret</b>: convert the numbers back into a sentence answering
+        the question actually asked.</li>
+    </ol>
+
+    <div class="worked">
+      <h4><span class="num">Example 4.</span> From sentences to symbols</h4>
+      <div class="body">
+        <p>
+          A cinema sells adult tickets at £9 and child tickets at £5. One showing sold 120 tickets
+          and took £868. How many of each were sold?
+        </p>
+        <ol class="steps">
+          <li>Name: let $a$ = number of adult tickets, $c$ = number of child tickets.</li>
+          <li>Fact one, the count: $a + c = 120$.</li>
+          <li>Fact two, the money (in pounds): $9a + 5c = 868$.</li>
+          <li>Eliminate $c$: multiply the first equation by $5$ and subtract from the second:
+            $(9a + 5c) - 5(a + c) = 868 - 600$, so $4a = 268$ and $a = 67$.</li>
+          <li>Then $c = 120 - 67 = 53$.</li>
+          <li>Check: $67 + 53 = 120$ ✓, and $9(67) + 5(53) = 603 + 265 = 868$ ✓.
+            Answer: 67 adult and 53 child tickets. $\blacksquare$</li>
+        </ol>
+      </div>
+    </div>
+
+    <!-- ====================================================== practice ==== -->
+    <section class="practice" id="practice">
+      <div class="practice-head">
+        <h2 style="margin-top:0">Practice</h2>
+        <span class="practice-score" data-practice-score></span>
+      </div>
+      <p>
+        For systems, give the answer as the requested single number — that keeps the checking
+        unambiguous. Always verify your full solution in the original equations.
+      </p>
+
+      <div class="ex" data-type="number" data-answer="4"
+           data-hint="Collect the x terms on one side and the constants on the other.">
+        <div class="ex-q"><p>Solve $7x - 5 = 3x + 11$ for $x$.</p></div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $x = 4$</p>
+          <p>
+            Add $-3x$: $4x - 5 = 11$. Add $5$: $4x = 16$. Multiply by $\frac14$: $x = 4$.
+            Check: $7(4) - 5 = 23$ and $3(4) + 11 = 23$ ✓.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" data-type="number" data-answer="11"
+           data-hint="Multiply out both brackets first, then collect.">
+        <div class="ex-q"><p>Solve $3(x + 4) = 5(x - 2)$ for $x$.</p></div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $x = 11$</p>
+          <p>
+            Distributivity gives $3x + 12 = 5x - 10$. Add $-3x$ to both sides:
+            $12 = 2x - 10$. Add $10$: $22 = 2x$. Multiply by $\frac12$: $x = 11$.
+          </p>
+          <p>
+            Check in the original: $3(11 + 4) = 45$ and $5(11 - 2) = 45$ ✓.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" data-answer="3" data-hint="What happens to the unknown when you collect terms?">
+        <div class="ex-q"><p>How many solutions does $4x + 7 = 4x - 2$ have?</p></div>
+        <ul class="choices">
+          <li>Exactly one.</li>
+          <li>Infinitely many — every number is a solution.</li>
+          <li>None.</li>
+          <li>Exactly two.</li>
+        </ul>
+        <div class="ex-solution">
+          <p class="answer">Answer: none</p>
+          <p>
+            Adding $-4x$ to both sides leaves $7 = -2$, which is false. No value of $x$ can make
+            the original true, so the solution set is empty. Compare $4x + 7 = 4x + 7$, which
+            reduces to $7 = 7$ — true for every $x$.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" data-type="number" data-answer="4"
+           data-hint="Multiply the second equation by 2 so the y terms cancel when you add.">
+        <div class="ex-q">
+          <p>
+            Solve $\;\begin{aligned}[t] 3x + 2y &= 16 \\ x - y &= 2 \end{aligned}$ and give the
+            value of $x$.
+          </p>
+        </div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $x = 4$</p>
+          <p>
+            Multiply the second equation by $2$: $2x - 2y = 4$. The $y$-coefficients are now
+            $+2$ and $-2$, so adding the two equations eliminates $y$:
+            $$(3x + 2y) + (2x - 2y) = 16 + 4 \quad\Longrightarrow\quad 5x = 20,$$
+            so $x = 4$. Back-substituting into $x - y = 2$ gives $y = 2$.
+          </p>
+          <p>Check in both originals: $3(4) + 2(2) = 16$ ✓ and $4 - 2 = 2$ ✓.</p>
+        </div>
+      </div>
+
+      <div class="ex" data-type="number" data-answer="6"
+           data-hint="Compute a₁b₂ − a₂b₁ and see what makes it zero.">
+        <div class="ex-q">
+          <p>
+            For which value of $k$ does the system
+            $\;\begin{aligned}[t] 2x + 3y &= 7 \\ 4x + ky &= 1 \end{aligned}$
+            fail to have exactly one solution?
+          </p>
+        </div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $k = 6$</p>
+          <p>
+            Elimination leaves the coefficient $a_1b_2 - a_2b_1 = 2k - 12$. Exactly one solution
+            requires this to be non-zero, so the exceptional value is $2k - 12 = 0$, i.e. $k = 6$.
+          </p>
+          <p>
+            With $k = 6$ the second equation reads $4x + 6y = 1$, which is $2\times$ the left-hand
+            side of the first but with right-hand side $1$ instead of $14$ — a contradiction, so in
+            this case there is <em>no</em> solution rather than infinitely many.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" data-type="number" data-answer="3"
+           data-hint="Use the first equation to remove x from the other two.">
+        <div class="ex-q">
+          <p>
+            Solve
+            $\;\begin{aligned}[t]
+              x + y + z &= 4 \\
+              2x - y + 3z &= 14 \\
+              x + 2y - z &= -3
+            \end{aligned}$
+            and give the value of $z$.
+          </p>
+        </div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $z = 3$</p>
+          <p>
+            Eliminate $x$ using equation 1. Equation 2 minus $2\times$ equation 1:
+            $$(2x - y + 3z) - 2(x + y + z) = 14 - 8 \quad\Longrightarrow\quad -3y + z = 6.$$
+            Equation 3 minus equation 1:
+            $$(x + 2y - z) - (x + y + z) = -3 - 4 \quad\Longrightarrow\quad y - 2z = -7.$$
+          </p>
+          <p>
+            From the second, $y = 2z - 7$. Substitute into the first:
+            $-3(2z - 7) + z = 6$, so $-5z + 21 = 6$, giving $z = 3$. Then $y = -1$, and
+            equation 1 gives $x = 4 - (-1) - 3 = 2$.
+          </p>
+          <p>
+            Check all three: $2 - 1 + 3 = 4$ ✓, $4 + 1 + 9 = 14$ ✓, $2 - 2 - 3 = -3$ ✓.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" data-type="number" data-answer="14"
+           data-hint="Let the two numbers be x and y, and write one equation for each sentence.">
+        <div class="ex-q">
+          <p>
+            The sum of two numbers is $20$ and their difference is $8$. What is the larger number?
+          </p>
+        </div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $14$</p>
+          <p>
+            Let $x$ be the larger and $y$ the smaller. Then $x + y = 20$ and $x - y = 8$. Adding
+            the two equations eliminates $y$: $2x = 28$, so $x = 14$, and then $y = 6$.
+            Check: $14 + 6 = 20$ ✓, $14 - 6 = 8$ ✓.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" data-type="number" data-answer="35"
+           data-hint="Name the two ticket counts, then write the count equation and the money equation.">
+        <div class="ex-q">
+          <p>
+            A stall sells coffee at £3 and tea at £2. It sold $50$ drinks and took £135. How many
+            coffees were sold?
+          </p>
+        </div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $35$ coffees</p>
+          <p>
+            Let $c$ = coffees, $t$ = teas. Then $c + t = 50$ and $3c + 2t = 135$.
+            Subtract $2\times$ the first from the second:
+            $(3c + 2t) - 2(c + t) = 135 - 100$, so $c = 35$, and $t = 15$.
+            Check: $35 + 15 = 50$ ✓ and $3(35) + 2(15) = 105 + 30 = 135$ ✓.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" data-answer="2" data-hint="Which move cannot be undone?">
+        <div class="ex-q">
+          <p>Which of these operations on an equation can change its set of solutions?</p>
+        </div>
+        <ul class="choices">
+          <li>Adding $-7$ to both sides.</li>
+          <li>Multiplying both sides by $x - 1$.</li>
+          <li>Multiplying both sides by $\frac{1}{2}$.</li>
+          <li>Swapping the two sides.</li>
+        </ul>
+        <div class="ex-solution">
+          <p class="answer">Answer: multiplying both sides by $x - 1$</p>
+          <p>
+            The multiplier $x - 1$ is $0$ when $x = 1$, so the step can manufacture $x = 1$ as a
+            spurious extra solution — and it cannot be undone, because you cannot divide by
+            something that might be zero. The other three moves are reversible and therefore safe.
+            This is why every solution must be checked in the <em>original</em> equation.
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <div class="recap">
+      <h2>Recap</h2>
+      <ul>
+        <li>Solving = replacing an equation by a simpler one with the same solutions. The safe moves
+          are: add anything to both sides; multiply both sides by something non-zero; add a multiple
+          of one equation of a system to another.</li>
+        <li>Elimination reduces a system in $n$ unknowns to one in $n-1$ unknowns. Repeat, then
+          back-substitute.</li>
+        <li>Every linear system has exactly one solution, infinitely many, or none. For a
+          $2\times2$ system the number $a_1b_2 - a_2b_1$ decides which.</li>
+        <li>In word problems: name the unknowns with units, extract one equation per fact, solve,
+          then answer the question in words.</li>
+        <li>Check in the original equations, always.</li>
+      </ul>
+    </div>
+
+    <nav class="chapter-nav" data-chapter-nav></nav>
+  </main>
+</div>
+</div>
+</body>
+</html>

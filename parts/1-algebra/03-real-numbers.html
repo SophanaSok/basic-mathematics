@@ -1,0 +1,523 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>3. Real Numbers — Basic Mathematics</title>
+<meta name="description" content="Positivity and order, inequalities, absolute value as distance, and powers and roots — the properties the whole real line runs on.">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.11/katex.min.css">
+<link rel="stylesheet" href="../../assets/site.css">
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.11/katex.min.js"></script>
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.11/contrib/auto-render.min.js"></script>
+<script defer src="../../data/curriculum.js"></script>
+<script defer src="../../assets/widgets.js"></script>
+<script defer src="../../assets/site.js"></script>
+</head>
+<body data-depth="2" data-chapter="ch03">
+<a class="skip-link" href="#main">Skip to content</a>
+
+<header class="topbar">
+  <a class="brand" href="../../index.html"><span class="glyph">∑</span> Basic Mathematics</a>
+  <nav>
+    <a href="../../index.html">Contents</a>
+    <a href="../../about.html">How to use this</a>
+    <button class="icon-btn" type="button" data-theme-toggle>☾ Dark</button>
+  </nav>
+</header>
+
+<div class="wrap">
+<div class="layout">
+  <aside class="sidebar" data-sidebar></aside>
+  <main id="main">
+
+    <p class="eyebrow">Part I — Algebra · Chapter 3</p>
+    <h1>Real Numbers</h1>
+    <p class="lede">
+      The fractions leave gaps in the number line. Filling them gives the real numbers — and with
+      them, order, inequalities, distance, and roots.
+    </p>
+
+    <div class="goal">
+      <strong>By the end of this chapter you can</strong>
+      prove that $\sqrt{2}$ is irrational, state the positivity rules and derive the rules for
+      inequalities from them (including the one that flips), read $|x - a|$ as a distance and solve
+      inequalities involving it, and compute confidently with integer, negative, and fractional
+      exponents.
+    </div>
+
+    <h2 id="why-more">3.1 Why the fractions are not enough</h2>
+    <p>
+      Between any two fractions there is another — take their average. So the rationals are packed
+      everywhere on the line, with no visible gaps. It is startling that gaps exist at all.
+    </p>
+    <p>
+      But they do. Draw a square with side $1$; by the Pythagorean theorem (which we prove in
+      <a href="../2-geometry/05-distance-and-angles.html#pythagoras">Chapter 5</a>) its diagonal
+      has length $d$ with $d^2 = 2$. That length is a perfectly definite point on the line, and it
+      is not a fraction.
+    </p>
+
+    <div class="worked">
+      <h4><span class="num">Example 1.</span> $\sqrt{2}$ is not a rational number</h4>
+      <div class="body">
+        <p>
+          Suppose it were. We show that assumption leads to a contradiction, so it must be false.
+        </p>
+        <ol class="steps">
+          <li>Suppose $\sqrt2 = \dfrac{m}{n}$ with $m, n$ integers, $n \neq 0$, and the fraction
+            <em>in lowest terms</em> — any fraction can be put in lowest terms by cancelling
+            common factors, so this costs nothing.</li>
+          <li>Square both sides: $2 = \dfrac{m^2}{n^2}$, hence $m^2 = 2n^2$.</li>
+          <li>So $m^2$ is even. By
+            <a href="01-numbers.html#even-odd">Example 6 of Chapter 1</a>, $m$ is then even too.
+            Write $m = 2k$.</li>
+          <li>Substitute: $(2k)^2 = 2n^2$, so $4k^2 = 2n^2$, so $n^2 = 2k^2$.</li>
+          <li>By the same lemma, $n$ is even.</li>
+          <li>But now $m$ and $n$ are both even — they share the factor $2$, contradicting
+            "lowest terms". The supposition in step 1 is impossible, so $\sqrt2$ is not a
+            fraction. $\blacksquare$</li>
+        </ol>
+      </div>
+    </div>
+
+    <div class="callout idea">
+      <span class="tag">What just happened</span>
+      <p>
+        This is <b>proof by contradiction</b>: assume the opposite of what you want, derive an
+        impossibility, conclude the assumption was false. Note how little it needed — the
+        definition of "even", and the lemma from Chapter 1. Note also what it does <em>not</em>
+        do: it gives no decimal expansion for $\sqrt2$, and does not need one.
+      </p>
+    </div>
+
+    <p>
+      The <b>real numbers</b> are what you get by filling every such gap: the complete number line,
+      with one number for every point. Rationals with terminating or repeating decimal expansions
+      sit inside it; numbers like $\sqrt2$ and $\pi$, with non-repeating expansions, are the new
+      arrivals, called <b>irrational</b>.
+    </p>
+
+    <h2 id="axioms">3.2 Addition, multiplication, and positivity</h2>
+    <p>
+      All eight rules from <a href="01-numbers.html#addition">Chapter 1</a> hold for real numbers,
+      plus the inverse rule: every $a \neq 0$ has $a^{-1}$ with $a a^{-1} = 1$. Everything proved
+      in Chapter 1 from those rules therefore holds here unchanged — $(-a)(-b) = ab$, $a\cdot 0 =
+      0$, and the rest. That is the payoff of proving things from a short list.
+    </p>
+    <p>
+      What is genuinely new is <b>order</b>, and it rests on a single idea: some numbers are
+      positive.
+    </p>
+
+    <div class="rule">
+      <span class="tag">Positivity rules</span>
+      <p>There is a set of <b>positive</b> numbers such that:</p>
+      <ol>
+        <li><b>Trichotomy.</b> For every real $a$, exactly one holds: $a$ is positive, $a = 0$, or
+          $-a$ is positive.</li>
+        <li><b>Closure under addition.</b> If $a, b$ are positive, so is $a + b$.</li>
+        <li><b>Closure under multiplication.</b> If $a, b$ are positive, so is $ab$.</li>
+      </ol>
+      <p>
+        Then define $a &gt; b$ to mean "$a - b$ is positive", and $a &lt; b$ to mean $b &gt; a$.
+      </p>
+    </div>
+
+    <p>
+      Everything about inequalities follows from those three. Here is the pattern.
+    </p>
+
+    <div class="worked">
+      <h4><span class="num">Example 2.</span> A square is never negative</h4>
+      <div class="body">
+        <p>Show that $a^2 &gt; 0$ for every $a \neq 0$.</p>
+        <ol class="steps">
+          <li>By trichotomy, either $a$ is positive or $-a$ is positive (the case $a = 0$ is
+            excluded).</li>
+          <li>If $a$ is positive, then $a\cdot a = a^2$ is positive by closure under
+            multiplication.</li>
+          <li>If $-a$ is positive, then $(-a)(-a)$ is positive by the same rule — and
+            $(-a)(-a) = a^2$ by Chapter 1, Example 4.</li>
+          <li>Either way $a^2$ is positive. $\blacksquare$</li>
+        </ol>
+        <p class="note">
+          In particular $1 = 1^2$ is positive, so $-1$ is not. And no real number squares to $-1$ —
+          which is exactly the gap that <a href="../4-topics/14-complex-numbers.html">Chapter 14</a>
+          fills.
+        </p>
+      </div>
+    </div>
+
+    <h2 id="order">3.3 Order and inequalities</h2>
+
+    <div class="rule">
+      <span class="tag">Rules for inequalities</span>
+      <p>Let $a &lt; b$. Then:</p>
+      <ol>
+        <li>$a + c &lt; b + c$ for every $c$ — adding anything preserves an inequality.</li>
+        <li>$ac &lt; bc$ if $c &gt; 0$ — multiplying by a positive number preserves it.</li>
+        <li>$ac &gt; bc$ if $c &lt; 0$ — <b>multiplying by a negative number reverses it</b>.</li>
+        <li>If also $b &lt; d$ then $a &lt; d$ (transitivity).</li>
+      </ol>
+    </div>
+
+    <p>
+      Rule 3 is the one that catches people, so here is its proof. Suppose $a &lt; b$ and $c &lt;
+      0$. Then $b - a$ is positive and $-c$ is positive, so their product $(b-a)(-c)$ is positive
+      by closure. Expanding, $(b-a)(-c) = ac - bc$. So $ac - bc$ is positive, which says precisely
+      $ac &gt; bc$. The direction flipped, and it had to.
+    </p>
+
+    <div class="worked">
+      <h4><span class="num">Example 3.</span> Solving an inequality</h4>
+      <div class="body">
+        <p>Solve $4 - 3x \le 13$.</p>
+        <ol class="steps">
+          <li>Add $-4$ to both sides: $-3x \le 9$. <span class="note">Direction unchanged —
+            Rule 1.</span></li>
+          <li>Multiply both sides by $-\frac13$. This number is <em>negative</em>, so the
+            inequality reverses: $x \ge -3$.</li>
+          <li>The solution set is every real number $x$ with $x \ge -3$, written
+            $[-3, \infty)$.</li>
+          <li>Spot-check the boundary and one point inside: $x = -3$ gives $4 + 9 = 13 \le 13$ ✓;
+            $x = 0$ gives $4 \le 13$ ✓; and $x = -4$ gives $16 \le 13$ ✗, correctly excluded.</li>
+        </ol>
+      </div>
+    </div>
+
+    <div class="callout warn">
+      <span class="tag">Watch out</span>
+      <p>
+        Never multiply an inequality by an expression whose sign you do not know. From
+        $\frac{1}{x} &lt; 1$ you cannot simply multiply by $x$: if $x &gt; 0$ you get $1 &lt; x$,
+        but if $x &lt; 0$ the inequality reverses and every negative $x$ already works. Split into
+        cases, or rearrange to compare with $0$ instead.
+      </p>
+    </div>
+
+    <h2 id="absolute">3.4 Absolute value and distance</h2>
+    <p>
+      The <b>absolute value</b> of $a$ is
+    </p>
+    <div class="display">
+      $$|a| = \begin{cases} a &amp; \text{if } a \ge 0,\\ -a &amp; \text{if } a &lt; 0.\end{cases}$$
+    </div>
+    <p>
+      It strips the sign: $|5| = 5$ and $|-5| = 5$. Two consequences are worth having permanently
+      in mind:
+    </p>
+    <ul>
+      <li>$|a|$ is the <b>distance from $a$ to $0$</b> on the number line.</li>
+      <li>$|a - b|$ is the <b>distance between $a$ and $b$</b> — and it does not matter which way
+        round you subtract, since $|a - b| = |b - a|$.</li>
+    </ul>
+    <p>
+      Once you read absolute value as distance, inequalities involving it stop needing algebra at
+      all. The statement $|x - 3| &lt; 2$ says "$x$ is within $2$ of $3$", so $1 &lt; x &lt; 5$ —
+      read straight off the line.
+    </p>
+
+    <figure>
+      <div class="widget" data-widget="ineq"></div>
+      <figcaption>
+        <b>Distance, not algebra.</b> A "&lt;" statement gives one interval around $c$; a "&gt;"
+        statement gives the two pieces outside it. Change the relation and watch the solution set
+        turn inside out.
+      </figcaption>
+    </figure>
+
+    <div class="rule">
+      <span class="tag">Properties of absolute value</span>
+      <ol>
+        <li>$|a| \ge 0$, with $|a| = 0$ only when $a = 0$.</li>
+        <li>$|ab| = |a||b|$.</li>
+        <li>$|a + b| \le |a| + |b|$ — the <b>triangle inequality</b>.</li>
+      </ol>
+    </div>
+    <p>
+      The third is an inequality, not an equation, because $a$ and $b$ may point in opposite
+      directions: with $a = 3$ and $b = -3$ the left side is $0$ and the right side is $6$. Equality
+      holds exactly when $a$ and $b$ have the same sign (or one is zero) — when nothing cancels.
+    </p>
+
+    <h2 id="powers">3.5 Powers and roots</h2>
+    <p>
+      For a positive integer $n$, $a^n$ means $a$ multiplied by itself $n$ times. From that
+      definition alone, two laws are immediate — count the factors:
+    </p>
+    <div class="display">$$a^m a^n = a^{m+n}, \qquad (a^m)^n = a^{mn}.$$</div>
+    <p>
+      We now <em>extend</em> the notation to zero, negative, and fractional exponents. There is
+      only one sensible way to do it: choose the meaning that keeps those two laws true.
+    </p>
+
+    <div class="rule">
+      <span class="tag">Extending the exponent</span>
+      <ul>
+        <li><b>$a^0 = 1$</b> (for $a \neq 0$), because $a^n a^0 = a^{n+0} = a^n$ forces $a^0$ to be
+          the number that changes nothing under multiplication.</li>
+        <li><b>$a^{-n} = \dfrac{1}{a^n}$</b>, because $a^n a^{-n} = a^0 = 1$ forces $a^{-n}$ to be
+          the inverse of $a^n$.</li>
+        <li><b>$a^{1/n} = \sqrt[n]{a}$</b> (for $a &gt; 0$), because $\big(a^{1/n}\big)^n =
+          a^{n/n} = a^1 = a$ forces $a^{1/n}$ to be the $n$-th root.</li>
+        <li>Hence $a^{m/n} = \big(\sqrt[n]{a}\big)^m$.</li>
+      </ul>
+    </div>
+
+    <p>
+      Nothing here is a convention chosen for tidiness; each is the unique choice compatible with
+      the laws we already had.
+    </p>
+
+    <figure>
+      <div class="widget" data-widget="powers"></div>
+      <figcaption>
+        <b>What the exponent does to the shape.</b> Even powers are symmetric about the vertical
+        axis and never negative; odd powers keep the sign of $x$. Negative exponents blow up near
+        $0$ and flatten far away; $\sqrt{x}$ exists only for $x \ge 0$.
+      </figcaption>
+    </figure>
+
+    <div class="worked">
+      <h4><span class="num">Example 4.</span> Simplifying with the laws</h4>
+      <div class="body">
+        <p>Simplify $\dfrac{(8)^{2/3} \cdot 2^{-1}}{2^{2}}$.</p>
+        <ol class="steps">
+          <li>$8 = 2^3$, so $8^{2/3} = (2^3)^{2/3} = 2^{3 \cdot 2/3} = 2^2 = 4$.
+            <span class="note">Second law: $(a^m)^n = a^{mn}$.</span></li>
+          <li>The numerator is $2^2 \cdot 2^{-1} = 2^{2 - 1} = 2$.</li>
+          <li>Divide: $\dfrac{2}{2^2} = 2^{1-2} = 2^{-1} = \dfrac12$. $\blacksquare$</li>
+        </ol>
+      </div>
+    </div>
+
+    <div class="callout warn">
+      <span class="tag">Watch out — two everyday traps</span>
+      <p>
+        <b>$\sqrt{x^2} = |x|$, not $x$.</b> The square root symbol always means the
+        <em>non-negative</em> root, so $\sqrt{(-5)^2} = \sqrt{25} = 5 = |-5|$.
+      </p>
+      <p>
+        <b>$\sqrt{a + b} \neq \sqrt a + \sqrt b$.</b> Roots distribute over products, never over
+        sums. Test with $a = b = 9$: the left side is $\sqrt{18} \approx 4.24$, the right side is
+        $6$.
+      </p>
+    </div>
+
+    <!-- ====================================================== practice ==== -->
+    <section class="practice" id="practice">
+      <div class="practice-head">
+        <h2 style="margin-top:0">Practice</h2>
+        <span class="practice-score" data-practice-score></span>
+      </div>
+
+      <div class="ex" data-type="number" data-answer="8"
+           data-hint="|a − b| is the distance between a and b, and distance is never negative.">
+        <div class="ex-q"><p>Compute $|{-3} - 5|$.</p></div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $8$</p>
+          <p>
+            Inside the bars, $-3 - 5 = -8$, and $|-8| = 8$. Read as distance: the gap between
+            $-3$ and $5$ on the line is $8$ units, and distances are never negative.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" data-answer="3"
+           data-hint="Which direction does the inequality go when you divide by a negative number?">
+        <div class="ex-q"><p>Solve $-2x + 1 &gt; 7$.</p></div>
+        <ul class="choices">
+          <li>$x &gt; -3$</li>
+          <li>$x &gt; 3$</li>
+          <li>$x &lt; -3$</li>
+          <li>$x &lt; 3$</li>
+        </ul>
+        <div class="ex-solution">
+          <p class="answer">Answer: $x &lt; -3$</p>
+          <p>
+            Add $-1$: $-2x &gt; 6$. Now multiply by $-\frac12$, a negative number, so the
+            inequality reverses: $x &lt; -3$.
+          </p>
+          <p>Check: $x = -4$ gives $8 + 1 = 9 &gt; 7$ ✓; $x = 0$ gives $1 &gt; 7$ ✗.</p>
+        </div>
+      </div>
+
+      <div class="ex" data-type="set" data-answer="-1,7"
+           data-placeholder="e.g. -1,7"
+           data-hint="Read it as: the distance from x to 3 is exactly 4.">
+        <div class="ex-q">
+          <p>Solve $|x - 3| = 4$. List all solutions, separated by a comma.</p>
+        </div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $x = 7$ and $x = -1$</p>
+          <p>
+            The equation says $x$ is at distance exactly $4$ from $3$. There are two such points:
+            $3 + 4 = 7$ and $3 - 4 = -1$.
+          </p>
+          <p>
+            Algebraically: $x - 3 = 4$ or $x - 3 = -4$. An equation with absolute value almost
+            always splits into two cases like this.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" data-answer="2"
+           data-hint="Rewrite it as a statement about the distance from x to 2.">
+        <div class="ex-q"><p>Which interval is the solution set of $|x - 2| \le 5$?</p></div>
+        <ul class="choices">
+          <li>$[-5, 5]$</li>
+          <li>$[-3, 7]$</li>
+          <li>$[2, 7]$</li>
+          <li>Everything outside $[-3, 7]$</li>
+        </ul>
+        <div class="ex-solution">
+          <p class="answer">Answer: $[-3, 7]$</p>
+          <p>
+            "The distance from $x$ to $2$ is at most $5$" means $x$ lies between $2 - 5 = -3$ and
+            $2 + 5 = 7$, endpoints included because the relation is $\le$.
+          </p>
+          <p>
+            The last option would be the answer to $|x - 2| \ge 5$ — a "far from" statement, which
+            always gives two pieces rather than one interval.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" data-type="number" data-answer="1/8|0.125"
+           data-hint="A negative exponent means a reciprocal; a fractional one means a root.">
+        <div class="ex-q"><p>Compute $4^{-3/2}$.</p></div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $\dfrac18$</p>
+          <p>
+            Take the pieces one at a time:
+            $$4^{-3/2} = \frac{1}{4^{3/2}} = \frac{1}{\big(\sqrt4\big)^{3}}
+              = \frac{1}{2^3} = \frac18.$$
+            Any order works — root first or power first — because $(a^m)^n = a^{mn}$.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" data-type="number" data-answer="9"
+           data-hint="Write 27 as a power of 3 first.">
+        <div class="ex-q"><p>Compute $27^{2/3}$.</p></div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $9$</p>
+          <p>
+            $27 = 3^3$, so $27^{2/3} = (3^3)^{2/3} = 3^{2} = 9$. Equivalently: the cube root of
+            $27$ is $3$, and $3^2 = 9$.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" data-type="expr" data-answer="|x|" data-placeholder="e.g. |x|"
+           data-hint="Try x = -5 and see which answers survive.">
+        <div class="ex-q">
+          <p>
+            Simplify $\sqrt{x^{2}}$ so that the result is correct for <em>every</em> real $x$.
+          </p>
+        </div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $|x|$</p>
+          <p>
+            The symbol $\sqrt{\;}$ denotes the non-negative root, so $\sqrt{x^2}$ is never
+            negative. For $x = -5$: $\sqrt{(-5)^2} = \sqrt{25} = 5$, which is $|-5|$, not $-5$.
+            The answer $x$ is right only when $x \ge 0$; $|x|$ is right always.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" data-answer="4"
+           data-hint="Look for one where the two sides can point in opposite directions.">
+        <div class="ex-q"><p>Which of these statements is <em>false</em> for all real $a, b$?</p></div>
+        <ul class="choices">
+          <li>$|ab| = |a|\,|b|$</li>
+          <li>$|a + b| \le |a| + |b|$</li>
+          <li>$|a - b| = |b - a|$</li>
+          <li>$|a + b| = |a| + |b|$</li>
+        </ul>
+        <div class="ex-solution">
+          <p class="answer">Answer: $|a + b| = |a| + |b|$</p>
+          <p>
+            It fails whenever $a$ and $b$ have opposite signs: with $a = 3$, $b = -3$ the left side
+            is $0$ and the right side is $6$. The correct general statement is the triangle
+            inequality $|a+b| \le |a| + |b|$, with equality exactly when $a$ and $b$ have the same
+            sign or one of them is $0$.
+          </p>
+          <p>The other three hold for all real $a$ and $b$.</p>
+        </div>
+      </div>
+
+      <div class="ex" data-type="number" data-answer="-1"
+           data-hint="Every square is ≥ 0. What is the smallest that (x+1)² can be?">
+        <div class="ex-q">
+          <p>
+            What is the smallest possible value of $(x + 1)^2 - 4$, and at which $x$ does it occur?
+            Give the value of $x$.
+          </p>
+        </div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $x = -1$ (where the expression equals $-4$)</p>
+          <p>
+            By Example 2, a square is never negative: $(x+1)^2 \ge 0$ for every $x$, so
+            $(x+1)^2 - 4 \ge -4$. The value $-4$ is actually attained when $(x+1)^2 = 0$, that is
+            when $x = -1$.
+          </p>
+          <p>
+            This "a square is at least zero" argument is the whole idea behind completing the
+            square in <a href="04-quadratic-equations.html">Chapter 4</a>.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" data-answer="2"
+           data-hint="Which step assumed something about the sign of the multiplier?">
+        <div class="ex-q">
+          <p>
+            A student "proves" that $\frac1x &lt; 1$ implies $x &gt; 1$, by multiplying both sides
+            by $x$. Where is the error?
+          </p>
+        </div>
+        <ul class="choices">
+          <li>$\frac1x &lt; 1$ is never true, so nothing follows.</li>
+          <li>Multiplying by $x$ assumes $x &gt; 0$; if $x &lt; 0$ the inequality reverses, and
+            indeed every negative $x$ satisfies $\frac1x &lt; 1$.</li>
+          <li>The inequality should have been squared instead.</li>
+          <li>$\frac1x$ is undefined, so the statement is meaningless.</li>
+        </ul>
+        <div class="ex-solution">
+          <p class="answer">Answer: the second option</p>
+          <p>
+            Multiplying an inequality by $x$ is only safe once you know the sign of $x$.
+            Take $x = -2$: then $\frac1x = -\frac12 &lt; 1$ is true, while $x &gt; 1$ is false — so
+            the claimed implication is wrong as stated.
+          </p>
+          <p>
+            The honest solution splits into cases: for $x &gt; 0$, multiplying gives $1 &lt; x$; for
+            $x &lt; 0$, the left side is negative and the inequality holds automatically. The full
+            solution set is $x &lt; 0$ or $x &gt; 1$.
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <div class="recap">
+      <h2>Recap</h2>
+      <ul>
+        <li>$\sqrt2$ is not a fraction — proved by contradiction from the even/odd lemma. The reals
+          fill the gaps the rationals leave.</li>
+        <li>Order comes from three positivity rules. Everything about inequalities is derived from
+          them, including the reversal when you multiply by a negative number.</li>
+        <li>$a^2 &gt; 0$ for $a \neq 0$: no real number squares to a negative.</li>
+        <li>$|a - b|$ is distance. Read absolute-value inequalities as "near" ($&lt;$, one interval)
+          or "far" ($&gt;$, two pieces).</li>
+        <li>Zero, negative, and fractional exponents are defined by the requirement that
+          $a^ma^n = a^{m+n}$ and $(a^m)^n = a^{mn}$ keep working.</li>
+      </ul>
+    </div>
+
+    <nav class="chapter-nav" data-chapter-nav></nav>
+  </main>
+</div>
+</div>
+</body>
+</html>

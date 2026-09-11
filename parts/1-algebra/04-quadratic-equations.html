@@ -1,0 +1,480 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>4. Quadratic Equations — Basic Mathematics</title>
+<meta name="description" content="Completing the square, the quadratic formula derived rather than memorised, the discriminant, and the geometry of the parabola.">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.11/katex.min.css">
+<link rel="stylesheet" href="../../assets/site.css">
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.11/katex.min.js"></script>
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.11/contrib/auto-render.min.js"></script>
+<script defer src="../../data/curriculum.js"></script>
+<script defer src="../../assets/widgets.js"></script>
+<script defer src="../../assets/site.js"></script>
+</head>
+<body data-depth="2" data-chapter="ch04">
+<a class="skip-link" href="#main">Skip to content</a>
+
+<header class="topbar">
+  <a class="brand" href="../../index.html"><span class="glyph">∑</span> Basic Mathematics</a>
+  <nav>
+    <a href="../../index.html">Contents</a>
+    <a href="../../about.html">How to use this</a>
+    <button class="icon-btn" type="button" data-theme-toggle>☾ Dark</button>
+  </nav>
+</header>
+
+<div class="wrap">
+<div class="layout">
+  <aside class="sidebar" data-sidebar></aside>
+  <main id="main">
+
+    <p class="eyebrow">Part I — Algebra · Chapter 4</p>
+    <h1>Quadratic Equations</h1>
+    <p class="lede">
+      There is only one technique in this chapter — completing the square. The quadratic formula is
+      what you get by doing it once, in general, and then never having to do it again.
+    </p>
+
+    <div class="goal">
+      <strong>By the end of this chapter you can</strong>
+      solve $x^2 = c$ and factored equations, complete the square on any quadratic, derive the
+      quadratic formula rather than recall it, use the discriminant to predict the number of real
+      roots before solving, and locate the vertex and axis of symmetry of a parabola.
+    </div>
+
+    <h2 id="square-roots">4.1 Equations you can already solve</h2>
+    <p>
+      Two special shapes are easy, and the whole chapter consists of reducing the general case to
+      the first of them.
+    </p>
+
+    <div class="rule">
+      <span class="tag">Two easy shapes</span>
+      <ol>
+        <li><b>$x^2 = c$.</b> If $c &gt; 0$ there are two solutions, $x = \sqrt c$ and
+          $x = -\sqrt c$ (written $x = \pm\sqrt c$). If $c = 0$ the only solution is $x = 0$. If
+          $c &lt; 0$ there is no real solution, since squares are never negative
+          (<a href="03-real-numbers.html#axioms">Chapter 3</a>).</li>
+        <li><b>A product equal to zero.</b> If $uv = 0$ then $u = 0$ or $v = 0$.</li>
+      </ol>
+    </div>
+
+    <p>
+      The second deserves a proof, because it is the reason factoring solves equations at all.
+      Suppose $uv = 0$ and $u \neq 0$. Then $u^{-1}$ exists, and
+    </p>
+    <div class="display">$$v = 1 \cdot v = (u^{-1}u)v = u^{-1}(uv) = u^{-1}\cdot 0 = 0.$$</div>
+    <p>
+      So if the first factor is not zero, the second must be. Note where this came from: the
+      existence of inverses, and $a \cdot 0 = 0$ from
+      <a href="01-numbers.html#multiplication">Chapter 1</a>.
+    </p>
+
+    <div class="callout warn">
+      <span class="tag">Watch out</span>
+      <p>
+        The zero-product property is special to zero. From $uv = 6$ you may <em>not</em> conclude
+        that $u = 6$ or $v = 6$ — try $u = 2$, $v = 3$. So always move everything to one side and
+        set it equal to $0$ before factoring.
+      </p>
+    </div>
+
+    <div class="worked">
+      <h4><span class="num">Example 1.</span> Solving by factoring</h4>
+      <div class="body">
+        <p>Solve $x^2 + 2x = 15$.</p>
+        <ol class="steps">
+          <li>Move everything to one side: $x^2 + 2x - 15 = 0$.</li>
+          <li>Factor: look for two numbers with product $-15$ and sum $2$ — namely $5$ and $-3$.
+            So $(x + 5)(x - 3) = 0$.</li>
+          <li>By the zero-product property, $x + 5 = 0$ or $x - 3 = 0$.</li>
+          <li>So $x = -5$ or $x = 3$. Check both in the original: $25 - 10 = 15$ ✓ and
+            $9 + 6 = 15$ ✓. $\blacksquare$</li>
+        </ol>
+        <p class="note">
+          Factoring is fast when it works. The next section is what to do when it does not — which
+          is most of the time.
+        </p>
+      </div>
+    </div>
+
+    <h2 id="completing">4.2 Completing the square</h2>
+    <p>
+      The obstacle to solving $x^2 + bx + c = 0$ directly is the middle term: if it were absent we
+      could take square roots at once. Completing the square removes it, by recognising a perfect
+      square hiding in the expression:
+    </p>
+    <div class="display">$$\left(x + \frac{b}{2}\right)^{2} = x^{2} + bx + \frac{b^{2}}{4}.$$</div>
+    <p>
+      The left side has the same $x^2$ and $bx$ as our equation; only the constant differs. So
+      subtract the surplus:
+    </p>
+    <div class="display">$$x^{2} + bx = \left(x + \frac{b}{2}\right)^{2} - \frac{b^{2}}{4}.$$</div>
+    <p>
+      That identity is the entire chapter. It converts any quadratic into "a perfect square, plus a
+      constant" — and perfect squares we can undo.
+    </p>
+
+    <div class="worked">
+      <h4><span class="num">Example 2.</span> Completing the square, step by step</h4>
+      <div class="body">
+        <p>Solve $x^2 - 6x + 2 = 0$.</p>
+        <ol class="steps">
+          <li>Half the coefficient of $x$ is $-3$, and $(x-3)^2 = x^2 - 6x + 9$.
+            <span class="note">Always: halve the middle coefficient, then square it.</span></li>
+          <li>So $x^2 - 6x = (x-3)^2 - 9$, and the equation becomes
+            $(x - 3)^2 - 9 + 2 = 0$, i.e. $(x-3)^2 = 7$.</li>
+          <li>Take square roots — both of them: $x - 3 = \pm\sqrt7$.</li>
+          <li>So $x = 3 + \sqrt7$ or $x = 3 - \sqrt7$.
+            Numerically, about $5.646$ and $0.354$.</li>
+          <li>Check the sum and product against the equation: the two roots add to $6$ (matching
+            $-b$) and multiply to $9 - 7 = 2$ (matching $c$) ✓. $\blacksquare$</li>
+        </ol>
+      </div>
+    </div>
+
+    <p>
+      When the leading coefficient is not $1$, divide through by it first — legal, since $a \neq 0$
+      for a quadratic.
+    </p>
+
+    <h2 id="formula">4.3 The quadratic formula</h2>
+    <p>
+      Now do Example 2 once with letters instead of numbers, and you never have to complete the
+      square again.
+    </p>
+
+    <div class="worked">
+      <h4><span class="num">Example 3.</span> Deriving the formula</h4>
+      <div class="body">
+        <p>Solve $ax^2 + bx + c = 0$, with $a \neq 0$.</p>
+        <ol class="steps">
+          <li>Divide by $a$: $\;x^2 + \dfrac{b}{a}x + \dfrac{c}{a} = 0$.</li>
+          <li>Complete the square on the first two terms:
+            $$x^{2} + \frac{b}{a}x = \left(x + \frac{b}{2a}\right)^{2} - \frac{b^{2}}{4a^{2}}.$$</li>
+          <li>Substitute and move the constants to the right:
+            $$\left(x + \frac{b}{2a}\right)^{2} = \frac{b^{2}}{4a^{2}} - \frac{c}{a}
+              = \frac{b^{2} - 4ac}{4a^{2}}.$$</li>
+          <li>Take square roots:
+            $$x + \frac{b}{2a} = \pm\frac{\sqrt{b^{2} - 4ac}}{2a}.$$
+            <span class="note">Valid when $b^2 - 4ac \ge 0$; note $\sqrt{4a^2} = |2a|$, and the
+            $\pm$ absorbs the sign.</span></li>
+          <li>Subtract $\dfrac{b}{2a}$:
+            $$\boxed{\;x = \frac{-b \pm \sqrt{b^{2} - 4ac}}{2a}\;}$$ $\blacksquare$</li>
+        </ol>
+      </div>
+    </div>
+
+    <div class="callout idea">
+      <span class="tag">Read the formula, don't just use it</span>
+      <p>
+        The formula says the roots sit symmetrically on either side of $-\dfrac{b}{2a}$, at a
+        distance $\dfrac{\sqrt{b^2-4ac}}{2a}$ from it. That centre point and that spread are the
+        two facts worth remembering; everything else follows.
+      </p>
+    </div>
+
+    <h2 id="discriminant">4.4 The discriminant</h2>
+    <p>
+      The quantity under the root controls everything:
+    </p>
+    <div class="display">$$\Delta = b^{2} - 4ac.$$</div>
+
+    <div class="rule">
+      <span class="tag">What $\Delta$ tells you</span>
+      <ul>
+        <li>$\Delta &gt; 0$: two distinct real roots — the graph crosses the $x$-axis twice.</li>
+        <li>$\Delta = 0$: one (double) root, $x = -\dfrac{b}{2a}$ — the graph touches the axis.</li>
+        <li>$\Delta &lt; 0$: no real root — the graph misses the axis entirely.</li>
+      </ul>
+    </div>
+
+    <p>
+      You can therefore answer "how many solutions?" without solving anything. And the third case
+      is not a dead end: in <a href="../4-topics/14-complex-numbers.html">Chapter 14</a> we build
+      numbers in which $\Delta &lt; 0$ has square roots too, and every quadratic gets its two roots
+      back.
+    </p>
+
+    <div class="worked">
+      <h4><span class="num">Example 4.</span> Counting roots without solving</h4>
+      <div class="body">
+        <p>How many real solutions does $2x^2 - 4x + 5 = 0$ have?</p>
+        <ol class="steps">
+          <li>Here $a = 2$, $b = -4$, $c = 5$.</li>
+          <li>$\Delta = (-4)^2 - 4(2)(5) = 16 - 40 = -24$.</li>
+          <li>$\Delta &lt; 0$, so there is no real solution. $\blacksquare$</li>
+        </ol>
+        <p class="note">
+          Sanity check by completing the square: $2x^2 - 4x + 5 = 2(x-1)^2 + 3$, which is at least
+          $3$ for every real $x$ — so it is never $0$.
+        </p>
+      </div>
+    </div>
+
+    <h2 id="graph">4.5 Vertex, symmetry, and the graph</h2>
+    <p>
+      Completing the square on $y = ax^2 + bx + c$ rewrites it as
+    </p>
+    <div class="display">$$y = a\left(x + \frac{b}{2a}\right)^{2} + \left(c - \frac{b^{2}}{4a}\right).$$</div>
+    <p>
+      In this form the graph is transparent. The squared term is $0$ at $x = -\dfrac{b}{2a}$ and
+      positive everywhere else, so:
+    </p>
+    <ul>
+      <li>If $a &gt; 0$ the curve opens upward and has its <b>lowest</b> point at
+        $x = -\frac{b}{2a}$; if $a &lt; 0$ it opens downward and has its <b>highest</b> point
+        there. This point is the <b>vertex</b>.</li>
+      <li>Since $\left(x + \frac{b}{2a}\right)^2$ depends only on the distance from
+        $x$ to $-\frac{b}{2a}$, points equally far to the left and right give the same $y$: the
+        curve is <b>symmetric</b> about the vertical line $x = -\frac{b}{2a}$.</li>
+      <li>The two roots, when they exist, are that same distance either side of the vertex — which
+        is what the $\pm$ in the formula was saying all along.</li>
+    </ul>
+
+    <figure>
+      <div class="widget" data-widget="quadratic"></div>
+      <figcaption>
+        <b>One picture for the whole chapter.</b> Drag $a$, $b$, $c$ and watch the vertex, the axis
+        of symmetry, and the roots. Try holding $a$ and $b$ fixed while raising $c$: the curve
+        slides up, the discriminant falls, and at the moment the vertex touches the axis
+        $\Delta$ hits $0$.
+      </figcaption>
+    </figure>
+
+    <div class="worked">
+      <h4><span class="num">Example 5.</span> Vertex and range</h4>
+      <div class="body">
+        <p>Find the vertex of $y = 3x^2 + 12x + 7$ and the smallest value $y$ can take.</p>
+        <ol class="steps">
+          <li>Vertex at $x = -\dfrac{b}{2a} = -\dfrac{12}{6} = -2$.</li>
+          <li>Its height: $y = 3(4) + 12(-2) + 7 = 12 - 24 + 7 = -5$.</li>
+          <li>Since $a = 3 &gt; 0$ the parabola opens upward, so this is the minimum: $y \ge -5$
+            for every $x$, with equality only at $x = -2$.</li>
+          <li>Confirm by completing the square: $3x^2 + 12x + 7 = 3(x+2)^2 - 5$ ✓.
+            $\blacksquare$</li>
+        </ol>
+      </div>
+    </div>
+
+    <!-- ====================================================== practice ==== -->
+    <section class="practice" id="practice">
+      <div class="practice-head">
+        <h2 style="margin-top:0">Practice</h2>
+        <span class="practice-score" data-practice-score></span>
+      </div>
+      <p>
+        Where an exercise asks for several roots, separate them with a comma in any order.
+      </p>
+
+      <div class="ex" data-type="set" data-answer="2,-7"
+           data-placeholder="e.g. 2,-7"
+           data-hint="Move everything to one side, then look for two numbers with product −14 and sum 5.">
+        <div class="ex-q"><p>Solve $x^2 + 5x = 14$.</p></div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $x = 2$ and $x = -7$</p>
+          <p>
+            Rearrange to $x^2 + 5x - 14 = 0$. Two numbers with product $-14$ and sum $5$ are
+            $7$ and $-2$, so $(x + 7)(x - 2) = 0$, giving $x = -7$ or $x = 2$.
+          </p>
+          <p>Check: $4 + 10 = 14$ ✓ and $49 - 35 = 14$ ✓.</p>
+        </div>
+      </div>
+
+      <div class="ex" data-type="number" data-answer="-13"
+           data-hint="Halve the coefficient of x, then square it.">
+        <div class="ex-q">
+          <p>
+            Complete the square: $x^2 - 8x + 3 = (x - 4)^2 + k$. What is $k$?
+          </p>
+        </div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $k = -13$</p>
+          <p>
+            $(x-4)^2 = x^2 - 8x + 16$, so $x^2 - 8x = (x-4)^2 - 16$, and therefore
+            $$x^2 - 8x + 3 = (x-4)^2 - 16 + 3 = (x-4)^2 - 13.$$
+            So $k = -13$.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" data-type="number" data-answer="-8"
+           data-hint="Δ = b² − 4ac, with a = 3, b = 2, c = 1.">
+        <div class="ex-q">
+          <p>Compute the discriminant of $3x^2 + 2x + 1 = 0$.</p>
+        </div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $\Delta = -8$</p>
+          <p>
+            $\Delta = 2^2 - 4(3)(1) = 4 - 12 = -8$. Being negative, it tells us this equation has
+            no real solution — the parabola $y = 3x^2 + 2x + 1$ stays entirely above the $x$-axis.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" data-answer="3"
+           data-hint="You do not have to solve it. Compute b² − 4ac.">
+        <div class="ex-q"><p>How many real roots does $x^2 - 6x + 9 = 0$ have?</p></div>
+        <ul class="choices">
+          <li>None.</li>
+          <li>Two distinct roots.</li>
+          <li>Exactly one (a double root).</li>
+          <li>Infinitely many.</li>
+        </ul>
+        <div class="ex-solution">
+          <p class="answer">Answer: exactly one</p>
+          <p>
+            $\Delta = 36 - 36 = 0$, so there is a single double root at $x = -\frac{b}{2a} = 3$.
+            Indeed $x^2 - 6x + 9 = (x-3)^2$, which is zero only at $x = 3$: the parabola touches
+            the $x$-axis at its vertex instead of crossing.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" data-type="set" data-answer="0.38,2.62" data-tol="0.01"
+           data-placeholder="two decimals, e.g. 0.38,2.62"
+           data-hint="Use the formula with a = 1, b = −3, c = 1, then round.">
+        <div class="ex-q">
+          <p>
+            Solve $x^2 - 3x + 1 = 0$ and give both roots to two decimal places.
+          </p>
+        </div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $x \approx 2.62$ and $x \approx 0.38$</p>
+          <p>
+            $\Delta = 9 - 4 = 5$, so
+            $$x = \frac{3 \pm \sqrt5}{2}.$$
+            With $\sqrt5 \approx 2.236$: $x \approx \frac{5.236}{2} \approx 2.618$ and
+            $x \approx \frac{0.764}{2} \approx 0.382$.
+          </p>
+          <p>
+            Check the centre: the two roots average to $1.5 = -\frac{b}{2a}$ ✓, as the formula
+            guarantees.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" data-type="number" data-answer="2"
+           data-hint="The vertex is at x = −b/(2a).">
+        <div class="ex-q">
+          <p>
+            At which $x$ does $y = -2x^2 + 8x - 1$ take its largest value?
+          </p>
+        </div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $x = 2$</p>
+          <p>
+            The vertex is at $x = -\frac{b}{2a} = -\frac{8}{-4} = 2$. Since $a = -2 &lt; 0$ the
+            parabola opens downward, so the vertex is the highest point. Its height is
+            $-2(4) + 16 - 1 = 7$, so $y \le 7$ for every $x$.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" data-type="number" data-answer="4|-4"
+           data-hint="A double root means the discriminant is zero.">
+        <div class="ex-q">
+          <p>
+            For which values of $k$ does $x^2 + kx + 4 = 0$ have exactly one (double) root? Give
+            one such value.
+          </p>
+        </div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $k = 4$ or $k = -4$</p>
+          <p>
+            A double root means $\Delta = 0$: here $\Delta = k^2 - 16$, so $k^2 = 16$ and
+            $k = \pm 4$.
+          </p>
+          <p>
+            Sense check: with $k = 4$ the equation is $x^2 + 4x + 4 = (x+2)^2 = 0$, with the double
+            root $x = -2$; with $k = -4$ it is $(x-2)^2 = 0$.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" data-type="set" data-answer="0,-5"
+           data-placeholder="e.g. 0,-5"
+           data-hint="There is no constant term — so something factors out of every term.">
+        <div class="ex-q"><p>Solve $2x^2 + 10x = 0$.</p></div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $x = 0$ and $x = -5$</p>
+          <p>
+            Factor: $2x(x + 5) = 0$. By the zero-product property, $2x = 0$ or $x + 5 = 0$, so
+            $x = 0$ or $x = -5$.
+          </p>
+          <p>
+            Dividing both sides by $x$ instead would have lost the root $x = 0$ — and dividing by
+            something that might be zero is exactly the move Chapter 2 warned about.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" data-type="number" data-answer="8"
+           data-hint="Write the area in terms of one side, then solve the quadratic.">
+        <div class="ex-q">
+          <p>
+            A rectangle has perimeter $26$ and area $40$. What is the length of its longer side?
+          </p>
+        </div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $8$</p>
+          <p>
+            Let the sides be $x$ and $y$. Then $2(x + y) = 26$, so $y = 13 - x$, and
+            $xy = 40$ gives
+            $$x(13 - x) = 40 \quad\Longrightarrow\quad x^2 - 13x + 40 = 0.$$
+            Factoring: $(x - 5)(x - 8) = 0$, so the sides are $5$ and $8$. The longer side is $8$.
+          </p>
+          <p>Check: perimeter $2(5+8) = 26$ ✓, area $40$ ✓.</p>
+        </div>
+      </div>
+
+      <div class="ex" data-answer="1"
+           data-hint="Think about where the vertex sits relative to the axis.">
+        <div class="ex-q">
+          <p>
+            A parabola $y = ax^2 + bx + c$ has $a &gt; 0$ and no real root. What follows?
+          </p>
+        </div>
+        <ul class="choices">
+          <li>$y &gt; 0$ for every real $x$.</li>
+          <li>$y &lt; 0$ for every real $x$.</li>
+          <li>$y = 0$ at the vertex.</li>
+          <li>Nothing follows without knowing $b$.</li>
+        </ul>
+        <div class="ex-solution">
+          <p class="answer">Answer: $y &gt; 0$ for every real $x$</p>
+          <p>
+            Opening upward ($a &gt; 0$) the curve has a minimum at the vertex. Having no real root
+            means it never meets the $x$-axis, so that minimum is strictly above it — and since the
+            vertex is the lowest point, the whole curve is above the axis.
+          </p>
+          <p>
+            With $a &lt; 0$ and no real root the same reasoning gives $y &lt; 0$ everywhere.
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <div class="recap">
+      <h2>Recap</h2>
+      <ul>
+        <li>$x^2 = c$ has two roots, one, or none according to the sign of $c$; and $uv = 0$ forces
+          $u = 0$ or $v = 0$ — which is why factoring works.</li>
+        <li>$x^2 + bx = \left(x + \frac b2\right)^2 - \frac{b^2}{4}$ turns any quadratic into a
+          perfect square plus a constant.</li>
+        <li>Doing that in general gives $x = \dfrac{-b \pm \sqrt{b^2-4ac}}{2a}$ — a derivation, not
+          a spell.</li>
+        <li>$\Delta = b^2 - 4ac$ counts the real roots: two, one, or none.</li>
+        <li>The vertex is at $x = -\frac{b}{2a}$, the parabola is symmetric about that line, and the
+          roots sit equally far either side of it.</li>
+      </ul>
+    </div>
+
+    <nav class="chapter-nav" data-chapter-nav></nav>
+  </main>
+</div>
+</div>
+</body>
+</html>
