@@ -32,33 +32,446 @@
 
     <p class="eyebrow">Part IV — Miscellaneous · Chapter 13</p>
     <h1>Mappings</h1>
-    <p class="lede">Functions between arbitrary sets: composition, injectivity, surjectivity, inverses, and permutations.</p>
+    <p class="lede">
+      Chapter 12's functions took numbers to numbers. Nothing in the definition required that. Drop
+      the requirement and the same idea covers isometries of the plane, shuffles of a deck, and the
+      question of when something can be undone.
+    </p>
 
-    <div class="callout warn">
-      <span class="tag">Outline — prose still to come</span>
+    <div class="goal">
+      <strong>By the end of this chapter you can</strong>
+      state what a mapping between two sets is and distinguish codomain from image, compose
+      mappings and respect the order, decide whether a mapping is injective, surjective, or
+      bijective, know that invertible means bijective and why, and count and compose permutations of
+      a finite set.
+    </div>
+
+    <h2 id="definition-map">13.1 Definition of a mapping</h2>
+
+    <div class="rule">
+      <span class="tag">Definition</span>
       <p>
-        This chapter's section structure is settled and listed below, but its explanations, worked
-        examples, figures, and exercises have not been written yet. Part I
-        (<a href="../1-algebra/01-numbers.html">Chapters 1–4 and the interlude</a>) is complete and
-        shows the format each of these will take.
+        Let $S$ and $T$ be sets. A <b>mapping</b> $f: S \to T$ assigns to each element $x \in S$
+        exactly one element $f(x) \in T$. We call $S$ the <b>domain</b> and $T$ the
+        <b>codomain</b>. The <b>image</b> of $f$ is the set of elements actually hit:
+        $$f(S) = \{\, f(x) : x \in S \,\} \subseteq T.$$
       </p>
     </div>
 
-    <h2>Planned sections</h2>
     <p>
-      Each will follow the same pattern as the finished chapters: the idea in plain language, the
-      definition stated precisely, worked examples with every step shown, an interactive figure
-      where a picture beats words, and a practice set with full solutions.
+      Only the word "numbers" has been removed from Chapter 12's definition. What that buys is
+      reach: $S$ can be the points of the plane and $T$ the same, giving the isometries of
+      <a href="../2-geometry/06-isometries.html">Chapter 6</a>; $S$ can be a set of five cards and
+      $T$ the same five, giving a shuffle; $S$ can be the set of people in a room and $T$ the days
+      of the year, giving each person's birthday.
     </p>
 
-    <h2 id="definition-map">13.1 Definition of a mapping</h2>
-    <p>Domain, codomain, image.</p>
+    <div class="callout warn">
+      <span class="tag">Codomain is not image</span>
+      <p>
+        The codomain is where the values are <em>allowed</em> to land; the image is where they
+        actually do. For $f:\mathbf{R}\to\mathbf{R}$ with $f(x) = x^2$, the codomain is all the real
+        numbers but the image is only $[0,\infty)$. The distinction looks pedantic until §13.2,
+        where "surjective" is precisely the statement that the two coincide.
+      </p>
+    </div>
+
+    <figure>
+      <div class="widget" data-widget="mapdiagram"></div>
+      <figcaption>
+        <b>A mapping as arrows.</b> Every element on the left must have exactly one arrow out —
+        that is the definition. Click a left-hand element to redirect its arrow, and watch the
+        verdict beneath change.
+      </figcaption>
+    </figure>
 
     <h2 id="formalism">13.2 Composition and inverses</h2>
-    <p>When a mapping can be undone.</p>
+    <p>
+      Given $f: S \to T$ and $g: T \to U$, the <b>composite</b> $g \circ f : S \to U$ is defined by
+    </p>
+    <div class="display">$$(g \circ f)(x) = g\bigl(f(x)\bigr).$$</div>
+    <p>
+      Read it right to left: $f$ first, then $g$. The codomain of $f$ must match the domain of $g$,
+      or the second step has nothing to work on.
+    </p>
+    <p>
+      Composition is associative — $(h\circ g)\circ f = h\circ(g\circ f)$, since both send $x$ to
+      $h(g(f(x)))$ — but almost never commutative, as Chapter 6 already showed with a rotation and a
+      reflection.
+    </p>
+
+    <div class="rule">
+      <span class="tag">Three properties</span>
+      <ul>
+        <li>$f$ is <b>injective</b> (one-to-one) if different inputs give different outputs:
+          $f(x) = f(y)$ forces $x = y$.</li>
+        <li>$f$ is <b>surjective</b> (onto) if every element of $T$ is hit: the image is all of
+          $T$.</li>
+        <li>$f$ is <b>bijective</b> if it is both.</li>
+      </ul>
+    </div>
+
+    <p>
+      In the arrow diagram: injective means no element on the right receives two arrows; surjective
+      means none receives zero. Bijective means every element on the right receives exactly one — a
+      perfect pairing.
+    </p>
+
+    <div class="worked">
+      <h4><span class="num">Example 1.</span> The same formula, three different answers</h4>
+      <div class="body">
+        <p>Consider $f(x) = x^2$. Is it injective? Surjective?</p>
+        <ol class="steps">
+          <li>As $f: \mathbf{R}\to\mathbf{R}$: not injective, since $f(2) = f(-2) = 4$. Not
+            surjective either, since nothing maps to $-1$.</li>
+          <li>As $f: \mathbf{R}\to[0,\infty)$: still not injective, but now surjective — every
+            $y\ge0$ is $(\sqrt y)^2$.</li>
+          <li>As $f: [0,\infty)\to[0,\infty)$: injective (two non-negative numbers with the same
+            square are equal) and surjective. Bijective.</li>
+          <li>So the question "is $f$ injective?" is unanswerable until the domain and codomain are
+            specified. $\blacksquare$</li>
+        </ol>
+        <p class="note">
+          This is the sharpest reason the pedantry of §13.1 was worth it. The formula did not change
+          once; the answers changed three times.
+        </p>
+      </div>
+    </div>
+
+    <p>
+      Now the payoff. A mapping can be undone exactly when it is bijective.
+    </p>
+
+    <div class="rule">
+      <span class="tag">Inverses</span>
+      <p>
+        $f: S\to T$ has an <b>inverse</b> $f^{-1}: T \to S$ — a mapping with $f^{-1}(f(x)) = x$ for
+        all $x\in S$ and $f(f^{-1}(y)) = y$ for all $y\in T$ — if and only if $f$ is bijective.
+      </p>
+    </div>
+
+    <p>
+      <b>Why.</b> To define $f^{-1}(y)$ we must name the element sent to $y$. Surjectivity
+      guarantees there is at least one; injectivity guarantees there is at most one. Together they
+      give exactly one, which is what a mapping needs. Conversely, if $f$ has an inverse then
+      $f(x)=f(y)$ gives $x = f^{-1}(f(x)) = f^{-1}(f(y)) = y$, so $f$ is injective; and any
+      $y$ is hit by $f^{-1}(y)$, so $f$ is surjective. $\blacksquare$
+    </p>
+
+    <div class="callout idea">
+      <span class="tag">Where you have already met this</span>
+      <p>
+        Chapter 12's logarithm exists because $x\mapsto a^x$, viewed as a mapping from
+        $\mathbf{R}$ to the <em>positive</em> reals, is a bijection. Restricting the codomain from
+        all reals to the positive ones was not cosmetic — it is what made the inverse exist. And
+        the square root is the inverse of squaring only after the domain has been cut down to
+        $x\ge0$, as in Example 1.
+      </p>
+    </div>
 
     <h2 id="permutations">13.3 Permutations</h2>
-    <p>Rearrangements of a finite set, composed and counted.</p>
+
+    <div class="rule">
+      <span class="tag">Definition</span>
+      <p>
+        A <b>permutation</b> of a set $S$ is a bijection $\sigma: S \to S$ — a rearrangement of $S$
+        onto itself.
+      </p>
+    </div>
+
+    <p>
+      For a finite set there is a simplification worth knowing: a mapping from a finite set to
+      <em>itself</em> is injective if and only if it is surjective. If no two elements collide, all
+      $n$ outputs are distinct and must fill up all $n$ slots; and if all slots are filled by $n$
+      outputs, none of them can have collided. So for finite $S$, either property alone makes a
+      permutation. (For infinite sets this fails badly: $n \mapsto n+1$ on the positive integers is
+      injective but misses $1$.)
+    </p>
+
+    <div class="worked">
+      <h4><span class="num">Example 2.</span> Counting permutations</h4>
+      <div class="body">
+        <p>How many permutations does a set of $n$ elements have?</p>
+        <ol class="steps">
+          <li>Choose the image of the first element: $n$ choices.</li>
+          <li>The second must go somewhere different, since $\sigma$ is injective: $n-1$
+            choices.</li>
+          <li>The third: $n-2$ choices; and so on down to $1$ for the last.</li>
+          <li>Multiplying, the total is
+            $$n! = n(n-1)(n-2)\cdots 2 \cdot 1.$$
+            For $n=5$ that is $120$; for a deck of $52$ cards it is a number with $68$ digits.
+            $\blacksquare$</li>
+        </ol>
+      </div>
+    </div>
+
+    <p>
+      Permutations are composed like any other mappings, and the composite of two permutations is a
+      permutation. Every permutation has an inverse — undo the rearrangement — and the identity
+      permutation leaves everything alone. Those are the three conditions of
+      <a href="../2-geometry/06-isometries.html#symmetry">Chapter 6</a> again: the permutations of a
+      set form a group.
+    </p>
+
+    <div class="worked">
+      <h4><span class="num">Example 3.</span> Composing two permutations</h4>
+      <div class="body">
+        <p>
+          On $\{1,2,3\}$, let $\sigma$ send $1\to2,\, 2\to3,\, 3\to1$, and let $\tau$ swap $1$ and
+          $2$, fixing $3$. Compute $\sigma\circ\tau$ and $\tau\circ\sigma$.
+        </p>
+        <ol class="steps">
+          <li>$\sigma\circ\tau$ means $\tau$ first. $1 \xrightarrow{\tau} 2 \xrightarrow{\sigma} 3$;
+            $2 \to 1 \to 2$; $3 \to 3 \to 1$.</li>
+          <li>So $\sigma\circ\tau$ sends $1\to3,\ 2\to2,\ 3\to1$ — the swap of $1$ and $3$.</li>
+          <li>The other order: $1 \xrightarrow{\sigma} 2 \xrightarrow{\tau} 1$; $2\to3\to3$;
+            $3\to1\to2$.</li>
+          <li>So $\tau\circ\sigma$ sends $1\to1,\ 2\to3,\ 3\to2$ — the swap of $2$ and $3$. A
+            different permutation. $\blacksquare$</li>
+        </ol>
+        <p class="note">
+          Both results are swaps, but of different pairs. Order matters, and the only reliable way
+          to get it right is to track one element at a time, out loud.
+        </p>
+      </div>
+    </div>
+
+    <!-- ====================================================== practice ==== -->
+    <section class="practice" id="practice">
+      <div class="practice-head">
+        <h2 style="margin-top:0">Practice</h2>
+        <span class="practice-score" data-practice-score></span>
+      </div>
+      <p>Give numerical answers as plain numbers.</p>
+
+      <div class="ex" data-type="number" data-answer="120"
+           data-hint="It is n factorial.">
+        <div class="ex-q"><p>How many permutations does a set of $5$ elements have?</p></div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $120$</p>
+          <p>
+            $5! = 5\times4\times3\times2\times1 = 120$. Each element in turn has one fewer
+            destination available, because a permutation cannot send two elements to the same place.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" data-answer="3"
+           data-hint="Injective means no two inputs share an output.">
+        <div class="ex-q">
+          <p>
+            Which of these mappings $\mathbf{R}\to\mathbf{R}$ is injective?
+          </p>
+        </div>
+        <ul class="choices">
+          <li>$f(x) = x^2$</li>
+          <li>$f(x) = |x|$</li>
+          <li>$f(x) = 2x + 1$</li>
+          <li>$f(x) = \sin x$</li>
+        </ul>
+        <div class="ex-solution">
+          <p class="answer">Answer: $f(x) = 2x+1$</p>
+          <p>
+            If $2x+1 = 2y+1$ then $x = y$, so it is injective (and being a non-constant linear
+            function, surjective too, hence bijective). The other three all fail: $f(2) = f(-2)$ for
+            the first two, and $\sin 0 = \sin 2\pi$ for the last.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" data-answer="2"
+           data-hint="Which condition guarantees an inverse exists?">
+        <div class="ex-q">
+          <p>A mapping $f: S \to T$ has an inverse exactly when it is —</p>
+        </div>
+        <ul class="choices">
+          <li>injective.</li>
+          <li>bijective.</li>
+          <li>surjective.</li>
+          <li>defined on a finite set.</li>
+        </ul>
+        <div class="ex-solution">
+          <p class="answer">Answer: bijective</p>
+          <p>
+            Surjectivity guarantees every $y\in T$ has at least one pre-image, so $f^{-1}(y)$ has
+            something to be; injectivity guarantees at most one, so the choice is unambiguous. Either
+            alone is not enough.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" data-type="number" data-answer="3"
+           data-hint="Work out f(1) first, then apply g to the result.">
+        <div class="ex-q">
+          <p>
+            Let $f(x) = x + 2$ and $g(x) = x^2 - 6$. What is $(g\circ f)(1)$?
+          </p>
+        </div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $3$</p>
+          <p>
+            $g\circ f$ means $f$ first: $f(1) = 3$, then $g(3) = 9 - 6 = 3$.
+          </p>
+          <p>
+            The other order gives something else entirely: $g(1) = -5$, then $f(-5) = -3$. The
+            notation puts the <em>last</em> map first, which is the single commonest slip in this
+            chapter.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" data-type="number" data-answer="2"
+           data-hint="The image is the set of values actually taken, not the codomain.">
+        <div class="ex-q">
+          <p>
+            $S = \{1,2,3,4\}$ and $f$ sends $1\to a$, $2\to a$, $3\to b$, $4\to b$. How many
+            elements does the image of $f$ have?
+          </p>
+        </div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $2$</p>
+          <p>
+            The image is $\{a, b\}$ — only the elements actually hit. Four arrows, but they land on
+            just two targets, so $f$ is not injective. Whether it is surjective depends on the
+            codomain, which was not given.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" data-answer="1"
+           data-hint="Try a mapping from the positive integers to themselves.">
+        <div class="ex-q">
+          <p>
+            Which statement about a mapping $f: S \to S$ is true for <em>finite</em> $S$ but can
+            fail for infinite $S$?
+          </p>
+        </div>
+        <ul class="choices">
+          <li>Injective implies surjective.</li>
+          <li>Bijective implies invertible.</li>
+          <li>Composition is associative.</li>
+          <li>The image is a subset of the codomain.</li>
+        </ul>
+        <div class="ex-solution">
+          <p class="answer">Answer: injective implies surjective</p>
+          <p>
+            On a finite set, $n$ distinct outputs must fill all $n$ slots. On the positive integers,
+            $n\mapsto n+1$ is injective yet misses $1$ entirely — so it is not surjective.
+          </p>
+          <p>
+            The other three hold for any sets whatsoever.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" data-answer="2"
+           data-hint="Track each element through τ and then through σ.">
+        <div class="ex-q">
+          <p>
+            On $\{1,2,3\}$, $\sigma$ sends $1\to2,\,2\to3,\,3\to1$ and $\tau$ swaps $1$ and $2$.
+            What does $\sigma\circ\tau$ (apply $\tau$ first) do to $1$?
+          </p>
+        </div>
+        <ul class="choices">
+          <li>Sends it to $2$.</li>
+          <li>Sends it to $3$.</li>
+          <li>Leaves it at $1$.</li>
+          <li>It is undefined.</li>
+        </ul>
+        <div class="ex-solution">
+          <p class="answer">Answer: sends it to $3$</p>
+          <p>
+            $\tau$ sends $1$ to $2$, and $\sigma$ sends $2$ to $3$. So $(\sigma\circ\tau)(1) = 3$.
+          </p>
+          <p>
+            In the other order, $\sigma$ sends $1$ to $2$ and $\tau$ sends $2$ back to $1$, so
+            $(\tau\circ\sigma)(1) = 1$ — a different answer from the same two permutations.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" data-type="number" data-answer="0"
+           data-hint="Can 5 arrows land on 4 targets without two sharing?">
+        <div class="ex-q">
+          <p>
+            How many injective mappings are there from a set of $5$ elements to a set of $4$?
+          </p>
+        </div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $0$</p>
+          <p>
+            Injectivity would need five distinct outputs among four available elements, which is
+            impossible — two of the five must collide.
+          </p>
+          <p>
+            This is the pigeonhole principle, and it is the reason that in any group of $400$
+            people, two share a birthday.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" data-answer="3"
+           data-hint="Which of these is a mapping at all, by the definition?">
+        <div class="ex-q">
+          <p>
+            $S$ is the set of people in a room and $T$ the days of the year. Which rule is
+            <em>not</em> a mapping $S \to T$?
+          </p>
+        </div>
+        <ul class="choices">
+          <li>Each person to their birthday.</li>
+          <li>Each person to the first of January.</li>
+          <li>Each day to the people born on it.</li>
+          <li>Each person to the day one week after their birthday.</li>
+        </ul>
+        <div class="ex-solution">
+          <p class="answer">Answer: each day to the people born on it</p>
+          <p>
+            It runs the wrong way — from $T$ to $S$ — and worse, it assigns a <em>set</em> of
+            people to each day, possibly empty and possibly large. A mapping must give exactly one
+            element of the codomain.
+          </p>
+          <p>
+            The second option is a perfectly good mapping, merely a constant one: dull, but legal.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" data-type="number" data-answer="24"
+           data-hint="A permutation of a finite set is a bijection from it to itself.">
+        <div class="ex-q">
+          <p>
+            How many bijections are there from $\{1,2,3,4\}$ to itself?
+          </p>
+        </div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $24$</p>
+          <p>
+            Bijections from a finite set to itself are exactly its permutations, and there are
+            $4! = 24$ of them.
+          </p>
+          <p>
+            Together with composition they form a group — the same structure as the eight symmetries
+            of the square in Chapter 6, which in fact sit inside this one as a subgroup permuting
+            the four corners.
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <div class="recap">
+      <h2>Recap</h2>
+      <ul>
+        <li>A mapping $f: S\to T$ gives each element of $S$ exactly one element of $T$; the image is
+          what it actually hits, which may be smaller than the codomain.</li>
+        <li>$g\circ f$ means $f$ first. Composition is associative but not commutative.</li>
+        <li>Injective: no collisions. Surjective: nothing missed. Bijective: both.</li>
+        <li>$f$ is invertible exactly when it is bijective — surjectivity supplies a pre-image,
+          injectivity makes it unique.</li>
+        <li>A permutation is a bijection of a set to itself; a finite set of $n$ elements has $n!$
+          of them, and they form a group.</li>
+      </ul>
+    </div>
 
     <nav class="chapter-nav" data-chapter-nav></nav>
   </main>

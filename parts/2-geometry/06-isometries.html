@@ -32,33 +32,469 @@
 
     <p class="eyebrow">Part II — Intuitive Geometry · Chapter 6</p>
     <h1>Isometries</h1>
-    <p class="lede">The motions that preserve distance — translations, rotations, reflections — and symmetry as invariance under them.</p>
+    <p class="lede">
+      Two figures are "the same" when one can be moved onto the other. This chapter takes that
+      casual phrase and makes it precise — and in doing so replaces a list of congruence rules with
+      a single idea: a map of the plane that does not change distances.
+    </p>
+
+    <div class="goal">
+      <strong>By the end of this chapter you can</strong>
+      describe translations, rotations, reflections, and dilations as mappings of the plane; test
+      whether a mapping is an isometry; compose two isometries and identify the result; explain
+      congruence as the existence of an isometry; and list the symmetries of a figure and see that
+      they compose like a system of arithmetic in their own right.
+    </div>
+
+    <h2 id="mappings-plane">6.1 Some standard mappings of the plane</h2>
+    <p>
+      A <b>mapping</b> $F$ of the plane is a rule that assigns to every point $P$ a single point
+      $F(P)$, its <b>image</b>. Nothing more is required at this stage: any rule at all, as long as
+      each point gets exactly one image. (Chapter 13 treats mappings in general; here we only need
+      those of the plane to itself.)
+    </p>
+    <p>
+      Four such rules do most of the work in geometry. We describe each twice — once as a motion you
+      could perform with a sheet of tracing paper, and once as a formula, anticipating Part III
+      where points become pairs of numbers.
+    </p>
+
+    <div class="rule">
+      <span class="tag">Four mappings</span>
+      <ul>
+        <li><b>Translation</b> by a fixed displacement: slide everything the same distance in the
+          same direction. In coordinates, $(x,y) \mapsto (x + a,\; y + b)$.</li>
+        <li><b>Rotation</b> about a point $O$ through an angle $\theta$: turn the whole plane, with
+          $O$ held fixed. About the origin,
+          $(x,y) \mapsto (x\cos\theta - y\sin\theta,\; x\sin\theta + y\cos\theta)$ — a formula we
+          will not need until <a href="../3-coordinates/11-trigonometry.html#rotations">Chapter
+          11</a>.</li>
+        <li><b>Reflection</b> in a line $L$: flip the plane over, keeping $L$ fixed. In the
+          $x$-axis, $(x,y)\mapsto(x,-y)$; in the line $y = x$, $(x,y)\mapsto(y,x)$.</li>
+        <li><b>Dilation</b> by a factor $r &gt; 0$ about a point $O$: push every point away from $O$
+          to $r$ times its distance. About the origin, $(x,y)\mapsto(rx,ry)$.</li>
+      </ul>
+    </div>
+
+    <p>
+      The first three feel like <em>motions</em>: the figure arrives somewhere else, unchanged. The
+      fourth does not — it resizes. Section 6.2 makes that difference exact.
+    </p>
+
+    <figure>
+      <div class="widget" data-widget="isometry"></div>
+      <figcaption>
+        <b>Four mappings on one figure.</b> The dashed F is the original. Two of its points are
+        marked, and the readout compares their distance before and after. Three of the four buttons
+        leave that distance alone; one does not.
+      </figcaption>
+    </figure>
 
     <div class="callout warn">
-      <span class="tag">Outline — prose still to come</span>
+      <span class="tag">The F is not decoration</span>
       <p>
-        This chapter's section structure is settled and listed below, but its explanations, worked
-        examples, figures, and exercises have not been written yet. Part I
-        (<a href="../1-algebra/01-numbers.html">Chapters 1–4 and the interlude</a>) is complete and
-        shows the format each of these will take.
+        A letter with no symmetry of its own is the standard test object, because a symmetric shape
+        hides what the mapping did. A rotated square looks like an unrotated square; a reflected F
+        is unmistakable. When you check your own work, pick a lopsided figure on purpose.
       </p>
     </div>
 
-    <h2>Planned sections</h2>
+    <h2 id="isometries">6.2 Isometries</h2>
+
+    <div class="rule">
+      <span class="tag">Definition</span>
+      <p>
+        A mapping $F$ of the plane is an <b>isometry</b> if it preserves distance: for all points
+        $P$ and $Q$,
+        $$d\bigl(F(P), F(Q)\bigr) = d(P, Q).$$
+      </p>
+    </div>
+
     <p>
-      Each will follow the same pattern as the finished chapters: the idea in plain language, the
-      definition stated precisely, worked examples with every step shown, an interactive figure
-      where a picture beats words, and a practice set with full solutions.
+      The word says it: <em>iso</em>, same; <em>metry</em>, measure. Translations, rotations, and
+      reflections are isometries. A dilation by $r$ multiplies every distance by $r$, so it is an
+      isometry only in the trivial case $r = 1$.
     </p>
 
-    <h2 id="mappings-plane">6.1 Some standard mappings of the plane</h2>
-    <p>Translation, rotation about a point, reflection in a line, dilation.</p>
+    <div class="worked">
+      <h4><span class="num">Example 1.</span> Checking a mapping against the definition</h4>
+      <div class="body">
+        <p>Show that the reflection $F(x,y) = (x,-y)$ is an isometry.</p>
+        <ol class="steps">
+          <li>Take two points $P = (x_1,y_1)$ and $Q = (x_2,y_2)$. Their images are
+            $(x_1,-y_1)$ and $(x_2,-y_2)$.</li>
+          <li>By the distance formula — Pythagoras, from
+            <a href="05-distance-and-angles.html#pythagoras">Chapter 5</a> —
+            $$d(P,Q) = \sqrt{(x_2-x_1)^2 + (y_2-y_1)^2}.$$</li>
+          <li>For the images, the vertical difference is $-y_2 - (-y_1) = -(y_2-y_1)$, and squaring
+            kills the sign:
+            $$d(F(P),F(Q)) = \sqrt{(x_2-x_1)^2 + \bigl(-(y_2-y_1)\bigr)^2} = \sqrt{(x_2-x_1)^2 + (y_2-y_1)^2}.$$</li>
+          <li>The two expressions are identical, so distance is preserved. $\blacksquare$</li>
+        </ol>
+        <p class="note">
+          The same two lines handle a translation: the $+a$ and $+b$ cancel inside each difference,
+          leaving the distance untouched.
+        </p>
+      </div>
+    </div>
 
-    <h2 id="isometries">6.2 Isometries</h2>
-    <p>Distance-preserving maps, composition, and why congruence is an isometry statement.</p>
+    <p>
+      Isometries can be performed one after another, and the result is again a mapping: the
+      <b>composite</b> $G \circ F$, meaning "do $F$, then $G$". This is worth stating as a fact,
+      because it is what lets us build complicated motions out of simple ones.
+    </p>
+
+    <div class="rule">
+      <span class="tag">Composition</span>
+      <p>
+        If $F$ and $G$ are isometries, so is $G \circ F$. Every isometry can be undone: there is an
+        inverse isometry $F^{-1}$ with $F^{-1}\circ F$ the identity mapping, which leaves every
+        point where it is.
+      </p>
+    </div>
+
+    <p>
+      <b>Why composition works.</b> $d\bigl(G(F(P)), G(F(Q))\bigr) = d\bigl(F(P), F(Q)\bigr) = d(P,Q)$:
+      apply $G$'s property, then $F$'s. Nothing more is needed. $\blacksquare$
+    </p>
+
+    <div class="worked">
+      <h4><span class="num">Example 2.</span> Two reflections make a rotation</h4>
+      <div class="body">
+        <p>
+          Reflect in the $x$-axis, then in the $y$-axis. What single motion does the same job?
+        </p>
+        <ol class="steps">
+          <li>First reflection: $(x,y) \mapsto (x,-y)$.</li>
+          <li>Second reflection applied to that: $(x,-y) \mapsto (-x,-y)$.</li>
+          <li>So the composite is $(x,y)\mapsto(-x,-y)$ — every point sent to the opposite side of
+            the origin, at the same distance.</li>
+          <li>That is exactly rotation by $180°$ about the origin. $\blacksquare$</li>
+        </ol>
+        <p class="note">
+          The general statement: reflecting in two lines that meet at angle $\theta$ composes to a
+          rotation by $2\theta$ about their intersection. Here the axes meet at $90°$, giving
+          $180°$. Reflecting in two <em>parallel</em> lines composes to a translation instead.
+        </p>
+      </div>
+    </div>
+
+    <div class="callout idea">
+      <span class="tag">What congruence really says</span>
+      <p>
+        Two figures are <b>congruent</b> when some isometry carries one exactly onto the other.
+        Every congruence criterion you may have met — SSS, SAS, ASA — is a claim that a small amount
+        of matching data is already enough to guarantee such a motion exists. The criteria are
+        useful shortcuts; the definition is the idea.
+      </p>
+      <p>
+        Notice also what congruence does <em>not</em> care about: position and orientation. Two
+        triangles in different corners of the page, one of them upside down, are the same triangle.
+        Similarity is the same story with dilations allowed in as well — shape preserved, size not.
+      </p>
+    </div>
 
     <h2 id="symmetry">6.3 Symmetry</h2>
-    <p>The symmetries of a figure form a group under composition.</p>
+    <p>
+      Now turn the question around. Instead of asking which motions carry one figure to another, ask
+      which motions carry a figure <em>to itself</em>.
+    </p>
+
+    <div class="rule">
+      <span class="tag">Definition</span>
+      <p>
+        A <b>symmetry</b> of a figure $S$ is an isometry $F$ with $F(S) = S$: the figure lands
+        exactly on top of where it started. Individual points may move; the set as a whole does not.
+      </p>
+    </div>
+
+    <p>
+      Every figure has at least one symmetry, the identity — do nothing. A figure with only that one
+      is called asymmetric, which is why the letter F was a good test object.
+    </p>
+
+    <div class="worked">
+      <h4><span class="num">Example 3.</span> The symmetries of a square</h4>
+      <div class="body">
+        <p>List every isometry carrying a square onto itself.</p>
+        <ol class="steps">
+          <li><b>Rotations</b> about the centre by $0°$, $90°$, $180°$, $270°$. Anything else moves
+            a corner to a non-corner. That is four.</li>
+          <li><b>Reflections</b> in the two diagonals, and in the two lines through the midpoints of
+            opposite sides. That is four more.</li>
+          <li>No other isometry qualifies: a symmetry must send corners to corners and fix the
+            centre, and the eight listed already exhaust the possibilities.</li>
+          <li>So the square has exactly $8$ symmetries. $\blacksquare$</li>
+        </ol>
+        <p class="note">
+          Compare: a non-square rectangle has $4$ (identity, the $180°$ rotation, and two
+          reflections), and a circle has infinitely many — every rotation about its centre, and
+          every reflection in a diameter.
+        </p>
+      </div>
+    </div>
+
+    <p>
+      The symmetries of a figure are not just a list; they interact. Compose two symmetries and you
+      get a symmetry (the figure is put back twice). Undo a symmetry and you get a symmetry. The
+      identity is there. These three facts — closure, inverses, an identity — are the definition of
+      a <b>group</b>, and the symmetries of any figure form one.
+    </p>
+
+    <div class="callout aside">
+      <span class="tag">Why that matters more than it looks</span>
+      <p>
+        You have seen this pattern before. In <a href="../1-algebra/01-numbers.html#addition">Chapter
+        1</a>, the integers under addition had an identity ($0$), inverses ($-a$), and
+        associativity. Here rotations and reflections do the same under composition, with the
+        identity motion in place of $0$. The <em>objects</em> are unrecognisably different; the
+        <em>structure</em> is the same. Noticing such repetitions is much of what higher mathematics
+        consists of.
+      </p>
+    </div>
+
+    <div class="worked">
+      <h4><span class="num">Example 4.</span> Composition is not commutative</h4>
+      <div class="body">
+        <p>
+          Let $R$ be rotation by $90°$ counterclockwise about the origin and $M$ reflection in the
+          $x$-axis. Compare $R \circ M$ with $M \circ R$ at the point $(1,0)$.
+        </p>
+        <ol class="steps">
+          <li>$M$ fixes $(1,0)$, since it is on the axis. Then $R$ sends it to $(0,1)$. So
+            $(R\circ M)(1,0) = (0,1)$.</li>
+          <li>The other order: $R$ sends $(1,0)$ to $(0,1)$, and then $M$ sends that to $(0,-1)$.
+            So $(M\circ R)(1,0) = (0,-1)$.</li>
+          <li>$(0,1) \neq (0,-1)$, so $R\circ M \neq M\circ R$. $\blacksquare$</li>
+        </ol>
+        <p class="note">
+          Order matters here in a way it never did for adding or multiplying numbers. If that seems
+          strange, try it with a book: rotate it a quarter turn and then flip it over, then start
+          again in the other order.
+        </p>
+      </div>
+    </div>
+
+    <!-- ====================================================== practice ==== -->
+    <section class="practice" id="practice">
+      <div class="practice-head">
+        <h2 style="margin-top:0">Practice</h2>
+        <span class="practice-score" data-practice-score></span>
+      </div>
+      <p>Where a point is asked for, write it as a pair like <code>(3,-2)</code>.</p>
+
+      <div class="ex" data-answer="(5,-2)|5,-2"
+           data-placeholder="e.g. (3,-2)"
+           data-hint="Reflection in the x-axis changes the sign of y only.">
+        <div class="ex-q">
+          <p>Where does reflection in the $x$-axis send the point $(5,2)$?</p>
+        </div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $(5,-2)$</p>
+          <p>
+            The rule is $(x,y)\mapsto(x,-y)$: the horizontal position is untouched, the vertical one
+            flips. Points already on the axis, where $y = 0$, do not move at all — as befits the
+            line being reflected in.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" data-answer="(-4,-7)|-4,-7"
+           data-placeholder="e.g. (3,-2)"
+           data-hint="A 180° rotation about the origin sends (x, y) to (−x, −y).">
+        <div class="ex-q">
+          <p>Where does rotation by $180°$ about the origin send $(4,7)$?</p>
+        </div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $(-4,-7)$</p>
+          <p>
+            A half turn about the origin carries each point to the opposite side, the same distance
+            away: $(x,y)\mapsto(-x,-y)$. Example 2 showed this is also what you get by reflecting in
+            both axes, in either order.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" data-type="number" data-answer="8"
+           data-hint="Count rotations and reflections separately, then add.">
+        <div class="ex-q"><p>How many symmetries does a square have?</p></div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $8$</p>
+          <p>
+            Four rotations ($0°, 90°, 180°, 270°$) and four reflections (two diagonals, two
+            mid-side lines). In general a regular $n$-gon has $2n$ symmetries: $n$ rotations and
+            $n$ reflections.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" data-type="number" data-answer="2"
+           data-hint="Which motions leave the letter Z looking like a Z?">
+        <div class="ex-q">
+          <p>
+            How many symmetries does the letter <b>Z</b> have, drawn with perfect strokes?
+          </p>
+        </div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $2$</p>
+          <p>
+            The identity, and the $180°$ rotation about its centre — turn a Z upside down and it is
+            a Z again. It has no reflectional symmetry: a mirror turns Z into S.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" data-answer="4"
+           data-hint="Check the definition: does it preserve distance?">
+        <div class="ex-q">
+          <p>Which of these mappings of the plane is <em>not</em> an isometry?</p>
+        </div>
+        <ul class="choices">
+          <li>$(x,y)\mapsto(x+3,\,y-1)$</li>
+          <li>$(x,y)\mapsto(y,x)$</li>
+          <li>$(x,y)\mapsto(-x,y)$</li>
+          <li>$(x,y)\mapsto(2x,2y)$</li>
+        </ul>
+        <div class="ex-solution">
+          <p class="answer">Answer: $(x,y)\mapsto(2x,2y)$</p>
+          <p>
+            That is a dilation: it doubles every distance, so it fails the definition. The first is
+            a translation, the second is reflection in the line $y = x$, and the third is reflection
+            in the $y$-axis — all three preserve distance.
+          </p>
+          <p>
+            Note that the dilation still preserves <em>shape</em>: angles are unchanged and figures
+            stay similar. Isometry is the stronger condition.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" data-answer="2"
+           data-hint="Compose the two formulas and see what single rule comes out.">
+        <div class="ex-q">
+          <p>
+            Reflecting in the line $y = x$ and then in the $x$-axis gives which single motion?
+          </p>
+        </div>
+        <ul class="choices">
+          <li>A translation.</li>
+          <li>A rotation about the origin.</li>
+          <li>A reflection in some line.</li>
+          <li>A dilation.</li>
+        </ul>
+        <div class="ex-solution">
+          <p class="answer">Answer: a rotation about the origin</p>
+          <p>
+            Follow a point: $(x,y)\mapsto(y,x)\mapsto(y,-x)$. That is rotation by $90°$ clockwise
+            about the origin — for instance $(1,0)\mapsto(0,-1)$.
+          </p>
+          <p>
+            Consistent with the general rule: the two mirror lines meet at $45°$ at the origin, and
+            $2\times45° = 90°$.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" data-type="number" data-answer="5"
+           data-hint="You do not need the images. What does an isometry do to distances?">
+        <div class="ex-q">
+          <p>
+            $F$ is an isometry, and $d(P,Q) = 5$. What is $d\bigl(F(P),F(Q)\bigr)$?
+          </p>
+        </div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $5$</p>
+          <p>
+            This is the definition and nothing else: an isometry preserves every distance, whatever
+            the points and whichever isometry it is. You cannot say where $F(P)$ is without knowing
+            $F$ — but you can always say how far apart the images are.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" data-answer="3"
+           data-hint="Think about what happens to the two marked points of a lopsided figure.">
+        <div class="ex-q">
+          <p>Two figures are congruent. What exactly does that mean?</p>
+        </div>
+        <ul class="choices">
+          <li>They have the same area.</li>
+          <li>They are in the same position on the page.</li>
+          <li>Some isometry carries one exactly onto the other.</li>
+          <li>One is a dilation of the other.</li>
+        </ul>
+        <div class="ex-solution">
+          <p class="answer">Answer: some isometry carries one exactly onto the other</p>
+          <p>
+            Equal area is necessary but nowhere near sufficient — a $1\times 4$ rectangle and a
+            $2\times 2$ square both have area $4$ and are not congruent. Position is irrelevant to
+            congruence. Allowing dilations gives the weaker notion of <em>similarity</em>.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" data-answer="(1,6)|1,6"
+           data-placeholder="e.g. (3,-2)"
+           data-hint="Do the translation first, then the reflection — in that order.">
+        <div class="ex-q">
+          <p>
+            Let $T(x,y) = (x+3,y-1)$ and $M(x,y) = (x,-y)$. Compute $(M \circ T)(-2,-5)$, that is,
+            apply $T$ first and then $M$.
+          </p>
+        </div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $(1,6)$</p>
+          <p>
+            $T(-2,-5) = (-2+3,\,-5-1) = (1,-6)$, and then $M(1,-6) = (1,6)$.
+          </p>
+          <p>
+            In the other order: $M(-2,-5) = (-2,5)$ and then $T(-2,5) = (1,4)$ — a different answer,
+            another reminder that composition depends on order.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" data-answer="1"
+           data-hint="Three properties define a group. Which list has all three?">
+        <div class="ex-q">
+          <p>
+            Why do the symmetries of a figure form a group under composition?
+          </p>
+        </div>
+        <ul class="choices">
+          <li>Composing two symmetries gives a symmetry, each has an inverse, and the identity is
+            one of them.</li>
+          <li>Because composition of symmetries is commutative.</li>
+          <li>Because every figure has finitely many symmetries.</li>
+          <li>Because symmetries preserve area.</li>
+        </ul>
+        <div class="ex-solution">
+          <p class="answer">Answer: closure, inverses, and an identity</p>
+          <p>
+            Those three conditions (with associativity, which composition always has) are what the
+            word "group" means. Commutativity is <em>not</em> required, and Example 4 showed it can
+            fail. A circle has infinitely many symmetries, so finiteness is not required either, and
+            preserving area is true but not the point.
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <div class="recap">
+      <h2>Recap</h2>
+      <ul>
+        <li>A mapping of the plane assigns one image point to each point; translations, rotations,
+          reflections, and dilations are the four to know.</li>
+        <li>An isometry is a mapping that preserves distance. The first three are isometries; a
+          dilation by $r \neq 1$ is not.</li>
+        <li>Composites and inverses of isometries are isometries — and composition is not
+          commutative.</li>
+        <li>Congruent means "related by an isometry". Similar means "related by an isometry and a
+          dilation".</li>
+        <li>The symmetries of a figure are the isometries carrying it to itself; they always form a
+          group, the same structure the integers showed under addition.</li>
+      </ul>
+    </div>
 
     <nav class="chapter-nav" data-chapter-nav></nav>
   </main>

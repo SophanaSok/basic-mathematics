@@ -32,33 +32,431 @@
 
     <p class="eyebrow">Part III — Coordinate Geometry · Chapter 9</p>
     <h1>Operations on Points</h1>
-    <p class="lede">Adding points, scaling them, and reflecting them — geometry done by arithmetic on coordinates.</p>
+    <p class="lede">
+      Once points are pairs of numbers, we can do arithmetic on them. Two operations — adding two
+      points, and multiplying a point by a number — turn out to have exact geometric meanings, and
+      between them they carry most of the rest of this part.
+    </p>
 
-    <div class="callout warn">
-      <span class="tag">Outline — prose still to come</span>
+    <div class="goal">
+      <strong>By the end of this chapter you can</strong>
+      compute $tP$, $P + Q$ and $Q - P$ in coordinates and say what each does geometrically, use the
+      parallelogram law, recognise reflections and dilations as special cases of $tP$, distinguish
+      a point from the located vector that joins two points, and recognise when two arrows represent
+      the same displacement.
+    </div>
+
+    <h2 id="dilations">9.1 Dilations and reflections</h2>
+    <p>
+      The simplest operation is to multiply both coordinates of a point by the same number. For a
+      point $P = (x,y)$ and a real number $t$ we define
+    </p>
+    <div class="display">$$tP = (tx,\; ty).$$</div>
+    <p>
+      Chapter 6 called this a dilation, and described it as a motion. Now it is one line of
+      arithmetic. Reading the definition in the two directions that matter:
+    </p>
+
+    <div class="rule">
+      <span class="tag">What $tP$ does</span>
+      <ul>
+        <li>$tP$ lies on the line through the origin and $P$ — for every $t$.</li>
+        <li>Its distance from the origin is $|t|$ times that of $P$. (Check:
+          $\sqrt{(tx)^2 + (ty)^2} = |t|\sqrt{x^2+y^2}$.)</li>
+        <li>If $t &gt; 0$, $tP$ is on the same side of the origin as $P$; if $t &lt; 0$, on the
+          opposite side.</li>
+        <li>$1P = P$, and $0P = O$, the origin.</li>
+      </ul>
+    </div>
+
+    <p>
+      Special values name familiar motions. $t = -1$ gives $-P = (-x,-y)$, the <b>reflection through
+      the origin</b> — the $180°$ rotation of Chapter 6. And reflections in the axes, though not of
+      the form $tP$, are just as easy in coordinates: $(x,y)\mapsto(x,-y)$ in the $x$-axis, and
+      $(x,y)\mapsto(-x,y)$ in the $y$-axis.
+    </p>
+
+    <div class="worked">
+      <h4><span class="num">Example 1.</span> Scaling a triangle</h4>
+      <div class="body">
+        <p>
+          A triangle has vertices $A = (1,2)$, $B = (4,1)$, $C = (2,5)$. Scale it by $t = 3$ about
+          the origin and find the new side length $A'B'$.
+        </p>
+        <ol class="steps">
+          <li>$A' = 3A = (3,6)$, $B' = 3B = (12,3)$, $C' = 3C = (6,15)$.</li>
+          <li>Original $AB = \sqrt{(4-1)^2 + (1-2)^2} = \sqrt{9+1} = \sqrt{10}$.</li>
+          <li>New: $A'B' = \sqrt{(12-3)^2 + (3-6)^2} = \sqrt{81+9} = \sqrt{90} = 3\sqrt{10}$.</li>
+          <li>Exactly $3$ times the original, as the scaling law of
+            <a href="../2-geometry/07-area.html#scaling">Chapter 7</a> promised. The area, by the
+            same law, is $9$ times as large. $\blacksquare$</li>
+        </ol>
+      </div>
+    </div>
+
+    <h2 id="addition-points">9.2 Addition and the parallelogram law</h2>
+    <p>
+      The second operation adds two points coordinate by coordinate. For $P = (x_1,y_1)$ and
+      $Q = (x_2,y_2)$,
+    </p>
+    <div class="display">$$P + Q = (x_1 + x_2,\; y_1 + y_2).$$</div>
+    <p>
+      This is defined by fiat, and the definition looks unmotivated until you draw it. Then the
+      picture is unmistakable.
+    </p>
+
+    <div class="rule">
+      <span class="tag">The parallelogram law</span>
       <p>
-        This chapter's section structure is settled and listed below, but its explanations, worked
-        examples, figures, and exercises have not been written yet. Part I
-        (<a href="../1-algebra/01-numbers.html">Chapters 1–4 and the interlude</a>) is complete and
-        shows the format each of these will take.
+        If $O$, $P$, $Q$ are not on one line, then $P + Q$ is the fourth vertex of the parallelogram
+        with vertices $O$, $P$, $Q$ — the one diagonally opposite the origin.
       </p>
     </div>
 
-    <h2>Planned sections</h2>
+    <figure>
+      <div class="widget" data-widget="pointops"></div>
+      <figcaption>
+        <b>Three operations, one picture.</b> Drag $A$ and $B$, then switch between $A+B$, $B-A$,
+        and $tA$. The parallelogram is not an illustration of the rule — it <em>is</em> the rule,
+        drawn.
+      </figcaption>
+    </figure>
+
     <p>
-      Each will follow the same pattern as the finished chapters: the idea in plain language, the
-      definition stated precisely, worked examples with every step shown, an interactive figure
-      where a picture beats words, and a practice set with full solutions.
+      Addition of points inherits its properties directly from addition of numbers, since it is
+      nothing but two copies of it. So $P + Q = Q + P$, and $(P+Q) + R = P + (Q+R)$, and $P + O = P$,
+      and every $P$ has $-P$ with $P + (-P) = O$. Compare the list in
+      <a href="../1-algebra/01-numbers.html#addition">Chapter 1</a>: the same structure has
+      reappeared, one dimension higher.
     </p>
 
-    <h2 id="dilations">9.1 Dilations and reflections</h2>
-    <p>Multiplying a point by a number; reflecting in the axes and the origin.</p>
+    <div class="callout idea">
+      <span class="tag">Why the parallelogram law is true</span>
+      <p>
+        Let $P = (x_1,y_1)$ and $Q = (x_2,y_2)$. To get from $O$ to $P$ you move $x_1$ across and
+        $y_1$ up. To get from $Q$ to $P+Q$ you move $(x_1+x_2) - x_2 = x_1$ across and
+        $(y_1+y_2) - y_2 = y_1$ up — the same journey. So the side $Q\to P+Q$ is a copy of the side
+        $O \to P$, shifted; the two are parallel and equal in length. The same argument applies to
+        the other pair of sides, and a quadrilateral with both pairs of opposite sides parallel is a
+        parallelogram. $\blacksquare$
+      </p>
+    </div>
 
-    <h2 id="addition-points">9.2 Addition and the parallelogram law</h2>
-    <p>Coordinatewise addition and the picture that explains it.</p>
+    <div class="worked">
+      <h4><span class="num">Example 2.</span> Completing a parallelogram</h4>
+      <div class="body">
+        <p>
+          Three vertices of a parallelogram are $O = (0,0)$, $P = (5,1)$, $Q = (2,4)$. Where is the
+          fourth?
+        </p>
+        <ol class="steps">
+          <li>If the missing vertex $D$ is the one opposite $O$, the parallelogram law gives it
+            directly: $D = P + Q = (7,5)$.</li>
+          <li>But "the fourth vertex" is ambiguous — any one of the three given points could be the
+            one opposite the gap, and each choice gives a different parallelogram.</li>
+          <li>If $D$ is opposite $P$, then $O$ and $Q$ are the two vertices adjacent to both, and
+            the diagonals share a midpoint: $\tfrac12(P + D) = \tfrac12(O + Q)$, so
+            $D = O + Q - P = (2,4) - (5,1) = (-3,3)$.</li>
+          <li>If $D$ is opposite $Q$, the same reasoning gives $D = O + P - Q = (3,-3)$.</li>
+          <li>So there are three parallelograms: the fourth vertex is $(7,5)$, $(-3,3)$, or
+            $(3,-3)$. $\blacksquare$</li>
+        </ol>
+        <p class="note">
+          A question with three answers is not a trick; it is the honest answer. Naming the vertex
+          you want — "opposite the origin" — removes the ambiguity.
+        </p>
+      </div>
+    </div>
 
     <h2 id="subtraction">9.3 Subtraction and located vectors</h2>
-    <p>Q − P as the arrow from P to Q.</p>
+    <p>
+      Subtraction is defined as you would expect, $Q - P = Q + (-P) = (x_2-x_1,\; y_2-y_1)$, but its
+      meaning is worth a section of its own, because it is <em>not</em> the same kind of object as
+      the points that made it.
+    </p>
+    <p>
+      Draw the arrow from $P$ to $Q$. To travel it you move $x_2 - x_1$ horizontally and
+      $y_2 - y_1$ vertically. Those are exactly the coordinates of $Q - P$. So:
+    </p>
+
+    <div class="rule">
+      <span class="tag">$Q - P$ is a displacement</span>
+      <p>
+        $Q - P$ records <em>how to get</em> from $P$ to $Q$ — a direction and a distance — not a
+        place. The arrow from $P$ to $Q$ is called the <b>located vector</b> $\overrightarrow{PQ}$,
+        and two located vectors are said to be <b>equivalent</b> when they have the same
+        $Q - P$.
+      </p>
+    </div>
+
+    <p>
+      Equivalent located vectors are parallel, point the same way, and have the same length: they
+      are the same instruction carried out starting from different places. In particular,
+      $\overrightarrow{PQ}$ is always equivalent to the arrow from $O$ to $Q - P$, which is why
+      every displacement can be drawn from the origin if you prefer.
+    </p>
+
+    <div class="callout warn">
+      <span class="tag">Point or displacement?</span>
+      <p>
+        $(3,4)$ can mean "the place three right and four up from the origin" or "the instruction:
+        go three right and four up". The coordinates are identical; the roles are not. Adding two
+        <em>places</em> is a strange thing to do — what is Paris plus Rome? — while adding a
+        displacement to a place is entirely natural, and is what $P + (Q-P) = Q$ says. Keep track of
+        which you mean and a great deal of confusion never arises.
+      </p>
+    </div>
+
+    <div class="worked">
+      <h4><span class="num">Example 3.</span> Same displacement, different places</h4>
+      <div class="body">
+        <p>
+          Let $P = (1,2)$, $Q = (4,6)$, $R = (-2,0)$, $S = (1,4)$. Are $\overrightarrow{PQ}$ and
+          $\overrightarrow{RS}$ equivalent?
+        </p>
+        <ol class="steps">
+          <li>$Q - P = (4-1,\; 6-2) = (3,4)$.</li>
+          <li>$S - R = (1-(-2),\; 4-0) = (3,4)$.</li>
+          <li>They agree, so the two arrows are equivalent: parallel, the same direction, and both
+            of length $\sqrt{9+16} = 5$. $\blacksquare$</li>
+        </ol>
+        <p class="note">
+          Note what this proves without further work: $PQSR$ has a pair of opposite sides that are
+          parallel and equal, so it is a parallelogram. Checking equivalence of two displacements is
+          the quickest parallelogram test there is.
+        </p>
+      </div>
+    </div>
+
+    <div class="worked">
+      <h4><span class="num">Example 4.</span> The midpoint, properly derived</h4>
+      <div class="body">
+        <p>Find the midpoint $M$ of the segment from $P$ to $Q$.</p>
+        <ol class="steps">
+          <li>Start at $P$ and travel half of the displacement to $Q$:
+            $$M = P + \tfrac12 (Q - P).$$</li>
+          <li>Expand using the arithmetic rules: $M = P + \tfrac12 Q - \tfrac12 P = \tfrac12 P + \tfrac12 Q$.</li>
+          <li>In coordinates, $M = \left(\dfrac{x_1+x_2}{2},\; \dfrac{y_1+y_2}{2}\right)$ — the
+            average of the coordinates.</li>
+          <li>Sanity check: $M - P = \tfrac12(Q-P)$ and $Q - M = \tfrac12(Q-P)$, the same
+            displacement, so $M$ really is halfway. $\blacksquare$</li>
+        </ol>
+        <p class="note">
+          The step $P + \tfrac12 Q - \tfrac12 P = \tfrac12 P + \tfrac12 Q$ used commutativity and
+          distributivity for points — which hold because they hold coordinate by coordinate for
+          numbers. Chapter 1 is still doing the work.
+        </p>
+      </div>
+    </div>
+
+    <!-- ====================================================== practice ==== -->
+    <section class="practice" id="practice">
+      <div class="practice-head">
+        <h2 style="margin-top:0">Practice</h2>
+        <span class="practice-score" data-practice-score></span>
+      </div>
+      <p>Write points and displacements as pairs, like <code>(3,-2)</code>.</p>
+
+      <div class="ex" data-answer="(7,1)|7,1"
+           data-placeholder="e.g. (3,-2)"
+           data-hint="Add the x's and add the y's.">
+        <div class="ex-q"><p>Compute $(3,-2) + (4,3)$.</p></div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $(7,1)$</p>
+          <p>
+            Coordinate by coordinate: $3 + 4 = 7$ and $-2 + 3 = 1$. Geometrically this is the fourth
+            corner of the parallelogram whose other corners are the origin and the two given points.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" data-answer="(-10,4)|-10,4"
+           data-placeholder="e.g. (3,-2)"
+           data-hint="Multiply both coordinates by −2.">
+        <div class="ex-q"><p>With $P = (5,-2)$, compute $-2P$.</p></div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $(-10,4)$</p>
+          <p>
+            $-2P = (-2\cdot5,\; -2\cdot(-2)) = (-10,4)$. It lies on the line through $O$ and $P$,
+            on the far side of the origin, and twice as far from it.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" data-answer="(-5,6)|-5,6"
+           data-placeholder="e.g. (3,-2)"
+           data-hint="Q − P means subtract P's coordinates from Q's.">
+        <div class="ex-q">
+          <p>With $P = (6,-1)$ and $Q = (1,5)$, compute $Q - P$.</p>
+        </div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $(-5,6)$</p>
+          <p>
+            $Q - P = (1-6,\; 5-(-1)) = (-5,6)$: to get from $P$ to $Q$ you go five left and six up.
+          </p>
+          <p>
+            Subtracting the other way gives $P - Q = (5,-6)$ — the same journey in reverse, which is
+            why the signs flip.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" data-answer="(2,3)|2,3"
+           data-placeholder="e.g. (3,-2)"
+           data-hint="Average the two x's and the two y's.">
+        <div class="ex-q">
+          <p>What is the midpoint of the segment from $(-3,7)$ to $(7,-1)$?</p>
+        </div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $(2,3)$</p>
+          <p>
+            $\left(\frac{-3+7}{2}, \frac{7+(-1)}{2}\right) = (2,3)$.
+          </p>
+          <p>
+            Equivalently $M = P + \tfrac12(Q-P)$: here $Q - P = (10,-8)$, half of it is $(5,-4)$,
+            and $(-3,7) + (5,-4) = (2,3)$ ✓.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" data-answer="1"
+           data-hint="Compute Q − P for each pair and compare.">
+        <div class="ex-q">
+          <p>
+            Let $A=(0,0)$, $B=(2,5)$, $C=(6,1)$, $D=(8,6)$. Is $\overrightarrow{AB}$ equivalent to
+            $\overrightarrow{CD}$?
+          </p>
+        </div>
+        <ul class="choices">
+          <li>Yes — both displacements are $(2,5)$.</li>
+          <li>No — they start at different points, so they cannot be equivalent.</li>
+          <li>No — the displacements are $(2,5)$ and $(2,-5)$.</li>
+          <li>Only if the four points form a square.</li>
+        </ul>
+        <div class="ex-solution">
+          <p class="answer">Answer: yes — both displacements are $(2,5)$</p>
+          <p>
+            $B - A = (2,5)$ and $D - C = (8-6,\; 6-1) = (2,5)$. Equivalence is about the
+            displacement, not the starting point — that is the entire point of the definition. So
+            $ABDC$ is a parallelogram.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" data-answer="(-4,-1)|-4,-1"
+           data-placeholder="e.g. (3,-2)"
+           data-hint="P + (Q − P) = Q. So what is P + displacement?">
+        <div class="ex-q">
+          <p>
+            Starting at $(3,2)$, apply the displacement $(-7,-3)$. Where do you land?
+          </p>
+        </div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $(-4,-1)$</p>
+          <p>
+            $(3,2) + (-7,-3) = (3-7,\; 2-3) = (-4,-1)$. Adding a displacement to a point is
+            translation — the first isometry of Chapter 6, now written as arithmetic.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" data-type="number" data-answer="13"
+           data-hint="The length of the arrow is the distance between its endpoints.">
+        <div class="ex-q">
+          <p>
+            How long is the located vector from $(2,-4)$ to $(7,8)$?
+          </p>
+        </div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $13$</p>
+          <p>
+            The displacement is $(5,12)$, and its length is $\sqrt{5^2+12^2} = \sqrt{169} = 13$ —
+            the distance formula applied to the difference.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" data-answer="3"
+           data-hint="Which pair of vertices does the sum P + Q sit opposite?">
+        <div class="ex-q">
+          <p>
+            $O$ is the origin and $P$, $Q$ are two points not on a line through $O$. What is
+            $P + Q$?
+          </p>
+        </div>
+        <ul class="choices">
+          <li>The midpoint of $P$ and $Q$.</li>
+          <li>The point halfway between $O$ and $Q$.</li>
+          <li>The fourth vertex of the parallelogram $O$, $P$, $Q$, opposite the origin.</li>
+          <li>The reflection of $P$ in $Q$.</li>
+        </ul>
+        <div class="ex-solution">
+          <p class="answer">Answer: the fourth vertex of the parallelogram, opposite the origin</p>
+          <p>
+            That is the parallelogram law. The midpoint would be $\tfrac12(P+Q)$ — the same point
+            halved, which lies on the diagonal exactly halfway along it.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" data-answer="(0,0)|0,0"
+           data-placeholder="e.g. (3,-2)"
+           data-hint="Add the three displacements around the triangle.">
+        <div class="ex-q">
+          <p>
+            For any points $A$, $B$, $C$, what is $(B - A) + (C - B) + (A - C)$?
+          </p>
+        </div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $(0,0)$, the origin</p>
+          <p>
+            Every letter appears once positively and once negatively, so everything cancels:
+            $$B - A + C - B + A - C = 0.$$
+          </p>
+          <p>
+            Geometrically: walk from $A$ to $B$ to $C$ and back to $A$. You are where you started,
+            so the total displacement is zero — however the three points are placed.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" data-answer="(4,6)|4,6"
+           data-placeholder="e.g. (3,-2)"
+           data-hint="M is the midpoint of P and Q, so Q = 2M − P.">
+        <div class="ex-q">
+          <p>
+            The midpoint of the segment from $P = (-2,1)$ to $Q$ is $(1, 3.5)$. What is $Q$?
+          </p>
+        </div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $(4,6)$</p>
+          <p>
+            From $M = \tfrac12(P+Q)$ we get $Q = 2M - P$:
+            $$2(1, 3.5) = (2,7), \qquad (2,7) - (-2,1) = (4,6).$$
+          </p>
+          <p>
+            Check: the midpoint of $(-2,1)$ and $(4,6)$ is
+            $\left(\frac{-2+4}{2}, \frac{1+6}{2}\right) = (1, 3.5)$ ✓.
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <div class="recap">
+      <h2>Recap</h2>
+      <ul>
+        <li>$tP = (tx,ty)$ keeps $P$ on its line through the origin, scaling its distance by $|t|$
+          and flipping sides when $t &lt; 0$.</li>
+        <li>$P + Q$ adds coordinates, and lands on the fourth vertex of the parallelogram with
+          corners $O$, $P$, $Q$.</li>
+        <li>Point addition obeys the same laws as number addition, because it <em>is</em> number
+          addition, done twice.</li>
+        <li>$Q - P$ is a displacement, not a place: the arrow from $P$ to $Q$, and equivalent to any
+          other arrow with the same difference.</li>
+        <li>The midpoint is $P + \tfrac12(Q-P) = \tfrac12(P+Q)$ — averaging coordinates, derived
+          rather than remembered.</li>
+      </ul>
+    </div>
 
     <nav class="chapter-nav" data-chapter-nav></nav>
   </main>

@@ -32,36 +32,497 @@
 
     <p class="eyebrow">Part II — Intuitive Geometry · Chapter 5</p>
     <h1>Distance and Angles</h1>
-    <p class="lede">Points, lines, distance, angle measure, parallels, and the Pythagorean theorem with a proof you can see.</p>
+    <p class="lede">
+      Part I was about numbers. This part is about the plane — and the bridge between them is that
+      distance and angle are <em>numbers attached to pictures</em>. Once that is granted, geometry
+      becomes something you can compute with.
+    </p>
 
-    <div class="callout warn">
-      <span class="tag">Outline — prose still to come</span>
+    <div class="goal">
+      <strong>By the end of this chapter you can</strong>
+      state the three properties distance obeys and use the triangle inequality, work with
+      supplementary, vertical, corresponding and alternate angles, prove that the angles of a
+      triangle add to $180°$, and prove the Pythagorean theorem by dissection — as well as use its
+      converse to test for a right angle.
+    </div>
+
+    <h2 id="distance">5.1 Distance</h2>
+    <p>
+      We begin with an ordinary plane, its points, and its lines, and we take for granted the two
+      facts everyone's eye already agrees with: through any two distinct points there is exactly one
+      line, and any two distinct lines meet in at most one point.
+    </p>
+    <p>
+      To that we add a way of measuring. Fix a unit of length. Then to every pair of points $P$, $Q$
+      we attach a number $d(P,Q) \ge 0$, the <b>distance</b> from $P$ to $Q$, also written $PQ$.
+      This is the same move Chapter 3 made for the number line, where the distance between $x$ and
+      $y$ was $|x - y|$; here we simply insist that the plane behaves the same way.
+    </p>
+
+    <div class="rule">
+      <span class="tag">The properties of distance</span>
+      <ol>
+        <li><b>Positivity.</b> $d(P,Q) \ge 0$, and $d(P,Q) = 0$ exactly when $P = Q$.</li>
+        <li><b>Symmetry.</b> $d(P,Q) = d(Q,P)$ — distance has no preferred direction.</li>
+        <li><b>The triangle inequality.</b> $d(P,R) \le d(P,Q) + d(Q,R)$ for any third point $Q$.</li>
+      </ol>
+    </div>
+
+    <p>
+      The third is the only one with any content, and it says something you already believe: a
+      detour never shortens a trip. Going from $P$ to $R$ by way of $Q$ costs at least as much as
+      going straight. It costs <em>exactly</em> as much precisely when $Q$ lies on the segment
+      between $P$ and $R$ — which is one way to say what "between" means.
+    </p>
+
+    <div class="callout idea">
+      <span class="tag">Why straight lines are called straight</span>
       <p>
-        This chapter's section structure is settled and listed below, but its explanations, worked
-        examples, figures, and exercises have not been written yet. Part I
-        (<a href="../1-algebra/01-numbers.html">Chapters 1–4 and the interlude</a>) is complete and
-        shows the format each of these will take.
+        Nothing so far has said that the segment $PR$ is the shortest path from $P$ to $R$; we have
+        only compared it against three-step journeys. But repeating the triangle inequality shows
+        that
+        $d(P,R) \le d(P,Q_1) + d(Q_1,Q_2) + \dots + d(Q_n,R)$
+        for <em>any</em> chain of stops. So the straight route beats every broken one. The
+        inequality is the whole reason a line is the shortest way between two points.
       </p>
     </div>
 
-    <h2>Planned sections</h2>
-    <p>
-      Each will follow the same pattern as the finished chapters: the idea in plain language, the
-      definition stated precisely, worked examples with every step shown, an interactive figure
-      where a picture beats words, and a practice set with full solutions.
-    </p>
-
-    <h2 id="distance">5.1 Distance</h2>
-    <p>Distance as a number attached to a pair of points, and its basic properties.</p>
+    <div class="worked">
+      <h4><span class="num">Example 1.</span> Reading the triangle inequality</h4>
+      <div class="body">
+        <p>Two sides of a triangle measure $7$ and $10$. What can be said about the third side $c$?</p>
+        <ol class="steps">
+          <li>Applying the inequality to the vertex opposite $c$: $c \le 7 + 10 = 17$.</li>
+          <li>Applying it to each of the other two vertices: $7 \le 10 + c$ and $10 \le 7 + c$.
+            <span class="note">Every side is at most the sum of the other two — there are three
+            statements here, not one.</span></li>
+          <li>The second gives $c \ge -3$, which is no news; the third gives $c \ge 3$.</li>
+          <li>So $3 \le c \le 17$. And if the three points are genuinely not on one line, both
+            inequalities are strict: $3 &lt; c &lt; 17$. $\blacksquare$</li>
+        </ol>
+        <p class="note">
+          The general rule worth keeping: the third side is squeezed between the difference and the
+          sum of the other two.
+        </p>
+      </div>
+    </div>
 
     <h2 id="angles">5.2 Angles</h2>
-    <p>Measuring turn: degrees, right angles, supplementary and vertical angles.</p>
+    <p>
+      Distance measures separation. <b>Angle</b> measures turn. Two rays $\overrightarrow{OA}$ and
+      $\overrightarrow{OB}$ from a common point $O$ cut the plane; the angle $\angle AOB$ is the
+      amount of rotation that carries the first ray onto the second.
+    </p>
+    <p>
+      To turn that into a number, split a full turn into $360$ equal parts and call each one a
+      <b>degree</b>. The choice of $360$ is pure convention — it is a convenient number with many
+      divisors, inherited from Babylonian astronomy. Chapter 11 replaces it with a measure that is
+      not arbitrary at all.
+    </p>
+
+    <div class="rule">
+      <span class="tag">Vocabulary</span>
+      <ul>
+        <li>A <b>right angle</b> is a quarter turn, $90°$. Two lines meeting at a right angle are
+          <b>perpendicular</b>.</li>
+        <li>An angle is <b>acute</b> if it is less than $90°$, <b>obtuse</b> if between $90°$ and
+          $180°$, and <b>straight</b> if exactly $180°$.</li>
+        <li>Two angles are <b>complementary</b> if they add to $90°$, <b>supplementary</b> if they
+          add to $180°$.</li>
+      </ul>
+    </div>
+
+    <p>
+      Two facts follow immediately, and we will use them constantly. If a ray stands on a line, the
+      two angles it makes on one side are supplementary — together they sweep out a half turn. And
+      from that:
+    </p>
+
+    <div class="rule">
+      <span class="tag">Vertical angles are equal</span>
+      <p>
+        When two lines cross they make four angles. The two <b>opposite</b> ones (not sharing a
+        side) are equal.
+      </p>
+    </div>
+
+    <p>
+      <b>Proof.</b> Call the four angles $\alpha, \beta, \gamma, \delta$ in order around the
+      crossing, so $\alpha$ and $\gamma$ are opposite. Each neighbouring pair lies on a straight
+      line, so $\alpha + \beta = 180°$ and $\beta + \gamma = 180°$. Subtracting,
+      $\alpha - \gamma = 0$, that is, $\alpha = \gamma$. $\blacksquare$
+    </p>
+
+    <div class="callout aside">
+      <span class="tag">Notice the shape of that argument</span>
+      <p>
+        We did not measure anything. We used one fact twice and then subtracted — exactly the
+        elimination move from <a href="../1-algebra/02-linear-equations.html#two-unknowns">Chapter
+        2</a>. Most of elementary geometry is linear algebra about angles, conducted in words.
+      </p>
+    </div>
 
     <h2 id="parallels">5.3 Parallel lines and transversals</h2>
-    <p>Corresponding and alternate angles, and the angle sum of a triangle.</p>
+    <p>
+      Two lines in the plane are <b>parallel</b> if they never meet. A third line crossing both is
+      called a <b>transversal</b>, and it creates eight angles — of which, remarkably, only two
+      distinct values ever appear.
+    </p>
+    <p>
+      The reason is the defining property of parallels, which we take as our one geometric
+      assumption in this section:
+    </p>
+
+    <div class="rule">
+      <span class="tag">The parallel property</span>
+      <p>
+        If a transversal cuts two parallel lines, then <b>corresponding angles are equal</b>
+        (angles in the same position at the two crossings). Conversely, if corresponding angles are
+        equal, the two lines are parallel.
+      </p>
+    </div>
+
+    <p>
+      Everything else in the picture comes from combining this with vertical and supplementary
+      angles. For instance <b>alternate interior angles</b> — the two angles on opposite sides of
+      the transversal, between the parallels — are equal, because one of them is corresponding to
+      an angle that is vertical to the other.
+    </p>
+
+    <figure>
+      <div class="widget" data-widget="transversal"></div>
+      <figcaption>
+        <b>Eight angles, two numbers.</b> Tilt the transversal and watch every angle update. The
+        buttons highlight the pairs that are forced to be equal; the two numbers on show always add
+        to $180°$.
+      </figcaption>
+    </figure>
+
+    <div class="worked">
+      <h4><span class="num">Example 2.</span> The angles of a triangle add to $180°$</h4>
+      <div class="body">
+        <p>
+          Let the triangle have vertices $A$, $B$, $C$, with angles $\alpha$, $\beta$, $\gamma$
+          there.
+        </p>
+        <ol class="steps">
+          <li>Draw the line through $C$ parallel to $AB$.
+            <span class="note">This is the whole idea; the rest is bookkeeping.</span></li>
+          <li>At $C$, three angles sit side by side on that straight line: one on the left, then
+            $\gamma$, then one on the right. So they add to $180°$.</li>
+          <li>The left one and $\alpha$ are alternate interior angles for the transversal $AC$
+            cutting the two parallels — so it equals $\alpha$.</li>
+          <li>Likewise the right one equals $\beta$, using the transversal $BC$.</li>
+          <li>Therefore $\alpha + \gamma + \beta = 180°$. $\blacksquare$</li>
+        </ol>
+        <p class="note">
+          Worth noticing how much this proof depends on: without the parallel property it is simply
+          false. On the surface of a sphere, "lines" are great circles, no two of them are parallel,
+          and triangles have more than $180°$.
+        </p>
+      </div>
+    </div>
 
     <h2 id="pythagoras">5.4 The Pythagorean theorem</h2>
-    <p>A dissection proof, then the converse and the distance it will later give us.</p>
+    <p>
+      Now the theorem that ties distance and angle together — and the one that all of Part III will
+      run on.
+    </p>
+
+    <div class="rule">
+      <span class="tag">Pythagorean theorem</span>
+      <p>
+        In a right triangle with legs $a$, $b$ and hypotenuse $c$ (the side opposite the right
+        angle),
+        $$a^{2} + b^{2} = c^{2}.$$
+      </p>
+    </div>
+
+    <p>
+      There are hundreds of proofs. Here is one you can check with your eyes, and it needs nothing
+      beyond "area does not change when you move pieces around".
+    </p>
+
+    <div class="worked">
+      <h4><span class="num">Example 3.</span> The dissection proof</h4>
+      <div class="body">
+        <p>Take four copies of the right triangle with legs $a$ and $b$.</p>
+        <ol class="steps">
+          <li>Draw a square of side $a + b$. Its area is $(a+b)^2$, whatever we put inside it.</li>
+          <li><b>First arrangement.</b> Place one triangle in each corner, rotated a quarter turn
+            from the last. The gap they leave is a square. Each of its sides is a hypotenuse, so it
+            has side $c$ and area $c^2$.
+            <span class="note">Why is the gap really a square? At each of its corners two triangle
+            angles meet; those two angles are the non-right angles of the triangle, which sum to
+            $90°$ by Example 2. Together with the gap's corner they fill a straight $180°$, so the
+            corner is $90°$.</span></li>
+          <li><b>Second arrangement.</b> Push the four triangles into two pairs, each pair forming
+            an $a \times b$ rectangle. What is left is two squares, of sides $a$ and $b$, with
+            areas $a^2$ and $b^2$.</li>
+          <li>Both arrangements sit in the same $(a+b)^2$ square and use the same four triangles.
+            So the leftovers are equal in area:
+            $$c^{2} = a^{2} + b^{2}. \qquad \blacksquare$$</li>
+        </ol>
+      </div>
+    </div>
+
+    <figure>
+      <div class="widget" data-widget="pythagoras"></div>
+      <figcaption>
+        <b>The two arrangements side by side.</b> Change $a$ and $b$: the outer squares stay equal,
+        the four triangles stay identical, and so what is left over must match. That is the proof —
+        the algebra just records it.
+      </figcaption>
+    </figure>
+
+    <div class="callout idea">
+      <span class="tag">The algebra behind the picture</span>
+      <p>
+        If you prefer symbols: the first arrangement says
+        $(a+b)^2 = 4\cdot\tfrac12 ab + c^2$, and expanding the left side gives
+        $a^2 + 2ab + b^2 = 2ab + c^2$. Cancel $2ab$ and you have the theorem. The picture and the
+        expansion of $(a+b)^2$ from
+        <a href="../1-algebra/01-numbers.html#multiplication">Chapter 1</a> are the same fact.
+      </p>
+    </div>
+
+    <p>
+      The <b>converse</b> also holds, and it is what makes the theorem a usable test: if
+      $a^2 + b^2 = c^2$ in a triangle, then the angle opposite $c$ is right. So $3,4,5$ is a right
+      triangle, checked by arithmetic alone — no protractor.
+    </p>
+
+    <div class="worked">
+      <h4><span class="num">Example 4.</span> Using it in both directions</h4>
+      <div class="body">
+        <p>(a) A right triangle has legs $5$ and $12$. Find the hypotenuse. (b) Is a triangle with
+          sides $6$, $8$, $11$ right-angled?</p>
+        <ol class="steps">
+          <li>(a) $c^2 = 25 + 144 = 169$, so $c = 13$ — taking the positive root, since a length is
+            positive.</li>
+          <li>(b) The longest side would have to be the hypotenuse. Test:
+            $6^2 + 8^2 = 36 + 64 = 100$, but $11^2 = 121$.</li>
+          <li>$100 \neq 121$, so by the converse it is <em>not</em> right-angled. Since
+            $121 &gt; 100$, the angle opposite the side $11$ is in fact obtuse. $\blacksquare$</li>
+        </ol>
+      </div>
+    </div>
+
+    <p>
+      One last consequence, which Chapter 8 turns into a formula. If $P$ and $Q$ are two points and
+      you complete the right triangle whose legs are horizontal and vertical, the theorem hands you
+      the distance $PQ$ in terms of those two legs. Distance in the plane is Pythagoras, and nothing
+      else.
+    </p>
+
+    <!-- ====================================================== practice ==== -->
+    <section class="practice" id="practice">
+      <div class="practice-head">
+        <h2 style="margin-top:0">Practice</h2>
+        <span class="practice-score" data-practice-score></span>
+      </div>
+      <p>Give angles in degrees as a plain number — write $40$, not $40°$.</p>
+
+      <div class="ex" data-type="number" data-answer="140"
+           data-hint="Angles on a straight line add to 180°.">
+        <div class="ex-q"><p>An angle measures $40°$. What is its supplement?</p></div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $140$</p>
+          <p>
+            Supplementary angles add to $180°$, so the supplement is $180 - 40 = 140$. (Its
+            complement, by contrast, would be $90 - 40 = 50$.)
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" data-type="number" data-answer="65"
+           data-hint="Two of these are vertical angles; the third completes a straight line.">
+        <div class="ex-q">
+          <p>
+            Two lines cross. One of the four angles is $115°$. How large is the angle next to it?
+          </p>
+        </div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $65$</p>
+          <p>
+            The angle next to it shares a straight line with it, so the two are supplementary:
+            $180 - 115 = 65$. The angle opposite the $115°$ one is again $115°$, and the fourth is
+            $65°$ — four angles, two values, as always.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" data-type="number" data-answer="75"
+           data-hint="The three angles of a triangle add to 180°.">
+        <div class="ex-q">
+          <p>Two angles of a triangle are $43°$ and $62°$. What is the third?</p>
+        </div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $75$</p>
+          <p>
+            $180 - 43 - 62 = 75$. This is Example 2 in action: draw the parallel to one side through
+            the opposite vertex, and the three angles line up along it.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" data-type="number" data-answer="26"
+           data-hint="Compute a² + b², then take the square root.">
+        <div class="ex-q">
+          <p>A right triangle has legs $10$ and $24$. How long is the hypotenuse?</p>
+        </div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $26$</p>
+          <p>
+            $c^2 = 10^2 + 24^2 = 100 + 576 = 676$, and $26^2 = 676$, so $c = 26$.
+          </p>
+          <p>
+            This is the $5,12,13$ triangle with every side doubled — scaling a right triangle keeps
+            it right, since both sides of $a^2 + b^2 = c^2$ pick up the same factor $r^2$.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" data-answer="2"
+           data-hint="Test a² + b² against c² with the longest side as c.">
+        <div class="ex-q">
+          <p>Is the triangle with sides $9$, $40$, $41$ right-angled?</p>
+        </div>
+        <ul class="choices">
+          <li>No — the numbers are too large.</li>
+          <li>Yes, with the right angle opposite the side $41$.</li>
+          <li>Yes, with the right angle opposite the side $40$.</li>
+          <li>There is not enough information.</li>
+        </ul>
+        <div class="ex-solution">
+          <p class="answer">Answer: yes, with the right angle opposite the side $41$</p>
+          <p>
+            $9^2 + 40^2 = 81 + 1600 = 1681$ and $41^2 = 1681$. They agree, so by the converse of the
+            Pythagorean theorem the triangle is right-angled, and the right angle is always opposite
+            the longest side.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" data-type="number" data-answer="8"
+           data-hint="The third side is squeezed between the difference and the sum of the other two.">
+        <div class="ex-q">
+          <p>
+            Two sides of a triangle are $5$ and $12$, and the three vertices are not on one line.
+            What is the smallest whole number the third side can be?
+          </p>
+        </div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $8$</p>
+          <p>
+            The triangle inequality applied at each vertex gives $c \le 5 + 12 = 17$,
+            $12 \le 5 + c$, and $5 \le 12 + c$. The middle one is the binding constraint:
+            $c \ge 7$.
+          </p>
+          <p>
+            Since the vertices are not collinear, every inequality is strict:
+            $7 &lt; c &lt; 17$. The smallest whole number in that range is $8$.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" data-type="number" data-answer="110"
+           data-hint="Corresponding angles are equal; then use the straight line.">
+        <div class="ex-q">
+          <p>
+            A transversal cuts two parallel lines. One of the eight angles is $70°$. Apart from
+            $70°$, what is the only other value that appears among the eight?
+          </p>
+        </div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $110$</p>
+          <p>
+            At each crossing, an angle and its neighbour are supplementary: $180 - 70 = 110$. The
+            parallel property forces the second crossing to repeat the first, so the eight angles
+            take only these two values — four of each.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" data-type="number" data-answer="8"
+           data-hint="Drop the diagonal and use Pythagoras on the rectangle's sides.">
+        <div class="ex-q">
+          <p>
+            A rectangle is $15$ wide and has a diagonal of length $17$. How tall is it?
+          </p>
+        </div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $8$</p>
+          <p>
+            The diagonal cuts the rectangle into two right triangles with legs $15$ and $h$ and
+            hypotenuse $17$. So
+            $$15^2 + h^2 = 17^2 \quad\Longrightarrow\quad h^2 = 289 - 225 = 64,$$
+            giving $h = 8$.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" data-answer="3"
+           data-hint="Which property of distance says a detour is never shorter?">
+        <div class="ex-q">
+          <p>
+            Which property of distance is being used when we say the straight path from $P$ to $R$
+            is the shortest?
+          </p>
+        </div>
+        <ul class="choices">
+          <li>Symmetry, $d(P,Q) = d(Q,P)$.</li>
+          <li>Positivity, $d(P,Q) \ge 0$.</li>
+          <li>The triangle inequality, $d(P,R) \le d(P,Q) + d(Q,R)$.</li>
+          <li>The Pythagorean theorem.</li>
+        </ul>
+        <div class="ex-solution">
+          <p class="answer">Answer: the triangle inequality</p>
+          <p>
+            Applying it repeatedly along any chain of intermediate stops shows the direct distance
+            is at most the total of the legs. Symmetry and positivity say nothing about comparing
+            routes, and Pythagoras applies only to right triangles.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" data-type="number" data-answer="45"
+           data-hint="An isosceles right triangle: the two legs are equal, so the two non-right angles are too.">
+        <div class="ex-q">
+          <p>
+            A right triangle has two legs of equal length. How large is each of its other two
+            angles?
+          </p>
+        </div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $45$</p>
+          <p>
+            The three angles add to $180°$, and one of them is $90°$, so the other two add to
+            $90°$. Equal legs force equal opposite angles, so each is $45°$.
+          </p>
+          <p>
+            This triangle will reappear in Chapter 11: its sides are in the ratio
+            $1 : 1 : \sqrt 2$, which is where $\cos 45° = \sin 45° = 1/\sqrt2$ comes from.
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <div class="recap">
+      <h2>Recap</h2>
+      <ul>
+        <li>Distance is a number attached to a pair of points, obeying positivity, symmetry, and the
+          triangle inequality — the last of which is why straight is shortest.</li>
+        <li>Angles measure turn. Supplementary angles add to $180°$, and vertical angles are equal
+          because each pair shares a straight line with the same neighbour.</li>
+        <li>A transversal across parallels produces only two angle values; corresponding and
+          alternate angles are equal.</li>
+        <li>Hence the angles of a triangle add to $180°$ — a fact that depends squarely on the
+          parallel property.</li>
+        <li>$a^2 + b^2 = c^2$ in a right triangle, provable by cutting one square two ways; and the
+          converse turns it into a test for right angles.</li>
+      </ul>
+    </div>
 
     <nav class="chapter-nav" data-chapter-nav></nav>
   </main>

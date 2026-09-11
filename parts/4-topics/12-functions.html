@@ -32,39 +32,471 @@
 
     <p class="eyebrow">Part IV — Miscellaneous · Chapter 12</p>
     <h1>Functions</h1>
-    <p class="lede">What a function is, how to read a graph, and the exponential and logarithm.</p>
+    <p class="lede">
+      A function is a rule with a domain: give it an input from its domain and it returns exactly
+      one output. That is the whole definition, and getting it exactly right is worth more than any
+      amount of practice at "finding $f(3)$".
+    </p>
 
-    <div class="callout warn">
-      <span class="tag">Outline — prose still to come</span>
+    <div class="goal">
+      <strong>By the end of this chapter you can</strong>
+      state what a function is and why the domain is part of it, apply the vertical line test,
+      describe a polynomial by degree and roots, predict how shifts and stretches move a graph,
+      work with $a^x$ for any real $x$, and use logarithms to turn products into sums and solve
+      equations with the unknown in the exponent.
+    </div>
+
+    <h2 id="definition-fn">12.1 Definition of a function</h2>
+
+    <div class="rule">
+      <span class="tag">Definition</span>
       <p>
-        This chapter's section structure is settled and listed below, but its explanations, worked
-        examples, figures, and exercises have not been written yet. Part I
-        (<a href="../1-algebra/01-numbers.html">Chapters 1–4 and the interlude</a>) is complete and
-        shows the format each of these will take.
+        A <b>function</b> $f$ consists of a set $D$, its <b>domain</b>, together with a rule
+        assigning to each $x \in D$ exactly one number $f(x)$, its <b>value</b> at $x$. The set of
+        values that actually occur is the <b>image</b> (or range).
       </p>
     </div>
 
-    <h2>Planned sections</h2>
     <p>
-      Each will follow the same pattern as the finished chapters: the idea in plain language, the
-      definition stated precisely, worked examples with every step shown, an interactive figure
-      where a picture beats words, and a practice set with full solutions.
+      Two clauses carry all the weight. <b>Each</b> $x$ in the domain must get a value — no gaps.
+      And <b>exactly one</b> value — no ambiguity. A rule like "$y$ such that $y^2 = x$" is not a
+      function, because $x = 4$ gives both $2$ and $-2$; restricting to the positive root repairs
+      it, and that is what the symbol $\sqrt{\;}$ means.
     </p>
 
-    <h2 id="definition-fn">12.1 Definition of a function</h2>
-    <p>A rule with a domain: one output per input.</p>
+    <div class="callout warn">
+      <span class="tag">The domain is part of the function</span>
+      <p>
+        $f(x) = x^2$ on all real numbers and $g(x) = x^2$ on $x \ge 0$ are different functions, even
+        though the formula is identical. The first takes every value twice; the second takes each
+        once, and only the second can be undone. When a domain is not stated, the convention is to
+        take the largest set on which the formula makes sense — which for $1/(x-2)$ excludes $2$,
+        and for $\sqrt{x-3}$ means $x \ge 3$.
+      </p>
+    </div>
+
+    <div class="worked">
+      <h4><span class="num">Example 1.</span> Finding a natural domain</h4>
+      <div class="body">
+        <p>What is the natural domain of $f(x) = \dfrac{\sqrt{x+4}}{x-1}$?</p>
+        <ol class="steps">
+          <li>The square root needs $x + 4 \ge 0$, that is, $x \ge -4$.</li>
+          <li>The denominator must not vanish: $x \neq 1$.</li>
+          <li>Both conditions at once: $x \ge -4$ and $x \neq 1$.</li>
+          <li>So the domain is $[-4, 1) \cup (1, \infty)$. $\blacksquare$</li>
+        </ol>
+        <p class="note">
+          Two rules cover almost every case at this level: no negative under an even root, no zero
+          in a denominator.
+        </p>
+      </div>
+    </div>
 
     <h2 id="polynomials">12.2 Polynomial functions</h2>
-    <p>Degree, roots, and factoring.</p>
+    <p>
+      A <b>polynomial</b> is a function built from $x$ by adding and multiplying only:
+    </p>
+    <div class="display">$$f(x) = a_n x^n + a_{n-1}x^{n-1} + \dots + a_1 x + a_0,$$</div>
+    <p>
+      with $a_n \neq 0$. The number $n$ is the <b>degree</b>. Degree $1$ is the linear functions of
+      Chapter 10, degree $2$ the quadratics of Chapter 4. The domain is always all of $\mathbf{R}$:
+      there is nothing to divide by and nothing to take a root of.
+    </p>
+    <p>
+      A number $r$ with $f(r) = 0$ is a <b>root</b>. Roots and factors are two views of one thing:
+    </p>
+
+    <div class="rule">
+      <span class="tag">The factor theorem</span>
+      <p>
+        $r$ is a root of $f$ if and only if $(x - r)$ divides $f(x)$ — that is,
+        $f(x) = (x-r)\,q(x)$ for some polynomial $q$ of degree one less.
+      </p>
+    </div>
+
+    <p>
+      One direction is immediate: if $f(x) = (x-r)q(x)$ then $f(r) = 0 \cdot q(r) = 0$. The other
+      direction is division with remainder: dividing $f(x)$ by $(x-r)$ leaves a constant remainder
+      $c$, so $f(x) = (x-r)q(x) + c$; putting $x = r$ gives $c = f(r) = 0$. $\blacksquare$
+    </p>
+    <p>
+      A consequence worth stating: a polynomial of degree $n$ has at most $n$ roots, since each root
+      pulls out a factor and the degree cannot drop below zero. A cubic can have three roots, or
+      one — but never four.
+    </p>
 
     <h2 id="graphs-fn">12.3 Graphs of functions</h2>
-    <p>Reading and sketching; shifts, stretches, reflections.</p>
+    <p>
+      The <b>graph</b> of $f$ is the set of points $(x, f(x))$ for $x$ in the domain. Since each $x$
+      gets exactly one value, we get a test that can be applied by eye:
+    </p>
+
+    <div class="rule">
+      <span class="tag">The vertical line test</span>
+      <p>
+        A set of points in the plane is the graph of a function exactly when no vertical line meets
+        it more than once.
+      </p>
+    </div>
+
+    <p>
+      A circle fails this test — most vertical lines cut it twice — which is why $x^2+y^2=1$ defines
+      a curve but not a function of $x$. Splitting it into upper and lower halves gives two
+      functions, $y = \pm\sqrt{1-x^2}$.
+    </p>
+    <p>
+      Once you know one graph, you know a whole family of them. Replacing $f(x)$ by $af(x-h)+k$
+      moves and stretches the curve without changing its shape.
+    </p>
+
+    <div class="rule">
+      <span class="tag">Transformations</span>
+      <ul>
+        <li>$f(x) + k$: shift <b>up</b> by $k$.</li>
+        <li>$f(x - h)$: shift <b>right</b> by $h$. Note the sign — subtracting inside moves
+          right.</li>
+        <li>$a\,f(x)$: stretch vertically by $|a|$, flipping over the $x$-axis if $a &lt; 0$.</li>
+        <li>$f(-x)$: reflect in the $y$-axis.</li>
+      </ul>
+    </div>
+
+    <figure>
+      <div class="widget" data-widget="transform"></div>
+      <figcaption>
+        <b>The same four rules on four base curves.</b> The dashed curve is untouched. Watch the
+        sign of $h$ in particular: setting $h = 2$ moves the graph two to the <em>right</em>, though
+        the formula reads $x - 2$.
+      </figcaption>
+    </figure>
+
+    <div class="callout idea">
+      <span class="tag">Why subtracting shifts right</span>
+      <p>
+        The new graph at $x$ shows what the old graph had at $x - h$. To see the old value at $0$
+        you now have to look at $x = h$. So everything the old curve did has been postponed by $h$ —
+        moved to the right. Argue it this way once and you will never have to guess the direction
+        again.
+      </p>
+    </div>
 
     <h2 id="exponential">12.4 The exponential function</h2>
-    <p>Extending aˣ to all real x, and its growth.</p>
+    <p>
+      Chapter 3 defined $a^x$ for integer and then fractional $x$: $a^n$ is repeated multiplication,
+      $a^{-n} = 1/a^n$, and $a^{p/q} = \sqrt[q]{a^p}$. That covers every rational exponent. The
+      remaining step is to define $a^x$ for irrational $x$ — for instance $2^{\sqrt2}$.
+    </p>
+    <p>
+      The idea is to squeeze. Rational numbers come arbitrarily close to $\sqrt2$ from both sides
+      ($1.4$, $1.41$, $1.414$, …), the corresponding powers $2^{1.4}, 2^{1.41}, \dots$ close in on a
+      single number, and that number is <em>defined</em> to be $2^{\sqrt2}$. The same argument as
+      for the area of a circle: approximate with things you understand, and take the limit.
+    </p>
+
+    <div class="rule">
+      <span class="tag">The exponential function</span>
+      <p>
+        For a fixed $a &gt; 0$, the function $f(x) = a^x$ is defined for every real $x$ and
+        satisfies
+        $$a^{x+y} = a^x a^y, \qquad (a^x)^y = a^{xy}, \qquad a^0 = 1.$$
+        It is positive everywhere, increasing if $a &gt; 1$ and decreasing if $a &lt; 1$, and never
+        takes the value $0$.
+      </p>
+    </div>
+
+    <div class="callout aside">
+      <span class="tag">Exponential is not "very fast"</span>
+      <p>
+        Exponential growth means the <em>ratio</em> over a fixed step is constant: each unit of $x$
+        multiplies the value by $a$. That is different in kind from $x^2$ or $x^{10}$, where the
+        ratio depends on where you are. Given enough room, $2^x$ overtakes $x^{10}$ and never looks
+        back — the contest is not close, though it takes until $x \approx 59$ for it to be
+        visible.
+      </p>
+    </div>
 
     <h2 id="log">12.5 Logarithms</h2>
-    <p>The inverse of the exponential, and why it turns products into sums.</p>
+    <p>
+      Since $a^x$ (for $a &gt; 1$) is increasing, it takes each positive value exactly once. So it
+      can be undone, and the undoing has a name.
+    </p>
+
+    <div class="rule">
+      <span class="tag">Definition</span>
+      <p>
+        For $a &gt; 0$, $a \neq 1$, and $y &gt; 0$, the <b>logarithm</b> $\log_a y$ is the unique
+        number $x$ with $a^x = y$. In words: <em>the exponent you need</em>.
+      </p>
+      <p>
+        Its domain is the positive numbers — negative numbers and zero have no logarithm, because
+        $a^x$ is never zero or negative.
+      </p>
+    </div>
+
+    <figure>
+      <div class="widget" data-widget="explog"></div>
+      <figcaption>
+        <b>Mirror images.</b> The logarithm is the exponential reflected in the dashed line
+        $y = x$ — that is what "inverse" looks like. The marked pairs swap coordinates:
+        $(2, a^2)$ becomes $(a^2, 2)$.
+      </figcaption>
+    </figure>
+
+    <p>
+      Each law of exponents becomes a law of logarithms, by reading it backwards.
+    </p>
+
+    <div class="rule">
+      <span class="tag">Laws of logarithms</span>
+      <p>
+        $$\log_a(uv) = \log_a u + \log_a v, \qquad
+          \log_a\!\left(\frac uv\right) = \log_a u - \log_a v, \qquad
+          \log_a(u^k) = k\log_a u.$$
+      </p>
+    </div>
+
+    <p>
+      <b>Proof of the first.</b> Let $x = \log_a u$ and $y = \log_a v$, so $a^x = u$ and $a^y = v$.
+      Then $uv = a^x a^y = a^{x+y}$, and by the definition of the logarithm,
+      $\log_a(uv) = x + y$. $\blacksquare$
+    </p>
+    <p>
+      This is the property that made logarithms historically indispensable: they convert
+      multiplication into addition, which is far easier to do by hand. The slide rule was a physical
+      realisation of exactly this identity.
+    </p>
+
+    <div class="worked">
+      <h4><span class="num">Example 2.</span> Solving for an exponent</h4>
+      <div class="body">
+        <p>Solve $3 \cdot 2^{x} = 96$.</p>
+        <ol class="steps">
+          <li>Divide by $3$: $2^x = 32$.</li>
+          <li>Recognise $32 = 2^5$, so $x = 5$.
+            <span class="note">When the numbers cooperate, no logarithm is needed.</span></li>
+          <li>If they had not cooperated — say $2^x = 30$ — take logs of both sides:
+            $x\log 2 = \log 30$, so $x = \log 30/\log 2 \approx 4.907$.</li>
+          <li>Check: $2^5 = 32$ and $3 \times 32 = 96$ ✓. $\blacksquare$</li>
+        </ol>
+      </div>
+    </div>
+
+    <div class="worked">
+      <h4><span class="num">Example 3.</span> Changing base</h4>
+      <div class="body">
+        <p>Express $\log_2 7$ using logarithms to base $10$.</p>
+        <ol class="steps">
+          <li>Let $x = \log_2 7$, so $2^x = 7$.</li>
+          <li>Take $\log_{10}$ of both sides: $\log_{10}(2^x) = \log_{10} 7$.</li>
+          <li>By the third law, $x\log_{10}2 = \log_{10}7$.</li>
+          <li>So $x = \dfrac{\log_{10}7}{\log_{10}2} \approx \dfrac{0.845}{0.301} \approx 2.807$.</li>
+          <li>Plausible: $2^2 = 4$ and $2^3 = 8$, so the answer must lie between $2$ and $3$, nearer
+            $3$. $\blacksquare$</li>
+        </ol>
+        <p class="note">
+          In general $\log_a y = \dfrac{\log_b y}{\log_b a}$ — which is why a calculator with only
+          two logarithm buttons can compute every base.
+        </p>
+      </div>
+    </div>
+
+    <!-- ====================================================== practice ==== -->
+    <section class="practice" id="practice">
+      <div class="practice-head">
+        <h2 style="margin-top:0">Practice</h2>
+        <span class="practice-score" data-practice-score></span>
+      </div>
+      <p>Give exact answers where possible; otherwise three decimal places.</p>
+
+      <div class="ex" data-type="number" data-answer="13"
+           data-hint="Substitute x = −3 and mind the sign of the square.">
+        <div class="ex-q">
+          <p>If $f(x) = x^2 - 2x - 2$, what is $f(-3)$?</p>
+        </div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $13$</p>
+          <p>
+            $f(-3) = (-3)^2 - 2(-3) - 2 = 9 + 6 - 2 = 13$. Both minus signs matter: $(-3)^2$ is
+            $+9$, and $-2(-3)$ is $+6$.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" data-answer="3"
+           data-hint="Where would the formula fail to make sense?">
+        <div class="ex-q">
+          <p>What is the natural domain of $f(x) = \dfrac{1}{x - 5}$?</p>
+        </div>
+        <ul class="choices">
+          <li>All real numbers.</li>
+          <li>$x &gt; 5$.</li>
+          <li>All real numbers except $5$.</li>
+          <li>$x \ge 5$.</li>
+        </ul>
+        <div class="ex-solution">
+          <p class="answer">Answer: all real numbers except $5$</p>
+          <p>
+            Only $x = 5$ causes trouble, making the denominator zero. Every other real number is
+            fine, including numbers far below $5$ — the function is negative there, which is not a
+            problem.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" data-answer="2"
+           data-hint="Apply the vertical line test.">
+        <div class="ex-q">
+          <p>Which of these is <em>not</em> the graph of a function of $x$?</p>
+        </div>
+        <ul class="choices">
+          <li>The line $y = 3x - 1$.</li>
+          <li>The circle $x^2 + y^2 = 4$.</li>
+          <li>The parabola $y = x^2$.</li>
+          <li>The curve $y = |x|$.</li>
+        </ul>
+        <div class="ex-solution">
+          <p class="answer">Answer: the circle</p>
+          <p>
+            A vertical line such as $x = 0$ meets the circle at $(0,2)$ and $(0,-2)$ — two outputs
+            for one input, so it is not a function. The other three pass the test everywhere.
+          </p>
+          <p>
+            The circle can be split into two functions, $y = \sqrt{4-x^2}$ and $y = -\sqrt{4-x^2}$,
+            each perfectly respectable.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" data-type="number" data-answer="3"
+           data-hint="log₂ 8 asks: 2 to what power gives 8?">
+        <div class="ex-q"><p>What is $\log_2 8$?</p></div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $3$</p>
+          <p>
+            The logarithm asks for the exponent: $2^3 = 8$, so $\log_2 8 = 3$. Reading a logarithm
+            as a question — "what power?" — makes most of them answerable on sight.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" data-type="number" data-answer="-2"
+           data-hint="A negative exponent means a reciprocal.">
+        <div class="ex-q"><p>What is $\log_3\!\left(\tfrac19\right)$?</p></div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $-2$</p>
+          <p>
+            $3^{-2} = \dfrac{1}{3^2} = \dfrac19$, so the exponent required is $-2$.
+          </p>
+          <p>
+            Logarithms of numbers between $0$ and $1$ are negative (for base $&gt; 1$), and the
+            logarithm of $0$ or of a negative number does not exist at all.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" data-type="number" data-answer="4"
+           data-hint="Solve 2^x = 16.">
+        <div class="ex-q"><p>Solve $5 \cdot 2^{x} = 80$.</p></div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $x = 4$</p>
+          <p>
+            Divide by $5$: $2^x = 16 = 2^4$, so $x = 4$. Since $2^x$ takes each positive value
+            exactly once, that is the only solution.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" data-answer="2"
+           data-hint="Subtracting inside the function shifts which way?">
+        <div class="ex-q">
+          <p>How does the graph of $y = (x-3)^2$ compare with that of $y = x^2$?</p>
+        </div>
+        <ul class="choices">
+          <li>Shifted $3$ to the left.</li>
+          <li>Shifted $3$ to the right.</li>
+          <li>Shifted $3$ down.</li>
+          <li>Stretched vertically by $3$.</li>
+        </ul>
+        <div class="ex-solution">
+          <p class="answer">Answer: shifted $3$ to the right</p>
+          <p>
+            The new graph at $x$ shows what the old one had at $x - 3$, so the vertex, formerly at
+            $x=0$, is now at $x=3$. Check directly: $y = 0$ when $x = 3$.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" data-type="number" data-answer="1"
+           data-hint="Anything to the power 0 is 1 — but why?">
+        <div class="ex-q"><p>What is $7^{0}$?</p></div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $1$</p>
+          <p>
+            The law $a^{x+y} = a^xa^y$ with $y = 0$ gives $a^x = a^x \cdot a^0$, and dividing by the
+            non-zero $a^x$ leaves $a^0 = 1$. So it is forced, not chosen: any other value would
+            break the law of exponents.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" data-type="number" data-answer="1"
+           data-hint="How many roots can a polynomial of degree n have at most?">
+        <div class="ex-q">
+          <p>
+            How many real roots does $f(x) = x^3 + x + 1$ have? (It has at least one, since it is
+            negative at $x=-1$ and positive at $x=0$.)
+          </p>
+        </div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $1$</p>
+          <p>
+            Degree $3$ allows at most three. But each of $x^3$ and $x$ increases as $x$ does, so
+            $f$ is increasing everywhere — it can cross zero only once.
+          </p>
+          <p>
+            The bracketed remark supplies the existence: $f(-1) = -1$ and $f(0) = 1$, so the graph
+            must cross the axis between them. Exactly one root.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" data-type="number" data-answer="2.807" data-tol="0.005"
+           data-hint="Use log₂ 7 = log 7 / log 2.">
+        <div class="ex-q">
+          <p>
+            Compute $\log_2 7$ to three decimal places. ($\log_{10}7 \approx 0.8451$,
+            $\log_{10}2 \approx 0.3010$.)
+          </p>
+        </div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $\approx 2.807$</p>
+          <p>
+            By the change of base formula,
+            $$\log_2 7 = \frac{\log_{10}7}{\log_{10}2} \approx \frac{0.8451}{0.3010} \approx 2.807.$$
+          </p>
+          <p>
+            The check that matters: $2^2 = 4 &lt; 7 &lt; 8 = 2^3$, so the answer had to be between
+            $2$ and $3$.
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <div class="recap">
+      <h2>Recap</h2>
+      <ul>
+        <li>A function is a domain plus a rule giving exactly one value to each element of it — and
+          the domain is part of the function, not an afterthought.</li>
+        <li>The vertical line test is that definition, applied by eye.</li>
+        <li>For polynomials, $r$ is a root exactly when $(x-r)$ is a factor; degree $n$ allows at
+          most $n$ roots.</li>
+        <li>$af(x-h)+k$ stretches by $a$, shifts right by $h$, and up by $k$ — with $x - h$ moving
+          the graph the opposite way to the sign.</li>
+        <li>$a^x$ extends to all real $x$ by squeezing with rationals; it is positive everywhere and
+          never zero.</li>
+        <li>$\log_a$ inverts it, turning products into sums, and $\log_a y = \log_b y / \log_b a$
+          changes base.</li>
+      </ul>
+    </div>
 
     <nav class="chapter-nav" data-chapter-nav></nav>
   </main>

@@ -32,42 +32,502 @@
 
     <p class="eyebrow">Part III — Coordinate Geometry · Chapter 11</p>
     <h1>Trigonometry</h1>
-    <p class="lede">Sine and cosine from the unit circle, radian measure, graphs, the tangent, addition formulas, and rotations.</p>
+    <p class="lede">
+      Sine and cosine are usually introduced as ratios in a right triangle, which works until the
+      angle exceeds $90°$ and then quietly stops. We define them instead as the coordinates of a
+      point on the unit circle — true for every angle, and the definition everything else follows
+      from.
+    </p>
 
-    <div class="callout warn">
-      <span class="tag">Outline — prose still to come</span>
+    <div class="goal">
+      <strong>By the end of this chapter you can</strong>
+      convert between degrees and radians and explain why radians are the natural unit; give
+      $\cos\theta$ and $\sin\theta$ for any angle from the unit circle; use
+      $\cos^2\theta + \sin^2\theta = 1$; read period, amplitude, and shift off a graph or a formula;
+      say where $\tan$ is undefined and why; and apply the addition formulas, including as a
+      rotation of the plane.
+    </div>
+
+    <h2 id="radians">11.1 Radian measure</h2>
+    <p>
+      Degrees are a convention: someone chose $360$. There is a measure that is not a convention at
+      all. Put the angle at the centre of a circle of radius $1$ and measure the <em>arc</em> it cuts
+      off. That length is the angle in <b>radians</b>.
+    </p>
+    <p>
+      Since the full circumference is $2\pi$ (Chapter 7), a full turn is $2\pi$ radians. Everything
+      else follows by proportion:
+    </p>
+
+    <div class="rule">
+      <span class="tag">Converting</span>
       <p>
-        This chapter's section structure is settled and listed below, but its explanations, worked
-        examples, figures, and exercises have not been written yet. Part I
-        (<a href="../1-algebra/01-numbers.html">Chapters 1–4 and the interlude</a>) is complete and
-        shows the format each of these will take.
+        $$360° = 2\pi \text{ rad}, \qquad 180° = \pi \text{ rad}, \qquad
+          1° = \frac{\pi}{180}\text{ rad}.$$
+        To go from degrees to radians multiply by $\pi/180$; the other way, multiply by $180/\pi$.
+      </p>
+      <p>
+        Worth memorising: $30° = \pi/6$, $45° = \pi/4$, $60° = \pi/3$, $90° = \pi/2$.
       </p>
     </div>
 
-    <h2>Planned sections</h2>
-    <p>
-      Each will follow the same pattern as the finished chapters: the idea in plain language, the
-      definition stated precisely, worked examples with every step shown, an interactive figure
-      where a picture beats words, and a practice set with full solutions.
-    </p>
-
-    <h2 id="radians">11.1 Radian measure</h2>
-    <p>Angle as arc length on the unit circle.</p>
+    <div class="callout idea">
+      <span class="tag">Why bother</span>
+      <p>
+        In radians, arc length on a circle of radius $r$ is simply $s = r\theta$, and the area of the
+        corresponding sector is $\tfrac12 r^2\theta$ — both formulas pick up an ugly $\pi/180$ if you
+        insist on degrees. More importantly, every result in calculus about $\sin$ and $\cos$ is
+        clean in radians and cluttered otherwise. Degrees survive for navigation and carpentry;
+        radians are what the mathematics prefers.
+      </p>
+    </div>
 
     <h2 id="sine-cosine">11.2 Sine and cosine</h2>
-    <p>Coordinates of a point on the unit circle; the Pythagorean identity.</p>
+    <p>
+      Draw the circle of radius $1$ centred at the origin. Start at the point $(1,0)$ and travel
+      counterclockwise around the circle through an angle $\theta$. You arrive somewhere; call that
+      point $(\cos\theta,\; \sin\theta)$.
+    </p>
+
+    <div class="rule">
+      <span class="tag">Definition</span>
+      <p>
+        For any real $\theta$, the point reached by turning through $\theta$ from $(1,0)$ on the
+        unit circle is
+        $$\bigl(\cos\theta,\; \sin\theta\bigr).$$
+        Cosine is the horizontal coordinate; sine is the vertical one.
+      </p>
+    </div>
+
+    <p>
+      Three things are immediate from the picture, with no calculation at all.
+    </p>
+    <ul>
+      <li><b>Both lie between $-1$ and $1$</b>, since the circle does.</li>
+      <li><b>$\cos^2\theta + \sin^2\theta = 1$</b>, because the point is on the circle
+        $x^2+y^2=1$. This is the Pythagorean identity, and it <em>is</em> Pythagoras — the triangle
+        with legs $|\cos\theta|$, $|\sin\theta|$ and hypotenuse $1$.</li>
+      <li><b>Both repeat every full turn</b>: $\cos(\theta + 2\pi) = \cos\theta$ and likewise for
+        sine, since you end up at the same point.</li>
+    </ul>
+
+    <figure>
+      <div class="widget" data-widget="unitcircle"></div>
+      <figcaption>
+        <b>The definition, drawn.</b> Sweep $\theta$ and watch the coordinates. Past $90°$ the
+        cosine goes negative — which the triangle definition cannot express, and which this one
+        handles without comment.
+      </figcaption>
+    </figure>
+
+    <p>
+      For an acute angle in a right triangle the old definitions come back as a consequence. Scale
+      the triangle so the hypotenuse is $1$ and drop it onto the unit circle: the adjacent side is
+      $\cos\theta$ and the opposite side is $\sin\theta$. Undo the scaling and you get the usual
+      "adjacent over hypotenuse, opposite over hypotenuse".
+    </p>
+
+    <div class="rule">
+      <span class="tag">Values worth knowing by heart</span>
+      <div class="tbl-wrap">
+        <table>
+          <thead>
+            <tr><th>$\theta$</th><th>$0$</th><th>$\pi/6$</th><th>$\pi/4$</th><th>$\pi/3$</th><th>$\pi/2$</th><th>$\pi$</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>degrees</td><td>$0°$</td><td>$30°$</td><td>$45°$</td><td>$60°$</td><td>$90°$</td><td>$180°$</td></tr>
+            <tr><td>$\cos\theta$</td><td>$1$</td><td>$\frac{\sqrt3}{2}$</td><td>$\frac{\sqrt2}{2}$</td><td>$\frac12$</td><td>$0$</td><td>$-1$</td></tr>
+            <tr><td>$\sin\theta$</td><td>$0$</td><td>$\frac12$</td><td>$\frac{\sqrt2}{2}$</td><td>$\frac{\sqrt3}{2}$</td><td>$1$</td><td>$0$</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="worked">
+      <h4><span class="num">Example 1.</span> Where the table comes from</h4>
+      <div class="body">
+        <p>Derive $\cos 60° = \tfrac12$ and $\sin 60° = \tfrac{\sqrt3}{2}$.</p>
+        <ol class="steps">
+          <li>Take an equilateral triangle of side $1$; all its angles are $60°$.</li>
+          <li>Drop the perpendicular from one vertex. It bisects the opposite side, giving a right
+            triangle with hypotenuse $1$, one leg $\tfrac12$, and angles $60°$ and $30°$.</li>
+          <li>The leg of length $\tfrac12$ is adjacent to the $60°$ angle, so
+            $\cos 60° = \tfrac12$.</li>
+          <li>The other leg: $h^2 = 1 - \tfrac14 = \tfrac34$, so $h = \tfrac{\sqrt3}{2}$, and
+            $\sin 60° = \tfrac{\sqrt3}{2}$.</li>
+          <li>The same triangle read from the other angle gives $\cos 30° = \tfrac{\sqrt3}{2}$ and
+            $\sin 30° = \tfrac12$. $\blacksquare$</li>
+        </ol>
+        <p class="note">
+          For $45°$, use the isosceles right triangle instead: legs $1,1$ and hypotenuse $\sqrt2$,
+          so both values are $1/\sqrt2 = \sqrt2/2$. Two triangles generate the whole table.
+        </p>
+      </div>
+    </div>
 
     <h2 id="graphs-trig">11.3 The graphs</h2>
-    <p>Period, amplitude, and shifts.</p>
+    <p>
+      Unroll the circle. Plot $\theta$ horizontally and $\sin\theta$ vertically and you get a wave
+      that rises to $1$ at $\pi/2$, returns to $0$ at $\pi$, falls to $-1$ at $3\pi/2$, and repeats
+      forever with <b>period</b> $2\pi$. The cosine graph is the same wave shifted left by $\pi/2$,
+      which is the identity $\cos\theta = \sin(\theta + \pi/2)$.
+    </p>
+    <p>
+      Given constants $A$, $B$, $C$, the graph of $y = A\sin(Bx + C)$ is that wave, adjusted:
+    </p>
+
+    <div class="rule">
+      <span class="tag">Reading $A\sin(Bx+C)$</span>
+      <ul>
+        <li><b>Amplitude</b> $|A|$: the height of the peaks. Negative $A$ also flips the wave.</li>
+        <li><b>Period</b> $2\pi/|B|$: larger $B$ squeezes more waves into the same space.</li>
+        <li><b>Phase shift</b> $-C/B$: the whole wave slides horizontally by that amount.</li>
+      </ul>
+    </div>
+
+    <figure>
+      <div class="widget" data-widget="sinewave"></div>
+      <figcaption>
+        <b>Three knobs.</b> $A$ stretches vertically, $B$ compresses horizontally, $C$ slides. Note
+        that the shift is $-C/B$, not $-C$: changing $B$ moves the wave too.
+      </figcaption>
+    </figure>
+
+    <p>
+      Two symmetries are worth naming, both visible in the circle. Replacing $\theta$ by $-\theta$
+      reflects the point in the $x$-axis, keeping the horizontal coordinate and flipping the
+      vertical:
+    </p>
+    <div class="display">$$\cos(-\theta) = \cos\theta, \qquad \sin(-\theta) = -\sin\theta.$$</div>
+    <p>
+      Cosine is an <b>even</b> function, sine an <b>odd</b> one — the vocabulary of
+      <a href="../4-topics/12-functions.html#graphs-fn">Chapter 12</a>, arriving early.
+    </p>
 
     <h2 id="tangent">11.4 The tangent</h2>
-    <p>Slope of a ray, and where it fails to exist.</p>
+    <p>
+      Define
+    </p>
+    <div class="display">$$\tan\theta = \frac{\sin\theta}{\cos\theta},$$</div>
+    <p>
+      whenever $\cos\theta \neq 0$. Geometrically this is the <b>slope</b> of the ray from the origin
+      at angle $\theta$: the ray passes through $(\cos\theta, \sin\theta)$, so its rise over run is
+      exactly $\sin\theta/\cos\theta$. Chapter 10's slope and this chapter's tangent are the same
+      quantity, named twice.
+    </p>
+
+    <div class="callout warn">
+      <span class="tag">Where it fails, and why that is correct</span>
+      <p>
+        At $\theta = \pi/2$ the cosine is $0$ and $\tan\theta$ is undefined. That is not a defect of
+        the formula but a fact about the picture: the ray is vertical, and a vertical line has no
+        slope. As $\theta$ approaches $\pi/2$ from below the tangent runs off to $+\infty$; from
+        above it comes back from $-\infty$. Hence the breaks in the graph.
+      </p>
+    </div>
+
+    <p>
+      Unlike sine and cosine, the tangent repeats every $\pi$, not every $2\pi$: turning by a half
+      turn reverses the ray but leaves its slope unchanged.
+    </p>
 
     <h2 id="addition-formulas">11.5 Addition formulas</h2>
-    <p>cos(x + y) and sin(x + y), and the consequences.</p>
+    <p>
+      The central computational facts of the subject:
+    </p>
+
+    <div class="rule">
+      <span class="tag">Addition formulas</span>
+      <p>
+        $$\cos(\alpha+\beta) = \cos\alpha\cos\beta - \sin\alpha\sin\beta,$$
+        $$\sin(\alpha+\beta) = \sin\alpha\cos\beta + \cos\alpha\sin\beta.$$
+      </p>
+    </div>
+
+    <p>
+      Note that $\cos(\alpha+\beta)$ is emphatically <em>not</em> $\cos\alpha + \cos\beta$: try
+      $\alpha=\beta=0$, which gives $1$ on the left and $2$ on the right. The mixing of the two
+      functions in these formulas is the whole point, and §11.6 explains where it comes from.
+    </p>
+
+    <div class="worked">
+      <h4><span class="num">Example 2.</span> An exact value for $75°$</h4>
+      <div class="body">
+        <p>Compute $\cos 75°$ exactly.</p>
+        <ol class="steps">
+          <li>Write $75° = 45° + 30°$, both of which are in the table.</li>
+          <li>$\cos 75° = \cos45°\cos30° - \sin45°\sin30°$.</li>
+          <li>Substitute:
+            $$\frac{\sqrt2}{2}\cdot\frac{\sqrt3}{2} - \frac{\sqrt2}{2}\cdot\frac12
+              = \frac{\sqrt6}{4} - \frac{\sqrt2}{4} = \frac{\sqrt6-\sqrt2}{4}.$$</li>
+          <li>Numerically: $(2.449 - 1.414)/4 \approx 0.259$, and $75°$ is close to $90°$ where the
+            cosine is $0$, so a small positive value is right. $\blacksquare$</li>
+        </ol>
+      </div>
+    </div>
+
+    <div class="worked">
+      <h4><span class="num">Example 3.</span> The double-angle formulas</h4>
+      <div class="body">
+        <p>Put $\beta = \alpha$ in the addition formulas.</p>
+        <ol class="steps">
+          <li>$\sin 2\alpha = \sin\alpha\cos\alpha + \cos\alpha\sin\alpha = 2\sin\alpha\cos\alpha$.</li>
+          <li>$\cos 2\alpha = \cos^2\alpha - \sin^2\alpha$.</li>
+          <li>Using $\sin^2\alpha = 1 - \cos^2\alpha$, the second can be rewritten as
+            $\cos 2\alpha = 2\cos^2\alpha - 1$, or as $1 - 2\sin^2\alpha$.</li>
+          <li>These three forms of the same identity are all standard; which one to use depends on
+            what you want to eliminate. $\blacksquare$</li>
+        </ol>
+        <p class="note">
+          Nothing new was assumed here. Special cases of a general formula are free, and they are
+          usually where the useful identities live.
+        </p>
+      </div>
+    </div>
 
     <h2 id="rotations">11.6 Rotations</h2>
-    <p>Rotating a point by an angle, written as a pair of formulas.</p>
+    <p>
+      Chapter 6 described rotation as a motion and gave a formula without proof. We can now supply
+      the proof — and in doing so, explain the addition formulas.
+    </p>
+
+    <div class="worked">
+      <h4><span class="num">Example 4.</span> Rotating a point</h4>
+      <div class="body">
+        <p>
+          Rotate the point $P = (x,y)$ counterclockwise by an angle $\theta$ about the origin. Where
+          does it go?
+        </p>
+        <ol class="steps">
+          <li>Write $P$ in polar terms: let $r$ be its distance from the origin and $\alpha$ its
+            angle, so $x = r\cos\alpha$ and $y = r\sin\alpha$.</li>
+          <li>Rotating keeps the distance and adds $\theta$ to the angle. So the image is
+            $\bigl(r\cos(\alpha+\theta),\; r\sin(\alpha+\theta)\bigr)$.</li>
+          <li>Apply the addition formulas:
+            $$r\cos(\alpha+\theta) = r\cos\alpha\cos\theta - r\sin\alpha\sin\theta
+              = x\cos\theta - y\sin\theta,$$
+            $$r\sin(\alpha+\theta) = r\sin\alpha\cos\theta + r\cos\alpha\sin\theta
+              = y\cos\theta + x\sin\theta.$$</li>
+          <li>So rotation by $\theta$ is the mapping
+            $$(x,y) \;\longmapsto\; (x\cos\theta - y\sin\theta,\;\; x\sin\theta + y\cos\theta),$$
+            exactly the formula quoted in Chapter 6. $\blacksquare$</li>
+        </ol>
+      </div>
+    </div>
+
+    <div class="callout idea">
+      <span class="tag">Which way round the logic goes</span>
+      <p>
+        We used the addition formulas to derive the rotation formula, but the argument runs just as
+        well backwards. Rotating $(1,0)$ by $\beta$ lands on $(\cos\beta, \sin\beta)$; rotating that
+        by $\alpha$ must land on $(\cos(\alpha+\beta), \sin(\alpha+\beta))$, since two rotations
+        compose into one. Writing out the second rotation in coordinates produces the addition
+        formulas.
+      </p>
+      <p>
+        So the addition formulas are not a piece of algebraic trivia to be memorised. They are the
+        statement that rotating by $\alpha$ and then by $\beta$ is the same as rotating by
+        $\alpha+\beta$ — a fact about the plane, written in coordinates. Chapter 14 will write the
+        same fact a third way, and it becomes a single multiplication.
+      </p>
+    </div>
+
+    <!-- ====================================================== practice ==== -->
+    <section class="practice" id="practice">
+      <div class="practice-head">
+        <h2 style="margin-top:0">Practice</h2>
+        <span class="practice-score" data-practice-score></span>
+      </div>
+      <p>
+        Give exact values where the question asks for them; otherwise decimals to three places are
+        fine. Write $\pi$ as <code>pi</code>.
+      </p>
+
+      <div class="ex" data-answer="pi/3|1.0472"
+           data-placeholder="e.g. pi/6"
+           data-hint="Multiply by π/180.">
+        <div class="ex-q"><p>Convert $60°$ to radians.</p></div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $\pi/3$</p>
+          <p>
+            $60 \times \dfrac{\pi}{180} = \dfrac{\pi}{3} \approx 1.047$. Sanity check: $\pi$ is half
+            a turn, i.e. $180°$, and $60°$ is a third of that.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" data-type="number" data-answer="1"
+           data-hint="What does the Pythagorean identity say, for any θ at all?">
+        <div class="ex-q">
+          <p>What is $\cos^2(37°) + \sin^2(37°)$?</p>
+        </div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $1$</p>
+          <p>
+            The point $(\cos\theta, \sin\theta)$ is on the unit circle $x^2+y^2 = 1$, so the sum is
+            $1$ for every angle — no calculator needed, and $37°$ was a red herring.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" data-type="number" data-answer="0"
+           data-hint="Where on the unit circle is the angle π/2?">
+        <div class="ex-q"><p>What is $\cos(\pi/2)$?</p></div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $0$</p>
+          <p>
+            A quarter turn from $(1,0)$ lands on $(0,1)$. The horizontal coordinate is the cosine,
+            so $\cos(\pi/2) = 0$ — and the vertical one gives $\sin(\pi/2) = 1$.
+          </p>
+          <p>
+            This is also why $\tan(\pi/2)$ is undefined: its denominator is this $0$.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" data-type="number" data-answer="-1"
+           data-hint="Half a turn from (1,0) lands where?">
+        <div class="ex-q"><p>What is $\cos \pi$?</p></div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $-1$</p>
+          <p>
+            Half a turn from $(1,0)$ lands on $(-1,0)$, so $\cos\pi = -1$ and $\sin\pi = 0$. Here
+            the triangle definition is no help at all — there is no right triangle with a $180°$
+            angle — while the circle definition simply reads the answer off.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" data-type="number" data-answer="3.1416" data-tol="0.001"
+           data-hint="Period = 2π/|B|.">
+        <div class="ex-q">
+          <p>What is the period of $y = \sin(2x)$? Give it as a decimal.</p>
+        </div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $\pi \approx 3.142$</p>
+          <p>
+            Period $= 2\pi/|B| = 2\pi/2 = \pi$. Doubling $B$ halves the period: the wave completes
+            two full cycles in the space the plain sine needed for one.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" data-type="number" data-answer="5"
+           data-hint="Amplitude is |A|.">
+        <div class="ex-q">
+          <p>What is the amplitude of $y = -5\cos(3x + 1)$?</p>
+        </div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $5$</p>
+          <p>
+            The amplitude is $|A| = |-5| = 5$: the curve runs from $-5$ to $5$. The minus sign
+            flips the wave upside down but does not change how tall it is.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" data-answer="2"
+           data-hint="tan θ is sin θ over cos θ. When is the bottom zero?">
+        <div class="ex-q"><p>For which of these is $\tan\theta$ undefined?</p></div>
+        <ul class="choices">
+          <li>$\theta = 0$</li>
+          <li>$\theta = \pi/2$</li>
+          <li>$\theta = \pi$</li>
+          <li>$\theta = \pi/4$</li>
+        </ul>
+        <div class="ex-solution">
+          <p class="answer">Answer: $\theta = \pi/2$</p>
+          <p>
+            $\tan\theta = \sin\theta/\cos\theta$ fails exactly where $\cos\theta = 0$, which is
+            $\pi/2$ plus any multiple of $\pi$. At $\theta = 0$ and $\theta = \pi$ the cosine is
+            $\pm1$ and the tangent is $0$; at $\pi/4$ both are $\sqrt2/2$ and the tangent is $1$.
+          </p>
+          <p>
+            Geometrically: the ray at $\pi/2$ is vertical, and vertical lines have no slope.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" data-type="number" data-answer="0.96"
+           data-hint="Use sin(2α) = 2 sin α cos α.">
+        <div class="ex-q">
+          <p>
+            If $\sin\alpha = 0.6$ and $\cos\alpha = 0.8$, what is $\sin 2\alpha$?
+          </p>
+        </div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $0.96$</p>
+          <p>
+            $\sin2\alpha = 2\sin\alpha\cos\alpha = 2(0.6)(0.8) = 0.96$.
+          </p>
+          <p>
+            The given values are consistent: $0.6^2 + 0.8^2 = 0.36 + 0.64 = 1$ ✓ — the $3,4,5$
+            triangle once more.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" data-answer="(0,1)|0,1"
+           data-placeholder="e.g. (3,-2)"
+           data-hint="Use (x cos θ − y sin θ, x sin θ + y cos θ) with θ = 90°.">
+        <div class="ex-q">
+          <p>Rotate the point $(1,0)$ counterclockwise by $90°$ about the origin.</p>
+        </div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $(0,1)$</p>
+          <p>
+            With $\theta = 90°$ we have $\cos\theta = 0$ and $\sin\theta = 1$, so the formula gives
+            $$(1\cdot0 - 0\cdot1,\;\; 1\cdot1 + 0\cdot0) = (0,1).$$
+          </p>
+          <p>
+            Which is also the definition at work: rotating $(1,0)$ by $\theta$ always lands on
+            $(\cos\theta,\sin\theta)$, here $(0,1)$.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" data-answer="4"
+           data-hint="Test the claim with α = β = 0.">
+        <div class="ex-q">
+          <p>Which of these is a correct identity?</p>
+        </div>
+        <ul class="choices">
+          <li>$\cos(\alpha+\beta) = \cos\alpha + \cos\beta$</li>
+          <li>$\cos(\alpha+\beta) = \cos\alpha\cos\beta + \sin\alpha\sin\beta$</li>
+          <li>$\sin(\alpha+\beta) = \sin\alpha\sin\beta + \cos\alpha\cos\beta$</li>
+          <li>$\sin(\alpha+\beta) = \sin\alpha\cos\beta + \cos\alpha\sin\beta$</li>
+        </ul>
+        <div class="ex-solution">
+          <p class="answer">Answer: $\sin(\alpha+\beta) = \sin\alpha\cos\beta + \cos\alpha\sin\beta$</p>
+          <p>
+            The first fails at $\alpha=\beta=0$: $1 \neq 2$. The second has the wrong sign — the
+            cosine formula subtracts. The third fails at $\alpha=\beta=0$ too, giving $0$ on the left
+            and $1$ on the right.
+          </p>
+          <p>
+            Substituting $0$ is the cheapest test there is, and it disposes of three of these four
+            in a few seconds.
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <div class="recap">
+      <h2>Recap</h2>
+      <ul>
+        <li>A radian is arc length on the unit circle; $180° = \pi$ rad, and the formulas
+          $s = r\theta$, $\tfrac12 r^2\theta$ only work in radians.</li>
+        <li>$(\cos\theta, \sin\theta)$ is the point reached by turning through $\theta$ from
+          $(1,0)$ — a definition valid for every angle.</li>
+        <li>$\cos^2\theta + \sin^2\theta = 1$ is Pythagoras on the unit circle, and both functions
+          repeat with period $2\pi$.</li>
+        <li>In $A\sin(Bx+C)$: amplitude $|A|$, period $2\pi/|B|$, shift $-C/B$.</li>
+        <li>$\tan\theta$ is the slope of the ray at angle $\theta$, undefined where that ray is
+          vertical, with period $\pi$.</li>
+        <li>The addition formulas are the statement that two rotations compose into one; rotation by
+          $\theta$ is $(x,y)\mapsto(x\cos\theta - y\sin\theta,\; x\sin\theta + y\cos\theta)$.</li>
+      </ul>
+    </div>
 
     <nav class="chapter-nav" data-chapter-nav></nav>
   </main>

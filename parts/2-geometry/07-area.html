@@ -32,36 +32,465 @@
 
     <p class="eyebrow">Part II — Intuitive Geometry · Chapter 7</p>
     <h1>Area and Applications</h1>
-    <p class="lede">Area of rectangles, triangles, and discs; circumference; and the scaling law that ties them together.</p>
+    <p class="lede">
+      Three assumptions about area — a rectangle's is base times height, congruent figures have the
+      same area, and areas add — are enough to derive every formula in this chapter, including the
+      area of a circle.
+    </p>
 
-    <div class="callout warn">
-      <span class="tag">Outline — prose still to come</span>
+    <div class="goal">
+      <strong>By the end of this chapter you can</strong>
+      derive the triangle formula from the rectangle rather than recall it, apply the scaling law
+      (lengths $\times r$, areas $\times r^2$) to real questions, explain why the area of a disc is
+      $\pi r^2$ by way of inscribed polygons, and say precisely what $\pi$ is and why the same $\pi$
+      appears in both $2\pi r$ and $\pi r^2$.
+    </div>
+
+    <h2 id="polygons">7.1 Area of rectangles and triangles</h2>
+    <p>
+      Area is to regions what distance was to pairs of points: a number attached to a figure. We
+      take three properties as given.
+    </p>
+
+    <div class="rule">
+      <span class="tag">The three assumptions</span>
+      <ol>
+        <li>A rectangle with sides $b$ and $h$ has area $bh$.</li>
+        <li>Congruent figures have the same area — moving a shape does not change how much room it
+          takes up.</li>
+        <li>If a figure is cut into non-overlapping pieces, the areas of the pieces add to the area
+          of the whole.</li>
+      </ol>
+    </div>
+
+    <p>
+      The first fixes the unit and the scale; the other two say area is a sensible notion of
+      "amount of plane". Notice that (2) is a statement about the isometries of
+      <a href="06-isometries.html#isometries">Chapter 6</a>, and that we already used (2) and (3)
+      together in the dissection proof of Pythagoras. Everything below is those three facts, applied
+      with a pair of scissors.
+    </p>
+
+    <div class="worked">
+      <h4><span class="num">Example 1.</span> The area of a right triangle</h4>
+      <div class="body">
+        <p>A right triangle has legs $b$ and $h$. Find its area.</p>
+        <ol class="steps">
+          <li>Take a second copy of the triangle and rotate it by $180°$ about the midpoint of the
+            hypotenuse.</li>
+          <li>The two together form a rectangle with sides $b$ and $h$.
+            <span class="note">Check the corners: the two acute angles of the triangle add to
+            $90°$, so each corner of the assembled figure is a right angle.</span></li>
+          <li>By assumptions (1) and (3), the two triangles have total area $bh$; by (2) they have
+            the same area as each other.</li>
+          <li>So each has area $\tfrac12 bh$. $\blacksquare$</li>
+        </ol>
+      </div>
+    </div>
+
+    <p>
+      For a triangle that is not right-angled, drop the perpendicular from one vertex to the
+      opposite side — the <b>height</b> $h$ relative to that <b>base</b> $b$. The perpendicular
+      splits the triangle into two right triangles (or, if the foot falls outside, into a difference
+      of two). Either way the arithmetic collapses to the same statement:
+    </p>
+
+    <div class="rule">
+      <span class="tag">Area of a triangle</span>
       <p>
-        This chapter's section structure is settled and listed below, but its explanations, worked
-        examples, figures, and exercises have not been written yet. Part I
-        (<a href="../1-algebra/01-numbers.html">Chapters 1–4 and the interlude</a>) is complete and
-        shows the format each of these will take.
+        $$\text{area} = \tfrac12\,b\,h,$$
+        where $h$ is the perpendicular distance from the base $b$ to the opposite vertex.
       </p>
     </div>
 
-    <h2>Planned sections</h2>
-    <p>
-      Each will follow the same pattern as the finished chapters: the idea in plain language, the
-      definition stated precisely, worked examples with every step shown, an interactive figure
-      where a picture beats words, and a practice set with full solutions.
-    </p>
-
-    <h2 id="polygons">7.1 Area of rectangles and triangles</h2>
-    <p>From the rectangle to the triangle by cutting and rearranging.</p>
+    <div class="callout idea">
+      <span class="tag">One consequence worth noticing</span>
+      <p>
+        Only the perpendicular <em>distance</em> matters, not where the far vertex sits along that
+        direction. Slide the top vertex parallel to the base and the area does not budge, though the
+        triangle becomes unrecognisably long and thin. That is why any of the three sides may be
+        called the base: all three choices give the same number.
+      </p>
+    </div>
 
     <h2 id="scaling">7.2 Scaling</h2>
-    <p>Scale lengths by r and area scales by r² — with the consequences.</p>
+    <p>
+      Apply a dilation by $r$ to a figure. Every length is multiplied by $r$. What happens to the
+      area?
+    </p>
+    <p>
+      For a rectangle the answer is immediate: sides $b$ and $h$ become $rb$ and $rh$, and the area
+      $bh$ becomes $(rb)(rh) = r^2 bh$. The same then holds for triangles, since a triangle is half
+      a rectangle; and for any figure that can be approximated by small rectangles, which is to say
+      all of them.
+    </p>
+
+    <div class="rule">
+      <span class="tag">The scaling law</span>
+      <p>
+        Scale a figure by a factor $r$. Then every length — side, perimeter, diagonal — is
+        multiplied by $r$, and the area is multiplied by $r^{2}$.
+      </p>
+    </div>
+
+    <figure>
+      <div class="widget" data-widget="scaling"></div>
+      <figcaption>
+        <b>Lengths by $r$, area by $r^2$.</b> Drag $r$ and read the two columns. At $r = 2$ the
+        perimeter doubles while the area quadruples — the single most commonly misjudged fact in
+        elementary geometry.
+      </figcaption>
+    </figure>
+
+    <div class="worked">
+      <h4><span class="num">Example 2.</span> A pizza question</h4>
+      <div class="body">
+        <p>
+          A $30$ cm pizza costs $\$12$. At the same price per unit of pizza, what should a $45$ cm
+          pizza cost?
+        </p>
+        <ol class="steps">
+          <li>The diameters are in the ratio $45/30 = 1.5$, so the larger pizza is the smaller one
+            scaled by $r = 1.5$.</li>
+          <li>Area scales by $r^2 = 2.25$.</li>
+          <li>So the fair price is $12 \times 2.25 = \$27$.</li>
+          <li>Not $\$18$, which is what scaling the price by the diameter would give.
+            $\blacksquare$</li>
+        </ol>
+        <p class="note">
+          We never needed the formula for the area of a disc. The scaling law alone settles it,
+          because both pizzas are the same shape.
+        </p>
+      </div>
+    </div>
+
+    <div class="callout warn">
+      <span class="tag">Where the law bites</span>
+      <p>
+        Doubling the sides of a map's scale bar quadruples the land it represents. A pipe of twice
+        the radius carries about four times the water. And in three dimensions the exponent becomes
+        $3$: an animal twice as tall is roughly eight times as heavy, while the cross-sections of
+        its bones are only four times as large — which is why large animals are not simply scaled-up
+        small ones.
+      </p>
+    </div>
 
     <h2 id="disc">7.3 Area of a disc</h2>
-    <p>Inscribed polygons approaching πr², and what π is.</p>
+    <p>
+      A circle has no straight sides, so none of the cutting arguments above applies directly. The
+      way forward is to approximate — to trap the disc between shapes we <em>can</em> measure, and
+      squeeze.
+    </p>
+    <p>
+      Inscribe a regular $n$-gon in a circle of radius $r$ and cut it into $n$ triangles from the
+      centre. Each triangle has area $\tfrac12 (\text{base})(\text{height})$, where the height is
+      the distance $a_n$ from the centre to a side. Adding them up:
+    </p>
+    <div class="display">$$\text{area of the } n\text{-gon} = \tfrac12\,a_n \cdot p_n,$$</div>
+    <p>
+      where $p_n$ is the polygon's perimeter. Now let $n$ grow. The sides shorten, the polygon
+      presses outward against the circle, $a_n \to r$, and $p_n$ approaches the circle's
+      circumference $C$. So the area of the disc is $\tfrac12 r C$.
+    </p>
 
-    <h2 id="circumference">7.4 Circumference of a circle</h2>
-    <p>Why the same π appears in 2πr and πr².</p>
+    <figure>
+      <div class="widget" data-widget="discpoly"></div>
+      <figcaption>
+        <b>Squeezing a circle with polygons.</b> Raise $n$ and watch both the area and the perimeter
+        close in on their limits. At $n = 6$ the gap is obvious; by $n = 40$ you need the readout to
+        tell that a gap remains at all.
+      </figcaption>
+    </figure>
+
+    <h2 id="circumference">7.4 Circumference, and what $\pi$ is</h2>
+    <p>
+      The scaling law does one more job. All circles are similar — any two are related by a dilation
+      — so the ratio of circumference to diameter cannot depend on which circle you picked. That
+      constant ratio is the <em>definition</em> of $\pi$:
+    </p>
+    <div class="display">$$\pi = \frac{C}{2r}, \qquad\text{that is,}\qquad C = 2\pi r.$$</div>
+
+    <div class="callout idea">
+      <span class="tag">Why the same $\pi$ twice</span>
+      <p>
+        Substitute $C = 2\pi r$ into the result of §7.3:
+        $$\text{area} = \tfrac12\,r\,C = \tfrac12\,r\,(2\pi r) = \pi r^{2}.$$
+        So $\pi$ was <em>defined</em> by the circumference, and the area formula is a consequence.
+        The two $\pi$'s are the same number not by coincidence but because the polygon argument ties
+        the area to the perimeter, before either has been evaluated.
+      </p>
+    </div>
+
+    <p>
+      Two remarks on the number itself. First, $\pi$ is irrational — like $\sqrt2$ in
+      <a href="../1-algebra/03-real-numbers.html#why-more">Chapter 3</a>, it is not the ratio of two
+      integers, so $22/7$ and $3.14159$ are approximations and nothing more. Second, this makes the
+      area of a disc a genuinely new kind of quantity: no dissection into finitely many polygonal
+      pieces will ever produce it exactly. The limit is not laziness; it is unavoidable.
+    </p>
+
+    <div class="worked">
+      <h4><span class="num">Example 3.</span> An annulus</h4>
+      <div class="body">
+        <p>
+          A circular pond of radius $5$ m is surrounded by a path $2$ m wide. What is the area of
+          the path?
+        </p>
+        <ol class="steps">
+          <li>The path is a disc of radius $7$ with a disc of radius $5$ removed.</li>
+          <li>By assumption (3), area of path $=$ area of big disc $-$ area of small disc:
+            $$\pi(7)^2 - \pi(5)^2 = \pi(49 - 25) = 24\pi.$$</li>
+          <li>Numerically $24\pi \approx 75.4$ square metres. $\blacksquare$</li>
+        </ol>
+        <p class="note">
+          Factor before multiplying out — $\pi(49-25)$ is less work and less error-prone than
+          $153.94 - 78.54$, and it leaves the answer exact.
+        </p>
+      </div>
+    </div>
+
+    <div class="worked">
+      <h4><span class="num">Example 4.</span> Area from three sides</h4>
+      <div class="body">
+        <p>Find the area of the triangle with sides $13$, $14$, $15$.</p>
+        <ol class="steps">
+          <li>Take the side $14$ as the base and let the foot of the height split it into $x$ and
+            $14 - x$.</li>
+          <li>Pythagoras on each half, with the common height $h$:
+            $$13^2 - x^2 = h^2 = 15^2 - (14-x)^2.$$</li>
+          <li>Expand the right side: $225 - (196 - 28x + x^2) = 29 + 28x - x^2$. So
+            $169 - x^2 = 29 + 28x - x^2$, and the $x^2$ cancels.</li>
+          <li>$140 = 28x$, so $x = 5$, and then $h^2 = 169 - 25 = 144$, giving $h = 12$.</li>
+          <li>Area $= \tfrac12(14)(12) = 84$. $\blacksquare$</li>
+        </ol>
+        <p class="note">
+          Notice how the problem became a linear equation the moment the $x^2$ terms cancelled —
+          exactly the elimination of Chapter 2, arriving unannounced in a geometry problem.
+        </p>
+      </div>
+    </div>
+
+    <!-- ====================================================== practice ==== -->
+    <section class="practice" id="practice">
+      <div class="practice-head">
+        <h2 style="margin-top:0">Practice</h2>
+        <span class="practice-score" data-practice-score></span>
+      </div>
+      <p>
+        Give exact answers where you can. Where an answer involves $\pi$, write it as a decimal to
+        one place unless the question says otherwise.
+      </p>
+
+      <div class="ex" data-type="number" data-answer="30"
+           data-hint="Half of base times height.">
+        <div class="ex-q">
+          <p>A triangle has base $12$ and height $5$. What is its area?</p>
+        </div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $30$</p>
+          <p>
+            $\tfrac12 bh = \tfrac12(12)(5) = 30$. Two copies of this triangle assemble into a
+            $12 \times 5$ rectangle of area $60$ — which is where the factor $\tfrac12$ comes from.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" data-type="number" data-answer="9"
+           data-hint="Area scales by the square of the length factor.">
+        <div class="ex-q">
+          <p>
+            Every length of a figure is multiplied by $3$. By what factor is its area multiplied?
+          </p>
+        </div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $9$</p>
+          <p>
+            By the scaling law, area is multiplied by $r^2 = 3^2 = 9$. You can see it in the
+            simplest case: a $1\times1$ square scales to $3\times3$, holding nine copies of the
+            original.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" data-type="number" data-answer="78.5" data-tol="0.1"
+           data-hint="Radius is half the diameter; then use πr².">
+        <div class="ex-q">
+          <p>
+            A circle has diameter $10$. What is its area, to one decimal place?
+          </p>
+        </div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $78.5$</p>
+          <p>
+            The radius is $5$, so the area is $\pi(5)^2 = 25\pi \approx 78.54$.
+          </p>
+          <p>
+            The commonest slip here is using the diameter in place of the radius, which gives
+            $100\pi$ — four times too much, the scaling law again.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" data-type="number" data-answer="4"
+           data-hint="Compare the two areas, then take the square root.">
+        <div class="ex-q">
+          <p>
+            One square has area $9$ and another has area $144$. How many times longer is the side of
+            the second?
+          </p>
+        </div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $4$</p>
+          <p>
+            Areas are in the ratio $144/9 = 16$. Since areas scale as $r^2$, we need $r^2 = 16$, so
+            $r = 4$.
+          </p>
+          <p>Check directly: sides $3$ and $12$, and $12 = 4 \times 3$ ✓.</p>
+        </div>
+      </div>
+
+      <div class="ex" data-answer="2"
+           data-hint="Sliding the apex parallel to the base changes neither base nor height.">
+        <div class="ex-q">
+          <p>
+            A triangle's apex is slid along a line parallel to its base, keeping the base fixed.
+            What happens to its area?
+          </p>
+        </div>
+        <ul class="choices">
+          <li>It increases as the triangle becomes more slanted.</li>
+          <li>It stays exactly the same.</li>
+          <li>It decreases.</li>
+          <li>It depends on which direction the apex is slid.</li>
+        </ul>
+        <div class="ex-solution">
+          <p class="answer">Answer: it stays exactly the same</p>
+          <p>
+            The area is $\tfrac12 bh$, and neither the base $b$ nor the perpendicular height $h$
+            changes when the apex moves parallel to the base. The triangle becomes visibly more
+            lopsided, and the other two sides get longer, but the area is untouched.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" data-type="number" data-answer="48"
+           data-hint="Split it with a diagonal, or treat it as a rectangle plus a triangle.">
+        <div class="ex-q">
+          <p>
+            A trapezium has parallel sides $10$ and $6$, and the perpendicular distance between them
+            is $6$. What is its area?
+          </p>
+        </div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $48$</p>
+          <p>
+            A diagonal cuts it into two triangles, both of height $6$, with bases $10$ and $6$:
+            $$\tfrac12(10)(6) + \tfrac12(6)(6) = 30 + 18 = 48.$$
+          </p>
+          <p>
+            In general this gives the trapezium formula $\tfrac12(b_1 + b_2)h$ — the average of the
+            two parallel sides, times the distance between them.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" data-type="number" data-answer="24"
+           data-hint="Subtract the inner disc from the outer one, and factor before multiplying.">
+        <div class="ex-q">
+          <p>
+            A ring lies between circles of radius $5$ and $7$, with the same centre. Its area is
+            $k\pi$. What is $k$?
+          </p>
+        </div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $k = 24$</p>
+          <p>
+            $\pi(7^2) - \pi(5^2) = \pi(49-25) = 24\pi$, so $k = 24$.
+          </p>
+          <p>
+            Note it is <em>not</em> $\pi(7-5)^2 = 4\pi$: squaring does not distribute over
+            subtraction, a point Chapter 1 made about $(a-b)^2$ and one that costs marks
+            forever after.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" data-type="number" data-answer="6"
+           data-hint="Work out the area first, then read the side off it.">
+        <div class="ex-q">
+          <p>
+            A square has the same area as a $9 \times 4$ rectangle. What is the square's side?
+          </p>
+        </div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $6$</p>
+          <p>
+            The rectangle's area is $36$, so the square's side $s$ satisfies $s^2 = 36$, giving
+            $s = 6$ (the negative root is not a length).
+          </p>
+          <p>
+            The two figures have equal area but different perimeters — $26$ for the rectangle, $24$
+            for the square. Among all rectangles of a given area, the square has the least
+            perimeter.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" data-answer="3"
+           data-hint="What is π defined as, before any area formula appears?">
+        <div class="ex-q"><p>What is $\pi$, as this chapter defines it?</p></div>
+        <ul class="choices">
+          <li>The number $22/7$.</li>
+          <li>The area of a circle of radius $1$, by definition.</li>
+          <li>The ratio of a circle's circumference to its diameter — the same for every circle.</li>
+          <li>A number chosen so that the area formula comes out tidily.</li>
+        </ul>
+        <div class="ex-solution">
+          <p class="answer">Answer: the ratio of circumference to diameter</p>
+          <p>
+            That ratio is independent of the circle because all circles are similar, so it is a
+            single number and may be given a name. The area result $\pi r^2$ is then <em>derived</em>
+            — it is true that a unit circle has area $\pi$, but that is a theorem here, not the
+            definition. And $22/7$ is merely a convenient approximation: $\pi$ is irrational.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" data-type="number" data-answer="54"
+           data-hint="Use the same split-the-base trick as Example 4.">
+        <div class="ex-q">
+          <p>Find the area of the triangle with sides $9$, $12$, $15$.</p>
+        </div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $54$</p>
+          <p>
+            Test for a right angle first: $9^2 + 12^2 = 81 + 144 = 225 = 15^2$. So by the converse
+            of Pythagoras the triangle is right-angled, with the legs $9$ and $12$ perpendicular to
+            each other.
+          </p>
+          <p>
+            Then one leg is the base and the other the height:
+            $\tfrac12(9)(12) = 54$.
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <div class="recap">
+      <h2>Recap</h2>
+      <ul>
+        <li>Three assumptions carry the chapter: rectangle $=$ $bh$, congruent figures have equal
+          area, and areas of pieces add.</li>
+        <li>A triangle is half a rectangle, so its area is $\tfrac12 bh$ — and only the
+          perpendicular height matters.</li>
+        <li>Scaling by $r$ multiplies every length by $r$ and every area by $r^2$. Most everyday
+          mistakes about size are this law being ignored.</li>
+        <li>Inscribed polygons give area $= \tfrac12 r C$ for a disc, before $\pi$ is even
+          mentioned.</li>
+        <li>$\pi$ is <em>defined</em> as $C/2r$; then $C = 2\pi r$ and area $= \pi r^2$ follow, which
+          is why the same $\pi$ appears in both.</li>
+      </ul>
+    </div>
 
     <nav class="chapter-nav" data-chapter-nav></nav>
   </main>

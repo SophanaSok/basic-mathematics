@@ -32,33 +32,426 @@
 
     <p class="eyebrow">Part IV — Miscellaneous · Chapter 15</p>
     <h1>Induction and Summations</h1>
-    <p class="lede">Proving infinitely many statements at once, sigma notation, and the geometric series.</p>
+    <p class="lede">
+      How do you prove something about <em>every</em> positive integer, when there are infinitely
+      many of them and you have finite time? You prove the first case, and you prove that each case
+      drags the next one along behind it.
+    </p>
 
-    <div class="callout warn">
-      <span class="tag">Outline — prose still to come</span>
+    <div class="goal">
+      <strong>By the end of this chapter you can</strong>
+      write and check a proof by induction, identify where the inductive hypothesis is used, read
+      and manipulate sigma notation, derive and apply the standard sums, and sum a geometric series
+      both for finite $n$ and — when $|r| &lt; 1$ — in the limit.
+    </div>
+
+    <h2 id="induction">15.1 Induction</h2>
+    <p>
+      Suppose that for each positive integer $n$ there is a statement $S(n)$ — for instance,
+      "$1 + 2 + \dots + n = \tfrac{n(n+1)}{2}$". We want to prove all of them.
+    </p>
+
+    <div class="rule">
+      <span class="tag">The principle of induction</span>
       <p>
-        This chapter's section structure is settled and listed below, but its explanations, worked
-        examples, figures, and exercises have not been written yet. Part I
-        (<a href="../1-algebra/01-numbers.html">Chapters 1–4 and the interlude</a>) is complete and
-        shows the format each of these will take.
+        Suppose that
+      </p>
+      <ol>
+        <li><b>Base case.</b> $S(1)$ is true; and</li>
+        <li><b>Inductive step.</b> for every $n$, if $S(n)$ is true then $S(n+1)$ is true.</li>
+      </ol>
+      <p>
+        Then $S(n)$ is true for every positive integer $n$.
       </p>
     </div>
 
-    <h2>Planned sections</h2>
     <p>
-      Each will follow the same pattern as the finished chapters: the idea in plain language, the
-      definition stated precisely, worked examples with every step shown, an interactive figure
-      where a picture beats words, and a practice set with full solutions.
+      The image everyone uses is a row of dominoes: knock over the first, and make sure each one is
+      close enough to topple its neighbour. Both parts are needed, and neither is enough alone. The
+      statement "$n = n+1$" satisfies the inductive step perfectly — if $n = n+1$ then adding $1$
+      gives $n+1 = n+2$ — and is false throughout, because the base case fails. The dominoes are
+      well placed; nobody pushed the first one.
     </p>
 
-    <h2 id="induction">15.1 Induction</h2>
-    <p>Base case, inductive step, and the honest use of the hypothesis.</p>
+    <div class="worked">
+      <h4><span class="num">Example 1.</span> The sum of the first $n$ integers</h4>
+      <div class="body">
+        <p>Prove that $1 + 2 + \dots + n = \dfrac{n(n+1)}{2}$ for every $n \ge 1$.</p>
+        <ol class="steps">
+          <li><b>Base case.</b> For $n=1$ the left side is $1$ and the right side is
+            $\frac{1\cdot2}{2} = 1$. ✓</li>
+          <li><b>Inductive step.</b> Assume the formula holds for some $n$ — this assumption is the
+            <b>inductive hypothesis</b>. We must deduce it for $n+1$.</li>
+          <li>The sum to $n+1$ is the sum to $n$ plus one more term, and here the hypothesis enters:
+            $$\underbrace{1 + \dots + n}_{= \frac{n(n+1)}{2}} + (n+1)
+              = \frac{n(n+1)}{2} + (n+1).$$</li>
+          <li>Factor out $(n+1)$:
+            $$(n+1)\left(\frac n2 + 1\right) = (n+1)\cdot\frac{n+2}{2} = \frac{(n+1)(n+2)}{2}.$$</li>
+          <li>That is exactly the formula with $n+1$ in place of $n$. Base case plus inductive step,
+            so the formula holds for every $n$. $\blacksquare$</li>
+        </ol>
+      </div>
+    </div>
+
+    <div class="callout warn">
+      <span class="tag">Induction proves, it does not discover</span>
+      <p>
+        Notice that the proof verified a formula someone already had. Induction is a checking
+        machine: it will confirm a correct guess and refuse a wrong one, but it will not hand you
+        the guess. Gauss's trick does that here — pair the sum $1+2+\dots+n$ with itself written
+        backwards, so each of the $n$ columns totals $n+1$, giving $2S = n(n+1)$.
+      </p>
+    </div>
+
+    <div class="callout aside">
+      <span class="tag">Where the hypothesis must appear</span>
+      <p>
+        In any honest inductive step there is one moment where you <em>use</em> the assumption for
+        $n$ — in Example 1, replacing $1+\dots+n$ by $\frac{n(n+1)}2$. If you write out a step and
+        find you never used it, you have either proved something stronger directly or made a mistake.
+        Point at the moment of use; it is the thing an examiner and a reader both look for.
+      </p>
+    </div>
 
     <h2 id="summations">15.2 Summations</h2>
-    <p>Sigma notation and the standard sums.</p>
+    <p>
+      Writing $1 + 2 + \dots + n$ is fine until the terms get complicated. The compact notation is
+    </p>
+    <div class="display">$$\sum_{k=1}^{n} a_k = a_1 + a_2 + \dots + a_n.$$</div>
+    <p>
+      Here $k$ is the <b>index</b>, running over the integers from the bottom limit to the top one.
+      The index is a dummy: $\sum_{k=1}^{n} k^2$ and $\sum_{j=1}^{n} j^2$ are the same number, just
+      as the $x$ in $f(x) = x^2$ could have been anything.
+    </p>
+
+    <div class="rule">
+      <span class="tag">Two rules, and three sums</span>
+      <p>
+        $$\sum_{k=1}^{n}(a_k + b_k) = \sum_{k=1}^{n}a_k + \sum_{k=1}^{n}b_k, \qquad
+          \sum_{k=1}^{n} c\,a_k = c\sum_{k=1}^{n}a_k.$$
+        And three standard results:
+        $$\sum_{k=1}^{n} 1 = n, \qquad
+          \sum_{k=1}^{n} k = \frac{n(n+1)}{2}, \qquad
+          \sum_{k=1}^{n} k^{2} = \frac{n(n+1)(2n+1)}{6}.$$
+      </p>
+    </div>
+
+    <p>
+      The two rules are just the commutative and distributive laws of Chapter 1, applied to a long
+      but finite sum. What you may <em>not</em> do is pull a sum through a product:
+      $\sum a_kb_k$ is not $\left(\sum a_k\right)\left(\sum b_k\right)$, as
+      $1\cdot1 + 2\cdot2 = 5$ against $(1+2)(1+2) = 9$ makes clear.
+    </p>
+
+    <div class="worked">
+      <h4><span class="num">Example 2.</span> Using the standard sums</h4>
+      <div class="body">
+        <p>Compute $\displaystyle\sum_{k=1}^{20} (3k^2 - 2k + 4)$.</p>
+        <ol class="steps">
+          <li>Split the sum and pull out the constants:
+            $$3\sum_{k=1}^{20}k^2 \;-\; 2\sum_{k=1}^{20}k \;+\; \sum_{k=1}^{20}4.$$</li>
+          <li>$\sum k^2 = \frac{20\cdot21\cdot41}{6} = 2870$.</li>
+          <li>$\sum k = \frac{20\cdot21}{2} = 210$.</li>
+          <li>$\sum 4 = 4\times20 = 80$.
+            <span class="note">A constant summed $n$ times is $cn$ — not $c$.</span></li>
+          <li>Total: $3(2870) - 2(210) + 80 = 8610 - 420 + 80 = 8270$. $\blacksquare$</li>
+        </ol>
+      </div>
+    </div>
 
     <h2 id="geometric">15.3 Geometric series</h2>
-    <p>The closed form for finite sums and what happens as n grows.</p>
+    <p>
+      A <b>geometric</b> sum is one where each term is a fixed multiple of the one before:
+    </p>
+    <div class="display">$$S_n = 1 + r + r^2 + \dots + r^{n} = \sum_{k=0}^{n} r^{k}.$$</div>
+    <p>
+      There is a closed form, and the derivation is a trick worth keeping.
+    </p>
+
+    <div class="worked">
+      <h4><span class="num">Example 3.</span> Summing it, by subtraction</h4>
+      <div class="body">
+        <p>Find a closed form for $S_n = 1 + r + \dots + r^n$, assuming $r \neq 1$.</p>
+        <ol class="steps">
+          <li>Multiply through by $r$:
+            $$rS_n = r + r^2 + \dots + r^{n} + r^{n+1}.$$</li>
+          <li>Subtract. Almost everything cancels — the two sums share every term but the first of
+            one and the last of the other:
+            $$S_n - rS_n = 1 - r^{n+1}.$$</li>
+          <li>Factor the left side: $S_n(1-r) = 1 - r^{n+1}$.</li>
+          <li>Divide by $1-r$, legal since $r\neq1$:
+            $$\boxed{\;S_n = \frac{1-r^{n+1}}{1-r}\;}$$ $\blacksquare$</li>
+        </ol>
+        <p class="note">
+          At $r = 1$ the formula is $0/0$ and the sum is simply $n+1$, every term being $1$. The
+          excluded case is excluded for a reason.
+        </p>
+      </div>
+    </div>
+
+    <p>
+      Now let $n$ grow. If $|r| &lt; 1$ then $r^{n+1}$ shrinks towards $0$ — each multiplication by
+      $r$ makes it smaller — so the partial sums close in on a single number:
+    </p>
+
+    <div class="rule">
+      <span class="tag">The infinite geometric series</span>
+      <p>
+        For $|r| &lt; 1$,
+        $$1 + r + r^2 + r^3 + \dots = \frac{1}{1-r}.$$
+        For $|r| \ge 1$ the terms do not shrink and the sum has no limit.
+      </p>
+    </div>
+
+    <figure>
+      <div class="widget" data-widget="geoseries"></div>
+      <figcaption>
+        <b>Partial sums closing in.</b> Each bar is one more term added. With $|r| &lt; 1$ they
+        settle against the dashed line at $1/(1-r)$; push $r$ past $1$ and they escape upward,
+        while a negative $r$ makes them oscillate on their way in.
+      </figcaption>
+    </figure>
+
+    <div class="callout idea">
+      <span class="tag">$0.999\ldots = 1$, settled</span>
+      <p>
+        The decimal $0.999\dots$ means $\frac9{10} + \frac9{100} + \frac9{1000} + \dots$, which is
+        $\frac9{10}$ times a geometric series with $r = \frac1{10}$:
+        $$\frac{9}{10}\cdot\frac{1}{1 - \frac1{10}} = \frac{9}{10}\cdot\frac{10}{9} = 1.$$
+        Not "nearly $1$" and not "$1$ by convention" — the infinite decimal is <em>defined</em> as
+        the limit of its partial sums, and that limit is exactly $1$.
+      </p>
+    </div>
+
+    <div class="worked">
+      <h4><span class="num">Example 4.</span> An inequality by induction</h4>
+      <div class="body">
+        <p>Prove that $2^n &gt; n$ for every positive integer $n$.</p>
+        <ol class="steps">
+          <li><b>Base case.</b> $n=1$: $2^1 = 2 &gt; 1$ ✓.</li>
+          <li><b>Inductive step.</b> Assume $2^n &gt; n$.</li>
+          <li>Then $2^{n+1} = 2\cdot 2^n &gt; 2n$, using the hypothesis.</li>
+          <li>And $2n \ge n+1$ whenever $n \ge 1$, since $2n - (n+1) = n - 1 \ge 0$.</li>
+          <li>Chaining: $2^{n+1} &gt; 2n \ge n+1$, which is the statement for $n+1$.
+            $\blacksquare$</li>
+        </ol>
+        <p class="note">
+          Induction is not only for equalities. The pattern is identical: establish the first case,
+          then show each case forces the next.
+        </p>
+      </div>
+    </div>
+
+    <!-- ====================================================== practice ==== -->
+    <section class="practice" id="practice">
+      <div class="practice-head">
+        <h2 style="margin-top:0">Practice</h2>
+        <span class="practice-score" data-practice-score></span>
+      </div>
+      <p>Give numerical answers as exact numbers or fractions.</p>
+
+      <div class="ex" data-type="number" data-answer="5050"
+           data-hint="Use n(n+1)/2 with n = 100.">
+        <div class="ex-q"><p>Compute $1 + 2 + 3 + \dots + 100$.</p></div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $5050$</p>
+          <p>
+            $\dfrac{100 \times 101}{2} = 5050$. This is the sum the young Gauss is said to have done
+            in his head, by pairing $1$ with $100$, $2$ with $99$, and so on — fifty pairs each
+            totalling $101$.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" data-type="number" data-answer="385"
+           data-hint="Use n(n+1)(2n+1)/6 with n = 10.">
+        <div class="ex-q">
+          <p>Compute $\displaystyle\sum_{k=1}^{10} k^{2}$.</p>
+        </div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $385$</p>
+          <p>
+            $\dfrac{10 \times 11 \times 21}{6} = \dfrac{2310}{6} = 385$.
+          </p>
+          <p>
+            Rough check: the average of $1, 4, 9, \ldots, 100$ is a bit under $40$, and there are
+            ten terms — so a few hundred is the right size.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" data-type="number" data-answer="2"
+           data-hint="Use 1/(1 − r) with r = 1/2.">
+        <div class="ex-q">
+          <p>What is $1 + \tfrac12 + \tfrac14 + \tfrac18 + \dots$?</p>
+        </div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $2$</p>
+          <p>
+            $\dfrac{1}{1-\frac12} = 2$. Each term covers half of the remaining distance to $2$, so
+            the partial sums $1, 1.5, 1.75, 1.875, \dots$ approach $2$ without ever reaching it.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" data-type="number" data-answer="31"
+           data-hint="Use (1 − r^(n+1))/(1 − r) with r = 2, or just add them up.">
+        <div class="ex-q">
+          <p>Compute $1 + 2 + 4 + 8 + 16$.</p>
+        </div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $31$</p>
+          <p>
+            By the formula with $r = 2$ and $n = 4$:
+            $\dfrac{1-2^5}{1-2} = \dfrac{-31}{-1} = 31$. Directly: $1+2+4+8+16 = 31$ ✓.
+          </p>
+          <p>
+            The general pattern $2^{n+1} - 1$ is why $n$ binary digits reach exactly $2^n - 1$.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" data-answer="2"
+           data-hint="Which part of an induction is missing if the statement is false for every n?">
+        <div class="ex-q">
+          <p>
+            A student "proves" $n = n+1$ by noting that if $n = n+1$ then adding $1$ gives
+            $n+1 = n+2$. What is wrong?
+          </p>
+        </div>
+        <ul class="choices">
+          <li>The inductive step is invalid.</li>
+          <li>There is no base case — no value of $n$ where the statement is known true.</li>
+          <li>Induction only works for statements about sums.</li>
+          <li>The statement should have been checked for negative $n$ as well.</li>
+        </ul>
+        <div class="ex-solution">
+          <p class="answer">Answer: there is no base case</p>
+          <p>
+            The inductive step really is valid: the implication "if $n = n+1$ then $n+1=n+2$" is
+            true. But an implication tells you nothing until you know its hypothesis holds
+            somewhere — the point the interlude in Part I made about implication and its converse.
+          </p>
+          <p>
+            The dominoes are perfectly spaced, and nobody ever pushed the first.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" data-type="number" data-answer="1.5|3/2"
+           data-hint="This is a geometric series with r = 1/3.">
+        <div class="ex-q">
+          <p>What is $1 + \tfrac13 + \tfrac19 + \tfrac1{27} + \dots$?</p>
+        </div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $\tfrac32$</p>
+          <p>
+            $\dfrac{1}{1-\frac13} = \dfrac{1}{\frac23} = \dfrac32$.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" data-type="number" data-answer="25"
+           data-hint="Split the sum, pull out the constant, and remember what a constant sums to.">
+        <div class="ex-q">
+          <p>Compute $\displaystyle\sum_{k=1}^{5} (2k - 1)$.</p>
+        </div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $25$</p>
+          <p>
+            $2\sum_{k=1}^{5}k - \sum_{k=1}^{5}1 = 2(15) - 5 = 25$. Directly:
+            $1+3+5+7+9 = 25$.
+          </p>
+          <p>
+            The first $n$ odd numbers always sum to $n^2$ — which is worth a moment: a square of
+            side $n$ can be built from $n$ L-shaped strips of sizes $1, 3, 5, \dots$
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" data-answer="3"
+           data-hint="Where in the argument is the assumption for n actually used?">
+        <div class="ex-q">
+          <p>
+            In an inductive step, what role does the inductive hypothesis play?
+          </p>
+        </div>
+        <ul class="choices">
+          <li>It is what you are trying to prove, so it may not be assumed.</li>
+          <li>It replaces the base case.</li>
+          <li>It is assumed true for $n$ and used to derive the statement for $n+1$.</li>
+          <li>It must be verified separately for each $n$.</li>
+        </ul>
+        <div class="ex-solution">
+          <p class="answer">Answer: assumed for $n$, used to derive $n+1$</p>
+          <p>
+            You are not assuming what you set out to prove. What is being proved is the
+            <em>implication</em> $S(n) \Rightarrow S(n+1)$, and the standard way to prove an
+            implication is to assume the hypothesis and derive the conclusion.
+          </p>
+          <p>
+            If you finish an inductive step without ever having used $S(n)$, something is wrong —
+            or you have proved the result directly and do not need induction.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" data-type="number" data-answer="45"
+           data-hint="Sum to 10 minus sum to 4.">
+        <div class="ex-q">
+          <p>Compute $\displaystyle\sum_{k=5}^{10} k$.</p>
+        </div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $45$</p>
+          <p>
+            $\sum_{k=1}^{10}k - \sum_{k=1}^{4}k = 55 - 10 = 45$. Directly:
+            $5+6+7+8+9+10 = 45$ ✓.
+          </p>
+          <p>
+            Shifting the lower limit is the most common source of off-by-one errors here. Subtract
+            the sum up to <em>one below</em> the new starting point — up to $4$, not up to $5$.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" data-answer="2"
+           data-hint="Does r^(n+1) shrink when |r| ≥ 1?">
+        <div class="ex-q">
+          <p>
+            For which $r$ does the infinite series $1 + r + r^2 + \dots$ have a finite sum?
+          </p>
+        </div>
+        <ul class="choices">
+          <li>Every $r$.</li>
+          <li>Exactly when $|r| &lt; 1$.</li>
+          <li>Exactly when $r &gt; 0$.</li>
+          <li>Exactly when $r$ is rational.</li>
+        </ul>
+        <div class="ex-solution">
+          <p class="answer">Answer: exactly when $|r| &lt; 1$</p>
+          <p>
+            The partial sum is $\frac{1-r^{n+1}}{1-r}$, and this settles down only if $r^{n+1}\to0$,
+            which happens precisely when $|r| &lt; 1$. At $r = 1$ the sum is $n+1$ and grows without
+            bound; at $r = -1$ the partial sums alternate $1, 0, 1, 0, \dots$ and never settle.
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <div class="recap">
+      <h2>Recap</h2>
+      <ul>
+        <li>Induction proves $S(n)$ for all $n$ from two ingredients: a base case, and
+          $S(n)\Rightarrow S(n+1)$. Drop either and it collapses.</li>
+        <li>The inductive hypothesis must actually be used somewhere in the step — find the moment
+          and point at it.</li>
+        <li>Sigma notation packages a long sum; sums split over addition and let constants out, but
+          never distribute over products.</li>
+        <li>$\sum k = \frac{n(n+1)}2$ and $\sum k^2 = \frac{n(n+1)(2n+1)}6$ are worth knowing.</li>
+        <li>$1+r+\dots+r^n = \frac{1-r^{n+1}}{1-r}$, and for $|r|&lt;1$ the infinite sum is
+          $\frac1{1-r}$ — which is what makes $0.999\dots$ equal to $1$.</li>
+      </ul>
+    </div>
 
     <nav class="chapter-nav" data-chapter-nav></nav>
   </main>

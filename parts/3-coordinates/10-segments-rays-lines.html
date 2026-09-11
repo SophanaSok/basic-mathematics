@@ -32,36 +32,462 @@
 
     <p class="eyebrow">Part III — Coordinate Geometry · Chapter 10</p>
     <h1>Segments, Rays, and Lines</h1>
-    <p class="lede">Parametric descriptions of segments, rays, and lines, and how they relate to y = mx + b.</p>
+    <p class="lede">
+      One formula, $P + t(Q-P)$, describes a segment, a ray, and a whole line — the only difference
+      being how far you let $t$ run. It is a more flexible description than $y = mx + b$, and this
+      chapter shows how the two fit together.
+    </p>
 
-    <div class="callout warn">
-      <span class="tag">Outline — prose still to come</span>
+    <div class="goal">
+      <strong>By the end of this chapter you can</strong>
+      write the parametric form of a segment, ray, or line through two given points; find points
+      dividing a segment in a given ratio; convert between parametric form, $y = mx + b$, and
+      $ax + by = c$; compute slope and use it to test for parallel and perpendicular lines; and
+      handle the vertical line that $y = mx + b$ cannot express.
+    </div>
+
+    <h2 id="segments">10.1 Segments</h2>
+    <p>
+      Take two distinct points $P$ and $Q$. Chapter 9 gave us the displacement $Q - P$, the
+      instruction that carries $P$ to $Q$. Carry out only a fraction $t$ of that instruction and you
+      land at
+    </p>
+    <div class="display">$$X(t) = P + t\,(Q - P).$$</div>
+    <p>
+      At $t = 0$ this is $P$; at $t = 1$ it is $P + (Q-P) = Q$; at $t = \tfrac12$ it is the midpoint.
+      As $t$ sweeps from $0$ to $1$, $X(t)$ sweeps steadily from $P$ to $Q$.
+    </p>
+
+    <div class="rule">
+      <span class="tag">The segment $PQ$</span>
       <p>
-        This chapter's section structure is settled and listed below, but its explanations, worked
-        examples, figures, and exercises have not been written yet. Part I
-        (<a href="../1-algebra/01-numbers.html">Chapters 1–4 and the interlude</a>) is complete and
-        shows the format each of these will take.
+        $$\overline{PQ} = \{\, P + t(Q-P) \;:\; 0 \le t \le 1 \,\}.$$
+        The point at parameter $t$ divides the segment so that the part from $P$ has length $t$
+        times the whole.
       </p>
     </div>
 
-    <h2>Planned sections</h2>
     <p>
-      Each will follow the same pattern as the finished chapters: the idea in plain language, the
-      definition stated precisely, worked examples with every step shown, an interactive figure
-      where a picture beats words, and a practice set with full solutions.
+      That last sentence is worth checking rather than believing. The distance from $P$ to $X(t)$ is
+      the length of the displacement $X(t) - P = t(Q-P)$, which by §9.1 is $|t|$ times the length of
+      $Q - P$ — and the length of $Q-P$ is $PQ$. So $PX = t \cdot PQ$ for $t \ge 0$. The parameter
+      is not an arbitrary label; it measures how far along you are.
     </p>
 
-    <h2 id="segments">10.1 Segments</h2>
-    <p>P + t(Q − P) for 0 ≤ t ≤ 1, and the midpoint.</p>
+    <div class="worked">
+      <h4><span class="num">Example 1.</span> Dividing a segment in a ratio</h4>
+      <div class="body">
+        <p>
+          Find the point one third of the way from $P = (2,-1)$ to $Q = (11,5)$.
+        </p>
+        <ol class="steps">
+          <li>The displacement: $Q - P = (9,6)$.</li>
+          <li>One third of the way means $t = \tfrac13$: $\tfrac13(9,6) = (3,2)$.</li>
+          <li>$X = P + (3,2) = (5,1)$.</li>
+          <li>Check the ratio of distances: $PX = \sqrt{9+4} = \sqrt{13}$ and
+            $PQ = \sqrt{81+36} = \sqrt{117} = 3\sqrt{13}$ ✓. $\blacksquare$</li>
+        </ol>
+        <p class="note">
+          The phrase "in the ratio $1:2$" means the same thing — one part to $X$, two parts beyond —
+          and corresponds to $t = \frac{1}{1+2}$. Converting the ratio to a $t$ first saves a lot of
+          fumbling.
+        </p>
+      </div>
+    </div>
 
     <h2 id="rays">10.2 Rays</h2>
-    <p>Letting t run to infinity, and direction vectors.</p>
+    <p>
+      Now stop restricting $t$ from above. The set
+    </p>
+    <div class="display">$$\{\, P + t(Q-P) \;:\; t \ge 0 \,\}$$</div>
+    <p>
+      is the <b>ray</b> starting at $P$ and passing through $Q$: it contains the segment and then
+      continues forever in the same direction. The vector $Q - P$ is called a <b>direction vector</b>
+      for the ray.
+    </p>
+
+    <div class="callout aside">
+      <span class="tag">A direction vector is not unique</span>
+      <p>
+        Any positive multiple of $Q-P$ describes the same ray: $(3,4)$, $(6,8)$ and
+        $(0.6, 0.8)$ all point the same way. A <em>negative</em> multiple reverses it, giving the
+        opposite ray from $P$. When comparing two rays or lines, compare directions up to a scalar
+        multiple — not coordinate by coordinate.
+      </p>
+    </div>
 
     <h2 id="lines">10.3 Lines</h2>
-    <p>Parametric form, slope, and parallel and perpendicular conditions.</p>
+    <p>
+      Finally, let $t$ be any real number at all. Now $X(t)$ traces the entire <b>line</b> through
+      $P$ and $Q$: forward past $Q$ for $t &gt; 1$, backward past $P$ for $t &lt; 0$.
+    </p>
+
+    <figure>
+      <div class="widget" data-widget="paramline"></div>
+      <figcaption>
+        <b>One formula, three objects.</b> Drag $P$ and $Q$, then sweep $t$. The thick portion is
+        the segment ($0 \le t \le 1$); extend $t$ past $1$ and you are on the ray; go negative and
+        you are on the line but on neither of the other two.
+      </figcaption>
+    </figure>
+
+    <p>
+      Write $Q - P = (u, v)$ and $P = (p_1, p_2)$. Then the parametric form splits into two ordinary
+      equations,
+    </p>
+    <div class="display">$$x = p_1 + tu, \qquad y = p_2 + tv,$$</div>
+    <p>
+      and eliminating $t$ between them recovers the familiar equation of a line. If $u \neq 0$, then
+      $t = (x - p_1)/u$, and substituting into the second gives
+    </p>
+    <div class="display">$$y = p_2 + \frac{v}{u}\,(x - p_1).$$</div>
+
+    <div class="rule">
+      <span class="tag">Slope</span>
+      <p>
+        The <b>slope</b> of a non-vertical line through $P$ and $Q$ is
+        $$m = \frac{v}{u} = \frac{y_2 - y_1}{x_2 - x_1},$$
+        the rise over the run. It measures how much $y$ changes per unit change in $x$, and it does
+        not depend on which two points of the line you use.
+      </p>
+    </div>
+
+    <p>
+      Why the independence? Any two points of the line are $X(t_1)$ and $X(t_2)$, and their
+      difference is $(t_2 - t_1)(Q-P)$ — the same direction, scaled. Scaling both $v$ and $u$ by the
+      same factor leaves $v/u$ alone. So slope is a property of the line, not of the points chosen
+      to compute it.
+    </p>
+
+    <div class="rule">
+      <span class="tag">Parallel and perpendicular</span>
+      <ul>
+        <li>Two lines are <b>parallel</b> exactly when they have the same slope (or are both
+          vertical).</li>
+        <li>Two lines are <b>perpendicular</b> exactly when $m_1 m_2 = -1$ — equivalently, when one
+          slope is the negative reciprocal of the other. A horizontal line ($m=0$) and a vertical
+          line are the exception the formula cannot express.</li>
+      </ul>
+    </div>
+
+    <div class="callout idea">
+      <span class="tag">Where $m_1m_2 = -1$ comes from</span>
+      <p>
+        Take a line through the origin with direction $(1,m)$. Rotating by $90°$ sends $(1,m)$ to
+        $(-m,1)$ — check it against the rotation formula of
+        <a href="../2-geometry/06-isometries.html#mappings-plane">Chapter 6</a>, or just note that
+        the two displacements have equal length and, by the distance formula,
+        the triangle they make with the origin is right-angled. The rotated direction has slope
+        $1/(-m) = -1/m$. So the perpendicular slope is $-1/m$, i.e. $m_1m_2 = -1$. $\blacksquare$
+      </p>
+    </div>
+
+    <div class="worked">
+      <h4><span class="num">Example 2.</span> From two points to an equation</h4>
+      <div class="body">
+        <p>Find the equation of the line through $A = (-1,4)$ and $B = (3,-2)$.</p>
+        <ol class="steps">
+          <li>Slope: $m = \dfrac{-2-4}{3-(-1)} = \dfrac{-6}{4} = -\dfrac32$.</li>
+          <li>Use the point-slope form with $A$: $y - 4 = -\tfrac32\,(x+1)$.</li>
+          <li>Expand: $y = -\tfrac32 x - \tfrac32 + 4 = -\tfrac32 x + \tfrac52$.</li>
+          <li>Check with the other point: at $x = 3$, $y = -\tfrac92 + \tfrac52 = -2$ ✓.
+            $\blacksquare$</li>
+        </ol>
+        <p class="note">
+          Always verify with the point you did <em>not</em> use to build the equation. It catches
+          essentially every arithmetic slip.
+        </p>
+      </div>
+    </div>
 
     <h2 id="line-equation">10.4 The ordinary equation of a line</h2>
-    <p>From parameters to ax + by = c and back.</p>
+    <p>
+      The form $y = mx + b$ has one flaw: it cannot describe a vertical line, where the slope is
+      undefined. The symmetric form has no such gap.
+    </p>
+
+    <div class="rule">
+      <span class="tag">General form</span>
+      <p>
+        Every line can be written as
+        $$ax + by = c \qquad\text{with } a, b \text{ not both zero},$$
+        and every such equation describes a line. Vertical lines are the case $b = 0$; horizontal
+        lines, $a = 0$.
+      </p>
+    </div>
+
+    <p>
+      To get there from the parametric form, eliminate $t$ without dividing. From $x = p_1 + tu$ and
+      $y = p_2 + tv$, multiply the first by $v$, the second by $u$, and subtract:
+    </p>
+    <div class="display">$$v\,x - u\,y = v p_1 - u p_2,$$</div>
+    <p>
+      which is $ax+by=c$ with $a = v$, $b = -u$. No division took place, so nothing breaks when
+      $u = 0$ — and $u = 0$ is exactly the vertical case.
+    </p>
+
+    <div class="worked">
+      <h4><span class="num">Example 3.</span> A perpendicular through a point</h4>
+      <div class="body">
+        <p>
+          Find the line through $(6,1)$ perpendicular to $2x + 3y = 12$.
+        </p>
+        <ol class="steps">
+          <li>Rearrange the given line: $3y = -2x + 12$, so $y = -\tfrac23 x + 4$ and
+            $m_1 = -\tfrac23$.</li>
+          <li>The perpendicular slope is $m_2 = -1/m_1 = \tfrac32$.</li>
+          <li>Point-slope through $(6,1)$: $y - 1 = \tfrac32(x - 6)$.</li>
+          <li>So $y = \tfrac32 x - 8$, or in general form $3x - 2y = 16$.</li>
+          <li>Check: $m_1 m_2 = -\tfrac23 \cdot \tfrac32 = -1$ ✓, and $(6,1)$ satisfies
+            $18 - 2 = 16$ ✓. $\blacksquare$</li>
+        </ol>
+        <p class="note">
+          A shortcut worth knowing: to get a perpendicular to $ax+by=c$, swap the coefficients and
+          flip one sign — $bx - ay = c'$ — then fit $c'$ to the point. Here $2,3 \to 3,-2$, giving
+          $3x-2y = 16$ directly.
+        </p>
+      </div>
+    </div>
+
+    <div class="callout warn">
+      <span class="tag">Two equations, one line</span>
+      <p>
+        $2x + 3y = 12$ and $4x + 6y = 24$ describe the same line — multiplying an equation through
+        by a non-zero constant changes nothing. This is precisely the "infinitely many solutions"
+        case from <a href="../1-algebra/02-linear-equations.html#two-unknowns">Chapter 2</a>: two
+        equations that are secretly one. Recognising it saves you from looking for an intersection
+        point that does not exist.
+      </p>
+    </div>
+
+    <!-- ====================================================== practice ==== -->
+    <section class="practice" id="practice">
+      <div class="practice-head">
+        <h2 style="margin-top:0">Practice</h2>
+        <span class="practice-score" data-practice-score></span>
+      </div>
+      <p>
+        Write points as pairs like <code>(3,-2)</code>, slopes as numbers or fractions like
+        <code>-3/2</code>.
+      </p>
+
+      <div class="ex" data-type="number" data-answer="2"
+           data-hint="Slope is rise over run: (y₂ − y₁)/(x₂ − x₁).">
+        <div class="ex-q">
+          <p>What is the slope of the line through $(1,3)$ and $(4,9)$?</p>
+        </div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $2$</p>
+          <p>
+            $m = \dfrac{9-3}{4-1} = \dfrac63 = 2$. Reversing the two points gives
+            $\dfrac{3-9}{1-4} = \dfrac{-6}{-3} = 2$ — the same, as it must be.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" data-answer="(5,4)|5,4"
+           data-placeholder="e.g. (3,-2)"
+           data-hint="Compute Q − P, multiply by t, and add to P.">
+        <div class="ex-q">
+          <p>
+            With $P = (1,-2)$ and $Q = (9,10)$, what is $P + t(Q-P)$ at $t = \tfrac12$?
+          </p>
+        </div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $(5,4)$</p>
+          <p>
+            $Q - P = (8,12)$, half of it is $(4,6)$, and $(1,-2) + (4,6) = (5,4)$. As $t=\tfrac12$,
+            this is the midpoint — and indeed it is the average of the two endpoints.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" data-type="number" data-answer="-0.25|-1/4"
+           data-hint="Perpendicular slopes multiply to −1.">
+        <div class="ex-q">
+          <p>
+            A line has slope $4$. What is the slope of any line perpendicular to it?
+          </p>
+        </div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $-\tfrac14$</p>
+          <p>
+            We need $m_2$ with $4m_2 = -1$, so $m_2 = -\tfrac14$ — the negative reciprocal. Note
+            both parts: the reciprocal <em>and</em> the sign change. A slope of $\tfrac14$ would
+            give a line that is merely less steep, not perpendicular.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" data-answer="2"
+           data-hint="Is t inside [0,1], beyond 1, or negative?">
+        <div class="ex-q">
+          <p>
+            For which values of $t$ does $P + t(Q-P)$ lie on the segment from $P$ to $Q$?
+          </p>
+        </div>
+        <ul class="choices">
+          <li>$t \ge 0$.</li>
+          <li>$0 \le t \le 1$.</li>
+          <li>Every real $t$.</li>
+          <li>$t &gt; 1$.</li>
+        </ul>
+        <div class="ex-solution">
+          <p class="answer">Answer: $0 \le t \le 1$</p>
+          <p>
+            $t = 0$ gives $P$ and $t = 1$ gives $Q$; in between you are between them. Allowing all
+            $t \ge 0$ gives the ray from $P$ through $Q$, and allowing every real $t$ gives the
+            whole line.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" data-answer="y=3x-5|y=3x+-5|3x-5"
+           data-placeholder="e.g. y=3x-5"
+           data-hint="Find the slope first, then use point-slope form.">
+        <div class="ex-q">
+          <p>
+            Find the equation of the line through $(2,1)$ and $(4,7)$, in the form
+            $y = mx + b$.
+          </p>
+        </div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $y = 3x - 5$</p>
+          <p>
+            Slope: $m = \dfrac{7-1}{4-2} = 3$. Point-slope through $(2,1)$:
+            $y - 1 = 3(x-2)$, so $y = 3x - 6 + 1 = 3x - 5$.
+          </p>
+          <p>Check with the unused point: $3(4) - 5 = 7$ ✓.</p>
+        </div>
+      </div>
+
+      <div class="ex" data-answer="3"
+           data-hint="Rearrange both into y = mx + b and compare slopes.">
+        <div class="ex-q">
+          <p>
+            How are the lines $3x - y = 4$ and $6x - 2y = 1$ related?
+          </p>
+        </div>
+        <ul class="choices">
+          <li>They are perpendicular.</li>
+          <li>They are the same line.</li>
+          <li>They are parallel and distinct.</li>
+          <li>They meet at exactly one point.</li>
+        </ul>
+        <div class="ex-solution">
+          <p class="answer">Answer: parallel and distinct</p>
+          <p>
+            The first is $y = 3x - 4$; the second is $y = 3x - \tfrac12$. Equal slopes, different
+            intercepts — parallel, and never meeting.
+          </p>
+          <p>
+            Had the second been $6x - 2y = 8$, it would have been the first equation doubled, hence
+            the same line. The left sides matching is not enough; the constants must match too.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" data-answer="x=3|x-3=0"
+           data-placeholder="e.g. x=3"
+           data-hint="What is the slope of a vertical line?">
+        <div class="ex-q">
+          <p>Write the equation of the vertical line through $(3,-7)$.</p>
+        </div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $x = 3$</p>
+          <p>
+            Every point on a vertical line has the same $x$-coordinate; $y$ can be anything. So the
+            equation is $x = 3$.
+          </p>
+          <p>
+            This is why $ax+by=c$ is the better general form: here $a=1$, $b=0$, $c=3$, while
+            $y = mx+b$ cannot express it at all, the slope being undefined.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" data-answer="(7,11)|7,11"
+           data-placeholder="e.g. (3,-2)"
+           data-hint="Take t = 2 in the parametric form.">
+        <div class="ex-q">
+          <p>
+            $P = (1,-1)$ and $Q = (4,5)$. Which point of the ray from $P$ through $Q$ is twice as
+            far from $P$ as $Q$ is?
+          </p>
+        </div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $(7,11)$</p>
+          <p>
+            Distance from $P$ is $t$ times $PQ$, so we want $t = 2$:
+            $$P + 2(Q-P) = (1,-1) + 2(3,6) = (1,-1) + (6,12) = (7,11).$$
+          </p>
+          <p>
+            Equivalently: $Q$ is the midpoint of $P$ and the answer — which is another way to see
+            that the answer is $2Q - P$.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" data-type="number" data-answer="6"
+           data-hint="Substitute the point into the equation and solve for k.">
+        <div class="ex-q">
+          <p>
+            For which $k$ does the point $(2,k)$ lie on the line $5x - 2y = -2$?
+          </p>
+        </div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $k = 6$</p>
+          <p>
+            Substitute: $5(2) - 2k = -2$, so $10 - 2k = -2$, giving $2k = 12$ and $k = 6$.
+          </p>
+          <p>
+            "Lies on the line" and "satisfies the equation" are the same statement — that is the
+            whole content of coordinate geometry.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" data-answer="1"
+           data-hint="Two points determine a direction; any non-zero multiple of it works.">
+        <div class="ex-q">
+          <p>
+            Which of these is <em>not</em> a valid direction vector for the line through $(0,0)$
+            and $(2,6)$?
+          </p>
+        </div>
+        <ul class="choices">
+          <li>$(6,2)$</li>
+          <li>$(1,3)$</li>
+          <li>$(-2,-6)$</li>
+          <li>$(4,12)$</li>
+        </ul>
+        <div class="ex-solution">
+          <p class="answer">Answer: $(6,2)$</p>
+          <p>
+            The direction is $(2,6)$, and any non-zero multiple of it describes the same line:
+            $(1,3)$ is half of it, $(4,12)$ is double, $(-2,-6)$ is the reverse. But $(6,2)$ is not
+            a multiple — it has slope $\tfrac13$ instead of $3$, and swapping coordinates is not
+            scaling.
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <div class="recap">
+      <h2>Recap</h2>
+      <ul>
+        <li>$X(t) = P + t(Q-P)$ gives the segment for $0 \le t \le 1$, the ray for $t \ge 0$, and the
+          line for all real $t$.</li>
+        <li>The parameter measures fractional distance: $PX = t\cdot PQ$, which is what makes ratio
+          problems easy.</li>
+        <li>Slope $m = \Delta y/\Delta x$ is a property of the line, not of the points used to
+          compute it.</li>
+        <li>Parallel means equal slopes; perpendicular means $m_1m_2 = -1$, which comes from
+          rotating a direction vector by $90°$.</li>
+        <li>$ax + by = c$ covers every line including the vertical ones, which $y = mx+b$ cannot
+          reach.</li>
+      </ul>
+    </div>
 
     <nav class="chapter-nav" data-chapter-nav></nav>
   </main>

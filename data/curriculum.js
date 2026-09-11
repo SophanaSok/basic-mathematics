@@ -108,7 +108,7 @@ window.BM_CURRICULUM = {
           label: "5",
           title: "Distance and Angles",
           file: "05-distance-and-angles.html",
-          status: "outline",
+          status: "full",
           blurb: "Points, lines, distance, angle measure, parallels, and the Pythagorean theorem with a proof you can see.",
           sections: [
             { id: "distance", title: "Distance", summary: "Distance as a number attached to a pair of points, and its basic properties." },
@@ -122,7 +122,7 @@ window.BM_CURRICULUM = {
           label: "6",
           title: "Isometries",
           file: "06-isometries.html",
-          status: "outline",
+          status: "full",
           blurb: "The motions that preserve distance — translations, rotations, reflections — and symmetry as invariance under them.",
           sections: [
             { id: "mappings-plane", title: "Some standard mappings of the plane", summary: "Translation, rotation about a point, reflection in a line, dilation." },
@@ -135,7 +135,7 @@ window.BM_CURRICULUM = {
           label: "7",
           title: "Area and Applications",
           file: "07-area.html",
-          status: "outline",
+          status: "full",
           blurb: "Area of rectangles, triangles, and discs; circumference; and the scaling law that ties them together.",
           sections: [
             { id: "polygons", title: "Area of rectangles and triangles", summary: "From the rectangle to the triangle by cutting and rearranging." },
@@ -159,7 +159,7 @@ window.BM_CURRICULUM = {
           label: "8",
           title: "Coordinates and Geometry",
           file: "08-coordinates.html",
-          status: "outline",
+          status: "full",
           blurb: "The coordinate plane, the distance formula from Pythagoras, and the equation of a circle.",
           sections: [
             { id: "coord-systems", title: "Coordinate systems", summary: "Axes, ordered pairs, quadrants." },
@@ -173,7 +173,7 @@ window.BM_CURRICULUM = {
           label: "9",
           title: "Operations on Points",
           file: "09-operations-on-points.html",
-          status: "outline",
+          status: "full",
           blurb: "Adding points, scaling them, and reflecting them — geometry done by arithmetic on coordinates.",
           sections: [
             { id: "dilations", title: "Dilations and reflections", summary: "Multiplying a point by a number; reflecting in the axes and the origin." },
@@ -186,7 +186,7 @@ window.BM_CURRICULUM = {
           label: "10",
           title: "Segments, Rays, and Lines",
           file: "10-segments-rays-lines.html",
-          status: "outline",
+          status: "full",
           blurb: "Parametric descriptions of segments, rays, and lines, and how they relate to y = mx + b.",
           sections: [
             { id: "segments", title: "Segments", summary: "P + t(Q − P) for 0 ≤ t ≤ 1, and the midpoint." },
@@ -200,7 +200,7 @@ window.BM_CURRICULUM = {
           label: "11",
           title: "Trigonometry",
           file: "11-trigonometry.html",
-          status: "outline",
+          status: "full",
           blurb: "Sine and cosine from the unit circle, radian measure, graphs, the tangent, addition formulas, and rotations.",
           sections: [
             { id: "radians", title: "Radian measure", summary: "Angle as arc length on the unit circle." },
@@ -226,7 +226,7 @@ window.BM_CURRICULUM = {
           label: "12",
           title: "Functions",
           file: "12-functions.html",
-          status: "outline",
+          status: "full",
           blurb: "What a function is, how to read a graph, and the exponential and logarithm.",
           sections: [
             { id: "definition-fn", title: "Definition of a function", summary: "A rule with a domain: one output per input." },
@@ -241,7 +241,7 @@ window.BM_CURRICULUM = {
           label: "13",
           title: "Mappings",
           file: "13-mappings.html",
-          status: "outline",
+          status: "full",
           blurb: "Functions between arbitrary sets: composition, injectivity, surjectivity, inverses, and permutations.",
           sections: [
             { id: "definition-map", title: "Definition of a mapping", summary: "Domain, codomain, image." },
@@ -254,7 +254,7 @@ window.BM_CURRICULUM = {
           label: "14",
           title: "Complex Numbers",
           file: "14-complex-numbers.html",
-          status: "outline",
+          status: "full",
           blurb: "Arithmetic with i, the complex plane, absolute value, and polar form where multiplication becomes rotation.",
           sections: [
             { id: "complex-arith", title: "Arithmetic of complex numbers", summary: "Adding and multiplying; the conjugate and the inverse." },
@@ -267,7 +267,7 @@ window.BM_CURRICULUM = {
           label: "15",
           title: "Induction and Summations",
           file: "15-induction-and-summations.html",
-          status: "outline",
+          status: "full",
           blurb: "Proving infinitely many statements at once, sigma notation, and the geometric series.",
           sections: [
             { id: "induction", title: "Induction", summary: "Base case, inductive step, and the honest use of the hypothesis." },
@@ -280,7 +280,7 @@ window.BM_CURRICULUM = {
           label: "16",
           title: "Determinants",
           file: "16-determinants.html",
-          status: "outline",
+          status: "full",
           blurb: "Matrices, determinants of order 2 and 3, their properties, and Cramer's rule for linear systems.",
           sections: [
             { id: "matrices", title: "Matrices", summary: "Arrays of numbers, and the systems they encode." },

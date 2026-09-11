@@ -32,36 +32,453 @@
 
     <p class="eyebrow">Part III — Coordinate Geometry · Chapter 8</p>
     <h1>Coordinates and Geometry</h1>
-    <p class="lede">The coordinate plane, the distance formula from Pythagoras, and the equation of a circle.</p>
+    <p class="lede">
+      Part I gave us numbers, Part II gave us pictures. This chapter welds them together: a point
+      becomes a pair of numbers, a curve becomes an equation, and geometric questions turn into
+      algebra you already know how to do.
+    </p>
 
-    <div class="callout warn">
-      <span class="tag">Outline — prose still to come</span>
+    <div class="goal">
+      <strong>By the end of this chapter you can</strong>
+      locate points by coordinates and name the quadrants, derive and use the distance formula,
+      recognise and manipulate the equation of a circle in both centre–radius and expanded form,
+      recover a circle's centre and radius by completing the square, and generate all the rational
+      points on the unit circle from a single parameter.
+    </div>
+
+    <h2 id="coord-systems">8.1 Coordinate systems</h2>
+    <p>
+      Choose a point of the plane and call it the <b>origin</b>, $O$. Through it draw two
+      perpendicular lines, the <b>$x$-axis</b> (horizontal) and the <b>$y$-axis</b> (vertical), and
+      mark each one off as a copy of the real line from
+      <a href="../1-algebra/03-real-numbers.html">Chapter 3</a>, with $O$ at $0$.
+    </p>
+    <p>
+      Now any point $P$ of the plane determines two numbers: drop a perpendicular to each axis and
+      read off where it lands. We write $P = (x,y)$, the <b>coordinates</b> of $P$. The order
+      matters — $(3,1)$ and $(1,3)$ are different points — which is why $(x,y)$ is called an
+      <b>ordered pair</b>.
+    </p>
+
+    <div class="rule">
+      <span class="tag">The dictionary</span>
       <p>
-        This chapter's section structure is settled and listed below, but its explanations, worked
-        examples, figures, and exercises have not been written yet. Part I
-        (<a href="../1-algebra/01-numbers.html">Chapters 1–4 and the interlude</a>) is complete and
-        shows the format each of these will take.
+        Every point of the plane corresponds to exactly one ordered pair of real numbers, and every
+        ordered pair to exactly one point. Geometry on the left, arithmetic on the right — and from
+        here on we translate freely between them.
       </p>
     </div>
 
-    <h2>Planned sections</h2>
     <p>
-      Each will follow the same pattern as the finished chapters: the idea in plain language, the
-      definition stated precisely, worked examples with every step shown, an interactive figure
-      where a picture beats words, and a practice set with full solutions.
+      The two axes cut the plane into four <b>quadrants</b>, numbered counterclockwise from the
+      upper right: I has $x&gt;0, y&gt;0$; II has $x&lt;0, y&gt;0$; III has both negative; IV has
+      $x&gt;0, y&lt;0$. Points on an axis belong to no quadrant. The sign pattern is worth knowing by
+      reflex, since it is the fastest check on an answer's plausibility.
     </p>
 
-    <h2 id="coord-systems">8.1 Coordinate systems</h2>
-    <p>Axes, ordered pairs, quadrants.</p>
+    <div class="callout aside">
+      <span class="tag">A choice, not a fact</span>
+      <p>
+        Nothing in the plane singles out an origin or a direction; we chose them. A different choice
+        gives every point different coordinates while leaving all the geometry intact. This is the
+        reason a well-posed problem lets you <em>place</em> the axes — put the origin at the centre
+        of the circle, or a vertex of the triangle on the $x$-axis — and a well-chosen placement can
+        cut the algebra in half.
+      </p>
+    </div>
 
     <h2 id="distance-formula">8.2 Distance between points</h2>
-    <p>The distance formula as Pythagoras in coordinates.</p>
+    <p>
+      Chapter 5 ended with a promise: Pythagoras would give the distance between any two points.
+      Here it is.
+    </p>
+    <p>
+      Let $P = (x_1,y_1)$ and $Q = (x_2,y_2)$. Complete the right triangle by dropping to the point
+      $R = (x_2, y_1)$, directly below or above $Q$ and level with $P$. The leg $PR$ is horizontal,
+      of length $|x_2 - x_1|$; the leg $RQ$ is vertical, of length $|y_2 - y_1|$; and the angle at
+      $R$ is right, because one leg is horizontal and the other vertical.
+    </p>
 
-    <h2 id="circle">8.3 Equation of a circle</h2>
-    <p>Centre and radius read off from the equation, and completing the square again.</p>
+    <div class="rule">
+      <span class="tag">The distance formula</span>
+      <p>
+        $$d(P,Q) = \sqrt{(x_2 - x_1)^2 + (y_2 - y_1)^2}.$$
+      </p>
+    </div>
+
+    <p>
+      The absolute values have quietly vanished, because $|a|^2 = a^2$. That also means the order of
+      subtraction does not matter — as it had better not, since $d(P,Q) = d(Q,P)$.
+    </p>
+
+    <figure>
+      <div class="widget" data-widget="distance"></div>
+      <figcaption>
+        <b>The formula is a right triangle.</b> Drag either point. The dashed legs are the
+        coordinate differences; the solid line is the hypotenuse. Every use of the distance formula
+        is this picture, whether or not you draw it.
+      </figcaption>
+    </figure>
+
+    <div class="worked">
+      <h4><span class="num">Example 1.</span> A distance, and a use for it</h4>
+      <div class="body">
+        <p>
+          Find the distance between $A = (-2,3)$ and $B = (4,-5)$, and decide whether the triangle
+          $A$, $B$, $C = (4,3)$ is right-angled.
+        </p>
+        <ol class="steps">
+          <li>$\Delta x = 4 - (-2) = 6$ and $\Delta y = -5 - 3 = -8$.</li>
+          <li>$AB = \sqrt{6^2 + (-8)^2} = \sqrt{36+64} = \sqrt{100} = 10$.</li>
+          <li>Now the other two sides. $AC$: same $y$, so it is horizontal of length $6$. $BC$:
+            same $x$, so it is vertical of length $8$.
+            <span class="note">When two points share a coordinate, do not reach for the formula —
+            just subtract.</span></li>
+          <li>$6^2 + 8^2 = 100 = 10^2$, so by the converse of Pythagoras the triangle is
+            right-angled at $C$. $\blacksquare$</li>
+        </ol>
+        <p class="note">
+          Which was visible from the start: $AC$ is horizontal and $BC$ is vertical, so they are
+          perpendicular. The arithmetic confirmed what the coordinates had already said.
+        </p>
+      </div>
+    </div>
+
+    <h2 id="circle">8.3 The equation of a circle</h2>
+    <p>
+      A <b>circle</b> of centre $C$ and radius $r$ is the set of points at distance exactly $r$ from
+      $C$. That is a sentence about distance, and we now have distance as a formula — so the
+      sentence becomes an equation.
+    </p>
+    <p>
+      With $C = (h,k)$ and a typical point $(x,y)$, the condition $d\bigl((x,y),(h,k)\bigr) = r$
+      reads
+    </p>
+    <div class="display">$$\sqrt{(x-h)^2 + (y-k)^2} = r,$$</div>
+    <p>and squaring both sides — harmless here, since both sides are $\ge 0$ — gives:</p>
+
+    <div class="rule">
+      <span class="tag">Equation of a circle</span>
+      <p>
+        $$(x-h)^2 + (y-k)^2 = r^{2}.$$
+        Centred at the origin this is simply $x^2 + y^2 = r^2$.
+      </p>
+    </div>
+
+    <figure>
+      <div class="widget" data-widget="circleeq"></div>
+      <figcaption>
+        <b>Centre, radius, equation.</b> Move the centre and change the radius, and watch both forms
+        of the equation update. Note the sign convention: a centre at $x = 3$ appears in the
+        equation as $(x - 3)$.
+      </figcaption>
+    </figure>
+
+    <div class="callout warn">
+      <span class="tag">The sign trap</span>
+      <p>
+        $(x-h)$ contains <em>minus</em> $h$. So $(x-3)^2 + (y+2)^2 = 25$ is the circle of radius
+        $5$ centred at $(3,-2)$ — not $(3,2)$, and not $(-3,2)$. Read $(y+2)$ as $(y - (-2))$ every
+        time until it stops needing thought.
+      </p>
+    </div>
+
+    <p>
+      Expanding the equation gives $x^2 + y^2 - 2hx - 2ky + (h^2+k^2-r^2) = 0$: something of the
+      shape $x^2 + y^2 + Dx + Ey + F = 0$. Going back the other way — from the expanded form to the
+      centre and radius — is completing the square from
+      <a href="../1-algebra/04-quadratic-equations.html#completing">Chapter 4</a>, done once in $x$
+      and once in $y$.
+    </p>
+
+    <div class="worked">
+      <h4><span class="num">Example 2.</span> Recovering the centre and radius</h4>
+      <div class="body">
+        <p>Describe the set of points satisfying $x^2 + y^2 - 6x + 4y - 12 = 0$.</p>
+        <ol class="steps">
+          <li>Group the $x$'s and the $y$'s, and move the constant across:
+            $$(x^2 - 6x) + (y^2 + 4y) = 12.$$</li>
+          <li>Complete the square in $x$: half of $-6$ is $-3$, and $(x-3)^2 = x^2 - 6x + 9$. So
+            $x^2-6x = (x-3)^2 - 9$.</li>
+          <li>And in $y$: half of $4$ is $2$, so $y^2+4y = (y+2)^2 - 4$.</li>
+          <li>Substituting: $(x-3)^2 - 9 + (y+2)^2 - 4 = 12$, that is,
+            $$(x-3)^2 + (y+2)^2 = 25.$$</li>
+          <li>A circle of centre $(3,-2)$ and radius $5$. $\blacksquare$</li>
+        </ol>
+        <p class="note">
+          If the right-hand side had come out negative, no point would satisfy the equation; if
+          zero, only the centre itself. The discriminant idea from Chapter 4, wearing different
+          clothes.
+        </p>
+      </div>
+    </div>
 
     <h2 id="rational-points">8.4 Rational points on a circle</h2>
-    <p>Parametrising the solutions of x² + y² = 1 in fractions.</p>
+    <p>
+      Here is a question that looks like geometry and turns out to be about numbers. Which points of
+      the unit circle $x^2 + y^2 = 1$ have <em>both</em> coordinates rational?
+    </p>
+    <p>
+      A few are easy: $(1,0)$, $(0,1)$, $(-1,0)$, and $\left(\tfrac35,\tfrac45\right)$ — that last
+      one being the $3,4,5$ triangle in disguise. Are there others? Infinitely many, and there is a
+      way to produce every one of them.
+    </p>
+
+    <div class="worked">
+      <h4><span class="num">Example 3.</span> Sweeping a line through a known point</h4>
+      <div class="body">
+        <p>
+          Start at the known rational point $N = (-1, 0)$ and draw the line through it of slope $t$.
+          Find its second intersection with the circle.
+        </p>
+        <ol class="steps">
+          <li>The line is $y = t(x+1)$. Substitute into $x^2 + y^2 = 1$:
+            $$x^2 + t^2(x+1)^2 = 1.$$</li>
+          <li>Move everything to one side: $x^2 - 1 + t^2(x+1)^2 = 0$, and since
+            $x^2 - 1 = (x+1)(x-1)$, the factor $(x+1)$ is common:
+            $$(x+1)\bigl[(x-1) + t^2(x+1)\bigr] = 0.$$
+            <span class="note">The factor $(x+1)$ had to appear: we <em>knew</em> $x=-1$ was a
+            solution, because the line was built to pass through $N$.</span></li>
+          <li>The other root comes from $(x-1) + t^2(x+1) = 0$, i.e. $x(1+t^2) = 1 - t^2$, so
+            $$x = \frac{1-t^2}{1+t^2}.$$</li>
+          <li>Then $y = t(x+1) = t\left(\frac{1-t^2}{1+t^2} + 1\right) = \frac{2t}{1+t^2}$.</li>
+          <li>So for every $t$,
+            $$\left(\frac{1-t^{2}}{1+t^{2}},\; \frac{2t}{1+t^{2}}\right)$$
+            lies on the circle — and if $t$ is rational, both coordinates are. $\blacksquare$</li>
+        </ol>
+      </div>
+    </div>
+
+    <p>
+      Two things deserve a second look. First, the construction catches <em>every</em> rational
+      point except $N$ itself: given such a point, the line joining it to $N$ has rational slope
+      $t = y/(x+1)$, and that $t$ produces it. Second, clearing denominators in
+      $x^2 + y^2 = 1$ with $t = q/p$ gives
+    </p>
+    <div class="display">$$(p^2 - q^2)^2 + (2pq)^2 = (p^2+q^2)^2,$$</div>
+    <p>
+      which is a formula for Pythagorean triples. Taking $p=2, q=1$ gives $3,4,5$; $p=3,q=2$ gives
+      $5,12,13$. A question about fractions on a circle has produced every right triangle with whole
+      number sides.
+    </p>
+
+    <div class="callout idea">
+      <span class="tag">Why this is a big deal</span>
+      <p>
+        The method — take one known rational point, sweep lines through it, and read off the second
+        intersection — is the first step of a subject called arithmetic geometry. It works because a
+        line meets a conic twice, so knowing one rational intersection forces the other to be
+        rational too. For curves of higher degree the trick breaks down spectacularly, and what
+        replaces it is still an area of active research.
+      </p>
+    </div>
+
+    <!-- ====================================================== practice ==== -->
+    <section class="practice" id="practice">
+      <div class="practice-head">
+        <h2 style="margin-top:0">Practice</h2>
+        <span class="practice-score" data-practice-score></span>
+      </div>
+      <p>Write points as pairs, like <code>(3,-2)</code>.</p>
+
+      <div class="ex" data-type="number" data-answer="5"
+           data-hint="Δx = 3, Δy = 4.">
+        <div class="ex-q">
+          <p>What is the distance between $(1,2)$ and $(4,6)$?</p>
+        </div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $5$</p>
+          <p>
+            $\Delta x = 3$, $\Delta y = 4$, so $d = \sqrt{9+16} = \sqrt{25} = 5$ — the $3,4,5$
+            triangle, placed on the grid.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" data-answer="2|ii"
+           data-placeholder="1, 2, 3 or 4"
+           data-hint="Where are x negative and y positive?">
+        <div class="ex-q"><p>In which quadrant does $(-3, 7)$ lie?</p></div>
+        <div class="ex-solution">
+          <p class="answer">Answer: quadrant $2$</p>
+          <p>
+            Negative $x$, positive $y$ — upper left, which is quadrant II. Quadrants are numbered
+            counterclockwise from the upper right.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" data-answer="(2,-5)|2,-5"
+           data-placeholder="e.g. (3,-2)"
+           data-hint="Read (x − h)² + (y − k)² = r² and be careful with the signs.">
+        <div class="ex-q">
+          <p>What is the centre of the circle $(x-2)^2 + (y+5)^2 = 9$?</p>
+        </div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $(2,-5)$</p>
+          <p>
+            Matching against $(x-h)^2 + (y-k)^2 = r^2$: $h = 2$, and since $(y+5) = (y-(-5))$ we get
+            $k = -5$. The radius is $\sqrt9 = 3$ — the equation holds $r^2$, not $r$.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" data-type="number" data-answer="4"
+           data-hint="Complete the square in x and in y, then read off r² on the right.">
+        <div class="ex-q">
+          <p>
+            The equation $x^2 + y^2 - 2x + 8y + 1 = 0$ describes a circle. What is its radius?
+          </p>
+        </div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $4$</p>
+          <p>
+            Group and complete the square:
+            $$(x^2-2x) + (y^2+8y) = -1$$
+            $$(x-1)^2 - 1 + (y+4)^2 - 16 = -1$$
+            $$(x-1)^2 + (y+4)^2 = 16.$$
+            So the centre is $(1,-4)$ and the radius is $\sqrt{16} = 4$.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" data-answer="(3,4)|3,4"
+           data-placeholder="e.g. (3,-2)"
+           data-hint="The midpoint has the average of the x's and the average of the y's.">
+        <div class="ex-q">
+          <p>What is the midpoint of the segment joining $(-1,2)$ and $(7,6)$?</p>
+        </div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $(3,4)$</p>
+          <p>
+            Average each coordinate: $\left(\frac{-1+7}{2}, \frac{2+6}{2}\right) = (3,4)$.
+          </p>
+          <p>
+            Check with distances: the midpoint should be the same distance from both ends. From
+            $(-1,2)$: $\sqrt{16+4} = \sqrt{20}$. From $(7,6)$: $\sqrt{16+4} = \sqrt{20}$ ✓.
+            Chapter 10 derives this formula properly, as the case $t = \tfrac12$.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" data-answer="2"
+           data-hint="Is the distance from the centre less than, equal to, or more than the radius?">
+        <div class="ex-q">
+          <p>
+            Does the point $(6,2)$ lie inside, on, or outside the circle
+            $(x-2)^2 + (y+1)^2 = 25$?
+          </p>
+        </div>
+        <ul class="choices">
+          <li>Inside.</li>
+          <li>On the circle.</li>
+          <li>Outside.</li>
+          <li>Cannot be determined from the equation.</li>
+        </ul>
+        <div class="ex-solution">
+          <p class="answer">Answer: on the circle</p>
+          <p>
+            Substitute: $(6-2)^2 + (2+1)^2 = 16 + 9 = 25$, which is exactly $r^2$. So the point is
+            at distance $5$ from the centre $(2,-1)$ — on the circle.
+          </p>
+          <p>
+            In general: substitute and compare with $r^2$. Less means inside, more means outside.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" data-type="number" data-answer="10"
+           data-hint="Both points have the same y, so the distance is just the difference of the x's.">
+        <div class="ex-q">
+          <p>How far apart are $(-4,7)$ and $(6,7)$?</p>
+        </div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $10$</p>
+          <p>
+            The $y$-coordinates agree, so the segment is horizontal and the distance is
+            $|6 - (-4)| = 10$. The formula gives the same thing: $\sqrt{10^2 + 0^2} = 10$.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" data-answer="(0.6,0.8)|0.6,0.8|(3/5,4/5)|3/5,4/5"
+           data-placeholder="e.g. (0.6,0.8)"
+           data-hint="Use x = (1 − t²)/(1 + t²) and y = 2t/(1 + t²).">
+        <div class="ex-q">
+          <p>
+            Using the parametrisation of §8.4 with $t = \tfrac12$, which rational point of the unit
+            circle do you get?
+          </p>
+        </div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $\left(\tfrac35, \tfrac45\right) = (0.6, 0.8)$</p>
+          <p>
+            With $t = \tfrac12$: $1 + t^2 = \tfrac54$ and $1 - t^2 = \tfrac34$, so
+            $$x = \frac{3/4}{5/4} = \frac35, \qquad y = \frac{2\cdot\frac12}{5/4} = \frac{1}{5/4} = \frac45.$$
+          </p>
+          <p>Check: $\left(\tfrac35\right)^2 + \left(\tfrac45\right)^2 = \tfrac{9+16}{25} = 1$ ✓.</p>
+        </div>
+      </div>
+
+      <div class="ex" data-type="number" data-answer="13"
+           data-hint="The radius is the distance from the centre to any point on the circle.">
+        <div class="ex-q">
+          <p>
+            A circle has centre $(2,-3)$ and passes through $(14,2)$. What is its radius?
+          </p>
+        </div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $13$</p>
+          <p>
+            The radius is the distance from the centre to that point:
+            $$r = \sqrt{(14-2)^2 + (2-(-3))^2} = \sqrt{144 + 25} = \sqrt{169} = 13.$$
+            The circle's equation is therefore $(x-2)^2 + (y+3)^2 = 169$.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" data-answer="3"
+           data-hint="What does squaring both sides of the distance equation do to the picture?">
+        <div class="ex-q">
+          <p>
+            Why is squaring both sides of $\sqrt{(x-h)^2 + (y-k)^2} = r$ safe here, when squaring an
+            equation is usually a way to introduce false solutions?
+          </p>
+        </div>
+        <ul class="choices">
+          <li>Because $r$ is a whole number.</li>
+          <li>Because squaring is always reversible.</li>
+          <li>Because both sides are non-negative, so equality of the squares forces equality of
+            the originals.</li>
+          <li>Because the equation has two unknowns rather than one.</li>
+        </ul>
+        <div class="ex-solution">
+          <p class="answer">Answer: because both sides are non-negative</p>
+          <p>
+            Squaring loses information about sign: $a^2 = b^2$ gives $a = \pm b$. But a square root
+            is $\ge 0$ and a radius is $&gt; 0$, so the minus case cannot occur and nothing is
+            gained or lost. Squaring $x = -2$, by contrast, produces $x^2 = 4$, which also admits
+            $x = 2$.
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <div class="recap">
+      <h2>Recap</h2>
+      <ul>
+        <li>A choice of origin and axes turns each point into an ordered pair, and lets every
+          geometric statement be rewritten as algebra.</li>
+        <li>$d = \sqrt{(\Delta x)^2 + (\Delta y)^2}$ — Pythagoras with the legs read off the
+          coordinates.</li>
+        <li>"Distance from $(h,k)$ equals $r$" becomes $(x-h)^2 + (y-k)^2 = r^2$; mind the minus
+          signs.</li>
+        <li>Completing the square in $x$ and in $y$ converts $x^2+y^2+Dx+Ey+F=0$ back into centre
+          and radius.</li>
+        <li>Sweeping lines of rational slope through $(-1,0)$ generates every rational point of the
+          unit circle — and every Pythagorean triple with it.</li>
+      </ul>
+    </div>
 
     <nav class="chapter-nav" data-chapter-nav></nav>
   </main>

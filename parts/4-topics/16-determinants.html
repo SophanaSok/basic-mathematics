@@ -32,39 +32,488 @@
 
     <p class="eyebrow">Part IV — Miscellaneous · Chapter 16</p>
     <h1>Determinants</h1>
-    <p class="lede">Matrices, determinants of order 2 and 3, their properties, and Cramer's rule for linear systems.</p>
+    <p class="lede">
+      Chapter 2 solved linear systems by elimination and found three possible outcomes. A single
+      number decides which one you are in — and the same number is the area of a parallelogram. This
+      last chapter ties the algebra of Part I to the geometry of Part III.
+    </p>
 
-    <div class="callout warn">
-      <span class="tag">Outline — prose still to come</span>
+    <div class="goal">
+      <strong>By the end of this chapter you can</strong>
+      write a linear system as a matrix, compute $2\times2$ and $3\times3$ determinants, read the
+      determinant as a signed area or volume, predict from it whether a system has a unique
+      solution, use the main properties to compute determinants cheaply, and apply Cramer's rule.
+    </div>
+
+    <h2 id="matrices">16.1 Matrices</h2>
+    <p>
+      A <b>matrix</b> is a rectangular array of numbers. Its purpose here is bookkeeping: the
+      system
+    </p>
+    <div class="display">
+      $$\begin{aligned} ax + by &amp;= e \\ cx + dy &amp;= f \end{aligned}$$
+    </div>
+    <p>
+      is completely determined by the six numbers $a,b,c,d,e,f$ and the positions they occupy. The
+      names $x$ and $y$ carry no information. So write the <b>coefficient matrix</b>
+    </p>
+    <div class="display">
+      $$A = \begin{pmatrix} a &amp; b \\ c &amp; d \end{pmatrix},$$
+    </div>
+    <p>
+      one row per equation, one column per unknown. A matrix with $m$ rows and $n$ columns is said
+      to be $m\times n$; this one is $2\times2$, and a matrix with equally many rows and columns is
+      <b>square</b>.
+    </p>
+
+    <div class="callout aside">
+      <span class="tag">Why a new object for this</span>
       <p>
-        This chapter's section structure is settled and listed below, but its explanations, worked
-        examples, figures, and exercises have not been written yet. Part I
-        (<a href="../1-algebra/01-numbers.html">Chapters 1–4 and the interlude</a>) is complete and
-        shows the format each of these will take.
+        Separating the coefficients from the unknowns is what lets us ask questions about the
+        <em>system</em> rather than about its solutions: is it solvable, and uniquely? Those turn out
+        to depend on $A$ alone. It is the same move as writing $ax^2+bx+c$ and asking about the
+        discriminant before solving anything.
       </p>
     </div>
 
-    <h2>Planned sections</h2>
+    <h2 id="det2">16.2 Determinants of order 2</h2>
+
+    <div class="rule">
+      <span class="tag">Definition</span>
+      <p>
+        $$\det\begin{pmatrix} a &amp; b \\ c &amp; d \end{pmatrix}
+          = \begin{vmatrix} a &amp; b \\ c &amp; d \end{vmatrix} = ad - bc.$$
+      </p>
+    </div>
+
     <p>
-      Each will follow the same pattern as the finished chapters: the idea in plain language, the
-      definition stated precisely, worked examples with every step shown, an interactive figure
-      where a picture beats words, and a practice set with full solutions.
+      Where does that combination come from? Solve the system by elimination, as in Chapter 2.
+      Multiply the first equation by $d$, the second by $b$, and subtract:
+    </p>
+    <div class="display">$$(ad - bc)\,x = ed - bf.$$</div>
+    <p>
+      The coefficient of $x$ that comes out is $ad - bc$, and everything depends on whether it is
+      zero. So the determinant is not an arbitrary definition; it is the number elimination produces.
     </p>
 
-    <h2 id="matrices">16.1 Matrices</h2>
-    <p>Arrays of numbers, and the systems they encode.</p>
+    <div class="rule">
+      <span class="tag">What it decides</span>
+      <ul>
+        <li>$\det A \neq 0$: the system has exactly one solution, whatever $e$ and $f$ are.</li>
+        <li>$\det A = 0$: the system has either no solution or infinitely many — the two lines are
+          parallel, or identical.</li>
+      </ul>
+    </div>
 
-    <h2 id="det2">16.2 Determinants of order 2</h2>
-    <p>ad − bc as a signed area, and when it vanishes.</p>
+    <p>
+      Geometrically, take the rows of $A$ as two points of the plane, $(a,b)$ and $(c,d)$, and look
+      at the parallelogram they span with the origin.
+    </p>
+
+    <div class="rule">
+      <span class="tag">The determinant is a signed area</span>
+      <p>
+        $|\det A|$ is the area of that parallelogram, and the sign records orientation: positive
+        when the second vector lies counterclockwise from the first, negative when clockwise.
+        $\det A = 0$ means the parallelogram has collapsed — the two vectors are on one line.
+      </p>
+    </div>
+
+    <figure>
+      <div class="widget" data-widget="det2"></div>
+      <figcaption>
+        <b>Area and sign.</b> Drag the arrows. Line them up and the determinant hits zero — which is
+        exactly the case where the corresponding system stops having a unique solution. Swap the two
+        and the area is unchanged while the sign flips.
+      </figcaption>
+    </figure>
+
+    <div class="callout idea">
+      <span class="tag">Two collapses, one number</span>
+      <p>
+        It is worth pausing on the coincidence, which is not one. The system fails to have a unique
+        solution exactly when its two lines are parallel; the rows of $A$ are proportional exactly
+        when they lie on one line through the origin; and the parallelogram collapses exactly then
+        too. All three are the statement $ad = bc$, seen from three directions.
+      </p>
+    </div>
 
     <h2 id="det3">16.3 Determinants of order 3</h2>
-    <p>Expansion along a row, with signs.</p>
+    <p>
+      For a $3\times3$ matrix, expand along the first row. Each entry is multiplied by the
+      determinant of the $2\times2$ matrix left when you delete its row and column — and the signs
+      alternate:
+    </p>
+    <div class="display">
+      $$\begin{vmatrix} a_1 &amp; a_2 &amp; a_3 \\ b_1 &amp; b_2 &amp; b_3 \\ c_1 &amp; c_2 &amp; c_3 \end{vmatrix}
+        = a_1\begin{vmatrix} b_2 &amp; b_3 \\ c_2 &amp; c_3\end{vmatrix}
+        - a_2\begin{vmatrix} b_1 &amp; b_3 \\ c_1 &amp; c_3\end{vmatrix}
+        + a_3\begin{vmatrix} b_1 &amp; b_2 \\ c_1 &amp; c_2\end{vmatrix}.$$
+    </div>
+
+    <div class="callout warn">
+      <span class="tag">The middle sign</span>
+      <p>
+        Plus, <em>minus</em>, plus. The alternating signs follow the checkerboard pattern
+        $$\begin{pmatrix} + &amp; - &amp; + \\ - &amp; + &amp; - \\ + &amp; - &amp; + \end{pmatrix},$$
+        and forgetting the middle minus is the single most common error in the whole chapter.
+      </p>
+    </div>
+
+    <div class="worked">
+      <h4><span class="num">Example 1.</span> A $3\times3$ determinant</h4>
+      <div class="body">
+        <p>
+          Compute
+          $\begin{vmatrix} 2 &amp; -1 &amp; 3 \\ 0 &amp; 4 &amp; 5 \\ 1 &amp; 0 &amp; 2\end{vmatrix}$.
+        </p>
+        <ol class="steps">
+          <li>First term: $2 \cdot \begin{vmatrix} 4 &amp; 5 \\ 0 &amp; 2\end{vmatrix}
+            = 2(8 - 0) = 16$.</li>
+          <li>Second term, with a minus: $-(-1)\cdot\begin{vmatrix}0 &amp; 5\\ 1 &amp; 2\end{vmatrix}
+            = +1\cdot(0-5) = -5$.
+            <span class="note">Two minus signs here: one from the pattern, one from the entry
+            itself.</span></li>
+          <li>Third term: $+3\cdot\begin{vmatrix}0 &amp; 4\\ 1 &amp; 0\end{vmatrix} = 3(0-4) = -12$.</li>
+          <li>Total: $16 - 5 - 12 = -1$. $\blacksquare$</li>
+        </ol>
+        <p class="note">
+          You may expand along any row or column, with the same checkerboard signs, and the answer
+          is the same. Choosing the row or column with the most zeros is free work avoided — here,
+          expanding along the bottom row would have killed one term immediately.
+        </p>
+      </div>
+    </div>
+
+    <p>
+      The interpretation carries over: a $3\times3$ determinant is the signed <b>volume</b> of the
+      parallelepiped spanned by its three rows, and it vanishes exactly when those three vectors lie
+      in a common plane.
+    </p>
 
     <h2 id="det-props">16.4 Properties of determinants</h2>
-    <p>Row operations, transposes, products.</p>
+    <p>
+      Computing by expansion gets expensive fast — a $4\times4$ costs four $3\times3$'s. The
+      following properties, each easy to check in the $2\times2$ case, let you simplify first.
+    </p>
+
+    <div class="rule">
+      <span class="tag">The rules</span>
+      <ol>
+        <li><b>Swapping two rows flips the sign.</b> (Orientation reverses.)</li>
+        <li><b>Multiplying one row by $c$ multiplies the determinant by $c$.</b> (The parallelogram
+          is stretched in one direction.)</li>
+        <li><b>Adding a multiple of one row to another leaves the determinant unchanged.</b> (The
+          parallelogram shears: same base, same height, same area.)</li>
+        <li><b>Two equal rows give determinant $0$.</b> (The figure is flat.)</li>
+        <li><b>$\det(A^{t}) = \det A$</b>, where $A^t$ is $A$ with rows and columns exchanged — so
+          every rule above holds for columns too.</li>
+        <li><b>$\det(AB) = \det A \cdot \det B$</b> for the matrix product.</li>
+      </ol>
+    </div>
+
+    <p>
+      Rule 3 is the important one in practice, and it is exactly the elimination move of Chapter 2:
+      you may add a multiple of one equation to another without changing the system. Now we can say
+      why that is safe at the level of the whole matrix — it does not disturb the determinant, so it
+      cannot turn a uniquely solvable system into any other kind.
+    </p>
+
+    <div class="worked">
+      <h4><span class="num">Example 2.</span> Simplifying before expanding</h4>
+      <div class="body">
+        <p>
+          Compute
+          $\begin{vmatrix} 1 &amp; 2 &amp; 3 \\ 2 &amp; 5 &amp; 8 \\ 1 &amp; 3 &amp; 6\end{vmatrix}$.
+        </p>
+        <ol class="steps">
+          <li>Subtract twice row 1 from row 2, and row 1 from row 3. By rule 3 the determinant is
+            unchanged:
+            $$\begin{vmatrix} 1 &amp; 2 &amp; 3 \\ 0 &amp; 1 &amp; 2 \\ 0 &amp; 1 &amp; 3\end{vmatrix}.$$</li>
+          <li>Now expand along the first column: only the top entry survives.
+            $$= 1\cdot\begin{vmatrix}1 &amp; 2\\ 1 &amp; 3\end{vmatrix}.$$</li>
+          <li>$= 1\cdot(3 - 2) = 1$. $\blacksquare$</li>
+        </ol>
+        <p class="note">
+          Two subtractions replaced three $2\times2$ determinants with one. This is how determinants
+          are computed in practice, and for larger matrices it is the difference between feasible
+          and impossible.
+        </p>
+      </div>
+    </div>
 
     <h2 id="cramer">16.5 Cramer's rule</h2>
-    <p>Solving a system by determinants, and the link back to Chapter 2.</p>
+    <p>
+      Return to the elimination that produced the determinant in the first place. It gave
+      $(ad-bc)x = ed - bf$, and the same computation for $y$ gives $(ad-bc)y = af - ec$. Dividing —
+      legal exactly when $\det A \neq 0$ — yields:
+    </p>
+
+    <div class="rule">
+      <span class="tag">Cramer's rule ($2\times2$)</span>
+      <p>
+        If $\det A \neq 0$, the system $ax+by=e$, $cx+dy=f$ has the unique solution
+        $$x = \frac{\begin{vmatrix} e &amp; b \\ f &amp; d\end{vmatrix}}{\begin{vmatrix} a &amp; b \\ c &amp; d\end{vmatrix}},
+          \qquad
+          y = \frac{\begin{vmatrix} a &amp; e \\ c &amp; f\end{vmatrix}}{\begin{vmatrix} a &amp; b \\ c &amp; d\end{vmatrix}}.$$
+        Each numerator is $\det A$ with the column of the unknown replaced by the right-hand side.
+      </p>
+    </div>
+
+    <div class="worked">
+      <h4><span class="num">Example 3.</span> Cramer's rule in action</h4>
+      <div class="body">
+        <p>Solve $3x + 2y = 16$, $\;x - y = 2$.</p>
+        <ol class="steps">
+          <li>$\det A = \begin{vmatrix}3 &amp; 2\\ 1 &amp; -1\end{vmatrix} = -3 - 2 = -5$. Non-zero,
+            so there is a unique solution.</li>
+          <li>Replace the first column with $(16, 2)$:
+            $\begin{vmatrix}16 &amp; 2\\ 2 &amp; -1\end{vmatrix} = -16 - 4 = -20$, so
+            $x = \dfrac{-20}{-5} = 4$.</li>
+          <li>Replace the second column:
+            $\begin{vmatrix}3 &amp; 16\\ 1 &amp; 2\end{vmatrix} = 6 - 16 = -10$, so
+            $y = \dfrac{-10}{-5} = 2$.</li>
+          <li>Check in both originals: $12 + 4 = 16$ ✓ and $4 - 2 = 2$ ✓. $\blacksquare$</li>
+        </ol>
+        <p class="note">
+          The same rule works for $3\times3$ and beyond, with the same recipe: replace the relevant
+          column and divide. It is elegant, and for hand computation beyond $3\times3$ it is far
+          slower than elimination — which is the honest recommendation.
+        </p>
+      </div>
+    </div>
+
+    <div class="callout idea">
+      <span class="tag">Where this leads</span>
+      <p>
+        You have now met, in miniature, the three central ideas of linear algebra: a system of
+        equations as a single object; a number that decides whether it can be solved; and the same
+        number measuring how a transformation changes area or volume. The subject that grows from
+        here treats $n$ unknowns at once and asks what happens in the cases where $\det = 0$ — which
+        turn out to be the interesting ones.
+      </p>
+    </div>
+
+    <!-- ====================================================== practice ==== -->
+    <section class="practice" id="practice">
+      <div class="practice-head">
+        <h2 style="margin-top:0">Practice</h2>
+        <span class="practice-score" data-practice-score></span>
+      </div>
+      <p>Give numerical answers as plain numbers, and points as pairs like <code>(3,-2)</code>.</p>
+
+      <div class="ex" data-type="number" data-answer="-2"
+           data-hint="ad − bc.">
+        <div class="ex-q">
+          <p>Compute $\begin{vmatrix} 1 &amp; 4 \\ 3 &amp; 10 \end{vmatrix}$.</p>
+        </div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $-2$</p>
+          <p>
+            $ad - bc = (1)(10) - (4)(3) = 10 - 12 = -2$. Being non-zero, the corresponding system
+            has a unique solution, and the two rows span a parallelogram of area $2$.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" data-type="number" data-answer="0"
+           data-hint="Look at the two rows. Is one a multiple of the other?">
+        <div class="ex-q">
+          <p>Compute $\begin{vmatrix} 2 &amp; 6 \\ 3 &amp; 9 \end{vmatrix}$.</p>
+        </div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $0$</p>
+          <p>
+            $(2)(9) - (6)(3) = 18 - 18 = 0$. The second row is $1.5$ times the first, so the two
+            vectors lie on one line through the origin and the parallelogram has no area.
+          </p>
+          <p>
+            The corresponding equations $2x+6y=e$, $3x+9y=f$ describe parallel lines: no solution, or
+            infinitely many if the constants happen to match up too.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" data-type="number" data-answer="14"
+           data-hint="|det| is the area.">
+        <div class="ex-q">
+          <p>
+            What is the area of the parallelogram spanned by $(5,1)$ and $(1,3)$?
+          </p>
+        </div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $14$</p>
+          <p>
+            $\det = (5)(3) - (1)(1) = 14$, and the area is $|14| = 14$. Had we listed the vectors in
+            the other order the determinant would be $-14$ — the same area, the opposite orientation.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" data-type="number" data-answer="13"
+           data-hint="Expand along the first row, plus-minus-plus.">
+        <div class="ex-q">
+          <p>
+            Compute $\begin{vmatrix} 1 &amp; 2 &amp; 0 \\ 0 &amp; 1 &amp; 3 \\ 2 &amp; 0 &amp; 1\end{vmatrix}$.
+          </p>
+        </div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $13$</p>
+          <p>
+            Expanding along the first row:
+            $$1\begin{vmatrix}1&amp;3\\0&amp;1\end{vmatrix}
+              - 2\begin{vmatrix}0&amp;3\\2&amp;1\end{vmatrix}
+              + 0\begin{vmatrix}0&amp;1\\2&amp;0\end{vmatrix}.$$
+            The minors are $1 - 0 = 1$ and $0 - 6 = -6$, and the third term is killed by its
+            zero coefficient. So the total is $1(1) - 2(-6) = 1 + 12 = 13$.
+          </p>
+          <p>
+            The middle term is where care is needed: the pattern's minus and the minor's own minus
+            combine into a plus.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" data-answer="2"
+           data-hint="What does det = 0 mean for the system?">
+        <div class="ex-q">
+          <p>
+            The coefficient matrix of a $2\times2$ system has determinant $0$. What follows?
+          </p>
+        </div>
+        <ul class="choices">
+          <li>The system has exactly one solution.</li>
+          <li>The system has either no solution or infinitely many.</li>
+          <li>The system has no solution.</li>
+          <li>Nothing at all follows.</li>
+        </ul>
+        <div class="ex-solution">
+          <p class="answer">Answer: either no solution or infinitely many</p>
+          <p>
+            A zero determinant rules out the unique case but does not by itself distinguish the
+            other two: that depends on the right-hand side. The two lines are parallel — either
+            distinct (no solution) or the same line (infinitely many).
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" data-type="number" data-answer="-6"
+           data-hint="Swapping two rows changes the sign.">
+        <div class="ex-q">
+          <p>
+            A $3\times3$ matrix has determinant $6$. What is the determinant of the matrix obtained
+            by swapping its first two rows?
+          </p>
+        </div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $-6$</p>
+          <p>
+            Swapping two rows flips the sign: the orientation of the spanned figure reverses while
+            its volume does not change.
+          </p>
+          <p>
+            Swapping twice returns the original — which is a good consistency check on the rule:
+            $(-1)^2 = 1$.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" data-type="number" data-answer="6"
+           data-hint="Adding a multiple of one row to another changes nothing.">
+        <div class="ex-q">
+          <p>
+            A matrix has determinant $6$. You add $5$ times its first row to its second row. What is
+            the new determinant?
+          </p>
+        </div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $6$</p>
+          <p>
+            Rule 3: adding a multiple of one row to another leaves the determinant alone. The
+            parallelogram is sheared — same base, same height, same area.
+          </p>
+          <p>
+            This is why elimination is safe, and why it is the practical way to compute a large
+            determinant.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" data-answer="(2,1)|2,1"
+           data-placeholder="e.g. (3,-2)"
+           data-hint="Use Cramer's rule, or just eliminate.">
+        <div class="ex-q">
+          <p>Solve $2x + 3y = 7$, $\;x - y = 1$. Give the point $(x,y)$.</p>
+        </div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $(2,1)$</p>
+          <p>
+            $\det A = (2)(-1) - (3)(1) = -5$. Then
+            $$x = \frac{\begin{vmatrix}7&amp;3\\1&amp;-1\end{vmatrix}}{-5} = \frac{-7-3}{-5} = 2,
+              \qquad
+              y = \frac{\begin{vmatrix}2&amp;7\\1&amp;1\end{vmatrix}}{-5} = \frac{2-7}{-5} = 1.$$
+          </p>
+          <p>Check: $4 + 3 = 7$ ✓ and $2 - 1 = 1$ ✓.</p>
+        </div>
+      </div>
+
+      <div class="ex" data-type="number" data-answer="6"
+           data-hint="Determinants multiply.">
+        <div class="ex-q">
+          <p>
+            If $\det A = 3$ and $\det B = 2$, what is $\det(AB)$?
+          </p>
+        </div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $6$</p>
+          <p>
+            $\det(AB) = \det A \cdot \det B = 3 \times 2 = 6$.
+          </p>
+          <p>
+            Read geometrically: if one transformation triples areas and the other doubles them, doing
+            both multiplies areas by six. That is why the rule is true, and it is far easier to
+            remember than the algebraic verification.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" data-type="number" data-answer="6"
+           data-hint="A unique solution requires the determinant to be non-zero — so find the value that makes it zero.">
+        <div class="ex-q">
+          <p>
+            For which value of $k$ does the system $2x + 3y = 5$, $\;4x + ky = 9$ fail to have a
+            unique solution?
+          </p>
+        </div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $k = 6$</p>
+          <p>
+            The determinant is $2k - 12$, which is zero when $k = 6$. For every other $k$ there is
+            exactly one solution.
+          </p>
+          <p>
+            At $k=6$ the equations are $2x+3y=5$ and $4x+6y=9$ — the second left side is twice the
+            first, but $9 \neq 10$, so the lines are parallel and distinct: no solution at all.
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <div class="recap">
+      <h2>Recap</h2>
+      <ul>
+        <li>A matrix records the coefficients of a system, separating them from the unknowns.</li>
+        <li>$\det\begin{pmatrix}a&amp;b\\c&amp;d\end{pmatrix} = ad-bc$ is the number elimination
+          produces, and the signed area of the parallelogram spanned by the rows.</li>
+        <li>$\det \neq 0$ means a unique solution; $\det = 0$ means none or infinitely many, and a
+          collapsed parallelogram.</li>
+        <li>Order $3$ expands along a row with alternating signs, and measures a signed volume.</li>
+        <li>Row swaps flip the sign, scaling a row scales the determinant, and adding a multiple of
+          one row to another changes nothing — which is why elimination is safe.</li>
+        <li>Cramer's rule solves a system by replacing one column at a time with the right-hand
+          side and dividing by $\det A$.</li>
+      </ul>
+    </div>
 
     <nav class="chapter-nav" data-chapter-nav></nav>
   </main>
