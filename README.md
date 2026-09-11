@@ -7,10 +7,100 @@ Every chapter has prose written to be read with a pencil, worked examples with e
 interactive figures where a picture beats words, and a practice set that grades itself and shows
 full solutions.
 
+**Read it here: [sophanasok.github.io/basic-mathematics](https://sophanasok.github.io/basic-mathematics/)**
+
 No build step, no dependencies to install, no server required. It is HTML, CSS, and three files of
 plain ES5 JavaScript.
 
-## Running it
+---
+
+## For learners
+
+### What this is, and what you need first
+
+A complete course in the mathematics that comes before calculus: the rules of arithmetic and where
+they come from, equations, geometry, coordinates, trigonometry, and a final part reaching toward
+what follows. It assumes you can add, subtract, multiply, and divide whole numbers. It assumes
+nothing else — in particular, no algebra.
+
+The course refuses to use anything it has not established. When it claims a negative times a
+negative is positive, it argues for it rather than asserting it.
+
+### Where to start
+
+Begin at **[Chapter 1, Numbers](https://sophanasok.github.io/basic-mathematics/parts/1-algebra/01-numbers.html)**,
+even if it looks beneath you. It is where the rules everything else leans on get established, and
+later chapters cite it constantly.
+
+| Part | Chapters | What it covers |
+| --- | --- | --- |
+| I — Algebra | 1–4 + an interlude on logic | Integers, the rules of arithmetic, linear equations, the real numbers, quadratics |
+| II — Intuitive Geometry | 5–7 | Distance and angles, the Pythagorean theorem, motions of the plane, area |
+| III — Coordinate Geometry | 8–11 | Points as pairs, arithmetic on points, lines, trigonometry |
+| IV — Miscellaneous | 12–16 | Functions, mappings, complex numbers, induction, determinants |
+
+Work them in order. Chapters depend only on earlier ones, so skipping ahead mostly survives inside
+a part — but Part III genuinely needs Part I, and trigonometry needs the geometry before it. **If a
+chapter feels impossible, the problem is usually two chapters back.**
+
+### How to work through a chapter
+
+Each chapter opens with a **goal box** listing what you will be able to do by the end. Read it
+first and again at the end, as a self-check. Then the pattern repeats: the idea in plain language,
+the rule stated precisely, worked examples with every step shown, an interactive figure where a
+picture beats words, and a practice set. A recap closes it.
+
+The method in three lines, expanded on the
+**[How to use this](https://sophanasok.github.io/basic-mathematics/about.html)** page:
+
+1. **Read with a pencil.** Mathematics is not readable at the speed of prose. When a line of
+   algebra appears, work it out yourself before reading the next line.
+2. **Try to see why a rule must hold** before reading the justification. Even a failed attempt
+   makes the explanation land, because you already know where the difficulty is.
+3. **Do the exercises.** They are the course, not a garnish.
+
+### Exercises
+
+Every chapter ends with a practice set of about ten problems that check themselves. Type an answer,
+press **Check** or <kbd>Enter</kbd>, and the first wrong attempt usually gets a hint rather than the
+answer.
+
+Answers are matched forgivingly: `0.5`, `1/2`, and `2/4` are all accepted for the same number,
+spaces never matter, and `-3` and `−3` are the same. Where several numbers are wanted, separate
+them with commas in any order.
+
+Every problem has a full worked solution, not just an answer. Open it after a genuine attempt — and
+open it **even when you were right**, to compare your route with the one shown. That comparison is
+where most of the learning happens.
+
+### The figures
+
+Every interactive figure is operable from the keyboard. Press <kbd>Tab</kbd> to reach a slider or
+button, then use the arrow keys; for the figures with draggable points, <kbd>Tab</kbd> to the figure
+itself, move the selected point with the arrow keys, and press <kbd>Space</kbd> to switch points.
+Each figure also states its conclusion in words underneath, so nothing is available only by
+dragging.
+
+They are there to be played with — change the values until you can predict what the picture will do
+before you move the slider.
+
+### Progress, and what is saved
+
+Solved exercises are remembered in **your browser only**, under a single local-storage key. There
+is no account and no server, and nothing is sent anywhere. So your progress will not follow you to
+another browser or device, and clearing site data clears it. There is a deliberate reset button on
+the about page.
+
+Answer keys live in the page source, since the grading happens in your browser. This is a course to
+learn from, not an exam — the only person you can cheat is yourself.
+
+The light/dark toggle sits in the header and follows your system setting until you override it.
+
+---
+
+## For developers
+
+### Running it locally
 
 Open `index.html` in a browser. That is the whole procedure — `file://` works, because the
 curriculum is loaded as a `<script>` rather than fetched.
@@ -25,7 +115,7 @@ The only external dependency is [KaTeX](https://katex.org), pulled from a CDN fo
 If the CDN is unreachable the prose still renders — formulas fall back to their TeX source rather
 than taking the page down.
 
-## Layout
+### Layout
 
 ```
 index.html              course contents, built from the curriculum data
@@ -42,7 +132,7 @@ parts/<part>/<nn>-<slug>.html
 prev/next links, and the progress counters are all generated from it — no page hard-codes a link to
 its neighbours.
 
-## How a chapter page works
+### How a chapter page works
 
 A chapter is a plain HTML file that declares two things on its `<body>`:
 
@@ -66,7 +156,7 @@ The rest of the page is ordinary markup using a small set of classes: `.goal`, `
 
 Math goes in `$…$` for inline and `$$…$$` for display. `\(…\)` and `\[…\]` also work.
 
-### Exercises
+#### Exercises
 
 Each exercise is a `<div class="ex">` carrying its answer key in attributes:
 
@@ -94,10 +184,10 @@ For multiple choice, add a `<ul class="choices">` of `<li>` options and make `da
 unicode minus signs, `√`, `π`, and `≤` are all normalised before comparison, and `1/4` is accepted
 wherever `0.25` is.
 
-Answer keys are graded entirely in the browser and are visible in the page source. This is a course
-to learn from, not an exam.
+Grading is entirely client-side, so answer keys are visible in the page source — by design, as
+noted above.
 
-### Figures
+#### Figures
 
 An interactive figure is one empty div:
 
@@ -119,7 +209,7 @@ internal to `widgets.js` and available to any factory in that file. Colours come
 properties, so every figure follows the theme automatically. The convention throughout is: build the frame once, redraw a single `<g>` on each
 change, and use the readout to say in words what the picture is claiming.
 
-## Adding a chapter
+### Adding a chapter
 
 1. Add an entry to the relevant part in `data/curriculum.js` — `id`, `label`, `title`, `file`,
    `status`, `blurb`, and the `sections` list.
@@ -128,7 +218,7 @@ change, and use the readout to say in words what the picture is claiming.
 
 Navigation, the contents card, the sidebar, and the progress counters build themselves from step 1.
 
-## Progress and theme
+### Progress and theme
 
 Both live in `localStorage` under `bm.progress.v1` and `bm.theme` — this browser only, no account
 and no server. Clearing site data clears them; there is a deliberate reset button on the about
@@ -138,7 +228,7 @@ the site.
 The theme follows the operating system by default and can be overridden with the toggle in the
 header.
 
-## Checking your changes
+### Checking your changes
 
 There is no test runner, but the content is regular enough to verify from the command line. These
 checks were used while writing Chapters 5–16 and are worth repeating after edits:

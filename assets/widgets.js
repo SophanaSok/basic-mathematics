@@ -669,11 +669,49 @@
      the picture is claiming.
      --------------------------------------------------------------------------- */
 
-  /* drag whichever of several points is nearest the pointer, in data coordinates */
+  /* Drag whichever of several points is nearest the pointer, in data coordinates.
+     Also fully operable from the keyboard: the figure takes focus, the arrow keys
+     move the selected point, and space or enter selects the next one — so nothing
+     here is reachable only with a mouse. */
   function dragPoints(P, pts, onMove, opts) {
     opts = opts || {};
     var active = -1;
+    var sel = 0;                        /* the keyboard's currently selected point */
+    var names = opts.names || [];
     P.svg.style.touchAction = "none";
+
+    P.svg.setAttribute("tabindex", "0");
+    P.svg.setAttribute("role", "application");
+    function describe() {
+      var arr = pts(), p = arr[sel] || { x: 0, y: 0 };
+      P.svg.setAttribute("aria-label",
+        (opts.label || "Draggable points") + ". " +
+        (names[sel] || "Point " + (sel + 1)) + " at " + fmt(p.x) + ", " + fmt(p.y) +
+        ". Arrow keys move it; space selects the next point.");
+    }
+    describe();
+
+    P.svg.addEventListener("keydown", function (e) {
+      var arr = pts();
+      if (e.key === " " || e.key === "Enter" || e.key === "Spacebar") {
+        sel = (sel + 1) % arr.length;
+        e.preventDefault();
+        describe();
+        return;
+      }
+      var step = opts.step || 1, dx = 0, dy = 0;
+      if (e.key === "ArrowLeft") dx = -step;
+      else if (e.key === "ArrowRight") dx = step;
+      else if (e.key === "ArrowUp") dy = step;
+      else if (e.key === "ArrowDown") dy = -step;
+      else return;
+      e.preventDefault();
+      var p = arr[sel];
+      if (!p) return;
+      onMove(sel, p.x + dx, p.y + dy);
+      describe();
+    });
+
     function pick(e) {
       var l = P.local(e), arr = pts(), best = -1, bd = 1e9;
       arr.forEach(function (p, i) {
@@ -689,9 +727,11 @@
     P.svg.addEventListener("pointerdown", function (e) {
       active = pick(e);
       if (active < 0) return;
+      sel = active;                     /* keep the keyboard on the point just grabbed */
       e.preventDefault();
       if (P.svg.setPointerCapture) P.svg.setPointerCapture(e.pointerId);
       send(e);
+      describe();
     });
     P.svg.addEventListener("pointermove", function (e) {
       if (active < 0) return;
@@ -1107,8 +1147,8 @@
       p.x = Math.max(-6, Math.min(6, Math.round(x)));
       p.y = Math.max(-4, Math.min(4, Math.round(y)));
       draw();
-    });
-    note(host, "Drag either point. Coordinates snap to whole numbers.");
+    }, { names: ["A", "B"], label: "Two points in the plane" });
+    note(host, "Drag either point, or tab to the figure and use the arrow keys; space switches between A and B. Coordinates snap to whole numbers.");
     draw();
   };
 
@@ -1212,7 +1252,7 @@
       p.x = Math.max(-5, Math.min(5, Math.round(x)));
       p.y = Math.max(-4, Math.min(4, Math.round(y)));
       draw();
-    });
+    }, { names: ["A", "B"], label: "Two points in the plane" });
     var c = controls(host);
     c.appendChild(chips([
       { html: "A + B", value: "sum" }, { html: "B − A", value: "diff" }, { html: "tA", value: "mult" }
@@ -1273,7 +1313,7 @@
       p.y = Math.max(-4, Math.min(4, Math.round(y)));
       if (A.x === B.x && A.y === B.y) p.x += 1;
       draw();
-    });
+    }, { names: ["P", "Q"], label: "The two points defining the line" });
     var c = controls(host);
     c.appendChild(slider("t", -1.5, 2.5, 0.05, t, function (v) { t = v; draw(); },
       function (v) { return fmt(v, 2); }).wrap);
@@ -1607,8 +1647,8 @@
       p.x = Math.max(-4, Math.min(4, Math.round(x)));
       p.y = Math.max(-3, Math.min(3, Math.round(y)));
       draw();
-    });
-    note(host, "Drag z or w. Watch the dashed circle of radius |z||w| — the product always lands on it.");
+    }, { names: ["z", "w"], label: "Two complex numbers" });
+    note(host, "Drag z or w — or tab to the figure and use the arrow keys, with space to switch between them. Watch the dashed circle of radius |z||w|: the product always lands on it.");
     draw();
   };
 
@@ -1707,8 +1747,8 @@
       p.x = Math.max(-4, Math.min(4, Math.round(x)));
       p.y = Math.max(-3, Math.min(3, Math.round(y)));
       draw();
-    });
-    note(host, "Drag either arrow. Try lining them up to make the determinant zero.");
+    }, { names: ["the first row (a, b)", "the second row (c, d)"], label: "Two vectors spanning a parallelogram" });
+    note(host, "Drag either arrow, or tab to the figure and use the arrow keys; space switches rows. Try lining them up to make the determinant zero.");
     draw();
   };
   window.BMWidgets = W;
