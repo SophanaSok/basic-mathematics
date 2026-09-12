@@ -92,6 +92,35 @@
     </div>
 
     <div class="worked">
+      <h4><span class="num">Wrong turn.</span> Using the zero-product rule away from zero</h4>
+      <div class="body">
+        <p>Solve $(x-1)(x-2) = 6$.</p>
+        <ol class="steps">
+          <li><b>The tempting move.</b> The left side is already factored, so read off
+            $x - 1 = 6$ or $x - 2 = 6$, giving $x = 7$ or $x = 8$.</li>
+          <li><b>The check.</b> Put $x = 7$ back: $(7-1)(7-2) = 6 \cdot 5 = 30$, not $6$. Put
+            $x = 8$ back: $(8-1)(8-2) = 7 \cdot 6 = 42$, not $6$. Both candidates fail, so the
+            method itself is broken — this was not a slip in the arithmetic.</li>
+          <li><b>Why.</b> Two numbers multiplying to $6$ can be any of endlessly many pairs:
+            $6 \cdot 1$, $2 \cdot 3$, $12 \cdot \tfrac12$, $(-2)(-3)$. Only for the product $0$ is
+            the list of possibilities short enough to be useful — one of the factors must be $0$,
+            because no two non-zero numbers multiply to zero.</li>
+          <li><b>The repair.</b> Expand and move everything to one side:
+            $x^2 - 3x + 2 = 6$, so $x^2 - 3x - 4 = 0$.</li>
+          <li>Now factor, with zero on the right where the rule applies:
+            $(x-4)(x+1) = 0$, so $x = 4$ or $x = -1$.</li>
+          <li><b>Check again.</b> $(4-1)(4-2) = 3 \cdot 2 = 6$ ✓, and
+            $(-1-1)(-1-2) = (-2)(-3) = 6$ ✓. $\blacksquare$</li>
+        </ol>
+        <p class="note">
+          Note that the wrong method did not merely mislay a solution — it produced two numbers
+          that solve nothing, and it missed both numbers that do. A factored left side is only an
+          invitation to read off roots when the right side is $0$.
+        </p>
+      </div>
+    </div>
+
+    <div class="worked">
       <h4><span class="num">Example 1.</span> Solving by factoring</h4>
       <div class="body">
         <p>Solve $x^2 + 2x = 15$.</p>

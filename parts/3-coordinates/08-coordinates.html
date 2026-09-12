@@ -194,6 +194,32 @@
       </p>
     </div>
 
+    <div class="worked">
+      <h4><span class="num">Wrong turn.</span> Copying the centre's signs straight in</h4>
+      <div class="body">
+        <p>Write the equation of the circle of radius $5$ centred at $(3, -2)$.</p>
+        <ol class="steps">
+          <li><b>The tempting move.</b> The centre is $(3,-2)$, so copy those numbers in as they
+            stand: $(x-3)^2 + (y-2)^2 = 25$.</li>
+          <li><b>The check.</b> The left side measures the squared distance from the centre, so
+            putting the intended centre into it must give $0$. Substituting $(3,-2)$:
+            $(3-3)^2 + (-2-2)^2 = 0 + 16 = 16$, not $0$. The intended centre does not even sit at
+            the middle of the circle that was written down.</li>
+          <li><b>Why.</b> The template is $(x-h)^2 + (y-k)^2 = r^2$, and $k = -2$ here, so the
+            second bracket is $\bigl(y - (-2)\bigr) = (y+2)$. The equation written above has
+            $k = +2$: it is the circle centred at $(3, 2)$, a reflection of the one wanted.</li>
+          <li><b>The repair.</b> $(x-3)^2 + (y+2)^2 = 25$. Substituting the centre now gives
+            $0 + 0 = 0$ ✓, and a point that should be on the circle, say $(3, 3)$ — five units
+            straight up from $(3,-2)$ — gives $0 + 25 = 25$ ✓. $\blacksquare$</li>
+        </ol>
+        <p class="note">
+          The substitution in step 2 is worth keeping as a habit: the centre is the one point whose
+          coordinates must make the left side vanish, so it costs a few seconds to confirm you
+          wrote down the circle you meant.
+        </p>
+      </div>
+    </div>
+
     <p>
       Expanding the equation gives $x^2 + y^2 - 2hx - 2ky + (h^2+k^2-r^2) = 0$: something of the
       shape $x^2 + y^2 + Dx + Ey + F = 0$. Going back the other way — from the expanded form to the

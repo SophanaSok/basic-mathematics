@@ -204,6 +204,34 @@
       </p>
     </div>
 
+    <div class="worked">
+      <h4><span class="num">Wrong turn.</span> Multiplying an inequality by an unknown</h4>
+      <div class="body">
+        <p>Solve $\dfrac{1}{x} &lt; 1$.</p>
+        <ol class="steps">
+          <li><b>The tempting move.</b> Clear the fraction by multiplying both sides by $x$:
+            $1 &lt; x$. Answer: $x &gt; 1$.</li>
+          <li><b>The check.</b> Try $x = -1$ in the original: $\dfrac{1}{-1} = -1$, and
+            $-1 &lt; 1$ is true. So $x = -1$ solves the inequality — yet the answer above excludes
+            it. Solutions have gone missing.</li>
+          <li><b>Why.</b> Multiplying by $x$ assumed $x$ was positive. For negative $x$ the
+            inequality reverses, and that whole half of the number line was never examined.</li>
+          <li><b>The repair, case one.</b> If $x &gt; 0$, multiplying by the positive number $x$
+            keeps the direction: $1 &lt; x$, so $x &gt; 1$.</li>
+          <li><b>The repair, case two.</b> If $x &lt; 0$, then $\frac1x$ is negative, and every
+            negative number is already below $1$. So every $x &lt; 0$ works, with no computation at
+            all. ($x = 0$ is excluded outright: $\frac10$ names nothing.)</li>
+          <li>The solution set is therefore $x &lt; 0$ <em>or</em> $x &gt; 1$ — two intervals, not
+            one. $\blacksquare$</li>
+        </ol>
+        <p class="note">
+          Sanity-check the boundary between them: $x = \tfrac12$ lies in neither interval, and
+          indeed $\frac{1}{1/2} = 2$, which is not below $1$. The gap is real, and no single
+          inequality of the form $x &gt; c$ could have described this set.
+        </p>
+      </div>
+    </div>
+
     <h2 id="absolute">3.4 Absolute value and distance</h2>
     <p>
       The <b>absolute value</b> of $a$ is
@@ -321,6 +349,31 @@
         Test with $a = b = 9$: the left side is $\sqrt{18} \approx 4.24$, the right side is
         $6$.
       </p>
+    </div>
+
+    <div class="worked">
+      <h4><span class="num">Wrong turn.</span> Taking the square root of both sides</h4>
+      <div class="body">
+        <p>Solve $x^2 = 9$.</p>
+        <ol class="steps">
+          <li><b>The tempting move.</b> Undo the square by taking the square root of both sides:
+            $x = 3$.</li>
+          <li><b>The check.</b> Try $x = -3$ in the original: $(-3)^2 = 9$ ✓. It solves the
+            equation and was never offered. One of the two answers has quietly gone missing.</li>
+          <li><b>Why.</b> The step used $\sqrt{x^2} = x$, which is false whenever $x$ is negative.
+            What is true is $\sqrt{x^2} = |x|$, since the root symbol always names the
+            non-negative root.</li>
+          <li><b>The repair.</b> Applying the correct identity gives $|x| = 3$, and by the reading
+            of absolute value as distance, $|x| = 3$ says $x$ sits three units from $0$ — on
+            either side. So $x = 3$ or $x = -3$, and both check. $\blacksquare$</li>
+        </ol>
+        <p class="note">
+          The same slip in reverse claims $\sqrt{9} = \pm 3$. It does not: $\sqrt{9}$ is the single
+          number $3$. The two signs enter when <em>solving</em> $x^2 = 9$, not when evaluating a
+          root — which is why the $\pm$ in the quadratic formula of Chapter 4 is written in
+          explicitly rather than being smuggled inside the radical.
+        </p>
+      </div>
     </div>
 
     <!-- ====================================================== practice ==== -->

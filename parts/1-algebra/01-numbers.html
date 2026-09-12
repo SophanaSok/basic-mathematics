@@ -391,6 +391,30 @@
     </div>
 
     <div class="worked">
+      <h4><span class="num">Wrong turn.</span> Splitting a denominator</h4>
+      <div class="body">
+        <p>Compute $\dfrac{1}{2+3}$.</p>
+        <ol class="steps">
+          <li><b>The tempting move.</b> Split the denominator across the sum:
+            $\dfrac{1}{2+3} = \dfrac12 + \dfrac13 = \dfrac36 + \dfrac26 = \dfrac56$.</li>
+          <li><b>The check.</b> Making a denominator larger makes a fraction <em>smaller</em>, so
+            $\dfrac{1}{2+3}$ has to come out below $\dfrac12$. But $\dfrac56$ is above $\dfrac12$.
+            The answer is not merely wrong, it is on the wrong side of a bound we can see without
+            computing anything.</li>
+          <li><b>The repair.</b> There is nothing to split: $2+3 = 5$, so
+            $\dfrac{1}{2+3} = \dfrac15$ — comfortably below $\dfrac12$, as required.
+            $\blacksquare$</li>
+        </ol>
+        <p class="note">
+          In letters, the sum of the two inverses is
+          $\dfrac1a + \dfrac1b = \dfrac{b}{ab} + \dfrac{a}{ab} = \dfrac{a+b}{ab}$. Notice where
+          $a+b$ ends up: on <em>top</em>. The invented rule would have put it underneath, which is
+          the clearest sign that the two expressions were never going to agree.
+        </p>
+      </div>
+    </div>
+
+    <div class="worked">
       <h4><span class="num">Example 8.</span> A fraction divided by a fraction</h4>
       <div class="body">
         <p>Compute $\dfrac{2/3}{4/9}$.</p>

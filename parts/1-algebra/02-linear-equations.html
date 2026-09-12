@@ -88,6 +88,30 @@
     </div>
 
     <div class="worked">
+      <h4><span class="num">Wrong turn.</span> Dividing by a letter that might be zero</h4>
+      <div class="body">
+        <p>Solve $3x = 5x$.</p>
+        <ol class="steps">
+          <li><b>The tempting move.</b> Both sides have a factor of $x$, so divide by it:
+            $3 = 5$.</li>
+          <li>That is false, so the equation appears to have no solution at all.</li>
+          <li><b>The check.</b> Try $x = 0$ in the original: the left side is $0$, the right side
+            is $0$. It solves the equation. So "no solution" is wrong — and notice the damage was
+            done by a step that <em>looked</em> like tidying up.</li>
+          <li><b>The repair.</b> Collect on one side instead of dividing: $3x - 5x = 0$, so
+            $-2x = 0$, and dividing by $-2$ — a number known not to be zero — gives $x = 0$. That
+            is the whole solution set. $\blacksquare$</li>
+        </ol>
+        <p class="note">
+          Dividing by $x$ silently assumes $x \neq 0$, and so throws away the very solution that
+          was there. The two permitted moves are safe precisely because they can be undone; this
+          one cannot. When a factor you want to cancel contains an unknown, move everything to one
+          side rather than dividing.
+        </p>
+      </div>
+    </div>
+
+    <div class="worked">
       <h4><span class="num">Example 1.</span> Solving with the reason for every step</h4>
       <div class="body">
         <p>Solve $5x - 3 = 2x + 9$.</p>

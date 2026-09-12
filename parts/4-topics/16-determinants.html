@@ -195,6 +195,39 @@
       </div>
     </div>
 
+    <div class="worked">
+      <h4><span class="num">Wrong turn.</span> Losing the middle minus</h4>
+      <div class="body">
+        <p>The same determinant as Example 1, with the alternating signs forgotten.</p>
+        <ol class="steps">
+          <li><b>The tempting move.</b> Multiply each top-row entry by its $2\times2$ and add the
+            three results: $2(8-0) + (-1)(0-5) + 3(0-4) = 16 + 5 - 12 = 9$.
+            <span class="note">The middle term came out $+5$ here, because the entry's own minus
+            was the only minus applied.</span></li>
+          <li><b>The check.</b> Expansion along any row must give the same number, so expand along
+            the bottom row $(1, 0, 2)$, whose signs are $+\,-\,+$:
+            $$1\begin{vmatrix} -1 &amp; 3 \\ 4 &amp; 5\end{vmatrix}
+              - 0\begin{vmatrix} 2 &amp; 3 \\ 0 &amp; 5\end{vmatrix}
+              + 2\begin{vmatrix} 2 &amp; -1 \\ 0 &amp; 4\end{vmatrix}
+              = 1(-5-12) + 2(8-0) = -17 + 16 = -1.$$</li>
+          <li>The two routes disagree — $9$ against $-1$ — and a matrix has only one determinant.
+            One of the computations is wrong, and the check tells us so without our having to
+            trust either.</li>
+          <li><b>Finding it.</b> Compare term by term. The first and third agree; the middle one
+            does not. The pattern's minus was dropped, so a term that should have contributed $-5$
+            contributed $+5$ instead — leaving the total too big by $10$, twice that term. And
+            indeed $9 - 10 = -1$.</li>
+          <li><b>The repair.</b> Plus, minus, plus: $16 - 5 - 12 = -1$, agreeing with the bottom
+            row. $\blacksquare$</li>
+        </ol>
+        <p class="note">
+          The gap between a wrong answer and the right one is always twice the mishandled term,
+          which is why this error never produces a near miss. Expanding a second time along a row
+          with a zero in it is cheap, and it catches the mistake every time.
+        </p>
+      </div>
+    </div>
+
     <p>
       The interpretation carries over: a $3\times3$ determinant is the signed <b>volume</b> of the
       parallelepiped spanned by its three rows, and it vanishes exactly when those three vectors lie
