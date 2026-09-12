@@ -90,7 +90,8 @@ window.BM_CURRICULUM = {
             { id: "logic", title: "Implication, converse, contrapositive", summary: "The single most common source of wrong proofs." },
             { id: "quantifiers", title: "For all, there exists, and counterexamples", summary: "How to disprove a statement, and how not to." },
             { id: "sets", title: "Sets and elements", summary: "Membership, subsets, union, intersection, complement." },
-            { id: "notation", title: "Notation as a tool", summary: "Choosing names and symbols that keep the argument readable." }
+            { id: "notation", title: "Notation as a tool", summary: "Choosing names and symbols that keep the argument readable." },
+            { id: "review", title: "Mixed review", summary: "Problems drawn back across Chapters 1–4, to test what stuck." }
           ]
         }
       ]
@@ -141,7 +142,8 @@ window.BM_CURRICULUM = {
             { id: "polygons", title: "Area of rectangles and triangles", summary: "From the rectangle to the triangle by cutting and rearranging." },
             { id: "scaling", title: "Scaling", summary: "Scale lengths by r and area scales by r² — with the consequences." },
             { id: "disc", title: "Area of a disc", summary: "Inscribed polygons approaching πr², and what π is." },
-            { id: "circumference", title: "Circumference of a circle", summary: "Why the same π appears in 2πr and πr²." }
+            { id: "circumference", title: "Circumference of a circle", summary: "Why the same π appears in 2πr and πr²." },
+            { id: "review", title: "Mixed review", summary: "Problems drawn back across Chapters 5–7, to test what stuck." }
           ]
         }
       ]
@@ -208,7 +210,8 @@ window.BM_CURRICULUM = {
             { id: "graphs-trig", title: "The graphs", summary: "Period, amplitude, and shifts." },
             { id: "tangent", title: "The tangent", summary: "Slope of a ray, and where it fails to exist." },
             { id: "addition-formulas", title: "Addition formulas", summary: "cos(x + y) and sin(x + y), and the consequences." },
-            { id: "rotations", title: "Rotations", summary: "Rotating a point by an angle, written as a pair of formulas." }
+            { id: "rotations", title: "Rotations", summary: "Rotating a point by an angle, written as a pair of formulas." },
+            { id: "review", title: "Mixed review", summary: "Problems drawn back across Chapters 8–11, to test what stuck." }
           ]
         }
       ]
@@ -287,7 +290,8 @@ window.BM_CURRICULUM = {
             { id: "det2", title: "Determinants of order 2", summary: "ad − bc as a signed area, and when it vanishes." },
             { id: "det3", title: "Determinants of order 3", summary: "Expansion along a row, with signs." },
             { id: "det-props", title: "Properties of determinants", summary: "Row operations, transposes, products." },
-            { id: "cramer", title: "Cramer's rule", summary: "Solving a system by determinants, and the link back to Chapter 2." }
+            { id: "cramer", title: "Cramer's rule", summary: "Solving a system by determinants, and the link back to Chapter 2." },
+            { id: "review", title: "Mixed review", summary: "Problems drawn back across Chapters 12–16, to test what stuck." }
           ]
         }
       ]

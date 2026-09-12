@@ -46,6 +46,16 @@
       appears in both $2\pi r$ and $\pi r^2$.
     </div>
 
+    <div class="callout aside">
+      <span class="tag">Before you start</span>
+      <p>
+        You should be comfortable with <a href="05-distance-and-angles.html#pythagoras">the
+        Pythagorean theorem</a> (Chapter 5) and with
+        <a href="06-isometries.html#isometries">isometries and congruence</a> (Chapter 6) — the three
+        assumptions about area below are stated in terms of both.
+      </p>
+    </div>
+
     <h2 id="polygons">7.1 Area of rectangles and triangles</h2>
     <p>
       Area is to regions what distance was to pairs of points: a number attached to a figure. We
@@ -471,6 +481,117 @@
           <p>
             Then one leg is the base and the other the height:
             $\tfrac12(9)(12) = 54$.
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ====================================================== mixed review ==== -->
+    <section class="practice" id="review">
+      <h2>Mixed review: Part II</h2>
+      <p style="margin-top:-.4rem;color:var(--muted)">
+        Six problems pulled back across Chapters 5–7 — nothing new, just recall.
+      </p>
+
+      <div class="ex" data-type="number" data-answer="10"
+           data-hint="Pythagoras: the square of the hypotenuse is the sum of the squares of the legs.">
+        <div class="ex-q">
+          <p>A right triangle has legs $6$ and $8$. What is the length of the hypotenuse?</p>
+        </div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $10$</p>
+          <p>
+            $\sqrt{6^2 + 8^2} = \sqrt{36 + 64} = \sqrt{100} = 10$ — the theorem from
+            <a href="05-distance-and-angles.html#pythagoras">Chapter 5</a>.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" data-type="number" data-answer="65"
+           data-hint="Corresponding angles at a transversal are equal.">
+        <div class="ex-q">
+          <p>
+            Two parallel lines are cut by a transversal. One of the angles formed measures $65°$.
+            What does its corresponding angle (at the other intersection) measure?
+          </p>
+        </div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $65°$</p>
+          <p>
+            Corresponding angles at a transversal cutting parallel lines are equal — the rule from
+            <a href="05-distance-and-angles.html#parallels">Chapter 5</a>.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" data-answer="3"
+           data-hint="An isometry is a map that preserves every distance.">
+        <div class="ex-q">
+          <p>Which of these is <em>not</em> an isometry of the plane?</p>
+        </div>
+        <ul class="choices">
+          <li>Rotation about a point</li>
+          <li>Reflection in a line</li>
+          <li>Scaling every distance by a factor of $2$</li>
+          <li>Translation</li>
+        </ul>
+        <div class="ex-solution">
+          <p class="answer">Answer: scaling by a factor of 2</p>
+          <p>
+            An isometry preserves distance exactly; scaling by $2$ doubles every distance instead —
+            it fails the definition from <a href="06-isometries.html#isometries">Chapter 6</a>.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" data-answer="2"
+           data-hint="Only the two lines through opposite side midpoints are reflection symmetries — the diagonals aren't, unless it's a square.">
+        <div class="ex-q">
+          <p>How many symmetries does a non-square rectangle have?</p>
+        </div>
+        <ul class="choices">
+          <li>$2$</li>
+          <li>$4$</li>
+          <li>$6$</li>
+          <li>$8$</li>
+        </ul>
+        <div class="ex-solution">
+          <p class="answer">Answer: $4$</p>
+          <p>
+            The identity, the $180°$ rotation, and reflections in the two lines through opposite
+            side midpoints — four in total, as noted alongside the square's $8$ in
+            <a href="06-isometries.html#symmetry">Chapter 6</a>.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" data-type="number" data-answer="30"
+           data-hint="Area of a triangle is half base times height.">
+        <div class="ex-q">
+          <p>A triangle has base $10$ and height $6$. What is its area?</p>
+        </div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $30$</p>
+          <p>
+            $\tfrac12(10)(6) = 30$ — the triangle-is-half-a-rectangle rule from
+            <a href="#polygons">this chapter</a>.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" data-type="number" data-answer="9"
+           data-hint="Area scales by the square of the linear scale factor.">
+        <div class="ex-q">
+          <p>
+            If a shape's linear dimensions are all scaled by a factor of $3$, by what factor does
+            its area scale?
+          </p>
+        </div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $9$</p>
+          <p>
+            Area scales by $r^2$, and $3^2 = 9$ — the scaling law from
+            <a href="#scaling">this chapter</a>.
           </p>
         </div>
       </div>

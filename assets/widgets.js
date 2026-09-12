@@ -1520,9 +1520,10 @@
   W.mapdiagram = function (host) {
     var dom = ["1", "2", "3", "4"], cod = ["a", "b", "c", "d"];
     var f = [0, 1, 2, 3];                 /* f[i] = index in cod of the image of dom[i] */
+    var sel = 0;                          /* the keyboard's currently selected domain element */
     var wrap = h("div", { class: "tbl-wrap" });
     var W0 = 520, H0 = 300;
-    var svg = el("svg", { viewBox: "0 0 " + W0 + " " + H0, role: "img", "aria-label": "An arrow diagram of a mapping between two four-element sets" });
+    var svg = el("svg", { viewBox: "0 0 " + W0 + " " + H0, role: "application", tabindex: "0" });
     svg.style.maxWidth = "520px";
     svg.style.margin = "0 auto";
     svg.style.display = "block";
@@ -1531,6 +1532,13 @@
     var g = el("g"); svg.appendChild(g);
     var out = readout(host);
     var xL = 150, xR = 370, y0 = 60, dy = 60;
+
+    function describe() {
+      svg.setAttribute("aria-label",
+        "An arrow diagram of a mapping between two four-element sets. Element " + dom[sel] +
+        " of the domain is currently mapped to " + cod[f[sel]] +
+        ". Arrow keys choose a domain element; space or enter redirects its arrow.");
+    }
 
     function draw() {
       g.textContent = "";
@@ -1550,8 +1558,12 @@
         }));
       });
       dom.forEach(function (s, i) {
-        var y = y0 + i * dy;
-        g.appendChild(el("circle", { cx: xL, cy: y, r: 16, style: "fill:var(--surface-2);stroke:var(--plot-curve);stroke-width:2;cursor:pointer" }));
+        var y = y0 + i * dy, isSel = i === sel;
+        g.appendChild(el("circle", {
+          cx: xL, cy: y, r: 16,
+          style: "fill:var(--surface-2);stroke:" + (isSel ? "var(--accent)" : "var(--plot-curve)") +
+            ";stroke-width:" + (isSel ? 4 : 2) + ";cursor:pointer"
+        }));
         g.appendChild(el("text", { x: xL, y: y + 5, "text-anchor": "middle", style: S.labelStrong }, s));
       });
       cod.forEach(function (t, j) {
@@ -1576,6 +1588,12 @@
         " &nbsp; <b>" + (sur ? "Surjective" : "Not surjective") + "</b> — " +
         (sur ? "every element of T is hit." : "some element of T is hit by no arrow.") +
         (inj && sur ? " Both at once: a <b>bijection</b>, and it can be undone." : "");
+      describe();
+    }
+
+    function redirect(i) {
+      f[i] = (f[i] + 1) % cod.length;
+      draw();
     }
 
     svg.addEventListener("click", function (e) {
@@ -1584,8 +1602,23 @@
       if (Math.abs(x - xL) > 26) return;
       var i = Math.round((y - y0) / dy);
       if (i < 0 || i >= dom.length) return;
-      f[i] = (f[i] + 1) % cod.length;
-      draw();
+      sel = i;
+      redirect(i);
+    });
+
+    svg.addEventListener("keydown", function (e) {
+      if (e.key === "ArrowUp" || e.key === "ArrowLeft") {
+        sel = (sel - 1 + dom.length) % dom.length;
+        e.preventDefault();
+        draw();
+      } else if (e.key === "ArrowDown" || e.key === "ArrowRight") {
+        sel = (sel + 1) % dom.length;
+        e.preventDefault();
+        draw();
+      } else if (e.key === " " || e.key === "Enter" || e.key === "Spacebar") {
+        e.preventDefault();
+        redirect(sel);
+      }
     });
 
     var c = controls(host);
@@ -1595,7 +1628,8 @@
       { html: "not surjective", value: [0, 1, 1, 3] },
       { html: "constant", value: [2, 2, 2, 2] }
     ], 0, function (v) { f = v.slice(); draw(); }));
-    note(host, "Click an element on the left to send it somewhere else.");
+    note(host, "Click an element on the left to send it somewhere else, or tab to the figure " +
+      "and use the arrow keys to choose one and space or enter to redirect it.");
     draw();
   };
 

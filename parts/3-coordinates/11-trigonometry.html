@@ -48,6 +48,17 @@
       rotation of the plane.
     </div>
 
+    <div class="callout aside">
+      <span class="tag">Before you start</span>
+      <p>
+        You should be comfortable with <a href="08-coordinates.html#circle">the equation of a
+        circle</a> (Chapter 8), <a href="10-segments-rays-lines.html#lines">slope and lines</a>
+        (Chapter 10), and <a href="../2-geometry/06-isometries.html#mappings-plane">rotation as a
+        motion of the plane</a> (Chapter 6). Sine and cosine are read straight off the unit circle,
+        so that circle has to be familiar first.
+      </p>
+    </div>
+
     <h2 id="radians">11.1 Radian measure</h2>
     <p>
       Degrees are a convention: someone chose $360$. There is a measure that is not a convention at
@@ -138,6 +149,7 @@
             <tr><td>degrees</td><td>$0°$</td><td>$30°$</td><td>$45°$</td><td>$60°$</td><td>$90°$</td><td>$180°$</td></tr>
             <tr><td>$\cos\theta$</td><td>$1$</td><td>$\frac{\sqrt3}{2}$</td><td>$\frac{\sqrt2}{2}$</td><td>$\frac12$</td><td>$0$</td><td>$-1$</td></tr>
             <tr><td>$\sin\theta$</td><td>$0$</td><td>$\frac12$</td><td>$\frac{\sqrt2}{2}$</td><td>$\frac{\sqrt3}{2}$</td><td>$1$</td><td>$0$</td></tr>
+            <tr><td>$\tan\theta$</td><td>$0$</td><td>$\frac{\sqrt3}{3}$</td><td>$1$</td><td>$\sqrt3$</td><td>—</td><td>$0$</td></tr>
           </tbody>
         </table>
       </div>
@@ -507,6 +519,131 @@
           <p>
             Substituting $0$ is the cheapest test there is, and it disposes of three of these four
             in a few seconds.
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ====================================================== mixed review ==== -->
+    <section class="practice" id="review">
+      <h2>Mixed review: Part III</h2>
+      <p style="margin-top:-.4rem;color:var(--muted)">
+        Eight problems pulled back across Chapters 8–11 — nothing new, just recall.
+      </p>
+
+      <div class="ex" data-type="number" data-answer="5"
+           data-hint="Distance formula: √((Δx)² + (Δy)²).">
+        <div class="ex-q">
+          <p>Find the distance between the points $(1, 2)$ and $(4, 6)$.</p>
+        </div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $5$</p>
+          <p>
+            $\sqrt{(4-1)^2 + (6-2)^2} = \sqrt{9 + 16} = \sqrt{25} = 5$ — the distance formula from
+            <a href="08-coordinates.html#distance-formula">Chapter 8</a>.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" data-type="number" data-answer="7"
+           data-hint="The equation x² + y² = r² describes a circle of radius r centred at the origin.">
+        <div class="ex-q">
+          <p>What is the radius of the circle $x^2 + y^2 = 49$?</p>
+        </div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $7$</p>
+          <p>
+            $x^2 + y^2 = r^2$ is the circle of radius $r$ about the origin, and $\sqrt{49} = 7$ —
+            the equation from <a href="08-coordinates.html#circle">Chapter 8</a>.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" data-answer="(7,2)|7,2"
+           data-placeholder="e.g. 3,4"
+           data-hint="Add coordinatewise: x's with x's, y's with y's.">
+        <div class="ex-q">
+          <p>Let $A = (2, 3)$ and $B = (5, -1)$. What is $A + B$?</p>
+        </div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $(7, 2)$</p>
+          <p>
+            Add coordinate by coordinate: $(2+5,\ 3+(-1)) = (7, 2)$ — the parallelogram law from
+            <a href="09-operations-on-points.html#addition-points">Chapter 9</a>.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" data-answer="(3,2)|3,2"
+           data-placeholder="e.g. 3,4"
+           data-hint="A reflection in the x-axis keeps x and flips the sign of y.">
+        <div class="ex-q">
+          <p>Reflect the point $(3, -2)$ across the $x$-axis. What are the new coordinates?</p>
+        </div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $(3, 2)$</p>
+          <p>
+            Reflecting in the $x$-axis sends $(x, y)$ to $(x, -y)$, so $(3, -2) \mapsto (3, 2)$ —
+            from <a href="09-operations-on-points.html#dilations">Chapter 9</a>.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" data-type="number" data-answer="4"
+           data-hint="Slope is rise over run.">
+        <div class="ex-q">
+          <p>What is the slope of the line through $(1, 2)$ and $(3, 10)$?</p>
+        </div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $4$</p>
+          <p>
+            $\dfrac{10 - 2}{3 - 1} = \dfrac{8}{2} = 4$ — the slope formula from
+            <a href="10-segments-rays-lines.html#lines">Chapter 10</a>.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" data-type="number" data-answer="-0.5|-1/2"
+           data-hint="Perpendicular slopes multiply to −1.">
+        <div class="ex-q">
+          <p>A line has slope $2$. What is the slope of a line perpendicular to it?</p>
+        </div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $-\dfrac12$</p>
+          <p>
+            Perpendicular slopes satisfy $m_1 m_2 = -1$, so $2m_2 = -1$ gives $m_2 = -\tfrac12$ —
+            from <a href="10-segments-rays-lines.html#lines">Chapter 10</a>.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" data-type="fraction" data-answer="4/5"
+           data-hint="Use sin²θ + cos²θ = 1.">
+        <div class="ex-q">
+          <p>
+            If $\cos\theta = \dfrac35$ and $\theta$ is in the first quadrant, what is $\sin\theta$?
+          </p>
+        </div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $\dfrac45$</p>
+          <p>
+            $\sin^2\theta = 1 - \cos^2\theta = 1 - \tfrac{9}{25} = \tfrac{16}{25}$, and $\sin\theta$
+            is positive in the first quadrant, so $\sin\theta = \tfrac45$ — the identity from
+            <a href="#sine-cosine">this chapter</a>.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" data-type="number" data-answer="1"
+           data-hint="This holds for every angle, not just the special ones.">
+        <div class="ex-q">
+          <p>Simplify $\sin^2(40°) + \cos^2(40°)$.</p>
+        </div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $1$</p>
+          <p>
+            The Pythagorean identity $\sin^2\theta + \cos^2\theta = 1$ holds for every $\theta$, so
+            no table of values is needed — from <a href="#sine-cosine">this chapter</a>.
           </p>
         </div>
       </div>

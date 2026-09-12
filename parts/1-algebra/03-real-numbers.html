@@ -45,6 +45,15 @@
       exponents.
     </div>
 
+    <div class="callout aside">
+      <span class="tag">Before you start</span>
+      <p>
+        You should be comfortable with <a href="01-numbers.html#addition">the rules of arithmetic</a>
+        and with the <a href="01-numbers.html#even-odd">even/odd proofs</a> of Chapter 1 — the proof
+        that $\sqrt2$ is not a fraction, a few lines below, is written in exactly that style.
+      </p>
+    </div>
+
     <h2 id="why-more">3.1 Why the fractions are not enough</h2>
     <p>
       Between any two fractions there is another — take their average. So the rationals are packed
@@ -243,12 +252,17 @@
     <h2 id="powers">3.5 Powers and roots</h2>
     <p>
       For a positive integer $n$, $a^n$ means $a$ multiplied by itself $n$ times. From that
-      definition alone, two laws are immediate — count the factors:
+      definition alone, three laws are immediate — count the factors:
     </p>
-    <div class="display">$$a^m a^n = a^{m+n}, \qquad (a^m)^n = a^{mn}.$$</div>
+    <div class="display">$$a^m a^n = a^{m+n}, \qquad (a^m)^n = a^{mn}, \qquad (ab)^n = a^n b^n.$$</div>
+    <p>
+      The third comes from regrouping: $(ab)^n$ is $n$ copies of $ab$ multiplied together, and
+      commutativity and associativity let us gather all the $a$'s on one side and all the $b$'s
+      on the other, leaving $a^n b^n$.
+    </p>
     <p>
       We now <em>extend</em> the notation to zero, negative, and fractional exponents. There is
-      only one sensible way to do it: choose the meaning that keeps those two laws true.
+      only one sensible way to do it: choose the meaning that keeps those three laws true.
     </p>
 
     <div class="rule">
@@ -261,6 +275,10 @@
         <li><b>$a^{1/n} = \sqrt[n]{a}$</b> (for $a &gt; 0$), because $\big(a^{1/n}\big)^n =
           a^{n/n} = a^1 = a$ forces $a^{1/n}$ to be the $n$-th root.</li>
         <li>Hence $a^{m/n} = \big(\sqrt[n]{a}\big)^m$.</li>
+        <li><b>$\sqrt[n]{ab} = \sqrt[n]{a}\,\sqrt[n]{b}$</b> (for $a, b &gt; 0$), because the third
+          law above must keep holding at the fractional exponent $1/n$ too:
+          $(ab)^{1/n} = a^{1/n} b^{1/n}$. Roots distribute over products for the same reason
+          every other rule in this box holds — it's forced, not chosen.</li>
       </ul>
     </div>
 
@@ -298,8 +316,9 @@
         <em>non-negative</em> root, so $\sqrt{(-5)^2} = \sqrt{25} = 5 = |-5|$.
       </p>
       <p>
-        <b>$\sqrt{a + b} \neq \sqrt a + \sqrt b$.</b> Roots distribute over products, never over
-        sums. Test with $a = b = 9$: the left side is $\sqrt{18} \approx 4.24$, the right side is
+        <b>$\sqrt{a + b} \neq \sqrt a + \sqrt b$.</b> Roots distribute over products (that's the
+        rule above) but never over sums — there is no such law, and no reason to expect one.
+        Test with $a = b = 9$: the left side is $\sqrt{18} \approx 4.24$, the right side is
         $6$.
       </p>
     </div>

@@ -65,6 +65,11 @@ Every chapter ends with a practice set of about ten problems that check themselv
 press **Check** or <kbd>Enter</kbd>, and the first wrong attempt usually gets a hint rather than the
 answer.
 
+The last chapter of each Part (the Interlude, and Chapters 7, 11, and 16) carries a further
+**mixed review** set afterward, drawing problems back from earlier chapters in that Part. These
+exist for retrieval practice — the single best-evidenced way to make earlier material stick — so
+treat them as part of the chapter, not an optional extra.
+
 Answers are matched forgivingly: `0.5`, `1/2`, and `2/4` are all accepted for the same number,
 spaces never matter, and `-3` and `−3` are the same. Where several numbers are wanted, separate
 them with commas in any order.
