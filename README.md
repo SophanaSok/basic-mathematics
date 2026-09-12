@@ -1,7 +1,7 @@
 # Basic Mathematics
 
 A static course site covering elementary mathematics from the ground up, following the topic
-sequence of Serge Lang's *Basic Mathematics*: four parts, seventeen chapters, 72 sections.
+sequence of Serge Lang's *Basic Mathematics*: four parts, seventeen chapters, 76 sections.
 
 Every chapter has prose written to be read with a pencil, worked examples with each step shown,
 interactive figures where a picture beats words, and a practice set that grades itself and shows
@@ -49,6 +49,11 @@ Each chapter opens with a **goal box** listing what you will be able to do by th
 first and again at the end, as a self-check. Then the pattern repeats: the idea in plain language,
 the rule stated precisely, worked examples with every step shown, an interactive figure where a
 picture beats words, and a practice set. A recap closes it.
+
+Some **Watch out** boxes, the ones about a trap in a method, are followed by a **Wrong turn**:
+a worked example that makes the mistake on purpose. It follows the tempting step to the answer it
+gives, runs a check that rejects that answer, and then shows the fix. Work these as carefully as
+the other examples. Seeing a mistake fail is what helps you notice it in your own work later.
 
 The method in three lines, expanded on the
 **[How to use this](https://sophanasok.github.io/basic-mathematics/about.html)** page:
@@ -158,6 +163,11 @@ The rest of the page is ordinary markup using a small set of classes: `.goal`, `
 <nav class="chapter-nav" data-chapter-nav></nav>
 <span class="practice-score" data-practice-score></span>
 ```
+
+A **Wrong turn** is a `.worked` block whose `.num` reads `Wrong turn.` instead of `Example n.`,
+placed soon after the `.callout.warn` it illustrates. Its steps are the tempting move, the check
+that catches it, and the repair. Keep a Wrong turn unnumbered: chapters cite worked examples by
+number, so putting one into the example numbering would break those references.
 
 Math goes in `$…$` for inline and `$$…$$` for display. `\(…\)` and `\[…\]` also work.
 
