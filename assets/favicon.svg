@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+<style>
+  .bg { fill: #faf9f6; }
+  .glyph { fill: #a8552a; }
+  @media (prefers-color-scheme: dark) {
+    .bg { fill: #1b1d23; }
+    .glyph { fill: #e0a077; }
+  }
+</style>
+<rect class="bg" x="1" y="1" width="30" height="30" rx="7"/>
+<text class="glyph" x="16" y="23" text-anchor="middle"
+      font-family="Georgia, 'Iowan Old Style', 'Palatino Linotype', serif"
+      font-size="21" font-weight="700">&#8721;</text>
+</svg>
