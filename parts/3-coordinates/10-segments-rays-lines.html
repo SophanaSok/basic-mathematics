@@ -5,6 +5,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>10. Segments, Rays, and Lines — Basic Mathematics</title>
 <meta name="description" content="Parametric descriptions of segments, rays, and lines, and how they relate to y = mx + b.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400;1,6..72,500&display=swap">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.11/katex.min.css">
 <link rel="icon" href="../../assets/favicon.svg" type="image/svg+xml">
 <link rel="stylesheet" href="../../assets/site.css">
@@ -13,6 +16,9 @@
 <script defer src="../../data/curriculum.js"></script>
 <script defer src="../../assets/widgets.js"></script>
 <script defer src="../../assets/site.js"></script>
+<script defer src="../../assets/lesson.js"></script>
+<script defer src="../../assets/config.js"></script>
+<script defer src="../../assets/account.js"></script>
 </head>
 <body data-depth="2" data-chapter="ch10">
 <a class="skip-link" href="#main">Skip to content</a>
@@ -22,7 +28,7 @@
   <nav>
     <a href="../../index.html">Contents</a>
     <a href="../../about.html">How to use this</a>
-    <button class="icon-btn" type="button" data-theme-toggle>☾ Dark</button>
+    <button class="icon-btn" type="button" data-theme-toggle aria-label="Switch between light and dark">☾</button>
   </nav>
 </header>
 
@@ -196,6 +202,16 @@
           The displacement is $(6,3)$; two thirds of it is $(4,2)$; and $(1,1) + (4,2) = (5,3)$.
           This is $P + t(Q-P)$ with $t = \tfrac23$.
         </p>
+      </div>
+    </div>
+
+    <div class="ex" data-inline id="k1" data-label="Section check" data-type="blank" data-hint="First find Q − P, take a third of it, then add that to P.">
+      <div class="ex-q">
+        <p>Let $P = (0, 2)$ and $Q = (6, 8)$. At $t = \tfrac13$, the point $P + t(Q - P)$ is $($ <span class="blank" data-answer="2"></span> $,$ <span class="blank" data-answer="4"></span> $)$.</p>
+      </div>
+      <div class="ex-solution">
+        <p class="answer">Answer: $(2, 4)$</p>
+        <p>$Q - P = (6, 6)$, a third of which is $(2, 2)$; and $(0, 2) + (2, 2) = (2, 4)$ — one third of the way along the segment.</p>
       </div>
     </div>
 
@@ -527,6 +543,22 @@
       </p>
     </div>
 
+    <div class="ex" data-inline id="k2" data-label="Section check" data-type="order" data-hint="Slope first, then the intercept, then check with the point you did not use.">
+      <div class="ex-q">
+        <p>Put these lines in order to find the equation of the line through $(1, 2)$ and $(3, 8)$.</p>
+      </div>
+      <ol class="order">
+        <li>The slope is $\dfrac{8 - 2}{3 - 1} = 3$.</li>
+        <li>So the line is $y = 3x + b$ for some $b$.</li>
+        <li>It passes through $(1, 2)$: $2 = 3 + b$, so $b = -1$.</li>
+        <li>The line is $y = 3x - 1$; check with $(3, 8)$: $9 - 1 = 8$.</li>
+      </ol>
+      <div class="ex-solution">
+        <p class="answer">Answer: $y = 3x - 1$</p>
+        <p>Two points fix the slope; one of them then fixes $b$; the other is the check.</p>
+      </div>
+    </div>
+
     <!-- ====================================================== practice ==== -->
     <section class="practice" id="practice">
       <div class="practice-head">
@@ -538,7 +570,7 @@
         <code>-3/2</code>.
       </p>
 
-      <div class="ex" data-type="number" data-answer="2"
+      <div class="ex" data-section="line-equation" data-type="number" data-answer="2"
            data-hint="Slope is rise over run: (y₂ − y₁)/(x₂ − x₁).">
         <div class="ex-q">
           <p>What is the slope of the line through $(1,3)$ and $(4,9)$?</p>
@@ -552,7 +584,7 @@
         </div>
       </div>
 
-      <div class="ex" data-answer="(5,4)|5,4"
+      <div class="ex" data-section="segments" data-answer="(5,4)|5,4"
            data-placeholder="e.g. (3,-2)"
            data-hint="Compute Q − P, multiply by t, and add to P.">
         <div class="ex-q">
@@ -569,7 +601,7 @@
         </div>
       </div>
 
-      <div class="ex" data-type="number" data-answer="-0.25|-1/4"
+      <div class="ex" data-section="line-equation" data-type="number" data-answer="-0.25|-1/4"
            data-hint="Perpendicular slopes multiply to −1.">
         <div class="ex-q">
           <p>
@@ -586,7 +618,7 @@
         </div>
       </div>
 
-      <div class="ex" data-answer="2"
+      <div class="ex" data-section="segments" data-answer="2"
            data-hint="Is t inside [0,1], beyond 1, or negative?">
         <div class="ex-q">
           <p>
@@ -609,7 +641,7 @@
         </div>
       </div>
 
-      <div class="ex" data-answer="y=3x-5|y=3x+-5|3x-5"
+      <div class="ex" data-section="line-equation" data-answer="y=3x-5|y=3x+-5|3x-5"
            data-placeholder="e.g. y=3x-5"
            data-hint="Find the slope first, then use point-slope form."
            data-hint2="The slope is 3. So y − 1 = 3(x − 2).">
@@ -629,7 +661,7 @@
         </div>
       </div>
 
-      <div class="ex" data-answer="3"
+      <div class="ex" data-section="line-equation" data-answer="3"
            data-hint="Rearrange both into y = mx + b and compare slopes.">
         <div class="ex-q">
           <p>
@@ -655,7 +687,7 @@
         </div>
       </div>
 
-      <div class="ex" data-answer="x=3|x-3=0"
+      <div class="ex" data-section="line-equation" data-answer="x=3|x-3=0"
            data-placeholder="e.g. x=3"
            data-hint="What is the slope of a vertical line?">
         <div class="ex-q">
@@ -674,7 +706,7 @@
         </div>
       </div>
 
-      <div class="ex" data-answer="(7,11)|7,11"
+      <div class="ex" data-section="rays" data-answer="(7,11)|7,11"
            data-placeholder="e.g. (3,-2)"
            data-hint="Take t = 2 in the parametric form."
            data-hint2="Q − P = (3, 6). Add twice that to P.">
@@ -697,7 +729,7 @@
         </div>
       </div>
 
-      <div class="ex" data-type="number" data-answer="6"
+      <div class="ex" data-section="line-equation" data-type="number" data-answer="6"
            data-hint="Substitute the point into the equation and solve for k.">
         <div class="ex-q">
           <p>
@@ -716,7 +748,7 @@
         </div>
       </div>
 
-      <div class="ex" data-answer="1"
+      <div class="ex" data-section="lines" data-answer="1"
            data-hint="Two points determine a direction; any non-zero multiple of it works.">
         <div class="ex-q">
           <p>

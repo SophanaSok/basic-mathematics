@@ -5,6 +5,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>6. Isometries — Basic Mathematics</title>
 <meta name="description" content="The motions that preserve distance — translations, rotations, reflections — and symmetry as invariance under them.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400;1,6..72,500&display=swap">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.11/katex.min.css">
 <link rel="icon" href="../../assets/favicon.svg" type="image/svg+xml">
 <link rel="stylesheet" href="../../assets/site.css">
@@ -13,6 +16,9 @@
 <script defer src="../../data/curriculum.js"></script>
 <script defer src="../../assets/widgets.js"></script>
 <script defer src="../../assets/site.js"></script>
+<script defer src="../../assets/lesson.js"></script>
+<script defer src="../../assets/config.js"></script>
+<script defer src="../../assets/account.js"></script>
 </head>
 <body data-depth="2" data-chapter="ch06">
 <a class="skip-link" href="#main">Skip to content</a>
@@ -22,7 +28,7 @@
   <nav>
     <a href="../../index.html">Contents</a>
     <a href="../../about.html">How to use this</a>
-    <button class="icon-btn" type="button" data-theme-toggle>☾ Dark</button>
+    <button class="icon-btn" type="button" data-theme-toggle aria-label="Switch between light and dark">☾</button>
   </nav>
 </header>
 
@@ -218,6 +224,16 @@
       </div>
     </div>
 
+    <div class="ex" data-inline id="k1" data-label="Section check" data-type="blank" data-hint="Reflecting in the y-axis flips left and right, and leaves heights alone.">
+      <div class="ex-q">
+        <p>Reflection in the $y$-axis sends $(3, -2)$ to $($ <span class="blank" data-answer="-3"></span> $,$ <span class="blank" data-answer="-2"></span> $)$.</p>
+      </div>
+      <div class="ex-solution">
+        <p class="answer">Answer: $(-3, -2)$</p>
+        <p>The rule is $(x, y) \mapsto (-x, y)$: the first coordinate changes sign, the second is untouched.</p>
+      </div>
+    </div>
+
     <h2 id="isometries">6.2 Isometries</h2>
 
     <div class="rule">
@@ -386,6 +402,22 @@
       </p>
     </div>
 
+    <div class="ex" data-inline id="k2" data-label="Section check" data-type="multi" data-answer="1,2,4" data-hint="An isometry keeps every distance exactly as it was.">
+      <div class="ex-q">
+        <p>Which of these mappings of the plane are isometries? Choose every one.</p>
+      </div>
+      <ul class="choices">
+        <li>A translation.</li>
+        <li>A rotation about a point.</li>
+        <li>A dilation by the factor $2$.</li>
+        <li>A reflection in a line.</li>
+      </ul>
+      <div class="ex-solution">
+        <p class="answer">Answer: translation, rotation, reflection</p>
+        <p>Those three move figures without changing any distance. A dilation by $2$ doubles every distance, so it is not an isometry.</p>
+      </div>
+    </div>
+
     <h2 id="symmetry">6.3 Symmetry</h2>
     <p>
       Now turn the question around. Instead of asking which motions carry one figure to another, ask
@@ -529,7 +561,7 @@
       </div>
       <p>Where a point is asked for, write it as a pair like <code>(3,-2)</code>.</p>
 
-      <div class="ex" data-answer="(5,-2)|5,-2"
+      <div class="ex" data-section="mappings-plane" data-answer="(5,-2)|5,-2"
            data-placeholder="e.g. (3,-2)"
            data-hint="Reflection in the x-axis changes the sign of y only.">
         <div class="ex-q">
@@ -545,7 +577,7 @@
         </div>
       </div>
 
-      <div class="ex" data-answer="(-4,-7)|-4,-7"
+      <div class="ex" data-section="mappings-plane" data-answer="(-4,-7)|-4,-7"
            data-placeholder="e.g. (3,-2)"
            data-hint="A 180° rotation about the origin sends (x, y) to (−x, −y).">
         <div class="ex-q">
@@ -561,7 +593,7 @@
         </div>
       </div>
 
-      <div class="ex" data-type="number" data-answer="8"
+      <div class="ex" data-section="symmetry" data-type="number" data-answer="8"
            data-hint="Count rotations and reflections separately, then add.">
         <div class="ex-q"><p>How many symmetries does a square have?</p></div>
         <div class="ex-solution">
@@ -574,7 +606,7 @@
         </div>
       </div>
 
-      <div class="ex" data-type="number" data-answer="2"
+      <div class="ex" data-section="symmetry" data-type="number" data-answer="2"
            data-hint="Which motions leave the letter Z looking like a Z?">
         <div class="ex-q">
           <p>
@@ -590,7 +622,7 @@
         </div>
       </div>
 
-      <div class="ex" data-answer="4"
+      <div class="ex" data-section="isometries" data-answer="4"
            data-hint="Check the definition: does it preserve distance?">
         <div class="ex-q">
           <p>Which of these mappings of the plane is <em>not</em> an isometry?</p>
@@ -615,7 +647,7 @@
         </div>
       </div>
 
-      <div class="ex" data-answer="2"
+      <div class="ex" data-section="isometries" data-answer="2"
            data-hint="Compose the two formulas and see what single rule comes out."
            data-hint2="(x, y) goes to (y, x), and then to (y, −x). Try it on (1, 0).">
         <div class="ex-q">
@@ -642,7 +674,7 @@
         </div>
       </div>
 
-      <div class="ex" data-type="number" data-answer="5"
+      <div class="ex" data-section="isometries" data-type="number" data-answer="5"
            data-hint="You do not need the images. What does an isometry do to distances?">
         <div class="ex-q">
           <p>
@@ -659,7 +691,7 @@
         </div>
       </div>
 
-      <div class="ex" data-answer="3"
+      <div class="ex" data-section="isometries" data-answer="3"
            data-hint="Think about what happens to the two marked points of a lopsided figure.">
         <div class="ex-q">
           <p>Two figures are congruent. What exactly does that mean?</p>
@@ -680,7 +712,7 @@
         </div>
       </div>
 
-      <div class="ex" data-answer="(1,6)|1,6"
+      <div class="ex" data-section="mappings-plane" data-answer="(1,6)|1,6"
            data-placeholder="e.g. (3,-2)"
            data-hint="Do the translation first, then the reflection — in that order."
            data-hint2="T(−2, −5) = (1, −6). Now apply M to that point.">
@@ -702,7 +734,7 @@
         </div>
       </div>
 
-      <div class="ex" data-answer="1"
+      <div class="ex" data-section="symmetry" data-answer="1"
            data-hint="Three properties define a group. Which list has all three?">
         <div class="ex-q">
           <p>

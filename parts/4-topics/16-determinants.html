@@ -5,6 +5,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>16. Determinants — Basic Mathematics</title>
 <meta name="description" content="Matrices, determinants of order 2 and 3, their properties, and Cramer's rule for linear systems.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400;1,6..72,500&display=swap">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.11/katex.min.css">
 <link rel="icon" href="../../assets/favicon.svg" type="image/svg+xml">
 <link rel="stylesheet" href="../../assets/site.css">
@@ -13,6 +16,9 @@
 <script defer src="../../data/curriculum.js"></script>
 <script defer src="../../assets/widgets.js"></script>
 <script defer src="../../assets/site.js"></script>
+<script defer src="../../assets/lesson.js"></script>
+<script defer src="../../assets/config.js"></script>
+<script defer src="../../assets/account.js"></script>
 </head>
 <body data-depth="2" data-chapter="ch16">
 <a class="skip-link" href="#main">Skip to content</a>
@@ -22,7 +28,7 @@
   <nav>
     <a href="../../index.html">Contents</a>
     <a href="../../about.html">How to use this</a>
-    <button class="icon-btn" type="button" data-theme-toggle>☾ Dark</button>
+    <button class="icon-btn" type="button" data-theme-toggle aria-label="Switch between light and dark">☾</button>
   </nav>
 </header>
 
@@ -265,6 +271,16 @@
       </p>
     </div>
 
+    <div class="ex" data-inline id="k1" data-label="Section check" data-type="blank" data-hint="ad − bc: the main diagonal's product minus the other diagonal's.">
+      <div class="ex-q">
+        <p>$\begin{vmatrix} 3 &amp; 1 \\ 2 &amp; 4 \end{vmatrix} = {}$ <span class="blank" data-answer="12"></span> $- {}$ <span class="blank" data-answer="2"></span> $= {}$ <span class="blank" data-answer="10"></span>.</p>
+      </div>
+      <div class="ex-solution">
+        <p class="answer">Answer: $12 - 2 = 10$</p>
+        <p>$3 \cdot 4 = 12$ and $1 \cdot 2 = 2$.</p>
+      </div>
+    </div>
+
     <h2 id="det3">16.3 Determinants of order 3</h2>
     <p>
       For a $3\times3$ matrix, expand along the first row. Each entry is multiplied by the
@@ -459,6 +475,22 @@
       </div>
     </div>
 
+    <div class="ex" data-inline id="k2" data-label="Section check" data-type="multi" data-answer="1,4" data-hint="One of the others changes the sign; one multiplies the determinant.">
+      <div class="ex-q">
+        <p>Which of these leave the determinant of a matrix unchanged? Choose every one.</p>
+      </div>
+      <ul class="choices">
+        <li>Adding a multiple of one row to another row.</li>
+        <li>Swapping two rows.</li>
+        <li>Multiplying one row by $3$.</li>
+        <li>Taking the transpose.</li>
+      </ul>
+      <div class="ex-solution">
+        <p class="answer">Answer: adding a multiple of one row to another, and transposing</p>
+        <p>Swapping two rows changes the sign, and multiplying a row by $3$ multiplies the determinant by $3$.</p>
+      </div>
+    </div>
+
     <h2 id="cramer">16.5 Cramer's rule</h2>
     <p>
       Return to the elimination that produced the determinant in the first place. It gave
@@ -537,7 +569,7 @@
       </div>
       <p>Give numerical answers as plain numbers, and points as pairs like <code>(3,-2)</code>.</p>
 
-      <div class="ex" data-type="number" data-answer="-2"
+      <div class="ex" data-section="det2" data-type="number" data-answer="-2"
            data-hint="ad − bc.">
         <div class="ex-q">
           <p>Compute $\begin{vmatrix} 1 &amp; 4 \\ 3 &amp; 10 \end{vmatrix}$.</p>
@@ -551,7 +583,7 @@
         </div>
       </div>
 
-      <div class="ex" data-type="number" data-answer="0"
+      <div class="ex" data-section="det2" data-type="number" data-answer="0"
            data-hint="Look at the two rows. Is one a multiple of the other?">
         <div class="ex-q">
           <p>Compute $\begin{vmatrix} 2 &amp; 6 \\ 3 &amp; 9 \end{vmatrix}$.</p>
@@ -569,7 +601,7 @@
         </div>
       </div>
 
-      <div class="ex" data-type="number" data-answer="14"
+      <div class="ex" data-section="det2" data-type="number" data-answer="14"
            data-hint="|det| is the area.">
         <div class="ex-q">
           <p>
@@ -585,7 +617,7 @@
         </div>
       </div>
 
-      <div class="ex" data-type="number" data-answer="13"
+      <div class="ex" data-section="det3" data-type="number" data-answer="13"
            data-hint="Expand along the first row, plus-minus-plus.">
         <div class="ex-q">
           <p>
@@ -609,7 +641,7 @@
         </div>
       </div>
 
-      <div class="ex" data-answer="2"
+      <div class="ex" data-section="cramer" data-answer="2"
            data-hint="What does det = 0 mean for the system?">
         <div class="ex-q">
           <p>
@@ -632,7 +664,7 @@
         </div>
       </div>
 
-      <div class="ex" data-type="number" data-answer="-6"
+      <div class="ex" data-section="det-props" data-type="number" data-answer="-6"
            data-hint="Swapping two rows changes the sign.">
         <div class="ex-q">
           <p>
@@ -653,7 +685,7 @@
         </div>
       </div>
 
-      <div class="ex" data-type="number" data-answer="6"
+      <div class="ex" data-section="det-props" data-type="number" data-answer="6"
            data-hint="Adding a multiple of one row to another changes nothing.">
         <div class="ex-q">
           <p>
@@ -674,7 +706,7 @@
         </div>
       </div>
 
-      <div class="ex" data-answer="(2,1)|2,1"
+      <div class="ex" data-section="cramer" data-answer="(2,1)|2,1"
            data-placeholder="e.g. (3,-2)"
            data-hint="Use Cramer's rule, or just eliminate."
            data-hint2="det A = (2)(−1) − (3)(1) = −5.">
@@ -693,7 +725,7 @@
         </div>
       </div>
 
-      <div class="ex" data-type="number" data-answer="6"
+      <div class="ex" data-section="det-props" data-type="number" data-answer="6"
            data-hint="Determinants multiply.">
         <div class="ex-q">
           <p>
@@ -713,7 +745,7 @@
         </div>
       </div>
 
-      <div class="ex" data-type="number" data-answer="6"
+      <div class="ex" data-section="cramer" data-type="number" data-answer="6"
            data-hint="A unique solution requires the determinant to be non-zero — so find the value that makes it zero.">
         <div class="ex-q">
           <p>
@@ -743,7 +775,7 @@
         idea each one needs. Deciding that is the exercise.
       </p>
 
-      <div class="ex" data-answer="1"
+      <div class="ex" data-section="ch12#log" data-answer="1"
            data-hint="The logarithm is the inverse of the exponential, which is only ever positive.">
         <div class="ex-q">
           <p>For which $x$ is $f(x) = \log_2(x)$ defined?</p>
@@ -764,7 +796,7 @@
         </div>
       </div>
 
-      <div class="ex" data-type="number" data-answer="6"
+      <div class="ex" data-section="ch12#graphs-fn" data-type="number" data-answer="6"
            data-hint="Write g as a formula first. Which way does subtracting inside the brackets move a graph?">
         <div class="ex-q">
           <p>
@@ -780,7 +812,7 @@
         </div>
       </div>
 
-      <div class="ex" data-type="number" data-answer="3"
+      <div class="ex" data-section="ch13#formalism" data-type="number" data-answer="3"
            data-hint="Apply f twice, one step at a time.">
         <div class="ex-q">
           <p>
@@ -797,7 +829,7 @@
         </div>
       </div>
 
-      <div class="ex" data-answer="3"
+      <div class="ex" data-section="ch13#definition-map" data-answer="3"
            data-hint="A bijection needs both properties at once.">
         <div class="ex-q">
           <p>A mapping $f: S \to T$ is a bijection exactly when it is:</p>
@@ -817,7 +849,7 @@
         </div>
       </div>
 
-      <div class="ex" data-answer="3-i|3-1i"
+      <div class="ex" data-section="ch14#complex-arith" data-answer="3-i|3-1i"
            data-placeholder="e.g. 3-2i"
            data-hint="A complex number has two parts. Treat them like the two coordinates of a point.">
         <div class="ex-q">
@@ -832,7 +864,7 @@
         </div>
       </div>
 
-      <div class="ex" data-type="number" data-answer="5"
+      <div class="ex" data-section="ch14#complex-plane" data-type="number" data-answer="5"
            data-hint="It is the distance from the origin to the point (3, 4).">
         <div class="ex-q">
           <p>What is $|3 + 4i|$?</p>
@@ -846,7 +878,7 @@
         </div>
       </div>
 
-      <div class="ex" data-type="number" data-answer="15"
+      <div class="ex" data-section="ch15#summations" data-type="number" data-answer="15"
            data-hint="Write out the five terms and add.">
         <div class="ex-q">
           <p>Compute $\displaystyle\sum_{k=1}^{5} k$.</p>
@@ -860,7 +892,7 @@
         </div>
       </div>
 
-      <div class="ex" data-type="number" data-answer="45"
+      <div class="ex" data-section="ch15#geometric" data-type="number" data-answer="45"
            data-hint="Four terms, first term 3, ratio 2.">
         <div class="ex-q">
           <p>What is the sum of the geometric series $3 + 6 + 12 + 24$?</p>
@@ -875,7 +907,7 @@
         </div>
       </div>
 
-      <div class="ex" data-type="number" data-answer="2"
+      <div class="ex" data-section="ch12#log" data-type="number" data-answer="2"
            data-hint="Each logarithm is an exponent — work them out, or combine them first.">
         <div class="ex-q">
           <p>Compute $\log_3 81 - \log_3 9$.</p>
@@ -890,7 +922,7 @@
         </div>
       </div>
 
-      <div class="ex" data-answer="2i|0+2i"
+      <div class="ex" data-section="ch14#complex-arith" data-answer="2i|0+2i"
            data-placeholder="e.g. 3+4i"
            data-hint="Expand it like any other square, and remember what i² is.">
         <div class="ex-q">

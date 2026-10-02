@@ -5,6 +5,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>4. Quadratic Equations — Basic Mathematics</title>
 <meta name="description" content="Completing the square, the quadratic formula derived rather than memorised, the discriminant, and the geometry of the parabola.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400;1,6..72,500&display=swap">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.11/katex.min.css">
 <link rel="icon" href="../../assets/favicon.svg" type="image/svg+xml">
 <link rel="stylesheet" href="../../assets/site.css">
@@ -13,6 +16,9 @@
 <script defer src="../../data/curriculum.js"></script>
 <script defer src="../../assets/widgets.js"></script>
 <script defer src="../../assets/site.js"></script>
+<script defer src="../../assets/lesson.js"></script>
+<script defer src="../../assets/config.js"></script>
+<script defer src="../../assets/account.js"></script>
 </head>
 <body data-depth="2" data-chapter="ch04">
 <a class="skip-link" href="#main">Skip to content</a>
@@ -22,7 +28,7 @@
   <nav>
     <a href="../../index.html">Contents</a>
     <a href="../../about.html">How to use this</a>
-    <button class="icon-btn" type="button" data-theme-toggle>☾ Dark</button>
+    <button class="icon-btn" type="button" data-theme-toggle aria-label="Switch between light and dark">☾</button>
   </nav>
 </header>
 
@@ -370,6 +376,16 @@
       </div>
     </div>
 
+    <div class="ex" data-inline id="k1" data-label="Section check" data-type="blank" data-hint="Half of 6 goes inside the bracket; then compare constants.">
+      <div class="ex-q">
+        <p>Complete the square: $x^2 + 6x + 2 = (x + {}$ <span class="blank" data-answer="3"></span> $)^2 - {}$ <span class="blank" data-answer="7"></span>.</p>
+      </div>
+      <div class="ex-solution">
+        <p class="answer">Answer: $(x + 3)^2 - 7$</p>
+        <p>$(x + 3)^2 = x^2 + 6x + 9$, which is $7$ too many compared with $x^2 + 6x + 2$. So subtract $7$.</p>
+      </div>
+    </div>
+
     <h2 id="formula">4.3 The quadratic formula</h2>
     <p>
       Now do Example 2 once with letters instead of numbers, and you never have to complete the
@@ -516,6 +532,16 @@
       </div>
     </div>
 
+    <div class="ex" data-inline id="k2" data-label="Section check" data-type="figure" data-figure="quadratic" data-answer="1,-4,4" data-hint="Read a, b and c off the equation: the coefficient of x², of x, and the constant.">
+      <div class="ex-q">
+        <p>Set the sliders so the graph is $y = x^2 - 4x + 4$, then press Check. Before you do: how many times will it meet the $x$-axis?</p>
+      </div>
+      <div class="ex-solution">
+        <p class="answer">Answer: $a = 1$, $b = -4$, $c = 4$ — it touches once</p>
+        <p>$b^2 - 4ac = 16 - 16 = 0$, so there is one double root. Indeed $x^2 - 4x + 4 = (x - 2)^2$, and the vertex sits on the axis at $x = 2$.</p>
+      </div>
+    </div>
+
     <h2 id="graph">4.5 Vertex, symmetry, and the graph</h2>
     <p>
       Completing the square on $y = ax^2 + bx + c$ rewrites it as
@@ -588,7 +614,7 @@
         Where an exercise asks for several roots, separate them with a comma in any order.
       </p>
 
-      <div class="ex" data-type="set" data-answer="2,-7"
+      <div class="ex" data-section="formula" data-type="set" data-answer="2,-7"
            data-placeholder="e.g. 2,-7"
            data-hint="Move everything to one side, then look for two numbers with product −14 and sum 5.">
         <div class="ex-q"><p>Solve $x^2 + 5x = 14$.</p></div>
@@ -602,7 +628,7 @@
         </div>
       </div>
 
-      <div class="ex" data-type="number" data-answer="-13"
+      <div class="ex" data-section="completing" data-type="number" data-answer="-13"
            data-hint="Halve the coefficient of x, then square it.">
         <div class="ex-q">
           <p>
@@ -619,7 +645,7 @@
         </div>
       </div>
 
-      <div class="ex" data-type="number" data-answer="-8"
+      <div class="ex" data-section="discriminant" data-type="number" data-answer="-8"
            data-hint="Δ = b² − 4ac, with a = 3, b = 2, c = 1.">
         <div class="ex-q">
           <p>Compute the discriminant of $3x^2 + 2x + 1 = 0$.</p>
@@ -633,7 +659,7 @@
         </div>
       </div>
 
-      <div class="ex" data-answer="3"
+      <div class="ex" data-section="discriminant" data-answer="3"
            data-hint="You do not have to solve it. Compute b² − 4ac.">
         <div class="ex-q"><p>How many real roots does $x^2 - 6x + 9 = 0$ have?</p></div>
         <ul class="choices">
@@ -652,7 +678,7 @@
         </div>
       </div>
 
-      <div class="ex" data-type="set" data-answer="0.38,2.62" data-tol="0.01"
+      <div class="ex" data-section="formula" data-type="set" data-answer="0.38,2.62" data-tol="0.01"
            data-placeholder="two decimals, e.g. 0.38,2.62"
            data-hint="Use the formula with a = 1, b = −3, c = 1, then round."
            data-hint2="x = (3 ± √5)/2, and √5 ≈ 2.236.">
@@ -676,7 +702,7 @@
         </div>
       </div>
 
-      <div class="ex" data-type="number" data-answer="2"
+      <div class="ex" data-section="graph" data-type="number" data-answer="2"
            data-hint="The vertex is at x = −b/(2a).">
         <div class="ex-q">
           <p>
@@ -693,7 +719,7 @@
         </div>
       </div>
 
-      <div class="ex" data-type="number" data-answer="4|-4"
+      <div class="ex" data-section="discriminant" data-type="number" data-answer="4|-4"
            data-hint="A double root means the discriminant is zero."
            data-hint2="Here Δ = k² − 16.">
         <div class="ex-q">
@@ -715,7 +741,7 @@
         </div>
       </div>
 
-      <div class="ex" data-type="set" data-answer="0,-5"
+      <div class="ex" data-section="formula" data-type="set" data-answer="0,-5"
            data-placeholder="e.g. 0,-5"
            data-hint="There is no constant term — so something factors out of every term.">
         <div class="ex-q"><p>Solve $2x^2 + 10x = 0$.</p></div>
@@ -732,7 +758,7 @@
         </div>
       </div>
 
-      <div class="ex" data-type="number" data-answer="8"
+      <div class="ex" data-section="formula" data-type="number" data-answer="8"
            data-hint="Write the area in terms of one side, then solve the quadratic."
            data-hint2="The sides x and y satisfy x + y = 13 and xy = 40, so x(13 − x) = 40.">
         <div class="ex-q">
@@ -752,7 +778,7 @@
         </div>
       </div>
 
-      <div class="ex" data-answer="1"
+      <div class="ex" data-section="graph" data-answer="1"
            data-hint="Think about where the vertex sits relative to the axis.">
         <div class="ex-q">
           <p>

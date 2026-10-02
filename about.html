@@ -5,6 +5,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>How to use this course — Basic Mathematics</title>
 <meta name="description" content="How to study this course: reading with a pencil, using the exercises, and how progress is stored.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400;1,6..72,500&display=swap">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.11/katex.min.css">
 <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
 <link rel="stylesheet" href="assets/site.css">
@@ -13,6 +16,8 @@
 <script defer src="data/curriculum.js"></script>
 <script defer src="assets/widgets.js"></script>
 <script defer src="assets/site.js"></script>
+<script defer src="assets/config.js"></script>
+<script defer src="assets/account.js"></script>
 </head>
 <body data-depth="0">
 <a class="skip-link" href="#main">Skip to content</a>
@@ -21,7 +26,8 @@
   <a class="brand" href="index.html"><span class="glyph">∑</span> Basic Mathematics</a>
   <nav>
     <a href="index.html">Contents</a>
-    <button class="icon-btn" type="button" data-theme-toggle>☾ Dark</button>
+    <a href="progress.html">Progress</a>
+    <button class="icon-btn" type="button" data-theme-toggle aria-label="Switch between light and dark">☾</button>
   </nav>
 </header>
 
@@ -70,6 +76,10 @@
       for something:
     </p>
     <ul>
+      <li><b>One step at a time.</b> A chapter opens a piece at a time, with a
+        <b>Continue</b> button under each piece. Where a piece ends in a question, answer it
+        to go on — or skip it, and the course will remember to bring you back to that section.
+        The switch under the chapter title turns this off and shows the whole page at once.</li>
       <li><b>A puzzle</b> at the top. Commit to a guess; the recap comes back to it. Guessing
         wrongly first is useful — it shows you what the chapter is for.</li>
       <li><b>A warm-up</b> of three questions from earlier chapters. They are not scored. If one
@@ -78,6 +88,9 @@
         the method fades. Also not scored.</li>
       <li><b>Examples with the later steps closed.</b> Do each step on paper, then open it to
         compare. Likewise the boxes that ask you to predict a result before it is derived.</li>
+      <li><b>Section checks</b> that are not typed: lines of an argument to put in order,
+        blanks to fill inside an equation, several options to tick, or a figure to set so that
+        it shows the answer. The lines can be dragged or moved with their arrow buttons.</li>
       <li><b>Missions</b> under each interactive figure: things to make the figure do. A star
         marks each one you manage, and they are counted on the contents page.</li>
     </ul>
@@ -108,14 +121,37 @@
       reproduces the book's text or its problem sets.
     </p>
 
+    <h2 id="feedback">XP, streaks, and what to review</h2>
+    <p>
+      Correct answers and completed missions earn XP — most for an answer that is right first
+      time, less after a miss, least once the solution has been opened. The counter in the header
+      shows today's XP against a daily goal, and a streak of the days in a row you have done
+      something. They are there to make a little work every day feel worth doing, which is what
+      actually builds the skill; they measure effort, not ability.
+    </p>
+    <p>
+      More useful is <a href="progress.html">your progress page</a>. The course notes how each
+      question went — how many tries, whether a hint was needed, whether the solution was opened
+      first — and from that lists the <b>sections worth rereading</b>, weakest first. A short
+      version of the same note appears above each chapter's recap.
+    </p>
+
     <h2 id="progress">Progress and privacy</h2>
     <p>
-      Solved exercises are recorded in this browser's local storage, under the key
-      <code>bm.progress.v1</code>; completed missions and your puzzle guesses under
-      <code>bm.play.v1</code>; and the last chapter you opened under <code>bm.last</code>. Nothing is sent anywhere; there is no account and no server.
-      Progress therefore does not follow you to another browser or device, and clearing site data
-      clears it. If storage is blocked, everything still works — the rings on the contents page
-      just stay empty.
+      Everything is saved in this browser's local storage: solved exercises
+      (<code>bm.progress.v1</code>), missions and puzzle guesses (<code>bm.play.v1</code>), how
+      each question went (<code>bm.attempts.v1</code>), XP per day (<code>bm.activity.v1</code>),
+      and your place in each chapter (<code>bm.lesson.v1</code>, <code>bm.last</code>). Without
+      an account nothing is sent anywhere, so progress does not follow you to another browser,
+      and clearing site data clears it. If storage is blocked, everything still works — it just
+      is not remembered.
+    </p>
+    <p>
+      An <a href="account.html">account</a> is optional. Signed in, the same records are copied
+      to the course's database so that they follow you between devices, and each answer check
+      (which question, right or wrong, which try — never what you typed) is logged so the author
+      can see which questions are too hard and fix them. You can download or delete all of it
+      from the account page.
     </p>
     <p class="practice-score" data-course-stats></p>
     <p>

@@ -5,6 +5,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>1. Numbers — Basic Mathematics</title>
 <meta name="description" content="Where the rules of arithmetic come from: integers, the laws of addition and multiplication, why a negative times a negative is positive, even and odd, rational numbers, and inverses.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400;1,6..72,500&display=swap">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.11/katex.min.css">
 <link rel="icon" href="../../assets/favicon.svg" type="image/svg+xml">
 <link rel="stylesheet" href="../../assets/site.css">
@@ -13,6 +16,9 @@
 <script defer src="../../data/curriculum.js"></script>
 <script defer src="../../assets/widgets.js"></script>
 <script defer src="../../assets/site.js"></script>
+<script defer src="../../assets/lesson.js"></script>
+<script defer src="../../assets/config.js"></script>
+<script defer src="../../assets/account.js"></script>
 </head>
 <body data-depth="2" data-chapter="ch01">
 <a class="skip-link" href="#main">Skip to content</a>
@@ -22,7 +28,7 @@
   <nav>
     <a href="../../index.html">Contents</a>
     <a href="../../about.html">How to use this</a>
-    <button class="icon-btn" type="button" data-theme-toggle>☾ Dark</button>
+    <button class="icon-btn" type="button" data-theme-toggle aria-label="Switch between light and dark">☾</button>
   </nav>
 </header>
 
@@ -225,6 +231,16 @@
           associativity. Commutativity would be needed to go one step further, to $2 + (5 + x)$ —
           there the order changes.
         </p>
+      </div>
+    </div>
+
+    <div class="ex" data-inline id="k1" data-label="Section check" data-type="figure" data-figure="numberline" data-answer="-4 - -6" data-hint="Choose a − b, then set a = −4 and b = −6.">
+      <div class="ex-q">
+        <p>Make the number line show $-4 - (-6)$, then press Check.</p>
+      </div>
+      <div class="ex-solution">
+        <p class="answer">Answer: $-4 - (-6) = 2$</p>
+        <p>Subtracting $-6$ is adding its opposite, $6$: the second hop goes to the <em>right</em>, from $-4$ to $2$.</p>
       </div>
     </div>
 
@@ -497,6 +513,22 @@
       </div>
     </div>
 
+    <div class="ex" data-inline id="k2" data-label="Section check" data-type="order" data-hint="Start by naming the two odd numbers; end with the conclusion.">
+      <div class="ex-q">
+        <p>Put these lines in order to prove that the sum of two odd integers is even.</p>
+      </div>
+      <ol class="order">
+        <li>Let $m$ and $n$ be odd, so $m = 2j + 1$ and $n = 2k + 1$ for some integers $j$ and $k$.</li>
+        <li>Then $m + n = 2j + 2k + 2$.</li>
+        <li>Factor out the $2$: $m + n = 2(j + k + 1)$.</li>
+        <li>Since $j + k + 1$ is an integer, $m + n$ is twice an integer, so it is even.</li>
+      </ol>
+      <div class="ex-solution">
+        <p class="answer">The order shown is the proof</p>
+        <p>Name the objects, compute, factor out the $2$, then conclude. Each line uses only the one before it.</p>
+      </div>
+    </div>
+
     <h2 id="rationals">1.5 Rational numbers</h2>
     <p>
       Integers let you subtract freely, but not divide: $3 \div 2$ is not an integer. The same
@@ -594,6 +626,16 @@
           so the sum is $\frac{11}{12}$. Adding tops and bottoms separately would give $\frac37$ —
           smaller than $\frac23$ alone, which cannot be right for a sum of positive numbers.
         </p>
+      </div>
+    </div>
+
+    <div class="ex" data-inline id="k3" data-label="Section check" data-type="blank" data-hint="Twelve is a common denominator: multiply top and bottom of each fraction to reach it.">
+      <div class="ex-q">
+        <p>Fill in the numerators: $\dfrac23 + \dfrac14 = {}$ <span class="blank" data-answer="8"></span> $/12 + {}$ <span class="blank" data-answer="3"></span> $/12 = {}$ <span class="blank" data-answer="11"></span> $/12$.</p>
+      </div>
+      <div class="ex-solution">
+        <p class="answer">Answer: $\dfrac{8}{12} + \dfrac{3}{12} = \dfrac{11}{12}$</p>
+        <p>$\frac23 = \frac{2 \cdot 4}{3 \cdot 4}$ and $\frac14 = \frac{1 \cdot 3}{4 \cdot 3}$. Once the pieces are the same size, the numerators add.</p>
       </div>
     </div>
 
@@ -704,7 +746,7 @@
         <code>3/2</code>, <code>1.5</code> and <code>6/4</code> are all accepted.
       </p>
 
-      <div class="ex" data-type="number" data-answer="-7"
+      <div class="ex" data-section="addition" data-type="number" data-answer="-7"
            data-hint="Subtracting a negative number is adding its opposite.">
         <div class="ex-q"><p>Compute $-12 - (-5)$.</p></div>
         <div class="ex-solution">
@@ -716,7 +758,7 @@
         </div>
       </div>
 
-      <div class="ex" data-type="number" data-answer="-30"
+      <div class="ex" data-section="multiplication" data-type="number" data-answer="-30"
            data-hint="Count the minus signs: each one flips the sign of the product.">
         <div class="ex-q"><p>Compute $(-2)(3)(-1)(-5)$.</p></div>
         <div class="ex-solution">
@@ -730,7 +772,7 @@
         </div>
       </div>
 
-      <div class="ex" data-type="expr" data-answer="ac+ad+bc+bd | ad+ac+bd+bc"
+      <div class="ex" data-section="multiplication" data-type="expr" data-answer="ac+ad+bc+bd | ad+ac+bd+bc"
            data-placeholder="e.g. ac+ad+bc+bd"
            data-hint="Distribute twice: first treat (c+d) as a single object."
            data-hint2="First step: (a+b)x = ax + bx, with x standing for (c+d). Then expand a(c+d) and b(c+d).">
@@ -747,7 +789,7 @@
         </div>
       </div>
 
-      <div class="ex" data-type="number" data-answer="2"
+      <div class="ex" data-section="rationals" data-type="number" data-answer="2"
            data-hint="Rewrite every fraction over the denominator 12 before adding anything."
            data-hint2="7/4 = 21/12 and 5/6 = 10/12.">
         <div class="ex-q"><p>Compute $\dfrac{7}{4} + \dfrac{5}{6} - \dfrac{7}{12}$.</p></div>
@@ -764,7 +806,7 @@
         </div>
       </div>
 
-      <div class="ex" data-type="number" data-answer="5/6"
+      <div class="ex" data-section="inverses" data-type="number" data-answer="5/6"
            data-hint="Invert the divisor and multiply.">
         <div class="ex-q"><p>Compute $\dfrac{10}{9} \div \dfrac{4}{3}$.</p></div>
         <div class="ex-solution">
@@ -778,7 +820,7 @@
         </div>
       </div>
 
-      <div class="ex" data-type="expr" data-answer="2(j+k)|2(k+j)|2*(j+k)"
+      <div class="ex" data-section="even-odd" data-type="expr" data-answer="2(j+k)|2(k+j)|2*(j+k)"
            data-placeholder="e.g. 2(j+k)"
            data-hint="Write m = 2j and n = 2k, add, and pull out the factor 2."
            data-hint2="m + n = 2j + 2k. Both terms contain a factor of 2.">
@@ -820,7 +862,7 @@
         </div>
       </div>
 
-      <div class="ex" data-type="number" data-answer="0"
+      <div class="ex" data-section="multiplication" data-type="number" data-answer="0"
            data-hint="You do not need to expand anything. What is the factor on the left?">
         <div class="ex-q">
           <p>Compute $\big(7 + (-7)\big)\big(19^{4} - 8\big)$ without expanding the second bracket.</p>
@@ -835,7 +877,7 @@
         </div>
       </div>
 
-      <div class="ex" data-type="set" data-answer="1,-1"
+      <div class="ex" data-section="inverses" data-type="set" data-answer="1,-1"
            data-placeholder="e.g. 1,-1"
            data-hint="Which integers have an integer inverse? Try small cases."
            data-hint2="The inverse of a is 1/a. For which integers a is 1/a itself an integer?">
@@ -856,7 +898,7 @@
         </div>
       </div>
 
-      <div class="ex" data-type="expr" data-answer="1/(2k+1)|(2k+1)^-1"
+      <div class="ex" data-section="inverses" data-type="expr" data-answer="1/(2k+1)|(2k+1)^-1"
            data-placeholder="in terms of k"
            data-hint="The inverse of x is 1/x. Substitute the expression for n."
            data-hint2="Replace n by 2k + 1 inside 1/n.">

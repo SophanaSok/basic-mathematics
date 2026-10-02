@@ -5,6 +5,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>9. Operations on Points — Basic Mathematics</title>
 <meta name="description" content="Adding points, scaling them, and reflecting them — geometry done by arithmetic on coordinates.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400;1,6..72,500&display=swap">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.11/katex.min.css">
 <link rel="icon" href="../../assets/favicon.svg" type="image/svg+xml">
 <link rel="stylesheet" href="../../assets/site.css">
@@ -13,6 +16,9 @@
 <script defer src="../../data/curriculum.js"></script>
 <script defer src="../../assets/widgets.js"></script>
 <script defer src="../../assets/site.js"></script>
+<script defer src="../../assets/lesson.js"></script>
+<script defer src="../../assets/config.js"></script>
+<script defer src="../../assets/account.js"></script>
 </head>
 <body data-depth="2" data-chapter="ch09">
 <a class="skip-link" href="#main">Skip to content</a>
@@ -22,7 +28,7 @@
   <nav>
     <a href="../../index.html">Contents</a>
     <a href="../../about.html">How to use this</a>
-    <button class="icon-btn" type="button" data-theme-toggle>☾ Dark</button>
+    <button class="icon-btn" type="button" data-theme-toggle aria-label="Switch between light and dark">☾</button>
   </nav>
 </header>
 
@@ -294,6 +300,16 @@
       </div>
     </div>
 
+    <div class="ex" data-inline id="k1" data-label="Section check" data-type="figure" data-figure="pointops" data-answer="-2,3" data-hint="Keep the figure on A + B. The coordinates of A and B must add to −2 and to 3." data-hint2="For instance A = (1, 1) and B = (−3, 2).">
+      <div class="ex-q">
+        <p>Drag $A$ and $B$ so that $A + B = (-2, 3)$, then press Check.</p>
+      </div>
+      <div class="ex-solution">
+        <p class="answer">Answer: any $A$, $B$ whose coordinates add to $-2$ and $3$</p>
+        <p>For example $A = (1, 1)$ and $B = (-3, 2)$. Many pairs work: the sum only fixes the fourth corner of the parallelogram.</p>
+      </div>
+    </div>
+
     <h2 id="subtraction">9.3 Subtraction and located vectors</h2>
     <p>
       Subtraction is defined as you would expect, $Q - P = Q + (-P) = (x_2-x_1,\; y_2-y_1)$, but its
@@ -443,6 +459,16 @@
       </div>
     </div>
 
+    <div class="ex" data-inline id="k2" data-label="Section check" data-type="blank" data-hint="Subtract coordinate by coordinate: end minus start.">
+      <div class="ex-q">
+        <p>With $P = (2, 5)$ and $Q = (7, 1)$, the arrow from $P$ to $Q$ is $Q - P = ($ <span class="blank" data-answer="5"></span> $,$ <span class="blank" data-answer="-4"></span> $)$.</p>
+      </div>
+      <div class="ex-solution">
+        <p class="answer">Answer: $(5, -4)$</p>
+        <p>$7 - 2 = 5$ and $1 - 5 = -4$: five to the right and four down.</p>
+      </div>
+    </div>
+
     <!-- ====================================================== practice ==== -->
     <section class="practice" id="practice">
       <div class="practice-head">
@@ -451,7 +477,7 @@
       </div>
       <p>Write points and displacements as pairs, like <code>(3,-2)</code>.</p>
 
-      <div class="ex" data-answer="(7,1)|7,1"
+      <div class="ex" data-section="addition-points" data-answer="(7,1)|7,1"
            data-placeholder="e.g. (3,-2)"
            data-hint="Add the x's and add the y's.">
         <div class="ex-q"><p>Compute $(3,-2) + (4,3)$.</p></div>
@@ -464,7 +490,7 @@
         </div>
       </div>
 
-      <div class="ex" data-answer="(-10,4)|-10,4"
+      <div class="ex" data-section="dilations" data-answer="(-10,4)|-10,4"
            data-placeholder="e.g. (3,-2)"
            data-hint="Multiply both coordinates by −2.">
         <div class="ex-q"><p>With $P = (5,-2)$, compute $-2P$.</p></div>
@@ -477,7 +503,7 @@
         </div>
       </div>
 
-      <div class="ex" data-answer="(-5,6)|-5,6"
+      <div class="ex" data-section="subtraction" data-answer="(-5,6)|-5,6"
            data-placeholder="e.g. (3,-2)"
            data-hint="Q − P means subtract P's coordinates from Q's.">
         <div class="ex-q">
@@ -495,7 +521,7 @@
         </div>
       </div>
 
-      <div class="ex" data-answer="(2,3)|2,3"
+      <div class="ex" data-section="addition-points" data-answer="(2,3)|2,3"
            data-placeholder="e.g. (3,-2)"
            data-hint="Average the two x's and the two y's.">
         <div class="ex-q">
@@ -513,7 +539,7 @@
         </div>
       </div>
 
-      <div class="ex" data-answer="1"
+      <div class="ex" data-section="subtraction" data-answer="1"
            data-hint="Compute Q − P for each pair and compare."
            data-hint2="B − A = (2, 5). What is D − C?">
         <div class="ex-q">
@@ -538,7 +564,7 @@
         </div>
       </div>
 
-      <div class="ex" data-answer="(-4,-1)|-4,-1"
+      <div class="ex" data-section="addition-points" data-answer="(-4,-1)|-4,-1"
            data-placeholder="e.g. (3,-2)"
            data-hint="P + (Q − P) = Q. So what is P + displacement?">
         <div class="ex-q">
@@ -555,7 +581,7 @@
         </div>
       </div>
 
-      <div class="ex" data-type="number" data-answer="13"
+      <div class="ex" data-section="subtraction" data-type="number" data-answer="13"
            data-hint="The length of the arrow is the distance between its endpoints.">
         <div class="ex-q">
           <p>
@@ -571,7 +597,7 @@
         </div>
       </div>
 
-      <div class="ex" data-answer="3"
+      <div class="ex" data-section="addition-points" data-answer="3"
            data-hint="Which pair of vertices does the sum P + Q sit opposite?">
         <div class="ex-q">
           <p>
@@ -594,7 +620,7 @@
         </div>
       </div>
 
-      <div class="ex" data-answer="(0,0)|0,0"
+      <div class="ex" data-section="subtraction" data-answer="(0,0)|0,0"
            data-placeholder="e.g. (3,-2)"
            data-hint="Add the three displacements around the triangle.">
         <div class="ex-q">
@@ -615,7 +641,7 @@
         </div>
       </div>
 
-      <div class="ex" data-answer="(4,6)|4,6"
+      <div class="ex" data-section="addition-points" data-answer="(4,6)|4,6"
            data-placeholder="e.g. (3,-2)"
            data-hint="M is the midpoint of P and Q, so Q = 2M − P."
            data-hint2="2M = (2, 7). Now subtract P = (−2, 1).">

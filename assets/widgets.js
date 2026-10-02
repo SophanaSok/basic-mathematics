@@ -218,6 +218,8 @@
      when it does not. */
   var missionCount = 0;
   function missions(host, name, list) {
+    /* a figure borrowed by an exercise (data-no-missions) is there to be answered with */
+    if (host.hasAttribute("data-no-missions")) return { check: function () {}, items: [] };
     var chap = (document.body && document.body.getAttribute("data-chapter")) || "misc";
     var store = window.BMPlay;
     var box = h("div", { class: "missions" });
@@ -353,6 +355,7 @@
     c.appendChild(chips([
       { html: "a + b", value: "+" }, { html: "a − b", value: "-" }, { html: "a · b", value: "*" }
     ], 0, function (v) { op = v; draw(); }));
+    host.__answer = function () { return a + " " + op + " " + b; };
     missions(host, "numberline", [
       { text: "Land on −7 using a subtraction.", test: function () { return op === "-" && a - b === -7; } },
       { text: "Make a − b come out bigger than a.", test: function () { return op === "-" && b < 0; } },
@@ -470,6 +473,11 @@
       .forEach(function (s, i) {
         c2row.appendChild(slider(s[0], -6, 6, 1, [a2, b2, c2][i], function (v) { s[1](v); draw(); }).wrap);
       });
+    host.__answer = function () {
+      var d = a1 * b2 - a2 * b1;
+      if (d !== 0) return fmt((c1 * b2 - c2 * b1) / d) + "," + fmt((a1 * c2 - a2 * c1) / d);
+      return (a1 * c2 - a2 * c1) === 0 && (b1 * c2 - b2 * c1) === 0 ? "all" : "none";
+    };
     missions(host, "linsys", [
       { text: "Make the two lines cross at (2, 1).", test: function () {
           var d = a1 * b2 - a2 * b1;
@@ -666,6 +674,7 @@
       .forEach(function (s, i) {
         cc.appendChild(slider(s[0], -6, 6, 1, [a, b, c][i], function (v) { s[1](v); draw(); }).wrap);
       });
+    host.__answer = function () { return a + "," + b + "," + c; };
     missions(host, "quadratic", [
       { text: "Make the parabola just touch the x-axis.", test: function () { return a !== 0 && b * b - 4 * a * c === 0; } },
       { text: "Put the roots at −2 and 2.", test: function () { return a !== 0 && b === 0 && c === -4 * a; } },
@@ -1309,6 +1318,10 @@
       draw();
     }, { names: ["A", "B"], label: "Two points in the plane" });
     note(host, "Drag either point, or tab to the figure and use the arrow keys; space switches between A and B. Coordinates snap to whole numbers.");
+    host.__answer = function () {
+      var dx = B.x - A.x, dy = B.y - A.y;
+      return Math.sqrt(dx * dx + dy * dy);
+    };
     missions(host, "distance", [
       { text: "Make AB exactly 5 with both legs showing.", test: function () {
           var dx = Math.abs(B.x - A.x), dy = Math.abs(B.y - A.y);
@@ -1438,6 +1451,10 @@
     c.appendChild(slider("t", -2, 2.5, 0.1, t, function (v) { t = v; op = "mult"; draw(); },
       function (v) { return fmt(v, 2); }).wrap);
     note(host, "Drag A or B; coordinates snap to whole numbers.");
+    host.__answer = function () {
+      if (op === "mult") return fmt(t * A.x) + "," + fmt(t * A.y);
+      return op === "sum" ? (A.x + B.x) + "," + (A.y + B.y) : (B.x - A.x) + "," + (B.y - A.y);
+    };
     missions(host, "pointops", [
       { text: "Make A + B land on the origin.", test: function () { return op === "sum" && (A.x || A.y) && A.x + B.x === 0 && A.y + B.y === 0; } },
       { text: "Make B − A point straight up.", test: function () { return op === "diff" && B.x === A.x && B.y > A.y; } },
@@ -1554,6 +1571,7 @@
       { html: "30°", value: 30 }, { html: "45°", value: 45 }, { html: "60°", value: 60 },
       { html: "90°", value: 90 }, { html: "180°", value: 180 }
     ], -1, function (v) { deg = v; draw(); }));
+    host.__answer = function () { return deg; };
     missions(host, "unitcircle", [
       { text: "Find an angle where sin θ = cos θ.", test: function () { return deg === 45 || deg === 225; } },
       { text: "Find an angle with cos θ negative and sin θ positive.", test: function () { return deg > 90 && deg < 180; } },
