@@ -5,6 +5,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>5. Distance and Angles — Basic Mathematics</title>
 <meta name="description" content="Points, lines, distance, angle measure, parallels, and the Pythagorean theorem with a proof you can see.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400;1,6..72,500&display=swap">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.11/katex.min.css">
 <link rel="icon" href="../../assets/favicon.svg" type="image/svg+xml">
 <link rel="stylesheet" href="../../assets/site.css">
@@ -13,6 +16,9 @@
 <script defer src="../../data/curriculum.js"></script>
 <script defer src="../../assets/widgets.js"></script>
 <script defer src="../../assets/site.js"></script>
+<script defer src="../../assets/lesson.js"></script>
+<script defer src="../../assets/config.js"></script>
+<script defer src="../../assets/account.js"></script>
 </head>
 <body data-depth="2" data-chapter="ch05">
 <a class="skip-link" href="#main">Skip to content</a>
@@ -22,7 +28,7 @@
   <nav>
     <a href="../../index.html">Contents</a>
     <a href="../../about.html">How to use this</a>
-    <button class="icon-btn" type="button" data-theme-toggle>☾ Dark</button>
+    <button class="icon-btn" type="button" data-theme-toggle aria-label="Switch between light and dark">☾</button>
   </nav>
 </header>
 
@@ -324,6 +330,16 @@
       </div>
     </div>
 
+    <div class="ex" data-inline id="k1" data-label="Section check" data-type="blank" data-hint="Vertical angles are equal; neighbours along a straight line add to 180°.">
+      <div class="ex-q">
+        <p>Two lines cross, and one of the four angles is $35°$. The angle opposite it is <span class="blank" data-answer="35"></span>°, and each of the other two is <span class="blank" data-answer="145"></span>°.</p>
+      </div>
+      <div class="ex-solution">
+        <p class="answer">Answer: $35°$ and $145°$</p>
+        <p>The opposite angle is vertical to it, hence equal. Each neighbour is its supplement: $180° - 35° = 145°$.</p>
+      </div>
+    </div>
+
     <h2 id="parallels">5.3 Parallel lines and transversals</h2>
     <p>
       Two lines in the plane are <b>parallel</b> if they never meet. A third line crossing both is
@@ -600,6 +616,16 @@
       else.
     </p>
 
+    <div class="ex" data-inline id="k2" data-label="Section check" data-type="blank" data-hint="Square the legs and add; then find the number whose square that is.">
+      <div class="ex-q">
+        <p>A right triangle has legs $8$ and $15$. Then $c^2 = {}$ <span class="blank" data-answer="289"></span>, so the hypotenuse is $c = {}$ <span class="blank" data-answer="17"></span>.</p>
+      </div>
+      <div class="ex-solution">
+        <p class="answer">Answer: $c^2 = 289$, $c = 17$</p>
+        <p>$8^2 + 15^2 = 64 + 225 = 289 = 17^2$.</p>
+      </div>
+    </div>
+
     <!-- ====================================================== practice ==== -->
     <section class="practice" id="practice">
       <div class="practice-head">
@@ -608,7 +634,7 @@
       </div>
       <p>Give angles in degrees as a plain number — write $40$, not $40°$.</p>
 
-      <div class="ex" data-type="number" data-answer="140"
+      <div class="ex" data-section="angles" data-type="number" data-answer="140"
            data-hint="Angles on a straight line add to 180°.">
         <div class="ex-q"><p>An angle measures $40°$. What is its supplement?</p></div>
         <div class="ex-solution">
@@ -620,7 +646,7 @@
         </div>
       </div>
 
-      <div class="ex" data-type="number" data-answer="65"
+      <div class="ex" data-section="angles" data-type="number" data-answer="65"
            data-hint="Two of these are vertical angles; the third completes a straight line.">
         <div class="ex-q">
           <p>
@@ -637,7 +663,7 @@
         </div>
       </div>
 
-      <div class="ex" data-type="number" data-answer="75"
+      <div class="ex" data-section="parallels" data-type="number" data-answer="75"
            data-hint="The three angles of a triangle add to 180°.">
         <div class="ex-q">
           <p>Two angles of a triangle are $43°$ and $62°$. What is the third?</p>
@@ -651,7 +677,7 @@
         </div>
       </div>
 
-      <div class="ex" data-type="number" data-answer="26"
+      <div class="ex" data-section="pythagoras" data-type="number" data-answer="26"
            data-hint="Compute a² + b², then take the square root.">
         <div class="ex-q">
           <p>A right triangle has legs $10$ and $24$. How long is the hypotenuse?</p>
@@ -668,7 +694,7 @@
         </div>
       </div>
 
-      <div class="ex" data-answer="2"
+      <div class="ex" data-section="pythagoras" data-answer="2"
            data-hint="Test a² + b² against c² with the longest side as c.">
         <div class="ex-q">
           <p>Is the triangle with sides $9$, $40$, $41$ right-angled?</p>
@@ -689,7 +715,7 @@
         </div>
       </div>
 
-      <div class="ex" data-type="number" data-answer="8"
+      <div class="ex" data-section="distance" data-type="number" data-answer="8"
            data-hint="The third side is squeezed between the difference and the sum of the other two."
            data-hint2="12 ≤ 5 + c forces c ≥ 7; and since the points are not on one line, c cannot equal 7.">
         <div class="ex-q">
@@ -712,7 +738,7 @@
         </div>
       </div>
 
-      <div class="ex" data-type="number" data-answer="110"
+      <div class="ex" data-section="parallels" data-type="number" data-answer="110"
            data-hint="Corresponding angles are equal; then use the straight line.">
         <div class="ex-q">
           <p>
@@ -730,7 +756,7 @@
         </div>
       </div>
 
-      <div class="ex" data-type="number" data-answer="8"
+      <div class="ex" data-section="pythagoras" data-type="number" data-answer="8"
            data-hint="Drop the diagonal and use Pythagoras on the rectangle's sides."
            data-hint2="15² + h² = 17².">
         <div class="ex-q">
@@ -749,7 +775,7 @@
         </div>
       </div>
 
-      <div class="ex" data-answer="3"
+      <div class="ex" data-section="distance" data-answer="3"
            data-hint="Which property of distance says a detour is never shorter?">
         <div class="ex-q">
           <p>
@@ -773,7 +799,7 @@
         </div>
       </div>
 
-      <div class="ex" data-type="number" data-answer="45"
+      <div class="ex" data-section="parallels" data-type="number" data-answer="45"
            data-hint="An isosceles right triangle: the two legs are equal, so the two non-right angles are too.">
         <div class="ex-q">
           <p>

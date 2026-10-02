@@ -5,6 +5,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>15. Induction and Summations — Basic Mathematics</title>
 <meta name="description" content="Proving infinitely many statements at once, sigma notation, and the geometric series.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400;1,6..72,500&display=swap">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.11/katex.min.css">
 <link rel="icon" href="../../assets/favicon.svg" type="image/svg+xml">
 <link rel="stylesheet" href="../../assets/site.css">
@@ -13,6 +16,9 @@
 <script defer src="../../data/curriculum.js"></script>
 <script defer src="../../assets/widgets.js"></script>
 <script defer src="../../assets/site.js"></script>
+<script defer src="../../assets/lesson.js"></script>
+<script defer src="../../assets/config.js"></script>
+<script defer src="../../assets/account.js"></script>
 </head>
 <body data-depth="2" data-chapter="ch15">
 <a class="skip-link" href="#main">Skip to content</a>
@@ -22,7 +28,7 @@
   <nav>
     <a href="../../index.html">Contents</a>
     <a href="../../about.html">How to use this</a>
-    <button class="icon-btn" type="button" data-theme-toggle>☾ Dark</button>
+    <button class="icon-btn" type="button" data-theme-toggle aria-label="Switch between light and dark">☾</button>
   </nav>
 </header>
 
@@ -308,6 +314,23 @@
       </div>
     </div>
 
+    <div class="ex" data-inline id="k1" data-label="Section check" data-type="order" data-hint="Base case, hypothesis, step, conclusion.">
+      <div class="ex-q">
+        <p>Put these lines in order to prove that $1 + 2 + \dots + n = \dfrac{n(n+1)}{2}$ for every $n \ge 1$.</p>
+      </div>
+      <ol class="order">
+        <li>Base case: for $n = 1$ both sides equal $1$.</li>
+        <li>Inductive hypothesis: suppose $1 + 2 + \dots + k = \dfrac{k(k+1)}{2}$ for some $k \ge 1$.</li>
+        <li>Add $k + 1$ to both sides: $1 + \dots + k + (k+1) = \dfrac{k(k+1)}{2} + (k + 1)$.</li>
+        <li>The right side equals $\dfrac{(k+1)(k+2)}{2}$, which is the formula for $n = k + 1$.</li>
+        <li>So by induction the formula holds for every $n \ge 1$.</li>
+      </ol>
+      <div class="ex-solution">
+        <p class="answer">The order shown is the proof</p>
+        <p>The hypothesis is used exactly once, to replace $1 + \dots + k$. Everything after that is algebra.</p>
+      </div>
+    </div>
+
     <h2 id="summations">15.2 Summations</h2>
     <p>
       Writing $1 + 2 + \dots + n$ is fine until the terms get complicated. The compact notation is
@@ -494,6 +517,16 @@
       </div>
     </div>
 
+    <div class="ex" data-inline id="k2" data-label="Section check" data-type="blank" data-hint="There are four terms, so the exponent in the closed form is 4.">
+      <div class="ex-q">
+        <p>$1 + 3 + 9 + 27 = \dfrac{3^n - 1}{3 - 1}$ with $n = {}$ <span class="blank" data-answer="4"></span>, which comes to <span class="blank" data-answer="40"></span>.</p>
+      </div>
+      <div class="ex-solution">
+        <p class="answer">Answer: $n = 4$, sum $40$</p>
+        <p>$\dfrac{3^4 - 1}{2} = \dfrac{80}{2} = 40$, and indeed $1 + 3 + 9 + 27 = 40$.</p>
+      </div>
+    </div>
+
     <!-- ====================================================== practice ==== -->
     <section class="practice" id="practice">
       <div class="practice-head">
@@ -502,7 +535,7 @@
       </div>
       <p>Give numerical answers as exact numbers or fractions.</p>
 
-      <div class="ex" data-type="number" data-answer="5050"
+      <div class="ex" data-section="summations" data-type="number" data-answer="5050"
            data-hint="Use n(n+1)/2 with n = 100.">
         <div class="ex-q"><p>Compute $1 + 2 + 3 + \dots + 100$.</p></div>
         <div class="ex-solution">
@@ -515,7 +548,7 @@
         </div>
       </div>
 
-      <div class="ex" data-type="number" data-answer="385"
+      <div class="ex" data-section="summations" data-type="number" data-answer="385"
            data-hint="Use n(n+1)(2n+1)/6 with n = 10.">
         <div class="ex-q">
           <p>Compute $\displaystyle\sum_{k=1}^{10} k^{2}$.</p>
@@ -532,7 +565,7 @@
         </div>
       </div>
 
-      <div class="ex" data-type="number" data-answer="2"
+      <div class="ex" data-section="geometric" data-type="number" data-answer="2"
            data-hint="Use 1/(1 − r) with r = 1/2.">
         <div class="ex-q">
           <p>What is $1 + \tfrac12 + \tfrac14 + \tfrac18 + \dots$?</p>
@@ -546,7 +579,7 @@
         </div>
       </div>
 
-      <div class="ex" data-type="number" data-answer="31"
+      <div class="ex" data-section="geometric" data-type="number" data-answer="31"
            data-hint="Use (1 − r^(n+1))/(1 − r) with r = 2, or just add them up.">
         <div class="ex-q">
           <p>Compute $1 + 2 + 4 + 8 + 16$.</p>
@@ -563,7 +596,7 @@
         </div>
       </div>
 
-      <div class="ex" data-answer="2"
+      <div class="ex" data-section="induction" data-answer="2"
            data-hint="Which part of an induction is missing if the statement is false for every n?">
         <div class="ex-q">
           <p>
@@ -590,7 +623,7 @@
         </div>
       </div>
 
-      <div class="ex" data-type="number" data-answer="1.5|3/2"
+      <div class="ex" data-section="geometric" data-type="number" data-answer="1.5|3/2"
            data-hint="This is a geometric series with r = 1/3.">
         <div class="ex-q">
           <p>What is $1 + \tfrac13 + \tfrac19 + \tfrac1{27} + \dots$?</p>
@@ -603,7 +636,7 @@
         </div>
       </div>
 
-      <div class="ex" data-type="number" data-answer="25"
+      <div class="ex" data-section="summations" data-type="number" data-answer="25"
            data-hint="Split the sum, pull out the constant, and remember what a constant sums to."
            data-hint2="2 · (1 + 2 + 3 + 4 + 5) − 5.">
         <div class="ex-q">
@@ -622,7 +655,7 @@
         </div>
       </div>
 
-      <div class="ex" data-answer="3"
+      <div class="ex" data-section="induction" data-answer="3"
            data-hint="Where in the argument is the assumption for n actually used?">
         <div class="ex-q">
           <p>
@@ -649,7 +682,7 @@
         </div>
       </div>
 
-      <div class="ex" data-type="number" data-answer="45"
+      <div class="ex" data-section="summations" data-type="number" data-answer="45"
            data-hint="Sum to 10 minus sum to 4."
            data-hint2="The sum to 10 is 55 and the sum to 4 is 10.">
         <div class="ex-q">
@@ -668,7 +701,7 @@
         </div>
       </div>
 
-      <div class="ex" data-answer="2"
+      <div class="ex" data-section="geometric" data-answer="2"
            data-hint="Does r^(n+1) shrink when |r| ≥ 1?">
         <div class="ex-q">
           <p>

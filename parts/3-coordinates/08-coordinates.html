@@ -5,6 +5,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>8. Coordinates and Geometry — Basic Mathematics</title>
 <meta name="description" content="The coordinate plane, the distance formula from Pythagoras, and the equation of a circle.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400;1,6..72,500&display=swap">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.11/katex.min.css">
 <link rel="icon" href="../../assets/favicon.svg" type="image/svg+xml">
 <link rel="stylesheet" href="../../assets/site.css">
@@ -13,6 +16,9 @@
 <script defer src="../../data/curriculum.js"></script>
 <script defer src="../../assets/widgets.js"></script>
 <script defer src="../../assets/site.js"></script>
+<script defer src="../../assets/lesson.js"></script>
+<script defer src="../../assets/config.js"></script>
+<script defer src="../../assets/account.js"></script>
 </head>
 <body data-depth="2" data-chapter="ch08">
 <a class="skip-link" href="#main">Skip to content</a>
@@ -22,7 +28,7 @@
   <nav>
     <a href="../../index.html">Contents</a>
     <a href="../../about.html">How to use this</a>
-    <button class="icon-btn" type="button" data-theme-toggle>☾ Dark</button>
+    <button class="icon-btn" type="button" data-theme-toggle aria-label="Switch between light and dark">☾</button>
   </nav>
 </header>
 
@@ -271,6 +277,16 @@
       </div>
     </div>
 
+    <div class="ex" data-inline id="k1" data-label="Section check" data-type="figure" data-figure="distance" data-compare="number" data-answer="10" data-hint="Look for a right triangle with whole-number sides and hypotenuse 10." data-hint2="Legs 6 and 8 work: 36 + 64 = 100.">
+      <div class="ex-q">
+        <p>Drag $A$ and $B$ until they are exactly $10$ apart, then press Check.</p>
+      </div>
+      <div class="ex-solution">
+        <p class="answer">Answer: any pair with $\Delta x^2 + \Delta y^2 = 100$</p>
+        <p>For example $A = (-4, -3)$ and $B = (4, 3)$: the legs are $8$ and $6$, and $\sqrt{64 + 36} = 10$.</p>
+      </div>
+    </div>
+
     <h2 id="circle">8.3 The equation of a circle</h2>
     <p>
       A <b>circle</b> of centre $C$ and radius $r$ is the set of points at distance exactly $r$ from
@@ -437,6 +453,16 @@
       </div>
     </div>
 
+    <div class="ex" data-inline id="k2" data-label="Section check" data-type="blank" data-hint="Compare with (x − h)² + (y − k)² = r². Watch the sign inside the second bracket.">
+      <div class="ex-q">
+        <p>The circle $(x - 3)^2 + (y + 1)^2 = 16$ has centre $($ <span class="blank" data-answer="3"></span> $,$ <span class="blank" data-answer="-1"></span> $)$ and radius <span class="blank" data-answer="4"></span>.</p>
+      </div>
+      <div class="ex-solution">
+        <p class="answer">Answer: centre $(3, -1)$, radius $4$</p>
+        <p>$y + 1 = y - (-1)$, so $k = -1$; and $r^2 = 16$ gives $r = 4$.</p>
+      </div>
+    </div>
+
     <h2 id="rational-points">8.4 Rational points on a circle</h2>
     <p>
       Here is a question that looks like geometry and turns out to be about numbers. Which points of
@@ -523,7 +549,7 @@
       </div>
       <p>Write points as pairs, like <code>(3,-2)</code>.</p>
 
-      <div class="ex" data-type="number" data-answer="5"
+      <div class="ex" data-section="distance-formula" data-type="number" data-answer="5"
            data-hint="Δx = 3, Δy = 4.">
         <div class="ex-q">
           <p>What is the distance between $(1,2)$ and $(4,6)$?</p>
@@ -537,7 +563,7 @@
         </div>
       </div>
 
-      <div class="ex" data-answer="2|ii"
+      <div class="ex" data-section="coord-systems" data-answer="2|ii"
            data-placeholder="1, 2, 3 or 4"
            data-hint="Where are x negative and y positive?">
         <div class="ex-q"><p>In which quadrant does $(-3, 7)$ lie?</p></div>
@@ -550,7 +576,7 @@
         </div>
       </div>
 
-      <div class="ex" data-answer="(2,-5)|2,-5"
+      <div class="ex" data-section="circle" data-answer="(2,-5)|2,-5"
            data-placeholder="e.g. (3,-2)"
            data-hint="Read (x − h)² + (y − k)² = r² and be careful with the signs.">
         <div class="ex-q">
@@ -565,7 +591,7 @@
         </div>
       </div>
 
-      <div class="ex" data-type="number" data-answer="4"
+      <div class="ex" data-section="circle" data-type="number" data-answer="4"
            data-hint="Complete the square in x and in y, then read off r² on the right."
            data-hint2="(x − 1)² − 1 + (y + 4)² − 16 = −1.">
         <div class="ex-q">
@@ -585,7 +611,7 @@
         </div>
       </div>
 
-      <div class="ex" data-type="number" data-answer="4"
+      <div class="ex" data-section="distance-formula" data-type="number" data-answer="4"
            data-hint="Write the distance from the origin as a formula in x, and set it equal to 5.">
         <div class="ex-q">
           <p>
@@ -606,7 +632,7 @@
         </div>
       </div>
 
-      <div class="ex" data-answer="2"
+      <div class="ex" data-section="circle" data-answer="2"
            data-hint="Is the distance from the centre less than, equal to, or more than the radius?">
         <div class="ex-q">
           <p>
@@ -632,7 +658,7 @@
         </div>
       </div>
 
-      <div class="ex" data-type="number" data-answer="10"
+      <div class="ex" data-section="distance-formula" data-type="number" data-answer="10"
            data-hint="Both points have the same y, so the distance is just the difference of the x's.">
         <div class="ex-q">
           <p>How far apart are $(-4,7)$ and $(6,7)$?</p>
@@ -646,7 +672,7 @@
         </div>
       </div>
 
-      <div class="ex" data-answer="(0.6,0.8)|0.6,0.8|(3/5,4/5)|3/5,4/5"
+      <div class="ex" data-section="rational-points" data-answer="(0.6,0.8)|0.6,0.8|(3/5,4/5)|3/5,4/5"
            data-placeholder="e.g. (0.6,0.8)"
            data-hint="Use x = (1 − t²)/(1 + t²) and y = 2t/(1 + t²).">
         <div class="ex-q">
@@ -665,7 +691,7 @@
         </div>
       </div>
 
-      <div class="ex" data-type="number" data-answer="13"
+      <div class="ex" data-section="circle" data-type="number" data-answer="13"
            data-hint="The radius is the distance from the centre to any point on the circle."
            data-hint2="Δx = 12 and Δy = 5.">
         <div class="ex-q">
@@ -683,7 +709,7 @@
         </div>
       </div>
 
-      <div class="ex" data-answer="3"
+      <div class="ex" data-section="circle" data-answer="3"
            data-hint="What does squaring both sides of the distance equation do to the picture?">
         <div class="ex-q">
           <p>

@@ -5,6 +5,9 @@
      2. math typesetting via KaTeX auto-render
      3. navigation built from data/curriculum.js (sidebar, prev/next, home cards)
      4. the exercise engine + progress store
+     5. attempts, XP and streaks — what feeds the "areas to strengthen" feedback
+   Everything is saved locally first. An account (assets/account.js) only listens on
+   BMStore and syncs; nothing here knows about a server.
    Every localStorage access is wrapped: a browser that blocks storage still
    gets a fully working, stateless site.
    =========================================================================== */
@@ -15,6 +18,9 @@
   var PROGRESS_KEY = "bm.progress.v1";
   var PLAY_KEY = "bm.play.v1";
   var LAST_KEY = "bm.last";
+  var ATTEMPTS_KEY = "bm.attempts.v1";
+  var ACTIVITY_KEY = "bm.activity.v1";
+  var LESSON_KEY = "bm.lesson.v1";
   var C = window.BM_CURRICULUM || { parts: [], chapters: [] };
 
   /* ------------------------------------------------------------ storage -- */
@@ -27,14 +33,35 @@
       return fallback;
     }
   }
-  function writeStore(key, value) {
+  function writeStore(key, value, silent) {
+    var ok = true;
     try {
       window.localStorage.setItem(key, JSON.stringify(value));
-      return true;
     } catch (e) {
-      return false;
+      ok = false;
     }
+    if (!silent) Store.emit({ type: "state", key: key });
+    return ok;
   }
+
+  /* One bus for every change to saved state. site.js announces; whoever cares
+     (the header counters, lesson mode, account sync) listens. */
+  var listeners = [];
+  var Store = {
+    keys: {
+      progress: PROGRESS_KEY, play: PLAY_KEY, last: LAST_KEY,
+      attempts: ATTEMPTS_KEY, activity: ACTIVITY_KEY, lesson: LESSON_KEY
+    },
+    read: readStore,
+    write: writeStore,
+    on: function (fn) { listeners.push(fn); },
+    emit: function (change) {
+      listeners.slice().forEach(function (fn) {
+        try { fn(change); } catch (e) { if (window.console) console.error("[BM] listener failed", e); }
+      });
+    }
+  };
+  window.BMStore = Store;
 
   var Progress = {
     all: function () {
@@ -92,7 +119,11 @@
       writeStore(PLAY_KEY, all);
     },
     isDone: function (id, key) { return !!this.chapter(id).done[key]; },
-    markDone: function (id, key) { this.update(id, function (rec) { rec.done[key] = true; }); },
+    markDone: function (id, key) {
+      var fresh = !this.isDone(id, key);
+      this.update(id, function (rec) { rec.done[key] = true; });
+      if (fresh) Activity.add(XP.mission, "mission");
+    },
     setTotal: function (id, total) { this.update(id, function (rec) { rec.total = total; }); },
     setGuess: function (id, i) { this.update(id, function (rec) { rec.guess = i; }); },
     count: function (id) {
@@ -102,6 +133,95 @@
     reset: function () { writeStore(PLAY_KEY, {}); writeStore(LAST_KEY, null); }
   };
   window.BMPlay = Play;
+
+  /* How each exercise went, not just whether it was solved. One record per exercise:
+       tries   wrong + right checks made before it was first solved
+       first   1 if solved on the first check without opening the solution
+       hints   highest hint level shown (0, 1, 2)
+       opened  1 if the solution was opened before solving
+       skipped 1 if an inline check was passed over in lesson mode
+       solved  time of the first correct answer
+       section the section it tests ("one-unknown", or "ch02#one-unknown" in a mixed review)
+     Inline checks are recorded too: they are unscored, but they are the earliest signal. */
+  var Attempts = {
+    all: function () {
+      var p = readStore(ATTEMPTS_KEY, {});
+      return p && typeof p === "object" ? p : {};
+    },
+    chapter: function (id) {
+      var rec = this.all()[id];
+      return rec && typeof rec === "object" ? rec : {};
+    },
+    get: function (id, key) { return this.chapter(id)[key] || {}; },
+    update: function (id, key, fn) {
+      var all = this.all();
+      var ch = all[id] && typeof all[id] === "object" ? all[id] : {};
+      var rec = ch[key] || {};
+      fn(rec);
+      ch[key] = rec;
+      all[id] = ch;
+      writeStore(ATTEMPTS_KEY, all);
+      return rec;
+    },
+    reset: function () { writeStore(ATTEMPTS_KEY, {}); }
+  };
+  window.BMAttempts = Attempts;
+
+  /* XP per day. The streak, the daily goal and the total are all derived from this one
+     map, so two devices merge by taking the larger number for each day. */
+  var XP = { first: 10, solved: 6, opened: 3, inlineFirst: 5, inline: 3, inlineOpened: 1, mission: 5 };
+  var DEFAULT_GOAL = 30;
+
+  function dayKey(d) {
+    d = d || new Date();
+    function two(n) { return (n < 10 ? "0" : "") + n; }
+    return d.getFullYear() + "-" + two(d.getMonth() + 1) + "-" + two(d.getDate());
+  }
+
+  var Activity = {
+    all: function () {
+      var p = readStore(ACTIVITY_KEY, null);
+      if (!p || typeof p !== "object") p = {};
+      if (!p.days || typeof p.days !== "object") p.days = {};
+      return p;
+    },
+    goal: function () {
+      var g = parseInt(this.all().goal, 10);
+      return g > 0 ? g : DEFAULT_GOAL;
+    },
+    setGoal: function (n) {
+      var all = this.all();
+      all.goal = Math.max(5, Math.min(500, parseInt(n, 10) || DEFAULT_GOAL));
+      writeStore(ACTIVITY_KEY, all);
+    },
+    today: function () { return this.all().days[dayKey()] || 0; },
+    total: function () {
+      var days = this.all().days, sum = 0;
+      Object.keys(days).forEach(function (k) { sum += days[k] || 0; });
+      return sum;
+    },
+    /* consecutive active days ending today — or yesterday, so a streak is not shown
+       as broken before today's work has had a chance to happen */
+    streak: function () {
+      var days = this.all().days, d = new Date(), n = 0;
+      if (!days[dayKey(d)]) d.setDate(d.getDate() - 1);
+      while (days[dayKey(d)] > 0) { n++; d.setDate(d.getDate() - 1); }
+      return n;
+    },
+    add: function (xp, why) {
+      if (!xp) return;
+      var all = this.all(), k = dayKey(), goal = this.goal();
+      var before = all.days[k] || 0;
+      all.days[k] = before + xp;
+      writeStore(ACTIVITY_KEY, all);
+      Store.emit({ type: "xp", xp: xp, why: why, goalMet: before < goal && before + xp >= goal });
+    },
+    reset: function () {
+      var goal = this.all().goal;
+      writeStore(ACTIVITY_KEY, goal ? { days: {}, goal: goal } : { days: {} });
+    }
+  };
+  window.BMActivity = Activity;
 
   /* -------------------------------------------------------------- theme -- */
 
@@ -121,11 +241,13 @@
     var btns = document.querySelectorAll("[data-theme-toggle]");
     function label() {
       var effective = currentTheme() || (systemPrefersDark() ? "dark" : "light");
-      return effective === "dark" ? "☀ Light" : "☾ Dark";
+      return effective === "dark" ? "☀" : "☾";
     }
     Array.prototype.forEach.call(btns, function (btn) {
       btn.textContent = label();
       btn.setAttribute("title", "Switch between light and dark");
+      btn.setAttribute("aria-label", "Switch between light and dark");
+      btn.classList.add("theme-btn");
       btn.addEventListener("click", function () {
         var effective = currentTheme() || (systemPrefersDark() ? "dark" : "light");
         var next = effective === "dark" ? "light" : "dark";
@@ -276,29 +398,56 @@
 
   /* ---------------------------------------------------------- home page -- */
 
+  function chapterName(ch) {
+    return ch.label === "Interlude" ? "Interlude" : "Chapter " + ch.label;
+  }
+
+  /* The course as a path: one stop per chapter, strung along a line. Nothing is locked —
+     "ahead" is only a colour — because skipping inside a Part mostly works. */
   function buildHome() {
     var host = document.querySelector("[data-course-index]");
     if (!host) return;
+    var last = readStore(LAST_KEY, null);
+    var counts = {}, currentId = null;
+    C.chapters.forEach(function (ch) {
+      var c = Progress.count(ch.id);
+      counts[ch.id] = c;
+      c.done = !!c.total && c.solved >= c.total;
+    });
+    /* "you are here": the chapter last opened, unless it is finished; then the first unfinished one */
+    if (last && last.id && counts[last.id] && !counts[last.id].done) currentId = last.id;
+    else C.chapters.some(function (ch) {
+      if (ch.status === "full" && !counts[ch.id].done) { currentId = ch.id; return true; }
+      return false;
+    });
+
     var html = "";
     C.parts.forEach(function (part) {
+      var done = part.chapters.filter(function (ch) { return counts[ch.id].done; }).length;
       html += '<section class="part" data-part="' + escapeHtml(part.id) + '">';
       html += '<div class="part-head"><span class="roman" aria-hidden="true">' + part.num +
-        '</span><h2 id="part-' + part.id + '">Part ' + part.num + " — " + escapeHtml(part.name) + "</h2></div>";
+        '</span><h2 id="part-' + part.id + '">Part ' + part.num + " — " + escapeHtml(part.name) + "</h2>" +
+        '<span class="part-count">' + done + " / " + part.chapters.length + " complete</span></div>";
       html += '<p class="part-blurb">' + escapeHtml(part.blurb) + "</p>";
-      html += '<div class="cards">';
+      html += '<ol class="path">';
       part.chapters.forEach(function (ch) {
-        var c = Progress.count(ch.id);
+        var c = counts[ch.id];
         var pct = c.total ? Math.round((c.solved / c.total) * 100) : 0;
-        html += '<a class="card" href="' + escapeHtml(ch.path) + '">';
-        html += '<div class="row"><span class="label">' +
-          escapeHtml(ch.label === "Interlude" ? "Interlude" : "Chapter " + ch.label) + "</span>";
+        var state = c.done ? "done" : ch.id === currentId ? "current" : c.solved ? "started" : "ahead";
+        html += '<li class="stop" data-state="' + state + '">';
+        html += '<a class="stop-link" href="' + escapeHtml(ch.path) + '">';
+        html += '<span class="stop-node" style="--pct:' + pct + '" aria-hidden="true"><span>' +
+          (c.done ? "✓" : escapeHtml(ch.label === "Interlude" ? "§" : ch.label)) + "</span></span>";
+        html += '<span class="stop-card">';
+        html += '<span class="row"><span class="label">' + escapeHtml(chapterName(ch)) + "</span>";
+        if (state === "current") html += '<span class="badge here">You are here</span>';
+        if (state === "done") html += '<span class="badge done">Complete</span>';
         if (ch.status === "outline") html += '<span class="badge soon">outline</span>';
-        html += "</div>";
+        html += "</span>";
         html += "<h3>" + escapeHtml(ch.title) + "</h3>";
         html += "<p>" + escapeHtml(ch.blurb) + "</p>";
-        html += '<div class="meta">';
+        html += '<span class="meta">';
         if (ch.status === "full") {
-          html += '<span class="ring" style="--pct:' + pct + '" data-pct="' + pct + '" aria-hidden="true"></span>';
           html += "<span>" + (c.total ? c.solved + " / " + c.total + " exercises" : ch.sections.length + " sections") + "</span>";
           var m = Play.count(ch.id);
           if (m.total) {
@@ -308,9 +457,9 @@
         } else {
           html += "<span>" + ch.sections.length + " sections planned</span>";
         }
-        html += "</div></a>";
+        html += "</span></span></a></li>";
       });
-      html += "</div></section>";
+      html += "</ol></section>";
     });
     host.innerHTML = html;
   }
@@ -325,7 +474,7 @@
     var sec = ch.sections.filter(function (s) { return s.id === last.section; })[0];
     var anchor = sec ? "#" + sec.id : (last.section === "practice" || last.section === "warmup" ? "#" + last.section : "");
     btn.setAttribute("href", ch.path + anchor);
-    btn.textContent = "Continue: " + (ch.label === "Interlude" ? "Interlude" : "Chapter " + ch.label) +
+    btn.textContent = "Continue: " + chapterName(ch) +
       (sec ? " · " + sec.title : last.section === "practice" ? " · Practice" : "") + " →";
   }
 
@@ -344,7 +493,165 @@
       ? "You have solved <b>" + solved + "</b> of the <b>" + total +
         "</b> exercises you have opened so far, and finished <b>" + chaptersDone + "</b> chapter" +
         (chaptersDone === 1 ? "" : "s") + "."
-      : "Nothing solved yet — " + full + " chapters are written and waiting. Progress is saved in this browser only.";
+      : "Nothing solved yet — " + full + " chapters are written and waiting.";
+  }
+
+  /* ------------------------------------------------- header counters ----- */
+
+  var FLAME = '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8.2 1c.3 2.4 3.6 4 3.6 7.6A3.8 3.8 0 0 1 8 12.5a3.8 3.8 0 0 1-3.8-3.9c0-1.4.6-2.5 1.5-3.3.1 1 .6 1.7 1.3 1.9C6.7 5.1 7.1 2.9 8.2 1z"/></svg>';
+
+  /* streak and today's XP against the daily goal; the whole thing links to the progress page */
+  function buildHud() {
+    var nav = document.querySelector(".topbar nav");
+    if (!nav) return;
+    var hud = nav.querySelector(".hud");
+    if (!hud) {
+      hud = document.createElement("a");
+      hud.className = "hud";
+      hud.href = rootPrefix() + "progress.html";
+      nav.insertBefore(hud, nav.querySelector("[data-theme-toggle]"));
+    }
+    var streak = Activity.streak(), today = Activity.today(), goal = Activity.goal();
+    var pct = Math.min(100, Math.round((today / goal) * 100));
+    var words = "Your progress: " + streak + "-day streak, " + today + " of " + goal + " XP today";
+    hud.setAttribute("aria-label", words);
+    hud.setAttribute("title", words);
+    hud.innerHTML =
+      '<span class="hud-streak"' + (streak ? ' data-on="true"' : "") + ">" + FLAME + "<b>" + streak + "</b></span>" +
+      '<span class="hud-goal"><span class="goal-ring" style="--pct:' + pct + '"' + (pct >= 100 ? ' data-full="true"' : "") +
+      '></span><span class="hud-xp"><b>' + today + "</b> / " + goal + " XP</span></span>";
+  }
+
+  function toast(html, cls) {
+    var host = document.querySelector(".toasts");
+    if (!host) {
+      host = document.createElement("div");
+      host.className = "toasts";
+      host.setAttribute("role", "status");
+      host.setAttribute("aria-live", "polite");
+      document.body.appendChild(host);
+    }
+    var t = document.createElement("div");
+    t.className = "toast" + (cls ? " " + cls : "");
+    t.innerHTML = html;
+    host.appendChild(t);
+    setTimeout(function () {
+      t.setAttribute("data-out", "true");
+      setTimeout(function () { if (t.parentNode) t.parentNode.removeChild(t); }, 400);
+    }, 2600);
+  }
+  window.BMToast = toast;
+
+  /* the brand's words can then fold away on a narrow screen, leaving the glyph */
+  function decorateTopbar() {
+    var brand = document.querySelector(".topbar .brand");
+    if (!brand || brand.querySelector(".brand-name")) return;
+    slice(brand.childNodes).forEach(function (n) {
+      if (n.nodeType !== 3 || !n.nodeValue.trim()) return;
+      var span = document.createElement("span");
+      span.className = "brand-name";
+      span.textContent = n.nodeValue.trim();
+      brand.replaceChild(span, n);
+    });
+  }
+
+  /* ------------------------------------------------- where it is going ---- */
+
+  /* How hard one exercise was for this reader, from 0 (right first time) to 1.
+     null when there is nothing to go on. */
+  function struggle(rec) {
+    if (!rec || (!rec.tries && !rec.opened && !rec.skipped)) return null;
+    var s;
+    if (rec.solved) s = rec.first ? 0 : Math.min(0.8, 0.35 + 0.15 * Math.max(0, (rec.tries || 2) - 2));
+    else s = rec.tries ? 0.7 : 0.45;
+    if (rec.opened) s += 0.25;
+    if ((rec.hints || 0) >= 2) s += 0.1;
+    return Math.min(1, s);
+  }
+
+  var WEAK = 0.34, STRONG = 0.12;
+
+  var Insights = {
+    WEAK: WEAK,
+    STRONG: STRONG,
+    struggle: struggle,
+    /* one row per section that has been attempted, wherever the questions were asked:
+       a mixed-review problem counts towards the section it was drawn from */
+    sections: function () {
+      var all = Attempts.all(), map = {}, list = [];
+      Object.keys(all).forEach(function (chId) {
+        var recs = all[chId] && typeof all[chId] === "object" ? all[chId] : {};
+        Object.keys(recs).forEach(function (key) {
+          var rec = recs[key], sec = rec && rec.section;
+          if (!sec || sec === "warmup") return;
+          var owner = chId, sid = sec, cut = sec.indexOf("#");
+          if (cut > -1) { owner = sec.slice(0, cut); sid = sec.slice(cut + 1); }
+          var ch = C.chapterById ? C.chapterById(owner) : null;
+          if (!ch) return;
+          var idx = -1;
+          ch.sections.forEach(function (s, i) { if (s.id === sid) idx = i; });
+          var score = struggle(rec);
+          if (idx < 0 || score === null) return;
+          var id = owner + "#" + sid;
+          var row = map[id];
+          if (!row) {
+            row = map[id] = {
+              id: id, chapter: ch, section: ch.sections[idx],
+              label: ch.label === "Interlude" ? "Interlude" : "§" + ch.label + "." + (idx + 1),
+              path: ch.path + "#" + sid, n: 0, solved: 0, first: 0, sum: 0
+            };
+            list.push(row);
+          }
+          row.n++;
+          row.sum += score;
+          if (rec.solved) row.solved++;
+          if (rec.first) row.first++;
+        });
+      });
+      list.forEach(function (row) { row.score = row.sum / row.n; });
+      return list;
+    },
+    weak: function () {
+      return this.sections()
+        .filter(function (r) { return r.score >= WEAK; })
+        .sort(function (a, b) { return b.score - a.score || b.n - a.n; });
+    },
+    strong: function () {
+      return this.sections()
+        .filter(function (r) { return r.n >= 2 && r.score <= STRONG; })
+        .sort(function (a, b) { return b.n - a.n; });
+    }
+  };
+  window.BMInsights = Insights;
+
+  /* A short note above the recap: how this chapter went, and which section to reread. */
+  function chapterFeedback(chapter) {
+    var recap = document.querySelector(".recap");
+    if (!chapter || !recap) return;
+    var box = document.querySelector(".chapter-feedback");
+    var rows = Insights.sections().filter(function (r) { return r.chapter.id === chapter.id; });
+    if (!rows.length) {
+      if (box) box.parentNode.removeChild(box);
+      return;
+    }
+    if (!box) {
+      box = document.createElement("div");
+      box.className = "chapter-feedback";
+      recap.parentNode.insertBefore(box, recap);
+    }
+    var n = 0, first = 0;
+    rows.forEach(function (r) { n += r.n; first += r.first; });
+    var weak = rows.filter(function (r) { return r.score >= WEAK; })
+      .sort(function (a, b) { return b.score - a.score; }).slice(0, 3);
+    var html = '<span class="tag">How this chapter is going</span>' +
+      "<p>Right first time on <b>" + first + "</b> of the <b>" + n + "</b> questions you have tried here.</p>";
+    html += weak.length
+      ? "<p>Worth another look: " + weak.map(function (r) {
+          return '<a href="#' + escapeHtml(r.section.id) + '">' + escapeHtml(r.label + " " + r.section.title) + "</a>";
+        }).join(", ") + ".</p>"
+      : "<p>No section stands out as shaky so far.</p>";
+    html += '<p><a href="' + rootPrefix() + 'progress.html">All your progress →</a></p>';
+    box.innerHTML = html;
   }
 
   function initResetButtons() {
@@ -352,6 +659,11 @@
       btn.addEventListener("click", function () {
         Progress.reset();
         Play.reset();
+        Attempts.reset();
+        Activity.reset();
+        writeStore(LESSON_KEY, {});
+        Store.emit({ type: "reset" });
+        buildHud();
         btn.textContent = "Progress cleared";
         btn.disabled = true;
         buildHome();
@@ -453,6 +765,54 @@
 
   var TICK = '<svg class="tick" viewBox="0 0 20 20" aria-hidden="true"><path d="M4 10.5l4 4 8-9"/></svg>';
 
+  function slice(list) { return Array.prototype.slice.call(list); }
+
+  /* "|" separates alternative accepted answers — but an answer may itself contain
+     a bar (|x|), so the unsplit string is always a candidate too. */
+  function alternatives(raw) {
+    raw = (raw || "").trim();
+    return [raw].concat(raw.split("|"))
+      .map(function (s) { return s.trim(); })
+      .filter(function (s) { return s !== ""; });
+  }
+
+  /* Which section an exercise tests. Practice problems say so in data-section; an
+     inline check belongs to the section whose heading it sits under. */
+  function sectionOf(ex, inline) {
+    var tagged = ex.getAttribute("data-section");
+    if (tagged) return tagged;
+    if (!inline) return "";
+    var top = ex;
+    while (top.parentNode && top.parentNode.tagName !== "MAIN") top = top.parentNode;
+    if (!top.parentNode) return "";
+    if (top.id === "warmup") return "warmup";
+    for (var n = top.previousElementSibling; n; n = n.previousElementSibling) {
+      if (n.tagName === "H2" && n.id) return n.id;
+    }
+    return "";
+  }
+
+  /* A fixed shuffle per exercise: the same scrambled order on every visit, and never
+     the solved one. */
+  function shuffled(n, seedText) {
+    var seed = 7, i, order = [];
+    for (i = 0; i < seedText.length; i++) seed = (seed * 31 + seedText.charCodeAt(i)) % 2147483647;
+    for (i = 0; i < n; i++) order.push(i);
+    for (i = n - 1; i > 0; i--) {
+      seed = (seed * 48271) % 2147483647;
+      var j = seed % (i + 1), t = order[i];
+      order[i] = order[j]; order[j] = t;
+    }
+    if (n > 1 && order.every(function (v, k) { return v === k; })) order.push(order.shift());
+    return order;
+  }
+
+  function xpFor(rec, inline) {
+    if (rec.opened) return inline ? XP.inlineOpened : XP.opened;
+    if (rec.first) return inline ? XP.inlineFirst : XP.first;
+    return inline ? XP.inline : XP.solved;
+  }
+
   function initExercises(chapter) {
     var exs = document.querySelectorAll(".ex");
     if (!exs.length) return;
@@ -495,16 +855,20 @@
         else { position++; key = "e" + position; }
       }
       var type = ex.getAttribute("data-type") || "exact";
-      /* "|" separates alternative accepted answers — but an answer may itself contain
-         a bar (|x|), so the unsplit string is always a candidate too. */
-      var rawAnswer = (ex.getAttribute("data-answer") || "").trim();
-      var answers = [rawAnswer].concat(rawAnswer.split("|"))
-        .map(function (s) { return s.trim(); })
-        .filter(function (s) { return s !== ""; });
+      var answers = alternatives(ex.getAttribute("data-answer"));
       var hint = ex.getAttribute("data-hint") || "";
       var hint2 = ex.getAttribute("data-hint2") || "";
       var tol = parseFloat(ex.getAttribute("data-tol") || "") || 0;
       var choices = ex.querySelector("ul.choices, ol.choices");
+      var section = sectionOf(ex, inline);
+
+      /* How the answer is given: typed, picked from tiles, put in order, written into
+         blanks, or made on a figure. */
+      var kind = choices ? (type === "multi" ? "multi" : "choice")
+        : type === "order" || type === "blank" || type === "figure" ? type : "text";
+      ex.setAttribute("data-kind", kind);
+      ex.setAttribute("data-key", key);
+      if (section && !ex.hasAttribute("data-section")) ex.setAttribute("data-section", section);
 
       /* number label */
       var labelText = inline ? (ex.getAttribute("data-label") || "Your turn") : "Exercise " + num;
@@ -517,19 +881,21 @@
       var form = document.createElement("div");
       form.className = "ex-form";
 
-      var inputEl = null, radios = [];
+      var inputEl = null, radios = [], blanks = [], orderList = null, orderItems = [], figure = null;
+
       if (choices) {
-        /* turn <li> items into radio choices */
+        /* turn <li> items into tap tiles: radios for one answer, checkboxes for several */
         var items = choices.querySelectorAll("li");
         var box = document.createElement("div");
-        box.className = "choices";
+        box.className = "choices" + (kind === "multi" ? " multi" : "");
+        box.setAttribute("role", "group");
         Array.prototype.forEach.call(items, function (li, j) {
           var id = chapterId + "-" + key + "-c" + j;
           var label = document.createElement("label");
           label.className = "choice";
           label.setAttribute("for", id);
           var input = document.createElement("input");
-          input.type = "radio";
+          input.type = kind === "multi" ? "checkbox" : "radio";
           input.name = chapterId + "-" + key;
           input.id = id;
           input.value = String(j + 1);
@@ -541,7 +907,87 @@
           radios.push(input);
         });
         choices.parentNode.replaceChild(box, choices);
-        if (solution) ex.appendChild(solution);
+      } else if (kind === "order") {
+        /* The list is authored in the right order and scrambled here. Each line can be
+           dragged, or moved with its own buttons. */
+        orderList = ex.querySelector("ol.order, ul.order");
+        if (orderList) {
+          var dragging = null;
+          orderItems = slice(orderList.children);
+          orderItems.forEach(function (li, j) {
+            li.setAttribute("data-i", String(j));
+            li.className = "order-item";
+            var text = document.createElement("span");
+            text.className = "order-text";
+            while (li.firstChild) text.appendChild(li.firstChild);
+            var grip = document.createElement("span");
+            grip.className = "order-grip";
+            grip.setAttribute("aria-hidden", "true");
+            grip.textContent = "⋮⋮";
+            function mover(label, glyph, fn) {
+              var b = document.createElement("button");
+              b.type = "button";
+              b.className = "order-move";
+              b.setAttribute("aria-label", label);
+              b.textContent = glyph;
+              b.addEventListener("click", function () { fn(); b.focus(); });
+              return b;
+            }
+            li.appendChild(grip);
+            li.appendChild(text);
+            li.appendChild(mover("Move this line up", "↑", function () {
+              var prev = li.previousElementSibling;
+              if (prev) orderList.insertBefore(li, prev);
+            }));
+            li.appendChild(mover("Move this line down", "↓", function () {
+              var next = li.nextElementSibling;
+              if (next) orderList.insertBefore(next, li);
+            }));
+            li.setAttribute("draggable", "true");
+            li.addEventListener("dragstart", function (e) {
+              dragging = li;
+              li.classList.add("dragging");
+              if (e.dataTransfer) {
+                e.dataTransfer.effectAllowed = "move";
+                try { e.dataTransfer.setData("text/plain", ""); } catch (err) { /* old browsers */ }
+              }
+            });
+            li.addEventListener("dragend", function () { li.classList.remove("dragging"); dragging = null; });
+            li.addEventListener("dragover", function (e) {
+              if (!dragging || dragging === li) return;
+              e.preventDefault();
+              var r = li.getBoundingClientRect();
+              var after = e.clientY > r.top + r.height / 2;
+              orderList.insertBefore(dragging, after ? li.nextSibling : li);
+            });
+          });
+          shuffled(orderItems.length, chapterId + key).forEach(function (i) { orderList.appendChild(orderItems[i]); });
+        }
+      } else if (kind === "blank") {
+        slice(ex.querySelectorAll(".ex-q .blank")).forEach(function (span, j) {
+          var inp = document.createElement("input");
+          var key0 = span.getAttribute("data-answer") || "";
+          inp.type = "text";
+          inp.className = "blank";
+          inp.setAttribute("autocomplete", "off");
+          inp.setAttribute("autocapitalize", "off");
+          inp.setAttribute("spellcheck", "false");
+          inp.setAttribute("aria-label", "Blank " + (j + 1));
+          inp.setAttribute("data-answer", key0);
+          inp.setAttribute("data-type", span.getAttribute("data-type") || "number");
+          inp.size = Math.max(2, parseInt(span.getAttribute("data-size") || "", 10) || key0.split("|")[0].length + 1);
+          span.parentNode.replaceChild(inp, span);
+          blanks.push(inp);
+        });
+      } else if (kind === "figure") {
+        /* an ordinary figure, minus its missions; mountWidgets() fills it in */
+        figure = document.createElement("div");
+        figure.className = "widget";
+        figure.setAttribute("data-widget", ex.getAttribute("data-figure") || "");
+        figure.setAttribute("data-no-missions", "");
+        var q = ex.querySelector(".ex-q");
+        if (q) q.parentNode.insertBefore(figure, q.nextSibling);
+        else ex.appendChild(figure);
       } else {
         inputEl = document.createElement("input");
         inputEl.type = "text";
@@ -581,6 +1027,16 @@
         if (!solution) return;
         solution.setAttribute("data-show", "true");
         showBtn.textContent = "Hide solution";
+        /* for a put-in-order question the solution is the order itself */
+        if (orderList) orderItems.forEach(function (li) { orderList.appendChild(li); });
+        /* opening the solution before solving is worth knowing about */
+        if (ex.getAttribute("data-state") !== "correct" && !Attempts.get(chapterId, key).solved) {
+          Attempts.update(chapterId, key, function (r) {
+            r.opened = 1;
+            if (section) r.section = section;
+            if (inline) r.inline = 1;
+          });
+        }
       }
       function hide() {
         if (!solution) return;
@@ -591,42 +1047,97 @@
         if (solution.getAttribute("data-show") === "true") hide(); else reveal();
       });
 
+      function say(html) {
+        feedback.innerHTML = html;
+        feedback.setAttribute("data-show", "true");
+      }
+
       function markCorrect(fromStorage) {
         ex.setAttribute("data-state", "correct");
         if (fromStorage) ex.setAttribute("data-restored", "true");
         else ex.removeAttribute("data-restored");
-        feedback.innerHTML = '<span class="ok">' + TICK + " Correct.</span>" +
-          (solution ? ' <span class="hint">Compare your reasoning with the solution below.</span>' : "");
-        feedback.setAttribute("data-show", "true");
+        if (orderList) orderItems.forEach(function (li) { orderList.appendChild(li); });
+        blanks.forEach(function (b) { b.setAttribute("data-ok", "true"); });
+        say('<span class="ok">' + TICK + " Correct.</span>" +
+          (solution ? ' <span class="hint">Compare your reasoning with the solution below.</span>' : ""));
         if (!fromStorage && !inline) {
           var before = solvedCount();
           Progress.markSolved(chapterId, key);
           updateScore();
           if (total && before < total && solvedCount() >= total) chapterDone(chapter, true);
         }
+        if (!fromStorage) Store.emit({ type: "solved", chapter: chapterId, key: key, inline: inline });
+      }
+
+      /* what the reader has put in: { given } or { empty: a nudge to finish answering } */
+      function read() {
+        if (radios.length) {
+          var picked = radios.filter(function (r) { return r.checked; }).map(function (r) { return r.value; });
+          if (!picked.length) {
+            return { empty: kind === "multi" ? "Choose every option that applies first." : "Choose one of the options first." };
+          }
+          return { given: picked.join(",") };
+        }
+        if (kind === "order") {
+          return { given: orderList ? slice(orderList.children).map(function (li) { return li.getAttribute("data-i"); }).join(",") : "" };
+        }
+        if (kind === "blank") {
+          var vals = blanks.map(function (b) { return b.value; });
+          if (vals.some(function (v) { return v.trim() === ""; })) return { empty: "Fill in every blank, then press Check." };
+          return { given: vals };
+        }
+        if (kind === "figure") {
+          return { given: figure && typeof figure.__answer === "function" ? String(figure.__answer()) : "" };
+        }
+        if (String(inputEl.value).trim() === "") return { empty: "Type an answer, then press Check." };
+        return { given: inputEl.value };
+      }
+
+      function judge(given) {
+        if (kind === "order") {
+          return given === orderItems.map(function (li, j) { return String(j); }).join(",");
+        }
+        if (kind === "blank") {
+          var all = true;
+          blanks.forEach(function (b, j) {
+            var ok = alternatives(b.getAttribute("data-answer")).some(function (a) {
+              return matches(given[j], a, b.getAttribute("data-type"), tol);
+            });
+            b.setAttribute("data-ok", ok ? "true" : "false");
+            if (!ok) all = false;
+          });
+          return all;
+        }
+        var cmp = kind === "choice" ? "number" : kind === "multi" ? "set"
+          : kind === "figure" ? (ex.getAttribute("data-compare") || "exact") : type;
+        return answers.some(function (a) { return matches(given, a, cmp, tol); });
       }
 
       function check() {
-        var given;
-        if (inputEl) given = inputEl.value;
-        else {
-          var picked = radios.filter(function (r) { return r.checked; })[0];
-          if (!picked) {
-            feedback.innerHTML = '<span class="hint">Choose one of the options first.</span>';
-            feedback.setAttribute("data-show", "true");
-            return;
-          }
-          given = picked.value;
-        }
-        if (String(given).trim() === "") {
-          feedback.innerHTML = '<span class="hint">Type an answer, then press Check.</span>';
-          feedback.setAttribute("data-show", "true");
-          return;
-        }
-        var ok = answers.some(function (a) {
-          return matches(given, a, radios.length ? "number" : type, tol);
-        });
+        var r = read();
+        if (r.empty) { say('<span class="hint">' + r.empty + "</span>"); return; }
+        var ok = judge(r.given);
         tries++;
+        var level = ok ? 0 : tries === 1 && hint ? 1 : tries === 2 && hint2 ? 2 : 0;
+        /* only the road to the first correct answer is recorded; re-solving changes nothing */
+        if (!Attempts.get(chapterId, key).solved) {
+          var rec = Attempts.update(chapterId, key, function (a) {
+            a.tries = (a.tries || 0) + 1;
+            if (section) a.section = section;
+            if (inline) a.inline = 1;
+            if (level > (a.hints || 0)) a.hints = level;
+            if (ok) {
+              a.solved = Date.now();
+              a.first = a.tries === 1 && !a.opened ? 1 : 0;
+              delete a.skipped;
+            }
+          });
+          Store.emit({
+            type: "attempt", chapter: chapterId, key: key, section: section, inline: inline,
+            correct: ok, tryNo: rec.tries, hintLevel: rec.hints || 0, solutionOpen: !!rec.opened
+          });
+          if (ok) Activity.add(xpFor(rec, inline), inline ? "check" : "exercise");
+        }
         if (ok) {
           markCorrect(false);
         } else {
@@ -634,25 +1145,27 @@
           ex.removeAttribute("data-state");
           void ex.offsetWidth;
           ex.setAttribute("data-state", "wrong");
-          var extra = tries === 1 && hint
+          var extra = level === 1
             ? '<span class="hint">Hint: ' + hint + "</span>"
-            : tries === 2 && hint2
+            : level === 2
               ? '<span class="hint">Another hint: ' + hint2 + "</span>"
               : '<span class="hint">Not yet. Work it through once more' + (solution ? ", or open the solution." : ".") + "</span>";
-          feedback.innerHTML = '<span class="no">✗ Not right.</span> ' + extra;
-          feedback.setAttribute("data-show", "true");
+          say('<span class="no">✗ Not right.</span> ' + extra);
           renderMath(feedback);
         }
       }
 
       checkBtn.addEventListener("click", check);
-      if (inputEl) {
-        inputEl.addEventListener("keydown", function (e) {
+      [inputEl].concat(blanks).forEach(function (field) {
+        if (!field) return;
+        field.addEventListener("keydown", function (e) {
           if (e.key === "Enter") { e.preventDefault(); check(); }
         });
-      }
+      });
 
-      if (!inline && saved[key]) markCorrect(true);
+      /* scored exercises come back from the progress store; inline checks from the
+         attempt log, so a chapter read in steps can be picked up where it was left */
+      if (inline ? Attempts.get(chapterId, key).solved : saved[key]) markCorrect(true);
     });
 
     updateScore();
@@ -779,6 +1292,8 @@
       var last = readStore(LAST_KEY, null);
       if (!last || last.id !== chapter.id) writeStore(LAST_KEY, { id: chapter.id, section: null });
     }
+    decorateTopbar();
+    buildHud();
     buildSidebar(chapter);
     buildChapterNav(chapter);
     buildHome();
@@ -789,8 +1304,29 @@
     initExercises(chapter);
     mountWidgets();
     if (chapter && window.BMMissions) Play.setTotal(chapter.id, window.BMMissions.total());
+    chapterFeedback(chapter);
     renderMath(document.body);
+
+    Store.on(function (c) {
+      if (c.type === "xp") {
+        buildHud();
+        toast("<b>+" + c.xp + " XP</b>");
+        if (c.goalMet) toast("Daily goal reached: <b>" + Activity.goal() + " XP</b> today.", "goal");
+      } else if (c.type === "attempt") {
+        chapterFeedback(chapter);
+      } else if (c.type === "sync") {
+        /* an account just merged another device's progress into this one */
+        buildHud();
+        buildHome();
+        buildContinue();
+        buildCourseStats();
+        chapterFeedback(chapter);
+      } else if (c.type === "state" && c.key === ACTIVITY_KEY) {
+        buildHud();
+      }
+    });
   }
+  window.BMSite = { rootPrefix: rootPrefix, escapeHtml: escapeHtml, chapterName: chapterName, dayKey: dayKey };
 
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", init);
   else init();

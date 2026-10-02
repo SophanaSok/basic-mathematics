@@ -9,8 +9,9 @@ full solutions.
 
 **Read it here: [sophanasok.github.io/basic-mathematics](https://sophanasok.github.io/basic-mathematics/)**
 
-No build step, no dependencies to install, no server required. It is HTML, CSS, and three files of
-plain ES5 JavaScript.
+No build step, no dependencies to install, no server required. It is HTML, CSS, and a handful of
+plain ES5 JavaScript files. Accounts are optional and off by default: with
+[`assets/config.js`](assets/config.js) left empty the site talks to nobody.
 
 ---
 
@@ -58,6 +59,11 @@ a worked example that makes the mistake on purpose. It follows the tempting step
 gives, runs a check that rejects that answer, and then shows the fix. Work these as carefully as
 the other examples. Seeing a mistake fail is what helps you notice it in your own work later.
 
+By default a chapter opens **one step at a time**: read a piece, press **Continue**, and where
+the piece ends in a question, answer it to go on (or skip it — the course remembers, and counts
+that section as one to come back to). The switch under the chapter title shows the whole page
+instead, and remembers the choice.
+
 The method in three lines, expanded on the
 **[How to use this](https://sophanasok.github.io/basic-mathematics/about.html)** page:
 
@@ -82,6 +88,10 @@ Answers are matched forgivingly: `0.5`, `1/2`, and `2/4` are all accepted for th
 spaces never matter, and `-3` and `−3` are the same. Where several numbers are wanted, separate
 them with commas in any order.
 
+Not every question is typed. Some ask you to put the lines of an argument in order (drag them,
+or use the arrow buttons on each line), to fill blanks inside an equation, to tick every option
+that applies, or to set an interactive figure so that it shows the answer.
+
 Every problem has a full worked solution, not just an answer. Open it after a genuine attempt — and
 open it **even when you were right**, to compare your route with the one shown. That comparison is
 where most of the learning happens.
@@ -98,13 +108,28 @@ They are there to be played with. Each has a short list of **missions** — thin
 do, such as "make a system with no solution" or "find an angle where sin θ = cos θ" — and marks each
 one with a star when you manage it.
 
+### XP, streaks, and what to review
+
+Correct answers and missions earn XP — most when right first time, less after a miss, least once
+the solution has been opened. The header shows today's XP against a daily goal and your streak of
+active days.
+
+The **[progress page](https://sophanasok.github.io/basic-mathematics/progress.html)** turns the
+record into advice. The course notes how each question went (tries, hints, whether the solution
+was opened first) and lists the **sections worth rereading**, weakest first, alongside the ones
+going well. A short version appears above each chapter's recap.
+
 ### Progress, and what is saved
 
-Solved exercises, completed missions, and the chapter you last opened are remembered in **your
-browser only**, in local storage. There
-is no account and no server, and nothing is sent anywhere. So your progress will not follow you to
-another browser or device, and clearing site data clears it. There is a deliberate reset button on
-the about page.
+Everything is remembered in **your browser**, in local storage. Without an account nothing is sent
+anywhere, so progress will not follow you to another browser or device, and clearing site data
+clears it. There is a deliberate reset button on the about page.
+
+Where the site has accounts switched on, signing in is optional and adds one thing: your progress
+is copied to the course's database and follows you between devices. Each answer check by a
+signed-in reader is also logged (which question, right or wrong, which try — never what was
+typed) so the author can see which questions are too hard. The account page can download or
+delete all of it.
 
 Answer keys live in the page source, since the grading happens in your browser. This is a course to
 learn from, not an exam — the only person you can cheat is yourself.
@@ -133,12 +158,21 @@ than taking the page down.
 ### Layout
 
 ```
-index.html              course contents, built from the curriculum data
+index.html              course contents: the path map, built from the curriculum data
 about.html              how to study the course; progress reset lives here
+progress.html           the reader's dashboard: streak, XP, sections to strengthen
+account.html            sign in / sign up, export and delete (inert without config)
+insights.html           the author's aggregate view; admins only
 data/curriculum.js      single source of truth: parts, chapters, sections
 assets/site.css         all styling, including both themes
-assets/site.js          navigation, theme, progress, exercise grading, widget mounting
+assets/site.js          navigation, theme, stores, exercise grading, XP, widget mounting
 assets/widgets.js       the 32 interactive figures and their missions
+assets/lesson.js        step-by-step reading of a chapter
+assets/config.js        Supabase URL and anon key; empty means no accounts
+assets/account.js       sign-in and sync, listening on BMStore
+assets/insights.js      renders progress.html and insights.html
+supabase/schema.sql     tables, row-level security, aggregate functions
+supabase/README.md      how to switch accounts on
 parts/<part>/<nn>-<slug>.html
 .nojekyll               so GitHub Pages serves the files as authored
 ```
@@ -212,7 +246,8 @@ Each exercise is a `<div class="ex">` carrying its answer key in attributes:
 
 | Attribute | Meaning |
 | --- | --- |
-| `data-type` | `number`, `set` (a comma-separated list, order ignored), `expr`, `fraction`, or omitted for a forgiving text compare |
+| `data-type` | `number`, `set` (a comma-separated list, order ignored), `expr`, `fraction`, or omitted for a forgiving text compare; `multi`, `order`, `blank`, `figure` for the untyped kinds below |
+| `data-section` | The section the problem tests, for the feedback pages: a section id of this chapter, or `ch02#one-unknown` for a mixed-review problem drawn from another. Inline checks take the section they sit in |
 | `data-answer` | The key. `\|` separates alternative accepted answers |
 | `data-tol` | Absolute tolerance, for keys that are themselves rounded decimals |
 | `data-hint` | Shown after the first wrong attempt |
@@ -228,6 +263,31 @@ wherever `0.25` is.
 
 Grading is entirely client-side, so answer keys are visible in the page source — by design, as
 noted above.
+
+The untyped kinds, each graded by the same engine:
+
+```html
+<!-- tick every option that applies: the key is the list of right ones -->
+<div class="ex" data-inline id="k1" data-type="multi" data-answer="1,2,4"> … <ul class="choices">…</ul> … </div>
+
+<!-- put in order: write the lines in the RIGHT order; they are scrambled on the page -->
+<div class="ex" data-inline id="k2" data-type="order"> … <ol class="order"><li>…</li><li>…</li></ol> … </div>
+
+<!-- blanks: each carries its own key (and data-type, default number); keep them outside $…$ -->
+<div class="ex" data-inline id="k3" data-type="blank">
+  <div class="ex-q"><p>$2^3 \cdot 2^4$ is $2$ to the power <span class="blank" data-answer="7"></span>.</p></div> …
+</div>
+
+<!-- answer on a figure: the factory's host.__answer() is compared with data-answer -->
+<div class="ex" data-inline id="k4" data-type="figure" data-figure="unitcircle"
+     data-compare="number" data-answer="180"> … </div>
+```
+
+`data-compare` is `exact` (the default), `number`, or `set`. The figure must not start in the
+answering state. Six figures expose `__answer` so far: `numberline`, `linsys`, `quadratic`,
+`distance`, `unitcircle`, `pointops`; adding one is a single line before the factory's
+`missions(…)` call. A figure inside an exercise is mounted with `data-no-missions`, so its
+missions are neither shown nor counted twice.
 
 **Progress keys.** A scored exercise is remembered under its `id` if it has one, and otherwise
 under its position among the id-less scored exercises of the page (`e1`, `e2`, …). The original
@@ -260,6 +320,15 @@ internal to `widgets.js` and available to any factory in that file. Colours come
 properties, so every figure follows the theme automatically. The convention throughout is: build the frame once, redraw a single `<g>` on each
 change, and use the readout to say in words what the picture is claiming.
 
+### Lesson mode
+
+`assets/lesson.js` needs nothing from the chapter markup. On load it cuts the top-level children
+of `<main>` into steps — a new one at every `<h2>`, and after the puzzle, the warm-up, each inline
+`.ex`, each `details.reveal`, each figure with a widget, and each practice set — and hides the
+steps not yet reached. A link to any `#id` in the chapter opens every step up to its target.
+Elements that scripts add later (the completion banner, the feedback note) appear with whatever
+they were inserted in front of. Printing shows the whole chapter.
+
 ### Adding a chapter
 
 1. Add an entry to the relevant part in `data/curriculum.js` — `id`, `label`, `title`, `file`,
@@ -269,13 +338,34 @@ change, and use the readout to say in words what the picture is claiming.
 
 Navigation, the contents card, the sidebar, and the progress counters build themselves from step 1.
 
-### Progress and theme
+### Stores, the bus, and accounts
 
-They live in `localStorage` under `bm.progress.v1` (exercises), `bm.play.v1` (missions and puzzle
-guesses), `bm.last` (where to continue), and `bm.theme` — this browser only, no account
-and no server. Clearing site data clears them; there is a deliberate reset button on the about
-page. Every storage access is wrapped, so a browser that blocks storage loses the memory but keeps
-the site.
+All state is in `localStorage`, every access wrapped so a browser that blocks storage loses the
+memory but keeps the site:
+
+| Key | Holds |
+| --- | --- |
+| `bm.progress.v1` | solved scored exercises per chapter |
+| `bm.play.v1` | missions and puzzle guesses |
+| `bm.attempts.v1` | per exercise: `tries`, `first`, `hints`, `opened`, `skipped`, `solved`, `section` |
+| `bm.activity.v1` | XP per day and the daily goal; streak and totals are derived from it |
+| `bm.lesson.v1` | reading mode and the furthest step reached in each chapter |
+| `bm.last`, `bm.theme` | where to continue; light or dark |
+
+Every write is announced on `window.BMStore` (`on(fn)` / `emit(change)`), with change types
+`state`, `attempt`, `solved`, `xp`, `sync`, and `reset`. The header counters, lesson mode, and
+account sync are all just listeners; `site.js` knows nothing about a server.
+
+`assets/account.js` is the only file that talks to Supabase, and only when `assets/config.js` is
+filled in and the reader has a session (or opens the account page) — otherwise the SDK is never
+downloaded. Sync is a merge, never an overwrite: unions for solved exercises and missions, the
+larger number for each day's XP, the furthest lesson step. `BMAccount.merge(a, b)` is pure and
+gives the same result in either order. A deliberate reset is timestamped so other devices drop
+their copies rather than merging them back. Setting it up is five steps:
+[`supabase/README.md`](supabase/README.md).
+
+The "areas to strengthen" ranking is `BMInsights` in `site.js`: each attempted exercise gets a
+struggle score from 0 (right first time) to 1, averaged per section.
 
 The theme follows the operating system by default and can be overridden with the toggle in the
 header.
@@ -292,6 +382,8 @@ checks were used while writing Chapters 5–16 and are worth repeating after edi
 - Every internal `href` resolves to both file and anchor.
 - Every `data-widget` name exists on `window.BMWidgets`.
 - No pre-existing exercise's progress key has changed (compare against the previous commit).
+- Every `data-section` names a real section, and every `order` list is authored in the right order.
+- `lesson.js` leaves every `<h2 id>` reachable, and `BMAccount.merge` is still commutative.
 - Every mission is false when its figure mounts, and can be driven true through the controls.
 
 The widgets can be smoke-tested in Node under a small DOM shim — mount each factory, then fire its

@@ -5,6 +5,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>7. Area and Applications — Basic Mathematics</title>
 <meta name="description" content="Area of rectangles, triangles, and discs; circumference; and the scaling law that ties them together.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400;1,6..72,500&display=swap">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.11/katex.min.css">
 <link rel="icon" href="../../assets/favicon.svg" type="image/svg+xml">
 <link rel="stylesheet" href="../../assets/site.css">
@@ -13,6 +16,9 @@
 <script defer src="../../data/curriculum.js"></script>
 <script defer src="../../assets/widgets.js"></script>
 <script defer src="../../assets/site.js"></script>
+<script defer src="../../assets/lesson.js"></script>
+<script defer src="../../assets/config.js"></script>
+<script defer src="../../assets/account.js"></script>
 </head>
 <body data-depth="2" data-chapter="ch07">
 <a class="skip-link" href="#main">Skip to content</a>
@@ -22,7 +28,7 @@
   <nav>
     <a href="../../index.html">Contents</a>
     <a href="../../about.html">How to use this</a>
-    <button class="icon-btn" type="button" data-theme-toggle>☾ Dark</button>
+    <button class="icon-btn" type="button" data-theme-toggle aria-label="Switch between light and dark">☾</button>
   </nav>
 </header>
 
@@ -284,6 +290,22 @@
       </div>
     </div>
 
+    <div class="ex" data-inline id="k1" data-label="Section check" data-type="order" data-hint="Build up from the triangle to a shape whose area you already know, then halve.">
+      <div class="ex-q">
+        <p>Put these lines in order to explain why a triangle with base $b$ and height $h$ has area $\tfrac12 bh$.</p>
+      </div>
+      <ol class="order">
+        <li>Take a second copy of the triangle and turn it through half a turn.</li>
+        <li>Fit the two copies together along a side: they form a parallelogram with base $b$ and height $h$.</li>
+        <li>Cut a right triangle off one end of the parallelogram and slide it to the other end: a $b$ by $h$ rectangle, of area $bh$.</li>
+        <li>The original triangle is half of that, so its area is $\tfrac12 bh$.</li>
+      </ol>
+      <div class="ex-solution">
+        <p class="answer">The order shown is the argument</p>
+        <p>Two copies of the triangle make a parallelogram; a parallelogram rearranges into a rectangle; the triangle is half of it.</p>
+      </div>
+    </div>
+
     <h2 id="scaling">7.2 Scaling</h2>
     <p>
       Apply a dilation by $r$ to a figure. Every length is multiplied by $r$. What happens to the
@@ -395,6 +417,16 @@
           Lengths scale by $r = 25/10 = 2.5$, so the area scales by $r^2 = 6.25$. You did not need
           the height of the photograph: an enlargement scales every length by the same factor.
         </p>
+      </div>
+    </div>
+
+    <div class="ex" data-inline id="k2" data-label="Section check" data-type="blank" data-hint="Lengths scale by r; areas by r squared.">
+      <div class="ex-q">
+        <p>A figure is enlarged by the factor $4$. Every length is multiplied by <span class="blank" data-answer="4"></span>, and its area is multiplied by <span class="blank" data-answer="16"></span>.</p>
+      </div>
+      <div class="ex-solution">
+        <p class="answer">Answer: $4$ and $16$</p>
+        <p>Area is built from two lengths multiplied together, and each of them picks up a factor of $4$: $4 \cdot 4 = 16$.</p>
       </div>
     </div>
 
@@ -556,7 +588,7 @@
         one place unless the question says otherwise.
       </p>
 
-      <div class="ex" data-type="number" data-answer="30"
+      <div class="ex" data-section="polygons" data-type="number" data-answer="30"
            data-hint="Half of base times height.">
         <div class="ex-q">
           <p>A triangle has base $12$ and height $5$. What is its area?</p>
@@ -570,7 +602,7 @@
         </div>
       </div>
 
-      <div class="ex" data-type="number" data-answer="9"
+      <div class="ex" data-section="scaling" data-type="number" data-answer="9"
            data-hint="Area scales by the square of the length factor.">
         <div class="ex-q">
           <p>
@@ -587,7 +619,7 @@
         </div>
       </div>
 
-      <div class="ex" data-type="number" data-answer="78.5" data-tol="0.1"
+      <div class="ex" data-section="disc" data-type="number" data-answer="78.5" data-tol="0.1"
            data-hint="Radius is half the diameter; then use πr².">
         <div class="ex-q">
           <p>
@@ -606,7 +638,7 @@
         </div>
       </div>
 
-      <div class="ex" data-type="number" data-answer="4"
+      <div class="ex" data-section="scaling" data-type="number" data-answer="4"
            data-hint="Compare the two areas, then take the square root."
            data-hint2="The areas are in the ratio 16, and areas scale as r². So r² = 16.">
         <div class="ex-q">
@@ -625,7 +657,7 @@
         </div>
       </div>
 
-      <div class="ex" data-answer="2"
+      <div class="ex" data-section="polygons" data-answer="2"
            data-hint="Sliding the apex parallel to the base changes neither base nor height.">
         <div class="ex-q">
           <p>
@@ -649,7 +681,7 @@
         </div>
       </div>
 
-      <div class="ex" data-type="number" data-answer="48"
+      <div class="ex" data-section="polygons" data-type="number" data-answer="48"
            data-hint="Split it with a diagonal, or treat it as a rectangle plus a triangle."
            data-hint2="A diagonal makes two triangles, with bases 10 and 6 and the same height 6.">
         <div class="ex-q">
@@ -671,7 +703,7 @@
         </div>
       </div>
 
-      <div class="ex" data-type="number" data-answer="24"
+      <div class="ex" data-section="disc" data-type="number" data-answer="24"
            data-hint="Subtract the inner disc from the outer one, and factor before multiplying.">
         <div class="ex-q">
           <p>
@@ -692,7 +724,7 @@
         </div>
       </div>
 
-      <div class="ex" data-type="number" data-answer="6"
+      <div class="ex" data-section="polygons" data-type="number" data-answer="6"
            data-hint="Work out the area first, then read the side off it.">
         <div class="ex-q">
           <p>
@@ -713,7 +745,7 @@
         </div>
       </div>
 
-      <div class="ex" data-answer="3"
+      <div class="ex" data-section="circumference" data-answer="3"
            data-hint="What is π defined as, before any area formula appears?">
         <div class="ex-q"><p>What is $\pi$, as this chapter defines it?</p></div>
         <ul class="choices">
@@ -733,7 +765,7 @@
         </div>
       </div>
 
-      <div class="ex" data-type="number" data-answer="54"
+      <div class="ex" data-section="polygons" data-type="number" data-answer="54"
            data-hint="Before splitting the base as in Example 4, test what kind of triangle this is.">
         <div class="ex-q">
           <p>Find the area of the triangle with sides $9$, $12$, $15$.</p>
@@ -761,7 +793,7 @@
         idea each one needs. Deciding that is the exercise.
       </p>
 
-      <div class="ex" data-type="number" data-answer="10"
+      <div class="ex" data-section="ch05#pythagoras" data-type="number" data-answer="10"
            data-hint="Pythagoras: the square of the hypotenuse is the sum of the squares of the legs.">
         <div class="ex-q">
           <p>A right triangle has legs $6$ and $8$. What is the length of the hypotenuse?</p>
@@ -775,7 +807,7 @@
         </div>
       </div>
 
-      <div class="ex" data-type="number" data-answer="65"
+      <div class="ex" data-section="ch05#parallels" data-type="number" data-answer="65"
            data-hint="Sketch the two crossings. What does the parallel property say about them?">
         <div class="ex-q">
           <p>
@@ -792,7 +824,7 @@
         </div>
       </div>
 
-      <div class="ex" data-answer="3"
+      <div class="ex" data-section="ch06#isometries" data-answer="3"
            data-hint="An isometry is a map that preserves every distance.">
         <div class="ex-q">
           <p>Which of these is <em>not</em> an isometry of the plane?</p>
@@ -812,7 +844,7 @@
         </div>
       </div>
 
-      <div class="ex" data-answer="2"
+      <div class="ex" data-section="ch06#symmetry" data-answer="2"
            data-hint="List rotations and reflections separately — and test each diagonal honestly.">
         <div class="ex-q">
           <p>How many symmetries does a non-square rectangle have?</p>
@@ -833,7 +865,7 @@
         </div>
       </div>
 
-      <div class="ex" data-type="number" data-answer="100"
+      <div class="ex" data-section="ch05#angles" data-type="number" data-answer="100"
            data-hint="Two facts are needed, one after the other. Find the third angle first.">
         <div class="ex-q">
           <p>
@@ -852,7 +884,7 @@
         </div>
       </div>
 
-      <div class="ex" data-answer="(3,2)|3,2"
+      <div class="ex" data-section="ch06#mappings-plane" data-answer="(3,2)|3,2"
            data-placeholder="e.g. (3,-2)"
            data-hint="Two motions, one after the other. The order is given — keep to it.">
         <div class="ex-q">

@@ -5,6 +5,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Interlude: On Logic and Mathematical Expressions — Basic Mathematics</title>
 <meta name="description" content="How to read mathematics, implication and its converse, quantifiers and counterexamples, sets, and notation as a tool.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400;1,6..72,500&display=swap">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.11/katex.min.css">
 <link rel="icon" href="../../assets/favicon.svg" type="image/svg+xml">
 <link rel="stylesheet" href="../../assets/site.css">
@@ -13,6 +16,9 @@
 <script defer src="../../data/curriculum.js"></script>
 <script defer src="../../assets/widgets.js"></script>
 <script defer src="../../assets/site.js"></script>
+<script defer src="../../assets/lesson.js"></script>
+<script defer src="../../assets/config.js"></script>
+<script defer src="../../assets/account.js"></script>
 </head>
 <body data-depth="2" data-chapter="interlude">
 <a class="skip-link" href="#main">Skip to content</a>
@@ -22,7 +28,7 @@
   <nav>
     <a href="../../index.html">Contents</a>
     <a href="../../about.html">How to use this</a>
-    <button class="icon-btn" type="button" data-theme-toggle>☾ Dark</button>
+    <button class="icon-btn" type="button" data-theme-toggle aria-label="Switch between light and dark">☾</button>
   </nav>
 </header>
 
@@ -317,6 +323,21 @@
       them: ($\Rightarrow$) and ($\Leftarrow$).
     </p>
 
+    <div class="ex" data-inline id="k1" data-label="Section check" data-type="multi" data-answer="1,3" data-hint="A statement and its contrapositive stand or fall together. The converse is a separate claim.">
+      <div class="ex-q">
+        <p>Take the statement "if $n$ is divisible by $4$ then $n$ is even". Which of these are true? Choose every one.</p>
+      </div>
+      <ul class="choices">
+        <li>The statement itself.</li>
+        <li>Its converse: if $n$ is even then $n$ is divisible by $4$.</li>
+        <li>Its contrapositive: if $n$ is not even then $n$ is not divisible by $4$.</li>
+      </ul>
+      <div class="ex-solution">
+        <p class="answer">Answer: the statement and its contrapositive</p>
+        <p>If $n = 4k$ then $n = 2(2k)$, so the statement holds, and its contrapositive says the same thing. The converse fails: $6$ is even but not divisible by $4$.</p>
+      </div>
+    </div>
+
     <h2 id="quantifiers">For all, there exists, and counterexamples</h2>
     <p>
       Two phrases carry most of the weight in mathematical statements:
@@ -469,6 +490,16 @@
       of a solution set — one element, none, or infinitely many.
     </p>
 
+    <div class="ex" data-inline id="k2" data-label="Section check" data-type="blank" data-hint="The intersection keeps what is in both; the union keeps everything, counted once.">
+      <div class="ex-q">
+        <p>Let $A = \{1,2,3,4\}$ and $B = \{3,4,5,6\}$. Then $A \cap B$ has <span class="blank" data-answer="2"></span> elements and $A \cup B$ has <span class="blank" data-answer="6"></span> elements.</p>
+      </div>
+      <div class="ex-solution">
+        <p class="answer">Answer: $2$ and $6$</p>
+        <p>$A \cap B = \{3,4\}$ and $A \cup B = \{1,2,3,4,5,6\}$. Note $4 + 4 - 2 = 6$: the shared elements are counted once, not twice.</p>
+      </div>
+    </div>
+
     <h2 id="notation">Notation as a tool</h2>
     <p>
       Notation exists to make thinking cheaper. A few habits pay for themselves immediately:
@@ -525,7 +556,7 @@
         <span class="practice-score" data-practice-score></span>
       </div>
 
-      <div class="ex" data-answer="2"
+      <div class="ex" data-section="logic" data-answer="2"
            data-hint="Swap hypothesis and conclusion — do not negate anything.">
         <div class="ex-q">
           <p>What is the converse of "if $n$ is divisible by $6$ then $n$ is even"?</p>
@@ -546,7 +577,7 @@
         </div>
       </div>
 
-      <div class="ex" data-answer="3"
+      <div class="ex" data-section="logic" data-answer="3"
            data-hint="The contrapositive negates both parts and reverses the arrow."
            data-hint2="Negate “x² > 4” to get “x² ≤ 4”, negate “x > 2” to get “x ≤ 2”, then swap their positions.">
         <div class="ex-q">
@@ -570,7 +601,7 @@
         </div>
       </div>
 
-      <div class="ex" data-type="number" data-answer="2"
+      <div class="ex" data-section="quantifiers" data-type="number" data-answer="2"
            data-hint="You want a prime that is not odd.">
         <div class="ex-q">
           <p>
@@ -587,7 +618,7 @@
         </div>
       </div>
 
-      <div class="ex" data-answer="1"
+      <div class="ex" data-section="quantifiers" data-answer="1"
            data-hint="Negating 'for all' gives 'there exists ... not'.">
         <div class="ex-q">
           <p>What is the negation of "every student passed the exam"?</p>
@@ -608,7 +639,7 @@
         </div>
       </div>
 
-      <div class="ex" data-type="set" data-answer="3,4"
+      <div class="ex" data-section="sets" data-type="set" data-answer="3,4"
            data-placeholder="e.g. 3,4"
            data-hint="Which elements are in both sets at once?">
         <div class="ex-q">
@@ -625,7 +656,7 @@
         </div>
       </div>
 
-      <div class="ex" data-answer="4"
+      <div class="ex" data-section="sets" data-answer="4"
            data-hint="Check each against the definitions — and remember the empty set.">
         <div class="ex-q">
           <p>Let $A = \{1,2,3\}$. Which statement is <em>false</em>?</p>
@@ -650,7 +681,7 @@
         </div>
       </div>
 
-      <div class="ex" data-answer="2"
+      <div class="ex" data-section="logic" data-answer="2"
            data-hint="Ask whether either statement can hold while the other fails.">
         <div class="ex-q">
           <p>
@@ -678,7 +709,7 @@
         </div>
       </div>
 
-      <div class="ex" data-answer="3"
+      <div class="ex" data-section="quantifiers" data-answer="3"
            data-hint="Try to build a single number that works for every x."
            data-hint2="In (ii) the same y has to beat every x — including x = y itself.">
         <div class="ex-q">
@@ -705,7 +736,7 @@
         </div>
       </div>
 
-      <div class="ex" data-answer="1"
+      <div class="ex" data-section="logic" data-answer="1"
            data-hint="How many separate implications does an 'if and only if' contain?">
         <div class="ex-q">
           <p>To prove "$P$ if and only if $Q$", what must you do?</p>
@@ -726,7 +757,7 @@
         </div>
       </div>
 
-      <div class="ex" data-type="number" data-answer="1"
+      <div class="ex" data-section="quantifiers" data-type="number" data-answer="1"
            data-hint="Try to make the left side and right side differ; a = b = 1 is a good first test.">
         <div class="ex-q">
           <p>
@@ -757,7 +788,7 @@
         you which idea each one needs. Deciding that is the exercise.
       </p>
 
-      <div class="ex" data-type="number" data-answer="-12"
+      <div class="ex" data-section="ch01#multiplication" data-type="number" data-answer="-12"
            data-hint="Three negative factors: track the sign as you multiply.">
         <div class="ex-q">
           <p>Without a calculator: what is $(-3) \times (-4) \times (-1)$?</p>
@@ -772,7 +803,7 @@
         </div>
       </div>
 
-      <div class="ex" data-type="fraction" data-answer="3/2"
+      <div class="ex" data-section="ch01#rationals" data-type="fraction" data-answer="3/2"
            data-hint="The pieces must be the same size before they can be added.">
         <div class="ex-q">
           <p>Add the fractions: $\dfrac23 + \dfrac56$.</p>
@@ -787,7 +818,7 @@
         </div>
       </div>
 
-      <div class="ex" data-type="number" data-answer="4"
+      <div class="ex" data-section="ch02#two-unknowns" data-type="number" data-answer="4"
            data-hint="Combine the two equations so that one unknown disappears.">
         <div class="ex-q">
           <p>Solve the system $x + y = 7$, $\; x - y = 1$. What is $x$?</p>
@@ -801,7 +832,7 @@
         </div>
       </div>
 
-      <div class="ex" data-type="number" data-answer="5"
+      <div class="ex" data-section="ch02#word-problems" data-type="number" data-answer="5"
            data-hint="Give the width a name, then write the perimeter in terms of it.">
         <div class="ex-q">
           <p>
@@ -819,7 +850,7 @@
         </div>
       </div>
 
-      <div class="ex" data-answer="1"
+      <div class="ex" data-section="ch03#absolute" data-answer="1"
            data-hint="Read it as a sentence about distance. Distance from which number?">
         <div class="ex-q">
           <p>Which interval is the solution set of $|x + 1| &lt; 4$?</p>
@@ -841,7 +872,7 @@
         </div>
       </div>
 
-      <div class="ex" data-type="number" data-answer="4"
+      <div class="ex" data-section="ch03#powers" data-type="number" data-answer="4"
            data-hint="Same base on both factors. What happens to the exponents when you multiply?">
         <div class="ex-q">
           <p>Simplify $2^{-3} \cdot 2^{5}$.</p>
@@ -855,7 +886,7 @@
         </div>
       </div>
 
-      <div class="ex" data-answer="1"
+      <div class="ex" data-section="ch04#discriminant" data-answer="1"
            data-hint="You are not asked for the solutions — only for how many there are.">
         <div class="ex-q">
           <p>How many real solutions does $x^2 + 4x + 5 = 0$ have?</p>
@@ -876,7 +907,7 @@
         </div>
       </div>
 
-      <div class="ex" data-type="number" data-answer="3"
+      <div class="ex" data-section="ch04#formula" data-type="number" data-answer="3"
            data-hint="Look for two numbers with the right product and the right sum.">
         <div class="ex-q">
           <p>Solve $x^2 - 5x + 6 = 0$. What is the larger root?</p>

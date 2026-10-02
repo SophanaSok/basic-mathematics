@@ -5,6 +5,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>14. Complex Numbers — Basic Mathematics</title>
 <meta name="description" content="Arithmetic with i, the complex plane, absolute value, and polar form where multiplication becomes rotation.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400;1,6..72,500&display=swap">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.11/katex.min.css">
 <link rel="icon" href="../../assets/favicon.svg" type="image/svg+xml">
 <link rel="stylesheet" href="../../assets/site.css">
@@ -13,6 +16,9 @@
 <script defer src="../../data/curriculum.js"></script>
 <script defer src="../../assets/widgets.js"></script>
 <script defer src="../../assets/site.js"></script>
+<script defer src="../../assets/lesson.js"></script>
+<script defer src="../../assets/config.js"></script>
+<script defer src="../../assets/account.js"></script>
 </head>
 <body data-depth="2" data-chapter="ch14">
 <a class="skip-link" href="#main">Skip to content</a>
@@ -22,7 +28,7 @@
   <nav>
     <a href="../../index.html">Contents</a>
     <a href="../../about.html">How to use this</a>
-    <button class="icon-btn" type="button" data-theme-toggle>☾ Dark</button>
+    <button class="icon-btn" type="button" data-theme-toggle aria-label="Switch between light and dark">☾</button>
   </nav>
 </header>
 
@@ -286,6 +292,16 @@
       </div>
     </div>
 
+    <div class="ex" data-inline id="k1" data-label="Section check" data-type="blank" data-hint="Multiply out all four products, then use i² = −1.">
+      <div class="ex-q">
+        <p>$(2 + 3i)(1 - i) = {}$ <span class="blank" data-answer="5"></span> $+$ <span class="blank" data-answer="1"></span> $i$.</p>
+      </div>
+      <div class="ex-solution">
+        <p class="answer">Answer: $5 + i$</p>
+        <p>$2 - 2i + 3i - 3i^2 = 2 + i + 3 = 5 + i$.</p>
+      </div>
+    </div>
+
     <h2 id="complex-plane">14.2 The complex plane</h2>
     <p>
       A complex number is determined by two real numbers, so it is naturally a point: plot $a+bi$ at
@@ -328,6 +344,16 @@
       absolute value. And the multiplicative property $|zw| = |z||w|$ holds, which is much less
       obvious — §14.3 makes it clear.
     </p>
+
+    <div class="ex" data-inline id="k2" data-label="Section check" data-type="blank" data-hint="The absolute value is the distance from the origin: Pythagoras.">
+      <div class="ex-q">
+        <p>$|3 + 4i| = {}$ <span class="blank" data-answer="5"></span> and $|{-5} + 12i| = {}$ <span class="blank" data-answer="13"></span>.</p>
+      </div>
+      <div class="ex-solution">
+        <p class="answer">Answer: $5$ and $13$</p>
+        <p>$\sqrt{9 + 16} = 5$ and $\sqrt{25 + 144} = 13$.</p>
+      </div>
+    </div>
 
     <h2 id="polar">14.3 Polar form</h2>
     <details class="reveal">
@@ -498,7 +524,7 @@
         Write complex numbers in the form <code>3+2i</code> or <code>3-2i</code>, with no spaces.
       </p>
 
-      <div class="ex" data-answer="7+i|7+1i"
+      <div class="ex" data-section="complex-arith" data-answer="7+i|7+1i"
            data-placeholder="e.g. 3+2i"
            data-hint="Add real parts and imaginary parts separately.">
         <div class="ex-q"><p>Compute $(4+5i) + (3-4i)$.</p></div>
@@ -511,7 +537,7 @@
         </div>
       </div>
 
-      <div class="ex" data-answer="14+2i"
+      <div class="ex" data-section="complex-arith" data-answer="14+2i"
            data-placeholder="e.g. 3+2i"
            data-hint="Expand, then replace i² by −1."
            data-hint2="6 − 6i + 8i − 8i². What is −8i²?">
@@ -530,7 +556,7 @@
         </div>
       </div>
 
-      <div class="ex" data-type="number" data-answer="13"
+      <div class="ex" data-section="complex-plane" data-type="number" data-answer="13"
            data-hint="|z| = √(a² + b²).">
         <div class="ex-q"><p>What is $|5 - 12i|$?</p></div>
         <div class="ex-solution">
@@ -542,7 +568,7 @@
         </div>
       </div>
 
-      <div class="ex" data-answer="2-7i"
+      <div class="ex" data-section="complex-arith" data-answer="2-7i"
            data-placeholder="e.g. 3-2i"
            data-hint="The conjugate flips the sign of the imaginary part.">
         <div class="ex-q"><p>What is the conjugate of $2 + 7i$?</p></div>
@@ -555,7 +581,7 @@
         </div>
       </div>
 
-      <div class="ex" data-type="number" data-answer="-1"
+      <div class="ex" data-section="complex-arith" data-type="number" data-answer="-1"
            data-hint="i² = −1, and the powers of i repeat with period 4.">
         <div class="ex-q"><p>What is $i^{6}$?</p></div>
         <div class="ex-solution">
@@ -568,7 +594,7 @@
         </div>
       </div>
 
-      <div class="ex" data-answer="3"
+      <div class="ex" data-section="polar" data-answer="3"
            data-hint="What does multiplying by a number of absolute value 1 do?">
         <div class="ex-q">
           <p>Multiplying a complex number by $i$ does what to its plot in the plane?</p>
@@ -588,7 +614,7 @@
         </div>
       </div>
 
-      <div class="ex" data-type="set" data-answer="3,-3"
+      <div class="ex" data-section="complex-arith" data-type="set" data-answer="3,-3"
            data-placeholder="e.g. 3,-3"
            data-hint="Write them as real numbers times i — then give the two coefficients.">
         <div class="ex-q">
@@ -605,7 +631,7 @@
         </div>
       </div>
 
-      <div class="ex" data-type="number" data-answer="5"
+      <div class="ex" data-section="complex-plane" data-type="number" data-answer="5"
            data-hint="|z − w| is the distance between the two points."
            data-hint2="The difference is 3 + 4i.">
         <div class="ex-q">
@@ -620,7 +646,7 @@
         </div>
       </div>
 
-      <div class="ex" data-type="number" data-answer="8"
+      <div class="ex" data-section="polar" data-type="number" data-answer="8"
            data-hint="Use |zw| = |z||w| — you do not need to multiply them out.">
         <div class="ex-q">
           <p>If $|z| = 2$ and $|w| = 4$, what is $|zw|$?</p>
@@ -635,7 +661,7 @@
         </div>
       </div>
 
-      <div class="ex" data-type="number" data-answer="4"
+      <div class="ex" data-section="polar" data-type="number" data-answer="4"
            data-hint="The nth roots of a number are evenly spaced around a circle.">
         <div class="ex-q">
           <p>How many complex solutions does $z^4 = 1$ have?</p>

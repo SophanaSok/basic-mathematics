@@ -5,6 +5,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>3. Real Numbers — Basic Mathematics</title>
 <meta name="description" content="Positivity and order, inequalities, absolute value as distance, and powers and roots — the properties the whole real line runs on.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400;1,6..72,500&display=swap">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.11/katex.min.css">
 <link rel="icon" href="../../assets/favicon.svg" type="image/svg+xml">
 <link rel="stylesheet" href="../../assets/site.css">
@@ -13,6 +16,9 @@
 <script defer src="../../data/curriculum.js"></script>
 <script defer src="../../assets/widgets.js"></script>
 <script defer src="../../assets/site.js"></script>
+<script defer src="../../assets/lesson.js"></script>
+<script defer src="../../assets/config.js"></script>
+<script defer src="../../assets/account.js"></script>
 </head>
 <body data-depth="2" data-chapter="ch03">
 <a class="skip-link" href="#main">Skip to content</a>
@@ -22,7 +28,7 @@
   <nav>
     <a href="../../index.html">Contents</a>
     <a href="../../about.html">How to use this</a>
-    <button class="icon-btn" type="button" data-theme-toggle>☾ Dark</button>
+    <button class="icon-btn" type="button" data-theme-toggle aria-label="Switch between light and dark">☾</button>
   </nav>
 </header>
 
@@ -390,6 +396,22 @@
       </div>
     </div>
 
+    <div class="ex" data-inline id="k1" data-label="Section check" data-type="multi" data-answer="1,2,4" data-hint="Only one kind of move reverses an inequality.">
+      <div class="ex-q">
+        <p>Which of these moves keep an inequality pointing the same way? Choose every one that does.</p>
+      </div>
+      <ul class="choices">
+        <li>Adding $-5$ to both sides.</li>
+        <li>Multiplying both sides by $3$.</li>
+        <li>Multiplying both sides by $-2$.</li>
+        <li>Subtracting the same number from both sides.</li>
+      </ul>
+      <div class="ex-solution">
+        <p class="answer">Answer: all except multiplying by $-2$</p>
+        <p>Adding or subtracting anything is safe, and so is multiplying by a positive number. Multiplying by a negative number reverses the order: $1 &lt; 2$ but $-2 &gt; -4$.</p>
+      </div>
+    </div>
+
     <h2 id="absolute">3.4 Absolute value and distance</h2>
     <p>
       The <b>absolute value</b> of $a$ is
@@ -676,6 +698,16 @@
       </div>
     </div>
 
+    <div class="ex" data-inline id="k2" data-label="Section check" data-type="blank" data-hint="Multiplying powers of the same base adds exponents; a power of a power multiplies them.">
+      <div class="ex-q">
+        <p>Fill in the exponents: $2^3 \cdot 2^4$ is $2$ to the power <span class="blank" data-answer="7"></span>, and $(2^3)^4$ is $2$ to the power <span class="blank" data-answer="12"></span>.</p>
+      </div>
+      <div class="ex-solution">
+        <p class="answer">Answer: $2^7$ and $2^{12}$</p>
+        <p>$2^3 \cdot 2^4$ is three $2$s times four $2$s: seven in all. $(2^3)^4$ is four copies of three $2$s: twelve.</p>
+      </div>
+    </div>
+
     <!-- ====================================================== practice ==== -->
     <section class="practice" id="practice">
       <div class="practice-head">
@@ -683,7 +715,7 @@
         <span class="practice-score" data-practice-score></span>
       </div>
 
-      <div class="ex" data-type="number" data-answer="8"
+      <div class="ex" data-section="absolute" data-type="number" data-answer="8"
            data-hint="|a − b| is the distance between a and b, and distance is never negative.">
         <div class="ex-q"><p>Compute $|{-3} - 5|$.</p></div>
         <div class="ex-solution">
@@ -695,7 +727,7 @@
         </div>
       </div>
 
-      <div class="ex" data-answer="3"
+      <div class="ex" data-section="order" data-answer="3"
            data-hint="Which direction does the inequality go when you divide by a negative number?">
         <div class="ex-q"><p>Solve $-2x + 1 &gt; 7$.</p></div>
         <ul class="choices">
@@ -714,7 +746,7 @@
         </div>
       </div>
 
-      <div class="ex" data-type="set" data-answer="-1,7"
+      <div class="ex" data-section="absolute" data-type="set" data-answer="-1,7"
            data-placeholder="e.g. -1,7"
            data-hint="Read it as: the distance from x to 3 is exactly 4."
            data-hint2="Go 4 to the right of 3, and 4 to the left of 3.">
@@ -734,7 +766,7 @@
         </div>
       </div>
 
-      <div class="ex" data-answer="2"
+      <div class="ex" data-section="absolute" data-answer="2"
            data-hint="Rewrite it as a statement about the distance from x to 2.">
         <div class="ex-q"><p>Which interval is the solution set of $|x - 2| \le 5$?</p></div>
         <ul class="choices">
@@ -756,7 +788,7 @@
         </div>
       </div>
 
-      <div class="ex" data-type="number" data-answer="1/8|0.125"
+      <div class="ex" data-section="powers" data-type="number" data-answer="1/8|0.125"
            data-hint="A negative exponent means a reciprocal; a fractional one means a root."
            data-hint2="Start with 4^(3/2) = (√4)³, then take the reciprocal.">
         <div class="ex-q"><p>Compute $4^{-3/2}$.</p></div>
@@ -771,7 +803,7 @@
         </div>
       </div>
 
-      <div class="ex" data-type="number" data-answer="9"
+      <div class="ex" data-section="powers" data-type="number" data-answer="9"
            data-hint="Write 27 as a power of 3 first.">
         <div class="ex-q"><p>Compute $27^{2/3}$.</p></div>
         <div class="ex-solution">
@@ -783,7 +815,7 @@
         </div>
       </div>
 
-      <div class="ex" data-type="expr" data-answer="|x|" data-placeholder="e.g. |x|"
+      <div class="ex" data-section="absolute" data-type="expr" data-answer="|x|" data-placeholder="e.g. |x|"
            data-hint="Try x = -5 and see which answers survive.">
         <div class="ex-q">
           <p>
@@ -821,7 +853,7 @@
         </div>
       </div>
 
-      <div class="ex" data-type="number" data-answer="-1"
+      <div class="ex" data-section="order" data-type="number" data-answer="-1"
            data-hint="Every square is ≥ 0. What is the smallest that (x+1)² can be?"
            data-hint2="(x + 1)² is smallest when it equals 0. Which x does that?">
         <div class="ex-q">
@@ -844,7 +876,7 @@
         </div>
       </div>
 
-      <div class="ex" data-answer="2"
+      <div class="ex" data-section="order" data-answer="2"
            data-hint="Which step assumed something about the sign of the multiplier?">
         <div class="ex-q">
           <p>

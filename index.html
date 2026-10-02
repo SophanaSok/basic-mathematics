@@ -5,6 +5,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Basic Mathematics — a course from the ground up</title>
 <meta name="description" content="A complete course in basic mathematics: algebra from first principles, intuitive geometry, coordinate geometry, trigonometry, functions, complex numbers, induction, and determinants.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400;1,6..72,500&display=swap">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.11/katex.min.css">
 <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
 <link rel="stylesheet" href="assets/site.css">
@@ -13,6 +16,8 @@
 <script defer src="data/curriculum.js"></script>
 <script defer src="assets/widgets.js"></script>
 <script defer src="assets/site.js"></script>
+<script defer src="assets/config.js"></script>
+<script defer src="assets/account.js"></script>
 </head>
 <body data-depth="0">
 <a class="skip-link" href="#main">Skip to content</a>
@@ -21,7 +26,7 @@
   <a class="brand" href="index.html"><span class="glyph">∑</span> Basic Mathematics</a>
   <nav>
     <a href="about.html">How to use this</a>
-    <button class="icon-btn" type="button" data-theme-toggle>☾ Dark</button>
+    <button class="icon-btn" type="button" data-theme-toggle aria-label="Switch between light and dark">☾</button>
   </nav>
 </header>
 
@@ -43,6 +48,7 @@
       </p>
       <p class="actions">
         <a class="btn" href="parts/1-algebra/01-numbers.html" data-continue>Start with Chapter 1 →</a>
+        <a class="btn ghost" href="progress.html">Your progress</a>
         <a class="btn ghost" href="about.html">How to study this</a>
       </p>
       <p class="practice-score" data-course-stats style="margin-top:1.5rem"></p>
@@ -52,8 +58,9 @@
 
     <footer class="site full">
       <p>
-        <b>Progress</b> is stored in this browser only — no account, no server. Clearing your
-        browser data clears it. You can reset it deliberately on the <a href="about.html">how to
+        <b>Progress</b> is saved in this browser, and nothing is sent anywhere unless you choose
+        to <a href="account.html">sign in</a>, which keeps it across devices. See
+        <a href="progress.html">your progress</a>, or reset it on the <a href="about.html">how to
         use this</a> page.
       </p>
       <p>
