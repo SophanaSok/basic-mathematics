@@ -39,6 +39,20 @@
       question of when something can be undone.
     </p>
 
+    <div class="puzzle" id="puzzle">
+      <span class="tag">A puzzle to carry through the chapter</span>
+      <p>
+        A hotel has rooms numbered $1, 2, 3, \dots$ without end, and every single room is occupied.
+        A new guest arrives. Can the hotel give them a room of their own without sending anyone
+        away?
+      </p>
+      <ul class="guess">
+        <li>No — full means full</li>
+        <li>Yes</li>
+      </ul>
+      <p class="puzzle-after">With a hundred rooms the answer is obvious. Decide whether infinitely many rooms changes anything.</p>
+    </div>
+
     <div class="goal">
       <strong>By the end of this chapter you can</strong>
       state what a mapping between two sets is and distinguish codomain from image, compose
@@ -47,15 +61,77 @@
       a finite set.
     </div>
 
-    <div class="callout aside">
-      <span class="tag">Before you start</span>
+    <section class="warmup" id="warmup">
+      <div class="callout aside">
+        <span class="tag">Before you start</span>
+        <p>
+          You should be comfortable with <a href="12-functions.html#definition-fn">what a function
+          is</a> (Chapter 12) — a mapping is that same definition with the word "numbers" removed. The
+          <a href="../2-geometry/06-isometries.html#symmetry">symmetries of Chapter 6</a> are the
+          running example.
+        </p>
+      </div>
+
       <p>
-        You should be comfortable with <a href="12-functions.html#definition-fn">what a function
-        is</a> (Chapter 12) — a mapping is that same definition with the word "numbers" removed. The
-        <a href="../2-geometry/06-isometries.html#symmetry">symmetries of Chapter 6</a> are the
-        running example.
+        Three quick ones from earlier chapters, to wake up what this chapter stands on. They are
+        not scored. If one will not come, its solution says where to look.
       </p>
-    </div>
+
+      <div class="ex" data-inline id="w1" data-label="Warm-up 1" data-type="number" data-answer="3"
+           data-hint="Substitute, and mind the square of a negative.">
+        <div class="ex-q">
+          <p>
+            If $f(x) = x^2 - 1$, what is $f(-2)$?
+          </p>
+        </div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $3$</p>
+          <p>
+            $(-2)^2 - 1 = 4 - 1 = 3$ — <a href="12-functions.html#definition-fn">§12.1</a>. Notice
+            that $f(2) = 3$ too: two inputs, one output. This chapter gives that a name.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" data-inline id="w2" data-label="Warm-up 2" data-answer="2"
+           data-hint="Where does the formula fail to make sense?">
+        <div class="ex-q">
+          <p>
+            What is the natural domain of $f(x) = \dfrac{1}{x + 3}$?
+          </p>
+        </div>
+        <ul class="choices">
+          <li>All real numbers.</li>
+          <li>All real numbers except $-3$.</li>
+          <li>$x &gt; -3$.</li>
+        </ul>
+        <div class="ex-solution">
+          <p class="answer">Answer: all real numbers except $-3$</p>
+          <p>
+            Only $x = -3$ makes the denominator zero — <a
+            href="12-functions.html#definition-fn">§12.1</a>. The domain is part of the function, and
+            in this chapter so is the codomain.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" data-inline id="w3" data-label="Warm-up 3" data-type="number" data-answer="8"
+           data-hint="Rotations and reflections.">
+        <div class="ex-q">
+          <p>
+            How many symmetries does a square have?
+          </p>
+        </div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $8$</p>
+          <p>
+            Four rotations and four reflections — <a
+            href="../2-geometry/06-isometries.html#symmetry">§6.3</a>. Each one rearranges the four
+            corners; §13.3 calls such a rearrangement a permutation.
+          </p>
+        </div>
+      </div>
+    </section>
 
     <h2 id="definition-map">13.1 Definition of a mapping</h2>
 
@@ -96,6 +172,26 @@
       </figcaption>
     </figure>
 
+    <div class="ex" data-inline id="t1" data-answer="2"
+         data-hint="Is there any real x with x² + 1 = 0?">
+      <div class="ex-q">
+        <p>
+          Let $f: \mathbf{R} \to \mathbf{R}$ be $f(x) = x^2 + 1$. Is $0$ in the image of $f$?
+        </p>
+      </div>
+      <ul class="choices">
+        <li>Yes — $0$ is a real number.</li>
+        <li>No — no input is sent to it.</li>
+      </ul>
+      <div class="ex-solution">
+        <p class="answer">Answer: no</p>
+        <p>
+          $x^2 \ge 0$ for every real $x$, so $x^2 + 1 \ge 1$ and never equals $0$. The number $0$ is
+          in the codomain — it is a real number — but not in the image, which is $[1, \infty)$.
+        </p>
+      </div>
+    </div>
+
     <h2 id="formalism">13.2 Composition and inverses</h2>
     <p>
       Given $f: S \to T$ and $g: T \to U$, the <b>composite</b> $g \circ f : S \to U$ is defined by
@@ -120,6 +216,26 @@
           $T$.</li>
         <li>$f$ is <b>bijective</b> if it is both.</li>
       </ul>
+    </div>
+
+    <div class="ex" data-inline id="t2" data-answer="2"
+         data-hint="Three arrows, two places to land.">
+      <div class="ex-q">
+        <p>
+          Can a mapping from $\{1, 2, 3\}$ to $\{a, b\}$ be injective?
+        </p>
+      </div>
+      <ul class="choices">
+        <li>Yes.</li>
+        <li>No.</li>
+      </ul>
+      <div class="ex-solution">
+        <p class="answer">Answer: no</p>
+        <p>
+          Three inputs need three different outputs, and only two are available, so two arrows must
+          share a target. (It <em>can</em> be surjective: send $1 \to a$ and $2, 3 \to b$.)
+        </p>
+      </div>
     </div>
 
     <p>
@@ -169,6 +285,57 @@
       $y$ is hit by $f^{-1}(y)$, so $f$ is surjective. $\blacksquare$
     </p>
 
+    <div class="worked">
+      <h4><span class="num">Your turn, with help.</span> Finding an inverse</h4>
+      <div class="body">
+        <p>
+          Find the inverse of $f(x) = 3x - 5$, as a mapping from $\mathbf{R}$ to $\mathbf{R}$. Try
+          each step before opening it.
+        </p>
+        <ol class="steps">
+          <li>Give the output a name: $y = 3x - 5$. Undoing $f$ means recovering $x$ from $y$.</li>
+          <li>
+            <details class="reveal">
+              <summary>Solve for $x$</summary>
+              <p>
+                Add $5$: $y + 5 = 3x$. Multiply by $\tfrac13$: $x = \dfrac{y + 5}{3}$.
+              </p>
+            </details>
+          </li>
+          <li>
+            <details class="reveal">
+              <summary>State the inverse and check it</summary>
+              <p>
+                $f^{-1}(y) = \dfrac{y+5}{3}$. Check: $f^{-1}(f(x)) = \dfrac{(3x - 5) + 5}{3} = x$ ✓
+                and $f(f^{-1}(y)) = 3 \cdot \dfrac{y+5}{3} - 5 = y$ ✓. $\blacksquare$
+              </p>
+            </details>
+          </li>
+        </ol>
+        <p class="note">
+          Every $y$ produced exactly one $x$ — that is the bijection showing itself. Try the same
+          with $f(x) = x^2$ and the step "solve for $x$" gives two answers or none, which is the
+          failure of injectivity and of surjectivity, in that order.
+        </p>
+      </div>
+    </div>
+
+    <div class="ex" data-inline id="t3" data-type="number" data-answer="3"
+         data-hint="Which input does g send to 7?">
+      <div class="ex-q">
+        <p>
+          Let $g(x) = 2x + 1$ on the real numbers. What is $g^{-1}(7)$?
+        </p>
+      </div>
+      <div class="ex-solution">
+        <p class="answer">Answer: $3$</p>
+        <p>
+          $g^{-1}(7)$ is the number $x$ with $2x + 1 = 7$, so $x = 3$. You do not need a formula for
+          $g^{-1}$ to evaluate it once: just solve $g(x) = 7$.
+        </p>
+      </div>
+    </div>
+
     <div class="callout idea">
       <span class="tag">Where you have already met this</span>
       <p>
@@ -199,6 +366,14 @@
       injective but misses $1$.)
     </p>
 
+    <details class="reveal">
+      <summary><span class="ask">In how many different orders can three people — say A, B and C — stand in a queue? List them all before you answer.</span>List them, then open</summary>
+      <p>
+        Six: ABC, ACB, BAC, BCA, CAB, CBA. Three choices for the front, then two for the middle,
+        then one left over: $3 \cdot 2 \cdot 1$. The example below is that count for $n$ people.
+      </p>
+    </details>
+
     <div class="worked">
       <h4><span class="num">Example 2.</span> Counting permutations</h4>
       <div class="body">
@@ -213,6 +388,22 @@
             For $n=5$ that is $120$; for a deck of $52$ cards it is a number with $68$ digits.
             $\blacksquare$</li>
         </ol>
+      </div>
+    </div>
+
+    <div class="ex" data-inline id="t4" data-type="number" data-answer="24"
+         data-hint="n factorial.">
+      <div class="ex-q">
+        <p>
+          How many permutations does a set of $4$ elements have?
+        </p>
+      </div>
+      <div class="ex-solution">
+        <p class="answer">Answer: $24$</p>
+        <p>
+          $4! = 4 \cdot 3 \cdot 2 \cdot 1 = 24$ — four times as many as for three elements, since
+          the new element can be placed first in $4$ ways.
+        </p>
       </div>
     </div>
 
@@ -243,6 +434,24 @@
         <p class="note">
           Both results are swaps, but of different pairs. Order matters, and the only reliable way
           to get it right is to track one element at a time, out loud.
+        </p>
+      </div>
+    </div>
+
+    <div class="ex" data-inline id="t5" data-type="number" data-answer="3"
+         data-hint="Apply σ, then apply it again to the result.">
+      <div class="ex-q">
+        <p>
+          With $\sigma$ as in Example 3 ($1 \to 2$, $2 \to 3$, $3 \to 1$), where does
+          $\sigma \circ \sigma$ send $1$?
+        </p>
+      </div>
+      <div class="ex-solution">
+        <p class="answer">Answer: $3$</p>
+        <p>
+          $1 \xrightarrow{\sigma} 2 \xrightarrow{\sigma} 3$. Doing the same for the others:
+          $2 \to 1$ and $3 \to 2$. Apply $\sigma$ a third time and everything is back where it
+          started — $\sigma$ is a rotation of three objects, like a third of a turn.
         </p>
       </div>
     </div>
@@ -312,7 +521,8 @@
       </div>
 
       <div class="ex" data-type="number" data-answer="3"
-           data-hint="Work out f(1) first, then apply g to the result.">
+           data-hint="Work out f(1) first, then apply g to the result."
+           data-hint2="f(1) = 3. Now compute g(3).">
         <div class="ex-q">
           <p>
             Let $f(x) = x + 2$ and $g(x) = x^2 - 6$. What is $(g\circ f)(1)$?
@@ -402,7 +612,8 @@
       </div>
 
       <div class="ex" data-type="number" data-answer="0"
-           data-hint="Can 5 arrows land on 4 targets without two sharing?">
+           data-hint="Can 5 arrows land on 4 targets without two sharing?"
+           data-hint2="Injective needs 5 different outputs. How many outputs are available?">
         <div class="ex-q">
           <p>
             How many injective mappings are there from a set of $5$ elements to a set of $4$?
@@ -472,6 +683,16 @@
 
     <div class="recap">
       <h2>Recap</h2>
+      <div class="puzzle-answer">
+        <span class="tag">Back to the puzzle</span>
+        <p data-your-guess></p>
+        <p>
+          <b>Yes.</b> Ask every guest to move up one room: $n \mapsto n + 1$. No two guests collide,
+          so the mapping is injective — and room $1$ is now empty, so it is not surjective. On a
+          <em>finite</em> set that cannot happen: injective forces surjective (§13.3), which is why
+          a full hundred-room hotel really is full. The infinite hotel is where that rule breaks.
+        </p>
+      </div>
       <ul>
         <li>A mapping $f: S\to T$ gives each element of $S$ exactly one element of $T$; the image is
           what it actually hits, which may be smaller than the codomain.</li>

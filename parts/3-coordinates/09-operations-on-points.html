@@ -39,6 +39,21 @@
       between them they carry most of the rest of this part.
     </p>
 
+    <div class="puzzle" id="puzzle">
+      <span class="tag">A puzzle to carry through the chapter</span>
+      <p>
+        Three corners of a parallelogram are at $(0,0)$, $(5,1)$ and $(2,4)$. Where is the fourth
+        corner?
+      </p>
+      <ul class="guess">
+        <li>$(7,5)$</li>
+        <li>$(-3,3)$</li>
+        <li>$(3,-3)$</li>
+        <li>There is more than one right answer</li>
+      </ul>
+      <p class="puzzle-after">Sketch it before you choose. Then sketch it again.</p>
+    </div>
+
     <div class="goal">
       <strong>By the end of this chapter you can</strong>
       compute $tP$, $P + Q$ and $Q - P$ in coordinates and say what each does geometrically, use the
@@ -47,16 +62,73 @@
       the same displacement.
     </div>
 
-    <div class="callout aside">
-      <span class="tag">Before you start</span>
+    <section class="warmup" id="warmup">
+      <div class="callout aside">
+        <span class="tag">Before you start</span>
+        <p>
+          You should be comfortable with <a href="08-coordinates.html#coord-systems">coordinates</a>
+          (Chapter 8), with <a href="../2-geometry/06-isometries.html#mappings-plane">the standard
+          mappings of the plane</a> (Chapter 6), and with
+          <a href="../2-geometry/07-area.html#scaling">scaling</a> (Chapter 7). This chapter does those
+          same motions in arithmetic.
+        </p>
+      </div>
+
       <p>
-        You should be comfortable with <a href="08-coordinates.html#coord-systems">coordinates</a>
-        (Chapter 8), with <a href="../2-geometry/06-isometries.html#mappings-plane">the standard
-        mappings of the plane</a> (Chapter 6), and with
-        <a href="../2-geometry/07-area.html#scaling">scaling</a> (Chapter 7). This chapter does those
-        same motions in arithmetic.
+        Three quick ones from earlier chapters, to wake up what this chapter stands on. They are
+        not scored. If one will not come, its solution says where to look.
       </p>
-    </div>
+
+      <div class="ex" data-inline id="w1" data-label="Warm-up 1" data-type="number" data-answer="5"
+           data-hint="The distance formula, with one of the points at (0, 0).">
+        <div class="ex-q">
+          <p>
+            How far is the point $(3,4)$ from the origin?
+          </p>
+        </div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $5$</p>
+          <p>
+            $\sqrt{3^2 + 4^2} = 5$ — <a href="08-coordinates.html#distance-formula">§8.2</a>. The
+            length of an arrow in this chapter is computed the same way.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" data-inline id="w2" data-label="Warm-up 2" data-answer="(2,7)|2,7"
+           data-placeholder="e.g. (3,-2)"
+           data-hint="Which coordinate does that reflection leave alone?">
+        <div class="ex-q">
+          <p>
+            Reflect the point $(2,-7)$ in the $x$-axis. Where does it go?
+          </p>
+        </div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $(2,7)$</p>
+          <p>
+            $(x,y) \mapsto (x,-y)$, so $(2,-7) \mapsto (2,7)$ — <a
+            href="../2-geometry/06-isometries.html#mappings-plane">§6.1</a>.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" data-inline id="w3" data-label="Warm-up 3" data-type="number" data-answer="4"
+           data-hint="Lengths by r, areas by —?">
+        <div class="ex-q">
+          <p>
+            Every length in a figure is doubled. By what factor is its area multiplied?
+          </p>
+        </div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $4$</p>
+          <p>
+            Area scales by $r^2 = 4$ — the scaling law of <a
+            href="../2-geometry/07-area.html#scaling">§7.2</a>, which Example 1 below confirms in
+            coordinates.
+          </p>
+        </div>
+      </div>
+    </section>
 
     <h2 id="dilations">9.1 Dilations and reflections</h2>
     <p>
@@ -106,6 +178,23 @@
       </div>
     </div>
 
+    <div class="ex" data-inline id="t1" data-answer="(-1,3)|-1,3"
+         data-placeholder="e.g. (3,-2)"
+         data-hint="Multiply both coordinates by ½.">
+      <div class="ex-q">
+        <p>
+          With $P = (-2, 6)$, compute $\tfrac12 P$.
+        </p>
+      </div>
+      <div class="ex-solution">
+        <p class="answer">Answer: $(-1,3)$</p>
+        <p>
+          $\tfrac12 P = \left(\tfrac12 \cdot (-2),\; \tfrac12 \cdot 6\right) = (-1, 3)$: on the same
+          line through the origin as $P$, on the same side, half as far out.
+        </p>
+      </div>
+    </div>
+
     <h2 id="addition-points">9.2 Addition and the parallelogram law</h2>
     <p>
       The second operation adds two points coordinate by coordinate. For $P = (x_1,y_1)$ and
@@ -116,6 +205,15 @@
       This is defined by fiat, and the definition looks unmotivated until you draw it. Then the
       picture is unmistakable.
     </p>
+
+    <details class="reveal">
+      <summary><span class="ask">On squared paper, plot $O = (0,0)$, $P = (3,1)$, $Q = (1,2)$, and the point $P + Q = (4,3)$. Join them up in the order $O, P, P+Q, Q$. What shape do you get?</span>Plot it, then open</summary>
+      <p>
+        A parallelogram, with the sum sitting diagonally opposite the origin. The side from $Q$ to
+        $P + Q$ goes $3$ across and $1$ up — the same journey as from $O$ to $P$. That is not luck,
+        and the rule below says it always happens.
+      </p>
+    </details>
 
     <div class="rule">
       <span class="tag">The parallelogram law</span>
@@ -152,6 +250,22 @@
         the other pair of sides, and a quadrilateral with both pairs of opposite sides parallel is a
         parallelogram. $\blacksquare$
       </p>
+    </div>
+
+    <div class="ex" data-inline id="t2" data-answer="(4,3)|4,3"
+         data-placeholder="e.g. (3,-2)"
+         data-hint="Add the first coordinates, then the second coordinates.">
+      <div class="ex-q">
+        <p>
+          With $A = (1,4)$ and $B = (3,-1)$, compute $A + B$.
+        </p>
+      </div>
+      <div class="ex-solution">
+        <p class="answer">Answer: $(4,3)$</p>
+        <p>
+          $(1 + 3,\; 4 + (-1)) = (4, 3)$ — the fourth corner of the parallelogram on $O$, $A$, $B$.
+        </p>
+      </div>
     </div>
 
     <div class="worked">
@@ -219,6 +333,23 @@
       </p>
     </div>
 
+    <div class="ex" data-inline id="t3" data-answer="(5,-4)|5,-4"
+         data-placeholder="e.g. (3,-2)"
+         data-hint="The displacement from P to Q is Q − P. Mind the order.">
+      <div class="ex-q">
+        <p>
+          What is the displacement from $P = (2,5)$ to $Q = (7,1)$?
+        </p>
+      </div>
+      <div class="ex-solution">
+        <p class="answer">Answer: $(5,-4)$</p>
+        <p>
+          $Q - P = (7 - 2,\; 1 - 5) = (5,-4)$: five to the right and four down. Subtracting the
+          other way round gives $(-5,4)$, the journey back.
+        </p>
+      </div>
+    </div>
+
     <div class="worked">
       <h4><span class="num">Example 3.</span> Same displacement, different places</h4>
       <div class="body">
@@ -241,6 +372,40 @@
     </div>
 
     <div class="worked">
+      <h4><span class="num">Your turn, with help.</span> A parallelogram test</h4>
+      <div class="body">
+        <p>
+          Is $ABCD$ a parallelogram, where $A = (1,1)$, $B = (5,2)$, $C = (7,6)$, $D = (3,5)$? Try
+          each step before opening it.
+        </p>
+        <ol class="steps">
+          <li>The side from $A$ to $B$ is the displacement $B - A = (4, 1)$.</li>
+          <li>
+            <details class="reveal">
+              <summary>Find the displacement along the opposite side, from $D$ to $C$</summary>
+              <p>
+                $C - D = (7 - 3,\; 6 - 5) = (4, 1)$.
+              </p>
+            </details>
+          </li>
+          <li>
+            <details class="reveal">
+              <summary>Draw the conclusion</summary>
+              <p>
+                The two displacements are equal, so $AB$ and $DC$ are parallel and equally long. A
+                quadrilateral with one pair of opposite sides both parallel and equal is a
+                parallelogram. $\blacksquare$
+              </p>
+            </details>
+          </li>
+        </ol>
+        <p class="note">
+          One subtraction per side, and no slopes or lengths needed.
+        </p>
+      </div>
+    </div>
+
+    <div class="worked">
       <h4><span class="num">Example 4.</span> The midpoint, properly derived</h4>
       <div class="body">
         <p>Find the midpoint $M$ of the segment from $P$ to $Q$.</p>
@@ -257,6 +422,23 @@
           The step $P + \tfrac12 Q - \tfrac12 P = \tfrac12 P + \tfrac12 Q$ used commutativity and
           distributivity for points — which hold because they hold coordinate by coordinate for
           numbers. Chapter 1 is still doing the work.
+        </p>
+      </div>
+    </div>
+
+    <div class="ex" data-inline id="t4" data-answer="(-1,3)|-1,3"
+         data-placeholder="e.g. (3,-2)"
+         data-hint="Average the coordinates.">
+      <div class="ex-q">
+        <p>
+          What is the midpoint of the segment from $(4,-2)$ to $(-6,8)$?
+        </p>
+      </div>
+      <div class="ex-solution">
+        <p class="answer">Answer: $(-1,3)$</p>
+        <p>
+          $\left(\frac{4 + (-6)}{2},\; \frac{-2 + 8}{2}\right) = (-1, 3)$. Or travel half the
+          displacement $(-10, 10)$ from the first point: $(4,-2) + (-5,5) = (-1,3)$ ✓.
         </p>
       </div>
     </div>
@@ -332,7 +514,8 @@
       </div>
 
       <div class="ex" data-answer="1"
-           data-hint="Compute Q − P for each pair and compare.">
+           data-hint="Compute Q − P for each pair and compare."
+           data-hint2="B − A = (2, 5). What is D − C?">
         <div class="ex-q">
           <p>
             Let $A=(0,0)$, $B=(2,5)$, $C=(6,1)$, $D=(8,6)$. Is $\overrightarrow{AB}$ equivalent to
@@ -434,7 +617,8 @@
 
       <div class="ex" data-answer="(4,6)|4,6"
            data-placeholder="e.g. (3,-2)"
-           data-hint="M is the midpoint of P and Q, so Q = 2M − P.">
+           data-hint="M is the midpoint of P and Q, so Q = 2M − P."
+           data-hint2="2M = (2, 7). Now subtract P = (−2, 1).">
         <div class="ex-q">
           <p>
             The midpoint of the segment from $P = (-2,1)$ to $Q$ is $(1, 3.5)$. What is $Q$?
@@ -456,6 +640,17 @@
 
     <div class="recap">
       <h2>Recap</h2>
+      <div class="puzzle-answer">
+        <span class="tag">Back to the puzzle</span>
+        <p data-your-guess></p>
+        <p>
+          <b>All three points are right</b> — so the honest answer is the last one. Any of the three
+          given corners can be the one opposite the gap, and each choice gives a different
+          parallelogram: $P + Q = (7,5)$, $\;O + Q - P = (-3,3)$, and $O + P - Q = (3,-3)$ (Example
+          2). The question only has one answer once you say which corner the missing one is
+          opposite.
+        </p>
+      </div>
       <ul>
         <li>$tP = (tx,ty)$ keeps $P$ on its line through the origin, scaling its distance by $|t|$
           and flipping sides when $t &lt; 0$.</li>

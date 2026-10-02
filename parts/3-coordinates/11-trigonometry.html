@@ -40,6 +40,20 @@
       from.
     </p>
 
+    <div class="puzzle" id="puzzle">
+      <span class="tag">A puzzle to carry through the chapter</span>
+      <p>
+        $\sin 30° = \tfrac12$. So what is $\sin 150°$?
+      </p>
+      <ul class="guess">
+        <li>$-\tfrac12$</li>
+        <li>$\tfrac12$</li>
+        <li>$\tfrac52$ — five times as much</li>
+        <li>It has no meaning: no right triangle has a $150°$ angle</li>
+      </ul>
+      <p class="puzzle-after">The triangle definition of sine really does run out here. The circle definition in §11.2 does not.</p>
+    </div>
+
     <div class="goal">
       <strong>By the end of this chapter you can</strong>
       convert between degrees and radians and explain why radians are the natural unit; give
@@ -49,16 +63,77 @@
       rotation of the plane.
     </div>
 
-    <div class="callout aside">
-      <span class="tag">Before you start</span>
+    <section class="warmup" id="warmup">
+      <div class="callout aside">
+        <span class="tag">Before you start</span>
+        <p>
+          You should be comfortable with <a href="08-coordinates.html#circle">the equation of a
+          circle</a> (Chapter 8), <a href="10-segments-rays-lines.html#lines">slope and lines</a>
+          (Chapter 10), and <a href="../2-geometry/06-isometries.html#mappings-plane">rotation as a
+          motion of the plane</a> (Chapter 6). Sine and cosine are read straight off the unit circle,
+          so that circle has to be familiar first.
+        </p>
+      </div>
+
       <p>
-        You should be comfortable with <a href="08-coordinates.html#circle">the equation of a
-        circle</a> (Chapter 8), <a href="10-segments-rays-lines.html#lines">slope and lines</a>
-        (Chapter 10), and <a href="../2-geometry/06-isometries.html#mappings-plane">rotation as a
-        motion of the plane</a> (Chapter 6). Sine and cosine are read straight off the unit circle,
-        so that circle has to be familiar first.
+        Three quick ones from earlier chapters, to wake up what this chapter stands on. They are
+        not scored. If one will not come, its solution says where to look.
       </p>
-    </div>
+
+      <div class="ex" data-inline id="w1" data-label="Warm-up 1" data-answer="1"
+           data-hint="Substitute and see.">
+        <div class="ex-q">
+          <p>
+            Does the point $(0.6,\, 0.8)$ lie on the unit circle $x^2 + y^2 = 1$?
+          </p>
+        </div>
+        <ul class="choices">
+          <li>Yes.</li>
+          <li>No.</li>
+        </ul>
+        <div class="ex-solution">
+          <p class="answer">Answer: yes</p>
+          <p>
+            $0.36 + 0.64 = 1$ ✓ — <a href="08-coordinates.html#circle">§8.3</a>. In this chapter the
+            two coordinates of such a point get names: cosine and sine.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" data-inline id="w2" data-label="Warm-up 2" data-type="number" data-answer="4/3"
+           data-hint="Rise over run.">
+        <div class="ex-q">
+          <p>
+            What is the slope of the line through the origin and $(3,4)$?
+          </p>
+        </div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $\tfrac43$</p>
+          <p>
+            $\dfrac{4 - 0}{3 - 0} = \dfrac43$ — <a href="10-segments-rays-lines.html#lines">§10.3</a>.
+            By the end of this chapter that slope has a second name: the tangent of the angle the line
+            makes.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" data-inline id="w3" data-label="Warm-up 3" data-type="number" data-answer="6.28" data-tol="0.01"
+           data-hint="C = 2πr.">
+        <div class="ex-q">
+          <p>
+            What is the circumference of a circle of radius $1$? Give it to two decimal places.
+          </p>
+        </div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $2\pi \approx 6.28$</p>
+          <p>
+            $C = 2\pi r = 2\pi \approx 6.28$ — <a
+            href="../2-geometry/07-area.html#circumference">§7.4</a>. Radian measure, the first thing
+            below, is built on exactly this number.
+          </p>
+        </div>
+      </div>
+    </section>
 
     <h2 id="radians">11.1 Radian measure</h2>
     <p>
@@ -71,6 +146,15 @@
       else follows by proportion:
     </p>
 
+    <figure>
+      <div class="widget" data-widget="radian"></div>
+      <figcaption>
+        <b>One radius, laid along the circle.</b> Drag the arc. The numbered marks are one radius
+        apart <em>measured along the circumference</em>; an angle in radians is simply how many of
+        them its arc covers. A half turn takes a little more than three.
+      </figcaption>
+    </figure>
+
     <div class="rule">
       <span class="tag">Converting</span>
       <p>
@@ -81,6 +165,43 @@
       <p>
         Worth memorising: $30° = \pi/6$, $45° = \pi/4$, $60° = \pi/3$, $90° = \pi/2$.
       </p>
+    </div>
+
+    <div class="worked">
+      <h4><span class="num">Converting, both ways.</span> Degrees to radians and back</h4>
+      <div class="body">
+        <p>
+          Convert (a) $150°$ to radians and (b) $\dfrac{3\pi}{4}$ radians to degrees.
+        </p>
+        <ol class="steps">
+          <li>(a) Multiply by $\dfrac{\pi}{180}$:
+            $150 \cdot \dfrac{\pi}{180} = \dfrac{150}{180}\pi = \dfrac{5\pi}{6}$.</li>
+          <li>Sanity check: $150°$ is a little less than a half turn, and
+            $\frac{5\pi}{6} \approx 2.62$ is a little less than $\pi \approx 3.14$ ✓.</li>
+          <li>(b) Multiply by $\dfrac{180}{\pi}$:
+            $\dfrac{3\pi}{4} \cdot \dfrac{180}{\pi} = \dfrac{3 \cdot 180}{4} = 135°$.</li>
+          <li>Sanity check: $\frac34$ of a half turn is $\frac34 \cdot 180° = 135°$ ✓. $\blacksquare$</li>
+        </ol>
+        <p class="note">
+          If you forget which fraction to use, remember only that $\pi$ radians is $180°$ and think
+          in half turns: $\frac{\pi}{6}$ is a sixth of a half turn, so $30°$.
+        </p>
+      </div>
+    </div>
+
+    <div class="ex" data-inline id="t1" data-type="number" data-answer="270"
+         data-hint="π radians is a half turn, 180°.">
+      <div class="ex-q">
+        <p>
+          Convert $\dfrac{3\pi}{2}$ radians to degrees.
+        </p>
+      </div>
+      <div class="ex-solution">
+        <p class="answer">Answer: $270$</p>
+        <p>
+          $\dfrac{3\pi}{2} \cdot \dfrac{180}{\pi} = 270°$ — three quarters of a full turn.
+        </p>
+      </div>
     </div>
 
     <div class="callout idea">
@@ -132,6 +253,23 @@
       </figcaption>
     </figure>
 
+    <div class="ex" data-inline id="t2" data-type="number" data-answer="-1"
+         data-hint="Three quarters of a turn from (1, 0). Where are you, and how high?">
+      <div class="ex-q">
+        <p>
+          What is $\sin\dfrac{3\pi}{2}$?
+        </p>
+      </div>
+      <div class="ex-solution">
+        <p class="answer">Answer: $-1$</p>
+        <p>
+          Three quarter turns counterclockwise from $(1,0)$ land on $(0,-1)$, the bottom of the
+          circle. Sine is the vertical coordinate, so $\sin\frac{3\pi}{2} = -1$ (and
+          $\cos\frac{3\pi}{2} = 0$).
+        </p>
+      </div>
+    </div>
+
     <p>
       For an acute angle in a right triangle the old definitions come back as a consequence. Scale
       the triangle so the hypotenuse is $1$ and drop it onto the unit circle: the adjacent side is
@@ -156,6 +294,34 @@
       </div>
     </div>
 
+    <figure class="diagram">
+      <svg viewBox="0 0 460 200" role="img" aria-label="Two right triangles with hypotenuse 1: one with angles 30 and 60 degrees, one with two angles of 45 degrees">
+        <polygon class="dg-soft" points="40,170 130,170 130,14.1"/>
+        <polyline class="dg-thin" points="119,170 119,159 130,159"/>
+        <path class="dg-a" d="M40 170 L55 144 A30 30 0 0 1 70 170 Z"/>
+        <path class="dg-b" d="M130 14.1 L130 44.1 A30 30 0 0 1 115 40.1 Z"/>
+        <text class="dg-text" x="85" y="190" text-anchor="middle">½</text>
+        <text class="dg-text" x="146" y="98" text-anchor="start">√3 ⁄ 2</text>
+        <text class="dg-text" x="72" y="86" text-anchor="middle">1</text>
+        <text class="dg-muted" x="82" y="162" text-anchor="middle">60°</text>
+        <text class="dg-muted" x="118" y="62" text-anchor="middle">30°</text>
+        <polygon class="dg-soft2" points="270,170 397.3,170 397.3,42.7"/>
+        <polyline class="dg-thin" points="386.3,170 386.3,159 397.3,159"/>
+        <path class="dg-a" d="M270 170 L294 146 A34 34 0 0 1 304 170 Z"/>
+        <path class="dg-a" d="M397.3 42.7 L397.3 76.7 A34 34 0 0 1 373.3 66.7 Z"/>
+        <text class="dg-text" x="333" y="190" text-anchor="middle">√2 ⁄ 2</text>
+        <text class="dg-text" x="409" y="112" text-anchor="start">√2 ⁄ 2</text>
+        <text class="dg-text" x="322" y="98" text-anchor="middle">1</text>
+        <text class="dg-muted" x="318" y="162" text-anchor="middle">45°</text>
+        <text class="dg-muted" x="383" y="86" text-anchor="middle">45°</text>
+      </svg>
+      <figcaption>
+        <b>Two triangles generate the whole table.</b> Half an equilateral triangle gives $30°$ and
+        $60°$; half a square gives $45°$. Both are drawn with hypotenuse $1$, so the legs
+        <em>are</em> the cosines and sines.
+      </figcaption>
+    </figure>
+
     <div class="worked">
       <h4><span class="num">Example 1.</span> Where the table comes from</h4>
       <div class="body">
@@ -174,6 +340,22 @@
         <p class="note">
           For $45°$, use the isosceles right triangle instead: legs $1,1$ and hypotenuse $\sqrt2$,
           so both values are $1/\sqrt2 = \sqrt2/2$. Two triangles generate the whole table.
+        </p>
+      </div>
+    </div>
+
+    <div class="ex" data-inline id="t3" data-type="number" data-answer="0.5|1/2"
+         data-hint="Both factors are √2/2.">
+      <div class="ex-q">
+        <p>
+          Use the table to compute $\sin 45° \cdot \cos 45°$.
+        </p>
+      </div>
+      <div class="ex-solution">
+        <p class="answer">Answer: $\tfrac12$</p>
+        <p>
+          $\dfrac{\sqrt2}{2} \cdot \dfrac{\sqrt2}{2} = \dfrac{2}{4} = \dfrac12$. (This is also
+          $\tfrac12 \sin 90°$, by the double-angle formula further on.)
         </p>
       </div>
     </div>
@@ -205,6 +387,46 @@
         that the shift is $-C/B$, not $-C$: changing $B$ moves the wave too.
       </figcaption>
     </figure>
+
+    <div class="worked">
+      <h4><span class="num">Reading a formula.</span> Amplitude, period and shift</h4>
+      <div class="body">
+        <p>
+          Describe the graph of $y = 3\sin\!\left(2x - \dfrac{\pi}{2}\right)$.
+        </p>
+        <ol class="steps">
+          <li>Match it against $A\sin(Bx + C)$: $A = 3$, $B = 2$, $C = -\dfrac{\pi}{2}$.</li>
+          <li><b>Amplitude</b> $|A| = 3$: the wave runs between $-3$ and $3$.</li>
+          <li><b>Period</b> $\dfrac{2\pi}{|B|} = \dfrac{2\pi}{2} = \pi$: one full wave every $\pi$
+            units, twice as often as the plain sine.</li>
+          <li><b>Shift</b> $-\dfrac{C}{B} = \dfrac{\pi/2}{2} = \dfrac{\pi}{4}$: to the right by
+            $\frac{\pi}{4}$. <span class="note">Not by $\frac{\pi}{2}$. Factor the $2$ out to see
+            it: $2x - \frac{\pi}{2} = 2\left(x - \frac{\pi}{4}\right)$.</span></li>
+          <li>Check one point: the plain sine starts a wave at $0$; this one should start at
+            $x = \frac{\pi}{4}$. And indeed
+            $3\sin\!\left(2 \cdot \frac{\pi}{4} - \frac{\pi}{2}\right) = 3\sin 0 = 0$ ✓.
+            $\blacksquare$</li>
+        </ol>
+      </div>
+    </div>
+
+    <div class="ex" data-inline id="t4" data-answer="4pi|12.566|12.57|12.56"
+         data-placeholder="e.g. 2pi"
+         data-hint="Here B = ½. The period is 2π divided by |B|.">
+      <div class="ex-q">
+        <p>
+          What is the period of $y = \cos\!\left(\dfrac{x}{2}\right)$? Write $\pi$ as
+          <code>pi</code>, or give a decimal.
+        </p>
+      </div>
+      <div class="ex-solution">
+        <p class="answer">Answer: $4\pi \approx 12.57$</p>
+        <p>
+          $B = \tfrac12$, so the period is $\dfrac{2\pi}{1/2} = 4\pi$. A smaller $B$ stretches the
+          wave out: it now takes twice as long to complete one cycle.
+        </p>
+      </div>
+    </div>
 
     <p>
       Two symmetries are worth naming, both visible in the circle. Replacing $\theta$ by $-\theta$
@@ -249,6 +471,15 @@
       The central computational facts of the subject:
     </p>
 
+    <details class="reveal">
+      <summary><span class="ask">Is $\sin(30° + 60°)$ equal to $\sin 30° + \sin 60°$? Compute both sides from the table before you answer.</span>Compute, then open</summary>
+      <p>
+        The left side is $\sin 90° = 1$. The right side is
+        $\tfrac12 + \tfrac{\sqrt3}{2} \approx 1.366$ — bigger than $1$, which no sine can ever be.
+        So sine does not pass through a sum, and the true formula has to be something else.
+      </p>
+    </details>
+
     <div class="rule">
       <span class="tag">Addition formulas</span>
       <p>
@@ -264,6 +495,32 @@
     </p>
 
     <div class="worked">
+      <h4><span class="num">Wrong turn.</span> Adding the cosines</h4>
+      <div class="body">
+        <p>
+          Compute $\cos 90°$ by writing $90° = 60° + 30°$.
+        </p>
+        <ol class="steps">
+          <li><b>The tempting move.</b> Split the cosine across the sum:
+            $\cos(60° + 30°) = \cos 60° + \cos 30° = \tfrac12 + \tfrac{\sqrt3}{2} \approx 1.366$.</li>
+          <li><b>The check.</b> Two things are wrong at once. A cosine is the horizontal coordinate of
+            a point on the unit circle, so it can never exceed $1$. And we know the answer: a
+            quarter turn from $(1,0)$ lands on $(0,1)$, so $\cos 90° = 0$.</li>
+          <li><b>Why.</b> Turning by $60°$ and then by $30°$ composes two rotations, and composing
+            rotations mixes the coordinates — it does not add them. The addition formula records
+            that mixing.</li>
+          <li><b>The repair.</b>
+            $\cos 60°\cos 30° - \sin 60°\sin 30° = \tfrac12 \cdot \tfrac{\sqrt3}{2} - \tfrac{\sqrt3}{2} \cdot \tfrac12 = 0$
+            ✓. $\blacksquare$</li>
+        </ol>
+        <p class="note">
+          Before trusting any proposed identity, try it on angles whose values you know. $0°$ and
+          $90°$ cost nothing and expose most impostors.
+        </p>
+      </div>
+    </div>
+
+    <div class="worked">
       <h4><span class="num">Example 2.</span> An exact value for $75°$</h4>
       <div class="body">
         <p>Compute $\cos 75°$ exactly.</p>
@@ -276,6 +533,28 @@
           <li>Numerically: $(2.449 - 1.414)/4 \approx 0.259$, and $75°$ is close to $90°$ where the
             cosine is $0$, so a small positive value is right. $\blacksquare$</li>
         </ol>
+      </div>
+    </div>
+
+    <div class="ex" data-inline id="t5" data-answer="1"
+         data-hint="75° = 45° + 30°. Use the formula for the sine of a sum.">
+      <div class="ex-q">
+        <p>
+          Compute $\sin 75°$ exactly.
+        </p>
+      </div>
+      <ul class="choices">
+        <li>$\dfrac{\sqrt6 + \sqrt2}{4}$</li>
+        <li>$\dfrac{\sqrt6 - \sqrt2}{4}$</li>
+        <li>$\dfrac{\sqrt3 + \sqrt2}{2}$</li>
+        <li>$1$</li>
+      </ul>
+      <div class="ex-solution">
+        <p class="answer">Answer: $\dfrac{\sqrt6 + \sqrt2}{4}$</p>
+        <p>
+          $\sin(45° + 30°) = \sin 45°\cos 30° + \cos 45°\sin 30° = \dfrac{\sqrt2}{2}\cdot\dfrac{\sqrt3}{2} + \dfrac{\sqrt2}{2}\cdot\dfrac12 = \dfrac{\sqrt6 + \sqrt2}{4} \approx 0.966$.
+          Plausible: $75°$ is close to $90°$, where the sine is $1$.
+        </p>
       </div>
     </div>
 
@@ -294,6 +573,43 @@
         <p class="note">
           Nothing new was assumed here. Special cases of a general formula are free, and they are
           usually where the useful identities live.
+        </p>
+      </div>
+    </div>
+
+    <div class="worked">
+      <h4><span class="num">Your turn, with help.</span> The cosine of a difference</h4>
+      <div class="body">
+        <p>
+          Find a formula for $\cos(\alpha - \beta)$, and use it to compute $\cos 15°$. Try each step
+          before opening it.
+        </p>
+        <ol class="steps">
+          <li>Write the difference as a sum, $\alpha - \beta = \alpha + (-\beta)$, and apply the
+            addition formula:
+            $\cos(\alpha - \beta) = \cos\alpha\cos(-\beta) - \sin\alpha\sin(-\beta)$.</li>
+          <li>
+            <details class="reveal">
+              <summary>Simplify using the two symmetries of §11.3</summary>
+              <p>
+                $\cos(-\beta) = \cos\beta$ and $\sin(-\beta) = -\sin\beta$, so
+                $\cos(\alpha - \beta) = \cos\alpha\cos\beta + \sin\alpha\sin\beta$.
+              </p>
+            </details>
+          </li>
+          <li>
+            <details class="reveal">
+              <summary>Apply it to $15° = 45° - 30°$</summary>
+              <p>
+                $\cos 15° = \dfrac{\sqrt2}{2}\cdot\dfrac{\sqrt3}{2} + \dfrac{\sqrt2}{2}\cdot\dfrac12 = \dfrac{\sqrt6 + \sqrt2}{4} \approx 0.966$.
+                $\blacksquare$
+              </p>
+            </details>
+          </li>
+        </ol>
+        <p class="note">
+          The same number as $\sin 75°$ — as it should be, since $15°$ and $75°$ are the two acute
+          angles of one right triangle.
         </p>
       </div>
     </div>
@@ -325,6 +641,23 @@
             $$(x,y) \;\longmapsto\; (x\cos\theta - y\sin\theta,\;\; x\sin\theta + y\cos\theta),$$
             exactly the formula quoted in Chapter 6. $\blacksquare$</li>
         </ol>
+      </div>
+    </div>
+
+    <div class="ex" data-inline id="t6" data-answer="(-2,0)|-2,0"
+         data-placeholder="e.g. (3,-2)"
+         data-hint="Use the rotation formula with cos 90° = 0 and sin 90° = 1 — or just picture it.">
+      <div class="ex-q">
+        <p>
+          Rotate the point $(0,2)$ counterclockwise by $90°$ about the origin. Where does it go?
+        </p>
+      </div>
+      <div class="ex-solution">
+        <p class="answer">Answer: $(-2,0)$</p>
+        <p>
+          $(x\cos\theta - y\sin\theta,\; x\sin\theta + y\cos\theta) = (0 \cdot 0 - 2 \cdot 1,\; 0 \cdot 1 + 2 \cdot 0) = (-2, 0)$.
+          A point straight above the origin swings round to the left, the same distance out.
+        </p>
       </div>
     </div>
 
@@ -412,7 +745,8 @@
       </div>
 
       <div class="ex" data-type="number" data-answer="3.1416" data-tol="0.001"
-           data-hint="Period = 2π/|B|.">
+           data-hint="Period = 2π/|B|."
+           data-hint2="B = 2, so the period is 2π/2.">
         <div class="ex-q">
           <p>What is the period of $y = \sin(2x)$? Give it as a decimal.</p>
         </div>
@@ -482,7 +816,8 @@
 
       <div class="ex" data-answer="(0,1)|0,1"
            data-placeholder="e.g. (3,-2)"
-           data-hint="Use (x cos θ − y sin θ, x sin θ + y cos θ) with θ = 90°.">
+           data-hint="Use (x cos θ − y sin θ, x sin θ + y cos θ) with θ = 90°."
+           data-hint2="cos 90° = 0 and sin 90° = 1.">
         <div class="ex-q">
           <p>Rotate the point $(1,0)$ counterclockwise by $90°$ about the origin.</p>
         </div>
@@ -654,6 +989,16 @@
 
     <div class="recap">
       <h2>Recap</h2>
+      <div class="puzzle-answer">
+        <span class="tag">Back to the puzzle</span>
+        <p data-your-guess></p>
+        <p>
+          $\sin 150° = \tfrac12$, the same as $\sin 30°$. On the unit circle, $150°$ is the mirror
+          image of $30°$ in the $y$-axis: the point is at the same <em>height</em>, and sine is the
+          height. Its horizontal coordinate has changed sign, so $\cos 150° = -\cos 30°$. No
+          triangle is needed — and none could have helped.
+        </p>
+      </div>
       <ul>
         <li>A radian is arc length on the unit circle; $180° = \pi$ rad, and the formulas
           $s = r\theta$, $\tfrac12 r^2\theta$ only work in radians.</li>

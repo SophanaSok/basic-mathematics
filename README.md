@@ -45,10 +45,13 @@ chapter feels impossible, the problem is usually two chapters back.**
 
 ### How to work through a chapter
 
-Each chapter opens with a **goal box** listing what you will be able to do by the end. Read it
-first and again at the end, as a self-check. Then the pattern repeats: the idea in plain language,
-the rule stated precisely, worked examples with every step shown, an interactive figure where a
-picture beats words, and a practice set. A recap closes it.
+Each chapter opens with a **puzzle** — guess before reading; the recap returns to it — and a
+**goal box** listing what you will be able to do by the end. A **warm-up** of three unscored
+questions then checks the earlier material the chapter stands on. After that the pattern repeats:
+the idea in plain language, the rule stated precisely, a worked example, and straight away a
+**Your turn** problem of the same kind. One example per chapter has its later steps closed, to be
+attempted before opening, and key results are preceded by a prompt to predict them. A practice set
+and a recap close the chapter.
 
 Some **Watch out** boxes, the ones about a trap in a method, are followed by a **Wrong turn**:
 a worked example that makes the mistake on purpose. It follows the tempting step to the answer it
@@ -91,12 +94,14 @@ itself, move the selected point with the arrow keys, and press <kbd>Space</kbd> 
 Each figure also states its conclusion in words underneath, so nothing is available only by
 dragging.
 
-They are there to be played with — change the values until you can predict what the picture will do
-before you move the slider.
+They are there to be played with. Each has a short list of **missions** — things to make the figure
+do, such as "make a system with no solution" or "find an angle where sin θ = cos θ" — and marks each
+one with a star when you manage it.
 
 ### Progress, and what is saved
 
-Solved exercises are remembered in **your browser only**, under a single local-storage key. There
+Solved exercises, completed missions, and the chapter you last opened are remembered in **your
+browser only**, in local storage. There
 is no account and no server, and nothing is sent anywhere. So your progress will not follow you to
 another browser or device, and clearing site data clears it. There is a deliberate reset button on
 the about page.
@@ -133,7 +138,7 @@ about.html              how to study the course; progress reset lives here
 data/curriculum.js      single source of truth: parts, chapters, sections
 assets/site.css         all styling, including both themes
 assets/site.js          navigation, theme, progress, exercise grading, widget mounting
-assets/widgets.js       the 25 interactive figures
+assets/widgets.js       the 32 interactive figures and their missions
 parts/<part>/<nn>-<slug>.html
 .nojekyll               so GitHub Pages serves the files as authored
 ```
@@ -154,9 +159,10 @@ A chapter is a plain HTML file that declares two things on its `<body>`:
 section list, and neighbours. `data-depth` is how many directories deep the file sits, so that
 generated links can be made relative.
 
-The rest of the page is ordinary markup using a small set of classes: `.goal`, `.rule`,
-`.worked` with `.steps`, `.callout` (in `.idea` / `.warn` / `.why` / `.aside` variants), `.display`,
-`.recap`, and `figure`. Three elements are filled in by script — leave them empty:
+The rest of the page is ordinary markup using a small set of classes: `.puzzle`, `.goal`,
+`.warmup`, `.rule`, `.worked` with `.steps`, `.callout` (in `.idea` / `.warn` / `.why` / `.aside`
+variants), `details.reveal`, `.display`, `.recap`, and `figure` (with `figure.diagram` for a static
+inline SVG). Three elements are filled in by script — leave them empty:
 
 ```html
 <aside class="sidebar" data-sidebar></aside>
@@ -170,6 +176,24 @@ that catches it, and the repair. Keep a Wrong turn unnumbered: chapters cite wor
 number, so putting one into the example numbering would break those references.
 
 Math goes in `$…$` for inline and `$$…$$` for display. `\(…\)` and `\[…\]` also work.
+
+#### Puzzle, reveals, and faded examples
+
+```html
+<div class="puzzle" id="puzzle">
+  <span class="tag">A puzzle to carry through the chapter</span>
+  <p>…the question…</p>
+  <ul class="guess"><li>one guess</li><li>another</li></ul>
+  <p class="puzzle-after">Shown once a guess is made.</p>
+</div>
+```
+
+The guesses become buttons; the choice is remembered but never graded. Inside `.recap`, a
+`<div class="puzzle-answer">` containing an empty `<p data-your-guess></p>` closes the loop.
+
+`<details class="reveal"><summary><span class="ask">question</span>Decide, then open</summary>…</details>`
+is a predict-then-read prompt and needs no script. A **faded example** is a `.worked` block whose
+later `<li>` steps each wrap their content in such a `details.reveal`.
 
 #### Exercises
 
@@ -192,6 +216,9 @@ Each exercise is a `<div class="ex">` carrying its answer key in attributes:
 | `data-answer` | The key. `\|` separates alternative accepted answers |
 | `data-tol` | Absolute tolerance, for keys that are themselves rounded decimals |
 | `data-hint` | Shown after the first wrong attempt |
+| `data-hint2` | Optional; shown after the second wrong attempt |
+| `data-inline` | Marks an unscored check ("Your turn", warm-up). Needs an `id`; `data-label` sets its heading |
+| `id` | **Required on every exercise added from now on** — see below |
 | `data-placeholder` | Input placeholder text |
 
 For multiple choice, add a `<ul class="choices">` of `<li>` options and make `data-answer` the
@@ -201,6 +228,12 @@ wherever `0.25` is.
 
 Grading is entirely client-side, so answer keys are visible in the page source — by design, as
 noted above.
+
+**Progress keys.** A scored exercise is remembered under its `id` if it has one, and otherwise
+under its position among the id-less scored exercises of the page (`e1`, `e2`, …). The original
+exercises have no ids, so their keys are positional. Give every new exercise an `id` and nothing
+shifts; add one without an `id` above an old one and readers' saved progress moves to the wrong
+problems. Inline exercises are never stored.
 
 #### Figures
 
@@ -214,12 +247,15 @@ An interactive figure is one empty div:
 ```
 
 `data-widget` names a factory on `window.BMWidgets` in `assets/widgets.js`. Each factory takes the
-host element and builds into it. A figure whose name is unknown, or that throws while mounting,
+host element and builds into it. Just before its first `draw()`, a factory calls
+`missions(host, "name", [{ text, test }, …])`: each `test` is a function of the factory's own state,
+re-run after any interaction with the figure, and must be false in the figure's initial state. A figure whose name is unknown, or that throws while mounting,
 degrades to a short note instead of breaking the page around it.
 
 Widgets are plain SVG built through a set of shared helpers: `Plot`, `grid`, `curvePath`, `slider`,
-`chips`, `controls`, `readout`, `note`, `dragX`, `el`, `fmt`, and the style table `S`, all exported
-on `window.BMPlot`. Two more — `dragPoints`, for two-dimensional handles, and `arrowTo` — are
+`chips`, `controls`, `readout`, `note`, `dragX`, `el`, `fmt`, `missions`, `animate` (which jumps to
+the end state under `prefers-reduced-motion`), and the style table `S`, all exported on
+`window.BMPlot`. Two more — `dragPoints`, for two-dimensional handles, and `arrowTo` — are
 internal to `widgets.js` and available to any factory in that file. Colours come from CSS custom
 properties, so every figure follows the theme automatically. The convention throughout is: build the frame once, redraw a single `<g>` on each
 change, and use the readout to say in words what the picture is claiming.
@@ -235,7 +271,8 @@ Navigation, the contents card, the sidebar, and the progress counters build them
 
 ### Progress and theme
 
-Both live in `localStorage` under `bm.progress.v1` and `bm.theme` — this browser only, no account
+They live in `localStorage` under `bm.progress.v1` (exercises), `bm.play.v1` (missions and puzzle
+guesses), `bm.last` (where to continue), and `bm.theme` — this browser only, no account
 and no server. Clearing site data clears them; there is a deliberate reset button on the about
 page. Every storage access is wrapped, so a browser that blocks storage loses the memory but keeps
 the site.
@@ -254,6 +291,8 @@ checks were used while writing Chapters 5–16 and are worth repeating after edi
   multiple-choice index is in range and matches the answer stated in the solution.
 - Every internal `href` resolves to both file and anchor.
 - Every `data-widget` name exists on `window.BMWidgets`.
+- No pre-existing exercise's progress key has changed (compare against the previous commit).
+- Every mission is false when its figure mounts, and can be driven true through the controls.
 
 The widgets can be smoke-tested in Node under a small DOM shim — mount each factory, then fire its
 sliders at both endpoints, click its chips, and drag on its SVG — which catches the errors that only

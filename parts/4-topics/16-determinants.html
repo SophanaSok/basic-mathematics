@@ -39,6 +39,21 @@
       last chapter ties the algebra of Part I to the geometry of Part III.
     </p>
 
+    <div class="puzzle" id="puzzle">
+      <span class="tag">A puzzle to carry through the chapter</span>
+      <p>
+        Two arrows start at the origin and end at $(3,1)$ and $(1,2)$. Together they span a slanted
+        parallelogram. What is its area?
+      </p>
+      <ul class="guess">
+        <li>$5$</li>
+        <li>$6$</li>
+        <li>$7$</li>
+        <li>It cannot be found without trigonometry</li>
+      </ul>
+      <p class="puzzle-after">No angle is given, and none is needed. One multiplication and one subtraction will do it.</p>
+    </div>
+
     <div class="goal">
       <strong>By the end of this chapter you can</strong>
       write a linear system as a matrix, compute $2\times2$ and $3\times3$ determinants, read the
@@ -46,15 +61,75 @@
       solution, use the main properties to compute determinants cheaply, and apply Cramer's rule.
     </div>
 
-    <div class="callout aside">
-      <span class="tag">Before you start</span>
+    <section class="warmup" id="warmup">
+      <div class="callout aside">
+        <span class="tag">Before you start</span>
+        <p>
+          You should be comfortable with
+          <a href="../1-algebra/02-linear-equations.html#two-unknowns">solving a system by
+          elimination</a> (Chapter 2). The determinant is the number that elimination keeps producing,
+          and Cramer's rule at the end is that observation made systematic.
+        </p>
+      </div>
+
       <p>
-        You should be comfortable with
-        <a href="../1-algebra/02-linear-equations.html#two-unknowns">solving a system by
-        elimination</a> (Chapter 2). The determinant is the number that elimination keeps producing,
-        and Cramer's rule at the end is that observation made systematic.
+        Three quick ones from earlier chapters, to wake up what this chapter stands on. They are
+        not scored. If one will not come, its solution says where to look.
       </p>
-    </div>
+
+      <div class="ex" data-inline id="w1" data-label="Warm-up 1" data-type="number" data-answer="6"
+           data-hint="The number a₁b₂ − a₂b₁ must be zero.">
+        <div class="ex-q">
+          <p>
+            For which $k$ does the system $\;x + 2y = 1,\;\; 3x + ky = 2\;$ fail to have exactly one
+            solution?
+          </p>
+        </div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $k = 6$</p>
+          <p>
+            $a_1b_2 - a_2b_1 = k - 6$, which vanishes at $k = 6$ — <a
+            href="../1-algebra/02-linear-equations.html#two-unknowns">§2.2</a>. That number is about
+            to be given its name.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" data-inline id="w2" data-label="Warm-up 2" data-type="number" data-answer="2"
+           data-hint="Add the equations.">
+        <div class="ex-q">
+          <p>
+            Solve $\;2x + y = 5,\;\; x - y = 1\;$ and give $x$.
+          </p>
+        </div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $x = 2$</p>
+          <p>
+            Adding gives $3x = 6$, so $x = 2$ and $y = 1$ — <a
+            href="../1-algebra/02-linear-equations.html#two-unknowns">§2.2</a>. Cramer's rule, at the
+            end of this chapter, reaches the same answer by a formula.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" data-inline id="w3" data-label="Warm-up 3" data-answer="(4,3)|4,3"
+           data-placeholder="e.g. (3,-2)"
+           data-hint="Coordinate by coordinate.">
+        <div class="ex-q">
+          <p>
+            Compute $(3,1) + (1,2)$.
+          </p>
+        </div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $(4,3)$</p>
+          <p>
+            $(4, 3)$: the fourth corner of the parallelogram on $O$, $(3,1)$, $(1,2)$ — <a
+            href="../3-coordinates/09-operations-on-points.html#addition-points">§9.2</a>. This is the
+            parallelogram of the puzzle above.
+          </p>
+        </div>
+      </div>
+    </section>
 
     <h2 id="matrices">16.1 Matrices</h2>
     <p>
@@ -107,6 +182,21 @@
       zero. So the determinant is not an arbitrary definition; it is the number elimination produces.
     </p>
 
+    <div class="ex" data-inline id="t1" data-type="number" data-answer="14"
+         data-hint="Main diagonal product minus the other diagonal product.">
+      <div class="ex-q">
+        <p>
+          Compute $\begin{vmatrix} 5 &amp; 2 \\ 3 &amp; 4 \end{vmatrix}$.
+        </p>
+      </div>
+      <div class="ex-solution">
+        <p class="answer">Answer: $14$</p>
+        <p>
+          $5 \cdot 4 - 2 \cdot 3 = 20 - 6 = 14$.
+        </p>
+      </div>
+    </div>
+
     <div class="rule">
       <span class="tag">What it decides</span>
       <ul>
@@ -120,6 +210,15 @@
       Geometrically, take the rows of $A$ as two points of the plane, $(a,b)$ and $(c,d)$, and look
       at the parallelogram they span with the origin.
     </p>
+
+    <details class="reveal">
+      <summary><span class="ask">Take the rows $(2,0)$ and $(0,3)$. What shape do they span with the origin, and what is its area? Now compute $ad - bc$ for those rows.</span>Compute both, then open</summary>
+      <p>
+        They span a rectangle $2$ wide and $3$ tall, of area $6$ — and
+        $ad - bc = 2 \cdot 3 - 0 \cdot 0 = 6$. In this easy case the determinant is plainly the
+        area. The claim below is that it still is when the parallelogram is slanted.
+      </p>
+    </details>
 
     <div class="rule">
       <span class="tag">The determinant is a signed area</span>
@@ -138,6 +237,23 @@
         and the area is unchanged while the sign flips.
       </figcaption>
     </figure>
+
+    <div class="ex" data-inline id="t2" data-type="number" data-answer="12"
+         data-hint="The area is |ad − bc|.">
+      <div class="ex-q">
+        <p>
+          What is the area of the parallelogram spanned by $(4,0)$ and $(1,3)$?
+        </p>
+      </div>
+      <div class="ex-solution">
+        <p class="answer">Answer: $12$</p>
+        <p>
+          $|4 \cdot 3 - 0 \cdot 1| = 12$. Geometrically: base $4$ along the $x$-axis, height $3$.
+          Sliding the top edge sideways — changing the $1$ to anything else — does not change the
+          area, exactly as with the triangle in Chapter 7.
+        </p>
+      </div>
+    </div>
 
     <div class="callout idea">
       <span class="tag">Two collapses, one number</span>
@@ -229,6 +345,25 @@
       </div>
     </div>
 
+    <div class="ex" data-inline id="t3" data-type="number" data-answer="-9"
+         data-hint="Expand along the row with the most zeros. Check its sign in the checkerboard.">
+      <div class="ex-q">
+        <p>
+          Compute
+          $\begin{vmatrix} 1 &amp; 0 &amp; 2 \\ 0 &amp; 3 &amp; 0 \\ 4 &amp; 0 &amp; 5 \end{vmatrix}$.
+        </p>
+      </div>
+      <div class="ex-solution">
+        <p class="answer">Answer: $-9$</p>
+        <p>
+          Expand along the middle row, where only the $3$ survives. Its position has sign $+$ in the
+          checkerboard, so the determinant is
+          $3 \cdot \begin{vmatrix} 1 &amp; 2 \\ 4 &amp; 5 \end{vmatrix} = 3(5 - 8) = -9$. The first
+          row gives the same: $1(15 - 0) - 0 + 2(0 - 12) = -9$ ✓.
+        </p>
+      </div>
+    </div>
+
     <p>
       The interpretation carries over: a $3\times3$ determinant is the signed <b>volume</b> of the
       parallelepiped spanned by its three rows, and it vanishes exactly when those three vectors lie
@@ -286,6 +421,44 @@
       </div>
     </div>
 
+    <div class="worked">
+      <h4><span class="num">Your turn, with help.</span> Simplify, then expand</h4>
+      <div class="body">
+        <p>
+          Compute
+          $\begin{vmatrix} 2 &amp; 4 &amp; 6 \\ 1 &amp; 3 &amp; 5 \\ 0 &amp; 1 &amp; 4 \end{vmatrix}$.
+          Try each step before opening it.
+        </p>
+        <ol class="steps">
+          <li>Every entry of the first row is even. By rule 2, a factor of $2$ comes out:
+            $2 \cdot \begin{vmatrix} 1 &amp; 2 &amp; 3 \\ 1 &amp; 3 &amp; 5 \\ 0 &amp; 1 &amp; 4 \end{vmatrix}$.</li>
+          <li>
+            <details class="reveal">
+              <summary>Clear the first column</summary>
+              <p>
+                Subtract row 1 from row 2 (rule 3, no change):
+                $2 \cdot \begin{vmatrix} 1 &amp; 2 &amp; 3 \\ 0 &amp; 1 &amp; 2 \\ 0 &amp; 1 &amp; 4 \end{vmatrix}$.
+              </p>
+            </details>
+          </li>
+          <li>
+            <details class="reveal">
+              <summary>Expand along the first column</summary>
+              <p>
+                Only the top entry survives:
+                $2 \cdot 1 \cdot \begin{vmatrix} 1 &amp; 2 \\ 1 &amp; 4 \end{vmatrix} = 2(4 - 2) = 4$.
+                $\blacksquare$
+              </p>
+            </details>
+          </li>
+        </ol>
+        <p class="note">
+          Check by brute force along the first row of the original:
+          $2(12 - 5) - 4(4 - 0) + 6(1 - 0) = 14 - 16 + 6 = 4$ ✓.
+        </p>
+      </div>
+    </div>
+
     <h2 id="cramer">16.5 Cramer's rule</h2>
     <p>
       Return to the elimination that produced the determinant in the first place. It gave
@@ -323,6 +496,24 @@
           The same rule works for $3\times3$ and beyond, with the same recipe: replace the relevant
           column and divide. It is elegant, and for hand computation beyond $3\times3$ it is far
           slower than elimination — which is the honest recommendation.
+        </p>
+      </div>
+    </div>
+
+    <div class="ex" data-inline id="t4" data-type="number" data-answer="1"
+         data-hint="Replace the first column of the coefficient matrix by the right-hand sides, and divide by det A."
+         data-hint2="det A = −7, and the numerator for x is the determinant with rows (5, 2) and (1, −1).">
+      <div class="ex-q">
+        <p>
+          Use Cramer's rule to solve $\;x + 2y = 5,\;\; 3x - y = 1\;$ and give $x$.
+        </p>
+      </div>
+      <div class="ex-solution">
+        <p class="answer">Answer: $x = 1$</p>
+        <p>
+          $\det A = (1)(-1) - (2)(3) = -7$. Replacing the first column by $(5, 1)$ gives
+          $(5)(-1) - (2)(1) = -7$, so $x = \dfrac{-7}{-7} = 1$. Then $y = 2$. Check: $1 + 4 = 5$ ✓
+          and $3 - 2 = 1$ ✓.
         </p>
       </div>
     </div>
@@ -485,7 +676,8 @@
 
       <div class="ex" data-answer="(2,1)|2,1"
            data-placeholder="e.g. (3,-2)"
-           data-hint="Use Cramer's rule, or just eliminate.">
+           data-hint="Use Cramer's rule, or just eliminate."
+           data-hint2="det A = (2)(−1) − (3)(1) = −5.">
         <div class="ex-q">
           <p>Solve $2x + 3y = 7$, $\;x - y = 1$. Give the point $(x,y)$.</p>
         </div>
@@ -718,6 +910,17 @@
 
     <div class="recap">
       <h2>Recap</h2>
+      <div class="puzzle-answer">
+        <span class="tag">Back to the puzzle</span>
+        <p data-your-guess></p>
+        <p>
+          <b>$5$.</b> The area is the determinant: $3 \cdot 2 - 1 \cdot 1 = 5$. One way to see it
+          without the formula: box the parallelogram in the rectangle from $(0,0)$ to $(4,3)$, of
+          area $12$, and remove the two $1 \times 1$ squares and four triangles left in the corners,
+          which total $7$. The determinant does that bookkeeping in one line — and its sign records
+          which way round the two arrows are.
+        </p>
+      </div>
       <ul>
         <li>A matrix records the coefficients of a system, separating them from the unknowns.</li>
         <li>$\det\begin{pmatrix}a&amp;b\\c&amp;d\end{pmatrix} = ad-bc$ is the number elimination

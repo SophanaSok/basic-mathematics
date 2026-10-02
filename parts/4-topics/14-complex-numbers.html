@@ -39,6 +39,21 @@
       a second language for the rotations of Chapter 11.
     </p>
 
+    <div class="puzzle" id="puzzle">
+      <span class="tag">A puzzle to carry through the chapter</span>
+      <p>
+        Multiplying by $-1$ sends every number to the opposite side of $0$: a half turn of the
+        number line. Is there a number you could multiply by <em>twice</em> to produce that same
+        half turn — a number that does half the job each time?
+      </p>
+      <ul class="guess">
+        <li>No such number can exist</li>
+        <li>Yes — but it is not on the number line</li>
+        <li>Yes: $-\tfrac12$</li>
+      </ul>
+      <p class="puzzle-after">Think about what half of a half turn would be, and where it would send the number 1.</p>
+    </div>
+
     <div class="goal">
       <strong>By the end of this chapter you can</strong>
       add, multiply, and divide complex numbers; use the conjugate to rationalise a denominator and
@@ -47,18 +62,78 @@
       complex number.
     </div>
 
-    <div class="callout aside">
-      <span class="tag">Before you start</span>
+    <section class="warmup" id="warmup">
+      <div class="callout aside">
+        <span class="tag">Before you start</span>
+        <p>
+          You should be comfortable with
+          <a href="../1-algebra/04-quadratic-equations.html#discriminant">quadratics that have no real
+          root</a> (Chapter 4), with
+          <a href="../3-coordinates/09-operations-on-points.html#addition-points">points of the
+          plane</a> (Chapter 9), and with
+          <a href="../3-coordinates/11-trigonometry.html#addition-formulas">the addition formulas</a>
+          (Chapter 11), which is where multiplication-as-rotation comes from.
+        </p>
+      </div>
+
       <p>
-        You should be comfortable with
-        <a href="../1-algebra/04-quadratic-equations.html#discriminant">quadratics that have no real
-        root</a> (Chapter 4), with
-        <a href="../3-coordinates/09-operations-on-points.html#addition-points">points of the
-        plane</a> (Chapter 9), and with
-        <a href="../3-coordinates/11-trigonometry.html#addition-formulas">the addition formulas</a>
-        (Chapter 11), which is where multiplication-as-rotation comes from.
+        Three quick ones from earlier chapters, to wake up what this chapter stands on. They are
+        not scored. If one will not come, its solution says where to look.
       </p>
-    </div>
+
+      <div class="ex" data-inline id="w1" data-label="Warm-up 1" data-type="number" data-answer="-36"
+           data-hint="b² − 4ac.">
+        <div class="ex-q">
+          <p>
+            What is the discriminant of $x^2 - 4x + 13 = 0$?
+          </p>
+        </div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $-36$</p>
+          <p>
+            $(-4)^2 - 4(1)(13) = 16 - 52 = -36$. Negative, so no real root — <a
+            href="../1-algebra/04-quadratic-equations.html#discriminant">§4.4</a>. This chapter is
+            what happens when you refuse to stop there.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" data-inline id="w2" data-label="Warm-up 2" data-answer="(3,4)|3,4"
+           data-placeholder="e.g. (3,-2)"
+           data-hint="Coordinate by coordinate.">
+        <div class="ex-q">
+          <p>
+            Compute $(2,1) + (1,3)$.
+          </p>
+        </div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $(3,4)$</p>
+          <p>
+            $(2 + 1,\; 1 + 3) = (3, 4)$ — the parallelogram law, <a
+            href="../3-coordinates/09-operations-on-points.html#addition-points">§9.2</a>. Complex
+            numbers add in exactly this way.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" data-inline id="w3" data-label="Warm-up 3" data-answer="(0,1)|0,1"
+           data-placeholder="e.g. (3,-2)"
+           data-hint="It is the point (cos 90°, sin 90°).">
+        <div class="ex-q">
+          <p>
+            Which point of the unit circle is reached by turning $90°$ from $(1,0)$?
+          </p>
+        </div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $(0,1)$</p>
+          <p>
+            $(\cos 90°, \sin 90°) = (0, 1)$ — <a
+            href="../3-coordinates/11-trigonometry.html#sine-cosine">§11.2</a>. In this chapter that
+            point gets a name of its own.
+          </p>
+        </div>
+      </div>
+    </section>
 
     <h2 id="complex-arith">14.1 Arithmetic of complex numbers</h2>
     <p>
@@ -88,6 +163,23 @@
         the right way to extend a number system: add the minimum, keep the laws, and see what is
         forced.
       </p>
+    </div>
+
+    <div class="ex" data-inline id="t1" data-answer="5+i|5+1i"
+         data-placeholder="e.g. 3+4i"
+         data-hint="Expand all four products, then replace i² by −1.">
+      <div class="ex-q">
+        <p>
+          Compute $(2 + 3i)(1 - i)$.
+        </p>
+      </div>
+      <div class="ex-solution">
+        <p class="answer">Answer: $5 + i$</p>
+        <p>
+          $2 - 2i + 3i - 3i^2 = 2 + i + 3 = 5 + i$. The last term is where the sign is usually lost:
+          $-3i^2 = -3(-1) = +3$.
+        </p>
+      </div>
     </div>
 
     <p>
@@ -123,6 +215,29 @@
       </div>
     </div>
 
+    <div class="ex" data-inline id="t2" data-answer="1"
+         data-hint="Multiply top and bottom by the conjugate of i, which is −i.">
+      <div class="ex-q">
+        <p>
+          What is $\dfrac{1}{i}$?
+        </p>
+      </div>
+      <ul class="choices">
+        <li>$-i$</li>
+        <li>$i$</li>
+        <li>$1$</li>
+        <li>$-1$</li>
+      </ul>
+      <div class="ex-solution">
+        <p class="answer">Answer: $-i$</p>
+        <p>
+          $\dfrac{1}{i} = \dfrac{1 \cdot (-i)}{i \cdot (-i)} = \dfrac{-i}{-i^2} = \dfrac{-i}{1} = -i$.
+          Check: $i \cdot (-i) = -i^2 = 1$ ✓. Geometrically: undoing a quarter turn counterclockwise
+          is a quarter turn clockwise.
+        </p>
+      </div>
+    </div>
+
     <p>
       With division available, the complex numbers satisfy every rule listed in Chapter 1 for the
       rationals and reals: addition and multiplication are commutative and associative, they
@@ -149,6 +264,28 @@
       </div>
     </div>
 
+    <div class="ex" data-inline id="t3" data-answer="1"
+         data-hint="The discriminant is negative. Write its square root as a multiple of i.">
+      <div class="ex-q">
+        <p>
+          What are the solutions of $x^2 + 2x + 5 = 0$?
+        </p>
+      </div>
+      <ul class="choices">
+        <li>$-1 \pm 2i$</li>
+        <li>$1 \pm 2i$</li>
+        <li>$-1 \pm 4i$</li>
+        <li>There are none, even among the complex numbers.</li>
+      </ul>
+      <div class="ex-solution">
+        <p class="answer">Answer: $-1 \pm 2i$</p>
+        <p>
+          $\Delta = 4 - 20 = -16$, and $\sqrt{-16} = 4i$. So $x = \dfrac{-2 \pm 4i}{2} = -1 \pm 2i$
+          — a conjugate pair, as always when the coefficients are real.
+        </p>
+      </div>
+    </div>
+
     <h2 id="complex-plane">14.2 The complex plane</h2>
     <p>
       A complex number is determined by two real numbers, so it is naturally a point: plot $a+bi$ at
@@ -170,6 +307,22 @@
       </p>
     </div>
 
+    <div class="ex" data-inline id="t4" data-answer="sqrt(2)|sqrt2|1.414|1.41|1.4142"
+         data-placeholder="e.g. sqrt(5)"
+         data-hint="It is the distance from the origin to the point (1, −1).">
+      <div class="ex-q">
+        <p>
+          What is $|1 - i|$? Write the square root as <code>sqrt(2)</code>, or give a decimal.
+        </p>
+      </div>
+      <div class="ex-solution">
+        <p class="answer">Answer: $\sqrt2 \approx 1.414$</p>
+        <p>
+          $|1 - i| = \sqrt{1^2 + (-1)^2} = \sqrt2$: the diagonal of a unit square.
+        </p>
+      </div>
+    </div>
+
     <p>
       This extends $|x|$ from Chapter 3 exactly: for a real $x$, $|x| = \sqrt{x^2}$ is the old
       absolute value. And the multiplicative property $|zw| = |z||w|$ holds, which is much less
@@ -177,6 +330,16 @@
     </p>
 
     <h2 id="polar">14.3 Polar form</h2>
+    <details class="reveal">
+      <summary><span class="ask">Compute $i \cdot i$ and $i \cdot (1 + i)$. Plot each number before and after the multiplication. What does multiplying by $i$ do to a point?</span>Plot them, then open</summary>
+      <p>
+        $i \cdot i = -1$, and $i(1 + i) = i + i^2 = -1 + i$. The point $i = (0,1)$ went to
+        $(-1, 0)$, and $1 + i = (1,1)$ went to $(-1, 1)$. Each has swung a quarter turn
+        counterclockwise about the origin, staying the same distance out. The rest of this section
+        shows that every multiplication is a turn like this, together with a stretch.
+      </p>
+    </details>
+
     <p>
       A point in the plane can be described by its distance from the origin and its angle. For
       $z \neq 0$ write $r = |z|$ and let $\theta$ be the angle from the positive real axis. Then the
@@ -252,6 +415,40 @@
     </div>
 
     <div class="worked">
+      <h4><span class="num">Your turn, with help.</span> A power by De Moivre</h4>
+      <div class="body">
+        <p>
+          Compute $\left(\sqrt3 + i\right)^{6}$. Try each step before opening it.
+        </p>
+        <ol class="steps">
+          <li>Find the polar form. $r = \sqrt{(\sqrt3)^2 + 1^2} = 2$, and the point $(\sqrt3, 1)$ is
+            at $\theta = 30°$, since $\cos 30° = \frac{\sqrt3}{2}$ and $\sin 30° = \frac12$.</li>
+          <li>
+            <details class="reveal">
+              <summary>Apply De Moivre's formula</summary>
+              <p>
+                $z^6 = r^6(\cos 6\theta + i\sin 6\theta) = 64(\cos 180° + i\sin 180°)$.
+              </p>
+            </details>
+          </li>
+          <li>
+            <details class="reveal">
+              <summary>Evaluate</summary>
+              <p>
+                $\cos 180° = -1$ and $\sin 180° = 0$, so $\left(\sqrt3 + i\right)^6 = -64$.
+                $\blacksquare$
+              </p>
+            </details>
+          </li>
+        </ol>
+        <p class="note">
+          Six turns of $30°$ make a half turn, landing on the negative real axis; six doublings make
+          $64$. Expanding the sixth power by hand would take most of a page.
+        </p>
+      </div>
+    </div>
+
+    <div class="worked">
       <h4><span class="num">Example 4.</span> The cube roots of $1$</h4>
       <div class="body">
         <p>Find all complex $z$ with $z^3 = 1$.</p>
@@ -271,6 +468,22 @@
           The pattern is general: the $n$th roots of any non-zero complex number are $n$ points
           evenly spaced around a circle. Over the reals, $x^3=1$ had one solution; over the complex
           numbers it has exactly three, which is what the degree promised all along.
+        </p>
+      </div>
+    </div>
+
+    <div class="ex" data-inline id="t5" data-type="number" data-answer="2"
+         data-hint="Take absolute values of both sides.">
+      <div class="ex-q">
+        <p>
+          The equation $z^5 = 32$ has five complex solutions. What absolute value do they all share?
+        </p>
+      </div>
+      <div class="ex-solution">
+        <p class="answer">Answer: $2$</p>
+        <p>
+          $|z|^5 = 32$, so $|z| = 2$. The five solutions sit on the circle of radius $2$, spaced
+          $360°/5 = 72°$ apart; only one of them, $z = 2$, is real.
         </p>
       </div>
     </div>
@@ -300,7 +513,8 @@
 
       <div class="ex" data-answer="14+2i"
            data-placeholder="e.g. 3+2i"
-           data-hint="Expand, then replace i² by −1.">
+           data-hint="Expand, then replace i² by −1."
+           data-hint2="6 − 6i + 8i − 8i². What is −8i²?">
         <div class="ex-q"><p>Compute $(3+4i)(2-2i)$.</p></div>
         <div class="ex-solution">
           <p class="answer">Answer: $14 + 2i$</p>
@@ -392,7 +606,8 @@
       </div>
 
       <div class="ex" data-type="number" data-answer="5"
-           data-hint="|z − w| is the distance between the two points.">
+           data-hint="|z − w| is the distance between the two points."
+           data-hint2="The difference is 3 + 4i.">
         <div class="ex-q">
           <p>What is $|(4+7i) - (1+3i)|$?</p>
         </div>
@@ -442,6 +657,17 @@
 
     <div class="recap">
       <h2>Recap</h2>
+      <div class="puzzle-answer">
+        <span class="tag">Back to the puzzle</span>
+        <p data-your-guess></p>
+        <p>
+          <b>Yes, but not on the line.</b> Half of a half turn is a quarter turn, which takes $1$
+          off the line altogether, to a point straight above $0$. Call that point $i$. Multiplying
+          by $i$ twice is two quarter turns — a half turn — so $i \cdot i = -1$. The equation
+          $i^2 = -1$ looks like an arbitrary invention; it is the statement that two quarter turns
+          make a half turn.
+        </p>
+      </div>
       <ul>
         <li>Adjoin $i$ with $i^2=-1$ and keep the usual laws; addition and multiplication are then
           forced.</li>

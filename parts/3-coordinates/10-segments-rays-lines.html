@@ -39,6 +39,21 @@
       chapter shows how the two fit together.
     </p>
 
+    <div class="puzzle" id="puzzle">
+      <span class="tag">A puzzle to carry through the chapter</span>
+      <p>
+        A road climbs steadily: $1$ metre up for every $2$ metres forward. A second road crosses it
+        at a right angle. How steep is the second road?
+      </p>
+      <ul class="guess">
+        <li>It climbs $1$ in $2$ as well</li>
+        <li>It drops $1$ for every $2$ forward</li>
+        <li>It drops $2$ for every $1$ forward</li>
+        <li>You cannot tell</li>
+      </ul>
+      <p class="puzzle-after">Sketch the first road's direction as an arrow, then turn the arrow a quarter turn.</p>
+    </div>
+
     <div class="goal">
       <strong>By the end of this chapter you can</strong>
       write the parametric form of a segment, ray, or line through two given points; find points
@@ -47,16 +62,76 @@
       handle the vertical line that $y = mx + b$ cannot express.
     </div>
 
-    <div class="callout aside">
-      <span class="tag">Before you start</span>
+    <section class="warmup" id="warmup">
+      <div class="callout aside">
+        <span class="tag">Before you start</span>
+        <p>
+          You should be comfortable with
+          <a href="09-operations-on-points.html#addition-points">adding and scaling points</a>
+          (Chapter 9) and with
+          <a href="../1-algebra/02-linear-equations.html#two-unknowns">solving a linear system</a>
+          (Chapter 2) — the two meet when two lines cross.
+        </p>
+      </div>
+
       <p>
-        You should be comfortable with
-        <a href="09-operations-on-points.html#addition-points">adding and scaling points</a>
-        (Chapter 9) and with
-        <a href="../1-algebra/02-linear-equations.html#two-unknowns">solving a linear system</a>
-        (Chapter 2) — the two meet when two lines cross.
+        Three quick ones from earlier chapters, to wake up what this chapter stands on. They are
+        not scored. If one will not come, its solution says where to look.
       </p>
-    </div>
+
+      <div class="ex" data-inline id="w1" data-label="Warm-up 1" data-answer="(3,6)|3,6"
+           data-placeholder="e.g. (3,-2)"
+           data-hint="Subtract P's coordinates from Q's.">
+        <div class="ex-q">
+          <p>
+            With $P = (1,2)$ and $Q = (4,8)$, compute $Q - P$.
+          </p>
+        </div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $(3,6)$</p>
+          <p>
+            $(4 - 1,\; 8 - 2) = (3, 6)$: the displacement from $P$ to $Q$ — <a
+            href="09-operations-on-points.html#subtraction">§9.3</a>. It is the direction of every
+            line in this chapter.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" data-inline id="w2" data-label="Warm-up 2" data-answer="(3,2)|3,2"
+           data-placeholder="e.g. (3,-2)"
+           data-hint="Multiply both coordinates by ⅓.">
+        <div class="ex-q">
+          <p>
+            Compute $\tfrac13(9,6)$.
+          </p>
+        </div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $(3,2)$</p>
+          <p>
+            $\left(\tfrac13 \cdot 9,\; \tfrac13 \cdot 6\right) = (3,2)$ — <a
+            href="09-operations-on-points.html#dilations">§9.1</a>. Going a third of the way along a
+            displacement is the first example below.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" data-inline id="w3" data-label="Warm-up 3" data-type="number" data-answer="2"
+           data-hint="Add the equations.">
+        <div class="ex-q">
+          <p>
+            Solve $\;x + y = 5,\;\; 2x - y = 1\;$ and give $x$.
+          </p>
+        </div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $x = 2$</p>
+          <p>
+            Adding eliminates $y$: $3x = 6$, so $x = 2$ and $y = 3$ — <a
+            href="../1-algebra/02-linear-equations.html#two-unknowns">§2.2</a>. By the end of this
+            chapter that is the point where two lines cross.
+          </p>
+        </div>
+      </div>
+    </section>
 
     <h2 id="segments">10.1 Segments</h2>
     <p>
@@ -107,6 +182,23 @@
       </div>
     </div>
 
+    <div class="ex" data-inline id="t1" data-answer="(5,3)|5,3"
+         data-placeholder="e.g. (3,-2)"
+         data-hint="Find the displacement, take two thirds of it, and add that to the starting point.">
+      <div class="ex-q">
+        <p>
+          Which point is two thirds of the way from $(1,1)$ to $(7,4)$?
+        </p>
+      </div>
+      <div class="ex-solution">
+        <p class="answer">Answer: $(5,3)$</p>
+        <p>
+          The displacement is $(6,3)$; two thirds of it is $(4,2)$; and $(1,1) + (4,2) = (5,3)$.
+          This is $P + t(Q-P)$ with $t = \tfrac23$.
+        </p>
+      </div>
+    </div>
+
     <h2 id="rays">10.2 Rays</h2>
     <p>
       Now stop restricting $t$ from above. The set
@@ -126,6 +218,29 @@
         opposite ray from $P$. When comparing two rays or lines, compare directions up to a scalar
         multiple — not coordinate by coordinate.
       </p>
+    </div>
+
+    <div class="ex" data-inline id="t2" data-answer="1"
+         data-hint="A positive multiple keeps the direction; a negative one reverses it.">
+      <div class="ex-q">
+        <p>
+          A ray starts at the origin and passes through $(2,3)$. Which of these is also a direction
+          vector for that same ray?
+        </p>
+      </div>
+      <ul class="choices">
+        <li>$(4,6)$</li>
+        <li>$(-2,-3)$</li>
+        <li>$(3,2)$</li>
+      </ul>
+      <div class="ex-solution">
+        <p class="answer">Answer: $(4,6)$</p>
+        <p>
+          $(4,6) = 2 \cdot (2,3)$, a positive multiple, so it points the same way. $(-2,-3)$ is a
+          negative multiple and gives the opposite ray; $(3,2)$ is no multiple of $(2,3)$ at all —
+          swapping coordinates is not scaling.
+        </p>
+      </div>
     </div>
 
     <h2 id="lines">10.3 Lines</h2>
@@ -164,6 +279,22 @@
       </p>
     </div>
 
+    <div class="ex" data-inline id="t3" data-type="number" data-answer="-2"
+         data-hint="Change in y over change in x, both taken in the same order.">
+      <div class="ex-q">
+        <p>
+          What is the slope of the line through $(-2,5)$ and $(2,-3)$?
+        </p>
+      </div>
+      <div class="ex-solution">
+        <p class="answer">Answer: $-2$</p>
+        <p>
+          $m = \dfrac{-3 - 5}{2 - (-2)} = \dfrac{-8}{4} = -2$. The line falls $2$ for every $1$ it
+          moves to the right.
+        </p>
+      </div>
+    </div>
+
     <p>
       Why the independence? Any two points of the line are $X(t_1)$ and $X(t_2)$, and their
       difference is $(t_2 - t_1)(Q-P)$ — the same direction, scaled. Scaling both $v$ and $u$ by the
@@ -195,6 +326,34 @@
     </div>
 
     <div class="worked">
+      <h4><span class="num">Wrong turn.</span> Taking the reciprocal and forgetting the sign</h4>
+      <div class="body">
+        <p>
+          Find the slope of a line perpendicular to $y = 2x + 1$.
+        </p>
+        <ol class="steps">
+          <li><b>The tempting move.</b> Perpendicular means "flip the slope": the reciprocal of $2$
+            is $\tfrac12$.</li>
+          <li><b>The check.</b> A line of slope $2$ has direction $A = (1,2)$; one of slope $\tfrac12$
+            has direction $B = (2,1)$. If they were perpendicular, the triangle $O$, $A$, $B$ would
+            have a right angle at $O$, so Pythagoras would give $OA^2 + OB^2 = AB^2$. But
+            $OA^2 = 5$, $OB^2 = 5$, and $AB^2 = (2-1)^2 + (1-2)^2 = 2$. Since $5 + 5 \neq 2$, there
+            is no right angle.</li>
+          <li><b>Why.</b> Swapping the coordinates of $(1,2)$ to get $(2,1)$ is a <em>reflection</em>
+            in the line $y = x$, not a quarter turn. A quarter turn sends $(1, m)$ to $(-m, 1)$: it
+            swaps the coordinates and reverses one of them.</li>
+          <li><b>The repair.</b> The slope is $-\tfrac12$, with direction $B = (2,-1)$. Now
+            $AB^2 = (2-1)^2 + (-1-2)^2 = 10 = 5 + 5$ ✓ — a right angle at $O$. $\blacksquare$</li>
+        </ol>
+        <p class="note">
+          Both changes or neither: the negative reciprocal. A quick sanity check is that one of two
+          perpendicular lines (unless they are horizontal and vertical) must rise while the other
+          falls.
+        </p>
+      </div>
+    </div>
+
+    <div class="worked">
       <h4><span class="num">Example 2.</span> From two points to an equation</h4>
       <div class="body">
         <p>Find the equation of the line through $A = (-1,4)$ and $B = (3,-2)$.</p>
@@ -208,6 +367,23 @@
         <p class="note">
           Always verify with the point you did <em>not</em> use to build the equation. It catches
           essentially every arithmetic slip.
+        </p>
+      </div>
+    </div>
+
+    <div class="ex" data-inline id="t4" data-answer="y=2x+3|2x+3"
+         data-placeholder="e.g. y=3x-5"
+         data-hint="Slope first. Then notice that one of the points has x = 0.">
+      <div class="ex-q">
+        <p>
+          Find the equation of the line through $(0,3)$ and $(2,7)$, in the form $y = mx + b$.
+        </p>
+      </div>
+      <div class="ex-solution">
+        <p class="answer">Answer: $y = 2x + 3$</p>
+        <p>
+          $m = \dfrac{7-3}{2-0} = 2$. The point $(0,3)$ is where the line meets the $y$-axis, so
+          $b = 3$ directly: $y = 2x + 3$. Check with the other point: $2(2) + 3 = 7$ ✓.
         </p>
       </div>
     </div>
@@ -262,6 +438,44 @@
     </div>
 
     <div class="worked">
+      <h4><span class="num">Your turn, with help.</span> A parallel through a point</h4>
+      <div class="body">
+        <p>
+          Find the line through $(1,4)$ parallel to $3x + y = 5$. Try each step before opening it.
+        </p>
+        <ol class="steps">
+          <li>Rearrange the given line: $y = -3x + 5$, so its slope is $-3$.</li>
+          <li>
+            <details class="reveal">
+              <summary>Decide the slope of the new line</summary>
+              <p>
+                Parallel lines have equal slopes, so it is also $-3$.
+              </p>
+            </details>
+          </li>
+          <li>
+            <details class="reveal">
+              <summary>Write the equation through $(1,4)$</summary>
+              <p>
+                Point-slope: $y - 4 = -3(x - 1)$, so $y = -3x + 7$, or in general form $3x + y = 7$.
+              </p>
+            </details>
+          </li>
+          <li>
+            <details class="reveal">
+              <summary>Check</summary>
+              <p>
+                $(1,4)$ satisfies it: $3 + 4 = 7$ ✓. And the left side $3x + y$ is the same as in
+                the given line with a different constant — which is what parallel looks like in
+                general form. $\blacksquare$
+              </p>
+            </details>
+          </li>
+        </ol>
+      </div>
+    </div>
+
+    <div class="worked">
       <h4><span class="num">Example 4.</span> Where two lines cross</h4>
       <div class="body">
         <p>Find the point where the line $x + 2y = 7$ meets the line $3x - y = 7$.</p>
@@ -280,6 +494,24 @@
           The trichotomy of Chapter 2 is now a statement about pictures: different slopes, exactly
           one crossing point; equal slopes, either no common point (parallel lines) or every point
           (one line, written twice).
+        </p>
+      </div>
+    </div>
+
+    <div class="ex" data-inline id="t5" data-answer="(2,3)|2,3"
+         data-placeholder="e.g. (3,-2)"
+         data-hint="At the crossing point both formulas give the same y. Set them equal.">
+      <div class="ex-q">
+        <p>
+          Where do the lines $y = x + 1$ and $y = -2x + 7$ meet?
+        </p>
+      </div>
+      <div class="ex-solution">
+        <p class="answer">Answer: $(2,3)$</p>
+        <p>
+          $x + 1 = -2x + 7$ gives $3x = 6$, so $x = 2$, and then $y = 3$. Check in the second line:
+          $-2(2) + 7 = 3$ ✓. When both lines are already solved for $y$, setting the right sides
+          equal is elimination in one step.
         </p>
       </div>
     </div>
@@ -379,7 +611,8 @@
 
       <div class="ex" data-answer="y=3x-5|y=3x+-5|3x-5"
            data-placeholder="e.g. y=3x-5"
-           data-hint="Find the slope first, then use point-slope form.">
+           data-hint="Find the slope first, then use point-slope form."
+           data-hint2="The slope is 3. So y − 1 = 3(x − 2).">
         <div class="ex-q">
           <p>
             Find the equation of the line through $(2,1)$ and $(4,7)$, in the form
@@ -443,7 +676,8 @@
 
       <div class="ex" data-answer="(7,11)|7,11"
            data-placeholder="e.g. (3,-2)"
-           data-hint="Take t = 2 in the parametric form.">
+           data-hint="Take t = 2 in the parametric form."
+           data-hint2="Q − P = (3, 6). Add twice that to P.">
         <div class="ex-q">
           <p>
             $P = (1,-1)$ and $Q = (4,5)$. Which point of the ray from $P$ through $Q$ is twice as
@@ -510,6 +744,16 @@
 
     <div class="recap">
       <h2>Recap</h2>
+      <div class="puzzle-answer">
+        <span class="tag">Back to the puzzle</span>
+        <p data-your-guess></p>
+        <p>
+          <b>It drops $2$ for every $1$ forward.</b> The first road has direction $(2, 1)$ and slope
+          $\frac12$. A quarter turn sends $(2,1)$ to $(-1, 2)$, which has slope $\frac{2}{-1} = -2$.
+          Perpendicular slopes multiply to $-1$: the reciprocal <em>and</em> a change of sign,
+          because a quarter turn swaps the two coordinates and reverses one of them.
+        </p>
+      </div>
       <ul>
         <li>$X(t) = P + t(Q-P)$ gives the segment for $0 \le t \le 1$, the ray for $t \ge 0$, and the
           line for all real $t$.</li>

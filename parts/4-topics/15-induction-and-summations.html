@@ -39,6 +39,20 @@
       drags the next one along behind it.
     </p>
 
+    <div class="puzzle" id="puzzle">
+      <span class="tag">A puzzle to carry through the chapter</span>
+      <p>
+        Write $0.999\ldots$, with the nines going on for ever. Is that number less than $1$, or
+        equal to $1$?
+      </p>
+      <ul class="guess">
+        <li>A tiny bit less than $1$</li>
+        <li>Exactly equal to $1$</li>
+        <li>It depends how far you take it</li>
+      </ul>
+      <p class="puzzle-after">People argue about this one. Section 15.3 turns the argument into a calculation.</p>
+    </div>
+
     <div class="goal">
       <strong>By the end of this chapter you can</strong>
       write and check a proof by induction, identify where the inductive hypothesis is used, read
@@ -46,17 +60,82 @@
       both for finite $n$ and — when $|r| &lt; 1$ — in the limit.
     </div>
 
-    <div class="callout aside">
-      <span class="tag">Before you start</span>
+    <section class="warmup" id="warmup">
+      <div class="callout aside">
+        <span class="tag">Before you start</span>
+        <p>
+          You should be comfortable with
+          <a href="../1-algebra/01-numbers.html#even-odd">proofs about all integers at once</a>
+          (Chapter 1) and with
+          <a href="../1-algebra/interlude-logic.html#logic">implication and quantifiers</a> (the
+          Interlude). Induction is a claim about an infinite chain of implications, so the shape of an
+          implication has to be clear first.
+        </p>
+      </div>
+
       <p>
-        You should be comfortable with
-        <a href="../1-algebra/01-numbers.html#even-odd">proofs about all integers at once</a>
-        (Chapter 1) and with
-        <a href="../1-algebra/interlude-logic.html#logic">implication and quantifiers</a> (the
-        Interlude). Induction is a claim about an infinite chain of implications, so the shape of an
-        implication has to be clear first.
+        Three quick ones from earlier chapters, to wake up what this chapter stands on. They are
+        not scored. If one will not come, its solution says where to look.
       </p>
-    </div>
+
+      <div class="ex" data-inline id="w1" data-label="Warm-up 1" data-answer="1"
+           data-hint="Proving and disproving a universal claim are very different jobs.">
+        <div class="ex-q">
+          <p>
+            To disprove a statement of the form &ldquo;for every $n$, $S(n)$&rdquo;, what is enough?
+          </p>
+        </div>
+        <ul class="choices">
+          <li>One counterexample.</li>
+          <li>A counterexample for each $n$.</li>
+          <li>Checking the first hundred cases.</li>
+        </ul>
+        <div class="ex-solution">
+          <p class="answer">Answer: one counterexample</p>
+          <p>
+            A single $n$ for which $S(n)$ fails — <a
+            href="../1-algebra/interlude-logic.html#quantifiers">the Interlude</a>. Proving the
+            statement is the hard direction, and this chapter gives a method for it.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" data-inline id="w2" data-label="Warm-up 2" data-type="expr" data-answer="n+2|2+n"
+           data-placeholder="in terms of n"
+           data-hint="Both terms contain (n + 1). Pull it out and see what is left.">
+        <div class="ex-q">
+          <p>
+            Factor: $\dfrac{n(n+1)}{2} + (n+1) = (n+1) \cdot \dfrac{\;?\;}{2}$. What goes in place of
+            the question mark?
+          </p>
+        </div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $n + 2$</p>
+          <p>
+            $\dfrac{n(n+1)}{2} + (n+1) = (n+1)\left(\dfrac n2 + 1\right) = (n+1) \cdot \dfrac{n+2}{2}$
+            — distributivity read backwards, <a
+            href="../1-algebra/01-numbers.html#multiplication">§1.3</a>. This exact step is the heart
+            of the first induction proof below.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" data-inline id="w3" data-label="Warm-up 3" data-type="expr" data-answer="n+1|1+n"
+           data-placeholder="in terms of n"
+           data-hint="2 is 2¹. Same base, so add exponents.">
+        <div class="ex-q">
+          <p>
+            Simplify $2 \cdot 2^{n}$ to a single power of $2$. What is the exponent?
+          </p>
+        </div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $n + 1$</p>
+          <p>
+            $2^1 \cdot 2^n = 2^{n+1}$ — <a href="../1-algebra/03-real-numbers.html#powers">§3.5</a>.
+          </p>
+        </div>
+      </div>
+    </section>
 
     <h2 id="induction">15.1 Induction</h2>
     <p>
@@ -106,6 +185,28 @@
       </div>
     </div>
 
+    <div class="ex" data-inline id="t1" data-answer="1"
+         data-hint="Which domino has to fall next?">
+      <div class="ex-q">
+        <p>
+          In the inductive step you assume $S(n)$. What must you then prove?
+        </p>
+      </div>
+      <ul class="choices">
+        <li>$S(n+1)$</li>
+        <li>$S(1)$</li>
+        <li>$S(n)$ again, by a different route</li>
+        <li>$S(2n)$</li>
+      </ul>
+      <div class="ex-solution">
+        <p class="answer">Answer: $S(n+1)$</p>
+        <p>
+          $S(n+1)$ — the very next case, and nothing more. Together with the base case that is
+          enough: $S(1)$ gives $S(2)$, which gives $S(3)$, and so on without end.
+        </p>
+      </div>
+    </div>
+
     <div class="callout warn">
       <span class="tag">Induction proves, it does not discover</span>
       <p>
@@ -116,6 +217,17 @@
       </p>
     </div>
 
+    <figure>
+      <div class="widget" data-widget="staircase"></div>
+      <figcaption>
+        <b>Where the formula comes from.</b> The staircase has $1, 2, \dots, n$ blocks in its
+        columns. A second copy, turned over, fits on top to make a rectangle $n$ wide and $n + 1$
+        tall. Twice the sum is $n(n+1)$ — no induction needed to <em>find</em> the formula, only to
+        be certain of it.
+      </figcaption>
+    </figure>
+
+
     <div class="callout aside">
       <span class="tag">Where the hypothesis must appear</span>
       <p>
@@ -124,6 +236,76 @@
         find you never used it, you have either proved something stronger directly or made a mistake.
         Point at the moment of use; it is the thing an examiner and a reader both look for.
       </p>
+    </div>
+
+    <div class="worked">
+      <h4><span class="num">Wrong turn.</span> A perfect inductive step with nothing under it</h4>
+      <div class="body">
+        <p>
+          &ldquo;Prove&rdquo; that $n^2 + n$ is odd for every positive integer $n$.
+        </p>
+        <ol class="steps">
+          <li><b>The tempting move.</b> Go straight to the inductive step. Assume $n^2 + n$ is odd.</li>
+          <li>Then $(n+1)^2 + (n+1) = n^2 + 2n + 1 + n + 1 = (n^2 + n) + 2(n+1)$. That is an odd
+            number plus an even number, which is odd. So the statement for $n$ gives the statement
+            for $n + 1$, and the proof seems complete.</li>
+          <li><b>The check.</b> Try $n = 1$: $1 + 1 = 2$, which is even. Try $n = 2$: $4 + 2 = 6$,
+            even again. The statement is false every single time.</li>
+          <li><b>Why.</b> The inductive step is correct — if the statement held for some $n$, it
+            really would hold for the next. But it never holds anywhere, because no base case was
+            checked. The dominoes are perfectly spaced and none was ever pushed.</li>
+          <li><b>The repair.</b> The truth is the opposite: $n^2 + n = n(n+1)$ is a product of two
+            consecutive integers, one of which is even, so it is always <em>even</em>.
+            $\blacksquare$</li>
+        </ol>
+        <p class="note">
+          The base case usually takes one line and feels like a formality. This is what the
+          formality is protecting you from.
+        </p>
+      </div>
+    </div>
+
+    <div class="worked">
+      <h4><span class="num">Your turn, with help.</span> The sum of the odd numbers</h4>
+      <div class="body">
+        <p>
+          Prove that $1 + 3 + 5 + \dots + (2n - 1) = n^2$ for every $n \ge 1$. Try each step before
+          opening it.
+        </p>
+        <ol class="steps">
+          <li><b>Base case.</b> For $n = 1$ the left side is $1$ and the right side is $1^2 = 1$ ✓.</li>
+          <li>
+            <details class="reveal">
+              <summary>Set up the inductive step</summary>
+              <p>
+                Assume $1 + 3 + \dots + (2n-1) = n^2$. The next odd number after $2n - 1$ is
+                $2n + 1$, so we must show that adding it gives $(n+1)^2$.
+              </p>
+            </details>
+          </li>
+          <li>
+            <details class="reveal">
+              <summary>Use the hypothesis</summary>
+              <p>
+                $\underbrace{1 + 3 + \dots + (2n-1)}_{=\,n^2} + (2n+1) = n^2 + 2n + 1$.
+              </p>
+            </details>
+          </li>
+          <li>
+            <details class="reveal">
+              <summary>Finish</summary>
+              <p>
+                $n^2 + 2n + 1 = (n+1)^2$, by the key expansion of Chapter 1. That is the statement
+                for $n + 1$. $\blacksquare$
+              </p>
+            </details>
+          </li>
+        </ol>
+        <p class="note">
+          Geometrically: an $n \times n$ square grows into an $(n+1) \times (n+1)$ square by adding
+          an L-shaped border of $2n + 1$ blocks.
+        </p>
+      </div>
     </div>
 
     <h2 id="summations">15.2 Summations</h2>
@@ -172,6 +354,23 @@
       </div>
     </div>
 
+    <div class="ex" data-inline id="t2" data-type="number" data-answer="120"
+         data-hint="Split the sum into two, and remember what a constant sums to."
+         data-hint2="The sum of k from 1 to 10 is 55, and the sum of ten 1s is 10.">
+      <div class="ex-q">
+        <p>
+          Compute $\displaystyle\sum_{k=1}^{10} (2k + 1)$.
+        </p>
+      </div>
+      <div class="ex-solution">
+        <p class="answer">Answer: $120$</p>
+        <p>
+          $2\sum_{k=1}^{10} k + \sum_{k=1}^{10} 1 = 2 \cdot 55 + 10 = 120$. The constant $1$, summed
+          ten times, contributes $10$.
+        </p>
+      </div>
+    </div>
+
     <h2 id="geometric">15.3 Geometric series</h2>
     <p>
       A <b>geometric</b> sum is one where each term is a fixed multiple of the one before:
@@ -180,6 +379,15 @@
     <p>
       There is a closed form, and the derivation is a trick worth keeping.
     </p>
+
+    <details class="reveal">
+      <summary><span class="ask">Let $S = 1 + 2 + 4 + 8$. Write out $2S$ term by term underneath it. What is left when you subtract $S$ from $2S$?</span>Write both out, then open</summary>
+      <p>
+        $2S = 2 + 4 + 8 + 16$. The terms $2$, $4$, $8$ appear in both and cancel, leaving
+        $2S - S = 16 - 1$, so $S = 15$. Multiplying by the ratio shifts the whole sum along by one
+        place, and that is the entire trick. The example below does it with $r$ in place of $2$.
+      </p>
+    </details>
 
     <div class="worked">
       <h4><span class="num">Example 3.</span> Summing it, by subtraction</h4>
@@ -198,6 +406,22 @@
         <p class="note">
           At $r = 1$ the formula is $0/0$ and the sum is simply $n+1$, every term being $1$. The
           excluded case is excluded for a reason.
+        </p>
+      </div>
+    </div>
+
+    <div class="ex" data-inline id="t3" data-type="number" data-answer="121"
+         data-hint="Here r = 3 and the last term is r⁴, so n = 4.">
+      <div class="ex-q">
+        <p>
+          Use the closed form to compute $1 + 3 + 9 + 27 + 81$.
+        </p>
+      </div>
+      <div class="ex-solution">
+        <p class="answer">Answer: $121$</p>
+        <p>
+          $\dfrac{1 - 3^{5}}{1 - 3} = \dfrac{1 - 243}{-2} = \dfrac{-242}{-2} = 121$. Adding
+          directly: $1 + 3 + 9 + 27 + 81 = 121$ ✓.
         </p>
       </div>
     </div>
@@ -224,6 +448,21 @@
         while a negative $r$ makes them oscillate on their way in.
       </figcaption>
     </figure>
+
+    <div class="ex" data-inline id="t4" data-type="number" data-answer="4/3"
+         data-hint="A geometric series with |r| less than 1. What is r?">
+      <div class="ex-q">
+        <p>
+          What is $1 + \tfrac14 + \tfrac1{16} + \tfrac1{64} + \dots$?
+        </p>
+      </div>
+      <div class="ex-solution">
+        <p class="answer">Answer: $\tfrac43$</p>
+        <p>
+          $r = \tfrac14$, so the sum is $\dfrac{1}{1 - \frac14} = \dfrac{1}{3/4} = \dfrac43$.
+        </p>
+      </div>
+    </div>
 
     <div class="callout idea">
       <span class="tag">$0.999\ldots = 1$, settled</span>
@@ -365,7 +604,8 @@
       </div>
 
       <div class="ex" data-type="number" data-answer="25"
-           data-hint="Split the sum, pull out the constant, and remember what a constant sums to.">
+           data-hint="Split the sum, pull out the constant, and remember what a constant sums to."
+           data-hint2="2 · (1 + 2 + 3 + 4 + 5) − 5.">
         <div class="ex-q">
           <p>Compute $\displaystyle\sum_{k=1}^{5} (2k - 1)$.</p>
         </div>
@@ -410,7 +650,8 @@
       </div>
 
       <div class="ex" data-type="number" data-answer="45"
-           data-hint="Sum to 10 minus sum to 4.">
+           data-hint="Sum to 10 minus sum to 4."
+           data-hint2="The sum to 10 is 55 and the sum to 4 is 10.">
         <div class="ex-q">
           <p>Compute $\displaystyle\sum_{k=5}^{10} k$.</p>
         </div>
@@ -453,6 +694,18 @@
 
     <div class="recap">
       <h2>Recap</h2>
+      <div class="puzzle-answer">
+        <span class="tag">Back to the puzzle</span>
+        <p data-your-guess></p>
+        <p>
+          <b>Exactly equal.</b> $0.999\ldots$ means the sum
+          $\frac{9}{10} + \frac{9}{100} + \frac{9}{1000} + \dots$, a geometric series with first
+          term $\frac{9}{10}$ and ratio $\frac{1}{10}$. Its sum is
+          $\frac{9}{10} \cdot \frac{1}{1 - 1/10} = 1$. Every finite stretch of nines falls short of
+          $1$ — but the infinite decimal is <em>defined</em> as the limit of those stretches, and
+          the limit is $1$. One number, two names.
+        </p>
+      </div>
       <ul>
         <li>Induction proves $S(n)$ for all $n$ from two ingredients: a base case, and
           $S(n)\Rightarrow S(n+1)$. Drop either and it collapses.</li>

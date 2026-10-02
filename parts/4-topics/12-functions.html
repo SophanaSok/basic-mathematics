@@ -39,6 +39,20 @@
       amount of practice at "finding $f(3)$".
     </p>
 
+    <div class="puzzle" id="puzzle">
+      <span class="tag">A puzzle to carry through the chapter</span>
+      <p>
+        A patch of water lilies doubles in area every day. After $48$ days it covers the whole lake.
+        On which day did it cover half the lake?
+      </p>
+      <ul class="guess">
+        <li>Day $24$</li>
+        <li>Day $36$</li>
+        <li>Day $47$</li>
+      </ul>
+      <p class="puzzle-after">Halving the answer feels natural. Check whether it survives one more day of doubling.</p>
+    </div>
+
     <div class="goal">
       <strong>By the end of this chapter you can</strong>
       state what a function is and why the domain is part of it, apply the vertical line test,
@@ -47,16 +61,73 @@
       equations with the unknown in the exponent.
     </div>
 
-    <div class="callout aside">
-      <span class="tag">Before you start</span>
+    <section class="warmup" id="warmup">
+      <div class="callout aside">
+        <span class="tag">Before you start</span>
+        <p>
+          You should be comfortable with <a href="../1-algebra/03-real-numbers.html#powers">powers and
+          roots</a> (Chapter 3), with
+          <a href="../1-algebra/04-quadratic-equations.html#graph">parabolas</a> (Chapter 4), and with
+          <a href="../3-coordinates/10-segments-rays-lines.html#lines">lines in coordinates</a>
+          (Chapter 10). Those are the graphs this chapter generalises.
+        </p>
+      </div>
+
       <p>
-        You should be comfortable with <a href="../1-algebra/03-real-numbers.html#powers">powers and
-        roots</a> (Chapter 3), with
-        <a href="../1-algebra/04-quadratic-equations.html#graph">parabolas</a> (Chapter 4), and with
-        <a href="../3-coordinates/10-segments-rays-lines.html#lines">lines in coordinates</a>
-        (Chapter 10). Those are the graphs this chapter generalises.
+        Three quick ones from earlier chapters, to wake up what this chapter stands on. They are
+        not scored. If one will not come, its solution says where to look.
       </p>
-    </div>
+
+      <div class="ex" data-inline id="w1" data-label="Warm-up 1" data-type="number" data-answer="1/8|0.125"
+           data-hint="A negative exponent means a reciprocal.">
+        <div class="ex-q">
+          <p>
+            Compute $2^{-3}$.
+          </p>
+        </div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $\tfrac18$</p>
+          <p>
+            $2^{-3} = \dfrac{1}{2^3} = \dfrac18$ — <a
+            href="../1-algebra/03-real-numbers.html#powers">§3.5</a>. The exponential function in
+            §12.4 takes this definition and extends it to every real exponent.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" data-inline id="w2" data-label="Warm-up 2" data-type="number" data-answer="4"
+           data-hint="The denominator of the exponent is a root; the numerator is a power.">
+        <div class="ex-q">
+          <p>
+            Compute $8^{2/3}$.
+          </p>
+        </div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $4$</p>
+          <p>
+            The cube root of $8$ is $2$, and $2^2 = 4$ — <a
+            href="../1-algebra/03-real-numbers.html#powers">§3.5</a> again.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" data-inline id="w3" data-label="Warm-up 3" data-type="number" data-answer="2"
+           data-hint="x = −b/(2a).">
+        <div class="ex-q">
+          <p>
+            At which $x$ is the vertex of the parabola $y = x^2 - 4x + 1$?
+          </p>
+        </div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $x = 2$</p>
+          <p>
+            $-\dfrac{b}{2a} = \dfrac{4}{2} = 2$; completed square, $y = (x-2)^2 - 3$ — <a
+            href="../1-algebra/04-quadratic-equations.html#graph">§4.5</a>. In §12.3 that is the graph
+            of $x^2$ shifted $2$ right and $3$ down.
+          </p>
+        </div>
+      </div>
+    </section>
 
     <h2 id="definition-fn">12.1 Definition of a function</h2>
 
@@ -100,6 +171,22 @@
         <p class="note">
           Two rules cover almost every case at this level: no negative under an even root, no zero
           in a denominator.
+        </p>
+      </div>
+    </div>
+
+    <div class="ex" data-inline id="t1" data-type="number" data-answer="2"
+         data-hint="What must be true of the number under the root?">
+      <div class="ex-q">
+        <p>
+          What is the smallest number in the natural domain of $f(x) = \sqrt{x - 2}$?
+        </p>
+      </div>
+      <div class="ex-solution">
+        <p class="answer">Answer: $2$</p>
+        <p>
+          The square root needs $x - 2 \ge 0$, that is $x \ge 2$. So the domain is $[2, \infty)$,
+          and its smallest element is $2$ — where $f(2) = 0$.
         </p>
       </div>
     </div>
@@ -158,6 +245,70 @@
       </p>
     </div>
 
+    <div class="ex" data-inline id="t2" data-answer="1"
+         data-hint="By the factor theorem you only need to compute one value of f.">
+      <div class="ex-q">
+        <p>
+          Let $f(x) = x^3 - 2x^2 - 5x + 6$. Is $x - 1$ a factor of $f(x)$?
+        </p>
+      </div>
+      <ul class="choices">
+        <li>Yes.</li>
+        <li>No.</li>
+      </ul>
+      <div class="ex-solution">
+        <p class="answer">Answer: yes</p>
+        <p>
+          $f(1) = 1 - 2 - 5 + 6 = 0$, so $1$ is a root, and by the factor theorem $(x - 1)$ divides
+          $f(x)$. No division was needed to find that out.
+        </p>
+      </div>
+    </div>
+
+    <div class="worked">
+      <h4><span class="num">Your turn, with help.</span> From one root to all of them</h4>
+      <div class="body">
+        <p>
+          Find every root of $f(x) = x^3 - 2x^2 - 5x + 6$, given that $f(1) = 0$. Try each step
+          before opening it.
+        </p>
+        <ol class="steps">
+          <li>Since $1$ is a root, $(x - 1)$ is a factor. Divide it out.</li>
+          <li>
+            <details class="reveal">
+              <summary>Carry out the division</summary>
+              <p>
+                $x^2(x-1) = x^3 - x^2$ leaves $-x^2 - 5x + 6$; then $-x(x-1) = -x^2 + x$ leaves
+                $-6x + 6$; then $-6(x-1)$ leaves $0$. So $f(x) = (x-1)(x^2 - x - 6)$.
+              </p>
+            </details>
+          </li>
+          <li>
+            <details class="reveal">
+              <summary>Factor the quadratic</summary>
+              <p>
+                Two numbers with product $-6$ and sum $-1$: $-3$ and $2$. So
+                $x^2 - x - 6 = (x-3)(x+2)$.
+              </p>
+            </details>
+          </li>
+          <li>
+            <details class="reveal">
+              <summary>List the roots</summary>
+              <p>
+                $f(x) = (x-1)(x-3)(x+2)$, so the roots are $1$, $3$ and $-2$ — three of them, the
+                most a cubic can have. $\blacksquare$
+              </p>
+            </details>
+          </li>
+        </ol>
+        <p class="note">
+          Each root found lowers the degree of what is left to solve. That is the practical use of
+          the factor theorem.
+        </p>
+      </div>
+    </div>
+
     <p>
       One direction is immediate: if $f(x) = (x-r)q(x)$ then $f(r) = 0 \cdot q(r) = 0$. The other
       direction is division with remainder, as just carried out: dividing $f(x)$ by $(x-r)$ leaves a constant remainder
@@ -213,6 +364,24 @@
       </figcaption>
     </figure>
 
+    <div class="ex" data-inline id="t3" data-answer="(-1,-4)|-1,-4"
+         data-placeholder="e.g. (3,-2)"
+         data-hint="Read (x + 1) as (x − (−1)).">
+      <div class="ex-q">
+        <p>
+          Where is the vertex of the parabola $y = (x + 1)^2 - 4$?
+        </p>
+      </div>
+      <div class="ex-solution">
+        <p class="answer">Answer: $(-1, -4)$</p>
+        <p>
+          This is $y = x^2$ shifted by $h = -1$ (one to the <em>left</em>) and $k = -4$ (four down),
+          so the vertex moves from $(0,0)$ to $(-1,-4)$. Check: at $x = -1$ the square is $0$ and
+          $y = -4$.
+        </p>
+      </div>
+    </div>
+
     <div class="callout idea">
       <span class="tag">Why subtracting shifts right</span>
       <p>
@@ -221,6 +390,30 @@
         moved to the right. Argue it this way once and you will never have to guess the direction
         again.
       </p>
+    </div>
+
+    <div class="worked">
+      <h4><span class="num">Wrong turn.</span> Reading the shift off the sign</h4>
+      <div class="body">
+        <p>
+          Where is the vertex of $y = (x - 3)^2$?
+        </p>
+        <ol class="steps">
+          <li><b>The tempting move.</b> There is a $-3$ in the formula, so the graph has moved $3$ in
+            the negative direction: the vertex is at $x = -3$.</li>
+          <li><b>The check.</b> The vertex of a square is where it equals $0$. At $x = -3$:
+            $(-3 - 3)^2 = 36$, nowhere near $0$. At $x = 3$: $(3-3)^2 = 0$ ✓.</li>
+          <li><b>Why.</b> The $-3$ is applied to the <em>input</em>, before the function sees it. To
+            feed the function the value $0$ you must now supply $x = 3$. Everything the old graph
+            did at $0$ happens at $3$ instead — it has moved right.</li>
+          <li><b>The repair.</b> The vertex is at $(3, 0)$. $\blacksquare$</li>
+        </ol>
+        <p class="note">
+          Changes outside the function ($+k$, $\times a$) do what they look like. Changes inside
+          ($x - h$) do the opposite of what they look like. When in doubt, ask where the bracket is
+          zero.
+        </p>
+      </div>
     </div>
 
     <h2 id="exponential">12.4 The exponential function</h2>
@@ -258,11 +451,36 @@
       </p>
     </div>
 
+    <div class="ex" data-inline id="t4" data-type="number" data-answer="162"
+         data-hint="Four triplings: multiply by 3 four times.">
+      <div class="ex-q">
+        <p>
+          A quantity starts at $2$ and triples every hour. How large is it after $4$ hours?
+        </p>
+      </div>
+      <div class="ex-solution">
+        <p class="answer">Answer: $162$</p>
+        <p>
+          $2 \cdot 3^4 = 2 \cdot 81 = 162$. In general the value after $x$ hours is $2 \cdot 3^x$:
+          constant ratio per step, which is what makes it exponential.
+        </p>
+      </div>
+    </div>
+
     <h2 id="log">12.5 Logarithms</h2>
     <p>
       Since $a^x$ (for $a &gt; 1$) is increasing, it takes each positive value exactly once. So it
       can be undone, and the undoing has a name.
     </p>
+
+    <details class="reveal">
+      <summary><span class="ask">Three questions about powers of $2$. What $x$ makes $2^x = 8$? What $x$ makes $2^x = \tfrac12$? And $2^x = 10$ — between which two whole numbers must that $x$ lie?</span>Answer all three, then open</summary>
+      <p>
+        $3$, then $-1$, and between $3$ and $4$ (since $2^3 = 8 &lt; 10 &lt; 16 = 2^4$). You have
+        just computed three logarithms to base $2$. The logarithm is nothing more than a name for
+        the answer to "what exponent?".
+      </p>
+    </details>
 
     <div class="rule">
       <span class="tag">Definition</span>
@@ -310,6 +528,66 @@
     </p>
 
     <div class="worked">
+      <h4><span class="num">The laws in use.</span> Three quick computations</h4>
+      <div class="body">
+        <p>
+          Compute (a) $\log_2 12 + \log_2 \tfrac23$, (b) $\log_{10} 5 + \log_{10} 20$, (c)
+          $\log_3\!\left(9^5\right)$.
+        </p>
+        <ol class="steps">
+          <li>(a) A sum of logs is the log of the product:
+            $\log_2\!\left(12 \cdot \tfrac23\right) = \log_2 8 = 3$.</li>
+          <li>(b) Likewise $\log_{10}(5 \cdot 20) = \log_{10} 100 = 2$. <span class="note">Neither
+            $\log_{10} 5$ nor $\log_{10} 20$ is a whole number; their sum is.</span></li>
+          <li>(c) An exponent comes out in front:
+            $\log_3\!\left(9^5\right) = 5\log_3 9 = 5 \cdot 2 = 10$. $\blacksquare$</li>
+        </ol>
+        <p class="note">
+          In each case the law was used to reach a number whose logarithm is recognisable. That is
+          the usual tactic: combine first, evaluate last.
+        </p>
+      </div>
+    </div>
+
+    <div class="worked">
+      <h4><span class="num">Wrong turn.</span> The logarithm of a sum</h4>
+      <div class="body">
+        <p>
+          Compute $\log_2(4 + 4)$.
+        </p>
+        <ol class="steps">
+          <li><b>The tempting move.</b> Split the log across the sum:
+            $\log_2 4 + \log_2 4 = 2 + 2 = 4$.</li>
+          <li><b>The check.</b> Do the bracket first: $4 + 4 = 8$, and $\log_2 8 = 3$, because
+            $2^3 = 8$. Two routes, $4$ against $3$.</li>
+          <li><b>Why.</b> The law is $\log(uv) = \log u + \log v$ — a <em>product</em> on the left. So
+            $\log_2 4 + \log_2 4$ is $\log_2(4 \cdot 4) = \log_2 16 = 4$, the logarithm of something
+            else entirely. There is no law for the logarithm of a sum.</li>
+          <li><b>The repair.</b> $\log_2(4+4) = \log_2 8 = 3$. $\blacksquare$</li>
+        </ol>
+        <p class="note">
+          Logarithms turn products into sums; they do nothing useful to sums. The same shape of
+          mistake as $\sqrt{a+b}$ and $(a+b)^2$, and caught the same way — with numbers.
+        </p>
+      </div>
+    </div>
+
+    <div class="ex" data-inline id="t5" data-type="number" data-answer="2"
+         data-hint="Combine the two logarithms into one first.">
+      <div class="ex-q">
+        <p>
+          Compute $\log_{10} 2 + \log_{10} 50$.
+        </p>
+      </div>
+      <div class="ex-solution">
+        <p class="answer">Answer: $2$</p>
+        <p>
+          $\log_{10} 2 + \log_{10} 50 = \log_{10}(2 \cdot 50) = \log_{10} 100 = 2$.
+        </p>
+      </div>
+    </div>
+
+    <div class="worked">
       <h4><span class="num">Example 2.</span> Solving for an exponent</h4>
       <div class="body">
         <p>Solve $3 \cdot 2^{x} = 96$.</p>
@@ -321,6 +599,21 @@
             $x\log 2 = \log 30$, so $x = \log 30/\log 2 \approx 4.907$.</li>
           <li>Check: $2^5 = 32$ and $3 \times 32 = 96$ ✓. $\blacksquare$</li>
         </ol>
+      </div>
+    </div>
+
+    <div class="ex" data-inline id="t6" data-type="number" data-answer="3"
+         data-hint="Isolate the power first.">
+      <div class="ex-q">
+        <p>
+          Solve $4 \cdot 3^{x} = 108$.
+        </p>
+      </div>
+      <div class="ex-solution">
+        <p class="answer">Answer: $x = 3$</p>
+        <p>
+          Divide by $4$: $3^x = 27 = 3^3$, so $x = 3$. Check: $4 \cdot 27 = 108$ ✓.
+        </p>
       </div>
     </div>
 
@@ -483,7 +776,8 @@
       </div>
 
       <div class="ex" data-type="number" data-answer="1"
-           data-hint="How many roots can a polynomial of degree n have at most?">
+           data-hint="How many roots can a polynomial of degree n have at most?"
+           data-hint2="x³ and x both increase as x does. Can an increasing function cross zero twice?">
         <div class="ex-q">
           <p>
             How many real roots does $f(x) = x^3 + x + 1$ have? (It has at least one, since it is
@@ -504,7 +798,8 @@
       </div>
 
       <div class="ex" data-type="number" data-answer="2.807" data-tol="0.005"
-           data-hint="Use log₂ 7 = log 7 / log 2.">
+           data-hint="Use log₂ 7 = log 7 / log 2."
+           data-hint2="0.8451 ÷ 0.3010.">
         <div class="ex-q">
           <p>
             Compute $\log_2 7$ to three decimal places. ($\log_{10}7 \approx 0.8451$,
@@ -527,6 +822,17 @@
 
     <div class="recap">
       <h2>Recap</h2>
+      <div class="puzzle-answer">
+        <span class="tag">Back to the puzzle</span>
+        <p data-your-guess></p>
+        <p>
+          <b>Day $47$.</b> One more doubling takes half the lake to the whole lake. On day $24$ the
+          patch covered $1/2^{24}$ of the lake — about one sixteen-millionth. That is what
+          exponential growth means: a constant <em>ratio</em> per step, so that almost everything
+          happens at the end. The logarithm asks the question backwards: how many doublings does it
+          take?
+        </p>
+      </div>
       <ul>
         <li>A function is a domain plus a rule giving exactly one value to each element of it — and
           the domain is part of the function, not an afterthought.</li>

@@ -39,6 +39,20 @@
       algebra you already know how to do.
     </p>
 
+    <div class="puzzle" id="puzzle">
+      <span class="tag">A puzzle to carry through the chapter</span>
+      <p>
+        $3, 4, 5$ are the sides of a right triangle, all whole numbers. So are $5, 12, 13$. Leaving
+        aside scaled-up copies such as $6, 8, 10$ — how many such triangles are there?
+      </p>
+      <ul class="guess">
+        <li>Just those two</li>
+        <li>A handful — perhaps a dozen</li>
+        <li>Infinitely many</li>
+      </ul>
+      <p class="puzzle-after">The answer comes out of a circle, in §8.4, along with a recipe for producing them.</p>
+    </div>
+
     <div class="goal">
       <strong>By the end of this chapter you can</strong>
       locate points by coordinates and name the quadrants, derive and use the distance formula,
@@ -47,16 +61,74 @@
       points on the unit circle from a single parameter.
     </div>
 
-    <div class="callout aside">
-      <span class="tag">Before you start</span>
+    <section class="warmup" id="warmup">
+      <div class="callout aside">
+        <span class="tag">Before you start</span>
+        <p>
+          You should be able to <a href="../1-algebra/04-quadratic-equations.html#completing">complete
+          the square</a> (Chapter 4) and to state
+          <a href="../2-geometry/05-distance-and-angles.html#pythagoras">the Pythagorean theorem</a>
+          (Chapter 5). The distance formula and the equation of a circle are those two ideas rewritten
+          in coordinates.
+        </p>
+      </div>
+
       <p>
-        You should be able to <a href="../1-algebra/04-quadratic-equations.html#completing">complete
-        the square</a> (Chapter 4) and to state
-        <a href="../2-geometry/05-distance-and-angles.html#pythagoras">the Pythagorean theorem</a>
-        (Chapter 5). The distance formula and the equation of a circle are those two ideas rewritten
-        in coordinates.
+        Three quick ones from earlier chapters, to wake up what this chapter stands on. They are
+        not scored. If one will not come, its solution says where to look.
       </p>
-    </div>
+
+      <div class="ex" data-inline id="w1" data-label="Warm-up 1" data-type="number" data-answer="-9"
+           data-hint="Expand (x − 3)² and see what constant comes with it.">
+        <div class="ex-q">
+          <p>
+            Complete the square: $x^2 - 6x = (x - 3)^2 + k$. What is $k$?
+          </p>
+        </div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $k = -9$</p>
+          <p>
+            $(x-3)^2 = x^2 - 6x + 9$, so $x^2 - 6x = (x-3)^2 - 9$. See <a
+            href="../1-algebra/04-quadratic-equations.html#completing">§4.2</a> — it is used twice
+            over in §8.3 to find the centre of a circle.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" data-inline id="w2" data-label="Warm-up 2" data-type="number" data-answer="10"
+           data-hint="a² + b² = c².">
+        <div class="ex-q">
+          <p>
+            A right triangle has legs $6$ and $8$. How long is the hypotenuse?
+          </p>
+        </div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $10$</p>
+          <p>
+            $36 + 64 = 100$, so $c = 10$. The Pythagorean theorem of <a
+            href="../2-geometry/05-distance-and-angles.html#pythagoras">§5.4</a> is about to become
+            the distance formula.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" data-inline id="w3" data-label="Warm-up 3" data-type="number" data-answer="6"
+           data-hint="|a − b|.">
+        <div class="ex-q">
+          <p>
+            How far apart are $-2$ and $4$ on the number line?
+          </p>
+        </div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $6$</p>
+          <p>
+            $|4 - (-2)| = 6$. Distance along a line is the absolute value of a difference (<a
+            href="../1-algebra/03-real-numbers.html#absolute">§3.4</a>); the legs of the triangle in
+            §8.2 are measured exactly this way.
+          </p>
+        </div>
+      </div>
+    </section>
 
     <h2 id="coord-systems">8.1 Coordinate systems</h2>
     <p>
@@ -99,11 +171,38 @@
       </p>
     </div>
 
+    <div class="ex" data-inline id="t1" data-answer="4|iv"
+         data-placeholder="1, 2, 3 or 4"
+         data-hint="x is positive and y is negative. Right or left? Above or below?">
+      <div class="ex-q">
+        <p>
+          In which quadrant does the point $(5, -2)$ lie?
+        </p>
+      </div>
+      <div class="ex-solution">
+        <p class="answer">Answer: quadrant $4$</p>
+        <p>
+          Positive $x$ puts it to the right of the $y$-axis; negative $y$ puts it below the
+          $x$-axis. Lower right is quadrant IV.
+        </p>
+      </div>
+    </div>
+
     <h2 id="distance-formula">8.2 Distance between points</h2>
     <p>
       Chapter 5 ended with a promise: Pythagoras would give the distance between any two points.
       Here it is.
     </p>
+    <details class="reveal">
+      <summary><span class="ask">How far apart are $(1,1)$ and $(4,5)$? No formula yet: sketch the two points, draw a horizontal leg and a vertical leg between them, and use Chapter 5.</span>Work it out, then open</summary>
+      <p>
+        The horizontal leg runs from $x = 1$ to $x = 4$: length $3$. The vertical leg runs from
+        $y = 1$ to $y = 5$: length $4$. They meet at a right angle, so the distance is the
+        hypotenuse: $\sqrt{3^2 + 4^2} = 5$. The formula below is this calculation with letters in
+        place of the numbers.
+      </p>
+    </details>
+
     <p>
       Let $P = (x_1,y_1)$ and $Q = (x_2,y_2)$. Complete the right triangle by dropping to the point
       $R = (x_2, y_1)$, directly below or above $Q$ and level with $P$. The leg $PR$ is horizontal,
@@ -152,6 +251,22 @@
         <p class="note">
           Which was visible from the start: $AC$ is horizontal and $BC$ is vertical, so they are
           perpendicular. The arithmetic confirmed what the coordinates had already said.
+        </p>
+      </div>
+    </div>
+
+    <div class="ex" data-inline id="t2" data-type="number" data-answer="5"
+         data-hint="Find the two coordinate differences first.">
+      <div class="ex-q">
+        <p>
+          What is the distance between $(-1,-2)$ and $(2,2)$?
+        </p>
+      </div>
+      <div class="ex-solution">
+        <p class="answer">Answer: $5$</p>
+        <p>
+          $\Delta x = 2 - (-1) = 3$ and $\Delta y = 2 - (-2) = 4$, so $d = \sqrt{9 + 16} = 5$.
+          Subtracting a negative coordinate is where the slips happen.
         </p>
       </div>
     </div>
@@ -221,6 +336,23 @@
       </div>
     </div>
 
+    <div class="ex" data-inline id="t3" data-answer="(-4,1)|-4,1"
+         data-placeholder="e.g. (3,-2)"
+         data-hint="Read (x + 4) as (x − (−4)).">
+      <div class="ex-q">
+        <p>
+          What is the centre of the circle $(x+4)^2 + (y-1)^2 = 9$?
+        </p>
+      </div>
+      <div class="ex-solution">
+        <p class="answer">Answer: $(-4, 1)$</p>
+        <p>
+          Matching $(x - h)^2 + (y - k)^2 = r^2$: $h = -4$ and $k = 1$. Check by substituting: the
+          centre must make the left side $0$, and $(-4 + 4)^2 + (1 - 1)^2 = 0$ ✓. The radius is $3$.
+        </p>
+      </div>
+    </div>
+
     <p>
       Expanding the equation gives $x^2 + y^2 - 2hx - 2ky + (h^2+k^2-r^2) = 0$: something of the
       shape $x^2 + y^2 + Dx + Ey + F = 0$. Going back the other way — from the expanded form to the
@@ -247,6 +379,60 @@
           If the right-hand side had come out negative, no point would satisfy the equation; if
           zero, only the centre itself. The discriminant idea from Chapter 4, wearing different
           clothes.
+        </p>
+      </div>
+    </div>
+
+    <div class="worked">
+      <h4><span class="num">Your turn, with help.</span> Centre and radius from the expanded form</h4>
+      <div class="body">
+        <p>
+          Describe the set of points satisfying $x^2 + y^2 + 2x - 10y + 1 = 0$. Try each step before
+          opening it.
+        </p>
+        <ol class="steps">
+          <li>Group the $x$'s and the $y$'s, and move the constant across:
+            $(x^2 + 2x) + (y^2 - 10y) = -1$.</li>
+          <li>
+            <details class="reveal">
+              <summary>Complete the square in each variable</summary>
+              <p>
+                $x^2 + 2x = (x+1)^2 - 1$, and $y^2 - 10y = (y-5)^2 - 25$.
+              </p>
+            </details>
+          </li>
+          <li>
+            <details class="reveal">
+              <summary>Substitute and tidy up</summary>
+              <p>
+                $(x+1)^2 - 1 + (y-5)^2 - 25 = -1$, so $(x+1)^2 + (y-5)^2 = 25$.
+              </p>
+            </details>
+          </li>
+          <li>
+            <details class="reveal">
+              <summary>Read off the answer</summary>
+              <p>
+                A circle with centre $(-1, 5)$ and radius $5$. $\blacksquare$
+              </p>
+            </details>
+          </li>
+        </ol>
+      </div>
+    </div>
+
+    <div class="ex" data-inline id="t4" data-type="number" data-answer="3"
+         data-hint="Only x needs its square completed; y² is already a perfect square.">
+      <div class="ex-q">
+        <p>
+          The equation $x^2 + y^2 - 4x = 5$ describes a circle. What is its radius?
+        </p>
+      </div>
+      <div class="ex-solution">
+        <p class="answer">Answer: $3$</p>
+        <p>
+          $x^2 - 4x = (x-2)^2 - 4$, so the equation becomes $(x-2)^2 + y^2 = 9$: centre $(2,0)$,
+          radius $\sqrt9 = 3$.
         </p>
       </div>
     </div>
@@ -284,6 +470,24 @@
             $$\left(\frac{1-t^{2}}{1+t^{2}},\; \frac{2t}{1+t^{2}}\right)$$
             lies on the circle — and if $t$ is rational, both coordinates are. $\blacksquare$</li>
         </ol>
+      </div>
+    </div>
+
+    <div class="ex" data-inline id="t5" data-answer="(-0.6,0.8)|-0.6,0.8|(-3/5,4/5)|-3/5,4/5"
+         data-placeholder="e.g. (0.6,0.8)"
+         data-hint="x = (1 − t²)/(1 + t²) and y = 2t/(1 + t²).">
+      <div class="ex-q">
+        <p>
+          Use the parametrisation with $t = 2$. Which point of the unit circle do you get?
+        </p>
+      </div>
+      <div class="ex-solution">
+        <p class="answer">Answer: $\left(-\tfrac35, \tfrac45\right)$</p>
+        <p>
+          $1 + t^2 = 5$ and $1 - t^2 = -3$, so $x = -\frac35$ and $y = \frac45$. Check:
+          $\frac{9}{25} + \frac{16}{25} = 1$ ✓. A steep line from $(-1,0)$ lands in quadrant II —
+          and it is the $3,4,5$ triangle again.
+        </p>
       </div>
     </div>
 
@@ -362,7 +566,8 @@
       </div>
 
       <div class="ex" data-type="number" data-answer="4"
-           data-hint="Complete the square in x and in y, then read off r² on the right.">
+           data-hint="Complete the square in x and in y, then read off r² on the right."
+           data-hint2="(x − 1)² − 1 + (y + 4)² − 16 = −1.">
         <div class="ex-q">
           <p>
             The equation $x^2 + y^2 - 2x + 8y + 1 = 0$ describes a circle. What is its radius?
@@ -461,7 +666,8 @@
       </div>
 
       <div class="ex" data-type="number" data-answer="13"
-           data-hint="The radius is the distance from the centre to any point on the circle.">
+           data-hint="The radius is the distance from the centre to any point on the circle."
+           data-hint2="Δx = 12 and Δy = 5.">
         <div class="ex-q">
           <p>
             A circle has centre $(2,-3)$ and passes through $(14,2)$. What is its radius?
@@ -506,6 +712,17 @@
 
     <div class="recap">
       <h2>Recap</h2>
+      <div class="puzzle-answer">
+        <span class="tag">Back to the puzzle</span>
+        <p data-your-guess></p>
+        <p>
+          <b>Infinitely many.</b> Every rational slope $t = q/p$ gives a rational point
+          $\left(\frac{1-t^2}{1+t^2}, \frac{2t}{1+t^2}\right)$ on the unit circle, and clearing
+          denominators turns it into the whole-number triangle $p^2 - q^2,\; 2pq,\; p^2 + q^2$. Take
+          $p = 4$, $q = 1$ and you get $15, 8, 17$; $p = 4$, $q = 3$ gives $7, 24, 25$. Different
+          slopes give genuinely different triangles, and there is no end to the slopes.
+        </p>
+      </div>
       <ul>
         <li>A choice of origin and axes turns each point into an ordered pair, and lets every
           geometric statement be rewritten as algebra.</li>

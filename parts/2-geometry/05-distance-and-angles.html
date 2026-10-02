@@ -39,6 +39,21 @@
       becomes something you can compute with.
     </p>
 
+    <div class="puzzle" id="puzzle">
+      <span class="tag">A puzzle to carry through the chapter</span>
+      <p>
+        Draw any triangle on paper. Tear off its three corners and push the three points together so
+        the torn corners sit side by side. What do the three angles make?
+      </p>
+      <ul class="guess">
+        <li>A full turn</li>
+        <li>A straight line</li>
+        <li>A right angle</li>
+        <li>It depends on the triangle</li>
+      </ul>
+      <p class="puzzle-after">Better still, actually do it — with two different triangles. Section 5.3 says why it has to come out that way.</p>
+    </div>
+
     <div class="goal">
       <strong>By the end of this chapter you can</strong>
       state the three properties distance obeys and use the triangle inequality, work with
@@ -47,14 +62,72 @@
       converse to test for a right angle.
     </div>
 
-    <div class="callout aside">
-      <span class="tag">Before you start</span>
+    <section class="warmup" id="warmup">
+      <div class="callout aside">
+        <span class="tag">Before you start</span>
+        <p>
+          Very little algebra is needed here: <a href="../1-algebra/01-numbers.html#multiplication">the
+          rules of arithmetic</a> (Chapter 1) and <a href="../1-algebra/03-real-numbers.html#powers">square
+          roots</a> (Chapter 3), which the Pythagorean theorem at the end will put to work.
+        </p>
+      </div>
+
       <p>
-        Very little algebra is needed here: <a href="../1-algebra/01-numbers.html#multiplication">the
-        rules of arithmetic</a> (Chapter 1) and <a href="../1-algebra/03-real-numbers.html#powers">square
-        roots</a> (Chapter 3), which the Pythagorean theorem at the end will put to work.
+        Three quick ones from earlier chapters, to wake up what this chapter stands on. They are
+        not scored. If one will not come, its solution says where to look.
       </p>
-    </div>
+
+      <div class="ex" data-inline id="w1" data-label="Warm-up 1" data-type="number" data-answer="5"
+           data-hint="Add first, then take the root.">
+        <div class="ex-q">
+          <p>
+            Compute $\sqrt{9 + 16}$.
+          </p>
+        </div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $5$</p>
+          <p>
+            $\sqrt{9+16} = \sqrt{25} = 5$ — and not $3 + 4 = 7$. Roots do not pass through sums: the
+            trap from <a href="../1-algebra/03-real-numbers.html#powers">§3.5</a>. Every use of the
+            Pythagorean theorem at the end of this chapter depends on not falling into it.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" data-inline id="w2" data-label="Warm-up 2" data-type="number" data-answer="110"
+           data-hint="Add −70 to both sides.">
+        <div class="ex-q">
+          <p>
+            Solve $x + 70 = 180$.
+          </p>
+        </div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $x = 110$</p>
+          <p>
+            Adding $-70$ to both sides gives $x = 110$ — one legal move from <a
+            href="../1-algebra/02-linear-equations.html#one-unknown">§2.1</a>. Most angle problems in
+            this chapter end in an equation this simple.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" data-inline id="w3" data-label="Warm-up 3" data-type="number" data-answer="11"
+           data-hint="Distance is |a − b|.">
+        <div class="ex-q">
+          <p>
+            On the number line, how far apart are $3$ and $-8$?
+          </p>
+        </div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $11$</p>
+          <p>
+            $|3 - (-8)| = |11| = 11$. Distance on a line is the absolute value of a difference — <a
+            href="../1-algebra/03-real-numbers.html#absolute">§3.4</a> — and this chapter extends the
+            idea to the plane.
+          </p>
+        </div>
+      </div>
+    </section>
 
     <h2 id="distance">5.1 Distance</h2>
     <p>
@@ -77,6 +150,28 @@
         <li><b>The triangle inequality.</b> $d(P,R) \le d(P,Q) + d(Q,R)$ for any third point $Q$.</li>
       </ol>
     </div>
+
+    <figure class="diagram">
+      <svg viewBox="0 0 520 190" role="img" aria-label="Three points P, Q and R: the direct segment from P to R, and the longer route through Q">
+        <line class="dg-dash" x1="60" y1="150" x2="250" y2="40"/>
+        <line class="dg-dash" x1="250" y1="40" x2="460" y2="150"/>
+        <line class="dg-line" x1="60" y1="150" x2="460" y2="150"/>
+        <circle cx="60" cy="150" r="4.5" style="fill:var(--text)"/>
+        <circle cx="250" cy="40" r="4.5" style="fill:var(--text)"/>
+        <circle cx="460" cy="150" r="4.5" style="fill:var(--text)"/>
+        <text class="dg-text" x="44" y="168" text-anchor="middle">P</text>
+        <text class="dg-text" x="250" y="28" text-anchor="middle">Q</text>
+        <text class="dg-text" x="476" y="168" text-anchor="middle">R</text>
+        <text class="dg-muted" x="260" y="172" text-anchor="middle">d(P, R)</text>
+        <text class="dg-muted" x="120" y="88" text-anchor="middle">d(P, Q)</text>
+        <text class="dg-muted" x="392" y="88" text-anchor="middle">d(Q, R)</text>
+      </svg>
+      <figcaption>
+        <b>The detour through $Q$.</b> The solid route is never longer than the two dashed ones
+        together. Slide $Q$ down onto the segment and the two totals become equal — the only way
+        they can.
+      </figcaption>
+    </figure>
 
     <p>
       The third is the only one with any content, and it says something you already believe: a
@@ -113,6 +208,27 @@
         <p class="note">
           The general rule worth keeping: the third side is squeezed between the difference and the
           sum of the other two.
+        </p>
+      </div>
+    </div>
+
+    <div class="ex" data-inline id="t1" data-answer="2"
+         data-hint="Compare the longest side with the sum of the other two.">
+      <div class="ex-q">
+        <p>
+          Can the three lengths $3$, $4$ and $8$ be the sides of a triangle?
+        </p>
+      </div>
+      <ul class="choices">
+        <li>Yes.</li>
+        <li>No — two of them together are too short to reach across the third.</li>
+      </ul>
+      <div class="ex-solution">
+        <p class="answer">Answer: no</p>
+        <p>
+          The longest side must be less than the sum of the other two, and $8 &gt; 3 + 4 = 7$. Two
+          rods of lengths $3$ and $4$, hinged at the ends of a rod of length $8$, cannot reach each
+          other. No triangle exists.
         </p>
       </div>
     </div>
@@ -156,6 +272,25 @@
       </p>
     </div>
 
+    <figure class="diagram">
+      <svg viewBox="0 0 520 200" role="img" aria-label="Two lines crossing, making four angles named alpha, beta, gamma and delta in order">
+        <path class="dg-a" d="M260 100 L294.7 80.2 A40 40 0 0 1 299.2 107.8 Z"/>
+        <path class="dg-a" d="M260 100 L225.3 119.8 A40 40 0 0 1 220.8 92.2 Z"/>
+        <path class="dg-b" d="M260 100 L236.5 95.3 A24 24 0 0 1 280.8 88.1 Z"/>
+        <path class="dg-b" d="M260 100 L283.5 104.7 A24 24 0 0 1 239.2 111.9 Z"/>
+        <line class="dg-line" x1="49.2" y1="57.9" x2="470.8" y2="142.1"/>
+        <line class="dg-line" x1="103.6" y1="189.2" x2="416.4" y2="10.8"/>
+        <text class="dg-text" x="317.3" y="90.9" text-anchor="middle">α</text>
+        <text class="dg-text" x="202.7" y="109.1" text-anchor="middle">γ</text>
+        <text class="dg-text" x="260" y="60" text-anchor="middle">β</text>
+        <text class="dg-text" x="260" y="152" text-anchor="middle">δ</text>
+      </svg>
+      <figcaption>
+        <b>Four angles, two values.</b> $\alpha$ and $\gamma$ are opposite; each of them makes a
+        straight line with $\beta$, which is the whole proof.
+      </figcaption>
+    </figure>
+
     <p>
       <b>Proof.</b> Call the four angles $\alpha, \beta, \gamma, \delta$ in order around the
       crossing, so $\alpha$ and $\gamma$ are opposite. Each neighbouring pair lies on a straight
@@ -170,6 +305,23 @@
         elimination move from <a href="../1-algebra/02-linear-equations.html#two-unknowns">Chapter
         2</a>. Most of elementary geometry is linear algebra about angles, conducted in words.
       </p>
+    </div>
+
+    <div class="ex" data-inline id="t2" data-type="number" data-answer="45"
+         data-hint="Call the smaller one x. What do the two of them add up to?">
+      <div class="ex-q">
+        <p>
+          Two lines cross, and one of the four angles is three times as large as its neighbour. How
+          large is the smaller of the two?
+        </p>
+      </div>
+      <div class="ex-solution">
+        <p class="answer">Answer: $45$</p>
+        <p>
+          Neighbouring angles lie along a straight line, so $x + 3x = 180$, giving $4x = 180$ and
+          $x = 45$. The four angles are $45°, 135°, 45°, 135°$.
+        </p>
+      </div>
     </div>
 
     <h2 id="parallels">5.3 Parallel lines and transversals</h2>
@@ -208,6 +360,24 @@
       </figcaption>
     </figure>
 
+    <div class="ex" data-inline id="t3" data-type="number" data-answer="130"
+         data-hint="Alternate interior angles: opposite sides of the transversal, between the parallels.">
+      <div class="ex-q">
+        <p>
+          A transversal cuts two parallel lines. One of the interior angles is $130°$. How large is
+          its alternate interior angle?
+        </p>
+      </div>
+      <div class="ex-solution">
+        <p class="answer">Answer: $130$</p>
+        <p>
+          Alternate interior angles are equal, so it is also $130°$. The chain of reasons: the
+          $130°$ angle equals its corresponding angle at the other crossing (the parallel property),
+          and that one is vertical to the angle asked for.
+        </p>
+      </div>
+    </div>
+
     <div class="worked">
       <h4><span class="num">Example 2.</span> The angles of a triangle add to $180°$</h4>
       <div class="body">
@@ -233,11 +403,82 @@
       </div>
     </div>
 
+    <figure>
+      <div class="widget" data-widget="anglesum"></div>
+      <figcaption>
+        <b>Tear off the corners.</b> Press <em>Move the angles</em>: the angles at $A$ and $B$
+        travel to $C$ and land along the dashed parallel, either side of the angle already there.
+        Then drag the vertices and do it again — the three always fill a straight line exactly.
+      </figcaption>
+    </figure>
+
+    <div class="ex" data-inline id="t4" data-type="number" data-answer="90"
+         data-hint="Add the three and set the total equal to 180.">
+      <div class="ex-q">
+        <p>
+          The three angles of a triangle are $x$, $2x$ and $3x$ degrees. How large is the biggest
+          one?
+        </p>
+      </div>
+      <div class="ex-solution">
+        <p class="answer">Answer: $90$</p>
+        <p>
+          $x + 2x + 3x = 180$, so $6x = 180$ and $x = 30$. The angles are $30°$, $60°$, $90°$ — a
+          right triangle, as it turns out.
+        </p>
+      </div>
+    </div>
+
+    <div class="worked">
+      <h4><span class="num">Your turn, with help.</span> The exterior angle of a triangle</h4>
+      <div class="body">
+        <p>
+          Extend the side $AC$ of a triangle beyond $C$. The angle $\delta$ between the extension
+          and the side $CB$ is an <b>exterior angle</b>. Show that $\delta = \alpha + \beta$, the
+          sum of the two angles it does not touch. Try each step before opening it.
+        </p>
+        <ol class="steps">
+          <li>$\delta$ and the interior angle $\gamma$ at $C$ lie side by side along the straight line
+            $AC$, so $\delta + \gamma = 180°$.</li>
+          <li>
+            <details class="reveal">
+              <summary>Write down what Example 2 says</summary>
+              <p>
+                $\alpha + \beta + \gamma = 180°$.
+              </p>
+            </details>
+          </li>
+          <li>
+            <details class="reveal">
+              <summary>Compare the two equations</summary>
+              <p>
+                Both left sides equal $180°$, so $\delta + \gamma = \alpha + \beta + \gamma$. Cancel
+                $\gamma$: $\delta = \alpha + \beta$. $\blacksquare$
+              </p>
+            </details>
+          </li>
+        </ol>
+        <p class="note">
+          Two facts, one subtraction — the same shape as the proof that vertical angles are equal.
+        </p>
+      </div>
+    </div>
+
     <h2 id="pythagoras">5.4 The Pythagorean theorem</h2>
     <p>
       Now the theorem that ties distance and angle together — and the one that all of Part III will
       run on.
     </p>
+
+    <details class="reveal">
+      <summary><span class="ask">A right triangle has two legs of length $1$. Is its hypotenuse $2$? Decide using only what you already know from this chapter.</span>Decide, then open</summary>
+      <p>
+        No. By the triangle inequality the third side is <em>less</em> than $1 + 1 = 2$ — strictly
+        less, since the three corners are not on one line. And it is more than $1$, being opposite
+        the largest angle. So the hypotenuse is some number between $1$ and $2$. The theorem below
+        says exactly which: $\sqrt2 \approx 1.414$, the number Chapter 3 proved is not a fraction.
+      </p>
+    </details>
 
     <div class="rule">
       <span class="tag">Pythagorean theorem</span>
@@ -315,6 +556,40 @@
           <li>$100 \neq 121$, so by the converse it is <em>not</em> right-angled. Since
             $121 &gt; 100$, the angle opposite the side $11$ is in fact obtuse. $\blacksquare$</li>
         </ol>
+      </div>
+    </div>
+
+    <div class="ex" data-inline id="t5" data-type="number" data-answer="17"
+         data-hint="Square the legs, add, take the root.">
+      <div class="ex-q">
+        <p>
+          A right triangle has legs $8$ and $15$. How long is the hypotenuse?
+        </p>
+      </div>
+      <div class="ex-solution">
+        <p class="answer">Answer: $17$</p>
+        <p>
+          $c^2 = 64 + 225 = 289 = 17^2$, so $c = 17$.
+        </p>
+      </div>
+    </div>
+
+    <div class="ex" data-inline id="t6" data-type="number" data-answer="12"
+         data-hint="Which side of a² + b² = c² does the 13 go on?"
+         data-hint2="5² + b² = 13². Solve for b².">
+      <div class="ex-q">
+        <p>
+          A right triangle has hypotenuse $13$ and one leg $5$. How long is the other leg?
+        </p>
+      </div>
+      <div class="ex-solution">
+        <p class="answer">Answer: $12$</p>
+        <p>
+          The hypotenuse is the longest side and stands alone: $5^2 + b^2 = 13^2$, so
+          $b^2 = 169 - 25 = 144$ and $b = 12$. Adding instead — $\sqrt{25 + 169} \approx 13.9$ —
+          would give a "leg" longer than the hypotenuse, which is the sign that the roles were mixed
+          up.
+        </p>
       </div>
     </div>
 
@@ -415,7 +690,8 @@
       </div>
 
       <div class="ex" data-type="number" data-answer="8"
-           data-hint="The third side is squeezed between the difference and the sum of the other two.">
+           data-hint="The third side is squeezed between the difference and the sum of the other two."
+           data-hint2="12 ≤ 5 + c forces c ≥ 7; and since the points are not on one line, c cannot equal 7.">
         <div class="ex-q">
           <p>
             Two sides of a triangle are $5$ and $12$, and the three vertices are not on one line.
@@ -455,7 +731,8 @@
       </div>
 
       <div class="ex" data-type="number" data-answer="8"
-           data-hint="Drop the diagonal and use Pythagoras on the rectangle's sides.">
+           data-hint="Drop the diagonal and use Pythagoras on the rectangle's sides."
+           data-hint2="15² + h² = 17².">
         <div class="ex-q">
           <p>
             A rectangle is $15$ wide and has a diagonal of length $17$. How tall is it?
@@ -520,6 +797,17 @@
 
     <div class="recap">
       <h2>Recap</h2>
+      <div class="puzzle-answer">
+        <span class="tag">Back to the puzzle</span>
+        <p data-your-guess></p>
+        <p>
+          <b>A straight line</b> — a half turn, $180°$ — whatever triangle you tore up. The reason
+          is the parallel through one vertex: the other two angles reappear there as alternate
+          interior angles, and the three sit side by side along that line. The figure in §5.3 does
+          the tearing for you. It works only because of the parallel property; on a globe the three
+          corners overshoot.
+        </p>
+      </div>
       <ul>
         <li>Distance is a number attached to a pair of points, obeying positivity, symmetry, and the
           triangle inequality — the last of which is why straight is shortest.</li>

@@ -2551,7 +2551,7 @@
   W.staircase = function (host) {
     var n = 5, u = 0;                    /* u: 0 = second staircase apart, 1 = fitted */
     var P = Plot({
-      w: 660, h: 360, pad: { l: 0, r: 0, t: 0, b: 0 }, xmin: 0, xmax: 660, ymin: 0, ymax: 360,
+      w: 660, h: 300, pad: { l: 0, r: 0, t: 0, b: 0 }, xmin: 0, xmax: 660, ymin: 0, ymax: 300,
       label: "Two copies of a staircase of blocks fitting together into a rectangle"
     });
     host.appendChild(P.svg);
@@ -2560,7 +2560,8 @@
 
     function draw() {
       g.textContent = "";
-      var cell = Math.min(30, 300 / (n + 1)), x0 = 60, yb = 330;
+      var cell = Math.min(30, 240 / (n + 1)), yb = 268;
+      var x0 = 330 - (n * cell) / 2 - 40;        /* centred, with room on the right for the label */
       var off = (1 - u) * (cell * 1.2 + 40), lift = (1 - u) * cell * 0.6;
       var col, row;
       for (col = 1; col <= n; col++) {

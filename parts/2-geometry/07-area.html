@@ -39,6 +39,20 @@
       area of a circle.
     </p>
 
+    <div class="puzzle" id="puzzle">
+      <span class="tag">A puzzle to carry through the chapter</span>
+      <p>
+        A pizzeria sells a $30$ cm pizza for $\$12$ and a $45$ cm pizza for $\$20$. Same thickness,
+        same toppings. Which is the better deal?
+      </p>
+      <ul class="guess">
+        <li>The small one</li>
+        <li>The large one</li>
+        <li>They cost the same per bite</li>
+      </ul>
+      <p class="puzzle-after">The large one is 50% wider. Decide how much more pizza that is before you read §7.2.</p>
+    </div>
+
     <div class="goal">
       <strong>By the end of this chapter you can</strong>
       derive the triangle formula from the rectangle rather than recall it, apply the scaling law
@@ -47,15 +61,83 @@
       appears in both $2\pi r$ and $\pi r^2$.
     </div>
 
-    <div class="callout aside">
-      <span class="tag">Before you start</span>
+    <section class="warmup" id="warmup">
+      <div class="callout aside">
+        <span class="tag">Before you start</span>
+        <p>
+          You should be comfortable with <a href="05-distance-and-angles.html#pythagoras">the
+          Pythagorean theorem</a> (Chapter 5) and with
+          <a href="06-isometries.html#isometries">isometries and congruence</a> (Chapter 6) — the three
+          assumptions about area below are stated in terms of both.
+        </p>
+      </div>
+
       <p>
-        You should be comfortable with <a href="05-distance-and-angles.html#pythagoras">the
-        Pythagorean theorem</a> (Chapter 5) and with
-        <a href="06-isometries.html#isometries">isometries and congruence</a> (Chapter 6) — the three
-        assumptions about area below are stated in terms of both.
+        Three quick ones from earlier chapters, to wake up what this chapter stands on. They are
+        not scored. If one will not come, its solution says where to look.
       </p>
-    </div>
+
+      <div class="ex" data-inline id="w1" data-label="Warm-up 1" data-answer="1"
+           data-hint="Test a² + b² against c², with the longest side as c.">
+        <div class="ex-q">
+          <p>
+            Is the triangle with sides $7$, $24$, $25$ right-angled?
+          </p>
+        </div>
+        <ul class="choices">
+          <li>Yes.</li>
+          <li>No.</li>
+        </ul>
+        <div class="ex-solution">
+          <p class="answer">Answer: yes</p>
+          <p>
+            $49 + 576 = 625 = 25^2$, so by the converse of the Pythagorean theorem it is — with the
+            right angle opposite the side $25$. See <a
+            href="05-distance-and-angles.html#pythagoras">§5.4</a>.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" data-inline id="w2" data-label="Warm-up 2" data-answer="3"
+           data-hint="The definition was given in terms of a kind of mapping.">
+        <div class="ex-q">
+          <p>
+            Two figures are congruent exactly when —
+          </p>
+        </div>
+        <ul class="choices">
+          <li>they have the same area.</li>
+          <li>they have the same perimeter.</li>
+          <li>some isometry carries one onto the other.</li>
+        </ul>
+        <div class="ex-solution">
+          <p class="answer">Answer: some isometry carries one onto the other</p>
+          <p>
+            Congruence is the existence of an isometry carrying one figure exactly onto the other — <a
+            href="06-isometries.html#isometries">§6.2</a>. The second assumption about area, below, is
+            stated in exactly those terms.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" data-inline id="w3" data-label="Warm-up 3" data-type="expr" data-answer="x^2-28x+196|196-28x+x^2|x²-28x+196|196-28x+x²"
+           data-placeholder="e.g. 9-6x+x^2"
+           data-hint="Three terms. The middle one is −2 · 14 · x.">
+        <div class="ex-q">
+          <p>
+            Expand $(14 - x)^2$.
+          </p>
+        </div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $196 - 28x + x^2$</p>
+          <p>
+            $(14 - x)^2 = 14^2 - 2 \cdot 14 \cdot x + x^2 = 196 - 28x + x^2$, by the <a
+            href="../1-algebra/01-numbers.html#expansion">key expansion of Chapter 1</a>. Example 4 of
+            this chapter needs exactly this line.
+          </p>
+        </div>
+      </div>
+    </section>
 
     <h2 id="polygons">7.1 Area of rectangles and triangles</h2>
     <p>
@@ -99,6 +181,39 @@
       </div>
     </div>
 
+    <figure class="diagram">
+      <svg viewBox="0 0 360 190" role="img" aria-label="A rectangle cut by one diagonal into two identical right triangles">
+        <polygon class="dg-soft" points="70,150 290,150 70,40"/>
+        <polygon class="dg-soft2" points="290,150 290,40 70,40"/>
+        <polyline class="dg-thin" points="82,150 82,138 70,138"/>
+        <text class="dg-text" x="180" y="172" text-anchor="middle">b</text>
+        <text class="dg-text" x="52" y="100" text-anchor="middle">h</text>
+        <text class="dg-text" x="140" y="118" text-anchor="middle">½ b h</text>
+        <text class="dg-text" x="220" y="82" text-anchor="middle">½ b h</text>
+      </svg>
+      <figcaption>
+        <b>Half a rectangle.</b> The second triangle is the first turned through $180°$ about the
+        midpoint of the hypotenuse. Together they make a $b \times h$ rectangle, so each is
+        $\tfrac12 bh$.
+      </figcaption>
+    </figure>
+
+    <div class="ex" data-inline id="t1" data-type="number" data-answer="18"
+         data-hint="The two legs are a base and its height.">
+      <div class="ex-q">
+        <p>
+          A right triangle has legs $9$ and $4$. What is its area?
+        </p>
+      </div>
+      <div class="ex-solution">
+        <p class="answer">Answer: $18$</p>
+        <p>
+          $\tfrac12 \cdot 9 \cdot 4 = 18$. In a right triangle the legs are perpendicular, so either
+          one is the height relative to the other.
+        </p>
+      </div>
+    </div>
+
     <p>
       For a triangle that is not right-angled, drop the perpendicular from one vertex to the
       opposite side — the <b>height</b> $h$ relative to that <b>base</b> $b$. The perpendicular
@@ -114,6 +229,26 @@
       </p>
     </div>
 
+    <figure class="diagram">
+      <svg viewBox="0 0 500 190" role="img" aria-label="Two triangles with the same base and height: in one the height falls inside the base, in the other outside">
+        <polygon class="dg-soft" points="40,150 200,150 140,50"/>
+        <line class="dg-dash" x1="140" y1="50" x2="140" y2="150"/>
+        <polyline class="dg-thin" points="150,150 150,140 140,140"/>
+        <text class="dg-text" x="120" y="172" text-anchor="middle">b</text>
+        <text class="dg-text" x="152" y="108" text-anchor="start">h</text>
+        <polygon class="dg-soft" points="280,150 380,150 460,50"/>
+        <line class="dg-dash" x1="380" y1="150" x2="460" y2="150"/>
+        <line class="dg-dash" x1="460" y1="50" x2="460" y2="150"/>
+        <polyline class="dg-thin" points="450,150 450,140 460,140"/>
+        <text class="dg-text" x="330" y="172" text-anchor="middle">b</text>
+        <text class="dg-text" x="472" y="108" text-anchor="start">h</text>
+      </svg>
+      <figcaption>
+        <b>The height is a perpendicular distance.</b> On the left its foot lands on the base; on
+        the right it lands on the base extended. The formula $\tfrac12 bh$ is the same in both.
+      </figcaption>
+    </figure>
+
     <div class="callout idea">
       <span class="tag">One consequence worth noticing</span>
       <p>
@@ -122,6 +257,31 @@
         triangle becomes unrecognisably long and thin. That is why any of the three sides may be
         called the base: all three choices give the same number.
       </p>
+    </div>
+
+    <figure>
+      <div class="widget" data-widget="shear"></div>
+      <figcaption>
+        <b>Slide the apex.</b> The dashed line is parallel to the base, so the height never changes
+        — and neither does the area, however lopsided the triangle becomes. Watch the perimeter
+        instead: that does change.
+      </figcaption>
+    </figure>
+
+    <div class="ex" data-inline id="t2" data-type="number" data-answer="7"
+         data-hint="Put what you know into ½ b h and solve for h.">
+      <div class="ex-q">
+        <p>
+          A triangle has base $10$ and area $35$. What is its height?
+        </p>
+      </div>
+      <div class="ex-solution">
+        <p class="answer">Answer: $7$</p>
+        <p>
+          $\tfrac12 \cdot 10 \cdot h = 35$, so $5h = 35$ and $h = 7$. A formula is an equation, and
+          can be solved for whichever letter you need.
+        </p>
+      </div>
     </div>
 
     <h2 id="scaling">7.2 Scaling</h2>
@@ -135,6 +295,15 @@
       a rectangle; and for any figure that can be approximated by small rectangles, which is to say
       all of them.
     </p>
+
+    <details class="reveal">
+      <summary><span class="ask">A square of side $1$ is scaled by a factor of $3$. How many copies of the original square fit inside the new one? Sketch it before answering.</span>Sketch it, then open</summary>
+      <p>
+        Nine: three rows of three. The side tripled, and the area was multiplied by $3 \times 3$.
+        Tripling <em>both</em> directions is what makes it $9$ rather than $3$ — and that is the
+        whole scaling law.
+      </p>
+    </details>
 
     <div class="rule">
       <span class="tag">The scaling law</span>
@@ -184,6 +353,49 @@
         its bones are only four times as large — which is why large animals are not simply scaled-up
         small ones.
       </p>
+    </div>
+
+    <div class="worked">
+      <h4><span class="num">Wrong turn.</span> Scaling an amount by the length</h4>
+      <div class="body">
+        <p>
+          A square lawn $10$ m by $10$ m needs $2$ kg of grass seed. How much seed does a square
+          lawn $30$ m by $30$ m need?
+        </p>
+        <ol class="steps">
+          <li><b>The tempting move.</b> The new lawn is three times as long, so it needs three times
+            the seed: $6$ kg.</li>
+          <li><b>The check.</b> Mark the big lawn out in $10$ m squares. There are three along each
+            side, so $3 \times 3 = 9$ of them — nine copies of the small lawn, each needing $2$ kg.
+            That is $18$ kg, not $6$.</li>
+          <li><b>Why.</b> Seed is spread over an <em>area</em>, and area scales by $r^2$, not $r$.
+            Here $r = 3$ and $r^2 = 9$. Multiplying by $r$ would be right for something measured
+            along a line — the fence round the lawn, say.</li>
+          <li><b>The repair.</b> $2 \times 3^2 = 18$ kg. $\blacksquare$</li>
+        </ol>
+        <p class="note">
+          Before scaling any quantity, ask what kind of thing it measures: a length ($\times r$), an
+          area ($\times r^2$), or a volume ($\times r^3$). The question takes a second and the
+          mistake is everywhere.
+        </p>
+      </div>
+    </div>
+
+    <div class="ex" data-inline id="t3" data-type="number" data-answer="6.25|25/4"
+         data-hint="Find the scale factor for lengths first.">
+      <div class="ex-q">
+        <p>
+          A photograph is enlarged so that its width grows from $10$ cm to $25$ cm. By what factor
+          does its area grow?
+        </p>
+      </div>
+      <div class="ex-solution">
+        <p class="answer">Answer: $6.25$</p>
+        <p>
+          Lengths scale by $r = 25/10 = 2.5$, so the area scales by $r^2 = 6.25$. You did not need
+          the height of the photograph: an enlargement scales every length by the same factor.
+        </p>
+      </div>
     </div>
 
     <h2 id="disc">7.3 Area of a disc</h2>
@@ -256,6 +468,58 @@
         <p class="note">
           Factor before multiplying out — $\pi(49-25)$ is less work and less error-prone than
           $153.94 - 78.54$, and it leaves the answer exact.
+        </p>
+      </div>
+    </div>
+
+    <div class="worked">
+      <h4><span class="num">Your turn, with help.</span> A running track</h4>
+      <div class="body">
+        <p>
+          A circular track lies between circles of radius $30$ m and $34$ m with the same centre.
+          Find its area exactly. Try each step before opening it.
+        </p>
+        <ol class="steps">
+          <li>By assumption (3) the track is the big disc with the small one removed:
+            $\pi \cdot 34^2 - \pi \cdot 30^2$.</li>
+          <li>
+            <details class="reveal">
+              <summary>Factor before multiplying out</summary>
+              <p>
+                $\pi(34^2 - 30^2)$, and the bracket is a difference of squares:
+                $34^2 - 30^2 = (34 - 30)(34 + 30) = 4 \cdot 64 = 256$.
+              </p>
+            </details>
+          </li>
+          <li>
+            <details class="reveal">
+              <summary>State the area</summary>
+              <p>
+                $256\pi$ square metres, about $804.2$. $\blacksquare$
+              </p>
+            </details>
+          </li>
+        </ol>
+        <p class="note">
+          $(a - b)(a + b) = a^2 - b^2$, from Chapter 1, turned two awkward squares into one easy
+          product. And note it is not $\pi(34 - 30)^2 = 16\pi$.
+        </p>
+      </div>
+    </div>
+
+    <div class="ex" data-inline id="t4" data-type="number" data-answer="3.1" data-tol="0.05"
+         data-hint="In one turn it rolls a distance equal to its circumference.">
+      <div class="ex-q">
+        <p>
+          A wheel has radius $0.5$ m. How far does it roll in one full turn? Give the distance to
+          one decimal place.
+        </p>
+      </div>
+      <div class="ex-solution">
+        <p class="answer">Answer: about $3.1$ m</p>
+        <p>
+          One turn lays the whole circumference along the ground:
+          $C = 2\pi r = 2\pi(0.5) = \pi \approx 3.14$ metres.
         </p>
       </div>
     </div>
@@ -343,7 +607,8 @@
       </div>
 
       <div class="ex" data-type="number" data-answer="4"
-           data-hint="Compare the two areas, then take the square root.">
+           data-hint="Compare the two areas, then take the square root."
+           data-hint2="The areas are in the ratio 16, and areas scale as r². So r² = 16.">
         <div class="ex-q">
           <p>
             One square has area $9$ and another has area $144$. How many times longer is the side of
@@ -385,7 +650,8 @@
       </div>
 
       <div class="ex" data-type="number" data-answer="48"
-           data-hint="Split it with a diagonal, or treat it as a rectangle plus a triangle.">
+           data-hint="Split it with a diagonal, or treat it as a rectangle plus a triangle."
+           data-hint2="A diagonal makes two triangles, with bases 10 and 6 and the same height 6.">
         <div class="ex-q">
           <p>
             A trapezium has parallel sides $10$ and $6$, and the perpendicular distance between them
@@ -609,6 +875,16 @@
 
     <div class="recap">
       <h2>Recap</h2>
+      <div class="puzzle-answer">
+        <span class="tag">Back to the puzzle</span>
+        <p data-your-guess></p>
+        <p>
+          <b>The large one, easily.</b> The $45$ cm pizza is the $30$ cm pizza scaled by $r = 1.5$,
+          so it has $r^2 = 2.25$ times the area. At the small pizza's rate it would cost
+          $12 \times 2.25 = \$27$; at $\$20$ it is a bargain. The instinct that "50% wider" means
+          "50% more" is the scaling law being ignored — the commonest mistake about size there is.
+        </p>
+      </div>
       <ul>
         <li>Three assumptions carry the chapter: rectangle $=$ $bh$, congruent figures have equal
           area, and areas of pieces add.</li>
