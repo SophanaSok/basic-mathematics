@@ -55,6 +55,15 @@
         An isometry is defined entirely by what it does to distance, so that notion has to be solid
         first.
       </p>
+      <p>
+        One loan from later chapters: this chapter writes points as pairs of numbers. $(x, y)$
+        means: start where two perpendicular number lines cross, go $x$ along the horizontal one and
+        $y$ along the vertical one — so $(3,2)$ is three to the right and two up, and $(-1,0)$ is one
+        step to the left. <a href="../3-coordinates/08-coordinates.html">Chapter 8</a> builds this
+        properly, including the formula for the distance between two such points, which Example 1
+        borrows. If the formulas get in the way on a first reading, the tracing-paper description of
+        each motion is the real content.
+      </p>
     </div>
 
     <h2 id="mappings-plane">6.1 Some standard mappings of the plane</h2>
@@ -134,8 +143,10 @@
         <ol class="steps">
           <li>Take two points $P = (x_1,y_1)$ and $Q = (x_2,y_2)$. Their images are
             $(x_1,-y_1)$ and $(x_2,-y_2)$.</li>
-          <li>By the distance formula — Pythagoras, from
-            <a href="05-distance-and-angles.html#pythagoras">Chapter 5</a> —
+          <li>The distance between two points is Pythagoras
+            (<a href="05-distance-and-angles.html#pythagoras">Chapter 5</a>) applied to the
+            horizontal and vertical legs between them — the distance formula, derived in
+            <a href="../3-coordinates/08-coordinates.html#distance-formula">Chapter 8</a>:
             $$d(P,Q) = \sqrt{(x_2-x_1)^2 + (y_2-y_1)^2}.$$</li>
           <li>For the images, the vertical difference is $-y_2 - (-y_1) = -(y_2-y_1)$, and squaring
             kills the sign:

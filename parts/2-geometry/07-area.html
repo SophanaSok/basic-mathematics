@@ -419,9 +419,9 @@
             $\pi(7^2) - \pi(5^2) = \pi(49-25) = 24\pi$, so $k = 24$.
           </p>
           <p>
-            Note it is <em>not</em> $\pi(7-5)^2 = 4\pi$: squaring does not distribute over
-            subtraction, a point Chapter 1 made about $(a-b)^2$ and one that costs marks
-            forever after.
+            Note it is <em>not</em> $\pi(7-5)^2 = 4\pi$: squaring does not pass through a
+            subtraction — the <a href="../1-algebra/01-numbers.html#expansion">Wrong turn of
+            Chapter 1</a> again, and one that costs marks forever after.
           </p>
         </div>
       </div>
@@ -468,7 +468,7 @@
       </div>
 
       <div class="ex" data-type="number" data-answer="54"
-           data-hint="Use the same split-the-base trick as Example 4.">
+           data-hint="Before splitting the base as in Example 4, test what kind of triangle this is.">
         <div class="ex-q">
           <p>Find the area of the triangle with sides $9$, $12$, $15$.</p>
         </div>
@@ -491,7 +491,8 @@
     <section class="practice" id="review">
       <h2>Mixed review: Part II</h2>
       <p style="margin-top:-.4rem;color:var(--muted)">
-        Six problems pulled back across Chapters 5–7 — nothing new, just recall.
+        Six problems pulled back from Chapters 5 and 6. Nothing new — but nothing tells you which
+        idea each one needs. Deciding that is the exercise.
       </p>
 
       <div class="ex" data-type="number" data-answer="10"
@@ -509,7 +510,7 @@
       </div>
 
       <div class="ex" data-type="number" data-answer="65"
-           data-hint="Corresponding angles at a transversal are equal.">
+           data-hint="Sketch the two crossings. What does the parallel property say about them?">
         <div class="ex-q">
           <p>
             Two parallel lines are cut by a transversal. One of the angles formed measures $65°$.
@@ -546,7 +547,7 @@
       </div>
 
       <div class="ex" data-answer="2"
-           data-hint="Only the two lines through opposite side midpoints are reflection symmetries — the diagonals aren't, unless it's a square.">
+           data-hint="List rotations and reflections separately — and test each diagonal honestly.">
         <div class="ex-q">
           <p>How many symmetries does a non-square rectangle have?</p>
         </div>
@@ -566,33 +567,41 @@
         </div>
       </div>
 
-      <div class="ex" data-type="number" data-answer="30"
-           data-hint="Area of a triangle is half base times height.">
+      <div class="ex" data-type="number" data-answer="100"
+           data-hint="Two facts are needed, one after the other. Find the third angle first.">
         <div class="ex-q">
-          <p>A triangle has base $10$ and height $6$. What is its area?</p>
+          <p>
+            Two angles of a triangle are $35°$ and $65°$. What is the supplement of the third
+            angle?
+          </p>
         </div>
         <div class="ex-solution">
-          <p class="answer">Answer: $30$</p>
+          <p class="answer">Answer: $100$</p>
           <p>
-            $\tfrac12(10)(6) = 30$ — the triangle-is-half-a-rectangle rule from
-            <a href="#polygons">this chapter</a>.
+            The third angle is $180 - 35 - 65 = 80°$, and its supplement is $180 - 80 = 100°$ — the
+            angle sum and the definition of a supplement, both from
+            <a href="05-distance-and-angles.html#angles">Chapter 5</a>. (That supplement is the
+            triangle's exterior angle, and it equals $35 + 65$: no accident.)
           </p>
         </div>
       </div>
 
-      <div class="ex" data-type="number" data-answer="9"
-           data-hint="Area scales by the square of the linear scale factor.">
+      <div class="ex" data-answer="(3,2)|3,2"
+           data-placeholder="e.g. (3,-2)"
+           data-hint="Two motions, one after the other. The order is given — keep to it.">
         <div class="ex-q">
           <p>
-            If a shape's linear dimensions are all scaled by a factor of $3$, by what factor does
-            its area scale?
+            Translate the point $(1,1)$ by $(x,y) \mapsto (x+2,\,y-3)$, then reflect the result in
+            the $x$-axis. Where does it end up?
           </p>
         </div>
         <div class="ex-solution">
-          <p class="answer">Answer: $9$</p>
+          <p class="answer">Answer: $(3,2)$</p>
           <p>
-            Area scales by $r^2$, and $3^2 = 9$ — the scaling law from
-            <a href="#scaling">this chapter</a>.
+            The translation gives $(1+2,\,1-3) = (3,-2)$; the reflection keeps $x$ and flips the
+            sign of $y$, giving $(3,2)$ — composition, from
+            <a href="06-isometries.html#isometries">Chapter 6</a>. In the other order the answer
+            would be $(3,-4)$.
           </p>
         </div>
       </div>

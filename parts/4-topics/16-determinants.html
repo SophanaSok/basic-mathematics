@@ -547,7 +547,8 @@
     <section class="practice" id="review">
       <h2>Mixed review: Part IV</h2>
       <p style="margin-top:-.4rem;color:var(--muted)">
-        Ten problems pulled back across Chapters 12–16 — nothing new, just recall.
+        Ten problems pulled back from Chapters 12–15. Nothing new — but nothing tells you which
+        idea each one needs. Deciding that is the exercise.
       </p>
 
       <div class="ex" data-answer="1"
@@ -572,7 +573,7 @@
       </div>
 
       <div class="ex" data-type="number" data-answer="6"
-           data-hint="Shift right by 3, then up by 2: g(x) = (x − 3)² + 2.">
+           data-hint="Write g as a formula first. Which way does subtracting inside the brackets move a graph?">
         <div class="ex-q">
           <p>
             $f(x) = x^2$ is shifted right by $3$ and up by $2$ to give $g(x)$. What is $g(5)$?
@@ -626,7 +627,7 @@
 
       <div class="ex" data-answer="3-i|3-1i"
            data-placeholder="e.g. 3-2i"
-           data-hint="Add real parts together and imaginary parts together.">
+           data-hint="A complex number has two parts. Treat them like the two coordinates of a point.">
         <div class="ex-q">
           <p>Compute $(2 + 3i) + (1 - 4i)$.</p>
         </div>
@@ -640,7 +641,7 @@
       </div>
 
       <div class="ex" data-type="number" data-answer="5"
-           data-hint="The absolute value of a + bi is √(a² + b²).">
+           data-hint="It is the distance from the origin to the point (3, 4).">
         <div class="ex-q">
           <p>What is $|3 + 4i|$?</p>
         </div>
@@ -682,33 +683,34 @@
         </div>
       </div>
 
-      <div class="ex" data-type="number" data-answer="10"
-           data-hint="ad − bc.">
+      <div class="ex" data-type="number" data-answer="2"
+           data-hint="Each logarithm is an exponent — work them out, or combine them first.">
         <div class="ex-q">
-          <p>Compute $\det\begin{pmatrix} 3 &amp; 1 \\ 2 &amp; 4 \end{pmatrix}$.</p>
+          <p>Compute $\log_3 81 - \log_3 9$.</p>
         </div>
         <div class="ex-solution">
-          <p class="answer">Answer: $10$</p>
+          <p class="answer">Answer: $2$</p>
           <p>
-            $3(4) - 1(2) = 12 - 2 = 10$ — from <a href="#det2">this chapter</a>.
+            Directly: $81 = 3^4$ and $9 = 3^2$, so the difference is $4 - 2 = 2$. Or combine first:
+            $\log_3 81 - \log_3 9 = \log_3\frac{81}{9} = \log_3 9 = 2$ — the laws of logarithms from
+            <a href="12-functions.html#log">Chapter 12</a>.
           </p>
         </div>
       </div>
 
-      <div class="ex" data-type="number" data-answer="-10"
-           data-hint="Swapping two rows flips the sign of the determinant.">
+      <div class="ex" data-answer="2i|0+2i"
+           data-placeholder="e.g. 3+4i"
+           data-hint="Expand it like any other square, and remember what i² is.">
         <div class="ex-q">
-          <p>
-            Given $\det\begin{pmatrix} 3 &amp; 1 \\ 2 &amp; 4 \end{pmatrix} = 10$, what is
-            $\det\begin{pmatrix} 2 &amp; 4 \\ 3 &amp; 1 \end{pmatrix}$?
-          </p>
+          <p>Compute $(1 + i)^2$.</p>
         </div>
         <div class="ex-solution">
-          <p class="answer">Answer: $-10$</p>
+          <p class="answer">Answer: $2i$</p>
           <p>
-            The second matrix is the first with its rows swapped, and swapping two rows flips the
-            sign of the determinant — the property from <a href="#det-props">this chapter</a>. No
-            new arithmetic needed.
+            $(1+i)^2 = 1 + 2i + i^2 = 1 + 2i - 1 = 2i$ — the arithmetic of
+            <a href="14-complex-numbers.html#complex-arith">Chapter 14</a>. In polar terms: $1+i$
+            has length $\sqrt2$ and angle $45°$, so its square has length $2$ and angle $90°$,
+            which is $2i$.
           </p>
         </div>
       </div>

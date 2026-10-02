@@ -380,21 +380,23 @@
         </div>
       </div>
 
-      <div class="ex" data-answer="(3,4)|3,4"
-           data-placeholder="e.g. (3,-2)"
-           data-hint="The midpoint has the average of the x's and the average of the y's.">
+      <div class="ex" data-type="number" data-answer="4"
+           data-hint="Write the distance from the origin as a formula in x, and set it equal to 5.">
         <div class="ex-q">
-          <p>What is the midpoint of the segment joining $(-1,2)$ and $(7,6)$?</p>
+          <p>
+            The point $(x, 3)$ lies in the first quadrant, at distance $5$ from the origin. What is
+            $x$?
+          </p>
         </div>
         <div class="ex-solution">
-          <p class="answer">Answer: $(3,4)$</p>
+          <p class="answer">Answer: $4$</p>
           <p>
-            Average each coordinate: $\left(\frac{-1+7}{2}, \frac{2+6}{2}\right) = (3,4)$.
+            The distance formula gives $\sqrt{x^2 + 3^2} = 5$. Both sides are non-negative, so
+            squaring loses nothing: $x^2 + 9 = 25$, hence $x^2 = 16$ and $x = \pm 4$.
           </p>
           <p>
-            Check with distances: the midpoint should be the same distance from both ends. From
-            $(-1,2)$: $\sqrt{16+4} = \sqrt{20}$. From $(7,6)$: $\sqrt{16+4} = \sqrt{20}$ ✓.
-            Chapter 10 derives this formula properly, as the case $t = \tfrac12$.
+            The first quadrant has $x &gt; 0$, so $x = 4$. (The other root, $x = -4$, is the mirror
+            image in quadrant II — also at distance $5$, since the formula only sees $x^2$.)
           </p>
         </div>
       </div>

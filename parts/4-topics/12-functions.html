@@ -115,6 +115,38 @@
       there is nothing to divide by and nothing to take a root of.
     </p>
     <p>
+      Polynomials can be divided by one another much as whole numbers can, leaving a quotient and a
+      remainder. Dividing by $x - r$ is the only case we need, and it goes by peeling off one power
+      at a time.
+    </p>
+
+    <div class="worked" id="poly-division">
+      <h4><span class="num">Worked division.</span> Dividing by $x - 2$</h4>
+      <div class="body">
+        <p>Divide $f(x) = x^3 - 4x^2 + x + 6$ by $x - 2$.</p>
+        <ol class="steps">
+          <li>Match the leading term. $x^2(x-2) = x^3 - 2x^2$ has the right $x^3$; subtracting it
+            from $f(x)$ leaves $-2x^2 + x + 6$.</li>
+          <li>Match the new leading term. $-2x(x-2) = -2x^2 + 4x$; subtracting leaves
+            $-3x + 6$.</li>
+          <li>Once more. $-3(x-2) = -3x + 6$; subtracting leaves $0$.</li>
+          <li>Collect what was peeled off:
+            $$f(x) = (x-2)(x^2 - 2x - 3) + 0.$$
+            The <b>quotient</b> is $x^2 - 2x - 3$ and the <b>remainder</b> is $0$.</li>
+          <li>Check by expanding:
+            $(x-2)(x^2-2x-3) = x^3 - 2x^2 - 3x - 2x^2 + 4x + 6 = x^3 - 4x^2 + x + 6$ ✓.
+            $\blacksquare$</li>
+        </ol>
+        <p class="note">
+          Each step lowers the degree by one, so the process must stop, and what is left at the end
+          is a plain number. Divide the same $f$ by $x - 1$ and you are left with $4$:
+          $f(x) = (x-1)(x^2 - 3x - 2) + 4$. Notice that $f(1) = 1 - 4 + 1 + 6 = 4$ as well — no
+          coincidence, as the next result explains.
+        </p>
+      </div>
+    </div>
+
+    <p>
       A number $r$ with $f(r) = 0$ is a <b>root</b>. Roots and factors are two views of one thing:
     </p>
 
@@ -128,7 +160,7 @@
 
     <p>
       One direction is immediate: if $f(x) = (x-r)q(x)$ then $f(r) = 0 \cdot q(r) = 0$. The other
-      direction is division with remainder: dividing $f(x)$ by $(x-r)$ leaves a constant remainder
+      direction is division with remainder, as just carried out: dividing $f(x)$ by $(x-r)$ leaves a constant remainder
       $c$, so $f(x) = (x-r)q(x) + c$; putting $x = r$ gives $c = f(r) = 0$. $\blacksquare$
     </p>
     <p>

@@ -529,19 +529,20 @@
     <section class="practice" id="review">
       <h2>Mixed review: Part III</h2>
       <p style="margin-top:-.4rem;color:var(--muted)">
-        Eight problems pulled back across Chapters 8–11 — nothing new, just recall.
+        Eight problems pulled back from Chapters 8–10. Nothing new — but nothing tells you which
+        idea each one needs. Deciding that is the exercise.
       </p>
 
-      <div class="ex" data-type="number" data-answer="5"
-           data-hint="Distance formula: √((Δx)² + (Δy)²).">
+      <div class="ex" data-type="number" data-answer="10"
+           data-hint="Draw the horizontal and vertical legs between the two points.">
         <div class="ex-q">
-          <p>Find the distance between the points $(1, 2)$ and $(4, 6)$.</p>
+          <p>Find the distance between the points $(-2, 1)$ and $(4, 9)$.</p>
         </div>
         <div class="ex-solution">
-          <p class="answer">Answer: $5$</p>
+          <p class="answer">Answer: $10$</p>
           <p>
-            $\sqrt{(4-1)^2 + (6-2)^2} = \sqrt{9 + 16} = \sqrt{25} = 5$ — the distance formula from
-            <a href="08-coordinates.html#distance-formula">Chapter 8</a>.
+            $\sqrt{(4-(-2))^2 + (9-1)^2} = \sqrt{36 + 64} = \sqrt{100} = 10$ — the distance formula
+            from <a href="08-coordinates.html#distance-formula">Chapter 8</a>.
           </p>
         </div>
       </div>
@@ -562,7 +563,7 @@
 
       <div class="ex" data-answer="(7,2)|7,2"
            data-placeholder="e.g. 3,4"
-           data-hint="Add coordinatewise: x's with x's, y's with y's.">
+           data-hint="What does the parallelogram law come to, in coordinates?">
         <div class="ex-q">
           <p>Let $A = (2, 3)$ and $B = (5, -1)$. What is $A + B$?</p>
         </div>
@@ -577,7 +578,7 @@
 
       <div class="ex" data-answer="(3,2)|3,2"
            data-placeholder="e.g. 3,4"
-           data-hint="A reflection in the x-axis keeps x and flips the sign of y.">
+           data-hint="Which coordinate does a reflection in the x-axis leave alone?">
         <div class="ex-q">
           <p>Reflect the point $(3, -2)$ across the $x$-axis. What are the new coordinates?</p>
         </div>
@@ -591,7 +592,7 @@
       </div>
 
       <div class="ex" data-type="number" data-answer="4"
-           data-hint="Slope is rise over run.">
+           data-hint="Compare the change in y with the change in x.">
         <div class="ex-q">
           <p>What is the slope of the line through $(1, 2)$ and $(3, 10)$?</p>
         </div>
@@ -605,7 +606,7 @@
       </div>
 
       <div class="ex" data-type="number" data-answer="-0.5|-1/2"
-           data-hint="Perpendicular slopes multiply to −1.">
+           data-hint="Turn the direction (1, m) through a quarter turn. Two things change.">
         <div class="ex-q">
           <p>A line has slope $2$. What is the slope of a line perpendicular to it?</p>
         </div>
@@ -618,33 +619,34 @@
         </div>
       </div>
 
-      <div class="ex" data-type="fraction" data-answer="4/5"
-           data-hint="Use sin²θ + cos²θ = 1.">
+      <div class="ex" data-answer="(2,3)|2,3"
+           data-placeholder="e.g. 3,4"
+           data-hint="Turn 'one quarter of the way' into a value of t.">
         <div class="ex-q">
-          <p>
-            If $\cos\theta = \dfrac35$ and $\theta$ is in the first quadrant, what is $\sin\theta$?
-          </p>
+          <p>Which point is one quarter of the way from $(0, 4)$ to $(8, 0)$?</p>
         </div>
         <div class="ex-solution">
-          <p class="answer">Answer: $\dfrac45$</p>
+          <p class="answer">Answer: $(2, 3)$</p>
           <p>
-            $\sin^2\theta = 1 - \cos^2\theta = 1 - \tfrac{9}{25} = \tfrac{16}{25}$, and $\sin\theta$
-            is positive in the first quadrant, so $\sin\theta = \tfrac45$ — the identity from
-            <a href="#sine-cosine">this chapter</a>.
+            The displacement is $(8,0) - (0,4) = (8,-4)$; a quarter of it is $(2,-1)$; and
+            $(0,4) + (2,-1) = (2,3)$ — the parametric form $P + t(Q-P)$ with $t = \tfrac14$, from
+            <a href="10-segments-rays-lines.html#segments">Chapter 10</a>.
           </p>
         </div>
       </div>
 
-      <div class="ex" data-type="number" data-answer="1"
-           data-hint="This holds for every angle, not just the special ones.">
+      <div class="ex" data-answer="(2,-3)|2,-3"
+           data-placeholder="e.g. 3,4"
+           data-hint="The equation is not yet in a form you can read the centre from. Which technique gets it there?">
         <div class="ex-q">
-          <p>Simplify $\sin^2(40°) + \cos^2(40°)$.</p>
+          <p>What is the centre of the circle $x^2 + y^2 - 4x + 6y = 3$?</p>
         </div>
         <div class="ex-solution">
-          <p class="answer">Answer: $1$</p>
+          <p class="answer">Answer: $(2, -3)$</p>
           <p>
-            The Pythagorean identity $\sin^2\theta + \cos^2\theta = 1$ holds for every $\theta$, so
-            no table of values is needed — from <a href="#sine-cosine">this chapter</a>.
+            Complete the square in each variable: $(x-2)^2 - 4 + (y+3)^2 - 9 = 3$, so
+            $(x-2)^2 + (y+3)^2 = 16$. Centre $(2,-3)$, radius $4$ — from
+            <a href="08-coordinates.html#circle">Chapter 8</a>, with the signs read carefully.
           </p>
         </div>
       </div>
