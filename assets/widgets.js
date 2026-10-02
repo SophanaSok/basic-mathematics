@@ -209,6 +209,84 @@
     });
   }
 
+  /* ------------------------------------------------------------- missions -- */
+
+  /* A short list of goals attached to a figure. Each is a sentence and a test on the
+     figure's own state; the tests re-run after any interaction with the figure, so
+     nothing completes until the reader has actually touched it. Completed missions are
+     remembered through window.BMPlay when it exists (site.js), and simply forgotten
+     when it does not. */
+  var missionCount = 0;
+  function missions(host, name, list) {
+    var chap = (document.body && document.body.getAttribute("data-chapter")) || "misc";
+    var store = window.BMPlay;
+    var box = h("div", { class: "missions" });
+    var head = h("p", { class: "missions-head" });
+    var ol = h("ol");
+    var live = h("p", { class: "visually-hidden", role: "status", "aria-live": "polite" });
+    box.appendChild(head); box.appendChild(ol); box.appendChild(live);
+    missionCount += list.length;
+    var items = list.map(function (m, i) {
+      var key = name + ":" + i;
+      var li = h("li", {}, '<span class="mark" aria-hidden="true"></span><span class="what">' + m.text + "</span>");
+      var done = !!(store && store.isDone(chap, key));
+      if (done) li.setAttribute("data-done", "true");
+      ol.appendChild(li);
+      return { li: li, key: key, test: m.test, text: m.text, done: done };
+    });
+    function title() {
+      var n = items.filter(function (it) { return it.done; }).length;
+      head.textContent = n === items.length ? "Missions — all " + n + " done" : "Missions — " + n + " of " + items.length;
+    }
+    function check() {
+      items.forEach(function (it) {
+        if (it.done) return;
+        var ok = false;
+        try { ok = !!it.test(); } catch (e) { ok = false; }
+        if (!ok) return;
+        it.done = true;
+        it.li.setAttribute("data-done", "true");
+        it.li.setAttribute("data-fresh", "true");
+        if (store) store.markDone(chap, it.key);
+        live.textContent = "Mission complete: " + it.li.textContent;
+      });
+      title();
+    }
+    var pending = false;
+    function later() {
+      if (pending) return;
+      pending = true;
+      setTimeout(function () { pending = false; check(); }, 0);
+    }
+    ["input", "click", "pointermove", "pointerup", "keyup"].forEach(function (ev) {
+      host.addEventListener(ev, later);
+    });
+    title();
+    host.appendChild(box);
+    host.__missions = { check: check, items: items };
+    return host.__missions;
+  }
+  window.BMMissions = { total: function () { return missionCount; } };
+
+  function near(a, b, eps) { return Math.abs(a - b) <= (eps === undefined ? 1e-9 : eps); }
+
+  /* run step(u) for u from 0 to 1 over ms milliseconds; one jump to the end where
+     motion is unwelcome or unavailable */
+  function animate(ms, step, done) {
+    var still = !window.requestAnimationFrame ||
+      (window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches);
+    if (still) { step(1); if (done) done(); return; }
+    var t0 = null;
+    function frame(t) {
+      if (t0 === null) t0 = t;
+      var u = Math.min(1, (t - t0) / ms);
+      step(u < 0.5 ? 2 * u * u : 1 - Math.pow(-2 * u + 2, 2) / 2);
+      if (u < 1) window.requestAnimationFrame(frame);
+      else if (done) done();
+    }
+    window.requestAnimationFrame(frame);
+  }
+
   var W = {};
 
   /* =========================================================== 1. number line
@@ -275,6 +353,11 @@
     c.appendChild(chips([
       { html: "a + b", value: "+" }, { html: "a − b", value: "-" }, { html: "a · b", value: "*" }
     ], 0, function (v) { op = v; draw(); }));
+    missions(host, "numberline", [
+      { text: "Land on −7 using a subtraction.", test: function () { return op === "-" && a - b === -7; } },
+      { text: "Make a − b come out bigger than a.", test: function () { return op === "-" && b < 0; } },
+      { text: "Get a positive product from two negative numbers.", test: function () { return op === "*" && a < 0 && b < 0; } }
+    ]);
     draw();
   };
 
@@ -318,6 +401,13 @@
     var c = controls(host);
     c.appendChild(slider("p", -12, 12, 1, p, function (x) { p = x; draw(); }).wrap);
     c.appendChild(slider("q", 1, 12, 1, q, function (x) { q = x; draw(); }).wrap);
+    missions(host, "rationals", [
+      { text: "Land on 3/2 using a denominator other than 2.", test: function () { return p / q === 1.5 && q !== 2; } },
+      { text: "Find three different names for −1/2.", test: (function () {
+          var seen = {};
+          return function () { if (p / q === -0.5) seen[q] = true; return Object.keys(seen).length >= 3; };
+        })() }
+    ]);
     draw();
   };
 
@@ -380,6 +470,20 @@
       .forEach(function (s, i) {
         c2row.appendChild(slider(s[0], -6, 6, 1, [a2, b2, c2][i], function (v) { s[1](v); draw(); }).wrap);
       });
+    missions(host, "linsys", [
+      { text: "Make the two lines cross at (2, 1).", test: function () {
+          var d = a1 * b2 - a2 * b1;
+          return d !== 0 && near((c1 * b2 - c2 * b1) / d, 2) && near((a1 * c2 - a2 * c1) / d, 1);
+        } },
+      { text: "Make a system with no solution — two parallel lines.", test: function () {
+          return (a1 || b1) && (a2 || b2) && a1 * b2 - a2 * b1 === 0 &&
+            !((a1 * c2 - a2 * c1) === 0 && (b1 * c2 - b2 * c1) === 0);
+        } },
+      { text: "Make one line drawn twice — infinitely many solutions.", test: function () {
+          return (a1 || b1) && (a2 || b2) && a1 * b2 - a2 * b1 === 0 &&
+            (a1 * c2 - a2 * c1) === 0 && (b1 * c2 - b2 * c1) === 0;
+        } }
+    ]);
     draw();
   };
 
@@ -440,6 +544,11 @@
       { html: "|x−c| &lt; r", value: "<" }, { html: "≤", value: "<=" },
       { html: "&gt;", value: ">" }, { html: "≥", value: ">=" }
     ], 0, function (v) { rel = v; draw(); }));
+    missions(host, "ineq", [
+      { text: "Make the solution set the closed interval [−4, 2].", test: function () { return rel === "<=" && c0 === -1 && r === 3; } },
+      { text: "Make the solution two separate pieces: x < 1 or x > 7.", test: function () { return rel === ">" && c0 === 4 && r === 3; } },
+      { text: "Shrink the solution set to a single point.", test: function () { return rel === "<=" && r === 0; } }
+    ]);
     draw();
   };
 
@@ -494,6 +603,11 @@
     c.appendChild(chips([
       { html: "xⁿ", value: "int" }, { html: "√x", value: "sqrt" }, { html: "∛x", value: "cbrt" }
     ], 0, function (v) { mode = v; draw(); }));
+    missions(host, "powers", [
+      { text: "Find the power whose graph is a flat line.", test: function () { return mode === "int" && n === 0; } },
+      { text: "Find a curve with a break at x = 0.", test: function () { return mode === "int" && n < 0; } },
+      { text: "Find a curve that exists only for x ≥ 0.", test: function () { return mode === "sqrt"; } }
+    ]);
     draw();
   };
 
@@ -552,6 +666,11 @@
       .forEach(function (s, i) {
         cc.appendChild(slider(s[0], -6, 6, 1, [a, b, c][i], function (v) { s[1](v); draw(); }).wrap);
       });
+    missions(host, "quadratic", [
+      { text: "Make the parabola just touch the x-axis.", test: function () { return a !== 0 && b * b - 4 * a * c === 0; } },
+      { text: "Put the roots at −2 and 2.", test: function () { return a !== 0 && b === 0 && c === -4 * a; } },
+      { text: "Open it downward with no real root.", test: function () { return a < 0 && b * b - 4 * a * c < 0; } }
+    ]);
     draw();
   };
 
@@ -625,6 +744,10 @@
       { html: "A ∩ B", value: "inter" }, { html: "A ∪ B", value: "union" },
       { html: "A ∖ B", value: "diff" }, { html: "Aᶜ", value: "comp" }
     ], 0, function (v) { pick = v; draw(); }));
+    missions(host, "venn", [
+      { text: "Shade everything that is in A but not in B.", test: function () { return pick === "diff"; } },
+      { text: "Shade everything that is in at least one of the two sets.", test: function () { return pick === "union"; } }
+    ]);
     draw();
   };
 
@@ -659,6 +782,10 @@
       function (v) { p = v; draw(); }));
     c.appendChild(chips([{ html: "Q is true", value: true }, { html: "Q is false", value: false }], 1,
       function (v) { q = v; draw(); }));
+    missions(host, "truthtable", [
+      { text: "Find a row where P ⇒ Q is true but its converse Q ⇒ P is false.", test: function () { return !p && q; } },
+      { text: "Find the row where P is false and both implications are still true.", test: function () { return !p && !q; } }
+    ]);
     draw();
   };
 
@@ -864,66 +991,86 @@
       { html: "corresponding", value: "corr" }, { html: "alternate", value: "alt" },
       { html: "vertical", value: "vert" }, { html: "all eight", value: "none" }
     ], 0, function (v) { show = v; draw(); }));
+    missions(host, "transversal", [
+      { text: "Make all eight angles equal.", test: function () { return th === 90; } },
+      { text: "Show the alternate interior angles, and make them 120°.", test: function () { return show === "alt" && th === 120; } }
+    ]);
     draw();
   };
 
   /* ============================ 10. Pythagoras by dissection ================
      One square, two ways of filling it, with the same four triangles. */
   W.pythagoras = function (host) {
-    var a = 3, b = 4;
+    var a = 3, b = 4, u = 0;            /* u: 0 = first arrangement, 1 = second */
     var P = Plot({
-      w: 660, h: 330, pad: { l: 8, r: 8, t: 8, b: 8 },
-      xmin: 0, xmax: 22, ymin: 0, ymax: 11,
-      label: "Two dissections of the same square, showing a squared plus b squared equals c squared"
+      w: 660, h: 380, pad: { l: 8, r: 8, t: 8, b: 8 },
+      xmin: 0, xmax: 19, ymin: 0, ymax: 11,
+      label: "Four identical right triangles sliding inside a square, showing a squared plus b squared equals c squared"
     });
     host.appendChild(P.svg);
     var g = P.layer();
     var out = readout(host);
     var TRI = "fill:var(--plot-fill);stroke:var(--plot-curve);stroke-width:1.5";
-    var SQC = "fill:var(--accent-soft);stroke:var(--plot-curve-2);stroke-width:2";
-    var SQAB = "fill:var(--accent-2-soft);stroke:var(--plot-curve-2);stroke-width:2";
+    var GAP = "fill:var(--accent-2-soft);stroke:var(--plot-curve-2);stroke-width:2";
 
     function draw() {
       g.textContent = "";
-      var s = a + b, k = 8.6 / s;
-      function frame(x0, y0) {
-        return function (u, v) { return [P.sx(x0 + u * k), P.sy(y0 + v * k)]; };
-      }
-      [[1.6, "left"], [12.2, "right"]].forEach(function (pair) {
-        var f = frame(pair[0], 1.2), side = pair[1];
-        g.appendChild(poly([f(0, 0), f(s, 0), f(s, s), f(0, s)],
-          "fill:none;stroke:var(--plot-axis);stroke-width:2"));
-        if (side === "left") {
-          g.appendChild(poly([f(a, 0), f(s, a), f(b, s), f(0, b)], SQC));
-          [[[0, 0], [a, 0], [0, b]], [[a, 0], [s, 0], [s, a]],
-           [[s, a], [s, s], [b, s]], [[b, s], [0, s], [0, b]]].forEach(function (T) {
-            g.appendChild(poly(T.map(function (p) { return f(p[0], p[1]); }), TRI));
-          });
-          var cm = f(s / 2, s / 2);
-          g.appendChild(el("text", { x: cm[0], y: cm[1] + 6, "text-anchor": "middle", style: S.labelStrong }, "c²"));
-        } else {
-          g.appendChild(poly([f(0, b), f(a, b), f(a, s), f(0, s)], SQAB));
-          g.appendChild(poly([f(a, 0), f(s, 0), f(s, b), f(a, b)], SQAB));
-          [[[0, 0], [a, 0], [a, b]], [[0, 0], [a, b], [0, b]],
-           [[a, b], [s, b], [s, s]], [[a, b], [s, s], [a, s]]].forEach(function (T) {
-            g.appendChild(poly(T.map(function (p) { return f(p[0], p[1]); }), TRI));
-          });
-          var ca = f(a / 2, (b + s) / 2), cb = f((a + s) / 2, b / 2);
-          g.appendChild(el("text", { x: ca[0], y: ca[1] + 6, "text-anchor": "middle", style: S.labelStrong }, "a²"));
-          g.appendChild(el("text", { x: cb[0], y: cb[1] + 6, "text-anchor": "middle", style: S.labelStrong }, "b²"));
-        }
+      var s = a + b, k = 9.6 / s;
+      function f(p) { return [P.sx(4.7 + p[0] * k), P.sy(0.7 + p[1] * k)]; }
+      /* whatever the triangles leave uncovered is the leftover, so the frame carries its colour */
+      g.appendChild(poly([[0, 0], [s, 0], [s, s], [0, s]].map(f), GAP));
+      /* one triangle stays put; the other three slide, without turning, by these amounts */
+      var tris = [
+        { pts: [[0, 0], [a, 0], [0, b]], by: [0, 0] },
+        { pts: [[a, 0], [s, 0], [s, a]], by: [0, b] },
+        { pts: [[s, a], [s, s], [b, s]], by: [-b, -a] },
+        { pts: [[b, s], [0, s], [0, b]], by: [a, 0] }
+      ];
+      tris.forEach(function (T) {
+        g.appendChild(poly(T.pts.map(function (p) {
+          return f([p[0] + u * T.by[0], p[1] + u * T.by[1]]);
+        }), TRI));
       });
+      function tag(p, text) {
+        var q = f(p);
+        g.appendChild(el("text", { x: q[0], y: q[1] + 6, "text-anchor": "middle", style: S.labelStrong }, text));
+      }
+      if (u < 0.02) tag([s / 2, s / 2], "c²");
+      if (u > 0.98) { tag([a / 2, b + a / 2], "a²"); tag([a + b / 2, b / 2], "b²"); }
       var c2 = a * a + b * b;
       out.innerHTML = "<b>a = " + a + ", b = " + b + ", c = √" + c2 + " ≈ " + fmt(Math.sqrt(c2), 3) + "</b><br>" +
-        "Both outer squares have side a + b = " + s + ", hence area " + s * s +
-        ", and both hold the same four triangles. So the leftovers agree: " +
-        "c² = a² + b², here " + c2 + " = " + a * a + " + " + b * b + ".";
+        "The outer square has side a + b = " + s + " and never changes; neither do the four triangles. " +
+        (u < 0.02 ? "Here they leave one tilted square, of side c: area c² = " + c2 + "."
+          : u > 0.98 ? "Here they leave two squares, of sides a and b: area a² + b² = " + a * a + " + " + b * b + " = " + c2 + "."
+            : "Three of them are sliding — none is turned, stretched, or lost.") +
+        "<br>Same square, same triangles, so the leftovers are equal: c² = a² + b².";
     }
 
     var c = controls(host);
-    c.appendChild(slider("a", 1, 6, 1, a, function (v) { a = v; draw(); }).wrap);
-    c.appendChild(slider("b", 1, 6, 1, b, function (v) { b = v; draw(); }).wrap);
-    note(host, "The four pale triangles are identical in both pictures — only their arrangement changes.");
+    c.appendChild(slider("a", 1, 8, 1, a, function (v) { a = v; draw(); }).wrap);
+    c.appendChild(slider("b", 1, 8, 1, b, function (v) { b = v; draw(); }).wrap);
+    var sl = slider("slide", 0, 1, 0.01, u, function (v) { u = v; draw(); }, function (v) { return Math.round(v * 100) + "%"; });
+    c.appendChild(sl.wrap);
+    var go = h("button", { type: "button", class: "chip" }, "Rearrange");
+    go.addEventListener("click", function () {
+      var from = u, to = u > 0.5 ? 0 : 1;
+      animate(900, function (e) {
+        u = from + (to - from) * e;
+        sl.input.value = u;
+        sl.output.textContent = Math.round(u * 100) + "%";
+        draw();
+      }, function () { if (host.__missions) host.__missions.check(); });
+    });
+    c.appendChild(go);
+    note(host, "Press Rearrange, or drag the slide control, to move three of the triangles. Nothing is added or removed.");
+    missions(host, "pythagoras", [
+      { text: "Slide the triangles all the way, until two squares are left.", test: function () { return u > 0.98; } },
+      { text: "Find another pair a, b for which c is a whole number.", test: function () {
+          var c0 = Math.sqrt(a * a + b * b);
+          return near(c0, Math.round(c0)) && !(a * b === 12 && a + b === 7);
+        } },
+      { text: "Make the tilted square have area exactly 2.", test: function () { return a === 1 && b === 1 && u < 0.02; } }
+    ]);
     draw();
   };
 
@@ -1010,6 +1157,11 @@
       { html: "in x-axis", value: "x" }, { html: "in y-axis", value: "y" }, { html: "in y = x", value: "d" }
     ], 0, function (v) { axis = v; kind = "refl"; draw(); }));
     note(host, "Pick a motion, then move its sliders; the dashed F is the original.");
+    missions(host, "isometry", [
+      { text: "Find the one motion here that changes the distance.", test: function () { return kind === "dil"; } },
+      { text: "Turn the F upside down with a rotation.", test: function () { return kind === "rot" && ang === 180; } },
+      { text: "Find a rotation that leaves the F exactly where it started.", test: function () { return kind === "rot" && (ang === 0 || ang === 360); } }
+    ]);
     draw();
   };
 
@@ -1047,6 +1199,10 @@
       function (v) { return fmt(v, 2); }).wrap);
     c.appendChild(chips([{ html: "triangle", value: "tri" }, { html: "rectangle", value: "rect" }],
       0, function (v) { shape = v; draw(); }));
+    missions(host, "scaling", [
+      { text: "Make the area exactly 4 times the original.", test: function () { return near(r, 2); } },
+      { text: "Make the area a quarter of the original.", test: function () { return near(r, 0.5); } }
+    ]);
     draw();
   };
 
@@ -1096,6 +1252,10 @@
 
     var c = controls(host);
     c.appendChild(slider("n", 3, 60, 1, n, function (v) { n = v; draw(); }).wrap);
+    missions(host, "discpoly", [
+      { text: "Make the inscribed square. Its area is exactly 2.", test: function () { return n === 4; } },
+      { text: "Get the missing area below 0.01.", test: function () { return Math.PI - (n / 2) * Math.sin((2 * Math.PI) / n) < 0.01; } }
+    ]);
     draw();
   };
 
@@ -1149,6 +1309,19 @@
       draw();
     }, { names: ["A", "B"], label: "Two points in the plane" });
     note(host, "Drag either point, or tab to the figure and use the arrow keys; space switches between A and B. Coordinates snap to whole numbers.");
+    missions(host, "distance", [
+      { text: "Make AB exactly 5 with both legs showing.", test: function () {
+          var dx = Math.abs(B.x - A.x), dy = Math.abs(B.y - A.y);
+          return dx > 0 && dy > 0 && dx * dx + dy * dy === 25;
+        } },
+      { text: "Make AB exactly 13.", test: function () {
+          var dx = B.x - A.x, dy = B.y - A.y;
+          return dx * dx + dy * dy === 169;
+        } },
+      { text: "Make a distance that needs no Pythagoras at all.", test: function () {
+          return (A.x === B.x) !== (A.y === B.y);
+        } }
+    ]);
     draw();
   };
 
@@ -1189,6 +1362,11 @@
     c.appendChild(slider("centre x", -4, 4, 1, h0, function (v) { h0 = v; draw(); }).wrap);
     c.appendChild(slider("centre y", -3, 3, 1, k0, function (v) { k0 = v; draw(); }).wrap);
     c.appendChild(slider("r", 1, 4, 1, r, function (v) { r = v; draw(); }).wrap);
+    missions(host, "circleeq", [
+      { text: "Make the equation x² + y² = 16.", test: function () { return h0 === 0 && k0 === 0 && r === 4; } },
+      { text: "Make the expanded form contain + 4x and − 6y.", test: function () { return h0 === -2 && k0 === 3; } },
+      { text: "Centre on the x-axis, circle through the origin.", test: function () { return k0 === 0 && Math.abs(h0) === r; } }
+    ]);
     draw();
   };
 
@@ -1260,6 +1438,11 @@
     c.appendChild(slider("t", -2, 2.5, 0.1, t, function (v) { t = v; op = "mult"; draw(); },
       function (v) { return fmt(v, 2); }).wrap);
     note(host, "Drag A or B; coordinates snap to whole numbers.");
+    missions(host, "pointops", [
+      { text: "Make A + B land on the origin.", test: function () { return op === "sum" && (A.x || A.y) && A.x + B.x === 0 && A.y + B.y === 0; } },
+      { text: "Make B − A point straight up.", test: function () { return op === "diff" && B.x === A.x && B.y > A.y; } },
+      { text: "Use tA to land on the far side of the origin, twice as far away.", test: function () { return op === "mult" && near(t, -2); } }
+    ]);
     draw();
   };
 
@@ -1318,6 +1501,11 @@
     c.appendChild(slider("t", -1.5, 2.5, 0.05, t, function (v) { t = v; draw(); },
       function (v) { return fmt(v, 2); }).wrap);
     note(host, "Drag P or Q, then sweep t.");
+    missions(host, "paramline", [
+      { text: "Put X exactly at the midpoint.", test: function () { return near(t, 0.5); } },
+      { text: "Put X on the ray from P through Q, but off the segment.", test: function () { return t > 1; } },
+      { text: "Make the line vertical — a line with no slope.", test: function () { return A.x === B.x; } }
+    ]);
     draw();
   };
 
@@ -1366,6 +1554,11 @@
       { html: "30°", value: 30 }, { html: "45°", value: 45 }, { html: "60°", value: 60 },
       { html: "90°", value: 90 }, { html: "180°", value: 180 }
     ], -1, function (v) { deg = v; draw(); }));
+    missions(host, "unitcircle", [
+      { text: "Find an angle where sin θ = cos θ.", test: function () { return deg === 45 || deg === 225; } },
+      { text: "Find an angle with cos θ negative and sin θ positive.", test: function () { return deg > 90 && deg < 180; } },
+      { text: "Find the angle where sin θ = −1.", test: function () { return deg === 270; } }
+    ]);
     draw();
   };
 
@@ -1421,6 +1614,10 @@
     c.appendChild(slider("A", -3, 3, 0.25, A, function (v) { A = v; draw(); }, function (v) { return fmt(v, 2); }).wrap);
     c.appendChild(slider("B", 0.25, 4, 0.25, B, function (v) { B = v; draw(); }, function (v) { return fmt(v, 2); }).wrap);
     c.appendChild(slider("C", -3.2, 3.2, 0.1, C, function (v) { C = v; draw(); }, function (v) { return fmt(v, 2); }).wrap);
+    missions(host, "sinewave", [
+      { text: "Make a wave with amplitude 2 and period π.", test: function () { return fn !== "tan" && near(Math.abs(A), 2) && near(B, 2); } },
+      { text: "Turn the plain sine into a cosine using C alone.", test: function () { return fn === "sin" && near(A, 1) && near(B, 1) && near(C, Math.PI / 2, 0.06); } }
+    ]);
     draw();
   };
 
@@ -1466,6 +1663,11 @@
     c.appendChild(slider("a", -3, 3, 0.25, a, function (v) { a = v; draw(); }, function (v) { return fmt(v, 2); }).wrap);
     c.appendChild(slider("h", -5, 5, 0.5, hsh, function (v) { hsh = v; draw(); }, function (v) { return fmt(v, 2); }).wrap);
     c.appendChild(slider("k", -4, 4, 0.5, k, function (v) { k = v; draw(); }, function (v) { return fmt(v, 2); }).wrap);
+    missions(host, "transform", [
+      { text: "Move the vertex of x² to (3, −2).", test: function () { return base === "sq" && near(hsh, 3) && near(k, -2); } },
+      { text: "Flip a graph over the x-axis.", test: function () { return a < 0; } },
+      { text: "Make √x start at x = −4.", test: function () { return base === "sqrt" && near(hsh, -4); } }
+    ]);
     draw();
   };
 
@@ -1513,6 +1715,10 @@
     c.appendChild(slider("base a", 1.2, 4, 0.1, a, function (v) { a = v; draw(); }, function (v) { return fmt(v, 2); }).wrap);
     c.appendChild(chips([{ html: "both", value: true }, { html: "exponential only", value: false }],
       0, function (v) { showLog = v; draw(); }));
+    missions(host, "explog", [
+      { text: "Make the exponential pass through (2, 9).", test: function () { return near(a, 3); } },
+      { text: "Choose the base so that the logarithm of 4 is 1.", test: function () { return near(a, 4); } }
+    ]);
     draw();
   };
 
@@ -1630,6 +1836,14 @@
     ], 0, function (v) { f = v.slice(); draw(); }));
     note(host, "Click an element on the left to send it somewhere else, or tab to the figure " +
       "and use the arrow keys to choose one and space or enter to redirect it.");
+    missions(host, "mapdiagram", [
+      { text: "Make a mapping whose image is a single element.", test: function () { return f[0] === f[1] && f[1] === f[2] && f[2] === f[3]; } },
+      { text: "Make one whose image has exactly three elements.", test: function () { var s = {}; f.forEach(function (j) { s[j] = 1; }); return Object.keys(s).length === 3; } },
+      { text: "Build a bijection other than the one you started with.", test: function () {
+          var s = {}; f.forEach(function (j) { s[j] = 1; });
+          return Object.keys(s).length === 4 && !(f[0] === 0 && f[1] === 1 && f[2] === 2 && f[3] === 3);
+        } }
+    ]);
     draw();
   };
 
@@ -1683,6 +1897,13 @@
       draw();
     }, { names: ["z", "w"], label: "Two complex numbers" });
     note(host, "Drag z or w — or tab to the figure and use the arrow keys, with space to switch between them. Watch the dashed circle of radius |z||w|: the product always lands on it.");
+    missions(host, "complexmul", [
+      { text: "Choose w so that multiplying turns z a quarter turn without stretching it.", test: function () { return w.x === 0 && w.y === 1 && (z.x || z.y); } },
+      { text: "Choose w so that zw = z.", test: function () { return w.x === 1 && w.y === 0 && (z.x || z.y); } },
+      { text: "Find z and w, neither of them real, whose product is −1.", test: function () {
+          return z.y !== 0 && w.y !== 0 && z.x * w.x - z.y * w.y === -1 && z.x * w.y + z.y * w.x === 0;
+        } }
+    ]);
     draw();
   };
 
@@ -1740,6 +1961,11 @@
     var c = controls(host);
     c.appendChild(slider("r", -1.2, 1.2, 0.05, r, function (v) { r = v; draw(); }, function (v) { return fmt(v, 2); }).wrap);
     c.appendChild(slider("n", 0, 12, 1, n, function (v) { n = v; draw(); }).wrap);
+    missions(host, "geoseries", [
+      { text: "Make the limit exactly 4.", test: function () { return Math.abs(r) < 1 && near(1 / (1 - r), 4, 1e-6); } },
+      { text: "Make the sums overshoot and undershoot on their way in.", test: function () { return r < 0 && r > -1 && n >= 3; } },
+      { text: "Make the sums bounce between 1 and 0 for ever.", test: function () { return near(r, -1) && n >= 3; } }
+    ]);
     draw();
   };
 
@@ -1783,8 +2009,602 @@
       draw();
     }, { names: ["the first row (a, b)", "the second row (c, d)"], label: "Two vectors spanning a parallelogram" });
     note(host, "Drag either arrow, or tab to the figure and use the arrow keys; space switches rows. Try lining them up to make the determinant zero.");
+    missions(host, "det2", [
+      { text: "Make the determinant exactly −6.", test: function () { return A.x * B.y - A.y * B.x === -6; } },
+      { text: "Collapse the parallelogram, with neither arrow at the origin.", test: function () {
+          return (A.x || A.y) && (B.x || B.y) && A.x * B.y - A.y * B.x === 0;
+        } }
+    ]);
     draw();
   };
+
+  /* ---------------------------------------------------------------------------
+     Figures you do something with: each one is an argument from the text that
+     the reader carries out by hand rather than reads.
+     --------------------------------------------------------------------------- */
+
+  /* ================== 26. an equation as a balance ==========================
+     The two legal moves of Chapter 2, applied to both pans at once. */
+  W.balance = function (host) {
+    var PUZ = [
+      { L: [3, 2], R: [0, 11], name: "3x + 2 = 11" },
+      { L: [5, -3], R: [2, 9], name: "5x − 3 = 2x + 9" },
+      { L: [-1, 4], R: [1, 0], name: "4 − x = x" },
+      { L: [2, 5], R: [2, 1], name: "2x + 5 = 2x + 1" }
+    ];
+    var which = 0, L, R, n = 2, log, erased, moves;
+    var P = Plot({
+      w: 660, h: 250, pad: { l: 0, r: 0, t: 0, b: 0 }, xmin: 0, xmax: 660, ymin: 0, ymax: 250,
+      label: "An equation drawn as a balance with one pan for each side"
+    });
+    host.appendChild(P.svg);
+    var g = P.layer();
+    var out = readout(host);
+
+    function side(s) {
+      var x = s[0], k = s[1], t = "";
+      if (!near(x, 0)) t = (near(x, 1) ? "" : near(x, -1) ? "−" : fmt(x).replace("-", "−")) + "x";
+      if (!near(k, 0) || t === "") {
+        t += t === "" ? fmt(k).replace("-", "−") : (k > 0 ? " + " : " − ") + fmt(Math.abs(k));
+      }
+      return t;
+    }
+    function eq() { return side(L) + " = " + side(R); }
+    function load(i) {
+      which = i;
+      L = PUZ[i].L.slice(); R = PUZ[i].R.slice();
+      log = []; erased = false; moves = 0;
+      draw();
+    }
+    /* where the equation stands: solved, an identity, a contradiction, or still open */
+    function status() {
+      if (near(L[0], 0) && near(R[0], 0)) return near(L[1], R[1]) ? "identity" : "contradiction";
+      if ((near(L[0], 1) && near(L[1], 0) && near(R[0], 0)) ||
+          (near(R[0], 1) && near(R[1], 0) && near(L[0], 0))) return "solved";
+      return "open";
+    }
+    function apply(kind) {
+      var before = status();
+      if (before === "solved" || (before !== "open" && kind !== "zero")) return;
+      var what;
+      if (kind === "addk") { L[1] += n; R[1] += n; what = "Add " + n + " to both sides"; }
+      else if (kind === "subk") { L[1] -= n; R[1] -= n; what = "Subtract " + n + " from both sides"; }
+      else if (kind === "addx") { L[0] += n; R[0] += n; what = "Add " + n + "x to both sides"; }
+      else if (kind === "subx") { L[0] -= n; R[0] -= n; what = "Subtract " + n + "x from both sides"; }
+      else if (kind === "mul") { L = [L[0] * n, L[1] * n]; R = [R[0] * n, R[1] * n]; what = "Multiply both sides by " + n; }
+      else if (kind === "div") { L = [L[0] / n, L[1] / n]; R = [R[0] / n, R[1] / n]; what = "Divide both sides by " + n; }
+      else { L = [0, 0]; R = [0, 0]; erased = true; what = "Multiply both sides by 0"; }
+      moves++;
+      log.push(what + ": &nbsp;" + eq());
+      draw();
+    }
+
+    function draw() {
+      g.textContent = "";
+      var st = status();
+      /* a true equation balances for the right x; a contradiction never can */
+      var uneven = near(L[0], R[0]) && !near(L[1], R[1]);
+      var tilt = uneven ? (L[1] > R[1] ? -7 : 7) : 0;
+      var cx = 330, cy = 78, arm = 200, rad = tilt * Math.PI / 180;
+      var ex = arm * Math.cos(rad), ey = arm * Math.sin(rad);
+      g.appendChild(el("path", { d: "M" + cx + " " + cy + " L" + (cx - 34) + " 222 L" + (cx + 34) + " 222 Z",
+        style: "fill:var(--surface-2);stroke:var(--plot-axis);stroke-width:1.5" }));
+      g.appendChild(el("line", { x1: cx - ex, y1: cy + ey, x2: cx + ex, y2: cy - ey,
+        style: "stroke:var(--plot-axis);stroke-width:5;stroke-linecap:round" }));
+      g.appendChild(el("circle", { cx: cx, cy: cy, r: 6, style: S.pt }));
+      [[cx - ex, cy + ey, side(L), "var(--plot-curve)"], [cx + ex, cy - ey, side(R), "var(--plot-curve-2)"]].forEach(function (p) {
+        g.appendChild(el("line", { x1: p[0], y1: p[1], x2: p[0], y2: p[1] + 40, style: "stroke:var(--plot-axis);stroke-width:1.5" }));
+        g.appendChild(el("rect", { x: p[0] - 105, y: p[1] + 40, width: 210, height: 54, rx: 9,
+          style: "fill:var(--surface);stroke:" + p[3] + ";stroke-width:2.5" }));
+        g.appendChild(el("text", { x: p[0], y: p[1] + 75, "text-anchor": "middle",
+          style: "font:650 21px var(--sans);fill:var(--text)" }, p[2]));
+      });
+      g.appendChild(el("text", { x: cx, y: cy + 78, "text-anchor": "middle",
+        style: "font:650 24px var(--sans);fill:var(--muted)" }, st === "contradiction" ? "≠" : "="));
+      if (uneven && st === "open") {
+        g.appendChild(el("text", { x: cx, y: 240, "text-anchor": "middle", style: S.label },
+          "The pans will not level for any x. Find out why."));
+      }
+      var verdict;
+      if (erased) {
+        verdict = "<b>0 = 0.</b> True for every x — and the solution has been wiped out with everything else. " +
+          "Multiplying by 0 cannot be undone, which is why it is not a legal move. Press Start again.";
+      } else if (st === "solved") {
+        var val = near(L[0], 1) ? R[1] : L[1];
+        var P0 = PUZ[which], lv = P0.L[0] * val + P0.L[1], rv = P0.R[0] * val + P0.R[1];
+        verdict = "<b>x = " + fmt(val) + "</b> in " + moves + " move" + (moves === 1 ? "" : "s") +
+          ". Check in the original: left side " + fmt(lv) + ", right side " + fmt(rv) + " ✓";
+      } else if (st === "contradiction") {
+        verdict = "<b>" + fmt(L[1]) + " = " + fmt(R[1]) + " is false,</b> and no x is left to rescue it. " +
+          "The equation has no solution: the pans can never be level.";
+      } else if (st === "identity") {
+        verdict = "<b>Both sides are identical.</b> Every number is a solution.";
+      } else {
+        verdict = "Do the same thing to both pans and they stay level. Aim to leave x alone on one side.";
+      }
+      out.innerHTML = "<b>" + PUZ[which].name + "</b>" +
+        (log.length ? "<br>" + log.map(function (l, i) { return (i + 1) + ". " + l; }).join("<br>") : "") +
+        "<br>" + verdict;
+    }
+
+    var c = controls(host);
+    c.appendChild(chips(PUZ.map(function (p, i) { return { html: p.name, value: i }; }), 0, load));
+    var c2 = controls(host);
+    c2.appendChild(slider("n", 1, 12, 1, n, function (v) {
+      n = v;
+      Array.prototype.forEach.call(ops.querySelectorAll("[data-op]"), function (b) {
+        b.innerHTML = b.getAttribute("data-tpl").replace("n", n);
+      });
+    }).wrap);
+    var ops = h("div", { class: "chips", role: "group", "aria-label": "Moves applied to both sides" });
+    [["subk", "− n"], ["addk", "+ n"], ["subx", "− nx"], ["addx", "+ nx"], ["div", "÷ n"], ["mul", "× n"]].forEach(function (o) {
+      var b = h("button", { type: "button", class: "chip", "data-op": o[0], "data-tpl": o[1] }, o[1].replace("n", n));
+      b.addEventListener("click", function () { apply(o[0]); });
+      ops.appendChild(b);
+    });
+    var zero = h("button", { type: "button", class: "chip" }, "× 0");
+    zero.addEventListener("click", function () { apply("zero"); });
+    ops.appendChild(zero);
+    var again = h("button", { type: "button", class: "chip" }, "Start again");
+    again.addEventListener("click", function () { load(which); });
+    ops.appendChild(again);
+    c2.appendChild(ops);
+    note(host, "Choose n, then press a move: it is applied to both sides at once.");
+    missions(host, "balance", [
+      { text: "Solve 3x + 2 = 11.", test: function () { return which === 0 && !erased && status() === "solved"; } },
+      { text: "Solve 5x − 3 = 2x + 9 in three moves.", test: function () { return which === 1 && !erased && status() === "solved" && moves <= 3; } },
+      { text: "Show that 2x + 5 = 2x + 1 has no solution.", test: function () { return which === 3 && !erased && status() === "contradiction"; } },
+      { text: "Try the forbidden move and see what it destroys.", test: function () { return erased; } }
+    ]);
+    load(0);
+  };
+
+  /* ================== 27. completing the square, literally ==================
+     x² + bx is a square and a rectangle; half the rectangle moved round the
+     corner leaves an exact square with one small corner missing. */
+  W.completesquare = function (host) {
+    var b = 6, stage = 0, u = 0;        /* u follows stage, and is what gets animated */
+    var P = Plot({
+      w: 660, h: 360, pad: { l: 0, r: 0, t: 0, b: 0 }, xmin: 0, xmax: 660, ymin: 0, ymax: 360,
+      label: "The expression x squared plus b x drawn as areas and rearranged into a square"
+    });
+    host.appendChild(P.svg);
+    var g = P.layer();
+    var out = readout(host);
+    var X = 150, U = 18, x0 = 60, y0 = 40;     /* x is drawn 150 wide; one unit of b is 18 */
+    var SQ = "fill:var(--plot-fill);stroke:var(--plot-curve);stroke-width:2";
+    var RC = "fill:var(--accent-2-soft);stroke:var(--plot-curve-2);stroke-width:2";
+
+    function rect(x, y, w, ht, style) { return el("rect", { x: x, y: y, width: w, height: ht, style: style }); }
+    function text(x, y, t, style) { return el("text", { x: x, y: y, "text-anchor": "middle", style: style || S.labelStrong }, t); }
+    function mix(p, q, e) { return p + (q - p) * e; }
+
+    function draw() {
+      g.textContent = "";
+      var hw = (b * U) / 2;                       /* half the rectangle's width */
+      var split = Math.min(1, u), move = Math.max(0, Math.min(1, u - 1)), done = Math.max(0, Math.min(1, u - 2));
+      g.appendChild(rect(x0, y0, X, X, SQ));
+      g.appendChild(text(x0 + X / 2, y0 + X / 2 + 5, "x²"));
+      g.appendChild(text(x0 + X / 2, y0 - 10, "x", S.label));
+      g.appendChild(text(x0 - 14, y0 + X / 2 + 4, "x", S.label));
+      /* the half that stays beside the square */
+      g.appendChild(rect(x0 + X, y0, hw, X, RC));
+      /* the half that travels: from beside the first half to underneath the square */
+      var gap = 10 * split * (1 - move);
+      var rx = mix(x0 + X + hw + gap, x0, move), ry = mix(y0, y0 + X, move);
+      var rw = mix(hw, X, move), rh = mix(X, hw, move);
+      g.appendChild(rect(rx, ry, rw, rh, RC));
+      if (u < 0.5) {
+        g.appendChild(text(x0 + X + hw, y0 + X / 2 + 5, "bx"));
+        g.appendChild(text(x0 + X + hw, y0 - 10, "b = " + b, S.label));
+      } else {
+        g.appendChild(text(x0 + X + hw / 2, y0 - 10, "b/2", S.label));
+        if (move < 0.5) g.appendChild(text(rx + rw / 2, y0 - 10, "b/2", S.label));
+        else g.appendChild(text(x0 - 20, ry + rh / 2 + 4, "b/2", S.label));
+      }
+      if (done > 0) {
+        g.appendChild(el("rect", { x: x0 + X, y: y0 + X, width: hw, height: hw,
+          style: "fill:var(--accent);opacity:" + (0.25 + 0.45 * done) + ";stroke:var(--accent);stroke-width:2;stroke-dasharray:5 4" }));
+        g.appendChild(text(x0 + X + hw / 2, y0 + X + hw / 2 + 5, fmt((b / 2) * (b / 2))));
+        g.appendChild(text(x0 + (X + hw) / 2, y0 + X + hw + 22, "side x + b/2", S.label));
+      }
+      var half = fmt(b / 2), corner = fmt((b / 2) * (b / 2));
+      out.innerHTML = "<b>x² + " + b + "x</b> &nbsp; " + [
+        "A square of side x, and a rectangle x by " + b + ". The rectangle is the middle term — the obstacle.",
+        "Cut the rectangle into two strips, each x by " + half + ".",
+        "Move one strip under the square. The area has not changed: it is still x² + " + b + "x.",
+        "An L-shape, one small square short of a full square of side x + " + half + ". The missing corner is " +
+          half + " by " + half + ", area " + corner + ".<br><b>x² + " + b + "x = (x + " + half + ")² − " + corner + "</b>"
+      ][stage];
+    }
+
+    function go(to) {
+      var from = u;
+      stage = to;
+      animate(500 * Math.max(1, Math.abs(to - from)), function (e) { u = from + (to - from) * e; draw(); },
+        function () { if (host.__missions) host.__missions.check(); });
+      sync();
+    }
+    var c = controls(host);
+    c.appendChild(slider("b", 2, 12, 1, b, function (v) { b = v; draw(); }).wrap);
+    var names = ["x² + bx", "split", "move", "complete"];
+    var row = h("div", { class: "chips", role: "group", "aria-label": "Step of the rearrangement" });
+    var btns = names.map(function (nm, i) {
+      var bt = h("button", { type: "button", class: "chip" }, (i + 1) + ". " + nm);
+      bt.addEventListener("click", function () { go(i); });
+      row.appendChild(bt);
+      return bt;
+    });
+    function sync() { btns.forEach(function (bt, i) { bt.setAttribute("aria-pressed", i === stage ? "true" : "false"); }); }
+    c.appendChild(row);
+    note(host, "Step through 1 to 4. Nothing is added until the last step, and what is added there is exactly what must be subtracted again.");
+    missions(host, "completesquare", [
+      { text: "Complete the square for x² + 6x.", test: function () { return b === 6 && stage === 3; } },
+      { text: "Make the missing corner have area 25.", test: function () { return b === 10 && stage === 3; } },
+      { text: "Find the b whose missing corner is 6.25.", test: function () { return b === 5 && stage === 3; } }
+    ]);
+    sync();
+    draw();
+  };
+
+  /* ================== 28. the angles of a triangle, moved onto a line ======= */
+  W.anglesum = function (host) {
+    var A = { x: -4, y: -2 }, B = { x: 4, y: -2 }, C = { x: 1, y: 3 }, u = 0;
+    var P = Plot({
+      w: 660, h: 400, pad: { l: 10, r: 10, t: 10, b: 10 }, xmin: -7, xmax: 7, ymin: -3.6, ymax: 4.7125,   /* same scale both ways, so angles are true */
+      label: "A triangle whose three angles slide together along a line parallel to its base"
+    });
+    host.appendChild(P.svg);
+    var g = P.layer();
+    var out = readout(host);
+    var COL = ["var(--plot-curve)", "var(--plot-curve-2)", "var(--ok)"];
+
+    function scr(p) { return { x: P.sx(p.x), y: P.sy(p.y) }; }
+    /* interior angle at v, between the rays to p and q, as a start bearing and a signed sweep (screen space) */
+    function corner(v, p, q) {
+      var a1 = Math.atan2(p.y - v.y, p.x - v.x), a2 = Math.atan2(q.y - v.y, q.x - v.x);
+      var d = a2 - a1;
+      while (d > Math.PI) d -= 2 * Math.PI;
+      while (d <= -Math.PI) d += 2 * Math.PI;
+      return { from: a1, sweep: d };
+    }
+    function wedge(at, cn, turn, rpx, color) {
+      var a1 = cn.from + turn, a2 = a1 + cn.sweep;
+      return el("path", {
+        d: "M" + at.x + " " + at.y + " L" + (at.x + rpx * Math.cos(a1)) + " " + (at.y + rpx * Math.sin(a1)) +
+          " A" + rpx + " " + rpx + " 0 0 " + (cn.sweep > 0 ? 1 : 0) + " " +
+          (at.x + rpx * Math.cos(a2)) + " " + (at.y + rpx * Math.sin(a2)) + " Z",
+        style: "fill:" + color + ";opacity:.45;stroke:" + color + ";stroke-width:1.5"
+      });
+    }
+    function angles() {
+      var a = scr(A), b = scr(B), c = scr(C);
+      return [corner(a, b, c), corner(b, c, a), corner(c, a, b)];
+    }
+    function degs() { return angles().map(function (cn) { return Math.abs(cn.sweep) * 180 / Math.PI; }); }
+    function flat() { return (B.x - A.x) * (C.y - A.y) - (B.y - A.y) * (C.x - A.x) === 0; }
+
+    function draw() {
+      g.textContent = "";
+      if (flat()) {
+        out.innerHTML = "<b>The three points are on one line</b>, so there is no triangle. Move one of them off it.";
+        return;
+      }
+      var a = scr(A), b = scr(B), c = scr(C), an = angles(), dg = degs();
+      /* the parallel to AB through C */
+      var dx = b.x - a.x, dy = b.y - a.y, len = Math.sqrt(dx * dx + dy * dy);
+      g.appendChild(el("line", {
+        x1: c.x - 900 * dx / len, y1: c.y - 900 * dy / len, x2: c.x + 900 * dx / len, y2: c.y + 900 * dy / len,
+        style: "stroke:var(--plot-axis);stroke-width:1.5;stroke-dasharray:6 5;opacity:" + (0.25 + 0.75 * u)
+      }));
+      g.appendChild(poly([[a.x, a.y], [b.x, b.y], [c.x, c.y]], "fill:none;stroke:var(--text);stroke-width:2;stroke-linejoin:round"));
+      /* the angle at C stays; those at A and B travel to C, turning half a turn on the way */
+      g.appendChild(wedge(c, an[2], 0, 34, COL[2]));
+      [[a, an[0], COL[0]], [b, an[1], COL[1]]].forEach(function (t) {
+        g.appendChild(wedge(t[0], t[1], 0, 34, t[2]));
+        if (u > 0) {
+          var at = { x: t[0].x + (c.x - t[0].x) * u, y: t[0].y + (c.y - t[0].y) * u };
+          g.appendChild(wedge(at, t[1], Math.PI * u, 34, t[2]));
+        }
+      });
+      [[A, "A", 0], [B, "B", 1], [C, "C", 2]].forEach(function (t) {
+        var s = scr(t[0]);
+        g.appendChild(el("circle", { cx: s.x, cy: s.y, r: 5.5, style: "fill:" + COL[t[2]] + ";stroke:var(--surface);stroke-width:2" }));
+        g.appendChild(el("text", { x: s.x, y: s.y + (t[0] === C ? -46 : 24), "text-anchor": "middle", style: S.labelStrong },
+          t[1] + "  " + fmt(dg[t[2]], 1) + "°"));
+      });
+      out.innerHTML = "<b>" + fmt(dg[0], 1) + "° + " + fmt(dg[1], 1) + "° + " + fmt(dg[2], 1) + "° = " +
+        fmt(dg[0] + dg[1] + dg[2], 1) + "°</b><br>" +
+        (u > 0.98
+          ? "The three angles now sit side by side at C and fill one side of the dashed line exactly — a straight angle. " +
+            "The copies of A and B fit because the dashed line is parallel to AB: they are alternate interior angles."
+          : "The dashed line through C is parallel to AB. Slide the angles at A and B up to C and see what they fill.");
+    }
+
+    dragPoints(P, function () { return [A, B, C]; }, function (i, x, y) {
+      var p = [A, B, C][i];
+      p.x = Math.max(-6, Math.min(6, Math.round(x)));
+      p.y = Math.max(-3, Math.min(4, Math.round(y)));
+      draw();
+    }, { names: ["A", "B", "C"], label: "The three vertices of a triangle" });
+    var c = controls(host);
+    var sl = slider("slide", 0, 1, 0.01, u, function (v) { u = v; draw(); }, function (v) { return Math.round(v * 100) + "%"; });
+    c.appendChild(sl.wrap);
+    var go = h("button", { type: "button", class: "chip" }, "Move the angles");
+    go.addEventListener("click", function () {
+      var from = u, to = u > 0.5 ? 0 : 1;
+      animate(1100, function (e) {
+        u = from + (to - from) * e; sl.input.value = u; sl.output.textContent = Math.round(u * 100) + "%"; draw();
+      }, function () { if (host.__missions) host.__missions.check(); });
+    });
+    c.appendChild(go);
+    note(host, "Drag any vertex, or tab to the figure and use the arrow keys; space switches vertex.");
+    missions(host, "anglesum", [
+      { text: "Move the three angles together and see what they fill.", test: function () { return !flat() && u > 0.98; } },
+      { text: "Do it again for a triangle with a right angle at C.", test: function () { return !flat() && u > 0.98 && near(degs()[2], 90, 1e-6); } },
+      { text: "And for a triangle with an angle bigger than 120°.", test: function () {
+          return !flat() && u > 0.98 && Math.max.apply(null, degs()) > 120;
+        } }
+    ]);
+    draw();
+  };
+
+  /* ================== 29. same base, same height, same area ================= */
+  W.shear = function (host) {
+    var base = 6, ht = 4, ax = 2;
+    var P = Plot({
+      w: 660, h: 380, xmin: -7, xmax: 13, ymin: -1.2, ymax: 6.6,
+      label: "A triangle whose apex slides along a line parallel to its base"
+    });
+    host.appendChild(P.svg);
+    grid(P, 1, 1, { tickStep: 2, yTickStep: 2 });
+    var g = P.layer();
+    var out = readout(host);
+
+    function sides() {
+      return [Math.sqrt(ax * ax + ht * ht), Math.sqrt((base - ax) * (base - ax) + ht * ht)];
+    }
+    function draw() {
+      g.textContent = "";
+      function p(x, y) { return [P.sx(x), P.sy(y)]; }
+      g.appendChild(poly([p(0, 0), p(base, 0), p(base, ht), p(0, ht)],
+        "fill:var(--accent-2-soft);stroke:var(--plot-curve-2);stroke-width:1.5;stroke-dasharray:5 4"));
+      g.appendChild(el("line", { x1: P.sx(P.xmin), y1: P.sy(ht), x2: P.sx(P.xmax), y2: P.sy(ht), style: S.dash }));
+      g.appendChild(poly([p(0, 0), p(base, 0), p(ax, ht)], "fill:var(--plot-fill);stroke:var(--plot-curve);stroke-width:2.5;stroke-linejoin:round"));
+      /* the height, dropped to the base or to the base extended */
+      g.appendChild(el("line", { x1: P.sx(ax), y1: P.sy(ht), x2: P.sx(ax), y2: P.sy(0), style: "stroke:var(--accent-2);stroke-width:2;stroke-dasharray:3 4" }));
+      if (ax < 0 || ax > base) {
+        g.appendChild(el("line", { x1: P.sx(ax), y1: P.sy(0), x2: P.sx(ax < 0 ? 0 : base), y2: P.sy(0), style: S.dash }));
+      }
+      g.appendChild(label(P, ax, ht / 2, "h = " + ht, 26, 4, S.label));
+      g.appendChild(label(P, base / 2, 0, "b = " + base, 0, 20, S.label));
+      g.appendChild(el("circle", { cx: P.sx(ax), cy: P.sy(ht), r: 7, style: S.ptA }));
+      var s = sides();
+      out.innerHTML = "<b>Area = ½ · " + base + " · " + ht + " = " + fmt(base * ht / 2) + "</b> &nbsp; (the dashed rectangle is " +
+        base * ht + ")<br>" +
+        "Other two sides: " + fmt(s[0], 2) + " and " + fmt(s[1], 2) + " &nbsp;·&nbsp; perimeter " + fmt(base + s[0] + s[1], 2) + "<br>" +
+        (ax < 0 || ax > base
+          ? "The foot of the height has fallen outside the base. The area still has not moved."
+          : ax === 0 || ax === base ? "A right triangle: exactly half the rectangle, by one diagonal cut."
+            : "Slide the apex along the dashed line. Sides and perimeter change; base, height and area do not.");
+    }
+
+    var c = controls(host);
+    c.appendChild(slider("apex", -6, 12, 1, ax, function (v) { ax = v; draw(); }).wrap);
+    c.appendChild(slider("height", 1, 6, 1, ht, function (v) { ht = v; draw(); }).wrap);
+    missions(host, "shear", [
+      { text: "Make a right triangle without changing the area.", test: function () { return ax === 0 || ax === base; } },
+      { text: "Push the foot of the height outside the base.", test: function () { return ax < 0 || ax > base; } },
+      { text: "Keep the area at 12 and push the perimeter past 24.", test: function () {
+          var s = sides();
+          return ht === 4 && base + s[0] + s[1] > 24;
+        } }
+    ]);
+    draw();
+  };
+
+  /* ================== 30. the eight symmetries of a square ================== */
+  W.symmetries = function (host) {
+    /* a symmetry is a 2×2 matrix [a, b, c, d] sending (x, y) to (ax + by, cx + dy) */
+    var I = [1, 0, 0, 1], R = [0, -1, 1, 0], M = [-1, 0, 0, 1];
+    var NAMES = {
+      "1,0,0,1": "the identity — nothing has moved",
+      "0,-1,1,0": "rotation by 90° counterclockwise",
+      "-1,0,0,-1": "rotation by 180°",
+      "0,1,-1,0": "rotation by 270° counterclockwise",
+      "-1,0,0,1": "the flip left to right (in the vertical mid-line)",
+      "1,0,0,-1": "the flip top to bottom (in the horizontal mid-line)",
+      "0,1,1,0": "the flip in the diagonal through the upper right corner",
+      "0,-1,-1,0": "the flip in the diagonal through the upper left corner"
+    };
+    var cur = I, hist = "", seen = {}, from = I, u = 1;
+    var P = Plot({
+      w: 660, h: 340, pad: { l: 0, r: 0, t: 0, b: 0 }, xmin: -3.6, xmax: 3.6, ymin: -1.8545, ymax: 1.8545,
+      label: "A square with numbered corners and a letter F, moved by rotations and flips"
+    });
+    host.appendChild(P.svg);
+    var g = P.layer();
+    var out = readout(host);
+    var F = [[-0.45, -0.6], [-0.45, 0.6], [0.4, 0.6], [0.4, 0.32], [-0.13, 0.32], [-0.13, 0.1], [0.25, 0.1], [0.25, -0.16], [-0.13, -0.16], [-0.13, -0.6]];
+    var CORNERS = [[1, 1], [-1, 1], [-1, -1], [1, -1]];
+    var COL = ["var(--plot-curve)", "var(--plot-curve-2)", "var(--ok)", "var(--bad)"];
+
+    function mul(m, n) {   /* m after n */
+      return [m[0] * n[0] + m[1] * n[2], m[0] * n[1] + m[1] * n[3], m[2] * n[0] + m[3] * n[2], m[2] * n[1] + m[3] * n[3]];
+    }
+    function act(m, p) { return [m[0] * p[0] + m[1] * p[1], m[2] * p[0] + m[3] * p[1]]; }
+    function blend(p) {    /* a point on its way from the old position to the new one */
+      var a = act(from, p), b = act(cur, p);
+      return [a[0] + (b[0] - a[0]) * u, a[1] + (b[1] - a[1]) * u];
+    }
+    function draw() {
+      g.textContent = "";
+      function s(p) { return [P.sx(p[0]), P.sy(p[1])]; }
+      g.appendChild(poly(CORNERS.map(s), "fill:none;stroke:var(--plot-axis);stroke-width:1.5;stroke-dasharray:5 4"));
+      g.appendChild(poly(CORNERS.map(blend).map(s), "fill:var(--plot-fill);stroke:var(--plot-curve);stroke-width:2.5;stroke-linejoin:round"));
+      g.appendChild(poly(F.map(blend).map(s), "fill:var(--accent-2-soft);stroke:var(--plot-curve-2);stroke-width:2;stroke-linejoin:round"));
+      CORNERS.forEach(function (c0, i) {
+        var q = s(blend(c0));
+        g.appendChild(el("circle", { cx: q[0], cy: q[1], r: 13, style: "fill:" + COL[i] + ";stroke:var(--surface);stroke-width:2" }));
+        g.appendChild(el("text", { x: q[0], y: q[1] + 5, "text-anchor": "middle", style: "font:700 13px var(--sans);fill:var(--surface)" }, String(i + 1)));
+      });
+      var moves = hist.split("").join(", then ");
+      out.innerHTML = "<b>" + (hist ? "Moves so far: " + moves : "No moves yet") + "</b>" +
+        (hist.length > 1 ? " &nbsp; (as a composite: " + hist.split("").reverse().join(" ∘ ") + ")" : "") + "<br>" +
+        "The square now shows <b>" + NAMES[cur.join(",")] + "</b>.<br>" +
+        "However many moves you make, the result is always one of the same eight positions — and R then M is not M then R.";
+    }
+    function push(m, letter) {
+      if (hist.length >= 12) return;
+      from = cur; cur = mul(m, cur); hist += letter; seen[hist] = true;
+      u = 0;
+      animate(450, function (e) { u = e; draw(); }, function () { if (host.__missions) host.__missions.check(); });
+    }
+
+    var c = controls(host);
+    var row = h("div", { class: "chips", role: "group", "aria-label": "Moves" });
+    [["R — quarter turn", R, "R"], ["M — flip left to right", M, "M"]].forEach(function (o) {
+      var bt = h("button", { type: "button", class: "chip" }, o[0]);
+      bt.addEventListener("click", function () { push(o[1], o[2]); });
+      row.appendChild(bt);
+    });
+    var reset = h("button", { type: "button", class: "chip" }, "Start again");
+    reset.addEventListener("click", function () { cur = I; from = I; hist = ""; u = 1; draw(); });
+    row.appendChild(reset);
+    c.appendChild(row);
+    note(host, "The dashed outline is where the square started. Watch the numbered corners and the F.");
+    missions(host, "symmetries", [
+      { text: "Reach a flip in a diagonal.", test: function () { var k = cur.join(","); return k === "0,1,1,0" || k === "0,-1,-1,0"; } },
+      { text: "Do R then M; start again; do M then R. Compare the two results.", test: function () { return seen.RM && seen.MR; } },
+      { text: "Get back to the start in exactly four moves, using both R and M.", test: function () {
+          return hist.length === 4 && hist.indexOf("R") >= 0 && hist.indexOf("M") >= 0 && cur.join(",") === "1,0,0,1";
+        } }
+    ]);
+    draw();
+  };
+
+  /* ================== 31. what a radian is ================================== */
+  W.radian = function (host) {
+    var k = 0.6;                         /* arc length, measured in radii */
+    var P = Plot({
+      w: 660, h: 380, pad: { l: 10, r: 10, t: 10, b: 10 }, xmin: -2.1, xmax: 2.1, ymin: -1.18125, ymax: 1.18125,
+      label: "A radius laid along the circumference of its own circle"
+    });
+    host.appendChild(P.svg);
+    var g = P.layer();
+    var out = readout(host);
+    var R = Math.abs(P.sx(1) - P.sx(0));
+
+    function arc(t0, t1, style) {
+      return el("path", {
+        d: "M" + P.sx(Math.cos(t0)) + " " + P.sy(Math.sin(t0)) + " A" + R + " " + R + " 0 " +
+          (t1 - t0 > Math.PI ? 1 : 0) + " 0 " + P.sx(Math.cos(t1)) + " " + P.sy(Math.sin(t1)),
+        style: style
+      });
+    }
+    function draw() {
+      g.textContent = "";
+      g.appendChild(el("circle", { cx: P.sx(0), cy: P.sy(0), r: R, style: "fill:none;stroke:var(--plot-axis);stroke-width:1.5" }));
+      g.appendChild(el("line", { x1: P.sx(0), y1: P.sy(0), x2: P.sx(1), y2: P.sy(0), style: S.curve }));
+      g.appendChild(label(P, 0.5, 0, "radius", 0, 18, S.label));
+      /* each whole radius laid along the arc gets its own stretch, alternating in colour */
+      for (var i = 0; i < Math.ceil(k - 1e-9); i++) {
+        var t0 = i, t1 = Math.min(k, i + 1);
+        if (t1 - t0 < 1e-6) continue;
+        g.appendChild(arc(t0, t1, "fill:none;stroke-linecap:butt;stroke-width:7;stroke:" +
+          (i % 2 ? "var(--plot-curve-2)" : "var(--plot-curve)")));
+      }
+      for (var j = 1; j <= 6; j++) {
+        g.appendChild(el("line", {
+          x1: P.sx(0.94 * Math.cos(j)), y1: P.sy(0.94 * Math.sin(j)), x2: P.sx(1.06 * Math.cos(j)), y2: P.sy(1.06 * Math.sin(j)),
+          style: "stroke:var(--text);stroke-width:1.5"
+        }));
+        g.appendChild(el("text", { x: P.sx(1.17 * Math.cos(j)), y: P.sy(1.17 * Math.sin(j)) + 4, "text-anchor": "middle", style: S.tick }, String(j)));
+      }
+      g.appendChild(el("line", { x1: P.sx(0), y1: P.sy(0), x2: P.sx(Math.cos(k)), y2: P.sy(Math.sin(k)), style: S.curve2 }));
+      g.appendChild(el("circle", { cx: P.sx(Math.cos(k)), cy: P.sy(Math.sin(k)), r: 7, style: S.ptB }));
+      var deg = k * 180 / Math.PI;
+      out.innerHTML = "<b>Arc = " + fmt(k, 2) + " radii &nbsp;→&nbsp; angle = " + fmt(k, 2) + " radians = " + fmt(deg, 1) + "°</b><br>" +
+        "The numbered marks are one radius apart, measured along the circle. " +
+        (near(k, 1) ? "One radius of arc: this angle is <b>one radian</b>, about 57.3°."
+          : near(k, Math.PI, 0.006) ? "Half a turn takes three radii and a little more — exactly π of them."
+            : k > 6.27 ? "A full turn takes 2π ≈ 6.28 radii: that is the circumference formula C = 2πr, read as an angle."
+              : "An angle in radians is simply how many radii long its arc is.");
+    }
+
+    var c = controls(host);
+    var sl = slider("arc", 0, 6.28, 0.01, k, function (v) { k = v; draw(); }, function (v) { return fmt(v, 2); });
+    c.appendChild(sl.wrap);
+    c.appendChild(chips([
+      { html: "1 radian", value: 1 }, { html: "π/2", value: 1.57 }, { html: "π", value: 3.14 }, { html: "2π", value: 6.28 }
+    ], -1, function (v) { k = v; sl.input.value = v; sl.output.textContent = fmt(v, 2); draw(); }));
+    missions(host, "radian", [
+      { text: "Lay exactly one radius along the circle.", test: function () { return near(k, 1); } },
+      { text: "Make the arc as long as the diameter.", test: function () { return near(k, 2); } },
+      { text: "Reach the half turn. How many radii did it take?", test: function () { return near(k, Math.PI, 0.006); } }
+    ]);
+    draw();
+  };
+
+  /* ================== 32. 1 + 2 + … + n, twice ============================== */
+  W.staircase = function (host) {
+    var n = 5, u = 0;                    /* u: 0 = second staircase apart, 1 = fitted */
+    var P = Plot({
+      w: 660, h: 360, pad: { l: 0, r: 0, t: 0, b: 0 }, xmin: 0, xmax: 660, ymin: 0, ymax: 360,
+      label: "Two copies of a staircase of blocks fitting together into a rectangle"
+    });
+    host.appendChild(P.svg);
+    var g = P.layer();
+    var out = readout(host);
+
+    function draw() {
+      g.textContent = "";
+      var cell = Math.min(30, 300 / (n + 1)), x0 = 60, yb = 330;
+      var off = (1 - u) * (cell * 1.2 + 40), lift = (1 - u) * cell * 0.6;
+      var col, row;
+      for (col = 1; col <= n; col++) {
+        for (row = 0; row < col; row++) {
+          g.appendChild(el("rect", { x: x0 + (col - 1) * cell, y: yb - (row + 1) * cell, width: cell, height: cell,
+            style: "fill:var(--plot-fill);stroke:var(--plot-curve);stroke-width:1.5" }));
+        }
+        /* the second staircase, upside down, sits on top of the first: column col gets n + 1 − col blocks */
+        for (row = col; row <= n; row++) {
+          g.appendChild(el("rect", { x: x0 + (col - 1) * cell + off, y: yb - (row + 1) * cell - lift, width: cell, height: cell,
+            style: "fill:var(--accent-2-soft);stroke:var(--plot-curve-2);stroke-width:1.5" }));
+        }
+      }
+      if (u > 0.98) {
+        g.appendChild(el("text", { x: x0 + (n * cell) / 2, y: yb + 22, "text-anchor": "middle", style: S.labelStrong }, "n = " + n));
+        g.appendChild(el("text", { x: x0 + n * cell + 12, y: yb - ((n + 1) * cell) / 2 + 4, style: S.labelStrong }, "n + 1 = " + (n + 1)));
+      }
+      var sum = n * (n + 1) / 2, terms = [];
+      for (col = 1; col <= Math.min(n, 4); col++) terms.push(col);
+      var lhs = n <= 4 ? terms.join(" + ") : "1 + 2 + … + " + n;
+      out.innerHTML = "<b>" + lhs + " = " + sum + "</b><br>" +
+        (u > 0.98
+          ? "Two staircases make a rectangle " + n + " wide and " + (n + 1) + " tall, so twice the sum is " + n + " × " + (n + 1) +
+            " = " + n * (n + 1) + ", and the sum is half of that: <b>n(n + 1)/2</b>."
+          : "The blue staircase has 1, 2, …, " + n + " blocks in its columns. The second staircase is the same one, turned over.");
+    }
+
+    var c = controls(host);
+    c.appendChild(slider("n", 1, 12, 1, n, function (v) { n = v; draw(); }).wrap);
+    var go = h("button", { type: "button", class: "chip" }, "Fit them together");
+    go.addEventListener("click", function () {
+      var from = u, to = u > 0.5 ? 0 : 1;
+      go.textContent = to === 1 ? "Pull them apart" : "Fit them together";
+      animate(700, function (e) { u = from + (to - from) * e; draw(); },
+        function () { if (host.__missions) host.__missions.check(); });
+    });
+    c.appendChild(go);
+    missions(host, "staircase", [
+      { text: "Fit the two staircases together.", test: function () { return u > 0.98; } },
+      { text: "Use the rectangle to read off 1 + 2 + … + 7.", test: function () { return u > 0.98 && n === 7; } },
+      { text: "Find the n for which the sum is 55.", test: function () { return u > 0.98 && n === 10; } }
+    ]);
+    draw();
+  };
+
   window.BMWidgets = W;
-  window.BMPlot = { Plot: Plot, grid: grid, curvePath: curvePath, el: el, S: S, slider: slider, chips: chips, controls: controls, readout: readout, note: note, dragX: dragX, fmt: fmt };
+  window.BMPlot = { Plot: Plot, grid: grid, curvePath: curvePath, el: el, S: S, slider: slider, chips: chips, controls: controls, readout: readout, note: note, dragX: dragX, fmt: fmt, missions: missions, animate: animate };
 })();

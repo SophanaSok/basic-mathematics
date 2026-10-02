@@ -13,6 +13,8 @@
 
   var THEME_KEY = "bm.theme";
   var PROGRESS_KEY = "bm.progress.v1";
+  var PLAY_KEY = "bm.play.v1";
+  var LAST_KEY = "bm.last";
   var C = window.BM_CURRICULUM || { parts: [], chapters: [] };
 
   /* ------------------------------------------------------------ storage -- */
@@ -68,6 +70,38 @@
     }
   };
   window.BMProgress = Progress;
+
+  /* Missions on the interactive figures, and the opening-puzzle guesses.
+     Kept apart from exercise progress so neither can disturb the other. */
+  var Play = {
+    all: function () {
+      var p = readStore(PLAY_KEY, {});
+      return p && typeof p === "object" ? p : {};
+    },
+    chapter: function (id) {
+      var rec = this.all()[id];
+      if (!rec || typeof rec !== "object") return { done: {}, total: 0, guess: null };
+      return { done: rec.done || {}, total: rec.total || 0, guess: rec.guess === undefined ? null : rec.guess };
+    },
+    update: function (id, fn) {
+      var all = this.all();
+      var rec = all[id] || {};
+      rec.done = rec.done || {};
+      fn(rec);
+      all[id] = rec;
+      writeStore(PLAY_KEY, all);
+    },
+    isDone: function (id, key) { return !!this.chapter(id).done[key]; },
+    markDone: function (id, key) { this.update(id, function (rec) { rec.done[key] = true; }); },
+    setTotal: function (id, total) { this.update(id, function (rec) { rec.total = total; }); },
+    setGuess: function (id, i) { this.update(id, function (rec) { rec.guess = i; }); },
+    count: function (id) {
+      var rec = this.chapter(id);
+      return { done: Object.keys(rec.done).length, total: rec.total };
+    },
+    reset: function () { writeStore(PLAY_KEY, {}); writeStore(LAST_KEY, null); }
+  };
+  window.BMPlay = Play;
 
   /* -------------------------------------------------------------- theme -- */
 
@@ -145,6 +179,9 @@
 
     html += '<div class="sidebar-body">';
     html += '<h2>In this chapter</h2><ol>';
+    if (document.getElementById("warmup")) {
+      html += '<li><a href="#warmup"><span class="counter">↺</span>Warm-up</a></li>';
+    }
     chapter.sections.forEach(function (s, i) {
       html += '<li><a href="#' + s.id + '"><span class="counter">' + (i + 1) + "</span>" +
         escapeHtml(s.title) + "</a></li>";
@@ -153,6 +190,10 @@
       html += '<li><a href="#practice"><span class="counter">★</span>Practice</a></li>';
     }
     html += "</ol>";
+    if (document.getElementById("practice")) {
+      html += '<div class="side-progress" data-side-progress hidden>' +
+        '<div class="bar"><span></span></div><p></p></div>';
+    }
 
     html += '<h2>' + escapeHtml(chapter.part.name) + "</h2><ol>";
     chapter.part.chapters.forEach(function (ch) {
@@ -178,11 +219,11 @@
       toggle.setAttribute("aria-expanded", collapsed ? "true" : "false");
     });
 
-    spy(host);
+    spy(host, chapter);
   }
 
   /* highlight the section heading nearest the top of the viewport */
-  function spy(host) {
+  function spy(host, chapter) {
     var links = host.querySelectorAll('a[href^="#"]');
     if (!links.length || !("IntersectionObserver" in window)) return;
     var map = {};
@@ -201,6 +242,8 @@
           a.removeAttribute("aria-current");
         });
         if (chosen && map[chosen]) map[chosen].setAttribute("aria-current", "true");
+        /* remember where the reader is, for the Continue button on the home page */
+        if (chosen && chapter) writeStore(LAST_KEY, { id: chapter.id, section: chosen });
       },
       { rootMargin: "-72px 0px -70% 0px", threshold: 0 }
     );
@@ -238,7 +281,7 @@
     if (!host) return;
     var html = "";
     C.parts.forEach(function (part) {
-      html += '<section class="part">';
+      html += '<section class="part" data-part="' + escapeHtml(part.id) + '">';
       html += '<div class="part-head"><span class="roman" aria-hidden="true">' + part.num +
         '</span><h2 id="part-' + part.id + '">Part ' + part.num + " — " + escapeHtml(part.name) + "</h2></div>";
       html += '<p class="part-blurb">' + escapeHtml(part.blurb) + "</p>";
@@ -257,6 +300,11 @@
         if (ch.status === "full") {
           html += '<span class="ring" style="--pct:' + pct + '" data-pct="' + pct + '" aria-hidden="true"></span>';
           html += "<span>" + (c.total ? c.solved + " / " + c.total + " exercises" : ch.sections.length + " sections") + "</span>";
+          var m = Play.count(ch.id);
+          if (m.total) {
+            html += '<span class="stars" title="Missions completed on this chapter\'s figures">★ ' +
+              Math.min(m.done, m.total) + " / " + m.total + "</span>";
+          }
         } else {
           html += "<span>" + ch.sections.length + " sections planned</span>";
         }
@@ -265,6 +313,20 @@
       html += "</div></section>";
     });
     host.innerHTML = html;
+  }
+
+  /* turn the "Start" button into "Continue" once there is somewhere to continue to */
+  function buildContinue() {
+    var btn = document.querySelector("[data-continue]");
+    if (!btn) return;
+    var last = readStore(LAST_KEY, null);
+    var ch = last && last.id && C.chapterById ? C.chapterById(last.id) : null;
+    if (!ch) return;
+    var sec = ch.sections.filter(function (s) { return s.id === last.section; })[0];
+    var anchor = sec ? "#" + sec.id : (last.section === "practice" || last.section === "warmup" ? "#" + last.section : "");
+    btn.setAttribute("href", ch.path + anchor);
+    btn.textContent = "Continue: " + (ch.label === "Interlude" ? "Interlude" : "Chapter " + ch.label) +
+      (sec ? " · " + sec.title : last.section === "practice" ? " · Practice" : "") + " →";
   }
 
   function buildCourseStats() {
@@ -289,6 +351,7 @@
     Array.prototype.forEach.call(document.querySelectorAll('[data-action="reset-progress"]'), function (btn) {
       btn.addEventListener("click", function () {
         Progress.reset();
+        Play.reset();
         btn.textContent = "Progress cleared";
         btn.disabled = true;
         buildHome();
@@ -388,24 +451,49 @@
     return basicClean(given).replace(/\.$/, "") === basicClean(answer).replace(/\.$/, "");
   }
 
+  var TICK = '<svg class="tick" viewBox="0 0 20 20" aria-hidden="true"><path d="M4 10.5l4 4 8-9"/></svg>';
+
   function initExercises(chapter) {
     var exs = document.querySelectorAll(".ex");
     if (!exs.length) return;
     var chapterId = chapter ? chapter.id : document.body.getAttribute("data-chapter") || "misc";
     var saved = Progress.chapter(chapterId).solved;
-    var total = exs.length;
+    /* Inline checks ("Your turn", warm-ups) are practice in passing: graded, never scored. */
+    var scored = Array.prototype.filter.call(exs, function (ex) { return !ex.hasAttribute("data-inline"); });
+    var total = scored.length;
     Progress.setTotal(chapterId, total);
 
     var scoreEl = document.querySelector("[data-practice-score]");
+    var sideEl = document.querySelector("[data-side-progress]");
+    function solvedCount() {
+      return Math.min(total, Object.keys(Progress.chapter(chapterId).solved).length);
+    }
     function updateScore() {
-      if (!scoreEl) return;
-      var n = Object.keys(Progress.chapter(chapterId).solved).length;
-      scoreEl.innerHTML = "<b>" + n + "</b> of " + total + " solved";
+      var n = solvedCount();
+      if (scoreEl) scoreEl.innerHTML = "<b>" + n + "</b> of " + total + " solved";
+      if (sideEl && total) {
+        sideEl.hidden = false;
+        sideEl.querySelector(".bar span").style.width = Math.round((n / total) * 100) + "%";
+        sideEl.querySelector("p").textContent = n + " of " + total + " exercises solved";
+      }
     }
 
-    Array.prototype.forEach.call(exs, function (ex, idx) {
-      var key = ex.id || "e" + (idx + 1);
-      var num = idx + 1;
+    /* Positional keys ("e3") are what older saved progress uses, so the position counts
+       only exercises without an id: anything added later carries an id and shifts nothing. */
+    var position = 0, shown = 0, inlineCount = 0;
+
+    Array.prototype.forEach.call(exs, function (ex) {
+      var inline = ex.hasAttribute("data-inline");
+      var key, num;
+      if (inline) {
+        inlineCount++;
+        key = ex.id || "i" + inlineCount;
+      } else {
+        shown++;
+        num = shown;
+        if (ex.id) key = ex.id;
+        else { position++; key = "e" + position; }
+      }
       var type = ex.getAttribute("data-type") || "exact";
       /* "|" separates alternative accepted answers — but an answer may itself contain
          a bar (|x|), so the unsplit string is always a candidate too. */
@@ -414,13 +502,15 @@
         .map(function (s) { return s.trim(); })
         .filter(function (s) { return s !== ""; });
       var hint = ex.getAttribute("data-hint") || "";
+      var hint2 = ex.getAttribute("data-hint2") || "";
       var tol = parseFloat(ex.getAttribute("data-tol") || "") || 0;
       var choices = ex.querySelector("ul.choices, ol.choices");
 
       /* number label */
+      var labelText = inline ? (ex.getAttribute("data-label") || "Your turn") : "Exercise " + num;
       var numEl = document.createElement("span");
       numEl.className = "ex-num";
-      numEl.textContent = "Exercise " + num;
+      numEl.textContent = labelText;
       ex.insertBefore(numEl, ex.firstChild);
 
       var solution = ex.querySelector(".ex-solution");
@@ -458,7 +548,7 @@
         inputEl.setAttribute("autocomplete", "off");
         inputEl.setAttribute("autocapitalize", "off");
         inputEl.setAttribute("spellcheck", "false");
-        inputEl.setAttribute("aria-label", "Your answer to exercise " + num);
+        inputEl.setAttribute("aria-label", inline ? "Your answer" : "Your answer to exercise " + num);
         inputEl.placeholder = ex.getAttribute("data-placeholder") || "your answer";
         form.appendChild(inputEl);
       }
@@ -503,12 +593,16 @@
 
       function markCorrect(fromStorage) {
         ex.setAttribute("data-state", "correct");
-        feedback.innerHTML = '<span class="ok">✓ Correct.</span>' +
+        if (fromStorage) ex.setAttribute("data-restored", "true");
+        else ex.removeAttribute("data-restored");
+        feedback.innerHTML = '<span class="ok">' + TICK + " Correct.</span>" +
           (solution ? ' <span class="hint">Compare your reasoning with the solution below.</span>' : "");
         feedback.setAttribute("data-show", "true");
-        if (!fromStorage) {
+        if (!fromStorage && !inline) {
+          var before = solvedCount();
           Progress.markSolved(chapterId, key);
           updateScore();
+          if (total && before < total && solvedCount() >= total) chapterDone(chapter, true);
         }
       }
 
@@ -536,10 +630,15 @@
         if (ok) {
           markCorrect(false);
         } else {
+          /* drop and re-set the state so the shake replays on every miss */
+          ex.removeAttribute("data-state");
+          void ex.offsetWidth;
           ex.setAttribute("data-state", "wrong");
           var extra = tries === 1 && hint
             ? '<span class="hint">Hint: ' + hint + "</span>"
-            : '<span class="hint">Not yet. Work it through once more' + (solution ? ", or open the solution." : ".") + "</span>";
+            : tries === 2 && hint2
+              ? '<span class="hint">Another hint: ' + hint2 + "</span>"
+              : '<span class="hint">Not yet. Work it through once more' + (solution ? ", or open the solution." : ".") + "</span>";
           feedback.innerHTML = '<span class="no">✗ Not right.</span> ' + extra;
           feedback.setAttribute("data-show", "true");
           renderMath(feedback);
@@ -553,10 +652,85 @@
         });
       }
 
-      if (saved[key]) markCorrect(true);
+      if (!inline && saved[key]) markCorrect(true);
     });
 
     updateScore();
+    if (total && solvedCount() >= total) chapterDone(chapter, false);
+  }
+
+  /* The moment a chapter's last exercise is solved. `fresh` plays the burst once;
+     a revisit to a finished chapter gets the banner without it. */
+  function chapterDone(chapter, fresh) {
+    var practice = document.getElementById("practice");
+    if (!practice || document.querySelector(".chapter-done")) return;
+    var list = C.chapters || [], next = null;
+    if (chapter) list.forEach(function (ch, k) { if (ch.id === chapter.id) next = list[k + 1] || null; });
+    var box = document.createElement("div");
+    box.className = "chapter-done";
+    box.setAttribute("role", "status");
+    var html = "";
+    if (fresh) {
+      html += '<span class="burst" aria-hidden="true">';
+      for (var i = 0; i < 14; i++) html += '<i style="--i:' + i + '"></i>';
+      html += "</span>";
+    }
+    html += "<b>" + (chapter ? escapeHtml(chapter.label === "Interlude" ? "Interlude" : "Chapter " + chapter.label) : "Chapter") +
+      " complete.</b> Every exercise here is solved. ";
+    html += next
+      ? 'Next: <a href="' + rootPrefix() + escapeHtml(next.path) + '">' +
+        escapeHtml((next.label === "Interlude" ? "" : next.label + ". ") + next.title) + " →</a>"
+      : "That was the last chapter — the whole course is behind you.";
+    box.innerHTML = html;
+    var recap = document.querySelector(".recap");
+    if (recap && recap.parentNode) recap.parentNode.insertBefore(box, recap);
+    else practice.parentNode.insertBefore(box, practice.nextSibling);
+    if (fresh && box.scrollIntoView) {
+      try { box.scrollIntoView({ block: "center", behavior: "smooth" }); } catch (e) { box.scrollIntoView(); }
+    }
+  }
+
+  /* ----------------------------------------------------- opening puzzle --- */
+
+  /* <div class="puzzle"> holds a question and <ul class="guess"> of options. Picking one
+     is a commitment, not a graded answer; the recap's .puzzle-answer returns to it. */
+  function initPuzzle(chapter) {
+    var box = document.querySelector(".puzzle");
+    if (!box || !chapter) return;
+    var list = box.querySelector("ul.guess");
+    var after = box.querySelector(".puzzle-after");
+    var back = document.querySelector(".puzzle-answer [data-your-guess]");
+    if (!list) return;
+    var items = Array.prototype.slice.call(list.querySelectorAll("li"));
+    var wrap = document.createElement("div");
+    wrap.className = "guess";
+    wrap.setAttribute("role", "group");
+    wrap.setAttribute("aria-label", "Your guess");
+    var btns = items.map(function (li, i) {
+      var b = document.createElement("button");
+      b.type = "button";
+      b.className = "guess-chip";
+      b.innerHTML = li.innerHTML;
+      b.setAttribute("aria-pressed", "false");
+      b.addEventListener("click", function () { pick(i, true); });
+      wrap.appendChild(b);
+      return b;
+    });
+    list.parentNode.replaceChild(wrap, list);
+    function pick(i, store) {
+      if (!btns[i]) return;
+      btns.forEach(function (b, j) { b.setAttribute("aria-pressed", j === i ? "true" : "false"); });
+      if (after) after.hidden = false;
+      if (back) {
+        back.innerHTML = "You guessed: <b>" + btns[i].innerHTML + "</b>.";
+        back.hidden = false;
+      }
+      if (store) Play.setGuess(chapter.id, i);
+    }
+    if (after) after.hidden = true;
+    if (back) back.hidden = true;
+    var g = Play.chapter(chapter.id).guess;
+    if (g !== null) pick(g, false);
   }
 
   /* ------------------------------------------------------------- widgets - */
@@ -573,6 +747,7 @@
       }
       try {
         fn(host);
+        watchFirstView(host);
       } catch (e) {
         host.innerHTML = '<p class="hint-drag">This figure failed to load.</p>';
         if (window.console) console.error("[BM] widget " + name + " failed", e);
@@ -580,18 +755,35 @@
     });
   }
 
+  /* flag a figure the first time it scrolls into view, so its handles can announce themselves */
+  function watchFirstView(host) {
+    if (!("IntersectionObserver" in window)) return;
+    var obs = new IntersectionObserver(function (entries) {
+      entries.forEach(function (en) {
+        if (!en.isIntersecting) return;
+        host.setAttribute("data-inview", "true");
+        obs.disconnect();
+      });
+    }, { threshold: 0.5 });
+    obs.observe(host);
+  }
+
   /* ---------------------------------------------------------------- go --- */
 
   function init() {
     initTheme();
     var chapter = chapterOf(document.body);
+    if (chapter) document.body.setAttribute("data-part", chapter.part.id);
     buildSidebar(chapter);
     buildChapterNav(chapter);
     buildHome();
+    buildContinue();
     buildCourseStats();
     initResetButtons();
+    initPuzzle(chapter);
     initExercises(chapter);
     mountWidgets();
+    if (chapter && window.BMMissions) Play.setTotal(chapter.id, window.BMMissions.total());
     renderMath(document.body);
   }
 
