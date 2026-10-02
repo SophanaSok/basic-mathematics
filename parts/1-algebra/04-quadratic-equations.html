@@ -38,6 +38,21 @@
       what you get by doing it once, in general, and then never having to do it again.
     </p>
 
+    <div class="puzzle" id="puzzle">
+      <span class="tag">A puzzle to carry through the chapter</span>
+      <p>
+        A farmer has $40$ metres of fencing for a rectangular pen. Which shape encloses the most
+        ground?
+      </p>
+      <ul class="guess">
+        <li>Long and thin: $18 \times 2$</li>
+        <li>In between: $12 \times 8$</li>
+        <li>A square: $10 \times 10$</li>
+        <li>They all enclose the same area</li>
+      </ul>
+      <p class="puzzle-after">Work out the three areas if you like. The harder question is why — and how you could know without trying every shape.</p>
+    </div>
+
     <div class="goal">
       <strong>By the end of this chapter you can</strong>
       solve $x^2 = c$ and factored equations, complete the square on any quadratic, derive the
@@ -45,15 +60,75 @@
       roots before solving, and locate the vertex and axis of symmetry of a parabola.
     </div>
 
-    <div class="callout aside">
-      <span class="tag">Before you start</span>
+    <section class="warmup" id="warmup">
+      <div class="callout aside">
+        <span class="tag">Before you start</span>
+        <p>
+          You should be able to use <a href="01-numbers.html#multiplication">the rules of signs</a>
+          (Chapter 1) and to work with <a href="03-real-numbers.html#powers">square roots</a>
+          (Chapter 3). Completing the square leans on both, and the discriminant is a question about
+          which numbers have real square roots.
+        </p>
+      </div>
+
       <p>
-        You should be able to use <a href="01-numbers.html#multiplication">the rules of signs</a>
-        (Chapter 1) and to work with <a href="03-real-numbers.html#powers">square roots</a>
-        (Chapter 3). Completing the square leans on both, and the discriminant is a question about
-        which numbers have real square roots.
+        Three quick ones from earlier chapters, to wake up what this chapter stands on. They are
+        not scored. If one will not come, its solution says where to look.
       </p>
-    </div>
+
+      <div class="ex" data-inline id="w1" data-label="Warm-up 1" data-type="set" data-answer="7,-7"
+           data-placeholder="e.g. 2,-2"
+           data-hint="How many numbers square to 49?">
+        <div class="ex-q">
+          <p>
+            Solve $x^2 = 49$. List every solution, separated by commas.
+          </p>
+        </div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $7$ and $-7$</p>
+          <p>
+            Both $7^2$ and $(-7)^2$ are $49$. Taking "the square root of both sides" finds only one of
+            them — the <a href="03-real-numbers.html#powers">Wrong turn at the end of Chapter 3</a>.
+            This whole chapter runs on remembering the second root.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" data-inline id="w2" data-label="Warm-up 2" data-type="expr" data-answer="x^2+6x+9|x²+6x+9"
+           data-placeholder="e.g. x^2+2x+1"
+           data-hint="Three terms, not two.">
+        <div class="ex-q">
+          <p>
+            Expand $(x + 3)^2$.
+          </p>
+        </div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $x^2 + 6x + 9$</p>
+          <p>
+            $(x+3)^2 = x^2 + 2\cdot 3 \cdot x + 3^2 = x^2 + 6x + 9$, by the <a
+            href="01-numbers.html#expansion">key expansion of Chapter 1</a>. Completing the square is
+            this identity read from right to left.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" data-inline id="w3" data-label="Warm-up 3" data-type="number" data-answer="17"
+           data-hint="Two places where a minus sign is squared or multiplied away.">
+        <div class="ex-q">
+          <p>
+            Compute $(-3)^2 - 4(2)(-1)$.
+          </p>
+        </div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $17$</p>
+          <p>
+            $(-3)^2 = 9$, and $-4(2)(-1) = +8$, so the total is $17$. This is exactly the arithmetic
+            of the discriminant, and its sign errors are the commonest slips in the chapter — see <a
+            href="01-numbers.html#multiplication">§1.3</a>.
+          </p>
+        </div>
+      </div>
+    </section>
 
     <h2 id="square-roots">4.1 Equations you can already solve</h2>
     <p>
@@ -150,6 +225,25 @@
       </div>
     </div>
 
+    <div class="ex" data-inline id="t1" data-type="set" data-answer="3,4"
+         data-placeholder="e.g. 2,-7"
+         data-hint="Two numbers with product 12 and sum −7. Start from the pairs that multiply to 12.">
+      <div class="ex-q">
+        <p>
+          Solve $x^2 - 7x + 12 = 0$. Give both roots.
+        </p>
+      </div>
+      <div class="ex-solution">
+        <p class="answer">Answer: $x = 3$ and $x = 4$</p>
+        <p>
+          The pairs multiplying to $12$ are $1 \cdot 12$, $2 \cdot 6$, $3 \cdot 4$ and their
+          negatives; the pair with sum $-7$ is $-3$ and $-4$. So $x^2 - 7x + 12 = (x - 3)(x - 4)$,
+          and the zero-product property gives $x = 3$ or $x = 4$. Check: $9 - 21 + 12 = 0$ ✓ and
+          $16 - 28 + 12 = 0$ ✓.
+        </p>
+      </div>
+    </div>
+
     <h2 id="completing">4.2 Completing the square</h2>
     <p>
       The obstacle to solving $x^2 + bx + c = 0$ directly is the middle term: if it were absent we
@@ -166,6 +260,15 @@
       That identity is the entire chapter. It converts any quadratic into "a perfect square, plus a
       constant" — and perfect squares we can undo.
     </p>
+
+    <figure>
+      <div class="widget" data-widget="completesquare"></div>
+      <figcaption>
+        <b>The name is literal.</b> $x^2 + bx$ is a square and a rectangle. Halve the rectangle,
+        move one half round the corner, and you have a bigger square with one small corner missing.
+        Step through 1 to 4, then change $b$.
+      </figcaption>
+    </figure>
 
     <div class="worked">
       <h4><span class="num">Example 2.</span> Completing the square, step by step</h4>
@@ -185,10 +288,87 @@
       </div>
     </div>
 
+    <div class="worked">
+      <h4><span class="num">Your turn, with help.</span> Completing the square</h4>
+      <div class="body">
+        <p>
+          Solve $x^2 + 4x - 1 = 0$. The first step is done; try each later one before opening it.
+        </p>
+        <ol class="steps">
+          <li>Half the coefficient of $x$ is $2$, and $(x + 2)^2 = x^2 + 4x + 4$.</li>
+          <li>
+            <details class="reveal">
+              <summary>Rewrite the equation as a square equal to a number</summary>
+              <p>
+                $x^2 + 4x = (x+2)^2 - 4$, so the equation becomes $(x+2)^2 - 4 - 1 = 0$, that is
+                $(x+2)^2 = 5$.
+              </p>
+            </details>
+          </li>
+          <li>
+            <details class="reveal">
+              <summary>Take square roots — both of them</summary>
+              <p>
+                $x + 2 = \pm\sqrt5$.
+              </p>
+            </details>
+          </li>
+          <li>
+            <details class="reveal">
+              <summary>Solve for $x$, and check</summary>
+              <p>
+                $x = -2 + \sqrt5 \approx 0.236$ or $x = -2 - \sqrt5 \approx -4.236$. Check with sum
+                and product: the roots add to $-4$ (matching $-b$) and multiply to $4 - 5 = -1$
+                (matching $c$) ✓. $\blacksquare$
+              </p>
+            </details>
+          </li>
+        </ol>
+      </div>
+    </div>
+
+    <div class="ex" data-inline id="t2" data-type="number" data-answer="-18"
+         data-hint="Expand (x + 5)² and see how much constant it brings with it.">
+      <div class="ex-q">
+        <p>
+          Complete the square: $x^2 + 10x + 7 = (x + 5)^2 + k$. What is $k$?
+        </p>
+      </div>
+      <div class="ex-solution">
+        <p class="answer">Answer: $k = -18$</p>
+        <p>
+          $(x + 5)^2 = x^2 + 10x + 25$, which carries $25$ where we want $7$. So
+          $x^2 + 10x + 7 = (x+5)^2 - 25 + 7 = (x + 5)^2 - 18$.
+        </p>
+      </div>
+    </div>
+
     <p>
       When the leading coefficient is not $1$, divide through by it first — legal, since $a \neq 0$
       for a quadratic.
     </p>
+
+    <div class="worked">
+      <h4><span class="num">Leading coefficient not 1.</span> Divide first, then complete the square</h4>
+      <div class="body">
+        <p>
+          Solve $2x^2 - 12x + 10 = 0$.
+        </p>
+        <ol class="steps">
+          <li>Divide both sides by $2$: $x^2 - 6x + 5 = 0$.</li>
+          <li>Half of $-6$ is $-3$, and $(x-3)^2 = x^2 - 6x + 9$. So $x^2 - 6x = (x-3)^2 - 9$.</li>
+          <li>The equation becomes $(x-3)^2 - 9 + 5 = 0$, that is $(x-3)^2 = 4$.</li>
+          <li>Take both square roots: $x - 3 = \pm 2$, so $x = 5$ or $x = 1$.</li>
+          <li>Check in the <em>original</em>: $2(25) - 60 + 10 = 0$ ✓ and $2(1) - 12 + 10 = 0$ ✓.
+            $\blacksquare$</li>
+        </ol>
+        <p class="note">
+          Dividing by $2$ changed the equation's appearance but not its solutions — Move 2 of
+          Chapter 2. The check uses the equation as given, so it would catch a slip in the division
+          as well.
+        </p>
+      </div>
+    </div>
 
     <h2 id="formula">4.3 The quadratic formula</h2>
     <p>
@@ -226,11 +406,66 @@
       </p>
     </div>
 
+    <div class="worked">
+      <h4><span class="num">The formula in use.</span> Substituting with care</h4>
+      <div class="body">
+        <p>
+          Solve $3x^2 + 5x - 2 = 0$.
+        </p>
+        <ol class="steps">
+          <li>Read off the coefficients <em>with their signs</em>: $a = 3$, $b = 5$, $c = -2$.</li>
+          <li>Compute the part under the root first: $b^2 - 4ac = 25 - 4(3)(-2) = 25 + 24 = 49$. <span
+            class="note">$c$ is negative, so $-4ac$ comes out positive. This is where most errors
+            happen.</span></li>
+          <li>So $x = \dfrac{-5 \pm \sqrt{49}}{2 \cdot 3} = \dfrac{-5 \pm 7}{6}$.</li>
+          <li>The two signs give $x = \dfrac{2}{6} = \dfrac13$ and $x = \dfrac{-12}{6} = -2$.</li>
+          <li>Check both: $3\left(\tfrac19\right) + \tfrac53 - 2 = \tfrac13 + \tfrac53 - 2 = 0$ ✓, and
+            $3(4) - 10 - 2 = 0$ ✓. $\blacksquare$</li>
+        </ol>
+        <p class="note">
+          The whole numerator is divided by $2a$ — not just the root. Writing the fraction bar under
+          everything, as in step 3, is the cheapest protection against that slip.
+        </p>
+      </div>
+    </div>
+
+    <div class="ex" data-inline id="t3" data-type="set" data-answer="2,-1/2"
+         data-placeholder="e.g. 3,-1/2"
+         data-hint="a = 2, b = −3, c = −2. Compute b² − 4ac first."
+         data-hint2="b² − 4ac = 25, and −b = +3. So x = (3 ± 5)/4.">
+      <div class="ex-q">
+        <p>
+          Solve $2x^2 - 3x - 2 = 0$. Give both roots.
+        </p>
+      </div>
+      <div class="ex-solution">
+        <p class="answer">Answer: $x = 2$ and $x = -\dfrac12$</p>
+        <p>
+          $b^2 - 4ac = 9 - 4(2)(-2) = 9 + 16 = 25$, so $x = \dfrac{3 \pm 5}{4}$: that is $x = 2$ or
+          $x = -\frac12$. Note $-b = +3$, since $b = -3$. Check: $8 - 6 - 2 = 0$ ✓ and
+          $\frac12 + \frac32 - 2 = 0$ ✓.
+        </p>
+      </div>
+    </div>
+
     <h2 id="discriminant">4.4 The discriminant</h2>
     <p>
       The quantity under the root controls everything:
     </p>
     <div class="display">$$\Delta = b^{2} - 4ac.$$</div>
+
+    <details class="reveal">
+      <summary><span class="ask">Without solving anything: how many real solutions does each of $\;x^2 + 1 = 0$, $\;x^2 = 0$, $\;x^2 - 1 = 0\;$ have? What decides it?</span>Decide, then open</summary>
+      <p>
+        None, one, and two. Each is $x^2 = c$ with $c = -1$, $0$, $1$, and the count depends only on
+        whether $c$ is negative, zero, or positive.
+      </p>
+      <p>
+        Completing the square turns <em>every</em> quadratic into that shape, with
+        $\dfrac{b^2 - 4ac}{4a^2}$ in the role of $c$. Its denominator is positive, so the sign of
+        $b^2 - 4ac$ alone decides.
+      </p>
+    </details>
 
     <div class="rule">
       <span class="tag">What $\Delta$ tells you</span>
@@ -260,6 +495,23 @@
         <p class="note">
           Sanity check by completing the square: $2x^2 - 4x + 5 = 2(x-1)^2 + 3$, which is at least
           $3$ for every real $x$ — so it is never $0$.
+        </p>
+      </div>
+    </div>
+
+    <div class="ex" data-inline id="t4" data-type="number" data-answer="9"
+         data-hint="Exactly one root means the discriminant is zero.">
+      <div class="ex-q">
+        <p>
+          For which value of $c$ does $x^2 + 6x + c = 0$ have exactly one real root?
+        </p>
+      </div>
+      <div class="ex-solution">
+        <p class="answer">Answer: $c = 9$</p>
+        <p>
+          $\Delta = 36 - 4c$, which is zero when $c = 9$. And indeed $x^2 + 6x + 9 = (x + 3)^2$,
+          zero only at $x = -3$. In the picture: $9$ is exactly the missing corner that completes
+          the square on $x^2 + 6x$.
         </p>
       </div>
     </div>
@@ -306,6 +558,23 @@
           <li>Confirm by completing the square: $3x^2 + 12x + 7 = 3(x+2)^2 - 5$ ✓.
             $\blacksquare$</li>
         </ol>
+      </div>
+    </div>
+
+    <div class="ex" data-inline id="t5" data-type="number" data-answer="-6"
+         data-hint="Find where the vertex is, then how high it is.">
+      <div class="ex-q">
+        <p>
+          What is the smallest value that $y = x^2 - 8x + 10$ can take?
+        </p>
+      </div>
+      <div class="ex-solution">
+        <p class="answer">Answer: $-6$</p>
+        <p>
+          The vertex is at $x = -\frac{b}{2a} = 4$, where $y = 16 - 32 + 10 = -6$. Since
+          $a = 1 &gt; 0$ the parabola opens upward, so that is the minimum. Completed square:
+          $y = (x-4)^2 - 6$, which is at least $-6$ because the square is at least $0$.
+        </p>
       </div>
     </div>
 
@@ -385,7 +654,8 @@
 
       <div class="ex" data-type="set" data-answer="0.38,2.62" data-tol="0.01"
            data-placeholder="two decimals, e.g. 0.38,2.62"
-           data-hint="Use the formula with a = 1, b = −3, c = 1, then round.">
+           data-hint="Use the formula with a = 1, b = −3, c = 1, then round."
+           data-hint2="x = (3 ± √5)/2, and √5 ≈ 2.236.">
         <div class="ex-q">
           <p>
             Solve $x^2 - 3x + 1 = 0$ and give both roots to two decimal places.
@@ -424,7 +694,8 @@
       </div>
 
       <div class="ex" data-type="number" data-answer="4|-4"
-           data-hint="A double root means the discriminant is zero.">
+           data-hint="A double root means the discriminant is zero."
+           data-hint2="Here Δ = k² − 16.">
         <div class="ex-q">
           <p>
             For which values of $k$ does $x^2 + kx + 4 = 0$ have exactly one (double) root? Give
@@ -462,7 +733,8 @@
       </div>
 
       <div class="ex" data-type="number" data-answer="8"
-           data-hint="Write the area in terms of one side, then solve the quadratic.">
+           data-hint="Write the area in terms of one side, then solve the quadratic."
+           data-hint2="The sides x and y satisfy x + y = 13 and xy = 40, so x(13 − x) = 40.">
         <div class="ex-q">
           <p>
             A rectangle has perimeter $26$ and area $40$. What is the length of its longer side?
@@ -509,6 +781,17 @@
 
     <div class="recap">
       <h2>Recap</h2>
+      <div class="puzzle-answer">
+        <span class="tag">Back to the puzzle</span>
+        <p data-your-guess></p>
+        <p>
+          If one side is $x$, the other is $20 - x$ (the perimeter is $40$), and the area is
+          $x(20 - x) = -x^2 + 20x$. Complete the square: $-x^2 + 20x = -(x - 10)^2 + 100$. A square
+          is never negative, so the area is at most $100$, with equality only at $x = 10$. The
+          square pen wins — and completing the square proved it for every possible rectangle at
+          once, including the ones nobody tried.
+        </p>
+      </div>
       <ul>
         <li>$x^2 = c$ has two roots, one, or none according to the sign of $c$; and $uv = 0$ forces
           $u = 0$ or $v = 0$ — which is why factoring works.</li>

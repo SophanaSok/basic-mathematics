@@ -38,6 +38,21 @@
       them, order, inequalities, distance, and roots.
     </p>
 
+    <div class="puzzle" id="puzzle">
+      <span class="tag">A puzzle to carry through the chapter</span>
+      <p>
+        A calculator says $\sqrt2 = 1.41421356237$. Fractions are packed along the number line with
+        no visible gaps. So is $\sqrt2$ exactly equal to some fraction — perhaps one with an
+        enormous numerator and denominator?
+      </p>
+      <ul class="guess">
+        <li>Yes — some fraction must hit it exactly</li>
+        <li>No — no fraction ever does</li>
+        <li>Nobody knows</li>
+      </ul>
+      <p class="puzzle-after">Hold that guess. The first section settles it, using nothing beyond even and odd.</p>
+    </div>
+
     <div class="goal">
       <strong>By the end of this chapter you can</strong>
       prove that $\sqrt{2}$ is irrational, state the positivity rules and derive the rules for
@@ -46,14 +61,77 @@
       exponents.
     </div>
 
-    <div class="callout aside">
-      <span class="tag">Before you start</span>
+    <section class="warmup" id="warmup">
+      <div class="callout aside">
+        <span class="tag">Before you start</span>
+        <p>
+          You should be comfortable with <a href="01-numbers.html#addition">the rules of arithmetic</a>
+          and with the <a href="01-numbers.html#even-odd">even/odd proofs</a> of Chapter 1 — the proof
+          that $\sqrt2$ is not a fraction, a few lines below, is written in exactly that style.
+        </p>
+      </div>
+
       <p>
-        You should be comfortable with <a href="01-numbers.html#addition">the rules of arithmetic</a>
-        and with the <a href="01-numbers.html#even-odd">even/odd proofs</a> of Chapter 1 — the proof
-        that $\sqrt2$ is not a fraction, a few lines below, is written in exactly that style.
+        Three quick ones from earlier chapters, to wake up what this chapter stands on. They are
+        not scored. If one will not come, its solution says where to look.
       </p>
-    </div>
+
+      <div class="ex" data-inline id="w1" data-label="Warm-up 1" data-answer="1"
+           data-hint="This was proved by turning the statement round: what happens to n² when n is odd?">
+        <div class="ex-q">
+          <p>
+            If $n^2$ is even, what can you say about the integer $n$?
+          </p>
+        </div>
+        <ul class="choices">
+          <li>$n$ is even.</li>
+          <li>$n$ is odd.</li>
+          <li>Nothing — it could be either.</li>
+          <li>$n$ is divisible by $4$.</li>
+        </ul>
+        <div class="ex-solution">
+          <p class="answer">Answer: $n$ is even</p>
+          <p>
+            If $n$ were odd, $n = 2k+1$, then $n^2 = 2(2k^2 + 2k) + 1$ would be odd. So an even square
+            can only come from an even number. This is <a href="01-numbers.html#even-odd">Example 6 of
+            Chapter 1</a>, and it is the engine of the first proof below.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" data-inline id="w2" data-label="Warm-up 2" data-type="number" data-answer="15"
+           data-hint="Two negative factors.">
+        <div class="ex-q">
+          <p>
+            Compute $(-3)(-5)$.
+          </p>
+        </div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $15$</p>
+          <p>
+            A negative times a negative is positive: $(-3)(-5) = 15$, by <a
+            href="01-numbers.html#multiplication">Example 4 of Chapter 1</a>. The rule for flipping an
+            inequality, later in this chapter, comes straight out of it.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" data-inline id="w3" data-label="Warm-up 3" data-type="number" data-answer="-1/6"
+           data-hint="Rewrite both over the denominator 6.">
+        <div class="ex-q">
+          <p>
+            Compute $\dfrac23 - \dfrac56$.
+          </p>
+        </div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $-\dfrac16$</p>
+          <p>
+            $\frac23 = \frac46$, so the difference is $\frac46 - \frac56 = -\frac16$. See <a
+            href="01-numbers.html#rationals">§1.5</a>.
+          </p>
+        </div>
+      </div>
+    </section>
 
     <h2 id="why-more">3.1 Why the fractions are not enough</h2>
     <p>
@@ -98,6 +176,31 @@
         definition of "even", and the lemma from Chapter 1. Note also what it does <em>not</em>
         do: it gives no decimal expansion for $\sqrt2$, and does not need one.
       </p>
+    </div>
+
+    <div class="ex" data-inline id="t1" data-answer="2"
+         data-hint="Find the step where the proof finally breaks. What does it collide with?">
+      <div class="ex-q">
+        <p>
+          In the proof that $\sqrt2$ is not a fraction, what was the assumption <em>in lowest
+          terms</em> for?
+        </p>
+      </div>
+      <ul class="choices">
+        <li>To be allowed to square both sides.</li>
+        <li>It is what the conclusion “$m$ and $n$ are both even” contradicts.</li>
+        <li>To show that $m^2$ is even.</li>
+        <li>It was not needed.</li>
+      </ul>
+      <div class="ex-solution">
+        <p class="answer">Answer: it is what the contradiction contradicts</p>
+        <p>
+          The argument shows $m$ and $n$ are both even, so they share the factor $2$. That is only a
+          contradiction because we chose the fraction in lowest terms at the start. Without that
+          choice the proof would simply stop, having proved nothing. When you read a proof, ask of
+          every hypothesis: where is it used?
+        </p>
+      </div>
     </div>
 
     <p>
@@ -158,6 +261,28 @@
       </div>
     </div>
 
+    <div class="ex" data-inline id="t2" data-answer="1"
+         data-hint="Each square is at least 0. What does that leave room for?">
+      <div class="ex-q">
+        <p>
+          For real numbers $a$ and $b$, suppose $a^2 + b^2 = 0$. What follows?
+        </p>
+      </div>
+      <ul class="choices">
+        <li>$a = 0$ and $b = 0$.</li>
+        <li>$a = -b$, for example $a = 1$, $b = -1$.</li>
+        <li>Nothing can be said.</li>
+      </ul>
+      <div class="ex-solution">
+        <p class="answer">Answer: $a = 0$ and $b = 0$</p>
+        <p>
+          By Example 2 each of $a^2$ and $b^2$ is positive unless the number itself is $0$. A sum of
+          two numbers that are $\ge 0$ can be $0$ only if both are $0$. So $a = b = 0$. (The second
+          option fails: $1^2 + (-1)^2 = 2$, not $0$.)
+        </p>
+      </div>
+    </div>
+
     <h2 id="order">3.3 Order and inequalities</h2>
 
     <div class="rule">
@@ -170,6 +295,16 @@
         <li>If also $b &lt; d$ then $a &lt; d$ (transitivity).</li>
       </ol>
     </div>
+
+    <details class="reveal">
+      <summary><span class="ask">Take the true statement $2 &lt; 5$ and multiply both sides by $-1$. Find $-2$ and $-5$ on the number line. Which is true: $-2 &lt; -5$, or $-2 &gt; -5$?</span>Decide, then open</summary>
+      <p>
+        $-2$ lies to the <em>right</em> of $-5$, so $-2 &gt; -5$. Multiplying by $-1$ reflects the
+        whole line through $0$, and a reflection swaps left and right — so whatever was smaller
+        becomes larger. That is all Rule 3 says, and the next paragraph proves it from the
+        positivity rules.
+      </p>
+    </details>
 
     <p>
       Rule 3 is the one that catches people, so here is its proof. Suppose $a &lt; b$ and $c &lt;
@@ -192,6 +327,28 @@
           <li>Spot-check the boundary and one point inside: $x = -3$ gives $4 + 9 = 13 \le 13$ ✓;
             $x = 0$ gives $4 \le 13$ ✓; and $x = -4$ gives $16 \le 13$ ✗, correctly excluded.</li>
         </ol>
+      </div>
+    </div>
+
+    <div class="ex" data-inline id="t3" data-answer="2"
+         data-hint="Isolate x. At the last step, look at the sign of the number you multiply by.">
+      <div class="ex-q">
+        <p>
+          Solve $7 - 4x \le 19$.
+        </p>
+      </div>
+      <ul class="choices">
+        <li>$x \le -3$</li>
+        <li>$x \ge -3$</li>
+        <li>$x \le 3$</li>
+        <li>$x \ge 3$</li>
+      </ul>
+      <div class="ex-solution">
+        <p class="answer">Answer: $x \ge -3$</p>
+        <p>
+          Add $-7$: $-4x \le 12$. Multiply by $-\frac14$, which is negative, so the inequality
+          reverses: $x \ge -3$. Check a point: $x = 0$ gives $7 \le 19$ ✓, and $0 \ge -3$ ✓.
+        </p>
       </div>
     </div>
 
@@ -264,6 +421,49 @@
       </figcaption>
     </figure>
 
+    <div class="worked">
+      <h4><span class="num">Distance at work.</span> Two absolute-value inequalities</h4>
+      <div class="body">
+        <p>
+          Solve (a) $|2x - 6| \le 4$ and (b) $|x + 2| &gt; 3$.
+        </p>
+        <ol class="steps">
+          <li>(a) Pull the $2$ out first: $|2x - 6| = |2(x - 3)| = 2\,|x - 3|$. So the condition is
+            $2|x - 3| \le 4$, that is, $|x - 3| \le 2$.</li>
+          <li>Read it as distance: $x$ is within $2$ of $3$. So $1 \le x \le 5$ — the interval
+            $[1, 5]$, endpoints included because of the $\le$.</li>
+          <li>(b) $|x + 2| = |x - (-2)|$ is the distance from $x$ to $-2$. <span class="note">A plus
+            sign inside the bars means the centre is negative.</span></li>
+          <li>"More than $3$ away from $-2$" means beyond $-2 + 3 = 1$ on the right, or beyond
+            $-2 - 3 = -5$ on the left: $x &lt; -5$ or $x &gt; 1$. Two pieces, as always for a "far
+            from" statement. $\blacksquare$</li>
+        </ol>
+        <p class="note">
+          Spot-check (b) with $x = 0$: $|0 + 2| = 2$, which is not more than $3$ — and $0$ is indeed
+          in neither piece.
+        </p>
+      </div>
+    </div>
+
+    <div class="ex" data-inline id="t4" data-type="set" data-answer="1,7"
+         data-placeholder="e.g. 2,5"
+         data-hint="Centre 4, radius 3.">
+      <div class="ex-q">
+        <p>
+          The solution set of $|x - 4| &lt; 3$ is an interval. Give its two endpoints, separated by
+          a comma.
+        </p>
+      </div>
+      <div class="ex-solution">
+        <p class="answer">Answer: $1$ and $7$</p>
+        <p>
+          $x$ is within $3$ of $4$: between $4 - 3 = 1$ and $4 + 3 = 7$. The solution set is the
+          open interval $(1, 7)$ — the endpoints themselves are excluded, since the relation is
+          $&lt;$.
+        </p>
+      </div>
+    </div>
+
     <div class="rule">
       <span class="tag">Properties of absolute value</span>
       <ol>
@@ -293,6 +493,15 @@
       We now <em>extend</em> the notation to zero, negative, and fractional exponents. There is
       only one sensible way to do it: choose the meaning that keeps those three laws true.
     </p>
+
+    <details class="reveal">
+      <summary><span class="ask">$2^3 = 8$, &nbsp; $2^2 = 4$, &nbsp; $2^1 = 2$. Each step down halves the value. If the pattern is to continue, what must $2^0$ and $2^{-1}$ be?</span>Decide, then open</summary>
+      <p>
+        Halving again: $2^0 = 1$ and $2^{-1} = \frac12$. Not $0$, and not $-2$. The box below shows
+        that these are not merely the tidy continuation of a pattern: they are the only values that
+        keep the law $a^m a^n = a^{m+n}$ true.
+      </p>
+    </details>
 
     <div class="rule">
       <span class="tag">Extending the exponent</span>
@@ -339,6 +548,52 @@
     </div>
 
     <div class="worked">
+      <h4><span class="num">Your turn, with help.</span> The laws in sequence</h4>
+      <div class="body">
+        <p>
+          Simplify $32^{3/5} \cdot 2^{-4}$. The first step is done; try each later one before
+          opening it.
+        </p>
+        <ol class="steps">
+          <li>Write the base as a power of $2$: $32 = 2^5$, so
+            $32^{3/5} = (2^5)^{3/5} = 2^{5 \cdot 3/5} = 2^3$.</li>
+          <li>
+            <details class="reveal">
+              <summary>Combine the two powers of $2$</summary>
+              <p>
+                Same base, so add the exponents: $2^3 \cdot 2^{-4} = 2^{3-4} = 2^{-1}$.
+              </p>
+            </details>
+          </li>
+          <li>
+            <details class="reveal">
+              <summary>Write the result without a negative exponent</summary>
+              <p>
+                $2^{-1} = \dfrac12$. $\blacksquare$
+              </p>
+            </details>
+          </li>
+        </ol>
+      </div>
+    </div>
+
+    <div class="ex" data-inline id="t5" data-type="number" data-answer="8"
+         data-hint="Take the fourth root first, then cube.">
+      <div class="ex-q">
+        <p>
+          Compute $16^{3/4}$.
+        </p>
+      </div>
+      <div class="ex-solution">
+        <p class="answer">Answer: $8$</p>
+        <p>
+          $16 = 2^4$, so $16^{3/4} = (2^4)^{3/4} = 2^3 = 8$. Equivalently: the fourth root of $16$
+          is $2$, and $2^3 = 8$.
+        </p>
+      </div>
+    </div>
+
+    <div class="worked">
       <h4><span class="num">Example 5.</span> Clearing a root from a denominator</h4>
       <div class="body">
         <p>Rewrite $\dfrac{1}{1-\sqrt2}$ with no root underneath.</p>
@@ -355,6 +610,29 @@
           This is called <b>rationalising the denominator</b>. Sanity check:
           $1 - \sqrt2 \approx -0.414$, and $1/(-0.414) \approx -2.414$, which is $-1-\sqrt2$ ✓.
           The same device returns in Chapter 14, where it is how complex numbers are divided.
+        </p>
+      </div>
+    </div>
+
+    <div class="ex" data-inline id="t6" data-answer="1"
+         data-hint="Multiply top and bottom by the conjugate, √3 + 1.">
+      <div class="ex-q">
+        <p>
+          Rewrite $\dfrac{1}{\sqrt3 - 1}$ with no root in the denominator.
+        </p>
+      </div>
+      <ul class="choices">
+        <li>$\dfrac{\sqrt3 + 1}{2}$</li>
+        <li>$\dfrac{\sqrt3 - 1}{2}$</li>
+        <li>$\sqrt3 + 1$</li>
+        <li>$\dfrac12$</li>
+      </ul>
+      <div class="ex-solution">
+        <p class="answer">Answer: $\dfrac{\sqrt3 + 1}{2}$</p>
+        <p>
+          Multiply top and bottom by $\sqrt3 + 1$. The denominator becomes
+          $(\sqrt3 - 1)(\sqrt3 + 1) = 3 - 1 = 2$, so the fraction is $\frac{\sqrt3 + 1}{2}$. Check:
+          $\sqrt3 - 1 \approx 0.732$ and $1/0.732 \approx 1.366$, while $(1.732 + 1)/2 = 1.366$ ✓.
         </p>
       </div>
     </div>
@@ -438,7 +716,8 @@
 
       <div class="ex" data-type="set" data-answer="-1,7"
            data-placeholder="e.g. -1,7"
-           data-hint="Read it as: the distance from x to 3 is exactly 4.">
+           data-hint="Read it as: the distance from x to 3 is exactly 4."
+           data-hint2="Go 4 to the right of 3, and 4 to the left of 3.">
         <div class="ex-q">
           <p>Solve $|x - 3| = 4$. List all solutions, separated by a comma.</p>
         </div>
@@ -478,7 +757,8 @@
       </div>
 
       <div class="ex" data-type="number" data-answer="1/8|0.125"
-           data-hint="A negative exponent means a reciprocal; a fractional one means a root.">
+           data-hint="A negative exponent means a reciprocal; a fractional one means a root."
+           data-hint2="Start with 4^(3/2) = (√4)³, then take the reciprocal.">
         <div class="ex-q"><p>Compute $4^{-3/2}$.</p></div>
         <div class="ex-solution">
           <p class="answer">Answer: $\dfrac18$</p>
@@ -542,7 +822,8 @@
       </div>
 
       <div class="ex" data-type="number" data-answer="-1"
-           data-hint="Every square is ≥ 0. What is the smallest that (x+1)² can be?">
+           data-hint="Every square is ≥ 0. What is the smallest that (x+1)² can be?"
+           data-hint2="(x + 1)² is smallest when it equals 0. Which x does that?">
         <div class="ex-q">
           <p>
             What is the smallest possible value of $(x + 1)^2 - 4$, and at which $x$ does it occur?
@@ -596,6 +877,16 @@
 
     <div class="recap">
       <h2>Recap</h2>
+      <div class="puzzle-answer">
+        <span class="tag">Back to the puzzle</span>
+        <p data-your-guess></p>
+        <p>
+          No fraction is ever exactly $\sqrt2$. If $\frac mn$ in lowest terms squared to $2$, then
+          $m$ and $n$ would both have to be even — impossible for a fraction in lowest terms. The
+          calculator's $1.41421356237$ <em>is</em> a fraction, and its square is a little less than
+          $2$. The digits of $\sqrt2$ go on for ever without repeating.
+        </p>
+      </div>
       <ul>
         <li>$\sqrt2$ is not a fraction — proved by contradiction from the even/odd lemma. The reals
           fill the gaps the rationals leave.</li>

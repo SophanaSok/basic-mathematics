@@ -38,6 +38,23 @@
       mathematical mistakes are not arithmetic slips; they are misreadings of a sentence.
     </p>
 
+    <div class="puzzle" id="puzzle">
+      <span class="tag">A puzzle to carry through the chapter</span>
+      <p>
+        Four cards lie on a table. Each has a letter on one side and a number on the other. You can
+        see <b>A</b>, <b>K</b>, <b>4</b> and <b>7</b>. Someone claims: <em>if a card has a vowel on
+        one side, then it has an even number on the other.</em> Which cards must you turn over to
+        find out whether the claim is true?
+      </p>
+      <ul class="guess">
+        <li>A only</li>
+        <li>A and 4</li>
+        <li>A and 7</li>
+        <li>All four</li>
+      </ul>
+      <p class="puzzle-after">Fewer than one person in ten gets this right at first. The section on implication is exactly what it takes.</p>
+    </div>
+
     <div class="goal">
       <strong>By the end of this interlude you can</strong>
       distinguish a statement from its converse and its contrapositive, disprove a claim with a
@@ -45,15 +62,82 @@
       basic vocabulary of sets, and choose notation that keeps an argument readable.
     </div>
 
-    <div class="callout aside">
-      <span class="tag">Before you start</span>
+    <section class="warmup" id="warmup">
+      <div class="callout aside">
+        <span class="tag">Before you start</span>
+        <p>
+          You should have met the <a href="01-numbers.html#even-odd">even and odd proofs</a> of
+          Chapter 1 and <a href="02-linear-equations.html#two-unknowns">solved a system or two</a>
+          (Chapter 2). This interlude looks back at the language those arguments were already written
+          in — nothing here is new mathematics.
+        </p>
+      </div>
+
       <p>
-        You should have met the <a href="01-numbers.html#even-odd">even and odd proofs</a> of
-        Chapter 1 and <a href="02-linear-equations.html#two-unknowns">solved a system or two</a>
-        (Chapter 2). This interlude looks back at the language those arguments were already written
-        in — nothing here is new mathematics.
+        Three quick ones from earlier chapters, to wake up what this chapter stands on. They are
+        not scored. If one will not come, its solution says where to look.
       </p>
-    </div>
+
+      <div class="ex" data-inline id="w1" data-label="Warm-up 1" data-answer="1"
+           data-hint="Write them as 2j + 1 and 2k + 1 and add.">
+        <div class="ex-q">
+          <p>
+            The sum of two odd integers is —
+          </p>
+        </div>
+        <ul class="choices">
+          <li>always even.</li>
+          <li>always odd.</li>
+          <li>sometimes even, sometimes odd.</li>
+        </ul>
+        <div class="ex-solution">
+          <p class="answer">Answer: even</p>
+          <p>
+            $(2j+1) + (2k+1) = 2(j + k + 1)$, which is even. This was <a
+            href="01-numbers.html#even-odd">Example 5 of Chapter 1</a>; the interlude looks at what
+            kind of argument that was.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" data-inline id="w2" data-label="Warm-up 2" data-type="number" data-answer="3"
+           data-hint="Combine the equations so one unknown disappears.">
+        <div class="ex-q">
+          <p>
+            Solve $\;x + y = 5,\;\; x - y = 1\;$ and give $x$.
+          </p>
+        </div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $x = 3$</p>
+          <p>
+            Adding the equations gives $2x = 6$, so $x = 3$ (and $y = 2$). See <a
+            href="02-linear-equations.html#two-unknowns">§2.2</a>.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" data-inline id="w3" data-label="Warm-up 3" data-answer="2"
+           data-hint="What is left when the unknown cancels?">
+        <div class="ex-q">
+          <p>
+            How many solutions does $2x + 1 = 2x + 3$ have?
+          </p>
+        </div>
+        <ul class="choices">
+          <li>Exactly one.</li>
+          <li>None.</li>
+          <li>Every number is a solution.</li>
+        </ul>
+        <div class="ex-solution">
+          <p class="answer">Answer: none</p>
+          <p>
+            Adding $-2x$ to both sides leaves $1 = 3$, which is false for every $x$. The solution set
+            is empty — a phrase this interlude makes precise. See <a
+            href="02-linear-equations.html#one-unknown">§2.1</a>.
+          </p>
+        </div>
+      </div>
+    </section>
 
     <h2 id="reading">On reading mathematics</h2>
     <p>
@@ -120,6 +204,73 @@
       by proving "$n$ odd $\Rightarrow$ $n^2$ odd" instead.
     </p>
 
+    <div class="ex" data-inline id="t1" data-answer="2"
+         data-hint="Write the converse out first. Then hunt for a number that breaks it.">
+      <div class="ex-q">
+        <p>
+          Take the true statement "if a number is divisible by $10$ then it is divisible by $5$". Is
+          its converse true?
+        </p>
+      </div>
+      <ul class="choices">
+        <li>Yes.</li>
+        <li>No — $15$ is a counterexample.</li>
+        <li>No — $20$ is a counterexample.</li>
+      </ul>
+      <div class="ex-solution">
+        <p class="answer">Answer: no — $15$ is a counterexample</p>
+        <p>
+          The converse is "if a number is divisible by $5$ then it is divisible by $10$". $15$ is
+          divisible by $5$ and not by $10$, so the converse is false. ($20$ is no use as a
+          counterexample: it satisfies both conditions.) A true statement can perfectly well have a
+          false converse.
+        </p>
+      </div>
+    </div>
+
+    <div class="worked">
+      <h4><span class="num">Your turn, with help.</span> A proof by contrapositive</h4>
+      <div class="body">
+        <p>
+          Prove: if $n^2$ is odd, then $n$ is odd. A direct attack is awkward, so prove the
+          contrapositive instead. Try each step before opening it.
+        </p>
+        <ol class="steps">
+          <li>
+            <details class="reveal">
+              <summary>State the contrapositive</summary>
+              <p>
+                Negate both parts and reverse them: <em>if $n$ is not odd, then $n^2$ is not
+                odd</em> — that is, if $n$ is even then $n^2$ is even.
+              </p>
+            </details>
+          </li>
+          <li>
+            <details class="reveal">
+              <summary>Prove it</summary>
+              <p>
+                Let $n$ be even, $n = 2k$. Then $n^2 = 4k^2 = 2(2k^2)$, and $2k^2$ is an integer, so
+                $n^2$ is even.
+              </p>
+            </details>
+          </li>
+          <li>
+            <details class="reveal">
+              <summary>Say why that proves the original</summary>
+              <p>
+                A statement and its contrapositive always have the same truth value. The
+                contrapositive is proved, so the original is too. $\blacksquare$
+              </p>
+            </details>
+          </li>
+        </ol>
+        <p class="note">
+          This is the mirror image of Example 6 in Chapter 1 — same technique, with even and odd
+          exchanged.
+        </p>
+      </div>
+    </div>
+
     <figure>
       <div class="widget" data-widget="truthtable"></div>
       <figcaption>
@@ -137,6 +288,27 @@
         forced: the implication promises only that $P$ true with $Q$ false never happens, and if
         $P$ never happens, the promise is never broken.
       </p>
+    </div>
+
+    <div class="ex" data-inline id="t2" data-answer="1"
+         data-hint="An implication is broken only by a true hypothesis with a false conclusion. Is the hypothesis ever true here?">
+      <div class="ex-q">
+        <p>
+          Is the implication &ldquo;if $3$ is even, then $7$ is even&rdquo; true or false?
+        </p>
+      </div>
+      <ul class="choices">
+        <li>True.</li>
+        <li>False.</li>
+      </ul>
+      <div class="ex-solution">
+        <p class="answer">Answer: true</p>
+        <p>
+          The hypothesis "$3$ is even" is false, so the one situation that would break the promise —
+          $P$ true, $Q$ false — does not arise. The implication is true, vacuously. It is also
+          useless, which is a different complaint.
+        </p>
+      </div>
     </div>
 
     <p>
@@ -200,6 +372,30 @@
       </div>
     </div>
 
+    <div class="ex" data-inline id="t3" data-answer="3"
+         data-hint="Test each one: compute x² and compare it with x.">
+      <div class="ex-q">
+        <p>
+          Which value of $x$ is a counterexample to &ldquo;for every real $x$, $x^2 &gt; x$&rdquo;?
+        </p>
+      </div>
+      <ul class="choices">
+        <li>$x = 2$</li>
+        <li>$x = -1$</li>
+        <li>$x = \tfrac12$</li>
+        <li>$x = 3$</li>
+      </ul>
+      <div class="ex-solution">
+        <p class="answer">Answer: $x = \tfrac12$</p>
+        <p>
+          $\left(\tfrac12\right)^2 = \tfrac14$, which is <em>less</em> than $\tfrac12$ — the claim
+          fails there, and one failure is enough. The other three all satisfy it: $4 &gt; 2$,
+          $1 &gt; -1$, and $9 &gt; 3$. Squaring makes a number bigger only when it is bigger than
+          $1$ or negative.
+        </p>
+      </div>
+    </div>
+
     <div class="callout idea">
       <span class="tag">Order of quantifiers matters</span>
       <p>
@@ -248,6 +444,23 @@
       </figcaption>
     </figure>
 
+    <div class="ex" data-inline id="t4" data-type="set" data-answer="1,2,3"
+         data-placeholder="e.g. 1,2"
+         data-hint="Start from A and remove whatever also lies in B.">
+      <div class="ex-q">
+        <p>
+          Let $A = \{1,2,3,4,5\}$ and $B = \{4,5,6\}$. List the elements of $A \setminus B$.
+        </p>
+      </div>
+      <div class="ex-solution">
+        <p class="answer">Answer: $\{1, 2, 3\}$</p>
+        <p>
+          $A \setminus B$ keeps the elements of $A$ that are not in $B$. Removing $4$ and $5$ leaves
+          $\{1,2,3\}$. The $6$ plays no part: it was never in $A$.
+        </p>
+      </div>
+    </div>
+
     <p>
       Set language is not decoration: it is how solution sets are described. "Solve
       $x^2 = 4$" produces the set $\{-2, 2\}$; the solution set of $x^2 = -1$ over the reals is
@@ -283,6 +496,28 @@
       </p>
     </div>
 
+    <div class="ex" data-inline id="t5" data-answer="2"
+         data-hint="= joins two numbers; ⇒ joins two statements.">
+      <div class="ex-q">
+        <p>
+          Which line is written correctly?
+        </p>
+      </div>
+      <ul class="choices">
+        <li>$2x = 6 = x = 3$</li>
+        <li>$2x = 6 \;\Rightarrow\; x = 3$</li>
+        <li>$2x \Rightarrow 6$</li>
+      </ul>
+      <div class="ex-solution">
+        <p class="answer">Answer: the second</p>
+        <p>
+          $2x = 6$ and $x = 3$ are statements, and the arrow says the first forces the second. The
+          first option chains four things with $=$ and so claims $6 = x$; the third puts an arrow
+          between two numbers, which says nothing.
+        </p>
+      </div>
+    </div>
+
     <!-- ====================================================== practice ==== -->
     <section class="practice" id="practice">
       <div class="practice-head">
@@ -312,7 +547,8 @@
       </div>
 
       <div class="ex" data-answer="3"
-           data-hint="The contrapositive negates both parts and reverses the arrow.">
+           data-hint="The contrapositive negates both parts and reverses the arrow."
+           data-hint2="Negate “x² > 4” to get “x² ≤ 4”, negate “x > 2” to get “x ≤ 2”, then swap their positions.">
         <div class="ex-q">
           <p>
             What is the contrapositive of "if $x &gt; 2$ then $x^2 &gt; 4$"?
@@ -443,7 +679,8 @@
       </div>
 
       <div class="ex" data-answer="3"
-           data-hint="Try to build a single number that works for every x.">
+           data-hint="Try to build a single number that works for every x."
+           data-hint2="In (ii) the same y has to beat every x — including x = y itself.">
         <div class="ex-q">
           <p>
             Consider two statements about real numbers:<br>
@@ -656,6 +893,18 @@
 
     <div class="recap">
       <h2>Recap</h2>
+      <div class="puzzle-answer">
+        <span class="tag">Back to the puzzle</span>
+        <p data-your-guess></p>
+        <p>
+          <b>A and 7.</b> The claim is "vowel $\Rightarrow$ even". The only way to break it is a
+          card with a vowel and an odd number. So you must look behind A (a vowel: is its number
+          odd?) and behind 7 (an odd number: is its letter a vowel?) — that second check is the
+          contrapositive, "odd $\Rightarrow$ not a vowel". Turning over 4 tests the
+          <em>converse</em>, which nobody claimed: a consonant behind the 4 breaks nothing. And K is
+          irrelevant, since the claim says nothing about consonants.
+        </p>
+      </div>
       <ul>
         <li>$P \Rightarrow Q$, its converse $Q \Rightarrow P$, and its contrapositive
           $\text{not }Q \Rightarrow \text{not }P$: the contrapositive is equivalent, the converse is

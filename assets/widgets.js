@@ -2034,7 +2034,7 @@
     ];
     var which = 0, L, R, n = 2, log, erased, moves;
     var P = Plot({
-      w: 660, h: 250, pad: { l: 0, r: 0, t: 0, b: 0 }, xmin: 0, xmax: 660, ymin: 0, ymax: 250,
+      w: 660, h: 215, pad: { l: 0, r: 0, t: 0, b: 0 }, xmin: 0, xmax: 660, ymin: 0, ymax: 215,
       label: "An equation drawn as a balance with one pan for each side"
     });
     host.appendChild(P.svg);
@@ -2085,9 +2085,9 @@
       /* a true equation balances for the right x; a contradiction never can */
       var uneven = near(L[0], R[0]) && !near(L[1], R[1]);
       var tilt = uneven ? (L[1] > R[1] ? -7 : 7) : 0;
-      var cx = 330, cy = 78, arm = 200, rad = tilt * Math.PI / 180;
+      var cx = 330, cy = 44, arm = 200, rad = tilt * Math.PI / 180;
       var ex = arm * Math.cos(rad), ey = arm * Math.sin(rad);
-      g.appendChild(el("path", { d: "M" + cx + " " + cy + " L" + (cx - 34) + " 222 L" + (cx + 34) + " 222 Z",
+      g.appendChild(el("path", { d: "M" + cx + " " + cy + " L" + (cx - 34) + " 188 L" + (cx + 34) + " 188 Z",
         style: "fill:var(--surface-2);stroke:var(--plot-axis);stroke-width:1.5" }));
       g.appendChild(el("line", { x1: cx - ex, y1: cy + ey, x2: cx + ex, y2: cy - ey,
         style: "stroke:var(--plot-axis);stroke-width:5;stroke-linecap:round" }));
@@ -2102,7 +2102,7 @@
       g.appendChild(el("text", { x: cx, y: cy + 78, "text-anchor": "middle",
         style: "font:650 24px var(--sans);fill:var(--muted)" }, st === "contradiction" ? "≠" : "="));
       if (uneven && st === "open") {
-        g.appendChild(el("text", { x: cx, y: 240, "text-anchor": "middle", style: S.label },
+        g.appendChild(el("text", { x: cx, y: 208, "text-anchor": "middle", style: S.label },
           "The pans will not level for any x. Find out why."));
       }
       var verdict;
@@ -2165,13 +2165,13 @@
   W.completesquare = function (host) {
     var b = 6, stage = 0, u = 0;        /* u follows stage, and is what gets animated */
     var P = Plot({
-      w: 660, h: 360, pad: { l: 0, r: 0, t: 0, b: 0 }, xmin: 0, xmax: 660, ymin: 0, ymax: 360,
+      w: 660, h: 330, pad: { l: 0, r: 0, t: 0, b: 0 }, xmin: 0, xmax: 660, ymin: 0, ymax: 330,
       label: "The expression x squared plus b x drawn as areas and rearranged into a square"
     });
     host.appendChild(P.svg);
     var g = P.layer();
     var out = readout(host);
-    var X = 150, U = 18, x0 = 60, y0 = 40;     /* x is drawn 150 wide; one unit of b is 18 */
+    var X = 150, U = 18, y0 = 34;              /* x is drawn 150 wide; one unit of b is 18 */
     var SQ = "fill:var(--plot-fill);stroke:var(--plot-curve);stroke-width:2";
     var RC = "fill:var(--accent-2-soft);stroke:var(--plot-curve-2);stroke-width:2";
 
@@ -2182,6 +2182,7 @@
     function draw() {
       g.textContent = "";
       var hw = (b * U) / 2;                       /* half the rectangle's width */
+      var x0 = (660 - X - b * U) / 2;            /* keep the starting picture centred */
       var split = Math.min(1, u), move = Math.max(0, Math.min(1, u - 1)), done = Math.max(0, Math.min(1, u - 2));
       g.appendChild(rect(x0, y0, X, X, SQ));
       g.appendChild(text(x0 + X / 2, y0 + X / 2 + 5, "x²"));

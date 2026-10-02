@@ -38,6 +38,20 @@
       replacing the question with an easier one that has the same answers.
     </p>
 
+    <div class="puzzle" id="puzzle">
+      <span class="tag">A puzzle to carry through the chapter</span>
+      <p>
+        A bat and a ball cost £1.10 together. The bat costs £1.00 more than the ball. How much does
+        the ball cost?
+      </p>
+      <ul class="guess">
+        <li>10p</li>
+        <li>5p</li>
+        <li>There is not enough information</li>
+      </ul>
+      <p class="puzzle-after">Most people's first answer is wrong. By §2.4 you will be able to settle it in two lines.</p>
+    </div>
+
     <div class="goal">
       <strong>By the end of this chapter you can</strong>
       solve a linear equation in one unknown and justify each step, solve systems in two and three
@@ -45,15 +59,72 @@
       solution, none, or infinitely many, and turn a word problem into equations.
     </div>
 
-    <div class="callout aside">
-      <span class="tag">Before you start</span>
+    <section class="warmup" id="warmup">
+      <div class="callout aside">
+        <span class="tag">Before you start</span>
+        <p>
+          You should be comfortable with <a href="01-numbers.html#addition">the rules of addition and
+          multiplication</a> and with <a href="01-numbers.html#inverses">division as multiplication by
+          an inverse</a> (Chapter 1). Every move in this chapter is one of those rules applied to both
+          sides at once.
+        </p>
+      </div>
+
       <p>
-        You should be comfortable with <a href="01-numbers.html#addition">the rules of addition and
-        multiplication</a> and with <a href="01-numbers.html#inverses">division as multiplication by
-        an inverse</a> (Chapter 1). Every move in this chapter is one of those rules applied to both
-        sides at once.
+        Three quick ones from earlier chapters, to wake up what this chapter stands on. They are
+        not scored. If one will not come, its solution says where to look.
       </p>
-    </div>
+
+      <div class="ex" data-inline id="w1" data-label="Warm-up 1" data-type="number" data-answer="5"
+           data-hint="Subtraction is addition of the opposite.">
+        <div class="ex-q">
+          <p>
+            Compute $-3 - (-8)$.
+          </p>
+        </div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $5$</p>
+          <p>
+            $-3 - (-8) = -3 + 8 = 5$, since the opposite of $-8$ is $8$. See <a
+            href="01-numbers.html#addition">§1.2</a>.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" data-inline id="w2" data-label="Warm-up 2" data-type="number" data-answer="7/4"
+           data-hint="Which number multiplies with 4/7 to give 1?">
+        <div class="ex-q">
+          <p>
+            What is the multiplicative inverse of $\dfrac47$?
+          </p>
+        </div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $\dfrac74$</p>
+          <p>
+            $\frac47 \cdot \frac74 = \frac{28}{28} = 1$. Dividing by a number means multiplying by its
+            inverse — see <a href="01-numbers.html#inverses">§1.6</a>. That is how the unknown gets
+            freed in this chapter.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" data-inline id="w3" data-label="Warm-up 3" data-type="expr" data-answer="3x-6|-6+3x"
+           data-placeholder="e.g. 2x+4"
+           data-hint="Distribute the 3 over both terms in the bracket.">
+        <div class="ex-q">
+          <p>
+            Expand $3(x - 2)$.
+          </p>
+        </div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $3x - 6$</p>
+          <p>
+            Distributivity: $3(x - 2) = 3x - 6$. The commonest slip is $3x - 2$, multiplying only the
+            first term. See <a href="01-numbers.html#multiplication">§1.3</a>.
+          </p>
+        </div>
+      </div>
+    </section>
 
     <h2 id="one-unknown">2.1 One unknown</h2>
     <p>
@@ -131,6 +202,54 @@
       </div>
     </div>
 
+    <figure>
+      <div class="widget" data-widget="balance"></div>
+      <figcaption>
+        <b>An equation is a balance.</b> Whatever you do to one pan you must do to the other, or it
+        tips. Choose $n$, then press a move. The last button is the forbidden one — press it once,
+        on purpose, to see what it costs.
+      </figcaption>
+    </figure>
+
+    <div class="ex" data-inline id="t1" data-type="number" data-answer="-6"
+         data-hint="Collect the x terms on one side and the plain numbers on the other.">
+      <div class="ex-q">
+        <p>
+          Solve $4x + 7 = 2x - 5$.
+        </p>
+      </div>
+      <div class="ex-solution">
+        <p class="answer">Answer: $x = -6$</p>
+        <p>
+          Add $-2x$ to both sides: $2x + 7 = -5$. Add $-7$: $2x = -12$. Multiply by $\frac12$:
+          $x = -6$. Check in the original: $4(-6) + 7 = -17$ and $2(-6) - 5 = -17$ ✓.
+        </p>
+      </div>
+    </div>
+
+    <div class="worked">
+      <h4><span class="num">Clearing fractions.</span> The same two moves, with fractions in the way</h4>
+      <div class="body">
+        <p>
+          Solve $\dfrac{x}{2} + \dfrac13 = \dfrac{x}{3} + 2$.
+        </p>
+        <ol class="steps">
+          <li>The denominators are $2$ and $3$. Multiply both sides by $6$ — legal, since $6 \neq 0$ —
+            and distribute: $6\cdot\frac{x}{2} + 6\cdot\frac13 = 6\cdot\frac{x}{3} + 6 \cdot 2$,
+            that is $3x + 2 = 2x + 12$. <span class="note">Every term gets multiplied, on both
+            sides. Missing one is the usual error.</span></li>
+          <li>Add $-2x$ to both sides: $x + 2 = 12$.</li>
+          <li>Add $-2$: $x = 10$.</li>
+          <li>Check in the original, fractions and all: $\frac{10}{2} + \frac13 = \frac{16}{3}$ and
+            $\frac{10}{3} + 2 = \frac{16}{3}$ ✓. $\blacksquare$</li>
+        </ol>
+        <p class="note">
+          Multiplying through by a common denominator is Move 2 used to tidy up before starting. It
+          changes how the equation looks, not which numbers solve it.
+        </p>
+      </div>
+    </div>
+
     <p>
       Not every linear equation has exactly one solution. Consider what happens when the unknown
       disappears:
@@ -150,6 +269,28 @@
       will reappear for systems in a moment. When the unknown cancels out, read the surviving
       numerical statement: if it is true, every number is a solution; if it is false, none is.
     </p>
+
+    <div class="ex" data-inline id="t2" data-answer="3"
+         data-hint="Expand the left side, then see what happens to x.">
+      <div class="ex-q">
+        <p>
+          How many solutions does $3(x + 2) = 3x + 6$ have?
+        </p>
+      </div>
+      <ul class="choices">
+        <li>Exactly one.</li>
+        <li>None.</li>
+        <li>Every number is a solution.</li>
+        <li>Exactly two.</li>
+      </ul>
+      <div class="ex-solution">
+        <p class="answer">Answer: every number</p>
+        <p>
+          The left side expands to $3x + 6$ — the same as the right. Adding $-3x$ leaves $6 = 6$,
+          which is true whatever $x$ is. So every number is a solution: the equation is an identity.
+        </p>
+      </div>
+    </div>
 
     <h2 id="two-unknowns">2.2 Equations in two unknowns</h2>
     <p>
@@ -178,7 +319,7 @@
     <div class="worked">
       <h4><span class="num">Example 2.</span> Elimination</h4>
       <div class="body">
-        <p>Solve $\;\begin{aligned}[t] 2x + 3y &= 12\\ x - y &= 1\end{aligned}$</p>
+        <p>Solve $\;\begin{aligned} 2x + 3y &= 12\\ x - y &= 1\end{aligned}$</p>
         <ol class="steps">
           <li>Multiply the second equation by $3$: $3x - 3y = 3$. The $y$-coefficients are now
             $+3$ and $-3$.</li>
@@ -192,6 +333,74 @@
         </ol>
       </div>
     </div>
+
+    <div class="worked">
+      <h4><span class="num">Your turn, with help.</span> Elimination, one step at a time</h4>
+      <div class="body">
+        <p>
+          Solve $\;\begin{aligned} 3x + y &= 10\\ x - 2y &= 1\end{aligned}$ &nbsp; The first step
+          is done; try each later one before opening it.
+        </p>
+        <ol class="steps">
+          <li>Multiply the first equation by $2$: $6x + 2y = 20$. The $y$-coefficients are now $+2$
+            and $-2$.</li>
+          <li>
+            <details class="reveal">
+              <summary>Add the two equations</summary>
+              <p>
+                $(6x + 2y) + (x - 2y) = 20 + 1$, so $7x = 21$ and $x = 3$.
+              </p>
+            </details>
+          </li>
+          <li>
+            <details class="reveal">
+              <summary>Back-substitute to find $y$</summary>
+              <p>
+                Into the first original equation: $3(3) + y = 10$, so $y = 1$.
+              </p>
+            </details>
+          </li>
+          <li>
+            <details class="reveal">
+              <summary>Check in both originals</summary>
+              <p>
+                $3(3) + 1 = 10$ ✓ and $3 - 2(1) = 1$ ✓. The solution is $(3, 1)$. $\blacksquare$
+              </p>
+            </details>
+          </li>
+        </ol>
+      </div>
+    </div>
+
+    <div class="ex" data-inline id="t3" data-type="number" data-answer="3"
+         data-hint="The y terms already have opposite signs. What happens if you add the equations as they stand?">
+      <div class="ex-q">
+        <p>
+          Solve $\;\begin{aligned} 2x + y &= 7\\ x - y &= 2\end{aligned}$ &nbsp; and give the
+          value of $x$.
+        </p>
+      </div>
+      <div class="ex-solution">
+        <p class="answer">Answer: $x = 3$</p>
+        <p>
+          Adding the two equations eliminates $y$ at once: $3x = 9$, so $x = 3$. Then $3 - y = 2$
+          gives $y = 1$. Check: $2(3) + 1 = 7$ ✓ and $3 - 1 = 2$ ✓.
+        </p>
+      </div>
+    </div>
+
+    <details class="reveal">
+      <summary><span class="ask">Before reading on, try to solve $\;x + y = 2,\;\; x + y = 5\;$ by elimination. What happens — and what is it telling you?</span>Try it, then open</summary>
+      <p>
+        Subtracting the first equation from the second removes $x$ and $y$ together and leaves
+        $0 = 3$. That is false whatever $x$ and $y$ are, so no pair satisfies both equations. Which
+        is what the equations said all along: two numbers cannot add up to $2$ and to $5$.
+      </p>
+      <p>
+        So elimination does not always end with a value. The next few lines work out exactly when it
+        does.
+      </p>
+    </details>
 
     <p>
       When does elimination fail to produce an answer? Exactly when the unknown cancels out
@@ -213,6 +422,32 @@
           $0 = (\text{something non-zero})$, so there is <b>no</b> solution.</li>
       </ul>
     </div>
+
+    <div class="worked">
+      <h4><span class="num">When everything cancels.</span> The two exceptional cases, worked</h4>
+      <div class="body">
+        <p>
+          Solve (a) $\;\begin{aligned} 2x - 4y &= 6\\ -x + 2y &= -3\end{aligned}$ &nbsp; and (b)
+          $\;\begin{aligned} 2x - 4y &= 6\\ -x + 2y &= 1\end{aligned}$
+        </p>
+        <ol class="steps">
+          <li>(a) Add $2 \times$ the second equation to the first:
+            $(2x - 4y) + 2(-x + 2y) = 6 + 2(-3)$, which is $0 = 0$.</li>
+          <li>True, and no help: the second equation is the first multiplied by $-\frac12$, so the
+            system really contains one fact, not two. Every pair with $2x - 4y = 6$ — that is,
+            $x = 3 + 2y$ for any $y$ at all — is a solution: $(3,0)$, $(5,1)$, $(1,-1)$, …
+            <b>Infinitely many.</b></li>
+          <li>(b) The same move gives $(2x - 4y) + 2(-x + 2y) = 6 + 2(1)$, which is $0 = 8$.</li>
+          <li>False for every $x$ and $y$. The left sides are still multiples of each other, but the
+            right sides are not, so the two equations contradict one another. <b>No solution.</b>
+            $\blacksquare$</li>
+        </ol>
+        <p class="note">
+          In both cases $a_1b_2 - a_2b_1 = (2)(2) - (-1)(-4) = 0$. The determinant tells you that
+          you are in an exceptional case; the right-hand sides decide which one.
+        </p>
+      </div>
+    </div>
     <p>
       That number $a_1b_2 - a_2b_1$ has a name — the <b>determinant</b> of the system — and a
       geometric meaning we will meet in
@@ -230,6 +465,24 @@
       </figcaption>
     </figure>
 
+    <div class="ex" data-inline id="t4" data-type="number" data-answer="4"
+         data-hint="No solution requires the number a₁b₂ − a₂b₁ to be zero."
+         data-hint2="The number is k − 4. Then check that the right-hand sides really do disagree.">
+      <div class="ex-q">
+        <p>
+          For which value of $k$ does the system $\;x + 2y = 3,\;\; 2x + ky = 5\;$ have no solution?
+        </p>
+      </div>
+      <div class="ex-solution">
+        <p class="answer">Answer: $k = 4$</p>
+        <p>
+          $a_1b_2 - a_2b_1 = (1)(k) - (2)(2) = k - 4$, which is zero when $k = 4$. Then the second
+          equation is $2x + 4y = 5$, while doubling the first gives $2x + 4y = 6$ — the same left
+          side with a different right side. Contradiction, so no solution.
+        </p>
+      </div>
+    </div>
+
     <h2 id="three-unknowns">2.3 Equations in three unknowns</h2>
     <p>
       Nothing new happens — only bookkeeping. With three unknowns you use one equation to eliminate
@@ -242,7 +495,7 @@
       <div class="body">
         <p>
           Solve
-          $\;\begin{aligned}[t]
+          $\;\begin{aligned}
             x + y + z &= 6 \\
             2x - y + z &= 3 \\
             x + 2y - z &= 2
@@ -253,7 +506,7 @@
             Equation 2 minus $2\times$ equation 1: $(2x - y + z) - 2(x + y + z) = 3 - 12$, i.e.
             $-3y - z = -9$. Equation 3 minus equation 1: $y - 2z = -4$.</li>
           <li>Now a $2\times2$ system in $y, z$:
-            $\begin{aligned}[t] -3y - z &= -9 \\ y - 2z &= -4 \end{aligned}$</li>
+            $\begin{aligned} -3y - z &= -9 \\ y - 2z &= -4 \end{aligned}$</li>
           <li>Eliminate $y$: add $3\times$ the second equation to the first:
             $(-3y - z) + 3(y - 2z) = -9 + (-12)$, giving $-7z = -21$, so $z = 3$.</li>
           <li>Back-substitute into $y - 2z = -4$: $y - 6 = -4$, so $y = 2$.</li>
@@ -309,6 +562,25 @@
       </div>
     </div>
 
+    <div class="ex" data-inline id="t5" data-type="number" data-answer="4"
+         data-hint="Name the two counts. One equation for the number of tickets, one for the money."
+         data-hint2="a + c = 8 and 12a + 7c = 76. Eliminate c.">
+      <div class="ex-q">
+        <p>
+          A group buys $8$ tickets. Adult tickets cost £12 and child tickets £7, and the bill comes
+          to £76. How many adults are in the group?
+        </p>
+      </div>
+      <div class="ex-solution">
+        <p class="answer">Answer: $4$ adults</p>
+        <p>
+          Let $a$ be the number of adults and $c$ the number of children. Then $a + c = 8$ and
+          $12a + 7c = 76$. Subtract $7 \times$ the first from the second: $5a = 76 - 56 = 20$, so
+          $a = 4$ and $c = 4$. Check: $4 + 4 = 8$ ✓ and $48 + 28 = 76$ ✓.
+        </p>
+      </div>
+    </div>
+
     <!-- ====================================================== practice ==== -->
     <section class="practice" id="practice">
       <div class="practice-head">
@@ -333,7 +605,8 @@
       </div>
 
       <div class="ex" data-type="number" data-answer="11"
-           data-hint="Multiply out both brackets first, then collect.">
+           data-hint="Multiply out both brackets first, then collect."
+           data-hint2="After expanding: 3x + 12 = 5x − 10.">
         <div class="ex-q"><p>Solve $3(x + 4) = 5(x - 2)$ for $x$.</p></div>
         <div class="ex-solution">
           <p class="answer">Answer: $x = 11$</p>
@@ -369,7 +642,7 @@
            data-hint="Multiply the second equation by 2 so the y terms cancel when you add.">
         <div class="ex-q">
           <p>
-            Solve $\;\begin{aligned}[t] 3x + 2y &= 16 \\ x - y &= 2 \end{aligned}$ and give the
+            Solve $\;\begin{aligned} 3x + 2y &= 16 \\ x - y &= 2 \end{aligned}$ and give the
             value of $x$.
           </p>
         </div>
@@ -386,11 +659,12 @@
       </div>
 
       <div class="ex" data-type="number" data-answer="6"
-           data-hint="Compute a₁b₂ − a₂b₁ and see what makes it zero.">
+           data-hint="Compute a₁b₂ − a₂b₁ and see what makes it zero."
+           data-hint2="Here a₁b₂ − a₂b₁ = 2k − 12.">
         <div class="ex-q">
           <p>
             For which value of $k$ does the system
-            $\;\begin{aligned}[t] 2x + 3y &= 7 \\ 4x + ky &= 1 \end{aligned}$
+            $\;\begin{aligned} 2x + 3y &= 7 \\ 4x + ky &= 1 \end{aligned}$
             fail to have exactly one solution?
           </p>
         </div>
@@ -409,11 +683,12 @@
       </div>
 
       <div class="ex" data-type="number" data-answer="3"
-           data-hint="Use the first equation to remove x from the other two.">
+           data-hint="Use the first equation to remove x from the other two."
+           data-hint2="Equation 2 minus 2 × equation 1, and equation 3 minus equation 1, give two equations in y and z alone.">
         <div class="ex-q">
           <p>
             Solve
-            $\;\begin{aligned}[t]
+            $\;\begin{aligned}
               x + y + z &= 4 \\
               2x - y + 3z &= 14 \\
               x + 2y - z &= -3
@@ -458,7 +733,8 @@
       </div>
 
       <div class="ex" data-type="number" data-answer="35"
-           data-hint="Name the two ticket counts, then write the count equation and the money equation.">
+           data-hint="Name the two ticket counts, then write the count equation and the money equation."
+           data-hint2="With c coffees and t teas: c + t = 50 and 3c + 2t = 135.">
         <div class="ex-q">
           <p>
             A stall sells coffee at £3 and tea at £2. It sold $50$ drinks and took £135. How many
@@ -500,6 +776,17 @@
 
     <div class="recap">
       <h2>Recap</h2>
+      <div class="puzzle-answer">
+        <span class="tag">Back to the puzzle</span>
+        <p data-your-guess></p>
+        <p>
+          Name the unknown: let the ball cost $b$ pounds. The bat then costs $b + 1$, and the first
+          sentence says $b + (b + 1) = 1.10$. So $2b = 0.10$ and $b = 0.05$: the ball costs 5p and
+          the bat £1.05. The tempting answer fails the check — a 10p ball means a £1.10 bat and a
+          total of £1.20. Writing the equation is what protects you from the answer that merely
+          sounds right.
+        </p>
+      </div>
       <ul>
         <li>Solving = replacing an equation by a simpler one with the same solutions. The safe moves
           are: add anything to both sides; multiply both sides by something non-zero; add a multiple

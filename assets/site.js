@@ -773,7 +773,12 @@
   function init() {
     initTheme();
     var chapter = chapterOf(document.body);
-    if (chapter) document.body.setAttribute("data-part", chapter.part.id);
+    if (chapter) {
+      document.body.setAttribute("data-part", chapter.part.id);
+      /* opening a chapter is enough to make it the place to continue from */
+      var last = readStore(LAST_KEY, null);
+      if (!last || last.id !== chapter.id) writeStore(LAST_KEY, { id: chapter.id, section: null });
+    }
     buildSidebar(chapter);
     buildChapterNav(chapter);
     buildHome();
