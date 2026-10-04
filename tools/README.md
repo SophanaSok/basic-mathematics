@@ -1,6 +1,7 @@
 # tools/ — the verification harness
 
-Two scripts. Neither needs a `package.json`, a build, or anything installed into this repo.
+Two general scripts, plus focused ones for the 3D scenes, the Arena's generators and the game
+layer. None needs a `package.json`, a build, or anything installed into this repo.
 
 ```sh
 node tools/check-static.js                 # ~2 s, Node built-ins only
@@ -96,3 +97,19 @@ that need a solved or a wrong card. A `game`, `scenes` or `arena` suite is one m
 - Answers given on a figure (`data-type="figure"`): the sweep counts and skips them.
 - Visual regression against the base commit: screenshots are taken for eyes, not diffed.
 - The Supabase account path (`assets/config.js` is empty here, so nothing is fetched).
+
+## The focused checks
+
+| script | what it guards |
+| --- | --- |
+| `smoke-scenes.js` | every 3D scene under a small DOM shim: mounts in figure and quiz mode, missions false at mount, every control driven, every `cases` answer reachable and graded right |
+| `check-gen.js` | every Arena generator over 500 seeds: deterministic, no `NaN`/`undefined`, the key and every declared alternative graded right, near misses graded wrong, hints that do not give the answer, every chapter covered |
+| `game/merge.test.js` | `BMAccount.merge` with the game store: commutative, associative, idempotent |
+| `game/rules.test.js` | combo, levels, hearts, medals, achievements, recall and run records, as pure functions |
+| `game/browser.test.js` | the game layer in Chromium: XP and combo, hearts, the finale, reloads, calm mode, sound, older saved progress, toasts, the settings sheet |
+| `game/arena.test.js` | the Arena in Chromium: scoring, par and the clock, hearts, Daily, Repair, resume, calm mode mid-run, two tabs |
+| `game/scenes.test.js` | 3D stages in Chromium: keyboard and buttons, touch scrolling, contrast of meaningful marks in both themes |
+| `game/content.test.js` | the new 3D exercises in chapters 8 and 16, answered through the page |
+| `game/map.test.js` | the course map: every fallback, no rendering while idle, clicks that match the list links |
+
+The browser ones take `BM_PLAYWRIGHT_FROM` like `check-browser.js`.

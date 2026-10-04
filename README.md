@@ -515,6 +515,12 @@ node tools/smoke-scenes.js                # every 3D scene: mount, controls, mis
 node tools/check-gen.js                   # every Arena generator over 500 seeds
 node tools/game/merge.test.js             # BMAccount.merge, including the game store
 node tools/game/rules.test.js             # combo, levels, hearts, medals, achievements, recall
+node tools/game/browser.test.js           # the game in a browser: combo XP, hearts, finale, reload,
+                                          # calm mode, sound off, old progress, toasts, the sheet
+node tools/game/arena.test.js             # Arena runs: scoring, clock, hearts, Daily, Repair, resume
+node tools/game/scenes.test.js            # 3D stages: keyboard, touch, contrast of what carries meaning
+node tools/game/content.test.js           # the new 3D exercises in chapters 8 and 16, answered live
+node tools/game/map.test.js               # the course map: fallbacks, idle rendering, clicks
 node tools/check-browser.js               # every page × theme × width in headless Chromium:
                                           # errors, overflow, lesson mode, figures, every exercise
                                           # typed back, restore of old progress, reduced motion,
