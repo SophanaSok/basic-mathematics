@@ -1204,7 +1204,7 @@ table.owner th[aria-sort="descending"] .link::after { content: " ↓"; }
   .rule::before, main > h2::before, .practice > h2::before, .practice-head > h2::before { background: CanvasText; }
   .region-banner::after { display: none; }
   details.reveal > summary::after, .missions li[data-done] .mark::after, .ring[data-pct="100"]::after,
-  .sync-state[data-state="synced"]::before {
+  .sync-state[data-state="synced"]::before, li.ach[data-unlocked] .ach-title::before {
     forced-color-adjust: none; background: CanvasText;
   }
   .choice:has(input:checked), .guess-chip[aria-pressed="true"], .chip[aria-pressed="true"] { border-width: 4px; }
