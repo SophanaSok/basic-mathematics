@@ -129,10 +129,11 @@
     <h2 id="feedback">XP, streaks, and what to review</h2>
     <p>
       Correct answers and completed missions earn XP — most for an answer that is right first
-      time, less after a miss, least once the solution has been opened. The counter in the header
-      shows today's XP against a daily goal, and a streak of the days in a row you have done
+      time, less after a miss, least once the solution has been opened. The header shows your
+      level, today's XP against a daily goal, and a streak of the days in a row you have done
       something. They are there to make a little work every day feel worth doing, which is what
-      actually builds the skill; they measure effort, not ability.
+      actually builds the skill. Every road to a right answer pays something; the combo below
+      adds a little for accuracy, never for speed.
     </p>
     <p>
       More useful is <a href="progress.html">your progress page</a>. The course notes how each
@@ -141,12 +142,60 @@
       version of the same note appears above each chapter's recap.
     </p>
 
+    <h2 id="game">The game, and why it is built this way</h2>
+    <p>
+      The course plays like a game, but every rule is there to help the mathematics stick. Where
+      the two pull apart, the mathematics wins.
+    </p>
+    <ul>
+      <li><b>Combo.</b> Each answer that is right first time fills one of five pips, and a full
+        meter adds up to double XP. A first miss on a practice problem costs two pips; working
+        on with the hints after that costs nothing. Opening a solution <em>after</em> you got the
+        answer, and reading it, earns a shield that absorbs your next miss — comparing your route
+        with the one shown is where most of the learning happens.</li>
+      <li><b>Encounters.</b> Each chapter's practice set is an encounter with a boss: the
+        tempting wrong idea behind the chapter's opening puzzle. Every problem you solve wears it
+        down, in any order. You start with three hearts and lose one for each problem you miss or
+        open first; they decide the medal — gold, silver or bronze — and nothing else. Running out
+        never locks anything; the course just points you at the section worth rereading.</li>
+      <li><b>Playable figures.</b> Some questions are answered by building something in a 3D
+        scene: three planes that share a line, a slanted solid of volume 12, a box six pyramids
+        fill exactly. While the question is open the scene shows quantities but never says
+        whether you are right — only <b>Check</b> does — so the answer has to come from thinking,
+        not from wiggling until a light turns green.</li>
+      <li><b>The Arena</b> is the only place with a clock, and it draws only from sections you
+        have already solved, because speed practice helps with what you know and hurts with what
+        you are still learning. The problems are freshly generated each time. A wrong answer
+        costs a heart and stops the clock while you read the hint; "I don't know" costs nothing,
+        so guessing never pays.</li>
+      <li><b>Levels and achievements</b> come from the XP you have earned. The achievements reward
+        study habits — getting things right first time, going back to a weak section and fixing
+        it, reading solutions you got right, finishing a review set — and none rewards speed
+        alone.</li>
+    </ul>
+
+    <h2 id="settings">Play settings</h2>
+    <p>
+      The menu in the header holds three switches, remembered on this device only:
+    </p>
+    <ul>
+      <li><b>Calm mode</b> turns off hearts, the combo, the boss, shake and sound, and makes the
+        Arena untimed by default, for when you want the course without the game. Your XP, level,
+        streak, hints and solutions are unchanged.</li>
+      <li><b>Sound</b> is off until you turn it on.</li>
+      <li><b>3D course map</b> shows the contents page as a map of four regions. The list of
+        chapters is always there beside it, and the map steps aside on its own on devices that
+        cannot draw it smoothly.</li>
+    </ul>
+
     <h2 id="progress">Progress and privacy</h2>
     <p>
       Everything is saved in this browser's local storage: solved exercises
       (<code>bm.progress.v1</code>), missions and puzzle guesses (<code>bm.play.v1</code>), how
       each question went (<code>bm.attempts.v1</code>), XP per day (<code>bm.activity.v1</code>),
-      and your place in each chapter (<code>bm.lesson.v1</code>, <code>bm.last</code>). Without
+      your place in each chapter (<code>bm.lesson.v1</code>, <code>bm.last</code>), achievements,
+      medals and Arena records (<code>bm.game.v1</code>), the combo and any unfinished Arena run
+      (<code>bm.run.v1</code>), and your play settings (<code>bm.prefs.v1</code>). Without
       an account nothing is sent anywhere, so progress does not follow you to another browser,
       and clearing site data clears it. If storage is blocked, everything still works — it just
       is not remembered.
@@ -174,6 +223,13 @@
         keys, and press <kbd>Space</kbd> or <kbd>Enter</kbd> to redirect it. Every figure also
         states its conclusion in text below it, so nothing is available only by dragging or
         clicking.</li>
+      <li>The 3D scenes work the same way: <kbd>Tab</kbd> to the scene, move the selected handle
+        with the arrow keys (<kbd>Page Up</kbd> and <kbd>Page Down</kbd> for the third direction),
+        press <kbd>Space</kbd> to select the next handle or the view itself, and <kbd>Home</kbd> to
+        reset the view. Every scene can also be driven entirely from its sliders and buttons, and
+        where 3D is not available the same scene is drawn flat with the same controls.</li>
+      <li>In the Arena, <kbd>Enter</kbd> checks and <kbd>Esc</kbd> pauses; the Untimed tempo
+        removes the clock altogether.</li>
       <li>The theme follows your system setting until you press the light/dark button, after which
         your choice is remembered.</li>
     </ul>
