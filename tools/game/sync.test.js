@@ -14,7 +14,9 @@
    The scenarios are the ways a signed-in reader could lose progress: a tab opened
    before another device synced, two devices writing at once, a reset being undone or
    wiping later work, a tab that missed a sign-out in another tab, a sync finishing
-   after someone else signed in, and signing out while the last upload fails.
+   after someone else signed in, and signing out while the last upload fails. A last
+   section covers signing in through another service (assets/config.js `providers`):
+   which services are offered, what is asked of them, and readers who have no email.
 
    Usage: node tools/game/sync.test.js [--only=<substring>] */
 "use strict";
@@ -199,8 +201,8 @@ class Device {
     this.page = null;
   }
   /* as if this browser had signed in on an earlier visit */
-  remember(uid) {
-    this.storage.set(SESSION_KEY, JSON.stringify({ user: { id: uid, email: uid + "@example.com" } }));
+  remember(uid, extra) {
+    this.storage.set(SESSION_KEY, JSON.stringify({ user: Object.assign({ id: uid, email: uid + "@example.com" }, extra || {}) }));
   }
   read(key, fallback) {
     const raw = this.storage.get(key);
@@ -214,15 +216,16 @@ class Device {
   /* a second tab of the same browser: same storage, its own page */
   openTab() { return new Page(this); }
   /* a fresh page load; the old page gets its pagehide first */
-  open() {
+  open(opts) {
     if (this.page) this.page.close();
-    this.page = new Page(this);
+    this.page = new Page(this, opts);
     return this.page;
   }
 }
 
 class Page {
-  constructor(device) {
+  constructor(device, opts) {
+    opts = opts || {};
     this.device = device;
     this.closed = false;
     const page = this, storage = device.storage, server = device.server;
@@ -245,6 +248,11 @@ class Page {
         /* auth-js: when the server cannot be reached the session is kept and an error
            returned; otherwise the session is removed and SIGNED_OUT fires before the
            promise resolves */
+        /* the browser would now leave for the service; here the call is only recorded */
+        signInWithOAuth: (a) => Promise.resolve().then(() => {
+          server.log.push("auth oauth " + a.provider + " " + a.options.redirectTo + (a.options.scopes ? " scopes=" + a.options.scopes : ""));
+          return { data: { provider: a.provider, url: "about:blank" }, error: null };
+        }),
         signOut: (opts) => Promise.resolve().then(() => {
           server.log.push("auth signOut " + ((opts && opts.scope) || "global"));
           const failed = server.offline && session();
@@ -264,11 +272,11 @@ class Page {
     };
     const win = {
       console, URL, Blob: function () {}, Date: FakeDate,
-      BM_CONFIG: { supabaseUrl: "https://" + REF + ".supabase.co", supabaseAnonKey: "sb_publishable_test" },
+      BM_CONFIG: Object.assign({ supabaseUrl: "https://" + REF + ".supabase.co", supabaseAnonKey: "sb_publishable_test" }, opts.config || {}),
       supabase: { createClient: () => client },
       BMStore: Store,
       BMSite: { rootPrefix: () => "", escapeHtml: (s) => String(s) },
-      location: { hash: "", search: "", href: "http://localhost:8000/parts/1-algebra/01-numbers.html" },
+      location: { hash: "", search: "", href: opts.href || "http://localhost:8000/parts/1-algebra/01-numbers.html" },
       localStorage: {
         getItem: (k) => (storage.has(k) ? storage.get(k) : null),
         setItem: (k, v) => storage.set(k, String(v)),
@@ -556,6 +564,107 @@ scenario("progress saved just before a reload is in the account", async () => {
   laptop.page.solve("ch01", "e1");
   laptop.open(); await settle();
   expect(has(server.solved("u1"), "ch01/e1"), "the change made just before the reload was lost", server.solved("u1"));
+});
+
+/* ------------------------------------- signing in with another service -- */
+
+const oauthCalls = (server) => server.log.filter((l) => l.startsWith("auth oauth "));
+async function rejected(promise) {
+  let e = null;
+  promise.then(() => {}, (x) => { e = x; });
+  await settle();
+  return e;
+}
+
+scenario("a provider sign-in names the service and comes back to the account page", async () => {
+  const server = new Server();
+  const d = new Device("laptop", server);
+  const page = d.open({ config: { providers: ["github", "azure"] }, href: "http://localhost:8000/account.html?from=nav#top" }); await settle();
+  expect(JSON.stringify(Array.from(page.Account.providers)) === '["github","azure"]', "the offered services are not the configured ones, in order", Array.from(page.Account.providers));
+  page.Account.oauth("github"); await settle();
+  page.Account.oauth("azure"); await settle();
+  const calls = oauthCalls(server);
+  expect(calls.length === 2, "expected two hand-overs", calls);
+  expect(/^auth oauth github http:\/\/localhost:8000\/account\.html$/.test(calls[0]), "GitHub hand-over is wrong", calls[0]);
+  expect(/^auth oauth azure http:\/\/localhost:8000\/account\.html scopes=email$/.test(calls[1]), "Microsoft was not asked for the email address", calls[1]);
+});
+
+scenario("a service that is not switched on is refused before anything is sent", async () => {
+  const server = new Server();
+  const d = new Device("laptop", server);
+  const page = d.open({ config: { providers: ["github"] } }); await settle();
+  for (const id of ["discord", "constructor", "", undefined]) {
+    const e = await rejected(page.Account.oauth(id));
+    expect(e && /not switched on/.test(e.message), "oauth(" + JSON.stringify(id) + ") was not refused", e && e.message);
+  }
+  expect(oauthCalls(server).length === 0, "a refused service still reached the account service", oauthCalls(server));
+});
+
+scenario("unknown, repeated and malformed ids in config never become buttons", async () => {
+  const server = new Server();
+  const warn = console.warn; console.warn = () => {};
+  try {
+    const cases = [
+      [{ providers: ["gihub", 7, null, "google", "google", "toString"] }, ["google"]],
+      [{ providers: "google" }, []],
+      [{ providers: { google: true } }, []],
+      [{ google: true }, []],
+      [{}, []]
+    ];
+    for (const [config, want] of cases) {
+      const page = new Device("d", server).open({ config }); await settle();
+      const got = Array.from(page.Account.providers);
+      expect(JSON.stringify(got) === JSON.stringify(want), "config " + JSON.stringify(config) + " offers the wrong services", got);
+    }
+  } finally { console.warn = warn; }
+});
+
+scenario("an error in the address is read from either side of the #", async () => {
+  const page = new Device("d", new Server()).open(); await settle();
+  const at = (tail) => page.Account.urlError("http://localhost:8000/account.html" + tail);
+  const both = at("?error=access_denied&error_description=The+user+denied%20access#error=access_denied&sb=");
+  expect(both && both.error === "access_denied" && both.description === "The user denied access", "query + hash not read", both);
+  const hashOnly = at("#error=server_error&error_code=unexpected_failure");
+  expect(hashOnly && hashOnly.error === "server_error" && hashOnly.code === "unexpected_failure", "hash-only error not read", hashOnly);
+  const codeOnly = at("?error_code=otp_expired");
+  expect(codeOnly && codeOnly.code === "otp_expired", "error_code alone not read", codeOnly);
+  for (const ok of ["", "?type=recovery", "#access_token=abc&refresh_token=def&type=signup", "#practice"]) {
+    expect(at(ok) === null, "an address with no error was read as one: " + ok, at(ok));
+  }
+});
+
+scenario("sign-in methods and the reader's name come from the account", async () => {
+  const page = new Device("d", new Server()).open(); await settle();
+  const A = page.Account;
+  const methods = (u) => JSON.stringify(Array.from(A.methods(u)));
+  expect(methods({ app_metadata: { provider: "google", providers: ["google", "github"] } }) === '["google","github"]', "providers list not used");
+  expect(methods({ app_metadata: { provider: "email" } }) === '["email"]', "single provider not used");
+  expect(methods({ identities: [{ provider: "discord" }, { provider: "discord" }] }) === '["discord"]', "identities fallback not used");
+  expect(methods({}) === "[]" && methods(null) === "[]", "an empty user should have no methods");
+  expect(A.label({ email: "a@b.c", user_metadata: { full_name: "N" } }) === "a@b.c", "email should come first");
+  expect(A.label({ user_metadata: { full_name: "Full Name", user_name: "handle" } }) === "Full Name", "full name should come next");
+  expect(A.label({ user_metadata: { user_name: "handle" } }) === "handle", "username should be the fallback");
+  expect(A.label({}) === "" && A.label(null) === "", "nothing to call the reader should be an empty string");
+});
+
+scenario("a reader with no email address still syncs, and a failed sign-out sets their progress aside", async () => {
+  const server = new Server();
+  const d = new Device("laptop", server);
+  d.remember("u9", { email: undefined, app_metadata: { provider: "github", providers: ["github"] }, user_metadata: { user_name: "reader9" } });
+  d.open(); await settle();
+  d.page.solve("ch01", "e1"); await settle();
+  expect(has(server.solved("u9"), "ch01/e1"), "progress did not reach the account", server.solved("u9"));
+  const out = d.page.Account.exportData();
+  expect(out.account === null && JSON.stringify(Array.from(out.signInWith)) === '["github"]', "the download does not say how the account signs in", { account: out.account, signInWith: out.signInWith });
+  expect(out.profile && out.profile.username === "reader9" && out.profile.name === null, "the download leaves out what the service passed on", out.profile);
+  server.offline = true;
+  d.page.solve("ch01", "e2"); await settle();
+  await d.page.signOut();
+  const held = d.read("bm.sync.pending.v1", {}).u9;
+  expect(held && held.email === "" && JSON.stringify(held.via) === '["github"]', "the set-aside record does not say which service the reader uses", held && { email: held.email, via: held.via });
+  server.offline = false;
+  d.remember("u9", { email: undefined, app_metadata: { providers: ["github"] } }); d.open(); await settle();
+  expect(has(server.solved("u9"), "ch01/e2"), "the set-aside progress did not reach the account", server.solved("u9"));
 });
 
 /* --------------------------------------------------------------- runner -- */

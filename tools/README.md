@@ -97,8 +97,9 @@ that need a solved or a wrong card. A `game`, `scenes` or `arena` suite is one m
 - Screen readers and focus order beyond what axe-core can see statically.
 - Answers given on a figure (`data-type="figure"`): the sweep counts and skips them.
 - Visual regression against the base commit: screenshots are taken for eyes, not diffed.
-- The real Supabase account path: the browser suites never sign in, and `game/sync.test.js`
-  runs against a stand-in that mimics PostgREST and auth-js rather than the service itself.
+- The real Supabase account path and the round trip to a real sign-in service: the browser
+  suites never sign in, and `game/sync.test.js` and `game/account.test.js` run against
+  stand-ins that mimic PostgREST and auth-js rather than the services themselves.
 
 ## The focused checks
 
@@ -107,7 +108,8 @@ that need a solved or a wrong card. A `game`, `scenes` or `arena` suite is one m
 | `smoke-scenes.js` | every 3D scene under a small DOM shim: mounts in figure and quiz mode, missions false at mount, every control driven, every `cases` answer reachable and graded right |
 | `check-gen.js` | every Arena generator over 500 seeds: deterministic, no `NaN`/`undefined`, the key and every declared alternative graded right, near misses graded wrong, hints that do not give the answer, every chapter covered |
 | `game/merge.test.js` | `BMAccount.merge` with the game store: commutative, associative, idempotent |
-| `game/sync.test.js` | account sync in `assets/account.js` against an in-memory stand-in for Supabase, one vm per device: stale tabs and simultaneous saves never overwrite newer progress, resets are neither undone nor allowed to wipe later work, a sync never lands in the wrong reader's account, and signing out sets unsaved progress aside instead of wiping it |
+| `game/sync.test.js` | account sync in `assets/account.js` against an in-memory stand-in for Supabase, one vm per device: stale tabs and simultaneous saves never overwrite newer progress, resets are neither undone nor allowed to wipe later work, a sync never lands in the wrong reader's account, and signing out sets unsaved progress aside instead of wiping it. Also sign-in through another service: only configured services are offered, Microsoft is asked for the email address, and a reader with no email address still syncs |
+| `game/account.test.js` | the account page in Chromium with `BM_CONFIG` pinned and a stand-in for the Supabase SDK: provider buttons in config order with text labels, the hand-over call, a refused sign-in explained and removed from the address, the signed-in panel with and without an email address, no overflow at 360px |
 | `game/rules.test.js` | combo, levels, hearts, medals, achievements, recall and run records, as pure functions |
 | `game/browser.test.js` | the game layer in Chromium: XP and combo, hearts, the finale, reloads, calm mode, sound, older saved progress, toasts, the settings sheet |
 | `game/arena.test.js` | the Arena in Chromium: scoring, par and the clock, hearts, Daily, Repair, resume, calm mode mid-run, two tabs |

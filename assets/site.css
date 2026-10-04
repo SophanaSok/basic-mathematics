@@ -1166,6 +1166,10 @@ table.owner th[aria-sort="descending"] .link::after { content: " ↓"; }
 @media (max-width: 640px) { .funnel li { grid-template-columns: minmax(0, 1fr) 4rem; } .funnel .meter { grid-column: 1 / -1; grid-row: 2; } }
 
 .auth { max-width: 30rem; }
+.auth .providers { display: grid; gap: .6rem; margin: 1.3rem 0 0; }
+.auth .providers .btn { width: 100%; }
+.auth .or { font-family: var(--sans); font-size: .82rem; font-weight: 600; color: var(--muted); margin: 1.4rem 0 .7rem; }
+.auth > .form-note { margin: 0 0 1rem; }
 .field { display: grid; gap: .3rem; margin: 0 0 .9rem; font-family: var(--sans); }
 .field span { font-size: .82rem; font-weight: 600; color: var(--muted); }
 .field input { font-family: var(--sans); width: 100%; }

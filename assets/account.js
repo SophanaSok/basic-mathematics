@@ -20,6 +20,32 @@
 
   var cfg = window.BM_CONFIG || {};
   var configured = !!(cfg.supabaseUrl && cfg.supabaseAnonKey);
+  /* Sign-in services this site can offer. Which of them are shown is the `providers` list
+     in assets/config.js; an id that is not in this table is ignored. Microsoft passes the
+     email address on only when asked for it. */
+  var PROVIDERS = {
+    google: { label: "Google" },
+    github: { label: "GitHub" },
+    discord: { label: "Discord" },
+    facebook: { label: "Facebook" },
+    azure: { label: "Microsoft", scopes: "email" }
+  };
+  function known(id) { return typeof id === "string" && Object.prototype.hasOwnProperty.call(PROVIDERS, id); }
+  function providerList(c) {
+    var out = [];
+    (Array.isArray(c.providers) ? c.providers : []).forEach(function (id) {
+      if (!known(id)) {
+        if (window.console) window.console.warn("assets/config.js: unknown sign-in provider " + JSON.stringify(id));
+      } else if (out.indexOf(id) < 0) {
+        out.push(id);
+      }
+    });
+    return out;
+  }
+  var providers = configured ? providerList(cfg) : [];
+  /* false while the project cannot send email to the public: the two buttons that work
+     only through an email (the sign-in link, the password reset) are left out */
+  var mail = cfg.emailDelivery !== false;
   var SDK = "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2";
   var META_KEY = "bm.sync.v1";
   /* "game" only where site.js knows the key, so an older site.js still syncs cleanly */
@@ -299,7 +325,7 @@
   }
 
   /* Progress that could not be saved when its reader signed out, set aside by reader:
-     { <user id>: { email, resetAt, state, at } }. It is merged in the next time that
+     { <user id>: { email, via, resetAt, state, at } }. It is merged in the next time that
      reader signs in on this browser, and never shown to anyone else. */
   var PENDING_KEY = "bm.sync.pending.v1";
   function pending() { return obj(Store.read(PENDING_KEY, {})); }
@@ -314,6 +340,7 @@
       var old = obj(p[u.id]);
       p[u.id] = {
         email: u.email || "",
+        via: methodIds(u),
         resetAt: Math.max(Number(m.resetAt) || 0, Number(old.resetAt) || 0),
         state: old.state ? merge(state, old.state) : state,
         at: Date.now()
@@ -554,6 +581,40 @@
     if (res && res.error) throw res.error;
     return res ? res.data : null;
   }
+  /* what to call the reader: not every sign-in service passes an email address on */
+  function label(u) {
+    var md = obj(u && u.user_metadata);
+    return str(u && u.email) || str(md.full_name) || str(md.name) || str(md.user_name) || str(md.preferred_username);
+  }
+  /* the ways this account can sign in, as the account service records them */
+  function methodIds(u) {
+    var app = obj(u && u.app_metadata), out = [];
+    var list = Array.isArray(app.providers) && app.providers.length ? app.providers
+      : app.provider ? [app.provider]
+      : (Array.isArray(u && u.identities) ? u.identities : []).map(function (i) { return obj(i).provider; });
+    list.forEach(function (p) { if (typeof p === "string" && p && out.indexOf(p) < 0) out.push(p); });
+    return out;
+  }
+  function methodNames(u) {
+    return methodIds(u).map(function (id) { return known(id) ? PROVIDERS[id].label : id === "email" ? "your email address" : id; });
+  }
+  /* "A", "A and B", "A, B and C" */
+  function listOf(names) {
+    return names.length < 2 ? names.join("") : names.slice(0, -1).join(", ") + " and " + names[names.length - 1];
+  }
+  /* A sign-in that did not go through comes back with the reason in the address, before
+     or after the #: { error, code, description }, or null when the address carries none. */
+  function urlError(href) {
+    var q, h;
+    try {
+      var u = new URL(href);
+      q = u.searchParams;
+      h = new URL("http://x/?" + u.hash.replace(/^#/, "")).searchParams;
+    } catch (e) { return null; }
+    function get(k) { return q.get(k) || h.get(k) || ""; }
+    var out = { error: get("error"), code: get("error_code"), description: get("error_description") };
+    return out.error || out.code || out.description ? out : null;
+  }
 
   var started = null;
   var Account = {
@@ -561,6 +622,10 @@
     recovering: false,
     merge: merge,
     mergeGame: mergeGame,
+    providers: providers.slice(),
+    label: label,
+    methods: methodIds,
+    urlError: urlError,
     user: function () { return user; },
     status: function () { return status; },
     onChange: function (fn) { watchers.push(fn); },
@@ -585,9 +650,14 @@
         return c.auth.signInWithOtp({ email: email, options: { emailRedirectTo: pageUrl("account.html") } });
       }).then(unwrap);
     },
-    google: function () {
+    /* hands the reader over to one of the services in `providers`; they come back to the
+       account page signed in, or with the reason it failed in the address (urlError) */
+    oauth: function (id) {
+      if (providers.indexOf(id) < 0) return Promise.reject(new Error("That way of signing in is not switched on for this site."));
+      var options = { redirectTo: pageUrl("account.html") };
+      if (PROVIDERS[id].scopes) options.scopes = PROVIDERS[id].scopes;
       return Account.ready().then(function (c) {
-        return c.auth.signInWithOAuth({ provider: "google", options: { redirectTo: pageUrl("account.html") } });
+        return c.auth.signInWithOAuth({ provider: id, options: options });
       }).then(unwrap);
     },
     forgot: function (email) {
@@ -657,7 +727,17 @@
     exportData: function () {
       var data = readLocal();
       data.exported = new Date().toISOString();
-      if (user) data.account = user.email;
+      if (user) {
+        var md = obj(user.user_metadata);
+        data.account = user.email || null;
+        data.signInWith = methodIds(user);
+        /* what a sign-in service passed on about the reader, as the account page describes it */
+        data.profile = {
+          name: str(md.full_name) || str(md.name) || null,
+          username: str(md.user_name) || str(md.preferred_username) || null,
+          picture: str(md.avatar_url) || str(md.picture) || null
+        };
+      }
       return data;
     }
   };
@@ -676,10 +756,10 @@
       nav.appendChild(a);
     }
     if (user) {
-      var initial = (user.email || "?").charAt(0).toUpperCase();
+      var who = label(user), initial = (who || "?").charAt(0).toUpperCase();
       a.innerHTML = '<span class="avatar" aria-hidden="true">' + Site.escapeHtml(initial) + "</span>" +
         '<span class="visually-hidden">Your account</span>';
-      a.setAttribute("title", "Signed in as " + (user.email || "you"));
+      a.setAttribute("title", "Signed in" + (who ? " as " + who : ""));
       a.setAttribute("data-in", "true");
     } else {
       a.textContent = "Sign in";
@@ -689,6 +769,18 @@
   }
 
   drawButton();
+  /* A sign-in that failed at the other service lands back on the account page with the
+     reason in the address. It is taken out here, before the SDK reads the address, and
+     shown by the account page below. */
+  var returned = configured && document.querySelector("[data-account]") ? urlError(window.location.href) : null;
+  if (returned) {
+    try {
+      var clean = new URL(window.location.href);
+      ["error", "error_code", "error_description", "sb"].forEach(function (k) { clean.searchParams["delete"](k); });
+      if (/(^#|&)(error|error_code|error_description)=/.test(clean.hash)) clean.hash = "";
+      window.history.replaceState(null, "", clean.pathname + clean.search + clean.hash);
+    } catch (e) { /* the message is still shown; the address just keeps its extras */ }
+  }
   var needsSession = document.querySelector("[data-account], [data-owner-insights]") ||
     /[#&?](access_token|code|error_description|type)=/.test(window.location.hash + window.location.search);
   if (configured && (needsSession || hasStoredSession())) {
@@ -710,10 +802,62 @@
   function setAsideNote() {
     var held = pending();
     return Object.keys(held).map(function (id) {
-      return '<p class="form-note bad">Progress from your last session as <b>' + esc(mask(held[id].email)) + "</b> could not be " +
+      /* the service is named as well: it is how that reader gets back into the same account */
+      var via = (Array.isArray(held[id].via) ? held[id].via : []).filter(known).map(function (p) { return PROVIDERS[p].label; });
+      return '<p class="form-note bad">Progress from your last session as <b>' + esc(mask(held[id].email)) + "</b>" +
+        (via.length ? " (signed in with " + esc(listOf(via)) + ")" : "") + " could not be " +
         "saved to that account when it signed out. It has been set aside in this browser, out of view, and will be " +
         "saved the next time that account signs in here.</p>";
     }).join("");
+  }
+
+  /* Why a sign-in at another service did not go through, in words a reader can act on.
+     The service's own text is shown only when nothing better is known. */
+  function returnMessage(r) {
+    if (r.code === "provider_email_needs_verification") {
+      return "That account's email address has not been verified with the service you chose. Verify it there, then try again.";
+    }
+    if (r.code === "signup_disabled") return "New accounts are not being accepted at the moment.";
+    if (r.code === "otp_expired") return "That link has expired or has already been used. Ask for a new one.";
+    if (r.error === "access_denied") return "Sign-in was cancelled or refused, so nothing has changed. You can try again.";
+    if (r.error === "server_error") {
+      return "The sign-in could not be completed. That service may not have confirmed your email address, or the address " +
+        "belongs to more than one account here. Try another way of signing in.";
+    }
+    /* Anything else is a setup problem for the owner, not something a reader can act on.
+       The description is never shown: it comes from the address, which anyone can write. */
+    if (window.console) window.console.warn("Sign-in returned an error:", r.error, r.code, r.description);
+    return "Sign-in did not finish" + (/^[a-z0-9_]{1,40}$/.test(r.code) ? " (" + r.code + ")" : "") +
+      ". Try again, or use another way of signing in.";
+  }
+  /* shown above the form until the reader does something else; focused once, so that it
+     is read out to someone who cannot see it appear */
+  var returnedText = returned ? returnMessage(returned) : "", returnedShown = false;
+  function returnedNote() {
+    /* an alert only the first time it is drawn, so a redraw does not read it out again */
+    return returnedText ? '<p class="form-note bad" id="acct-returned"' + (returnedShown ? "" : ' role="alert"') +
+      ' tabindex="-1">' + esc(returnedText) + "</p>" : "";
+  }
+  /* what is happening with a provider button, shown beside the buttons rather than at the
+     foot of the form, where it would be off screen */
+  var handover = "";
+  function sayHere(text, bad) {
+    handover = text ? '<p class="form-note' + (bad ? " bad" : "") + '">' + esc(text) + "</p>" : "";
+    var slot = host.querySelector("[data-handover]");
+    if (slot) slot.innerHTML = handover;
+  }
+  function providerButtons() {
+    if (!providers.length) return "";
+    return '<div class="providers" role="group" aria-label="Sign in with an account you already have">' +
+      providers.map(function (id) {
+        return '<button class="btn ghost" id="acct-oauth-' + id + '" type="button">Continue with ' + esc(PROVIDERS[id].label) + "</button>";
+      }).join("") + "</div>" +
+      '<div data-handover role="status" aria-live="polite">' + handover + "</div>" +
+      '<p class="fine">You sign in on that service\'s own page, and it passes on details such as your email address, name, ' +
+      "username and picture. Use the same way of signing in each time: another service opens the same account only when " +
+      "it has the same verified email address, and otherwise starts a separate account with its own progress. " +
+      '<a href="' + Site.rootPrefix() + 'about.html#progress">What is stored</a>.</p>' +
+      '<p class="or">or with an email address and a password</p>';
   }
 
   function field(id, label, type, extra) {
@@ -722,6 +866,11 @@
   }
   /* a message under the form; set in place, so nothing already typed is lost */
   function say(text, bad) {
+    /* a new message replaces the one about the sign-in that did not go through */
+    var old = document.getElementById("acct-returned");
+    if (old) old.parentNode.removeChild(old);
+    returnedText = "";
+    sayHere("");
     notice = text ? '<p class="form-note' + (bad ? " bad" : "") + '">' + esc(text) + "</p>" : "";
     var slot = host.querySelector("[data-note]");
     if (slot) slot.innerHTML = notice;
@@ -750,24 +899,27 @@
         field("acct-new", "New password", "password", 'autocomplete="new-password" minlength="8"') +
         '<p class="actions"><button class="btn" id="acct-setpw" type="submit">Save password</button></p>' + NOTE + "</form>";
     } else if (!user) {
-      html = '<form class="panel auth" novalidate>' + setAsideNote() +
+      html = '<form class="panel auth" novalidate>' + returnedNote() + setAsideNote() +
         "<h2>Sign in or create an account</h2>" +
         "<p>An account keeps your progress, streak and attempt history in one place, so they follow you to " +
         "another browser or device. The course itself never needs one.</p>" +
+        providerButtons() +
         field("acct-email", "Email", "email", 'autocomplete="email" required') +
         field("acct-pass", "Password", "password", 'autocomplete="current-password" minlength="8"') +
         '<p class="actions"><button class="btn" id="acct-in" type="submit">Sign in</button>' +
         '<button class="btn ghost" id="acct-up" type="button">Create account</button></p>' +
-        '<p class="actions quiet"><button class="link" id="acct-link" type="button">Email me a sign-in link instead</button>' +
-        '<button class="link" id="acct-forgot" type="button">Forgot password</button></p>' +
-        (cfg.google ? '<p class="actions"><button class="btn ghost" id="acct-google" type="button">Continue with Google</button></p>' : "") +
+        (mail ? '<p class="actions quiet"><button class="link" id="acct-link" type="button">Email me a sign-in link instead</button>' +
+        '<button class="link" id="acct-forgot" type="button">Forgot password</button></p>' : "") +
         NOTE + "</form>";
     } else {
       var st = status.state === "syncing" ? "Syncing…"
         : status.state === "error" ? "Sync failed: " + (status.error && status.error.message ? status.error.message : "unknown error")
         : status.at ? "Synced at " + status.at.toLocaleTimeString() : "Signed in";
+      var who = label(user), ways = methodNames(user);
       html = '<div class="panel"><h2>Your account</h2>' +
-        "<p>Signed in as <b>" + esc(user.email || "") + "</b>.</p>" +
+        "<p>Signed in" + (who ? " as <b>" + esc(who) + "</b>" : "") + ".</p>" +
+        (ways.length ? '<p class="fine">' + (ways.length > 1 ? "You can sign in to this account with " : "You sign in with ") +
+          esc(listOf(ways)) + ".</p>" : "") +
         '<p class="sync-state" data-state="' + status.state + '">' + esc(st) + "</p>" +
         field("acct-name", "Display name (optional)", "text", 'autocomplete="nickname" maxlength="60"') +
         '<p class="actions"><button class="btn" id="acct-save" type="button">Save name</button>' +
@@ -779,12 +931,16 @@
         "<p>What is stored: the exercises you have solved, how many tries each took, whether a hint or the " +
         "solution was used, missions, XP per day, where you are in each chapter, and your game record " +
         "(achievements, which solutions you compared, medals and scores from the Arena, and when each " +
-        "section is next due for review). Nothing else. Play settings and the combo meter stay on this device.</p>" +
+        "section is next due for review). Play settings and the combo meter stay on this device. The account itself " +
+        "holds your email address and, if you signed in through another service, the details that service passed on, " +
+        "such as your name, username, picture address and your account id there. While you are signed in that way, this browser also keeps a key from " +
+        "that service, which signing out removes; to cut the link completely, remove this site from the connected " +
+        "apps in that service's settings.</p>" +
         '<p class="actions"><button class="btn ghost" id="acct-export" type="button">Download my data</button>' +
         '<button class="btn ghost danger" id="acct-delete" type="button">Delete my account</button></p></div>';
     }
     /* a redraw keeps whatever is in the fields that survive it */
-    var kept = {};
+    var kept = {}, held = document.activeElement && document.activeElement.id === "acct-returned";
     Array.prototype.forEach.call(host.querySelectorAll("input[id]"), function (el) {
       if (el.type !== "password") kept[el.id] = el.value;
     });
@@ -794,7 +950,17 @@
       if (el && !el.value) el.value = kept[id];
     });
     wire();
+    /* focused when first shown, and again if a redraw took the focus away from it */
+    var back = document.getElementById("acct-returned");
+    if (back && (!returnedShown || held)) {
+      returnedShown = true;
+      try { back.focus(); } catch (e) { /* still on the page, and still an alert */ }
+    }
   }
+  /* Back from the other service's page: the button pressed on the way there is live again */
+  window.addEventListener("pageshow", function (e) {
+    if (e && e.persisted) { notice = ""; handover = ""; draw(); }
+  });
 
   function wire() {
     var form = host.querySelector("form");
@@ -802,13 +968,27 @@
 
     on("acct-in", function () {
       if (!val("acct-email") || !val("acct-pass")) return say("Enter your email and password.", true);
-      Account.signIn(val("acct-email"), val("acct-pass")).then(function () { say(""); }, problem);
+      Account.signIn(val("acct-email"), val("acct-pass")).then(function () { say(""); }, function (e) {
+        /* an account made with one of the buttons has no password to get wrong */
+        if (providers.length && e && /invalid login credentials/i.test(e.message || "")) {
+          return say(e.message + ". If you made your account with one of the buttons above, use that button.", true);
+        }
+        problem(e);
+      });
     });
     on("acct-up", function () {
       if (!val("acct-email") || val("acct-pass").length < 8) return say("Enter an email and a password of at least 8 characters.", true);
       Account.signUp(val("acct-email"), val("acct-pass")).then(function (d) {
         say(d && d.session ? "" : "Almost there — check your email for a link to confirm the account.");
-      }, problem);
+      }, function (e) {
+        /* the project's mailer will not write to this address, so no account can be confirmed */
+        var refused = e && (e.code === "email_address_not_authorized" || /not authorized|confirmation (e)?mail/i.test(e.message || ""));
+        if (!mail && refused) {
+          return say("This site cannot send confirmation emails yet, so an account cannot be made with an email and a password." +
+            (providers.length ? " Use one of the buttons above instead." : ""), true);
+        }
+        problem(e);
+      });
     });
     on("acct-link", function () {
       if (!val("acct-email")) return say("Enter your email first.", true);
@@ -818,7 +998,20 @@
       if (!val("acct-email")) return say("Enter your email first.", true);
       Account.forgot(val("acct-email")).then(function () { say("If that address has an account, a reset link is on its way."); }, problem);
     });
-    on("acct-google", function () { Account.google().catch(problem); });
+    providers.forEach(function (id) {
+      on("acct-oauth-" + id, function (btn) {
+        btn.disabled = true;
+        say("");
+        sayHere("Taking you to " + PROVIDERS[id].label + "\u2026");
+        Account.oauth(id).then(function () {
+          /* normally the page has gone by now; if it has not, the button works again */
+          setTimeout(function () { btn.disabled = false; sayHere(""); }, 4000);
+        }, function (e) {
+          btn.disabled = false;
+          sayHere(e && e.message ? e.message : "Something went wrong. Try again in a moment.", true);
+        });
+      });
+    });
     on("acct-setpw", function () {
       if (val("acct-new").length < 8) return say("Use at least 8 characters.", true);
       Account.setPassword(val("acct-new")).then(function () { say("Password changed."); }, problem);
@@ -858,6 +1051,8 @@
       Account.profile().then(function (p) { name = p && p.display_name ? p.display_name : ""; draw(); }, function () { name = ""; });
     }
     if (!user) { name = null; nameFor = null; }
+    /* a message about a sign-in that did not go through is no use to a reader who is signed in */
+    if (user) returnedText = "";
     /* a redraw would wipe what is being typed — unless who is signed in has changed */
     var who = user ? user.id : null, active = document.activeElement;
     var typing = active && host.contains(active) && active.tagName === "INPUT";
