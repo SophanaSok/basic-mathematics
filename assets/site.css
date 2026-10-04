@@ -787,8 +787,6 @@ input.blank { width: auto; min-height: 0; padding: .2rem .45rem; margin: 0 .15em
 .stop[data-state="current"] .stop-card { border-color: var(--part); --edge: var(--part-deep); }
 .stop-link:hover .stop-card { border-color: var(--part); --edge: var(--part-deep); }
 .stop-link:active .stop-card { transform: translateY(4px); box-shadow: none; }
-/* map3d.css lays the list flat beside the 3D map, with no edge to sink into */
-[data-map="3d"] .stop-link:active .stop-card { transform: none; }
 .stop-card .row { display: flex; align-items: center; flex-wrap: wrap; gap: .5rem; }
 .stop-card .label {
   font-family: var(--display); font-size: .72rem; font-weight: 700; letter-spacing: .08em;

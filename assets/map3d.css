@@ -15,7 +15,7 @@
   --edge: var(--part-deep);
   display: flex; flex-direction: column; gap: .1rem; min-width: 0;
   font: 600 .84rem/1.2 var(--sans); color: var(--text); text-align: left;
-  background: var(--surface); border: 1px solid var(--part); border-radius: var(--radius-xs);
+  background: var(--surface); border: 2px solid var(--part); border-radius: var(--radius-xs);
   padding: .45rem .7rem .5rem; box-shadow: 0 3px 0 var(--edge); cursor: pointer;
 }
 .map3d-part b {
@@ -27,7 +27,7 @@
 .map3d-part[data-on] { background: var(--part); color: var(--on-part); }
 .map3d-part[data-on] b { color: inherit; }
 .map3d-part:active { transform: translateY(3px); box-shadow: 0 0 0 var(--edge); }
-.map3d-part:focus-visible { outline: 2px solid var(--focus); outline-offset: 3px; border-radius: var(--radius-xs); }
+.map3d-part:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; border-radius: var(--radius-xs); }
 @media (prefers-reduced-motion: no-preference) {
   html:not([data-calm]) .map3d-part { transition: transform var(--t-1), box-shadow var(--t-1), background var(--t-2); }
 }
@@ -84,17 +84,18 @@
 [data-map="3d"] .stop-node { width: 36px; height: 36px; margin-top: 0; box-shadow: 0 0 0 4px var(--bg); }
 [data-map="3d"] .stop-node > span { width: 28px; height: 28px; font-size: .78rem; }
 [data-map="3d"] .stop[data-state="current"] .stop-node { box-shadow: 0 0 0 4px var(--bg), 0 0 0 6px var(--part-soft); animation: none; }
-[data-map="3d"] .stop-card { gap: .15rem; padding: .5rem .8rem; border-radius: var(--radius-sm); box-shadow: none; }
+[data-map="3d"] .stop-card { gap: .15rem; padding: .5rem .8rem; border-radius: var(--radius-sm); box-shadow: var(--shadow-tile-sm); }
 [data-map="3d"] .stop-card p { display: none; }
 [data-map="3d"] .stop-card h3 { font-size: 1rem; }
 [data-map="3d"] .stop-card .label { font-size: .64rem; }
 [data-map="3d"] .stop-card .meta { margin-top: 0; font-size: .74rem; }
-[data-map="3d"] .stop-link:hover .stop-card { transform: none; box-shadow: none; }
+[data-map="3d"] .stop-link:hover .stop-card { transform: none; }
+[data-map="3d"] .stop-link:active .stop-card { transform: translateY(2px); box-shadow: 0 0 0 var(--tile-edge); }
 [data-map="3d"] .stop-link:hover .stop-node { transform: none; }
 /* the chapter selected on the map, or focused here */
-[data-map="3d"] .stop[data-map-hot] .stop-card { border-color: var(--part); box-shadow: inset 4px 0 0 var(--part); }
+[data-map="3d"] .stop[data-map-hot] .stop-card { border-color: var(--part); box-shadow: inset 4px 0 0 var(--part), var(--shadow-tile-sm); }
 [data-map="3d"] .stop-link:focus-visible { outline: none; }
-[data-map="3d"] .stop-link:focus-visible .stop-card { outline: 2px solid var(--focus); outline-offset: 2px; }
+[data-map="3d"] .stop-link:focus-visible .stop-card { outline: 3px solid var(--focus); outline-offset: 2px; }
 
 /* tablets: the map spans the page and the four Parts sit two by two beneath it */
 @media (min-width: 720px) {
