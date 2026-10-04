@@ -15,7 +15,8 @@
                   boxes, bests, medals (rematches, and clears seen on a chapter
                   page), Daily days, how often the meter filled
      bm.run.v1    this device only: the combo meter, what has been announced, a
-                  cache of which exercises make up each set
+                  cache of which exercises make up each set (and the Arena's own
+                  fields, which this file keeps as it finds them)
      bm.prefs.v1  this device only, never cleared: sound, calm, map, tempo
    =========================================================================== */
 (function () {
@@ -57,13 +58,17 @@
     return g;
   }
 
+  /* the fields this file reads are normalised; any others (the Arena's picks, its ledger
+     of paid runs, today's Daily) are carried through untouched, so a write here keeps them */
   function readRun() {
     var r = obj(Store.read(K.run, {}));
-    var c = obj(r.combo);
-    return {
-      combo: { pips: Math.max(0, Math.min(5, Math.round(num(c.pips)))), shield: !!c.shield },
-      arena: r.arena || null, seen: obj(r.seen), sets: obj(r.sets)
-    };
+    var c = obj(r.combo), out = {};
+    Object.keys(r).forEach(function (k) { out[k] = r[k]; });
+    out.combo = { pips: Math.max(0, Math.min(5, Math.round(num(c.pips)))), shield: !!c.shield };
+    out.arena = r.arena || null;
+    out.seen = obj(r.seen);
+    out.sets = obj(r.sets);
+    return out;
   }
   /* the run store is this device's scratchpad: written quietly, announced by its own events */
   function updateRun(fn) {
@@ -565,12 +570,28 @@
     });
   }
 
+  /* A chapter's practice set as this device sees it, for a rematch: null when it has
+     never opened the chapter. Then the set counts as cleared only on evidence: a banked
+     medal (synced) or the whole chapter solved. */
+  function bossState(S, boss, g) {
+    var keys = boss ? setKeys(S, boss, "practice") || finishedKeys(S, boss, "practice") : null;
+    var set = keys && keys.length ? setStats(S, boss, keys) : null;
+    return {
+      set: set,
+      cleared: !!(boss && (set ? set.won : num(obj(obj(g.enc)[boss + "/practice"]).medal) > 0 || chapterFinished(S, { id: boss })))
+    };
+  }
+  /* whether a rematch of this chapter can win a medal: only once its practice set is cleared */
+  function bossCleared(chapterId) { var S = stores(); return bossState(S, String(chapterId || ""), S.game).cleared; }
+
   /* One Arena run, finished or not. Updates the review boxes, bests, rematch medal and
      Daily, then pays the run's XP once: 2 per first-try answer (3 if that section was
-     due), 1 per answer right on the retry, 5 for finishing with a heart and at least one
-     answer right, 10 for the day's Daily once it is played through. Bests are kept only
-     for ranked (timed, with hearts) runs played to the end; a rematch medal needs that
-     and a heart left. `ranked` and `finished` default to true for older callers. */
+     due), 1 per answer right on the retry (none on a question without a heart, where a
+     wrong answer and "I don't know" lead to the same retry), 5 for finishing with a heart
+     and at least one answer right, 10 for the day's Daily once it is played through.
+     Bests are kept only for ranked (timed, with hearts) runs played to the end; a rematch
+     medal needs that and a heart left. `ranked` and `finished` default to true for older
+     callers. (The Arena itself allows one Daily a day; see assets/arena.js.) */
   function recordRun(result) {
     result = obj(result);
     var answers = Array.isArray(result.answers) ? result.answers : [];
@@ -581,21 +602,15 @@
     var ranked = result.ranked !== false, finished = result.finished !== false;
     var xp = 0, dailyBonus = false, newMedal = 0, before = readGame();
     var bySec = {};
-    /* the rematch's set as this device sees it: null when it has never opened the chapter.
-       Then the set counts as cleared only on evidence: a banked medal (synced) or the
-       whole chapter solved. */
     var boss = result.boss ? String(result.boss) : "", S0 = stores();
-    var bossKeys = boss ? setKeys(S0, boss, "practice") || finishedKeys(S0, boss, "practice") : null;
-    var bossSet = bossKeys && bossKeys.length ? setStats(S0, boss, bossKeys) : null;
-    var cleared = bossSet ? bossSet.won
-      : num(obj(before.enc[boss + "/practice"]).medal) > 0 || chapterFinished(S0, { id: boss });
+    var bs = bossState(S0, boss, before), bossSet = bs.set, cleared = bs.cleared;
 
     answers.forEach(function (a) {
       a = obj(a);
       var sid = a.section ? String(a.section) : "";
       var wasDue = sid ? isDue(before.sec[sid]) : false;
       if (a.first) xp += wasDue ? 3 : 2;
-      else if (a.retry) xp += 1;
+      else if (a.retry && !a.hf) xp += 1;
       if (!sid) return;
       var s = bySec[sid] || (bySec[sid] = { n: 0, ok: 0, miss: 0 });
       s.n++;
@@ -619,9 +634,11 @@
         if (num(sec.fix)) rec.fix = num(sec.fix);
         g.sec[sid] = rec;
       });
-      /* Repair: an untimed run on one weak section; it counts as repaired when every
-         answer came right and at least four in five were right first time */
-      if (mode === "repair" && result.section && answers.length) {
+      /* Repair: an untimed run on one weak section; it counts as repaired when it was
+         played to the end, every answer came right and at least four in five were right
+         first time. A banked repair records its answers but repairs nothing. */
+      var planned = Math.max(1, Math.floor(num(result.planned)) || 5);
+      if (mode === "repair" && result.section && finished && answers.length >= planned) {
         var all = answers.every(function (a) { return a && (a.first || a.retry); });
         var firsts = answers.filter(function (a) { return a && a.first; }).length;
         if (all && firsts / answers.length >= 0.8) {
@@ -668,7 +685,7 @@
     if (xp && Activity) Activity.add(xp, "arena");
     Store.emit({ type: "arena", phase: "recorded", mode: mode, xp: xp, medal: newMedal });
     schedule();
-    return { xp: xp, medal: newMedal, game: g };
+    return { xp: xp, medal: newMedal, game: g, cleared: cleared };
   }
 
   /* A section repaired in the Arena stops dragging its old misses behind it: once the
@@ -1456,7 +1473,7 @@
     prefs: prefs, setPref: setPref,
     combo: combo, bonus: bonus,
     medal: medal, setStats: setStats, isMiss: isMiss, MEDALS: MEDALS, stars: starsHtml,
-    sectionStatus: sectionStatus, deck: deck, recordRun: recordRun,
+    sectionStatus: sectionStatus, deck: deck, recordRun: recordRun, cleared: bossCleared,
     unlock: unlock, unlockedSince: unlockedSince, evaluate: function () { return evaluate(false); },
     /* take in what is already true without a toast for each (encounter.js, after it
        first learns which exercises make up this page's sets) */
