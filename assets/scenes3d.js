@@ -88,7 +88,9 @@
      g.cubes(cells, o)     unit cells [{at: [x, y, z], tone}] (or [x, y, z, tone]) filling
                            [x, x+1]×…; only exposed faces are drawn; o.stroke (default "surface")
      g.plane(n, d, o)      the plane n·p = d clipped to view.bounds     g.line3(p, dir, o) likewise
-     g.sphere(c, r, o)     g.dot(p, o)  (o.r px)     g.label(p, text, o)  (o.dx, o.dy, o.anchor,
+     g.sphere(c, r, o)     o.tone, o.alpha; o.edge: tone of its outline (default "axis",
+                           false = none), o.w its width
+     g.dot(p, o)  (o.r px)     g.label(p, text, o)  (o.dx, o.dy, o.anchor,
                            o.size scale, o.weight; o.minor: dropped on phone-width stages)
      g.grid(o)             floor lines: o.z, o.min [x, y], o.max [x, y], o.step (lines through 0
                            on the floor are left to the axes)
@@ -102,10 +104,13 @@
 
    ------------------------------------------------------------------ input
    Press within 30 viewBox units of a handle to drag it (a gizmo picks the rail that
-   best matches the drag); press elsewhere to orbit (0.4° per px). Keyboard: Tab to the
-   stage; arrows move the selected handle (gizmo: ←→ first axis, ↑↓ last axis, Page
-   Up/Down the middle one); Space or Enter selects the next handle and finally the view
-   (arrows turn it 5°, Shift 15°); Home resets the view.
+   best matches the drag); press elsewhere to orbit (0.4° per px). A finger turns the view
+   only once its swipe is clearly sideways: a vertical swipe scrolls the page and leaves
+   the view as it was. Keyboard: Tab to the stage; arrows move the selected handle the way
+   they point on the screen (a gizmo gives ←→ and ↑↓ the rails that best match them and
+   Page Up/Down the third; the stage's label names them); Space or Enter selects the next
+   handle and finally the view (arrows turn it 5°, Shift 15°); Home resets the view. Keys
+   pressed on the Reset view button inside the stage are the button's own.
    =========================================================================== */
 (function () {
   "use strict";
@@ -398,7 +403,8 @@
   };
   List.prototype.sphere = function (c, r, opts) {
     opts = o(opts);
-    this.items.push({ k: "ball", c: c, r: r, tone: opts.tone || "faceA", alpha: opts.alpha === undefined ? 1 : opts.alpha });
+    this.items.push({ k: "ball", c: c, r: r, tone: opts.tone || "faceA", alpha: opts.alpha === undefined ? 1 : opts.alpha,
+      edge: opts.edge === undefined ? "axis" : opts.edge, ew: opts.w || 1.5 });
   };
   List.prototype.dot = function (p, opts) {
     opts = o(opts);
@@ -520,6 +526,17 @@
         pa = cam.project(it.c);
         if (!finite([pa])) return;
         prims.push({ t: "ball", c: pa, R: it.r * cam.S, rw: it.r, rgb: t.rgb, css: t.css, a2: it.alpha * t.a, z: pa[2] });
+        if (it.edge) {
+          /* the outline: the great circle square to the line of sight, at the centre's depth.
+             A pale or see-through ball can sit close to the stage colour (dark theme), so its
+             outline is what shows where the ball ends. */
+          var et = tone(it.edge), R2 = it.r * cam.S, nb = Math.max(24, Math.min(96, Math.round(R2 / 2)));
+          for (var bi = 0; bi < nb; bi++) {
+            var b0 = (bi / nb) * Math.PI * 2, b1 = ((bi + 1) / nb) * Math.PI * 2;
+            line([pa[0] + R2 * Math.cos(b0), pa[1] + R2 * Math.sin(b0), pa[2]],
+              [pa[0] + R2 * Math.cos(b1), pa[1] + R2 * Math.sin(b1), pa[2]], et, it.ew, null, 1);
+          }
+        }
       } else if (it.k === "dot") {
         pa = cam.project(it.p);
         if (!finite([pa])) return;
@@ -954,14 +971,46 @@
       if (readout) readout.innerHTML = spec.say ? spec.say(s, quiz) : "";
       describe();
     }
+    /* The arrow keys follow the screen under the current camera. Up moves a handle along
+       whichever of its rails, and whichever way along it, runs most nearly up the stage;
+       Right, most nearly to the right. A gizmo gives the arrows the pair of rails that best
+       matches them (on a tie, ←→ the first, ↑↓ the last) and Page Up/Down the third. A rail
+       nearly square to its key takes the other key's sense, and one seen end-on keeps +axis.
+       A key press is still exactly one step along one rail, so the scene's snapping holds. */
+    var AXIS_NAMES = ["x", "y", "z"];
+    function keyMap(hd) {
+      var axes = hd.axes, n = axes.length, h = 0, v = n - 1, best = -1, i, j;
+      var dirs = axes.map(function (a) {
+        var r = cam.rail(V.norm(a));
+        return [r[0] / cam.S, r[1] / cam.S];
+      });
+      for (i = 0; i < n; i++) {
+        for (j = 0; j < n; j++) {
+          if (i === j && n > 1) continue;
+          var score = Math.abs(dirs[i][0]) + Math.abs(dirs[j][1]) + (i === 0 && j === n - 1 ? 0.05 : 0);
+          if (score > best) { best = score; h = i; v = j; }
+        }
+      }
+      function entry(k, screen) {
+        var d = dirs[k], L = Math.sqrt(d[0] * d[0] + d[1] * d[1]), sg = 1;
+        if (L >= 0.1) {
+          if (Math.abs(d[screen]) < 0.26 * L) screen = 1 - screen;
+          sg = (screen === 0 ? d[0] : -d[1]) >= 0 ? 1 : -1;
+        }
+        var a = axes[k], nz = [0, 1, 2].filter(function (c) { return Math.abs(a[c]) > 1e-9; });
+        return { a: a, sg: sg, name: nz.length === 1 ? AXIS_NAMES[nz[0]] : "guide line " + (k + 1) };
+      }
+      return { h: entry(h, 0), v: entry(v, 1), m: n === 3 ? entry(3 - h - v, 1) : null };
+    }
     function describe() {
       var hs = live(), parts = [spec.label || "A three-dimensional figure"];
       if (sel < hs.length) {
         var hd = hs[sel];
         /* a scene may word its handle itself, so the label never says more than the readout */
         parts.push(hd.say ? hd.say(s, quiz) : hd.name + " at (" + hd.at(s).map(fmt).join(", ") + ")");
-        parts.push(hd.keys || (hd.axes.length === 3 ? "Left and right arrows move it along x, up and down along z, Page Up and Page Down along y"
-          : hd.axes.length === 2 ? "Arrow keys move it" : "Arrow keys move it along its line"));
+        var km = keyMap(hd);
+        parts.push(hd.keys || (hd.axes.length > 1 ? "Left and right arrows move it along " + km.h.name + ", up and down along " +
+          km.v.name + (km.m ? ", Page Up and Page Down along " + km.m.name : "") : "Arrow keys move it along its line"));
       } else {
         parts.push("Turning the view: azimuth " + Math.round(cam.az) + "°, elevation " + Math.round(cam.el) + "°");
         parts.push("Arrow keys turn it, Home resets it");
@@ -1028,7 +1077,8 @@
       var t = hs.length
         ? "Drag " + hs.join(" or ") + " along a guide line, or drag anywhere else to turn the view. " +
           "From the keyboard: Tab to the picture, move " + (hs.length > 1 ? "the selected point" : hs[0]) +
-          " with the arrow keys" + (handles.some(function (hd) { return hd.axes.length === 3; }) ? " (Page Up and Page Down for y)" : "") +
+          " with the arrow keys, which move it the way they point" +
+          (handles.some(function (hd) { return hd.axes.length === 3; }) ? " (Page Up and Page Down for the third direction)" : "") +
           "; Space " + (hs.length > 1 ? "switches points, then " : "") + "switches to turning the view; Home resets it."
         : "Drag the picture to turn it, or Tab to it and use the arrow keys; Home resets the view.";
       if (spec.sibling && document.querySelector && document.querySelector('[data-widget="' + spec.sibling + '"]')) {
@@ -1063,7 +1113,8 @@
         stageEl.setAttribute("data-drag", "handle");
         e.preventDefault();
       } else {
-        dragging = { orbit: true, x: l.x, y: l.y, az: cam.az, el: cam.el };
+        dragging = { orbit: true, x: l.x, y: l.y, az: cam.az, el: cam.el, cx: e.clientX, cy: e.clientY,
+          wait: e.pointerType === "touch" || e.pointerType === "pen" };
         stageEl.setAttribute("data-drag", "view");
         if (e.pointerType === "mouse") e.preventDefault();
       }
@@ -1076,6 +1127,21 @@
       if (!dragging) return;
       var l = local(e), dx = l.x - dragging.x, dy = l.y - dragging.y;
       if (dragging.orbit) {
+        if (dragging.wait) {
+          /* a finger may be starting a page scroll (touch-action: pan-y): turn nothing until
+             it has gone 10px, then only if it went clearly sideways; a vertical swipe is the
+             page's, so let it go untouched */
+          var mx = e.clientX - dragging.cx, my = e.clientY - dragging.cy;
+          if (mx * mx + my * my < 100) return;
+          if (Math.abs(mx) < 1.2 * Math.abs(my)) {
+            dragging = null;
+            stageEl.removeAttribute("data-drag");
+            return;
+          }
+          dragging.wait = false;
+          dragging.x = l.x; dragging.y = l.y;
+          dx = 0; dy = 0;
+        }
         cam.set(dragging.az - dx * 0.4, dragging.el + dy * 0.4);
         paint();
         return;
@@ -1107,13 +1173,20 @@
       describe();
     }
     stageEl.addEventListener("pointerup", end);
-    stageEl.addEventListener("pointercancel", end);
+    stageEl.addEventListener("pointercancel", function () {
+      /* the browser took the swipe for a page scroll: undo any turn its first pixels made */
+      if (dragging && dragging.orbit) cam.set(dragging.az, dragging.el);
+      end();
+    });
     /* vertical swipes scroll the page, except when they start on a handle */
     stageEl.addEventListener("touchstart", function (e) {
       var t = e.touches && e.touches[0];
       if (t && pick(local(t))) e.preventDefault();
     }, { passive: false });
     stageEl.addEventListener("keydown", function (e) {
+      /* only keys pressed on the stage itself: the Reset view button inside it keeps its own
+         Enter and Space, and browser shortcuts (Alt+Left, Ctrl+Home) pass through */
+      if (e.target !== stageEl || e.altKey || e.ctrlKey || e.metaKey) return;
       var hs = live(), key = e.key;
       if (key === " " || key === "Spacebar" || key === "Enter") {
         sel = (sel + 1) % (hs.length + 1);
@@ -1128,10 +1201,10 @@
         return;
       }
       if (sel < hs.length) {
-        var hd = hs[sel], a = null, sg = 0, n = hd.axes.length;
-        if (key === "ArrowLeft" || key === "ArrowRight") { a = hd.axes[0]; sg = key === "ArrowRight" ? 1 : -1; }
-        else if (key === "ArrowUp" || key === "ArrowDown") { a = hd.axes[n - 1]; sg = key === "ArrowUp" ? 1 : -1; }
-        else if ((key === "PageUp" || key === "PageDown") && n === 3) { a = hd.axes[1]; sg = key === "PageUp" ? 1 : -1; }
+        var hd = hs[sel], km = keyMap(hd), a = null, sg = 0;
+        if (key === "ArrowLeft" || key === "ArrowRight") { a = km.h.a; sg = km.h.sg * (key === "ArrowRight" ? 1 : -1); }
+        else if (key === "ArrowUp" || key === "ArrowDown") { a = km.v.a; sg = km.v.sg * (key === "ArrowUp" ? 1 : -1); }
+        else if ((key === "PageUp" || key === "PageDown") && km.m) { a = km.m.a; sg = km.m.sg * (key === "PageUp" ? 1 : -1); }
         if (!a) return;
         e.preventDefault();
         hd.move(s, V.add(hd.at(s), V.scale(a, sg * hd.step)));

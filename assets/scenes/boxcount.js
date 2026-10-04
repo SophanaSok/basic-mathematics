@@ -119,7 +119,10 @@
       }
       /* the floor, drawn a hair below z = 0 so that its lines through 0 are kept */
       g.grid({ min: [-1, -1], max: [Math.ceil(e[0]) + 1, Math.ceil(e[1]) + 1], step: 1, z: -0.01 });
-      g.cubes(cells, { w: 1.4 });
+      /* the seams between cubes are what the reader counts: drawn in ink, they stand 3:1 or
+         more off every shade of both layer colours, in both themes (--plot-bg seams did not
+         on the dark faces) */
+      g.cubes(cells, { w: 1.2, stroke: "ink" });
 
       /* side labels on the silhouette: the two bottom edges nearer the viewer, and the
          upright edge furthest left on the screen */
