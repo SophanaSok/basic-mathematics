@@ -10,7 +10,7 @@
 
   var C = window.BM_CURRICULUM, Site = window.BMSite, Store = window.BMStore;
   var Progress = window.BMProgress, Play = window.BMPlay, Activity = window.BMActivity;
-  var Insights = window.BMInsights, Account = window.BMAccount;
+  var Insights = window.BMInsights, Account = window.BMAccount, Game = window.BMGame;
   if (!C || !Site || !Store) return;
   var esc = Site.escapeHtml;
 
@@ -72,6 +72,8 @@
       '<span class="area-meter">' + meter(pct(r.first, r.n), weak ? "weak" : "ok") +
       '<span class="area-detail">' + detail + "</span></span>" +
       (weak ? '<a class="btn ghost small" href="' + esc(r.path) + '">Reread</a>' : "") +
+      /* the Arena's untimed Repair: fresh problems on this one section */
+      (weak && Game ? '<a class="btn ghost small" href="arena.html?repair=' + encodeURIComponent(r.id) + '">Repair (untimed)</a>' : "") +
       "</li>";
   }
 
@@ -81,10 +83,12 @@
       first[r.chapter.id] = (first[r.chapter.id] || 0) + r.first;
       tried[r.chapter.id] = (tried[r.chapter.id] || 0) + r.n;
     });
+    var cols = Game ? 5 : 4;
     var html = '<div class="tbl-wrap"><table class="chapters"><thead><tr><th>Chapter</th><th>Exercises</th>' +
-      '<th class="num">Missions</th><th class="num">Right first time</th></tr></thead><tbody>';
+      '<th class="num">Missions</th><th class="num">Right first time</th>' +
+      (Game ? '<th class="num">Medal</th>' : "") + "</tr></thead><tbody>";
     C.parts.forEach(function (part) {
-      html += '<tr class="part-row" data-part="' + esc(part.id) + '"><th colspan="4">Part ' + part.num + " — " + esc(part.name) + "</th></tr>";
+      html += '<tr class="part-row" data-part="' + esc(part.id) + '"><th colspan="' + cols + '">Part ' + part.num + " — " + esc(part.name) + "</th></tr>";
       part.chapters.forEach(function (ch) {
         var c = Progress.count(ch.id), m = Play.count(ch.id);
         html += '<tr data-part="' + esc(part.id) + '"><td><a href="' + esc(ch.path) + '">' +
@@ -93,10 +97,72 @@
           ? meter(pct(c.solved, c.total), "part") + "<span>" + c.solved + " / " + c.total + "</span>"
           : '<span class="muted">not opened</span>') + "</td>";
         html += '<td class="num">' + (m.total ? "★ " + Math.min(m.done, m.total) + " / " + m.total : "—") + "</td>";
-        html += '<td class="num">' + (tried[ch.id] ? pct(first[ch.id], tried[ch.id]) + "%" : "—") + "</td></tr>";
+        html += '<td class="num">' + (tried[ch.id] ? pct(first[ch.id], tried[ch.id]) + "%" : "—") + "</td>";
+        if (Game) {
+          var md = Game.medal(ch.id, "practice");
+          html += '<td class="num cell-medal"' + (md ? ' data-medal="' + md + '"' : "") + ">" +
+            (md ? '<span aria-hidden="true">' + new Array(md + 1).join("★") + "</span> " + Game.MEDALS[md] : "—") + "</td>";
+        }
+        html += "</tr>";
       });
     });
     return html + "</tbody></table></div>";
+  }
+
+  /* -------------------------------------------------- game layer panels -- */
+
+  function dayLabel(key) {
+    var m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(key || ""));
+    if (!m) return "";
+    return new Date(+m[1], +m[2] - 1, +m[3]).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
+  }
+
+  /* what the Arena's spaced review says: what is due, what is holding, how recall is going */
+  function recallPanel() {
+    var deck = Game.deck(), sec = Game.game().sec, ids = Object.keys(sec);
+    var html = '<section class="panel" id="recall"><h2>Recall</h2>';
+    if (!deck.length) {
+      return html + '<p class="muted">Recall starts once you have solved something: sections you have solved come back ' +
+        "in the Arena at widening gaps (1, 3, 7, 14 and 30 days), which is what makes them stick.</p></section>";
+    }
+    var due = deck.filter(function (d) { return d.due; }), holding = 0, n = 0, ok = 0, last = "";
+    ids.forEach(function (id) {
+      var s = sec[id] || {};
+      if ((s.box || 0) >= 3) holding++;
+      n += s.n || 0;
+      ok += Math.min(s.ok || 0, s.n || 0);
+      if (s.last && s.last > last) last = s.last;
+    });
+    html += '<div class="stats">';
+    html += tile("Due now", due.length, plural(deck.length, "section") + " in play");
+    html += tile("Holding", holding, "sections in box 4 or 5");
+    html += tile("Last practised", last ? esc(dayLabel(last)) : "—", last ? "in the Arena" : "no Arena run yet");
+    html += tile("First-try recall", n ? ok + "<small> / " + n + "</small>" : "—", n ? pct(ok, n) + "% of Arena answers" : "");
+    html += "</div>";
+    if (due.length) {
+      html += '<p class="muted">Due for review: ' + due.slice(0, 6).map(function (d) {
+        return '<a href="' + esc(d.path) + '">' + esc(d.label + " " + d.title) + "</a>";
+      }).join(", ") + (due.length > 6 ? " and " + (due.length - 6) + " more" : "") +
+        '. <a href="arena.html">Open the Arena →</a></p>';
+    }
+    return html + "</section>";
+  }
+
+  function achievementsPanel() {
+    var S = Game.stores(), ach = S.game.ach, got = 0;
+    var items = Game.ACHIEVEMENTS.map(function (a) {
+      var at = ach[a.id], p = a.progress(S);
+      if (at) got++;
+      return '<li class="ach" data-id="' + esc(a.id) + '"' + (at ? ' data-unlocked="true"' : "") + ">" +
+        '<span class="ach-title">' + esc(a.title) + "</span>" +
+        '<span class="ach-text">' + esc(a.text) + "</span>" +
+        '<span class="ach-meta">' + (at
+          ? "Unlocked " + esc(new Date(at).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" }))
+          : meter(pct(p[0], p[1])) + "<span>" + p[0] + " / " + p[1] + "</span>") + "</span></li>";
+    });
+    return '<section class="panel" id="achievements"><div class="panel-head"><h2>Achievements</h2>' +
+      '<span class="muted">' + got + " of " + items.length + " unlocked</span></div>" +
+      '<ul class="achievements">' + items.join("") + "</ul></section>";
   }
 
   function drawProgress() {
@@ -116,7 +182,13 @@
     html += tile("Streak", streak, streak === 1 ? "day" : "days", streak ? ' data-on="true"' : "");
     html += tile("Today", today + '<small> / ' + goal + " XP</small>",
       today >= goal ? "Goal reached" : (goal - today) + " XP to go");
-    html += tile("Total XP", Activity.total(), "");
+    if (Game) {
+      var lv = Game.info();
+      html += tile("Level", lv.level, esc(lv.rank) + " · " + lv.into + " / " + lv.span + " XP to level " + (lv.level + 1),
+        ' data-level="' + lv.level + '"');
+    } else {
+      html += tile("Total XP", Activity.total(), "");
+    }
     html += tile("Exercises solved", solved, plural(done, "chapter") + " finished");
     html += tile("Right first time", tried ? pct(first, tried) + "%" : "—", tried ? "of " + tried + " questions tried" : "nothing tried yet");
     html += tile("Missions", "★ " + stars, "on the figures");
@@ -149,6 +221,7 @@
     }
 
     html += '<section class="panel"><h2>Chapter by chapter</h2>' + chapterTable() + "</section>";
+    if (Game) html += recallPanel() + achievementsPanel();
 
     if (Account && Account.configured && !Account.user()) {
       html += '<p class="muted">This page is built from what this browser has saved. ' +
@@ -165,7 +238,9 @@
 
   if (page && Progress && Play && Activity && Insights) {
     drawProgress();
-    Store.on(function (c) { if (c.type === "sync") drawProgress(); });
+    Store.on(function (c) {
+      if (c.type === "sync" || c.type === "reset" || c.type === "achievement" || c.type === "level") drawProgress();
+    });
     if (Account) Account.onChange(drawProgress);
   }
 
