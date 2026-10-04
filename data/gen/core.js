@@ -125,8 +125,8 @@
      that is not the same number fails the build. */
 
   /* k·π/d in the course's typed form: "5pi/6", "pi/3", "2pi" — with the other
-     spellings a reader might type: pi first (π·9, the order the formulas are
-     written in), a middle dot, a bracketed coefficient (3/4)π. */
+     spellings a reader might type: pi first (π·9, π·3/4, the order the formulas
+     are written in), a middle dot, a bracketed coefficient (3/4)π. */
   function piAns(k, d) {
     var f = reduce(k, d), n = f.n, m = f.d;
     if (n === 0) return "0";
@@ -141,6 +141,8 @@
     var c = a + "/" + m;
     list = [sgn + head + "/" + m, sgn + "(" + head + ")/" + m, sgn + c + "pi", sgn + "(" + c + ")pi", sgn + c + "·pi", sgn + "(" + c + ")·pi"];
     if (a > 1) list.push(sgn + a + "·pi/" + m, sgn + "(" + a + "·pi)/" + m);
+    else list.push(sgn + "1pi/" + m);   /* 1π/2, as 1π is accepted for π */
+    list.push(sgn + "pi" + c, sgn + "pi·" + c, sgn + "pi(" + c + ")");   /* π·3/4, π*3/4 */
     return list.join("|");
   }
 
@@ -148,22 +150,26 @@
   function halfRootAns(n) {
     var list = [];
     ["sqrt(" + n + ")", "sqrt" + n].forEach(function (rt) {
-      list.push(rt + "/2", "(" + rt + ")/2", "1/2" + rt, "(1/2)" + rt, "1/2·" + rt, "(1/2)·" + rt);
+      list.push(rt + "/2", "(" + rt + ")/2", "1/2" + rt, "(1/2)" + rt, "1/2·" + rt, "(1/2)·" + rt, rt + "·1/2");
     });
+    /* √3·1/2, and sqrt(3)*1/2 once the grader drops the "*"; not √3*1/2, which
+       becomes sqrt31/2, the same string as √31/2 */
+    list.push("sqrt(" + n + ")1/2");
     if (n === 2) list.push("1/sqrt(2)", "1/sqrt2", "1/(sqrt2)", "1/(sqrt(2))");
     return list.join("|");
   }
 
   /* y = mx + b: the course's form first, then the constant first (y = 7 + x), the
-     form filled in literally (y = 1x + 7, y = 3x + 0, y = 3x + -5), each with and
-     without "y =" */
+     form filled in literally (y = 1x + 7, y = 3x + 0, y = 3x + -5, y = 3x + (-5),
+     y = (-3)x + 5), each with and without "y =" */
   function lineAns(m, b) {
     var mts = [poly([[m, "x"]])], rhs = [], seen = {}, list = [];
     if (Math.abs(m) === 1) mts.push(m + "x");
-    var tails = b > 0 ? ["+" + b] : b < 0 ? [String(b), "+" + b] : ["", "+0"];
+    if (m < 0) mts.push("(" + m + ")x");
+    var tails = b > 0 ? ["+" + b] : b < 0 ? [String(b), "+" + b, "+(" + b + ")"] : ["", "+0"];
     mts.forEach(function (mt) {
       tails.forEach(function (tl) { rhs.push(mt + tl); });
-      if (b !== 0) rhs.push(b + (mt.charAt(0) === "-" ? "" : "+") + mt);
+      rhs.push(b + (mt.charAt(0) === "-" ? "" : "+") + mt);   /* 7+x, 0+3x */
     });
     rhs.map(function (t) { return "y=" + t; }).concat(rhs).forEach(function (t) {
       if (!seen[t]) { seen[t] = 1; list.push(t); }
@@ -205,8 +211,9 @@
       if (a === 0) { list.push(t, "0" + (b < 0 ? "-" : "+") + mag); return; }
       list.push(a + (b < 0 ? "-" : "+") + mag);         /* -26+22i, -8-6i */
       list.push(t + (a < 0 ? "-" + (-a) : "+" + a));    /* 22i-26, -6i-8, 24i+10 */
-      if (b < 0) list.push(a + "+" + t);                /* -8+-6i, and -6i+-8 by the sort */
+      if (b < 0) list.push(a + "+" + t, a + "+(" + t + ")");   /* -8+-6i (and -6i+-8 by the sort), -8+(-6i) */
     });
+    if (b < 0 && a !== 0) list.push(a + "+(" + b + ")i");   /* -8+(-6)i */
     return list.join("|");
   }
   function cxTex(a, b) {
