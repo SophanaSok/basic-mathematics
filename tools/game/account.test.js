@@ -1,8 +1,9 @@
 #!/usr/bin/env node
 /* The account page as it is drawn (assets/account.js), in headless Chromium.
-     BM_PLAYWRIGHT_FROM=~/dev/json-data-drift-analyzer/ node tools/game/account.test.js
+     node tools/game/account.test.js
 
-   The repo is served in-process (tools/lib/serve.js). Each case pins window.BM_CONFIG, so
+   The site is served in-process as lib/target.js picks it (dist/ when it is built and
+   current, else the source tree). Each case pins window.BM_CONFIG, so
    the real assets/config.js cannot set it, and answers the Supabase SDK's URL with a small
    stand-in that records what the page asks of it. Every other request off the local server
    is aborted: nothing reaches Supabase or any sign-in service.
@@ -21,13 +22,9 @@
    9. a hand-over that fails, or that the reader comes Back from, frees the button
   10. an error in the address is left alone on pages other than the account page */
 "use strict";
-const path = require("path");
-const { createRequire } = require("module");
-const serve = require("../lib/serve");
-
-const ROOT = path.resolve(__dirname, "../..");
-const FROM = process.env.BM_PLAYWRIGHT_FROM || path.join(process.env.HOME || "", "dev/json-data-drift-analyzer/");
-const { chromium } = createRequire(FROM.endsWith("/") ? FROM : FROM + "/")("playwright");
+const site = require("../lib/site");
+const target = require("../lib/target");
+const { chromium } = require("../lib/pw").playwright();
 
 let fails = 0, passes = 0;
 function check(cond, what, detail) {
@@ -81,7 +78,8 @@ window.supabase = { createClient: function () {
 const ALL = ["google", "github", "discord", "facebook", "azure"];
 
 (async () => {
-  const server = await serve.start(ROOT, "HEAD");
+  const server = await target.start(site.parseArgs(process.argv.slice(2)));
+  console.log("account: " + server.where);
   const browser = await chromium.launch();
   const errors = [];
 
@@ -92,7 +90,7 @@ const ALL = ["google", "github", "discord", "facebook", "azure"];
     const outside = [];
     await context.route(/^(https?|wss?):/, (r) => {
       const u = r.request().url();
-      if (u.startsWith(server.url)) return r.continue();
+      if (server.owns(u)) return r.continue();
       outside.push(u);
       if (/^https:\/\/cdn\.jsdelivr\.net\/npm\/@supabase\/supabase-js/.test(u)) {
         return r.fulfill({ status: 200, contentType: "text/javascript; charset=utf-8", body: SDK });

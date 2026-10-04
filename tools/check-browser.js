@@ -1,13 +1,19 @@
 #!/usr/bin/env node
 "use strict";
-/* Browser checks for the site, driven by Playwright (resolved from a sibling project;
-   see lib/pw.js and BM_PLAYWRIGHT_FROM).
+/* Browser checks for the site, driven by Playwright (a dev dependency; see lib/pw.js).
 
-   Usage: node tools/check-browser.js [--only=<substring>] [--theme=light|dark] [--vw=1280|360]
-                                      [--base=<ref>] [--headed] [--strict-axe] [--list]
+   Usage: node tools/check-browser.js [--root=<dir>] [--only=<substring>] [--skip=<suite,suite>]
+                                      [--theme=light|dark] [--vw=1280|360] [--base=<ref>]
+                                      [--headed] [--strict-axe] [--list]
 
+   --root      the tree the server serves: `dist` for the built site, `.` for the source
+               tree; without it lib/target.js picks (dist/ when built and current). Page
+               discovery and the static parsing always read the source tree, and the
+               `file` suite always loads it from file://
    --only      a suite name (or several, comma-separated) runs just those suites; anything
                else is matched against page paths and narrows every suite to those pages
+   --skip      suite names to leave out (CI runs --skip=webgl as the deploy gate and
+               --only=webgl in a job of its own)
    --theme     one theme instead of both;  --vw one viewport instead of both
    --base      git ref whose exercise keys the restore suite seeds (default lib/site.js)
    --headed    show the browser
@@ -26,8 +32,9 @@
    ctx has:
      pw, browser            the playwright module and the launched Chromium
      launch                 { args, webgl: {ok, renderer, ...} } chosen by the WebGL probe
-     server                 { url, baseUrl }  — the working tree, and /__base/<path> at --base
-     root, base, outDir     repo root, git ref, output directory
+     server                 { url, baseUrl, root, label }  — the served tree (--root), and
+                            /__base/<path> at --base; tools/fixtures/ always comes from source
+     root, base, outDir     repo root (the source tree), git ref, output directory
      pages, chapterPages    discovered HTML pages (filtered by --only when it names pages)
      chapterOf(rel)         chapter id of a page, or null
      curriculum             data/curriculum.js evaluated
@@ -47,7 +54,7 @@ const path = require("path");
 const site = require("./lib/site");
 const git = require("./lib/git");
 const { parse } = require("./lib/html");
-const serve = require("./lib/serve");
+const target = require("./lib/target");
 const browserLib = require("./lib/browser");
 
 const ROOT = site.ROOT;
@@ -108,7 +115,7 @@ details{margin:.2rem 0}summary{cursor:pointer}pre{white-space:pre-wrap;font-size
 .sum span{display:inline-block;margin-right:1rem}
 </style></head><body>
 <h1>check-browser report</h1>
-<p class="meta">${esc(meta.startedAt)} · ${(meta.durationMs / 1000).toFixed(1)}s · base ${esc(meta.base)} · Playwright ${esc(meta.playwright)} · WebGL ${meta.launch.webgl && meta.launch.webgl.ok ? "ok (" + esc(meta.launch.webgl.renderer) + ") with args " + esc(JSON.stringify(meta.launch.args)) : "unavailable"}</p>
+<p class="meta">${esc(meta.startedAt)} · ${(meta.durationMs / 1000).toFixed(1)}s · ${esc(meta.served)} · base ${esc(meta.base)} · Playwright ${esc(meta.playwright)} · WebGL ${meta.launch.webgl && meta.launch.webgl.ok ? "ok (" + esc(meta.launch.webgl.renderer) + ") with args " + esc(JSON.stringify(meta.launch.args)) : "unavailable"}</p>
 <p class="sum">${Object.values(report.suites).map(s => `<span><b>${esc(s.name)}</b> <span class="${s.fail ? "fail" : "ok"}">${s.pass} ok / ${s.fail} fail</span>${s.warn ? ` <span class="warn">${s.warn} warn</span>` : ""}${s.skip ? ` <span class="skip">${s.skip} skip</span>` : ""} <span class="meta">${(s.ms / 1000).toFixed(0)}s</span></span>`).join("")}</p>`;
   html += `<h2>Failures (${fails.length})</h2>` + (fails.length ? `<table>${fails.map(f => `<tr><td><b>${esc(f.suite)}</b></td><td>${esc(f.name)}</td><td><pre>${esc(typeof f.detail === "string" ? f.detail : JSON.stringify(f.detail, null, 1))}</pre></td></tr>`).join("")}</table>` : "<p class=ok>none</p>");
   html += `<h2>Warnings (${warns.length})</h2>` + (warns.length ? `<details><summary>show</summary><table>${warns.map(f => `<tr><td><b>${esc(f.suite)}</b></td><td>${esc(f.name)}</td><td><pre>${esc(typeof f.detail === "string" ? f.detail : JSON.stringify(f.detail, null, 1))}</pre></td></tr>`).join("")}</table></details>` : "<p class=ok>none</p>");
@@ -152,7 +159,11 @@ async function main() {
   const only = opts.only ? String(opts.only).split(",").map(s => s.trim()).filter(Boolean) : [];
   const suiteMatches = only.filter(o => allSuites.some(s => s.name === o || s.name.includes(o)));
   const pageFilters = only.filter(o => !suiteMatches.includes(o));
-  const suites = suiteMatches.length ? allSuites.filter(s => suiteMatches.some(o => s.name === o || s.name.includes(o))) : allSuites;
+  const skip = opts.skip ? String(opts.skip).split(",").map(s => s.trim()).filter(Boolean) : [];
+  const unknown = skip.filter(o => !allSuites.some(s => s.name === o));
+  if (unknown.length) { console.error("--skip names no suite: " + unknown.join(",")); return 2; }
+  const suites = (suiteMatches.length ? allSuites.filter(s => suiteMatches.some(o => s.name === o || s.name.includes(o))) : allSuites)
+    .filter(s => !skip.includes(s.name));
 
   let pages = site.htmlPages(ROOT);
   if (pageFilters.length) pages = pages.filter(p => pageFilters.some(f => p.includes(f)));
@@ -165,7 +176,9 @@ async function main() {
   fs.rmSync(OUT, { recursive: true, force: true });
   fs.mkdirSync(OUT, { recursive: true });
 
-  const server = await serve.start(ROOT, BASE);
+  let server;
+  try { server = await target.start(Object.assign({}, opts, { base: BASE })); }
+  catch (e) { console.error(e.message); return 2; }
   const report = makeReport();
   const ctx = {
     pw, browser: null, launch: null, server, root: ROOT, base: BASE, baseSha, outDir: OUT,
@@ -174,7 +187,7 @@ async function main() {
     vws: opts.vw ? [parseInt(opts.vw, 10)] : [1280, 360],
     opts, report, axeSource: pwInfo.axeSource, axeVersion: pwInfo.axeVersion, h: null
   };
-  console.log("serving " + ROOT + " at " + server.url + " (base " + BASE + " = " + baseSha.slice(0, 10) + " under /__base/); Playwright " + pwInfo.version + " from " + pwInfo.from);
+  console.log("serving " + server.where + " (base " + BASE + " = " + baseSha.slice(0, 10) + " under /__base/); Playwright " + pwInfo.version + " from " + pwInfo.from);
 
   /* the WebGL probe decides how Chromium is launched for everything else */
   const webgl = allSuites.find(s => s.name === "webgl");
@@ -196,7 +209,7 @@ async function main() {
   await ctx.browser.close();
   await server.close();
 
-  const meta = { startedAt: new Date(t0).toISOString(), durationMs: Date.now() - t0, base: BASE, baseSha, playwright: pwInfo.version, playwrightFrom: pwInfo.from, axe: pwInfo.axeVersion, launch: ctx.launch, pages, themes: ctx.themes, vws: ctx.vws, only: only };
+  const meta = { startedAt: new Date(t0).toISOString(), durationMs: Date.now() - t0, served: server.label, base: BASE, baseSha, playwright: pwInfo.version, playwrightFrom: pwInfo.from, axe: pwInfo.axeVersion, launch: ctx.launch, pages, themes: ctx.themes, vws: ctx.vws, only: only };
   fs.writeFileSync(path.join(OUT, "report.json"), JSON.stringify(Object.assign({}, meta, { suites: report.suites, cells: report.cells }), null, 1));
   writeIndex(report, meta);
   const totals = Object.values(report.suites).reduce((a, s) => ({ pass: a.pass + s.pass, fail: a.fail + s.fail, warn: a.warn + s.warn, skip: a.skip + s.skip }), { pass: 0, fail: 0, warn: 0, skip: 0 });

@@ -1,6 +1,7 @@
 "use strict";
-/* The README promises file:// works. Load index.html and one chapter straight from
-   disk; fail on page errors, console errors, or a site that did not build itself. */
+/* The README promises file:// still works for the source tree. Load index.html and one
+   chapter straight from disk (always the source: the built dist/ is only ever served);
+   fail on page errors, console errors, or a site that did not build itself. */
 const path = require("path");
 
 module.exports = {

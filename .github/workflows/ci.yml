@@ -1,0 +1,171 @@
+# Checks every pull request and every push to main, and deploys main to GitHub Pages.
+#
+#   build    the Node checks, the build, the checks on dist/; dist/ is kept as an artifact
+#   browser  the Chromium checks that do not need WebGL, against that dist/. With build,
+#            this is the gate a deploy waits for.
+#   webgl    the 3D checks (the scene stages, the course map) and the WebGL suite. WebGL
+#            on a runner is software rendering, slow and now and then losing its context,
+#            so these are retried and are not part of the gate
+#   deploy   main only: publishes that same dist/ to GitHub Pages
+#
+# deploy runs only while the repository's Pages source is "GitHub Actions" (Settings,
+# Pages, Build and deployment, Source); pages-source asks. While it is "Deploy from a
+# branch", deploy is skipped with a notice and Pages goes on serving the branch as it
+# always has, so setting the source back is the whole rollback. README.md, "Deploying".
+#
+# "Run workflow" on main (workflow_dispatch) runs all of this again and deploys, without
+# a new commit: the manual way to publish, for instance right after switching the source.
+
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          # the progress-keys check reads the exercises of an old commit through git
+          fetch-depth: 0
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - run: npm run check
+      - run: npm run build
+      - run: npm run check:dist
+      - uses: actions/upload-artifact@v7
+        with:
+          name: dist
+          path: dist
+          # dist/.nojekyll
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 7
+
+  browser:
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    env:
+      # the tools/game scripts load the downloaded build, never the source tree
+      BM_ROOT: dist
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          # the restore suite reads the pages of an old commit through git
+          fetch-depth: 0
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - uses: actions/download-artifact@v8
+        with:
+          name: dist
+          path: dist
+      - run: npx playwright install --with-deps chromium
+      - run: npm run test:browser:core
+      - run: npm run check:browser -- --skip=webgl
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: check-browser-report
+          path: .cache/check
+          include-hidden-files: true
+          if-no-files-found: ignore
+          retention-days: 7
+
+  webgl:
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      BM_ROOT: dist
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - uses: actions/download-artifact@v8
+        with:
+          name: dist
+          path: dist
+      - run: npx playwright install --with-deps chromium
+      - name: npm run test:browser:3d (up to three tries)
+        run: |
+          for try in 1 2 3; do
+            if npm run test:browser:3d; then exit 0; fi
+            echo "::warning::test:browser:3d failed on try $try"
+          done
+          exit 1
+      - name: npm run check:browser -- --only=webgl (up to three tries)
+        run: |
+          for try in 1 2 3; do
+            if npm run check:browser -- --only=webgl; then exit 0; fi
+            echo "::warning::check:browser --only=webgl failed on try $try"
+          done
+          exit 1
+
+  # main only: asks the repository which Pages source is set, so that `deploy` runs only
+  # when it is "GitHub Actions" and is skipped, not failed, while it is still the branch
+  pages-source:
+    if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      pages: read
+    outputs:
+      build_type: ${{ steps.source.outputs.build_type }}
+    steps:
+      - id: source
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+        run: |
+          type=$(gh api "repos/$REPO/pages" --jq .build_type || echo unknown)
+          echo "build_type=$type" >> "$GITHUB_OUTPUT"
+          if [ "$type" != "workflow" ]; then
+            echo "::notice::The Pages source is \"$type\", not GitHub Actions, so nothing is deployed from here: Pages goes on serving the branch. To publish dist/, set Settings > Pages > Source to \"GitHub Actions\" and run this workflow on main."
+          fi
+
+  deploy:
+    # after the gate; webgl is deliberately not in `needs`
+    if: needs.pages-source.outputs.build_type == 'workflow'
+    needs: [build, browser, pages-source]
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      pages: write
+      id-token: write
+    concurrency:
+      group: pages
+      cancel-in-progress: false
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          name: dist
+          path: dist
+      - uses: actions/configure-pages@v6
+      - uses: actions/upload-pages-artifact@v5
+        with:
+          path: dist
+      - uses: actions/deploy-pages@v5
+        id: deployment

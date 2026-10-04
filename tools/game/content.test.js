@@ -10,14 +10,17 @@
      5. in the browser, s3d-room accepts its answer with or without the unit (and as 11.00
         or +11, which the old number compare took), and still
         refuses a wrong length with a unit
-   Usage: BM_PLAYWRIGHT_FROM=~/dev/json-data-drift-analyzer/ node tools/game/content.test.js */
+   Checks 1 to 4 read the source files; 5 loads the page from the site as lib/target.js
+   serves it (dist/ when it is built and current, else the source tree).
+   Usage: node tools/game/content.test.js */
 "use strict";
 const fs = require("fs");
 const path = require("path");
 const vm = require("vm");
-const { createRequire } = require("module");
+const site = require("../lib/site");
+const target = require("../lib/target");
 
-const ROOT = path.resolve(__dirname, "../..");
+const ROOT = site.ROOT;
 const CH08 = "parts/3-coordinates/08-coordinates.html";
 const CH16 = "parts/4-topics/16-determinants.html";
 let fails = 0, passes = 0;
@@ -135,8 +138,10 @@ function exercise(src, id) {
 
 /* ------------------------------------------------- 5. s3d-room, live */
 async function browserPart() {
-  const FROM = process.env.BM_PLAYWRIGHT_FROM || path.join(process.env.HOME || "", "dev/json-data-drift-analyzer/");
-  const { chromium } = createRequire(FROM.endsWith("/") ? FROM : FROM + "/")("playwright");
+  const { chromium } = require("../lib/pw").playwright();
+  const server = await target.start(site.parseArgs(process.argv.slice(2)));
+  console.log("content: " + server.where);
+  const offline = (r) => server.owns(r.request().url()) ? r.continue() : r.abort();
   const browser = await chromium.launch();
   try {
     const cases = [["11", true], ["11 m", true], ["11m", true], ["11 metres", true], ["11 meters", true], ["11.", true],
@@ -144,10 +149,10 @@ async function browserPart() {
       ["12 m", false], ["121", false], ["11 cm", false]];
     for (const [given, right] of cases) {
       const context = await browser.newContext();
-      await context.route(/^(https?|wss?):/, (r) => r.abort());
+      await context.route(/^(https?|wss?):/, offline);
       await context.addInitScript(() => { try { localStorage.setItem("bm.lesson.v1", '{"mode":"page"}'); } catch (e) { /* fine */ } });
       const page = await context.newPage();
-      await page.goto("file://" + path.join(ROOT, CH08));
+      await page.goto(server.url + CH08);
       await page.waitForFunction(() => document.readyState === "complete");
       const ex = page.locator("#s3d-room");
       const input = ex.locator(".ex-form input[type=text]").first();
@@ -161,7 +166,7 @@ async function browserPart() {
     /* every way of writing 11 (bare, as the old number compare took it, or with the unit
        spelt either way) grades right; a wrong length or unit never does */
     const page = await browser.newPage();
-    await page.goto("file://" + path.join(ROOT, CH08));
+    await page.goto(server.url + CH08);
     await page.waitForFunction(() => window.BMSite && document.readyState === "complete");
     const forms = ["11", "11.0", "11.00", "+11", "11.", "11 M", "11 m.", "11 m", "11m", "11.0 m", "11.00 m", "+11 m",
       "11 metre", "11 metres", "11 meter", "11 meters", "11 Metres"];
@@ -175,6 +180,7 @@ async function browserPart() {
     await page.close();
   } finally {
     await browser.close();
+    await server.close();
   }
 }
 

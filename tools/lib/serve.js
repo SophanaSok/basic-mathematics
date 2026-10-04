@@ -1,10 +1,16 @@
 "use strict";
-/* An in-process static server for the repo, on a free port.
-   GET /<path>           the working-tree file
+/* An in-process static server for the site, on a free port.
+   GET /<path>           the file under `root`: the source tree, or the built dist/
    GET /__base/<path>    the same path at the base git ref (via `git show`), so a page
                          at the previous commit can be loaded for comparison without
                          a second checkout. Its relative asset links resolve under
-                         /__base/ too, so the whole old site is browsable there. */
+                         /__base/ too, so the whole old site is browsable there.
+   Options:
+     gitRoot      the checkout `git show` runs in (default: root). Needed when root is
+                  dist/, which holds built files and is not what the ref names.
+     extraRoots   { "/url/prefix/": directory }: paths under the prefix are read from
+                  that directory instead of root. The test fixtures are served this way,
+                  from the source tree, so they never have to be copied into dist/. */
 const http = require("http");
 const fs = require("fs");
 const path = require("path");
@@ -22,6 +28,8 @@ const TYPES = {
 function start(root, base, opts) {
   opts = opts || {};
   const log = opts.log || (() => {});
+  const gitRoot = opts.gitRoot || root;
+  const extra = Object.keys(opts.extraRoots || {}).map(prefix => ({ prefix: prefix.replace(/^\/+/, ""), dir: opts.extraRoots[prefix] }));
   const server = http.createServer((req, res) => {
     let url;
     try { url = decodeURIComponent(req.url.split("?")[0].split("#")[0]); } catch (e) { res.writeHead(400); res.end("bad url"); return; }
@@ -33,9 +41,10 @@ function start(root, base, opts) {
     const type = TYPES[path.posix.extname(rel).toLowerCase()] || "application/octet-stream";
     let body = null;
     if (fromBase) {
-      body = git.show(root, base, rel);
+      body = git.show(gitRoot, base, rel);
     } else {
-      const abs = path.join(root, rel);
+      const over = extra.find(x => rel.startsWith(x.prefix));
+      const abs = over ? path.join(over.dir, rel.slice(over.prefix.length)) : path.join(root, rel);
       try { if (fs.statSync(abs).isFile()) body = fs.readFileSync(abs); } catch (e) { body = null; }
     }
     log(req.method + " " + req.url + " -> " + (body === null ? 404 : 200));
@@ -59,11 +68,12 @@ function start(root, base, opts) {
 
 module.exports = { start, TYPES };
 
-/* `node tools/lib/serve.js [--base=<ref>] [--port=N]` serves the repo for a manual look */
+/* `node tools/lib/serve.js [--root=<dir>] [--base=<ref>] [--port=N]` serves the site for a
+   manual look, from the tree lib/target.js picks */
 if (require.main === module) {
   const site = require("./site");
   const opts = site.parseArgs(process.argv.slice(2));
-  start(site.ROOT, opts.base || site.DEFAULT_BASE, { port: opts.port ? +opts.port : 0, log: console.log }).then(s => {
-    console.log("serving " + site.ROOT + " at " + s.url + " (base " + (opts.base || site.DEFAULT_BASE) + " under " + s.baseUrl + ")");
+  require("./target").start(Object.assign({}, opts, { port: opts.port ? +opts.port : 0, log: console.log })).then(s => {
+    console.log("serving " + s.where + " (base " + (opts.base || site.DEFAULT_BASE) + " under " + s.baseUrl + ")");
   });
 }

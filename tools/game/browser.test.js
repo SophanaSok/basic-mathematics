@@ -1,9 +1,9 @@
 #!/usr/bin/env node
-/* Headless Chromium checks of the game layer, over file:// URLs.
-   Playwright is borrowed from another checkout (nothing is installed here):
-     BM_PLAYWRIGHT_FROM=~/dev/json-data-drift-analyzer/ node tools/game/browser.test.js
-   Every network request is aborted, so KaTeX and the fonts are absent: the pages
-   must work without the CDN anyway, and the run is deterministic.
+/* Headless Chromium checks of the game layer, on the site as lib/target.js serves it
+   (dist/ when it is built and current, else the source tree; --root=<dir> to choose):
+     node tools/game/browser.test.js
+   Every request off that server is aborted, so KaTeX and the fonts are absent: the
+   pages must work without the CDN anyway, and the run is deterministic.
 
    1. ch05 in whole-page mode: three first-try answers give 10, 12, 14 XP and 3 pips;
       a first miss on a fresh one costs 2 pips and leaves 2 hearts
@@ -14,15 +14,13 @@
    6. no console errors on index, about, progress and four chapters in both themes
    7. localStorage that throws on every access breaks nothing */
 "use strict";
-const path = require("path");
-const { createRequire } = require("module");
-
-const ROOT = path.resolve(__dirname, "../..");
-const FROM = process.env.BM_PLAYWRIGHT_FROM || path.join(process.env.HOME || "", "dev/json-data-drift-analyzer/");
-const { chromium } = createRequire(FROM.endsWith("/") ? FROM : FROM + "/")("playwright");
+const site = require("../lib/site");
+const target = require("../lib/target");
+const { chromium } = require("../lib/pw").playwright();
 
 const CH05 = "parts/2-geometry/05-distance-and-angles.html";
-const url = (p) => "file://" + path.join(ROOT, p);
+let server;
+const url = (p) => server.url + p;
 let fails = 0, passes = 0;
 function check(cond, what) {
   if (cond) passes++;
@@ -46,7 +44,7 @@ const AUDIO_SPY = "(" + function () {
 async function open(browser, page0, seed, opts) {
   opts = opts || {};
   const context = await browser.newContext({ viewport: { width: opts.width || 1280, height: 900 }, reducedMotion: opts.reducedMotion || "no-preference" });
-  await context.route(/^(https?|wss?):/, (r) => r.abort());
+  await context.route(/^(https?|wss?):/, (r) => server.owns(r.request().url()) ? r.continue() : r.abort());
   if (opts.blockStorage) {
     await context.addInitScript(() => {
       Object.defineProperty(window, "localStorage", { configurable: true, get: function () { throw new Error("storage blocked"); } });
@@ -63,7 +61,7 @@ async function open(browser, page0, seed, opts) {
     errors.push("console: " + m.text());
   });
   await page.goto(url(page0));
-  /* seed storage on the file:// origin, then load the page again from that state */
+  /* seed storage on the server's origin, then load the page again from that state */
   if (!opts.blockStorage) {
     await page.evaluate((seed) => {
       localStorage.clear();
@@ -113,6 +111,8 @@ const state = (page) => page.evaluate(() => {
 });
 
 async function run() {
+  server = await target.start(site.parseArgs(process.argv.slice(2)));
+  console.log("browser: " + server.where);
   const browser = await chromium.launch();
   try {
     /* -------------------------------------------- 1–3: ch05, whole page */
@@ -578,6 +578,7 @@ async function run() {
     }
   } finally {
     await browser.close();
+    await server.close();
   }
 }
 function window_level(xp) { let L = 1; while (5 * L * (L + 4) <= xp) L++; return L; }

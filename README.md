@@ -11,10 +11,11 @@ help the mathematics stick.
 
 **Read it here: [sophanasok.github.io/basic-mathematics](https://sophanasok.github.io/basic-mathematics/)**
 
-No build step, no dependencies to install, no server required. It is HTML, CSS, and plain ES5
-JavaScript files; KaTeX and (only where a 3D scene is on screen) Three.js come from a CDN, and the
-site works without either. Accounts are optional and off by default: with
-[`assets/config.js`](assets/config.js) left empty the site talks to nobody.
+It is hand-written HTML, CSS, and plain ES5 JavaScript files, published through a small build
+([Vite](https://vite.dev)) that for now passes them through as they are; KaTeX and (only where a
+3D scene is on screen) Three.js come from a CDN, and the site works without either. Accounts are
+optional and off by default: with [`assets/config.js`](assets/config.js) left empty the site talks
+to nobody.
 
 ---
 
@@ -173,14 +174,25 @@ The light/dark toggle sits in the header and follows your system setting until y
 
 ### Running it locally
 
-Open `index.html` in a browser. That is the whole procedure — `file://` works, because the
-curriculum is loaded as a `<script>` rather than fetched.
-
-If you would rather serve it:
-
 ```sh
-python -m http.server 8000   # then visit http://localhost:8000
+npm ci            # once: Vite, TypeScript, Playwright, axe-core. Node 22.18 or newer (.nvmrc: 24)
+npm run dev       # the source tree at http://localhost:8000, reloading as you edit
+npm run build     # the site as it is published, into dist/
+npm run preview   # that dist/, at http://localhost:8000
 ```
+
+Both servers take port 8000 and refuse to start on any other:
+`http://localhost:8000/account.html` is the address a sign-in is allowed to come back to
+([`supabase/README.md`](supabase/README.md)).
+
+The build changes nothing a reader can see. `dist/` holds the same pages at the same paths and
+the same scripts byte for byte; only the stylesheets and the favicon are bundled and renamed
+(`vite.config.ts` says how, and `npm run check:dist` holds it to that). So the pages are still
+edited by hand, and a page added under `parts/` is picked up by the build without being listed.
+
+Opening `index.html` straight from disk still works for the source tree: `file://` works because
+the curriculum is loaded as a `<script>` rather than fetched. That stays true until a later
+release moves the scripts into bundled modules; `dist/` is made to be served, not opened.
 
 Two libraries come from CDNs: [KaTeX](https://katex.org) for math typesetting on every page, and
 [Three.js](https://threejs.org) 0.160.1 (the last release with a classic build, pinned with an
@@ -224,9 +236,15 @@ supabase/schema.sql     tables, row-level security, aggregate functions
 supabase/README.md      how to switch accounts on
 supabase/migrations/    one file per database change, run on the live project before the merge
 OPERATIONS.md           the runbook: release order, deploys, quotas, secrets, incidents
-tools/                  the checks: static, scenes, generators, game rules, headless browser
+tools/                  the checks: static, scenes, generators, game rules, the build, headless browser
 parts/<part>/<nn>-<slug>.html
-.nojekyll               so GitHub Pages serves the files as authored
+package.json            the npm scripts and the four dev dependencies; package-lock.json pins them
+vite.config.ts          the build: every page in, the same page out; scripts copied as they are
+tsconfig.json           for `npm run typecheck`; covers src/ and vite.config.ts
+src/types/state.ts      the shapes of what the site keeps in localStorage (types only, so far)
+public/.nojekyll        copied into dist/
+.github/workflows/      CI: the checks on every pull request, and the deploy of main
+.nojekyll               so GitHub Pages serves the files as authored, while it deploys the branch
 ```
 
 `data/curriculum.js` is the spine. Navigation, the sidebar, the contents page, the chapter
@@ -594,48 +612,71 @@ header.
 
 ### Checking your changes
 
-`tools/` holds the checks. They install nothing; the browser checks borrow Playwright from wherever
-`BM_PLAYWRIGHT_FROM` points (see [`tools/README.md`](tools/README.md)).
+`tools/` holds the checks, and `package.json` names them. `npm ci` installs what they need;
+the browser ones also need Chromium once, `npx playwright install chromium`
+(see [`tools/README.md`](tools/README.md)).
 
 ```sh
-node tools/check-static.js --base=<ref>   # syntax, ES5, progress keys vs <ref>, ids, lesson steps,
-                                          # links, sections, widgets, choices, placeholders,
-                                          # merge laws, contrast, animations
-node tools/checks.test.js                 # the progress-key, id and lesson-step rules and
-                                          # assign-ids.js, on small pages with known answers
-node tools/smoke-scenes.js                # every 3D scene: mount, controls, missions, answers
-node tools/check-gen.js                   # every Arena generator over 500 seeds
-node tools/game/merge.test.js             # BMAccount.merge, including the game store and fields
-                                          # this copy of the site has never heard of
-node tools/game/sync.test.js              # account sync: stale tabs, resets, failed sign-outs,
-                                          # newer and older sites and tables, sign-in through
-                                          # another service
-node tools/game/account.test.js           # the account page in Chromium, against a stand-in SDK
-node tools/game/rules.test.js             # combo, levels, hearts, medals, achievements, recall,
-                                          # unknown settings and game fields kept
-node tools/game/browser.test.js           # the game in a browser: combo XP, hearts, finale, reload,
-                                          # calm mode, sound off, old progress, toasts, the sheet
-node tools/game/arena.test.js             # Arena runs: scoring, clock, hearts, Daily, Repair, resume
-node tools/game/scenes.test.js            # 3D stages: keyboard, touch, contrast of what carries meaning
-node tools/game/content.test.js           # the new 3D exercises in chapters 8 and 16, answered live
-node tools/game/map.test.js               # the course map: fallbacks, idle rendering, clicks
-node tools/check-browser.js               # every page × theme × width in headless Chromium:
-                                          # errors, overflow, lesson mode, figures, every exercise
-                                          # typed back, restore of old progress, reduced motion,
-                                          # WebGL and its fallbacks, file://, axe
+npm run check           # everything that needs no browser, about 15 s:
+npm run typecheck       #   tsc over src/ and vite.config.ts
+npm run check:static    #   syntax, ES5, progress keys, ids, lesson steps, links, sections, widgets,
+                        #   choices, migrations, placeholders, merge laws, contrast, animations
+npm run check:gen       #   every Arena generator over 500 seeds
+npm run check:scenes    #   every 3D scene: mount, controls, missions, answers
+npm run test:node       #   the progress-key, id and lesson-step rules on small pages;
+                        #   BMAccount.merge with the game store and fields this copy has never heard
+                        #   of; account sync (stale tabs, resets, failed sign-outs, newer and older
+                        #   sites and tables, sign-in through another service); the game's rules
+
+npm run build           # dist/
+npm run check:dist      # dist/ is the source's site: same pages, links resolve inside it, <main>
+                        # untouched, scripts byte for byte, cascade in the source order, no secrets
+
+npm run test:browser    # the game, the Arena, the account page, the 3D stages, the new 3D
+                        # exercises and the course map, each driven in headless Chromium
+npm run check:browser   # dist/ served: every page × theme × width (errors, overflow, lesson
+                        # mode), figures, every exercise typed back, restore of old progress,
+                        # saved state from the last release, reduced motion, WebGL and its
+                        # fallbacks, the source tree from file://, axe. About 8 minutes
+
+npm run check:all       # all of the above, in that order
 ```
 
-`--base` should be the last commit readers' progress was saved against: the progress-key check
-fails if any existing exercise's key or question changed, inline checks included, or if any
-exercise has no `id`. The same run fails an `id` that appears twice on a page, and warns when a
-chapter is not cut into the lesson steps recorded in `tools/lesson-steps.json`.
-The `migrations` check does not use `--base`. It compares against the commit the branch left `main` at
-(or `--migrations-base=<ref>`) and fails if `supabase/schema.sql` changed since then with no new
-migration, or if a migration that was already there was edited, renamed or removed.
+Each script is one `node tools/…` command and takes its flags after `--`:
+`npm run check:static -- --base=<ref>`, `npm run check:browser -- --only=05-distance`. `--base`
+should be the last commit readers' progress was saved against: the progress-key check fails if any
+existing exercise's key or question changed, inline checks included, or if any exercise has no
+`id`. The same run fails an `id` that appears twice on a page, and warns when a chapter is not cut
+into the lesson steps recorded in `tools/lesson-steps.json`. The `migrations` check does not use
+`--base`. It compares against the commit the branch left `main` at (or `--migrations-base=<ref>`)
+and fails if `supabase/schema.sql` changed since then with no new migration, or if a migration
+that was already there was edited, renamed or removed.
+
+The browser scripts load the site over http from `dist/` when it is built and no source file is
+newer than it, and from the source tree otherwise; `--root=dist` or `--root=.` chooses. CI runs
+all of this on every pull request ([`.github/workflows/ci.yml`](.github/workflows/ci.yml)).
 
 Still checked by hand: the solution of a multiple-choice question states the option the key
 names; a new `order` list is authored in the right order; a new puzzle's tempting guess in
 `data/quest.js`; and reading one whole chapter on a phone in each theme.
+
+### Deploying
+
+The site is on GitHub Pages. A push to `main` runs the checks and the build in GitHub Actions,
+and the `deploy` job publishes that run's `dist/` once the `build` and `browser` jobs have passed.
+The WebGL checks run in a job of their own, retried, and do not hold a deploy back.
+
+**One setting has to be changed by the repository's owner, once, for that to take effect:**
+Settings → Pages → Build and deployment → Source: **GitHub Actions**. Then publish with Actions →
+CI → Run workflow, on `main` (or simply push). Until that is done nothing changes for readers:
+Pages keeps serving the files on `main` as it always has, and the `deploy` job is skipped with a
+notice saying so.
+
+To go back: set Source to **Deploy from a branch**, `main`, `/ (root)`. The source tree is still
+a complete site (which is why `.nojekyll` stays at the root), so Pages serves the branch again
+and `deploy` goes back to being skipped. Nothing in the repository has to be reverted.
+
+Run workflow on `main` is also the way to publish again without a new commit.
 
 ## About the text
 

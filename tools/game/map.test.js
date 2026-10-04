@@ -1,9 +1,11 @@
 #!/usr/bin/env node
 /* Headless Chromium checks of the 3D course map (assets/map3d.js) and the Three.js
-   loader (assets/three-loader.js), over file:// URLs with SwiftShader WebGL.
-     BM_PLAYWRIGHT_FROM=~/dev/json-data-drift-analyzer/ node tools/game/map.test.js
-   The pinned three.min.js is served from .cache/ (fetched once from jsDelivr and
-   checked against the loader's integrity hash); every other request is aborted.
+   loader (assets/three-loader.js), with SwiftShader WebGL, on the site as lib/target.js
+   serves it (dist/ when it is built and current, else the source tree):
+     node tools/game/map.test.js
+   The pinned three.min.js is answered from .cache/ (fetched once from jsDelivr and
+   checked against the loader's integrity hash); every other request off the local
+   server is aborted.
    Without it, the checks are skipped with a note.
 
    1. the "you are here" bob ends: an idle page asks for no frames; never bobs when calm
@@ -18,11 +20,11 @@ const fs = require("fs");
 const path = require("path");
 const https = require("https");
 const crypto = require("crypto");
-const { createRequire } = require("module");
+const site = require("../lib/site");
+const target = require("../lib/target");
+const { chromium } = require("../lib/pw").playwright();
 
-const ROOT = path.resolve(__dirname, "../..");
-const FROM = process.env.BM_PLAYWRIGHT_FROM || path.join(process.env.HOME || "", "dev/json-data-drift-analyzer/");
-const { chromium } = createRequire(FROM.endsWith("/") ? FROM : FROM + "/")("playwright");
+const ROOT = site.ROOT;
 
 const LOADER = fs.readFileSync(path.join(ROOT, "assets/three-loader.js"), "utf8");
 const JSD = LOADER.match(/"(https:\/\/cdn\.jsdelivr\.net\/[^"]+)"/)[1];
@@ -30,7 +32,8 @@ const SRI = LOADER.match(/var SRI = "sha512-([^"]+)"/)[1];
 const CACHE = path.join(ROOT, ".cache", "three-0.160.1.min.js");
 const ARGS = ["--enable-unsafe-swiftshader", "--use-angle=swiftshader", "--ignore-gpu-blocklist"];
 
-const url = (p) => "file://" + path.join(ROOT, p);
+let server;
+const url = (p) => server.url + p;
 let fails = 0, passes = 0;
 function check(cond, what) {
   if (cond) passes++;
@@ -83,7 +86,11 @@ const RAF_GATE = "(" + function () {
 async function openMap(browser, body, seed, opts) {
   opts = opts || {};
   const context = await browser.newContext({ viewport: { width: 1280, height: 900 }, deviceScaleFactor: 1, reducedMotion: opts.reducedMotion || "no-preference" });
-  await context.route(/^(https?|wss?):/, (r) => /^https:\/\/cdnjs\.cloudflare\.com\/.*three\.min\.js$/.test(r.request().url()) ? r.fulfill(js(body)) : r.abort());
+  await context.route(/^(https?|wss?):/, (r) => {
+    const u = r.request().url();
+    if (server.owns(u)) return r.continue();
+    return /^https:\/\/cdnjs\.cloudflare\.com\/.*three\.min\.js$/.test(u) ? r.fulfill(js(body)) : r.abort();
+  });
   await context.addInitScript(RAF_GATE);
   await context.addInitScript((seed) => {
     try { Object.keys(seed).forEach(function (k) { localStorage.setItem(k, seed[k]); }); } catch (e) { /* fine */ }
@@ -131,6 +138,8 @@ async function run() {
     console.log("SKIP map: three.min.js 0.160.1 is not in .cache/ and could not be fetched from " + JSD);
     return;
   }
+  server = await target.start(site.parseArgs(process.argv.slice(2)));
+  console.log("map: " + server.where);
   const browser = await chromium.launch({ args: ARGS });
   try {
     /* -------------------------------------------- 1: the bob ends */
@@ -258,6 +267,7 @@ async function run() {
     }
   } finally {
     await browser.close();
+    await server.close();
   }
 }
 

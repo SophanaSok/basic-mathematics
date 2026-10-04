@@ -1,8 +1,10 @@
 #!/usr/bin/env node
-/* Headless Chromium checks of the 3D scene stages (assets/scenes3d.js), over file:// URLs.
-     BM_PLAYWRIGHT_FROM=~/dev/json-data-drift-analyzer/ node tools/game/scenes.test.js
-   Every network request is aborted, so the stages run on the SVG painter; input and
-   colours are the same for both painters (the GL one draws the same primitives).
+/* Headless Chromium checks of the 3D scene stages (assets/scenes3d.js), on the site as
+   lib/target.js serves it (dist/ when it is built and current, else the source tree):
+     node tools/game/scenes.test.js
+   Every request off that server is aborted, so Three.js never arrives and the stages
+   run on the SVG painter; input and colours are the same for both painters (the GL one
+   draws the same primitives).
 
    1. the Reset view button inside a stage works from the keyboard: Enter and Space press
       it rather than cycling the stage's selection; modified arrows are left to the browser
@@ -16,12 +18,9 @@
       and boxcount's off the stage too; a ball's outline 3:1 off the stage; every line,
       label and dot 3:1 off the stage, a see-through line taken as it blends there */
 "use strict";
-const path = require("path");
-const { createRequire } = require("module");
-
-const ROOT = path.resolve(__dirname, "../..");
-const FROM = process.env.BM_PLAYWRIGHT_FROM || path.join(process.env.HOME || "", "dev/json-data-drift-analyzer/");
-const { chromium } = createRequire(FROM.endsWith("/") ? FROM : FROM + "/")("playwright");
+const site = require("../lib/site");
+const target = require("../lib/target");
+const { chromium } = require("../lib/pw").playwright();
 
 const SCENES = {
   boxcount: "parts/1-algebra/01-numbers.html",
@@ -37,7 +36,8 @@ const SCENES = {
   rowops: "parts/4-topics/16-determinants.html"
 };
 
-const url = (p) => "file://" + path.join(ROOT, p);
+let server;
+const url = (p) => server.url + p;
 let fails = 0, passes = 0;
 function check(cond, what) {
   if (cond) passes++;
@@ -48,7 +48,7 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 async function open(browser, opts) {
   opts = opts || {};
   const context = await browser.newContext(Object.assign({ viewport: { width: 1280, height: 900 }, deviceScaleFactor: 1 }, opts.context || {}));
-  await context.route(/^(https?|wss?):/, (r) => r.abort());
+  await context.route(/^(https?|wss?):/, (r) => server.owns(r.request().url()) ? r.continue() : r.abort());
   await context.addInitScript((theme) => {
     try {
       localStorage.setItem("bm.lesson.v1", '{"mode":"page"}');
@@ -409,6 +409,8 @@ async function colours(browser) {
 }
 
 async function run() {
+  server = await target.start(site.parseArgs(process.argv.slice(2)));
+  console.log("scenes: " + server.where);
   const browser = await chromium.launch();
   try {
     await resetButton(browser);
@@ -417,6 +419,7 @@ async function run() {
     await colours(browser);
   } finally {
     await browser.close();
+    await server.close();
   }
 }
 

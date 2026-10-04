@@ -30,6 +30,7 @@ const git = require("./lib/git");
 const { parse } = require("./lib/html");
 const { exercisesOf } = require("./lib/keys");
 const cssLib = require("./lib/css");
+const links = require("./lib/links");
 
 const ROOT = site.ROOT;
 const opts = site.parseArgs(process.argv.slice(2));
@@ -370,53 +371,9 @@ function checkCurriculum(ctx, r) {
   });
 }
 
-/* ids that exist only after JavaScript has run. Each pattern says where it comes from. */
-const RUNTIME_IDS = [
-  /* index.html: buildHome() in site.js writes <h2 id="part-<part.id>"> for each Part */
-  { page: /^index\.html$/, id: /^part-[a-z0-9-]+$/ },
-  /* every page: the skip link target is the <main id="main"> that is in the markup, but
-     a generated sidebar on chapter pages also links #warmup / #practice (static ids) */
-];
-
+/* the walk itself lives in lib/links.js, which check-dist.js runs over the built tree */
 function checkLinks(ctx, r) {
-  const idsOf = {};
-  function ids(page) {
-    if (!idsOf[page]) {
-      const s = new Set();
-      for (const el of ctx.docs[page].elements()) if (el.id) s.add(el.id);
-      idsOf[page] = s;
-    }
-    return idsOf[page];
-  }
-  ctx.pages.forEach(page => {
-    const dir = path.posix.dirname(page);
-    const refs = [];
-    for (const el of ctx.docs[page].elements()) {
-      if (el.name === "a" && el.hasAttribute("href")) refs.push({ el, v: el.getAttribute("href"), what: "href" });
-      if (el.name === "link" && el.hasAttribute("href")) refs.push({ el, v: el.getAttribute("href"), what: "link href" });
-      if ((el.name === "script" || el.name === "img" || el.name === "iframe") && el.hasAttribute("src")) refs.push({ el, v: el.getAttribute("src"), what: "src" });
-    }
-    refs.forEach(({ el, v, what }) => {
-      if (!v || /^(https?:|mailto:|tel:|data:|javascript:|\/\/)/i.test(v)) return;
-      r.count++;
-      const hashAt = v.indexOf("#");
-      const filePart = hashAt === -1 ? v : v.slice(0, hashAt);
-      const anchor = hashAt === -1 ? null : v.slice(hashAt + 1);
-      let target = page;
-      if (filePart) {
-        target = path.posix.normalize(path.posix.join(dir === "." ? "" : dir, filePart.split("?")[0]));
-        if (!exists(target)) { r.fail(page + ":" + el.line + ": " + what + " " + JSON.stringify(v) + " -> " + target + " does not exist"); return; }
-      }
-      if (anchor !== null && anchor !== "") {
-        let dec = anchor;
-        try { dec = decodeURIComponent(anchor); } catch (e) { /* keep raw */ }
-        if (!ctx.docs[target]) { if (/\.html$/.test(target)) r.warn(page + ":" + el.line + ": anchor into " + target + " which is not a known page"); return; }
-        if (ids(target).has(dec)) return;
-        if (RUNTIME_IDS.some(a => a.page.test(target) && a.id.test(dec))) return;
-        r.fail(page + ":" + el.line + ": " + what + " " + JSON.stringify(v) + " -> no id " + JSON.stringify(dec) + " in " + target);
-      }
-    });
-  });
+  links.checkLinks({ pages: ctx.pages, docs: ctx.docs, exists }, r);
 }
 
 function widgetNames() {

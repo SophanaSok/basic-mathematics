@@ -1,15 +1,39 @@
 # tools/ — the verification harness
 
-Two general scripts, plus focused ones for the 3D scenes, the Arena's generators and the game
-layer. None needs a `package.json`, a build, or anything installed into this repo.
+Three general scripts (the source tree, the built `dist/`, and the site in a browser), plus
+focused ones for the 3D scenes, the Arena's generators and the game layer. They are plain Node
+scripts, CommonJS (`tools/package.json` says so, because the repo's own `package.json` is
+`"type": "module"`), and the repo's npm scripts are the way to run them:
 
 ```sh
-node tools/check-static.js                 # ~2 s, Node built-ins only
-node tools/check-browser.js                # ~8 min, Playwright resolved from a sibling project
+npm ci                                     # once; then `npx playwright install chromium` for the browser ones
+npm run check                              # ~15 s, no browser: typecheck, check-static, check-gen,
+                                           # smoke-scenes, and the merge, sync and rules tests
+npm run build && npm run check:dist        # dist/, and that it is the source's site
+npm run test:browser                       # the tools/game Chromium scripts, ~2 min
+npm run check:browser                      # check-browser.js on dist/, ~8 min
+npm run check:all                          # all of it, in that order
 ```
 
-Both exit 1 on any failure. Run them before and after a change; the static one on every edit,
-the browser one before a push.
+`node tools/<script>.js` works just as well, and `npm run <name> -- --flag` passes a flag through.
+Every script exits 1 on any failure. Run `npm run check` on every edit and the rest before a
+push; CI (`.github/workflows/ci.yml`) runs all of it on every pull request.
+
+## Which tree the browser scripts load
+
+`check-browser.js` and the Chromium scripts under `game/` load the site over http from an
+in-process server (`lib/serve.js`), on the tree `lib/target.js` picks:
+
+- `--root=<dir>` or `BM_ROOT=<dir>` names it: `--root=dist` for the built site, `--root=.` for
+  the source tree. `npm run check:browser` passes `--root=dist`, and CI sets `BM_ROOT=dist`.
+- with neither, `dist/` when it has been built and no page or file under `assets/` or `data/` is
+  newer than it; otherwise the source tree, with a note saying which file is newer. So a script
+  run straight after an edit never quietly tests an old build.
+
+Each script prints the tree it is serving on its first line. `tools/fixtures/` is always served
+from the source tree, at the same URL, and never copied into `dist/`; `/__base/<path>` is always
+read from this checkout's git history. Only the `file` suite of `check-browser.js` does not go
+through the server: it opens the source tree from `file://`, which is what it is there to prove.
 
 ## check-static.js
 
@@ -74,16 +98,21 @@ Write `function checkThing(ctx, r)` in `check-static.js` — `ctx` has every pag
 
 ## check-browser.js
 
-Usage: `node tools/check-browser.js [--only=<substring>] [--theme=light|dark] [--vw=1280|360] [--base=<ref>] [--headed] [--strict-axe] [--list]`
+Usage: `node tools/check-browser.js [--root=<dir>] [--only=<substring>] [--skip=<suite,suite>] [--theme=light|dark] [--vw=1280|360] [--base=<ref>] [--headed] [--strict-axe] [--list]`
 
-Playwright is **not** installed here. It is loaded with `module.createRequire` from
-`$BM_PLAYWRIGHT_FROM` (a `node_modules` directory; default `~/dev/json-data-drift-analyzer/node_modules/`),
-which must hold `playwright` with a downloaded Chromium; `axe-core` there is optional. If it cannot
-be resolved the script says so and exits 2.
+Playwright and axe-core are dev dependencies (`package.json`, pinned by `package-lock.json`):
+`npm ci` installs them and `npx playwright install chromium` downloads the browser, once per
+Playwright version, into Playwright's own cache outside the repo. `lib/pw.js` resolves both from
+the repo's `node_modules`. Only if that fails does it try `$BM_PLAYWRIGHT_FROM`, a `node_modules`
+directory somewhere else that holds `playwright` with a downloaded Chromium (`axe-core` there is
+optional); if neither resolves, the script says what it tried and exits 2. The scripts under
+`game/` use the same resolver.
 
-The repo is served in-process on a free port (`lib/serve.js`); `/__base/<path>` serves the same
-path at `--base` through `git show`, so the previous commit's site is browsable for comparison
-without a checkout (`node tools/lib/serve.js` runs the server on its own).
+The site is served in-process on a free port (`lib/serve.js`), from the tree chosen as described
+above; page discovery and everything read statically (exercise keys, the curriculum) always come
+from the source tree. `/__base/<path>` serves the same path at `--base` through `git show`, so the
+previous commit's site is browsable for comparison without a checkout (`node tools/lib/serve.js`
+runs the server on its own).
 
 Output goes to `.cache/check/` (git-ignored): `report.json`, `index.html` (a contact sheet with
 every screenshot and all results — open it in a browser), and `pages/*.png`.
@@ -96,14 +125,16 @@ every screenshot and all results — open it in a browser), and `pages/*.png`.
 | `missions` | with clean storage no `.missions li[data-done]` exists, headings read "0 of n", `BMPlay` is empty, `BMMissions.total()` matches the page |
 | `exercises` | per chapter, in whole-page mode: a wrong answer on the first scored typed exercise shows feedback with the hint, then the key is accepted; then every exercise is answered with its own key (typed: type and Enter, trying `\|`-alternatives in the engine's order; choice/multi: tick and Check; blank: fill each; order: the up buttons; `figure` kinds are skipped and counted); the score line and completion banner agree; after a reload every solved scored exercise is `data-state="correct"` with `data-restored` and the lesson mode is remembered |
 | `restore` | seeds `bm.progress.v1` with every scored key of the chapter **at `--base`** and loads the working-tree page: each card's engine key must equal the static rule's key for its position, each restored card's question must fingerprint the same as at base, and lesson mode must open every step for a reader with solved work |
+| `upgrade` | a returning reader's whole saved state survives. `fixtures/state-v1.json` (every store, as the last release before the build step writes them) is put into localStorage once, on the served origin, before any page loads; then the home page, the progress page, a cleared chapter and a part-done one are opened in the same profile. After each, the fixture must be **contained** in what is in storage: every key still there with the same value. Not equal, because the site writes on load: objects and lists may have gained entries (backfilled achievements, banked medals, the run store), the counts a page re-derives each visit (`total`, `reached`) may have grown, and `bm.last` names the chapter once one has been opened. The pages must show it too: the saved theme against the system's, Continue on the home page, medals and XP on the progress page, every solved card solved and no other. The last line lists what loading added |
 | `motion` | under `prefers-reduced-motion: reduce` no animation is running at load, after a wrong answer, or after a right one |
-| `file` | `index.html` and the first chapter loaded from `file://` build themselves without errors |
+| `file` | `index.html` and the first chapter of the **source tree** loaded from `file://` build themselves without errors (whatever `--root` is) |
 | `axe` | axe-core on every page × theme at 1280 (whole-page mode on chapters); violations are warnings counted by rule, failures with `--strict-axe`; skipped when axe-core does not resolve |
 
 `--only` takes suite names (`--only=pages,motion`) or a page-path substring (`--only=05-distance`),
-or both. The theme is forced the way the site reads it — `localStorage["bm.theme"]` holds the
-JSON string `"dark"`/`"light"` (note the quotes: every store value is `JSON.stringify`ed) and the
-context's `colorScheme` matches — so a `boot.js` that reads the same key before paint is covered too.
+or both; `--skip` takes suite names to leave out. The theme is forced the way the site reads it —
+`localStorage["bm.theme"]` holds the JSON string `"dark"`/`"light"` (note the quotes: every store
+value is `JSON.stringify`ed) and the context's `colorScheme` matches — so a `boot.js` that reads
+the same key before paint is covered too.
 
 ### Adding a suite
 
@@ -115,9 +146,59 @@ theme/viewport/storage seeds/reduced motion/no-WebGL, `open`, `settle`, `wholePa
 documented at the top of `check-browser.js`. `lib/drive.js` answers exercises by kind for suites
 that need a solved or a wrong card. A `game`, `scenes` or `arena` suite is one more file.
 
+`h.newPage({ storage })` writes its seeds on every page load, which suits a suite that opens one
+page. A suite that follows state across pages seeds once instead, through the browser context's
+`storageState` on `ctx.server.url`'s origin, as `suites/upgrade.js` does.
+
+### The saved-state fixture
+
+`fixtures/state-v1.json` is the proof every later release reuses: whatever changes, a reader who
+last visited before it must find their work. Its `storage` object maps each localStorage key to
+the value the real writers leave there (shapes: `src/types/state.ts`), with real chapter, section,
+exercise and mission ids; its `about` says what the state is and what it leaves for the site to
+backfill. When a release changes what is stored, the fixture stays as it is and the release has to
+read it; a new fixture (`state-v2.json`) is added beside it for the new shape, and `upgrade`
+grows a case, so each old shape keeps a test.
+
+### WebGL in headless Chromium
+
+Measured on this repo's pinned Playwright (1.63.0, Chromium 153 headless shell) on Arch Linux
+with an NVIDIA card: the first argument set the `webgl` suite tries,
+`--enable-unsafe-swiftshader --use-angle=swiftshader --ignore-gpu-blocklist`, gives a WebGL 2
+context on SwiftShader (software, "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero)
+…)"), and that is what every suite then launches with; `game/map.test.js` uses the same three
+flags. No other arguments were needed here: the suite's two fallback sets, including launching
+with no arguments at all, give the same SwiftShader context, as do `--use-gl=egl` and
+`--disable-gpu`, so headless Chromium never uses the machine's GPU and the result does not depend
+on the graphics driver. If a future Chromium stops handing out a context without a flag, the
+`webgl` suite fails with every set it tried listed, and `ARG_SETS` in `suites/webgl.js` is the
+one place to add the new set.
+Software WebGL is slow and can lose its context under load, which is why CI runs the 3D checks
+(`npm run test:browser:3d`: `game/map.test.js`, and `game/scenes.test.js` with it, though that one
+draws on the SVG painter) and the `webgl` suite in a job of their own, retried, outside the gate
+a deploy waits for; `npm run test:browser:core` and `check-browser.js --skip=webgl` are the gate.
+Nothing here needs a GPU or a display.
+
+## check-dist.js
+
+Usage: `node tools/check-dist.js [--dist=<dir>] [--only=<check,check>]` (after `npm run build`)
+
+The build is meant to change nothing a reader can see. This is the check that it did not: same
+output format as `check-static.js`, Node built-ins only, under a second.
+
+| check | what it guards |
+| --- | --- |
+| `pages` | every page of the source tree (the `htmlPages` rule in `lib/site.js`, which `vite.config.ts` repeats) is in `dist/` at the same path, no other `.html` is, and `dist/.nojekyll` is there |
+| `links` | every relative `href`/`src` in the built pages resolves to a file inside `dist/`, and its `#anchor` to an id: the same walk `check-static.js` does on the source (`lib/links.js`) |
+| `root-absolute` | no attribute value is a root-absolute path (`/assets/…`): the site is published under a sub-path, where `/` is not its root. Any value starting with a single `/` on a URL attribute fails; on any other attribute, one that names something in the top level of `dist/` |
+| `main` | for every page, the text from `<main` to `</main>` is the source's, by whitespace-normalised fingerprint: the build may rewrite a `<head>`, never the content (`lesson.js` and the exercise keys depend on it) |
+| `scripts` | every page names the same classic scripts in the same order as its source, and every `.js` under `assets/` and `data/` is in `dist/` byte for byte |
+| `secrets` | no file in `dist/` contains `service_role`, `sb_secret_`, `whsec_`, `sk-ant-`, or a Stripe-style `sk_live_…`/`rk_test_…` key. (The Supabase anon key in `assets/config.js` is public by design and matches none of them) |
+| `stylesheets` | reports how many distinct stylesheets the built pages link, and fails if two chapter pages link different ones. Also the cascade: Vite splits the CSS into shared files and, left alone, links a page's own file before the shared ones, the reverse of the source (`vite.config.ts` puts them back). So for every page, the class names only one source stylesheet uses must all come, in the built CSS the page links, before those of the next source stylesheet |
+
 ## Deliberately not covered
 
-- Firefox and WebKit/Safari (Chromium only; the sibling project has only Chromium downloaded).
+- Firefox and WebKit/Safari (Chromium only: it is the one browser `npx playwright install chromium` downloads).
 - Real devices and touch: the 360px cell is a resized Chromium, not a phone.
 - Screen readers and focus order beyond what axe-core can see statically.
 - Answers given on a figure (`data-type="figure"`): the sweep counts and skips them.
@@ -157,4 +238,7 @@ without an `id`, it should always report nothing to do.
 | `game/content.test.js` | the new 3D exercises in chapters 8 and 16, answered through the page |
 | `game/map.test.js` | the course map: every fallback, no rendering while idle, clicks that match the list links |
 
-The browser ones take `BM_PLAYWRIGHT_FROM` like `check-browser.js`.
+The browser ones resolve Playwright and choose the tree to load like `check-browser.js` (`--root`
+or `BM_ROOT`, else `dist/` when current), and each aborts every request that does not go to the
+local server, so none of them depends on a CDN (`map.test.js` answers the one Three.js request
+from `.cache/`, fetching it once).
