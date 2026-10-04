@@ -137,9 +137,16 @@
       g.dot(A, { r: 4 });
       g.label(V.scale(N, 1.06), "N", { dx: -9, dy: -8, anchor: "end", weight: 700 });
       g.label(at(0, -3, R * 1.13), "A", { dy: 8, weight: 700 });
-      g.label(at(ang, -3, R * 1.13), "B", { dy: 8, weight: 700 });
+      /* B carries the drag handle, so its label sits lower and further out than A's (the drop
+         clears the handle from the side, the outward push from above the pole). Past 90° B goes
+         round the back of the sphere in the usual views, where the outward push shrinks on
+         screen, so the label moves further still */
+      var far = Math.max(0, Math.min(1, (ang - 90) / 75));
+      g.label(at(ang, -7 - 2 * far, R * (1.15 + 0.05 * far)), "B", { dy: 8 + 4 * far, weight: 700 });
+      /* the sum sits inside the triangle, but no further round than 50°, which keeps it off
+         B's handle when B is behind the sphere */
       if (!quiz) {
-        g.label(at(ang / 2, 30, R * 1.02), "sum " + sum(s) + "°", { tone: "ink", weight: 650, minor: true });
+        g.label(at(Math.min(ang / 2, 50), 30, R * 1.02), "sum " + sum(s) + "°", { tone: "ink", weight: 650, minor: true });
       }
     },
 
