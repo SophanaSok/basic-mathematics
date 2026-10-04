@@ -1,0 +1,55 @@
+[
+  { "fg": "--text", "bg": "--bg", "min": 7 },
+  { "fg": "--text", "bg": "--surface", "min": 7 },
+  { "fg": "--text", "bg": "--surface-2", "min": 7 },
+
+  { "fg": "--muted", "bg": "--bg", "min": 4.5 },
+  { "fg": "--muted", "bg": "--surface", "min": 4.5 },
+  { "fg": "--muted", "bg": "--surface-2", "min": 4.5 },
+
+  { "fg": "--accent", "bg": "--bg", "min": 4.5 },
+  { "fg": "--accent", "bg": "--surface", "min": 4.5 },
+  { "fg": "--accent", "bg": "--surface-2", "min": 4.5 },
+  { "fg": "--ok", "bg": "--bg", "min": 4.5 },
+  { "fg": "--ok", "bg": "--surface", "min": 4.5 },
+  { "fg": "--ok", "bg": "--surface-2", "min": 4.5 },
+  { "fg": "--bad", "bg": "--bg", "min": 4.5 },
+  { "fg": "--bad", "bg": "--surface", "min": 4.5 },
+  { "fg": "--bad", "bg": "--surface-2", "min": 4.5 },
+
+  { "fg": "--on-accent", "bg": "--accent", "min": 4.5 },
+
+  { "fg": "--part", "bg": "--bg", "min": 4.5, "parts": true },
+  { "fg": "--part", "bg": "--surface", "min": 4.5, "parts": true },
+  { "fg": "--part", "bg": "--surface-2", "min": 4.5, "parts": true },
+  { "fg": "--part", "bg": "--part-soft", "min": 4.5, "parts": true },
+  { "fg": "--on-part", "bg": "--part", "min": 4.5, "parts": true },
+
+  { "fg": "--text", "bg": "--part-soft", "min": 7, "parts": true },
+  { "fg": "--text", "bg": "--ok-soft", "min": 7 },
+  { "fg": "--text", "bg": "--bad-soft", "min": 7 },
+  { "fg": "--text", "bg": "--hint-soft", "min": 7 },
+  { "fg": "--text", "bg": "--accent-soft", "min": 7 },
+  { "fg": "--hint-ink", "bg": "--hint-soft", "min": 4.5 },
+
+  { "fg": "--xp-ink", "bg": "--bg", "min": 4.5 },
+  { "fg": "--xp-ink", "bg": "--surface", "min": 4.5 },
+  { "fg": "--xp-ink", "bg": "--surface-2", "min": 4.5 },
+  { "fg": "--on-xp", "bg": "--xp", "min": 4.5 },
+
+  { "fg": "--line-ui", "bg": "--surface", "min": 3 },
+  { "fg": "--line-ui", "bg": "--bg", "min": 3 },
+
+  { "fg": "--plot-curve", "bg": "--surface", "min": 3 },
+  { "fg": "--plot-curve-2", "bg": "--surface", "min": 3 },
+  { "fg": "--plot-curve-3", "bg": "--surface", "min": 3 },
+  { "fg": "--plot-curve-4", "bg": "--surface", "min": 3 },
+  { "fg": "--plot-axis", "bg": "--surface", "min": 3 },
+
+  { "fg": "--hud-text", "bg": "--hud-bg", "min": 4.5 },
+  { "fg": "--hud-muted", "bg": "--hud-bg", "min": 4.5 },
+  { "fg": "--hud-xp", "bg": "--hud-bg", "min": 4.5 },
+  { "fg": "--hud-flame", "bg": "--hud-bg", "min": 3 },
+  { "fg": "--hud-heart", "bg": "--hud-bg", "min": 3 },
+  { "fg": "--hud-focus", "bg": "--hud-bg", "min": 3 }
+]
