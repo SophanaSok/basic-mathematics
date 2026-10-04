@@ -7,7 +7,8 @@
         starts at 12 and its moves only multiply by 1, −1 or 2
      3. every "Section check" is the last exercise of its section, with no h3 after it
      4. s3d-det-flat names row 3 with the chapter's own c_1, c_2, c_3
-     5. in the browser, s3d-room accepts its answer with or without the unit, and still
+     5. in the browser, s3d-room accepts its answer with or without the unit (and as 11.00
+        or +11, which the old number compare took), and still
         refuses a wrong length with a unit
    Usage: BM_PLAYWRIGHT_FROM=~/dev/json-data-drift-analyzer/ node tools/game/content.test.js */
 "use strict";
@@ -139,6 +140,7 @@ async function browserPart() {
   const browser = await chromium.launch();
   try {
     const cases = [["11", true], ["11 m", true], ["11m", true], ["11 metres", true], ["11 meters", true], ["11.", true],
+      ["11.00", true], ["+11", true],
       ["12 m", false], ["121", false], ["11 cm", false]];
     for (const [given, right] of cases) {
       const context = await browser.newContext();
@@ -156,6 +158,21 @@ async function browserPart() {
       if (given === "11") eq(await input.getAttribute("placeholder"), "in metres", "s3d-room keeps its placeholder");
       await context.close();
     }
+    /* every way of writing 11 (bare, as the old number compare took it, or with the unit
+       spelt either way) grades right; a wrong length or unit never does */
+    const page = await browser.newPage();
+    await page.goto("file://" + path.join(ROOT, CH08));
+    await page.waitForFunction(() => window.BMSite && document.readyState === "complete");
+    const forms = ["11", "11.0", "11.00", "+11", "11.", "11 M", "11 m.", "11 m", "11m", "11.0 m", "11.00 m", "+11 m",
+      "11 metre", "11 metres", "11 meter", "11 meters", "11 Metres"];
+    const wrong = ["12", "12 m", "121", "11 cm", "11 m²", "-11", "10.99", "11 km"];
+    const got = await page.evaluate((all) => {
+      const ex = document.getElementById("s3d-room");
+      const key = ex.getAttribute("data-answer"), type = ex.getAttribute("data-type") || "exact";
+      return all.map((g) => window.BMSite.grade(g, key, type, 0));
+    }, forms.concat(wrong));
+    forms.concat(wrong).forEach((g, i) => eq(got[i], i < forms.length, "s3d-room grade(" + JSON.stringify(g) + ")"));
+    await page.close();
   } finally {
     await browser.close();
   }
