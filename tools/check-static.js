@@ -516,6 +516,50 @@ function checkOrder(ctx, r) {
   });
 }
 
+/* --------------------------------------------------------- migrations -- */
+
+/* The Supabase CLI's file name: a 14-digit UTC timestamp, an underscore, a name. */
+const MIGRATIONS_DIR = "supabase/migrations";
+const SCHEMA_FILE = "supabase/schema.sql";
+const MIGRATION_NAME = /^(\d{14})_[a-z0-9]+(?:_[a-z0-9]+)*\.sql$/;
+const MIGRATIONS_RULE = "a change to " + SCHEMA_FILE + " ships with a new file in " + MIGRATIONS_DIR + "/ holding the incremental statements, applied to the live project before the merge (" + MIGRATIONS_DIR + "/README.md)";
+
+/* true when the fourteen digits are a real date and time */
+function isTimestamp(ts) {
+  const n = [ts.slice(0, 4), ts.slice(4, 6), ts.slice(6, 8), ts.slice(8, 10), ts.slice(10, 12), ts.slice(12, 14)].map(Number);
+  const d = new Date(Date.UTC(n[0], n[1] - 1, n[2], n[3], n[4], n[5]));
+  return d.getUTCFullYear() === n[0] && d.getUTCMonth() === n[1] - 1 && d.getUTCDate() === n[2] &&
+    d.getUTCHours() === n[3] && d.getUTCMinutes() === n[4] && d.getUTCSeconds() === n[5];
+}
+
+/* The site deploys on merge, the database does not: a schema change that reaches readers
+   before its SQL has been run breaks every signed-in sync. The check can only see that the
+   migration file was written; applying it is a step in OPERATIONS.md. */
+function checkMigrations(ctx, r) {
+  const baseSha = git.resolveRef(ROOT, BASE);
+  if (!baseSha) { r.fail("base ref " + BASE + " does not resolve"); return; }
+  /* everything in the folder is a migration except its README and dotfiles; a base without the folder lists nothing */
+  const dir = path.join(ROOT, MIGRATIONS_DIR);
+  const names = fs.existsSync(dir) ? fs.readdirSync(dir).filter(f => f !== "README.md" && f[0] !== ".").sort() : [];
+  const atBase = new Set(git.listFiles(ROOT, BASE, MIGRATIONS_DIR));
+  const byStamp = {}, added = [];
+  names.forEach(f => {
+    r.count++;
+    const rel = MIGRATIONS_DIR + "/" + f;
+    const m = MIGRATION_NAME.exec(f);
+    if (!m || !fs.statSync(path.join(dir, f)).isFile()) { r.fail(rel + ": not a migration file name; the format is <YYYYMMDDHHMMSS>_<name>.sql with a lower-case name of letters, digits and underscores"); return; }
+    if (!isTimestamp(m[1])) { r.fail(rel + ": " + m[1] + " is not a date and time (the format is <YYYYMMDDHHMMSS>_<name>.sql, in UTC)"); return; }
+    if (byStamp[m[1]]) r.fail(rel + ": shares the timestamp " + m[1] + " with " + byStamp[m[1]] + ", so their order is undefined");
+    else byStamp[m[1]] = f;
+    if (!atBase.has(rel)) added.push(f);
+  });
+  const now = exists(SCHEMA_FILE) ? read(SCHEMA_FILE) : null;
+  const then = git.showText(ROOT, BASE, SCHEMA_FILE);
+  const changed = now !== then;
+  r.note(SCHEMA_FILE + " " + (changed ? "differs from" : "is unchanged since") + " base " + BASE + "; " + names.length + " migration file(s), " + added.length + " new since base" + (added.length ? " (" + added.join(", ") + ")" : ""));
+  if (changed && !added.length) r.fail(SCHEMA_FILE + " differs from base " + BASE + " but no migration has been added since then. The rule: " + MIGRATIONS_RULE);
+}
+
 /* ------------------------------------------------------- placeholders -- */
 
 /* BMSite.grade from assets/site.js, under a window with no DOM to speak of */
@@ -841,6 +885,7 @@ const CHECKS = [
   { name: "sections", run: checkSections, what: "every data-section names a real section" },
   { name: "choices", run: checkChoices, what: "choice/multi answer indices are within the options" },
   { name: "order", run: checkOrder, what: "order lists have >= 2 items; blanks carry keys" },
+  { name: "migrations", run: checkMigrations, what: "a supabase/schema.sql change since --base ships a new, well-named migration" },
   { name: "placeholders", run: checkPlaceholders, what: "no answer box shows an example its own key accepts" },
   { name: "merge", run: checkMerge, what: "BMAccount.merge is commutative, associative, idempotent (2000 seeded cases)" },
   { name: "animations", run: checkAnimations, what: "no infinite CSS animations (WARN for now)" },

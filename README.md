@@ -222,6 +222,8 @@ assets/account.js       sign-in and sync, listening on BMStore
 assets/insights.js      renders progress.html and insights.html
 supabase/schema.sql     tables, row-level security, aggregate functions
 supabase/README.md      how to switch accounts on
+supabase/migrations/    one file per database change, run on the live project before the merge
+OPERATIONS.md           the runbook: release order, deploys, quotas, secrets, incidents
 tools/                  the checks: static, scenes, generators, game rules, headless browser
 parts/<part>/<nn>-<slug>.html
 .nojekyll               so GitHub Pages serves the files as authored
@@ -627,6 +629,7 @@ node tools/check-browser.js               # every page × theme × width in head
 fails if any existing exercise's key or question changed, inline checks included, or if any
 exercise has no `id`. The same run fails an `id` that appears twice on a page, and warns when a
 chapter is not cut into the lesson steps recorded in `tools/lesson-steps.json`.
+The `migrations` check fails if `supabase/schema.sql` changed since then with no new migration.
 
 Still checked by hand: the solution of a multiple-choice question states the option the key
 names; a new `order` list is authored in the right order; a new puzzle's tempting guess in

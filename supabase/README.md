@@ -64,6 +64,11 @@ the same instant. Running the SQL first is still the rule; these are what happen
   row into the browser, writes nothing (neither `user_state` nor `attempts`), and asks the reader
   to reload. There is no column for it and no SQL to run. It needs the `game` column to travel.
 
+**Changing the schema later?** Every change to `schema.sql` ships with a new file in
+[`migrations/`](migrations/README.md), and that file is run on the live project *before* the pull
+request that needs it is merged. The release order, the queries that confirm it landed, quotas,
+secrets and what to do when sync breaks are in [`../OPERATIONS.md`](../OPERATIONS.md).
+
 ## Sign-in providers (optional)
 
 Readers can also sign in with an account they already have at another service. The site knows
