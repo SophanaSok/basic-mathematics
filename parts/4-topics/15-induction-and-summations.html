@@ -404,22 +404,22 @@
       </figcaption>
     </figure>
 
-    <div class="ex" data-inline id="s3d-squares" data-label="Your turn, in space" data-type="figure" data-figure="sumsquares" data-ask="box" data-answer="4:4,5,9" data-hint="Three pyramids make a block n wide and n + 1 tall with a staircase on one side; a second block fits against it, turned over." data-hint2="For the third side, count the full layers in each block and the one layer the two staircases share.">
+    <div class="ex" data-inline id="s3d-squares" data-label="Your turn, in space" data-type="figure" data-figure="sumsquares" data-ask="box" data-answer="6:6,7,13" data-hint="Three pyramids make a block n wide and n + 1 tall with a staircase on one side; a second block fits against it, turned over." data-hint2="For the third side, count the full layers in each block and the one layer the two staircases share.">
       <div class="ex-q">
         <p>
-          Six pyramids with layers $1^2, 2^2, 3^2, 4^2$. Set $n = 4$ and the three sides of the box
-          they fill exactly.
+          Six pyramids with layers $1^2, 2^2, \dots, 6^2$, one size past the largest in the figure
+          above. Set $n = 6$ and the three sides of the box they fill exactly.
         </p>
       </div>
       <div class="ex-solution">
-        <p class="answer">Answer: $n = 4$ and a box $4 \times 5 \times 9$</p>
+        <p class="answer">Answer: $n = 6$ and a box $6 \times 7 \times 13$</p>
         <p>
-          Each block of three pyramids is $4$ wide and $5$ tall: four full layers of $4 \times 5$
-          cubes, and a staircase layer of $1 + 2 + 3 + 4 = 10$. The second block is the first one
+          Each block of three pyramids is $6$ wide and $7$ tall: six full layers of $6 \times 7$
+          cubes, and a staircase layer of $1 + 2 + \dots + 6 = 21$. The second block is the first one
           turned over, and its staircase fills the gaps in the first, so the two staircases make one
-          layer between them. The long side is $4 + 1 + 4 = 9$. The box holds
-          $4 \times 5 \times 9 = 180$ cubes, six pyramids' worth, so one pyramid holds
-          $180 \div 6 = 30 = 1 + 4 + 9 + 16$.
+          layer between them. The long side is $6 + 1 + 6 = 13$. The box holds
+          $6 \times 7 \times 13 = 546$ cubes, six pyramids' worth, so one pyramid holds
+          $546 \div 6 = 91 = 1 + 4 + 9 + 16 + 25 + 36$.
         </p>
         <p>
           The same count for any $n$ gives sides $n$, $n + 1$ and $n + 1 + n = 2n + 1$, so

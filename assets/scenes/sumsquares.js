@@ -19,8 +19,10 @@
   "use strict";
   if (!window.BM3D || !window.BM3D.define) return;
   var V = window.BM3D.V;
-  /* a pyramid and its turned-over twin share a hue: strong for the first three, pale for the rest */
+  /* a pyramid and its turned-over twin share a hue: strong for the first three; pale for the
+     rest, outlined in the strong hue so they stand off the stage in both themes */
   var TONES = ["curve", "curve2", "curve3", "faceA", "faceB", "faceC"];
+  var EDGES = ["surface", "surface", "surface", "curve", "curve2", "curve3"];
   var HOME = { az: 30, el: 24 };
   var cache = {};
 
@@ -81,13 +83,13 @@
     var shift = (lo + hi) / 2 - (at - 1.2) / 2;
     return list.map(function (p, i) {
       var off = list.length > 1 ? [0, offs[i][1] + shift, offs[i][2]] : [0, 0, 0];
-      return { p: p, tone: TONES[i], off: V.scale(off, 1 - u) };
+      return { p: p, tone: TONES[i], edge: EDGES[i], off: V.scale(off, 1 - u) };
     });
   }
 
   var DIRS = [[1, 0, 0], [-1, 0, 0], [0, 1, 0], [0, -1, 0], [0, 0, 1], [0, 0, -1]];
   /* the exposed faces of a set of cells, moved by off; have says which cells hide a face */
-  function faces(g, cells, tone, off, have) {
+  function faces(g, cells, tone, edge, off, have) {
     cells.forEach(function (c) {
       var x = c[0] - 1, y = c[1] - 1, z = c[2] - 1;
       DIRS.forEach(function (d) {
@@ -103,7 +105,7 @@
           var Z = d[2] > 0 ? z + 1 : z;
           pts = [[x, y, Z], [x + 1, y, Z], [x + 1, y + 1, Z], [x, y + 1, Z]];
         }
-        g.face(pts.map(function (q) { return V.add(q, off); }), { tone: tone, stroke: "surface", w: 1 });
+        g.face(pts.map(function (q) { return V.add(q, off); }), { tone: tone, stroke: edge, w: 1 });
       });
     });
   }
@@ -152,19 +154,39 @@
       /* the frame follows the camera this mount owns; kept out of the state's JSON */
       Object.defineProperty(s, "cam", { value: api.cam, enumerable: false });
       Object.defineProperty(s, "quizNow", { get: function () { return api.quiz(); }, enumerable: false });
-      api.slider("n", 1, 5, 1, "n");
+      /* the exercise asks about n = 6, one step past what the figure above can show, so the
+         box has to be worked out rather than read off that figure */
       if (api.quiz()) {
-        api.slider("side 1", 1, 11, 1, "a");
-        api.slider("side 2", 1, 11, 1, "b");
-        api.slider("side 3", 1, 11, 1, "c");
+        api.slider("n", 1, 6, 1, "n");
+        api.slider("side 1", 1, 13, 1, "a");
+        api.slider("side 2", 1, 13, 1, "b");
+        api.slider("side 3", 1, 13, 1, "c");
         return;
       }
-      api.chips([{ label: "1", value: 1 }, { label: "3", value: 3 }, { label: "6", value: 6 }], "copies", "Copies");
+      api.slider("n", 1, 5, 1, "n");
+      /* a new number of copies starts apart, so every fit is seen happening; run tells a
+         slide that was overtaken by a change of copies to stop writing u */
+      var run = 0;
+      api.chips([{ label: "1", value: 1 }, { label: "3", value: 3 }, { label: "6", value: 6 }], {
+        get: function (s) { return s.copies; },
+        set: function (s, v) {
+          if (v === s.copies) return;
+          run++;
+          s.copies = v;
+          s.fit = false;
+          s.u = 0;
+          s.busy = false;
+        }
+      }, "Copies");
       api.button(function (s) { return s.fit ? "pull apart" : "fit together"; }, function (s) {
-        var from = s.u, to = s.fit ? 0 : 1;
+        var from = s.u, to = s.fit ? 0 : 1, mine = ++run;
         s.fit = !s.fit;
         s.busy = true;
-        api.animate(800, function (t) { s.u = from + (to - from) * t; }, function () { s.u = to; s.busy = false; });
+        api.animate(800, function (t) { if (mine === run) s.u = from + (to - from) * t; }, function () {
+          if (mine !== run) return;
+          s.u = to;
+          s.busy = false;
+        });
       }, { disabled: function (s) { return s.busy || s.copies === 1; } });
     },
 
@@ -176,9 +198,9 @@
         /* together: one solid, so only its outside is drawn */
         var have = {};
         list.forEach(function (it) { keys(it.p.cells, have); });
-        list.forEach(function (it) { faces(g, it.p.cells, it.tone, [0, 0, 0], have); });
+        list.forEach(function (it) { faces(g, it.p.cells, it.tone, it.edge, [0, 0, 0], have); });
       } else {
-        list.forEach(function (it) { faces(g, it.p.cells, it.tone, it.off, keys(it.p.cells)); });
+        list.forEach(function (it) { faces(g, it.p.cells, it.tone, it.edge, it.off, keys(it.p.cells)); });
       }
       /* the layers of the first pyramid, named while it stands apart. Alone, beside its flat
          back edge (x = 0, y = n); first in a row, where a neighbour stands there, in front of
@@ -209,12 +231,13 @@
 
     say: function (s, quiz) {
       var n = s.n, one = sumSq(n);
+      var lay = n === 1 ? "one layer of 1²" : "layers of 1², …, " + n + "²";
       if (quiz) {
-        return "n = " + n + ": six pyramids with layers 1², …, " + n + "². Your box: " + s.a + " × " + s.b + " × " + s.c + ".";
+        return "n = " + n + ": six pyramids, each with " + lay + ". Your box: " + s.a + " × " + s.b + " × " + s.c + ".";
       }
       var sum = n === 1 ? "1 cube" : terms(n) + " = " + one + " cubes";
       if (s.copies === 1) {
-        return "<b>One pyramid: " + sum + "</b>, in layers of 1², …, " + n + "². Take three copies, then six.";
+        return "<b>One pyramid: " + sum + "</b>, in " + lay + ". Take three copies, then six.";
       }
       if (!fitted(s)) {
         return s.copies + " pyramids of " + one + (one === 1 ? " cube" : " cubes") + " each, apart. Fit them together.";
@@ -246,13 +269,14 @@
     ],
 
     cases: [
-      { set: { n: 4, a: 4, b: 5, c: 9 }, ask: "box", answer: "4:4,5,9" },
-      { set: { n: 4, a: 9, b: 4, c: 5 }, ask: "box", answer: "4:4,5,9" },
-      { set: { n: 4, a: 5, b: 9, c: 4 }, ask: "box", answer: "4:4,5,9" },
-      { set: { n: 3, a: 4, b: 5, c: 9 }, ask: "box", not: "4:4,5,9" },
-      { set: { n: 4, a: 4, b: 4, c: 9 }, ask: "box", not: "4:4,5,9" },
-      { set: { n: 4, a: 4, b: 5, c: 8 }, ask: "box", not: "4:4,5,9" },
-      { set: {}, ask: "box", not: "4:4,5,9" },
+      { set: { n: 6, a: 6, b: 7, c: 13 }, ask: "box", answer: "6:6,7,13" },
+      { set: { n: 6, a: 13, b: 6, c: 7 }, ask: "box", answer: "6:6,7,13" },
+      { set: { n: 6, a: 7, b: 13, c: 6 }, ask: "box", answer: "6:6,7,13" },
+      { set: { n: 5, a: 6, b: 7, c: 13 }, ask: "box", not: "6:6,7,13" },
+      { set: { n: 6, a: 6, b: 6, c: 13 }, ask: "box", not: "6:6,7,13" },
+      { set: { n: 6, a: 6, b: 7, c: 12 }, ask: "box", not: "6:6,7,13" },
+      { set: { n: 4, a: 4, b: 5, c: 9 }, ask: "box", not: "6:6,7,13" },
+      { set: {}, ask: "box", not: "6:6,7,13" },
       { set: { n: 5 }, answer: "55" }
     ],
 
