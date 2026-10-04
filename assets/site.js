@@ -249,9 +249,12 @@
   function initTheme() {
     applyTheme(currentTheme());
     var btns = document.querySelectorAll("[data-theme-toggle]");
+    /* read what is on screen, not the store: a blocked store never keeps the choice */
+    function effective() {
+      return document.documentElement.getAttribute("data-theme") === "dark" ? "dark" : "light";
+    }
     function label() {
-      var effective = currentTheme() || (systemPrefersDark() ? "dark" : "light");
-      return effective === "dark" ? "☀" : "☾";
+      return effective() === "dark" ? "☀" : "☾";
     }
     Array.prototype.forEach.call(btns, function (btn) {
       btn.textContent = label();
@@ -259,8 +262,7 @@
       btn.setAttribute("aria-label", "Switch between light and dark");
       btn.classList.add("theme-btn");
       btn.addEventListener("click", function () {
-        var effective = currentTheme() || (systemPrefersDark() ? "dark" : "light");
-        var next = effective === "dark" ? "light" : "dark";
+        var next = effective() === "dark" ? "light" : "dark";
         writeStore(THEME_KEY, next);
         applyTheme(next);
         Array.prototype.forEach.call(btns, function (b) { b.textContent = label(); });
@@ -1063,6 +1065,12 @@
 
       var tries = 0;
 
+      /* solved before now: progress saved before the attempt log existed has
+         no attempt record, so the progress store counts as well */
+      function solvedBefore() {
+        return !!Attempts.get(chapterId, key).solved || (!inline && !!Progress.chapter(chapterId).solved[key]);
+      }
+
       function reveal() {
         if (!solution) return;
         solution.setAttribute("data-show", "true");
@@ -1070,8 +1078,8 @@
         /* for a put-in-order question the solution is the order itself */
         if (orderList) orderItems.forEach(function (li) { orderList.appendChild(li); });
         /* opening the solution before solving is worth knowing about */
-        var already = Attempts.get(chapterId, key);
-        if (ex.getAttribute("data-state") !== "correct" && !already.solved) {
+        var already = Attempts.get(chapterId, key), done = solvedBefore();
+        if (ex.getAttribute("data-state") !== "correct" && !done) {
           Attempts.update(chapterId, key, function (r) {
             r.opened = 1;
             if (section) r.section = section;
@@ -1080,7 +1088,7 @@
         }
         Store.emit({
           type: "opened", chapter: chapterId, key: key, section: section, inline: inline,
-          solved: ex.getAttribute("data-state") === "correct", tries: already.tries || 0, ex: ex
+          solved: done || ex.getAttribute("data-state") === "correct", tries: already.tries || 0, ex: ex
         });
       }
       function hide() {
@@ -1184,7 +1192,7 @@
         tries++;
         var level = ok ? 0 : tries === 1 && hint ? 1 : tries === 2 && hint2 ? 2 : 0;
         /* only the road to the first correct answer is recorded; re-solving changes nothing */
-        if (!Attempts.get(chapterId, key).solved) {
+        if (!solvedBefore()) {
           var rec = Attempts.update(chapterId, key, function (a) {
             a.tries = (a.tries || 0) + 1;
             if (section) a.section = section;
@@ -1230,7 +1238,10 @@
             ? hintBox(1, hint, true)
             : level === 2
               ? hintBox(1, hint, false) + hintBox(2, hint2, true)
-              : '<p class="ex-next hint">Not yet. Work it through once more' + (solution ? ", or open the solution." : ".") + "</p>";
+              /* the hints have run out: the ones already given stay, quieter */
+              : (hint && tries > 1 ? hintBox(1, hint, false) : "") +
+                (hint2 && tries > 2 ? hintBox(2, hint2, false) : "") +
+                '<p class="ex-next hint">Not yet. Work it through once more' + (solution ? ", or open the solution." : ".") + "</p>";
           if (!level && solution) showBtn.setAttribute("data-suggested", "true");
           say(verdict("no", "✗ Not right.") + after);
           renderMath(feedback);
@@ -1270,7 +1281,7 @@
     var html = "";
     if (fresh) {
       html += '<span class="burst" aria-hidden="true">';
-      for (var i = 0; i < 14; i++) html += '<i style="--i:' + i + '"></i>';
+      for (var i = 0; i < 12; i++) html += '<i style="--i:' + i + '"></i>';
       html += "</span>";
     }
     html += "<b>" + (chapter ? escapeHtml(chapter.label === "Interlude" ? "Interlude" : "Chapter " + chapter.label) : "Chapter") +

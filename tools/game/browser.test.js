@@ -313,6 +313,91 @@ async function run() {
       eq(errors, [], "no errors for an existing user");
       await context.close();
     }
+
+    /* ------------------- progress saved before the attempt log: re-checks are free */
+    {
+      const { context, page, errors } = await open(browser, CH05, { "bm.lesson.v1": '{"mode":"page"}' });
+      await page.evaluate(() => {
+        var solved = {};
+        Array.prototype.forEach.call(document.querySelectorAll(".ex[data-key]:not([data-inline])"), function (ex) { solved[ex.getAttribute("data-key")] = true; });
+        localStorage.removeItem("bm.attempts.v1");
+        localStorage.setItem("bm.progress.v1", JSON.stringify({ ch05: { solved: solved, total: Object.keys(solved).length } }));
+        localStorage.setItem("bm.run.v1", JSON.stringify({ combo: { pips: 4, shield: false } }));
+      });
+      await page.reload();
+      await page.waitForFunction(() => document.readyState === "complete");
+      await wait(300);
+      const s0 = await state(page);
+      eq([s0.medal, s0.hearts, s0.pips], [3, 3, 4], "older progress with no attempt log loads as Gold with the combo intact");
+      await answer(page, '#practice .ex[data-key="e1"]', false);
+      await answer(page, '#practice .ex[data-key="e2"]', false);
+      await page.click('#practice .ex[data-key="e2"] .ex-form .btn.ghost');
+      await answer(page, '#practice .ex[data-key="e3"]', true);
+      await wait(700);
+      const s1 = await state(page);
+      eq([s1.medal, s1.hearts, s1.pips, s1.xp], [3, 3, 4, s0.xp], "wrong re-checks, Show solution and a re-solve on solved work cost nothing and earn nothing");
+      eq(await page.evaluate(() => (JSON.parse(localStorage.getItem("bm.attempts.v1") || "{}")).ch05 || {}), {}, "no attempt is recorded for already-solved work");
+      eq(errors, [], "no errors re-checking older progress");
+      await context.close();
+    }
+
+    /* --------------------------- hints already given stay once they run out */
+    {
+      const { context, page, errors } = await open(browser, CH05, { "bm.lesson.v1": '{"mode":"page"}' });
+      const keys = await page.evaluate(() => {
+        var pick = function (sel) {
+          var ex = Array.prototype.filter.call(document.querySelectorAll(sel), function (e) {
+            return e.getAttribute("data-kind") !== "choice" && e.getAttribute("data-kind") !== "multi" &&
+              e.querySelector(".ex-form input:not([type=radio]):not([type=checkbox])");
+          })[0];
+          return ex && ex.getAttribute("data-key");
+        };
+        return { one: pick(".ex[data-hint]:not([data-hint2])"), two: pick(".ex[data-hint][data-hint2]") };
+      });
+      const boxes = (k) => page.$eval('.ex[data-key="' + k + '"]', (ex) => ({
+        level: ex.getAttribute("data-hint-level"),
+        hints: Array.prototype.map.call(ex.querySelectorAll(".ex-feedback .ex-hint"), function (h) { return h.getAttribute("data-level") + (h.hasAttribute("data-prev") ? "p" : ""); }).join(","),
+        next: !!ex.querySelector(".ex-feedback .ex-next")
+      }));
+      check(keys.one && keys.two, "ch05 has a one-hint and a two-hint typed exercise (" + JSON.stringify(keys) + ")");
+      for (let i = 0; i < 3; i++) await answer(page, '.ex[data-key="' + keys.one + '"]', false);
+      eq(await boxes(keys.one), { level: "3", hints: "1p", next: true }, "one hint: later misses keep it, quieter, above the nudge to the solution");
+      for (let i = 0; i < 3; i++) await answer(page, '.ex[data-key="' + keys.two + '"]', false);
+      eq(await boxes(keys.two), { level: "3", hints: "1p,2p", next: true }, "two hints: the third miss keeps both, quieter");
+      eq(errors, [], "no errors around hints");
+      await context.close();
+    }
+
+    /* ------------------------------- theme toggle with storage that throws */
+    {
+      const { context, page, errors } = await open(browser, "index.html", {}, { blockStorage: true });
+      const theme = () => page.evaluate(() => [document.documentElement.getAttribute("data-theme"), document.querySelector("[data-theme-toggle]").textContent]);
+      const seen = [await theme()];
+      for (let i = 0; i < 3; i++) { await page.click("[data-theme-toggle]"); seen.push(await theme()); }
+      eq(seen, [["light", "☾"], ["dark", "☀"], ["light", "☾"], ["dark", "☀"]], "the theme toggle switches both ways and its label follows, with storage blocked");
+      eq(errors, [], "no errors toggling the theme with storage blocked");
+      await context.close();
+    }
+
+    /* ------------------- the chapter-done burst: as many particles as the CSS draws */
+    {
+      const { context, page, errors } = await open(browser, CH05, { "bm.lesson.v1": '{"mode":"page"}' });
+      const last = await page.evaluate(() => {
+        var keys = Array.prototype.map.call(document.querySelectorAll(".ex[data-key]:not([data-inline])"), function (ex) { return ex.getAttribute("data-key"); });
+        var solved = {};
+        keys.slice(0, -1).forEach(function (k) { solved[k] = true; });
+        localStorage.setItem("bm.progress.v1", JSON.stringify({ ch05: { solved: solved, total: keys.length } }));
+        return keys[keys.length - 1];
+      });
+      await page.reload();
+      await page.waitForFunction(() => document.readyState === "complete");
+      /* the encounter plays its own finish; step it aside so the banner's burst is drawn */
+      await page.evaluate(() => { if (window.BMEncounter) window.BMEncounter.active = false; });
+      await answer(page, '.ex[data-key="' + last + '"]', true);
+      eq(await page.evaluate(() => document.querySelectorAll(".chapter-done .burst i").length), 12, "the chapter-done burst emits the 12 particles the CSS styles");
+      eq(errors, [], "no errors around the chapter-done burst");
+      await context.close();
+    }
   } finally {
     await browser.close();
   }
