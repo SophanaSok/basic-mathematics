@@ -24,9 +24,13 @@ create table if not exists public.user_state (
   activity jsonb not null default '{}'::jsonb,   -- bm.activity.v1
   lesson jsonb not null default '{}'::jsonb,     -- bm.lesson.v1
   last jsonb,                                    -- bm.last
+  game jsonb not null default '{}'::jsonb,       -- bm.game.v1: achievements, medals, Arena review boxes
   reset_at bigint not null default 0,            -- ms timestamp of the last deliberate reset
   updated_at timestamptz not null default now()
 );
+-- Added with the game layer. A project created before it gets the column here; the site
+-- writes it on every sync, so it must exist before the new site is deployed with accounts on.
+alter table public.user_state add column if not exists game jsonb not null default '{}'::jsonb;
 
 create table if not exists public.attempts (
   id bigint generated always as identity primary key,
