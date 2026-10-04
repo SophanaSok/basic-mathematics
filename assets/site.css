@@ -1,119 +1,159 @@
 /* ===========================================================================
    Basic Mathematics — site styles
-   Light palette on bare :root; dark redefined for the OS setting (unless the
-   reader forced light) and again for the explicit toggle.
+   Light palette on bare :root, dark on :root[data-theme="dark"]; assets/boot.js
+   stamps data-theme before first paint (the saved choice, else the OS setting).
    Everything is drawn from the tokens below, so the figures (which read the
    --plot-* and --part variables) follow both themes without knowing about them.
    =========================================================================== */
 
 :root {
-  --bg: #fbfaf7;
-  --surface: #ffffff;
-  --surface-2: #f4f2ec;
-  --text: #17181c;
-  --muted: #5d5b54;
-  --border: #e7e3da;
-  --border-strong: #cfcabd;
-  --accent: #3552c8;
-  --accent-deep: #283f9e;
-  --accent-soft: #edf0fc;
-  --accent-2: #a8552a;
-  --accent-2-soft: #fbeee5;
-  --ok: #1d7a45;
-  --ok-deep: #155c34;
-  --ok-soft: #e5f4ea;
-  --bad: #a52a2d;
-  --bad-soft: #fcebeb;
-  --flame: #d9661c;
+  --bg: #f6f1e7;
+  --surface: #fffdf8;
+  --surface-2: #ede6d8;
+  --grid-line: #ece5d6;
+  --text: #171923;
+  --muted: #555a6b;
+  --border: #e0d9c9;
+  --border-strong: #c2b9a6;
+  --tile-border: #c2b9a6;
+  --tile-edge: #b0a68f;
+  --line-ui: #73788a;
+  --accent: #2646d4;
+  --accent-deep: #17309f;
+  --accent-soft: #e4e9ff;
+  --focus: #2646d4;
+  --accent-2: #a04608;
+  --accent-2-soft: #fdeedd;
+  --ok: #14713a;
+  --ok-deep: #0d5329;
+  --ok-soft: #dcf3e2;
+  --bad: #b42318;
+  --bad-deep: #861810;
+  --bad-soft: #fde7e4;
+  --hint-ink: #8a3c06;
+  --hint-soft: #fdf3e3;
+  --flame: #d4530a;
+  --xp: #f6b40e;
+  --xp-ink: #855600;
+  --on-xp: #171923;
+  --heart: #c81e4a;
   --on-accent: #ffffff;
+  --on-part: #ffffff;
 
+  /* the scoreboard rail is dark in both themes */
+  --hud-bg: #171a28;
+  --hud-text: #f4f1e9;
+  --hud-muted: #aeb4c8;
+  --hud-line: #343b55;
+  --hud-chip: #262b42;
+  --hud-track: #3a4160;
+  --hud-xp: #ffc83d;
+  --hud-flame: #ff9447;
+  --hud-heart: #ff6b81;
+  --hud-ok: #6fdc98;
+  --hud-focus: #ffd24a;
+
+  /* elevation means "you can act on this": tiles get a hard edge, panels get none */
+  --shadow-tile: 0 4px 0 var(--edge, var(--tile-edge));
+  --shadow-tile-sm: 0 2px 0 var(--edge, var(--tile-edge));
+  --shadow-float: 0 10px 30px -10px rgba(20, 22, 31, .35);
   --shadow-1: 0 1px 2px rgba(23, 24, 28, .05), 0 2px 6px rgba(23, 24, 28, .04);
   --shadow: 0 1px 2px rgba(23, 24, 28, .05), 0 8px 24px -6px rgba(23, 24, 28, .08);
-  --shadow-2: 0 2px 4px rgba(23, 24, 28, .06), 0 18px 40px -12px rgba(23, 24, 28, .16);
+  --shadow-2: var(--shadow-float);
 
-  --plot-grid: #e8e4da;
-  --plot-axis: #8d887a;
-  --plot-curve: #3552c8;
-  --plot-curve-2: #a8552a;
-  --plot-fill: rgba(53, 82, 200, .13);
-  --plot-point: #17181c;
+  /* figures and 3D scenes; WebGL reads these, so keep them plain six-digit hex */
+  --plot-bg: #fffdf8;
+  --plot-grid: #e7e0d0;
+  --plot-axis: #777c8c;
+  --plot-curve: #2646d4;
+  --plot-curve-2: #a04608;
+  --plot-curve-3: #1f9456;
+  --plot-curve-4: #a3247a;
+  --plot-fill: rgba(38, 70, 212, .14);
+  --plot-point: #171923;
+  --plot-ink: #171923;
+  --plot-face-a: #c9d3fb;
+  --plot-face-b: #f6d3ae;
+  --plot-face-c: #d3efdc;
+  --plot-ground: #f1ebdd;
+  --plot-hot: #f6b40e;
 
   --sans: "Inter", ui-sans-serif, "Segoe UI", system-ui, Roboto, Helvetica, Arial, sans-serif;
   --serif: "Newsreader", "Iowan Old Style", "Palatino Linotype", Palatino, "Book Antiqua", Georgia, serif;
+  --display: "Bricolage Grotesque", "Inter", ui-sans-serif, "Segoe UI", system-ui, sans-serif;
   --mono: ui-monospace, "Cascadia Mono", Consolas, "Liberation Mono", monospace;
   --measure: 66ch;
-  --radius: 14px;
-  --radius-sm: 10px;
+  --hud-h: 3.5rem;
+  --radius: 16px;
+  --radius-sm: 11px;
+  --radius-xs: 7px;
+  --radius-pill: 999px;
   --ease: cubic-bezier(.2, .7, .2, 1);
-}
-
-:root:not([data-theme="light"]) {
+  --ease-out: cubic-bezier(.2, .7, .2, 1);
+  --ease-spring: cubic-bezier(.34, 1.56, .64, 1);
+  --ease-in: cubic-bezier(.5, 0, .9, .4);
+  --t-1: 80ms;
+  --t-2: 160ms;
+  --t-3: 240ms;
+  --t-4: 400ms;
+  --t-5: 700ms;
   color-scheme: light;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) {
-    --bg: #101116;
-    --surface: #181a21;
-    --surface-2: #20232d;
-    --text: #ebe9e3;
-    --muted: #a7a49b;
-    --border: #2a2d38;
-    --border-strong: #3d414f;
-    --accent: #93a8ff;
-    --accent-deep: #6f86e6;
-    --accent-soft: #1c2240;
-    --accent-2: #e0a077;
-    --accent-2-soft: #33251c;
-    --ok: #74d39b;
-    --ok-deep: #4fae77;
-    --ok-soft: #152a1e;
-    --bad: #f39290;
-    --bad-soft: #321b1d;
-    --flame: #f19a55;
-    --on-accent: #0f1220;
-    --shadow-1: 0 1px 2px rgba(0, 0, 0, .4);
-    --shadow: 0 1px 2px rgba(0, 0, 0, .4), 0 10px 28px -8px rgba(0, 0, 0, .5);
-    --shadow-2: 0 2px 4px rgba(0, 0, 0, .4), 0 20px 44px -12px rgba(0, 0, 0, .65);
-    --plot-grid: #2a2d37;
-    --plot-axis: #727787;
-    --plot-curve: #93a8ff;
-    --plot-curve-2: #e0a077;
-    --plot-fill: rgba(147, 168, 255, .16);
-    --plot-point: #ebe9e3;
-    color-scheme: dark;
-  }
-}
-
+/* assets/boot.js always stamps data-theme (the saved choice, else the OS setting)
+   before first paint, so the dark palette needs only this one block */
 :root[data-theme="dark"] {
-  --bg: #101116;
-  --surface: #181a21;
-  --surface-2: #20232d;
-  --text: #ebe9e3;
-  --muted: #a7a49b;
-  --border: #2a2d38;
-  --border-strong: #3d414f;
-  --accent: #93a8ff;
-  --accent-deep: #6f86e6;
-  --accent-soft: #1c2240;
-  --accent-2: #e0a077;
-  --accent-2-soft: #33251c;
-  --ok: #74d39b;
-  --ok-deep: #4fae77;
-  --ok-soft: #152a1e;
-  --bad: #f39290;
-  --bad-soft: #321b1d;
-  --flame: #f19a55;
-  --on-accent: #0f1220;
+  --bg: #12151d;
+  --surface: #1b1f2c;
+  --surface-2: #262b3b;
+  --grid-line: #171b25;
+  --text: #ece9e1;
+  --muted: #a8adbf;
+  --border: #2d3346;
+  --border-strong: #454d66;
+  --tile-border: #454d66;
+  --tile-edge: #07090e;
+  --line-ui: #7f879f;
+  --accent: #93a9ff;
+  --accent-deep: #5d77e0;
+  --accent-soft: #1e2749;
+  --focus: #93a9ff;
+  --accent-2: #f2a65c;
+  --accent-2-soft: #3a2917;
+  --ok: #6fdc98;
+  --ok-deep: #3fa468;
+  --ok-soft: #15311f;
+  --bad: #ff938c;
+  --bad-deep: #d9605a;
+  --bad-soft: #3b1c1d;
+  --hint-ink: #f2a65c;
+  --hint-soft: #2e2616;
+  --flame: #ff9447;
+  --xp: #ffc83d;
+  --xp-ink: #ffc83d;
+  --on-xp: #1a1405;
+  --heart: #ff6b81;
+  --on-accent: #0c1126;
+  --on-part: #10131c;
+  --hud-bg: #0b0d14;
+  --shadow-float: 0 10px 30px -10px rgba(0, 0, 0, .6);
   --shadow-1: 0 1px 2px rgba(0, 0, 0, .4);
   --shadow: 0 1px 2px rgba(0, 0, 0, .4), 0 10px 28px -8px rgba(0, 0, 0, .5);
-  --shadow-2: 0 2px 4px rgba(0, 0, 0, .4), 0 20px 44px -12px rgba(0, 0, 0, .65);
-  --plot-grid: #2a2d37;
-  --plot-axis: #727787;
-  --plot-curve: #93a8ff;
-  --plot-curve-2: #e0a077;
-  --plot-fill: rgba(147, 168, 255, .16);
-  --plot-point: #ebe9e3;
+  --plot-bg: #1b1f2c;
+  --plot-grid: #2b3144;
+  --plot-axis: #7b839b;
+  --plot-curve: #6f88ee;
+  --plot-curve-2: #d07f2a;
+  --plot-curve-3: #2bab70;
+  --plot-curve-4: #d85fb0;
+  --plot-fill: rgba(111, 136, 238, .20);
+  --plot-point: #ece9e1;
+  --plot-ink: #ece9e1;
+  --plot-face-a: #28336a;
+  --plot-face-b: #4f3312;
+  --plot-face-c: #1c4630;
+  --plot-ground: #171b26;
+  --plot-hot: #ffc83d;
   color-scheme: dark;
 }
 
@@ -668,18 +708,14 @@ footer.site p { margin: 0 0 .5em; max-width: 62ch; }
 /* Each Part carries its own hue, so the four read as four places. --part is set
    on <body data-part> (by site.js) and on each Part's section of the contents page. */
 
-:root { --part: var(--accent-2); --part-soft: var(--accent-2-soft); }
-[data-part="geometry"] { --part: #1f7a6d; --part-soft: #e3f3f0; }
-[data-part="coordinates"] { --part: #6a4ca8; --part-soft: #eee9f8; }
-[data-part="topics"] { --part: #a03468; --part-soft: #f9e8f0; }
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) [data-part="geometry"] { --part: #6fd0bf; --part-soft: #16302c; }
-  :root:not([data-theme="light"]) [data-part="coordinates"] { --part: #b8a3ee; --part-soft: #272040; }
-  :root:not([data-theme="light"]) [data-part="topics"] { --part: #ee9cc0; --part-soft: #351c28; }
-}
-:root[data-theme="dark"] [data-part="geometry"] { --part: #6fd0bf; --part-soft: #16302c; }
-:root[data-theme="dark"] [data-part="coordinates"] { --part: #b8a3ee; --part-soft: #272040; }
-:root[data-theme="dark"] [data-part="topics"] { --part: #ee9cc0; --part-soft: #351c28; }
+:root, [data-part="algebra"] { --part: #a04608; --part-soft: #fdeedd; --part-deep: #7d3806; }
+[data-part="geometry"] { --part: #0c736b; --part-soft: #dcf3ef; --part-deep: #07514b; }
+[data-part="coordinates"] { --part: #5b3fc4; --part-soft: #ebe6fb; --part-deep: #3f2a91; }
+[data-part="topics"] { --part: #ad2468; --part-soft: #fbe5ef; --part-deep: #7c1849; }
+:root[data-theme="dark"], :root[data-theme="dark"] [data-part="algebra"] { --part: #f2a65c; --part-soft: #3a2917; --part-deep: #b9762f; }
+:root[data-theme="dark"] [data-part="geometry"] { --part: #5fd6c5; --part-soft: #12312d; --part-deep: #2f9c8d; }
+:root[data-theme="dark"] [data-part="coordinates"] { --part: #b9a6ff; --part-soft: #282145; --part-deep: #8570dd; }
+:root[data-theme="dark"] [data-part="topics"] { --part: #f690bd; --part-soft: #3a1c2a; --part-deep: #c95f8e; }
 
 .eyebrow, .part-head .roman, .worked > h4 .num, .rule .tag { color: var(--part); }
 .part-head { border-bottom-color: var(--part); }

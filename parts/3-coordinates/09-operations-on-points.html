@@ -7,20 +7,27 @@
 <meta name="description" content="Adding points, scaling them, and reflecting them — geometry done by arithmetic on coordinates.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400;1,6..72,500&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@700;800&family=Inter:wght@400;500;600;700&family=Newsreader:ital,wght@0,400;0,600;1,400&display=swap">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.11/katex.min.css">
 <link rel="icon" href="../../assets/favicon.svg" type="image/svg+xml">
 <link rel="stylesheet" href="../../assets/site.css">
+<link rel="stylesheet" href="../../assets/game.css">
+<link rel="stylesheet" href="../../assets/scenes3d.css">
+<script src="../../assets/boot.js"></script>
 <script defer src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.11/katex.min.js"></script>
 <script defer src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.11/contrib/auto-render.min.js"></script>
 <script defer src="../../data/curriculum.js"></script>
+<script defer src="../../data/quest.js"></script>
 <script defer src="../../assets/widgets.js"></script>
 <script defer src="../../assets/site.js"></script>
+<script defer src="../../assets/sfx.js"></script>
+<script defer src="../../assets/game.js"></script>
+<script defer src="../../assets/encounter.js"></script>
 <script defer src="../../assets/lesson.js"></script>
 <script defer src="../../assets/config.js"></script>
 <script defer src="../../assets/account.js"></script>
 </head>
-<body data-depth="2" data-chapter="ch09">
+<body data-depth="2" data-chapter="ch09" data-part="coordinates">
 <a class="skip-link" href="#main">Skip to content</a>
 
 <header class="topbar">
@@ -37,13 +44,18 @@
   <aside class="sidebar" data-sidebar></aside>
   <main id="main">
 
-    <p class="eyebrow">Part III — Coordinate Geometry · Chapter 9</p>
-    <h1>Operations on Points</h1>
-    <p class="lede">
-      Once points are pairs of numbers, we can do arithmetic on them. Two operations — adding two
-      points, and multiplying a point by a number — turn out to have exact geometric meanings, and
-      between them they carry most of the rest of this part.
-    </p>
+    <header class="region-banner">
+      <p class="eyebrow">Part III — Coordinate Geometry · Chapter 9</p>
+      <h1>Operations on Points</h1>
+      <p class="lede">
+        Once points are pairs of numbers, we can do arithmetic on them. Two operations — adding two
+        points, and multiplying a point by a number — turn out to have exact geometric meanings, and
+        between them they carry most of the rest of this part.
+      </p>
+
+      <div class="banner-meta" data-banner-meta></div>
+
+    </header>
 
     <div class="puzzle" id="puzzle">
       <span class="tag">A puzzle to carry through the chapter</span>

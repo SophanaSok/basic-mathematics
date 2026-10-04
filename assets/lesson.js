@@ -56,7 +56,8 @@
     modeBox.appendChild(b);
     return { mode: m[0], btn: b };
   });
-  var lede = main.querySelector(".lede") || main.querySelector("h1");
+  /* the chapter's opening block: the region banner, or a bare lede or title on older pages */
+  var lede = main.querySelector(".region-banner") || main.querySelector(".lede") || main.querySelector("h1");
   if (!lede || lede.parentNode !== main) return;
   main.insertBefore(modeBox, lede.nextSibling);
 

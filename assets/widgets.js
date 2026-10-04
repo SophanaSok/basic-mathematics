@@ -1394,7 +1394,7 @@
     grid(P, 1, 1, { tickStep: 2, yTickStep: 2 });
     var g = P.layer();
     var out = readout(host);
-    var C1 = "var(--plot-curve)", C2 = "var(--plot-curve-2)", C3 = "var(--accent-2)";
+    var C1 = "var(--plot-curve)", C2 = "var(--plot-curve-2)", C3 = "var(--plot-curve-3)";
 
     function draw() {
       g.textContent = "";
@@ -1493,7 +1493,7 @@
       g.appendChild(el("circle", { cx: P.sx(M.x), cy: P.sy(M.y), r: 4, style: S.pt }));
       g.appendChild(el("circle", { cx: P.sx(A.x), cy: P.sy(A.y), r: 6.5, style: S.ptA }));
       g.appendChild(el("circle", { cx: P.sx(B.x), cy: P.sy(B.y), r: 6.5, style: S.ptB }));
-      g.appendChild(el("circle", { cx: P.sx(X.x), cy: P.sy(X.y), r: 7, style: "fill:var(--accent-2);stroke:var(--surface);stroke-width:2.5" }));
+      g.appendChild(el("circle", { cx: P.sx(X.x), cy: P.sy(X.y), r: 7, style: "fill:var(--plot-curve-3);stroke:var(--surface);stroke-width:2.5" }));
       g.appendChild(label(P, A.x, A.y, "P", 0, -14));
       g.appendChild(label(P, B.x, B.y, "Q", 0, -14));
       g.appendChild(label(P, X.x, X.y, "t = " + fmt(t, 2), 0, 24, S.label));
@@ -1785,7 +1785,7 @@
         var y = y0 + i * dy, isSel = i === sel;
         g.appendChild(el("circle", {
           cx: xL, cy: y, r: 16,
-          style: "fill:var(--surface-2);stroke:" + (isSel ? "var(--accent)" : "var(--plot-curve)") +
+          style: "fill:var(--surface-2);stroke:" + (isSel ? "var(--plot-curve-4)" : "var(--plot-curve)") +
             ";stroke-width:" + (isSel ? 4 : 2) + ";cursor:pointer"
         }));
         g.appendChild(el("text", { x: xL, y: y + 5, "text-anchor": "middle", style: S.labelStrong }, s));
@@ -1887,11 +1887,11 @@
         style: "fill:none;stroke:var(--plot-grid);stroke-width:1.5;stroke-dasharray:4 4"
       }));
       g.appendChild(arcAt(P, 0, 0, 0, az, 30, "stroke:var(--plot-curve);stroke-width:2;fill:none"));
-      g.appendChild(arcAt(P, 0, 0, az, az + aw, 40, "stroke:var(--accent-2);stroke-width:2.5;fill:none"));
+      g.appendChild(arcAt(P, 0, 0, az, az + aw, 40, "stroke:var(--plot-curve-3);stroke-width:2.5;fill:none"));
       g.appendChild(arrowTo(P, 0, 0, z.x, z.y, "var(--plot-curve)"));
       g.appendChild(arrowTo(P, 0, 0, w.x, w.y, "var(--plot-curve-2)"));
       if (Math.abs(pr.x) <= 5 && Math.abs(pr.y) <= 3.4) {
-        g.appendChild(arrowTo(P, 0, 0, pr.x, pr.y, "var(--accent-2)", 3));
+        g.appendChild(arrowTo(P, 0, 0, pr.x, pr.y, "var(--plot-curve-3)", 3));
         g.appendChild(label(P, pr.x, pr.y, "zw", 0, -14));
       }
       g.appendChild(label(P, z.x, z.y, "z", 0, -14));
@@ -2223,7 +2223,7 @@
       }
       if (done > 0) {
         g.appendChild(el("rect", { x: x0 + X, y: y0 + X, width: hw, height: hw,
-          style: "fill:var(--accent);opacity:" + (0.25 + 0.45 * done) + ";stroke:var(--accent);stroke-width:2;stroke-dasharray:5 4" }));
+          style: "fill:var(--plot-curve-3);opacity:" + (0.25 + 0.45 * done) + ";stroke:var(--plot-curve-3);stroke-width:2;stroke-dasharray:5 4" }));
         g.appendChild(text(x0 + X + hw / 2, y0 + X + hw / 2 + 5, fmt((b / 2) * (b / 2))));
         g.appendChild(text(x0 + (X + hw) / 2, y0 + X + hw + 22, "side x + b/2", S.label));
       }
@@ -2276,7 +2276,7 @@
     host.appendChild(P.svg);
     var g = P.layer();
     var out = readout(host);
-    var COL = ["var(--plot-curve)", "var(--plot-curve-2)", "var(--ok)"];
+    var COL = ["var(--plot-curve)", "var(--plot-curve-2)", "var(--plot-curve-3)"];
 
     function scr(p) { return { x: P.sx(p.x), y: P.sy(p.y) }; }
     /* interior angle at v, between the rays to p and q, as a start bearing and a signed sweep (screen space) */
@@ -2446,7 +2446,7 @@
     var out = readout(host);
     var F = [[-0.45, -0.6], [-0.45, 0.6], [0.4, 0.6], [0.4, 0.32], [-0.13, 0.32], [-0.13, 0.1], [0.25, 0.1], [0.25, -0.16], [-0.13, -0.16], [-0.13, -0.6]];
     var CORNERS = [[1, 1], [-1, 1], [-1, -1], [1, -1]];
-    var COL = ["var(--plot-curve)", "var(--plot-curve-2)", "var(--ok)", "var(--bad)"];
+    var COL = ["var(--plot-curve)", "var(--plot-curve-2)", "var(--plot-curve-3)", "var(--plot-curve-4)"];
 
     function mul(m, n) {   /* m after n */
       return [m[0] * n[0] + m[1] * n[2], m[0] * n[1] + m[1] * n[3], m[2] * n[0] + m[3] * n[2], m[2] * n[1] + m[3] * n[3]];
