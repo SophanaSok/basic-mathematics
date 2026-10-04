@@ -9,8 +9,8 @@
    1. the "you are here" bob ends: an idle page asks for no frames; never bobs when calm
       or under reduced motion
    2. a frame held while the tab is hidden, or a long task, does not tear the map down
-   3. an island acts like its list link: Ctrl+click opens a new tab, a press on empty
-      ground dragged onto an island and released opens nothing
+   3. an island acts like its list link: Ctrl+click and middle click open a new tab, a press
+      (either button) on empty ground dragged onto an island and released opens nothing
    4. after a timeout, the late copy of three.min.js does not replace window.THREE or
       bring it back after the load said no */
 "use strict";
@@ -208,6 +208,21 @@ async function run() {
         await page.mouse.up();
         await wait(1200);
         check(page.url() === start, "pressing on empty ground, dragging onto an island and releasing opens nothing (" + page.url() + ")");
+
+        let mid = context.waitForEvent("page", { timeout: 2500 }).catch(() => null);
+        await page.mouse.move(pt.x, pt.below);
+        await page.mouse.down({ button: "middle" });
+        for (let k = 1; k <= 10; k++) await page.mouse.move(pt.x, pt.below + (pt.y - pt.below) * k / 10);
+        await page.mouse.up({ button: "middle" });
+        let midTab = await mid;
+        check(page.url() === start && !midTab, "the same drag with the middle button opens nothing either (" + (midTab && midTab.url()) + ")");
+        if (midTab) await midTab.close();
+
+        mid = context.waitForEvent("page", { timeout: 4000 }).catch(() => null);
+        await page.mouse.click(pt.x, pt.y, { button: "middle" });
+        midTab = await mid;
+        check(page.url() === start && !!midTab && /\/parts\/.+\.html/.test(midTab.url()), "a middle click on an island opens its chapter in a new tab (" + (midTab && midTab.url()) + ")");
+        if (midTab) await midTab.close();
 
         await Promise.all([page.waitForNavigation({ timeout: 5000 }).catch(() => null), page.mouse.click(pt.x, pt.y)]);
         check(/\/parts\/.+\.html/.test(page.url()), "a plain click on the same island opens its chapter (" + page.url() + ")");

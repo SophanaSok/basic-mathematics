@@ -207,7 +207,7 @@
       geo: {}, mat: {}, pick: [], arches: [], disposables: [],
       view: { t: new T.Vector3(), d: 18 }, viewKind: null, u: 0,
       flight: null, raf: 0, dirty: true, lastFrame: 0, samples: [], bob: null, bobbing: false,
-      onscreen: true, hot: -1, hotHow: "", hover: -1, cur: -1, press: null, drag: false,
+      onscreen: true, hot: -1, hotHow: "", hover: -1, cur: -1, press: null, aux: null, drag: false,
       observers: [], firstRender: false
     };
 
@@ -227,8 +227,12 @@
     canvas.addEventListener("pointercancel", onCancel);
     canvas.addEventListener("pointerleave", onLeave);
     canvas.addEventListener("auxclick", onAux);
-    /* the canvas is not focusable: keep focus where a tap put it (on the list link), and no text selection while dragging */
-    canvas.addEventListener("mousedown", function (e) { e.preventDefault(); });
+    /* the canvas is not focusable: keep focus where a tap put it (on the list link), and no text selection while dragging;
+       a middle press is noted here (pointerdown misses one made while another button is held) for onAux */
+    canvas.addEventListener("mousedown", function (e) {
+      e.preventDefault();
+      if (M && e.button === 1) M.aux = { x: e.clientX, y: e.clientY, hit: pickAt(e.clientX, e.clientY) };
+    });
     box.querySelector(".map3d-parts").addEventListener("click", onPartButton);
 
     /* reveal only now that 3D is certain, so fallback users never see a box come and go */
@@ -900,9 +904,14 @@
     if (e.ctrlKey || e.metaKey || e.shiftKey || e.button === 1) window.open(href, "_blank");
     else window.location.href = href;
   }
+  /* auxclick fires for any middle press and release on the canvas: as with the primary button,
+     only one that starts and ends on the same island without travelling counts */
   function onAux(e) {
     if (!M || e.button !== 1) return;
-    var hit = pickAt(e.clientX, e.clientY), href = hit && hrefFor(hit);
+    var pr = M.aux;
+    M.aux = null;
+    if (!pr || Math.abs(e.clientX - pr.x) > 6 || Math.abs(e.clientY - pr.y) > 6) return;
+    var hit = pickAt(e.clientX, e.clientY), href = hit && sameHit(hit, pr.hit) && hrefFor(hit);
     if (!href) return;
     e.preventDefault();
     go(href, e);
