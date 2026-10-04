@@ -8,7 +8,9 @@
    Sync is a merge, never an overwrite: solved exercises and finished missions are
    unions, XP is the larger number for each day, lesson position is the furthest
    reached, and the game record merges field by field (mergeGame). Merging the
-   same two states in either order gives the same result.
+   same two states in either order gives the same result. A write only lands on the
+   version of the account row this page last saw; if another device has saved since,
+   the page reads the row, merges, and tries again (sync below).
    =========================================================================== */
 (function () {
   "use strict";
@@ -264,6 +266,19 @@
 
   var user = null, status = { state: "off", at: null, error: null };
   var pushTimer = null, queue = [], watchers = [];
+  /* The account row as this page last read or wrote it: undefined until then, null
+     when the account has no row yet, otherwise its updated_at exactly as the server
+     sent it back. `owned` is set once this page has claimed this browser's progress
+     for the reader, so a sign-out in another tab can be noticed. */
+  var seen, owned = false;
+  /* one sync at a time per page; each waits for the one before to settle */
+  var chain = Promise.resolve();
+  function serial(fn) {
+    var run = chain.then(fn, fn);
+    chain = run.then(noop, noop);
+    return run;
+  }
+  function noop() {}
 
   function setStatus(state, error) {
     status = { state: state, at: state === "synced" ? new Date() : status.at, error: error || null };
@@ -273,59 +288,205 @@
     watchers.slice().forEach(function (fn) { try { fn(Account); } catch (e) { /* a watcher's own problem */ } });
   }
 
-  function row(state, resetAt) {
+  /* JSON with object keys sorted at every level: jsonb hands keys back in its own order */
+  function canon(x) {
+    if (Array.isArray(x)) return "[" + x.map(canon).join(",") + "]";
+    if (x && typeof x === "object") {
+      return "{" + Object.keys(x).sort().filter(function (k) { return x[k] !== undefined; })
+        .map(function (k) { return JSON.stringify(k) + ":" + canon(x[k]); }).join(",") + "}";
+    }
+    return JSON.stringify(x === undefined ? null : x);
+  }
+
+  /* Progress that could not be saved when its reader signed out, set aside by reader:
+     { <user id>: { email, resetAt, state, at } }. It is merged in the next time that
+     reader signs in on this browser, and never shown to anyone else. */
+  var PENDING_KEY = "bm.sync.pending.v1";
+  function pending() { return obj(Store.read(PENDING_KEY, {})); }
+  function setPending(fn) {
+    var p = pending();
+    fn(p);
+    Store.write(PENDING_KEY, p, true);
+  }
+  function setAside(u) {
+    var m = meta(), state = readLocal();
+    setPending(function (p) {
+      var old = obj(p[u.id]);
+      p[u.id] = {
+        email: u.email || "",
+        resetAt: Math.max(Number(m.resetAt) || 0, Number(old.resetAt) || 0),
+        state: old.state ? merge(state, old.state) : state,
+        at: Date.now()
+      };
+    });
+  }
+
+  function row(u, state, resetAt) {
     var out = {
-      user_id: user.id,
+      user_id: u.id,
       progress: state.progress || {}, play: state.play || {}, attempts: state.attempts || {},
       activity: state.activity || {}, lesson: state.lesson || {}, last: state.last || null,
-      reset_at: resetAt || 0, updated_at: new Date().toISOString()
+      reset_at: resetAt || 0, updated_at: nextStamp()
     };
     /* needs the `game` column (supabase/schema.sql) */
     if (FIELDS.indexOf("game") > -1) out.game = state.game || {};
     return out;
   }
+  /* always later than the version being replaced, even if this device's clock is behind */
+  function nextStamp() {
+    var prev = seen ? Date.parse(seen) : 0;
+    return new Date(Math.max(Date.now(), (isFinite(prev) ? prev : 0) + 1)).toISOString();
+  }
 
-  function pull() {
-    setStatus("syncing");
-    return client.from("user_state").select("*").eq("user_id", user.id).maybeSingle().then(function (res) {
+  /* Every step of a sync belongs to the reader it started for. If the session has
+     ended (signed out here or in another tab) or someone else has signed in since, it
+     stops rather than read as nobody or write into the wrong account. */
+  function stillSignedIn(u) {
+    if (!user || user.id !== u.id) throw new Error("The signed-in account changed.");
+  }
+  function confirmSession(u) {
+    return client.auth.getSession().then(function (res) {
+      var s = res && res.data ? res.data.session : null;
+      if (!s || !s.user || s.user.id !== u.id) throw new Error("You are no longer signed in on this page.");
+      stillSignedIn(u);
+    });
+  }
+  /* a page that claimed this browser's progress, whose reader has since been forgotten
+     by a sign-out in another tab, must not read or write it any more */
+  function stillOwner(u) {
+    if (owned && meta().user !== u.id) throw new Error("You have been signed out in another tab.");
+  }
+
+  /* Save a state over the version of the row this page last saw. Resolves true when it
+     landed, false when another device got there first (nothing was written). */
+  function write(u, state, resetAt) {
+    var data = row(u, state, resetAt);
+    var req = seen === null
+      ? client.from("user_state").insert(data).select("updated_at")
+      : client.from("user_state").update(data).eq("user_id", u.id).eq("updated_at", seen).select("updated_at");
+    return req.then(function (res) {
+      if (res.error) {
+        if (seen === null && res.error.code === "23505") return false;   /* another device created the row first */
+        throw res.error;
+      }
+      if (!res.data || !res.data.length) return false;  /* the row has moved on since this page read it */
+      if (user && user.id === u.id) seen = res.data[0].updated_at;
+      return true;
+    });
+  }
+
+  /* Read the account row, merge it into this browser, and save the result if the row
+     lacks anything, trying again if another device saves in between. */
+  function sync(u, tries) {
+    return confirmSession(u).then(function () {
+      return client.from("user_state").select("*").eq("user_id", u.id).maybeSingle();
+    }).then(function (res) {
       if (res.error) throw res.error;
+      stillSignedIn(u);
+      stillOwner(u);
       var remote = res.data, m = meta(), local = readLocal(), dropped = false;
-      /* progress left by a different account on this browser is not this reader's */
-      if (m.user && m.user !== user.id) { local = {}; dropped = true; }
-      /* a reset made on another device wins over what this one still remembers of the
-         same account; progress made before ever signing in is kept and merged */
+      var aside = obj(pending()[u.id]), hasAside = !!aside.state;
+      seen = remote ? remote.updated_at : null;
       var remoteReset = remote ? Number(remote.reset_at) || 0 : 0;
-      if (m.user === user.id && remoteReset > (m.resetAt || 0)) { local = {}; dropped = true; }
-      var merged = merge(local, remote || {});
-      setMeta(function (x) { x.user = user.id; x.resetAt = remoteReset; });
+      var mine = m.user === u.id ? Number(m.resetAt) || 0 : 0;
+      var asideReset = hasAside ? Number(aside.resetAt) || 0 : 0;
+      /* progress left by a different account on this browser is not this reader's */
+      if (m.user && m.user !== u.id) { local = {}; dropped = true; }
+      /* a reset made on another device wins over what this browser still remembers of the
+         same account; progress made before ever signing in is kept and merged */
+      if (m.user === u.id && remoteReset > mine) { local = {}; dropped = true; }
+      var kept = hasAside && !(remoteReset > asideReset) ? aside.state : {};
+      /* A reset made on this browser that the row has not heard of. If nothing has been
+         saved since it, the row's state is from before the reset and is left out. If
+         another device has saved since, its work is kept and this reset is given up:
+         losing a reset can be undone by pressing it again, losing work cannot. */
+      var known = Math.max(mine, asideReset), base = remote || {}, resetAt = remoteReset;
+      if (known > remoteReset) {
+        var written = remote ? Date.parse(remote.updated_at) : 0;
+        if (!(written >= known)) { base = {}; resetAt = known; }
+      }
+      var merged = merge(merge(local, kept), base);
+      setMeta(function (x) { x.user = u.id; x.resetAt = resetAt; });
+      owned = true;
       writeLocal(merged, dropped);
-      var same = remote && FIELDS.every(function (f) {
-        return JSON.stringify(merged[f] || null) === JSON.stringify(remote[f] || null);
+      function done() {
+        if (hasAside) setPending(function (p) { delete p[u.id]; });
+        return true;
+      }
+      var same = remote && remoteReset === resetAt && FIELDS.every(function (f) {
+        return canon(merged[f] || null) === canon(remote[f] || null);
       });
-      return same ? null : client.from("user_state").upsert(row(merged, remoteReset)).then(function (r) {
-        if (r.error) throw r.error;
+      if (same) return done();
+      return write(u, merged, resetAt).then(function (ok) {
+        if (ok) return done();
+        if (tries >= 3) throw new Error("Another device kept saving at the same moment. Try Sync now.");
+        return sync(u, tries + 1);
       });
-    }).then(function () { setStatus("synced"); }, function (e) { setStatus("error", e); });
+    });
+  }
+
+  /* Both resolve true when this browser's progress is in the account, false when it
+     could not be saved (the reason is in status.error); neither ever rejects. */
+  function pull() {
+    var u = user;
+    return serial(function () {
+      if (!u || !user || user.id !== u.id) return false;
+      setStatus("syncing");
+      return sync(u, 0).then(function () { setStatus("synced"); return true; },
+        function (e) { setStatus("error", e); return false; });
+    });
   }
 
   function push() {
     clearTimeout(pushTimer);
     pushTimer = null;
-    if (!client || !user) return Promise.resolve();
-    var events = queue;
-    queue = [];
-    setStatus("syncing");
-    var jobs = [client.from("user_state").upsert(row(readLocal(), meta().resetAt))];
-    if (events.length) jobs.push(client.from("attempts").insert(events));
-    return Promise.all(jobs).then(function (results) {
-      var failed = results.filter(function (r) { return r && r.error; })[0];
-      if (failed) throw failed.error;
-      setStatus("synced");
-    }, function (e) { setStatus("error", e); }).catch(function (e) { setStatus("error", e); });
+    if (!client || !user) return Promise.resolve(false);
+    var u = user;
+    return serial(function () {
+      if (!user || user.id !== u.id) return false;
+      var events = queue;
+      queue = [];
+      setStatus("syncing");
+      /* a page that has not read the row yet merges with it before writing anything */
+      var save = seen === undefined ? sync(u, 0) : confirmSession(u).then(function () {
+        /* this browser first, then whose it is: a sign-out in another tab forgets the
+           reader before it clears the progress, so a stale read is caught here */
+        var state = readLocal();
+        stillOwner(u);
+        return write(u, state, Number(meta().resetAt) || 0);
+      }).then(function (ok) { return ok || sync(u, 0); });
+      var log = events.length ? client.from("attempts").insert(events).then(function (r) {
+        if (r.error) throw r.error;
+      }) : null;
+      return Promise.all([save, log]).then(function () { setStatus("synced"); return true; }, function (e) {
+        setStatus("error", e);
+        /* the attempt log goes again with the next save; whether progress was saved is what the caller needs */
+        return save.then(function () { queue = events.concat(queue); return true; }, function () {
+          queue = events.concat(queue);
+          return false;
+        });
+      });
+    });
   }
   function schedule() {
     if (!user || pushTimer) return;
     pushTimer = setTimeout(push, 1500);
+  }
+
+  /* Leaving the page: write at once instead of waiting behind a sync in flight. The
+     write is conditional, so it cannot overwrite anything newer; if it loses, the
+     progress is still in this browser and the next page load merges it. */
+  function flush() {
+    if (!pushTimer) return;
+    clearTimeout(pushTimer);
+    pushTimer = null;
+    if (!client || !user || seen === undefined) return;
+    var u = user, state = readLocal();
+    if (meta().user !== u.id) return;
+    var events = queue;
+    queue = [];
+    write(u, state, Number(meta().resetAt) || 0).then(noop, noop);
+    if (events.length) client.from("attempts").insert(events).then(noop, noop);
   }
 
   Store.on(function (c) {
@@ -341,20 +502,29 @@
       });
       schedule();
     } else if (c.type === "reset") {
-      /* stamp the reset so other devices drop their copies instead of merging them back */
-      setMeta(function (m) { m.resetAt = Date.now(); });
+      /* stamp the reset so other devices drop their copies instead of merging them back;
+         always later than the last reset this browser knows of, whatever its clock says */
+      setMeta(function (m) { m.resetAt = Math.max(Date.now(), (Number(m.resetAt) || 0) + 1); });
       push();
     }
   });
-  window.addEventListener("pagehide", function () { if (pushTimer) push(); });
+  window.addEventListener("pagehide", flush);
   document.addEventListener("visibilitychange", function () {
-    if (document.visibilityState === "hidden" && pushTimer) push();
+    if (document.visibilityState === "hidden") flush();
   });
 
   function onSession(session) {
     var next = session && session.user ? session.user : null;
     var changed = (next && next.id) !== (user && user.id);
     user = next;
+    /* what this page knew of the previous reader's row and log is not this reader's */
+    if (changed) {
+      seen = undefined;
+      owned = false;
+      queue = [];
+      clearTimeout(pushTimer);
+      pushTimer = null;
+    }
     if (!user) setStatus("off");
     drawButton();
     notify();
@@ -429,13 +599,34 @@
       return Account.ready().then(function (c) { return c.auth.updateUser({ password: password }); })
         .then(unwrap).then(function () { Account.recovering = false; });
     },
-    /* progress is safe in the account, so signing out leaves none behind on a shared machine */
+    /* Saves first, then signs out this device only. Progress that reached the account is
+       cleared from this browser, so none is left behind on a shared machine; progress that
+       could not be saved is set aside for this reader (setAside) and cleared from view, and
+       is saved the next time they sign in here. Whether the reader is signed out is read
+       from the session afterwards, not from the call's error: the SDK removes the session
+       even when the server cannot be reached. Resolves { saved, error }; rejects, with
+       nothing removed, only when the reader is still signed in. */
     signOut: function () {
+      var u = user, saved = false, why = null;
+      if (!u) return Promise.resolve({ saved: true, error: null });
       return Account.ready().then(function (c) {
-        return push().then(function () { return c.auth.signOut(); });
+        return push().then(function (ok) {
+          saved = ok;
+          why = ok ? null : status.error;
+          return c.auth.signOut({ scope: "local" });
+        }).then(function (res) {
+          return c.auth.getSession().then(function (s) {
+            if (s && s.data && s.data.session) {
+              throw new Error("Could not sign out (" + (res && res.error && res.error.message || "the account service did not answer") +
+                "). You are still signed in, and nothing has been removed from this browser.");
+            }
+          });
+        });
       }).then(function () {
+        if (!saved) setAside(u);
         setMeta(function (m) { delete m.user; delete m.resetAt; });
         clearLocal();
+        return { saved: saved, error: why };
       });
     },
     syncNow: function () {
@@ -511,6 +702,20 @@
   var esc = Site.escapeHtml;
   var notice = "", NOTE = "<!--note-->";
 
+  /* s•••@example.com: enough for a reader to recognise, little for the next person to read */
+  function mask(email) {
+    var at = String(email || "").indexOf("@");
+    return at > 0 ? email.charAt(0) + "\u2022\u2022\u2022" + email.slice(at) : "an earlier account";
+  }
+  function setAsideNote() {
+    var held = pending();
+    return Object.keys(held).map(function (id) {
+      return '<p class="form-note bad">Progress from your last session as <b>' + esc(mask(held[id].email)) + "</b> could not be " +
+        "saved to that account when it signed out. It has been set aside in this browser, out of view, and will be " +
+        "saved the next time that account signs in here.</p>";
+    }).join("");
+  }
+
   function field(id, label, type, extra) {
     return '<label class="field" for="' + id + '"><span>' + label + '</span><input id="' + id + '" type="' + type + '" ' +
       (extra || "") + "></label>";
@@ -545,7 +750,7 @@
         field("acct-new", "New password", "password", 'autocomplete="new-password" minlength="8"') +
         '<p class="actions"><button class="btn" id="acct-setpw" type="submit">Save password</button></p>' + NOTE + "</form>";
     } else if (!user) {
-      html = '<form class="panel auth" novalidate>' +
+      html = '<form class="panel auth" novalidate>' + setAsideNote() +
         "<h2>Sign in or create an account</h2>" +
         "<p>An account keeps your progress, streak and attempt history in one place, so they follow you to " +
         "another browser or device. The course itself never needs one.</p>" +
@@ -568,7 +773,8 @@
         '<p class="actions"><button class="btn" id="acct-save" type="button">Save name</button>' +
         '<button class="btn ghost" id="acct-sync" type="button">Sync now</button>' +
         '<button class="btn ghost" id="acct-out" type="button">Sign out</button></p>' + NOTE +
-        '<p class="fine">Signing out clears this browser\'s copy of your progress; it stays in your account.</p></div>' +
+        '<p class="fine">Signing out saves your progress to your account, then clears this browser\'s copy. ' +
+        "If it cannot be saved, it is set aside in this browser and saved the next time you sign in here.</p></div>" +
         '<div class="panel"><h2>Your data</h2>' +
         "<p>What is stored: the exercises you have solved, how many tries each took, whether a hint or the " +
         "solution was used, missions, XP per day, where you are in each chapter, and your game record " +
@@ -638,13 +844,14 @@
         btn.textContent = "Press again to delete everything";
         return;
       }
-      Account.deleteAccount().then(function () { say("Your account and its data have been deleted."); }, problem);
+      /* shown by the redraw that follows the sign-out, which would otherwise clear it */
+      Account.deleteAccount().then(function () { carry = "Your account and its data have been deleted."; }, problem);
     });
     var nameEl = document.getElementById("acct-name");
     if (nameEl && name !== null) nameEl.value = name;
   }
 
-  var name = null, nameFor = null, drawnFor = null;
+  var name = null, nameFor = null, drawnFor = null, carry = null;
   Account.onChange(function () {
     if (user && nameFor !== user.id) {
       nameFor = user.id;
@@ -655,7 +862,10 @@
     var who = user ? user.id : null, active = document.activeElement;
     var typing = active && host.contains(active) && active.tagName === "INPUT";
     if (typing && who === drawnFor) return;
-    if (who !== drawnFor) notice = "";
+    if (who !== drawnFor) {
+      notice = carry ? '<p class="form-note">' + esc(carry) + "</p>" : "";
+      carry = null;
+    }
     drawnFor = who;
     draw();
   });
