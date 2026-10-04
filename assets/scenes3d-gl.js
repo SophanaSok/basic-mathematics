@@ -145,7 +145,8 @@
         }
       }
       function ball(p) {
-        var NL = 12, NM = 20, rows = [];
+        /* enough facets that the outline stays round at any size: about 8 viewBox px each */
+        var NM = Math.max(20, Math.min(64, Math.round(2 * Math.PI * p.R / 8))), NL = Math.ceil(NM / 2), rows = [];
         for (var i = 0; i <= NL; i++) {
           var row = [], th = (i / NL) * Math.PI;
           for (var j = 0; j <= NM; j++) {

@@ -65,7 +65,10 @@
    api.handle({ name, at(s) → [x, y, z], axis: [dx, dy, dz] (a rail, 1 DOF) |
                 axes: [[1,0,0],[0,1,0],[0,0,1]] (a gizmo of rails),
                 move(s, p) (write the proposed world point p into state: snap, clamp),
-                step (keyboard step, default 1), tone, enabled(s) })
+                step (keyboard step, default 1), tone, enabled(s),
+                say(s, quiz) → words for the stage's label in place of "name at (x, y, z)"
+                  (use it when the coordinates are what a quiz asks for, or are not yet taught),
+                keys: words in place of the default arrow-key instructions })
    api.animate(ms, step(u), done)   eases u from 0 to 1, redrawing each frame; jumps to
                                      the end under reduced motion or calm mode; then
                                      re-checks the missions
@@ -843,7 +846,8 @@
         var hd = {
           name: hopts.name || "Point " + (handles.length + 1), at: hopts.at, move: hopts.move,
           axes: hopts.axes || [hopts.axis || [1, 0, 0]], step: hopts.step || 1,
-          tone: hopts.tone || "curve", enabled: hopts.enabled || function () { return true; }
+          tone: hopts.tone || "curve", enabled: hopts.enabled || function () { return true; },
+          say: hopts.say, keys: hopts.keys
         };
         handles.push(hd);
         return hd;
@@ -953,10 +957,11 @@
     function describe() {
       var hs = live(), parts = [spec.label || "A three-dimensional figure"];
       if (sel < hs.length) {
-        var hd = hs[sel], p = hd.at(s);
-        parts.push(hd.name + " at (" + p.map(fmt).join(", ") + ")");
-        parts.push(hd.axes.length === 3 ? "Left and right arrows move it along x, up and down along z, Page Up and Page Down along y"
-          : hd.axes.length === 2 ? "Arrow keys move it" : "Arrow keys move it along its line");
+        var hd = hs[sel];
+        /* a scene may word its handle itself, so the label never says more than the readout */
+        parts.push(hd.say ? hd.say(s, quiz) : hd.name + " at (" + hd.at(s).map(fmt).join(", ") + ")");
+        parts.push(hd.keys || (hd.axes.length === 3 ? "Left and right arrows move it along x, up and down along z, Page Up and Page Down along y"
+          : hd.axes.length === 2 ? "Arrow keys move it" : "Arrow keys move it along its line"));
       } else {
         parts.push("Turning the view: azimuth " + Math.round(cam.az) + "°, elevation " + Math.round(cam.el) + "°");
         parts.push("Arrow keys turn it, Home resets it");
@@ -1024,7 +1029,7 @@
         ? "Drag " + hs.join(" or ") + " along a guide line, or drag anywhere else to turn the view. " +
           "From the keyboard: Tab to the picture, move " + (hs.length > 1 ? "the selected point" : hs[0]) +
           " with the arrow keys" + (handles.some(function (hd) { return hd.axes.length === 3; }) ? " (Page Up and Page Down for y)" : "") +
-          "; Space " + (hs.length > 1 ? "switches points, then" : "") + " switches to turning the view; Home resets it."
+          "; Space " + (hs.length > 1 ? "switches points, then " : "") + "switches to turning the view; Home resets it."
         : "Drag the picture to turn it, or Tab to it and use the arrow keys; Home resets the view.";
       if (spec.sibling && document.querySelector && document.querySelector('[data-widget="' + spec.sibling + '"]')) {
         t += " It is the flat figure from earlier in the chapter, with one more dimension.";

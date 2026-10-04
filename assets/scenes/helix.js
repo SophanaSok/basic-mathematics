@@ -95,31 +95,14 @@
     return { center: mid, radius: r };
   }
 
-  /* The stage's aria-label names the selected handle "at (x, y, z)" from its world
-     coordinates: θ in radians and, in quiz mode, the very cos θ and sin θ the readout
-     hides. The framework has no per-handle text hook yet, so this mount's stage rewrites
-     that one phrase as it is set: θ in degrees, as on the slider, and outside quiz mode
-     the two shadows as the readout gives them. */
+  /* The stage's label would name the point by its world coordinates: θ in radians and,
+     in quiz mode, the very cos θ and sin θ the readout hides. So it is worded here:
+     θ in degrees, as on the slider, and the two shadows only outside quiz mode. */
   var NAME = "the point";
   function pointText(s, quiz) {
     var t = NAME + " at θ = " + s.t + "°";
     return quiz ? t : t + ", cos θ " + eq(cosText(s.t)) + ", sin θ " + eq(sinText(s.t));
   }
-  function speak(api, s) {
-    var host = api.controls.parentNode;
-    var stage = host && host.querySelector ? host.querySelector(".s3d-stage") : null;
-    if (!stage || stage.__helixSay) return;
-    var set0 = stage.setAttribute, head = NAME + " at (";
-    stage.__helixSay = true;
-    stage.setAttribute = function (name, value) {
-      if (name === "aria-label") {
-        var v = String(value), i = v.indexOf(head), j = i < 0 ? -1 : v.indexOf(")", i);
-        if (j >= 0) value = v.slice(0, i) + pointText(s, api.quiz()) + v.slice(j + 1);
-      }
-      return set0.call(this, name, value);
-    };
-  }
-
   window.BM3D.define("helix", {
     label: "The helix traced by the point theta, cos theta, sin theta, with its shadows on a back wall and on the floor",
     sibling: "unitcircle",
@@ -163,6 +146,7 @@
         name: NAME,
         tone: "curve",
         at: function (s) { return at(s.t); },
+        say: pointText,
         axis: [1, 0, 0],
         step: STEP * RAD,
         move: function (s, p) { s.t = snap(p[0] / RAD); }
@@ -178,7 +162,6 @@
     draw: function (g, s, api) {
       var quiz = api.quiz(), cam = api.cam, hide = edgeOn(cam), look = s.look;
       var P = at(s.t), Pw = onWall(P), Pf = onFloor(P), deg, k;
-      speak(api, s);
 
       /* the back wall and the floor, with lines at ±1 and every quarter turn */
       g.face([[0, WALL, -EXT], [L, WALL, -EXT], [L, WALL, EXT], [0, WALL, EXT]], { tone: "faceB", alpha: 0.32 });
