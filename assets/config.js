@@ -13,7 +13,7 @@ window.BM_CONFIG = {
      service is switched on in the Supabase dashboard (supabase/README.md, "Sign-in
      providers"): a button for one that is not takes the reader to an error page.
      Ids: "google", "github", "discord", "facebook", "azure" (Microsoft). */
-  providers: ["github"],
+  providers: ["google", "github"],
   /* false while the project cannot send email to the public (Supabase's own mailer only
      reaches the project's team): leaves out "Email me a sign-in link" and "Forgot
      password", which work only through an email. Set to true once custom SMTP is set up. */
