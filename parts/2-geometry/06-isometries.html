@@ -20,6 +20,8 @@
 <script defer src="../../data/quest.js"></script>
 <script defer src="../../assets/widgets.js"></script>
 <script defer src="../../assets/three-loader.js"></script>
+<script defer src="../../assets/scenes3d.js"></script>
+<script defer src="../../assets/scenes/flipbook.js"></script>
 <script defer src="../../assets/site.js"></script>
 <script defer src="../../assets/sfx.js"></script>
 <script defer src="../../assets/game.js"></script>
@@ -544,6 +546,71 @@
           Order matters here in a way it never did for adding or multiplying numbers. If that seems
           strange, try it with a book: rotate it a quarter turn and then flip it over, then start
           again in the other order.
+        </p>
+      </div>
+    </div>
+
+    <p>
+      Here is a book: the one from the opening puzzle, laid on its back on a table, so that looking
+      down on it is looking at its cover. Put the origin at the centre of the book, with $x$ to the
+      right and $y$ towards the book's top edge. A <b>turn</b> is a quarter turn clockwise, seen
+      from above: $(x,y) \mapsto (y,-x)$. A <b>flip</b> turns the book over left to right. Seen
+      from above, the flip is the reflection in the vertical line through the middle of the book,
+      $(x,y) \mapsto (-x,y)$; but the book gets there by a half turn through space, about that
+      line. A reflection of the plane is a half turn of the page through space.
+    </p>
+
+    <details class="reveal">
+      <summary><span class="ask">After "turn, then flip", which cover will be on top, and which way will the book's top edge point? And after "flip, then turn"?</span>Predict, then open</summary>
+      <p>
+        Each run has exactly one flip, so the back cover ends on top both times. The top edge is
+        where they differ. Turn first: the top edge swings round to point right, and the flip, a
+        reflection in the vertical line, sends right to left. Flip first: the top edge still
+        points away from you, and the turn then swings it to the right. Left in one run, right in
+        the other: the same two moves, two different positions. Try both in the figure.
+      </p>
+    </details>
+
+    <figure>
+      <div class="widget" data-widget="flipbook"></div>
+      <figcaption>
+        <b>The puzzle's book.</b> The front cover carries an F, the back cover an arrow pointing
+        to the book's top edge, and the spine is on the left at the start. Turn is a quarter turn
+        clockwise seen from above; Flip turns the book over about the dashed line. Start again
+        leaves the last position behind as a ghost, so two runs can be compared side by side.
+      </figcaption>
+    </figure>
+
+    <div class="ex" data-inline id="s3d-book" data-label="Your turn, in space" data-type="figure" data-figure="flipbook" data-ask="route" data-answer="0,-1,-1,0/f/4"
+         data-hint="After the flip, try one turn and compare with the ghost."
+         data-hint2="Seen from the front cover, which is face down after a flip, a turn runs the other way round. How many clockwise quarter turns make one anticlockwise one?">
+      <div class="ex-q">
+        <p>
+          Do "turn, then flip" and look where the book ends. Start again and reach that same
+          position beginning with a flip, in as few moves as you can.
+        </p>
+      </div>
+      <div class="ex-solution">
+        <p class="answer">Answer: flip, turn, turn, turn</p>
+        <p>
+          Turn, then flip leaves the back cover up with the top edge pointing left. After a first
+          flip the back cover is up with the top edge pointing away from you, and each turn swings
+          the top edge a quarter turn clockwise: one turn points it right, two towards you, three
+          left. So flip, turn, turn, turn: four moves. Nothing shorter works. The back cover needs
+          an odd number of flips, so three moves starting with a flip are either one flip and at
+          most two turns, which leave the top edge pointing away, right or towards you, or three
+          flips, which leave it pointing away.
+        </p>
+        <p>
+          In the chapter's notation, with $T(x,y) = (y,-x)$ the turn and $F(x,y) = (-x,y)$ the
+          flip, turn then flip is $F \circ T$:
+          $$(x,y) \mapsto (y,-x) \mapsto (-y,-x).$$
+          Flip then three turns is $T \circ T \circ T \circ F$:
+          $$(x,y) \mapsto (-x,y) \mapsto (y,x) \mapsto (x,-y) \mapsto (-y,-x).$$
+          The same rule, so the same position. Three clockwise quarter turns make one
+          anticlockwise quarter turn, $T \circ T \circ T = T^{-1}$, and that is how a turn made
+          before the flip looks once the flip has been done: $F \circ T = T^{-1} \circ F$. (Flip,
+          flip, turn, flip also takes four moves, because the first two flips cancel.)
         </p>
       </div>
     </div>
