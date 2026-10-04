@@ -68,7 +68,7 @@
       if (top === 0) { plus = true; top = a * (L / b) + c * (L / d); }
       var red = u.reduce(top, L);
       return {
-        q: "Compute $\\dfrac{" + a + "}{" + b + "} " + (plus ? "+" : "-") + " \\dfrac{" + c + "}{" + d + "}$ and give the answer in lowest terms.",
+        q: "Compute $\\dfrac{" + a + "}{" + b + "} " + (plus ? "+" : "-") + " \\dfrac{" + c + "}{" + d + "}$.",
         type: "fraction", answer: fracAns(top, L),
         placeholder: "e.g. 7/12",
         hint: "Rewrite both fractions over a common denominator before adding or subtracting anything.",
@@ -96,7 +96,7 @@
       var neg = r.chance(0.3) ? -1 : 1;
       var top = neg * a * d, bottom = b * c;
       return {
-        q: "Compute $" + (neg < 0 ? "-" : "") + "\\dfrac{" + a + "}{" + b + "} \\div \\dfrac{" + c + "}{" + d + "}$. Give the answer in lowest terms.",
+        q: "Compute $" + (neg < 0 ? "-" : "") + "\\dfrac{" + a + "}{" + b + "} \\div \\dfrac{" + c + "}{" + d + "}$.",
         type: "fraction", answer: fracAns(top, bottom),
         placeholder: "e.g. 5/6",
         hint: "Dividing by a number is multiplying by its inverse.",
