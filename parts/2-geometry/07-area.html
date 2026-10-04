@@ -20,6 +20,8 @@
 <script defer src="../../data/quest.js"></script>
 <script defer src="../../assets/widgets.js"></script>
 <script defer src="../../assets/three-loader.js"></script>
+<script defer src="../../assets/scenes3d.js"></script>
+<script defer src="../../assets/scenes/scale3.js"></script>
 <script defer src="../../assets/site.js"></script>
 <script defer src="../../assets/sfx.js"></script>
 <script defer src="../../assets/game.js"></script>
@@ -388,6 +390,56 @@
         its bones are only four times as large — which is why large animals are not simply scaled-up
         small ones.
       </p>
+    </div>
+
+    <p>
+      That last sentence is the scaling law one dimension up, and it earns its exponent the same
+      way the square did.
+    </p>
+
+    <details class="reveal">
+      <summary><span class="ask">A cube of side $1$ is scaled by $3$. How many copies of the small cube fit inside the big one?</span>Picture it, then open</summary>
+      <p>
+        Twenty-seven: three layers, each of them three rows of three. The edge tripled, each face
+        became $3 \times 3 = 9$ unit squares, and the solid holds $3 \times 3 \times 3 = 27$ unit
+        cubes. One more direction to stretch is one more factor of $3$.
+      </p>
+    </details>
+
+    <p>
+      Volume is measured the way area is, by counting: area counts unit squares, volume counts
+      unit cubes. A box $a$ by $b$ by $c$ holds $abc$ of them, in $c$ layers of $ab$. Scale it by
+      $r$ and each of its three sides picks up a factor $r$, so its volume becomes
+      $(ra)(rb)(rc) = r^3\,abc$. As before, what holds for boxes holds for anything built from
+      them: every small cube grows into $r^3$ small cubes, whatever shape they make together.
+    </p>
+
+    <figure>
+      <div class="widget" data-widget="scale3"></div>
+      <figcaption>
+        <b>Lengths by $r$, faces by $r^2$, volume by $r^3$.</b> Set $r$, or drag the corner of the
+        marked face; drag anywhere else to turn the picture. The big solid is built from copies of
+        the small cube: $r$ along the marked edge, $r^2$ on the marked face, and, with the layers
+        pulled apart, $r$ layers of $r^2$. The L-block shows the law does not care about the shape.
+      </figcaption>
+    </figure>
+
+    <div class="ex" data-inline id="s3d-scale" data-label="Your turn, in space" data-type="figure" data-figure="scale3" data-compare="number" data-answer="3" data-hint="Weight goes with volume. By what factor did it grow?" data-hint2="Volume grows by r³. Which whole number cubed gives that factor?">
+      <div class="ex-q">
+        <p>
+          A small statue weighs $2$ kg. An enlarged copy in the same stone weighs $54$ kg. Set the
+          scale factor $r$ in the figure, then press Check.
+        </p>
+      </div>
+      <div class="ex-solution">
+        <p class="answer">Answer: $r = 3$</p>
+        <p>
+          The stone is the same, so the weight is proportional to the volume, and the volume grew
+          by $54 \div 2 = 27$. Volume scales by $r^3$, and $27 = 3^3$, so $r = 3$. The copy is three
+          times as tall, every face of it is $3^2 = 9$ times as large, and it holds $27$ times the
+          stone: in the figure, $3$ layers of $9$ small cubes.
+        </p>
+      </div>
     </div>
 
     <div class="worked">
