@@ -45,6 +45,12 @@ function addTimer(page, fn, ms) {
 }
 function clearTimer(id) { timers = timers.filter((t) => t.id !== id); }
 const tick = () => new Promise((r) => setImmediate(r));
+/* account.js stamps saves and resets with Date.now(); it gets this clock, so a scenario's
+   "a minute later" is a minute later for the code under test too */
+class FakeDate extends Date {
+  constructor(...a) { if (a.length) super(...a); else super(now); }
+  static now() { return now; }
+}
 async function settle() {
   for (let round = 0; round < 500; round++) {
     for (let i = 0; i < 5; i++) await tick();
@@ -257,7 +263,7 @@ class Page {
       emit: (c) => listeners.slice().forEach((fn) => fn(c))
     };
     const win = {
-      console, URL, Blob: function () {},
+      console, URL, Blob: function () {}, Date: FakeDate,
       BM_CONFIG: { supabaseUrl: "https://" + REF + ".supabase.co", supabaseAnonKey: "sb_publishable_test" },
       supabase: { createClient: () => client },
       BMStore: Store,
