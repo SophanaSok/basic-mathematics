@@ -71,7 +71,7 @@
   function acrossAz(s) { return s.dir === 1 ? 0 : -90; }
 
   window.BM3D.define("boxcount", {
-    label: "A box built from unit cubes, sliced into equal layers, so that the cubes can be counted layer by layer",
+    label: "A box built from unit cubes, sliced into equal pieces, flat layers or upright slabs, so that the cubes can be counted piece by piece",
     note: "Set the three sides with the sliders and choose which side to slice across; Pull apart separates the " +
       "pieces. Drag the picture to turn the box, or Tab to it and use the arrow keys; Home resets the view.",
     view: {
@@ -174,10 +174,10 @@
     answer: function (s) { return layers(s) + "," + perLayer(s); },
 
     missions: [
-      { text: "Slice the 2 × 3 × 4 box into layers of 12.", test: function (s) {
+      { text: "Slice the 2 × 3 × 4 box into pieces of 12.", test: function (s) {
           return sides(s).slice().sort().join(",") === "2,3,4" && perLayer(s) === 12;
         } },
-      { text: "Build a box of 36 cubes and slice it into layers of 9.", test: function (s) {
+      { text: "Build a box of 36 cubes and slice it into pieces of 9.", test: function (s) {
           return total(s) === 36 && perLayer(s) === 9;
         } },
       { text: "Slice one box all three ways, without changing its sides.", test: function (s) {
