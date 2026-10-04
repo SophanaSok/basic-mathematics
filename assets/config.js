@@ -7,8 +7,8 @@
    supabase/schema.sql is what keeps each reader's rows their own. Never put the
    service-role key here. */
 window.BM_CONFIG = {
-  supabaseUrl: "",
-  supabaseAnonKey: "",
+  supabaseUrl: "https://jfidvrzonyzfstnykzly.supabase.co",
+  supabaseAnonKey: "sb_publishable_JCD6rFC0brc-k3j-SbmNow_74zaBKhp",
   /* set to true once the Google provider is enabled in the Supabase dashboard */
   google: false
 };
