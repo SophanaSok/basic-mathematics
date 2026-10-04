@@ -7,7 +7,8 @@
 
    Sync is a merge, never an overwrite: solved exercises and finished missions are
    unions, XP is the larger number for each day, lesson position is the furthest
-   reached. Merging the same two states in either order gives the same result.
+   reached, and the game record merges field by field (mergeGame). Merging the
+   same two states in either order gives the same result.
    =========================================================================== */
 (function () {
   "use strict";
@@ -19,7 +20,10 @@
   var configured = !!(cfg.supabaseUrl && cfg.supabaseAnonKey);
   var SDK = "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2";
   var META_KEY = "bm.sync.v1";
-  var FIELDS = ["progress", "play", "attempts", "activity", "lesson", "last"];
+  /* "game" only where site.js knows the key, so an older site.js still syncs cleanly */
+  var FIELDS = ["progress", "play", "attempts", "activity", "lesson", "last", "game"].filter(function (f) {
+    return !!Store.keys[f];
+  });
 
   function obj(x) { return x && typeof x === "object" && !Array.isArray(x) ? x : {}; }
   function keysOf(a, b) {
@@ -112,6 +116,70 @@
     return out;
   }
 
+  /* The game layer's record (bm.game.v1). Every field merges so that order, grouping
+     and repetition never matter:
+       ach    union, keeping the earliest unlock time
+       cmp    union of compared solutions
+       sec    per section: n, ok and fix by max (ok never above n); the pair
+              (last, box) taken whole from whichever is later, then higher
+       best   per mode: highest score, then most hearts, then the earlier day
+       enc    per set: the higher rematch medal, then the earlier day
+       daily  union, keeping the latest 60 days
+       maxed  max */
+  function num(x) { x = Number(x); return isFinite(x) ? x : 0; }
+  function str(x) { return typeof x === "string" ? x : ""; }
+  function mergeGame(a, b) {
+    a = obj(a); b = obj(b);
+    var out = { ach: {}, cmp: {}, sec: {}, best: {}, enc: {}, daily: {}, maxed: Math.max(num(a.maxed), num(b.maxed)) };
+    var ach = [obj(a.ach), obj(b.ach)];
+    keysOf(ach[0], ach[1]).forEach(function (id) {
+      var t = [num(ach[0][id]), num(ach[1][id])].filter(function (x) { return x > 0; });
+      if (t.length) out.ach[id] = Math.min.apply(null, t);
+    });
+    var cmp = [obj(a.cmp), obj(b.cmp)];
+    keysOf(cmp[0], cmp[1]).forEach(function (ch) {
+      var x = obj(cmp[0][ch]), y = obj(cmp[1][ch]), rec = {};
+      keysOf(x, y).forEach(function (k) { if (x[k] || y[k]) rec[k] = 1; });
+      out.cmp[ch] = rec;
+    });
+    var sec = [obj(a.sec), obj(b.sec)];
+    keysOf(sec[0], sec[1]).forEach(function (id) {
+      var x = obj(sec[0][id]), y = obj(sec[1][id]);
+      var n = Math.max(num(x.n), num(y.n));
+      /* each side's ok is held to its own n first, which keeps the merge associative */
+      var rec = { n: n, ok: Math.max(Math.min(num(x.ok), num(x.n)), Math.min(num(y.ok), num(y.n))) };
+      var lx = str(x.last), ly = str(y.last);
+      var pick = lx > ly || (lx === ly && num(x.box) >= num(y.box)) ? x : y;
+      rec.box = num(pick.box);
+      if (str(pick.last)) rec.last = str(pick.last);
+      var fix = Math.max(num(x.fix), num(y.fix));
+      if (fix) rec.fix = fix;
+      out.sec[id] = rec;
+    });
+    var best = [obj(a.best), obj(b.best)];
+    keysOf(best[0], best[1]).forEach(function (mode) {
+      var list = [best[0][mode], best[1][mode]].filter(function (r) { return r && typeof r === "object"; })
+        .map(function (r) { return { score: num(r.score), hearts: num(r.hearts), day: str(r.day) }; });
+      if (!list.length) return;
+      list.sort(function (p, q) {
+        return (q.score - p.score) || (q.hearts - p.hearts) || (p.day < q.day ? -1 : p.day > q.day ? 1 : 0);
+      });
+      out.best[mode] = list[0];
+    });
+    var enc = [obj(a.enc), obj(b.enc)];
+    keysOf(enc[0], enc[1]).forEach(function (id) {
+      var list = [enc[0][id], enc[1][id]].filter(function (r) { return r && typeof r === "object"; })
+        .map(function (r) { return { medal: num(r.medal), day: str(r.day) }; });
+      if (!list.length) return;
+      list.sort(function (p, q) { return (q.medal - p.medal) || (p.day < q.day ? -1 : p.day > q.day ? 1 : 0); });
+      out.enc[id] = list[0];
+    });
+    var daily = [obj(a.daily), obj(b.daily)];
+    keysOf(daily[0], daily[1]).filter(function (d) { return daily[0][d] || daily[1][d]; })
+      .reverse().slice(0, 60).sort().forEach(function (d) { out.daily[d] = 1; });
+    return out;
+  }
+
   /* local first: where two devices simply disagree (the reading mode, the daily goal,
      the place to continue from), this device keeps its own */
   function merge(local, remote) {
@@ -122,7 +190,8 @@
       attempts: mergeAttempts(local.attempts, remote.attempts),
       activity: mergeActivity(local.activity, remote.activity),
       lesson: mergeLesson(local.lesson, remote.lesson),
-      last: local.last || remote.last || null
+      last: local.last || remote.last || null,
+      game: mergeGame(local.game, remote.game)
     };
   }
 
@@ -133,14 +202,20 @@
     FIELDS.forEach(function (f) { out[f] = Store.read(Store.keys[f], f === "last" ? null : {}); });
     return out;
   }
-  function writeLocal(state) {
+  /* the device-only game scratchpad (combo meter, what has been announced) goes with
+     the progress it describes */
+  function clearRun() {
+    if (Store.keys.run) Store.write(Store.keys.run, {}, true);
+  }
+  function writeLocal(state, dropRun) {
+    if (dropRun) clearRun();
     FIELDS.forEach(function (f) { Store.write(Store.keys[f], state[f], true); });
     Store.emit({ type: "sync" });
   }
   function clearLocal() {
     var empty = {};
     FIELDS.forEach(function (f) { empty[f] = f === "last" ? null : {}; });
-    writeLocal(empty);
+    writeLocal(empty, true);
   }
   function meta() { return obj(Store.read(META_KEY, {})); }
   function setMeta(fn) {
@@ -199,28 +274,31 @@
   }
 
   function row(state, resetAt) {
-    return {
+    var out = {
       user_id: user.id,
       progress: state.progress || {}, play: state.play || {}, attempts: state.attempts || {},
       activity: state.activity || {}, lesson: state.lesson || {}, last: state.last || null,
       reset_at: resetAt || 0, updated_at: new Date().toISOString()
     };
+    /* needs the `game` column (supabase/schema.sql) */
+    if (FIELDS.indexOf("game") > -1) out.game = state.game || {};
+    return out;
   }
 
   function pull() {
     setStatus("syncing");
     return client.from("user_state").select("*").eq("user_id", user.id).maybeSingle().then(function (res) {
       if (res.error) throw res.error;
-      var remote = res.data, m = meta(), local = readLocal();
+      var remote = res.data, m = meta(), local = readLocal(), dropped = false;
       /* progress left by a different account on this browser is not this reader's */
-      if (m.user && m.user !== user.id) local = {};
+      if (m.user && m.user !== user.id) { local = {}; dropped = true; }
       /* a reset made on another device wins over what this one still remembers of the
          same account; progress made before ever signing in is kept and merged */
       var remoteReset = remote ? Number(remote.reset_at) || 0 : 0;
-      if (m.user === user.id && remoteReset > (m.resetAt || 0)) local = {};
+      if (m.user === user.id && remoteReset > (m.resetAt || 0)) { local = {}; dropped = true; }
       var merged = merge(local, remote || {});
       setMeta(function (x) { x.user = user.id; x.resetAt = remoteReset; });
-      writeLocal(merged);
+      writeLocal(merged, dropped);
       var same = remote && FIELDS.every(function (f) {
         return JSON.stringify(merged[f] || null) === JSON.stringify(remote[f] || null);
       });
@@ -312,6 +390,7 @@
     configured: configured,
     recovering: false,
     merge: merge,
+    mergeGame: mergeGame,
     user: function () { return user; },
     status: function () { return status; },
     onChange: function (fn) { watchers.push(fn); },
@@ -492,7 +571,9 @@
         '<p class="fine">Signing out clears this browser\'s copy of your progress; it stays in your account.</p></div>' +
         '<div class="panel"><h2>Your data</h2>' +
         "<p>What is stored: the exercises you have solved, how many tries each took, whether a hint or the " +
-        "solution was used, missions, XP per day, and where you are in each chapter. Nothing else.</p>" +
+        "solution was used, missions, XP per day, where you are in each chapter, and your game record " +
+        "(achievements, which solutions you compared, medals and scores from the Arena, and when each " +
+        "section is next due for review). Nothing else. Play settings and the combo meter stay on this device.</p>" +
         '<p class="actions"><button class="btn ghost" id="acct-export" type="button">Download my data</button>' +
         '<button class="btn ghost danger" id="acct-delete" type="button">Delete my account</button></p></div>';
     }

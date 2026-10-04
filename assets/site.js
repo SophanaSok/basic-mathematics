@@ -522,8 +522,13 @@
 
   var FLAME = '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8.2 1c.3 2.4 3.6 4 3.6 7.6A3.8 3.8 0 0 1 8 12.5a3.8 3.8 0 0 1-3.8-3.9c0-1.4.6-2.5 1.5-3.3.1 1 .6 1.7 1.3 1.9C6.7 5.1 7.1 2.9 8.2 1z"/></svg>';
 
-  /* streak and today's XP against the daily goal; the whole thing links to the progress page */
+  /* The game layer (assets/game.js) draws the full HUD: level, streak, combo, hearts.
+     Without it, a plain counter: streak and today's XP against the daily goal, linking
+     to the progress page. */
   function buildHud() {
+    if (window.BMGame && typeof window.BMGame.hud === "function") {
+      try { window.BMGame.hud(); return; } catch (e) { if (window.console) console.error("[BM] game HUD failed", e); }
+    }
     var nav = document.querySelector(".topbar nav");
     if (!nav) return;
     var hud = nav.querySelector(".hud");
@@ -549,8 +554,13 @@
     if (!host) {
       host = document.createElement("div");
       host.className = "toasts";
-      host.setAttribute("role", "status");
-      host.setAttribute("aria-live", "polite");
+      /* once the game layer owns announcements (one polite region, #bm-live), toasts are
+         for the eyes only; without it they speak for themselves */
+      if (window.BMGame) host.setAttribute("aria-hidden", "true");
+      else {
+        host.setAttribute("role", "status");
+        host.setAttribute("aria-live", "polite");
+      }
       document.body.appendChild(host);
     }
     var t = document.createElement("div");
