@@ -398,6 +398,38 @@ async function run() {
       eq(errors, [], "no errors around the chapter-done burst");
       await context.close();
     }
+
+    /* ------------- an empty Check keeps the hints; hints follow misses, not tries */
+    {
+      const { context, page, errors } = await open(browser, CH05, { "bm.lesson.v1": '{"mode":"page"}' });
+      const keys = await page.evaluate(() => {
+        var typed = Array.prototype.filter.call(document.querySelectorAll(".ex[data-hint]:not([data-hint2])"), function (e) {
+          return e.getAttribute("data-kind") !== "choice" && e.getAttribute("data-kind") !== "multi" &&
+            e.querySelector(".ex-form input:not([type=radio]):not([type=checkbox])");
+        }).map(function (e) { return e.getAttribute("data-key"); });
+        return { one: typed[0], other: typed[1] };
+      });
+      const boxes = (k) => page.$eval('.ex[data-key="' + k + '"]', (ex) => ({
+        hints: Array.prototype.map.call(ex.querySelectorAll(".ex-feedback .ex-hint"), function (h) { return h.getAttribute("data-level") + (h.hasAttribute("data-prev") ? "p" : ""); }).join(","),
+        nudge: !!ex.querySelector(".ex-feedback .ex-verdict.nudge")
+      }));
+      const empty = (k) => page.$eval('.ex[data-key="' + k + '"]', (ex) => {
+        ex.querySelector(".ex-form input:not([type=radio]):not([type=checkbox])").value = "";
+        ex.querySelector(".ex-form .btn:not(.ghost)").click();
+      });
+      check(keys.one && keys.other, "ch05 has two one-hint typed exercises (" + JSON.stringify(keys) + ")");
+      await answer(page, '.ex[data-key="' + keys.one + '"]', false);
+      await empty(keys.one);
+      eq(await boxes(keys.one), { hints: "1", nudge: true }, "an empty Check after the first miss keeps the current hint under the nudge");
+      await answer(page, '.ex[data-key="' + keys.one + '"]', false);
+      await empty(keys.one);
+      eq(await boxes(keys.one), { hints: "1p", nudge: true }, "an empty Check after two misses keeps the quieter hint");
+      await answer(page, '.ex[data-key="' + keys.other + '"]', true);
+      await answer(page, '.ex[data-key="' + keys.other + '"]', false);
+      eq(await boxes(keys.other), { hints: "1", nudge: false }, "a miss after a first-try answer shows the hint as new, not as one already given");
+      eq(errors, [], "no errors around empty checks");
+      await context.close();
+    }
   } finally {
     await browser.close();
   }

@@ -1063,7 +1063,7 @@
       ex.insertBefore(feedback, solution || null);
       if (solution) ex.appendChild(solution);
 
-      var tries = 0;
+      var misses = 0;
 
       /* solved before now: progress saved before the attempt log existed has
          no attempt record, so the progress store counts as well */
@@ -1187,10 +1187,16 @@
 
       function check() {
         var r = read();
-        if (r.empty) { say(verdict("nudge", r.empty)); return; }
+        if (r.empty) {
+          /* the hints already on screen stay where they are under the nudge */
+          var kept = slice(feedback.querySelectorAll(".ex-hint")).map(function (h) { return h.outerHTML; }).join("");
+          say(verdict("nudge", r.empty) + kept);
+          return;
+        }
         var ok = judge(r.given);
-        tries++;
-        var level = ok ? 0 : tries === 1 && hint ? 1 : tries === 2 && hint2 ? 2 : 0;
+        /* hints follow misses, so a wrong re-check after a correct answer starts at the first */
+        if (!ok) misses++;
+        var level = ok ? 0 : misses === 1 && hint ? 1 : misses === 2 && hint2 ? 2 : 0;
         /* only the road to the first correct answer is recorded; re-solving changes nothing */
         if (!solvedBefore()) {
           var rec = Attempts.update(chapterId, key, function (a) {
@@ -1239,8 +1245,8 @@
             : level === 2
               ? hintBox(1, hint, false) + hintBox(2, hint2, true)
               /* the hints have run out: the ones already given stay, quieter */
-              : (hint && tries > 1 ? hintBox(1, hint, false) : "") +
-                (hint2 && tries > 2 ? hintBox(2, hint2, false) : "") +
+              : (hint && misses > 1 ? hintBox(1, hint, false) : "") +
+                (hint2 && misses > 2 ? hintBox(2, hint2, false) : "") +
                 '<p class="ex-next hint">Not yet. Work it through once more' + (solution ? ", or open the solution." : ".") + "</p>";
           if (!level && solution) showBtn.setAttribute("data-suggested", "true");
           say(verdict("no", "✗ Not right.") + after);
