@@ -49,7 +49,7 @@
     var cover = front ? "front cover up" : "back cover up";
     if (d === 1) return cover + (front ? ", as at the start" : ", the right way up");
     if (d === -1) return cover + ", upside down";
-    return cover + ", turned a quarter turn " + (b === 1 ? "clockwise" : "anticlockwise");
+    return cover + ", turned a quarter turn " + (b === 1 ? "clockwise" : "counterclockwise");
   }
   /* the same position as a map of the table, in the chapter's notation */
   function image(m) {
