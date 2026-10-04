@@ -50,8 +50,8 @@ a.hud:hover { border-color: var(--hud-muted); color: var(--hud-text); }
 
 /* streak: today's goal as a ring, then the flame and the day count */
 .hud-streak, .hud-goal { display: inline-flex; align-items: center; gap: .3rem; min-height: 40px; }
-.hud-streak svg, .hud-streak .icon { width: 1rem; height: 1rem; fill: var(--hud-muted); flex: none; }
-.hud-streak[data-on] svg, .hud-streak[data-on] .icon { fill: var(--hud-flame); }
+.hud-streak svg, .hud-streak .icon { width: 1rem; height: 1rem; fill: var(--hud-muted); color: var(--hud-muted); flex: none; }
+.hud-streak[data-on] svg, .hud-streak[data-on] .icon { fill: var(--hud-flame); color: var(--hud-flame); }
 .hud-streak b, .hud-goal b { display: inline-block; min-width: 1.6ch; }
 .goal-ring {
   --pct: 0; width: 1.05rem; height: 1.05rem; border-radius: 50%; flex: none;
@@ -100,7 +100,11 @@ a.hud:hover { border-color: var(--hud-muted); color: var(--hud-text); }
 }
 .hud-timer[data-urgency="critical"] .hud-timer-text { color: var(--hud-heart); }
 
-/* rail buttons game.js may leave empty get a drawn icon */
+/* icons from game.js's #bm-sprite paint in currentColor */
+svg.icon { display: inline-block; width: 1em; height: 1em; flex: none; vertical-align: -.125em; overflow: visible; }
+#bm-sprite { position: absolute; width: 0; height: 0; overflow: hidden; }
+
+/* rail buttons left empty (before game.js fills them) get a drawn icon */
 .hud-sound, .hud-menu { flex: none; display: grid; place-items: center; }
 .hud-sound:empty::before, .hud-menu:empty::before {
   content: ""; width: 1.25rem; height: 1.25rem; background: currentColor;
@@ -108,8 +112,9 @@ a.hud:hover { border-color: var(--hud-muted); color: var(--hud-text); }
 }
 .hud-sound:empty::before { -webkit-mask-image: var(--icon-mute); mask-image: var(--icon-mute); }
 .hud-sound[aria-pressed="true"]:empty::before { -webkit-mask-image: var(--icon-sound); mask-image: var(--icon-sound); }
+.hud-sound[aria-disabled="true"] { opacity: .5; cursor: not-allowed; }
 .hud-menu[aria-expanded="true"] { background: var(--hud-text); color: var(--hud-bg); border-color: var(--hud-text); }
-.icon-btn svg { width: 1.25rem; height: 1.25rem; fill: currentColor; }
+.icon-btn svg, .icon-btn svg.icon { width: 1.25rem; height: 1.25rem; fill: currentColor; }
 
 /* the menu and settings sheet hangs from the rail */
 .hud-sheet {
@@ -165,6 +170,9 @@ a.hud:hover { border-color: var(--hud-muted); color: var(--hud-text); }
   min-height: 40px; padding-top: .35rem; border-top: 1px solid var(--hud-line);
 }
 
+/* game.js keeps copies of hearts and clock in both places; wide screens show the rail's */
+@media (min-width: 481px) { .hud-strip { display: none !important; } }
+
 /* the Arena keeps hearts and clock large; its rail is the accent, not a Part */
 body[data-mode="arena"] .topbar { border-bottom-color: var(--accent); }
 body[data-mode="arena"] .hud-hearts i { width: 1.3rem; height: 1.3rem; }
@@ -181,9 +189,10 @@ body[data-mode="arena"] .hud-timer-text { font-size: 1.4rem; }
   .topbar nav:has(.hud-menu) > [data-theme-toggle],
   .topbar nav:has(.hud-menu) > .acct { display: none; }
   .hud-combo[data-pips="0"], .hud-combo[data-pips="1"] { display: none; }
-  /* if hearts and clock are in the strip, the rail does not carry them twice */
-  .topbar:has(.hud-strip:not([hidden]) .hud-hearts) .hud .hud-hearts,
-  .topbar:has(.hud-strip:not([hidden]) .hud-timer) .hud .hud-timer { display: none; }
+  /* one row: hearts leave the rail (a chapter shows them in its encounter, the Arena in
+     the strip), and so does the clock once the strip carries it */
+  .topbar:has(.hud-strip) .hud > .hud-hearts,
+  .topbar:has(.hud-strip:not([hidden]) .hud-timer) .hud > .hud-timer { display: none; }
   .hud { gap: .35rem; }
   .hud-xpbar { width: 4rem; }
 }
@@ -213,6 +222,7 @@ body[data-mode="arena"] .hud-timer-text { font-size: 1.4rem; }
   font-family: var(--sans); font-size: .8rem; font-weight: 600; line-height: 1.4; color: var(--muted);
   white-space: nowrap;
 }
+.banner-stat[data-medal] b { color: var(--xp-ink); letter-spacing: .05em; }
 .banner-stat b {
   font-family: var(--display); font-size: .98rem; font-weight: 700; color: var(--text);
   font-variant-numeric: tabular-nums;
@@ -337,25 +347,28 @@ input.blank[data-ok="false"] { border-color: var(--bad); background-image: var(-
 
 /* the sigil: the region's solid on a scene-stage square with the motif behind it */
 .encounter-sigil {
-  position: relative; display: grid; place-items: center; aspect-ratio: 1; overflow: hidden;
+  position: relative; display: grid; place-items: center; aspect-ratio: 1;
   border-radius: var(--radius-sm); background: var(--part-soft);
 }
 .encounter-sigil::before {
-  content: ""; position: absolute; inset: 0;
+  content: ""; position: absolute; inset: 0; border-radius: inherit;
   background-color: color-mix(in srgb, var(--part) 22%, var(--part-soft));
   -webkit-mask-image: var(--motif); mask-image: var(--motif);
   -webkit-mask-size: var(--motif-size); mask-size: var(--motif-size);
   -webkit-mask-composite: var(--motif-wcomp); mask-composite: var(--motif-comp);
 }
 .sigil { position: relative; width: 78%; height: auto; overflow: visible; }
-.sigil :is(polygon, path, rect, circle, ellipse):not(.sigil-check) {
+/* encounter.js draws one .sigil-face per visible face; a face empties as a problem is solved */
+.sigil-face, .sigil > polygon {
   fill: var(--part-soft); stroke: var(--part); stroke-width: 2; stroke-linejoin: round;
 }
-.sigil :is(polygon, path):not(.sigil-check):nth-of-type(2n) { fill: color-mix(in srgb, var(--part) 22%, var(--part-soft)); }
-.sigil :is(line, polyline) { fill: none; stroke: var(--part); stroke-width: 2; stroke-linecap: round; }
+.sigil-face:nth-child(2n), .sigil > polygon:nth-child(2n) { fill: color-mix(in srgb, var(--part) 24%, var(--part-soft)); }
+.sigil-face:nth-child(3n), .sigil > polygon:nth-child(3n) { fill: color-mix(in srgb, var(--part) 42%, var(--part-soft)); }
+.sigil-face[data-on="false"], .sigil[data-left="0"] .sigil-face, .sigil[data-left="0"] > polygon {
+  fill: transparent; stroke-dasharray: 4 3; stroke-opacity: .7;
+}
 .sigil .sigil-check { display: none; fill: none; stroke: var(--ok); stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; }
 /* beaten: a wireframe and a check */
-.sigil[data-left="0"] :is(polygon, path, rect, circle, ellipse):not(.sigil-check) { fill: none; stroke-dasharray: 4 3; }
 .sigil[data-left="0"] .sigil-check { display: inline; }
 .encounter-sigil:has(.sigil[data-left="0"]):not(:has(.sigil-check))::after {
   content: ""; position: absolute; right: 8%; bottom: 8%; width: 36%; height: 36%;
@@ -410,8 +423,18 @@ input.blank[data-ok="false"] { border-color: var(--bad); background-image: var(-
   -webkit-mask: var(--icon-tick) center / contain no-repeat; mask: var(--icon-tick) center / contain no-repeat;
 }
 
+/* the line under the wards when a section's problems are all solved */
+.encounter-cue {
+  margin: .6rem 0 0; padding-top: .55rem; border-top: 1px solid var(--border);
+  font-size: .88rem; line-height: 1.45; color: var(--text);
+}
+.encounter-cue b { color: var(--part); font-weight: 700; }
+
 /* cleared */
 .practice[data-encounter="won"] .encounter { --edge: var(--ok-deep); border-color: var(--ok); }
+.practice[data-encounter="won"] .encounter-status > b { min-width: 0; color: var(--ok); }
+/* coming back to a cleared set: nothing left to act on, so the banner lies flat */
+.encounter[data-revisit] { box-shadow: none; }
 .encounter[data-medal="1"]::after, .encounter[data-medal="2"]::after, .encounter[data-medal="3"]::after {
   position: absolute; top: -.8rem; right: 1.1rem; padding: .2rem .6rem; border-radius: var(--radius-xs);
   font: 700 .72rem/1.3 var(--display); text-transform: uppercase; letter-spacing: .08em;
@@ -433,6 +456,8 @@ input.blank[data-ok="false"] { border-color: var(--bad); background-image: var(-
 }
 .encounter-regroup > :last-child { margin-bottom: 0; }
 .encounter-regroup p { margin: 0 0 .5em; }
+.encounter-regroup > p:first-child > b:first-child { font-family: var(--display); font-weight: 700; color: var(--accent); }
+.encounter-regroup-actions { display: flex; flex-wrap: wrap; align-items: center; gap: .7rem; margin: .9rem 0 0 !important; }
 .encounter-regroup .tag, .encounter-regroup > strong:first-child, .encounter-regroup > b:first-child {
   display: block; margin-bottom: .3rem; color: var(--accent);
   font: 700 .74rem/1.3 var(--display); text-transform: uppercase; letter-spacing: .08em;
@@ -445,13 +470,25 @@ input.blank[data-ok="false"] { border-color: var(--bad); background-image: var(-
   font-family: var(--sans); font-size: .95rem;
 }
 .encounter-result > :last-child { margin-bottom: 0; }
-.encounter-result :is(h2, h3, .encounter-title) {
+.encounter-result :is(h2, h3, .encounter-title, .encounter-result-title) {
   margin: 0 0 .5rem; font: 800 clamp(1.4rem, 1.2rem + 1vw, 1.8rem)/1.1 var(--display); letter-spacing: -.01em;
 }
 .encounter-result h2::before { display: none; }
 .encounter-result p { margin: 0 0 .7rem; }
 .encounter-result ul { margin: 0 0 .9rem; padding-left: 1.2rem; }
-.encounter-medal, .encounter-stars { display: flex; flex-wrap: wrap; align-items: center; gap: .3rem; margin: 0 0 1rem; font-weight: 600; }
+.encounter-result-title b { font-weight: 800; }
+.encounter-medal { display: flex; flex-wrap: wrap; align-items: center; gap: .3rem .55rem; margin: 0 0 1rem; font-weight: 600; }
+.encounter-medal .encounter-stars {
+  font-family: var(--display); font-size: 1.5rem; line-height: 1; letter-spacing: .08em; color: var(--xp-ink);
+}
+.encounter-medal[data-medal="0"] .encounter-stars { display: none; }
+.encounter-stars:has(i) { display: flex; gap: .3rem; }
+.encounter-guess, .encounter-look { color: var(--text); }
+.encounter-guess a, .encounter-look a { font-weight: 600; }
+.encounter-ach::before {
+  content: ""; display: inline-block; width: 1rem; height: 1rem; margin-right: .4rem; vertical-align: -.15em; background: var(--xp-ink);
+  -webkit-mask: var(--icon-star) center / contain no-repeat; mask: var(--icon-star) center / contain no-repeat;
+}
 .encounter-medal i, .encounter-stars i {
   position: relative; display: block; width: 1.6rem; height: 1.6rem; background: var(--line-ui);
   -webkit-mask: var(--icon-star) center / contain no-repeat; mask: var(--icon-star) center / contain no-repeat;
@@ -475,9 +512,10 @@ input.blank[data-ok="false"] { border-color: var(--bad); background-image: var(-
 .encounter-result .stat > span {
   font: 700 .72rem/1.3 var(--display); text-transform: uppercase; letter-spacing: .08em; color: var(--muted);
 }
-.encounter-actions, .encounter-result .actions { display: flex; flex-wrap: wrap; gap: .7rem; margin: 1rem 0 0; }
+.encounter-actions, .encounter-result .actions { display: flex; flex-wrap: wrap; gap: .7rem; margin: 1.1rem 0 0 !important; }
 /* on a revisit, one line and no motion */
-.encounter-result[data-revisit] { padding: .7rem 1rem; border-width: 1px; font-weight: 600; }
+.encounter-result[data-revisit] { padding: .7rem 1rem; border-width: 1px; font-weight: 500; font-size: .9rem; }
+.encounter-result[data-revisit] > p span[aria-hidden] { color: var(--xp-ink); letter-spacing: .05em; }
 .encounter-result[data-revisit] > * { margin: 0; }
 
 /* -------------------------------------------------------------- toasts --- */
@@ -503,25 +541,36 @@ input.blank[data-ok="false"] { border-color: var(--bad); background-image: var(-
   font: 700 .78rem/1.3 var(--display); font-variant-numeric: tabular-nums; white-space: nowrap;
 }
 /* achievement and level cards: a badge, a title, a line */
-.toast.ach, .toast.level { display: flex; align-items: flex-start; gap: .8rem; max-width: min(26rem, 100%); padding: .75rem 1.05rem .75rem .75rem; }
-.toast.ach { border-color: var(--hud-xp); }
-.toast-badge {
-  flex: none; display: grid; place-items: center; width: 2.5rem; height: 2.5rem;
-  border-radius: var(--radius-xs); background: var(--hud-xp); color: var(--on-xp);
-  box-shadow: 0 3px 0 color-mix(in srgb, var(--hud-xp) 50%, black);
-  font: 800 1.15rem/1 var(--display); font-variant-numeric: tabular-nums;
+/* achievement and level cards: a gold badge drawn beside kicker, title, line */
+.toast.ach, .toast.level {
+  display: grid; grid-template-columns: 2.5rem minmax(0, 1fr); column-gap: .8rem; align-items: start;
+  max-width: min(26rem, 100%); padding: .75rem 1.05rem .75rem .75rem;
 }
-.toast.ach .toast-badge:empty::before {
-  content: ""; width: 1.4rem; height: 1.4rem; background: var(--on-xp);
+.toast.ach { border-color: var(--hud-xp); }
+.toast.ach::before, .toast.level::before {
+  content: ""; grid-column: 1; grid-row: 1 / span 4; width: 2.5rem; height: 2.5rem; align-self: center;
+  border-radius: var(--radius-xs); background: var(--hud-xp);
+  box-shadow: 0 3px 0 color-mix(in srgb, var(--hud-xp) 50%, black);
+}
+.toast.ach::after, .toast.level::after {
+  content: ""; grid-column: 1; grid-row: 1 / span 4; justify-self: center; align-self: center;
+  width: 1.35rem; height: 1.35rem; background: var(--on-xp);
   -webkit-mask: var(--icon-star) center / contain no-repeat; mask: var(--icon-star) center / contain no-repeat;
 }
-.toast-body { display: flex; flex-direction: column; gap: .1rem; min-width: 0; }
-.toast-kicker { font: 700 .7rem/1.3 var(--display); text-transform: uppercase; letter-spacing: .08em; color: var(--hud-muted); }
-.toast-title { font: 700 1rem/1.25 var(--display); color: var(--hud-text); }
-.toast-text { font-size: .84rem; color: var(--hud-muted); }
+.toast.level::after { transform: rotate(-90deg); -webkit-mask-image: var(--icon-next); mask-image: var(--icon-next); }
+.toast.ach > *, .toast.level > * { grid-column: 2; }
+.toast-kicker { display: block; font: 700 .7rem/1.3 var(--display); text-transform: uppercase; letter-spacing: .08em; color: var(--hud-muted); }
+.toast.ach > b, .toast.level > b, .toast-title { display: block; font: 700 1rem/1.25 var(--display); color: var(--hud-text); }
+.toast-text, .toast-more { display: block; font-size: .84rem; color: var(--hud-muted); }
+.toast-more { font-style: italic; }
 
 /* ------------------------------------------------------------- effects --- */
-/* BMFx.burst(el) may use the same particles as the chapter banner: at most twelve. */
+/* BMFx.burst(el): twelve particles from the middle of the host; game.js sets each
+   one's colour and throws it with the Web Animations API (skipped when still). */
+.fx-burst { position: absolute; left: 50%; top: 50%; width: 0; height: 0; pointer-events: none; z-index: 2; }
+.fx-burst i { position: absolute; left: 0; top: 0; width: 6px; height: 6px; border-radius: 1px; background: var(--part); }
+.fx-burst i:nth-child(n + 13) { display: none; }
+/* the chapter banner's own particles, animated by the motion block: at most twelve */
 
 .burst { position: absolute; left: 50%; top: 50%; width: 0; height: 0; pointer-events: none; }
 .burst i { position: absolute; width: 8px; height: 8px; border-radius: 2px; opacity: 0; background: var(--ok); }
@@ -536,7 +585,7 @@ input.blank[data-ok="false"] { border-color: var(--bad); background-image: var(-
 html[data-calm] .hud-combo, html[data-calm] .hud-hearts, html[data-calm] .encounter-hearts,
 html[data-calm] .encounter-sigil, html[data-calm] .encounter-kicker, html[data-calm] .encounter-taunt,
 html[data-calm] .ex-reward, html[data-calm] .encounter-status, html[data-calm] .encounter::after,
-html[data-calm] .burst { display: none !important; }
+html[data-calm] .burst, html[data-calm] .fx-burst, html[data-calm] .fx-canvas { display: none !important; }
 html[data-calm] .encounter { grid-template-columns: minmax(0, 1fr); }
 html[data-calm] .encounter-bar {
   gap: 0; height: .6rem; margin-bottom: 2rem; border-radius: var(--radius-pill); overflow: visible;
@@ -581,7 +630,7 @@ html[data-motion="reduce"] *, html[data-motion="reduce"] *::before, html[data-mo
   /* every state icon keeps its shape */
   .choice:has(input:checked)::after, .hud-hearts i, .encounter-hearts i, .encounter-wards li[data-done="true"]::before,
   .encounter-sigil::after, .encounter-medal i, .encounter-stars i, .encounter-medal i::after, .encounter-stars i::after,
-  .hud-sound:empty::before, .hud-menu:empty::before, .toast.ach .toast-badge:empty::before,
+  .hud-sound:empty::before, .hud-menu:empty::before, .toast.ach::after, .toast.level::after, .encounter-ach::before,
   .ex[data-target="true"]::after {
     forced-color-adjust: none; background: CanvasText;
   }
@@ -604,7 +653,7 @@ html[data-motion="reduce"] *, html[data-motion="reduce"] *::before, html[data-mo
   .hud-sound, .hud-menu, .toasts, .ex-form .btn, .ex-reward, .ex-stamp, .s3d-canvas,
   .encounter-sigil, .encounter-kicker, .encounter-boss, .encounter-bar, .encounter-wards,
   .encounter-hearts, .encounter-regroup, .encounter-result .actions, .encounter-actions,
-  .banner-meta:empty, .burst { display: none !important; }
+  .banner-meta:empty, .burst, .fx-burst, .fx-canvas, #bm-sprite { display: none !important; }
   /* the encounter shrinks to its one-line status */
   .encounter { display: block; padding: 0; margin: .4rem 0 1rem; border: 0; background: none; }
   .encounter::after { display: none; }
@@ -659,6 +708,10 @@ html[data-motion="reduce"] *, html[data-motion="reduce"] *::before, html[data-mo
   html:not([data-calm]):not([data-motion="reduce"]) .lesson-progress span,
   html:not([data-calm]):not([data-motion="reduce"]) .side-progress .bar span { transition: width 400ms var(--ease-out); }
   html:not([data-calm]):not([data-motion="reduce"]) .encounter-seg { transition: background-color var(--t-2); }
+  html:not([data-calm]):not([data-motion="reduce"]) .encounter[data-hit] .encounter-sigil { animation: hit 360ms var(--ease-out); }
+  html:not([data-calm]):not([data-motion="reduce"]) .sigil-face[data-fresh] { animation: face-break 600ms var(--ease-out); }
+  html:not([data-calm]):not([data-motion="reduce"]) .encounter-wards li[data-fresh] { animation: pop 320ms var(--ease-spring); }
+  html:not([data-calm]):not([data-motion="reduce"]) .encounter-cue:not([hidden]) { animation: fade 220ms ease-out; }
   html:not([data-calm]):not([data-motion="reduce"]) .encounter-seg[data-fresh],
   html:not([data-calm]):not([data-motion="reduce"]) [data-flash] { animation: flash 180ms ease-out; }
   html:not([data-calm]):not([data-motion="reduce"]) .hud-hearts i[data-break],
@@ -666,7 +719,7 @@ html[data-motion="reduce"] *, html[data-motion="reduce"] *::before, html[data-mo
 
   /* the chapter's finish, the contents page, the progress page */
   html:not([data-calm]):not([data-motion="reduce"]) .burst i { --a: calc(var(--i, 0) * 30deg); animation: burst 800ms var(--ease-out) forwards; }
-  html:not([data-calm]):not([data-motion="reduce"]) .stop[data-state="current"] .stop-node { animation: here 700ms ease-in-out 3; }
+  html:not([data-calm]):not([data-motion="reduce"]) :not([data-map="3d"]) > .part .stop[data-state="current"] .stop-node { animation: here 700ms ease-in-out 3; }
   html:not([data-calm]):not([data-motion="reduce"]) .ring { animation: ring-in 600ms var(--ease-out) both; }
 
   /* toasts */
@@ -688,6 +741,8 @@ html[data-motion="reduce"] *, html[data-motion="reduce"] *::before, html[data-mo
     0% { opacity: 1; transform: rotate(var(--a)) translateY(0) scale(1); }
     100% { opacity: 0; transform: rotate(var(--a)) translateY(-120px) scale(.4); }
   }
+  @keyframes hit { 0%, 100% { transform: none; } 30% { transform: translateX(-3px) scale(.97); } 65% { transform: translateX(2px); } }
+  @keyframes face-break { from { fill: var(--part); stroke-opacity: 1; } }
   @keyframes heart-break {
     0% { transform: scale(1.25); opacity: 1; } 40% { transform: scale(.85) rotate(-8deg); } 100% { transform: none; }
   }
