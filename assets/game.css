@@ -1,2 +1,704 @@
-/* Game chrome: HUD, region banner, encounter, card states, toasts, settings, motion.
-   Consumes the tokens in site.css; never redefines them. */
+/* ===========================================================================
+   Basic Mathematics — game chrome
+   HUD rail counters, region banner stats, exercise card states, encounters,
+   toasts, the settings sheet, and every animation on the site.
+   Consumes the tokens in site.css; never defines a colour of its own.
+   The grammar is site.css's: anything you can act on is a tile with a hard edge
+   (--shadow-tile), anything you read is a flat panel. All keyframes live in the
+   one guarded block at the end, so reduced motion and calm mode stop everything.
+   =========================================================================== */
+
+/* ---------------------------------------------------------- HUD rail ----- */
+/* game.js builds div.hud; until it runs, site.js's older a.hud is styled here too. */
+
+.hud {
+  display: flex; align-items: center; gap: .5rem; min-height: 40px;
+  font-family: var(--sans); font-size: .84rem; color: var(--hud-muted);
+  white-space: nowrap; text-decoration: none;
+}
+a.hud {
+  padding: 0 .7rem; border-radius: var(--radius-xs);
+  background: var(--hud-chip); border: 1px solid var(--hud-line);
+}
+a.hud:hover { border-color: var(--hud-muted); color: var(--hud-text); }
+.hud b {
+  font-family: var(--display); font-weight: 700; color: var(--hud-text);
+  font-variant-numeric: tabular-nums;
+}
+
+/* level: a small badge tile and the XP bar */
+.hud-level {
+  display: inline-flex; align-items: center; gap: .55rem; min-height: 40px;
+  padding: 0 .55rem 0 .3rem; border-radius: var(--radius-xs);
+  color: var(--hud-muted); text-decoration: none;
+}
+.hud-level:hover { background: var(--hud-chip); }
+.hud-badge {
+  display: grid; place-items: center; min-width: 2rem; height: 2rem; padding: 0 .3rem;
+  border-radius: var(--radius-xs); background: var(--hud-chip);
+  border: 1.5px solid var(--hud-xp); box-shadow: 0 2px 0 var(--hud-edge);
+}
+.hud-badge b { font-size: 1rem; font-weight: 800; line-height: 1; color: var(--hud-xp); min-width: 1ch; text-align: center; }
+.hud-level .hud-xp { display: flex; flex-direction: column; gap: .3rem; }
+.hud-xpbar {
+  display: block; position: relative; width: 5.5rem; height: 6px; border-radius: 3px;
+  background: var(--hud-track); overflow: hidden;
+}
+.hud-xpbar i { display: block; height: 100%; width: 0; border-radius: 3px; background: var(--hud-xp); }
+.hud-xptext { font-size: .72rem; line-height: 1; color: var(--hud-muted); }
+.hud-xptext b { display: inline-block; min-width: 3ch; text-align: right; font-size: .78rem; }
+
+/* streak: today's goal as a ring, then the flame and the day count */
+.hud-streak, .hud-goal { display: inline-flex; align-items: center; gap: .3rem; min-height: 40px; }
+.hud-streak svg, .hud-streak .icon { width: 1rem; height: 1rem; fill: var(--hud-muted); flex: none; }
+.hud-streak[data-on] svg, .hud-streak[data-on] .icon { fill: var(--hud-flame); }
+.hud-streak b, .hud-goal b { display: inline-block; min-width: 1.6ch; }
+.goal-ring {
+  --pct: 0; width: 1.05rem; height: 1.05rem; border-radius: 50%; flex: none;
+  background: conic-gradient(var(--hud-ok) calc(var(--pct) * 1%), var(--hud-track) 0);
+  -webkit-mask: radial-gradient(circle, transparent 45%, black 48%);
+  mask: radial-gradient(circle, transparent 45%, black 48%);
+}
+.goal-ring[data-full] { -webkit-mask: none; mask: none; background: var(--hud-ok); }
+
+/* combo: five diamonds; a shield draws a ring round them */
+.hud-combo {
+  display: inline-flex; align-items: center; gap: 5px; height: 1.75rem; padding: 0 .55rem;
+  border-radius: var(--radius-pill);
+}
+.hud-combo i {
+  display: block; width: 9px; height: 9px; transform: rotate(45deg);
+  border: 1.5px solid var(--hud-muted); border-radius: 1px;
+}
+.hud-combo i[data-on] { background: var(--hud-xp); border-color: var(--hud-xp); }
+.hud-combo[data-shield="true"] { box-shadow: inset 0 0 0 2px var(--hud-ok); }
+
+/* hearts: filled or outlined, so a lost heart reads without its colour */
+.hud-hearts, .encounter-hearts { display: inline-flex; align-items: center; gap: 3px; }
+.hud-hearts { color: var(--hud-heart); }
+.encounter-hearts { color: var(--heart); }
+.hud-hearts i, .encounter-hearts i {
+  display: block; width: 1.05rem; height: 1.05rem; background: currentColor;
+  -webkit-mask: var(--icon-heart-o) center / contain no-repeat; mask: var(--icon-heart-o) center / contain no-repeat;
+}
+.hud-hearts i[data-full], .encounter-hearts i[data-full] { -webkit-mask-image: var(--icon-heart); mask-image: var(--icon-heart); }
+
+/* the Arena's clock; at critical a static stripe, never a flash */
+.hud-timer {
+  display: inline-flex; align-items: center; min-height: 2.25rem; padding: 0 .55rem;
+  border-radius: var(--radius-xs); background: var(--hud-chip); border: 1px solid var(--hud-line);
+}
+.hud-timer-text {
+  font-family: var(--display); font-weight: 700; font-size: 1.2rem; line-height: 1;
+  font-variant-numeric: tabular-nums; min-width: 4ch; text-align: center; color: var(--hud-text);
+}
+.hud-timer[data-urgency="low"] { border-color: var(--hud-xp); }
+.hud-timer[data-urgency="low"] .hud-timer-text { color: var(--hud-xp); }
+.hud-timer[data-urgency="critical"] {
+  border-color: var(--hud-heart);
+  background-image: repeating-linear-gradient(135deg, color-mix(in srgb, var(--hud-heart) 16%, transparent) 0 5px, transparent 5px 10px);
+}
+.hud-timer[data-urgency="critical"] .hud-timer-text { color: var(--hud-heart); }
+
+/* rail buttons game.js may leave empty get a drawn icon */
+.hud-sound, .hud-menu { flex: none; display: grid; place-items: center; }
+.hud-sound:empty::before, .hud-menu:empty::before {
+  content: ""; width: 1.25rem; height: 1.25rem; background: currentColor;
+  -webkit-mask: var(--icon-menu) center / contain no-repeat; mask: var(--icon-menu) center / contain no-repeat;
+}
+.hud-sound:empty::before { -webkit-mask-image: var(--icon-mute); mask-image: var(--icon-mute); }
+.hud-sound[aria-pressed="true"]:empty::before { -webkit-mask-image: var(--icon-sound); mask-image: var(--icon-sound); }
+.hud-menu[aria-expanded="true"] { background: var(--hud-text); color: var(--hud-bg); border-color: var(--hud-text); }
+.icon-btn svg { width: 1.25rem; height: 1.25rem; fill: currentColor; }
+
+/* the menu and settings sheet hangs from the rail */
+.hud-sheet {
+  --focus: var(--hud-focus);
+  position: absolute; top: calc(100% + 2px); right: max(16px, 4vw); z-index: 45;
+  width: min(21rem, calc(100vw - 32px)); max-height: calc(100vh - var(--hud-h) - 1rem); overflow-y: auto;
+  padding: .55rem; background: var(--hud-bg); color: var(--hud-text);
+  border: 2px solid var(--hud-line); border-top: 0; border-radius: 0 0 var(--radius-sm) var(--radius-sm);
+  box-shadow: 0 4px 0 var(--hud-edge);
+  font-family: var(--sans); font-size: .92rem;
+}
+.hud-links { list-style: none; margin: 0 0 .45rem; padding: 0 0 .45rem; border-bottom: 1px solid var(--hud-line); }
+.hud-links li { margin: 0; }
+.hud-links a {
+  display: flex; align-items: center; min-height: 44px; padding: 0 .75rem;
+  border-radius: var(--radius-xs); color: var(--hud-text); text-decoration: none; font-weight: 600;
+}
+.hud-links a:hover { background: var(--hud-chip); }
+.hud-links a[aria-current] { box-shadow: inset 3px 0 0 var(--hud-xp); }
+.hud-sheet .icon-btn, .hud-sheet .acct { width: 100%; justify-content: flex-start; margin: .2rem 0; }
+
+/* switches: a track and a knob; the knob's side says on or off without colour */
+.switch {
+  --sw-track: var(--surface-2); --sw-line: var(--line-ui); --sw-on: var(--accent);
+  --sw-knob: var(--line-ui); --sw-knob-on: var(--on-accent); --sw-text: var(--text); --sw-muted: var(--muted);
+  display: grid; grid-template-columns: auto minmax(0, 1fr); column-gap: .8rem; align-items: center;
+  min-height: 48px; padding: .4rem .75rem; border-radius: var(--radius-xs); cursor: pointer;
+  font-family: var(--sans);
+}
+.hud-sheet .switch {
+  --sw-track: var(--hud-track); --sw-line: var(--hud-muted); --sw-on: var(--hud-ok);
+  --sw-knob: var(--hud-muted); --sw-knob-on: var(--hud-bg); --sw-text: var(--hud-text); --sw-muted: var(--hud-muted);
+}
+.hud-sheet .switch:hover { background: var(--hud-chip); }
+.switch input {
+  -webkit-appearance: none; appearance: none; position: relative; margin: 0; cursor: pointer;
+  grid-row: 1 / span 2; width: 2.75rem; height: 1.6rem; border-radius: var(--radius-pill);
+  background: var(--sw-track); border: 1.5px solid var(--sw-line);
+}
+.switch input::before {
+  content: ""; position: absolute; top: 2.5px; left: 2.5px; width: 1.05rem; height: 1.05rem;
+  border-radius: 50%; background: var(--sw-knob); transition: transform var(--t-2) var(--ease-out);
+}
+.switch input:checked { background: var(--sw-on); border-color: var(--sw-on); }
+.switch input:checked::before { transform: translateX(1.15rem); background: var(--sw-knob-on); }
+.switch input:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
+.switch span { grid-column: 2; font-weight: 600; color: var(--sw-text); }
+.switch small { grid-column: 2; font-size: .78rem; line-height: 1.35; color: var(--sw-muted); }
+
+/* narrow screens: the Arena's hearts and clock get a row of their own */
+.hud-strip {
+  flex: 1 0 100%; display: flex; align-items: center; justify-content: center; gap: 1rem;
+  min-height: 40px; padding-top: .35rem; border-top: 1px solid var(--hud-line);
+}
+
+/* the Arena keeps hearts and clock large; its rail is the accent, not a Part */
+body[data-mode="arena"] .topbar { border-bottom-color: var(--accent); }
+body[data-mode="arena"] .hud-hearts i { width: 1.3rem; height: 1.3rem; }
+body[data-mode="arena"] .hud-timer-text { font-size: 1.4rem; }
+
+/* collapse: nav links into the sheet under 720px; sound, theme and account under 480px;
+   the XP words under 420px. Only once the sheet exists to receive them. */
+@media (max-width: 720px) {
+  .topbar nav:has(.hud-menu) > a:not(.hud):not(.hud-level):not(.acct) { display: none; }
+}
+@media (max-width: 480px) {
+  .topbar nav:has(.hud-menu) > .hud-sound,
+  .topbar nav:has(.hud-menu) > .theme-btn,
+  .topbar nav:has(.hud-menu) > [data-theme-toggle],
+  .topbar nav:has(.hud-menu) > .acct { display: none; }
+  .hud-combo[data-pips="0"], .hud-combo[data-pips="1"] { display: none; }
+  /* if hearts and clock are in the strip, the rail does not carry them twice */
+  .topbar:has(.hud-strip:not([hidden]) .hud-hearts) .hud .hud-hearts,
+  .topbar:has(.hud-strip:not([hidden]) .hud-timer) .hud .hud-timer { display: none; }
+  .hud { gap: .35rem; }
+  .hud-xpbar { width: 4rem; }
+}
+@media (max-width: 420px) {
+  .hud-xptext, .hud-goal .hud-xp { display: none; }
+  .hud-level .hud-xp { gap: 0; }
+}
+@media (max-width: 360px) {
+  .topbar { padding-inline: 12px; }
+  .hud-xpbar { width: 3rem; }
+  .hud-combo { gap: 4px; padding: 0 .35rem; }
+  .hud-combo i { width: 7px; height: 7px; }
+}
+
+/* ------------------------------------------------- region banner meta ---- */
+/* game.js fills the row; its height is reserved so the page does not shift. */
+
+.banner-meta {
+  display: flex; flex-wrap: wrap; align-items: center; gap: .45rem;
+  min-height: 2.25rem; padding: 0 1.4rem 1.15rem; box-sizing: content-box;
+}
+.banner-meta:empty { min-height: .4rem; }
+.banner-stat {
+  display: inline-flex; align-items: baseline; gap: .3rem; min-height: 2.25rem; padding: .35rem .75rem;
+  border-radius: var(--radius-xs); background: var(--surface);
+  border: 1px solid color-mix(in srgb, var(--part) 35%, var(--border));
+  font-family: var(--sans); font-size: .8rem; font-weight: 600; line-height: 1.4; color: var(--muted);
+  white-space: nowrap;
+}
+.banner-stat b {
+  font-family: var(--display); font-size: .98rem; font-weight: 700; color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+@media (max-width: 480px) { .banner-meta { padding-inline: 1.1rem; } }
+
+/* ----------------------------------------------------- exercise cards ---- */
+/* idle · focused · correct (first, retry, assisted) · wrong (hint 1, 2, 3) · restored · target */
+
+.ex:focus-within { border-color: var(--accent); }
+
+.ex[data-state="correct"] { --edge: var(--ok-deep); border-color: var(--ok); }
+/* restored from storage: the green border, flat, no motion */
+.ex[data-state="correct"][data-restored] { box-shadow: none; }
+/* a miss: the border only, no red wash over the problem */
+.ex[data-state="wrong"] { border-color: var(--bad); }
+
+/* the next problem in an encounter: a chevron and the word, in the Part's colour */
+.ex[data-target="true"]:not([data-state="correct"]) { --edge: var(--part-deep); }
+.ex[data-target="true"]:not([data-state]) { border-color: var(--part); }
+.ex[data-target="true"]:not([data-state="correct"])::before {
+  content: "Next"; content: "Next" / "";
+  position: absolute; top: -.8rem; right: 1.1rem; z-index: 1;
+  padding: .2rem 1.5rem .2rem .6rem; border-radius: var(--radius-xs);
+  background: var(--part); color: var(--on-part);
+  font: 700 .72rem/1.3 var(--display); text-transform: uppercase; letter-spacing: .08em;
+}
+.ex[data-target="true"]:not([data-state="correct"])::after {
+  content: ""; position: absolute; top: -.56rem; right: 1.5rem; z-index: 2;
+  width: .85rem; height: .85rem; background: var(--on-part);
+  -webkit-mask: var(--icon-next) center / contain no-repeat; mask: var(--icon-next) center / contain no-repeat;
+}
+
+/* feedback: the verdict is a short line; after a miss the hint is the big thing */
+.ex-feedback { display: none; margin-top: .95rem; font-family: var(--sans); font-size: .95rem; }
+.ex-feedback[data-show="true"] { display: block; }
+.ex-verdict {
+  display: flex; align-items: center; gap: .35rem; margin: 0 0 .55rem;
+  font-family: var(--display); font-weight: 700; line-height: 1.3;
+}
+.ex-verdict.ok { color: var(--ok); font-size: 1.05rem; }
+.ex-verdict.no { color: var(--bad); font-size: .86rem; }
+.ex-verdict.nudge { color: var(--muted); font-family: var(--sans); font-weight: 500; font-size: .92rem; }
+.ex-verdict .tick, .ex-feedback .tick { width: 1.15em; height: 1.15em; flex: none; }
+.ex-feedback .tick path { fill: none; stroke: currentColor; stroke-width: 2.6; stroke-linecap: round; stroke-linejoin: round; }
+
+.ex-hint {
+  margin: 0 0 .6rem; padding: .85rem 1.1rem .95rem;
+  background: var(--hint-soft); border-left: 4px solid var(--accent-2);
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+}
+.ex-hint-label {
+  display: block; margin-bottom: .3rem;
+  font-family: var(--display); font-weight: 700; font-size: .74rem; line-height: 1.3;
+  text-transform: uppercase; letter-spacing: .08em; color: var(--hint-ink);
+}
+.ex-feedback .ex-hint-text {
+  display: block; margin: 0; font-family: var(--sans); font-size: 1.0625rem; line-height: 1.55; color: var(--text);
+}
+/* an earlier hint stays, quieter */
+.ex-hint[data-prev] { background: transparent; border-left-color: var(--border-strong); padding-block: .15rem; }
+.ex-hint[data-prev] .ex-hint-label, .ex-feedback .ex-hint[data-prev] .ex-hint-text { color: var(--muted); }
+.ex-feedback .ex-hint[data-prev] .ex-hint-text { font-size: .9rem; }
+.ex-feedback .ex-next { display: block; margin: .3rem 0 0; font-size: .88rem; color: var(--muted); }
+
+/* hint level 3 (no hints left): the solution button is the suggestion */
+.btn.ghost[data-suggested="true"] { --edge: var(--accent-deep); border-color: var(--accent); color: var(--accent); }
+
+/* how it was solved, stamped in the corner after a correct answer */
+.ex-stamp {
+  position: absolute; top: .8rem; right: 1rem; pointer-events: none;
+  padding: .3rem .55rem; border-radius: var(--radius-xs); transform: rotate(-3deg);
+  font: 800 .72rem/1.1 var(--display); text-transform: uppercase; letter-spacing: .08em;
+  color: var(--ok); background: var(--surface); border: 2px solid var(--ok);
+}
+.ex[data-result="first"] .ex-stamp { color: var(--surface); background: var(--ok); }
+
+/* the XP just earned, a gold chip beside the label */
+.ex-reward {
+  display: inline-block; vertical-align: middle; margin: 0 0 .5rem .55rem; padding: .12rem .5rem;
+  border-radius: var(--radius-pill); background: var(--xp); color: var(--on-xp); border: 1px solid var(--xp-ink);
+  font: 700 .74rem/1.25 var(--display); font-variant-numeric: tabular-nums; white-space: nowrap;
+}
+
+/* right and wrong on the answer itself: an icon as well as a colour */
+.ex[data-state="correct"] .choice:has(input:checked) { border-color: var(--ok); background: var(--ok-soft); }
+.ex[data-kind="choice"][data-state="wrong"] .choice:has(input:checked) { border-color: var(--bad); background: var(--surface); }
+.ex[data-state="correct"] .choice:has(input:checked)::after,
+.ex[data-kind="choice"][data-state="wrong"] .choice:has(input:checked)::after {
+  content: ""; flex: none; align-self: center; margin-left: auto; width: 1.15rem; height: 1.15rem;
+  background: var(--ok);
+  -webkit-mask: var(--icon-tick) center / contain no-repeat; mask: var(--icon-tick) center / contain no-repeat;
+}
+.ex[data-kind="choice"][data-state="wrong"] .choice:has(input:checked)::after {
+  background: var(--bad); -webkit-mask-image: var(--icon-cross); mask-image: var(--icon-cross);
+}
+.ex[data-state="correct"] .order-item { border-color: var(--ok); --edge: var(--ok-deep); cursor: default; }
+input.blank[data-ok="true"], input.blank[data-ok="false"] {
+  padding-right: 1.35em; background-repeat: no-repeat; background-position: right .3em center; background-size: .8em;
+}
+input.blank[data-ok="true"] { border-color: var(--ok); background-color: var(--ok-soft); background-image: var(--mark-ok); }
+input.blank[data-ok="false"] { border-color: var(--bad); background-image: var(--mark-bad); }
+
+/* the inline checks keep their Part tint in every state */
+.ex[data-inline][data-state="correct"] { border-color: var(--ok); }
+.ex[data-inline][data-state="wrong"] { border-color: var(--bad); }
+
+/* ---------------------------------------------------------- encounters --- */
+/* encounter.js turns each practice set into a boss: health is the count of unsolved problems. */
+
+.encounter {
+  --edge: var(--part-deep);
+  position: relative; display: grid; grid-template-columns: 5.5rem minmax(0, 1fr); gap: 1.1rem;
+  align-items: start; margin: 0 0 1.8rem; padding: 1.1rem 1.2rem 1.15rem;
+  background: var(--surface); border: 2px solid var(--part); border-radius: var(--radius);
+  box-shadow: var(--shadow-tile);
+  font-family: var(--sans);
+}
+.practice-head + .encounter, h2 + .encounter { margin-top: 1rem; }
+.practice > .encounter:first-child { margin-top: 0; }
+.encounter-main { min-width: 0; }
+
+/* the sigil: the region's solid on a scene-stage square with the motif behind it */
+.encounter-sigil {
+  position: relative; display: grid; place-items: center; aspect-ratio: 1; overflow: hidden;
+  border-radius: var(--radius-sm); background: var(--part-soft);
+}
+.encounter-sigil::before {
+  content: ""; position: absolute; inset: 0;
+  background-color: color-mix(in srgb, var(--part) 22%, var(--part-soft));
+  -webkit-mask-image: var(--motif); mask-image: var(--motif);
+  -webkit-mask-size: var(--motif-size); mask-size: var(--motif-size);
+  -webkit-mask-composite: var(--motif-wcomp); mask-composite: var(--motif-comp);
+}
+.sigil { position: relative; width: 78%; height: auto; overflow: visible; }
+.sigil :is(polygon, path, rect, circle, ellipse):not(.sigil-check) {
+  fill: var(--part-soft); stroke: var(--part); stroke-width: 2; stroke-linejoin: round;
+}
+.sigil :is(polygon, path):not(.sigil-check):nth-of-type(2n) { fill: color-mix(in srgb, var(--part) 22%, var(--part-soft)); }
+.sigil :is(line, polyline) { fill: none; stroke: var(--part); stroke-width: 2; stroke-linecap: round; }
+.sigil .sigil-check { display: none; fill: none; stroke: var(--ok); stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; }
+/* beaten: a wireframe and a check */
+.sigil[data-left="0"] :is(polygon, path, rect, circle, ellipse):not(.sigil-check) { fill: none; stroke-dasharray: 4 3; }
+.sigil[data-left="0"] .sigil-check { display: inline; }
+.encounter-sigil:has(.sigil[data-left="0"]):not(:has(.sigil-check))::after {
+  content: ""; position: absolute; right: 8%; bottom: 8%; width: 36%; height: 36%;
+  border-radius: 50%; background: var(--ok);
+  -webkit-mask: var(--icon-tick) center / 80% no-repeat; mask: var(--icon-tick) center / 80% no-repeat;
+}
+
+.encounter-kicker {
+  margin: 0 0 .15rem; color: var(--part);
+  font: 700 .72rem/1.3 var(--display); text-transform: uppercase; letter-spacing: .08em;
+}
+.encounter-boss { margin: 0 0 .75rem; font-size: .95rem; line-height: 1.35; color: var(--muted); }
+.encounter-boss b {
+  display: block; font: 800 clamp(1.2rem, 1.05rem + .7vw, 1.45rem)/1.15 var(--display);
+  letter-spacing: -.01em; color: var(--text);
+}
+.encounter-taunt { display: block; margin-top: .25rem; font-family: var(--serif); font-style: italic; font-size: 1.02rem; }
+
+/* the health bar: one segment per problem, its fill saying how it was solved */
+.encounter-bar { position: relative; display: flex; gap: 3px; height: .85rem; margin: 0 0 .55rem; }
+.encounter-seg {
+  flex: 1 1 0; min-width: 4px; border-radius: 3px;
+  background: var(--surface-2); box-shadow: inset 0 0 0 1px var(--line-ui);
+}
+.encounter-seg[data-how="first"] { background: var(--ok); box-shadow: none; }
+.encounter-seg[data-how="solved"] {
+  background-color: var(--ok); box-shadow: none;
+  background-image: repeating-linear-gradient(135deg, transparent 0 3px, color-mix(in srgb, var(--surface) 55%, transparent) 3px 5.5px);
+}
+.encounter-seg[data-how="opened"] { background: var(--accent-2); box-shadow: none; }
+.encounter-seg[data-how="unknown"] { background: var(--muted); box-shadow: none; }
+
+.encounter-status {
+  display: flex; flex-wrap: wrap; align-items: center; gap: .3rem .5rem; margin: 0 0 .65rem;
+  font-size: .88rem; font-weight: 600; color: var(--muted);
+}
+.encounter-status > b {
+  font-family: var(--display); font-size: 1.1rem; font-weight: 700; color: var(--text);
+  font-variant-numeric: tabular-nums; min-width: 1.5ch; text-align: right;
+}
+
+/* wards: one chip per section, filled when its problems are all solved */
+.encounter-wards { list-style: none; display: flex; flex-wrap: wrap; gap: .35rem; margin: 0; padding: 0; }
+.encounter-wards li {
+  display: inline-flex; align-items: center; gap: .3rem; margin: 0; padding: .2rem .55rem;
+  border-radius: var(--radius-xs); border: 1px solid var(--line-ui); background: var(--surface);
+  font-size: .76rem; font-weight: 600; color: var(--muted); font-variant-numeric: tabular-nums;
+}
+.encounter-wards li[data-done="true"] { background: var(--part); border-color: var(--part); color: var(--on-part); }
+.encounter-wards li[data-done="true"]::before {
+  content: ""; width: .8rem; height: .8rem; flex: none; background: currentColor;
+  -webkit-mask: var(--icon-tick) center / contain no-repeat; mask: var(--icon-tick) center / contain no-repeat;
+}
+
+/* cleared */
+.practice[data-encounter="won"] .encounter { --edge: var(--ok-deep); border-color: var(--ok); }
+.encounter[data-medal="1"]::after, .encounter[data-medal="2"]::after, .encounter[data-medal="3"]::after {
+  position: absolute; top: -.8rem; right: 1.1rem; padding: .2rem .6rem; border-radius: var(--radius-xs);
+  font: 700 .72rem/1.3 var(--display); text-transform: uppercase; letter-spacing: .08em;
+}
+.encounter[data-medal="3"]::after { content: "Gold"; content: "Gold" / ""; background: var(--xp); color: var(--on-xp); border: 1px solid var(--xp-ink); }
+.encounter[data-medal="2"]::after { content: "Silver"; content: "Silver" / ""; background: var(--surface-2); color: var(--text); border: 1px solid var(--line-ui); }
+.encounter[data-medal="1"]::after { content: "Bronze"; content: "Bronze" / ""; background: var(--accent-2-soft); color: var(--accent-2); border: 1px solid var(--accent-2); }
+
+@media (max-width: 480px) {
+  .encounter { grid-template-columns: 3.75rem minmax(0, 1fr); gap: .8rem; padding: .95rem 1rem 1rem; }
+}
+
+/* zero hearts: calm advice, never a wall */
+.encounter-regroup {
+  margin: 1.4rem 0; padding: 1rem 1.2rem;
+  background: var(--accent-soft); border: 1px solid color-mix(in srgb, var(--accent) 30%, var(--border));
+  border-left: 4px solid var(--accent); border-radius: var(--radius-xs) var(--radius) var(--radius) var(--radius-xs);
+  font-family: var(--sans); font-size: 1rem; line-height: 1.55; color: var(--text);
+}
+.encounter-regroup > :last-child { margin-bottom: 0; }
+.encounter-regroup p { margin: 0 0 .5em; }
+.encounter-regroup .tag, .encounter-regroup > strong:first-child, .encounter-regroup > b:first-child {
+  display: block; margin-bottom: .3rem; color: var(--accent);
+  font: 700 .74rem/1.3 var(--display); text-transform: uppercase; letter-spacing: .08em;
+}
+
+/* the finale, inside the practice set */
+.encounter-result {
+  margin: 2rem 0 0; padding: 1.4rem 1.4rem 1.5rem;
+  background: var(--surface); border: 2px solid var(--ok); border-radius: var(--radius);
+  font-family: var(--sans); font-size: .95rem;
+}
+.encounter-result > :last-child { margin-bottom: 0; }
+.encounter-result :is(h2, h3, .encounter-title) {
+  margin: 0 0 .5rem; font: 800 clamp(1.4rem, 1.2rem + 1vw, 1.8rem)/1.1 var(--display); letter-spacing: -.01em;
+}
+.encounter-result h2::before { display: none; }
+.encounter-result p { margin: 0 0 .7rem; }
+.encounter-result ul { margin: 0 0 .9rem; padding-left: 1.2rem; }
+.encounter-medal, .encounter-stars { display: flex; flex-wrap: wrap; align-items: center; gap: .3rem; margin: 0 0 1rem; font-weight: 600; }
+.encounter-medal i, .encounter-stars i {
+  position: relative; display: block; width: 1.6rem; height: 1.6rem; background: var(--line-ui);
+  -webkit-mask: var(--icon-star) center / contain no-repeat; mask: var(--icon-star) center / contain no-repeat;
+}
+/* gold is a fill with an ink outline */
+.encounter-medal i[data-on], .encounter-stars i[data-on] { background: var(--xp-ink); }
+.encounter-medal i[data-on]::after, .encounter-stars i[data-on]::after {
+  content: ""; position: absolute; inset: 3px; background: var(--xp);
+  -webkit-mask: var(--icon-star) center / contain no-repeat; mask: var(--icon-star) center / contain no-repeat;
+}
+.encounter-stats, .encounter-result .stats {
+  display: grid; gap: .6rem; margin: 0 0 1rem; grid-template-columns: repeat(auto-fit, minmax(7.5rem, 1fr));
+}
+.encounter-result .stat {
+  display: flex; flex-direction: column; gap: .1rem; padding: .75rem .9rem;
+  background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-sm);
+}
+.encounter-result .stat > b {
+  font: 800 1.6rem/1.1 var(--display); font-variant-numeric: tabular-nums; color: var(--text);
+}
+.encounter-result .stat > span {
+  font: 700 .72rem/1.3 var(--display); text-transform: uppercase; letter-spacing: .08em; color: var(--muted);
+}
+.encounter-actions, .encounter-result .actions { display: flex; flex-wrap: wrap; gap: .7rem; margin: 1rem 0 0; }
+/* on a revisit, one line and no motion */
+.encounter-result[data-revisit] { padding: .7rem 1rem; border-width: 1px; font-weight: 600; }
+.encounter-result[data-revisit] > * { margin: 0; }
+
+/* -------------------------------------------------------------- toasts --- */
+/* toasts are ink cards, like the rail; game.js hides them from screen readers */
+
+.toasts {
+  position: fixed; left: 50%; bottom: max(1.5rem, env(safe-area-inset-bottom)); z-index: 70;
+  transform: translateX(-50%); width: max-content; max-width: calc(100vw - 32px);
+  display: flex; flex-direction: column; align-items: center; gap: .5rem; pointer-events: none;
+}
+.toast {
+  display: block; max-width: 100%;
+  padding: .6rem 1.05rem; border-radius: var(--radius-sm);
+  background: var(--hud-bg); color: var(--hud-text);
+  border: 2px solid var(--hud-line); box-shadow: 0 4px 0 color-mix(in srgb, var(--hud-bg) 45%, black);
+  font-family: var(--sans); font-size: .92rem; font-weight: 500; line-height: 1.35;
+}
+.toast b { font-family: var(--display); font-weight: 700; color: var(--hud-xp); font-variant-numeric: tabular-nums; }
+.toast.goal { border-color: var(--hud-ok); }
+.toast.goal b { color: var(--hud-ok); }
+.toast-combo {
+  display: inline-block; margin-left: .35rem; padding: .1rem .45rem; border-radius: var(--radius-xs); background: var(--hud-xp); color: var(--on-xp);
+  font: 700 .78rem/1.3 var(--display); font-variant-numeric: tabular-nums; white-space: nowrap;
+}
+/* achievement and level cards: a badge, a title, a line */
+.toast.ach, .toast.level { display: flex; align-items: flex-start; gap: .8rem; max-width: min(26rem, 100%); padding: .75rem 1.05rem .75rem .75rem; }
+.toast.ach { border-color: var(--hud-xp); }
+.toast-badge {
+  flex: none; display: grid; place-items: center; width: 2.5rem; height: 2.5rem;
+  border-radius: var(--radius-xs); background: var(--hud-xp); color: var(--on-xp);
+  box-shadow: 0 3px 0 color-mix(in srgb, var(--hud-xp) 50%, black);
+  font: 800 1.15rem/1 var(--display); font-variant-numeric: tabular-nums;
+}
+.toast.ach .toast-badge:empty::before {
+  content: ""; width: 1.4rem; height: 1.4rem; background: var(--on-xp);
+  -webkit-mask: var(--icon-star) center / contain no-repeat; mask: var(--icon-star) center / contain no-repeat;
+}
+.toast-body { display: flex; flex-direction: column; gap: .1rem; min-width: 0; }
+.toast-kicker { font: 700 .7rem/1.3 var(--display); text-transform: uppercase; letter-spacing: .08em; color: var(--hud-muted); }
+.toast-title { font: 700 1rem/1.25 var(--display); color: var(--hud-text); }
+.toast-text { font-size: .84rem; color: var(--hud-muted); }
+
+/* ------------------------------------------------------------- effects --- */
+/* BMFx.burst(el) may use the same particles as the chapter banner: at most twelve. */
+
+.burst { position: absolute; left: 50%; top: 50%; width: 0; height: 0; pointer-events: none; }
+.burst i { position: absolute; width: 8px; height: 8px; border-radius: 2px; opacity: 0; background: var(--ok); }
+.burst i:nth-child(n + 13) { display: none; }
+.burst i:nth-child(3n) { background: var(--part); border-radius: 50%; }
+.burst i:nth-child(3n + 1) { background: var(--accent); }
+
+/* ------------------------------------------------------- calm mode ------- */
+/* one switch: no hearts, combo, sigil, taunt or reward chip; the encounter bar becomes a
+   plain progress bar with its count written out; and no motion at all */
+
+html[data-calm] .hud-combo, html[data-calm] .hud-hearts, html[data-calm] .encounter-hearts,
+html[data-calm] .encounter-sigil, html[data-calm] .encounter-kicker, html[data-calm] .encounter-taunt,
+html[data-calm] .ex-reward, html[data-calm] .encounter-status, html[data-calm] .encounter::after,
+html[data-calm] .burst { display: none !important; }
+html[data-calm] .encounter { grid-template-columns: minmax(0, 1fr); }
+html[data-calm] .encounter-bar {
+  gap: 0; height: .6rem; margin-bottom: 2rem; border-radius: var(--radius-pill); overflow: visible;
+  background: var(--surface-2); box-shadow: inset 0 0 0 1px var(--line-ui);
+}
+html[data-calm] .encounter-seg { border-radius: 0; background: transparent; background-image: none; box-shadow: none; }
+html[data-calm] .encounter-seg:not([data-how="open"]) { background: var(--ok); }
+html[data-calm] .encounter-seg:first-child { border-radius: var(--radius-pill) 0 0 var(--radius-pill); }
+html[data-calm] .encounter-seg:last-child { border-radius: 0 var(--radius-pill) var(--radius-pill) 0; }
+html[data-calm] .encounter-bar::after {
+  content: attr(aria-valuenow) " of " attr(aria-valuemax) " solved";
+  content: attr(aria-valuenow) " of " attr(aria-valuemax) " solved" / "";
+  position: absolute; left: 0; top: 100%; margin-top: .4rem;
+  font-family: var(--sans); font-size: .88rem; font-weight: 600; color: var(--muted); white-space: nowrap;
+}
+html[data-calm], html[data-calm] *, html[data-calm] *::before, html[data-calm] *::after {
+  transition: none !important; animation: none !important; scroll-behavior: auto !important;
+}
+
+/* ------------------------------------------------------- accessibility --- */
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { transition-duration: 0s !important; animation: none !important; }
+}
+html[data-motion="reduce"] *, html[data-motion="reduce"] *::before, html[data-motion="reduce"] *::after {
+  transition-duration: 0s !important; animation: none !important;
+}
+
+@media (prefers-contrast: more) {
+  .ex-hint { border-left-width: 6px; }
+  .ex-hint[data-prev] { border-left-color: var(--text); }
+  .banner-stat, .encounter-wards li, .encounter-result .stat { border-color: var(--text); }
+  .hud-xptext, .hud-streak, .toast-text { color: var(--hud-text); }
+}
+@media (forced-colors: active) {
+  .ex[data-state="correct"], .ex[data-state="wrong"], .encounter, .encounter-result, .encounter-regroup,
+  .ex-hint, .banner-stat, .encounter-wards li, .toast, .hud-sheet, .hud-badge, .hud-timer {
+    border-color: CanvasText; border-style: solid;
+  }
+  .ex[data-state="wrong"] { border-style: dashed; }
+  .ex-hint { border-left-width: 6px; }
+  /* every state icon keeps its shape */
+  .choice:has(input:checked)::after, .hud-hearts i, .encounter-hearts i, .encounter-wards li[data-done="true"]::before,
+  .encounter-sigil::after, .encounter-medal i, .encounter-stars i, .encounter-medal i::after, .encounter-stars i::after,
+  .hud-sound:empty::before, .hud-menu:empty::before, .toast.ach .toast-badge:empty::before,
+  .ex[data-target="true"]::after {
+    forced-color-adjust: none; background: CanvasText;
+  }
+  .hud-combo i { border-color: CanvasText; }
+  .hud-combo i[data-on] { forced-color-adjust: none; background: CanvasText; }
+  .encounter-seg { forced-color-adjust: none; background: Canvas; box-shadow: inset 0 0 0 1px CanvasText; }
+  .encounter-seg:not([data-how="open"]) { background: CanvasText; }
+  .encounter-seg[data-how="solved"], .encounter-seg[data-how="opened"] {
+    background-image: repeating-linear-gradient(135deg, transparent 0 3px, Canvas 3px 5px);
+  }
+  .hud-xpbar, .goal-ring { forced-color-adjust: none; background: Canvas; box-shadow: inset 0 0 0 1px CanvasText; }
+  .hud-xpbar i { forced-color-adjust: none; background: CanvasText; }
+  .ex[data-target="true"]::before, .encounter::after { border: 1px solid CanvasText; }
+}
+
+/* ---------------------------------------------------------------- print -- */
+
+@media print {
+  .hud, .hud-level, .hud-streak, .hud-combo, .hud-hearts, .hud-timer, .hud-sheet, .hud-strip,
+  .hud-sound, .hud-menu, .toasts, .ex-form .btn, .ex-reward, .ex-stamp, .s3d-canvas,
+  .encounter-sigil, .encounter-kicker, .encounter-boss, .encounter-bar, .encounter-wards,
+  .encounter-hearts, .encounter-regroup, .encounter-result .actions, .encounter-actions,
+  .banner-meta:empty, .burst { display: none !important; }
+  /* the encounter shrinks to its one-line status */
+  .encounter { display: block; padding: 0; margin: .4rem 0 1rem; border: 0; background: none; }
+  .encounter::after { display: none; }
+  .encounter-status { margin: 0; color: var(--text); }
+  .banner-meta { padding: 0 0 .6rem; min-height: 0; }
+  .banner-stat { background: none; border-color: var(--border-strong); }
+  .ex-hint { background: none; }
+  .ex[data-target="true"]::before, .ex[data-target="true"]::after { display: none; }
+  .encounter-result { break-inside: avoid; }
+}
+
+/* ============================================================== motion === */
+/* Every keyframe animation on the site, and the transitions that are motion rather
+   than feedback, live in this one block. Reduced motion or calm mode: none of it runs.
+   Nothing here lasts more than 900ms, and nothing loops. */
+
+@media (prefers-reduced-motion: no-preference) {
+  /* a correct answer: the card pops, the tick draws, the stamp lands, the XP rises */
+  html:not([data-calm]):not([data-motion="reduce"]) .ex[data-state="correct"]:not([data-restored]) { animation: pop 320ms var(--ease-spring); }
+  html:not([data-calm]):not([data-motion="reduce"]) .ex[data-state="correct"]:not([data-restored]) .tick path {
+    stroke-dasharray: 22; stroke-dashoffset: 22; animation: tick-draw 400ms 100ms var(--ease-out) forwards;
+  }
+  html:not([data-calm]):not([data-motion="reduce"]) .ex[data-state="correct"]:not([data-restored]) .ex-stamp { animation: stamp 280ms 120ms var(--ease-spring) both; }
+  html:not([data-calm]):not([data-motion="reduce"]) .ex[data-state="correct"]:not([data-restored]) .ex-reward { animation: rise 600ms var(--ease-out) both; }
+
+  /* a miss: the form nudges; the hint only fades in, it does not move */
+  html:not([data-calm]):not([data-motion="reduce"]) .ex[data-state="wrong"] .ex-form { animation: nudge 240ms var(--ease-out); }
+  html:not([data-calm]):not([data-motion="reduce"]) .ex[data-state="wrong"] .ex-hint:not([data-prev]) { animation: fade 160ms ease-out; }
+  html:not([data-calm]):not([data-motion="reduce"]) .btn.ghost[data-suggested="true"] { animation: pop 320ms var(--ease-spring); }
+
+  /* things that open */
+  html:not([data-calm]):not([data-motion="reduce"]) .ex-solution[data-show="true"],
+  html:not([data-calm]):not([data-motion="reduce"]) details.reveal[open] > :not(summary),
+  html:not([data-calm]):not([data-motion="reduce"]) .step-in,
+  html:not([data-calm]):not([data-motion="reduce"]) .hud-sheet,
+  html:not([data-calm]):not([data-motion="reduce"]) .encounter-result:not([data-revisit]) { animation: reveal 220ms var(--ease-out) both; }
+  html:not([data-calm]):not([data-motion="reduce"]) .encounter-regroup { animation: fade 220ms ease-out both; }
+  html:not([data-calm]):not([data-motion="reduce"]) details.reveal > summary::after { transition: transform var(--t-2) var(--ease-out); }
+
+  /* step-by-step reading: the bar pops once when Continue is ready */
+  html:not([data-calm]):not([data-motion="reduce"]) .lesson-next[data-ready="true"] { animation: pop 320ms var(--ease-spring); }
+
+  /* figures: missions, and handles that announce they can be moved */
+  html:not([data-calm]):not([data-motion="reduce"]) .missions li[data-fresh] { animation: pop 320ms var(--ease-spring); }
+  html:not([data-calm]):not([data-motion="reduce"]) .missions li[data-fresh] .mark { animation: stamp 280ms var(--ease-spring); }
+  html:not([data-calm]):not([data-motion="reduce"]) .widget[data-inview] svg[tabindex] { animation: handle-pulse 800ms ease 2; }
+  html:not([data-calm]):not([data-motion="reduce"]) .widget[data-inview] svg [tabindex] { animation: handle-dim 800ms ease 2; }
+  html:not([data-calm]):not([data-motion="reduce"]) .widget[data-inview] input[type="range"] { animation: slider-nudge 800ms ease 1; }
+
+  /* bars drain and fill */
+  html:not([data-calm]):not([data-motion="reduce"]) .hud-xpbar i,
+  html:not([data-calm]):not([data-motion="reduce"]) .lesson-progress span,
+  html:not([data-calm]):not([data-motion="reduce"]) .side-progress .bar span { transition: width 400ms var(--ease-out); }
+  html:not([data-calm]):not([data-motion="reduce"]) .encounter-seg { transition: background-color var(--t-2); }
+  html:not([data-calm]):not([data-motion="reduce"]) .encounter-seg[data-fresh],
+  html:not([data-calm]):not([data-motion="reduce"]) [data-flash] { animation: flash 180ms ease-out; }
+  html:not([data-calm]):not([data-motion="reduce"]) .hud-hearts i[data-break],
+  html:not([data-calm]):not([data-motion="reduce"]) .encounter-hearts i[data-break] { animation: heart-break 360ms var(--ease-out); }
+
+  /* the chapter's finish, the contents page, the progress page */
+  html:not([data-calm]):not([data-motion="reduce"]) .burst i { --a: calc(var(--i, 0) * 30deg); animation: burst 800ms var(--ease-out) forwards; }
+  html:not([data-calm]):not([data-motion="reduce"]) .stop[data-state="current"] .stop-node { animation: here 700ms ease-in-out 3; }
+  html:not([data-calm]):not([data-motion="reduce"]) .ring { animation: ring-in 600ms var(--ease-out) both; }
+
+  /* toasts */
+  html:not([data-calm]):not([data-motion="reduce"]) .toast { animation: toast-in 280ms var(--ease-out) both; }
+  html:not([data-calm]):not([data-motion="reduce"]) .toast[data-out] { animation: toast-out 280ms ease-in both; }
+
+  @keyframes pop { 0% { transform: scale(1); } 45% { transform: scale(1.02); } 100% { transform: scale(1); } }
+  @keyframes nudge {
+    0%, 100% { transform: translateX(0); } 25% { transform: translateX(-4px); }
+    55% { transform: translateX(4px); } 80% { transform: translateX(-2px); }
+  }
+  @keyframes reveal { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+  @keyframes fade { from { opacity: 0; } to { opacity: 1; } }
+  @keyframes tick-draw { to { stroke-dashoffset: 0; } }
+  @keyframes rise { from { opacity: 0; transform: translateY(18px); } to { opacity: 1; transform: none; } }
+  @keyframes stamp { 0% { opacity: 0; transform: scale(1.5) rotate(-8deg); } 100% { opacity: 1; transform: scale(1) rotate(-3deg); } }
+  @keyframes flash { 0% { filter: brightness(1.35); } 100% { filter: none; } }
+  @keyframes burst {
+    0% { opacity: 1; transform: rotate(var(--a)) translateY(0) scale(1); }
+    100% { opacity: 0; transform: rotate(var(--a)) translateY(-120px) scale(.4); }
+  }
+  @keyframes heart-break {
+    0% { transform: scale(1.25); opacity: 1; } 40% { transform: scale(.85) rotate(-8deg); } 100% { transform: none; }
+  }
+  @keyframes handle-pulse { 0%, 100% { outline: 3px solid transparent; outline-offset: 4px; } 50% { outline: 3px solid var(--accent); outline-offset: 4px; } }
+  @keyframes handle-dim { 0%, 100% { opacity: 1; } 50% { opacity: .45; } }
+  @keyframes slider-nudge { 0%, 100% { transform: translateX(0); } 30% { transform: translateX(5px); } 60% { transform: translateX(-3px); } }
+  @keyframes ring-in { from { transform: scale(.5); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+  @keyframes here {
+    0%, 100% { box-shadow: 0 0 0 6px var(--bg), 0 0 0 9px var(--part-soft); }
+    50% { box-shadow: 0 0 0 6px var(--bg), 0 0 0 13px var(--part-soft); }
+  }
+  @keyframes toast-in { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }
+  @keyframes toast-out { to { opacity: 0; transform: translateY(-8px); } }
+}
