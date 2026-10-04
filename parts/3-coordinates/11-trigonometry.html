@@ -20,6 +20,8 @@
 <script defer src="../../data/quest.js"></script>
 <script defer src="../../assets/widgets.js"></script>
 <script defer src="../../assets/three-loader.js"></script>
+<script defer src="../../assets/scenes3d.js"></script>
+<script defer src="../../assets/scenes/helix.js"></script>
 <script defer src="../../assets/site.js"></script>
 <script defer src="../../assets/sfx.js"></script>
 <script defer src="../../assets/game.js"></script>
@@ -406,6 +408,57 @@
       forever with <b>period</b> $2\pi$. The cosine graph is the same wave shifted left by $\pi/2$,
       which is the identity $\cos\theta = \sin(\theta + \pi/2)$.
     </p>
+    <p>
+      The circle and the two waves are one object, seen from three sides. Send the point
+      $(\cos\theta, \sin\theta)$ round the unit circle as before, but at the same time carry it
+      forward along a third axis, as in the space of
+      <a href="08-coordinates.html#one-more-dimension">§8.2</a>, by the distance $\theta$ in
+      radians: the length of arc it has travelled. The point $(\theta,\ \cos\theta,\ \sin\theta)$
+      then winds along a single curve shaped like a spring, a <b>helix</b>, one turn for every
+      $2\pi$.
+    </p>
+    <details class="reveal">
+      <summary><span class="ask">Light the helix from straight in front, so that it casts a shadow on a wall behind it. The shadow keeps the distance along the axis and the height, and loses the depth. What curve is the shadow?</span>Decide, then open</summary>
+      <p>
+        The sine graph. The point $(\theta, \cos\theta, \sin\theta)$ lands on the wall at distance
+        $\theta$ along the axis and height $\sin\theta$, which is the point $(\theta, \sin\theta)$
+        of the graph of sine. A light from above throws a shadow on the floor that keeps
+        $\cos\theta$ instead, so the floor shows the cosine graph. And looking straight down the
+        axis, end-on, the distance along it disappears and only $(\cos\theta, \sin\theta)$ is
+        left: both turns fall onto the unit circle.
+      </p>
+    </details>
+
+    <figure>
+      <div class="widget" data-widget="helix"></div>
+      <figcaption>
+        <b>One curve, three views.</b> Slide $\theta$, or drag the point along its guide line;
+        drag the background to turn the picture. The shadow on the back wall is the height,
+        $\sin\theta$, and the shadow on the floor is $\cos\theta$. The view buttons show the
+        helix end-on, from the side and from above; marking an angle leaves a dot on the curve
+        and on both shadows.
+      </figcaption>
+    </figure>
+
+    <div class="ex" data-inline id="s3d-helix" data-label="Your turn, in space" data-type="figure" data-figure="helix" data-ask="marks" data-compare="set" data-answer="45,225" data-hint="Equal shadows means the point of the end-on circle has equal coordinates." data-hint2="One is in the table of §11.2. Where is the other, with both coordinates negative?">
+      <div class="ex-q">
+        <p>
+          Mark the two angles in the first turn, from $0°$ up to $360°$, where the wall shadow and
+          the floor shadow are equal, then press Check.
+        </p>
+      </div>
+      <div class="ex-solution">
+        <p class="answer">Answer: $45°$ and $225°$</p>
+        <p>
+          The wall shadow is $\sin\theta$ and the floor shadow is $\cos\theta$, so we need
+          $\sin\theta = \cos\theta$: a point of the unit circle whose two coordinates are equal,
+          which puts it on the line $y = x$. That line crosses the circle twice. At $45°$ both
+          coordinates are $\frac{\sqrt2}{2}$, from the table; half a turn later, at
+          $45° + 180° = 225°$, both are $-\frac{\sqrt2}{2}$. Seen end-on, the two marks sit at
+          opposite ends of the diameter along $y = x$.
+        </p>
+      </div>
+    </div>
     <p>
       Given constants $A$, $B$, $C$, the graph of $y = A\sin(Bx + C)$ is that wave, adjusted:
     </p>
@@ -894,6 +947,24 @@
           <p>
             Substituting $0$ is the cheapest test there is, and it disposes of three of these four
             in a few seconds.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" id="s3d-helix-turns" data-section="graphs-trig" data-type="figure" data-figure="helix" data-ask="marks" data-compare="set" data-answer="90,450"
+           data-hint="Highest means sin θ = 1."
+           data-hint2="The helix makes two turns, and sine repeats every 360°.">
+        <div class="ex-q">
+          <p>Mark every angle from $0°$ to $720°$ at which the wall shadow is at its highest.</p>
+        </div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $90°$ and $450°$</p>
+          <p>
+            The height of the wall shadow is $\sin\theta$. Sine is never more than $1$, and it is
+            $1$ at the top of the circle, $\theta = 90°$. Sine repeats every full turn,
+            $\sin(\theta + 360°) = \sin\theta$, so the next peak is at $90° + 360° = 450°$; the one
+            after that, $810°$, is past the end of the helix. From the side these are the two
+            crests of the sine wave.
           </p>
         </div>
       </div>
