@@ -600,21 +600,38 @@ function rng(seed) {
 const CHAPTERS = ["ch01", "ch02", "ch05", "interlude"];
 const KEYS = ["e1", "e2", "e3", "k1", "k2", "t1", "p4"];
 const DAYS = ["2026-09-28", "2026-09-29", "2026-09-30", "2026-10-01"];
+/* What a later version of the site might store that this one has never heard of
+   (account.js `later`): few keys and few values, so two devices often hold the same key
+   and disagree about it. The two objects differ only in the order of their keys. */
+const UNKNOWN_KEYS = ["zz", "~later", "rung"];
+const UNKNOWN_VALUES = [0, 7, -1, "x", "", true, null, [1, 2], [2, 1], { a: 1, b: [1] }, { b: [1], a: 1 }, { a: { c: 2 } }];
 function randomState(R) {
   const st = {};
   const pickSome = (arr, p) => arr.filter(() => R.maybe(p === undefined ? 0.5 : p));
+  const unknown = (into, values) => {
+    pickSome(UNKNOWN_KEYS, 0.2).forEach(k => { into[k] = JSON.parse(JSON.stringify(R.pick(values))); });
+    return into;
+  };
+  /* an unknown field of a record can hold anything */
+  const fields = (rec) => unknown(rec, UNKNOWN_VALUES);
+  /* an unknown key of a store keyed by chapter, exercise, section and so on is passed
+     through only when it holds no record: a record there is merged as one of that kind,
+     the same path as the known keys take */
+  const entries = (map) => unknown(map, UNKNOWN_VALUES.filter(v => !v || typeof v !== "object" || Array.isArray(v)));
   st.progress = {};
   pickSome(CHAPTERS).forEach(ch => {
     const solved = {}; pickSome(KEYS).forEach(k => { solved[k] = true; });
-    st.progress[ch] = { solved, total: R.int(12) };
+    st.progress[ch] = fields({ solved, total: R.int(12) });
   });
+  entries(st.progress);
   st.play = {};
   pickSome(CHAPTERS).forEach(ch => {
     const done = {}; pickSome(["pythagoras:0", "pythagoras:1", "linsys:0"]).forEach(k => { done[k] = true; });
     const rec = { done, total: R.int(6) };
     if (R.maybe(0.6)) rec.guess = R.int(4);
-    st.play[ch] = rec;
+    st.play[ch] = fields(rec);
   });
+  entries(st.play);
   /* attempt records as site.js writes them (initExercises check()/reveal(), lesson.js
      advance()): `tries` >= 1 when present, `hints` only 1 or 2, `first` only alongside
      `solved`, `skipped` never alongside `solved`, and `section`/`inline` fixed by the
@@ -633,26 +650,30 @@ function randomState(R) {
       if (R.maybe(0.85)) a.section = ["one-unknown", "ch02#one-unknown", "warmup"][(ch.length + k.charCodeAt(1)) % 3];
       if (a.tries && R.maybe(0.5)) { a.solved = 1700000000000 + R.int(1e9); a.first = a.tries === 1 && !a.opened ? 1 : 0; }
       else if (inlineKey && R.maybe(0.3)) a.skipped = 1;
-      st.attempts[ch][k] = a;
+      st.attempts[ch][k] = fields(a);
     });
+    entries(st.attempts[ch]);
   });
+  entries(st.attempts);
   const days = {}; pickSome(DAYS).forEach(d => { days[d] = 1 + R.int(80); });
-  st.activity = { days };
+  st.activity = fields({ days });
   if (R.maybe(0.5)) st.activity.goal = R.pick([20, 30, 50]);
   const reached = {}; pickSome(CHAPTERS).forEach(ch => { reached[ch] = 1 + R.int(30); });
-  st.lesson = { reached };
+  st.lesson = fields({ reached });
   if (R.maybe(0.5)) st.lesson.mode = R.pick(["steps", "page"]);
   st.last = R.maybe(0.6) ? { id: R.pick(CHAPTERS), section: R.maybe() ? "one-unknown" : null } : null;
   /* the game layer that is about to land; mergeGame does not exist yet */
   const ach = {}; pickSome(["first-solve", "ten-day", "chapter-1"]).forEach(k => { ach[k] = 1700000000000 + R.int(1e9); });
   const cmp = {}; pickSome(CHAPTERS, 0.4).forEach(ch => { cmp[ch] = {}; pickSome(KEYS, 0.4).forEach(k => { cmp[ch][k] = 1; }); });
   const sec = {}; pickSome(["ch02#one-unknown", "ch05#angles"]).forEach(s => {
-    sec[s] = { n: R.int(10), ok: R.int(10), box: R.int(5), last: R.pick(DAYS), fix: 1700000000000 + R.int(1e9) };
+    sec[s] = fields({ n: R.int(10), ok: R.int(10), box: R.int(5), last: R.pick(DAYS), fix: 1700000000000 + R.int(1e9) });
   });
-  const best = {}; pickSome(["sprint", "survival"]).forEach(m => { best[m] = { score: R.int(500), hearts: R.int(4), day: R.pick(DAYS) }; });
-  const enc = {}; pickSome(["ch02/practice", "ch05/practice"]).forEach(e => { enc[e] = { medal: R.pick(["bronze", "silver", "gold"]), day: R.pick(DAYS) }; });
+  const best = {}; pickSome(["sprint", "survival"]).forEach(m => { best[m] = fields({ score: R.int(500), hearts: R.int(4), day: R.pick(DAYS) }); });
+  const enc = {}; pickSome(["ch02/practice", "ch05/practice"]).forEach(e => { enc[e] = fields({ medal: R.pick(["bronze", "silver", "gold"]), day: R.pick(DAYS) }); });
   const daily = {}; pickSome(DAYS).forEach(d => { daily[d] = 1; });
-  st.game = { ach, cmp, sec, best, enc, daily, maxed: R.int(5) };
+  st.game = fields({ ach, cmp, sec: entries(sec), best: entries(best), enc: entries(enc), daily, maxed: R.int(5) });
+  /* the shape marker a later version may set (account.js SCHEMA): absent on most devices */
+  if (R.maybe(0.3)) st.game.v = 1 + R.int(3);
   return st;
 }
 
@@ -705,6 +726,18 @@ function checkMerge(ctx, r) {
       /* once mergeGame exists: unions, maxima, earliest achievement time */
       Object.keys(a.game.ach).forEach(k => { if (!ab.game.ach || !(k in ab.game.ach)) { if (!gameChecked) r.fail("seed " + seed + ": game.ach lost " + k); gameChecked = true; } });
       ["maxed"].forEach(k => { if (ab.game[k] !== undefined && ab.game[k] < Math.max(a.game[k] || 0, b.game[k] || 0)) r.fail("seed " + seed + ": game." + k + " should be the maximum"); });
+      /* the shape marker: the larger of the two, and not invented where neither has one */
+      if (ab.game.v !== (Math.max(a.game.v || 0, b.game.v || 0) || undefined)) r.fail("seed " + seed + ": game.v should be the maximum, and absent when neither side has one");
+      /* a key this version has never heard of is never dropped */
+      UNKNOWN_KEYS.forEach(k => {
+        [["game", x => x.game], ["activity", x => x.activity], ["lesson", x => x.lesson], ["progress", x => x.progress]].forEach(([name, at]) => {
+          const held = [at(a)[k], at(b)[k]].filter(v => v !== undefined).map(canon).sort();
+          if (held.length && canon(at(ab)[k]) !== held[held.length - 1]) {
+            if (!seen.unknown) r.fail("seed " + seed + ": " + name + "." + k + " should be the later of " + held.join(" and ") + ", got " + canon(at(ab)[k]));
+            seen.unknown = 1;
+          }
+        });
+      });
     }
   }
   Object.keys(seen).forEach(k => { if (seen[k] > 1) r.fail("  … " + k + " failed in " + seen[k] + " of " + N + " cases"); });
@@ -712,6 +745,10 @@ function checkMerge(ctx, r) {
   /* and the laws must be observable at all: a hand case */
   const x = merge({ progress: { ch01: { solved: { e1: true }, total: 3 } } }, { progress: { ch01: { solved: { e2: true } } } });
   if (!x.progress.ch01.solved.e1 || !x.progress.ch01.solved.e2 || x.progress.ch01.total !== 3) r.fail("hand case: union of solved / max of total is wrong: " + JSON.stringify(x.progress));
+  /* and one for a field no version of this file knows: kept from one side, the later
+     canonical JSON from two */
+  const y = merge({ attempts: { ch01: { e1: { tries: 2, rung: 1, note: "a" } } } }, { attempts: { ch01: { e1: { tries: 1, rung: 3 } } } });
+  if (canon(y.attempts.ch01.e1) !== canon({ tries: 2, rung: 3, note: "a" })) r.fail("hand case: unknown attempt fields were not carried through: " + JSON.stringify(y.attempts));
 }
 function firstDiff(x, y, p) {
   p = p || "";

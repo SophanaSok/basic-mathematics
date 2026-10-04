@@ -501,7 +501,7 @@ memory but keeps the site:
 | `bm.last`, `bm.theme` | where to continue; light or dark |
 | `bm.game.v1` | achievements, compared solutions, recall per section, Arena bests, medals, Daily days (synced) |
 | `bm.run.v1` | the combo meter and an unfinished Arena run (this device only; cleared by reset and sign-out) |
-| `bm.prefs.v1` | calm mode, sound, 3D map, Arena tempo (this device only; survives a reset) |
+| `bm.prefs.v1` | calm mode, sound, 3D map, Arena tempo (this device only; survives a reset; keys the site does not know are kept) |
 | `bm.sync.v1` | with accounts on: whose progress this browser holds and the last reset it knows of |
 | `bm.sync.pending.v1` | with accounts on: progress that could not be saved when its reader signed out, kept aside per reader until they sign in here again |
 
@@ -526,6 +526,44 @@ password, a reader can sign in through any service listed under `providers` in
 address, which the account page shows and removes. Setting it up is five steps:
 [`supabase/README.md`](supabase/README.md).
 
+A tab left open for a week, or a browser that still has last month's scripts cached, saves to
+the same account as the newest copy of the site. Three rules keep an older copy from damaging
+what a newer one saved. They are in force from the release that introduced them, so anything
+that adds a synced field has to ship after it and can rely on them:
+
+- **A field with no rule is carried, never dropped.** If one side of a merge holds it, it is
+  kept. If both do, the value whose canonical JSON (keys sorted at every level) is the later
+  string is kept, which is a maximum, so order, grouping and repetition still do not matter.
+  This covers the top level of every synced store, the game record, each chapter's record in
+  `bm.progress.v1` and `bm.play.v1`, each exercise's record in `bm.attempts.v1`, and each `sec`,
+  `best` and `enc` entry of the game record. Such a field is merged by itself, not together with
+  whichever record wins on the known fields. In the stores keyed by chapter, exercise or section
+  every key is merged as a record of that kind, whether or not this copy of the site knows the
+  key; only a value that is not an object on either side is passed through whole. `game.js`
+  keeps unknown fields the same way when it rewrites the game record or one of its entries, and
+  `prefs()` and `setPref` keep unknown keys of `bm.prefs.v1`. Known fields merge exactly as
+  before.
+- **The data says which shape it is in.** `v` in the game record, merged by taking the larger
+  number. No `v` means 1, which is what this copy understands (`SCHEMA` in `account.js`), and
+  nothing writes one yet. It is inside the data, not a column, so no SQL has to run before a
+  site that reads it is deployed, and in the game record because that is the one synced store
+  whose top level is a fixed set of named fields. A page that meets a `v` above its `SCHEMA`,
+  in the account or in its own browser, still merges, so the reader keeps working with
+  everything they have, but writes nothing to the server, neither the row nor the attempt log.
+  The account page then says to reload. Work done in the meantime stays in the browser (signing
+  out sets it aside) and is saved by the newer site.
+- **Only what the server has is written.** A save names only the `user_state` columns the server
+  has: the page learns them from the row it reads, and a first save that the server refuses for
+  naming a missing column is repeated without it. What that column would hold stays in the
+  browser. A save never names a column this copy does not know, so a column added later is left
+  as it is. A missing `attempts` table means the attempt log is switched off: the queue is kept
+  and the sync still succeeds.
+
+What the first rule gives a new field is survival, and agreement between devices. If the field
+needs a rule of its own (a larger number, a union), the release that first writes it must add
+that rule, and should choose values for which the fallback is harmless in older copies: `"9"`
+sorts after `"10"`. A change to what an existing field means needs a larger `v`.
+
 The "areas to strengthen" ranking is `BMInsights` in `site.js`: each attempted exercise gets a
 struggle score from 0 (right first time) to 1, averaged per section.
 
@@ -545,11 +583,14 @@ node tools/checks.test.js                 # the progress-key, id and lesson-step
                                           # assign-ids.js, on small pages with known answers
 node tools/smoke-scenes.js                # every 3D scene: mount, controls, missions, answers
 node tools/check-gen.js                   # every Arena generator over 500 seeds
-node tools/game/merge.test.js             # BMAccount.merge, including the game store
+node tools/game/merge.test.js             # BMAccount.merge, including the game store and fields
+                                          # this copy of the site has never heard of
 node tools/game/sync.test.js              # account sync: stale tabs, resets, failed sign-outs,
-                                          # sign-in through another service
+                                          # newer and older sites and tables, sign-in through
+                                          # another service
 node tools/game/account.test.js           # the account page in Chromium, against a stand-in SDK
-node tools/game/rules.test.js             # combo, levels, hearts, medals, achievements, recall
+node tools/game/rules.test.js             # combo, levels, hearts, medals, achievements, recall,
+                                          # unknown settings and game fields kept
 node tools/game/browser.test.js           # the game in a browser: combo XP, hearts, finale, reload,
                                           # calm mode, sound off, old progress, toasts, the sheet
 node tools/game/arena.test.js             # Arena runs: scoring, clock, hearts, Daily, Repair, resume

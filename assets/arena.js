@@ -710,6 +710,11 @@
     return rec && rec.fix ? +rec.fix || 0 : 0;
   }
 
+  /* a record written over an older one keeps the old one's other fields (as game.js does) */
+  function carried(old, rec) {
+    Object.keys(old && typeof old === "object" ? old : {}).forEach(function (k) { if (!(k in rec)) rec[k] = old[k]; });
+    return rec;
+  }
   /* without the game layer: pay the XP and keep the small record the deck reads */
   function fallbackRecord(res) {
     if (res.xp > 0 && window.BMActivity) window.BMActivity.add(res.xp, "arena");
@@ -733,7 +738,7 @@
     if (res.ranked && res.finished) {
       g.best = g.best && typeof g.best === "object" ? g.best : {};
       var key = res.mode === "boss" ? "boss:" + res.boss : res.mode, b0 = g.best[key];
-      if (!b0 || res.score > b0.score || (res.score === b0.score && res.hearts > b0.hearts)) g.best[key] = { score: res.score, hearts: res.hearts, day: res.day };
+      if (!b0 || res.score > b0.score || (res.score === b0.score && res.hearts > b0.hearts)) g.best[key] = carried(b0, { score: res.score, hearts: res.hearts, day: res.day });
     }
     if (res.mode === "daily" && res.finished) {
       g.daily = g.daily && typeof g.daily === "object" ? g.daily : {};
@@ -742,7 +747,7 @@
     if (res.medal) {
       g.enc = g.enc && typeof g.enc === "object" ? g.enc : {};
       var k = res.boss + "/practice", e = g.enc[k];
-      if (!e || res.medal > (e.medal || 0)) g.enc[k] = { medal: res.medal, day: res.day };
+      if (!e || res.medal > (e.medal || 0)) g.enc[k] = carried(e, { medal: res.medal, day: res.day });
     }
     Store.write(GAME_KEY, g);
   }

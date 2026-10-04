@@ -4,6 +4,9 @@
    state triples, that merge is commutative, associative and idempotent once the four
    local-first fields are removed (last, activity.goal, lesson.mode, play[ch].guess).
    Also checks that an old-shape state (no `game`) merges cleanly.
+   The states carry what a later version of the site might add: fields no rule knows, at
+   every level where the merge builds a record afresh, and a shape marker `game.v`. The
+   laws must hold with them in, and every one of them must come out of a merge.
    Usage: node tools/game/merge.test.js [--n=2000] [--seed=1] */
 "use strict";
 const fs = require("fs");
@@ -54,6 +57,22 @@ const CHS = ["ch01", "ch02", "ch05", "interlude"];
 const KEYS = ["e1", "e2", "e3", "i1", "i2", "s3d-room"];
 const day = (i) => "2026-" + String(1 + (i % 12)).padStart(2, "0") + "-" + String(1 + (i % 28)).padStart(2, "0");
 
+/* Fields from the future: few keys and few values, so two devices often hold the same
+   key and disagree about it. The two objects differ only in the order of their keys. */
+const NEW_KEYS = ["zz", "~later", "rung"];
+const NEW_VALUES = [0, 7, -1, "x", "", true, null, [1, 2], [2, 1], { a: 1, b: [1] }, { b: [1], a: 1 }, { a: { c: 2 } }];
+function sprinkle(into, values) {
+  NEW_KEYS.forEach((k) => { if (chance(0.2)) into[k] = JSON.parse(JSON.stringify(pick(values))); });
+  return into;
+}
+/* an unknown field of a record can hold anything */
+const fields = (rec) => sprinkle(rec, NEW_VALUES);
+/* An unknown key of a store keyed by chapter, exercise or section goes through whole only
+   when it holds no record (a record there is merged as a chapter, exercise or section,
+   like the known keys). No null either: strip() and the sec check below read into every
+   entry, as they always have. */
+const entries = (map) => sprinkle(map, NEW_VALUES.filter((v) => v !== null && (typeof v !== "object" || Array.isArray(v))));
+
 function attemptRec(ch, k) {
   const r = {};
   if (chance(0.5)) {
@@ -69,7 +88,7 @@ function attemptRec(ch, k) {
   if (chance(0.2)) { r.opened = 1; if (r.solved) r.first = 0; }
   if (k[0] === "i") r.inline = 1;
   r.section = ch + "-sec-" + k; /* one exercise always tests one section */
-  return r;
+  return fields(r);
 }
 
 function gameState() {
@@ -96,20 +115,23 @@ function gameState() {
       const s = { n, ok: int(n + 1), box: int(5) };
       if (chance(0.8)) s.last = day(int(40));
       if (chance(0.3)) s.fix = 1700000000000 + int(30) * 1000;
-      g.sec[id] = s;
+      g.sec[id] = fields(s);
     });
+    entries(g.sec);
   }
   if (chance(0.6)) {
     g.best = {};
     ["standard", "daily", "repair"].forEach((m) => {
-      if (chance(0.5)) g.best[m] = { score: int(4) * 100, hearts: int(4), day: day(int(10)) };
+      if (chance(0.5)) g.best[m] = fields({ score: int(4) * 100, hearts: int(4), day: day(int(10)) });
     });
+    entries(g.best);
   }
   if (chance(0.6)) {
     g.enc = {};
     ["ch02/practice", "ch05/practice"].forEach((id) => {
-      if (chance(0.5)) g.enc[id] = { medal: 1 + int(3), day: day(int(10)) };
+      if (chance(0.5)) g.enc[id] = fields({ medal: 1 + int(3), day: day(int(10)) });
     });
+    entries(g.enc);
   }
   if (chance(0.6)) {
     g.daily = {};
@@ -117,7 +139,8 @@ function gameState() {
     for (let i = 0; i < n; i++) g.daily["2026-" + String(1 + int(9)).padStart(2, "0") + "-" + String(1 + int(28)).padStart(2, "0")] = 1;
   }
   if (chance(0.5)) g.maxed = int(6);
-  return g;
+  if (chance(0.3)) g.v = 1 + int(3);
+  return fields(g);
 }
 
 function state(old) {
@@ -126,17 +149,19 @@ function state(old) {
     if (chance(0.6)) {
       const solved = {};
       KEYS.filter((k) => k[0] !== "i").forEach((k) => { if (chance(0.5)) solved[k] = true; });
-      s.progress[ch] = { solved, total: int(12) };
+      s.progress[ch] = fields({ solved, total: int(12) });
     }
     if (chance(0.5)) {
       const done = {};
       ["m1", "m2", "m3"].forEach((m) => { if (chance(0.5)) done[m] = true; });
       s.play[ch] = { done, total: int(5) };
       if (chance(0.5)) s.play[ch].guess = int(4);
+      fields(s.play[ch]);
     }
     if (chance(0.6)) {
       s.attempts[ch] = {};
       KEYS.forEach((k) => { if (chance(0.5)) s.attempts[ch][k] = attemptRec(ch, k); });
+      entries(s.attempts[ch]);
     }
     if (chance(0.5)) s.lesson.reached[ch] = 1 + int(20);
   });
@@ -144,9 +169,23 @@ function state(old) {
   if (chance(0.5)) s.activity.goal = pick([15, 30, 50]);
   if (chance(0.5)) s.lesson.mode = pick(["steps", "page"]);
   s.last = chance(0.5) ? { id: pick(CHS), section: null } : null;
+  [s.progress, s.play, s.attempts].forEach(entries);
+  [s.activity, s.lesson].forEach(fields);
   if (!old) s.game = gameState();
   return s;
 }
+
+/* every place in a state where a key from the future sits, as a path of keys; what it
+   holds is not looked into */
+function futurePaths(x, at, out) {
+  if (!x || typeof x !== "object" || Array.isArray(x)) return out;
+  Object.keys(x).forEach((k) => {
+    if (NEW_KEYS.indexOf(k) > -1) out.push(at.concat(k));
+    else futurePaths(x[k], at.concat(k), out);
+  });
+  return out;
+}
+const dig = (x, at) => at.reduce((o, k) => (o && typeof o === "object" ? o[k] : undefined), x);
 
 /* drop the fields where this device deliberately keeps its own value */
 function strip(m) {
@@ -181,6 +220,14 @@ for (let i = 0; i < N; i++) {
   if (!same(merge(ab, c), merge(a, merge(b, c)))) fail("associative", i);
   if (!same(merge(ab, ab), ab)) fail("idempotent merge(m, m) = m", i);
   if (!same(merge(ab, b), ab)) fail("absorbs merge(merge(a, b), b) = merge(a, b)", i);
+  /* nothing from the future is dropped: held by one side it is kept, held by both the
+     one whose canonical JSON is the later string is kept */
+  futurePaths(a, [], []).concat(futurePaths(b, [], [])).forEach((at) => {
+    const held = [dig(a, at), dig(b, at)].filter((v) => v !== undefined).map(canon).sort();
+    if (canon(dig(ab, at)) !== held[held.length - 1] || dig(ab, at) === undefined) fail("an unknown key is carried through", i, at.join("/"));
+  });
+  const v = Math.max((a.game || {}).v || 0, (b.game || {}).v || 0);
+  if (ab.game.v !== (v || undefined)) fail("game.v is the larger, and absent when neither has one", i);
   const g = ab.game;
   if (!g || typeof g !== "object") fail("game present", i);
   else {
@@ -207,6 +254,19 @@ const r3 = mg({ best: { d: { score: 500, hearts: 1, day: "2026-01-09" } } }, { b
 if (r3.best.d.day !== "2026-01-02") fail("best: tie goes to the earlier day", -2);
 const r4 = mg({ enc: { e: { medal: 2, day: "2026-01-01" } } }, { enc: { e: { medal: 3, day: "2026-02-01" } } });
 if (r4.enc.e.medal !== 3) fail("enc: higher medal", -2);
+
+/* what this version has no rule for (account.js `later`, `carry`) */
+const r5 = merge({ attempts: { ch01: { e1: { tries: 2, rung: 1, note: "a" } } } }, { attempts: { ch01: { e1: { tries: 1, solved: 5, first: 1, rung: 3 } } } });
+if (canon(r5.attempts.ch01.e1) !== canon({ tries: 2, solved: 5, first: 1, rung: 3, note: "a" })) fail("attempt: unknown fields ride along, known ones keep their rules", -3, JSON.stringify(r5.attempts.ch01.e1));
+const r6 = mg({ wallet: { coins: 5 }, sec: { s: { n: 1, ok: 1, box: 2, last: "2026-03-01", ease: 2.5 } }, best: { d: { score: 9, hearts: 1, day: "2026-01-01", run: "a" } } },
+  { wallet: { coins: 40 }, sec: { s: { n: 3, ok: 0, box: 0, last: "2026-03-09" } }, enc: { e: { medal: 1, day: "2026-01-01", gate: [1] } } });
+if (canon(r6.wallet) !== canon({ coins: 5 })) fail("game: of two unknown values the later canonical JSON is kept (\"5\" sorts after \"40\")", -3, JSON.stringify(r6.wallet));
+if (canon(r6.sec.s) !== canon({ n: 3, ok: 1, box: 0, last: "2026-03-09", ease: 2.5 })) fail("sec: an unknown field outlives the record that lost on the known ones", -3, JSON.stringify(r6.sec.s));
+if (r6.best.d.run !== "a" || canon(r6.enc.e.gate) !== "[1]") fail("best and enc: unknown fields are carried", -3, JSON.stringify([r6.best, r6.enc]));
+const r7 = merge({ progress: { "~later": [1, 2], ch01: { solved: { e1: true }, total: 3, stars: 2 } } }, { progress: { "~later": [1, 3], ch01: { solved: {}, total: 1 } } });
+if (canon(r7.progress) !== canon({ "~later": [1, 3], ch01: { solved: { e1: true }, total: 3, stars: 2 } })) fail("progress: a key that holds no record goes through whole", -3, JSON.stringify(r7.progress));
+if (canon(mg({ zz: { a: 1, b: 2 } }, { zz: { b: 2, a: 1 } }).zz) !== canon({ a: 1, b: 2 })) fail("key order alone is not a difference", -3);
+if (mg({ v: 2 }, {}).v !== 2 || mg({ v: 9 }, { v: 10 }).v !== 10 || "v" in mg({}, {})) fail("game.v: the larger number (not the later string), absent until set", -3);
 
 console.log((fails ? "FAILED" : "ok") + " merge: " + N + " triples, commutative / associative / idempotent" +
   (fails ? " (" + fails + " failures)" : ""));
