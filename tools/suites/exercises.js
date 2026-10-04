@@ -41,7 +41,9 @@ module.exports = {
           if (!/Not right/.test(fb)) problems.push("feedback text lacks 'Not right': " + JSON.stringify(fb));
           if (m.hint) {
             const frag = drive.hintFragment(m.hint);
-            if (!/Hint:/.test(fb)) problems.push("hint not shown after the first wrong answer; feedback: " + JSON.stringify(fb));
+            /* the hint is its own panel, .ex-hint, under the verdict */
+            const panel = await ex.locator(".ex-feedback .ex-hint:not([data-prev])").count();
+            if (!panel || !/Hint/.test(fb)) problems.push("hint not shown after the first wrong answer; feedback: " + JSON.stringify(fb));
             else if (frag && !fb.includes(frag)) problems.push("feedback does not contain the hint fragment " + JSON.stringify(frag) + ": " + JSON.stringify(fb));
           }
           const r = await drive.answerWithKey(ex, m);

@@ -70,6 +70,11 @@ function makeHelpers(ctx) {
     await context.addInitScript((seeds) => {
       try { Object.keys(seeds).forEach(k => localStorage.setItem(k, JSON.stringify(seeds[k]))); } catch (e) { /* storage blocked */ }
     }, seeds);
+    /* the site scrolls smoothly; a click far down a long chapter would then chase an
+       animated scroll for seconds, which Playwright reads as an unstable element */
+    await context.addInitScript(() => {
+      document.addEventListener("DOMContentLoaded", () => { document.documentElement.style.scrollBehavior = "auto"; });
+    });
     if (o.noWebGL) await noWebGL(context);
     const page = await context.newPage();
     page.setDefaultTimeout(15000);

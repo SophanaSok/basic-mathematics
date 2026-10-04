@@ -49,7 +49,8 @@ module.exports = {
               const nChips = await chips.count();
               for (let c = 0; c < nChips; c++) {
                 const chip = chips.nth(c);
-                if (await chip.isVisible().catch(() => false)) await chip.click({ timeout: 3000 }).catch(e => problems.push("chip " + c + ": " + e.message.split("\n")[0]));
+                /* a chip may be disabled on purpose (a move that would leave the scene's range) */
+                if (await chip.isVisible().catch(() => false) && await chip.isEnabled().catch(() => false)) await chip.click({ timeout: 3000 }).catch(e => problems.push("chip " + c + ": " + e.message.split("\n")[0]));
                 await page.waitForTimeout(30);
               }
               /* keyboard on the focusable SVG (and any focusable handle inside it) */

@@ -79,7 +79,8 @@ module.exports = {
     try {
       await ctx.h.blockUrl(p2.page, "/assets/widgets.js");
       await ctx.h.open(p2.page, ctx.chapterPages[0] || "index.html");
-      const hasWidgets = await p2.page.evaluate(() => !!window.BMWidgets);
+      /* scenes3d.js also creates window.BMWidgets, so look for widgets.js's own export */
+      const hasWidgets = await p2.page.evaluate(() => !!window.BMPlot);
       if (hasWidgets) ctx.report.fail("blockUrl helper", "widgets.js still loaded while blocked");
       else ctx.report.pass("blockUrl helper", "blocked /assets/widgets.js; page still loaded (" + p2.errors.pageErrors.length + " page errors, " + p2.errors.notFound.length + " same-origin failures, as expected from the block)");
     } finally { await p2.close(); }
