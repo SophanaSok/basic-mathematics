@@ -317,6 +317,22 @@
       return frag;
     }
 
+    /* a negative number is written in brackets after an operation sign: 3 + (-5), but 3 + 5 */
+    function operand(n) { return n < 0 ? "(" + n + ")" : String(n); }
+
+    /* what this hop does, said for the numbers on the sliders */
+    function caption() {
+      if (op === "*") {
+        return b < 0
+          ? "Multiplying by a negative number reverses direction: " + a + " · (" + b + ") is " +
+            Math.abs(b) + " copies of " + a + ", then reflected through 0."
+          : a + " · " + b + " is " + b + " copies of " + a + ".";
+      }
+      if (b === 0) return (op === "+" ? "Adding" : "Subtracting") + " 0 changes nothing.";
+      if (op === "+") return b < 0 ? "Adding a negative number moves left." : "Adding a positive number moves right.";
+      return "Subtracting " + b + " is adding its opposite, " + (-b) + ": a move to the " + (b < 0 ? "right." : "left.");
+    }
+
     function draw() {
       g.textContent = "";
       /* the line and its ticks */
@@ -334,19 +350,15 @@
         var shift = op === "+" ? b : -b;
         g.appendChild(arrow(a, a + shift, y0 - 26, "var(--plot-curve-2)"));
         g.appendChild(el("text", { x: P.sx(a + shift / 2), y: y0 - 34, "text-anchor": "middle", style: S.label },
-          (op === "+" ? "+ (" : "− (") + b + ")"));
+          (op === "+" ? "+ " : "− ") + operand(b)));
       }
       /* result marker, if it fits on the visible line */
       if (result >= -12 && result <= 12) {
         g.appendChild(el("circle", { cx: P.sx(result), cy: y0, r: 6, style: S.pt }));
         g.appendChild(el("text", { x: P.sx(result), y: y0 + 44, "text-anchor": "middle", style: S.labelStrong }, String(result)));
       }
-      var expr = op === "+" ? a + " + (" + b + ")" : op === "-" ? a + " − (" + b + ")" : a + " · (" + b + ")";
-      out.innerHTML = "<b>" + expr + " = " + result + "</b><br>" +
-        (op === "*"
-          ? "Multiplying by a negative number reverses direction: " + a + " · (" + b + ") is " +
-            Math.abs(b) + " copies of " + a + (b < 0 ? ", then reflected through 0." : ".")
-          : "Adding a negative number moves left; subtracting a negative moves right.");
+      var expr = a + (op === "+" ? " + " : op === "-" ? " − " : " · ") + operand(b);
+      out.innerHTML = "<b>" + expr + " = " + result + "</b><br>" + caption();
     }
 
     var c = controls(host);

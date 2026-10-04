@@ -745,14 +745,19 @@
       M.labels.setAttribute("data-key", html);
     }
     var w = M.stage.clientWidth, h = M.stage.clientHeight;
-    Array.prototype.forEach.call(M.labels.children, function (el) {
+    /* measured before anything is moved: a plate sits centred above its island, so half
+       its width and all of its height have to fit inside the stage */
+    var sizes = Array.prototype.map.call(M.labels.children, function (el) { return { half: el.offsetWidth / 2, tall: el.offsetHeight }; });
+    Array.prototype.forEach.call(M.labels.children, function (el, n) {
       var s = ISLES[+el.getAttribute("data-i")];
       var lift = el.getAttribute("data-kind") === "current" ? (M.done[s.id] ? 2.35 : 2.65) : (M.done[s.id] ? 1.85 : 1.85);
       var v = new M.T.Vector3(s.x, s.y + DECK + lift, s.z).project(M.camera);
       var x = (v.x + 1) / 2 * w, y = (1 - v.y) / 2 * h;
       var off = v.z > 1 || x < -40 || x > w + 40 || y < 0 || y > h + 20;
       el.style.visibility = off ? "hidden" : "visible";
-      el.style.transform = "translate(" + Math.round(clamp(x, 8, w - 8)) + "px," + Math.round(y) + "px) translate(-50%,-100%)";
+      var room = sizes[n].half + 8, top = sizes[n].tall + 8;
+      el.style.transform = "translate(" + Math.round(2 * room < w ? clamp(x, room, w - room) : w / 2) + "px," +
+        Math.round(top < h ? clamp(y, top, h + 4) : y) + "px) translate(-50%,-100%)";
     });
   }
 
