@@ -629,7 +629,9 @@ node tools/check-browser.js               # every page × theme × width in head
 fails if any existing exercise's key or question changed, inline checks included, or if any
 exercise has no `id`. The same run fails an `id` that appears twice on a page, and warns when a
 chapter is not cut into the lesson steps recorded in `tools/lesson-steps.json`.
-The `migrations` check fails if `supabase/schema.sql` changed since then with no new migration.
+The `migrations` check does not use `--base`. It compares against the commit the branch left `main` at
+(or `--migrations-base=<ref>`) and fails if `supabase/schema.sql` changed since then with no new
+migration, or if a migration that was already there was edited, renamed or removed.
 
 Still checked by hand: the solution of a multiple-choice question states the option the key
 names; a new `order` list is authored in the right order; a new puzzle's tempting guess in

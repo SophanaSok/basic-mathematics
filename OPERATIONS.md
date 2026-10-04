@@ -25,18 +25,21 @@ old site can live with. The rule itself is in
 
 1. **Write the migration.** On the topic branch, change [`supabase/schema.sql`](supabase/schema.sql)
    and add `supabase/migrations/<YYYYMMDDHHMMSS>_<name>.sql` with only the new statements, all of
-   them idempotent. Run `node tools/check-static.js --base=main`: the `migrations` check fails if
-   `schema.sql` changed and no migration was added, or if the file name is wrong.
+   them idempotent. Run `node tools/check-static.js`: the `migrations` check fails if
+   `schema.sql` changed and no migration was added, if the file name is wrong, or if a migration
+   already on `main` was touched.
 2. **Apply it to the live project.** Dashboard → SQL → New query, paste the migration file, run.
    The pull request is still open; the deployed site is the old one.
 3. **Verify with one of the queries below**, and check the old site still syncs: open the live
    account page signed in and confirm it does not say "Sync failed".
 4. **Merge.** The new site deploys and finds the schema it needs.
 
-The `migrations` check compares against `--base`, so it only bites when the base is the branch
-being merged into. Against the script's old default base, any migration added since then
-satisfies it. Continuous integration **[not yet: R0, item 3]** must pass the pull request's
-target as `--base`.
+The `migrations` check compares against the commit the branch left `main` at, not against
+`--base` (which is the progress-keys base and older than every migration). On a topic branch that
+needs nothing extra. Where `main` does not resolve, as in a shallow checkout, it falls back to
+`--base` and prints a warning, because against that base it lets a schema change through.
+Continuous integration **[not yet: R0, item 3]** must therefore pass the commit being merged into
+as `--migrations-base=<ref>`.
 
 A change that also needs an Edge Function **[not yet: R5]** goes database, then function, then
 site. The function deploy step will be written here by the release that adds the first function.
@@ -86,11 +89,14 @@ try again.
 | Step | To undo it |
 | --- | --- |
 | 1. Migration written | Nothing is live. Change or delete the file on the branch. |
+| 2. Applied, then the pull request changed the migration | The live project now holds the earlier version, and re-running the edited file does not fix that: `add column if not exists` skips a column that is already there, without an error, whatever its new definition says. Either reverse the applied statements by hand (next row) and run the edited file, or leave the applied file as it is and add a newer migration to the same pull request that makes the difference. Then verify again (step 3). |
 | 2. Applied to the live project | Usually: leave it. A migration only adds, and the deployed site ignores columns and tables it does not know. If it must go, write the reverse statements by hand (`drop column`, `drop table`) and run them. That destroys whatever was stored there, so do it only before the site that writes it has shipped. Take the file out of the unmerged pull request as well. |
 | 3. Verified | Nothing to undo. |
 | 4. Merged | Revert the merge commit on `main` and let the revert deploy ([7.2](#72-a-bad-deploy)). Leave the database alone: the old site ran against the new schema before the merge and will again. |
 
-Once a migration has been merged, never edit it. Fix it with a newer migration.
+A migration is frozen from the moment it has been applied to the live project, not from the
+merge: after step 2, change it only by one of the two routes in the table. Once it is on `main`
+the `migrations` check refuses any edit to it; fix it with a newer migration.
 
 ## 2. GitHub Pages
 
@@ -177,7 +183,7 @@ relying on a number.
 | Limit (Free plan) | Number | Why it matters here | Source |
 | --- | --- | --- | --- |
 | Database size | 500 MB per project. Above it the project goes read-only | Every save fails while read-only. `attempts` grows by one row per answer check, and the `events` table **[not yet: R2]** will grow faster | [pricing](https://supabase.com/pricing), [database size](https://supabase.com/docs/guides/platform/database-size) |
-| Pausing | "Free projects are paused after 1 week of inactivity" | A paused project answers nothing: no sign-in, no sync. The page read gives a 1-year window to restore a paused project from the dashboard | [pricing](https://supabase.com/pricing), [restore window](https://supabase.com/docs/guides/platform/upgrading) |
+| Pausing | "Free projects are paused after 1 week of inactivity" (pricing); "low activity in a 7-day period" (production checklist) | A paused project answers nothing: no sign-in, no sync. It is restored from the dashboard; the page read gives a 1-year window for that | [pricing](https://supabase.com/pricing), [production checklist](https://supabase.com/docs/guides/platform/going-into-prod), [restore window](https://supabase.com/docs/guides/platform/upgrading) |
 | Edge Function invocations | 500,000 a month included | Nothing today: there are no functions. Billing and the tutor **[not yet: R5]** will each cost an invocation per call | [pricing](https://supabase.com/pricing), [billing](https://supabase.com/docs/guides/platform/billing-on-supabase) |
 | Edge Function run limits | 256 MB memory, 2 s CPU time, 150 s wall clock on Free, 100 functions per project | The tutor function **[not yet: R5]** waits on a model reply, so the wall-clock limit is the one it can reach | [function limits](https://supabase.com/docs/guides/functions/limits) |
 | Monthly active users | 50,000 | Far off | [pricing](https://supabase.com/pricing) |
@@ -186,8 +192,14 @@ relying on a number.
 | Log retention | 1 day for API and database logs | Look at the logs the day something breaks | [pricing](https://supabase.com/pricing) |
 | Free projects | 2 | | [pricing](https://supabase.com/pricing) |
 
-The pages read do not say what happens on the Free plan when a monthly quota other than database
-size is passed. Assume the service is restricted until the month ends or the plan changes.
+When a Free quota is exceeded, Supabase's
+[billing FAQ](https://supabase.com/docs/guides/platform/billing-faq) (read 2026-10-04) gives the
+sequence: "You will be notified when you exceed the Free Plan quota", then a grace period, then
+service restrictions under the fair use policy. The restrictions it lists are pausing the
+project, switching the database to read-only, blocking new projects and transfers, and answering
+every API request with status 402. Service comes back by bringing usage under the quota or
+changing the plan. To the site, a pause, read-only mode and the 402 all look like "sync failing
+for everyone" ([7.1](#71-sync-is-failing-for-everyone)).
 
 The plan's go-live checklist moves the project to a paid plan before the tutor is switched on
 **[not yet: R5, item 28]**. These numbers then need re-reading.
@@ -205,8 +217,11 @@ The plan's go-live checklist moves the project to a paid plan before the tutor i
   from pg_catalog.pg_statio_user_tables order by pg_total_relation_size(relid) desc;
   ```
 
-- **Pausing.** Mail from Supabase to the owner's address. The pricing page does not define
-  inactivity; assume a week in which no signed-in reader syncs is enough to pause the project.
+- **Pausing.** Supabase's production checklist says it "may pause applications on the Free Plan
+  that exhibit low activity in a 7-day period". How low is not stated, so assume a week in which
+  no signed-in reader syncs is enough. Do not count on a warning: the pages read do not promise an
+  email before a project is paused. Once a week, open the dashboard or sign in on the live site
+  and read the sync line; a paused project shows as paused in the dashboard and is restored there.
 - **The account page.** Sign in on the live site now and then and read the sync line.
 
 ## 4. Secrets
@@ -219,7 +234,7 @@ that key.
 | Secret | Exists | Where it lives | Created at |
 | --- | --- | --- | --- |
 | Sign-in services' client secrets (Google, GitHub) | today | Supabase dashboard → Authentication → Sign In / Providers | each service's developer console |
-| Supabase service-role / secret key | today, unused by the site | Supabase only. Edge Functions are given it by Supabase; it is never copied anywhere | Supabase dashboard → Project Settings → API |
+| Supabase service-role / secret key | today, unused by the site | Supabase only. Edge Functions are given it by Supabase; it is never copied anywhere | Supabase dashboard → Project Settings → API Keys |
 | Anthropic API key for the hint pipeline | **[not yet: R2]** | an environment variable on the owner's machine while `tools/hints/` runs | Anthropic Console |
 | Stripe secret key | **[not yet: R5]** | Supabase Edge Function secrets | Stripe dashboard |
 | Stripe webhook signing secret | **[not yet: R5]** | Supabase Edge Function secrets | Stripe dashboard, on the webhook endpoint |
@@ -263,7 +278,7 @@ check it when the first function exists.
 | Duty | From | How often | What it is |
 | --- | --- | --- | --- |
 | Apply migrations | R0 (now) | every change to `schema.sql` | [Section 1](#1-releasing-a-change-that-needs-sql). The first real one is the `events` table in R2 |
-| Watch Supabase usage and pausing | now | monthly | [Section 3](#what-to-watch) |
+| Watch Supabase usage and pausing | now | usage monthly, pausing weekly | [Section 3](#what-to-watch) |
 | Renew expiring provider secrets | now, if Microsoft is enabled | before the expiry date | [Section 4](#rotation-in-outline) |
 | The hint review queue | **[not yet: R2]** | each content wave | Generated hints wait in a review queue; nothing ships unapproved. Approving or rejecting them is the owner's job |
 | League abuse handling | **[not yet: R4]** | weekly, and on a report | Offensive or impersonating behaviour, and scores that look farmed. The tools for removing someone from a cohort come with R4 |
@@ -317,15 +332,19 @@ account the next time a sync works. So take the time to find the cause.
    migration ran. Apply the migration now ([section 1](#1-releasing-a-change-that-needs-sql));
    it is idempotent, so running it twice is safe. Verify with Q-columns or Q-tables. If the error
    persists, run `notify pgrst, 'reload schema';`.
-4. **Writes are refused but reads work:** check the database size ([section 3](#what-to-watch)).
+4. **Every request is answered with status 402:** a Free quota has been exceeded and the grace
+   period is over ([section 3](#free-plan-limits-that-matter-here)). Open the organization's Usage
+   page in the dashboard to see which one; service returns when usage is back under the quota or
+   the plan is changed.
+5. **Writes are refused but reads work:** check the database size ([section 3](#what-to-watch)).
    Over 500 MB the Free plan is read-only; Supabase's
    [database size page](https://supabase.com/docs/guides/platform/database-size) gives the steps
    to delete data and leave read-only mode.
-5. **It started right after a merge:** treat it as a bad deploy (7.2).
-6. **Sign-in fails, rather than sync:** check the redirect allow-list
+6. **It started right after a merge:** treat it as a bad deploy (7.2).
+7. **Sign-in fails, rather than sync:** check the redirect allow-list
    ([section 3](#the-auth-redirect-allow-list)) and whether a sign-in service's secret has
    expired or been deleted.
-7. Last resort, if it cannot be fixed soon and the errors are doing harm: set `supabaseUrl` and
+8. Last resort, if it cannot be fixed soon and the errors are doing harm: set `supabaseUrl` and
    `supabaseAnonKey` to `""` and deploy. Accounts are off and the site works as it does for a
    signed-out visitor. Put the values back when the cause is fixed.
 

@@ -4,10 +4,13 @@
 
    Usage: node tools/check-static.js [--base=<git ref>] [--only=<check name>] [--strict]
                                      [--accept-steps]
+                                     [--migrations-base=<git ref>]
 
    --base    the commit to compare progress keys against (default: the clean tree the
              harness was written on, see lib/site.js DEFAULT_BASE)
    --only    run one check by name (the names printed in the first column)
+   --migrations-base  the commit the migrations check compares against (default: where
+             HEAD left main; continuous integration passes the commit being merged into)
    --strict  WARN counts as FAIL (for the day the infinite-animation and the other
              "not yet" rules become hard rules)
    --accept-steps  rewrite tools/lesson-steps.json from the working tree, after a change
@@ -532,16 +535,52 @@ function isTimestamp(ts) {
     d.getUTCHours() === n[3] && d.getUTCMinutes() === n[4] && d.getUTCSeconds() === n[5];
 }
 
+/* The ref this check compares against. Not --base: that is the commit readers' progress was
+   last saved against, usually older than every migration here, and against it any migration at
+   all would count as new. So: --migrations-base if given, else the commit HEAD left main at
+   (HEAD itself on main, which leaves only uncommitted changes to judge), else --base with a
+   warning, for a checkout that has no main to ask. */
+function migrationsBase() {
+  const given = opts["migrations-base"];
+  if (given !== undefined) return { ref: given === true ? "" : String(given), why: "--migrations-base" };
+  const trunks = ["main", "origin/main"];
+  for (let i = 0; i < trunks.length; i++) {
+    if (!git.resolveRef(ROOT, trunks[i])) continue;
+    try {
+      const sha = execFileSync("git", ["merge-base", "HEAD", trunks[i]], { cwd: ROOT, encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] }).trim();
+      if (sha) return { ref: sha.slice(0, 10), why: "where HEAD left " + trunks[i] };
+    } catch (e) { /* no common history with it; try the next */ }
+  }
+  return { ref: BASE, why: "--base", weak: true };
+}
+
+/* true when a file holds nothing but comments and white space */
+function sqlIsEmpty(src) {
+  return !src.replace(/\/\*[\s\S]*?\*\//g, "").replace(/--.*$/gm, "").trim();
+}
+
 /* The site deploys on merge, the database does not: a schema change that reaches readers
    before its SQL has been run breaks every signed-in sync. The check can only see that the
    migration file was written; applying it is a step in OPERATIONS.md. */
 function checkMigrations(ctx, r) {
-  const baseSha = git.resolveRef(ROOT, BASE);
-  if (!baseSha) { r.fail("base ref " + BASE + " does not resolve"); return; }
+  const base = migrationsBase();
+  if (!base.ref || !git.resolveRef(ROOT, base.ref)) { r.fail("base ref " + (base.ref || "(empty)") + " (" + base.why + ") does not resolve"); return; }
+  const ref = base.ref;
+  if (base.weak) r.warn("neither main nor origin/main resolves here, so this compared against --base " + ref + ", which is older than the migrations and lets a " + SCHEMA_FILE + " change through; pass --migrations-base=<the commit being merged into>");
   /* everything in the folder is a migration except its README and dotfiles; a base without the folder lists nothing */
+  const isMigration = f => f !== "README.md" && f[0] !== ".";
   const dir = path.join(ROOT, MIGRATIONS_DIR);
-  const names = fs.existsSync(dir) ? fs.readdirSync(dir).filter(f => f !== "README.md" && f[0] !== ".").sort() : [];
-  const atBase = new Set(git.listFiles(ROOT, BASE, MIGRATIONS_DIR));
+  const names = fs.existsSync(dir) ? fs.readdirSync(dir).filter(isMigration).sort() : [];
+  const atBase = git.listFiles(ROOT, ref, MIGRATIONS_DIR).filter(p => isMigration(p.slice(MIGRATIONS_DIR.length + 1)));
+  /* a file that was at the base has been merged, so it has been applied: it stays as it was */
+  let lastAtBase = "";
+  atBase.forEach(p => {
+    const m = MIGRATION_NAME.exec(p.slice(MIGRATIONS_DIR.length + 1));
+    if (m && m[1] > lastAtBase) lastAtBase = m[1];
+    if (!exists(p)) r.fail(p + ": was at base " + ref + " and is gone; an applied migration is never renamed or deleted, a mistake is corrected by a newer file");
+    else if (read(p) !== git.showText(ROOT, ref, p)) r.fail(p + ": differs from its content at base " + ref + "; an applied migration is never edited, a mistake is corrected by a newer file");
+  });
+  const atBaseSet = new Set(atBase);
   const byStamp = {}, added = [];
   names.forEach(f => {
     r.count++;
@@ -551,13 +590,16 @@ function checkMigrations(ctx, r) {
     if (!isTimestamp(m[1])) { r.fail(rel + ": " + m[1] + " is not a date and time (the format is <YYYYMMDDHHMMSS>_<name>.sql, in UTC)"); return; }
     if (byStamp[m[1]]) r.fail(rel + ": shares the timestamp " + m[1] + " with " + byStamp[m[1]] + ", so their order is undefined");
     else byStamp[m[1]] = f;
-    if (!atBase.has(rel)) added.push(f);
+    if (atBaseSet.has(rel)) return;
+    if (lastAtBase && m[1] <= lastAtBase) r.fail(rel + ": its timestamp is not later than " + lastAtBase + ", the newest migration at base " + ref + "; a new migration sorts after every one already applied");
+    if (sqlIsEmpty(read(rel))) r.fail(rel + ": holds no SQL statement");
+    added.push(f);
   });
   const now = exists(SCHEMA_FILE) ? read(SCHEMA_FILE) : null;
-  const then = git.showText(ROOT, BASE, SCHEMA_FILE);
+  const then = git.showText(ROOT, ref, SCHEMA_FILE);
   const changed = now !== then;
-  r.note(SCHEMA_FILE + " " + (changed ? "differs from" : "is unchanged since") + " base " + BASE + "; " + names.length + " migration file(s), " + added.length + " new since base" + (added.length ? " (" + added.join(", ") + ")" : ""));
-  if (changed && !added.length) r.fail(SCHEMA_FILE + " differs from base " + BASE + " but no migration has been added since then. The rule: " + MIGRATIONS_RULE);
+  r.note("base " + ref + " (" + base.why + "); " + SCHEMA_FILE + " " + (changed ? "differs from it" : "is unchanged since") + "; " + names.length + " migration file(s), " + added.length + " new since base" + (added.length ? " (" + added.join(", ") + ")" : ""));
+  if (changed && !added.length) r.fail(SCHEMA_FILE + " differs from base " + ref + " but no migration has been added since then. The rule: " + MIGRATIONS_RULE);
 }
 
 /* ------------------------------------------------------- placeholders -- */
@@ -885,7 +927,7 @@ const CHECKS = [
   { name: "sections", run: checkSections, what: "every data-section names a real section" },
   { name: "choices", run: checkChoices, what: "choice/multi answer indices are within the options" },
   { name: "order", run: checkOrder, what: "order lists have >= 2 items; blanks carry keys" },
-  { name: "migrations", run: checkMigrations, what: "a supabase/schema.sql change since --base ships a new, well-named migration" },
+  { name: "migrations", run: checkMigrations, what: "a supabase/schema.sql change since main ships a new, well-named migration; applied ones are untouched" },
   { name: "placeholders", run: checkPlaceholders, what: "no answer box shows an example its own key accepts" },
   { name: "merge", run: checkMerge, what: "BMAccount.merge is commutative, associative, idempotent (2000 seeded cases)" },
   { name: "animations", run: checkAnimations, what: "no infinite CSS animations (WARN for now)" },

@@ -13,7 +13,7 @@ the browser one before a push.
 
 ## check-static.js
 
-Usage: `node tools/check-static.js [--base=<git ref>] [--only=<check,check>] [--strict] [--accept-steps]`
+Usage: `node tools/check-static.js [--base=<git ref>] [--only=<check,check>] [--strict] [--accept-steps] [--migrations-base=<git ref>]`
 
 One line per check, `PASS`/`FAIL`/`WARN` plus the number of things examined, then the details.
 `--base` is the commit the progress keys are compared against (default `8ff7abc`, the tree the
@@ -34,7 +34,7 @@ harness was written on — move it forward when a change to the exercises is del
 | `sections` | every `data-section` is a section of the same chapter or `chNN#section` of a real one; scored exercises without one are listed as a WARN |
 | `choices` | choice/multi answer indices lie within the `<li>` options |
 | `order` | order lists have at least two items; every `.blank` carries a key |
-| `migrations` | if `supabase/schema.sql` differs from its content at `--base`, at least one file in `supabase/migrations/` is new since `--base`; every file there is named `<YYYYMMDDHHMMSS>_<name>.sql` with a real UTC date and a lower-case name, and no two share a timestamp. It bites only when `--base` is the branch being merged into (`--base=main`); it cannot see whether the migration was applied, which is a step in [`../OPERATIONS.md`](../OPERATIONS.md) |
+| `migrations` | if `supabase/schema.sql` differs from its content at the base, at least one file in `supabase/migrations/` is new since the base; every file there is named `<YYYYMMDDHHMMSS>_<name>.sql` with a real UTC date and a lower-case name, and no two share a timestamp; every migration that was at the base is still there, byte for byte; a new one is not empty and its timestamp is later than every one at the base. The base is not `--base`: it is `--migrations-base=<ref>` if given, otherwise the commit `HEAD` left `main` (or `origin/main`) at. Only where neither resolves does it fall back to `--base`, with a WARN, because against a base older than the migrations it lets a schema change through. It cannot see whether the migration was applied, which is a step in [`../OPERATIONS.md`](../OPERATIONS.md) |
 | `placeholders` | no typed exercise's `data-placeholder` shows an example that its own key accepts: the whole placeholder and the part after `e.g.` are run through the site's grader (`BMSite.grade`, loaded from `assets/site.js` under a stub `window`) with the exercise's type and `data-tol` |
 | `merge` | `BMAccount.merge` (loaded from `assets/account.js` under a stub `window`) is commutative, associative and idempotent over 2000 seeded random store states, after dropping the deliberately local-first fields (`last`, `activity.goal`, `lesson.mode`, `play[ch].guess`). The states include a `game` object, and what a later version of the site might add: fields no rule knows at every level where the merge builds a record afresh, values that are not records under unknown keys of the keyed stores, and a shape number `game.v`. One of the unknown keys is named like a property every object inherits (`constructor`). The laws must hold with those in, every unknown key, at whatever level it sits, must come out as the later canonical JSON of the two sides, and `game.v` as the larger number |
 | `animations` | WARN for every `animation … infinite` in `assets/*.css` (a FAIL under `--strict`) |

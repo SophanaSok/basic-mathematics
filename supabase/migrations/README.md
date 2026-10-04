@@ -37,21 +37,38 @@ step are in [`../../OPERATIONS.md`](../../OPERATIONS.md).
 
 ## What checks it
 
-`node tools/check-static.js --only=migrations --base=<ref>` fails when `schema.sql` differs from
-its content at `<ref>` and no migration file has been added since `<ref>`, when a file name here
-does not match the format, and when two files share a timestamp. It cannot see whether a
-migration was applied to the live project, or whether its statements match the change to
-`schema.sql`. Those two are on you.
+`node tools/check-static.js --only=migrations` compares the working tree with the commit the
+branch left `main` at. It fails when:
+
+- `schema.sql` differs from its content there and no migration file has been added since;
+- a migration that was already there has been edited, renamed or deleted (what is on `main` has
+  been applied, by rule 4);
+- a new file's timestamp is not later than every one already there, or the file holds no SQL;
+- a file name does not match the format, or two files share a timestamp.
+
+On `main` itself the comparison is with the last commit, so it judges only what is not yet
+committed. `--migrations-base=<ref>` names another commit to compare against; continuous
+integration has to pass the commit being merged into. `--base` is not used: it is the
+progress-keys base, older than every file here. Only in a checkout where `main` does not resolve
+does the check fall back to it, and it then prints a warning, because against that base it cannot
+catch a missing migration.
+
+It cannot see whether a migration was applied to the live project, or whether its statements
+match the change to `schema.sql`. Those two are on you.
 
 ## Applying one
 
 Today: open the file, paste it into the dashboard's SQL editor (Dashboard → SQL → New query) and
 run it, the same way `schema.sql` is run. The Supabase CLI is not part of this repository yet.
 
-The file names already follow the CLI's format, so the folder can be handed to it later
-(`supabase db push` applies the files a project has not recorded yet, in order). Statements run
-through the SQL editor are not recorded in the CLI's history table, so on first use the CLI will
-treat every file here as not yet applied. Because they are idempotent, letting it run them again
-is harmless. Read the
-[Supabase migrations guide](https://supabase.com/docs/guides/deployment/database-migrations)
-before the first push.
+**Later, if the CLI is adopted (not set up, not tested here).** The file names already follow the
+CLI's format, so the folder can be handed to it (`supabase db push` applies the files a project
+has not recorded yet, in order). Statements run through the SQL editor are not recorded in the
+CLI's migration history, and Supabase's
+[migrations guide](https://supabase.com/docs/guides/deployment/database-migrations) (read
+2026-10-04) warns that changes made that way bypass the history and make `db push` fail with sync
+errors. The reconciliation it documents is to mark each file that was already applied by hand as
+applied, without running it again:
+`supabase migration repair --status applied <timestamp>`, once per file, before the first push.
+From then on every change goes through the CLI and none through the SQL editor. Read the guide
+again at that point; this paragraph is a pointer, not a tested procedure.
