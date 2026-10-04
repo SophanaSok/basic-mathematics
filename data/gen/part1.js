@@ -193,7 +193,9 @@
         steps.push(scale + ", so that $y$ has the same coefficient $" + b * d + "$ in both: $" +
           poly([[a * d, "x"], [b * d, "y"]]) + " = " + e * d + "$ and $" + poly([[b * c, "x"], [b * d, "y"]]) + " = " + b * f + "$.");
       }
-      steps.push("Subtract to eliminate $y$: $" + poly([[det, "x"]]) + " = " + (e * d - b * f) + "$, so $x = " + x + "$.");
+      /* when b = d nothing was scaled, so the subtraction is (a - c)x = e - f; a - c is
+         not 0, since det = b(a - c) is not */
+      steps.push("Subtract to eliminate $y$: $" + (b === d ? poly([[a - c, "x"]]) + " = " + (e - f) : poly([[det, "x"]]) + " = " + (e * d - b * f)) + "$, so $x = " + x + "$.");
       steps.push("Put $x = " + x + "$ into the first equation: $" + poly([[b, "y"]]) + " = " + e + " - " + par(a * x) + " = " + (e - a * x) + "$, so $y = " + y + "$.");
       steps.push("Check in the second equation: $" + par(c) + " \\cdot " + par(x) + " + " + par(d) + " \\cdot " + par(y) + " = " + f + "$ ✓. The question asks for $" + ask + " = " + (ask === "x" ? x : y) + "$.");
       return {
@@ -201,7 +203,7 @@
         type: "number", answer: String(ask === "x" ? x : y),
         hint: "Scale the equations so that one unknown has the same coefficient in both, then subtract to eliminate it.",
         steps: steps,
-        verify: function () { return a * x + b * y === e && c * x + d * y === f && e * d - b * f === det * x; }
+        verify: function () { return a * x + b * y === e && c * x + d * y === f && e * d - b * f === det * x && (b !== d || e - f === (a - c) * x); }
       };
     }
   });
@@ -253,11 +255,8 @@
   function holds(rel, l, rgt) {
     return rel === ">" ? l > rgt : rel === "<" ? l < rgt : rel === ">=" ? l >= rgt : l <= rgt;
   }
-  /* "x<3" with its mirror "3>x" */
-  function relAns(rel, x0) {
-    var mirror = { ">": "<", "<": ">", ">=": "<=", "<=": ">=" }[rel];
-    return "x" + rel + x0 + "|" + x0 + mirror + "x";
-  }
+  /* "x<3", its mirror "3>x", and the interval (-∞, 3) as §3.3 writes it */
+  var relAns = u.relAns;
 
   G.add({
     id: "ineq-flip", section: "ch03#order", par: 45, timed: true,

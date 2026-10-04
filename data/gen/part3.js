@@ -125,6 +125,8 @@
       /* make the midpoint whole: both coordinate sums even */
       if ((P[0] + Q[0]) % 2) Q[0]++;
       if ((P[1] + Q[1]) % 2) Q[1]++;
+      /* a segment needs two distinct points (§10.1); moving by 2 keeps the sum even */
+      if (Q[0] === P[0] && Q[1] === P[1]) Q[0] += 2;
       var M = [(P[0] + Q[0]) / 2, (P[1] + Q[1]) / 2];
       if (kind === "mid") {
         return {
@@ -221,14 +223,8 @@
     }
   });
 
-  /* "y=3x-5", with "y=-5+3x" and "3x-5" also accepted, as in the practice set */
-  function lineAns(m, b) {
-    var rhs = poly([[m, "x"], [b, ""]]).replace(/ /g, "");
-    var flipped = poly([[b, ""], [m, "x"]]).replace(/ /g, "");
-    var list = ["y=" + rhs, "y=" + flipped, rhs];
-    if (b < 0) list.push("y=" + rhs.replace(/-(\d+)$/, "+-$1"));
-    return list.join("|");
-  }
+  /* "y=3x-5", with "y=-5+3x", "3x-5" and the literal "y=1x+0" also accepted, as in the practice set */
+  var lineAns = u.lineAns;
 
   G.add({
     id: "line-through", section: "ch10#line-equation", par: 60, timed: true,
@@ -283,6 +279,8 @@
     id: "deg-rad", section: "ch11#radians", par: 40, timed: true,
     make: function (r) {
       var deg = r.pick([30, 45, 60, 90, 120, 135, 150, 180, 210, 225, 240, 270, 300, 315, 330, 360, 15, 75]);
+      /* π itself would make either hint say the answer */
+      if (deg === 180) deg = 135;
       if (r.chance(0.5)) {
         return {
           q: "Convert $" + deg + "°$ to radians. Give the exact value as a multiple of $\\pi$.",
@@ -293,8 +291,6 @@
           verify: function () { var f = u.reduce(deg, 180); return Math.abs(deg * Math.PI / 180 - f.n * Math.PI / f.d) < 1e-12; }
         };
       }
-      /* π itself would make the hint say the answer */
-      if (deg === 180) deg = 135;
       return {
         q: "Convert $" + u.piTex(deg, 180) + "$ radians to degrees.",
         type: "number", answer: String(deg),
@@ -306,8 +302,8 @@
   });
 
   /* the table of §11.2 */
-  var ROOT3 = "sqrt(3)/2|sqrt3/2|(sqrt3)/2|(sqrt(3))/2|1/2sqrt(3)|1/2sqrt3";
-  var ROOT2 = "sqrt(2)/2|sqrt2/2|(sqrt2)/2|(sqrt(2))/2|1/sqrt(2)|1/sqrt2|1/2sqrt(2)|1/2sqrt2";
+  var ROOT3 = u.halfRootAns(3);
+  var ROOT2 = u.halfRootAns(2);
   var TRIG = [
     { k: 0, d: 1, deg: 0, cos: ["1", "number", 1], sin: ["0", "number", 0], why: "The angle $0$ leaves the point at $(1, 0)$." },
     { k: 1, d: 6, deg: 30, cos: [ROOT3, "expr", Math.sqrt(3) / 2, "\\frac{\\sqrt3}{2}"], sin: ["1/2", "number", 0.5, "\\frac12"], why: "Half an equilateral triangle with hypotenuse $1$ has legs $\\frac12$ (opposite $30°$) and $\\frac{\\sqrt3}{2}$." },

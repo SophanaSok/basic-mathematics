@@ -71,14 +71,16 @@
           verify: function () { return a + b + c === 180 && c > 0; }
         };
       }
+      /* §5.3 gives the angle sum but never proves that equal sides face equal
+         angles, so both kinds give the equal angles, not equal sides */
       if (kind === "apex") {
         var apex = r.int(10, 80) * 2, each = (180 - apex) / 2;
         return {
-          q: "An isosceles triangle has the angle between its two equal sides equal to $" + apex + "°$. How large is each of the other two angles?",
+          q: "A triangle has two equal angles, and its third angle is $" + apex + "°$. How large is each of the equal angles?",
           type: "number", answer: String(each),
-          hint: "The two angles opposite the equal sides are equal; then use the angle sum.",
+          hint: "Call each equal angle x and use the angle sum of a triangle.",
           steps: [
-            "The other two angles are equal; call each $x$. The angle sum gives $" + apex + "° + 2x = 180°$.",
+            "Call each equal angle $x$. The angle sum gives $" + apex + "° + 2x = 180°$.",
             "So $2x = " + (180 - apex) + "°$ and $x = " + each + "°$."
           ],
           verify: function () { return apex + 2 * each === 180; }
@@ -86,7 +88,7 @@
       }
       var base = r.int(20, 85), top = 180 - 2 * base;
       return {
-        q: "An isosceles triangle has two equal angles of $" + base + "°$ each. How large is its third angle?",
+        q: "A triangle has two equal angles of $" + base + "°$ each. How large is its third angle?",
         type: "number", answer: String(top),
         hint: "Use the angle sum of a triangle.",
         steps: ["The angles add to $180°$, and two of them are $" + base + "°$.", "$180° - 2 \\cdot " + base + "° = " + top + "°$."],
