@@ -371,7 +371,9 @@ and any `id` used twice on a page.
 A new exercise takes an `id` the page has never used. **A retired `id` is never reused** — when an
 exercise is deleted its `id` goes with it, because a reader who solved the old problem would find
 the new one already marked solved. Changing an exercise's question or key under the same `id` is the
-same mistake, and the progress-key check fails on it.
+same mistake. The progress-key check fails on both, for inline checks as for scored exercises,
+for as long as the commit it compares with (`--base`) still has the old exercise; after that the
+rule is kept by hand.
 
 #### Figures
 
@@ -463,9 +465,10 @@ hint that contains its answer.
 of `<main>` into steps — a new one at every `<h2>`, and after the puzzle, the warm-up, each inline
 `.ex`, each `details.reveal`, each figure with a widget, and each practice set — and hides the
 steps not yet reached. A link to any `#id` in the chapter opens every step up to its target.
-How far a reader has got is saved as a step number, so adding or removing a top-level block that
-cuts a step moves that place; `check-static.js` warns (`lesson-steps`) when a chapter is cut into a
-different number of steps than at `--base`.
+How far a reader has got is saved as a step number, so adding, removing or moving a top-level block
+that cuts a step moves that place. The steps readers have are recorded in `tools/lesson-steps.json`,
+and `check-static.js` warns (`lesson-steps`) when a chapter is no longer cut that way; if the
+change is meant, `--accept-steps` records the new cuts.
 Elements that scripts add later (the completion banner, the feedback note) appear with whatever
 they were inserted in front of. Printing shows the whole chapter.
 
@@ -478,6 +481,8 @@ they were inserted in front of. Printing shows the whole chapter.
    `<section class="practice" id="review">`.
 3. Add the chapter's boss to `data/quest.js`: a name, the index of the tempting guess in its
    puzzle's `ul.guess`, and a one-line taunt that voices the wrong idea without answering it.
+4. Record its lesson steps: `node tools/check-static.js --only=lesson-steps --accept-steps` adds the
+   chapter to `tools/lesson-steps.json` (the check warns until it is there).
 
 Navigation, the contents card, the sidebar, and the progress counters build themselves from step 1.
 
@@ -533,9 +538,11 @@ header.
 `BM_PLAYWRIGHT_FROM` points (see [`tools/README.md`](tools/README.md)).
 
 ```sh
-node tools/check-static.js --base=<ref>   # syntax, ES5, progress keys and lesson steps vs <ref>,
-                                          # ids, links, sections, widgets, choices, placeholders,
+node tools/check-static.js --base=<ref>   # syntax, ES5, progress keys vs <ref>, ids, lesson steps,
+                                          # links, sections, widgets, choices, placeholders,
                                           # merge laws, contrast, animations
+node tools/checks.test.js                 # the progress-key, id and lesson-step rules and
+                                          # assign-ids.js, on small pages with known answers
 node tools/smoke-scenes.js                # every 3D scene: mount, controls, missions, answers
 node tools/check-gen.js                   # every Arena generator over 500 seeds
 node tools/game/merge.test.js             # BMAccount.merge, including the game store
@@ -556,9 +563,9 @@ node tools/check-browser.js               # every page × theme × width in head
 ```
 
 `--base` should be the last commit readers' progress was saved against: the progress-key check
-fails if any existing exercise's key or question changed, or if any exercise has no `id`. The
-same run fails an `id` that appears twice on a page, and warns when a chapter is cut into a different
-number of lesson steps than at `<ref>`.
+fails if any existing exercise's key or question changed, inline checks included, or if any
+exercise has no `id`. The same run fails an `id` that appears twice on a page, and warns when a
+chapter is not cut into the lesson steps recorded in `tools/lesson-steps.json`.
 
 Still checked by hand: the solution of a multiple-choice question states the option the key
 names; a new `order` list is authored in the right order; a new puzzle's tempting guess in

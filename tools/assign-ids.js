@@ -61,30 +61,47 @@ function convert(src) {
   return { src: out, assigned };
 }
 
-function main() {
-  const opts = site.parseArgs(process.argv.slice(2));
-  if (!!opts.check === !!opts.write) { console.error("usage: node tools/assign-ids.js --check | --write"); process.exit(2); }
+/* The whole run, with the file system and the output handed in so it can be tried on
+   pages that are not the site's (tools/checks.test.js).
+   @param opts {{ check?: boolean, write?: boolean }}
+   @param io   {{ pages: string[], read(page): string, write(page, src), log(line) }}
+   @returns the exit code */
+function run(opts, io) {
   const todo = [];
   let failed = 0, total = 0, pages = 0;
-  site.htmlPages(ROOT).forEach(p => {
-    const file = path.join(ROOT, p);
-    const src = fs.readFileSync(file, "utf8");
+  const line = t => t.page + ": " + t.assigned.length + " id(s), " + t.assigned[0].key + " … " + t.assigned[t.assigned.length - 1].key;
+  io.pages.forEach(p => {
+    const src = io.read(p);
     if (!site.chapterIdOf(parse(src))) return;
     pages++;
     let res;
     try { res = convert(src); }
-    catch (e) { failed++; console.log("FAIL  " + p + ": " + e.message.split("\n")[0]); return; }
+    catch (e) { failed++; io.log("FAIL  " + p + ": " + e.message.split("\n")[0]); return; }
     if (!res.assigned.length) return;
     total += res.assigned.length;
-    todo.push({ file, src: res.src });
-    console.log((opts.write ? "write " : "would ") + p + ": " + res.assigned.length + " id(s), " + res.assigned[0].key + " … " + res.assigned[res.assigned.length - 1].key);
+    const t = { page: p, src: res.src, assigned: res.assigned };
+    todo.push(t);
+    if (!opts.write) io.log("would " + line(t));
   });
-  if (failed) { console.log("FAILED: " + failed + " page(s) cannot be converted; nothing written"); process.exit(1); }
-  if (opts.write) todo.forEach(t => fs.writeFileSync(t.file, t.src));
-  console.log(total ? (opts.write ? "assigned " : "would assign ") + total + " id(s) on " + todo.length + " of " + pages + " chapter pages"
+  if (failed) { io.log("FAILED: " + failed + " page(s) cannot be converted; nothing written"); return 1; }
+  /* "write" is said after the write, and only here: one page that cannot be converted
+     stops every page from being written, so it must not be claimed any earlier */
+  if (opts.write) todo.forEach(t => { io.write(t.page, t.src); io.log("write " + line(t)); });
+  io.log(total ? (opts.write ? "assigned " : "would assign ") + total + " id(s) on " + todo.length + " of " + pages + " chapter pages"
     : "nothing to do: every scored exercise on " + pages + " chapter pages has an id");
-  process.exit(opts.check && total ? 1 : 0);
+  return opts.check && total ? 1 : 0;
+}
+
+function main() {
+  const opts = site.parseArgs(process.argv.slice(2));
+  if (!!opts.check === !!opts.write) { console.error("usage: node tools/assign-ids.js --check | --write"); process.exit(2); }
+  process.exit(run(opts, {
+    pages: site.htmlPages(ROOT),
+    read: p => fs.readFileSync(path.join(ROOT, p), "utf8"),
+    write: (p, src) => fs.writeFileSync(path.join(ROOT, p), src),
+    log: console.log
+  }));
 }
 
 if (require.main === module) main();
-module.exports = { convert };
+module.exports = { convert, run };
