@@ -7,25 +7,35 @@
 <meta name="description" content="Solving linear equations and systems by elimination, and reading off whether there is one solution, none, or infinitely many.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400;1,6..72,500&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@700;800&family=Inter:wght@400;500;600;700&family=Newsreader:ital,wght@0,400;0,600;1,400&display=swap">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.11/katex.min.css">
 <link rel="icon" href="../../assets/favicon.svg" type="image/svg+xml">
 <link rel="stylesheet" href="../../assets/site.css">
+<link rel="stylesheet" href="../../assets/game.css">
+<link rel="stylesheet" href="../../assets/scenes3d.css">
+<script src="../../assets/boot.js"></script>
 <script defer src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.11/katex.min.js"></script>
 <script defer src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.11/contrib/auto-render.min.js"></script>
 <script defer src="../../data/curriculum.js"></script>
+<script defer src="../../data/quest.js"></script>
 <script defer src="../../assets/widgets.js"></script>
+<script defer src="../../assets/three-loader.js"></script>
+<script defer src="../../assets/scenes3d.js"></script>
+<script defer src="../../assets/scenes/planes3.js"></script>
 <script defer src="../../assets/site.js"></script>
+<script defer src="../../assets/sfx.js"></script>
+<script defer src="../../assets/game.js"></script>
+<script defer src="../../assets/encounter.js"></script>
 <script defer src="../../assets/lesson.js"></script>
 <script defer src="../../assets/config.js"></script>
 <script defer src="../../assets/account.js"></script>
 </head>
-<body data-depth="2" data-chapter="ch02">
+<body data-depth="2" data-chapter="ch02" data-part="algebra">
 <a class="skip-link" href="#main">Skip to content</a>
 
 <header class="topbar">
   <a class="brand" href="../../index.html"><span class="glyph">∑</span> Basic Mathematics</a>
-  <nav>
+  <nav aria-label="Site">
     <a href="../../index.html">Contents</a>
     <a href="../../about.html">How to use this</a>
     <button class="icon-btn" type="button" data-theme-toggle aria-label="Switch between light and dark">☾</button>
@@ -37,12 +47,17 @@
   <aside class="sidebar" data-sidebar></aside>
   <main id="main">
 
-    <p class="eyebrow">Part I — Algebra · Chapter 2</p>
-    <h1>Linear Equations</h1>
-    <p class="lede">
-      An equation is a question: for which values of the unknowns is this true? Solving it means
-      replacing the question with an easier one that has the same answers.
-    </p>
+    <header class="region-banner">
+      <p class="eyebrow">Part I — Algebra · Chapter 2</p>
+      <h1>Linear Equations</h1>
+      <p class="lede">
+        An equation is a question: for which values of the unknowns is this true? Solving it means
+        replacing the question with an easier one that has the same answers.
+      </p>
+
+      <div class="banner-meta" data-banner-meta></div>
+
+    </header>
 
     <div class="puzzle" id="puzzle">
       <span class="tag">A puzzle to carry through the chapter</span>
@@ -560,6 +575,63 @@
       </p>
     </div>
 
+    <p>
+      The picture also has one more dimension. An equation in two unknowns describes a line; an
+      equation in three unknowns, such as $x + y + z = 6$, describes a <b>plane</b>, a flat sheet
+      in space, made of all the points $(x, y, z)$ that satisfy it. (Coordinates in space are set
+      up properly in <a href="../3-coordinates/08-coordinates.html">Chapter 8</a>; here it is
+      enough to picture them.) Three equations are three planes, and a solution is a point lying on
+      all three. Again there are three outcomes: the planes cross at <b>one point</b>, they share a
+      <b>whole line</b>, or they have <b>no point</b> in common.
+    </p>
+
+    <details class="reveal">
+      <summary><span class="ask">Two lines with no common point must be parallel. Can three planes have no common point when no two of them are parallel?</span>Decide, then open</summary>
+      <p>
+        Yes. Picture three walls of a tent that is open at both ends: any two walls meet along an
+        edge, but the three edges run side by side, so no point lies on all three walls. Nothing
+        like this happens with two unknowns, which is why "no solution" is no longer the same as
+        "parallel". The figure below lets you build it.
+      </p>
+    </details>
+
+    <figure>
+      <div class="widget" data-widget="planes3"></div>
+      <figcaption>
+        <b>Three equations, three planes.</b> Planes 1 and 2 are the first two equations of
+        Example 3; the sliders change equation 3, $ax + by + cz = d$. The lines drawn across the
+        planes are where each pair of them meets. As in the two-line figure above, watch what happens to them when
+        the system has one solution, infinitely many, or none.
+      </figcaption>
+    </figure>
+
+    <div class="ex" data-inline id="s3d-planes" data-label="Your turn, in space" data-type="figure" data-figure="planes3" data-answer="prism"
+         data-hint="No solution means elimination ends in something like 0 = 5. For that, equation 3's left side must be built from the other two."
+         data-hint2="Add equations 1 and 2 and use that left side, with a right side that disagrees.">
+      <div class="ex-q">
+        <p>
+          Choose equation 3 so that the system has no solution although no two planes are
+          parallel, then press Check.
+        </p>
+      </div>
+      <div class="ex-solution">
+        <p class="answer">Answer: for example $3x + 2z = 4$</p>
+        <p>
+          Adding equations 1 and 2 gives $(x + y + z) + (2x - y + z) = 6 + 3$, that is
+          $3x + 2z = 9$. Take equation 3 to be $3x + 2z = 4$: the same left side with a right side
+          that disagrees. Then equation 1 $+$ equation 2 $-$ equation 3 leaves $0 = 5$, false for
+          every $x$, $y$, $z$, so there is no solution.
+        </p>
+        <p>
+          No left side is a multiple of another, so no two planes are parallel, and each pair
+          meets in a line. The three lines are parallel to one another: they run side by side and
+          never meet. Any other right side than $9$ works too, and so does the left side of any
+          other combination that uses both equations 1 and 2, such as $-x + 2y$ (equation 1
+          $-$ equation 2), with a right side other than $3$.
+        </p>
+      </div>
+    </div>
+
     <h2 id="word-problems">2.4 Turning words into equations</h2>
     <p>
       The mathematics above is mechanical. The genuinely difficult step is the translation, and it
@@ -804,6 +876,34 @@
           </p>
         </div>
       </div>
+
+      <div class="ex" id="s3d-planes-line" data-section="three-unknowns" data-type="figure" data-figure="planes3" data-answer="line"
+           data-hint="Infinitely many solutions means one equation adds no information."
+           data-hint2="An equation adds nothing if it can be built from the others, left side and right side together.">
+        <div class="ex-q">
+          <p>
+            Planes 1 and 2 are $x + y + z = 6$ and $2x - y + z = 3$. Change equation 3 so that the
+            three planes share a whole line, then press Check.
+          </p>
+        </div>
+        <div class="ex-solution">
+          <p class="answer">Answer: for example $3y + z = 9$</p>
+          <p>
+            Build equation 3 from the other two, both sides together. Twice equation 1 minus
+            equation 2 is
+            $$(2x + 2y + 2z) - (2x - y + z) = 12 - 3 \quad\Longrightarrow\quad 3y + z = 9.$$
+            Every point on planes 1 and 2 satisfies this automatically, so it adds no information,
+            and eliminating with it ends in $0 = 0$. The solutions are all the points of the line
+            where planes 1 and 2 meet, among them $(1, 2, 3)$ and $(3, 3, 0)$: check
+            $3(2) + 3 = 9$ ✓ and $3(3) + 0 = 9$ ✓.
+          </p>
+          <p>
+            Other combinations work the same way: equation 1 $+$ equation 2 gives $3x + 2z = 9$,
+            and equation 1 $-$ equation 2 gives $-x + 2y = 3$. Change only the right side and the
+            line is lost: the system then has no solution.
+          </p>
+        </div>
+      </div>
     </section>
 
     <div class="recap">
@@ -833,7 +933,7 @@
       </ul>
     </div>
 
-    <nav class="chapter-nav" data-chapter-nav></nav>
+    <nav class="chapter-nav" data-chapter-nav aria-label="Previous and next chapter"></nav>
   </main>
 </div>
 </div>

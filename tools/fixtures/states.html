@@ -1,0 +1,600 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>State fixture — Basic Mathematics</title>
+<!--
+  Every HUD, card, encounter, toast and banner state as static DOM, so the CSS can be
+  built and screenshotted before (and without) the game scripts. Open it from disk.
+  URL switches, also on the control strip: ?theme=dark&part=topics&calm=1&motion=reduce
+  (&strip=0 hides the strip for screenshots, &focus=0 leaves focus alone)
+-->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@700;800&family=Inter:wght@400;500;600;700&family=Newsreader:ital,wght@0,400;0,600;1,400&display=swap">
+<link rel="stylesheet" href="../../assets/site.css">
+<link rel="stylesheet" href="../../assets/game.css">
+<script src="../../assets/boot.js"></script>
+<style>
+  /* fixture layout only; colours come from the site tokens */
+  .fx-rail { position: relative; margin-bottom: .6rem; }
+  .fx-rail.fx-open { margin-bottom: 19rem; }
+  .fx-note {
+    font-family: var(--display); font-weight: 700; font-size: .72rem; letter-spacing: .08em;
+    text-transform: uppercase; color: var(--muted); margin: 1.6rem 0 .5rem;
+  }
+  .fx-rails { padding: 1rem 0 .5rem; }
+  .fx-rails > .fx-note { padding: 0 max(16px, 4vw); }
+  main > h2.fx-h { margin-top: 3rem; }
+  .fx-toasts { position: static; transform: none; width: auto; max-width: none; align-items: flex-start; margin: 0 0 1rem; }
+  .fx-stage {
+    position: relative; aspect-ratio: 660 / 420; border-radius: var(--radius-sm); overflow: hidden;
+    background: var(--plot-bg); display: grid; place-items: center;
+    font-family: var(--sans); font-size: .85rem; color: var(--muted);
+  }
+  .fx-stage::before {
+    content: ""; position: absolute; inset: 0; background-color: var(--plot-grid);
+    -webkit-mask-image: var(--motif); mask-image: var(--motif);
+    -webkit-mask-size: var(--motif-size); mask-size: var(--motif-size);
+    -webkit-mask-composite: var(--motif-wcomp); mask-composite: var(--motif-comp);
+  }
+  .fx-stage span { position: relative; }
+  .fx-strip {
+    position: fixed; right: 12px; bottom: 12px; z-index: 90;
+    display: flex; flex-wrap: wrap; align-items: center; gap: .4rem .7rem; max-width: calc(100vw - 24px);
+    padding: .5rem .7rem; border-radius: var(--radius-sm);
+    background: var(--surface); color: var(--text); border: 1px solid var(--border-strong);
+    font-family: var(--sans); font-size: .8rem;
+  }
+  .fx-strip label { display: inline-flex; align-items: center; gap: .3rem; }
+  .fx-strip select, .fx-strip button { font: inherit; }
+</style>
+</head>
+<body data-depth="2">
+
+<!-- ====================================================== HUD states ==== -->
+<div class="fx-rails">
+  <p class="fx-note">Rail: before game.js (site.js's a.hud)</p>
+  <header class="topbar fx-rail">
+    <a class="brand" href="#"><span class="glyph">∑</span> <span class="brand-name">Basic Mathematics</span></a>
+    <nav aria-label="Site">
+      <a href="#">Contents</a> <a href="#about.html">How to use this</a>
+      <a class="hud" href="#" aria-label="Your progress: 4-day streak, 24 of 30 XP today">
+        <span class="hud-streak" data-on="true"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8.2 1c.3 2.4 3.6 4 3.6 7.6A3.8 3.8 0 0 1 8 12.5a3.8 3.8 0 0 1-3.8-3.9c0-1.4.6-2.5 1.5-3.3.1 1 .6 1.7 1.3 1.9C6.7 5.1 7.1 2.9 8.2 1z"/></svg><b>4</b></span>
+        <span class="hud-goal"><span class="goal-ring" style="--pct:80"></span><span class="hud-xp"><b>24</b> / 30 XP</span></span>
+      </a>
+      <button class="icon-btn theme-btn" type="button" aria-label="Switch between light and dark">☾</button>
+    </nav>
+  </header>
+
+  <p class="fx-note">Rail: level 1, no streak, combo empty (hidden under 480px)</p>
+  <header class="topbar fx-rail">
+    <a class="brand" href="#"><span class="glyph">∑</span> <span class="brand-name">Basic Mathematics</span></a>
+    <nav aria-label="Site">
+      <a href="#">Contents</a> <a href="#about.html">How to use this</a>
+      <div class="hud" role="group" aria-label="Your progress">
+        <a class="hud-level" href="#" aria-label="Level 1, Counter. 8 of 25 XP to level 2.">
+          <span class="hud-badge" aria-hidden="true"><b>1</b></span>
+          <span class="hud-xp" aria-hidden="true"><span class="hud-xpbar"><i style="width:32%"></i></span><span class="hud-xptext"><b>8</b> / 25 XP</span></span>
+        </a>
+        <span class="hud-streak" role="img" aria-label="No streak yet. 8 of 30 XP today."><span class="goal-ring" style="--pct:27"></span><svg class="icon" viewBox="0 0 16 16" aria-hidden="true"><path d="M8.2 1c.3 2.4 3.6 4 3.6 7.6A3.8 3.8 0 0 1 8 12.5a3.8 3.8 0 0 1-3.8-3.9c0-1.4.6-2.5 1.5-3.3.1 1 .6 1.7 1.3 1.9C6.7 5.1 7.1 2.9 8.2 1z"/></svg><b>0</b></span>
+        <span class="hud-combo" role="img" aria-label="Combo 0 of 5" data-pips="0"><i></i><i></i><i></i><i></i><i></i></span>
+      </div>
+      <button class="icon-btn hud-sound" type="button" data-sound-toggle aria-pressed="false" aria-label="Sound"></button>
+      <button class="icon-btn theme-btn" type="button" data-theme-toggle aria-label="Switch between light and dark">☾</button>
+      <button class="icon-btn hud-menu" type="button" aria-expanded="false" aria-label="Menu and settings"></button>
+      <a class="acct" href="#">Sign in</a>
+    </nav>
+  </header>
+
+  <p class="fx-note">Rail: level 7, streak 4, combo 3 with shield, sound on</p>
+  <header class="topbar fx-rail">
+    <a class="brand" href="#"><span class="glyph">∑</span> <span class="brand-name">Basic Mathematics</span></a>
+    <nav aria-label="Site">
+      <a href="#">Contents</a> <a href="#about.html">How to use this</a>
+      <div class="hud" role="group" aria-label="Your progress">
+        <a class="hud-level" href="#" aria-label="Level 7, Solver. 210 of 500 XP to level 8.">
+          <span class="hud-badge" aria-hidden="true"><b>7</b></span>
+          <span class="hud-xp" aria-hidden="true"><span class="hud-xpbar"><i style="width:42%"></i></span><span class="hud-xptext"><b>210</b> / 500 XP</span></span>
+        </a>
+        <span class="hud-streak" role="img" aria-label="4-day streak. 24 of 30 XP today." data-on="true"><span class="goal-ring" style="--pct:80"></span><svg class="icon" viewBox="0 0 16 16" aria-hidden="true"><path d="M8.2 1c.3 2.4 3.6 4 3.6 7.6A3.8 3.8 0 0 1 8 12.5a3.8 3.8 0 0 1-3.8-3.9c0-1.4.6-2.5 1.5-3.3.1 1 .6 1.7 1.3 1.9C6.7 5.1 7.1 2.9 8.2 1z"/></svg><b>4</b></span>
+        <span class="hud-combo" role="img" aria-label="Combo 3 of 5, XP times 1.6" data-pips="3" data-shield="true"><i data-on></i><i data-on></i><i data-on></i><i></i><i></i></span>
+      </div>
+      <button class="icon-btn hud-sound" type="button" data-sound-toggle aria-pressed="true" aria-label="Sound"></button>
+      <button class="icon-btn theme-btn" type="button" data-theme-toggle aria-label="Switch between light and dark">☾</button>
+      <button class="icon-btn hud-menu" type="button" aria-expanded="false" aria-label="Menu and settings"></button>
+      <a class="acct" data-in href="#"><span class="avatar">SS</span></a>
+    </nav>
+  </header>
+
+  <p class="fx-note">Combo 0 to 5, then 2 and 5 with a shield</p>
+  <header class="topbar fx-rail">
+    <nav aria-label="Combo specimens" style="justify-content:flex-start;flex-wrap:wrap">
+      <span class="hud-combo" data-pips="0"><i></i><i></i><i></i><i></i><i></i></span>
+      <span class="hud-combo" data-pips="1"><i data-on></i><i></i><i></i><i></i><i></i></span>
+      <span class="hud-combo" data-pips="2"><i data-on></i><i data-on></i><i></i><i></i><i></i></span>
+      <span class="hud-combo" data-pips="3"><i data-on></i><i data-on></i><i data-on></i><i></i><i></i></span>
+      <span class="hud-combo" data-pips="4"><i data-on></i><i data-on></i><i data-on></i><i data-on></i><i></i></span>
+      <span class="hud-combo" data-pips="5"><i data-on></i><i data-on></i><i data-on></i><i data-on></i><i data-on></i></span>
+      <span class="hud-combo" data-pips="2" data-shield="true"><i data-on></i><i data-on></i><i></i><i></i><i></i></span>
+      <span class="hud-combo" data-pips="5" data-shield="true"><i data-on></i><i data-on></i><i data-on></i><i data-on></i><i data-on></i></span>
+    </nav>
+  </header>
+
+  <p class="fx-note">Hearts 3, 2, 1, 0 · timer ok, low, critical</p>
+  <header class="topbar fx-rail">
+    <nav aria-label="Hearts and timer specimens" style="justify-content:flex-start;flex-wrap:wrap;gap:1rem">
+      <span class="hud-hearts" role="img" aria-label="3 of 3 hearts" data-lives="3" data-max="3"><i data-full></i><i data-full></i><i data-full></i></span>
+      <span class="hud-hearts" role="img" aria-label="2 of 3 hearts" data-lives="2" data-max="3"><i data-full></i><i data-full></i><i></i></span>
+      <span class="hud-hearts" role="img" aria-label="1 of 3 hearts" data-lives="1" data-max="3"><i data-full></i><i></i><i></i></span>
+      <span class="hud-hearts" role="img" aria-label="0 of 3 hearts" data-lives="0" data-max="3"><i></i><i></i><i></i></span>
+      <span class="hud-timer" role="timer" data-urgency="ok"><span class="hud-timer-text">0:42</span></span>
+      <span class="hud-timer" role="timer" data-urgency="low"><span class="hud-timer-text">0:09</span></span>
+      <span class="hud-timer" role="timer" data-urgency="critical"><span class="hud-timer-text">0:03</span></span>
+    </nav>
+  </header>
+
+  <p class="fx-note">Rail: Arena run (hearts and clock in the rail, strip below for narrow screens)</p>
+  <header class="topbar fx-rail" style="border-bottom-color:var(--accent)">
+    <a class="brand" href="#"><span class="glyph">∑</span> <span class="brand-name">Basic Mathematics</span></a>
+    <nav aria-label="Site">
+      <div class="hud" role="group" aria-label="Your progress">
+        <a class="hud-level" href="#" aria-label="Level 12, Geometer."><span class="hud-badge" aria-hidden="true"><b>12</b></span>
+          <span class="hud-xp" aria-hidden="true"><span class="hud-xpbar"><i style="width:76%"></i></span><span class="hud-xptext"><b>1210</b> / 1400 XP</span></span></a>
+        <span class="hud-combo" role="img" aria-label="Combo 5 of 5" data-pips="5"><i data-on></i><i data-on></i><i data-on></i><i data-on></i><i data-on></i></span>
+        <span class="hud-hearts" role="img" aria-label="2 of 3 hearts"><i data-full></i><i data-full></i><i></i></span>
+        <span class="hud-timer" role="timer" data-urgency="low"><span class="hud-timer-text">0:11</span></span>
+      </div>
+      <button class="icon-btn hud-menu" type="button" aria-expanded="false" aria-label="Menu and settings"></button>
+    </nav>
+    <div class="hud-strip">
+      <span class="hud-hearts" role="img" aria-label="2 of 3 hearts"><i data-full></i><i data-full></i><i></i></span>
+      <span class="hud-timer" role="timer" data-urgency="critical"><span class="hud-timer-text">0:04</span></span>
+    </div>
+  </header>
+
+  <p class="fx-note">Rail: menu and settings sheet open</p>
+  <header class="topbar fx-rail fx-open">
+    <a class="brand" href="#"><span class="glyph">∑</span> <span class="brand-name">Basic Mathematics</span></a>
+    <nav aria-label="Site">
+      <a href="#">Contents</a> <a href="#about.html">How to use this</a>
+      <div class="hud" role="group" aria-label="Your progress">
+        <a class="hud-level" href="#" aria-label="Level 3, Reckoner."><span class="hud-badge" aria-hidden="true"><b>3</b></span>
+          <span class="hud-xp" aria-hidden="true"><span class="hud-xpbar"><i style="width:10%"></i></span><span class="hud-xptext"><b>64</b> / 120 XP</span></span></a>
+        <span class="hud-streak" role="img" aria-label="1-day streak. 30 of 30 XP today." data-on="true"><span class="goal-ring" style="--pct:100" data-full="true"></span><svg class="icon" viewBox="0 0 16 16" aria-hidden="true"><path d="M8.2 1c.3 2.4 3.6 4 3.6 7.6A3.8 3.8 0 0 1 8 12.5a3.8 3.8 0 0 1-3.8-3.9c0-1.4.6-2.5 1.5-3.3.1 1 .6 1.7 1.3 1.9C6.7 5.1 7.1 2.9 8.2 1z"/></svg><b>1</b></span>
+      </div>
+      <button class="icon-btn hud-sound" type="button" aria-pressed="false" aria-label="Sound"></button>
+      <button class="icon-btn theme-btn" type="button" aria-label="Switch between light and dark">☾</button>
+      <button class="icon-btn hud-menu" type="button" aria-expanded="true" aria-controls="fx-sheet" aria-label="Menu and settings"></button>
+    </nav>
+    <div class="hud-sheet" id="fx-sheet">
+      <ul class="hud-links"><li><a href="#">Contents</a></li><li><a href="#">How to use this</a></li><li><a href="#" aria-current="page">Your progress</a></li><li><a href="#">Arena</a></li></ul>
+      <label class="switch"><input type="checkbox" role="switch" data-pref="calm"><span>Calm mode</span><small>No hearts, combo, shake or sound</small></label>
+      <label class="switch"><input type="checkbox" role="switch" data-pref="sound" checked><span>Sound</span></label>
+      <label class="switch"><input type="checkbox" role="switch" data-pref="map3d" checked><span>3D course map</span></label>
+    </div>
+  </header>
+</div>
+
+<div class="wrap">
+<main id="main">
+
+<!-- ================================================== region banners ==== -->
+<h2 class="fx-h">Region banners</h2>
+
+<header class="region-banner" data-part="algebra">
+  <p class="eyebrow">Part I — Algebra · Chapter 2 · The Foundry</p>
+  <h1>Linear Equations</h1>
+  <p class="lede">An equation is a question about a number. Solving it is a sequence of moves, each one legal, that leaves the answer standing alone.</p>
+  <div class="banner-meta" data-banner-meta><span class="banner-stat"><b>4</b> sections</span><span class="banner-stat"><b>6</b> / 11 solved</span><span class="banner-stat">Medal <b>Silver</b></span><span class="banner-stat"><b>7</b> / 9 stars</span></div>
+</header>
+
+<header class="region-banner" data-part="geometry">
+  <p class="eyebrow">Part II — Intuitive Geometry · Chapter 5 · The Fields</p>
+  <h1>Distance and Angles</h1>
+  <p class="lede">Part I was about numbers. This part is about the plane — and the bridge between them is that distance and angle are <em>numbers attached to pictures</em>.</p>
+  <div class="banner-meta" data-banner-meta></div>
+</header>
+
+<header class="region-banner" data-part="coordinates">
+  <p class="eyebrow">Part III — Coordinate Geometry · Chapter 11 · The Grid</p>
+  <h1>Trigonometry</h1>
+  <p class="lede">Angles become numbers you can compute with, once a circle of radius one is drawn round the origin.</p>
+  <div class="banner-meta" data-banner-meta><span class="banner-stat"><b>5</b> sections</span><span class="banner-stat"><b>0</b> / 12 solved</span></div>
+</header>
+
+<header class="region-banner" data-part="topics">
+  <p class="eyebrow">Part IV — Miscellaneous · Chapter 16 · The Observatory</p>
+  <h1>Determinants and a rather long chapter title that has to wrap</h1>
+  <p class="lede">One number that says whether a system of equations has exactly one solution, and how a transformation scales area and volume.</p>
+  <div class="banner-meta" data-banner-meta><span class="banner-stat"><b>5</b> sections</span><span class="banner-stat"><b>12</b> / 12 solved</span><span class="banner-stat">Medal <b>Gold</b></span></div>
+</header>
+
+<div class="lesson-mode ui" role="group" aria-label="How to read this chapter"><button type="button" aria-pressed="true">Step by step</button><button type="button" aria-pressed="false">Whole page</button></div>
+
+<!-- ======================================================= encounters ==== -->
+<h2 class="fx-h">Encounters</h2>
+
+<p class="fx-note">Idle (nothing attempted yet), follows the page's Part</p>
+<section class="practice" data-encounter="idle">
+  <div class="encounter" data-medal="0">
+    <div class="encounter-sigil" aria-hidden="true"><svg class="sigil" data-solid="cube" data-left="10" viewBox="0 0 100 100"><polygon points="50,10 88,30 50,50 12,30"/><polygon points="12,30 50,50 50,92 12,72"/><polygon points="50,50 88,30 88,72 50,92"/></svg></div>
+    <div class="encounter-main">
+      <p class="encounter-kicker">Chapter 2 · Encounter</p>
+      <p class="encounter-boss"><b>The Snap Answer</b></p>
+      <div class="encounter-bar" role="progressbar" aria-label="Practice set" aria-valuemin="0" aria-valuemax="10" aria-valuenow="0" aria-valuetext="0 of 10 solved, 10 left">
+        <span class="encounter-seg" data-how="open"></span><span class="encounter-seg" data-how="open"></span><span class="encounter-seg" data-how="open"></span><span class="encounter-seg" data-how="open"></span><span class="encounter-seg" data-how="open"></span><span class="encounter-seg" data-how="open"></span><span class="encounter-seg" data-how="open"></span><span class="encounter-seg" data-how="open"></span><span class="encounter-seg" data-how="open"></span><span class="encounter-seg" data-how="open"></span>
+      </div>
+      <p class="encounter-status"><b>10</b> left · <span class="encounter-hearts" role="img" aria-label="3 of 3 hearts"><i data-full></i><i data-full></i><i data-full></i></span></p>
+      <ul class="encounter-wards"><li>§2.1 · 0/3</li><li>§2.2 · 0/3</li><li>§2.3 · 0/2</li><li>§2.4 · 0/2</li></ul>
+    </div>
+  </div>
+</section>
+
+<p class="fx-note">Active: seven left, two hearts, the next problem marked</p>
+<section class="practice" id="practice" data-encounter="active" data-part="geometry">
+  <div class="practice-head"><h2>Practice</h2><span class="practice-score"><b>3</b> of 10 solved</span></div>
+  <div class="encounter" data-medal="0">
+    <div class="encounter-sigil" aria-hidden="true"><svg class="sigil" data-solid="tetra" data-left="7" viewBox="0 0 100 100"><polygon points="50,8 8,82 50,94"/><polygon points="50,8 92,82 50,94"/></svg></div>
+    <div class="encounter-main">
+      <p class="encounter-kicker">Chapter 5 · Encounter</p>
+      <p class="encounter-boss"><b>The Torn Triangle</b> <span class="encounter-taunt">“It depends on the triangle.” Does it?</span></p>
+      <div class="encounter-bar" role="progressbar" aria-label="Practice set" aria-valuemin="0" aria-valuemax="10" aria-valuenow="3" aria-valuetext="3 of 10 solved, 7 left">
+        <span class="encounter-seg" data-how="first"></span><span class="encounter-seg" data-how="solved"></span><span class="encounter-seg" data-how="opened"></span><span class="encounter-seg" data-how="open"></span><span class="encounter-seg" data-how="open"></span><span class="encounter-seg" data-how="open"></span><span class="encounter-seg" data-how="open"></span><span class="encounter-seg" data-how="open"></span><span class="encounter-seg" data-how="open"></span><span class="encounter-seg" data-how="unknown"></span>
+      </div>
+      <p class="encounter-status"><b>7</b> left · <span class="encounter-hearts" role="img" aria-label="2 of 3 hearts"><i data-full></i><i data-full></i><i></i></span></p>
+      <ul class="encounter-wards"><li data-done="true">§5.1 · 3/3</li><li>§5.2 · 0/2</li><li>§5.3 · 0/3</li><li>§5.4 · 0/2</li></ul>
+    </div>
+  </div>
+
+  <div class="ex" data-kind="text" data-key="e4" data-section="angles" data-target="true">
+    <span class="ex-num">Exercise 4</span>
+    <div class="ex-q"><p>Two angles are supplementary and one is 4 times the other. How large is the smaller one, in degrees?</p></div>
+    <div class="ex-form"><input type="text" aria-label="Your answer to exercise 4" placeholder="your answer"><button type="button" class="btn">Check</button><button type="button" class="btn ghost">Show solution</button></div>
+    <div class="ex-feedback" role="status" aria-live="polite" aria-atomic="true"></div>
+    <div class="ex-solution"><p class="answer">Answer: 36</p></div>
+  </div>
+
+  <div class="ex" data-kind="text" data-key="e5" data-section="angles">
+    <span class="ex-num">Exercise 5</span>
+    <div class="ex-q"><p>An idle card next to the target: it is not dimmed.</p></div>
+    <div class="ex-form"><input type="text" aria-label="Your answer to exercise 5" placeholder="your answer"><button type="button" class="btn">Check</button><button type="button" class="btn ghost">Show solution</button></div>
+    <div class="ex-feedback" role="status" aria-live="polite" aria-atomic="true"></div>
+  </div>
+
+  <div class="encounter-regroup" role="status">
+    <strong>Regroup</strong>
+    <p>Three misses in this set. Nothing is locked: the problems are all still here. The ones that slipped are from <a href="#">§5.3 Parallels</a>; reread its worked example, then come back.</p>
+  </div>
+</section>
+
+<p class="fx-note">Won, medals 3 (Gold), 2, 1 and 0</p>
+<section class="practice" data-encounter="won" data-part="coordinates">
+  <div class="encounter" data-medal="3">
+    <div class="encounter-sigil" aria-hidden="true"><svg class="sigil" data-solid="octa" data-left="0" viewBox="0 0 100 100"><polygon points="50,6 12,50 50,60"/><polygon points="50,6 88,50 50,60"/><polygon points="12,50 50,60 50,94"/><polygon points="50,60 88,50 50,94"/></svg></div>
+    <div class="encounter-main">
+      <p class="encounter-kicker">Chapter 11 · Cleared</p>
+      <p class="encounter-boss"><b>The Angle Without a Triangle</b></p>
+      <div class="encounter-bar" role="progressbar" aria-label="Practice set" aria-valuemin="0" aria-valuemax="6" aria-valuenow="6" aria-valuetext="6 of 6 solved, 0 left">
+        <span class="encounter-seg" data-how="first"></span><span class="encounter-seg" data-how="first"></span><span class="encounter-seg" data-how="first"></span><span class="encounter-seg" data-how="solved"></span><span class="encounter-seg" data-how="first"></span><span class="encounter-seg" data-how="first"></span>
+      </div>
+      <p class="encounter-status"><b>0</b> left · <span class="encounter-hearts" role="img" aria-label="3 of 3 hearts"><i data-full></i><i data-full></i><i data-full></i></span></p>
+      <ul class="encounter-wards"><li data-done="true">§11.1 · 2/2</li><li data-done="true">§11.2 · 2/2</li><li data-done="true">§11.3 · 2/2</li></ul>
+    </div>
+  </div>
+
+  <div class="encounter-result">
+    <h3>The Angle Without a Triangle is beaten</h3>
+    <div class="encounter-medal"><i data-on></i><i data-on></i><i data-on></i> <span>Gold: no misses</span></div>
+    <div class="encounter-stats">
+      <div class="stat"><b>6</b><span>first try</span></div>
+      <div class="stat"><b>0</b><span>misses</span></div>
+      <div class="stat"><b>4</b><span>solutions compared</span></div>
+      <div class="stat"><b>+86</b><span>XP</span></div>
+    </div>
+    <p>You guessed: <b>It depends on the triangle</b>. <a href="#">See the recap</a>.</p>
+    <p>Worth another look:</p>
+    <ul><li><a href="#">§11.3 The graphs</a></li></ul>
+    <p>Unlocked: <b>Flawless</b>, <b>Boss down</b>.</p>
+    <div class="encounter-actions"><a class="btn" href="#">Next chapter</a><a class="btn ghost" href="#">Rematch in the Arena</a><button class="btn ghost" type="button">Open all solutions</button></div>
+  </div>
+  <div class="encounter-result" data-revisit><b>Cleared</b> with Gold on 2 October. <a href="#">Rematch in the Arena</a></div>
+</section>
+
+<section class="practice" data-encounter="won" data-part="topics">
+  <div class="encounter" data-medal="2">
+    <div class="encounter-sigil" aria-hidden="true"><svg class="sigil" data-solid="icosa" data-left="0" viewBox="0 0 100 100"><polygon points="50,30 72,66 28,66"/><polygon points="50,6 90,28 50,30"/><polygon points="50,6 50,30 10,28"/><polygon points="90,28 72,66 50,30"/><polygon points="10,28 50,30 28,66"/><polygon points="90,28 90,72 72,66"/><polygon points="10,28 28,66 10,72"/><polygon points="90,72 50,94 72,66"/><polygon points="10,72 28,66 50,94"/><polygon points="28,66 72,66 50,94"/></svg></div>
+    <div class="encounter-main">
+      <p class="encounter-kicker">Chapter 16 · Cleared</p>
+      <p class="encounter-boss"><b>The Slanted Field</b></p>
+      <div class="encounter-bar" role="progressbar" aria-label="Practice set" aria-valuemin="0" aria-valuemax="5" aria-valuenow="5" aria-valuetext="5 of 5 solved, 0 left"><span class="encounter-seg" data-how="first"></span><span class="encounter-seg" data-how="solved"></span><span class="encounter-seg" data-how="first"></span><span class="encounter-seg" data-how="opened"></span><span class="encounter-seg" data-how="first"></span></div>
+      <p class="encounter-status"><b>0</b> left · <span class="encounter-hearts" role="img" aria-label="1 of 3 hearts"><i data-full></i><i></i><i></i></span></p>
+    </div>
+  </div>
+</section>
+
+<section class="practice" data-encounter="won" data-part="algebra">
+  <div class="encounter" data-medal="1">
+    <div class="encounter-sigil" aria-hidden="true"><svg class="sigil" data-solid="cube" data-left="0" viewBox="0 0 100 100"><polygon points="50,10 88,30 50,50 12,30"/><polygon points="12,30 50,50 50,92 12,72"/><polygon points="50,50 88,30 88,72 50,92"/></svg></div>
+    <div class="encounter-main">
+      <p class="encounter-kicker">Interlude · Cleared</p>
+      <p class="encounter-boss"><b>The Backwards Arrow</b></p>
+      <div class="encounter-bar" role="progressbar" aria-label="Practice set" aria-valuemin="0" aria-valuemax="4" aria-valuenow="4" aria-valuetext="4 of 4 solved, 0 left"><span class="encounter-seg" data-how="opened"></span><span class="encounter-seg" data-how="solved"></span><span class="encounter-seg" data-how="opened"></span><span class="encounter-seg" data-how="solved"></span></div>
+      <p class="encounter-status"><b>0</b> left · <span class="encounter-hearts" role="img" aria-label="0 of 3 hearts"><i></i><i></i><i></i></span></p>
+    </div>
+  </div>
+</section>
+
+<section class="practice" data-encounter="won" data-part="geometry">
+  <div class="encounter" data-medal="0">
+    <div class="encounter-sigil" aria-hidden="true"><svg class="sigil" data-solid="tetra" data-left="0" viewBox="0 0 100 100"><polygon points="50,8 8,82 50,94"/><polygon points="50,8 92,82 50,94"/></svg></div>
+    <div class="encounter-main">
+      <p class="encounter-kicker">Part II review · Cleared</p>
+      <p class="encounter-boss"><b>Echoes of Part II</b></p>
+      <div class="encounter-bar" role="progressbar" aria-label="Practice set" aria-valuemin="0" aria-valuemax="3" aria-valuenow="3" aria-valuetext="3 of 3 solved, 0 left"><span class="encounter-seg" data-how="first"></span><span class="encounter-seg" data-how="first"></span><span class="encounter-seg" data-how="first"></span></div>
+      <p class="encounter-status"><b>0</b> left</p>
+    </div>
+  </div>
+</section>
+
+<!-- ====================================================== card states ==== -->
+<h2 class="fx-h">Exercise cards</h2>
+
+<p class="fx-note">Idle</p>
+<div class="ex" data-kind="text" data-key="e1" data-section="distance">
+  <span class="ex-num">Exercise 1</span>
+  <div class="ex-q"><p>A right triangle has legs 10 and 24. How long is the hypotenuse?</p></div>
+  <div class="ex-form"><input type="text" aria-label="Your answer to exercise 1" placeholder="your answer"><button type="button" class="btn">Check</button><button type="button" class="btn ghost">Show solution</button></div>
+  <div class="ex-feedback" role="status" aria-live="polite" aria-atomic="true"></div>
+  <div class="ex-solution"><p class="answer">Answer: 26</p><p>c² = 100 + 576 = 676, and 26² = 676.</p></div>
+</div>
+
+<p class="fx-note">Focused (the input is focused on load; colour only)</p>
+<div class="ex" data-kind="text" data-key="e2" data-section="distance">
+  <span class="ex-num">Exercise 2</span>
+  <div class="ex-q"><p>How far apart are 3 and −8 on the number line?</p></div>
+  <div class="ex-form"><input type="text" id="fx-focus" aria-label="Your answer to exercise 2" value="1"><button type="button" class="btn">Check</button><button type="button" class="btn ghost">Show solution</button></div>
+  <div class="ex-feedback" role="status" aria-live="polite" aria-atomic="true"></div>
+</div>
+
+<p class="fx-note">Correct, first try</p>
+<div class="ex" data-kind="text" data-key="e3" data-section="distance" data-state="correct" data-result="first">
+  <span class="ex-num">Exercise 3</span><span class="ex-reward" aria-hidden="true">+12 XP</span>
+  <div class="ex-q"><p>A right triangle has legs 10 and 24. How long is the hypotenuse?</p></div>
+  <div class="ex-form"><input type="text" aria-label="Your answer to exercise 3" value="26"><button type="button" class="btn">Check</button><button type="button" class="btn ghost">Show solution</button></div>
+  <div class="ex-feedback" role="status" aria-live="polite" aria-atomic="true" data-show="true"><p class="ex-verdict ok" data-kind="ok"><svg class="tick" viewBox="0 0 20 20" aria-hidden="true"><path d="M4 10.5l4 4 8-9"/></svg> Correct.</p><p class="ex-next hint">Compare your reasoning with the solution below.</p></div>
+  <span class="ex-stamp" aria-hidden="true">First try</span>
+  <div class="ex-solution"><p class="answer">Answer: 26</p></div>
+</div>
+
+<p class="fx-note">Correct after a miss</p>
+<div class="ex" data-kind="text" data-key="e4" data-section="distance" data-state="correct" data-result="retry">
+  <span class="ex-num">Exercise 4</span><span class="ex-reward" aria-hidden="true">+6 XP</span>
+  <div class="ex-q"><p>Solve x + 70 = 180.</p></div>
+  <div class="ex-form"><input type="text" aria-label="Your answer to exercise 4" value="110"><button type="button" class="btn">Check</button><button type="button" class="btn ghost">Show solution</button></div>
+  <div class="ex-feedback" role="status" aria-live="polite" aria-atomic="true" data-show="true"><p class="ex-verdict ok" data-kind="ok"><svg class="tick" viewBox="0 0 20 20" aria-hidden="true"><path d="M4 10.5l4 4 8-9"/></svg> Correct.</p><p class="ex-next hint">Compare your reasoning with the solution below.</p></div>
+  <span class="ex-stamp" aria-hidden="true">Solved</span>
+  <div class="ex-solution"><p class="answer">Answer: 110</p></div>
+</div>
+
+<p class="fx-note">Correct with the solution open</p>
+<div class="ex" data-kind="text" data-key="e5" data-section="distance" data-state="correct" data-result="assisted">
+  <span class="ex-num">Exercise 5</span><span class="ex-reward" aria-hidden="true">+2 XP</span>
+  <div class="ex-q"><p>Compute √(9 + 16).</p></div>
+  <div class="ex-form"><input type="text" aria-label="Your answer to exercise 5" value="5"><button type="button" class="btn">Check</button><button type="button" class="btn ghost">Hide solution</button></div>
+  <div class="ex-feedback" role="status" aria-live="polite" aria-atomic="true" data-show="true"><p class="ex-verdict ok" data-kind="ok"><svg class="tick" viewBox="0 0 20 20" aria-hidden="true"><path d="M4 10.5l4 4 8-9"/></svg> Correct.</p><p class="ex-next hint">Compare your reasoning with the solution below.</p></div>
+  <span class="ex-stamp" aria-hidden="true">With help</span>
+  <div class="ex-solution" data-show="true"><p class="answer">Answer: 5</p><p>√(9 + 16) = √25 = 5 — and not 3 + 4 = 7. Roots do not pass through sums.</p></div>
+</div>
+
+<p class="fx-note">Wrong, hint 1</p>
+<div class="ex" data-kind="text" data-key="e6" data-section="distance" data-state="wrong" data-hint-level="1">
+  <span class="ex-num">Exercise 6</span>
+  <div class="ex-q"><p>Compute √(9 + 16).</p></div>
+  <div class="ex-form"><input type="text" aria-label="Your answer to exercise 6" value="7"><button type="button" class="btn">Check</button><button type="button" class="btn ghost">Show solution</button></div>
+  <div class="ex-feedback" role="status" aria-live="polite" aria-atomic="true" data-show="true"><p class="ex-verdict no" data-kind="no">✗ Not right.</p><div class="ex-hint" data-level="1"><span class="ex-hint-label">Hint</span><p class="ex-hint-text hint">Add first, then take the root.</p></div></div>
+</div>
+
+<p class="fx-note">Wrong, hint 2 (the first stays, quieter)</p>
+<div class="ex" data-kind="text" data-key="e7" data-section="distance" data-state="wrong" data-hint-level="2">
+  <span class="ex-num">Exercise 7</span>
+  <div class="ex-q"><p>Two sides of a triangle are 7 and 10. What is the smallest whole-number length the third side can have?</p></div>
+  <div class="ex-form"><input type="text" aria-label="Your answer to exercise 7" value="2"><button type="button" class="btn">Check</button><button type="button" class="btn ghost">Show solution</button></div>
+  <div class="ex-feedback" role="status" aria-live="polite" aria-atomic="true" data-show="true"><p class="ex-verdict no" data-kind="no">✗ Not right.</p><div class="ex-hint" data-level="1" data-prev="true"><span class="ex-hint-label">Hint 1 of 2</span><p class="ex-hint-text hint">Every side is less than the sum of the other two.</p></div><div class="ex-hint" data-level="2"><span class="ex-hint-label">Hint 2 of 2</span><p class="ex-hint-text hint">Apply the triangle inequality at the vertex between the sides 7 and c: 10 &lt; 7 + c.</p></div></div>
+</div>
+
+<p class="fx-note">Wrong, no hints left (hint level 3): the solution is suggested</p>
+<div class="ex" data-kind="text" data-key="e8" data-section="distance" data-state="wrong" data-hint-level="3">
+  <span class="ex-num">Exercise 8</span>
+  <div class="ex-q"><p>Two sides of a triangle are 7 and 10. What is the smallest whole-number length the third side can have?</p></div>
+  <div class="ex-form"><input type="text" aria-label="Your answer to exercise 8" value="3"><button type="button" class="btn">Check</button><button type="button" class="btn ghost" data-suggested="true">Show solution</button></div>
+  <div class="ex-feedback" role="status" aria-live="polite" aria-atomic="true" data-show="true"><p class="ex-verdict no" data-kind="no">✗ Not right.</p><p class="ex-next hint">Not yet. Work it through once more, or open the solution.</p></div>
+</div>
+
+<p class="fx-note">Restored from an earlier visit: flat, no motion</p>
+<div class="ex" data-kind="text" data-key="e9" data-section="distance" data-state="correct" data-result="first" data-restored="true">
+  <span class="ex-num">Exercise 9</span>
+  <div class="ex-q"><p>A right triangle has two legs of equal length. How large is each of its other two angles?</p></div>
+  <div class="ex-form"><input type="text" aria-label="Your answer to exercise 9"><button type="button" class="btn">Check</button><button type="button" class="btn ghost">Show solution</button></div>
+  <div class="ex-feedback" role="status" aria-live="polite" aria-atomic="true" data-show="true"><p class="ex-verdict ok" data-kind="ok"><svg class="tick" viewBox="0 0 20 20" aria-hidden="true"><path d="M4 10.5l4 4 8-9"/></svg> Correct.</p><p class="ex-next hint">Compare your reasoning with the solution below.</p></div>
+  <span class="ex-stamp" aria-hidden="true">First try</span>
+</div>
+
+<p class="fx-note">Choice tiles: idle, right, wrong</p>
+<div class="ex" data-kind="choice" data-key="e10">
+  <span class="ex-num">Exercise 10</span>
+  <div class="ex-q"><p>Which property of distance says the straight path is shortest?</p></div>
+  <div class="choices" role="group">
+    <label class="choice" for="fx-a1"><input type="radio" name="fx-a" id="fx-a1" value="1"><span>Symmetry.</span></label>
+    <label class="choice" for="fx-a2"><input type="radio" name="fx-a" id="fx-a2" value="2" checked><span>Positivity (picked, not yet checked).</span></label>
+    <label class="choice" for="fx-a3"><input type="radio" name="fx-a" id="fx-a3" value="3"><span>The triangle inequality.</span></label>
+  </div>
+  <div class="ex-form"><button type="button" class="btn">Check</button><button type="button" class="btn ghost">Show solution</button></div>
+  <div class="ex-feedback" role="status" aria-live="polite" aria-atomic="true"></div>
+</div>
+<div class="ex" data-kind="choice" data-key="e11" data-state="correct" data-result="first">
+  <span class="ex-num">Exercise 11</span><span class="ex-reward" aria-hidden="true">+12 XP</span>
+  <div class="ex-q"><p>Which property of distance says the straight path is shortest?</p></div>
+  <div class="choices" role="group">
+    <label class="choice" for="fx-b1"><input type="radio" name="fx-b" id="fx-b1" value="1"><span>Symmetry.</span></label>
+    <label class="choice" for="fx-b3"><input type="radio" name="fx-b" id="fx-b3" value="3" checked><span>The triangle inequality.</span></label>
+  </div>
+  <div class="ex-form"><button type="button" class="btn">Check</button><button type="button" class="btn ghost">Show solution</button></div>
+  <div class="ex-feedback" role="status" aria-live="polite" aria-atomic="true" data-show="true"><p class="ex-verdict ok" data-kind="ok"><svg class="tick" viewBox="0 0 20 20" aria-hidden="true"><path d="M4 10.5l4 4 8-9"/></svg> Correct.</p></div>
+  <span class="ex-stamp" aria-hidden="true">First try</span>
+</div>
+<div class="ex" data-kind="choice" data-key="e12" data-state="wrong" data-hint-level="1">
+  <span class="ex-num">Exercise 12</span>
+  <div class="ex-q"><p>Can the lengths 3, 4 and 8 be the sides of a triangle?</p></div>
+  <div class="choices" role="group">
+    <label class="choice" for="fx-c1"><input type="radio" name="fx-c" id="fx-c1" value="1" checked><span>Yes.</span></label>
+    <label class="choice" for="fx-c2"><input type="radio" name="fx-c" id="fx-c2" value="2"><span>No — two of them together are too short to reach across the third.</span></label>
+  </div>
+  <div class="ex-form"><button type="button" class="btn">Check</button><button type="button" class="btn ghost">Show solution</button></div>
+  <div class="ex-feedback" role="status" aria-live="polite" aria-atomic="true" data-show="true"><p class="ex-verdict no" data-kind="no">✗ Not right.</p><div class="ex-hint" data-level="1"><span class="ex-hint-label">Hint</span><p class="ex-hint-text hint">Compare the longest side with the sum of the other two.</p></div></div>
+</div>
+
+<p class="fx-note">Blanks, an inline check, put in order</p>
+<div class="ex" data-inline id="fx-k3" data-kind="blank" data-key="fx-k3" data-state="wrong" data-hint-level="3">
+  <span class="ex-num">Your turn</span>
+  <div class="ex-q"><p>2³ · 2⁴ is 2 to the power <input type="text" class="blank" size="2" aria-label="Blank 1" data-ok="true" value="7"> and 3² · 3 is 3 to the power <input type="text" class="blank" size="2" aria-label="Blank 2" data-ok="false" aria-invalid="true" value="2">.</p></div>
+  <div class="ex-form"><button type="button" class="btn">Check</button><button type="button" class="btn ghost" data-suggested="true">Show solution</button></div>
+  <div class="ex-feedback" role="status" aria-live="polite" aria-atomic="true" data-show="true"><p class="ex-verdict no" data-kind="no">✗ Not right.</p><p class="ex-next hint">Not yet. Work it through once more, or open the solution.</p></div>
+</div>
+<div class="ex" data-inline id="fx-k2" data-kind="order" data-key="fx-k2">
+  <span class="ex-num">Warm-up 2</span>
+  <div class="ex-q"><p>Put the steps in order.</p></div>
+  <ol class="order">
+    <li class="order-item" data-i="1"><span class="order-grip" aria-hidden="true">⋮⋮</span><span class="order-text">Subtract 70 from both sides.</span><button class="order-move" type="button" aria-label="Move this line up">↑</button><button class="order-move" type="button" aria-label="Move this line down">↓</button></li>
+    <li class="order-item" data-i="0"><span class="order-grip" aria-hidden="true">⋮⋮</span><span class="order-text">Write the equation x + 70 = 180.</span><button class="order-move" type="button" aria-label="Move this line up">↑</button><button class="order-move" type="button" aria-label="Move this line down">↓</button></li>
+  </ol>
+  <div class="ex-form"><button type="button" class="btn">Check</button></div>
+  <div class="ex-feedback" role="status" aria-live="polite" aria-atomic="true" data-show="true"><p class="ex-verdict nudge" data-kind="nudge">Fill in every blank, then press Check.</p></div>
+</div>
+
+<div class="lesson-next ui" data-ready="true"><p class="lesson-note" hidden></p><button type="button" class="btn big">Continue</button><span class="lesson-count">Step 4 of 19</span></div>
+<div class="lesson-next ui" data-ready="false"><p class="lesson-note">Answer the question above to go on — or skip, and come back to it.</p><button type="button" class="btn ghost big">Skip for now</button><span class="lesson-count">Step 5 of 19</span></div>
+
+<!-- ============================================================ toasts ==== -->
+<h2 class="fx-h">Toasts</h2>
+<div class="toasts fx-toasts" aria-hidden="true">
+  <div class="toast"><b>+10 XP</b></div>
+  <div class="toast"><b>+14 XP</b> <span class="toast-combo">combo ×1.4</span></div>
+  <div class="toast goal">Daily goal reached: <b>30 XP</b> today.</div>
+  <div class="toast level"><span class="toast-kicker">Level 8</span> <b>Solver</b></div>
+  <div class="toast ach"><span class="toast-kicker">Achievement</span> <b>Second opinion</b> <span class="toast-text">Compared ten solutions with your own answers.</span> <span class="toast-more">and 2 more</span></div>
+</div>
+
+<!-- ======================================================== 3D stage ==== -->
+<h2 class="fx-h">3D stage placeholder</h2>
+<figure>
+  <div class="widget scene3d" data-widget="dist3" data-painter="svg" data-state="loading">
+    <div class="fx-stage" tabindex="0" role="application" aria-label="3D scene placeholder"><span>Stage 660 × 420 · the Part's motif at low contrast</span></div>
+  </div>
+  <figcaption><b>A scene stage.</b> The real one is styled by scenes3d.css.</figcaption>
+</figure>
+
+<!-- ============================================================= prose ==== -->
+<h2 class="fx-h" id="prose">Prose sample</h2>
+
+<div class="puzzle" id="puzzle">
+  <span class="tag">A puzzle to carry through the chapter</span>
+  <p>Draw any triangle on paper. Tear off its three corners and push them together. What do the three angles make?</p>
+  <div class="guess"><button type="button" class="guess-chip" aria-pressed="false">A full turn</button><button type="button" class="guess-chip" aria-pressed="true">A straight line</button><button type="button" class="guess-chip" aria-pressed="false">A right angle</button><button type="button" class="guess-chip" aria-pressed="false">It depends</button></div>
+  <p class="puzzle-after">Better still, actually do it — with two different triangles.</p>
+</div>
+
+<div class="goal"><strong>By the end of this chapter you can</strong> state the three properties distance obeys and use the triangle inequality, and prove the Pythagorean theorem by dissection.</div>
+
+<p>We begin with an ordinary plane, its points, and its lines, and we take for granted the two facts everyone's eye already agrees with: through any two distinct points there is exactly one line, and any two distinct lines meet in at most one point. <b>Bold</b>, <em>italic</em>, <a href="#prose">a link</a> and <code>code</code>.</p>
+
+<div class="rule">
+  <span class="tag">The properties of distance</span>
+  <ol>
+    <li><b>Positivity.</b> d(P,Q) ≥ 0, and d(P,Q) = 0 exactly when P = Q.</li>
+    <li><b>Symmetry.</b> d(P,Q) = d(Q,P).</li>
+    <li><b>The triangle inequality.</b> d(P,R) ≤ d(P,Q) + d(Q,R).</li>
+  </ol>
+</div>
+
+<div class="worked">
+  <h4><span class="num">Example 1.</span> Reading the triangle inequality</h4>
+  <div class="body">
+    <p>Two sides of a triangle measure 7 and 10. What can be said about the third side c?</p>
+    <ol class="steps">
+      <li>At the vertex opposite c: c ≤ 7 + 10 = 17.</li>
+      <li>At the other two vertices: 7 ≤ 10 + c and 10 ≤ 7 + c. <span class="note">Three statements, not one.</span></li>
+      <li><details class="reveal"><summary><span class="ask">What does the third one give?</span>Decide, then open</summary><p>c ≥ 3.</p></details></li>
+    </ol>
+  </div>
+</div>
+
+<div class="callout idea"><span class="tag">Why straight lines are called straight</span><p>Repeating the triangle inequality shows the straight route beats every broken one.</p></div>
+<div class="callout warn"><span class="tag">Watch out</span><p>√(a + b) is not √a + √b. Roots do not pass through sums.</p></div>
+<div class="callout why"><span class="tag">Why it works</span><p>The parallel through one vertex carries the other two angles across.</p></div>
+<div class="callout aside"><span class="tag">Before you start</span><p>Very little algebra is needed here: the rules of arithmetic and square roots.</p></div>
+
+<details class="reveal"><summary><span class="ask">Is every triangle's angle sum the same?</span>Decide, then open</summary><p>Yes: 180°, on a flat plane.</p></details>
+<details class="reveal" open><summary><span class="ask">And on a sphere?</span>Decide, then open</summary><p>No. On a globe the three corners overshoot.</p></details>
+
+<div class="recap">
+  <h2>Recap</h2>
+  <div class="puzzle-answer"><span class="tag">Back to the puzzle</span><p data-your-guess>You guessed: a straight line.</p><p><b>A straight line</b> — a half turn, whatever triangle you tore up.</p></div>
+  <ul><li>Distance obeys positivity, symmetry, and the triangle inequality.</li><li>The angles of a triangle add to 180°.</li></ul>
+</div>
+
+<div class="chapter-done" role="status"><b>Chapter 5 complete.</b> Every exercise here is solved. Next: <a href="#">6. Isometries →</a></div>
+</main>
+</div>
+
+<div class="fx-strip" role="group" aria-label="Fixture controls">
+  <label>Theme <select id="fx-theme"><option value="light">light</option><option value="dark">dark</option></select></label>
+  <label>Part <select id="fx-part"><option value="">none</option><option value="algebra">I algebra</option><option value="geometry">II geometry</option><option value="coordinates">III coordinates</option><option value="topics">IV topics</option></select></label>
+  <label><input type="checkbox" id="fx-calm"> Calm</label>
+  <label><input type="checkbox" id="fx-motion"> Reduced motion</label>
+  <button type="button" id="fx-replay">Replay motion</button>
+</div>
+
+<script>
+(function () {
+  "use strict";
+  var root = document.documentElement, body = document.body;
+  function param(name) {
+    var m = new RegExp("[?&]" + name + "=([^&]*)").exec(window.location.search);
+    return m ? decodeURIComponent(m[1]) : null;
+  }
+  function $(id) { return document.getElementById(id); }
+  function setTheme(v) { root.setAttribute("data-theme", v === "dark" ? "dark" : "light"); $("fx-theme").value = v === "dark" ? "dark" : "light"; }
+  function setPart(v) { if (v) body.setAttribute("data-part", v); else body.removeAttribute("data-part"); $("fx-part").value = v || ""; }
+  function setFlag(attr, value, on, box) { if (on) root.setAttribute(attr, value); else root.removeAttribute(attr); $(box).checked = !!on; }
+
+  setTheme(param("theme") || root.getAttribute("data-theme"));
+  setPart(param("part") || "");
+  setFlag("data-calm", "true", param("calm") === "1" || root.hasAttribute("data-calm"), "fx-calm");
+  setFlag("data-motion", "reduce", param("motion") === "reduce", "fx-motion");
+  if (param("strip") === "0") document.querySelector(".fx-strip").hidden = true;
+
+  $("fx-theme").addEventListener("change", function () { setTheme(this.value); });
+  $("fx-part").addEventListener("change", function () { setPart(this.value); });
+  $("fx-calm").addEventListener("change", function () { setFlag("data-calm", "true", this.checked, "fx-calm"); });
+  $("fx-motion").addEventListener("change", function () { setFlag("data-motion", "reduce", this.checked, "fx-motion"); });
+  /* drop and re-set every state attribute, so each animation plays again */
+  $("fx-replay").addEventListener("click", function () {
+    var els = document.querySelectorAll(".ex[data-state], .toast, .lesson-next[data-ready]");
+    Array.prototype.forEach.call(els, function (el) {
+      var state = el.getAttribute("data-state"), ready = el.getAttribute("data-ready");
+      el.removeAttribute("data-state"); el.removeAttribute("data-ready");
+      el.style.animation = "none";
+      void el.offsetWidth;
+      el.style.animation = "";
+      if (state) el.setAttribute("data-state", state);
+      if (ready) el.setAttribute("data-ready", ready);
+    });
+  });
+  var f = $("fx-focus");
+  if (f && param("focus") !== "0") { try { f.focus({ preventScroll: true }); } catch (e) { f.focus(); } }
+})();
+</script>
+</body>
+</html>

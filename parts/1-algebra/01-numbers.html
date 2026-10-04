@@ -7,25 +7,35 @@
 <meta name="description" content="Where the rules of arithmetic come from: integers, the laws of addition and multiplication, why a negative times a negative is positive, even and odd, rational numbers, and inverses.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400;1,6..72,500&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@700;800&family=Inter:wght@400;500;600;700&family=Newsreader:ital,wght@0,400;0,600;1,400&display=swap">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.11/katex.min.css">
 <link rel="icon" href="../../assets/favicon.svg" type="image/svg+xml">
 <link rel="stylesheet" href="../../assets/site.css">
+<link rel="stylesheet" href="../../assets/game.css">
+<link rel="stylesheet" href="../../assets/scenes3d.css">
+<script src="../../assets/boot.js"></script>
 <script defer src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.11/katex.min.js"></script>
 <script defer src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.11/contrib/auto-render.min.js"></script>
 <script defer src="../../data/curriculum.js"></script>
+<script defer src="../../data/quest.js"></script>
 <script defer src="../../assets/widgets.js"></script>
+<script defer src="../../assets/three-loader.js"></script>
+<script defer src="../../assets/scenes3d.js"></script>
+<script defer src="../../assets/scenes/boxcount.js"></script>
 <script defer src="../../assets/site.js"></script>
+<script defer src="../../assets/sfx.js"></script>
+<script defer src="../../assets/game.js"></script>
+<script defer src="../../assets/encounter.js"></script>
 <script defer src="../../assets/lesson.js"></script>
 <script defer src="../../assets/config.js"></script>
 <script defer src="../../assets/account.js"></script>
 </head>
-<body data-depth="2" data-chapter="ch01">
+<body data-depth="2" data-chapter="ch01" data-part="algebra">
 <a class="skip-link" href="#main">Skip to content</a>
 
 <header class="topbar">
   <a class="brand" href="../../index.html"><span class="glyph">∑</span> Basic Mathematics</a>
-  <nav>
+  <nav aria-label="Site">
     <a href="../../index.html">Contents</a>
     <a href="../../about.html">How to use this</a>
     <button class="icon-btn" type="button" data-theme-toggle aria-label="Switch between light and dark">☾</button>
@@ -37,12 +47,17 @@
   <aside class="sidebar" data-sidebar></aside>
   <main id="main">
 
-    <p class="eyebrow">Part I — Algebra · Chapter 1</p>
-    <h1>Numbers</h1>
-    <p class="lede">
-      You have been using the rules of arithmetic for years. This chapter asks where they come
-      from — and finds that almost all of them follow from a very short list.
-    </p>
+    <header class="region-banner">
+      <p class="eyebrow">Part I — Algebra · Chapter 1</p>
+      <h1>Numbers</h1>
+      <p class="lede">
+        You have been using the rules of arithmetic for years. This chapter asks where they come
+        from — and finds that almost all of them follow from a very short list.
+      </p>
+
+      <div class="banner-meta" data-banner-meta></div>
+
+    </header>
 
     <div class="puzzle" id="puzzle">
       <span class="tag">A puzzle to carry through the chapter</span>
@@ -262,6 +277,60 @@
       operations, and it is the engine of all of algebra. Every expansion you have ever done —
       $ (x+2)(x+3)$, $(a+b)^2$, long multiplication itself — is distributivity applied repeatedly.
     </p>
+
+    <p>
+      Like the rules for addition, these are stated, not proved: they are where the reasoning
+      starts. Still, it helps to see why the first one is believable. For counting numbers a
+      product of three numbers is a count of cubes in a box, and associativity says that it does
+      not matter how you count them.
+    </p>
+
+    <details class="reveal">
+      <summary><span class="ask">A box is built from small cubes: $2$ cubes long, $3$ wide and $4$ high. Counted as $4$ flat layers, each layer holds $2 \cdot 3 = 6$ cubes. Now count the same box as $2$ upright slabs instead. How many cubes does each slab hold, and does the total change?</span>Decide, then open</summary>
+      <p>
+        Each slab is $3$ wide and $4$ high, so it holds $3 \cdot 4 = 12$ cubes, and two slabs make
+        $24$ — the same $24$ as four layers of $6$. Nothing was added or taken away; only the way of
+        counting changed. So $(2 \cdot 3) \cdot 4 = 2 \cdot (3 \cdot 4)$.
+      </p>
+    </details>
+
+    <p>
+      The same holds for every box. A box $a$ by $b$ by $c$, cut into $c$ layers of $ab$ cubes,
+      holds $(ab)c$ cubes; cut into $a$ slabs of $bc$ cubes — a slab is just a layer standing on end — it holds $a(bc)$. It is one box, so
+      it is one number. The brackets only record which way you sliced. The picture needs sides you
+      can build, so it covers the counting numbers only — no box has $-2$ cubes along a side — and
+      that is why, for all integers, associativity is a rule we state rather than a picture we
+      draw.
+    </p>
+
+    <figure>
+      <div class="widget" data-widget="boxcount"></div>
+      <figcaption>
+        <b>One box, counted two ways.</b> Set the three sides with the sliders and choose which
+        side to slice across; <em>Pull apart</em> separates the pieces. Drag the picture to turn the
+        box. Whichever way you slice it, the readout counts the same cubes.
+      </figcaption>
+    </figure>
+
+    <div class="ex" data-inline id="s3d-box" data-label="Your turn, in space" data-type="figure" data-figure="boxcount" data-compare="set" data-answer="2,15" data-hint="The bracket is one layer; the 2 counts the layers." data-hint2="A layer of 5 · 3 fixes two sides. Slice across the third.">
+      <div class="ex-q">
+        <p>Build and slice a box so that it shows $2 \cdot (5 \cdot 3)$, then press Check.</p>
+      </div>
+      <div class="ex-solution">
+        <p class="answer">Answer: a box $2$ by $5$ by $3$, in any arrangement, sliced into $2$ pieces of $15$ (flat layers or upright slabs)</p>
+        <p>
+          The bracket $5 \cdot 3$ is what one layer holds, so two sides of the box are $5$ and $3$.
+          The $2$ outside counts the layers, so the third side is $2$, and the slices go across it.
+          If the $2$ is the height, the pieces lie flat; if it runs along the floor, they stand up
+          and the readout calls them slabs. Either way there are $2$ pieces of $5 \cdot 3 = 15$ cubes:
+          $2 \cdot (5 \cdot 3) = 2 \cdot 15 = 30$.
+        </p>
+        <p>
+          Slice the same box across the side of $3$ instead and it reads
+          $(2 \cdot 5) \cdot 3 = 10 \cdot 3 = 30$: the same $30$ cubes, bracketed the other way.
+        </p>
+      </div>
+    </div>
 
     <p>
       Distributivity also decides the rules of signs. They are not conventions somebody chose;
@@ -840,7 +909,7 @@
         </div>
       </div>
 
-      <div class="ex" data-answer="2" data-hint="Test each claim on a small case before deciding.">
+      <div class="ex" data-section="even-odd" data-answer="2" data-hint="Test each claim on a small case before deciding.">
         <div class="ex-q"><p>Which of these statements is <em>false</em>?</p></div>
         <ul class="choices">
           <li>The product of two odd integers is odd.</li>
@@ -945,7 +1014,7 @@
       </ul>
     </div>
 
-    <nav class="chapter-nav" data-chapter-nav></nav>
+    <nav class="chapter-nav" data-chapter-nav aria-label="Previous and next chapter"></nav>
   </main>
 </div>
 </div>

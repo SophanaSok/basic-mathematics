@@ -7,25 +7,36 @@
 <meta name="description" content="The coordinate plane, the distance formula from Pythagoras, and the equation of a circle.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400;1,6..72,500&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@700;800&family=Inter:wght@400;500;600;700&family=Newsreader:ital,wght@0,400;0,600;1,400&display=swap">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.11/katex.min.css">
 <link rel="icon" href="../../assets/favicon.svg" type="image/svg+xml">
 <link rel="stylesheet" href="../../assets/site.css">
+<link rel="stylesheet" href="../../assets/game.css">
+<link rel="stylesheet" href="../../assets/scenes3d.css">
+<script src="../../assets/boot.js"></script>
 <script defer src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.11/katex.min.js"></script>
 <script defer src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.11/contrib/auto-render.min.js"></script>
 <script defer src="../../data/curriculum.js"></script>
+<script defer src="../../data/quest.js"></script>
 <script defer src="../../assets/widgets.js"></script>
+<script defer src="../../assets/three-loader.js"></script>
+<script defer src="../../assets/scenes3d.js"></script>
+<script defer src="../../assets/scenes/dist3.js"></script>
+<script defer src="../../assets/scenes/sphereslice.js"></script>
 <script defer src="../../assets/site.js"></script>
+<script defer src="../../assets/sfx.js"></script>
+<script defer src="../../assets/game.js"></script>
+<script defer src="../../assets/encounter.js"></script>
 <script defer src="../../assets/lesson.js"></script>
 <script defer src="../../assets/config.js"></script>
 <script defer src="../../assets/account.js"></script>
 </head>
-<body data-depth="2" data-chapter="ch08">
+<body data-depth="2" data-chapter="ch08" data-part="coordinates">
 <a class="skip-link" href="#main">Skip to content</a>
 
 <header class="topbar">
   <a class="brand" href="../../index.html"><span class="glyph">∑</span> Basic Mathematics</a>
-  <nav>
+  <nav aria-label="Site">
     <a href="../../index.html">Contents</a>
     <a href="../../about.html">How to use this</a>
     <button class="icon-btn" type="button" data-theme-toggle aria-label="Switch between light and dark">☾</button>
@@ -37,13 +48,18 @@
   <aside class="sidebar" data-sidebar></aside>
   <main id="main">
 
-    <p class="eyebrow">Part III — Coordinate Geometry · Chapter 8</p>
-    <h1>Coordinates and Geometry</h1>
-    <p class="lede">
-      Part I gave us numbers, Part II gave us pictures. This chapter welds them together: a point
-      becomes a pair of numbers, a curve becomes an equation, and geometric questions turn into
-      algebra you already know how to do.
-    </p>
+    <header class="region-banner">
+      <p class="eyebrow">Part III — Coordinate Geometry · Chapter 8</p>
+      <h1>Coordinates and Geometry</h1>
+      <p class="lede">
+        Part I gave us numbers, Part II gave us pictures. This chapter welds them together: a point
+        becomes a pair of numbers, a curve becomes an equation, and geometric questions turn into
+        algebra you already know how to do.
+      </p>
+
+      <div class="banner-meta" data-banner-meta></div>
+
+    </header>
 
     <div class="puzzle" id="puzzle">
       <span class="tag">A puzzle to carry through the chapter</span>
@@ -277,6 +293,63 @@
       </div>
     </div>
 
+    <h3 id="one-more-dimension">One more dimension</h3>
+    <p>
+      Nothing above needed the page to be flat. Stand a third axis upright at the origin, the
+      <b>$z$-axis</b>, perpendicular to both the $x$-axis and the $y$-axis. The first two axes now
+      lie on a floor, and $z$ measures height above it.
+    </p>
+    <p>
+      A point $Q$ in space is then three numbers, $Q = (x, y, z)$: walk $x$ along the first axis,
+      $y$ parallel to the second, then climb $z$. The point $R = (x, y, 0)$ on the floor directly
+      below $Q$ is its shadow, and the straight line from $O$ to $Q$ is the long diagonal of a box
+      whose sides are $x$, $y$ and $z$.
+    </p>
+    <details class="reveal">
+      <summary><span class="ask">A box is $4$ by $3$ by $2$. Is its long diagonal longer or shorter than $5$?</span>Decide, then open</summary>
+      <p>
+        Longer. The diagonal of the floor alone is already $\sqrt{4^2 + 3^2} = 5$. The long
+        diagonal is the hypotenuse of a right triangle standing on that floor diagonal, with the
+        height $2$ as its other leg, so it is $\sqrt{25 + 4} = \sqrt{29} \approx 5.39$. A hypotenuse
+        is longer than either leg.
+      </p>
+    </details>
+    <p>
+      That is the whole method: Pythagoras twice. On the floor, the triangle with corners $O$,
+      $(x, 0, 0)$ and $R$ has a right angle, so $OR^2 = x^2 + y^2$. The segment $RQ$ is vertical and
+      $OR$ lies in the floor, so the triangle $O$, $R$, $Q$ has a right angle at $R$, and
+      $OQ^2 = OR^2 + z^2 = x^2 + y^2 + z^2$. The distance from the origin is
+      $\sqrt{x^2 + y^2 + z^2}$, the formula of this section with one more square under the root.
+    </p>
+
+    <figure>
+      <div class="widget" data-widget="dist3"></div>
+      <figcaption>
+        <b>Pythagoras twice.</b> Move $Q$ with the sliders, or drag it along one of its guide
+        lines; drag anywhere else to turn the box. The triangle on the floor gives $OR$, and the
+        triangle standing on $OR$ gives $OQ$.
+      </figcaption>
+    </figure>
+
+    <div class="ex" data-inline id="s3d-dist" data-label="Your turn, in space" data-type="figure" data-figure="dist3" data-compare="number" data-answer="7" data-hint="You need x² + y² + z² = 49. The squares available are 1, 4, 9, 16, 25, 36." data-hint2="Take the largest square below 49 and ask what the other two must add up to.">
+      <div class="ex-q">
+        <p>Move $Q$ until it is exactly $7$ from the origin, then press Check.</p>
+      </div>
+      <div class="ex-solution">
+        <p class="answer">Answer: $Q = (2, 3, 6)$, in any order</p>
+        <p>
+          We need $x^2 + y^2 + z^2 = 49$. The largest square below $49$ is $36 = 6^2$, which leaves
+          $13$ for the other two, and $13 = 4 + 9$. So $Q = (2, 3, 6)$, or the same three numbers in
+          any order. On the floor $OR^2 = 2^2 + 3^2 = 13$; standing up
+          $OQ^2 = 13 + 6^2 = 49$, so $OQ = 7$.
+        </p>
+        <p>
+          The floor diagonal is $\sqrt{13}$, not a whole number, and it does not need to be: only
+          the squares are added, so the root is taken once, at the end.
+        </p>
+      </div>
+    </div>
+
     <div class="ex" data-inline id="k1" data-label="Section check" data-type="figure" data-figure="distance" data-compare="number" data-answer="10" data-hint="Look for a right triangle with whole-number sides and hypotenuse 10." data-hint2="Legs 6 and 8 work: 36 + 64 = 100.">
       <div class="ex-q">
         <p>Drag $A$ and $B$ until they are exactly $10$ apart, then press Check.</p>
@@ -449,6 +522,71 @@
         <p>
           $x^2 - 4x = (x-2)^2 - 4$, so the equation becomes $(x-2)^2 + y^2 = 9$: centre $(2,0)$,
           radius $\sqrt9 = 3$.
+        </p>
+      </div>
+    </div>
+
+    <h3 id="sphere-slices">Slicing a sphere</h3>
+    <p>
+      The circle sentence does not care how many coordinates there are. In space, with the distance
+      from <a href="#one-more-dimension">One more dimension</a>, the points at distance exactly $R$
+      from the origin $O$ satisfy $\sqrt{x^2 + y^2 + z^2} = R$, and squaring gives
+    </p>
+    <div class="display">$$x^2 + y^2 + z^2 = R^2.$$</div>
+    <p>
+      This is the <b>sphere</b> of centre $O$ and radius $R$: the surface of a ball, not its inside.
+    </p>
+    <p>
+      Now cut it with a level sheet, the points at height $c$, which is the plane $z = c$. A point on
+      both has its $z$ fixed at $c$, so the sphere's equation becomes $x^2 + y^2 + c^2 = R^2$, that is
+      $x^2 + y^2 = R^2 - c^2$. Inside the plane that is the equation of a circle centred on the
+      $z$-axis, with radius $\sqrt{R^2 - c^2}$.
+    </p>
+    <details class="reveal">
+      <summary><span class="ask">A sphere of radius $5$ is cut by the plane $z = 3$, three-fifths of the way from the centre to the top. Is the circle it cuts out more or less than three-fifths as wide as the sphere?</span>Decide, then open</summary>
+      <p>
+        More, by a lot. The slice is $x^2 + y^2 = 25 - 9 = 16$, a circle of radius $4$: four-fifths
+        of the sphere's radius, not three-fifths. Near its middle a sphere stands almost upright, so
+        climbing barely narrows it; the narrowing crowds in near the top, where the last unit of
+        height, from $z = 4$ to $z = 5$, takes the radius from $3$ all the way to $0$.
+      </p>
+    </details>
+    <p>
+      The picture behind the algebra is one right triangle. Go from $O$ up the $z$-axis to the centre
+      $(0, 0, c)$ of the slice, then straight across the plane to a point of the circle. The first leg
+      is vertical and the second lies in a level plane, so the angle between them is right; the
+      hypotenuse runs from $O$ to a point of the sphere, so it is $R$. Calling the slice's radius $r$,
+      Pythagoras gives $r^2 + c^2 = R^2$, the same equation again. As for the circle in Example 2: if
+      $c^2 = R^2$ only one point is left, the top or the bottom of the sphere, and if $c^2 > R^2$ the
+      plane misses the sphere altogether.
+    </p>
+
+    <figure>
+      <div class="widget" data-widget="sphereslice"></div>
+      <figcaption>
+        <b>A circle one dimension up.</b> Move the plane with the slider, or drag its handle up and
+        down; drag anywhere else to turn the sphere. The triangle from the centre has hypotenuse
+        $R = 5$ and legs $c$ and $r$, so the slice at height $c$ has $r^2 = 25 - c^2$.
+      </figcaption>
+    </figure>
+
+    <div class="ex" data-inline id="s3d-slice" data-label="Your turn, in space" data-type="figure" data-figure="sphereslice" data-compare="number" data-answer="4|-4" data-hint="On the slice z is fixed, so x² + y² = 25 − z²." data-hint2="You need 25 − z² to equal 9.">
+      <div class="ex-q">
+        <p>
+          The sphere is ${x^2 + y^2 + z^2 = 25}$. Slide the plane to a height where the slice is
+          ${x^2 + y^2 = 9}$, then press Check.
+        </p>
+      </div>
+      <div class="ex-solution">
+        <p class="answer">Answer: $z = 4$ or $z = -4$</p>
+        <p>
+          On the plane $z = c$ the sphere's equation becomes $x^2 + y^2 = 25 - c^2$. For that to be
+          $x^2 + y^2 = 9$ we need $25 - c^2 = 9$, so $c^2 = 16$, and $c = 4$ or $c = -4$.
+        </p>
+        <p>
+          In the picture: the triangle from the centre has hypotenuse $5$ and a horizontal leg of
+          $3$, the slice's radius, so its vertical leg is $\sqrt{25 - 9} = 4$, pointing up or down.
+          The two slices are mirror images of each other in the floor $z = 0$.
         </p>
       </div>
     </div>
@@ -734,6 +872,29 @@
           </p>
         </div>
       </div>
+
+      <div class="ex" id="s3d-room" data-section="distance-formula" data-answer="11|11.0|11.00|+11|11 m|11.0 m|11.00 m|+11 m|11 metre|11 metres|11 meter|11 meters"
+           data-placeholder="in metres"
+           data-hint="Find the floor diagonal's square first."
+           data-hint2="Then that diagonal and the height are the legs of a second right triangle.">
+        <div class="ex-q">
+          <p>
+            A room is $9$ m long, $6$ m wide and $2$ m high. How long is the straight line from a
+            floor corner to the opposite ceiling corner?
+          </p>
+        </div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $11$ m</p>
+          <p>
+            The diagonal of the floor has square $9^2 + 6^2 = 81 + 36 = 117$. That diagonal and the
+            height $2$ are the legs of a right triangle standing on the floor, so the long diagonal
+            is
+            $$\sqrt{117 + 2^2} = \sqrt{121} = 11.$$
+            In one line: $\sqrt{9^2 + 6^2 + 2^2} = 11$. The floor diagonal $\sqrt{117}$ is never
+            needed as a decimal; only its square is used.
+          </p>
+        </div>
+      </div>
     </section>
 
     <div class="recap">
@@ -763,7 +924,7 @@
       </ul>
     </div>
 
-    <nav class="chapter-nav" data-chapter-nav></nav>
+    <nav class="chapter-nav" data-chapter-nav aria-label="Previous and next chapter"></nav>
   </main>
 </div>
 </div>

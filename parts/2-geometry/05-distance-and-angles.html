@@ -7,25 +7,35 @@
 <meta name="description" content="Points, lines, distance, angle measure, parallels, and the Pythagorean theorem with a proof you can see.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400;1,6..72,500&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@700;800&family=Inter:wght@400;500;600;700&family=Newsreader:ital,wght@0,400;0,600;1,400&display=swap">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.11/katex.min.css">
 <link rel="icon" href="../../assets/favicon.svg" type="image/svg+xml">
 <link rel="stylesheet" href="../../assets/site.css">
+<link rel="stylesheet" href="../../assets/game.css">
+<link rel="stylesheet" href="../../assets/scenes3d.css">
+<script src="../../assets/boot.js"></script>
 <script defer src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.11/katex.min.js"></script>
 <script defer src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.11/contrib/auto-render.min.js"></script>
 <script defer src="../../data/curriculum.js"></script>
+<script defer src="../../data/quest.js"></script>
 <script defer src="../../assets/widgets.js"></script>
+<script defer src="../../assets/three-loader.js"></script>
+<script defer src="../../assets/scenes3d.js"></script>
+<script defer src="../../assets/scenes/spheretri.js"></script>
 <script defer src="../../assets/site.js"></script>
+<script defer src="../../assets/sfx.js"></script>
+<script defer src="../../assets/game.js"></script>
+<script defer src="../../assets/encounter.js"></script>
 <script defer src="../../assets/lesson.js"></script>
 <script defer src="../../assets/config.js"></script>
 <script defer src="../../assets/account.js"></script>
 </head>
-<body data-depth="2" data-chapter="ch05">
+<body data-depth="2" data-chapter="ch05" data-part="geometry">
 <a class="skip-link" href="#main">Skip to content</a>
 
 <header class="topbar">
   <a class="brand" href="../../index.html"><span class="glyph">∑</span> Basic Mathematics</a>
-  <nav>
+  <nav aria-label="Site">
     <a href="../../index.html">Contents</a>
     <a href="../../about.html">How to use this</a>
     <button class="icon-btn" type="button" data-theme-toggle aria-label="Switch between light and dark">☾</button>
@@ -37,13 +47,18 @@
   <aside class="sidebar" data-sidebar></aside>
   <main id="main">
 
-    <p class="eyebrow">Part II — Intuitive Geometry · Chapter 5</p>
-    <h1>Distance and Angles</h1>
-    <p class="lede">
-      Part I was about numbers. This part is about the plane — and the bridge between them is that
-      distance and angle are <em>numbers attached to pictures</em>. Once that is granted, geometry
-      becomes something you can compute with.
-    </p>
+    <header class="region-banner">
+      <p class="eyebrow">Part II — Intuitive Geometry · Chapter 5</p>
+      <h1>Distance and Angles</h1>
+      <p class="lede">
+        Part I was about numbers. This part is about the plane — and the bridge between them is that
+        distance and angle are <em>numbers attached to pictures</em>. Once that is granted, geometry
+        becomes something you can compute with.
+      </p>
+
+      <div class="banner-meta" data-banner-meta></div>
+
+    </header>
 
     <div class="puzzle" id="puzzle">
       <span class="tag">A puzzle to carry through the chapter</span>
@@ -441,6 +456,47 @@
         <p>
           $x + 2x + 3x = 180$, so $6x = 180$ and $x = 30$. The angles are $30°$, $60°$, $90°$ — a
           right triangle, as it turns out.
+        </p>
+      </div>
+    </div>
+
+    <p>
+      Example 2 leaned on the parallel property twice. To see that it was needed, look at a surface
+      where it fails: the surface of a sphere, with the <b>great circles</b> as its
+      &ldquo;lines&rdquo;. A great circle is a circle on the sphere whose centre is the centre of
+      the sphere, such as the equator or a circle through both poles. Draw a triangle with them.
+    </p>
+    <details class="reveal">
+      <summary><span class="ask">On a flat page, two lines that both cross a third line at right angles never meet: corresponding angles are equal, so they are parallel. On a globe, start at two points of the equator and head due north from each. Do the two paths meet? What can you say about the angles of the triangle they make with the equator?</span>Decide, then open</summary>
+      <p>
+        They meet, at the North Pole. Both paths leave the equator at $90°$, so the triangle with
+        corners at the pole and the two starting points already has $90° + 90° = 180°$ in its two
+        lower corners, and the angle at the pole comes on top of that. Its angles add up to more
+        than $180°$: on this surface there are no parallels, and Example 2 has nothing to stand on.
+      </p>
+    </details>
+
+    <figure>
+      <div class="widget" data-widget="spheretri"></div>
+      <figcaption>
+        <b>A triangle on a sphere.</b> Its sides are arcs of great circles: two run up to the pole
+        $N$, and the third is a stretch of the equator from $A$ to $B$. Widen the angle at $N$ with
+        the slider, or drag $B$ along the equator; drag the background to turn the sphere. The
+        angles at $A$ and $B$ stay right angles, so the sum is $180°$ plus the angle at $N$.
+      </figcaption>
+    </figure>
+
+    <div class="ex" data-inline id="s3d-sphere" data-label="Your turn, in space" data-type="figure" data-figure="spheretri" data-compare="number" data-answer="270" data-hint="The two angles on the equator stay at 90°." data-hint2="So the pole must supply the rest.">
+      <div class="ex-q">
+        <p>Make a triangle on the sphere whose three angles add up to $270°$, then press Check.</p>
+      </div>
+      <div class="ex-solution">
+        <p class="answer">Answer: the angle at $N$ is $90°$</p>
+        <p>
+          The angles at $A$ and $B$ are right angles whatever we do, so they contribute
+          $90° + 90° = 180°$ and the angle at $N$ must supply the remaining $270° - 180° = 90°$.
+          With a right angle at $N$ as well, $90 + 90 + 90 = 270$. The arc from $A$ to $B$ is then a
+          quarter of the equator, and the triangle covers one eighth of the sphere.
         </p>
       </div>
     </div>
@@ -848,7 +904,7 @@
       </ul>
     </div>
 
-    <nav class="chapter-nav" data-chapter-nav></nav>
+    <nav class="chapter-nav" data-chapter-nav aria-label="Previous and next chapter"></nav>
   </main>
 </div>
 </div>

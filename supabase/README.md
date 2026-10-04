@@ -22,6 +22,14 @@ get an aggregate view of which exercises people struggle with.
    select id from auth.users where email = 'you@example.com';
    ```
 
+**Upgrading a project set up before the game layer?** Run `schema.sql` again (or just the one line
+below) *before* deploying the new site. Every sync now writes a `game` column, and until it exists
+each save fails with a "column not found" error and nothing syncs:
+
+```sql
+alter table public.user_state add column if not exists game jsonb not null default '{}'::jsonb;
+```
+
 Optional: to offer "Continue with Google", enable the Google provider under Authentication →
 Providers and set `google: true` in `config.js`.
 
@@ -29,7 +37,7 @@ Providers and set `google: true` in `config.js`.
 
 | Table | Contents |
 | --- | --- |
-| `user_state` | One row per reader, holding the same JSON the site keeps in `localStorage`: solved exercises, missions, per-exercise attempt records, XP per day, lesson position. |
+| `user_state` | One row per reader, holding the same JSON the site keeps in `localStorage`: solved exercises, missions, per-exercise attempt records, XP per day, lesson position, and the game record (achievements, compared solutions, Arena bests, rematch medals, review boxes). Play settings and the combo meter stay in the browser. |
 | `attempts` | One row per answer check by a signed-in reader: chapter, exercise key, section, right or wrong, try number, hint level, whether the solution was open. Typed answers are never stored. |
 | `profiles` | An optional display name. |
 | `admins` | The user ids allowed to call the aggregate functions. |

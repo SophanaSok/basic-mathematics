@@ -21,6 +21,9 @@
   var ATTEMPTS_KEY = "bm.attempts.v1";
   var ACTIVITY_KEY = "bm.activity.v1";
   var LESSON_KEY = "bm.lesson.v1";
+  var GAME_KEY = "bm.game.v1";
+  var RUN_KEY = "bm.run.v1";
+  var PREFS_KEY = "bm.prefs.v1";
   var C = window.BM_CURRICULUM || { parts: [], chapters: [] };
 
   /* ------------------------------------------------------------ storage -- */
@@ -50,7 +53,9 @@
   var Store = {
     keys: {
       progress: PROGRESS_KEY, play: PLAY_KEY, last: LAST_KEY,
-      attempts: ATTEMPTS_KEY, activity: ACTIVITY_KEY, lesson: LESSON_KEY
+      attempts: ATTEMPTS_KEY, activity: ACTIVITY_KEY, lesson: LESSON_KEY,
+      /* the game layer (assets/game.js): game is synced, run and prefs stay on this device */
+      game: GAME_KEY, run: RUN_KEY, prefs: PREFS_KEY
     },
     read: readStore,
     write: writeStore,
@@ -208,13 +213,16 @@
       while (days[dayKey(d)] > 0) { n++; d.setDate(d.getDate() - 1); }
       return n;
     },
-    add: function (xp, why) {
+    /* `extra` carries the combo's share, { bonus, mult }, so the toast can show it */
+    add: function (xp, why, extra) {
       if (!xp) return;
       var all = this.all(), k = dayKey(), goal = this.goal();
       var before = all.days[k] || 0;
       all.days[k] = before + xp;
       writeStore(ACTIVITY_KEY, all);
-      Store.emit({ type: "xp", xp: xp, why: why, goalMet: before < goal && before + xp >= goal });
+      var change = { type: "xp", xp: xp, why: why, goalMet: before < goal && before + xp >= goal };
+      if (extra && extra.bonus) { change.bonus = extra.bonus; change.mult = extra.mult || 1; }
+      Store.emit(change);
     },
     reset: function () {
       var goal = this.all().goal;
@@ -228,10 +236,12 @@
   function currentTheme() {
     return readStore(THEME_KEY, null);
   }
+  /* data-theme is always set (boot.js did it before first paint): the saved choice,
+     else whatever the operating system prefers */
   function applyTheme(mode) {
     var root = document.documentElement;
-    if (mode === "light" || mode === "dark") root.setAttribute("data-theme", mode);
-    else root.removeAttribute("data-theme");
+    if (mode !== "light" && mode !== "dark") mode = systemPrefersDark() ? "dark" : "light";
+    root.setAttribute("data-theme", mode);
   }
   function systemPrefersDark() {
     return window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches;
@@ -239,9 +249,12 @@
   function initTheme() {
     applyTheme(currentTheme());
     var btns = document.querySelectorAll("[data-theme-toggle]");
+    /* read what is on screen, not the store: a blocked store never keeps the choice */
+    function effective() {
+      return document.documentElement.getAttribute("data-theme") === "dark" ? "dark" : "light";
+    }
     function label() {
-      var effective = currentTheme() || (systemPrefersDark() ? "dark" : "light");
-      return effective === "dark" ? "☀" : "☾";
+      return effective() === "dark" ? "☀" : "☾";
     }
     Array.prototype.forEach.call(btns, function (btn) {
       btn.textContent = label();
@@ -249,13 +262,23 @@
       btn.setAttribute("aria-label", "Switch between light and dark");
       btn.classList.add("theme-btn");
       btn.addEventListener("click", function () {
-        var effective = currentTheme() || (systemPrefersDark() ? "dark" : "light");
-        var next = effective === "dark" ? "light" : "dark";
+        var next = effective() === "dark" ? "light" : "dark";
         writeStore(THEME_KEY, next);
         applyTheme(next);
         Array.prototype.forEach.call(btns, function (b) { b.textContent = label(); });
       });
     });
+    /* follow the operating system until the reader picks a side */
+    if (window.matchMedia) {
+      var mq = window.matchMedia("(prefers-color-scheme: dark)");
+      var follow = function () {
+        if (currentTheme()) return;
+        applyTheme(null);
+        Array.prototype.forEach.call(btns, function (b) { b.textContent = label(); });
+      };
+      if (mq.addEventListener) mq.addEventListener("change", follow);
+      else if (mq.addListener) mq.addListener(follow);
+    }
   }
 
   /* --------------------------------------------------------------- math -- */
@@ -434,7 +457,7 @@
         var c = counts[ch.id];
         var pct = c.total ? Math.round((c.solved / c.total) * 100) : 0;
         var state = c.done ? "done" : ch.id === currentId ? "current" : c.solved ? "started" : "ahead";
-        html += '<li class="stop" data-state="' + state + '">';
+        html += '<li class="stop" data-state="' + state + '" data-chapter="' + escapeHtml(ch.id) + '">';
         html += '<a class="stop-link" href="' + escapeHtml(ch.path) + '">';
         html += '<span class="stop-node" style="--pct:' + pct + '" aria-hidden="true"><span>' +
           (c.done ? "✓" : escapeHtml(ch.label === "Interlude" ? "§" : ch.label)) + "</span></span>";
@@ -462,6 +485,7 @@
       html += "</ol></section>";
     });
     host.innerHTML = html;
+    Store.emit({ type: "home", current: currentId });
   }
 
   /* turn the "Start" button into "Continue" once there is somewhere to continue to */
@@ -500,8 +524,13 @@
 
   var FLAME = '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8.2 1c.3 2.4 3.6 4 3.6 7.6A3.8 3.8 0 0 1 8 12.5a3.8 3.8 0 0 1-3.8-3.9c0-1.4.6-2.5 1.5-3.3.1 1 .6 1.7 1.3 1.9C6.7 5.1 7.1 2.9 8.2 1z"/></svg>';
 
-  /* streak and today's XP against the daily goal; the whole thing links to the progress page */
+  /* The game layer (assets/game.js) draws the full HUD: level, streak, combo, hearts.
+     Without it, a plain counter: streak and today's XP against the daily goal, linking
+     to the progress page. */
   function buildHud() {
+    if (window.BMGame && typeof window.BMGame.hud === "function") {
+      try { window.BMGame.hud(); return; } catch (e) { if (window.console) console.error("[BM] game HUD failed", e); }
+    }
     var nav = document.querySelector(".topbar nav");
     if (!nav) return;
     var hud = nav.querySelector(".hud");
@@ -527,8 +556,13 @@
     if (!host) {
       host = document.createElement("div");
       host.className = "toasts";
-      host.setAttribute("role", "status");
-      host.setAttribute("aria-live", "polite");
+      /* once the game layer owns announcements (one polite region, #bm-live), toasts are
+         for the eyes only; without it they speak for themselves */
+      if (window.BMGame) host.setAttribute("aria-hidden", "true");
+      else {
+        host.setAttribute("role", "status");
+        host.setAttribute("aria-live", "polite");
+      }
       document.body.appendChild(host);
     }
     var t = document.createElement("div");
@@ -609,6 +643,10 @@
         });
       });
       list.forEach(function (row) { row.score = row.sum / row.n; });
+      /* the game layer may soften a section the reader has since repaired */
+      if (typeof Insights.adjust === "function") {
+        try { Insights.adjust(list); } catch (e) { if (window.console) console.error("[BM] insights adjust failed", e); }
+      }
       return list;
     },
     weak: function () {
@@ -662,6 +700,8 @@
         Attempts.reset();
         Activity.reset();
         writeStore(LESSON_KEY, {});
+        writeStore(GAME_KEY, {});
+        writeStore(RUN_KEY, {});
         Store.emit({ type: "reset" });
         buildHud();
         btn.textContent = "Progress cleared";
@@ -1011,17 +1051,25 @@
       showBtn.textContent = "Show solution";
       if (solution) form.appendChild(showBtn);
 
-      var feedback = document.createElement("p");
+      /* the verdict, then the hint as the thing to read next */
+      var feedback = document.createElement("div");
       feedback.className = "ex-feedback";
       feedback.setAttribute("role", "status");
       feedback.setAttribute("aria-live", "polite");
+      feedback.setAttribute("aria-atomic", "true");
 
       if (solution) ex.insertBefore(form, solution);
       else ex.appendChild(form);
       ex.insertBefore(feedback, solution || null);
       if (solution) ex.appendChild(solution);
 
-      var tries = 0;
+      var misses = 0;
+
+      /* solved before now: progress saved before the attempt log existed has
+         no attempt record, so the progress store counts as well */
+      function solvedBefore() {
+        return !!Attempts.get(chapterId, key).solved || (!inline && !!Progress.chapter(chapterId).solved[key]);
+      }
 
       function reveal() {
         if (!solution) return;
@@ -1030,13 +1078,18 @@
         /* for a put-in-order question the solution is the order itself */
         if (orderList) orderItems.forEach(function (li) { orderList.appendChild(li); });
         /* opening the solution before solving is worth knowing about */
-        if (ex.getAttribute("data-state") !== "correct" && !Attempts.get(chapterId, key).solved) {
+        var already = Attempts.get(chapterId, key), done = solvedBefore();
+        if (ex.getAttribute("data-state") !== "correct" && !done) {
           Attempts.update(chapterId, key, function (r) {
             r.opened = 1;
             if (section) r.section = section;
             if (inline) r.inline = 1;
           });
         }
+        Store.emit({
+          type: "opened", chapter: chapterId, key: key, section: section, inline: inline,
+          solved: done || ex.getAttribute("data-state") === "correct", tries: already.tries || 0, ex: ex
+        });
       }
       function hide() {
         if (!solution) return;
@@ -1051,15 +1104,34 @@
         feedback.innerHTML = html;
         feedback.setAttribute("data-show", "true");
       }
+      function verdict(kind, html) {
+        return '<p class="ex-verdict ' + kind + '" data-kind="' + kind + '">' + html + "</p>";
+      }
+      function hintBox(level, text, current) {
+        var of = hint2 ? 2 : 1;
+        return '<div class="ex-hint" data-level="' + level + '"' + (current ? "" : ' data-prev="true"') + ">" +
+          '<span class="ex-hint-label">' + (of > 1 ? "Hint " + level + " of " + of : "Hint") + "</span>" +
+          '<p class="ex-hint-text hint">' + text + "</p></div>";
+      }
+      /* how the first correct answer came: first try, after misses, or with the solution open */
+      function resultOf(rec) {
+        if (!rec || !rec.solved) return "";
+        return rec.first ? "first" : rec.opened ? "assisted" : "retry";
+      }
 
       function markCorrect(fromStorage) {
         ex.setAttribute("data-state", "correct");
+        ex.removeAttribute("data-hint-level");
+        var result = resultOf(Attempts.get(chapterId, key));
+        if (result) ex.setAttribute("data-result", result);
+        else ex.removeAttribute("data-result");
         if (fromStorage) ex.setAttribute("data-restored", "true");
         else ex.removeAttribute("data-restored");
         if (orderList) orderItems.forEach(function (li) { orderList.appendChild(li); });
-        blanks.forEach(function (b) { b.setAttribute("data-ok", "true"); });
-        say('<span class="ok">' + TICK + " Correct.</span>" +
-          (solution ? ' <span class="hint">Compare your reasoning with the solution below.</span>' : ""));
+        blanks.forEach(function (b) { b.setAttribute("data-ok", "true"); b.removeAttribute("aria-invalid"); });
+        if (solution) showBtn.removeAttribute("data-suggested");
+        say(verdict("ok", TICK + " Correct.") +
+          (solution ? '<p class="ex-next hint">Compare your reasoning with the solution below.</p>' : ""));
         if (!fromStorage && !inline) {
           var before = solvedCount();
           Progress.markSolved(chapterId, key);
@@ -1115,12 +1187,18 @@
 
       function check() {
         var r = read();
-        if (r.empty) { say('<span class="hint">' + r.empty + "</span>"); return; }
+        if (r.empty) {
+          /* the hints already on screen stay where they are under the nudge */
+          var kept = slice(feedback.querySelectorAll(".ex-hint")).map(function (h) { return h.outerHTML; }).join("");
+          say(verdict("nudge", r.empty) + kept);
+          return;
+        }
         var ok = judge(r.given);
-        tries++;
-        var level = ok ? 0 : tries === 1 && hint ? 1 : tries === 2 && hint2 ? 2 : 0;
+        /* hints follow misses, so a wrong re-check after a correct answer starts at the first */
+        if (!ok) misses++;
+        var level = ok ? 0 : misses === 1 && hint ? 1 : misses === 2 && hint2 ? 2 : 0;
         /* only the road to the first correct answer is recorded; re-solving changes nothing */
-        if (!Attempts.get(chapterId, key).solved) {
+        if (!solvedBefore()) {
           var rec = Attempts.update(chapterId, key, function (a) {
             a.tries = (a.tries || 0) + 1;
             if (section) a.section = section;
@@ -1136,7 +1214,19 @@
             type: "attempt", chapter: chapterId, key: key, section: section, inline: inline,
             correct: ok, tryNo: rec.tries, hintLevel: rec.hints || 0, solutionOpen: !!rec.opened
           });
-          if (ok) Activity.add(xpFor(rec, inline), inline ? "check" : "exercise");
+          if (ok) {
+            /* the game layer adds the combo's share on top of the ordinary award */
+            var base = xpFor(rec, inline), extra = null;
+            if (window.BMGame && typeof window.BMGame.bonus === "function") {
+              try {
+                extra = window.BMGame.bonus({
+                  chapter: chapterId, key: key, section: section, inline: inline, rec: rec, base: base, ex: ex
+                });
+              } catch (e) { if (window.console) console.error("[BM] game bonus failed", e); }
+            }
+            var bonus = extra && extra.bonus > 0 ? Math.round(extra.bonus) : 0;
+            Activity.add(base + bonus, inline ? "check" : "exercise", bonus ? { bonus: bonus, mult: extra.mult } : null);
+          }
         }
         if (ok) {
           markCorrect(false);
@@ -1145,12 +1235,21 @@
           ex.removeAttribute("data-state");
           void ex.offsetWidth;
           ex.setAttribute("data-state", "wrong");
-          var extra = level === 1
-            ? '<span class="hint">Hint: ' + hint + "</span>"
+          ex.setAttribute("data-hint-level", String(level || 3));
+          blanks.forEach(function (b) {
+            if (b.getAttribute("data-ok") === "false") b.setAttribute("aria-invalid", "true");
+            else b.removeAttribute("aria-invalid");
+          });
+          var after = level === 1
+            ? hintBox(1, hint, true)
             : level === 2
-              ? '<span class="hint">Another hint: ' + hint2 + "</span>"
-              : '<span class="hint">Not yet. Work it through once more' + (solution ? ", or open the solution." : ".") + "</span>";
-          say('<span class="no">✗ Not right.</span> ' + extra);
+              ? hintBox(1, hint, false) + hintBox(2, hint2, true)
+              /* the hints have run out: the ones already given stay, quieter */
+              : (hint && misses > 1 ? hintBox(1, hint, false) : "") +
+                (hint2 && misses > 2 ? hintBox(2, hint2, false) : "") +
+                '<p class="ex-next hint">Not yet. Work it through once more' + (solution ? ", or open the solution." : ".") + "</p>";
+          if (!level && solution) showBtn.setAttribute("data-suggested", "true");
+          say(verdict("no", "✗ Not right.") + after);
           renderMath(feedback);
         }
       }
@@ -1177,6 +1276,9 @@
   function chapterDone(chapter, fresh) {
     var practice = document.getElementById("practice");
     if (!practice || document.querySelector(".chapter-done")) return;
+    Store.emit({ type: "chapterDone", chapter: chapter ? chapter.id : null, fresh: !!fresh });
+    /* an encounter (assets/encounter.js) plays its own finish inside the practice set */
+    if (window.BMEncounter && window.BMEncounter.active) fresh = false;
     var list = C.chapters || [], next = null;
     if (chapter) list.forEach(function (ch, k) { if (ch.id === chapter.id) next = list[k + 1] || null; });
     var box = document.createElement("div");
@@ -1185,7 +1287,7 @@
     var html = "";
     if (fresh) {
       html += '<span class="burst" aria-hidden="true">';
-      for (var i = 0; i < 14; i++) html += '<i style="--i:' + i + '"></i>';
+      for (var i = 0; i < 12; i++) html += '<i style="--i:' + i + '"></i>';
       html += "</span>";
     }
     html += "<b>" + (chapter ? escapeHtml(chapter.label === "Interlude" ? "Interlude" : "Chapter " + chapter.label) : "Chapter") +
@@ -1199,7 +1301,8 @@
     if (recap && recap.parentNode) recap.parentNode.insertBefore(box, recap);
     else practice.parentNode.insertBefore(box, practice.nextSibling);
     if (fresh && box.scrollIntoView) {
-      try { box.scrollIntoView({ block: "center", behavior: "smooth" }); } catch (e) { box.scrollIntoView(); }
+      var still = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      try { box.scrollIntoView({ block: "center", behavior: still ? "auto" : "smooth" }); } catch (e) { box.scrollIntoView(); }
     }
   }
 
@@ -1310,7 +1413,7 @@
     Store.on(function (c) {
       if (c.type === "xp") {
         buildHud();
-        toast("<b>+" + c.xp + " XP</b>");
+        toast("<b>+" + c.xp + " XP</b>" + (c.bonus ? ' <span class="toast-combo">combo ×' + c.mult + "</span>" : ""));
         if (c.goalMet) toast("Daily goal reached: <b>" + Activity.goal() + " XP</b> today.", "goal");
       } else if (c.type === "attempt") {
         chapterFeedback(chapter);
@@ -1326,7 +1429,23 @@
       }
     });
   }
-  window.BMSite = { rootPrefix: rootPrefix, escapeHtml: escapeHtml, chapterName: chapterName, dayKey: dayKey };
+  /* grade one answer against a key with `|` alternatives, exactly as the exercises do */
+  function grade(given, answer, type, tol) {
+    return alternatives(answer).some(function (a) { return matches(given, a, type || "exact", tol || 0); });
+  }
+  /* redraw everything built from saved state, after the game layer changes it */
+  function refresh() {
+    buildHud();
+    buildHome();
+    buildContinue();
+    buildCourseStats();
+    chapterFeedback(chapterOf(document.body));
+  }
+  window.BMSite = {
+    rootPrefix: rootPrefix, escapeHtml: escapeHtml, chapterName: chapterName, dayKey: dayKey,
+    chapterOf: function () { return chapterOf(document.body); },
+    grade: grade, matches: matches, refresh: refresh, renderMath: renderMath, XP: XP, xpFor: xpFor
+  };
 
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", init);
   else init();

@@ -5,12 +5,15 @@ sequence of Serge Lang's *Basic Mathematics*: four parts, seventeen chapters, 76
 
 Every chapter has prose written to be read with a pencil, worked examples with each step shown,
 interactive figures where a picture beats words, and a practice set that grades itself and shows
-full solutions.
+full solutions. It plays like a game — a boss for every practice set, a combo meter, levels,
+achievements, playable 3D problems and a timed Arena — and every one of those rules is there to
+help the mathematics stick.
 
 **Read it here: [sophanasok.github.io/basic-mathematics](https://sophanasok.github.io/basic-mathematics/)**
 
-No build step, no dependencies to install, no server required. It is HTML, CSS, and a handful of
-plain ES5 JavaScript files. Accounts are optional and off by default: with
+No build step, no dependencies to install, no server required. It is HTML, CSS, and plain ES5
+JavaScript files; KaTeX and (only where a 3D scene is on screen) Three.js come from a CDN, and the
+site works without either. Accounts are optional and off by default: with
 [`assets/config.js`](assets/config.js) left empty the site talks to nobody.
 
 ---
@@ -108,20 +111,48 @@ They are there to be played with. Each has a short list of **missions** — thin
 do, such as "make a system with no solution" or "find an angle where sin θ = cos θ" — and marks each
 one with a star when you manage it.
 
+Eleven of them are **3D scenes**, used where the third dimension is the mathematics: three planes
+meeting in a point, a line or nothing; a determinant as the volume of a slanted box; why a box
+scaled by 3 holds 27 copies; six stepped pyramids filling a box to prove the sum of squares. Drag
+to turn a scene, or use its sliders and view buttons. Some questions are answered by building
+something in a scene. While such a question is open the scene shows quantities but never says
+whether you are right — only **Check** does — so the answer has to come from thinking, not from
+wiggling until something lines up. Where 3D is not available the same scene is drawn flat, with the
+same controls and the same answers.
+
 ### XP, streaks, and what to review
 
 Correct answers and missions earn XP — most when right first time, less after a miss, least once
-the solution has been opened. The header shows today's XP against a daily goal and your streak of
-active days.
+the solution has been opened. The header shows your level, today's XP against a daily goal, and
+your streak of active days.
 
 The **[progress page](https://sophanasok.github.io/basic-mathematics/progress.html)** turns the
 record into advice. The course notes how each question went (tries, hints, whether the solution
 was opened first) and lists the **sections worth rereading**, weakest first, alongside the ones
 going well. A short version appears above each chapter's recap.
 
+### The game
+
+- **Combo.** Each answer right first time fills one of five pips, and a full meter adds up to
+  double XP. A first miss on a practice problem costs two pips; working on with the hints after
+  that costs nothing. Reading a solution *after* getting the answer earns a shield against the next
+  miss.
+- **Encounters.** Each practice set is a boss: the tempting wrong idea behind the chapter's opening
+  puzzle. Every problem solved wears it down, in any order. Three hearts decide the medal, and
+  nothing else: running out locks nothing, and the course points you at the section to reread.
+- **The Arena** is the only place with a clock. It serves freshly generated problems from sections
+  you have already solved, because speed practice helps with what you know and hurts with what you
+  are still learning. A wrong answer costs a heart and stops the clock while you read the hint;
+  "I don't know" costs nothing, so guessing never pays.
+- **Levels and achievements** come from XP. The achievements reward study habits — right first
+  time, repairing a weak section, reading solutions, finishing review sets — never speed alone.
+- **Calm mode**, in the header menu, turns off hearts, the combo, the boss, shake and sound for
+  anyone who wants the course without the game.
+
 ### Progress, and what is saved
 
-Everything is remembered in **your browser**, in local storage. Without an account nothing is sent
+Everything is remembered in **your browser**, in local storage — including achievements, medals
+and Arena records. Without an account nothing is sent
 anywhere, so progress will not follow you to another browser or device, and clearing site data
 clears it. There is a deliberate reset button on the about page.
 
@@ -151,28 +182,47 @@ If you would rather serve it:
 python -m http.server 8000   # then visit http://localhost:8000
 ```
 
-The only external dependency is [KaTeX](https://katex.org), pulled from a CDN for math typesetting.
-If the CDN is unreachable the prose still renders — formulas fall back to their TeX source rather
-than taking the page down.
+Two libraries come from CDNs: [KaTeX](https://katex.org) for math typesetting on every page, and
+[Three.js](https://threejs.org) 0.160.1 (the last release with a classic build, pinned with an
+integrity hash) only when a 3D scene or the course map nears the screen. If either CDN is
+unreachable the page still works: formulas fall back to their TeX source, and every 3D picture is
+drawn flat with the same controls.
 
 ### Layout
 
 ```
-index.html              course contents: the path map, built from the curriculum data
-about.html              how to study the course; progress reset lives here
-progress.html           the reader's dashboard: streak, XP, sections to strengthen
+index.html              course contents: the path map and the 3D course map
+about.html              how to study the course; play settings and progress reset live here
+progress.html           the reader's dashboard: level, achievements, recall, sections to strengthen
+arena.html              the Arena: timed retrieval practice from generated problems
 account.html            sign in / sign up, export and delete (inert without config)
 insights.html           the author's aggregate view; admins only
 data/curriculum.js      single source of truth: parts, chapters, sections
-assets/site.css         all styling, including both themes
+data/quest.js           regions, bosses (the tempting guess of each chapter's puzzle), review echoes
+data/gen/*.js           seeded problem generators for the Arena, one file per Part plus core.js
+assets/boot.js          the one synchronous script: theme and play settings before first paint
+assets/site.css         tokens (both themes, four regions), base, prose, cards, figures, print
+assets/game.css         HUD, region banner, encounters, card states, toasts, settings, all motion
+assets/scenes3d.css     3D scene stages
+assets/map3d.css        the course map; arena.css the Arena
 assets/site.js          navigation, theme, stores, exercise grading, XP, widget mounting
-assets/widgets.js       the 32 interactive figures and their missions
+assets/widgets.js       the 32 flat interactive figures and their missions
+assets/three-loader.js  lazy, pinned Three.js with fallback (window.BM3D.load)
+assets/scenes3d.js      the 3D scene framework: define, display list, camera, SVG painter, input
+assets/scenes3d-gl.js   the WebGL painter, loaded only when a scene nears the screen
+assets/scenes/*.js      one file per 3D scene
+assets/game.js          combo, levels, achievements, recall, play settings, the HUD
+assets/encounter.js     turns each practice and review set into an encounter
+assets/sfx.js           synthesised sound effects, off by default
+assets/arena.js         the Arena
+assets/map3d.js         the 3D course map on the contents page
 assets/lesson.js        step-by-step reading of a chapter
 assets/config.js        Supabase URL and anon key; empty means no accounts
 assets/account.js       sign-in and sync, listening on BMStore
 assets/insights.js      renders progress.html and insights.html
 supabase/schema.sql     tables, row-level security, aggregate functions
 supabase/README.md      how to switch accounts on
+tools/                  the checks: static, scenes, generators, game rules, headless browser
 parts/<part>/<nn>-<slug>.html
 .nojekyll               so GitHub Pages serves the files as authored
 ```
@@ -186,12 +236,24 @@ its neighbours.
 A chapter is a plain HTML file that declares two things on its `<body>`:
 
 ```html
-<body data-depth="2" data-chapter="ch07">
+<body data-depth="2" data-chapter="ch07" data-part="geometry">
 ```
 
 `data-chapter` matches an `id` in `curriculum.js`, which is how the page finds its own title,
 section list, and neighbours. `data-depth` is how many directories deep the file sits, so that
-generated links can be made relative.
+generated links can be made relative. `data-part` (also set by script) gives the page its region's
+colours from the first paint.
+
+The chapter opens with a region banner, which lesson mode looks for:
+
+```html
+<header class="region-banner">
+  <p class="eyebrow">Part II — Intuitive Geometry · Chapter 7</p>
+  <h1>Area</h1>
+  <p class="lede">…</p>
+  <div class="banner-meta" data-banner-meta></div>
+</header>
+```
 
 The rest of the page is ordinary markup using a small set of classes: `.puzzle`, `.goal`,
 `.warmup`, `.rule`, `.worked` with `.steps`, `.callout` (in `.idea` / `.warn` / `.why` / `.aside`
@@ -284,10 +346,14 @@ The untyped kinds, each graded by the same engine:
 ```
 
 `data-compare` is `exact` (the default), `number`, or `set`. The figure must not start in the
-answering state. Six figures expose `__answer` so far: `numberline`, `linsys`, `quadratic`,
+answering state. Six flat figures expose `__answer` so far: `numberline`, `linsys`, `quadratic`,
 `distance`, `unitcircle`, `pointops`; adding one is a single line before the factory's
-`missions(…)` call. A figure inside an exercise is mounted with `data-no-missions`, so its
-missions are neither shown nor counted twice.
+`missions(…)` call. Every 3D scene exposes one. A figure inside an exercise is mounted with
+`data-no-missions`, so its missions are neither shown nor counted twice.
+
+A 3D scene inside an exercise also reads two attributes from the `.ex`: `data-ask` picks which
+quantity `__answer()` reports, so one scene can serve several questions, and `data-start` is a JSON
+patch to its starting state (for example `'{"lock":[0,1]}'` makes two rows of `det3` read-only).
 
 **Progress keys.** A scored exercise is remembered under its `id` if it has one, and otherwise
 under its position among the id-less scored exercises of the page (`e1`, `e2`, …). The original
@@ -320,6 +386,65 @@ internal to `widgets.js` and available to any factory in that file. Colours come
 properties, so every figure follows the theme automatically. The convention throughout is: build the frame once, redraw a single `<g>` on each
 change, and use the readout to say in words what the picture is claiming.
 
+#### 3D scenes
+
+A 3D scene is mounted exactly like a flat figure — `<div class="widget" data-widget="det3">` — and
+defined in its own file under `assets/scenes/` with `BM3D.define(name, spec)`. The header comment
+of `assets/scenes3d.js` is the reference. In outline, a scene keeps a plain state object, and
+`draw(g, s, api)` describes the picture to a display list in world coordinates (z up) on each
+change. Two painters draw that list:
+- an SVG projector draws at once, and is also the fallback and the print version;
+- a WebGL painter takes over when Three.js arrives.
+
+One WebGL context serves every scene on the page. Rendering happens only on change.
+
+Besides `draw`, a spec gives:
+- `controls(api, s)`: sliders, chips, buttons, handles;
+- `say(s, quiz)`: the readout;
+- `answer(s, ask)`: what Check compares;
+- `missions`;
+- `cases`: answers the smoke test proves reachable.
+
+**Quiz mode** is a scene inside an exercise that is not yet solved. `say` then reports quantities
+only, never a verdict or the asked-for value. `draw` leaves out solution annotations, and nothing
+turns green. Write questions that need a computation the picture does not hand over.
+
+Pages with a scene load `assets/scenes3d.js` and the scene files after `three-loader.js` and before
+`site.js`: `site.js` mounts every figure as it runs.
+
+### The game layer
+
+`site.js` exposes a few seams, and everything game-like hangs off them and the `BMStore` bus:
+- `check()` asks `BMGame.bonus()` for the combo's share of XP;
+- `reveal()` emits `opened`;
+- `chapterDone` emits `chapterDone` and defers to an active encounter;
+- `BMInsights.adjust` lets a repaired section leave "Areas to strengthen";
+- `BMSite.grade` and `BMSite.refresh` are exported.
+
+The files:
+- `assets/game.js` holds the combo meter, levels (derived from total XP, never stored),
+  achievements, the recall model, play settings and the HUD.
+- `assets/encounter.js` decorates each `section.practice` (`#practice` and `#review`). Health is the
+  number of unsolved problems and hearts are derived from the attempt log, so nothing can be lost
+  and nothing locks. Encounters, the Arena and the map never create `.ex` elements, so progress
+  keys are untouched.
+- `data/quest.js` names each chapter's boss after the tempting guess in its opening puzzle. Check
+  the index when a puzzle's options change.
+
+The Arena's problems come from `data/gen/*.js`:
+
+```js
+BMGen.add({ id: "lin-collect", section: "ch02#one-unknown", par: 45, timed: true,
+  make: function (r) {            /* r: seeded int, pick, nonzero, shuffle, chance */
+    return { q: "Solve $…$ for $x$.", type: "number", answer: "4", hint: "…",
+             steps: ["…", "…"], verify: function () { return true; } };
+  } });
+```
+
+Answers are graded by the same `matches()` as the exercises. Mark a generator with few possible
+answers `timed: false`. Hints name the next idea and never the number: `tools/check-gen.js` fails a
+hint that contains its answer.
+
 ### Lesson mode
 
 `assets/lesson.js` needs nothing from the chapter markup. On load it cuts the top-level children
@@ -334,7 +459,10 @@ they were inserted in front of. Printing shows the whole chapter.
 1. Add an entry to the relevant part in `data/curriculum.js` — `id`, `label`, `title`, `file`,
    `status`, `blurb`, and the `sections` list.
 2. Create the HTML file at `parts/<part-dir>/<file>`, with `data-chapter` set to the new `id` and
-   an `<h2 id="…">` matching each section id.
+   an `<h2 id="…">` matching each section id — except a mixed-review set, whose id goes on its
+   `<section class="practice" id="review">`.
+3. Add the chapter's boss to `data/quest.js`: a name, the index of the tempting guess in its
+   puzzle's `ul.guess`, and a one-line taunt that voices the wrong idea without answering it.
 
 Navigation, the contents card, the sidebar, and the progress counters build themselves from step 1.
 
@@ -351,10 +479,15 @@ memory but keeps the site:
 | `bm.activity.v1` | XP per day and the daily goal; streak and totals are derived from it |
 | `bm.lesson.v1` | reading mode and the furthest step reached in each chapter |
 | `bm.last`, `bm.theme` | where to continue; light or dark |
+| `bm.game.v1` | achievements, compared solutions, recall per section, Arena bests, medals, Daily days (synced) |
+| `bm.run.v1` | the combo meter and an unfinished Arena run (this device only; cleared by reset and sign-out) |
+| `bm.prefs.v1` | calm mode, sound, 3D map, Arena tempo (this device only; survives a reset) |
 
 Every write is announced on `window.BMStore` (`on(fn)` / `emit(change)`), with change types
-`state`, `attempt`, `solved`, `xp`, `sync`, and `reset`. The header counters, lesson mode, and
-account sync are all just listeners; `site.js` knows nothing about a server.
+`state`, `attempt`, `solved`, `xp`, `sync`, and `reset`, plus `opened`, `chapterDone`, `home`,
+`combo`, `level`, `achievement`, `encounter`, `arena` and `prefs` from the game layer. The header
+counters, lesson mode, the game layer and account sync are all just listeners; `site.js` knows
+nothing about a server.
 
 `assets/account.js` is the only file that talks to Supabase, and only when `assets/config.js` is
 filled in and the reader has a session (or opens the account page) — otherwise the SDK is never
@@ -372,23 +505,34 @@ header.
 
 ### Checking your changes
 
-There is no test runner, but the content is regular enough to verify from the command line. These
-checks were used while writing Chapters 5–16 and are worth repeating after edits:
+`tools/` holds the checks. They install nothing; the browser checks borrow Playwright from wherever
+`BM_PLAYWRIGHT_FROM` points (see [`tools/README.md`](tools/README.md)).
 
-- Syntax: `node --check assets/widgets.js && node --check data/curriculum.js`
-- Every `id` in `curriculum.js` has a matching `<h2 id="…">` in its chapter.
-- Every exercise key is accepted by the grader in `site.js` when typed back, and every
-  multiple-choice index is in range and matches the answer stated in the solution.
-- Every internal `href` resolves to both file and anchor.
-- Every `data-widget` name exists on `window.BMWidgets`.
-- No pre-existing exercise's progress key has changed (compare against the previous commit).
-- Every `data-section` names a real section, and every `order` list is authored in the right order.
-- `lesson.js` leaves every `<h2 id>` reachable, and `BMAccount.merge` is still commutative.
-- Every mission is false when its figure mounts, and can be driven true through the controls.
+```sh
+node tools/check-static.js --base=<ref>   # syntax, ES5, progress keys vs <ref>, links, sections,
+                                          # widgets, choices, merge laws, contrast, animations
+node tools/smoke-scenes.js                # every 3D scene: mount, controls, missions, answers
+node tools/check-gen.js                   # every Arena generator over 500 seeds
+node tools/game/merge.test.js             # BMAccount.merge, including the game store
+node tools/game/rules.test.js             # combo, levels, hearts, medals, achievements, recall
+node tools/game/browser.test.js           # the game in a browser: combo XP, hearts, finale, reload,
+                                          # calm mode, sound off, old progress, toasts, the sheet
+node tools/game/arena.test.js             # Arena runs: scoring, clock, hearts, Daily, Repair, resume
+node tools/game/scenes.test.js            # 3D stages: keyboard, touch, contrast of what carries meaning
+node tools/game/content.test.js           # the new 3D exercises in chapters 8 and 16, answered live
+node tools/game/map.test.js               # the course map: fallbacks, idle rendering, clicks
+node tools/check-browser.js               # every page × theme × width in headless Chromium:
+                                          # errors, overflow, lesson mode, figures, every exercise
+                                          # typed back, restore of old progress, reduced motion,
+                                          # WebGL and its fallbacks, file://, axe
+```
 
-The widgets can be smoke-tested in Node under a small DOM shim — mount each factory, then fire its
-sliders at both endpoints, click its chips, and drag on its SVG — which catches the errors that only
-appear at degenerate parameter values.
+`--base` should be the last commit readers' progress was saved against: the progress-key check
+fails if any existing exercise's key or question changed, or if a new scored exercise has no `id`.
+
+Still checked by hand: the solution of a multiple-choice question states the option the key
+names; a new `order` list is authored in the right order; a new puzzle's tempting guess in
+`data/quest.js`; and reading one whole chapter on a phone in each theme.
 
 ## About the text
 
