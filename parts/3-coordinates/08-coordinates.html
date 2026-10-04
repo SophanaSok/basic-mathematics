@@ -20,6 +20,8 @@
 <script defer src="../../data/quest.js"></script>
 <script defer src="../../assets/widgets.js"></script>
 <script defer src="../../assets/three-loader.js"></script>
+<script defer src="../../assets/scenes3d.js"></script>
+<script defer src="../../assets/scenes/dist3.js"></script>
 <script defer src="../../assets/site.js"></script>
 <script defer src="../../assets/sfx.js"></script>
 <script defer src="../../assets/game.js"></script>
@@ -297,6 +299,63 @@
       <div class="ex-solution">
         <p class="answer">Answer: any pair with $\Delta x^2 + \Delta y^2 = 100$</p>
         <p>For example $A = (-4, -3)$ and $B = (4, 3)$: the legs are $8$ and $6$, and $\sqrt{64 + 36} = 10$.</p>
+      </div>
+    </div>
+
+    <h3 id="one-more-dimension">One more dimension</h3>
+    <p>
+      Nothing above needed the page to be flat. Stand a third axis upright at the origin, the
+      <b>$z$-axis</b>, perpendicular to both the $x$-axis and the $y$-axis. The first two axes now
+      lie on a floor, and $z$ measures height above it.
+    </p>
+    <p>
+      A point $Q$ in space is then three numbers, $Q = (x, y, z)$: walk $x$ along the first axis,
+      $y$ parallel to the second, then climb $z$. The point $R = (x, y, 0)$ on the floor directly
+      below $Q$ is its shadow, and the straight line from $O$ to $Q$ is the long diagonal of a box
+      whose sides are $x$, $y$ and $z$.
+    </p>
+    <details class="reveal">
+      <summary><span class="ask">A box is $4$ by $3$ by $2$. Is its long diagonal longer or shorter than $5$?</span>Decide, then open</summary>
+      <p>
+        Longer. The diagonal of the floor alone is already $\sqrt{4^2 + 3^2} = 5$. The long
+        diagonal is the hypotenuse of a right triangle standing on that floor diagonal, with the
+        height $2$ as its other leg, so it is $\sqrt{25 + 4} = \sqrt{29} \approx 5.39$. A hypotenuse
+        is longer than either leg.
+      </p>
+    </details>
+    <p>
+      That is the whole method: Pythagoras twice. On the floor, the triangle with corners $O$,
+      $(x, 0, 0)$ and $R$ has a right angle, so $OR^2 = x^2 + y^2$. The segment $RQ$ is vertical and
+      $OR$ lies in the floor, so the triangle $O$, $R$, $Q$ has a right angle at $R$, and
+      $OQ^2 = OR^2 + z^2 = x^2 + y^2 + z^2$. The distance from the origin is
+      $\sqrt{x^2 + y^2 + z^2}$, the formula of this section with one more square under the root.
+    </p>
+
+    <figure>
+      <div class="widget" data-widget="dist3"></div>
+      <figcaption>
+        <b>Pythagoras twice.</b> Move $Q$ with the sliders, or drag it along one of its guide
+        lines; drag anywhere else to turn the box. The triangle on the floor gives $OR$, and the
+        triangle standing on $OR$ gives $OQ$.
+      </figcaption>
+    </figure>
+
+    <div class="ex" data-inline id="s3d-dist" data-label="Your turn, in space" data-type="figure" data-figure="dist3" data-compare="number" data-answer="7" data-hint="You need x² + y² + z² = 49. The squares available are 1, 4, 9, 16, 25, 36." data-hint2="Take the largest square below 49 and ask what the other two must add up to.">
+      <div class="ex-q">
+        <p>Move $Q$ until it is exactly $7$ from the origin, then press Check.</p>
+      </div>
+      <div class="ex-solution">
+        <p class="answer">Answer: $Q = (2, 3, 6)$, in any order</p>
+        <p>
+          We need $x^2 + y^2 + z^2 = 49$. The largest square below $49$ is $36 = 6^2$, which leaves
+          $13$ for the other two, and $13 = 4 + 9$. So $Q = (2, 3, 6)$, or the same three numbers in
+          any order. On the floor $OR^2 = 2^2 + 3^2 = 13$; standing up
+          $OQ^2 = 13 + 6^2 = 49$, so $OQ = 7$.
+        </p>
+        <p>
+          The floor diagonal is $\sqrt{13}$, not a whole number, and it does not need to be: only
+          the squares are added, so the root is taken once, at the end.
+        </p>
       </div>
     </div>
 
@@ -744,6 +803,29 @@
             is $\ge 0$ and a radius is $&gt; 0$, so the minus case cannot occur and nothing is
             gained or lost. Squaring $x = -2$, by contrast, produces $x^2 = 4$, which also admits
             $x = 2$.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" id="s3d-room" data-section="distance-formula" data-type="number" data-answer="11"
+           data-placeholder="in metres"
+           data-hint="Find the floor diagonal's square first."
+           data-hint2="Then that diagonal and the height are the legs of a second right triangle.">
+        <div class="ex-q">
+          <p>
+            A room is $9$ m long, $6$ m wide and $2$ m high. How long is the straight line from a
+            floor corner to the opposite ceiling corner?
+          </p>
+        </div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $11$ m</p>
+          <p>
+            The diagonal of the floor has square $9^2 + 6^2 = 81 + 36 = 117$. That diagonal and the
+            height $2$ are the legs of a right triangle standing on the floor, so the long diagonal
+            is
+            $$\sqrt{117 + 2^2} = \sqrt{121} = 11.$$
+            In one line: $\sqrt{9^2 + 6^2 + 2^2} = 11$. The floor diagonal $\sqrt{117}$ is never
+            needed as a decimal; only its square is used.
           </p>
         </div>
       </div>
