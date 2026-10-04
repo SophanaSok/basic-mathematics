@@ -101,7 +101,8 @@
         if (Game) {
           var md = Game.medal(ch.id, "practice");
           html += '<td class="num cell-medal"' + (md ? ' data-medal="' + md + '"' : "") + ">" +
-            (md ? '<span aria-hidden="true">' + new Array(md + 1).join("★") + "</span> " + Game.MEDALS[md] : "—") + "</td>";
+            (md ? (Game.stars ? Game.stars(md, true) : '<span aria-hidden="true">' + new Array(md + 1).join("★") + "</span>") +
+              " " + Game.MEDALS[md] : "—") + "</td>";
         }
         html += "</tr>";
       });
@@ -122,7 +123,13 @@
     var deck = Game.deck(), sec = Game.game().sec, ids = Object.keys(sec);
     var html = '<section class="panel" id="recall"><h2>Recall</h2>';
     if (!deck.length) {
-      return html + '<p class="muted">Recall starts once you have solved something: sections you have solved come back ' +
+      /* solves saved before the course kept a record of each try name no section, so
+         they cannot join the deck: say so rather than claim nothing is solved */
+      var solvedAny = C.chapters.some(function (ch) { return Progress.count(ch.id).solved > 0; });
+      return html + '<p class="muted">' + (solvedAny
+        ? "Recall picks up a section once you have solved two of its questions on the chapter page, or one practice " +
+          "problem first time (solves saved before this browser kept a record of each try do not count). Sections in play come back "
+        : "Recall starts once you have solved something: sections you have solved come back ") +
         "in the Arena at widening gaps (1, 3, 7, 14 and 30 days), which is what makes them stick.</p></section>";
     }
     var due = deck.filter(function (d) { return d.due; }), holding = 0, n = 0, ok = 0, last = "";

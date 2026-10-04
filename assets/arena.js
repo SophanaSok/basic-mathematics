@@ -135,7 +135,8 @@
 
   /* ------------------------------------------------------------ the deck -- */
 
-  /* sections with at least one solved exercise, from the attempt log */
+  /* sections with at least one solved exercise, from the attempt log: how many are
+     solved there, and how many of those are scored ones right first time */
   function solvedSections() {
     var out = {};
     var all = window.BMAttempts ? window.BMAttempts.all() : Store.read(Store.keys.attempts, {}) || {};
@@ -145,7 +146,10 @@
         var rec = recs[key], sec = rec && rec.section;
         if (!rec || !rec.solved || !sec || sec === "warmup") return;
         var id = sec.indexOf("#") > -1 ? sec : chId + "#" + sec;
-        if (SECTIONS[id]) out[id] = (out[id] || 0) + 1;
+        if (!SECTIONS[id]) return;
+        var s = out[id] = out[id] || { n: 0, first: 0 };
+        s.n++;
+        if (rec.first && !rec.inline) s.first++;
       });
     });
     return out;
@@ -175,8 +179,12 @@
     if (window.BMInsights) {
       try { window.BMInsights.sections().forEach(function (row) { scores[row.id] = row.score; }); } catch (e) { /* no scores, all solid */ }
     }
+    /* the game layer's rule: solid once two exercises are solved there, or a scored one
+       first time, or one came right first time in the Arena; one Your turn check is not enough */
     Object.keys(solved).forEach(function (id) {
-      out[id] = { id: id, status: scores[id] !== undefined && scores[id] >= WEAK ? "shaky" : "solid", due: isDue(id) };
+      var shaky = scores[id] !== undefined && scores[id] >= WEAK, rec = (gameStore().sec || {})[id];
+      if (!shaky && solved[id].n < 2 && !solved[id].first && !(rec && rec.ok > 0)) return;
+      out[id] = { id: id, status: shaky ? "shaky" : "solid", due: isDue(id) };
     });
     return out;
   }
