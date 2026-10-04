@@ -217,7 +217,7 @@ assets/sfx.js           synthesised sound effects, off by default
 assets/arena.js         the Arena
 assets/map3d.js         the 3D course map on the contents page
 assets/lesson.js        step-by-step reading of a chapter
-assets/config.js        Supabase URL and anon key; empty means no accounts
+assets/config.js        Supabase URL and anon key, sign-in providers; empty means no accounts
 assets/account.js       sign-in and sync, listening on BMStore
 assets/insights.js      renders progress.html and insights.html
 supabase/schema.sql     tables, row-level security, aggregate functions
@@ -500,7 +500,10 @@ last saw, so a tab that has fallen behind another device merges first instead of
 A deliberate reset is timestamped so other devices drop their copies rather than merging them
 back, unless another device saved work after a reset that never reached the account, in which
 case the work is kept. Signing out saves first; progress that cannot be saved is set aside in the
-browser and saved the next time that reader signs in there. Setting it up is five steps:
+browser and saved the next time that reader signs in there. Besides an email address and a
+password, a reader can sign in through any service listed under `providers` in
+`assets/config.js`; a sign-in that the service refuses comes back with the reason in the
+address, which the account page shows and removes. Setting it up is five steps:
 [`supabase/README.md`](supabase/README.md).
 
 The "areas to strengthen" ranking is `BMInsights` in `site.js`: each attempted exercise gets a
@@ -521,7 +524,9 @@ node tools/check-static.js --base=<ref>   # syntax, ES5, progress keys vs <ref>,
 node tools/smoke-scenes.js                # every 3D scene: mount, controls, missions, answers
 node tools/check-gen.js                   # every Arena generator over 500 seeds
 node tools/game/merge.test.js             # BMAccount.merge, including the game store
-node tools/game/sync.test.js              # account sync: stale tabs, resets, failed sign-outs
+node tools/game/sync.test.js              # account sync: stale tabs, resets, failed sign-outs,
+                                          # sign-in through another service
+node tools/game/account.test.js           # the account page in Chromium, against a stand-in SDK
 node tools/game/rules.test.js             # combo, levels, hearts, medals, achievements, recall
 node tools/game/browser.test.js           # the game in a browser: combo XP, hearts, finale, reload,
                                           # calm mode, sound off, old progress, toasts, the sheet
