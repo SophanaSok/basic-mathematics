@@ -21,7 +21,14 @@
   var BASE = [[-1, -1, -1], [5, 5, 5]], CENTER = [2, 2, 2], LIMIT = [-13, 17];
   /* the direction of the line where planes 1 and 2 meet, N1 × N2 = (2, 1, −3); looking
      along it turns that line into a point */
-  var ALONG_AZ = Math.atan2(-1, -2) * 180 / Math.PI, ALONG_EL = Math.asin(3 / Math.sqrt(14)) * 180 / Math.PI;
+  var L12 = [[1, 2, 3], V.norm([2, 1, -3])];
+  /* the screen's right and up directions in the two views where names must not collide:
+     the opening one and the one that looks along that line */
+  function screen(e) { var r = V.norm(V.cross([0, 0, 1], e)); return [r, V.cross(e, r)]; }
+  var HOME = 30 * Math.PI / 180, HOME_EL = 18 * Math.PI / 180;
+  var SCREENS = [screen(L12[1]),
+    screen([Math.cos(HOME_EL) * Math.cos(HOME), Math.cos(HOME_EL) * Math.sin(HOME), Math.sin(HOME_EL)])];
+  var ALONG_AZ =Math.atan2(-1, -2) * 180 / Math.PI, ALONG_EL = Math.asin(3 / Math.sqrt(14)) * 180 / Math.PI;
 
   /* -------------------------------------------------------- exact arithmetic -- */
 
@@ -229,7 +236,7 @@
     },
 
     draw: function (g, s, api) {
-      var quiz = api.quiz(), cam = api.cam, b = box(s), k = kind(s), list = planes(s);
+      var quiz = api.quiz(), b = box(s), k = kind(s), list = planes(s);
       var span = Math.max(b[1][0] - b[0][0], b[1][1] - b[0][1], b[1][2] - b[0][2]);
       g.axes({ min: [Math.min(0, b[0][0]), Math.min(0, b[0][1]), Math.min(0, b[0][2])],
         max: [b[1][0] + 1, b[1][1] + 1, b[1][2] + 0.8], ticks: span > 10 ? 5 : 0 });
@@ -248,25 +255,40 @@
         g.path(poly, { tone: EDGES[i], w: 1.75, closed: true });
       });
       /* the lines where each pair of planes meets */
-      var c0 = cam.project(V.scale(V.add(b[0], b[1]), 0.5));
       [[0, 1], [0, 2], [1, 2]].forEach(function (pr) {
         var A = list[pr[0]], B = list[pr[1]];
         if (isZero(A[0]) || isZero(B[0])) return;
         var seg = crossing(A[0], A[1], B[0], B[1], b);
         if (seg) g.seg(seg[0], seg[1], { tone: !quiz && k === "line" ? "point" : "ink", w: !quiz && k === "line" ? 3.5 : 2.25 });
       });
-      /* each plane's name near the edge of its polygon, pushed apart: 1 left, 2 right, 3 low */
-      var pulls = [[-1, -0.35], [1, -0.35], [0.2, 1]];
+      /* each plane's name near the edge of its polygon, chosen in space rather than on the
+         screen, since turning the view repaints without calling draw. Planes 1 and 2 take the
+         spot farthest from the line where they meet, so never the common point; plane 3 the
+         spot farthest from its handle. Every distance is measured across that line's
+         direction, so it holds in the view that looks along the line. The names also keep
+         clear of each other and of the axis names, measured as text boxes (wide across the
+         screen, short up it) in that view and in the opening one. */
+      function across(p, q) { return V.len(V.cross(V.sub(p, q), L12[1])); }
+      function clear(p, q, w) {
+        var d = V.sub(p, q);
+        return Math.min.apply(null, SCREENS.map(function (ru) {
+          return Math.max(Math.abs(V.dot(d, ru[0])) / w, Math.abs(V.dot(d, ru[1])) / 0.7);
+        }));
+      }
+      var tips = [[b[1][0] + 1, 0, 0], [0, b[1][1] + 1, 0], [0, 0, b[1][2] + 0.8]], spots = [], ft = foot(s);
       polys.forEach(function (poly, i) {
         if (!poly) return;
-        var best = null, bs = -1e9;
-        poly.forEach(function (p) {
-          var q = cam.project(p), sc = (q[0] - c0[0]) * pulls[i][0] + (q[1] - c0[1]) * pulls[i][1];
-          if (sc > bs) { bs = sc; best = p; }
-        });
-        var mid = [0, 0, 0];
+        var mid = [0, 0, 0], best = null, bs = -1e9;
         poly.forEach(function (p) { mid = V.add(mid, V.scale(p, 1 / poly.length)); });
-        g.label(V.lerp(best, mid, 0.18), "plane " + (i + 1), { tone: EDGES[i], weight: 700, dy: i === 2 ? 14 : -6 });
+        /* the corners and the middles of the sides */
+        poly.concat(poly.map(function (p, j) { return V.lerp(p, poly[(j + 1) % poly.length], 0.5); })).forEach(function (p) {
+          var at = V.lerp(p, mid, 0.18), sc = i < 2 ? across(at, L12[0]) : ft ? across(at, ft) : 0;
+          tips.forEach(function (q) { sc = Math.min(sc, 3 * clear(at, q, 1.2)); });
+          spots.forEach(function (q) { sc = Math.min(sc, 1.5 * clear(at, q, 1.8)); });
+          if (sc > bs + 1e-9) { bs = sc; best = at; }
+        });
+        spots.push(best);
+        g.label(best, "plane " + (i + 1), { tone: EDGES[i], weight: 700, dy: -6 });
       });
       if (!quiz && k === "point") {
         var p = meet(s), m = minors(s);
