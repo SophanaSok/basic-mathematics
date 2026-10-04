@@ -16,15 +16,17 @@ the browser one before a push.
 Usage: `node tools/check-static.js [--base=<git ref>] [--only=<check,check>] [--strict]`
 
 One line per check, `PASS`/`FAIL`/`WARN` plus the number of things examined, then the details.
-`--base` is the commit the progress keys are compared against (default `8ff7abc`, the tree the
-harness was written on — move it forward when a change to the exercises is deliberate). `--strict`
-makes warnings fail.
+`--base` is the commit the progress keys and lesson steps are compared against (default `8ff7abc`,
+the tree the harness was written on — move it forward when a change to the exercises is deliberate).
+`--strict` makes warnings fail.
 
 | check | what it guards |
 | --- | --- |
 | `syntax` | `node --check` on every `.js` under `assets/` (recursively), `data/`, `tools/` |
 | `es5` | no arrow functions, `let`, `const`, template literals or `class` in `assets/` and `data/` (strings, regex literals and comments are stripped first; `{ class: … }` property names are allowed) |
-| `progress-keys` | every scored exercise key at `--base` still exists in the working tree with the same answer and question text; no scored exercise added since then lacks an `id`; no duplicate keys. Uses the key rule of `site.js initExercises` exactly (`lib/keys.js`) |
+| `progress-keys` | every scored exercise key at `--base` still exists in the working tree with the same answer and question text; every exercise in the working tree, scored or inline, has an `id`; no duplicate keys. Uses the key rule of `site.js initExercises` exactly (`lib/keys.js`), whose positional fallback (`e1`, `e2`, …) is now only what reads a base from before the ids were written in |
+| `ids` | on every page, no `id` value is on more than one element — an `id` is a link target and, on an exercise, the key its progress is saved under |
+| `lesson-steps` | `startsStep`/`endsStep` of `assets/lesson.js` applied to the direct children of `<main id="main">`: WARN for each chapter cut into a different number of steps than at `--base` (a FAIL under `--strict`), because `bm.lesson.v1` remembers a reader's place as a step number |
 | `curriculum` | every chapter in `data/curriculum.js` has its file, the right `data-chapter` and `data-depth`, and every section id as an `<h2 id>` (an id on another element is a WARN) |
 | `links` | every relative `href`/`src` resolves to a file, and its `#anchor` to an id in that file; ids created at runtime are allowlisted in `RUNTIME_IDS` with a note on where they come from |
 | `widgets` | every `data-widget` / `data-figure` names a `W.<name> = function` in `assets/widgets.js` or a `BM3D.define("<name>"` in `assets/scenes/*.js` |
@@ -38,6 +40,14 @@ makes warnings fail.
 
 `tools/contrast-pairs.json` is a list of `{ fg, bg, min, themes?, parts? }` using token names. Add a
 pair when a new token appears; delete nothing — a pair that goes undefined is a SKIP, not a failure.
+
+### Exercise ids
+
+Every exercise carries an `id`, and the `id` is the key its saved progress is stored under. The
+201 exercises that predate ids were keyed by position; `assign-ids.js` (below) wrote each one's
+key into the markup as its `id`, so positional keys exist only in history. An `id` that is retired
+with its exercise must never be given to another: nothing here can see a reuse once `--base` has
+moved past the commit that had the old exercise, so that rule is kept by hand.
 
 ### Adding a check
 
@@ -100,6 +110,19 @@ that need a solved or a wrong card. A `game`, `scenes` or `arena` suite is one m
 - The real Supabase account path and the round trip to a real sign-in service: the browser
   suites never sign in, and `game/sync.test.js` and `game/account.test.js` run against
   stand-ins that mimic PostgREST and auth-js rather than the services themselves.
+
+## assign-ids.js
+
+Usage: `node tools/assign-ids.js --check | --write`
+
+A one-off, kept as the record of how the ids were derived. For each chapter page it takes every
+scored exercise without an `id` and, on the line the parser reports for it, turns `<div class="ex"`
+into `<div class="ex" id="<key>"`, the key being the one `lib/keys.js` gives it today. It refuses a
+page where that line does not hold exactly one such tag or where some element already has the id,
+and it re-parses the result and requires the same exercises in the same order — keys, inline flags,
+fingerprints, lines — before anything is written. `--check` changes nothing and exits 1 if there
+would be anything to change; since `progress-keys` now fails an exercise without an `id`, it should
+always report nothing to do.
 
 ## The focused checks
 

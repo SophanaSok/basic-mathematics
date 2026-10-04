@@ -4,8 +4,8 @@
 
    Usage: node tools/check-static.js [--base=<git ref>] [--only=<check name>] [--strict]
 
-   --base    the commit to compare progress keys against (default: the clean tree the
-             harness was written on, see lib/site.js DEFAULT_BASE)
+   --base    the commit to compare progress keys and lesson steps against (default: the
+             clean tree the harness was written on, see lib/site.js DEFAULT_BASE)
    --only    run one check by name (the names printed in the first column)
    --strict  WARN counts as FAIL (for the day the infinite-animation and the other
              "not yet" rules become hard rules)
@@ -186,33 +186,95 @@ function checkProgressKeys(ctx, r) {
     scored += sc.length;
     inlineN += exs.length - sc.length;
     const wt = {};
+    /* Every exercise in the working tree carries its key as an id. The positional
+       fallback in lib/keys.js (and site.js) is only there to read pages at the base,
+       from before the ids were written in; here it would hand out a key by counting. */
     sc.forEach(e => {
       if (wt[e.key]) r.fail(p + ":" + e.line + ": duplicate scored key `" + e.key + "` (first at line " + wt[e.key].line + ")");
       wt[e.key] = e;
+      if (!e.id) r.fail(p + ":" + e.line + ": scored exercise without an id (the positional fallback would key it `" + e.key + "`); give it an id this page has never used");
     });
     const dupInline = {};
     exs.filter(e => e.inline).forEach(e => {
       if (dupInline[e.key]) r.fail(p + ":" + e.line + ": duplicate inline key `" + e.key + "`");
       dupInline[e.key] = e;
-      if (!e.id) r.warn(p + ":" + e.line + ": inline exercise without an id (keyed `" + e.key + "`; README says inline checks need one)");
+      if (!e.id) r.fail(p + ":" + e.line + ": inline exercise without an id (the positional fallback would key it `" + e.key + "`); give it an id this page has never used");
     });
     const base = baseKeys[p];
-    if (!base) { r.note(p + ": new chapter page, nothing to compare"); sc.forEach(e => { if (!e.id) r.fail(p + ":" + e.line + ": new scored exercise without an id (key `" + e.key + "`)"); }); return; }
+    if (!base) { r.note(p + ": new chapter page, nothing to compare"); return; }
     Object.keys(base.map).forEach(key => {
       compared++;
       const b = base.map[key], w = wt[key];
       if (!w) { r.fail(p + ": key `" + key + "` (base line " + b.line + ", answer " + JSON.stringify(b.answer) + ") is missing in the working tree"); return; }
       if (w.fp !== b.fp) r.fail(p + ":" + w.line + ": key `" + key + "` now has a different question/answer than at base (base line " + b.line + ", base answer " + JSON.stringify(b.answer) + ", now " + JSON.stringify(w.answer) + ")");
     });
-    sc.forEach(e => {
-      if (!base.map[e.key]) {
-        newScored++;
-        if (!e.id) r.fail(p + ":" + e.line + ": scored exercise new since base has no id (would be keyed `" + e.key + "`)");
-      }
-    });
+    sc.forEach(e => { if (!base.map[e.key]) newScored++; });
   });
   r.count = compared;
   r.note("working tree: " + total + " exercises (" + scored + " scored, " + inlineN + " inline) on " + wtChapterPages.length + " chapter pages; " + compared + " base keys compared; " + newScored + " scored exercises new since base; " + baseSet.size + " base pages");
+}
+
+/* An id is a link target and, on an exercise, the key its progress is saved under.
+   Two elements sharing one leave both ambiguous: the browser picks the first. */
+function checkIds(ctx, r) {
+  ctx.pages.forEach(page => {
+    const seen = {};
+    for (const el of ctx.docs[page].elements()) {
+      if (!el.id) continue;
+      r.count++;
+      (seen[el.id] = seen[el.id] || []).push(el);
+    }
+    Object.keys(seen).forEach(id => {
+      const els = seen[id];
+      if (els.length > 1) r.fail(page + ":" + els[1].line + ": id " + JSON.stringify(id) + " is on " + els.length + " elements (" + els.map(el => "<" + el.name + "> line " + el.line).join(", ") + ")");
+    });
+  });
+}
+
+/* ------------------------------------------------------- lesson steps -- */
+
+/* startsStep / endsStep of assets/lesson.js, on lib/html.js nodes */
+function startsStep(el) {
+  return el.name === "h2" || el.hasClass("practice") || el.hasClass("recap");
+}
+function endsStep(el) {
+  return el.hasClass("puzzle") || el.hasClass("warmup") || el.hasClass("ex") || el.hasClass("practice") ||
+    (el.name === "details" && el.hasClass("reveal")) ||
+    (el.name === "figure" && !!el.query(".widget"));
+}
+/* how many steps lesson.js cuts the top-level children of <main id="main"> into. This
+   counts the markup as written; what scripts add to <main> before the cut (the mode
+   switch, the feedback note) is the same on both sides of a comparison. */
+function lessonSteps(doc) {
+  const main = doc.query("#main");
+  if (!main) return 0;
+  const steps = [[]];
+  main.children_elements.forEach(el => {
+    let cur = steps[steps.length - 1];
+    if (startsStep(el) && cur.length) { cur = []; steps.push(cur); }
+    cur.push(el);
+    if (endsStep(el)) steps.push([]);
+  });
+  return steps.filter(s => s.length).length;
+}
+
+/* bm.lesson.v1 remembers how far a reader has got as a step number (reached[chapter]),
+   so a chapter that is cut into a different number of steps reopens at another place. */
+function checkLessonSteps(ctx, r) {
+  if (!git.resolveRef(ROOT, BASE)) { r.fail("base ref " + BASE + " does not resolve"); return; }
+  let total = 0;
+  const pages = Object.keys(ctx.chapters);
+  pages.forEach(p => {
+    const now = lessonSteps(ctx.docs[p]);
+    total += now;
+    const src = git.showText(ROOT, BASE, p);
+    if (src === null) { r.note(p + ": new chapter page (" + now + " steps), nothing to compare"); return; }
+    r.count++;
+    const was = lessonSteps(parse(src));
+    if (was !== now) r.warn(p + " (chapter " + ctx.chapters[p] + "): " + now + " lesson steps, " + was + " at base");
+  });
+  r.note(total + " steps on " + pages.length + " chapter pages");
+  if (r.warns.length) r.note("a reader's saved place in a chapter is a step number: where the count changed, it now opens a different part of the chapter");
 }
 
 function checkCurriculum(ctx, r) {
@@ -663,7 +725,9 @@ function checkContrast(ctx, r) {
 const CHECKS = [
   { name: "syntax", run: checkSyntax, what: "node --check on every .js in assets/, data/, tools/" },
   { name: "es5", run: checkEs5, what: "no arrow/let/const/template/class in assets/ and data/" },
-  { name: "progress-keys", run: checkProgressKeys, what: "exercise keys and fingerprints unchanged since --base; new scored exercises have ids" },
+  { name: "progress-keys", run: checkProgressKeys, what: "exercise keys and fingerprints unchanged since --base; every exercise has an id" },
+  { name: "ids", run: checkIds, what: "no id is on more than one element of a page" },
+  { name: "lesson-steps", run: checkLessonSteps, what: "each chapter is cut into as many lesson steps as at --base (WARN)" },
   { name: "curriculum", run: checkCurriculum, what: "every chapter file exists; every section id is an <h2 id> in it" },
   { name: "links", run: checkLinks, what: "relative hrefs/srcs resolve to files, anchors to ids" },
   { name: "widgets", run: checkWidgets, what: "every data-widget / data-figure is a defined factory" },

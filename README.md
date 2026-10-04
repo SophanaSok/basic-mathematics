@@ -293,10 +293,10 @@ later `<li>` steps each wrap their content in such a `details.reveal`.
 
 #### Exercises
 
-Each exercise is a `<div class="ex">` carrying its answer key in attributes:
+Each exercise is a `<div class="ex">` carrying its `id` and its answer key in attributes:
 
 ```html
-<div class="ex" data-type="number" data-answer="26"
+<div class="ex" id="hyp-10-24" data-type="number" data-answer="26"
      data-hint="Compute a² + b², then take the square root.">
   <div class="ex-q"><p>A right triangle has legs $10$ and $24$. How long is the hypotenuse?</p></div>
   <div class="ex-solution">
@@ -315,7 +315,7 @@ Each exercise is a `<div class="ex">` carrying its answer key in attributes:
 | `data-hint` | Shown after the first wrong attempt |
 | `data-hint2` | Optional; shown after the second wrong attempt |
 | `data-inline` | Marks an unscored check ("Your turn", warm-up). Needs an `id`; `data-label` sets its heading |
-| `id` | **Required on every exercise added from now on** — see below |
+| `id` | **Required on every exercise.** It is the key the reader's work is saved under — see "Progress keys" below |
 | `data-placeholder` | Input placeholder text |
 
 For multiple choice, add a `<ul class="choices">` of `<li>` options and make `data-answer` the
@@ -355,11 +355,23 @@ A 3D scene inside an exercise also reads two attributes from the `.ex`: `data-as
 quantity `__answer()` reports, so one scene can serve several questions, and `data-start` is a JSON
 patch to its starting state (for example `'{"lock":[0,1]}'` makes two rows of `det3` read-only).
 
-**Progress keys.** A scored exercise is remembered under its `id` if it has one, and otherwise
-under its position among the id-less scored exercises of the page (`e1`, `e2`, …). The original
-exercises have no ids, so their keys are positional. Give every new exercise an `id` and nothing
-shifts; add one without an `id` above an old one and readers' saved progress moves to the wrong
-problems. Inline exercises are never stored.
+**Progress keys.** Every exercise carries an `id`, and the `id` is the key its saved work is
+stored under: a scored exercise in the chapter's solved list, and any exercise, inline checks
+included, in the attempt record. Nothing else decides the key, so a block can be moved, reordered
+or wrapped in another element and readers keep their place.
+
+The original exercises were once keyed by position among the id-less scored exercises of the page
+(`e1`, `e2`, …). `tools/assign-ids.js` wrote each of those keys into the markup as the `id`, so
+`e3` is now a name, not a count: it stays `e3` wherever the block goes, and the page's third
+exercise need not be the one called `e3`. Positional keys exist only in history. The fallback that
+computes them is still in `site.js` and `tools/lib/keys.js` so that pages at an older commit can be
+read and compared, but no page may rely on it: `check-static.js` fails any exercise without an `id`
+and any `id` used twice on a page.
+
+A new exercise takes an `id` the page has never used. **A retired `id` is never reused** — when an
+exercise is deleted its `id` goes with it, because a reader who solved the old problem would find
+the new one already marked solved. Changing an exercise's question or key under the same `id` is the
+same mistake, and the progress-key check fails on it.
 
 #### Figures
 
@@ -451,6 +463,9 @@ hint that contains its answer.
 of `<main>` into steps — a new one at every `<h2>`, and after the puzzle, the warm-up, each inline
 `.ex`, each `details.reveal`, each figure with a widget, and each practice set — and hides the
 steps not yet reached. A link to any `#id` in the chapter opens every step up to its target.
+How far a reader has got is saved as a step number, so adding or removing a top-level block that
+cuts a step moves that place; `check-static.js` warns (`lesson-steps`) when a chapter is cut into a
+different number of steps than at `--base`.
 Elements that scripts add later (the completion banner, the feedback note) appear with whatever
 they were inserted in front of. Printing shows the whole chapter.
 
@@ -518,9 +533,9 @@ header.
 `BM_PLAYWRIGHT_FROM` points (see [`tools/README.md`](tools/README.md)).
 
 ```sh
-node tools/check-static.js --base=<ref>   # syntax, ES5, progress keys vs <ref>, links, sections,
-                                          # widgets, choices, placeholders, merge laws, contrast,
-                                          # animations
+node tools/check-static.js --base=<ref>   # syntax, ES5, progress keys and lesson steps vs <ref>,
+                                          # ids, links, sections, widgets, choices, placeholders,
+                                          # merge laws, contrast, animations
 node tools/smoke-scenes.js                # every 3D scene: mount, controls, missions, answers
 node tools/check-gen.js                   # every Arena generator over 500 seeds
 node tools/game/merge.test.js             # BMAccount.merge, including the game store
@@ -541,7 +556,9 @@ node tools/check-browser.js               # every page × theme × width in head
 ```
 
 `--base` should be the last commit readers' progress was saved against: the progress-key check
-fails if any existing exercise's key or question changed, or if a new scored exercise has no `id`.
+fails if any existing exercise's key or question changed, or if any exercise has no `id`. The
+same run fails an `id` that appears twice on a page, and warns when a chapter is cut into a different
+number of lesson steps than at `<ref>`.
 
 Still checked by hand: the solution of a multiple-choice question states the option the key
 names; a new `order` list is authored in the right order; a new puzzle's tempting guess in
