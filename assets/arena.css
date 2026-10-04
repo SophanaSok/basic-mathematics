@@ -30,6 +30,8 @@ body[data-arena-screen="run"] .arena-intro h1 { font-size: clamp(1.5rem, 1.2rem 
 .arena-context h2, .arena-resume h2 { color: var(--part-deep); }
 :root[data-theme="dark"] .arena-context h2, :root[data-theme="dark"] .arena-resume h2 { color: var(--part); }
 .arena-empty { background: var(--surface-2); border-style: dashed; border-color: var(--border-strong); }
+.arena-notice { margin: 0; border-color: var(--border-strong); background: var(--surface-2); }
+.arena-calmnote { margin: 0; }
 
 /* ------------------------------------------------------------ modes ---- */
 
@@ -46,6 +48,8 @@ body[data-arena-screen="run"] .arena-intro h1 { font-size: clamp(1.5rem, 1.2rem 
 .arena-mode:active { transform: translateY(4px); box-shadow: 0 0 0 var(--edge); }
 .arena-mode:focus-visible { outline: 3px solid var(--focus); outline-offset: 3px; }
 .arena-mode[disabled] { cursor: default; filter: none; transform: none; opacity: .5; box-shadow: var(--shadow-tile-sm); }
+/* today's Daily, already played: flat and dashed, but its result stays readable */
+.arena-mode[data-done] { opacity: 1; box-shadow: none; border-style: dashed; }
 .arena-mode-name { font-family: var(--display); font-weight: 800; font-size: 1.3rem; letter-spacing: -.02em; line-height: 1.15; }
 .arena-mode-meta { font-size: .88rem; font-weight: 600; }
 .arena-mode-extra, .arena-mode-best { font-size: .8rem; opacity: .9; }
@@ -143,7 +147,8 @@ html[data-calm] .arena-hearts { display: none; }
   background: repeating-linear-gradient(45deg, var(--line-ui) 0 3px, var(--surface-2) 3px 7px);
 }
 .arena-par[data-urgency="stopped"] .arena-par-fill { background: var(--line-ui); }
-.arena-par.is-paused { opacity: .5; }
+/* paused: only the bar fades; the time and its label keep full text contrast */
+.arena-par.is-paused .arena-par-track { opacity: .5; }
 .arena-par-read { flex: none; min-width: 7.5rem; text-align: right; font-size: .8rem; color: var(--muted); white-space: nowrap; }
 .arena-par-text { font-family: var(--display); font-weight: 800; font-size: 1.35rem; color: var(--text); font-variant-numeric: tabular-nums; }
 .arena-par[data-urgency="low"] .arena-par-text { color: var(--hint-ink); }

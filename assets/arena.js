@@ -11,12 +11,18 @@
    Rules that keep the teaching first: speed is a threshold (par), not a gradient;
    a wrong check stops the clock, shows the hint and allows one untimed retry; a
    pass or a timeout never costs a heart, so guessing is always worse than saying
-   "I don't know". Shaky and hand-picked new sections come without clock or hearts.
+   "I don't know". Shaky and hand-picked new sections come without clock or hearts;
+   on a question without a heart, "I don't know" leads to the same hint and retry
+   as a wrong answer and that retry scores nothing, so a guess never beats a pass.
+   Calm mode switched on during a run turns the rest of it Untimed.
 
    The run lives in bm.run.v1.arena and is saved after every answer (and each
    second while the clock runs), so a reload resumes the same question with the
-   same elapsed time. XP is paid once, when the run is settled. Nothing here writes
-   bm.attempts.v1 or bm.progress.v1, and no .ex element is ever created.
+   same elapsed time. XP is paid once, when the run is settled: bm.run.v1.paid
+   lists the runs already settled, so a run open in two tabs is paid once. The
+   Daily is one attempt a day (bm.run.v1.daily keeps today's result for the lobby).
+   Nothing here writes bm.attempts.v1 or bm.progress.v1, and no .ex element is
+   ever created.
    window.BMGame, BMSfx and the HUD are optional: each is feature-detected.
    =========================================================================== */
 (function () {
@@ -116,6 +122,24 @@
     var r = Store.read(RUN_KEY, {});
     return r && typeof r === "object" ? r : {};
   }
+
+  /* The ledger of settled runs, by id. Settling checks it and adds to it in one write,
+     so a second tab holding the same run (resumed there) can never pay it again. */
+  var PAID_KEEP = 30;
+  function runId(r) { return r ? String(r.id || r.started + ":" + r.seed) : ""; }
+  function paidIds(all) { return Array.isArray(all.paid) ? all.paid : []; }
+  function wasPaid(r) { return paidIds(runStore()).indexOf(runId(r)) > -1; }
+
+  /* The Daily is one attempt a day: spent once a Daily with an answer in it is settled
+     on this device, finished or banked (the result is kept for the lobby), or once one
+     was played through on another (the synced bm.game.v1.daily). */
+  function dailyOn(day) {
+    var d = runStore().daily;
+    return d && typeof d === "object" && d.day === day ? d : null;
+  }
+  function dailySpent(day) { return !!((gameStore().daily || {})[day] || dailyOn(day)); }
+  function dailyToday() { return dailyOn(today()); }
+  function dailyDone() { return dailySpent(today()); }
 
   /* ------------------------------------------------------ the curriculum -- */
 
@@ -291,10 +315,25 @@
     return out;
   }
 
+  /* a run settled in another tab is never written back over the settled copy */
   function saveRun(silent) {
     var all = runStore();
+    if (run && !run.done && paidIds(all).indexOf(runId(run)) > -1) return;
     all.arena = run;
     Store.write(RUN_KEY, all, silent !== false);
+  }
+  /* true (and back to the lobby) when the run on screen was settled in another tab */
+  var lobbyNote = "";
+  function leaveSettled() {
+    if (run) stopClock();
+    run = null;
+    lobbyNote = "That run was settled in another tab, where its XP was paid, so it ends here.";
+    renderLobby();
+  }
+  function settledElsewhere() {
+    if (!run || run.done || !wasPaid(run)) return false;
+    leaveSettled();
+    return true;
   }
   function clearRun() {
     var all = runStore();
@@ -305,17 +344,26 @@
     return !!(r && typeof r === "object" && r.qs && r.qs.length && MODES[r.mode] && r.cur &&
       r.qs.every(function (q) { return Gen.get(q.g); }));
   }
+  /* a saved run that can still be resumed or banked */
+  function openRun(r) { return validRun(r) && !r.done && !wasPaid(r); }
   function freshCur() { return { el: 0, phase: "ask", paused: false, given: "" }; }
 
   function startRun(mode, opt) {
-    /* an unfinished run is banked first, so nothing earned is ever lost */
+    if (mode === "daily" && dailyDone()) { renderLobby(); return; }
     var old = runStore().arena;
-    if (validRun(old) && !old.done) settle(old, "banked");
+    /* today's Daily, left unfinished, is picked up again rather than dealt a second time */
+    if (mode === "daily" && openRun(old) && old.mode === "daily" && old.day === today()) {
+      run = old; run.cur.paused = false; renderRun(); return;
+    }
+    /* an unfinished run is banked first, so nothing earned is ever lost */
+    if (openRun(old)) settle(old, "banked");
     var plan = planRun(mode, opt);
     if (plan.error) { renderLobby(); return; }
+    var t0 = now();
     run = {
-      v: 1, mode: mode, boss: mode === "boss" ? opt.boss : null, section: mode === "repair" ? opt.section : null,
-      day: today(), tempo: plan.tempo, seed: plan.seed, started: now(),
+      v: 1, id: t0.toString(36) + "-" + plan.seed.toString(36), calm: calm(),
+      mode: mode, boss: mode === "boss" ? opt.boss : null, section: mode === "repair" ? opt.section : null,
+      day: today(), tempo: plan.tempo, seed: plan.seed, started: t0,
       hearts: plan.heartsOn ? HEARTS : null, max: HEARTS, score: 0, streak: 0, bestStreak: 0,
       qs: plan.qs, i: 0, ans: [], cur: freshCur(), done: false, paid: false, ended: null
     };
@@ -439,22 +487,26 @@
     return s;
   }
 
+  /* no heart at stake on this question: a shaky or hand-picked section, Untimed, calm */
+  function heartFree() { return run.hearts === null || !!q().hf; }
+
   function record(entry) {
     var cur = q();
     entry.section = cur.sec;
     entry.due = cur.due;
     entry.timed = cur.timed;
+    entry.hf = heartFree();
     run.ans[run.i] = entry;
   }
 
   function loseHeart() {
-    if (run.hearts === null || q().hf || run.hearts <= 0) return false;
+    if (heartFree() || run.hearts <= 0) return false;
     run.hearts--;
     return true;
   }
 
   function check() {
-    if (!run || run.done || run.cur.paused) return;
+    if (!run || run.done || run.cur.paused || settledElsewhere()) return;
     var phase = run.cur.phase;
     if (phase === "done") { next(); return; }
     var given = view.input.value;
@@ -486,8 +538,10 @@
         if (lost) { sfx("heart-lost"); view.justLost = true; }
       }
     } else if (phase === "retry") {
+      /* the retry pays 30 only where the miss cost a heart could; without a heart at
+         stake it scores nothing, so a guess first is never better than passing */
       var a = run.ans[run.i];
-      if (ok) { a.retry = true; a.pts = 30; run.score += 30; sfx("correct"); }
+      if (ok) { a.retry = true; a.pts = a.hf ? 0 : 30; run.score += a.pts; sfx("correct"); }
       else { a.second = true; sfx("miss"); }
       run.cur.phase = "done";
     }
@@ -496,18 +550,22 @@
     paintQuestionState(true);
   }
 
+  /* "I don't know". With a heart at stake it shows the worked solution; without one it
+     brings up the same hint and retry a wrong answer would, so the two are worth the same */
   function pass() {
-    if (!run || run.done || run.cur.paused) return;
+    if (!run || run.done || run.cur.paused || settledElsewhere()) return;
+    var phase = "done";
     if (run.cur.phase === "ask") {
       var el = elapsed();
       stopClock();
       run.cur.el = Math.min(el, 2 * q().par);
       run.streak = 0;
       record({ first: false, retry: false, pass: true, timeout: false, miss: false, late: false, pts: 0 });
+      if (heartFree()) phase = "retry";
     } else if (run.cur.phase === "retry") {
       run.ans[run.i].gaveUp = true;
     } else return;
-    run.cur.phase = "done";
+    run.cur.phase = phase;
     saveRun(false);
     Store.emit({ type: "arena", phase: "answer", index: run.i, correct: false, pass: true });
     paintQuestionState(true);
@@ -527,7 +585,7 @@
   }
 
   function next() {
-    if (!run || run.cur.phase !== "done") return;
+    if (!run || run.cur.phase !== "done" || settledElsewhere()) return;
     if (run.hearts === 0) { finish("hearts"); return; }
     if (run.i + 1 >= run.qs.length) { finish("complete"); return; }
     run.i++;
@@ -546,22 +604,42 @@
     else run.cur.paused = false;
     saveRun(true);
     paintPause();
-    if (!on) { startClock(); if (view.input && !view.input.disabled) view.input.focus(); }
+    /* focus goes back where the reader was: the answer box, or Next once answered */
+    if (!on) {
+      startClock();
+      var nb = run.cur.phase === "done" ? view.feedback.querySelector('[data-act="next"]') : null;
+      if (nb) nb.focus();
+      else if (view.input && !view.input.disabled) view.input.focus();
+    }
     say(on ? "Paused. The question is hidden until you resume." : "Resumed.");
+  }
+
+  /* Calm mode switched on during a run that began without it: from here on the run is
+     Untimed, with no clock and no hearts, and it is scored as untimed (no best, no
+     medal). Switching calm off again leaves it so; the next run follows the setting. */
+  function calmRun() {
+    if (!run || run.done || run.calm || run.calmed || !calm()) return false;
+    stopClock();
+    run.calmed = true;
+    run.tempo = "untimed";
+    run.hearts = null;
+    for (var k = run.i; k < run.qs.length; k++) { run.qs[k].timed = false; run.qs[k].hf = true; }
+    saveRun(true);
+    return true;
   }
 
   /* --------------------------------------------------------- settling ---- */
 
   function buildResult(r, reason) {
     var answers = r.ans.filter(Boolean).map(function (a) {
-      return { section: a.section, first: !!a.first, retry: !!a.retry, pass: !!a.pass, timeout: !!a.timeout, late: !!a.late, due: !!a.due };
+      return { section: a.section, first: !!a.first, retry: !!a.retry, pass: !!a.pass, timeout: !!a.timeout, late: !!a.late, due: !!a.due, hf: !!a.hf };
     });
     var finished = reason === "complete";
     var firsts = answers.filter(function (a) { return a.first; }).length;
     var parts = { first: 0, retry: 0, finish: 0, daily: 0 };
     answers.forEach(function (a) {
       if (a.first) parts.first += a.due ? 3 : 2;
-      else if (a.retry) parts.retry += 1;
+      else if (a.retry && !a.hf) parts.retry += 1;
     });
     if (finished && r.qs.length === 10 && answers.length === 10 && (r.hearts === null || r.hearts > 0)) parts.finish = 5;
     if (finished && r.mode === "daily" && !(gameStore().daily || {})[r.day]) parts.daily = 10;
@@ -574,26 +652,34 @@
       tempo: r.tempo, ranked: ranked, timed: TEMPO[r.tempo] > 0 && r.mode !== "repair",
       finished: finished, ended: reason, n: answers.length, planned: r.qs.length,
       firstTry: firsts, bestStreak: r.bestStreak || 0, medal: medal,
-      /* the game layer's rule, kept here for when it is absent: every answer right,
-         at least four in five of them first time */
-      repaired: r.mode === "repair" && answers.length > 0 && firsts / answers.length >= 0.8 &&
-        answers.every(function (a) { return a.first || a.retry; }),
+      /* the game layer's rule, kept here for when it is absent: played to the end, every
+         answer right, at least four in five of them first time */
+      repaired: r.mode === "repair" && finished && answers.length > 0 && answers.length >= r.qs.length &&
+        firsts / answers.length >= 0.8 && answers.every(function (a) { return a.first || a.retry; }),
       xp: parts.first + parts.retry + parts.finish + parts.daily, xpParts: parts
     };
   }
 
-  /* pay once: the paid flag is saved before anything is paid */
+  /* Pay once: the run's id joins the ledger of paid runs, in the same write that marks
+     it done, before anything is paid. A run already in the ledger (settled in another
+     tab) is closed without paying and returns null. */
   function settle(r, reason) {
     if (r.paid) return r.result;
+    var all = runStore(), ledger = paidIds(all), id = runId(r);
+    if (ledger.indexOf(id) > -1) { r.done = true; r.paid = true; r.ended = reason; return null; }
+    /* a Daily dealt before that day's was spent (another tab, another device) pays nothing */
+    var replay = r.mode === "daily" && dailySpent(r.day);
     var result = buildResult(r, reason);
     r.done = true;
     r.paid = true;
     r.ended = reason;
     r.result = result;
-    var all = runStore();
+    all.paid = ledger.concat([id]).slice(-PAID_KEEP);
     all.arena = reason === "banked" ? null : r;
     Store.write(RUN_KEY, all, true);
-    if (gameHas("recordRun")) {
+    if (replay) {
+      result.xp = 0; result.xpParts = null; result.replay = true;
+    } else if (gameHas("recordRun")) {
       /* the game layer pays the XP and keeps recall, bests, Daily and medals; a medal
          is only at stake in a timed rematch with hearts that was not abandoned */
       var payload = {}, fixBefore = fixOf(result.section);
@@ -604,9 +690,17 @@
       var back = gameCall("recordRun", payload);
       if (back && typeof back.xp === "number") { result.xp = back.xp; result.xpParts = null; }
       result.medal = payload.boss && back ? back.medal || 0 : 0;
+      /* a ranked rematch that kept a heart and still won nothing: the set is not cleared */
+      if (payload.boss && back && back.cleared === false) result.uncleared = true;
       if (result.mode === "repair") result.repaired = fixOf(result.section) > fixBefore;
-      if (reason !== "banked") { all = runStore(); all.arena = r; Store.write(RUN_KEY, all, true); }
     } else fallbackRecord(result);
+    /* the game layer may have written the run store meanwhile: read it again */
+    all = runStore();
+    if (reason !== "banked") all.arena = r;
+    if (r.mode === "daily" && result.n && !result.replay) {
+      all.daily = { day: r.day, score: result.score, firstTry: result.firstTry, n: result.n, planned: result.planned, ended: reason };
+    }
+    Store.write(RUN_KEY, all, true);
     Store.emit({ type: "arena", phase: "end", result: result });
     return result;
   }
@@ -655,7 +749,7 @@
 
   function finish(reason) {
     stopClock();
-    settle(run, reason);
+    if (!settle(run, reason)) { leaveSettled(); return; }
     sfx("run-end");
     hud(null);
     renderResult();
@@ -682,9 +776,10 @@
 
   function bests() { var b = gameStore().best; return b && typeof b === "object" ? b : {}; }
 
+  /* disabled is true (greyed: nothing to start yet) or "done" (spent for today, still legible) */
   function modeTile(mode, meta, extra, disabled) {
     var best = bests()[mode];
-    return '<button type="button" class="arena-mode" data-act="start" data-mode="' + mode + '"' + (disabled ? " disabled" : "") + ">" +
+    return '<button type="button" class="arena-mode" data-act="start" data-mode="' + mode + '"' + (disabled ? " disabled" : "") + (disabled === "done" ? ' data-done="true"' : "") + ">" +
       '<span class="arena-mode-name">' + MODES[mode].label + "</span>" +
       '<span class="arena-mode-meta">' + meta + "</span>" +
       (extra ? '<span class="arena-mode-extra">' + extra + "</span>" : "") +
@@ -705,7 +800,7 @@
   }
 
   function resumeHtml(r) {
-    if (!validRun(r) || r.done) return "";
+    if (!openRun(r)) return "";
     var answered = r.ans.filter(Boolean).length;
     var bits = [MODES[r.mode].label, "question " + Math.min(r.qs.length, r.i + 1) + " of " + r.qs.length, plural(r.score, "point")];
     if (r.hearts !== null) bits.splice(2, 0, r.hearts + " of " + r.max + " hearts");
@@ -733,10 +828,15 @@
           '<div class="arena-actions"><button type="button" class="btn" data-act="start" data-mode="standard">Start a Standard run</button></div></div>';
       }
       var untried = ids.filter(function (id) { return statusOf(d, id) === "new"; });
+      /* a rematch raises a medal the set has earned; before the set is cleared it wins none */
+      var uncleared = gameCall("cleared", ch.id) === false;
       html += '<div class="arena-card arena-context" data-part="' + ch.part.id + '"><h2>Boss rematch: ' + esc(title) + "</h2>" +
-        "<p>Ten questions from " + ids.map(function (id) { return esc(secInfo(id).label); }).join(", ") + ". Finish with all three hearts for Gold, with one or two for Silver.</p>";
+        "<p>Ten questions from " + ids.map(function (id) { return esc(secInfo(id).label); }).join(", ") + ". " +
+        (uncleared
+          ? 'A rematch can only raise the medal of a cleared set, so until you <a href="' + esc(root() + ch.path + "#practice") + '">clear the practice set on the chapter page</a> it is practice and wins no medal.'
+          : "Finish with all three hearts for Gold, with one or two for Silver.") + "</p>";
       if (untried.length) html += '<p class="arena-fine">' + esc(untried.map(secName).join(", ")) + (untried.length === 1 ? " is" : " are") + " not in your deck yet, so " + (untried.length === 1 ? "its questions come" : "their questions come") + " without clock or hearts.</p>";
-      if (tempo() === "untimed" || calm()) html += '<p class="arena-fine">Medals need the clock and hearts, so with this tempo the rematch is practice only.</p>';
+      if (!uncleared && (tempo() === "untimed" || calm())) html += '<p class="arena-fine">Medals need the clock and hearts, so with this tempo the rematch is practice only.</p>';
       return html + '<div class="arena-actions"><button type="button" class="btn big" data-act="start" data-mode="boss">Start the rematch</button></div></div>';
     }
     if (params.repair) {
@@ -802,8 +902,10 @@
       "<li>Right first time within par: <b>100</b>, plus 20 for each answer in your current streak (up to +100).</li>" +
       "<li>Right first time after par, before the time runs out at twice par: <b>60</b>, and the streak holds.</li>" +
       "<li>Wrong: the clock stops, the hint appears, and you get one untimed retry worth <b>30</b>. A wrong answer costs a heart, at most one per question.</li>" +
-      "<li>“I don't know” and running out of time score nothing but never cost a heart, so a guess is always worse than passing.</li>" +
+      "<li>“I don't know” and running out of time score nothing but never cost a heart, so where a heart is at stake a guess is always worse than passing.</li>" +
+      "<li>Where no heart is at stake (shaky sections, sections you pick by hand, Untimed tempo, calm mode), “I don't know” brings up the same hint and retry as a wrong answer, and that retry scores nothing, so a guess never beats passing.</li>" +
       "<li>Shaky sections, sections you pick by hand, and problems with only a few possible answers come without the clock.</li>" +
+      "<li>The Daily is one attempt a day: once a Daily you have answered in ends, finished or banked, the next one comes with tomorrow's seed.</li>" +
       "<li>The clock stops while you read feedback, while paused, and while the page is hidden. Being faster than par earns nothing extra.</li>" +
       "</ul></details>";
   }
@@ -814,8 +916,8 @@
     view = {};
     setScreen("lobby");
     var d = deck(), saved = runStore().arena, dk = deckHtml(d);
-    var dailyDone = !!(gameStore().daily || {})[today()];
     var html = '<div class="arena-lobby">';
+    if (lobbyNote) { html += '<p class="arena-card arena-notice" role="status">' + esc(lobbyNote) + "</p>"; lobbyNote = ""; }
     html += resumeHtml(saved);
     html += contextHtml(d);
     if (!dk.count) {
@@ -828,7 +930,7 @@
     if (!params.boss && !params.repair || dk.count) {
       html += '<div class="arena-modes" role="group" aria-label="Start a run">' +
         modeTile("standard", "10 questions · 3 hearts", dk.hard ? "" : (dk.count ? "Untimed until a section is solid" : ""), !dk.count) +
-        modeTile("daily", "5 questions · today's seed", dailyDone ? "Bonus taken today" : "+10 XP once a day", !dk.count) +
+        dailyTile(dk, saved) +
         "</div>";
       if (dk.count && dk.count < 2) html += '<p class="arena-fine">With one section ready a run stops at five questions, so it never leans on one section for more than half.</p>';
     }
@@ -839,11 +941,24 @@
     screenEl().innerHTML = html;
   }
 
+  /* One attempt a day: once spent, the tile shows today's result and waits for tomorrow;
+     an unfinished Daily from today is picked up again by the same tile. */
+  function dailyTile(dk, saved) {
+    if (dailyDone()) {
+      var t = dailyToday();
+      var said = t ? "Done today: " + plural(t.score, "point") + ", " + t.firstTry + " of " + t.n + " first try" : "Done today";
+      return modeTile("daily", "5 questions · today's seed", esc(said) + ". A new one tomorrow.", "done");
+    }
+    var open = openRun(saved) && saved.mode === "daily" && saved.day === today();
+    return modeTile("daily", "5 questions · today's seed", open ? "Today's run is waiting where you left it" : "+10 XP once a day · one attempt", !open && !dk.count);
+  }
+
   function screenEl() { return host.querySelector(".arena-screen"); }
 
   /* --------------------------------------------------------------- run ---- */
 
   function renderRun() {
+    calmRun();
     setScreen("run");
     var html = '<section class="arena-run" aria-label="' + esc(MODES[run.mode].label) + '">' +
       '<div class="arena-status">' +
@@ -853,6 +968,7 @@
       '<span class="arena-streak" title="Answers right first time within par, in a row">Streak <b data-streak>0</b></span>' +
       '<button type="button" class="btn ghost small arena-pause" data-act="pause" aria-keyshortcuts="Escape">Pause</button>' +
       "</div>" +
+      '<p class="arena-fine arena-calmnote" hidden>Calm mode was switched on during this run, so the rest of it has no clock and no hearts, and it counts as an Untimed run.</p>' +
       '<div class="arena-par" role="timer" data-urgency="ok" hidden>' +
       '<span class="arena-par-track" aria-hidden="true"><span class="arena-par-fill"></span></span>' +
       '<span class="arena-par-read" aria-hidden="true"><b class="arena-par-text">0:00</b> <span class="arena-par-label">to par</span></span>' +
@@ -885,7 +1001,8 @@
       text: el.querySelector(".arena-q-text"), input: el.querySelector("#arena-answer"),
       checkBtn: el.querySelector('[data-act="check"]'), passBtn: el.querySelector('[data-act="pass"]'),
       nudge: el.querySelector(".arena-nudge"), feedback: el.querySelector(".arena-feedback"),
-      pausebox: el.querySelector(".arena-pausebox"), pauseBtn: el.querySelector(".arena-pause")
+      pausebox: el.querySelector(".arena-pausebox"), pauseBtn: el.querySelector(".arena-pause"),
+      calmNote: el.querySelector(".arena-calmnote")
     };
     view.input.addEventListener("keydown", function (e) {
       if (e.key === "Enter") { e.preventDefault(); check(); }
@@ -898,6 +1015,7 @@
     view.score.textContent = String(run.score);
     view.streak.textContent = String(run.streak);
     view.hearts.innerHTML = run.hearts === null ? "" : heartsHtml(run.hearts, run.max);
+    view.calmNote.hidden = !run.calmed;
     if (view.justLost) {
       var gone = view.hearts.querySelectorAll(".arena-hearts i")[run.hearts];
       if (gone) gone.setAttribute("data-break", "true");
@@ -918,12 +1036,7 @@
     var info = secInfo(cur.sec);
     view.card.setAttribute("data-part", info ? info.part : "algebra");
     view.sec.textContent = info ? info.label + " " + info.section.title : cur.sec;
-    var tag = "";
-    if (cur.st === "shaky" && !cur.timed && run.mode !== "repair" && TEMPO[run.tempo] > 0) tag = "Untimed, no heart: still settling";
-    else if (cur.st === "new" && run.mode !== "repair") tag = "Untimed, no heart: picked by hand";
-    else if (!cur.timed && TEMPO[run.tempo] > 0 && run.mode !== "repair") tag = "Untimed: few possible answers";
-    view.tag.textContent = tag;
-    view.tag.hidden = !tag;
+    paintTag();
     view.text.textContent = prob.q;
     Site.renderMath(view.text);
     view.input.value = run.cur.phase === "ask" ? "" : run.cur.given || "";
@@ -937,6 +1050,15 @@
       if (run.cur.phase === "done") { var nb = view.feedback.querySelector('[data-act="next"]'); if (nb) nb.focus(); }
       else view.input.focus();
     }
+  }
+
+  function paintTag() {
+    var cur = q(), tag = "";
+    if (cur.st === "shaky" && !cur.timed && run.mode !== "repair" && TEMPO[run.tempo] > 0) tag = "Untimed, no heart: still settling";
+    else if (cur.st === "new" && run.mode !== "repair") tag = "Untimed, no heart: picked by hand";
+    else if (!cur.timed && TEMPO[run.tempo] > 0 && run.mode !== "repair") tag = "Untimed: few possible answers";
+    view.tag.textContent = tag;
+    view.tag.hidden = !tag;
   }
 
   function stepsHtml(open) {
@@ -968,9 +1090,13 @@
       view.feedback.innerHTML = "";
       view.feedback.removeAttribute("data-kind");
     } else if (phase === "retry") {
-      html = '<p class="arena-verdict" data-kind="no">✗ Not right' + (a && a.lost ? ", and that cost a heart." : ".") + "</p>" +
+      /* reached by a wrong answer, or by "I don't know" where no heart is at stake */
+      html = (a && a.pass
+        ? '<p class="arena-verdict" data-kind="pass">No heart at stake here, so first a hint.</p>'
+        : '<p class="arena-verdict" data-kind="no">✗ Not right' + (a && a.lost ? ", and that cost a heart." : ".") + "</p>") +
         '<div class="arena-hint"><span class="arena-hint-label">Hint</span><p class="arena-hint-text"></p></div>' +
-        '<p class="arena-next">' + (cur.timed ? "The clock has stopped. " : "") + "Try once more, or open the solution.</p>";
+        '<p class="arena-next">' + (cur.timed ? "The clock has stopped. " : "") + "Try once more, or open the solution." +
+        (a && a.hf ? " Without a heart at stake, the second try scores no points." : "") + "</p>";
       view.feedback.setAttribute("data-kind", "retry");
     } else if (a) {
       if (a.first) {
@@ -979,7 +1105,7 @@
           stepsHtml(false) + nextBtn;
         view.feedback.setAttribute("data-kind", "ok");
       } else if (a.retry) {
-        html = '<p class="arena-verdict" data-kind="ok">✓ Correct on the second try. <b>+30</b></p>' + stepsHtml(false) + nextBtn;
+        html = '<p class="arena-verdict" data-kind="ok">✓ Correct on the second try.' + (a.pts ? " <b>+" + a.pts + "</b>" : "") + "</p>" + stepsHtml(false) + nextBtn;
         view.feedback.setAttribute("data-kind", "ok");
       } else if (a.timeout) {
         html = '<p class="arena-verdict" data-kind="time">Time ran out. No heart lost.</p>' + stepsHtml(true) + nextBtn;
@@ -1054,12 +1180,18 @@
     if (res.mode === "boss") {
       html += res.medal
         ? '<p class="arena-medal" data-medal="' + res.medal + '">' + (res.medal === 3 ? "Gold medal: all three hearts kept." : res.medal === 2 ? "Silver medal: finished with a heart to spare." : "Bronze medal: you saw the rematch through.") + "</p>"
-        : '<p class="arena-fine">' + (res.ranked ? "No medal this time: finish with at least one heart to earn one." : "Untimed rematches are practice only and win no medal.") + "</p>";
+        : '<p class="arena-fine">' + (!res.ranked ? "Untimed rematches are practice only and win no medal."
+          : res.ended === "banked" ? "A banked rematch wins no medal."
+          : res.uncleared ? "No medal: a rematch can only raise the medal of a cleared set. Clear this chapter's practice set on its page, and a rematch like this one will count."
+          : "No medal this time: finish with at least one heart to earn one.") + "</p>";
     }
     if (res.mode === "repair") {
       html += "<p>" + res.firstTry + " of " + res.n + " right first time. " +
-        (res.repaired ? "That is enough to mark " + esc(secName(res.section)) + " as repaired." : "Every answer right, four of them first time, marks it repaired; reread it and try again whenever you like.") + "</p>";
+        (res.repaired ? "That is enough to mark " + esc(secName(res.section)) + " as repaired."
+          : res.finished ? "Every answer right, four of them first time, marks it repaired; reread it and try again whenever you like."
+          : "A repair counts once all " + res.planned + " questions are answered, every one right and four of them first time. Start it again whenever you like.") + "</p>";
     }
+    if (res.replay) html += '<p class="arena-fine">That day\'s Daily had already been played, here or in another tab or on another device, so this one pays no XP and keeps no best.</p>';
     html += '<div class="arena-stats">';
     if (res.hearts !== null) html += tile("Hearts left", res.hearts + " <small>of " + res.maxHearts + "</small>", heartsHtml(res.hearts, res.maxHearts));
     html += tile("First try", res.firstTry + " <small>of " + res.n + "</small>", res.n < res.planned ? plural(res.planned - res.n, "question") + " not reached" : "");
@@ -1083,7 +1215,7 @@
       html += "<p>Every answer was right first time. Nothing to reread from this run.</p>";
     }
     html += "</div>";
-    html += '<div class="arena-actions"><button type="button" class="btn" data-act="again">Another run</button>' +
+    html += '<div class="arena-actions"><button type="button" class="btn" data-act="again">' + (res.mode === "daily" ? "A Standard run" : "Another run") + "</button>" +
       '<button type="button" class="btn ghost" data-act="lobby">Back to the lobby</button></div>';
     html += "</section>";
     screenEl().innerHTML = html;
@@ -1114,11 +1246,11 @@
       startRun(mode, { boss: params.boss, section: params.repair });
     } else if (act === "resume") {
       var saved = runStore().arena;
-      if (validRun(saved) && !saved.done) { run = saved; run.cur.paused = false; renderRun(); }
+      if (openRun(saved)) { run = saved; run.cur.paused = false; renderRun(); }
       else renderLobby();
     } else if (act === "bank") {
       var r = runStore().arena;
-      if (validRun(r) && !r.done) { run = r; settle(run, "banked"); renderResult(); }
+      if (openRun(r)) { run = r; if (settle(run, "banked")) renderResult(); else leaveSettled(); }
       else renderLobby();
     } else if (act === "check") check();
     else if (act === "pass") pass();
@@ -1127,7 +1259,8 @@
     else if (act === "unpause") pause(false);
     else if (act === "leave") { stopClock(); saveRun(false); renderLobby(); }
     else if (act === "again") {
-      var m = run && run.mode;
+      /* the Daily is once a day, so after it comes a Standard run */
+      var m = run && run.mode !== "daily" ? run.mode : "standard";
       var opt = { boss: run && run.boss, section: run && run.section };
       clearRun();
       startRun(m || "standard", opt);
@@ -1178,7 +1311,16 @@
       renderLobby();
     } else if ((c.type === "sync" || c.type === "prefs") && screen === "lobby") {
       renderLobby();
+    } else if (c.type === "prefs" && screen === "run" && calmRun()) {
+      paintTag();
+      paintQuestionState(false);
+      say("Calm mode is on: no clock and no hearts for the rest of this run, and it counts as an Untimed run.");
     }
+  });
+
+  /* another tab settled the run on screen: leave it, rather than play on and pay twice */
+  window.addEventListener("storage", function (e) {
+    if (e.key === RUN_KEY && screen === "run") settledElsewhere();
   });
 
   /* ---------------------------------------------------------------- go --- */
@@ -1199,6 +1341,9 @@
     if (saved0.done) {
       if (wasReload() && saved0.result) { run = saved0; renderResult(); }
       else { clearRun(); renderLobby(); }
+    } else if (!openRun(saved0)) {
+      clearRun();
+      renderLobby();
     } else if (wasReload()) {
       run = saved0;
       renderRun();
