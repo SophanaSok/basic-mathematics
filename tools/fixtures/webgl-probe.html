@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>WebGL probe</title>
+</head>
+<body>
+<pre id="out">probing…</pre>
+<script>
+/* Reports whether a WebGL context can be created in this browser launch, and which
+   renderer backs it. tools/suites/webgl.js reads window.__probe. */
+(function () {
+  var out = { ok: false, context: null, renderer: null, vendor: null, version: null, error: null };
+  try {
+    var c = document.createElement("canvas");
+    var names = ["webgl2", "webgl", "experimental-webgl"];
+    var gl = null;
+    for (var i = 0; i < names.length && !gl; i++) {
+      try { gl = c.getContext(names[i], { failIfMajorPerformanceCaveat: false }); } catch (e) { out.error = String(e); }
+      if (gl) out.context = names[i];
+    }
+    if (gl) {
+      out.ok = true;
+      var dbg = gl.getExtension("WEBGL_debug_renderer_info");
+      out.renderer = dbg ? gl.getParameter(dbg.UNMASKED_RENDERER_WEBGL) : gl.getParameter(gl.RENDERER);
+      out.vendor = dbg ? gl.getParameter(dbg.UNMASKED_VENDOR_WEBGL) : gl.getParameter(gl.VENDOR);
+      out.version = gl.getParameter(gl.VERSION);
+      /* draw one triangle so a context that exists but cannot render is caught too */
+      gl.clearColor(0, 0, 0, 1);
+      gl.clear(gl.COLOR_BUFFER_BIT);
+      var err = gl.getError();
+      if (err !== gl.NO_ERROR) { out.ok = false; out.error = "gl error " + err; }
+    }
+  } catch (e) {
+    out.error = String(e && e.message || e);
+  }
+  window.__probe = out;
+  document.getElementById("out").textContent = JSON.stringify(out, null, 2);
+})();
+</script>
+</body>
+</html>

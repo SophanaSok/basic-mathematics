@@ -20,6 +20,8 @@
 <script defer src="../../data/quest.js"></script>
 <script defer src="../../assets/widgets.js"></script>
 <script defer src="../../assets/three-loader.js"></script>
+<script defer src="../../assets/scenes3d.js"></script>
+<script defer src="../../assets/scenes/det3.js"></script>
 <script defer src="../../assets/site.js"></script>
 <script defer src="../../assets/sfx.js"></script>
 <script defer src="../../assets/game.js"></script>
@@ -399,6 +401,44 @@
       in a common plane.
     </p>
 
+    <details class="reveal">
+      <summary><span class="ask">The rows $(2,0,0)$, $(0,3,0)$ and $(0,0,1)$ span a box $2$ by $3$ by $1$, whose volume and determinant are both $6$. Change the last row to $(1,1,1)$, which slides the top face sideways. Does the volume change? Does the determinant?</span>Decide, then open</summary>
+      <p>
+        Neither changes. The slid box keeps its base, $2 \times 3 = 6$, and its height, $1$, so its
+        volume is still $6$. The expansion along the first row agrees:
+        $2(3 \cdot 1 - 0 \cdot 1) - 0 + 0 = 6$, because the two new entries of the last row only ever
+        meet zeros. Try other slants in the figure below.
+      </p>
+    </details>
+
+    <figure>
+      <div class="widget" data-widget="det3"></div>
+      <figcaption>
+        <b>Volume and sign.</b> Type entries into the rows, or drag the tip of an arrow along its
+        guide lines; drag the background to turn the solid. When the three arrows fall into one
+        plane the solid goes flat and the determinant is $0$. Swapping two rows keeps the solid and
+        flips only the sign.
+      </figcaption>
+    </figure>
+
+    <div class="ex" data-inline id="s3d-det" data-type="figure" data-figure="det3" data-ask="slant" data-compare="number" data-answer="12|-12" data-hint="Start from an upright box of volume 12. What does sliding its top face sideways do to the volume?" data-hint2="Sliding the top changes only the first two entries of row 3; its last entry is the height.">
+      <div class="ex-q">
+        <p>Build a slanted solid, not a rectangular box, whose volume is exactly $12$.</p>
+      </div>
+      <div class="ex-solution">
+        <p class="answer">Answer: for example rows $(2,0,0)$, $(0,3,0)$, $(1,1,2)$</p>
+        <p>
+          Start from the upright box with rows $(2,0,0)$, $(0,3,0)$, $(0,0,2)$: base
+          $2 \times 3 = 6$, height $2$, volume $12$. Changing the first two entries of row 3 slides
+          the top face sideways without changing the base or the height, so the solid slants and
+          its volume stays $12$. The expansion says the same:
+          $$\begin{vmatrix} 2 &amp; 0 &amp; 0 \\ 0 &amp; 3 &amp; 0 \\ 1 &amp; 1 &amp; 2 \end{vmatrix}
+            = 2(3 \cdot 2 - 0 \cdot 1) - 0 + 0 = 12.$$
+          A determinant of $-12$ is also volume $12$, with the rows in the other handedness.
+        </p>
+      </div>
+    </div>
+
     <h2 id="det-props">16.4 Properties of determinants</h2>
     <p>
       Computing by expansion gets expensive fast — a $4\times4$ costs four $3\times3$'s. The
@@ -484,6 +524,60 @@
         <p class="note">
           Check by brute force along the first row of the original:
           $2(12 - 5) - 4(4 - 0) + 6(1 - 0) = 14 - 16 + 6 = 4$ ✓.
+        </p>
+      </div>
+    </div>
+
+    <details class="reveal">
+      <summary><span class="ask">The three row moves each do something to the solid the rows span. Which of them (adding a multiple of one row to another, swapping two rows, doubling a row) should leave its volume alone, and what should the others do to the determinant?</span>Decide, then open</summary>
+      <p>
+        Adding a multiple of one row to another slides one face of the solid across, parallel to
+        the face opposite it: same base, same height, same volume, and the determinant is unchanged
+        (rule 3). A swap keeps the solid but lists its edges in the other order, so the volume stays
+        and the sign flips (rule 1). Doubling a row doubles one edge, and the volume doubles with it
+        (rule 2).
+      </p>
+    </details>
+
+    <figure>
+      <div class="widget" data-widget="rowops"></div>
+      <figcaption>
+        <b>Three moves, three effects.</b> Choose rows $i$ and $j$ and a multiple $k$, then apply a
+        move. A shear slides one face across while the volume holds still; the readout keeps the
+        determinant after every move.
+      </figcaption>
+    </figure>
+
+    <div class="ex" data-inline id="s3d-rows" data-type="figure" data-figure="rowops" data-ask="shape" data-answer="shear:box" data-hint="Subtracting a multiple of row 1 can clear another row's first entry." data-hint2="Clear the first column, then use the new row 2 on row 3.">
+      <div class="ex-q">
+        <p>Using only “add a multiple of one row to another”, straighten the solid into an upright box.</p>
+      </div>
+      <div class="ex-solution">
+        <p class="answer">Answer: $R_2 - R_1$, then $R_3 - R_1$, then $R_3 - R_2$</p>
+        <p>
+          The rows start as $(2,0,0)$, $(2,2,0)$, $(2,2,3)$. Subtracting row 1 from row 2 and from
+          row 3 clears their first entries, giving $(0,2,0)$ and $(0,2,3)$. Subtracting the new row 2
+          from row 3 then clears its second entry, giving $(0,0,3)$:
+          $$\begin{vmatrix} 2 &amp; 0 &amp; 0 \\ 2 &amp; 2 &amp; 0 \\ 2 &amp; 2 &amp; 3 \end{vmatrix}
+            = \begin{vmatrix} 2 &amp; 0 &amp; 0 \\ 0 &amp; 2 &amp; 0 \\ 0 &amp; 2 &amp; 3 \end{vmatrix}
+            = \begin{vmatrix} 2 &amp; 0 &amp; 0 \\ 0 &amp; 2 &amp; 0 \\ 0 &amp; 0 &amp; 3 \end{vmatrix}.$$
+          The last matrix is diagonal: an upright box $2$ by $2$ by $3$. Every move was a shear, so
+          none of them changed the determinant.
+        </p>
+      </div>
+    </div>
+
+    <div class="ex" data-inline id="s3d-rows-vol" data-label="Follow-up" data-type="number" data-answer="12" data-hint="Which of your moves changed the volume?">
+      <div class="ex-q">
+        <p>The box is $2$ by $2$ by $3$. What was the determinant you started from?</p>
+      </div>
+      <div class="ex-solution">
+        <p class="answer">Answer: $12$</p>
+        <p>
+          The box has volume $2 \cdot 2 \cdot 3 = 12$, and its matrix is diagonal, so its determinant
+          is the product of the diagonal, $12$. Shears never change the determinant, so the slanted
+          solid you started from had determinant $12$ as well. Directly:
+          $2(2 \cdot 3 - 0 \cdot 2) - 0 + 0 = 12$.
         </p>
       </div>
     </div>
@@ -775,6 +869,49 @@
           <p>
             At $k=6$ the equations are $2x+3y=5$ and $4x+6y=9$ — the second left side is twice the
             first, but $9 \neq 10$, so the lines are parallel and distinct: no solution at all.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" id="s3d-det-flat" data-section="det3" data-type="figure" data-figure="det3" data-ask="flat" data-compare="number" data-answer="0"
+           data-start='{"lock":[0,1]}'
+           data-hint="A solid is flat when its three edges lie in one plane."
+           data-hint2="Rows 1 and 2 both have third entry 0. Where must row 3 lie?">
+        <div class="ex-q">
+          <p>
+            Rows 1 and 2 are $(2,0,0)$ and $(0,3,0)$. Choose a third row, not a multiple of either,
+            that makes the determinant $0$.
+          </p>
+        </div>
+        <div class="ex-solution">
+          <p class="answer">Answer: any $(a, b, 0)$ with $a$ and $b$ both non-zero, for example $(1,1,0)$</p>
+          <p>
+            Rows 1 and 2 lie in the floor, the plane $z = 0$, so the solid is flat exactly when row 3
+            lies in that plane too: when its last entry is $0$. Expanding along the third column
+            shows it. Rows 1 and 2 both end in $0$, so every term of the expansion has a factor $0$
+            except the one from row 3, which is
+            $$c_3 \begin{vmatrix} 2 &amp; 0 \\ 0 &amp; 3 \end{vmatrix} = 6c_3,$$
+            and that is $0$ exactly when $c_3 = 0$. A row $(a, 0, 0)$ or $(0, b, 0)$ would also make
+            the determinant $0$, but it is a multiple of row 1 or row 2, which the question rules
+            out.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" id="s3d-rows-sign" data-section="det-props" data-type="figure" data-figure="rowops" data-ask="det-moves" data-answer="-24:2"
+           data-hint="Each kind of move multiplies the determinant by its own factor."
+           data-hint2="One move must change the sign and one must double. A shear does neither.">
+        <div class="ex-q">
+          <p>Start again. Reach determinant $-24$ in exactly two moves.</p>
+        </div>
+        <div class="ex-solution">
+          <p class="answer">Answer: one swap and one doubling, in either order</p>
+          <p>
+            A shear multiplies the determinant by $1$, a swap by $-1$, and doubling a row by $2$.
+            Getting from $12$ to $-24$ needs a total factor of $-2$, and the only product of two
+            factors from $1$, $-1$, $2$ that gives $-2$ is $(-1) \cdot 2$. So: swap two rows and
+            double a row, for example $12 \to -12 \to -24$, or double first,
+            $12 \to 24 \to -24$.
           </p>
         </div>
       </div>
