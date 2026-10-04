@@ -510,7 +510,8 @@ header.
 
 ```sh
 node tools/check-static.js --base=<ref>   # syntax, ES5, progress keys vs <ref>, links, sections,
-                                          # widgets, choices, merge laws, contrast, animations
+                                          # widgets, choices, placeholders, merge laws, contrast,
+                                          # animations
 node tools/smoke-scenes.js                # every 3D scene: mount, controls, missions, answers
 node tools/check-gen.js                   # every Arena generator over 500 seeds
 node tools/game/merge.test.js             # BMAccount.merge, including the game store

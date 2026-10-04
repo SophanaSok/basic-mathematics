@@ -400,6 +400,51 @@ function checkOrder(ctx, r) {
   });
 }
 
+/* ------------------------------------------------------- placeholders -- */
+
+/* BMSite.grade from assets/site.js, under a window with no DOM to speak of */
+function loadGrade() {
+  const noop = () => {};
+  const el = {
+    getAttribute: () => null, setAttribute: noop, removeAttribute: noop, hasAttribute: () => false,
+    appendChild: noop, insertBefore: noop, querySelector: () => null, querySelectorAll: () => [],
+    addEventListener: noop, classList: { add: noop, remove: noop }, style: {}
+  };
+  const document = {
+    readyState: "complete", body: el, documentElement: el, querySelector: () => null, querySelectorAll: () => [],
+    getElementById: () => null, createElement: () => el, addEventListener: noop
+  };
+  const window = {
+    document, console, addEventListener: noop, matchMedia: () => ({ matches: false, addEventListener: noop }),
+    localStorage: { getItem: () => null, setItem: noop, removeItem: noop }
+  };
+  window.window = window;
+  window.self = window;
+  vm.createContext(window);
+  vm.runInContext(read("assets/site.js"), window, { filename: "assets/site.js" });
+  if (!window.BMSite || typeof window.BMSite.grade !== "function") throw new Error("assets/site.js did not export BMSite.grade under the stub");
+  return window.BMSite.grade;
+}
+
+/* A placeholder shows the form an answer takes ("e.g. 2,-3"). If the grader would mark
+   what it shows as correct, the empty box is giving the answer away. */
+function checkPlaceholders(ctx, r) {
+  const grade = loadGrade();
+  Object.keys(ctx.docs).forEach(page => {
+    exercisesOf(ctx.docs[page]).forEach(e => {
+      const shown = e.el.getAttribute("data-placeholder");
+      if (!shown || e.kind !== "text") return;
+      r.count++;
+      const tol = parseFloat(e.el.getAttribute("data-tol") || "") || 0;
+      const example = /\be\.g\.\s*(.+)$/.exec(shown);
+      const given = [shown].concat(example ? [example[1]] : []).map(s => s.trim());
+      if (given.some(g => grade(g, e.answer, e.type, tol))) {
+        r.fail(page + ":" + e.line + ": placeholder " + JSON.stringify(shown) + " is graded correct against the key " + JSON.stringify(e.answer));
+      }
+    });
+  });
+}
+
 /* -------------------------------------------------- account merge laws -- */
 
 function loadMerge() {
@@ -625,6 +670,7 @@ const CHECKS = [
   { name: "sections", run: checkSections, what: "every data-section names a real section" },
   { name: "choices", run: checkChoices, what: "choice/multi answer indices are within the options" },
   { name: "order", run: checkOrder, what: "order lists have >= 2 items; blanks carry keys" },
+  { name: "placeholders", run: checkPlaceholders, what: "no answer box shows an example its own key accepts" },
   { name: "merge", run: checkMerge, what: "BMAccount.merge is commutative, associative, idempotent (2000 seeded cases)" },
   { name: "animations", run: checkAnimations, what: "no infinite CSS animations (WARN for now)" },
   { name: "contrast", run: checkContrast, what: "WCAG contrast of token pairs in tools/contrast-pairs.json, both themes, all Parts" }
