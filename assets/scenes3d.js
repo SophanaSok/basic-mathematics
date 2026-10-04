@@ -962,6 +962,7 @@
       }, function () { fitting = false; });
     }
     function update() {
+      latch = null;
       syncs.forEach(function (f) { f(); });
       if (!(dragging && dragging.hd)) fit(false);
       var g = new List(bounds);
@@ -976,8 +977,17 @@
        Right, most nearly to the right. A gizmo gives the arrows the pair of rails that best
        matches them (on a tie, ←→ the first, ↑↓ the last) and Page Up/Down the third. A rail
        nearly square to its key takes the other key's sense, and one seen end-on keeps +axis.
-       A key press is still exactly one step along one rail, so the scene's snapping holds. */
-    var AXIS_NAMES = ["x", "y", "z"];
+       A key press is still exactly one step along one rail, so the scene's snapping holds.
+       Once a key has moved a handle, the map is held until the view turns, the selection
+       changes or something else moves the figure: a rail that turns with its handle
+       (spheretri's B) would otherwise flip a held key's sense where it passes the edge of
+       the picture, and B would bounce between two places. Held, a key keeps going the same
+       way round, and its opposite key undoes it. */
+    var AXIS_NAMES = ["x", "y", "z"], latch = null;
+    function keysFor(hd) {
+      if (latch && latch.hd === hd && latch.az === cam.az && latch.el === cam.el) return latch.km;
+      return keyMap(hd);
+    }
     function keyMap(hd) {
       var axes = hd.axes, n = axes.length, h = 0, v = n - 1, best = -1, i, j;
       var dirs = axes.map(function (a) {
@@ -998,7 +1008,7 @@
           sg = (screen === 0 ? d[0] : -d[1]) >= 0 ? 1 : -1;
         }
         var a = axes[k], nz = [0, 1, 2].filter(function (c) { return Math.abs(a[c]) > 1e-9; });
-        return { a: a, sg: sg, name: nz.length === 1 ? AXIS_NAMES[nz[0]] : "guide line " + (k + 1) };
+        return { k: k, sg: sg, name: nz.length === 1 ? AXIS_NAMES[nz[0]] : "guide line " + (k + 1) };
       }
       return { h: entry(h, 0), v: entry(v, 1), m: n === 3 ? entry(3 - h - v, 1) : null };
     }
@@ -1008,7 +1018,7 @@
         var hd = hs[sel];
         /* a scene may word its handle itself, so the label never says more than the readout */
         parts.push(hd.say ? hd.say(s, quiz) : hd.name + " at (" + hd.at(s).map(fmt).join(", ") + ")");
-        var km = keyMap(hd);
+        var km = keysFor(hd);
         parts.push(hd.keys || (hd.axes.length > 1 ? "Left and right arrows move it along " + km.h.name + ", up and down along " +
           km.v.name + (km.m ? ", Page Up and Page Down along " + km.m.name : "") : "Arrow keys move it along its line"));
       } else {
@@ -1201,14 +1211,16 @@
         return;
       }
       if (sel < hs.length) {
-        var hd = hs[sel], km = keyMap(hd), a = null, sg = 0;
-        if (key === "ArrowLeft" || key === "ArrowRight") { a = km.h.a; sg = km.h.sg * (key === "ArrowRight" ? 1 : -1); }
-        else if (key === "ArrowUp" || key === "ArrowDown") { a = km.v.a; sg = km.v.sg * (key === "ArrowUp" ? 1 : -1); }
-        else if ((key === "PageUp" || key === "PageDown") && km.m) { a = km.m.a; sg = km.m.sg * (key === "PageUp" ? 1 : -1); }
-        if (!a) return;
+        var hd = hs[sel], km = keysFor(hd), en = null, sg = 0;
+        if (key === "ArrowLeft" || key === "ArrowRight") { en = km.h; sg = key === "ArrowRight" ? 1 : -1; }
+        else if (key === "ArrowUp" || key === "ArrowDown") { en = km.v; sg = key === "ArrowUp" ? 1 : -1; }
+        else if (key === "PageUp" || key === "PageDown") { en = km.m; sg = key === "PageUp" ? 1 : -1; }
+        if (!en) return;
         e.preventDefault();
-        hd.move(s, V.add(hd.at(s), V.scale(a, sg * hd.step)));
+        /* the rail as it is now (one that turns with the handle), in the sense the map chose */
+        hd.move(s, V.add(hd.at(s), V.scale(hd.axes[en.k], en.sg * sg * hd.step)));
         update();
+        latch = { hd: hd, az: cam.az, el: cam.el, km: km };
         return;
       }
       var stp = e.shiftKey ? 15 : 5;

@@ -20,9 +20,11 @@
   if (!window.BM3D || !window.BM3D.define) return;
   var V = window.BM3D.V;
   /* a pyramid and its turned-over twin share a hue: strong for the first three; pale for the
-     rest, outlined in the strong hue so they stand off the stage in both themes */
+     rest. The seams that let the cubes be counted stand 3:1 off every shade of their faces:
+     the stage colour on the strong ones, ink on the pale ones (a strong-hue seam fell to
+     1.7:1 on a shaded pale face in the light theme) */
   var TONES = ["curve", "curve2", "curve3", "faceA", "faceB", "faceC"];
-  var EDGES = ["surface", "surface", "surface", "curve", "curve2", "curve3"];
+  var EDGES = ["surface", "surface", "surface", "ink", "ink", "ink"];
   var HOME = { az: 30, el: 24 };
   var cache = {};
 

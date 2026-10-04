@@ -9,10 +9,12 @@
    2. a vertical swipe that starts on a stage scrolls the page and leaves the view as it
       was; a sideways swipe still turns it; a turn the browser cancels is undone
    3. the arrow keys move a handle the way they point on the screen, under any view, for
-      every handle of every scene (and the stage's label names the rails they use)
-   4. colours, read from getComputedStyle in both themes: boxcount's seams stand 3:1 off
-      both layer colours and the stage; a ball's outline 3:1 off the stage; every full-
-      strength line, label and dot in all eleven scenes 3:1 off the stage */
+      every handle of every scene (and the stage's label names the rails they use); a held
+      key keeps going the same way, even along a rail that turns with its handle (spheretri)
+   4. colours, read from getComputedStyle in both themes, in every instance of a scene
+      (exercise copies too): the seams between faces stand 3:1 off every face they edge,
+      and boxcount's off the stage too; a ball's outline 3:1 off the stage; every line,
+      label and dot 3:1 off the stage, a see-through line taken as it blends there */
 "use strict";
 const path = require("path");
 const { createRequire } = require("module");
@@ -284,6 +286,46 @@ async function arrows(browser) {
   const home = await label(page, "dist3");
   check(/Left and right arrows move it along x, up and down along z, Page Up and Page Down along y/.test(home),
     "dist3 at home: ←→ along x, ↑↓ along z, Page Up/Down along y, as before (" + home + ")");
+
+  /* spheretri's B runs on the tangent at B, which turns as B moves. Held at the home view,
+     → used to carry B to 120° and then bounce it between 105° and 120°, because each press
+     re-read the turned tangent on the screen; the map is now held while the view stands. */
+  await scene(page, "spheretri");
+  const stage = page.locator(H("spheretri") + " .s3d-stage").first();
+  await stage.scrollIntoViewIfNeeded();
+  await stage.focus();
+  const ang = () => page.evaluate(() => document.querySelector('[data-widget="spheretri"]').__scene.state.ang);
+  const held = [await ang()];
+  for (let i = 0; i < 10; i++) { await page.keyboard.press("ArrowRight"); held.push(await ang()); }
+  check(held[held.length - 1] === 165 && held.every((v, i) => !i || v >= held[i - 1]),
+    "spheretri at home: → held from 45° carries B steadily to 165° (" + held.join(" ") + ")");
+  const back = [held[held.length - 1]];
+  for (let i = 0; i < 10; i++) { await page.keyboard.press("ArrowLeft"); back.push(await ang()); }
+  check(back[back.length - 1] === 15 && back.every((v, i) => !i || v <= back[i - 1]),
+    "spheretri at home: ← held then brings it steadily back to 15° (" + back.join(" ") + ")");
+  /* and under every view: a held key never turns round, reaches an end, and its opposite
+     key retraces the same steps */
+  const sweep = await page.evaluate((views) => {
+    var sc = document.querySelector('[data-widget="spheretri"]').__scene, st = sc.stage.el, bad = [];
+    function key(k) { st.dispatchEvent(new KeyboardEvent("keydown", { key: k, bubbles: true, cancelable: true })); }
+    var BACK = { ArrowRight: "ArrowLeft", ArrowLeft: "ArrowRight", ArrowUp: "ArrowDown", ArrowDown: "ArrowUp" };
+    views.concat([[22.5, 26], [-90, 90], [22.5, 12], [67.5, 12]]).forEach(function (v) {
+      Object.keys(BACK).forEach(function (k) {
+        sc.api.view(v[0], v[1], false);
+        sc.state.ang = 90; sc.api.update();
+        var seq = [90], i;
+        for (i = 0; i < 6; i++) { key(k); seq.push(sc.state.ang); }
+        for (i = 0; i < 6; i++) { key(BACK[k]); seq.push(sc.state.ang); }
+        /* out: 90 then five steps to an end (one press to spare); back: five steps to 90 */
+        var out = seq.slice(0, 7), dir = out[6] > 90 ? 1 : -1, ok = out[6] === 90 + dir * 75;
+        for (i = 1; i < 6; i++) ok = ok && out[i] === 90 + dir * 15 * i;
+        for (i = 1; i <= 6; i++) ok = ok && seq[6 + i] === out[6] - dir * 15 * i;
+        if (!ok) bad.push(k + " at az " + v[0] + " el " + v[1] + ": " + seq.join(" "));
+      });
+    });
+    return bad;
+  }, views);
+  check(!sweep.length, "spheretri under every view: a held key goes one way to an end and its opposite retraces it (" + sweep.slice(0, 4).join("; ") + ")");
   check(!errors.length, "no page errors in the arrow-key check (" + errors.join("; ") + ")");
   await context.close();
 }
@@ -296,57 +338,73 @@ const COLOURS = "(" + function (n) {
   }
   function ratio(a, b) { var x = lum(a), y = lum(b); return (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05); }
   function rgbOf(s) { var m = /rgba?\(([\d.]+),\s*([\d.]+),\s*([\d.]+)/.exec(s); return m ? [+m[1], +m[2], +m[3]] : null; }
-  var host = document.querySelector('[data-widget="' + n + '"]'), sc = host.__scene, st = sc.stage;
-  var bg = rgbOf(getComputedStyle(st.el).backgroundColor), pal = st.pal, names = {};
-  Object.keys(pal).forEach(function (k) { if (pal[k].rgb && !names[pal[k].rgb.join()]) names[pal[k].rgb.join()] = k; });
-  var out = { bg: bg, seamFace: 99, seamBg: 99, ball: 0, ring: 99, ringCount: 0, low: [] };
-  var balls = st.prims.filter(function (p) { return p.t === "ball"; });
-  /* a line with both ends on a ball's rim, as drawn on the screen */
-  function onRim(p) {
-    return balls.some(function (b) {
-      return [p.a, p.b].every(function (q) { return Math.abs(Math.sqrt((q[0] - b.c[0]) * (q[0] - b.c[0]) + (q[1] - b.c[1]) * (q[1] - b.c[1])) - b.R) < 0.5; });
+  /* every instance of the scene on the page: the exercise copies draw their own state */
+  return Array.prototype.map.call(document.querySelectorAll('[data-widget="' + n + '"]'), function (host) {
+    var st = host.__scene.stage, bg = rgbOf(getComputedStyle(st.el).backgroundColor), pal = st.pal, names = {};
+    Object.keys(pal).forEach(function (k) { if (pal[k].rgb && !names[pal[k].rgb.join()]) names[pal[k].rgb.join()] = k; });
+    function over(c, a) { return c.map(function (v, i) { return v * a + bg[i] * (1 - a); }); }
+    var out = { ex: !!host.closest(".ex"), seams: 0, seamFace: 99, seamBg: 99, ball: 0, ring: 99, ringCount: 0, low: [] };
+    var balls = st.prims.filter(function (p) { return p.t === "ball"; });
+    /* a line with both ends on a ball's rim, as drawn on the screen */
+    function onRim(p) {
+      return balls.some(function (b) {
+        return [p.a, p.b].every(function (q) { return Math.abs(Math.sqrt((q[0] - b.c[0]) * (q[0] - b.c[0]) + (q[1] - b.c[1]) * (q[1] - b.c[1])) - b.R) < 0.5; });
+      });
+    }
+    out.ball = balls.length;
+    st.prims.forEach(function (p) {
+      if (p.t === "poly" && p.stroke && p.stroke.rgb && p.rgb) {
+        /* the seam against the face as it shows: shaded, and over the stage if see-through */
+        out.seams++;
+        out.seamFace = Math.min(out.seamFace, ratio(p.stroke.rgb, over(p.rgb, Math.min(1, p.a2))));
+        out.seamBg = Math.min(out.seamBg, ratio(p.stroke.rgb, bg));
+      }
+      if ((p.t === "line" || p.t === "tri") && p.rgb) {
+        var nm = names[p.rgb.join()] || p.rgb.join(), r = ratio(over(p.rgb, Math.min(1, p.a2)), bg);
+        if (p.t === "line" && onRim(p)) { out.ring = Math.min(out.ring, r); out.ringCount++; }
+        /* the floor grid is a faint backdrop on purpose, as in the flat figures */
+        if (nm !== "grid" && r < 3) out.low.push(p.t + " " + nm + (p.a2 < 1 ? " at alpha " + p.a2 : "") + " " + r.toFixed(2));
+      }
     });
-  }
-  out.ball = balls.length;
-  st.prims.forEach(function (p) {
-    if (p.t === "poly" && p.stroke && p.stroke.rgb) {
-      out.seamFace = Math.min(out.seamFace, ratio(p.stroke.rgb, p.rgb));
-      out.seamBg = Math.min(out.seamBg, ratio(p.stroke.rgb, bg));
-    }
-    if ((p.t === "line" || p.t === "tri") && p.rgb && p.a2 >= 1) {
-      var nm = names[p.rgb.join()] || p.rgb.join(), r = ratio(p.rgb, bg);
-      if (p.t === "line" && onRim(p)) { out.ring = Math.min(out.ring, r); out.ringCount++; }
-      /* the floor grid is a faint backdrop on purpose, as in the flat figures */
-      if (nm !== "grid" && r < 3) out.low.push(p.t + " " + nm + " " + r.toFixed(2));
-    }
+    Array.prototype.forEach.call(st.el.querySelectorAll(".s3d-over text, .s3d-over circle.s3d-h, .s3d-over circle:not([class])"), function (t) {
+      var c = rgbOf(getComputedStyle(t).fill);
+      if (c && ratio(c, bg) < 3) out.low.push(t.localName + " " + (t.textContent || "") + " " + ratio(c, bg).toFixed(2));
+    });
+    out.low = out.low.filter(function (v, i, a) { return a.indexOf(v) === i; });
+    return out;
   });
-  Array.prototype.forEach.call(st.el.querySelectorAll(".s3d-over text, .s3d-over circle.s3d-h, .s3d-over circle:not([class])"), function (t) {
-    var c = rgbOf(getComputedStyle(t).fill);
-    if (c && ratio(c, bg) < 3) out.low.push(t.localName + " " + (t.textContent || "") + " " + ratio(c, bg).toFixed(2));
-  });
-  out.low = out.low.filter(function (v, i, a) { return a.indexOf(v) === i; });
-  return out;
 } + ")";
 async function colours(browser) {
   const report = [];
+  let seamed = 0;
   for (const theme of ["light", "dark"]) {
     const { context, page, errors } = await open(browser, { theme });
     for (const name of Object.keys(SCENES)) {
       await scene(page, name);
-      const got = await page.evaluate(COLOURS + "(" + JSON.stringify(name) + ")");
-      check(!got.low.length, theme + " " + name + ": every full-strength line, label and dot stands 3:1 off the stage (" + got.low.slice(0, 6).join("; ") + ")");
-      if (name === "boxcount") {
-        report.push(theme + " boxcount seams: " + got.seamFace.toFixed(2) + ":1 off the faces, " + got.seamBg.toFixed(2) + ":1 off the stage");
-        check(got.seamFace >= 3 && got.seamBg >= 3, theme + " boxcount: the seams between cubes stand 3:1 off every face and the stage (" + got.seamFace.toFixed(2) + ", " + got.seamBg.toFixed(2) + ")");
-      }
-      if (name === "sphereslice" || name === "spheretri") {
-        report.push(theme + " " + name + " ball outline: " + got.ring.toFixed(2) + ":1 off the stage");
-        check(got.ball === 1 && got.ringCount >= 24 && got.ring >= 3, theme + " " + name + ": the ball has an outline 3:1 off the stage (" + JSON.stringify({ ball: got.ball, n: got.ringCount, r: got.ring }) + ")");
-      }
+      const all = await page.evaluate(COLOURS + "(" + JSON.stringify(name) + ")");
+      all.forEach((got, i) => {
+        const who = theme + " " + name + "#" + i + (got.ex ? " (exercise)" : "");
+        check(!got.low.length, who + ": every line, label and dot stands 3:1 off the stage (" + got.low.slice(0, 6).join("; ") + ")");
+        if (got.seams) {
+          seamed++;
+          report.push(who + " seams: " + got.seamFace.toFixed(2) + ":1 off the faces");
+          check(got.seamFace >= 3, who + ": the seams between faces stand 3:1 off every face they edge (" + got.seamFace.toFixed(2) + ")");
+        }
+        if (name === "boxcount") {
+          check(got.seamBg >= 3, who + ": the seams between cubes stand 3:1 off the stage too (" + got.seamBg.toFixed(2) + ")");
+        }
+        if (name === "sphereslice" || name === "spheretri") {
+          report.push(who + " ball outline: " + got.ring.toFixed(2) + ":1 off the stage");
+          check(got.ball === 1 && got.ringCount >= 24 && got.ring >= 3, who + ": the ball has an outline 3:1 off the stage (" + JSON.stringify({ ball: got.ball, n: got.ringCount, r: got.ring }) + ")");
+        }
+      });
+      check(all.length >= 1, theme + " " + name + ": the scene is on its page");
     }
     check(!errors.length, theme + ": no page errors in the colour check (" + errors.join("; ") + ")");
     await context.close();
   }
+  /* boxcount, scale3, sumsquares and sphereslice, each in the text and in an exercise */
+  check(seamed >= 16, "the seam check reached every scene with seams, exercise copies too (" + seamed + ")");
   if (process.env.VERBOSE) report.forEach((l) => console.log("  " + l));
 }
 

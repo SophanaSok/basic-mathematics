@@ -190,13 +190,15 @@
       for (k = 0; k <= 72; k++) ring.push([0, Math.cos(k * 5 * RAD), Math.sin(k * 5 * RAD)]);
       g.path(ring, { tone: "axis", w: 1.25, dash: [4, 4] });
 
-      /* the two shadows, then the helix: the part already travelled strong, the rest faint */
+      /* the two shadows, then the helix: the part already travelled thick, the rest thin and
+         dashed. The rest is where the point is going, so it keeps its full colour (a see-
+         through one fell under 3:1 against the stage). */
       function curve(map, tone, wDone, wLeft) {
         var pts = [], d;
         for (d = 0; d <= MAX; d += 5) pts.push(map(at(d)));
         for (d = 0; d < MAX / 5; d++) {
           var done = (d + 1) * 5 <= s.t;
-          g.seg(pts[d], pts[d + 1], done ? { tone: tone, w: wDone } : { tone: tone, w: wLeft, alpha: 0.45 });
+          g.seg(pts[d], pts[d + 1], done ? { tone: tone, w: wDone } : { tone: tone, w: wLeft, dash: [3, 3] });
         }
       }
       curve(onWall, "curve2", 2.5, 1.75);

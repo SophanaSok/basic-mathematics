@@ -65,7 +65,7 @@
   /* one unit square of the marked face, on the plane y = 0 */
   function square(g, x, z) {
     g.face([[x, -LIFT, z], [x + 1, -LIFT, z], [x + 1, -LIFT, z + 1], [x, -LIFT, z + 1]],
-      { tone: "faceB", stroke: "curve2", w: 1.25 });
+      { tone: "faceB", stroke: "ink", w: 1.25 });
   }
   function layers(r, per) { return r + (r === 1 ? " layer of " : " layers of ") + per; }
 
@@ -106,9 +106,11 @@
       var sh = shapeOf(s), r = s.r, quiz = api.quiz(), ox = leftOf(sh), top = topOf(s);
       var n = sh.cells.length, k, i;
       g.grid({ z: -0.01, min: [ox - 1, -1], max: [r * sh.W + 1, r * sh.D + 1], step: 1 });
-      /* the small solid and the big one, both in unit cubes */
-      g.cubes(sh.cells.map(function (c) { return [ox + c[0], c[1], c[2]]; }), { tone: "faceA", stroke: "axis" });
-      g.cubes(bigCells(s), { tone: "faceA", stroke: "axis" });
+      /* the small solid and the big one, both in unit cubes; the seams in ink, so the cubes
+         (and the marked face's squares) can be counted in both themes, at 3:1 or more off
+         every shade of the faces */
+      g.cubes(sh.cells.map(function (c) { return [ox + c[0], c[1], c[2]]; }), { tone: "faceA", stroke: "ink" });
+      g.cubes(bigCells(s), { tone: "faceA", stroke: "ink" });
       /* the marked face: one unit square, and its image of r × r squares */
       square(g, ox, 0);
       for (k = 0; k < r; k++) {
