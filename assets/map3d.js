@@ -8,9 +8,9 @@
                   link first and opens it on a second tap
    Four real buttons fly to a Part. Everything is built from Three.js primitives
    (no textures, no model files), coloured from the CSS tokens at run time, and
-   drawn on demand: the only loops are a camera flight and the gentle bob of the
-   "you are here" marker, and both stop under reduced motion, calm mode, offscreen
-   or in a hidden tab.
+   drawn on demand: frames run only for a camera flight and for one short bob of the
+   "you are here" marker after the map appears or the camera settles, neither under
+   reduced motion or calm mode; offscreen or in a hidden tab nothing is drawn.
 
    The container stays hidden, and the list looks exactly as it did, when the
    person chose the list map, 3D is unsupported or the device is low-end, Three.js
@@ -35,6 +35,7 @@
   var DECK = 0.36;          /* height of an island's walking surface above its anchor */
   var STONES = 70;
   var FLIGHT_MS = 700;
+  var BOB_MS = 2400;        /* one rise and fall of the marker, then it rests */
   var FOV = 34;
 
   var M = null;             /* the live map, or null while the list stands alone */
@@ -205,8 +206,8 @@
       scene: new T.Scene(), camera: new T.PerspectiveCamera(FOV, 16 / 9, 0.5, 200),
       geo: {}, mat: {}, pick: [], arches: [], disposables: [],
       view: { t: new T.Vector3(), d: 18 }, viewKind: null, u: 0,
-      flight: null, raf: 0, dirty: true, lastFrame: 0, samples: [], bobbing: false,
-      onscreen: true, hot: -1, hotHow: "", hover: -1, cur: -1, press: null, drag: false,
+      flight: null, raf: 0, dirty: true, lastFrame: 0, samples: [], bob: null, bobbing: false,
+      onscreen: true, hot: -1, hotHow: "", hover: -1, cur: -1, press: null, aux: null, drag: false,
       observers: [], firstRender: false
     };
 
@@ -225,8 +226,13 @@
     canvas.addEventListener("pointerup", onUp);
     canvas.addEventListener("pointercancel", onCancel);
     canvas.addEventListener("pointerleave", onLeave);
-    /* the canvas is not focusable: keep focus where a tap put it (on the list link), and no text selection while dragging */
-    canvas.addEventListener("mousedown", function (e) { e.preventDefault(); });
+    canvas.addEventListener("auxclick", onAux);
+    /* the canvas is not focusable: keep focus where a tap put it (on the list link), and no text selection while dragging;
+       a middle press is noted here (pointerdown misses one made while another button is held) for onAux */
+    canvas.addEventListener("mousedown", function (e) {
+      e.preventDefault();
+      if (M && e.button === 1) M.aux = { x: e.clientX, y: e.clientY, hit: pickAt(e.clientX, e.clientY) };
+    });
     box.querySelector(".map3d-parts").addEventListener("click", onPartButton);
 
     /* reveal only now that 3D is certain, so fallback users never see a box come and go */
@@ -523,12 +529,14 @@
     if (!quiet) request();
   }
 
-  function markerAt(t) {
+  /* b: how far through the bob, 0 (at rest) to 1; the quarter turn ends where it began,
+     as the octahedron looks the same turned by a quarter */
+  function markerAt(b) {
     var isle = ISLES[M.cur];
     if (!isle) return;
     var lift = M.done[isle.id] ? 1.75 : 2.05;
-    M.marker.position.set(isle.x, isle.y + DECK + lift + (t ? Math.sin(t / 2400 * Math.PI * 2) * 0.12 : 0), isle.z);
-    M.marker.rotation.y = t ? t / 1000 * 0.6 : 0.4;
+    M.marker.position.set(isle.x, isle.y + DECK + lift + Math.sin(b * Math.PI * 2) * 0.12, isle.z);
+    M.marker.rotation.y = 0.4 + (1 - Math.cos(b * Math.PI)) / 2 * Math.PI / 2;
   }
 
   /* the list item that matches the selected island carries a quiet highlight */
@@ -611,6 +619,7 @@
       if (dd < bd) { bd = dd; best = k / N; }
     }
     M.u = best;
+    if (!still()) M.bob = { start: 0 };
     var p = Math.round(clamp(-M.view.t.z / ROW_Z, 0, C.parts.length - 1));
     Array.prototype.forEach.call(box.querySelectorAll(".map3d-part"), function (b) {
       if (+b.getAttribute("data-p") === p) b.setAttribute("data-on", "true");
@@ -642,7 +651,7 @@
   }
 
   function canAnimate() { return M && M.onscreen && !document.hidden; }
-  function wantsBob() { return M && M.marker.visible && !still() && !M.flight && !M.drag; }
+  function wantsBob() { return M && M.bob && M.marker.visible && !still() && !M.flight && !M.drag; }
 
   /* draw once soon (render on demand) */
   function request() {
@@ -671,10 +680,19 @@
       if (k >= 1) { M.flight = null; settle(); } else more = true;
     }
     if (wantsBob()) {
-      markerAt(t);
-      M.bobbing = true;
-      more = true;
+      if (!M.bob.start) M.bob.start = t;
+      var b = (t - M.bob.start) / BOB_MS;
+      if (b < 1) {
+        markerAt(b);
+        M.bobbing = true;
+        more = true;
+      } else {
+        M.bob = null;
+        M.bobbing = false;
+        markerAt(0);
+      }
     } else if (M.bobbing) {
+      M.bob = null;
       M.bobbing = false;
       markerAt(0);
     }
@@ -687,7 +705,8 @@
 
   /* too slow to be pleasant: first drop to one device pixel, then give the list back */
   function watchdog(t) {
-    if (M.lastFrame) {
+    /* a gap of over a second is a pause (a held frame, a long task), not a slow frame */
+    if (M.lastFrame && t - M.lastFrame < 1000) {
       M.samples.push(t - M.lastFrame);
       if (M.samples.length >= 60) {
         var sum = 0;
@@ -808,13 +827,15 @@
 
   function onDown(e) {
     if (!M || (e.button !== undefined && e.button !== 0)) return;
-    M.press = { id: e.pointerId, x: e.clientX, y: e.clientY, lx: e.clientX, type: e.pointerType, moved: false };
+    M.press = { id: e.pointerId, x: e.clientX, y: e.clientY, lx: e.clientX, type: e.pointerType, moved: false, far: false,
+      hit: pickAt(e.clientX, e.clientY) };
   }
   function onMove(e) {
     if (!M) return;
     var pr = M.press;
     if (pr && pr.id === e.pointerId) {
       var dx = e.clientX - pr.x, dy = e.clientY - pr.y;
+      if (Math.abs(dx) > 6 || Math.abs(dy) > 6) pr.far = true;
       if (!pr.moved && Math.abs(dx) > 6 && Math.abs(dx) > Math.abs(dy)) {
         pr.moved = true;
         M.drag = true;
@@ -854,11 +875,12 @@
       wake();
       return;
     }
-    var hit = pickAt(e.clientX, e.clientY);
-    if (!hit) return;
+    /* like a link: only a press and release on the same island, without travelling, is a click */
+    var hit = pr.far ? null : pickAt(e.clientX, e.clientY);
+    if (!hit || !sameHit(hit, pr.hit)) return;
     var href = hrefFor(hit);
     if (pr.type === "mouse" || pr.type === "pen") {
-      if (href) window.location.href = href;
+      if (href) go(href, e);
       return;
     }
     /* touch: the first tap selects the list link, a second tap on the same island opens it */
@@ -875,6 +897,24 @@
       M.hotHow = "tap";
       if (sideBySide() && a.scrollIntoView) a.scrollIntoView({ block: "nearest" });
     }
+  }
+  function sameHit(a, b) { return !!b && a.isle === b.isle && !!a.review === !!b.review; }
+  /* a modified click opens a new tab, as it would on the list link */
+  function go(href, e) {
+    if (e.ctrlKey || e.metaKey || e.shiftKey || e.button === 1) window.open(href, "_blank");
+    else window.location.href = href;
+  }
+  /* auxclick fires for any middle press and release on the canvas: as with the primary button,
+     only one that starts and ends on the same island without travelling counts */
+  function onAux(e) {
+    if (!M || e.button !== 1) return;
+    var pr = M.aux;
+    M.aux = null;
+    if (!pr || Math.abs(e.clientX - pr.x) > 6 || Math.abs(e.clientY - pr.y) > 6) return;
+    var hit = pickAt(e.clientX, e.clientY), href = hit && sameHit(hit, pr.hit) && hrefFor(hit);
+    if (!href) return;
+    e.preventDefault();
+    go(href, e);
   }
   function onCancel() {
     if (!M) return;
@@ -991,17 +1031,30 @@
       if (!M) return;
       var theme = list.some(function (m) { return m.attributeName === "data-theme"; });
       if (theme) applyPalette();
+      if (still()) M.bob = null;
       if (M.bobbing && !wantsBob()) { M.bobbing = false; markerAt(0); }
       if (M.flight && still()) jump(M.flight.v);
       request();
     }).observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme", "data-calm"] });
   }
   if (reduceQuery) {
-    var onReduce = function () { if (M) { if (M.flight && still()) jump(M.flight.v); markerAt(0); request(); } };
+    var onReduce = function () {
+      if (!M) return;
+      if (still()) M.bob = null;
+      if (M.flight && still()) jump(M.flight.v);
+      markerAt(0);
+      request();
+    };
     if (reduceQuery.addEventListener) reduceQuery.addEventListener("change", onReduce);
     else if (reduceQuery.addListener) reduceQuery.addListener(onReduce);
   }
-  document.addEventListener("visibilitychange", function () { if (M && !document.hidden) wake(); });
+  document.addEventListener("visibilitychange", function () {
+    if (!M) return;
+    /* the time spent hidden is not frame time */
+    M.lastFrame = 0;
+    M.samples = [];
+    if (!document.hidden) wake();
+  });
 
   /* a small handle for the checks in tools/ and for curious readers of the console */
   window.BMMap3D = {

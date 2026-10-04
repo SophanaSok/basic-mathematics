@@ -27,6 +27,7 @@
   var SRI = "sha512-vnmn/Qqn6aG0POAc9mIGzjq0IybrvxJXYDafNvp9JSnDGxeF3pbkSqLvf+YGd5ku63pT7sa/jxHn7/d0mU8+tA==";
   var TIMEOUT = 8000;
   var pending = null;
+  var kept = null;          /* window.THREE and __THREE__ as the load settled them */
 
   BM3D.why = "";
 
@@ -65,6 +66,7 @@
         if (done) return;
         done = true;
         clearTimeout(timer);
+        if (ok) kept = { three: window.THREE, rev: window.__THREE__ };
         if (!ok && s.parentNode) s.parentNode.removeChild(s);
         resolve(ok ? "" : why);
       }
@@ -73,7 +75,17 @@
       s.async = true;
       s.integrity = SRI;
       s.crossOrigin = "anonymous";
-      s.onload = function () { finish(!!window.THREE, "cdn"); };
+      s.onload = function () {
+        if (!done) { finish(!!window.THREE, "cdn"); return; }
+        /* a removed script still downloads and runs: after a timeout, its late copy must
+           not replace the one in use (or appear after the load said no), so undo it */
+        if (kept) {
+          window.THREE = kept.three;
+          window.__THREE__ = kept.rev;
+        } else {
+          try { delete window.THREE; delete window.__THREE__; } catch (e) { window.THREE = window.__THREE__ = undefined; }
+        }
+      };
       s.onerror = function () { finish(false, "cdn"); };
       document.head.appendChild(s);
     });
