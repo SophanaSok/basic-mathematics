@@ -235,6 +235,9 @@ async function run() {
       await next(p);
       const s4 = await st(p);
       eq([s4.timed, s4.hearts], [false, null], "switching calm off mid-run does not bring the clock or hearts back");
+      const note = await p.$eval(".arena-calmnote", (e) => ({ hidden: e.hidden, text: e.textContent }));
+      check(!note.hidden && !/calm mode is on/i.test(note.text) && /switched on during this run/.test(note.text),
+        "with calm off again, the calm note still tells the truth: " + note.text);
       await playOut(p);
       const res = await p.evaluate(() => window.BMArena.state().result);
       eq([res.ranked, res.tempo], [false, "untimed"], "the calmed run is scored as untimed");

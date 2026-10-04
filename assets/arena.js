@@ -968,7 +968,7 @@
       '<span class="arena-streak" title="Answers right first time within par, in a row">Streak <b data-streak>0</b></span>' +
       '<button type="button" class="btn ghost small arena-pause" data-act="pause" aria-keyshortcuts="Escape">Pause</button>' +
       "</div>" +
-      '<p class="arena-fine arena-calmnote" hidden>Calm mode is on, so the rest of this run has no clock and no hearts, and it counts as an Untimed run.</p>' +
+      '<p class="arena-fine arena-calmnote" hidden>Calm mode was switched on during this run, so the rest of it has no clock and no hearts, and it counts as an Untimed run.</p>' +
       '<div class="arena-par" role="timer" data-urgency="ok" hidden>' +
       '<span class="arena-par-track" aria-hidden="true"><span class="arena-par-fill"></span></span>' +
       '<span class="arena-par-read" aria-hidden="true"><b class="arena-par-text">0:00</b> <span class="arena-par-label">to par</span></span>' +
