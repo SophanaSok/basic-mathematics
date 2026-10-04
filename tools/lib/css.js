@@ -106,6 +106,9 @@ function tokens(css) {
   const light = {}, darkToggle = {}, darkMedia = {};
   const parts = {};
   rs.forEach(r => {
+    /* print, high-contrast and forced-colours blocks restate tokens on purpose; only the
+       screen palette (no media, or a dark colour-scheme media) is the one to measure */
+    if (r.media.length && !isDarkMedia(r)) return;
     const sel = normSel(r.selector);
     const props = customProps(r.decls);
     if (!Object.keys(props).length) return;
