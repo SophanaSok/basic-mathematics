@@ -273,13 +273,119 @@ function world(seedStores) {
   const d2 = G.recordRun({ mode: "daily", hearts: 1, score: 50, day: dayKey(), answers: [{ section: "ch05#angles", retry: true }] });
   eq(d2.xp, 1 + 5, "Daily bonus not paid twice in a day");
   G.recordRun({ mode: "rematch", boss: "ch05", hearts: 3, score: 900, day: dayKey(), answers: [{ section: "ch05#angles", first: true }] });
-  eq(G.game().enc["ch05/practice"].medal, 3, "rematch records its medal");
+  eq(G.game().enc["ch05/practice"], undefined, "a rematch of a set with no sign of a clear records no medal");
   G.recordRun({ mode: "repair", section: "ch05#pythagoras", timed: false, hearts: 3, score: 0, day: dayKey(),
     answers: [1, 2, 3, 4, 5].map(() => ({ section: "ch05#pythagoras", first: true })) });
   check(G.game().sec["ch05#pythagoras"].fix > 0, "a clean repair run marks the section repaired");
   const firsts = Array.from({ length: 10 }, (_, i) => ({ section: "ch05#angles", first: true, late: i < 3 }));
   G.recordRun({ mode: "standard", hearts: 3, score: 800, day: dayKey(), answers: firsts });
   check(!!G.game().ach["took-your-time"], "took-your-time: 10 first-try with 3 after par in a timed run");
+}
+
+/* ------------------------------------------- review fixes: runs and medals */
+{
+  const keys = ["e1", "e2", "e3", "e4"];
+  const at = (d) => new Date(d + "T12:00:00").getTime();
+  const cleared = (day, recs) => ({
+    "bm.progress.v1": { ch05: { solved: Object.fromEntries(keys.map((k) => [k, true])), total: 4 } },
+    "bm.attempts.v1": { ch05: recs || Object.fromEntries(keys.map((k) => [k, { tries: 1, solved: at(day), first: 1, section: "angles" }])) },
+    "bm.run.v1": { sets: { ch05: { practice: keys } } }
+  });
+  const rc = (G) => G.ACHIEVEMENTS.find((a) => a.id === "returning-champion").test(G.stores());
+  const miss3 = [1, 2, 3].map(() => ({ section: "ch05#angles" }));
+
+  /* a rematch lost on hearts, from an empty store: no medal, no false Boss down */
+  let w = world();
+  let r = w.Game.recordRun({ mode: "boss", boss: "ch05", hearts: 0, ended: "hearts", finished: false, ranked: true, score: 0, day: dayKey(), answers: miss3 });
+  eq([r.medal, w.Game.game().enc, w.Game.medal("ch05")], [0, {}, 0], "a rematch ending at 0 hearts records no medal");
+  w.Game.evaluate();
+  check(!w.Game.game().ach["boss-down"], "a lost rematch does not unlock Boss down");
+
+  /* a rematch of a set this device can see is not cleared: no medal, no Returning champion */
+  w = world({ "bm.progress.v1": { ch05: { solved: { e1: true }, total: 4 } }, "bm.attempts.v1": { ch05: { e1: { tries: 1, solved: at(daysAgo(1)), first: 1 } } },
+    "bm.run.v1": { sets: { ch05: { practice: keys } } } });
+  r = w.Game.recordRun({ mode: "boss", boss: "ch05", hearts: 2, ranked: true, finished: true, score: 500, day: dayKey(), answers: [{ section: "ch05#angles", first: true }] });
+  eq([r.medal, w.Game.game().enc, rc(w.Game)], [0, {}, [0, 1]], "a rematch of an uncleared set: no medal, Returning champion stays locked");
+  /* a synced rematch medal on a device without the set's keys proves nothing */
+  w = world({ "bm.game.v1": { enc: { "ch05/practice": { medal: 2, day: dayKey() } } } });
+  eq(rc(w.Game), [0, 1], "returning-champion: not counted where the set's keys are unknown");
+
+  /* a later Silver after a same-day Silver: enc keeps the earlier day, the run unlocks it */
+  const s5 = cleared(daysAgo(1));
+  s5["bm.game.v1"] = { enc: { "ch05/practice": { medal: 2, day: daysAgo(1) } } };
+  w = world(s5);
+  r = w.Game.recordRun({ mode: "boss", boss: "ch05", hearts: 2, ranked: true, finished: true, score: 500, day: dayKey(), answers: [{ section: "ch05#angles", first: true }] });
+  eq([r.medal, w.Game.game().enc["ch05/practice"].day, !!w.Game.game().ach["returning-champion"]], [2, daysAgo(1), true],
+    "a Silver rematch on a later day unlocks Returning champion even when enc keeps the earlier day");
+  w = world(cleared(dayKey()));
+  w.Game.recordRun({ mode: "boss", boss: "ch05", hearts: 3, ranked: true, finished: true, score: 900, day: dayKey(), answers: [{ section: "ch05#angles", first: true }] });
+  check(!w.Game.game().ach["returning-champion"], "a rematch on the day of the clear does not unlock Returning champion");
+
+  /* bests only for ranked runs played through; the Daily only once played through */
+  w = world();
+  w.Game.recordRun({ mode: "standard", timed: false, ranked: false, finished: true, hearts: null, score: 1600, day: dayKey(), answers: [{ section: "ch05#angles", first: true }] });
+  w.Game.recordRun({ mode: "standard", ranked: true, finished: false, ended: "banked", hearts: 0, score: 240, day: dayKey(), answers: [{ section: "ch05#angles", first: true }] });
+  eq(w.Game.game().best, {}, "untimed and banked runs keep no best");
+  r = w.Game.recordRun({ mode: "daily", ranked: true, finished: false, ended: "banked", hearts: 0, score: 120, day: dayKey(), answers: [{ section: "ch05#zz", first: true }] });
+  eq([r.xp, w.Game.game().daily], [3, {}], "a banked Daily pays its answers only and is not marked played");
+  r = w.Game.recordRun({ mode: "standard", ranked: true, finished: true, hearts: 3, score: 0, day: dayKey(), answers: [1, 2, 3].map(() => ({ section: "ch05#yy", pass: true })) });
+  eq(r.xp, 0, "a finished run of passes earns no finishing bonus");
+  r = w.Game.recordRun({ mode: "standard", ranked: true, finished: true, hearts: 1, score: 30, day: dayKey(), answers: [{ section: "ch05#yy", retry: true }] });
+  eq([r.xp, w.Game.game().best.standard.score], [1 + 5, 30], "a finished ranked run with a right answer and a heart: +5 and a best");
+
+  /* the boxes follow 1, 3, 7, 14, 30 days: an early clean showing keeps box and clock */
+  w = world();
+  const boxes = [3, 2, 1, 0].map((n) => {
+    w.Game.recordRun({ mode: "standard", hearts: 3, score: 1, day: daysAgo(n), answers: [{ section: "ch05#angles", first: true }] });
+    return w.Game.game().sec["ch05#angles"].box;
+  });
+  eq([boxes, w.Game.game().sec["ch05#angles"].last], [[1, 1, 1, 2], dayKey()], "promotion waits until the section is due");
+
+  /* a streak from before the game layer is credited */
+  const old = {};
+  for (let i = 40; i <= 46; i++) old[daysAgo(i)] = 30;
+  w = world({ "bm.activity.v1": { days: old } });
+  check(w.Game.evaluate().map((a) => a.id).indexOf("streak-7") > -1, "streak-7 counts the longest run in the record, not only the current one");
+
+  /* a cleared set leaves its medal in the synced enc record, dated the day of the clear */
+  const recs = Object.fromEntries(keys.map((k) => [k, { tries: 1, solved: at(daysAgo(2)), first: 1 }]));
+  recs.e2 = { tries: 2, solved: at(daysAgo(2)), first: 0 };
+  w = world(cleared(daysAgo(2), recs));
+  w.Game.evaluate();
+  eq(w.Game.game().enc["ch05/practice"], { medal: 2, day: daysAgo(2) }, "a cleared set banks its medal in enc");
+  check(!w.Game.game().ach["returning-champion"], "a banked clear does not count as a rematch");
+  const synced = world({ "bm.progress.v1": { ch02: { solved: {}, total: 9 } }, "bm.game.v1": w.Game.game() });
+  eq(synced.Game.medal("ch05", "practice"), 2, "the banked medal shows on a device without the set's keys");
+  const s4 = cleared(daysAgo(2), recs);
+  delete s4["bm.run.v1"];
+  eq(world(s4).Game.medal("ch05", "practice"), 2, "a finished chapter without a review set names its practice set from progress");
+
+  /* one Your turn check does not make a section solid */
+  w = world({ "bm.attempts.v1": { ch05: { i1: { tries: 1, solved: 1, first: 1, inline: 1, section: "angles" }, e1: { tries: 1, solved: 1, first: 1, section: "parallels" } } } });
+  w.win.__rows = [
+    { id: "ch05#angles", solved: 1, score: 0, label: "§5.2", section: { title: "Angles" }, chapter: { id: "ch05" }, path: "x" },
+    { id: "ch05#parallels", solved: 1, score: 0, label: "§5.3", section: { title: "Parallels" }, chapter: { id: "ch05" }, path: "y" },
+    { id: "ch05#pythagoras", solved: 2, score: 0.1, label: "§5.4", section: { title: "Pythagoras" }, chapter: { id: "ch05" }, path: "z" }
+  ];
+  eq(["ch05#angles", "ch05#parallels", "ch05#pythagoras"].map(w.Game.sectionStatus), ["new", "solid", "solid"],
+    "solid needs two solves or a scored first try; one inline check stays new");
+  eq(w.Game.deck().map((d) => d.id), ["ch05#parallels", "ch05#pythagoras"], "the deck leaves out a section met only once inline");
+
+  /* without the set cache, a rematch raises a medal only on evidence the set was cleared */
+  const gold = { mode: "boss", boss: "ch05", hearts: 3, ranked: true, finished: true, score: 900, day: dayKey(), answers: keys.map(() => ({ section: "ch05#angles", first: true })) };
+  w = world({ "bm.progress.v1": { ch05: { solved: { e1: true }, total: 10 } }, "bm.attempts.v1": { ch05: { e1: { tries: 1, solved: at(daysAgo(1)), first: 1, section: "angles" } } } });
+  r = w.Game.recordRun(gold);
+  w.Game.evaluate();
+  eq([r.medal, w.Game.game().enc, w.Game.medal("ch05"), !!w.Game.game().ach["boss-down"], !!w.Game.game().ach.flawless], [0, {}, 0, false, false],
+    "a rematch of an uncleared set with no cache earns no medal and unlocks nothing");
+  w = world(s4);
+  r = w.Game.recordRun(gold);
+  eq([r.medal, w.Game.medal("ch05")], [3, 3], "a rematch of a chapter finished before the cache still earns its medal");
+
+  /* the achievements agree with the medal progress shows for a set finished before the cache */
+  w = world(s4);
+  w.Game.evaluate();
+  eq([!!w.Game.game().ach["boss-down"], !!w.Game.game().ach.flawless], [true, false], "a finished chapter without the cache counts for Boss down");
 }
 
 console.log((fails ? "FAILED" : "ok") + " rules: " + passes + " checks passed" + (fails ? ", " + fails + " failed" : ""));

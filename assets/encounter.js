@@ -31,7 +31,11 @@
 
   function slice(list) { return Array.prototype.slice.call(list); }
   function calm() { return Game.prefs().calm; }
-  function stars(n) { return new Array(n + 1).join("★"); }
+  /* drawn stars from game.js, with the count in words; ★ text only if it is older */
+  function stars(n, compact) {
+    if (Game.stars) return Game.stars(n, compact);
+    return '<span aria-hidden="true">' + new Array(n + 1).join("★") + "</span>";
+  }
   function announce(text, opts) { if (Game.announce) Game.announce(text, opts); }
 
   /* ------------------------------------------------------------- sigil --- */
@@ -271,6 +275,12 @@
       ? "<b>Cleared</b>" + (medal ? " · " + MEDALS[medal] + " medal" : "")
       : "<b>" + st.hp + "</b> left" + (isCalm ? "" : ' · <span class="encounter-hearts" role="img" aria-label="' +
         st.hearts + ' of 3 hearts">' + heartsHtml(st.hearts) + "</span>");
+    /* the heart just lost breaks once; a restored or synced count never does */
+    if (fresh && prev && st.hearts < prev.hearts && !st.won && !isCalm) {
+      var lost = slice(set.status.querySelectorAll(".encounter-hearts i")).slice(st.hearts, prev.hearts);
+      lost.forEach(function (i) { i.setAttribute("data-break", ""); });
+      setTimeout(function () { lost.forEach(function (i) { i.removeAttribute("data-break"); }); }, 400);
+    }
 
     var w = wardsFor(set, st);
     if (set.wards.innerHTML !== w.html) set.wards.innerHTML = w.html;
@@ -348,7 +358,7 @@
     var el = set.result;
     el.setAttribute("data-revisit", "true");
     var html = "<p><b>" + esc(set.name) + "</b> " + (set.review ? "cleared" : "is down") +
-      (medal ? ' · <span aria-hidden="true">' + stars(medal) + "</span> " + MEDALS[medal] + " medal" : "") +
+      (medal ? " · " + stars(medal, true) + " " + MEDALS[medal] + " medal" : "") +
       " · " + st.first + " of " + st.total + " right first time" +
       (set.review ? "" : ' · <a href="' + rematchHref() + '">Rematch in the Arena</a>') + "</p>";
     if (el.innerHTML !== html) el.innerHTML = html;
@@ -388,8 +398,7 @@
     var medal = Game.medal(chapterId, set.id), isCalm = calm(), el = set.result;
     el.removeAttribute("data-revisit");
     var html = '<p class="encounter-result-title"><b>' + esc(set.name) + "</b> " + (set.review ? "cleared." : "is down.") + "</p>";
-    html += '<p class="encounter-medal" data-medal="' + medal + '"><span class="encounter-stars" aria-hidden="true">' +
-      stars(medal) + "</span> " + MEDALS[medal] + " medal</p>";
+    html += '<p class="encounter-medal" data-medal="' + medal + '">' + stars(medal) + " " + MEDALS[medal] + " medal</p>";
     html += '<div class="stats"><div class="stat"><b>' + st.first + " of " + st.total + "</b><span>right first time</span></div>";
     if (!isCalm) html += '<div class="stat"><b>' + st.hearts + " of 3</b><span>hearts kept</span></div>";
     html += "</div>";
@@ -481,8 +490,9 @@
       var f = t && t.querySelector("input:not([disabled]), button");
       if (f) try { f.focus(); } catch (e) { /* nothing to focus */ }
     });
+    /* under the hearts key, so it replaces the "0 of 3 hearts" line instead of repeating it */
     announce("No hearts left in this set. " + (info ? "Worth rereading " + info.full + "." : "Worth rereading the section."),
-      { priority: "normal", key: "regroup-" + set.id });
+      { priority: "normal", key: "hearts-" + set.id });
   }
 
   /* hearts in the header belong to the set being worked on, while it is unbeaten */
@@ -490,7 +500,7 @@
     if (!Game.hudHearts) return;
     var live = sets.filter(function (s) { return s.prev && !s.prev.won && s.prev.state === "active"; })
       .sort(function (a, b) { return b.lastTouched - a.lastTouched; })[0];
-    Game.hudHearts(live && !calm() ? { lives: live.prev.hearts, max: 3 } : null);
+    Game.hudHearts(live && !calm() ? { lives: live.prev.hearts, max: 3, id: live.id } : null);
   }
 
   /* --------------------------------------------------------------- go ----- */

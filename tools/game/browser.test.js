@@ -430,11 +430,163 @@ async function run() {
       eq(errors, [], "no errors around empty checks");
       await context.close();
     }
+
+    /* ------------------------------- review fixes: one backfill summary, spoken once */
+    {
+      const solved = {}, recs = {};
+      for (let i = 1; i <= 10; i++) { solved["e" + i] = true; recs["e" + i] = { tries: 1, solved: 1 + i, first: 1, section: "angles" }; }
+      const { context, page, errors } = await open(browser, CH05, {
+        "bm.lesson.v1": '{"mode":"page"}',
+        "bm.progress.v1": JSON.stringify({ ch05: { solved, total: 12 } }),
+        "bm.attempts.v1": JSON.stringify({ ch05: recs })
+      });
+      await wait(2000);
+      const r = await page.evaluate(() => ({
+        toasts: Array.prototype.map.call(document.querySelectorAll(".toast"), function (t) { return t.textContent; }),
+        live: document.getElementById("bm-live").textContent
+      }));
+      eq(r.toasts.filter((t) => /from earlier work/.test(t)), ["3 achievements unlocked from earlier work."], "the first chapter visit backfills with exactly one summary toast");
+      eq((r.live.match(/from earlier work/g) || []).length, 1, "and says it once");
+      eq(errors, [], "no errors on the backfill");
+      await context.close();
+    }
+
+    /* ------------------- review fixes: the toast stack, goal speech, hearts, stars */
+    {
+      const { context, page, errors } = await open(browser, CH05, {
+        "bm.lesson.v1": '{"mode":"page"}',
+        "bm.activity.v1": JSON.stringify({ days: { [dayAgo(0)]: 20 }, goal: 30 }),
+        "bm.run.v1": JSON.stringify({ seen: { level: 1, ach: 1 }, combo: { pips: 2 } })
+      }, { width: 400 });
+      await page.evaluate(() => {
+        window.__maxToasts = 0;
+        window.__live = [];
+        setInterval(function () {
+          var up = document.querySelectorAll(".toast:not([data-out])").length;
+          if (up > window.__maxToasts) window.__maxToasts = up;
+        }, 20);
+        new MutationObserver(function () { var t = document.getElementById("bm-live").textContent; if (t) window.__live.push(t); })
+          .observe(document.getElementById("bm-live"), { childList: true, characterData: true, subtree: true });
+      });
+      /* +14 XP with the combo, the daily goal, level 2 and First light, all from one answer */
+      await answer(page, '#practice .ex[data-key="e1"]', true);
+      await wait(200);
+      const now = await page.evaluate(() => Array.prototype.map.call(document.querySelectorAll(".toast:not([data-out])"), function (t) { return t.textContent; }));
+      eq(now.length, 2, "one fast answer: two toasts on screen, not four (" + now.join(" | ") + ")");
+      check(/\+14 XP/.test(now[0]) && /combo/.test(now[0]) && /Daily goal reached/.test(now[0]), "XP, combo and the daily goal share one toast");
+      /* three quick misses take every heart: the lost ones break, and the last is said once */
+      for (const k of ["e2", "e3", "e4"]) await answer(page, '#practice .ex[data-key="' + k + '"]', false);
+      await wait(520);
+      eq(await page.$$eval("#practice .encounter-hearts i[data-break]", (l) => l.length), 3, "the hearts just lost carry data-break");
+      await wait(5600);
+      const after = await page.evaluate(() => ({ max: window.__maxToasts, live: window.__live.join(" / "), breaks: document.querySelectorAll("[data-break]").length }));
+      eq([after.max, after.breaks], [2, 0], "never more than two toasts; data-break is removed again");
+      check(/Daily goal reached/.test(after.live), "the daily goal is spoken (" + after.live + ")");
+      check(/No hearts left/.test(after.live) && !/0 of 3 hearts/.test(after.live), "losing the last heart is said once (" + after.live + ")");
+      await page.reload();
+      await page.waitForFunction(() => document.readyState === "complete");
+      await wait(300);
+      eq(await page.$$eval("[data-break]", (l) => l.length), 0, "no heart breaks on a reload");
+      for (const k of ["e1", "e2", "e3", "e4", "e5", "e6", "e7", "e8", "e9", "e10"]) {
+        if (await page.$eval('#practice .ex[data-key="' + k + '"]', (e) => e.getAttribute("data-state") !== "correct")) await answer(page, '#practice .ex[data-key="' + k + '"]', true);
+      }
+      await wait(1600);
+      const st = await page.evaluate(() => {
+        var m = document.querySelector("#practice .encounter-medal .encounter-stars"), chip = document.querySelector(".banner-stat[data-medal] .encounter-stars");
+        return {
+          medal: m && [m.getAttribute("aria-label"), m.querySelectorAll("i[data-on]").length, m.querySelectorAll("i").length],
+          chip: chip && chip.getAttribute("aria-label"),
+          text: (document.querySelector("#practice .encounter-result").textContent + document.querySelector(".banner-meta").textContent)
+        };
+      });
+      eq([st.medal, st.chip], [["1 of 3 stars", 1, 3], "1 of 3 stars"], "the finale and the banner draw the medal's stars, with words");
+      check(!/★/.test(st.text.replace(/★ \d+ \/ \d+ missions/, "")), "no star characters left for the medal");
+      eq(errors, [], "no errors in the toast and hearts run");
+      await context.close();
+    }
+
+    /* ------------------------- review fixes: the sheet carries theme and account */
+    {
+      const { context, page, errors } = await open(browser, "parts/1-algebra/01-numbers.html", { "bm.lesson.v1": '{"mode":"page"}', "bm.theme": '"light"' }, { width: 360 });
+      await page.click(".hud-menu");
+      check(await page.$eval(".hud-sheet .hud-sheet-theme", (b) => !!b.offsetParent), "at 360px the sheet shows a theme button");
+      await page.click(".hud-sheet .hud-sheet-theme");
+      eq(await page.evaluate(() => [document.documentElement.getAttribute("data-theme"), document.getElementById("hud-sheet").hidden]), ["dark", false], "it switches the theme and the sheet stays open");
+      await page.focus('.hud-sheet [data-pref="map3d"]');
+      await page.keyboard.press("Tab");
+      await page.keyboard.press("Tab");
+      check(await page.evaluate(() => document.getElementById("hud-sheet").hidden || document.getElementById("hud-sheet").contains(document.activeElement)), "tabbing out of the sheet closes it");
+      eq(errors, [], "no errors around the sheet");
+      await context.close();
+    }
+
+    /* --------------- review fixes: medals, recall, streaks and repairs off the chapter page */
+    {
+      const solved = {}, recs = {};
+      for (let i = 1; i <= 9; i++) { solved["e" + i] = true; recs["e" + i] = { tries: 1, solved: 1000 + i, first: 1, section: "one-unknown" }; }
+      recs.e1 = { tries: 2, solved: 1001, first: 0, section: "one-unknown" };
+      const { context, page, errors } = await open(browser, "progress.html", {
+        "bm.progress.v1": JSON.stringify({ ch02: { solved, total: 9 }, ch01: { solved: { e1: true }, total: 10 } }),
+        "bm.attempts.v1": JSON.stringify({ ch02: recs }),
+        "bm.game.v1": JSON.stringify({ enc: { "ch07/practice": { medal: 3, day: "2026-01-02" } } })
+      });
+      const cells = await page.$$eval("td.cell-medal", (l) => l.map((c) => c.getAttribute("data-medal") || ""));
+      eq([cells[1], cells[7]], ["2", "3"], "progress shows medals without the set cache: from progress (ch02) and from the synced record (ch07)");
+      await context.close();
+
+      const p2 = await open(browser, "progress.html", { "bm.progress.v1": JSON.stringify({ ch01: { solved: { e1: true, e2: true }, total: 10 } }) });
+      check(/Recall picks up a section/.test(await p2.page.$eval("#recall", (e) => e.textContent)), "Recall does not claim nothing is solved for solves that predate the attempt log");
+      await p2.context.close();
+
+      const days = {};
+      for (let i = 40; i <= 46; i++) days[dayAgo(i)] = 30;
+      const p3 = await open(browser, "index.html", { "bm.activity.v1": JSON.stringify({ days }) });
+      await wait(300);
+      check(await p3.page.evaluate(() => !!window.BMGame.game().ach["streak-7"]), "an old seven-day streak is backfilled");
+      await p3.context.close();
+
+      const T0 = Date.now() - 864e5 * 3;
+      const p4 = await open(browser, "parts/1-algebra/02-linear-equations.html", {
+        "bm.lesson.v1": '{"mode":"page"}',
+        "bm.attempts.v1": JSON.stringify({ ch02: { e2: { tries: 3, opened: 1, hints: 2, solved: T0 + 50, section: "one-unknown" }, e3: { tries: 2, hints: 1, opened: 1, solved: T0 + 60, section: "one-unknown" } } }),
+        "bm.game.v1": JSON.stringify({ sec: { "ch02#one-unknown": { n: 5, ok: 5, box: 1, last: "2026-01-01", fix: T0 + 100000 } } })
+      });
+      check(!/Worth another look/.test(await p4.page.$eval(".chapter-feedback", (e) => e.textContent)), "a section repaired in the Arena is not named on its chapter page");
+      eq([errors, p2.errors, p3.errors, p4.errors], [[], [], [], []], "no errors off the chapter page");
+      await p4.context.close();
+    }
+
+    /* ---------- review fixes: the Arena's copy follows the deck rule; achievements follow the medals */
+    {
+      const { context, page, errors } = await open(browser, "arena.html", {
+        "bm.attempts.v1": JSON.stringify({ ch05: { t1: { tries: 1, first: 1, inline: 1, solved: Date.now() - 4e6, section: "angles" } } })
+      });
+      await wait(300);
+      const empty = await page.$eval(".arena-empty", (e) => e.textContent);
+      check(/solved two of its problems/.test(empty) && !/at least one problem/.test(empty), "the empty deck states the two-solve rule, not one solve");
+      await context.close();
+
+      const solved = {}, recs = {};
+      for (let i = 1; i <= 9; i++) { solved["e" + i] = true; recs["e" + i] = { tries: 1, solved: 1000 + i, first: 1, section: "one-unknown" }; }
+      const p2 = await open(browser, "progress.html", { "bm.progress.v1": JSON.stringify({ ch02: { solved, total: 9 } }), "bm.attempts.v1": JSON.stringify({ ch02: recs }) });
+      await wait(300);
+      const cell = await p2.page.$$eval("td.cell-medal", (l) => l[1].getAttribute("data-medal"));
+      eq([cell, await p2.page.evaluate(() => ["boss-down", "flawless"].map((id) => !!window.BMGame.game().ach[id]))], ["3", [true, true]],
+        "a Gold shown without the set cache also unlocks Boss down and Flawless on the same page");
+      eq([errors, p2.errors], [[], []], "no errors on the Arena copy and progress checks");
+      await p2.context.close();
+    }
   } finally {
     await browser.close();
   }
 }
 function window_level(xp) { let L = 1; while (5 * L * (L + 4) <= xp) L++; return L; }
+/* a local YYYY-MM-DD, n days back, as site.js keys the activity days */
+function dayAgo(n) {
+  const d = new Date(), t = (x) => (x < 10 ? "0" : "") + x;
+  d.setDate(d.getDate() - n);
+  return d.getFullYear() + "-" + t(d.getMonth() + 1) + "-" + t(d.getDate());
+}
 
 run().then(() => {
   console.log((fails ? "FAILED" : "ok") + " browser: " + passes + " checks passed" + (fails ? ", " + fails + " failed" : ""));

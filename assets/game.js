@@ -6,12 +6,14 @@
    Loaded after site.js, so the page is already built: this file decorates it and
    then listens on BMStore. Nothing here grades an answer or changes how XP is
    earned for a correct one; it only adds the combo's share through the seam in
-   site.js check(). Levels and medals are derived from the existing stores and
-   never saved, so they cannot drift from the record they summarise.
+   site.js check(). Levels and medals are derived from the existing stores, so they
+   cannot drift from the record they summarise; a cleared set's medal is also copied
+   into the synced store, for pages and devices that cannot see the set itself.
 
    Stores:
      bm.game.v1   synced: achievements, compared solutions, the Arena's review
-                  boxes, bests, rematch medals, Daily days, how often the meter filled
+                  boxes, bests, medals (rematches, and clears seen on a chapter
+                  page), Daily days, how often the meter filled
      bm.run.v1    this device only: the combo meter, what has been announced, a
                   cache of which exercises make up each set
      bm.prefs.v1  this device only, never cleared: sound, calm, map, tempo
@@ -186,10 +188,21 @@
     return Array.isArray(rec[set]) ? rec[set] : null;
   }
 
-  /* the medal as shown: derived from the set, raised by a rematch in the Arena */
+  /* Without this device's cache, a finished chapter that has no review set still names
+     its practice set: every scored exercise in it is there, so it is what progress shows
+     solved (scored keys only). Covers work from before the cache, never reopened since. */
+  function finishedKeys(S, chapterId, set) {
+    var ch = C.chapterById ? C.chapterById(chapterId) : null;
+    if (set !== "practice" || !ch || ch.sections.some(function (s) { return s.id === "review"; })) return null;
+    var rec = obj(obj(S.progress)[chapterId]), keys = Object.keys(obj(rec.solved));
+    return num(rec.total) > 0 && keys.length >= num(rec.total) ? keys : null;
+  }
+
+  /* the medal as shown: derived from the set, raised by a rematch in the Arena; where
+     this device has not seen the set, the medal recorded when it was cleared (bankMedals) */
   function medalIn(S, chapterId, set) {
     set = set || "practice";
-    var keys = setKeys(S, chapterId, set);
+    var keys = setKeys(S, chapterId, set) || finishedKeys(S, chapterId, set);
     var enc = obj(obj(S.game.enc)[chapterId + "/" + set]);
     if (!keys || !keys.length) return Math.max(0, Math.min(3, num(enc.medal)));
     var st = setStats(S, chapterId, keys);
@@ -198,12 +211,46 @@
   function medal(chapterId, set) { return medalIn(stores(), chapterId, set); }
   var MEDALS = ["", "Bronze", "Silver", "Gold"];
 
-  function streakOf(days) {
+  /* an enc record is replaced by a higher medal, or by the same medal on an earlier day
+     (the rule account.js mergeGame applies too) */
+  function outranks(medal, day, old) {
+    old = obj(old);
+    return !old.medal || medal > num(old.medal) || (medal === num(old.medal) && day < String(old.day || "9999"));
+  }
+
+  /* Which exercises make up a set is only known on a device that has opened the chapter
+     (bm.run.v1.sets, device-local). So a set seen cleared also leaves its medal in the
+     synced enc record, dated the day it was cleared: the progress page, the map and a
+     second device can then show it without the chapter's page. */
+  function bankMedals() {
+    var S = stores(), add = [];
+    Object.keys(obj(S.run.sets)).forEach(function (ch) {
+      ["practice", "review"].forEach(function (kind) {
+        var keys = setKeys(S, ch, kind);
+        if (!keys || !keys.length) return;
+        var st = setStats(S, ch, keys);
+        var day = st.lastSolved ? Site.dayKey(new Date(st.lastSolved)) : today();
+        if (st.won && outranks(st.medal, day, S.game.enc[ch + "/" + kind])) add.push([ch + "/" + kind, st.medal, day]);
+      });
+    });
+    if (!add.length) return;
+    updateGame(function (g) {
+      add.forEach(function (a) { if (outranks(a[1], a[2], g.enc[a[0]])) g.enc[a[0]] = { medal: a[1], day: a[2] }; });
+    });
+  }
+
+  /* the longest run of consecutive active days anywhere in the record, so a streak from
+     before the game layer, or pieced together by a sync, still counts */
+  function longestRun(days) {
     days = obj(days);
-    var d = new Date(), n = 0;
-    if (!(days[Site.dayKey(d)] > 0)) d.setDate(d.getDate() - 1);
-    while (days[Site.dayKey(d)] > 0) { n++; d.setDate(d.getDate() - 1); }
-    return n;
+    var best = 0, run = 0, prev = "";
+    Object.keys(days).filter(function (k) { return days[k] > 0; }).sort().forEach(function (k) {
+      var p = prev.split("-");
+      run = prev && Site.dayKey(new Date(+p[0], +p[1] - 1, +p[2] + 1)) === k ? run + 1 : 1;
+      if (run > best) best = run;
+      prev = k;
+    });
+    return best;
   }
   function chapterFinished(S, ch) {
     var rec = obj(obj(S.progress)[ch.id]);
@@ -242,6 +289,14 @@
       if (!keys || !keys.length) return;
       var st = setStats(S, ch, keys);
       if (st.won && (!pred || pred(ch, st))) { n++; seen[ch] = true; }
+    });
+    /* a finished chapter this device has no cache for, as medalIn shows it (finishedKeys) */
+    Object.keys(obj(S.progress)).forEach(function (ch) {
+      var keys = setKeys(S, ch, kind) ? null : finishedKeys(S, ch, kind);
+      if (!keys || !keys.length) return;
+      var st = setStats(S, ch, keys);
+      if (st.won && (!pred || pred(ch, st))) n++;
+      seen[ch] = true;
     });
     /* a set cleared on another device still counts once its rematch medal has synced */
     Object.keys(obj(S.game.enc)).forEach(function (id) {
@@ -328,14 +383,16 @@
       return [setsWon(S, "review"), 4];
     }),
     A("returning-champion", "Returning champion", "Come back on a later day and win Silver or better in an Arena rematch.", function (S) {
+      /* recordRun unlocks it from the run itself; this catches a rematch synced from
+         another device, counted only where this device can see when the set was cleared */
       var n = 0;
       Object.keys(obj(S.game.enc)).forEach(function (id) {
         var e = obj(S.game.enc[id]), cut = id.split("/");
-        if (num(e.medal) < 2 || !e.day) return;
-        var keys = setKeys(S, cut[0], cut[1] || "practice");
-        var st = keys ? setStats(S, cut[0], keys) : null;
-        var cleared = st && st.lastSolved ? Site.dayKey(new Date(st.lastSolved)) : "";
-        if (!cleared || String(e.day) > cleared) n++;
+        if (num(e.medal) < 2 || !e.day || cut[1] !== "practice") return;
+        var keys = setKeys(S, cut[0], "practice");
+        var st = keys && keys.length ? setStats(S, cut[0], keys) : null;
+        if (!st || !st.won || !st.lastSolved) return;
+        if (String(e.day) > Site.dayKey(new Date(st.lastSolved))) n++;
       });
       return [Math.min(1, n), 1];
     }),
@@ -351,13 +408,13 @@
       return [S.game.ach["took-your-time"] ? 1 : 0, 1];
     }),
     A("streak-3", "Three in a row", "Study on three days in a row.", function (S) {
-      return [streakOf(obj(S.activity).days), 3];
+      return [longestRun(obj(S.activity).days), 3];
     }),
     A("streak-7", "A full week", "Study on seven days in a row.", function (S) {
-      return [streakOf(obj(S.activity).days), 7];
+      return [longestRun(obj(S.activity).days), 7];
     }),
     A("streak-30", "A month of days", "Study on thirty days in a row.", function (S) {
-      return [streakOf(obj(S.activity).days), 30];
+      return [longestRun(obj(S.activity).days), 30];
     }),
     A("region-cleared", "Region cleared", "Finish every exercise in every chapter of one Part.", function (S) {
       var best = [0, 1];
@@ -447,30 +504,47 @@
     if (!m) return null;
     return Math.round(new Date(+m[1], +m[2] - 1, +m[3]).getTime() / 86400000);
   }
-  function daysSince(key) {
-    var d = dayNum(key);
-    return d === null ? Infinity : dayNum(today()) - d;
+  /* scored exercises (not the Your turn checks) solved first time, by section */
+  function scoredFirsts() {
+    var out = {}, all = Attempts ? Attempts.all() : {};
+    Object.keys(all).forEach(function (ch) {
+      var recs = obj(all[ch]);
+      Object.keys(recs).forEach(function (k) {
+        var r = obj(recs[k]), s = r.section;
+        if (!s || r.inline || !r.solved || !r.first) return;
+        var id = s.indexOf("#") > -1 ? s : ch + "#" + s;
+        out[id] = (out[id] || 0) + 1;
+      });
+    });
+    return out;
   }
   function sectionRows() {
-    var map = {};
-    if (Insights) Insights.sections().forEach(function (r) { map[r.id] = r; });
+    var map = {}, firsts = scoredFirsts();
+    if (Insights) Insights.sections().forEach(function (r) { r.scoredFirst = firsts[r.id] || 0; map[r.id] = r; });
     return map;
   }
-  /* new: nothing solved there yet; shaky: the record says reread it; solid: otherwise */
+  /* shaky: the record says reread it; solid: met well enough to go under the clock (two
+     exercises solved there, scored or Your turn, or a scored one right first time, or a
+     first-try answer in the Arena); new: otherwise, since one Your turn check is not enough.
+     arena.js applies the same rule when the game layer is absent. */
   function statusOf(row, sec) {
-    if (!row || !row.solved) return obj(sec).ok > 0 ? "solid" : "new";
-    return row.score >= (Insights ? Insights.WEAK : 0.34) ? "shaky" : "solid";
+    if (row && row.solved && row.score >= (Insights ? Insights.WEAK : 0.34)) return "shaky";
+    if (obj(sec).ok > 0) return "solid";
+    return row && (row.solved >= 2 || row.scoredFirst > 0) ? "solid" : "new";
   }
   function sectionStatus(id) {
     return statusOf(sectionRows()[id], readGame().sec[id]);
   }
-  function isDue(sec) {
+  /* due on `day`: at least the box's interval since the section was last placed */
+  function dueOn(sec, day) {
     sec = obj(sec);
-    if (!sec.last) return true;
+    var last = dayNum(sec.last), now = dayNum(day);
+    if (last === null || now === null) return true;
     var box = Math.max(0, Math.min(4, Math.floor(num(sec.box))));
-    return daysSince(sec.last) >= BOXES[box];
+    return now - last >= BOXES[box];
   }
-  /* the sections the Arena may draw from: solved at least once on a chapter page */
+  function isDue(sec) { return dueOn(sec, today()); }
+  /* the sections the Arena may draw from: every one that is not new (statusOf) */
   function deck(opts) {
     opts = obj(opts);
     var rows = sectionRows(), g = readGame(), out = [];
@@ -491,9 +565,12 @@
     });
   }
 
-  /* One finished Arena run. Updates the review boxes, bests, rematch medal and Daily,
-     then pays the run's XP once: 2 per first-try answer (3 if that section was due),
-     1 per answer right on the retry, 5 for finishing with a heart, 10 for the day's Daily. */
+  /* One Arena run, finished or not. Updates the review boxes, bests, rematch medal and
+     Daily, then pays the run's XP once: 2 per first-try answer (3 if that section was
+     due), 1 per answer right on the retry, 5 for finishing with a heart and at least one
+     answer right, 10 for the day's Daily once it is played through. Bests are kept only
+     for ranked (timed, with hearts) runs played to the end; a rematch medal needs that
+     and a heart left. `ranked` and `finished` default to true for older callers. */
   function recordRun(result) {
     result = obj(result);
     var answers = Array.isArray(result.answers) ? result.answers : [];
@@ -501,8 +578,17 @@
     var mode = String(result.mode || "standard");
     var hearts = Math.max(0, Math.floor(num(result.hearts)));
     var score = Math.max(0, Math.round(num(result.score)));
+    var ranked = result.ranked !== false, finished = result.finished !== false;
     var xp = 0, dailyBonus = false, newMedal = 0, before = readGame();
     var bySec = {};
+    /* the rematch's set as this device sees it: null when it has never opened the chapter.
+       Then the set counts as cleared only on evidence: a banked medal (synced) or the
+       whole chapter solved. */
+    var boss = result.boss ? String(result.boss) : "", S0 = stores();
+    var bossKeys = boss ? setKeys(S0, boss, "practice") || finishedKeys(S0, boss, "practice") : null;
+    var bossSet = bossKeys && bossKeys.length ? setStats(S0, boss, bossKeys) : null;
+    var cleared = bossSet ? bossSet.won
+      : num(obj(before.enc[boss + "/practice"]).medal) > 0 || chapterFinished(S0, { id: boss });
 
     answers.forEach(function (a) {
       a = obj(a);
@@ -516,17 +602,20 @@
       if (a.first) s.ok++;
       else s.miss++;
     });
-    if (answers.length && hearts > 0) xp += 5;
+    var right = answers.some(function (a) { return a && (a.first || a.retry); });
+    if (finished && right && hearts > 0) xp += 5;
 
     var g = updateGame(function (g) {
       Object.keys(bySec).forEach(function (sid) {
         var s = bySec[sid], sec = obj(g.sec[sid]);
         var box = Math.max(0, Math.min(4, Math.floor(num(sec.box))));
-        /* a miss sends the section back to the first box; a clean showing moves it up
-           one, but only once a day, so cramming does not fake spacing */
+        /* a miss sends the section back to the first box and restarts its clock; a clean
+           showing moves it up one only once it is due, and an early one leaves both box
+           and clock alone, so daily cramming does not fake spacing */
+        var due = dueOn(sec, day);
         if (s.miss) box = 0;
-        else if (sec.last !== day) box = Math.min(4, box + 1);
-        var rec = { n: num(sec.n) + s.n, ok: num(sec.ok) + s.ok, box: box, last: day };
+        else if (due) box = Math.min(4, box + 1);
+        var rec = { n: num(sec.n) + s.n, ok: num(sec.ok) + s.ok, box: box, last: s.miss || due ? day : sec.last };
         if (num(sec.fix)) rec.fix = num(sec.fix);
         g.sec[sid] = rec;
       });
@@ -544,19 +633,19 @@
         }
       }
       var prev = obj(g.best[mode]);
-      if (!g.best[mode] || score > num(prev.score) ||
+      if (ranked && finished && (!g.best[mode] || score > num(prev.score) ||
           (score === num(prev.score) && hearts > num(prev.hearts)) ||
-          (score === num(prev.score) && hearts === num(prev.hearts) && day < String(prev.day || "9999"))) {
+          (score === num(prev.score) && hearts === num(prev.hearts) && day < String(prev.day || "9999")))) {
         g.best[mode] = { score: score, hearts: hearts, day: day };
       }
-      if (result.boss && answers.length) {
-        newMedal = hearts >= 3 ? 3 : hearts >= 1 ? 2 : 1;
-        var id = String(result.boss) + "/practice", old = obj(g.enc[id]);
-        if (!g.enc[id] || newMedal > num(old.medal) || (newMedal === num(old.medal) && day < String(old.day || "9999"))) {
-          g.enc[id] = { medal: newMedal, day: day };
-        }
+      /* a rematch only raises a medal the set has earned (cleared, above), and never one
+         lost on hearts */
+      if (boss && answers.length && ranked && finished && hearts > 0 && cleared) {
+        newMedal = hearts >= 3 ? 3 : 2;
+        var id = boss + "/practice";
+        if (outranks(newMedal, day, g.enc[id])) g.enc[id] = { medal: newMedal, day: day };
       }
-      if (mode === "daily" && answers.length) {
+      if (mode === "daily" && answers.length && finished) {
         if (!g.daily[day]) dailyBonus = true;
         g.daily[day] = 1;
         var days = Object.keys(g.daily).sort().reverse();
@@ -568,6 +657,14 @@
     var firsts = answers.filter(function (a) { return a && a.first; });
     var late = firsts.filter(function (a) { return a.late; }).length;
     if (timed && firsts.length >= 10 && late >= 3) unlock("took-your-time");
+    /* Returning champion, from the run itself: on a tie the enc record keeps the earlier
+       day, so a later Silver may leave no trace there. "0" stands for a set cleared
+       before solves were timed, which any rematch comes after. */
+    if (newMedal >= 2) {
+      var since = bossSet ? (bossSet.lastSolved ? Site.dayKey(new Date(bossSet.lastSolved)) : "0")
+        : String(obj(before.enc[boss + "/practice"]).day || "");
+      if (since && day > since) unlock("returning-champion");
+    }
     if (xp && Activity) Activity.add(xp, "arena");
     Store.emit({ type: "arena", phase: "recorded", mode: mode, xp: xp, medal: newMedal });
     schedule();
@@ -605,7 +702,7 @@
   /* One polite region for everything but the verdict itself. Messages wait at least
      1.5 s after the last verdict, go at most once every 4 s, and are merged into one
      announcement; achievements ride along whatever else is dropped. */
-  var live = null, liveQ = [], liveTimer = null, lastVerdict = 0, lastSent = 0, xpOwed = 0;
+  var live = null, liveQ = [], liveTimer = null, lastVerdict = 0, lastSent = 0, xpOwed = 0, goalOwed = false;
   function liveEl() {
     if (!document.body) return null;
     if (live && document.body.contains(live)) return live;
@@ -639,9 +736,16 @@
     var at = Math.max(lastVerdict + 1500, lastSent + 4000);
     if (Date.now() < at - 15) { scheduleLive(); return; }
     var high = liveQ.filter(function (q) { return q.priority === "high"; });
-    var rest = liveQ.filter(function (q) { return q.priority !== "high"; }).slice(-3);
+    var rest = liveQ.filter(function (q) { return q.priority !== "high"; });
+    /* at most three of the rest, dropping the oldest low ones (counts, the combo) first */
+    while (rest.length > 3) {
+      var drop = 0;
+      for (var i = 0; i < rest.length; i++) if (rest[i].priority === "low") { drop = i; break; }
+      rest.splice(drop, 1);
+    }
     liveQ = [];
     xpOwed = 0;
+    goalOwed = false;
     var text = high.concat(rest).map(function (q) { return q.text; }).join(" ");
     if (!text) return;
     var el = liveEl();
@@ -651,23 +755,99 @@
     setTimeout(function () { el.textContent = text; }, 40);
   }
 
-  /* achievement toasts: at most two waiting, one at a time, never in the way */
-  var toastQ = [], toastBusy = false;
+  /* ------------------------------------------------------------ toasts ---- */
+
+  /* A quick correct answer could otherwise raise five cards at once (XP, combo, goal, a
+     level, an achievement) and cover the exercise on a phone. So this file keeps the
+     stack: XP, the combo's share and the daily goal fold into one card that grows while
+     it is up, and every other card (level, achievement, window.BMToast) waits its turn,
+     one at a time, so at most two toasts show and none is ever in the way. site.js still
+     draws its own +XP and goal toasts, which are the whole story without this file; here
+     they are taken off the page as they arrive, before they are painted, since the xp
+     event that raised them carries the same news. */
+  var toastHost = null, watched = null, toastQ = [], cardUp = null;
+  var xpCard = null, xpTimer = null, xpSum = 0, xpMult = 0, xpGoal = false;
+  function toastsEl() {
+    if (!document.body) return null;
+    if (!toastHost || !document.body.contains(toastHost)) toastHost = document.querySelector(".toasts");
+    if (!toastHost) {
+      toastHost = document.createElement("div");
+      toastHost.className = "toasts";
+      document.body.appendChild(toastHost);
+    }
+    toastHost.setAttribute("aria-hidden", "true");
+    toastHost.removeAttribute("role");
+    toastHost.removeAttribute("aria-live");
+    if (watched !== toastHost && window.MutationObserver) {
+      watched = toastHost;
+      new MutationObserver(function (list) {
+        list.forEach(function (m) {
+          slice(m.addedNodes).forEach(function (n) {
+            if (n.nodeType === 1 && !n.hasAttribute("data-own") && /^toast( goal)?$/.test(n.className) && n.parentNode) {
+              n.parentNode.removeChild(n);
+            }
+          });
+        });
+      }).observe(toastHost, { childList: true });
+    }
+    return toastHost;
+  }
+  function showToast(html, cls) {
+    var host = toastsEl();
+    if (!host) return null;
+    var t = document.createElement("div");
+    t.className = "toast" + (cls ? " " + cls : "");
+    t.setAttribute("data-own", "");
+    t.innerHTML = html;
+    host.appendChild(t);
+    return t;
+  }
+  function dropToast(t, then) {
+    if (t) t.setAttribute("data-out", "true");
+    setTimeout(function () {
+      if (t && t.parentNode) t.parentNode.removeChild(t);
+      if (then) then();
+    }, 400);
+  }
+  /* the one XP card: a second answer while it is up adds to it and keeps it up */
+  function xpToast(c) {
+    if (!window.MutationObserver || !document.body) return;
+    if (!xpCard || !xpCard.parentNode || xpCard.hasAttribute("data-out")) {
+      xpCard = showToast("", "");
+      xpSum = 0; xpMult = 0; xpGoal = false;
+      if (!xpCard) return;
+    }
+    xpSum += num(c.xp);
+    if (c.bonus) xpMult = c.mult;
+    xpGoal = xpGoal || !!c.goalMet;
+    xpCard.className = "toast" + (xpGoal ? " goal" : "");
+    xpCard.innerHTML = "<b>+" + xpSum + " XP</b>" +
+      (xpMult ? ' <span class="toast-combo">combo ×' + esc(String(xpMult)) + "</span>" : "") +
+      (xpGoal ? ' <span class="toast-text">Daily goal reached: ' + Activity.goal() + " XP today.</span>" : "");
+    clearTimeout(xpTimer);
+    var card = xpCard;
+    xpTimer = setTimeout(function () { dropToast(card); }, 2600);
+  }
+  function cardToast(html, cls) {
+    toastQ.push({ html: String(html), cls: cls || "" });
+    pumpToasts();
+  }
+  /* achievements: at most two waiting; any more ride on the last as "and N more" */
   function achToast(title, text) {
-    if (toastQ.length >= 2) {
-      var last = toastQ[toastQ.length - 1];
-      last.more = (last.more || 0) + 1;
-    } else toastQ.push({ title: title, text: text });
+    var waiting = toastQ.filter(function (q) { return q.ach; });
+    if (waiting.length >= 2) waiting[1].more = (waiting[1].more || 0) + 1;
+    else toastQ.push({ ach: true, title: title, text: text });
     pumpToasts();
   }
   function pumpToasts() {
-    if (toastBusy || !toastQ.length || !window.BMToast) return;
+    if (cardUp || !toastQ.length || !document.body) return;
     var t = toastQ.shift();
-    toastBusy = true;
-    window.BMToast('<span class="toast-kicker">Achievement</span> <b>' + esc(t.title) + "</b>" +
+    var html = !t.ach ? t.html : '<span class="toast-kicker">Achievement</span> <b>' + esc(t.title) + "</b>" +
       (t.text ? ' <span class="toast-text">' + esc(t.text) + "</span>" : "") +
-      (t.more ? ' <span class="toast-more">and ' + t.more + " more</span>" : ""), "ach");
-    setTimeout(function () { toastBusy = false; pumpToasts(); }, 1600);
+      (t.more ? ' <span class="toast-more">and ' + t.more + " more</span>" : "");
+    cardUp = showToast(html, t.ach ? "ach" : t.cls);
+    if (!cardUp) return;
+    setTimeout(function () { dropToast(cardUp, function () { cardUp = null; pumpToasts(); }); }, 2600);
   }
 
   /* ------------------------------------------------------- unlocking ------ */
@@ -691,6 +871,7 @@
 
   /* `quiet`: unlock without a toast each, then one summary (first load, a sync) */
   function evaluate(quiet) {
+    bankMedals();
     var S = stores(), fresh = [];
     ACHIEVEMENTS.forEach(function (a) {
       if (S.game.ach[a.id]) return;
@@ -705,7 +886,7 @@
       var line = fresh.length === 1
         ? "Achievement unlocked from earlier work: " + fresh[0].title + "."
         : fresh.length + " achievements unlocked from earlier work.";
-      if (window.BMToast) window.BMToast(esc(line), "ach");
+      cardToast(esc(line), "ach");
       announce(line, { priority: "high" });
     } else fresh.forEach(notifyUnlock);
     return fresh;
@@ -726,9 +907,7 @@
     }
     if (inf.level > seen.level) {
       updateRun(function (r) { r.seen.level = inf.level; });
-      if (window.BMToast) {
-        window.BMToast('<span class="toast-kicker">Level ' + inf.level + "</span> <b>" + esc(inf.rank) + "</b>", "level");
-      }
+      cardToast('<span class="toast-kicker">Level ' + inf.level + "</span> <b>" + esc(inf.rank) + "</b>", "level");
       announce("Level " + inf.level + " reached: " + inf.rank + ".", { priority: "high" });
       Store.emit({ type: "level", level: inf.level, rank: inf.rank });
     }
@@ -845,10 +1024,37 @@
     return '<svg class="icon icon-' + name + '" viewBox="0 0 16 16" aria-hidden="true" focusable="false"><use href="#bm-i-' + name + '"></use></svg>';
   }
 
-  var hudEls = null, heartsState = null, timerState = null, sheetWired = false;
+  var hudEls = null, heartsState = null, timerState = null, sheetWired = false, forwarding = false;
+
+  /* Under 480px game.css hides the nav's theme button and account link: the sheet
+     carries a theme button that presses the nav's (site.js keeps the theme logic), and
+     a copy of the account link, refreshed on each opening since account.js may redraw it. */
+  function sheetExtras() {
+    var sh = hudEls.sheet, nav = hudEls.menu.parentNode;
+    if (nav.querySelector("[data-theme-toggle]") && !sh.querySelector(".hud-sheet-theme")) {
+      var tb = document.createElement("button");
+      tb.type = "button";
+      tb.className = "icon-btn hud-sheet-theme";
+      tb.textContent = "Switch between light and dark";
+      tb.addEventListener("click", function () {
+        var t = hudEls.menu.parentNode.querySelector("[data-theme-toggle]");
+        forwarding = true;
+        try { if (t) t.click(); } finally { forwarding = false; }
+      });
+      sh.appendChild(tb);
+    }
+    var a = nav.querySelector(".acct"), old = sh.querySelector(".acct");
+    if (old) old.parentNode.removeChild(old);
+    if (a) {
+      var copy = a.cloneNode(true);
+      if (copy.getAttribute("data-in")) copy.textContent = "Your account";
+      sh.appendChild(copy);
+    }
+  }
 
   function setSheet(open, refocus) {
     if (!hudEls) return;
+    if (open) sheetExtras();
     hudEls.sheet.hidden = !open;
     hudEls.menu.setAttribute("aria-expanded", open ? "true" : "false");
     if (!open && refocus) hudEls.menu.focus();
@@ -939,7 +1145,13 @@
       });
       document.addEventListener("click", function (e) {
         var sh = document.getElementById("hud-sheet"), m = hudEls && hudEls.menu;
-        if (!sh || sh.hidden || sh.contains(e.target) || (m && m.contains(e.target))) return;
+        if (forwarding || !sh || sh.hidden || sh.contains(e.target) || (m && m.contains(e.target))) return;
+        setSheet(false, false);
+      });
+      /* focus moving on past the sheet closes it, so it never hides the focused control */
+      document.addEventListener("focusin", function (e) {
+        var sh = document.getElementById("hud-sheet"), m = hudEls && hudEls.menu;
+        if (forwarding || !sh || sh.hidden || sh.contains(e.target) || (m && m.contains(e.target))) return;
         setSheet(false, false);
       });
     }
@@ -999,10 +1211,11 @@
     e.hearts.forEach(function (el, i) {
       el.hidden = !h;
       if (!h) return;
+      /* redrawn only when the count changes, so a heart's break can play out */
+      if (el.getAttribute("data-lives") !== String(h.lives) || el.children.length !== h.max) el.innerHTML = heartsHtml(h.lives, h.max);
       setAttr(el, "data-lives", String(h.lives));
       setAttr(el, "data-max", String(h.max));
       if (i === 0) setAttr(el, "aria-label", h.lives + " of " + h.max + " hearts");
-      setText(el, heartsHtml(h.lives, h.max));
     });
     var t = timerState;
     e.timers.forEach(function (el) {
@@ -1033,10 +1246,27 @@
     if (!hudEls || !document.body.contains(hudEls.hud)) buildHudShell(nav);
     updateHud();
   }
-  /* hearts come from the encounter on a chapter page and from the Arena: {lives, max} or null */
+  /* the hearts just lost play their break once (game.css), then lose the mark */
+  function breakHearts(hosts, lives, was) {
+    hosts.forEach(function (el) {
+      if (!el) return;
+      var lost = slice(el.children).slice(lives, was);
+      lost.forEach(function (i) { i.setAttribute("data-break", ""); });
+      setTimeout(function () { lost.forEach(function (i) { i.removeAttribute("data-break"); }); }, 400);
+    });
+  }
+  /* hearts come from the encounter on a chapter page and from the Arena: {lives, max,
+     id?} or null; `id` names the set, so moving to another set is not a lost heart */
   function hudHearts(state) {
-    heartsState = state && state.max ? { lives: Math.max(0, Math.floor(num(state.lives))), max: Math.floor(num(state.max)) } : null;
+    var was = heartsState;
+    heartsState = state && state.max ? {
+      lives: Math.max(0, Math.floor(num(state.lives))), max: Math.floor(num(state.max)), id: String(state.id || "")
+    } : null;
     updateHud();
+    var h = heartsState;
+    if (was && h && hudEls && !calm() && was.id === h.id && was.max === h.max && h.lives < was.lives) {
+      breakHearts(hudEls.hearts, h.lives, was.lives);
+    }
   }
   /* the Arena's clock: {text: "0:42", urgency: "ok"|"low"|"critical", label?} or null */
   function hudTimer(state) {
@@ -1080,6 +1310,17 @@
 
   /* ------------------------------------------------------ banner chips ---- */
 
+  /* A medal as three drawn stars (game.css paints each <i>, lit ones with data-on) and
+     its count in words. `compact` sizes them to a line of text: a chip, a table cell. */
+  function starsHtml(m, compact) {
+    m = Math.max(0, Math.min(3, Math.floor(num(m))));
+    var size = compact ? ' style="width:1.15em;height:1.15em"' : "";
+    var html = '<span class="encounter-stars" role="img" aria-label="' + m + ' of 3 stars"' +
+      (compact ? ' style="display:inline-flex;gap:.15em;vertical-align:-.2em"' : "") + ">";
+    for (var i = 0; i < 3; i++) html += "<i" + (i < m ? " data-on" : "") + size + "></i>";
+    return html + "</span>";
+  }
+
   function fillBanner() {
     var host = document.querySelector(".banner-meta[data-banner-meta]");
     var ch = Site.chapterOf();
@@ -1088,10 +1329,7 @@
     var c = Progress.count(ch.id);
     if (c.total) html += '<span class="banner-stat"><b>' + Math.min(c.solved, c.total) + " / " + c.total + "</b> solved</span>";
     var m = medal(ch.id, "practice");
-    if (m) {
-      html += '<span class="banner-stat" data-medal="' + m + '"><b aria-hidden="true">' +
-        new Array(m + 1).join("★") + "</b> " + MEDALS[m] + " medal</span>";
-    }
+    if (m) html += '<span class="banner-stat" data-medal="' + m + '">' + starsHtml(m, true) + " " + MEDALS[m] + " medal</span>";
     var miss = Play.count(ch.id);
     if (miss.total) {
       html += '<span class="banner-stat"><b>★ ' + Math.min(miss.done, miss.total) + " / " + miss.total + "</b> missions</span>";
@@ -1140,9 +1378,12 @@
       schedule();
     } else if (t === "xp") {
       if (pendingEx && (c.why === "exercise" || c.why === "check")) reward(pendingEx, c.xp);
+      xpToast(c);
+      /* XP and the goal are carried until spoken, so a quick next answer cannot drop them */
       xpOwed += c.xp;
+      goalOwed = goalOwed || !!c.goalMet;
       announce(xpOwed + " XP earned" + (c.bonus ? ", combo times " + c.mult : "") + "." +
-        (c.goalMet ? " Daily goal reached." : ""), { key: "xp", priority: c.goalMet ? "normal" : "low" });
+        (goalOwed ? " Daily goal reached." : ""), { key: "xp", priority: goalOwed ? "normal" : "low" });
       checkLevel(false);
       hud();
       schedule();
@@ -1214,7 +1455,7 @@
     level: level, threshold: threshold, rank: rank, info: info,
     prefs: prefs, setPref: setPref,
     combo: combo, bonus: bonus,
-    medal: medal, setStats: setStats, isMiss: isMiss, MEDALS: MEDALS,
+    medal: medal, setStats: setStats, isMiss: isMiss, MEDALS: MEDALS, stars: starsHtml,
     sectionStatus: sectionStatus, deck: deck, recordRun: recordRun,
     unlock: unlock, unlockedSince: unlockedSince, evaluate: function () { return evaluate(false); },
     /* take in what is already true without a toast for each (encounter.js, after it
@@ -1230,19 +1471,25 @@
   Store.on(onChange);
   if (!document.body || !document.querySelector) return;
   applyPrefs(prefs());
-  var toasts = document.querySelector(".toasts");
-  if (toasts) {
-    toasts.setAttribute("aria-hidden", "true");
-    toasts.removeAttribute("role");
-    toasts.removeAttribute("aria-live");
-  }
+  /* from here every toast goes through the stack above */
+  toastsEl();
+  window.BMToast = cardToast;
   liveEl();
   rebuildPeeked();
   slice(document.querySelectorAll('.ex[data-state="correct"]')).forEach(stamp);
+  /* site.js drew the chapter's feedback before Insights.adjust above existed: once there
+     are Arena records it could soften, draw it again, so a repaired section is not
+     still named as worth another look */
+  if (Insights && count(readGame().sec) && typeof Site.refresh === "function") Site.refresh();
   hud();
   fillBanner();
   var firstSeen = readRun().seen;
   checkLevel(typeof firstSeen.level !== "number");
-  if (!firstSeen.ach) settle();
-  else schedule();
+  if (!firstSeen.ach) {
+    /* wait for the other deferred scripts: on a chapter page encounter.js first learns
+       which exercises make up its sets and settles, so the backfill is one summary */
+    var late = function () { if (!readRun().seen.ach) settle(); };
+    if (document.readyState === "complete") setTimeout(late, 0);
+    else { document.addEventListener("DOMContentLoaded", late); window.addEventListener("load", late); }
+  } else schedule();
 })();
