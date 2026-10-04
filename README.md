@@ -537,12 +537,28 @@ that adds a synced field has to ship after it and can rely on them:
   This covers the top level of every synced store, the game record, each chapter's record in
   `bm.progress.v1` and `bm.play.v1`, each exercise's record in `bm.attempts.v1`, and each `sec`,
   `best` and `enc` entry of the game record. Such a field is merged by itself, not together with
-  whichever record wins on the known fields. In the stores keyed by chapter, exercise or section
-  every key is merged as a record of that kind, whether or not this copy of the site knows the
-  key; only a value that is not an object on either side is passed through whole. `game.js`
-  keeps unknown fields the same way when it rewrites the game record or one of its entries, and
-  `prefs()` and `setPref` keep unknown keys of `bm.prefs.v1`. Known fields merge exactly as
-  before.
+  whichever record wins on the known fields. `game.js` keeps unknown fields the same way when it
+  rewrites the game record or one of its entries, and `prefs()` and `setPref` keep unknown keys
+  of `bm.prefs.v1`. Known fields merge exactly as before. Three limits:
+  - In the stores keyed by chapter, exercise, section, mode or set (`bm.progress.v1`,
+    `bm.play.v1`, `bm.attempts.v1`, and `sec`, `best` and `enc` in the game record) every key is
+    merged as a record of that kind, whether or not this copy knows the key: next year's chapter
+    must still merge as a chapter. So an object under a new key there is not passed through
+    whole. Outside `bm.attempts.v1` it comes out with that kind's known fields added
+    (`{"coins":5}` under a new key of `bm.progress.v1` becomes
+    `{"solved":{},"total":0,"coins":5}`). Everywhere, a field of its own that has a known
+    field's name is treated as that field, which can change or empty it, and two such objects
+    are merged field by field, giving a mix neither device wrote. Nothing with another name is
+    lost. A later release must not put an object under a new key of those stores unless it is
+    a record of that kind. Anything else belongs under a new key at the top of the game
+    record, of `bm.activity.v1` or of `bm.lesson.v1`, which is passed through whole, or in a
+    store of its own.
+  - A value that is not an object on either side is passed through whole, under a known key
+    as under a new one. A damaged entry (a string where a chapter's record should be) is
+    therefore no longer turned into an empty record by a sync; `BMProgress`, `BMPlay` and
+    `BMAttempts` in `site.js` write a fresh record over one instead.
+  - A key is data whatever it is called, `constructor` and `toString` included. The one name
+    that is not carried is `__proto__`, which cannot be written back as an ordinary field.
 - **The data says which shape it is in.** `v` in the game record, merged by taking the larger
   number. No `v` means 1, which is what this copy understands (`SCHEMA` in `account.js`), and
   nothing writes one yet. It is inside the data, not a column, so no SQL has to run before a
@@ -556,8 +572,12 @@ that adds a synced field has to ship after it and can rely on them:
   has: the page learns them from the row it reads, and a first save that the server refuses for
   naming a missing column is repeated without it. What that column would hold stays in the
   browser. A save never names a column this copy does not know, so a column added later is left
-  as it is. A missing `attempts` table means the attempt log is switched off: the queue is kept
-  and the sync still succeeds.
+  as it is, **by a reset too**: a reset made in an older copy empties the columns it knows,
+  with any unknown fields and `v` inside them, and cannot touch a column it cannot name. A
+  release that adds a `user_state` column must clear it itself when it sees `reset_at` advance.
+  A missing `attempts` table means the attempt log is switched off: the queue is kept and the
+  sync still succeeds. The page then holds the log back, asks again every five minutes, and
+  keeps only the newest 500 checks meanwhile.
 
 What the first rule gives a new field is survival, and agreement between devices. If the field
 needs a rule of its own (a larger number, a union), the release that first writes it must add

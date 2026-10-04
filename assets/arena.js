@@ -712,7 +712,9 @@
 
   /* a record written over an older one keeps the old one's other fields (as game.js does) */
   function carried(old, rec) {
-    Object.keys(old && typeof old === "object" ? old : {}).forEach(function (k) { if (!(k in rec)) rec[k] = old[k]; });
+    Object.keys(old && typeof old === "object" ? old : {}).forEach(function (k) {
+      if (!Object.prototype.hasOwnProperty.call(rec, k)) rec[k] = old[k];
+    });
     return rec;
   }
   /* without the game layer: pay the XP and keep the small record the deck reads */

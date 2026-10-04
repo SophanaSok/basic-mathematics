@@ -46,6 +46,10 @@
     if (!silent) Store.emit({ type: "state", key: key });
     return ok;
   }
+  /* A stored record, or null for anything else. The writers below start a fresh record
+     over an entry that is missing or damaged (a string, a number, a list) instead of
+     failing on it: a sync passes what is not a record through as it found it. */
+  function record(x) { return x && typeof x === "object" && !Array.isArray(x) ? x : null; }
 
   /* One bus for every change to saved state. site.js announces; whoever cares
      (the header counters, lesson mode, account sync) listens. */
@@ -80,14 +84,14 @@
     },
     setTotal: function (id, total) {
       var all = this.all();
-      var rec = all[id] || { solved: {}, total: 0 };
+      var rec = record(all[id]) || { solved: {}, total: 0 };
       rec.total = total;
       all[id] = rec;
       writeStore(PROGRESS_KEY, all);
     },
     markSolved: function (id, exKey) {
       var all = this.all();
-      var rec = all[id] || { solved: {}, total: 0 };
+      var rec = record(all[id]) || { solved: {}, total: 0 };
       rec.solved = rec.solved || {};
       rec.solved[exKey] = true;
       all[id] = rec;
@@ -117,7 +121,7 @@
     },
     update: function (id, fn) {
       var all = this.all();
-      var rec = all[id] || {};
+      var rec = record(all[id]) || {};
       rec.done = rec.done || {};
       fn(rec);
       all[id] = rec;
@@ -160,8 +164,8 @@
     get: function (id, key) { return this.chapter(id)[key] || {}; },
     update: function (id, key, fn) {
       var all = this.all();
-      var ch = all[id] && typeof all[id] === "object" ? all[id] : {};
-      var rec = ch[key] || {};
+      var ch = record(all[id]) || {};
+      var rec = record(ch[key]) || {};
       fn(rec);
       ch[key] = rec;
       all[id] = ch;

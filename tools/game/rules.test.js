@@ -402,6 +402,8 @@ function world(seedStores) {
   w.Game.setPref("calm", false); w.Game.setPref("map3d", false); w.Game.setPref("tempo", "untimed");
   let p = w.read("bm.prefs.v1");
   eq([p.motion, p.volume, p.sound, p.calm, p.map, p.tempo], ["reduced", { music: 0.4 }, true, false, "list", "untimed"], "every setting switched in turn: the unknown keys are still there");
+  /* the settings stay on this device: a "state" change is what account sync listens for */
+  eq([w.events.filter((e) => e.type === "state").length, w.events.filter((e) => e.type === "prefs").length], [0, 4], "switching a setting announces prefs and never a state change");
   w.Game.setPref("nonsense", 1);
   eq(w.read("bm.prefs.v1"), p, "a setting this file does not know is not written by setPref");
   p = world({ "bm.prefs.v1": { map: "globe", tempo: "warp" } }).Game.prefs();
@@ -429,6 +431,12 @@ function world(seedStores) {
   w.Game.evaluate();
   g = w.read("bm.game.v1");
   eq([g.enc["ch05/practice"], g.shop], [{ medal: 3, day: daysAgo(2), gate: "open" }, ["hat"]], "a banked medal keeps the unknown field of the record it replaces");
+
+  /* and so does a medal raised by a rematch in the Arena */
+  w = world({ "bm.game.v1": { enc: { "ch05/practice": { medal: 1, day: daysAgo(9), gate: "open" } }, shop: ["hat"] } });
+  const r = w.Game.recordRun({ mode: "boss", boss: "ch05", hearts: 3, ranked: true, finished: true, score: 900, day: dayKey(), answers: [{ section: "ch05#angles", first: true }] });
+  g = w.read("bm.game.v1");
+  eq([r.medal, g.enc["ch05/practice"], g.shop], [3, { medal: 3, day: dayKey(), gate: "open" }, ["hat"]], "a rematch medal keeps the unknown field of the record it replaces");
 }
 
 console.log((fails ? "FAILED" : "ok") + " rules: " + passes + " checks passed" + (fails ? ", " + fails + " failed" : ""));

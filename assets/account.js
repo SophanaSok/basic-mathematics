@@ -13,7 +13,7 @@
    the page reads the row, merges, and tries again (sync below).
 
    A later version of the site may save fields this one has never heard of. They are
-   carried through every merge and written back as they came (later, carry). A row
+   carried through every merge and written back as they came (later, carryOver). A row
    whose data is marked as a newer shape than this file understands is merged into
    this browser but never written (SCHEMA), and only the columns the server has are
    sent (lacks).
@@ -60,13 +60,19 @@
   });
 
   function obj(x) { return x && typeof x === "object" && !Array.isArray(x) ? x : {}; }
+  /* The keys of both, each once. A key is data, whatever it is called: one named like
+     something every object inherits ("constructor", "toString") is listed like any other,
+     and at() reads only what the object itself holds, so the inherited thing is never
+     mistaken for a value. The one exception is "__proto__", which cannot be written back
+     as an ordinary field and is left out of every record built here. */
   function keysOf(a, b) {
-    var seen = {}, out = [];
+    var seen = Object.create(null), out = [];
     Object.keys(obj(a)).concat(Object.keys(obj(b))).forEach(function (k) {
-      if (!seen[k]) { seen[k] = true; out.push(k); }
+      if (k !== "__proto__" && !seen[k]) { seen[k] = true; out.push(k); }
     });
     return out.sort();
   }
+  function at(o, k) { return Object.prototype.hasOwnProperty.call(o, k) ? o[k] : undefined; }
   function plain(x) { return !!x && typeof x === "object" && !Array.isArray(x); }
 
   /* JSON with object keys sorted at every level: jsonb hands keys back in its own order */
@@ -93,25 +99,29 @@
     return canon(p) >= canon(q) ? p : q;
   }
   /* adds to a freshly built record every field of x and y that is not in `known` */
-  function carry(out, x, y, known) {
+  function carryOver(out, x, y, known) {
     keysOf(x, y).forEach(function (k) {
-      if (known.indexOf(k) < 0) out[k] = later(x[k], y[k]);
+      if (known.indexOf(k) < 0) out[k] = later(at(x, k), at(y, k));
     });
     return out;
   }
   /* Where a store is keyed by chapter, exercise, section or the like, every key is merged
-     as a record of that kind, whether this version knows the key or not. A value that is
-     a record on neither side has no fields to merge, and goes through whole. */
+     as a record of that kind, whether this version knows the key or not: a chapter added
+     next year must still merge as a chapter. So an object under a key this version does
+     not know comes out with that kind's known fields filled in, and merged field by field
+     when both sides hold one. A value that is a record on neither side has no fields to
+     merge, and goes through whole; that includes a damaged value under a known key,
+     which is no longer turned into an empty record here (site.js writes over it). */
   function opaque(p, q) { return !plain(p) && !plain(q); }
 
   function mergeProgress(a, b) {
     var out = {};
     keysOf(a, b).forEach(function (ch) {
-      var p = obj(a)[ch], q = obj(b)[ch];
+      var p = at(obj(a), ch), q = at(obj(b), ch);
       if (opaque(p, q)) { out[ch] = later(p, q); return; }
       var x = obj(p), y = obj(q), solved = {};
       keysOf(x.solved, y.solved).forEach(function (k) { solved[k] = true; });
-      out[ch] = carry({ solved: solved, total: Math.max(x.total || 0, y.total || 0) }, x, y, ["solved", "total"]);
+      out[ch] = carryOver({ solved: solved, total: Math.max(x.total || 0, y.total || 0) }, x, y, ["solved", "total"]);
     });
     return out;
   }
@@ -119,14 +129,14 @@
   function mergePlay(a, b) {
     var out = {};
     keysOf(a, b).forEach(function (ch) {
-      var p = obj(a)[ch], q = obj(b)[ch];
+      var p = at(obj(a), ch), q = at(obj(b), ch);
       if (opaque(p, q)) { out[ch] = later(p, q); return; }
       var x = obj(p), y = obj(q), done = {};
       keysOf(x.done, y.done).forEach(function (k) { done[k] = true; });
       var rec = { done: done, total: Math.max(x.total || 0, y.total || 0) };
       var guess = x.guess !== undefined && x.guess !== null ? x.guess : y.guess;
       if (guess !== undefined && guess !== null) rec.guess = guess;
-      out[ch] = carry(rec, x, y, ["done", "total", "guess"]);
+      out[ch] = carryOver(rec, x, y, ["done", "total", "guess"]);
     });
     return out;
   }
@@ -151,17 +161,17 @@
     } else if (x.skipped || y.skipped) {
       out.skipped = 1;
     }
-    return carry(out, x, y, ATTEMPT);
+    return carryOver(out, x, y, ATTEMPT);
   }
 
   function mergeAttempts(a, b) {
     var out = {};
     keysOf(a, b).forEach(function (ch) {
-      var p = obj(a)[ch], q = obj(b)[ch];
+      var p = at(obj(a), ch), q = at(obj(b), ch);
       if (opaque(p, q)) { out[ch] = later(p, q); return; }
       var x = obj(p), y = obj(q);
       out[ch] = {};
-      keysOf(x, y).forEach(function (k) { out[ch][k] = mergeAttempt(x[k], y[k]); });
+      keysOf(x, y).forEach(function (k) { out[ch][k] = mergeAttempt(at(x, k), at(y, k)); });
     });
     return out;
   }
@@ -170,24 +180,24 @@
     a = obj(a); b = obj(b);
     var days = {};
     keysOf(a.days, b.days).forEach(function (d) {
-      days[d] = Math.max(obj(a.days)[d] || 0, obj(b.days)[d] || 0);
+      days[d] = Math.max(at(obj(a.days), d) || 0, at(obj(b.days), d) || 0);
     });
     var out = { days: days };
     var goal = a.goal || b.goal;
     if (goal) out.goal = goal;
-    return carry(out, a, b, ["days", "goal"]);
+    return carryOver(out, a, b, ["days", "goal"]);
   }
 
   function mergeLesson(a, b) {
     a = obj(a); b = obj(b);
     var reached = {};
     keysOf(a.reached, b.reached).forEach(function (ch) {
-      reached[ch] = Math.max(obj(a.reached)[ch] || 0, obj(b.reached)[ch] || 0);
+      reached[ch] = Math.max(at(obj(a.reached), ch) || 0, at(obj(b.reached), ch) || 0);
     });
     var out = { reached: reached };
     var mode = a.mode || b.mode;
     if (mode) out.mode = mode;
-    return carry(out, a, b, ["reached", "mode"]);
+    return carryOver(out, a, b, ["reached", "mode"]);
   }
 
   /* The game layer's record (bm.game.v1). Every field merges so that order, grouping
@@ -214,19 +224,20 @@
     if (v > 0) out.v = v;
     var ach = [obj(a.ach), obj(b.ach)];
     keysOf(ach[0], ach[1]).forEach(function (id) {
-      var t = [num(ach[0][id]), num(ach[1][id])].filter(function (x) { return x > 0; });
+      var t = [num(at(ach[0], id)), num(at(ach[1], id))].filter(function (x) { return x > 0; });
       if (t.length) out.ach[id] = Math.min.apply(null, t);
     });
     var cmp = [obj(a.cmp), obj(b.cmp)];
     keysOf(cmp[0], cmp[1]).forEach(function (ch) {
-      var x = obj(cmp[0][ch]), y = obj(cmp[1][ch]), rec = {};
-      keysOf(x, y).forEach(function (k) { if (x[k] || y[k]) rec[k] = 1; });
+      var x = obj(at(cmp[0], ch)), y = obj(at(cmp[1], ch)), rec = {};
+      keysOf(x, y).forEach(function (k) { if (at(x, k) || at(y, k)) rec[k] = 1; });
       out.cmp[ch] = rec;
     });
     var sec = [obj(a.sec), obj(b.sec)];
     keysOf(sec[0], sec[1]).forEach(function (id) {
-      if (opaque(sec[0][id], sec[1][id])) { out.sec[id] = later(sec[0][id], sec[1][id]); return; }
-      var x = obj(sec[0][id]), y = obj(sec[1][id]);
+      var p = at(sec[0], id), q = at(sec[1], id);
+      if (opaque(p, q)) { out.sec[id] = later(p, q); return; }
+      var x = obj(p), y = obj(q);
       var n = Math.max(num(x.n), num(y.n));
       /* each side's ok is held to its own n first, which keeps the merge associative */
       var rec = { n: n, ok: Math.max(Math.min(num(x.ok), num(x.n)), Math.min(num(y.ok), num(y.n))) };
@@ -236,30 +247,32 @@
       if (str(pick.last)) rec.last = str(pick.last);
       var fix = Math.max(num(x.fix), num(y.fix));
       if (fix) rec.fix = fix;
-      out.sec[id] = carry(rec, x, y, ["n", "ok", "box", "last", "fix"]);
+      out.sec[id] = carryOver(rec, x, y, ["n", "ok", "box", "last", "fix"]);
     });
     var best = [obj(a.best), obj(b.best)];
     keysOf(best[0], best[1]).forEach(function (mode) {
-      if (opaque(best[0][mode], best[1][mode])) { out.best[mode] = later(best[0][mode], best[1][mode]); return; }
-      var list = [best[0][mode], best[1][mode]].filter(plain)
+      var p = at(best[0], mode), q = at(best[1], mode);
+      if (opaque(p, q)) { out.best[mode] = later(p, q); return; }
+      var list = [p, q].filter(plain)
         .map(function (r) { return { score: num(r.score), hearts: num(r.hearts), day: str(r.day) }; });
-      list.sort(function (p, q) {
-        return (q.score - p.score) || (q.hearts - p.hearts) || (p.day < q.day ? -1 : p.day > q.day ? 1 : 0);
+      list.sort(function (r, s) {
+        return (s.score - r.score) || (s.hearts - r.hearts) || (r.day < s.day ? -1 : r.day > s.day ? 1 : 0);
       });
-      out.best[mode] = carry(list[0], obj(best[0][mode]), obj(best[1][mode]), ["score", "hearts", "day"]);
+      out.best[mode] = carryOver(list[0], obj(p), obj(q), ["score", "hearts", "day"]);
     });
     var enc = [obj(a.enc), obj(b.enc)];
     keysOf(enc[0], enc[1]).forEach(function (id) {
-      if (opaque(enc[0][id], enc[1][id])) { out.enc[id] = later(enc[0][id], enc[1][id]); return; }
-      var list = [enc[0][id], enc[1][id]].filter(plain)
+      var p = at(enc[0], id), q = at(enc[1], id);
+      if (opaque(p, q)) { out.enc[id] = later(p, q); return; }
+      var list = [p, q].filter(plain)
         .map(function (r) { return { medal: num(r.medal), day: str(r.day) }; });
-      list.sort(function (p, q) { return (q.medal - p.medal) || (p.day < q.day ? -1 : p.day > q.day ? 1 : 0); });
-      out.enc[id] = carry(list[0], obj(enc[0][id]), obj(enc[1][id]), ["medal", "day"]);
+      list.sort(function (r, s) { return (s.medal - r.medal) || (r.day < s.day ? -1 : r.day > s.day ? 1 : 0); });
+      out.enc[id] = carryOver(list[0], obj(p), obj(q), ["medal", "day"]);
     });
     var daily = [obj(a.daily), obj(b.daily)];
-    keysOf(daily[0], daily[1]).filter(function (d) { return daily[0][d] || daily[1][d]; })
+    keysOf(daily[0], daily[1]).filter(function (d) { return at(daily[0], d) || at(daily[1], d); })
       .reverse().slice(0, 60).sort().forEach(function (d) { out.daily[d] = 1; });
-    return carry(out, a, b, GAME);
+    return carryOver(out, a, b, GAME);
   }
 
   /* local first: where two devices simply disagree (the reading mode, the daily goal,
@@ -500,7 +513,6 @@
       stillOwner(u);
       var remote = res.data, m = meta(), local = readLocal(), dropped = false;
       var aside = obj(pending()[u.id]), hasAside = !!aside.state;
-      seen = remote ? remote.updated_at : null;
       if (remote) learn(remote);
       var remoteReset = remote ? Number(remote.reset_at) || 0 : 0;
       var mine = m.user === u.id ? Number(m.resetAt) || 0 : 0;
@@ -521,6 +533,9 @@
         if (!(written >= known)) { base = {}; resetAt = known; }
       }
       var merged = merge(merge(local, kept), base);
+      /* only now has this page seen the row: had the merge failed, the next save would
+         read and merge again instead of writing this browser's copy over it */
+      seen = remote ? remote.updated_at : null;
       ahead = versionOf(remote) > SCHEMA || versionOf(merged) > SCHEMA;
       setMeta(function (x) { x.user = u.id; x.resetAt = resetAt; });
       owned = true;
@@ -546,11 +561,16 @@
 
   /* The attempt log is an extra. Resolves true when the rows were taken and false, with
      nothing thrown, when the project has no `attempts` table: that feature is off there,
-     and progress still syncs. */
+     and progress still syncs. The page then holds the log back (logAfter) instead of
+     sending all of it again with every save, tries once more every LOG_RETRY, and keeps
+     only the newest LOG_MAX checks meanwhile, so a long visit cannot pile them up. */
+  var LOG_RETRY = 5 * 60 * 1000, LOG_MAX = 500, logAfter = 0;
+  function logHeld() { return Date.now() < logAfter; }
   function logAttempts(events) {
     return client.from("attempts").insert(events).then(function (r) {
-      if (r.error && noTable(r.error)) return false;
+      if (r.error && noTable(r.error)) { logAfter = Date.now() + LOG_RETRY; return false; }
       if (r.error) throw r.error;
+      logAfter = 0;
       return true;
     });
   }
@@ -588,7 +608,7 @@
       }).then(function (ok) { return ok || sync(u, 0); });
       /* the log waits for the save, which is what finds out whether this page may write */
       function log() {
-        if (!events.length || ahead) return null;
+        if (!events.length || ahead || logHeld()) return null;
         return logAttempts(events).then(function (ok) { logged = ok; });
       }
       var sent = save.then(log, log);
@@ -619,7 +639,7 @@
     var u = user, state = readLocal();
     if (meta().user !== u.id) return;
     write(u, state, Number(meta().resetAt) || 0).then(noop, noop);
-    if (ahead || !queue.length) return;
+    if (ahead || !queue.length || logHeld()) return;
     var events = queue;
     queue = [];
     logAttempts(events).then(function (ok) {
@@ -638,6 +658,7 @@
         correct: !!c.correct, try_no: c.tryNo || 1, hint_level: c.hintLevel || 0,
         solution_open: !!c.solutionOpen, inline: !!c.inline
       });
+      if (logAfter && queue.length > LOG_MAX) queue = queue.slice(-LOG_MAX);
       schedule();
     } else if (c.type === "reset") {
       /* stamp the reset so other devices drop their copies instead of merging them back;

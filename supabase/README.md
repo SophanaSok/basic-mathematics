@@ -41,17 +41,23 @@ the same instant. Running the SQL first is still the rule; these are what happen
 - **Fields the site does not know are kept.** Inside the `jsonb` columns, a field with no merge
   rule is carried through every merge and written back: kept if one side has it, and if both do,
   the value whose canonical JSON (keys sorted at every level) is the later string. Known fields
-  merge as before. See the main README for where this applies.
+  merge as before. See the main README for where this applies, and for its limits: an object
+  under a new key of a column keyed by chapter, section, mode or set is merged as a record of
+  that kind, not passed through whole.
 - **Columns the site does not know are left alone.** A save is an `update` naming only the columns
-  this copy knows, so a column added for a later release keeps its value.
+  this copy knows, so a column added for a later release keeps its value. That holds for a reset
+  as well: an older copy empties the columns it knows and cannot empty one it cannot name, so a
+  release that adds a `user_state` column must clear it itself when it sees `reset_at` advance.
 - **Columns the server does not have are left out.** The site reads its row with `select *`, sees
   which columns exist, and sends only those. A new account has no row to read, so its first save
   may be refused once (PostgREST `PGRST204`, "Could not find the '…' column of 'user_state' in the
   schema cache") and is then repeated without that column. Nothing fails; what the column would
   hold stays in the browser until the column exists.
 - **A missing `attempts` table switches the attempt log off.** The insert is refused (`PGRST205`),
-  the checks stay queued in the page, and the sync still succeeds. The author's aggregate view
-  then has nothing to read.
+  the checks stay queued in the page, and the sync still succeeds. The page does not send the
+  log again with every save: it asks once every five minutes, keeps the newest 500 checks
+  meanwhile, and sends them when the table is there. The queue lives in the page, so it is lost
+  when the page is closed. The author's aggregate view then has nothing to read.
 - **The data carries a shape number.** `game.v` inside the `game` column; absent means 1, and no
   release writes it yet. A later release that changes what an existing field means saves a
   larger number. A copy of the site that reads a number above the one it understands merges the

@@ -602,8 +602,9 @@ const KEYS = ["e1", "e2", "e3", "k1", "k2", "t1", "p4"];
 const DAYS = ["2026-09-28", "2026-09-29", "2026-09-30", "2026-10-01"];
 /* What a later version of the site might store that this one has never heard of
    (account.js `later`): few keys and few values, so two devices often hold the same key
-   and disagree about it. The two objects differ only in the order of their keys. */
-const UNKNOWN_KEYS = ["zz", "~later", "rung"];
+   and disagree about it. The two objects differ only in the order of their keys. One key
+   is named like something every object inherits, and is data all the same. */
+const UNKNOWN_KEYS = ["zz", "~later", "rung", "constructor"];
 const UNKNOWN_VALUES = [0, 7, -1, "x", "", true, null, [1, 2], [2, 1], { a: 1, b: [1] }, { b: [1], a: 1 }, { a: { c: 2 } }];
 function randomState(R) {
   const st = {};
@@ -673,8 +674,23 @@ function randomState(R) {
   const daily = {}; pickSome(DAYS).forEach(d => { daily[d] = 1; });
   st.game = fields({ ach, cmp, sec: entries(sec), best: entries(best), enc: entries(enc), daily, maxed: R.int(5) });
   /* the shape marker a later version may set (account.js SCHEMA): absent on most devices */
-  if (R.maybe(0.3)) st.game.v = 1 + R.int(3);
+  if (R.maybe(0.3)) st.game.v = R.pick([1, 2, 9, 10]);   /* 9 and 10: the larger number is not the later string */
   return st;
+}
+
+/* every place in a state where one of UNKNOWN_KEYS sits, as a path of keys; what it holds
+   is not looked into */
+function unknownPaths(x, at, out) {
+  if (!x || typeof x !== "object" || Array.isArray(x)) return out;
+  Object.keys(x).forEach(k => {
+    if (UNKNOWN_KEYS.indexOf(k) > -1) out.push(at.concat(k));
+    else unknownPaths(x[k], at.concat(k), out);
+  });
+  return out;
+}
+/* what a state holds at a path: its own, never what every object inherits */
+function dig(x, at) {
+  return at.reduce((o, k) => (o && typeof o === "object" && Object.prototype.hasOwnProperty.call(o, k) ? o[k] : undefined), x);
 }
 
 /* drop the four fields that are deliberately local-first before comparing */
@@ -728,15 +744,15 @@ function checkMerge(ctx, r) {
       ["maxed"].forEach(k => { if (ab.game[k] !== undefined && ab.game[k] < Math.max(a.game[k] || 0, b.game[k] || 0)) r.fail("seed " + seed + ": game." + k + " should be the maximum"); });
       /* the shape marker: the larger of the two, and not invented where neither has one */
       if (ab.game.v !== (Math.max(a.game.v || 0, b.game.v || 0) || undefined)) r.fail("seed " + seed + ": game.v should be the maximum, and absent when neither side has one");
-      /* a key this version has never heard of is never dropped */
-      UNKNOWN_KEYS.forEach(k => {
-        [["game", x => x.game], ["activity", x => x.activity], ["lesson", x => x.lesson], ["progress", x => x.progress]].forEach(([name, at]) => {
-          const held = [at(a)[k], at(b)[k]].filter(v => v !== undefined).map(canon).sort();
-          if (held.length && canon(at(ab)[k]) !== held[held.length - 1]) {
-            if (!seen.unknown) r.fail("seed " + seed + ": " + name + "." + k + " should be the later of " + held.join(" and ") + ", got " + canon(at(ab)[k]));
-            seen.unknown = 1;
-          }
-        });
+      /* a key this version has never heard of is never dropped, at whatever level it sits:
+         it comes out as the later canonical JSON of what the two sides hold */
+      unknownPaths(a, [], []).concat(unknownPaths(b, [], [])).forEach(at => {
+        const held = [dig(a, at), dig(b, at)].filter(v => v !== undefined).map(canon).sort();
+        const got = dig(ab, at);
+        if (got === undefined || canon(got) !== held[held.length - 1]) {
+          if (!seen.unknown) r.fail("seed " + seed + ": " + at.join(".") + " should be the later of " + held.join(" and ") + ", got " + (got === undefined ? "nothing" : canon(got)));
+          seen.unknown = 1;
+        }
       });
     }
   }
