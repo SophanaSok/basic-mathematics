@@ -238,6 +238,9 @@ function checkCurriculum(ctx, r) {
       if (secIds.has(s.id)) r.fail(ch.id + ": duplicate section id " + s.id);
       secIds.add(s.id);
       if (h2[s.id]) return;
+      /* a mixed-review set is a whole section: README allows its id on <section class="practice"> */
+      const el = ids[s.id];
+      if (el && el.name === "section" && /(^|\s)practice(\s|$)/.test(el.getAttribute("class") || "")) return;
       if (ids[s.id]) r.warn(ch.path + ":" + ids[s.id].line + ": section `" + s.id + "` is an id on <" + ids[s.id].name + ">, not on an <h2> as README says (links resolve; the sidebar spy still finds it)");
       else r.fail(ch.path + ": no element with id `" + s.id + "` for curriculum section " + ch.id + "#" + s.id);
     });
