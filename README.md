@@ -482,6 +482,8 @@ memory but keeps the site:
 | `bm.game.v1` | achievements, compared solutions, recall per section, Arena bests, medals, Daily days (synced) |
 | `bm.run.v1` | the combo meter and an unfinished Arena run (this device only; cleared by reset and sign-out) |
 | `bm.prefs.v1` | calm mode, sound, 3D map, Arena tempo (this device only; survives a reset) |
+| `bm.sync.v1` | with accounts on: whose progress this browser holds and the last reset it knows of |
+| `bm.sync.pending.v1` | with accounts on: progress that could not be saved when its reader signed out, kept aside per reader until they sign in here again |
 
 Every write is announced on `window.BMStore` (`on(fn)` / `emit(change)`), with change types
 `state`, `attempt`, `solved`, `xp`, `sync`, and `reset`, plus `opened`, `chapterDone`, `home`,
@@ -493,8 +495,12 @@ nothing about a server.
 filled in and the reader has a session (or opens the account page) — otherwise the SDK is never
 downloaded. Sync is a merge, never an overwrite: unions for solved exercises and missions, the
 larger number for each day's XP, the furthest lesson step. `BMAccount.merge(a, b)` is pure and
-gives the same result in either order. A deliberate reset is timestamped so other devices drop
-their copies rather than merging them back. Setting it up is five steps:
+gives the same result in either order. A save only lands on the version of the account a page
+last saw, so a tab that has fallen behind another device merges first instead of overwriting it.
+A deliberate reset is timestamped so other devices drop their copies rather than merging them
+back, unless another device saved work after a reset that never reached the account, in which
+case the work is kept. Signing out saves first; progress that cannot be saved is set aside in the
+browser and saved the next time that reader signs in there. Setting it up is five steps:
 [`supabase/README.md`](supabase/README.md).
 
 The "areas to strengthen" ranking is `BMInsights` in `site.js`: each attempted exercise gets a
@@ -515,6 +521,7 @@ node tools/check-static.js --base=<ref>   # syntax, ES5, progress keys vs <ref>,
 node tools/smoke-scenes.js                # every 3D scene: mount, controls, missions, answers
 node tools/check-gen.js                   # every Arena generator over 500 seeds
 node tools/game/merge.test.js             # BMAccount.merge, including the game store
+node tools/game/sync.test.js              # account sync: stale tabs, resets, failed sign-outs
 node tools/game/rules.test.js             # combo, levels, hearts, medals, achievements, recall
 node tools/game/browser.test.js           # the game in a browser: combo XP, hearts, finale, reload,
                                           # calm mode, sound off, old progress, toasts, the sheet
