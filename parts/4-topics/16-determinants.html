@@ -434,7 +434,8 @@
           its volume stays $12$. The expansion says the same:
           $$\begin{vmatrix} 2 &amp; 0 &amp; 0 \\ 0 &amp; 3 &amp; 0 \\ 1 &amp; 1 &amp; 2 \end{vmatrix}
             = 2(3 \cdot 2 - 0 \cdot 1) - 0 + 0 = 12.$$
-          A determinant of $-12$ is also volume $12$, with the rows in the other handedness.
+          A determinant of $-12$ is also volume $12$: swapping two of the rows keeps the solid and
+          flips only the sign.
         </p>
       </div>
     </div>
@@ -567,17 +568,21 @@
       </div>
     </div>
 
-    <div class="ex" data-inline id="s3d-rows-vol" data-label="Follow-up" data-type="number" data-answer="12" data-hint="Which of your moves changed the volume?">
+    <div class="ex" data-inline id="s3d-rows-vol" data-label="Follow-up" data-type="number" data-answer="-15" data-hint="Which of the moves can change the determinant, and by what factor?" data-hint2="The shears changed nothing; the one swap flipped the sign.">
       <div class="ex-q">
-        <p>The box is $2$ by $2$ by $3$. What was the determinant you started from?</p>
+        <p>
+          A different slanted solid is straightened into the upright box with rows $(3,0,0)$,
+          $(0,1,0)$, $(0,0,5)$, using shears and exactly one swap. What was the determinant of the
+          slanted solid?
+        </p>
       </div>
       <div class="ex-solution">
-        <p class="answer">Answer: $12$</p>
+        <p class="answer">Answer: $-15$</p>
         <p>
-          The box has volume $2 \cdot 2 \cdot 3 = 12$, and its matrix is diagonal, so its determinant
-          is the product of the diagonal, $12$. Shears never change the determinant, so the slanted
-          solid you started from had determinant $12$ as well. Directly:
-          $2(2 \cdot 3 - 0 \cdot 2) - 0 + 0 = 12$.
+          The box's matrix is diagonal, so its determinant is the product of the diagonal,
+          $3 \cdot 1 \cdot 5 = 15$. Directly: $3(1 \cdot 5 - 0 \cdot 0) - 0 + 0 = 15$. The shears
+          never changed the determinant, and the one swap flipped its sign, so before the moves it
+          was $-15$. The volume, $15$, was the same all along; only the sign records the swap.
         </p>
       </div>
     </div>
@@ -884,16 +889,17 @@
           </p>
         </div>
         <div class="ex-solution">
-          <p class="answer">Answer: any $(a, b, 0)$ with $a$ and $b$ both non-zero, for example $(1,1,0)$</p>
+          <p class="answer">Answer: any $(c_1, c_2, 0)$ with $c_1$ and $c_2$ both non-zero, for example $(1,1,0)$</p>
           <p>
-            Rows 1 and 2 lie in the floor, the plane $z = 0$, so the solid is flat exactly when row 3
-            lies in that plane too: when its last entry is $0$. Expanding along the third column
-            shows it. Rows 1 and 2 both end in $0$, so every term of the expansion has a factor $0$
-            except the one from row 3, which is
+            Write row 3 as $(c_1, c_2, c_3)$, the letters of <a href="#det3">§16.3</a>. Rows 1 and 2
+            lie in the floor, the plane $z = 0$, so the solid is flat exactly when row 3 lies in that
+            plane too: when its last entry $c_3$ is $0$. Expanding along the third column shows it.
+            Rows 1 and 2 both end in $0$, so every term of the expansion has a factor $0$ except the
+            one from row 3, which is
             $$c_3 \begin{vmatrix} 2 &amp; 0 \\ 0 &amp; 3 \end{vmatrix} = 6c_3,$$
-            and that is $0$ exactly when $c_3 = 0$. A row $(a, 0, 0)$ or $(0, b, 0)$ would also make
-            the determinant $0$, but it is a multiple of row 1 or row 2, which the question rules
-            out.
+            and that is $0$ exactly when $c_3 = 0$. A row $(c_1, 0, 0)$ or $(0, c_2, 0)$ would also
+            make the determinant $0$, but it is a multiple of row 1 or row 2, which the question
+            rules out.
           </p>
         </div>
       </div>

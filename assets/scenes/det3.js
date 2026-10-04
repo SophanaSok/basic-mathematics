@@ -1,8 +1,8 @@
 /* ===========================================================================
    Basic Mathematics — scenes "det3" and "rowops" (Chapter 16, §16.3 and §16.4)
    det3: the three rows of a 3×3 matrix drawn as arrows from the origin, and
-   the solid they span. Its volume is |det|; the sign is the handedness of the
-   rows; det = 0 is the solid gone flat.
+   the solid they span. Its volume is |det|; swapping two rows keeps the solid
+   and flips the sign; det = 0 is the solid gone flat.
    rowops: the same solid under the three row moves. A shear (add a multiple of
    one row to another) keeps the volume, a swap flips the sign, doubling a row
    doubles it.
@@ -43,9 +43,10 @@
       neg(a[1]) + "·(" + neg(b[0]) + "·" + neg(c[2]) + " − " + neg(b[2]) + "·" + neg(c[0]) + ") + " +
       neg(a[2]) + "·(" + neg(b[0]) + "·" + neg(c[1]) + " − " + neg(b[1]) + "·" + neg(c[0]) + ")";
   }
-  function handedness(d) {
-    return d > 0 ? "Positive: the rows, taken in order, turn the right-handed way, like x, y, z."
-      : d < 0 ? "Negative: the rows turn the left-handed way, a mirror image of x, y, z."
+  /* the sign in the words §16.3 has: swapping two rows keeps the solid and flips only the sign */
+  function signText(d) {
+    return d > 0 ? "The sign is +: swap any two rows and the solid stays the same while the sign turns −."
+      : d < 0 ? "The sign is −: swap any two rows and the solid stays the same while the sign turns +."
         : "Zero: the three rows lie in one plane, and the solid is flat.";
   }
 
@@ -126,7 +127,7 @@
       if (quiz) return "Rows: " + row(m[0]) + ", " + row(m[1]) + ", " + row(m[2]) + ".";
       var d = det(m);
       return "<b>det = " + expansion(m) + " = " + sgn(d) + "</b><br>" +
-        "Volume of the solid = |det| = " + Math.abs(d) + ". " + handedness(d);
+        "Volume of the solid = |det| = " + Math.abs(d) + ". " + signText(d);
     },
 
     answer: function (s, ask) {
@@ -137,7 +138,7 @@
     },
 
     missions: [
-      { text: "Slant the solid but keep its determinant 6.", test: function (s) { return det(s.m) === 6 && !diagonal(s.m); } },
+      { text: "Slant the solid but keep its determinant 6.", test: function (s) { return det(s.m) === 6 && !rectangular(s.m); } },
       { text: "Flatten it, with no row zero and no two rows parallel.", test: function (s) {
           return det(s.m) === 0 && !degenerate(s.m);
         } },
