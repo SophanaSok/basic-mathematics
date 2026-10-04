@@ -290,6 +290,14 @@
       var st = setStats(S, ch, keys);
       if (st.won && (!pred || pred(ch, st))) { n++; seen[ch] = true; }
     });
+    /* a finished chapter this device has no cache for, as medalIn shows it (finishedKeys) */
+    Object.keys(obj(S.progress)).forEach(function (ch) {
+      var keys = setKeys(S, ch, kind) ? null : finishedKeys(S, ch, kind);
+      if (!keys || !keys.length) return;
+      var st = setStats(S, ch, keys);
+      if (st.won && (!pred || pred(ch, st))) n++;
+      seen[ch] = true;
+    });
     /* a set cleared on another device still counts once its rematch medal has synced */
     Object.keys(obj(S.game.enc)).forEach(function (id) {
       var cut = id.split("/");
@@ -573,10 +581,14 @@
     var ranked = result.ranked !== false, finished = result.finished !== false;
     var xp = 0, dailyBonus = false, newMedal = 0, before = readGame();
     var bySec = {};
-    /* the rematch's set as this device sees it: null when it has never opened the chapter */
+    /* the rematch's set as this device sees it: null when it has never opened the chapter.
+       Then the set counts as cleared only on evidence: a banked medal (synced) or the
+       whole chapter solved. */
     var boss = result.boss ? String(result.boss) : "", S0 = stores();
-    var bossKeys = boss ? setKeys(S0, boss, "practice") : null;
+    var bossKeys = boss ? setKeys(S0, boss, "practice") || finishedKeys(S0, boss, "practice") : null;
     var bossSet = bossKeys && bossKeys.length ? setStats(S0, boss, bossKeys) : null;
+    var cleared = bossSet ? bossSet.won
+      : num(obj(before.enc[boss + "/practice"]).medal) > 0 || chapterFinished(S0, { id: boss });
 
     answers.forEach(function (a) {
       a = obj(a);
@@ -626,9 +638,9 @@
           (score === num(prev.score) && hearts === num(prev.hearts) && day < String(prev.day || "9999")))) {
         g.best[mode] = { score: score, hearts: hearts, day: day };
       }
-      /* a rematch only raises a medal the set has earned: not one this device can see
-         is still uncleared, and never one lost on hearts */
-      if (boss && answers.length && ranked && finished && hearts > 0 && (!bossSet || bossSet.won)) {
+      /* a rematch only raises a medal the set has earned (cleared, above), and never one
+         lost on hearts */
+      if (boss && answers.length && ranked && finished && hearts > 0 && cleared) {
         newMedal = hearts >= 3 ? 3 : 2;
         var id = boss + "/practice";
         if (outranks(newMedal, day, g.enc[id])) g.enc[id] = { medal: newMedal, day: day };

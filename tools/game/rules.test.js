@@ -273,7 +273,7 @@ function world(seedStores) {
   const d2 = G.recordRun({ mode: "daily", hearts: 1, score: 50, day: dayKey(), answers: [{ section: "ch05#angles", retry: true }] });
   eq(d2.xp, 1 + 5, "Daily bonus not paid twice in a day");
   G.recordRun({ mode: "rematch", boss: "ch05", hearts: 3, score: 900, day: dayKey(), answers: [{ section: "ch05#angles", first: true }] });
-  eq(G.game().enc["ch05/practice"].medal, 3, "rematch records its medal");
+  eq(G.game().enc["ch05/practice"], undefined, "a rematch of a set with no sign of a clear records no medal");
   G.recordRun({ mode: "repair", section: "ch05#pythagoras", timed: false, hearts: 3, score: 0, day: dayKey(),
     answers: [1, 2, 3, 4, 5].map(() => ({ section: "ch05#pythagoras", first: true })) });
   check(G.game().sec["ch05#pythagoras"].fix > 0, "a clean repair run marks the section repaired");
@@ -370,6 +370,22 @@ function world(seedStores) {
   eq(["ch05#angles", "ch05#parallels", "ch05#pythagoras"].map(w.Game.sectionStatus), ["new", "solid", "solid"],
     "solid needs two solves or a scored first try; one inline check stays new");
   eq(w.Game.deck().map((d) => d.id), ["ch05#parallels", "ch05#pythagoras"], "the deck leaves out a section met only once inline");
+
+  /* without the set cache, a rematch raises a medal only on evidence the set was cleared */
+  const gold = { mode: "boss", boss: "ch05", hearts: 3, ranked: true, finished: true, score: 900, day: dayKey(), answers: keys.map(() => ({ section: "ch05#angles", first: true })) };
+  w = world({ "bm.progress.v1": { ch05: { solved: { e1: true }, total: 10 } }, "bm.attempts.v1": { ch05: { e1: { tries: 1, solved: at(daysAgo(1)), first: 1, section: "angles" } } } });
+  r = w.Game.recordRun(gold);
+  w.Game.evaluate();
+  eq([r.medal, w.Game.game().enc, w.Game.medal("ch05"), !!w.Game.game().ach["boss-down"], !!w.Game.game().ach.flawless], [0, {}, 0, false, false],
+    "a rematch of an uncleared set with no cache earns no medal and unlocks nothing");
+  w = world(s4);
+  r = w.Game.recordRun(gold);
+  eq([r.medal, w.Game.medal("ch05")], [3, 3], "a rematch of a chapter finished before the cache still earns its medal");
+
+  /* the achievements agree with the medal progress shows for a set finished before the cache */
+  w = world(s4);
+  w.Game.evaluate();
+  eq([!!w.Game.game().ach["boss-down"], !!w.Game.game().ach.flawless], [true, false], "a finished chapter without the cache counts for Boss down");
 }
 
 console.log((fails ? "FAILED" : "ok") + " rules: " + passes + " checks passed" + (fails ? ", " + fails + " failed" : ""));

@@ -225,7 +225,7 @@
     if (!ids.length) return { error: "empty" };
 
     /* soft: served without clock or hearts. In a rematch a section counts as soft
-       only if nothing in it has been solved yet. */
+       only while it is not in the deck yet (new). */
     function soft(id) {
       var st = statusOf(d, id);
       return st === "new" || (st === "shaky" && mode !== "boss");
@@ -735,7 +735,7 @@
       var untried = ids.filter(function (id) { return statusOf(d, id) === "new"; });
       html += '<div class="arena-card arena-context" data-part="' + ch.part.id + '"><h2>Boss rematch: ' + esc(title) + "</h2>" +
         "<p>Ten questions from " + ids.map(function (id) { return esc(secInfo(id).label); }).join(", ") + ". Finish with all three hearts for Gold, with one or two for Silver.</p>";
-      if (untried.length) html += '<p class="arena-fine">' + esc(untried.map(secName).join(", ")) + (untried.length === 1 ? " has" : " have") + " nothing solved yet, so " + (untried.length === 1 ? "its questions come" : "their questions come") + " without clock or hearts.</p>";
+      if (untried.length) html += '<p class="arena-fine">' + esc(untried.map(secName).join(", ")) + (untried.length === 1 ? " is" : " are") + " not in your deck yet, so " + (untried.length === 1 ? "its questions come" : "their questions come") + " without clock or hearts.</p>";
       if (tempo() === "untimed" || calm()) html += '<p class="arena-fine">Medals need the clock and hearts, so with this tempo the rematch is practice only.</p>';
       return html + '<div class="arena-actions"><button type="button" class="btn big" data-act="start" data-mode="boss">Start the rematch</button></div></div>';
     }
@@ -820,7 +820,7 @@
     html += contextHtml(d);
     if (!dk.count) {
       html += '<div class="arena-card arena-empty"><h2>Your deck fills up as you solve</h2>' +
-        "<p>The Arena only asks about sections where you have already solved at least one problem, so the clock never meets material you are still learning. " +
+        "<p>The Arena asks about a section once you have solved two of its problems on the chapter page, or one practice problem first time, so the clock never meets material you are still learning. " +
         "Solve a few practice problems in any chapter and those sections join your deck here.</p>" +
         "<p>Want to try it now? Tick sections below to practise them untimed and without hearts.</p>" +
         '<p><a class="btn ghost" href="index.html">Go to the chapters</a></p></div>';

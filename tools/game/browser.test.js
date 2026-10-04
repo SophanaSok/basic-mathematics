@@ -438,6 +438,27 @@ async function run() {
       eq([errors, p2.errors, p3.errors, p4.errors], [[], [], [], []], "no errors off the chapter page");
       await p4.context.close();
     }
+
+    /* ---------- review fixes: the Arena's copy follows the deck rule; achievements follow the medals */
+    {
+      const { context, page, errors } = await open(browser, "arena.html", {
+        "bm.attempts.v1": JSON.stringify({ ch05: { t1: { tries: 1, first: 1, inline: 1, solved: Date.now() - 4e6, section: "angles" } } })
+      });
+      await wait(300);
+      const empty = await page.$eval(".arena-empty", (e) => e.textContent);
+      check(/solved two of its problems/.test(empty) && !/at least one problem/.test(empty), "the empty deck states the two-solve rule, not one solve");
+      await context.close();
+
+      const solved = {}, recs = {};
+      for (let i = 1; i <= 9; i++) { solved["e" + i] = true; recs["e" + i] = { tries: 1, solved: 1000 + i, first: 1, section: "one-unknown" }; }
+      const p2 = await open(browser, "progress.html", { "bm.progress.v1": JSON.stringify({ ch02: { solved, total: 9 } }), "bm.attempts.v1": JSON.stringify({ ch02: recs }) });
+      await wait(300);
+      const cell = await p2.page.$$eval("td.cell-medal", (l) => l[1].getAttribute("data-medal"));
+      eq([cell, await p2.page.evaluate(() => ["boss-down", "flawless"].map((id) => !!window.BMGame.game().ach[id]))], ["3", [true, true]],
+        "a Gold shown without the set cache also unlocks Boss down and Flawless on the same page");
+      eq([errors, p2.errors], [[], []], "no errors on the Arena copy and progress checks");
+      await p2.context.close();
+    }
   } finally {
     await browser.close();
   }
