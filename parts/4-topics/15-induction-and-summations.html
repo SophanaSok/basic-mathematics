@@ -20,6 +20,8 @@
 <script defer src="../../data/quest.js"></script>
 <script defer src="../../assets/widgets.js"></script>
 <script defer src="../../assets/three-loader.js"></script>
+<script defer src="../../assets/scenes3d.js"></script>
+<script defer src="../../assets/scenes/sumsquares.js"></script>
 <script defer src="../../assets/site.js"></script>
 <script defer src="../../assets/sfx.js"></script>
 <script defer src="../../assets/game.js"></script>
@@ -373,6 +375,58 @@
       $\sum a_kb_k$ is not $\left(\sum a_k\right)\left(\sum b_k\right)$, as
       $1\cdot1 + 2\cdot2 = 5$ against $(1+2)(1+2) = 9$ makes clear.
     </p>
+
+    <p>
+      The second standard sum came from fitting two staircases into a rectangle in §15.1. The
+      third comes the same way, one dimension up. Stack squares of cubes, $1^2, 2^2, \dots, n^2$,
+      into a stepped pyramid; it holds $\sum_{k=1}^{n} k^2$ cubes. Copies of it fit together into
+      a box, and a box is easy to count.
+    </p>
+
+    <details class="reveal">
+      <summary><span class="ask">A pyramid with layers $1^2$, $2^2$ and $3^2$ holds $1 + 4 + 9 = 14$ cubes. Six copies fit together, with no gaps, into a box $3$ wide and $4$ tall. How long is the box?</span>Decide, then open</summary>
+      <p>
+        Seven. The box holds six pyramids, $6 \times 14 = 84$ cubes, and each slice across it has
+        $3 \times 4 = 12$, so there are $84 \div 12 = 7$ slices. The figure below shows how the
+        pieces go together.
+      </p>
+    </details>
+
+    <figure>
+      <div class="widget" data-widget="sumsquares"></div>
+      <figcaption>
+        <b>Where the $6$ comes from.</b> Choose three copies and fit them together: they make a
+        block with a staircase of cubes on one side. Choose six, and the other three make the same
+        block turned over; its staircase fills the gaps in the first one, so the two blocks share a
+        single layer, the rectangle of two staircases from §15.1 (look at a block of three from the
+        end to see it). Six pyramids fill the box exactly, so six times the sum is the volume of
+        the box. Drag the picture to turn it.
+      </figcaption>
+    </figure>
+
+    <div class="ex" data-inline id="s3d-squares" data-label="Your turn, in space" data-type="figure" data-figure="sumsquares" data-ask="box" data-answer="6:6,7,13" data-hint="Three pyramids make a block n wide and n + 1 tall with a staircase on one side; a second block fits against it, turned over." data-hint2="For the third side, count the full layers in each block and the one layer the two staircases share.">
+      <div class="ex-q">
+        <p>
+          Six pyramids with layers $1^2, 2^2, \dots, 6^2$, one size past the largest in the figure
+          above. Set $n = 6$ and the three sides of the box they fill exactly.
+        </p>
+      </div>
+      <div class="ex-solution">
+        <p class="answer">Answer: $n = 6$ and a box $6 \times 7 \times 13$</p>
+        <p>
+          Each block of three pyramids is $6$ wide and $7$ tall: six full layers of $6 \times 7$
+          cubes, and a staircase layer of $1 + 2 + \dots + 6 = 21$. The second block is the first one
+          turned over, and its staircase fills the gaps in the first, so the two staircases make one
+          layer between them. The long side is $6 + 1 + 6 = 13$. The box holds
+          $6 \times 7 \times 13 = 546$ cubes, six pyramids' worth, so one pyramid holds
+          $546 \div 6 = 91 = 1 + 4 + 9 + 16 + 25 + 36$.
+        </p>
+        <p>
+          The same count for any $n$ gives sides $n$, $n + 1$ and $n + 1 + n = 2n + 1$, so
+          $6\sum_{k=1}^{n} k^2 = n(n+1)(2n+1)$: the formula above.
+        </p>
+      </div>
+    </div>
 
     <div class="worked">
       <h4><span class="num">Example 2.</span> Using the standard sums</h4>
