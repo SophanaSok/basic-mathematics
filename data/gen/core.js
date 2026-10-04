@@ -115,15 +115,72 @@
   function ptAns(x, y) { return "(" + x + "," + y + ")|" + x + "," + y; }
   function ptTex(x, y) { return "(" + x + ", " + y + ")"; }
 
+  /* What the grader (site.js) already treats as equal, so the keys below need not
+     list it: spaces, case, π for pi, √ for sqrt, × and ⋅ (U+22C5) and * for "times"
+     (all three are then dropped), one bracket pair around the whole answer, and the
+     order of the pieces of a plain sum a+b with no brackets. It does not reorder a
+     product (pi9 is not 9pi), does not read the middle dot · (U+00B7) as "times",
+     and does not reorder a difference (22i-26 is not -26+22i). Each key spells
+     those out instead. tools/check-gen.js evaluates every spelling, so a new one
+     that is not the same number fails the build. */
+
   /* k·π/d in the course's typed form: "5pi/6", "pi/3", "2pi" — with the other
-     spellings a reader might type. The grader turns π into pi first. */
+     spellings a reader might type: pi first (π·9, the order the formulas are
+     written in), a middle dot, a bracketed coefficient (3/4)π. */
   function piAns(k, d) {
     var f = reduce(k, d), n = f.n, m = f.d;
-    var sgn = n < 0 ? "-" : "", a = Math.abs(n);
+    if (n === 0) return "0";
+    var sgn = n < 0 ? "-" : "", a = Math.abs(n), list;
     var head = a === 1 ? "pi" : a + "pi";
-    if (m === 1) return n === 0 ? "0" : sgn + head;
-    var list = [sgn + head + "/" + m, sgn + "(" + head + ")/" + m, sgn + a + "/" + m + "pi"];
-    if (a === 1) list.push(sgn + "1/" + m + "pi");
+    if (m === 1) {
+      list = [sgn + head];
+      if (a === 1) list.push(sgn + "1pi");
+      else list.push(sgn + "pi" + a, sgn + a + "·pi", sgn + "pi·" + a, sgn + "pi(" + a + ")", sgn + "(" + a + ")pi");
+      return list.join("|");
+    }
+    var c = a + "/" + m;
+    list = [sgn + head + "/" + m, sgn + "(" + head + ")/" + m, sgn + c + "pi", sgn + "(" + c + ")pi", sgn + c + "·pi", sgn + "(" + c + ")·pi"];
+    if (a > 1) list.push(sgn + a + "·pi/" + m, sgn + "(" + a + "·pi)/" + m);
+    return list.join("|");
+  }
+
+  /* √n/2 (n = 2 or 3, the table of §11.2), with 1/√2 for n = 2 */
+  function halfRootAns(n) {
+    var list = [];
+    ["sqrt(" + n + ")", "sqrt" + n].forEach(function (rt) {
+      list.push(rt + "/2", "(" + rt + ")/2", "1/2" + rt, "(1/2)" + rt, "1/2·" + rt, "(1/2)·" + rt);
+    });
+    if (n === 2) list.push("1/sqrt(2)", "1/sqrt2", "1/(sqrt2)", "1/(sqrt(2))");
+    return list.join("|");
+  }
+
+  /* y = mx + b: the course's form first, then the constant first (y = 7 + x), the
+     form filled in literally (y = 1x + 7, y = 3x + 0, y = 3x + -5), each with and
+     without "y =" */
+  function lineAns(m, b) {
+    var mts = [poly([[m, "x"]])], rhs = [], seen = {}, list = [];
+    if (Math.abs(m) === 1) mts.push(m + "x");
+    var tails = b > 0 ? ["+" + b] : b < 0 ? [String(b), "+" + b] : ["", "+0"];
+    mts.forEach(function (mt) {
+      tails.forEach(function (tl) { rhs.push(mt + tl); });
+      if (b !== 0) rhs.push(b + (mt.charAt(0) === "-" ? "" : "+") + mt);
+    });
+    rhs.map(function (t) { return "y=" + t; }).concat(rhs).forEach(function (t) {
+      if (!seen[t]) { seen[t] = 1; list.push(t); }
+    });
+    return list.join("|");
+  }
+
+  /* "x<3", its mirror "3>x", and the interval §3.3 writes, (-∞, 3) — with inf or
+     infinity for a keyboard without ∞ */
+  function relAns(rel, x0) {
+    var mirror = { ">": "<", "<": ">", ">=": "<=", "<=": ">=" }[rel];
+    var list = ["x" + rel + x0, x0 + mirror + "x"];
+    ["∞", "inf", "infinity"].forEach(function (inf) {
+      if (rel === ">") list.push("(" + x0 + "," + inf + ")", "(" + x0 + ",+" + inf + ")");
+      else if (rel === ">=") list.push("[" + x0 + "," + inf + ")", "[" + x0 + ",+" + inf + ")");
+      else list.push("(-" + inf + "," + x0 + (rel === "<" ? ")" : "]"));
+    });
     return list.join("|");
   }
   function piTex(k, d) {
@@ -135,27 +192,21 @@
   }
 
   /* a + bi in the typed form, with the spellings the grader does not already
-     treat as equal (it sorts the pieces of a plain sum, but not a difference) */
+     treat as equal (it sorts the pieces of a plain sum, but not a difference):
+     either part first and either sign spelling, so -26+22i, 22i-26, -8-6i, -6i-8,
+     -8+-6i; i or 1i when |b| = 1 */
   function cxAns(a, b) {
     var list = [];
-    function im(v) { return v === 1 ? "i" : v === -1 ? "-i" : v + "i"; }
-    if (b === 0) return String(a);
-    if (a === 0) {
-      list.push(im(b));
-      if (Math.abs(b) === 1) list.push(b + "i");
-      list.push("0" + (b < 0 ? "" : "+") + im(b));
-      return list.join("|");
-    }
-    var mid = b < 0 ? "-" : "+";
-    list.push(a + mid + im(Math.abs(b)));
-    if (Math.abs(b) === 1) list.push(a + mid + "1i");
-    if (b < 0) {
-      list.push(im(b) + "+" + a);
-      list.push(a + "+" + im(b));
-      if (b === -1) list.push("-1i+" + a);
-    } else {
-      list.push(im(b) + "+" + a);
-    }
+    if (b === 0) return a + "|" + a + "+0i";
+    var ims = [b === 1 ? "i" : b === -1 ? "-i" : b + "i"];
+    if (Math.abs(b) === 1) ims.push(b + "i");
+    ims.forEach(function (t) {
+      var mag = t.charAt(0) === "-" ? t.slice(1) : t;
+      if (a === 0) { list.push(t, "0" + (b < 0 ? "-" : "+") + mag); return; }
+      list.push(a + (b < 0 ? "-" : "+") + mag);         /* -26+22i, -8-6i */
+      list.push(t + (a < 0 ? "-" + (-a) : "+" + a));    /* 22i-26, -6i-8, 24i+10 */
+      if (b < 0) list.push(a + "+" + t);                /* -8+-6i, and -6i+-8 by the sort */
+    });
     return list.join("|");
   }
   function cxTex(a, b) {
@@ -207,7 +258,7 @@
     u: {
       gcd: gcd, lcm: lcm, reduce: reduce, fracAns: fracAns, fracTex: fracTex, par: par,
       poly: poly, shift: shift, ptAns: ptAns, ptTex: ptTex, piAns: piAns, piTex: piTex,
-      cxAns: cxAns, cxTex: cxTex
+      cxAns: cxAns, cxTex: cxTex, halfRootAns: halfRootAns, lineAns: lineAns, relAns: relAns
     }
   };
 })();
