@@ -3,7 +3,11 @@
    (dist/, which must be current; --root=<dir> names a build elsewhere):
      node tools/game/browser.test.js
    Every request off that server is aborted (nothing a page needs comes from anywhere
-   else now: the fonts, KaTeX and Three.js are in the bundle), so the run is deterministic.
+   else now: the fonts, KaTeX and Three.js are in the bundle), and so is the one for
+   bundle/three.js, so the 3D stages and the course map take their flat fallbacks on
+   every machine, whatever WebGL its Chromium offers, and the run is deterministic: this
+   script is part of the deploy gate (ci.yml, test:browser:core), which is not retried;
+   the painters are scenes.test.js's and map.test.js's, in the retried webgl job.
 
    1. ch05 in whole-page mode: three first-try answers give 10, 12, 14 XP and 3 pips;
       a first miss on a fresh one costs 2 pips and leaves 2 hearts
@@ -41,10 +45,13 @@ const AUDIO_SPY = "(" + function () {
   }
 } + ")()";
 
+/* the loader's dynamic import, refused so that every stage and the map stay flat (header) */
+const THREE_CHUNK = /\/bundle\/three\.js(?:[?#]|$)/;
+
 async function open(browser, page0, seed, opts) {
   opts = opts || {};
   const context = await browser.newContext({ viewport: { width: opts.width || 1280, height: 900 }, reducedMotion: opts.reducedMotion || "no-preference" });
-  await context.route(/^(https?|wss?):/, (r) => server.owns(r.request().url()) ? r.continue() : r.abort());
+  await context.route(/^(https?|wss?):/, (r) => server.owns(r.request().url()) && !THREE_CHUNK.test(r.request().url()) ? r.continue() : r.abort());
   if (opts.blockStorage) {
     await context.addInitScript(() => {
       Object.defineProperty(window, "localStorage", { configurable: true, get: function () { throw new Error("storage blocked"); } });

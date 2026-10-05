@@ -1,6 +1,8 @@
 "use strict";
 /* WebGL availability in headless Chromium. Runs first: `probe` is called by the runner
-   before the shared browser is launched and its winning arg set becomes ctx.launch.
+   before the shared browser is launched and its winning arg set becomes ctx.launch. The
+   probe asks for WebGL 2 only, the context the site's loader needs (WebGL 1 alone would
+   leave every 3D picture flat while reading as "WebGL available" here).
    Exports the helpers scene suites will want: ARG_SETS, probe, and (via ctx.h) the
    noWebGL / blockUrl helpers that live in lib/browser.js. */
 const path = require("path");
@@ -65,7 +67,7 @@ module.exports = {
       ctx.report[r.ok ? "pass" : "warn"]("args " + JSON.stringify(t.args), r.ok ? r.renderer + " via " + r.context : (r.error || "no context"));
     });
     if (L.webgl && L.webgl.ok) ctx.report.pass("launch config", "args " + JSON.stringify(L.args) + "; renderer: " + L.webgl.renderer + "; vendor: " + L.webgl.vendor + "; " + L.webgl.version);
-    else ctx.report.fail("launch config", "no arg set produced a WebGL context; 3D scenes cannot be exercised on this machine. Tried: " + JSON.stringify(L.tried));
+    else ctx.report.fail("launch config", "no arg set produced a WebGL 2 context (the one assets/three-loader.js asks for; WebGL 1 alone does not count); 3D scenes cannot be exercised on this machine. Tried: " + JSON.stringify(L.tried));
     /* the no-WebGL helper must actually remove WebGL, or the degrade-path tests mean nothing */
     const { page, close } = await ctx.h.newPage({ noWebGL: true });
     try {

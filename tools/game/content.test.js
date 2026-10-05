@@ -11,7 +11,10 @@
         or +11, which the old number compare took), and still
         refuses a wrong length with a unit
    Checks 1 to 4 read the source files; 5 loads the page from the built site as
-   lib/target.js serves it (dist/, which must be current).
+   lib/target.js serves it (dist/, which must be current), with every request off that
+   server aborted and the one for bundle/three.js with it, so the page's 3D stages stay
+   on the SVG painter on every machine: this script is part of the deploy gate (ci.yml,
+   test:browser:core), which is not retried, and it tests the exercises, not the painter.
    Usage: node tools/game/content.test.js */
 "use strict";
 const fs = require("fs");
@@ -141,7 +144,8 @@ async function browserPart() {
   const { chromium } = require("../lib/pw").playwright();
   const server = await target.start(site.parseArgs(process.argv.slice(2)));
   console.log("content: " + server.where);
-  const offline = (r) => server.owns(r.request().url()) ? r.continue() : r.abort();
+  const THREE_CHUNK = /\/bundle\/three\.js(?:[?#]|$)/;
+  const offline = (r) => server.owns(r.request().url()) && !THREE_CHUNK.test(r.request().url()) ? r.continue() : r.abort();
   const browser = await chromium.launch();
   try {
     const cases = [["11", true], ["11 m", true], ["11m", true], ["11 metres", true], ["11 meters", true], ["11.", true],
@@ -165,7 +169,9 @@ async function browserPart() {
     }
     /* every way of writing 11 (bare, as the old number compare took it, or with the unit
        spelt either way) grades right; a wrong length or unit never does */
-    const page = await browser.newPage();
+    const context = await browser.newContext();
+    await context.route(/^(https?|wss?):/, offline);
+    const page = await context.newPage();
     await page.goto(server.url + CH08);
     await page.waitForFunction(() => window.BMSite && document.readyState === "complete");
     const forms = ["11", "11.0", "11.00", "+11", "11.", "11 M", "11 m.", "11 m", "11m", "11.0 m", "11.00 m", "+11 m",
@@ -177,7 +183,7 @@ async function browserPart() {
       return all.map((g) => window.BMSite.grade(g, key, type, 0));
     }, forms.concat(wrong));
     forms.concat(wrong).forEach((g, i) => eq(got[i], i < forms.length, "s3d-room grade(" + JSON.stringify(g) + ")"));
-    await page.close();
+    await context.close();
   } finally {
     await browser.close();
     await server.close();

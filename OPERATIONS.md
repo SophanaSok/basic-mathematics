@@ -178,11 +178,17 @@ changed no chunk's name: `assets/three-loader.js` is still in `bundle/home-chapt
 imports a new chunk, `bundle/three.js`, on demand, which only that import fetches. A page a
 browser holds from before the deploy runs the old loader, which fetches the pinned 0.160.1
 build from its CDN as it did, and never asks for `bundle/three.js`; a page from after it, on a
-cached `home-chapter.js` from before, does the same. Either way the 3D pictures draw, and the
-site makes no request of its own to a CDN once every page has expired (ten minutes). Nothing
-is kept for it. One thing to know when reading the loader's reasons: `BM3D.why` still says
-`cdn` when the chunk could not be fetched or run, since the checks and the map read that
-string; it no longer means a CDN.
+cached `home-chapter.js` from before, does the same. Either way the course map draws (it is in
+`home-chapter.js` with the loader, so the two are always of one version), and the site makes
+no request of its own to a CDN once every page has expired (ten minutes). The chapter scenes
+are the one thing the window touches: `assets/scenes3d.js` is in `bundle/chapter.js`, so a
+chapter page can pair a `chapter.js` of one version with a `home-chapter.js` of the other, and
+then the loader puts the library where the other version's scenes do not look (`window.THREE`
+before, `BM3D.THREE` after). The scenes catch that and stay on the flat SVG painter, which is on
+screen from the first paint anyway, with nothing said in the console, until the stale chunk is
+fetched again. Nothing is kept for it. One thing to know when reading the loader's reasons:
+`BM3D.why` still says `cdn` when the chunk could not be fetched or run, since the checks and
+the map read that string; it no longer means a CDN.
 
 ### The Pages source: GitHub Actions, set before the page-shell change is merged
 

@@ -7,19 +7,19 @@
 <body>
 <pre id="out">probing…</pre>
 <script>
-/* Reports whether a WebGL context can be created in this browser launch, and which
-   renderer backs it. tools/suites/webgl.js reads window.__probe. */
+/* Reports whether a WebGL 2 context can be created in this browser launch, and which
+   renderer backs it. tools/suites/webgl.js reads window.__probe. WebGL 2 is the one
+   context the site uses: assets/three-loader.js asks for "webgl2" and nothing else, since
+   Three.js's renderer no longer runs on WebGL 1, so a launch that offers WebGL 1 alone
+   draws no 3D picture and must count here as a launch without WebGL. */
 (function () {
   var out = { ok: false, context: null, renderer: null, vendor: null, version: null, error: null };
   try {
     var c = document.createElement("canvas");
-    var names = ["webgl2", "webgl", "experimental-webgl"];
     var gl = null;
-    for (var i = 0; i < names.length && !gl; i++) {
-      try { gl = c.getContext(names[i], { failIfMajorPerformanceCaveat: false }); } catch (e) { out.error = String(e); }
-      if (gl) out.context = names[i];
-    }
+    try { gl = c.getContext("webgl2", { failIfMajorPerformanceCaveat: false }); } catch (e) { out.error = String(e); }
     if (gl) {
+      out.context = "webgl2";
       out.ok = true;
       var dbg = gl.getExtension("WEBGL_debug_renderer_info");
       out.renderer = dbg ? gl.getParameter(dbg.UNMASKED_RENDERER_WEBGL) : gl.getParameter(gl.RENDERER);

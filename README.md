@@ -595,6 +595,11 @@ screen and Three.js has arrived, and the build makes it a chunk of its own, as i
 itself (`src/vendor/three.js`, which `three-loader.js` imports the same way). A Three.js name
 the painter or the map starts to use is added to `src/vendor/three.js` (the `lib/vendor.js` test
 in `tools/checks.test.js` holds that file's exports to exactly the names those two files use).
+When the WebGL painter cannot start, a stage falls back to the SVG painter and says nothing in
+the console, on purpose; so that a Three.js release that broke only the painter cannot pass on
+the flat pictures, `tools/game/scenes.test.js` and the `widgets` suite of `check-browser.js` hold
+every stage to the GL painter (`data-painter="gl" data-state="ready"`) wherever WebGL 2 is there,
+and to the SVG fallback where it is not.
 
 ### The game layer
 
