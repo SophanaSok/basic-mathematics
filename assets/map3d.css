@@ -28,10 +28,13 @@
 }
 /* the separator keeps the accessible name "Part I · The Foundry" while the tile shows two lines */
 .map3d-sep { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
-.map3d-part:hover { background: var(--part-soft); }
+/* not the chosen one: it keeps its solid --part under the pointer, as its --on-part text needs */
+.map3d-part:hover:not(:disabled):not([data-on]) { background: var(--part-soft); }
+/* until the world is drawn the buttons wait with it (assets/map3d.js skeleton()) */
+.map3d-part:disabled { cursor: progress; }
 .map3d-part[data-on] { background: var(--part); color: var(--on-part); }
 .map3d-part[data-on] b { color: inherit; }
-.map3d-part:active { transform: translateY(3px); box-shadow: 0 0 0 var(--edge); }
+.map3d-part:active:not(:disabled) { transform: translateY(3px); box-shadow: 0 0 0 var(--edge); }
 .map3d-part:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; border-radius: var(--radius-xs); }
 @media (prefers-reduced-motion: no-preference) {
   html:not([data-calm]) .map3d-part { transition: transform var(--t-1), box-shadow var(--t-1), background var(--t-2); }

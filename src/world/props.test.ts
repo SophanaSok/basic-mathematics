@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { layout, ISLE_R, ROW_Z, segmentDistance } from "./layout.ts";
-import { placeProps, biomeOf, KINDS, EXTRA_COUNT, type Prop } from "./props.ts";
+import { placeProps, biomeOf, KINDS, EXTRA_COUNT, RIM, RIM_IN, type Prop } from "./props.ts";
 import { course, motifs } from "./course.test-helper.ts";
 
 const C = course();
@@ -22,12 +22,27 @@ describe("the props of each region", () => {
     expect(placeProps(L, M, 2)).toEqual(placeProps(L, M, 2));
   });
 
+  const rims = Object.values(RIM) as string[];
   it("grow in number with the tier's detail", () => {
-    const n = [0, 1, 2].map((d) => placeProps(L, M, d as 0 | 1 | 2).length);
+    const n = [0, 1, 2].map((d) => placeProps(L, M, d as 0 | 1 | 2).filter((q) => rims.indexOf(q.kind) === -1).length);
     expect(n[0]).toBeLessThan(n[1]);
     expect(n[1]).toBeLessThan(n[2]);
     /* nearly every one asked for finds room */
     expect(n[2]).toBeGreaterThanOrEqual((15 + EXTRA_COUNT[2] * 4) * 0.85);
+  });
+
+  it("dress each terrace's front edge with a rim of its own kind, closer set with each tier's detail", () => {
+    for (const d of [0, 1, 2] as const) {
+      const props = placeProps(L, M, d);
+      C.parts.forEach((part, p) => {
+        const rim = props.filter((q) => q.p === p && q.kind === RIM[biomeOf(M[p], p)]);
+        expect(rim.length, part.id + " at detail " + d).toBeGreaterThanOrEqual(5);
+        rim.forEach((q) => expect(Math.abs(q.z - (L.regions[p].z1 - RIM_IN))).toBeLessThan(0.1));
+      });
+    }
+    const count = (d: 0 | 1 | 2) => placeProps(L, M, d).filter((q) => rims.indexOf(q.kind) !== -1).length;
+    expect(count(0)).toBeLessThan(count(1));
+    expect(count(1)).toBeLessThan(count(2));
   });
 
   for (const detail of [0, 1, 2] as const) {

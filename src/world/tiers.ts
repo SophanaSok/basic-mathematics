@@ -153,6 +153,8 @@ export class FrameWatch {
   private samples: number[] = [];
   push(t: number): boolean {
     let slow = false;
+    /* the same timestamp twice is one frame seen twice, not a frame drawn in no time */
+    if (this.last && t === this.last) return false;
     if (this.last && t - this.last < PAUSE_MS) {
       this.samples.push(t - this.last);
       if (this.samples.length >= SAMPLES) {

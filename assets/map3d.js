@@ -5,7 +5,8 @@
    along one path. It is an enhancement above the chapter list, never a replacement
    for it. The list (ol.path inside [data-course-index]) stays the accessible,
    focusable structure; the canvas is aria-hidden and only mirrors it:
-     list → map   focusing or hovering a chapter link flies the camera to its island
+     list → map   focusing or hovering a chapter link flies the camera to its island,
+                  while the stage is in view (otherwise the world is left as it is)
      map → list   a mouse click on an island opens the same link; a tap selects the
                   link first and opens it on a second tap
    Four real buttons fly to a Part.
@@ -141,12 +142,13 @@ import { detectTier, readProbe, stepDown, lower, pixelRatio, TIERS, AMBIENT_MS, 
 
   /* the buttons, the stage with its "Loading" panel, and the token probes: shown as soon
      as the device is to get 3D, so the world's place is kept while it loads and the page
-     does not jump when it arrives (only if loading fails does the box go again) */
+     does not jump when it arrives (only if loading fails does the box go again). The
+     buttons stay disabled, out of the tab order, until build() gives them something to do */
   function skeleton() {
     if (box.querySelector(".map3d-stage")) return;
     var parts = "";
     C.parts.forEach(function (part, p) {
-      parts += '<button type="button" class="map3d-part" data-part="' + esc(part.id) + '" data-p="' + p + '">' +
+      parts += '<button type="button" class="map3d-part" data-part="' + esc(part.id) + '" data-p="' + p + '" disabled>' +
         "<b>Part " + esc(part.num) + '</b><span class="map3d-sep"> · </span><span>' + esc(regionName(part)) + "</span></button>";
     });
     var probes = "";
@@ -218,6 +220,7 @@ import { detectTier, readProbe, stepDown, lower, pixelRatio, TIERS, AMBIENT_MS, 
       if (M && e.button === 1) M.aux = { x: e.clientX, y: e.clientY, hit: pickAt(e.clientX, e.clientY) };
     });
     box.querySelector(".map3d-parts").addEventListener("click", onPartButton);
+    Array.prototype.forEach.call(box.querySelectorAll(".map3d-part"), function (b) { b.disabled = false; });
 
     box.hidden = false;
     host.setAttribute("data-map", "3d");
@@ -496,11 +499,15 @@ import { detectTier, readProbe, stepDown, lower, pixelRatio, TIERS, AMBIENT_MS, 
     if (!M) return;
     if (more) {
       if (M.watch.push(t)) { degrade(); return; }
-    } else {
+    } else if (!M.raf) {
       M.watch.stop();
     }
-    if (M && (more || M.dirty) && canAnimate()) M.raf = window.requestAnimationFrame(frame);
-    else if (M) M.watch.stop();
+    /* one loop only: a flight that lands calls settle(), whose stir() may already have
+       asked for the next frame (wake); asking again would run two loops side by side,
+       drawing twice per display frame and handing the watchdog each timestamp twice */
+    if (!M || M.raf) return;
+    if ((more || M.dirty) && canAnimate()) M.raf = window.requestAnimationFrame(frame);
+    else M.watch.stop();
   }
 
   /* Too slow to be pleasant: one tier down (src/world/tiers.ts), the list after low.
@@ -562,6 +569,7 @@ import { detectTier, readProbe, stepDown, lower, pixelRatio, TIERS, AMBIENT_MS, 
     if (!s) { sel.visible = false; return; }
     sel.visible = true;
     sel.position.set(s.x, s.y + W.DECK + 0.1, s.z);
+    M.world.selectIn(s.part.id);
   }
   function select(i, how) {
     if (!M || i < 0) return;
@@ -581,13 +589,27 @@ import { detectTier, readProbe, stepDown, lower, pixelRatio, TIERS, AMBIENT_MS, 
     request();
   }
 
-  /* list → map */
+  /* list → map, only where it can be seen. The world stands above the hero and the list
+     below it, so at most sizes the two are not on screen together: a chapter focused or
+     hovered in the list moves the camera only while at least half the stage is in view
+     (and, for focus, the link too, since focusing a link out of view scrolls the stage
+     away). Otherwise the world is left alone, so scrolling back up finds it where the
+     learner left it, not at whatever chapter they last tabbed past. */
+  function stageInView() {
+    if (!M) return false;
+    var r = M.stage.getBoundingClientRect(), vh = window.innerHeight || document.documentElement.clientHeight;
+    return r.height > 0 && Math.min(r.bottom, vh) - Math.max(r.top, 0) >= r.height / 2;
+  }
+  function linkInView(a) {
+    var r = a.getBoundingClientRect(), vh = window.innerHeight || document.documentElement.clientHeight;
+    return r.top >= 0 && r.bottom <= vh;
+  }
   var hoverTimer = 0;
   host.addEventListener("focusin", function (e) {
     if (!M) return;
     var a = closest(e.target, ".stop-link");
     var li = a && closest(a, "li.stop");
-    if (li) select(isleIndex(li.getAttribute("data-chapter")), "focus");
+    if (li && linkInView(a) && stageInView()) select(isleIndex(li.getAttribute("data-chapter")), "focus");
   });
   host.addEventListener("focusout", function (e) {
     if (!M) return;
@@ -602,7 +624,7 @@ import { detectTier, readProbe, stepDown, lower, pixelRatio, TIERS, AMBIENT_MS, 
     if (i === M.hot) return;
     clearTimeout(hoverTimer);
     /* a short pause, so sweeping the pointer down the list does not whip the camera about */
-    hoverTimer = setTimeout(function () { select(i, "hover"); }, 140);
+    hoverTimer = setTimeout(function () { if (stageInView()) select(i, "hover"); }, 140);
   });
   host.addEventListener("mouseleave", function () {
     clearTimeout(hoverTimer);
@@ -781,10 +803,17 @@ import { detectTier, readProbe, stepDown, lower, pixelRatio, TIERS, AMBIENT_MS, 
         li.removeAttribute("data-map-hot");
       });
     }
+    /* a Part button that had the focus goes with the box: the focus moves to the list
+       (the current chapter, or the first), not to <body>, and the page stays where it is */
+    var had = box.contains(document.activeElement);
     box.hidden = true;
     box.innerHTML = "";
     box.removeAttribute("data-drag");
     host.removeAttribute("data-map");
+    if (had) {
+      var to = host.querySelector('li.stop[data-state="current"] .stop-link') || host.querySelector(".stop-link");
+      if (to) { try { to.focus({ preventScroll: true }); } catch (e) { to.focus(); } }
+    }
   }
 
   /* the world's chunk, imported once (a second call shares the first) */
@@ -905,7 +934,8 @@ import { detectTier, readProbe, stepDown, lower, pixelRatio, TIERS, AMBIENT_MS, 
       return { triangles: Math.round(tris), stones: M.world.stones(), current: M.cur > -1 ? ISLES[M.cur].id : null,
         hot: M.hot > -1 ? ISLES[M.hot].id : null, flying: !!M.flight, bobbing: !!M.bobbing,
         pixelRatio: M.renderer.getPixelRatio(), calls: ri ? ri.calls : null, isles: M.world.kinds(),
-        tier: M.tier, reason: choice ? choice.why : "", ambient: !!M.budget.ambient, budget: M.budget, frames: M.frames };
+        tier: M.tier, reason: choice ? choice.why : "", ambient: !!M.budget.ambient, budget: M.budget, frames: M.frames,
+        ring: "#" + M.world.select.material.color.getHexString() };
     },
     /* where an island sits on screen, in client pixels */
     where: function (id) {

@@ -729,8 +729,9 @@ tier it settles on is kept in `bm.prefs.v1` as `gfxAuto` (this device's, never s
 next visit starts there; a choice of graphics quality, or switching the 3D map on, clears it.
 A tier the learner chose is stepped down for the visit only.
 
-When the tier is not the list, the box shows its four Part buttons and a "Loading the map"
-panel at once (so the page does not jump when the world arrives), and `map3d.js` fetches Three.js
+When the tier is not the list, the box shows its four Part buttons (disabled until the world
+is drawn) and a "Loading the map" panel at once (so the page does not jump when the world
+arrives), and `map3d.js` fetches Three.js
 (`BM3D.load()`, the loader the 3D scenes share) and the world's own chunk, `bundle/world.js`
 (`import()` of `src/world/index.ts`), side by side. If either fails the box goes and the list
 stands alone; `BMMap3D.why()` says why. No other page asks for either chunk (the pages suite
@@ -741,7 +742,10 @@ Foundry to the Observatory, each with its own props made only of Three.js primit
 places them, seeded, clear of the islands, the path and the gates, tall ones never in front of a
 row; `regions.ts` builds them): chimneys with smoke, a furnace, crates and an anvil in the
 Foundry; tents, hills and trees in the Fields; a lattice of posts, axis beams and nodes in the Grid;
-a dome, a telescope, stars on rods and rocks in the Observatory. On them stand the chapter islands,
+a dome, a telescope, stars on rods and rocks in the Observatory; and along each terrace's front
+edge a rim of low pieces (blocks, bushes, capped posts, crystals), set closer with each tier's
+detail. Every prop is inked in its region's `--region-ink`, which stands 3:1 off that region's
+ground in both themes, as does the selection ring. On them stand the chapter islands,
 the path's stones and the review gates. All of that is **one mesh and one set of ink edges**
 (`batch.ts` merges the primitives with vertex colours and flat normals), so the still world is two
 draw calls; the progress marks (`marks.ts`: ring, boss, flag, stars) are two more, rebuilt only
@@ -769,12 +773,17 @@ turn flights into cuts. Nothing flashes and nothing loops for longer than the wi
 
 **Keyboard and screen readers.** The canvas is `aria-hidden` and not focusable; the chapter list
 is the accessible version, and the four Part buttons are real buttons. Focusing or hovering a
-chapter in the list flies the camera to its island and marks the list item; a click on an island
-opens the same link as the list (a modified or middle click a new tab, a tap selects first).
+chapter in the list flies the camera to its island and marks the list item, while at least half
+the stage is in view (the world stands above the hero and the list below it, so on most screens
+the two are not seen together, and then the world is left where the learner left it); a click on
+an island opens the same link as the list (a modified or middle click a new tab, a tap selects
+first). If the world goes (a lost context, the watchdog) while a Part button has the focus, the
+focus moves to the list.
 
 `BMMap3D.info()` is the test handle: `triangles`, `calls` (the last frame's draw calls),
 `pixelRatio`, `tier`, `reason`, `budget` (the tier's caps), `ambient`, `frames`, `bobbing`,
-`flying`, `current`, `hot`, `stones` and `isles` (what each island shows).
+`flying`, `current`, `hot`, `stones`, `isles` (what each island shows) and `ring` (the
+selection ring's colour).
 
 ### Lesson mode
 

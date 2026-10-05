@@ -147,6 +147,38 @@ describe("the merged batches", () => {
   });
 });
 
+describe("the ink and the teardown", () => {
+  /* how many edge vertices are painted `key` */
+  const inked = (still: ReturnType<typeof buildStatic>, pal: PaletteMap, key: string) => {
+    const col = still.edges.geometry.getAttribute("color"), c = pal.get(key)!;
+    let n = 0;
+    for (let i = 0; i < col.count; i++) if (col.getX(i) === Math.fround(c.r) && col.getY(i) === Math.fround(c.g) && col.getZ(i) === Math.fround(c.b)) n++;
+    return n;
+  };
+
+  it("inks every prop in its region's --region-ink, never the paper's ink, so its edges show on a dark ground", () => {
+    const pal = palette();
+    const mats = makeMaterials(T);
+    const few = buildStatic(T, L, placeProps(L, MOT, 0), mats, pal);
+    const many = buildStatic(T, L, placeProps(L, MOT, 2), mats, pal);
+    /* more props add no paper ink (the islands' own edges are the same in both) */
+    expect(inked(many, pal, "ink")).toBe(inked(few, pal, "ink"));
+    for (const p of C.parts) expect(inked(many, pal, "rink:" + p.id)).toBeGreaterThan(inked(few, pal, "rink:" + p.id));
+    few.dispose(); many.dispose(); mats.dispose();
+  });
+
+  it("frees the smoke's instanced mesh with the rest, so a tier change leaves no GL buffer behind", () => {
+    const mats = makeMaterials(T);
+    const still = buildStatic(T, L, placeProps(L, MOT, 1), mats, palette());
+    expect(still.puffs).not.toBeNull();
+    let freed = false;
+    still.puffs!.mesh.addEventListener("dispose", () => { freed = true; });
+    still.dispose();
+    expect(freed).toBe(true);
+    mats.dispose();
+  });
+});
+
 describe("the idle motion", () => {
   it("lifts each puff and shrinks it over one cycle, and repeats exactly", () => {
     const a = puffAt([0, 2, 0], 0, 0), b = puffAt([0, 2, 0], 0, PUFF_MS * 0.5), c = puffAt([0, 2, 0], 0, PUFF_MS);

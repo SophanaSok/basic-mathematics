@@ -9,6 +9,8 @@
      fields  The Fields       tents, low hills, trees
      grid    The Grid         a lattice of posts, axis beams, nodes on posts
      stars   The Observatory  a dome, a telescope, stars on rods, rocks
+   and along each terrace's front edge a rim of low pieces: blocks, bushes, posts with
+   caps, crystals.
    Every shape is a Three.js primitive; there is no texture and no model file. */
 
 import type { Three } from "./three.ts";
@@ -67,10 +69,13 @@ function shapes(k: Kit): void {
 }
 
 /* one prop, stamped into the kit; returns where its chimney tops are (for smoke) */
-function prop(k: Kit, q: Prop, ground: number, tops: V3[]): { telescope?: { at: V3; heading: number } } {
+function prop(k: Kit, q: Prop, ground: number, tops: V3[]): { telescope?: { at: V3; heading: number; part: string } } {
   const id = q.part, s = q.size;
   const at = k.matrix({ p: [q.x, ground, q.z], r: [0, q.turn, 0], s });
-  const put = (name: string, p: V3, size: V3 | number, paint: string, r?: V3, ink: string | null = "ink") => k.put(name, at, { p, s: size, r }, paint, ink);
+  /* a prop's ink is its region's --region-ink, which stands 3:1 off the region's ground in
+     both themes (the paper ink, --plot-ink, would vanish on a dark ground) */
+  const rink = "rink:" + id;
+  const put = (name: string, p: V3, size: V3 | number, paint: string, r?: V3, ink: string | null = rink) => k.put(name, at, { p, s: size, r }, paint, ink);
   switch (q.kind) {
     case "chimney":
       put("taper6", [0, 1, 0], [0.55, 2, 0.55], "rock:" + id);
@@ -95,7 +100,7 @@ function prop(k: Kit, q: Prop, ground: number, tops: V3[]): { telescope?: { at: 
       break;
     case "tent":
       put("pyramid", [0, 0.45, 0], [1.1, 0.9, 1.1], (q.turn > Math.PI ? "soft:" : "part:") + id, [0, Math.PI / 4, 0]);
-      put("rod", [0, 1.0, 0], [0.04, 0.3, 0.04], "ink", undefined, null);
+      put("rod", [0, 1.0, 0], [0.04, 0.3, 0.04], rink, undefined, null);
       break;
     case "hill":
       put("mound", [0, 0, 0], [2.0, 0.9, 1.7], "rock:" + id);
@@ -122,7 +127,7 @@ function prop(k: Kit, q: Prop, ground: number, tops: V3[]): { telescope?: { at: 
       for (let i = -2; i <= 2; i++) if (i) put("box", [i * 0.4, 0.12, 0], [0.04, 0.24, 0.24], "rock:" + id, undefined, null);
       break;
     case "node":
-      put("rod", [0, 0.3, 0], [0.06, 0.6, 0.06], "ink", undefined, null);
+      put("rod", [0, 0.3, 0], [0.06, 0.6, 0.06], rink, undefined, null);
       put("box", [0, 0.72, 0], 0.3, "part:" + id, [0.6, 0.6, 0]);
       break;
     case "dome":
@@ -133,14 +138,28 @@ function prop(k: Kit, q: Prop, ground: number, tops: V3[]): { telescope?: { at: 
     case "telescope": {
       put("box", [0, 0.25, 0], [0.4, 0.5, 0.4], "deep:" + id);
       const y = ground + 0.55 * s;
-      return { telescope: { at: [q.x, y, q.z], heading: q.turn } };
+      return { telescope: { at: [q.x, y, q.z], heading: q.turn, part: id } };
     }
     case "starpost":
-      put("rod", [0, 0.6, 0], [0.05, 1.2, 0.05], "ink", undefined, null);
+      put("rod", [0, 0.6, 0], [0.05, 1.2, 0.05], rink, undefined, null);
       put("octa", [0, 1.32, 0], 0.42, "hot");
       break;
     case "rock":
       put("icosa", [0, 0.15, 0], [0.8, 0.5, 0.7], "rock:" + id);
+      break;
+    /* the front rims */
+    case "block":
+      put("box", [0, 0.15, 0], [0.55, 0.3, 0.42], (s > 1 ? "deep:" : "rock:") + id);
+      break;
+    case "bush":
+      put("mound", [0, 0, 0], [0.8, 0.6, 0.7], (s > 1 ? "soft:" : "part:") + id);
+      break;
+    case "post":
+      put("box", [0, 0.3, 0], [0.1, 0.6, 0.1], "rock:" + id);
+      put("box", [0, 0.64, 0], 0.14, "soft:" + id);
+      break;
+    case "crystal":
+      put("octa", [0, 0.28, 0], [0.32, 0.6, 0.32], "glow:" + id);
       break;
   }
   return {};
@@ -228,7 +247,7 @@ export function buildStatic(T: Three, L: WorldLayout, props: Prop[], mats: World
 
   /* the props, and what of them moves */
   const tops: V3[] = [];
-  let scope: { at: V3; heading: number } | null = null;
+  let scope: { at: V3; heading: number; part: string } | null = null;
   props.forEach((q) => {
     const r = prop(k, q, ground(q.p), tops);
     if (r.telescope && !scope) scope = r.telescope;
@@ -253,12 +272,12 @@ export function buildStatic(T: Three, L: WorldLayout, props: Prop[], mats: World
   let telescope: StaticWorld["telescope"] = null;
   const tk = new Kit(T);
   if (scope) {
-    const sc: { at: V3; heading: number } = scope;
+    const sc: { at: V3; heading: number; part: string } = scope;
     tk.shape("tube", () => new T.CylinderGeometry(0.13, 0.18, 1.3, 7));
     tk.shape("lens", () => new T.CylinderGeometry(0.2, 0.2, 0.1, 7));
     const tilt = tk.matrix({ r: [-0.75, 0, 0] });
-    tk.put("tube", tilt, { p: [0, 0.45, 0] }, "paper");
-    tk.put("lens", tilt, { p: [0, 1.1, 0] }, "ink");
+    tk.put("tube", tilt, { p: [0, 0.45, 0] }, "paper", "rink:" + sc.part);
+    tk.put("lens", tilt, { p: [0, 1.1, 0] }, "rink:" + sc.part, "rink:" + sc.part);
     const group = new T.Group();
     group.add(new T.Mesh(tk.solids.build(T, P).geometry, mats.solid), new T.LineSegments(tk.edges.build(T, P).geometry, mats.ink));
     group.position.set(sc.at[0], sc.at[1], sc.at[2]);
@@ -285,6 +304,9 @@ export function buildStatic(T: Three, L: WorldLayout, props: Prop[], mats: World
     },
     dispose() {
       [solid.geometry, edge.geometry, proxyGeo, hitGeo, ring, puffGeo].forEach((g) => g.dispose());
+      /* an InstancedMesh's own buffer (its instance matrices) is freed only on its own
+         dispose event, so without this each rebuild (a tier change) would leave one behind */
+      if (puffs) puffs.mesh.dispose();
       extras().forEach((g) => g.dispose());
       proxyMat.dispose();
       k.dispose();

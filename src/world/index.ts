@@ -31,6 +31,9 @@ export interface WorldScene {
   /** the "you are here" marker and the selection ring */
   marker: Mesh;
   select: Mesh;
+  /** the selection ring's ink: the --region-ink of the Part it stands in, so it stands
+      3:1 off that region's ground in either theme (tools/contrast-pairs.json) */
+  selectIn(part: string): void;
   /** rebuild the still world at another level of detail (a tier change) */
   setDetail(detail: 0 | 1 | 2): void;
   /** the islands' progress, in layout order; which caps are "ahead" (not started) */
@@ -101,9 +104,11 @@ export function createWorld(T: Three, opts: WorldOptions): WorldScene {
     for (let i = 0; i < n; i++) { arr[i * 3] = c.r; arr[i * 3 + 1] = c.g; arr[i * 3 + 2] = c.b; }
     markerEdges.setAttribute("color", new T.BufferAttribute(arr, 3));
   };
+  let ringPart = parts[0];
+  const paintRing = () => { mats.inkFill.color.copy(pal.get("rink:" + ringPart) || pal.get("ink")!); };
   const paintOwn = () => {
     mats.accent.color.copy(pal.get("accent")!);
-    mats.inkFill.color.copy(pal.get("ink")!);
+    paintRing();
     mats.puff.color.copy(pal.get("under")!);
     markerInk();
   };
@@ -127,6 +132,7 @@ export function createWorld(T: Three, opts: WorldOptions): WorldScene {
 
   return {
     scene, layout: L, marker, select,
+    selectIn(part) { ringPart = part; paintRing(); },
     pick: () => still.pick,
     curve: () => still.curve,
     stones: () => still.stones,

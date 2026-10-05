@@ -112,6 +112,16 @@ describe("the watchdog", () => {
     expect(run(gaps)).toBe(0);
   });
 
+  it("does not count a frame seen twice (the same timestamp) as a frame drawn in no time", () => {
+    /* slow frames, each handed over twice, as two loops side by side would: still slow */
+    const w = new FrameWatch();
+    let t = 1000, slow = 0;
+    w.push(t);
+    for (let k = 0; k < SAMPLES; k++) { t += SLOW_MS + 6; if (w.push(t)) slow++; if (w.push(t)) slow++; }
+    expect(slow).toBe(1);
+    expect(w.count).toBe(0);
+  });
+
   it("does not count the wait between two runs of motion", () => {
     const w = new FrameWatch();
     let t = 0, slow = false;

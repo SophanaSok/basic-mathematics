@@ -14,8 +14,10 @@
    1. idle motion ends: on Medium the marker bobs (and the props move) for AMBIENT_MS
       after the world appears or the camera settles, to the end of the bob, and then an
       idle page asks for no frames; never under Study mode or reduced motion, and never
-      on the low tier
+      on the low tier; a flight that lands draws at most once per display frame
    2. a frame held while the tab is hidden, or a long task, does not tear the world down
+      or step it down a tier, whether Medium was chosen or is the device's own (a
+      hardware renderer, stubbed), and keeps nothing in bm.prefs.v1
    3. an island acts like its list link: Ctrl+click and middle click open a new tab, a press
       (either button) on empty ground dragged onto an island and released opens nothing
    4. the loader: the page asks for the Three.js chunk once and only after the map has
@@ -31,8 +33,14 @@
       low), keeps the tier it settled on in bm.prefs.v1 gfxAuto, starts there on the next
       visit, then gives the list back with the reason "slow" and keeps that too
    7. the keyboard: the canvas is aria-hidden and out of the tab order; Tab reaches the
-      Part buttons, Enter flies to a Part, and focusing a chapter in the list flies to its
-      island and marks it */
+      Part buttons (disabled while the chunk loads), Enter flies to a Part, and the chosen
+      button keeps its colours under the pointer; focusing or hovering a chapter in the
+      list flies to its island and marks it while the stage is in view, and leaves the
+      world as it was when not; a Part button focused when the world goes hands the focus
+      to the list
+   8. what is left behind: tier changes back and forth leave no GL buffer behind and the
+      map switched off frees them all; in the dark theme the selection ring is each
+      region's --region-ink */
 "use strict";
 const fs = require("fs");
 const path = require("path");
@@ -64,22 +72,40 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 
 /* counts requestAnimationFrame calls; with __hide set, callbacks are held (as Chrome holds
    them for a hidden tab) and run on return with the current timestamp; with __slow set,
-   each callback is handed a timestamp 60 ms after the last, as on a device that draws
-   at about 16 frames a second */
+   each display frame is handed a timestamp 60 ms after the last one's, as on a device that
+   draws at about 16 frames a second. The fake clock moves once per display frame, not per
+   callback: every callback of one frame gets the same time, as the browser gives it, so
+   two loops running side by side show as the same timestamp twice (a per-callback clock
+   gave each its own 60 ms and hid them). __frames(ms) counts the display frames over
+   `ms` on a loop of its own, which __raf does not count */
 const RAF_GATE = "(" + function () {
   window.__raf = 0; window.__hide = false; window.__held = []; window.__slow = false;
-  var orig = window.requestAnimationFrame.bind(window), fake = 0;
+  var orig = window.requestAnimationFrame.bind(window), fake = 0, real = -1;
   window.__release = function () { var h = window.__held; window.__held = []; h.forEach(function (cb) { orig(cb); }); };
+  window.__frames = function (ms) {
+    return new Promise(function (done) {
+      var n = 0, t0 = performance.now();
+      (function tick() { n++; if (performance.now() - t0 < ms) orig(tick); else done(n); })();
+    });
+  };
   window.requestAnimationFrame = function (cb) {
     window.__raf++;
     return orig(function (t) {
       if (window.__hide) { window.__held.push(cb); return; }
-      if (window.__slow) { fake = Math.max(fake + 60, t); cb(fake); return; }
+      if (window.__slow) { if (t !== real) { real = t; fake = Math.max(fake + 60, t); } cb(fake); return; }
       cb(t);
     });
   };
   Object.defineProperty(document, "hidden", { configurable: true, get: function () { return window.__hide; } });
   Object.defineProperty(document, "visibilityState", { configurable: true, get: function () { return window.__hide ? "hidden" : "visible"; } });
+} + ")()";
+
+/* live WebGL buffers (made minus deleted), so a check can see what a teardown leaves */
+const GL_BUFFERS = "(" + function () {
+  window.__buffers = 0;
+  var P = WebGL2RenderingContext.prototype, make = P.createBuffer, drop = P.deleteBuffer, live = new WeakSet();
+  P.createBuffer = function () { var b = make.call(this); if (b) { live.add(b); window.__buffers++; } return b; };
+  P.deleteBuffer = function (b) { if (b && live.has(b)) { live.delete(b); window.__buffers--; } return drop.call(this, b); };
 } + ")()";
 
 /* the WebGL renderer's name, as a hardware GPU would give it, for a check that needs the
@@ -111,6 +137,7 @@ async function newContext(browser, opts) {
     return r.continue();
   });
   await context.addInitScript(RAF_GATE);
+  await context.addInitScript(GL_BUFFERS);
   if (opts.hardware) await context.addInitScript(HARDWARE);
   await context.addInitScript((seed) => {
     try { if (!sessionStorage.getItem("__seeded")) { Object.keys(seed).forEach(function (k) { localStorage.setItem(k, seed[k]); }); sessionStorage.setItem("__seeded", "1"); } } catch (e) { /* fine */ }
@@ -198,6 +225,11 @@ async function run() {
       check(r.frames === 0 && !r.bob, "then the idle world asks for no frames (" + JSON.stringify(r) + ")");
       await page.click(".map3d-part[data-p=\"1\"]");
       await wait(300);
+      /* over the flight's landing and the idle motion after it: one draw per display frame.
+         A landing that started a second loop beside the first drew twice per frame, and
+         handed the watchdog each timestamp twice, halving the frame time it saw */
+      const d = await page.evaluate(() => { var a = window.BMMap3D.info().frames; return window.__frames(1200).then(function (n) { return { renders: window.BMMap3D.info().frames - a, display: n }; }); });
+      check(d.renders > 0 && d.renders <= d.display + 1, "a flight that lands draws at most once per display frame, then and through the idle motion (" + JSON.stringify(d) + ")");
       const f = await idle(page, 2500);
       check(f.frames > 0 && f.bob, "flying to a Part sets it moving again once the camera settles");
       check(await settled(page), "and it comes to rest again");
@@ -224,26 +256,32 @@ async function run() {
     }
 
     /* -------------------------------------------- 2: a pause is not a slow frame */
-    {
-      const { context, page } = await openMap(browser, MEDIUM);
-      await page.click(".map3d-part[data-p=\"2\"]");
-      await page.evaluate(() => { window.__hide = true; document.dispatchEvent(new Event("visibilitychange")); });
-      await wait(3000);
-      const held = (await mapState(page)).held;
-      await page.evaluate(() => { window.__hide = false; document.dispatchEvent(new Event("visibilitychange")); window.__release(); });
-      await wait(2500);
-      const s = await mapState(page);
-      check(held > 0 && s.on && !s.why, "a frame held in a hidden tab keeps the world (held " + held + ", " + JSON.stringify(s) + ", tier " + (await info(page)).tier + ")");
-      await context.close();
-    }
-    {
-      const { context, page } = await openMap(browser, MEDIUM);
-      await page.click(".map3d-part[data-p=\"2\"]");
-      await page.evaluate(() => { var t = Date.now(); while (Date.now() - t < 2500) { /* a long task */ } });
-      await wait(3000);
-      const s = await mapState(page);
-      check(s.on && !s.why, "a 2.5 s long task keeps the world (" + JSON.stringify(s) + ", tier " + (await info(page)).tier + ")");
-      await context.close();
+    /* each on Medium chosen and on medium as the device's own tier (a hardware renderer,
+       stubbed): a pause misread as slow frames would step the world down a tier, and on the
+       device's own tier keep gfxAuto, so the tier and the prefs are checked, not only that
+       the world is still there */
+    for (const [label, seed, opts] of [["Medium chosen", MEDIUM, {}], ["medium by itself", {}, { hardware: true }]]) {
+      {
+        const { context, page } = await openMap(browser, seed, opts);
+        await page.click(".map3d-part[data-p=\"2\"]");
+        await page.evaluate(() => { window.__hide = true; document.dispatchEvent(new Event("visibilitychange")); });
+        await wait(3000);
+        const held = (await mapState(page)).held;
+        await page.evaluate(() => { window.__hide = false; document.dispatchEvent(new Event("visibilitychange")); window.__release(); });
+        await wait(2500);
+        const s = await mapState(page), i = await info(page), p = await prefsOf(page);
+        check(held > 0 && s.on && !s.why && i.tier === "medium" && !("gfxAuto" in p), "a frame held in a hidden tab keeps the world on its tier, " + label + ", and keeps nothing (held " + held + ", " + JSON.stringify(s) + ", tier " + i.tier + ", prefs " + JSON.stringify(p) + ")");
+        await context.close();
+      }
+      {
+        const { context, page } = await openMap(browser, seed, opts);
+        await page.click(".map3d-part[data-p=\"2\"]");
+        await page.evaluate(() => { var t = Date.now(); while (Date.now() - t < 2500) { /* a long task */ } });
+        await wait(3000);
+        const s = await mapState(page), i = await info(page), p = await prefsOf(page);
+        check(s.on && !s.why && i.tier === "medium" && !("gfxAuto" in p), "a 2.5 s long task keeps the world on its tier, " + label + ", and keeps nothing (" + JSON.stringify(s) + ", tier " + i.tier + ", prefs " + JSON.stringify(p) + ")");
+        await context.close();
+      }
     }
 
     /* -------------------------------------------- 3: an island is a link */
@@ -300,6 +338,12 @@ async function run() {
       page.on("pageerror", (e) => errors.push("pageerror: " + e.message));
       await page.goto(url("index.html"));
       await page.waitForFunction(() => window.BM3D && window.BMMap3D, null, { timeout: 20000 });
+      if (how === "stall") {
+        /* while the chunk loads, the box keeps the world's place, its Part buttons shown but
+           disabled (nothing wires them yet), so the keyboard cannot land on a dead button */
+        const w = await page.evaluate(() => ({ hidden: document.querySelector("[data-map3d]").hidden, buttons: document.querySelectorAll(".map3d-part").length, disabled: document.querySelectorAll(".map3d-part:disabled").length }));
+        check(!w.hidden && w.buttons === 4 && w.disabled === 4, "while the chunk loads the Part buttons are shown, disabled (" + JSON.stringify(w) + ")");
+      }
       const t0 = Date.now();
       const l = await loaded(page);
       const took = Date.now() - t0;
@@ -444,10 +488,93 @@ async function run() {
       await wait(1200);
       const on = await page.evaluate(() => document.querySelector(".map3d-part[data-on]") && document.querySelector(".map3d-part[data-on]").getAttribute("data-p"));
       check(on === "1", "Enter on the second Part button flies there and marks it (" + on + ")");
+      /* under the pointer the chosen button keeps its solid --part, which its --on-part
+         text is measured against (a hover rule that outranked [data-on] once gave it the
+         pale --part-soft under white text); another button still takes the hover colour */
+      const look = (p) => page.evaluate((p) => { var s = getComputedStyle(document.querySelector('.map3d-part[data-p="' + p + '"]')); return s.backgroundColor + " / " + s.color; }, p);
+      await page.mouse.move(0, 0);
+      await wait(600);
+      const restOn = await look(1), restOff = await look(2);
+      await page.hover('.map3d-part[data-p="1"]');
+      await wait(600);
+      const hoverOn = await look(1);
+      await page.hover('.map3d-part[data-p="2"]');
+      await wait(600);
+      const hoverOff = await look(2);
+      await page.mouse.move(0, 0);
+      check(hoverOn === restOn && hoverOff !== restOff, "the chosen Part button looks the same under the pointer, and another one changes (" + JSON.stringify({ restOn, hoverOn, restOff, hoverOff }) + ")");
+      /* the list mirrors itself on the map only where that can be seen: at 1280x900 the
+         world (above the hero) and the list (below it) are never on screen together, and
+         focusing a chapter scrolls the stage away, so the world is left as it was */
+      const view = () => page.evaluate(() => {
+        var r = document.querySelector("[data-map3d] canvas").getBoundingClientRect(), w = window.BMMap3D.where("ch01"), i = window.BMMap3D.info();
+        return { hot: i.hot, flying: i.flying, at: [Math.round(w.x - r.left), Math.round(w.y - r.top)], mark: !!document.querySelector("li.stop[data-map-hot]") };
+      });
+      const before = await view();
       await page.focus('li.stop[data-chapter="ch09"] .stop-link');
       await wait(1200);
-      const h = await page.evaluate(() => ({ hot: window.BMMap3D.info().hot, mark: !!document.querySelector('li.stop[data-chapter="ch09"][data-map-hot]') }));
-      check(h.hot === "ch09" && h.mark, "focusing a chapter in the list flies to its island and marks the list item (" + JSON.stringify(h) + ")");
+      const away = await view();
+      check(away.hot === null && !away.flying && !away.mark && away.at.join() === before.at.join(), "focusing a chapter in the list while the stage is out of view leaves the world where it was (" + JSON.stringify({ before, away }) + ")");
+      /* on a screen tall enough for both, focus and hover fly to the island and mark the item */
+      await page.setViewportSize({ width: 1280, height: 2400 });
+      await page.evaluate(() => { document.activeElement && document.activeElement.blur(); window.scrollTo(0, 0); });
+      await wait(600);
+      await page.evaluate(() => document.querySelector('li.stop[data-chapter="ch09"] .stop-link').focus());
+      await wait(1200);
+      const h = await page.evaluate(() => ({ hot: window.BMMap3D.info().hot, mark: !!document.querySelector('li.stop[data-chapter="ch09"][data-map-hot]'), y: window.scrollY }));
+      check(h.hot === "ch09" && h.mark && h.y === 0, "with the stage in view, focusing a chapter in the list flies to its island and marks the list item (" + JSON.stringify(h) + ")");
+      await page.hover('li.stop[data-chapter="ch05"] .stop-link');
+      await wait(1200);
+      const v = await page.evaluate(() => ({ hot: window.BMMap3D.info().hot, mark: !!document.querySelector('li.stop[data-chapter="ch05"][data-map-hot]') }));
+      check(v.hot === "ch05" && v.mark, "and so does hovering one (" + JSON.stringify(v) + ")");
+      await context.close();
+    }
+    {
+      /* a Part button that holds the focus when the world goes (here its context is lost)
+         hands the focus to the list, not to <body> */
+      const { context, page } = await openMap(browser, {});
+      await page.focus('.map3d-part[data-p="2"]');
+      await page.evaluate(() => { var gl = document.querySelector("[data-map3d] canvas").getContext("webgl2"); gl.getExtension("WEBGL_lose_context").loseContext(); });
+      await page.waitForFunction(() => !window.BMMap3D.on(), null, { timeout: 5000 }).catch(() => {});
+      const f = await page.evaluate(() => ({ on: window.BMMap3D.on(), why: window.BMMap3D.why(), hidden: document.querySelector("[data-map3d]").hidden, active: document.activeElement && (document.activeElement.className || document.activeElement.tagName) }));
+      check(!f.on && f.why === "context-lost" && f.hidden && /stop-link/.test(f.active), "when the world goes with a Part button focused, the focus moves to the list (" + JSON.stringify(f) + ")");
+      await context.close();
+    }
+
+    /* -------------------------------------------- 8: what is left behind, and the dark ink */
+    {
+      /* each tier change rebuilds the props; none, and no teardown, leaves a GL buffer behind */
+      const { context, page } = await openMap(browser, MEDIUM);
+      /* counted each time the world is back on Medium (the low tier draws no smoke, so it holds fewer) */
+      const live = [await page.evaluate(() => window.__buffers)];
+      for (const gfx of ["high", "low", "mid", "high", "low", "mid", "high", "low", "mid"]) {
+        await page.evaluate((g) => window.BMGame.setPref("gfx", g), gfx);
+        await wait(300);
+        if (gfx === "mid") live.push(await page.evaluate(() => window.__buffers));
+      }
+      await page.evaluate(() => window.BMGame.setPref("map3d", false));
+      await wait(300);
+      const off = await page.evaluate(() => ({ on: window.BMMap3D.on(), buffers: window.__buffers }));
+      check(live.every((n) => n === live[0]) && !off.on && off.buffers === 0, "changing the tier back and forth leaves no GL buffer behind, and switching the map off frees them all (live " + JSON.stringify(live) + ", then " + JSON.stringify(off) + ")");
+      await context.close();
+    }
+    {
+      /* in the dark theme the regions' grounds are near black: the selection ring is the
+         region's --region-ink, which stands 3:1 off its ground (tools/contrast-pairs.json),
+         never the paper ink */
+      /* a screen tall enough for the stage and the whole list, so focusing a chapter selects it */
+      const { context, page } = await openMap(browser, { "bm.theme": '"dark"' }, { context: { viewport: { width: 1280, height: 3200 } } });
+      await page.evaluate(() => { window.scrollTo(0, 0); });
+      const rows = [];
+      for (const p of [0, 1, 2, 3]) {
+        rows.push(await page.evaluate((p) => {
+          var part = window.BM_CURRICULUM.parts[p], id = part.chapters[0].id;
+          document.querySelector('li.stop[data-chapter="' + id + '"] .stop-link').focus();
+          var ink = getComputedStyle(document.querySelector('.map3d-probe [data-part="' + part.id + '"]')).getPropertyValue("--region-ink").trim().toLowerCase();
+          return { id: id, hot: window.BMMap3D.info().hot, ring: window.BMMap3D.info().ring, ink: ink };
+        }, p));
+      }
+      check(await page.evaluate(() => document.documentElement.getAttribute("data-theme")) === "dark" && rows.every((r) => r.hot === r.id && r.ring === r.ink), "in the dark theme the ring around an island is its region's --region-ink (" + JSON.stringify(rows) + ")");
       await context.close();
     }
   } finally {

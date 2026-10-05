@@ -7,7 +7,9 @@
    review gates, stays on its terrace, and does not stand on another prop; a tall one
    stands only behind its row or beyond its ends, so it never hides a chapter from the
    camera, which looks down on the world from the front. The tier's `detail` (0, 1, 2)
-   says how many props there are beyond the ones each region always has. */
+   says how many props there are beyond the ones each region always has, and how close
+   together the low pieces of each terrace's front rim stand (blocks, bushes, posts or
+   crystals along the edge, where the path does not cross it). */
 
 import { ISLE_R, ROW_Z, type WorldLayout, type RegionSpot, segmentDistance } from "./layout.ts";
 
@@ -18,7 +20,8 @@ export type PropKind =
   | "chimney" | "furnace" | "crates" | "anvil"         /* the Foundry */
   | "tent" | "hill" | "tree"                           /* the Fields */
   | "lattice" | "beam" | "node"                        /* the Grid */
-  | "dome" | "telescope" | "starpost" | "rock";        /* the Observatory */
+  | "dome" | "telescope" | "starpost" | "rock"         /* the Observatory */
+  | "block" | "bush" | "post" | "crystal";             /* the front rims, one kind per region */
 
 export interface Prop {
   kind: PropKind;
@@ -35,7 +38,8 @@ export const KINDS: Record<PropKind, KindInfo> = {
   chimney: { r: 0.55, tall: true }, furnace: { r: 0.8, tall: true }, crates: { r: 0.6, tall: false }, anvil: { r: 0.5, tall: false },
   tent: { r: 0.7, tall: false }, hill: { r: 1.1, tall: false }, tree: { r: 0.5, tall: true },
   lattice: { r: 1.3, tall: true }, beam: { r: 1.0, tall: false }, node: { r: 0.4, tall: false },
-  dome: { r: 1.3, tall: true }, telescope: { r: 0.8, tall: true }, starpost: { r: 0.4, tall: true }, rock: { r: 0.5, tall: false }
+  dome: { r: 1.3, tall: true }, telescope: { r: 0.8, tall: true }, starpost: { r: 0.4, tall: true }, rock: { r: 0.5, tall: false },
+  block: { r: 0.35, tall: false }, bush: { r: 0.4, tall: false }, post: { r: 0.25, tall: false }, crystal: { r: 0.3, tall: false }
 };
 
 /* what each region always has, and what it adds as detail rises */
@@ -52,7 +56,12 @@ const EXTRA: Record<Biome, PropKind[]> = {
   stars: ["starpost", "rock", "starpost", "rock"]
 };
 /** how many props a region adds beyond ALWAYS, by detail */
-export const EXTRA_COUNT = [1, 5, 11];
+export const EXTRA_COUNT = [3, 10, 18];
+/** each region's front rim, and the spacing of its pieces by detail */
+export const RIM: Record<Biome, PropKind> = { forge: "block", fields: "bush", grid: "post", stars: "crystal" };
+export const RIM_GAP = [2.4, 1.5, 1.1];
+/** how far in from a terrace's front edge the rim stands */
+export const RIM_IN = 0.6;
 
 const BIOMES: Record<string, Biome> = { forge: "forge", fields: "fields", grid: "grid", stars: "stars" };
 /** the biome of a Part, from its quest motif; by its place in the course when it has none */
@@ -85,6 +94,14 @@ export function placeProps(L: WorldLayout, motifs: (string | undefined)[], detai
     const extra = EXTRA[biome];
     const kinds = ALWAYS[biome].concat(Array.from({ length: EXTRA_COUNT[detail] }, (_, k) => extra[k % extra.length]));
     const spots = candidates(L, region, rnd);
+    /* the rim first, so it is not crowded out: low pieces along the front edge, with gaps
+       where the path or a gate is */
+    const rim = RIM[biome], gap = RIM_GAP[detail];
+    for (let x = region.x0 + 0.8; x <= region.x1 - 0.8; x += gap) {
+      const z = region.z1 - RIM_IN + (rnd() - 0.5) * 0.12;
+      const turn = rnd() * Math.PI * 2, size = 0.85 + rnd() * 0.3;
+      if (fits(L, region, out, rim, KINDS[rim], x, z)) out.push({ kind: rim, p: region.p, part: region.id, x, z, turn, size });
+    }
     for (const kind of kinds) {
       const info = KINDS[kind];
       const at = spots.find((s) => fits(L, region, out, kind, info, s.x, s.z));
