@@ -13,7 +13,7 @@
     "check:static": "node tools/check-static.js",
     "check:gen": "node tools/check-gen.js",
     "check:scenes": "node tools/smoke-scenes.js",
-    "test:node": "node tools/game/merge.test.js && node tools/game/sync.test.js && node tools/game/rules.test.js",
+    "test:node": "node tools/checks.test.js && node tools/game/merge.test.js && node tools/game/sync.test.js && node tools/game/rules.test.js",
     "test:browser:core": "node tools/game/browser.test.js && node tools/game/arena.test.js && node tools/game/account.test.js && node tools/game/content.test.js",
     "test:browser:3d": "node tools/game/scenes.test.js && node tools/game/map.test.js",
     "test:browser": "npm run test:browser:core && npm run test:browser:3d",

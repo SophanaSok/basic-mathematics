@@ -54,6 +54,12 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run check
+      # a pull request is judged against the branch it merges into, which need not be main
+      - name: migrations against the merge target
+        if: github.event_name == 'pull_request'
+        env:
+          BASE_REF: ${{ github.base_ref }}
+        run: npm run check:static -- --only=migrations --migrations-base="origin/$BASE_REF"
       - run: npm run build
       - run: npm run check:dist
       - uses: actions/upload-artifact@v7
