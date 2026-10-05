@@ -220,9 +220,13 @@ one module each under `src/vendor/` (`package.json` lists the packages): [KaTeX]
 for math typesetting on every page (`katex`, pinned at exactly 0.16.11, the version the pages
 loaded from its CDN before, so typesetting is unchanged; `src/vendor/katex.js` is the first import
 of every entry and sets `window.renderMathInElement`, `src/vendor/katex.css` its stylesheet), the
-three typefaces (`@fontsource/inter`, `@fontsource/newsreader`, `@fontsource/bricolage-grotesque`,
-the same weights and styles the Google Fonts link asked for, imported by `src/vendor/fonts.css`
-with `font-display: swap`; the font files come out under `dist/bundle/`), and
+three typefaces (`@fontsource-variable/inter`, `@fontsource-variable/newsreader` and
+`@fontsource-variable/bricolage-grotesque` for the upright faces, `@fontsource/newsreader` for the
+italic: the very files Google Fonts served a browser for the link the pages used to carry, byte
+for byte, declared in `src/vendor/fonts.css` as that link declared them, one `@font-face` per
+family, style, requested weight and subset with `font-display: swap`; `tools/gen-fonts.js` writes
+that file from the packages and `npm run check` fails when it is stale; the font files come out
+under `dist/bundle/`), and
 [supabase-js](https://github.com/supabase/supabase-js) for accounts (`@supabase/supabase-js`,
 re-exported by `src/vendor/supabase.js`, which `assets/account.js` imports on demand, so it is a
 chunk of its own, `bundle/supabase.js`, that a signed-out reader on an ordinary page never
@@ -233,6 +237,15 @@ with a classic build, pinned with an integrity hash), fetched from a CDN by
 `assets/three-loader.js` only when a 3D scene or the course map nears the screen; if that CDN is
 unreachable every 3D picture is drawn flat with the same controls. The next release moves it into
 the bundle too.
+
+**Third-party licences.** What the bundle holds that is not the site's own is published under its
+package's licence: KaTeX and supabase-js (and what supabase-js depends on) under MIT, `tslib`
+under 0BSD, the three typefaces and the KaTeX fonts under the SIL Open Font License 1.1. The
+build writes `dist/bundle/LICENSES.txt` beside the bundle, one section per installed package with
+the licence file it ships (`tools/lib/vendor.js` `licenseNotice()`; the Open Font License asks
+that copies of the fonts carry their copyright notice and the licence text, which the fontsource
+files do not hold in their name tables), and `npm run check:dist` (`licences`) holds the file to
+the installed packages and every font file in `dist/` to one of them.
 
 ### Layout
 
@@ -254,7 +267,8 @@ src/vendor/katex.js     KaTeX from npm (pinned 0.16.11): sets window.katex and r
                         every entry's first import
 src/vendor/katex.css    KaTeX's stylesheet, imported from the package; linked on every page
 src/vendor/fonts.css    Inter, Newsreader and Bricolage Grotesque from the fontsource packages, the
-                        weights the Google Fonts link had; linked on every page before katex.css
+                        faces the Google Fonts link had, written by tools/gen-fonts.js; linked on
+                        every page before katex.css
 src/vendor/supabase.js  supabase-js from npm, imported on demand by assets/account.js: bundle/supabase.js
 assets/site.css         tokens (both themes, four regions), base, prose, cards, figures, print
 assets/game.css         HUD, region banner, encounters, card states, toasts, settings, all motion
@@ -283,11 +297,13 @@ tools/                  the checks: static, scenes, generators, game rules, the 
 tools/lib/shell.js      the <head> and the top bar of every page: the boot script inline, the vendor
                         stylesheets, its kind's stylesheets, and the module entry of its kind
 tools/lib/vendor.js     which src/vendor/ module brings in each npm package (and its dependencies):
-                        how the build names node_modules files and check-dist holds them
+                        how the build names node_modules files and check-dist holds them; and the
+                        licence notice the build writes into dist/bundle/LICENSES.txt from them
+tools/gen-fonts.js      writes src/vendor/fonts.css from the fontsource packages (npm run gen:fonts)
 tools/shell.json        what that comes to on each page, as readers have it (the `shell` check)
 parts/<part>/<nn>-<slug>.html
-package.json            the npm scripts, the five dev dependencies and the five the site is built
-                        from (katex, three fontsource packages, supabase-js); package-lock.json pins them
+package.json            the npm scripts, the five dev dependencies and the six the site is built
+                        from (katex, four fontsource packages, supabase-js); package-lock.json pins them
 vite.config.ts          the build: every page in, its shell written, its entry bundled in import
                         order into dist/bundle/, each chunk named by the page kinds that load it (a
                         node_modules file by its vendor module), the fonts beside them, the same

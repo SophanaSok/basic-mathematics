@@ -268,14 +268,37 @@ function refusal(fn) { try { fn(); return null; } catch (e) { return e.message; 
   eq(all[0].textContent.trim(), fs.readFileSync(path.join(site.ROOT, "src/boot.js"), "utf8").trim(), "the inline script is src/boot.js, whole");
   const headOrder = parse(out).query("head").children_elements.map(el => el.name + (el.getAttribute("rel") || "") + (el.getAttribute("type") || ""));
   check(headOrder.indexOf("script") < headOrder.indexOf("linkstylesheet") && headOrder.indexOf("scriptmodule") === headOrder.length - 1, "the boot script comes before every stylesheet, and the module entry last: " + headOrder.join(","));
-  shell.VENDOR_STYLES.forEach(f => check(fs.existsSync(path.join(site.ROOT, f)) && /^\s*@import\s+["'][^"'./]/m.test(fs.readFileSync(path.join(site.ROOT, f), "utf8")), "the vendor stylesheet " + f + " exists and imports a package's CSS"));
+  shell.VENDOR_STYLES.forEach(f => check(fs.existsSync(path.join(site.ROOT, f)) && /^\s*@import\s+["'][^"'./]|url\(["']?@?[a-z]/m.test(fs.readFileSync(path.join(site.ROOT, f), "utf8")), "the vendor stylesheet " + f + " exists and imports a package's CSS or names a package's files"));
   const vendorModules = vendor.vendorModules();
   eq(vendorModules.map(v => v.file), ["src/vendor/fonts.css", "src/vendor/katex.css", "src/vendor/katex.js", "src/vendor/supabase.js"], "the vendor modules are the fonts' and KaTeX's stylesheets, KaTeX's script and supabase-js");
-  eq(vendorModules.map(v => v.packages.join(",")), ["@fontsource/bricolage-grotesque,@fontsource/inter,@fontsource/newsreader", "katex", "katex", "@supabase/supabase-js"], "… each importing the packages it is named for");
+  eq(vendorModules.map(v => v.packages.join(",")), ["@fontsource-variable/bricolage-grotesque,@fontsource-variable/inter,@fontsource/newsreader,@fontsource-variable/newsreader", "katex", "katex", "@supabase/supabase-js"], "… each bringing in the packages it is named for (fonts.css by the files its url()s name)");
   check(vendorModules.find(v => v.file === "src/vendor/supabase.js").all.includes("@supabase/auth-js"), "a package's dependencies come with it (supabase.js brings in @supabase/auth-js)");
   eq([vendor.vendorOf("node_modules/katex/dist/katex.mjs").file, vendor.vendorOf("node_modules/katex/dist/katex.min.css").file, vendor.vendorOf("node_modules/tslib/tslib.es6.mjs").file], ["src/vendor/katex.js", "src/vendor/katex.css", "src/vendor/supabase.js"], "a node_modules file is placed by its kind and its package: katex's script with katex.js, its stylesheet with katex.css, a dependency of supabase-js with supabase.js");
   check(/no script under src\/vendor\/ imports/.test(refusal(() => vendor.vendorOf("node_modules/left-pad/index.js")) || ""), "a package no vendor module imports is refused, with the reason");
   eq(JSON.parse(fs.readFileSync(path.join(site.ROOT, "package.json"), "utf8")).dependencies.katex, "0.16.11", "package.json pins katex at exactly 0.16.11, the version the CDN tags loaded");
+
+  /* the fonts: src/vendor/fonts.css is what gen-fonts.js writes, and what it writes
+     is the Google Fonts link's faces, one rule per single weight */
+  const genFonts = require("./gen-fonts");
+  eq(genFonts.FACES.map(f => f.family + " " + f.style + " " + f.weights.join(",")), ["Bricolage Grotesque normal 700,800", "Inter normal 400,500,600,700", "Newsreader italic 400", "Newsreader normal 400,600"], "gen-fonts.js declares the faces the Google Fonts link asked for, and no other");
+  eq(genFonts.problem(), "", "src/vendor/fonts.css is what tools/gen-fonts.js writes (run it after a fontsource update)");
+  const faces = Array.from(fs.readFileSync(path.join(site.ROOT, genFonts.FILE), "utf8").matchAll(/@font-face\s*\{([^}]*)\}/g)).map(m => m[1]);
+  const decl = (block, name) => (new RegExp(name + ":\\s*([^;]+)").exec(block) || [])[1];
+  check(faces.length > 0 && faces.every(b => /^\d+$/.test(decl(b, "font-weight"))), "every @font-face names one weight, never a range, so the site's font-weight: 650 takes the 700 face as it did with Google's rules");
+  check(faces.every(b => ["'Bricolage Grotesque'", "'Inter'", "'Newsreader'"].includes(decl(b, "font-family")) && decl(b, "font-display") === "swap" && decl(b, "unicode-range")), "every @font-face is one of the three families the tokens name, with font-display: swap and a unicode-range");
+  const urls = faces.flatMap(b => Array.from(b.matchAll(/url\(([^)]+)\)/g)).map(m => m[1]));
+  check(urls.length > 0 && urls.every(u => /^@fontsource(-variable)?\//.test(u) && fs.existsSync(path.join(site.ROOT, "node_modules", u))), "every url() names a file of an installed fontsource package");
+  check(faces.filter(b => decl(b, "font-style") === "normal").every(b => /wght-normal\.woff2\) format\('woff2-variations'\)/.test(decl(b, "src"))) && faces.filter(b => decl(b, "font-style") === "italic").every(b => /400-italic\.woff2\)/.test(decl(b, "src"))), "the upright faces are the packages' variable files, the italic a static instance: what Google served");
+
+  /* the licences: a section for every package the vendor modules bring in, with its
+     licence file, and the font licence's text, since fonts go out */
+  const pk = vendor.packages();
+  eq(pk.map(p => p.name).sort(), Array.from(new Set(vendorModules.flatMap(v => v.all))).sort(), "packages() is every package of every vendor module, with their dependencies, each once");
+  check(pk.every(p => p.text.length > 100 && p.file), "every package installed today ships a licence file, and packages() reads it: " + pk.filter(p => !p.text).map(p => p.name).join(", "));
+  const notice = vendor.licenseNotice();
+  check(pk.every(p => notice.includes("\n" + p.name + " " + p.version + " — " + p.license + " — ") && notice.includes(p.text)), "licenseNotice() has a section per package, naming it with its version and licence, and holding its licence file's text");
+  check(/SIL OPEN FONT LICENSE Version 1\.1/.test(notice) && /Reserved Font Name KaTeX_/.test(notice), "the notice carries the Open Font License's text, and the KaTeX fonts' own notice");
+  eq(vendor.NOTICE, "bundle/LICENSES.txt", "the notice goes beside the bundle");
   Object.keys(shell.PAGE_KINDS).forEach(k => check(/^import "\.\.\/vendor\/katex\.js";/m.test(fs.readFileSync(path.join(site.ROOT, shell.PAGE_KINDS[k].entry), "utf8").replace(/\/\*[\s\S]*?\*\//g, "").trim()), "the " + k + " entry imports src/vendor/katex.js first, so renderMathInElement is there when site.js runs"));
   eq(parse(out).query("header.topbar").queryAll("a").map(a => a.getAttribute("href")), ["index.html", "index.html", "about.html"], "the usual top bar: brand, Contents, How to use this");
 

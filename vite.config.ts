@@ -7,8 +7,9 @@
    page's kind the two under src/vendor/ that import the fonts' and KaTeX's CSS from npm.
    Vite bundles that entry into dist/bundle/: one chunk per set of page kinds that load a
    file (see bundleNames), the stylesheets joined the same way, the site's own text
-   unchanged, and beside them the favicon and every font file the vendor stylesheets
-   name. Nothing on a built page comes from another server (tools/check-dist.js
+   unchanged, and beside them the favicon, every font file the vendor stylesheets
+   name, and bundle/LICENSES.txt, the licences of what the bundle holds (licenses()
+   below). Nothing on a built page comes from another server (tools/check-dist.js
    `offline`). Nothing in dist/ is named by a hash: GitHub Pages lets a browser keep any
    file for ten minutes, a hash would buy nothing, and a page cached from before a deploy
    would ask for files the deploy had renamed (OPERATIONS.md, "What a deploy does to a
@@ -17,7 +18,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { defineConfig, type Plugin } from "vite";
 import { isMarked, renderShell, PAGE_KINDS, VENDOR_STYLES } from "./tools/lib/shell.js";
-import { DIR as VENDOR_DIR, vendorOf } from "./tools/lib/vendor.js";
+import { DIR as VENDOR_DIR, NOTICE, vendorOf, licenseNotice } from "./tools/lib/vendor.js";
 
 const root = import.meta.dirname;
 
@@ -191,6 +192,26 @@ function plainStylesheetLinks(): Plugin {
   };
 }
 
+/* Build-only. Everything under dist/bundle/ that is not the site's own (KaTeX's script
+   and fonts, the typefaces, supabase-js and what it depends on) is published under
+   its package's licence, and the font licence (SIL OFL 1.1) asks that a copy of the
+   fonts carry the copyright notice and the licence text, which the fontsource files
+   do not hold in their name tables. So bundle/LICENSES.txt goes out beside them: one
+   section per installed package the vendor modules bring in, with the licence file it
+   ships, written by tools/lib/vendor.js licenseNotice() from node_modules/ at build
+   time, so it is never behind the installed versions. tools/check-dist.js `licences`
+   holds dist to it, and holds every font file in dist to a file of one of those
+   packages. */
+function licenses(): Plugin {
+  return {
+    name: "bm:licenses",
+    apply: "build",
+    generateBundle() {
+      this.emitFile({ type: "asset", fileName: NOTICE, source: licenseNotice() });
+    }
+  };
+}
+
 export default defineConfig({
   root,
   /* relative, so the site works under the GitHub Pages sub-path and anywhere else it is
@@ -198,7 +219,7 @@ export default defineConfig({
   base: process.env.BM_BASE || "./",
   /* a site of separate pages: an unknown path is a 404, not index.html */
   appType: "mpa",
-  plugins: [shell(), stylesheetOrder(), plainStylesheetLinks()],
+  plugins: [shell(), stylesheetOrder(), plainStylesheetLinks(), licenses()],
   build: {
     outDir: "dist",
     emptyOutDir: true,

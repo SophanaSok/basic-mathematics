@@ -207,9 +207,10 @@ function firstDifference(s, d) {
    in dist but what the site is made of: a page, a file of public/, a file a built page
    links (its module script and what it preloads, its stylesheets, the icon), a chunk the
    module graph reaches from a page's script (the GL painter and supabase-js are fetched
-   by dynamic imports), a file a built stylesheet names (the fonts), and the source map
-   beside any of those. Anything more was put there by mistake, and everything in dist is
-   published. */
+   by dynamic imports), a file a built stylesheet names (the fonts), the licence notice
+   the build writes beside the bundle (lib/vendor.js NOTICE; `licences` holds its text),
+   and the source map beside any of those. Anything more was put there by mistake, and
+   everything in dist is published. */
 function checkPages(ctx, r) {
   const built = new Set(ctx.dist.pages);
   ctx.src.pages.forEach(p => {
@@ -219,6 +220,7 @@ function checkPages(ctx, r) {
   if (!ctx.files.includes(".nojekyll")) r.fail("dist/.nojekyll is missing (public/.nojekyll should have been copied)");
 
   const known = new Set(ctx.src.pages);
+  known.add(vendor.NOTICE);
   const pub = path.join(ROOT, "public");
   site.walk(pub, () => true).forEach(p => known.add(path.relative(pub, p).split(path.sep).join("/")));
   ctx.dist.pages.forEach(page => links.refsOf(ctx.dist.docs[page]).forEach(ref => {
@@ -557,22 +559,32 @@ function checkSecrets(ctx, r) {
    inside one of the built stylesheets the built page links. The build does not minify
    CSS for now (vite.config.ts says why), and this is what notices if it starts to.
    The vendor stylesheets (lib/shell.js VENDOR_STYLES, src/vendor/*.css) are @import
-   rules of package stylesheets, which the build inlines: each imported stylesheet's text
-   must be in the built one unchanged but for where its fonts are (every url() reduced to
-   the file's name on both sides), in the order of the imports, and all of it before the
-   site's own stylesheets, so that site.css's rules on .katex come after KaTeX's and win
-   as they did when KaTeX's stylesheet was a CDN link.
+   rules of package stylesheets, which the build inlines, and rules of their own that
+   name package files (fonts.css: the @font-face rules tools/gen-fonts.js writes, whose
+   url()s the build points at the copies beside the bundle): each imported stylesheet's
+   text, and then the file's own, must be in the built one unchanged but for where its
+   fonts are (every url() reduced to the file's name on both sides), in that order, and
+   all of it before the site's own stylesheets, so that site.css's rules on .katex come
+   after KaTeX's and win as they did when KaTeX's stylesheet was a CDN link.
    And the link itself: rel and href, as the source writes it. Vite adds `crossorigin`,
    which vite.config.ts takes off again, so the link in dist is the source's but for
    the file it names. */
 const URL_NAMES = (css) => css.replace(/url\(\s*["']?([^"')\s]*)["']?\s*\)/g, (m, u) => "url(" + u.split("/").pop() + ")");
-/* the @import rules of a vendor stylesheet, each with the imported file's text */
-function vendorImports(file) {
-  return Array.from(fs.readFileSync(path.join(ROOT, file), "utf8").matchAll(/^\s*@import\s+["']([^"']+)["']\s*;/gm)).map(m => {
+/* the parts of a vendor stylesheet, each with the text the built stylesheet must hold
+   and what to call it: its @import rules, each the imported package file's text, in
+   order, then its own rules if it has any (what is left when the @import lines are
+   taken out, comments and all, so they must come after the imports, as CSS has them) */
+const IMPORT_LINE = /^[ \t]*@import\s+["']([^"']+)["']\s*;[ \t]*\n?/gm;
+function vendorParts(file) {
+  const text = fs.readFileSync(path.join(ROOT, file), "utf8");
+  const parts = Array.from(text.matchAll(IMPORT_LINE)).map(m => {
     const at = path.join(ROOT, "node_modules", m[1]);
     if (!fs.existsSync(at)) throw new Error(file + " imports " + JSON.stringify(m[1]) + ", which is not at node_modules/" + m[1] + "; run `npm ci`");
-    return { spec: m[1], text: URL_NAMES(fs.readFileSync(at, "utf8").trim()) };
+    return { what: m[1] + " (which " + file + " imports)", text: URL_NAMES(fs.readFileSync(at, "utf8").trim()) };
   });
+  const own = text.replace(IMPORT_LINE, "").trim();
+  if (own.replace(NO_COMMENTS, "").trim()) parts.push({ what: "the own rules of " + file, text: URL_NAMES(own) });
+  return parts;
 }
 function checkStylesheets(ctx, r) {
   const all = new Set();
@@ -605,25 +617,25 @@ function checkStylesheets(ctx, r) {
   });
   const own = {}, rewritten = {};
   srcFiles.forEach(f => { own[f] = new Set(Array.from(classesOf[f]).filter(c => users[c] === 1)); });
-  const imports = {};
-  shell.VENDOR_STYLES.forEach(f => { try { imports[f] = vendorImports(f); } catch (e) { r.fail(e.message); imports[f] = []; } });
-  /* a built stylesheet holds a vendor stylesheet when it holds every import of it */
-  const holdsVendor = (text, f) => imports[f].length > 0 && imports[f].every(i => URL_NAMES(text).includes(i.text));
+  const parts = {};
+  shell.VENDOR_STYLES.forEach(f => { try { parts[f] = vendorParts(f); } catch (e) { r.fail(e.message); parts[f] = []; } });
+  /* a built stylesheet holds a vendor stylesheet when it holds every part of it */
+  const holdsVendor = (text, f) => parts[f].length > 0 && parts[f].every(i => URL_NAMES(text).includes(i.text));
   ctx.src.pages.forEach(p => {
     if (!per[p]) return;
     r.count++;
     const builtText = per[p].map(f => { try { return fs.readFileSync(path.join(DIST, f), "utf8"); } catch (e) { return ""; } });
     const joined = builtText.join("\n");
-    /* the vendor stylesheets: each import's text there, in order, and all before the
+    /* the vendor stylesheets: each part's text there, in order, and all before the
        site's own */
     const named = URL_NAMES(joined);
     const siteAt = Math.min.apply(null, stylesheetsOf(p, ctx.src.docs[p]).filter(f => !isVendor(f)).map(f => { const i = joined.indexOf(srcText[f]); return i === -1 ? Infinity : i; }));
     let after = -1, vendorEnd = -1;
-    stylesheetsOf(p, ctx.src.docs[p]).filter(isVendor).forEach(f => imports[f].forEach(i => {
+    stylesheetsOf(p, ctx.src.docs[p]).filter(isVendor).forEach(f => parts[f].forEach(i => {
       r.count++;
       const at = named.indexOf(i.text);
-      if (at === -1) { r.fail(p + ": the text of " + i.spec + ", which " + f + " imports, is not in the built stylesheets [" + per[p].join(", ") + "] (changed by the build, or the import dropped?)"); return; }
-      if (at < after) r.fail(p + ": " + i.spec + " comes before the stylesheet " + f + " imports ahead of it in the built stylesheets");
+      if (at === -1) { r.fail(p + ": the text of " + i.what + " is not in the built stylesheets [" + per[p].join(", ") + "] (changed by the build, or the import dropped?)"); return; }
+      if (at < after) r.fail(p + ": " + i.what + " comes before what " + f + " has ahead of it in the built stylesheets");
       after = Math.max(after, at);
       vendorEnd = Math.max(vendorEnd, at + i.text.length);
     }));
@@ -676,6 +688,48 @@ function checkStylesheets(ctx, r) {
   });
 }
 
+/* (i) the licences. Everything under dist/bundle/ that is not the site's own comes from
+   an npm package, and goes out under that package's licence: the font licence (SIL OFL
+   1.1, every typeface and KaTeX's fonts) asks that a copy of the fonts carry the
+   copyright notice and the licence text, and the fontsource files carry neither in
+   their name tables; the code's (MIT) asks that its notice go with the code. So
+   bundle/LICENSES.txt (lib/vendor.js NOTICE) must be in dist, and be the notice
+   licenseNotice() writes from the packages installed now, one section per package the
+   vendor modules bring in with their dependencies (vite.config.ts licenses() writes it
+   at build time); and the notice must cover what is there: every font file in dist is,
+   byte for byte, a file of one of those packages, and every node_modules source of
+   every chunk is from one of them. A package that ships no licence file is a warning,
+   so that it is seen: the notice names its package.json licence and nothing more. */
+const FONT_FILE = /\.(woff2?|ttf|otf)$/i;
+function checkLicences(ctx, r) {
+  r.count++;
+  const want = vendor.licenseNotice();
+  let have = null;
+  try { have = fs.readFileSync(path.join(DIST, vendor.NOTICE), "utf8"); } catch (e) { /* reported below */ }
+  if (have === null) { r.fail(vendor.NOTICE + " is not in dist; the build writes it (vite.config.ts licenses())"); return; }
+  if (have !== want) r.fail(vendor.NOTICE + " is not the notice lib/vendor.js writes from the installed packages (built before `npm ci`?); " + firstDifference(want, have));
+  const packages = vendor.packages();
+  const names = new Set(packages.map(p => p.name));
+  /* every font file every package in the notice ships, by file name */
+  const shipped = {};
+  packages.forEach(p => site.walk(path.join(ROOT, "node_modules", p.name), f => FONT_FILE.test(f)).forEach(f => { (shipped[path.basename(f)] = shipped[path.basename(f)] || []).push({ pkg: p.name, abs: f }); }));
+  ctx.files.filter(f => FONT_FILE.test(f)).forEach(f => {
+    r.count++;
+    const bytes = fs.readFileSync(path.join(DIST, f));
+    const from = (shipped[path.posix.basename(f)] || []).find(s => bytes.equals(fs.readFileSync(s.abs)));
+    if (!from) r.fail(f + " is not, byte for byte, a file of any package " + vendor.NOTICE + " has a section for (" + Array.from(names).join(", ") + ")");
+  });
+  ctx.files.filter(f => /\.js$/.test(f)).forEach(f => {
+    ctx.graph.sourcesOf(f).filter(s => IN_NODE_MODULES.test(s)).forEach(s => {
+      r.count++;
+      const pkg = vendor.packageOf(s);
+      if (!names.has(pkg)) r.fail(f + " is built from " + s + ", of the package " + pkg + ", which " + vendor.NOTICE + " has no section for");
+    });
+  });
+  packages.filter(p => !p.text).forEach(p => r.warn(p.name + " " + p.version + " ships no licence file; " + vendor.NOTICE + " names its package.json licence (" + p.license + ") and nothing more"));
+  r.note(packages.length + " package(s) in " + vendor.NOTICE + ": " + packages.map(p => p.name + " " + p.version + " (" + p.license + ")").join(", "));
+}
+
 /* ------------------------------------------------------------- runner ---- */
 
 const CHECKS = [
@@ -687,7 +741,8 @@ const CHECKS = [
   { name: "scripts", run: checkScripts, what: "boot inline and one module entry whose bundle is its kind's imports (node_modules files by their vendor module), each chunk named for the kinds that load it; the on-demand chunks on their own, named by no page; no copy of a source script" },
   { name: "offline", run: checkOffline, what: "no script, link or stylesheet url() of any page comes from another server; no font is inlined" },
   { name: "secrets", run: checkSecrets, what: "no server-side key in any built file, as text or inside a JWT" },
-  { name: "stylesheets", run: checkStylesheets, what: "chapter pages share their stylesheets; vendor CSS inlined before the site's, source CSS unchanged, cascade in source order, each file named for the kinds that link it" }
+  { name: "stylesheets", run: checkStylesheets, what: "chapter pages share their stylesheets; vendor CSS inlined before the site's, source CSS unchanged, cascade in source order, each file named for the kinds that link it" },
+  { name: "licences", run: checkLicences, what: "bundle/LICENSES.txt is the notice written from the installed packages, and every font file and node_modules source in dist is one of theirs" }
 ];
 
 function main() {

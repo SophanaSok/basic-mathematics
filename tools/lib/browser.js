@@ -82,7 +82,7 @@ function track(page, originUrl) {
    run one deadline every so often, not one on every page. */
 const THIRD_PARTY_MS = 4000;
 const THIRD_PARTY_RETRY_MS = 30000;
-const FORWARDED = ["user-agent", "accept", "accept-language", "origin", "referer"];   /* the fonts CSS depends on the browser asking */
+const FORWARDED = ["user-agent", "accept", "accept-language", "origin", "referer"];   /* so the CDN answers as it would the browser: Three.js is a crossorigin script with an integrity hash, and the CORS headers depend on the Origin asked with */
 const HOP = new Set(["content-encoding", "content-length", "transfer-encoding", "connection", "keep-alive"]);   /* fetch() has decoded the body */
 const answers = new Map();               /* URL -> Promise<{ status, headers, body } | { error }>, kept when it is a good answer */
 const quiet = new Map();                 /* host -> { at, error }: the last time it did not answer */
