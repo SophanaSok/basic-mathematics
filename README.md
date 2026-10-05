@@ -80,9 +80,16 @@ The method in three lines, expanded on the
 
 ### Exercises
 
-Every chapter ends with a practice set of about ten problems that check themselves. Type an answer,
-press **Check** or <kbd>Enter</kbd>, and the first wrong attempt usually gets a hint rather than the
-answer.
+Every chapter ends with a practice set of about ten problems that check themselves. Type an answer
+and press **Check** or <kbd>Enter</kbd>.
+
+When you are stuck, every problem has a **Show a clue** button from the start, saying how many clues
+it has. The first clue only says where to look, the next say more, and the worked solution comes
+last and is always there. A clue opens only when you ask for it (a wrong answer opens nothing by
+itself; it says a clue is there if you want one), and the clues you opened are still open when you
+come back. When a wrong answer looks like a common slip (a sign flipped, a fraction upside down, a
+factor of two, the decimal point moved, a value left out of a list, a fraction not reduced), the card
+asks you about it, without giving the answer away.
 
 The last chapter of each Part (the Interlude, and Chapters 7, 11, and 16) carries a further
 **mixed review** set afterward, drawing problems back from earlier chapters in that Part. These
@@ -125,23 +132,29 @@ same controls and the same answers.
 ### XP, streaks, and what to review
 
 Correct answers and missions earn XP — most when right first time, less after a miss, least once
-the solution has been opened. The header shows your level, today's XP against a daily goal, and
-your streak of active days.
+the solution has been opened. Help never costs anything and never pays more than working it out:
+the first clue changes nothing, and an answer right first time after the second or third clue earns
+what an answer right after a miss does. The header shows your level, today's XP against a daily
+goal, and your streak of active days.
 
 The **[progress page](https://sophanasok.github.io/basic-mathematics/progress.html)** turns the
-record into advice. The course notes how each question went (tries, hints, whether the solution
+record into advice. The course notes how each question went (tries, misses, whether the solution
 was opened first) and lists the **sections worth rereading**, weakest first, alongside the ones
 going well. A short version appears above each chapter's recap.
 
 ### The game
 
 - **Combo.** Each answer right first time fills one of five pips, and a full meter adds up to
-  double XP. A first miss on a practice problem costs two pips; working on with the hints after
-  that costs nothing. Reading a solution *after* getting the answer earns a shield against the next
-  miss.
+  double XP. A first miss on a practice problem costs two pips; asking for a clue or opening the
+  solution never costs one, and an answer right first time after the second or third clue leaves
+  the meter as it was. Reading a solution *after* getting the answer earns a shield against the
+  next miss.
 - **Encounters.** Each practice set is a boss: the tempting wrong idea behind the chapter's opening
-  puzzle. Every problem solved wears it down, in any order. Three hearts decide the medal, and
-  nothing else: running out locks nothing, and the course points you at the section to reread.
+  puzzle. Every problem solved wears it down, in any order. A wrong answer costs one of three
+  hearts; help never does. The medal counts the problems got wrong and the ones solved with the
+  solution open, so reading the solution first is never worth more than a miss, and it decides
+  nothing else: running out of hearts locks nothing, and the course points you at the section to
+  reread.
 - **The Arena** is the only place with a clock. It serves freshly generated problems from sections
   you have already solved, because speed practice helps with what you know and hurts with what you
   are still learning. A wrong answer costs a heart and stops the clock while you read the hint;
@@ -149,7 +162,8 @@ going well. A short version appears above each chapter's recap.
 - **Levels and achievements** come from XP. The achievements reward study habits — right first
   time, repairing a weak section, reading solutions, finishing review sets — never speed alone.
 - **Calm mode**, in the header menu, turns off hearts, the combo, the boss, shake and sound for
-  anyone who wants the course without the game.
+  anyone who wants the course without the game. The clues, the questions about a wrong answer and
+  the solutions stay: they are the course, not the game.
 
 ### Progress, and what is saved
 
@@ -178,7 +192,7 @@ The light/dark toggle sits in the header and follows your system setting until y
 ### Running it locally
 
 ```sh
-npm ci            # once: Vite, TypeScript (and @types/node), Playwright, axe-core.
+npm ci            # once: Vite, TypeScript (and @types/node), Vitest, Playwright, axe-core.
                   # Node 22.18 or newer (.nvmrc: 24)
 npm run dev       # the source tree, each page with its shell written and its entry served
                   # as modules, at http://localhost:8000, reloading as you edit
@@ -278,7 +292,14 @@ assets/site.css         tokens (both themes, four regions), base, prose, cards, 
 assets/game.css         HUD, region banner, encounters, card states, toasts, settings, all motion
 assets/scenes3d.css     3D scene stages
 assets/map3d.css        the course map; arena.css the Arena
+assets/ladder.css       the help ladder on an exercise card (chapters only; existing tokens only)
 assets/site.js          navigation, theme, stores, exercise grading, XP, widget mounting
+src/learn/*.ts          the help ladder's logic, no DOM and no window: ladder.ts (the rungs, what
+                        is saved), detectors.ts (questions for a wrong answer), stuck.ts (stuck
+                        signals, memory only), constants.ts (their thresholds); each with a
+                        Vitest test beside it, <module>.test.ts
+src/ui/ladder.ts        the help ladder on a card: the button, the clues, focus, the offer line;
+                        puts window.BMLearn up for site.js. The chapter entry imports all of these
 assets/widgets.js       the 32 flat interactive figures and their missions
 assets/three-loader.js  lazy Three.js with fallback (window.BM3D.load, the namespace on BM3D.THREE)
 assets/scenes3d.js      the 3D scene framework: define, display list, camera, SVG painter, input
@@ -306,13 +327,15 @@ tools/lib/vendor.js     which src/vendor/ module brings in each npm package (and
 tools/gen-fonts.js      writes src/vendor/fonts.css from the fontsource packages (npm run gen:fonts)
 tools/shell.json        what that comes to on each page, as readers have it (the `shell` check)
 parts/<part>/<nn>-<slug>.html
-package.json            the npm scripts, the five dev dependencies and the six the site is built
-                        from (katex, four fontsource packages, supabase-js); package-lock.json pins them
+package.json            the npm scripts, the dev dependencies (Vite, TypeScript, Vitest, Playwright,
+                        axe-core, types) and the ones the site is built from (katex, four
+                        fontsource packages, supabase-js, three); package-lock.json pins them
 vite.config.ts          the build: every page in, its shell written, its entry bundled in import
                         order into dist/bundle/, each chunk named by the page kinds that load it (a
                         node_modules file by its vendor module), the fonts beside them, the same
                         content out
-tsconfig.json           for `npm run typecheck`; covers src/ and vite.config.ts
+tsconfig.json           for `npm run typecheck`; covers src/, vite.config.ts and vitest.config.ts
+vitest.config.ts        for `npm run test:unit`: the src/ unit tests, in Node, apart from the build
 src/types/state.ts      the shapes of what the site keeps in localStorage (types only, so far)
 src/types/globals.d.ts  the window.BM* globals the scripts share, each `any` until its file is converted
 public/.nojekyll        copied into dist/
@@ -472,8 +495,9 @@ Each exercise is a `<div class="ex">` carrying its `id` and its answer key in at
 | `data-section` | The section the problem tests, for the feedback pages: a section id of this chapter, or `ch02#one-unknown` for a mixed-review problem drawn from another. Inline checks take the section they sit in |
 | `data-answer` | The key. `\|` separates alternative accepted answers |
 | `data-tol` | Absolute tolerance, for keys that are themselves rounded decimals |
-| `data-hint` | Shown after the first wrong attempt |
-| `data-hint2` | Optional; shown after the second wrong attempt |
+| `data-hint` | Clue 1 of the help ladder: where to look, never anything that gives the answer away. Opens when the reader presses **Show a clue**, never by itself |
+| `data-hint2` | Optional; clue 2, more specific |
+| `data-hint3` | Optional; clue 3, the most concrete (the first step written out). The engine reads it; no page has one yet |
 | `data-inline` | Marks an unscored check ("Your turn", warm-up). Needs an `id`; `data-label` sets its heading |
 | `id` | **Required on every exercise.** It is the key the reader's work is saved under — see "Progress keys" below |
 | `data-placeholder` | Input placeholder text |
@@ -485,6 +509,23 @@ wherever `0.25` is.
 
 Grading is entirely client-side, so answer keys are visible in the page source — by design, as
 noted above.
+
+**The help ladder.** Each card gets a **Show a clue (1 of N)** button between **Check** and **Show
+solution**, N being how many of `data-hint`, `data-hint2`, `data-hint3` it has (a card with none has
+no button). Each press opens the next clue, above the answer box, and moves focus to it; the clues
+opened while the exercise is unsolved are saved as `rung` in its attempt record and come back open.
+The worked solution stays the last step and is never locked. A wrong answer opens nothing: the
+verdict comes at once, then, if the answer looks like a common slip, a question about it
+(`src/learn/detectors.ts`: each detector undoes one slip, a sign, a reciprocal, a factor of two, a
+decimal shift, a value left out, an unreduced fraction, and speaks only if the result grades right
+by the card's own key; the question never carries the answer), then one line saying what help is
+there. Signs that a reader is stuck (several quick checks, the same wrong answer twice, a long pause
+in the card after a miss, two misses with no clue opened; `src/learn/stuck.ts`, thresholds in
+`src/learn/constants.ts`) only change the words of that line, once each per visit; they are kept in
+memory, never stored, and never hold what was typed. The ladder is `src/ui/ladder.ts` (markup,
+focus) over `src/learn/ladder.ts` (state), styled by `assets/ladder.css`, and the same in calm mode.
+A clue's text should name the next idea and never the number: a hint that gives the answer away
+undoes the ladder.
 
 The untyped kinds, each graded by the same engine:
 
@@ -605,7 +646,15 @@ and to the SVG fallback where it is not.
 
 `site.js` exposes a few seams, and everything game-like hangs off them and the `BMStore` bus:
 - `check()` asks `BMGame.bonus()` for the combo's share of XP;
-- `reveal()` emits `opened`;
+- `reveal()` emits `opened`, and the help ladder emits `ladder` when a clue is opened;
+- `BMSite.xpFor`, `paysFirst` and `road` are the reward rules and the record changes a check, an
+  opened solution and an opened clue make, which `tools/game/rules.test.js` runs every road of an
+  exercise through. Help is never charged and never pays more than effort: a right first check
+  pays the first-time rate (10, and a combo pip) after no clue or clue 1 only, and 6 with no pip
+  gained or lost after clue 2 or 3; the solution opened before solving pays 3, as it always did; a
+  heart is lost only to a wrong check (`BMGame.isMiss`), and the medal counts misses plus problems
+  solved with the solution open (`BMGame.medalMark`), which for a cleared set is the rule medals
+  always had;
 - `chapterDone` emits `chapterDone` and defers to an active encounter;
 - `BMInsights.adjust` lets a repaired section leave "Areas to strengthen";
 - `BMSite.grade` and `BMSite.refresh` are exported.
@@ -701,7 +750,7 @@ memory but keeps the site:
 | --- | --- |
 | `bm.progress.v1` | solved scored exercises per chapter |
 | `bm.play.v1` | missions and puzzle guesses |
-| `bm.attempts.v1` | per exercise: `tries`, `first`, `hints`, `opened`, `skipped`, `solved`, `section` |
+| `bm.attempts.v1` | per exercise: `tries`, `first`, `hints`, `rung` (the highest clue opened while unsolved), `opened`, `skipped`, `solved`, `section` |
 | `bm.activity.v1` | XP per day and the daily goal; streak and totals are derived from it |
 | `bm.lesson.v1` | reading mode and the furthest step reached in each chapter |
 | `bm.last`, `bm.theme` | where to continue; light or dark |
@@ -712,15 +761,17 @@ memory but keeps the site:
 | `bm.sync.pending.v1` | with accounts on: progress that could not be saved when its reader signed out, kept aside per reader until they sign in here again |
 
 Every write is announced on `window.BMStore` (`on(fn)` / `emit(change)`), with change types
-`state`, `attempt`, `solved`, `xp`, `sync`, and `reset`, plus `opened`, `chapterDone`, `home`,
-`combo`, `level`, `achievement`, `encounter`, `arena` and `prefs` from the game layer. The header
+`state`, `attempt`, `solved`, `xp`, `sync`, and `reset`, plus `opened`, `ladder`, `chapterDone`,
+`home`, `combo`, `level`, `achievement`, `encounter`, `arena` and `prefs` from the game layer. The header
 counters, lesson mode, the game layer and account sync are all just listeners; `site.js` knows
 nothing about a server.
 
 `assets/account.js` is the only file that talks to Supabase, and only when `assets/config.js` is
 filled in and the reader has a session (or opens the account page) — otherwise the SDK is never
 downloaded. Sync is a merge, never an overwrite: unions for solved exercises and missions, the
-larger number for each day's XP, the furthest lesson step. `BMAccount.merge(a, b)` is pure and
+larger number for each day's XP, the furthest lesson step, the highest clue opened on an exercise
+(`rung`: a number beats anything that is not one, so a damaged value cannot hold it back).
+`BMAccount.merge(a, b)` is pure and
 gives the same result in either order. A save only lands on the version of the account a page
 last saw, so a tab that has fallen behind another device merges first instead of overwriting it.
 A deliberate reset is timestamped so other devices drop their copies rather than merging them
@@ -803,8 +854,8 @@ the browser ones also need Chromium once, `npx playwright install chromium`
 (see [`tools/README.md`](tools/README.md)).
 
 ```sh
-npm run check           # everything that needs no browser, about 15 s:
-npm run typecheck       #   tsc over src/ and vite.config.ts
+npm run check           # everything that needs no browser, about 20 s:
+npm run typecheck       #   tsc over src/, vite.config.ts and vitest.config.ts
 npm run check:static    #   syntax, progress keys, ids, lesson steps, the shell, links, sections,
                         #   widgets, choices, migrations, placeholders, merge laws, contrast,
                         #   animations
@@ -813,7 +864,12 @@ npm run check:scenes    #   every 3D scene: mount, controls, missions, answers
 npm run test:node       #   the progress-key, id and lesson-step rules on small pages;
                         #   BMAccount.merge with the game store and fields this copy has never heard
                         #   of; account sync (stale tabs, resets, failed sign-outs, newer and older
-                        #   sites and tables, sign-in through another service); the game's rules
+                        #   sites and tables, sign-in through another service); the game's rules,
+                        #   with the one invariant over every road an exercise can take (help is
+                        #   never charged and never pays more than effort: XP, combo, hearts, medal)
+npm run test:unit       #   Vitest: the TypeScript modules' tests beside them (src/**/<name>.test.ts):
+                        #   the ladder's state, the stuck signals, the wrong-answer questions (none
+                        #   of them ever holds anything that grades as any key in the course)
 
 npm run build           # dist/
 npm run check:dist      # dist/ is the source's site, each source page taken with its shell
@@ -857,7 +913,8 @@ older than anything it is built from (`run npm run build first`): the source tre
 so there is nothing else to test. CI runs all of this on every pull request
 ([`.github/workflows/ci.yml`](.github/workflows/ci.yml)).
 
-Still checked by hand: the solution of a multiple-choice question states the option the key
+Still checked by hand: a clue (`data-hint`, `data-hint2`, `data-hint3`) names the next idea and
+never gives the answer away, the first least of all; the solution of a multiple-choice question states the option the key
 names; a new `order` list is authored in the right order; a new puzzle's tempting guess in
 `data/quest.js`; and reading one whole chapter on a phone in each theme.
 

@@ -620,7 +620,7 @@ const dig = (x, at) => at.reduce((o, k) => (o && typeof o === "object" ? o[k] : 
 const NEWER = {
   progress: { "~meta": [3, { b: 1, a: 2 }], ch01: { solved: { e1: true }, total: 10, stars: { gold: 2 } } },
   play: { "~meta": "p", ch01: { done: { m1: true }, total: 3, intro: true } },
-  attempts: { "~meta": 7, ch01: { "~n": [1], e1: { tries: 1, solved: 1700000000000, first: 1, section: "s", rung: 2, flags: { z: 1, a: null } } } },
+  attempts: { "~meta": 7, ch01: { "~n": [1], e1: { tries: 1, solved: 1700000000000, first: 1, section: "s", faded: 2, flags: { z: 1, a: null } } } },
   activity: { days: { "2026-10-01": 20 }, freeze: { left: 2, used: ["2026-09-30"] } },
   lesson: { reached: { ch01: 4 }, pace: "slow" },
   last: { id: "ch01", section: null },
@@ -636,7 +636,7 @@ const NEWER = {
 };
 const FUTURE = [
   ["progress", "~meta"], ["progress", "ch01", "stars"], ["play", "~meta"], ["play", "ch01", "intro"],
-  ["attempts", "~meta"], ["attempts", "ch01", "~n"], ["attempts", "ch01", "e1", "rung"], ["attempts", "ch01", "e1", "flags"],
+  ["attempts", "~meta"], ["attempts", "ch01", "~n"], ["attempts", "ch01", "e1", "faded"], ["attempts", "ch01", "e1", "flags"],
   ["activity", "freeze"], ["lesson", "pace"],
   ["game", "v"], ["game", "wallet"], ["game", "sec", "~meta"], ["game", "sec", "ch01#s", "ease"],
   ["game", "best", "~meta"], ["game", "best", "standard", "replay"], ["game", "enc", "~meta"], ["game", "enc", "ch01/practice", "gate"]

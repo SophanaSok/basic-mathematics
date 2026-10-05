@@ -434,7 +434,7 @@
     if (openAll) openAll.addEventListener("click", function () {
       set.exs.forEach(function (ex) {
         var sol = ex.querySelector(".ex-solution");
-        var btn = ex.querySelector(".ex-form .btn.ghost");
+        var btn = ex.querySelector(".ex-form .ex-show");
         if (sol && btn && sol.getAttribute("data-show") !== "true") btn.click();
       });
     });

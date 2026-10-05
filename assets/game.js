@@ -173,21 +173,32 @@
     };
   }
 
-  /* A miss is any exercise that did not go right first time: solved after a wrong check
-     or with the solution open, or tried and not solved yet. */
+  /* A miss is a wrong check on the road to the first correct answer: solved after one,
+     or tried and not solved yet. Asking for help is not a miss: a clue or the solution
+     opened never costs a heart. */
   function isMiss(rec) {
     rec = obj(rec);
-    return !!((rec.solved && !rec.first) || (!rec.solved && (num(rec.tries) > 0 || rec.opened)));
+    return rec.solved ? num(rec.tries) > 1 : num(rec.tries) > 0;
+  }
+  /* What the medal counts against a set: a miss, or an exercise solved without being
+     right first time some other way (the solution was open). So reading the solution
+     and then answering can never earn a better medal than missing and then solving:
+     both count once. For a solved record this is exactly "not right first time", the
+     rule medals were always earned by, so no medal a cleared set showed before changes. */
+  function medalMark(rec) {
+    rec = obj(rec);
+    return isMiss(rec) || !!(rec.solved && (rec.opened || !rec.first));
   }
 
   /* How one practice or review set stands: health is what is left unsolved, hearts are
-     three less the misses, and the medal is earned only once the set is cleared. */
+     three less the misses (wrong checks only), and the medal, earned only once the set
+     is cleared, is three less the misses and solutions opened before solving. */
   function setStats(S, chapterId, keys) {
     S = S || stores();
     keys = keys || [];
     var solvedMap = obj(obj(obj(S.progress)[chapterId]).solved);
     var recs = obj(obj(S.attempts)[chapterId]);
-    var out = { total: keys.length, solved: 0, first: 0, misses: 0, how: [], lastSolved: 0, tried: 0 };
+    var out = { total: keys.length, solved: 0, first: 0, misses: 0, marks: 0, how: [], lastSolved: 0, tried: 0 };
     keys.forEach(function (k) {
       var rec = obj(recs[k]), how = "open";
       if (solvedMap[k]) {
@@ -197,13 +208,15 @@
         if (num(rec.solved) > out.lastSolved) out.lastSolved = num(rec.solved);
       }
       if (isMiss(rec)) out.misses++;
+      if (medalMark(rec)) out.marks++;
       if (rec.tries || rec.opened || solvedMap[k]) out.tried++;
       out.how.push(how);
     });
     out.hp = out.total - out.solved;
     out.hearts = Math.max(0, 3 - out.misses);
     out.won = out.total > 0 && out.solved >= out.total;
-    out.medal = out.won ? (out.hearts >= 3 ? 3 : out.hearts >= 1 ? 2 : 1) : 0;
+    var kept = Math.max(0, 3 - out.marks);
+    out.medal = out.won ? (kept >= 3 ? 3 : kept >= 1 ? 2 : 1) : 0;
     return out;
   }
 
@@ -352,7 +365,7 @@
     A("full-meter", "Full meter", "Fill the combo meter: five first-try answers in a row.", function (S) {
       return [Math.min(1, num(S.game.maxed)), 1];
     }),
-    A("second-wind", "Second wind", "Solve 10 exercises on the second try with a hint and without the solution.", function (S) {
+    A("second-wind", "Second wind", "Solve 10 exercises on the second try without opening the solution.", function (S) {
       return [countRecs(S, function (r) { return r.solved && num(r.tries) === 2 && num(r.hints) >= 1 && !r.opened; }), 10];
     }),
     A("comeback", "Comeback", "Repair a weak section in an untimed Arena run.", function (S) {
@@ -396,7 +409,7 @@
     A("boss-down", "Boss down", "Clear a chapter's practice set.", function (S) {
       return [Math.min(1, setsWon(S, "practice")), 1];
     }),
-    A("flawless", "Flawless", "Win a Gold medal: clear a practice set with all three hearts.", function (S) {
+    A("flawless", "Flawless", "Win a Gold medal: clear a practice set with no misses and no solution opened first.", function (S) {
       var n = setsWon(S, "practice", function (ch) { return medalIn(S, ch, "practice") >= 3; });
       return [Math.min(1, n), 1];
     }),
@@ -478,12 +491,14 @@
   }
 
   /* Called by site.js for a correct answer on the road to the first one. A first-try
-     answer earns base × 0.2 per pip already lit, then lights one more. */
+     answer that pays the first-time rate (BMSite.paysFirst: no clue past the first
+     opened before it) earns base × 0.2 per pip already lit, then lights one more. Any
+     other right answer leaves the meter as it is: no pip gained, none lost. */
   function bonus(ctx) {
     ctx = obj(ctx);
     var rec = obj(ctx.rec);
     if (ctx.ex) pendingEx = ctx.ex;
-    if (!rec.first || calm()) return null;
+    if (!Site.paysFirst(rec) || calm()) return null;
     var before = 0, after = 0;
     updateRun(function (r) {
       before = r.combo.pips;
@@ -506,12 +521,6 @@
       else if (r.combo.pips > 0) { r.combo.pips = Math.max(0, r.combo.pips - 2); why = "down"; }
     }).combo;
     if (why) emitCombo(c, why);
-  }
-  function emptyMeter() {
-    if (calm()) return;
-    var had = false;
-    var c = updateRun(function (r) { had = r.combo.pips > 0; r.combo.pips = 0; }).combo;
-    if (had) emitCombo(c, "empty");
   }
   function grantShield() {
     if (calm()) return;
@@ -1375,7 +1384,7 @@
 
   /* ---------------------------------------------------------- the bus ---- */
 
-  var peeked = {}, cmpTimers = {};
+  var cmpTimers = {};
   function onScreen(el) {
     if (!el || !el.getBoundingClientRect) return false;
     var r = el.getBoundingClientRect();
@@ -1429,11 +1438,9 @@
       fillBanner();
       schedule();
     } else if (t === "opened") {
+      /* opened after solving: comparing earns a shield. Opened before: nothing at all,
+         neither the meter nor a heart; help is never charged */
       if (c.solved) watchCompare(c);
-      else if (!c.inline && !c.tries) {
-        var id = c.chapter + "/" + c.key;
-        if (!peeked[id]) { peeked[id] = true; emptyMeter(); }
-      }
       schedule();
     } else if (t === "combo") {
       if (!calm()) {
@@ -1455,12 +1462,10 @@
       fillBanner();
       schedule();
     } else if (t === "sync") {
-      rebuildPeeked();
       settle();
       hud();
       fillBanner();
     } else if (t === "reset") {
-      rebuildPeeked();
       liveQ = [];
       settle();
       hud();
@@ -1475,15 +1480,6 @@
     if (!readRun().seen.ach) updateRun(function (r) { r.seen.ach = 1; });
     return evaluate(true);
   }
-  /* solutions opened before solving, so reopening one does not empty the meter again */
-  function rebuildPeeked() {
-    peeked = {};
-    if (!Attempts) return;
-    var all = Attempts.all();
-    Object.keys(all).forEach(function (ch) {
-      Object.keys(obj(all[ch])).forEach(function (k) { if (obj(all[ch][k]).opened) peeked[ch + "/" + k] = true; });
-    });
-  }
 
   /* ----------------------------------------------------------- the API ---- */
 
@@ -1491,7 +1487,7 @@
     level: level, threshold: threshold, rank: rank, info: info,
     prefs: prefs, setPref: setPref,
     combo: combo, bonus: bonus,
-    medal: medal, setStats: setStats, isMiss: isMiss, MEDALS: MEDALS, stars: starsHtml,
+    medal: medal, setStats: setStats, isMiss: isMiss, medalMark: medalMark, MEDALS: MEDALS, stars: starsHtml,
     sectionStatus: sectionStatus, deck: deck, recordRun: recordRun, cleared: bossCleared,
     unlock: unlock, unlockedSince: unlockedSince, evaluate: function () { return evaluate(false); },
     /* take in what is already true without a toast for each (encounter.js, after it
@@ -1511,7 +1507,6 @@
   toastsEl();
   window.BMToast = cardToast;
   liveEl();
-  rebuildPeeked();
   slice(document.querySelectorAll('.ex[data-state="correct"]')).forEach(stamp);
   /* site.js drew the chapter's feedback before Insights.adjust above existed: once there
      are Arena records it could soften, draw it again, so a repaired section is not

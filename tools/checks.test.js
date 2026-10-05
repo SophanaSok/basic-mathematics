@@ -333,7 +333,8 @@ function refusal(fn) { try { fn(); return null; } catch (e) { return e.message; 
   out = render('data-depth="2" data-chapter="ch99" data-part="algebra"', "parts/p/c.html");
   check(/<body data-depth="2" data-chapter="ch99" data-part="algebra">/.test(out), "a chapter keeps data-chapter and data-part");
   const sc = scripts(out);
-  eq([sc, sheets(out)[0], sheets(out).slice(-1)], [["../../src/entries/chapter.js"], "../../src/vendor/fonts.css", ["../../assets/scenes3d.css"]], "it loads the chapter entry and the vendor stylesheets by its depth, and the scenes' stylesheet is every chapter's");
+  eq([sc, sheets(out)[0], sheets(out).slice(-2)], [["../../src/entries/chapter.js"], "../../src/vendor/fonts.css", ["../../assets/scenes3d.css", "../../assets/ladder.css"]],
+    "it loads the chapter entry and the vendor stylesheets by its depth, and the scenes' and the help ladder's stylesheets are every chapter's, the ladder's last");
   eq(parse(out).query("header.topbar").queryAll("a").map(a => a.getAttribute("href")), ["../../index.html", "../../index.html", "../../about.html"], "the top bar's links climb by data-depth");
   const chapterEntry = fs.readFileSync(path.join(site.ROOT, "src/entries/chapter.js"), "utf8");
   const sceneFiles = fs.readdirSync(path.join(site.ROOT, "assets/scenes")).filter(f => /\.js$/.test(f));

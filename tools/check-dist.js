@@ -32,6 +32,13 @@ function sourceScripts() {
   SOURCE_DIRS.forEach(d => site.walk(path.join(ROOT, d), p => /\.js$/.test(p), out));
   return out.map(site.rel);
 }
+/* the TypeScript modules under src/ that an entry may import as well (src/learn/,
+   src/ui/: the help ladder), their tests and type declarations aside */
+function typedModules() {
+  const out = [];
+  site.walk(path.join(ROOT, "src"), p => /\.ts$/.test(p) && !/\.(test|d)\.ts$/.test(p), out);
+  return out.map(site.rel);
+}
 /* The paths the release before the module entries copied the scripts to, so a page
    cached from before that deploy still found them: every source script at its own path
    and the boot script where it was. That release is over, and nothing may be there. */
@@ -387,7 +394,7 @@ function checkShell(ctx, r) {
    entries made at those paths are gone: nothing is at assets/<script>.js, data/…, or
    assets/boot.js (OPERATIONS.md, "Scripts"). */
 function checkScripts(ctx, r) {
-  const sources = new Set(sourceScripts());
+  const sources = new Set(sourceScripts().concat(typedModules()));
   const ofTree = (s) => sources.has(s) || s.startsWith(vendor.DIR + "/");    /* what an entry can import */
   const boot = "<script>" + normText(shell.bootScript());
   const loadedBy = kindsLoading();

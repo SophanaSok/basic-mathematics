@@ -57,8 +57,15 @@ export type PlayStore = Record<ChapterId, {
 export interface AttemptRecord {
   /** checks made, wrong and right, up to and including the first correct one. Merge: max */
   tries?: number;
-  /** highest hint level shown. Merge: max */
+  /** the hint level the misses reached on a page view (1 after a first miss on an exercise
+      with a hint, 2 after a second with a second hint). It was the hint shown automatically
+      until the help ladder, and is still written so: struggle(), Second wind and the
+      server's hint_level read it. Merge: max */
   hints?: 1 | 2;
+  /** the highest clue opened while the exercise was unsolved (the help ladder: 1 data-hint,
+      2 data-hint2, 3 data-hint3); never written once it is solved. Merge: the larger number,
+      a number over anything that is not one */
+  rung?: 1 | 2 | 3;
   /** the solution was opened before solving. Merge: either */
   opened?: Flag;
   /** an inline check ("Your turn", warm-up): graded, never scored. Merge: either */

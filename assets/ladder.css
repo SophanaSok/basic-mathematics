@@ -1,0 +1,45 @@
+/* ===========================================================================
+   Basic Mathematics — the help ladder on an exercise card (src/ui/ladder.ts)
+   Linked on chapter pages after game.css (tools/lib/shell.js PAGE_KINDS), so it can
+   lean on the card's own rules there: a clue is an .ex-hint, and its offer line is an
+   .ex-next. Existing tokens only, every text colour on a solid background that the
+   contrast pairs measure (--text and --hint-ink on --hint-soft, --muted on --surface
+   and --surface-2). No gradient, no glow, nothing that loops.
+   =========================================================================== */
+
+/* the clues, above the answer box: read, then answer */
+.ex-ladder { display: grid; gap: .5rem; margin: 0 0 .9rem; }
+.ex-ladder .ex-clue { margin: 0; }
+.ex-ladder .ex-hint-text {
+  display: block; margin: 0; font-family: var(--sans); font-size: 1.0625rem; line-height: 1.55; color: var(--text);
+}
+/* an earlier clue stays, quieter, as an earlier hint did */
+.ex-ladder .ex-clue[data-prev] .ex-hint-text { font-size: .9rem; color: var(--muted); }
+/* focus lands on the clue just opened, so it is read; the ring shows where it went */
+.ex-clue:focus { outline: none; }
+.ex-clue:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
+
+/* "Show a clue (1 of 2)": a ghost button, quieter than Check, never disabled */
+.ex-form .ex-clue-btn { font-size: .9rem; }
+.ex-clue-btn .ex-clue-of { font-family: var(--sans); font-weight: 500; color: var(--muted); }
+
+/* after a miss: a question about the answer, between the verdict and the offer */
+.ex-feedback .ex-ask {
+  margin: 0 0 .3rem; font-family: var(--sans); font-size: .98rem; line-height: 1.45; color: var(--text);
+}
+
+/* The one motion, a fade as a clue opens, under the same conditions as game.css's
+   motion block (which owns the keyframes): never in calm mode or with reduced motion,
+   never for a clue restored on a reload, and once. A clue is an .ex-hint, which game.css
+   fades in each time a card turns wrong; that is turned off here (same weight, later
+   file), so a miss never replays a clue's fade. The opened clue keeps data-fresh, so its
+   animation stays the same value and does not restart when the card's state changes. */
+@media (prefers-reduced-motion: no-preference) {
+  html:not([data-calm]):not([data-motion="reduce"]) .ex[data-state] .ex-ladder .ex-clue { animation: none; }
+  html:not([data-calm]):not([data-motion="reduce"]) .ex .ex-ladder .ex-clue[data-fresh] { animation: fade 160ms ease-out; }
+}
+
+@media print {
+  /* a clue that was open prints as it reads; the button is a control and goes with them */
+  .ex-clue-btn { display: none !important; }
+}

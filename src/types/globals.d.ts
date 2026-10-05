@@ -58,6 +58,10 @@ interface Window {
   BMMap3D: any;
   /** assets/account.js: sign-in and sync, and the pure merge */
   BMAccount: any;
+  /** src/ui/ladder.ts: the help ladder (mount), the wrong-answer questions (detect) and the
+      pure modules under src/learn/, for assets/site.js, which cannot import them, and the
+      tests; typed, since it is written in TypeScript */
+  BMLearn: typeof import("../ui/ladder.ts").api;
   /** src/vendor/katex.js: KaTeX itself, a console handle and what the browser checks look for */
   katex: any;
   /** src/vendor/katex.js: KaTeX's auto-render extension, which renderMath in assets/site.js calls */

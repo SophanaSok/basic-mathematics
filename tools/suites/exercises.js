@@ -1,7 +1,8 @@
 "use strict";
 /* Every exercise grades. Per chapter, in whole-page mode:
-   (b) the first scored typed exercise: a wrong answer shows feedback (with the hint when
-       there is one), then the right answer is marked correct;
+   (b) the first scored typed exercise: a wrong answer shows feedback and an offer line
+       but opens no clue; "Show a clue" then opens clue 1, with the hint's text; then
+       the right answer is marked correct;
    (a) every exercise is answered with its own key — typed kinds by typing the key and
        pressing Enter, choice/multi by ticking, blank by filling each blank, order by the
        up/down buttons; `figure` kinds are counted and skipped (the answer is the state
@@ -12,7 +13,7 @@ const drive = require("../lib/drive");
 module.exports = {
   name: "exercises",
   order: 30,
-  description: "every exercise grades with its key; wrong answers show hints; solved ones survive a reload",
+  description: "every exercise grades with its key; a wrong answer opens no clue, the clue button does; solved ones survive a reload",
   async run(ctx) {
     const { h, report } = ctx;
     const totals = { driven: 0, ok: 0, skipped: 0, fallback: 0, byKind: {} };
@@ -41,16 +42,20 @@ module.exports = {
           if (!/Not right/.test(fb)) problems.push("feedback text lacks 'Not right': " + JSON.stringify(fb));
           if (m.hint) {
             const frag = drive.hintFragment(m.hint);
-            /* the hint is its own panel, .ex-hint, under the verdict */
-            const panel = await ex.locator(".ex-feedback .ex-hint:not([data-prev])").count();
-            if (!panel || !/Hint/.test(fb)) problems.push("hint not shown after the first wrong answer; feedback: " + JSON.stringify(fb));
-            else if (frag && !fb.includes(frag)) problems.push("feedback does not contain the hint fragment " + JSON.stringify(frag) + ": " + JSON.stringify(fb));
+            /* a wrong answer opens no clue: the card offers one, and the clue opens from
+               its button, as its own panel above the answer box */
+            if (await ex.locator(".ex-ladder .ex-clue").count()) problems.push("a clue opened by itself after a wrong answer");
+            if (!(await ex.locator(".ex-feedback .ex-offer").count())) problems.push("no offer line after a wrong answer; feedback: " + JSON.stringify(fb));
+            await ex.locator(".ex-form .ex-clue-btn").click();
+            const clue = await ex.evaluate(el => { const c = el.querySelector(".ex-ladder .ex-clue[data-level='1']"); return c ? c.textContent.replace(/\s+/g, " ").trim() : ""; });
+            if (!/^Clue 1 of \d/.test(clue)) problems.push("Show a clue did not open clue 1: " + JSON.stringify(clue));
+            else if (frag && !clue.includes(frag)) problems.push("clue 1 does not contain the hint fragment " + JSON.stringify(frag) + ": " + JSON.stringify(clue));
           }
           const r = await drive.answerWithKey(ex, m);
           if (!r.ok) problems.push("right answer " + JSON.stringify(r.used) + " not accepted; feedback: " + JSON.stringify(await drive.feedbackText(ex)));
           const fb2 = await drive.feedbackText(ex);
           if (r.ok && !/Correct/.test(fb2)) problems.push("correct feedback text missing: " + JSON.stringify(fb2));
-          report[problems.length ? "fail" : "pass"](rel + " · feedback (" + m.key + ")", problems.length ? problems.join("\n") : "wrong → 'Not right'" + (m.hint ? " + hint" : "") + ", then correct");
+          report[problems.length ? "fail" : "pass"](rel + " · feedback (" + m.key + ")", problems.length ? problems.join("\n") : "wrong → 'Not right' and an offer" + (m.hint ? ", no clue until asked, then clue 1" : "") + ", then correct");
         }
 
         /* (a) the sweep */

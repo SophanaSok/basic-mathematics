@@ -148,6 +148,29 @@ avoided without keeping the previous deploy's chunks, which the build does not h
 try to work around it by hand. If such a change must not touch a reader mid-session, deploy it
 at a quiet hour.
 
+### Deploy R0 before R1: the help ladder's `rung`
+
+R1 (the help ladder, item 8) adds a field to every exercise's attempt record that a reader opens
+a clue on: `rung`, the highest clue opened while the exercise was unsolved, synced like the rest
+of `bm.attempts.v1` and merged by the larger number (`assets/account.js` `maxRung`). It needs no
+SQL: it lives inside the `attempts` column's JSON.
+
+**Deploy R0 (the sync hardening that carries unknown fields through a merge) first, and let it
+be live for a while, before R1.** A copy of the site from before R0 (a tab left open, a browser
+holding last week's scripts, another device) rebuilds each attempt record from the fields it
+knows when it merges, so it drops `rung` and writes the record back without it. From R0 on, a
+copy that does not know a field carries it. What such a loss costs is small and bounded: the
+clues a reader had opened show closed again on their next visit, and a right first answer after
+clue 2 or 3 opened on another device can pay the first-time rate. It never touches solved work,
+XP, medals, hearts or the attempt log, and it mends itself as soon as that reader opens the clue
+again on a current copy.
+
+The R1 deploy also adds a stylesheet (`bundle/chapter.css`, from `assets/ladder.css`) and new
+modules in `bundle/chapter.js`: the case in the section above. For the ten minutes a chapter page
+from before the deploy can meet a `chapter.js` from after it, its clues are drawn without their own
+stylesheet (as a plain ghost button and the hint panel `game.css` already styles) or, the other
+way round, it has no clue button; either way the card grades as before.
+
 ### Scripts: the copies under dist/assets/ and dist/data/ are gone
 
 For one release, the one that brought the module entries, the build copied every script under

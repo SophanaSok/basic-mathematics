@@ -69,8 +69,9 @@ const PAGE_KINDS = {
   /* arena.html: no figures, the problem generators instead */
   arena: { styles: ["assets/site.css", "assets/game.css", "assets/arena.css"], entry: "src/entries/arena.js" },
   /* parts/<part>/<chapter>.html: the scene framework, every scene, then site.js, which
-     mounts the figures as it runs */
-  chapter: { styles: ["assets/site.css", "assets/game.css", "assets/scenes3d.css"], entry: "src/entries/chapter.js" }
+     mounts the figures as it runs; the help ladder's own stylesheet last, after the card
+     rules of game.css it builds on */
+  chapter: { styles: ["assets/site.css", "assets/game.css", "assets/scenes3d.css", "assets/ladder.css"], entry: "src/entries/chapter.js" }
 };
 
 /* how a source file of the tree is read: the file beside this one by default, and the

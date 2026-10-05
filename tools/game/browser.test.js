@@ -16,7 +16,13 @@
    4. calm mode hides hearts and combo
    5. no AudioContext is constructed while sound is off (and one is once it is on)
    6. no console errors on index, about, progress and four chapters in both themes
-   7. localStorage that throws on every access breaks nothing */
+   7. localStorage that throws on every access breaks nothing
+   8. the help ladder: "Show a clue" from the start, wrong answers open nothing, a clue
+      opens on a click with focus on it and is still open after a reload; a sign-flipped
+      answer gets a question; a card left alone after a miss changes its offer line once
+      (under Playwright's clock) and opens nothing; the solution opened on an untouched exercise costs no heart
+      and keeps the combo; a right first answer after clue 2 pays 6 and moves no pip; the
+      keyboard path through clue, check and solution */
 "use strict";
 const site = require("../lib/site");
 const target = require("../lib/target");
@@ -338,17 +344,18 @@ async function run() {
       eq([s0.medal, s0.hearts, s0.pips], [3, 3, 4], "older progress with no attempt log loads as Gold with the combo intact");
       await answer(page, '#practice .ex[data-key="e1"]', false);
       await answer(page, '#practice .ex[data-key="e2"]', false);
-      await page.click('#practice .ex[data-key="e2"] .ex-form .btn.ghost');
+      await page.click('#practice .ex[data-key="e2"] .ex-form .ex-show');
+      await page.click('#practice .ex[data-key="e3"] .ex-form .ex-clue-btn');
       await answer(page, '#practice .ex[data-key="e3"]', true);
       await wait(700);
       const s1 = await state(page);
-      eq([s1.medal, s1.hearts, s1.pips, s1.xp], [3, 3, 4, s0.xp], "wrong re-checks, Show solution and a re-solve on solved work cost nothing and earn nothing");
-      eq(await page.evaluate(() => (JSON.parse(localStorage.getItem("bm.attempts.v1") || "{}")).ch05 || {}), {}, "no attempt is recorded for already-solved work");
+      eq([s1.medal, s1.hearts, s1.pips, s1.xp], [3, 3, 4, s0.xp], "wrong re-checks, Show solution, a clue and a re-solve on solved work cost nothing and earn nothing");
+      eq(await page.evaluate(() => (JSON.parse(localStorage.getItem("bm.attempts.v1") || "{}")).ch05 || {}), {}, "no attempt and no rung is recorded for already-solved work");
       eq(errors, [], "no errors re-checking older progress");
       await context.close();
     }
 
-    /* --------------------------- hints already given stay once they run out */
+    /* ------------- the help ladder: clues on demand, never shown by a wrong answer */
     {
       const { context, page, errors } = await open(browser, CH05, { "bm.lesson.v1": '{"mode":"page"}' });
       const keys = await page.evaluate(() => {
@@ -359,19 +366,169 @@ async function run() {
           })[0];
           return ex && ex.getAttribute("data-key");
         };
-        return { one: pick(".ex[data-hint]:not([data-hint2])"), two: pick(".ex[data-hint][data-hint2]") };
+        return { one: pick(".ex[data-hint]:not([data-hint2])"), two: pick("#practice .ex[data-hint][data-hint2]") };
       });
-      const boxes = (k) => page.$eval('.ex[data-key="' + k + '"]', (ex) => ({
-        level: ex.getAttribute("data-hint-level"),
-        hints: Array.prototype.map.call(ex.querySelectorAll(".ex-feedback .ex-hint"), function (h) { return h.getAttribute("data-level") + (h.hasAttribute("data-prev") ? "p" : ""); }).join(","),
-        next: !!ex.querySelector(".ex-feedback .ex-next")
-      }));
-      check(keys.one && keys.two, "ch05 has a one-hint and a two-hint typed exercise (" + JSON.stringify(keys) + ")");
+      const ladder = (k) => page.$eval('.ex[data-key="' + k + '"]', (ex) => {
+        var btn = ex.querySelector(".ex-form .ex-clue-btn");
+        return {
+          button: btn && !btn.hidden ? btn.textContent.replace(/\s+/g, " ").trim() : null,
+          clues: Array.prototype.map.call(ex.querySelectorAll(".ex-ladder .ex-clue"), function (h) { return h.getAttribute("data-level") + (h.hasAttribute("data-prev") ? "p" : ""); }).join(","),
+          inFeedback: ex.querySelectorAll(".ex-feedback .ex-hint").length,
+          offer: (function () { var o = ex.querySelector(".ex-feedback .ex-offer"); return o ? o.getAttribute("data-offer") : null; })()
+        };
+      });
+      check(keys.one && keys.two, "ch05 has a one-clue and a two-clue typed exercise (" + JSON.stringify(keys) + ")");
+      eq(await ladder(keys.two), { button: "Show a clue (1 of 2)", clues: "", inFeedback: 0, offer: null }, "the clue button is there from the start, saying how many clues there are");
       for (let i = 0; i < 3; i++) await answer(page, '.ex[data-key="' + keys.one + '"]', false);
-      eq(await boxes(keys.one), { level: "3", hints: "1p", next: true }, "one hint: later misses keep it, quieter, above the nudge to the solution");
-      for (let i = 0; i < 3; i++) await answer(page, '.ex[data-key="' + keys.two + '"]', false);
-      eq(await boxes(keys.two), { level: "3", hints: "1p,2p", next: true }, "two hints: the third miss keeps both, quieter");
-      eq(errors, [], "no errors around hints");
+      const one = await ladder(keys.one);
+      eq([one.clues, one.inFeedback, one.offer], ["", 0, "clue"], "three wrong answers open no clue: the card offers one, in a line");
+      check(await page.$eval('.ex[data-key="' + keys.one + '"] .ex-feedback', (f) => !!f.querySelector(".ex-verdict.no") && f.querySelectorAll(".ex-offer").length === 1),
+        "the verdict and at most one offer line");
+
+      /* opens on a click, focus moves to it, and it stays open after a reload */
+      const sel2 = '.ex[data-key="' + keys.two + '"]';
+      await page.click(sel2 + " .ex-clue-btn");
+      eq(await ladder(keys.two), { button: "Next clue (2 of 2)", clues: "1", inFeedback: 0, offer: null }, "a click opens clue 1, and the button names clue 2");
+      check(await page.evaluate((s) => document.activeElement === document.querySelector(s + " .ex-clue[data-level='1']"), sel2), "focus moves to the clue just opened");
+      eq(await page.evaluate((k) => JSON.parse(localStorage.getItem("bm.attempts.v1")).ch05[k].rung, keys.two), 1, "the rung is saved in the attempt record");
+      await page.reload();
+      await page.waitForFunction(() => document.readyState === "complete");
+      eq(await ladder(keys.two), { button: "Next clue (2 of 2)", clues: "1", inFeedback: 0, offer: null }, "after a reload clue 1 is still open");
+      check(await page.evaluate((s) => !document.querySelector(s).contains(document.activeElement), sel2), "a restored clue does not take focus");
+      await page.click(sel2 + " .ex-clue-btn");
+      eq(await ladder(keys.two), { button: null, clues: "1p,2", inFeedback: 0, offer: null }, "clue 2 opens below clue 1, which goes quieter; with every clue open the button goes");
+      await answer(page, sel2, false);
+      eq((await ladder(keys.two)).offer, "solution", "with every clue open, a miss offers the solution");
+      check(await page.$eval(sel2 + " .ex-show", (b) => b.getAttribute("data-suggested") === "true"), "and the solution button is the suggestion");
+      eq(errors, [], "no errors around the ladder");
+      await context.close();
+    }
+
+    /* ------------------ a wrong answer that looks like a known slip gets a question */
+    {
+      const { context, page, errors } = await open(browser, CH05, { "bm.lesson.v1": '{"mode":"page"}' });
+      const k = await page.evaluate(() => {
+        var ex = Array.prototype.filter.call(document.querySelectorAll("#practice .ex[data-type='number']"), function (e) {
+          return /^[1-9]\d*$/.test(e.getAttribute("data-answer") || "");
+        })[0];
+        return ex && ex.getAttribute("data-key");
+      });
+      check(!!k, "ch05 has a whole-number practice exercise (" + k + ")");
+      const sel = '#practice .ex[data-key="' + k + '"]';
+      const key = await page.$eval(sel, (e) => e.getAttribute("data-answer"));
+      const fb = () => page.$eval(sel + " .ex-feedback", (f) => ({
+        verdict: !!f.querySelector(".ex-verdict.no"),
+        ask: (function () { var a = f.querySelector(".ex-ask"); return a ? a.getAttribute("data-detector") + ": " + a.textContent : null; })(),
+        order: Array.prototype.map.call(f.children, function (c) { return c.className.split(" ")[0]; }).join(",")
+      }));
+      await page.fill(sel + " .ex-form input[type=text]", "-" + key);
+      await page.press(sel + " .ex-form input[type=text]", "Enter");
+      eq(await fb(), { verdict: true, ask: "sign: Check the sign of your last step?", order: "ex-verdict,ex-ask,ex-next" }, "the sign flipped: the verdict, the question, then the offer");
+      await page.fill(sel + " .ex-form input[type=text]", "987654321");
+      await page.press(sel + " .ex-form input[type=text]", "Enter");
+      eq((await fb()).ask, null, "an answer no slip explains gets no question");
+      const text = await page.$eval(sel + " .ex-feedback", (f) => f.textContent);
+      check(text.indexOf(key) < 0, "the feedback never holds the answer");
+      eq(errors, [], "no errors around the questions");
+      await context.close();
+    }
+
+    /* ------- left alone after a miss: a quiet line in the card, nothing opened, no toast */
+    {
+      const { context, page, errors } = await open(browser, CH05, { "bm.lesson.v1": '{"mode":"page"}' });
+      await page.clock.install();
+      await page.reload();
+      await page.waitForLoadState("load");
+      const k = await page.evaluate(() => {
+        var ex = Array.prototype.filter.call(document.querySelectorAll("#practice .ex[data-hint]"), function (e) { return e.getAttribute("data-kind") === "text"; })[0];
+        return ex && ex.getAttribute("data-key");
+      });
+      const sel = '#practice .ex[data-key="' + k + '"]';
+      await page.fill(sel + " .ex-form input[type=text]", "987654321");
+      await page.press(sel + " .ex-form input[type=text]", "Enter");
+      const look = () => page.$eval(sel, (ex) => {
+        var o = ex.querySelector(".ex-feedback .ex-offer");
+        return {
+          offers: ex.querySelectorAll(".ex-feedback .ex-offer").length, signal: o && o.getAttribute("data-signal"),
+          clues: ex.querySelectorAll(".ex-clue").length, dialog: !!document.querySelector("dialog[open], [role=dialog]:not([hidden]), [role=alertdialog]"),
+          toast: Array.prototype.some.call(document.querySelectorAll(".toast"), function (t) { return /clue/i.test(t.textContent); })
+        };
+      });
+      eq(await look(), { offers: 1, signal: null, clues: 0, dialog: false, toast: false }, "after a miss: one plain offer line");
+      await page.clock.fastForward(60000);
+      eq((await look()).signal, null, "a minute later, still the plain line");
+      await page.clock.fastForward(31000);
+      eq(await look(), { offers: 1, signal: "idle", clues: 0, dialog: false, toast: false }, "left alone with focus in the card: the line changes, once, and nothing opens or pops up");
+      eq(errors, [], "no errors around the idle offer");
+      await context.close();
+    }
+
+    /* ---- help is never charged: the solution opened first costs no heart and keeps the combo */
+    {
+      const { context, page, errors } = await open(browser, CH05, {
+        "bm.lesson.v1": '{"mode":"page"}', "bm.run.v1": JSON.stringify({ combo: { pips: 3, shield: false } })
+      });
+      await answer(page, '#practice .ex[data-key="e1"]', true);
+      await wait(600);
+      const s0 = await state(page);
+      await page.click('#practice .ex[data-key="e2"] .ex-form .ex-show');
+      await wait(700);
+      const s1 = await state(page);
+      eq([s1.hearts, s1.pips, s1.heartsLabel], [3, s0.pips, "3 of 3 hearts"], "opening the solution of an untouched exercise: no heart lost, the combo kept");
+      await answer(page, '#practice .ex[data-key="e2"]', true);
+      await wait(700);
+      const s2 = await state(page);
+      eq([s2.xp - s1.xp, s2.pips, s2.hearts], [3, s0.pips, 3], "solving it with the solution open: 3 XP, the combo unchanged, still three hearts");
+      /* a right first answer after clue 2: what a solve after a miss pays, and no pip either way */
+      const two = await page.evaluate(() => {
+        var ex = document.querySelector("#practice .ex[data-hint2]:not([data-state])");
+        return ex && ex.getAttribute("data-key");
+      });
+      await page.click('#practice .ex[data-key="' + two + '"] .ex-clue-btn');
+      await page.click('#practice .ex[data-key="' + two + '"] .ex-clue-btn');
+      await answer(page, '#practice .ex[data-key="' + two + '"]', true);
+      await wait(700);
+      const s3 = await state(page);
+      eq([s3.xp - s2.xp, s3.pips, s3.hearts], [6, s0.pips, 3], "right first time after clue 2: 6 XP, the combo unchanged");
+      eq(errors, [], "no errors around free help");
+      await context.close();
+    }
+
+    /* -------------------------- the keyboard path: clue, check, next clue, solution */
+    {
+      const { context, page, errors } = await open(browser, CH05, { "bm.lesson.v1": '{"mode":"page"}' });
+      const k = await page.evaluate(() => {
+        var ex = Array.prototype.filter.call(document.querySelectorAll("#practice .ex[data-hint2]"), function (e) {
+          return e.getAttribute("data-kind") === "text";
+        })[0];
+        return ex && ex.getAttribute("data-key");
+      });
+      const sel = '#practice .ex[data-key="' + k + '"]';
+      const at = () => page.evaluate((s) => {
+        var a = document.activeElement, ex = document.querySelector(s);
+        if (!ex.contains(a)) return "outside";
+        if (a.matches(".ex-clue")) return "clue " + a.getAttribute("data-level");
+        if (a.matches("input")) return "input";
+        return a.textContent.replace(/\s+/g, " ").trim();
+      }, sel);
+      await page.focus(sel + " .ex-form .btn:not(.ghost)");
+      const path = [await at()];
+      await page.keyboard.press("Tab"); path.push(await at());
+      await page.keyboard.press("Enter"); path.push(await at());
+      await page.keyboard.press("Tab"); path.push(await at());
+      await page.keyboard.type("987654321");
+      await page.keyboard.press("Enter"); path.push(await at());
+      await page.keyboard.press("Tab"); path.push(await at());
+      await page.keyboard.press("Tab"); path.push(await at());
+      await page.keyboard.press("Space"); path.push(await at());
+      await page.keyboard.press("Tab"); path.push(await at());
+      await page.keyboard.press("Tab"); path.push(await at());
+      await page.keyboard.press("Tab"); path.push(await at());
+      await page.keyboard.press("Enter"); path.push(await at());
+      eq(path, ["Check", "Show a clue (1 of 2)", "clue 1", "input", "input", "Check", "Next clue (2 of 2)", "clue 2", "input", "Check", "Show solution", "Hide solution"],
+        "Tab reaches the clue button, Enter opens clue 1 and focus lands on it, Tab goes on to the answer, the next clue and the solution");
+      check(await page.$eval(sel + " .ex-solution", (s) => s.getAttribute("data-show") === "true"), "Enter on Show solution opens it");
+      eq(errors, [], "no errors on the keyboard path");
       await context.close();
     }
 
@@ -417,23 +574,28 @@ async function run() {
         return { one: typed[0], other: typed[1] };
       });
       const boxes = (k) => page.$eval('.ex[data-key="' + k + '"]', (ex) => ({
-        hints: Array.prototype.map.call(ex.querySelectorAll(".ex-feedback .ex-hint"), function (h) { return h.getAttribute("data-level") + (h.hasAttribute("data-prev") ? "p" : ""); }).join(","),
+        clues: Array.prototype.map.call(ex.querySelectorAll(".ex-ladder .ex-clue"), function (h) { return h.getAttribute("data-level"); }).join(","),
         nudge: !!ex.querySelector(".ex-feedback .ex-verdict.nudge")
       }));
       const empty = (k) => page.$eval('.ex[data-key="' + k + '"]', (ex) => {
         ex.querySelector(".ex-form input:not([type=radio]):not([type=checkbox])").value = "";
         ex.querySelector(".ex-form .btn:not(.ghost)").click();
       });
+      const hints = (k) => page.evaluate((k) => (JSON.parse(localStorage.getItem("bm.attempts.v1") || "{}").ch05 || {})[k], k);
       check(keys.one && keys.other, "ch05 has two one-hint typed exercises (" + JSON.stringify(keys) + ")");
       await answer(page, '.ex[data-key="' + keys.one + '"]', false);
       await empty(keys.one);
-      eq(await boxes(keys.one), { hints: "1", nudge: true }, "an empty Check after the first miss keeps the current hint under the nudge");
-      await answer(page, '.ex[data-key="' + keys.one + '"]', false);
+      eq(await boxes(keys.one), { clues: "", nudge: true }, "an empty Check after a miss shows the nudge, and no clue");
+      await page.click('.ex[data-key="' + keys.one + '"] .ex-clue-btn');
       await empty(keys.one);
-      eq(await boxes(keys.one), { hints: "1p", nudge: true }, "an empty Check after two misses keeps the quieter hint");
+      eq(await boxes(keys.one), { clues: "1", nudge: true }, "an empty Check leaves an opened clue where it is");
+      /* `hints` is written as it always was, from the misses, whatever was opened */
+      const rec = await hints(keys.one);
+      eq([rec.tries, rec.hints, rec.rung], [1, 1, 1], "the record: one try, hints 1 as before the ladder, rung 1 for the clue opened");
       await answer(page, '.ex[data-key="' + keys.other + '"]', true);
       await answer(page, '.ex[data-key="' + keys.other + '"]', false);
-      eq(await boxes(keys.other), { hints: "1", nudge: false }, "a miss after a first-try answer shows the hint as new, not as one already given");
+      eq(await boxes(keys.other), { clues: "", nudge: false }, "a miss after a first-try answer opens nothing either");
+      eq((await hints(keys.other)).rung, undefined, "and no rung is written for it");
       eq(errors, [], "no errors around empty checks");
       await context.close();
     }

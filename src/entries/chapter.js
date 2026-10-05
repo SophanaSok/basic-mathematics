@@ -19,6 +19,15 @@ import "../../assets/scenes/scale3.js";
 import "../../assets/scenes/sphereslice.js";
 import "../../assets/scenes/spheretri.js";
 import "../../assets/scenes/sumsquares.js";
+/* the help ladder: pure modules first, then the one that puts window.BMLearn up for
+   site.js, which mounts a ladder on every exercise card as it builds it. Each file is
+   named here, not only imported by the next, because the build and check-dist place a
+   module by the entries that import it */
+import "../learn/constants.ts";
+import "../learn/ladder.ts";
+import "../learn/detectors.ts";
+import "../learn/stuck.ts";
+import "../ui/ladder.ts";
 import "../../assets/site.js";
 import "../../assets/sfx.js";
 import "../../assets/game.js";

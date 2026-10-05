@@ -680,7 +680,11 @@ const DAYS = ["2026-09-28", "2026-09-29", "2026-09-30", "2026-10-01"];
    (account.js `later`): few keys and few values, so two devices often hold the same key
    and disagree about it. The two objects differ only in the order of their keys. One key
    is named like something every object inherits, and is data all the same. */
-const UNKNOWN_KEYS = ["zz", "~later", "rung", "constructor"];
+const UNKNOWN_KEYS = ["zz", "~later", "faded", "constructor"];
+/* what an attempt record's `rung` (the help ladder) may hold: the clue numbers the site
+   writes, and what a damaged or differently-minded record might, so the rule for it
+   (account.js maxRung: numbers above everything else) is held to over all of them */
+const RUNG_VALUES = [1, 2, 3, 3, 0, 5, -1, "2", "x", true, null, [1], { a: 1 }];
 const UNKNOWN_VALUES = [0, 7, -1, "x", "", true, null, [1, 2], [2, 1], { a: 1, b: [1] }, { b: [1], a: 1 }, { a: { c: 2 } }];
 function randomState(R) {
   const st = {};
@@ -709,8 +713,9 @@ function randomState(R) {
     st.play[ch] = fields(rec);
   });
   entries(st.play);
-  /* attempt records as site.js writes them (initExercises check()/reveal(), lesson.js
-     advance()): `tries` >= 1 when present, `hints` only 1 or 2, `first` only alongside
+  /* attempt records as site.js writes them (initExercises check()/reveal(), the ladder's
+     persist, lesson.js advance()): `tries` >= 1 when present, `hints` only 1 or 2, `rung`
+     a clue number (and now and then something else: RUNG_VALUES), `first` only alongside
      `solved`, `skipped` never alongside `solved`, and `section`/`inline` fixed by the
      page markup — so two devices can never disagree about them for the same key */
   st.attempts = {};
@@ -722,6 +727,7 @@ function randomState(R) {
       if (R.maybe(0.8)) a.tries = 1 + R.int(4);
       else a.opened = 1;                      /* solution opened before any check */
       if (a.tries && R.maybe(0.4)) a.hints = 1 + R.int(2);
+      if (R.maybe(0.35)) a.rung = R.maybe(0.8) ? 1 + R.int(3) : JSON.parse(JSON.stringify(R.pick(RUNG_VALUES)));
       if (R.maybe(0.3)) a.opened = 1;
       if (inlineKey) a.inline = 1;
       if (R.maybe(0.85)) a.section = ["one-unknown", "ch02#one-unknown", "warmup"][(ch.length + k.charCodeAt(1)) % 3];
@@ -831,6 +837,21 @@ function checkMerge(ctx, r) {
         }
       });
     }
+    /* the help ladder's rung: the larger number, a number over anything else, and the
+       later canonical JSON between two values that are not numbers */
+    Object.keys(Object.assign({}, a.attempts, b.attempts)).forEach(ch => {
+      const x = (a.attempts || {})[ch], y = (b.attempts || {})[ch];
+      if (!x || typeof x !== "object" || !y || typeof y !== "object") return;
+      Object.keys(Object.assign({}, x, y)).forEach(k => {
+        const p = x[k], q = y[k];
+        if (!p || typeof p !== "object" || Array.isArray(p) || !q || typeof q !== "object" || Array.isArray(q)) return;
+        const want = rungMax(p.rung, q.rung), got = ab.attempts[ch][k].rung;
+        if (canon(got) !== canon(want) && !seen.rung) {
+          r.fail("seed " + seed + ": attempts." + ch + "." + k + ".rung should be " + canon(want) + " from " + canon(p.rung) + " and " + canon(q.rung) + ", got " + canon(got));
+          seen.rung = 1;
+        }
+      });
+    });
   }
   Object.keys(seen).forEach(k => { if (seen[k] > 1) r.fail("  … " + k + " failed in " + seen[k] + " of " + N + " cases"); });
   if (!gameSeen) r.warn("merged output has no `game` key yet — the game-store assertions were skipped (they switch on when mergeGame lands)");
@@ -839,8 +860,23 @@ function checkMerge(ctx, r) {
   if (!x.progress.ch01.solved.e1 || !x.progress.ch01.solved.e2 || x.progress.ch01.total !== 3) r.fail("hand case: union of solved / max of total is wrong: " + JSON.stringify(x.progress));
   /* and one for a field no version of this file knows: kept from one side, the later
      canonical JSON from two */
-  const y = merge({ attempts: { ch01: { e1: { tries: 2, rung: 1, note: "a" } } } }, { attempts: { ch01: { e1: { tries: 1, rung: 3 } } } });
-  if (canon(y.attempts.ch01.e1) !== canon({ tries: 2, rung: 3, note: "a" })) r.fail("hand case: unknown attempt fields were not carried through: " + JSON.stringify(y.attempts));
+  const y = merge({ attempts: { ch01: { e1: { tries: 2, faded: 1, note: "a" } } } }, { attempts: { ch01: { e1: { tries: 1, faded: 3 } } } });
+  if (canon(y.attempts.ch01.e1) !== canon({ tries: 2, faded: 3, note: "a" })) r.fail("hand case: unknown attempt fields were not carried through: " + JSON.stringify(y.attempts));
+  /* and the ladder's rung, which has a rule: the larger number, where the fallback for
+     unknown fields would have kept "9" over 10 */
+  const z = merge({ attempts: { ch01: { e1: { tries: 1, rung: 10 } } } }, { attempts: { ch01: { e1: { rung: 9 } } } });
+  const z2 = merge({ attempts: { ch01: { e1: { rung: "x" } } } }, { attempts: { ch01: { e1: { rung: 2 } } } });
+  if (z.attempts.ch01.e1.rung !== 10 || z2.attempts.ch01.e1.rung !== 2) r.fail("hand case: attempt rung is not the larger number: " + JSON.stringify([z.attempts, z2.attempts]));
+}
+/* the rule assets/account.js keeps for an attempt's `rung`, written out again to hold it to */
+function rungMax(p, q) {
+  const n = (v) => typeof v === "number" && isFinite(v);
+  if (p === undefined) return q;
+  if (q === undefined) return p;
+  if (n(p) && n(q)) return Math.max(p, q);
+  if (n(p)) return p;
+  if (n(q)) return q;
+  return canon(p) >= canon(q) ? p : q;
 }
 function firstDiff(x, y, p) {
   p = p || "";
