@@ -833,7 +833,9 @@ footer.site p { margin: 0 0 .5em; max-width: 62ch; }
 
 /* --------------------------------------------------------- katex tweak --- */
 
-.katex { font-size: 1em; }
+/* A formula keeps its case inside an uppercase label: thead th made the θ and π of
+   chapter 11's table Θ and Π, other symbols, on screen and in the header's name */
+.katex { font-size: 1em; text-transform: none; }
 .katex-display { overflow-x: auto; overflow-y: hidden; padding: .25em 0; }
 
 /* ------------------------------------------------------ the four Parts ---- */

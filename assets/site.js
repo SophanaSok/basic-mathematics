@@ -307,6 +307,9 @@
         throwOnError: false,
         strict: false
       });
+      /* a formula gives the button, label, table header or heading it sits in no name
+         (src/ui/math-names.ts says why); this gives it one, and changes nothing visible */
+      if (window.BMMathNames) window.BMMathNames.name(root || document.body);
     } catch (e) {
       /* a CDN miss must not take the prose down */
     }

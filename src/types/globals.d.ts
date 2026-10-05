@@ -68,6 +68,9 @@ interface Window {
   BMReview: typeof import("../ui/review.ts").api;
   /** src/ui/next.ts: the "next best step" card (render, items, hide), a console and test handle */
   BMNext: typeof import("../ui/next.ts").api;
+  /** src/ui/math-names.ts: names the buttons, labels, table headers and headings whose
+      content is a formula (name), for assets/site.js's renderMath; typed */
+  BMMathNames: typeof import("../ui/math-names.ts").api;
   /** src/vendor/katex.js: KaTeX itself, a console handle and what the browser checks look for */
   katex: any;
   /** src/vendor/katex.js: KaTeX's auto-render extension, which renderMath in assets/site.js calls */

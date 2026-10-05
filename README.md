@@ -333,6 +333,11 @@ src/ui/ladder.ts        the help ladder on a card: the button, the clues, focus,
 src/ui/review.ts        puts the review's schedule and XP rules up as window.BMReview, for game.js
                         and arena.js; every entry imports it ahead of game.js
 src/ui/next.ts          the next-step card on the contents page and the chapters (window.BMNext)
+src/a11y/math-text.ts   a formula as one line of text, read off KaTeX's MathML ((7, 5), x ≤ −3,
+                        π/6); no DOM, with its Vitest test over every formula of the course
+src/ui/math-names.ts    gives that line, visually hidden, to each formula inside a button, label,
+                        table header or heading, whose name would otherwise lose it; site.js runs
+                        it after every renderMath (window.BMMathNames). Every entry imports both
 assets/widgets.js       the 32 flat interactive figures and their missions
 assets/three-loader.js  lazy Three.js with fallback (window.BM3D.load, the namespace on BM3D.THREE)
 assets/scenes3d.js      the 3D scene framework: define, display list, camera, SVG painter, input
@@ -942,8 +947,9 @@ npm run test:unit       #   Vitest: the TypeScript modules' tests beside them (s
                         #   of them, nor any message detect() gives for a slip made on a key of
                         #   the course, holds anything that grades as that key); the review
                         #   schedule, a due review's plan (due only, the caps, taking turns), the
-                        #   XP decay, the next best step, and the list of sections the Arena
-                        #   can ask about against its generators
+                        #   XP decay, the next best step, the list of sections the Arena
+                        #   can ask about against its generators, and the line of text every
+                        #   formula of the course is named by
 
 npm run build           # dist/
 npm run check:dist      # dist/ is the source's site, each source page taken with its shell

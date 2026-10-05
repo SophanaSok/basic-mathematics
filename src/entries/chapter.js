@@ -36,6 +36,11 @@ import "../learn/review.ts";
 import "../learn/practice.ts";
 import "../data/arena-sections.ts";
 import "../ui/review.ts";
+/* names for the buttons, labels, table headers and headings whose content is a
+   formula, which site.js gives after every renderMath (window.BMMathNames): the pure
+   module, then the one that puts it up */
+import "../a11y/math-text.ts";
+import "../ui/math-names.ts";
 import "../../assets/site.js";
 import "../../assets/sfx.js";
 import "../../assets/game.js";
