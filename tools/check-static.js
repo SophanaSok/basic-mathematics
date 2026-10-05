@@ -260,13 +260,15 @@ function checkLessonSteps(ctx, r) {
 const SHELL_FILE = path.join(__dirname, "shell.json");
 
 /* one tag as a line of text: its attributes as written, for a <title> its text, and for
-   an inline <script> (the boot script) a fingerprint of its text, so a change to what
-   runs before first paint shows and is accepted like any other */
+   an inline <script> (the boot script) or <style> (the view-transition opt-in) a
+   fingerprint of its text, so a change to what runs or applies before first paint shows
+   and is accepted like any other */
 function tagLine(el, skip) {
   const attrs = Object.keys(el.attrs).filter(k => !skip || !skip.includes(k))
     .map(k => " " + k + (el.attrs[k] === "" ? "" : "='" + el.attrs[k].replace(/'/g, "&#39;") + "'")).join("");
   return "<" + el.name + attrs + ">" + (el.name === "title" ? normText(el.textContent) + "</title>"
-    : el.name === "script" && !el.hasAttribute("src") ? "#" + hash(normText(el.textContent)) + "</script>" : "");
+    : el.name === "script" && !el.hasAttribute("src") ? "#" + hash(normText(el.textContent)) + "</script>"
+    : el.name === "style" ? "#" + hash(normText(el.textContent)) + "</style>" : "");
 }
 /* What a page's shell comes to, read off the whole document:
      head    every tag of <head> in order: the title, the description, each stylesheet

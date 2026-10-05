@@ -469,15 +469,61 @@ function world(seedStores) {
     { sound: true }, { sound: 1 }, { sound: "on" }, { sound: true, calm: true }, { sound: true, calm: 1 },
     { motion: "reduce" }, { motion: true }, { transparency: "reduce" }, { transparency: 1 }, { panel: "dark" }, { panel: "sepia" }, {}
   ].forEach((stored) => {
-    const root = { attrs: {}, setAttribute(n, v) { this.attrs[n] = String(v); }, removeAttribute(n) { delete this.attrs[n]; }, getAttribute(n) { return n in this.attrs ? this.attrs[n] : null; } };
+    const root = { attrs: {}, setAttribute(n, v) { this.attrs[n] = String(v); }, removeAttribute(n) { delete this.attrs[n]; }, getAttribute(n) { return n in this.attrs ? this.attrs[n] : null; }, hasAttribute(n) { return n in this.attrs; } };
     const mem = { "bm.prefs.v1": JSON.stringify(stored) };
-    const page = { document: { documentElement: root }, localStorage: { getItem: (k) => (k in mem ? mem[k] : null) }, matchMedia: () => ({ matches: false }), JSON };
+    const listeners = {};
+    const page = { document: { documentElement: root }, localStorage: { getItem: (k) => (k in mem ? mem[k] : null) }, matchMedia: () => ({ matches: false }), JSON,
+      addEventListener: (type, fn) => { (listeners[type] = listeners[type] || []).push(fn); } };
     page.window = page;
     vm.runInNewContext(boot, page, { filename: shell.BOOT });
     const g = world({ "bm.prefs.v1": stored });
     g.Game.setPref("tempo", g.Game.prefs().tempo);
     eq(stamps(root.attrs), stamps(g.win.document.documentElement.attrs), "the boot script stamps <html> as the game does for a stored " + JSON.stringify(stored));
+    /* and between pages it skips the view transition, on the page left and on the page
+       arriving, exactly when the game holds still: Study mode or Reduce motion */
+    const skips = ["pageswap", "pagereveal"].map((type) => {
+      let skipped = false;
+      (listeners[type] || []).forEach((fn) => fn({ viewTransition: { skipTransition() { skipped = true; } } }));
+      (listeners[type] || []).forEach((fn) => fn({ viewTransition: null }));
+      return skipped;
+    });
+    const still = g.Game.prefs().calm === true || g.Game.prefs().motion === "reduce";
+    eq(skips, [still, still], "the boot script " + (still ? "skips" : "keeps") + " the view transition on both pages for a stored " + JSON.stringify(stored));
   });
+  /* the transition is skipped for what the device asks too, and for Study mode switched on
+     on the page being left after it loaded (game.js stamps html[data-calm] then) */
+  [["the device asks for less motion", true, null], ["Study mode was switched on since the page loaded", false, "data-calm"], ["nothing asks", false, null]].forEach(([why, device, attr]) => {
+    const root = { attrs: {}, setAttribute(n, v) { this.attrs[n] = String(v); }, removeAttribute(n) { delete this.attrs[n]; }, getAttribute(n) { return n in this.attrs ? this.attrs[n] : null; }, hasAttribute(n) { return n in this.attrs; } };
+    const listeners = {};
+    const page = { document: { documentElement: root }, localStorage: { getItem: () => null }, matchMedia: (q) => ({ matches: device && /prefers-reduced-motion:\s*reduce/.test(q) }), JSON,
+      addEventListener: (type, fn) => { (listeners[type] = listeners[type] || []).push(fn); } };
+    page.window = page;
+    vm.runInNewContext(boot, page, { filename: shell.BOOT });
+    if (attr) root.setAttribute(attr, "true");
+    let skipped = false;
+    listeners.pageswap.forEach((fn) => fn({ viewTransition: { skipTransition() { skipped = true; } } }));
+    eq(skipped, device || !!attr, "the page being left " + (device || attr ? "skips" : "keeps") + " its view transition when " + why);
+  });
+  /* the one rejection the boot script quiets: a transition the browser gave up on itself
+     (Chromium reports it uncaught; no script was handed it); any other stays an error */
+  {
+    class DOMException extends Error { constructor(message, name) { super(message); this.name = name; } }
+    const listeners = {};
+    const page = { document: { documentElement: { setAttribute() {}, getAttribute: () => null, hasAttribute: () => false } }, localStorage: { getItem: () => null }, matchMedia: () => ({ matches: false }), JSON, DOMException,
+      addEventListener: (type, fn) => { (listeners[type] = listeners[type] || []).push(fn); } };
+    page.window = page;
+    vm.runInNewContext(boot, page, { filename: shell.BOOT });
+    const quieted = (reason) => { let prevented = false; listeners.unhandledrejection.forEach((fn) => fn({ reason, preventDefault() { prevented = true; } })); return prevented; };
+    eq([
+      quieted(new DOMException("Transition was aborted because of invalid state. Page already revealed", "InvalidStateError")),
+      quieted(new DOMException("Transition was aborted because of invalid state. ViewTransition opt-in disabled", "InvalidStateError")),
+      quieted(new DOMException("Transition was skipped", "AbortError")),
+      quieted(new DOMException("The operation timed out.", "TimeoutError")),
+      quieted(new DOMException("Failed to execute 'x'", "InvalidStateError")),
+      quieted(new Error("Transition was aborted")),
+      quieted(undefined)
+    ], [true, true, true, false, false, false, false], "the boot script quiets only a view transition the browser gave up on");
+  }
 
   /* the game record: an Arena run rewrites a section and a best, and keeps what it does not know */
   w = world({ "bm.game.v1": {

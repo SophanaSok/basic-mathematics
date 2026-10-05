@@ -45,6 +45,19 @@ const BODY_INPUTS = ["data-page", "data-nav"];
    purpose: it is not bundled, and it runs on every page as written. */
 const BOOT = "src/boot.js";
 
+/* The opt-in to cross-document view transitions: the page arriving fades in under a top
+   bar that stays put (assets/game.css, "Between pages", has the rest). It is the one rule
+   written inline, straight after the boot script, and not in a stylesheet, because the
+   browser asks the arriving page whether it opts in before that page's stylesheets are
+   sure to have been applied: with the rule in the bundle's CSS, Chromium 153 turned the
+   transition down ("ViewTransition opt-in disabled", an uncaught error on the new page)
+   in five of six navigations started straight after the old page's load event, and with
+   it inline it ran in eight of eight (tools/suites/transitions.js holds it to running).
+   Reduced motion on the device never opts in; Study mode
+   and Reduce motion are attributes, which no at-rule can read, so the boot script skips
+   the transition for them. */
+const OPT_IN = "@media (prefers-reduced-motion: no-preference) { @view-transition { navigation: auto; } }";
+
 /* The stylesheets every page links before its own, in this order: the fonts and KaTeX's,
    each a file under src/vendor/ that imports the npm package's CSS (the build inlines it
    and writes the font files beside the bundle). They come first so that the site's rules
@@ -304,6 +317,7 @@ function head(info, own) {
       own.title,
       own.description,
       "<script>\n" + bootScript() + "\n</script>",
+      "<style>" + OPT_IN + "</style>",
       '<link rel="icon" href="' + at("assets/favicon.svg") + '" type="image/svg+xml">'
     ])
     .concat(VENDOR_STYLES.concat(PAGE_KINDS[info.kind].styles).map(s => '<link rel="stylesheet" href="' + at(s) + '">'))

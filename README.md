@@ -155,6 +155,10 @@ going well. A short version appears above each chapter's recap.
   (on top of what the device asks for: while the device asks, or Study mode is on for motion, the
   switch shows on and cannot be turned off), the theme (light, dark or match the system), the
   reading panel, graphics quality and the 3D course map. Every setting stays on the device.
+- **Between pages**, in a browser that can (Chrome and Edge 126 and later, Safari 18.2 and
+  later), the next page fades in under a header that stays where it is. Study mode, Reduce motion
+  and a device that asks for less motion turn the fade off, and any other browser simply opens
+  the next page, as every browser did before.
 
 ### Progress, and what is saved
 
@@ -272,7 +276,8 @@ data/quest.js           regions, bosses (the tempting guess of each chapter's pu
 data/gen/*.js           seeded problem generators for the Arena, one file per Part plus core.js
 src/boot.js             the one script that runs before first paint, inlined into every page's
                         <head> by the shell: theme, reading panel, play settings, reduce motion and
-                        transparency, plain ES5, never bundled
+                        transparency, and the skip of the view transition between pages in Study
+                        mode and reduced motion; plain ES5, never bundled
 src/hud/levels.js       the level curve and ranks, and view.js what the HUD shows and how it is drawn:
                         plain ES modules the shell inlines after every top bar (the HUD script, which
                         fills the HUD before first paint and hands them to the page as window.BMHud,
@@ -315,10 +320,11 @@ supabase/README.md      how to switch accounts on
 supabase/migrations/    one file per database change, run on the live project before the merge
 OPERATIONS.md           the runbook: release order, deploys, quotas, secrets, incidents
 tools/                  the checks: static, scenes, generators, game rules, the build, headless browser
-tools/lib/shell.js      the <head> and the top bar of every page: the boot script inline, the vendor
-                        stylesheets, its kind's stylesheets, and the module entry of its kind; the
-                        HUD's slots, the account chip, the sound and menu buttons, the settings
-                        sheet, and the HUD script after the top bar
+tools/lib/shell.js      the <head> and the top bar of every page: the boot script inline, the
+                        view-transition opt-in inline, the vendor stylesheets, its kind's
+                        stylesheets, and the module entry of its kind; the HUD's slots, the
+                        account chip, the sound and menu buttons, the settings sheet, and the
+                        HUD script after the top bar
 tools/lib/vendor.js     which src/vendor/ module brings in each npm package (and its dependencies):
                         how the build names node_modules files and check-dist holds them; and the
                         licence notice the build writes into dist/bundle/LICENSES.txt from them
@@ -382,7 +388,8 @@ the shell writes depends on what `<body>` says:
 (`data-scenes`, which once named a chapter's 3D scenes, is refused: every chapter's bundle
 carries every scene.) What the shell writes into `<head>`, in order: the page's own tags, the
 boot script inline ([`src/boot.js`](src/boot.js), before the stylesheets, so the theme and the reading panel are set
-before the first paint without a request), the icon, the two vendor stylesheets
+before the first paint without a request), the opt-in to view transitions between pages as one
+inline `<style>` (see "Between pages" below for why it is inline), the icon, the two vendor stylesheets
 (`src/vendor/fonts.css`, then `src/vendor/katex.css`: `VENDOR_STYLES` in `tools/lib/shell.js`,
 first so that `site.css`'s rules on `.katex` come after KaTeX's and win), the stylesheets of the
 page's kind (`src/styles/tokens.css` first of them), and one `<script type="module">` for the kind's entry, `src/entries/<kind>.js`. The
@@ -873,6 +880,48 @@ or decoration inside the reading column and the exercise cards unless
 `tools/reading-column-allow.json` lists the rule with its reason. Print has no frame: paper, ink,
 nothing else.
 
+### Between pages
+
+Every navigation is a full page load. Where the browser has cross-document view transitions,
+the page arriving fades in under a top bar that stays put; elsewhere pages load exactly as
+before, since a browser that does not know the at-rule ignores it. Support, from
+[caniuse](https://caniuse.com/cross-document-view-transitions) and
+[MDN](https://developer.mozilla.org/en-US/docs/Web/CSS/@view-transition) in October 2026:
+Chrome and Edge 126 and later, Opera 112 and later, Safari and iOS Safari 18.2 and later, and
+Chrome for Android (caniuse lists only its current version, 154, which has them). Firefox (to 160) has only same-document view transitions, so it does
+not run these; Samsung Internet has none. MDN marks the feature "limited availability", not
+Baseline.
+
+- **The opt-in** is `@view-transition { navigation: auto; }` inside
+  `@media (prefers-reduced-motion: no-preference)`, so a device that asks for less motion never
+  opts in. It is the one inline `<style>` of every page, which `tools/lib/shell.js` (`OPT_IN`)
+  writes straight after the boot script, and not a rule of the bundle's CSS: the browser asks
+  the page arriving whether it opts in before that page's stylesheets are sure to have been
+  applied, and with the rule in `all.css` Chromium 153 turned most navigations made soon after
+  a page loaded down, with an uncaught "ViewTransition opt-in disabled" error on the new page.
+  Inline, it never did.
+- **What moves** is in `assets/game.css` ("Between pages", inside the motion block): the top bar
+  is the one named element (`view-transition-name: hud`), and its pseudo-elements and every
+  group have no animation, so the HUD is the new page's at once and in the same place. The rest
+  of the page is the root's snapshot, the viewport as the reader sees it, so a page left half-way
+  down fades out where it was and nothing slides or stretches: the old page goes in `--dur-state`
+  eased by `--ease-in`, the new one comes in `--dur-reveal` eased by `--ease-out`, over the old
+  with plain alpha and the frame colour behind both. A transition is over about 250ms after the
+  new page shows.
+- **Study mode and Reduce motion** are attributes on `<html>`, which an at-rule cannot read, so
+  the boot script (`src/boot.js`) skips the transition itself: on `pageswap` for the page being
+  left (Study mode may have been switched on there since it loaded) and on `pagereveal` for the
+  page arriving, which it listens for before that page's first frame.
+- **Nothing waits for it.** No page holds its first paint back for a transition (no
+  `blocking="render"`), so the old page shows for as long as it would have anyway: the old page
+  stays live while the next one is fetched, and its snapshot is taken only when the new page
+  commits. A navigation that takes longer than the browser's timeout, four seconds in Chrome
+  ([Chrome's guide](https://developer.chrome.com/docs/web-platform/view-transitions/cross-document)),
+  is shown with no transition. Chromium then reports the rejection of a transition no script was
+  handed as an uncaught error; the boot script quiets that one rejection and no other.
+
+The `transitions` browser suite holds all of this in Chromium (`tools/README.md`).
+
 ### Checking your changes
 
 `tools/` holds the checks, and `package.json` names them. `npm ci` installs what they need;
@@ -914,8 +963,9 @@ npm run check:browser   # dist/ served: every page × theme × width (errors, th
                         # state from the last release, reduced motion, the frame and the reading panel
                         # (both themes, both panels, contrast, print), the HUD (no shift when the
                         # bundle loads) and the settings sheet (mouse, keys, focus, each setting
-                        # kept and in effect, axe), WebGL and its fallbacks,
-                        # axe. About 8 minutes, and nothing in it needs the network
+                        # kept and in effect, axe), the view transition between pages (the
+                        # HUD still; skipped in Study mode and reduced motion), WebGL and its
+                        # fallbacks, axe. About 8 minutes, and nothing in it needs the network
 
 npm run check:all       # all of the above, in that order
 ```

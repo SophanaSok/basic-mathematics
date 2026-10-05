@@ -221,6 +221,19 @@ minutes both mixes can happen, and neither loses anything a reader saved:
   passes through untouched (R0's carry-through), and the boot script, which is in the page,
   stamps them.
 
+### Cached HTML after the view-transitions deploy
+
+The deploy that brought the fade between pages (README, "Between pages") renamed no file: the
+opt-in is inline in every page's `<head>` and the rest is in `game.css`, inside
+`bundle/all.css`. A transition needs both pages to opt in, so for the ten minutes a page from
+before the deploy never has one, coming or going. A page from after it with an `all.css` from
+before it opts in but has none of `game.css`'s rules for it, so the browser's own cross-fade of
+the whole page runs (about a quarter of a second, the header fading with the rest); its boot
+script is the new one, so Study mode and Reduce motion still skip it, and reduced motion on the
+device never opts in. Nothing is stored for it and nothing can break. To take the fade off
+everywhere, remove `OPT_IN` from `tools/lib/shell.js`'s head and deploy; every page then
+navigates as before.
+
 ### The Pages source: GitHub Actions, set before the page-shell change is merged
 
 The Pages source is a repository setting and not a file, so it is set by hand:

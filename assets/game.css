@@ -817,6 +817,30 @@ html[data-motion="reduce"] *, html[data-motion="reduce"] *::before, html[data-mo
   html:not([data-calm]):not([data-motion="reduce"]) .toast { animation: toast-in 280ms var(--ease-out) both; }
   html:not([data-calm]):not([data-motion="reduce"]) .toast[data-out] { animation: toast-out 280ms ease-in both; }
 
+  /* Between pages. Every navigation is a full page load; where the browser has
+     cross-document view transitions (README, "Between pages"), every page opts in (the
+     inline <style> tools/lib/shell.js writes after the boot script, under this same
+     media rule) and the new page fades in under a top bar that does not move. Only the
+     top bar is named: everything else is the root's snapshot, which is the viewport as
+     the reader sees it, so a page left half-way down fades out where it was and nothing
+     slides or stretches. The old page goes in --dur-state, eased in; the new one comes
+     in --dur-reveal, eased out, laid over the old with plain alpha (the default
+     plus-lighter would brighten the frame wherever two fades of different lengths do
+     not sum to one), with the frame colour behind both. No group moves, and the top bar
+     is the new page's at once. Study mode and Reduce motion skip the transition from the
+     boot script (src/boot.js: pageswap, pagereveal), since an at-rule cannot read
+     html[data-calm]. A navigation that takes more than four seconds skips the
+     transition (Chrome's timeout), and the new page shows as it would have without one;
+     nothing here holds the first paint back (no render-blocking), so a transition never
+     makes a navigation wait. */
+  .topbar { view-transition-name: hud; }
+  ::view-transition { background-color: var(--frame-bg); }
+  ::view-transition-group(*) { animation: none; }
+  ::view-transition-old(hud) { animation: none; opacity: 0; }
+  ::view-transition-new(hud) { animation: none; }
+  ::view-transition-old(root) { animation: fade-out var(--dur-state) var(--ease-in) both; mix-blend-mode: normal; }
+  ::view-transition-new(root) { animation: fade var(--dur-reveal) var(--ease-out) both; mix-blend-mode: normal; }
+
   /* how far it swells is the size of the event: --mag-s for an answer unless the rule
      says more (tokens.css, magnitude) */
   @keyframes pop { 0% { transform: scale(1); } 45% { transform: scale(var(--mag, var(--mag-s))); } 100% { transform: scale(1); } }
@@ -826,6 +850,7 @@ html[data-motion="reduce"] *, html[data-motion="reduce"] *::before, html[data-mo
   }
   @keyframes reveal { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
   @keyframes fade { from { opacity: 0; } to { opacity: 1; } }
+  @keyframes fade-out { to { opacity: 0; } }
   @keyframes tick-draw { to { stroke-dashoffset: 0; } }
   @keyframes rise { from { opacity: 0; transform: translateY(18px); } to { opacity: 1; transform: none; } }
   @keyframes stamp { 0% { opacity: 0; transform: scale(1.5) rotate(-8deg); } 100% { opacity: 1; transform: scale(1) rotate(-3deg); } }
