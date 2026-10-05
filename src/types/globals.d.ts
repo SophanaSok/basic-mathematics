@@ -71,6 +71,9 @@ interface Window {
   /** src/ui/math-names.ts: names the buttons, labels, table headers and headings whose
       content is a formula (name), for assets/site.js's renderMath; typed */
   BMMathNames: typeof import("../ui/math-names.ts").api;
+  /** src/ui/scroll-regions.ts: makes a formula or table that scrolls sideways a named tab
+      stop while it overflows (watch), for assets/site.js's renderMath; typed */
+  BMScrollRegions: typeof import("../ui/scroll-regions.ts").api;
   /** src/vendor/katex.js: KaTeX itself, a console handle and what the browser checks look for */
   katex: any;
   /** src/vendor/katex.js: KaTeX's auto-render extension, which renderMath in assets/site.js calls */

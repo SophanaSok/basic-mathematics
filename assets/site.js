@@ -310,6 +310,10 @@
       /* a formula gives the button, label, table header or heading it sits in no name
          (src/ui/math-names.ts says why); this gives it one, and changes nothing visible */
       if (window.BMMathNames) window.BMMathNames.name(root || document.body);
+      /* a display formula wider than the column scrolls, and a keyboard cannot scroll it
+         unless it takes focus (src/ui/scroll-regions.ts); this makes it a tab stop while
+         it is wider, and only then */
+      if (window.BMScrollRegions) window.BMScrollRegions.watch(root || document.body);
     } catch (e) {
       /* a CDN miss must not take the prose down */
     }

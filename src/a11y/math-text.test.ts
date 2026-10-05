@@ -52,6 +52,16 @@ describe("mathText", () => {
     expect(say("(3,-3)")).toBe("(3, −3)");
     expect(say("-\\tfrac12")).toBe("−1/2");
     expect(say("\\tfrac12")).toBe("1/2");
+  });
+
+  it("puts no space inside any bracket, square, curly or angled as well as round", () => {
+    /* chapter 3's choices: a signed number after "[" was named "[ −5, 5]" */
+    expect(say("[-5, 5]")).toBe("[−5, 5]");
+    expect(say("[-3, 7]")).toBe("[−3, 7]");
+    expect(say("\\text{Everything outside } [-3, 7]")).toBe("Everything outside [−3, 7]");
+    expect(say("(-3, 7]")).toBe("(−3, 7]");
+    expect(say("\\{-1, 1\\}")).toBe("{−1, 1}");
+    expect(say("\\langle -1, 2 \\rangle")).toBe("⟨−1, 2⟩");
     expect(say("\\tfrac52")).toBe("5/2");
     expect(say("5")).toBe("5");
   });

@@ -239,7 +239,7 @@ function scripts(name: string, c: MathNode[], n: MathNode): string {
 
 /** The line for one formula: `math` is KaTeX's <math> element (or anything under it). */
 export function mathText(math: MathNode): string {
-  return tidy(lin(math)).replace(/\(\s+/g, "(").replace(/\s+\)/g, ")");
+  return tidy(lin(math)).replace(/([([{⟨])\s+/g, "$1").replace(/\s+([)\]}⟩])/g, "$1");
 }
 
 /** The TeX a <math> element was typeset from, from its annotation, or "" */

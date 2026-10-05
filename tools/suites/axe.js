@@ -1,7 +1,7 @@
 "use strict";
-/* axe-core on every page × theme at 1280 (whole-page mode on chapters). A violation of a
-   rule in STRICT_RULES fails the run; any other is a warning (counted by rule), and
-   --strict-axe makes those fail too. Every violating node, with its markup and axe's
+/* axe-core on every page × theme × width, 1280 and 360 (--vw narrows it; whole-page mode on
+   chapters). A violation of a rule in STRICT_RULES fails the run; any other is a warning
+   (counted by rule), and --strict-axe makes those fail too. Every violating node, with its markup and axe's
    reason, goes to .cache/check/axe.json. Skipped when axe-core does not resolve next to
    Playwright (it is a dev dependency, so after `npm ci` it does). */
 
@@ -15,13 +15,18 @@ const path = require("path");
      empty-table-header      a table header that is a formula was empty to assistive
                              technology (the same)
      heading-order           a worked example's heading was an h4 under a section's h2
-                             (it is an h3 now, styled as before) */
-const STRICT_RULES = ["button-name", "label", "empty-table-header", "heading-order"];
+                             (it is an h3 now, styled as before)
+     scrollable-region-focusable
+                             at 360px a display formula or a table wider than the column
+                             scrolled, and a keyboard could not reach what was past its edge
+                             (src/ui/scroll-regions.ts makes it a named tab stop while it
+                             overflows); seen only at 360, which is why the suite runs both */
+const STRICT_RULES = ["button-name", "label", "empty-table-header", "heading-order", "scrollable-region-focusable"];
 
 module.exports = {
   name: "axe",
   order: 70,
-  description: "axe-core accessibility violations per page × theme (FAIL for " + STRICT_RULES.join(", ") + "; WARN for the rest unless --strict-axe)",
+  description: "axe-core accessibility violations per page × theme × width (FAIL for " + STRICT_RULES.join(", ") + "; WARN for the rest unless --strict-axe)",
   STRICT_RULES,
   async run(ctx) {
     const { h, report } = ctx;
@@ -32,8 +37,9 @@ module.exports = {
     const every = [];
     let pagesRun = 0;
     for (const rel of ctx.pages) {
-      for (const theme of ctx.themes) {
-        const { page, close } = await h.newPage({ theme, vw: 1280 });
+      for (const theme of ctx.themes) for (const vw of ctx.vws) {
+        const label = rel + " [" + theme + " " + vw + "]";
+        const { page, close } = await h.newPage({ theme, vw });
         try {
           await h.open(page, rel);
           if (ctx.chapterOf(rel)) await h.wholePage(page);
@@ -44,14 +50,13 @@ module.exports = {
               all: v.nodes.map(n => ({ target: n.target.join(" "), html: n.html, why: n.failureSummary })) }));
           });
           pagesRun++;
-          const label = rel + " [" + theme + "]";
-          res.forEach(v => v.all.forEach(n => every.push({ page: rel, theme, rule: v.id, impact: v.impact, target: n.target, html: n.html, why: n.why })));
+          res.forEach(v => v.all.forEach(n => every.push({ page: rel, theme, vw, rule: v.id, impact: v.impact, target: n.target, html: n.html, why: n.why })));
           if (!res.length) report.pass(label, "no violations");
           else {
             res.forEach(v => { byRule[v.id] = byRule[v.id] || { count: 0, impact: v.impact, help: v.help, where: [] }; byRule[v.id].count += v.nodes; if (byRule[v.id].where.length < 3) byRule[v.id].where.push(label + " " + v.sample.join(" , ")); });
             report[res.some(v => fails(v.id)) ? "fail" : "warn"](label, res.map(v => v.id + (fails(v.id) ? "" : " [warning]") + " (" + v.impact + ", " + v.nodes + " nodes): " + v.help + " — e.g. " + v.sample.join(" , ")).join("\n"));
           }
-        } catch (e) { report.fail(rel + " [" + theme + "]", "axe driver error: " + (e && e.message || e)); }
+        } catch (e) { report.fail(label, "axe driver error: " + (e && e.message || e)); }
         finally { await close(); }
       }
     }

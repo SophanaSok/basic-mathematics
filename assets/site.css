@@ -840,6 +840,10 @@ footer.site p { margin: 0 0 .5em; max-width: 62ch; }
    chapter 11's table Θ and Π, other symbols, on screen and in the header's name */
 .katex { font-size: 1em; text-transform: none; }
 .katex-display { overflow-x: auto; overflow-y: hidden; padding: .25em 0; }
+/* a formula or table wider than the column is a tab stop while it is (src/ui/scroll-regions.ts
+   sets data-scrolls), so the arrow keys scroll it; its ring sits just inside the box, where
+   neither the box's own overflow nor a card's overflow: hidden clips it */
+[data-scrolls]:focus-visible { outline-offset: -3px; }
 
 /* ------------------------------------------------------ the four Parts ---- */
 /* Each Part carries its own hue, so the four read as four places. --part is set

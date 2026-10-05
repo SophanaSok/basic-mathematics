@@ -16,6 +16,8 @@ import "../ui/review.ts";
    module, then the one that puts it up */
 import "../a11y/math-text.ts";
 import "../ui/math-names.ts";
+/* a formula or table that scrolls sideways becomes a tab stop while it does */
+import "../ui/scroll-regions.ts";
 import "../../assets/site.js";
 import "../../assets/sfx.js";
 import "../../assets/game.js";

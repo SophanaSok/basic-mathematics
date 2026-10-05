@@ -240,10 +240,11 @@ every screenshot and all results — open it in a browser), and `pages/*.png`.
 | `restore` | seeds `bm.progress.v1` with every scored key of the chapter **at `--base`** and loads the working-tree page: each card's engine key must equal the static rule's key for its position, each restored card's question must fingerprint the same as at base, and lesson mode must open every step for a reader with solved work |
 | `upgrade` | a returning reader's whole saved state survives. `fixtures/state-v1.json` (every store, as the last release before the build step writes them) is put into localStorage once, on the served origin, before any page loads; then the home page, the progress page, a cleared chapter and a part-done one are opened in the same profile. After each, the fixture must be **contained** in what is in storage: every key still there with the same value. Not equal, because the site writes on load: objects and lists may have gained entries (backfilled achievements, banked medals, the run store), the counts a page re-derives each visit (`total`, `reached`) may have grown, and `bm.last` names the chapter once one has been opened. The pages must show it too: the saved theme against the system's, Continue on the home page, medals and XP on the progress page, every solved card solved and no other. The last line lists what loading added |
 | `motion` | under `prefers-reduced-motion: reduce` no animation is running at load, after a wrong answer, or after a right one |
-| `axe` | axe-core on every page × theme at 1280 (whole-page mode on chapters), with `color-contrast` on. A violation of one of the rules in `STRICT_RULES` (`suites/axe.js`) **fails** the run whatever the flags: `button-name`, `label`, `empty-table-header` and `heading-order`, the four the site had violations of and fixed where they came from (below), so none of them can come back. Any other rule's violation is a warning counted by rule, and a failure with `--strict-axe`. Every violating node (page, theme, rule, selector, its markup and axe's reason) is written to `.cache/check/axe.json`, where the report shows two per rule. Skipped when axe-core does not resolve |
+| `axe` | axe-core on every page × theme × width, 1280 and 360 (`--vw` picks one; whole-page mode on chapters), with `color-contrast` on. A violation of one of the rules in `STRICT_RULES` (`suites/axe.js`) **fails** the run whatever the flags: `button-name`, `label`, `empty-table-header`, `heading-order` and `scrollable-region-focusable`, the five the site had violations of and fixed where they came from (below), so none of them can come back. Any other rule's violation is a warning counted by rule, and a failure with `--strict-axe`. Every violating node (page, theme, width, rule, selector, its markup and axe's reason) is written to `.cache/check/axe.json`, where the report shows two per rule. Skipped when axe-core does not resolve |
 
-The four strict rules, and where each was fixed. The run before the fix warned on 35 page loads
-(every chapter in both themes), 153 nodes per theme: `label` 81 (the radio buttons of 22 choice
+The five strict rules, and where each was fixed. The first four were found at 1280, where the
+suite then ran alone: the run before the fix warned on 34 page loads (every chapter in both
+themes) and in its by-rule summary, 153 nodes per theme: `label` 81 (the radio buttons of 22 choice
 exercises whose options are formulas), `heading-order` 57 (the first worked example under each
 section, an `h4` straight after the section's `h2`), `button-name` 8 (the opening puzzle's guess
 chips of chapters 9, 11 and 16 that are formulas) and `empty-table-header` 7 (the header row of
@@ -261,6 +262,16 @@ chapter 11's table of values, all formulas).
 - `heading-order`: a `.worked` block's heading is an `h3`, one level below its section's `h2`, and
   `.worked > h3` in `site.css` sets every property `h3` sets, so it looks as the `h4` did (three
   chapters' full-page screenshots, before and after, differ in no pixel of a worked example).
+- `scrollable-region-focusable`, found once the suite ran at 360 as well (39 boxes per theme on
+  13 chapters, none at 1280): a display formula (`.katex-display`) or a table's wrapper
+  (`.tbl-wrap`: chapter 11's table of values, the interlude's truth tables) wider than a phone's
+  column scrolls sideways, and a keyboard could not reach what was past its edge, since nothing
+  in it takes focus. `src/ui/scroll-regions.ts`, run by `renderMath` after the names above and
+  once on load, makes such a box a tab stop (`tabindex="0"`, where the arrow keys scroll it) and a
+  group named "Formula, scrolls sideways" or "Table, scrolls sideways", only while it overflows:
+  a `ResizeObserver` on each box puts it right when the width changes or a hidden lesson step
+  opens, so at 1280 no box is a tab stop. What it sets is marked `data-scrolls`, whose focus ring
+  `site.css` draws just inside the box.
 
 Not an axe finding but found on the way: `thead th`, `.tag` and `.ex-solution .answer` are
 uppercase labels, and a formula inside one was uppercased with them, on screen and in its name:
@@ -365,7 +376,8 @@ shell wrote the right head, because the build and the check expand alike; that i
 - Firefox and WebKit/Safari (Chromium only: it is the one browser `npx playwright install chromium` downloads).
 - Real devices and touch: the 360px cell is a resized Chromium, not a phone.
 - Screen readers and focus order beyond what axe-core can see statically. axe runs on each page as
-  it loads, with clean storage: a clue opened, a verdict, a boss result or a solved card is not
+  it loads (then in whole-page mode on a chapter), with clean storage, at 1280 and 360 only: a clue
+  opened, a verdict, a boss result, a solved card, an Arena question or a width in between is not
   in what it sees.
 - Answers given on a figure (`data-type="figure"`): the sweep counts and skips them.
 - Visual regression against the base commit: screenshots are taken for eyes, not diffed.

@@ -338,6 +338,9 @@ src/a11y/math-text.ts   a formula as one line of text, read off KaTeX's MathML (
 src/ui/math-names.ts    gives that line, visually hidden, to each formula inside a button, label,
                         table header or heading, whose name would otherwise lose it; site.js runs
                         it after every renderMath (window.BMMathNames). Every entry imports both
+src/ui/scroll-regions.ts  makes a display formula or table wider than the column a named tab
+                        stop while it is wider, so the keyboard can scroll it; site.js runs it
+                        after renderMath too (window.BMScrollRegions). Every entry imports it
 assets/widgets.js       the 32 flat interactive figures and their missions
 assets/three-loader.js  lazy Three.js with fallback (window.BM3D.load, the namespace on BM3D.THREE)
 assets/scenes3d.js      the 3D scene framework: define, display list, camera, SVG painter, input
@@ -976,8 +979,9 @@ npm run check:browser   # dist/ served: every page × theme × width (errors, th
                         # Three.js fetched only where there is 3D, overflow, lesson mode),
                         # figures, every exercise typed back, restore of old progress, saved
                         # state from the last release, reduced motion, WebGL and its fallbacks,
-                        # axe (button and form names, table headers and heading order fail;
-                        # other rules warn). About 8 minutes, and nothing in it needs the network
+                        # axe at both widths (button and form names, table headers, heading
+                        # order and scroll boxes a keyboard cannot reach fail; other rules
+                        # warn). About 10 minutes, and nothing in it needs the network
 
 npm run check:all       # all of the above, in that order
 ```
