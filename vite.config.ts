@@ -69,10 +69,12 @@ function htmlPages(): Record<string, string> {
    chunk is bundle/pages/<page>.js. A module imported on demand, which no entry imports,
    is a chunk under its own name: the WebGL painter (scenes3d.js's dynamic import) is
    bundle/scenes3d-gl.js, supabase-js (account.js's, through src/vendor/supabase.js) is
-   bundle/supabase.js. A file from node_modules/ goes where the vendor module that
+   bundle/supabase.js, Three.js (three-loader.js's, through src/vendor/three.js) is
+   bundle/three.js. A file from node_modules/ goes where the vendor module that
    brings it in goes (tools/lib/vendor.js: KaTeX's scripts with src/vendor/katex.js,
    which every entry imports, so all.js; supabase-js and its dependencies into
-   bundle/supabase.js). The vendor stylesheets every page links (src/vendor/fonts.css and
+   bundle/supabase.js; three's two build files into bundle/three.js, shaken down to
+   the names src/vendor/three.js exports). The vendor stylesheets every page links (src/vendor/fonts.css and
    katex.css, VENDOR_STYLES) are every kind's, so they open all.css, before site.css; the
    packages' CSS they import is inlined into them before rolldown sees a module, and the
    font files it names are emitted beside the bundle. Vite's own helpers (the modulepreload
@@ -220,6 +222,12 @@ export default defineConfig({
   /* a site of separate pages: an unknown path is a 404, not index.html */
   appType: "mpa",
   plugins: [shell(), stylesheetOrder(), plainStylesheetLinks(), licenses()],
+  resolve: {
+    /* one copy of Three.js, whatever imports it: a second copy (from a package that
+       depended on its own) would be a second chunk and a second set of classes, and
+       an object of one is not `instanceof` the other */
+    dedupe: ["three"]
+  },
   build: {
     outDir: "dist",
     emptyOutDir: true,
@@ -241,6 +249,11 @@ export default defineConfig({
        undo by putting every one into the stylesheet every page downloads; and
        check-dist.js `links` resolves each url() in the built CSS to a file. */
     assetsInlineLimit: 0,
+    /* bundle/three.js is over Vite's 500 kB line (the renderer is most of the library,
+       and it is minified, 570 kB, 144 kB over the wire) and is fetched only when a 3D
+       scene or the course map nears the screen, which is what the warning would ask
+       for; the line is raised past it so a build prints nothing it does not mean */
+    chunkSizeWarningLimit: 600,
     rolldownOptions: {
       input: htmlPages(),
       output: {

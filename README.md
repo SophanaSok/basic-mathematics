@@ -12,11 +12,11 @@ help the mathematics stick.
 **Read it here: [sophanasok.github.io/basic-mathematics](https://sophanasok.github.io/basic-mathematics/)**
 
 It is hand-written HTML, CSS, and plain JavaScript files, published through a small build
-([Vite](https://vite.dev)) that writes each page's head and bundles its scripts, its fonts and
-KaTeX with them. Only Three.js, and only where a 3D scene is on screen, comes from a CDN, and the
-site works without it. Accounts are optional and off by default: with
+([Vite](https://vite.dev)) that writes each page's head and bundles its scripts, its fonts,
+KaTeX and Three.js with them (the 3D library is fetched only where a 3D scene or the course map
+is on screen, and the site works without it). Accounts are optional and off by default: with
 [`assets/config.js`](assets/config.js) left empty the site talks to nobody, and a signed-out
-reader's browser contacts no third party at all but, for that 3D library, its CDN.
+reader's browser contacts no third party at all.
 
 ---
 
@@ -157,8 +157,8 @@ Everything is remembered in **your browser**, in local storage — including ach
 and Arena records. Without an account nothing is sent
 anywhere, so progress will not follow you to another browser or device, and clearing site data
 clears it. There is a deliberate reset button on the about page. The pages themselves fetch
-nothing from anyone but this site (the fonts and the maths typesetting are served with it),
-except the 3D library from its CDN on pages with a 3D scene.
+nothing from anyone but this site (the fonts, the maths typesetting and the 3D library are
+served with it).
 
 Where the site has accounts switched on, signing in is optional and adds one thing: your progress
 is copied to the course's database and follows you between devices. Each answer check by a
@@ -230,17 +230,20 @@ under `dist/bundle/`), and
 [supabase-js](https://github.com/supabase/supabase-js) for accounts (`@supabase/supabase-js`,
 re-exported by `src/vendor/supabase.js`, which `assets/account.js` imports on demand, so it is a
 chunk of its own, `bundle/supabase.js`, that a signed-out reader on an ordinary page never
-downloads). So no stylesheet, script or font of a page comes from another server
-(`npm run check:dist`, `offline`), and the browser checks fail any page that asks one for
-anything. The one exception, for now, is [Three.js](https://threejs.org) 0.160.1 (the last release
-with a classic build, pinned with an integrity hash), fetched from a CDN by
-`assets/three-loader.js` only when a 3D scene or the course map nears the screen; if that CDN is
-unreachable every 3D picture is drawn flat with the same controls. The next release moves it into
-the bundle too.
+downloads), and [Three.js](https://threejs.org) for the 3D scenes and the course map (`three`,
+at its current release; `src/vendor/three.js` re-exports, by name, exactly the classes and
+constants `assets/map3d.js` and `assets/scenes3d-gl.js` use, so the rest of the library is
+shaken out; `assets/three-loader.js` imports that file on demand, only when a 3D scene or the
+course map nears the screen, so it is a chunk of its own, `bundle/three.js`, that a page with
+neither never downloads, and the namespace it loads is `BM3D.THREE`; if the chunk cannot be
+fetched, or the browser has no WebGL 2, which the library requires, every 3D picture is drawn
+flat with the same controls). So no stylesheet, script or font of a page comes from another
+server (`npm run check:dist`, `offline`), and the browser checks fail any page that asks one for
+anything.
 
 **Third-party licences.** What the bundle holds that is not the site's own is published under its
-package's licence: KaTeX and supabase-js (and what supabase-js depends on) under MIT, `tslib`
-under 0BSD, the three typefaces and the KaTeX fonts under the SIL Open Font License 1.1. The
+package's licence: KaTeX, supabase-js (and what supabase-js depends on) and Three.js under MIT,
+`tslib` under 0BSD, the three typefaces and the KaTeX fonts under the SIL Open Font License 1.1. The
 build writes `dist/bundle/LICENSES.txt` beside the bundle, one section per installed package with
 the licence file it ships (`tools/lib/vendor.js` `licenseNotice()`; the Open Font License asks
 that copies of the fonts carry their copyright notice and the licence text, which the fontsource
@@ -270,13 +273,14 @@ src/vendor/fonts.css    Inter, Newsreader and Bricolage Grotesque from the fonts
                         faces the Google Fonts link had, written by tools/gen-fonts.js; linked on
                         every page before katex.css
 src/vendor/supabase.js  supabase-js from npm, imported on demand by assets/account.js: bundle/supabase.js
+src/vendor/three.js     Three.js from npm, the names the site uses, imported on demand by assets/three-loader.js: bundle/three.js
 assets/site.css         tokens (both themes, four regions), base, prose, cards, figures, print
 assets/game.css         HUD, region banner, encounters, card states, toasts, settings, all motion
 assets/scenes3d.css     3D scene stages
 assets/map3d.css        the course map; arena.css the Arena
 assets/site.js          navigation, theme, stores, exercise grading, XP, widget mounting
 assets/widgets.js       the 32 flat interactive figures and their missions
-assets/three-loader.js  lazy, pinned Three.js with fallback (window.BM3D.load)
+assets/three-loader.js  lazy Three.js with fallback (window.BM3D.load, the namespace on BM3D.THREE)
 assets/scenes3d.js      the 3D scene framework: define, display list, camera, SVG painter, input
 assets/scenes3d-gl.js   the WebGL painter, imported on demand (import()) when a scene nears the screen
 assets/scenes/*.js      one file per 3D scene; every chapter's bundle carries all of them
@@ -380,7 +384,7 @@ so `window.renderMathInElement` is there when `site.js` runs, as it was when KaT
 tags came before the module script. The `pages` suite of `check-browser.js` holds that in a real
 browser (a formula rendered on every page that has one), with the theme on `<html>` before the
 first frame, `window.BMSite`, `BMGame` and `BMStore` present on every page, and no request to any
-server but the site's own and Three.js's CDN.
+server but the site's own.
 
 The same function runs in two places, so they cannot disagree: the build and `npm run dev`
 (`vite.config.ts`), and every check that reads a page (`tools/lib/site.js`). A page with
@@ -564,7 +568,8 @@ of `assets/scenes3d.js` is the reference. In outline, a scene keeps a plain stat
 `draw(g, s, api)` describes the picture to a display list in world coordinates (z up) on each
 change. Two painters draw that list:
 - an SVG projector draws at once, and is also the fallback and the print version;
-- a WebGL painter takes over when Three.js arrives.
+- a WebGL painter takes over when Three.js arrives (`BM3D.load()`, which fetches
+  `bundle/three.js` and needs WebGL 2).
 
 One WebGL context serves every scene on the page. Rendering happens only on change.
 
@@ -586,7 +591,10 @@ before `site.js`, which mounts every figure as it runs. A new scene file is adde
 scene that is mounted but not defined there reads "Interactive figure … is not available", and
 the `widgets` suite of `check-browser.js` fails. The WebGL painter, `assets/scenes3d-gl.js`, is
 not in the bundle a page loads: `scenes3d.js` imports it with `import()` when a stage nears the
-screen and Three.js has arrived, and the build makes it a chunk of its own.
+screen and Three.js has arrived, and the build makes it a chunk of its own, as it does Three.js
+itself (`src/vendor/three.js`, which `three-loader.js` imports the same way). A Three.js name
+the painter or the map starts to use is added to `src/vendor/three.js` (the `lib/vendor.js` test
+in `tools/checks.test.js` holds that file's exports to exactly the names those two files use).
 
 ### The game layer
 
@@ -807,19 +815,20 @@ npm run check:dist      # dist/ is the source's site, each source page taken wit
                         # written: same pages and nothing extra, links and font urls resolve
                         # inside it, <main> and the page around it untouched, the boot script
                         # inline and one module entry whose bundle is its kind's imports (KaTeX
-                        # by its vendor module), supabase-js a chunk of its own that no page
-                        # names, no copy of a source script, nothing from another server, CSS
-                        # text and cascade the source's with the vendor CSS ahead, no secrets
+                        # by its vendor module), supabase-js and Three.js each a chunk of its
+                        # own that no page names, no copy of a source script, nothing from
+                        # another server, CSS text and cascade the source's with the vendor CSS
+                        # ahead, no secrets
 
 npm run test:browser    # the game, the Arena, the account page (and that a signed-out page
                         # never fetches the supabase chunk), the 3D stages, the new 3D exercises
                         # and the course map, each driven in headless Chromium
 npm run check:browser   # dist/ served: every page × theme × width (errors, theme before first
-                        # paint, scripts ran, KaTeX rendered, no third-party request but
-                        # Three.js's, overflow, lesson mode), figures, every exercise typed back,
-                        # restore of old progress, saved state from the last release, reduced
-                        # motion, WebGL and its fallbacks, axe. About 8 minutes. The one CDN
-                        # (Three.js) being down or stalling costs warnings, not a failure
+                        # paint, scripts ran, KaTeX rendered, no request to any other server,
+                        # Three.js fetched only where there is 3D, overflow, lesson mode),
+                        # figures, every exercise typed back, restore of old progress, saved
+                        # state from the last release, reduced motion, WebGL and its fallbacks,
+                        # axe. About 8 minutes, and nothing in it needs the network
 
 npm run check:all       # all of the above, in that order
 ```

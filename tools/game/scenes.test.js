@@ -2,9 +2,10 @@
 /* Headless Chromium checks of the 3D scene stages (assets/scenes3d.js), on the built site as
    lib/target.js serves it (dist/, which must be current):
      node tools/game/scenes.test.js
-   Every request off that server is aborted, so Three.js never arrives and the stages
-   run on the SVG painter; input and colours are the same for both painters (the GL one
-   draws the same primitives).
+   Every request off that server is aborted, and so is the one for bundle/three.js (the
+   loader's dynamic import), so Three.js never arrives and the stages run on the SVG
+   painter; input and colours are the same for both painters (the GL one draws the same
+   primitives, and runs under the widgets and pages suites of check-browser.js).
 
    1. the Reset view button inside a stage works from the keyboard: Enter and Space press
       it rather than cycling the stage's selection; modified arrows are left to the browser
@@ -48,7 +49,7 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 async function open(browser, opts) {
   opts = opts || {};
   const context = await browser.newContext(Object.assign({ viewport: { width: 1280, height: 900 }, deviceScaleFactor: 1 }, opts.context || {}));
-  await context.route(/^(https?|wss?):/, (r) => server.owns(r.request().url()) ? r.continue() : r.abort());
+  await context.route(/^(https?|wss?):/, (r) => server.owns(r.request().url()) && !/\/bundle\/three\.js(?:[?#]|$)/.test(r.request().url()) ? r.continue() : r.abort());
   await context.addInitScript((theme) => {
     try {
       localStorage.setItem("bm.lesson.v1", '{"mode":"page"}');

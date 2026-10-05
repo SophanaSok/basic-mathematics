@@ -171,6 +171,19 @@ the theme is right) until the files are fetched again: the accepted case describ
 nothing more. No copies are kept for it, and a page from before the deploy that does load runs
 KaTeX twice, once from its CDN tags and once from the bundle, to the same result.
 
+### Cached HTML after the Three.js deploy
+
+The deploy that moved Three.js from its CDN into the bundle (the last of the npm dependencies)
+changed no chunk's name: `assets/three-loader.js` is still in `bundle/home-chapter.js`, and now
+imports a new chunk, `bundle/three.js`, on demand, which only that import fetches. A page a
+browser holds from before the deploy runs the old loader, which fetches the pinned 0.160.1
+build from its CDN as it did, and never asks for `bundle/three.js`; a page from after it, on a
+cached `home-chapter.js` from before, does the same. Either way the 3D pictures draw, and the
+site makes no request of its own to a CDN once every page has expired (ten minutes). Nothing
+is kept for it. One thing to know when reading the loader's reasons: `BM3D.why` still says
+`cdn` when the chunk could not be fetched or run, since the checks and the map read that
+string; it no longer means a CDN.
+
 ### The Pages source: GitHub Actions, set before the page-shell change is merged
 
 The Pages source is a repository setting and not a file, so it is set by hand:

@@ -12,7 +12,9 @@ interface Window {
   BM_QUEST: any;
   /** assets/config.js: Supabase URL and anon key, sign-in providers, kill switches */
   BM_CONFIG: any;
-  /** assets/three-loader.js (load, why, supported, lowEnd) and assets/scenes3d.js (define, stages, painters) */
+  /** assets/three-loader.js (load, why, supported, lowEnd, and THREE: the namespace of
+      src/vendor/three.js once load() has said true, null before; nothing is on
+      window.THREE) and assets/scenes3d.js (define, stages, painters) */
   BM3D: any;
   /** assets/site.js: the page, grading, refresh */
   BMSite: any;

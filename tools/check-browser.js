@@ -43,8 +43,9 @@
      h                      helpers from lib/browser.js: newPage, newContext, open, settle,
                             wholePage, screenshot, noWebGL, blockUrl. Open every context
                             through newPage or newContext, never ctx.browser.newContext:
-                            they answer the pages' CDN requests under a deadline, so that
-                            a CDN that stalls is a warning and not a navigation timeout
+                            they answer a request to another server under a deadline, so
+                            that one that stalls is a warning and not a navigation timeout
+                            (no page should make one: the pages suite fails it)
      report                 pass(name, detail?), fail(name, detail), warn(name, detail),
                             skip(name, why), cell({...}) for the contact sheet
      axeSource              axe-core source text, or null when it did not resolve

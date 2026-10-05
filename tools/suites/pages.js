@@ -4,13 +4,17 @@
    script, so a dark page never flashes light), the site's scripts run (window.BMSite,
    BMGame and BMStore, in which site.js must have gone before game.js), KaTeX there and a
    formula rendered where the page has one (it comes in the bundle, ahead of site.js),
-   no request to any server but the site's own and Three.js's CDN (a signed-out
-   reader's browser contacts no one else), no horizontal overflow at phone width, lesson
-   mode initialised on chapter pages, and a full-page screenshot of each cell for the
-   contact sheet. Chapter pages are shot in whole-page mode (after the mode switch has
-   been clicked, which also exercises it) so the sheet shows the content, not just the
-   first step. */
+   no request to any server but the site's own (a signed-out reader's browser contacts
+   no one else), the Three.js chunk not fetched by a page with no 3D scene and no course
+   map (bundle/three.js is loaded on demand, by assets/three-loader.js, only when one of
+   those nears the screen), no horizontal overflow at phone width, lesson mode
+   initialised on chapter pages, and a full-page screenshot of each cell for the contact
+   sheet. Chapter pages are shot in whole-page mode (after the mode switch has been
+   clicked, which also exercises it) so the sheet shows the content, not just the first
+   step. */
 const { slug } = require("../lib/browser");
+
+const THREE_CHUNK = /\/bundle\/three\.js(?:[?#]|$)/;
 
 /* runs before any script of the page: the theme as it stands at the first animation
    frame, which comes before the first paint */
@@ -21,7 +25,7 @@ const FIRST_FRAME = () => {
 module.exports = {
   name: "pages",
   order: 10,
-  description: "every page × light/dark × 1280/360: errors, 404s, theme before first paint, scripts ran, KaTeX rendered, no third party but Three.js, overflow, lesson mode, screenshots",
+  description: "every page × light/dark × 1280/360: errors, 404s, theme before first paint, scripts ran, KaTeX rendered, no third party at all, Three.js only where there is 3D, overflow, lesson mode, screenshots",
   async run(ctx) {
     const { h, report } = ctx;
     for (const rel of ctx.pages) {
@@ -78,15 +82,21 @@ module.exports = {
             }
             await page.evaluate(() => new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r))));
             shot = await h.screenshot(page, "pages/" + slug(rel) + "--" + theme + "--" + vw);
+            /* Three.js is fetched by the loader when a scene stage or the course map
+               nears the screen, and by nothing else: a page with neither (its scenes
+               are hosts carrying data-painter once mounted) must not have asked for it */
+            const has3D = await page.evaluate(() => !!document.querySelector("[data-map3d], [data-widget][data-painter]"));
+            const three = errors.own.filter(u => THREE_CHUNK.test(u));
+            if (!has3D && three.length) problems.push("fetched " + three[0].replace(/^.*\/bundle\//, "bundle/") + " with no 3D scene and no course map on the page; only assets/three-loader.js is to import it, for one of those");
           } catch (e) {
             problems.push("driver error: " + (e && e.message || e));
           }
           problems.push(...errors.failures());
-          /* the fonts, KaTeX and supabase-js come from the site itself now, and a
-             signed-out reader never fetches the account library at all: a request to
-             anything but the local server and Three.js's CDN is a failure, not a warning */
+          /* the fonts, KaTeX, supabase-js and Three.js come from the site itself now,
+             and a signed-out reader never fetches the account library at all: a request
+             to anything but the local server is a failure, not a warning */
           const unexpected = errors.unexpected();
-          if (unexpected.length) problems.push("request(s) to a third party other than Three.js's CDN: " + unexpected.slice(0, 6).join(", ") + (unexpected.length > 6 ? " and " + (unexpected.length - 6) + " more" : ""));
+          if (unexpected.length) problems.push("request(s) to another server: " + unexpected.slice(0, 6).join(", ") + (unexpected.length > 6 ? " and " + (unexpected.length - 6) + " more" : ""));
           if (errors.thirdParty.length) warns.push("third-party: " + Array.from(new Set(errors.thirdParty)).slice(0, 4).join("; "));
           await close();
           const status = problems.length ? "fail" : "pass";

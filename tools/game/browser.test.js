@@ -2,8 +2,8 @@
 /* Headless Chromium checks of the game layer, on the built site as lib/target.js serves it
    (dist/, which must be current; --root=<dir> names a build elsewhere):
      node tools/game/browser.test.js
-   Every request off that server is aborted, so KaTeX and the fonts are absent: the
-   pages must work without the CDN anyway, and the run is deterministic.
+   Every request off that server is aborted (nothing a page needs comes from anywhere
+   else now: the fonts, KaTeX and Three.js are in the bundle), so the run is deterministic.
 
    1. ch05 in whole-page mode: three first-try answers give 10, 12, 14 XP and 3 pips;
       a first miss on a fresh one costs 2 pips and leaves 2 hearts
@@ -57,7 +57,7 @@ async function open(browser, page0, seed, opts) {
   page.on("pageerror", (e) => errors.push("pageerror: " + e.message));
   page.on("console", (m) => {
     if (m.type() !== "error") return;
-    if (/Failed to load resource|net::ERR_/.test(m.text())) return; /* the aborted CDN requests */
+    if (/Failed to load resource|net::ERR_/.test(m.text())) return; /* a request the route aborted */
     errors.push("console: " + m.text());
   });
   await page.goto(url(page0));

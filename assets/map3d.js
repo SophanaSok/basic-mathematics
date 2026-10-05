@@ -14,7 +14,8 @@
 
    The container stays hidden, and the list looks exactly as it did, when the
    person chose the list map, 3D is unsupported or the device is low-end, Three.js
-   cannot be fetched, the WebGL context is lost, or frames are too slow.
+   (bundle/three.js, fetched by assets/three-loader.js on demand) cannot be fetched,
+   the WebGL context is lost, or frames are too slow.
    =========================================================================== */
 (function () {
   "use strict";
@@ -171,7 +172,11 @@
   /* --------------------------------------------------------------- build ---- */
 
   function build() {
-    var T = window.THREE;
+    /* the Three.js namespace the loader fetched (src/vendor/three.js exports what is
+       used here, by name); window.THREE is nothing */
+    var T = BM3D.THREE;
+    /* token colours go in and come out unchanged: no conversion to a working colour
+       space, and the renderer writes them as they are */
     T.ColorManagement.enabled = false;
 
     var renderer = new T.WebGLRenderer({ antialias: true, alpha: true, powerPreference: "low-power" });
@@ -1073,9 +1078,11 @@
         var g = o.geometry, n = g.index ? g.index.count / 3 : g.attributes.position.count / 3;
         tris += n * (o.isInstancedMesh ? o.count : 1);
       });
+      /* calls: the draw calls of the last frame, as the renderer counted them */
+      var ri = M.renderer.info && M.renderer.info.render;
       return { triangles: Math.round(tris), stones: M.stoneCount, current: M.cur > -1 ? ISLES[M.cur].id : null,
         hot: M.hot > -1 ? ISLES[M.hot].id : null, flying: !!M.flight, bobbing: !!M.bobbing,
-        pixelRatio: M.renderer.getPixelRatio(), isles: kinds() };
+        pixelRatio: M.renderer.getPixelRatio(), calls: ri ? ri.calls : null, isles: kinds() };
     },
     /* where an island sits on screen, in client pixels */
     where: function (id) {

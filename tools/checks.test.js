@@ -270,12 +270,28 @@ function refusal(fn) { try { fn(); return null; } catch (e) { return e.message; 
   check(headOrder.indexOf("script") < headOrder.indexOf("linkstylesheet") && headOrder.indexOf("scriptmodule") === headOrder.length - 1, "the boot script comes before every stylesheet, and the module entry last: " + headOrder.join(","));
   shell.VENDOR_STYLES.forEach(f => check(fs.existsSync(path.join(site.ROOT, f)) && /^\s*@import\s+["'][^"'./]|url\(["']?@?[a-z]/m.test(fs.readFileSync(path.join(site.ROOT, f), "utf8")), "the vendor stylesheet " + f + " exists and imports a package's CSS or names a package's files"));
   const vendorModules = vendor.vendorModules();
-  eq(vendorModules.map(v => v.file), ["src/vendor/fonts.css", "src/vendor/katex.css", "src/vendor/katex.js", "src/vendor/supabase.js"], "the vendor modules are the fonts' and KaTeX's stylesheets, KaTeX's script and supabase-js");
-  eq(vendorModules.map(v => v.packages.join(",")), ["@fontsource-variable/bricolage-grotesque,@fontsource-variable/inter,@fontsource/newsreader,@fontsource-variable/newsreader", "katex", "katex", "@supabase/supabase-js"], "… each bringing in the packages it is named for (fonts.css by the files its url()s name)");
+  eq(vendorModules.map(v => v.file), ["src/vendor/fonts.css", "src/vendor/katex.css", "src/vendor/katex.js", "src/vendor/supabase.js", "src/vendor/three.js"], "the vendor modules are the fonts' and KaTeX's stylesheets, KaTeX's script, supabase-js and Three.js");
+  eq(vendorModules.map(v => v.packages.join(",")), ["@fontsource-variable/bricolage-grotesque,@fontsource-variable/inter,@fontsource/newsreader,@fontsource-variable/newsreader", "katex", "katex", "@supabase/supabase-js", "three"], "… each bringing in the packages it is named for (fonts.css by the files its url()s name)");
   check(vendorModules.find(v => v.file === "src/vendor/supabase.js").all.includes("@supabase/auth-js"), "a package's dependencies come with it (supabase.js brings in @supabase/auth-js)");
-  eq([vendor.vendorOf("node_modules/katex/dist/katex.mjs").file, vendor.vendorOf("node_modules/katex/dist/katex.min.css").file, vendor.vendorOf("node_modules/tslib/tslib.es6.mjs").file], ["src/vendor/katex.js", "src/vendor/katex.css", "src/vendor/supabase.js"], "a node_modules file is placed by its kind and its package: katex's script with katex.js, its stylesheet with katex.css, a dependency of supabase-js with supabase.js");
+  eq([vendor.vendorOf("node_modules/katex/dist/katex.mjs").file, vendor.vendorOf("node_modules/katex/dist/katex.min.css").file, vendor.vendorOf("node_modules/tslib/tslib.es6.mjs").file, vendor.vendorOf("node_modules/three/build/three.core.js").file], ["src/vendor/katex.js", "src/vendor/katex.css", "src/vendor/supabase.js", "src/vendor/three.js"], "a node_modules file is placed by its kind and its package: katex's script with katex.js, its stylesheet with katex.css, a dependency of supabase-js with supabase.js, three's core with three.js");
   check(/no script under src\/vendor\/ imports/.test(refusal(() => vendor.vendorOf("node_modules/left-pad/index.js")) || ""), "a package no vendor module imports is refused, with the reason");
-  eq(JSON.parse(fs.readFileSync(path.join(site.ROOT, "package.json"), "utf8")).dependencies.katex, "0.16.11", "package.json pins katex at exactly 0.16.11, the version the CDN tags loaded");
+  const deps = JSON.parse(fs.readFileSync(path.join(site.ROOT, "package.json"), "utf8"));
+  eq(deps.dependencies.katex, "0.16.11", "package.json pins katex at exactly 0.16.11, the version the CDN tags loaded");
+  check(/^\^0\.\d+\.\d+$/.test(deps.dependencies.three || "") && (deps.devDependencies["@types/three"] || "").split(".")[1] === deps.dependencies.three.split(".")[1], "package.json holds three to a minor (a caret on 0.x is that), and @types/three is of the same minor: " + deps.dependencies.three + ", " + deps.devDependencies["@types/three"]);
+
+  /* Three.js is re-exported by name, and the names are exactly what the scripts use,
+     so the lazy chunk is what the map and the GL painter need and nothing more: every
+     T.<Name> in map3d.js and THREE.<Name> in scenes3d-gl.js (the two readers of
+     BM3D.THREE), and every name src/vendor/three.js exports, must be the same set */
+  const threeVendor = fs.readFileSync(path.join(site.ROOT, "src/vendor/three.js"), "utf8").replace(/\/\*[\s\S]*?\*\//g, "");
+  const exported = threeVendor.match(/^export \{[^}]*\} from "three";$/gm).flatMap(line => line.replace(/^export \{|\} from "three";$/g, "").split(",").map(s => s.trim()).filter(Boolean));
+  const used = new Set();
+  ["assets/map3d.js", "assets/scenes3d-gl.js"].forEach(f => {
+    for (const m of fs.readFileSync(path.join(site.ROOT, f), "utf8").replace(/\/\*[\s\S]*?\*\//g, "").matchAll(/\b(?:T|THREE|M\.T)\.([A-Z]\w*)/g)) used.add(m[1]);
+  });
+  eq(exported.slice().sort(), Array.from(used).sort(), "src/vendor/three.js exports, by name, exactly the Three.js names assets/map3d.js and assets/scenes3d-gl.js use");
+  eq(exported.length, new Set(exported).size, "… each once");
+  check(!["assets/map3d.js", "assets/scenes3d.js", "assets/scenes3d-gl.js", "assets/three-loader.js"].some(f => /window\.THREE\b/.test(fs.readFileSync(path.join(site.ROOT, f), "utf8").replace(/\/\*[\s\S]*?\*\//g, ""))), "nothing reads or writes window.THREE: the namespace is BM3D.THREE");
 
   /* the fonts: src/vendor/fonts.css is what gen-fonts.js writes, and what it writes
      is the Google Fonts link's faces, one rule per single weight */

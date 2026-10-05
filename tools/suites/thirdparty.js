@@ -1,15 +1,16 @@
 "use strict";
-/* A CDN that stalls must cost a warning, never a navigation timeout. The pages still
-   take Three.js from another server (the fonts, KaTeX and supabase-js come from the site
-   itself now, and `pages` fails any other third-party request), and this run loads
-   several hundred pages: left to Chromium, one request that neither answers nor fails
-   holds whatever waits on it until page.goto gives up. lib/browser.js answers those
-   requests itself (a deadline, and each URL fetched once per run); this suite holds it
-   to that, against a local server that plays the CDN, with a stylesheet and a deferred
-   script as the hardest case (they hold the page's load event):
+/* A request to another server that stalls must cost a warning, never a navigation
+   timeout. No page makes one any more (the fonts, KaTeX, supabase-js and Three.js come
+   from the site itself, and `pages` fails any request off it), so this is the guard
+   for a page that starts to: the run loads several hundred pages, and left to Chromium,
+   one request that neither answers nor fails holds whatever waits on it until page.goto
+   gives up, which would end the run instead of failing the page. lib/browser.js answers
+   those requests itself (a deadline, and each URL fetched once per run); this suite
+   holds it to that, against a local server that plays the other server, with a
+   stylesheet and a deferred script as the hardest case (they hold the page's load event):
      - a request that is accepted and never answered
      - the same host asked again straight away: not waited for a second time, which is
-       what bounds a loader that tries one CDN after another
+       what bounds a page that tries one host after another
      - a response whose headers arrive and whose body never ends
      - a file that is there, asked for by two pages, fetched once
    and reads the suites' source: a context opened around the helper is not covered.
@@ -49,7 +50,7 @@ function cdn() {
 module.exports = {
   name: "thirdparty",
   order: 5,
-  description: "a CDN that stalls is a warning, not a navigation timeout; each third-party file is fetched once",
+  description: "a request to another server that stalls is a warning, not a navigation timeout; each third-party file is fetched once",
   FIXTURE,
   async run(ctx) {
     const { h, report } = ctx;

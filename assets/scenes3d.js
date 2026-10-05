@@ -1,7 +1,7 @@
 /* ===========================================================================
    Basic Mathematics — playable 3D scenes
    window.BM3D: define, V, Cam, SvgPainter, palette (three-loader.js adds load,
-   why, supported, lowEnd). One scene file per figure lives in assets/scenes/.
+   why, supported, lowEnd and THREE). One scene file per figure lives in assets/scenes/.
 
    A scene never touches THREE. It keeps a plain state object and, on every
    change, describes its picture to a display list. Two painters draw that list:
@@ -654,7 +654,7 @@
       if (!ok) return null;
       return (BM3D.initGL ? Promise.resolve(true) : fetchPainter()).then(function (loaded) {
         if (!loaded || typeof BM3D.initGL !== "function") return null;
-        try { gl.mgr = BM3D.initGL(window.THREE, hooks) || null; } catch (e) { gl.mgr = null; }
+        try { gl.mgr = BM3D.initGL(BM3D.THREE, hooks) || null; } catch (e) { gl.mgr = null; }
         BM3D.gl = gl.mgr;
         return gl.mgr;
       });

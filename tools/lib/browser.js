@@ -1,8 +1,8 @@
 "use strict";
 /* Helpers the browser suites share: open a page with a forced theme and seeded
-   storage, keep the one CDN from stalling it, track what went wrong on it and every
-   request it made off the local server, wait for KaTeX and the fonts, switch lesson
-   mode, and take a screenshot into the output directory. */
+   storage, keep a request to another server from stalling it, track what went wrong on
+   it and every request it made, wait for KaTeX and the fonts, switch lesson mode, and
+   take a screenshot into the output directory. */
 const fs = require("fs");
 const path = require("path");
 
@@ -13,26 +13,19 @@ const VIEWPORTS = { 1280: { width: 1280, height: 800 }, 360: { width: 360, heigh
 
 function slug(rel) { return rel.replace(/\.html$/, "").replace(/[^a-zA-Z0-9]+/g, "-").replace(/^-|-$/g, ""); }
 
-/* The one thing a page may still ask another server for: Three.js, which
-   assets/three-loader.js fetches from its two CDNs when a 3D scene or the course map
-   nears the screen (read off that file, so the list is the loader's own). The fonts,
-   KaTeX and supabase-js come from the site itself since they moved to npm, so every
-   other request off the local server is a failure in the pages suite (unexpected()
-   below), and the next release moves Three.js too. */
-const THREE_LOADER = path.join(__dirname, "..", "..", "assets", "three-loader.js");
-const ALLOWED_THIRD_PARTY = Array.from(fs.readFileSync(THREE_LOADER, "utf8").matchAll(/"(https:\/\/[^"]+)"/g)).map(m => m[1]);
-if (!ALLOWED_THIRD_PARTY.length) throw new Error("lib/browser.js: no CDN URL found in assets/three-loader.js");
-function allowedThirdParty(url) { return ALLOWED_THIRD_PARTY.some(u => url.split(/[?#]/)[0] === u); }
-
-/* Everything that went wrong while a page was open, and every request it made off the
-   local server. Same-origin trouble is a failure; a third-party resource that did not
-   arrive (Three.js) is a warning, because a local run may well be offline; a
-   third-party request that is not Three.js's is `unexpected`, and the pages suite fails
-   on it: a signed-out reader's browser contacts no one else. */
+/* Everything that went wrong while a page was open, and every request it made: `own`
+   is those to the local server (the chunks fetched on demand are read off it:
+   bundle/three.js on a page with no 3D is a failure in the pages suite), `requests`
+   those to any other server. Same-origin trouble is a failure. Nothing a page needs
+   comes from another server since the fonts, KaTeX, supabase-js and Three.js moved
+   into the bundle, so every request off the local server is `unexpected`, and the
+   pages suite fails on it: a signed-out reader's browser contacts no one else. A
+   third-party resource that did not arrive is still noted apart (`thirdParty`), for
+   the suite that checks such a request cannot stall a run. */
 function track(page, originUrl) {
-  const t = { console: [], pageErrors: [], notFound: [], thirdParty: [], requests: [] };
+  const t = { console: [], pageErrors: [], notFound: [], thirdParty: [], requests: [], own: [] };
   const sameOrigin = (u) => u.startsWith(originUrl);
-  page.on("request", req => { if (!sameOrigin(req.url())) t.requests.push(req.url()); });
+  page.on("request", req => { (sameOrigin(req.url()) ? t.own : t.requests).push(req.url()); });
   page.on("console", msg => {
     if (msg.type() !== "error") return;
     const loc = msg.location() || {};
@@ -59,30 +52,30 @@ function track(page, originUrl) {
     else t.thirdParty.push(why + " " + url);
   });
   t.failures = () => t.console.concat(t.pageErrors.map(e => "pageerror: " + e), t.notFound.map(n => "same-origin " + n));
-  /* the requests off the local server that are not Three.js's, each once */
-  t.unexpected = () => Array.from(new Set(t.requests.filter(u => !allowedThirdParty(u))));
-  t.reset = () => { t.console.length = 0; t.pageErrors.length = 0; t.notFound.length = 0; t.thirdParty.length = 0; t.requests.length = 0; };
+  /* the requests off the local server, each once: every one is a failure */
+  t.unexpected = () => Array.from(new Set(t.requests));
+  t.reset = () => { t.console.length = 0; t.pageErrors.length = 0; t.notFound.length = 0; t.thirdParty.length = 0; t.requests.length = 0; t.own.length = 0; };
   return t;
 }
 
 /* ---- third-party requests ------------------------------------------------------
-   The pages still take Three.js from a CDN, by a script that runs when a 3D scene nears
-   the screen (the fonts, KaTeX and supabase-js used to come the same way, and are in
-   the bundle now). Left to Chromium, a request that neither answers nor fails holds
-   whatever waits on it until page.goto times out, and one such stall among the several
-   hundred page loads of a run failed the run. So every request that is not for the
-   local server is answered from here instead: fetched by Node under a deadline, once
-   per run, and repeated to every later page from memory. A request that fails or runs
-   out of time is aborted, which the page sees as a failed request and track() counts as
-   a third-party warning.
+   No page asks another server for anything any more (Three.js was the last, from a
+   CDN, until it moved into the bundle; the pages suite fails any such request). What
+   is kept here is what makes that failure a line in the report and not the end of the
+   run: left to Chromium, a request that neither answers nor fails holds whatever waits
+   on it until page.goto times out, and one such stall among the several hundred page
+   loads of a run failed the run, back when the pages did load from CDNs. So every
+   request that is not for the local server is answered from here instead: fetched by
+   Node under a deadline, once per run, and repeated to every later page from memory. A
+   request that fails or runs out of time is aborted, which the page sees as a failed
+   request and track() notes as a third-party warning, beside the failure.
    A host that did not answer is then left alone for a while: its requests are aborted
    at once. That is what keeps a page inside page.goto's 15 s when the whole network
-   stalls, because the loader tries its CDNs in turn (cdnjs, then jsDelivr): the chain
-   waits once per host, not once per request. It also means a CDN that is down costs a
-   run one deadline every so often, not one on every page. */
+   stalls and a page asks one host after another: the chain waits once per host, not
+   once per request. The `thirdparty` suite holds this to a stand-in CDN. */
 const THIRD_PARTY_MS = 4000;
 const THIRD_PARTY_RETRY_MS = 30000;
-const FORWARDED = ["user-agent", "accept", "accept-language", "origin", "referer"];   /* so the CDN answers as it would the browser: Three.js is a crossorigin script with an integrity hash, and the CORS headers depend on the Origin asked with */
+const FORWARDED = ["user-agent", "accept", "accept-language", "origin", "referer"];   /* so the other server answers as it would the browser (a crossorigin script's CORS headers depend on the Origin asked with) */
 const HOP = new Set(["content-encoding", "content-length", "transfer-encoding", "connection", "keep-alive"]);   /* fetch() has decoded the body */
 const answers = new Map();               /* URL -> Promise<{ status, headers, body } | { error }>, kept when it is a good answer */
 const quiet = new Map();                 /* host -> { at, error }: the last time it did not answer */
@@ -128,8 +121,8 @@ function makeHelpers(ctx) {
 
   /* A browser context whose third-party requests are answered as above. Every context
      a suite opens comes from here (newPage below, or directly when a suite needs its
-     own options): one opened with browser.newContext is back at the mercy of the CDNs,
-     and the `thirdparty` suite fails a suite that does it. */
+     own options): one opened with browser.newContext could be stalled by a request to
+     another server, and the `thirdparty` suite fails a suite that does it. */
   async function newContext(options) {
     const context = await browser.newContext(options);
     await context.route(u => { const s = typeof u === "string" ? u : u.href; return /^https?:/.test(s) && !s.startsWith(server.url); }, answerThirdParty);
@@ -207,7 +200,7 @@ function makeHelpers(ctx) {
       if (document.fonts && document.fonts.ready) await Promise.race([document.fonts.ready, new Promise(r => setTimeout(r, 4000))]);
       await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
     });
-    try { await page.waitForLoadState("networkidle", { timeout: 5000 }); } catch (e) { /* offline or slow CDN: carry on */ }
+    try { await page.waitForLoadState("networkidle", { timeout: 5000 }); } catch (e) { /* a request still open (a stray third-party one under its deadline): carry on */ }
   }
 
   async function open(page, rel, o) {
@@ -237,4 +230,4 @@ function makeHelpers(ctx) {
   return { newContext, newPage, noWebGL, blockUrl, settle, open, wholePage, screenshot, slug, VIEWPORTS, THEME_KEY, LESSON_KEY, PROGRESS_KEY };
 }
 
-module.exports = { makeHelpers, track, slug, allowedThirdParty, ALLOWED_THIRD_PARTY, VIEWPORTS, THEME_KEY, LESSON_KEY, PROGRESS_KEY, THIRD_PARTY_MS };
+module.exports = { makeHelpers, track, slug, VIEWPORTS, THEME_KEY, LESSON_KEY, PROGRESS_KEY, THIRD_PARTY_MS };

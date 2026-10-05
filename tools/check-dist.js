@@ -50,14 +50,18 @@ const BUNDLE = "bundle/";
 const ENTRY_OF = (page) => BUNDLE + "pages/" + page.replace(/\.html$/i, ".js");
 const RUNTIME = BUNDLE + "rolldown-runtime.js";
 /* The chunks a dynamic import makes, each under its module's name: the WebGL painter,
-   which scenes3d.js imports when a scene nears the screen, and supabase-js, which
-   account.js imports when it first wants a client (on the account page, or where a
-   session is stored), through src/vendor/supabase.js. `by` is the importer: a page whose
-   entry imports it must reach the chunk through the import(), and no page's HTML may name
-   the chunk, since only that import() is to fetch it (a signed-out reader on an ordinary
-   page never downloads supabase-js; tools/game/account.test.js watches the requests). */
+   which scenes3d.js imports when a scene nears the screen; Three.js, which
+   three-loader.js imports when a scene or the course map does, through
+   src/vendor/three.js; and supabase-js, which account.js imports when it first wants a
+   client (on the account page, or where a session is stored), through
+   src/vendor/supabase.js. `by` is the importer: a page whose entry imports it must reach
+   the chunk through the import(), and no page's HTML may name the chunk, since only that
+   import() is to fetch it (a signed-out reader on an ordinary page never downloads
+   supabase-js, and a page with no 3D never downloads Three.js; tools/game/account.test.js
+   and the pages suite of check-browser.js watch the requests). */
 const ON_DEMAND = [
   { chunk: BUNDLE + "scenes3d-gl.js", module: "assets/scenes3d-gl.js", by: "assets/scenes3d.js" },
+  { chunk: BUNDLE + "three.js", module: vendor.DIR + "/three.js", by: "assets/three-loader.js" },
   { chunk: BUNDLE + "supabase.js", module: vendor.DIR + "/supabase.js", by: "assets/account.js" }
 ];
 const onDemand = (f) => ON_DEMAND.some(d => d.chunk === f);
@@ -368,7 +372,7 @@ function checkShell(ctx, r) {
    every file from node_modules/ among them is brought in by a vendor module the entry
    imports (lib/vendor.js: KaTeX by src/vendor/katex.js). Where the importer of a module
    fetched on demand is among them, a dynamic import reaches that module's chunk
-   (ON_DEMAND: the WebGL painter, supabase-js). The order they run in is not in the
+   (ON_DEMAND: the WebGL painter, Three.js, supabase-js). The order they run in is not in the
    chunks (rolldown wraps and calls them in the entry's order under strictExecutionOrder,
    vite.config.ts); the browser checks prove it, by what the pages build.
    The names: every chunk reached is bundle/<kinds>.js, and every file in it is loaded
@@ -464,10 +468,9 @@ function checkScripts(ctx, r) {
    another server by definition) and every url() or @import in a built stylesheet (the
    fonts) names a file of dist, which `links` then resolves; a data: URL fails too, since
    every font is a file (vite.config.ts assetsInlineLimit). Links in the content
-   (<a href>) to other sites are the author's and are not touched. Three.js is still
-   fetched from its CDN by assets/three-loader.js when a 3D scene nears the screen: a
-   request a script makes, not a tag on the page, and the next release moves it into the
-   bundle; the browser checks list every request a page makes (lib/browser.js). */
+   (<a href>) to other sites are the author's and are not touched. What a script fetches
+   is not a tag on the page: Three.js is the bundle's own chunk (ON_DEMAND), and the
+   browser checks fail a page on any request to another server (lib/browser.js). */
 function checkOffline(ctx, r) {
   ctx.dist.pages.forEach(page => {
     const doc = ctx.dist.docs[page];
