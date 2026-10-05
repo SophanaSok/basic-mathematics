@@ -1,6 +1,7 @@
 # Checks every pull request and every push to main, and deploys main to GitHub Pages.
 #
-#   build    the Node checks, the build, the checks on dist/; dist/ is kept as an artifact
+#   build    the Node checks (npm run check, the Vitest unit tests among them), the build,
+#            the checks on dist/; dist/ is kept as an artifact
 #   browser  the Chromium checks that do not need WebGL, against that dist/. With build,
 #            this is the gate a deploy waits for.
 #   webgl    the 3D checks (the scene stages, the course map) and the WebGL suite. WebGL

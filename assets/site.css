@@ -128,6 +128,8 @@ canvas:focus-visible { outline-offset: -3px; }
 @media (prefers-reduced-transparency: reduce) {
   .topbar { -webkit-backdrop-filter: none; backdrop-filter: none; }
 }
+/* the settings sheet's Reduce transparency, stamped by the boot script */
+html[data-transparency="reduce"] .topbar { -webkit-backdrop-filter: none; backdrop-filter: none; }
 body[data-part] .topbar { border-bottom-color: var(--part-frame); }
 .topbar .brand {
   flex: none; display: flex; align-items: center; gap: .6rem; min-height: 40px;
@@ -176,7 +178,6 @@ body[data-part] .topbar { border-bottom-color: var(--part-frame); }
   background: var(--hud-chip); color: var(--hud-text); border: 1px solid var(--hud-line);
 }
 .topbar .icon-btn:hover { border-color: var(--hud-muted); }
-.theme-btn { width: 40px; padding: 0; display: grid; place-items: center; font-size: 1.05rem; flex: none; }
 
 .acct {
   display: inline-flex; align-items: center; min-height: 40px;

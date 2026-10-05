@@ -148,8 +148,12 @@ going well. A short version appears above each chapter's recap.
   "I don't know" costs nothing, so guessing never pays.
 - **Levels and achievements** come from XP. The achievements reward study habits — right first
   time, repairing a weak section, reading solutions, finishing review sets — never speed alone.
-- **Calm mode**, in the header menu, turns off hearts, the combo, the boss, shake and sound for
-  anyone who wants the course without the game.
+- **Study mode**, the first choice in the settings sheet (the menu button in the header), keeps
+  hints, reviews and progress and removes hearts, the combo, the bosses, motion and sound, for
+  anyone who wants the course without the game. (In the code and the stores it is still `calm`.)
+- **The settings sheet** also holds sound and its volume, Reduce motion and Reduce transparency
+  (on top of what the device asks for), the theme (light, dark or match the system), the reading
+  panel, graphics quality and the 3D course map. Every setting stays on the device.
 
 ### Progress, and what is saved
 
@@ -266,7 +270,13 @@ data/curriculum.js      single source of truth: parts, chapters, sections
 data/quest.js           regions, bosses (the tempting guess of each chapter's puzzle), review echoes
 data/gen/*.js           seeded problem generators for the Arena, one file per Part plus core.js
 src/boot.js             the one script that runs before first paint, inlined into every page's
-                        <head> by the shell: theme, reading panel and play settings, plain ES5, never bundled
+                        <head> by the shell: theme, reading panel, play settings, reduce motion and
+                        transparency, plain ES5, never bundled
+src/hud/levels.js       the level curve and ranks, and view.js what the HUD shows and how it is drawn:
+                        plain ES modules the shell inlines after every top bar (the HUD script, which
+                        fills the HUD before first paint and hands them to the page as window.BMHud,
+                        where game.js and site.js use them); never bundled; Vitest tests beside them
+src/ui/settings.ts      the settings sheet: opens the top bar's <dialog>, shows and passes on the settings
 src/entries/*.js        one module entry per kind of page (home, page, dashboard, arena, chapter):
                         an ordered list of imports of the scripts below, which is the order they run in
 src/vendor/katex.js     KaTeX from npm (pinned 0.16.11): sets window.katex and renderMathInElement;
@@ -281,7 +291,7 @@ src/styles/tokens.css   every colour, duration and shape token: the paper (light
                         reader can choose), the frame (each theme), the four Parts and their 3D
                         regions, motion, magnitude, focus, glass; the one file that defines a colour
 assets/site.css         base, the frame and the reading panel, prose, cards, figures, print
-assets/game.css         HUD, region banner stats, encounters, card states, toasts, settings, all motion
+assets/game.css         HUD, the settings sheet, region banner stats, encounters, card states, toasts, all motion
 assets/scenes3d.css     3D scene stages
 assets/map3d.css        the course map; arena.css the Arena
 assets/site.js          navigation, theme, stores, exercise grading, XP, widget mounting
@@ -290,7 +300,7 @@ assets/three-loader.js  lazy Three.js with fallback (window.BM3D.load, the names
 assets/scenes3d.js      the 3D scene framework: define, display list, camera, SVG painter, input
 assets/scenes3d-gl.js   the WebGL painter, imported on demand (import()) when a scene nears the screen
 assets/scenes/*.js      one file per 3D scene; every chapter's bundle carries all of them
-assets/game.js          combo, levels, achievements, recall, play settings, the HUD
+assets/game.js          combo, levels, achievements, recall, play settings, keeping the HUD up to date
 assets/encounter.js     turns each practice and review set into an encounter
 assets/sfx.js           synthesised sound effects, off by default
 assets/arena.js         the Arena
@@ -305,14 +315,16 @@ supabase/migrations/    one file per database change, run on the live project be
 OPERATIONS.md           the runbook: release order, deploys, quotas, secrets, incidents
 tools/                  the checks: static, scenes, generators, game rules, the build, headless browser
 tools/lib/shell.js      the <head> and the top bar of every page: the boot script inline, the vendor
-                        stylesheets, its kind's stylesheets, and the module entry of its kind
+                        stylesheets, its kind's stylesheets, and the module entry of its kind; the
+                        HUD's slots, the account chip, the sound and menu buttons, the settings
+                        sheet, and the HUD script after the top bar
 tools/lib/vendor.js     which src/vendor/ module brings in each npm package (and its dependencies):
                         how the build names node_modules files and check-dist holds them; and the
                         licence notice the build writes into dist/bundle/LICENSES.txt from them
 tools/gen-fonts.js      writes src/vendor/fonts.css from the fontsource packages (npm run gen:fonts)
 tools/shell.json        what that comes to on each page, as readers have it (the `shell` check)
 parts/<part>/<nn>-<slug>.html
-package.json            the npm scripts, the five dev dependencies and the six the site is built
+package.json            the npm scripts, the seven dev dependencies and the six the site is built
                         from (katex, four fontsource packages, supabase-js); package-lock.json pins them
 vite.config.ts          the build: every page in, its shell written, its entry bundled in import
                         order into dist/bundle/, each chunk named by the page kinds that load it (a
@@ -384,6 +396,24 @@ what is recorded, and whatever the record says when a page's scripts are not the
 the one entry of its kind (a classic `<script src>`, from the site or a CDN, fails). If the change
 is meant, `node tools/check-static.js --only=shell --accept-shell` records it, and the diff of
 `tools/shell.json` shows the reviewer exactly which pages now load what.
+
+The top bar is whole from the first byte: the brand, the page links, the HUD (level badge and XP
+bar, the streak with today's goal as a ring, the combo, and the game slots of the page's kind: the
+boss's hearts on a chapter, hearts and the clock in the Arena), the account chip, the sound and
+menu buttons, the Arena's second row for a narrow screen, and the settings sheet, a `<dialog
+id="hud-sheet">`. Straight after it comes a second inline script, the HUD script: the text of
+[`src/hud/levels.js`](src/hud/levels.js) and [`src/hud/view.js`](src/hud/view.js) in one
+function (`hudScript()`; their `export`s, their one `import` and their comments taken off), which
+reads the stores and fills the level, the XP bar, the streak and the combo before the first paint,
+then leaves those functions on the page as `window.BMHud`. `game.js` draws the HUD with the same
+functions from then on and `site.js` reads the streak, the goal and the total through them, so
+there is one copy of the level curve and the HUD's drawing, and the HUD does not move when the
+bundle arrives: every slot's width is set in `rem` and `em`, not by its digits or font, and a game
+slot the page can use is laid out empty from the start (the `hud` suite of `check-browser.js`
+measures every box before the bundle runs, at `DOMContentLoaded` and after load). `tools/shell.json`
+records the top bar's links and buttons by their labels, the sheet's among them, and the HUD
+script as a fingerprint of its text; `check-static.js` also fails a page whose body has any other
+script.
 
 KaTeX is the entry's first import (`src/vendor/katex.js`) on purpose: the imports run in order,
 so `window.renderMathInElement` is there when `site.js` runs, as it was when KaTeX's deferred CDN
@@ -560,7 +590,7 @@ degrades to a short note instead of breaking the page around it.
 
 Widgets are plain SVG built through a set of shared helpers: `Plot`, `grid`, `curvePath`, `slider`,
 `chips`, `controls`, `readout`, `note`, `dragX`, `el`, `fmt`, `missions`, `animate` (which jumps to
-the end state under `prefers-reduced-motion`), and the style table `S`, all exported on
+the end state under `prefers-reduced-motion` or the settings sheet's Reduce motion), and the style table `S`, all exported on
 `window.BMPlot`. Two more — `dragPoints`, for two-dimensional handles, and `arrowTo` — are
 internal to `widgets.js` and available to any factory in that file. Colours come from CSS custom
 properties, so every figure follows the reading panel (light paper, or dark when the reader chose it) automatically. The convention throughout is: build the frame once, redraw a single `<g>` on each
@@ -710,16 +740,16 @@ memory but keeps the site:
 | `bm.attempts.v1` | per exercise: `tries`, `first`, `hints`, `opened`, `skipped`, `solved`, `section` |
 | `bm.activity.v1` | XP per day and the daily goal; streak and totals are derived from it |
 | `bm.lesson.v1` | reading mode and the furthest step reached in each chapter |
-| `bm.last`, `bm.theme` | where to continue; light or dark |
+| `bm.last`, `bm.theme` | where to continue; light or dark, or nothing to match the system (this device only) |
 | `bm.game.v1` | achievements, compared solutions, recall per section, Arena bests, medals, Daily days (synced) |
 | `bm.run.v1` | the combo meter and an unfinished Arena run (this device only; cleared by reset and sign-out) |
-| `bm.prefs.v1` | calm mode, sound, 3D map, Arena tempo, the reading panel (`panel: "dark"`, unset for light paper) (this device only; survives a reset; keys the site does not know are kept) |
+| `bm.prefs.v1` | the settings sheet's and the Arena's settings: `calm` (Study mode), `sound`, `volume` (0 to 100, unset is 50), `motion` and `transparency` (`"reduce"`, unset follows the device), `panel` (`"dark"`, unset for light paper), `gfx` (`"low"`, `"mid"`, `"high"`, unset is Auto), `map`, `tempo` (this device only; survives a reset; keys the site does not know are kept; a value it does not know reads as unset) |
 | `bm.sync.v1` | with accounts on: whose progress this browser holds and the last reset it knows of |
 | `bm.sync.pending.v1` | with accounts on: progress that could not be saved when its reader signed out, kept aside per reader until they sign in here again |
 
 Every write is announced on `window.BMStore` (`on(fn)` / `emit(change)`), with change types
 `state`, `attempt`, `solved`, `xp`, `sync`, and `reset`, plus `opened`, `chapterDone`, `home`,
-`combo`, `level`, `achievement`, `encounter`, `arena` and `prefs` from the game layer. The header
+`combo`, `level`, `achievement`, `encounter`, `arena` and `prefs` from the game layer, and `theme` when the reader chooses one. The header
 counters, lesson mode, the game layer and account sync are all just listeners; `site.js` knows
 nothing about a server.
 
@@ -799,8 +829,8 @@ sorts after `"10"`. A change to what an existing field means needs a larger `v`.
 The "areas to strengthen" ranking is `BMInsights` in `site.js`: each attempted exercise gets a
 struggle score from 0 (right first time) to 1, averaged per section.
 
-The theme follows the operating system by default and can be overridden with the toggle in the
-header.
+The theme follows the operating system by default and can be set to light or dark in the
+settings sheet ("Match system" goes back to following it).
 
 ### The look: tokens, the frame and the panel
 
@@ -814,13 +844,14 @@ page has two surfaces, and the tokens keep them apart:
   dark in both themes; `html[data-theme]` only changes its shade (`--frame-*`, `--hud-*`,
   `--part-frame`, and the 3D world's `--region-*`, plain six-digit hex because WebGL reads them).
   The top bar is glass (`--glass`) where the browser can blur what scrolls under it, and its solid
-  colour (`--glass-solid`) everywhere else and when the reader asks for less transparency.
+  colour (`--glass-solid`) everywhere else and when the reader asks for less transparency, on the
+  device or with the settings sheet's Reduce transparency (`html[data-transparency]`, stamped
+  before the first paint), which also makes the modal sheet's scrim (`--scrim-glass`) solid.
 - **The panel** is the reading column, `.wrap` or `.wrap-narrow`: prose, worked examples, figures,
   3D scenes, exercise cards, the course map. It is light paper in both themes, because dark text
   on a light panel reads best for long stretches; a reader can choose a dark panel
-  (`bm.prefs.v1` `panel: "dark"`, for now through `BMGame.setPref("panel", "dark")`, a control in
-  the settings sheet to come), which `src/boot.js` stamps as `html[data-panel]` before the first
-  paint. The paper tokens (`--bg`, `--surface`, `--text`, `--accent`, `--part`, `--plot-*` …)
+  (the settings sheet's Reading panel, `bm.prefs.v1` `panel: "dark"`), which `src/boot.js` stamps
+  as `html[data-panel]` before the first paint. The paper tokens (`--bg`, `--surface`, `--text`, `--accent`, `--part`, `--plot-*` …)
   follow `data-panel`, never `data-theme`.
 
 The same file holds the motion tokens (`--dur-press` … `--dur-max` and the easings, with the old
@@ -854,13 +885,15 @@ npm run test:node       #   the progress-key, id and lesson-step rules and the C
                         #   BMAccount.merge with the game store and fields this copy has never heard
                         #   of; account sync (stale tabs, resets, failed sign-outs, newer and older
                         #   sites and tables, sign-in through another service); the game's rules
+npm run test:unit       #   Vitest: the modules under src/ (src/**/*.test.ts), among them the level
+                        #   curve and the HUD's view, drawn the same by the inline HUD script
 
 npm run build           # dist/
 npm run check:dist      # dist/ is the source's site, each source page taken with its shell
                         # written: same pages and nothing extra, links and font urls resolve
                         # inside it, <main> and the page around it untouched, the boot script
-                        # inline and one module entry whose bundle is its kind's imports (KaTeX
-                        # by its vendor module), supabase-js and Three.js each a chunk of its
+                        # inline, one module entry whose bundle is its kind's imports (KaTeX
+                        # by its vendor module) and the HUD script after the top bar, supabase-js and Three.js each a chunk of its
                         # own that no page names, no copy of a source script, nothing from
                         # another server, CSS text and cascade the source's with the vendor CSS
                         # ahead, no secrets
@@ -873,7 +906,9 @@ npm run check:browser   # dist/ served: every page × theme × width (errors, th
                         # Three.js fetched only where there is 3D, overflow, lesson mode),
                         # figures, every exercise typed back, restore of old progress, saved
                         # state from the last release, reduced motion, the frame and the reading panel
-                        # (both themes, both panels, contrast, print), WebGL and its fallbacks,
+                        # (both themes, both panels, contrast, print), the HUD (no shift when the
+                        # bundle loads) and the settings sheet (mouse, keys, focus, each setting
+                        # kept and in effect, axe), WebGL and its fallbacks,
                         # axe. About 8 minutes, and nothing in it needs the network
 
 npm run check:all       # all of the above, in that order

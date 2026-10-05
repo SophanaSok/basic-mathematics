@@ -273,10 +273,13 @@
   function near(a, b, eps) { return Math.abs(a - b) <= (eps === undefined ? 1e-9 : eps); }
 
   /* run step(u) for u from 0 to 1 over ms milliseconds; one jump to the end where
-     motion is unwelcome or unavailable */
+     motion is unwelcome (the device's setting, or the settings sheet's Reduce motion,
+     html[data-motion]) or unavailable */
   function animate(ms, step, done) {
+    var root = document.documentElement;
     var still = !window.requestAnimationFrame ||
-      (window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches);
+      (window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches) ||
+      !!(root && root.getAttribute && root.getAttribute("data-motion") === "reduce");
     if (still) { step(1); if (done) done(); return; }
     var t0 = null;
     function frame(t) {

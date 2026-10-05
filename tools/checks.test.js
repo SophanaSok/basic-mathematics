@@ -247,6 +247,11 @@ function refusal(fn) { try { fn(); return null; } catch (e) { return e.message; 
   const render = (attrs, rel, head) => shell.renderShell(marked(attrs, head), rel || "x.html");
   const tags = (html, name, attr) => parse(html).queryAll(name).filter(el => el.hasAttribute(attr)).map(el => el.getAttribute(attr));
   const scripts = (html) => tags(html, "script", "src"), sheets = (html) => tags(html, "link", "href").filter(h => /\.css/.test(h));
+  /* the brand and the page links of a top bar (not the HUD's, the account chip or the sheet's) */
+  const pageLinks = (html) => {
+    const bar = parse(html).query("header.topbar");
+    return [bar.query("a.brand")].concat(bar.query("nav").children_elements.filter(el => el.name === "a" && !el.hasAttribute("class")));
+  };
 
   /* what is and is not a page */
   const whole = '<!doctype html><html><head><title>t</title></head><body data-depth="0"><main id="main"><p>x</p></main></body></html>';
@@ -266,9 +271,20 @@ function refusal(fn) { try { fn(); return null; } catch (e) { return e.message; 
   eq(sheets(out), ["src/vendor/fonts.css", "src/vendor/katex.css", "src/styles/tokens.css", "assets/site.css", "assets/game.css"], "a page links the fonts' and KaTeX's stylesheets, then the tokens, site.css and game.css");
   eq(scripts(out), ["src/entries/page.js"], "… and loads the one module entry of its kind, and no other script by URL");
   check(!/https?:\/\//.test(parse(out).query("head").children_elements.map(el => Object.values(el.attrs).join(" ")).join(" ")), "nothing in <head> names another server");
-  const all = parse(out).queryAll("script");
-  eq(all.map(s => (s.hasAttribute("src") ? "" : "inline ") + (s.getAttribute("type") || "") + (s.hasAttribute("defer") ? " defer" : "")), ["inline ", "module"], "the boot script is inline, the entry is a module, and there is no classic script");
-  eq(all[0].textContent.trim(), fs.readFileSync(path.join(site.ROOT, "src/boot.js"), "utf8").trim(), "the inline script is src/boot.js, whole");
+  const outDoc = parse(out), all = outDoc.queryAll("script");
+  eq(all.map(s => (s.hasAttribute("src") ? "" : "inline ") + (s.getAttribute("type") || "") + (s.hasAttribute("defer") ? " defer" : "")), ["inline ", "module", "inline "], "the boot script is inline, the entry is a module, the HUD script is inline, and there is no classic script");
+  eq(all[0].textContent.trim(), fs.readFileSync(path.join(site.ROOT, "src/boot.js"), "utf8").trim(), "the first inline script is src/boot.js, whole");
+  const barEl = outDoc.query("header.topbar");
+  check(all[2].textContent.trim() === shell.hudScript() && barEl.parent.children_elements[barEl.parent.children_elements.indexOf(barEl) + 1] === all[2], "the HUD script comes straight after the top bar, and is hudScript()");
+  const hudText = shell.hudScript();
+  check(/^\(function \(\) \{\n"use strict";\n/.test(hudText) && /window\.BMHud = \{ threshold: threshold, /.test(hudText) && /prefill\(document, window\);/.test(hudText) && !/^\s*(export|import)\b|\/\*/m.test(hudText),
+    "the HUD script is src/hud/'s modules in one function, without their exports, imports and comments, handing window.BMHud over and then filling the HUD");
+  check(!/prefill\(document, window\)/.test(shell.hudLibrary()) && /window\.BMHud = /.test(shell.hudLibrary()), "hudLibrary() is the same without the call, for a test with no page");
+  const withSource = (files, fn) => { shell.useSource(rel => files[rel] !== undefined ? files[rel] : fs.readFileSync(path.join(site.ROOT, rel), "utf8")); try { return fn(); } finally { shell.useSource(rel => fs.readFileSync(path.join(site.ROOT, rel), "utf8")); } };
+  check(/an export the HUD script cannot take/.test(refusal(() => withSource({ "src/hud/levels.js": "export default 1;\n" }, () => shell.hudScript())) || ""), "a module with an export the shell cannot take off is refused");
+  check(/imports levelInfo, which src\/hud\/levels.js does not export/.test(refusal(() => withSource({ "src/hud/levels.js": "export function threshold() {}\n" }, () => shell.hudScript())) || ""), "an import of a name the earlier module does not export is refused");
+  check(/does not parse/.test(refusal(() => withSource({ "src/hud/levels.js": "export function levelInfo() {}\nexport function threshold( {\n" }, () => shell.hudScript())) || ""), "a HUD script that would not parse is refused");
+  check(/would end the inline tag/.test(refusal(() => withSource({ "src/hud/levels.js": 'export function levelInfo() {}\nexport const Y = "</script>";\n' }, () => shell.hudScript())) || ""), "a closing script tag in a HUD module is refused");
   const headOrder = parse(out).query("head").children_elements.map(el => el.name + (el.getAttribute("rel") || "") + (el.getAttribute("type") || ""));
   check(headOrder.indexOf("script") < headOrder.indexOf("linkstylesheet") && headOrder.indexOf("scriptmodule") === headOrder.length - 1, "the boot script comes before every stylesheet, and the module entry last: " + headOrder.join(","));
   shell.VENDOR_STYLES.forEach(f => check(fs.existsSync(path.join(site.ROOT, f)) && /^\s*@import\s+["'][^"'./]|url\(["']?@?[a-z]/m.test(fs.readFileSync(path.join(site.ROOT, f), "utf8")), "the vendor stylesheet " + f + " exists and imports a package's CSS or names a package's files"));
@@ -319,7 +335,34 @@ function refusal(fn) { try { fn(); return null; } catch (e) { return e.message; 
   check(/SIL OPEN FONT LICENSE Version 1\.1/.test(notice) && /Reserved Font Name KaTeX_/.test(notice), "the notice carries the Open Font License's text, and the KaTeX fonts' own notice");
   eq(vendor.NOTICE, "bundle/LICENSES.txt", "the notice goes beside the bundle");
   Object.keys(shell.PAGE_KINDS).forEach(k => check(/^import "\.\.\/vendor\/katex\.js";/m.test(fs.readFileSync(path.join(site.ROOT, shell.PAGE_KINDS[k].entry), "utf8").replace(/\/\*[\s\S]*?\*\//g, "").trim()), "the " + k + " entry imports src/vendor/katex.js first, so renderMathInElement is there when site.js runs"));
-  eq(parse(out).query("header.topbar").queryAll("a").map(a => a.getAttribute("href")), ["index.html", "index.html", "about.html"], "the usual top bar: brand, Contents, How to use this");
+  eq(pageLinks(out).map(a => a.getAttribute("href")), ["index.html", "index.html", "about.html"], "the usual top bar: brand, Contents, How to use this");
+
+  /* the HUD and the sheet are in the markup: every slot labelled in a sentence, the game
+     slots only where a page of the kind uses them, and every input of the sheet naming
+     its preference */
+  const hudOf = (html) => {
+    const bar = parse(html).query("header.topbar");
+    const hudEl = bar.query("nav").query("div.hud");
+    return {
+      slots: hudEl.children_elements.map(el => el.getAttribute("class") + (el.hasAttribute("data-slot") ? "[slot]" : "") + (el.hasAttribute("hidden") ? "[hidden]" : "")),
+      labels: hudEl.children_elements.map(el => el.getAttribute("aria-label")),
+      after: bar.query("nav").children_elements.slice(bar.query("nav").children_elements.indexOf(hudEl) + 1).map(el => el.getAttribute("class")),
+      strip: !!bar.query(".hud-strip"),
+      sheet: bar.query("dialog#hud-sheet"),
+      links: bar.query("ul.hud-links").queryAll("a").length,
+      prefs: bar.query("dialog#hud-sheet").queryAll("input").map(i => i.getAttribute("data-pref") + (i.getAttribute("type") === "radio" ? "=" + i.getAttribute("value") : ""))
+    };
+  };
+  let h = hudOf(out);
+  eq(h.slots, ["hud-level", "hud-streak", "hud-combo[hidden]"], "a page of no game has the level, the streak and the combo (empty until it has pips)");
+  check(h.labels.every(l => (l || "").split(" ").length >= 5), "every slot of the HUD has a sentence for a label: " + JSON.stringify(h.labels));
+  eq([h.after, h.strip], [["acct", "icon-btn hud-sound", "icon-btn hud-menu"], false], "then the account chip, the sound and the menu buttons; no second row");
+  eq(h.prefs, ["calm", "sound", "volume", "motion", "transparency", "theme=light", "theme=dark", "theme=system", "panel=light", "panel=dark", "gfx=auto", "gfx=low", "gfx=mid", "gfx=high", "map3d"],
+    "the sheet: Study mode first, then sound and volume, motion, transparency, theme, reading panel, graphics quality, the 3D map");
+  check(/Keeps hints, reviews and progress\. Removes hearts, combo, bosses, motion and sound\./.test(h.sheet.textContent) && h.links === 5, "Study mode says what it keeps and what it removes, and the sheet keeps the menu's links");
+  eq(hudOf(render('data-depth="2" data-chapter="ch99" data-part="algebra"', "parts/p/c.html")).slots, ["hud-level", "hud-streak", "hud-combo[hidden]", "hud-hearts[slot][hidden]"], "a chapter keeps a place for the boss's hearts");
+  h = hudOf(render('data-depth="0" data-page="arena"'));
+  eq([h.slots, h.strip], [["hud-level", "hud-streak", "hud-combo[hidden]", "hud-hearts[slot][hidden]", "hud-timer[slot][hidden]"], true], "the Arena keeps a place for hearts and the clock, and has the second row for a narrow screen");
 
   /* the other kinds and top bars */
   eq(scripts(render('data-depth="0" data-page="dashboard"')).slice(-1), ["src/entries/dashboard.js"], "a dashboard loads the dashboard entry");
@@ -328,8 +371,8 @@ function refusal(fn) { try { fn(); return null; } catch (e) { return e.message; 
   out = render('data-depth="0" data-page="home" data-nav="home"');
   eq([sheets(out).slice(-2), scripts(out).slice(-1)], [["assets/scenes3d.css", "assets/map3d.css"], ["src/entries/home.js"]], "the home page has the map's stylesheet last and the home entry");
   Object.keys(shell.PAGE_KINDS).forEach(k => check(fs.existsSync(path.join(site.ROOT, shell.PAGE_KINDS[k].entry)), "the entry of kind " + k + " exists: " + shell.PAGE_KINDS[k].entry));
-  eq(parse(out).query("header.topbar").queryAll("a").map(a => a.getAttribute("href")), ["index.html", "about.html"], "data-nav=\"home\": no Contents link on the contents page");
-  eq(parse(render('data-depth="0" data-page="page" data-nav="about"')).query("header.topbar").queryAll("a").map(a => a.textContent).slice(1), ["Contents", "Progress"], "data-nav=\"about\": Contents and Progress");
+  eq(pageLinks(out).map(a => a.getAttribute("href")), ["index.html", "about.html"], "data-nav=\"home\": no Contents link on the contents page");
+  eq(pageLinks(render('data-depth="0" data-page="page" data-nav="about"')).map(a => a.textContent).slice(1), ["Contents", "Progress"], "data-nav=\"about\": Contents and Progress");
   check(/<meta charset="utf-8">\n<meta name="robots" content="noindex">\n<meta name="viewport"/.test(render('data-depth="0" data-page="dashboard"', "x.html", HEAD + '\n<meta name="robots" content="noindex">')), "a robots tag goes right after the charset");
 
   /* chapters */
@@ -337,7 +380,7 @@ function refusal(fn) { try { fn(); return null; } catch (e) { return e.message; 
   check(/<body data-depth="2" data-chapter="ch99" data-part="algebra">/.test(out), "a chapter keeps data-chapter and data-part");
   const sc = scripts(out);
   eq([sc, sheets(out)[0], sheets(out).slice(-1)], [["../../src/entries/chapter.js"], "../../src/vendor/fonts.css", ["../../assets/scenes3d.css"]], "it loads the chapter entry and the vendor stylesheets by its depth, and the scenes' stylesheet is every chapter's");
-  eq(parse(out).query("header.topbar").queryAll("a").map(a => a.getAttribute("href")), ["../../index.html", "../../index.html", "../../about.html"], "the top bar's links climb by data-depth");
+  eq(pageLinks(out).map(a => a.getAttribute("href")), ["../../index.html", "../../index.html", "../../about.html"], "the top bar's links climb by data-depth");
   const chapterEntry = fs.readFileSync(path.join(site.ROOT, "src/entries/chapter.js"), "utf8");
   const sceneFiles = fs.readdirSync(path.join(site.ROOT, "assets/scenes")).filter(f => /\.js$/.test(f));
   eq(sceneFiles.filter(f => !chapterEntry.includes("assets/scenes/" + f)), [], "the chapter entry imports every scene file under assets/scenes/");
@@ -365,9 +408,16 @@ function refusal(fn) { try { fn(); return null; } catch (e) { return e.message; 
   /* the shell check: what it records, and what it notices */
   const facts = (html) => shellOf(parse(html));
   const base = facts(render('data-depth="2" data-chapter="ch99" data-part="algebra"', "parts/p/c.html"));
-  eq([base.body, base.topbar], ["<body data-depth='2' data-chapter='ch99' data-part='algebra'>",
-    ["Skip to content -> #main", "∑ Basic Mathematics -> ../../index.html", "Contents -> ../../index.html", "How to use this -> ../../about.html", "button: Switch between light and dark"]],
-    "the record of a page: its body tag without what only the shell reads, and the top bar's links");
+  eq([base.body, base.topbar.slice(0, 11)], ["<body data-depth='2' data-chapter='ch99' data-part='algebra'>",
+    ["Skip to content -> #main", "∑ Basic Mathematics -> ../../index.html", "Contents -> ../../index.html", "How to use this -> ../../about.html",
+      "Level 1, Counter. 0 of 25 XP to level 2. Open your progress. -> ../../progress.html", "Sign in -> ../../account.html", "button: Sound", "button: Menu and settings",
+      "button: Close menu and settings", "Contents -> ../../index.html", "How to use this -> ../../about.html"]],
+    "the record of a page: its body tag without what only the shell reads, and the top bar's links and buttons by their labels, the sheet's among them");
+  check(/^<script>#[0-9a-f]+<\/script>$/.test(base.topbar[base.topbar.length - 1]) && base.topbar.length === 15, "… and last, the HUD script after the top bar as a fingerprint of its text");
+  const hudChanged = render('data-depth="2" data-chapter="ch99" data-part="algebra"', "parts/p/c.html").replace('"use strict";\nfunction threshold', '"use strict";\nvar edited = 1;\nfunction threshold');
+  const hudEdited = shellDiff(facts(hudChanged), base);
+  check(hudEdited.length === 1 && /^topbar entry 15 is now `<script>#[0-9a-f]+<\/script>`, accepted `<script>#[0-9a-f]+<\/script>`$/.test(hudEdited[0]), "an edit to the HUD script shows as a new fingerprint: " + hudEdited[0]);
+  check(/^the body's one script is not the HUD script/.test(scriptsProblems("parts/p/c.html", parse(hudChanged), "chapter")[0] || ""), "… and a HUD script that is not hudScript() fails, whatever the record says");
   const bootLine = base.head.find(l => /^<script>#[0-9a-f]+<\/script>$/.test(l));
   check(bootLine && base.head.includes("<script type='module' src='../../src/entries/chapter.js'>") && base.head[2] === "<title>A title</title>", "… and every tag of its head, attributes and all, the inline boot script as a fingerprint of its text");
   eq(shellDiff(base, base), [], "the same shell is no difference");

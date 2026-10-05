@@ -202,6 +202,25 @@ stylesheet is fetched again. Either way nothing breaks and nothing is kept for i
 chose the dark panel (`bm.prefs.v1` `panel: "dark"`) keeps the choice; there was no such choice
 before this deploy, so a reader of the dark theme now sees light paper in a dark frame.
 
+### Cached HTML after the HUD deploy
+
+The deploy that made the HUD and the settings sheet part of every page's top bar
+(`tools/lib/shell.js`, with the HUD script after it) renamed no file either, so for the ten
+minutes both mixes can happen, and neither loses anything a reader saved:
+
+- A page from before it with the bundle from after it has the old top bar, which the game layer
+  used to build its HUD into and no longer does: for those minutes it shows no HUD and no menu
+  button. Its scripts run, because the bundle installs `window.BMHud` itself where no HUD script
+  put it (`src/hud/install.js`); without that, `site.js` could not have counted the XP of an
+  answer given on such a page. The `hud` suite of `check-browser.js` loads a chapter with the
+  HUD script taken out and holds it to earning XP.
+- A page from after it with a bundle from before it has the new top bar and the old `game.js`,
+  which rebuilds the HUD its own way and cannot open the new sheet: the menu button does
+  nothing until the bundle is fetched again. Settings chosen before are kept: the new ones
+  (`volume`, `motion`, `transparency`, `gfx` in `bm.prefs.v1`) are keys the old `game.js`
+  passes through untouched (R0's carry-through), and the boot script, which is in the page,
+  stamps them.
+
 ### The Pages source: GitHub Actions, set before the page-shell change is merged
 
 The Pages source is a repository setting and not a file, so it is set by hand:

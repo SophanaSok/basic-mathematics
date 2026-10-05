@@ -77,6 +77,9 @@
     if (failed) return false;
     var p = prefs();
     if (p.map === "list") return false;
+    /* Graphics quality Low in the settings sheet keeps the list (the other tiers are for
+       the 3D world, which reads them itself) */
+    if (p.gfx === "low") return false;
     if (!BM3D.supported()) return false;
     /* a low-end device gets the list unless the person switched the map on themselves */
     if (p.map !== "3d" && BM3D.lowEnd && BM3D.lowEnd()) return false;
@@ -88,7 +91,8 @@
     if (window.BMFx && typeof window.BMFx.still === "function") {
       try { return !!window.BMFx.still(); } catch (e) { /* fall back below */ }
     }
-    return !!(reduceQuery && reduceQuery.matches) || document.documentElement.hasAttribute("data-calm");
+    var root = document.documentElement;
+    return !!(reduceQuery && reduceQuery.matches) || root.hasAttribute("data-calm") || root.getAttribute("data-motion") === "reduce";
   }
 
   function regionName(part) {
@@ -1035,9 +1039,9 @@
     });
   }
 
-  /* theme, the reading panel and calm mode live on <html>; reduced motion on the media
-     query. The map is on the panel, so it takes the panel's paper: its palette is read
-     again when either attribute changes */
+  /* theme, the reading panel, calm mode and the sheet's Reduce motion live on <html>; the
+     device's reduced motion on the media query. The map is on the panel, so it takes the
+     panel's paper: its palette is read again when the theme or the panel changes */
   if (window.MutationObserver) {
     new MutationObserver(function (list) {
       if (!M) return;
@@ -1047,7 +1051,7 @@
       if (M.bobbing && !wantsBob()) { M.bobbing = false; markerAt(0); }
       if (M.flight && still()) jump(M.flight.v);
       request();
-    }).observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme", "data-panel", "data-calm"] });
+    }).observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme", "data-panel", "data-calm", "data-motion"] });
   }
   if (reduceQuery) {
     var onReduce = function () {
@@ -1071,7 +1075,7 @@
   /* a small handle for the checks in tools/ and for curious readers of the console */
   window.BMMap3D = {
     on: function () { return !!M; },
-    why: function () { return M ? "" : failed || BM3D.why || (prefs().map === "list" ? "list" : ""); },
+    why: function () { return M ? "" : failed || BM3D.why || (prefs().map === "list" ? "list" : prefs().gfx === "low" ? "gfx-low" : ""); },
     info: function () {
       if (!M) return null;
       var tris = 0;

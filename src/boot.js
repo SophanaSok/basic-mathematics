@@ -21,4 +21,8 @@
   root.setAttribute("data-panel", prefs.panel === "dark" ? "dark" : "light");
   if (prefs.calm) root.setAttribute("data-calm", "true");
   root.setAttribute("data-sound", prefs.sound && !prefs.calm ? "on" : "off");
+  /* the settings sheet's Reduce motion and Reduce transparency: on top of what the
+     device asks for, never instead of it (game.css, tokens.css) */
+  if (prefs.motion === "reduce") root.setAttribute("data-motion", "reduce");
+  if (prefs.transparency === "reduce") root.setAttribute("data-transparency", "reduce");
 })();

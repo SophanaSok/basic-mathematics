@@ -618,7 +618,7 @@
     if (window.BMFx && typeof window.BMFx.still === "function") return !!window.BMFx.still();
     var root = document.documentElement;
     return !!((window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches) ||
-      (root && root.hasAttribute && root.hasAttribute("data-calm")));
+      (root && root.hasAttribute && (root.hasAttribute("data-calm") || root.getAttribute("data-motion") === "reduce")));
   }
   /* The GL painter (scenes3d-gl.js) is fetched by a dynamic import, which finds the
      file from this one's own URL whether this file runs inside the chapter bundle (the

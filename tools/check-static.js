@@ -272,16 +272,21 @@ function tagLine(el, skip) {
      head    every tag of <head> in order: the title, the description, each stylesheet
              and each script with its attributes (a `defer` is one), and the rest
      body    the <body> tag, without the attributes only lib/shell.js reads
-     topbar  the skip link and the top bar: each link as "text -> href", each button
+     topbar  the skip link and the top bar: each link as "words -> href" and each button
+             as "button: words", the words its label or else its text (the settings
+             sheet's links and buttons among them), then the HUD script after the top
+             bar as a fingerprint of its text, like the boot script in the head
    The order of the head is the order the scripts run in and the stylesheets cascade
    in; the body attributes are what site.js and the stylesheets find the page by. */
 function shellOf(doc) {
   const head = doc.query("head"), body = doc.query("body"), bar = doc.query("header.topbar"), skip = doc.query("a.skip-link");
+  const words = (el) => el.getAttribute("aria-label") || normText(el.textContent);
   return {
     head: head ? head.children_elements.map(el => tagLine(el)) : [],
     body: body ? tagLine(body, shell.BODY_INPUTS) : "",
     topbar: (skip ? [skip] : []).concat(bar ? bar.queryAll("a, button") : [])
-      .map(el => el.name === "a" ? normText(el.textContent) + " -> " + el.getAttribute("href") : "button: " + (el.getAttribute("aria-label") || normText(el.textContent)))
+      .map(el => el.name === "a" ? words(el) + " -> " + el.getAttribute("href") : "button: " + words(el))
+      .concat(body ? body.children_elements.filter(el => el.name === "script").map(el => tagLine(el)) : [])
   };
 }
 /* @returns {string[]} what differs between a page's shell and the accepted one */
@@ -300,9 +305,10 @@ function shellDiff(now, accepted) {
   return out;
 }
 
-/* The scripts of a page: the boot script inline and first, then one
+/* The scripts of a page: in <head> the boot script inline and first, then one
    <script type="module"> naming the entry of the page's kind (src/entries/<kind>.js, a
-   file that exists), and no other script. A classic <script src>, of the site's own or
+   file that exists); in <body> the HUD script inline, straight after the top bar; and no
+   other script. A classic <script src>, of the site's own or
    from another server (KaTeX comes from npm through the entry now), a second module, or a
    page of one kind with another kind's entry each fail here, before shell.json is
    consulted.
@@ -321,6 +327,14 @@ function scriptsProblems(p, doc, kind) {
   else if (mods[0].getAttribute("src") !== want) out.push("the module script is " + JSON.stringify(mods[0].getAttribute("src")) + ", not the entry of a " + kind + " page, " + want);
   else if (!exists(shell.PAGE_KINDS[kind].entry)) out.push("the entry " + shell.PAGE_KINDS[kind].entry + " does not exist");
   if (scripts.length !== 1 + mods.length) out.push("a script of <head> is neither the boot script nor the module entry");
+  /* and in the body one script, straight after the top bar: the HUD script inline */
+  const body = doc.query("body");
+  const inBody = body ? body.queryAll("script") : [];
+  const bar = doc.query("header.topbar");
+  const next = bar && bar.parent ? bar.parent.children_elements[bar.parent.children_elements.indexOf(bar) + 1] : null;
+  if (inBody.length !== 1 || inBody[0] !== next || inBody[0].hasAttribute("src") || normText(inBody[0].textContent) !== normText(shell.hudScript())) {
+    out.push("the body's one script is not the HUD script (src/hud/, tools/lib/shell.js hudScript) inline, straight after the top bar: " + inBody.length + " script(s) in <body>");
+  }
   return out;
 }
 

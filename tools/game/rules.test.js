@@ -7,12 +7,16 @@
      - hearts and medals on fixtures, including a set solved with no attempt record
      - every achievement predicate on fixtures, false on an empty store
      - the recall boxes and run XP of recordRun
-     - play settings and game records keep what a later version of the site added to them
+     - play settings and game records keep what a later version of the site added to them;
+       the settings sheet's volume, Reduce motion and transparency (stamped on <html>) and
+       graphics quality, and a setting that holds for the visit when storage is blocked
    Usage: node tools/game/rules.test.js */
 "use strict";
 const fs = require("fs");
 const path = require("path");
 const vm = require("vm");
+
+const shell = require("../lib/shell");
 
 const ROOT = path.resolve(__dirname, "../..");
 let fails = 0, passes = 0;
@@ -84,6 +88,9 @@ function world(seedStores) {
   };
   win.window = win;
   vm.createContext(win);
+  /* window.BMHud first, as every page has it before the bundle: the level curve and the
+     combo's multiplier are src/hud/'s, through the very text the shell inlines */
+  vm.runInContext(shell.hudLibrary(), win, { filename: "the HUD script (tools/lib/shell.js)" });
   ["data/curriculum.js", "data/quest.js", "assets/game.js"].forEach((f) => {
     vm.runInContext(fs.readFileSync(path.join(ROOT, f), "utf8"), win, { filename: f });
   });
@@ -396,20 +403,49 @@ function world(seedStores) {
   const keys = ["e1", "e2", "e3", "e4"];
   const at = (d) => new Date(d + "T12:00:00").getTime();
 
-  /* play settings: a key this file has never heard of outlives every switch */
-  let w = world({ "bm.prefs.v1": { calm: true, motion: "reduced", volume: { music: 0.4 } } });
-  eq([w.Game.prefs().calm, w.Game.prefs().motion], [true, "reduced"], "prefs() hands back an unknown key beside the known ones");
+  /* play settings: a key this file has never heard of outlives every switch (gfxAuto,
+     what the 3D world's watchdog will write, and tutorPromo stand in for them) */
+  let w = world({ "bm.prefs.v1": { calm: true, gfxAuto: { tier: "low", at: 1, why: "slow" }, tutorPromo: false } });
+  eq([w.Game.prefs().calm, w.Game.prefs().gfxAuto, w.Game.prefs().tutorPromo], [true, { tier: "low", at: 1, why: "slow" }, false], "prefs() hands back an unknown key beside the known ones");
   w.Game.setPref("sound", true);
-  eq([w.read("bm.prefs.v1").motion, w.read("bm.prefs.v1").volume, w.read("bm.prefs.v1").sound], ["reduced", { music: 0.4 }, true], "switching one setting keeps an unknown key");
+  eq([w.read("bm.prefs.v1").gfxAuto, w.read("bm.prefs.v1").tutorPromo, w.read("bm.prefs.v1").sound], [{ tier: "low", at: 1, why: "slow" }, false, true], "switching one setting keeps an unknown key");
   w.Game.setPref("calm", false); w.Game.setPref("map3d", false); w.Game.setPref("tempo", "untimed");
+  w.Game.setPref("volume", 35); w.Game.setPref("motion", true); w.Game.setPref("transparency", true); w.Game.setPref("gfx", "mid");
   let p = w.read("bm.prefs.v1");
-  eq([p.motion, p.volume, p.sound, p.calm, p.map, p.tempo], ["reduced", { music: 0.4 }, true, false, "list", "untimed"], "every setting switched in turn: the unknown keys are still there");
+  eq([p.gfxAuto, p.tutorPromo, p.sound, p.calm, p.map, p.tempo, p.volume, p.motion, p.transparency, p.gfx],
+    [{ tier: "low", at: 1, why: "slow" }, false, true, false, "list", "untimed", 35, "reduce", "reduce", "mid"], "every setting switched in turn: the unknown keys are still there");
   /* the settings stay on this device: a "state" change is what account sync listens for */
-  eq([w.events.filter((e) => e.type === "state").length, w.events.filter((e) => e.type === "prefs").length], [0, 4], "switching a setting announces prefs and never a state change");
+  eq([w.events.filter((e) => e.type === "state").length, w.events.filter((e) => e.type === "prefs").length], [0, 8], "switching a setting announces prefs and never a state change");
   w.Game.setPref("nonsense", 1);
   eq(w.read("bm.prefs.v1"), p, "a setting this file does not know is not written by setPref");
-  p = world({ "bm.prefs.v1": { map: "globe", tempo: "warp" } }).Game.prefs();
-  eq([p.sound, p.calm, "map" in p, p.tempo], [false, false, false, "standard"], "the known settings are still normalised");
+  p = world({ "bm.prefs.v1": { map: "globe", tempo: "warp", volume: 140, motion: "less", transparency: true, gfx: "ultra" } }).Game.prefs();
+  eq([p.sound, p.calm, "map" in p, p.tempo, "volume" in p, "motion" in p, "transparency" in p, "gfx" in p], [false, false, false, "standard", false, false, false, false],
+    "the known settings are still normalised: a value the site does not know reads as unset, the default");
+
+  /* the settings sheet's new switches: stamped on <html>, and off again */
+  w = world({ "bm.prefs.v1": { volume: 80 } });
+  const html = () => w.win.document.documentElement.attrs;
+  eq([w.Game.volume(w.Game.prefs()), w.Game.volume(world().Game.prefs())], [80, 50], "the volume is the stored one, 50 when there is none");
+  w.Game.setPref("volume", 101.6); eq(w.read("bm.prefs.v1").volume, 100, "the volume is held to 0..100, a whole number");
+  w.Game.setPref("volume", "x"); eq(w.read("bm.prefs.v1").volume, 0, "a volume that is not a number is 0, not a broken store");
+  w.Game.setPref("motion", "reduce"); w.Game.setPref("transparency", true);
+  eq([html()["data-motion"], html()["data-transparency"]], ["reduce", "reduce"], "Reduce motion and Reduce transparency stamp html[data-motion] and html[data-transparency]");
+  w.Game.setPref("motion", false); w.Game.setPref("transparency", false);
+  eq(["data-motion" in html(), "data-transparency" in html(), "motion" in w.read("bm.prefs.v1"), "transparency" in w.read("bm.prefs.v1")], [false, false, false, false],
+    "switched off, the attributes go and the store keeps nothing: the device's own setting rules again");
+  w.Game.setPref("gfx", "low");
+  eq([w.read("bm.prefs.v1").gfx, w.Game.map3dOn(w.Game.prefs())], ["low", false], "Graphics quality Low keeps the course map a list");
+  w.Game.setPref("map3d", true);
+  eq(w.Game.map3dOn(w.Game.prefs()), false, "… even with the 3D map switch on, until the quality goes up again");
+  w.Game.setPref("gfx", "auto");
+  eq(["gfx" in w.read("bm.prefs.v1"), w.Game.map3dOn(w.Game.prefs())], [false, true], "Auto is stored as no choice, and the map is 3D again");
+  eq(w.events.filter((e) => e.type === "state").length, 0, "none of it is a state change for account sync");
+
+  /* a store that cannot be written: the choice still holds for the visit */
+  w = world();
+  w.Store.write = () => false;
+  w.Game.setPref("calm", true);
+  eq([w.Game.prefs().calm, "bm.prefs.v1" in w.mem], [true, false], "with storage blocked, a setting holds for the visit and nothing is stored");
 
   /* the reading panel: unset until chosen (light paper), stamped on <html> as data-panel */
   w = world({ "bm.prefs.v1": { panel: "sepia", calm: true } });

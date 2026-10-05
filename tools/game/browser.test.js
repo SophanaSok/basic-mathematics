@@ -16,7 +16,10 @@
    4. calm mode hides hearts and combo
    5. no AudioContext is constructed while sound is off (and one is once it is on)
    6. no console errors on index, about, progress and four chapters in both themes
-   7. localStorage that throws on every access breaks nothing */
+   7. localStorage that throws on every access breaks nothing
+   and the settings sheet: a modal sheet at 360 that keeps the focus and gives it back on
+   Escape, beside the rail at 1280, the theme chosen in it even with storage blocked (the
+   `hud` suite of check-browser.js covers every setting and the HUD's layout) */
 "use strict";
 const site = require("../lib/site");
 const target = require("../lib/target");
@@ -246,11 +249,11 @@ async function run() {
       eq(await page.evaluate(() => [window.BMGame.prefs().sound, document.documentElement.getAttribute("data-sound"), document.querySelector(".hud-sound").getAttribute("aria-pressed")]), [true, "on", "true"], "the sound button turns sound on");
       eq(await page.evaluate(() => window.__ac), 1, "the AudioContext is made on that gesture, once");
       await page.click(".hud-menu");
-      check(await page.$eval("#hud-sheet", (s) => !s.hidden) && await page.$eval(".hud-menu", (b) => b.getAttribute("aria-expanded")) === "true", "menu opens the sheet");
+      check(await page.$eval("#hud-sheet", (s) => s.open) && await page.$eval(".hud-menu", (b) => b.getAttribute("aria-expanded")) === "true", "menu opens the sheet");
       await page.click('#hud-sheet [data-pref="sound"]');
       eq(await page.evaluate(() => window.BMGame.prefs().sound), false, "the sheet switch turns it off again");
       await page.keyboard.press("Escape");
-      check(await page.$eval("#hud-sheet", (s) => s.hidden), "Escape closes the sheet");
+      check(await page.$eval("#hud-sheet", (s) => !s.open), "Escape closes the sheet");
       eq(errors, [], "no errors around sound");
       await context.close();
     }
@@ -375,14 +378,16 @@ async function run() {
       await context.close();
     }
 
-    /* ------------------------------- theme toggle with storage that throws */
+    /* ------------------------------- the theme choice with storage that throws */
     {
       const { context, page, errors } = await open(browser, "index.html", {}, { blockStorage: true });
-      const theme = () => page.evaluate(() => [document.documentElement.getAttribute("data-theme"), document.querySelector("[data-theme-toggle]").textContent]);
+      const theme = () => page.evaluate(() => [document.documentElement.getAttribute("data-theme"),
+        document.querySelector('#hud-sheet input[data-pref="theme"]:checked').value]);
+      await page.click(".hud-menu");
       const seen = [await theme()];
-      for (let i = 0; i < 3; i++) { await page.click("[data-theme-toggle]"); seen.push(await theme()); }
-      eq(seen, [["light", "☾"], ["dark", "☀"], ["light", "☾"], ["dark", "☀"]], "the theme toggle switches both ways and its label follows, with storage blocked");
-      eq(errors, [], "no errors toggling the theme with storage blocked");
+      for (const v of ["dark", "light", "dark", "system"]) { await page.click('#hud-sheet input[data-pref="theme"][value="' + v + '"]'); seen.push(await theme()); }
+      eq(seen, [["light", "system"], ["dark", "dark"], ["light", "light"], ["dark", "dark"], ["light", "system"]], "the theme choice switches every way and the sheet shows it, with storage blocked");
+      eq(errors, [], "no errors choosing the theme with storage blocked");
       await context.close();
     }
 
@@ -512,19 +517,30 @@ async function run() {
       await context.close();
     }
 
-    /* ------------------------- review fixes: the sheet carries theme and account */
+    /* ------------------------- the sheet carries theme and account, on a phone and wide */
     {
       const { context, page, errors } = await open(browser, "parts/1-algebra/01-numbers.html", { "bm.lesson.v1": '{"mode":"page"}', "bm.theme": '"light"' }, { width: 360 });
       await page.click(".hud-menu");
-      check(await page.$eval(".hud-sheet .hud-sheet-theme", (b) => !!b.offsetParent), "at 360px the sheet shows a theme button");
-      await page.click(".hud-sheet .hud-sheet-theme");
-      eq(await page.evaluate(() => [document.documentElement.getAttribute("data-theme"), document.getElementById("hud-sheet").hidden]), ["dark", false], "it switches the theme and the sheet stays open");
-      await page.focus('.hud-sheet [data-pref="map3d"]');
+      check(await page.$eval("#hud-sheet", (s) => s.open && s.matches(":modal")) && await page.$eval('#hud-sheet a[href$="account.html"]', (a) => !!a.offsetParent), "at 360px the sheet is modal and carries the account link");
+      await page.click('#hud-sheet input[data-pref="theme"][value="dark"]');
+      eq(await page.evaluate(() => [document.documentElement.getAttribute("data-theme"), document.getElementById("hud-sheet").open, JSON.parse(localStorage.getItem("bm.theme"))]), ["dark", true, "dark"], "its Dark choice switches the theme, keeps it, and the sheet stays open");
+      await page.focus('#hud-sheet [data-pref="map3d"]');
       await page.keyboard.press("Tab");
       await page.keyboard.press("Tab");
-      check(await page.evaluate(() => document.getElementById("hud-sheet").hidden || document.getElementById("hud-sheet").contains(document.activeElement)), "tabbing out of the sheet closes it");
-      eq(errors, [], "no errors around the sheet");
+      check(await page.evaluate(() => document.getElementById("hud-sheet").open && document.getElementById("hud-sheet").contains(document.activeElement)), "tabbing on from its last control stays inside the modal sheet");
+      await page.keyboard.press("Escape");
+      eq(await page.evaluate(() => [document.getElementById("hud-sheet").open, document.activeElement.classList.contains("hud-menu")]), [false, true], "Escape closes it and the focus is back on the menu button");
+      eq(errors, [], "no errors around the sheet at 360px");
       await context.close();
+
+      const wide = await open(browser, "parts/1-algebra/01-numbers.html", { "bm.lesson.v1": '{"mode":"page"}' });
+      await wide.page.click(".hud-menu");
+      check(await wide.page.$eval("#hud-sheet", (s) => s.open && !s.matches(":modal")), "at 1280px the sheet opens beside the rail, not modal");
+      await wide.page.focus('#hud-sheet [data-pref="map3d"]');
+      await wide.page.keyboard.press("Tab");
+      check(await wide.page.evaluate(() => !document.getElementById("hud-sheet").open && document.querySelector(".hud-menu").getAttribute("aria-expanded") === "false"), "tabbing out of the wide sheet closes it");
+      eq(wide.errors, [], "no errors around the sheet at 1280px");
+      await wide.context.close();
     }
 
     /* --------------- review fixes: medals, recall, streaks and repairs off the chapter page */

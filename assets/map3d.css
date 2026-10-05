@@ -64,6 +64,10 @@
   padding: .2rem .55rem;
 }
 .map3d-label[data-kind="current"] { border-color: var(--part); box-shadow: 0 2px 0 var(--part); }
+/* less transparency asked for (the device, or the settings sheet's Reduce transparency):
+   the labels on solid paper */
+@media (prefers-reduced-transparency: reduce) { .map3d-label { background: var(--plot-bg); } }
+html[data-transparency="reduce"] .map3d-label { background: var(--plot-bg); }
 
 .map3d-probe { position: absolute; width: 0; height: 0; overflow: hidden; visibility: hidden; }
 

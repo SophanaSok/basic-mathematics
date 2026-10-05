@@ -9,24 +9,24 @@
    =========================================================================== */
 
 /* ---------------------------------------------------------- HUD rail ----- */
-/* game.js builds div.hud; until it runs, site.js's older a.hud is styled here too. */
+/* The rail's markup is the shell's (tools/lib/shell.js): every slot is in the top bar
+   from the first byte and filled before first paint, so its boxes are the ones the page
+   keeps. Each slot's width is set here in rem and em, never by the digits or the font
+   in it (a web font arriving later would otherwise move it), and a game slot the page
+   can use (hearts, the clock) is laid out from the start, empty and unseen, so filling
+   it moves nothing (the `hud` suite of tools/check-browser.js measures this). */
 
 .hud {
   display: flex; align-items: center; gap: .5rem; min-height: 40px;
   font-family: var(--sans); font-size: .84rem; color: var(--hud-muted);
   white-space: nowrap; text-decoration: none;
 }
-a.hud {
-  padding: 0 .7rem; border-radius: var(--radius-xs);
-  background: var(--hud-chip); border: 1px solid var(--hud-line);
-}
-a.hud:hover { border-color: var(--hud-muted); color: var(--hud-text); }
 .hud b {
   font-family: var(--display); font-weight: 700; color: var(--hud-text);
   font-variant-numeric: tabular-nums;
 }
 
-/* level: a small badge tile and the XP bar */
+/* level: a badge tile and the XP bar, with the XP in words under it */
 .hud-level {
   display: inline-flex; align-items: center; gap: .55rem; min-height: 40px;
   padding: 0 .55rem 0 .3rem; border-radius: var(--radius-xs);
@@ -38,21 +38,21 @@ a.hud:hover { border-color: var(--hud-muted); color: var(--hud-text); }
   border-radius: var(--radius-xs); background: var(--hud-chip);
   border: 1.5px solid var(--hud-xp); box-shadow: 0 2px 0 var(--hud-edge);
 }
-.hud-badge b { font-size: 1rem; font-weight: 800; line-height: 1; color: var(--hud-xp); min-width: 1ch; text-align: center; }
-.hud-level .hud-xp { display: flex; flex-direction: column; gap: .3rem; }
+.hud-badge b { font-size: 1rem; font-weight: 800; line-height: 1; color: var(--hud-xp); text-align: center; }
+.hud-level .hud-xp { display: flex; flex-direction: column; gap: .3rem; width: 6.25rem; }
 .hud-xpbar {
-  display: block; position: relative; width: 5.5rem; height: 6px; border-radius: 3px;
+  display: block; position: relative; width: 100%; height: 6px; border-radius: 3px;
   background: var(--hud-track); overflow: hidden;
 }
 .hud-xpbar i { display: block; height: 100%; width: 0; border-radius: 3px; background: var(--hud-xp); }
-.hud-xptext { font-size: .72rem; line-height: 1; color: var(--hud-muted); }
-.hud-xptext b { display: inline-block; min-width: 3ch; text-align: right; font-size: .78rem; }
+.hud-xptext { display: block; overflow: hidden; font-size: .72rem; line-height: 1; color: var(--hud-muted); }
+.hud-xptext b { font-size: .78rem; }
 
 /* streak: today's goal as a ring, then the flame and the day count */
-.hud-streak, .hud-goal { display: inline-flex; align-items: center; gap: .3rem; min-height: 40px; }
-.hud-streak svg, .hud-streak .icon { width: 1rem; height: 1rem; fill: var(--hud-muted); color: var(--hud-muted); flex: none; }
-.hud-streak[data-on] svg, .hud-streak[data-on] .icon { fill: var(--hud-flame); color: var(--hud-flame); }
-.hud-streak b, .hud-goal b { display: inline-block; min-width: 1.6ch; }
+.hud-streak { display: inline-flex; align-items: center; gap: .3rem; min-height: 40px; }
+.hud-streak .icon { width: 1rem; height: 1rem; color: var(--hud-muted); flex: none; }
+.hud-streak[data-on] .icon { color: var(--hud-flame); }
+.hud-streak b { display: inline-block; min-width: 1.4em; }
 .goal-ring {
   --pct: 0; width: 1.05rem; height: 1.05rem; border-radius: 50%; flex: none;
   background: conic-gradient(var(--hud-ok) calc(var(--pct) * 1%), var(--hud-track) 0);
@@ -85,12 +85,12 @@ a.hud:hover { border-color: var(--hud-muted); color: var(--hud-text); }
 
 /* the Arena's clock; at critical a static stripe, never a flash */
 .hud-timer {
-  display: inline-flex; align-items: center; min-height: 2.25rem; padding: 0 .55rem;
+  display: inline-flex; align-items: center; justify-content: center; min-height: 2.25rem; padding: 0 .55rem;
   border-radius: var(--radius-xs); background: var(--hud-chip); border: 1px solid var(--hud-line);
 }
 .hud-timer-text {
   font-family: var(--display); font-weight: 700; font-size: 1.2rem; line-height: 1;
-  font-variant-numeric: tabular-nums; min-width: 4ch; text-align: center; color: var(--hud-text);
+  font-variant-numeric: tabular-nums; min-width: 2.6em; text-align: center; color: var(--hud-text);
 }
 .hud-timer[data-urgency="low"] { border-color: var(--hud-xp); }
 .hud-timer[data-urgency="low"] .hud-timer-text { color: var(--hud-xp); }
@@ -100,33 +100,59 @@ a.hud:hover { border-color: var(--hud-muted); color: var(--hud-text); }
 }
 .hud-timer[data-urgency="critical"] .hud-timer-text { color: var(--hud-heart); }
 
-/* icons from game.js's #bm-sprite paint in currentColor */
+/* a game slot the page can use keeps its place while it is empty: three hearts' width,
+   a clock's; filled, it is the same box. site.css hides [hidden] with !important, so
+   this has to say it too. Study mode has no hearts, so it keeps no place for them. */
+.hud > .hud-timer[data-slot][hidden], html:not([data-calm]) .hud > .hud-hearts[data-slot][hidden] { display: inline-flex !important; visibility: hidden; }
+.hud > .hud-hearts[data-slot] { min-width: calc(3 * 1.05rem + 6px); min-height: 1.05rem; }
+.hud > .hud-timer[data-slot] { min-width: 4.5rem; }
+
+/* icons drawn by the shell paint in currentColor */
 svg.icon { display: inline-block; width: 1em; height: 1em; flex: none; vertical-align: -.125em; overflow: visible; }
-#bm-sprite { position: absolute; width: 0; height: 0; overflow: hidden; }
 
-/* rail buttons left empty (before game.js fills them) get a drawn icon */
+/* the sound and menu buttons: the sound icon says on or off from html[data-sound],
+   which the boot script stamped before first paint */
 .hud-sound, .hud-menu { flex: none; display: grid; place-items: center; }
-.hud-sound:empty::before, .hud-menu:empty::before {
-  content: ""; width: 1.25rem; height: 1.25rem; background: currentColor;
-  -webkit-mask: var(--icon-menu) center / contain no-repeat; mask: var(--icon-menu) center / contain no-repeat;
-}
-.hud-sound:empty::before { -webkit-mask-image: var(--icon-mute); mask-image: var(--icon-mute); }
-.hud-sound[aria-pressed="true"]:empty::before { -webkit-mask-image: var(--icon-sound); mask-image: var(--icon-sound); }
-.hud-sound[aria-disabled="true"] { opacity: .5; cursor: not-allowed; }
+.icon-btn svg.icon { width: 1.25rem; height: 1.25rem; }
+.hud-sound .icon-sound-on, html[data-sound="on"] .hud-sound .icon-sound-off { display: none; }
+html[data-sound="on"] .hud-sound .icon-sound-on { display: inline-block; }
+html[data-calm] .hud-sound { opacity: .5; cursor: not-allowed; }
 .hud-menu[aria-expanded="true"] { background: var(--hud-text); color: var(--hud-bg); border-color: var(--hud-text); }
-.icon-btn svg, .icon-btn svg.icon { width: 1.25rem; height: 1.25rem; fill: currentColor; }
 
-/* the menu and settings sheet hangs from the rail */
+/* the account chip: one width signed in or out, so turning into the avatar moves nothing */
+.topbar nav > .acct { flex: none; justify-content: center; width: 5.25rem; padding: 0; }
+
+/* -------------------------------------------------- the settings sheet --- */
+/* A native <dialog> (src/ui/settings.ts): on a wide screen it hangs from the rail and is
+   not modal; on a narrow one it is a modal sheet from the bottom over the scrim. Frame
+   colours, solid, in both. */
+
 .hud-sheet {
   --focus: var(--hud-focus);
-  position: absolute; top: calc(100% + 2px); right: max(16px, 4vw); z-index: 45;
-  width: min(21rem, calc(100vw - 32px)); max-height: calc(100vh - var(--hud-h) - 1rem); overflow-y: auto;
-  padding: .55rem; background: var(--hud-bg); color: var(--hud-text);
+  position: absolute; inset: calc(100% + 2px) max(16px, 4vw) auto auto; z-index: 45;
+  width: min(23rem, calc(100vw - 32px)); max-height: calc(100vh - var(--hud-h) - 1rem); overflow-y: auto;
+  margin: 0; padding: .55rem .55rem .8rem; background: var(--hud-bg); color: var(--hud-text);
   border: 2px solid var(--hud-line); border-top: 0; border-radius: 0 0 var(--radius-sm) var(--radius-sm);
   box-shadow: 0 4px 0 var(--hud-edge);
-  font-family: var(--sans); font-size: .92rem;
+  font-family: var(--sans); font-size: .92rem; white-space: normal;
 }
-.hud-links { list-style: none; margin: 0 0 .45rem; padding: 0 0 .45rem; border-bottom: 1px solid var(--hud-line); }
+.hud-sheet:not([open]) { display: none; }
+.hud-sheet:modal {
+  position: fixed; inset: auto 0 0 0; width: 100%; max-width: none; max-height: min(88vh, 44rem);
+  padding: .55rem max(16px, 4vw) max(1rem, env(safe-area-inset-bottom));
+  border: 2px solid var(--hud-line); border-bottom: 0; border-radius: var(--radius) var(--radius) 0 0;
+  box-shadow: none;
+}
+.hud-sheet::backdrop { background: var(--scrim-glass); }
+
+.sheet-head { display: flex; align-items: center; justify-content: space-between; gap: .5rem; padding: 0 0 .35rem .75rem; }
+.sheet-title {
+  margin: 0; color: var(--hud-muted);
+  font: 700 .74rem/1.3 var(--display); text-transform: uppercase; letter-spacing: .08em;
+}
+.hud-sheet .sheet-close { --edge: var(--hud-edge); min-width: 40px; height: 40px; padding: 0; background: var(--hud-chip); color: var(--hud-text); border: 1px solid var(--hud-line); }
+
+.hud-links { list-style: none; margin: 0 0 .5rem; padding: 0 0 .5rem; border-bottom: 1px solid var(--hud-line); }
 .hud-links li { margin: 0; }
 .hud-links a {
   display: flex; align-items: center; min-height: 44px; padding: 0 .75rem;
@@ -134,7 +160,44 @@ svg.icon { display: inline-block; width: 1em; height: 1em; flex: none; vertical-
 }
 .hud-links a:hover { background: var(--hud-chip); }
 .hud-links a[aria-current] { box-shadow: inset 3px 0 0 var(--hud-xp); }
-.hud-sheet .icon-btn, .hud-sheet .acct { width: 100%; justify-content: flex-start; margin: .2rem 0; }
+
+/* Study mode first, on a raised tile of its own: the one choice that changes the course */
+.hud-sheet .sheet-study {
+  margin: 0 0 .5rem; padding: .65rem .75rem; background: var(--hud-chip);
+  border: 1px solid var(--hud-line); border-left: 4px solid var(--hud-ok);
+}
+.hud-sheet .sheet-study span { font-family: var(--display); font-size: 1rem; }
+.hud-sheet .sheet-study:hover { background: var(--hud-chip); border-color: var(--hud-muted); border-left-color: var(--hud-ok); }
+
+.sheet-group { margin: 0; padding: .45rem 0 .35rem; border: 0; border-top: 1px solid var(--hud-line); min-width: 0; }
+.sheet-group legend {
+  float: left; width: 100%; padding: .2rem .75rem .25rem; color: var(--hud-muted);
+  font: 700 .72rem/1.3 var(--display); text-transform: uppercase; letter-spacing: .08em;
+}
+.sheet-group legend + * { clear: left; }
+
+/* a choice of a few: a row of pills, the chosen one filled */
+.sheet-options { display: flex; flex-wrap: wrap; gap: .4rem; padding: .15rem .75rem .45rem; }
+.sheet-options label {
+  position: relative; display: inline-flex; align-items: center; gap: .45rem; min-height: 40px;
+  padding: 0 .85rem 0 .65rem; border-radius: var(--radius-pill); cursor: pointer;
+  background: var(--hud-chip); color: var(--hud-text); border: 1.5px solid var(--hud-line); font-weight: 600;
+}
+.sheet-options input {
+  -webkit-appearance: none; appearance: none; flex: none; margin: 0; width: 1rem; height: 1rem;
+  border-radius: 50%; border: 1.5px solid var(--hud-muted); background: transparent; cursor: pointer;
+}
+/* chosen: a ring and a dot in the pill's ink */
+.sheet-options input:checked { border-color: var(--hud-bg); background: var(--hud-bg); box-shadow: inset 0 0 0 2.5px var(--hud-text); }
+.sheet-options label:has(input:checked) { background: var(--hud-text); color: var(--hud-bg); border-color: var(--hud-text); }
+.sheet-options input:focus-visible { outline: var(--focus-width) solid var(--focus); outline-offset: 3px; }
+
+/* the volume */
+.sheet-slider { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; column-gap: .8rem; min-height: 44px; padding: 0 .75rem; }
+.sheet-slider span { font-weight: 600; color: var(--hud-text); min-width: 2.75rem; }
+.sheet-slider input { width: 100%; margin: 0; accent-color: var(--hud-ok); color-scheme: dark; cursor: pointer; }
+.sheet-slider input:disabled { cursor: not-allowed; }
+.sheet-slider:has(input:disabled) span { color: var(--hud-muted); }
 
 /* switches: a track and a knob; the knob's side says on or off without colour */
 .switch {
@@ -160,6 +223,8 @@ svg.icon { display: inline-block; width: 1em; height: 1em; flex: none; vertical-
 }
 .switch input:checked { background: var(--sw-on); border-color: var(--sw-on); }
 .switch input:checked::before { transform: translateX(1.15rem); background: var(--sw-knob-on); }
+.switch input:disabled { cursor: not-allowed; opacity: .55; }
+.switch:has(input:disabled) { cursor: not-allowed; }
 .switch input:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
 .switch span { grid-column: 2; font-weight: 600; color: var(--sw-text); }
 .switch small { grid-column: 2; font-size: .78rem; line-height: 1.35; color: var(--sw-muted); }
@@ -170,43 +235,41 @@ svg.icon { display: inline-block; width: 1em; height: 1em; flex: none; vertical-
   min-height: 40px; padding-top: .35rem; border-top: 1px solid var(--hud-line);
 }
 
-/* game.js keeps copies of hearts and clock in both places; wide screens show the rail's */
+/* the shell writes copies of hearts and clock in both places; wide screens show the rail's */
 @media (min-width: 481px) { .hud-strip { display: none !important; } }
 
-/* the Arena keeps hearts and clock large; its rail is the accent, not a Part */
-body[data-mode="arena"] .topbar { border-bottom-color: var(--accent); }
-body[data-mode="arena"] .hud-hearts i { width: 1.3rem; height: 1.3rem; }
-body[data-mode="arena"] .hud-timer-text { font-size: 1.4rem; }
+/* the Arena keeps hearts and clock large; its rail is the accent, not a Part. Its top
+   bar is the one with a second row (the shell writes it for the Arena alone), which is
+   known from the first byte, where body[data-mode] waits for arena.js */
+.topbar:has(> .hud-strip) { border-bottom-color: var(--accent); }
+.topbar:has(> .hud-strip) .hud-hearts i { width: 1.3rem; height: 1.3rem; }
+.topbar:has(> .hud-strip) .hud > .hud-hearts[data-slot] { min-width: calc(3 * 1.3rem + 6px); min-height: 1.3rem; }
+.topbar:has(> .hud-strip) .hud-timer-text { font-size: 1.4rem; }
 
-/* collapse: nav links into the sheet under 720px; sound, theme and account under 480px;
-   the XP words under 420px. Only once the sheet exists to receive them. */
+/* collapse: the page links go into the sheet under 720px; sound and the account under
+   480px, and the hearts and the clock (a chapter shows its hearts in its encounter, the
+   Arena both in its second row); the XP words under 420px. The sheet holds every link. */
 @media (max-width: 720px) {
-  .topbar nav:has(.hud-menu) > a:not(.hud):not(.hud-level):not(.acct) { display: none; }
+  .topbar nav > a:not(.hud-level):not(.acct) { display: none; }
 }
 @media (max-width: 480px) {
-  .topbar nav:has(.hud-menu) > .hud-sound,
-  .topbar nav:has(.hud-menu) > .theme-btn,
-  .topbar nav:has(.hud-menu) > [data-theme-toggle],
-  .topbar nav:has(.hud-menu) > .acct { display: none; }
+  .topbar nav > .hud-sound, .topbar nav > .acct { display: none; }
   .hud-combo[data-pips="0"], .hud-combo[data-pips="1"] { display: none; }
-  /* one row: hearts leave the rail (a chapter shows them in its encounter, the Arena in
-     the strip), and so does the clock once the strip carries it */
-  .topbar:has(.hud-strip) .hud > .hud-hearts,
-  .topbar:has(.hud-strip:not([hidden]) .hud-timer) .hud > .hud-timer { display: none; }
+  html .hud > .hud-hearts, html:not([data-calm]) .hud > .hud-hearts[data-slot][hidden],
+  html .hud > .hud-timer, html .hud > .hud-timer[data-slot][hidden] { display: none !important; }
   .hud { gap: .35rem; }
-  .hud-xpbar { width: 4rem; }
+  .hud-level .hud-xp { width: 5rem; }
 }
 @media (max-width: 420px) {
-  .hud-xptext, .hud-goal .hud-xp { display: none; }
-  .hud-level .hud-xp { gap: 0; }
+  .hud-xptext { display: none; }
+  .hud-level .hud-xp { gap: 0; width: 4rem; }
 }
 @media (max-width: 360px) {
   .topbar { padding-inline: 12px; }
-  .hud-xpbar { width: 3rem; }
+  .hud-level .hud-xp { width: 3rem; }
   .hud-combo { gap: 4px; padding: 0 .35rem; }
   .hud-combo i { width: 7px; height: 7px; }
 }
-
 /* ------------------------------------------------- region banner meta ---- */
 /* game.js fills the row; its height is reserved so the page does not shift. */
 
@@ -630,7 +693,7 @@ html[data-motion="reduce"] *, html[data-motion="reduce"] *::before, html[data-mo
   /* every state icon keeps its shape */
   .choice:has(input:checked)::after, .hud-hearts i, .encounter-hearts i, .encounter-wards li[data-done="true"]::before,
   .encounter-sigil::after, .encounter-medal i, .encounter-stars i, .encounter-medal i::after, .encounter-stars i::after,
-  .hud-sound:empty::before, .hud-menu:empty::before, .toast.ach::after, .toast.level::after, .encounter-ach::before,
+  .toast.ach::after, .toast.level::after, .encounter-ach::before,
   .ex[data-target="true"]::after {
     forced-color-adjust: none; background: CanvasText;
   }
@@ -653,7 +716,7 @@ html[data-motion="reduce"] *, html[data-motion="reduce"] *::before, html[data-mo
   .hud-sound, .hud-menu, .toasts, .ex-form .btn, .ex-reward, .ex-stamp, .s3d-canvas,
   .encounter-sigil, .encounter-kicker, .encounter-boss, .encounter-bar, .encounter-wards,
   .encounter-hearts, .encounter-regroup, .encounter-result .actions, .encounter-actions,
-  .banner-meta:empty, .burst, .fx-burst, .fx-canvas, #bm-sprite { display: none !important; }
+  .banner-meta:empty, .burst, .fx-burst, .fx-canvas { display: none !important; }
   /* the encounter shrinks to its one-line status */
   .encounter { display: block; padding: 0; margin: .4rem 0 1rem; border: 0; background: none; }
   .encounter::after { display: none; }
@@ -703,8 +766,9 @@ html[data-motion="reduce"] *, html[data-motion="reduce"] *::before, html[data-mo
   html:not([data-calm]):not([data-motion="reduce"]) .widget[data-inview] svg [tabindex] { animation: handle-dim 800ms ease 2; }
   html:not([data-calm]):not([data-motion="reduce"]) .widget[data-inview] input[type="range"] { animation: slider-nudge 800ms ease 1; }
 
-  /* bars drain and fill */
-  html:not([data-calm]):not([data-motion="reduce"]) .hud-xpbar i,
+  /* bars drain and fill; the XP bar only once the game layer has the HUD (.hud[data-live],
+     game.js), so the fill the HUD script gave it before first paint is never played */
+  html:not([data-calm]):not([data-motion="reduce"]) .hud[data-live] .hud-xpbar i,
   html:not([data-calm]):not([data-motion="reduce"]) .lesson-progress span,
   html:not([data-calm]):not([data-motion="reduce"]) .side-progress .bar span { transition: width 400ms var(--ease-out); }
   html:not([data-calm]):not([data-motion="reduce"]) .encounter-seg { transition: background-color var(--t-2); }

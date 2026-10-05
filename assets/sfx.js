@@ -5,7 +5,7 @@
    AudioContext exists until sound has been switched on and the reader has then
    clicked or pressed a key (browsers insist on a gesture, and a page that has
    never been asked for sound should not open an audio device at all). Muted
-   while the tab is hidden.
+   while the tab is hidden. Played at the settings sheet's volume.
    =========================================================================== */
 (function () {
   "use strict";
@@ -26,6 +26,17 @@
   function enabled() {
     return wanted() && !!Ctx && document.visibilityState !== "hidden";
   }
+  /* The master gain, from the settings sheet's Volume (bm.prefs.v1 volume, 0 to 100):
+     0 to 1, and the default 50 is the 0.5 the site has always played at. */
+  function gainOf() {
+    var p = prefs(), v = window.BMGame && window.BMGame.volume ? window.BMGame.volume(p) : p.volume;
+    v = typeof v === "number" && isFinite(v) ? v : 50;
+    return Math.max(0, Math.min(100, v)) / 100;
+  }
+  function setGain() {
+    if (!master) return;
+    try { master.gain.value = gainOf(); } catch (e) { /* the context is gone */ }
+  }
 
   /* only ever called from inside a click or key press, and only with sound on */
   function wake() {
@@ -34,7 +45,7 @@
       try {
         ctx = new Ctx();
         master = ctx.createGain();
-        master.gain.value = 0.5;
+        master.gain.value = gainOf();
         master.connect(ctx.destination);
       } catch (e) { ctx = null; return; }
     }
@@ -107,7 +118,12 @@
     return true;
   }
 
-  window.BMSfx = { play: play, enabled: enabled, names: Object.keys(SOUNDS) };
+  /* gain(): the master gain the notes play through now, or null before the first note's
+     gesture has made the audio context */
+  window.BMSfx = {
+    play: play, enabled: enabled, names: Object.keys(SOUNDS),
+    gain: function () { return master ? master.gain.value : null; }
+  };
 
   /* ------------------------------------------------------------ the bus --- */
 
@@ -126,7 +142,8 @@
   if (!Store) return;
   Store.on(function (c) {
     if (!ctx) return;
-    if (c.type === "attempt") {
+    if (c.type === "prefs") setGain();
+    else if (c.type === "attempt") {
       if (c.correct) soon(c.tryNo === 1 && !c.solutionOpen ? "correct-first" : "correct");
       else soon("miss");
     } else if (c.type === "combo") {

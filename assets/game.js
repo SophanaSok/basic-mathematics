@@ -1,7 +1,10 @@
 /* ===========================================================================
    Basic Mathematics — the game layer
    window.BMGame   play settings, levels, the combo meter, achievements, the
-                   recall model behind the Arena, and the header HUD
+                   recall model behind the Arena, and the header HUD (whose markup
+                   is the shell's, tools/lib/shell.js, filled before first paint by
+                   the HUD script; this file keeps it up to date with the same
+                   functions, window.BMHud, src/hud/)
    window.BMFx     the two effects anything may ask for: a burst and confetti
    Loaded after site.js, so the page is already built: this file decorates it and
    then listens on BMStore. Nothing here grades an answer or changes how XP is
@@ -17,7 +20,9 @@
      bm.run.v1    this device only: the combo meter, what has been announced, a
                   cache of which exercises make up each set (and the Arena's own
                   fields, which this file keeps as it finds them)
-     bm.prefs.v1  this device only, never cleared: sound, calm, map, tempo
+     bm.prefs.v1  this device only, never cleared: sound, calm, map, tempo, panel,
+                  volume, motion, transparency, gfx (the settings sheet,
+                  src/ui/settings.ts)
 
    A later version of the site may keep fields in these stores that this file has never
    heard of. Every read below carries them through and every write puts them back, the
@@ -27,7 +32,10 @@
   "use strict";
 
   var Store = window.BMStore, Site = window.BMSite;
-  if (!Store || !Site) return;
+  /* the level curve, the combo's multiplier and the HUD's drawing: the one copy, put on
+     the page by the HUD script after the top bar (src/hud/levels.js, view.js) */
+  var HUD = window.BMHud;
+  if (!Store || !Site || !HUD) return;
   var C = window.BM_CURRICULUM || { parts: [], chapters: [] };
   var Progress = window.BMProgress, Attempts = window.BMAttempts, Play = window.BMPlay;
   var Activity = window.BMActivity, Insights = window.BMInsights;
@@ -39,10 +47,12 @@
   function slice(list) { return Array.prototype.slice.call(list); }
   function count(o) { return Object.keys(obj(o)).length; }
   function today() { return Site.dayKey(); }
+  /* no motion: the device asks for less, the reader switched on Reduce motion
+     (html[data-motion]), or Study mode is on */
   function still() {
-    var reduce = false;
+    var reduce = false, root = document.documentElement;
     try { reduce = !!(window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches); } catch (e) { /* old browsers */ }
-    return reduce || document.documentElement.hasAttribute("data-calm");
+    return reduce || root.getAttribute("data-motion") === "reduce" || root.hasAttribute("data-calm");
   }
 
   /* ------------------------------------------------------------- stores -- */
@@ -77,9 +87,9 @@
      of paid runs, today's Daily) are carried through untouched, so a write here keeps them */
   function readRun() {
     var r = obj(Store.read(K.run, {}));
-    var c = obj(r.combo), out = {};
+    var out = {};
     Object.keys(r).forEach(function (k) { out[k] = r[k]; });
-    out.combo = { pips: Math.max(0, Math.min(5, Math.round(num(c.pips)))), shield: !!c.shield };
+    out.combo = HUD.comboOf(r);
     out.arena = r.arena || null;
     out.seen = obj(r.seen);
     out.sets = obj(r.sets);
@@ -93,14 +103,22 @@
     return r;
   }
 
-  /* A copy of what is stored, with the five settings this file knows normalised; any
-     other key is kept as it is, so setPref below writes it back. `map` stays unset until
-     the reader chooses: unset means 3D, except on a low-end device (assets/map3d.js
-     decides). `panel` stays unset until the reader chooses too: unset means the light
-     reading panel, in either theme (src/boot.js stamps html[data-panel] from it before
-     first paint). */
+  /* A copy of what is stored, with the settings this file knows normalised; any other
+     key is kept as it is, so setPref below writes it back. Each of these stays unset
+     until the reader chooses, and unset is the default:
+       map           3D, except on a low-end device (assets/map3d.js decides)
+       panel         the light reading panel, in either theme
+       volume        DEFAULT_VOLUME; a whole number 0 to 100 (assets/sfx.js)
+       motion        what the device asks for; "reduce" adds html[data-motion]
+       transparency  what the device asks for; "reduce" adds html[data-transparency]
+       gfx           "auto"; or "low", "mid", "high". The course map keeps the list on
+                     "low"; the 3D world will read the rest.
+     src/boot.js stamps the ones that change the first paint (panel, motion,
+     transparency) on <html> before it. Where the store cannot be written (blocked
+     storage) the reader's choices still hold for the visit: `held` is what was last set. */
+  var DEFAULT_VOLUME = 50, GFX = ["auto", "low", "mid", "high"], held = null;
   function prefs() {
-    var p = obj(Store.read(K.prefs, {})), out = {};
+    var p = held || obj(Store.read(K.prefs, {})), out = {};
     Object.keys(p).forEach(function (k) { out[k] = p[k]; });
     out.sound = p.sound === true;
     out.calm = p.calm === true;
@@ -109,10 +127,21 @@
     if (p.panel === "light" || p.panel === "dark") out.panel = p.panel;
     else delete out.panel;
     out.tempo = p.tempo === "extended" || p.tempo === "untimed" ? p.tempo : "standard";
+    if (typeof p.volume === "number" && p.volume >= 0 && p.volume <= 100) out.volume = Math.round(p.volume);
+    else delete out.volume;
+    if (p.motion === "reduce") out.motion = "reduce";
+    else delete out.motion;
+    if (p.transparency === "reduce") out.transparency = "reduce";
+    else delete out.transparency;
+    if (GFX.indexOf(p.gfx) > 0) out.gfx = p.gfx;
+    else delete out.gfx;
     return out;
   }
+  /* the volume the sound plays at, 0 to 100 */
+  function volume(p) { return p.volume === undefined ? DEFAULT_VOLUME : p.volume; }
   /* whether the course map will be 3D, for the switch in the sheet */
   function map3dOn(p) {
+    if (p.gfx === "low") return false;
     if (p.map) return p.map === "3d";
     var low = false;
     try { low = !!(window.BM3D && window.BM3D.lowEnd && window.BM3D.lowEnd()); } catch (e) { /* assume not */ }
@@ -126,7 +155,14 @@
     /* only on a change: the 3D stages and the map repaint when it changes */
     var panel = p.panel === "dark" ? "dark" : "light";
     if (root.getAttribute("data-panel") !== panel) root.setAttribute("data-panel", panel);
+    ["motion", "transparency"].forEach(function (k) {
+      if (p[k] === "reduce") { if (root.getAttribute("data-" + k) !== "reduce") root.setAttribute("data-" + k, "reduce"); }
+      else if (root.getAttribute("data-" + k) !== null) root.removeAttribute("data-" + k);
+    });
   }
+  /* One setting, as the sheet's inputs give it: a switch's true or false, a choice's
+     value, the slider's number. Reduce motion and Reduce transparency take true or
+     "reduce" for on. A name this file does not know writes nothing. */
   function setPref(name, value) {
     var p = prefs();
     if (name === "map3d") { name = "map"; value = value ? "3d" : "list"; }
@@ -134,8 +170,15 @@
     else if (name === "map") p.map = value === "list" ? "list" : "3d";
     else if (name === "panel") p.panel = value === "dark" ? "dark" : "light";
     else if (name === "tempo") p.tempo = value === "extended" || value === "untimed" ? value : "standard";
-    else return p;
-    Store.write(K.prefs, p, true);
+    else if (name === "volume") p.volume = Math.max(0, Math.min(100, Math.round(num(value))));
+    else if (name === "motion" || name === "transparency") {
+      if (value === true || value === "reduce") p[name] = "reduce";
+      else delete p[name];
+    } else if (name === "gfx") {
+      if (GFX.indexOf(value) > 0) p.gfx = value;
+      else delete p.gfx;
+    } else return p;
+    held = Store.write(K.prefs, p, true) === false ? p : null;
     applyPrefs(p);
     Store.emit({ type: "prefs", prefs: p });
     return p;
@@ -144,30 +187,12 @@
 
   /* ------------------------------------------------------------- levels -- */
 
-  /* threshold(L) = 5(L − 1)(L + 3): 0, 25, 60, 105, 160 … so each level asks a little
-     more than the last. Inverting it gives the closed form; the loop mops up rounding. */
-  function threshold(L) { L = Math.max(1, Math.floor(L)); return 5 * (L - 1) * (L + 3); }
-  function level(xp) {
-    xp = Math.max(0, Math.floor(num(xp)));
-    var L = Math.max(1, Math.floor(Math.sqrt(xp / 5 + 4)) - 1);
-    while (threshold(L + 1) <= xp) L++;
-    while (L > 1 && threshold(L) > xp) L--;
-    return L;
-  }
-  var RANKS = [[30, "Mathematician"], [25, "Prover"], [20, "Analyst"], [15, "Cartographer"],
-    [10, "Geometer"], [6, "Solver"], [3, "Reckoner"], [1, "Counter"]];
-  function rank(L) {
-    for (var i = 0; i < RANKS.length; i++) if (L >= RANKS[i][0]) return RANKS[i][1];
-    return "Counter";
-  }
+  /* the curve and the ranks are src/hud/levels.js's (threshold(L) = 5(L − 1)(L + 3)),
+     the copy the HUD drew with before this file ran */
+  var threshold = HUD.threshold, level = HUD.level, rank = HUD.rank;
   function info(xp) {
     if (xp === undefined) xp = Activity ? Activity.total() : 0;
-    var L = level(xp), floor = threshold(L), next = threshold(L + 1);
-    return {
-      xp: xp, level: L, rank: rank(L), floor: floor, next: next,
-      into: xp - floor, span: next - floor,
-      pct: Math.max(0, Math.min(100, Math.round(((xp - floor) / (next - floor)) * 100)))
-    };
+    return HUD.levelInfo(xp);
   }
 
   /* ----------------------------------------------------- set arithmetic --- */
@@ -480,7 +505,7 @@
     var c = readRun().combo;
     return { pips: c.pips, shield: c.shield, mult: multOf(c.pips) };
   }
-  function multOf(pips) { return Math.round((1 + 0.2 * pips) * 10) / 10; }
+  var multOf = HUD.multOf;
   function emitCombo(c, why) {
     Store.emit({ type: "combo", pips: c.pips, shield: c.shield, mult: multOf(c.pips), why: why });
   }
@@ -1041,173 +1066,37 @@
   window.BMFx = Fx;
 
   /* ---------------------------------------------------------------- HUD --- */
+  /* The HUD's markup is the shell's (tools/lib/shell.js): every slot is in the top bar
+     from the first byte, and the HUD script after it filled in the level, the XP bar, the
+     streak and the combo before first paint. This keeps them up to date with the same
+     drawing (BMHud.paint, src/hud/view.js), so a redraw that changes nothing moves
+     nothing, and adds what only the game knows: the hearts, the Arena's clock, and the
+     sound button's title. The settings sheet is src/ui/settings.ts's. */
 
-  var ICONS = {
-    flame: '<path d="M8.2 1c.3 2.4 3.6 4 3.6 7.6A3.8 3.8 0 0 1 8 12.5a3.8 3.8 0 0 1-3.8-3.9c0-1.4.6-2.5 1.5-3.3.1 1 .6 1.7 1.3 1.9C6.7 5.1 7.1 2.9 8.2 1z" fill="currentColor"/>',
-    heart: '<path d="M8 14S1.8 10.2 1.8 6A3.2 3.2 0 0 1 8 4.3 3.2 3.2 0 0 1 14.2 6C14.2 10.2 8 14 8 14z" fill="currentColor"/>',
-    "sound-on": '<path d="M2 6h2.6L8.4 3v10L4.6 10H2z" fill="currentColor"/>' +
-      '<path d="M10.6 5.6a3.4 3.4 0 0 1 0 4.8M12.4 3.8a6 6 0 0 1 0 8.4" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>',
-    "sound-off": '<path d="M2 6h2.6L8.4 3v10L4.6 10H2z" fill="currentColor"/>' +
-      '<path d="M10.5 6l4 4M14.5 6l-4 4" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>',
-    menu: '<path d="M2.5 4.5h11M2.5 8h11M2.5 11.5h11" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>',
-    star: '<path d="M8 1.4l2 4.2 4.5.6-3.3 3.1.8 4.5L8 11.6l-4 2.2.8-4.5L1.5 6.2 6 5.6z" fill="currentColor"/>',
-    shield: '<path d="M8 1.5l5.2 2v3.9c0 3.3-2.3 5.8-5.2 7.1-2.9-1.3-5.2-3.8-5.2-7.1V3.5z" fill="currentColor"/>'
-  };
-  function injectSprite() {
-    if (document.getElementById("bm-sprite")) return;
-    var html = '<svg xmlns="http://www.w3.org/2000/svg" id="bm-sprite" width="0" height="0" aria-hidden="true" focusable="false" style="position:absolute">';
-    Object.keys(ICONS).forEach(function (k) {
-      html += '<symbol id="bm-i-' + k + '" viewBox="0 0 16 16">' + ICONS[k] + "</symbol>";
-    });
-    html += "</svg>";
-    var holder = document.createElement("div");
-    holder.innerHTML = html;
-    document.body.insertBefore(holder.firstChild, document.body.firstChild);
-  }
-  function icon(name) {
-    return '<svg class="icon icon-' + name + '" viewBox="0 0 16 16" aria-hidden="true" focusable="false"><use href="#bm-i-' + name + '"></use></svg>';
-  }
+  var hudEls = null, heartsState = null, timerState = null;
 
-  var hudEls = null, heartsState = null, timerState = null, sheetWired = false, forwarding = false;
-
-  /* Under 480px game.css hides the nav's theme button and account link: the sheet
-     carries a theme button that presses the nav's (site.js keeps the theme logic), and
-     a copy of the account link, refreshed on each opening since account.js may redraw it. */
-  function sheetExtras() {
-    var sh = hudEls.sheet, nav = hudEls.menu.parentNode;
-    if (nav.querySelector("[data-theme-toggle]") && !sh.querySelector(".hud-sheet-theme")) {
-      var tb = document.createElement("button");
-      tb.type = "button";
-      tb.className = "icon-btn hud-sheet-theme";
-      tb.textContent = "Switch between light and dark";
-      tb.addEventListener("click", function () {
-        var t = hudEls.menu.parentNode.querySelector("[data-theme-toggle]");
-        forwarding = true;
-        try { if (t) t.click(); } finally { forwarding = false; }
-      });
-      sh.appendChild(tb);
+  /* the shell's slots on this page, or null on a page without them (a test fixture) */
+  function findHud() {
+    var bar = document.querySelector(".topbar"), el = bar && bar.querySelector(".hud");
+    if (!el) return null;
+    var strip = bar.querySelector(".hud-strip"), sound = bar.querySelector(".hud-sound");
+    /* from the frame after next, a change to the XP bar fills it smoothly (game.css); never
+       the fill it had from the start */
+    if (!el.hasAttribute("data-live") && window.requestAnimationFrame) {
+      window.requestAnimationFrame(function () { window.requestAnimationFrame(function () { el.setAttribute("data-live", ""); }); });
     }
-    var a = nav.querySelector(".acct"), old = sh.querySelector(".acct");
-    if (old) old.parentNode.removeChild(old);
-    if (a) {
-      var copy = a.cloneNode(true);
-      if (copy.getAttribute("data-in")) copy.textContent = "Your account";
-      sh.appendChild(copy);
-    }
-  }
-
-  function setSheet(open, refocus) {
-    if (!hudEls) return;
-    if (open) sheetExtras();
-    hudEls.sheet.hidden = !open;
-    hudEls.menu.setAttribute("aria-expanded", open ? "true" : "false");
-    if (!open && refocus) hudEls.menu.focus();
-  }
-
-  function buildHudShell(nav) {
-    injectSprite();
-    var root = Site.rootPrefix();
-    slice(nav.querySelectorAll(".hud, .hud-sound, .hud-menu")).forEach(function (old) { old.parentNode.removeChild(old); });
-    var theme = nav.querySelector("[data-theme-toggle]");
-
-    var hud = document.createElement("div");
-    hud.className = "hud";
-    hud.setAttribute("role", "group");
-    hud.setAttribute("aria-label", "Your progress");
-    hud.innerHTML =
-      '<a class="hud-level" href="' + root + 'progress.html">' +
-        '<span class="hud-badge" aria-hidden="true"><b>1</b></span>' +
-        '<span class="hud-xp" aria-hidden="true"><span class="hud-xpbar"><i style="width:0%"></i></span>' +
-        '<span class="hud-xptext"><b>0</b> / 25 XP</span></span></a>' +
-      '<span class="hud-streak" role="img"><span class="goal-ring" style="--pct:0"></span>' + icon("flame") + "<b>0</b></span>" +
-      '<span class="hud-combo" role="img" hidden><i></i><i></i><i></i><i></i><i></i></span>' +
-      '<span class="hud-hearts" role="img" hidden></span>' +
-      '<span class="hud-timer" role="timer" data-urgency="ok" hidden><span class="hud-timer-text"></span></span>';
-    nav.insertBefore(hud, theme || null);
-
-    var sound = document.createElement("button");
-    sound.type = "button";
-    sound.className = "icon-btn hud-sound";
-    sound.setAttribute("data-sound-toggle", "");
-    sound.setAttribute("aria-label", "Sound");
-    sound.setAttribute("aria-pressed", "false");
-    nav.insertBefore(sound, theme || null);
-    sound.addEventListener("click", function () {
-      var p = prefs();
-      if (p.calm) { announce("Sound stays off in calm mode.", { priority: "normal" }); return; }
-      setPref("sound", !p.sound);
-    });
-
-    var menu = document.createElement("button");
-    menu.type = "button";
-    menu.className = "icon-btn hud-menu";
-    menu.setAttribute("aria-expanded", "false");
-    menu.setAttribute("aria-controls", "hud-sheet");
-    menu.setAttribute("aria-label", "Menu and settings");
-    menu.innerHTML = icon("menu");
-    nav.insertBefore(menu, theme ? theme.nextSibling : null);
-
-    var bar = nav.parentNode;
-    var strip = bar.querySelector(".hud-strip");
-    if (!strip) {
-      strip = document.createElement("div");
-      strip.className = "hud-strip";
-      strip.setAttribute("aria-hidden", "true");
-      strip.hidden = true;
-      strip.innerHTML = '<span class="hud-hearts" hidden></span>' +
-        '<span class="hud-timer" data-urgency="ok" hidden><span class="hud-timer-text"></span></span>';
-      bar.insertBefore(strip, nav.nextSibling);
-    }
-    var sheet = document.getElementById("hud-sheet");
-    if (!sheet) {
-      sheet = document.createElement("div");
-      sheet.className = "hud-sheet";
-      sheet.id = "hud-sheet";
-      sheet.hidden = true;
-      sheet.innerHTML =
-        '<ul class="hud-links">' +
-          '<li><a href="' + root + 'index.html">Contents</a></li>' +
-          '<li><a href="' + root + 'about.html">How to use this</a></li>' +
-          '<li><a href="' + root + 'progress.html">Your progress</a></li>' +
-          '<li><a href="' + root + 'arena.html">Arena</a></li></ul>' +
-        '<label class="switch"><input type="checkbox" role="switch" data-pref="calm"><span>Calm mode</span>' +
-          "<small>No hearts, combo, shake or sound</small></label>" +
-        '<label class="switch"><input type="checkbox" role="switch" data-pref="sound"><span>Sound</span></label>' +
-        '<label class="switch"><input type="checkbox" role="switch" data-pref="map3d"><span>3D course map</span></label>';
-      bar.insertBefore(sheet, strip.nextSibling);
-      slice(sheet.querySelectorAll("[data-pref]")).forEach(function (input) {
-        input.addEventListener("change", function () { setPref(input.getAttribute("data-pref"), input.checked); });
+    if (sound && !sound.hasAttribute("data-wired")) {
+      sound.setAttribute("data-wired", "");
+      sound.addEventListener("click", function () {
+        var p = prefs();
+        if (p.calm) { announce("Sound stays off in Study mode.", { priority: "normal" }); return; }
+        setPref("sound", !p.sound);
       });
     }
-
-    menu.addEventListener("click", function () { setSheet(sheet.hidden, false); });
-    if (!sheetWired) {
-      sheetWired = true;
-      document.addEventListener("keydown", function (e) {
-        var sh = document.getElementById("hud-sheet");
-        if (e.key === "Escape" && sh && !sh.hidden) setSheet(false, sh.contains(document.activeElement));
-      });
-      document.addEventListener("click", function (e) {
-        var sh = document.getElementById("hud-sheet"), m = hudEls && hudEls.menu;
-        if (forwarding || !sh || sh.hidden || sh.contains(e.target) || (m && m.contains(e.target))) return;
-        setSheet(false, false);
-      });
-      /* focus moving on past the sheet closes it, so it never hides the focused control */
-      document.addEventListener("focusin", function (e) {
-        var sh = document.getElementById("hud-sheet"), m = hudEls && hudEls.menu;
-        if (forwarding || !sh || sh.hidden || sh.contains(e.target) || (m && m.contains(e.target))) return;
-        setSheet(false, false);
-      });
-    }
-
-    hudEls = {
-      hud: hud, level: hud.querySelector(".hud-level"), badge: hud.querySelector(".hud-badge b"),
-      xpbar: hud.querySelector(".hud-xpbar i"), xptext: hud.querySelector(".hud-xptext"),
-      streak: hud.querySelector(".hud-streak"), ring: hud.querySelector(".goal-ring"),
-      streakNum: hud.querySelector(".hud-streak > b"), combo: hud.querySelector(".hud-combo"),
-      hearts: [hud.querySelector(".hud-hearts"), strip.querySelector(".hud-hearts")],
-      timers: [hud.querySelector(".hud-timer"), strip.querySelector(".hud-timer")],
-      sound: sound, menu: menu, sheet: sheet, strip: strip, soundIcon: null
+    return {
+      hud: el, sound: sound, strip: strip,
+      hearts: [el.querySelector(".hud-hearts"), strip && strip.querySelector(".hud-hearts")].filter(Boolean),
+      timers: [el.querySelector(".hud-timer"), strip && strip.querySelector(".hud-timer")].filter(Boolean)
     };
   }
 
@@ -1224,32 +1113,20 @@
     return html;
   }
 
+  /* what the HUD script drew, from the stores as they are now */
+  function hudView() {
+    return HUD.hudView({
+      activity: Store.read(K.activity, null), run: Store.read(K.run, null), prefs: prefs(),
+      calm: document.documentElement.hasAttribute("data-calm"),
+      chapter: !!document.body.getAttribute("data-chapter"), now: new Date()
+    });
+  }
+
   function updateHud() {
     if (!hudEls) return;
-    var e = hudEls, p = prefs(), onChapter = !!document.body.getAttribute("data-chapter");
+    var e = hudEls, p = prefs();
     var arena = document.body.getAttribute("data-mode") === "arena";
-    var inf = info();
-    setText(e.badge, String(inf.level));
-    e.xpbar.style.width = inf.pct + "%";
-    setText(e.xptext, "<b>" + inf.into + "</b> / " + inf.span + " XP");
-    setAttr(e.level, "aria-label", "Level " + inf.level + ", " + inf.rank + ". " + inf.into + " of " + inf.span +
-      " XP to level " + (inf.level + 1) + ". Open your progress.");
-
-    var streak = Activity.streak(), td = Activity.today(), goal = Activity.goal();
-    var pct = Math.min(100, Math.round((td / goal) * 100));
-    setAttr(e.streak, "aria-label", streak + "-day streak. " + td + " of " + goal + " XP today.");
-    setAttr(e.streak, "data-on", streak > 0 ? "true" : null);
-    e.ring.style.setProperty("--pct", String(pct));
-    setAttr(e.ring, "data-full", pct >= 100 ? "true" : null);
-    setText(e.streakNum, String(streak));
-
-    var c = combo();
-    var showCombo = !p.calm && (c.pips > 0 || (onChapter && c.shield));
-    e.combo.hidden = !showCombo;
-    setAttr(e.combo, "data-pips", String(c.pips));
-    setAttr(e.combo, "data-shield", c.shield ? "true" : null);
-    setAttr(e.combo, "aria-label", "Combo " + c.pips + " of 5, XP times " + c.mult + (c.shield ? ", shield ready" : ""));
-    slice(e.combo.children).forEach(function (pip, i) { setAttr(pip, "data-on", i < c.pips ? "" : null); });
+    HUD.paint(document, hudView());
 
     var h = !p.calm && heartsState ? heartsState : null;
     e.hearts.forEach(function (el, i) {
@@ -1269,25 +1146,16 @@
       setText(el.querySelector(".hud-timer-text"), esc(t.text || ""));
       if (t.label) setAttr(el, "aria-label", t.label);
     });
-    e.strip.hidden = !(arena && (h || t));
+    if (e.strip) e.strip.hidden = !(arena && (h || t));
 
     var soundOn = p.sound && !p.calm;
-    setAttr(e.sound, "aria-pressed", soundOn ? "true" : "false");
-    setAttr(e.sound, "title", p.calm ? "Sound is off in calm mode" : soundOn ? "Sound on" : "Sound off");
+    setAttr(e.sound, "title", p.calm ? "Sound is off in Study mode" : soundOn ? "Sound on" : "Sound off");
     setAttr(e.sound, "aria-disabled", p.calm ? "true" : null);
-    if (e.soundIcon !== soundOn) { e.sound.innerHTML = icon(soundOn ? "sound-on" : "sound-off"); e.soundIcon = soundOn; }
-    slice(e.sheet.querySelectorAll("[data-pref]")).forEach(function (input) {
-      var name = input.getAttribute("data-pref");
-      input.checked = name === "map3d" ? map3dOn(p) : name === "sound" ? soundOn : !!p[name];
-      input.disabled = name === "sound" && p.calm;
-      input.setAttribute("aria-checked", input.checked ? "true" : "false");
-    });
   }
 
   function hud() {
-    var nav = document.querySelector(".topbar nav");
-    if (!nav || !Activity) return;
-    if (!hudEls || !document.body.contains(hudEls.hud)) buildHudShell(nav);
+    if (!Activity) return;
+    if (!hudEls || !document.body.contains(hudEls.hud)) hudEls = findHud();
     updateHud();
   }
   /* the hearts just lost play their break once (game.css), then lose the mark */
@@ -1497,7 +1365,7 @@
 
   window.BMGame = {
     level: level, threshold: threshold, rank: rank, info: info,
-    prefs: prefs, setPref: setPref,
+    prefs: prefs, setPref: setPref, map3dOn: map3dOn, volume: volume,
     combo: combo, bonus: bonus,
     medal: medal, setStats: setStats, isMiss: isMiss, MEDALS: MEDALS, stars: starsHtml,
     sectionStatus: sectionStatus, deck: deck, recordRun: recordRun, cleared: bossCleared,

@@ -802,7 +802,7 @@
     });
     html += "</div>";
     if (t === "untimed") html += '<p class="arena-fine">Untimed runs still pay XP and still count towards recall, but keep no best scores and win no medals.</p>';
-    else if (calm()) html += '<p class="arena-fine">Calm mode is on, so hearts are switched off; the clock runs only because you chose it.</p>';
+    else if (calm()) html += '<p class="arena-fine">Study mode is on, so hearts are switched off; the clock runs only because you chose it.</p>';
     return html + "</fieldset>";
   }
 
@@ -910,7 +910,7 @@
       "<li>Right first time after par, before the time runs out at twice par: <b>60</b>, and the streak holds.</li>" +
       "<li>Wrong: the clock stops, the hint appears, and you get one untimed retry worth <b>30</b>. A wrong answer costs a heart, at most one per question.</li>" +
       "<li>“I don't know” and running out of time score nothing but never cost a heart, so where a heart is at stake a guess is always worse than passing.</li>" +
-      "<li>Where no heart is at stake (shaky sections, sections you pick by hand, Untimed tempo, calm mode), “I don't know” brings up the same hint and retry as a wrong answer, and that retry scores nothing, so a guess never beats passing.</li>" +
+      "<li>Where no heart is at stake (shaky sections, sections you pick by hand, Untimed tempo, Study mode), “I don't know” brings up the same hint and retry as a wrong answer, and that retry scores nothing, so a guess never beats passing.</li>" +
       "<li>Shaky sections, sections you pick by hand, and problems with only a few possible answers come without the clock.</li>" +
       "<li>The Daily is one attempt a day: once a Daily you have answered in ends, finished or banked, the next one comes with tomorrow's seed.</li>" +
       "<li>The clock stops while you read feedback, while paused, and while the page is hidden. Being faster than par earns nothing extra.</li>" +
@@ -975,7 +975,7 @@
       '<span class="arena-streak" title="Answers right first time within par, in a row">Streak <b data-streak>0</b></span>' +
       '<button type="button" class="btn ghost small arena-pause" data-act="pause" aria-keyshortcuts="Escape">Pause</button>' +
       "</div>" +
-      '<p class="arena-fine arena-calmnote" hidden>Calm mode was switched on during this run, so the rest of it has no clock and no hearts, and it counts as an Untimed run.</p>' +
+      '<p class="arena-fine arena-calmnote" hidden>Study mode was switched on during this run, so the rest of it has no clock and no hearts, and it counts as an Untimed run.</p>' +
       '<div class="arena-par" role="timer" data-urgency="ok" hidden>' +
       '<span class="arena-par-track" aria-hidden="true"><span class="arena-par-fill"></span></span>' +
       '<span class="arena-par-read" aria-hidden="true"><b class="arena-par-text">0:00</b> <span class="arena-par-label">to par</span></span>' +
@@ -1321,7 +1321,7 @@
     } else if (c.type === "prefs" && screen === "run" && calmRun()) {
       paintTag();
       paintQuestionState(false);
-      say("Calm mode is on: no clock and no hearts for the rest of this run, and it counts as an Untimed run.");
+      say("Study mode is on: no clock and no hearts for the rest of this run, and it counts as an Untimed run.");
     }
   });
 

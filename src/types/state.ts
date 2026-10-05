@@ -165,6 +165,14 @@ export interface PrefsStore {
   /** the reading panel: unset until the reader chooses, which means light in both
       themes; src/boot.js stamps it as html[data-panel] before first paint */
   panel?: "light" | "dark";
+  /** the settings sheet's volume, a whole number 0 to 100; unset means 50 */
+  volume?: number;
+  /** Reduce motion: unset follows the device; src/boot.js stamps html[data-motion] */
+  motion?: "reduce";
+  /** Reduce transparency: unset follows the device; src/boot.js stamps html[data-transparency] */
+  transparency?: "reduce";
+  /** graphics quality: unset is Auto; the course map keeps the list on "low" */
+  gfx?: "low" | "mid" | "high";
 }
 
 /* ------------------------------------------------------------- everything -- */

@@ -40,6 +40,9 @@ interface Window {
   BMMissions: any;
   /** assets/game.js: combo, levels, achievements, recall, play settings, the HUD */
   BMGame: any;
+  /** the HUD script after the top bar (tools/lib/shell.js hudScript): the level curve
+      and the HUD's drawing, src/hud/levels.js and view.js, typed as those modules */
+  BMHud: typeof import("../hud/levels.js") & typeof import("../hud/view.js");
   /** assets/game.js: motion and effects, with still() for reduced motion and calm mode */
   BMFx: any;
   /** assets/site.js: toasts; assets/game.js replaces it with the card toast */

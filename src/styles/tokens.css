@@ -138,12 +138,16 @@
      --glass declares a solid background-color of --glass-solid as well. */
   --glass-solid: var(--frame-bg);
   --glass: var(--glass-solid);
+  /* the scrim behind the settings sheet when it is modal (a narrow screen): the page
+     shows through it dimmed, or it is solid --scrim on the same terms as --glass. No
+     text sits on it. */
+  --scrim-glass: var(--scrim);
 
   /* the page's own scrollbar and canvas are the frame's: dark in both themes */
   color-scheme: dark;
 }
 @supports (color: color-mix(in srgb, red 50%, blue)) {
-  :root { --glass: color-mix(in srgb, var(--frame-bg) 88%, transparent); }
+  :root { --glass: color-mix(in srgb, var(--frame-bg) 88%, transparent); --scrim-glass: color-mix(in srgb, var(--scrim) 72%, transparent); }
 }
 
 /* ------------------------------------------------ the frame: dark theme ---- */
@@ -381,16 +385,19 @@
 
 /* ------------------------------------------------------- reader settings -- */
 
-/* less transparency asked for: every translucent surface goes solid */
+/* less transparency asked for, by the device or by the settings sheet's Reduce
+   transparency (html[data-transparency], stamped by the boot script): every translucent
+   surface goes solid (site.css turns the top bar's blur off, map3d.css the map's labels) */
 @media (prefers-reduced-transparency: reduce) {
-  :root { --glass: var(--glass-solid); }
+  :root { --glass: var(--glass-solid); --scrim-glass: var(--scrim); }
 }
+:root[data-transparency="reduce"] { --glass: var(--glass-solid); --scrim-glass: var(--scrim); }
 
 /* forced colours keep the alpha of an authored background, so glass would let what
    scrolls under the top bar show through: it goes solid, as for less transparency
    (site.css turns the blur off) */
 @media (forced-colors: active) {
-  :root { --glass: var(--glass-solid); }
+  :root { --glass: var(--glass-solid); --scrim-glass: var(--scrim); }
 }
 
 /* more contrast asked for: lines carry the text colour and the grey goes */

@@ -32,6 +32,7 @@
 
 const fs = require("fs");
 const path = require("path");
+const vm = require("vm");
 
 const HEAD_MARK = "<!--bm:head-->";
 const TOPBAR_MARK = "<!--bm:topbar-->";
@@ -86,12 +87,163 @@ function bootScript() {
   return text;
 }
 
+/* The HUD script: the second inline script of every page, straight after the top bar. It
+   fills the HUD's level, XP bar, streak and combo from localStorage before first paint,
+   so the top bar is drawn once, right, and does not move when the bundle arrives, and
+   it hands the functions that did it to the page as window.BMHud, which assets/game.js
+   draws the HUD with from then on (src/hud/view.js says why both must be the same).
+   Its text is these modules, in this order, inside one function: each is a plain ES
+   module with no TypeScript syntax, so all that changes is that `export ` is taken off
+   `export function` and `export const`, an `import { … } from "./x.js"` of a module
+   earlier in the list goes (its names are already in scope), and the comments go (block
+   comments, and lines that are a // comment), which are most of the bytes; so neither
+   file puts a comment marker inside a string. Anything else in them that a script could
+   not run as it is fails here, with the reason, and the result must parse. */
+const HUD_MODULES = ["src/hud/levels.js", "src/hud/view.js"];
+
+/* One module's text for the HUD script, and the names it exports. `earlier` maps each
+   module before it to its exports, for the imports it may make. */
+function hudModule(rel, earlier) {
+  const names = [];
+  const src = readSource(rel).replace(/\/\*[\s\S]*?\*\//g, "").split("\n").filter(l => l.trim() && !/^\s*\/\//.test(l)).join("\n");
+  const lines = src.split("\n").map((line, i) => {
+    const where = rel + ": " + JSON.stringify(line.trim().slice(0, 60)) + ": ";
+    const imp = /^import \{([\w\s,]+)\} from "\.\/([\w-]+\.js)";\s*$/.exec(line);
+    if (imp) {
+      const from = path.posix.join(path.posix.dirname(rel), imp[2]);
+      if (!earlier[from]) throw new Error(where + "imports " + from + ", which is not a module before it in HUD_MODULES (tools/lib/shell.js)");
+      imp[1].split(",").map(s => s.trim()).filter(Boolean).forEach(n => {
+        if (!earlier[from].includes(n)) throw new Error(where + "imports " + n + ", which " + from + " does not export");
+      });
+      return "";
+    }
+    if (/^\s*import\b/.test(line)) throw new Error(where + "an import the HUD script cannot take: only `import { a, b } from \"./x.js\";` of a module before it");
+    const exp = /^export (?:function|const) (\w+)/.exec(line);
+    if (exp) { names.push(exp[1]); return line.slice("export ".length); }
+    if (/^\s*export\b/.test(line)) throw new Error(where + "an export the HUD script cannot take: only `export function` and `export const`");
+    return line;
+  });
+  return { text: lines.join("\n"), names };
+}
+/* the HUD script's text: the modules, window.BMHud, and, when `run`, the prefill call */
+function hudText(run) {
+  const earlier = {}, parts = [], all = [];
+  HUD_MODULES.forEach(rel => {
+    const m = hudModule(rel, earlier);
+    m.names.forEach(n => { if (all.includes(n)) throw new Error(rel + " exports " + n + ", which a module before it exports too"); });
+    earlier[rel] = m.names;
+    all.push(...m.names);
+    parts.push(m.text);
+  });
+  const text = "(function () {\n\"use strict\";\n" + parts.join("\n") + "\n" +
+    "window.BMHud = { " + all.map(n => n + ": " + n).join(", ") + " };\n" +
+    (run ? "try { prefill(document, window); } catch (e) { if (window.console) console.error(\"[BM] the HUD could not be filled before first paint\", e); }\n" : "") +
+    "})();";
+  if (/<\/script/i.test(text)) throw new Error(HUD_MODULES.join(", ") + ' hold "</script", which would end the inline tag');
+  try { new vm.Script(text); } catch (e) { throw new Error("the HUD script made from " + HUD_MODULES.join(", ") + " does not parse: " + e.message); }
+  return text;
+}
+/* what goes into every page after the top bar */
+function hudScript() { return hudText(true); }
+/* the same functions without the call, for a test that wants window.BMHud and no page
+   (tools/game/rules.test.js loads it before assets/game.js) */
+function hudLibrary() { return hudText(false); }
+
 /* the top bar's links after the brand, by data-nav: [file at the site root, text] */
 const NAVS = {
   home: [["about.html", "How to use this"]],
   about: [["index.html", "Contents"], ["progress.html", "Progress"]],
   "": [["index.html", "Contents"], ["about.html", "How to use this"]]
 };
+
+/* Where the HUD's game slots are: the hearts on a page with a boss (a chapter's
+   encounter) or a run (the Arena), the clock in the Arena alone. A slot is in the markup
+   only where it can be used, and there it is laid out from the start, empty and unseen
+   until it is filled (game.css, [data-slot]), so filling it moves nothing. */
+const HEARTS_ON = ["chapter", "arena"];
+const TIMER_ON = ["arena"];
+
+/* the icons of the top bar and the sheet, drawn in currentColor on a 16-unit grid */
+const ICONS = {
+  flame: '<path d="M8.2 1c.3 2.4 3.6 4 3.6 7.6A3.8 3.8 0 0 1 8 12.5a3.8 3.8 0 0 1-3.8-3.9c0-1.4.6-2.5 1.5-3.3.1 1 .6 1.7 1.3 1.9C6.7 5.1 7.1 2.9 8.2 1z" fill="currentColor"/>',
+  "sound-on": '<path d="M2 6h2.6L8.4 3v10L4.6 10H2z" fill="currentColor"/><path d="M10.6 5.6a3.4 3.4 0 0 1 0 4.8M12.4 3.8a6 6 0 0 1 0 8.4" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>',
+  "sound-off": '<path d="M2 6h2.6L8.4 3v10L4.6 10H2z" fill="currentColor"/><path d="M10.5 6l4 4M14.5 6l-4 4" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>',
+  menu: '<path d="M2.5 4.5h11M2.5 8h11M2.5 11.5h11" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>',
+  close: '<path d="M4 4l8 8M12 4l-8 8" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>'
+};
+function icon(name) {
+  return '<svg class="icon icon-' + name + '" viewBox="0 0 16 16" aria-hidden="true" focusable="false">' + ICONS[name] + "</svg>";
+}
+/* one choice of a radio group in the sheet */
+function choice(group, pref, value, label) {
+  return '<label><input type="radio" name="' + group + '" value="' + value + '" data-pref="' + pref + '"><span>' + label + "</span></label>";
+}
+
+/* The HUD: level badge and XP bar, the streak with today's goal as a ring, the combo,
+   and the game slots of the page's kind. What it says is the start of a new reader's
+   (level 1, nothing today); the HUD script fills in the reader's own before first paint.
+   Every slot has a full-sentence label. */
+function hud(info) {
+  const p = info.prefix;
+  const lines = [
+    '    <div class="hud" role="group" aria-label="Your progress">',
+    '      <a class="hud-level" href="' + p + 'progress.html" aria-label="Level 1, Counter. 0 of 25 XP to level 2. Open your progress.">' +
+      '<span class="hud-badge" aria-hidden="true"><b>1</b></span>' +
+      '<span class="hud-xp" aria-hidden="true"><span class="hud-xpbar"><i></i></span><span class="hud-xptext"><b>0</b> / <span class="hud-span">25</span> XP</span></span></a>',
+    '      <span class="hud-streak" role="img" aria-label="0-day streak. 0 of 30 XP today."><span class="goal-ring"></span>' + icon("flame") + "<b>0</b></span>",
+    '      <span class="hud-combo" role="img" aria-label="Combo 0 of 5, XP times 1" data-pips="0" hidden><i></i><i></i><i></i><i></i><i></i></span>'
+  ];
+  if (HEARTS_ON.includes(info.kind)) lines.push('      <span class="hud-hearts" role="img" aria-label="No hearts in play" data-slot hidden></span>');
+  if (TIMER_ON.includes(info.kind)) lines.push('      <span class="hud-timer" role="timer" aria-label="No clock running" data-urgency="ok" data-slot hidden><span class="hud-timer-text"></span></span>');
+  lines.push("    </div>");
+  return lines;
+}
+
+/* The settings sheet the menu button opens: a native <dialog> (src/ui/settings.ts opens
+   it beside the rail on a wide screen and as a modal sheet from the bottom on a narrow
+   one). Every input names the preference it sets in data-pref, and the sheet keeps the
+   links the old menu had. */
+function sheet(info) {
+  const p = info.prefix;
+  return [
+    '  <dialog class="hud-sheet" id="hud-sheet" aria-labelledby="hud-sheet-title">',
+    '    <div class="sheet-head"><p class="sheet-title" id="hud-sheet-title">Menu and settings</p>' +
+      '<button class="icon-btn sheet-close" type="button" data-sheet-close aria-label="Close menu and settings">' + icon("close") + "</button></div>",
+    '    <ul class="hud-links">',
+    '      <li><a href="' + p + 'index.html">Contents</a></li>',
+    '      <li><a href="' + p + 'about.html">How to use this</a></li>',
+    '      <li><a href="' + p + 'progress.html">Your progress</a></li>',
+    '      <li><a href="' + p + 'arena.html">Arena</a></li>',
+    '      <li><a href="' + p + 'account.html">Your account</a></li>',
+    "    </ul>",
+    '    <label class="switch sheet-study"><input type="checkbox" role="switch" data-pref="calm"><span>Study mode</span>' +
+      "<small>Keeps hints, reviews and progress. Removes hearts, combo, bosses, motion and sound.</small></label>",
+    '    <fieldset class="sheet-group">',
+    "      <legend>Sound</legend>",
+    '      <label class="switch"><input type="checkbox" role="switch" data-pref="sound"><span>Sound</span><small>Short notes for answers, the combo and bosses. Off in Study mode.</small></label>',
+    '      <label class="sheet-slider"><span>Volume</span><input type="range" min="0" max="100" step="5" value="50" data-pref="volume"></label>',
+    "    </fieldset>",
+    '    <fieldset class="sheet-group">',
+    "      <legend>Comfort</legend>",
+    '      <label class="switch"><input type="checkbox" role="switch" data-pref="motion"><span>Reduce motion</span><small>No animation and no smooth scrolling. Always on when your device asks for less motion.</small></label>',
+    '      <label class="switch"><input type="checkbox" role="switch" data-pref="transparency"><span>Reduce transparency</span><small>Solid surfaces in place of see-through glass.</small></label>',
+    "    </fieldset>",
+    '    <fieldset class="sheet-group sheet-choice">',
+    "      <legend>Theme</legend>",
+    '      <div class="sheet-options">' + choice("bm-theme", "theme", "light", "Light") + choice("bm-theme", "theme", "dark", "Dark") + choice("bm-theme", "theme", "system", "Match system") + "</div>",
+    "    </fieldset>",
+    '    <fieldset class="sheet-group sheet-choice">',
+    "      <legend>Reading panel</legend>",
+    '      <div class="sheet-options">' + choice("bm-panel", "panel", "light", "Light") + choice("bm-panel", "panel", "dark", "Dark") + "</div>",
+    "    </fieldset>",
+    '    <fieldset class="sheet-group sheet-choice">',
+    "      <legend>Graphics quality</legend>",
+    '      <div class="sheet-options">' + choice("bm-gfx", "gfx", "auto", "Auto") + choice("bm-gfx", "gfx", "low", "Low") + choice("bm-gfx", "gfx", "mid", "Medium") + choice("bm-gfx", "gfx", "high", "High") + "</div>",
+    '      <label class="switch"><input type="checkbox" role="switch" data-pref="map3d"><span>3D course map</span><small>The contents page as a map of four regions. Low graphics keeps the list.</small></label>',
+    "    </fieldset>",
+    "  </dialog>"
+  ];
+}
 
 function fail(relPath, why) { throw new Error(relPath + ": " + why); }
 
@@ -151,19 +303,30 @@ function head(info, own) {
     .concat(['<script type="module" src="' + at(PAGE_KINDS[info.kind].entry) + '"></script>']);
 }
 
+/* The top bar, whole: the brand, the page links, the HUD, the account chip, the sound
+   and menu buttons, the Arena's second row, the settings sheet; then the HUD script.
+   Nothing is added to it later but the lesson's progress line (assets/lesson.js), so its
+   layout is the one the first paint has. */
 function topbar(info) {
   const p = info.prefix;
   return ['<a class="skip-link" href="#main">Skip to content</a>',
     "",
     '<header class="topbar">',
-    '  <a class="brand" href="' + p + 'index.html"><span class="glyph">∑</span> Basic Mathematics</a>',
+    '  <a class="brand" href="' + p + 'index.html"><span class="glyph">∑</span> <span class="brand-name">Basic Mathematics</span></a>',
     '  <nav aria-label="Site">']
     .concat(NAVS[info.nav].map(l => '    <a href="' + p + l[0] + '">' + l[1] + "</a>"))
+    .concat(hud(info))
     .concat([
-      '    <button class="icon-btn" type="button" data-theme-toggle aria-label="Switch between light and dark">☾</button>',
-      "  </nav>",
-      "</header>"
-    ]).join("\n");
+      '    <a class="acct" href="' + p + 'account.html">Sign in</a>',
+      '    <button class="icon-btn hud-sound" type="button" data-sound-toggle aria-pressed="false" aria-label="Sound">' + icon("sound-on") + icon("sound-off") + "</button>",
+      '    <button class="icon-btn hud-menu" type="button" aria-expanded="false" aria-controls="hud-sheet" aria-label="Menu and settings">' + icon("menu") + "</button>",
+      "  </nav>"
+    ])
+    .concat(TIMER_ON.includes(info.kind) ? ['  <div class="hud-strip" aria-hidden="true" hidden><span class="hud-hearts" hidden></span>' +
+      '<span class="hud-timer" data-urgency="ok" hidden><span class="hud-timer-text"></span></span></div>'] : [])
+    .concat(sheet(info))
+    .concat(["</header>", "<script>\n" + hudScript() + "\n</script>"])
+    .join("\n");
 }
 
 function newlines(s) {
@@ -259,4 +422,4 @@ function renderShell(src, relPath) {
   return expand(src, relPath).html;
 }
 
-module.exports = { renderShell, expand, isMarked, pageInfo, useSource, bootScript, PAGE_KINDS, VENDOR_STYLES, NAVS, BOOT, HEAD_MARK, TOPBAR_MARK, BODY_INPUTS };
+module.exports = { renderShell, expand, isMarked, pageInfo, useSource, bootScript, hudScript, hudLibrary, PAGE_KINDS, VENDOR_STYLES, NAVS, HUD_MODULES, BOOT, HEAD_MARK, TOPBAR_MARK, BODY_INPUTS };
