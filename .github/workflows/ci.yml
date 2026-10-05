@@ -9,9 +9,12 @@
 #   deploy   main only: publishes that same dist/ to GitHub Pages
 #
 # deploy runs only while the repository's Pages source is "GitHub Actions" (Settings,
-# Pages, Build and deployment, Source); pages-source asks. While it is "Deploy from a
-# branch", deploy is skipped with a notice and Pages goes on serving the branch as it
-# always has, so setting the source back is the whole rollback. README.md, "Deploying".
+# Pages, Build and deployment, Source); pages-source asks. No other source works: the
+# pages in the repository are not whole documents (the build writes their head and top
+# bar, tools/lib/shell.js), so "Deploy from a branch" publishes pages with no stylesheets
+# and no scripts. While the source is that, pages-source fails the run and says what to
+# set. Setting the source back is therefore not a rollback; reverting the commit is.
+# README.md, "Deploying".
 #
 # "Run workflow" on main (workflow_dispatch) runs all of this again and deploys, without
 # a new commit: the manual way to publish, for instance right after switching the source.
@@ -140,9 +143,11 @@ jobs:
           exit 1
 
   # main only: asks the repository which Pages source is set, so that `deploy` runs only
-  # when it is "GitHub Actions" and is skipped, not failed, while it is still the branch.
-  # If the question cannot be answered (the API refusing or failing), this job fails and
-  # the run with it: a deploy is never skipped in a green run for a reason nobody chose.
+  # when it is "GitHub Actions". While it is still the branch this job fails, and the run
+  # with it: Pages is then publishing the repository's files, which are not a whole site,
+  # and a green run would hide that. If the question cannot be answered (the API refusing
+  # or failing), it fails as well: a deploy is never skipped in a green run for a reason
+  # nobody chose.
   pages-source:
     if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
     runs-on: ubuntu-latest
@@ -162,7 +167,8 @@ jobs:
           if type=$(gh api "repos/$REPO/pages" --jq .build_type 2> pages-error.txt); then
             echo "build_type=$type" >> "$GITHUB_OUTPUT"
             if [ "$type" != "workflow" ]; then
-              echo "::notice::The Pages source is \"$type\", not GitHub Actions, so nothing is deployed from here: Pages goes on serving the branch. To publish dist/, set Settings > Pages > Source to \"GitHub Actions\" and run this workflow on main."
+              echo "::error::The Pages source is \"$type\", not GitHub Actions, so nothing is deployed from here and Pages is publishing the files of the branch. Those are not a whole site: each page gets its head and top bar from the build, and is served without stylesheets or scripts. Set Settings > Pages > Source to \"GitHub Actions\" and run this workflow on main."
+              exit 1
             fi
           elif grep -q "HTTP 404" pages-error.txt; then
             echo "build_type=none" >> "$GITHUB_OUTPUT"

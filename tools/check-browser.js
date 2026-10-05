@@ -56,7 +56,6 @@ const path = require("path");
 
 const site = require("./lib/site");
 const git = require("./lib/git");
-const { parse } = require("./lib/html");
 const target = require("./lib/target");
 const browserLib = require("./lib/browser");
 
@@ -172,7 +171,9 @@ async function main() {
   if (pageFilters.length) pages = pages.filter(p => pageFilters.some(f => p.includes(f)));
   if (!pages.length) { console.error("no page matches " + pageFilters.join(",")); return 2; }
   const docs = {};
-  pages.forEach(p => { docs[p] = parse(fs.readFileSync(path.join(ROOT, p), "utf8")); });
+  /* each with its shell written (lib/shell.js); a page the shell refuses stops the run */
+  try { pages.forEach(p => { docs[p] = site.readPage(ROOT, p).doc; }); }
+  catch (e) { console.error(e.message); return 2; }
   const chapterOf = (rel) => docs[rel] ? site.chapterIdOf(docs[rel]) : null;
   const chapterPages = pages.filter(p => chapterOf(p));
 

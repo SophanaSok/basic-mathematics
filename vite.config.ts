@@ -1,13 +1,35 @@
 /* The build is a pass-through for now: `npm run build` writes the same site into dist/,
-   page for page and at the same paths. Vite joins the stylesheets the pages link into
-   shared files, their text unchanged, and renames those and the favicon; the scripts
-   are still classic <script defer> tags, which Vite leaves alone and does not emit, so
-   a plugin below copies them across unchanged. */
+   page for page and at the same paths. A source page holds two markers where its <head>
+   and its top bar go; tools/lib/shell.js writes them, here and in the dev server, before
+   Vite reads the page. Vite joins the stylesheets the pages link into shared files,
+   their text unchanged, and renames those and the favicon; the scripts are still
+   classic <script defer> tags, which Vite leaves alone and does not emit, so a plugin
+   below copies them across unchanged. */
 import fs from "node:fs";
 import path from "node:path";
 import { defineConfig, type Plugin } from "vite";
+import { isMarked, renderShell } from "./tools/lib/shell.js";
 
 const root = import.meta.dirname;
+
+/* Dev and build, and first among the plugins: the two below read the stylesheet links
+   and script tags of a page, which are not in the source file. A page of the site (the
+   rule of htmlPages() below) must carry the markers, and one that does not stops the
+   build with the shell's message; any other HTML file the dev server is asked for (a
+   test fixture, a report) is left as it is unless it carries them. */
+function shell(): Plugin {
+  return {
+    name: "bm:shell",
+    transformIndexHtml: {
+      order: "pre",
+      handler(html, ctx) {
+        const rel = path.relative(root, ctx.filename).split(path.sep).join("/");
+        const isPage = /^(?:parts\/[^/]+\/)?[^/]+\.html$/i.test(rel);
+        return isPage || isMarked(html) ? renderShell(html, rel) : html;
+      }
+    }
+  };
+}
 
 /* root pages plus every parts/<dir>/<file>.html: the rule of htmlPages() in
    tools/lib/site.js. Vite writes each page to the path it has under the root, so the
@@ -155,7 +177,7 @@ export default defineConfig({
   base: process.env.BM_BASE || "./",
   /* a site of separate pages: an unknown path is a 404, not index.html */
   appType: "mpa",
-  plugins: [classicScripts(), stylesheetOrder(), plainStylesheetLinks()],
+  plugins: [shell(), classicScripts(), stylesheetOrder(), plainStylesheetLinks()],
   build: {
     outDir: "dist",
     emptyOutDir: true,

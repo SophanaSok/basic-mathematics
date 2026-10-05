@@ -10,15 +10,26 @@
        show; text added inside a step does not; tools/lesson-steps.json holds lists
      - assign-ids: "write" is printed for a page only when it was written, and one page
        that cannot be converted leaves every page alone
+     - shell (lib/shell.js and the check): each kind of page gets its stylesheets and
+       scripts in order, its top bar and its path prefix, and nothing of the content
+       moves; a page written any other way is refused with a reason; a node's line is
+       its line in the source file; a dropped defer, a reordered script, a changed body
+       attribute or top-bar link all show; tools/shell.json records every page
+     - apply-shell: whole pages are found again as the kind they were written from; a
+       page no kind expands to, or one whose content differs from the base by a byte,
+       fails and leaves every page alone
    Usage: node tools/checks.test.js */
 "use strict";
 const fs = require("fs");
 const path = require("path");
 
+const site = require("./lib/site");
+const shell = require("./lib/shell");
 const { parse } = require("./lib/html");
 const { exercisesOf } = require("./lib/keys");
-const { CHECKS, result, pageKeys, lessonSteps, stepsDiff } = require("./check-static");
+const { CHECKS, result, pageKeys, lessonSteps, stepsDiff, shellOf, shellDiff } = require("./check-static");
 const assignIds = require("./assign-ids");
+const applyShell = require("./apply-shell");
 
 let fails = 0, passes = 0;
 function check(cond, what) {
@@ -211,6 +222,158 @@ function chapter(blocks) {
 
   w.lines.length = 0; w.written.length = 0;
   eq([assignIds.run({ check: true }, w.io), w.written, w.lines], [0, [], ["nothing to do: every scored exercise on 2 chapter pages has an id"]], "--check afterwards has nothing to do");
+}
+
+/* ------------------------------------------------------------------ shell -- */
+/* a page as the source tree writes one: the two markers, its own head, and content */
+const HEAD = '<title>A title</title>\n<meta name="description" content="What it is.">';
+function marked(bodyAttrs, head) {
+  return '<!doctype html>\n<html lang="en">\n<head>\n<!--bm:head-->\n' + (head === undefined ? HEAD : head) + "\n</head>\n<body " + bodyAttrs + ">\n<!--bm:topbar-->\n\n" +
+    '<div class="wrap">\n  <main id="main">\n    <h1 id="first">Heading</h1>\n    <p>Text.</p>\n  </main>\n</div>\n</body>\n</html>\n';
+}
+function refusal(fn) { try { fn(); return null; } catch (e) { return e.message; } }
+{
+  const render = (attrs, rel, head) => shell.renderShell(marked(attrs, head), rel || "x.html");
+  const tags = (html, name, attr) => parse(html).queryAll(name).filter(el => el.hasAttribute(attr)).map(el => el.getAttribute(attr));
+  const scripts = (html) => tags(html, "script", "src"), sheets = (html) => tags(html, "link", "href").filter(h => /\.css/.test(h));
+
+  /* what is and is not a page */
+  const whole = '<!doctype html><html><head><title>t</title></head><body data-depth="0"><main id="main"><p>x</p></main></body></html>';
+  check(/^index\.html: has <main id="main"> but no <!--bm:head-->/.test(refusal(() => shell.renderShell(whole, "index.html")) || ""), "a page with <main id=\"main\"> and no head marker is refused, by name");
+  const fixture = "<!doctype html><html><head><title>t</title></head><body><main><p>x</p></main></body></html>";
+  eq(shell.renderShell(fixture, "tools/fixtures/f.html"), fixture, "a file with no marker and no <main id=\"main\"> comes back as it is");
+  eq([shell.isMarked(whole), shell.isMarked(marked('data-depth="0" data-page="page"'))], [false, true], "isMarked tells the two apart");
+
+  /* a plain page */
+  let out = render('data-depth="0" data-page="page"');
+  check(!/<!--bm:/.test(out), "no marker is left in the document");
+  check(/<body data-depth="0">\n<a class="skip-link" href="#main">Skip to content<\/a>\n\n<header class="topbar">/.test(out), "the top bar follows a <body> that no longer carries data-page");
+  const src = marked('data-depth="0" data-page="page"');
+  check(out.endsWith(src.slice(src.indexOf("\n\n<div class=\"wrap\">"))), "everything after the top-bar marker is the source's, byte for byte");
+  eq(parse(out).query("head").children_elements.slice(0, 4).map(el => el.name + ":" + (el.getAttribute("charset") || el.getAttribute("name") || el.textContent)),
+    ["meta:utf-8", "meta:viewport", "title:A title", "meta:description"], "the head opens with charset, viewport, then the page's own title and description");
+  eq(sheets(out).slice(-2), ["assets/site.css", "assets/game.css"], "a page links site.css then game.css");
+  eq(scripts(out).map(s => s.replace(/^https:.*\//, "cdn:")), ["assets/boot.js", "cdn:katex.min.js", "cdn:auto-render.min.js", "data/curriculum.js", "data/quest.js",
+    "assets/widgets.js", "assets/site.js", "assets/sfx.js", "assets/game.js", "assets/config.js", "assets/account.js"], "… and loads the scripts of its kind, in order");
+  eq(parse(out).queryAll("script").filter(s => !s.hasAttribute("defer")).map(s => s.getAttribute("src")), ["assets/boot.js"], "every script is deferred but boot.js");
+  eq(parse(out).query("header.topbar").queryAll("a").map(a => a.getAttribute("href")), ["index.html", "index.html", "about.html"], "the usual top bar: brand, Contents, How to use this");
+
+  /* the other kinds and top bars */
+  eq(scripts(render('data-depth="0" data-page="dashboard"')).slice(-1), ["assets/insights.js"], "a dashboard ends with insights.js");
+  out = render('data-depth="0" data-page="arena"');
+  eq([sheets(out).slice(-1)[0], scripts(out).includes("assets/widgets.js"), scripts(out).slice(-3)], ["assets/arena.css", false, ["assets/arena.js", "assets/config.js", "assets/account.js"]], "the arena has its stylesheet, no figures, and arena.js before the account");
+  out = render('data-depth="0" data-page="home" data-nav="home"');
+  eq([sheets(out).slice(-2), scripts(out).slice(-1)], [["assets/scenes3d.css", "assets/map3d.css"], ["assets/map3d.js"]], "the home page has the map's stylesheet last and its script last");
+  eq(parse(out).query("header.topbar").queryAll("a").map(a => a.getAttribute("href")), ["index.html", "about.html"], "data-nav=\"home\": no Contents link on the contents page");
+  eq(parse(render('data-depth="0" data-page="page" data-nav="about"')).query("header.topbar").queryAll("a").map(a => a.textContent).slice(1), ["Contents", "Progress"], "data-nav=\"about\": Contents and Progress");
+  check(/<meta charset="utf-8">\n<meta name="robots" content="noindex">\n<meta name="viewport"/.test(render('data-depth="0" data-page="dashboard"', "x.html", HEAD + '\n<meta name="robots" content="noindex">')), "a robots tag goes right after the charset");
+
+  /* chapters */
+  out = render('data-depth="2" data-chapter="ch99" data-part="algebra" data-scenes="one two"', "parts/p/c.html");
+  check(/<body data-depth="2" data-chapter="ch99" data-part="algebra">/.test(out), "a chapter keeps data-chapter and data-part, and loses data-scenes");
+  const sc = scripts(out);
+  eq(sc.slice(sc.indexOf("../../assets/three-loader.js"), sc.indexOf("../../assets/site.js") + 1),
+    ["../../assets/three-loader.js", "../../assets/scenes3d.js", "../../assets/scenes/one.js", "../../assets/scenes/two.js", "../../assets/site.js"], "its scenes load after three-loader.js and before site.js, behind scenes3d.js");
+  eq([sc.slice(-4), sc.filter(s => /^https:/.test(s)).length], [["../../assets/encounter.js", "../../assets/lesson.js", "../../assets/config.js", "../../assets/account.js"], 2], "… then encounter.js and lesson.js; the CDN scripts get no prefix");
+  eq(parse(out).query("header.topbar").queryAll("a").map(a => a.getAttribute("href")), ["../../index.html", "../../index.html", "../../about.html"], "the top bar's links climb by data-depth");
+  out = render('data-depth="2" data-chapter="ch99"', "parts/p/c.html");
+  eq([scripts(out).some(s => /scenes/.test(s)), sheets(out).slice(-1)], [false, ["../../assets/scenes3d.css"]], "a chapter with no scenes loads no scene script (the stylesheet is every chapter's)");
+
+  /* pages the shell refuses, each with a reason */
+  const no = (attrs, rel, head) => refusal(() => render(attrs, rel, head)) || "(accepted)";
+  check(/more than a title, a description and robots/.test(no('data-depth="0" data-page="page"', "x.html", HEAD + '\n<script src="extra.js"></script>')), "a tag of its own in <head> is refused: " + no('data-depth="0" data-page="page"', "x.html", HEAD + '\n<script src="extra.js"></script>'));
+  check(/no <title>/.test(no('data-depth="0" data-page="page"', "x.html", '<meta name="description" content="d">')), "no title is refused");
+  check(/data-page naming one of home, page, dashboard, arena/.test(no('data-depth="0" data-page="chapter"')), "data-page=\"chapter\" is refused: a chapter says data-chapter");
+  check(/data-page naming one of/.test(no('data-depth="0"')), "neither data-chapter nor data-page is refused");
+  check(/data-chapter and data-page/.test(no('data-depth="0" data-chapter="ch1" data-page="page"')), "both are refused");
+  check(/but the file is 2 deep/.test(no('data-depth="0" data-page="page"', "parts/p/c.html")), "a data-depth that is not the file's depth is refused");
+  check(/data-scenes is for chapter pages/.test(no('data-depth="0" data-page="page" data-scenes="one"')), "data-scenes on a page that is not a chapter is refused");
+  check(/is not such a name/.test(no('data-depth="0" data-chapter="c" data-scenes="../x"')), "a data-scenes entry that is not a file name is refused");
+  check(/data-nav is "elsewhere"/.test(no('data-depth="0" data-page="page" data-nav="elsewhere"')), "an unknown data-nav is refused");
+  check(/no <!--bm:topbar-->/.test(refusal(() => shell.renderShell(marked('data-depth="0" data-page="page"').replace("<!--bm:topbar-->", ""), "x.html")) || ""), "a head marker without the top-bar marker is refused");
+  check(/must be the first thing inside <body>/.test(refusal(() => shell.renderShell(marked('data-depth="0" data-page="page"').replace("<!--bm:topbar-->\n\n", "<p>before</p>\n<!--bm:topbar-->\n\n"), "x.html")) || ""), "a top-bar marker that is not first in <body> is refused");
+
+  /* a message about the content points at the source file's line, not the document's */
+  const page = site.page(src, "x.html");
+  eq([page.doc.query("#first").line, src.split("\n").findIndex(l => /id="first"/.test(l)) + 1, page.text.split("\n").findIndex(l => /id="first"/.test(l)) + 1 > 30],
+    [13, 13, true], "a node's line is its line in the source file, though the document is some thirty lines longer");
+  eq([page.doc.query("script").line, page.doc.query("header.topbar").line], [4, 9], "a tag the shell wrote has the line of its marker");
+
+  /* the shell check: what it records, and what it notices */
+  const facts = (html) => shellOf(parse(html));
+  const base = facts(render('data-depth="2" data-chapter="ch99" data-part="algebra" data-scenes="one"', "parts/p/c.html"));
+  eq([base.body, base.topbar], ["<body data-depth='2' data-chapter='ch99' data-part='algebra'>",
+    ["Skip to content -> #main", "∑ Basic Mathematics -> ../../index.html", "Contents -> ../../index.html", "How to use this -> ../../about.html", "button: Switch between light and dark"]],
+    "the record of a page: its body tag without what only the shell reads, and the top bar's links");
+  check(base.head.includes("<script src='../../assets/boot.js'>") && base.head.includes("<script defer src='../../assets/site.js'>") && base.head[2] === "<title>A title</title>", "… and every tag of its head, attributes and all");
+  eq(shellDiff(base, base), [], "the same shell is no difference");
+  const expanded = render('data-depth="2" data-chapter="ch99" data-part="algebra" data-scenes="one"', "parts/p/c.html");
+  check(/^head entry \d+ is now `<script src='..\/..\/assets\/site.js'>`, accepted `<script defer /.test(shellDiff(facts(expanded.replace('<script defer src="../../assets/site.js">', '<script src="../../assets/site.js">')), base)[0] || ""), "a dropped defer shows");
+  const swapped = expanded.replace('<script defer src="../../assets/sfx.js"></script>\n<script defer src="../../assets/game.js"></script>', '<script defer src="../../assets/game.js"></script>\n<script defer src="../../assets/sfx.js"></script>');
+  check(swapped !== expanded && /^head entry \d+ is now `<script defer src='..\/..\/assets\/game.js'>`/.test(shellDiff(facts(swapped), base)[0] || ""), "two scripts in the other order show");
+  const twoScenes = shellDiff(facts(render('data-depth="2" data-chapter="ch99" data-part="algebra" data-scenes="one two"', "parts/p/c.html")), base);
+  check(twoScenes.length === 1 && /^head entry \d+ is now `<script defer src='..\/..\/assets\/scenes\/two.js'>`, accepted `<script defer src='..\/..\/assets\/site.js'>` \(\d+ entries, \d+ accepted\)$/.test(twoScenes[0]), "one more scene is one difference, where the lists part: " + twoScenes[0]);
+  eq(shellDiff(facts(render('data-depth="2" data-chapter="ch99" data-part="geometry" data-scenes="one"', "parts/p/c.html")), base),
+    ["the body tag is now `<body data-depth='2' data-chapter='ch99' data-part='geometry'>`, accepted `<body data-depth='2' data-chapter='ch99' data-part='algebra'>`"], "a changed body attribute shows");
+  check(/^topbar entry 3 is now `Progress -> /.test(shellDiff(facts(expanded.replace(">Contents</a>", ">Progress</a>")), base)[0] || ""), "a top-bar link with another text shows");
+
+  /* the types vite.config.ts reads are written by hand beside the script */
+  const declared = fs.readFileSync(path.join(__dirname, "lib", "shell.d.ts"), "utf8").match(/^export (?:const|function) \w+/gm).map(d => d.split(" ")[2]);
+  eq(declared.sort(), Object.keys(shell).sort(), "lib/shell.d.ts declares what lib/shell.js exports, no more and no less");
+
+  const file = JSON.parse(fs.readFileSync(path.join(__dirname, "shell.json"), "utf8"));
+  eq(Object.keys(file).sort(), site.htmlPages(site.ROOT).slice().sort(), "tools/shell.json records every page of the site and no other");
+  check(Object.keys(file).every(p => Array.isArray(file[p].head) && file[p].head.length > 15 && typeof file[p].body === "string" && Array.isArray(file[p].topbar)), "… each as head, body and topbar");
+}
+
+/* ------------------------------------------------------------ apply-shell -- */
+{
+  const world = (files, atBase) => {
+    const w = { files: Object.assign({}, files), written: [], lines: [] };
+    w.io = {
+      pages: Object.keys(files),
+      read: p => w.files[p],
+      write: (p, src) => { w.written.push(p); w.files[p] = src; },
+      atBase: p => (atBase && atBase.hasOwnProperty(p) ? atBase[p] : null),
+      log: line => w.lines.push(line)
+    };
+    return w;
+  };
+  /* whole pages, as the site had them: the expansion of a marked one */
+  const want = {
+    "index.html": marked('data-depth="0" data-page="home" data-nav="home"'),
+    "about.html": marked('data-depth="0" data-page="page" data-nav="about"'),
+    "insights.html": marked('data-depth="0" data-page="dashboard"', HEAD + '\n<meta name="robots" content="noindex">'),
+    "parts/p/c.html": marked('data-depth="2" data-chapter="ch99" data-part="algebra" data-scenes="one two"'),
+    "parts/p/d.html": marked('data-depth="2" data-chapter="ch98" data-part="algebra"')
+  };
+  const was = {};
+  Object.keys(want).forEach(p => { was[p] = shell.renderShell(want[p], p); });
+
+  let w = world(was);
+  eq(applyShell.run({ check: true }, w.io), 1, "apply-shell --check with whole pages exits 1");
+  eq([w.written, w.lines[0], w.lines[w.lines.length - 1]], [[], 'would mark index.html: data-page="home" data-nav="home"', "would mark 5 of 5 pages; expanded, each is the document it was, byte for byte"], "… saying what each page would say, and writing nothing");
+  eq(applyShell.run({ write: true }, w.io), 0, "apply-shell --write exits 0");
+  eq([w.written.length, Object.keys(want).filter(p => w.files[p] !== want[p])], [5, []], "… and each page is found again as the kind, top bar and scenes it was written from");
+
+  w.lines.length = 0; w.written.length = 0;
+  eq([applyShell.run({ check: true }, w.io), w.written, w.lines], [0, [], ["nothing to do: all 5 pages carry the markers"]], "--check afterwards has nothing to do");
+  w = world(want, was);
+  eq([applyShell.run({ check: true, base: "then" }, w.io), w.lines], [0, ["nothing to do: all 5 pages carry the markers; expanded, 5 of them are the document they were at then, byte for byte, and from the content wrapper on not a byte differs"]], "--check --base holds the marked pages to the whole ones");
+
+  /* a page whose content differs from the base by a byte, and one whose head does */
+  w = world(Object.assign({}, want, { "about.html": want["about.html"].replace("<p>Text.</p>", "<p>Text. </p>") }), was);
+  eq(applyShell.run({ check: true, base: "then" }, w.io), 1, "--check --base fails a page whose content gained a space");
+  check(/^FAIL {2}about\.html: the bytes from the content wrapper to the end of the file changed/.test(w.lines[0] || ""), "… saying so: " + w.lines[0]);
+  w = world(Object.assign({}, want, { "about.html": want["about.html"].replace(' data-nav="about"', "") }), was);
+  eq([applyShell.run({ check: true, base: "then" }, w.io), /^FAIL {2}about\.html: expanded, it is not the original document/.test(w.lines[0] || "")], [1, true], "… and a page that now has another top bar");
+
+  /* a whole page no kind expands to: one script more than any list has */
+  const odd = Object.assign({}, was, { "about.html": was["about.html"].replace("</head>", '<script defer src="assets/extra.js"></script>\n</head>') });
+  w = world(odd);
+  eq(applyShell.run({ write: true }, w.io), 1, "--write with a page no kind expands to exits 1");
+  eq([w.written, w.files["index.html"] === was["index.html"], w.lines.filter(l => /^write /.test(l))], [[], true, []], "… writes nothing and claims no write");
+  check(/^FAIL {2}about\.html: no kind of page in lib\/shell\.js expands to this document/.test(w.lines[0] || "") && /nothing written$/.test(w.lines[w.lines.length - 1] || ""), "… and names the page: " + JSON.stringify(w.lines));
 }
 
 console.log((fails ? "FAILED" : "ok") + " checks: " + passes + " checks passed" + (fails ? ", " + fails + " failed" : ""));

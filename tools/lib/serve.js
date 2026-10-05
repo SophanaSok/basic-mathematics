@@ -5,6 +5,10 @@
                          at the previous commit can be loaded for comparison without
                          a second checkout. Its relative asset links resolve under
                          /__base/ too, so the whole old site is browsable there.
+   A source page holds markers where its head and top bar go (lib/shell.js). It is
+   served with them written, as the build would hand it on, so the source tree can be
+   loaded without a build; a page at the base ref is written by that commit's own
+   lib/shell.js. A page the shell refuses is a 500 with the reason.
    Options:
      gitRoot      the checkout `git show` runs in (default: root). Needed when root is
                   dist/, which holds built files and is not what the ref names.
@@ -15,6 +19,8 @@ const http = require("http");
 const fs = require("fs");
 const path = require("path");
 const git = require("./git");
+const shell = require("./shell");
+const site = require("./site");
 
 const TYPES = {
   ".html": "text/html; charset=utf-8", ".css": "text/css; charset=utf-8", ".js": "text/javascript; charset=utf-8",
@@ -24,6 +30,19 @@ const TYPES = {
   ".md": "text/markdown; charset=utf-8", ".wasm": "application/wasm", ".glb": "model/gltf-binary", ".gltf": "model/gltf+json",
   ".map": "application/json", ".xml": "application/xml", ".webmanifest": "application/manifest+json"
 };
+
+/* A page written with the shell's markers goes out as the document the shell makes of
+   it; every other file as it is (a page of dist/ and a fixture are whole already).
+   @param shellFor  gives the lib/shell.js to write it with, asked only for a marked page
+   @throws what the shell throws for a page it cannot write */
+function whole(body, rel, shellFor) {
+  if (!/\.html$/i.test(rel)) return body;
+  const text = body.toString("utf8");
+  if (!shell.isMarked(text)) return body;
+  const write = shellFor();
+  if (!write) throw new Error(rel + " carries a shell marker, but that commit has no tools/lib/shell.js");
+  return Buffer.from(write.renderShell(text, rel), "utf8");
+}
 
 function start(root, base, opts) {
   opts = opts || {};
@@ -39,15 +58,20 @@ function start(root, base, opts) {
     const rel = path.posix.normalize(url).replace(/^\/+/, "");
     if (rel.startsWith("..")) { res.writeHead(403); res.end("forbidden"); return; }
     const type = TYPES[path.posix.extname(rel).toLowerCase()] || "application/octet-stream";
-    let body = null;
-    if (fromBase) {
-      body = git.show(gitRoot, base, rel);
-    } else {
-      const over = extra.find(x => rel.startsWith(x.prefix));
-      const abs = over ? path.join(over.dir, rel.slice(over.prefix.length)) : path.join(root, rel);
-      try { if (fs.statSync(abs).isFile()) body = fs.readFileSync(abs); } catch (e) { body = null; }
-    }
-    log(req.method + " " + req.url + " -> " + (body === null ? 404 : 200));
+    let body = null, refused = null;
+    try {
+      if (fromBase) {
+        body = git.show(gitRoot, base, rel);
+        if (body !== null) body = whole(body, rel, () => site.shellAt(gitRoot, base));
+      } else {
+        const over = extra.find(x => rel.startsWith(x.prefix));
+        const abs = over ? path.join(over.dir, rel.slice(over.prefix.length)) : path.join(root, rel);
+        try { if (fs.statSync(abs).isFile()) body = fs.readFileSync(abs); } catch (e) { body = null; }
+        if (body !== null) body = whole(body, rel, () => shell);
+      }
+    } catch (e) { refused = e.message; }
+    log(req.method + " " + req.url + " -> " + (refused ? 500 : body === null ? 404 : 200));
+    if (refused) { res.writeHead(500, { "Content-Type": "text/plain; charset=utf-8", "Cache-Control": "no-store" }); res.end("the shell refuses this page: " + refused); return; }
     if (body === null) { res.writeHead(404, { "Content-Type": "text/plain; charset=utf-8", "Cache-Control": "no-store" }); res.end("not found: " + rel); return; }
     res.writeHead(200, { "Content-Type": type, "Content-Length": body.length, "Cache-Control": "no-store" });
     res.end(body);
@@ -71,7 +95,6 @@ module.exports = { start, TYPES };
 /* `node tools/lib/serve.js [--root=<dir>] [--base=<ref>] [--port=N]` serves the site for a
    manual look, from the tree lib/target.js picks */
 if (require.main === module) {
-  const site = require("./site");
   const opts = site.parseArgs(process.argv.slice(2));
   require("./target").start(Object.assign({}, opts, { port: opts.port ? +opts.port : 0, log: console.log })).then(s => {
     console.log("serving " + s.where + " (base " + (opts.base || site.DEFAULT_BASE) + " under " + s.baseUrl + ")");

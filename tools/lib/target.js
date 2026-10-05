@@ -8,7 +8,8 @@
 
    Either way the pages are loaded over http from lib/serve.js, the test fixtures come
    from the source tree (tools/fixtures/ is never copied into dist/), and /__base/ reads
-   the base ref from this checkout. */
+   the base ref from this checkout. The pages of the source tree are not whole documents;
+   serve.js writes their shell as it serves them (lib/shell.js), as the build would. */
 const fs = require("fs");
 const path = require("path");
 const site = require("./site");
@@ -17,9 +18,10 @@ const serve = require("./serve");
 const DIST = path.join(site.ROOT, "dist");
 const FIXTURES = "tools/fixtures/";
 
-/* the newest source file a build reads: pages, and everything under assets/ and data/ */
+/* the newest source file a build reads: pages, the shell it writes into each of them,
+   and everything under assets/ and data/ */
 function newestSource() {
-  const files = site.htmlPages(site.ROOT).map(p => path.join(site.ROOT, p));
+  const files = site.htmlPages(site.ROOT).map(p => path.join(site.ROOT, p)).concat([path.join(__dirname, "shell.js")]);
   ["assets", "data"].forEach(d => site.walk(path.join(site.ROOT, d), () => true, files));
   let newest = { file: "", at: 0 };
   files.forEach(f => { const at = fs.statSync(f).mtimeMs; if (at > newest.at) newest = { file: site.rel(f), at }; });

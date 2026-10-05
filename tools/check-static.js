@@ -3,19 +3,22 @@
 /* Static checks for the site — Node built-ins only, no browser.
 
    Usage: node tools/check-static.js [--base=<git ref>] [--only=<check name>] [--strict]
-                                     [--accept-steps]
-                                     [--migrations-base=<git ref>]
+                                     [--accept-steps] [--accept-shell]
+                                     [--migrations-base=<git ref>] [--shell-base=<git ref>]
 
    --base    the commit to compare progress keys against (default: the clean tree the
              harness was written on, see lib/site.js DEFAULT_BASE)
    --only    run one check by name (the names printed in the first column)
    --migrations-base  the commit the migrations check compares against (default: where
              HEAD left main; continuous integration passes the commit being merged into)
+   --shell-base  hold the shell check to the pages of a commit, not to tools/shell.json
    --strict  WARN counts as FAIL (for the day the infinite-animation and the other
              "not yet" rules become hard rules)
    --accept-steps  rewrite tools/lesson-steps.json from the working tree, after a change
-             to where a chapter's lesson steps are cut that is meant (the one flag that
-             writes anything)
+             to where a chapter's lesson steps are cut that is meant
+   --accept-shell  rewrite tools/shell.json from the working tree, after a change to
+             what a page loads, to its body attributes or to the top bar that is meant
+             (these two flags are the only ones that write anything)
 
    Each check is a function (ctx) -> { status, count, details[] } in CHECKS below.
    To add one, write the function and append { name, run } to the list. */
@@ -27,7 +30,8 @@ const { execFileSync } = require("child_process");
 
 const site = require("./lib/site");
 const git = require("./lib/git");
-const { parse } = require("./lib/html");
+const shell = require("./lib/shell");
+const { parse, normText } = require("./lib/html");
 const { exercisesOf } = require("./lib/keys");
 const cssLib = require("./lib/css");
 const links = require("./lib/links");
@@ -51,9 +55,12 @@ function result() {
 
 /* ------------------------------------------------------------- context --- */
 
+/* Every page is read as the document a reader gets: the shell written (lib/shell.js),
+   then parsed, so the links, widgets and curriculum checks see the stylesheets, scripts
+   and top bar no source file holds any more. A page the shell refuses stops the run. */
 function buildContext() {
   const ctx = { pages: site.htmlPages(ROOT), docs: {}, curriculum: null, chapters: {} };
-  ctx.pages.forEach(p => { ctx.docs[p] = parse(read(p)); });
+  ctx.pages.forEach(p => { ctx.docs[p] = site.readPage(ROOT, p).doc; });
   ctx.curriculum = site.curriculum(ROOT);
   /* chapter pages: by the body's data-chapter, which is also how site.js finds them */
   ctx.pages.forEach(p => {
@@ -333,6 +340,87 @@ function checkLessonSteps(ctx, r) {
   });
   r.note(total + " steps on " + pages.length + " chapter pages");
   if (r.warns.length) r.note("a reader's saved place in a chapter is a step number: where the steps changed, it now opens a different part of the chapter. If the change is meant, --accept-steps records it");
+}
+
+/* -------------------------------------------------------------- shell -- */
+
+const SHELL_FILE = path.join(__dirname, "shell.json");
+
+/* one tag as a line of text: its attributes as written, and for a <title> its text */
+function tagLine(el, skip) {
+  const attrs = Object.keys(el.attrs).filter(k => !skip || !skip.includes(k))
+    .map(k => " " + k + (el.attrs[k] === "" ? "" : "='" + el.attrs[k].replace(/'/g, "&#39;") + "'")).join("");
+  return "<" + el.name + attrs + ">" + (el.name === "title" ? normText(el.textContent) + "</title>" : "");
+}
+/* What a page's shell comes to, read off the whole document:
+     head    every tag of <head> in order: the title, the description, each stylesheet
+             and each script with its attributes (a `defer` is one), and the rest
+     body    the <body> tag, without the attributes only lib/shell.js reads
+     topbar  the skip link and the top bar: each link as "text -> href", each button
+   The order of the head is the order the scripts run in and the stylesheets cascade
+   in; the body attributes are what site.js and the stylesheets find the page by. */
+function shellOf(doc) {
+  const head = doc.query("head"), body = doc.query("body"), bar = doc.query("header.topbar"), skip = doc.query("a.skip-link");
+  return {
+    head: head ? head.children_elements.map(el => tagLine(el)) : [],
+    body: body ? tagLine(body, shell.BODY_INPUTS) : "",
+    topbar: (skip ? [skip] : []).concat(bar ? bar.queryAll("a, button") : [])
+      .map(el => el.name === "a" ? normText(el.textContent) + " -> " + el.getAttribute("href") : "button: " + (el.getAttribute("aria-label") || normText(el.textContent)))
+  };
+}
+/* @returns {string[]} what differs between a page's shell and the accepted one */
+function shellDiff(now, accepted) {
+  const tick = "`", out = [];
+  ["head", "topbar"].forEach(part => {
+    const a = now[part] || [], b = accepted[part] || [];
+    for (let i = 0; i < Math.max(a.length, b.length); i++) {
+      if (a[i] === b[i]) continue;
+      out.push(part + " entry " + (i + 1) + " " + (i >= b.length ? tick + a[i] + tick + " is new" : i >= a.length ? "is gone, accepted " + tick + b[i] + tick : "is now " + tick + a[i] + tick + ", accepted " + tick + b[i] + tick) +
+        (a.length !== b.length ? " (" + a.length + " entries, " + b.length + " accepted)" : ""));
+      break;
+    }
+  });
+  if (now.body !== accepted.body) out.push("the body tag is now " + tick + now.body + tick + ", accepted " + tick + accepted.body + tick);
+  return out;
+}
+
+/* No page writes its own <head> or top bar: lib/shell.js writes them from a list per
+   kind of page, so one edit there changes what every page loads. This holds each page,
+   expanded, to the shell readers have, which is recorded in shell.json by page. A file
+   and not --base, for the reason lesson-steps.json is one: the base is where the
+   exercise keys were frozen, and its pages load a different set of scripts.
+   --shell-base=<ref> compares with the pages of a commit instead, each as a reader of
+   that commit got it. */
+function checkShell(ctx, r) {
+  const now = {};
+  ctx.pages.forEach(p => { now[p] = shellOf(ctx.docs[p]); });
+  if (opts["accept-shell"]) {
+    fs.writeFileSync(SHELL_FILE, JSON.stringify(now, null, 2) + "\n");
+    r.note("--accept-shell: wrote " + site.rel(SHELL_FILE) + " from the working tree");
+  }
+  const ref = opts["shell-base"];
+  let accepted = {}, from, how;
+  if (ref !== undefined) {
+    if (ref === true || !git.resolveRef(ROOT, ref)) { r.fail("--shell-base " + (ref === true ? "needs a git ref" : ref + " does not resolve")); return; }
+    git.listFiles(ROOT, ref).filter(p => /^(?:parts\/[^\/]+\/)?[^\/]+\.html$/i.test(p)).forEach(p => { accepted[p] = shellOf(site.pageAt(ROOT, ref, p).doc); });
+    from = "at " + ref;
+    how = "";
+  } else {
+    if (!fs.existsSync(SHELL_FILE)) { r.fail(site.rel(SHELL_FILE) + " is missing; --accept-shell writes it from the working tree"); return; }
+    accepted = JSON.parse(fs.readFileSync(SHELL_FILE, "utf8"));
+    from = "in " + site.rel(SHELL_FILE);
+    how = "; if the change is meant, --accept-shell records it";
+  }
+  ctx.pages.forEach(p => {
+    r.count++;
+    if (!accepted.hasOwnProperty(p)) { r.fail(p + ": no shell recorded " + from + (how ? "; --accept-shell records a new page" : "")); return; }
+    shellDiff(now[p], accepted[p]).forEach(d => r.fail(p + ": " + d));
+  });
+  Object.keys(accepted).forEach(p => {
+    if (!now.hasOwnProperty(p)) r.fail(p + ": has a shell recorded " + from + " but is not a page of the working tree");
+  });
+  r.note(ctx.pages.length + " pages held to the shells " + from);
+  if (r.fails.length && how) r.note("what every page loads, and in what order, is the site" + how);
 }
 
 function checkCurriculum(ctx, r) {
@@ -878,6 +966,7 @@ const CHECKS = [
   { name: "progress-keys", run: checkProgressKeys, what: "exercise keys and fingerprints unchanged since --base; every exercise has an id" },
   { name: "ids", run: checkIds, what: "no id is on more than one element of a page" },
   { name: "lesson-steps", run: checkLessonSteps, what: "each chapter is cut into the lesson steps recorded in tools/lesson-steps.json (WARN)" },
+  { name: "shell", run: checkShell, what: "each page's head, body tag and top bar, as lib/shell.js writes them, are the ones in tools/shell.json" },
   { name: "curriculum", run: checkCurriculum, what: "every chapter file exists; every section id is an <h2 id> in it" },
   { name: "links", run: checkLinks, what: "relative hrefs/srcs resolve to files, anchors to ids" },
   { name: "widgets", run: checkWidgets, what: "every data-widget / data-figure is a defined factory" },
@@ -916,4 +1005,4 @@ function main() {
 }
 
 if (require.main === module) main();
-module.exports = { CHECKS, result, pageKeys, lessonSteps, stepsDiff, randomState, stripLocalFirst, canon, codeOnly };
+module.exports = { CHECKS, result, pageKeys, lessonSteps, stepsDiff, shellOf, shellDiff, randomState, stripLocalFirst, canon, codeOnly };

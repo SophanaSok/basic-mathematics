@@ -1,14 +1,64 @@
 "use strict";
 /* Things both scripts need to know about the site: where the repo root is, which
-   HTML pages exist, and what data/curriculum.js says. */
+   HTML pages exist, what a page is once its shell is written, and what
+   data/curriculum.js says. */
 const fs = require("fs");
 const path = require("path");
 const vm = require("vm");
+
+const git = require("./git");
+const shell = require("./shell");
+const { parse } = require("./html");
 
 const ROOT = path.resolve(__dirname, "..", "..");
 const DEFAULT_BASE = "8ff7abc";
 
 function rel(p) { return path.relative(ROOT, p).split(path.sep).join("/"); }
+
+/* A source page as the document a reader gets, and that document parsed: the source
+   holds two markers where lib/shell.js writes the head and the top bar, so a check that
+   read the file as it is would see a page with no stylesheet, script or link. Every
+   node's `line` is its line in the source file, the one a message should point at; a
+   tag the shell wrote has the line of its marker.
+   @param write  the shell to expand with (default: this checkout's lib/shell.js)
+   @returns {{ text: string, doc }} ; throws what shell.expand throws */
+function page(src, relPath, write) {
+  const x = (write || shell).expand(src, relPath);
+  const doc = parse(x.html);
+  (function relabel(node) { node.line = x.lineOf(node.line); node.children.forEach(relabel); })(doc);
+  return { text: x.html, doc };
+}
+function readPage(root, relPath) {
+  return page(fs.readFileSync(path.join(root || ROOT, relPath), "utf8"), relPath);
+}
+
+/* lib/shell.js as it was at a git ref, or null where that commit has none (its pages
+   are whole documents then). It can be run from its text because it requires nothing. */
+const shells = {};
+function shellAt(root, ref) {
+  const key = root + "\n" + ref;
+  if (!shells.hasOwnProperty(key)) {
+    const src = git.showText(root, ref, "tools/lib/shell.js");
+    if (src === null) shells[key] = null;
+    else {
+      const mod = { exports: {} };
+      vm.runInThisContext("(function (module, exports) {" + src + "\n})", { filename: ref + ":tools/lib/shell.js" })(mod, mod.exports);
+      shells[key] = mod.exports;
+    }
+  }
+  return shells[key];
+}
+/* A page as a reader of that commit got it: a whole page as it is, a marked one
+   expanded by that commit's own shell. null when the commit has no such file.
+   @returns {{ text: string, doc }|null} */
+function pageAt(root, ref, relPath) {
+  const src = git.showText(root, ref, relPath);
+  if (src === null) return null;
+  if (!shell.isMarked(src)) return { text: src, doc: parse(src) };
+  const write = shellAt(root, ref);
+  if (!write) throw new Error(relPath + " at " + ref + " carries a shell marker, but that commit has no tools/lib/shell.js to expand it");
+  return page(src, relPath, write);
+}
 
 /* root pages plus every parts/<dir>/<file>.html, discovered — never hard-coded */
 function htmlPages(root) {
@@ -74,4 +124,4 @@ function parseArgs(argv) {
   return opts;
 }
 
-module.exports = { ROOT, DEFAULT_BASE, rel, htmlPages, curriculum, loadCurriculum, chapterIdOf, walk, parseArgs };
+module.exports = { ROOT, DEFAULT_BASE, rel, htmlPages, page, readPage, pageAt, shellAt, curriculum, loadCurriculum, chapterIdOf, walk, parseArgs };

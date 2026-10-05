@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 "use strict";
-/* Checks on the built site: dist/ must be the source tree's site, page for page.
+/* Checks on the built site: dist/ must be the source tree's site, page for page, each
+   source page taken with its shell written (lib/shell.js), as the build takes it.
    Node built-ins only, no browser. Run after `npm run build`.
 
    Usage: node tools/check-dist.js [--dist=<dir>] [--only=<check,check>]
@@ -35,11 +36,16 @@ function filesUnder(dir) {
   return site.walk(dir, () => true).map(p => path.relative(dir, p).split(path.sep).join("/"));
 }
 
+/* "The source" of a page, here and in every message below, is the source page with its
+   shell written (lib/shell.js): the whole document the build is handed, which is what
+   dist/ has to be. That the shell itself is the one readers have is the `shell` check
+   of check-static.js; the two together hold dist/ to the site as it was. */
 function buildContext() {
   const ctx = { src: { pages: site.htmlPages(ROOT), docs: {}, text: {} }, dist: { pages: [], docs: {}, text: {} }, chapters: [] };
   ctx.src.pages.forEach(p => {
-    ctx.src.text[p] = fs.readFileSync(path.join(ROOT, p), "utf8");
-    ctx.src.docs[p] = parse(ctx.src.text[p]);
+    const page = site.readPage(ROOT, p);
+    ctx.src.text[p] = page.text;
+    ctx.src.docs[p] = page.doc;
     if (site.chapterIdOf(ctx.src.docs[p])) ctx.chapters.push(p);
   });
   ctx.dist.pages = site.htmlPages(DIST);
@@ -167,10 +173,14 @@ function checkMain(ctx, r) {
 
 /* and so must everything around <main>, for as long as the build is a pass-through: the
    head (viewport, title, the CDN tags, the inline scripts), the attributes of <body>,
-   the top bar, the footer. The one thing the build does rewrite is the links to the
-   site's own stylesheets and icon, which `links` and `stylesheets` hold to account, so
-   those links are taken out of both sides and the rest is compared like <main>. The
-   item that moves the shell into the build changes this check on purpose. */
+   the top bar, the footer. The head and the top bar are no longer in the source file:
+   lib/shell.js writes them before Vite reads the page (vite.config.ts), and the source
+   side here is that same expansion. So this fails a build that expands a page
+   differently from the checks (a marker left in, an attribute the shell reads left on
+   <body>, a tag Vite moved or dropped), as it failed a build that rewrote the page.
+   The one thing the build does rewrite is the links to the site's own stylesheets and
+   icon, which `links` and `stylesheets` hold to account, so those links are taken out
+   of both sides and the rest is compared like <main>. */
 function shellOf(text) {
   const a = text.indexOf("<main"), b = text.lastIndexOf("</main>");
   if (a === -1 || b === -1) return null;

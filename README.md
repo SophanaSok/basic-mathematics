@@ -177,7 +177,8 @@ The light/dark toggle sits in the header and follows your system setting until y
 ```sh
 npm ci            # once: Vite, TypeScript (and @types/node), Playwright, axe-core.
                   # Node 22.18 or newer (.nvmrc: 24)
-npm run dev       # the source tree at http://localhost:8000, reloading as you edit
+npm run dev       # the source tree, each page with its shell written, at
+                  # http://localhost:8000, reloading as you edit
 npm run build     # the site as it is published, into dist/
 npm run preview   # that dist/, at http://localhost:8000
 ```
@@ -186,17 +187,24 @@ Both servers take port 8000 and refuse to start on any other:
 `http://localhost:8000/account.html` is the address a sign-in is allowed to come back to
 ([`supabase/README.md`](supabase/README.md)).
 
-The build changes nothing a reader can see. `dist/` holds the same pages at the same paths and
-the same scripts byte for byte. Only the stylesheets and the favicon are renamed, and the
-stylesheets joined into shared files: their text is the source's, not minified, because Vite's
-CSS minifier rewrites values the scripts read (`vite.config.ts` says how, and
-`npm run check:dist` holds the build to all of that). So the pages are still edited by hand, and
-a page added under `parts/` is picked up by the build without being listed.
+**The source tree is not a site on its own.** A page in it holds its content and two markers,
+`<!--bm:head-->` and `<!--bm:topbar-->`; the `<head>` (stylesheets, scripts, fonts) and the top
+bar are written in by [`tools/lib/shell.js`](tools/lib/shell.js) when the page is built or served
+([The shell of a page](#the-shell-of-a-page)). So look at the site through `npm run dev`, or build
+it: a source page opened as a file, or published as it is, has no styles, no scripts and no top
+bar.
 
-Opening `index.html` straight from disk still works, for the source tree and for `dist/`:
-`file://` works because the curriculum is loaded as a `<script>` rather than fetched, and
-because the build takes off the `crossorigin` Vite puts on its stylesheet links, which a browser
-refuses from disk. That stays true until a later release moves the scripts into bundled modules.
+Apart from that the build changes nothing a reader can see. `dist/` holds the same pages at the
+same paths and the same scripts byte for byte. Only the stylesheets and the favicon are renamed,
+and the stylesheets joined into shared files: their text is the source's, not minified, because
+Vite's CSS minifier rewrites values the scripts read (`vite.config.ts` says how, and
+`npm run check:dist` holds the build to all of that). So the content of the pages is still edited
+by hand, and a page added under `parts/` is picked up by the build without being listed.
+
+Opening `dist/index.html` straight from disk works: `file://` works because the curriculum is
+loaded as a `<script>` rather than fetched, and because the build takes off the `crossorigin`
+Vite puts on its stylesheet links, which a browser refuses from disk. That stays true until a
+later release moves the scripts into bundled modules.
 
 Two libraries come from CDNs: [KaTeX](https://katex.org) for math typesetting on every page, and
 [Three.js](https://threejs.org) 0.160.1 (the last release with a classic build, pinned with an
@@ -241,32 +249,87 @@ supabase/README.md      how to switch accounts on
 supabase/migrations/    one file per database change, run on the live project before the merge
 OPERATIONS.md           the runbook: release order, deploys, quotas, secrets, incidents
 tools/                  the checks: static, scenes, generators, game rules, the build, headless browser
+tools/lib/shell.js      the <head> and the top bar of every page: what each kind of page loads, in order
+tools/shell.json        what that comes to on each page, as readers have it (the `shell` check)
 parts/<part>/<nn>-<slug>.html
 package.json            the npm scripts and the five dev dependencies; package-lock.json pins them
-vite.config.ts          the build: every page in, the same page out; scripts copied as they are
+vite.config.ts          the build: every page in, its shell written, otherwise the same page out;
+                        scripts copied as they are
 tsconfig.json           for `npm run typecheck`; covers src/ and vite.config.ts
 src/types/state.ts      the shapes of what the site keeps in localStorage (types only, so far)
 public/.nojekyll        copied into dist/
 .github/workflows/      CI: the checks on every pull request, and the deploy of main
-.nojekyll               so GitHub Pages serves the files as authored, while it deploys the branch
+.nojekyll               left from when GitHub Pages published the branch itself; nothing needs it now
 ```
+
+The six pages at the root and the chapters under `parts/` hold content only: a title, a
+description, the two markers, and what is inside the page.
 
 `data/curriculum.js` is the spine. Navigation, the sidebar, the contents page, the chapter
 prev/next links, and the progress counters are all generated from it — no page hard-codes a link to
 its neighbours.
 
-### How a chapter page works
+### The shell of a page
 
-A chapter is a plain HTML file that declares two things on its `<body>`:
+No page writes its own `<head>` or top bar. A page starts like this, and
+[`tools/lib/shell.js`](tools/lib/shell.js) writes the rest:
 
 ```html
-<body data-depth="2" data-chapter="ch07" data-part="geometry">
+<!doctype html>
+<html lang="en">
+<head>
+<!--bm:head-->
+<title>How to use this course — Basic Mathematics</title>
+<meta name="description" content="How to study this course: …">
+</head>
+<body data-depth="0" data-page="page" data-nav="about">
+<!--bm:topbar-->
+
+<div class="wrap-narrow">
+  <main id="main">
+```
+
+`<!--bm:head-->` is the first thing in `<head>`, followed only by the page's own `<title>`,
+`<meta name="description">` and, for a page search engines should leave alone,
+`<meta name="robots" content="noindex">`. `<!--bm:topbar-->` is the first thing in `<body>`. What
+the shell writes depends on what `<body>` says:
+
+| attribute | what it says |
+| --- | --- |
+| `data-depth` | how many directories deep the file is (`0` at the root, `2` for a chapter); every path the shell writes is made relative with it, and so are the links `site.js` generates |
+| `data-chapter` | the page is a chapter: kind `chapter` |
+| `data-page` | for any other page, its kind: `home` (the contents page, with the course map), `page` (prose or a form), `dashboard` (a page that `assets/insights.js` fills), `arena` |
+| `data-scenes` | chapters only: the 3D scenes the page mounts, by the names of their files in `assets/scenes/` without `.js`, separated by spaces (`data-scenes="dist3 sphereslice"`). Leave it out when there are none |
+| `data-nav` | the links of the top bar: `home` (only *How to use this*), `about` (*Contents* and *Progress*), or left out for the usual *Contents* and *How to use this* |
+
+`data-page`, `data-scenes` and `data-nav` are instructions to the shell and are not in the page a
+reader gets. The stylesheets and scripts of each kind, in the order they load, are the lists in
+`PAGE_KINDS` at the top of `tools/lib/shell.js`: that one place is where a script is added to
+every chapter, or moved. The order is part of the site (`site.js` mounts every figure as it runs,
+so the scenes come before it; rules of equal weight are settled by the order of the stylesheets),
+so what each page ends up with is recorded in `tools/shell.json`, and `check-static.js` fails
+(`shell`) when a page's head, body attributes or top bar are no longer what is recorded. If the
+change is meant, `node tools/check-static.js --only=shell --accept-shell` records it, and the
+diff of `tools/shell.json` shows the reviewer exactly which pages now load what.
+
+The same function runs in three places, so they cannot disagree: the build and `npm run dev`
+(`vite.config.ts`), every check that reads a page (`tools/lib/site.js`), and the server the
+browser checks load the source tree from (`tools/lib/serve.js`). A page with `<main id="main">`
+and no marker stops the build and the checks with a message naming it.
+
+### How a chapter page works
+
+A chapter is a plain HTML file whose `<body>` says which chapter it is:
+
+```html
+<body data-depth="2" data-chapter="ch07" data-part="geometry" data-scenes="scale3">
 ```
 
 `data-chapter` matches an `id` in `curriculum.js`, which is how the page finds its own title,
 section list, and neighbours. `data-depth` is how many directories deep the file sits, so that
 generated links can be made relative. `data-part` (also set by script) gives the page its region's
-colours from the first paint.
+colours from the first paint. `data-scenes` names the 3D scenes it mounts
+([The shell of a page](#the-shell-of-a-page)).
 
 The chapter opens with a region banner, which lesson mode looks for:
 
@@ -447,8 +510,11 @@ Besides `draw`, a spec gives:
 only, never a verdict or the asked-for value. `draw` leaves out solution annotations, and nothing
 turns green. Write questions that need a computation the picture does not hand over.
 
-Pages with a scene load `assets/scenes3d.js` and the scene files after `three-loader.js` and before
-`site.js`: `site.js` mounts every figure as it runs.
+A chapter with a scene names it in `data-scenes` on its `<body>`. The shell then loads
+`assets/scenes3d.js` and the scene files after `three-loader.js` and before `site.js`: `site.js`
+mounts every figure as it runs. A scene that is mounted but not named there is never defined: its
+figure reads "Interactive figure … is not available", and the `widgets` suite of
+`check-browser.js` fails.
 
 ### The game layer
 
@@ -500,15 +566,47 @@ they were inserted in front of. Printing shows the whole chapter.
 
 1. Add an entry to the relevant part in `data/curriculum.js` — `id`, `label`, `title`, `file`,
    `status`, `blurb`, and the `sections` list.
-2. Create the HTML file at `parts/<part-dir>/<file>`, with `data-chapter` set to the new `id` and
-   an `<h2 id="…">` matching each section id — except a mixed-review set, whose id goes on its
-   `<section class="practice" id="review">`.
+2. Create the HTML file at `parts/<part-dir>/<file>`. Around its content a new page is a title, a
+   description, the two markers and what its `<body>` says, and nothing else: no stylesheet link
+   and no script tag ([The shell of a page](#the-shell-of-a-page)).
+
+   ```html
+   <!doctype html>
+   <html lang="en">
+   <head>
+   <!--bm:head-->
+   <title>17. … — Basic Mathematics</title>
+   <meta name="description" content="…">
+   </head>
+   <body data-depth="2" data-chapter="ch17" data-part="topics">
+   <!--bm:topbar-->
+
+   <div class="wrap">
+   <div class="layout">
+     <aside class="sidebar" data-sidebar></aside>
+     <main id="main">
+       …
+     </main>
+   </div>
+   </div>
+   </body>
+   </html>
+   ```
+
+   `data-chapter` is the new `id`; add `data-scenes="…"` if the chapter mounts 3D scenes. Inside
+   `<main>`, give an `<h2 id="…">` to each section id — except a mixed-review set, whose id goes on
+   its `<section class="practice" id="review">`.
 3. Add the chapter's boss to `data/quest.js`: a name, the index of the tempting guess in its
    puzzle's `ul.guess`, and a one-line taunt that voices the wrong idea without answering it.
-4. Record its lesson steps: `node tools/check-static.js --only=lesson-steps --accept-steps` adds the
-   chapter to `tools/lesson-steps.json` (the check warns until it is there).
+4. Record its lesson steps and its shell:
+   `node tools/check-static.js --only=lesson-steps,shell --accept-steps --accept-shell` adds the
+   chapter to `tools/lesson-steps.json` (the check warns until it is there) and to
+   `tools/shell.json` (the check fails until it is there).
 
 Navigation, the contents card, the sidebar, and the progress counters build themselves from step 1.
+
+A page that is not a chapter is made the same way, with `data-page` naming its kind where a
+chapter has `data-chapter`, and step 4 for its shell only.
 
 ### Stores, the bus, and accounts
 
@@ -623,8 +721,9 @@ the browser ones also need Chromium once, `npx playwright install chromium`
 ```sh
 npm run check           # everything that needs no browser, about 15 s:
 npm run typecheck       #   tsc over src/ and vite.config.ts
-npm run check:static    #   syntax, ES5, progress keys, ids, lesson steps, links, sections, widgets,
-                        #   choices, migrations, placeholders, merge laws, contrast, animations
+npm run check:static    #   syntax, ES5, progress keys, ids, lesson steps, the shell, links, sections,
+                        #   widgets, choices, migrations, placeholders, merge laws, contrast,
+                        #   animations
 npm run check:gen       #   every Arena generator over 500 seeds
 npm run check:scenes    #   every 3D scene: mount, controls, missions, answers
 npm run test:node       #   the progress-key, id and lesson-step rules on small pages;
@@ -633,9 +732,10 @@ npm run test:node       #   the progress-key, id and lesson-step rules on small 
                         #   sites and tables, sign-in through another service); the game's rules
 
 npm run build           # dist/
-npm run check:dist      # dist/ is the source's site: same pages and nothing extra, links resolve
-                        # inside it, <main> and the page around it untouched, script tags and
-                        # scripts as they were, CSS text and cascade the source's, no secrets
+npm run check:dist      # dist/ is the source's site, each source page taken with its shell
+                        # written: same pages and nothing extra, links resolve inside it, <main>
+                        # and the page around it untouched, script tags and scripts as they
+                        # were, CSS text and cascade the source's, no secrets
 
 npm run test:browser    # the game, the Arena, the account page, the 3D stages, the new 3D
                         # exercises and the course map, each driven in headless Chromium
@@ -653,13 +753,18 @@ Each script is one `node tools/…` command and takes its flags after `--`:
 should be the last commit readers' progress was saved against: the progress-key check fails if any
 existing exercise's key or question changed, inline checks included, or if any exercise has no
 `id`. The same run fails an `id` that appears twice on a page, and warns when a chapter is not cut
-into the lesson steps recorded in `tools/lesson-steps.json`. The `migrations` check does not use
+into the lesson steps recorded in `tools/lesson-steps.json`. It also fails (`shell`) when what
+`tools/lib/shell.js` writes around a page — the tags of its head in order, its body attributes,
+its top bar — is not what `tools/shell.json` records for that page; `--accept-shell` records a
+change that is meant, and `--shell-base=<ref>` compares with the pages of a commit instead of the
+file. The `migrations` check does not use
 `--base`. It compares against the commit the branch left `main` at (or `--migrations-base=<ref>`)
 and fails if `supabase/schema.sql` changed since then with no new migration, or if a migration
 that was already there was edited, renamed or removed.
 
 The browser scripts load the site over http from `dist/` when it is built and no source file is
-newer than it, and from the source tree otherwise; `--root=dist` or `--root=.` chooses. CI runs
+newer than it, and from the source tree otherwise, served with each page's shell written;
+`--root=dist` or `--root=.` chooses. CI runs
 all of this on every pull request ([`.github/workflows/ci.yml`](.github/workflows/ci.yml)).
 
 Still checked by hand: the solution of a multiple-choice question states the option the key
@@ -675,16 +780,21 @@ The WebGL checks run in a job of their own, retried, and do not hold a deploy ba
 a newer one; for the same reason a re-run of an old run refuses to deploy once `main` has moved
 on (re-run the newest run, or use Run workflow).
 
-**One setting has to be changed by the repository's owner, once, for that to take effect:**
-Settings → Pages → Build and deployment → Source: **GitHub Actions**. Then publish with Actions →
-CI → Run workflow, on `main` (or simply push). Until that is done nothing changes for readers:
-Pages keeps serving the files on `main` as it always has, and the `deploy` job is skipped with a
-notice saying so. (If the workflow cannot find out which source is set, because GitHub's API
-refuses or fails, the run fails instead of skipping the deploy quietly.)
+**The Pages source has to be GitHub Actions, and it has to be set before the change that
+introduced the page shell is merged:** Settings → Pages → Build and deployment → Source:
+**GitHub Actions**, by the repository's owner; then publish with Actions → CI → Run workflow, on
+`main` (or simply push). With the older setting, **Deploy from a branch**, GitHub Pages publishes
+the files of `main` as they are, and from that change on those files are not a complete site:
+every page is missing its `<head>` and its top bar until the build has written them
+([The shell of a page](#the-shell-of-a-page)), so readers would get pages with no stylesheets and
+no scripts. The workflow does not paper over that: on `main`, while the source is anything but
+GitHub Actions, the `pages-source` job fails the run with a message saying what to set, and
+nothing is deployed. (It also fails if it cannot find out which source is set, because GitHub's
+API refuses or fails.)
 
-To go back: set Source to **Deploy from a branch**, `main`, `/ (root)`. The source tree is still
-a complete site (which is why `.nojekyll` stays at the root), so Pages serves the branch again
-and `deploy` goes back to being skipped. Nothing in the repository has to be reverted.
+**Switching back to "Deploy from a branch" is no longer a way to roll back.** It used to be,
+while the source tree was the site. To undo a deploy now, revert the commit on `main` and let the
+revert deploy ([`OPERATIONS.md`](OPERATIONS.md), "A bad deploy").
 
 Run workflow on `main` is also the way to publish again without a new commit.
 

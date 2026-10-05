@@ -104,46 +104,52 @@ The site is served at <https://sophanasok.github.io/basic-mathematics/>.
 
 ### How it deploys
 
-**Today.** There is no workflow in the repository and nothing is built. GitHub Pages publishes
-the files as they are in the repository (`.nojekyll` stops it running them through Jekyll). That
-is the "Deploy from a branch" source; the repository layout implies `main` and `/ (root)`. This
-was not read from the repository settings when this runbook was written, so confirm it under
-Settings → Pages.
+[`.github/workflows/ci.yml`](.github/workflows/ci.yml) builds the site into `dist/` and deploys
+that. A push to `main` (merging a pull request) triggers it, and so does **Run workflow** on
+`main`. Its jobs are `build` (the Node checks, the build, the checks on `dist/`), `browser` (the
+Chromium checks that need no WebGL), `webgl` (the 3D checks, retried, outside the gate),
+`pages-source` (asks GitHub which Pages source is set) and `deploy`, which publishes that run's
+`dist/` once `build` and `browser` have passed.
 
-**After the toolchain release [not yet: R0, item 3].** A GitHub Actions workflow builds the site
-into `dist/` and deploys that. Pushing to `main` (merging a pull request) is what triggers it. The
-workflow file does not exist on this branch; when it lands, add its file name and job names here.
+**The files in the repository are not the site.** Since the page-shell change (R0, item 5) a
+page in the repository holds its content and two markers. Its `<head>` (every stylesheet and
+script) and its top bar are written by the build
+([README, "The shell of a page"](README.md#the-shell-of-a-page)). Published as they are, the
+pages have no styles, no scripts and no top bar. `dist/` is the only thing that can be published.
 
-### The one-time switch
+### The Pages source: GitHub Actions, set before the page-shell change is merged
 
-The toolchain release needs the Pages source changed once, by hand, because it is a repository
-setting and not a file:
+The Pages source is a repository setting and not a file, so it is set by hand:
 
 1. Settings → Pages → Build and deployment → Source.
-2. Change **Deploy from a branch** to **GitHub Actions**.
+2. Set it to **GitHub Actions**. (Before the build existed the site used **Deploy from a
+   branch**, `main`, `/ (root)`, which publishes the repository's files as they are.)
+3. Actions → CI → **Run workflow**, on `main`. When the run has finished, load the site.
 
-Do it when the toolchain pull request is merged, then watch the first run in the Actions tab and
-load the site. What the workflow's deploy job does while the source is still "Deploy from a
-branch" has not been tested here; expect it not to publish.
+**Do this before the pull request that brings the page shell is merged, not after.** With the
+source still on "Deploy from a branch", that merge puts the incomplete pages in front of readers
+at once, and they stay there until the source is changed and a run has deployed. Setting the
+source first is safe at any time after the toolchain release is on `main`: the workflow then
+publishes `dist/`, which is the same site.
 
-**Switching back:** the same setting, set to **Deploy from a branch**, branch `main`, folder
-`/ (root)`, Save. This publishes the repository root again. It is a real fallback only while the
-root is still a working site, which is true through R0 item 3. From the releases that make pages
-depend on the build **[not yet: R0, items 5 and 6]**, the root is source and not the site, and
-switching back would publish something broken. From then on, undo a deploy by reverting the
-commit.
+From the page-shell change on, a run on `main` while the source is anything but GitHub Actions
+fails in `pages-source`, with a message saying what to set, and deploys nothing. That step could
+not be tried before the change reached `main`; the first run there is its test. In the toolchain
+release it was a notice and a skipped deploy, which was right while the branch was still a site.
 
-### Re-running and triggering a deploy [not yet: R0, item 3]
+**There is no switching back.** "Deploy from a branch" was a fallback while the repository root
+was a working site. It is not one any more, and setting it now publishes the broken pages. Undo a
+deploy by reverting the commit ([7.2](#72-a-bad-deploy)).
 
-- **Re-run:** Actions tab → the workflow → the run → **Re-run jobs** → **Re-run all jobs** (or
+### Re-running and triggering a deploy
+
+- **Manual trigger:** Actions tab → CI → **Run workflow**, on `main`. It runs everything again
+  and deploys, without a new commit.
+- **Re-run:** Actions tab → CI → the run → **Re-run jobs** → **Re-run all jobs** (or
   **Re-run failed jobs**). A re-run uses the same commit as the original run, and is possible for
   30 days after it. With the GitHub CLI: `gh run rerun <run-id>`, adding `--failed` for only the
-  failed jobs.
-- **Manual trigger:** possible only if the workflow declares a `workflow_dispatch` trigger, in
-  which case the Actions tab shows a **Run workflow** button. Whether it does depends on the
-  toolchain release. Without it, pushing a commit to `main` is the trigger.
-- Today, with "Deploy from a branch", GitHub runs its own Pages build on every push to `main`. It
-  shows in the Actions tab and can be re-run the same way.
+  failed jobs. The `deploy` job of a re-run publishes only when that commit is still the newest on
+  `main`; a re-run of an older run fails there instead of putting an older site over a newer one.
 
 GitHub's pages on this, read 2026-10-04:
 [publishing source](https://docs.github.com/en/pages/getting-started-with-github-pages/configuring-a-publishing-source-for-your-github-pages-site),
@@ -355,11 +361,12 @@ Afterwards, write down what happened and add the missing step to this file.
 1. Confirm it is the deploy: load the live site in a private window and compare with the last
    merge.
 2. Revert the merge commit on `main` (GitHub's **Revert** button on the merged pull request opens
-   a pull request that does it) and merge the revert. The previous site deploys. This works under
-   either Pages source.
-3. Once deploys run through GitHub Actions **[not yet: R0, item 3]**, a quicker stopgap is to
-   re-run the last good run in the Actions tab, which redeploys that run's commit. `main` is
-   still ahead of what is deployed, so do step 2 anyway.
+   a pull request that does it) and merge the revert. The previous site is built and deployed by
+   that merge's run.
+3. There is no quicker way back. Re-running the last good run does not redeploy it: once `main`
+   has moved on, the `deploy` job of an older run refuses. And setting the Pages source to
+   "Deploy from a branch" publishes the repository's files, which are not a complete site
+   ([section 2](#2-github-pages)).
 4. Leave the database as it is. Migrations are backward compatible, so the older site runs
    against the newer schema.
 5. If the deploy changed exercises, run `node tools/check-static.js --base=<last good commit>`
