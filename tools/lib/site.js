@@ -33,7 +33,9 @@ function readPage(root, relPath) {
 }
 
 /* lib/shell.js as it was at a git ref, or null where that commit has none (its pages
-   are whole documents then). It can be run from its text because it requires nothing. */
+   are whole documents then). It is run from its text, with Node's built-ins to require
+   and, where it reads a source file (the boot script it inlines), that file at the same
+   ref, so the page comes out as that commit's build wrote it. */
 const shells = {};
 function shellAt(root, ref) {
   const key = root + "\n" + ref;
@@ -42,7 +44,14 @@ function shellAt(root, ref) {
     if (src === null) shells[key] = null;
     else {
       const mod = { exports: {} };
-      vm.runInThisContext("(function (module, exports) {" + src + "\n})", { filename: ref + ":tools/lib/shell.js" })(mod, mod.exports);
+      vm.runInThisContext("(function (module, exports, require, __dirname) {" + src + "\n})", { filename: ref + ":tools/lib/shell.js" })(mod, mod.exports, require, __dirname);
+      if (typeof mod.exports.useSource === "function") {
+        mod.exports.useSource(rel => {
+          const text = git.showText(root, ref, rel);
+          if (text === null) throw new Error(rel + " is not at " + ref + ", and that commit's lib/shell.js reads it");
+          return text;
+        });
+      }
       shells[key] = mod.exports;
     }
   }

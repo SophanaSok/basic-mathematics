@@ -2,8 +2,8 @@
 /* The account page as it is drawn (assets/account.js), in headless Chromium.
      node tools/game/account.test.js
 
-   The site is served in-process as lib/target.js picks it (dist/ when it is built and
-   current, else the source tree). Each case pins window.BM_CONFIG, so
+   The site is served in-process as lib/target.js picks it (the build in dist/, which
+   must be current). Each case pins window.BM_CONFIG, so
    the real assets/config.js cannot set it, and answers the Supabase SDK's URL with a small
    stand-in that records what the page asks of it. Every other request off the local server
    is aborted: nothing reaches Supabase or any sign-in service.

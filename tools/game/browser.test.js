@@ -1,6 +1,6 @@
 #!/usr/bin/env node
-/* Headless Chromium checks of the game layer, on the site as lib/target.js serves it
-   (dist/ when it is built and current, else the source tree; --root=<dir> to choose):
+/* Headless Chromium checks of the game layer, on the built site as lib/target.js serves it
+   (dist/, which must be current; --root=<dir> names a build elsewhere):
      node tools/game/browser.test.js
    Every request off that server is aborted, so KaTeX and the fonts are absent: the
    pages must work without the CDN anyway, and the run is deterministic.

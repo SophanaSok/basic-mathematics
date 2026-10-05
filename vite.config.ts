@@ -1,10 +1,12 @@
-/* The build is a pass-through for now: `npm run build` writes the same site into dist/,
-   page for page and at the same paths. A source page holds two markers where its <head>
-   and its top bar go; tools/lib/shell.js writes them, here and in the dev server, before
-   Vite reads the page. Vite joins the stylesheets the pages link into shared files,
-   their text unchanged, and renames those and the favicon; the scripts are still
-   classic <script defer> tags, which Vite leaves alone and does not emit, so a plugin
-   below copies them across unchanged. */
+/* `npm run build` writes the site into dist/, page for page and at the same paths. A
+   source page holds two markers where its <head> and its top bar go; tools/lib/shell.js
+   writes them, here and in the dev server, before Vite reads the page. In that head are
+   the boot script inline, KaTeX's two CDN tags, and one <script type="module"> for the
+   page's kind (src/entries/<kind>.js, an ordered list of imports of the site's
+   scripts). Vite bundles that entry, splitting what pages share into shared chunks,
+   joins the stylesheets the pages link into shared files, their text unchanged, and
+   renames those and the favicon. The scripts under assets/ and data/ are still copied
+   across as they are, for one release (see legacyScripts). */
 import fs from "node:fs";
 import path from "node:path";
 import { defineConfig, type Plugin } from "vite";
@@ -58,35 +60,25 @@ function scriptFiles(dir: string, out: string[] = []): string[] {
   return out;
 }
 
-/* Temporary, and build-only: it goes when the pages load bundled module entries.
-   - every .js under assets/ and data/ is emitted at its own path, byte for byte. That
-     covers the scripts the pages name and the ones loaded at run time (the scenes'
-     WebGL painter, for one);
-   - each classic <script src> gets Vite's documented `vite-ignore` attribute before
-     Vite reads the page, which tells it the tag is meant to stay as it is. Vite takes
-     the attribute out again (the second plugin closes the gap it leaves), so the tag
-     in dist is the tag in the source, and the build does not print "can't be bundled
-     without type=module" once per tag. */
-function classicScripts(): Plugin[] {
-  return [{
-    name: "bm:classic-scripts",
+/* Temporary, and build-only: every .js under assets/ and data/ is emitted at its own
+   path, byte for byte, though no page in this build loads one. A page cached before
+   the deploy that brought the module entries (GitHub Pages lets a browser keep a page
+   for up to ten minutes) still asks for assets/site.js and the rest by name, and the
+   WebGL painter it then loads asks for assets/scenes3d-gl.js from the same place; with
+   the copies there such a page keeps working until it is fetched again. The release
+   after the one that ships the entries removes this plugin (OPERATIONS.md, "Scripts").
+   tools/check-dist.js holds the copies to the source byte for byte while they last,
+   and proves no built page loads one. */
+function legacyScripts(): Plugin {
+  return {
+    name: "bm:legacy-scripts",
     apply: "build",
-    transformIndexHtml: {
-      order: "pre",
-      handler(html) {
-        return html.replace(/<script (?![^>]*\btype=["']?module)(?=[^>]*\bsrc=["'](?!https?:|\/\/))/g, "<script vite-ignore ");
-      }
-    },
     generateBundle() {
       for (const rel of scriptFiles("assets").concat(scriptFiles("data"))) {
         this.emitFile({ type: "asset", fileName: rel, source: fs.readFileSync(path.join(root, rel)) });
       }
     }
-  }, {
-    name: "bm:classic-scripts:tidy",
-    apply: "build",
-    transformIndexHtml: { order: "post", handler: (html) => html.replace(/<script  /g, "<script ") }
-  }];
+  };
 }
 
 /* Build-only. Vite splits the pages' stylesheets into shared files, and writes the link
@@ -155,10 +147,10 @@ function stylesheetOrder(): Plugin[] {
 
 /* Build-only. Vite writes `crossorigin` on every stylesheet link it makes (vite 8.3: it
    is fixed in its html plugin, with no option). The pages link their stylesheets without
-   it, and it is not wanted here: every one of them comes from the site itself, and a
-   page opened from disk (file://) is refused a stylesheet asked for that way, so dist/
-   would open unstyled. Taken off again, the link in dist is the link in the source but
-   for the file it names. */
+   it, and every one of them comes from the site itself, so the attribute changes
+   nothing and is taken off again: the link in dist is the link in the source but for
+   the file it names. (The module script tags Vite writes carry it too, as every module
+   script does; those are left as Vite makes them.) */
 function plainStylesheetLinks(): Plugin {
   return {
     name: "bm:plain-stylesheet-links",
@@ -177,12 +169,15 @@ export default defineConfig({
   base: process.env.BM_BASE || "./",
   /* a site of separate pages: an unknown path is a 404, not index.html */
   appType: "mpa",
-  plugins: [shell(), classicScripts(), stylesheetOrder(), plainStylesheetLinks()],
+  plugins: [shell(), legacyScripts(), stylesheetOrder(), plainStylesheetLinks()],
   build: {
     outDir: "dist",
     emptyOutDir: true,
+    /* for the scripts as for the stylesheets: a built chunk's map names the source
+       files in it, which tools/check-dist.js reads to prove each page's bundle holds
+       the files its entry imports and nothing else */
     sourcemap: true,
-    /* While the build is a pass-through the stylesheets go out as they are written.
+    /* The stylesheets go out as they are written.
        Vite's CSS minifier (Lightning CSS) rewrites values as well as white space, and
        the scripts read some of them: it turns --plot-fill: rgba(38, 70, 212, .14) into
        #2646d424, which parseColor in assets/scenes3d.js cannot read, and it merges
@@ -190,7 +185,21 @@ export default defineConfig({
        stylesheet is in dist byte for byte inside the file it was joined into, and
        tools/check-dist.js fails the build that changes that. */
     cssMinify: false,
-    rolldownOptions: { input: htmlPages() }
+    rolldownOptions: {
+      input: htmlPages(),
+      output: {
+        /* The entries are lists of side-effect imports whose order is the order the
+           scripts run in (site.js initialises the page; game.js, encounter.js and
+           lesson.js build on it). Rolldown splits what pages share into shared chunks,
+           and without this a chunk's modules run when the chunk is imported, which put
+           site.js (in the chunk every page shares) before widgets.js and the scenes.
+           With it (rolldown 1.2: output.strictExecutionOrder) each module's body is
+           wrapped in an init function and called in the entry's order, whichever chunk
+           it landed in. tools/check-dist.js holds each bundle to the entry's files; the
+           browser checks hold the order (figures mount, BMGame finds BMStore). */
+        strictExecutionOrder: true
+      }
+    }
   },
   /* http://localhost:8000/account.html is on the Supabase redirect allow-list
      (supabase/README.md), so sign-in only comes back to this port */

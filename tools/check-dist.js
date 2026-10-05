@@ -16,12 +16,63 @@ const fs = require("fs");
 const path = require("path");
 
 const site = require("./lib/site");
+const shell = require("./lib/shell");
 const { parse, normText, hash } = require("./lib/html");
 const links = require("./lib/links");
 
 const ROOT = site.ROOT;
 const opts = site.parseArgs(process.argv.slice(2));
 const DIST = path.resolve(ROOT, typeof opts.dist === "string" ? opts.dist : "dist");
+
+/* the scripts of the source tree that a page's bundle is made of, as tree paths */
+const SOURCE_DIRS = ["assets", "data"];
+function sourceScripts() {
+  const out = [];
+  SOURCE_DIRS.forEach(d => site.walk(path.join(ROOT, d), p => /\.js$/.test(p), out));
+  return out.map(site.rel);
+}
+
+/* The module graph of the built site, read from the chunks themselves: every string
+   that names a .js file relative to the chunk ("./x-HASH.js", "../y.js") and resolves
+   to a file in dist is an edge, whether it is in an `import` statement, an `import()`
+   or the list Vite keeps for preloading a dynamic import's dependencies. `sources` of
+   a chunk is what its source map says it was built from, as tree paths. */
+function moduleGraph(ctx) {
+  const files = new Set(ctx.files);
+  const edges = {}, sources = {};
+  const of = (f) => {
+    if (edges[f]) return;
+    const text = fs.readFileSync(path.join(DIST, f), "utf8");
+    const dir = path.posix.dirname(f);
+    edges[f] = [];
+    for (const m of text.matchAll(/["'](\.\.?\/[^"'\s]+\.js)["']/g)) {
+      const t = path.posix.normalize(path.posix.join(dir, m[1]));
+      if (files.has(t) && !edges[f].includes(t)) edges[f].push(t);
+    }
+    sources[f] = [];
+    if (files.has(f + ".map")) {
+      const map = JSON.parse(fs.readFileSync(path.join(DIST, f + ".map"), "utf8"));
+      /* a source is relative to the map file, and climbs out of dist to the tree */
+      (map.sources || []).forEach(s => {
+        if (/^\0|^[a-z]+:/.test(s)) return;    /* a virtual module of the bundler */
+        sources[f].push(site.rel(path.resolve(DIST, path.dirname(f), s)));
+      });
+    }
+    edges[f].forEach(of);
+  };
+  const reach = (from) => {
+    const seen = new Set(), todo = [from];
+    while (todo.length) {
+      const f = todo.pop();
+      if (seen.has(f)) continue;
+      seen.add(f);
+      of(f);
+      edges[f].forEach(t => todo.push(t));
+    }
+    return Array.from(seen);
+  };
+  return { reach, sourcesOf: (f) => { of(f); return sources[f]; } };
+}
 
 function result() {
   const r = { fails: [], warns: [], notes: [], count: 0 };
@@ -54,7 +105,16 @@ function buildContext() {
     ctx.dist.docs[p] = parse(ctx.dist.text[p]);
   });
   ctx.files = filesUnder(DIST);
+  ctx.graph = moduleGraph(ctx);
   return ctx;
+}
+
+/* the one module script of a built page: its tree-relative file, or null and why */
+function moduleEntryOf(page, doc) {
+  const mods = doc.queryAll("script").filter(s => (s.getAttribute("type") || "").toLowerCase() === "module");
+  if (mods.length !== 1) return { file: null, why: mods.length + " module scripts, not one" };
+  const file = links.targetOf(page, mods[0].getAttribute("src"));
+  return file ? { file, el: mods[0] } : { file: null, why: "the module script's src " + JSON.stringify(mods[0].getAttribute("src")) + " is not a file of the site" };
 }
 
 /* the local stylesheets a page links, as tree-relative paths, in order */
@@ -80,10 +140,12 @@ function firstDifference(s, d) {
 /* ------------------------------------------------------------- checks ---- */
 
 /* (a) the same pages at the same paths; .nojekyll for a branch deploy; and nothing else
-   in dist but what the site is made of: a page, a script of assets/ or data/, a file of
-   public/, a file a built page links (its stylesheets, the icon) or a built stylesheet
-   names, and the source map beside any of those. Anything more was put there by
-   mistake, and everything in dist is published. */
+   in dist but what the site is made of: a page, a copy of a script of assets/ or data/
+   (for one release: vite.config.ts legacyScripts), a file of public/, a file a built
+   page links (its module script and what it preloads, its stylesheets, the icon), a
+   chunk the module graph reaches from a page's script (the GL painter is fetched by a
+   dynamic import), a file a built stylesheet names, and the source map beside any of
+   those. Anything more was put there by mistake, and everything in dist is published. */
 function checkPages(ctx, r) {
   const built = new Set(ctx.dist.pages);
   ctx.src.pages.forEach(p => {
@@ -93,13 +155,17 @@ function checkPages(ctx, r) {
   if (!ctx.files.includes(".nojekyll")) r.fail("dist/.nojekyll is missing (public/.nojekyll should have been copied)");
 
   const known = new Set(ctx.src.pages);
-  ["assets", "data"].forEach(d => site.walk(path.join(ROOT, d), p => /\.js$/.test(p)).forEach(p => known.add(site.rel(p))));
+  sourceScripts().forEach(p => known.add(p));
   const pub = path.join(ROOT, "public");
   site.walk(pub, () => true).forEach(p => known.add(path.relative(pub, p).split(path.sep).join("/")));
   ctx.dist.pages.forEach(page => links.refsOf(ctx.dist.docs[page]).forEach(ref => {
     const f = links.targetOf(page, ref.v);
     if (f) known.add(f);
   }));
+  ctx.dist.pages.forEach(page => {
+    const entry = moduleEntryOf(page, ctx.dist.docs[page]);
+    if (entry.file) ctx.graph.reach(entry.file).forEach(f => known.add(f));
+  });
   ctx.files.filter(f => /\.css$/.test(f) && known.has(f)).forEach(f => {
     const css = fs.readFileSync(path.join(DIST, f), "utf8").replace(NO_COMMENTS, "");
     for (const m of css.matchAll(/url\(\s*["']?([^"')\s]+)/g)) {
@@ -171,24 +237,31 @@ function checkMain(ctx, r) {
   });
 }
 
-/* and so must everything around <main>, for as long as the build is a pass-through: the
-   head (viewport, title, the CDN tags, the inline scripts), the attributes of <body>,
-   the top bar, the footer. The head and the top bar are no longer in the source file:
-   lib/shell.js writes them before Vite reads the page (vite.config.ts), and the source
-   side here is that same expansion. So this fails a build that expands a page
-   differently from the checks (a marker left in, an attribute the shell reads left on
-   <body>, a tag Vite moved or dropped), as it failed a build that rewrote the page.
-   The one thing the build does rewrite is the links to the site's own stylesheets and
-   icon, which `links` and `stylesheets` hold to account, so those links are taken out
-   of both sides and the rest is compared like <main>. */
+/* and so must everything around <main>: the head (viewport, title, the inline boot
+   script, the CDN tags), the attributes of <body>, the top bar, the footer. The head
+   and the top bar are not in the source file: lib/shell.js writes them before Vite
+   reads the page (vite.config.ts), and the source side here is that same expansion. So
+   this fails a build that expands a page differently from the checks (a marker left
+   in, an attribute the shell reads left on <body>, a tag Vite moved or dropped), as it
+   failed a build that rewrote the page. What the build does rewrite is the links to the
+   site's own stylesheets and icon, and the page's one module script, which comes back
+   as a built chunk with the preload links of what it imports; `links`, `stylesheets`
+   and `scripts` hold those to account, so they are taken out of both sides and the rest
+   is compared like <main>. */
 function shellOf(text) {
   const a = text.indexOf("<main"), b = text.lastIndexOf("</main>");
   if (a === -1 || b === -1) return null;
   const own = (tag) => {
     const el = parse(tag).query("link");
-    return el && /(^|\s)(stylesheet|icon)(\s|$)/i.test(el.getAttribute("rel") || "") && !links.EXTERNAL.test(el.getAttribute("href") || "");
+    return el && /(^|\s)(stylesheet|icon|modulepreload)(\s|$)/i.test(el.getAttribute("rel") || "") && !links.EXTERNAL.test(el.getAttribute("href") || "");
   };
-  return normText((text.slice(0, a) + "<main></main>" + text.slice(b + "</main>".length)).replace(/<link\b[^>]*>/gi, tag => own(tag) ? "" : tag));
+  const mod = (tag) => {
+    const el = parse(tag).query("script");
+    return el && /^module$/i.test(el.getAttribute("type") || "") && !links.EXTERNAL.test(el.getAttribute("src") || "");
+  };
+  return normText((text.slice(0, a) + "<main></main>" + text.slice(b + "</main>".length))
+    .replace(/<link\b[^>]*>/gi, tag => own(tag) ? "" : tag)
+    .replace(/<script\b[^>]*><\/script>/gi, tag => mod(tag) ? "" : tag));
 }
 function checkShell(ctx, r) {
   ctx.src.pages.forEach(p => {
@@ -200,28 +273,71 @@ function checkShell(ctx, r) {
   });
 }
 
-/* the pages still carry the same script tags, in the same order: the same src, and the
-   same attributes too (a `defer` dropped or a type="module" added changes when and how
-   a script runs), inline scripts and the CDN ones included. And every .js under assets/
-   and data/ is in dist byte for byte (some are loaded at run time, not by a tag) */
+/* What a built page runs, and that it is what the source page's shell says.
+   The script tags, in order: the boot script inline (its text src/boot.js, as the shell
+   wrote it), KaTeX's two deferred CDN tags, and one <script type="module"> whose src is
+   a file in dist; nothing else, and in particular no classic <script src> of the site's
+   own. The module tag's src is the one tag the build rewrites, so it is held apart: its
+   attributes but for src are what Vite writes for every module script.
+   The bundle behind that tag: following the imports from the chunk the tag names, the
+   files the chunks were built from (their source maps) are the scripts the kind's entry
+   imports (src/entries/<kind>.js, read here), every one and no other; and where the
+   scene framework is among them, a dynamic import reaches the WebGL painter. The order
+   they run in is not in the chunks (rolldown wraps and calls them in the entry's order
+   under strictExecutionOrder, vite.config.ts); the browser checks prove it, by what the
+   pages build.
+   No page loads a copy of a source script: nothing a page's tag names and nothing its
+   bundle imports is at the path of a file under assets/ or data/. The copies are only
+   for pages cached from before the module entries (vite.config.ts legacyScripts), and
+   while they are made they are the source byte for byte. */
+const ENTRY_IMPORT = /^\s*import\s+["']([^"']+)["']\s*;?\s*$/;
+function entryImports(entry) {
+  const dir = path.posix.dirname(entry);
+  return fs.readFileSync(path.join(ROOT, entry), "utf8").split("\n").map(l => ENTRY_IMPORT.exec(l)).filter(Boolean)
+    .map(m => path.posix.normalize(path.posix.join(dir, m[1])));
+}
 function checkScripts(ctx, r) {
+  const copies = sourceScripts();
+  const isCopy = new Set(copies);
+  const boot = "<script>" + normText(shell.bootScript());
+  const katex = shell.KATEX_SCRIPTS.map(s => "<script defer src=" + JSON.stringify(s) + ">");
   ctx.src.pages.forEach(p => {
     if (!ctx.dist.docs[p]) return;
-    const s = scriptTagsOf(ctx.src.docs[p]), d = scriptTagsOf(ctx.dist.docs[p]);
-    r.count += s.length;
-    for (let i = 0; i < Math.max(s.length, d.length); i++) {
-      if (s[i] === d[i]) continue;
-      r.fail(p + ": script tag " + (i + 1) + " differs from the source — source " + (s[i] === undefined ? "has none" : s[i].slice(0, 200)) + ", dist " + (d[i] === undefined ? "has none" : d[i].slice(0, 200)));
-      break;
-    }
-  });
-  const scripts = [];
-  ["assets", "data"].forEach(d => site.walk(path.join(ROOT, d), p => /\.js$/.test(p), scripts));
-  scripts.forEach(abs => {
     r.count++;
-    const rel = site.rel(abs), built = path.join(DIST, rel);
-    if (!fs.existsSync(built)) { r.fail(rel + " is not in dist"); return; }
-    if (!fs.readFileSync(abs).equals(fs.readFileSync(built))) r.fail(rel + " in dist is not the source file byte for byte");
+    const info = shell.pageInfo(fs.readFileSync(path.join(ROOT, p), "utf8"), p);
+    const entry = shell.PAGE_KINDS[info.kind].entry;
+    const tags = scriptTagsOf(ctx.dist.docs[p]);
+    const want = [boot].concat(katex);
+    for (let i = 0; i < want.length; i++) {
+      if (tags[i] === want[i]) continue;
+      r.fail(p + ": script tag " + (i + 1) + " should be " + (i === 0 ? "the boot script inline" : "KaTeX's " + want[i].slice(0, 80)) + ", is " + (tags[i] === undefined ? "missing" : tags[i].slice(0, 120)));
+      return;
+    }
+    const mod = moduleEntryOf(p, ctx.dist.docs[p]);
+    if (!mod.file) { r.fail(p + ": " + mod.why); return; }
+    const modAttrs = Object.keys(mod.el.attrs).filter(k => k !== "src").map(k => k + (mod.el.attrs[k] === "" ? "" : "=" + mod.el.attrs[k])).join(" ");
+    if (modAttrs !== "type=module crossorigin") r.fail(p + ": the module script carries " + JSON.stringify(modAttrs) + ", not type=module crossorigin");
+    if (tags.length !== want.length + 1) r.fail(p + ": " + tags.length + " script tags, not " + (want.length + 1) + " (the boot script, KaTeX's two, one module): " + tags.slice(want.length).map(t => t.slice(0, 80)).join(" | "));
+    /* the bundle, and that it is the entry's */
+    const chunks = ctx.graph.reach(mod.file);
+    const staticOnly = chunks.filter(f => !/scenes3d-gl/.test(f));   /* the painter is the one dynamic import */
+    const built = new Set();
+    staticOnly.forEach(f => ctx.graph.sourcesOf(f).forEach(s => { if (isCopy.has(s)) built.add(s); }));
+    const wanted = entryImports(entry);
+    const missing = wanted.filter(s => !built.has(s)), extra = Array.from(built).filter(s => !wanted.includes(s));
+    if (missing.length || extra.length) r.fail(p + ": the bundle behind " + mod.file + " is not " + entry + "'s" + (missing.length ? "; not in it: " + missing.join(", ") : "") + (extra.length ? "; in it but not imported: " + extra.join(", ") : ""));
+    if (wanted.includes("assets/scenes3d.js")) {
+      const painter = chunks.some(f => ctx.graph.sourcesOf(f).includes("assets/scenes3d-gl.js"));
+      if (!painter) r.fail(p + ": no chunk reached from " + mod.file + " is built from assets/scenes3d-gl.js, which scenes3d.js imports on demand");
+    }
+    const loaded = chunks.concat(links.refsOf(ctx.dist.docs[p]).map(ref => links.targetOf(p, ref.v)).filter(Boolean));
+    loaded.filter(f => isCopy.has(f)).forEach(f => r.fail(p + " loads " + f + ", a copy of a source script; a page loads its module entry and nothing else of assets/ or data/"));
+  });
+  copies.forEach(rel => {
+    r.count++;
+    const built = path.join(DIST, rel);
+    if (!fs.existsSync(built)) { r.fail(rel + " is not in dist (the copies stay one release; vite.config.ts legacyScripts)"); return; }
+    if (!fs.readFileSync(path.join(ROOT, rel)).equals(fs.readFileSync(built))) r.fail(rel + " in dist is not the source file byte for byte");
   });
 }
 
@@ -267,9 +383,8 @@ function checkSecrets(ctx, r) {
    the built stylesheets the built page links. The build does not minify CSS for now
    (vite.config.ts says why), and this is what notices if it starts to.
    And the link itself: rel and href, as the source writes it. Vite adds `crossorigin`,
-   which a browser opening the page from disk answers by refusing the stylesheet
-   (vite.config.ts takes it off again; the `file` suite of check-browser.js loads the
-   result). */
+   which vite.config.ts takes off again, so the link in dist is the source's but for
+   the file it names. */
 function checkStylesheets(ctx, r) {
   const all = new Set();
   const per = {};
@@ -278,7 +393,7 @@ function checkStylesheets(ctx, r) {
     if (!/(^|\s)stylesheet(\s|$)/i.test(l.getAttribute("rel") || "") || !links.targetOf(p, l.getAttribute("href"))) return;
     r.count++;
     const more = Object.keys(l.attrs).filter(a => a !== "rel" && a !== "href");
-    if (more.length) r.fail(p + ":" + l.line + ": the link to " + l.getAttribute("href") + " carries " + more.join(", ") + "; the source's links are rel and href only" + (more.includes("crossorigin") ? ", and with crossorigin the page opens from disk without its stylesheets" : ""));
+    if (more.length) r.fail(p + ":" + l.line + ": the link to " + l.getAttribute("href") + " carries " + more.join(", ") + "; the source's links are rel and href only");
   }));
   r.note(all.size + " distinct stylesheet(s) linked across " + ctx.dist.pages.length + " pages: " + Array.from(all).sort().join(", "));
   const chapters = ctx.chapters.filter(p => per[p]);
@@ -335,8 +450,8 @@ const CHECKS = [
   { name: "links", run: checkLinks, what: "relative hrefs/srcs in dist resolve inside dist, anchors to ids" },
   { name: "root-absolute", run: checkRootAbsolute, what: "no attribute value, and no url() in the CSS, is a root-absolute path" },
   { name: "main", run: checkMain, what: "<main> of every page is the source's, by fingerprint" },
-  { name: "shell", run: checkShell, what: "and so is the page around it, but for the links to its own stylesheets and icon" },
-  { name: "scripts", run: checkScripts, what: "same script tags per page, attributes and all; assets/ and data/ scripts copied byte for byte" },
+  { name: "shell", run: checkShell, what: "and so is the page around it, but for its stylesheet, icon and module links" },
+  { name: "scripts", run: checkScripts, what: "boot inline, KaTeX, one module entry whose bundle is its kind's imports; no copy of assets/ or data/ loaded; copies byte for byte" },
   { name: "secrets", run: checkSecrets, what: "no server-side key in any built file, as text or inside a JWT" },
   { name: "stylesheets", run: checkStylesheets, what: "chapter pages share their stylesheets; source CSS unchanged, cascade in source order" }
 ];

@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /* Headless Chromium checks of the Arena's settling rules (assets/arena.js with
-   assets/game.js), on the site as lib/target.js serves it (dist/ when it is built and
-   current, else the source tree), with every request off that server aborted:
+   assets/game.js), on the built site as lib/target.js serves it (dist/, which must be
+   current), with every request off that server aborted:
      node tools/game/arena.test.js
 
    1. a Repair banked after one right answer repairs nothing; a full one still does

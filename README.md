@@ -11,11 +11,11 @@ help the mathematics stick.
 
 **Read it here: [sophanasok.github.io/basic-mathematics](https://sophanasok.github.io/basic-mathematics/)**
 
-It is hand-written HTML, CSS, and plain ES5 JavaScript files, published through a small build
-([Vite](https://vite.dev)) that for now passes them through as they are; KaTeX and (only where a
-3D scene is on screen) Three.js come from a CDN, and the site works without either. Accounts are
-optional and off by default: with [`assets/config.js`](assets/config.js) left empty the site talks
-to nobody.
+It is hand-written HTML, CSS, and plain JavaScript files, published through a small build
+([Vite](https://vite.dev)) that writes each page's head and bundles its scripts; KaTeX and (only
+where a 3D scene is on screen) Three.js come from a CDN, and the site works without either.
+Accounts are optional and off by default: with [`assets/config.js`](assets/config.js) left empty
+the site talks to nobody.
 
 ---
 
@@ -177,8 +177,8 @@ The light/dark toggle sits in the header and follows your system setting until y
 ```sh
 npm ci            # once: Vite, TypeScript (and @types/node), Playwright, axe-core.
                   # Node 22.18 or newer (.nvmrc: 24)
-npm run dev       # the source tree, each page with its shell written, at
-                  # http://localhost:8000, reloading as you edit
+npm run dev       # the source tree, each page with its shell written and its entry served
+                  # as modules, at http://localhost:8000, reloading as you edit
 npm run build     # the site as it is published, into dist/
 npm run preview   # that dist/, at http://localhost:8000
 ```
@@ -188,23 +188,27 @@ Both servers take port 8000 and refuse to start on any other:
 ([`supabase/README.md`](supabase/README.md)).
 
 **The source tree is not a site on its own.** A page in it holds its content and two markers,
-`<!--bm:head-->` and `<!--bm:topbar-->`; the `<head>` (stylesheets, scripts, fonts) and the top
-bar are written in by [`tools/lib/shell.js`](tools/lib/shell.js) when the page is built or served
-([The shell of a page](#the-shell-of-a-page)). So look at the site through `npm run dev`, or build
-it: a source page opened as a file, or published as it is, has no styles, no scripts and no top
-bar.
+`<!--bm:head-->` and `<!--bm:topbar-->`; the `<head>` (the boot script, stylesheets, fonts,
+KaTeX, the page's module entry) and the top bar are written in by
+[`tools/lib/shell.js`](tools/lib/shell.js) when the page is built or served
+([The shell of a page](#the-shell-of-a-page)), and the scripts are bundled from that entry. So
+look at the site through `npm run dev`, or build it and `npm run preview`: a source page opened
+as a file, or published as it is, has no styles, no scripts and no top bar, and the site no
+longer opens from `file://` at all (module scripts need an http origin).
 
 Apart from that the build changes nothing a reader can see. `dist/` holds the same pages at the
-same paths and the same scripts byte for byte. Only the stylesheets and the favicon are renamed,
-and the stylesheets joined into shared files: their text is the source's, not minified, because
-Vite's CSS minifier rewrites values the scripts read (`vite.config.ts` says how, and
+same paths with the same content. The scripts come out as bundled chunks: each page carries one
+`<script type="module">` for its kind, Vite splits what pages share into shared chunks, and the
+order the scripts run in is the entry's import order (`vite.config.ts` turns on rolldown's
+`strictExecutionOrder` for that, because a shared chunk would otherwise run its modules when it
+is imported, and `site.js` would run before `widgets.js`). The stylesheets and the favicon are
+renamed, and the stylesheets joined into shared files: their text is the source's, not minified,
+because Vite's CSS minifier rewrites values the scripts read (`vite.config.ts` says how, and
 `npm run check:dist` holds the build to all of that). So the content of the pages is still edited
-by hand, and a page added under `parts/` is picked up by the build without being listed.
-
-Opening `dist/index.html` straight from disk works: `file://` works because the curriculum is
-loaded as a `<script>` rather than fetched, and because the build takes off the `crossorigin`
-Vite puts on its stylesheet links, which a browser refuses from disk. That stays true until a
-later release moves the scripts into bundled modules.
+by hand, and a page added under `parts/` is picked up by the build without being listed. For one
+release the build also copies every script under `assets/` and `data/` into `dist/` unchanged,
+for pages a browser cached before the bundles arrived ([`OPERATIONS.md`](OPERATIONS.md),
+"Scripts"); no built page loads them.
 
 Two libraries come from CDNs: [KaTeX](https://katex.org) for math typesetting on every page, and
 [Three.js](https://threejs.org) 0.160.1 (the last release with a classic build, pinned with an
@@ -224,7 +228,10 @@ insights.html           the author's aggregate view; admins only
 data/curriculum.js      single source of truth: parts, chapters, sections
 data/quest.js           regions, bosses (the tempting guess of each chapter's puzzle), review echoes
 data/gen/*.js           seeded problem generators for the Arena, one file per Part plus core.js
-assets/boot.js          the one synchronous script: theme and play settings before first paint
+src/boot.js             the one script that runs before first paint, inlined into every page's
+                        <head> by the shell: theme and play settings, plain ES5, never bundled
+src/entries/*.js        one module entry per kind of page (home, page, dashboard, arena, chapter):
+                        an ordered list of imports of the scripts below, which is the order they run in
 assets/site.css         tokens (both themes, four regions), base, prose, cards, figures, print
 assets/game.css         HUD, region banner, encounters, card states, toasts, settings, all motion
 assets/scenes3d.css     3D scene stages
@@ -233,8 +240,8 @@ assets/site.js          navigation, theme, stores, exercise grading, XP, widget 
 assets/widgets.js       the 32 flat interactive figures and their missions
 assets/three-loader.js  lazy, pinned Three.js with fallback (window.BM3D.load)
 assets/scenes3d.js      the 3D scene framework: define, display list, camera, SVG painter, input
-assets/scenes3d-gl.js   the WebGL painter, loaded only when a scene nears the screen
-assets/scenes/*.js      one file per 3D scene
+assets/scenes3d-gl.js   the WebGL painter, imported on demand (import()) when a scene nears the screen
+assets/scenes/*.js      one file per 3D scene; every chapter's bundle carries all of them
 assets/game.js          combo, levels, achievements, recall, play settings, the HUD
 assets/encounter.js     turns each practice and review set into an encounter
 assets/sfx.js           synthesised sound effects, off by default
@@ -249,14 +256,16 @@ supabase/README.md      how to switch accounts on
 supabase/migrations/    one file per database change, run on the live project before the merge
 OPERATIONS.md           the runbook: release order, deploys, quotas, secrets, incidents
 tools/                  the checks: static, scenes, generators, game rules, the build, headless browser
-tools/lib/shell.js      the <head> and the top bar of every page: what each kind of page loads, in order
+tools/lib/shell.js      the <head> and the top bar of every page: its stylesheets, the boot script
+                        inline, KaTeX, and the module entry of its kind
 tools/shell.json        what that comes to on each page, as readers have it (the `shell` check)
 parts/<part>/<nn>-<slug>.html
 package.json            the npm scripts and the five dev dependencies; package-lock.json pins them
-vite.config.ts          the build: every page in, its shell written, otherwise the same page out;
-                        scripts copied as they are
+vite.config.ts          the build: every page in, its shell written, its entry bundled in import
+                        order, the same content out; assets/ and data/ scripts copied for one release
 tsconfig.json           for `npm run typecheck`; covers src/ and vite.config.ts
 src/types/state.ts      the shapes of what the site keeps in localStorage (types only, so far)
+src/types/globals.d.ts  the window.BM* globals the scripts share, each `any` until its file is converted
 public/.nojekyll        copied into dist/
 .github/workflows/      CI: the checks on every pull request, and the deploy of main
 .nojekyll               left from when GitHub Pages published the branch itself; nothing needs it now
@@ -299,37 +308,50 @@ the shell writes depends on what `<body>` says:
 | `data-depth` | how many directories deep the file is (`0` at the root, `2` for a chapter); every path the shell writes is made relative with it, and so are the links `site.js` generates |
 | `data-chapter` | the page is a chapter: kind `chapter` |
 | `data-page` | for any other page, its kind: `home` (the contents page, with the course map), `page` (prose or a form), `dashboard` (a page that `assets/insights.js` fills), `arena` |
-| `data-scenes` | chapters only: the 3D scenes the page mounts, by the names of their files in `assets/scenes/` without `.js`, separated by spaces (`data-scenes="dist3 sphereslice"`). Leave it out when there are none |
 | `data-nav` | the links of the top bar: `home` (only *How to use this*), `about` (*Contents* and *Progress*), or left out for the usual *Contents* and *How to use this* |
 
-`data-page`, `data-scenes` and `data-nav` are instructions to the shell and are not in the page a
-reader gets. The stylesheets and scripts of each kind, in the order they load, are the lists in
-`PAGE_KINDS` at the top of `tools/lib/shell.js`: that one place is where a script is added to
+`data-page` and `data-nav` are instructions to the shell and are not in the page a reader gets.
+(`data-scenes`, which once named a chapter's 3D scenes, is refused: every chapter's bundle
+carries every scene.) What the shell writes into `<head>`, in order: the page's own tags, the
+boot script inline ([`src/boot.js`](src/boot.js), before the stylesheets, so the theme is set
+before the first paint without a request), the fonts, KaTeX's stylesheet, the icon, the
+stylesheets of the page's kind, KaTeX's two `<script defer>` tags, and one
+`<script type="module">` for the kind's entry, `src/entries/<kind>.js`. The stylesheets and the
+entry of each kind are `PAGE_KINDS` at the top of `tools/lib/shell.js`; the scripts of a kind,
+in the order they run, are the imports of its entry, so that file is where a script is added to
 every chapter, or moved. The order is part of the site (`site.js` mounts every figure as it runs,
-so the scenes come before it; rules of equal weight are settled by the order of the stylesheets),
-so what each page ends up with is recorded in `tools/shell.json`, and `check-static.js` fails
-(`shell`) when a page's head, body attributes or top bar are no longer what is recorded. If the
-change is meant, `node tools/check-static.js --only=shell --accept-shell` records it, and the
-diff of `tools/shell.json` shows the reviewer exactly which pages now load what.
+so `widgets.js`, the scene framework and the scenes come before it; `game.js`, `encounter.js` and
+`lesson.js` build on what it did; rules of equal weight are settled by the order of the
+stylesheets), so what each page ends up with is recorded in `tools/shell.json`, and
+`check-static.js` fails (`shell`) when a page's head, body attributes or top bar are no longer
+what is recorded, and whatever the record says when a page's scripts are not the boot script,
+KaTeX's two and the one entry of its kind. If the change is meant,
+`node tools/check-static.js --only=shell --accept-shell` records it, and the diff of
+`tools/shell.json` shows the reviewer exactly which pages now load what.
 
-The same function runs in three places, so they cannot disagree: the build and `npm run dev`
-(`vite.config.ts`), every check that reads a page (`tools/lib/site.js`), and the server the
-browser checks load the source tree from (`tools/lib/serve.js`). A page with `<main id="main">`
-and no marker stops the build and the checks with a message naming it.
+The module entry comes after KaTeX's tags on purpose: a classic `<script defer>` and a
+`<script type="module">` wait in one queue and run in document order, so
+`window.renderMathInElement` is there when `site.js` runs. The `pages` suite of
+`check-browser.js` holds that in a real browser, with the theme on `<html>` before the first
+frame and `window.BMSite`, `BMGame` and `BMStore` present on every page.
+
+The same function runs in two places, so they cannot disagree: the build and `npm run dev`
+(`vite.config.ts`), and every check that reads a page (`tools/lib/site.js`). A page with
+`<main id="main">` and no marker stops the build and the checks with a message naming it. The
+browser checks load the build ([`tools/README.md`](tools/README.md)).
 
 ### How a chapter page works
 
 A chapter is a plain HTML file whose `<body>` says which chapter it is:
 
 ```html
-<body data-depth="2" data-chapter="ch07" data-part="geometry" data-scenes="scale3">
+<body data-depth="2" data-chapter="ch07" data-part="geometry">
 ```
 
 `data-chapter` matches an `id` in `curriculum.js`, which is how the page finds its own title,
 section list, and neighbours. `data-depth` is how many directories deep the file sits, so that
 generated links can be made relative. `data-part` (also set by script) gives the page its region's
-colours from the first paint. `data-scenes` names the 3D scenes it mounts
-([The shell of a page](#the-shell-of-a-page)).
+colours from the first paint.
 
 The chapter opens with a region banner, which lesson mode looks for:
 
@@ -510,11 +532,14 @@ Besides `draw`, a spec gives:
 only, never a verdict or the asked-for value. `draw` leaves out solution annotations, and nothing
 turns green. Write questions that need a computation the picture does not hand over.
 
-A chapter with a scene names it in `data-scenes` on its `<body>`. The shell then loads
-`assets/scenes3d.js` and the scene files after `three-loader.js` and before `site.js`: `site.js`
-mounts every figure as it runs. A scene that is mounted but not named there is never defined: its
-figure reads "Interactive figure … is not available", and the `widgets` suite of
-`check-browser.js` fails.
+Every chapter's bundle carries the scene framework and every scene file: `src/entries/chapter.js`
+imports `assets/scenes3d.js` and each file under `assets/scenes/` after `three-loader.js` and
+before `site.js`, which mounts every figure as it runs. A new scene file is added to that entry
+(the `shell` test in `tools/checks.test.js` fails a scene file the entry does not import); a
+scene that is mounted but not defined there reads "Interactive figure … is not available", and
+the `widgets` suite of `check-browser.js` fails. The WebGL painter, `assets/scenes3d-gl.js`, is
+not in the bundle a page loads: `scenes3d.js` imports it with `import()` when a stage nears the
+screen and Three.js has arrived, and the build makes it a chunk of its own.
 
 ### The game layer
 
@@ -593,9 +618,8 @@ they were inserted in front of. Printing shows the whole chapter.
    </html>
    ```
 
-   `data-chapter` is the new `id`; add `data-scenes="…"` if the chapter mounts 3D scenes. Inside
-   `<main>`, give an `<h2 id="…">` to each section id — except a mixed-review set, whose id goes on
-   its `<section class="practice" id="review">`.
+   `data-chapter` is the new `id`. Inside `<main>`, give an `<h2 id="…">` to each section id —
+   except a mixed-review set, whose id goes on its `<section class="practice" id="review">`.
 3. Add the chapter's boss to `data/quest.js`: a name, the index of the tempting guess in its
    puzzle's `ul.guess`, and a one-line taunt that voices the wrong idea without answering it.
 4. Record its lesson steps and its shell:
@@ -721,7 +745,7 @@ the browser ones also need Chromium once, `npx playwright install chromium`
 ```sh
 npm run check           # everything that needs no browser, about 15 s:
 npm run typecheck       #   tsc over src/ and vite.config.ts
-npm run check:static    #   syntax, ES5, progress keys, ids, lesson steps, the shell, links, sections,
+npm run check:static    #   syntax, progress keys, ids, lesson steps, the shell, links, sections,
                         #   widgets, choices, migrations, placeholders, merge laws, contrast,
                         #   animations
 npm run check:gen       #   every Arena generator over 500 seeds
@@ -734,15 +758,16 @@ npm run test:node       #   the progress-key, id and lesson-step rules on small 
 npm run build           # dist/
 npm run check:dist      # dist/ is the source's site, each source page taken with its shell
                         # written: same pages and nothing extra, links resolve inside it, <main>
-                        # and the page around it untouched, script tags and scripts as they
-                        # were, CSS text and cascade the source's, no secrets
+                        # and the page around it untouched, the boot script inline, KaTeX and one
+                        # module entry whose bundle is its kind's imports and loads no copy of a
+                        # source script, CSS text and cascade the source's, no secrets
 
 npm run test:browser    # the game, the Arena, the account page, the 3D stages, the new 3D
                         # exercises and the course map, each driven in headless Chromium
-npm run check:browser   # dist/ served: every page × theme × width (errors, overflow, lesson
-                        # mode), figures, every exercise typed back, restore of old progress,
-                        # saved state from the last release, reduced motion, WebGL and its
-                        # fallbacks, dist/ opened from file://, axe. About 8 minutes.
+npm run check:browser   # dist/ served: every page × theme × width (errors, theme before first
+                        # paint, scripts ran, overflow, lesson mode), figures, every exercise
+                        # typed back, restore of old progress, saved state from the last
+                        # release, reduced motion, WebGL and its fallbacks, axe. About 8 minutes.
                         # A CDN that is down or stalls costs warnings, not a failure
 
 npm run check:all       # all of the above, in that order
@@ -762,10 +787,10 @@ file. The `migrations` check does not use
 and fails if `supabase/schema.sql` changed since then with no new migration, or if a migration
 that was already there was edited, renamed or removed.
 
-The browser scripts load the site over http from `dist/` when it is built and no source file is
-newer than it, and from the source tree otherwise, served with each page's shell written;
-`--root=dist` or `--root=.` chooses. CI runs
-all of this on every pull request ([`.github/workflows/ci.yml`](.github/workflows/ci.yml)).
+The browser scripts load the build, `dist/`, over http, and refuse to run when it is missing or
+older than anything it is built from (`run npm run build first`): the source tree is not a site,
+so there is nothing else to test. CI runs all of this on every pull request
+([`.github/workflows/ci.yml`](.github/workflows/ci.yml)).
 
 Still checked by hand: the solution of a multiple-choice question states the option the key
 names; a new `order` list is authored in the right order; a new puzzle's tempting guess in

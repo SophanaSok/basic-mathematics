@@ -10,17 +10,19 @@
        show; text added inside a step does not; tools/lesson-steps.json holds lists
      - assign-ids: "write" is printed for a page only when it was written, and one page
        that cannot be converted leaves every page alone
-     - shell (lib/shell.js and the check): each kind of page gets its stylesheets and
-       scripts in order, its top bar and its path prefix, and nothing of the content
-       moves; a page written any other way is refused with a reason; a node's line is
-       its line in the source file; a dropped defer, a reordered script, a changed body
-       attribute or top-bar link all show; tools/shell.json records every page
+     - shell (lib/shell.js and the check): each kind of page gets its stylesheets in
+       order, the boot script inline, KaTeX's two tags, its one module entry, its top bar
+       and its path prefix, and nothing of the content moves; a page written any other
+       way is refused with a reason; a node's line is its line in the source file; a
+       dropped defer, a reordered script, a changed boot script, a changed body
+       attribute or top-bar link all show; a second module, a classic script of the
+       site's own or another kind's entry fail whatever the record says;
+       tools/shell.json records every page
      - apply-shell: whole pages are found again as the kind they were written from; a
        page no kind expands to, or one whose content differs from the base by a byte,
        fails and leaves every page alone
-     - serve (lib/serve.js): a page of the site is served as the shell writes it, and
-       one with <main id="main"> and no marker is refused as the build refuses it; a
-       fixture or report goes out as it is; a tree with no lib/shell.js is a whole site
+     - serve (lib/serve.js): a build is served as it is, a page in it that still carries
+       a shell marker is refused, a fixture goes out as it is
    Usage: node tools/checks.test.js */
 "use strict";
 const fs = require("fs");
@@ -32,7 +34,7 @@ const serve = require("./lib/serve");
 const shell = require("./lib/shell");
 const { parse } = require("./lib/html");
 const { exercisesOf } = require("./lib/keys");
-const { CHECKS, result, pageKeys, lessonSteps, stepsDiff, shellOf, shellDiff } = require("./check-static");
+const { CHECKS, result, pageKeys, lessonSteps, stepsDiff, shellOf, shellDiff, scriptsProblems } = require("./check-static");
 const assignIds = require("./assign-ids");
 const applyShell = require("./apply-shell");
 
@@ -258,31 +260,35 @@ function refusal(fn) { try { fn(); return null; } catch (e) { return e.message; 
   eq(parse(out).query("head").children_elements.slice(0, 4).map(el => el.name + ":" + (el.getAttribute("charset") || el.getAttribute("name") || el.textContent)),
     ["meta:utf-8", "meta:viewport", "title:A title", "meta:description"], "the head opens with charset, viewport, then the page's own title and description");
   eq(sheets(out).slice(-2), ["assets/site.css", "assets/game.css"], "a page links site.css then game.css");
-  eq(scripts(out).map(s => s.replace(/^https:.*\//, "cdn:")), ["assets/boot.js", "cdn:katex.min.js", "cdn:auto-render.min.js", "data/curriculum.js", "data/quest.js",
-    "assets/widgets.js", "assets/site.js", "assets/sfx.js", "assets/game.js", "assets/config.js", "assets/account.js"], "… and loads the scripts of its kind, in order");
-  eq(parse(out).queryAll("script").filter(s => !s.hasAttribute("defer")).map(s => s.getAttribute("src")), ["assets/boot.js"], "every script is deferred but boot.js");
+  eq(scripts(out).map(s => s.replace(/^https:.*\//, "cdn:")), ["cdn:katex.min.js", "cdn:auto-render.min.js", "src/entries/page.js"], "… and loads KaTeX's two scripts, then the one module entry of its kind");
+  const all = parse(out).queryAll("script");
+  eq(all.map(s => (s.hasAttribute("src") ? "" : "inline ") + (s.getAttribute("type") || "") + (s.hasAttribute("defer") ? " defer" : "")), ["inline ", " defer", " defer", "module"], "the boot script is inline, KaTeX's are classic and deferred, the entry is a module");
+  eq(all[0].textContent.trim(), fs.readFileSync(path.join(site.ROOT, "src/boot.js"), "utf8").trim(), "the inline script is src/boot.js, whole");
+  const headOrder = parse(out).query("head").children_elements.map(el => el.name + (el.getAttribute("rel") || "") + (el.getAttribute("type") || ""));
+  check(headOrder.indexOf("script") < headOrder.indexOf("linkstylesheet") && headOrder.indexOf("scriptmodule") === headOrder.length - 1 && headOrder.indexOf("scriptmodule") > headOrder.lastIndexOf("script"), "the boot script comes before every stylesheet, and the module entry last, after KaTeX's tags: " + headOrder.join(","));
   eq(parse(out).query("header.topbar").queryAll("a").map(a => a.getAttribute("href")), ["index.html", "index.html", "about.html"], "the usual top bar: brand, Contents, How to use this");
 
   /* the other kinds and top bars */
-  eq(scripts(render('data-depth="0" data-page="dashboard"')).slice(-1), ["assets/insights.js"], "a dashboard ends with insights.js");
+  eq(scripts(render('data-depth="0" data-page="dashboard"')).slice(-1), ["src/entries/dashboard.js"], "a dashboard loads the dashboard entry");
   out = render('data-depth="0" data-page="arena"');
-  eq([sheets(out).slice(-1)[0], scripts(out).includes("assets/widgets.js"), scripts(out).slice(-3)], ["assets/arena.css", false, ["assets/arena.js", "assets/config.js", "assets/account.js"]], "the arena has its stylesheet, no figures, and arena.js before the account");
+  eq([sheets(out).slice(-1)[0], scripts(out).slice(-1)], ["assets/arena.css", ["src/entries/arena.js"]], "the arena has its stylesheet and its entry");
   out = render('data-depth="0" data-page="home" data-nav="home"');
-  eq([sheets(out).slice(-2), scripts(out).slice(-1)], [["assets/scenes3d.css", "assets/map3d.css"], ["assets/map3d.js"]], "the home page has the map's stylesheet last and its script last");
+  eq([sheets(out).slice(-2), scripts(out).slice(-1)], [["assets/scenes3d.css", "assets/map3d.css"], ["src/entries/home.js"]], "the home page has the map's stylesheet last and the home entry");
+  Object.keys(shell.PAGE_KINDS).forEach(k => check(fs.existsSync(path.join(site.ROOT, shell.PAGE_KINDS[k].entry)), "the entry of kind " + k + " exists: " + shell.PAGE_KINDS[k].entry));
   eq(parse(out).query("header.topbar").queryAll("a").map(a => a.getAttribute("href")), ["index.html", "about.html"], "data-nav=\"home\": no Contents link on the contents page");
   eq(parse(render('data-depth="0" data-page="page" data-nav="about"')).query("header.topbar").queryAll("a").map(a => a.textContent).slice(1), ["Contents", "Progress"], "data-nav=\"about\": Contents and Progress");
   check(/<meta charset="utf-8">\n<meta name="robots" content="noindex">\n<meta name="viewport"/.test(render('data-depth="0" data-page="dashboard"', "x.html", HEAD + '\n<meta name="robots" content="noindex">')), "a robots tag goes right after the charset");
 
   /* chapters */
-  out = render('data-depth="2" data-chapter="ch99" data-part="algebra" data-scenes="one two"', "parts/p/c.html");
-  check(/<body data-depth="2" data-chapter="ch99" data-part="algebra">/.test(out), "a chapter keeps data-chapter and data-part, and loses data-scenes");
+  out = render('data-depth="2" data-chapter="ch99" data-part="algebra"', "parts/p/c.html");
+  check(/<body data-depth="2" data-chapter="ch99" data-part="algebra">/.test(out), "a chapter keeps data-chapter and data-part");
   const sc = scripts(out);
-  eq(sc.slice(sc.indexOf("../../assets/three-loader.js"), sc.indexOf("../../assets/site.js") + 1),
-    ["../../assets/three-loader.js", "../../assets/scenes3d.js", "../../assets/scenes/one.js", "../../assets/scenes/two.js", "../../assets/site.js"], "its scenes load after three-loader.js and before site.js, behind scenes3d.js");
-  eq([sc.slice(-4), sc.filter(s => /^https:/.test(s)).length], [["../../assets/encounter.js", "../../assets/lesson.js", "../../assets/config.js", "../../assets/account.js"], 2], "… then encounter.js and lesson.js; the CDN scripts get no prefix");
+  eq([sc.slice(-1), sc.filter(s => /^https:/.test(s)).length, sheets(out).slice(-1)], [["../../src/entries/chapter.js"], 2, ["../../assets/scenes3d.css"]], "it loads the chapter entry by its depth, the CDN scripts get no prefix, and the scenes' stylesheet is every chapter's");
   eq(parse(out).query("header.topbar").queryAll("a").map(a => a.getAttribute("href")), ["../../index.html", "../../index.html", "../../about.html"], "the top bar's links climb by data-depth");
-  out = render('data-depth="2" data-chapter="ch99"', "parts/p/c.html");
-  eq([scripts(out).some(s => /scenes/.test(s)), sheets(out).slice(-1)], [false, ["../../assets/scenes3d.css"]], "a chapter with no scenes loads no scene script (the stylesheet is every chapter's)");
+  const chapterEntry = fs.readFileSync(path.join(site.ROOT, "src/entries/chapter.js"), "utf8");
+  const sceneFiles = fs.readdirSync(path.join(site.ROOT, "assets/scenes")).filter(f => /\.js$/.test(f));
+  eq(sceneFiles.filter(f => !chapterEntry.includes("assets/scenes/" + f)), [], "the chapter entry imports every scene file under assets/scenes/");
+  check(chapterEntry.indexOf("scenes3d.js") < chapterEntry.indexOf("assets/scenes/") && chapterEntry.lastIndexOf("assets/scenes/") < chapterEntry.indexOf("assets/site.js"), "… after the scene framework and before site.js");
 
   /* pages the shell refuses, each with a reason */
   const no = (attrs, rel, head) => refusal(() => render(attrs, rel, head)) || "(accepted)";
@@ -292,8 +298,7 @@ function refusal(fn) { try { fn(); return null; } catch (e) { return e.message; 
   check(/data-page naming one of/.test(no('data-depth="0"')), "neither data-chapter nor data-page is refused");
   check(/data-chapter and data-page/.test(no('data-depth="0" data-chapter="ch1" data-page="page"')), "both are refused");
   check(/but the file is 2 deep/.test(no('data-depth="0" data-page="page"', "parts/p/c.html")), "a data-depth that is not the file's depth is refused");
-  check(/data-scenes is for chapter pages/.test(no('data-depth="0" data-page="page" data-scenes="one"')), "data-scenes on a page that is not a chapter is refused");
-  check(/is not such a name/.test(no('data-depth="0" data-chapter="c" data-scenes="../x"')), "a data-scenes entry that is not a file name is refused");
+  check(/data-scenes, which is no longer read/.test(no('data-depth="2" data-chapter="c" data-scenes="one"', "parts/p/c.html")), "data-scenes is refused: every chapter loads every scene");
   check(/data-nav is "elsewhere"/.test(no('data-depth="0" data-page="page" data-nav="elsewhere"')), "an unknown data-nav is refused");
   check(/no <!--bm:topbar-->/.test(refusal(() => shell.renderShell(marked('data-depth="0" data-page="page"').replace("<!--bm:topbar-->", ""), "x.html")) || ""), "a head marker without the top-bar marker is refused");
   check(/must be the first thing inside <body>/.test(refusal(() => shell.renderShell(marked('data-depth="0" data-page="page"').replace("<!--bm:topbar-->\n\n", "<p>before</p>\n<!--bm:topbar-->\n\n"), "x.html")) || ""), "a top-bar marker that is not first in <body> is refused");
@@ -306,19 +311,28 @@ function refusal(fn) { try { fn(); return null; } catch (e) { return e.message; 
 
   /* the shell check: what it records, and what it notices */
   const facts = (html) => shellOf(parse(html));
-  const base = facts(render('data-depth="2" data-chapter="ch99" data-part="algebra" data-scenes="one"', "parts/p/c.html"));
+  const base = facts(render('data-depth="2" data-chapter="ch99" data-part="algebra"', "parts/p/c.html"));
   eq([base.body, base.topbar], ["<body data-depth='2' data-chapter='ch99' data-part='algebra'>",
     ["Skip to content -> #main", "∑ Basic Mathematics -> ../../index.html", "Contents -> ../../index.html", "How to use this -> ../../about.html", "button: Switch between light and dark"]],
     "the record of a page: its body tag without what only the shell reads, and the top bar's links");
-  check(base.head.includes("<script src='../../assets/boot.js'>") && base.head.includes("<script defer src='../../assets/site.js'>") && base.head[2] === "<title>A title</title>", "… and every tag of its head, attributes and all");
+  const bootLine = base.head.find(l => /^<script>#[0-9a-f]+<\/script>$/.test(l));
+  check(bootLine && base.head.includes("<script type='module' src='../../src/entries/chapter.js'>") && base.head[2] === "<title>A title</title>", "… and every tag of its head, attributes and all, the inline boot script as a fingerprint of its text");
   eq(shellDiff(base, base), [], "the same shell is no difference");
-  const expanded = render('data-depth="2" data-chapter="ch99" data-part="algebra" data-scenes="one"', "parts/p/c.html");
-  check(/^head entry \d+ is now `<script src='..\/..\/assets\/site.js'>`, accepted `<script defer /.test(shellDiff(facts(expanded.replace('<script defer src="../../assets/site.js">', '<script src="../../assets/site.js">')), base)[0] || ""), "a dropped defer shows");
-  const swapped = expanded.replace('<script defer src="../../assets/sfx.js"></script>\n<script defer src="../../assets/game.js"></script>', '<script defer src="../../assets/game.js"></script>\n<script defer src="../../assets/sfx.js"></script>');
-  check(swapped !== expanded && /^head entry \d+ is now `<script defer src='..\/..\/assets\/game.js'>`/.test(shellDiff(facts(swapped), base)[0] || ""), "two scripts in the other order show");
-  const twoScenes = shellDiff(facts(render('data-depth="2" data-chapter="ch99" data-part="algebra" data-scenes="one two"', "parts/p/c.html")), base);
-  check(twoScenes.length === 1 && /^head entry \d+ is now `<script defer src='..\/..\/assets\/scenes\/two.js'>`, accepted `<script defer src='..\/..\/assets\/site.js'>` \(\d+ entries, \d+ accepted\)$/.test(twoScenes[0]), "one more scene is one difference, where the lists part: " + twoScenes[0]);
-  eq(shellDiff(facts(render('data-depth="2" data-chapter="ch99" data-part="geometry" data-scenes="one"', "parts/p/c.html")), base),
+  const expanded = render('data-depth="2" data-chapter="ch99" data-part="algebra"', "parts/p/c.html");
+  const katex1 = '<script defer src="' + shell.KATEX_SCRIPTS[0] + '"></script>', katex2 = '<script defer src="' + shell.KATEX_SCRIPTS[1] + '"></script>';
+  check(/^head entry \d+ is now `<script src='https:[^`]*katex.min.js'>`, accepted `<script defer /.test(shellDiff(facts(expanded.replace(katex1, katex1.replace(" defer", ""))), base)[0] || ""), "a dropped defer shows");
+  const swapped = expanded.replace(katex1 + "\n" + katex2, katex2 + "\n" + katex1);
+  check(swapped !== expanded && /^head entry \d+ is now `<script defer src='https:[^`]*auto-render.min.js'>`/.test(shellDiff(facts(swapped), base)[0] || ""), "two scripts in the other order show");
+  const edited = shellDiff(facts(expanded.replace('root.setAttribute("data-theme", theme);', 'root.setAttribute("data-theme", theme); /* edited */')), base);
+  check(edited.length === 1 && /^head entry \d+ is now `<script>#[0-9a-f]+<\/script>`, accepted `<script>#[0-9a-f]+<\/script>`$/.test(edited[0]), "an edit to the boot script shows as a new fingerprint: " + edited[0]);
+  /* what the scripts must be, record or no record */
+  const problems = (html, kind) => scriptsProblems("parts/p/c.html", parse(html), kind || "chapter");
+  eq(problems(expanded), [], "the scripts of a chapter are the boot script, KaTeX's two and the chapter entry: no problem");
+  check(/^the module script is "..\/..\/src\/entries\/chapter.js", not the entry of a home page/.test(problems(expanded, "home")[0] || ""), "a chapter's entry on a page of another kind fails");
+  check(/^2 module scripts, not one/.test(problems(expanded.replace('<script type="module" src="../../src/entries/chapter.js"></script>', '<script type="module" src="../../src/entries/chapter.js"></script>\n<script type="module" src="../../src/entries/home.js"></script>'))[0] || ""), "a second module script fails");
+  check(/^the classic scripts are not KaTeX's two/.test(problems(expanded.replace(katex2, katex2 + '\n<script defer src="../../assets/site.js"></script>'))[0] || ""), "a classic script of the site's own fails");
+  check(/^the first script of <head> is not the boot script/.test(problems(expanded.replace('root.setAttribute("data-theme", theme);', ""))[0] || ""), "a boot script that is not src/boot.js fails");
+  eq(shellDiff(facts(render('data-depth="2" data-chapter="ch99" data-part="geometry"', "parts/p/c.html")), base),
     ["the body tag is now `<body data-depth='2' data-chapter='ch99' data-part='geometry'>`, accepted `<body data-depth='2' data-chapter='ch99' data-part='algebra'>`"], "a changed body attribute shows");
   check(/^topbar entry 3 is now `Progress -> /.test(shellDiff(facts(expanded.replace(">Contents</a>", ">Progress</a>")), base)[0] || ""), "a top-bar link with another text shows");
 
@@ -328,7 +342,7 @@ function refusal(fn) { try { fn(); return null; } catch (e) { return e.message; 
 
   const file = JSON.parse(fs.readFileSync(path.join(__dirname, "shell.json"), "utf8"));
   eq(Object.keys(file).sort(), site.htmlPages(site.ROOT).slice().sort(), "tools/shell.json records every page of the site and no other");
-  check(Object.keys(file).every(p => Array.isArray(file[p].head) && file[p].head.length > 15 && typeof file[p].body === "string" && Array.isArray(file[p].topbar)), "… each as head, body and topbar");
+  check(Object.keys(file).every(p => Array.isArray(file[p].head) && file[p].head.length > 12 && typeof file[p].body === "string" && Array.isArray(file[p].topbar)), "… each as head, body and topbar");
 }
 
 /* ------------------------------------------------------------ apply-shell -- */
@@ -349,7 +363,7 @@ function refusal(fn) { try { fn(); return null; } catch (e) { return e.message; 
     "index.html": marked('data-depth="0" data-page="home" data-nav="home"'),
     "about.html": marked('data-depth="0" data-page="page" data-nav="about"'),
     "insights.html": marked('data-depth="0" data-page="dashboard"', HEAD + '\n<meta name="robots" content="noindex">'),
-    "parts/p/c.html": marked('data-depth="2" data-chapter="ch99" data-part="algebra" data-scenes="one two"'),
+    "parts/p/c.html": marked('data-depth="2" data-chapter="ch99" data-part="algebra"'),
     "parts/p/d.html": marked('data-depth="2" data-chapter="ch98" data-part="algebra"')
   };
   const was = {};
@@ -359,7 +373,7 @@ function refusal(fn) { try { fn(); return null; } catch (e) { return e.message; 
   eq(applyShell.run({ check: true }, w.io), 1, "apply-shell --check with whole pages exits 1");
   eq([w.written, w.lines[0], w.lines[w.lines.length - 1]], [[], 'would mark index.html: data-page="home" data-nav="home"', "would mark 5 of 5 pages; expanded, each is the document it was, byte for byte"], "… saying what each page would say, and writing nothing");
   eq(applyShell.run({ write: true }, w.io), 0, "apply-shell --write exits 0");
-  eq([w.written.length, Object.keys(want).filter(p => w.files[p] !== want[p])], [5, []], "… and each page is found again as the kind, top bar and scenes it was written from");
+  eq([w.written.length, Object.keys(want).filter(p => w.files[p] !== want[p])], [5, []], "… and each page is found again as the kind and top bar it was written from");
 
   w.lines.length = 0; w.written.length = 0;
   eq([applyShell.run({ check: true }, w.io), w.written, w.lines], [0, [], ["nothing to do: all 5 pages carry the markers"]], "--check afterwards has nothing to do");
@@ -382,44 +396,30 @@ function refusal(fn) { try { fn(); return null; } catch (e) { return e.message; 
 }
 
 /* ------------------------------------------------------------------ serve -- */
-/* what lib/serve.js hands out for each kind of HTML file, from a tree written here: the
-   same rule as vite.config.ts, so the server a hand run opens never agrees with a page
-   the build would refuse */
+/* what lib/serve.js hands out from a tree written here: a build is served as it is,
+   and a page that still carries a shell marker (a source page put where a build should
+   be) is refused rather than served half-written */
 (async () => {
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "bm-serve-"));
   const put = (rel, text) => { fs.mkdirSync(path.dirname(path.join(tmp, rel)), { recursive: true }); fs.writeFileSync(path.join(tmp, rel), text); };
   const whole = '<!doctype html><html><head><title>t</title></head><body data-depth="0"><main id="main"><p>x</p></main></body></html>';
   const fixture = '<!doctype html><html><head><title>f</title></head><body><main id="main"><p>fixture</p></main></body></html>';
-  /* a source tree: it carries lib/shell.js, so its pages are the shell's to write */
-  put("src/tools/lib/shell.js", "");
-  put("src/index.html", marked('data-depth="0" data-page="home" data-nav="home"'));
-  put("src/parts/p/c.html", marked('data-depth="2" data-chapter="ch99" data-part="algebra"'));
-  put("src/unmarked.html", whole);
-  put("src/parts/p/unmarked.html", whole.replace('data-depth="0"', 'data-depth="2"'));
-  put("src/notes/report.html", fixture);
-  put("fixtures/states.html", fixture);
-  /* a built site: no lib/shell.js, whole pages */
   put("dist/index.html", whole);
+  put("dist/parts/p/c.html", whole.replace('data-depth="0"', 'data-depth="2"'));
   put("dist/marked.html", marked('data-depth="0" data-page="home" data-nav="home"'));
-  const get = async (server, rel) => { const r = await fetch(server.url + rel); return { status: r.status, text: await r.text() }; };
+  put("dist/assets/x.js", "window.x = 1;");
+  put("fixtures/states.html", fixture);
+  const get = async (server, rel) => { const r = await fetch(server.url + rel); return { status: r.status, text: await r.text(), type: r.headers.get("content-type") }; };
   try {
-    const src = await serve.start(path.join(tmp, "src"), "HEAD", { extraRoots: { "/tools/fixtures/": path.join(tmp, "fixtures") } });
+    const dist = await serve.start(path.join(tmp, "dist"), "HEAD", { extraRoots: { "/tools/fixtures/": path.join(tmp, "fixtures") } });
     try {
-      const page = await get(src, "index.html");
-      eq([page.status, page.text], [200, shell.renderShell(fs.readFileSync(path.join(tmp, "src/index.html"), "utf8"), "index.html")], "serve: a marked page of the source tree goes out as the shell writes it");
-      eq((await get(src, "parts/p/c.html")).status, 200, "serve: so does a chapter page");
-      const refused = await get(src, "unmarked.html");
-      eq([refused.status, /^the shell refuses this page: unmarked\.html: has <main id="main"> but no <!--bm:head-->/.test(refused.text)], [500, true], "serve: a page of the site with <main id=\"main\"> and no marker is refused with the shell's reason, as the build refuses it — got " + JSON.stringify(refused.text.slice(0, 80)));
-      eq((await get(src, "parts/p/unmarked.html")).status, 500, "serve: … under parts/ too");
-      eq((await get(src, "notes/report.html")).text, fixture, "serve: an HTML file that is not a page of the site (a report) goes out as it is");
-      eq((await get(src, "tools/fixtures/states.html")).text, fixture, "serve: so does a fixture, though it has <main id=\"main\">");
-      eq((await get(src, "missing.html")).status, 404, "serve: a file that is not there is a 404");
-    } finally { await src.close(); }
-    const dist = await serve.start(path.join(tmp, "dist"), "HEAD", {});
-    try {
-      eq((await get(dist, "index.html")).text, whole, "serve: a tree with no lib/shell.js (dist/) is a whole site, its pages served as they are");
+      eq((await get(dist, "index.html")).text, whole, "serve: a build is served as it is");
+      eq((await get(dist, "parts/p/c.html")).status, 200, "serve: a chapter page too");
+      eq((await get(dist, "assets/x.js")).type, "text/javascript; charset=utf-8", "serve: a script goes out as JavaScript");
       const stray = await get(dist, "marked.html");
-      eq([stray.status, /carries a shell marker, but that tree has no tools\/lib\/shell\.js/.test(stray.text)], [500, true], "serve: … and a marked page in it is refused, not served with its markers");
+      eq([stray.status, /^refused: marked\.html carries a shell marker: it is a source page, not a built one/.test(stray.text)], [500, true], "serve: a page that still carries a marker is refused, not served with its markers — got " + JSON.stringify(stray.text.slice(0, 80)));
+      eq((await get(dist, "tools/fixtures/states.html")).text, fixture, "serve: a fixture comes from its own directory, as it is");
+      eq((await get(dist, "missing.html")).status, 404, "serve: a file that is not there is a 404");
     } finally { await dist.close(); }
   } finally { fs.rmSync(tmp, { recursive: true, force: true }); }
 

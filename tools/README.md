@@ -19,74 +19,80 @@ npm run check:all                          # all of it, in that order
 Every script exits 1 on any failure. Run `npm run check` on every edit and the rest before a
 push; CI (`.github/workflows/ci.yml`) runs all of it on every pull request.
 
-## Which tree the browser scripts load
+## What the browser scripts load: the build
 
-`check-browser.js` and the Chromium scripts under `game/` load the site over http from an
-in-process server (`lib/serve.js`), on the tree `lib/target.js` picks:
+`check-browser.js` and the Chromium scripts under `game/` load the built site, `dist/`, over http
+from an in-process server (`lib/serve.js`). `lib/target.js` picks it and refuses anything else:
 
-- `--root=<dir>` or `BM_ROOT=<dir>` names it: `--root=dist` for the built site, `--root=.` for
-  the source tree. `npm run check:browser` passes `--root=dist`, and CI sets `BM_ROOT=dist`.
-- with neither, `dist/` when it has been built and nothing it is built from is newer than it (a
-  page, a file under `assets/` or `data/`, `lib/shell.js`); otherwise the source tree, with a
-  note saying which file is newer. So a script run straight after an edit never quietly tests an
-  old build.
+- the source tree is not a site. A page in it holds two markers where `lib/shell.js` writes its
+  `<head>` and top bar ([The shell](#the-shell-libshelljs), below), and its scripts are the
+  imports of a module entry that Vite bundles; so there is no raw tree to serve, and
+  `--root=.` fails saying so.
+- `dist/` must be there and newer than everything it is built from: the pages, `lib/shell.js`,
+  everything under `src/`, `assets/` and `data/`, `vite.config.ts` and `package-lock.json`. A
+  build that is missing or older fails the script at once with `run npm run build first` and the
+  file that is newer, so a script run straight after an edit never quietly tests an old build.
+  `npm run check:all` builds before any browser script runs.
+- `--root=<dir>` or `BM_ROOT=<dir>` names a build somewhere else (CI downloads the build job's
+  `dist/` as an artifact and sets `BM_ROOT=dist`); the same test holds it to the source tree.
 
-A source page is not a whole document: it holds two markers where `lib/shell.js` writes its
-`<head>` and top bar ([The shell](#the-shell-libshelljs), below). `lib/serve.js` writes them as
-it serves the page, the way the build does, so the source tree can be loaded without a build.
-It applies the rule of `vite.config.ts`: every page of the site (a root `*.html`, a
-`parts/<dir>/<file>.html`) goes through the shell whether or not it carries a marker, so a page
-with `<main id="main">` and no marker is answered with a 500 and the shell's reason, as the build
-and the checks refuse it, and is never quietly served as written; any other HTML file (a fixture,
-a report) goes through only when it carries a marker. A tree with no `tools/lib/shell.js` (`dist/`,
-a commit before the shell) is a whole site, served as it is.
+The served tree goes out as it is. An HTML file in it that still carries a shell marker (a source
+page put where a build should be) is a 500 saying so, never served half-written. Each script
+prints what it is serving on its first line. `tools/fixtures/` is always served from the source
+tree, at the same URL, and never copied into `dist/`; `/__base/<path>` is always read from this
+checkout's git history, a marked page there written by that commit's own `lib/shell.js` with that
+commit's `src/boot.js` (`lib/site.js` `shellAt`).
 
-Each script prints the tree it is serving on its first line. `tools/fixtures/` is always served
-from the source tree, at the same URL, and never copied into `dist/`; `/__base/<path>` is always
-read from this checkout's git history, a marked page there written by that commit's own
-`lib/shell.js`. Only the `file` suite of `check-browser.js` does not go
-through the server: it opens `dist/` from `file://`, which is what it is there to prove, and so
-it needs a build whatever `--root` says.
+Nothing opens `dist/` from `file://` any more: module scripts need an http origin, and the site
+does not promise to open from disk.
 
 ## The shell (lib/shell.js)
 
 No page in the source tree writes its own `<head>` or top bar. A page holds `<!--bm:head-->`
 (first in `<head>`, before its own `<title>`, description and, on one page, robots tag) and
 `<!--bm:topbar-->` (first in `<body>`), and says on `<body>` what it is: `data-depth`, then
-`data-chapter` or `data-page`, and optionally `data-scenes` and `data-nav`. The README's "The
-shell of a page" is the author's guide. `lib/shell.js` is the one implementation:
+`data-chapter` or `data-page`, and optionally `data-nav`. The README's "The shell of a page" is
+the author's guide. `lib/shell.js` is the one implementation:
 
 - `PAGE_KINDS` lists, per kind of page (`home`, `page`, `dashboard`, `arena`, `chapter`), the
-  site's stylesheets and every script, in the order they load. `boot.js` is the only script not
-  deferred. A chapter's scenes go where the list says `SCENES`: `assets/scenes3d.js` and one file
-  per name in `data-scenes`, or nothing.
+  site's stylesheets in cascade order and its one module entry, `src/entries/<kind>.js`. The
+  scripts of a kind, in the order they run, are the imports of that entry. Every page also gets
+  the boot script (`src/boot.js`) inline, first in `<head>` and before the stylesheets, and
+  KaTeX's two `<script defer>` tags (`KATEX_SCRIPTS`) before the module tag: a classic deferred
+  script and a module script wait in one queue, in document order, so `renderMathInElement` is
+  there when `site.js` runs.
 - `renderShell(src, relPath)` returns the whole document. Everything outside the three places it
   writes (the head, the `<body>` tag, the top-bar marker) is the source byte for byte; from the
-  `<body>` tag it takes off `data-page`, `data-scenes` and `data-nav`, which only it reads.
+  `<body>` tag it takes off `data-page` and `data-nav`, which only it reads.
   `expand(src, relPath)` gives the same document with `lineOf(line)`, the line of the source file
   a line of it came from.
 - It throws, with the page's path first, for a page that has `<main id="main">` and no head
   marker, one marker without the other, a marker that is not first, anything in `<head>` besides
   the page's own three tags, a `data-depth` that is not the file's depth, an unknown kind or top
-  bar, or `data-scenes` on a page that is not a chapter. A file with no marker and no
-  `<main id="main">` (a fixture, a report) comes back as it is.
-- It requires nothing and reads no file, so `vite.config.ts` imports it as it is, and a commit's
-  own copy can be run from `git show` (`lib/site.js` `shellAt`). `lib/shell.d.ts` gives the config
-  its types (TypeScript 7 takes a CommonJS `.js` import as `any` otherwise); `checks.test.js`
-  fails when the two files export different names.
+  bar, or `data-scenes` (every chapter's bundle carries every scene, so the attribute names
+  nothing). A file with no marker and no `<main id="main">` (a fixture, a report) comes back as it
+  is.
+- It reads one file, the boot script it inlines (`bootScript()`), through `readSource`, which
+  `useSource(fn)` replaces: `vite.config.ts` imports the file as it is, and a commit's own copy can
+  be run from `git show` with that commit's `src/boot.js` (`lib/site.js` `shellAt`).
+  `lib/shell.d.ts` gives the config its types (TypeScript 7 takes a CommonJS `.js` import as
+  `any` otherwise); `checks.test.js` fails when the two files export different names.
 
-Three callers, one function: the build and the dev server (`vite.config.ts`, a
-`transformIndexHtml` hook that runs before Vite reads the page), `lib/serve.js`, and
-`lib/site.js` `readPage`, through which `check-static.js`, `check-dist.js` and `check-browser.js`
-read every page. So the checks see the stylesheet links, script tags and top-bar links that no
-source file holds. The nodes they get carry the line of the **source file** (`lineOf`), so a
-message such as `parts/…/08-coordinates.html:412` still points at the line to edit; a tag the shell
-wrote has the line of its marker.
+Two callers, one function: the build and the dev server (`vite.config.ts`, a
+`transformIndexHtml` hook that runs before Vite reads the page), and `lib/site.js` `readPage`,
+through which `check-static.js`, `check-dist.js` and `check-browser.js` read every page. So the
+checks see the stylesheet links, script tags and top-bar links that no source file holds. The
+nodes they get carry the line of the **source file** (`lineOf`), so a message such as
+`parts/…/08-coordinates.html:412` still points at the line to edit; a tag the shell wrote has the
+line of its marker.
 
 Two checks hold it, one on each side of the build. `shell` in `check-static.js` holds what the
-shell writes to what readers have (`tools/shell.json`). `shell`, `scripts` and `stylesheets` in
-`check-dist.js` hold `dist/` to what the shell writes. A list reordered in `PAGE_KINDS` passes
-the second, since the build and the check expand alike, and fails the first.
+shell writes to what readers have (`tools/shell.json`), and, whatever the record says, to the one
+module entry of the page's kind. `shell`, `scripts` and `stylesheets` in `check-dist.js` hold
+`dist/` to what the shell writes and to the entry's imports. An entry reordered under
+`src/entries/` passes both, because the order is not in the built chunks (see `scripts` below);
+the browser suites, which need `site.js` to have run after `widgets.js` and before `game.js`,
+fail on it.
 
 ## check-static.js
 
@@ -102,14 +108,13 @@ shell refuses stops the run before any check (`FAIL  setup:` and the reason).
 
 | check | what it guards |
 | --- | --- |
-| `syntax` | `node --check` on every `.js` under `assets/` (recursively), `data/`, `tools/` |
-| `es5` | no arrow functions, `let`, `const`, template literals or `class` in `assets/` and `data/` (strings, regex literals and comments are stripped first; `{ class: … }` property names are allowed) |
+| `syntax` | `node --check` on every `.js` under `src/`, `assets/` (recursively), `data/`, `tools/`: the first three as ES modules (the repo's `package.json` is `"type": "module"`), `tools/` as CommonJS |
 | `progress-keys` | every scored exercise key at `--base`, and every inline one that had an `id` there, still exists in the working tree with the same answer and question text; every exercise in the working tree, scored or inline, has an `id`; no duplicate keys. Uses the key rule of `site.js initExercises` exactly (`lib/keys.js`), whose positional fallback (`e1`, `e2`, …) is now only what reads a base from before the ids were written in |
 | `ids` | on every page, no `id` value is on more than one element — an `id` is a link target and, on an exercise, the key its progress is saved under |
 | `lesson-steps` | `startsStep`/`endsStep` of `assets/lesson.js` applied to the direct children of `<main id="main">`: WARN for each chapter whose steps are not the ones recorded in `tools/lesson-steps.json` (a FAIL under `--strict`), naming the first step that differs, because `bm.lesson.v1` remembers a reader's place as a step number |
-| `shell` | for every page, what `lib/shell.js` writes around the content is what `tools/shell.json` records for it: every tag of `<head>` in order with its attributes (so the title, the description, each stylesheet, each script and whether it is deferred), the `<body>` tag without the three attributes only the shell reads, and the skip link and top bar as link texts and targets. A page with no record, and a record with no page, fail too. `--shell-base=<ref>` compares with the pages of a commit instead, each as a reader of that commit got it |
+| `shell` | for every page, what `lib/shell.js` writes around the content is what `tools/shell.json` records for it: every tag of `<head>` in order with its attributes (so the title, the description, each stylesheet, each script and whether it is deferred; the inline boot script as a fingerprint of its text), the `<body>` tag without the two attributes only the shell reads, and the skip link and top bar as link texts and targets. A page with no record, and a record with no page, fail too. And whatever the record says, the scripts of every page are the boot script inline (its text `src/boot.js`), KaTeX's two deferred tags, and one `<script type="module">` naming the entry of the page's kind (`src/entries/<kind>.js`, a file that exists): a classic script of the site's own, a second module or another kind's entry fails. `--shell-base=<ref>` compares with the pages of a commit instead, each as a reader of that commit got it |
 | `curriculum` | every chapter in `data/curriculum.js` has its file, the right `data-chapter` and `data-depth`, and every section id as an `<h2 id>` (an id on another element is a WARN) |
-| `links` | every relative `href`/`src` resolves to a file, and its `#anchor` to an id in that file; ids created at runtime are allowlisted in `RUNTIME_IDS` with a note on where they come from. The stylesheets, scripts and top-bar links the shell writes are among them, so a scene named in `data-scenes` that has no file fails here, on the line of the head marker |
+| `links` | every relative `href`/`src` resolves to a file, and its `#anchor` to an id in that file; ids created at runtime are allowlisted in `RUNTIME_IDS` with a note on where they come from. The stylesheets, the module entry and top-bar links the shell writes are among them, so an entry named in `PAGE_KINDS` that has no file fails here, on the line of the head marker |
 | `widgets` | every `data-widget` / `data-figure` names a `W.<name> = function` in `assets/widgets.js` or a `BM3D.define("<name>"` in `assets/scenes/*.js` |
 | `sections` | every `data-section` is a section of the same chapter or `chNN#section` of a real one; scored exercises without one are listed as a WARN |
 | `choices` | choice/multi answer indices lie within the `<li>` options |
@@ -175,8 +180,7 @@ directory somewhere else that holds `playwright` with a downloaded Chromium (`ax
 optional); if neither resolves, the script says what it tried and exits 2. The scripts under
 `game/` use the same resolver.
 
-The site is served in-process on a free port (`lib/serve.js`), from the tree chosen as described
-above; page discovery and everything read statically (exercise keys, the curriculum) always come
+The build is served in-process on a free port (`lib/serve.js`), as described above; page discovery and everything read statically (exercise keys, the curriculum) always come
 from the source tree. `/__base/<path>` serves the same path at `--base` through `git show`, so the
 previous commit's site is browsable for comparison without a checkout (`node tools/lib/serve.js`
 runs the server on its own).
@@ -200,23 +204,22 @@ every screenshot and all results — open it in a browser), and `pages/*.png`.
 
 | suite | what it does |
 | --- | --- |
-| `webgl` | runs first. Loads `fixtures/webgl-probe.html` under three Chromium arg sets in turn and launches the shared browser with the first that gives a WebGL context; reports the renderer. Also self-tests the `noWebGL` and `blockUrl` helpers |
+| `webgl` | runs first. Loads `fixtures/webgl-probe.html` under three Chromium arg sets in turn and launches the shared browser with the first that gives a WebGL context; reports the renderer. Also self-tests the `noWebGL` and `blockUrl` helpers (the latter by refusing every built chunk under `assets/`, after which the page must load with none of the site's scripts) |
 | `thirdparty` | the paragraph above, held to: a local server plays a CDN that accepts a request and never answers, and one that sends headers and stops. The page must finish loading within the deadline with a third-party warning for each file and no failure; a second page asking the stalled host straight away must not wait for it again; a file that is there, used by two pages, must be fetched once. Also reads the suites' source: a context opened with `ctx.browser.newContext` goes around the deadline, and fails here |
-| `pages` | every page × light/dark × 1280×800/360×740 with clean storage: console errors, uncaught errors, same-origin 404s, horizontal overflow, `body[data-lesson="steps"]` and the mode switch on chapter pages, then the switch to whole page and a full-page screenshot. Third-party requests (fonts, the KaTeX CDN) that fail or stall are warnings |
+| `pages` | every page × light/dark × 1280×800/360×740 with clean storage: console errors, uncaught errors, same-origin 404s, the theme on `<html>` at the first animation frame (which comes before the first paint: the inline boot script did its job, so a dark page never flashes light), `window.BMSite`, `BMGame`, `BMStore` and `BM_CURRICULUM` present (the module entry ran, and in order: `game.js` needs `BMStore` when it runs), where KaTeX loaded at least one formula rendered on a page that has any (auto-render was there when `site.js` ran), horizontal overflow, `body[data-lesson="steps"]` and the mode switch on chapter pages, then the switch to whole page and a full-page screenshot. Third-party requests (fonts, the KaTeX CDN) that fail or stall are warnings |
 | `widgets` | every `[data-widget]` has an `svg`/`canvas` and no failure note; then each slider is set to min/max/min with `input` events, each `button.chip` is clicked, and a focusable SVG gets arrow keys and Space. Any exception fails |
 | `missions` | with clean storage no `.missions li[data-done]` exists, headings read "0 of n", `BMPlay` is empty, `BMMissions.total()` matches the page |
 | `exercises` | per chapter, in whole-page mode: a wrong answer on the first scored typed exercise shows feedback with the hint, then the key is accepted; then every exercise is answered with its own key (typed: type and Enter, trying `\|`-alternatives in the engine's order; choice/multi: tick and Check; blank: fill each; order: the up buttons; `figure` kinds are skipped and counted); the score line and completion banner agree; after a reload every solved scored exercise is `data-state="correct"` with `data-restored` and the lesson mode is remembered |
 | `restore` | seeds `bm.progress.v1` with every scored key of the chapter **at `--base`** and loads the working-tree page: each card's engine key must equal the static rule's key for its position, each restored card's question must fingerprint the same as at base, and lesson mode must open every step for a reader with solved work |
 | `upgrade` | a returning reader's whole saved state survives. `fixtures/state-v1.json` (every store, as the last release before the build step writes them) is put into localStorage once, on the served origin, before any page loads; then the home page, the progress page, a cleared chapter and a part-done one are opened in the same profile. After each, the fixture must be **contained** in what is in storage: every key still there with the same value. Not equal, because the site writes on load: objects and lists may have gained entries (backfilled achievements, banked medals, the run store), the counts a page re-derives each visit (`total`, `reached`) may have grown, and `bm.last` names the chapter once one has been opened. The pages must show it too: the saved theme against the system's, Continue on the home page, medals and XP on the progress page, every solved card solved and no other. The last line lists what loading added |
 | `motion` | under `prefers-reduced-motion: reduce` no animation is running at load, after a wrong answer, or after a right one |
-| `file` | `index.html` and the first chapter of **`dist/`** loaded from `file://` build themselves without errors, with the site's stylesheet applied and no file of the site refused (whatever `--root` is). No `dist/` is a failure; one older than the source is loaded with a warning |
 | `axe` | axe-core on every page × theme at 1280 (whole-page mode on chapters); violations are warnings counted by rule, failures with `--strict-axe`; skipped when axe-core does not resolve |
 
 `--only` takes suite names (`--only=pages,motion`) or a page-path substring (`--only=05-distance`),
 or both; `--skip` takes suite names to leave out. The theme is forced the way the site reads it —
 `localStorage["bm.theme"]` holds the JSON string `"dark"`/`"light"` (note the quotes: every store
-value is `JSON.stringify`ed) and the context's `colorScheme` matches — so a `boot.js` that reads
-the same key before paint is covered too.
+value is `JSON.stringify`ed) and the context's `colorScheme` matches — which is how the inline
+boot script reads it before paint.
 
 ### Adding a suite
 
@@ -270,9 +273,9 @@ Nothing here needs a GPU or a display.
 Usage: `node tools/check-dist.js [--dist=<dir>] [--only=<check,check>]` (after `npm run build`)
 
 The build is meant to change nothing a reader can see. This is the check that it did not: same
-output format as `check-static.js`, Node built-ins only, under a second. It is strict on purpose
-while the build is a pass-through; a later item that moves the scripts into the build changes the
-check it trips in the same commit.
+output format as `check-static.js`, Node built-ins only, under a second. It is strict on purpose:
+the one thing the build makes, the bundle behind each page's module entry, is held to the entry's
+imports through the source maps, and everything else to the source.
 
 The build does write each page's head and top bar (`lib/shell.js`). So "the source" of a page,
 in every row below, is the source page with its shell written, read through the same
@@ -283,14 +286,14 @@ shell wrote the right head, because the build and the check expand alike; that i
 
 | check | what it guards |
 | --- | --- |
-| `pages` | every page of the source tree (the `htmlPages` rule in `lib/site.js`, which `vite.config.ts` repeats) is in `dist/` at the same path, and `dist/.nojekyll` is there. Nothing else is in `dist/` but what the site is made of: a page, a script of `assets/` or `data/`, a file of `public/`, a file a built page links or a built stylesheet names, and a source map beside one of those. Everything in `dist/` is published, so a stray `.env` or `tools/` fails here |
+| `pages` | every page of the source tree (the `htmlPages` rule in `lib/site.js`, which `vite.config.ts` repeats) is in `dist/` at the same path, and `dist/.nojekyll` is there. Nothing else is in `dist/` but what the site is made of: a page, a copy of a script of `assets/` or `data/` (one release more, see `scripts`), a file of `public/`, a file a built page links (its module script, what it preloads, its stylesheets, the icon), a chunk reached by following the imports from a page's module script (the WebGL painter is a dynamic import), a file a built stylesheet names, and a source map beside one of those. Everything in `dist/` is published, so a stray `.env` or `tools/` fails here |
 | `links` | every relative `href`/`src` in the built pages resolves to a file inside `dist/`, and its `#anchor` to an id: the same walk `check-static.js` does on the source (`lib/links.js`) |
 | `root-absolute` | no attribute value is a root-absolute path (`/assets/…`): the site is published under a sub-path, where `/` is not its root. Any value starting with a single `/` on a URL attribute fails; on any other attribute, one that names something in the top level of `dist/`. The same for CSS: no `url(/…)` or `@import "/…"` in a built stylesheet, a `<style>` or a `style` attribute |
 | `main` | for every page, the text from `<main` to `</main>` is the source's, by whitespace-normalised fingerprint: the build may rewrite a `<head>`, never the content (`lesson.js` and the exercise keys depend on it) |
-| `shell` | for every page, everything around `<main>` is the source's too: the head (viewport, title, the CDN tags, inline scripts), the attributes of `<body>`, the top bar, the footer. The links to the site's own stylesheets and icon, which the build does rewrite and `links` and `stylesheets` answer for, are taken out of both sides first. Since the head and top bar come from the shell, this is also what fails a build that did not write them, or wrote them differently from the checks: a marker left in the page, `data-page` left on `<body>` |
-| `scripts` | every page has the same `<script>` tags as its source, in the same order: the same `src`, the same attributes (a dropped `defer` or an added `type="module"` fails), inline and CDN scripts included. And every `.js` under `assets/` and `data/` is in `dist/` byte for byte |
+| `shell` | for every page, everything around `<main>` is the source's too: the head (viewport, title, the inline boot script, the CDN tags), the attributes of `<body>`, the top bar, the footer. The links to the site's own stylesheets and icon and the page's module script, which the build does rewrite (the script comes back as a built chunk, with `<link rel="modulepreload">` for what it imports), are taken out of both sides first; `links`, `stylesheets` and `scripts` answer for them. Since the head and top bar come from the shell, this is also what fails a build that did not write them, or wrote them differently from the checks: a marker left in the page, `data-page` left on `<body>` |
+| `scripts` | what a built page runs. Its script tags, in order: the boot script inline with the text of `src/boot.js`, KaTeX's two deferred CDN tags, and one `<script type="module">` (`type=module crossorigin`, as Vite writes it) whose `src` is a file in `dist/`; nothing else. The bundle behind that tag: the chunks reached by following the imports from it were built (their source maps say) from exactly the files `src/entries/<kind>.js` imports, every one and no other, and where `assets/scenes3d.js` is among them a reachable chunk was built from `assets/scenes3d-gl.js`, the dynamic import. The order the files run in is not in the minified chunks (rolldown wraps each module and calls the wrappers in the entry's order under `strictExecutionOrder`, `vite.config.ts`); the browser suites prove it by what the pages build. No page loads a copy of a source script: nothing a page's tags name and nothing its bundle imports is at the path of a file under `assets/` or `data/`. And every `.js` under `assets/` and `data/` is in `dist/` byte for byte, for one release (`vite.config.ts` `legacyScripts`, `OPERATIONS.md` "Scripts") |
 | `secrets` | no file in `dist/` contains `service_role` (in any case, so `SUPABASE_SERVICE_ROLE_KEY` too), `sb_secret_`, `whsec_`, `sk-ant-`, or a Stripe-style `sk_live_…`/`rk_test_…` key. A legacy Supabase key is a JWT, whose role is base64-encoded and matches no pattern, so every JWT-shaped token is decoded as well and fails unless its role is `anon`. (The Supabase anon key in `assets/config.js` is public by design and passes) |
-| `stylesheets` | reports how many distinct stylesheets the built pages link, and fails if two chapter pages link different ones. Also the cascade: Vite splits the CSS into shared files and, left alone, links a page's own file before the shared ones, the reverse of the source (`vite.config.ts` puts them back). So for every page, the class names only one source stylesheet uses must all come, in the built CSS the page links, before those of the next source stylesheet. And the text: each stylesheet a source page links must be, byte for byte, inside one of the stylesheets the built page links. `vite.config.ts` sets `build.cssMinify: false` for that: Vite's minifier (Lightning CSS) rewrites values the scripts read (`--plot-fill: rgba(38, 70, 212, .14)` becomes `#2646d424`, which `parseColor` in `assets/scenes3d.js` returns `null` for) and merges selectors into `:is()`, changing their weight. Last, the link: a built link to one of the site's stylesheets carries `rel` and `href` and nothing else, as the source's do. Vite adds `crossorigin`, with which a page opened from disk is refused its stylesheets, and `vite.config.ts` takes it off again |
+| `stylesheets` | reports how many distinct stylesheets the built pages link, and fails if two chapter pages link different ones. Also the cascade: Vite splits the CSS into shared files and, left alone, links a page's own file before the shared ones, the reverse of the source (`vite.config.ts` puts them back). So for every page, the class names only one source stylesheet uses must all come, in the built CSS the page links, before those of the next source stylesheet. And the text: each stylesheet a source page links must be, byte for byte, inside one of the stylesheets the built page links. `vite.config.ts` sets `build.cssMinify: false` for that: Vite's minifier (Lightning CSS) rewrites values the scripts read (`--plot-fill: rgba(38, 70, 212, .14)` becomes `#2646d424`, which `parseColor` in `assets/scenes3d.js` returns `null` for) and merges selectors into `:is()`, changing their weight. Last, the link: a built link to one of the site's stylesheets carries `rel` and `href` and nothing else, as the source's do. Vite adds `crossorigin`, and `vite.config.ts` takes it off again |
 
 ## Deliberately not covered
 
@@ -343,7 +346,7 @@ without an `id`, it should always report nothing to do.
 | script | what it guards |
 | --- | --- |
 | `smoke-scenes.js` | every 3D scene under a small DOM shim: mounts in figure and quiz mode, missions false at mount, every control driven, every `cases` answer reachable and graded right |
-| `checks.test.js` | the checks themselves, on small pages written in the test: `progress-keys` (a changed, dropped or reused key fails, scored or inline; ids written onto positional keys pass), `ids` (an `id` such as `constructor` is only a name), `lesson-steps` (an added step and a cut that moves at the same count both show), `assign-ids.js` (nothing is written, or said to be, when one page cannot be converted), `lib/shell.js` (each kind of page gets its stylesheets, scripts, top bar and path prefix; the content is not touched; each way of writing a page wrong is refused with its reason; nodes carry source-file lines), the `shell` check (a dropped `defer`, two scripts swapped, a changed body attribute or top-bar link each show; `tools/shell.json` records every page) and `apply-shell.js` (whole pages are found again as the kind they were written from; a page no kind expands to, or one whose content differs from the base by a byte, fails and nothing is written) and `lib/serve.js` (a page of the site goes out as the shell writes it, one with `<main id="main">` and no marker is refused with the shell's reason, a fixture or report goes out as it is, and a tree with no `lib/shell.js` is served whole) |
+| `checks.test.js` | the checks themselves, on small pages written in the test: `progress-keys` (a changed, dropped or reused key fails, scored or inline; ids written onto positional keys pass), `ids` (an `id` such as `constructor` is only a name), `lesson-steps` (an added step and a cut that moves at the same count both show), `assign-ids.js` (nothing is written, or said to be, when one page cannot be converted), `lib/shell.js` (each kind of page gets its stylesheets, the boot script inline before them, KaTeX's tags, its one module entry last, its top bar and path prefix; the chapter entry imports every scene file, after the framework and before `site.js`; the content is not touched; each way of writing a page wrong, `data-scenes` included, is refused with its reason; nodes carry source-file lines), the `shell` check (a dropped `defer`, two scripts swapped, an edited boot script, a changed body attribute or top-bar link each show; a second module, a classic script of the site's own, another kind's entry or a boot script that is not `src/boot.js` fail whatever the record says; `tools/shell.json` records every page) and `apply-shell.js` (whole pages are found again as the kind they were written from; a page no kind expands to, or one whose content differs from the base by a byte, fails and nothing is written) and `lib/serve.js` (a build goes out as it is, a page in it that still carries a marker is refused, a fixture goes out as it is) |
 | `check-gen.js` | every Arena generator over 500 seeds: deterministic, no `NaN`/`undefined`, the key and every declared alternative graded right, near misses graded wrong, hints that do not give the answer, every chapter covered |
 | `game/merge.test.js` | `BMAccount.merge` with the game store: commutative, associative, idempotent, over states that also carry fields this version has never heard of; every such field comes out of the merge, by the one rule for them (the later canonical JSON), and `game.v` is the larger number. Spot checks pin the limits of that rule: keys named like inherited properties are carried and `__proto__` is not, and an object under an unknown key of a keyed store is merged as a record of that kind. Last, the writers in `assets/site.js` (`BMProgress`, `BMPlay`, `BMAttempts`) write a fresh record over an entry that is not one, which a merge now passes through |
 | `game/sync.test.js` | account sync in `assets/account.js` against an in-memory stand-in for Supabase, one vm per device: stale tabs and simultaneous saves never overwrite newer progress, resets are neither undone nor allowed to wipe later work, a sync never lands in the wrong reader's account, and signing out sets unsaved progress aside instead of wiping it. Other versions of the site and of the tables: fields a later version saved survive a sync from a device with changes of its own, at every level and in a column this version does not know; a row or a browser in a newer shape (`game.v`) is merged and never written, with the page asking for a reload; a server without the `game` column syncs the rest; a project without the `attempts` table syncs, keeps the log queued without sending it again with every save, and holds no more than the newest 500 checks; a reset leaves a column this version does not know. Two of these run on `account.html`, where the account-page half of the file shares its scope with the sync: a sign-in and sign-out there keep the account whole, and the page says to reload for a newer shape. A sync whose merge fails is never followed by a save of the unmerged copy. Also sign-in through another service: only configured services are offered, Microsoft is asked for the email address, and a reader with no email address still syncs |
@@ -355,8 +358,9 @@ without an `id`, it should always report nothing to do.
 | `game/content.test.js` | the new 3D exercises in chapters 8 and 16, answered through the page |
 | `game/map.test.js` | the course map: every fallback, no rendering while idle, clicks that match the list links |
 
-The browser ones resolve Playwright and choose the tree to load like `check-browser.js` (`--root`
-or `BM_ROOT`, else `dist/` when current), and each aborts every request that does not go to the
-local server, so none of them depends on a CDN (`map.test.js` answers the one Three.js request
-from `.cache/`, fetching it once). Without that file `map.test.js` skips its checks and says so;
+The browser ones resolve Playwright and load the build like `check-browser.js` (`dist/`, current,
+or `--root`/`BM_ROOT` naming a build elsewhere), and each aborts every request that does not go
+to the local server (the server's own origin, where the module chunks come from, is let through),
+so none of them depends on a CDN (`map.test.js` answers the one Three.js request from `.cache/`,
+fetching it once). Without that file `map.test.js` skips its checks and says so;
 when the `CI` variable is set it fails instead, so a CI job cannot pass having tested no map.

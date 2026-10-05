@@ -1,15 +1,26 @@
 "use strict";
 /* Every page × theme × viewport, with clean storage: no console errors, no page errors,
-   no same-origin 404s, no horizontal overflow at phone width, lesson mode initialised
-   on chapter pages, and a full-page screenshot of each cell for the contact sheet.
-   Chapter pages are shot in whole-page mode (after the mode switch has been clicked,
-   which also exercises it) so the sheet shows the content, not just the first step. */
+   no same-origin 404s, the theme on <html> before the first frame (the inline boot
+   script, so a dark page never flashes light), the site's scripts run (window.BMSite,
+   BMGame and BMStore, in which site.js must have gone before game.js), KaTeX there
+   before the module entry ran where it loaded at all, no horizontal overflow at phone
+   width, lesson mode initialised on chapter pages, and a full-page screenshot of each
+   cell for the contact sheet. Chapter pages are shot in whole-page mode (after the mode
+   switch has been clicked, which also exercises it) so the sheet shows the content,
+   not just the first step. */
 const { slug } = require("../lib/browser");
+
+/* runs before any script of the page: the theme as it stands at the first animation
+   frame, which comes before the first paint; and whether KaTeX's auto-render was there
+   when site.js took its handle on it (BMRenderMath renders nothing without it) */
+const FIRST_FRAME = () => {
+  requestAnimationFrame(() => { window.__themeAtFirstFrame = document.documentElement.getAttribute("data-theme"); });
+};
 
 module.exports = {
   name: "pages",
   order: 10,
-  description: "every page × light/dark × 1280/360: errors, 404s, overflow, lesson mode, screenshots",
+  description: "every page × light/dark × 1280/360: errors, 404s, theme before first paint, scripts ran, overflow, lesson mode, screenshots",
   async run(ctx) {
     const { h, report } = ctx;
     let katexMissingNoted = false;
@@ -18,16 +29,31 @@ module.exports = {
       for (const theme of ctx.themes) {
         for (const vw of ctx.vws) {
           const label = rel + " [" + theme + " " + vw + "]";
-          const { page, errors, close } = await h.newPage({ theme, vw });
+          const { context, page, errors, close } = await h.newPage({ theme, vw });
           const problems = [], warns = [];
           let shot = null;
           try {
+            await context.addInitScript(FIRST_FRAME);
             await h.open(page, rel);
-            /* the theme really took: site.js sets html[data-theme] from bm.theme */
-            const applied = await page.evaluate(() => document.documentElement.getAttribute("data-theme"));
-            if (applied !== theme) problems.push("html[data-theme] is " + JSON.stringify(applied) + ", expected " + theme);
+            /* the theme really took, and before anything was painted: the boot script
+               inline in <head> sets html[data-theme] from bm.theme ahead of the
+               stylesheets; site.js keeps it up */
+            const applied = await page.evaluate(() => ({ now: document.documentElement.getAttribute("data-theme"), first: window.__themeAtFirstFrame }));
+            if (applied.now !== theme) problems.push("html[data-theme] is " + JSON.stringify(applied.now) + ", expected " + theme);
+            if (applied.first !== theme) problems.push("html[data-theme] was " + JSON.stringify(applied.first) + " at the first frame, expected " + theme + ": the boot script did not run before first paint");
+            /* the module entry ran, in its order: BMStore and BMSite come from site.js,
+               BMGame from game.js, which needs BMStore when it runs */
+            const ran = await page.evaluate(() => ({ site: !!window.BMSite, game: !!window.BMGame, store: !!window.BMStore, curriculum: !!window.BM_CURRICULUM }));
+            Object.keys(ran).forEach(k => { if (!ran[k]) problems.push("window.BM" + (k === "curriculum" ? "_CURRICULUM" : k[0].toUpperCase() + k.slice(1)) + " is missing: the module entry did not run, or not in order"); });
             const katex = await page.evaluate(() => !!(window.katex && window.renderMathInElement));
             if (!katex && !katexMissingNoted) { katexMissingNoted = true; warns.push("KaTeX did not load (offline?) — formulas are unrendered in every screenshot"); }
+            /* where it did load, it was there when the module entry ran: KaTeX's classic
+               deferred tags and the module script share one queue, in document order */
+            if (katex) {
+              const rendered = await page.evaluate(() => document.querySelectorAll(".katex").length);
+              const math = await page.evaluate(() => /\$[^$]+\$|\\\(/.test(document.body.textContent || ""));
+              if (!rendered && math) problems.push("KaTeX loaded but no formula was rendered: renderMathInElement was not there when site.js ran");
+            }
             const overflow = () => page.evaluate(() => ({ sw: document.documentElement.scrollWidth, iw: window.innerWidth }));
             let ov = await overflow();
             if (ov.sw > ov.iw) problems.push("horizontal overflow: scrollWidth " + ov.sw + " > innerWidth " + ov.iw + " (initial view)");

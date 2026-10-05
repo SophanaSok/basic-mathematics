@@ -115,8 +115,26 @@ Chromium checks that need no WebGL), `webgl` (the 3D checks, retried, outside th
 **The files in the repository are not the site.** Since the page-shell change (R0, item 5) a
 page in the repository holds its content and two markers. Its `<head>` (every stylesheet and
 script) and its top bar are written by the build
-([README, "The shell of a page"](README.md#the-shell-of-a-page)). Published as they are, the
-pages have no styles, no scripts and no top bar. `dist/` is the only thing that can be published.
+([README, "The shell of a page"](README.md#the-shell-of-a-page)), and since the module entries
+(R0, item 6) its scripts are bundled from `src/entries/<kind>.js` into hashed chunks under
+`dist/assets/`. Published as they are, the pages have no styles, no scripts and no top bar.
+`dist/` is the only thing that can be published.
+
+### Scripts: the copies under dist/assets/ and dist/data/, one release
+
+The build copies every script under `assets/` and `data/` into `dist/` unchanged, though no
+built page loads one (`vite.config.ts` `legacyScripts`; `npm run check:dist` proves both). They
+are for the deploy that brings the module entries: GitHub Pages serves pages with
+`Cache-Control: max-age=600`, so for up to ten minutes after that deploy a browser can hold a
+page from before it, which asks for `assets/site.js` and the rest by name, and for
+`assets/scenes3d-gl.js` when a 3D scene nears the screen. With the copies there such a page
+keeps working until it is fetched again; without them it would load with no scripts.
+
+**Remove the copies in the release after the one that ships the module entries** (the plan's
+item 7, npm dependencies, does it): delete the `legacyScripts` plugin from `vite.config.ts`,
+take the copies out of what `check-dist.js` allows in `dist/` (`pages`) and requires
+(`scripts`), and update this section and the README. By then every cached page has long
+expired. Nothing else holds those paths: the built pages name only hashed chunks.
 
 ### The Pages source: GitHub Actions, set before the page-shell change is merged
 
@@ -285,6 +303,7 @@ check it when the first function exists.
 | Duty | From | How often | What it is |
 | --- | --- | --- | --- |
 | Apply migrations | R0 (now) | every change to `schema.sql` | [Section 1](#1-releasing-a-change-that-needs-sql). The first real one is the `events` table in R2 |
+| Remove the copied scripts from the build | the release after the module entries (R0, item 7) | once | [Section 2, "Scripts"](#scripts-the-copies-under-distassets-and-distdata-one-release) |
 | Watch Supabase usage and pausing | now | usage monthly, pausing weekly | [Section 3](#what-to-watch) |
 | Renew expiring provider secrets | now, if Microsoft is enabled | before the expiry date | [Section 4](#rotation-in-outline) |
 | The hint review queue | **[not yet: R2]** | each content wave | Generated hints wait in a review queue; nothing ships unapproved. Approving or rejecting them is the owner's job |

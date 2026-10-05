@@ -1,6 +1,6 @@
 #!/usr/bin/env node
-/* Headless Chromium checks of the 3D scene stages (assets/scenes3d.js), on the site as
-   lib/target.js serves it (dist/ when it is built and current, else the source tree):
+/* Headless Chromium checks of the 3D scene stages (assets/scenes3d.js), on the built site as
+   lib/target.js serves it (dist/, which must be current):
      node tools/game/scenes.test.js
    Every request off that server is aborted, so Three.js never arrives and the stages
    run on the SVG painter; input and colours are the same for both painters (the GL one

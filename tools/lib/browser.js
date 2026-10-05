@@ -5,7 +5,7 @@
 const fs = require("fs");
 const path = require("path");
 
-const THEME_KEY = "bm.theme";          /* read by initTheme() in site.js (and boot.js when it lands) */
+const THEME_KEY = "bm.theme";          /* read by the inline boot script (src/boot.js) before first paint, and by initTheme() in site.js */
 const LESSON_KEY = "bm.lesson.v1";
 const PROGRESS_KEY = "bm.progress.v1";
 const VIEWPORTS = { 1280: { width: 1280, height: 800 }, 360: { width: 360, height: 740 } };
@@ -17,7 +17,7 @@ function slug(rel) { return rel.replace(/\.html$/, "").replace(/[^a-zA-Z0-9]+/g,
    because a local run may well be offline. */
 function track(page, originUrl) {
   const t = { console: [], pageErrors: [], notFound: [], thirdParty: [] };
-  const sameOrigin = (u) => u.startsWith(originUrl) || u.startsWith("file://");
+  const sameOrigin = (u) => u.startsWith(originUrl);
   page.on("console", msg => {
     if (msg.type() !== "error") return;
     const loc = msg.location() || {};

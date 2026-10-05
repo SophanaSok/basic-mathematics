@@ -6,10 +6,10 @@
                                       [--theme=light|dark] [--vw=1280|360] [--base=<ref>]
                                       [--headed] [--strict-axe] [--list]
 
-   --root      the tree the server serves: `dist` for the built site, `.` for the source
-               tree; without it lib/target.js picks (dist/ when built and current). Page
-               discovery and the static parsing always read the source tree, and the
-               `file` suite always loads dist/ from file://
+   --root      the build the server serves (default dist/; CI sets BM_ROOT). It must be
+               there and newer than everything it is built from, or lib/target.js
+               refuses with "run `npm run build` first". Page discovery and the static
+               parsing always read the source tree
    --only      a suite name (or several, comma-separated) runs just those suites; anything
                else is matched against page paths and narrows every suite to those pages
    --skip      suite names to leave out (CI runs --skip=webgl as the deploy gate and
@@ -32,7 +32,7 @@
    ctx has:
      pw, browser            the playwright module and the launched Chromium
      launch                 { args, webgl: {ok, renderer, ...} } chosen by the WebGL probe
-     server                 { url, baseUrl, root, label }  — the served tree (--root), and
+     server                 { url, baseUrl, root, label }  — the served build (--root), and
                             /__base/<path> at --base; tools/fixtures/ always comes from source
      root, base, outDir     repo root (the source tree), git ref, output directory
      pages, chapterPages    discovered HTML pages (filtered by --only when it names pages)

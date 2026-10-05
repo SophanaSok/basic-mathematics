@@ -10,84 +10,79 @@
      <body data-depth="0" data-page="page">
      <!--bm:topbar-->
 
-   and renderShell() writes the whole document from that. The build does it
-   (vite.config.ts), the checks do it before they read a page (lib/site.js), and so does
-   the server the browser checks load the source tree from (lib/serve.js). So the source
-   tree on its own is not a site any more: a page opened as it is written has no
-   stylesheet, no script and no top bar.
+   and renderShell() writes the whole document from that. The build and the dev server
+   do it (vite.config.ts), and the checks do it before they read a page (lib/site.js).
+   So the source tree on its own is not a site: a page opened as it is written has no
+   stylesheet, no script and no top bar, and the browser checks load the build
+   (lib/target.js).
 
    What a page says, all of it on <body>:
      data-depth    how many directories deep the file is; the prefix of every local path
      data-chapter  the page is a chapter (kind "chapter"); otherwise
      data-page     names its kind: one of PAGE_KINDS but "chapter"
-     data-scenes   chapters only: the 3D scenes it mounts, as the names of their files in
-                   assets/scenes/ without ".js", separated by spaces
      data-nav      which links the top bar shows: "home", "about", or absent for the rest
-   data-page, data-scenes and data-nav are read here and not written into the document:
-   the page a reader gets has the attributes it always had.
+   data-page and data-nav are read here and not written into the document: the page a
+   reader gets has the attributes it always had. (data-scenes, which once named a
+   chapter's 3D scenes, is refused: every chapter's bundle carries every scene.)
 
-   Pure functions of strings: nothing here reads a file, and nothing is required, so the
-   build can import it as it is. */
+   Functions of strings but for one file: the boot script (src/boot.js) goes into every
+   page inline, and readSource() below is how it is read. The build imports this file as
+   it is, and a commit's own copy can be run from `git show` with its own boot script
+   (lib/site.js shellAt hands it a reader through useSource). */
+
+const fs = require("fs");
+const path = require("path");
 
 const HEAD_MARK = "<!--bm:head-->";
 const TOPBAR_MARK = "<!--bm:topbar-->";
 /* read from <body> and left out of the document */
-const BODY_INPUTS = ["data-page", "data-scenes", "data-nav"];
+const BODY_INPUTS = ["data-page", "data-nav"];
 
 const FONTS = "https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@700;800&family=Inter:wght@400;500;600;700&family=Newsreader:ital,wght@0,400;0,600;1,400&display=swap";
 const KATEX = "https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.11/";
 
-/* the one script that is not deferred: theme and play settings before first paint */
-const BOOT = { src: "assets/boot.js", defer: false };
-/* where a chapter's scenes go: assets/scenes3d.js and then one file per name in
-   data-scenes, or nothing at all for a chapter that names none */
-const SCENES = { scenes: true };
+/* The one script that runs before first paint: theme and play settings, so the page is
+   painted right from the start. Its text goes into <head> inline, first of all and
+   before the stylesheets, so it costs no request and waits on nothing. Plain ES5 on
+   purpose: it is not bundled, and it runs on every page as written. */
+const BOOT = "src/boot.js";
+/* KaTeX, from its CDN, as two classic deferred scripts: the typesetter and the
+   auto-render extension site.js calls (window.renderMathInElement) */
+const KATEX_SCRIPTS = [KATEX + "katex.min.js", KATEX + "contrib/auto-render.min.js"];
 
-/* What each kind of page loads, in the order it loads it. `styles` are the site's own
-   stylesheets (the fonts and KaTeX's come before them on every page, see head());
-   `scripts` is every script: a path from the site root or a whole URL, deferred unless
-   it says otherwise. The order is the order the scripts run in and the stylesheets
-   cascade in, so it is part of the site: tools/shell.json records what every page ends
-   up with, and check-static.js fails a list that changed without being accepted. */
+/* What each kind of page loads. `styles` are the site's own stylesheets, in cascade
+   order (the fonts and KaTeX's come before them on every page, see head()); `entry` is
+   the one module script, which imports the site's scripts in the order they run
+   (src/entries/<kind>.js lists them). The boot script and KaTeX's two tags are every
+   page's, and the module comes after KaTeX's: a classic deferred script and a module
+   script wait in one queue, in document order, so renderMathInElement is there when
+   site.js runs. All of that is part of the site: tools/shell.json records what every
+   page ends up with, and check-static.js fails a change that was not accepted. */
 const PAGE_KINDS = {
   /* index.html: the contents page, with the course map */
-  home: {
-    styles: ["assets/site.css", "assets/game.css", "assets/scenes3d.css", "assets/map3d.css"],
-    scripts: [BOOT, KATEX + "katex.min.js", KATEX + "contrib/auto-render.min.js", "data/curriculum.js", "data/quest.js",
-      "assets/widgets.js", "assets/three-loader.js", "assets/site.js", "assets/sfx.js", "assets/game.js",
-      "assets/config.js", "assets/account.js", "assets/map3d.js"]
-  },
+  home: { styles: ["assets/site.css", "assets/game.css", "assets/scenes3d.css", "assets/map3d.css"], entry: "src/entries/home.js" },
   /* about.html, account.html: prose and a form */
-  page: {
-    styles: ["assets/site.css", "assets/game.css"],
-    scripts: [BOOT, KATEX + "katex.min.js", KATEX + "contrib/auto-render.min.js", "data/curriculum.js", "data/quest.js",
-      "assets/widgets.js", "assets/site.js", "assets/sfx.js", "assets/game.js",
-      "assets/config.js", "assets/account.js"]
-  },
+  page: { styles: ["assets/site.css", "assets/game.css"], entry: "src/entries/page.js" },
   /* progress.html, insights.html: a page, and assets/insights.js to fill it */
-  dashboard: {
-    styles: ["assets/site.css", "assets/game.css"],
-    scripts: [BOOT, KATEX + "katex.min.js", KATEX + "contrib/auto-render.min.js", "data/curriculum.js", "data/quest.js",
-      "assets/widgets.js", "assets/site.js", "assets/sfx.js", "assets/game.js",
-      "assets/config.js", "assets/account.js", "assets/insights.js"]
-  },
+  dashboard: { styles: ["assets/site.css", "assets/game.css"], entry: "src/entries/dashboard.js" },
   /* arena.html: no figures, the problem generators instead */
-  arena: {
-    styles: ["assets/site.css", "assets/game.css", "assets/arena.css"],
-    scripts: [BOOT, KATEX + "katex.min.js", KATEX + "contrib/auto-render.min.js", "data/curriculum.js", "data/quest.js",
-      "assets/site.js", "assets/sfx.js", "assets/game.js",
-      "data/gen/core.js", "data/gen/part1.js", "data/gen/part2.js", "data/gen/part3.js", "data/gen/part4.js", "assets/arena.js",
-      "assets/config.js", "assets/account.js"]
-  },
-  /* parts/<part>/<chapter>.html: site.js mounts every figure as it runs, so the scenes
-     come before it */
-  chapter: {
-    styles: ["assets/site.css", "assets/game.css", "assets/scenes3d.css"],
-    scripts: [BOOT, KATEX + "katex.min.js", KATEX + "contrib/auto-render.min.js", "data/curriculum.js", "data/quest.js",
-      "assets/widgets.js", "assets/three-loader.js", SCENES, "assets/site.js", "assets/sfx.js", "assets/game.js",
-      "assets/encounter.js", "assets/lesson.js", "assets/config.js", "assets/account.js"]
-  }
+  arena: { styles: ["assets/site.css", "assets/game.css", "assets/arena.css"], entry: "src/entries/arena.js" },
+  /* parts/<part>/<chapter>.html: the scene framework, every scene, then site.js, which
+     mounts the figures as it runs */
+  chapter: { styles: ["assets/site.css", "assets/game.css", "assets/scenes3d.css"], entry: "src/entries/chapter.js" }
 };
+
+/* how a source file of the tree is read: the file beside this one by default, and the
+   same path at a git ref when this shell was loaded from one (shellAt in lib/site.js) */
+let readSource = (rel) => fs.readFileSync(path.join(__dirname, "..", "..", rel), "utf8");
+function useSource(fn) { readSource = fn; }
+/* the boot script, as it goes into every page: whole and unchanged, so a "</script>" in
+   it would end the tag early; the one thing checked */
+function bootScript() {
+  const text = readSource(BOOT).replace(/\s+$/, "");
+  if (/<\/script/i.test(text)) throw new Error(BOOT + ' holds "</script", which would end the inline tag');
+  return text;
+}
 
 /* the top bar's links after the brand, by data-nav: [file at the site root, text] */
 const NAVS = {
@@ -114,7 +109,7 @@ function isMarked(src) {
 }
 
 /* What a marked page says about itself.
-   @returns {{ depth: number, prefix: string, kind: string, chapter: string|null, scenes: string[], nav: string }} */
+   @returns {{ depth: number, prefix: string, kind: string, chapter: string|null, nav: string }} */
 function pageInfo(src, relPath) {
   const tag = /<body\b[^>]*>/i.exec(src);
   if (!tag) fail(relPath, "no <body> tag");
@@ -132,31 +127,10 @@ function pageInfo(src, relPath) {
     kind = a["data-page"];
     if (!kinds.includes(kind)) fail(relPath, "<body> needs data-chapter, or data-page naming one of " + kinds.join(", ") + " (got " + JSON.stringify(kind) + ")");
   }
-  let scenes = [];
-  if (a.hasOwnProperty("data-scenes")) {
-    if (kind !== "chapter") fail(relPath, "data-scenes is for chapter pages; this one is kind \"" + kind + "\"");
-    scenes = a["data-scenes"].split(/\s+/).filter(Boolean);
-    const bad = scenes.filter(s => !/^[A-Za-z0-9_-]+$/.test(s));
-    if (bad.length) fail(relPath, "data-scenes names files of assets/scenes/ without \".js\"; " + JSON.stringify(bad[0]) + " is not such a name");
-    if (new Set(scenes).size !== scenes.length) fail(relPath, "data-scenes names a scene twice: " + a["data-scenes"]);
-  }
+  if (a.hasOwnProperty("data-scenes")) fail(relPath, "<body> has data-scenes, which is no longer read: every chapter loads every scene (src/entries/chapter.js), so take the attribute off");
   const nav = a["data-nav"] || "";
   if (!NAVS.hasOwnProperty(nav)) fail(relPath, "data-nav is " + JSON.stringify(nav) + "; the top bars are " + Object.keys(NAVS).filter(Boolean).map(n => '"' + n + '"').join(", ") + ", or no data-nav for the usual one");
-  return { depth, prefix: "../".repeat(depth), kind, chapter, scenes, nav };
-}
-
-/* the scripts of a page in order, SCENES filled in: [{ src, defer }] with src as listed */
-function scriptsOf(info) {
-  const out = [];
-  PAGE_KINDS[info.kind].scripts.forEach(s => {
-    if (s === SCENES) {
-      if (!info.scenes.length) return;
-      out.push({ src: "assets/scenes3d.js", defer: true });
-      info.scenes.forEach(name => out.push({ src: "assets/scenes/" + name + ".js", defer: true }));
-    } else if (typeof s === "string") out.push({ src: s, defer: true });
-    else out.push({ src: s.src, defer: s.defer !== false });
-  });
-  return out;
+  return { depth, prefix: "../".repeat(depth), kind, chapter, nav };
 }
 
 /* the lines of <head>; `own` holds the page's own tags as it wrote them */
@@ -168,6 +142,7 @@ function head(info, own) {
       '<meta name="viewport" content="width=device-width, initial-scale=1">',
       own.title,
       own.description,
+      "<script>\n" + bootScript() + "\n</script>",
       '<link rel="preconnect" href="https://fonts.googleapis.com">',
       '<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>',
       '<link rel="stylesheet" href="' + FONTS + '">',
@@ -175,7 +150,8 @@ function head(info, own) {
       '<link rel="icon" href="' + at("assets/favicon.svg") + '" type="image/svg+xml">'
     ])
     .concat(PAGE_KINDS[info.kind].styles.map(s => '<link rel="stylesheet" href="' + at(s) + '">'))
-    .concat(scriptsOf(info).map(s => "<script" + (s.defer ? " defer" : "") + ' src="' + at(s.src) + '"></script>'));
+    .concat(KATEX_SCRIPTS.map(s => '<script defer src="' + s + '"></script>'))
+    .concat(['<script type="module" src="' + at(PAGE_KINDS[info.kind].entry) + '"></script>']);
 }
 
 function topbar(info) {
@@ -240,7 +216,7 @@ function expand(src, relPath) {
     description: take(/<meta\s+name="description"\s[^>]*>/gi, '<meta name="description">', true),
     robots: take(/<meta\s+name="robots"\s[^>]*>/gi, '<meta name="robots">', false)
   };
-  if (rest.trim()) fail(relPath, "<head> holds more than a title, a description and robots: " + JSON.stringify(rest.trim().slice(0, 80)) + ". What every page of a kind loads is listed in PAGE_KINDS (tools/lib/shell.js)");
+  if (rest.trim()) fail(relPath, "<head> holds more than a title, a description and robots: " + JSON.stringify(rest.trim().slice(0, 80)) + ". What every page of a kind loads is listed in PAGE_KINDS (tools/lib/shell.js) and its entry under src/entries/");
 
   const body = /<body\b[^>]*>/i.exec(src);
   if (!body || body.index < headClose) fail(relPath, "no <body> tag after </head>");
@@ -286,4 +262,4 @@ function renderShell(src, relPath) {
   return expand(src, relPath).html;
 }
 
-module.exports = { renderShell, expand, isMarked, pageInfo, PAGE_KINDS, NAVS, HEAD_MARK, TOPBAR_MARK, BODY_INPUTS };
+module.exports = { renderShell, expand, isMarked, pageInfo, useSource, bootScript, PAGE_KINDS, NAVS, KATEX_SCRIPTS, BOOT, HEAD_MARK, TOPBAR_MARK, BODY_INPUTS };

@@ -1,16 +1,15 @@
 "use strict";
-/* An in-process static server for the site, on a free port.
-   GET /<path>           the file under `root`: the source tree, or the built dist/
+/* An in-process static server for the built site, on a free port.
+   GET /<path>           the file under `root`: the build in dist/ (lib/target.js picks it)
    GET /__base/<path>    the same path at the base git ref (via `git show`), so a page
                          at the previous commit can be loaded for comparison without
                          a second checkout. Its relative asset links resolve under
                          /__base/ too, so the whole old site is browsable there.
-   A source page holds markers where its head and top bar go (lib/shell.js). It is
-   served with them written, as the build would hand it on, so the source tree can be
-   loaded without a build; a page at the base ref is written by that commit's own
-   lib/shell.js. A page the shell refuses is a 500 with the reason, the same page the
-   build and the checks refuse: every page of the site goes through the shell, marked or
-   not, when the tree it comes from carries a lib/shell.js.
+   The tree under `root` is served as it is: a build is whole pages. A page that still
+   carries a shell marker there (lib/shell.js) is not a page a reader could get, and is
+   refused with a 500 saying so rather than served half-written. A page at the base ref
+   is served as a reader of that commit got it: whole, or written by that commit's own
+   lib/shell.js where it is marked (lib/site.js shellAt).
    Options:
      gitRoot      the checkout `git show` runs in (default: root). Needed when root is
                   dist/, which holds built files and is not what the ref names.
@@ -33,38 +32,32 @@ const TYPES = {
   ".map": "application/json", ".xml": "application/xml", ".webmanifest": "application/manifest+json"
 };
 
-/* a page of the site: a root *.html or parts/<dir>/<file>.html, the rule of htmlPages()
-   in lib/site.js and of the bm:shell plugin in vite.config.ts */
-const PAGE = /^(?:parts\/[^/]+\/)?[^/]+\.html$/i;
-
-/* What goes out for an HTML file. A page of the site is written by the shell whether or
-   not it carries a marker, as vite.config.ts writes it, so a page with <main id="main">
-   and no marker is refused here too and not quietly served as it is; any other HTML file
-   (a fixture, a report) only when it carries one. A tree with no tools/lib/shell.js
-   (dist/, a commit before the shell) is a whole site, and its pages go out as they are.
-   @param isPage    whether rel is a page of the site, of the tree it is read from
-   @param shellFor  gives the lib/shell.js of that tree, or null where it has none
-   @throws what the shell throws for a page it cannot write */
-function whole(body, rel, isPage, shellFor) {
+/* What goes out for an HTML file read at a git ref: whole as it is, or, where it
+   carries a marker, written by that commit's own lib/shell.js.
+   @throws what the shell throws for a page it cannot write, and for a marked page of
+           a commit that has no shell */
+function atRef(body, rel, gitRoot, base) {
   if (!/\.html$/i.test(rel)) return body;
   const text = body.toString("utf8");
-  const marked = shell.isMarked(text);
-  if (!isPage && !marked) return body;
-  const write = shellFor();
-  if (!write) {
-    if (marked) throw new Error(rel + " carries a shell marker, but that tree has no tools/lib/shell.js");
-    return body;
-  }
+  if (!shell.isMarked(text)) return body;
+  const write = site.shellAt(gitRoot, base);
+  if (!write) throw new Error(rel + " carries a shell marker, but that commit has no tools/lib/shell.js");
   return Buffer.from(write.renderShell(text, rel), "utf8");
+}
+
+/* What goes out for an HTML file of the served tree: the file, unless it is a page
+   the shell has not written, which no tree that is a site holds */
+function whole(body, rel) {
+  if (/\.html$/i.test(rel) && shell.isMarked(body.toString("utf8"))) {
+    throw new Error(rel + " carries a shell marker: it is a source page, not a built one. Serve the build (npm run build)");
+  }
+  return body;
 }
 
 function start(root, base, opts) {
   opts = opts || {};
   const log = opts.log || (() => {});
   const gitRoot = opts.gitRoot || root;
-  /* the shell of the tree under root: this checkout's lib/shell.js when the tree carries
-     one (the source tree), none when it does not (dist/) */
-  const ownShell = fs.existsSync(path.join(root, "tools", "lib", "shell.js")) ? shell : null;
   const extra = Object.keys(opts.extraRoots || {}).map(prefix => ({ prefix: prefix.replace(/^\/+/, ""), dir: opts.extraRoots[prefix] }));
   const server = http.createServer((req, res) => {
     let url;
@@ -79,16 +72,16 @@ function start(root, base, opts) {
     try {
       if (fromBase) {
         body = git.show(gitRoot, base, rel);
-        if (body !== null) body = whole(body, rel, PAGE.test(rel), () => site.shellAt(gitRoot, base));
+        if (body !== null) body = atRef(body, rel, gitRoot, base);
       } else {
         const over = extra.find(x => rel.startsWith(x.prefix));
         const abs = over ? path.join(over.dir, rel.slice(over.prefix.length)) : path.join(root, rel);
         try { if (fs.statSync(abs).isFile()) body = fs.readFileSync(abs); } catch (e) { body = null; }
-        if (body !== null) body = whole(body, rel, !over && PAGE.test(rel), () => ownShell);
+        if (body !== null && !over) body = whole(body, rel);
       }
     } catch (e) { refused = e.message; }
     log(req.method + " " + req.url + " -> " + (refused ? 500 : body === null ? 404 : 200));
-    if (refused) { res.writeHead(500, { "Content-Type": "text/plain; charset=utf-8", "Cache-Control": "no-store" }); res.end("the shell refuses this page: " + refused); return; }
+    if (refused) { res.writeHead(500, { "Content-Type": "text/plain; charset=utf-8", "Cache-Control": "no-store" }); res.end("refused: " + refused); return; }
     if (body === null) { res.writeHead(404, { "Content-Type": "text/plain; charset=utf-8", "Cache-Control": "no-store" }); res.end("not found: " + rel); return; }
     res.writeHead(200, { "Content-Type": type, "Content-Length": body.length, "Cache-Control": "no-store" });
     res.end(body);
@@ -109,11 +102,11 @@ function start(root, base, opts) {
 
 module.exports = { start, TYPES };
 
-/* `node tools/lib/serve.js [--root=<dir>] [--base=<ref>] [--port=N]` serves the site for a
-   manual look, from the tree lib/target.js picks */
+/* `node tools/lib/serve.js [--root=<dir>] [--base=<ref>] [--port=N]` serves the build for a
+   manual look (npm run preview does too, on port 8000) */
 if (require.main === module) {
   const opts = site.parseArgs(process.argv.slice(2));
   require("./target").start(Object.assign({}, opts, { port: opts.port ? +opts.port : 0, log: console.log })).then(s => {
     console.log("serving " + s.where + " (base " + (opts.base || site.DEFAULT_BASE) + " under " + s.baseUrl + ")");
-  });
+  }, e => { console.error(e.message); process.exit(1); });
 }

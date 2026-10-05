@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /* Headless Chromium checks of the 3D course map (assets/map3d.js) and the Three.js
-   loader (assets/three-loader.js), with SwiftShader WebGL, on the site as lib/target.js
-   serves it (dist/ when it is built and current, else the source tree):
+   loader (assets/three-loader.js), with SwiftShader WebGL, on the built site as
+   lib/target.js serves it (dist/, which must be current):
      node tools/game/map.test.js
    The pinned three.min.js is answered from .cache/ (fetched once from jsDelivr and
    checked against the loader's integrity hash); every other request off the local

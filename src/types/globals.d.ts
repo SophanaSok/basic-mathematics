@@ -1,0 +1,59 @@
+/* The globals the site's scripts share. Every file under assets/ and data/ is an IIFE
+   (or one assignment) that reads and writes these on window, and src/entries/*.js
+   imports those files for their effect, so nothing is typed yet: each is `any`, so
+   that a module written in TypeScript can reach window.BMStore without a cast while
+   the scripts are converted one by one (the plan's conversion rule). Each name is
+   listed with the file that creates it. As a script is converted, its global gets a
+   real type here, or goes. */
+interface Window {
+  /** data/curriculum.js: parts, chapters, sections */
+  BM_CURRICULUM: any;
+  /** data/quest.js: regions, bosses, review echoes */
+  BM_QUEST: any;
+  /** assets/config.js: Supabase URL and anon key, sign-in providers, kill switches */
+  BM_CONFIG: any;
+  /** assets/three-loader.js (load, why, supported, lowEnd) and assets/scenes3d.js (define, stages, painters) */
+  BM3D: any;
+  /** assets/site.js: the page, grading, refresh */
+  BMSite: any;
+  /** assets/site.js: the bus every write is announced on (on, emit) */
+  BMStore: any;
+  /** assets/site.js: the progress store (solved scored exercises) */
+  BMProgress: any;
+  /** assets/site.js: the play store (missions, puzzle guesses) */
+  BMPlay: any;
+  /** assets/site.js: the attempt record per exercise */
+  BMAttempts: any;
+  /** assets/site.js: XP per day, the daily goal, the streak */
+  BMActivity: any;
+  /** assets/site.js: the "areas to strengthen" ranking */
+  BMInsights: any;
+  /** assets/site.js: renders math through KaTeX's auto-render when it is there */
+  BMRenderMath: any;
+  /** assets/widgets.js (and scenes3d.js, for the scenes): the figure factories by name */
+  BMWidgets: any;
+  /** assets/widgets.js: the SVG helpers the factories share */
+  BMPlot: any;
+  /** assets/widgets.js: missions per figure */
+  BMMissions: any;
+  /** assets/game.js: combo, levels, achievements, recall, play settings, the HUD */
+  BMGame: any;
+  /** assets/game.js: motion and effects, with still() for reduced motion and calm mode */
+  BMFx: any;
+  /** assets/site.js: toasts; assets/game.js replaces it with the card toast */
+  BMToast: any;
+  /** assets/sfx.js: synthesised sound effects */
+  BMSfx: any;
+  /** assets/encounter.js: the boss of each practice set */
+  BMEncounter: any;
+  /** assets/lesson.js: step-by-step reading of a chapter */
+  BMLesson: any;
+  /** assets/arena.js: the timed Arena */
+  BMArena: any;
+  /** data/gen/*.js: the Arena's problem generators */
+  BMGen: any;
+  /** assets/map3d.js: the 3D course map on the contents page */
+  BMMap3D: any;
+  /** assets/account.js: sign-in and sync, and the pure merge */
+  BMAccount: any;
+}

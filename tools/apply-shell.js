@@ -15,7 +15,11 @@
    once, on the 23 pages there were; lib/shell.js writes that part now, and fails a page
    that has a <main id="main"> and no marker, so there should never be anything left
    for this to do. It stays as the record of how the pages were converted, and of the
-   proof that the conversion changed no document.
+   proof that the conversion changed no document. (The proof was made against the
+   shell as it was then, with classic script tags per page and data-scenes picking a
+   chapter's scenes; the shell has since moved to one module entry per kind, so a page
+   from before the conversion would no longer be found again by this script, and
+   --base can only hold a page to a commit whose shell is the current one.)
 
    The edit, per page: everything before the content wrapper (<div class="wrap"> or
    "wrap-narrow") is rewritten to
@@ -23,10 +27,10 @@
      (where it has one) <meta name="robots">, </head>, <body> with the attributes it
      had plus the ones the shell reads, the top-bar marker
    and every byte from the wrapper to the end of the file is left as it is. Which kind
-   of page it is, which top bar and which scenes are not guessed from its name: each
-   combination lib/shell.js knows is tried, and the one is taken whose expansion parses
-   to the same document as the original, white space aside. A page for which none does
-   is refused, and one refused page stops every page from being written. */
+   of page it is and which top bar are not guessed from its name: each combination
+   lib/shell.js knows is tried, and the one is taken whose expansion parses to the same
+   document as the original, white space aside. A page for which none does is refused,
+   and one refused page stops every page from being written. */
 
 const fs = require("fs");
 const path = require("path");
@@ -100,12 +104,9 @@ function convert(src, rel) {
   const gap = barEnd === -1 ? null : before.slice(barEnd + "</header>".length);
   if (gap === null || gap.trim()) throw new Error("no top bar (<header class=\"topbar\"> … </header>) right before the content wrapper");
   const isChapter = /\sdata-chapter=/.test(body[1]);
-  const scenes = [];
-  for (const m of inHead.matchAll(/<script\b[^>]*\bsrc="[^"]*assets\/scenes\/([^"\/]+)\.js"/g)) scenes.push(m[1]);
 
   const says = [];
-  const kinds = isChapter ? [scenes.length ? ' data-scenes="' + scenes.join(" ") + '"' : ""]
-    : Object.keys(shell.PAGE_KINDS).filter(k => k !== "chapter").map(k => ' data-page="' + k + '"');
+  const kinds = isChapter ? [""] : Object.keys(shell.PAGE_KINDS).filter(k => k !== "chapter").map(k => ' data-page="' + k + '"');
   kinds.forEach(k => Object.keys(shell.NAVS).forEach(n => says.push(k + (n ? ' data-nav="' + n + '"' : ""))));
   const want = canonical(parse(src));
   let nearest = { same: -1, why: "" };
@@ -125,7 +126,7 @@ function convert(src, rel) {
       continue;
     }
     assert.strictEqual(tailOf(out), tail, "the bytes from the content wrapper to the end of the file changed");
-    return { src: out, says: more.trim() || "(a chapter with no scenes)", bytes: expanded === src };
+    return { src: out, says: more.trim() || "(a chapter)", bytes: expanded === src };
   }
   throw new Error("no kind of page in lib/shell.js expands to this document; the nearest: " + nearest.why);
 }

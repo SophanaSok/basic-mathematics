@@ -10,8 +10,8 @@
      5. in the browser, s3d-room accepts its answer with or without the unit (and as 11.00
         or +11, which the old number compare took), and still
         refuses a wrong length with a unit
-   Checks 1 to 4 read the source files; 5 loads the page from the site as lib/target.js
-   serves it (dist/ when it is built and current, else the source tree).
+   Checks 1 to 4 read the source files; 5 loads the page from the built site as
+   lib/target.js serves it (dist/, which must be current).
    Usage: node tools/game/content.test.js */
 "use strict";
 const fs = require("fs");

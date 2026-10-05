@@ -31,7 +31,7 @@ const { execFileSync } = require("child_process");
 const site = require("./lib/site");
 const git = require("./lib/git");
 const shell = require("./lib/shell");
-const { parse, normText } = require("./lib/html");
+const { parse, normText, hash } = require("./lib/html");
 const { exercisesOf } = require("./lib/keys");
 const cssLib = require("./lib/css");
 const links = require("./lib/links");
@@ -72,104 +72,17 @@ function buildContext() {
 
 /* ------------------------------------------------------------- checks ---- */
 
+/* node --check parses each file as Node would run it: src/, assets/ and data/ as ES
+   modules (the repo's package.json says "type": "module"; the entries under
+   src/entries/ import, and the rest are IIFEs, which parse either way), tools/ as
+   CommonJS (tools/package.json) */
 function checkSyntax(ctx, r) {
   const files = [];
-  ["assets", "data", "tools"].forEach(d => site.walk(path.join(ROOT, d), p => /\.js$/.test(p), files));
+  ["src", "assets", "data", "tools"].forEach(d => site.walk(path.join(ROOT, d), p => /\.js$/.test(p), files));
   files.forEach(f => {
     r.count++;
     try { execFileSync(process.execPath, ["--check", f], { stdio: ["ignore", "pipe", "pipe"] }); }
     catch (e) { r.fail(site.rel(f) + ": " + String(e.stderr || e.message).trim().split("\n").slice(0, 3).join(" | ")); }
-  });
-}
-
-/* strip comments, strings and regex literals so keywords inside them do not count;
-   template literals are themselves a violation and are reported where found */
-function codeOnly(src, onTemplate) {
-  let out = "", i = 0, line = 1;
-  const n = src.length;
-  let lastSig = "";          /* last significant character emitted */
-  let lastWord = "";         /* last identifier emitted */
-  const REGEX_AFTER = new Set(["(", ",", "=", ":", "[", "!", "&", "|", "?", "{", "}", ";", "+", "-", "*", "%", "<", ">", "~", "^", ""]);
-  const REGEX_AFTER_WORD = new Set(["return", "typeof", "case", "in", "of", "delete", "void", "throw", "new", "instanceof", "do", "else"]);
-  function emit(s) {
-    out += s;
-    for (const c of s) { if (c === "\n") line++; }
-    const t = s.trim();
-    if (t) {
-      lastSig = t[t.length - 1];
-      const w = /([A-Za-z_$][\w$]*)$/.exec(t);
-      lastWord = w ? w[1] : (/[\w$]$/.test(t) ? "" : lastWord);
-      if (!w) lastWord = "";
-    }
-  }
-  while (i < n) {
-    const c = src[i], d = src[i + 1];
-    if (c === "/" && d === "/") { const e = src.indexOf("\n", i); i = e === -1 ? n : e; continue; }
-    if (c === "/" && d === "*") { const e = src.indexOf("*/", i + 2); const stop = e === -1 ? n : e + 2; emit(src.slice(i, stop).replace(/[^\n]/g, " ")); i = stop; continue; }
-    if (c === '"' || c === "'") {
-      let j = i + 1;
-      while (j < n && src[j] !== c) { if (src[j] === "\\") j++; if (src[j] === "\n") break; j++; }
-      emit(c + c); i = j + 1; continue;
-    }
-    if (c === "`") {
-      onTemplate(line);
-      let j = i + 1, depth = 0;
-      while (j < n) {
-        if (src[j] === "\\") { j += 2; continue; }
-        if (src[j] === "$" && src[j + 1] === "{") { depth++; j += 2; continue; }
-        if (src[j] === "}" && depth > 0) { depth--; j++; continue; }
-        if (src[j] === "`" && depth === 0) break;
-        j++;
-      }
-      emit(src.slice(i, j + 1).replace(/[^\n]/g, " ")); i = j + 1; continue;
-    }
-    if (c === "/") {
-      /* after an operand (identifier, number, `)`, `]`) a slash divides; after an
-         operator, punctuation or a keyword such as `return` it starts a regex */
-      const operandBefore = /[\w$)\]]$/.test(out.trimEnd());
-      const isRegex = operandBefore ? REGEX_AFTER_WORD.has(lastWord) : REGEX_AFTER.has(lastSig);
-      if (isRegex) {
-        let j = i + 1, inClass = false;
-        while (j < n) {
-          const x = src[j];
-          if (x === "\\") { j += 2; continue; }
-          if (x === "[") inClass = true;
-          else if (x === "]") inClass = false;
-          else if (x === "/" && !inClass) break;
-          else if (x === "\n") break;
-          j++;
-        }
-        j++;
-        while (j < n && /[a-z]/.test(src[j])) j++;
-        emit("/re/"); i = j; continue;
-      }
-    }
-    /* identifiers and numbers as whole tokens so lastWord is right */
-    if (/[A-Za-z_$]/.test(c)) { let j = i; while (j < n && /[\w$]/.test(src[j])) j++; emit(src.slice(i, j)); i = j; continue; }
-    emit(c); i++;
-  }
-  return out;
-}
-
-function checkEs5(ctx, r) {
-  const files = [];
-  ["assets", "data"].forEach(d => site.walk(path.join(ROOT, d), p => /\.js$/.test(p), files));
-  files.forEach(f => {
-    r.count++;
-    const src = fs.readFileSync(f, "utf8");
-    const rel = site.rel(f);
-    const code = codeOnly(src, line => r.fail(rel + ":" + line + ": template literal"));
-    const lines = code.split("\n");
-    lines.forEach((ln, k) => {
-      if (/=>/.test(ln)) r.fail(rel + ":" + (k + 1) + ": arrow function");
-      /* a keyword is not one when it is a property name: obj.class, { class: ... } */
-      const re = /(^|[^.\w$])(let|const|class)(?![\w$])(\s*:)?/g;
-      let m;
-      while ((m = re.exec(ln))) {
-        if (m[3]) continue;
-        r.fail(rel + ":" + (k + 1) + ": `" + m[2] + "`");
-      }
-    });
   });
 }
 
@@ -346,11 +259,14 @@ function checkLessonSteps(ctx, r) {
 
 const SHELL_FILE = path.join(__dirname, "shell.json");
 
-/* one tag as a line of text: its attributes as written, and for a <title> its text */
+/* one tag as a line of text: its attributes as written, for a <title> its text, and for
+   an inline <script> (the boot script) a fingerprint of its text, so a change to what
+   runs before first paint shows and is accepted like any other */
 function tagLine(el, skip) {
   const attrs = Object.keys(el.attrs).filter(k => !skip || !skip.includes(k))
     .map(k => " " + k + (el.attrs[k] === "" ? "" : "='" + el.attrs[k].replace(/'/g, "&#39;") + "'")).join("");
-  return "<" + el.name + attrs + ">" + (el.name === "title" ? normText(el.textContent) + "</title>" : "");
+  return "<" + el.name + attrs + ">" + (el.name === "title" ? normText(el.textContent) + "</title>"
+    : el.name === "script" && !el.hasAttribute("src") ? "#" + hash(normText(el.textContent)) + "</script>" : "");
 }
 /* What a page's shell comes to, read off the whole document:
      head    every tag of <head> in order: the title, the description, each stylesheet
@@ -384,16 +300,45 @@ function shellDiff(now, accepted) {
   return out;
 }
 
+/* The scripts of a page: the boot script inline and first, KaTeX's two from the CDN,
+   then one <script type="module"> naming the entry of the page's kind
+   (src/entries/<kind>.js, a file that exists), and no other script. A classic
+   <script src> of the site's own, a second module, or a page of one kind with another
+   kind's entry each fail here, before shell.json is consulted.
+   @returns {string[]} what is wrong */
+function scriptsProblems(p, doc, kind) {
+  const out = [];
+  const scripts = doc.query("head") ? doc.query("head").queryAll("script") : [];
+  const first = scripts[0];
+  if (!first || first.hasAttribute("src") || normText(first.textContent) !== normText(shell.bootScript())) out.push("the first script of <head> is not the boot script (src/boot.js) inline");
+  const srcs = scripts.filter(s => s.hasAttribute("src"));
+  const classic = srcs.filter(s => !/^module$/i.test(s.getAttribute("type") || ""));
+  const cdn = classic.map(s => s.getAttribute("src"));
+  if (cdn.join("\n") !== shell.KATEX_SCRIPTS.join("\n") || classic.some(s => !s.hasAttribute("defer"))) out.push("the classic scripts are not KaTeX's two, deferred: " + JSON.stringify(cdn));
+  const mods = srcs.filter(s => /^module$/i.test(s.getAttribute("type") || ""));
+  const want = "../".repeat(p.split("/").length - 1) + shell.PAGE_KINDS[kind].entry;
+  if (mods.length !== 1) out.push(mods.length + " module scripts, not one: " + JSON.stringify(mods.map(s => s.getAttribute("src"))));
+  else if (mods[0].getAttribute("src") !== want) out.push("the module script is " + JSON.stringify(mods[0].getAttribute("src")) + ", not the entry of a " + kind + " page, " + want);
+  else if (!exists(shell.PAGE_KINDS[kind].entry)) out.push("the entry " + shell.PAGE_KINDS[kind].entry + " does not exist");
+  if (scripts.length !== 1 + classic.length + mods.length) out.push("a script of <head> is neither the boot script, a KaTeX tag nor the module entry");
+  return out;
+}
+
 /* No page writes its own <head> or top bar: lib/shell.js writes them from a list per
    kind of page, so one edit there changes what every page loads. This holds each page,
    expanded, to the shell readers have, which is recorded in shell.json by page. A file
    and not --base, for the reason lesson-steps.json is one: the base is where the
    exercise keys were frozen, and its pages load a different set of scripts.
    --shell-base=<ref> compares with the pages of a commit instead, each as a reader of
-   that commit got it. */
+   that commit got it. First, though, what every page's scripts must be whatever the
+   record says: scriptsProblems() above. */
 function checkShell(ctx, r) {
   const now = {};
-  ctx.pages.forEach(p => { now[p] = shellOf(ctx.docs[p]); });
+  ctx.pages.forEach(p => {
+    now[p] = shellOf(ctx.docs[p]);
+    const kind = shell.pageInfo(read(p), p).kind;
+    scriptsProblems(p, ctx.docs[p], kind).forEach(m => r.fail(p + ": " + m));
+  });
   if (opts["accept-shell"]) {
     fs.writeFileSync(SHELL_FILE, JSON.stringify(now, null, 2) + "\n");
     r.note("--accept-shell: wrote " + site.rel(SHELL_FILE) + " from the working tree");
@@ -961,12 +906,11 @@ function checkContrast(ctx, r) {
 /* ------------------------------------------------------------- runner ---- */
 
 const CHECKS = [
-  { name: "syntax", run: checkSyntax, what: "node --check on every .js in assets/, data/, tools/" },
-  { name: "es5", run: checkEs5, what: "no arrow/let/const/template/class in assets/ and data/" },
+  { name: "syntax", run: checkSyntax, what: "node --check on every .js in src/, assets/, data/, tools/" },
   { name: "progress-keys", run: checkProgressKeys, what: "exercise keys and fingerprints unchanged since --base; every exercise has an id" },
   { name: "ids", run: checkIds, what: "no id is on more than one element of a page" },
   { name: "lesson-steps", run: checkLessonSteps, what: "each chapter is cut into the lesson steps recorded in tools/lesson-steps.json (WARN)" },
-  { name: "shell", run: checkShell, what: "each page's head, body tag and top bar, as lib/shell.js writes them, are the ones in tools/shell.json" },
+  { name: "shell", run: checkShell, what: "each page's head, body tag and top bar, as lib/shell.js writes them, are the ones in tools/shell.json; one module entry per page, its kind's" },
   { name: "curriculum", run: checkCurriculum, what: "every chapter file exists; every section id is an <h2 id> in it" },
   { name: "links", run: checkLinks, what: "relative hrefs/srcs resolve to files, anchors to ids" },
   { name: "widgets", run: checkWidgets, what: "every data-widget / data-figure is a defined factory" },
@@ -1005,4 +949,4 @@ function main() {
 }
 
 if (require.main === module) main();
-module.exports = { CHECKS, result, pageKeys, lessonSteps, stepsDiff, shellOf, shellDiff, randomState, stripLocalFirst, canon, codeOnly };
+module.exports = { CHECKS, result, pageKeys, lessonSteps, stepsDiff, shellOf, shellDiff, scriptsProblems, randomState, stripLocalFirst, canon };
