@@ -19,8 +19,12 @@
   /* the reading panel is light paper in both themes unless the reader chose a dark
      one; the theme shades the frame round it (src/styles/tokens.css) */
   root.setAttribute("data-panel", prefs.panel === "dark" ? "dark" : "light");
-  if (prefs.calm) root.setAttribute("data-calm", "true");
-  root.setAttribute("data-sound", prefs.sound && !prefs.calm ? "on" : "off");
+  /* on only when stored as true, the rule assets/game.js prefs() reads them by, so a
+     damaged value ("yes", 1) is off here too and the HUD script, which reads
+     html[data-calm], draws what the game will */
+  var calm = prefs.calm === true;
+  if (calm) root.setAttribute("data-calm", "true");
+  root.setAttribute("data-sound", prefs.sound === true && !calm ? "on" : "off");
   /* the settings sheet's Reduce motion and Reduce transparency: on top of what the
      device asks for, never instead of it (game.css, tokens.css) */
   if (prefs.motion === "reduce") root.setAttribute("data-motion", "reduce");

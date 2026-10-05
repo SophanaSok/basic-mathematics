@@ -178,6 +178,14 @@ function icon(name) {
 function choice(group, pref, value, label) {
   return '<label><input type="radio" name="' + group + '" value="' + value + '" data-pref="' + pref + '"><span>' + label + "</span></label>";
 }
+/* one switch of the sheet: named by its <span> alone and described by its <small>, so a
+   screen reader says "Study mode, switch" and reads the line after it as the description,
+   not as part of the name */
+function toggle(pref, label, note, cls) {
+  const id = "pref-" + pref;
+  return '<label class="switch' + (cls ? " " + cls : "") + '"><input type="checkbox" role="switch" data-pref="' + pref + '" aria-labelledby="' + id + '-name" aria-describedby="' + id + '-note">' +
+    '<span id="' + id + '-name">' + label + '</span><small id="' + id + '-note">' + note + "</small></label>";
+}
 
 /* The HUD: level badge and XP bar, the streak with today's goal as a ring, the combo,
    and the game slots of the page's kind. What it says is the start of a new reader's
@@ -216,17 +224,16 @@ function sheet(info) {
     '      <li><a href="' + p + 'arena.html">Arena</a></li>',
     '      <li><a href="' + p + 'account.html">Your account</a></li>',
     "    </ul>",
-    '    <label class="switch sheet-study"><input type="checkbox" role="switch" data-pref="calm"><span>Study mode</span>' +
-      "<small>Keeps hints, reviews and progress. Removes hearts, combo, bosses, motion and sound.</small></label>",
+    "    " + toggle("calm", "Study mode", "Keeps hints, reviews and progress. Removes hearts, combo, bosses, motion and sound.", "sheet-study"),
     '    <fieldset class="sheet-group">',
     "      <legend>Sound</legend>",
-    '      <label class="switch"><input type="checkbox" role="switch" data-pref="sound"><span>Sound</span><small>Short notes for answers, the combo and bosses. Off in Study mode.</small></label>',
+    "      " + toggle("sound", "Sound", "Short notes for answers, the combo and bosses. Off in Study mode."),
     '      <label class="sheet-slider"><span>Volume</span><input type="range" min="0" max="100" step="5" value="50" data-pref="volume"></label>',
     "    </fieldset>",
     '    <fieldset class="sheet-group">',
     "      <legend>Comfort</legend>",
-    '      <label class="switch"><input type="checkbox" role="switch" data-pref="motion"><span>Reduce motion</span><small>No animation and no smooth scrolling. Always on when your device asks for less motion.</small></label>',
-    '      <label class="switch"><input type="checkbox" role="switch" data-pref="transparency"><span>Reduce transparency</span><small>Solid surfaces in place of see-through glass.</small></label>',
+    "      " + toggle("motion", "Reduce motion", "No animation and no smooth scrolling. Always on in Study mode and when your device asks for less motion."),
+    "      " + toggle("transparency", "Reduce transparency", "Solid surfaces in place of see-through glass. Always on when your device asks for less transparency."),
     "    </fieldset>",
     '    <fieldset class="sheet-group sheet-choice">',
     "      <legend>Theme</legend>",
@@ -239,7 +246,7 @@ function sheet(info) {
     '    <fieldset class="sheet-group sheet-choice">',
     "      <legend>Graphics quality</legend>",
     '      <div class="sheet-options">' + choice("bm-gfx", "gfx", "auto", "Auto") + choice("bm-gfx", "gfx", "low", "Low") + choice("bm-gfx", "gfx", "mid", "Medium") + choice("bm-gfx", "gfx", "high", "High") + "</div>",
-    '      <label class="switch"><input type="checkbox" role="switch" data-pref="map3d"><span>3D course map</span><small>The contents page as a map of four regions. Low graphics keeps the list.</small></label>',
+    "      " + toggle("map3d", "3D course map", "The contents page as a map of four regions. Low graphics keeps the list."),
     "    </fieldset>",
     "  </dialog>"
   ];

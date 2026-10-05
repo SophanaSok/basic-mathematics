@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { level, levelInfo, rank, threshold } from "./levels.js";
+import { level, levelInfo, MAX_XP, rank, threshold } from "./levels.js";
 
 describe("the level curve", () => {
   it("starts each level at 5(L - 1)(L + 3) XP", () => {
@@ -23,6 +23,15 @@ describe("the level curve", () => {
   it("reads anything that is not a number of XP as none", () => {
     expect([undefined, null, "x", NaN, -40, Infinity].map(level)).toEqual([1, 1, 1, 1, 1, 1]);
     expect(level("60")).toBe(3);
+  });
+
+  it("comes back at once for a total too large to be real, as a damaged store may hold", () => {
+    /* past 2^53, L + 1 is L: unclamped, these never returned, and the HUD script runs
+       before first paint */
+    const top = level(MAX_XP);
+    expect(threshold(top) <= MAX_XP && MAX_XP < threshold(top + 1)).toBe(true);
+    for (const xp of [1e16, 1e33, 1e300, Number.MAX_VALUE, "1e40"]) expect(level(xp)).toBe(top);
+    expect(levelInfo(1e300).pct).toBe(100);
   });
 
   it("names the ranks", () => {

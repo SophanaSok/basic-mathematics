@@ -16,6 +16,8 @@
 
 html { -webkit-text-size-adjust: 100%; scroll-behavior: smooth; scroll-padding-top: calc(var(--hud-h) + 1rem); }
 @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+/* the settings sheet's Reduce motion and Study mode, stamped by the boot script */
+html[data-motion="reduce"], html[data-calm] { scroll-behavior: auto; }
 
 /* The frame: dark in both themes, with a faint motif of the page's Part behind the
    panel (the graph paper on a page of no Part). The motif is a fixed layer, so it
@@ -147,18 +149,20 @@ body[data-part] .topbar { border-bottom-color: var(--part-frame); }
   display: flex; align-items: center; gap: .35rem;
 }
 /* pushed right by a margin, not justify-content, so anything too wide spills off the
-   right edge (where the overflow checks see it) instead of over the brand */
-.topbar nav > :first-child { margin-left: auto; }
+   right edge (where the overflow checks see it) instead of over the brand. The margin is
+   on an empty first item that is always there, not on the first link: the links are
+   hidden on a narrow screen (game.css, the collapse), and then the margin went with
+   them and the menu button sat mid-bar. Its negative margin takes back the nav's gap. */
+.topbar nav::before { content: ""; flex: none; margin: 0 -.35rem 0 auto; }
 .topbar nav > a:where(:not(.hud, .hud-level, .acct)) {
   display: inline-flex; align-items: center; min-height: 40px;
   font-size: .88rem; font-weight: 500; color: var(--hud-muted); text-decoration: none;
   padding: 0 .65rem; border-radius: var(--radius-xs); white-space: nowrap;
 }
 .topbar nav > a:where(:not(.hud, .hud-level, .acct)):hover { color: var(--hud-text); background: var(--hud-chip); }
+/* what the top bar drops as it narrows, and when, is game.css's (the collapse) */
 @media (max-width: 720px) {
   .topbar { gap: .35rem .5rem; }
-  .topbar .brand-name { display: none; }
-  .topbar nav > a[href$="about.html"] { display: none; }
 }
 
 /* small buttons: a tile on paper, a chip on the rail */

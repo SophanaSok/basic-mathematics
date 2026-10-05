@@ -5,7 +5,7 @@
       "<meta name='viewport' content='width=device-width, initial-scale=1'>",
       "<title>How to use this course — Basic Mathematics</title>",
       "<meta name='description' content='How to study this course: reading with a pencil, using the exercises, and how progress is stored.'>",
-      "<script>#5b3d9aa7</script>",
+      "<script>#7fa25f69</script>",
       "<link rel='icon' href='assets/favicon.svg' type='image/svg+xml'>",
       "<link rel='stylesheet' href='src/vendor/fonts.css'>",
       "<link rel='stylesheet' href='src/vendor/katex.css'>",
@@ -30,7 +30,7 @@
       "Your progress -> progress.html",
       "Arena -> arena.html",
       "Your account -> account.html",
-      "<script>#a391760e</script>"
+      "<script>#da34f45a</script>"
     ]
   },
   "account.html": {
@@ -39,7 +39,7 @@
       "<meta name='viewport' content='width=device-width, initial-scale=1'>",
       "<title>Your account — Basic Mathematics</title>",
       "<meta name='description' content='Sign in to keep your progress across devices.'>",
-      "<script>#5b3d9aa7</script>",
+      "<script>#7fa25f69</script>",
       "<link rel='icon' href='assets/favicon.svg' type='image/svg+xml'>",
       "<link rel='stylesheet' href='src/vendor/fonts.css'>",
       "<link rel='stylesheet' href='src/vendor/katex.css'>",
@@ -64,7 +64,7 @@
       "Your progress -> progress.html",
       "Arena -> arena.html",
       "Your account -> account.html",
-      "<script>#a391760e</script>"
+      "<script>#da34f45a</script>"
     ]
   },
   "arena.html": {
@@ -73,7 +73,7 @@
       "<meta name='viewport' content='width=device-width, initial-scale=1'>",
       "<title>Arena — Basic Mathematics</title>",
       "<meta name='description' content='Timed practice on the sections you have already solved: fresh problems, a par to beat, and hearts that guessing cannot save.'>",
-      "<script>#5b3d9aa7</script>",
+      "<script>#7fa25f69</script>",
       "<link rel='icon' href='assets/favicon.svg' type='image/svg+xml'>",
       "<link rel='stylesheet' href='src/vendor/fonts.css'>",
       "<link rel='stylesheet' href='src/vendor/katex.css'>",
@@ -99,7 +99,7 @@
       "Your progress -> progress.html",
       "Arena -> arena.html",
       "Your account -> account.html",
-      "<script>#a391760e</script>"
+      "<script>#da34f45a</script>"
     ]
   },
   "index.html": {
@@ -108,7 +108,7 @@
       "<meta name='viewport' content='width=device-width, initial-scale=1'>",
       "<title>Basic Mathematics — a course from the ground up</title>",
       "<meta name='description' content='A complete course in basic mathematics: algebra from first principles, intuitive geometry, coordinate geometry, trigonometry, functions, complex numbers, induction, and determinants.'>",
-      "<script>#5b3d9aa7</script>",
+      "<script>#7fa25f69</script>",
       "<link rel='icon' href='assets/favicon.svg' type='image/svg+xml'>",
       "<link rel='stylesheet' href='src/vendor/fonts.css'>",
       "<link rel='stylesheet' href='src/vendor/katex.css'>",
@@ -134,7 +134,7 @@
       "Your progress -> progress.html",
       "Arena -> arena.html",
       "Your account -> account.html",
-      "<script>#a391760e</script>"
+      "<script>#da34f45a</script>"
     ]
   },
   "insights.html": {
@@ -144,7 +144,7 @@
       "<meta name='viewport' content='width=device-width, initial-scale=1'>",
       "<title>Course insights — Basic Mathematics</title>",
       "<meta name='description' content='Aggregate statistics for the course author.'>",
-      "<script>#5b3d9aa7</script>",
+      "<script>#7fa25f69</script>",
       "<link rel='icon' href='assets/favicon.svg' type='image/svg+xml'>",
       "<link rel='stylesheet' href='src/vendor/fonts.css'>",
       "<link rel='stylesheet' href='src/vendor/katex.css'>",
@@ -169,7 +169,7 @@
       "Your progress -> progress.html",
       "Arena -> arena.html",
       "Your account -> account.html",
-      "<script>#a391760e</script>"
+      "<script>#da34f45a</script>"
     ]
   },
   "progress.html": {
@@ -178,7 +178,7 @@
       "<meta name='viewport' content='width=device-width, initial-scale=1'>",
       "<title>Your progress — Basic Mathematics</title>",
       "<meta name='description' content='Your streak, XP, and the sections worth another look.'>",
-      "<script>#5b3d9aa7</script>",
+      "<script>#7fa25f69</script>",
       "<link rel='icon' href='assets/favicon.svg' type='image/svg+xml'>",
       "<link rel='stylesheet' href='src/vendor/fonts.css'>",
       "<link rel='stylesheet' href='src/vendor/katex.css'>",
@@ -203,7 +203,7 @@
       "Your progress -> progress.html",
       "Arena -> arena.html",
       "Your account -> account.html",
-      "<script>#a391760e</script>"
+      "<script>#da34f45a</script>"
     ]
   },
   "parts/1-algebra/01-numbers.html": {
@@ -212,7 +212,7 @@
       "<meta name='viewport' content='width=device-width, initial-scale=1'>",
       "<title>1. Numbers — Basic Mathematics</title>",
       "<meta name='description' content='Where the rules of arithmetic come from: integers, the laws of addition and multiplication, why a negative times a negative is positive, even and odd, rational numbers, and inverses.'>",
-      "<script>#5b3d9aa7</script>",
+      "<script>#7fa25f69</script>",
       "<link rel='icon' href='../../assets/favicon.svg' type='image/svg+xml'>",
       "<link rel='stylesheet' href='../../src/vendor/fonts.css'>",
       "<link rel='stylesheet' href='../../src/vendor/katex.css'>",
@@ -238,7 +238,7 @@
       "Your progress -> ../../progress.html",
       "Arena -> ../../arena.html",
       "Your account -> ../../account.html",
-      "<script>#a391760e</script>"
+      "<script>#da34f45a</script>"
     ]
   },
   "parts/1-algebra/02-linear-equations.html": {
@@ -247,7 +247,7 @@
       "<meta name='viewport' content='width=device-width, initial-scale=1'>",
       "<title>2. Linear Equations — Basic Mathematics</title>",
       "<meta name='description' content='Solving linear equations and systems by elimination, and reading off whether there is one solution, none, or infinitely many.'>",
-      "<script>#5b3d9aa7</script>",
+      "<script>#7fa25f69</script>",
       "<link rel='icon' href='../../assets/favicon.svg' type='image/svg+xml'>",
       "<link rel='stylesheet' href='../../src/vendor/fonts.css'>",
       "<link rel='stylesheet' href='../../src/vendor/katex.css'>",
@@ -273,7 +273,7 @@
       "Your progress -> ../../progress.html",
       "Arena -> ../../arena.html",
       "Your account -> ../../account.html",
-      "<script>#a391760e</script>"
+      "<script>#da34f45a</script>"
     ]
   },
   "parts/1-algebra/03-real-numbers.html": {
@@ -282,7 +282,7 @@
       "<meta name='viewport' content='width=device-width, initial-scale=1'>",
       "<title>3. Real Numbers — Basic Mathematics</title>",
       "<meta name='description' content='Positivity and order, inequalities, absolute value as distance, and powers and roots — the properties the whole real line runs on.'>",
-      "<script>#5b3d9aa7</script>",
+      "<script>#7fa25f69</script>",
       "<link rel='icon' href='../../assets/favicon.svg' type='image/svg+xml'>",
       "<link rel='stylesheet' href='../../src/vendor/fonts.css'>",
       "<link rel='stylesheet' href='../../src/vendor/katex.css'>",
@@ -308,7 +308,7 @@
       "Your progress -> ../../progress.html",
       "Arena -> ../../arena.html",
       "Your account -> ../../account.html",
-      "<script>#a391760e</script>"
+      "<script>#da34f45a</script>"
     ]
   },
   "parts/1-algebra/04-quadratic-equations.html": {
@@ -317,7 +317,7 @@
       "<meta name='viewport' content='width=device-width, initial-scale=1'>",
       "<title>4. Quadratic Equations — Basic Mathematics</title>",
       "<meta name='description' content='Completing the square, the quadratic formula derived rather than memorised, the discriminant, and the geometry of the parabola.'>",
-      "<script>#5b3d9aa7</script>",
+      "<script>#7fa25f69</script>",
       "<link rel='icon' href='../../assets/favicon.svg' type='image/svg+xml'>",
       "<link rel='stylesheet' href='../../src/vendor/fonts.css'>",
       "<link rel='stylesheet' href='../../src/vendor/katex.css'>",
@@ -343,7 +343,7 @@
       "Your progress -> ../../progress.html",
       "Arena -> ../../arena.html",
       "Your account -> ../../account.html",
-      "<script>#a391760e</script>"
+      "<script>#da34f45a</script>"
     ]
   },
   "parts/1-algebra/interlude-logic.html": {
@@ -352,7 +352,7 @@
       "<meta name='viewport' content='width=device-width, initial-scale=1'>",
       "<title>Interlude: On Logic and Mathematical Expressions — Basic Mathematics</title>",
       "<meta name='description' content='How to read mathematics, implication and its converse, quantifiers and counterexamples, sets, and notation as a tool.'>",
-      "<script>#5b3d9aa7</script>",
+      "<script>#7fa25f69</script>",
       "<link rel='icon' href='../../assets/favicon.svg' type='image/svg+xml'>",
       "<link rel='stylesheet' href='../../src/vendor/fonts.css'>",
       "<link rel='stylesheet' href='../../src/vendor/katex.css'>",
@@ -378,7 +378,7 @@
       "Your progress -> ../../progress.html",
       "Arena -> ../../arena.html",
       "Your account -> ../../account.html",
-      "<script>#a391760e</script>"
+      "<script>#da34f45a</script>"
     ]
   },
   "parts/2-geometry/05-distance-and-angles.html": {
@@ -387,7 +387,7 @@
       "<meta name='viewport' content='width=device-width, initial-scale=1'>",
       "<title>5. Distance and Angles — Basic Mathematics</title>",
       "<meta name='description' content='Points, lines, distance, angle measure, parallels, and the Pythagorean theorem with a proof you can see.'>",
-      "<script>#5b3d9aa7</script>",
+      "<script>#7fa25f69</script>",
       "<link rel='icon' href='../../assets/favicon.svg' type='image/svg+xml'>",
       "<link rel='stylesheet' href='../../src/vendor/fonts.css'>",
       "<link rel='stylesheet' href='../../src/vendor/katex.css'>",
@@ -413,7 +413,7 @@
       "Your progress -> ../../progress.html",
       "Arena -> ../../arena.html",
       "Your account -> ../../account.html",
-      "<script>#a391760e</script>"
+      "<script>#da34f45a</script>"
     ]
   },
   "parts/2-geometry/06-isometries.html": {
@@ -422,7 +422,7 @@
       "<meta name='viewport' content='width=device-width, initial-scale=1'>",
       "<title>6. Isometries — Basic Mathematics</title>",
       "<meta name='description' content='The motions that preserve distance — translations, rotations, reflections — and symmetry as invariance under them.'>",
-      "<script>#5b3d9aa7</script>",
+      "<script>#7fa25f69</script>",
       "<link rel='icon' href='../../assets/favicon.svg' type='image/svg+xml'>",
       "<link rel='stylesheet' href='../../src/vendor/fonts.css'>",
       "<link rel='stylesheet' href='../../src/vendor/katex.css'>",
@@ -448,7 +448,7 @@
       "Your progress -> ../../progress.html",
       "Arena -> ../../arena.html",
       "Your account -> ../../account.html",
-      "<script>#a391760e</script>"
+      "<script>#da34f45a</script>"
     ]
   },
   "parts/2-geometry/07-area.html": {
@@ -457,7 +457,7 @@
       "<meta name='viewport' content='width=device-width, initial-scale=1'>",
       "<title>7. Area and Applications — Basic Mathematics</title>",
       "<meta name='description' content='Area of rectangles, triangles, and discs; circumference; and the scaling law that ties them together.'>",
-      "<script>#5b3d9aa7</script>",
+      "<script>#7fa25f69</script>",
       "<link rel='icon' href='../../assets/favicon.svg' type='image/svg+xml'>",
       "<link rel='stylesheet' href='../../src/vendor/fonts.css'>",
       "<link rel='stylesheet' href='../../src/vendor/katex.css'>",
@@ -483,7 +483,7 @@
       "Your progress -> ../../progress.html",
       "Arena -> ../../arena.html",
       "Your account -> ../../account.html",
-      "<script>#a391760e</script>"
+      "<script>#da34f45a</script>"
     ]
   },
   "parts/3-coordinates/08-coordinates.html": {
@@ -492,7 +492,7 @@
       "<meta name='viewport' content='width=device-width, initial-scale=1'>",
       "<title>8. Coordinates and Geometry — Basic Mathematics</title>",
       "<meta name='description' content='The coordinate plane, the distance formula from Pythagoras, and the equation of a circle.'>",
-      "<script>#5b3d9aa7</script>",
+      "<script>#7fa25f69</script>",
       "<link rel='icon' href='../../assets/favicon.svg' type='image/svg+xml'>",
       "<link rel='stylesheet' href='../../src/vendor/fonts.css'>",
       "<link rel='stylesheet' href='../../src/vendor/katex.css'>",
@@ -518,7 +518,7 @@
       "Your progress -> ../../progress.html",
       "Arena -> ../../arena.html",
       "Your account -> ../../account.html",
-      "<script>#a391760e</script>"
+      "<script>#da34f45a</script>"
     ]
   },
   "parts/3-coordinates/09-operations-on-points.html": {
@@ -527,7 +527,7 @@
       "<meta name='viewport' content='width=device-width, initial-scale=1'>",
       "<title>9. Operations on Points — Basic Mathematics</title>",
       "<meta name='description' content='Adding points, scaling them, and reflecting them — geometry done by arithmetic on coordinates.'>",
-      "<script>#5b3d9aa7</script>",
+      "<script>#7fa25f69</script>",
       "<link rel='icon' href='../../assets/favicon.svg' type='image/svg+xml'>",
       "<link rel='stylesheet' href='../../src/vendor/fonts.css'>",
       "<link rel='stylesheet' href='../../src/vendor/katex.css'>",
@@ -553,7 +553,7 @@
       "Your progress -> ../../progress.html",
       "Arena -> ../../arena.html",
       "Your account -> ../../account.html",
-      "<script>#a391760e</script>"
+      "<script>#da34f45a</script>"
     ]
   },
   "parts/3-coordinates/10-segments-rays-lines.html": {
@@ -562,7 +562,7 @@
       "<meta name='viewport' content='width=device-width, initial-scale=1'>",
       "<title>10. Segments, Rays, and Lines — Basic Mathematics</title>",
       "<meta name='description' content='Parametric descriptions of segments, rays, and lines, and how they relate to y = mx + b.'>",
-      "<script>#5b3d9aa7</script>",
+      "<script>#7fa25f69</script>",
       "<link rel='icon' href='../../assets/favicon.svg' type='image/svg+xml'>",
       "<link rel='stylesheet' href='../../src/vendor/fonts.css'>",
       "<link rel='stylesheet' href='../../src/vendor/katex.css'>",
@@ -588,7 +588,7 @@
       "Your progress -> ../../progress.html",
       "Arena -> ../../arena.html",
       "Your account -> ../../account.html",
-      "<script>#a391760e</script>"
+      "<script>#da34f45a</script>"
     ]
   },
   "parts/3-coordinates/11-trigonometry.html": {
@@ -597,7 +597,7 @@
       "<meta name='viewport' content='width=device-width, initial-scale=1'>",
       "<title>11. Trigonometry — Basic Mathematics</title>",
       "<meta name='description' content='Sine and cosine from the unit circle, radian measure, graphs, the tangent, addition formulas, and rotations.'>",
-      "<script>#5b3d9aa7</script>",
+      "<script>#7fa25f69</script>",
       "<link rel='icon' href='../../assets/favicon.svg' type='image/svg+xml'>",
       "<link rel='stylesheet' href='../../src/vendor/fonts.css'>",
       "<link rel='stylesheet' href='../../src/vendor/katex.css'>",
@@ -623,7 +623,7 @@
       "Your progress -> ../../progress.html",
       "Arena -> ../../arena.html",
       "Your account -> ../../account.html",
-      "<script>#a391760e</script>"
+      "<script>#da34f45a</script>"
     ]
   },
   "parts/4-topics/12-functions.html": {
@@ -632,7 +632,7 @@
       "<meta name='viewport' content='width=device-width, initial-scale=1'>",
       "<title>12. Functions — Basic Mathematics</title>",
       "<meta name='description' content='What a function is, how to read a graph, and the exponential and logarithm.'>",
-      "<script>#5b3d9aa7</script>",
+      "<script>#7fa25f69</script>",
       "<link rel='icon' href='../../assets/favicon.svg' type='image/svg+xml'>",
       "<link rel='stylesheet' href='../../src/vendor/fonts.css'>",
       "<link rel='stylesheet' href='../../src/vendor/katex.css'>",
@@ -658,7 +658,7 @@
       "Your progress -> ../../progress.html",
       "Arena -> ../../arena.html",
       "Your account -> ../../account.html",
-      "<script>#a391760e</script>"
+      "<script>#da34f45a</script>"
     ]
   },
   "parts/4-topics/13-mappings.html": {
@@ -667,7 +667,7 @@
       "<meta name='viewport' content='width=device-width, initial-scale=1'>",
       "<title>13. Mappings — Basic Mathematics</title>",
       "<meta name='description' content='Functions between arbitrary sets: composition, injectivity, surjectivity, inverses, and permutations.'>",
-      "<script>#5b3d9aa7</script>",
+      "<script>#7fa25f69</script>",
       "<link rel='icon' href='../../assets/favicon.svg' type='image/svg+xml'>",
       "<link rel='stylesheet' href='../../src/vendor/fonts.css'>",
       "<link rel='stylesheet' href='../../src/vendor/katex.css'>",
@@ -693,7 +693,7 @@
       "Your progress -> ../../progress.html",
       "Arena -> ../../arena.html",
       "Your account -> ../../account.html",
-      "<script>#a391760e</script>"
+      "<script>#da34f45a</script>"
     ]
   },
   "parts/4-topics/14-complex-numbers.html": {
@@ -702,7 +702,7 @@
       "<meta name='viewport' content='width=device-width, initial-scale=1'>",
       "<title>14. Complex Numbers — Basic Mathematics</title>",
       "<meta name='description' content='Arithmetic with i, the complex plane, absolute value, and polar form where multiplication becomes rotation.'>",
-      "<script>#5b3d9aa7</script>",
+      "<script>#7fa25f69</script>",
       "<link rel='icon' href='../../assets/favicon.svg' type='image/svg+xml'>",
       "<link rel='stylesheet' href='../../src/vendor/fonts.css'>",
       "<link rel='stylesheet' href='../../src/vendor/katex.css'>",
@@ -728,7 +728,7 @@
       "Your progress -> ../../progress.html",
       "Arena -> ../../arena.html",
       "Your account -> ../../account.html",
-      "<script>#a391760e</script>"
+      "<script>#da34f45a</script>"
     ]
   },
   "parts/4-topics/15-induction-and-summations.html": {
@@ -737,7 +737,7 @@
       "<meta name='viewport' content='width=device-width, initial-scale=1'>",
       "<title>15. Induction and Summations — Basic Mathematics</title>",
       "<meta name='description' content='Proving infinitely many statements at once, sigma notation, and the geometric series.'>",
-      "<script>#5b3d9aa7</script>",
+      "<script>#7fa25f69</script>",
       "<link rel='icon' href='../../assets/favicon.svg' type='image/svg+xml'>",
       "<link rel='stylesheet' href='../../src/vendor/fonts.css'>",
       "<link rel='stylesheet' href='../../src/vendor/katex.css'>",
@@ -763,7 +763,7 @@
       "Your progress -> ../../progress.html",
       "Arena -> ../../arena.html",
       "Your account -> ../../account.html",
-      "<script>#a391760e</script>"
+      "<script>#da34f45a</script>"
     ]
   },
   "parts/4-topics/16-determinants.html": {
@@ -772,7 +772,7 @@
       "<meta name='viewport' content='width=device-width, initial-scale=1'>",
       "<title>16. Determinants — Basic Mathematics</title>",
       "<meta name='description' content='Matrices, determinants of order 2 and 3, their properties, and Cramer&#39;s rule for linear systems.'>",
-      "<script>#5b3d9aa7</script>",
+      "<script>#7fa25f69</script>",
       "<link rel='icon' href='../../assets/favicon.svg' type='image/svg+xml'>",
       "<link rel='stylesheet' href='../../src/vendor/fonts.css'>",
       "<link rel='stylesheet' href='../../src/vendor/katex.css'>",
@@ -798,7 +798,7 @@
       "Your progress -> ../../progress.html",
       "Arena -> ../../arena.html",
       "Your account -> ../../account.html",
-      "<script>#a391760e</script>"
+      "<script>#da34f45a</script>"
     ]
   }
 }

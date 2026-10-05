@@ -17,12 +17,17 @@ export function threshold(L) {
   return 5 * (L - 1) * (L + 3);
 }
 
+/** No total is read as more than this: far above any XP a reader can earn, and far below
+    2^53, past which L + 1 is L and the loops in level() would never end. This runs in the
+    HUD script before first paint, so a damaged store must not hang the page. */
+export const MAX_XP = 1e15;
+
 /** The level of a total XP. Inverting threshold gives the closed form; the loops mop up
     rounding.
     @param {unknown} xp */
 export function level(xp) {
   let n = Number(xp);
-  n = Math.max(0, Math.floor(isFinite(n) ? n : 0));
+  n = Math.min(MAX_XP, Math.max(0, Math.floor(isFinite(n) ? n : 0)));
   let L = Math.max(1, Math.floor(Math.sqrt(n / 5 + 4)) - 1);
   while (threshold(L + 1) <= n) L++;
   while (L > 1 && threshold(L) > n) L--;

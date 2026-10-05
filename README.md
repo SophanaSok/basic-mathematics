@@ -152,8 +152,9 @@ going well. A short version appears above each chapter's recap.
   hints, reviews and progress and removes hearts, the combo, the bosses, motion and sound, for
   anyone who wants the course without the game. (In the code and the stores it is still `calm`.)
 - **The settings sheet** also holds sound and its volume, Reduce motion and Reduce transparency
-  (on top of what the device asks for), the theme (light, dark or match the system), the reading
-  panel, graphics quality and the 3D course map. Every setting stays on the device.
+  (on top of what the device asks for: while the device asks, or Study mode is on for motion, the
+  switch shows on and cannot be turned off), the theme (light, dark or match the system), the
+  reading panel, graphics quality and the 3D course map. Every setting stays on the device.
 
 ### Progress, and what is saved
 
@@ -410,7 +411,12 @@ functions from then on and `site.js` reads the streak, the goal and the total th
 there is one copy of the level curve and the HUD's drawing, and the HUD does not move when the
 bundle arrives: every slot's width is set in `rem` and `em`, not by its digits or font, and a game
 slot the page can use is laid out empty from the start (the `hud` suite of `check-browser.js`
-measures every box before the bundle runs, at `DOMContentLoaded` and after load). `tools/shell.json`
+measures every box before the bundle runs, at `DOMContentLoaded` and after load). As the window
+narrows, the top bar drops, in this order, the brand's name, the page links, the hearts and the
+clock (to the encounter on a chapter, to the second row in the Arena), the account chip and the
+sound button, all of which the sheet has, and then makes the HUD's parts smaller, so the menu
+button stays on screen at the right end of the bar at every width down to 320px; a bar with more
+in it starts sooner (`game.css`, the collapse, which the `hud` suite sweeps). `tools/shell.json`
 records the top bar's links and buttons by their labels, the sheet's among them, and the HUD
 script as a fingerprint of its text; `check-static.js` also fails a page whose body has any other
 script.

@@ -15,6 +15,8 @@
    file only shows the preferences and passes changes on. */
 
 const NARROW = "(max-width: 480px)";
+const DEVICE_MOTION = "(prefers-reduced-motion: reduce)";
+const DEVICE_TRANSPARENCY = "(prefers-reduced-transparency: reduce)";
 
 /* what the sheet reads of window.BMGame (assets/game.js) */
 interface Prefs {
@@ -59,6 +61,13 @@ export function mountSettings(doc: Document = document): boolean {
   const dialog: HTMLDialogElement = sheet;
   const site = window.BMSite;
   const narrow = window.matchMedia ? window.matchMedia(NARROW) : null;
+  /* what the device asks for: Reduce motion and Reduce transparency are on whatever the
+     switch says while it does (and motion in Study mode too), so the switch shows on, and
+     cannot be turned off, as Sound does in Study mode */
+  const device = {
+    motion: window.matchMedia ? window.matchMedia(DEVICE_MOTION) : null,
+    transparency: window.matchMedia ? window.matchMedia(DEVICE_TRANSPARENCY) : null
+  };
 
   const inputs = () => Array.from(dialog.querySelectorAll<HTMLInputElement>("input[data-pref]"));
 
@@ -66,14 +75,19 @@ export function mountSettings(doc: Document = document): boolean {
   function sync() {
     const p = game!.prefs();
     const soundOn = p.sound && !p.calm;
+    const forced = {
+      motion: !!(device.motion && device.motion.matches) || p.calm,
+      transparency: !!(device.transparency && device.transparency.matches)
+    };
     for (const input of inputs()) {
       const name = input.dataset.pref || "";
       if (input.type === "checkbox") {
         input.checked = name === "map3d" ? game!.map3dOn(p)
           : name === "sound" ? soundOn
-          : name === "motion" || name === "transparency" ? p[name] === "reduce"
+          : name === "motion" || name === "transparency" ? p[name] === "reduce" || forced[name]
           : !!(p as unknown as Record<string, unknown>)[name];
-        input.disabled = (name === "sound" && p.calm) || (name === "map3d" && p.gfx === "low");
+        input.disabled = (name === "sound" && p.calm) || (name === "map3d" && p.gfx === "low") ||
+          ((name === "motion" || name === "transparency") && forced[name]);
         input.setAttribute("aria-checked", input.checked ? "true" : "false");
       } else if (input.type === "radio") {
         const value = name === "theme" ? (site && site.theme ? site.theme() : "system")
@@ -159,6 +173,8 @@ export function mountSettings(doc: Document = document): boolean {
     const changed = () => { if (dialog.open && dialog.matches(":modal") !== narrow.matches) close(false); };
     if (narrow.addEventListener) narrow.addEventListener("change", changed);
   }
+  /* the device's own setting changed: the switches follow it */
+  for (const q of [device.motion, device.transparency]) if (q && q.addEventListener) q.addEventListener("change", sync);
 
   /* a change passes on at once: the slider on every step, so the volume follows it */
   const pass = (input: HTMLInputElement) => {

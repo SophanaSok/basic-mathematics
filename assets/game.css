@@ -235,8 +235,9 @@ html[data-calm] .hud-sound { opacity: .5; cursor: not-allowed; }
   min-height: 40px; padding-top: .35rem; border-top: 1px solid var(--hud-line);
 }
 
-/* the shell writes copies of hearts and clock in both places; wide screens show the rail's */
-@media (min-width: 481px) { .hud-strip { display: none !important; } }
+/* the shell writes copies of hearts and clock in both places; wide screens show the rail's
+   (the collapse below moves them to the strip at the same width) */
+@media (min-width: 801px) { .hud-strip { display: none !important; } }
 
 /* the Arena keeps hearts and clock large; its rail is the accent, not a Part. Its top
    bar is the one with a second row (the shell writes it for the Arena alone), which is
@@ -246,29 +247,55 @@ html[data-calm] .hud-sound { opacity: .5; cursor: not-allowed; }
 .topbar:has(> .hud-strip) .hud > .hud-hearts[data-slot] { min-width: calc(3 * 1.3rem + 6px); min-height: 1.3rem; }
 .topbar:has(> .hud-strip) .hud-timer-text { font-size: 1.4rem; }
 
-/* collapse: the page links go into the sheet under 720px; sound and the account under
-   480px, and the hearts and the clock (a chapter shows its hearts in its encounter, the
-   Arena both in its second row); the XP words under 420px. The sheet holds every link. */
-@media (max-width: 720px) {
-  .topbar nav > a:not(.hud-level):not(.acct) { display: none; }
+/* Collapse, widest first, so the top bar is never wider than the window and the menu
+   button, the way to every setting and link, is always on screen. In this order: the
+   brand's name; the page links (the sheet holds every link); the hearts and the clock (a
+   chapter shows its hearts in its encounter, the Arena both in its second row); the
+   account chip (the sheet links to the account); Sound (the sheet has it); then the HUD's
+   own parts grow smaller. A bar with more in it goes sooner: the Arena's (hearts and a
+   clock), then a chapter's (a boss's hearts), then the rest. Each width is where that
+   kind's widest bar (a three-digit streak, a full combo with its shield, the account
+   chip) stops fitting, with room to spare; the slot widths above are fixed in rem, so
+   these hold whatever the HUD says. The `hud` suite of tools/check-browser.js sweeps
+   widths from 320 to 1280 on every kind of top bar and fails any that overflows. */
+@media (max-width: 1240px) { .topbar:has(> .hud-strip) .brand-name { display: none; } }
+@media (max-width: 1120px) { .topbar:has(.hud-hearts) .brand-name { display: none; } }
+@media (max-width: 1050px) {
+  .topbar .brand-name { display: none; }
+  .topbar:has(> .hud-strip) nav > a:not(.acct) { display: none; }
 }
-@media (max-width: 480px) {
-  .topbar nav > .hud-sound, .topbar nav > .acct { display: none; }
-  .hud-combo[data-pips="0"], .hud-combo[data-pips="1"] { display: none; }
-  html .hud > .hud-hearts, html:not([data-calm]) .hud > .hud-hearts[data-slot][hidden],
+@media (max-width: 940px) { .topbar:has(.hud-hearts) nav > a:not(.acct) { display: none; } }
+@media (max-width: 860px) { .topbar nav > a:not(.acct) { display: none; } }
+@media (max-width: 800px) {
+  html .topbar:has(> .hud-strip) .hud > .hud-hearts, html:not([data-calm]) .topbar:has(> .hud-strip) .hud > .hud-hearts[data-slot][hidden],
   html .hud > .hud-timer, html .hud > .hud-timer[data-slot][hidden] { display: none !important; }
+}
+@media (max-width: 690px) {
+  html .hud > .hud-hearts, html:not([data-calm]) .hud > .hud-hearts[data-slot][hidden] { display: none !important; }
+}
+@media (max-width: 615px) { .topbar nav > .acct { display: none; } }
+@media (max-width: 520px) { .topbar nav > .hud-sound { display: none; } }
+@media (max-width: 480px) {
+  .hud-combo[data-pips="0"], .hud-combo[data-pips="1"] { display: none; }
   .hud { gap: .35rem; }
   .hud-level .hud-xp { width: 5rem; }
 }
-@media (max-width: 420px) {
+@media (max-width: 440px) {
   .hud-xptext { display: none; }
   .hud-level .hud-xp { gap: 0; width: 4rem; }
 }
-@media (max-width: 360px) {
+@media (max-width: 420px) {
   .topbar { padding-inline: 12px; }
+  .hud { gap: .25rem; }
+  .hud-level { padding-right: .3rem; }
   .hud-level .hud-xp { width: 3rem; }
   .hud-combo { gap: 4px; padding: 0 .35rem; }
   .hud-combo i { width: 7px; height: 7px; }
+}
+/* the narrowest: the level's badge alone (its label still says the XP) */
+@media (max-width: 359px) {
+  .hud-level .hud-xp { display: none; }
+  .hud-level { gap: 0; padding-right: .3rem; }
 }
 /* ------------------------------------------------- region banner meta ---- */
 /* game.js fills the row; its height is reserved so the page does not shift. */

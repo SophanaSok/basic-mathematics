@@ -9,7 +9,9 @@
      - the recall boxes and run XP of recordRun
      - play settings and game records keep what a later version of the site added to them;
        the settings sheet's volume, Reduce motion and transparency (stamped on <html>) and
-       graphics quality, and a setting that holds for the visit when storage is blocked
+       graphics quality, and a setting that holds for the visit when storage is blocked;
+       the boot script (src/boot.js) stamps <html> from the stored settings as the game
+       does, a damaged value included
    Usage: node tools/game/rules.test.js */
 "use strict";
 const fs = require("fs");
@@ -456,6 +458,26 @@ function world(seedStores) {
   w.Game.setPref("panel", "anything");
   eq([w.read("bm.prefs.v1").panel, w.win.document.documentElement.getAttribute("data-panel")], ["light", "light"], "any other value is the light panel");
   eq(w.events.filter((e) => e.type === "state").length, 0, "the panel is this device's: no state change for account sync");
+
+  /* The boot script stamps <html> before first paint and the game stamps it again when it
+     loads; the HUD script reads html[data-calm] in between. They must read every stored
+     value the same way, a damaged one too, or the HUD changes when the bundle arrives. */
+  const boot = fs.readFileSync(path.join(ROOT, shell.BOOT), "utf8");
+  const stamps = (attrs) => ["data-calm", "data-sound", "data-motion", "data-transparency", "data-panel"].map((n) => n + "=" + (n in attrs ? attrs[n] : "-")).join(" ");
+  [
+    { calm: true }, { calm: "yes" }, { calm: 1 }, { calm: "true" }, { calm: false },
+    { sound: true }, { sound: 1 }, { sound: "on" }, { sound: true, calm: true }, { sound: true, calm: 1 },
+    { motion: "reduce" }, { motion: true }, { transparency: "reduce" }, { transparency: 1 }, { panel: "dark" }, { panel: "sepia" }, {}
+  ].forEach((stored) => {
+    const root = { attrs: {}, setAttribute(n, v) { this.attrs[n] = String(v); }, removeAttribute(n) { delete this.attrs[n]; }, getAttribute(n) { return n in this.attrs ? this.attrs[n] : null; } };
+    const mem = { "bm.prefs.v1": JSON.stringify(stored) };
+    const page = { document: { documentElement: root }, localStorage: { getItem: (k) => (k in mem ? mem[k] : null) }, matchMedia: () => ({ matches: false }), JSON };
+    page.window = page;
+    vm.runInNewContext(boot, page, { filename: shell.BOOT });
+    const g = world({ "bm.prefs.v1": stored });
+    g.Game.setPref("tempo", g.Game.prefs().tempo);
+    eq(stamps(root.attrs), stamps(g.win.document.documentElement.attrs), "the boot script stamps <html> as the game does for a stored " + JSON.stringify(stored));
+  });
 
   /* the game record: an Arena run rewrites a section and a best, and keeps what it does not know */
   w = world({ "bm.game.v1": {

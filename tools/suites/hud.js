@@ -6,14 +6,19 @@
        every box of the HUD (the bar, the group, each slot, the account chip, the sound and
        menu buttons) and what it says are the same before the bundle runs (readyState
        "interactive"), at DOMContentLoaded and after load, fonts and all;
+     - the collapse: every kind of top bar with the widest HUD, from 320 to 1280 wide, is
+       never wider than the window and keeps the menu button on screen at its right end;
      - the sheet opens and closes by mouse and by keyboard, beside the rail and not modal
        at 1280, as a modal sheet at 360 that keeps the focus inside it; Escape, the close
        button and the scrim close it and hand the focus back to the menu button;
      - each setting is kept across a reload and does what it says: Study mode takes the
        hearts and the combo away, Sound and the volume reach the sound's gain, Reduce motion
-       stops every animation, Reduce transparency makes the glass and the scrim solid, the
+       stops every animation and smooth scrolling, Reduce transparency makes the glass and
+       the scrim solid (and either switch shows on, fixed, while the device or Study mode
+       already has it on), the
        reading panel, the theme, Graphics quality Low keeps the course map a list, the 3D
        map switch;
+     - each switch is named by its words and described by its line;
      - axe-core finds nothing on the open sheet, each theme and width (a failure here);
      - a chapter cached from before the HUD script (the script taken out) still runs and
        still earns XP: the bundle installs window.BMHud itself.
@@ -39,6 +44,21 @@ const READER = {
   "bm.attempts.v1": { ch05: { e1: { tries: 1, section: "angles" } } },
   "bm.lesson.v1": { mode: "page" }
 };
+
+/* the widest HUD a reader can have: a 120-day streak, level 30-odd, a full combo with its
+   shield, and ch05's boss fight under way, so the chapter's hearts are in the rail */
+const LONG = {
+  "bm.activity.v1": { days: Object.fromEntries(Array.from({ length: 120 }, (_, i) => [daysAgo(i), 60])) },
+  "bm.run.v1": { combo: { pips: 5, shield: true }, seen: { level: 30, ach: 1 } },
+  "bm.attempts.v1": { ch05: { e1: { tries: 1, section: "angles" } } },
+  "bm.lesson.v1": { mode: "page" }
+};
+/* every kind of top bar (the usual links, the contents page's one, the about page's two,
+   a chapter's hearts, the Arena's hearts and clock), and the widths the sweep sets: the
+   phones, the tablets, the small laptops and either side of every step of the collapse */
+const BARS = ["index.html", "parts/2-geometry/05-distance-and-angles.html", "arena.html", "progress.html", "about.html"];
+const SWEEP = [320, 359, 360, 375, 390, 414, 420, 421, 440, 441, 480, 481, 520, 521, 600, 615, 616, 690, 691, 720, 768, 800, 801,
+  834, 860, 861, 900, 940, 941, 1024, 1050, 1051, 1100, 1120, 1121, 1180, 1240, 1241, 1280];
 
 /* every box of the HUD, and what it says; run in the page at three moments */
 const MEASURE = function () {
@@ -75,14 +95,14 @@ const ALPHA = (s) => {
 module.exports = {
   name: "hud",
   order: 46,
-  description: "the HUD and the settings sheet: no layout shift when the bundle loads (4 page kinds), the sheet by mouse and keyboard, modal focus trap, each setting kept and taking effect, axe on the open sheet",
+  description: "the HUD and the settings sheet: no layout shift when the bundle loads (4 page kinds), the top bar fits from 320 to 1280 wide (5 kinds), the sheet by mouse and keyboard, modal focus trap, each setting kept and taking effect, axe on the open sheet",
   async run(ctx) {
     const { h, report, server } = ctx;
 
     /* a page in a context of its own, its storage seeded once and then loaded again */
     async function fresh(rel, seed, o) {
       o = o || {};
-      const context = await h.newContext({ viewport: VIEWPORTS[o.vw || 1280], colorScheme: o.theme || "light", reducedMotion: "no-preference", deviceScaleFactor: 1, serviceWorkers: "block" });
+      const context = await h.newContext({ viewport: VIEWPORTS[o.vw || 1280], colorScheme: o.theme || "light", reducedMotion: o.reducedMotion || "no-preference", deviceScaleFactor: 1, serviceWorkers: "block" });
       if (o.init) await context.addInitScript(o.init);
       const page = await context.newPage();
       page.setDefaultTimeout(15000);
@@ -129,6 +149,43 @@ module.exports = {
           await done(label, problems, errors, close, pass);
         }
       }
+    }
+
+    /* ------------------------------------------ every width: it fits ---- */
+    /* The collapse (game.css): at every width of SWEEP, with the widest HUD, the top bar
+       is no wider than the window, nothing in it spills past its own edge, and the menu
+       button, the way to every setting and link, is on screen, takes a click at its
+       middle and sits at the right end of the bar (not mid-bar when the links are gone).
+       One page per kind of top bar, resized, not reloaded: the media queries are all that
+       changes. */
+    for (const rel of BARS.filter(p => ctx.pages.includes(p))) {
+      const label = rel + " [320 to 1280, " + SWEEP.length + " widths] the top bar fits, and the menu button is on screen at its right end";
+      const { page, errors, close } = await fresh(rel, LONG);
+      const problems = [];
+      try {
+        for (const vw of SWEEP) {
+          await page.setViewportSize({ width: vw, height: 740 });
+          const m = await page.evaluate(() => {
+            const bar = document.querySelector(".topbar"), nav = bar.querySelector("nav"), menu = bar.querySelector(".hud-menu");
+            const n = nav.getBoundingClientRect(), r = menu.getBoundingClientRect();
+            const shown = Array.from(nav.children).filter(c => c.getClientRects().length).map(c => c.getBoundingClientRect());
+            const hit = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+            return {
+              scrollWidth: document.documentElement.scrollWidth, innerWidth: window.innerWidth,
+              menu: [r.left, r.right].map(Math.round), navRight: Math.round(n.right),
+              spill: Math.round(Math.max(n.left - Math.min(...shown.map(b => b.left)), Math.max(...shown.map(b => b.right)) - n.right)),
+              hit: !!hit && menu.contains(hit)
+            };
+          });
+          const what = [];
+          if (m.scrollWidth > m.innerWidth) what.push("the page is " + m.scrollWidth + "px wide");
+          if (m.menu[0] < 0 || m.menu[1] > m.innerWidth || !m.hit) what.push("the menu button at " + m.menu.join("-") + " is not on screen to click" + (m.hit ? "" : " (a click there lands elsewhere)"));
+          if (m.spill > 0) what.push("the bar's items spill " + m.spill + "px past its edge");
+          if (Math.abs(m.menu[1] - m.navRight) > 1) what.push("the menu button ends at " + m.menu[1] + ", not at the bar's right end " + m.navRight);
+          if (what.length) problems.push(vw + "px: " + what.join("; "));
+        }
+      } catch (e) { problems.push("driver error: " + (e && e.message || e)); }
+      await done(label, problems, errors, close, "no overflow at any width, the menu button on screen and at the right end");
     }
 
     /* ------------------------------------------- the sheet: mouse, keys -- */
@@ -270,10 +327,14 @@ module.exports = {
         await answerOne(page, 0);
         const moving = await running(page);
         if (!moving.length) problems.push("a right answer started no animation before Reduce motion, so this proves nothing");
+        const scrollBefore = await page.evaluate(() => getComputedStyle(document.documentElement).scrollBehavior);
+        if (scrollBefore !== "smooth") problems.push("the page did not scroll smoothly before Reduce motion (" + scrollBefore + "), so this proves nothing");
         await set(page, '[data-pref="motion"]');
         await reload(page);
         await page.waitForTimeout(400);
         const stamp = await page.evaluate(() => [document.documentElement.getAttribute("data-motion"), window.BMFx.still()]);
+        const scrollAfter = await page.evaluate(() => getComputedStyle(document.documentElement).scrollBehavior);
+        if (scrollAfter !== "auto") problems.push("with Reduce motion the page still scrolls smoothly to an anchor: html's scroll-behavior is " + scrollAfter);
         const key = await answerOne(page, 0);
         const still = await running(page);
         if (stamp.join() !== "reduce,true") problems.push("after a reload html[data-motion] is " + JSON.stringify(stamp[0]) + " and BMFx.still() " + stamp[1]);
@@ -312,6 +373,60 @@ module.exports = {
       const problems = [];
       try { await fn(page, problems); } catch (e) { problems.push("driver error: " + (e && e.message || e)); }
       await done(label, problems, errors, close);
+    }
+
+    /* Each switch is named by its words alone and described by its line, so a screen
+       reader says "Study mode, switch, off" and then the line, not the line as the name */
+    {
+      const { page, errors, close } = await fresh(CHAPTER, READER);
+      const problems = [];
+      try {
+        await page.click(".hud-menu");
+        const want = { calm: "Study mode", sound: "Sound", motion: "Reduce motion", transparency: "Reduce transparency", map3d: "3D course map" };
+        for (const [pref, name] of Object.entries(want)) {
+          const n = await page.getByRole("switch", { name, exact: true }).count();
+          const d = await page.evaluate((pref) => {
+            const el = document.querySelector('#hud-sheet input[data-pref="' + pref + '"]');
+            return (el.getAttribute("aria-describedby") || "").split(/\s+/).map(id => { const t = document.getElementById(id); return t ? t.textContent : "(no #" + id + ")"; }).join(" ");
+          }, pref);
+          const small = await page.evaluate((pref) => document.querySelector('#hud-sheet input[data-pref="' + pref + '"]').closest("label").querySelector("small").textContent, pref);
+          if (n !== 1) problems.push("no one switch is named exactly " + JSON.stringify(name) + " (" + n + ")");
+          if (d !== small) problems.push("the " + name + " switch is described by " + JSON.stringify(d) + ", not its line " + JSON.stringify(small));
+        }
+        const snap = await page.locator("#hud-sheet").ariaSnapshot();
+        if (/switch "[^"]*\.[^"]*"/.test(snap)) problems.push("a switch's name still holds its whole line: " + snap.split("\n").filter(l => /switch "/.test(l)).join(" | "));
+      } catch (e) { problems.push("driver error: " + (e && e.message || e)); }
+      await done(CHAPTER + " [the sheet's switches] named by their words, described by their line", problems, errors, close);
+    }
+
+    /* What the device asks for, and Study mode, are in effect whatever the switch says, so
+       the switch says so: Reduce motion and Reduce transparency show on and cannot be
+       turned off, as Sound in Study mode */
+    for (const [what, o, seed, motion, transparency] of [
+      ["the device asks for less motion", { reducedMotion: "reduce" }, READER, true, false],
+      ["Study mode", {}, Object.assign({}, READER, { "bm.prefs.v1": { calm: true } }), true, false],
+      ["the device asks for less transparency", { transparency: true }, READER, false, true],
+      ["nothing asks", {}, READER, false, false]
+    ]) {
+      const label = CHAPTER + " [" + what + "] the Reduce motion and Reduce transparency switches say what is in effect";
+      const { context, page, errors, close } = await fresh(CHAPTER, seed, o);
+      const problems = [];
+      try {
+        /* Playwright has no option for this media feature; Chromium's own emulation does
+           it, for the page's CSS and its matchMedia alike */
+        if (o.transparency) {
+          const cdp = await context.newCDPSession(page);
+          await cdp.send("Emulation.setEmulatedMedia", { features: [{ name: "prefers-reduced-transparency", value: "reduce" }] });
+          await reload(page);
+          if (!(await page.evaluate(() => matchMedia("(prefers-reduced-transparency: reduce)").matches))) problems.push("the emulation of prefers-reduced-transparency did not take, so this proves nothing");
+        }
+        await page.click(".hud-menu");
+        const got = await page.evaluate(() => ["motion", "transparency"].map(p => { const el = document.querySelector('#hud-sheet input[data-pref="' + p + '"]'); return { checked: el.checked, aria: el.getAttribute("aria-checked"), disabled: el.disabled }; }).concat([window.BMFx.still()]));
+        const want = (on) => ({ checked: on, aria: String(on), disabled: on });
+        if (JSON.stringify(got.slice(0, 2)) !== JSON.stringify([want(motion), want(transparency)])) problems.push("Reduce motion, Reduce transparency: " + JSON.stringify(got.slice(0, 2)) + ", not " + JSON.stringify([want(motion), want(transparency)]));
+        if (got[2] !== motion) problems.push("BMFx.still() is " + got[2] + " where motion is " + (motion ? "" : "not ") + "reduced");
+      } catch (e) { problems.push("driver error: " + (e && e.message || e)); }
+      await done(label, problems, errors, close, (motion || transparency ? "on and fixed" : "off and free") + ", as is in effect");
     }
 
     /* at 360 the modal sheet's scrim goes solid too */
