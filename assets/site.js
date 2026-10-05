@@ -146,7 +146,13 @@
   /* How each exercise went, not just whether it was solved. One record per exercise:
        tries   wrong + right checks made before it was first solved
        first   1 if solved on the first check without opening the solution
-       hints   highest hint level shown (0, 1, 2)
+       hints   the hint level the misses reached (0, 1, 2): 1 after a first miss on an
+               exercise with a hint, 2 after a second miss on one with a second hint.
+               Until the clue ladder it was the hint shown automatically; it is still
+               written exactly so, because struggle() below, the Second wind achievement
+               and the server's hint_level read it. What was opened is `rung`
+       rung    the highest clue opened while unsolved (1, 2, 3; the help ladder,
+               src/ui/ladder.ts); never written once the exercise is solved
        opened  1 if the solution was opened before solving
        skipped 1 if an inline check was passed over in lesson mode
        solved  time of the first correct answer
@@ -194,29 +200,20 @@
       if (!p.days || typeof p.days !== "object") p.days = {};
       return p;
     },
-    goal: function () {
-      var g = parseInt(this.all().goal, 10);
-      return g > 0 ? g : DEFAULT_GOAL;
-    },
+    /* the goal, today's XP, the total and the streak are read the way the HUD reads them
+       before first paint (window.BMHud, src/hud/view.js, put on every page by the HUD
+       script after the top bar), so the header and the pages agree */
+    goal: function () { return window.BMHud.goalOf(this.all()); },
     setGoal: function (n) {
       var all = this.all();
       all.goal = Math.max(5, Math.min(500, parseInt(n, 10) || DEFAULT_GOAL));
       writeStore(ACTIVITY_KEY, all);
     },
-    today: function () { return this.all().days[dayKey()] || 0; },
-    total: function () {
-      var days = this.all().days, sum = 0;
-      Object.keys(days).forEach(function (k) { sum += days[k] || 0; });
-      return sum;
-    },
+    today: function () { return window.BMHud.todayXp(this.all(), new Date()); },
+    total: function () { return window.BMHud.totalXp(this.all()); },
     /* consecutive active days ending today — or yesterday, so a streak is not shown
        as broken before today's work has had a chance to happen */
-    streak: function () {
-      var days = this.all().days, d = new Date(), n = 0;
-      if (!days[dayKey(d)]) d.setDate(d.getDate() - 1);
-      while (days[dayKey(d)] > 0) { n++; d.setDate(d.getDate() - 1); }
-      return n;
-    },
+    streak: function () { return window.BMHud.streakOf(this.all(), new Date()); },
     /* `extra` carries the combo's share, { bonus, mult }, so the toast can show it */
     add: function (xp, why, extra) {
       if (!xp) return;
@@ -237,49 +234,42 @@
 
   /* -------------------------------------------------------------- theme -- */
 
+  /* The reader's theme: "light", "dark", or "system" (nothing saved: follow the
+     operating system). The settings sheet chooses it (src/ui/settings.ts, through
+     BMSite.setTheme). `chosen` holds a choice the store could not keep (blocked storage),
+     so it still holds for the visit. */
+  var chosen = null;
   function currentTheme() {
-    return readStore(THEME_KEY, null);
+    if (chosen) return chosen === "system" ? null : chosen;
+    var t = readStore(THEME_KEY, null);
+    return t === "light" || t === "dark" ? t : null;
   }
   /* data-theme is always set (boot.js did it before first paint): the saved choice,
      else whatever the operating system prefers */
   function applyTheme(mode) {
     var root = document.documentElement;
     if (mode !== "light" && mode !== "dark") mode = systemPrefersDark() ? "dark" : "light";
-    root.setAttribute("data-theme", mode);
+    if (root.getAttribute("data-theme") !== mode) root.setAttribute("data-theme", mode);
   }
   function systemPrefersDark() {
     return window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches;
   }
+  function themeChoice() { return currentTheme() || "system"; }
+  function setTheme(mode) {
+    if (mode !== "light" && mode !== "dark") mode = "system";
+    var ok = true;
+    if (mode === "system") { try { window.localStorage.removeItem(THEME_KEY); } catch (e) { ok = false; } }
+    else ok = writeStore(THEME_KEY, mode, true);
+    chosen = ok ? null : mode;
+    applyTheme(mode);
+    Store.emit({ type: "theme", theme: mode });
+  }
   function initTheme() {
     applyTheme(currentTheme());
-    var btns = document.querySelectorAll("[data-theme-toggle]");
-    /* read what is on screen, not the store: a blocked store never keeps the choice */
-    function effective() {
-      return document.documentElement.getAttribute("data-theme") === "dark" ? "dark" : "light";
-    }
-    function label() {
-      return effective() === "dark" ? "☀" : "☾";
-    }
-    Array.prototype.forEach.call(btns, function (btn) {
-      btn.textContent = label();
-      btn.setAttribute("title", "Switch between light and dark");
-      btn.setAttribute("aria-label", "Switch between light and dark");
-      btn.classList.add("theme-btn");
-      btn.addEventListener("click", function () {
-        var next = effective() === "dark" ? "light" : "dark";
-        writeStore(THEME_KEY, next);
-        applyTheme(next);
-        Array.prototype.forEach.call(btns, function (b) { b.textContent = label(); });
-      });
-    });
     /* follow the operating system until the reader picks a side */
     if (window.matchMedia) {
       var mq = window.matchMedia("(prefers-color-scheme: dark)");
-      var follow = function () {
-        if (currentTheme()) return;
-        applyTheme(null);
-        Array.prototype.forEach.call(btns, function (b) { b.textContent = label(); });
-      };
+      var follow = function () { if (!currentTheme()) applyTheme(null); };
       if (mq.addEventListener) mq.addEventListener("change", follow);
       else if (mq.addListener) mq.addListener(follow);
     }
@@ -301,6 +291,13 @@
         throwOnError: false,
         strict: false
       });
+      /* a formula gives the button, label, table header or heading it sits in no name
+         (src/ui/math-names.ts says why); this gives it one, and changes nothing visible */
+      if (window.BMMathNames) window.BMMathNames.name(root || document.body);
+      /* a display formula wider than the column scrolls, and a keyboard cannot scroll it
+         unless it takes focus (src/ui/scroll-regions.ts); this makes it a tab stop while
+         it is wider, and only then */
+      if (window.BMScrollRegions) window.BMScrollRegions.watch(root || document.body);
     } catch (e) {
       /* a CDN miss must not take the prose down */
     }
@@ -526,33 +523,14 @@
 
   /* ------------------------------------------------- header counters ----- */
 
-  var FLAME = '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8.2 1c.3 2.4 3.6 4 3.6 7.6A3.8 3.8 0 0 1 8 12.5a3.8 3.8 0 0 1-3.8-3.9c0-1.4.6-2.5 1.5-3.3.1 1 .6 1.7 1.3 1.9C6.7 5.1 7.1 2.9 8.2 1z"/></svg>';
-
-  /* The game layer (assets/game.js) draws the full HUD: level, streak, combo, hearts.
-     Without it, a plain counter: streak and today's XP against the daily goal, linking
-     to the progress page. */
+  /* The HUD is in the top bar from the start (tools/lib/shell.js) and was filled before
+     first paint; the game layer (assets/game.js) keeps it up to date, hearts and all.
+     Without the game layer, the HUD script's own drawing does it from the stores. */
   function buildHud() {
     if (window.BMGame && typeof window.BMGame.hud === "function") {
       try { window.BMGame.hud(); return; } catch (e) { if (window.console) console.error("[BM] game HUD failed", e); }
     }
-    var nav = document.querySelector(".topbar nav");
-    if (!nav) return;
-    var hud = nav.querySelector(".hud");
-    if (!hud) {
-      hud = document.createElement("a");
-      hud.className = "hud";
-      hud.href = rootPrefix() + "progress.html";
-      nav.insertBefore(hud, nav.querySelector("[data-theme-toggle]"));
-    }
-    var streak = Activity.streak(), today = Activity.today(), goal = Activity.goal();
-    var pct = Math.min(100, Math.round((today / goal) * 100));
-    var words = "Your progress: " + streak + "-day streak, " + today + " of " + goal + " XP today";
-    hud.setAttribute("aria-label", words);
-    hud.setAttribute("title", words);
-    hud.innerHTML =
-      '<span class="hud-streak"' + (streak ? ' data-on="true"' : "") + ">" + FLAME + "<b>" + streak + "</b></span>" +
-      '<span class="hud-goal"><span class="goal-ring" style="--pct:' + pct + '"' + (pct >= 100 ? ' data-full="true"' : "") +
-      '></span><span class="hud-xp"><b>' + today + "</b> / " + goal + " XP</span></span>";
+    if (window.BMHud) window.BMHud.prefill(document, window);
   }
 
   function toast(html, cls) {
@@ -579,19 +557,6 @@
     }, 2600);
   }
   window.BMToast = toast;
-
-  /* the brand's words can then fold away on a narrow screen, leaving the glyph */
-  function decorateTopbar() {
-    var brand = document.querySelector(".topbar .brand");
-    if (!brand || brand.querySelector(".brand-name")) return;
-    slice(brand.childNodes).forEach(function (n) {
-      if (n.nodeType !== 3 || !n.nodeValue.trim()) return;
-      var span = document.createElement("span");
-      span.className = "brand-name";
-      span.textContent = n.nodeValue.trim();
-      brand.replaceChild(span, n);
-    });
-  }
 
   /* ------------------------------------------------- where it is going ---- */
 
@@ -851,11 +816,57 @@
     return order;
   }
 
+  /* A clue is never charged, and no help pays more than effort. A right first check pays the
+     first-time rate (and lights a combo pip, assets/game.js bonus) when no clue or only
+     the first was opened before it: clue 1 says where to look and gives nothing away.
+     After clue 2 or 3 it pays what a solve after a miss pays, and the combo neither
+     gains nor loses. The record's `first` keeps its meaning (right on the first check,
+     solution not open), since the struggle score and the achievements read it. */
+  var CLUE_FREE = 1;
+  function paysFirst(rec) {
+    var rung = Number(rec && rec.rung);
+    return !!(rec && rec.first && !rec.opened) && !(isFinite(rung) && rung > CLUE_FREE);
+  }
   function xpFor(rec, inline) {
     if (rec.opened) return inline ? XP.inlineOpened : XP.opened;
-    if (rec.first) return inline ? XP.inlineFirst : XP.first;
+    if (paysFirst(rec)) return inline ? XP.inlineFirst : XP.first;
     return inline ? XP.inline : XP.solved;
   }
+
+  /* How one exercise's record changes on the road to its first correct answer, as pure
+     functions of the record, so the rules can be held to on their own
+     (tools/game/rules.test.js runs every road through them). initExercises applies them
+     through Attempts.update, only while the exercise is unsolved. */
+  var Road = {
+    /* a check, right or wrong; `level` is the hint level the misses reached (`hints`) */
+    check: function (a, ok, level, inline, section) {
+      a.tries = (a.tries || 0) + 1;
+      if (section) a.section = section;
+      if (inline) a.inline = 1;
+      if (level > (a.hints || 0)) a.hints = level;
+      if (ok) {
+        a.solved = Date.now();
+        a.first = a.tries === 1 && !a.opened ? 1 : 0;
+        delete a.skipped;
+      }
+      return a;
+    },
+    /* the solution opened before solving */
+    reveal: function (a, inline, section) {
+      a.opened = 1;
+      if (section) a.section = section;
+      if (inline) a.inline = 1;
+      return a;
+    },
+    /* clue `rung` opened before solving: the highest is kept */
+    clue: function (a, rung, inline, section) {
+      var was = Number(a.rung);
+      if (!(isFinite(was) && was >= rung)) a.rung = rung;
+      if (section) a.section = section;
+      if (inline) a.inline = 1;
+      return a;
+    }
+  };
 
   function initExercises(chapter) {
     var exs = document.querySelectorAll(".ex");
@@ -902,6 +913,7 @@
       var answers = alternatives(ex.getAttribute("data-answer"));
       var hint = ex.getAttribute("data-hint") || "";
       var hint2 = ex.getAttribute("data-hint2") || "";
+      var hint3 = ex.getAttribute("data-hint3") || "";
       var tol = parseFloat(ex.getAttribute("data-tol") || "") || 0;
       var choices = ex.querySelector("ul.choices, ol.choices");
       var section = sectionOf(ex, inline);
@@ -1051,11 +1063,11 @@
 
       var showBtn = document.createElement("button");
       showBtn.type = "button";
-      showBtn.className = "btn ghost";
+      showBtn.className = "btn ghost ex-show";
       showBtn.textContent = "Show solution";
       if (solution) form.appendChild(showBtn);
 
-      /* the verdict, then the hint as the thing to read next */
+      /* the verdict, then (after a miss) a question about the answer and one offer */
       var feedback = document.createElement("div");
       feedback.className = "ex-feedback";
       feedback.setAttribute("role", "status");
@@ -1067,6 +1079,7 @@
       ex.insertBefore(feedback, solution || null);
       if (solution) ex.appendChild(solution);
 
+      /* wrong checks on this page view: what `hints` is written from, as it always was */
       var misses = 0;
 
       /* solved before now: progress saved before the attempt log existed has
@@ -1075,20 +1088,35 @@
         return !!Attempts.get(chapterId, key).solved || (!inline && !!Progress.chapter(chapterId).solved[key]);
       }
 
+      /* The help ladder (src/ui/ladder.ts, through window.BMLearn, which the chapter entry
+         imports before this file): "Show a clue" in the form, before Show solution, and
+         the clues it opens above the answer box. Without it (a page whose entry does not
+         import it) the card works as before, minus the clues. */
+      var Learn = window.BMLearn;
+      var ladder = Learn && typeof Learn.mount === "function" ? Learn.mount({
+        ex: ex, form: form, before: solution ? showBtn : null, hints: [hint, hint2, hint3],
+        saved: Attempts.get(chapterId, key).rung, id: "bm-clues-" + chapterId + "-" + key, name: labelText,
+        solved: function () { return solvedBefore() || ex.getAttribute("data-state") === "correct"; },
+        /* the highest clue opened while unsolved, in the attempt record (never once solved) */
+        persist: function (rung) {
+          if (solvedBefore() || ex.getAttribute("data-state") === "correct") return;
+          var rec = Attempts.update(chapterId, key, function (a) { Road.clue(a, rung, inline, section); });
+          Store.emit({ type: "ladder", chapter: chapterId, key: key, section: section, inline: inline, rung: rec.rung });
+        },
+        render: renderMath, hasSolution: !!solution
+      }) : null;
+
       function reveal() {
         if (!solution) return;
         solution.setAttribute("data-show", "true");
         showBtn.textContent = "Hide solution";
+        showBtn.removeAttribute("data-suggested");
         /* for a put-in-order question the solution is the order itself */
         if (orderList) orderItems.forEach(function (li) { orderList.appendChild(li); });
         /* opening the solution before solving is worth knowing about */
         var already = Attempts.get(chapterId, key), done = solvedBefore();
         if (ex.getAttribute("data-state") !== "correct" && !done) {
-          Attempts.update(chapterId, key, function (r) {
-            r.opened = 1;
-            if (section) r.section = section;
-            if (inline) r.inline = 1;
-          });
+          Attempts.update(chapterId, key, function (r) { Road.reveal(r, inline, section); });
         }
         Store.emit({
           type: "opened", chapter: chapterId, key: key, section: section, inline: inline,
@@ -1111,12 +1139,6 @@
       function verdict(kind, html) {
         return '<p class="ex-verdict ' + kind + '" data-kind="' + kind + '">' + html + "</p>";
       }
-      function hintBox(level, text, current) {
-        var of = hint2 ? 2 : 1;
-        return '<div class="ex-hint" data-level="' + level + '"' + (current ? "" : ' data-prev="true"') + ">" +
-          '<span class="ex-hint-label">' + (of > 1 ? "Hint " + level + " of " + of : "Hint") + "</span>" +
-          '<p class="ex-hint-text hint">' + text + "</p></div>";
-      }
       /* how the first correct answer came: first try, after misses, or with the solution open */
       function resultOf(rec) {
         if (!rec || !rec.solved) return "";
@@ -1125,7 +1147,6 @@
 
       function markCorrect(fromStorage) {
         ex.setAttribute("data-state", "correct");
-        ex.removeAttribute("data-hint-level");
         var result = resultOf(Attempts.get(chapterId, key));
         if (result) ex.setAttribute("data-result", result);
         else ex.removeAttribute("data-result");
@@ -1189,31 +1210,42 @@
         return answers.some(function (a) { return matches(given, a, cmp, tol); });
       }
 
+      /* A question about a wrong answer (src/learn/detectors.ts), graded by this card's own
+         key, type and tolerance; null when no slip it knows explains the answer. Typed
+         answers and blanks are asked about, and a tick-every-option list that is missing
+         one; the rest (one option, an order, a figure) have no slip to name. */
+      function question(given) {
+        if (!Learn || typeof Learn.detect !== "function") return null;
+        var on = function (keys, cmp) {
+          return function (c) { return keys.some(function (a) { return matches(c, a, cmp, tol); }); };
+        };
+        if (kind === "text") return Learn.detect({ given: given, kind: "text", type: type, answers: answers, grade: on(answers, type) });
+        if (kind === "multi") return Learn.detect({ given: given, kind: "multi", type: "multi", answers: answers, grade: on(answers, "set") });
+        if (kind === "blank") {
+          for (var j = 0; j < blanks.length; j++) {
+            if (blanks[j].getAttribute("data-ok") !== "false") continue;
+            var keys = alternatives(blanks[j].getAttribute("data-answer")), bt = blanks[j].getAttribute("data-type");
+            var d = Learn.detect({ given: given[j], kind: "text", type: bt, answers: keys, grade: on(keys, bt) });
+            if (d) return d;
+          }
+        }
+        return null;
+      }
+
       function check() {
         var r = read();
         if (r.empty) {
-          /* the hints already on screen stay where they are under the nudge */
-          var kept = slice(feedback.querySelectorAll(".ex-hint")).map(function (h) { return h.outerHTML; }).join("");
-          say(verdict("nudge", r.empty) + kept);
+          /* the clues stay open above; the nudge replaces the last verdict */
+          say(verdict("nudge", r.empty));
           return;
         }
         var ok = judge(r.given);
-        /* hints follow misses, so a wrong re-check after a correct answer starts at the first */
+        /* `hints` follows misses, so a wrong re-check after a correct answer starts at the first */
         if (!ok) misses++;
         var level = ok ? 0 : misses === 1 && hint ? 1 : misses === 2 && hint2 ? 2 : 0;
         /* only the road to the first correct answer is recorded; re-solving changes nothing */
         if (!solvedBefore()) {
-          var rec = Attempts.update(chapterId, key, function (a) {
-            a.tries = (a.tries || 0) + 1;
-            if (section) a.section = section;
-            if (inline) a.inline = 1;
-            if (level > (a.hints || 0)) a.hints = level;
-            if (ok) {
-              a.solved = Date.now();
-              a.first = a.tries === 1 && !a.opened ? 1 : 0;
-              delete a.skipped;
-            }
-          });
+          var rec = Attempts.update(chapterId, key, function (a) { Road.check(a, ok, level, inline, section); });
           Store.emit({
             type: "attempt", chapter: chapterId, key: key, section: section, inline: inline,
             correct: ok, tryNo: rec.tries, hintLevel: rec.hints || 0, solutionOpen: !!rec.opened
@@ -1233,26 +1265,25 @@
           }
         }
         if (ok) {
+          if (ladder) ladder.afterRight();
           markCorrect(false);
         } else {
           /* drop and re-set the state so the shake replays on every miss */
           ex.removeAttribute("data-state");
           void ex.offsetWidth;
           ex.setAttribute("data-state", "wrong");
-          ex.setAttribute("data-hint-level", String(level || 3));
           blanks.forEach(function (b) {
             if (b.getAttribute("data-ok") === "false") b.setAttribute("aria-invalid", "true");
             else b.removeAttribute("aria-invalid");
           });
-          var after = level === 1
-            ? hintBox(1, hint, true)
-            : level === 2
-              ? hintBox(1, hint, false) + hintBox(2, hint2, true)
-              /* the hints have run out: the ones already given stay, quieter */
-              : (hint && misses > 1 ? hintBox(1, hint, false) : "") +
-                (hint2 && misses > 2 ? hintBox(2, hint2, false) : "") +
-                '<p class="ex-next hint">Not yet. Work it through once more' + (solution ? ", or open the solution." : ".") + "</p>";
-          if (!level && solution) showBtn.setAttribute("data-suggested", "true");
+          /* The verdict at once; then a question, when the answer looks like a known slip;
+             then one line saying what help is there. No clue opens by itself: the next
+             one is the learner's to ask for, with the button above. */
+          var after = ladder
+            ? ladder.afterWrong(r.given, question(r.given))
+            : '<p class="ex-next hint">Not yet. Work it through once more' + (solution ? ", or open the solution." : ".") + "</p>";
+          /* every clue open (or none to open): the solution button is the suggestion */
+          if (solution && !(ladder && Learn.ladder.canOpen(ladder.state))) showBtn.setAttribute("data-suggested", "true");
           say(verdict("no", "✗ Not right.") + after);
           renderMath(feedback);
         }
@@ -1305,7 +1336,8 @@
     if (recap && recap.parentNode) recap.parentNode.insertBefore(box, recap);
     else practice.parentNode.insertBefore(box, practice.nextSibling);
     if (fresh && box.scrollIntoView) {
-      var still = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      var still = (window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches) ||
+        document.documentElement.getAttribute("data-motion") === "reduce";
       try { box.scrollIntoView({ block: "center", behavior: still ? "auto" : "smooth" }); } catch (e) { box.scrollIntoView(); }
     }
   }
@@ -1399,7 +1431,6 @@
       var last = readStore(LAST_KEY, null);
       if (!last || last.id !== chapter.id) writeStore(LAST_KEY, { id: chapter.id, section: null });
     }
-    decorateTopbar();
     buildHud();
     buildSidebar(chapter);
     buildChapterNav(chapter);
@@ -1448,7 +1479,10 @@
   window.BMSite = {
     rootPrefix: rootPrefix, escapeHtml: escapeHtml, chapterName: chapterName, dayKey: dayKey,
     chapterOf: function () { return chapterOf(document.body); },
-    grade: grade, matches: matches, refresh: refresh, renderMath: renderMath, XP: XP, xpFor: xpFor
+    grade: grade, matches: matches, refresh: refresh, renderMath: renderMath, XP: XP, xpFor: xpFor,
+    paysFirst: paysFirst, road: Road,
+    /* the theme the reader chose, "light", "dark" or "system", and choosing it */
+    theme: themeChoice, setTheme: setTheme
   };
 
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", init);

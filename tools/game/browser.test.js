@@ -16,7 +16,22 @@
    4. calm mode hides hearts and combo
    5. no AudioContext is constructed while sound is off (and one is once it is on)
    6. no console errors on index, about, progress and four chapters in both themes
-   7. localStorage that throws on every access breaks nothing */
+   7. localStorage that throws on every access breaks nothing
+   8. the help ladder: "Show a clue" from the start, wrong answers open nothing, a clue
+      opens on a click with focus on it and is still open after a reload; a sign-flipped
+      answer gets a question; a card left alone after a miss changes its offer line once
+      (under Playwright's clock) and opens nothing; the solution opened on an untouched exercise costs no heart
+      and keeps the combo, and answering it then pays 3 and costs the two pips a miss would;
+      a right first answer after clue 2 pays 6 and moves no pip; the finale says how many
+      were solved with the solution open, beside the hearts kept; the keyboard path through
+      clue, check and solution
+   9. the next best step (src/ui/next.ts): the right first item for three states (a section
+      due, a weak one, only a place to continue), outside <main>'s children, hidden for the
+      day by its button (device-only, still hidden after a reload, back the next day), and
+      kept in Study mode without the game's colour
+   and the settings sheet: a modal sheet at 360 that keeps the focus and gives it back on
+   Escape, beside the rail at 1280, the theme chosen in it even with storage blocked (the
+   `hud` suite of check-browser.js covers every setting and the HUD's layout) */
 "use strict";
 const site = require("../lib/site");
 const target = require("../lib/target");
@@ -120,7 +135,7 @@ const state = (page) => page.evaluate(() => {
 async function run() {
   server = await target.start(site.parseArgs(process.argv.slice(2)));
   console.log("browser: " + server.where);
-  const browser = await chromium.launch();
+  const browser = await chromium.launch({ env: require("../lib/gl").env(chromium) });   /* off the machine's GPU: lib/gl.js */
   try {
     /* -------------------------------------------- 1–3: ch05, whole page */
     {
@@ -230,6 +245,14 @@ async function run() {
         taunt: document.querySelector("#practice .encounter-taunt").hidden, ac: window.__ac
       }));
       eq([calm.combo, calm.hearts, calm.setHearts, calm.sigil, calm.taunt, calm.ac], [true, true, null, true, true, 0], "calm hides combo, hearts, sigil and taunt; no audio");
+      /* the help ladder is learning, not game: all of it stays */
+      const e2 = '#practice .ex[data-key="e2"]';
+      check(!!(await page.$(e2 + " .ex-feedback .ex-offer")), "calm: a miss still offers help");
+      await page.click(e2 + " .ex-clue-btn");
+      check(await page.evaluate((s) => document.activeElement === document.querySelector(s + " .ex-clue[data-level='1']"), e2), "calm: the clue button opens clue 1 and focus moves to it");
+      await page.fill(e2 + " .ex-form input[type=text]", "-" + (await page.$eval(e2, (e) => e.getAttribute("data-answer").split("|")[0])));
+      await page.press(e2 + " .ex-form input[type=text]", "Enter");
+      check(!!(await page.$(e2 + " .ex-feedback .ex-ask")), "calm: a sign-flipped answer still gets its question");
       eq(errors, [], "no errors in calm mode");
       await context.close();
     }
@@ -246,11 +269,11 @@ async function run() {
       eq(await page.evaluate(() => [window.BMGame.prefs().sound, document.documentElement.getAttribute("data-sound"), document.querySelector(".hud-sound").getAttribute("aria-pressed")]), [true, "on", "true"], "the sound button turns sound on");
       eq(await page.evaluate(() => window.__ac), 1, "the AudioContext is made on that gesture, once");
       await page.click(".hud-menu");
-      check(await page.$eval("#hud-sheet", (s) => !s.hidden) && await page.$eval(".hud-menu", (b) => b.getAttribute("aria-expanded")) === "true", "menu opens the sheet");
+      check(await page.$eval("#hud-sheet", (s) => s.open) && await page.$eval(".hud-menu", (b) => b.getAttribute("aria-expanded")) === "true", "menu opens the sheet");
       await page.click('#hud-sheet [data-pref="sound"]');
       eq(await page.evaluate(() => window.BMGame.prefs().sound), false, "the sheet switch turns it off again");
       await page.keyboard.press("Escape");
-      check(await page.$eval("#hud-sheet", (s) => s.hidden), "Escape closes the sheet");
+      check(await page.$eval("#hud-sheet", (s) => !s.open), "Escape closes the sheet");
       eq(errors, [], "no errors around sound");
       await context.close();
     }
@@ -338,17 +361,18 @@ async function run() {
       eq([s0.medal, s0.hearts, s0.pips], [3, 3, 4], "older progress with no attempt log loads as Gold with the combo intact");
       await answer(page, '#practice .ex[data-key="e1"]', false);
       await answer(page, '#practice .ex[data-key="e2"]', false);
-      await page.click('#practice .ex[data-key="e2"] .ex-form .btn.ghost');
+      await page.click('#practice .ex[data-key="e2"] .ex-form .ex-show');
+      await page.click('#practice .ex[data-key="e3"] .ex-form .ex-clue-btn');
       await answer(page, '#practice .ex[data-key="e3"]', true);
       await wait(700);
       const s1 = await state(page);
-      eq([s1.medal, s1.hearts, s1.pips, s1.xp], [3, 3, 4, s0.xp], "wrong re-checks, Show solution and a re-solve on solved work cost nothing and earn nothing");
-      eq(await page.evaluate(() => (JSON.parse(localStorage.getItem("bm.attempts.v1") || "{}")).ch05 || {}), {}, "no attempt is recorded for already-solved work");
+      eq([s1.medal, s1.hearts, s1.pips, s1.xp], [3, 3, 4, s0.xp], "wrong re-checks, Show solution, a clue and a re-solve on solved work cost nothing and earn nothing");
+      eq(await page.evaluate(() => (JSON.parse(localStorage.getItem("bm.attempts.v1") || "{}")).ch05 || {}), {}, "no attempt and no rung is recorded for already-solved work");
       eq(errors, [], "no errors re-checking older progress");
       await context.close();
     }
 
-    /* --------------------------- hints already given stay once they run out */
+    /* ------------- the help ladder: clues on demand, never shown by a wrong answer */
     {
       const { context, page, errors } = await open(browser, CH05, { "bm.lesson.v1": '{"mode":"page"}' });
       const keys = await page.evaluate(() => {
@@ -359,30 +383,195 @@ async function run() {
           })[0];
           return ex && ex.getAttribute("data-key");
         };
-        return { one: pick(".ex[data-hint]:not([data-hint2])"), two: pick(".ex[data-hint][data-hint2]") };
+        return { one: pick(".ex[data-hint]:not([data-hint2])"), two: pick("#practice .ex[data-hint][data-hint2]") };
       });
-      const boxes = (k) => page.$eval('.ex[data-key="' + k + '"]', (ex) => ({
-        level: ex.getAttribute("data-hint-level"),
-        hints: Array.prototype.map.call(ex.querySelectorAll(".ex-feedback .ex-hint"), function (h) { return h.getAttribute("data-level") + (h.hasAttribute("data-prev") ? "p" : ""); }).join(","),
-        next: !!ex.querySelector(".ex-feedback .ex-next")
-      }));
-      check(keys.one && keys.two, "ch05 has a one-hint and a two-hint typed exercise (" + JSON.stringify(keys) + ")");
+      const ladder = (k) => page.$eval('.ex[data-key="' + k + '"]', (ex) => {
+        var btn = ex.querySelector(".ex-form .ex-clue-btn");
+        return {
+          button: btn && !btn.hidden ? btn.textContent.replace(/\s+/g, " ").trim() : null,
+          clues: Array.prototype.map.call(ex.querySelectorAll(".ex-ladder .ex-clue"), function (h) { return h.getAttribute("data-level") + (h.hasAttribute("data-prev") ? "p" : ""); }).join(","),
+          inFeedback: ex.querySelectorAll(".ex-feedback .ex-hint").length,
+          offer: (function () { var o = ex.querySelector(".ex-feedback .ex-offer"); return o ? o.getAttribute("data-offer") : null; })()
+        };
+      });
+      check(keys.one && keys.two, "ch05 has a one-clue and a two-clue typed exercise (" + JSON.stringify(keys) + ")");
+      eq(await ladder(keys.two), { button: "Show a clue (1 of 2)", clues: "", inFeedback: 0, offer: null }, "the clue button is there from the start, saying how many clues there are");
       for (let i = 0; i < 3; i++) await answer(page, '.ex[data-key="' + keys.one + '"]', false);
-      eq(await boxes(keys.one), { level: "3", hints: "1p", next: true }, "one hint: later misses keep it, quieter, above the nudge to the solution");
-      for (let i = 0; i < 3; i++) await answer(page, '.ex[data-key="' + keys.two + '"]', false);
-      eq(await boxes(keys.two), { level: "3", hints: "1p,2p", next: true }, "two hints: the third miss keeps both, quieter");
-      eq(errors, [], "no errors around hints");
+      const one = await ladder(keys.one);
+      eq([one.clues, one.inFeedback, one.offer], ["", 0, "clue"], "three wrong answers open no clue: the card offers one, in a line");
+      check(await page.$eval('.ex[data-key="' + keys.one + '"] .ex-feedback', (f) => !!f.querySelector(".ex-verdict.no") && f.querySelectorAll(".ex-offer").length === 1),
+        "the verdict and at most one offer line");
+
+      /* opens on a click, focus moves to it, and it stays open after a reload */
+      const sel2 = '.ex[data-key="' + keys.two + '"]';
+      await page.click(sel2 + " .ex-clue-btn");
+      eq(await ladder(keys.two), { button: "Next clue (2 of 2)", clues: "1", inFeedback: 0, offer: null }, "a click opens clue 1, and the button names clue 2");
+      check(await page.evaluate((s) => document.activeElement === document.querySelector(s + " .ex-clue[data-level='1']"), sel2), "focus moves to the clue just opened");
+      eq(await page.evaluate((k) => JSON.parse(localStorage.getItem("bm.attempts.v1")).ch05[k].rung, keys.two), 1, "the rung is saved in the attempt record");
+      await page.reload();
+      await page.waitForFunction(() => document.readyState === "complete");
+      eq(await ladder(keys.two), { button: "Next clue (2 of 2)", clues: "1", inFeedback: 0, offer: null }, "after a reload clue 1 is still open");
+      check(await page.evaluate((s) => !document.querySelector(s).contains(document.activeElement), sel2), "a restored clue does not take focus");
+      await page.click(sel2 + " .ex-clue-btn");
+      eq(await ladder(keys.two), { button: null, clues: "1p,2", inFeedback: 0, offer: null }, "clue 2 opens below clue 1, which goes quieter; with every clue open the button goes");
+      await answer(page, sel2, false);
+      eq((await ladder(keys.two)).offer, "solution", "with every clue open, a miss offers the solution");
+      check(await page.$eval(sel2 + " .ex-show", (b) => b.getAttribute("data-suggested") === "true"), "and the solution button is the suggestion");
+      eq(errors, [], "no errors around the ladder");
       await context.close();
     }
 
-    /* ------------------------------- theme toggle with storage that throws */
+    /* ------------------ a wrong answer that looks like a known slip gets a question */
+    {
+      const { context, page, errors } = await open(browser, CH05, { "bm.lesson.v1": '{"mode":"page"}' });
+      const k = await page.evaluate(() => {
+        var ex = Array.prototype.filter.call(document.querySelectorAll("#practice .ex[data-type='number']"), function (e) {
+          return /^[1-9]\d*$/.test(e.getAttribute("data-answer") || "");
+        })[0];
+        return ex && ex.getAttribute("data-key");
+      });
+      check(!!k, "ch05 has a whole-number practice exercise (" + k + ")");
+      const sel = '#practice .ex[data-key="' + k + '"]';
+      const key = await page.$eval(sel, (e) => e.getAttribute("data-answer"));
+      const fb = () => page.$eval(sel + " .ex-feedback", (f) => ({
+        verdict: !!f.querySelector(".ex-verdict.no"),
+        ask: (function () { var a = f.querySelector(".ex-ask"); return a ? a.getAttribute("data-detector") + ": " + a.textContent : null; })(),
+        order: Array.prototype.map.call(f.children, function (c) { return c.className.split(" ")[0]; }).join(",")
+      }));
+      await page.fill(sel + " .ex-form input[type=text]", "-" + key);
+      await page.press(sel + " .ex-form input[type=text]", "Enter");
+      eq(await fb(), { verdict: true, ask: "sign: Check the sign of your last step?", order: "ex-verdict,ex-ask,ex-next" }, "the sign flipped: the verdict, the question, then the offer");
+      await page.fill(sel + " .ex-form input[type=text]", "987654321");
+      await page.press(sel + " .ex-form input[type=text]", "Enter");
+      eq((await fb()).ask, null, "an answer no slip explains gets no question");
+      const text = await page.$eval(sel + " .ex-feedback", (f) => f.textContent);
+      check(text.indexOf(key) < 0, "the feedback never holds the answer");
+      eq(errors, [], "no errors around the questions");
+      await context.close();
+    }
+
+    /* ------- left alone after a miss: a quiet line in the card, nothing opened, no toast */
+    {
+      const { context, page, errors } = await open(browser, CH05, { "bm.lesson.v1": '{"mode":"page"}' });
+      await page.clock.install();
+      await page.reload();
+      await page.waitForLoadState("load");
+      const k = await page.evaluate(() => {
+        var ex = Array.prototype.filter.call(document.querySelectorAll("#practice .ex[data-hint]"), function (e) { return e.getAttribute("data-kind") === "text"; })[0];
+        return ex && ex.getAttribute("data-key");
+      });
+      const sel = '#practice .ex[data-key="' + k + '"]';
+      await page.fill(sel + " .ex-form input[type=text]", "987654321");
+      await page.press(sel + " .ex-form input[type=text]", "Enter");
+      const look = () => page.$eval(sel, (ex) => {
+        var o = ex.querySelector(".ex-feedback .ex-offer");
+        return {
+          offers: ex.querySelectorAll(".ex-feedback .ex-offer").length, signal: o && o.getAttribute("data-signal"),
+          clues: ex.querySelectorAll(".ex-clue").length, dialog: !!document.querySelector("dialog[open], [role=dialog]:not([hidden]), [role=alertdialog]"),
+          toast: Array.prototype.some.call(document.querySelectorAll(".toast"), function (t) { return /clue/i.test(t.textContent); })
+        };
+      });
+      eq(await look(), { offers: 1, signal: null, clues: 0, dialog: false, toast: false }, "after a miss: one plain offer line");
+      await page.clock.fastForward(60000);
+      eq((await look()).signal, null, "a minute later, still the plain line");
+      await page.clock.fastForward(31000);
+      eq(await look(), { offers: 1, signal: "idle", clues: 0, dialog: false, toast: false }, "left alone with focus in the card: the line changes, once, and nothing opens or pops up");
+      eq(errors, [], "no errors around the idle offer");
+      await context.close();
+    }
+
+    /* ---- opening the solution first costs no heart and keeps the combo; answering with it
+       open costs the pips a miss would, so it never out-earns one on the answers after it */
+    {
+      const { context, page, errors } = await open(browser, CH05, {
+        "bm.lesson.v1": '{"mode":"page"}', "bm.run.v1": JSON.stringify({ combo: { pips: 3, shield: false } })
+      });
+      await answer(page, '#practice .ex[data-key="e1"]', true);
+      await wait(600);
+      const s0 = await state(page);
+      await page.click('#practice .ex[data-key="e2"] .ex-form .ex-show');
+      await wait(700);
+      const s1 = await state(page);
+      eq([s1.hearts, s1.pips, s1.heartsLabel], [3, s0.pips, "3 of 3 hearts"], "opening the solution of an untouched exercise: no heart lost, the combo kept");
+      await answer(page, '#practice .ex[data-key="e2"]', true);
+      await wait(700);
+      const s2 = await state(page);
+      eq([s2.xp - s1.xp, s2.pips, s2.hearts], [3, s0.pips - 2, 3], "solving it with the solution open: 3 XP, the two pips a miss would cost, still three hearts");
+      /* a right first answer after clue 2: what a solve after a miss pays, and no pip either way */
+      const two = await page.evaluate(() => {
+        var ex = document.querySelector("#practice .ex[data-hint2]:not([data-state])");
+        return ex && ex.getAttribute("data-key");
+      });
+      await page.click('#practice .ex[data-key="' + two + '"] .ex-clue-btn');
+      await page.click('#practice .ex[data-key="' + two + '"] .ex-clue-btn');
+      await answer(page, '#practice .ex[data-key="' + two + '"]', true);
+      await wait(700);
+      const s3 = await state(page);
+      eq([s3.xp - s2.xp, s3.pips, s3.hearts], [6, s2.pips, 3], "right first time after clue 2: 6 XP, the combo unchanged");
+      /* the finale: three hearts kept, a Silver medal, and the line that says why */
+      for (let k = 1; k <= 10; k++) {
+        const sel = '#practice .ex[data-key="e' + k + '"]';
+        if (await page.$eval(sel, (e) => e.getAttribute("data-state") !== "correct")) await answer(page, sel, true);
+      }
+      await wait(1600);
+      const fin = await page.evaluate(() => {
+        var r = document.querySelector("#practice .encounter-result");
+        return r && { shown: !r.hidden, text: r.textContent.replace(/\s+/g, " "), medal: document.querySelector("#practice .encounter").getAttribute("data-medal") };
+      });
+      check(fin && fin.shown && fin.medal === "2" && /3 of 3\s*hearts kept/.test(fin.text) && /1 of 10\s*solved with the solution open/.test(fin.text),
+        "a Silver medal beside three hearts says it counted the solution opened first (" + (fin && fin.text.slice(0, 200)) + ")");
+      eq(errors, [], "no errors around free help");
+      await context.close();
+    }
+
+    /* -------------------------- the keyboard path: clue, check, next clue, solution */
+    {
+      const { context, page, errors } = await open(browser, CH05, { "bm.lesson.v1": '{"mode":"page"}' });
+      const k = await page.evaluate(() => {
+        var ex = Array.prototype.filter.call(document.querySelectorAll("#practice .ex[data-hint2]"), function (e) {
+          return e.getAttribute("data-kind") === "text";
+        })[0];
+        return ex && ex.getAttribute("data-key");
+      });
+      const sel = '#practice .ex[data-key="' + k + '"]';
+      const at = () => page.evaluate((s) => {
+        var a = document.activeElement, ex = document.querySelector(s);
+        if (!ex.contains(a)) return "outside";
+        if (a.matches(".ex-clue")) return "clue " + a.getAttribute("data-level");
+        if (a.matches("input")) return "input";
+        return a.textContent.replace(/\s+/g, " ").trim();
+      }, sel);
+      await page.focus(sel + " .ex-form .btn:not(.ghost)");
+      const path = [await at()];
+      await page.keyboard.press("Tab"); path.push(await at());
+      await page.keyboard.press("Enter"); path.push(await at());
+      await page.keyboard.press("Tab"); path.push(await at());
+      await page.keyboard.type("987654321");
+      await page.keyboard.press("Enter"); path.push(await at());
+      await page.keyboard.press("Tab"); path.push(await at());
+      await page.keyboard.press("Tab"); path.push(await at());
+      await page.keyboard.press("Space"); path.push(await at());
+      await page.keyboard.press("Tab"); path.push(await at());
+      await page.keyboard.press("Tab"); path.push(await at());
+      await page.keyboard.press("Tab"); path.push(await at());
+      await page.keyboard.press("Enter"); path.push(await at());
+      eq(path, ["Check", "Show a clue (1 of 2)", "clue 1", "input", "input", "Check", "Next clue (2 of 2)", "clue 2", "input", "Check", "Show solution", "Hide solution"],
+        "Tab reaches the clue button, Enter opens clue 1 and focus lands on it, Tab goes on to the answer, the next clue and the solution");
+      check(await page.$eval(sel + " .ex-solution", (s) => s.getAttribute("data-show") === "true"), "Enter on Show solution opens it");
+      eq(errors, [], "no errors on the keyboard path");
+      await context.close();
+    }
+
+    /* ------------------------------- the theme choice with storage that throws */
     {
       const { context, page, errors } = await open(browser, "index.html", {}, { blockStorage: true });
-      const theme = () => page.evaluate(() => [document.documentElement.getAttribute("data-theme"), document.querySelector("[data-theme-toggle]").textContent]);
+      const theme = () => page.evaluate(() => [document.documentElement.getAttribute("data-theme"),
+        document.querySelector('#hud-sheet input[data-pref="theme"]:checked').value]);
+      await page.click(".hud-menu");
       const seen = [await theme()];
-      for (let i = 0; i < 3; i++) { await page.click("[data-theme-toggle]"); seen.push(await theme()); }
-      eq(seen, [["light", "☾"], ["dark", "☀"], ["light", "☾"], ["dark", "☀"]], "the theme toggle switches both ways and its label follows, with storage blocked");
-      eq(errors, [], "no errors toggling the theme with storage blocked");
+      for (const v of ["dark", "light", "dark", "system"]) { await page.click('#hud-sheet input[data-pref="theme"][value="' + v + '"]'); seen.push(await theme()); }
+      eq(seen, [["light", "system"], ["dark", "dark"], ["light", "light"], ["dark", "dark"], ["light", "system"]], "the theme choice switches every way and the sheet shows it, with storage blocked");
+      eq(errors, [], "no errors choosing the theme with storage blocked");
       await context.close();
     }
 
@@ -417,23 +606,28 @@ async function run() {
         return { one: typed[0], other: typed[1] };
       });
       const boxes = (k) => page.$eval('.ex[data-key="' + k + '"]', (ex) => ({
-        hints: Array.prototype.map.call(ex.querySelectorAll(".ex-feedback .ex-hint"), function (h) { return h.getAttribute("data-level") + (h.hasAttribute("data-prev") ? "p" : ""); }).join(","),
+        clues: Array.prototype.map.call(ex.querySelectorAll(".ex-ladder .ex-clue"), function (h) { return h.getAttribute("data-level"); }).join(","),
         nudge: !!ex.querySelector(".ex-feedback .ex-verdict.nudge")
       }));
       const empty = (k) => page.$eval('.ex[data-key="' + k + '"]', (ex) => {
         ex.querySelector(".ex-form input:not([type=radio]):not([type=checkbox])").value = "";
         ex.querySelector(".ex-form .btn:not(.ghost)").click();
       });
+      const hints = (k) => page.evaluate((k) => (JSON.parse(localStorage.getItem("bm.attempts.v1") || "{}").ch05 || {})[k], k);
       check(keys.one && keys.other, "ch05 has two one-hint typed exercises (" + JSON.stringify(keys) + ")");
       await answer(page, '.ex[data-key="' + keys.one + '"]', false);
       await empty(keys.one);
-      eq(await boxes(keys.one), { hints: "1", nudge: true }, "an empty Check after the first miss keeps the current hint under the nudge");
-      await answer(page, '.ex[data-key="' + keys.one + '"]', false);
+      eq(await boxes(keys.one), { clues: "", nudge: true }, "an empty Check after a miss shows the nudge, and no clue");
+      await page.click('.ex[data-key="' + keys.one + '"] .ex-clue-btn');
       await empty(keys.one);
-      eq(await boxes(keys.one), { hints: "1p", nudge: true }, "an empty Check after two misses keeps the quieter hint");
+      eq(await boxes(keys.one), { clues: "1", nudge: true }, "an empty Check leaves an opened clue where it is");
+      /* `hints` is written as it always was, from the misses, whatever was opened */
+      const rec = await hints(keys.one);
+      eq([rec.tries, rec.hints, rec.rung], [1, 1, 1], "the record: one try, hints 1 as before the ladder, rung 1 for the clue opened");
       await answer(page, '.ex[data-key="' + keys.other + '"]', true);
       await answer(page, '.ex[data-key="' + keys.other + '"]', false);
-      eq(await boxes(keys.other), { hints: "1", nudge: false }, "a miss after a first-try answer shows the hint as new, not as one already given");
+      eq(await boxes(keys.other), { clues: "", nudge: false }, "a miss after a first-try answer opens nothing either");
+      eq((await hints(keys.other)).rung, undefined, "and no rung is written for it");
       eq(errors, [], "no errors around empty checks");
       await context.close();
     }
@@ -512,19 +706,30 @@ async function run() {
       await context.close();
     }
 
-    /* ------------------------- review fixes: the sheet carries theme and account */
+    /* ------------------------- the sheet carries theme and account, on a phone and wide */
     {
       const { context, page, errors } = await open(browser, "parts/1-algebra/01-numbers.html", { "bm.lesson.v1": '{"mode":"page"}', "bm.theme": '"light"' }, { width: 360 });
       await page.click(".hud-menu");
-      check(await page.$eval(".hud-sheet .hud-sheet-theme", (b) => !!b.offsetParent), "at 360px the sheet shows a theme button");
-      await page.click(".hud-sheet .hud-sheet-theme");
-      eq(await page.evaluate(() => [document.documentElement.getAttribute("data-theme"), document.getElementById("hud-sheet").hidden]), ["dark", false], "it switches the theme and the sheet stays open");
-      await page.focus('.hud-sheet [data-pref="map3d"]');
+      check(await page.$eval("#hud-sheet", (s) => s.open && s.matches(":modal")) && await page.$eval('#hud-sheet a[href$="account.html"]', (a) => !!a.offsetParent), "at 360px the sheet is modal and carries the account link");
+      await page.click('#hud-sheet input[data-pref="theme"][value="dark"]');
+      eq(await page.evaluate(() => [document.documentElement.getAttribute("data-theme"), document.getElementById("hud-sheet").open, JSON.parse(localStorage.getItem("bm.theme"))]), ["dark", true, "dark"], "its Dark choice switches the theme, keeps it, and the sheet stays open");
+      await page.focus('#hud-sheet [data-pref="map3d"]');
       await page.keyboard.press("Tab");
       await page.keyboard.press("Tab");
-      check(await page.evaluate(() => document.getElementById("hud-sheet").hidden || document.getElementById("hud-sheet").contains(document.activeElement)), "tabbing out of the sheet closes it");
-      eq(errors, [], "no errors around the sheet");
+      check(await page.evaluate(() => document.getElementById("hud-sheet").open && document.getElementById("hud-sheet").contains(document.activeElement)), "tabbing on from its last control stays inside the modal sheet");
+      await page.keyboard.press("Escape");
+      eq(await page.evaluate(() => [document.getElementById("hud-sheet").open, document.activeElement.classList.contains("hud-menu")]), [false, true], "Escape closes it and the focus is back on the menu button");
+      eq(errors, [], "no errors around the sheet at 360px");
       await context.close();
+
+      const wide = await open(browser, "parts/1-algebra/01-numbers.html", { "bm.lesson.v1": '{"mode":"page"}' });
+      await wide.page.click(".hud-menu");
+      check(await wide.page.$eval("#hud-sheet", (s) => s.open && !s.matches(":modal")), "at 1280px the sheet opens beside the rail, not modal");
+      await wide.page.focus('#hud-sheet [data-pref="map3d"]');
+      await wide.page.keyboard.press("Tab");
+      check(await wide.page.evaluate(() => !document.getElementById("hud-sheet").open && document.querySelector(".hud-menu").getAttribute("aria-expanded") === "false"), "tabbing out of the wide sheet closes it");
+      eq(wide.errors, [], "no errors around the sheet at 1280px");
+      await wide.context.close();
     }
 
     /* --------------- review fixes: medals, recall, streaks and repairs off the chapter page */
@@ -582,6 +787,110 @@ async function run() {
         "a Gold shown without the set cache also unlocks Boss down and Flawless on the same page");
       eq([errors, p2.errors], [[], []], "no errors on the Arena copy and progress checks");
       await p2.context.close();
+    }
+
+    /* ------------- the next best step: the right first item for three states, hidden for the day */
+    {
+      const today = dayAgo(0);
+      const card = (page) => page.evaluate(() => {
+        var c = document.querySelector(".next-step");
+        if (!c) return null;
+        return {
+          kinds: Array.from(c.querySelectorAll(".next-step-item")).map((li) => li.getAttribute("data-kind")),
+          first: c.querySelector(".next-step-link").textContent, href: c.querySelector(".next-step-link").getAttribute("href"),
+          why: c.querySelector(".next-step-why").textContent, inMain: c.parentElement === document.querySelector("main"),
+          parent: c.parentElement.className, edge: getComputedStyle(c).borderLeftWidth === getComputedStyle(c).borderTopWidth
+        };
+      });
+      /* 1. a section placed in the Arena and now past its date: due reviews come first */
+      const dueSeed = {
+        "bm.attempts.v1": JSON.stringify({ ch02: { e1: { tries: 1, solved: 1, first: 1, section: "one-unknown" }, e2: { tries: 1, solved: 2, first: 1, section: "one-unknown" } } }),
+        "bm.game.v1": JSON.stringify({ sec: { "ch02#one-unknown": { n: 2, ok: 2, box: 0, last: dayAgo(4) } } }),
+        "bm.last": JSON.stringify({ id: "ch03", section: "order" })
+      };
+      const a = await open(browser, "index.html", dueSeed);
+      const c1 = await card(a.page);
+      eq([c1 && c1.kinds, c1 && c1.first, c1 && c1.href], [["due", "continue"], "1 section due for a check", "arena.html?mode=review"], "due: the first item is the due review");
+      check(c1 && c1.why.length > 20 && !c1.inMain, "each item says why it is there, and the card is no child of <main>");
+      /* hidden for today, on this device; still hidden after a reload; back the next day */
+      await a.page.click(".next-step [data-next-hide]");
+      check(await a.page.$(".next-step") === null, "Hide for today takes the card away");
+      eq(await a.page.evaluate(() => JSON.parse(localStorage.getItem("bm.run.v1")).nextHide), today, "and remembers the day, in the device-only run store");
+      eq(await a.page.evaluate(() => document.activeElement && document.activeElement.tagName), "H1", "focus goes to the page's heading");
+      await a.page.reload();
+      await a.page.waitForFunction(() => document.readyState === "complete");
+      check(await a.page.$(".next-step") === null, "the card stays away for the rest of the day");
+      check(!/nextHide/.test(await a.page.evaluate(() => localStorage.getItem("bm.game.v1") || "")), "and nothing of it is in the synced game record");
+      await a.page.evaluate((d) => { var r = JSON.parse(localStorage.getItem("bm.run.v1")); r.nextHide = d; localStorage.setItem("bm.run.v1", JSON.stringify(r)); }, dayAgo(1));
+      await a.page.reload();
+      await a.page.waitForFunction(() => document.readyState === "complete");
+      check(await a.page.$(".next-step") !== null, "on a new day it is back");
+      eq(a.errors, [], "no errors with the card");
+      await a.context.close();
+
+      /* 2. nothing due, one section weak: a Repair run first */
+      const weakSeed = {
+        "bm.attempts.v1": JSON.stringify({ ch05: { e1: { tries: 3, solved: 1, section: "parallels" }, e2: { tries: 1, solved: 2, first: 1, section: "angles" }, e3: { tries: 1, solved: 3, first: 1, section: "angles" } } }),
+        "bm.game.v1": JSON.stringify({ sec: { "ch05#parallels": { n: 1, ok: 1, box: 1, last: today }, "ch05#angles": { n: 1, ok: 1, box: 1, last: today } } })
+      };
+      const b = await open(browser, "parts/1-algebra/03-real-numbers.html", weakSeed);
+      const c2 = await card(b.page);
+      eq([c2 && c2.kinds[0], c2 && c2.first, c2 && /arena\.html\?repair=ch05%23parallels$/.test(c2.href)], ["weak", "Repair §5.3 Parallel lines and transversals", true],
+        "weak: on a chapter page, the first item is a Repair run on the weakest section");
+      check(c2 && /region-banner/.test(c2.parent) && !c2.inMain, "on a chapter it sits in the banner, not among <main>'s children");
+      eq(b.errors, [], "no errors with the card on a chapter");
+      await b.context.close();
+
+      /* 3. nothing due or weak: where the reader left off; in Study mode, without the game's colour */
+      const c = await open(browser, "index.html", { "bm.last": JSON.stringify({ id: "ch02", section: "one-unknown" }), "bm.prefs.v1": JSON.stringify({ calm: true }) });
+      const c3 = await card(c.page);
+      eq([c3 && c3.kinds, c3 && c3.first, c3 && /parts\/1-algebra\/02-linear-equations\.html#one-unknown$/.test(c3.href)], [["continue"], "Continue: Chapter 2 · One unknown", true],
+        "continue: with nothing due or weak, the first item is where the reader left off");
+      eq([c1 && c1.edge, c3 && c3.edge], [false, true], "Study mode keeps the card, with the game's thick coloured edge taken off");
+      eq(c.errors, [], "no errors with the card in Study mode");
+      await c.context.close();
+      /* 4. just learned: §1.2 (the Arena has problems for it) solved on its page a minute ago,
+         §1.1 (it has none) three days ago, neither ever placed in the Arena. Nothing is due for
+         a check yet: not §1.2, whose first check waits a day after its page solve, and not
+         §1.1, which nothing could ever mark checked. The first item is Continue. */
+      const now = Date.now(), ago3 = now - 864e5 * 3;
+      const learned = {
+        "bm.attempts.v1": JSON.stringify({ ch01: {
+          a1: { tries: 1, first: 1, solved: now - 60000, section: "addition" }, a2: { tries: 1, first: 1, solved: now - 30000, section: "addition" },
+          i1: { tries: 1, first: 1, solved: ago3, section: "integers" }, i2: { tries: 1, first: 1, solved: ago3 + 1, section: "integers" } } }),
+        "bm.last": JSON.stringify({ id: "ch01", section: "addition" })
+      };
+      const e = await open(browser, "index.html", learned);
+      const c4 = await card(e.page);
+      eq([c4 && c4.kinds, c4 && c4.first], [["continue"], "Continue: Chapter 1 · Rules for addition"], "just learned: no section is called due straight after it was learned, nor one nothing can mark checked");
+      await e.page.goto(url("arena.html?mode=review"));
+      await e.page.waitForFunction(() => document.readyState === "complete");
+      const lobby4 = await e.page.evaluate(() => ({
+        none: (document.querySelector(".review-none") || {}).textContent || "",
+        page: Array.from(document.querySelectorAll(".review-page li")).map((li) => li.getAttribute("data-section"))
+      }));
+      check(/^Nothing the Arena can ask about is due for a check today\. The next is §1\.2 Rules for addition, due tomorrow\.$/.test(lobby4.none),
+        "the review lobby names tomorrow for §1.2's first check: " + lobby4.none);
+      eq(lobby4.page, ["ch01#integers"], "and lists §1.1 as due on its page, three days after it was solved");
+      await e.page.goto(url("arena.html"));
+      await e.page.waitForFunction(() => document.readyState === "complete");
+      const chip4 = await e.page.evaluate(() => {
+        var li = Array.from(document.querySelectorAll(".arena-sec")).find((x) => /#addition$/.test(x.querySelector("a").getAttribute("href")));
+        return li ? [li.getAttribute("data-status"), !!li.querySelector('.arena-chip[data-status="due"]')] : null;
+      });
+      eq(chip4, ["solid", false], "the Arena's deck list does not mark §1.2 Due either: the lobby tells one story");
+      eq(e.errors, [], "no errors just after learning");
+      await e.context.close();
+
+      /* 5. only sections the Arena has no problems for: the lobby does not tell the reader to
+         solve a section first, which they have done */
+      const f = await open(browser, "arena.html?mode=review", { "bm.attempts.v1": JSON.stringify({ ch01: {
+        i1: { tries: 1, first: 1, solved: ago3, section: "integers" }, i2: { tries: 1, first: 1, solved: ago3 + 1, section: "integers" } } }) });
+      const none5 = await f.page.$eval(".review-none", (x) => x.textContent);
+      check(/The Arena has no problems yet for the sections you have solved/.test(none5) && !/once you have solved it/.test(none5),
+        "with only such sections solved, the lobby says the Arena has no problems for them: " + none5);
+      eq(f.errors, [], "no errors on that lobby");
+      await f.context.close();
     }
   } finally {
     await browser.close();

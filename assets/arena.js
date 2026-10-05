@@ -4,9 +4,21 @@
    (data/gen/*.js) from sections the reader has already solved, so timed retrieval
    builds fluency instead of pushing guesses on new material.
 
-     lobby   the deck by Part, mode buttons, tempo, an unfinished run to settle
+     lobby   the deck by Part, mode buttons, tempo, an unfinished run to settle;
+             arena.html?mode=review opens it on the due review (below)
      run     one question at a time: par bar, hearts, score, streak
-     result  score, hearts, first-try count, the section worth rereading
+     result  score, hearts, first-try count and rate, the section worth rereading
+
+   The due review (mode "review") asks only about sections due for a check today by the
+   spaced schedule (src/learn/recall.ts through window.BMReview, the same rule game.js
+   keeps), most overdue first, at most two questions a section and ten in all, taking
+   turns between sections (src/learn/review.ts). No question in it costs a heart; the clock
+   follows the tempo. Its answers move the boxes by the usual rule (game.js recordRun). Due
+   sections the Arena has no problems for are listed apart, linked to their pages.
+
+   XP is worth less the more answers from one section are paid in a day, and the
+   finishing bonus is paid in full twice a day (src/learn/practice.ts); the result screen
+   says so when it happens.
 
    Rules that keep the teaching first: speed is a threshold (par), not a gradient;
    a wrong check stops the clock, shows the hint and allows one untimed retry; a
@@ -30,11 +42,11 @@
 
   var host = document.querySelector("[data-arena]");
   var Store = window.BMStore, Site = window.BMSite, Gen = window.BMGen;
-  var C = window.BM_CURRICULUM;
+  var C = window.BM_CURRICULUM, Review = window.BMReview;
   if (!host || !Store || !Site || !C) return;
   var esc = Site.escapeHtml;
 
-  if (!Gen || !Gen.list().length) {
+  if (!Gen || !Gen.list().length || !Review) {
     host.innerHTML = '<p class="arena-note">The problem generators did not load, so the Arena cannot start. Reload the page to try again.</p>';
     return;
   }
@@ -50,12 +62,12 @@
     standard: { n: 10, label: "Standard run" },
     daily: { n: 5, label: "Daily" },
     boss: { n: 10, label: "Boss rematch" },
-    repair: { n: 5, label: "Repair" }
+    repair: { n: 5, label: "Repair" },
+    review: { n: Review.constants.REVIEW_MAX, label: "Due review" }
   };
   var TEMPO = { standard: 1, extended: 2, untimed: 0 };
   var TEMPO_LABEL = { standard: "Standard", extended: "Extended", untimed: "Untimed" };
   var HEARTS = 3;
-  var BOX_DAYS = [1, 1, 3, 7, 14, 30];
   var SOFT_MAX = 2;   /* shaky or hand-picked questions per run, untimed and heart-free */
 
   /* ------------------------------------------------------------ helpers -- */
@@ -72,11 +84,6 @@
   }
   function now() { return Date.now(); }
   function today() { return Site.dayKey(); }
-  function daysBetween(a, b) {
-    var pa = String(a).split("-"), pb = String(b).split("-");
-    var da = Date.UTC(+pa[0], +pa[1] - 1, +pa[2]), db = Date.UTC(+pb[0], +pb[1] - 1, +pb[2]);
-    return Math.round((db - da) / 86400000);
-  }
   function plural(n, word) { return n + " " + word + (n === 1 ? "" : "s"); }
   function clockText(s) {
     s = Math.max(0, Math.ceil(s - 1e-9));
@@ -143,11 +150,11 @@
 
   /* ------------------------------------------------------ the curriculum -- */
 
-  var SECTIONS = {};
+  var SECTIONS = {}, reading = 0;
   C.chapters.forEach(function (ch) {
     ch.sections.forEach(function (s, i) {
       SECTIONS[ch.id + "#" + s.id] = {
-        id: ch.id + "#" + s.id, chapter: ch, section: s, index: i,
+        id: ch.id + "#" + s.id, chapter: ch, section: s, index: i, order: reading++,
         label: ch.label === "Interlude" ? "Interlude" : "§" + ch.label + "." + (i + 1),
         path: ch.path + "#" + s.id, part: ch.part.id
       };
@@ -160,7 +167,8 @@
   /* ------------------------------------------------------------ the deck -- */
 
   /* sections with at least one solved exercise, from the attempt log: how many are
-     solved there, and how many of those are scored ones right first time */
+     solved there, how many of those are scored ones right first time, and when the last
+     was solved (`at`) */
   function solvedSections() {
     var out = {};
     var all = window.BMAttempts ? window.BMAttempts.all() : Store.read(Store.keys.attempts, {}) || {};
@@ -171,31 +179,31 @@
         if (!rec || !rec.solved || !sec || sec === "warmup") return;
         var id = sec.indexOf("#") > -1 ? sec : chId + "#" + sec;
         if (!SECTIONS[id]) return;
-        var s = out[id] = out[id] || { n: 0, first: 0 };
+        var s = out[id] = out[id] || { n: 0, first: 0, at: 0 };
         s.n++;
         if (rec.first && !rec.inline) s.first++;
+        if (+rec.solved > s.at) s.at = +rec.solved;
       });
     });
     return out;
   }
 
-  function isDue(id) {
-    var rec = (gameStore().sec || {})[id];
-    if (!rec || !rec.last) return false;
-    var box = Math.max(1, Math.min(5, rec.box || 1));
-    return daysBetween(rec.last, today()) >= BOX_DAYS[box];
-  }
+  /* the game layer's schedule, the one copy (src/learn/recall.ts): due once the box's
+     interval has passed since the section was last placed, and at once if it never was */
+  function secRec(id) { var rec = (gameStore().sec || {})[id]; return rec && typeof rec === "object" ? rec : {}; }
+  function isDue(id) { return Review.recall.dueOn(secRec(id), today()); }
   function metInArena(id) {
     var rec = (gameStore().sec || {})[id];
     return !!(rec && rec.n >= 1);
   }
 
-  /* id -> { id, status: "solid"|"shaky"|"new", due } for every section the deck knows */
+  /* id -> { id, status: "solid"|"shaky"|"new", due, box, last, seen } for every section the
+     deck knows; `seen` is the day it was last solved on its page */
   function deck() {
     var out = {}, list = gameCall("deck", {});
     if (list && list.length !== undefined) {
       Array.prototype.forEach.call(list, function (d) {
-        if (d && SECTIONS[d.id]) out[d.id] = { id: d.id, status: d.status === "solid" || d.status === "shaky" ? d.status : "new", due: !!d.due };
+        if (d && SECTIONS[d.id]) out[d.id] = { id: d.id, status: d.status === "solid" || d.status === "shaky" ? d.status : "new", due: !!d.due, box: d.box, last: d.last, seen: d.seen || null };
       });
       return out;
     }
@@ -208,11 +216,36 @@
     Object.keys(solved).forEach(function (id) {
       var shaky = scores[id] !== undefined && scores[id] >= WEAK, rec = (gameStore().sec || {})[id];
       if (!shaky && solved[id].n < 2 && !solved[id].first && !(rec && rec.ok > 0)) return;
-      out[id] = { id: id, status: shaky ? "shaky" : "solid", due: isDue(id) };
+      out[id] = { id: id, status: shaky ? "shaky" : "solid", due: isDue(id), box: secRec(id).box, last: secRec(id).last || null,
+        seen: solved[id].at > 0 ? Site.dayKey(new Date(solved[id].at)) : null };
     });
     return out;
   }
   function statusOf(d, id) { return d[id] ? d[id].status : "new"; }
+
+  /* today's sections due for a check, most overdue first: { arena, page }, those the Arena
+     can ask about (a due review asks about nothing else) and those only their page can; a
+     section never placed waits a day after it was last solved on its page (recall.ts checkDue) */
+  function dueToday(d) {
+    var rows = Object.keys(d).map(function (id) {
+      var x = d[id];
+      return { id: id, due: !!x.due, box: x.box, last: x.last, seen: x.seen, arena: hasGen(id), index: SECTIONS[id].order };
+    });
+    return Review.review.dueSplit(rows, today());
+  }
+  /* the first section of the deck the Arena can ask about to come due, when none is today */
+  function nextDueOf(d) {
+    var rows = Object.keys(d).filter(hasGen).map(function (id) { return { id: id, box: d[id].box, last: d[id].last, seen: d[id].seen }; });
+    return Review.recall.nextDue(rows, today());
+  }
+  /* a day key as words: "tomorrow", or "Thursday 8 October" */
+  function dayWords(key) {
+    if (key === Review.recall.addDays(today(), 1)) return "tomorrow";
+    var p = String(key).split("-"), d = new Date(+p[0], +p[1] - 1, +p[2]);
+    var DAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+    var MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+    return DAYS[d.getDay()] + " " + d.getDate() + " " + MONTHS[d.getMonth()];
+  }
 
   function picks() { var p = runStore().picks; return p && typeof p === "object" ? p : {}; }
   function setPick(id, on) {
@@ -229,12 +262,14 @@
   function planRun(mode, opt) {
     opt = opt || {};
     var d = deck(), t = tempo(), factor = TEMPO[t];
-    var heartsOn = mode !== "repair" && factor > 0 && !calm();
+    /* a due review is a check, not a fight: no question in it costs a heart */
+    var heartsOn = mode !== "repair" && mode !== "review" && factor > 0 && !calm();
     var n = MODES[mode].n, ids = [];
     var seed = mode === "daily" ? Gen.hash("daily:" + today()) : ((now() ^ Math.floor(Math.random() * 4294967296)) >>> 0);
     var rng = Gen.rng(seed);
 
     if (mode === "repair") ids = [opt.section];
+    else if (mode === "review") ids = dueToday(d).arena.map(function (r) { return r.id; });
     else if (mode === "boss") {
       var ch = C.chapterById(opt.boss);
       ids = ch ? ch.sections.map(function (s) { return ch.id + "#" + s.id; }).filter(hasGen) : [];
@@ -259,6 +294,8 @@
     var softMax = mode === "repair" || mode === "boss" || !hardCount ? n : SOFT_MAX;
     var cap = mode === "repair" ? n : Math.ceil(n / 2);
     var counts = {}, softUsed = 0, slots = [], progress = true;
+    /* a due review keeps its own order: most overdue first, a section at a time in turn */
+    if (mode === "review") { slots = Review.review.planReview(ids, n); progress = false; }
     while (slots.length < n && progress) {
       progress = false;
       for (var i = 0; i < order.length && slots.length < n; i++) {
@@ -306,12 +343,17 @@
       var q = new URLSearchParams(window.location.search);
       if (q.get("boss")) out.boss = q.get("boss");
       if (q.get("repair")) out.repair = q.get("repair");
+      if (q.get("mode")) out.mode = q.get("mode");
     } catch (e) {
       var m = /[?&]boss=([^&#]+)/.exec(window.location.search);
       if (m) out.boss = decodeURIComponent(m[1]);
       m = /[?&]repair=([^&#]+)/.exec(window.location.search);
       if (m) out.repair = decodeURIComponent(m[1]);
+      m = /[?&]mode=([^&#]+)/.exec(window.location.search);
+      if (m) out.mode = decodeURIComponent(m[1]);
     }
+    /* ?mode= names a lobby of its own; only the due review has one so far */
+    if (out.mode !== "review") delete out.mode;
     return out;
   }
 
@@ -688,7 +730,13 @@
       /* a banked run was not finished, so it must not collect the finishing bonus */
       if (reason === "banked") payload.hearts = 0;
       var back = gameCall("recordRun", payload);
-      if (back && typeof back.xp === "number") { result.xp = back.xp; result.xpParts = null; }
+      if (back && typeof back.xp === "number") {
+        result.xp = back.xp; result.xpParts = null;
+        /* what was paid, and whether the day's practice on a section made it less */
+        result.paid = back.parts || null;
+        result.reduced = back.reduced || [];
+        result.finishReduced = !!back.finishReduced;
+      }
       result.medal = payload.boss && back ? back.medal || 0 : 0;
       /* a ranked rematch that kept a heart and still won nothing: the set is not cleared */
       if (payload.boss && back && back.cleared === false) result.uncleared = true;
@@ -717,8 +765,23 @@
     });
     return rec;
   }
-  /* without the game layer: pay the XP and keep the small record the deck reads */
+  /* without the game layer: pay the XP, by the same rules as game.js recordRun (the day's
+     decay included, src/learn/practice.ts), and keep the small record the deck reads, the
+     boxes moved by the same schedule (src/learn/recall.ts) */
   function fallbackRecord(res) {
+    var P = Review.practice, paid = [], all = runStore();
+    res.answers.forEach(function (a) {
+      if (a.first) paid.push({ section: a.section, xp: a.due ? 3 : 2 });
+      else if (a.retry && !a.hf) paid.push({ section: a.section, xp: 1 });
+    });
+    var parts = res.xpParts || { finish: 0, daily: 0 };
+    var s = P.settleRun(paid, parts.finish > 0, P.arenaDayFor(all.arenaDay, res.day));
+    all.arenaDay = P.toStore(all.arenaDay, s.day, today());
+    Store.write(RUN_KEY, all, true);
+    res.xp = s.answers + s.finish + parts.daily;
+    res.paid = { answers: s.answers, full: s.full, finish: s.finish, daily: parts.daily };
+    res.reduced = s.reduced;
+    res.finishReduced = s.finishReduced;
     if (res.xp > 0 && window.BMActivity) window.BMActivity.add(res.xp, "arena");
     var g = gameStore();
     g.sec = g.sec && typeof g.sec === "object" ? g.sec : {};
@@ -730,10 +793,11 @@
     });
     Object.keys(bySec).forEach(function (id) {
       var rec = g.sec[id] && typeof g.sec[id] === "object" ? g.sec[id] : { n: 0, ok: 0, box: 0 };
+      var at = Review.recall.place(rec, bySec[id].ok !== bySec[id].n, res.day);
       rec.n = (rec.n || 0) + bySec[id].n;
       rec.ok = (rec.ok || 0) + bySec[id].ok;
-      rec.box = bySec[id].ok === bySec[id].n ? Math.min(5, (rec.box || 0) + 1) : 1;
-      rec.last = res.day;
+      rec.box = at.box;
+      if (at.last !== undefined) rec.last = at.last;
       if (res.repaired && id === res.section) rec.fix = now();
       g.sec[id] = rec;
     });
@@ -802,7 +866,7 @@
     });
     html += "</div>";
     if (t === "untimed") html += '<p class="arena-fine">Untimed runs still pay XP and still count towards recall, but keep no best scores and win no medals.</p>';
-    else if (calm()) html += '<p class="arena-fine">Calm mode is on, so hearts are switched off; the clock runs only because you chose it.</p>';
+    else if (calm()) html += '<p class="arena-fine">Study mode is on, so hearts are switched off; the clock runs only because you chose it.</p>';
     return html + "</fieldset>";
   }
 
@@ -859,7 +923,80 @@
         '<p class="arena-fine">Stuck on the first one? <a href="' + esc(root() + info.path) + '">Reread ' + esc(info.label) + "</a> first; there is no hurry here.</p>" +
         '<div class="arena-actions"><button type="button" class="btn big" data-act="start" data-mode="repair">Start the repair</button></div></div>';
     }
+    if (params.mode === "review") return reviewHtml(d);
     return "";
+  }
+
+  /* ------------------------------------------------------- due review ---- */
+
+  function overdueText(row) {
+    var late = Review.recall.overdue(row, today());
+    if (late === null) return "not checked in the Arena yet";
+    return late <= 0 ? "due today" : plural(late, "day") + " overdue";
+  }
+  /* "Nothing is due …" with the day the next section comes due, when one will; with no
+     date to give, why: nothing solved yet, or nothing solved the Arena has problems for */
+  function nothingDueHtml(d, onPage) {
+    var nd = nextDueOf(d);
+    var html = onPage ? "Nothing the Arena can ask about is due for a check today." : "Nothing is due for a check today.";
+    if (nd) {
+      html += " The next is " + esc(secName(nd.id)) + ', due <time datetime="' + esc(nd.day) + '">' +
+        (dayWords(nd.day) === "tomorrow" ? "tomorrow" : "on " + esc(dayWords(nd.day))) + "</time>.";
+    } else if (!Object.keys(d).length) {
+      html += " A section joins your reviews once you have solved it on its chapter page.";
+    } else if (!Object.keys(d).some(hasGen)) {
+      html += " The Arena has no problems yet for the sections you have solved, so it has none of them to check.";
+    }
+    return html;
+  }
+
+  /* The due review's own card, on arena.html?mode=review: what is due today and where it can
+     be checked. Due sections the Arena has no problems for are listed apart, each linked to
+     its page; nothing but an answer moves a box, so there is no "done" to tick. */
+  function reviewHtml(d) {
+    var due = dueToday(d), ids = due.arena.map(function (r) { return r.id; });
+    var slots = Review.review.planReview(ids, MODES.review.n), asked = {};
+    slots.forEach(function (id) { asked[id] = 1; });
+    var html = '<div class="arena-card arena-context review-lobby" data-review>' + "<h2>Due review</h2>";
+    if (ids.length) {
+      html += "<p>" + (ids.length === 1 ? "One section is" : plural(ids.length, "section") + " are") + " due for a check today. " +
+        "This review asks " + plural(slots.length, "question") + ", at most two from a section, most overdue first, taking turns between sections. " +
+        "No question costs a heart, and the clock follows your tempo.</p>";
+      html += '<ol class="review-due">' + due.arena.filter(function (r) { return asked[r.id]; }).map(function (r) {
+        return '<li data-section="' + esc(r.id) + '"><span class="review-name">' + esc(secName(r.id)) + '</span> <small class="review-when">' + esc(overdueText(r)) + "</small></li>";
+      }).join("") + "</ol>";
+      var left = ids.length - Object.keys(asked).length;
+      if (left > 0) html += '<p class="arena-fine">' + (left === 1 ? "One more section stays" : plural(left, "more section") + " stay") + " due for the next review.</p>";
+      html += '<div class="arena-actions"><button type="button" class="btn big" data-act="start" data-mode="review">Start the review</button></div>';
+    } else {
+      html += '<p class="review-none" data-review-none>' + nothingDueHtml(d, due.page.length > 0) + "</p>";
+    }
+    if (due.page.length) {
+      var one = due.page.length === 1;
+      html += "<h3>Due, on the page</h3>" +
+        '<p class="arena-fine">The Arena has no problems for ' + (one ? "this section" : "these sections") + " yet, so the check is on " + (one ? "its page" : "their pages") +
+        ": reread the section and work its examples again. Only an answer in the Arena moves a check along, so " + (one ? "it stays" : "they stay") + " listed here.</p>" +
+        '<ul class="review-page">' + due.page.map(function (r) {
+          var info = secInfo(r.id);
+          return '<li data-section="' + esc(r.id) + '"><a href="' + esc(root() + info.path) + '">' + esc(secName(r.id)) + '</a> <span class="arena-chip" data-status="due">due, on the page</span></li>';
+        }).join("") + "</ul>";
+    }
+    return html + "</div>";
+  }
+
+  /* the review's tile in the lobby: the count due, or the day of the next check */
+  function reviewTile(d) {
+    var due = dueToday(d);
+    if (due.arena.length) return modeTile("review", plural(due.arena.length, "section") + " due · no hearts", "Most overdue first, up to " + MODES.review.n + " questions");
+    var nd = nextDueOf(d);
+    return modeTile("review", "Nothing due today", nd ? "Next check " + (dayWords(nd.day) === "tomorrow" ? "tomorrow" : "on " + esc(dayWords(nd.day))) : "", true);
+  }
+  /* under the tiles: due sections only their pages can check, and where the review lists them */
+  function onPageNote(d) {
+    var n = dueToday(d).page.length;
+    if (!n) return "";
+    return '<p class="arena-fine review-onpage">' + (n === 1 ? "One due section is" : plural(n, "due section") + " are") +
+      ' checked on the page, since the Arena has no problems for ' + (n === 1 ? "it" : "them") + ' yet: <a href="arena.html?mode=review">see the due review</a>.</p>';
   }
 
   function deckHtml(d) {
@@ -885,7 +1022,8 @@
             rows += '<label class="arena-pick"><input type="checkbox" data-pick="' + esc(id) + '"' + (pk[id] ? " checked" : "") + "> Practise, untimed</label>";
           } else {
             rows += '<span class="arena-chip" data-status="' + st + '">' + (st === "solid" ? "Solid" : "Shaky") + "</span>";
-            if (d[id] && d[id].due) rows += '<span class="arena-chip" data-status="due">Due</span>';
+            /* due for a check, as the due review counts it (a section never placed waits a day after its page solve) */
+            if (d[id] && d[id].due && Review.recall.checkDue(d[id], today())) rows += '<span class="arena-chip" data-status="due">Due</span>';
             if (st === "shaky") rows += '<a class="arena-repair" href="arena.html?repair=' + encodeURIComponent(id) + '">Repair</a>';
           }
           rows += "</span></li>";
@@ -910,8 +1048,10 @@
       "<li>Right first time after par, before the time runs out at twice par: <b>60</b>, and the streak holds.</li>" +
       "<li>Wrong: the clock stops, the hint appears, and you get one untimed retry worth <b>30</b>. A wrong answer costs a heart, at most one per question.</li>" +
       "<li>“I don't know” and running out of time score nothing but never cost a heart, so where a heart is at stake a guess is always worse than passing.</li>" +
-      "<li>Where no heart is at stake (shaky sections, sections you pick by hand, Untimed tempo, calm mode), “I don't know” brings up the same hint and retry as a wrong answer, and that retry scores nothing, so a guess never beats passing.</li>" +
+      "<li>Where no heart is at stake (shaky sections, sections you pick by hand, a due review, Untimed tempo, Study mode), “I don't know” brings up the same hint and retry as a wrong answer, and that retry scores nothing, so a guess never beats passing.</li>" +
       "<li>Shaky sections, sections you pick by hand, and problems with only a few possible answers come without the clock.</li>" +
+      "<li>A due review asks only about sections due for a check today, most overdue first, at most two questions from each and ten in all. A section answered right first time goes further into its schedule; a miss brings it back sooner.</li>" +
+      "<li>XP from one section falls the more you practise it in a day: the first two answers that pay count in full, the next two half, then a quarter. The finishing bonus is paid in full for two runs a day, then 1. Spaced practice on another day counts in full again.</li>" +
       "<li>The Daily is one attempt a day: once a Daily you have answered in ends, finished or banked, the next one comes with tomorrow's seed.</li>" +
       "<li>The clock stops while you read feedback, while paused, and while the page is hidden. Being faster than par earns nothing extra.</li>" +
       "</ul></details>";
@@ -938,7 +1078,9 @@
       html += '<div class="arena-modes" role="group" aria-label="Start a run">' +
         modeTile("standard", "10 questions · 3 hearts", dk.hard ? "" : (dk.count ? "Untimed until a section is solid" : ""), !dk.count) +
         dailyTile(dk, saved) +
+        (params.mode === "review" ? "" : reviewTile(d)) +
         "</div>";
+      if (params.mode !== "review") html += onPageNote(d);
       if (dk.count && dk.count < 2) html += '<p class="arena-fine">With one section ready a run stops at five questions, so it never leans on one section for more than half.</p>';
     }
     html += tempoHtml();
@@ -975,7 +1117,7 @@
       '<span class="arena-streak" title="Answers right first time within par, in a row">Streak <b data-streak>0</b></span>' +
       '<button type="button" class="btn ghost small arena-pause" data-act="pause" aria-keyshortcuts="Escape">Pause</button>' +
       "</div>" +
-      '<p class="arena-fine arena-calmnote" hidden>Calm mode was switched on during this run, so the rest of it has no clock and no hearts, and it counts as an Untimed run.</p>' +
+      '<p class="arena-fine arena-calmnote" hidden>Study mode was switched on during this run, so the rest of it has no clock and no hearts, and it counts as an Untimed run.</p>' +
       '<div class="arena-par" role="timer" data-urgency="ok" hidden>' +
       '<span class="arena-par-track" aria-hidden="true"><span class="arena-par-fill"></span></span>' +
       '<span class="arena-par-read" aria-hidden="true"><b class="arena-par-text">0:00</b> <span class="arena-par-label">to par</span></span>' +
@@ -1064,6 +1206,7 @@
     if (cur.st === "shaky" && !cur.timed && run.mode !== "repair" && TEMPO[run.tempo] > 0) tag = "Untimed, no heart: still settling";
     else if (cur.st === "new" && run.mode !== "repair") tag = "Untimed, no heart: picked by hand";
     else if (!cur.timed && TEMPO[run.tempo] > 0 && run.mode !== "repair") tag = "Untimed: few possible answers";
+    else if (run.mode === "review") tag = "Due for a check: no heart at stake";
     view.tag.textContent = tag;
     view.tag.hidden = !tag;
   }
@@ -1198,13 +1341,21 @@
           : res.finished ? "Every answer right, four of them first time, marks it repaired; reread it and try again whenever you like."
           : "A repair counts once all " + res.planned + " questions are answered, every one right and four of them first time. Start it again whenever you like.") + "</p>";
     }
+    if (res.mode === "review" && res.n) {
+      var checked = {};
+      res.answers.forEach(function (a) { checked[a.section] = 1; });
+      html += "<p>" + plural(Object.keys(checked).length, "section") + " checked. A section answered right first time each time goes further into its schedule; one with a miss comes back sooner.</p>";
+    }
     if (res.replay) html += '<p class="arena-fine">That day\'s Daily had already been played, here or in another tab or on another device, so this one pays no XP and keeps no best.</p>';
     html += '<div class="arena-stats">';
     if (res.hearts !== null) html += tile("Hearts left", res.hearts + " <small>of " + res.maxHearts + "</small>", heartsHtml(res.hearts, res.maxHearts));
-    html += tile("First try", res.firstTry + " <small>of " + res.n + "</small>", res.n < res.planned ? plural(res.planned - res.n, "question") + " not reached" : "");
+    /* the first-try count and rate, as information: no target to hit */
+    var rate = res.n ? Math.round((100 * res.firstTry) / res.n) + "% right first time" : "";
+    html += tile("First try", res.firstTry + " <small>of " + res.n + "</small>", [rate, res.n < res.planned ? plural(res.planned - res.n, "question") + " not reached" : ""].filter(Boolean).join(" · "));
     html += tile("XP earned", "+" + res.xp, xpNote(res));
     html += tile("Best streak", String(res.bestStreak), "");
     html += "</div>";
+    html += reducedHtml(res);
     html += '<div class="arena-review">';
     if (weak.length) {
       var w = weak[0], info = secInfo(w.id);
@@ -1222,24 +1373,53 @@
       html += "<p>Every answer was right first time. Nothing to reread from this run.</p>";
     }
     html += "</div>";
-    html += '<div class="arena-actions"><button type="button" class="btn" data-act="again">' + (res.mode === "daily" ? "A Standard run" : "Another run") + "</button>" +
+    html += '<div class="arena-actions"><button type="button" class="btn" data-act="again">' + (res.mode === "daily" ? "A Standard run" : res.mode === "review" ? "Review what is still due" : "Another run") + "</button>" +
       '<button type="button" class="btn ghost" data-act="lobby">Back to the lobby</button></div>';
     html += "</section>";
     screenEl().innerHTML = html;
     var h = screenEl().querySelector("#arena-result-h");
     if (h) { try { h.focus({ preventScroll: true }); } catch (e) { h.focus(); } }
     say(title + ". " + res.score + " points, " + res.firstTry + " of " + res.n + " right first time, " + res.xp + " XP." +
+      (res.reduced && res.reduced.length ? " Less XP than usual for a section practised a lot today; spaced practice tomorrow counts more." : "") +
       (weak.length ? " Worth rereading: " + secName(weak[0].id) + "." : ""));
   }
 
   function xpNote(res) {
-    var p = res.xpParts, bits = [];
+    var p = res.paid, bits = [];
+    if (p) {
+      /* what was paid (game.js recordRun, or the fallback by the same rules) */
+      if (p.answers) bits.push(p.answers + " for answers");
+      if (p.finish) bits.push(p.finish + " for finishing");
+      if (p.daily) bits.push(p.daily + " daily bonus");
+      return bits.join(" + ");
+    }
+    p = res.xpParts;
     if (!p) return "";
     if (p.first) bits.push(p.first + " first try");
     if (p.retry) bits.push(p.retry + " retry");
     if (p.finish) bits.push("5 for finishing");
     if (p.daily) bits.push("10 daily bonus");
     return bits.join(" + ");
+  }
+
+  /* When the day's practice made the XP smaller, say so and why, plainly: no blame, and
+     nothing about the learner but what they did today. */
+  function reducedHtml(res) {
+    var secs = Array.isArray(res.reduced) ? res.reduced.filter(function (id) { return !!secInfo(id); }) : [];
+    var lines = [];
+    if (secs.length) {
+      lines.push((secs.length === 1 ? "You've practised this section a lot today" : "You've practised these sections a lot today") +
+        "; spaced practice tomorrow counts more. " +
+        (res.paid && res.paid.full > res.paid.answers
+          ? "Your answers earned " + res.paid.answers + " XP instead of " + res.paid.full + ", with " : "Less XP for ") +
+        secs.map(function (id) { return esc(secName(id)); }).join(", ") + " practised again today.");
+    }
+    if (res.finishReduced) {
+      lines.push("The finishing bonus is paid in full for the first " + Review.constants.ARENA_FINISH_FULL_PER_DAY + " runs of a day, so this one added " +
+        (res.paid ? res.paid.finish : Review.constants.ARENA_FINISH_AFTER) + ".");
+    }
+    if (!lines.length) return "";
+    return '<div class="arena-card review-reduced" data-xp-reduced><p>' + lines.join("</p><p>") + "</p></div>";
   }
 
   /* ------------------------------------------------------------ events ---- */
@@ -1269,6 +1449,8 @@
       /* the Daily is once a day, so after it comes a Standard run */
       var m = run && run.mode !== "daily" ? run.mode : "standard";
       var opt = { boss: run && run.boss, section: run && run.section };
+      /* after a review, the lobby to come back to (nothing left due) is the review's own */
+      if (m === "review") params.mode = "review";
       clearRun();
       startRun(m || "standard", opt);
     } else if (act === "lobby") { clearRun(); renderLobby(); }
@@ -1321,7 +1503,7 @@
     } else if (c.type === "prefs" && screen === "run" && calmRun()) {
       paintTag();
       paintQuestionState(false);
-      say("Calm mode is on: no clock and no hearts for the rest of this run, and it counts as an Untimed run.");
+      say("Study mode is on: no clock and no hearts for the rest of this run, and it counts as an Untimed run.");
     }
   });
 

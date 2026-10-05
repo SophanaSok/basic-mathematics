@@ -70,12 +70,15 @@ function htmlPages(): Record<string, string> {
    is a chunk under its own name: the WebGL painter (scenes3d.js's dynamic import) is
    bundle/scenes3d-gl.js, supabase-js (account.js's, through src/vendor/supabase.js) is
    bundle/supabase.js, Three.js (three-loader.js's, through src/vendor/three.js) is
-   bundle/three.js. A file from node_modules/ goes where the vendor module that
+   bundle/three.js, and the course world (map3d.js's import of src/world/index.ts, with
+   the modules of src/world/ it imports that no entry does) is bundle/world.js. A file
+   from node_modules/ goes where the vendor module that
    brings it in goes (tools/lib/vendor.js: KaTeX's scripts with src/vendor/katex.js,
    which every entry imports, so all.js; supabase-js and its dependencies into
    bundle/supabase.js; three's two build files into bundle/three.js, shaken down to
    the names src/vendor/three.js exports). The vendor stylesheets every page links (src/vendor/fonts.css and
-   katex.css, VENDOR_STYLES) are every kind's, so they open all.css, before site.css; the
+   katex.css, VENDOR_STYLES) are every kind's, so they open all.css, before the site's own
+   (src/styles/tokens.css, then site.css); the
    packages' CSS they import is inlined into them before rolldown sees a module, and the
    font files it names are emitted beside the bundle. Vite's own helpers (the modulepreload
    polyfill, the preload helper) ride in all.js; rolldown's runtime keeps its fixed
@@ -84,6 +87,7 @@ function htmlPages(): Record<string, string> {
    This is the split rolldown makes on its own; what it adds is the names.
    tools/check-dist.js reads the same sources and holds every chunk and stylesheet in
    dist to the name its contents call for. */
+const WORLD_DIR = "src/world/";
 function bundleNames(): (id: string) => string | null {
   const kinds = Object.keys(PAGE_KINDS) as (keyof typeof PAGE_KINDS)[];
   const loadedBy: Record<string, string[]> = {};
@@ -102,6 +106,7 @@ function bundleNames(): (id: string) => string | null {
     const by = loadedBy[rel];
     if (by) return by.length === kinds.length ? "all" : by.join("-");
     if (/^assets\/[^/]+\.js$/.test(rel)) return path.posix.basename(rel, ".js");   /* a dynamic import of a script's own */
+    if (rel.startsWith(WORLD_DIR)) return "world";                                  /* the course world, map3d.js's import() */
     if (rel.startsWith(VENDOR_DIR + "/")) return path.posix.basename(rel, ".js");  /* a vendor module imported on demand */
     if (/(^|\/)node_modules\//.test(rel)) return nameOf(vendorOf(rel).file, id);    /* with the vendor module that brings it in */
     throw new Error("vite.config.ts bundleNames: no entry or kind loads " + JSON.stringify(rel) + " (from " + id + "), so it has no name in dist/bundle/");
@@ -116,7 +121,7 @@ function bundleNames(): (id: string) => string | null {
 /* Build-only. Vite splits the pages' stylesheets into shared files, and writes the link
    to a page's own file BEFORE the links to the files it shares (vite 8.3: its css-post
    plugin appends the shared files to a list that already holds the page's own). The
-   source has them the other way round (site.css, game.css, then arena.css or
+   source has them the other way round (tokens.css, site.css, game.css, then arena.css or
    map3d.css), and rules of equal weight are settled by that order. So: note the order
    each page links its stylesheets in, note which source files went into which built
    file, and put the built links back in the page's order. If no order of the built

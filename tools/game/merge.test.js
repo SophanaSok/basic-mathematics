@@ -6,8 +6,10 @@
    Also checks that an old-shape state (no `game`) merges cleanly.
    The states carry what a later version of the site might add: fields no rule knows, at
    every level where the merge builds a record afresh, and a shape marker `game.v`. The
-   laws must hold with them in, and every one of them must come out of a merge. Last come
-   the writers in assets/site.js, which have to cope with whatever a merge lets through.
+   laws must hold with them in, and every one of them must come out of a merge. The help
+   ladder's `rung` in an attempt record has a rule of its own (the larger number), held to
+   in every merged record. Last come the writers in assets/site.js, which have to cope with
+   whatever a merge lets through.
    Usage: node tools/game/merge.test.js [--n=2000] [--seed=1] */
 "use strict";
 const fs = require("fs");
@@ -61,7 +63,7 @@ const day = (i) => "2026-" + String(1 + (i % 12)).padStart(2, "0") + "-" + Strin
 /* Fields from the future: few keys and few values, so two devices often hold the same
    key and disagree about it. The two objects differ only in the order of their keys. One
    key is named like something every object inherits, and is data all the same. */
-const NEW_KEYS = ["zz", "~later", "rung", "constructor"];
+const NEW_KEYS = ["zz", "~later", "faded", "constructor"];
 const NEW_VALUES = [0, 7, -1, "x", "", true, null, [1, 2], [2, 1], { a: 1, b: [1] }, { b: [1], a: 1 }, { a: { c: 2 } }];
 function sprinkle(into, values) {
   NEW_KEYS.forEach((k) => { if (chance(0.2)) into[k] = JSON.parse(JSON.stringify(pick(values))); });
@@ -75,6 +77,20 @@ const fields = (rec) => sprinkle(rec, NEW_VALUES);
    entry, as they always have. */
 const entries = (map) => sprinkle(map, NEW_VALUES.filter((v) => v !== null && (typeof v !== "object" || Array.isArray(v))));
 
+/* what a damaged or differently-minded record might hold as `rung` */
+const RUNG_ODD = [0, 5, -1, "2", "x", true, null, [1], { a: 1 }];
+/* account.js's rule for `rung`, written out again: the larger number, a number over
+   anything else, the later canonical JSON between two values that are not numbers */
+function rungMax(p, q) {
+  const n = (v) => typeof v === "number" && isFinite(v);
+  if (p === undefined) return q;
+  if (q === undefined) return p;
+  if (n(p) && n(q)) return Math.max(p, q);
+  if (n(p)) return p;
+  if (n(q)) return q;
+  return canon(p) >= canon(q) ? p : q;
+}
+
 function attemptRec(ch, k) {
   const r = {};
   if (chance(0.5)) {
@@ -87,6 +103,8 @@ function attemptRec(ch, k) {
     r.skipped = 1;
   }
   if (chance(0.3)) r.hints = 1 + int(2);
+  /* the help ladder's position: a clue number, now and then something else (RUNG_ODD) */
+  if (chance(0.35)) r.rung = chance(0.8) ? 1 + int(3) : JSON.parse(JSON.stringify(pick(RUNG_ODD)));
   if (chance(0.2)) { r.opened = 1; if (r.solved) r.first = 0; }
   if (k[0] === "i") r.inline = 1;
   r.section = ch + "-sec-" + k; /* one exercise always tests one section */
@@ -229,6 +247,17 @@ for (let i = 0; i < N; i++) {
     const held = [dig(a, at), dig(b, at)].filter((v) => v !== undefined).map(canon).sort();
     if (canon(dig(ab, at)) !== held[held.length - 1] || dig(ab, at) === undefined) fail("an unknown key is carried through", i, at.join("/"));
   });
+  /* the help ladder's rung keeps its own rule */
+  Object.keys(Object.assign({}, a.attempts, b.attempts)).forEach((ch) => {
+    const x = own(a.attempts, ch) ? a.attempts[ch] : undefined, y = own(b.attempts, ch) ? b.attempts[ch] : undefined;
+    if (!x || typeof x !== "object" || !y || typeof y !== "object") return;
+    Object.keys(Object.assign({}, x, y)).forEach((k) => {
+      const p = x[k], q = y[k];
+      if (!p || typeof p !== "object" || Array.isArray(p) || !q || typeof q !== "object" || Array.isArray(q)) return;
+      const got = ab.attempts[ch][k].rung;
+      if (canon(got) !== canon(rungMax(p.rung, q.rung))) fail("attempt rung is the larger number", i, ch + "/" + k + ": " + canon(p.rung) + " and " + canon(q.rung) + " gave " + canon(got));
+    });
+  });
   const v = Math.max((a.game || {}).v || 0, (b.game || {}).v || 0);
   if (ab.game.v !== (v || undefined)) fail("game.v is the larger, and absent when neither has one", i);
   const g = ab.game;
@@ -259,8 +288,13 @@ const r4 = mg({ enc: { e: { medal: 2, day: "2026-01-01" } } }, { enc: { e: { med
 if (r4.enc.e.medal !== 3) fail("enc: higher medal", -2);
 
 /* what this version has no rule for (account.js `later`, `carryOver`) */
-const r5 = merge({ attempts: { ch01: { e1: { tries: 2, rung: 1, note: "a" } } } }, { attempts: { ch01: { e1: { tries: 1, solved: 5, first: 1, rung: 3 } } } });
-if (canon(r5.attempts.ch01.e1) !== canon({ tries: 2, solved: 5, first: 1, rung: 3, note: "a" })) fail("attempt: unknown fields ride along, known ones keep their rules", -3, JSON.stringify(r5.attempts.ch01.e1));
+const r5 = merge({ attempts: { ch01: { e1: { tries: 2, faded: 1, note: "a" } } } }, { attempts: { ch01: { e1: { tries: 1, solved: 5, first: 1, faded: 3 } } } });
+if (canon(r5.attempts.ch01.e1) !== canon({ tries: 2, solved: 5, first: 1, faded: 3, note: "a" })) fail("attempt: unknown fields ride along, known ones keep their rules", -3, JSON.stringify(r5.attempts.ch01.e1));
+/* the help ladder's rung (account.js maxRung): the larger number, never the later
+   string, which would keep 9 over 10; a number beats a value that is not one */
+const r5b = merge({ attempts: { ch01: { e1: { rung: 10 }, e2: { rung: "x" }, e3: { tries: 1 } } } }, { attempts: { ch01: { e1: { rung: 9 }, e2: { rung: 1 }, e3: { rung: 2 } } } });
+if (canon(r5b.attempts.ch01) !== canon({ e1: { rung: 10 }, e2: { rung: 1 }, e3: { tries: 1, rung: 2 } })) fail("attempt: rung is the larger number", -3, JSON.stringify(r5b.attempts.ch01));
+if ("rung" in merge({ attempts: { ch01: { e1: { tries: 1 } } } }, { attempts: { ch01: { e1: { tries: 2 } } } }).attempts.ch01.e1) fail("attempt: no rung is invented", -3);
 const r6 = mg({ wallet: { coins: 5 }, sec: { s: { n: 1, ok: 1, box: 2, last: "2026-03-01", ease: 2.5 } }, best: { d: { score: 9, hearts: 1, day: "2026-01-01", run: "a" } } },
   { wallet: { coins: 40 }, sec: { s: { n: 3, ok: 0, box: 0, last: "2026-03-09" } }, enc: { e: { medal: 1, day: "2026-01-01", gate: [1] } } });
 if (canon(r6.wallet) !== canon({ coins: 5 })) fail("game: of two unknown values the later canonical JSON is kept (\"5\" sorts after \"40\")", -3, JSON.stringify(r6.wallet));

@@ -40,6 +40,9 @@ interface Window {
   BMMissions: any;
   /** assets/game.js: combo, levels, achievements, recall, play settings, the HUD */
   BMGame: any;
+  /** the HUD script after the top bar (tools/lib/shell.js hudScript): the level curve
+      and the HUD's drawing, src/hud/levels.js and view.js, typed as those modules */
+  BMHud: typeof import("../hud/levels.js") & typeof import("../hud/view.js");
   /** assets/game.js: motion and effects, with still() for reduced motion and calm mode */
   BMFx: any;
   /** assets/site.js: toasts; assets/game.js replaces it with the card toast */
@@ -58,6 +61,22 @@ interface Window {
   BMMap3D: any;
   /** assets/account.js: sign-in and sync, and the pure merge */
   BMAccount: any;
+  /** src/ui/ladder.ts: the help ladder (mount), the wrong-answer questions (detect) and the
+      pure modules under src/learn/, for assets/site.js, which cannot import them, and the
+      tests; typed, since it is written in TypeScript */
+  BMLearn: typeof import("../ui/ladder.ts").api;
+  /** src/ui/review.ts: the spaced-review schedule, the due review's plan and the Arena's XP
+      rules (src/learn/recall.ts, review.ts, practice.ts), for assets/game.js and
+      assets/arena.js, which cannot import them; typed */
+  BMReview: typeof import("../ui/review.ts").api;
+  /** src/ui/next.ts: the "next best step" card (render, items, hide), a console and test handle */
+  BMNext: typeof import("../ui/next.ts").api;
+  /** src/ui/math-names.ts: names the buttons, labels, table headers and headings whose
+      content is a formula (name), for assets/site.js's renderMath; typed */
+  BMMathNames: typeof import("../ui/math-names.ts").api;
+  /** src/ui/scroll-regions.ts: makes a formula or table that scrolls sideways a named tab
+      stop while it overflows (watch), for assets/site.js's renderMath; typed */
+  BMScrollRegions: typeof import("../ui/scroll-regions.ts").api;
   /** src/vendor/katex.js: KaTeX itself, a console handle and what the browser checks look for */
   katex: any;
   /** src/vendor/katex.js: KaTeX's auto-render extension, which renderMath in assets/site.js calls */

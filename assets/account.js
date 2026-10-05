@@ -140,15 +140,33 @@
     return out;
   }
 
+  /* The help ladder's position (`rung`, the highest clue opened while unsolved): the
+     larger number. A value that is not a number (damaged, or written by a version that
+     meant something else by it) loses to any number, and two such values fall back to
+     the rule for unknown fields, so the result is still a maximum over one total order
+     (numbers above everything else) and the merge laws hold. Present on neither side,
+     absent; 0 is kept as it was written. */
+  function isNum(v) { return typeof v === "number" && isFinite(v); }
+  function maxRung(p, q) {
+    if (p === undefined) return q;
+    if (q === undefined) return p;
+    if (isNum(p) && isNum(q)) return Math.max(p, q);
+    if (isNum(p)) return p;
+    if (isNum(q)) return q;
+    return later(p, q);
+  }
+
   /* one exercise's record seen from two devices */
-  var ATTEMPT = ["tries", "hints", "opened", "inline", "section", "solved", "first", "skipped"];
+  var ATTEMPT = ["tries", "hints", "rung", "opened", "inline", "section", "solved", "first", "skipped"];
   function mergeAttempt(x, y) {
     if (!plain(x) || !plain(y)) return plain(x) ? x : plain(y) ? y : later(x, y);
     var out = {};
     var tries = Math.max(x.tries || 0, y.tries || 0);
     var hints = Math.max(x.hints || 0, y.hints || 0);
+    var rung = maxRung(at(x, "rung"), at(y, "rung"));
     if (tries) out.tries = tries;
     if (hints) out.hints = hints;
+    if (rung !== undefined) out.rung = rung;
     if (x.opened || y.opened) out.opened = 1;
     if (x.inline || y.inline) out.inline = 1;
     var section = x.section || y.section;
@@ -881,10 +899,14 @@
 
   /* ---------------------------------------------------------- topbar button -- */
 
+  /* The chip is in the top bar from the start (tools/lib/shell.js), "Sign in" in a box
+     of its own width, so it can turn into the avatar without moving the HUD beside it.
+     A copy of the site with no accounts takes it out. */
   function drawButton() {
     var nav = document.querySelector(".topbar nav");
-    if (!nav || !configured) return;
+    if (!nav) return;
     var a = nav.querySelector(".acct");
+    if (!configured) { if (a) a.parentNode.removeChild(a); return; }
     if (!a) {
       a = document.createElement("a");
       a.className = "acct";

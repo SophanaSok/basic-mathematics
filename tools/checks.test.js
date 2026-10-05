@@ -21,6 +21,9 @@
      - apply-shell: whole pages are found again as the kind they were written from; a
        page no kind expands to, or one whose content differs from the base by a byte,
        fails and leaves every page alone
+     - CSS (lib/css.js and the stylesheet checks): the token tables per theme × panel,
+       color-mix and see-through backgrounds, the flash-and-loop rule, colour literals,
+       and what counts as the reading column and as motion or decoration in it
      - serve (lib/serve.js): a build is served as it is, a page in it that still carries
        a shell marker is refused, a fixture goes out as it is
    Usage: node tools/checks.test.js */
@@ -244,6 +247,11 @@ function refusal(fn) { try { fn(); return null; } catch (e) { return e.message; 
   const render = (attrs, rel, head) => shell.renderShell(marked(attrs, head), rel || "x.html");
   const tags = (html, name, attr) => parse(html).queryAll(name).filter(el => el.hasAttribute(attr)).map(el => el.getAttribute(attr));
   const scripts = (html) => tags(html, "script", "src"), sheets = (html) => tags(html, "link", "href").filter(h => /\.css/.test(h));
+  /* the brand and the page links of a top bar (not the HUD's, the account chip or the sheet's) */
+  const pageLinks = (html) => {
+    const bar = parse(html).query("header.topbar");
+    return [bar.query("a.brand")].concat(bar.query("nav").children_elements.filter(el => el.name === "a" && !el.hasAttribute("class")));
+  };
 
   /* what is and is not a page */
   const whole = '<!doctype html><html><head><title>t</title></head><body data-depth="0"><main id="main"><p>x</p></main></body></html>';
@@ -260,12 +268,23 @@ function refusal(fn) { try { fn(); return null; } catch (e) { return e.message; 
   check(out.endsWith(src.slice(src.indexOf("\n\n<div class=\"wrap\">"))), "everything after the top-bar marker is the source's, byte for byte");
   eq(parse(out).query("head").children_elements.slice(0, 4).map(el => el.name + ":" + (el.getAttribute("charset") || el.getAttribute("name") || el.textContent)),
     ["meta:utf-8", "meta:viewport", "title:A title", "meta:description"], "the head opens with charset, viewport, then the page's own title and description");
-  eq(sheets(out), ["src/vendor/fonts.css", "src/vendor/katex.css", "assets/site.css", "assets/game.css"], "a page links the fonts' and KaTeX's stylesheets, then site.css and game.css");
+  eq(sheets(out), ["src/vendor/fonts.css", "src/vendor/katex.css", "src/styles/tokens.css", "assets/site.css", "assets/game.css"], "a page links the fonts' and KaTeX's stylesheets, then the tokens, site.css and game.css");
   eq(scripts(out), ["src/entries/page.js"], "… and loads the one module entry of its kind, and no other script by URL");
   check(!/https?:\/\//.test(parse(out).query("head").children_elements.map(el => Object.values(el.attrs).join(" ")).join(" ")), "nothing in <head> names another server");
-  const all = parse(out).queryAll("script");
-  eq(all.map(s => (s.hasAttribute("src") ? "" : "inline ") + (s.getAttribute("type") || "") + (s.hasAttribute("defer") ? " defer" : "")), ["inline ", "module"], "the boot script is inline, the entry is a module, and there is no classic script");
-  eq(all[0].textContent.trim(), fs.readFileSync(path.join(site.ROOT, "src/boot.js"), "utf8").trim(), "the inline script is src/boot.js, whole");
+  const outDoc = parse(out), all = outDoc.queryAll("script");
+  eq(all.map(s => (s.hasAttribute("src") ? "" : "inline ") + (s.getAttribute("type") || "") + (s.hasAttribute("defer") ? " defer" : "")), ["inline ", "module", "inline "], "the boot script is inline, the entry is a module, the HUD script is inline, and there is no classic script");
+  eq(all[0].textContent.trim(), fs.readFileSync(path.join(site.ROOT, "src/boot.js"), "utf8").trim(), "the first inline script is src/boot.js, whole");
+  const barEl = outDoc.query("header.topbar");
+  check(all[2].textContent.trim() === shell.hudScript() && barEl.parent.children_elements[barEl.parent.children_elements.indexOf(barEl) + 1] === all[2], "the HUD script comes straight after the top bar, and is hudScript()");
+  const hudText = shell.hudScript();
+  check(/^\(function \(\) \{\n"use strict";\n/.test(hudText) && /window\.BMHud = \{ threshold: threshold, /.test(hudText) && /prefill\(document, window\);/.test(hudText) && !/^\s*(export|import)\b|\/\*/m.test(hudText),
+    "the HUD script is src/hud/'s modules in one function, without their exports, imports and comments, handing window.BMHud over and then filling the HUD");
+  check(!/prefill\(document, window\)/.test(shell.hudLibrary()) && /window\.BMHud = /.test(shell.hudLibrary()), "hudLibrary() is the same without the call, for a test with no page");
+  const withSource = (files, fn) => { shell.useSource(rel => files[rel] !== undefined ? files[rel] : fs.readFileSync(path.join(site.ROOT, rel), "utf8")); try { return fn(); } finally { shell.useSource(rel => fs.readFileSync(path.join(site.ROOT, rel), "utf8")); } };
+  check(/an export the HUD script cannot take/.test(refusal(() => withSource({ "src/hud/levels.js": "export default 1;\n" }, () => shell.hudScript())) || ""), "a module with an export the shell cannot take off is refused");
+  check(/imports levelInfo, which src\/hud\/levels.js does not export/.test(refusal(() => withSource({ "src/hud/levels.js": "export function threshold() {}\n" }, () => shell.hudScript())) || ""), "an import of a name the earlier module does not export is refused");
+  check(/does not parse/.test(refusal(() => withSource({ "src/hud/levels.js": "export function levelInfo() {}\nexport function threshold( {\n" }, () => shell.hudScript())) || ""), "a HUD script that would not parse is refused");
+  check(/would end the inline tag/.test(refusal(() => withSource({ "src/hud/levels.js": 'export function levelInfo() {}\nexport const Y = "</script>";\n' }, () => shell.hudScript())) || ""), "a closing script tag in a HUD module is refused");
   const headOrder = parse(out).query("head").children_elements.map(el => el.name + (el.getAttribute("rel") || "") + (el.getAttribute("type") || ""));
   check(headOrder.indexOf("script") < headOrder.indexOf("linkstylesheet") && headOrder.indexOf("scriptmodule") === headOrder.length - 1, "the boot script comes before every stylesheet, and the module entry last: " + headOrder.join(","));
   shell.VENDOR_STYLES.forEach(f => check(fs.existsSync(path.join(site.ROOT, f)) && /^\s*@import\s+["'][^"'./]|url\(["']?@?[a-z]/m.test(fs.readFileSync(path.join(site.ROOT, f), "utf8")), "the vendor stylesheet " + f + " exists and imports a package's CSS or names a package's files"));
@@ -280,16 +299,18 @@ function refusal(fn) { try { fn(); return null; } catch (e) { return e.message; 
   check(/^\^0\.\d+\.\d+$/.test(deps.dependencies.three || "") && (deps.devDependencies["@types/three"] || "").split(".")[1] === deps.dependencies.three.split(".")[1], "package.json holds three to a minor (a caret on 0.x is that), and @types/three is of the same minor: " + deps.dependencies.three + ", " + deps.devDependencies["@types/three"]);
 
   /* Three.js is re-exported by name, and the names are exactly what the scripts use,
-     so the lazy chunk is what the map and the GL painter need and nothing more: every
-     T.<Name> in map3d.js and THREE.<Name> in scenes3d-gl.js (the two readers of
-     BM3D.THREE), and every name src/vendor/three.js exports, must be the same set */
+     so the lazy chunk is what the course world and the GL painter need and nothing more:
+     every T.<Name> in map3d.js and src/world/*.ts and THREE.<Name> in scenes3d-gl.js (the
+     readers of BM3D.THREE), and every name src/vendor/three.js exports, must be the same set */
   const threeVendor = fs.readFileSync(path.join(site.ROOT, "src/vendor/three.js"), "utf8").replace(/\/\*[\s\S]*?\*\//g, "");
   const exported = threeVendor.match(/^export \{[^}]*\} from "three";$/gm).flatMap(line => line.replace(/^export \{|\} from "three";$/g, "").split(",").map(s => s.trim()).filter(Boolean));
   const used = new Set();
-  ["assets/map3d.js", "assets/scenes3d-gl.js"].forEach(f => {
+  const worldFiles = fs.readdirSync(path.join(site.ROOT, "src/world")).filter(f => /\.ts$/.test(f) && !/\.(test|test-helper|d)\.ts$/.test(f)).map(f => "src/world/" + f);
+  check(worldFiles.length > 0, "src/world/ holds the world's modules");
+  ["assets/map3d.js", "assets/scenes3d-gl.js"].concat(worldFiles).forEach(f => {
     for (const m of fs.readFileSync(path.join(site.ROOT, f), "utf8").replace(/\/\*[\s\S]*?\*\//g, "").matchAll(/\b(?:T|THREE|M\.T)\.([A-Z]\w*)/g)) used.add(m[1]);
   });
-  eq(exported.slice().sort(), Array.from(used).sort(), "src/vendor/three.js exports, by name, exactly the Three.js names assets/map3d.js and assets/scenes3d-gl.js use");
+  eq(exported.slice().sort(), Array.from(used).sort(), "src/vendor/three.js exports, by name, exactly the Three.js names assets/map3d.js, src/world/*.ts and assets/scenes3d-gl.js use");
   eq(exported.length, new Set(exported).size, "… each once");
   check(!["assets/map3d.js", "assets/scenes3d.js", "assets/scenes3d-gl.js", "assets/three-loader.js"].some(f => /window\.THREE\b/.test(fs.readFileSync(path.join(site.ROOT, f), "utf8").replace(/\/\*[\s\S]*?\*\//g, ""))), "nothing reads or writes window.THREE: the namespace is BM3D.THREE");
 
@@ -316,25 +337,55 @@ function refusal(fn) { try { fn(); return null; } catch (e) { return e.message; 
   check(/SIL OPEN FONT LICENSE Version 1\.1/.test(notice) && /Reserved Font Name KaTeX_/.test(notice), "the notice carries the Open Font License's text, and the KaTeX fonts' own notice");
   eq(vendor.NOTICE, "bundle/LICENSES.txt", "the notice goes beside the bundle");
   Object.keys(shell.PAGE_KINDS).forEach(k => check(/^import "\.\.\/vendor\/katex\.js";/m.test(fs.readFileSync(path.join(site.ROOT, shell.PAGE_KINDS[k].entry), "utf8").replace(/\/\*[\s\S]*?\*\//g, "").trim()), "the " + k + " entry imports src/vendor/katex.js first, so renderMathInElement is there when site.js runs"));
-  eq(parse(out).query("header.topbar").queryAll("a").map(a => a.getAttribute("href")), ["index.html", "index.html", "about.html"], "the usual top bar: brand, Contents, How to use this");
+  eq(pageLinks(out).map(a => a.getAttribute("href")), ["index.html", "index.html", "about.html"], "the usual top bar: brand, Contents, How to use this");
+
+  /* the HUD and the sheet are in the markup: every slot labelled in a sentence, the game
+     slots only where a page of the kind uses them, and every input of the sheet naming
+     its preference */
+  const hudOf = (html) => {
+    const bar = parse(html).query("header.topbar");
+    const hudEl = bar.query("nav").query("div.hud");
+    return {
+      slots: hudEl.children_elements.map(el => el.getAttribute("class") + (el.hasAttribute("data-slot") ? "[slot]" : "") + (el.hasAttribute("hidden") ? "[hidden]" : "")),
+      labels: hudEl.children_elements.map(el => el.getAttribute("aria-label")),
+      after: bar.query("nav").children_elements.slice(bar.query("nav").children_elements.indexOf(hudEl) + 1).map(el => el.getAttribute("class")),
+      strip: !!bar.query(".hud-strip"),
+      sheet: bar.query("dialog#hud-sheet"),
+      links: bar.query("ul.hud-links").queryAll("a").length,
+      prefs: bar.query("dialog#hud-sheet").queryAll("input").map(i => i.getAttribute("data-pref") + (i.getAttribute("type") === "radio" ? "=" + i.getAttribute("value") : ""))
+    };
+  };
+  let h = hudOf(out);
+  eq(h.slots, ["hud-combo[hidden]", "hud-level", "hud-streak"], "a page of no game has the combo (empty until it has pips), the level and the streak");
+  check(h.labels.every(l => (l || "").split(" ").length >= 5), "every slot of the HUD has a sentence for a label: " + JSON.stringify(h.labels));
+  eq([h.after, h.strip], [["acct", "icon-btn hud-sound", "icon-btn hud-menu"], false], "then the account chip, the sound and the menu buttons; no second row");
+  eq(h.prefs, ["calm", "sound", "volume", "motion", "transparency", "theme=light", "theme=dark", "theme=system", "panel=light", "panel=dark", "gfx=auto", "gfx=low", "gfx=mid", "gfx=high", "map3d"],
+    "the sheet: Study mode first, then sound and volume, motion, transparency, theme, reading panel, graphics quality, the 3D map");
+  check(/Keeps hints, reviews and progress\. Removes hearts, combo, bosses, motion and sound\./.test(h.sheet.textContent) && h.links === 5, "Study mode says what it keeps and what it removes, and the sheet keeps the menu's links");
+  /* what only some kinds have comes first, so the parts every page has hold still from page
+     to page (lib/shell.js hud(): the bar is right-aligned) */
+  eq(hudOf(render('data-depth="2" data-chapter="ch99" data-part="algebra"', "parts/p/c.html")).slots, ["hud-hearts[slot][hidden]", "hud-combo[hidden]", "hud-level", "hud-streak"], "a chapter keeps a place for the boss's hearts, before the rest");
+  h = hudOf(render('data-depth="0" data-page="arena"'));
+  eq([h.slots, h.strip], [["hud-hearts[slot][hidden]", "hud-timer[slot][hidden]", "hud-combo[hidden]", "hud-level", "hud-streak"], true], "the Arena keeps a place for hearts and the clock, before the rest, and has the second row for a narrow screen");
 
   /* the other kinds and top bars */
   eq(scripts(render('data-depth="0" data-page="dashboard"')).slice(-1), ["src/entries/dashboard.js"], "a dashboard loads the dashboard entry");
   out = render('data-depth="0" data-page="arena"');
-  eq([sheets(out).slice(-1)[0], scripts(out).slice(-1)], ["assets/arena.css", ["src/entries/arena.js"]], "the arena has its stylesheet and its entry");
+  eq([sheets(out).slice(-2), scripts(out).slice(-1)], [["assets/arena.css", "assets/review.css"], ["src/entries/arena.js"]], "the arena has its stylesheet, the due review's after it, and its entry");
   out = render('data-depth="0" data-page="home" data-nav="home"');
-  eq([sheets(out).slice(-2), scripts(out).slice(-1)], [["assets/scenes3d.css", "assets/map3d.css"], ["src/entries/home.js"]], "the home page has the map's stylesheet last and the home entry");
+  eq([sheets(out).slice(-3), scripts(out).slice(-1)], [["assets/scenes3d.css", "assets/map3d.css", "assets/review.css"], ["src/entries/home.js"]], "the home page has the map's stylesheet, then the next-step card's last, and the home entry");
   Object.keys(shell.PAGE_KINDS).forEach(k => check(fs.existsSync(path.join(site.ROOT, shell.PAGE_KINDS[k].entry)), "the entry of kind " + k + " exists: " + shell.PAGE_KINDS[k].entry));
-  eq(parse(out).query("header.topbar").queryAll("a").map(a => a.getAttribute("href")), ["index.html", "about.html"], "data-nav=\"home\": no Contents link on the contents page");
-  eq(parse(render('data-depth="0" data-page="page" data-nav="about"')).query("header.topbar").queryAll("a").map(a => a.textContent).slice(1), ["Contents", "Progress"], "data-nav=\"about\": Contents and Progress");
+  eq(pageLinks(out).map(a => a.getAttribute("href")), ["index.html", "about.html"], "data-nav=\"home\": no Contents link on the contents page");
+  eq(pageLinks(render('data-depth="0" data-page="page" data-nav="about"')).map(a => a.textContent).slice(1), ["Contents", "Progress"], "data-nav=\"about\": Contents and Progress");
   check(/<meta charset="utf-8">\n<meta name="robots" content="noindex">\n<meta name="viewport"/.test(render('data-depth="0" data-page="dashboard"', "x.html", HEAD + '\n<meta name="robots" content="noindex">')), "a robots tag goes right after the charset");
 
   /* chapters */
   out = render('data-depth="2" data-chapter="ch99" data-part="algebra"', "parts/p/c.html");
   check(/<body data-depth="2" data-chapter="ch99" data-part="algebra">/.test(out), "a chapter keeps data-chapter and data-part");
   const sc = scripts(out);
-  eq([sc, sheets(out)[0], sheets(out).slice(-1)], [["../../src/entries/chapter.js"], "../../src/vendor/fonts.css", ["../../assets/scenes3d.css"]], "it loads the chapter entry and the vendor stylesheets by its depth, and the scenes' stylesheet is every chapter's");
-  eq(parse(out).query("header.topbar").queryAll("a").map(a => a.getAttribute("href")), ["../../index.html", "../../index.html", "../../about.html"], "the top bar's links climb by data-depth");
+  eq([sc, sheets(out)[0], sheets(out).slice(-3)], [["../../src/entries/chapter.js"], "../../src/vendor/fonts.css", ["../../assets/scenes3d.css", "../../assets/ladder.css", "../../assets/review.css"]],
+    "it loads the chapter entry and the vendor stylesheets by its depth, and the scenes', the help ladder's and the next-step card's stylesheets are every chapter's, the card's last");
+  eq(pageLinks(out).map(a => a.getAttribute("href")), ["../../index.html", "../../index.html", "../../about.html"], "the top bar's links climb by data-depth");
   const chapterEntry = fs.readFileSync(path.join(site.ROOT, "src/entries/chapter.js"), "utf8");
   const sceneFiles = fs.readdirSync(path.join(site.ROOT, "assets/scenes")).filter(f => /\.js$/.test(f));
   eq(sceneFiles.filter(f => !chapterEntry.includes("assets/scenes/" + f)), [], "the chapter entry imports every scene file under assets/scenes/");
@@ -362,15 +413,22 @@ function refusal(fn) { try { fn(); return null; } catch (e) { return e.message; 
   /* the shell check: what it records, and what it notices */
   const facts = (html) => shellOf(parse(html));
   const base = facts(render('data-depth="2" data-chapter="ch99" data-part="algebra"', "parts/p/c.html"));
-  eq([base.body, base.topbar], ["<body data-depth='2' data-chapter='ch99' data-part='algebra'>",
-    ["Skip to content -> #main", "∑ Basic Mathematics -> ../../index.html", "Contents -> ../../index.html", "How to use this -> ../../about.html", "button: Switch between light and dark"]],
-    "the record of a page: its body tag without what only the shell reads, and the top bar's links");
+  eq([base.body, base.topbar.slice(0, 11)], ["<body data-depth='2' data-chapter='ch99' data-part='algebra'>",
+    ["Skip to content -> #main", "∑ Basic Mathematics -> ../../index.html", "Contents -> ../../index.html", "How to use this -> ../../about.html",
+      "Level 1, Counter. 0 of 25 XP to level 2. Open your progress. -> ../../progress.html", "Sign in -> ../../account.html", "button: Sound", "button: Menu and settings",
+      "button: Close menu and settings", "Contents -> ../../index.html", "How to use this -> ../../about.html"]],
+    "the record of a page: its body tag without what only the shell reads, and the top bar's links and buttons by their labels, the sheet's among them");
+  check(/^<script>#[0-9a-f]+<\/script>$/.test(base.topbar[base.topbar.length - 1]) && base.topbar.length === 15, "… and last, the HUD script after the top bar as a fingerprint of its text");
+  const hudChanged = render('data-depth="2" data-chapter="ch99" data-part="algebra"', "parts/p/c.html").replace('"use strict";\nfunction threshold', '"use strict";\nvar edited = 1;\nfunction threshold');
+  const hudEdited = shellDiff(facts(hudChanged), base);
+  check(hudEdited.length === 1 && /^topbar entry 15 is now `<script>#[0-9a-f]+<\/script>`, accepted `<script>#[0-9a-f]+<\/script>`$/.test(hudEdited[0]), "an edit to the HUD script shows as a new fingerprint: " + hudEdited[0]);
+  check(/^the body's one script is not the HUD script/.test(scriptsProblems("parts/p/c.html", parse(hudChanged), "chapter")[0] || ""), "… and a HUD script that is not hudScript() fails, whatever the record says");
   const bootLine = base.head.find(l => /^<script>#[0-9a-f]+<\/script>$/.test(l));
   check(bootLine && base.head.includes("<script type='module' src='../../src/entries/chapter.js'>") && base.head[2] === "<title>A title</title>", "… and every tag of its head, attributes and all, the inline boot script as a fingerprint of its text");
   eq(shellDiff(base, base), [], "the same shell is no difference");
   const expanded = render('data-depth="2" data-chapter="ch99" data-part="algebra"', "parts/p/c.html");
   const fontsLink = '<link rel="stylesheet" href="../../src/vendor/fonts.css">', katexLink = '<link rel="stylesheet" href="../../src/vendor/katex.css">';
-  check(expanded.includes(fontsLink + "\n" + katexLink + '\n<link rel="stylesheet" href="../../assets/site.css">'), "the vendor stylesheets are linked in order, before the site's own");
+  check(expanded.includes(fontsLink + "\n" + katexLink + '\n<link rel="stylesheet" href="../../src/styles/tokens.css">\n<link rel="stylesheet" href="../../assets/site.css">'), "the vendor stylesheets are linked in order, before the site's own, the tokens first of those");
   check(/^head entry \d+ is now `<link rel='stylesheet' href='..\/..\/src\/vendor\/fonts.css' media='print'>`, accepted `<link rel='stylesheet' href='..\/..\/src\/vendor\/fonts.css'>`/.test(shellDiff(facts(expanded.replace(fontsLink, fontsLink.replace(">", ' media="print">'))), base)[0] || ""), "an attribute added to a link shows");
   const swapped = expanded.replace(fontsLink + "\n" + katexLink, katexLink + "\n" + fontsLink);
   check(swapped !== expanded && /^head entry \d+ is now `<link rel='stylesheet' href='..\/..\/src\/vendor\/katex.css'>`/.test(shellDiff(facts(swapped), base)[0] || ""), "two stylesheets in the other order show");
@@ -459,6 +517,113 @@ function refusal(fn) { try { fn(); return null; } catch (e) { return e.message; 
   eq(applyShell.run({ write: true }, w.io), 1, "--write with a page no kind expands to exits 1");
   eq([w.written, w.files["index.html"] === was["index.html"], w.lines.filter(l => /^write /.test(l))], [[], true, []], "… writes nothing and claims no write");
   check(/^FAIL {2}about\.html: no kind of page in lib\/shell\.js expands to this document/.test(w.lines[0] || "") && /nothing written$/.test(w.lines[w.lines.length - 1] || ""), "… and names the page: " + JSON.stringify(w.lines));
+}
+
+/* -------------------------------------------------------------------- CSS -- */
+/* lib/css.js and the stylesheet checks, on stylesheets written here: the token tables
+   by theme and panel, color-mix and see-through backgrounds, the flash-and-loop rule,
+   colour literals, and the reading column */
+{
+  const css = require("./lib/css");
+  const T = css.tokens([
+    ":root { --bg: #ffffff; --text: #111111; --frame-bg: #222233; }",
+    ":root[data-theme=\"dark\"] { --frame-bg: #000000; }",
+    ":root[data-panel=\"dark\"] { --bg: #101010; --text: #eeeeee; }",
+    ":root, [data-part=\"a\"] { --part: #aa0000; --region-sky: #ffeeee; }",
+    "[data-part=\"b\"] { --part: #0000aa; --region-sky: #eeeeff; }",
+    ":root[data-panel=\"dark\"] [data-part=\"b\"] { --part: #8888ff; }",
+    ":root[data-theme=\"dark\"] [data-part=\"b\"] { --region-sky: #000022; }",
+    "@media print { :root { --bg: #fafafa; } }",
+    "@supports (color: color-mix(in srgb, red 50%, blue)) { :root { --glass: color-mix(in srgb, var(--frame-bg) 80%, transparent); } }",
+    ".switch { --sw: #123456; }"
+  ].join("\n"));
+  const at = (label) => T.scopes.find(s => s.label === label);
+  eq(T.scopes.map(s => s.label), ["light", "dark", "light, dark panel", "dark, dark panel"], "css tokens(): one table per theme × panel, the defaults first");
+  eq([at("dark").table["--bg"], at("dark").table["--frame-bg"]], ["#ffffff", "#000000"], "… the dark theme shades the frame and leaves the light panel alone");
+  eq([at("light, dark panel").table["--bg"], at("light, dark panel").table["--frame-bg"]], ["#101010", "#222233"], "… the dark panel changes the paper and leaves the frame alone");
+  eq([at("dark, dark panel").parts.b["--part"], at("dark, dark panel").parts.b["--region-sky"], at("dark").parts.b["--part"]], ["#8888ff", "#000022", "#0000aa"],
+    "… a Part takes its own light value in the dark theme unless a block for that theme or panel overrides it");
+  eq([at("light").table["--bg"], at("light").table.hasOwnProperty("--sw")], ["#ffffff", false], "… print blocks and a component's own properties are not the palette");
+  check(at("light").table["--glass"] && /^color-mix/.test(at("light").table["--glass"]), "… an @supports block is, for the browsers it describes");
+  eq(css.tokens(":root[data-theme=\"dark\"] { --x: #000000; }\n:root[data-panel=\"dark\"] { --x: #111111; }").overlap, [":root --x"], "… a name both a theme block and a panel block set is reported");
+
+  eq(css.colorMix("color-mix(in srgb, #000000 50%, #ffffff)").map(Math.round), [128, 128, 128, 1], "css colorMix: half black, half white is grey");
+  eq(css.colorMix("color-mix(in srgb, #1a1f33 88%, transparent)").map(v => +v.toFixed(2)), [26, 31, 51, 0.88], "… mixing with transparent keeps the colour and makes it see-through");
+  eq(css.over(css.parseColor("color-mix(in srgb, #000000 50%, transparent)"), [255, 255, 255, 1]).map(Math.round), [128, 128, 128, 1], "css over(): half-black glass over white is grey");
+  eq(css.parseColor(css.resolveVar("var(--glass)", at("light").table)).map(v => +v.toFixed(2)), [34, 34, 51, 0.8], "… and var() inside color-mix resolves first");
+
+  const P = (value, more) => css.parseAnimation(Object.assign({ value }, more || {}));
+  eq(P("pop 320ms cubic-bezier(.34, 1.56, .64, 1)"), [{ name: "pop", ms: 320, iterations: 1 }], "css parseAnimation: name, duration, one iteration by default");
+  eq(P("tick-draw 400ms 100ms ease-out forwards, here .7s ease-in-out 3"), [{ name: "tick-draw", ms: 400, iterations: 1 }, { name: "here", ms: 700, iterations: 3 }], "… two animations, the second time a delay, seconds read as ms");
+  eq(P("none"), [], "… `none` runs nothing");
+  eq(P("spin 1s linear infinite")[0].iterations, Infinity, "… infinite is infinite");
+  eq(P("", { name: "glow", duration: "250ms", count: "4" }), [{ name: "glow", ms: 250, iterations: 4 }], "… the longhands on their own");
+
+  const { animationFaults, colourLiterals, columnPatterns, inColumn, quietKinds } = require("./check-static");
+  const faults = (text) => animationFaults(text, { "--t-3": "240ms" }).filter(Boolean).map(f => f.selector + ": " + f.problem.split(" ")[0]);
+  eq(faults(".a { animation: pop 320ms ease; } .b { animation: here 700ms ease 3; } .c { animation: x var(--t-3); }"), [], "animations: one pop, three slow repeats and a token duration pass");
+  eq(faults(".c { animation: x var(--t-3) 2; }"), [".c: repeats"], "… a token duration is read: two cycles of 240ms are more than three a second");
+  eq(faults(".a { animation: spin 2s linear infinite; }"), [".a: animates"], "… forever fails");
+  eq(faults(".a { animation: blink 200ms 2; }"), [".a: repeats"], "… two cycles of 200ms (5 a second) fail");
+  eq(faults(".a { animation: nod 800ms 4; }"), [".a: repeats"], "… four slow cycles fail: a loop in all but name");
+  eq(faults(".a { animation: x var(--unknown) 1; }"), [".a: the"], "… a duration that cannot be read fails");
+  eq(faults(".a { animation-name: x; animation-duration: 100ms; animation-iteration-count: infinite; }"), [".a: animates"], "… the longhands are read too");
+  eq(faults(".a { --n: infinite; animation: pulse 1s var(--n); }"), [".a: the"], "… a count (or any word) that is a var() tokens.css does not define fails, not taken for one iteration");
+  eq(faults(".a { animation-name: pulse; animation-duration: 1s; animation-iteration-count: var(--n); }"), [".a: the"], "… and so does such a count in the longhand");
+  const strobe = "@keyframes strobe { 0%, 50%, 100% { opacity: 1; } 25%, 75% { opacity: 0; } }\n";
+  eq(faults(strobe + ".a { animation: strobe 300ms; }"), [".a: flashes"], "… a strobe inside one cycle fails: two flashes in 300ms");
+  eq(faults(strobe + ".a { animation: strobe 1.2s; }"), [], "… the same keyframes slowed to two flashes in 1.2s pass");
+  eq(faults("@keyframes blink { 50% { color: var(--x); } }\n.a { animation: blink 250ms 2; }"), [".a: repeats"], "… a colour turned back and forth repeats too");
+  eq(faults("@keyframes dim { 0%, 100% { opacity: 1; } 50% { opacity: .45; } }\n.a { animation: dim 900ms 3; }"), [], "… one slow dip a cycle, three cycles, passes (the site's handle-dim)");
+  eq(faults(".a { animation: strobe 300ms; }"), [], "… keyframes are read from the whole site: none here");
+  eq(animationFaults(".a { animation: strobe 300ms; }", {}, css.keyframes(strobe)).filter(Boolean).map(f => f.problem.split(" ")[0]), ["flashes"], "… and given, they are");
+  eq(css.flashesPerCycle(css.keyframes("@keyframes f { from { opacity: 0; } to { opacity: 1; } }").f), 0, "css flashesPerCycle: a fade in is no flash");
+  eq(css.flashesPerCycle(css.keyframes(strobe).strobe), 2, "… a strobe of four turns is two");
+
+  eq(colourLiterals("#main .x { color: var(--text); }\n.a { color: #fff; background: rgb(1 2 3); }\n.b { mask: url(\"data:image/svg+xml,%23ff0000\"); border-color: hsl(0 0% 0%); }\n/* #abc */\n.c { background: color-mix(in srgb, var(--a) 5%, var(--ink-shadow)); }")
+    .map(c => c.literal + "@" + c.line), ["#fff@2", "rgb(@2", "hsl(@3"], "colours: literals in declarations, by line; an id selector, a data: URI, a comment and color-mix of tokens pass");
+  eq(colourLiterals(".x { color: RGB(1,2,3); }\n.y { background: Hsla(0 0% 0% / .5); border-color: #ABCDEF; }").map(c => c.literal + "@" + c.line), ["RGB(@1", "Hsla(@2", "#ABCDEF@2"],
+    "… in any letter case: CSS function names are case-insensitive");
+  eq(colourLiterals(".x { color: red; box-shadow: 0 3px 0 color-mix(in srgb, var(--a) 50%, black); }\n.y { white-space: nowrap; border: 1px solid currentColor; background: transparent; outline-color: CanvasText; }\n.z { content: \"white\"; -webkit-mask: radial-gradient(circle, transparent 45%, black 48%); animation: red-out 1s; }")
+    .map(c => c.literal + "@" + c.line), ["red@1", "black@1"], "… named colours too, but not white-space, currentColor, transparent, a system colour, a string, a mask's alpha or a name that only starts like one");
+
+  const pats = columnPatterns(["ex", "ex-*", "widget"]);
+  eq([".ex .tick path", "html:not([data-calm]) .ex-form", ".widget[data-inview] svg", "main > h2::before", ".hud-xpbar i", ".topbar .ex-link-like"].map(s => inColumn(s, pats, ["main"])),
+    [true, true, true, true, false, true], "reading-column: a selector is in the column when it names a column class or element");
+  eq([
+    quietKinds({ animation: "pop 320ms ease" }, { light: {} }),
+    quietKinds({ transition: "border-color .15s, transform var(--t-1)" }, { light: { "--t-1": "80ms" } }),
+    quietKinds({ transition: "background-color .15s" }, { light: {} }),
+    quietKinds({ background: "linear-gradient(red, blue)" }, { light: {} }),
+    quietKinds({ "box-shadow": "0 4px 0 var(--edge)" }, { light: {} }),
+    quietKinds({ "box-shadow": "0 0 12px var(--glow)" }, { light: {} }),
+    quietKinds({ "-webkit-mask-image": "var(--motif)" }, { light: {} }),
+    quietKinds({ "-webkit-mask": "var(--icon-tick) center / contain no-repeat" }, { light: {} }),
+    quietKinds({ animation: "none" }, { light: {} })
+  ], [["animation"], ["transition"], [], ["decoration"], [], ["decoration"], ["decoration"], [], []],
+    "… what counts: an animation, a transition that moves, a gradient, a soft shadow, a motif; not a colour fade, a hard tile edge, an icon mask or `none`");
+  const toks = { light: { "--grid-motif": "linear-gradient(black 1px, transparent 1px)", "--surface": "#ffffff", "--sheen": "linear-gradient(#fff, #eee)", "--paper-tex": "url(paper.png)",
+    "--mark-ok": "url(\"data:image/svg+xml,x\")", "--icon-tick": "url(\"data:image/svg+xml,y\")" } };
+  eq([
+    quietKinds({ "background-image": "var(--grid-motif)" }, toks),
+    quietKinds({ "-webkit-mask-image": "var(--grid-motif)", "mask-image": "var(--grid-motif)" }, toks),
+    quietKinds({ background: "var(--surface) var(--grid-motif)" }, toks),
+    quietKinds({ "background-image": "var(--motif)" }, toks),
+    quietKinds({ background: "var(--sheen)" }, toks),
+    quietKinds({ "background-image": "var(--paper-tex)" }, toks),
+    quietKinds({ "mask-image": "var(--sheen)" }, toks),
+    quietKinds({ background: "var(--surface)" }, toks),
+    quietKinds({ "background-image": "var(--mark-ok)" }, toks),
+    quietKinds({ "-webkit-mask": "var(--icon-tick) center / contain no-repeat" }, toks)
+  ], [["decoration"], ["decoration"], ["decoration"], ["decoration"], ["decoration"], ["decoration"], ["decoration"], [], [], []],
+    "… read through the tokens: the graph paper (--grid-motif) as a background or a mask, any motif token, a gradient or picture behind a token; not a plain colour, an answer mark or an icon");
+
+  const { printGaps } = require("./check-static");
+  const printed = (css) => printGaps(css).filter(g => g.problem).map(g => g.problem.split(" ")[0]);
+  eq(printed(":root { --on-accent: #fff; }\n:root[data-panel=\"dark\"] { --on-accent: #000; --xp-ink: #ff0; }\n@media print { :root, :root[data-panel=\"dark\"] { --on-accent: #fff; } }"), ["--xp-ink"],
+    "print: a token the dark panel sets and print does not restate is reported");
+  eq(printed(":root[data-panel=\"dark\"] [data-part=\"b\"] { --part: #fff; }\n@media print { :root[data-panel=\"dark\"] [data-part=\"b\"] { --part: #000; } }"), [], "… a Part's dark-panel block restated in print passes");
+  eq(printed("@media print { :root[data-panel=\"dark\"] { --ok: #14713a; --mark-ok: url(\"data:image/svg+xml,stroke='%236fdc98'\"); } }"), ["print's"], "… a print answer mark drawn in another colour than print's --ok is reported");
 }
 
 /* ------------------------------------------------------------------ serve -- */

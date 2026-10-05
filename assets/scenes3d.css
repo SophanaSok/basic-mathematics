@@ -3,7 +3,7 @@
    Loaded after site.css. A stage stacks three layers in one 660 × 420 frame:
    the SVG picture (first paint and fallback), the canvas the WebGL painter
    copies into, and the overlay SVG for labels and handles. Colours come only
-   from the tokens in site.css.
+   from the tokens in src/styles/tokens.css.
    =========================================================================== */
 
 .scene3d .s3d-stage {

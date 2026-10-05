@@ -148,6 +148,53 @@ avoided without keeping the previous deploy's chunks, which the build does not h
 try to work around it by hand. If such a change must not touch a reader mid-session, deploy it
 at a quiet hour.
 
+### Deploy R0 before R1: the help ladder's `rung`
+
+R1 (the help ladder, item 8) adds a field to every exercise's attempt record that a reader opens
+a clue on: `rung`, the highest clue opened while the exercise was unsolved, synced like the rest
+of `bm.attempts.v1` and merged by the larger number (`assets/account.js` `maxRung`). It needs no
+SQL: it lives inside the `attempts` column's JSON.
+
+**Deploy R0 (the sync hardening that carries unknown fields through a merge) first, and let it
+be live for a while, before R1.** A copy of the site from before R0 (a tab left open, a browser
+holding last week's scripts, another device) rebuilds each attempt record from the fields it
+knows when it merges, so it drops `rung` and writes the record back without it. From R0 on, a
+copy that does not know a field carries it. What such a loss costs is small and bounded: the
+clues a reader had opened show closed again on their next visit, and a right first answer after
+clue 2 or 3 opened on another device can pay the first-time rate. It never touches solved work,
+XP, medals, hearts or the attempt log, and it mends itself as soon as that reader opens the clue
+again on a current copy.
+
+The R1 deploy also adds a stylesheet (`bundle/chapter.css`, from `assets/ladder.css`) and new
+modules in `bundle/chapter.js`: the case in the section above. For the ten minutes a chapter page
+from before the deploy can meet a `chapter.js` from after it, its clues are drawn without their own
+stylesheet (as a plain ghost button and the hint panel `game.css` already styles) or, the other
+way round, it has no clue button; either way the card grades as before.
+
+### The due review and the next-step card (R1 item 13)
+
+No SQL and no new synced field: the due review reads the Arena boxes `bm.game.v1.sec` already
+holds, and the two new values (`arenaDay`, the day's Arena XP counts, and `nextHide`, the day the
+next-step card was hidden) live in `bm.run.v1`, which never leaves the device. A sign-out or a
+reset empties that store, so each one starts the day's XP counts again, as many times as it is
+done, and so does setting the device clock forward to another day. That is accepted: the counts
+only slow XP for practice massed into one day, XP buys nothing and is compared with no one, and
+keeping the counts across a sign-out would charge the next person to sign in on that device
+for the last one's practice.
+
+The deploy moves files between chunks, the case two sections up. The review's modules
+(`src/learn/recall.ts`, `review.ts`, `practice.ts`, `constants.ts`, `src/data/arena-sections.ts`
+and `src/ui/review.ts`, which puts them up as `window.BMReview`) are in every entry, so they go
+into `bundle/all.js` beside `game.js`, which needs them; the card (`src/learn/next.ts`,
+`src/ui/next.ts`) goes into `bundle/home-chapter.js`; and a new stylesheet, `assets/review.css`,
+is linked on the contents page, the Arena and the chapters. `constants.ts` was in
+`bundle/chapter.js` and is now in `all.js`, so for the ten minutes a cached page can pair chunks
+of the two deploys, a chapter page can fail to load its scripts (a new `chapter.js` asks the old
+`all.js` for a function it does not have), the accepted case above. Short of that, a page
+without the new stylesheet draws the card unstyled, and an Arena page whose `all.js` has no
+`BMReview` says "The problem generators did not load" until it is reloaded. Nothing is lost
+either way: no saved state changes shape.
+
 ### Scripts: the copies under dist/assets/ and dist/data/ are gone
 
 For one release, the one that brought the module entries, the build copied every script under
@@ -189,6 +236,79 @@ screen from the first paint anyway, with nothing said in the console, until the 
 fetched again. Nothing is kept for it. One thing to know when reading the loader's reasons:
 `BM3D.why` still says `cdn` when the chunk could not be fetched or run, since the checks and
 the map read that string; it no longer means a CDN.
+
+### Cached HTML after the game-frame deploy
+
+The deploy that brought the dark game frame and the token file (`src/styles/tokens.css`) added
+a stylesheet to every page, but every page kind links it, so it went into `bundle/all.css` with
+`site.css`, and no file was renamed. For the ten minutes, a page from before the deploy with the
+new `all.css` gets the new look: its old boot script stamps no `data-panel`, and with none the
+panel is the light paper, which is the default anyway. A page from after it with an `all.css`
+from before gets the old look, with the boot script's `data-panel` doing nothing, until the
+stylesheet is fetched again. Either way nothing breaks and nothing is kept for it. A reader who
+chose the dark panel (`bm.prefs.v1` `panel: "dark"`) keeps the choice; there was no such choice
+before this deploy, so a reader of the dark theme now sees light paper in a dark frame.
+
+### Cached HTML after the HUD deploy
+
+The deploy that made the HUD and the settings sheet part of every page's top bar
+(`tools/lib/shell.js`, with the HUD script after it) renamed no file either, so for the ten
+minutes both mixes can happen, and neither loses anything a reader saved:
+
+- A page from before it with the bundle from after it has the old top bar, which the game layer
+  used to build its HUD into and no longer does: for those minutes it shows no HUD and no menu
+  button. Its scripts run, because the bundle installs `window.BMHud` itself where no HUD script
+  put it (`src/hud/install.js`); without that, `site.js` could not have counted the XP of an
+  answer given on such a page. The `hud` suite of `check-browser.js` loads a chapter with the
+  HUD script taken out and holds it to earning XP.
+- A page from after it with a bundle from before it has the new top bar and the old `game.js`,
+  which rebuilds the HUD its own way and cannot open the new sheet: the menu button does
+  nothing until the bundle is fetched again. Settings chosen before are kept: the new ones
+  (`volume`, `motion`, `transparency`, `gfx` in `bm.prefs.v1`) are keys the old `game.js`
+  passes through untouched (R0's carry-through), and the boot script, which is in the page,
+  stamps them.
+
+### Cached HTML after the view-transitions deploy
+
+The deploy that brought the fade between pages (README, "Between pages") renamed no file: the
+opt-in is inline in every page's `<head>` and the rest is in `game.css`, inside
+`bundle/all.css`. A transition needs both pages to opt in, so for the ten minutes a page from
+before the deploy never has one, coming or going. A page from after it with an `all.css` from
+before it opts in but has none of `game.css`'s rules for it, so the browser's own cross-fade of
+the whole page runs (about a quarter of a second, the header fading with the rest); its boot
+script is the new one, so Study mode and Reduce motion still skip it, and reduced motion on the
+device never opts in. Nothing is stored for it and nothing can break. To take the fade off
+everywhere, remove `OPT_IN` from `tools/lib/shell.js`'s head and deploy; every page then
+navigates as before.
+
+### Cached HTML after the course-world deploy
+
+The deploy that grew the course map into the course world (README, "The course world") renamed
+no file and added one chunk, `bundle/world.js`, which only `assets/map3d.js`'s `import()`
+fetches. `map3d.js` and the module it now needs before anything 3D is fetched
+(`src/world/tiers.ts`) are both in `bundle/home.js`, so they are always of one version. For the
+ten minutes:
+
+- A contents page from before the deploy runs the old map from its cached `home.js` and never
+  asks for `bundle/world.js`; it draws the old map, beside the list as it was laid out then.
+- A page from after it with a `home-chapter.js` from before has the old loader, which does not
+  say the WebGL renderer's name (`BM3D.renderer`): a software renderer then reads as a hardware
+  one and gets the medium tier instead of low, and the watchdog steps it down if it is slow.
+- The settings sheet's Graphics quality Low used to keep the list; it is the world's low tier
+  now, and the 3D course map switch is what keeps the list. That meaning of Low was never on
+  `main` (the setting arrived on the branch before this one), so no deployed reader has it
+  stored. Should one have it, the world is drawn at its lowest, and if even that is too slow the
+  watchdog gives the list back and keeps it (`gfxAuto: "list"`, whether or not the quality was
+  chosen), so the cost is paid once, not on every visit.
+- A low-end device (2 GB of memory or less) got the list by default before; it gets the low tier
+  now, as the plan's tier rule says, and the watchdog takes it to the list if it is too slow.
+- `bm.prefs.v1` gains `gfxAuto`, written by the watchdog. A tab from before the deploy keeps it
+  through its own writes (R0's unknown-key rule) and does not read it.
+
+Nothing is kept for it. A later deploy that changes what `src/world/index.ts` exports is the
+case to watch: a `home.js` cached from before and a `world.js` fetched after it would disagree
+for those ten minutes, and the page would fall back to the list (`BMMap3D.why()` says `error`);
+keep the exports' names when changing the world, or accept those minutes of list.
 
 ### The Pages source: GitHub Actions, set before the page-shell change is merged
 

@@ -401,6 +401,10 @@
     html += '<p class="encounter-medal" data-medal="' + medal + '">' + stars(medal) + " " + MEDALS[medal] + " medal</p>";
     html += '<div class="stats"><div class="stat"><b>' + st.first + " of " + st.total + "</b><span>right first time</span></div>";
     if (!isCalm) html += '<div class="stat"><b>' + st.hearts + " of 3</b><span>hearts kept</span></div>";
+    /* the medal counts what hearts do not: problems solved with the solution open first
+       (setStats marks less misses), so a medal below the hearts can be read from here */
+    var openFirst = st.marks - st.misses;
+    if (openFirst > 0) html += '<div class="stat"><b>' + openFirst + " of " + st.total + "</b><span>solved with the solution open</span></div>";
     html += "</div>";
 
     var g = Play ? Play.chapter(chapterId).guess : null;
@@ -434,7 +438,7 @@
     if (openAll) openAll.addEventListener("click", function () {
       set.exs.forEach(function (ex) {
         var sol = ex.querySelector(".ex-solution");
-        var btn = ex.querySelector(".ex-form .btn.ghost");
+        var btn = ex.querySelector(".ex-form .ex-show");
         if (sol && btn && sol.getAttribute("data-show") !== "true") btn.click();
       });
     });

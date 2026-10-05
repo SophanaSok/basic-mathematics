@@ -1,188 +1,13 @@
 /* ===========================================================================
    Basic Mathematics — site styles
-   Light palette on bare :root, dark on :root[data-theme="dark"]; assets/boot.js
-   stamps data-theme before first paint (the saved choice, else the OS setting).
-   Everything is drawn from the tokens below, so the figures (which read the
-   --plot-* and --part variables) follow both themes without knowing about them.
+   Draws every colour, duration and shape from src/styles/tokens.css, which the shell
+   links first of the site's stylesheets, and defines no colour of its own. Two
+   surfaces: the dark game frame (the body, the top bar, the region banner's band),
+   which the light/dark theme shades, and the reading panel (.wrap, .wrap-narrow),
+   light paper unless the reader has chosen a dark one (html[data-panel], stamped by
+   src/boot.js before first paint). The figures read the --plot-* and --part
+   variables, so they follow the panel without knowing about it.
    =========================================================================== */
-
-:root {
-  --bg: #f6f1e7;
-  --surface: #fffdf8;
-  --surface-2: #ede6d8;
-  --grid-line: #ece5d6;
-  --text: #171923;
-  --muted: #555a6b;
-  --border: #e0d9c9;
-  --border-strong: #c2b9a6;
-  --tile-border: #c2b9a6;
-  --tile-edge: #b0a68f;
-  --line-ui: #73788a;
-  --accent: #2646d4;
-  --accent-deep: #17309f;
-  --accent-soft: #e4e9ff;
-  --focus: #2646d4;
-  --accent-2: #a04608;
-  --accent-2-soft: #fdeedd;
-  --ok: #14713a;
-  --ok-deep: #0d5329;
-  --ok-soft: #dcf3e2;
-  --bad: #b42318;
-  --bad-deep: #861810;
-  --bad-soft: #fde7e4;
-  --hint-ink: #8a3c06;
-  --hint-soft: #fdf3e3;
-  --flame: #d4530a;
-  --xp: #f6b40e;
-  --xp-ink: #855600;
-  --on-xp: #171923;
-  --heart: #c81e4a;
-  --on-accent: #ffffff;
-  --on-part: #ffffff;
-
-  /* the scoreboard rail is dark in both themes */
-  --hud-bg: #171a28;
-  --hud-text: #f4f1e9;
-  --hud-muted: #aeb4c8;
-  --hud-line: #343b55;
-  --hud-chip: #262b42;
-  --hud-track: #3a4160;
-  --hud-xp: #ffc83d;
-  --hud-flame: #ff9447;
-  --hud-heart: #ff6b81;
-  --hud-ok: #6fdc98;
-  --hud-focus: #ffd24a;
-
-  /* elevation means "you can act on this": tiles get a hard edge, panels get none */
-  --shadow-tile: 0 4px 0 var(--edge, var(--tile-edge));
-  --shadow-tile-sm: 0 2px 0 var(--edge, var(--tile-edge));
-  --shadow-float: 0 10px 30px -10px rgba(20, 22, 31, .35);
-  --shadow-1: 0 1px 2px rgba(23, 24, 28, .05), 0 2px 6px rgba(23, 24, 28, .04);
-  --shadow: 0 1px 2px rgba(23, 24, 28, .05), 0 8px 24px -6px rgba(23, 24, 28, .08);
-  --shadow-2: var(--shadow-float);
-
-  /* figures and 3D scenes; WebGL reads these, so keep them plain six-digit hex */
-  --plot-bg: #fffdf8;
-  --plot-grid: #e7e0d0;
-  --plot-axis: #777c8c;
-  --plot-curve: #2646d4;
-  --plot-curve-2: #a04608;
-  --plot-curve-3: #1f9456;
-  --plot-curve-4: #a3247a;
-  --plot-fill: rgba(38, 70, 212, .14);
-  --plot-point: #171923;
-  --plot-ink: #171923;
-  --plot-face-a: #c9d3fb;
-  --plot-face-b: #f6d3ae;
-  --plot-face-c: #d3efdc;
-  --plot-ground: #f1ebdd;
-  --plot-hot: #f6b40e;
-
-  --sans: "Inter", ui-sans-serif, "Segoe UI", system-ui, Roboto, Helvetica, Arial, sans-serif;
-  --serif: "Newsreader", "Iowan Old Style", "Palatino Linotype", Palatino, "Book Antiqua", Georgia, serif;
-  --display: "Bricolage Grotesque", "Inter", ui-sans-serif, "Segoe UI", system-ui, sans-serif;
-  --mono: ui-monospace, "Cascadia Mono", Consolas, "Liberation Mono", monospace;
-  --measure: 66ch;
-  --hud-h: 3.5rem;
-  --radius: 16px;
-  --radius-sm: 11px;
-  --radius-xs: 7px;
-  --radius-pill: 999px;
-  --ease: cubic-bezier(.2, .7, .2, 1);
-  --ease-out: cubic-bezier(.2, .7, .2, 1);
-  --ease-spring: cubic-bezier(.34, 1.56, .64, 1);
-  --ease-in: cubic-bezier(.5, 0, .9, .4);
-  --t-1: 80ms;
-  --t-2: 160ms;
-  --t-3: 240ms;
-  --t-4: 400ms;
-  --t-5: 700ms;
-  color-scheme: light;
-}
-
-/* assets/boot.js always stamps data-theme (the saved choice, else the OS setting)
-   before first paint, so the dark palette needs only this one block */
-:root[data-theme="dark"] {
-  --bg: #12151d;
-  --surface: #1b1f2c;
-  --surface-2: #262b3b;
-  --grid-line: #171b25;
-  --text: #ece9e1;
-  --muted: #a8adbf;
-  --border: #2d3346;
-  --border-strong: #454d66;
-  --tile-border: #454d66;
-  --tile-edge: #07090e;
-  --line-ui: #7f879f;
-  --accent: #93a9ff;
-  --accent-deep: #5d77e0;
-  --accent-soft: #1e2749;
-  --focus: #93a9ff;
-  --accent-2: #f2a65c;
-  --accent-2-soft: #3a2917;
-  --ok: #6fdc98;
-  --ok-deep: #3fa468;
-  --ok-soft: #15311f;
-  --bad: #ff938c;
-  --bad-deep: #d9605a;
-  --bad-soft: #3b1c1d;
-  --hint-ink: #f2a65c;
-  --hint-soft: #2e2616;
-  --flame: #ff9447;
-  --xp: #ffc83d;
-  --xp-ink: #ffc83d;
-  --on-xp: #1a1405;
-  --heart: #ff6b81;
-  --on-accent: #0c1126;
-  --on-part: #10131c;
-  --hud-bg: #0b0d14;
-  --shadow-float: 0 10px 30px -10px rgba(0, 0, 0, .6);
-  --shadow-1: 0 1px 2px rgba(0, 0, 0, .4);
-  --shadow: 0 1px 2px rgba(0, 0, 0, .4), 0 10px 28px -8px rgba(0, 0, 0, .5);
-  --plot-bg: #1b1f2c;
-  --plot-grid: #2b3144;
-  --plot-axis: #7b839b;
-  --plot-curve: #6f88ee;
-  --plot-curve-2: #d07f2a;
-  --plot-curve-3: #2bab70;
-  --plot-curve-4: #d85fb0;
-  --plot-fill: rgba(111, 136, 238, .20);
-  --plot-point: #ece9e1;
-  --plot-ink: #ece9e1;
-  --plot-face-a: #28336a;
-  --plot-face-b: #4f3312;
-  --plot-face-c: #1c4630;
-  --plot-ground: #171b26;
-  --plot-hot: #ffc83d;
-  color-scheme: dark;
-}
-
-/* State marks for answer blanks. An <input> takes no pseudo-elements, so its tick or
-   cross is a background picture, and a background picture cannot read a custom property:
-   these carry the --ok and --bad values of each theme. */
-:root {
-  --mark-ok: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'%3E%3Cpath d='M4 10.5l4 4 8-9' fill='none' stroke='%2314713a' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
-  --mark-bad: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'%3E%3Cpath d='M5 5l10 10M15 5L5 15' fill='none' stroke='%23b42318' stroke-width='3' stroke-linecap='round'/%3E%3C/svg%3E");
-}
-:root[data-theme="dark"] {
-  --mark-ok: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'%3E%3Cpath d='M4 10.5l4 4 8-9' fill='none' stroke='%236fdc98' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
-  --mark-bad: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'%3E%3Cpath d='M5 5l10 10M15 5L5 15' fill='none' stroke='%23ff938c' stroke-width='3' stroke-linecap='round'/%3E%3C/svg%3E");
-}
-
-/* Icons drawn as masks: the shape comes from here, the colour from whatever
-   background-color the element is given, so they follow every theme and Part. */
-:root {
-  --icon-tick: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'%3E%3Cpath d='M4 10.5l4 4 8-9' fill='none' stroke='black' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
-  --icon-cross: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'%3E%3Cpath d='M5 5l10 10M15 5L5 15' fill='none' stroke='black' stroke-width='3' stroke-linecap='round'/%3E%3C/svg%3E");
-  --icon-star: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'%3E%3Cpath d='M10 1.5l2.6 5.5 6 .7-4.5 4.1 1.2 5.9L10 14.8l-5.3 2.9 1.2-5.9L1.4 7.7l6-.7z'/%3E%3C/svg%3E");
-  --icon-heart: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'%3E%3Cpath d='M10 17.5S2 12.6 2 7.2A4.2 4.2 0 0 1 10 5a4.2 4.2 0 0 1 8 2.2c0 5.4-8 10.3-8 10.3z'/%3E%3C/svg%3E");
-  --icon-heart-o: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'%3E%3Cpath d='M10 16.3S3.2 12 3.2 7.3A3.1 3.1 0 0 1 10 6.2a3.1 3.1 0 0 1 6.8 1.1c0 4.7-6.8 9-6.8 9z' fill='none' stroke='black' stroke-width='2.2' stroke-linejoin='round'/%3E%3C/svg%3E");
-  --icon-chevron: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'%3E%3Cpath d='M5 7.5l5 5 5-5' fill='none' stroke='black' stroke-width='2.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
-  --icon-next: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'%3E%3Cpath d='M7.5 4.5l5.5 5.5-5.5 5.5' fill='none' stroke='black' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
-  --icon-menu: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'%3E%3Cpath d='M3.5 5.5h13M3.5 10h13M3.5 14.5h13' stroke='black' stroke-width='2.2' stroke-linecap='round'/%3E%3C/svg%3E");
-  --icon-sound: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'%3E%3Cpath d='M3 7.5h3l4-3.5v12l-4-3.5H3z'/%3E%3Cpath d='M13 7a4 4 0 0 1 0 6M15.3 4.8a7 7 0 0 1 0 10.4' fill='none' stroke='black' stroke-width='1.8' stroke-linecap='round'/%3E%3C/svg%3E");
-  --icon-mute: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'%3E%3Cpath d='M3 7.5h3l4-3.5v12l-4-3.5H3z'/%3E%3Cpath d='M13 7.5l5 5M18 7.5l-5 5' fill='none' stroke='black' stroke-width='1.8' stroke-linecap='round'/%3E%3C/svg%3E");
-}
 
 /* --------------------------------------------------------------- base ---- */
 
@@ -191,24 +16,34 @@
 
 html { -webkit-text-size-adjust: 100%; scroll-behavior: smooth; scroll-padding-top: calc(var(--hud-h) + 1rem); }
 @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+/* the settings sheet's Reduce motion and Study mode, stamped by the boot script */
+html[data-motion="reduce"], html[data-calm] { scroll-behavior: auto; }
 
-/* The table: paper with a faint graph-paper grid. It shows only in the gutters,
-   because the content column (.wrap's content box) is painted plain. */
+/* The frame: dark in both themes, with a faint motif of the page's Part behind the
+   panel (the graph paper on a page of no Part). The motif is a fixed layer, so it
+   never drifts or doubles down a long chapter, and it is only ever under the frame:
+   the panel paints over it, so it is never behind prose. */
 body {
   margin: 0;
-  background-color: var(--bg);
-  /* one 24px tile, repeated: a gradient repeated over the whole page drifts and doubles
-     its lines far down a long chapter */
-  background-image:
-    linear-gradient(var(--grid-line) 1px, transparent 1px),
-    linear-gradient(90deg, var(--grid-line) 1px, transparent 1px);
-  background-size: 24px 24px;
-  color: var(--text);
+  background-color: var(--frame-bg);
+  color: var(--frame-text);
   font-family: var(--serif);
   font-size: clamp(1.09rem, 1rem + .5vw, 1.1875rem);
   line-height: 1.62;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
+}
+body::before {
+  content: ""; position: fixed; inset: 0; z-index: -1; pointer-events: none;
+  background-color: color-mix(in srgb, var(--frame-line) 16%, var(--frame-bg));
+  -webkit-mask-image: var(--grid-motif); mask-image: var(--grid-motif);
+  -webkit-mask-size: var(--grid-motif-size); mask-size: var(--grid-motif-size);
+}
+body[data-part]::before {
+  background-color: color-mix(in srgb, var(--part-frame) 14%, var(--frame-bg));
+  -webkit-mask-image: var(--motif); mask-image: var(--motif);
+  -webkit-mask-size: var(--motif-size); mask-size: var(--motif-size);
+  -webkit-mask-composite: var(--motif-wcomp); mask-composite: var(--motif-comp);
 }
 
 img, svg { max-width: 100%; }
@@ -242,12 +77,17 @@ code, kbd, samp { font-family: var(--mono); font-size: .82em; background: var(--
 kbd { border: 1px solid var(--line-ui); border-bottom-width: 2px; }
 hr { border: 0; border-top: 1px solid var(--border); margin: 2.5em 0; }
 
-:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
+/* the focus recipe (tokens.css): the ring is --focus on paper and --focus-frame on the
+   frame's surfaces, each measured against every surface it can sit on */
+:focus-visible { outline: var(--focus-width) solid var(--focus); outline-offset: var(--focus-offset); }
 [tabindex="-1"]:focus { outline: none; }
 canvas:focus-visible { outline-offset: -3px; }
 ::selection { background: color-mix(in srgb, var(--accent) 24%, transparent); }
 
+/* a paper tile that appears over the dark top bar: its ring sits on the frame, so it
+   is the frame's ring */
 .skip-link {
+  --focus: var(--focus-frame);
   position: absolute; left: -9999px; top: 0; z-index: 60;
   background: var(--surface); color: var(--text); padding: .6em 1em;
   border: 2px solid var(--line-ui); border-radius: 0 0 var(--radius-sm) 0;
@@ -270,19 +110,29 @@ canvas:focus-visible { outline-offset: -3px; }
 }
 
 /* ------------------------------------------------------- the HUD rail ---- */
-/* The scoreboard rail is ink in both themes. Its counters live in game.css. */
+/* The scoreboard rail is the frame, in both themes: glass where the browser can blur
+   what scrolls under it, the solid frame colour everywhere else and whenever the reader
+   asks for less transparency (--glass, tokens.css). Its counters live in game.css. */
 
 .topbar {
-  --focus: var(--hud-focus);
-  --hud-edge: color-mix(in srgb, var(--hud-bg) 45%, black);
+  --focus: var(--focus-frame);
+  --hud-edge: color-mix(in srgb, var(--hud-bg) 45%, var(--ink-shadow));
   position: sticky; top: 0; z-index: 40;
   display: flex; flex-wrap: wrap; align-items: center; gap: .35rem 1rem;
   min-height: var(--hud-h); padding: .4rem max(16px, 4vw);
-  background: var(--hud-bg); color: var(--hud-text);
-  border-bottom: 2px solid var(--accent);
+  background-color: var(--glass); color: var(--hud-text);
+  border-bottom: 2px solid var(--frame-accent);
   font-family: var(--sans);
 }
-body[data-part] .topbar { border-bottom-color: var(--part); }
+@supports ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .topbar { -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px); }
+}
+@media (prefers-reduced-transparency: reduce) {
+  .topbar { -webkit-backdrop-filter: none; backdrop-filter: none; }
+}
+/* the settings sheet's Reduce transparency, stamped by the boot script */
+html[data-transparency="reduce"] .topbar { -webkit-backdrop-filter: none; backdrop-filter: none; }
+body[data-part] .topbar { border-bottom-color: var(--part-frame); }
 .topbar .brand {
   flex: none; display: flex; align-items: center; gap: .6rem; min-height: 40px;
   font-family: var(--display); font-weight: 800; font-size: 1.05rem; letter-spacing: -.01em;
@@ -291,7 +141,7 @@ body[data-part] .topbar { border-bottom-color: var(--part); }
 .topbar .brand .glyph {
   display: grid; place-items: center; width: 2.25rem; height: 2.25rem; flex: none;
   border-radius: var(--radius-xs); background: var(--hud-xp); color: var(--on-xp);
-  box-shadow: 0 3px 0 color-mix(in srgb, var(--hud-xp) 50%, black);
+  box-shadow: 0 3px 0 color-mix(in srgb, var(--hud-xp) 50%, var(--ink-shadow));
   font-family: var(--serif); font-weight: 600; font-size: 1.35rem; line-height: 1;
 }
 .topbar nav {
@@ -299,18 +149,20 @@ body[data-part] .topbar { border-bottom-color: var(--part); }
   display: flex; align-items: center; gap: .35rem;
 }
 /* pushed right by a margin, not justify-content, so anything too wide spills off the
-   right edge (where the overflow checks see it) instead of over the brand */
-.topbar nav > :first-child { margin-left: auto; }
+   right edge (where the overflow checks see it) instead of over the brand. The margin is
+   on an empty first item that is always there, not on the first link: the links are
+   hidden on a narrow screen (game.css, the collapse), and then the margin went with
+   them and the menu button sat mid-bar. Its negative margin takes back the nav's gap. */
+.topbar nav::before { content: ""; flex: none; margin: 0 -.35rem 0 auto; }
 .topbar nav > a:where(:not(.hud, .hud-level, .acct)) {
   display: inline-flex; align-items: center; min-height: 40px;
   font-size: .88rem; font-weight: 500; color: var(--hud-muted); text-decoration: none;
   padding: 0 .65rem; border-radius: var(--radius-xs); white-space: nowrap;
 }
 .topbar nav > a:where(:not(.hud, .hud-level, .acct)):hover { color: var(--hud-text); background: var(--hud-chip); }
+/* what the top bar drops as it narrows, and when, is game.css's (the collapse) */
 @media (max-width: 720px) {
   .topbar { gap: .35rem .5rem; }
-  .topbar .brand-name { display: none; }
-  .topbar nav > a[href$="about.html"] { display: none; }
 }
 
 /* small buttons: a tile on paper, a chip on the rail */
@@ -330,7 +182,6 @@ body[data-part] .topbar { border-bottom-color: var(--part); }
   background: var(--hud-chip); color: var(--hud-text); border: 1px solid var(--hud-line);
 }
 .topbar .icon-btn:hover { border-color: var(--hud-muted); }
-.theme-btn { width: 40px; padding: 0; display: grid; place-items: center; font-size: 1.05rem; flex: none; }
 
 .acct {
   display: inline-flex; align-items: center; min-height: 40px;
@@ -344,16 +195,27 @@ body[data-part] .topbar { border-bottom-color: var(--part); }
   display: grid; place-items: center; width: 2.25rem; height: 2.25rem; border-radius: 50%;
   background: var(--accent); color: var(--on-accent); font-weight: 700; font-size: .9rem;
 }
-:root[data-theme="dark"] .topbar .avatar { background: var(--accent); }
 
 /* --------------------------------------------------------------- page ---- */
 
+/* The reading panel: a sheet of paper set into the frame, with the frame showing round
+   it (a few pixels on a phone, more on a wide screen). Everything a page holds is on
+   it, in the paper tokens and the paper's colour scheme; it is light unless the reader
+   chose a dark panel. Plain: no motif, no gradient, no glow. */
 .wrap, .wrap-narrow {
-  margin: 0 auto; padding: 0 max(16px, 4vw);
-  background-color: var(--bg); background-clip: content-box;
+  --panel-gap: clamp(5px, 3vw - 6px, 40px);
+  width: calc(100% - 2 * var(--panel-gap));
+  min-height: calc(100vh - var(--hud-h) - 2 * var(--panel-gap));
+  margin: var(--panel-gap) auto;
+  padding: 0 clamp(12px, 4vw - 8px, 48px);
+  background-color: var(--bg); color: var(--text); color-scheme: var(--panel-scheme);
+  border: 1px solid var(--frame-line); border-radius: var(--radius);
 }
 .wrap { max-width: 1180px; }
 .wrap-narrow { max-width: 780px; }
+@media (max-width: 480px) {
+  .wrap, .wrap-narrow { border-radius: var(--radius-sm); }
+}
 
 .layout { display: grid; grid-template-columns: minmax(0, 1fr); gap: 3rem; }
 @media (min-width: 1000px) {
@@ -415,33 +277,36 @@ main > [data-step] { scroll-margin-top: calc(var(--hud-h) + 1.5rem); }
 .eyebrow { color: var(--part); margin: 0 0 .9rem; }
 .lede { font-size: 1.25rem; line-height: 1.5; color: var(--muted); margin-bottom: 1.6em; }
 
-/* The region banner: a cut-card tile. The top band is the Part's colour with its motif
-   at the right; the lede sits underneath on the soft tint, in body text colour. */
+/* The region banner: a piece of the game frame set into the top of the panel. The band
+   is the frame's raised surface, the region's name in its Part's frame colour and the
+   chapter's title in frame text, with the Part's motif at the right and a stripe of the
+   Part's colour under it; the lede, which is reading, sits underneath on the Part's
+   paper tint, in body text colour. The motif has a column of its own: no text is on it. */
 main > header.region-banner {
-  --edge: var(--part-deep);
+  --edge: var(--frame-bg);
   display: grid; grid-template-columns: minmax(0, 1fr) clamp(4.5rem, 20%, 9rem);
   margin: 0 0 1.6rem; overflow: hidden;
-  background: var(--part-soft); border: 2px solid var(--part); border-radius: var(--radius);
+  background: var(--part-soft); border: 2px solid var(--frame-raised); border-radius: var(--radius);
   box-shadow: var(--shadow-tile);
 }
 .region-banner > .eyebrow {
   grid-column: 1 / -1; grid-row: 1; margin: 0; padding: 1.15rem 1.4rem .4rem;
-  background: var(--part); color: var(--on-part);
+  background: var(--frame-raised); color: var(--part-frame);
 }
 .region-banner > h1 {
   grid-column: 1 / -1; grid-row: 2; margin: 0; padding: 0 calc(clamp(4.5rem, 20%, 9rem) + .6rem) 1.15rem 1.4rem;
-  background: var(--part); color: var(--on-part);
+  background: var(--frame-raised); color: var(--frame-text);
 }
 .region-banner::after {
   content: ""; grid-column: 2; grid-row: 1 / span 2; align-self: stretch;
-  background-color: color-mix(in srgb, var(--on-part) 30%, var(--part));
+  background-color: color-mix(in srgb, var(--part-frame) 45%, var(--frame-raised));
   -webkit-mask-image: var(--motif); mask-image: var(--motif);
   -webkit-mask-size: var(--motif-size); mask-size: var(--motif-size);
   -webkit-mask-composite: var(--motif-wcomp); mask-composite: var(--motif-comp);
 }
 .region-banner > .lede {
   grid-column: 1 / -1; margin: 0; padding: 1.05rem 1.4rem .9rem;
-  font-size: 1.2rem; color: var(--text);
+  font-size: 1.2rem; color: var(--text); border-top: 4px solid var(--part-frame);
 }
 .region-banner > .banner-meta { grid-column: 1 / -1; }
 @media (max-width: 480px) {
@@ -493,12 +358,15 @@ main > header.region-banner {
   border: 1px solid var(--border-strong); border-radius: var(--radius);
   background: var(--surface); margin: 1.9em 0; overflow: hidden;
 }
-.worked > h4 {
+/* An h3, one level below the section's h2, so a screen reader's list of headings has no
+   gap (it was an h4); every property h3 sets on its own is set again here, so the level
+   does not show */
+.worked > h3 {
   margin: 0; padding: .75rem 1.2rem; font-size: .92rem; font-weight: 650;
   background: var(--surface-2); border-bottom: 1px solid var(--border);
   letter-spacing: 0;
 }
-.worked > h4 .num { font-family: var(--display); font-weight: 700; color: var(--part); margin-right: .4rem; }
+.worked > h3 .num { font-family: var(--display); font-weight: 700; color: var(--part); margin-right: .4rem; }
 .worked .body { padding: 1.1rem 1.2rem; }
 .worked .body > :last-child { margin-bottom: 0; }
 
@@ -833,55 +701,14 @@ footer.site p { margin: 0 0 .5em; max-width: 62ch; }
 
 /* --------------------------------------------------------- katex tweak --- */
 
-.katex { font-size: 1em; }
+/* A formula keeps its case inside an uppercase label: thead th made the θ and π of
+   chapter 11's table Θ and Π, other symbols, on screen and in the header's name */
+.katex { font-size: 1em; text-transform: none; }
 .katex-display { overflow-x: auto; overflow-y: hidden; padding: .25em 0; }
-
-/* ------------------------------------------------------ the four Parts ---- */
-/* Each Part carries its own hue, so the four read as four places. --part is set
-   on <body data-part> (by site.js) and on each Part's section of the contents page. */
-
-:root, [data-part="algebra"] { --part: #a04608; --part-soft: #fdeedd; --part-deep: #7d3806; }
-[data-part="geometry"] { --part: #0c736b; --part-soft: #dcf3ef; --part-deep: #07514b; }
-[data-part="coordinates"] { --part: #5b3fc4; --part-soft: #ebe6fb; --part-deep: #3f2a91; }
-[data-part="topics"] { --part: #ad2468; --part-soft: #fbe5ef; --part-deep: #7c1849; }
-:root[data-theme="dark"], :root[data-theme="dark"] [data-part="algebra"] { --part: #f2a65c; --part-soft: #3a2917; --part-deep: #b9762f; }
-:root[data-theme="dark"] [data-part="geometry"] { --part: #5fd6c5; --part-soft: #12312d; --part-deep: #2f9c8d; }
-:root[data-theme="dark"] [data-part="coordinates"] { --part: #b9a6ff; --part-soft: #282145; --part-deep: #8570dd; }
-:root[data-theme="dark"] [data-part="topics"] { --part: #f690bd; --part-soft: #3a1c2a; --part-deep: #c95f8e; }
-
-/* Each region's motif, as a mask: paint any box with a colour and mask it with --motif.
-   I The Foundry: "=" bars. II The Fields: a triangulation mesh. III The Grid: a dot
-   lattice. IV The Observatory: concentric arcs. Motifs belong in banner bands, gutters
-   and scene stages, never behind prose. */
-:root, [data-part="algebra"] {
-  --motif:
-    repeating-linear-gradient(0deg, transparent 0 9px, black 9px 12px, transparent 12px 16px, black 16px 19px, transparent 19px 28px),
-    repeating-linear-gradient(90deg, transparent 0 7px, black 7px 21px, transparent 21px 28px);
-  --motif-size: auto;
-  --motif-comp: intersect;
-  --motif-wcomp: source-in;
-}
-[data-part="geometry"] {
-  --motif:
-    repeating-linear-gradient(0deg, black 0 1.5px, transparent 1.5px 26px),
-    repeating-linear-gradient(60deg, black 0 1.5px, transparent 1.5px 26px),
-    repeating-linear-gradient(120deg, black 0 1.5px, transparent 1.5px 26px);
-  --motif-size: auto;
-  --motif-comp: add;
-  --motif-wcomp: source-over;
-}
-[data-part="coordinates"] {
-  --motif: radial-gradient(circle, black 0 1.8px, transparent 2.4px);
-  --motif-size: 16px 16px;
-  --motif-comp: add;
-  --motif-wcomp: source-over;
-}
-[data-part="topics"] {
-  --motif: repeating-radial-gradient(circle at 100% 100%, transparent 0 11px, black 11px 13px);
-  --motif-size: auto;
-  --motif-comp: add;
-  --motif-wcomp: source-over;
-}
+/* a formula or table wider than the column is a tab stop while it is (src/ui/scroll-regions.ts
+   sets data-scrolls), so the arrow keys scroll it; its ring sits just inside the box, where
+   neither the box's own overflow nor a card's overflow: hidden clips it */
+[data-scrolls]:focus-visible { outline-offset: -3px; }
 
 /* ----------------------------------------------------- opening puzzle ---- */
 
@@ -1042,8 +869,8 @@ figure.diagram svg {
 }
 /* progress through the chapter: a line in the Part's colour along the bottom of the rail */
 .lesson-progress { position: absolute; left: 0; right: 0; bottom: -2px; height: 4px; background: transparent; pointer-events: none; }
-.lesson-progress span { display: block; height: 100%; width: 0; background: var(--part); }
-body:not([data-part]) .lesson-progress span { background: var(--accent); }
+.lesson-progress span { display: block; height: 100%; width: 0; background: var(--part-frame); }
+body:not([data-part]) .lesson-progress span { background: var(--frame-accent); }
 
 /* ------------------------------------------------- dashboards and forms --- */
 
@@ -1188,13 +1015,10 @@ table.owner th[aria-sort="descending"] .link::after { content: " ↓"; }
 /* -------------------------------------------------------- high contrast -- */
 
 @media (prefers-contrast: more) {
-  :root, :root[data-theme="dark"] {
-    --border: var(--line-ui);
-    --border-strong: var(--text);
-    --muted: var(--text);
-    --grid-line: transparent;
-  }
+  /* the tokens' own block (tokens.css) puts the text colour on the lines; the frame
+     loses its motif */
   .callout.aside, details.reveal { border-style: solid; }
+  body::before { display: none; }
 }
 @media (forced-colors: active) {
   .ex, .btn, .icon-btn, .chip, .choice, .order-item, .guess-chip, .puzzle, .rule, .callout, .worked,
@@ -1202,7 +1026,9 @@ table.owner th[aria-sort="descending"] .link::after { content: " ↓"; }
   details.reveal, .goal, .ex-form input[type="text"], input.blank {
     border-color: CanvasText; border-style: solid;
   }
-  .topbar { border-bottom-color: CanvasText; }
+  .topbar { border-bottom-color: CanvasText; -webkit-backdrop-filter: none; backdrop-filter: none; }
+  .wrap, .wrap-narrow { border-color: CanvasText; }
+  body::before { display: none; }
   .rule::before, main > h2::before, .practice > h2::before, .practice-head > h2::before { background: CanvasText; }
   .region-banner::after { display: none; }
   details.reveal > summary::after, .missions li[data-done] .mark::after, .ring[data-pct="100"]::after,
@@ -1215,25 +1041,11 @@ table.owner th[aria-sort="descending"] .link::after { content: " ↓"; }
 /* ----------------------------------------------------------------- print -- */
 
 @media print {
-  /* paper is light whatever the screen was showing */
-  :root, :root[data-theme="dark"] {
-    --bg: #ffffff; --surface: #ffffff; --surface-2: #f3f1ec; --grid-line: #ffffff;
-    --text: #171923; --muted: #555a6b; --border: #d6d0c2; --border-strong: #8e8778; --line-ui: #73788a;
-    --accent: #2646d4; --accent-soft: #ffffff; --accent-2: #a04608; --accent-2-soft: #ffffff;
-    --ok: #14713a; --ok-soft: #ffffff; --bad: #b42318; --bad-soft: #ffffff;
-    --hint-ink: #8a3c06; --hint-soft: #ffffff; --on-part: #ffffff;
-    --plot-bg: #ffffff; --plot-grid: #e7e0d0; --plot-axis: #777c8c; --plot-curve: #2646d4;
-    --plot-curve-2: #a04608; --plot-curve-3: #1f9456; --plot-curve-4: #a3247a; --plot-fill: rgba(38, 70, 212, .14);
-    --plot-point: #171923; --plot-ink: #171923; --plot-face-a: #c9d3fb; --plot-face-b: #f6d3ae;
-    --plot-face-c: #d3efdc; --plot-ground: #f1ebdd; --plot-hot: #f6b40e;
-    color-scheme: light;
-  }
-  :root[data-theme="dark"], :root[data-theme="dark"] [data-part="algebra"], [data-part="algebra"] { --part: #a04608; --part-soft: #ffffff; --part-deep: #7d3806; }
-  :root[data-theme="dark"] [data-part="geometry"], [data-part="geometry"] { --part: #0c736b; --part-soft: #ffffff; --part-deep: #07514b; }
-  :root[data-theme="dark"] [data-part="coordinates"], [data-part="coordinates"] { --part: #5b3fc4; --part-soft: #ffffff; --part-deep: #3f2a91; }
-  :root[data-theme="dark"] [data-part="topics"], [data-part="topics"] { --part: #ad2468; --part-soft: #ffffff; --part-deep: #7c1849; }
-  body { background: none; }
-  .wrap, .wrap-narrow { background: none; padding: 0; }
+  /* paper is light whatever the screen was showing (tokens.css restates it), and
+     there is no frame: no dark page, no motif, no panel edge */
+  body { background: none; color: var(--text); }
+  body::before { display: none; }
+  .wrap, .wrap-narrow { width: auto; min-height: 0; margin: 0 auto; background: none; padding: 0; border: 0; border-radius: 0; }
   .topbar, .sidebar, .lesson-next, .lesson-mode, .lesson-progress, .toasts, .chapter-nav, .skip-link { display: none !important; }
   main > [data-step][hidden] { display: block !important; }
   /* with the sidebar gone, the chapter must not stay in the sidebar's grid column */
@@ -1246,7 +1058,7 @@ table.owner th[aria-sort="descending"] .link::after { content: " ↓"; }
   .region-banner > .eyebrow, .region-banner > h1, .region-banner > .lede { background: none; color: var(--text); padding: 0; }
   .region-banner > .eyebrow { color: var(--part); margin-bottom: .4rem; }
   .region-banner > h1 { margin-bottom: .4rem; }
-  .region-banner > .lede { margin-bottom: .8rem; }
+  .region-banner > .lede { margin-bottom: .8rem; border-top: 0; }
   .callout, .callout.warn, .callout.why, .recap, .goal, .puzzle, details.reveal[open] { background: none; }
   .rule, .worked, .ex, figure, .callout { break-inside: avoid; }
   h2 { break-after: avoid; }

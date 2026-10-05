@@ -57,8 +57,15 @@ export type PlayStore = Record<ChapterId, {
 export interface AttemptRecord {
   /** checks made, wrong and right, up to and including the first correct one. Merge: max */
   tries?: number;
-  /** highest hint level shown. Merge: max */
+  /** the hint level the misses reached on a page view (1 after a first miss on an exercise
+      with a hint, 2 after a second with a second hint). It was the hint shown automatically
+      until the help ladder, and is still written so: struggle(), Second wind and the
+      server's hint_level read it. Merge: max */
   hints?: 1 | 2;
+  /** the highest clue opened while the exercise was unsolved (the help ladder: 1 data-hint,
+      2 data-hint2, 3 data-hint3); never written once it is solved. Merge: the larger number,
+      a number over anything that is not one */
+  rung?: 1 | 2 | 3;
   /** the solution was opened before solving. Merge: either */
   opened?: Flag;
   /** an inline check ("Your turn", warm-up): graded, never scored. Merge: either */
@@ -101,7 +108,7 @@ export interface LessonStore {
 /* ---------------------------------------------------------------- game.js -- */
 
 /** An Arena run's kind (MODES in assets/arena.js). */
-export type ArenaMode = "standard" | "daily" | "boss" | "repair";
+export type ArenaMode = "standard" | "daily" | "boss" | "repair" | "review";
 /** 0 none, 1 Bronze, 2 Silver, 3 Gold. */
 export type Medal = 0 | 1 | 2 | 3;
 
@@ -153,15 +160,31 @@ export interface RunStore {
   picks?: Record<SectionRef, Flag>;
   /** today's Daily, once settled */
   daily?: { day: DayKey; score: number; firstTry: number; n: number; planned: number; ended: string };
+  /** the day's Arena XP counts (src/learn/practice.ts): answers paid per section, and runs
+      that earned the finishing bonus; a new local day starts them again */
+  arenaDay?: { day: DayKey; sec: Record<SectionRef, number>; finishes: number };
+  /** the day the "next best step" card was hidden for (src/ui/next.ts) */
+  nextHide?: DayKey;
 }
 
 /** bm.prefs.v1: this device only, never cleared. */
 export interface PrefsStore {
   sound: boolean;
   calm: boolean;
-  /** unset until the reader chooses: 3D, except on a low-end device */
+  /** unset until the reader chooses: 3D (src/world/tiers.ts picks the tier) */
   map?: "3d" | "list";
   tempo: "standard" | "extended" | "untimed";
+  /** the reading panel: unset until the reader chooses, which means light in both
+      themes; src/boot.js stamps it as html[data-panel] before first paint */
+  panel?: "light" | "dark";
+  /** the settings sheet's volume, a whole number 0 to 100; unset means 50 */
+  volume?: number;
+  /** Reduce motion: unset follows the device; src/boot.js stamps html[data-motion] */
+  motion?: "reduce";
+  /** Reduce transparency: unset follows the device; src/boot.js stamps html[data-transparency] */
+  transparency?: "reduce";
+  /** graphics quality: unset is Auto; the course map keeps the list on "low" */
+  gfx?: "low" | "mid" | "high";
 }
 
 /* ------------------------------------------------------------- everything -- */

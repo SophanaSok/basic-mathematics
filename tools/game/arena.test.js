@@ -16,7 +16,21 @@
    6. a rematch before the practice set is cleared says why it won no medal
    7. a run open in two tabs is paid once
    8. Esc, Esc after an answer puts focus back on Next
-   9. the paused par label keeps its text contrast (only the bar fades) */
+   9. the paused par label keeps its text contrast (only the bar fades)
+  10. the due review (arena.html?mode=review): the lobby tile and the review's own lobby
+      list only the due sections, most overdue first, and the due ones with no generator
+      apart, linked to their pages; the run has no hearts, two questions a section in turns;
+      it moves the boxes by the usual rule; the result shows the first-try count and rate
+      with no target; with nothing left due the lobby says so and names the next check
+  11. with nothing due at all (and in Study mode), the tile is off and says when the next is
+  12. XP against farming across a simulated day: the day's first Repair (five answers on one
+      section) pays in full and says nothing of a reduction; a second Repair of that section
+      the same day pays a quarter an answer, and the result says so plainly; the third
+      finished run pays 1 for finishing; a new day starts the counts again; the counts never
+      reach the synced record
+  13. the Arena's own fallback, with no BMGame.recordRun: the boxes move by the one schedule
+      (a clean due showing up one, an early clean one leaves box and date alone, a miss to box
+      0, never to 1) and the XP takes the day's decay from the stored counts */
 "use strict";
 const site = require("../lib/site");
 const target = require("../lib/target");
@@ -97,6 +111,27 @@ async function playOut(p) {
     await next(p);
   }
 }
+/* place every section the Arena can ask about in box 1 today (so none is due), then the
+   records more(day, back) returns over that, `back(n)` being the day n days ago; add the
+   attempt records in `attempts` to what is stored; reload */
+async function placeAll(p, more, attempts) {
+  await p.evaluate(({ more, attempts }) => {
+    var day = window.BMSite.dayKey(), back = function (n) { return window.BMReview.recall.addDays(day, -n); };
+    var g = JSON.parse(localStorage.getItem("bm.game.v1") || "{}");
+    g.sec = {};
+    window.BMReview.ARENA_SECTIONS.forEach(function (id) { g.sec[id] = { n: 1, ok: 1, box: 1, last: day }; });
+    var extra = (0, eval)("(" + more + ")")(day, back);
+    Object.keys(extra).forEach(function (id) { g.sec[id] = extra[id]; });
+    localStorage.setItem("bm.game.v1", JSON.stringify(g));
+    if (attempts) {
+      var all = JSON.parse(localStorage.getItem("bm.attempts.v1") || "{}");
+      Object.keys(attempts).forEach(function (ch) { all[ch] = Object.assign(all[ch] || {}, attempts[ch]); });
+      localStorage.setItem("bm.attempts.v1", JSON.stringify(all));
+    }
+  }, { more: String(more), attempts: attempts || null });
+  await p.reload();
+  await p.waitForFunction(() => document.readyState === "complete");
+}
 const xp = (p) => p.evaluate(() => window.BMActivity.total());
 const game = (p) => p.evaluate(() => JSON.parse(localStorage.getItem("bm.game.v1") || "{}"));
 const runStore = (p) => p.evaluate(() => JSON.parse(localStorage.getItem("bm.run.v1") || "{}"));
@@ -104,7 +139,7 @@ const runStore = (p) => p.evaluate(() => JSON.parse(localStorage.getItem("bm.run
 async function run() {
   server = await target.start(site.parseArgs(process.argv.slice(2)));
   console.log("arena: " + server.where);
-  const browser = await chromium.launch();
+  const browser = await chromium.launch({ env: require("../lib/gl").env(chromium) });   /* off the machine's GPU: lib/gl.js */
   const errors = [];
   try {
     /* ---------------------------------------- 1. a banked Repair repairs nothing */
@@ -408,6 +443,169 @@ async function run() {
         return { label: eff(document.querySelector(".arena-par-label")), text: eff(document.querySelector(".arena-par-text")), track: eff(document.querySelector(".arena-par-track")) };
       });
       eq([o.label, o.text, o.track < 1], [1, 1, true], "paused: the par text is not faded, the bar is");
+      await context.close();
+    }
+
+    /* --------------------------------------- 10. the due review (arena.html?mode=review) */
+    {
+      const context = await ctx(browser);
+      const p = await open(context, errors, "arena.html", {}, true);
+      /* every section the Arena can ask about placed today (not due), but three: Angles 27
+         days past its date, One unknown 14, Distance 3; and The integers (no generator)
+         solid on the page and never placed, so due there */
+      await placeAll(p, (day, back) => ({
+        "ch05#angles": { n: 1, ok: 1, box: 2, last: back(34) },
+        "ch02#one-unknown": { n: 1, ok: 1, box: 0, last: back(15) },
+        "ch05#distance": { n: 1, ok: 1, box: 0, last: back(4) }
+      }), { ch01: { zi1: { tries: 1, first: 1, solved: 1, section: "integers" }, zi2: { tries: 1, first: 1, solved: 2, section: "integers" } } });
+      const tile = await p.$eval('[data-act="start"][data-mode="review"]', (b) => ({ disabled: b.disabled, text: b.textContent }));
+      check(!tile.disabled && /3 sections due · no hearts/.test(tile.text), "the lobby's Due review tile counts the due sections: " + tile.text);
+      check(/One due section is checked on the page/.test(await p.$eval(".review-onpage", (e) => e.textContent)), "and says one more is due on its page");
+      check(await p.$('.review-onpage a[href="arena.html?mode=review"]') !== null, "with a link to the review's own lobby");
+
+      await p.goto(url("arena.html?mode=review"));
+      const lobby = await p.evaluate(() => ({
+        due: Array.from(document.querySelectorAll(".review-due li")).map((li) => li.getAttribute("data-section")),
+        page: Array.from(document.querySelectorAll(".review-page li")).map((li) => [li.getAttribute("data-section"), li.querySelector("a").getAttribute("href"), li.textContent]),
+        tile: !!document.querySelector('.arena-modes [data-mode="review"]')
+      }));
+      eq(lobby.due, ["ch05#angles", "ch02#one-unknown", "ch05#distance"], "the review lobby lists only the due sections, most overdue first");
+      eq([lobby.page.length, lobby.page[0][0], /#integers$/.test(lobby.page[0][1]), /due, on the page/.test(lobby.page[0][2])], [1, "ch01#integers", true, true],
+        "a due section with no generator is listed as due, on the page, linked to its section");
+      check(!lobby.tile, "on the review's own lobby the tile is not repeated");
+      await p.click('.review-lobby [data-act="start"][data-mode="review"]');
+      const plan = await p.evaluate(() => { var r = window.BMArena.state(); return { mode: r.mode, hearts: r.hearts, secs: r.qs.map((q) => q.sec), hf: r.qs.every((q) => q.hf), timed: r.qs.map((q) => q.timed) }; });
+      eq([plan.mode, plan.hearts, plan.hf], ["review", null, true], "a due review has no hearts, and every question is heart-free");
+      eq(plan.secs, ["ch05#angles", "ch02#one-unknown", "ch05#distance", "ch05#angles", "ch02#one-unknown", "ch05#distance"],
+        "two questions a due section, most overdue first, taking turns so no two in a row share a section");
+      check(plan.timed.some(Boolean), "with the Standard tempo the clock runs where a generator is timed");
+      check(await p.$(".arena-hearts") === null, "no hearts on the run screen");
+      /* play it: every answer right first time but One unknown's second, a miss then a retry */
+      for (let k = 0; k < 6; k++) {
+        await answer(p, k !== 4);
+        if (k === 4) { eq((await st(p)).hearts, null, "a wrong answer costs no heart"); await answer(p, true); }
+        await next(p);
+      }
+      await p.waitForSelector(".arena-result");
+      const res = await p.evaluate(() => window.BMArena.state().result);
+      const g = (await game(p)).sec, today = await p.evaluate(() => window.BMSite.dayKey());
+      eq([g["ch05#angles"].box, g["ch05#angles"].last, g["ch05#distance"].box, g["ch05#distance"].last, g["ch02#one-unknown"].box, g["ch02#one-unknown"].last],
+        [3, today, 1, today, 0, today], "the review moves the boxes by the usual rule: a clean due showing up one, a miss back to box 0");
+      eq([g["ch05#angles"].n, g["ch05#angles"].ok, g["ch02#one-unknown"].n, g["ch02#one-unknown"].ok], [3, 3, 3, 2], "and counts the answers");
+      /* 3 a first try on a due section: Angles 3 + 3, One unknown 3 (its retry has no heart at stake, so pays none), Distance 3 + 3; no finishing bonus without hearts */
+      eq([res.xp, res.firstTry, res.n], [15, 5, 6], "the review's XP and first-try count");
+      const text = await p.$eval(".arena-result", (e) => e.textContent);
+      check(/5 of 6/.test(text) && /83% right first time/.test(text), "the result shows the first-try count and rate");
+      check(!/85\s*(%|percent)/i.test(text) && !/target|aim for/i.test(text), "with no target band and no 85 percent figure");
+      check(/3 sections checked/.test(text), "and how many sections it checked");
+      eq(await p.$eval('.arena-result [data-act="again"]', (b) => b.textContent), "Review what is still due", "the next run offered is the review again");
+      /* nothing left due in the Arena: the lobby says so, with the day of the next check */
+      await p.click('.arena-result [data-act="again"]');
+      await p.waitForSelector(".review-none");
+      const none = await p.evaluate(() => ({ text: document.querySelector(".review-none").textContent, when: (document.querySelector(".review-none time") || {}).dateTime }));
+      const tomorrow = await p.evaluate(() => window.BMReview.recall.addDays(window.BMSite.dayKey(), 1));
+      check(/Nothing the Arena can ask about is due for a check today/.test(none.text) && /One unknown, due tomorrow/.test(none.text), "nothing due: the lobby says so plainly and names the next check — " + none.text);
+      eq(none.when, tomorrow, "the next check's date is machine-readable");
+      check(await p.$(".review-page li") !== null, "the section due on its page is still listed: nothing but an answer moves its box");
+      await context.close();
+    }
+
+    /* -------------------------------------- 11. nothing due at all, and Study mode */
+    {
+      const context = await ctx(browser);
+      const p = await open(context, errors, "arena.html", { "bm.prefs.v1": JSON.stringify({ calm: true }) }, true);
+      /* everything placed today; Angles in box 0, so due again tomorrow */
+      await placeAll(p, (day) => ({ "ch05#angles": { n: 1, ok: 0, box: 0, last: day } }));
+      const t = await p.$eval('[data-mode="review"]', (b) => ({ disabled: b.disabled, text: b.textContent }));
+      check(t.disabled && /Nothing due today/.test(t.text) && /Next check tomorrow/.test(t.text), "with nothing due the tile is off and names the next check: " + t.text);
+      check(await p.$(".review-onpage") === null, "and no note about pages");
+      await p.goto(url("arena.html?mode=review"));
+      const text = await p.$eval(".review-lobby", (e) => e.textContent);
+      check(/Nothing is due for a check today\. The next is .+, due tomorrow\./.test(text), "the review lobby says nothing is due, and when the next is: " + text);
+      check(await p.$('.review-lobby [data-act="start"]') === null, "and offers no run");
+      await context.close();
+    }
+
+    /* -------------------------- 12. XP against farming: the day's decay, shown and reset */
+    {
+      const context = await ctx(browser);
+      const p = await open(context, errors, "arena.html", {}, true);
+      await placeAll(p, () => ({}));
+      const repair = async () => {
+        await p.goto(url("arena.html?repair=ch05%23parallels"));
+        await p.click('[data-act="start"][data-mode="repair"]');
+        await playOut(p);
+        return p.evaluate(() => window.BMArena.state().result);
+      };
+      /* the day's first run: five first tries on a section not due (2 each), all in full,
+         since answers in one run never lower each other's rate */
+      const r1 = await repair();
+      eq([r1.xp, r1.reduced, r1.paid.full], [10, [], 10], "the day's first Repair pays in full, five answers on one section and all");
+      check(await p.$("[data-xp-reduced]") === null && !/practised/.test(await p.$eval(".arena-result", (e) => e.textContent)), "and says nothing of a reduction");
+      /* the same section again that day: earlier runs paid 5 of its answers, so a quarter each */
+      const r2 = await repair();
+      eq([r2.xp, r2.reduced, (await runStore(p)).arenaDay.sec["ch05#parallels"]], [3, ["ch05#parallels"], 10], "a second Repair of it the same day pays a quarter an answer, 2.5 rounded once");
+      const said = await p.$eval("[data-xp-reduced]", (e) => e.textContent);
+      check(/You've practised this section a lot today; spaced practice tomorrow counts more\./.test(said) && /earned 3 XP instead of 10/.test(said),
+        "the result says the XP was reduced, and why: " + said);
+      check(!/(lazy|cheat|farm|too much|shame)/i.test(said), "without blame");
+      /* the third run of a day to earn the finishing bonus pays 1, and says so */
+      await p.evaluate(() => { var r = JSON.parse(localStorage.getItem("bm.run.v1")); r.arenaDay.finishes = 2; localStorage.setItem("bm.run.v1", JSON.stringify(r)); });
+      await p.goto(url("arena.html"));
+      await p.click('[data-act="start"][data-mode="standard"]');
+      await playOut(p);
+      const r3 = await p.evaluate(() => window.BMArena.state().result);
+      eq([r3.finishReduced, r3.paid.finish, r3.xp], [true, 1, r3.paid.answers + 1], "after two finishes in a day the bonus is 1");
+      check(/finishing bonus is paid in full for the first 2 runs of a day, so this one added 1/.test(await p.$eval("[data-xp-reduced]", (e) => e.textContent)), "and the result says so");
+      /* a new local day: yesterday's counts are not today's */
+      await p.evaluate(() => {
+        var r = JSON.parse(localStorage.getItem("bm.run.v1"));
+        r.arenaDay = { day: window.BMReview.recall.addDays(window.BMSite.dayKey(), -1), sec: { "ch05#parallels": 40 }, finishes: 9 };
+        localStorage.setItem("bm.run.v1", JSON.stringify(r));
+      });
+      const r4 = await repair();
+      eq([r4.xp, (await runStore(p)).arenaDay], [10, { day: await p.evaluate(() => window.BMSite.dayKey()), sec: { "ch05#parallels": 5 }, finishes: 0 }],
+        "a new day starts the counts again");
+      check(!("arenaDay" in (await game(p))), "the counts are this device's: none of them in the synced game record");
+      await context.close();
+    }
+
+    /* ---------------- 13. the fallback with no game layer: one schedule, the same decay */
+    {
+      const context = await ctx(browser);
+      const p = await open(context, errors, "arena.html", {}, true);
+      /* Parallels in box 1, placed 3 days ago (due today); Angles in box 2, placed 2 days ago
+         (not due until 7 days have passed) */
+      await placeAll(p, (day, back) => ({
+        "ch05#parallels": { n: 1, ok: 1, box: 1, last: back(3) },
+        "ch05#angles": { n: 1, ok: 1, box: 2, last: back(2) }
+      }));
+      const today = await p.evaluate(() => window.BMSite.dayKey());
+      const back2 = await p.evaluate(() => window.BMReview.recall.addDays(window.BMSite.dayKey(), -2));
+      /* a Repair settled by arena.js itself: BMGame.recordRun taken away before the run */
+      const fallbackRepair = async (sec, missAt) => {
+        await p.goto(url("arena.html?repair=" + encodeURIComponent(sec)));
+        await p.evaluate(() => { delete window.BMGame.recordRun; });
+        await p.click('[data-act="start"][data-mode="repair"]');
+        for (let k = 0; k < 5; k++) {
+          await answer(p, k !== missAt);
+          if (k === missAt) await answer(p, true);
+          await next(p);
+        }
+        await p.waitForSelector(".arena-result");
+        return p.evaluate(() => Object.assign({ gone: typeof window.BMGame.recordRun }, window.BMArena.state().result));
+      };
+      const rec = async (id) => { const r = (await game(p)).sec[id]; return [r.box, r.last]; };
+      const f1 = await fallbackRepair("ch05#parallels", -1);
+      eq([f1.gone, f1.xp, f1.reduced], ["undefined", 15, []], "the fallback pays a due section 3 an answer, in full on the day's first run");
+      eq(await rec("ch05#parallels"), [2, today], "a clean, due showing moves the box up one, from 1 to 2, and restarts its clock");
+      const f2 = await fallbackRepair("ch05#parallels", -1);
+      eq([f2.xp, f2.reduced, (await runStore(p)).arenaDay.sec["ch05#parallels"]], [3, ["ch05#parallels"], 10], "the fallback takes the day's decay from the stored counts: a quarter after five");
+      check(/earned 3 XP instead of 10/.test(await p.evaluate(() => (document.querySelector("[data-xp-reduced]") || {}).textContent || "")), "and its result says so");
+      const f3 = await fallbackRepair("ch05#angles", -1);
+      eq([f3.xp, await rec("ch05#angles")], [10, [2, back2]], "an early clean showing leaves the box and its date alone");
+      await fallbackRepair("ch05#angles", 2);
+      eq(await rec("ch05#angles"), [0, today], "a miss sends the section to box 0, not 1, and restarts its clock");
       await context.close();
     }
 

@@ -32,6 +32,21 @@ function sourceScripts() {
   SOURCE_DIRS.forEach(d => site.walk(path.join(ROOT, d), p => /\.js$/.test(p), out));
   return out.map(site.rel);
 }
+/* the TypeScript modules under src/ that an entry may import as well (src/learn/,
+   src/ui/: the help ladder, the next-step card and the settings sheet; src/world/: the
+   course map), their tests and type declarations aside */
+function typedModules() {
+  const out = [];
+  site.walk(path.join(ROOT, "src"), p => /\.ts$/.test(p) && !/\.(test|d)\.ts$/.test(p), out);
+  return out.map(site.rel);
+}
+/* and the HUD's modules, plain .js under src/hud/ (the HUD script inlines two of them;
+   every entry imports all three) */
+function hudModules() {
+  const out = [];
+  site.walk(path.join(ROOT, "src", "hud"), p => /\.js$/.test(p), out);
+  return out.map(site.rel);
+}
 /* The paths the release before the module entries copied the scripts to, so a page
    cached from before that deploy still found them: every source script at its own path
    and the boot script where it was. That release is over, and nothing may be there. */
@@ -52,17 +67,22 @@ const RUNTIME = BUNDLE + "rolldown-runtime.js";
 /* The chunks a dynamic import makes, each under its module's name: the WebGL painter,
    which scenes3d.js imports when a scene nears the screen; Three.js, which
    three-loader.js imports when a scene or the course map does, through
-   src/vendor/three.js; and supabase-js, which account.js imports when it first wants a
+   src/vendor/three.js; supabase-js, which account.js imports when it first wants a
    client (on the account page, or where a session is stored), through
-   src/vendor/supabase.js. `by` is the importer: a page whose entry imports it must reach
-   the chunk through the import(), and no page's HTML may name the chunk, since only that
-   import() is to fetch it (a signed-out reader on an ordinary page never downloads
-   supabase-js, and a page with no 3D never downloads Three.js; tools/game/account.test.js
-   and the pages suite of check-browser.js watch the requests). */
+   src/vendor/supabase.js; and the course world, which map3d.js imports once the
+   contents page is to draw it in 3D: src/world/index.ts with the modules of src/world/
+   it imports (`dir`: those may be in the chunk too, all but one an entry imports, which
+   goes with that entry's chunks). `by` is the importer: a page whose entry imports it
+   must reach the chunk through the import(), and no page's HTML may name the chunk,
+   since only that import() is to fetch it (a signed-out reader on an ordinary page
+   never downloads supabase-js, and a page with no 3D never downloads Three.js or the
+   world; tools/game/account.test.js, tools/game/map.test.js and the pages suite of
+   check-browser.js watch the requests). */
 const ON_DEMAND = [
   { chunk: BUNDLE + "scenes3d-gl.js", module: "assets/scenes3d-gl.js", by: "assets/scenes3d.js" },
   { chunk: BUNDLE + "three.js", module: vendor.DIR + "/three.js", by: "assets/three-loader.js" },
-  { chunk: BUNDLE + "supabase.js", module: vendor.DIR + "/supabase.js", by: "assets/account.js" }
+  { chunk: BUNDLE + "supabase.js", module: vendor.DIR + "/supabase.js", by: "assets/account.js" },
+  { chunk: BUNDLE + "world.js", module: "src/world/index.ts", by: "assets/map3d.js", dir: "src/world/" }
 ];
 const onDemand = (f) => ON_DEMAND.some(d => d.chunk === f);
 /* the kinds a chunk or stylesheet bundle/<name>.<ext> says load it, or null for a
@@ -361,8 +381,9 @@ function checkShell(ctx, r) {
 
 /* What a built page runs, and that it is what the source page's shell says.
    The script tags, in order: the boot script inline (its text src/boot.js, as the shell
-   wrote it) and one <script type="module"> whose src is the page's own entry chunk,
-   bundle/pages/<page>.js; nothing else, and in particular no classic <script src>, of
+   wrote it), one <script type="module"> whose src is the page's own entry chunk,
+   bundle/pages/<page>.js, and after the top bar the HUD script inline (src/hud/, as the
+   shell wrote it); nothing else, and in particular no classic <script src>, of
    the site's own or anyone's. The module tag's src is the one tag the build rewrites, so
    it is held apart: its attributes but for src are what Vite writes for every module
    script.
@@ -387,9 +408,10 @@ function checkShell(ctx, r) {
    entries made at those paths are gone: nothing is at assets/<script>.js, data/…, or
    assets/boot.js (OPERATIONS.md, "Scripts"). */
 function checkScripts(ctx, r) {
-  const sources = new Set(sourceScripts());
+  const sources = new Set(sourceScripts().concat(typedModules(), hudModules()));
   const ofTree = (s) => sources.has(s) || s.startsWith(vendor.DIR + "/");    /* what an entry can import */
   const boot = "<script>" + normText(shell.bootScript());
+  const hudTag = "<script>" + normText(shell.hudScript());
   const loadedBy = kindsLoading();
   const named = {};     /* chunk -> its name was checked, once */
   ctx.src.pages.forEach(p => {
@@ -403,7 +425,8 @@ function checkScripts(ctx, r) {
     if (!mod.file) { r.fail(p + ": " + mod.why); return; }
     const modAttrs = Object.keys(mod.el.attrs).filter(k => k !== "src").map(k => k + (mod.el.attrs[k] === "" ? "" : "=" + mod.el.attrs[k])).join(" ");
     if (modAttrs !== "type=module crossorigin") r.fail(p + ": the module script carries " + JSON.stringify(modAttrs) + ", not type=module crossorigin");
-    if (tags.length !== 2) r.fail(p + ": " + tags.length + " script tags, not 2 (the boot script and one module): " + tags.slice(1).map(t => t.slice(0, 80)).join(" | "));
+    if (tags.length !== 3) r.fail(p + ": " + tags.length + " script tags, not 3 (the boot script, one module, the HUD script): " + tags.slice(1).map(t => t.slice(0, 80)).join(" | "));
+    else if (tags[2] !== hudTag) r.fail(p + ": script tag 3 should be the HUD script inline (tools/lib/shell.js hudScript), is " + tags[2].slice(0, 120));
     if (mod.file !== ENTRY_OF(p)) r.fail(p + ": its module script is " + mod.file + ", not " + ENTRY_OF(p) + " (a page's entry chunk is named after the page, with no hash)");
     /* the bundle, and that it is the entry's */
     const chunks = ctx.graph.reach(mod.file);
@@ -444,6 +467,7 @@ function checkScripts(ctx, r) {
     refs.filter(onDemand).forEach(f => r.fail(p + " names " + f + ", which only the import() of " + ON_DEMAND.find(d => d.chunk === f).by + " is to fetch; a signed-out reader on an ordinary page must not download it"));
   });
   /* the on-demand chunks, once each */
+  const loadedAnywhere = kindsLoading();
   ON_DEMAND.forEach(d => {
     r.count++;
     if (!ctx.files.includes(d.chunk)) { r.fail(d.chunk + " is not in dist; " + d.by + " imports " + d.module + " on demand, so the build makes it a chunk under that name"); return; }
@@ -451,10 +475,11 @@ function checkScripts(ctx, r) {
     if (!inside.includes(d.module)) r.fail(d.chunk + " is not built from " + d.module + " (its source map names " + inside.join(", ") + ")");
     const strays = inside.filter(s => {
       if (s === d.module) return false;
+      if (d.dir && s.startsWith(d.dir) && !IN_NODE_MODULES.test(s)) return !!loadedAnywhere(s);
       if (!IN_NODE_MODULES.test(s) || !d.module.startsWith(vendor.DIR + "/")) return true;
       try { return vendor.vendorOf(s).file !== d.module; } catch (e) { return true; }
     });
-    if (strays.length) r.fail(d.chunk + " holds more than " + d.module + (d.module.startsWith(vendor.DIR + "/") ? " and the files of its packages" : "") + ": " + strays.join(", "));
+    if (strays.length) r.fail(d.chunk + " holds more than " + d.module + (d.module.startsWith(vendor.DIR + "/") ? " and the files of its packages" : d.dir ? " and the modules of " + d.dir + " no entry imports" : "") + ": " + strays.join(", "));
   });
   /* the copies are gone */
   formerCopies().forEach(f => {
@@ -493,7 +518,7 @@ function checkOffline(ctx, r) {
       if (links.EXTERNAL.test(v) && !/^data:/i.test(v)) r.fail(f + ": " + JSON.stringify(ref) + " comes from another server");
     });
     /* a font as a data: URL would be downloaded by every page inside the stylesheet; the
-       site's own data: URLs (the tick and cross marks in site.css) are not fonts */
+       site's own data: URLs (the tick and cross marks in src/styles/tokens.css) are not fonts */
     for (const face of css.replace(NO_COMMENTS, "").matchAll(/@font-face\s*\{[^}]*\}/g)) {
       cssRefs(face[0]).forEach(({ ref, v }) => {
         r.count++;
@@ -741,7 +766,7 @@ const CHECKS = [
   { name: "root-absolute", run: checkRootAbsolute, what: "no attribute value, and no url() in the CSS, is a root-absolute path" },
   { name: "main", run: checkMain, what: "<main> of every page is the source's, by fingerprint" },
   { name: "shell", run: checkShell, what: "and so is the page around it, but for its stylesheet, icon and module links" },
-  { name: "scripts", run: checkScripts, what: "boot inline and one module entry whose bundle is its kind's imports (node_modules files by their vendor module), each chunk named for the kinds that load it; the on-demand chunks on their own, named by no page; no copy of a source script" },
+  { name: "scripts", run: checkScripts, what: "boot inline, one module entry whose bundle is its kind's imports (node_modules files by their vendor module), the HUD script inline after the top bar, each chunk named for the kinds that load it; the on-demand chunks on their own, named by no page; no copy of a source script" },
   { name: "offline", run: checkOffline, what: "no script, link or stylesheet url() of any page comes from another server; no font is inlined" },
   { name: "secrets", run: checkSecrets, what: "no server-side key in any built file, as text or inside a JWT" },
   { name: "stylesheets", run: checkStylesheets, what: "chapter pages share their stylesheets; vendor CSS inlined before the site's, source CSS unchanged, cascade in source order, each file named for the kinds that link it" },

@@ -2,17 +2,29 @@
 /* Pure checks of the game rules in assets/game.js, run in a vm with in-memory stores
    (no DOM: game.js skips its page decoration when there is no document.body).
      - the level curve: level(threshold(L)) = L and a round trip for every xp 0..60000
-     - the combo table: bonus from the pips before, +1 pip, −2 on a first miss, the shield,
-       the emptied meter, nothing for later misses or inline misses
+     - the combo table: bonus from the pips before, +1 pip, −2 on a first miss or a first
+       answer given with the solution open, the shield, nothing for later misses or inline
+       misses, nothing for opening a solution or a clue
      - hearts and medals on fixtures, including a set solved with no attempt record
+     - the reward invariant: every road to an exercise's first right answer, and the answers
+       after it, through the real rules of site.js and game.js, XP, combo, hearts and medal
+       together
      - every achievement predicate on fixtures, false on an empty store
-     - the recall boxes and run XP of recordRun
-     - play settings and game records keep what a later version of the site added to them
+     - the recall boxes and run XP of recordRun, and the XP across a simulated day: less
+       per section the more is paid, the finishing bonus in full twice, the Daily's bonus
+       untouched, counts on this device only, fresh on a new day
+     - play settings and game records keep what a later version of the site added to them;
+       the settings sheet's volume, Reduce motion and transparency (stamped on <html>) and
+       graphics quality, and a setting that holds for the visit when storage is blocked;
+       the boot script (src/boot.js) stamps <html> from the stored settings as the game
+       does, a damaged value included
    Usage: node tools/game/rules.test.js */
 "use strict";
 const fs = require("fs");
 const path = require("path");
 const vm = require("vm");
+
+const shell = require("../lib/shell");
 
 const ROOT = path.resolve(__dirname, "../..");
 let fails = 0, passes = 0;
@@ -28,6 +40,35 @@ function dayKey(d) {
   return d.getFullYear() + "-" + two(d.getMonth() + 1) + "-" + two(d.getDate());
 }
 function daysAgo(n) { const d = new Date(); d.setDate(d.getDate() - n); return dayKey(d); }
+
+/* The real exercise rules of assets/site.js (xpFor, paysFirst, and Road, how a check,
+   an opened solution and an opened clue change an exercise's record), from the file run
+   under a stub window, as tools/check-static.js runs it for grading. */
+function loadSite() {
+  const noop = () => {};
+  const el = {
+    getAttribute: () => null, setAttribute: noop, removeAttribute: noop, hasAttribute: () => false,
+    appendChild: noop, insertBefore: noop, querySelector: () => null, querySelectorAll: () => [],
+    addEventListener: noop, classList: { add: noop, remove: noop }, style: {}
+  };
+  const win = {
+    console, addEventListener: noop, matchMedia: () => ({ matches: false, addEventListener: noop }),
+    document: {
+      readyState: "complete", body: el, documentElement: el, querySelector: () => null, querySelectorAll: () => [],
+      getElementById: () => null, createElement: () => el, addEventListener: noop
+    },
+    localStorage: { getItem: () => null, setItem: noop, removeItem: noop }
+  };
+  win.window = win;
+  win.self = win;
+  vm.createContext(win);
+  vm.runInContext(fs.readFileSync(path.join(ROOT, "assets/site.js"), "utf8"), win, { filename: "assets/site.js" });
+  return win.BMSite;
+}
+const SITE = loadSite();
+/* src/ui/review.ts, the module the pages import ahead of game.js for window.BMReview, read by
+   Node itself (it strips the types): the same rules the browser runs */
+const REVIEW = require("../../src/ui/review.ts").api;
 
 /* A world: the stores site.js would expose, kept in a plain object. */
 function world(seedStores) {
@@ -51,11 +92,13 @@ function world(seedStores) {
     console, setTimeout, clearTimeout, Math, JSON, Date,
     matchMedia: () => ({ matches: false }),
     document: {
-      documentElement: { hasAttribute: () => false, setAttribute() {}, removeAttribute() {} },
+      /* the attributes the game stamps on <html>, kept so a test can read them; calm mode is
+         read through hasAttribute, which stays false here */
+      documentElement: { attrs: {}, hasAttribute: () => false, getAttribute(n) { return n in this.attrs ? this.attrs[n] : null; }, setAttribute(n, v) { this.attrs[n] = String(v); }, removeAttribute(n) { delete this.attrs[n]; } },
       querySelector: () => null, querySelectorAll: () => [], getElementById: () => null
     },
     BMStore: Store,
-    BMSite: { dayKey, escapeHtml: (s) => String(s), rootPrefix: () => "", chapterOf: () => null },
+    BMSite: { dayKey, escapeHtml: (s) => String(s), rootPrefix: () => "", chapterOf: () => null, paysFirst: SITE.paysFirst },
     BMProgress: {
       all: () => obj(read(keys.progress, {})),
       count: (id) => { const r = obj(obj(read(keys.progress, {}))[id]); return { solved: Object.keys(obj(r.solved)).length, total: r.total || 0 }; }
@@ -78,10 +121,15 @@ function world(seedStores) {
         Store.emit({ type: "xp", xp, why });
       }
     },
-    BMInsights: { WEAK: 0.34, sections: () => win.__rows || [] }
+    BMInsights: { WEAK: 0.34, sections: () => win.__rows || [] },
+    /* the schedule and the Arena's XP rules, which every entry puts up before game.js */
+    BMReview: REVIEW
   };
   win.window = win;
   vm.createContext(win);
+  /* window.BMHud first, as every page has it before the bundle: the level curve and the
+     combo's multiplier are src/hud/'s, through the very text the shell inlines */
+  vm.runInContext(shell.hudLibrary(), win, { filename: "the HUD script (tools/lib/shell.js)" });
   ["data/curriculum.js", "data/quest.js", "assets/game.js"].forEach((f) => {
     vm.runInContext(fs.readFileSync(path.join(ROOT, f), "utf8"), win, { filename: f });
   });
@@ -131,8 +179,19 @@ function world(seedStores) {
   eq(Game.combo().pips, 3, "second miss on the same exercise: nothing");
   miss({ inline: true });
   eq(Game.combo().pips, 3, "miss on an inline check: nothing");
-  miss({ solutionOpen: true });
-  eq(Game.combo().pips, 3, "miss after opening the solution: nothing");
+  miss({ key: "e13", solutionOpen: true });
+  eq(Game.combo().pips, 1, "a first miss with the solution open: −2 pips, like any first miss");
+  Game.updateRun((run) => { run.combo.pips = 3; });
+  const right = (o) => Store.emit(Object.assign({ type: "attempt", chapter: "ch05", key: "e14", section: "angles", inline: false, correct: true, tryNo: 1, hintLevel: 0, solutionOpen: true }, o));
+  right();
+  eq(Game.combo().pips, 1, "a first answer given with the solution open: −2 pips, what a miss in its place costs");
+  Game.updateRun((run) => { run.combo.pips = 3; });
+  right({ key: "e15", tryNo: 2 });
+  eq(Game.combo().pips, 3, "a right answer with the solution open after a miss: nothing more, the miss was charged");
+  right({ key: "e16", inline: true });
+  eq(Game.combo().pips, 3, "an inline check answered with the solution open: nothing");
+  right({ key: "e17", solutionOpen: false });
+  eq(Game.combo().pips, 3, "a right first answer of one's own: the attempt event takes nothing (bonus adds the pip)");
 
   Game.updateRun((run) => { run.combo.shield = true; });
   miss({ key: "e10" });
@@ -140,14 +199,18 @@ function world(seedStores) {
 
   Store.emit({ type: "opened", chapter: "ch05", key: "e11", section: "angles", inline: false, solved: false, tries: 1 });
   eq(Game.combo().pips, 3, "solution opened after a try: meter kept");
-  Game.updateRun((run) => { run.combo.shield = true; });
+  Game.updateRun((run) => { run.combo.shield = false; });
   Store.emit({ type: "opened", chapter: "ch05", key: "e12", section: "angles", inline: false, solved: false, tries: 0 });
-  eq(Game.combo().pips, 0, "solution opened with zero tries: meter emptied, shield does not help");
-  first(10);
-  Store.emit({ type: "opened", chapter: "ch05", key: "e12", section: "angles", inline: false, solved: false, tries: 0 });
-  eq(Game.combo().pips, 1, "reopening the same peeked solution does not empty the meter again");
+  eq([Game.combo().pips, Game.combo().shield], [3, false], "solution opened before any try: opening it costs nothing, the meter is kept");
   Store.emit({ type: "opened", chapter: "ch05", key: "i3", section: "angles", inline: true, solved: false, tries: 0 });
-  eq(Game.combo().pips, 1, "peeking at an inline check: nothing");
+  eq(Game.combo().pips, 3, "opening an inline check's solution: nothing");
+  check(!/emptyMeter|peeked/.test(fs.readFileSync(path.join(ROOT, "assets/game.js"), "utf8")), "game.js has no meter-emptying left for an opened solution");
+
+  /* a right first check after clue 2 or 3 pays like a solve after a miss: no pip gained, none lost */
+  const at = Game.combo().pips;
+  eq(Game.bonus({ rec: { first: 1, tries: 1, solved: 1, rung: 2 }, base: 6 }), null, "first try after clue 2: no combo bonus");
+  eq(Game.combo().pips, at, "first try after clue 2: the meter is unchanged");
+  check(Game.bonus({ rec: { first: 1, tries: 1, solved: 1, rung: 1 }, base: 10 }) !== null && Game.combo().pips === at + 1, "first try after clue 1 only: the pip as before");
 
   const calm = world({ "bm.prefs.v1": { calm: true } });
   eq(calm.Game.bonus({ rec: { first: 1 }, base: 10 }), null, "calm mode: no combo bonus");
@@ -170,18 +233,184 @@ function world(seedStores) {
   st = Game.setStats(S(keys, { e1: F, e2: F, e3: F, e4: F }), "ch05", keys);
   eq([st.hp, st.hearts, st.medal, st.first], [0, 3, 3, 4], "all first try: Gold");
   st = Game.setStats(S(keys, { e1: F, e2: { tries: 2, solved: 1, first: 0 }, e3: F, e4: { tries: 1, solved: 1, first: 0, opened: 1 } }), "ch05", keys);
-  eq([st.hearts, st.medal, st.how.join()], [1, 2, "first,solved,first,opened"], "two misses: Silver, segments by how they fell");
+  eq([st.hearts, st.medal, st.how.join()], [2, 2, "first,solved,first,opened"], "a miss and a solution opened first: one heart lost (the miss), Silver (both count), segments by how they fell");
   st = Game.setStats(S(keys, { e1: { tries: 3, solved: 1, first: 0 }, e2: { tries: 2, solved: 1, first: 0 }, e3: { tries: 2, solved: 1, first: 0 }, e4: { tries: 2, solved: 1, first: 0 } }), "ch05", keys);
   eq([st.hearts, st.medal], [0, 1], "four misses: hearts floor at 0, Bronze");
   st = Game.setStats(S(keys, {}), "ch05", keys);
   eq([st.hp, st.hearts, st.medal, st.how.join()], [0, 3, 3, "unknown,unknown,unknown,unknown"], "solved with no attempt record: unknown segments, no misses, Gold");
   st = Game.setStats(S(["e1"], { e2: { tries: 1 }, e3: { opened: 1 } }), "ch05", keys);
-  eq([st.hp, st.hearts, st.medal], [3, 1, 0], "unsolved tries and a peeked solution are misses; no medal before clearing");
+  eq([st.hp, st.hearts, st.medal], [3, 2, 0], "an unsolved wrong check is a miss, an opened solution is not; no medal before clearing");
+  st = Game.setStats(S(keys, { e1: F, e2: { tries: 1, solved: 1, first: 0, opened: 1 }, e3: { tries: 1, solved: 1, first: 0, opened: 1 }, e4: { tries: 1, solved: 1, first: 0, opened: 1 } }), "ch05", keys);
+  eq([st.hearts, st.medal], [3, 1], "three solutions opened first: no heart lost, and Bronze, as three misses would give");
+  st = Game.setStats(S(keys, { e1: F, e2: { tries: 1, solved: 1, first: 1, rung: 3 }, e3: F, e4: F }), "ch05", keys);
+  eq([st.hearts, st.medal], [3, 3], "clues do not touch hearts or the medal");
   const up = S(keys, { e1: F, e2: { tries: 2, solved: 1, first: 0 }, e3: { tries: 2, solved: 1, first: 0 }, e4: { tries: 2, solved: 1, first: 0 } });
   up.game.enc = { "ch05/practice": { medal: 3, day: "2026-02-01" } };
   const w2 = world({ "bm.progress.v1": up.progress, "bm.attempts.v1": up.attempts, "bm.game.v1": up.game, "bm.run.v1": up.run });
   eq(w2.Game.medal("ch05", "practice"), 3, "a rematch medal raises a Bronze to Gold");
   check(w2.Game.isMiss({ tries: 1 }) && !w2.Game.isMiss({ tries: 1, solved: 1, first: 1 }) && !w2.Game.isMiss({}), "isMiss");
+  check(!w2.Game.isMiss({ opened: 1 }) && !w2.Game.isMiss({ tries: 1, solved: 1, first: 0, opened: 1 }) && w2.Game.isMiss({ tries: 2, solved: 1, first: 0, opened: 1 }),
+    "isMiss counts wrong checks only, never an opened solution");
+}
+
+/* ------------ the invariant: a clue is never charged, and no help pays more than effort */
+/* Every road an exercise can take to its first correct answer, made of the actions a
+   reader has before it: open clue 1, 2, 3 (in that order), check a wrong answer (up to
+   twice), open the solution (once), then the right check. Each road is run through the
+   real rules: the record changes of site.js (BMSite.road, as check(), reveal() and the
+   ladder's persist apply them), the XP of site.js (xpFor), the combo of game.js (bonus,
+   and the attempt event that check() emits for every check, wrong or right), and the
+   hearts and medal of game.js (setStats) for a four-problem set whose other three went
+   right first time. After it come five more answers right first time on fresh
+   exercises, because the pips a road keeps or loses pay on every answer after it: the XP
+   is compared after the road and after each of those answers, from every meter (0 to 5
+   pips, with and without a shield). Then, together:
+     XP     a right first check pays 10 with no clue or clue 1 only, 6 after clue 2 or 3,
+            6 after a miss, 3 with the solution open; a road never earns more, on its
+            exercise or by any answer after it, than the same road with its help taken out,
+            and a road with the solution open never more than the same road with a miss in
+            the solution's place
+     combo  a pip is gained exactly when the first-time rate is paid; two pips (or the
+            shield) go at most once per exercise, on its first check when that check is
+            wrong or made with the solution open, so the solution leaves the meter exactly
+            where a miss in its place would; a clue never costs a pip
+     hearts lost only on a wrong check: one per exercise that had one, whatever help
+     medal  the solution opened counts like a miss, never better than miss-then-solve;
+            clues never count; for a cleared set it is the medal the old rule gave, so no
+            medal a reader was shown changes, and a banked medal is never lowered */
+{
+  const ACTIONS = ["c1", "c2", "c3", "w", "s"];
+  const roads = [];
+  (function grow(path) {
+    roads.push(path);
+    if (path.length >= 5) return;
+    ACTIONS.forEach((a) => {
+      if (/^c/.test(a) && (path.includes(a) || (a !== "c1" && !path.includes("c" + (+a[1] - 1))))) return;
+      if (a === "s" && path.includes("s")) return;
+      if (a === "w" && path.filter((x) => x === "w").length >= 2) return;
+      grow(path.concat(a));
+    });
+  })([]);
+  const P0 = 2, TAIL = 5;
+  const keys = ["e1", "e2", "e3", "e4"];
+  const F = { tries: 1, solved: 1, first: 1, section: "angles" };
+  const w = world();
+  const attempt = (key, rec, ok) => w.Store.emit({
+    type: "attempt", chapter: "ch05", key, section: "angles", inline: false,
+    correct: ok, tryNo: rec.tries, hintLevel: rec.hints || 0, solutionOpen: !!rec.opened
+  });
+  /* the right check, in the order check() makes it: the record, the event, the XP */
+  const answer = (key, rec) => {
+    SITE.road.check(rec, true, 0, false, "angles");
+    attempt(key, rec, true);
+    const base = SITE.xpFor(rec, false);
+    const extra = w.Game.bonus({ chapter: "ch05", key, section: "angles", inline: false, rec, base });
+    return { base, bonus: extra ? extra.bonus : 0 };
+  };
+  const run = (path, pips0 = P0, shield0 = false) => {
+    w.mem["bm.run.v1"] = JSON.stringify({ combo: { pips: pips0, shield: shield0 } });
+    const rec = {};
+    let misses = 0;
+    path.forEach((a) => {
+      if (/^c/.test(a)) SITE.road.clue(rec, +a[1], false, "angles");
+      else if (a === "s") {
+        SITE.road.reveal(rec, false, "angles");
+        w.Store.emit({ type: "opened", chapter: "ch05", key: "e4", section: "angles", inline: false, solved: false, tries: rec.tries || 0 });
+      } else {
+        misses++;
+        SITE.road.check(rec, false, misses === 1 ? 1 : misses === 2 ? 2 : 0, false, "angles");
+        attempt("e4", rec, false);
+      }
+    });
+    const own = answer("e4", rec);
+    const c = w.Game.combo();
+    /* the XP after this exercise, and after each answer right first time that follows */
+    const xp = [own.base + own.bonus];
+    for (let i = 0; i < TAIL; i++) {
+      const t = answer("t" + i, {});
+      xp.push(xp[i] + t.base + t.bonus);
+    }
+    const S = {
+      progress: { ch05: { solved: { e1: true, e2: true, e3: true, e4: true }, total: 4 } },
+      attempts: { ch05: { e1: F, e2: F, e3: F, e4: rec } }, play: {}, activity: { days: {} },
+      game: { ach: {}, cmp: {}, sec: {}, best: {}, enc: {}, daily: {}, maxed: 0 }, run: { combo: { pips: 0 }, seen: {}, sets: {} }
+    };
+    const st = w.Game.setStats(S, "ch05", keys);
+    /* the rule medals had before the ladder: anything not right first time was a miss */
+    const oldMiss = (r) => !!((r.solved && !r.first) || (!r.solved && (r.tries > 0 || r.opened)));
+    const oldHearts = Math.max(0, 3 - keys.filter((k) => oldMiss(S.attempts.ch05[k])).length);
+    return {
+      base: own.base, bonus: own.bonus, pips: c.pips, shield: c.shield, xp, hearts: st.hearts, medal: st.medal,
+      oldMedal: oldHearts >= 3 ? 3 : oldHearts >= 1 ? 2 : 1, rec
+    };
+  };
+  const out = new Map(roads.map((p) => [p.join(" "), run(p)]));
+  const get = (p) => out.get(p.join(" ")) || run(p);
+  const bad = [];
+  const want = (cond, path, what) => { if (!cond) bad.push("[" + path.join(" ") + "] " + what); };
+  const missThenSolve = get(["w"]);
+  const unhelped = (p) => p.filter((a) => a === "w");
+  const missInstead = (p) => p.map((a) => (a === "s" ? "w" : a));
+  roads.forEach((p) => {
+    const o = get(p), wrong = p.includes("w"), sol = p.includes("s");
+    const clue = Math.max(0, ...p.filter((a) => /^c/.test(a)).map((a) => +a[1]));
+    /* XP */
+    want(o.base === (sol ? 3 : wrong ? 6 : clue >= 2 ? 6 : 10), p, "base XP " + o.base);
+    if (clue >= 2 || sol) want(o.base + o.bonus <= missThenSolve.base + missThenSolve.bonus, p, "help pays more than miss-then-solve");
+    /* combo */
+    const firstPays = !sol && !wrong && clue < 2;
+    want(o.pips === (firstPays ? P0 + 1 : wrong || sol ? Math.max(0, P0 - 2) : P0), p, "pips " + o.pips);
+    want(o.bonus === (firstPays ? Math.round(10 * 0.2 * P0) : 0), p, "combo bonus " + o.bonus);
+    /* hearts */
+    want(o.hearts === (wrong ? 2 : 3), p, "hearts " + o.hearts);
+    /* medal */
+    want(o.medal === (wrong || sol ? 2 : 3), p, "medal " + o.medal);
+    if (sol) want(o.medal <= missThenSolve.medal, p, "the solution earned a better medal than miss-then-solve");
+    want(o.medal === o.oldMedal, p, "medal " + o.medal + " differs from the old rule's " + o.oldMedal);
+    /* taking one help action out of the road: never more XP, the same hearts; a clue
+       taken out never saves a pip and never changes the medal */
+    p.forEach((a, i) => {
+      if (a === "w" || (/^c/.test(a) && p.includes("c" + (+a[1] + 1)))) return;
+      const q = p.slice(0, i).concat(p.slice(i + 1)), oq = get(q);
+      want(o.base <= oq.base, p, "help raised the XP above the road without it [" + q.join(" ") + "]");
+      want(o.hearts === oq.hearts, p, "help changed the hearts");
+      if (/^c/.test(a)) {
+        want(P0 - o.pips <= Math.max(0, P0 - oq.pips), p, "a clue cost a pip that the road without it kept");
+        want(o.medal === oq.medal, p, "a clue changed the medal");
+      }
+    });
+    /* the solution with a miss in its place: the same meter and medal, never less XP */
+    if (sol) {
+      const m = get(missInstead(p));
+      want(o.pips === m.pips && o.medal === m.medal, p, "the solution left pips " + o.pips + " and medal " + o.medal + " where a miss in its place leaves " + m.pips + " and " + m.medal);
+    }
+    /* over the answers after it, from every meter: never more than effort */
+    for (let pips0 = 0; pips0 <= 5; pips0++) {
+      [false, true].forEach((shield0) => {
+        const from = " from " + pips0 + " pips" + (shield0 ? " and a shield" : "");
+        const r = pips0 === P0 && !shield0 ? o : run(p, pips0, shield0);
+        if (clue || sol) {
+          const e = run(unhelped(p), pips0, shield0);
+          r.xp.forEach((x, k) => want(x <= e.xp[k], p, "help out-earned the road without it [" + unhelped(p).join(" ") + "] " + k + " answers later" + from + ": " + x + " > " + e.xp[k]));
+        }
+        if (sol) {
+          const m = run(missInstead(p), pips0, shield0);
+          r.xp.forEach((x, k) => want(x <= m.xp[k], p, "the solution out-earned a miss in its place " + k + " answers later" + from + ": " + x + " > " + m.xp[k]));
+          want(r.pips === m.pips && r.shield === m.shield, p, "the solution left the meter unlike a miss" + from);
+        }
+      });
+    }
+  });
+  eq(bad.slice(0, 8), [], "the reward invariant over " + roads.length + " roads and the " + TAIL + " answers after each (XP, combo, hearts, medal together)");
+  check(roads.length > 100, "the roads cover the actions (" + roads.length + ")");
+  /* a medal already banked is never lowered by the new count */
+  const banked = world({
+    "bm.progress.v1": { ch05: { solved: { e1: true, e2: true, e3: true, e4: true }, total: 4 } },
+    "bm.attempts.v1": { ch05: { e1: F, e2: F, e3: F, e4: { tries: 1, solved: 1, first: 0, opened: 1, section: "angles" } } },
+    "bm.run.v1": { sets: { ch05: { practice: keys } } },
+    "bm.game.v1": { enc: { "ch05/practice": { medal: 3, day: "2026-01-01" } } }
+  });
+  eq(banked.Game.medal("ch05", "practice"), 3, "a banked Gold stays Gold after a solution was opened on the set");
 }
 
 /* ------------------------------------------------------------ achievements */
@@ -269,10 +498,13 @@ function world(seedStores) {
   eq(G.game().sec["ch05#angles"].box, 1, "promotion at most once a day");
   eq(G.deck().find((d) => d.id === "ch05#angles").due, false, "not due again the same day");
   eq(G.game().best.standard.score, 460, "best keeps the higher score");
+  /* the day so far: angles has paid 3 answers (two in full, one at half), and two runs have
+     earned the finishing bonus, so the Daily's retry is angles' 4th (half of 1, rounded to
+     1) and its finish the day's 3rd (1, not 5); the Daily's own 10 is untouched */
   const d1 = G.recordRun({ mode: "daily", hearts: 1, score: 50, day: dayKey(), answers: [{ section: "ch05#angles", retry: true }] });
-  eq(d1.xp, 1 + 5 + 10, "Daily: +10 once a day");
+  eq([d1.xp, d1.parts], [1 + 1 + 10, { answers: 1, full: 1, finish: 1, daily: 10 }], "Daily: +10 once a day, beside the day's decayed answer and finish");
   const d2 = G.recordRun({ mode: "daily", hearts: 1, score: 50, day: dayKey(), answers: [{ section: "ch05#angles", retry: true }] });
-  eq(d2.xp, 1 + 5, "Daily bonus not paid twice in a day");
+  eq(d2.xp, 0 + 1, "Daily bonus not paid twice in a day (the 5th angles answer, a quarter of 1, rounds to 0)");
   G.recordRun({ mode: "rematch", boss: "ch05", hearts: 3, score: 900, day: dayKey(), answers: [{ section: "ch05#angles", first: true }] });
   eq(G.game().enc["ch05/practice"], undefined, "a rematch of a set with no sign of a clear records no medal");
   G.recordRun({ mode: "repair", section: "ch05#pythagoras", timed: false, hearts: 3, score: 0, day: dayKey(),
@@ -281,6 +513,76 @@ function world(seedStores) {
   const firsts = Array.from({ length: 10 }, (_, i) => ({ section: "ch05#angles", first: true, late: i < 3 }));
   G.recordRun({ mode: "standard", hearts: 3, score: 800, day: dayKey(), answers: firsts });
   check(!!G.game().ach["took-your-time"], "took-your-time: 10 first-try with 3 after par in a timed run");
+}
+
+/* ------------- the deck carries the day each section was last solved on its page (`seen`) */
+{
+  const noon = new Date(2026, 9, 3, 12).getTime();
+  const w = world({ "bm.attempts.v1": { ch05: {
+    a: { tries: 1, solved: noon - 864e5, first: 1, section: "angles" }, b: { tries: 1, solved: noon, first: 1, section: "angles" },
+    c: { tries: 2, solved: noon - 864e5 * 2, section: "pythagoras" }, d: { tries: 1, inline: 1, solved: noon + 6e5, first: 1, section: "ch05#pythagoras" },
+    e: { tries: 3, section: "angles" }
+  } } });
+  w.win.__rows = [
+    { id: "ch05#angles", solved: 2, score: 0, label: "§5.1", section: { title: "Angles" }, chapter: { id: "ch05" }, path: "x" },
+    { id: "ch05#pythagoras", solved: 2, score: 0.1, label: "§5.4", section: { title: "Pythagoras" }, chapter: { id: "ch05" }, path: "y" }
+  ];
+  eq(w.Game.deck().map((d) => [d.id, d.seen, d.due]), [["ch05#angles", "2026-10-03", true], ["ch05#pythagoras", "2026-10-03", true]],
+    "deck: the latest page solve's day, a Your turn check and a mixed-review id included, an unsolved try not; `due` unchanged");
+}
+
+/* ------------------- Arena XP across a day: less per section the more is done, back tomorrow */
+{
+  const w = world();
+  const G = w.Game;
+  const first = (section, n) => Array.from({ length: n }, () => ({ section, first: true }));
+  const day = () => w.read("bm.run.v1").arenaDay;
+  /* A: the day's first run, four first tries on a section never placed (due, so 3 each):
+     answers in one run never lower each other's rate, so all four in full */
+  let r = G.recordRun({ mode: "standard", hearts: 3, score: 400, day: dayKey(), answers: first("ch05#angles", 4) });
+  eq([r.xp, r.parts, r.reduced, r.finishReduced], [12 + 5, { answers: 12, full: 12, finish: 5, daily: 0 }, [], false],
+    "the day's first run pays in full, however many of its answers share a section");
+  eq(G.game().sec["ch05#angles"].box, 1, "the decay leaves the boxes to the usual rule: a clean, due showing moves up one");
+  /* B: angles (placed today, not due: 2 each) had 4 answers paid earlier today, so this
+     run's are paid as its 5th, a quarter each; a new section starts the table again; the
+     second finish of the day is still in full */
+  r = G.recordRun({ mode: "standard", hearts: 3, score: 300, day: dayKey(), answers: first("ch05#angles", 2).concat(first("ch05#parallels", 1)) });
+  eq([r.xp, r.parts.answers, r.parts.full, r.reduced], [1 + 3 + 5, 4, 7, ["ch05#angles"]], "past the 4th, a quarter; another section pays in full; summed and rounded once");
+  /* C: a banked run earns no finish and does not count as one; a paid retry decays like a first try */
+  r = G.recordRun({ mode: "standard", hearts: 0, finished: false, ended: "banked", score: 30, day: dayKey(), answers: [{ section: "ch05#parallels", retry: true }] });
+  eq([r.xp, day().finishes, day().sec["ch05#parallels"]], [1, 2, 2], "a retry counts as a paid answer; a banked run is not a finish");
+  /* D: the third finished run of the day pays 1 for finishing, and says so */
+  r = G.recordRun({ mode: "standard", hearts: 1, score: 100, day: dayKey(), answers: first("ch05#parallels", 1) });
+  eq([r.xp, r.parts.finish, r.finishReduced, r.reduced], [1 + 1, 1, true, ["ch05#parallels"]], "after two finishes in a day the bonus is 1, and the result knows why");
+  /* E: a retry without a heart at stake pays nothing and is not counted */
+  r = G.recordRun({ mode: "standard", hearts: 3, score: 100, day: dayKey(), answers: [{ section: "ch05#distance", retry: true, hf: true }].concat(first("ch05#distance", 1)) });
+  eq([r.xp, day().sec["ch05#distance"]], [3 + 1, 1], "an unpaid retry is not a paid answer");
+  eq(day(), { day: dayKey(), sec: { "ch05#angles": 6, "ch05#parallels": 3, "ch05#distance": 1 }, finishes: 4 }, "the day's counts, in bm.run.v1.arenaDay");
+  check(!("arenaDay" in G.game()), "the counts stay on this device: nothing of them is in the synced game record");
+  /* the Daily's 10 is not reduced, whatever the day holds */
+  r = G.recordRun({ mode: "daily", hearts: 3, score: 100, day: dayKey(), answers: first("ch05#angles", 1) });
+  eq([r.parts.daily, r.parts.answers, r.parts.finish], [10, 1, 1], "the Daily bonus is paid in full beside a decayed answer and finish");
+  eq(w.read("bm.activity.v1").days[dayKey()], 17 + 9 + 1 + 2 + 4 + 12, "what was paid is what reached the day's XP");
+  /* a new local day starts the counts again: the clock moves on to tomorrow */
+  const tomorrow = daysAgo(-1), today = dayKey();
+  w.win.BMSite.dayKey = (d) => (d ? dayKey(d) : tomorrow);
+  r = G.recordRun({ mode: "standard", hearts: 3, score: 100, day: tomorrow, answers: first("ch05#angles", 2) });
+  eq([r.xp, r.reduced, day()], [2 + 2 + 5, [], { day: tomorrow, sec: { "ch05#angles": 2 }, finishes: 1 }], "the next day pays in full again, from fresh counts");
+  /* a run dealt on an earlier day and settled later counts against its own day, and leaves
+     the later day's counts as they were */
+  G.recordRun({ mode: "standard", hearts: 3, score: 100, day: today, answers: first("ch05#parallels", 1) });
+  eq(day(), { day: tomorrow, sec: { "ch05#angles": 2 }, finishes: 1 }, "an older run does not overwrite a later day's counts");
+  /* the clock set back to today: tomorrow's counts can only be a wrong clock's, so they are
+     dropped and today's are kept from here on, and the day's decay still applies */
+  w.win.BMSite.dayKey = dayKey;
+  r = G.recordRun({ mode: "standard", hearts: 3, score: 100, day: today, answers: first("ch05#parallels", 2) });
+  eq([r.parts.answers, day()], [4, { day: today, sec: { "ch05#parallels": 2 }, finishes: 1 }], "a clock moved back keeps that day's counts, not a later day's");
+  r = G.recordRun({ mode: "standard", hearts: 3, score: 100, day: today, answers: first("ch05#parallels", 2) });
+  eq([r.parts.answers, r.reduced, day().sec], [2, ["ch05#parallels"], { "ch05#parallels": 4 }], "so a second run on the same section that day pays less");
+  /* damaged counts are read as none */
+  const w2 = world({ "bm.run.v1": { arenaDay: { day: dayKey(), sec: { "ch05#angles": "x", "ch05#parallels": -3 }, finishes: "lots" } } });
+  r = w2.Game.recordRun({ mode: "standard", hearts: 3, score: 100, day: dayKey(), answers: first("ch05#angles", 1).concat(first("ch05#parallels", 1)) });
+  eq([r.xp, r.reduced], [3 + 3 + 5, []], "counts that are not numbers start from nothing");
 }
 
 /* ------------------------------------------- review fixes: runs and medals */
@@ -394,20 +696,149 @@ function world(seedStores) {
   const keys = ["e1", "e2", "e3", "e4"];
   const at = (d) => new Date(d + "T12:00:00").getTime();
 
-  /* play settings: a key this file has never heard of outlives every switch */
-  let w = world({ "bm.prefs.v1": { calm: true, motion: "reduced", volume: { music: 0.4 } } });
-  eq([w.Game.prefs().calm, w.Game.prefs().motion], [true, "reduced"], "prefs() hands back an unknown key beside the known ones");
+  /* play settings: a key this file has never heard of outlives every switch (skin, a
+     key a later release may write, and tutorPromo stand in for them; gfxAuto, which
+     stood in here until the 3D world's watchdog came to write it, is a known key now,
+     with its own rule below) */
+  let w = world({ "bm.prefs.v1": { calm: true, skin: { marker: "octa", at: 1 }, tutorPromo: false } });
+  eq([w.Game.prefs().calm, w.Game.prefs().skin, w.Game.prefs().tutorPromo], [true, { marker: "octa", at: 1 }, false], "prefs() hands back an unknown key beside the known ones");
   w.Game.setPref("sound", true);
-  eq([w.read("bm.prefs.v1").motion, w.read("bm.prefs.v1").volume, w.read("bm.prefs.v1").sound], ["reduced", { music: 0.4 }, true], "switching one setting keeps an unknown key");
+  eq([w.read("bm.prefs.v1").skin, w.read("bm.prefs.v1").tutorPromo, w.read("bm.prefs.v1").sound], [{ marker: "octa", at: 1 }, false, true], "switching one setting keeps an unknown key");
   w.Game.setPref("calm", false); w.Game.setPref("map3d", false); w.Game.setPref("tempo", "untimed");
+  w.Game.setPref("volume", 35); w.Game.setPref("motion", true); w.Game.setPref("transparency", true); w.Game.setPref("gfx", "mid");
   let p = w.read("bm.prefs.v1");
-  eq([p.motion, p.volume, p.sound, p.calm, p.map, p.tempo], ["reduced", { music: 0.4 }, true, false, "list", "untimed"], "every setting switched in turn: the unknown keys are still there");
+  eq([p.skin, p.tutorPromo, p.sound, p.calm, p.map, p.tempo, p.volume, p.motion, p.transparency, p.gfx],
+    [{ marker: "octa", at: 1 }, false, true, false, "list", "untimed", 35, "reduce", "reduce", "mid"], "every setting switched in turn: the unknown keys are still there");
   /* the settings stay on this device: a "state" change is what account sync listens for */
-  eq([w.events.filter((e) => e.type === "state").length, w.events.filter((e) => e.type === "prefs").length], [0, 4], "switching a setting announces prefs and never a state change");
+  eq([w.events.filter((e) => e.type === "state").length, w.events.filter((e) => e.type === "prefs").length], [0, 8], "switching a setting announces prefs and never a state change");
   w.Game.setPref("nonsense", 1);
   eq(w.read("bm.prefs.v1"), p, "a setting this file does not know is not written by setPref");
-  p = world({ "bm.prefs.v1": { map: "globe", tempo: "warp" } }).Game.prefs();
-  eq([p.sound, p.calm, "map" in p, p.tempo], [false, false, false, "standard"], "the known settings are still normalised");
+  p = world({ "bm.prefs.v1": { map: "globe", tempo: "warp", volume: 140, motion: "less", transparency: true, gfx: "ultra" } }).Game.prefs();
+  eq([p.sound, p.calm, "map" in p, p.tempo, "volume" in p, "motion" in p, "transparency" in p, "gfx" in p], [false, false, false, "standard", false, false, false, false],
+    "the known settings are still normalised: a value the site does not know reads as unset, the default");
+
+  /* the settings sheet's new switches: stamped on <html>, and off again */
+  w = world({ "bm.prefs.v1": { volume: 80 } });
+  const html = () => w.win.document.documentElement.attrs;
+  eq([w.Game.volume(w.Game.prefs()), w.Game.volume(world().Game.prefs())], [80, 50], "the volume is the stored one, 50 when there is none");
+  w.Game.setPref("volume", 101.6); eq(w.read("bm.prefs.v1").volume, 100, "the volume is held to 0..100, a whole number");
+  w.Game.setPref("volume", "x"); eq(w.read("bm.prefs.v1").volume, 0, "a volume that is not a number is 0, not a broken store");
+  w.Game.setPref("motion", "reduce"); w.Game.setPref("transparency", true);
+  eq([html()["data-motion"], html()["data-transparency"]], ["reduce", "reduce"], "Reduce motion and Reduce transparency stamp html[data-motion] and html[data-transparency]");
+  w.Game.setPref("motion", false); w.Game.setPref("transparency", false);
+  eq(["data-motion" in html(), "data-transparency" in html(), "motion" in w.read("bm.prefs.v1"), "transparency" in w.read("bm.prefs.v1")], [false, false, false, false],
+    "switched off, the attributes go and the store keeps nothing: the device's own setting rules again");
+  /* graphics quality is the course world's tier (src/world/tiers.ts): Low is its low
+     tier, still 3D; the 3D map switch is what keeps the list */
+  w.Game.setPref("gfx", "low");
+  eq([w.read("bm.prefs.v1").gfx, w.Game.map3dOn(w.Game.prefs())], ["low", true], "Graphics quality Low is stored, and the course map stays 3D (its low tier)");
+  w.Game.setPref("map3d", false);
+  eq([w.read("bm.prefs.v1").map, w.Game.map3dOn(w.Game.prefs())], ["list", false], "the 3D map switch off keeps the list");
+  w.Game.setPref("map3d", true);
+  w.Game.setPref("gfx", "auto");
+  eq(["gfx" in w.read("bm.prefs.v1"), w.Game.map3dOn(w.Game.prefs())], [false, true], "Auto is stored as no choice");
+  /* gfxAuto: the tier the world's watchdog settled on, this device's; never "high", and
+     gone at the next choice of quality or of the map */
+  w = world({ "bm.prefs.v1": { gfxAuto: "low" } });
+  eq(w.Game.prefs().gfxAuto, "low", "a settled tier is read back");
+  eq(world({ "bm.prefs.v1": { gfxAuto: "high" } }).Game.prefs().gfxAuto, undefined, "the watchdog never settles upward: \"high\" reads as unset");
+  eq(world({ "bm.prefs.v1": { gfxAuto: { tier: "low" } } }).Game.prefs().gfxAuto, undefined, "nor does anything but a tier name");
+  w.Game.setPref("gfxAuto", "list");
+  eq([w.read("bm.prefs.v1").gfxAuto, w.Game.map3dOn(w.Game.prefs())], ["list", false], "the watchdog giving the list back shows the 3D map switch off");
+  w.Game.setPref("sound", true);
+  eq(w.read("bm.prefs.v1").gfxAuto, "list", "another setting leaves it");
+  w.Game.setPref("map3d", true);
+  eq(["gfxAuto" in w.read("bm.prefs.v1"), w.Game.map3dOn(w.Game.prefs())], [false, true], "switching the map on again starts afresh");
+  w.Game.setPref("gfxAuto", "list");
+  eq([w.read("bm.prefs.v1").map, w.Game.map3dOn(w.Game.prefs())], ["3d", false], "the watchdog giving the list back shows the switch off even where the map was switched on (the world keeps the list then too)");
+  w.Game.setPref("map3d", true);
+  w.Game.setPref("gfxAuto", "medium"); w.Game.setPref("gfx", "high");
+  eq(["gfxAuto" in w.read("bm.prefs.v1"), w.read("bm.prefs.v1").gfx], [false, "high"], "so does choosing a quality");
+  w.Game.setPref("gfxAuto", "nonsense");
+  eq("gfxAuto" in w.read("bm.prefs.v1"), false, "a value that is not a settled tier is not kept");
+  eq(w.events.filter((e) => e.type === "state").length, 0, "none of it is a state change for account sync");
+
+  /* a store that cannot be written: the choice still holds for the visit */
+  w = world();
+  w.Store.write = () => false;
+  w.Game.setPref("calm", true);
+  eq([w.Game.prefs().calm, "bm.prefs.v1" in w.mem], [true, false], "with storage blocked, a setting holds for the visit and nothing is stored");
+
+  /* the reading panel: unset until chosen (light paper), stamped on <html> as data-panel */
+  w = world({ "bm.prefs.v1": { panel: "sepia", calm: true } });
+  eq("panel" in w.Game.prefs(), false, "a panel value the site does not know reads as unset, the light panel");
+  w.Game.setPref("panel", "dark");
+  eq([w.read("bm.prefs.v1").panel, w.read("bm.prefs.v1").calm, w.win.document.documentElement.getAttribute("data-panel")], ["dark", true, "dark"],
+    "setPref(\"panel\", \"dark\") keeps the choice, keeps the other settings and stamps html[data-panel]");
+  w.Game.setPref("panel", "anything");
+  eq([w.read("bm.prefs.v1").panel, w.win.document.documentElement.getAttribute("data-panel")], ["light", "light"], "any other value is the light panel");
+  eq(w.events.filter((e) => e.type === "state").length, 0, "the panel is this device's: no state change for account sync");
+
+  /* The boot script stamps <html> before first paint and the game stamps it again when it
+     loads; the HUD script reads html[data-calm] in between. They must read every stored
+     value the same way, a damaged one too, or the HUD changes when the bundle arrives. */
+  const boot = fs.readFileSync(path.join(ROOT, shell.BOOT), "utf8");
+  const stamps = (attrs) => ["data-calm", "data-sound", "data-motion", "data-transparency", "data-panel"].map((n) => n + "=" + (n in attrs ? attrs[n] : "-")).join(" ");
+  [
+    { calm: true }, { calm: "yes" }, { calm: 1 }, { calm: "true" }, { calm: false },
+    { sound: true }, { sound: 1 }, { sound: "on" }, { sound: true, calm: true }, { sound: true, calm: 1 },
+    { motion: "reduce" }, { motion: true }, { transparency: "reduce" }, { transparency: 1 }, { panel: "dark" }, { panel: "sepia" }, {}
+  ].forEach((stored) => {
+    const root = { attrs: {}, setAttribute(n, v) { this.attrs[n] = String(v); }, removeAttribute(n) { delete this.attrs[n]; }, getAttribute(n) { return n in this.attrs ? this.attrs[n] : null; }, hasAttribute(n) { return n in this.attrs; } };
+    const mem = { "bm.prefs.v1": JSON.stringify(stored) };
+    const listeners = {};
+    const page = { document: { documentElement: root }, localStorage: { getItem: (k) => (k in mem ? mem[k] : null) }, matchMedia: () => ({ matches: false }), JSON,
+      addEventListener: (type, fn) => { (listeners[type] = listeners[type] || []).push(fn); } };
+    page.window = page;
+    vm.runInNewContext(boot, page, { filename: shell.BOOT });
+    const g = world({ "bm.prefs.v1": stored });
+    g.Game.setPref("tempo", g.Game.prefs().tempo);
+    eq(stamps(root.attrs), stamps(g.win.document.documentElement.attrs), "the boot script stamps <html> as the game does for a stored " + JSON.stringify(stored));
+    /* and between pages it skips the view transition, on the page left and on the page
+       arriving, exactly when the game holds still: Study mode or Reduce motion */
+    const skips = ["pageswap", "pagereveal"].map((type) => {
+      let skipped = false;
+      (listeners[type] || []).forEach((fn) => fn({ viewTransition: { skipTransition() { skipped = true; } } }));
+      (listeners[type] || []).forEach((fn) => fn({ viewTransition: null }));
+      return skipped;
+    });
+    const still = g.Game.prefs().calm === true || g.Game.prefs().motion === "reduce";
+    eq(skips, [still, still], "the boot script " + (still ? "skips" : "keeps") + " the view transition on both pages for a stored " + JSON.stringify(stored));
+  });
+  /* the transition is skipped for what the device asks too, and for Study mode switched on
+     on the page being left after it loaded (game.js stamps html[data-calm] then) */
+  [["the device asks for less motion", true, null], ["Study mode was switched on since the page loaded", false, "data-calm"], ["nothing asks", false, null]].forEach(([why, device, attr]) => {
+    const root = { attrs: {}, setAttribute(n, v) { this.attrs[n] = String(v); }, removeAttribute(n) { delete this.attrs[n]; }, getAttribute(n) { return n in this.attrs ? this.attrs[n] : null; }, hasAttribute(n) { return n in this.attrs; } };
+    const listeners = {};
+    const page = { document: { documentElement: root }, localStorage: { getItem: () => null }, matchMedia: (q) => ({ matches: device && /prefers-reduced-motion:\s*reduce/.test(q) }), JSON,
+      addEventListener: (type, fn) => { (listeners[type] = listeners[type] || []).push(fn); } };
+    page.window = page;
+    vm.runInNewContext(boot, page, { filename: shell.BOOT });
+    if (attr) root.setAttribute(attr, "true");
+    let skipped = false;
+    listeners.pageswap.forEach((fn) => fn({ viewTransition: { skipTransition() { skipped = true; } } }));
+    eq(skipped, device || !!attr, "the page being left " + (device || attr ? "skips" : "keeps") + " its view transition when " + why);
+  });
+  /* the one rejection the boot script quiets: a transition the browser gave up on itself
+     (Chromium reports it uncaught; no script was handed it); any other stays an error */
+  {
+    class DOMException extends Error { constructor(message, name) { super(message); this.name = name; } }
+    const listeners = {};
+    const page = { document: { documentElement: { setAttribute() {}, getAttribute: () => null, hasAttribute: () => false } }, localStorage: { getItem: () => null }, matchMedia: () => ({ matches: false }), JSON, DOMException,
+      addEventListener: (type, fn) => { (listeners[type] = listeners[type] || []).push(fn); } };
+    page.window = page;
+    vm.runInNewContext(boot, page, { filename: shell.BOOT });
+    const quieted = (reason) => { let prevented = false; listeners.unhandledrejection.forEach((fn) => fn({ reason, preventDefault() { prevented = true; } })); return prevented; };
+    eq([
+      quieted(new DOMException("Transition was aborted because of invalid state. Page already revealed", "InvalidStateError")),
+      quieted(new DOMException("Transition was aborted because of invalid state. ViewTransition opt-in disabled", "InvalidStateError")),
+      quieted(new DOMException("Transition was skipped", "AbortError")),
+      quieted(new DOMException("The operation timed out.", "TimeoutError")),
+      quieted(new DOMException("Failed to execute 'x'", "InvalidStateError")),
+      quieted(new Error("Transition was aborted")),
+      quieted(undefined)
+    ], [true, true, true, false, false, false, false], "the boot script quiets only a view transition the browser gave up on");
+  }
 
   /* the game record: an Arena run rewrites a section and a best, and keeps what it does not know */
   w = world({ "bm.game.v1": {
