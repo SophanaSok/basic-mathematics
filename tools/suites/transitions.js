@@ -10,36 +10,61 @@
        laid over each other with plain alpha; nothing animates the top bar's pseudo-
        elements, and its group sits exactly where the top bar is on the page left and on
        the page arriving: the HUD keeps its position. The top bar is the one element
-       named. It is over within a second of the page showing. And one hop from half-way
-       down a chapter;
+       named. It is over within a second of the page showing. While it runs a click on the
+       HUD is lost (captured elements are not hit-tested): the window, the longest fade, is
+       held to 250ms, and the menu button takes a click again once it is over. And one hop
+       from half-way down a chapter;
      - skipped: with Study mode, with Reduce motion (the settings), with reduced motion
        on the device (never opted in: the page left had no transition to skip), with
        Study mode switched on on the page left after it loaded (pageswap skips it), and
        with Study mode stored for the page arriving only (pagereveal skips it);
      - a slow page: the arriving page's stylesheets held back past the browser's timeout
        (four seconds in Chrome): no transition, the page still arrives, and no error;
+     - back and forward, on the full Chromium with its back/forward cache on (Playwright
+       turns it off): each restores the page left, and the transition runs, or is skipped
+       in Study mode;
      - and on every page, no console error, no uncaught exception, no same-origin 404.
    Each navigation is started by the page (location.assign, as a link's is): one typed
    into the address bar or a reload never has a transition. */
+const browserLib = require("../lib/browser");
+
 const PAGES = ["index.html", "parts/2-geometry/05-distance-and-angles.html", "arena.html", "progress.html", "about.html", "index.html"];
 const CHAPTER = PAGES[1];
 const SWAP_KEY = "bm-test-swap";
 
 /* in every document of the context, before the page's own scripts (so these listeners
-   run before the boot script's, and see a transition it is about to skip) */
+   run before the boot script's, and see a transition it is about to skip). A page
+   restored from the back/forward cache runs no script again: its listeners are the ones
+   it had, so each reveal starts its record afresh (`reveals` counts them) and reads what
+   the page left wrote at pageswap then, not when the document started. */
 const WATCH = (key) => {
   if (window.top !== window) return;
-  const vt = window.__vt = { swap: null, reveal: null, done: false };
-  try { vt.swap = JSON.parse(sessionStorage.getItem(key)); sessionStorage.removeItem(key); } catch (e) { /* no storage */ }
+  const doc = Math.random();
+  let vt = window.__vt = { doc, swap: null, reveal: null, done: false, reveals: 0, persisted: null };
+  let persisted = null;
+  addEventListener("pageshow", (e) => { persisted = e.persisted; });
   addEventListener("pageswap", (e) => {
     try { sessionStorage.setItem(key, JSON.stringify({ vt: !!e.viewTransition })); } catch (x) { /* no storage */ }
   });
+  /* where a click at the middle of the menu button would land: the button (or inside
+     it), or what is hit instead */
+  const hit = () => {
+    const b = document.querySelector(".topbar .hud-menu");
+    if (!b) return "no menu button";
+    const r = b.getBoundingClientRect();
+    const el = document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2);
+    return el && b.contains(el) ? "the menu button" : el ? el.tagName.toLowerCase() : "nothing";
+  };
   addEventListener("pagereveal", (e) => {
     const t0 = performance.now();
-    vt.reveal = { vt: !!e.viewTransition };
-    if (!e.viewTransition) { vt.done = true; return; }
+    vt = window.__vt = { doc, swap: null, reveal: { vt: !!e.viewTransition }, done: false, reveals: vt.reveals + 1, persisted };
+    try { vt.swap = JSON.parse(sessionStorage.getItem(key)); sessionStorage.removeItem(key); } catch (x) { /* no storage */ }
+    const mine = vt;
+    if (!e.viewTransition) { mine.done = true; return; }
     e.viewTransition.ready.then(() => {
+      const vt = mine;
       vt.ran = true;
+      vt.hitReady = hit();
       vt.anims = document.getAnimations().filter(a => a.effect && a.effect.pseudoElement)
         .map(a => ({ on: a.effect.pseudoElement, name: a.animationName, ms: a.effect.getComputedTiming().duration }));
       const css = (p) => { const s = getComputedStyle(document.documentElement, p); return { w: s.width, h: s.height, t: s.transform, ease: s.animationTimingFunction, blend: s.mixBlendMode, opacity: s.opacity }; };
@@ -54,8 +79,8 @@ const WATCH = (key) => {
       vt.rootName = getComputedStyle(document.documentElement).viewTransitionName;
       vt.named = Array.from(document.body.querySelectorAll("*")).filter(el => getComputedStyle(el).viewTransitionName !== "none")
         .map(el => el.tagName.toLowerCase() + (el.classList.length ? "." + el.classList[0] : ""));
-    }, (err) => { vt.ran = false; vt.skipped = err && err.name; });
-    e.viewTransition.finished.then(() => { vt.ms = Math.round(performance.now() - t0); vt.done = true; });
+    }, (err) => { mine.ran = false; mine.skipped = err && err.name; });
+    e.viewTransition.finished.then(() => { mine.ms = Math.round(performance.now() - t0); mine.hitDone = hit(); mine.done = true; });
   });
 };
 
@@ -70,7 +95,7 @@ const shift = (t) => { const m = /matrix\(([^)]+)\)/.exec(t || ""); if (!m) retu
 module.exports = {
   name: "transitions",
   order: 47,
-  description: "between pages: a cross-document view transition runs from page kind to page kind with the HUD held still (each width), and is skipped in Study mode, with Reduce motion, with reduced motion on the device, from either side; a slow page is not held",
+  description: "between pages: a cross-document view transition runs from page kind to page kind with the HUD held still (each width), and is skipped in Study mode, with Reduce motion, with reduced motion on the device, from either side, going back and forward too; a slow page is not held, and a click lost to a transition is held to a quarter of a second",
   async run(ctx) {
     const { h, report, server } = ctx;
     const pages = PAGES.filter(p => ctx.pages.includes(p));
@@ -78,10 +103,12 @@ module.exports = {
     const theme = ctx.themes[0];
 
     /* a context with the watch in every document, on the first page */
-    async function start(o) {
-      const s = await h.newPage({ theme, vw: o.vw || 1280, reducedMotion: o.reducedMotion, storage: o.storage });
+    async function start(o, helpers) {
+      const hh = helpers || h;
+      const s = await hh.newPage({ theme, vw: o.vw || 1280, reducedMotion: o.reducedMotion, storage: o.storage });
       await s.context.addInitScript(WATCH, SWAP_KEY);
-      await h.open(s.page, o.from || pages[0]);
+      if (o.prep) await o.prep(s.context);
+      await hh.open(s.page, o.from || pages[0]);
       return s;
     }
     /* leave for `rel` as a link does, and wait for the page to arrive and its transition,
@@ -102,7 +129,7 @@ module.exports = {
     /* ---------------------------------------------- transitions on ----- */
     for (const vw of ctx.vws) {
       const { page, errors, close } = await start({ vw });
-      const problems = [], ms = [];
+      const problems = [], ms = [], deadHits = new Set();
       try {
         for (let i = 1; i < pages.length; i++) {
           const { left, seen } = await go(page, pages[i]);
@@ -127,6 +154,14 @@ module.exports = {
           if (!group[0] || group[0][0] !== arrived[0] || group[0][1] !== arrived[1] || group[1][0] !== arrived[2] || group[1][1] !== arrived[3]) bad("the HUD's group is at " + JSON.stringify(seen.hud) + ", not on the top bar at " + arrived.join(" "));
           if (left.join(" ") !== arrived.join(" ")) bad("the top bar moved: " + left.join(" ") + " on the page left, " + arrived.join(" ") + " on the page arriving");
           if (!(seen.ms <= 1000)) bad("the transition took " + seen.ms + "ms to finish");
+          /* while it runs the page is not hit-tested (the spec: captured elements behave as
+             if pointer-events: none), so a click on the HUD then is lost; the README says so.
+             The window is the longest of the fades: hold it to a quarter of a second, and
+             the menu button to taking clicks again once it is over */
+          const longest = Math.max(0, ...(seen.anims || []).map(a => a.ms));
+          if (!(longest <= 250)) bad("the longest animation is " + longest + "ms: clicks are ignored for that long (README, \"Between pages\")");
+          if (seen.hitDone !== "the menu button") bad("once the transition finished, a click on the menu button lands on " + seen.hitDone);
+          deadHits.add(seen.hitReady);
           ms.push(seen.ms);
         }
         /* from half-way down a chapter: the old page fades where it was, the HUD with it */
@@ -143,7 +178,7 @@ module.exports = {
       problems.push(...errors.failures());
       await close();
       report[problems.length ? "fail" : "pass"]("transitions on [" + vw + "]: " + pages.join(" -> "),
-        problems.length ? problems.join("\n") : (pages.length - 1) + " navigations each ran a transition, the HUD still and the page faded in " + ms.join("/") + "ms, and one from half-way down a chapter");
+        problems.length ? problems.join("\n") : (pages.length - 1) + " navigations each ran a transition, the HUD still and the page faded in " + ms.join("/") + "ms, and one from half-way down a chapter; a click on the menu button lands on " + Array.from(deadHits).join("/") + " while it runs (ignored) and on the button once it is over");
     }
 
     /* ---------------------------------------------------- skipped ------ */
@@ -196,6 +231,92 @@ module.exports = {
       problems.push(...errors.failures());
       await close();
       report[problems.length ? "fail" : "pass"]("a slow page: " + hop(pages[0], to) + " with its stylesheets held back 5s", problems.length ? problems.join("\n") : note + ", and no error");
+    }
+
+    /* --------------------------------------------- back and forward ---- */
+    /* A page left by a link stays in the back/forward cache, and going back or forward
+       restores it (pageshow.persisted) and is offered a transition like any other
+       navigation. Playwright launches Chromium with that cache off, and its headless shell
+       has none, so this part runs on a browser of its own: the full Chromium, the cache
+       on. Forward by links through three pages, then back, back and forward: each of
+       those must restore the page from the cache, and run the transition with the HUD
+       still, or skip it in Study mode, stored or switched on on the page being left. */
+    if (pages.length >= 3) {
+      const route = pages.slice(0, 3);
+      let bf = null;
+      try { bf = await ctx.pw.chromium.launch({ channel: "chromium", headless: !ctx.opts.headed, args: ctx.launch.args, ignoreDefaultArgs: ["--disable-back-forward-cache"] }); }
+      catch (e) { report.fail("back and forward: launch", "the full Chromium (channel \"chromium\", from npx playwright install chromium) did not start with the back/forward cache on: " + (e && e.message || e)); }
+      if (bf) {
+        const hb = browserLib.makeHelpers(Object.assign({}, ctx, { browser: bf }));
+        const CASES = [
+          { label: "transitions on", ran: true },
+          { label: "Study mode", storage: { "bm.prefs.v1": { calm: true } } },
+          { label: "Study mode switched on on the page left", before: (p) => p.evaluate(() => document.documentElement.setAttribute("data-calm", "true")) }
+        ];
+        try {
+          for (const c of CASES) {
+            /* served as GitHub Pages serves it (OPERATIONS.md: max-age=600): the test server's
+               no-store keeps a page out of the cache */
+            const pagesHeaders = (context) => context.route((u) => u.href.startsWith(server.url), async (r) => {
+              try {
+                const res = await r.fetch();
+                await r.fulfill({ response: res, headers: Object.assign({}, res.headers(), { "cache-control": "max-age=600" }) });
+              } catch (e) { /* the context closed */ }
+            });
+            const { page, context, errors, close } = await start({ storage: c.storage, prep: pagesHeaders }, hb);
+            const problems = [], how = [], notUsed = [];
+            try {
+              const cdp = await context.newCDPSession(page);
+              await cdp.send("Page.enable");
+              cdp.on("Page.backForwardCacheNotUsed", (e) => notUsed.push((e.notRestoredExplanations || []).map(x => x.reason).join(", ")));
+              /* each page as it was left: which document, revealed how many times */
+              const left = {};
+              const leave = async () => { const v = await page.evaluate(() => ({ at: location.href, doc: window.__vt.doc, reveals: window.__vt.reveals })); left[v.at] = v; };
+              for (let i = 1; i < route.length; i++) { await leave(); await go(page, route[i]); }
+              let at = route.length - 1;
+              for (const dir of ["back", "back", "forward"]) {
+                const to = route[at + (dir === "back" ? -1 : 1)];
+                const where = dir + " from " + route[at] + " to " + to + ": ";
+                const bad = (m) => problems.push(where + m);
+                const bar = await page.evaluate(BAR);
+                await leave();
+                if (c.before) await c.before(page);
+                await page.evaluate((d) => history[d](), dir);
+                /* restored, the document is the one left and its record starts again at its
+                   next reveal; loaded afresh, it is another document */
+                const was = left[server.url + to] || { doc: null, reveals: 0 };
+                try {
+                  await page.waitForFunction(([url, d, n]) => location.href === url && window.__vt && window.__vt.done && (window.__vt.doc !== d || window.__vt.reveals > n),
+                    [server.url + to, was.doc, was.reveals], { timeout: 20000 });
+                } catch (e) {
+                  const state = await page.evaluate(() => ({ at: location.href, vt: window.__vt })).catch(x => x.message);
+                  bad("never arrived: " + JSON.stringify(state) + "; not restored because " + (notUsed.join("; ") || "(no reason given)"));
+                  break;
+                }
+                const seen = await page.evaluate(() => window.__vt);
+                at += dir === "back" ? -1 : 1;
+                if (seen.doc !== was.doc || seen.persisted !== true) { bad("the page was not restored from the back/forward cache (" + (notUsed.pop() || "no reason given") + ")"); continue; }
+                if (c.ran) {
+                  if (!seen.swap || !seen.swap.vt) bad("the page left had no view transition at pageswap");
+                  if (!seen.ran) { bad("the view transition did not run (" + (seen.skipped || JSON.stringify(seen.reveal)) + ")"); continue; }
+                  const arrived = round(seen.bar);
+                  if (round(bar).join(" ") !== arrived.join(" ")) bad("the top bar moved: " + round(bar).join(" ") + " -> " + arrived.join(" "));
+                  if (JSON.stringify(seen.named) !== JSON.stringify(["header.topbar"])) bad("the named elements are " + JSON.stringify(seen.named));
+                  if (seen.hitDone !== "the menu button") bad("once the transition finished, a click on the menu button lands on " + seen.hitDone);
+                  how.push(seen.ms + "ms");
+                } else {
+                  if (seen.ran) { bad("the view transition ran"); continue; }
+                  how.push(seen.reveal && seen.reveal.vt ? "skipped at pagereveal (" + seen.skipped + ")" : seen.swap && seen.swap.vt ? "skipped at pageswap" : "none offered");
+                }
+              }
+            } catch (e) { problems.push("driver error: " + (e && e.message || e)); }
+            problems.push(...errors.failures());
+            await close();
+            report[problems.length ? "fail" : "pass"]("back and forward, " + c.label + ": " + route.join(" -> ") + ", back, back, forward",
+              problems.length ? problems.join("\n") : "each of the three restored from the back/forward cache, " + (c.ran ? "the transition ran with the HUD still, finished in " + how.join("/") : "no transition: " + Array.from(new Set(how)).join(", ")));
+          }
+        } finally { await bf.close(); }
+      }
     }
   }
 };

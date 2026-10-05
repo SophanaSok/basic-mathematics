@@ -832,7 +832,9 @@ html[data-motion="reduce"] *, html[data-motion="reduce"] *::before, html[data-mo
      html[data-calm]. A navigation that takes more than four seconds skips the
      transition (Chrome's timeout), and the new page shows as it would have without one;
      nothing here holds the first paint back (no render-blocking), so a transition never
-     makes a navigation wait. */
+     makes a navigation wait. While it runs the page takes no click, the top bar's
+     included (captured elements are not hit-tested), so the fades stay short: the
+     transitions suite holds the longest to 250ms. */
   .topbar { view-transition-name: hud; }
   ::view-transition { background-color: var(--frame-bg); }
   ::view-transition-group(*) { animation: none; }

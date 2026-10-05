@@ -155,10 +155,12 @@ going well. A short version appears above each chapter's recap.
   (on top of what the device asks for: while the device asks, or Study mode is on for motion, the
   switch shows on and cannot be turned off), the theme (light, dark or match the system), the
   reading panel, graphics quality and the 3D course map. Every setting stays on the device.
-- **Between pages**, in a browser that can (Chrome and Edge 126 and later, Safari 18.2 and
-  later), the next page fades in under a header that stays where it is. Study mode, Reduce motion
-  and a device that asks for less motion turn the fade off, and any other browser simply opens
-  the next page, as every browser did before.
+- **Between pages**, in a browser that can (Chrome and Edge 126 and later, Chrome for Android,
+  Safari 18.2 and later), the next page fades in under a header that stays where it is. The fade
+  takes a quarter of a second, and a click in that time, even on the header, does nothing (the
+  browser's rule while a fade runs), so click again. Study mode, Reduce motion and a device that
+  asks for less motion turn the fade off, and any other browser simply opens the next page, as
+  every browser did before.
 
 ### Progress, and what is saved
 
@@ -888,9 +890,10 @@ before, since a browser that does not know the at-rule ignores it. Support, from
 [caniuse](https://caniuse.com/cross-document-view-transitions) and
 [MDN](https://developer.mozilla.org/en-US/docs/Web/CSS/@view-transition) in October 2026:
 Chrome and Edge 126 and later, Opera 112 and later, Safari and iOS Safari 18.2 and later, and
-Chrome for Android (caniuse lists only its current version, 154, which has them). Firefox (to 160) has only same-document view transitions, so it does
-not run these; Samsung Internet has none. MDN marks the feature "limited availability", not
-Baseline.
+Chrome for Android (MDN: 126 and later, with Android's WebView; caniuse lists only its current
+version, 154, which has them). Firefox (to 160) has only same-document view transitions, so it
+does not run these. The two disagree on Samsung Internet: caniuse lists it without them (to 30),
+MDN with them from 28. MDN marks the feature "limited availability", not Baseline.
 
 - **The opt-in** is `@view-transition { navigation: auto; }` inside
   `@media (prefers-reduced-motion: no-preference)`, so a device that asks for less motion never
@@ -908,6 +911,19 @@ Baseline.
   eased by `--ease-in`, the new one comes in `--dur-reveal` eased by `--ease-out`, over the old
   with plain alpha and the frame colour behind both. A transition is over about 250ms after the
   new page shows.
+- **Clicks in that quarter of a second are lost.** While a transition runs, the page under it is
+  not hit-tested: the specification has every captured element, the top bar and the root here,
+  behave as if it had `pointer-events: none`, so a click lands on `<html>` and does nothing, even
+  on the HUD that looks as if it has not moved. The window is the longest of the fades,
+  `--dur-reveal`; the `transitions` suite holds it to 250ms and the menu button to taking clicks
+  again once the transition is over, so a longer token cannot widen it quietly. Study mode and
+  Reduce motion have no transition and so no such window.
+- **Back and forward** restore a page from the browser's back/forward cache, and that page is
+  offered a transition like any other: it runs, or the boot script skips it (its listeners are
+  still there), exactly as on a page arriving from a link. A page stays in that cache only while
+  nothing makes it ineligible (an `unload` listener, `Cache-Control: no-store` on the page or on
+  a request it makes); the `transitions` suite, with the pages served under GitHub Pages'
+  `max-age=600`, fails when going back or forward does not restore the page.
 - **Study mode and Reduce motion** are attributes on `<html>`, which an at-rule cannot read, so
   the boot script (`src/boot.js`) skips the transition itself: on `pageswap` for the page being
   left (Study mode may have been switched on there since it loaded) and on `pagereveal` for the
