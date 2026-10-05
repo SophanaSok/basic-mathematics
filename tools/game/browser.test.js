@@ -24,7 +24,11 @@
       and keeps the combo, and answering it then pays 3 and costs the two pips a miss would;
       a right first answer after clue 2 pays 6 and moves no pip; the finale says how many
       were solved with the solution open, beside the hearts kept; the keyboard path through
-      clue, check and solution */
+      clue, check and solution
+   9. the next best step (src/ui/next.ts): the right first item for three states (a section
+      due, a weak one, only a place to continue), outside <main>'s children, hidden for the
+      day by its button (device-only, still hidden after a reload, back the next day), and
+      kept in Study mode without the game's colour */
 "use strict";
 const site = require("../lib/site");
 const target = require("../lib/target");
@@ -767,6 +771,68 @@ async function run() {
         "a Gold shown without the set cache also unlocks Boss down and Flawless on the same page");
       eq([errors, p2.errors], [[], []], "no errors on the Arena copy and progress checks");
       await p2.context.close();
+    }
+
+    /* ------------- the next best step: the right first item for three states, hidden for the day */
+    {
+      const today = dayAgo(0);
+      const card = (page) => page.evaluate(() => {
+        var c = document.querySelector(".next-step");
+        if (!c) return null;
+        return {
+          kinds: Array.from(c.querySelectorAll(".next-step-item")).map((li) => li.getAttribute("data-kind")),
+          first: c.querySelector(".next-step-link").textContent, href: c.querySelector(".next-step-link").getAttribute("href"),
+          why: c.querySelector(".next-step-why").textContent, inMain: c.parentElement === document.querySelector("main"),
+          parent: c.parentElement.className, edge: getComputedStyle(c).borderLeftWidth === getComputedStyle(c).borderTopWidth
+        };
+      });
+      /* 1. a section placed in the Arena and now past its date: due reviews come first */
+      const dueSeed = {
+        "bm.attempts.v1": JSON.stringify({ ch02: { e1: { tries: 1, solved: 1, first: 1, section: "one-unknown" }, e2: { tries: 1, solved: 2, first: 1, section: "one-unknown" } } }),
+        "bm.game.v1": JSON.stringify({ sec: { "ch02#one-unknown": { n: 2, ok: 2, box: 0, last: dayAgo(4) } } }),
+        "bm.last": JSON.stringify({ id: "ch03", section: "order" })
+      };
+      const a = await open(browser, "index.html", dueSeed);
+      const c1 = await card(a.page);
+      eq([c1 && c1.kinds, c1 && c1.first, c1 && c1.href], [["due", "continue"], "1 section due for a check", "arena.html?mode=review"], "due: the first item is the due review");
+      check(c1 && c1.why.length > 20 && !c1.inMain, "each item says why it is there, and the card is no child of <main>");
+      /* hidden for today, on this device; still hidden after a reload; back the next day */
+      await a.page.click(".next-step [data-next-hide]");
+      check(await a.page.$(".next-step") === null, "Hide for today takes the card away");
+      eq(await a.page.evaluate(() => JSON.parse(localStorage.getItem("bm.run.v1")).nextHide), today, "and remembers the day, in the device-only run store");
+      eq(await a.page.evaluate(() => document.activeElement && document.activeElement.tagName), "H1", "focus goes to the page's heading");
+      await a.page.reload();
+      await a.page.waitForFunction(() => document.readyState === "complete");
+      check(await a.page.$(".next-step") === null, "the card stays away for the rest of the day");
+      check(!/nextHide/.test(await a.page.evaluate(() => localStorage.getItem("bm.game.v1") || "")), "and nothing of it is in the synced game record");
+      await a.page.evaluate((d) => { var r = JSON.parse(localStorage.getItem("bm.run.v1")); r.nextHide = d; localStorage.setItem("bm.run.v1", JSON.stringify(r)); }, dayAgo(1));
+      await a.page.reload();
+      await a.page.waitForFunction(() => document.readyState === "complete");
+      check(await a.page.$(".next-step") !== null, "on a new day it is back");
+      eq(a.errors, [], "no errors with the card");
+      await a.context.close();
+
+      /* 2. nothing due, one section weak: a Repair run first */
+      const weakSeed = {
+        "bm.attempts.v1": JSON.stringify({ ch05: { e1: { tries: 3, solved: 1, section: "parallels" }, e2: { tries: 1, solved: 2, first: 1, section: "angles" }, e3: { tries: 1, solved: 3, first: 1, section: "angles" } } }),
+        "bm.game.v1": JSON.stringify({ sec: { "ch05#parallels": { n: 1, ok: 1, box: 1, last: today }, "ch05#angles": { n: 1, ok: 1, box: 1, last: today } } })
+      };
+      const b = await open(browser, "parts/1-algebra/03-real-numbers.html", weakSeed);
+      const c2 = await card(b.page);
+      eq([c2 && c2.kinds[0], c2 && c2.first, c2 && /arena\.html\?repair=ch05%23parallels$/.test(c2.href)], ["weak", "Repair §5.3 Parallel lines and transversals", true],
+        "weak: on a chapter page, the first item is a Repair run on the weakest section");
+      check(c2 && /region-banner/.test(c2.parent) && !c2.inMain, "on a chapter it sits in the banner, not among <main>'s children");
+      eq(b.errors, [], "no errors with the card on a chapter");
+      await b.context.close();
+
+      /* 3. nothing due or weak: where the reader left off; in Study mode, without the game's colour */
+      const c = await open(browser, "index.html", { "bm.last": JSON.stringify({ id: "ch02", section: "one-unknown" }), "bm.prefs.v1": JSON.stringify({ calm: true }) });
+      const c3 = await card(c.page);
+      eq([c3 && c3.kinds, c3 && c3.first, c3 && /parts\/1-algebra\/02-linear-equations\.html#one-unknown$/.test(c3.href)], [["continue"], "Continue: Chapter 2 · One unknown", true],
+        "continue: with nothing due or weak, the first item is where the reader left off");
+      eq([c1 && c1.edge, c3 && c3.edge], [false, true], "Study mode keeps the card, with the game's thick coloured edge taken off");
+      eq(c.errors, [], "no errors with the card in Study mode");
+      await c.context.close();
     }
   } finally {
     await browser.close();

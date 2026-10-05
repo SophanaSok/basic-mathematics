@@ -150,7 +150,7 @@
       html += '<p class="muted">Due for review: ' + due.slice(0, 6).map(function (d) {
         return '<a href="' + esc(d.path) + '">' + esc(d.label + " " + d.title) + "</a>";
       }).join(", ") + (due.length > 6 ? " and " + (due.length - 6) + " more" : "") +
-        '. <a href="arena.html">Open the Arena →</a></p>';
+        '. <a href="arena.html?mode=review">Start a due review →</a></p>';
     }
     return html + "</section>";
   }

@@ -233,7 +233,8 @@ export function mount(opts: LadderOptions): LadderController {
 
 /* What the page reaches through window.BMLearn: site.js (a script that cannot import
    this module) calls mount and detect; the rest is a console and test handle. The
-   modules under src/learn/ write nothing to window; this is the one place that does. */
+   modules under src/learn/ write nothing to window; the files under src/ui/ are the
+   places that do (this one, review.ts and next.ts). */
 export const api = {
   mount, detect, offerText,
   ladder: { start, open, canOpen, toSave, offerAfterWrong, nextLabel, savedRung, cluesOf },

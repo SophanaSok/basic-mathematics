@@ -60,18 +60,19 @@ const VENDOR_STYLES = ["src/vendor/fonts.css", "src/vendor/katex.css"];
    page's. All of that is part of the site: tools/shell.json records what every page ends
    up with, and check-static.js fails a change that was not accepted. */
 const PAGE_KINDS = {
-  /* index.html: the contents page, with the course map */
-  home: { styles: ["assets/site.css", "assets/game.css", "assets/scenes3d.css", "assets/map3d.css"], entry: "src/entries/home.js" },
+  /* index.html: the contents page, with the course map; the next-step card's stylesheet last */
+  home: { styles: ["assets/site.css", "assets/game.css", "assets/scenes3d.css", "assets/map3d.css", "assets/review.css"], entry: "src/entries/home.js" },
   /* about.html, account.html: prose and a form */
   page: { styles: ["assets/site.css", "assets/game.css"], entry: "src/entries/page.js" },
   /* progress.html, insights.html: a page, and assets/insights.js to fill it */
   dashboard: { styles: ["assets/site.css", "assets/game.css"], entry: "src/entries/dashboard.js" },
-  /* arena.html: no figures, the problem generators instead */
-  arena: { styles: ["assets/site.css", "assets/game.css", "assets/arena.css"], entry: "src/entries/arena.js" },
+  /* arena.html: no figures, the problem generators instead; the due review's stylesheet
+     after arena.css, whose cards and chips it builds on */
+  arena: { styles: ["assets/site.css", "assets/game.css", "assets/arena.css", "assets/review.css"], entry: "src/entries/arena.js" },
   /* parts/<part>/<chapter>.html: the scene framework, every scene, then site.js, which
-     mounts the figures as it runs; the help ladder's own stylesheet last, after the card
-     rules of game.css it builds on */
-  chapter: { styles: ["assets/site.css", "assets/game.css", "assets/scenes3d.css", "assets/ladder.css"], entry: "src/entries/chapter.js" }
+     mounts the figures as it runs; the help ladder's own stylesheet after the card rules of
+     game.css it builds on, and the next-step card's last */
+  chapter: { styles: ["assets/site.css", "assets/game.css", "assets/scenes3d.css", "assets/ladder.css", "assets/review.css"], entry: "src/entries/chapter.js" }
 };
 
 /* how a source file of the tree is read: the file beside this one by default, and the

@@ -132,10 +132,19 @@ same controls and the same answers.
 ### XP, streaks, and what to review
 
 Correct answers and missions earn XP — most when right first time, less after a miss, least once
-the solution has been opened. A clue never costs anything, and no help pays more than working it
+the solution has been opened. In the Arena, XP from one section falls the more you practise it in a
+day (the first two answers that pay count in full, the next two half, then a quarter), and the
+finishing bonus is paid in full for two runs a day, then 1; the next day it is all back, because
+spacing practice out teaches more than piling it up. The result says when that happened and why. A clue never costs anything, and no help pays more than working it
 out: the first clue changes nothing, an answer right first time after the second or third clue earns
 what an answer right after a miss does, and an answer given with the solution open earns less. The
 header shows your level, today's XP against a daily goal, and your streak of active days.
+
+The contents page and the top of each chapter show **your next steps**: up to three, each with
+the reason for it. First the sections due for a check (linking to the Arena's due review, or to the
+section's page when the Arena cannot ask about it), then the section your answers found hardest
+(linking to a Repair run), then where you left off. It pays no XP, stays in calm mode, and
+"Hide for today" puts it away until tomorrow.
 
 The **[progress page](https://sophanasok.github.io/basic-mathematics/progress.html)** turns the
 record into advice. The course notes how each question went (tries, misses, whether the solution
@@ -159,7 +168,15 @@ going well. A short version appears above each chapter's recap.
 - **The Arena** is the only place with a clock. It serves freshly generated problems from sections
   you have already solved, because speed practice helps with what you know and hurts with what you
   are still learning. A wrong answer costs a heart and stops the clock while you read the hint;
-  "I don't know" costs nothing, so guessing never pays.
+  "I don't know" costs nothing, so guessing never pays. Its modes: a **Standard run** of ten
+  questions, the **Daily** (five, one attempt a day), a **Boss rematch** of a chapter, a
+  **Repair** of a weak section (untimed, no hearts), and the **Due review**
+  ([arena.html?mode=review](https://sophanasok.github.io/basic-mathematics/arena.html?mode=review)),
+  which asks only about the sections due for a check today, most overdue first, at most two
+  questions from each and ten in all, with no hearts; the clock follows your tempo. A section
+  the Arena has no problems for is listed there as due on its page, with a link to it. The
+  result shows how many answers were right first time, and what share, as information only:
+  there is no score to aim for.
 - **Levels and achievements** come from XP. The achievements reward study habits — right first
   time, repairing a weak section, reading solutions, finishing review sets — never speed alone.
 - **Calm mode**, in the header menu, turns off hearts, the combo, the boss, shake and sound for
@@ -294,13 +311,23 @@ assets/game.css         HUD, region banner, encounters, card states, toasts, set
 assets/scenes3d.css     3D scene stages
 assets/map3d.css        the course map; arena.css the Arena
 assets/ladder.css       the help ladder on an exercise card (chapters only; existing tokens only)
+assets/review.css       the next-step card (contents page, chapters) and the Arena's due review
+                        (existing tokens only)
 assets/site.js          navigation, theme, stores, exercise grading, XP, widget mounting
-src/learn/*.ts          the help ladder's logic, no DOM and no window: ladder.ts (the rungs, what
-                        is saved), detectors.ts (questions for a wrong answer), stuck.ts (stuck
-                        signals, memory only), constants.ts (their thresholds); each with a
-                        Vitest test beside it, <module>.test.ts
+src/learn/*.ts          the learning logic, no DOM and no window: the help ladder's ladder.ts (the
+                        rungs, what is saved), detectors.ts (questions for a wrong answer),
+                        stuck.ts (stuck signals, memory only); the review's recall.ts (when a
+                        section is due, where a showing puts it: the one copy of the schedule),
+                        review.ts (a due review's questions), practice.ts (Arena XP against
+                        farming), next.ts (the next best step); constants.ts (their numbers);
+                        each with a Vitest test beside it, <module>.test.ts
+src/data/arena-sections.ts  the sections the Arena has generators for, for pages without them;
+                        its test holds it to data/gen/*.js
 src/ui/ladder.ts        the help ladder on a card: the button, the clues, focus, the offer line;
                         puts window.BMLearn up for site.js. The chapter entry imports all of these
+src/ui/review.ts        puts the review's schedule and XP rules up as window.BMReview, for game.js
+                        and arena.js; every entry imports it ahead of game.js
+src/ui/next.ts          the next-step card on the contents page and the chapters (window.BMNext)
 assets/widgets.js       the 32 flat interactive figures and their missions
 assets/three-loader.js  lazy Three.js with fallback (window.BM3D.load, the namespace on BM3D.THREE)
 assets/scenes3d.js      the 3D scene framework: define, display list, camera, SVG painter, input
@@ -309,7 +336,7 @@ assets/scenes/*.js      one file per 3D scene; every chapter's bundle carries al
 assets/game.js          combo, levels, achievements, recall, play settings, the HUD
 assets/encounter.js     turns each practice and review set into an encounter
 assets/sfx.js           synthesised sound effects, off by default
-assets/arena.js         the Arena
+assets/arena.js         the Arena, with its due review (arena.html?mode=review)
 assets/map3d.js         the 3D course map on the contents page
 assets/lesson.js        step-by-step reading of a chapter
 assets/config.js        Supabase URL and anon key, sign-in providers; empty means no accounts
@@ -665,6 +692,32 @@ and to the SVG fallback where it is not.
 The files:
 - `assets/game.js` holds the combo meter, levels (derived from total XP, never stored),
   achievements, the recall model, play settings and the HUD.
+- The recall model is the Arena's boxes in `bm.game.v1.sec`: box 0 to 4, due again 1, 3, 7, 14
+  and 30 days after the section was last placed, due at once when it never was; a miss sends it
+  to box 0, a clean showing moves it up one only once it is due. That rule is
+  `src/learn/recall.ts`, the one copy: `game.js` (the deck, `recordRun`) and the Arena's
+  fallback for a page without the game layer both call it through `window.BMReview`
+  (`src/ui/review.ts`, which every entry imports ahead of `game.js`).
+- `recordRun` pays a run's XP once: 2 per first-try answer (3 when the section was due), 1 per
+  paid retry, each multiplied by `ARENA_DECAY` (1, 1, ½, ½, then ¼) by how many answers from its
+  section have been paid on this device that local day, summed and rounded once per run; 5 for
+  finishing for the first `ARENA_FINISH_FULL_PER_DAY` (2) runs of a day that earn it, then 1;
+  the Daily's 10 as before (`src/learn/practice.ts`, the values in `src/learn/constants.ts`,
+  engineering judgement). The counts are `bm.run.v1.arenaDay`, device-only, fresh each day.
+  It returns what was paid (`parts`) and which sections paid less (`reduced`), which the result
+  screen states plainly.
+- The Arena's `review` mode (`arena.html?mode=review`) serves only sections due today, from the
+  deck, most overdue first (sections never placed after those that have a date), at most
+  `REVIEW_PER_SECTION` (2) questions a section and `REVIEW_MAX` (10) in all, one per section
+  before any gets a second, taking turns (`src/learn/review.ts`); every question heart-free, the
+  clock as the tempo says. Due sections without a generator (`src/data/arena-sections.ts` lists
+  those with one) are listed as "due, on the page", linked to the section; nothing but an
+  answer moves a box.
+- `src/ui/next.ts` draws the next-step card from `src/learn/next.ts`: due reviews, then the
+  weakest section (`deck()` status `shaky`, by struggle score), then where to continue
+  (`bm.last`); at most three, each with its reason, no XP. It goes under the Continue button on
+  the contents page and into the region banner of a chapter (never a new child of `<main>`), and
+  "Hide for today" writes the day to `bm.run.v1.nextHide`.
 - `assets/encounter.js` decorates each `section.practice` (`#practice` and `#review`). Health is the
   number of unsolved problems and hearts are derived from the attempt log, so nothing can be lost
   and nothing locks. Encounters, the Arena and the map never create `.ex` elements, so progress
@@ -758,7 +811,7 @@ memory but keeps the site:
 | `bm.lesson.v1` | reading mode and the furthest step reached in each chapter |
 | `bm.last`, `bm.theme` | where to continue; light or dark |
 | `bm.game.v1` | achievements, compared solutions, recall per section, Arena bests, medals, Daily days (synced) |
-| `bm.run.v1` | the combo meter and an unfinished Arena run (this device only; cleared by reset and sign-out) |
+| `bm.run.v1` | the combo meter, an unfinished Arena run, the day's Arena XP counts (`arenaDay`) and the day the next-step card was hidden (`nextHide`) (this device only; cleared by reset and sign-out) |
 | `bm.prefs.v1` | calm mode, sound, 3D map, Arena tempo (this device only; survives a reset; keys the site does not know are kept) |
 | `bm.sync.v1` | with accounts on: whose progress this browser holds and the last reset it knows of |
 | `bm.sync.pending.v1` | with accounts on: progress that could not be saved when its reader signed out, kept aside per reader until they sign in here again |
@@ -870,11 +923,15 @@ npm run test:node       #   the progress-key, id and lesson-step rules on small 
                         #   sites and tables, sign-in through another service); the game's rules,
                         #   with the one invariant over every road an exercise can take and the
                         #   answers after it (a clue is never charged, no help pays more than
-                        #   effort: XP, combo, hearts, medal)
+                        #   effort: XP, combo, hearts, medal); Arena XP across a day (less per
+                        #   section the more is paid, the finishing bonus twice, fresh next day)
 npm run test:unit       #   Vitest: the TypeScript modules' tests beside them (src/**/<name>.test.ts):
                         #   the ladder's state, the stuck signals, the wrong-answer questions (none
                         #   of them, nor any message detect() gives for a slip made on a key of
-                        #   the course, holds anything that grades as that key)
+                        #   the course, holds anything that grades as that key); the review
+                        #   schedule, a due review's plan (due only, the caps, taking turns), the
+                        #   XP decay, the next best step, and the list of sections the Arena
+                        #   can ask about against its generators
 
 npm run build           # dist/
 npm run check:dist      # dist/ is the source's site, each source page taken with its shell
@@ -886,9 +943,10 @@ npm run check:dist      # dist/ is the source's site, each source page taken wit
                         # another server, CSS text and cascade the source's with the vendor CSS
                         # ahead, no secrets
 
-npm run test:browser    # the game, the Arena, the account page (and that a signed-out page
-                        # never fetches the supabase chunk), the 3D stages, the new 3D exercises
-                        # and the course map, each driven in headless Chromium
+npm run test:browser    # the game, the next-step card, the Arena and its due review, the account
+                        # page (and that a signed-out page never fetches the supabase chunk), the
+                        # 3D stages, the new 3D exercises and the course map, each driven in
+                        # headless Chromium
 npm run check:browser   # dist/ served: every page × theme × width (errors, theme before first
                         # paint, scripts ran, KaTeX rendered, no request to any other server,
                         # Three.js fetched only where there is 3D, overflow, lesson mode),

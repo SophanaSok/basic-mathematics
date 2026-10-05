@@ -15,8 +15,9 @@
                   boxes, bests, medals (rematches, and clears seen on a chapter
                   page), Daily days, how often the meter filled
      bm.run.v1    this device only: the combo meter, what has been announced, a
-                  cache of which exercises make up each set (and the Arena's own
-                  fields, which this file keeps as it finds them)
+                  cache of which exercises make up each set, the day's Arena answers
+                  per section for the XP decay (arenaDay), and the Arena's own fields
+                  and the next-step card's (which this file keeps as it finds them)
      bm.prefs.v1  this device only, never cleared: sound, calm, map, tempo
 
    A later version of the site may keep fields in these stores that this file has never
@@ -26,8 +27,10 @@
 (function () {
   "use strict";
 
-  var Store = window.BMStore, Site = window.BMSite;
-  if (!Store || !Site) return;
+  /* BMReview (src/ui/review.ts, imported by every entry ahead of this file) holds the
+     review schedule and the Arena's XP rules, one copy for this file and the Arena */
+  var Store = window.BMStore, Site = window.BMSite, Review = window.BMReview;
+  if (!Store || !Site || !Review) return;
   var C = window.BM_CURRICULUM || { parts: [], chapters: [] };
   var Progress = window.BMProgress, Attempts = window.BMAttempts, Play = window.BMPlay;
   var Activity = window.BMActivity, Insights = window.BMInsights;
@@ -532,12 +535,6 @@
 
   /* ------------------------------------------------------ recall model --- */
 
-  var BOXES = [1, 3, 7, 14, 30];
-  function dayNum(key) {
-    var m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(key || ""));
-    if (!m) return null;
-    return Math.round(new Date(+m[1], +m[2] - 1, +m[3]).getTime() / 86400000);
-  }
   /* scored exercises (not the Your turn checks) solved first time, by section */
   function scoredFirsts() {
     var out = {}, all = Attempts ? Attempts.all() : {};
@@ -569,16 +566,12 @@
   function sectionStatus(id) {
     return statusOf(sectionRows()[id], readGame().sec[id]);
   }
-  /* due on `day`: at least the box's interval since the section was last placed */
-  function dueOn(sec, day) {
-    sec = obj(sec);
-    var last = dayNum(sec.last), now = dayNum(day);
-    if (last === null || now === null) return true;
-    var box = Math.max(0, Math.min(4, Math.floor(num(sec.box))));
-    return now - last >= BOXES[box];
-  }
+  /* due on `day`: at least the box's interval (1, 3, 7, 14, 30 days) since the section was
+     last placed, and at once when it never was (src/learn/recall.ts, the one copy) */
+  function dueOn(sec, day) { return Review.recall.dueOn(obj(sec), day); }
   function isDue(sec) { return dueOn(sec, today()); }
-  /* the sections the Arena may draw from: every one that is not new (statusOf) */
+  /* the sections the Arena may draw from: every one that is not new (statusOf), with the
+     struggle score of each, for the "next best step" card (src/ui/next.ts) */
   function deck(opts) {
     opts = obj(opts);
     var rows = sectionRows(), g = readGame(), out = [];
@@ -591,7 +584,8 @@
       if (opts.status && opts.status !== status) return;
       out.push({
         id: id, status: status, due: isDue(sec), box: num(sec.box), last: sec.last || null,
-        label: row.label, title: row.section.title, chapter: row.chapter.id, path: row.path
+        label: row.label, title: row.section.title, chapter: row.chapter.id, path: row.path,
+        score: num(row.score)
       });
     });
     return out.sort(function (a, b) {
@@ -616,8 +610,12 @@
   /* One Arena run, finished or not. Updates the review boxes, bests, rematch medal and
      Daily, then pays the run's XP once: 2 per first-try answer (3 if that section was
      due), 1 per answer right on the retry (none on a question without a heart, where a
-     wrong answer and "I don't know" lead to the same retry), 5 for finishing with a heart
-     and at least one answer right, 10 for the day's Daily once it is played through.
+     wrong answer and "I don't know" lead to the same retry), each worth less the more
+     answers from its section were paid on this device that day (src/learn/practice.ts:
+     the 1st and 2nd in full, the 3rd and 4th at half, then a quarter; summed, then rounded
+     once), 5 for finishing with a heart and at least one answer right for the first two
+     runs of a day that earn it and 1 after that, and 10 for the day's Daily once it is
+     played through, unchanged. The day's counts are bm.run.v1.arenaDay.
      Bests are kept only for ranked (timed, with hearts) runs played to the end; a rematch
      medal needs that and a heart left. `ranked` and `finished` default to true for older
      callers. (The Arena itself allows one Daily a day; see assets/arena.js.) */
@@ -630,7 +628,7 @@
     var score = Math.max(0, Math.round(num(result.score)));
     var ranked = result.ranked !== false, finished = result.finished !== false;
     var xp = 0, dailyBonus = false, newMedal = 0, before = readGame();
-    var bySec = {};
+    var bySec = {}, paid = [];
     var boss = result.boss ? String(result.boss) : "", S0 = stores();
     var bs = bossState(S0, boss, before), bossSet = bs.set, cleared = bs.cleared;
 
@@ -638,8 +636,8 @@
       a = obj(a);
       var sid = a.section ? String(a.section) : "";
       var wasDue = sid ? isDue(before.sec[sid]) : false;
-      if (a.first) xp += wasDue ? 3 : 2;
-      else if (a.retry && !a.hf) xp += 1;
+      if (a.first) paid.push({ section: sid, xp: wasDue ? 3 : 2 });
+      else if (a.retry && !a.hf) paid.push({ section: sid, xp: 1 });
       if (!sid) return;
       var s = bySec[sid] || (bySec[sid] = { n: 0, ok: 0, miss: 0 });
       s.n++;
@@ -647,19 +645,18 @@
       else s.miss++;
     });
     var right = answers.some(function (a) { return a && (a.first || a.retry); });
-    if (finished && right && hearts > 0) xp += 5;
+    var P = Review.practice, settled = P.settleRun(paid, finished && right && hearts > 0, P.arenaDayFor(readRun().arenaDay, day));
+    xp = settled.answers + settled.finish;
+    updateRun(function (r) { r.arenaDay = P.toStore(r.arenaDay, settled.day); });
 
     var g = updateGame(function (g) {
       Object.keys(bySec).forEach(function (sid) {
         var s = bySec[sid], sec = obj(g.sec[sid]);
-        var box = Math.max(0, Math.min(4, Math.floor(num(sec.box))));
         /* a miss sends the section back to the first box and restarts its clock; a clean
            showing moves it up one only once it is due, and an early one leaves both box
-           and clock alone, so daily cramming does not fake spacing */
-        var due = dueOn(sec, day);
-        if (s.miss) box = 0;
-        else if (due) box = Math.min(4, box + 1);
-        var rec = { n: num(sec.n) + s.n, ok: num(sec.ok) + s.ok, box: box, last: s.miss || due ? day : sec.last };
+           and clock alone, so daily cramming does not fake spacing (src/learn/recall.ts) */
+        var at = Review.recall.place(sec, s.miss > 0, day);
+        var rec = { n: num(sec.n) + s.n, ok: num(sec.ok) + s.ok, box: at.box, last: at.last };
         if (num(sec.fix)) rec.fix = num(sec.fix);
         g.sec[sid] = over(sec, rec, SEC);
       });
@@ -714,7 +711,13 @@
     if (xp && Activity) Activity.add(xp, "arena");
     Store.emit({ type: "arena", phase: "recorded", mode: mode, xp: xp, medal: newMedal });
     schedule();
-    return { xp: xp, medal: newMedal, game: g, cleared: cleared };
+    /* parts: what the XP is made of, and what the answers would have paid at the full
+       rate; reduced: the sections whose answers paid less today (the result screen says why) */
+    return {
+      xp: xp, medal: newMedal, game: g, cleared: cleared,
+      parts: { answers: settled.answers, full: settled.full, finish: settled.finish, daily: dailyBonus ? 10 : 0 },
+      reduced: settled.reduced, finishReduced: settled.finishReduced
+    };
   }
 
   /* A section repaired in the Arena stops dragging its old misses behind it: once the

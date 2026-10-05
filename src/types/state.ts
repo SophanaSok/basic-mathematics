@@ -108,7 +108,7 @@ export interface LessonStore {
 /* ---------------------------------------------------------------- game.js -- */
 
 /** An Arena run's kind (MODES in assets/arena.js). */
-export type ArenaMode = "standard" | "daily" | "boss" | "repair";
+export type ArenaMode = "standard" | "daily" | "boss" | "repair" | "review";
 /** 0 none, 1 Bronze, 2 Silver, 3 Gold. */
 export type Medal = 0 | 1 | 2 | 3;
 
@@ -160,6 +160,11 @@ export interface RunStore {
   picks?: Record<SectionRef, Flag>;
   /** today's Daily, once settled */
   daily?: { day: DayKey; score: number; firstTry: number; n: number; planned: number; ended: string };
+  /** the day's Arena XP counts (src/learn/practice.ts): answers paid per section, and runs
+      that earned the finishing bonus; a new local day starts them again */
+  arenaDay?: { day: DayKey; sec: Record<SectionRef, number>; finishes: number };
+  /** the day the "next best step" card was hidden for (src/ui/next.ts) */
+  nextHide?: DayKey;
 }
 
 /** bm.prefs.v1: this device only, never cleared. */

@@ -62,6 +62,12 @@ interface Window {
       pure modules under src/learn/, for assets/site.js, which cannot import them, and the
       tests; typed, since it is written in TypeScript */
   BMLearn: typeof import("../ui/ladder.ts").api;
+  /** src/ui/review.ts: the spaced-review schedule, the due review's plan and the Arena's XP
+      rules (src/learn/recall.ts, review.ts, practice.ts), for assets/game.js and
+      assets/arena.js, which cannot import them; typed */
+  BMReview: typeof import("../ui/review.ts").api;
+  /** src/ui/next.ts: the "next best step" card (render, items, hide), a console and test handle */
+  BMNext: typeof import("../ui/next.ts").api;
   /** src/vendor/katex.js: KaTeX itself, a console handle and what the browser checks look for */
   katex: any;
   /** src/vendor/katex.js: KaTeX's auto-render extension, which renderMath in assets/site.js calls */

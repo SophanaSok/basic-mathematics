@@ -1,4 +1,5 @@
-/* The numbers behind the help ladder's stuck signals, in one place.
+/* The numbers behind the help ladder's stuck signals, and (below) the Arena's due review
+   and its XP against farming, in one place.
 
    These are engineering judgement, not research results. What the research supports is
    the shape (offer help when a learner looks stuck, never reveal it unasked, never charge
@@ -24,3 +25,41 @@ export const STUCK_MISSES_NO_CLUE = 2;
 /** Clue rungs the engine knows: data-hint, data-hint2, data-hint3. The worked solution
     comes after them and is not a rung of the ladder's state (it is `opened`). */
 export const CLUE_RUNGS = 3;
+
+/* ---------------------------------------------------------------- review --
+
+   The Arena's spaced review, reading the boxes it has always kept in bm.game.v1.sec.
+
+   BOX_DAYS is not new: it is the schedule assets/game.js has used since the Arena began
+   (box 0 to 4, due again 1, 3, 7, 14 and 30 days after the section was last placed), moved
+   here so that game.js and the Arena's fallback read one table instead of two that
+   disagreed. Changing it changes which sections are due for every reader.
+
+   The rest are engineering judgement, not research results. The research supports the
+   shape: spaced retrieval beats massed practice, so a review serves what is due, spread
+   across sections and interleaved, and Arena XP should reward spacing rather than volume
+   (diminishing, never zero, so practice is never worthless). It gives no number for how
+   many questions a review should hold or how fast XP should fall; nothing measured on this
+   site does yet. Change them here and nowhere else: src/learn/review.ts, practice.ts and
+   next.ts read them, and so do their tests. */
+
+/** Days until a section in box 0..4 is due again (the existing schedule, see above). */
+export const BOX_DAYS: readonly number[] = [1, 3, 7, 14, 30];
+/** Questions in one due review, at most. */
+export const REVIEW_MAX = 10;
+/** Questions from one due section in one review, at most. */
+export const REVIEW_PER_SECTION = 2;
+
+/** The k-th XP-paying Arena answer from one section on one local day is worth
+    ARENA_DECAY[k - 1] of its usual XP, and ARENA_DECAY_FLOOR from then on. Applied to
+    first-try answers and paid retries alike; a run's answers are summed, then rounded once. */
+export const ARENA_DECAY: readonly number[] = [1, 1, 0.5, 0.5];
+export const ARENA_DECAY_FLOOR = 0.25;
+/** The finishing bonus of a run, and how many finished runs a local day pay it in full;
+    each one after that pays ARENA_FINISH_AFTER instead. The Daily's bonus is not touched. */
+export const ARENA_FINISH_XP = 5;
+export const ARENA_FINISH_FULL_PER_DAY = 2;
+export const ARENA_FINISH_AFTER = 1;
+
+/** Items on the "next best step" card, at most. */
+export const NEXT_MAX_ITEMS = 3;

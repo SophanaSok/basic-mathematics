@@ -171,6 +171,27 @@ from before the deploy can meet a `chapter.js` from after it, its clues are draw
 stylesheet (as a plain ghost button and the hint panel `game.css` already styles) or, the other
 way round, it has no clue button; either way the card grades as before.
 
+### The due review and the next-step card (R1 item 13)
+
+No SQL and no new synced field: the due review reads the Arena boxes `bm.game.v1.sec` already
+holds, and the two new values (`arenaDay`, the day's Arena XP counts, and `nextHide`, the day the
+next-step card was hidden) live in `bm.run.v1`, which never leaves the device. A sign-out or a
+reset empties that store, so it also starts the day's XP counts again; that is accepted, since
+the most it gives back is one day's full-rate Arena XP.
+
+The deploy moves files between chunks, the case two sections up. The review's modules
+(`src/learn/recall.ts`, `review.ts`, `practice.ts`, `constants.ts`, `src/data/arena-sections.ts`
+and `src/ui/review.ts`, which puts them up as `window.BMReview`) are in every entry, so they go
+into `bundle/all.js` beside `game.js`, which needs them; the card (`src/learn/next.ts`,
+`src/ui/next.ts`) goes into `bundle/home-chapter.js`; and a new stylesheet, `assets/review.css`,
+is linked on the contents page, the Arena and the chapters. `constants.ts` was in
+`bundle/chapter.js` and is now in `all.js`, so for the ten minutes a cached page can pair chunks
+of the two deploys, a chapter page can fail to load its scripts (a new `chapter.js` asks the old
+`all.js` for a function it does not have), the accepted case above. Short of that, a page
+without the new stylesheet draws the card unstyled, and an Arena page whose `all.js` has no
+`BMReview` says "The problem generators did not load" until it is reloaded. Nothing is lost
+either way: no saved state changes shape.
+
 ### Scripts: the copies under dist/assets/ and dist/data/ are gone
 
 For one release, the one that brought the module entries, the build copied every script under

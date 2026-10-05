@@ -58,6 +58,7 @@
       "<link rel='stylesheet' href='assets/site.css'>",
       "<link rel='stylesheet' href='assets/game.css'>",
       "<link rel='stylesheet' href='assets/arena.css'>",
+      "<link rel='stylesheet' href='assets/review.css'>",
       "<script type='module' src='src/entries/arena.js'>"
     ],
     "body": "<body data-depth='0'>",
@@ -83,6 +84,7 @@
       "<link rel='stylesheet' href='assets/game.css'>",
       "<link rel='stylesheet' href='assets/scenes3d.css'>",
       "<link rel='stylesheet' href='assets/map3d.css'>",
+      "<link rel='stylesheet' href='assets/review.css'>",
       "<script type='module' src='src/entries/home.js'>"
     ],
     "body": "<body data-depth='0'>",
@@ -154,6 +156,7 @@
       "<link rel='stylesheet' href='../../assets/game.css'>",
       "<link rel='stylesheet' href='../../assets/scenes3d.css'>",
       "<link rel='stylesheet' href='../../assets/ladder.css'>",
+      "<link rel='stylesheet' href='../../assets/review.css'>",
       "<script type='module' src='../../src/entries/chapter.js'>"
     ],
     "body": "<body data-depth='2' data-chapter='ch01' data-part='algebra'>",
@@ -179,6 +182,7 @@
       "<link rel='stylesheet' href='../../assets/game.css'>",
       "<link rel='stylesheet' href='../../assets/scenes3d.css'>",
       "<link rel='stylesheet' href='../../assets/ladder.css'>",
+      "<link rel='stylesheet' href='../../assets/review.css'>",
       "<script type='module' src='../../src/entries/chapter.js'>"
     ],
     "body": "<body data-depth='2' data-chapter='ch02' data-part='algebra'>",
@@ -204,6 +208,7 @@
       "<link rel='stylesheet' href='../../assets/game.css'>",
       "<link rel='stylesheet' href='../../assets/scenes3d.css'>",
       "<link rel='stylesheet' href='../../assets/ladder.css'>",
+      "<link rel='stylesheet' href='../../assets/review.css'>",
       "<script type='module' src='../../src/entries/chapter.js'>"
     ],
     "body": "<body data-depth='2' data-chapter='ch03' data-part='algebra'>",
@@ -229,6 +234,7 @@
       "<link rel='stylesheet' href='../../assets/game.css'>",
       "<link rel='stylesheet' href='../../assets/scenes3d.css'>",
       "<link rel='stylesheet' href='../../assets/ladder.css'>",
+      "<link rel='stylesheet' href='../../assets/review.css'>",
       "<script type='module' src='../../src/entries/chapter.js'>"
     ],
     "body": "<body data-depth='2' data-chapter='ch04' data-part='algebra'>",
@@ -254,6 +260,7 @@
       "<link rel='stylesheet' href='../../assets/game.css'>",
       "<link rel='stylesheet' href='../../assets/scenes3d.css'>",
       "<link rel='stylesheet' href='../../assets/ladder.css'>",
+      "<link rel='stylesheet' href='../../assets/review.css'>",
       "<script type='module' src='../../src/entries/chapter.js'>"
     ],
     "body": "<body data-depth='2' data-chapter='interlude' data-part='algebra'>",
@@ -279,6 +286,7 @@
       "<link rel='stylesheet' href='../../assets/game.css'>",
       "<link rel='stylesheet' href='../../assets/scenes3d.css'>",
       "<link rel='stylesheet' href='../../assets/ladder.css'>",
+      "<link rel='stylesheet' href='../../assets/review.css'>",
       "<script type='module' src='../../src/entries/chapter.js'>"
     ],
     "body": "<body data-depth='2' data-chapter='ch05' data-part='geometry'>",
@@ -304,6 +312,7 @@
       "<link rel='stylesheet' href='../../assets/game.css'>",
       "<link rel='stylesheet' href='../../assets/scenes3d.css'>",
       "<link rel='stylesheet' href='../../assets/ladder.css'>",
+      "<link rel='stylesheet' href='../../assets/review.css'>",
       "<script type='module' src='../../src/entries/chapter.js'>"
     ],
     "body": "<body data-depth='2' data-chapter='ch06' data-part='geometry'>",
@@ -329,6 +338,7 @@
       "<link rel='stylesheet' href='../../assets/game.css'>",
       "<link rel='stylesheet' href='../../assets/scenes3d.css'>",
       "<link rel='stylesheet' href='../../assets/ladder.css'>",
+      "<link rel='stylesheet' href='../../assets/review.css'>",
       "<script type='module' src='../../src/entries/chapter.js'>"
     ],
     "body": "<body data-depth='2' data-chapter='ch07' data-part='geometry'>",
@@ -354,6 +364,7 @@
       "<link rel='stylesheet' href='../../assets/game.css'>",
       "<link rel='stylesheet' href='../../assets/scenes3d.css'>",
       "<link rel='stylesheet' href='../../assets/ladder.css'>",
+      "<link rel='stylesheet' href='../../assets/review.css'>",
       "<script type='module' src='../../src/entries/chapter.js'>"
     ],
     "body": "<body data-depth='2' data-chapter='ch08' data-part='coordinates'>",
@@ -379,6 +390,7 @@
       "<link rel='stylesheet' href='../../assets/game.css'>",
       "<link rel='stylesheet' href='../../assets/scenes3d.css'>",
       "<link rel='stylesheet' href='../../assets/ladder.css'>",
+      "<link rel='stylesheet' href='../../assets/review.css'>",
       "<script type='module' src='../../src/entries/chapter.js'>"
     ],
     "body": "<body data-depth='2' data-chapter='ch09' data-part='coordinates'>",
@@ -404,6 +416,7 @@
       "<link rel='stylesheet' href='../../assets/game.css'>",
       "<link rel='stylesheet' href='../../assets/scenes3d.css'>",
       "<link rel='stylesheet' href='../../assets/ladder.css'>",
+      "<link rel='stylesheet' href='../../assets/review.css'>",
       "<script type='module' src='../../src/entries/chapter.js'>"
     ],
     "body": "<body data-depth='2' data-chapter='ch10' data-part='coordinates'>",
@@ -429,6 +442,7 @@
       "<link rel='stylesheet' href='../../assets/game.css'>",
       "<link rel='stylesheet' href='../../assets/scenes3d.css'>",
       "<link rel='stylesheet' href='../../assets/ladder.css'>",
+      "<link rel='stylesheet' href='../../assets/review.css'>",
       "<script type='module' src='../../src/entries/chapter.js'>"
     ],
     "body": "<body data-depth='2' data-chapter='ch11' data-part='coordinates'>",
@@ -454,6 +468,7 @@
       "<link rel='stylesheet' href='../../assets/game.css'>",
       "<link rel='stylesheet' href='../../assets/scenes3d.css'>",
       "<link rel='stylesheet' href='../../assets/ladder.css'>",
+      "<link rel='stylesheet' href='../../assets/review.css'>",
       "<script type='module' src='../../src/entries/chapter.js'>"
     ],
     "body": "<body data-depth='2' data-chapter='ch12' data-part='topics'>",
@@ -479,6 +494,7 @@
       "<link rel='stylesheet' href='../../assets/game.css'>",
       "<link rel='stylesheet' href='../../assets/scenes3d.css'>",
       "<link rel='stylesheet' href='../../assets/ladder.css'>",
+      "<link rel='stylesheet' href='../../assets/review.css'>",
       "<script type='module' src='../../src/entries/chapter.js'>"
     ],
     "body": "<body data-depth='2' data-chapter='ch13' data-part='topics'>",
@@ -504,6 +520,7 @@
       "<link rel='stylesheet' href='../../assets/game.css'>",
       "<link rel='stylesheet' href='../../assets/scenes3d.css'>",
       "<link rel='stylesheet' href='../../assets/ladder.css'>",
+      "<link rel='stylesheet' href='../../assets/review.css'>",
       "<script type='module' src='../../src/entries/chapter.js'>"
     ],
     "body": "<body data-depth='2' data-chapter='ch14' data-part='topics'>",
@@ -529,6 +546,7 @@
       "<link rel='stylesheet' href='../../assets/game.css'>",
       "<link rel='stylesheet' href='../../assets/scenes3d.css'>",
       "<link rel='stylesheet' href='../../assets/ladder.css'>",
+      "<link rel='stylesheet' href='../../assets/review.css'>",
       "<script type='module' src='../../src/entries/chapter.js'>"
     ],
     "body": "<body data-depth='2' data-chapter='ch15' data-part='topics'>",
@@ -554,6 +572,7 @@
       "<link rel='stylesheet' href='../../assets/game.css'>",
       "<link rel='stylesheet' href='../../assets/scenes3d.css'>",
       "<link rel='stylesheet' href='../../assets/ladder.css'>",
+      "<link rel='stylesheet' href='../../assets/review.css'>",
       "<script type='module' src='../../src/entries/chapter.js'>"
     ],
     "body": "<body data-depth='2' data-chapter='ch16' data-part='topics'>",

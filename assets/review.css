@@ -1,0 +1,62 @@
+/* ===========================================================================
+   Basic Mathematics — the "next best step" card (src/ui/next.ts) on the contents page
+   and the chapters, and the Arena's due review (assets/arena.js, arena.html?mode=review)
+   Linked last on those three kinds of page (tools/lib/shell.js PAGE_KINDS), so it can
+   lean on site.css's buttons and arena.css's cards and chips. Existing tokens only, every
+   text colour on a solid background that the contrast pairs measure (--text, --muted and
+   --accent on --surface). No gradient, no glow, no motion at all.
+   =========================================================================== */
+
+/* -------------------------------------------------- the next-step card ---- */
+
+.next-step {
+  margin: 1.4rem 0 0; padding: 1rem 1.2rem 1.05rem; min-width: 0;
+  background: var(--surface); color: var(--text);
+  border: 1.5px solid var(--border); border-left: 6px solid var(--part); border-radius: var(--radius);
+  font-family: var(--sans);
+}
+/* in a chapter's banner: under the stats line, across the banner, on its own solid panel */
+.region-banner > .next-step { grid-column: 1 / -1; margin: 0 1.4rem 1.15rem; }
+@media (max-width: 480px) { .region-banner > .next-step { margin-inline: 1.1rem; } }
+
+.next-step-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: .4rem .8rem; }
+.next-step-title {
+  margin: 0; font-family: var(--display); font-size: 1.05rem; font-weight: 750; letter-spacing: -.01em;
+  line-height: 1.3; color: var(--text);
+}
+.next-step-list { list-style: none; margin: .55rem 0 0; padding: 0; display: grid; gap: .6rem; }
+.next-step-item { margin: 0; padding: 0; min-width: 0; }
+.next-step-link { font-weight: 650; font-size: 1rem; line-height: 1.4; overflow-wrap: anywhere; }
+.next-step-why { margin: .1rem 0 0; font-size: .88rem; line-height: 1.45; color: var(--muted); }
+.next-step-hide { flex: none; }
+
+/* Study (calm) mode keeps the card and its links, and drops the game's colour */
+html[data-calm] .next-step { border-left-width: 1.5px; border-left-color: var(--border); }
+
+/* ------------------------------------------------- the Arena's due review ---- */
+
+/* its tile in the lobby: drawn like the Daily's, a light tile, so the Standard run stays
+   the one solid button */
+.arena-mode[data-mode="review"] { --edge: var(--part-deep); background: var(--surface); color: var(--text); border-color: var(--part-deep); }
+
+.review-lobby h3 { margin: 1.1rem 0 .3rem; font-family: var(--sans); font-size: 1rem; font-weight: 700; color: var(--text); }
+.review-due, .review-page { margin: .6rem 0 0; padding: 0; list-style: none; display: grid; gap: .35rem; }
+.review-due li, .review-page li {
+  display: flex; flex-wrap: wrap; align-items: baseline; gap: .2rem .6rem; margin: 0; min-width: 0;
+  font-family: var(--sans); font-size: .95rem; color: var(--text);
+}
+.review-name { font-weight: 600; overflow-wrap: anywhere; }
+.review-when { color: var(--muted); font-size: .82rem; }
+.review-page a { font-weight: 600; overflow-wrap: anywhere; }
+.review-none { margin: .4rem 0 0; font-family: var(--sans); color: var(--text); }
+.review-onpage { margin: -.4rem 0 0; }
+
+/* the result screen's plain word on why the XP was smaller */
+.review-reduced { background: var(--surface); border-color: var(--border-strong); }
+.review-reduced p { margin: 0; font-family: var(--sans); font-size: .95rem; line-height: 1.5; color: var(--text); }
+.review-reduced p + p { margin-top: .4rem; }
+
+@media print {
+  /* the card is a suggestion for a reader at a screen, not part of the chapter */
+  .next-step { display: none !important; }
+}

@@ -28,6 +28,14 @@ import "../learn/ladder.ts";
 import "../learn/detectors.ts";
 import "../learn/stuck.ts";
 import "../ui/ladder.ts";
+/* the spaced-review schedule and the Arena's XP rules, which game.js (and the Arena)
+   find on window.BMReview: the pure modules first (constants.ts is above), then the one
+   that puts them up */
+import "../learn/recall.ts";
+import "../learn/review.ts";
+import "../learn/practice.ts";
+import "../data/arena-sections.ts";
+import "../ui/review.ts";
 import "../../assets/site.js";
 import "../../assets/sfx.js";
 import "../../assets/game.js";
@@ -35,3 +43,6 @@ import "../../assets/encounter.js";
 import "../../assets/lesson.js";
 import "../../assets/config.js";
 import "../../assets/account.js";
+/* the "next best step" card, drawn once the scripts above have run */
+import "../learn/next.ts";
+import "../ui/next.ts";

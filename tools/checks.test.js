@@ -321,9 +321,9 @@ function refusal(fn) { try { fn(); return null; } catch (e) { return e.message; 
   /* the other kinds and top bars */
   eq(scripts(render('data-depth="0" data-page="dashboard"')).slice(-1), ["src/entries/dashboard.js"], "a dashboard loads the dashboard entry");
   out = render('data-depth="0" data-page="arena"');
-  eq([sheets(out).slice(-1)[0], scripts(out).slice(-1)], ["assets/arena.css", ["src/entries/arena.js"]], "the arena has its stylesheet and its entry");
+  eq([sheets(out).slice(-2), scripts(out).slice(-1)], [["assets/arena.css", "assets/review.css"], ["src/entries/arena.js"]], "the arena has its stylesheet, the due review's after it, and its entry");
   out = render('data-depth="0" data-page="home" data-nav="home"');
-  eq([sheets(out).slice(-2), scripts(out).slice(-1)], [["assets/scenes3d.css", "assets/map3d.css"], ["src/entries/home.js"]], "the home page has the map's stylesheet last and the home entry");
+  eq([sheets(out).slice(-3), scripts(out).slice(-1)], [["assets/scenes3d.css", "assets/map3d.css", "assets/review.css"], ["src/entries/home.js"]], "the home page has the map's stylesheet, then the next-step card's last, and the home entry");
   Object.keys(shell.PAGE_KINDS).forEach(k => check(fs.existsSync(path.join(site.ROOT, shell.PAGE_KINDS[k].entry)), "the entry of kind " + k + " exists: " + shell.PAGE_KINDS[k].entry));
   eq(parse(out).query("header.topbar").queryAll("a").map(a => a.getAttribute("href")), ["index.html", "about.html"], "data-nav=\"home\": no Contents link on the contents page");
   eq(parse(render('data-depth="0" data-page="page" data-nav="about"')).query("header.topbar").queryAll("a").map(a => a.textContent).slice(1), ["Contents", "Progress"], "data-nav=\"about\": Contents and Progress");
@@ -333,8 +333,8 @@ function refusal(fn) { try { fn(); return null; } catch (e) { return e.message; 
   out = render('data-depth="2" data-chapter="ch99" data-part="algebra"', "parts/p/c.html");
   check(/<body data-depth="2" data-chapter="ch99" data-part="algebra">/.test(out), "a chapter keeps data-chapter and data-part");
   const sc = scripts(out);
-  eq([sc, sheets(out)[0], sheets(out).slice(-2)], [["../../src/entries/chapter.js"], "../../src/vendor/fonts.css", ["../../assets/scenes3d.css", "../../assets/ladder.css"]],
-    "it loads the chapter entry and the vendor stylesheets by its depth, and the scenes' and the help ladder's stylesheets are every chapter's, the ladder's last");
+  eq([sc, sheets(out)[0], sheets(out).slice(-3)], [["../../src/entries/chapter.js"], "../../src/vendor/fonts.css", ["../../assets/scenes3d.css", "../../assets/ladder.css", "../../assets/review.css"]],
+    "it loads the chapter entry and the vendor stylesheets by its depth, and the scenes', the help ladder's and the next-step card's stylesheets are every chapter's, the card's last");
   eq(parse(out).query("header.topbar").queryAll("a").map(a => a.getAttribute("href")), ["../../index.html", "../../index.html", "../../about.html"], "the top bar's links climb by data-depth");
   const chapterEntry = fs.readFileSync(path.join(site.ROOT, "src/entries/chapter.js"), "utf8");
   const sceneFiles = fs.readdirSync(path.join(site.ROOT, "assets/scenes")).filter(f => /\.js$/.test(f));

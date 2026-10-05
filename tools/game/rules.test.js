@@ -10,7 +10,9 @@
        after it, through the real rules of site.js and game.js, XP, combo, hearts and medal
        together
      - every achievement predicate on fixtures, false on an empty store
-     - the recall boxes and run XP of recordRun
+     - the recall boxes and run XP of recordRun, and the XP across a simulated day: less
+       per section the more is paid, the finishing bonus in full twice, the Daily's bonus
+       untouched, counts on this device only, fresh on a new day
      - play settings and game records keep what a later version of the site added to them
    Usage: node tools/game/rules.test.js */
 "use strict";
@@ -58,6 +60,9 @@ function loadSite() {
   return win.BMSite;
 }
 const SITE = loadSite();
+/* src/ui/review.ts, the module the pages import ahead of game.js for window.BMReview, read by
+   Node itself (it strips the types): the same rules the browser runs */
+const REVIEW = require("../../src/ui/review.ts").api;
 
 /* A world: the stores site.js would expose, kept in a plain object. */
 function world(seedStores) {
@@ -108,7 +113,9 @@ function world(seedStores) {
         Store.emit({ type: "xp", xp, why });
       }
     },
-    BMInsights: { WEAK: 0.34, sections: () => win.__rows || [] }
+    BMInsights: { WEAK: 0.34, sections: () => win.__rows || [] },
+    /* the schedule and the Arena's XP rules, which every entry puts up before game.js */
+    BMReview: REVIEW
   };
   win.window = win;
   vm.createContext(win);
@@ -480,10 +487,13 @@ function world(seedStores) {
   eq(G.game().sec["ch05#angles"].box, 1, "promotion at most once a day");
   eq(G.deck().find((d) => d.id === "ch05#angles").due, false, "not due again the same day");
   eq(G.game().best.standard.score, 460, "best keeps the higher score");
+  /* the day so far: angles has paid 3 answers (two in full, one at half), and two runs have
+     earned the finishing bonus, so the Daily's retry is angles' 4th (half of 1, rounded to
+     1) and its finish the day's 3rd (1, not 5); the Daily's own 10 is untouched */
   const d1 = G.recordRun({ mode: "daily", hearts: 1, score: 50, day: dayKey(), answers: [{ section: "ch05#angles", retry: true }] });
-  eq(d1.xp, 1 + 5 + 10, "Daily: +10 once a day");
+  eq([d1.xp, d1.parts], [1 + 1 + 10, { answers: 1, full: 1, finish: 1, daily: 10 }], "Daily: +10 once a day, beside the day's decayed answer and finish");
   const d2 = G.recordRun({ mode: "daily", hearts: 1, score: 50, day: dayKey(), answers: [{ section: "ch05#angles", retry: true }] });
-  eq(d2.xp, 1 + 5, "Daily bonus not paid twice in a day");
+  eq(d2.xp, 0 + 1, "Daily bonus not paid twice in a day (the 5th angles answer, a quarter of 1, rounds to 0)");
   G.recordRun({ mode: "rematch", boss: "ch05", hearts: 3, score: 900, day: dayKey(), answers: [{ section: "ch05#angles", first: true }] });
   eq(G.game().enc["ch05/practice"], undefined, "a rematch of a set with no sign of a clear records no medal");
   G.recordRun({ mode: "repair", section: "ch05#pythagoras", timed: false, hearts: 3, score: 0, day: dayKey(),
@@ -492,6 +502,50 @@ function world(seedStores) {
   const firsts = Array.from({ length: 10 }, (_, i) => ({ section: "ch05#angles", first: true, late: i < 3 }));
   G.recordRun({ mode: "standard", hearts: 3, score: 800, day: dayKey(), answers: firsts });
   check(!!G.game().ach["took-your-time"], "took-your-time: 10 first-try with 3 after par in a timed run");
+}
+
+/* ------------------- Arena XP across a day: less per section the more is done, back tomorrow */
+{
+  const w = world();
+  const G = w.Game;
+  const first = (section, n) => Array.from({ length: n }, () => ({ section, first: true }));
+  const day = () => w.read("bm.run.v1").arenaDay;
+  /* A: four first tries on a section never placed (due, so 3 each): 3 + 3 + 1.5 + 1.5 */
+  let r = G.recordRun({ mode: "standard", hearts: 3, score: 400, day: dayKey(), answers: first("ch05#angles", 4) });
+  eq([r.xp, r.parts, r.reduced, r.finishReduced], [9 + 5, { answers: 9, full: 12, finish: 5, daily: 0 }, ["ch05#angles"], false],
+    "the 3rd and 4th answers from one section in a day pay half, the run's finish in full");
+  eq(G.game().sec["ch05#angles"].box, 1, "the decay leaves the boxes to the usual rule: a clean, due showing moves up one");
+  /* B: angles (placed today, not due: 2 each) is on its 5th and 6th, a quarter each; a new
+     section starts the table again; the second finish of the day is still in full */
+  r = G.recordRun({ mode: "standard", hearts: 3, score: 300, day: dayKey(), answers: first("ch05#angles", 2).concat(first("ch05#parallels", 1)) });
+  eq([r.xp, r.parts.answers, r.parts.full, r.reduced], [1 + 3 + 5, 4, 7, ["ch05#angles"]], "past the 4th, a quarter; another section pays in full; summed and rounded once");
+  /* C: a banked run earns no finish and does not count as one; a paid retry decays like a first try */
+  r = G.recordRun({ mode: "standard", hearts: 0, finished: false, ended: "banked", score: 30, day: dayKey(), answers: [{ section: "ch05#parallels", retry: true }] });
+  eq([r.xp, day().finishes, day().sec["ch05#parallels"]], [1, 2, 2], "a retry counts as a paid answer; a banked run is not a finish");
+  /* D: the third finished run of the day pays 1 for finishing, and says so */
+  r = G.recordRun({ mode: "standard", hearts: 1, score: 100, day: dayKey(), answers: first("ch05#parallels", 1) });
+  eq([r.xp, r.parts.finish, r.finishReduced, r.reduced], [1 + 1, 1, true, ["ch05#parallels"]], "after two finishes in a day the bonus is 1, and the result knows why");
+  /* E: a retry without a heart at stake pays nothing and is not counted */
+  r = G.recordRun({ mode: "standard", hearts: 3, score: 100, day: dayKey(), answers: [{ section: "ch05#distance", retry: true, hf: true }].concat(first("ch05#distance", 1)) });
+  eq([r.xp, day().sec["ch05#distance"]], [3 + 1, 1], "an unpaid retry is not a paid answer");
+  eq(day(), { day: dayKey(), sec: { "ch05#angles": 6, "ch05#parallels": 3, "ch05#distance": 1 }, finishes: 4 }, "the day's counts, in bm.run.v1.arenaDay");
+  check(!("arenaDay" in G.game()), "the counts stay on this device: nothing of them is in the synced game record");
+  /* the Daily's 10 is not reduced, whatever the day holds */
+  r = G.recordRun({ mode: "daily", hearts: 3, score: 100, day: dayKey(), answers: first("ch05#angles", 1) });
+  eq([r.parts.daily, r.parts.answers, r.parts.finish], [10, 1, 1], "the Daily bonus is paid in full beside a decayed answer and finish");
+  eq(w.read("bm.activity.v1").days[dayKey()], 14 + 9 + 1 + 2 + 4 + 12, "what was paid is what reached the day's XP");
+  /* a new local day starts the counts again */
+  const tomorrow = daysAgo(-1);
+  r = G.recordRun({ mode: "standard", hearts: 3, score: 100, day: tomorrow, answers: first("ch05#angles", 2) });
+  eq([r.xp, r.reduced, day()], [2 + 2 + 5, [], { day: tomorrow, sec: { "ch05#angles": 2 }, finishes: 1 }], "the next day pays in full again, from fresh counts");
+  /* a run dealt on an earlier day and settled later counts against its own day, and leaves
+     the later day's counts as they were */
+  G.recordRun({ mode: "standard", hearts: 3, score: 100, day: dayKey(), answers: first("ch05#parallels", 1) });
+  eq(day(), { day: tomorrow, sec: { "ch05#angles": 2 }, finishes: 1 }, "an older run does not overwrite a later day's counts");
+  /* damaged counts are read as none */
+  const w2 = world({ "bm.run.v1": { arenaDay: { day: dayKey(), sec: { "ch05#angles": "x", "ch05#parallels": -3 }, finishes: "lots" } } });
+  r = w2.Game.recordRun({ mode: "standard", hearts: 3, score: 100, day: dayKey(), answers: first("ch05#angles", 1).concat(first("ch05#parallels", 1)) });
+  eq([r.xp, r.reduced], [3 + 3 + 5, []], "counts that are not numbers start from nothing");
 }
 
 /* ------------------------------------------- review fixes: runs and medals */
