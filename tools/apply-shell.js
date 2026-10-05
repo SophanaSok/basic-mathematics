@@ -99,9 +99,11 @@ function convert(src, rel) {
   const title = one(/<title>[\s\S]*?<\/title>/g, "<title>", true);
   const description = one(/<meta name="description"[^>]*>/g, '<meta name="description">', true);
   const robots = one(/<meta name="robots"[^>]*>/g, '<meta name="robots">', false);
-  /* the white space the page has between its top bar and its content */
+  /* the white space the page has between its top bar and its content; the top bar ends
+     with the HUD script after </header> where the page has one (the shell writes it) */
   const barEnd = before.lastIndexOf("</header>");
-  const gap = barEnd === -1 ? null : before.slice(barEnd + "</header>".length);
+  const hudEnd = barEnd === -1 ? null : /^\n<script>[\s\S]*?<\/script>/.exec(before.slice(barEnd + "</header>".length));
+  const gap = barEnd === -1 ? null : before.slice(barEnd + "</header>".length + (hudEnd ? hudEnd[0].length : 0));
   if (gap === null || gap.trim()) throw new Error("no top bar (<header class=\"topbar\"> … </header>) right before the content wrapper");
   const isChapter = /\sdata-chapter=/.test(body[1]);
 

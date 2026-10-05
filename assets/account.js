@@ -899,10 +899,14 @@
 
   /* ---------------------------------------------------------- topbar button -- */
 
+  /* The chip is in the top bar from the start (tools/lib/shell.js), "Sign in" in a box
+     of its own width, so it can turn into the avatar without moving the HUD beside it.
+     A copy of the site with no accounts takes it out. */
   function drawButton() {
     var nav = document.querySelector(".topbar nav");
-    if (!nav || !configured) return;
+    if (!nav) return;
     var a = nav.querySelector(".acct");
+    if (!configured) { if (a) a.parentNode.removeChild(a); return; }
     if (!a) {
       a = document.createElement("a");
       a.className = "acct";

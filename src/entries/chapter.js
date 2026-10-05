@@ -4,6 +4,9 @@
    with BM3D.define, and a chapter mounts the ones its figures name, so there is one
    chapter bundle rather than one per set of scenes (data-scenes used to pick them). */
 import "../vendor/katex.js";
+import "../hud/levels.js";
+import "../hud/view.js";
+import "../hud/install.js";
 import "../../data/curriculum.js";
 import "../../data/quest.js";
 import "../../assets/widgets.js";
@@ -46,6 +49,7 @@ import "../ui/scroll-regions.ts";
 import "../../assets/site.js";
 import "../../assets/sfx.js";
 import "../../assets/game.js";
+import "../ui/settings.ts";
 import "../../assets/encounter.js";
 import "../../assets/lesson.js";
 import "../../assets/config.js";

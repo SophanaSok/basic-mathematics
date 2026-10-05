@@ -200,29 +200,20 @@
       if (!p.days || typeof p.days !== "object") p.days = {};
       return p;
     },
-    goal: function () {
-      var g = parseInt(this.all().goal, 10);
-      return g > 0 ? g : DEFAULT_GOAL;
-    },
+    /* the goal, today's XP, the total and the streak are read the way the HUD reads them
+       before first paint (window.BMHud, src/hud/view.js, put on every page by the HUD
+       script after the top bar), so the header and the pages agree */
+    goal: function () { return window.BMHud.goalOf(this.all()); },
     setGoal: function (n) {
       var all = this.all();
       all.goal = Math.max(5, Math.min(500, parseInt(n, 10) || DEFAULT_GOAL));
       writeStore(ACTIVITY_KEY, all);
     },
-    today: function () { return this.all().days[dayKey()] || 0; },
-    total: function () {
-      var days = this.all().days, sum = 0;
-      Object.keys(days).forEach(function (k) { sum += days[k] || 0; });
-      return sum;
-    },
+    today: function () { return window.BMHud.todayXp(this.all(), new Date()); },
+    total: function () { return window.BMHud.totalXp(this.all()); },
     /* consecutive active days ending today — or yesterday, so a streak is not shown
        as broken before today's work has had a chance to happen */
-    streak: function () {
-      var days = this.all().days, d = new Date(), n = 0;
-      if (!days[dayKey(d)]) d.setDate(d.getDate() - 1);
-      while (days[dayKey(d)] > 0) { n++; d.setDate(d.getDate() - 1); }
-      return n;
-    },
+    streak: function () { return window.BMHud.streakOf(this.all(), new Date()); },
     /* `extra` carries the combo's share, { bonus, mult }, so the toast can show it */
     add: function (xp, why, extra) {
       if (!xp) return;
@@ -243,49 +234,42 @@
 
   /* -------------------------------------------------------------- theme -- */
 
+  /* The reader's theme: "light", "dark", or "system" (nothing saved: follow the
+     operating system). The settings sheet chooses it (src/ui/settings.ts, through
+     BMSite.setTheme). `chosen` holds a choice the store could not keep (blocked storage),
+     so it still holds for the visit. */
+  var chosen = null;
   function currentTheme() {
-    return readStore(THEME_KEY, null);
+    if (chosen) return chosen === "system" ? null : chosen;
+    var t = readStore(THEME_KEY, null);
+    return t === "light" || t === "dark" ? t : null;
   }
   /* data-theme is always set (boot.js did it before first paint): the saved choice,
      else whatever the operating system prefers */
   function applyTheme(mode) {
     var root = document.documentElement;
     if (mode !== "light" && mode !== "dark") mode = systemPrefersDark() ? "dark" : "light";
-    root.setAttribute("data-theme", mode);
+    if (root.getAttribute("data-theme") !== mode) root.setAttribute("data-theme", mode);
   }
   function systemPrefersDark() {
     return window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches;
   }
+  function themeChoice() { return currentTheme() || "system"; }
+  function setTheme(mode) {
+    if (mode !== "light" && mode !== "dark") mode = "system";
+    var ok = true;
+    if (mode === "system") { try { window.localStorage.removeItem(THEME_KEY); } catch (e) { ok = false; } }
+    else ok = writeStore(THEME_KEY, mode, true);
+    chosen = ok ? null : mode;
+    applyTheme(mode);
+    Store.emit({ type: "theme", theme: mode });
+  }
   function initTheme() {
     applyTheme(currentTheme());
-    var btns = document.querySelectorAll("[data-theme-toggle]");
-    /* read what is on screen, not the store: a blocked store never keeps the choice */
-    function effective() {
-      return document.documentElement.getAttribute("data-theme") === "dark" ? "dark" : "light";
-    }
-    function label() {
-      return effective() === "dark" ? "☀" : "☾";
-    }
-    Array.prototype.forEach.call(btns, function (btn) {
-      btn.textContent = label();
-      btn.setAttribute("title", "Switch between light and dark");
-      btn.setAttribute("aria-label", "Switch between light and dark");
-      btn.classList.add("theme-btn");
-      btn.addEventListener("click", function () {
-        var next = effective() === "dark" ? "light" : "dark";
-        writeStore(THEME_KEY, next);
-        applyTheme(next);
-        Array.prototype.forEach.call(btns, function (b) { b.textContent = label(); });
-      });
-    });
     /* follow the operating system until the reader picks a side */
     if (window.matchMedia) {
       var mq = window.matchMedia("(prefers-color-scheme: dark)");
-      var follow = function () {
-        if (currentTheme()) return;
-        applyTheme(null);
-        Array.prototype.forEach.call(btns, function (b) { b.textContent = label(); });
-      };
+      var follow = function () { if (!currentTheme()) applyTheme(null); };
       if (mq.addEventListener) mq.addEventListener("change", follow);
       else if (mq.addListener) mq.addListener(follow);
     }
@@ -539,33 +523,14 @@
 
   /* ------------------------------------------------- header counters ----- */
 
-  var FLAME = '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8.2 1c.3 2.4 3.6 4 3.6 7.6A3.8 3.8 0 0 1 8 12.5a3.8 3.8 0 0 1-3.8-3.9c0-1.4.6-2.5 1.5-3.3.1 1 .6 1.7 1.3 1.9C6.7 5.1 7.1 2.9 8.2 1z"/></svg>';
-
-  /* The game layer (assets/game.js) draws the full HUD: level, streak, combo, hearts.
-     Without it, a plain counter: streak and today's XP against the daily goal, linking
-     to the progress page. */
+  /* The HUD is in the top bar from the start (tools/lib/shell.js) and was filled before
+     first paint; the game layer (assets/game.js) keeps it up to date, hearts and all.
+     Without the game layer, the HUD script's own drawing does it from the stores. */
   function buildHud() {
     if (window.BMGame && typeof window.BMGame.hud === "function") {
       try { window.BMGame.hud(); return; } catch (e) { if (window.console) console.error("[BM] game HUD failed", e); }
     }
-    var nav = document.querySelector(".topbar nav");
-    if (!nav) return;
-    var hud = nav.querySelector(".hud");
-    if (!hud) {
-      hud = document.createElement("a");
-      hud.className = "hud";
-      hud.href = rootPrefix() + "progress.html";
-      nav.insertBefore(hud, nav.querySelector("[data-theme-toggle]"));
-    }
-    var streak = Activity.streak(), today = Activity.today(), goal = Activity.goal();
-    var pct = Math.min(100, Math.round((today / goal) * 100));
-    var words = "Your progress: " + streak + "-day streak, " + today + " of " + goal + " XP today";
-    hud.setAttribute("aria-label", words);
-    hud.setAttribute("title", words);
-    hud.innerHTML =
-      '<span class="hud-streak"' + (streak ? ' data-on="true"' : "") + ">" + FLAME + "<b>" + streak + "</b></span>" +
-      '<span class="hud-goal"><span class="goal-ring" style="--pct:' + pct + '"' + (pct >= 100 ? ' data-full="true"' : "") +
-      '></span><span class="hud-xp"><b>' + today + "</b> / " + goal + " XP</span></span>";
+    if (window.BMHud) window.BMHud.prefill(document, window);
   }
 
   function toast(html, cls) {
@@ -592,19 +557,6 @@
     }, 2600);
   }
   window.BMToast = toast;
-
-  /* the brand's words can then fold away on a narrow screen, leaving the glyph */
-  function decorateTopbar() {
-    var brand = document.querySelector(".topbar .brand");
-    if (!brand || brand.querySelector(".brand-name")) return;
-    slice(brand.childNodes).forEach(function (n) {
-      if (n.nodeType !== 3 || !n.nodeValue.trim()) return;
-      var span = document.createElement("span");
-      span.className = "brand-name";
-      span.textContent = n.nodeValue.trim();
-      brand.replaceChild(span, n);
-    });
-  }
 
   /* ------------------------------------------------- where it is going ---- */
 
@@ -1384,7 +1336,8 @@
     if (recap && recap.parentNode) recap.parentNode.insertBefore(box, recap);
     else practice.parentNode.insertBefore(box, practice.nextSibling);
     if (fresh && box.scrollIntoView) {
-      var still = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      var still = (window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches) ||
+        document.documentElement.getAttribute("data-motion") === "reduce";
       try { box.scrollIntoView({ block: "center", behavior: still ? "auto" : "smooth" }); } catch (e) { box.scrollIntoView(); }
     }
   }
@@ -1478,7 +1431,6 @@
       var last = readStore(LAST_KEY, null);
       if (!last || last.id !== chapter.id) writeStore(LAST_KEY, { id: chapter.id, section: null });
     }
-    decorateTopbar();
     buildHud();
     buildSidebar(chapter);
     buildChapterNav(chapter);
@@ -1528,7 +1480,9 @@
     rootPrefix: rootPrefix, escapeHtml: escapeHtml, chapterName: chapterName, dayKey: dayKey,
     chapterOf: function () { return chapterOf(document.body); },
     grade: grade, matches: matches, refresh: refresh, renderMath: renderMath, XP: XP, xpFor: xpFor,
-    paysFirst: paysFirst, road: Road
+    paysFirst: paysFirst, road: Road,
+    /* the theme the reader chose, "light", "dark" or "system", and choosing it */
+    theme: themeChoice, setTheme: setTheme
   };
 
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", init);

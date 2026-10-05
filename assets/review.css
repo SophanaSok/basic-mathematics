@@ -2,9 +2,12 @@
    Basic Mathematics — the "next best step" card (src/ui/next.ts) on the contents page
    and the chapters, and the Arena's due review (assets/arena.js, arena.html?mode=review)
    Linked last on those three kinds of page (tools/lib/shell.js PAGE_KINDS), so it can
-   lean on site.css's buttons and arena.css's cards and chips. Existing tokens only, every
-   text colour on a solid background that the contrast pairs measure (--text, --muted and
-   --accent on --surface). No gradient, no glow, no motion at all.
+   lean on site.css's buttons and arena.css's cards and chips. Every one of them is in the
+   reading panel (the contents page's hero, a chapter's banner below its frame band, the
+   Arena's cards), so it draws only on the paper tokens of src/styles/tokens.css, which
+   follow html[data-panel]; every text colour sits on a solid background that the contrast
+   pairs measure (--text, --muted and --accent on --surface; the due review tile's edge,
+   --part-deep, on --surface and --bg). No gradient, no glow, no motion at all.
    =========================================================================== */
 
 /* -------------------------------------------------- the next-step card ---- */

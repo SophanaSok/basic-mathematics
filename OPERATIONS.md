@@ -237,6 +237,79 @@ fetched again. Nothing is kept for it. One thing to know when reading the loader
 `BM3D.why` still says `cdn` when the chunk could not be fetched or run, since the checks and
 the map read that string; it no longer means a CDN.
 
+### Cached HTML after the game-frame deploy
+
+The deploy that brought the dark game frame and the token file (`src/styles/tokens.css`) added
+a stylesheet to every page, but every page kind links it, so it went into `bundle/all.css` with
+`site.css`, and no file was renamed. For the ten minutes, a page from before the deploy with the
+new `all.css` gets the new look: its old boot script stamps no `data-panel`, and with none the
+panel is the light paper, which is the default anyway. A page from after it with an `all.css`
+from before gets the old look, with the boot script's `data-panel` doing nothing, until the
+stylesheet is fetched again. Either way nothing breaks and nothing is kept for it. A reader who
+chose the dark panel (`bm.prefs.v1` `panel: "dark"`) keeps the choice; there was no such choice
+before this deploy, so a reader of the dark theme now sees light paper in a dark frame.
+
+### Cached HTML after the HUD deploy
+
+The deploy that made the HUD and the settings sheet part of every page's top bar
+(`tools/lib/shell.js`, with the HUD script after it) renamed no file either, so for the ten
+minutes both mixes can happen, and neither loses anything a reader saved:
+
+- A page from before it with the bundle from after it has the old top bar, which the game layer
+  used to build its HUD into and no longer does: for those minutes it shows no HUD and no menu
+  button. Its scripts run, because the bundle installs `window.BMHud` itself where no HUD script
+  put it (`src/hud/install.js`); without that, `site.js` could not have counted the XP of an
+  answer given on such a page. The `hud` suite of `check-browser.js` loads a chapter with the
+  HUD script taken out and holds it to earning XP.
+- A page from after it with a bundle from before it has the new top bar and the old `game.js`,
+  which rebuilds the HUD its own way and cannot open the new sheet: the menu button does
+  nothing until the bundle is fetched again. Settings chosen before are kept: the new ones
+  (`volume`, `motion`, `transparency`, `gfx` in `bm.prefs.v1`) are keys the old `game.js`
+  passes through untouched (R0's carry-through), and the boot script, which is in the page,
+  stamps them.
+
+### Cached HTML after the view-transitions deploy
+
+The deploy that brought the fade between pages (README, "Between pages") renamed no file: the
+opt-in is inline in every page's `<head>` and the rest is in `game.css`, inside
+`bundle/all.css`. A transition needs both pages to opt in, so for the ten minutes a page from
+before the deploy never has one, coming or going. A page from after it with an `all.css` from
+before it opts in but has none of `game.css`'s rules for it, so the browser's own cross-fade of
+the whole page runs (about a quarter of a second, the header fading with the rest); its boot
+script is the new one, so Study mode and Reduce motion still skip it, and reduced motion on the
+device never opts in. Nothing is stored for it and nothing can break. To take the fade off
+everywhere, remove `OPT_IN` from `tools/lib/shell.js`'s head and deploy; every page then
+navigates as before.
+
+### Cached HTML after the course-world deploy
+
+The deploy that grew the course map into the course world (README, "The course world") renamed
+no file and added one chunk, `bundle/world.js`, which only `assets/map3d.js`'s `import()`
+fetches. `map3d.js` and the module it now needs before anything 3D is fetched
+(`src/world/tiers.ts`) are both in `bundle/home.js`, so they are always of one version. For the
+ten minutes:
+
+- A contents page from before the deploy runs the old map from its cached `home.js` and never
+  asks for `bundle/world.js`; it draws the old map, beside the list as it was laid out then.
+- A page from after it with a `home-chapter.js` from before has the old loader, which does not
+  say the WebGL renderer's name (`BM3D.renderer`): a software renderer then reads as a hardware
+  one and gets the medium tier instead of low, and the watchdog steps it down if it is slow.
+- The settings sheet's Graphics quality Low used to keep the list; it is the world's low tier
+  now, and the 3D course map switch is what keeps the list. That meaning of Low was never on
+  `main` (the setting arrived on the branch before this one), so no deployed reader has it
+  stored. Should one have it, the world is drawn at its lowest, and if even that is too slow the
+  watchdog gives the list back and keeps it (`gfxAuto: "list"`, whether or not the quality was
+  chosen), so the cost is paid once, not on every visit.
+- A low-end device (2 GB of memory or less) got the list by default before; it gets the low tier
+  now, as the plan's tier rule says, and the watchdog takes it to the list if it is too slow.
+- `bm.prefs.v1` gains `gfxAuto`, written by the watchdog. A tab from before the deploy keeps it
+  through its own writes (R0's unknown-key rule) and does not read it.
+
+Nothing is kept for it. A later deploy that changes what `src/world/index.ts` exports is the
+case to watch: a `home.js` cached from before and a `world.js` fetched after it would disagree
+for those ten minutes, and the page would fall back to the list (`BMMap3D.why()` says `error`);
+keep the exports' names when changing the world, or accept those minutes of list.
+
 ### The Pages source: GitHub Actions, set before the page-shell change is merged
 
 The Pages source is a repository setting and not a file, so it is set by hand:

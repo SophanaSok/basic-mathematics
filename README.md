@@ -13,7 +13,7 @@ help the mathematics stick.
 
 It is hand-written HTML, CSS, and plain JavaScript files, published through a small build
 ([Vite](https://vite.dev)) that writes each page's head and bundles its scripts, its fonts,
-KaTeX and Three.js with them (the 3D library is fetched only where a 3D scene or the course map
+KaTeX and Three.js with them (the 3D library is fetched only where a 3D scene or the course world
 is on screen, and the site works without it). Accounts are optional and off by default: with
 [`assets/config.js`](assets/config.js) left empty the site talks to nobody, and a signed-out
 reader's browser contacts no third party at all.
@@ -146,7 +146,7 @@ the reason for it. First the sections due for a check that the Arena can ask abo
 due review; a section is first due a day after you last solved something there, not straight
 away), then the section your answers found hardest (linking to a Repair run), then where you left
 off. Sections the Arena has no problems for are not on the card, since nothing could mark them
-checked; the due review lists them. It pays no XP, stays in calm mode, and
+checked; the due review lists them. It pays no XP, stays in Study mode, and
 "Hide for today" puts it away until tomorrow.
 
 The **[progress page](https://sophanasok.github.io/basic-mathematics/progress.html)** turns the
@@ -184,9 +184,33 @@ going well. A short version appears above each chapter's recap.
   there is no score to aim for.
 - **Levels and achievements** come from XP. The achievements reward study habits — right first
   time, repairing a weak section, reading solutions, finishing review sets — never speed alone.
-- **Calm mode**, in the header menu, turns off hearts, the combo, the boss, shake and sound for
-  anyone who wants the course without the game. The clues, the questions about a wrong answer and
-  the solutions stay: they are the course, not the game.
+- **Study mode**, the first choice in the settings sheet (the menu button in the header), keeps
+  hints, reviews and progress and removes hearts, the combo, the bosses, motion and sound, for
+  anyone who wants the course without the game. The clues, the questions about a wrong answer,
+  the solutions, the due review and the next-step card stay: they are the course, not the game.
+  (In the code and the stores it is still `calm`.)
+- **The settings sheet** also holds sound and its volume, Reduce motion and Reduce transparency
+  (on top of what the device asks for: while the device asks, or Study mode is on for motion, the
+  switch shows on and cannot be turned off), the theme (light, dark or match the system), the
+  reading panel, graphics quality and the 3D course map. Every setting stays on the device.
+- **The course world.** The contents page opens on a small 3D world of the course: four regions,
+  one per Part (the Foundry for algebra, the Fields for geometry, the Grid for coordinates, the
+  Observatory for the rest), each a terrace with its chapters standing on it as islands, a ring
+  for how much of each is solved, a shrinking boss for what is left and a flag once it is done.
+  Click an island to open its chapter (on a phone, tap once to pick it, again to open it), or use
+  the four buttons above it to fly to a Part. The chapter list below the introduction is always
+  there and is the same course in words; it is what a screen reader and the keyboard use, and
+  focusing a chapter in it picks that chapter's island, so the world is on it when you scroll back
+  up (where the world is on screen too, you see it fly there). Graphics quality in the settings sheet picks how
+  much the world draws (Auto, Low, Medium, High); switch the 3D course map off to have the list
+  alone. The world moves for a few seconds after you touch it and then holds still; in Study mode
+  and with Reduce motion it never moves at all.
+- **Between pages**, in a browser that can (Chrome and Edge 126 and later, Chrome for Android,
+  Safari 18.2 and later), the next page fades in under a header that stays where it is. The fade
+  takes a quarter of a second, and a click in that time, even on the header, does nothing (the
+  browser's rule while a fade runs), so click again. Study mode, Reduce motion and a device that
+  asks for less motion turn the fade off, and any other browser simply opens the next page, as
+  every browser did before.
 
 ### Progress, and what is saved
 
@@ -206,7 +230,10 @@ delete all of it.
 Answer keys live in the page source, since the grading happens in your browser. This is a course to
 learn from, not an exam — the only person you can cheat is yourself.
 
-The light/dark toggle sits in the header and follows your system setting until you override it.
+The page is a dark game frame with the reading on a light paper panel set into it, in both themes:
+the light/dark toggle in the header shades the frame, and follows your system setting until you
+override it. The text, worked examples, figures and exercises stay on light paper, which is easier
+to read for long stretches.
 
 ---
 
@@ -267,11 +294,11 @@ under `dist/bundle/`), and
 [supabase-js](https://github.com/supabase/supabase-js) for accounts (`@supabase/supabase-js`,
 re-exported by `src/vendor/supabase.js`, which `assets/account.js` imports on demand, so it is a
 chunk of its own, `bundle/supabase.js`, that a signed-out reader on an ordinary page never
-downloads), and [Three.js](https://threejs.org) for the 3D scenes and the course map (`three`,
+downloads), and [Three.js](https://threejs.org) for the 3D scenes and the course world (`three`,
 at its current release; `src/vendor/three.js` re-exports, by name, exactly the classes and
-constants `assets/map3d.js` and `assets/scenes3d-gl.js` use, so the rest of the library is
-shaken out; `assets/three-loader.js` imports that file on demand, only when a 3D scene or the
-course map nears the screen, so it is a chunk of its own, `bundle/three.js`, that a page with
+constants `assets/map3d.js`, `src/world/*.ts` and `assets/scenes3d-gl.js` use, so the rest of the
+library is shaken out; `assets/three-loader.js` imports that file on demand, only when a 3D scene or the
+course world nears the screen, so it is a chunk of its own, `bundle/three.js`, that a page with
 neither never downloads, and the namespace it loads is `BM3D.THREE`; if the chunk cannot be
 fetched, or the browser has no WebGL 2, which the library requires, every 3D picture is drawn
 flat with the same controls). So no stylesheet, script or font of a page comes from another
@@ -290,7 +317,7 @@ the installed packages and every font file in `dist/` to one of them.
 ### Layout
 
 ```
-index.html              course contents: the path map and the 3D course map
+index.html              course contents: the course world (3D) above the introduction and the chapter list
 about.html              how to study the course; play settings and progress reset live here
 progress.html           the reader's dashboard: level, achievements, recall, sections to strengthen
 arena.html              the Arena: timed retrieval practice from generated problems
@@ -300,7 +327,19 @@ data/curriculum.js      single source of truth: parts, chapters, sections
 data/quest.js           regions, bosses (the tempting guess of each chapter's puzzle), review echoes
 data/gen/*.js           seeded problem generators for the Arena, one file per Part plus core.js
 src/boot.js             the one script that runs before first paint, inlined into every page's
-                        <head> by the shell: theme and play settings, plain ES5, never bundled
+                        <head> by the shell: theme, reading panel, play settings, reduce motion and
+                        transparency, and the skip of the view transition between pages in Study
+                        mode and reduced motion; plain ES5, never bundled
+src/hud/levels.js       the level curve and ranks, and view.js what the HUD shows and how it is drawn:
+                        plain ES modules the shell inlines after every top bar (the HUD script, which
+                        fills the HUD before first paint and hands them to the page as window.BMHud,
+                        where game.js and site.js use them); never bundled; Vitest tests beside them
+src/ui/settings.ts      the settings sheet: opens the top bar's <dialog>, shows and passes on the settings
+src/world/tiers.ts      the course world's quality tiers (list, low, medium, high), which one a device gets,
+                        their budgets and the watchdog; in the contents page's bundle
+src/world/*.ts          the course world itself (index.ts and what it imports: layout, props, regions,
+                        marks, materials, lighting, batches), imported on demand by assets/map3d.js:
+                        bundle/world.js; Vitest tests beside them
 src/entries/*.js        one module entry per kind of page (home, page, dashboard, arena, chapter):
                         an ordered list of imports of the scripts below, which is the order they run in
 src/vendor/katex.js     KaTeX from npm (pinned 0.16.11): sets window.katex and renderMathInElement;
@@ -311,13 +350,17 @@ src/vendor/fonts.css    Inter, Newsreader and Bricolage Grotesque from the fonts
                         every page before katex.css
 src/vendor/supabase.js  supabase-js from npm, imported on demand by assets/account.js: bundle/supabase.js
 src/vendor/three.js     Three.js from npm, the names the site uses, imported on demand by assets/three-loader.js: bundle/three.js
-assets/site.css         tokens (both themes, four regions), base, prose, cards, figures, print
-assets/game.css         HUD, region banner, encounters, card states, toasts, settings, all motion
+src/styles/tokens.css   every colour, duration and shape token: the paper (light, and the dark panel a
+                        reader can choose), the frame (each theme), the four Parts and their 3D
+                        regions, motion, magnitude, focus, glass; the one file that defines a colour
+assets/site.css         base, the frame and the reading panel, prose, cards, figures, print
+assets/game.css         HUD, the settings sheet, region banner stats, encounters, card states, toasts, all motion
 assets/scenes3d.css     3D scene stages
-assets/map3d.css        the course map; arena.css the Arena
-assets/ladder.css       the help ladder on an exercise card (chapters only; existing tokens only)
+assets/map3d.css        the course world and the hub layout of the contents page; arena.css the Arena
+assets/ladder.css       the help ladder on an exercise card (chapters only; colours from
+                        tokens.css only)
 assets/review.css       the next-step card (contents page, chapters) and the Arena's due review
-                        (existing tokens only)
+                        (colours from tokens.css only)
 assets/site.js          navigation, theme, stores, exercise grading, XP, widget mounting
 src/learn/*.ts          the learning logic, no DOM and no window: the help ladder's ladder.ts (the
                         rungs, what is saved), detectors.ts (questions for a wrong answer),
@@ -346,11 +389,12 @@ assets/three-loader.js  lazy Three.js with fallback (window.BM3D.load, the names
 assets/scenes3d.js      the 3D scene framework: define, display list, camera, SVG painter, input
 assets/scenes3d-gl.js   the WebGL painter, imported on demand (import()) when a scene nears the screen
 assets/scenes/*.js      one file per 3D scene; every chapter's bundle carries all of them
-assets/game.js          combo, levels, achievements, recall, play settings, the HUD
+assets/game.js          combo, levels, achievements, recall, play settings, keeping the HUD up to date
 assets/encounter.js     turns each practice and review set into an encounter
 assets/sfx.js           synthesised sound effects, off by default
 assets/arena.js         the Arena, with its due review (arena.html?mode=review)
-assets/map3d.js         the 3D course map on the contents page
+assets/map3d.js         the course world on the contents page: its tier, camera, pointer, labels, the
+                        chapter list it mirrors, the render loop (what it draws is src/world/)
 assets/lesson.js        step-by-step reading of a chapter
 assets/config.js        Supabase URL and anon key, sign-in providers; empty means no accounts
 assets/account.js       sign-in and sync, listening on BMStore
@@ -360,8 +404,11 @@ supabase/README.md      how to switch accounts on
 supabase/migrations/    one file per database change, run on the live project before the merge
 OPERATIONS.md           the runbook: release order, deploys, quotas, secrets, incidents
 tools/                  the checks: static, scenes, generators, game rules, the build, headless browser
-tools/lib/shell.js      the <head> and the top bar of every page: the boot script inline, the vendor
-                        stylesheets, its kind's stylesheets, and the module entry of its kind
+tools/lib/shell.js      the <head> and the top bar of every page: the boot script inline, the
+                        view-transition opt-in inline, the vendor stylesheets, its kind's
+                        stylesheets, and the module entry of its kind; the HUD's slots, the
+                        account chip, the sound and menu buttons, the settings sheet, and the
+                        HUD script after the top bar
 tools/lib/vendor.js     which src/vendor/ module brings in each npm package (and its dependencies):
                         how the build names node_modules files and check-dist holds them; and the
                         licence notice the build writes into dist/bundle/LICENSES.txt from them
@@ -420,17 +467,18 @@ the shell writes depends on what `<body>` says:
 | --- | --- |
 | `data-depth` | how many directories deep the file is (`0` at the root, `2` for a chapter); every path the shell writes is made relative with it, and so are the links `site.js` generates |
 | `data-chapter` | the page is a chapter: kind `chapter` |
-| `data-page` | for any other page, its kind: `home` (the contents page, with the course map), `page` (prose or a form), `dashboard` (a page that `assets/insights.js` fills), `arena` |
+| `data-page` | for any other page, its kind: `home` (the contents page, with the course world), `page` (prose or a form), `dashboard` (a page that `assets/insights.js` fills), `arena` |
 | `data-nav` | the links of the top bar: `home` (only *How to use this*), `about` (*Contents* and *Progress*), or left out for the usual *Contents* and *How to use this* |
 
 `data-page` and `data-nav` are instructions to the shell and are not in the page a reader gets.
 (`data-scenes`, which once named a chapter's 3D scenes, is refused: every chapter's bundle
 carries every scene.) What the shell writes into `<head>`, in order: the page's own tags, the
-boot script inline ([`src/boot.js`](src/boot.js), before the stylesheets, so the theme is set
-before the first paint without a request), the icon, the two vendor stylesheets
+boot script inline ([`src/boot.js`](src/boot.js), before the stylesheets, so the theme and the reading panel are set
+before the first paint without a request), the opt-in to view transitions between pages as one
+inline `<style>` (see "Between pages" below for why it is inline), the icon, the two vendor stylesheets
 (`src/vendor/fonts.css`, then `src/vendor/katex.css`: `VENDOR_STYLES` in `tools/lib/shell.js`,
 first so that `site.css`'s rules on `.katex` come after KaTeX's and win), the stylesheets of the
-page's kind, and one `<script type="module">` for the kind's entry, `src/entries/<kind>.js`. The
+page's kind (`src/styles/tokens.css` first of them), and one `<script type="module">` for the kind's entry, `src/entries/<kind>.js`. The
 stylesheets and the entry of each kind are `PAGE_KINDS` at the top of `tools/lib/shell.js`; the
 scripts of a kind, in the order they run, are the imports of its entry, so that file is where a
 script is added to every chapter, or moved. The order is part of the site (`site.js` mounts every
@@ -442,6 +490,33 @@ what is recorded, and whatever the record says when a page's scripts are not the
 the one entry of its kind (a classic `<script src>`, from the site or a CDN, fails). If the change
 is meant, `node tools/check-static.js --only=shell --accept-shell` records it, and the diff of
 `tools/shell.json` shows the reviewer exactly which pages now load what.
+
+The top bar is whole from the first byte: the brand, the page links, the HUD (the game slots of
+the page's kind, the boss's hearts on a chapter, hearts and the clock in the Arena; the combo; the
+level badge and XP bar; the streak with today's goal as a ring), the account chip, the sound and
+menu buttons, the Arena's second row for a narrow screen, and the settings sheet, a `<dialog
+id="hud-sheet">`. Straight after it comes a second inline script, the HUD script: the text of
+[`src/hud/levels.js`](src/hud/levels.js) and [`src/hud/view.js`](src/hud/view.js) in one
+function (`hudScript()`; their `export`s, their one `import` and their comments taken off), which
+reads the stores and fills the level, the XP bar, the streak and the combo before the first paint,
+then leaves those functions on the page as `window.BMHud`. `game.js` draws the HUD with the same
+functions from then on and `site.js` reads the streak, the goal and the total through them, so
+there is one copy of the level curve and the HUD's drawing, and the HUD does not move when the
+bundle arrives: every slot's width is set in `rem` and `em`, not by its digits or font, and a game
+slot the page can use is laid out empty from the start (the `hud` suite of `check-browser.js`
+measures every box before the bundle runs, at `DOMContentLoaded` and after load). As the window
+narrows, the top bar drops, in this order, the brand's name, the page links, the hearts and the
+clock (to the encounter on a chapter, to the second row in the Arena), the account chip and the
+sound button, all of which the sheet has, and then makes the HUD's parts smaller, so the menu
+button stays on screen at the right end of the bar at every width down to 320px; a bar with more
+in it starts sooner (`game.css`, the collapse, which the `hud` suite sweeps). The bar is
+right-aligned, so the game slots, which only some kinds of page have, come first: the combo, the
+level, the streak, the account chip, Sound and the menu button sit in the same place on every kind
+of page at every width, and going from one page to another moves none of them (the `hud` suite
+compares every kind of bar at each width of its sweep). `tools/shell.json`
+records the top bar's links and buttons by their labels, the sheet's among them, and the HUD
+script as a fingerprint of its text; `check-static.js` also fails a page whose body has any other
+script.
 
 KaTeX is the entry's first import (`src/vendor/katex.js`) on purpose: the imports run in order,
 so `window.renderMathInElement` is there when `site.js` runs, as it was when KaTeX's deferred CDN
@@ -570,7 +645,7 @@ there. Signs that a reader is stuck (several quick checks, the same wrong answer
 in the card after a miss, two misses with no clue opened; `src/learn/stuck.ts`, thresholds in
 `src/learn/constants.ts`) only change the words of that line, once each per visit; they are kept in
 memory, never stored, and never hold what was typed. The ladder is `src/ui/ladder.ts` (markup,
-focus) over `src/learn/ladder.ts` (state), styled by `assets/ladder.css`, and the same in calm mode.
+focus) over `src/learn/ladder.ts` (state), styled by `assets/ladder.css`, and the same in Study mode.
 A clue's text should name the next idea and never the number: a hint that gives the answer away
 undoes the ladder.
 
@@ -642,10 +717,10 @@ degrades to a short note instead of breaking the page around it.
 
 Widgets are plain SVG built through a set of shared helpers: `Plot`, `grid`, `curvePath`, `slider`,
 `chips`, `controls`, `readout`, `note`, `dragX`, `el`, `fmt`, `missions`, `animate` (which jumps to
-the end state under `prefers-reduced-motion`), and the style table `S`, all exported on
+the end state under `prefers-reduced-motion` or the settings sheet's Reduce motion), and the style table `S`, all exported on
 `window.BMPlot`. Two more — `dragPoints`, for two-dimensional handles, and `arrowTo` — are
 internal to `widgets.js` and available to any factory in that file. Colours come from CSS custom
-properties, so every figure follows the theme automatically. The convention throughout is: build the frame once, redraw a single `<g>` on each
+properties, so every figure follows the reading panel (light paper, or dark when the reader chose it) automatically. The convention throughout is: build the frame once, redraw a single `<g>` on each
 change, and use the readout to say in words what the picture is claiming.
 
 #### 3D scenes
@@ -681,8 +756,10 @@ the `widgets` suite of `check-browser.js` fails. The WebGL painter, `assets/scen
 not in the bundle a page loads: `scenes3d.js` imports it with `import()` when a stage nears the
 screen and Three.js has arrived, and the build makes it a chunk of its own, as it does Three.js
 itself (`src/vendor/three.js`, which `three-loader.js` imports the same way). A Three.js name
-the painter or the map starts to use is added to `src/vendor/three.js` (the `lib/vendor.js` test
-in `tools/checks.test.js` holds that file's exports to exactly the names those two files use).
+the painter or the world starts to use is added to `src/vendor/three.js` (the `lib/vendor.js` test
+in `tools/checks.test.js` holds that file's exports to exactly the names `scenes3d-gl.js`,
+`map3d.js` and `src/world/*.ts` use; `src/world/three.ts` types the namespace the world is handed as
+that module, so a name missing there is also a type error).
 When the WebGL painter cannot start, a stage falls back to the SVG painter and says nothing in
 the console, on purpose; so that a Three.js release that broke only the painter cannot pass on
 the flat pictures, `tools/game/scenes.test.js` and the `widgets` suite of `check-browser.js` hold
@@ -765,6 +842,106 @@ Answers are graded by the same `matches()` as the exercises. Mark a generator wi
 answers `timed: false`. Hints name the next idea and never the number: `tools/check-gen.js` fails a
 hint that contains its answer.
 
+### The course world
+
+The contents page is the hub: `index.html` puts the world's box (`div[data-map3d]`) first in
+`<main>`, above the hero and the chapter list. `assets/map3d.js` decides, before anything 3D is
+fetched, which **tier** the device gets (`src/world/tiers.ts`):
+
+| Tier | Chosen when | Pixel ratio | Draw calls | Triangles | Props per region | Idle motion |
+| --- | --- | --- | --- | --- | --- | --- |
+| list | no WebGL 2, Save-Data, `?3d=off`, the 3D course map switch off, or the watchdog gave up | — | — | — | — | — |
+| low | Graphics quality Low; or a software renderer (SwiftShader, llvmpipe, WARP), a coarse pointer with four cores or fewer, or a low-end device (2 GB of memory or less) | 1 | 10 | 9,000 | the fewest | none |
+| medium | Graphics quality Medium; everything else | 1.5 | 12 | 11,000 | more | 5 s after input |
+| high | only Graphics quality High | 2 | 12 | 14,000 | the most | 5 s after input |
+
+Each tier also caps the drawing buffer's pixels (1.2, 2.1 and 4.2 million), so a big canvas on a
+dense screen is drawn at fewer device pixels per CSS pixel. A **watchdog** watches the frames
+drawn while something moves, and judges them every 60 frames or every 2 seconds of them,
+whichever comes first (never on fewer than 8, so the low tier, whose only frames are camera
+flights, is judged within a few flights even at five frames a second): when they average more
+than 34 ms (under 30 a second), the world steps down one tier, and from low to the list. When
+the tier was the device's own, the tier it settles on is kept in `bm.prefs.v1` as `gfxAuto`
+(this device's, never synced), so the next visit starts there; a choice of graphics quality, or
+switching the 3D map on, clears it. A tier the learner chose is stepped down for the visit
+only, except that the list is kept whatever was chosen: a device too slow for the low tier would
+otherwise fetch Three.js and the world's chunk on every visit only to give them up.
+
+The world's place is kept from the **first paint**. The world stands above the hero, and the
+module that draws it runs after the page is painted, late on a slow network; a box that
+appeared only then would drop the hero the reader is already looking at by the world's height.
+So the inline boot script (`src/boot.js`) makes the cheap tests first (WebGL 2 in the browser,
+no Save-Data, no `?3d=off`, the map not switched off and not given up as too slow) and stamps
+`html[data-world]`, and `assets/map3d.css` holds the box at the size of the Part buttons' row
+and the stage until `map3d.js` fills it, or gives it up and the attribute with it.
+
+When the tier is not the list, the box shows its four Part buttons (disabled until the world
+is drawn) and a "Loading the map" panel at once, in the place kept for them, and `map3d.js`
+fetches Three.js
+(`BM3D.load()`, the loader the 3D scenes share) and the world's own chunk, `bundle/world.js`
+(`import()` of `src/world/index.ts`), side by side. If either fails the box goes and the list
+stands alone; `BMMap3D.why()` says why. No other page asks for either chunk (the pages suite
+watches the requests).
+
+What is drawn (`src/world/`): four **terraces**, one per Part, stepping up and back from the
+Foundry to the Observatory, each with its own props made only of Three.js primitives (`props.ts`
+places them, seeded, clear of the islands, the path and the gates, tall ones never in front of a
+row; `regions.ts` builds them): chimneys with smoke, a furnace, crates and an anvil in the
+Foundry; tents, hills and trees in the Fields; a lattice of posts, axis beams and nodes in the Grid;
+a dome, a telescope, stars on rods and rocks in the Observatory; and along each terrace's front
+edge a rim of low pieces (blocks, bushes, capped posts, crystals), set closer with each tier's
+detail; and behind the Observatory, two rows of **far hills** (`placeRange`), so the last Part,
+which has no terrace rising behind it as the others have, is not framed under a band of empty
+sky. Every prop is inked in its region's `--region-ink`, which stands 3:1 off that region's
+ground in both themes, as does the selection ring (the far hills are not inked: lines that far
+off break into dashes). On them stand the chapter islands,
+the path's stones and the review gates. All of that is **one mesh and one set of ink edges**
+(`batch.ts` merges the primitives with vertex colours and flat normals), so the still world is two
+draw calls; the progress marks (`marks.ts`: ring, boss, flag, stars) are two more, rebuilt only
+when progress changes; the marker, the selection ring, the smoke and the telescope are the rest.
+The course map before the world took 109 draw calls a frame at rest and up to 139 in flight; the
+world took at most 9 at any tier, width or Part in headless Chromium (7 at 1280 wide, where
+`tools/game/map.test.js` measures it). The pointer is tested against invisible
+stand-ins for the islands and gates.
+
+**Colour and light.** Every colour is a token, read at run time from probes in the box
+(`materials.ts`): the islands' paper and the Parts' hues follow the reading panel, and each
+region's ground, rock, sky, fog, glow and ink (`--region-*`) follow the theme. Colour handling is
+the scenes' (ColorManagement off, linear output), so a token goes in and comes out as written.
+Shading is **toon**: a three-band ramp (a three-texel texture built in code, the only texture) on
+one key light, plus an even ambient term, tuned (`lighting.ts`) so a face turned up shows its token
+exactly and the others 0.79 and 0.62 of it. The sky is the region's `--region-sky` and the fog its
+`--region-fog`, mixed between two regions as the camera moves. The fog starts 4 units behind the
+camera's target, where the terrace in view ends, so that terrace keeps its colours exactly, and
+is whole 16 behind it: the back of the terrace behind fades by about a third toward the fog, and
+what is further back (the next terraces, the far hills) by half or more. `map.test.js` draws the
+frame without the fog and checks it changes. No post-processing and no bloom.
+Labels over the world sit on solid paper (`--text` on `--surface`, a measured pair).
+
+**Motion.** Frames are drawn on demand: for a camera flight, and on medium and high for five
+seconds of **idle motion** after an input (the marker's bob, the Foundry's smoke, the
+Observatory's telescope), which then runs to the end of the bob and stops; an idle page asks for no
+frames at all. Study mode and reduced motion (the device's or the sheet's) stop idle motion and
+turn flights into cuts. Nothing flashes and nothing loops for longer than the window.
+
+**Keyboard and screen readers.** The canvas is `aria-hidden` and not focusable; the chapter list
+is the accessible version, and the four Part buttons are real buttons. Focusing a chapter in the
+list selects its island (ringed and labelled) and marks the list item, at any size: the world
+stands above the hero and the list below it, so on most screens the two are not seen together,
+and then the camera cuts to the island, so a keyboard learner who tabs down the list and scrolls
+back up finds the world on that chapter; where the stage (half of it) and the link are both in
+view, it flies there. Hovering a chapter flies there only while the stage is in view, since a
+pointer sweeping the list is not choosing. A click on
+an island opens the same link as the list (a modified or middle click a new tab, a tap selects
+first). If the world goes (a lost context, the watchdog) while a Part button has the focus, the
+focus moves to the list.
+
+`BMMap3D.info()` is the test handle: `triangles`, `calls` (the last frame's draw calls),
+`pixelRatio`, `tier`, `reason`, `budget` (the tier's caps), `ambient`, `frames`, `bobbing`,
+`flying`, `current`, `hot`, `stones`, `isles` (what each island shows), `ring` (the
+selection ring's colour) and `fog` (its near and far). `BMMap3D.fog(false)` draws the same view
+at once without the fog (and `fog(true)` with it), for the check that it shows.
+
 ### Lesson mode
 
 `assets/lesson.js` needs nothing from the chapter markup. On load it cuts the top-level children
@@ -835,16 +1012,16 @@ memory but keeps the site:
 | `bm.attempts.v1` | per exercise: `tries`, `first`, `hints`, `rung` (the highest clue opened while unsolved), `opened`, `skipped`, `solved`, `section` |
 | `bm.activity.v1` | XP per day and the daily goal; streak and totals are derived from it |
 | `bm.lesson.v1` | reading mode and the furthest step reached in each chapter |
-| `bm.last`, `bm.theme` | where to continue; light or dark |
+| `bm.last`, `bm.theme` | where to continue; light or dark, or nothing to match the system (this device only) |
 | `bm.game.v1` | achievements, compared solutions, recall per section, Arena bests, medals, Daily days (synced) |
 | `bm.run.v1` | the combo meter, an unfinished Arena run, the day's Arena XP counts (`arenaDay`) and the day the next-step card was hidden (`nextHide`) (this device only; cleared by reset and sign-out) |
-| `bm.prefs.v1` | calm mode, sound, 3D map, Arena tempo (this device only; survives a reset; keys the site does not know are kept) |
+| `bm.prefs.v1` | the settings sheet's and the Arena's settings: `calm` (Study mode), `sound`, `volume` (0 to 100, unset is 50), `motion` and `transparency` (`"reduce"`, unset follows the device), `panel` (`"dark"`, unset for light paper), `gfx` (`"low"`, `"mid"`, `"high"`, unset is Auto: the course world's tier), `map` (`"list"` keeps the chapter list alone), `gfxAuto` (not a setting: the tier the world's watchdog settled on, `"list"`, `"low"` or `"medium"`; cleared by a choice of `gfx` or `map`), `tempo` (this device only; survives a reset; keys the site does not know are kept; a value it does not know reads as unset) |
 | `bm.sync.v1` | with accounts on: whose progress this browser holds and the last reset it knows of |
 | `bm.sync.pending.v1` | with accounts on: progress that could not be saved when its reader signed out, kept aside per reader until they sign in here again |
 
 Every write is announced on `window.BMStore` (`on(fn)` / `emit(change)`), with change types
 `state`, `attempt`, `solved`, `xp`, `sync`, and `reset`, plus `opened`, `ladder`, `chapterDone`,
-`home`, `combo`, `level`, `achievement`, `encounter`, `arena` and `prefs` from the game layer. The header
+`home`, `combo`, `level`, `achievement`, `encounter`, `arena` and `prefs` from the game layer, and `theme` when the reader chooses one. The header
 counters, lesson mode, the game layer and account sync are all just listeners; `site.js` knows
 nothing about a server.
 
@@ -926,8 +1103,107 @@ sorts after `"10"`. A change to what an existing field means needs a larger `v`.
 The "areas to strengthen" ranking is `BMInsights` in `site.js`: each attempted exercise gets a
 struggle score from 0 (right first time) to 1, averaged per section.
 
-The theme follows the operating system by default and can be overridden with the toggle in the
-header.
+The theme follows the operating system by default and can be set to light or dark in the
+settings sheet ("Match system" goes back to following it).
+
+### The look: tokens, the frame and the panel
+
+Every colour on the site is a custom property in [`src/styles/tokens.css`](src/styles/tokens.css),
+which the shell links first of the site's own stylesheets on every page; no other stylesheet
+writes a colour (`check-static.js` `colours` fails a hex, `rgb()`, `hsl()` or a named colour anywhere else). The
+page has two surfaces, and the tokens keep them apart:
+
+- **The frame** is the page around the reading: the body, with a faint motif of the page's Part
+  (the graph paper on a page of no Part), the top bar, the region banner's band, the toasts. It is
+  dark in both themes; `html[data-theme]` only changes its shade (`--frame-*`, `--hud-*`,
+  `--part-frame`, and the 3D world's `--region-*`, plain six-digit hex because WebGL reads them).
+  The top bar is glass (`--glass`) where the browser can blur what scrolls under it, and its solid
+  colour (`--glass-solid`) everywhere else and when the reader asks for less transparency, on the
+  device or with the settings sheet's Reduce transparency (`html[data-transparency]`, stamped
+  before the first paint), which also makes the modal sheet's scrim (`--scrim-glass`) solid.
+- **The panel** is the reading column, `.wrap` or `.wrap-narrow`: prose, worked examples, figures,
+  3D scenes, exercise cards, the course world's islands and labels (its regions' sky and ground
+  are the theme's `--region-*`). It is light paper in both themes, because dark text
+  on a light panel reads best for long stretches; a reader can choose a dark panel
+  (the settings sheet's Reading panel, `bm.prefs.v1` `panel: "dark"`), which `src/boot.js` stamps
+  as `html[data-panel]` before the first paint. The paper tokens (`--bg`, `--surface`, `--text`, `--accent`, `--part`, `--plot-*` …)
+  follow `data-panel`, never `data-theme`.
+
+The same file holds the motion tokens (`--dur-press` … `--dur-max` and the easings, with the old
+`--t-1` … `--t-5` kept as aliases), magnitude (`--mag-s`, `--mag-m`, `--mag-l`: how far feedback
+swells, by the size of the event), and the focus recipe (`--focus` on paper, `--focus-frame` on the
+frame: the top bar and the skip link that appears over it). Three static checks hold the rest:
+`contrast` measures every pair in `tools/contrast-pairs.json` in both themes with both panels and
+every Part, glass laid over the paper it can sit on, and print restating every paper token the dark
+panel sets; `animations`
+fails anything that loops forever or repeats more than three times, or more than three times a
+second, counting the flashes inside a cycle's `@keyframes`; `reading-column` fails an animation, a moving transition
+or decoration inside the reading column and the exercise cards unless
+`tools/reading-column-allow.json` lists the rule with its reason. Print has no frame: paper, ink,
+nothing else.
+
+### Between pages
+
+Every navigation is a full page load. Where the browser has cross-document view transitions,
+the page arriving fades in under a top bar that stays put; elsewhere pages load exactly as
+before, since a browser that does not know the at-rule ignores it. Support, from
+[caniuse](https://caniuse.com/cross-document-view-transitions) and
+[MDN](https://developer.mozilla.org/en-US/docs/Web/CSS/@view-transition) in October 2026:
+Chrome and Edge 126 and later, Opera 112 and later, Safari and iOS Safari 18.2 and later, and
+Chrome for Android (MDN: 126 and later, with Android's WebView; caniuse lists only its current
+version, 154, which has them). Firefox (to 160) has only same-document view transitions, so it
+does not run these. The two disagree on Samsung Internet: caniuse lists it without them (to 30),
+MDN with them from 28. MDN marks the feature "limited availability", not Baseline.
+
+- **The opt-in** is `@view-transition { navigation: auto; }` inside
+  `@media (prefers-reduced-motion: no-preference)`, so a device that asks for less motion never
+  opts in. It is the one inline `<style>` of every page, which `tools/lib/shell.js` (`OPT_IN`)
+  writes straight after the boot script, and not a rule of the bundle's CSS: the browser asks
+  the page arriving whether it opts in before that page's stylesheets are sure to have been
+  applied, and with the rule in `all.css` Chromium 153 turned most navigations made soon after
+  a page loaded down, with an uncaught "ViewTransition opt-in disabled" error on the new page.
+  Inline, it never did.
+- **What moves** is in `assets/game.css` ("Between pages", inside the motion block): the top bar
+  is the one named element (`view-transition-name: hud`), and its pseudo-elements and every
+  group have no animation, so the top bar is the new page's at once and in the same place, and so
+  is every part of the HUD in it that both pages show: the parts only some pages have (hearts,
+  the clock, a combo that is only a shield) sit to the left of the rest (`tools/lib/shell.js`
+  `hud()`), so nothing a reader watches jumps when a chapter or the Arena adds them. The
+  settings sheet, open beside the rail on a wide screen, has a name of its own while it is open
+  (`hud-sheet`), so a link followed from it fades the sheet out with the page from where it hung
+  instead of taking it away with the old top bar in one frame; the modal sheet of a narrow
+  screen is in the top layer, which fades with the page anyway. The rest
+  of the page is the root's snapshot, the viewport as the reader sees it, so a page left half-way
+  down fades out where it was and nothing slides or stretches: the old page goes in `--dur-state`
+  eased by `--ease-in`, the new one comes in `--dur-reveal` eased by `--ease-out`, over the old
+  with plain alpha and the frame colour behind both. A transition is over about 250ms after the
+  new page shows.
+- **Clicks in that quarter of a second are lost.** While a transition runs, the page under it is
+  not hit-tested: the specification has every captured element, the top bar and the root here,
+  behave as if it had `pointer-events: none`, so a click lands on `<html>` and does nothing, even
+  on the HUD that looks as if it has not moved. The window is the longest of the fades,
+  `--dur-reveal`; the `transitions` suite holds it to 250ms and the menu button to taking clicks
+  again once the transition is over, so a longer token cannot widen it quietly. Study mode and
+  Reduce motion have no transition and so no such window.
+- **Back and forward** restore a page from the browser's back/forward cache, and that page is
+  offered a transition like any other: it runs, or the boot script skips it (its listeners are
+  still there), exactly as on a page arriving from a link. A page stays in that cache only while
+  nothing makes it ineligible (an `unload` listener, `Cache-Control: no-store` on the page or on
+  a request it makes); the `transitions` suite, with the pages served under GitHub Pages'
+  `max-age=600`, fails when going back or forward does not restore the page.
+- **Study mode and Reduce motion** are attributes on `<html>`, which an at-rule cannot read, so
+  the boot script (`src/boot.js`) skips the transition itself: on `pageswap` for the page being
+  left (Study mode may have been switched on there since it loaded) and on `pagereveal` for the
+  page arriving, which it listens for before that page's first frame.
+- **Nothing waits for it.** No page holds its first paint back for a transition (no
+  `blocking="render"`), so the old page shows for as long as it would have anyway: the old page
+  stays live while the next one is fetched, and its snapshot is taken only when the new page
+  commits. A navigation that takes longer than the browser's timeout, four seconds in Chrome
+  ([Chrome's guide](https://developer.chrome.com/docs/web-platform/view-transitions/cross-document)),
+  is shown with no transition. Chromium then reports the rejection of a transition no script was
+  handed as an uncaught error; the boot script quiets that one rejection and no other.
+
+The `transitions` browser suite holds all of this in Chromium (`tools/README.md`).
 
 ### Checking your changes
 
@@ -940,10 +1216,10 @@ npm run check           # everything that needs no browser, about 20 s:
 npm run typecheck       #   tsc over src/, vite.config.ts and vitest.config.ts
 npm run check:static    #   syntax, progress keys, ids, lesson steps, the shell, links, sections,
                         #   widgets, choices, migrations, placeholders, merge laws, contrast,
-                        #   animations
+                        #   animations (no loop, no flash), colours (only in tokens.css), the reading column
 npm run check:gen       #   every Arena generator over 500 seeds
 npm run check:scenes    #   every 3D scene: mount, controls, missions, answers
-npm run test:node       #   the progress-key, id and lesson-step rules on small pages;
+npm run test:node       #   the progress-key, id and lesson-step rules and the CSS checks on small pages;
                         #   BMAccount.merge with the game store and fields this copy has never heard
                         #   of; account sync (stale tabs, resets, failed sign-outs, newer and older
                         #   sites and tables, sign-in through another service); the game's rules,
@@ -951,37 +1227,45 @@ npm run test:node       #   the progress-key, id and lesson-step rules on small 
                         #   answers after it (a clue is never charged, no help pays more than
                         #   effort: XP, combo, hearts, medal); Arena XP across a day (less per
                         #   section the more is paid, the finishing bonus twice, fresh next day)
-npm run test:unit       #   Vitest: the TypeScript modules' tests beside them (src/**/<name>.test.ts):
+npm run test:unit       #   Vitest: the modules under src/ (src/**/<name>.test.ts):
                         #   the ladder's state, the stuck signals, the wrong-answer questions (none
                         #   of them, nor any message detect() gives for a slip made on a key of
                         #   the course, holds anything that grades as that key); the review
                         #   schedule, a due review's plan (due only, the caps, taking turns), the
                         #   XP decay, the next best step, the list of sections the Arena
                         #   can ask about against its generators, and the line of text every
-                        #   formula of the course is named by
+                        #   formula of the course is named by; the level curve and the HUD's
+                        #   view, drawn the same by the inline HUD script; the course world's
+                        #   layout, props and tiers
 
 npm run build           # dist/
 npm run check:dist      # dist/ is the source's site, each source page taken with its shell
                         # written: same pages and nothing extra, links and font urls resolve
                         # inside it, <main> and the page around it untouched, the boot script
-                        # inline and one module entry whose bundle is its kind's imports (KaTeX
-                        # by its vendor module), supabase-js and Three.js each a chunk of its
+                        # inline, one module entry whose bundle is its kind's imports (KaTeX
+                        # by its vendor module) and the HUD script after the top bar, supabase-js, Three.js and the course world each a chunk of its
                         # own that no page names, no copy of a source script, nothing from
                         # another server, CSS text and cascade the source's with the vendor CSS
                         # ahead, no secrets
 
 npm run test:browser    # the game, the next-step card, the Arena and its due review, the account
                         # page (and that a signed-out page never fetches the supabase chunk), the
-                        # 3D stages, the new 3D exercises and the course map, each driven in
+                        # 3D stages, the new 3D exercises and the course world (its tiers and
+                        # their budgets, the watchdog, idle frames, keyboard), each driven in
                         # headless Chromium
 npm run check:browser   # dist/ served: every page × theme × width (errors, theme before first
                         # paint, scripts ran, KaTeX rendered, no request to any other server,
-                        # Three.js fetched only where there is 3D, overflow, lesson mode),
+                        # Three.js fetched only where there is 3D, the world's chunk only on the
+                        # contents page, overflow, lesson mode),
                         # figures, every exercise typed back, restore of old progress, saved
-                        # state from the last release, reduced motion, WebGL and its fallbacks,
-                        # axe at both widths (button and form names, table headers, heading
-                        # order and scroll boxes a keyboard cannot reach fail; other rules
-                        # warn). About 10 minutes, and nothing in it needs the network
+                        # state from the last release, reduced motion, the frame and the reading panel
+                        # (both themes, both panels, contrast, print), the HUD (no shift when the
+                        # bundle loads) and the settings sheet (mouse, keys, focus, each setting
+                        # kept and in effect, axe), the view transition between pages (the
+                        # HUD still; skipped in Study mode and reduced motion), WebGL and its
+                        # fallbacks, axe at both widths (button and form names, table headers,
+                        # heading order and scroll boxes a keyboard cannot reach fail; other
+                        # rules warn). About 10 minutes, and nothing in it needs the network
 
 npm run check:all       # all of the above, in that order
 ```

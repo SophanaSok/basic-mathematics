@@ -164,7 +164,9 @@
   }
 
   function reduced() {
-    return window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    /* the device's setting, or the settings sheet's Reduce motion (html[data-motion]) */
+    return (window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches) ||
+      document.documentElement.getAttribute("data-motion") === "reduce";
   }
 
   function advance() {

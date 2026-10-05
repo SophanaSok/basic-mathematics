@@ -20,7 +20,7 @@
    650 as a true 650, so they are not imported as they are. This writes the rules
    instead: for each face in FACES, the package stylesheet's @font-face per subset (its
    file, its unicode-range, font-display: swap) once per requested weight, the family
-   named as the tokens in assets/site.css name it (--sans, --serif, --display), the file
+   named as the tokens in src/styles/tokens.css name it (--sans, --serif, --display), the file
    named by its package path, which Vite resolves and copies beside the bundle
    (vite.config.ts). The italic rules are the static package's, as they are.
 
@@ -86,7 +86,7 @@ function fontsCss() {
     "   with font-display: swap and the subset's unicode-range, so a browser fetches only the",
     "   subsets a page uses and paints with the fallback meanwhile. The upright families are",
     "   the packages' variable files, the italic a static instance: the files Google served.",
-    "   The family names are the ones the tokens in assets/site.css name (--sans, --serif,",
+    "   The family names are the ones the tokens in src/styles/tokens.css name (--sans, --serif,",
     "   --display), whose fallbacks are unchanged. The shell links this file on every page,",
     "   first of all its stylesheets, where the Google Fonts link was (tools/lib/shell.js",
     "   VENDOR_STYLES); the build copies the files beside the bundle.",

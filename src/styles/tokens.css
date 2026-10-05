@@ -1,0 +1,447 @@
+/* ===========================================================================
+   Basic Mathematics — design tokens
+   The one stylesheet that defines a colour. Every other stylesheet draws from the
+   custom properties here (tools/check-static.js `colours` fails a hex, rgb() or
+   hsl() literal anywhere else), and the shell links this file first of the site's
+   own, on every page (tools/lib/shell.js PAGE_KINDS).
+
+   Two surfaces, set apart on purpose:
+     the FRAME   the page around the reading: the top bar, the gutters, the region
+                 banner's band, toasts. Dark in both themes; the light/dark theme
+                 (html[data-theme], src/boot.js) switches its shades.
+     the PANEL   the reading column: prose, worked examples, figures, exercise cards,
+                 3D scenes, the course map. Light paper for everyone by default, dark
+                 only when the reader chooses it (bm.prefs.v1 panel: "dark", stamped as
+                 html[data-panel] by the boot script before first paint).
+   So the paper tokens (--bg, --surface, --text, --accent, --part, --plot-* …) follow
+   html[data-panel], and the frame tokens (--frame-*, --hud-*, --region-*, --part-frame)
+   follow html[data-theme]. The two blocks never set the same name.
+
+   tools/lib/css.js tokens() reads the blocks by their selector shapes: `:root`,
+   `:root[data-theme="dark"]`, `:root[data-panel="dark"]`, `[data-part="id"]` and either
+   condition before a `[data-part]`, plus @supports blocks, which apply in the browsers
+   the site is for. Print, contrast and transparency media blocks restate tokens on
+   purpose and are not measured. tools/contrast-pairs.json is measured against every
+   theme × panel × Part. WebGL and the 3D scenes read some of these through
+   getComputedStyle: those stay plain six-digit hex, as their comments say.
+   =========================================================================== */
+
+/* ---------------------------------------------------- the paper: light ---- */
+
+:root {
+  --bg: #f6f1e7;
+  --surface: #fffdf8;
+  --surface-2: #ede6d8;
+  --grid-line: #ece5d6;
+  --text: #171923;
+  --muted: #555a6b;
+  --border: #e0d9c9;
+  --border-strong: #c2b9a6;
+  --tile-border: #c2b9a6;
+  --tile-edge: #b0a68f;
+  --line-ui: #73788a;
+  --accent: #2646d4;
+  --accent-deep: #17309f;
+  --accent-soft: #e4e9ff;
+  --focus: #2646d4;
+  --accent-2: #a04608;
+  --accent-2-soft: #fdeedd;
+  --ok: #14713a;
+  --ok-deep: #0d5329;
+  --ok-soft: #dcf3e2;
+  --bad: #b42318;
+  --bad-deep: #861810;
+  --bad-soft: #fde7e4;
+  --hint-ink: #8a3c06;
+  --hint-soft: #fdf3e3;
+  --flame: #d4530a;
+  --xp: #f6b40e;
+  --xp-ink: #855600;
+  --on-xp: #171923;
+  --heart: #c81e4a;
+  --on-accent: #ffffff;
+  --on-part: #ffffff;
+  /* form controls and scrollbars inside the panel (site.css .wrap) */
+  --panel-scheme: light;
+
+  /* elevation means "you can act on this": tiles get a hard edge (--shadow-tile, on
+     every element below), panels get none */
+  --shadow-float: 0 10px 30px -10px rgba(20, 22, 31, .35);
+  --shadow-1: 0 1px 2px rgba(23, 24, 28, .05), 0 2px 6px rgba(23, 24, 28, .04);
+  --shadow: 0 1px 2px rgba(23, 24, 28, .05), 0 8px 24px -6px rgba(23, 24, 28, .08);
+  --shadow-2: var(--shadow-float);
+
+  /* figures and 3D scenes; WebGL reads these, so keep them plain six-digit hex */
+  --plot-bg: #fffdf8;
+  --plot-grid: #e7e0d0;
+  --plot-axis: #777c8c;
+  --plot-curve: #2646d4;
+  --plot-curve-2: #a04608;
+  --plot-curve-3: #1f9456;
+  --plot-curve-4: #a3247a;
+  --plot-fill: rgba(38, 70, 212, .14);
+  --plot-point: #171923;
+  --plot-ink: #171923;
+  --plot-face-a: #c9d3fb;
+  --plot-face-b: #f6d3ae;
+  --plot-face-c: #d3efdc;
+  --plot-ground: #f1ebdd;
+  --plot-hot: #f6b40e;
+}
+
+/* A tile's hard edge is the colour its own rule names in --edge (a button's is
+   --accent-deep, a solved card's --ok-deep). A var() inside a custom property is read
+   where the property is declared, so declared on :root alone this would be the
+   default edge on every tile; declared on every element, it reads that element's. */
+*, ::before, ::after {
+  --shadow-tile: 0 4px 0 var(--edge, var(--tile-edge));
+  --shadow-tile-sm: 0 2px 0 var(--edge, var(--tile-edge));
+}
+
+/* ----------------------------------------------- the frame: light theme ---- */
+/* Dark in both themes; the light theme's is a dusk indigo, the dark theme's (below)
+   near black, so the theme button visibly changes the page around the reading. */
+
+:root {
+  --frame-bg: #1a1f33;
+  --frame-raised: #272d47;
+  --frame-line: #7883a9;
+  --frame-text: #f4f1e9;
+  --frame-muted: #b3b9cd;
+  /* the frame's own accent, where a Part's colour is not the one to use (the Arena) */
+  --frame-accent: #93a9ff;
+  /* the solid backdrop behind a dialog or sheet; text on it is frame text */
+  --scrim: #0d0f18;
+  /* what a tile's hard edge is mixed down with (color-mix(.., var(--ink-shadow))): the
+     edge is its own colour, darker */
+  --ink-shadow: #000000;
+
+  /* the scoreboard rail is the frame */
+  --hud-bg: var(--frame-bg);
+  --hud-text: var(--frame-text);
+  --hud-muted: var(--frame-muted);
+  --hud-line: #3a415e;
+  --hud-chip: var(--frame-raised);
+  --hud-track: #3d4566;
+  --hud-xp: #ffc83d;
+  --hud-flame: #ff9447;
+  --hud-heart: #ff6b81;
+  --hud-ok: #6fdc98;
+  --hud-focus: var(--focus-frame);
+  /* the Arena clock's static stripe at critical, see-through over its chip; the clock's
+     digits sit on it, so it is measured laid over --hud-chip */
+  --hud-stripe: color-mix(in srgb, var(--hud-heart) 16%, transparent);
+
+  /* Translucency, always over a solid fallback: --glass is --glass-solid unless the
+     browser can mix colours (the @supports block below) and the reader has not asked
+     for less transparency (the media block at the end). An element painted with
+     --glass declares a solid background-color of --glass-solid as well. */
+  --glass-solid: var(--frame-bg);
+  --glass: var(--glass-solid);
+  /* the scrim behind the settings sheet when it is modal (a narrow screen): the page
+     shows through it dimmed, or it is solid --scrim on the same terms as --glass. No
+     text sits on it. */
+  --scrim-glass: var(--scrim);
+
+  /* the page's own scrollbar and canvas are the frame's: dark in both themes */
+  color-scheme: dark;
+}
+@supports (color: color-mix(in srgb, red 50%, blue)) {
+  :root { --glass: color-mix(in srgb, var(--frame-bg) 88%, transparent); --scrim-glass: color-mix(in srgb, var(--scrim) 72%, transparent); }
+}
+
+/* ------------------------------------------------ the frame: dark theme ---- */
+/* src/boot.js always stamps data-theme (the saved choice, else the OS setting) before
+   first paint, so the dark frame needs only this one block */
+
+:root[data-theme="dark"] {
+  --frame-bg: #0a0c13;
+  --frame-raised: #161a28;
+  --frame-line: #6d789e;
+  --frame-text: #f4f1e9;
+  --frame-muted: #aab0c4;
+  --frame-accent: #93a9ff;
+  --scrim: #05060a;
+  --hud-line: #2c3249;
+  --hud-track: #313853;
+}
+
+/* ------------------------------------------------- the paper: dark panel ---- */
+/* Only when the reader asks for it: html[data-panel="dark"] (bm.prefs.v1 panel). */
+
+:root[data-panel="dark"] {
+  --bg: #12151d;
+  --surface: #1b1f2c;
+  --surface-2: #262b3b;
+  --grid-line: #171b25;
+  --text: #ece9e1;
+  --muted: #a8adbf;
+  --border: #2d3346;
+  --border-strong: #454d66;
+  --tile-border: #454d66;
+  --tile-edge: #07090e;
+  --line-ui: #7f879f;
+  --accent: #93a9ff;
+  --accent-deep: #5d77e0;
+  --accent-soft: #1e2749;
+  --focus: #93a9ff;
+  --accent-2: #f2a65c;
+  --accent-2-soft: #3a2917;
+  --ok: #6fdc98;
+  --ok-deep: #3fa468;
+  --ok-soft: #15311f;
+  --bad: #ff938c;
+  --bad-deep: #d9605a;
+  --bad-soft: #3b1c1d;
+  --hint-ink: #f2a65c;
+  --hint-soft: #2e2616;
+  --flame: #ff9447;
+  --xp: #ffc83d;
+  --xp-ink: #ffc83d;
+  --on-xp: #1a1405;
+  --heart: #ff6b81;
+  --on-accent: #0c1126;
+  --on-part: #10131c;
+  --panel-scheme: dark;
+  --shadow-float: 0 10px 30px -10px rgba(0, 0, 0, .6);
+  --shadow-1: 0 1px 2px rgba(0, 0, 0, .4);
+  --shadow: 0 1px 2px rgba(0, 0, 0, .4), 0 10px 28px -8px rgba(0, 0, 0, .5);
+  --plot-bg: #1b1f2c;
+  --plot-grid: #2b3144;
+  --plot-axis: #7b839b;
+  --plot-curve: #6f88ee;
+  --plot-curve-2: #d07f2a;
+  --plot-curve-3: #2bab70;
+  --plot-curve-4: #d85fb0;
+  --plot-fill: rgba(111, 136, 238, .20);
+  --plot-point: #ece9e1;
+  --plot-ink: #ece9e1;
+  --plot-face-a: #28336a;
+  --plot-face-b: #4f3312;
+  --plot-face-c: #1c4630;
+  --plot-ground: #171b26;
+  --plot-hot: #ffc83d;
+}
+
+/* State marks for answer blanks. An <input> takes no pseudo-elements, so its tick or
+   cross is a background picture, and a background picture cannot read a custom property:
+   these carry the --ok and --bad values of each panel (the `colours` check holds them
+   to those tokens). */
+:root {
+  --mark-ok: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'%3E%3Cpath d='M4 10.5l4 4 8-9' fill='none' stroke='%2314713a' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  --mark-bad: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'%3E%3Cpath d='M5 5l10 10M15 5L5 15' fill='none' stroke='%23b42318' stroke-width='3' stroke-linecap='round'/%3E%3C/svg%3E");
+}
+:root[data-panel="dark"] {
+  --mark-ok: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'%3E%3Cpath d='M4 10.5l4 4 8-9' fill='none' stroke='%236fdc98' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  --mark-bad: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'%3E%3Cpath d='M5 5l10 10M15 5L5 15' fill='none' stroke='%23ff938c' stroke-width='3' stroke-linecap='round'/%3E%3C/svg%3E");
+}
+
+/* Icons drawn as masks: the shape comes from here, the colour from whatever
+   background-color the element is given, so they follow every theme and Part. */
+:root {
+  --icon-tick: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'%3E%3Cpath d='M4 10.5l4 4 8-9' fill='none' stroke='black' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  --icon-cross: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'%3E%3Cpath d='M5 5l10 10M15 5L5 15' fill='none' stroke='black' stroke-width='3' stroke-linecap='round'/%3E%3C/svg%3E");
+  --icon-star: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'%3E%3Cpath d='M10 1.5l2.6 5.5 6 .7-4.5 4.1 1.2 5.9L10 14.8l-5.3 2.9 1.2-5.9L1.4 7.7l6-.7z'/%3E%3C/svg%3E");
+  --icon-heart: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'%3E%3Cpath d='M10 17.5S2 12.6 2 7.2A4.2 4.2 0 0 1 10 5a4.2 4.2 0 0 1 8 2.2c0 5.4-8 10.3-8 10.3z'/%3E%3C/svg%3E");
+  --icon-heart-o: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'%3E%3Cpath d='M10 16.3S3.2 12 3.2 7.3A3.1 3.1 0 0 1 10 6.2a3.1 3.1 0 0 1 6.8 1.1c0 4.7-6.8 9-6.8 9z' fill='none' stroke='black' stroke-width='2.2' stroke-linejoin='round'/%3E%3C/svg%3E");
+  --icon-chevron: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'%3E%3Cpath d='M5 7.5l5 5 5-5' fill='none' stroke='black' stroke-width='2.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  --icon-next: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'%3E%3Cpath d='M7.5 4.5l5.5 5.5-5.5 5.5' fill='none' stroke='black' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  --icon-menu: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'%3E%3Cpath d='M3.5 5.5h13M3.5 10h13M3.5 14.5h13' stroke='black' stroke-width='2.2' stroke-linecap='round'/%3E%3C/svg%3E");
+  --icon-sound: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'%3E%3Cpath d='M3 7.5h3l4-3.5v12l-4-3.5H3z'/%3E%3Cpath d='M13 7a4 4 0 0 1 0 6M15.3 4.8a7 7 0 0 1 0 10.4' fill='none' stroke='black' stroke-width='1.8' stroke-linecap='round'/%3E%3C/svg%3E");
+  --icon-mute: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'%3E%3Cpath d='M3 7.5h3l4-3.5v12l-4-3.5H3z'/%3E%3Cpath d='M13 7.5l5 5M18 7.5l-5 5' fill='none' stroke='black' stroke-width='1.8' stroke-linecap='round'/%3E%3C/svg%3E");
+}
+
+/* ------------------------------------------- type, shape, motion, focus ---- */
+
+:root {
+  --sans: "Inter", ui-sans-serif, "Segoe UI", system-ui, Roboto, Helvetica, Arial, sans-serif;
+  --serif: "Newsreader", "Iowan Old Style", "Palatino Linotype", Palatino, "Book Antiqua", Georgia, serif;
+  --display: "Bricolage Grotesque", "Inter", ui-sans-serif, "Segoe UI", system-ui, sans-serif;
+  --mono: ui-monospace, "Cascadia Mono", Consolas, "Liberation Mono", monospace;
+  --measure: 66ch;
+  --hud-h: 3.5rem;
+  --radius: 16px;
+  --radius-sm: 11px;
+  --radius-xs: 7px;
+  --radius-pill: 999px;
+
+  /* Motion: how long, by what the motion is for. Nothing on the site runs longer than
+     --dur-max, and nothing loops (check-static.js `animations`). */
+  --dur-press: 80ms;     /* a button or tile sinking under a press */
+  --dur-state: 160ms;    /* a colour or state change */
+  --dur-reveal: 240ms;   /* something opening */
+  --dur-bar: 400ms;      /* a bar filling or draining */
+  --dur-move: 700ms;     /* something travelling across the screen */
+  --dur-max: 900ms;      /* the ceiling */
+  --ease-out: cubic-bezier(.2, .7, .2, 1);
+  --ease-in: cubic-bezier(.5, 0, .9, .4);
+  --ease-inout: cubic-bezier(.65, 0, .35, 1);
+  --ease-spring: cubic-bezier(.34, 1.56, .64, 1);
+  /* the names the stylesheets used first, kept */
+  --ease: var(--ease-out);
+  --t-1: var(--dur-press);
+  --t-2: var(--dur-state);
+  --t-3: var(--dur-reveal);
+  --t-4: var(--dur-bar);
+  --t-5: var(--dur-move);
+
+  /* Magnitude: how far feedback scales, by the size of the event. An answer is small,
+     a section's ward or a purchase medium, a boss down or a gate opening large. */
+  --mag-s: 1.02;
+  --mag-m: 1.06;
+  --mag-l: 1.12;
+
+  /* Focus: one recipe, `outline: var(--focus-width) solid var(--focus);
+     outline-offset: var(--focus-offset)` (site.css :focus-visible). --focus is the
+     ring on paper; the frame's surfaces (the top bar, its sheet) set --focus to
+     --focus-frame, the ring that stands off the dark frame. Both are measured against
+     every surface they can sit on (tools/contrast-pairs.json). */
+  --focus-width: 3px;
+  --focus-offset: 2px;
+  --focus-frame: #ffd24a;
+}
+
+/* ------------------------------------------------------ the four Parts ---- */
+/* Each Part carries its own hue, so the four read as four places. --part is set
+   on <body data-part> (by site.js) and on each Part's section of the contents page.
+   --part, --part-soft and --part-deep are paper (they follow the panel);
+   --part-frame is the same hue lifted to stand on the dark frame. */
+
+:root, [data-part="algebra"] { --part: #a04608; --part-soft: #fdeedd; --part-deep: #7d3806; --part-frame: #f2a65c; }
+[data-part="geometry"] { --part: #0c736b; --part-soft: #dcf3ef; --part-deep: #07514b; --part-frame: #5fd6c5; }
+[data-part="coordinates"] { --part: #5b3fc4; --part-soft: #ebe6fb; --part-deep: #3f2a91; --part-frame: #b9a6ff; }
+[data-part="topics"] { --part: #ad2468; --part-soft: #fbe5ef; --part-deep: #7c1849; --part-frame: #f690bd; }
+:root[data-panel="dark"], :root[data-panel="dark"] [data-part="algebra"] { --part: #f2a65c; --part-soft: #3a2917; --part-deep: #b9762f; }
+:root[data-panel="dark"] [data-part="geometry"] { --part: #5fd6c5; --part-soft: #12312d; --part-deep: #2f9c8d; }
+:root[data-panel="dark"] [data-part="coordinates"] { --part: #b9a6ff; --part-soft: #282145; --part-deep: #8570dd; }
+:root[data-panel="dark"] [data-part="topics"] { --part: #f690bd; --part-soft: #3a1c2a; --part-deep: #c95f8e; }
+
+/* The four regions of the 3D world, per theme: sky, ground, rock, fog, a glow, and
+   --region-ink for marks that carry meaning (it stands 3:1 off the sky and the
+   ground). WebGL reads these, so keep them plain six-digit hex. */
+:root, [data-part="algebra"] {
+  --region-sky: #f6e7d2; --region-ground: #e9c9a4; --region-rock: #b98a5e; --region-fog: #f3e2cc; --region-glow: #c2410c; --region-ink: #7d3806;
+}
+[data-part="geometry"] {
+  --region-sky: #dff1ec; --region-ground: #bfe3d6; --region-rock: #6fae9f; --region-fog: #e3f2ee; --region-glow: #0c736b; --region-ink: #07514b;
+}
+[data-part="coordinates"] {
+  --region-sky: #e9e6fa; --region-ground: #cfc6f3; --region-rock: #8f7fd6; --region-fog: #ebe8fa; --region-glow: #5b3fc4; --region-ink: #3f2a91;
+}
+[data-part="topics"] {
+  --region-sky: #f8e4ee; --region-ground: #f0c4d8; --region-rock: #c9749b; --region-fog: #f9e8f0; --region-glow: #ad2468; --region-ink: #7c1849;
+}
+:root[data-theme="dark"], :root[data-theme="dark"] [data-part="algebra"] {
+  --region-sky: #1a1210; --region-ground: #4a2f1c; --region-rock: #2e2019; --region-fog: #20160f; --region-glow: #ffa34d; --region-ink: #ffa34d;
+}
+:root[data-theme="dark"] [data-part="geometry"] {
+  --region-sky: #0e1c1b; --region-ground: #173b36; --region-rock: #10272a; --region-fog: #0f2220; --region-glow: #5fe8d2; --region-ink: #5fe8d2;
+}
+:root[data-theme="dark"] [data-part="coordinates"] {
+  --region-sky: #14122a; --region-ground: #2a2456; --region-rock: #1a1738; --region-fog: #17142d; --region-glow: #a48bff; --region-ink: #a48bff;
+}
+:root[data-theme="dark"] [data-part="topics"] {
+  --region-sky: #1d0f18; --region-ground: #45203a; --region-rock: #2a1422; --region-fog: #201019; --region-glow: #ff7ab8; --region-ink: #ff7ab8;
+}
+
+/* Each region's motif, as a mask: paint any box with a colour and mask it with --motif.
+   I The Foundry: "=" bars. II The Fields: a triangulation mesh. III The Grid: a dot
+   lattice. IV The Observatory: concentric arcs. Motifs belong in banner bands, the
+   frame and scene stages, never behind prose. --grid-motif is the course's own, the
+   graph paper, for pages that belong to no Part. */
+:root {
+  --grid-motif: linear-gradient(black 1px, transparent 1px), linear-gradient(90deg, black 1px, transparent 1px);
+  --grid-motif-size: 24px 24px;
+}
+:root, [data-part="algebra"] {
+  --motif:
+    repeating-linear-gradient(0deg, transparent 0 9px, black 9px 12px, transparent 12px 16px, black 16px 19px, transparent 19px 28px),
+    repeating-linear-gradient(90deg, transparent 0 7px, black 7px 21px, transparent 21px 28px);
+  --motif-size: auto;
+  --motif-comp: intersect;
+  --motif-wcomp: source-in;
+}
+[data-part="geometry"] {
+  --motif:
+    repeating-linear-gradient(0deg, black 0 1.5px, transparent 1.5px 26px),
+    repeating-linear-gradient(60deg, black 0 1.5px, transparent 1.5px 26px),
+    repeating-linear-gradient(120deg, black 0 1.5px, transparent 1.5px 26px);
+  --motif-size: auto;
+  --motif-comp: add;
+  --motif-wcomp: source-over;
+}
+[data-part="coordinates"] {
+  --motif: radial-gradient(circle, black 0 1.8px, transparent 2.4px);
+  --motif-size: 16px 16px;
+  --motif-comp: add;
+  --motif-wcomp: source-over;
+}
+[data-part="topics"] {
+  --motif: repeating-radial-gradient(circle at 100% 100%, transparent 0 11px, black 11px 13px);
+  --motif-size: auto;
+  --motif-comp: add;
+  --motif-wcomp: source-over;
+}
+
+/* ------------------------------------------------------- reader settings -- */
+
+/* less transparency asked for, by the device or by the settings sheet's Reduce
+   transparency (html[data-transparency], stamped by the boot script): every translucent
+   surface goes solid (site.css turns the top bar's blur off, map3d.css the map's labels) */
+@media (prefers-reduced-transparency: reduce) {
+  :root { --glass: var(--glass-solid); --scrim-glass: var(--scrim); }
+}
+:root[data-transparency="reduce"] { --glass: var(--glass-solid); --scrim-glass: var(--scrim); }
+
+/* forced colours keep the alpha of an authored background, so glass would let what
+   scrolls under the top bar show through: it goes solid, as for less transparency
+   (site.css turns the blur off) */
+@media (forced-colors: active) {
+  :root { --glass: var(--glass-solid); --scrim-glass: var(--scrim); }
+}
+
+/* more contrast asked for: lines carry the text colour and the grey goes */
+@media (prefers-contrast: more) {
+  :root, :root[data-theme="dark"], :root[data-panel="dark"] {
+    --border: var(--line-ui);
+    --border-strong: var(--text);
+    --muted: var(--text);
+    --grid-line: transparent;
+    --frame-muted: var(--frame-text);
+    --hud-muted: var(--frame-text);
+  }
+}
+
+/* ----------------------------------------------------------------- print -- */
+
+@media print {
+  /* paper is light whatever the screen was showing */
+  :root, :root[data-theme="dark"], :root[data-panel="dark"] {
+    --bg: #ffffff; --surface: #ffffff; --surface-2: #f3f1ec; --grid-line: #ffffff;
+    --text: #171923; --muted: #555a6b; --border: #d6d0c2; --border-strong: #8e8778; --line-ui: #73788a;
+    --accent: #2646d4; --accent-soft: #ffffff; --accent-2: #a04608; --accent-2-soft: #ffffff;
+    --ok: #14713a; --ok-soft: #ffffff; --bad: #b42318; --bad-soft: #ffffff;
+    --hint-ink: #8a3c06; --hint-soft: #ffffff; --on-part: #ffffff;
+    --tile-border: #c2b9a6; --tile-edge: #b0a68f; --accent-deep: #17309f; --focus: #2646d4;
+    --ok-deep: #0d5329; --bad-deep: #861810; --flame: #d4530a; --xp: #f6b40e; --xp-ink: #855600;
+    --on-xp: #171923; --heart: #c81e4a; --on-accent: #ffffff;
+    --shadow-float: 0 10px 30px -10px rgba(20, 22, 31, .35); --shadow-1: 0 1px 2px rgba(23, 24, 28, .05), 0 2px 6px rgba(23, 24, 28, .04);
+    --shadow: 0 1px 2px rgba(23, 24, 28, .05), 0 8px 24px -6px rgba(23, 24, 28, .08);
+    --plot-bg: #ffffff; --plot-grid: #e7e0d0; --plot-axis: #777c8c; --plot-curve: #2646d4;
+    --plot-curve-2: #a04608; --plot-curve-3: #1f9456; --plot-curve-4: #a3247a; --plot-fill: rgba(38, 70, 212, .14);
+    --plot-point: #171923; --plot-ink: #171923; --plot-face-a: #c9d3fb; --plot-face-b: #f6d3ae;
+    --plot-face-c: #d3efdc; --plot-ground: #f1ebdd; --plot-hot: #f6b40e;
+    --frame-bg: #ffffff; --frame-text: #171923;
+    --panel-scheme: light;
+    color-scheme: light;
+  }
+  /* the light panel's answer marks, which carry the light --ok and --bad */
+  :root[data-panel="dark"] {
+    --mark-ok: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'%3E%3Cpath d='M4 10.5l4 4 8-9' fill='none' stroke='%2314713a' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+    --mark-bad: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'%3E%3Cpath d='M5 5l10 10M15 5L5 15' fill='none' stroke='%23b42318' stroke-width='3' stroke-linecap='round'/%3E%3C/svg%3E");
+  }
+  :root[data-panel="dark"], :root[data-panel="dark"] [data-part="algebra"], [data-part="algebra"] { --part: #a04608; --part-soft: #ffffff; --part-deep: #7d3806; }
+  :root[data-panel="dark"] [data-part="geometry"], [data-part="geometry"] { --part: #0c736b; --part-soft: #ffffff; --part-deep: #07514b; }
+  :root[data-panel="dark"] [data-part="coordinates"], [data-part="coordinates"] { --part: #5b3fc4; --part-soft: #ffffff; --part-deep: #3f2a91; }
+  :root[data-panel="dark"] [data-part="topics"], [data-part="topics"] { --part: #ad2468; --part-soft: #ffffff; --part-deep: #7c1849; }
+}

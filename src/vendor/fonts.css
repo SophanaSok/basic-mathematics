@@ -5,7 +5,7 @@
    with font-display: swap and the subset's unicode-range, so a browser fetches only the
    subsets a page uses and paints with the fallback meanwhile. The upright families are
    the packages' variable files, the italic a static instance: the files Google served.
-   The family names are the ones the tokens in assets/site.css name (--sans, --serif,
+   The family names are the ones the tokens in src/styles/tokens.css name (--sans, --serif,
    --display), whose fallbacks are unchanged. The shell links this file on every page,
    first of all its stylesheets, where the Google Fonts link was (tools/lib/shell.js
    VENDOR_STYLES); the build copies the files beside the bundle.

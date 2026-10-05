@@ -13,12 +13,18 @@
      - the recall boxes and run XP of recordRun, and the XP across a simulated day: less
        per section the more is paid, the finishing bonus in full twice, the Daily's bonus
        untouched, counts on this device only, fresh on a new day
-     - play settings and game records keep what a later version of the site added to them
+     - play settings and game records keep what a later version of the site added to them;
+       the settings sheet's volume, Reduce motion and transparency (stamped on <html>) and
+       graphics quality, and a setting that holds for the visit when storage is blocked;
+       the boot script (src/boot.js) stamps <html> from the stored settings as the game
+       does, a damaged value included
    Usage: node tools/game/rules.test.js */
 "use strict";
 const fs = require("fs");
 const path = require("path");
 const vm = require("vm");
+
+const shell = require("../lib/shell");
 
 const ROOT = path.resolve(__dirname, "../..");
 let fails = 0, passes = 0;
@@ -86,7 +92,9 @@ function world(seedStores) {
     console, setTimeout, clearTimeout, Math, JSON, Date,
     matchMedia: () => ({ matches: false }),
     document: {
-      documentElement: { hasAttribute: () => false, setAttribute() {}, removeAttribute() {} },
+      /* the attributes the game stamps on <html>, kept so a test can read them; calm mode is
+         read through hasAttribute, which stays false here */
+      documentElement: { attrs: {}, hasAttribute: () => false, getAttribute(n) { return n in this.attrs ? this.attrs[n] : null; }, setAttribute(n, v) { this.attrs[n] = String(v); }, removeAttribute(n) { delete this.attrs[n]; } },
       querySelector: () => null, querySelectorAll: () => [], getElementById: () => null
     },
     BMStore: Store,
@@ -119,6 +127,9 @@ function world(seedStores) {
   };
   win.window = win;
   vm.createContext(win);
+  /* window.BMHud first, as every page has it before the bundle: the level curve and the
+     combo's multiplier are src/hud/'s, through the very text the shell inlines */
+  vm.runInContext(shell.hudLibrary(), win, { filename: "the HUD script (tools/lib/shell.js)" });
   ["data/curriculum.js", "data/quest.js", "assets/game.js"].forEach((f) => {
     vm.runInContext(fs.readFileSync(path.join(ROOT, f), "utf8"), win, { filename: f });
   });
@@ -685,20 +696,149 @@ function world(seedStores) {
   const keys = ["e1", "e2", "e3", "e4"];
   const at = (d) => new Date(d + "T12:00:00").getTime();
 
-  /* play settings: a key this file has never heard of outlives every switch */
-  let w = world({ "bm.prefs.v1": { calm: true, motion: "reduced", volume: { music: 0.4 } } });
-  eq([w.Game.prefs().calm, w.Game.prefs().motion], [true, "reduced"], "prefs() hands back an unknown key beside the known ones");
+  /* play settings: a key this file has never heard of outlives every switch (skin, a
+     key a later release may write, and tutorPromo stand in for them; gfxAuto, which
+     stood in here until the 3D world's watchdog came to write it, is a known key now,
+     with its own rule below) */
+  let w = world({ "bm.prefs.v1": { calm: true, skin: { marker: "octa", at: 1 }, tutorPromo: false } });
+  eq([w.Game.prefs().calm, w.Game.prefs().skin, w.Game.prefs().tutorPromo], [true, { marker: "octa", at: 1 }, false], "prefs() hands back an unknown key beside the known ones");
   w.Game.setPref("sound", true);
-  eq([w.read("bm.prefs.v1").motion, w.read("bm.prefs.v1").volume, w.read("bm.prefs.v1").sound], ["reduced", { music: 0.4 }, true], "switching one setting keeps an unknown key");
+  eq([w.read("bm.prefs.v1").skin, w.read("bm.prefs.v1").tutorPromo, w.read("bm.prefs.v1").sound], [{ marker: "octa", at: 1 }, false, true], "switching one setting keeps an unknown key");
   w.Game.setPref("calm", false); w.Game.setPref("map3d", false); w.Game.setPref("tempo", "untimed");
+  w.Game.setPref("volume", 35); w.Game.setPref("motion", true); w.Game.setPref("transparency", true); w.Game.setPref("gfx", "mid");
   let p = w.read("bm.prefs.v1");
-  eq([p.motion, p.volume, p.sound, p.calm, p.map, p.tempo], ["reduced", { music: 0.4 }, true, false, "list", "untimed"], "every setting switched in turn: the unknown keys are still there");
+  eq([p.skin, p.tutorPromo, p.sound, p.calm, p.map, p.tempo, p.volume, p.motion, p.transparency, p.gfx],
+    [{ marker: "octa", at: 1 }, false, true, false, "list", "untimed", 35, "reduce", "reduce", "mid"], "every setting switched in turn: the unknown keys are still there");
   /* the settings stay on this device: a "state" change is what account sync listens for */
-  eq([w.events.filter((e) => e.type === "state").length, w.events.filter((e) => e.type === "prefs").length], [0, 4], "switching a setting announces prefs and never a state change");
+  eq([w.events.filter((e) => e.type === "state").length, w.events.filter((e) => e.type === "prefs").length], [0, 8], "switching a setting announces prefs and never a state change");
   w.Game.setPref("nonsense", 1);
   eq(w.read("bm.prefs.v1"), p, "a setting this file does not know is not written by setPref");
-  p = world({ "bm.prefs.v1": { map: "globe", tempo: "warp" } }).Game.prefs();
-  eq([p.sound, p.calm, "map" in p, p.tempo], [false, false, false, "standard"], "the known settings are still normalised");
+  p = world({ "bm.prefs.v1": { map: "globe", tempo: "warp", volume: 140, motion: "less", transparency: true, gfx: "ultra" } }).Game.prefs();
+  eq([p.sound, p.calm, "map" in p, p.tempo, "volume" in p, "motion" in p, "transparency" in p, "gfx" in p], [false, false, false, "standard", false, false, false, false],
+    "the known settings are still normalised: a value the site does not know reads as unset, the default");
+
+  /* the settings sheet's new switches: stamped on <html>, and off again */
+  w = world({ "bm.prefs.v1": { volume: 80 } });
+  const html = () => w.win.document.documentElement.attrs;
+  eq([w.Game.volume(w.Game.prefs()), w.Game.volume(world().Game.prefs())], [80, 50], "the volume is the stored one, 50 when there is none");
+  w.Game.setPref("volume", 101.6); eq(w.read("bm.prefs.v1").volume, 100, "the volume is held to 0..100, a whole number");
+  w.Game.setPref("volume", "x"); eq(w.read("bm.prefs.v1").volume, 0, "a volume that is not a number is 0, not a broken store");
+  w.Game.setPref("motion", "reduce"); w.Game.setPref("transparency", true);
+  eq([html()["data-motion"], html()["data-transparency"]], ["reduce", "reduce"], "Reduce motion and Reduce transparency stamp html[data-motion] and html[data-transparency]");
+  w.Game.setPref("motion", false); w.Game.setPref("transparency", false);
+  eq(["data-motion" in html(), "data-transparency" in html(), "motion" in w.read("bm.prefs.v1"), "transparency" in w.read("bm.prefs.v1")], [false, false, false, false],
+    "switched off, the attributes go and the store keeps nothing: the device's own setting rules again");
+  /* graphics quality is the course world's tier (src/world/tiers.ts): Low is its low
+     tier, still 3D; the 3D map switch is what keeps the list */
+  w.Game.setPref("gfx", "low");
+  eq([w.read("bm.prefs.v1").gfx, w.Game.map3dOn(w.Game.prefs())], ["low", true], "Graphics quality Low is stored, and the course map stays 3D (its low tier)");
+  w.Game.setPref("map3d", false);
+  eq([w.read("bm.prefs.v1").map, w.Game.map3dOn(w.Game.prefs())], ["list", false], "the 3D map switch off keeps the list");
+  w.Game.setPref("map3d", true);
+  w.Game.setPref("gfx", "auto");
+  eq(["gfx" in w.read("bm.prefs.v1"), w.Game.map3dOn(w.Game.prefs())], [false, true], "Auto is stored as no choice");
+  /* gfxAuto: the tier the world's watchdog settled on, this device's; never "high", and
+     gone at the next choice of quality or of the map */
+  w = world({ "bm.prefs.v1": { gfxAuto: "low" } });
+  eq(w.Game.prefs().gfxAuto, "low", "a settled tier is read back");
+  eq(world({ "bm.prefs.v1": { gfxAuto: "high" } }).Game.prefs().gfxAuto, undefined, "the watchdog never settles upward: \"high\" reads as unset");
+  eq(world({ "bm.prefs.v1": { gfxAuto: { tier: "low" } } }).Game.prefs().gfxAuto, undefined, "nor does anything but a tier name");
+  w.Game.setPref("gfxAuto", "list");
+  eq([w.read("bm.prefs.v1").gfxAuto, w.Game.map3dOn(w.Game.prefs())], ["list", false], "the watchdog giving the list back shows the 3D map switch off");
+  w.Game.setPref("sound", true);
+  eq(w.read("bm.prefs.v1").gfxAuto, "list", "another setting leaves it");
+  w.Game.setPref("map3d", true);
+  eq(["gfxAuto" in w.read("bm.prefs.v1"), w.Game.map3dOn(w.Game.prefs())], [false, true], "switching the map on again starts afresh");
+  w.Game.setPref("gfxAuto", "list");
+  eq([w.read("bm.prefs.v1").map, w.Game.map3dOn(w.Game.prefs())], ["3d", false], "the watchdog giving the list back shows the switch off even where the map was switched on (the world keeps the list then too)");
+  w.Game.setPref("map3d", true);
+  w.Game.setPref("gfxAuto", "medium"); w.Game.setPref("gfx", "high");
+  eq(["gfxAuto" in w.read("bm.prefs.v1"), w.read("bm.prefs.v1").gfx], [false, "high"], "so does choosing a quality");
+  w.Game.setPref("gfxAuto", "nonsense");
+  eq("gfxAuto" in w.read("bm.prefs.v1"), false, "a value that is not a settled tier is not kept");
+  eq(w.events.filter((e) => e.type === "state").length, 0, "none of it is a state change for account sync");
+
+  /* a store that cannot be written: the choice still holds for the visit */
+  w = world();
+  w.Store.write = () => false;
+  w.Game.setPref("calm", true);
+  eq([w.Game.prefs().calm, "bm.prefs.v1" in w.mem], [true, false], "with storage blocked, a setting holds for the visit and nothing is stored");
+
+  /* the reading panel: unset until chosen (light paper), stamped on <html> as data-panel */
+  w = world({ "bm.prefs.v1": { panel: "sepia", calm: true } });
+  eq("panel" in w.Game.prefs(), false, "a panel value the site does not know reads as unset, the light panel");
+  w.Game.setPref("panel", "dark");
+  eq([w.read("bm.prefs.v1").panel, w.read("bm.prefs.v1").calm, w.win.document.documentElement.getAttribute("data-panel")], ["dark", true, "dark"],
+    "setPref(\"panel\", \"dark\") keeps the choice, keeps the other settings and stamps html[data-panel]");
+  w.Game.setPref("panel", "anything");
+  eq([w.read("bm.prefs.v1").panel, w.win.document.documentElement.getAttribute("data-panel")], ["light", "light"], "any other value is the light panel");
+  eq(w.events.filter((e) => e.type === "state").length, 0, "the panel is this device's: no state change for account sync");
+
+  /* The boot script stamps <html> before first paint and the game stamps it again when it
+     loads; the HUD script reads html[data-calm] in between. They must read every stored
+     value the same way, a damaged one too, or the HUD changes when the bundle arrives. */
+  const boot = fs.readFileSync(path.join(ROOT, shell.BOOT), "utf8");
+  const stamps = (attrs) => ["data-calm", "data-sound", "data-motion", "data-transparency", "data-panel"].map((n) => n + "=" + (n in attrs ? attrs[n] : "-")).join(" ");
+  [
+    { calm: true }, { calm: "yes" }, { calm: 1 }, { calm: "true" }, { calm: false },
+    { sound: true }, { sound: 1 }, { sound: "on" }, { sound: true, calm: true }, { sound: true, calm: 1 },
+    { motion: "reduce" }, { motion: true }, { transparency: "reduce" }, { transparency: 1 }, { panel: "dark" }, { panel: "sepia" }, {}
+  ].forEach((stored) => {
+    const root = { attrs: {}, setAttribute(n, v) { this.attrs[n] = String(v); }, removeAttribute(n) { delete this.attrs[n]; }, getAttribute(n) { return n in this.attrs ? this.attrs[n] : null; }, hasAttribute(n) { return n in this.attrs; } };
+    const mem = { "bm.prefs.v1": JSON.stringify(stored) };
+    const listeners = {};
+    const page = { document: { documentElement: root }, localStorage: { getItem: (k) => (k in mem ? mem[k] : null) }, matchMedia: () => ({ matches: false }), JSON,
+      addEventListener: (type, fn) => { (listeners[type] = listeners[type] || []).push(fn); } };
+    page.window = page;
+    vm.runInNewContext(boot, page, { filename: shell.BOOT });
+    const g = world({ "bm.prefs.v1": stored });
+    g.Game.setPref("tempo", g.Game.prefs().tempo);
+    eq(stamps(root.attrs), stamps(g.win.document.documentElement.attrs), "the boot script stamps <html> as the game does for a stored " + JSON.stringify(stored));
+    /* and between pages it skips the view transition, on the page left and on the page
+       arriving, exactly when the game holds still: Study mode or Reduce motion */
+    const skips = ["pageswap", "pagereveal"].map((type) => {
+      let skipped = false;
+      (listeners[type] || []).forEach((fn) => fn({ viewTransition: { skipTransition() { skipped = true; } } }));
+      (listeners[type] || []).forEach((fn) => fn({ viewTransition: null }));
+      return skipped;
+    });
+    const still = g.Game.prefs().calm === true || g.Game.prefs().motion === "reduce";
+    eq(skips, [still, still], "the boot script " + (still ? "skips" : "keeps") + " the view transition on both pages for a stored " + JSON.stringify(stored));
+  });
+  /* the transition is skipped for what the device asks too, and for Study mode switched on
+     on the page being left after it loaded (game.js stamps html[data-calm] then) */
+  [["the device asks for less motion", true, null], ["Study mode was switched on since the page loaded", false, "data-calm"], ["nothing asks", false, null]].forEach(([why, device, attr]) => {
+    const root = { attrs: {}, setAttribute(n, v) { this.attrs[n] = String(v); }, removeAttribute(n) { delete this.attrs[n]; }, getAttribute(n) { return n in this.attrs ? this.attrs[n] : null; }, hasAttribute(n) { return n in this.attrs; } };
+    const listeners = {};
+    const page = { document: { documentElement: root }, localStorage: { getItem: () => null }, matchMedia: (q) => ({ matches: device && /prefers-reduced-motion:\s*reduce/.test(q) }), JSON,
+      addEventListener: (type, fn) => { (listeners[type] = listeners[type] || []).push(fn); } };
+    page.window = page;
+    vm.runInNewContext(boot, page, { filename: shell.BOOT });
+    if (attr) root.setAttribute(attr, "true");
+    let skipped = false;
+    listeners.pageswap.forEach((fn) => fn({ viewTransition: { skipTransition() { skipped = true; } } }));
+    eq(skipped, device || !!attr, "the page being left " + (device || attr ? "skips" : "keeps") + " its view transition when " + why);
+  });
+  /* the one rejection the boot script quiets: a transition the browser gave up on itself
+     (Chromium reports it uncaught; no script was handed it); any other stays an error */
+  {
+    class DOMException extends Error { constructor(message, name) { super(message); this.name = name; } }
+    const listeners = {};
+    const page = { document: { documentElement: { setAttribute() {}, getAttribute: () => null, hasAttribute: () => false } }, localStorage: { getItem: () => null }, matchMedia: () => ({ matches: false }), JSON, DOMException,
+      addEventListener: (type, fn) => { (listeners[type] = listeners[type] || []).push(fn); } };
+    page.window = page;
+    vm.runInNewContext(boot, page, { filename: shell.BOOT });
+    const quieted = (reason) => { let prevented = false; listeners.unhandledrejection.forEach((fn) => fn({ reason, preventDefault() { prevented = true; } })); return prevented; };
+    eq([
+      quieted(new DOMException("Transition was aborted because of invalid state. Page already revealed", "InvalidStateError")),
+      quieted(new DOMException("Transition was aborted because of invalid state. ViewTransition opt-in disabled", "InvalidStateError")),
+      quieted(new DOMException("Transition was skipped", "AbortError")),
+      quieted(new DOMException("The operation timed out.", "TimeoutError")),
+      quieted(new DOMException("Failed to execute 'x'", "InvalidStateError")),
+      quieted(new Error("Transition was aborted")),
+      quieted(undefined)
+    ], [true, true, true, false, false, false, false], "the boot script quiets only a view transition the browser gave up on");
+  }
 
   /* the game record: an Arena run rewrites a section and a best, and keeps what it does not know */
   w = world({ "bm.game.v1": {
