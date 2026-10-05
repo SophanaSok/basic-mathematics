@@ -10,6 +10,8 @@ achievements, playable 3D problems and a timed Arena — and every one of those 
 help the mathematics stick.
 
 **Read it here: [sophanasok.github.io/basic-mathematics](https://sophanasok.github.io/basic-mathematics/)**
+(moving to [learn.groupupmath.org](https://learn.groupupmath.org); the old address will send you
+on, with your progress)
 
 It is hand-written HTML, CSS, and plain JavaScript files, published through a small build
 ([Vite](https://vite.dev)) that writes each page's head and bundles its scripts, its fonts,
@@ -214,6 +216,16 @@ going well. A short version appears above each chapter's recap.
 
 ### Progress, and what is saved
 
+The course is moving from GitHub Pages to its own address, **learn.groupupmath.org**, on
+Cloudflare Pages. A browser keeps what it saved for each address apart, so once the course has
+moved, the old address sends you to the same page at the new one with the progress this browser
+saved there, inside the link (the part after `#`, which a browser never sends to a server). The
+new address shows you what it holds and asks before keeping any of it; yes adds it to whatever is
+there already. Your sign-in does not come along: if you have an account, sign in again at the new
+address and your progress comes back from it. If you have more progress than fits in a link, the
+old address offers it as a file, which the progress page imports, as it does the account page's
+"Download my data".
+
 Everything is remembered in **your browser**, in local storage — including achievements, medals
 and Arena records. Without an account nothing is sent
 anywhere, so progress will not follow you to another browser or device, and clearing site data
@@ -248,6 +260,7 @@ npm run dev       # the source tree, each page with its shell written and its en
                   # as modules, at http://localhost:8000, reloading as you edit
 npm run build     # the site as it is published, into dist/
 npm run preview   # that dist/, at http://localhost:8000
+npm run build:legacy  # the old address after the move, into dist-legacy/ (tools/build-legacy.js)
 ```
 
 Both servers take port 8000 and refuse to start on any other:
@@ -398,6 +411,14 @@ assets/map3d.js         the course world on the contents page: its tier, camera,
 assets/lesson.js        step-by-step reading of a chapter
 assets/config.js        Supabase URL and anon key, sign-in providers; empty means no accounts
 assets/account.js       sign-in and sync, listening on BMStore
+src/carry/origins.ts    the site's addresses: the new one (learn.groupupmath.org), the old one, the
+                        Cloudflare Pages project; the bundle and the Node tools both read it
+src/carry/send.js       what the old address's pages run: read this browser's bm.* keys and go to the
+                        new address with them in the fragment (plain ES5, inlined by build-legacy.js)
+src/carry/page.js       the old address's carry page: the same, or the progress as a file
+src/carry/format.ts     the new address's half: read, check, describe and merge carried progress
+                        (no DOM), with its Vitest test beside it
+src/ui/carry.ts         the question a carried link asks, and the progress page's import (window.BMCarry)
 assets/insights.js      renders progress.html and insights.html
 supabase/schema.sql     tables, row-level security, aggregate functions
 supabase/README.md      how to switch accounts on
@@ -409,6 +430,11 @@ tools/lib/shell.js      the <head> and the top bar of every page: the boot scrip
                         stylesheets, and the module entry of its kind; the HUD's slots, the
                         account chip, the sound and menu buttons, the settings sheet, and the
                         HUD script after the top bar
+tools/lib/headers.js    dist/_headers (the Content-Security-Policy, the other security headers, the
+                        caching) and dist/404.html, which only Cloudflare Pages reads; the build writes
+                        them, lib/serve.js applies them, check-dist holds them
+tools/build-legacy.js   the legacy site in dist-legacy/: what the old address serves after the move
+                        (one stub per page, the carry page, 404.html); check-legacy.js holds it
 tools/lib/vendor.js     which src/vendor/ module brings in each npm package (and its dependencies):
                         how the build names node_modules files and check-dist holds them; and the
                         licence notice the build writes into dist/bundle/LICENSES.txt from them
@@ -1018,6 +1044,7 @@ memory but keeps the site:
 | `bm.prefs.v1` | the settings sheet's and the Arena's settings: `calm` (Study mode), `sound`, `volume` (0 to 100, unset is 50), `motion` and `transparency` (`"reduce"`, unset follows the device), `panel` (`"dark"`, unset for light paper), `gfx` (`"low"`, `"mid"`, `"high"`, unset is Auto: the course world's tier), `map` (`"list"` keeps the chapter list alone), `gfxAuto` (not a setting: the tier the world's watchdog settled on, `"list"`, `"low"` or `"medium"`; cleared by a choice of `gfx` or `map`), `tempo` (this device only; survives a reset; keys the site does not know are kept; a value it does not know reads as unset) |
 | `bm.sync.v1` | with accounts on: whose progress this browser holds and the last reset it knows of |
 | `bm.sync.pending.v1` | with accounts on: progress that could not be saved when its reader signed out, kept aside per reader until they sign in here again |
+| `bm.carry.v1` | the fingerprints of the carried payloads this browser was asked about, and the answer (this device only; [Moving between addresses](#moving-between-addresses)) |
 
 Every write is announced on `window.BMStore` (`on(fn)` / `emit(change)`), with change types
 `state`, `attempt`, `solved`, `xp`, `sync`, and `reset`, plus `opened`, `ladder`, `chapterDone`,
@@ -1102,6 +1129,52 @@ sorts after `"10"`. A change to what an existing field means needs a larger `v`.
 
 The "areas to strengthen" ranking is `BMInsights` in `site.js`: each attempted exercise gets a
 struggle score from 0 (right first time) to 1, averaged per section.
+
+### Moving between addresses
+
+`localStorage` belongs to an origin, so when the site moves from GitHub Pages to Cloudflare Pages
+at `https://learn.groupupmath.org` ([`OPERATIONS.md`](OPERATIONS.md), "Moving to Cloudflare
+Pages"), the new address starts empty for everyone. Signed-in readers get everything back from
+their account when they sign in there. A signed-out reader's progress is only in their browser,
+at the old origin, so the old address carries it over:
+
+- **The old address** (after the cutover) serves `dist-legacy/` (`tools/build-legacy.js`): one
+  page at the path of every page of the site, whose first and only script
+  (`src/carry/send.js`) reads every `bm.*` key but `bm.sync.v1` (the account binding, which
+  would make the next sign-in at the new address treat the progress as another reader's) and
+  `bm.carry.v1`, and goes, with `location.replace`, to the same page at the new address with
+  them in the fragment: `#bm-carry=1z<data>`, where `1` is the format, `z` says the JSON
+  `{"v":1,"s":{<key>:<value>}}` is deflated (`j` where the browser cannot compress), and the
+  data is base64url. The page's own anchor follows as `&bm-at=`. A Supabase session never starts
+  with `bm.` and is never read. Nothing saved, it goes there plainly; longer than
+  `MAX_FRAGMENT` (32,000 characters; a learner who has tried every exercise comes to about
+  11,000), it goes to the old address's carry page, which offers the progress as a file. Without
+  scripts, a refresh inside `<noscript>` and a link take the reader on, without the progress.
+  An iframe cannot do this: browsers partition an embedded page's storage by the page around it.
+- **The new address** reads the fragment on any page (`src/ui/carry.ts`, every entry imports it
+  after `account.js`), but only on the new address itself, a local server and the project's
+  `pages.dev` addresses (`allowedHost`), never on the old address, which serves this same build
+  until the cutover. It takes the fragment out of the address at once (`history.replaceState`,
+  the anchor put back), and reads it as untrusted (`src/carry/format.ts`): any other format or
+  `v` is refused; the fragment is capped, and so is what it inflates to (1 MB), and its nesting;
+  every key must start with `bm.` and none may name an auth token, or the whole payload is
+  refused; a store of the wrong shape is left out; `__proto__` is dropped. Then it asks, in a
+  modal dialog that says what the payload holds (for the saved-state fixture, "3 chapters, 23
+  exercises solved, 519 XP and your settings"; never a word of the payload itself, which is
+  never put into the page as HTML). Yes merges: the synced stores through `BMAccount.merge` with this browser's side as
+  the local one, so both sides' progress is kept and this browser's own choices (where to
+  continue, the daily goal, the reading mode) win where the two disagree; `bm.run.v1`,
+  `bm.prefs.v1` and `bm.theme` only where this browser has none; `bm.sync.pending.v1` merged per
+  reader. A signed-in reader's account then saves it, as after any change. No changes nothing.
+  Either answer is recorded by the payload's fingerprint in `bm.carry.v1`, so the same payload is
+  never asked about twice; one that is refused gets a short note and is recorded too.
+- **The progress page**, on the same addresses (the old one, while it still serves the course,
+  shows nothing new), has *Bring progress from the old address* (a link to the old address's
+  carry page, which sends the progress back to it) and *Import a file of your progress*, which takes the account page's "Download my data" file, or the carry
+  page's, through the same checks, question and merge.
+
+The addresses are written once, in `src/carry/origins.ts`. `src/carry/format.test.ts` and
+`tools/game/carry.test.js` (two origins in Chromium) hold all of it.
 
 The theme follows the operating system by default and can be set to light or dark in the
 settings sheet ("Match system" goes back to following it).
@@ -1246,13 +1319,21 @@ npm run check:dist      # dist/ is the source's site, each source page taken wit
                         # by its vendor module) and the HUD script after the top bar, supabase-js, Three.js and the course world each a chunk of its
                         # own that no page names, no copy of a source script, nothing from
                         # another server, CSS text and cascade the source's with the vendor CSS
-                        # ahead, no secrets
+                        # ahead, no secrets; dist/_headers (the Content-Security-Policy with the
+                        # inline scripts' hashes, Supabase, one Cache-Control per file) and
+                        # dist/404.html, which only Cloudflare Pages reads
+npm run build:legacy    # dist-legacy/, the old address after the move
+npm run check:legacy    # a stub at every page path and nothing else; each with its canonical
+                        # link, <noscript> refresh and link to the new address, one inline
+                        # script allowed by hash; each run in a vm, carrying every bm. store
+                        # and never a session
 
 npm run test:browser    # the game, the next-step card, the Arena and its due review, the account
                         # page (and that a signed-out page never fetches the supabase chunk), the
                         # 3D stages, the new 3D exercises and the course world (its tiers and
-                        # their budgets, the watchdog, idle frames, keyboard), each driven in
-                        # headless Chromium
+                        # their budgets, the watchdog, idle frames, keyboard), progress carried
+                        # from the old address to the new one across two origins (yes, no,
+                        # crafted links, a file, no JavaScript), each driven in headless Chromium
 npm run check:browser   # dist/ served: every page × theme × width (errors, theme before first
                         # paint, scripts ran, KaTeX rendered, no request to any other server,
                         # Three.js fetched only where there is 3D, the world's chunk only on the
@@ -1265,7 +1346,9 @@ npm run check:browser   # dist/ served: every page × theme × width (errors, th
                         # HUD still; skipped in Study mode and reduced motion), WebGL and its
                         # fallbacks, axe at both widths (button and form names, table headers,
                         # heading order and scroll boxes a keyboard cannot reach fail; other
-                        # rules warn). About 10 minutes, and nothing in it needs the network
+                        # rules warn). About 10 minutes, and nothing in it needs the network.
+                        # The browser scripts serve dist/ with dist/_headers applied, so all of
+                        # it runs under the real Content-Security-Policy, and a violation fails
 
 npm run check:all       # all of the above, in that order
 ```
@@ -1320,6 +1403,24 @@ while the source tree was the site. To undo a deploy now, revert the commit on `
 revert deploy ([`OPERATIONS.md`](OPERATIONS.md), "A bad deploy").
 
 Run workflow on `main` is also the way to publish again without a new commit.
+
+**Cloudflare Pages.** The same run publishes the same `dist/` to Cloudflare Pages (the
+`cloudflare` job, after `build` and `browser`, with `cloudflare/wrangler-action` and the
+repository secrets `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID`): `main` to production,
+at `https://learn.groupupmath.org` once the domain is attached, and each pull request from a
+branch of this repository to a preview, whose address the job writes into its summary and one
+comment on the pull request. Without the secrets, and for a pull request from a fork, it deploys
+nothing and says so in a notice. There, unlike on GitHub Pages, the site has headers of its own,
+from `dist/_headers`, which the build writes: a Content-Security-Policy that allows exactly what
+the pages load (the two inline scripts by hash), and caching that revalidates every page and
+script on every request (`tools/lib/headers.js`).
+
+**The move.** Until the repository variable `SITE_CUTOVER` is `true`, GitHub Pages keeps serving
+the course exactly as it did (without `_headers` and `404.html`, which only Cloudflare reads).
+From then on it serves `dist-legacy/`, which sends every old address, with the reader's progress,
+to the new one ([Moving between addresses](#moving-between-addresses)). The runbook, with every
+setting to change by hand and how to undo each step, is [`OPERATIONS.md`](OPERATIONS.md), "Moving
+to Cloudflare Pages".
 
 ## About the text
 
