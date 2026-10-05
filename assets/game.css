@@ -820,10 +820,11 @@ html[data-motion="reduce"] *, html[data-motion="reduce"] *::before, html[data-mo
   /* Between pages. Every navigation is a full page load; where the browser has
      cross-document view transitions (README, "Between pages"), every page opts in (the
      inline <style> tools/lib/shell.js writes after the boot script, under this same
-     media rule) and the new page fades in under a top bar that does not move. Only the
-     top bar is named: everything else is the root's snapshot, which is the viewport as
-     the reader sees it, so a page left half-way down fades out where it was and nothing
-     slides or stretches. The old page goes in --dur-state, eased in; the new one comes
+     media rule) and the new page fades in under a top bar that does not move (and the
+     HUD in it holds still: its order, tools/lib/shell.js hud()). Only the top bar is
+     named, and the settings sheet while it hangs open from it: everything else is the
+     root's snapshot, which is the viewport as the reader sees it, so a page left half-way
+     down fades out where it was and nothing slides or stretches. The old page goes in --dur-state, eased in; the new one comes
      in --dur-reveal, eased out, laid over the old with plain alpha (the default
      plus-lighter would brighten the frame wherever two fades of different lengths do
      not sum to one), with the frame colour behind both. No group moves, and the top bar
@@ -842,6 +843,13 @@ html[data-motion="reduce"] *, html[data-motion="reduce"] *::before, html[data-mo
   ::view-transition-new(hud) { animation: none; }
   ::view-transition-old(root) { animation: fade-out var(--dur-state) var(--ease-in) both; mix-blend-mode: normal; }
   ::view-transition-new(root) { animation: fade var(--dur-reveal) var(--ease-out) both; mix-blend-mode: normal; }
+  /* the sheet, open and not modal (a wide screen), hangs from the top bar and so would be
+     in its capture, which is hidden at once: a link followed from it took the whole sheet
+     away in one frame. Named while it is open, it fades out with the page from where it
+     hung. Modal (a narrow screen), it is in the top layer, which is in the root's capture
+     and fades with it already. The page arriving has it closed, so there is no new one. */
+  .hud-sheet[open]:not(:modal) { view-transition-name: hud-sheet; }
+  ::view-transition-old(hud-sheet) { animation: fade-out var(--dur-state) var(--ease-in) both; }
 
   /* how far it swells is the size of the event: --mag-s for an answer unless the rule
      says more (tokens.css, magnitude) */

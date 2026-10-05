@@ -200,23 +200,30 @@ function toggle(pref, label, note, cls) {
     '<span id="' + id + '-name">' + label + '</span><small id="' + id + '-note">' + note + "</small></label>";
 }
 
-/* The HUD: level badge and XP bar, the streak with today's goal as a ring, the combo,
-   and the game slots of the page's kind. What it says is the start of a new reader's
+/* The HUD: the game slots of the page's kind, the combo, then the level badge and XP bar
+   and the streak with today's goal as a ring. What it says is the start of a new reader's
    (level 1, nothing today); the HUD script fills in the reader's own before first paint.
-   Every slot has a full-sentence label. */
+   Every slot has a full-sentence label.
+   The order is what holds the HUD still from page to page. The bar is right-aligned (the
+   page links and the HUD are pushed right, site.css), so a part sits where the widths to
+   its right put it. Level, streak, the account chip, Sound and menu are the same width on
+   every page; the hearts and the clock are only on some kinds, and the combo shows on a
+   chapter alone when the reader has only its shield. So those come first, on the left,
+   and whatever a page adds or drops moves nothing a reader keeps an eye on (the
+   transitions suite measures every part across each navigation, the hud suite across
+   every kind of bar at every width of its sweep). */
 function hud(info) {
   const p = info.prefix;
-  const lines = [
-    '    <div class="hud" role="group" aria-label="Your progress">',
+  const lines = ['    <div class="hud" role="group" aria-label="Your progress">'];
+  if (HEARTS_ON.includes(info.kind)) lines.push('      <span class="hud-hearts" role="img" aria-label="No hearts in play" data-slot hidden></span>');
+  if (TIMER_ON.includes(info.kind)) lines.push('      <span class="hud-timer" role="timer" aria-label="No clock running" data-urgency="ok" data-slot hidden><span class="hud-timer-text"></span></span>');
+  lines.push(
+    '      <span class="hud-combo" role="img" aria-label="Combo 0 of 5, XP times 1" data-pips="0" hidden><i></i><i></i><i></i><i></i><i></i></span>',
     '      <a class="hud-level" href="' + p + 'progress.html" aria-label="Level 1, Counter. 0 of 25 XP to level 2. Open your progress.">' +
       '<span class="hud-badge" aria-hidden="true"><b>1</b></span>' +
       '<span class="hud-xp" aria-hidden="true"><span class="hud-xpbar"><i></i></span><span class="hud-xptext"><b>0</b> / <span class="hud-span">25</span> XP</span></span></a>',
     '      <span class="hud-streak" role="img" aria-label="0-day streak. 0 of 30 XP today."><span class="goal-ring"></span>' + icon("flame") + "<b>0</b></span>",
-    '      <span class="hud-combo" role="img" aria-label="Combo 0 of 5, XP times 1" data-pips="0" hidden><i></i><i></i><i></i><i></i><i></i></span>'
-  ];
-  if (HEARTS_ON.includes(info.kind)) lines.push('      <span class="hud-hearts" role="img" aria-label="No hearts in play" data-slot hidden></span>');
-  if (TIMER_ON.includes(info.kind)) lines.push('      <span class="hud-timer" role="timer" aria-label="No clock running" data-urgency="ok" data-slot hidden><span class="hud-timer-text"></span></span>');
-  lines.push("    </div>");
+    "    </div>");
   return lines;
 }
 

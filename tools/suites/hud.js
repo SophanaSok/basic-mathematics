@@ -7,7 +7,9 @@
        menu buttons) and what it says are the same before the bundle runs (readyState
        "interactive"), at DOMContentLoaded and after load, fonts and all;
      - the collapse: every kind of top bar with the widest HUD, from 320 to 1280 wide, is
-       never wider than the window and keeps the menu button on screen at its right end;
+       never wider than the window and keeps the menu button on screen at its right end,
+       and at each width the HUD's lasting parts (level, streak, combo, account chip,
+       Sound, menu) are in the same place on every kind of bar, so no page moves them;
      - the sheet opens and closes by mouse and by keyboard, beside the rail and not modal
        at 1280, as a modal sheet at 360 that keeps the focus inside it; Escape, the close
        button and the scrim close it and hand the focus back to the menu button;
@@ -157,7 +159,14 @@ module.exports = {
        button, the way to every setting and link, is on screen, takes a click at its
        middle and sits at the right end of the bar (not mid-bar when the links are gone).
        One page per kind of top bar, resized, not reloaded: the media queries are all that
-       changes. */
+       changes. And at each width, the parts of the HUD a reader keeps an eye on (the level
+       badge and XP, the streak, the combo, the account chip, Sound, the menu button) sit in
+       the same place on every kind of bar that shows them, so going from page to page
+       (the README's "Between pages") moves none of them: the hearts and the clock, which
+       only some kinds have, are to their left (lib/shell.js hud()). */
+    const HELD = [["the level badge and XP", ".hud-level"], ["the streak", ".hud-streak"], ["the combo", ".hud-combo"],
+      ["the account chip", ".acct"], ["Sound", ".hud-sound"], ["the menu button", ".hud-menu"]];
+    const held = {};
     for (const rel of BARS.filter(p => ctx.pages.includes(p))) {
       const label = rel + " [320 to 1280, " + SWEEP.length + " widths] the top bar fits, and the menu button is on screen at its right end";
       const { page, errors, close } = await fresh(rel, LONG);
@@ -177,6 +186,11 @@ module.exports = {
               hit: !!hit && menu.contains(hit)
             };
           });
+          (held[vw] = held[vw] || {})[rel] = await page.evaluate((parts) => Object.fromEntries(parts.map(([k, sel]) => {
+            const el = document.querySelector(".topbar " + sel);
+            const r = el && el.getClientRects().length ? el.getBoundingClientRect() : null;
+            return [k, r ? [r.x, r.y, r.width, r.height].map(v => Math.round(v * 10) / 10).join(" ") : null];
+          })), HELD);
           const what = [];
           if (m.scrollWidth > m.innerWidth) what.push("the page is " + m.scrollWidth + "px wide");
           if (m.menu[0] < 0 || m.menu[1] > m.innerWidth || !m.hit) what.push("the menu button at " + m.menu.join("-") + " is not on screen to click" + (m.hit ? "" : " (a click there lands elsewhere)"));
@@ -186,6 +200,21 @@ module.exports = {
         }
       } catch (e) { problems.push("driver error: " + (e && e.message || e)); }
       await done(label, problems, errors, close, "no overflow at any width, the menu button on screen and at the right end");
+    }
+    {
+      const bars = BARS.filter(p => ctx.pages.includes(p));
+      const problems = [];
+      if (bars.length > 1) {
+        for (const vw of SWEEP) {
+          for (const [k] of HELD) {
+            const at = {};
+            for (const rel of bars) { const v = held[vw] && held[vw][rel] && held[vw][rel][k]; if (v) (at[v] = at[v] || []).push(rel.split("/").pop()); }
+            if (Object.keys(at).length > 1) problems.push(vw + "px: " + k + " is at " + Object.entries(at).map(([v, on]) => v + " on " + on.join(", ")).join("; "));
+          }
+        }
+        report[problems.length ? "fail" : "pass"]("every kind of top bar [320 to 1280, " + SWEEP.length + " widths] the HUD holds still from page to page",
+          problems.length ? problems.join("\n") : "at every width the level badge and XP, the streak, the combo, the account chip, Sound and the menu button are in the same place on " + bars.join(", ") + " wherever they show");
+      }
     }
 
     /* ------------------------------------------- the sheet: mouse, keys -- */

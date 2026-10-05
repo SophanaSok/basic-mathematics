@@ -407,9 +407,9 @@ the one entry of its kind (a classic `<script src>`, from the site or a CDN, fai
 is meant, `node tools/check-static.js --only=shell --accept-shell` records it, and the diff of
 `tools/shell.json` shows the reviewer exactly which pages now load what.
 
-The top bar is whole from the first byte: the brand, the page links, the HUD (level badge and XP
-bar, the streak with today's goal as a ring, the combo, and the game slots of the page's kind: the
-boss's hearts on a chapter, hearts and the clock in the Arena), the account chip, the sound and
+The top bar is whole from the first byte: the brand, the page links, the HUD (the game slots of
+the page's kind, the boss's hearts on a chapter, hearts and the clock in the Arena; the combo; the
+level badge and XP bar; the streak with today's goal as a ring), the account chip, the sound and
 menu buttons, the Arena's second row for a narrow screen, and the settings sheet, a `<dialog
 id="hud-sheet">`. Straight after it comes a second inline script, the HUD script: the text of
 [`src/hud/levels.js`](src/hud/levels.js) and [`src/hud/view.js`](src/hud/view.js) in one
@@ -425,7 +425,11 @@ narrows, the top bar drops, in this order, the brand's name, the page links, the
 clock (to the encounter on a chapter, to the second row in the Arena), the account chip and the
 sound button, all of which the sheet has, and then makes the HUD's parts smaller, so the menu
 button stays on screen at the right end of the bar at every width down to 320px; a bar with more
-in it starts sooner (`game.css`, the collapse, which the `hud` suite sweeps). `tools/shell.json`
+in it starts sooner (`game.css`, the collapse, which the `hud` suite sweeps). The bar is
+right-aligned, so the game slots, which only some kinds of page have, come first: the combo, the
+level, the streak, the account chip, Sound and the menu button sit in the same place on every kind
+of page at every width, and going from one page to another moves none of them (the `hud` suite
+compares every kind of bar at each width of its sweep). `tools/shell.json`
 records the top bar's links and buttons by their labels, the sheet's among them, and the HUD
 script as a fingerprint of its text; `check-static.js` also fails a page whose body has any other
 script.
@@ -905,7 +909,14 @@ MDN with them from 28. MDN marks the feature "limited availability", not Baselin
   Inline, it never did.
 - **What moves** is in `assets/game.css` ("Between pages", inside the motion block): the top bar
   is the one named element (`view-transition-name: hud`), and its pseudo-elements and every
-  group have no animation, so the HUD is the new page's at once and in the same place. The rest
+  group have no animation, so the top bar is the new page's at once and in the same place, and so
+  is every part of the HUD in it that both pages show: the parts only some pages have (hearts,
+  the clock, a combo that is only a shield) sit to the left of the rest (`tools/lib/shell.js`
+  `hud()`), so nothing a reader watches jumps when a chapter or the Arena adds them. The
+  settings sheet, open beside the rail on a wide screen, has a name of its own while it is open
+  (`hud-sheet`), so a link followed from it fades the sheet out with the page from where it hung
+  instead of taking it away with the old top bar in one frame; the modal sheet of a narrow
+  screen is in the top layer, which fades with the page anyway. The rest
   of the page is the root's snapshot, the viewport as the reader sees it, so a page left half-way
   down fades out where it was and nothing slides or stretches: the old page goes in `--dur-state`
   eased by `--ease-in`, the new one comes in `--dur-reveal` eased by `--ease-out`, over the old

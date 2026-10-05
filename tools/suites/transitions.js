@@ -8,12 +8,17 @@
        had one, it became ready, the old page faded out in --dur-state and the new one in
        --dur-reveal (their computed durations, so the tokens reached the pseudo-elements),
        laid over each other with plain alpha; nothing animates the top bar's pseudo-
-       elements, and its group sits exactly where the top bar is on the page left and on
-       the page arriving: the HUD keeps its position. The top bar is the one element
-       named. It is over within a second of the page showing. While it runs a click on the
+       elements, and its group sits exactly where the top bar is on the page arriving;
+       the HUD keeps its position: every part of it that both pages show (the level badge
+       and XP, the streak, the combo, the account chip, Sound, the menu button) is where it
+       was on the page left, with a reader whose combo shows on a chapter only (its shield).
+       The top bar is the one element named. It is over within a second of the page
+       showing. While it runs a click on the
        HUD is lost (captured elements are not hit-tested): the window, the longest fade, is
        held to 250ms, and the menu button takes a click again once it is over. And one hop
-       from half-way down a chapter;
+       from half-way down a chapter, and one by a link in the open settings sheet: where
+       the sheet is not modal it fades out with the page (its own name while it is open),
+       and where it is (a narrow screen, the top layer) it is in the root's fade;
      - skipped: with Study mode, with Reduce motion (the settings), with reduced motion
        on the device (never opted in: the page left had no transition to skip), with
        Study mode switched on on the page left after it loaded (pageswap skips it), and
@@ -37,15 +42,23 @@ const SWAP_KEY = "bm-test-swap";
    restored from the back/forward cache runs no script again: its listeners are the ones
    it had, so each reveal starts its record afresh (`reveals` counts them) and reads what
    the page left wrote at pageswap then, not when the document started. */
-const WATCH = (key) => {
+const WATCH = ({ key, parts }) => {
   if (window.top !== window) return;
   const doc = Math.random();
   let vt = window.__vt = { doc, swap: null, reveal: null, done: false, reveals: 0, persisted: null };
   let persisted = null;
   addEventListener("pageshow", (e) => { persisted = e.persisted; });
   addEventListener("pageswap", (e) => {
-    try { sessionStorage.setItem(key, JSON.stringify({ vt: !!e.viewTransition })); } catch (x) { /* no storage */ }
+    const sheet = document.querySelector("#hud-sheet");
+    const s = sheet && sheet.open ? { modal: sheet.matches(":modal"), name: getComputedStyle(sheet).viewTransitionName } : null;
+    try { sessionStorage.setItem(key, JSON.stringify({ vt: !!e.viewTransition, sheet: s })); } catch (x) { /* no storage */ }
   });
+  /* each part of the HUD as [x y width height], or "hidden" */
+  const where = () => Object.fromEntries(parts.map(([k, sel]) => {
+    const el = document.querySelector(sel);
+    const r = el && el.getClientRects().length ? el.getBoundingClientRect() : null;
+    return [k, r ? [r.x, r.y, r.width, r.height].map(v => Math.round(v * 10) / 10).join(" ") : "hidden"];
+  }));
   /* where a click at the middle of the menu button would land: the button (or inside
      it), or what is hit instead */
   const hit = () => {
@@ -69,6 +82,7 @@ const WATCH = (key) => {
         .map(a => ({ on: a.effect.pseudoElement, name: a.animationName, ms: a.effect.getComputedTiming().duration }));
       const css = (p) => { const s = getComputedStyle(document.documentElement, p); return { w: s.width, h: s.height, t: s.transform, ease: s.animationTimingFunction, blend: s.mixBlendMode, opacity: s.opacity }; };
       vt.hud = css("::view-transition-group(hud)");
+      vt.sheetGroup = css("::view-transition-group(hud-sheet)");
       vt.oldHud = css("::view-transition-old(hud)");
       vt.oldRoot = css("::view-transition-old(root)");
       vt.newRoot = css("::view-transition-new(root)");
@@ -76,6 +90,7 @@ const WATCH = (key) => {
       vt.tokens = { in: root.getPropertyValue("--ease-in").trim(), out: root.getPropertyValue("--ease-out").trim() };
       const r = document.querySelector(".topbar").getBoundingClientRect();
       vt.bar = [r.x, r.y, r.width, r.height];
+      vt.parts = where();
       vt.rootName = getComputedStyle(document.documentElement).viewTransitionName;
       vt.named = Array.from(document.body.querySelectorAll("*")).filter(el => getComputedStyle(el).viewTransitionName !== "none")
         .map(el => el.tagName.toLowerCase() + (el.classList.length ? "." + el.classList[0] : ""));
@@ -85,6 +100,20 @@ const WATCH = (key) => {
 };
 
 const BAR = () => { const r = document.querySelector(".topbar").getBoundingClientRect(); return [r.x, r.y, r.width, r.height]; };
+/* the HUD, part by part: what a reader sees stay put or jump when the page changes */
+const HUD_PARTS = [["the level badge and XP", ".topbar .hud-level"], ["the streak", ".topbar .hud-streak"], ["the combo", ".topbar .hud-combo"],
+  ["the account chip", ".topbar .acct"], ["Sound", ".topbar .hud-sound"], ["the menu button", ".topbar .hud-menu"]];
+const PARTS = (parts) => Object.fromEntries(parts.map(([k, sel]) => {
+  const el = document.querySelector(sel);
+  const r = el && el.getClientRects().length ? el.getBoundingClientRect() : null;
+  return [k, r ? [r.x, r.y, r.width, r.height].map(v => Math.round(v * 10) / 10).join(" ") : "hidden"];
+}));
+/* the parts both pages show that are not where they were: [] when the HUD held still */
+const moved = (before, after) => Object.keys(before).filter(k => before[k] !== "hidden" && after && after[k] !== "hidden" && before[k] !== after[k])
+  .map(k => k + " " + before[k] + " -> " + after[k]);
+/* a reader whose combo shows on a chapter and nowhere else (a shield and no pips: the HUD
+   shows a shield where a boss can take it), so the HUD has a part a chapter adds */
+const SHIELD = { "bm.run.v1": { combo: { pips: 0, shield: true }, seen: { level: 1, ach: 0 } } };
 /* a timing function as numbers, however it is spelt: "cubic-bezier(.5, 0, .9, .4)" */
 const curve = (s) => (String(s).match(/-?[\d.]+/g) || []).map(Number).join(",");
 const px = (s) => Math.round(parseFloat(s) * 10) / 10;
@@ -106,33 +135,35 @@ module.exports = {
     async function start(o, helpers) {
       const hh = helpers || h;
       const s = await hh.newPage({ theme, vw: o.vw || 1280, reducedMotion: o.reducedMotion, storage: o.storage });
-      await s.context.addInitScript(WATCH, SWAP_KEY);
+      await s.context.addInitScript(WATCH, { key: SWAP_KEY, parts: HUD_PARTS });
       if (o.prep) await o.prep(s.context);
       await hh.open(s.page, o.from || pages[0]);
       return s;
     }
     /* leave for `rel` as a link does, and wait for the page to arrive and its transition,
        if it has one, to finish; returns what the watch saw and the top bar left behind */
-    async function go(page, rel, before) {
+    async function go(page, rel, before, click) {
       const left = await page.evaluate(BAR);
+      const hud = await page.evaluate(PARTS, HUD_PARTS);
       if (before) await before(page);
-      await page.evaluate((url) => { location.assign(url); }, server.url + rel);
+      if (click) await page.click(click);
+      else await page.evaluate((url) => { location.assign(url); }, server.url + rel);
       await page.waitForURL(server.url + rel, { timeout: 20000 });
       await page.waitForLoadState("load", { timeout: 20000 });
       await page.waitForFunction(() => window.__vt && window.__vt.done, null, { timeout: 10000 });
       const seen = await page.evaluate(() => window.__vt);
       await h.settle(page);
-      return { left: round(left), seen };
+      return { left: round(left), hud, seen };
     }
     const hop = (a, b) => a + " -> " + b;
 
     /* ---------------------------------------------- transitions on ----- */
     for (const vw of ctx.vws) {
-      const { page, errors, close } = await start({ vw });
-      const problems = [], ms = [], deadHits = new Set();
+      const { page, errors, close } = await start({ vw, storage: SHIELD });
+      const problems = [], ms = [], deadHits = new Set(), combo = new Set(), sheetNote = [];
       try {
         for (let i = 1; i < pages.length; i++) {
-          const { left, seen } = await go(page, pages[i]);
+          const { left, hud, seen } = await go(page, pages[i]);
           const where = hop(pages[i - 1], pages[i]) + ": ";
           const bad = (m) => problems.push(where + m);
           if (!seen.swap || !seen.swap.vt) bad("the page left had no view transition at pageswap: " + JSON.stringify(seen.swap));
@@ -153,6 +184,9 @@ module.exports = {
           const arrived = round(seen.bar);
           if (!group[0] || group[0][0] !== arrived[0] || group[0][1] !== arrived[1] || group[1][0] !== arrived[2] || group[1][1] !== arrived[3]) bad("the HUD's group is at " + JSON.stringify(seen.hud) + ", not on the top bar at " + arrived.join(" "));
           if (left.join(" ") !== arrived.join(" ")) bad("the top bar moved: " + left.join(" ") + " on the page left, " + arrived.join(" ") + " on the page arriving");
+          const jumped = moved(hud, seen.parts);
+          if (jumped.length) bad("the HUD moved under the fade: " + jumped.join("; "));
+          if (seen.parts) combo.add(pages[i].split("/").pop() + " " + (seen.parts["the combo"] === "hidden" ? "without" : "with"));
           if (!(seen.ms <= 1000)) bad("the transition took " + seen.ms + "ms to finish");
           /* while it runs the page is not hit-tested (the spec: captured elements behave as
              if pointer-events: none), so a click on the HUD then is lost; the README says so.
@@ -169,16 +203,52 @@ module.exports = {
           await page.goto(server.url + CHAPTER, { waitUntil: "load" });
           await h.settle(page);
           const next = pages[pages.indexOf(CHAPTER) + 1];
-          const { left, seen } = await go(page, next, (p) => p.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight / 2)));
+          const { left, hud, seen } = await go(page, next, (p) => p.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight / 2)));
           const arrived = seen.bar ? round(seen.bar) : null;
           if (!seen.ran) problems.push(hop(CHAPTER + " (half-way down)", next) + ": the view transition did not run (" + (seen.skipped || JSON.stringify(seen.reveal)) + ")");
           else if (!arrived || left.join(" ") !== arrived.join(" ")) problems.push(hop(CHAPTER + " (half-way down)", next) + ": the top bar moved: " + left.join(" ") + " -> " + arrived);
+          else if (moved(hud, seen.parts).length) problems.push(hop(CHAPTER + " (half-way down)", next) + ": the HUD moved: " + moved(hud, seen.parts).join("; "));
+        }
+        /* by a link in the open settings sheet. Not modal (a wide screen), it hangs from the
+           top bar, so it would be in the top bar's capture, which is hidden at once: it has a
+           name of its own while it is open, and fades out with the page, from where it was.
+           Modal (a narrow screen), it is in the top layer, which is in the root's capture. */
+        if (pages.includes("index.html") && pages.includes("progress.html")) {
+          await page.goto(server.url + "index.html", { waitUntil: "load" });
+          await h.settle(page);
+          const where = "index.html -> progress.html (a link in the open settings sheet): ";
+          let hung = null;
+          const sheetAt = async (p) => {
+            await p.click(".hud-menu");
+            await p.waitForFunction(() => document.querySelector("#hud-sheet").open);
+            /* where it hangs once it has come in (it rises into place, game.css) */
+            await p.evaluate(() => Promise.all(document.querySelector("#hud-sheet").getAnimations().map(a => a.finished)));
+            hung = round(await p.evaluate(() => { const b = document.querySelector("#hud-sheet").getBoundingClientRect(); return [b.x, b.y, b.width, b.height]; }));
+          };
+          const { seen } = await go(page, "progress.html", sheetAt, "#hud-sheet a[href=\"progress.html\"]");
+          const sheet = seen.swap && seen.swap.sheet;
+          const fade = (seen.anims || []).filter(a => a.on === "::view-transition-old(hud-sheet)");
+          const rootFade = (seen.anims || []).filter(a => a.on === "::view-transition-old(root)");
+          if (!seen.ran) problems.push(where + "the view transition did not run (" + (seen.skipped || JSON.stringify(seen.reveal)) + ")");
+          else if (!sheet) problems.push(where + "the sheet was not open when the page was left");
+          else if (sheet.modal) {
+            if (fade.length || sheet.name !== "none") problems.push(where + "the modal sheet has a name of its own (" + sheet.name + "), so it does not fade in the root");
+            else sheetNote.push(vw + ": modal, in the root's fade");
+          } else {
+            const g = [shift(seen.sheetGroup.t), px(seen.sheetGroup.w), px(seen.sheetGroup.h)];
+            if (fade.length !== 1 || !rootFade.length || fade[0].name !== rootFade[0].name || fade[0].ms !== rootFade[0].ms) problems.push(where + "the sheet does not fade out with the page: " + JSON.stringify(fade) + " against the root's " + JSON.stringify(rootFade));
+            /* within a pixel: the capture is snapped to whole pixels */
+            else if (!g[0] || !hung || [g[0][0], g[0][1], g[1], g[2]].some((v, j) => !(Math.abs(v - hung[j]) <= 1))) problems.push(where + "the sheet fades at " + JSON.stringify(seen.sheetGroup) + ", not where it was, " + JSON.stringify(hung));
+            else sheetNote.push(vw + ": not modal, faded out in " + fade[0].ms + "ms where it hung");
+          }
+          const named = seen.named || [];
+          if (JSON.stringify(named) !== JSON.stringify(["header.topbar"])) problems.push(where + "the named elements on the page arriving are " + JSON.stringify(named));
         }
       } catch (e) { problems.push("driver error: " + (e && e.message || e)); }
       problems.push(...errors.failures());
       await close();
       report[problems.length ? "fail" : "pass"]("transitions on [" + vw + "]: " + pages.join(" -> "),
-        problems.length ? problems.join("\n") : (pages.length - 1) + " navigations each ran a transition, the HUD still and the page faded in " + ms.join("/") + "ms, and one from half-way down a chapter; a click on the menu button lands on " + Array.from(deadHits).join("/") + " while it runs (ignored) and on the button once it is over");
+        problems.length ? problems.join("\n") : (pages.length - 1) + " navigations each ran a transition, every part of the HUD both pages show where it was (the combo: " + Array.from(combo).join(", ") + ") and the page faded in " + ms.join("/") + "ms, and one from half-way down a chapter; a click on the menu button lands on " + Array.from(deadHits).join("/") + " while it runs (ignored) and on the button once it is over; from the open sheet, " + sheetNote.join(", "));
     }
 
     /* ---------------------------------------------------- skipped ------ */
@@ -249,7 +319,7 @@ module.exports = {
       if (bf) {
         const hb = browserLib.makeHelpers(Object.assign({}, ctx, { browser: bf }));
         const CASES = [
-          { label: "transitions on", ran: true },
+          { label: "transitions on", ran: true, storage: SHIELD },
           { label: "Study mode", storage: { "bm.prefs.v1": { calm: true } } },
           { label: "Study mode switched on on the page left", before: (p) => p.evaluate(() => document.documentElement.setAttribute("data-calm", "true")) }
         ];
@@ -279,6 +349,7 @@ module.exports = {
                 const where = dir + " from " + route[at] + " to " + to + ": ";
                 const bad = (m) => problems.push(where + m);
                 const bar = await page.evaluate(BAR);
+                const hudLeft = await page.evaluate(PARTS, HUD_PARTS);
                 await leave();
                 if (c.before) await c.before(page);
                 await page.evaluate((d) => history[d](), dir);
@@ -301,6 +372,7 @@ module.exports = {
                   if (!seen.ran) { bad("the view transition did not run (" + (seen.skipped || JSON.stringify(seen.reveal)) + ")"); continue; }
                   const arrived = round(seen.bar);
                   if (round(bar).join(" ") !== arrived.join(" ")) bad("the top bar moved: " + round(bar).join(" ") + " -> " + arrived.join(" "));
+                  if (moved(hudLeft, seen.parts).length) bad("the HUD moved under the fade: " + moved(hudLeft, seen.parts).join("; "));
                   if (JSON.stringify(seen.named) !== JSON.stringify(["header.topbar"])) bad("the named elements are " + JSON.stringify(seen.named));
                   if (seen.hitDone !== "the menu button") bad("once the transition finished, a click on the menu button lands on " + seen.hitDone);
                   how.push(seen.ms + "ms");
