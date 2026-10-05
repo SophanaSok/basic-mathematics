@@ -1,12 +1,35 @@
 "use strict";
 /* Every interactive figure mounts (an <svg> or <canvas> inside, no failure note), and
    survives being driven: each range slider to both ends, each chip clicked, and the
-   arrow keys and Space on a focusable SVG. Any exception fails. */
+   arrow keys and Space on a focusable SVG. Any exception fails.
+   On a chapter with 3D scenes, also the painter every stage reached, one result per page:
+   under a launch the webgl suite's probe found WebGL 2 in, every stage must be on the GL
+   painter (data-painter="gl" data-state="ready"), since scenes3d.js falls back to the SVG
+   painter on purpose, without a console error, when the GL one cannot start, and a
+   Three.js release that broke only the scene painter would otherwise pass here on the
+   flat pictures. The probe runs even under --skip=webgl (the deploy gate, which is not
+   retried, and software WebGL now and then loses its context), so there a stage off the
+   GL painter is a warn that names every stage's painter, not a failure: the failure is
+   this suite's in every other run, and game/scenes.test.js's in the retried webgl job,
+   where it also holds the fallback without WebGL. */
+
+/* a stage that asked for 3D ends on gl/ready or svg/fallback; svg/ready never asked
+   (the page was not scrolled to it), loading is still waiting */
+const SCENE_HOSTS = "[data-widget][data-painter]";
+async function settledPainters(page) {
+  const done = await page.waitForFunction((sel) => Array.prototype.every.call(document.querySelectorAll(sel), el => {
+    const s = el.getAttribute("data-painter") + "/" + el.getAttribute("data-state");
+    return s === "gl/ready" || s === "svg/fallback";
+  }), SCENE_HOSTS, { timeout: 20000 }).then(() => true, () => false);
+  const states = await page.evaluate((sel) => Array.from(document.querySelectorAll(sel)).map(el =>
+    el.getAttribute("data-widget") + (el.closest(".ex") ? "(ex)" : "") + ":" + el.getAttribute("data-painter") + "/" + el.getAttribute("data-state")), SCENE_HOSTS);
+  return { done, states };
+}
 
 module.exports = {
   name: "widgets",
   order: 20,
-  description: "every [data-widget] mounts and survives sliders at both ends, every chip, and keyboard on its SVG",
+  description: "every [data-widget] mounts and survives sliders at both ends, every chip, and keyboard on its SVG; every 3D stage on the GL painter under WebGL",
   async run(ctx) {
     const { h, report } = ctx;
     let totalHosts = 0;
@@ -15,6 +38,12 @@ module.exports = {
       try {
         await h.open(page, rel);
         await h.wholePage(page);
+        /* the 3D stages ask for Three.js as they near the screen: scroll past every one,
+           then wait for each to settle on its painter before the figures are driven */
+        const scenes = page.locator(SCENE_HOSTS);
+        const nScenes = await scenes.count();
+        for (let s = 0; s < nScenes; s++) await scenes.nth(s).scrollIntoViewIfNeeded();
+        const painters = nScenes ? await settledPainters(page) : null;
         const hosts = await page.evaluate(() => Array.from(document.querySelectorAll("[data-widget]")).map((el, i) => ({
           i, name: el.getAttribute("data-widget"), inEx: !!el.closest(".ex"),
           /* most figures are SVG; truthtable is an HTML <table>, scenes will be <canvas> */
@@ -70,6 +99,17 @@ module.exports = {
             if (fresh.length) problems.push(...fresh);
           }
           report[problems.length ? "fail" : "pass"](label, problems.length ? problems.join("\n") : (w.ranges + " sliders, " + w.chips + " chips, " + w.focusable + " focusable"));
+        }
+        /* the painter the 3D stages reached (header): GL everywhere under WebGL 2 */
+        if (painters) {
+          const label = rel + " · painters";
+          const allGL = painters.done && painters.states.every(s => /:gl\/ready$/.test(s));
+          const gl = ctx.launch && ctx.launch.webgl;
+          const gate = String(ctx.opts.skip || "").split(",").map(s => s.trim()).includes("webgl");
+          if (!gl) report.skip(label, "no WebGL probe ran, so the painter is whatever this launch gave: " + painters.states.join(" "));
+          else if (!gl.ok) report.skip(label, "no WebGL 2 in this launch, so the SVG fallback: " + painters.states.join(" "));
+          else if (allGL) report.pass(label, painters.states.length + " stages on the GL painter under " + gl.renderer);
+          else report[gate ? "warn" : "fail"](label, "WebGL 2 is there (" + gl.renderer + ") but not every stage is on the GL painter" + (painters.done ? "" : " after 20 s") + ": " + painters.states.join(" ") + ". A stage on svg/fallback asked for 3D and the GL painter did not start (BM3D.initGL threw or returned nothing, or the loader said " + JSON.stringify(await page.evaluate(() => window.BM3D && window.BM3D.why)) + "); scenes3d.js falls back without a console error, so this is the one check that sees it" + (gate ? ". A warning under --skip=webgl (the gate, not retried); the webgl job's scenes.test.js fails on it" : ""));
         }
         /* anything that went wrong on the page as a whole but outside a host */
         const rest = errors.failures();

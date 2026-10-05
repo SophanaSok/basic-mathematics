@@ -11,6 +11,12 @@
    same two states in either order gives the same result. A write only lands on the
    version of the account row this page last saw; if another device has saved since,
    the page reads the row, merges, and tries again (sync below).
+
+   A later version of the site may save fields this one has never heard of. They are
+   carried through every merge and written back as they came (later, carryOver). A row
+   whose data is marked as a newer shape than this file understands is merged into
+   this browser but never written (SCHEMA), and only the columns the server has are
+   sent (lacks).
    =========================================================================== */
 (function () {
   "use strict";
@@ -46,7 +52,6 @@
   /* false while the project cannot send email to the public: the two buttons that work
      only through an email (the sign-in link, the password reset) are left out */
   var mail = cfg.emailDelivery !== false;
-  var SDK = "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2";
   var META_KEY = "bm.sync.v1";
   /* "game" only where site.js knows the key, so an older site.js still syncs cleanly */
   var FIELDS = ["progress", "play", "attempts", "activity", "lesson", "last", "game"].filter(function (f) {
@@ -54,22 +59,68 @@
   });
 
   function obj(x) { return x && typeof x === "object" && !Array.isArray(x) ? x : {}; }
+  /* The keys of both, each once. A key is data, whatever it is called: one named like
+     something every object inherits ("constructor", "toString") is listed like any other,
+     and at() reads only what the object itself holds, so the inherited thing is never
+     mistaken for a value. The one exception is "__proto__", which cannot be written back
+     as an ordinary field and is left out of every record built here. */
   function keysOf(a, b) {
-    var seen = {}, out = [];
+    var seen = Object.create(null), out = [];
     Object.keys(obj(a)).concat(Object.keys(obj(b))).forEach(function (k) {
-      if (!seen[k]) { seen[k] = true; out.push(k); }
+      if (k !== "__proto__" && !seen[k]) { seen[k] = true; out.push(k); }
     });
     return out.sort();
+  }
+  function at(o, k) { return Object.prototype.hasOwnProperty.call(o, k) ? o[k] : undefined; }
+  function plain(x) { return !!x && typeof x === "object" && !Array.isArray(x); }
+
+  /* JSON with object keys sorted at every level: jsonb hands keys back in its own order */
+  function canon(x) {
+    if (Array.isArray(x)) return "[" + x.map(canon).join(",") + "]";
+    if (x && typeof x === "object") {
+      return "{" + Object.keys(x).sort().filter(function (k) { return x[k] !== undefined; })
+        .map(function (k) { return JSON.stringify(k) + ":" + canon(x[k]); }).join(",") + "}";
+    }
+    return JSON.stringify(x === undefined ? null : x);
   }
 
   /* ------------------------------------------------------------- merging -- */
 
+  /* What this version has no rule for is not its to drop: a later version of the site may
+     have put it there. One rule covers every such value. Held by one side only, it is
+     kept; held by both, the one whose canonical JSON (canon) is the later string is kept.
+     That is a maximum, so order, grouping and repetition matter no more than they do for
+     the fields with rules of their own. Each such field is merged by itself, not along
+     with whichever record wins on the known fields. */
+  function later(p, q) {
+    if (p === undefined) return q;
+    if (q === undefined) return p;
+    return canon(p) >= canon(q) ? p : q;
+  }
+  /* adds to a freshly built record every field of x and y that is not in `known` */
+  function carryOver(out, x, y, known) {
+    keysOf(x, y).forEach(function (k) {
+      if (known.indexOf(k) < 0) out[k] = later(at(x, k), at(y, k));
+    });
+    return out;
+  }
+  /* Where a store is keyed by chapter, exercise, section or the like, every key is merged
+     as a record of that kind, whether this version knows the key or not: a chapter added
+     next year must still merge as a chapter. So an object under a key this version does
+     not know comes out with that kind's known fields filled in, and merged field by field
+     when both sides hold one. A value that is a record on neither side has no fields to
+     merge, and goes through whole; that includes a damaged value under a known key,
+     which is no longer turned into an empty record here (site.js writes over it). */
+  function opaque(p, q) { return !plain(p) && !plain(q); }
+
   function mergeProgress(a, b) {
     var out = {};
     keysOf(a, b).forEach(function (ch) {
-      var x = obj(obj(a)[ch]), y = obj(obj(b)[ch]), solved = {};
+      var p = at(obj(a), ch), q = at(obj(b), ch);
+      if (opaque(p, q)) { out[ch] = later(p, q); return; }
+      var x = obj(p), y = obj(q), solved = {};
       keysOf(x.solved, y.solved).forEach(function (k) { solved[k] = true; });
-      out[ch] = { solved: solved, total: Math.max(x.total || 0, y.total || 0) };
+      out[ch] = carryOver({ solved: solved, total: Math.max(x.total || 0, y.total || 0) }, x, y, ["solved", "total"]);
     });
     return out;
   }
@@ -77,20 +128,22 @@
   function mergePlay(a, b) {
     var out = {};
     keysOf(a, b).forEach(function (ch) {
-      var x = obj(obj(a)[ch]), y = obj(obj(b)[ch]), done = {};
+      var p = at(obj(a), ch), q = at(obj(b), ch);
+      if (opaque(p, q)) { out[ch] = later(p, q); return; }
+      var x = obj(p), y = obj(q), done = {};
       keysOf(x.done, y.done).forEach(function (k) { done[k] = true; });
       var rec = { done: done, total: Math.max(x.total || 0, y.total || 0) };
       var guess = x.guess !== undefined && x.guess !== null ? x.guess : y.guess;
       if (guess !== undefined && guess !== null) rec.guess = guess;
-      out[ch] = rec;
+      out[ch] = carryOver(rec, x, y, ["done", "total", "guess"]);
     });
     return out;
   }
 
   /* one exercise's record seen from two devices */
+  var ATTEMPT = ["tries", "hints", "opened", "inline", "section", "solved", "first", "skipped"];
   function mergeAttempt(x, y) {
-    if (!x) return y;
-    if (!y) return x;
+    if (!plain(x) || !plain(y)) return plain(x) ? x : plain(y) ? y : later(x, y);
     var out = {};
     var tries = Math.max(x.tries || 0, y.tries || 0);
     var hints = Math.max(x.hints || 0, y.hints || 0);
@@ -107,15 +160,17 @@
     } else if (x.skipped || y.skipped) {
       out.skipped = 1;
     }
-    return out;
+    return carryOver(out, x, y, ATTEMPT);
   }
 
   function mergeAttempts(a, b) {
     var out = {};
     keysOf(a, b).forEach(function (ch) {
-      var x = obj(obj(a)[ch]), y = obj(obj(b)[ch]);
+      var p = at(obj(a), ch), q = at(obj(b), ch);
+      if (opaque(p, q)) { out[ch] = later(p, q); return; }
+      var x = obj(p), y = obj(q);
       out[ch] = {};
-      keysOf(x, y).forEach(function (k) { out[ch][k] = mergeAttempt(x[k], y[k]); });
+      keysOf(x, y).forEach(function (k) { out[ch][k] = mergeAttempt(at(x, k), at(y, k)); });
     });
     return out;
   }
@@ -124,24 +179,24 @@
     a = obj(a); b = obj(b);
     var days = {};
     keysOf(a.days, b.days).forEach(function (d) {
-      days[d] = Math.max(obj(a.days)[d] || 0, obj(b.days)[d] || 0);
+      days[d] = Math.max(at(obj(a.days), d) || 0, at(obj(b.days), d) || 0);
     });
     var out = { days: days };
     var goal = a.goal || b.goal;
     if (goal) out.goal = goal;
-    return out;
+    return carryOver(out, a, b, ["days", "goal"]);
   }
 
   function mergeLesson(a, b) {
     a = obj(a); b = obj(b);
     var reached = {};
     keysOf(a.reached, b.reached).forEach(function (ch) {
-      reached[ch] = Math.max(obj(a.reached)[ch] || 0, obj(b.reached)[ch] || 0);
+      reached[ch] = Math.max(at(obj(a.reached), ch) || 0, at(obj(b.reached), ch) || 0);
     });
     var out = { reached: reached };
     var mode = a.mode || b.mode;
     if (mode) out.mode = mode;
-    return out;
+    return carryOver(out, a, b, ["reached", "mode"]);
   }
 
   /* The game layer's record (bm.game.v1). Every field merges so that order, grouping
@@ -153,26 +208,35 @@
        best   per mode: highest score, then most hearts, then the earlier day
        enc    per set: the higher rematch medal, then the earlier day
        daily  union, keeping the latest 60 days
-       maxed  max */
+       maxed  max
+       v      max: the shape of the whole synced state (SCHEMA below); left out until a
+              version of the site sets it
+     Anything else in the record, or in one of its sec, best or enc entries, is carried
+     (later). */
   function num(x) { x = Number(x); return isFinite(x) ? x : 0; }
   function str(x) { return typeof x === "string" ? x : ""; }
+  var GAME = ["ach", "cmp", "sec", "best", "enc", "daily", "maxed", "v"];
   function mergeGame(a, b) {
     a = obj(a); b = obj(b);
     var out = { ach: {}, cmp: {}, sec: {}, best: {}, enc: {}, daily: {}, maxed: Math.max(num(a.maxed), num(b.maxed)) };
+    var v = Math.max(num(a.v), num(b.v));
+    if (v > 0) out.v = v;
     var ach = [obj(a.ach), obj(b.ach)];
     keysOf(ach[0], ach[1]).forEach(function (id) {
-      var t = [num(ach[0][id]), num(ach[1][id])].filter(function (x) { return x > 0; });
+      var t = [num(at(ach[0], id)), num(at(ach[1], id))].filter(function (x) { return x > 0; });
       if (t.length) out.ach[id] = Math.min.apply(null, t);
     });
     var cmp = [obj(a.cmp), obj(b.cmp)];
     keysOf(cmp[0], cmp[1]).forEach(function (ch) {
-      var x = obj(cmp[0][ch]), y = obj(cmp[1][ch]), rec = {};
-      keysOf(x, y).forEach(function (k) { if (x[k] || y[k]) rec[k] = 1; });
+      var x = obj(at(cmp[0], ch)), y = obj(at(cmp[1], ch)), rec = {};
+      keysOf(x, y).forEach(function (k) { if (at(x, k) || at(y, k)) rec[k] = 1; });
       out.cmp[ch] = rec;
     });
     var sec = [obj(a.sec), obj(b.sec)];
     keysOf(sec[0], sec[1]).forEach(function (id) {
-      var x = obj(sec[0][id]), y = obj(sec[1][id]);
+      var p = at(sec[0], id), q = at(sec[1], id);
+      if (opaque(p, q)) { out.sec[id] = later(p, q); return; }
+      var x = obj(p), y = obj(q);
       var n = Math.max(num(x.n), num(y.n));
       /* each side's ok is held to its own n first, which keeps the merge associative */
       var rec = { n: n, ok: Math.max(Math.min(num(x.ok), num(x.n)), Math.min(num(y.ok), num(y.n))) };
@@ -182,30 +246,32 @@
       if (str(pick.last)) rec.last = str(pick.last);
       var fix = Math.max(num(x.fix), num(y.fix));
       if (fix) rec.fix = fix;
-      out.sec[id] = rec;
+      out.sec[id] = carryOver(rec, x, y, ["n", "ok", "box", "last", "fix"]);
     });
     var best = [obj(a.best), obj(b.best)];
     keysOf(best[0], best[1]).forEach(function (mode) {
-      var list = [best[0][mode], best[1][mode]].filter(function (r) { return r && typeof r === "object"; })
+      var p = at(best[0], mode), q = at(best[1], mode);
+      if (opaque(p, q)) { out.best[mode] = later(p, q); return; }
+      var list = [p, q].filter(plain)
         .map(function (r) { return { score: num(r.score), hearts: num(r.hearts), day: str(r.day) }; });
-      if (!list.length) return;
-      list.sort(function (p, q) {
-        return (q.score - p.score) || (q.hearts - p.hearts) || (p.day < q.day ? -1 : p.day > q.day ? 1 : 0);
+      list.sort(function (r, s) {
+        return (s.score - r.score) || (s.hearts - r.hearts) || (r.day < s.day ? -1 : r.day > s.day ? 1 : 0);
       });
-      out.best[mode] = list[0];
+      out.best[mode] = carryOver(list[0], obj(p), obj(q), ["score", "hearts", "day"]);
     });
     var enc = [obj(a.enc), obj(b.enc)];
     keysOf(enc[0], enc[1]).forEach(function (id) {
-      var list = [enc[0][id], enc[1][id]].filter(function (r) { return r && typeof r === "object"; })
+      var p = at(enc[0], id), q = at(enc[1], id);
+      if (opaque(p, q)) { out.enc[id] = later(p, q); return; }
+      var list = [p, q].filter(plain)
         .map(function (r) { return { medal: num(r.medal), day: str(r.day) }; });
-      if (!list.length) return;
-      list.sort(function (p, q) { return (q.medal - p.medal) || (p.day < q.day ? -1 : p.day > q.day ? 1 : 0); });
-      out.enc[id] = list[0];
+      list.sort(function (r, s) { return (s.medal - r.medal) || (r.day < s.day ? -1 : r.day > s.day ? 1 : 0); });
+      out.enc[id] = carryOver(list[0], obj(p), obj(q), ["medal", "day"]);
     });
     var daily = [obj(a.daily), obj(b.daily)];
-    keysOf(daily[0], daily[1]).filter(function (d) { return daily[0][d] || daily[1][d]; })
+    keysOf(daily[0], daily[1]).filter(function (d) { return at(daily[0], d) || at(daily[1], d); })
       .reverse().slice(0, 60).sort().forEach(function (d) { out.daily[d] = 1; });
-    return out;
+    return carryOver(out, a, b, GAME);
   }
 
   /* local first: where two devices simply disagree (the reading mode, the daily goal,
@@ -266,24 +332,28 @@
     catch (e) { return false; }
   }
 
+  /* The SDK is supabase-js from npm, bundled as a chunk of its own (src/vendor/supabase.js,
+     dist/bundle/supabase.js) that only this import() fetches, so a page downloads it when a
+     client is first wanted and never otherwise. A window.supabase that is already there is
+     used as it is: the tests put their stand-in there, and so could a page that loaded the
+     library another way. A fetch that fails leaves `loading` clear, so the next call tries
+     again, with the same message as before. */
   function load() {
     if (!configured) return Promise.reject(new Error("Accounts are not configured."));
     if (client) return Promise.resolve(client);
     if (loading) return loading;
     loading = new Promise(function (resolve, reject) {
-      function make() {
+      function make(sdk) {
         try {
-          client = window.supabase.createClient(cfg.supabaseUrl, cfg.supabaseAnonKey);
+          client = sdk.createClient(cfg.supabaseUrl, cfg.supabaseAnonKey);
           resolve(client);
         } catch (e) { reject(e); }
       }
-      if (window.supabase && window.supabase.createClient) return make();
-      var s = document.createElement("script");
-      s.src = SDK;
-      s.async = true;
-      s.onload = make;
-      s.onerror = function () { loading = null; reject(new Error("Could not reach the account service.")); };
-      document.head.appendChild(s);
+      if (window.supabase && window.supabase.createClient) return make(window.supabase);
+      import("../src/vendor/supabase.js").then(make, function () {
+        loading = null;
+        reject(new Error("Could not reach the account service."));
+      });
     });
     return loading;
   }
@@ -295,8 +365,9 @@
   /* The account row as this page last read or wrote it: undefined until then, null
      when the account has no row yet, otherwise its updated_at exactly as the server
      sent it back. `owned` is set once this page has claimed this browser's progress
-     for the reader, so a sign-out in another tab can be noticed. */
-  var seen, owned = false;
+     for the reader, so a sign-out in another tab can be noticed. `ahead` is set while
+     the reader's data is in a newer shape than this file may write (SCHEMA below). */
+  var seen, owned = false, ahead = false;
   /* one sync at a time per page; each waits for the one before to settle */
   var chain = Promise.resolve();
   function serial(fn) {
@@ -312,16 +383,6 @@
   }
   function notify() {
     watchers.slice().forEach(function (fn) { try { fn(Account); } catch (e) { /* a watcher's own problem */ } });
-  }
-
-  /* JSON with object keys sorted at every level: jsonb hands keys back in its own order */
-  function canon(x) {
-    if (Array.isArray(x)) return "[" + x.map(canon).join(",") + "]";
-    if (x && typeof x === "object") {
-      return "{" + Object.keys(x).sort().filter(function (k) { return x[k] !== undefined; })
-        .map(function (k) { return JSON.stringify(k) + ":" + canon(x[k]); }).join(",") + "}";
-    }
-    return JSON.stringify(x === undefined ? null : x);
   }
 
   /* Progress that could not be saved when its reader signed out, set aside by reader:
@@ -348,15 +409,49 @@
     });
   }
 
+  /* The newest shape of the synced data this file understands. A later version of the
+     site that changes what a known field means, so that the merge above would damage
+     it, marks the data by saving a larger number as `v` in the game record (mergeGame
+     keeps the largest). It travels inside the data so that no SQL has to run before a
+     site that reads it is deployed, and in the game record because that is the one
+     synced store whose top level is a fixed set of named fields, each with its own
+     rule: the others are keyed by chapter, or hold this device's own choices. No `v`
+     means 1, and this file never writes one, so what is stored today stays as it is.
+
+     Data marked newer than SCHEMA is still merged into this browser, so the reader keeps
+     working with everything they have, but the page then writes nothing to the account,
+     neither the row nor the attempt log (`ahead`), and the account page asks for a
+     reload, which fetches the newer site. */
+  var SCHEMA = 1;
+  function versionOf(state) { return num(obj(obj(state).game).v); }
+
+  /* Columns of user_state the server turned out not to have. They are not sent, so a
+     project whose tables are older than this file still syncs the rest; what they would
+     hold stays in this browser. Learned from the row a read returns, which names every
+     column the table has, and from a save the server refuses for naming a column it
+     lacks (a new account has no row to read). */
+  var lacks = {};
+  function learn(remote) {
+    FIELDS.forEach(function (f) {
+      if (Object.prototype.hasOwnProperty.call(remote, f)) delete lacks[f];
+      else lacks[f] = true;
+    });
+  }
+  /* the column a refused save names: PostgREST's "Could not find the 'game' column of
+     'user_state' in the schema cache" (PGRST204), or Postgres's own 42703 */
+  function missingColumn(e) {
+    if (e.code !== "PGRST204" && e.code !== "42703") return "";
+    var m = /'([^']+)' column/.exec(e.message || "") || /column "([^"]+)"/.exec(e.message || "");
+    return m ? m[1] : "";
+  }
+  /* PostgREST's PGRST205, or Postgres's own 42P01: there is no such table */
+  function noTable(e) { return e.code === "PGRST205" || e.code === "42P01"; }
+
   function row(u, state, resetAt) {
-    var out = {
-      user_id: u.id,
-      progress: state.progress || {}, play: state.play || {}, attempts: state.attempts || {},
-      activity: state.activity || {}, lesson: state.lesson || {}, last: state.last || null,
-      reset_at: resetAt || 0, updated_at: nextStamp()
-    };
-    /* needs the `game` column (supabase/schema.sql) */
-    if (FIELDS.indexOf("game") > -1) out.game = state.game || {};
+    var out = { user_id: u.id, reset_at: resetAt || 0, updated_at: nextStamp() };
+    FIELDS.forEach(function (f) {
+      if (!lacks[f]) out[f] = state[f] || (f === "last" ? null : {});
+    });
     return out;
   }
   /* always later than the version being replaced, even if this device's clock is behind */
@@ -385,8 +480,11 @@
   }
 
   /* Save a state over the version of the row this page last saw. Resolves true when it
-     landed, false when another device got there first (nothing was written). */
+     landed, false when nothing was written: another device got there first, or the data
+     is in a newer shape than this file may write. */
   function write(u, state, resetAt) {
+    if (versionOf(state) > SCHEMA) ahead = true;
+    if (ahead) return Promise.resolve(false);
     var data = row(u, state, resetAt);
     var req = seen === null
       ? client.from("user_state").insert(data).select("updated_at")
@@ -394,6 +492,9 @@
     return req.then(function (res) {
       if (res.error) {
         if (seen === null && res.error.code === "23505") return false;   /* another device created the row first */
+        /* a column this server does not have: leave it out and save the rest */
+        var col = missingColumn(res.error);
+        if (FIELDS.indexOf(col) > -1 && !lacks[col]) { lacks[col] = true; return write(u, state, resetAt); }
         throw res.error;
       }
       if (!res.data || !res.data.length) return false;  /* the row has moved on since this page read it */
@@ -403,7 +504,9 @@
   }
 
   /* Read the account row, merge it into this browser, and save the result if the row
-     lacks anything, trying again if another device saves in between. */
+     lacks anything, trying again if another device saves in between. Resolves true once
+     the account holds everything this browser does, false when the result was left
+     unwritten because the data is in a newer shape than this file may write. */
   function sync(u, tries) {
     return confirmSession(u).then(function () {
       return client.from("user_state").select("*").eq("user_id", u.id).maybeSingle();
@@ -413,7 +516,7 @@
       stillOwner(u);
       var remote = res.data, m = meta(), local = readLocal(), dropped = false;
       var aside = obj(pending()[u.id]), hasAside = !!aside.state;
-      seen = remote ? remote.updated_at : null;
+      if (remote) learn(remote);
       var remoteReset = remote ? Number(remote.reset_at) || 0 : 0;
       var mine = m.user === u.id ? Number(m.resetAt) || 0 : 0;
       var asideReset = hasAside ? Number(aside.resetAt) || 0 : 0;
@@ -433,6 +536,10 @@
         if (!(written >= known)) { base = {}; resetAt = known; }
       }
       var merged = merge(merge(local, kept), base);
+      /* only now has this page seen the row: had the merge failed, the next save would
+         read and merge again instead of writing this browser's copy over it */
+      seen = remote ? remote.updated_at : null;
+      ahead = versionOf(remote) > SCHEMA || versionOf(merged) > SCHEMA;
       setMeta(function (x) { x.user = u.id; x.resetAt = resetAt; });
       owned = true;
       writeLocal(merged, dropped);
@@ -441,9 +548,12 @@
         return true;
       }
       var same = remote && remoteReset === resetAt && FIELDS.every(function (f) {
-        return canon(merged[f] || null) === canon(remote[f] || null);
+        return lacks[f] || canon(merged[f] || null) === canon(remote[f] || null);
       });
       if (same) return done();
+      /* a newer shape: merged into this browser above and not written, and what was set
+         aside stays set aside */
+      if (ahead) return false;
       return write(u, merged, resetAt).then(function (ok) {
         if (ok) return done();
         if (tries >= 3) throw new Error("Another device kept saving at the same moment. Try Sync now.");
@@ -452,14 +562,31 @@
     });
   }
 
-  /* Both resolve true when this browser's progress is in the account, false when it
-     could not be saved (the reason is in status.error); neither ever rejects. */
+  /* The attempt log is an extra. Resolves true when the rows were taken and false, with
+     nothing thrown, when the project has no `attempts` table: that feature is off there,
+     and progress still syncs. The page then holds the log back (logAfter) instead of
+     sending all of it again with every save, tries once more every LOG_RETRY, and keeps
+     only the newest LOG_MAX checks meanwhile, so a long visit cannot pile them up. */
+  var LOG_RETRY = 5 * 60 * 1000, LOG_MAX = 500, logAfter = 0;
+  function logHeld() { return Date.now() < logAfter; }
+  function logAttempts(events) {
+    return client.from("attempts").insert(events).then(function (r) {
+      if (r.error && noTable(r.error)) { logAfter = Date.now() + LOG_RETRY; return false; }
+      if (r.error) throw r.error;
+      logAfter = 0;
+      return true;
+    });
+  }
+
+  /* Both resolve true when this browser's progress is in the account, false when it is
+     not: it could not be saved (the reason is in status.error), or this file may not
+     write it (status.state is "reload"). Neither ever rejects. */
   function pull() {
     var u = user;
     return serial(function () {
       if (!u || !user || user.id !== u.id) return false;
       setStatus("syncing");
-      return sync(u, 0).then(function () { setStatus("synced"); return true; },
+      return sync(u, 0).then(function (ok) { setStatus(ahead ? "reload" : "synced"); return ok; },
         function (e) { setStatus("error", e); return false; });
     });
   }
@@ -471,7 +598,7 @@
     var u = user;
     return serial(function () {
       if (!user || user.id !== u.id) return false;
-      var events = queue;
+      var events = queue, logged = false;
       queue = [];
       setStatus("syncing");
       /* a page that has not read the row yet merges with it before writing anything */
@@ -482,16 +609,20 @@
         stillOwner(u);
         return write(u, state, Number(meta().resetAt) || 0);
       }).then(function (ok) { return ok || sync(u, 0); });
-      var log = events.length ? client.from("attempts").insert(events).then(function (r) {
-        if (r.error) throw r.error;
-      }) : null;
-      return Promise.all([save, log]).then(function () { setStatus("synced"); return true; }, function (e) {
+      /* the log waits for the save, which is what finds out whether this page may write */
+      function log() {
+        if (!events.length || ahead || logHeld()) return null;
+        return logAttempts(events).then(function (ok) { logged = ok; });
+      }
+      var sent = save.then(log, log);
+      return sent.then(noop, noop).then(function () {
+        /* a log that did not go, whatever the reason, goes again with the next save */
+        if (!logged && user && user.id === u.id) queue = events.concat(queue);
+        return Promise.all([save, sent]);
+      }).then(function (r) { setStatus(ahead ? "reload" : "synced"); return r[0]; }, function (e) {
         setStatus("error", e);
-        /* the attempt log goes again with the next save; whether progress was saved is what the caller needs */
-        return save.then(function () { queue = events.concat(queue); return true; }, function () {
-          queue = events.concat(queue);
-          return false;
-        });
+        /* whether progress was saved is what the caller needs */
+        return save.then(null, function () { return false; });
       });
     });
   }
@@ -510,10 +641,13 @@
     if (!client || !user || seen === undefined) return;
     var u = user, state = readLocal();
     if (meta().user !== u.id) return;
+    write(u, state, Number(meta().resetAt) || 0).then(noop, noop);
+    if (ahead || !queue.length || logHeld()) return;
     var events = queue;
     queue = [];
-    write(u, state, Number(meta().resetAt) || 0).then(noop, noop);
-    if (events.length) client.from("attempts").insert(events).then(noop, noop);
+    logAttempts(events).then(function (ok) {
+      if (!ok && user && user.id === u.id) queue = events.concat(queue);
+    }, noop);
   }
 
   Store.on(function (c) {
@@ -527,6 +661,7 @@
         correct: !!c.correct, try_no: c.tryNo || 1, hint_level: c.hintLevel || 0,
         solution_open: !!c.solutionOpen, inline: !!c.inline
       });
+      if (logAfter && queue.length > LOG_MAX) queue = queue.slice(-LOG_MAX);
       schedule();
     } else if (c.type === "reset") {
       /* stamp the reset so other devices drop their copies instead of merging them back;
@@ -548,6 +683,7 @@
     if (changed) {
       seen = undefined;
       owned = false;
+      ahead = false;
       queue = [];
       clearTimeout(pushTimer);
       pushTimer = null;
@@ -914,6 +1050,7 @@
     } else {
       var st = status.state === "syncing" ? "Syncing…"
         : status.state === "error" ? "Sync failed: " + (status.error && status.error.message ? status.error.message : "unknown error")
+        : status.state === "reload" ? "A newer version of this site has saved to your account. Reload this page to finish syncing."
         : status.at ? "Synced at " + status.at.toLocaleTimeString() : "Signed in";
       var who = label(user), ways = methodNames(user);
       html = '<div class="panel"><h2>Your account</h2>' +

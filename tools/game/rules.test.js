@@ -7,6 +7,7 @@
      - hearts and medals on fixtures, including a set solved with no attempt record
      - every achievement predicate on fixtures, false on an empty store
      - the recall boxes and run XP of recordRun
+     - play settings and game records keep what a later version of the site added to them
    Usage: node tools/game/rules.test.js */
 "use strict";
 const fs = require("fs");
@@ -386,6 +387,56 @@ function world(seedStores) {
   w = world(s4);
   w.Game.evaluate();
   eq([!!w.Game.game().ach["boss-down"], !!w.Game.game().ach.flawless], [true, false], "a finished chapter without the cache counts for Boss down");
+}
+
+/* ---------------------------------- what a later version of the site adds */
+{
+  const keys = ["e1", "e2", "e3", "e4"];
+  const at = (d) => new Date(d + "T12:00:00").getTime();
+
+  /* play settings: a key this file has never heard of outlives every switch */
+  let w = world({ "bm.prefs.v1": { calm: true, motion: "reduced", volume: { music: 0.4 } } });
+  eq([w.Game.prefs().calm, w.Game.prefs().motion], [true, "reduced"], "prefs() hands back an unknown key beside the known ones");
+  w.Game.setPref("sound", true);
+  eq([w.read("bm.prefs.v1").motion, w.read("bm.prefs.v1").volume, w.read("bm.prefs.v1").sound], ["reduced", { music: 0.4 }, true], "switching one setting keeps an unknown key");
+  w.Game.setPref("calm", false); w.Game.setPref("map3d", false); w.Game.setPref("tempo", "untimed");
+  let p = w.read("bm.prefs.v1");
+  eq([p.motion, p.volume, p.sound, p.calm, p.map, p.tempo], ["reduced", { music: 0.4 }, true, false, "list", "untimed"], "every setting switched in turn: the unknown keys are still there");
+  /* the settings stay on this device: a "state" change is what account sync listens for */
+  eq([w.events.filter((e) => e.type === "state").length, w.events.filter((e) => e.type === "prefs").length], [0, 4], "switching a setting announces prefs and never a state change");
+  w.Game.setPref("nonsense", 1);
+  eq(w.read("bm.prefs.v1"), p, "a setting this file does not know is not written by setPref");
+  p = world({ "bm.prefs.v1": { map: "globe", tempo: "warp" } }).Game.prefs();
+  eq([p.sound, p.calm, "map" in p, p.tempo], [false, false, false, "standard"], "the known settings are still normalised");
+
+  /* the game record: an Arena run rewrites a section and a best, and keeps what it does not know */
+  w = world({ "bm.game.v1": {
+    v: 2, wallet: { coins: 3 },
+    sec: { "ch05#angles": { n: 1, ok: 1, box: 0, last: daysAgo(3), ease: 2.5 } },
+    best: { standard: { score: 10, hearts: 1, day: daysAgo(3), replay: [1] } }
+  } });
+  w.Game.recordRun({ mode: "standard", ranked: true, finished: true, hearts: 3, score: 50, day: dayKey(), answers: [{ section: "ch05#angles", first: true }] });
+  let g = w.read("bm.game.v1");
+  eq([g.v, g.wallet, g.sec["ch05#angles"], g.best.standard],
+    [2, { coins: 3 }, { n: 2, ok: 2, box: 1, last: dayKey(), ease: 2.5 }, { score: 50, hearts: 3, day: dayKey(), replay: [1] }],
+    "a run keeps unknown fields of the game record, of a section and of a best");
+
+  /* and a medal banked over an older one keeps the old one's unknown field */
+  w = world({
+    "bm.progress.v1": { ch05: { solved: Object.fromEntries(keys.map((k) => [k, true])), total: 4 } },
+    "bm.attempts.v1": { ch05: Object.fromEntries(keys.map((k) => [k, { tries: 1, solved: at(daysAgo(2)), first: 1, section: "angles" }])) },
+    "bm.run.v1": { sets: { ch05: { practice: keys } } },
+    "bm.game.v1": { enc: { "ch05/practice": { medal: 1, day: daysAgo(9), gate: "open" } }, shop: ["hat"] }
+  });
+  w.Game.evaluate();
+  g = w.read("bm.game.v1");
+  eq([g.enc["ch05/practice"], g.shop], [{ medal: 3, day: daysAgo(2), gate: "open" }, ["hat"]], "a banked medal keeps the unknown field of the record it replaces");
+
+  /* and so does a medal raised by a rematch in the Arena */
+  w = world({ "bm.game.v1": { enc: { "ch05/practice": { medal: 1, day: daysAgo(9), gate: "open" } }, shop: ["hat"] } });
+  const r = w.Game.recordRun({ mode: "boss", boss: "ch05", hearts: 3, ranked: true, finished: true, score: 900, day: dayKey(), answers: [{ section: "ch05#angles", first: true }] });
+  g = w.read("bm.game.v1");
+  eq([r.medal, g.enc["ch05/practice"], g.shop], [3, { medal: 3, day: dayKey(), gate: "open" }, ["hat"]], "a rematch medal keeps the unknown field of the record it replaces");
 }
 
 console.log((fails ? "FAILED" : "ok") + " rules: " + passes + " checks passed" + (fails ? ", " + fails + " failed" : ""));

@@ -1,0 +1,43 @@
+{
+  "name": "basic-mathematics",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22.18"
+  },
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc --noEmit",
+    "gen:fonts": "node tools/gen-fonts.js",
+    "check:static": "node tools/check-static.js",
+    "check:gen": "node tools/check-gen.js",
+    "check:scenes": "node tools/smoke-scenes.js",
+    "test:node": "node tools/checks.test.js && node tools/game/merge.test.js && node tools/game/sync.test.js && node tools/game/rules.test.js",
+    "test:browser:core": "node tools/game/browser.test.js && node tools/game/arena.test.js && node tools/game/account.test.js && node tools/game/content.test.js",
+    "test:browser:3d": "node tools/game/scenes.test.js && node tools/game/map.test.js",
+    "test:browser": "npm run test:browser:core && npm run test:browser:3d",
+    "check:dist": "node tools/check-dist.js",
+    "check:browser": "node tools/check-browser.js --root=dist",
+    "check": "npm run typecheck && npm run check:static && npm run check:gen && npm run check:scenes && npm run test:node",
+    "check:all": "npm run check && npm run build && npm run check:dist && npm run test:browser && npm run check:browser"
+  },
+  "devDependencies": {
+    "@types/node": "^24.19.1",
+    "@types/three": "^0.186.0",
+    "axe-core": "^4.13.0",
+    "playwright": "^1.63.0",
+    "typescript": "^7.0.2",
+    "vite": "^8.3.2"
+  },
+  "dependencies": {
+    "@fontsource-variable/bricolage-grotesque": "^5.3.0",
+    "@fontsource-variable/inter": "^5.3.0",
+    "@fontsource-variable/newsreader": "^5.3.0",
+    "@fontsource/newsreader": "^5.3.0",
+    "@supabase/supabase-js": "^2.117.2",
+    "katex": "0.16.11",
+    "three": "^0.186.1"
+  }
+}

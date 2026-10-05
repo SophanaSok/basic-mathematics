@@ -1,70 +1,40 @@
 #!/usr/bin/env node
 /* Headless Chromium checks of the 3D course map (assets/map3d.js) and the Three.js
-   loader (assets/three-loader.js), over file:// URLs with SwiftShader WebGL.
-     BM_PLAYWRIGHT_FROM=~/dev/json-data-drift-analyzer/ node tools/game/map.test.js
-   The pinned three.min.js is served from .cache/ (fetched once from jsDelivr and
-   checked against the loader's integrity hash); every other request is aborted.
-   Without it, the checks are skipped with a note.
+   loader (assets/three-loader.js), with SwiftShader WebGL, on the built site as
+   lib/target.js serves it (dist/, which must be current):
+     node tools/game/map.test.js
+   Three.js is the site's own chunk, bundle/three.js, which the loader imports on
+   demand; every request off the local server is aborted, so nothing here depends on a
+   CDN or a download.
 
    1. the "you are here" bob ends: an idle page asks for no frames; never bobs when calm
       or under reduced motion
    2. a frame held while the tab is hidden, or a long task, does not tear the map down
    3. an island acts like its list link: Ctrl+click and middle click open a new tab, a press
       (either button) on empty ground dragged onto an island and released opens nothing
-   4. after a timeout, the late copy of three.min.js does not replace window.THREE or
-      bring it back after the load said no */
+   4. the loader: the page asks for the Three.js chunk once and only after the map has
+      asked for it; when that request fails, load() says false with the reason "cdn" and
+      the list stands alone; when it stalls past the loader's timeout, the reason is
+      "timeout"; neither case leaves a THREE behind, and nothing is on window.THREE */
 "use strict";
-const fs = require("fs");
-const path = require("path");
-const https = require("https");
-const crypto = require("crypto");
-const { createRequire } = require("module");
+const site = require("../lib/site");
+const target = require("../lib/target");
+const { chromium } = require("../lib/pw").playwright();
 
-const ROOT = path.resolve(__dirname, "../..");
-const FROM = process.env.BM_PLAYWRIGHT_FROM || path.join(process.env.HOME || "", "dev/json-data-drift-analyzer/");
-const { chromium } = createRequire(FROM.endsWith("/") ? FROM : FROM + "/")("playwright");
-
-const LOADER = fs.readFileSync(path.join(ROOT, "assets/three-loader.js"), "utf8");
-const JSD = LOADER.match(/"(https:\/\/cdn\.jsdelivr\.net\/[^"]+)"/)[1];
-const SRI = LOADER.match(/var SRI = "sha512-([^"]+)"/)[1];
-const CACHE = path.join(ROOT, ".cache", "three-0.160.1.min.js");
+const THREE_CHUNK = /\/bundle\/three\.js(?:[?#]|$)/;
 const ARGS = ["--enable-unsafe-swiftshader", "--use-angle=swiftshader", "--ignore-gpu-blocklist"];
+/* the loader's own: var TIMEOUT in assets/three-loader.js, read so a changed value shows here */
+const LOADER = require("fs").readFileSync(require("path").join(site.ROOT, "assets/three-loader.js"), "utf8");
+const TIMEOUT = +LOADER.match(/var TIMEOUT = (\d+);/)[1];
 
-const url = (p) => "file://" + path.join(ROOT, p);
+let server;
+const url = (p) => server.url + p;
 let fails = 0, passes = 0;
 function check(cond, what) {
   if (cond) passes++;
   else { fails++; console.error("FAIL " + what); }
 }
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
-const sri = (buf) => crypto.createHash("sha512").update(buf).digest("base64");
-
-function fetchBody(u) {
-  return new Promise((resolve, reject) => {
-    https.get(u, (res) => {
-      if (res.statusCode !== 200) { res.resume(); reject(new Error("HTTP " + res.statusCode)); return; }
-      const parts = [];
-      res.on("data", (c) => parts.push(c));
-      res.on("end", () => resolve(Buffer.concat(parts)));
-    }).on("error", reject);
-  });
-}
-async function three() {
-  try {
-    const b = fs.readFileSync(CACHE);
-    if (sri(b) === SRI) return b;
-  } catch (e) { /* not cached yet */ }
-  try {
-    const b = await fetchBody(JSD);
-    if (sri(b) !== SRI) return null;
-    fs.mkdirSync(path.dirname(CACHE), { recursive: true });
-    fs.writeFileSync(CACHE, b);
-    return b;
-  } catch (e) {
-    return null;
-  }
-}
-const js = (body) => ({ status: 200, headers: { "content-type": "application/javascript", "access-control-allow-origin": "*" }, body });
 
 /* counts requestAnimationFrame calls; with __hide set, callbacks are held (as Chrome holds
    them for a hidden tab) and run on return with the current timestamp */
@@ -80,14 +50,33 @@ const RAF_GATE = "(" + function () {
   Object.defineProperty(document, "visibilityState", { configurable: true, get: function () { return window.__hide ? "hidden" : "visible"; } });
 } + ")()";
 
-async function openMap(browser, body, seed, opts) {
+/* a context that reaches the local server and nothing else; `three` says what to do
+   with the request for bundle/three.js: "serve" (the default), "abort", or "stall"
+   (hold it open, never answered, until the context closes) */
+async function newContext(browser, opts) {
   opts = opts || {};
-  const context = await browser.newContext({ viewport: { width: 1280, height: 900 }, deviceScaleFactor: 1, reducedMotion: opts.reducedMotion || "no-preference" });
-  await context.route(/^(https?|wss?):/, (r) => /^https:\/\/cdnjs\.cloudflare\.com\/.*three\.min\.js$/.test(r.request().url()) ? r.fulfill(js(body)) : r.abort());
+  const context = await browser.newContext(Object.assign({ viewport: { width: 1280, height: 900 }, deviceScaleFactor: 1, reducedMotion: opts.reducedMotion || "no-preference" }, opts.context || {}));
+  const asked = [];
+  await context.route(/^(https?|wss?):/, (r) => {
+    const u = r.request().url();
+    if (!server.owns(u)) return r.abort();
+    if (THREE_CHUNK.test(u)) {
+      asked.push(u);
+      if (opts.three === "abort") return r.abort("failed");
+      if (opts.three === "stall") return;         /* never answered */
+    }
+    return r.continue();
+  });
   await context.addInitScript(RAF_GATE);
   await context.addInitScript((seed) => {
     try { Object.keys(seed).forEach(function (k) { localStorage.setItem(k, seed[k]); }); } catch (e) { /* fine */ }
-  }, seed || {});
+  }, opts.seed || {});
+  return { context, asked };
+}
+
+async function openMap(browser, seed, opts) {
+  opts = opts || {};
+  const { context, asked } = await newContext(browser, { seed, reducedMotion: opts.reducedMotion });
   const page = await context.newPage();
   const errors = [];
   page.on("pageerror", (e) => errors.push("pageerror: " + e.message));
@@ -95,7 +84,7 @@ async function openMap(browser, body, seed, opts) {
   await page.waitForFunction(() => window.BMMap3D && window.BMMap3D.on() &&
     document.querySelector(".map3d-stage[data-state=ready]"), null, { timeout: 20000 });
   await page.evaluate(() => { var c = document.querySelector("[data-map3d] canvas"); window.scrollTo(0, c.getBoundingClientRect().top + window.scrollY - 20); });
-  return { context, page, errors };
+  return { context, page, errors, asked };
 }
 const mapState = (page) => page.evaluate(() => ({ on: window.BMMap3D.on(), why: window.BMMap3D.why(), bob: !!(window.BMMap3D.info() && window.BMMap3D.info().bobbing), raf: window.__raf, held: window.__held.length }));
 
@@ -125,17 +114,20 @@ async function islandPoint(page) {
   return null;
 }
 
+/* what the loader and the map say once the load has settled, and what is on window */
+const loaded = (page) => page.evaluate(() => window.BM3D.load().then(function (ok) {
+  return { ok: ok, why: window.BM3D.why, three: !!(window.BM3D.THREE && window.BM3D.THREE.WebGLRenderer), onWindow: "THREE" in window,
+    map: window.BMMap3D.on(), mapWhy: window.BMMap3D.why(), hidden: document.querySelector("[data-map3d]").hidden, list: document.querySelector("[data-course-index]").getAttribute("data-map") };
+}));
+
 async function run() {
-  const body = await three();
-  if (!body) {
-    console.log("SKIP map: three.min.js 0.160.1 is not in .cache/ and could not be fetched from " + JSD);
-    return;
-  }
+  server = await target.start(site.parseArgs(process.argv.slice(2)));
+  console.log("map: " + server.where);
   const browser = await chromium.launch({ args: ARGS });
   try {
     /* -------------------------------------------- 1: the bob ends */
     {
-      const { context, page, errors } = await openMap(browser, body);
+      const { context, page, errors, asked } = await openMap(browser);
       let bobbed = false;
       for (let t = 0; t < 4000 && !(bobbed && !(await mapState(page)).bob); t += 100) {
         bobbed = bobbed || (await mapState(page)).bob;
@@ -151,10 +143,12 @@ async function run() {
       const g = await idle(page, 1500);
       check(g.frames === 0 && !g.bob, "and stops again (" + JSON.stringify(g) + ")");
       check(errors.length === 0, "no errors on the map page: " + errors.join("; "));
+      const l = await loaded(page);
+      check(asked.length === 1 && l.ok && l.three && !l.onWindow, "the page asked for bundle/three.js once, the loader holds the namespace on BM3D.THREE and nothing is on window.THREE (" + JSON.stringify({ asked, l }) + ")");
       await context.close();
     }
     for (const how of ["calm", "reduced motion"]) {
-      const { context, page } = await openMap(browser, body, how === "calm" ? { "bm.prefs.v1": '{"calm":true}' } : {}, how === "calm" ? {} : { reducedMotion: "reduce" });
+      const { context, page } = await openMap(browser, how === "calm" ? { "bm.prefs.v1": '{"calm":true}' } : {}, how === "calm" ? {} : { reducedMotion: "reduce" });
       await wait(800);
       const r = await idle(page, 2500);
       check(!r.bob && r.frames === 0, "no bob and no frames with " + how + " (" + JSON.stringify(r) + ")");
@@ -163,7 +157,7 @@ async function run() {
 
     /* -------------------------------------------- 2: a pause is not a slow frame */
     {
-      const { context, page } = await openMap(browser, body);
+      const { context, page } = await openMap(browser);
       await page.click(".map3d-part[data-p=\"2\"]");
       await page.evaluate(() => { window.__hide = true; document.dispatchEvent(new Event("visibilitychange")); });
       await wait(3000);
@@ -175,7 +169,7 @@ async function run() {
       await context.close();
     }
     {
-      const { context, page } = await openMap(browser, body);
+      const { context, page } = await openMap(browser);
       await page.click(".map3d-part[data-p=\"2\"]");
       await page.evaluate(() => { var t = Date.now(); while (Date.now() - t < 2500) { /* a long task */ } });
       await wait(3000);
@@ -186,7 +180,7 @@ async function run() {
 
     /* -------------------------------------------- 3: an island is a link */
     {
-      let { context, page } = await openMap(browser, body);
+      let { context, page } = await openMap(browser);
       await wait(3000);
       const pt = await islandPoint(page);
       check(!!pt, "found an island with empty ground below it");
@@ -230,34 +224,30 @@ async function run() {
       await context.close();
     }
 
-    /* -------------------------------------------- 4: a late copy of Three.js */
-    for (const second of ["ok", "fails"]) {
-      const context = await browser.newContext();
+    /* -------------------------------------------- 4: the chunk fails, or stalls */
+    for (const how of ["abort", "stall"]) {
+      const { context, asked } = await newContext(browser, { three: how });
       const page = await context.newPage();
-      const warns = [];
-      page.on("console", (m) => { if (/deprecated/.test(m.text())) warns.push(m.text()); });
-      await page.route("https://cdnjs.cloudflare.com/**", async (r) => { await wait(1500); await r.fulfill(js(body)).catch(() => {}); });
-      await page.route("https://cdn.jsdelivr.net/**", (r) => second === "ok" ? r.fulfill(js(body)) : r.abort());
-      await page.setContent("<!doctype html><title>loader</title>");
-      const src = LOADER.replace("var TIMEOUT = 8000;", "var TIMEOUT = 600;");
-      check(src !== LOADER, "the loader's timeout can be shortened for the check");
-      await page.addScriptTag({ content: src });
-      const r = await page.evaluate(() => window.BM3D.load().then(function (ok) {
-        window.__first = window.THREE;
-        return { ok: ok, why: window.BM3D.why };
-      }));
-      await wait(2500);
-      const after = await page.evaluate(() => ({ same: window.THREE === window.__first, three: !!window.THREE }));
-      const ran = warns.length;
-      if (second === "ok") {
-        check(r.ok && after.same && ran === 2, "late copy after a timeout leaves the copy in use (" + JSON.stringify({ r, after, ran }) + ")");
-      } else {
-        check(!r.ok && r.why === "cdn" && !after.three && ran === 1, "late copy after the load said no leaves no THREE behind (" + JSON.stringify({ r, after, ran }) + ")");
-      }
+      const errors = [];
+      page.on("pageerror", (e) => errors.push("pageerror: " + e.message));
+      await page.goto(url("index.html"));
+      await page.waitForFunction(() => window.BM3D && window.BMMap3D, null, { timeout: 20000 });
+      const t0 = Date.now();
+      const l = await loaded(page);
+      const took = Date.now() - t0;
+      const why = how === "abort" ? "cdn" : "timeout";
+      check(l.ok === false && l.why === why && !l.three && !l.onWindow, "when the request for bundle/three.js " + (how === "abort" ? "fails" : "stalls") + ", load() says false with the reason " + JSON.stringify(why) + " and holds no THREE (" + JSON.stringify(l) + ")");
+      check(!l.map && l.mapWhy === why && l.hidden && l.list === null, "and the list stands alone, with the map's reason the loader's (" + JSON.stringify({ map: l.map, mapWhy: l.mapWhy, hidden: l.hidden, list: l.list }) + ")");
+      check(asked.length === 1, "the chunk was asked for once (" + asked.length + ")");
+      if (how === "stall") check(took >= TIMEOUT - 500 && took < TIMEOUT + 4000, "the load gave up after the loader's " + TIMEOUT + " ms (" + took + " ms)");
+      const again = await loaded(page);
+      check(again.ok === false && again.why === why && asked.length === 1, "a later load() shares the answer and asks for nothing (" + JSON.stringify(again) + ", asked " + asked.length + ")");
+      check(errors.length === 0, "no page errors when the chunk " + how + "s: " + errors.join("; "));
       await context.close();
     }
   } finally {
     await browser.close();
+    await server.close();
   }
 }
 

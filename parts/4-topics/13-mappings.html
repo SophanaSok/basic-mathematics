@@ -1,44 +1,12 @@
 <!doctype html>
 <html lang="en">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<!--bm:head-->
 <title>13. Mappings — Basic Mathematics</title>
 <meta name="description" content="Functions between arbitrary sets: composition, injectivity, surjectivity, inverses, and permutations.">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@700;800&family=Inter:wght@400;500;600;700&family=Newsreader:ital,wght@0,400;0,600;1,400&display=swap">
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.11/katex.min.css">
-<link rel="icon" href="../../assets/favicon.svg" type="image/svg+xml">
-<link rel="stylesheet" href="../../assets/site.css">
-<link rel="stylesheet" href="../../assets/game.css">
-<link rel="stylesheet" href="../../assets/scenes3d.css">
-<script src="../../assets/boot.js"></script>
-<script defer src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.11/katex.min.js"></script>
-<script defer src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.11/contrib/auto-render.min.js"></script>
-<script defer src="../../data/curriculum.js"></script>
-<script defer src="../../data/quest.js"></script>
-<script defer src="../../assets/widgets.js"></script>
-<script defer src="../../assets/three-loader.js"></script>
-<script defer src="../../assets/site.js"></script>
-<script defer src="../../assets/sfx.js"></script>
-<script defer src="../../assets/game.js"></script>
-<script defer src="../../assets/encounter.js"></script>
-<script defer src="../../assets/lesson.js"></script>
-<script defer src="../../assets/config.js"></script>
-<script defer src="../../assets/account.js"></script>
 </head>
 <body data-depth="2" data-chapter="ch13" data-part="topics">
-<a class="skip-link" href="#main">Skip to content</a>
-
-<header class="topbar">
-  <a class="brand" href="../../index.html"><span class="glyph">∑</span> Basic Mathematics</a>
-  <nav aria-label="Site">
-    <a href="../../index.html">Contents</a>
-    <a href="../../about.html">How to use this</a>
-    <button class="icon-btn" type="button" data-theme-toggle aria-label="Switch between light and dark">☾</button>
-  </nav>
-</header>
+<!--bm:topbar-->
 
 <div class="wrap">
 <div class="layout">
@@ -503,7 +471,7 @@
       </div>
       <p>Give numerical answers as plain numbers.</p>
 
-      <div class="ex" data-section="permutations" data-type="number" data-answer="120"
+      <div class="ex" id="e1" data-section="permutations" data-type="number" data-answer="120"
            data-hint="It is n factorial.">
         <div class="ex-q"><p>How many permutations does a set of $5$ elements have?</p></div>
         <div class="ex-solution">
@@ -515,7 +483,7 @@
         </div>
       </div>
 
-      <div class="ex" data-section="definition-map" data-answer="3"
+      <div class="ex" id="e2" data-section="definition-map" data-answer="3"
            data-hint="Injective means no two inputs share an output.">
         <div class="ex-q">
           <p>
@@ -538,7 +506,7 @@
         </div>
       </div>
 
-      <div class="ex" data-section="formalism" data-answer="2"
+      <div class="ex" id="e3" data-section="formalism" data-answer="2"
            data-hint="Which condition guarantees an inverse exists?">
         <div class="ex-q">
           <p>A mapping $f: S \to T$ has an inverse exactly when it is —</p>
@@ -559,7 +527,7 @@
         </div>
       </div>
 
-      <div class="ex" data-section="formalism" data-type="number" data-answer="3"
+      <div class="ex" id="e4" data-section="formalism" data-type="number" data-answer="3"
            data-hint="Work out f(1) first, then apply g to the result."
            data-hint2="f(1) = 3. Now compute g(3).">
         <div class="ex-q">
@@ -580,7 +548,7 @@
         </div>
       </div>
 
-      <div class="ex" data-section="definition-map" data-type="number" data-answer="2"
+      <div class="ex" id="e5" data-section="definition-map" data-type="number" data-answer="2"
            data-hint="The image is the set of values actually taken, not the codomain.">
         <div class="ex-q">
           <p>
@@ -598,7 +566,7 @@
         </div>
       </div>
 
-      <div class="ex" data-section="formalism" data-answer="1"
+      <div class="ex" id="e6" data-section="formalism" data-answer="1"
            data-hint="Try a mapping from the positive integers to themselves.">
         <div class="ex-q">
           <p>
@@ -624,7 +592,7 @@
         </div>
       </div>
 
-      <div class="ex" data-section="permutations" data-answer="2"
+      <div class="ex" id="e7" data-section="permutations" data-answer="2"
            data-hint="Track each element through τ and then through σ.">
         <div class="ex-q">
           <p>
@@ -650,7 +618,7 @@
         </div>
       </div>
 
-      <div class="ex" data-section="definition-map" data-type="number" data-answer="0"
+      <div class="ex" id="e8" data-section="definition-map" data-type="number" data-answer="0"
            data-hint="Can 5 arrows land on 4 targets without two sharing?"
            data-hint2="Injective needs 5 different outputs. How many outputs are available?">
         <div class="ex-q">
@@ -671,7 +639,7 @@
         </div>
       </div>
 
-      <div class="ex" data-section="definition-map" data-answer="3"
+      <div class="ex" id="e9" data-section="definition-map" data-answer="3"
            data-hint="Which of these is a mapping at all, by the definition?">
         <div class="ex-q">
           <p>
@@ -698,7 +666,7 @@
         </div>
       </div>
 
-      <div class="ex" data-section="permutations" data-type="number" data-answer="24"
+      <div class="ex" id="e10" data-section="permutations" data-type="number" data-answer="24"
            data-hint="A permutation of a finite set is a bijection from it to itself.">
         <div class="ex-q">
           <p>

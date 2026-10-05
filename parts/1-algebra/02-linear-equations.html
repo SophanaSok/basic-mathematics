@@ -1,46 +1,12 @@
 <!doctype html>
 <html lang="en">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<!--bm:head-->
 <title>2. Linear Equations — Basic Mathematics</title>
 <meta name="description" content="Solving linear equations and systems by elimination, and reading off whether there is one solution, none, or infinitely many.">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@700;800&family=Inter:wght@400;500;600;700&family=Newsreader:ital,wght@0,400;0,600;1,400&display=swap">
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.11/katex.min.css">
-<link rel="icon" href="../../assets/favicon.svg" type="image/svg+xml">
-<link rel="stylesheet" href="../../assets/site.css">
-<link rel="stylesheet" href="../../assets/game.css">
-<link rel="stylesheet" href="../../assets/scenes3d.css">
-<script src="../../assets/boot.js"></script>
-<script defer src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.11/katex.min.js"></script>
-<script defer src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.11/contrib/auto-render.min.js"></script>
-<script defer src="../../data/curriculum.js"></script>
-<script defer src="../../data/quest.js"></script>
-<script defer src="../../assets/widgets.js"></script>
-<script defer src="../../assets/three-loader.js"></script>
-<script defer src="../../assets/scenes3d.js"></script>
-<script defer src="../../assets/scenes/planes3.js"></script>
-<script defer src="../../assets/site.js"></script>
-<script defer src="../../assets/sfx.js"></script>
-<script defer src="../../assets/game.js"></script>
-<script defer src="../../assets/encounter.js"></script>
-<script defer src="../../assets/lesson.js"></script>
-<script defer src="../../assets/config.js"></script>
-<script defer src="../../assets/account.js"></script>
 </head>
 <body data-depth="2" data-chapter="ch02" data-part="algebra">
-<a class="skip-link" href="#main">Skip to content</a>
-
-<header class="topbar">
-  <a class="brand" href="../../index.html"><span class="glyph">∑</span> Basic Mathematics</a>
-  <nav aria-label="Site">
-    <a href="../../index.html">Contents</a>
-    <a href="../../about.html">How to use this</a>
-    <button class="icon-btn" type="button" data-theme-toggle aria-label="Switch between light and dark">☾</button>
-  </nav>
-</header>
+<!--bm:topbar-->
 
 <div class="wrap">
 <div class="layout">
@@ -696,7 +662,7 @@
         unambiguous. Always verify your full solution in the original equations.
       </p>
 
-      <div class="ex" data-section="one-unknown" data-type="number" data-answer="4"
+      <div class="ex" id="e1" data-section="one-unknown" data-type="number" data-answer="4"
            data-hint="Collect the x terms on one side and the constants on the other.">
         <div class="ex-q"><p>Solve $7x - 5 = 3x + 11$ for $x$.</p></div>
         <div class="ex-solution">
@@ -708,7 +674,7 @@
         </div>
       </div>
 
-      <div class="ex" data-section="one-unknown" data-type="number" data-answer="11"
+      <div class="ex" id="e2" data-section="one-unknown" data-type="number" data-answer="11"
            data-hint="Multiply out both brackets first, then collect."
            data-hint2="After expanding: 3x + 12 = 5x − 10.">
         <div class="ex-q"><p>Solve $3(x + 4) = 5(x - 2)$ for $x$.</p></div>
@@ -724,7 +690,7 @@
         </div>
       </div>
 
-      <div class="ex" data-section="one-unknown" data-answer="3" data-hint="What happens to the unknown when you collect terms?">
+      <div class="ex" id="e3" data-section="one-unknown" data-answer="3" data-hint="What happens to the unknown when you collect terms?">
         <div class="ex-q"><p>How many solutions does $4x + 7 = 4x - 2$ have?</p></div>
         <ul class="choices">
           <li>Exactly one.</li>
@@ -742,7 +708,7 @@
         </div>
       </div>
 
-      <div class="ex" data-section="two-unknowns" data-type="number" data-answer="4"
+      <div class="ex" id="e4" data-section="two-unknowns" data-type="number" data-answer="4"
            data-hint="Multiply the second equation by 2 so the y terms cancel when you add.">
         <div class="ex-q">
           <p>
@@ -762,7 +728,7 @@
         </div>
       </div>
 
-      <div class="ex" data-section="two-unknowns" data-type="number" data-answer="6"
+      <div class="ex" id="e5" data-section="two-unknowns" data-type="number" data-answer="6"
            data-hint="Compute a₁b₂ − a₂b₁ and see what makes it zero."
            data-hint2="Here a₁b₂ − a₂b₁ = 2k − 12.">
         <div class="ex-q">
@@ -786,7 +752,7 @@
         </div>
       </div>
 
-      <div class="ex" data-section="three-unknowns" data-type="number" data-answer="3"
+      <div class="ex" id="e6" data-section="three-unknowns" data-type="number" data-answer="3"
            data-hint="Use the first equation to remove x from the other two."
            data-hint2="Equation 2 minus 2 × equation 1, and equation 3 minus equation 1, give two equations in y and z alone.">
         <div class="ex-q">
@@ -819,7 +785,7 @@
         </div>
       </div>
 
-      <div class="ex" data-section="word-problems" data-type="number" data-answer="14"
+      <div class="ex" id="e7" data-section="word-problems" data-type="number" data-answer="14"
            data-hint="Let the two numbers be x and y, and write one equation for each sentence.">
         <div class="ex-q">
           <p>
@@ -836,7 +802,7 @@
         </div>
       </div>
 
-      <div class="ex" data-section="word-problems" data-type="number" data-answer="35"
+      <div class="ex" id="e8" data-section="word-problems" data-type="number" data-answer="35"
            data-hint="Name the two ticket counts, then write the count equation and the money equation."
            data-hint2="With c coffees and t teas: c + t = 50 and 3c + 2t = 135.">
         <div class="ex-q">
@@ -856,7 +822,7 @@
         </div>
       </div>
 
-      <div class="ex" data-section="one-unknown" data-answer="2" data-hint="Which move cannot be undone?">
+      <div class="ex" id="e9" data-section="one-unknown" data-answer="2" data-hint="Which move cannot be undone?">
         <div class="ex-q">
           <p>Which of these operations on an equation can change its set of solutions?</p>
         </div>

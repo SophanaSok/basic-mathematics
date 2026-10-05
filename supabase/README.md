@@ -23,12 +23,51 @@ get an aggregate view of which exercises people struggle with.
    ```
 
 **Upgrading a project set up before the game layer?** Run `schema.sql` again (or just the one line
-below) *before* deploying the new site. Every sync now writes a `game` column, and until it exists
-each save fails with a "column not found" error and nothing syncs:
+below) *before* deploying the new site. Until the `game` column exists the site leaves it out of
+every save: the rest still syncs, but achievements, medals and review boxes stay in each browser
+and do not follow the reader. Once the column is there, the next sync from each browser fills it.
 
 ```sql
 alter table public.user_state add column if not exists game jsonb not null default '{}'::jsonb;
 ```
+
+## Older and newer copies of the site
+
+Readers do not all run the same copy of the site: a tab stays open, a browser keeps old scripts.
+The sync in [`../assets/account.js`](../assets/account.js) is written so that an older copy and a
+newer one can save to the same account, and so that the tables and the site need not change at
+the same instant. Running the SQL first is still the rule; these are what happens when it was not.
+
+- **Fields the site does not know are kept.** Inside the `jsonb` columns, a field with no merge
+  rule is carried through every merge and written back: kept if one side has it, and if both do,
+  the value whose canonical JSON (keys sorted at every level) is the later string. Known fields
+  merge as before. See the main README for where this applies, and for its limits: an object
+  under a new key of a column keyed by chapter, section, mode or set is merged as a record of
+  that kind, not passed through whole.
+- **Columns the site does not know are left alone.** A save is an `update` naming only the columns
+  this copy knows, so a column added for a later release keeps its value. That holds for a reset
+  as well: an older copy empties the columns it knows and cannot empty one it cannot name, so a
+  release that adds a `user_state` column must clear it itself when it sees `reset_at` advance.
+- **Columns the server does not have are left out.** The site reads its row with `select *`, sees
+  which columns exist, and sends only those. A new account has no row to read, so its first save
+  may be refused once (PostgREST `PGRST204`, "Could not find the '…' column of 'user_state' in the
+  schema cache") and is then repeated without that column. Nothing fails; what the column would
+  hold stays in the browser until the column exists.
+- **A missing `attempts` table switches the attempt log off.** The insert is refused (`PGRST205`),
+  the checks stay queued in the page, and the sync still succeeds. The page does not send the
+  log again with every save: it asks once every five minutes, keeps the newest 500 checks
+  meanwhile, and sends them when the table is there. The queue lives in the page, so it is lost
+  when the page is closed. The author's aggregate view then has nothing to read.
+- **The data carries a shape number.** `game.v` inside the `game` column; absent means 1, and no
+  release writes it yet. A later release that changes what an existing field means saves a
+  larger number. A copy of the site that reads a number above the one it understands merges the
+  row into the browser, writes nothing (neither `user_state` nor `attempts`), and asks the reader
+  to reload. There is no column for it and no SQL to run. It needs the `game` column to travel.
+
+**Changing the schema later?** Every change to `schema.sql` ships with a new file in
+[`migrations/`](migrations/README.md), and that file is run on the live project *before* the pull
+request that needs it is merged. The release order, the queries that confirm it landed, quotas,
+secrets and what to do when sync breaks are in [`../OPERATIONS.md`](../OPERATIONS.md).
 
 ## Sign-in providers (optional)
 
@@ -87,5 +126,7 @@ Row-level security restricts every row to its owner. `exercise_stats()` and `cha
 return aggregates only, and only to admins. `delete_my_account()` removes the caller's auth user,
 and every table cascades from it.
 
-Signed-out visitors never contact Supabase: the SDK is not even downloaded unless a session
-exists or the reader opens the account page.
+Signed-out visitors never contact Supabase: the SDK (supabase-js, an npm dependency bundled as
+`dist/bundle/supabase.js` and fetched from the site itself, never from a CDN) is not even
+downloaded unless a session exists or the reader opens the account page.
+`tools/game/account.test.js` lists the requests a chapter page makes to prove it.

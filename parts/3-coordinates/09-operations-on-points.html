@@ -1,44 +1,12 @@
 <!doctype html>
 <html lang="en">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<!--bm:head-->
 <title>9. Operations on Points — Basic Mathematics</title>
 <meta name="description" content="Adding points, scaling them, and reflecting them — geometry done by arithmetic on coordinates.">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@700;800&family=Inter:wght@400;500;600;700&family=Newsreader:ital,wght@0,400;0,600;1,400&display=swap">
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.11/katex.min.css">
-<link rel="icon" href="../../assets/favicon.svg" type="image/svg+xml">
-<link rel="stylesheet" href="../../assets/site.css">
-<link rel="stylesheet" href="../../assets/game.css">
-<link rel="stylesheet" href="../../assets/scenes3d.css">
-<script src="../../assets/boot.js"></script>
-<script defer src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.11/katex.min.js"></script>
-<script defer src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.11/contrib/auto-render.min.js"></script>
-<script defer src="../../data/curriculum.js"></script>
-<script defer src="../../data/quest.js"></script>
-<script defer src="../../assets/widgets.js"></script>
-<script defer src="../../assets/three-loader.js"></script>
-<script defer src="../../assets/site.js"></script>
-<script defer src="../../assets/sfx.js"></script>
-<script defer src="../../assets/game.js"></script>
-<script defer src="../../assets/encounter.js"></script>
-<script defer src="../../assets/lesson.js"></script>
-<script defer src="../../assets/config.js"></script>
-<script defer src="../../assets/account.js"></script>
 </head>
 <body data-depth="2" data-chapter="ch09" data-part="coordinates">
-<a class="skip-link" href="#main">Skip to content</a>
-
-<header class="topbar">
-  <a class="brand" href="../../index.html"><span class="glyph">∑</span> Basic Mathematics</a>
-  <nav aria-label="Site">
-    <a href="../../index.html">Contents</a>
-    <a href="../../about.html">How to use this</a>
-    <button class="icon-btn" type="button" data-theme-toggle aria-label="Switch between light and dark">☾</button>
-  </nav>
-</header>
+<!--bm:topbar-->
 
 <div class="wrap">
 <div class="layout">
@@ -490,7 +458,7 @@
       </div>
       <p>Write points and displacements as pairs, like <code>(3,-2)</code>.</p>
 
-      <div class="ex" data-section="addition-points" data-answer="(7,1)|7,1"
+      <div class="ex" id="e1" data-section="addition-points" data-answer="(7,1)|7,1"
            data-placeholder="e.g. (3,-2)"
            data-hint="Add the x's and add the y's.">
         <div class="ex-q"><p>Compute $(3,-2) + (4,3)$.</p></div>
@@ -503,7 +471,7 @@
         </div>
       </div>
 
-      <div class="ex" data-section="dilations" data-answer="(-10,4)|-10,4"
+      <div class="ex" id="e2" data-section="dilations" data-answer="(-10,4)|-10,4"
            data-placeholder="e.g. (3,-2)"
            data-hint="Multiply both coordinates by −2.">
         <div class="ex-q"><p>With $P = (5,-2)$, compute $-2P$.</p></div>
@@ -516,7 +484,7 @@
         </div>
       </div>
 
-      <div class="ex" data-section="subtraction" data-answer="(-5,6)|-5,6"
+      <div class="ex" id="e3" data-section="subtraction" data-answer="(-5,6)|-5,6"
            data-placeholder="e.g. (3,-2)"
            data-hint="Q − P means subtract P's coordinates from Q's.">
         <div class="ex-q">
@@ -534,7 +502,7 @@
         </div>
       </div>
 
-      <div class="ex" data-section="addition-points" data-answer="(2,3)|2,3"
+      <div class="ex" id="e4" data-section="addition-points" data-answer="(2,3)|2,3"
            data-placeholder="e.g. (3,-2)"
            data-hint="Average the two x's and the two y's.">
         <div class="ex-q">
@@ -552,7 +520,7 @@
         </div>
       </div>
 
-      <div class="ex" data-section="subtraction" data-answer="1"
+      <div class="ex" id="e5" data-section="subtraction" data-answer="1"
            data-hint="Compute Q − P for each pair and compare."
            data-hint2="B − A = (2, 5). What is D − C?">
         <div class="ex-q">
@@ -577,7 +545,7 @@
         </div>
       </div>
 
-      <div class="ex" data-section="addition-points" data-answer="(-4,-1)|-4,-1"
+      <div class="ex" id="e6" data-section="addition-points" data-answer="(-4,-1)|-4,-1"
            data-placeholder="e.g. (3,-2)"
            data-hint="P + (Q − P) = Q. So what is P + displacement?">
         <div class="ex-q">
@@ -594,7 +562,7 @@
         </div>
       </div>
 
-      <div class="ex" data-section="subtraction" data-type="number" data-answer="13"
+      <div class="ex" id="e7" data-section="subtraction" data-type="number" data-answer="13"
            data-hint="The length of the arrow is the distance between its endpoints.">
         <div class="ex-q">
           <p>
@@ -610,7 +578,7 @@
         </div>
       </div>
 
-      <div class="ex" data-section="addition-points" data-answer="3"
+      <div class="ex" id="e8" data-section="addition-points" data-answer="3"
            data-hint="Which pair of vertices does the sum P + Q sit opposite?">
         <div class="ex-q">
           <p>
@@ -633,7 +601,7 @@
         </div>
       </div>
 
-      <div class="ex" data-section="subtraction" data-answer="(0,0)|0,0"
+      <div class="ex" id="e9" data-section="subtraction" data-answer="(0,0)|0,0"
            data-placeholder="e.g. (3,-2)"
            data-hint="Add the three displacements around the triangle.">
         <div class="ex-q">
@@ -654,7 +622,7 @@
         </div>
       </div>
 
-      <div class="ex" data-section="addition-points" data-answer="(4,6)|4,6"
+      <div class="ex" id="e10" data-section="addition-points" data-answer="(4,6)|4,6"
            data-placeholder="e.g. (3,-2)"
            data-hint="M is the midpoint of P and Q, so Q = 2M − P."
            data-hint2="2M = (2, 7). Now subtract P = (−2, 1).">

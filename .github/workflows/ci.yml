@@ -1,0 +1,224 @@
+# Checks every pull request and every push to main, and deploys main to GitHub Pages.
+#
+#   build    the Node checks, the build, the checks on dist/; dist/ is kept as an artifact
+#   browser  the Chromium checks that do not need WebGL, against that dist/. With build,
+#            this is the gate a deploy waits for.
+#   webgl    the 3D checks (the scene stages, the course map) and the WebGL suite. WebGL
+#            on a runner is software rendering, slow and now and then losing its context,
+#            so these are retried and are not part of the gate
+#   deploy   main only: publishes that same dist/ to GitHub Pages
+#
+# deploy runs only while the repository's Pages source is "GitHub Actions" (Settings,
+# Pages, Build and deployment, Source); pages-source asks. No other source works: the
+# pages in the repository are not whole documents (the build writes their head and top
+# bar, tools/lib/shell.js), so "Deploy from a branch" publishes pages with no stylesheets
+# and no scripts. While the source is that, pages-source fails the run and says what to
+# set. Setting the source back is therefore not a rollback; reverting the commit is.
+# README.md, "Deploying".
+#
+# "Run workflow" on main (workflow_dispatch) runs all of this again and deploys, without
+# a new commit: the manual way to publish, for instance right after switching the source.
+#
+# The browser checks need no network: the fonts, KaTeX, supabase-js and Three.js are npm
+# dependencies in the bundle, served from the test server, and a page that asks another
+# server for anything fails the pages suite (tools/lib/browser.js answers such a request
+# under a deadline, so it cannot stall the run either).
+
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# One run at a time for a branch or a pull request. A new push to a pull request replaces
+# the run in progress. On main nothing in progress is cancelled: runs go one after another
+# in the order of the pushes (of several waiting, only the newest is kept), so an older
+# commit is never deployed after a newer one.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          # the progress-keys check reads the exercises of an old commit through git
+          fetch-depth: 0
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - run: npm run check
+      # a pull request is judged against the branch it merges into, which need not be main
+      - name: migrations against the merge target
+        if: github.event_name == 'pull_request'
+        env:
+          BASE_REF: ${{ github.base_ref }}
+        run: npm run check:static -- --only=migrations --migrations-base="origin/$BASE_REF"
+      - run: npm run build
+      - run: npm run check:dist
+      - uses: actions/upload-artifact@v7
+        with:
+          name: dist
+          path: dist
+          # dist/.nojekyll
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 7
+
+  browser:
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    env:
+      # the tools/game scripts load the downloaded build, never the source tree
+      BM_ROOT: dist
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          # the restore suite reads the pages of an old commit through git
+          fetch-depth: 0
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - uses: actions/download-artifact@v8
+        with:
+          name: dist
+          path: dist
+      - run: npx playwright install --with-deps chromium
+      - run: npm run test:browser:core
+      - run: npm run check:browser -- --skip=webgl
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: check-browser-report
+          path: .cache/check
+          include-hidden-files: true
+          if-no-files-found: ignore
+          retention-days: 7
+
+  webgl:
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      BM_ROOT: dist
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - uses: actions/download-artifact@v8
+        with:
+          name: dist
+          path: dist
+      - run: npx playwright install --with-deps chromium
+      - name: npm run test:browser:3d (up to three tries)
+        run: |
+          for try in 1 2 3; do
+            if npm run test:browser:3d; then exit 0; fi
+            echo "::warning::test:browser:3d failed on try $try"
+          done
+          exit 1
+      - name: npm run check:browser -- --only=webgl (up to three tries)
+        run: |
+          for try in 1 2 3; do
+            if npm run check:browser -- --only=webgl; then exit 0; fi
+            echo "::warning::check:browser --only=webgl failed on try $try"
+          done
+          exit 1
+
+  # main only: asks the repository which Pages source is set, so that `deploy` runs only
+  # when it is "GitHub Actions". While it is still the branch this job fails, and the run
+  # with it: Pages is then publishing the repository's files, which are not a whole site,
+  # and a green run would hide that. If the question cannot be answered (the API refusing
+  # or failing), it fails as well: a deploy is never skipped in a green run for a reason
+  # nobody chose.
+  pages-source:
+    if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      pages: read
+    outputs:
+      build_type: ${{ steps.source.outputs.build_type }}
+    steps:
+      - id: source
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+        run: |
+          # on an HTTP error gh prints the error body to stdout, so the value is only
+          # used when the call succeeded
+          if type=$(gh api "repos/$REPO/pages" --jq .build_type 2> pages-error.txt); then
+            echo "build_type=$type" >> "$GITHUB_OUTPUT"
+            if [ "$type" != "workflow" ]; then
+              echo "::error::The Pages source is \"$type\", not GitHub Actions, so nothing is deployed from here and Pages is publishing the files of the branch. Those are not a whole site: each page gets its head and top bar from the build, and is served without stylesheets or scripts. Set Settings > Pages > Source to \"GitHub Actions\" and run this workflow on main."
+              exit 1
+            fi
+          elif grep -q "HTTP 404" pages-error.txt; then
+            echo "build_type=none" >> "$GITHUB_OUTPUT"
+            echo "::warning::GitHub Pages is not enabled for $REPO, so nothing is deployed from here."
+          else
+            echo "::error::Could not read the Pages source of $REPO, so nothing was deployed: $(tr '\n' ' ' < pages-error.txt)"
+            exit 1
+          fi
+
+  deploy:
+    # after the gate; webgl is deliberately not in `needs`
+    if: needs.pages-source.outputs.build_type == 'workflow'
+    needs: [build, browser, pages-source]
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      # contents: to ask where main is, below
+      contents: read
+      pages: write
+      id-token: write
+    concurrency:
+      group: pages
+      cancel-in-progress: false
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      # A first attempt deploys in the order of the pushes (the concurrency group at the
+      # top). Re-running the jobs of an old run is the one way an older dist/ could go
+      # out over a newer one, so a re-run deploys only the commit main is still at.
+      - name: A re-run deploys only the newest commit of main
+        if: github.run_attempt > 1
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          SHA: ${{ github.sha }}
+        run: |
+          head=$(gh api "repos/$REPO/commits/main" --jq .sha)
+          if [ "$head" != "$SHA" ]; then
+            echo "::error::main is at $head and this run built $SHA: re-running it would publish the older site. Re-run the newest run on main instead, or use Run workflow."
+            exit 1
+          fi
+      - uses: actions/download-artifact@v8
+        with:
+          name: dist
+          path: dist
+      - uses: actions/configure-pages@v6
+      - uses: actions/upload-pages-artifact@v5
+        with:
+          path: dist
+      - uses: actions/deploy-pages@v5
+        id: deployment

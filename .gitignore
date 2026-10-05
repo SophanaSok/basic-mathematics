@@ -8,3 +8,14 @@ desktop.ini
 # Local scratch
 *.log
 .cache/
+
+# Installed and built (npm ci, npm run build)
+node_modules/
+dist/
+
+# Secrets never go in the repo: .env.example says which names are expected
+.env
+.env.*
+!.env.example
+supabase/.temp/
+supabase/functions/.env

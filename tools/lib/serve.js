@@ -1,14 +1,27 @@
 "use strict";
-/* An in-process static server for the repo, on a free port.
-   GET /<path>           the working-tree file
+/* An in-process static server for the built site, on a free port.
+   GET /<path>           the file under `root`: the build in dist/ (lib/target.js picks it)
    GET /__base/<path>    the same path at the base git ref (via `git show`), so a page
                          at the previous commit can be loaded for comparison without
                          a second checkout. Its relative asset links resolve under
-                         /__base/ too, so the whole old site is browsable there. */
+                         /__base/ too, so the whole old site is browsable there.
+   The tree under `root` is served as it is: a build is whole pages. A page that still
+   carries a shell marker there (lib/shell.js) is not a page a reader could get, and is
+   refused with a 500 saying so rather than served half-written. A page at the base ref
+   is served as a reader of that commit got it: whole, or written by that commit's own
+   lib/shell.js where it is marked (lib/site.js shellAt).
+   Options:
+     gitRoot      the checkout `git show` runs in (default: root). Needed when root is
+                  dist/, which holds built files and is not what the ref names.
+     extraRoots   { "/url/prefix/": directory }: paths under the prefix are read from
+                  that directory instead of root. The test fixtures are served this way,
+                  from the source tree, so they never have to be copied into dist/. */
 const http = require("http");
 const fs = require("fs");
 const path = require("path");
 const git = require("./git");
+const shell = require("./shell");
+const site = require("./site");
 
 const TYPES = {
   ".html": "text/html; charset=utf-8", ".css": "text/css; charset=utf-8", ".js": "text/javascript; charset=utf-8",
@@ -19,9 +32,33 @@ const TYPES = {
   ".map": "application/json", ".xml": "application/xml", ".webmanifest": "application/manifest+json"
 };
 
+/* What goes out for an HTML file read at a git ref: whole as it is, or, where it
+   carries a marker, written by that commit's own lib/shell.js.
+   @throws what the shell throws for a page it cannot write, and for a marked page of
+           a commit that has no shell */
+function atRef(body, rel, gitRoot, base) {
+  if (!/\.html$/i.test(rel)) return body;
+  const text = body.toString("utf8");
+  if (!shell.isMarked(text)) return body;
+  const write = site.shellAt(gitRoot, base);
+  if (!write) throw new Error(rel + " carries a shell marker, but that commit has no tools/lib/shell.js");
+  return Buffer.from(write.renderShell(text, rel), "utf8");
+}
+
+/* What goes out for an HTML file of the served tree: the file, unless it is a page
+   the shell has not written, which no tree that is a site holds */
+function whole(body, rel) {
+  if (/\.html$/i.test(rel) && shell.isMarked(body.toString("utf8"))) {
+    throw new Error(rel + " carries a shell marker: it is a source page, not a built one. Serve the build (npm run build)");
+  }
+  return body;
+}
+
 function start(root, base, opts) {
   opts = opts || {};
   const log = opts.log || (() => {});
+  const gitRoot = opts.gitRoot || root;
+  const extra = Object.keys(opts.extraRoots || {}).map(prefix => ({ prefix: prefix.replace(/^\/+/, ""), dir: opts.extraRoots[prefix] }));
   const server = http.createServer((req, res) => {
     let url;
     try { url = decodeURIComponent(req.url.split("?")[0].split("#")[0]); } catch (e) { res.writeHead(400); res.end("bad url"); return; }
@@ -31,14 +68,20 @@ function start(root, base, opts) {
     const rel = path.posix.normalize(url).replace(/^\/+/, "");
     if (rel.startsWith("..")) { res.writeHead(403); res.end("forbidden"); return; }
     const type = TYPES[path.posix.extname(rel).toLowerCase()] || "application/octet-stream";
-    let body = null;
-    if (fromBase) {
-      body = git.show(root, base, rel);
-    } else {
-      const abs = path.join(root, rel);
-      try { if (fs.statSync(abs).isFile()) body = fs.readFileSync(abs); } catch (e) { body = null; }
-    }
-    log(req.method + " " + req.url + " -> " + (body === null ? 404 : 200));
+    let body = null, refused = null;
+    try {
+      if (fromBase) {
+        body = git.show(gitRoot, base, rel);
+        if (body !== null) body = atRef(body, rel, gitRoot, base);
+      } else {
+        const over = extra.find(x => rel.startsWith(x.prefix));
+        const abs = over ? path.join(over.dir, rel.slice(over.prefix.length)) : path.join(root, rel);
+        try { if (fs.statSync(abs).isFile()) body = fs.readFileSync(abs); } catch (e) { body = null; }
+        if (body !== null && !over) body = whole(body, rel);
+      }
+    } catch (e) { refused = e.message; }
+    log(req.method + " " + req.url + " -> " + (refused ? 500 : body === null ? 404 : 200));
+    if (refused) { res.writeHead(500, { "Content-Type": "text/plain; charset=utf-8", "Cache-Control": "no-store" }); res.end("refused: " + refused); return; }
     if (body === null) { res.writeHead(404, { "Content-Type": "text/plain; charset=utf-8", "Cache-Control": "no-store" }); res.end("not found: " + rel); return; }
     res.writeHead(200, { "Content-Type": type, "Content-Length": body.length, "Cache-Control": "no-store" });
     res.end(body);
@@ -59,11 +102,11 @@ function start(root, base, opts) {
 
 module.exports = { start, TYPES };
 
-/* `node tools/lib/serve.js [--base=<ref>] [--port=N]` serves the repo for a manual look */
+/* `node tools/lib/serve.js [--root=<dir>] [--base=<ref>] [--port=N]` serves the build for a
+   manual look (npm run preview does too, on port 8000) */
 if (require.main === module) {
-  const site = require("./site");
   const opts = site.parseArgs(process.argv.slice(2));
-  start(site.ROOT, opts.base || site.DEFAULT_BASE, { port: opts.port ? +opts.port : 0, log: console.log }).then(s => {
-    console.log("serving " + site.ROOT + " at " + s.url + " (base " + (opts.base || site.DEFAULT_BASE) + " under " + s.baseUrl + ")");
-  });
+  require("./target").start(Object.assign({}, opts, { port: opts.port ? +opts.port : 0, log: console.log })).then(s => {
+    console.log("serving " + s.where + " (base " + (opts.base || site.DEFAULT_BASE) + " under " + s.baseUrl + ")");
+  }, e => { console.error(e.message); process.exit(1); });
 }

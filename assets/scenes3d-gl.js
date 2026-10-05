@@ -1,6 +1,7 @@
 /* ===========================================================================
    Basic Mathematics — the Three.js painter for the 3D scenes
-   Loaded by assets/scenes3d.js only after three.min.js has arrived and a stage
+   Loaded by assets/scenes3d.js only after Three.js has arrived (BM3D.THREE, the
+   namespace src/vendor/three.js exports, handed in as THREE) and a stage
    is near the viewport. It paints the same screen primitives as the SVG painter
    (points already projected by BM3D.Cam to viewBox x, y plus a world depth), so
    GL pixels, overlay labels and handles always agree; WebGL adds true depth

@@ -1,7 +1,7 @@
 /* ===========================================================================
    Basic Mathematics — playable 3D scenes
    window.BM3D: define, V, Cam, SvgPainter, palette (three-loader.js adds load,
-   why, supported, lowEnd). One scene file per figure lives in assets/scenes/.
+   why, supported, lowEnd and THREE). One scene file per figure lives in assets/scenes/.
 
    A scene never touches THREE. It keeps a plain state object and, on every
    change, describes its picture to a display list. Two painters draw that list:
@@ -115,8 +115,6 @@
 (function () {
   "use strict";
   var BM3D = window.BM3D = window.BM3D || {};
-  var SELF = (document.currentScript && document.currentScript.src) || "";
-  var GL_URL = SELF ? SELF.replace(/scenes3d\.js(?:[?#].*)?$/, "scenes3d-gl.js") : "";
   var NS = "http://www.w3.org/2000/svg";
   var VW = 660, VH = 420, CX = 330, CY = 210;
   var DEG = Math.PI / 180;
@@ -622,16 +620,20 @@
     return !!((window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches) ||
       (root && root.hasAttribute && root.hasAttribute("data-calm")));
   }
-  function inject(url) {
+  /* The GL painter (scenes3d-gl.js) is fetched by a dynamic import, which finds the
+     file from this one's own URL whether this file runs inside the chapter bundle (the
+     build turns the import into a chunk of its own) or as the script it used to be. It
+     used to be a <script> tag built from document.currentScript, which a module does
+     not have. Same contract: a promise of true (BM3D.initGL is there) or false, never
+     a rejection, and false after eight seconds. */
+  function fetchPainter() {
     return new Promise(function (resolve) {
-      var s = document.createElement("script"), done = false;
+      var done = false;
       function finish(ok) { if (done) return; done = true; clearTimeout(timer); resolve(ok); }
       var timer = setTimeout(function () { finish(false); }, 8000);
-      s.src = url;
-      s.async = true;
-      s.onload = function () { finish(true); };
-      s.onerror = function () { finish(false); };
-      document.head.appendChild(s);
+      var loading;
+      try { loading = import("./scenes3d-gl.js"); } catch (e) { finish(false); return; }
+      loading.then(function () { finish(true); }, function () { finish(false); });
     });
   }
   var hooks = {
@@ -644,15 +646,15 @@
   };
   function getGL() {
     if (gl.promise) return gl.promise;
-    if (!window.Promise || !BM3D.load || !GL_URL) {
+    if (!window.Promise || !BM3D.load) {
       gl.promise = { then: function (fn) { return fn(null); } };
       return gl.promise;
     }
     gl.promise = BM3D.load().then(function (ok) {
       if (!ok) return null;
-      return (BM3D.initGL ? Promise.resolve(true) : inject(GL_URL)).then(function (loaded) {
+      return (BM3D.initGL ? Promise.resolve(true) : fetchPainter()).then(function (loaded) {
         if (!loaded || typeof BM3D.initGL !== "function") return null;
-        try { gl.mgr = BM3D.initGL(window.THREE, hooks) || null; } catch (e) { gl.mgr = null; }
+        try { gl.mgr = BM3D.initGL(BM3D.THREE, hooks) || null; } catch (e) { gl.mgr = null; }
         BM3D.gl = gl.mgr;
         return gl.mgr;
       });

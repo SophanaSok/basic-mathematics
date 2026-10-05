@@ -1,11 +1,16 @@
 #!/usr/bin/env node
 /* The account page as it is drawn (assets/account.js), in headless Chromium.
-     BM_PLAYWRIGHT_FROM=~/dev/json-data-drift-analyzer/ node tools/game/account.test.js
+     node tools/game/account.test.js
 
-   The repo is served in-process (tools/lib/serve.js). Each case pins window.BM_CONFIG, so
-   the real assets/config.js cannot set it, and answers the Supabase SDK's URL with a small
-   stand-in that records what the page asks of it. Every other request off the local server
-   is aborted: nothing reaches Supabase or any sign-in service.
+   The site is served in-process as lib/target.js picks it (the build in dist/, which
+   must be current). Each case pins window.BM_CONFIG, so the real assets/config.js cannot
+   set it, and puts a small stand-in for supabase-js on window.supabase before the page's
+   scripts run (the seam account.js keeps: a client library that is already there is used
+   instead of the bundled one), which records what the page asks of it. Every request off
+   the local server is aborted: nothing reaches Supabase or any sign-in service. The
+   requests to the local server are watched too: the bundled library,
+   bundle/supabase.js, must never be asked for by a signed-out visitor on an ordinary
+   page, and must be asked for, and work, on the account page when no stand-in is there.
 
    1. the configured services are drawn as buttons, in order, above the email form, with
       text labels and nothing fetched; the email-only controls go when emailDelivery is false
@@ -19,15 +24,15 @@
    7. five buttons fit a 360px screen
    8. progress set aside for a reader with no email names the service they use
    9. a hand-over that fails, or that the reader comes Back from, frees the button
-  10. an error in the address is left alone on pages other than the account page */
+  10. an error in the address is left alone on pages other than the account page
+  11. a signed-out visitor on a chapter page and on the about page fetches nothing off the
+      local server and never the supabase chunk, and the list of what it does fetch is
+      printed; the account page with no stand-in fetches bundle/supabase.js, the real
+      library, and draws the form with it, with nothing sent to Supabase */
 "use strict";
-const path = require("path");
-const { createRequire } = require("module");
-const serve = require("../lib/serve");
-
-const ROOT = path.resolve(__dirname, "../..");
-const FROM = process.env.BM_PLAYWRIGHT_FROM || path.join(process.env.HOME || "", "dev/json-data-drift-analyzer/");
-const { chromium } = createRequire(FROM.endsWith("/") ? FROM : FROM + "/")("playwright");
+const site = require("../lib/site");
+const target = require("../lib/target");
+const { chromium } = require("../lib/pw").playwright();
 
 let fails = 0, passes = 0;
 function check(cond, what, detail) {
@@ -35,8 +40,8 @@ function check(cond, what, detail) {
   else { fails++; console.error("FAIL " + what + (detail === undefined ? "" : "\n     " + JSON.stringify(detail))); }
 }
 
-/* What account.js loads in place of supabase-js: no network, a session only if the case
-   gave one, and a record of every hand-over to a sign-in service. */
+/* What account.js finds on window.supabase in place of supabase-js: no network, a session
+   only if the case gave one, and a record of every hand-over to a sign-in service. */
 const SDK = `
 window.__oauth = [];
 window.supabase = { createClient: function () {
@@ -81,24 +86,28 @@ window.supabase = { createClient: function () {
 const ALL = ["google", "github", "discord", "facebook", "azure"];
 
 (async () => {
-  const server = await serve.start(ROOT, "HEAD");
+  const server = await target.start(site.parseArgs(process.argv.slice(2)));
+  console.log("account: " + server.where);
   const browser = await chromium.launch();
   const errors = [];
 
-  /* a fresh browser profile on account.html, with this config and (optionally) a session */
+  /* the chunk only account.js's import() fetches (tools/check-dist.js ON_DEMAND) */
+  const SUPABASE_CHUNK = /\/bundle\/supabase\.js$/;
+
+  /* a fresh browser profile on account.html, with this config and (optionally) a session;
+     `requests` is every URL the page asked for, `outside` those not on the local server */
   async function open(config, opts) {
     opts = opts || {};
     const context = await browser.newContext({ viewport: { width: opts.width || 1280, height: 800 } });
-    const outside = [];
+    const outside = [], requests = [];
     await context.route(/^(https?|wss?):/, (r) => {
       const u = r.request().url();
-      if (u.startsWith(server.url)) return r.continue();
+      requests.push(u);
+      if (server.owns(u)) return r.continue();
       outside.push(u);
-      if (/^https:\/\/cdn\.jsdelivr\.net\/npm\/@supabase\/supabase-js/.test(u)) {
-        return r.fulfill({ status: 200, contentType: "text/javascript; charset=utf-8", body: SDK });
-      }
       return r.abort();
     });
+    if (!opts.realSdk) await context.addInitScript(SDK);
     await context.addInitScript((seed) => {
       const pinned = Object.assign({ supabaseUrl: "https://testref.supabase.co", supabaseAnonKey: "sb_publishable_test" }, seed.config);
       Object.defineProperty(window, "BM_CONFIG", { get: () => pinned, set: () => {}, configurable: false });
@@ -113,12 +122,13 @@ const ALL = ["google", "github", "discord", "facebook", "azure"];
     const page = await context.newPage();
     page.on("pageerror", (e) => errors.push(String(e)));
     await page.goto(server.url + (opts.page || "account.html") + (opts.tail || ""));
-    if (opts.page) { await page.waitForFunction(() => window.BMAccount); return { page, context, outside }; }
+    if (opts.page) { await page.waitForFunction(() => window.BMAccount); return { page, context, outside, requests }; }
     await page.waitForFunction(() => window.BMAccount && document.querySelector("[data-account] .panel"));
     if (opts.session) await page.waitForFunction(() => /Signed in/.test(document.querySelector("[data-account]").textContent));
-    else await page.waitForFunction(() => window.supabase);
-    return { page, context, outside };
+    else if (!opts.realSdk) await page.waitForFunction(() => window.supabase);
+    return { page, context, outside, requests };
   }
+  const chunkAsked = (requests) => requests.filter((u) => SUPABASE_CHUNK.test(u));
   const text = (page, sel) => page.evaluate((s) => { const el = document.querySelector(s); return el ? el.textContent.replace(/\s+/g, " ").trim() : null; }, sel);
 
   /* 1. buttons */
@@ -338,6 +348,33 @@ const ALL = ["google", "github", "discord", "facebook", "azure"];
   {
     const { page, context } = await open({ providers: ["github"] }, { page: "about.html", tail: "?error=access_denied&error_description=x" });
     check(await page.evaluate(() => location.search) === "?error=access_denied&error_description=x", "10 an error in the address is only taken out on the account page");
+    await context.close();
+  }
+
+  /* 11. who downloads the library: the stand-in is left off, so a page that wants a client
+     has to fetch bundle/supabase.js, and a signed-out visitor must not */
+  {
+    const chapter = site.curriculum(site.ROOT).chapters[0].path;
+    for (const rel of [chapter, "about.html"]) {
+      const { page, context, outside, requests } = await open({ providers: ["github"] }, { page: rel, realSdk: true });
+      /* let the page settle: fonts, lazy work after load, anything account.js might do */
+      await page.waitForLoadState("networkidle");
+      const list = Array.from(new Set(requests)).map((u) => u.replace(server.url, "/")).sort();
+      check(outside.length === 0, "11 signed out on " + rel + ", nothing is asked of any other server", outside);
+      check(chunkAsked(requests).length === 0, "11 signed out on " + rel + ", the supabase chunk is not fetched", chunkAsked(requests));
+      check(!(await page.evaluate(() => !!window.supabase)), "11 … and no client library is on the page", null);
+      console.log("     " + rel + " signed out asked for " + list.length + " file(s):\n       " + list.join("\n       "));
+      await context.close();
+    }
+    const { page, context, outside, requests } = await open({ providers: ["github"] }, { realSdk: true });
+    await page.waitForFunction(() => document.getElementById("acct-oauth-github") && document.getElementById("acct-in"));
+    const got = chunkAsked(requests);
+    check(got.length === 1, "11 the account page fetches bundle/supabase.js once, from the site itself", got);
+    const sent = outside.filter((u) => !/^https:\/\/testref\.supabase\.co\//.test(u));
+    check(sent.length === 0, "11 … and asks no server but, at most, the configured Supabase project", sent);
+    check(outside.length === 0, "11 … which a signed-out visitor to the account page does not contact either", outside);
+    const drawn = await page.evaluate(() => ({ button: !!document.getElementById("acct-oauth-github"), form: !!document.getElementById("acct-in"), stub: !!window.supabase }));
+    check(drawn.button && drawn.form && !drawn.stub, "11 the form is drawn with the real library, no stand-in on the page", drawn);
     await context.close();
   }
 

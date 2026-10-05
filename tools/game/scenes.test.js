@@ -1,8 +1,12 @@
 #!/usr/bin/env node
-/* Headless Chromium checks of the 3D scene stages (assets/scenes3d.js), over file:// URLs.
-     BM_PLAYWRIGHT_FROM=~/dev/json-data-drift-analyzer/ node tools/game/scenes.test.js
-   Every network request is aborted, so the stages run on the SVG painter; input and
-   colours are the same for both painters (the GL one draws the same primitives).
+/* Headless Chromium checks of the 3D scene stages (assets/scenes3d.js), on the built site as
+   lib/target.js serves it (dist/, which must be current):
+     node tools/game/scenes.test.js
+   Every request off that server is aborted. In checks 1 to 4 so is the one for
+   bundle/three.js (the loader's dynamic import), so Three.js never arrives and the stages
+   run on the SVG painter whatever the machine offers; input and colours are the same for
+   both painters (the GL one draws the same primitives). Check 5 is the one that lets the
+   chunk through, in a second Chromium launched with the SwiftShader flags map.test.js uses.
 
    1. the Reset view button inside a stage works from the keyboard: Enter and Space press
       it rather than cycling the stage's selection; modified arrows are left to the browser
@@ -14,14 +18,26 @@
    4. colours, read from getComputedStyle in both themes, in every instance of a scene
       (exercise copies too): the seams between faces stand 3:1 off every face they edge,
       and boxcount's off the stage too; a ball's outline 3:1 off the stage; every line,
-      label and dot 3:1 off the stage, a see-through line taken as it blends there */
+      label and dot 3:1 off the stage, a see-through line taken as it blends there
+   5. the painter each stage reaches, the parity oracle for the scenes as map.test.js's
+      info() is for the map: under WebGL 2, on every page with a scene, every stage
+      (exercise copies too) that has neared the screen is on the GL painter
+      (data-painter="gl" data-state="ready"), with BM3D.load() true, the painter's manager
+      held and its context not lost, and no page error; without WebGL (every getContext
+      for a webgl* context answers null) load() is false with the reason "no-webgl" and
+      every stage is on the SVG painter as a fallback (data-painter="svg"
+      data-state="fallback"). scenes3d.js falls back on purpose without a console error
+      when the GL painter cannot start, so without this check a Three.js release that
+      broke only the scene painter would pass every other check on the flat pictures. */
 "use strict";
-const path = require("path");
-const { createRequire } = require("module");
+const site = require("../lib/site");
+const target = require("../lib/target");
+const { chromium } = require("../lib/pw").playwright();
 
-const ROOT = path.resolve(__dirname, "../..");
-const FROM = process.env.BM_PLAYWRIGHT_FROM || path.join(process.env.HOME || "", "dev/json-data-drift-analyzer/");
-const { chromium } = createRequire(FROM.endsWith("/") ? FROM : FROM + "/")("playwright");
+const THREE_CHUNK = /\/bundle\/three\.js(?:[?#]|$)/;
+/* software WebGL 2 in headless Chromium, the same three flags as map.test.js and the first
+   set the webgl suite of check-browser.js tries (tools/README.md, "WebGL in headless Chromium") */
+const GL_ARGS = ["--enable-unsafe-swiftshader", "--use-angle=swiftshader", "--ignore-gpu-blocklist"];
 
 const SCENES = {
   boxcount: "parts/1-algebra/01-numbers.html",
@@ -37,7 +53,8 @@ const SCENES = {
   rowops: "parts/4-topics/16-determinants.html"
 };
 
-const url = (p) => "file://" + path.join(ROOT, p);
+let server;
+const url = (p) => server.url + p;
 let fails = 0, passes = 0;
 function check(cond, what) {
   if (cond) passes++;
@@ -45,10 +62,20 @@ function check(cond, what) {
 }
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 
+/* a context that reaches the local server and nothing else, and, unless opts.three is set,
+   not bundle/three.js either; opts.noWebGL makes every canvas refuse a WebGL context, as
+   lib/browser.js's helper of that name does for the check-browser suites */
 async function open(browser, opts) {
   opts = opts || {};
   const context = await browser.newContext(Object.assign({ viewport: { width: 1280, height: 900 }, deviceScaleFactor: 1 }, opts.context || {}));
-  await context.route(/^(https?|wss?):/, (r) => r.abort());
+  await context.route(/^(https?|wss?):/, (r) => server.owns(r.request().url()) && (opts.three || !THREE_CHUNK.test(r.request().url())) ? r.continue() : r.abort());
+  if (opts.noWebGL) await context.addInitScript(() => {
+    const orig = HTMLCanvasElement.prototype.getContext;
+    HTMLCanvasElement.prototype.getContext = function (type) {
+      if (/^(webgl|webgl2|experimental-webgl)$/.test(String(type))) return null;
+      return orig.apply(this, arguments);
+    };
+  });
   await context.addInitScript((theme) => {
     try {
       localStorage.setItem("bm.lesson.v1", '{"mode":"page"}');
@@ -408,15 +435,84 @@ async function colours(browser) {
   if (process.env.VERBOSE) report.forEach((l) => console.log("  " + l));
 }
 
+/* ----------------------------------------------------------- 5. the painters -- */
+/* every scene host once each has neared the screen and the loader has answered: a
+   stage that asked for 3D ends on gl/ready or svg/fallback (svg/ready is one that was
+   never asked, loading one still waiting), so the wait is for every host to be at one
+   of the two, and what each reached is the record */
+const PAINTERS = "(" + function () {
+  return Array.prototype.map.call(document.querySelectorAll("[data-widget][data-painter]"), function (el) {
+    return el.getAttribute("data-widget") + (el.closest(".ex") ? "(ex)" : "") + ":" + el.getAttribute("data-painter") + "/" + el.getAttribute("data-state");
+  });
+} + ")()";
+const settled = (page) => page.waitForFunction(() => Array.prototype.every.call(document.querySelectorAll("[data-widget][data-painter]"), (el) => {
+  const s = el.getAttribute("data-painter") + "/" + el.getAttribute("data-state");
+  return s === "gl/ready" || s === "svg/fallback";
+}), null, { timeout: 20000 }).then(() => true, () => false);
+
+async function painters(glBrowser) {
+  const pages = Array.from(new Set(Object.values(SCENES)));
+  /* with WebGL 2 (SwiftShader) and bundle/three.js served: the GL painter, everywhere */
+  for (const rel of pages) {
+    const { context, page, errors } = await open(glBrowser, { three: true });
+    await page.goto(url(rel));
+    await page.waitForFunction(() => window.BM3D && window.BM3D.load && document.readyState === "complete");
+    const hosts = page.locator("[data-widget][data-painter]");
+    const n = await hosts.count();
+    for (let i = 0; i < n; i++) await hosts.nth(i).scrollIntoViewIfNeeded();
+    const l = await page.evaluate(() => window.BM3D.load().then((ok) => ({ ok, why: window.BM3D.why })));
+    check(l.ok === true && l.why === "", rel + ": BM3D.load() is true under WebGL 2 (" + JSON.stringify(l) + ")");
+    const done = await settled(page);
+    const got = await page.evaluate(PAINTERS);
+    const mgr = await page.evaluate(() => ({ held: !!window.BM3D.gl, lost: !!(window.BM3D.gl && window.BM3D.gl.lost) }));
+    check(done && n >= 2 && got.every((s) => /:gl\/ready$/.test(s)), rel + ": every stage, exercise copies too, is on the GL painter (" + got.join(" ") + ")");
+    check(mgr.held && !mgr.lost, rel + ": the GL painter's manager is held and its context not lost (" + JSON.stringify(mgr) + ")");
+    check(!errors.length, rel + ": no page errors on the GL painter (" + errors.join("; ") + ")");
+    await context.close();
+  }
+  /* without WebGL, the chunk still served: the loader says no-webgl before asking for it,
+     and every stage falls back to the SVG painter */
+  {
+    const rel = SCENES.det3;
+    const { context, page, errors } = await open(glBrowser, { three: true, noWebGL: true });
+    const asked = [];
+    page.on("request", (r) => { if (THREE_CHUNK.test(r.url())) asked.push(r.url()); });
+    await page.goto(url(rel));
+    await page.waitForFunction(() => window.BM3D && window.BM3D.load && document.readyState === "complete");
+    const hosts = page.locator("[data-widget][data-painter]");
+    const n = await hosts.count();
+    for (let i = 0; i < n; i++) await hosts.nth(i).scrollIntoViewIfNeeded();
+    const l = await page.evaluate(() => window.BM3D.load().then((ok) => ({ ok, why: window.BM3D.why })));
+    check(l.ok === false && l.why === "no-webgl" && asked.length === 0, rel + ": without WebGL, load() is false with the reason \"no-webgl\" and bundle/three.js is never asked for (" + JSON.stringify({ l, asked }) + ")");
+    const done = await settled(page);
+    const got = await page.evaluate(PAINTERS);
+    check(done && n >= 2 && got.every((s) => /:svg\/fallback$/.test(s)), rel + ": without WebGL every stage is on the SVG painter as a fallback (" + got.join(" ") + ")");
+    check(!errors.length, rel + ": no page errors without WebGL (" + errors.join("; ") + ")");
+    await context.close();
+  }
+}
+
 async function run() {
-  const browser = await chromium.launch();
+  server = await target.start(site.parseArgs(process.argv.slice(2)));
+  console.log("scenes: " + server.where);
   try {
-    await resetButton(browser);
-    await swipes(browser);
-    await arrows(browser);
-    await colours(browser);
+    const browser = await chromium.launch();
+    try {
+      await resetButton(browser);
+      await swipes(browser);
+      await arrows(browser);
+      await colours(browser);
+    } finally {
+      await browser.close();
+    }
+    const glBrowser = await chromium.launch({ args: GL_ARGS });
+    try {
+      await painters(glBrowser);
+    } finally {
+      await glBrowser.close();
+    }
   } finally {
-    await browser.close();
+    await server.close();
   }
 }
 

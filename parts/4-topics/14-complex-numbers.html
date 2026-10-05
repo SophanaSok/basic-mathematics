@@ -1,44 +1,12 @@
 <!doctype html>
 <html lang="en">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<!--bm:head-->
 <title>14. Complex Numbers — Basic Mathematics</title>
 <meta name="description" content="Arithmetic with i, the complex plane, absolute value, and polar form where multiplication becomes rotation.">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@700;800&family=Inter:wght@400;500;600;700&family=Newsreader:ital,wght@0,400;0,600;1,400&display=swap">
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.11/katex.min.css">
-<link rel="icon" href="../../assets/favicon.svg" type="image/svg+xml">
-<link rel="stylesheet" href="../../assets/site.css">
-<link rel="stylesheet" href="../../assets/game.css">
-<link rel="stylesheet" href="../../assets/scenes3d.css">
-<script src="../../assets/boot.js"></script>
-<script defer src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.11/katex.min.js"></script>
-<script defer src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.11/contrib/auto-render.min.js"></script>
-<script defer src="../../data/curriculum.js"></script>
-<script defer src="../../data/quest.js"></script>
-<script defer src="../../assets/widgets.js"></script>
-<script defer src="../../assets/three-loader.js"></script>
-<script defer src="../../assets/site.js"></script>
-<script defer src="../../assets/sfx.js"></script>
-<script defer src="../../assets/game.js"></script>
-<script defer src="../../assets/encounter.js"></script>
-<script defer src="../../assets/lesson.js"></script>
-<script defer src="../../assets/config.js"></script>
-<script defer src="../../assets/account.js"></script>
 </head>
 <body data-depth="2" data-chapter="ch14" data-part="topics">
-<a class="skip-link" href="#main">Skip to content</a>
-
-<header class="topbar">
-  <a class="brand" href="../../index.html"><span class="glyph">∑</span> Basic Mathematics</a>
-  <nav aria-label="Site">
-    <a href="../../index.html">Contents</a>
-    <a href="../../about.html">How to use this</a>
-    <button class="icon-btn" type="button" data-theme-toggle aria-label="Switch between light and dark">☾</button>
-  </nav>
-</header>
+<!--bm:topbar-->
 
 <div class="wrap">
 <div class="layout">
@@ -537,7 +505,7 @@
         Write complex numbers in the form <code>3+2i</code> or <code>3-2i</code>, with no spaces.
       </p>
 
-      <div class="ex" data-section="complex-arith" data-answer="7+i|7+1i"
+      <div class="ex" id="e1" data-section="complex-arith" data-answer="7+i|7+1i"
            data-placeholder="e.g. 3+2i"
            data-hint="Add real parts and imaginary parts separately.">
         <div class="ex-q"><p>Compute $(4+5i) + (3-4i)$.</p></div>
@@ -550,7 +518,7 @@
         </div>
       </div>
 
-      <div class="ex" data-section="complex-arith" data-answer="14+2i"
+      <div class="ex" id="e2" data-section="complex-arith" data-answer="14+2i"
            data-placeholder="e.g. 3+2i"
            data-hint="Expand, then replace i² by −1."
            data-hint2="6 − 6i + 8i − 8i². What is −8i²?">
@@ -569,7 +537,7 @@
         </div>
       </div>
 
-      <div class="ex" data-section="complex-plane" data-type="number" data-answer="13"
+      <div class="ex" id="e3" data-section="complex-plane" data-type="number" data-answer="13"
            data-hint="|z| = √(a² + b²).">
         <div class="ex-q"><p>What is $|5 - 12i|$?</p></div>
         <div class="ex-solution">
@@ -581,7 +549,7 @@
         </div>
       </div>
 
-      <div class="ex" data-section="complex-arith" data-answer="2-7i"
+      <div class="ex" id="e4" data-section="complex-arith" data-answer="2-7i"
            data-placeholder="e.g. 3-2i"
            data-hint="The conjugate flips the sign of the imaginary part.">
         <div class="ex-q"><p>What is the conjugate of $2 + 7i$?</p></div>
@@ -594,7 +562,7 @@
         </div>
       </div>
 
-      <div class="ex" data-section="complex-arith" data-type="number" data-answer="-1"
+      <div class="ex" id="e5" data-section="complex-arith" data-type="number" data-answer="-1"
            data-hint="i² = −1, and the powers of i repeat with period 4.">
         <div class="ex-q"><p>What is $i^{6}$?</p></div>
         <div class="ex-solution">
@@ -607,7 +575,7 @@
         </div>
       </div>
 
-      <div class="ex" data-section="polar" data-answer="3"
+      <div class="ex" id="e6" data-section="polar" data-answer="3"
            data-hint="What does multiplying by a number of absolute value 1 do?">
         <div class="ex-q">
           <p>Multiplying a complex number by $i$ does what to its plot in the plane?</p>
@@ -627,7 +595,7 @@
         </div>
       </div>
 
-      <div class="ex" data-section="complex-arith" data-type="set" data-answer="3,-3"
+      <div class="ex" id="e7" data-section="complex-arith" data-type="set" data-answer="3,-3"
            data-placeholder="e.g. 5,-2"
            data-hint="Write them as real numbers times i — then give the two coefficients.">
         <div class="ex-q">
@@ -644,7 +612,7 @@
         </div>
       </div>
 
-      <div class="ex" data-section="complex-plane" data-type="number" data-answer="5"
+      <div class="ex" id="e8" data-section="complex-plane" data-type="number" data-answer="5"
            data-hint="|z − w| is the distance between the two points."
            data-hint2="The difference is 3 + 4i.">
         <div class="ex-q">
@@ -659,7 +627,7 @@
         </div>
       </div>
 
-      <div class="ex" data-section="polar" data-type="number" data-answer="8"
+      <div class="ex" id="e9" data-section="polar" data-type="number" data-answer="8"
            data-hint="Use |zw| = |z||w| — you do not need to multiply them out.">
         <div class="ex-q">
           <p>If $|z| = 2$ and $|w| = 4$, what is $|zw|$?</p>
@@ -674,7 +642,7 @@
         </div>
       </div>
 
-      <div class="ex" data-section="polar" data-type="number" data-answer="4"
+      <div class="ex" id="e10" data-section="polar" data-type="number" data-answer="4"
            data-hint="The nth roots of a number are evenly spaced around a circle.">
         <div class="ex-q">
           <p>How many complex solutions does $z^4 = 1$ have?</p>

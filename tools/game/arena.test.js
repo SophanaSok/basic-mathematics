@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 /* Headless Chromium checks of the Arena's settling rules (assets/arena.js with
-   assets/game.js), over file:// URLs with every network request aborted:
-     BM_PLAYWRIGHT_FROM=~/dev/json-data-drift-analyzer/ node tools/game/arena.test.js
+   assets/game.js), on the built site as lib/target.js serves it (dist/, which must be
+   current), with every request off that server aborted:
+     node tools/game/arena.test.js
 
    1. a Repair banked after one right answer repairs nothing; a full one still does
    2. the Daily is one attempt a day: once played (or banked) the tile shows today's
@@ -17,15 +18,13 @@
    8. Esc, Esc after an answer puts focus back on Next
    9. the paused par label keeps its text contrast (only the bar fades) */
 "use strict";
-const path = require("path");
-const { createRequire } = require("module");
-
-const ROOT = path.resolve(__dirname, "../..");
-const FROM = process.env.BM_PLAYWRIGHT_FROM || path.join(process.env.HOME || "", "dev/json-data-drift-analyzer/");
-const { chromium } = createRequire(FROM.endsWith("/") ? FROM : FROM + "/")("playwright");
+const site = require("../lib/site");
+const target = require("../lib/target");
+const { chromium } = require("../lib/pw").playwright();
 
 const CH05 = "parts/2-geometry/05-distance-and-angles.html";
-const url = (p) => "file://" + path.join(ROOT, p);
+let server;
+const url = (p) => server.url + p;
 let fails = 0, passes = 0;
 function check(cond, what) {
   if (cond) passes++;
@@ -39,7 +38,7 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 async function ctx(browser, opts) {
   opts = opts || {};
   const context = await browser.newContext({ viewport: { width: 1280, height: 900 }, colorScheme: opts.scheme || "light" });
-  await context.route(/^(https?|wss?):/, (r) => r.abort());
+  await context.route(/^(https?|wss?):/, (r) => server.owns(r.request().url()) ? r.continue() : r.abort());
   return context;
 }
 async function page(context, errors) {
@@ -103,6 +102,8 @@ const game = (p) => p.evaluate(() => JSON.parse(localStorage.getItem("bm.game.v1
 const runStore = (p) => p.evaluate(() => JSON.parse(localStorage.getItem("bm.run.v1") || "{}"));
 
 async function run() {
+  server = await target.start(site.parseArgs(process.argv.slice(2)));
+  console.log("arena: " + server.where);
   const browser = await chromium.launch();
   const errors = [];
   try {
@@ -129,6 +130,8 @@ async function run() {
       await p.goto(url("arena.html?repair=ch05%23parallels"));
       await p.click('[data-act="start"][data-mode="repair"]');
       await playOut(p);
+      /* the fix is written with the run; Comeback is unlocked a task later (game.js schedule()) */
+      await p.waitForFunction(() => !!(JSON.parse(localStorage.getItem("bm.game.v1") || "{}").ach || {}).comeback, null, { timeout: 2000 }).catch(() => {});
       const g2 = await game(p);
       check(!!(g2.sec["ch05#parallels"] || {}).fix && !!(g2.ach || {}).comeback, "five right answers still repair the section");
       check(/as repaired/.test(await p.$eval(".arena-result", (e) => e.textContent)), "a full repair says so");
@@ -411,6 +414,7 @@ async function run() {
     eq(errors, [], "no page errors");
   } finally {
     await browser.close();
+    await server.close();
   }
 }
 

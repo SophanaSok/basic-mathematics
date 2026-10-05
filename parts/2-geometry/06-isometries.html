@@ -1,46 +1,12 @@
 <!doctype html>
 <html lang="en">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<!--bm:head-->
 <title>6. Isometries — Basic Mathematics</title>
 <meta name="description" content="The motions that preserve distance — translations, rotations, reflections — and symmetry as invariance under them.">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@700;800&family=Inter:wght@400;500;600;700&family=Newsreader:ital,wght@0,400;0,600;1,400&display=swap">
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.11/katex.min.css">
-<link rel="icon" href="../../assets/favicon.svg" type="image/svg+xml">
-<link rel="stylesheet" href="../../assets/site.css">
-<link rel="stylesheet" href="../../assets/game.css">
-<link rel="stylesheet" href="../../assets/scenes3d.css">
-<script src="../../assets/boot.js"></script>
-<script defer src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.11/katex.min.js"></script>
-<script defer src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.11/contrib/auto-render.min.js"></script>
-<script defer src="../../data/curriculum.js"></script>
-<script defer src="../../data/quest.js"></script>
-<script defer src="../../assets/widgets.js"></script>
-<script defer src="../../assets/three-loader.js"></script>
-<script defer src="../../assets/scenes3d.js"></script>
-<script defer src="../../assets/scenes/flipbook.js"></script>
-<script defer src="../../assets/site.js"></script>
-<script defer src="../../assets/sfx.js"></script>
-<script defer src="../../assets/game.js"></script>
-<script defer src="../../assets/encounter.js"></script>
-<script defer src="../../assets/lesson.js"></script>
-<script defer src="../../assets/config.js"></script>
-<script defer src="../../assets/account.js"></script>
 </head>
 <body data-depth="2" data-chapter="ch06" data-part="geometry">
-<a class="skip-link" href="#main">Skip to content</a>
-
-<header class="topbar">
-  <a class="brand" href="../../index.html"><span class="glyph">∑</span> Basic Mathematics</a>
-  <nav aria-label="Site">
-    <a href="../../index.html">Contents</a>
-    <a href="../../about.html">How to use this</a>
-    <button class="icon-btn" type="button" data-theme-toggle aria-label="Switch between light and dark">☾</button>
-  </nav>
-</header>
+<!--bm:topbar-->
 
 <div class="wrap">
 <div class="layout">
@@ -641,7 +607,7 @@
       </div>
       <p>Where a point is asked for, write it as a pair like <code>(3,-2)</code>.</p>
 
-      <div class="ex" data-section="mappings-plane" data-answer="(5,-2)|5,-2"
+      <div class="ex" id="e1" data-section="mappings-plane" data-answer="(5,-2)|5,-2"
            data-placeholder="e.g. (3,-2)"
            data-hint="Reflection in the x-axis changes the sign of y only.">
         <div class="ex-q">
@@ -657,7 +623,7 @@
         </div>
       </div>
 
-      <div class="ex" data-section="mappings-plane" data-answer="(-4,-7)|-4,-7"
+      <div class="ex" id="e2" data-section="mappings-plane" data-answer="(-4,-7)|-4,-7"
            data-placeholder="e.g. (3,-2)"
            data-hint="A 180° rotation about the origin sends (x, y) to (−x, −y).">
         <div class="ex-q">
@@ -673,7 +639,7 @@
         </div>
       </div>
 
-      <div class="ex" data-section="symmetry" data-type="number" data-answer="8"
+      <div class="ex" id="e3" data-section="symmetry" data-type="number" data-answer="8"
            data-hint="Count rotations and reflections separately, then add.">
         <div class="ex-q"><p>How many symmetries does a square have?</p></div>
         <div class="ex-solution">
@@ -686,7 +652,7 @@
         </div>
       </div>
 
-      <div class="ex" data-section="symmetry" data-type="number" data-answer="2"
+      <div class="ex" id="e4" data-section="symmetry" data-type="number" data-answer="2"
            data-hint="Which motions leave the letter Z looking like a Z?">
         <div class="ex-q">
           <p>
@@ -702,7 +668,7 @@
         </div>
       </div>
 
-      <div class="ex" data-section="isometries" data-answer="4"
+      <div class="ex" id="e5" data-section="isometries" data-answer="4"
            data-hint="Check the definition: does it preserve distance?">
         <div class="ex-q">
           <p>Which of these mappings of the plane is <em>not</em> an isometry?</p>
@@ -727,7 +693,7 @@
         </div>
       </div>
 
-      <div class="ex" data-section="isometries" data-answer="2"
+      <div class="ex" id="e6" data-section="isometries" data-answer="2"
            data-hint="Compose the two formulas and see what single rule comes out."
            data-hint2="(x, y) goes to (y, x), and then to (y, −x). Try it on (1, 0).">
         <div class="ex-q">
@@ -754,7 +720,7 @@
         </div>
       </div>
 
-      <div class="ex" data-section="isometries" data-type="number" data-answer="5"
+      <div class="ex" id="e7" data-section="isometries" data-type="number" data-answer="5"
            data-hint="You do not need the images. What does an isometry do to distances?">
         <div class="ex-q">
           <p>
@@ -771,7 +737,7 @@
         </div>
       </div>
 
-      <div class="ex" data-section="isometries" data-answer="3"
+      <div class="ex" id="e8" data-section="isometries" data-answer="3"
            data-hint="Think about what happens to the two marked points of a lopsided figure.">
         <div class="ex-q">
           <p>Two figures are congruent. What exactly does that mean?</p>
@@ -792,7 +758,7 @@
         </div>
       </div>
 
-      <div class="ex" data-section="mappings-plane" data-answer="(1,6)|1,6"
+      <div class="ex" id="e9" data-section="mappings-plane" data-answer="(1,6)|1,6"
            data-placeholder="e.g. (3,-2)"
            data-hint="Do the translation first, then the reflection — in that order."
            data-hint2="T(−2, −5) = (1, −6). Now apply M to that point.">
@@ -814,7 +780,7 @@
         </div>
       </div>
 
-      <div class="ex" data-section="symmetry" data-answer="1"
+      <div class="ex" id="e10" data-section="symmetry" data-answer="1"
            data-hint="Three properties define a group. Which list has all three?">
         <div class="ex-q">
           <p>

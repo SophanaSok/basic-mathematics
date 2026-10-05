@@ -1,6 +1,8 @@
 "use strict";
 /* WebGL availability in headless Chromium. Runs first: `probe` is called by the runner
-   before the shared browser is launched and its winning arg set becomes ctx.launch.
+   before the shared browser is launched and its winning arg set becomes ctx.launch. The
+   probe asks for WebGL 2 only, the context the site's loader needs (WebGL 1 alone would
+   leave every 3D picture flat while reading as "WebGL available" here).
    Exports the helpers scene suites will want: ARG_SETS, probe, and (via ctx.h) the
    noWebGL / blockUrl helpers that live in lib/browser.js. */
 const path = require("path");
@@ -65,7 +67,7 @@ module.exports = {
       ctx.report[r.ok ? "pass" : "warn"]("args " + JSON.stringify(t.args), r.ok ? r.renderer + " via " + r.context : (r.error || "no context"));
     });
     if (L.webgl && L.webgl.ok) ctx.report.pass("launch config", "args " + JSON.stringify(L.args) + "; renderer: " + L.webgl.renderer + "; vendor: " + L.webgl.vendor + "; " + L.webgl.version);
-    else ctx.report.fail("launch config", "no arg set produced a WebGL context; 3D scenes cannot be exercised on this machine. Tried: " + JSON.stringify(L.tried));
+    else ctx.report.fail("launch config", "no arg set produced a WebGL 2 context (the one assets/three-loader.js asks for; WebGL 1 alone does not count); 3D scenes cannot be exercised on this machine. Tried: " + JSON.stringify(L.tried));
     /* the no-WebGL helper must actually remove WebGL, or the degrade-path tests mean nothing */
     const { page, close } = await ctx.h.newPage({ noWebGL: true });
     try {
@@ -74,15 +76,16 @@ module.exports = {
       if (res && res.ok) ctx.report.fail("noWebGL helper", "a context was still created: " + JSON.stringify(res));
       else ctx.report.pass("noWebGL helper", "getContext('webgl*') returns null under the init script");
     } finally { await close(); }
-    /* and blockUrl must block */
+    /* and blockUrl must block: with every built chunk refused the page has no script
+       but the inline boot, so nothing of the site's (widgets.js's BMPlot, for one) is
+       there, while the page itself still loads */
     const p2 = await ctx.h.newPage({});
     try {
-      await ctx.h.blockUrl(p2.page, "/assets/widgets.js");
+      await ctx.h.blockUrl(p2.page, /\/bundle\/[^?#]*\.js(?:[?#]|$)/);
       await ctx.h.open(p2.page, ctx.chapterPages[0] || "index.html");
-      /* scenes3d.js also creates window.BMWidgets, so look for widgets.js's own export */
       const hasWidgets = await p2.page.evaluate(() => !!window.BMPlot);
-      if (hasWidgets) ctx.report.fail("blockUrl helper", "widgets.js still loaded while blocked");
-      else ctx.report.pass("blockUrl helper", "blocked /assets/widgets.js; page still loaded (" + p2.errors.pageErrors.length + " page errors, " + p2.errors.notFound.length + " same-origin failures, as expected from the block)");
+      if (hasWidgets) ctx.report.fail("blockUrl helper", "the site's scripts still ran while every chunk under bundle/ was blocked");
+      else ctx.report.pass("blockUrl helper", "blocked every .js under bundle/; page still loaded (" + p2.errors.pageErrors.length + " page errors, " + p2.errors.notFound.length + " same-origin failures, as expected from the block)");
     } finally { await p2.close(); }
   }
 };

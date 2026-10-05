@@ -18,6 +18,10 @@
                   cache of which exercises make up each set (and the Arena's own
                   fields, which this file keeps as it finds them)
      bm.prefs.v1  this device only, never cleared: sound, calm, map, tempo
+
+   A later version of the site may keep fields in these stores that this file has never
+   heard of. Every read below carries them through and every write puts them back, the
+   way assets/account.js carries them through a sync.
    =========================================================================== */
 (function () {
   "use strict";
@@ -43,13 +47,24 @@
 
   /* ------------------------------------------------------------- stores -- */
 
+  /* the fields this file reads are normalised; any others (the shape marker `v` that
+     assets/account.js looks for, whatever a later version of the site adds) are carried
+     through untouched, so a write here keeps them */
   function readGame() {
-    var g = obj(Store.read(K.game, {}));
-    return {
-      ach: obj(g.ach), cmp: obj(g.cmp), sec: obj(g.sec), best: obj(g.best),
-      enc: obj(g.enc), daily: obj(g.daily), maxed: num(g.maxed)
-    };
+    var g = obj(Store.read(K.game, {})), out = {};
+    Object.keys(g).forEach(function (k) { out[k] = g[k]; });
+    out.ach = obj(g.ach); out.cmp = obj(g.cmp); out.sec = obj(g.sec); out.best = obj(g.best);
+    out.enc = obj(g.enc); out.daily = obj(g.daily); out.maxed = num(g.maxed);
+    return out;
   }
+  /* a record written over an older one keeps the fields of the old one that are not in
+     `known`: they are not this file's to drop */
+  function over(old, rec, known) {
+    old = obj(old);
+    Object.keys(old).forEach(function (k) { if (known.indexOf(k) < 0) rec[k] = old[k]; });
+    return rec;
+  }
+  var SEC = ["n", "ok", "box", "last", "fix"], BEST = ["score", "hearts", "day"], ENC = ["medal", "day"];
   function writeGame(g) { Store.write(K.game, g); }
   function updateGame(fn) {
     var g = readGame();
@@ -78,13 +93,17 @@
     return r;
   }
 
-  /* `map` stays unset until the reader chooses: unset means 3D, except on a low-end
-     device (assets/map3d.js decides) */
+  /* A copy of what is stored, with the four settings this file knows normalised; any
+     other key is kept as it is, so setPref below writes it back. `map` stays unset until
+     the reader chooses: unset means 3D, except on a low-end device (assets/map3d.js
+     decides). */
   function prefs() {
     var p = obj(Store.read(K.prefs, {})), out = {};
+    Object.keys(p).forEach(function (k) { out[k] = p[k]; });
     out.sound = p.sound === true;
     out.calm = p.calm === true;
     if (p.map === "3d" || p.map === "list") out.map = p.map;
+    else delete out.map;
     out.tempo = p.tempo === "extended" || p.tempo === "untimed" ? p.tempo : "standard";
     return out;
   }
@@ -240,7 +259,7 @@
     });
     if (!add.length) return;
     updateGame(function (g) {
-      add.forEach(function (a) { if (outranks(a[1], a[2], g.enc[a[0]])) g.enc[a[0]] = { medal: a[1], day: a[2] }; });
+      add.forEach(function (a) { if (outranks(a[1], a[2], g.enc[a[0]])) g.enc[a[0]] = over(g.enc[a[0]], { medal: a[1], day: a[2] }, ENC); });
     });
   }
 
@@ -632,7 +651,7 @@
         else if (due) box = Math.min(4, box + 1);
         var rec = { n: num(sec.n) + s.n, ok: num(sec.ok) + s.ok, box: box, last: s.miss || due ? day : sec.last };
         if (num(sec.fix)) rec.fix = num(sec.fix);
-        g.sec[sid] = rec;
+        g.sec[sid] = over(sec, rec, SEC);
       });
       /* Repair: an untimed run on one weak section; it counts as repaired when it was
          played to the end, every answer came right and at least four in five were right
@@ -653,14 +672,14 @@
       if (ranked && finished && (!g.best[mode] || score > num(prev.score) ||
           (score === num(prev.score) && hearts > num(prev.hearts)) ||
           (score === num(prev.score) && hearts === num(prev.hearts) && day < String(prev.day || "9999")))) {
-        g.best[mode] = { score: score, hearts: hearts, day: day };
+        g.best[mode] = over(prev, { score: score, hearts: hearts, day: day }, BEST);
       }
       /* a rematch only raises a medal the set has earned (cleared, above), and never one
          lost on hearts */
       if (boss && answers.length && ranked && finished && hearts > 0 && cleared) {
         newMedal = hearts >= 3 ? 3 : 2;
         var id = boss + "/practice";
-        if (outranks(newMedal, day, g.enc[id])) g.enc[id] = { medal: newMedal, day: day };
+        if (outranks(newMedal, day, g.enc[id])) g.enc[id] = over(g.enc[id], { medal: newMedal, day: day }, ENC);
       }
       if (mode === "daily" && answers.length && finished) {
         if (!g.daily[day]) dailyBonus = true;

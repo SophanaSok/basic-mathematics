@@ -11,10 +11,12 @@ help the mathematics stick.
 
 **Read it here: [sophanasok.github.io/basic-mathematics](https://sophanasok.github.io/basic-mathematics/)**
 
-No build step, no dependencies to install, no server required. It is HTML, CSS, and plain ES5
-JavaScript files; KaTeX and (only where a 3D scene is on screen) Three.js come from a CDN, and the
-site works without either. Accounts are optional and off by default: with
-[`assets/config.js`](assets/config.js) left empty the site talks to nobody.
+It is hand-written HTML, CSS, and plain JavaScript files, published through a small build
+([Vite](https://vite.dev)) that writes each page's head and bundles its scripts, its fonts,
+KaTeX and Three.js with them (the 3D library is fetched only where a 3D scene or the course map
+is on screen, and the site works without it). Accounts are optional and off by default: with
+[`assets/config.js`](assets/config.js) left empty the site talks to nobody, and a signed-out
+reader's browser contacts no third party at all.
 
 ---
 
@@ -154,7 +156,9 @@ going well. A short version appears above each chapter's recap.
 Everything is remembered in **your browser**, in local storage — including achievements, medals
 and Arena records. Without an account nothing is sent
 anywhere, so progress will not follow you to another browser or device, and clearing site data
-clears it. There is a deliberate reset button on the about page.
+clears it. There is a deliberate reset button on the about page. The pages themselves fetch
+nothing from anyone but this site (the fonts, the maths typesetting and the 3D library are
+served with it).
 
 Where the site has accounts switched on, signing in is optional and adds one thing: your progress
 is copied to the course's database and follows you between devices. Each answer check by a
@@ -173,20 +177,78 @@ The light/dark toggle sits in the header and follows your system setting until y
 
 ### Running it locally
 
-Open `index.html` in a browser. That is the whole procedure — `file://` works, because the
-curriculum is loaded as a `<script>` rather than fetched.
-
-If you would rather serve it:
-
 ```sh
-python -m http.server 8000   # then visit http://localhost:8000
+npm ci            # once: Vite, TypeScript (and @types/node), Playwright, axe-core.
+                  # Node 22.18 or newer (.nvmrc: 24)
+npm run dev       # the source tree, each page with its shell written and its entry served
+                  # as modules, at http://localhost:8000, reloading as you edit
+npm run build     # the site as it is published, into dist/
+npm run preview   # that dist/, at http://localhost:8000
 ```
 
-Two libraries come from CDNs: [KaTeX](https://katex.org) for math typesetting on every page, and
-[Three.js](https://threejs.org) 0.160.1 (the last release with a classic build, pinned with an
-integrity hash) only when a 3D scene or the course map nears the screen. If either CDN is
-unreachable the page still works: formulas fall back to their TeX source, and every 3D picture is
-drawn flat with the same controls.
+Both servers take port 8000 and refuse to start on any other:
+`http://localhost:8000/account.html` is the address a sign-in is allowed to come back to
+([`supabase/README.md`](supabase/README.md)).
+
+**The source tree is not a site on its own.** A page in it holds its content and two markers,
+`<!--bm:head-->` and `<!--bm:topbar-->`; the `<head>` (the boot script, stylesheets, fonts,
+KaTeX, the page's module entry) and the top bar are written in by
+[`tools/lib/shell.js`](tools/lib/shell.js) when the page is built or served
+([The shell of a page](#the-shell-of-a-page)), and the scripts are bundled from that entry. So
+look at the site through `npm run dev`, or build it and `npm run preview`: a source page opened
+as a file, or published as it is, has no styles, no scripts and no top bar, and the site no
+longer opens from `file://` at all (module scripts need an http origin).
+
+Apart from that the build changes nothing a reader can see. `dist/` holds the same pages at the
+same paths with the same content. The scripts come out as bundled chunks under `dist/bundle/`:
+each page carries one `<script type="module">` for its own entry chunk, `bundle/pages/<page>.js`,
+Vite splits what pages share into shared chunks, and the order the scripts run in is the entry's
+import order (`vite.config.ts` turns on rolldown's `strictExecutionOrder` for that, because a
+shared chunk would otherwise run its modules when it is imported, and `site.js` would run before
+`widgets.js`). A chunk is named by the page kinds that load what is in it, `bundle/all.js`,
+`bundle/chapter.js`, `bundle/home-chapter.js`, and so are the stylesheets, joined the same way
+into `bundle/all.css` and the rest; nothing in `dist/` carries a hash, because GitHub Pages lets
+a browser keep a page for ten minutes, and a page cached before a deploy must still find its
+scripts after it ([`OPERATIONS.md`](OPERATIONS.md), "What a deploy does to a page a browser
+already holds"). The stylesheets' text is the source's, not minified, because Vite's CSS
+minifier rewrites values the scripts read (`vite.config.ts` says how, and `npm run check:dist`
+holds the build to all of that). So the content of the pages is still edited by hand, and a
+page added under `parts/` is picked up by the build without being listed.
+
+What the site needs from outside its own files comes from npm and goes into the bundle, through
+one module each under `src/vendor/` (`package.json` lists the packages): [KaTeX](https://katex.org)
+for math typesetting on every page (`katex`, pinned at exactly 0.16.11, the version the pages
+loaded from its CDN before, so typesetting is unchanged; `src/vendor/katex.js` is the first import
+of every entry and sets `window.renderMathInElement`, `src/vendor/katex.css` its stylesheet), the
+three typefaces (`@fontsource-variable/inter`, `@fontsource-variable/newsreader` and
+`@fontsource-variable/bricolage-grotesque` for the upright faces, `@fontsource/newsreader` for the
+italic: the very files Google Fonts served a browser for the link the pages used to carry, byte
+for byte, declared in `src/vendor/fonts.css` as that link declared them, one `@font-face` per
+family, style, requested weight and subset with `font-display: swap`; `tools/gen-fonts.js` writes
+that file from the packages and `npm run check` fails when it is stale; the font files come out
+under `dist/bundle/`), and
+[supabase-js](https://github.com/supabase/supabase-js) for accounts (`@supabase/supabase-js`,
+re-exported by `src/vendor/supabase.js`, which `assets/account.js` imports on demand, so it is a
+chunk of its own, `bundle/supabase.js`, that a signed-out reader on an ordinary page never
+downloads), and [Three.js](https://threejs.org) for the 3D scenes and the course map (`three`,
+at its current release; `src/vendor/three.js` re-exports, by name, exactly the classes and
+constants `assets/map3d.js` and `assets/scenes3d-gl.js` use, so the rest of the library is
+shaken out; `assets/three-loader.js` imports that file on demand, only when a 3D scene or the
+course map nears the screen, so it is a chunk of its own, `bundle/three.js`, that a page with
+neither never downloads, and the namespace it loads is `BM3D.THREE`; if the chunk cannot be
+fetched, or the browser has no WebGL 2, which the library requires, every 3D picture is drawn
+flat with the same controls). So no stylesheet, script or font of a page comes from another
+server (`npm run check:dist`, `offline`), and the browser checks fail any page that asks one for
+anything.
+
+**Third-party licences.** What the bundle holds that is not the site's own is published under its
+package's licence: KaTeX, supabase-js (and what supabase-js depends on) and Three.js under MIT,
+`tslib` under 0BSD, the three typefaces and the KaTeX fonts under the SIL Open Font License 1.1. The
+build writes `dist/bundle/LICENSES.txt` beside the bundle, one section per installed package with
+the licence file it ships (`tools/lib/vendor.js` `licenseNotice()`; the Open Font License asks
+that copies of the fonts carry their copyright notice and the licence text, which the fontsource
+files do not hold in their name tables), and `npm run check:dist` (`licences`) holds the file to
+the installed packages and every font file in `dist/` to one of them.
 
 ### Layout
 
@@ -200,17 +262,28 @@ insights.html           the author's aggregate view; admins only
 data/curriculum.js      single source of truth: parts, chapters, sections
 data/quest.js           regions, bosses (the tempting guess of each chapter's puzzle), review echoes
 data/gen/*.js           seeded problem generators for the Arena, one file per Part plus core.js
-assets/boot.js          the one synchronous script: theme and play settings before first paint
+src/boot.js             the one script that runs before first paint, inlined into every page's
+                        <head> by the shell: theme and play settings, plain ES5, never bundled
+src/entries/*.js        one module entry per kind of page (home, page, dashboard, arena, chapter):
+                        an ordered list of imports of the scripts below, which is the order they run in
+src/vendor/katex.js     KaTeX from npm (pinned 0.16.11): sets window.katex and renderMathInElement;
+                        every entry's first import
+src/vendor/katex.css    KaTeX's stylesheet, imported from the package; linked on every page
+src/vendor/fonts.css    Inter, Newsreader and Bricolage Grotesque from the fontsource packages, the
+                        faces the Google Fonts link had, written by tools/gen-fonts.js; linked on
+                        every page before katex.css
+src/vendor/supabase.js  supabase-js from npm, imported on demand by assets/account.js: bundle/supabase.js
+src/vendor/three.js     Three.js from npm, the names the site uses, imported on demand by assets/three-loader.js: bundle/three.js
 assets/site.css         tokens (both themes, four regions), base, prose, cards, figures, print
 assets/game.css         HUD, region banner, encounters, card states, toasts, settings, all motion
 assets/scenes3d.css     3D scene stages
 assets/map3d.css        the course map; arena.css the Arena
 assets/site.js          navigation, theme, stores, exercise grading, XP, widget mounting
 assets/widgets.js       the 32 flat interactive figures and their missions
-assets/three-loader.js  lazy, pinned Three.js with fallback (window.BM3D.load)
+assets/three-loader.js  lazy Three.js with fallback (window.BM3D.load, the namespace on BM3D.THREE)
 assets/scenes3d.js      the 3D scene framework: define, display list, camera, SVG painter, input
-assets/scenes3d-gl.js   the WebGL painter, loaded only when a scene nears the screen
-assets/scenes/*.js      one file per 3D scene
+assets/scenes3d-gl.js   the WebGL painter, imported on demand (import()) when a scene nears the screen
+assets/scenes/*.js      one file per 3D scene; every chapter's bundle carries all of them
 assets/game.js          combo, levels, achievements, recall, play settings, the HUD
 assets/encounter.js     turns each practice and review set into an encounter
 assets/sfx.js           synthesised sound effects, off by default
@@ -222,18 +295,105 @@ assets/account.js       sign-in and sync, listening on BMStore
 assets/insights.js      renders progress.html and insights.html
 supabase/schema.sql     tables, row-level security, aggregate functions
 supabase/README.md      how to switch accounts on
-tools/                  the checks: static, scenes, generators, game rules, headless browser
+supabase/migrations/    one file per database change, run on the live project before the merge
+OPERATIONS.md           the runbook: release order, deploys, quotas, secrets, incidents
+tools/                  the checks: static, scenes, generators, game rules, the build, headless browser
+tools/lib/shell.js      the <head> and the top bar of every page: the boot script inline, the vendor
+                        stylesheets, its kind's stylesheets, and the module entry of its kind
+tools/lib/vendor.js     which src/vendor/ module brings in each npm package (and its dependencies):
+                        how the build names node_modules files and check-dist holds them; and the
+                        licence notice the build writes into dist/bundle/LICENSES.txt from them
+tools/gen-fonts.js      writes src/vendor/fonts.css from the fontsource packages (npm run gen:fonts)
+tools/shell.json        what that comes to on each page, as readers have it (the `shell` check)
 parts/<part>/<nn>-<slug>.html
-.nojekyll               so GitHub Pages serves the files as authored
+package.json            the npm scripts, the five dev dependencies and the six the site is built
+                        from (katex, four fontsource packages, supabase-js); package-lock.json pins them
+vite.config.ts          the build: every page in, its shell written, its entry bundled in import
+                        order into dist/bundle/, each chunk named by the page kinds that load it (a
+                        node_modules file by its vendor module), the fonts beside them, the same
+                        content out
+tsconfig.json           for `npm run typecheck`; covers src/ and vite.config.ts
+src/types/state.ts      the shapes of what the site keeps in localStorage (types only, so far)
+src/types/globals.d.ts  the window.BM* globals the scripts share, each `any` until its file is converted
+public/.nojekyll        copied into dist/
+.github/workflows/      CI: the checks on every pull request, and the deploy of main
+.nojekyll               left from when GitHub Pages published the branch itself; nothing needs it now
 ```
+
+The six pages at the root and the chapters under `parts/` hold content only: a title, a
+description, the two markers, and what is inside the page.
 
 `data/curriculum.js` is the spine. Navigation, the sidebar, the contents page, the chapter
 prev/next links, and the progress counters are all generated from it — no page hard-codes a link to
 its neighbours.
 
+### The shell of a page
+
+No page writes its own `<head>` or top bar. A page starts like this, and
+[`tools/lib/shell.js`](tools/lib/shell.js) writes the rest:
+
+```html
+<!doctype html>
+<html lang="en">
+<head>
+<!--bm:head-->
+<title>How to use this course — Basic Mathematics</title>
+<meta name="description" content="How to study this course: …">
+</head>
+<body data-depth="0" data-page="page" data-nav="about">
+<!--bm:topbar-->
+
+<div class="wrap-narrow">
+  <main id="main">
+```
+
+`<!--bm:head-->` is the first thing in `<head>`, followed only by the page's own `<title>`,
+`<meta name="description">` and, for a page search engines should leave alone,
+`<meta name="robots" content="noindex">`. `<!--bm:topbar-->` is the first thing in `<body>`. What
+the shell writes depends on what `<body>` says:
+
+| attribute | what it says |
+| --- | --- |
+| `data-depth` | how many directories deep the file is (`0` at the root, `2` for a chapter); every path the shell writes is made relative with it, and so are the links `site.js` generates |
+| `data-chapter` | the page is a chapter: kind `chapter` |
+| `data-page` | for any other page, its kind: `home` (the contents page, with the course map), `page` (prose or a form), `dashboard` (a page that `assets/insights.js` fills), `arena` |
+| `data-nav` | the links of the top bar: `home` (only *How to use this*), `about` (*Contents* and *Progress*), or left out for the usual *Contents* and *How to use this* |
+
+`data-page` and `data-nav` are instructions to the shell and are not in the page a reader gets.
+(`data-scenes`, which once named a chapter's 3D scenes, is refused: every chapter's bundle
+carries every scene.) What the shell writes into `<head>`, in order: the page's own tags, the
+boot script inline ([`src/boot.js`](src/boot.js), before the stylesheets, so the theme is set
+before the first paint without a request), the icon, the two vendor stylesheets
+(`src/vendor/fonts.css`, then `src/vendor/katex.css`: `VENDOR_STYLES` in `tools/lib/shell.js`,
+first so that `site.css`'s rules on `.katex` come after KaTeX's and win), the stylesheets of the
+page's kind, and one `<script type="module">` for the kind's entry, `src/entries/<kind>.js`. The
+stylesheets and the entry of each kind are `PAGE_KINDS` at the top of `tools/lib/shell.js`; the
+scripts of a kind, in the order they run, are the imports of its entry, so that file is where a
+script is added to every chapter, or moved. The order is part of the site (`site.js` mounts every
+figure as it runs, so `widgets.js`, the scene framework and the scenes come before it; `game.js`,
+`encounter.js` and `lesson.js` build on what it did; rules of equal weight are settled by the
+order of the stylesheets), so what each page ends up with is recorded in `tools/shell.json`, and
+`check-static.js` fails (`shell`) when a page's head, body attributes or top bar are no longer
+what is recorded, and whatever the record says when a page's scripts are not the boot script and
+the one entry of its kind (a classic `<script src>`, from the site or a CDN, fails). If the change
+is meant, `node tools/check-static.js --only=shell --accept-shell` records it, and the diff of
+`tools/shell.json` shows the reviewer exactly which pages now load what.
+
+KaTeX is the entry's first import (`src/vendor/katex.js`) on purpose: the imports run in order,
+so `window.renderMathInElement` is there when `site.js` runs, as it was when KaTeX's deferred CDN
+tags came before the module script. The `pages` suite of `check-browser.js` holds that in a real
+browser (a formula rendered on every page that has one), with the theme on `<html>` before the
+first frame, `window.BMSite`, `BMGame` and `BMStore` present on every page, and no request to any
+server but the site's own.
+
+The same function runs in two places, so they cannot disagree: the build and `npm run dev`
+(`vite.config.ts`), and every check that reads a page (`tools/lib/site.js`). A page with
+`<main id="main">` and no marker stops the build and the checks with a message naming it. The
+browser checks load the build ([`tools/README.md`](tools/README.md)).
+
 ### How a chapter page works
 
-A chapter is a plain HTML file that declares two things on its `<body>`:
+A chapter is a plain HTML file whose `<body>` says which chapter it is:
 
 ```html
 <body data-depth="2" data-chapter="ch07" data-part="geometry">
@@ -293,10 +453,10 @@ later `<li>` steps each wrap their content in such a `details.reveal`.
 
 #### Exercises
 
-Each exercise is a `<div class="ex">` carrying its answer key in attributes:
+Each exercise is a `<div class="ex">` carrying its `id` and its answer key in attributes:
 
 ```html
-<div class="ex" data-type="number" data-answer="26"
+<div class="ex" id="hyp-10-24" data-type="number" data-answer="26"
      data-hint="Compute a² + b², then take the square root.">
   <div class="ex-q"><p>A right triangle has legs $10$ and $24$. How long is the hypotenuse?</p></div>
   <div class="ex-solution">
@@ -315,7 +475,7 @@ Each exercise is a `<div class="ex">` carrying its answer key in attributes:
 | `data-hint` | Shown after the first wrong attempt |
 | `data-hint2` | Optional; shown after the second wrong attempt |
 | `data-inline` | Marks an unscored check ("Your turn", warm-up). Needs an `id`; `data-label` sets its heading |
-| `id` | **Required on every exercise added from now on** — see below |
+| `id` | **Required on every exercise.** It is the key the reader's work is saved under — see "Progress keys" below |
 | `data-placeholder` | Input placeholder text |
 
 For multiple choice, add a `<ul class="choices">` of `<li>` options and make `data-answer` the
@@ -355,11 +515,25 @@ A 3D scene inside an exercise also reads two attributes from the `.ex`: `data-as
 quantity `__answer()` reports, so one scene can serve several questions, and `data-start` is a JSON
 patch to its starting state (for example `'{"lock":[0,1]}'` makes two rows of `det3` read-only).
 
-**Progress keys.** A scored exercise is remembered under its `id` if it has one, and otherwise
-under its position among the id-less scored exercises of the page (`e1`, `e2`, …). The original
-exercises have no ids, so their keys are positional. Give every new exercise an `id` and nothing
-shifts; add one without an `id` above an old one and readers' saved progress moves to the wrong
-problems. Inline exercises are never stored.
+**Progress keys.** Every exercise carries an `id`, and the `id` is the key its saved work is
+stored under: a scored exercise in the chapter's solved list, and any exercise, inline checks
+included, in the attempt record. Nothing else decides the key, so a block can be moved, reordered
+or wrapped in another element and readers keep their place.
+
+The original exercises were once keyed by position among the id-less scored exercises of the page
+(`e1`, `e2`, …). `tools/assign-ids.js` wrote each of those keys into the markup as the `id`, so
+`e3` is now a name, not a count: it stays `e3` wherever the block goes, and the page's third
+exercise need not be the one called `e3`. Positional keys exist only in history. The fallback that
+computes them is still in `site.js` and `tools/lib/keys.js` so that pages at an older commit can be
+read and compared, but no page may rely on it: `check-static.js` fails any exercise without an `id`
+and any `id` used twice on a page.
+
+A new exercise takes an `id` the page has never used. **A retired `id` is never reused** — when an
+exercise is deleted its `id` goes with it, because a reader who solved the old problem would find
+the new one already marked solved. Changing an exercise's question or key under the same `id` is the
+same mistake. The progress-key check fails on both, for inline checks as for scored exercises,
+for as long as the commit it compares with (`--base`) still has the old exercise; after that the
+rule is kept by hand.
 
 #### Figures
 
@@ -394,7 +568,8 @@ of `assets/scenes3d.js` is the reference. In outline, a scene keeps a plain stat
 `draw(g, s, api)` describes the picture to a display list in world coordinates (z up) on each
 change. Two painters draw that list:
 - an SVG projector draws at once, and is also the fallback and the print version;
-- a WebGL painter takes over when Three.js arrives.
+- a WebGL painter takes over when Three.js arrives (`BM3D.load()`, which fetches
+  `bundle/three.js` and needs WebGL 2).
 
 One WebGL context serves every scene on the page. Rendering happens only on change.
 
@@ -409,8 +584,22 @@ Besides `draw`, a spec gives:
 only, never a verdict or the asked-for value. `draw` leaves out solution annotations, and nothing
 turns green. Write questions that need a computation the picture does not hand over.
 
-Pages with a scene load `assets/scenes3d.js` and the scene files after `three-loader.js` and before
-`site.js`: `site.js` mounts every figure as it runs.
+Every chapter's bundle carries the scene framework and every scene file: `src/entries/chapter.js`
+imports `assets/scenes3d.js` and each file under `assets/scenes/` after `three-loader.js` and
+before `site.js`, which mounts every figure as it runs. A new scene file is added to that entry
+(the `shell` test in `tools/checks.test.js` fails a scene file the entry does not import); a
+scene that is mounted but not defined there reads "Interactive figure … is not available", and
+the `widgets` suite of `check-browser.js` fails. The WebGL painter, `assets/scenes3d-gl.js`, is
+not in the bundle a page loads: `scenes3d.js` imports it with `import()` when a stage nears the
+screen and Three.js has arrived, and the build makes it a chunk of its own, as it does Three.js
+itself (`src/vendor/three.js`, which `three-loader.js` imports the same way). A Three.js name
+the painter or the map starts to use is added to `src/vendor/three.js` (the `lib/vendor.js` test
+in `tools/checks.test.js` holds that file's exports to exactly the names those two files use).
+When the WebGL painter cannot start, a stage falls back to the SVG painter and says nothing in
+the console, on purpose; so that a Three.js release that broke only the painter cannot pass on
+the flat pictures, `tools/game/scenes.test.js` and the `widgets` suite of `check-browser.js` hold
+every stage to the GL painter (`data-painter="gl" data-state="ready"`) wherever WebGL 2 is there,
+and to the SVG fallback where it is not.
 
 ### The game layer
 
@@ -451,6 +640,10 @@ hint that contains its answer.
 of `<main>` into steps — a new one at every `<h2>`, and after the puzzle, the warm-up, each inline
 `.ex`, each `details.reveal`, each figure with a widget, and each practice set — and hides the
 steps not yet reached. A link to any `#id` in the chapter opens every step up to its target.
+How far a reader has got is saved as a step number, so adding, removing or moving a top-level block
+that cuts a step moves that place. The steps readers have are recorded in `tools/lesson-steps.json`,
+and `check-static.js` warns (`lesson-steps`) when a chapter is no longer cut that way; if the
+change is meant, `--accept-steps` records the new cuts.
 Elements that scripts add later (the completion banner, the feedback note) appear with whatever
 they were inserted in front of. Printing shows the whole chapter.
 
@@ -458,13 +651,46 @@ they were inserted in front of. Printing shows the whole chapter.
 
 1. Add an entry to the relevant part in `data/curriculum.js` — `id`, `label`, `title`, `file`,
    `status`, `blurb`, and the `sections` list.
-2. Create the HTML file at `parts/<part-dir>/<file>`, with `data-chapter` set to the new `id` and
-   an `<h2 id="…">` matching each section id — except a mixed-review set, whose id goes on its
-   `<section class="practice" id="review">`.
+2. Create the HTML file at `parts/<part-dir>/<file>`. Around its content a new page is a title, a
+   description, the two markers and what its `<body>` says, and nothing else: no stylesheet link
+   and no script tag ([The shell of a page](#the-shell-of-a-page)).
+
+   ```html
+   <!doctype html>
+   <html lang="en">
+   <head>
+   <!--bm:head-->
+   <title>17. … — Basic Mathematics</title>
+   <meta name="description" content="…">
+   </head>
+   <body data-depth="2" data-chapter="ch17" data-part="topics">
+   <!--bm:topbar-->
+
+   <div class="wrap">
+   <div class="layout">
+     <aside class="sidebar" data-sidebar></aside>
+     <main id="main">
+       …
+     </main>
+   </div>
+   </div>
+   </body>
+   </html>
+   ```
+
+   `data-chapter` is the new `id`. Inside `<main>`, give an `<h2 id="…">` to each section id —
+   except a mixed-review set, whose id goes on its `<section class="practice" id="review">`.
 3. Add the chapter's boss to `data/quest.js`: a name, the index of the tempting guess in its
    puzzle's `ul.guess`, and a one-line taunt that voices the wrong idea without answering it.
+4. Record its lesson steps and its shell:
+   `node tools/check-static.js --only=lesson-steps,shell --accept-steps --accept-shell` adds the
+   chapter to `tools/lesson-steps.json` (the check warns until it is there) and to
+   `tools/shell.json` (the check fails until it is there).
 
 Navigation, the contents card, the sidebar, and the progress counters build themselves from step 1.
+
+A page that is not a chapter is made the same way, with `data-page` naming its kind where a
+chapter has `data-chapter`, and step 4 for its shell only.
 
 ### Stores, the bus, and accounts
 
@@ -481,7 +707,7 @@ memory but keeps the site:
 | `bm.last`, `bm.theme` | where to continue; light or dark |
 | `bm.game.v1` | achievements, compared solutions, recall per section, Arena bests, medals, Daily days (synced) |
 | `bm.run.v1` | the combo meter and an unfinished Arena run (this device only; cleared by reset and sign-out) |
-| `bm.prefs.v1` | calm mode, sound, 3D map, Arena tempo (this device only; survives a reset) |
+| `bm.prefs.v1` | calm mode, sound, 3D map, Arena tempo (this device only; survives a reset; keys the site does not know are kept) |
 | `bm.sync.v1` | with accounts on: whose progress this browser holds and the last reset it knows of |
 | `bm.sync.pending.v1` | with accounts on: progress that could not be saved when its reader signed out, kept aside per reader until they sign in here again |
 
@@ -506,6 +732,64 @@ password, a reader can sign in through any service listed under `providers` in
 address, which the account page shows and removes. Setting it up is five steps:
 [`supabase/README.md`](supabase/README.md).
 
+A tab left open for a week, or a browser that still has last month's scripts cached, saves to
+the same account as the newest copy of the site. Three rules keep an older copy from damaging
+what a newer one saved. They are in force from the release that introduced them, so anything
+that adds a synced field has to ship after it and can rely on them:
+
+- **A field with no rule is carried, never dropped.** If one side of a merge holds it, it is
+  kept. If both do, the value whose canonical JSON (keys sorted at every level) is the later
+  string is kept, which is a maximum, so order, grouping and repetition still do not matter.
+  This covers the top level of every synced store, the game record, each chapter's record in
+  `bm.progress.v1` and `bm.play.v1`, each exercise's record in `bm.attempts.v1`, and each `sec`,
+  `best` and `enc` entry of the game record. Such a field is merged by itself, not together with
+  whichever record wins on the known fields. `game.js` keeps unknown fields the same way when it
+  rewrites the game record or one of its entries, and `prefs()` and `setPref` keep unknown keys
+  of `bm.prefs.v1`. Known fields merge exactly as before. Three limits:
+  - In the stores keyed by chapter, exercise, section, mode or set (`bm.progress.v1`,
+    `bm.play.v1`, `bm.attempts.v1`, and `sec`, `best` and `enc` in the game record) every key is
+    merged as a record of that kind, whether or not this copy knows the key: next year's chapter
+    must still merge as a chapter. So an object under a new key there is not passed through
+    whole. Outside `bm.attempts.v1` it comes out with that kind's known fields added
+    (`{"coins":5}` under a new key of `bm.progress.v1` becomes
+    `{"solved":{},"total":0,"coins":5}`). Everywhere, a field of its own that has a known
+    field's name is treated as that field, which can change or empty it, and two such objects
+    are merged field by field, giving a mix neither device wrote. Nothing with another name is
+    lost. A later release must not put an object under a new key of those stores unless it is
+    a record of that kind. Anything else belongs under a new key at the top of the game
+    record, of `bm.activity.v1` or of `bm.lesson.v1`, which is passed through whole, or in a
+    store of its own.
+  - A value that is not an object on either side is passed through whole, under a known key
+    as under a new one. A damaged entry (a string where a chapter's record should be) is
+    therefore no longer turned into an empty record by a sync; `BMProgress`, `BMPlay` and
+    `BMAttempts` in `site.js` write a fresh record over one instead.
+  - A key is data whatever it is called, `constructor` and `toString` included. The one name
+    that is not carried is `__proto__`, which cannot be written back as an ordinary field.
+- **The data says which shape it is in.** `v` in the game record, merged by taking the larger
+  number. No `v` means 1, which is what this copy understands (`SCHEMA` in `account.js`), and
+  nothing writes one yet. It is inside the data, not a column, so no SQL has to run before a
+  site that reads it is deployed, and in the game record because that is the one synced store
+  whose top level is a fixed set of named fields. A page that meets a `v` above its `SCHEMA`,
+  in the account or in its own browser, still merges, so the reader keeps working with
+  everything they have, but writes nothing to the server, neither the row nor the attempt log.
+  The account page then says to reload. Work done in the meantime stays in the browser (signing
+  out sets it aside) and is saved by the newer site.
+- **Only what the server has is written.** A save names only the `user_state` columns the server
+  has: the page learns them from the row it reads, and a first save that the server refuses for
+  naming a missing column is repeated without it. What that column would hold stays in the
+  browser. A save never names a column this copy does not know, so a column added later is left
+  as it is, **by a reset too**: a reset made in an older copy empties the columns it knows,
+  with any unknown fields and `v` inside them, and cannot touch a column it cannot name. A
+  release that adds a `user_state` column must clear it itself when it sees `reset_at` advance.
+  A missing `attempts` table means the attempt log is switched off: the queue is kept and the
+  sync still succeeds. The page then holds the log back, asks again every five minutes, and
+  keeps only the newest 500 checks meanwhile.
+
+What the first rule gives a new field is survival, and agreement between devices. If the field
+needs a rule of its own (a larger number, a union), the release that first writes it must add
+that rule, and should choose values for which the fallback is harmless in older copies: `"9"`
+sorts after `"10"`. A change to what an existing field means needs a larger `v`.
+
 The "areas to strengthen" ranking is `BMInsights` in `site.js`: each attempted exercise gets a
 struggle score from 0 (right first time) to 1, averaged per section.
 
@@ -514,38 +798,95 @@ header.
 
 ### Checking your changes
 
-`tools/` holds the checks. They install nothing; the browser checks borrow Playwright from wherever
-`BM_PLAYWRIGHT_FROM` points (see [`tools/README.md`](tools/README.md)).
+`tools/` holds the checks, and `package.json` names them. `npm ci` installs what they need;
+the browser ones also need Chromium once, `npx playwright install chromium`
+(see [`tools/README.md`](tools/README.md)).
 
 ```sh
-node tools/check-static.js --base=<ref>   # syntax, ES5, progress keys vs <ref>, links, sections,
-                                          # widgets, choices, placeholders, merge laws, contrast,
-                                          # animations
-node tools/smoke-scenes.js                # every 3D scene: mount, controls, missions, answers
-node tools/check-gen.js                   # every Arena generator over 500 seeds
-node tools/game/merge.test.js             # BMAccount.merge, including the game store
-node tools/game/sync.test.js              # account sync: stale tabs, resets, failed sign-outs,
-                                          # sign-in through another service
-node tools/game/account.test.js           # the account page in Chromium, against a stand-in SDK
-node tools/game/rules.test.js             # combo, levels, hearts, medals, achievements, recall
-node tools/game/browser.test.js           # the game in a browser: combo XP, hearts, finale, reload,
-                                          # calm mode, sound off, old progress, toasts, the sheet
-node tools/game/arena.test.js             # Arena runs: scoring, clock, hearts, Daily, Repair, resume
-node tools/game/scenes.test.js            # 3D stages: keyboard, touch, contrast of what carries meaning
-node tools/game/content.test.js           # the new 3D exercises in chapters 8 and 16, answered live
-node tools/game/map.test.js               # the course map: fallbacks, idle rendering, clicks
-node tools/check-browser.js               # every page × theme × width in headless Chromium:
-                                          # errors, overflow, lesson mode, figures, every exercise
-                                          # typed back, restore of old progress, reduced motion,
-                                          # WebGL and its fallbacks, file://, axe
+npm run check           # everything that needs no browser, about 15 s:
+npm run typecheck       #   tsc over src/ and vite.config.ts
+npm run check:static    #   syntax, progress keys, ids, lesson steps, the shell, links, sections,
+                        #   widgets, choices, migrations, placeholders, merge laws, contrast,
+                        #   animations
+npm run check:gen       #   every Arena generator over 500 seeds
+npm run check:scenes    #   every 3D scene: mount, controls, missions, answers
+npm run test:node       #   the progress-key, id and lesson-step rules on small pages;
+                        #   BMAccount.merge with the game store and fields this copy has never heard
+                        #   of; account sync (stale tabs, resets, failed sign-outs, newer and older
+                        #   sites and tables, sign-in through another service); the game's rules
+
+npm run build           # dist/
+npm run check:dist      # dist/ is the source's site, each source page taken with its shell
+                        # written: same pages and nothing extra, links and font urls resolve
+                        # inside it, <main> and the page around it untouched, the boot script
+                        # inline and one module entry whose bundle is its kind's imports (KaTeX
+                        # by its vendor module), supabase-js and Three.js each a chunk of its
+                        # own that no page names, no copy of a source script, nothing from
+                        # another server, CSS text and cascade the source's with the vendor CSS
+                        # ahead, no secrets
+
+npm run test:browser    # the game, the Arena, the account page (and that a signed-out page
+                        # never fetches the supabase chunk), the 3D stages, the new 3D exercises
+                        # and the course map, each driven in headless Chromium
+npm run check:browser   # dist/ served: every page × theme × width (errors, theme before first
+                        # paint, scripts ran, KaTeX rendered, no request to any other server,
+                        # Three.js fetched only where there is 3D, overflow, lesson mode),
+                        # figures, every exercise typed back, restore of old progress, saved
+                        # state from the last release, reduced motion, WebGL and its fallbacks,
+                        # axe. About 8 minutes, and nothing in it needs the network
+
+npm run check:all       # all of the above, in that order
 ```
 
-`--base` should be the last commit readers' progress was saved against: the progress-key check
-fails if any existing exercise's key or question changed, or if a new scored exercise has no `id`.
+Each script is one `node tools/…` command and takes its flags after `--`:
+`npm run check:static -- --base=<ref>`, `npm run check:browser -- --only=05-distance`. `--base`
+should be the last commit readers' progress was saved against: the progress-key check fails if any
+existing exercise's key or question changed, inline checks included, or if any exercise has no
+`id`. The same run fails an `id` that appears twice on a page, and warns when a chapter is not cut
+into the lesson steps recorded in `tools/lesson-steps.json`. It also fails (`shell`) when what
+`tools/lib/shell.js` writes around a page — the tags of its head in order, its body attributes,
+its top bar — is not what `tools/shell.json` records for that page; `--accept-shell` records a
+change that is meant, and `--shell-base=<ref>` compares with the pages of a commit instead of the
+file. The `migrations` check does not use
+`--base`. It compares against the commit the branch left `main` at (or `--migrations-base=<ref>`)
+and fails if `supabase/schema.sql` changed since then with no new migration, or if a migration
+that was already there was edited, renamed or removed.
+
+The browser scripts load the build, `dist/`, over http, and refuse to run when it is missing or
+older than anything it is built from (`run npm run build first`): the source tree is not a site,
+so there is nothing else to test. CI runs all of this on every pull request
+([`.github/workflows/ci.yml`](.github/workflows/ci.yml)).
 
 Still checked by hand: the solution of a multiple-choice question states the option the key
 names; a new `order` list is authored in the right order; a new puzzle's tempting guess in
 `data/quest.js`; and reading one whole chapter on a phone in each theme.
+
+### Deploying
+
+The site is on GitHub Pages. A push to `main` runs the checks and the build in GitHub Actions,
+and the `deploy` job publishes that run's `dist/` once the `build` and `browser` jobs have passed.
+The WebGL checks run in a job of their own, retried, and do not hold a deploy back. Runs on
+`main` go one at a time, in the order of the pushes, so an older commit is never published over
+a newer one; for the same reason a re-run of an old run refuses to deploy once `main` has moved
+on (re-run the newest run, or use Run workflow).
+
+**The Pages source has to be GitHub Actions, and it has to be set before the change that
+introduced the page shell is merged:** Settings → Pages → Build and deployment → Source:
+**GitHub Actions**, by the repository's owner; then publish with Actions → CI → Run workflow, on
+`main` (or simply push). With the older setting, **Deploy from a branch**, GitHub Pages publishes
+the files of `main` as they are, and from that change on those files are not a complete site:
+every page is missing its `<head>` and its top bar until the build has written them
+([The shell of a page](#the-shell-of-a-page)), so readers would get pages with no stylesheets and
+no scripts. The workflow does not paper over that: on `main`, while the source is anything but
+GitHub Actions, the `pages-source` job fails the run with a message saying what to set, and
+nothing is deployed. (It also fails if it cannot find out which source is set, because GitHub's
+API refuses or fails.)
+
+**Switching back to "Deploy from a branch" is no longer a way to roll back.** It used to be,
+while the source tree was the site. To undo a deploy now, revert the commit on `main` and let the
+revert deploy ([`OPERATIONS.md`](OPERATIONS.md), "A bad deploy").
+
+Run workflow on `main` is also the way to publish again without a new commit.
 
 ## About the text
 

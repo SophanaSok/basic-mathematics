@@ -3,12 +3,22 @@
 /* Static checks for the site — Node built-ins only, no browser.
 
    Usage: node tools/check-static.js [--base=<git ref>] [--only=<check name>] [--strict]
+                                     [--accept-steps] [--accept-shell]
+                                     [--migrations-base=<git ref>] [--shell-base=<git ref>]
 
    --base    the commit to compare progress keys against (default: the clean tree the
              harness was written on, see lib/site.js DEFAULT_BASE)
    --only    run one check by name (the names printed in the first column)
+   --migrations-base  the commit the migrations check compares against (default: where
+             HEAD left main; continuous integration passes the commit being merged into)
+   --shell-base  hold the shell check to the pages of a commit, not to tools/shell.json
    --strict  WARN counts as FAIL (for the day the infinite-animation and the other
              "not yet" rules become hard rules)
+   --accept-steps  rewrite tools/lesson-steps.json from the working tree, after a change
+             to where a chapter's lesson steps are cut that is meant
+   --accept-shell  rewrite tools/shell.json from the working tree, after a change to
+             what a page loads, to its body attributes or to the top bar that is meant
+             (these two flags are the only ones that write anything)
 
    Each check is a function (ctx) -> { status, count, details[] } in CHECKS below.
    To add one, write the function and append { name, run } to the list. */
@@ -20,9 +30,11 @@ const { execFileSync } = require("child_process");
 
 const site = require("./lib/site");
 const git = require("./lib/git");
-const { parse } = require("./lib/html");
+const shell = require("./lib/shell");
+const { parse, normText, hash } = require("./lib/html");
 const { exercisesOf } = require("./lib/keys");
 const cssLib = require("./lib/css");
+const links = require("./lib/links");
 
 const ROOT = site.ROOT;
 const opts = site.parseArgs(process.argv.slice(2));
@@ -43,9 +55,12 @@ function result() {
 
 /* ------------------------------------------------------------- context --- */
 
+/* Every page is read as the document a reader gets: the shell written (lib/shell.js),
+   then parsed, so the links, widgets and curriculum checks see the stylesheets, scripts
+   and top bar no source file holds any more. A page the shell refuses stops the run. */
 function buildContext() {
   const ctx = { pages: site.htmlPages(ROOT), docs: {}, curriculum: null, chapters: {} };
-  ctx.pages.forEach(p => { ctx.docs[p] = parse(read(p)); });
+  ctx.pages.forEach(p => { ctx.docs[p] = site.readPage(ROOT, p).doc; });
   ctx.curriculum = site.curriculum(ROOT);
   /* chapter pages: by the body's data-chapter, which is also how site.js finds them */
   ctx.pages.forEach(p => {
@@ -57,9 +72,13 @@ function buildContext() {
 
 /* ------------------------------------------------------------- checks ---- */
 
+/* node --check parses each file as Node would run it: src/, assets/ and data/ as ES
+   modules (the repo's package.json says "type": "module"; the entries under
+   src/entries/ import, and the rest are IIFEs, which parse either way), tools/ as
+   CommonJS (tools/package.json) */
 function checkSyntax(ctx, r) {
   const files = [];
-  ["assets", "data", "tools"].forEach(d => site.walk(path.join(ROOT, d), p => /\.js$/.test(p), files));
+  ["src", "assets", "data", "tools"].forEach(d => site.walk(path.join(ROOT, d), p => /\.js$/.test(p), files));
   files.forEach(f => {
     r.count++;
     try { execFileSync(process.execPath, ["--check", f], { stdio: ["ignore", "pipe", "pipe"] }); }
@@ -67,95 +86,44 @@ function checkSyntax(ctx, r) {
   });
 }
 
-/* strip comments, strings and regex literals so keywords inside them do not count;
-   template literals are themselves a violation and are reported where found */
-function codeOnly(src, onTemplate) {
-  let out = "", i = 0, line = 1;
-  const n = src.length;
-  let lastSig = "";          /* last significant character emitted */
-  let lastWord = "";         /* last identifier emitted */
-  const REGEX_AFTER = new Set(["(", ",", "=", ":", "[", "!", "&", "|", "?", "{", "}", ";", "+", "-", "*", "%", "<", ">", "~", "^", ""]);
-  const REGEX_AFTER_WORD = new Set(["return", "typeof", "case", "in", "of", "delete", "void", "throw", "new", "instanceof", "do", "else"]);
-  function emit(s) {
-    out += s;
-    for (const c of s) { if (c === "\n") line++; }
-    const t = s.trim();
-    if (t) {
-      lastSig = t[t.length - 1];
-      const w = /([A-Za-z_$][\w$]*)$/.exec(t);
-      lastWord = w ? w[1] : (/[\w$]$/.test(t) ? "" : lastWord);
-      if (!w) lastWord = "";
+/* The key rules for one chapter page, apart from where the base comes from: `exs` is
+   exercisesOf() of the page in the working tree, `baseExs` of the same page at the base
+   (null for a page the base does not have). Keys are ids, which an author chooses, so they
+   are held in Maps: in a plain object `constructor` would already be there.
+   @returns {{ scored, inline, skipped, newScored }} how many base keys were compared */
+function pageKeys(p, exs, baseExs, r) {
+  const n = { scored: 0, inline: 0, skipped: 0, newScored: 0 };
+  const wt = new Map(), wtInline = new Map();
+  /* Every exercise in the working tree carries its key as an id. The positional
+     fallback in lib/keys.js (and site.js) is only there to read pages at the base,
+     from before the ids were written in; here it would hand out a key by counting. */
+  exs.forEach(e => {
+    if (e.inline) {
+      if (wtInline.has(e.key)) r.fail(p + ":" + e.line + ": duplicate inline key `" + e.key + "`");
+      wtInline.set(e.key, e);
+      if (!e.id) r.fail(p + ":" + e.line + ": inline exercise without an id (the positional fallback would key it `" + e.key + "`); give it an id this page has never used");
+      return;
     }
-  }
-  while (i < n) {
-    const c = src[i], d = src[i + 1];
-    if (c === "/" && d === "/") { const e = src.indexOf("\n", i); i = e === -1 ? n : e; continue; }
-    if (c === "/" && d === "*") { const e = src.indexOf("*/", i + 2); const stop = e === -1 ? n : e + 2; emit(src.slice(i, stop).replace(/[^\n]/g, " ")); i = stop; continue; }
-    if (c === '"' || c === "'") {
-      let j = i + 1;
-      while (j < n && src[j] !== c) { if (src[j] === "\\") j++; if (src[j] === "\n") break; j++; }
-      emit(c + c); i = j + 1; continue;
-    }
-    if (c === "`") {
-      onTemplate(line);
-      let j = i + 1, depth = 0;
-      while (j < n) {
-        if (src[j] === "\\") { j += 2; continue; }
-        if (src[j] === "$" && src[j + 1] === "{") { depth++; j += 2; continue; }
-        if (src[j] === "}" && depth > 0) { depth--; j++; continue; }
-        if (src[j] === "`" && depth === 0) break;
-        j++;
-      }
-      emit(src.slice(i, j + 1).replace(/[^\n]/g, " ")); i = j + 1; continue;
-    }
-    if (c === "/") {
-      /* after an operand (identifier, number, `)`, `]`) a slash divides; after an
-         operator, punctuation or a keyword such as `return` it starts a regex */
-      const operandBefore = /[\w$)\]]$/.test(out.trimEnd());
-      const isRegex = operandBefore ? REGEX_AFTER_WORD.has(lastWord) : REGEX_AFTER.has(lastSig);
-      if (isRegex) {
-        let j = i + 1, inClass = false;
-        while (j < n) {
-          const x = src[j];
-          if (x === "\\") { j += 2; continue; }
-          if (x === "[") inClass = true;
-          else if (x === "]") inClass = false;
-          else if (x === "/" && !inClass) break;
-          else if (x === "\n") break;
-          j++;
-        }
-        j++;
-        while (j < n && /[a-z]/.test(src[j])) j++;
-        emit("/re/"); i = j; continue;
-      }
-    }
-    /* identifiers and numbers as whole tokens so lastWord is right */
-    if (/[A-Za-z_$]/.test(c)) { let j = i; while (j < n && /[\w$]/.test(src[j])) j++; emit(src.slice(i, j)); i = j; continue; }
-    emit(c); i++;
-  }
-  return out;
-}
-
-function checkEs5(ctx, r) {
-  const files = [];
-  ["assets", "data"].forEach(d => site.walk(path.join(ROOT, d), p => /\.js$/.test(p), files));
-  files.forEach(f => {
-    r.count++;
-    const src = fs.readFileSync(f, "utf8");
-    const rel = site.rel(f);
-    const code = codeOnly(src, line => r.fail(rel + ":" + line + ": template literal"));
-    const lines = code.split("\n");
-    lines.forEach((ln, k) => {
-      if (/=>/.test(ln)) r.fail(rel + ":" + (k + 1) + ": arrow function");
-      /* a keyword is not one when it is a property name: obj.class, { class: ... } */
-      const re = /(^|[^.\w$])(let|const|class)(?![\w$])(\s*:)?/g;
-      let m;
-      while ((m = re.exec(ln))) {
-        if (m[3]) continue;
-        r.fail(rel + ":" + (k + 1) + ": `" + m[2] + "`");
-      }
-    });
+    if (wt.has(e.key)) r.fail(p + ":" + e.line + ": duplicate scored key `" + e.key + "` (first at line " + wt.get(e.key).line + ")");
+    wt.set(e.key, e);
+    if (!e.id) r.fail(p + ":" + e.line + ": scored exercise without an id (the positional fallback would key it `" + e.key + "`); give it an id this page has never used");
   });
+  if (!baseExs) return n;
+  /* Inline checks are held to the base as well: nothing of theirs is in the solved list,
+     but site.js marks one solved from its attempt record, so a changed question under a
+     kept id shows as already answered just the same. One with no id at the base was keyed
+     by counting, and no page in the working tree has such a key to hold it to. */
+  const baseScored = new Set();
+  baseExs.forEach(b => {
+    if (b.inline && !b.id) { n.skipped++; return; }
+    if (b.inline) n.inline++; else { n.scored++; baseScored.add(b.key); }
+    const what = (b.inline ? "inline key `" : "key `") + b.key + "`";
+    const w = (b.inline ? wtInline : wt).get(b.key);
+    if (!w) { r.fail(p + ": " + what + " (base line " + b.line + ", answer " + JSON.stringify(b.answer) + ") is missing in the working tree"); return; }
+    if (w.fp !== b.fp) r.fail(p + ":" + w.line + ": " + what + " now has a different question/answer than at base (base line " + b.line + ", base answer " + JSON.stringify(b.answer) + ", now " + JSON.stringify(w.answer) + ")");
+  });
+  wt.forEach((e, key) => { if (!baseScored.has(key)) n.newScored++; });
+  return n;
 }
 
 function checkProgressKeys(ctx, r) {
@@ -166,53 +134,238 @@ function checkProgressKeys(ctx, r) {
   const basePages = git.listFiles(ROOT, BASE, "parts").filter(p => /\.html$/.test(p));
   const baseSet = new Set(basePages);
   const wtChapterPages = Object.keys(ctx.chapters);
-  let total = 0, scored = 0, inlineN = 0, compared = 0, newScored = 0;
-  const baseKeys = {};
+  let total = 0, scored = 0, compared = 0, comparedInline = 0, skipped = 0, newScored = 0;
+  const baseExs = {};
   basePages.forEach(p => {
     const src = git.showText(ROOT, BASE, p);
     const doc = parse(src);
     const chId = site.chapterIdOf(doc);
     if (!chId) return;
-    const exs = exercisesOf(doc);
-    const map = {};
-    exs.forEach(e => { if (!e.inline) map[e.key] = e; });
-    baseKeys[p] = { chId, map, n: exs.filter(e => !e.inline).length };
+    baseExs[p] = exercisesOf(doc);
     if (!wtChapterPages.includes(p)) r.fail(p + " (chapter " + chId + ") exists at base but not in the working tree");
   });
   wtChapterPages.forEach(p => {
     const exs = exercisesOf(ctx.docs[p]);
     total += exs.length;
-    const sc = exs.filter(e => !e.inline);
-    scored += sc.length;
-    inlineN += exs.length - sc.length;
-    const wt = {};
-    sc.forEach(e => {
-      if (wt[e.key]) r.fail(p + ":" + e.line + ": duplicate scored key `" + e.key + "` (first at line " + wt[e.key].line + ")");
-      wt[e.key] = e;
-    });
-    const dupInline = {};
-    exs.filter(e => e.inline).forEach(e => {
-      if (dupInline[e.key]) r.fail(p + ":" + e.line + ": duplicate inline key `" + e.key + "`");
-      dupInline[e.key] = e;
-      if (!e.id) r.warn(p + ":" + e.line + ": inline exercise without an id (keyed `" + e.key + "`; README says inline checks need one)");
-    });
-    const base = baseKeys[p];
-    if (!base) { r.note(p + ": new chapter page, nothing to compare"); sc.forEach(e => { if (!e.id) r.fail(p + ":" + e.line + ": new scored exercise without an id (key `" + e.key + "`)"); }); return; }
-    Object.keys(base.map).forEach(key => {
-      compared++;
-      const b = base.map[key], w = wt[key];
-      if (!w) { r.fail(p + ": key `" + key + "` (base line " + b.line + ", answer " + JSON.stringify(b.answer) + ") is missing in the working tree"); return; }
-      if (w.fp !== b.fp) r.fail(p + ":" + w.line + ": key `" + key + "` now has a different question/answer than at base (base line " + b.line + ", base answer " + JSON.stringify(b.answer) + ", now " + JSON.stringify(w.answer) + ")");
-    });
-    sc.forEach(e => {
-      if (!base.map[e.key]) {
-        newScored++;
-        if (!e.id) r.fail(p + ":" + e.line + ": scored exercise new since base has no id (would be keyed `" + e.key + "`)");
-      }
+    scored += exs.filter(e => !e.inline).length;
+    const base = baseExs.hasOwnProperty(p) ? baseExs[p] : null;
+    if (!base) r.note(p + ": new chapter page, nothing to compare");
+    const n = pageKeys(p, exs, base, r);
+    compared += n.scored; comparedInline += n.inline; skipped += n.skipped;
+    if (base) newScored += n.newScored;
+  });
+  r.count = compared + comparedInline;
+  r.note("working tree: " + total + " exercises (" + scored + " scored, " + (total - scored) + " inline) on " + wtChapterPages.length + " chapter pages; " + compared + " base keys compared; " + comparedInline + " inline base keys compared; " + newScored + " scored exercises new since base; " + baseSet.size + " base pages");
+  if (skipped) r.note(skipped + " inline exercises at base had no id and were not compared");
+}
+
+/* An id is a link target and, on an exercise, the key its progress is saved under.
+   Two elements sharing one leave both ambiguous: the browser picks the first. */
+function checkIds(ctx, r) {
+  ctx.pages.forEach(page => {
+    /* a Map: any string is a legal id, `constructor` and `__proto__` included */
+    const seen = new Map();
+    for (const el of ctx.docs[page].elements()) {
+      if (!el.id) continue;
+      r.count++;
+      if (!seen.has(el.id)) seen.set(el.id, []);
+      seen.get(el.id).push(el);
+    }
+    seen.forEach((els, id) => {
+      if (els.length > 1) r.fail(page + ":" + els[1].line + ": id " + JSON.stringify(id) + " is on " + els.length + " elements (" + els.map(el => "<" + el.name + "> line " + el.line).join(", ") + ")");
     });
   });
-  r.count = compared;
-  r.note("working tree: " + total + " exercises (" + scored + " scored, " + inlineN + " inline) on " + wtChapterPages.length + " chapter pages; " + compared + " base keys compared; " + newScored + " scored exercises new since base; " + baseSet.size + " base pages");
+}
+
+/* ------------------------------------------------------- lesson steps -- */
+
+const STEPS_FILE = path.join(__dirname, "lesson-steps.json");
+
+/* startsStep / endsStep of assets/lesson.js, on lib/html.js nodes */
+function startsStep(el) {
+  return el.name === "h2" || el.hasClass("practice") || el.hasClass("recap");
+}
+function endsStep(el) {
+  return el.hasClass("puzzle") || el.hasClass("warmup") || el.hasClass("ex") || el.hasClass("practice") ||
+    (el.name === "details" && el.hasClass("reveal")) ||
+    (el.name === "figure" && !!el.query(".widget"));
+}
+/* how an element is named in a step: by its id when it has one, else by tag and classes */
+function nameOf(el) {
+  return el.name + (el.id ? "#" + el.id : el.classList.map(c => "." + c).join(""));
+}
+/* The steps lesson.js cuts the top-level children of <main id="main"> into, each written
+   as its first and last element: every cut is made by one of those two, so a cut that
+   moves shows in the list even when the number of steps stays the same, while text added
+   inside a step does not. This reads the markup as written; what scripts add to <main>
+   before the cut (the mode switch, the feedback note) starts and ends nothing.
+   @returns {string[]} one entry per step, in order */
+function lessonSteps(doc) {
+  const main = doc.query("#main");
+  if (!main) return [];
+  const steps = [[]];
+  main.children_elements.forEach(el => {
+    let cur = steps[steps.length - 1];
+    if (startsStep(el) && cur.length) { cur = []; steps.push(cur); }
+    cur.push(el);
+    if (endsStep(el)) steps.push([]);
+  });
+  return steps.filter(s => s.length).map(s => nameOf(s[0]) + (s.length > 1 ? " to " + nameOf(s[s.length - 1]) : ""));
+}
+/* @returns {string|null} what the first step that differs is, or null when the lists agree */
+function stepsDiff(now, accepted) {
+  const tick = "`";
+  for (let i = 0; i < Math.max(now.length, accepted.length); i++) {
+    if (now[i] === accepted[i]) continue;
+    if (i >= accepted.length) return "step " + (i + 1) + " " + tick + now[i] + tick + " is new";
+    if (i >= now.length) return "accepted step " + (i + 1) + " " + tick + accepted[i] + tick + " is gone";
+    return "step " + (i + 1) + " is now " + tick + now[i] + tick + ", accepted " + tick + accepted[i] + tick;
+  }
+  return null;
+}
+
+/* bm.lesson.v1 remembers how far a reader has got as a step number (reached[chapter]),
+   so a chapter that is cut differently reopens at another place. The cuts readers have
+   are kept in lesson-steps.json, by chapter id, rather than read from --base: the base
+   is where the exercise keys were frozen and is older than chapters that have since
+   gained steps, and a check that already warns cannot signal one more change. */
+function checkLessonSteps(ctx, r) {
+  const pages = Object.keys(ctx.chapters);
+  const now = {};
+  pages.forEach(p => { now[ctx.chapters[p]] = lessonSteps(ctx.docs[p]); });
+  if (opts["accept-steps"]) {
+    fs.writeFileSync(STEPS_FILE, JSON.stringify(now, null, 2) + "\n");
+    r.note("--accept-steps: wrote " + site.rel(STEPS_FILE) + " from the working tree");
+  }
+  if (!fs.existsSync(STEPS_FILE)) { r.fail(site.rel(STEPS_FILE) + " is missing; --accept-steps writes it from the working tree"); return; }
+  const accepted = JSON.parse(fs.readFileSync(STEPS_FILE, "utf8"));
+  let total = 0;
+  pages.forEach(p => {
+    const chId = ctx.chapters[p], steps = now[chId];
+    total += steps.length;
+    r.count++;
+    if (!accepted.hasOwnProperty(chId)) { r.warn(p + " (chapter " + chId + "): " + steps.length + " lesson steps, none recorded in " + site.rel(STEPS_FILE)); return; }
+    const diff = stepsDiff(steps, accepted[chId]);
+    if (diff) r.warn(p + " (chapter " + chId + "): " + steps.length + " lesson steps, " + (accepted[chId].length === steps.length ? "as many as accepted, but " : accepted[chId].length + " accepted; ") + diff);
+  });
+  Object.keys(accepted).forEach(chId => {
+    if (!now.hasOwnProperty(chId)) r.warn(site.rel(STEPS_FILE) + ": chapter " + chId + " is recorded but no page in the working tree has it");
+  });
+  r.note(total + " steps on " + pages.length + " chapter pages");
+  if (r.warns.length) r.note("a reader's saved place in a chapter is a step number: where the steps changed, it now opens a different part of the chapter. If the change is meant, --accept-steps records it");
+}
+
+/* -------------------------------------------------------------- shell -- */
+
+const SHELL_FILE = path.join(__dirname, "shell.json");
+
+/* one tag as a line of text: its attributes as written, for a <title> its text, and for
+   an inline <script> (the boot script) a fingerprint of its text, so a change to what
+   runs before first paint shows and is accepted like any other */
+function tagLine(el, skip) {
+  const attrs = Object.keys(el.attrs).filter(k => !skip || !skip.includes(k))
+    .map(k => " " + k + (el.attrs[k] === "" ? "" : "='" + el.attrs[k].replace(/'/g, "&#39;") + "'")).join("");
+  return "<" + el.name + attrs + ">" + (el.name === "title" ? normText(el.textContent) + "</title>"
+    : el.name === "script" && !el.hasAttribute("src") ? "#" + hash(normText(el.textContent)) + "</script>" : "");
+}
+/* What a page's shell comes to, read off the whole document:
+     head    every tag of <head> in order: the title, the description, each stylesheet
+             and each script with its attributes (a `defer` is one), and the rest
+     body    the <body> tag, without the attributes only lib/shell.js reads
+     topbar  the skip link and the top bar: each link as "text -> href", each button
+   The order of the head is the order the scripts run in and the stylesheets cascade
+   in; the body attributes are what site.js and the stylesheets find the page by. */
+function shellOf(doc) {
+  const head = doc.query("head"), body = doc.query("body"), bar = doc.query("header.topbar"), skip = doc.query("a.skip-link");
+  return {
+    head: head ? head.children_elements.map(el => tagLine(el)) : [],
+    body: body ? tagLine(body, shell.BODY_INPUTS) : "",
+    topbar: (skip ? [skip] : []).concat(bar ? bar.queryAll("a, button") : [])
+      .map(el => el.name === "a" ? normText(el.textContent) + " -> " + el.getAttribute("href") : "button: " + (el.getAttribute("aria-label") || normText(el.textContent)))
+  };
+}
+/* @returns {string[]} what differs between a page's shell and the accepted one */
+function shellDiff(now, accepted) {
+  const tick = "`", out = [];
+  ["head", "topbar"].forEach(part => {
+    const a = now[part] || [], b = accepted[part] || [];
+    for (let i = 0; i < Math.max(a.length, b.length); i++) {
+      if (a[i] === b[i]) continue;
+      out.push(part + " entry " + (i + 1) + " " + (i >= b.length ? tick + a[i] + tick + " is new" : i >= a.length ? "is gone, accepted " + tick + b[i] + tick : "is now " + tick + a[i] + tick + ", accepted " + tick + b[i] + tick) +
+        (a.length !== b.length ? " (" + a.length + " entries, " + b.length + " accepted)" : ""));
+      break;
+    }
+  });
+  if (now.body !== accepted.body) out.push("the body tag is now " + tick + now.body + tick + ", accepted " + tick + accepted.body + tick);
+  return out;
+}
+
+/* The scripts of a page: the boot script inline and first, then one
+   <script type="module"> naming the entry of the page's kind (src/entries/<kind>.js, a
+   file that exists), and no other script. A classic <script src>, of the site's own or
+   from another server (KaTeX comes from npm through the entry now), a second module, or a
+   page of one kind with another kind's entry each fail here, before shell.json is
+   consulted.
+   @returns {string[]} what is wrong */
+function scriptsProblems(p, doc, kind) {
+  const out = [];
+  const scripts = doc.query("head") ? doc.query("head").queryAll("script") : [];
+  const first = scripts[0];
+  if (!first || first.hasAttribute("src") || normText(first.textContent) !== normText(shell.bootScript())) out.push("the first script of <head> is not the boot script (src/boot.js) inline");
+  const srcs = scripts.filter(s => s.hasAttribute("src"));
+  const classic = srcs.filter(s => !/^module$/i.test(s.getAttribute("type") || ""));
+  if (classic.length) out.push("a page has no classic <script src>; every script comes through the module entry: " + JSON.stringify(classic.map(s => s.getAttribute("src"))));
+  const mods = srcs.filter(s => /^module$/i.test(s.getAttribute("type") || ""));
+  const want = "../".repeat(p.split("/").length - 1) + shell.PAGE_KINDS[kind].entry;
+  if (mods.length !== 1) out.push(mods.length + " module scripts, not one: " + JSON.stringify(mods.map(s => s.getAttribute("src"))));
+  else if (mods[0].getAttribute("src") !== want) out.push("the module script is " + JSON.stringify(mods[0].getAttribute("src")) + ", not the entry of a " + kind + " page, " + want);
+  else if (!exists(shell.PAGE_KINDS[kind].entry)) out.push("the entry " + shell.PAGE_KINDS[kind].entry + " does not exist");
+  if (scripts.length !== 1 + mods.length) out.push("a script of <head> is neither the boot script nor the module entry");
+  return out;
+}
+
+/* No page writes its own <head> or top bar: lib/shell.js writes them from a list per
+   kind of page, so one edit there changes what every page loads. This holds each page,
+   expanded, to the shell readers have, which is recorded in shell.json by page. A file
+   and not --base, for the reason lesson-steps.json is one: the base is where the
+   exercise keys were frozen, and its pages load a different set of scripts.
+   --shell-base=<ref> compares with the pages of a commit instead, each as a reader of
+   that commit got it. First, though, what every page's scripts must be whatever the
+   record says: scriptsProblems() above. */
+function checkShell(ctx, r) {
+  const now = {};
+  ctx.pages.forEach(p => {
+    now[p] = shellOf(ctx.docs[p]);
+    const kind = shell.pageInfo(read(p), p).kind;
+    scriptsProblems(p, ctx.docs[p], kind).forEach(m => r.fail(p + ": " + m));
+  });
+  if (opts["accept-shell"]) {
+    fs.writeFileSync(SHELL_FILE, JSON.stringify(now, null, 2) + "\n");
+    r.note("--accept-shell: wrote " + site.rel(SHELL_FILE) + " from the working tree");
+  }
+  const ref = opts["shell-base"];
+  let accepted = {}, from, how;
+  if (ref !== undefined) {
+    if (ref === true || !git.resolveRef(ROOT, ref)) { r.fail("--shell-base " + (ref === true ? "needs a git ref" : ref + " does not resolve")); return; }
+    git.listFiles(ROOT, ref).filter(p => /^(?:parts\/[^\/]+\/)?[^\/]+\.html$/i.test(p)).forEach(p => { accepted[p] = shellOf(site.pageAt(ROOT, ref, p).doc); });
+    from = "at " + ref;
+    how = "";
+  } else {
+    if (!fs.existsSync(SHELL_FILE)) { r.fail(site.rel(SHELL_FILE) + " is missing; --accept-shell writes it from the working tree"); return; }
+    accepted = JSON.parse(fs.readFileSync(SHELL_FILE, "utf8"));
+    from = "in " + site.rel(SHELL_FILE);
+    how = "; if the change is meant, --accept-shell records it";
+  }
+  ctx.pages.forEach(p => {
+    r.count++;
+    if (!accepted.hasOwnProperty(p)) { r.fail(p + ": no shell recorded " + from + (how ? "; --accept-shell records a new page" : "")); return; }
+    shellDiff(now[p], accepted[p]).forEach(d => r.fail(p + ": " + d));
+  });
+  Object.keys(accepted).forEach(p => {
+    if (!now.hasOwnProperty(p)) r.fail(p + ": has a shell recorded " + from + " but is not a page of the working tree");
+  });
+  r.note(ctx.pages.length + " pages held to the shells " + from);
+  if (r.fails.length && how) r.note("what every page loads, and in what order, is the site" + how);
 }
 
 function checkCurriculum(ctx, r) {
@@ -251,53 +404,9 @@ function checkCurriculum(ctx, r) {
   });
 }
 
-/* ids that exist only after JavaScript has run. Each pattern says where it comes from. */
-const RUNTIME_IDS = [
-  /* index.html: buildHome() in site.js writes <h2 id="part-<part.id>"> for each Part */
-  { page: /^index\.html$/, id: /^part-[a-z0-9-]+$/ },
-  /* every page: the skip link target is the <main id="main"> that is in the markup, but
-     a generated sidebar on chapter pages also links #warmup / #practice (static ids) */
-];
-
+/* the walk itself lives in lib/links.js, which check-dist.js runs over the built tree */
 function checkLinks(ctx, r) {
-  const idsOf = {};
-  function ids(page) {
-    if (!idsOf[page]) {
-      const s = new Set();
-      for (const el of ctx.docs[page].elements()) if (el.id) s.add(el.id);
-      idsOf[page] = s;
-    }
-    return idsOf[page];
-  }
-  ctx.pages.forEach(page => {
-    const dir = path.posix.dirname(page);
-    const refs = [];
-    for (const el of ctx.docs[page].elements()) {
-      if (el.name === "a" && el.hasAttribute("href")) refs.push({ el, v: el.getAttribute("href"), what: "href" });
-      if (el.name === "link" && el.hasAttribute("href")) refs.push({ el, v: el.getAttribute("href"), what: "link href" });
-      if ((el.name === "script" || el.name === "img" || el.name === "iframe") && el.hasAttribute("src")) refs.push({ el, v: el.getAttribute("src"), what: "src" });
-    }
-    refs.forEach(({ el, v, what }) => {
-      if (!v || /^(https?:|mailto:|tel:|data:|javascript:|\/\/)/i.test(v)) return;
-      r.count++;
-      const hashAt = v.indexOf("#");
-      const filePart = hashAt === -1 ? v : v.slice(0, hashAt);
-      const anchor = hashAt === -1 ? null : v.slice(hashAt + 1);
-      let target = page;
-      if (filePart) {
-        target = path.posix.normalize(path.posix.join(dir === "." ? "" : dir, filePart.split("?")[0]));
-        if (!exists(target)) { r.fail(page + ":" + el.line + ": " + what + " " + JSON.stringify(v) + " -> " + target + " does not exist"); return; }
-      }
-      if (anchor !== null && anchor !== "") {
-        let dec = anchor;
-        try { dec = decodeURIComponent(anchor); } catch (e) { /* keep raw */ }
-        if (!ctx.docs[target]) { if (/\.html$/.test(target)) r.warn(page + ":" + el.line + ": anchor into " + target + " which is not a known page"); return; }
-        if (ids(target).has(dec)) return;
-        if (RUNTIME_IDS.some(a => a.page.test(target) && a.id.test(dec))) return;
-        r.fail(page + ":" + el.line + ": " + what + " " + JSON.stringify(v) + " -> no id " + JSON.stringify(dec) + " in " + target);
-      }
-    });
-  });
+  links.checkLinks({ pages: ctx.pages, docs: ctx.docs, exists }, r);
 }
 
 function widgetNames() {
@@ -400,6 +509,89 @@ function checkOrder(ctx, r) {
   });
 }
 
+/* --------------------------------------------------------- migrations -- */
+
+/* The Supabase CLI's file name: a 14-digit UTC timestamp, an underscore, a name. */
+const MIGRATIONS_DIR = "supabase/migrations";
+const SCHEMA_FILE = "supabase/schema.sql";
+const MIGRATION_NAME = /^(\d{14})_[a-z0-9]+(?:_[a-z0-9]+)*\.sql$/;
+const MIGRATIONS_RULE = "a change to " + SCHEMA_FILE + " ships with a new file in " + MIGRATIONS_DIR + "/ holding the incremental statements, applied to the live project before the merge (" + MIGRATIONS_DIR + "/README.md)";
+
+/* true when the fourteen digits are a real date and time */
+function isTimestamp(ts) {
+  const n = [ts.slice(0, 4), ts.slice(4, 6), ts.slice(6, 8), ts.slice(8, 10), ts.slice(10, 12), ts.slice(12, 14)].map(Number);
+  const d = new Date(Date.UTC(n[0], n[1] - 1, n[2], n[3], n[4], n[5]));
+  return d.getUTCFullYear() === n[0] && d.getUTCMonth() === n[1] - 1 && d.getUTCDate() === n[2] &&
+    d.getUTCHours() === n[3] && d.getUTCMinutes() === n[4] && d.getUTCSeconds() === n[5];
+}
+
+/* The ref this check compares against. Not --base: that is the commit readers' progress was
+   last saved against, usually older than every migration here, and against it any migration at
+   all would count as new. So: --migrations-base if given, else the commit HEAD left main at
+   (HEAD itself on main, which leaves only uncommitted changes to judge), else --base with a
+   warning, for a checkout that has no main to ask. */
+function migrationsBase() {
+  const given = opts["migrations-base"];
+  if (given !== undefined) return { ref: given === true ? "" : String(given), why: "--migrations-base" };
+  const trunks = ["main", "origin/main"];
+  for (let i = 0; i < trunks.length; i++) {
+    if (!git.resolveRef(ROOT, trunks[i])) continue;
+    try {
+      const sha = execFileSync("git", ["merge-base", "HEAD", trunks[i]], { cwd: ROOT, encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] }).trim();
+      if (sha) return { ref: sha.slice(0, 10), why: "where HEAD left " + trunks[i] };
+    } catch (e) { /* no common history with it; try the next */ }
+  }
+  return { ref: BASE, why: "--base", weak: true };
+}
+
+/* true when a file holds nothing but comments and white space */
+function sqlIsEmpty(src) {
+  return !src.replace(/\/\*[\s\S]*?\*\//g, "").replace(/--.*$/gm, "").trim();
+}
+
+/* The site deploys on merge, the database does not: a schema change that reaches readers
+   before its SQL has been run breaks every signed-in sync. The check can only see that the
+   migration file was written; applying it is a step in OPERATIONS.md. */
+function checkMigrations(ctx, r) {
+  const base = migrationsBase();
+  if (!base.ref || !git.resolveRef(ROOT, base.ref)) { r.fail("base ref " + (base.ref || "(empty)") + " (" + base.why + ") does not resolve"); return; }
+  const ref = base.ref;
+  if (base.weak) r.warn("neither main nor origin/main resolves here, so this compared against --base " + ref + ", which is older than the migrations and lets a " + SCHEMA_FILE + " change through; pass --migrations-base=<the commit being merged into>");
+  /* everything in the folder is a migration except its README and dotfiles; a base without the folder lists nothing */
+  const isMigration = f => f !== "README.md" && f[0] !== ".";
+  const dir = path.join(ROOT, MIGRATIONS_DIR);
+  const names = fs.existsSync(dir) ? fs.readdirSync(dir).filter(isMigration).sort() : [];
+  const atBase = git.listFiles(ROOT, ref, MIGRATIONS_DIR).filter(p => isMigration(p.slice(MIGRATIONS_DIR.length + 1)));
+  /* a file that was at the base has been merged, so it has been applied: it stays as it was */
+  let lastAtBase = "";
+  atBase.forEach(p => {
+    const m = MIGRATION_NAME.exec(p.slice(MIGRATIONS_DIR.length + 1));
+    if (m && m[1] > lastAtBase) lastAtBase = m[1];
+    if (!exists(p)) r.fail(p + ": was at base " + ref + " and is gone; an applied migration is never renamed or deleted, a mistake is corrected by a newer file");
+    else if (read(p) !== git.showText(ROOT, ref, p)) r.fail(p + ": differs from its content at base " + ref + "; an applied migration is never edited, a mistake is corrected by a newer file");
+  });
+  const atBaseSet = new Set(atBase);
+  const byStamp = {}, added = [];
+  names.forEach(f => {
+    r.count++;
+    const rel = MIGRATIONS_DIR + "/" + f;
+    const m = MIGRATION_NAME.exec(f);
+    if (!m || !fs.statSync(path.join(dir, f)).isFile()) { r.fail(rel + ": not a migration file name; the format is <YYYYMMDDHHMMSS>_<name>.sql with a lower-case name of letters, digits and underscores"); return; }
+    if (!isTimestamp(m[1])) { r.fail(rel + ": " + m[1] + " is not a date and time (the format is <YYYYMMDDHHMMSS>_<name>.sql, in UTC)"); return; }
+    if (byStamp[m[1]]) r.fail(rel + ": shares the timestamp " + m[1] + " with " + byStamp[m[1]] + ", so their order is undefined");
+    else byStamp[m[1]] = f;
+    if (atBaseSet.has(rel)) return;
+    if (lastAtBase && m[1] <= lastAtBase) r.fail(rel + ": its timestamp is not later than " + lastAtBase + ", the newest migration at base " + ref + "; a new migration sorts after every one already applied");
+    if (sqlIsEmpty(read(rel))) r.fail(rel + ": holds no SQL statement");
+    added.push(f);
+  });
+  const now = exists(SCHEMA_FILE) ? read(SCHEMA_FILE) : null;
+  const then = git.showText(ROOT, ref, SCHEMA_FILE);
+  const changed = now !== then;
+  r.note("base " + ref + " (" + base.why + "); " + SCHEMA_FILE + " " + (changed ? "differs from it" : "is unchanged since") + "; " + names.length + " migration file(s), " + added.length + " new since base" + (added.length ? " (" + added.join(", ") + ")" : ""));
+  if (changed && !added.length) r.fail(SCHEMA_FILE + " differs from base " + ref + " but no migration has been added since then. The rule: " + MIGRATIONS_RULE);
+}
+
 /* ------------------------------------------------------- placeholders -- */
 
 /* BMSite.grade from assets/site.js, under a window with no DOM to speak of */
@@ -484,21 +676,39 @@ function rng(seed) {
 const CHAPTERS = ["ch01", "ch02", "ch05", "interlude"];
 const KEYS = ["e1", "e2", "e3", "k1", "k2", "t1", "p4"];
 const DAYS = ["2026-09-28", "2026-09-29", "2026-09-30", "2026-10-01"];
+/* What a later version of the site might store that this one has never heard of
+   (account.js `later`): few keys and few values, so two devices often hold the same key
+   and disagree about it. The two objects differ only in the order of their keys. One key
+   is named like something every object inherits, and is data all the same. */
+const UNKNOWN_KEYS = ["zz", "~later", "rung", "constructor"];
+const UNKNOWN_VALUES = [0, 7, -1, "x", "", true, null, [1, 2], [2, 1], { a: 1, b: [1] }, { b: [1], a: 1 }, { a: { c: 2 } }];
 function randomState(R) {
   const st = {};
   const pickSome = (arr, p) => arr.filter(() => R.maybe(p === undefined ? 0.5 : p));
+  const unknown = (into, values) => {
+    pickSome(UNKNOWN_KEYS, 0.2).forEach(k => { into[k] = JSON.parse(JSON.stringify(R.pick(values))); });
+    return into;
+  };
+  /* an unknown field of a record can hold anything */
+  const fields = (rec) => unknown(rec, UNKNOWN_VALUES);
+  /* an unknown key of a store keyed by chapter, exercise, section and so on is passed
+     through only when it holds no record: a record there is merged as one of that kind,
+     the same path as the known keys take */
+  const entries = (map) => unknown(map, UNKNOWN_VALUES.filter(v => !v || typeof v !== "object" || Array.isArray(v)));
   st.progress = {};
   pickSome(CHAPTERS).forEach(ch => {
     const solved = {}; pickSome(KEYS).forEach(k => { solved[k] = true; });
-    st.progress[ch] = { solved, total: R.int(12) };
+    st.progress[ch] = fields({ solved, total: R.int(12) });
   });
+  entries(st.progress);
   st.play = {};
   pickSome(CHAPTERS).forEach(ch => {
     const done = {}; pickSome(["pythagoras:0", "pythagoras:1", "linsys:0"]).forEach(k => { done[k] = true; });
     const rec = { done, total: R.int(6) };
     if (R.maybe(0.6)) rec.guess = R.int(4);
-    st.play[ch] = rec;
+    st.play[ch] = fields(rec);
   });
+  entries(st.play);
   /* attempt records as site.js writes them (initExercises check()/reveal(), lesson.js
      advance()): `tries` >= 1 when present, `hints` only 1 or 2, `first` only alongside
      `solved`, `skipped` never alongside `solved`, and `section`/`inline` fixed by the
@@ -517,27 +727,46 @@ function randomState(R) {
       if (R.maybe(0.85)) a.section = ["one-unknown", "ch02#one-unknown", "warmup"][(ch.length + k.charCodeAt(1)) % 3];
       if (a.tries && R.maybe(0.5)) { a.solved = 1700000000000 + R.int(1e9); a.first = a.tries === 1 && !a.opened ? 1 : 0; }
       else if (inlineKey && R.maybe(0.3)) a.skipped = 1;
-      st.attempts[ch][k] = a;
+      st.attempts[ch][k] = fields(a);
     });
+    entries(st.attempts[ch]);
   });
+  entries(st.attempts);
   const days = {}; pickSome(DAYS).forEach(d => { days[d] = 1 + R.int(80); });
-  st.activity = { days };
+  st.activity = fields({ days });
   if (R.maybe(0.5)) st.activity.goal = R.pick([20, 30, 50]);
   const reached = {}; pickSome(CHAPTERS).forEach(ch => { reached[ch] = 1 + R.int(30); });
-  st.lesson = { reached };
+  st.lesson = fields({ reached });
   if (R.maybe(0.5)) st.lesson.mode = R.pick(["steps", "page"]);
   st.last = R.maybe(0.6) ? { id: R.pick(CHAPTERS), section: R.maybe() ? "one-unknown" : null } : null;
   /* the game layer that is about to land; mergeGame does not exist yet */
   const ach = {}; pickSome(["first-solve", "ten-day", "chapter-1"]).forEach(k => { ach[k] = 1700000000000 + R.int(1e9); });
   const cmp = {}; pickSome(CHAPTERS, 0.4).forEach(ch => { cmp[ch] = {}; pickSome(KEYS, 0.4).forEach(k => { cmp[ch][k] = 1; }); });
   const sec = {}; pickSome(["ch02#one-unknown", "ch05#angles"]).forEach(s => {
-    sec[s] = { n: R.int(10), ok: R.int(10), box: R.int(5), last: R.pick(DAYS), fix: 1700000000000 + R.int(1e9) };
+    sec[s] = fields({ n: R.int(10), ok: R.int(10), box: R.int(5), last: R.pick(DAYS), fix: 1700000000000 + R.int(1e9) });
   });
-  const best = {}; pickSome(["sprint", "survival"]).forEach(m => { best[m] = { score: R.int(500), hearts: R.int(4), day: R.pick(DAYS) }; });
-  const enc = {}; pickSome(["ch02/practice", "ch05/practice"]).forEach(e => { enc[e] = { medal: R.pick(["bronze", "silver", "gold"]), day: R.pick(DAYS) }; });
+  const best = {}; pickSome(["sprint", "survival"]).forEach(m => { best[m] = fields({ score: R.int(500), hearts: R.int(4), day: R.pick(DAYS) }); });
+  const enc = {}; pickSome(["ch02/practice", "ch05/practice"]).forEach(e => { enc[e] = fields({ medal: R.pick(["bronze", "silver", "gold"]), day: R.pick(DAYS) }); });
   const daily = {}; pickSome(DAYS).forEach(d => { daily[d] = 1; });
-  st.game = { ach, cmp, sec, best, enc, daily, maxed: R.int(5) };
+  st.game = fields({ ach, cmp, sec: entries(sec), best: entries(best), enc: entries(enc), daily, maxed: R.int(5) });
+  /* the shape marker a later version may set (account.js SCHEMA): absent on most devices */
+  if (R.maybe(0.3)) st.game.v = R.pick([1, 2, 9, 10]);   /* 9 and 10: the larger number is not the later string */
   return st;
+}
+
+/* every place in a state where one of UNKNOWN_KEYS sits, as a path of keys; what it holds
+   is not looked into */
+function unknownPaths(x, at, out) {
+  if (!x || typeof x !== "object" || Array.isArray(x)) return out;
+  Object.keys(x).forEach(k => {
+    if (UNKNOWN_KEYS.indexOf(k) > -1) out.push(at.concat(k));
+    else unknownPaths(x[k], at.concat(k), out);
+  });
+  return out;
+}
+/* what a state holds at a path: its own, never what every object inherits */
+function dig(x, at) {
+  return at.reduce((o, k) => (o && typeof o === "object" && Object.prototype.hasOwnProperty.call(o, k) ? o[k] : undefined), x);
 }
 
 /* drop the four fields that are deliberately local-first before comparing */
@@ -589,6 +818,18 @@ function checkMerge(ctx, r) {
       /* once mergeGame exists: unions, maxima, earliest achievement time */
       Object.keys(a.game.ach).forEach(k => { if (!ab.game.ach || !(k in ab.game.ach)) { if (!gameChecked) r.fail("seed " + seed + ": game.ach lost " + k); gameChecked = true; } });
       ["maxed"].forEach(k => { if (ab.game[k] !== undefined && ab.game[k] < Math.max(a.game[k] || 0, b.game[k] || 0)) r.fail("seed " + seed + ": game." + k + " should be the maximum"); });
+      /* the shape marker: the larger of the two, and not invented where neither has one */
+      if (ab.game.v !== (Math.max(a.game.v || 0, b.game.v || 0) || undefined)) r.fail("seed " + seed + ": game.v should be the maximum, and absent when neither side has one");
+      /* a key this version has never heard of is never dropped, at whatever level it sits:
+         it comes out as the later canonical JSON of what the two sides hold */
+      unknownPaths(a, [], []).concat(unknownPaths(b, [], [])).forEach(at => {
+        const held = [dig(a, at), dig(b, at)].filter(v => v !== undefined).map(canon).sort();
+        const got = dig(ab, at);
+        if (got === undefined || canon(got) !== held[held.length - 1]) {
+          if (!seen.unknown) r.fail("seed " + seed + ": " + at.join(".") + " should be the later of " + held.join(" and ") + ", got " + (got === undefined ? "nothing" : canon(got)));
+          seen.unknown = 1;
+        }
+      });
     }
   }
   Object.keys(seen).forEach(k => { if (seen[k] > 1) r.fail("  … " + k + " failed in " + seen[k] + " of " + N + " cases"); });
@@ -596,6 +837,10 @@ function checkMerge(ctx, r) {
   /* and the laws must be observable at all: a hand case */
   const x = merge({ progress: { ch01: { solved: { e1: true }, total: 3 } } }, { progress: { ch01: { solved: { e2: true } } } });
   if (!x.progress.ch01.solved.e1 || !x.progress.ch01.solved.e2 || x.progress.ch01.total !== 3) r.fail("hand case: union of solved / max of total is wrong: " + JSON.stringify(x.progress));
+  /* and one for a field no version of this file knows: kept from one side, the later
+     canonical JSON from two */
+  const y = merge({ attempts: { ch01: { e1: { tries: 2, rung: 1, note: "a" } } } }, { attempts: { ch01: { e1: { tries: 1, rung: 3 } } } });
+  if (canon(y.attempts.ch01.e1) !== canon({ tries: 2, rung: 3, note: "a" })) r.fail("hand case: unknown attempt fields were not carried through: " + JSON.stringify(y.attempts));
 }
 function firstDiff(x, y, p) {
   p = p || "";
@@ -661,15 +906,18 @@ function checkContrast(ctx, r) {
 /* ------------------------------------------------------------- runner ---- */
 
 const CHECKS = [
-  { name: "syntax", run: checkSyntax, what: "node --check on every .js in assets/, data/, tools/" },
-  { name: "es5", run: checkEs5, what: "no arrow/let/const/template/class in assets/ and data/" },
-  { name: "progress-keys", run: checkProgressKeys, what: "exercise keys and fingerprints unchanged since --base; new scored exercises have ids" },
+  { name: "syntax", run: checkSyntax, what: "node --check on every .js in src/, assets/, data/, tools/" },
+  { name: "progress-keys", run: checkProgressKeys, what: "exercise keys and fingerprints unchanged since --base; every exercise has an id" },
+  { name: "ids", run: checkIds, what: "no id is on more than one element of a page" },
+  { name: "lesson-steps", run: checkLessonSteps, what: "each chapter is cut into the lesson steps recorded in tools/lesson-steps.json (WARN)" },
+  { name: "shell", run: checkShell, what: "each page's head, body tag and top bar, as lib/shell.js writes them, are the ones in tools/shell.json; one module entry per page, its kind's" },
   { name: "curriculum", run: checkCurriculum, what: "every chapter file exists; every section id is an <h2 id> in it" },
   { name: "links", run: checkLinks, what: "relative hrefs/srcs resolve to files, anchors to ids" },
   { name: "widgets", run: checkWidgets, what: "every data-widget / data-figure is a defined factory" },
   { name: "sections", run: checkSections, what: "every data-section names a real section" },
   { name: "choices", run: checkChoices, what: "choice/multi answer indices are within the options" },
   { name: "order", run: checkOrder, what: "order lists have >= 2 items; blanks carry keys" },
+  { name: "migrations", run: checkMigrations, what: "a supabase/schema.sql change since main ships a new, well-named migration; applied ones are untouched" },
   { name: "placeholders", run: checkPlaceholders, what: "no answer box shows an example its own key accepts" },
   { name: "merge", run: checkMerge, what: "BMAccount.merge is commutative, associative, idempotent (2000 seeded cases)" },
   { name: "animations", run: checkAnimations, what: "no infinite CSS animations (WARN for now)" },
@@ -701,4 +949,4 @@ function main() {
 }
 
 if (require.main === module) main();
-module.exports = { CHECKS, randomState, stripLocalFirst, canon, codeOnly };
+module.exports = { CHECKS, result, pageKeys, lessonSteps, stepsDiff, shellOf, shellDiff, scriptsProblems, randomState, stripLocalFirst, canon };

@@ -6,17 +6,24 @@
    that answers the calls account.js makes the way PostgREST and auth-js do: a select
    with maybeSingle gives the row or null, an update whose filters match nothing gives
    an empty list and no error, an insert over an existing key gives error 23505, a
-   network failure comes back as { error } rather than a throw, and jsonb hands object
-   keys back in its own order. Sign-out follows auth-js 2.117 (what the site loads):
+   network failure comes back as { error } rather than a throw, jsonb hands object
+   keys back in its own order, a select of * names every column the table has, a save
+   that names a column the table lacks is refused with PGRST204, and a table that is
+   not there with PGRST205. Sign-out follows auth-js 2.117 (what the site loads):
    when the server cannot be reached it still removes the session, then returns the
    error; `server.oldAuth` gives the older behaviour of keeping the session.
 
    The scenarios are the ways a signed-in reader could lose progress: a tab opened
    before another device synced, two devices writing at once, a reset being undone or
    wiping later work, a tab that missed a sign-out in another tab, a sync finishing
-   after someone else signed in, and signing out while the last upload fails. A last
-   section covers signing in through another service (assets/config.js `providers`):
-   which services are offered, what is asked of them, and readers who have no email.
+   after someone else signed in, and signing out while the last upload fails. Then the
+   ways this version of the site could damage what a later one saved: fields it has
+   never heard of, a row marked as a newer shape, and a server whose tables are older
+   or newer than this file. Some of these run on account.html, where the second half of
+   account.js (the account page) runs in the same scope as the sync, and where readers
+   sign in and out. A last section covers signing in through another service
+   (assets/config.js `providers`): which services are offered, what is asked of them,
+   and readers who have no email.
 
    Usage: node tools/game/sync.test.js [--only=<substring>] */
 "use strict";
@@ -72,11 +79,18 @@ function pgTime(ms) {
   return new Date(ms).toISOString().replace(/\.?0*Z$/, "+00:00").replace(/(\.\d*?)0+\+/, "$1+");
 }
 
+/* user_state as supabase/schema.sql makes it: each column a save may leave out, and what
+   it then holds */
+const DEFAULTS = { progress: {}, play: {}, attempts: {}, activity: {}, lesson: {}, last: null, game: {}, reset_at: 0 };
+
 class Server {
   constructor() {
     this.rows = {};          /* user_id -> row, updated_at kept as ms */
     this.attempts = [];
     this.profiles = {};
+    this.columns = ["user_id"].concat(Object.keys(DEFAULTS), "updated_at");   /* of user_state */
+    this.missing = {};       /* tables this project does not have: { attempts: true } */
+    this.refused = 0;        /* saves turned away for naming a column that is not there */
     this.offline = false;    /* every request fails, database and auth alike */
     this.dbError = null;     /* database requests fail with this, auth still works */
     this.oldAuth = false;    /* sign-out keeps the session when it cannot reach the server */
@@ -91,6 +105,7 @@ class Server {
   writes() { return this.log.filter((l) => /^(insert|update|upsert) user_state/.test(l)).length; }
   out(row, cols) {
     const r = jsonbOrder(clone(row));
+    this.columns.forEach((c) => { if (!(c in r)) r[c] = clone(DEFAULTS[c]); });
     r.updated_at = pgTime(row.updated_at);
     if (!cols || cols === "*") return r;
     const o = {};
@@ -110,6 +125,9 @@ class Server {
     if (this.offline) return { data: null, error: { message: "TypeError: Failed to fetch", code: "" }, status: 0 };
     if (this.dbError) return { data: null, error: clone(this.dbError), status: 403 };
     if (!uid) return { data: null, error: { message: "permission denied", code: "42501" }, status: 401 };
+    if (this.missing[q.table]) {
+      return { data: null, error: { message: "Could not find the table 'public." + q.table + "' in the schema cache", code: "PGRST205" }, status: 404 };
+    }
     if (q.table === "attempts") {
       if (q.op !== "insert") throw new Error("fake server: attempts only takes inserts");
       [].concat(q.payload).forEach((r) => this.attempts.push(clone(r)));
@@ -129,6 +147,11 @@ class Server {
       return { data: found.map((r) => this.out(r, q.cols)), error: null, status: 200 };
     }
     const p = clone(q.payload);
+    const extra = Object.keys(p).find((c) => this.columns.indexOf(c) < 0);
+    if (extra) {
+      this.refused++;
+      return { data: null, error: { message: "Could not find the '" + extra + "' column of 'user_state' in the schema cache", code: "PGRST204" }, status: 400 };
+    }
     if (p.user_id !== uid) return { data: null, error: { message: "new row violates row-level security policy", code: "42501" }, status: 403 };
     const ret = (rows) => ({ data: q.returning ? rows.map((r) => this.out(r, q.returning)) : null, error: null, status: q.op === "update" ? 200 : 201 });
     if (q.op === "insert") {
@@ -229,6 +252,9 @@ class Page {
     this.device = device;
     this.closed = false;
     const page = this, storage = device.storage, server = device.server;
+    /* `account: true` is account.html: the page has the element account.js draws the
+       account page into, so that half of the file runs too. What it draws is in shown(). */
+    const host = opts.account ? { innerHTML: "", querySelector: () => null, querySelectorAll: () => [], contains: () => false } : null;
     const listeners = [], winEvents = {}, docEvents = {};
     const session = () => {
       const raw = storage.get(SESSION_KEY);
@@ -276,7 +302,7 @@ class Page {
       supabase: { createClient: () => client },
       BMStore: Store,
       BMSite: { rootPrefix: () => "", escapeHtml: (s) => String(s) },
-      location: { hash: "", search: "", href: opts.href || "http://localhost:8000/parts/1-algebra/01-numbers.html" },
+      location: { hash: "", search: "", href: opts.href || "http://localhost:8000/" + (host ? "account.html" : "parts/1-algebra/01-numbers.html") },
       localStorage: {
         getItem: (k) => (storage.has(k) ? storage.get(k) : null),
         setItem: (k, v) => storage.set(k, String(v)),
@@ -287,8 +313,10 @@ class Page {
       addEventListener: (t, fn) => { (winEvents[t] = winEvents[t] || []).push(fn); },
       document: {
         visibilityState: "visible",
-        querySelector: () => null,
+        activeElement: null,
+        querySelector: (sel) => (host && /\[data-account\]/.test(sel) ? host : null),
         querySelectorAll: () => [],
+        getElementById: () => null,
         addEventListener: (t, fn) => { (docEvents[t] = docEvents[t] || []).push(fn); },
         head: { appendChild() {} },
         createElement: () => ({})
@@ -296,9 +324,11 @@ class Page {
     };
     win.window = win;
     vm.createContext(win);
-    vm.runInContext(SRC, win, { filename: "assets/account.js" });
+    vm.runInContext(opts.src || SRC, win, { filename: "assets/account.js" });
     this.Account = win.BMAccount;
     this.Store = Store;
+    this.win = win;
+    this.shown = () => (host ? host.innerHTML : "");
     /* someone else signs in on this page (another reader on a shared machine) */
     this.switchTo = (uid) => {
       device.remember(uid);
@@ -317,6 +347,11 @@ class Page {
     all[ch] = rec;
     this.Store.write(KEYS.progress, all);
   }
+  /* an answer check, as site.js announces it (initExercises check()) */
+  check(ch, key, correct) {
+    this.Store.emit({ type: "attempt", chapter: ch, key, section: "s", correct: !!correct, tryNo: 1, hintLevel: 0, solutionOpen: false, inline: false });
+  }
+  status() { return this.Account.status().state; }
   /* what the "Reset all progress" button on about.html does (site.js initResetButtons) */
   resetAll() {
     ["progress", "play", "attempts", "activity", "lesson", "game", "run"].forEach((f) => this.Store.write(KEYS[f], {}));
@@ -564,6 +599,340 @@ scenario("progress saved just before a reload is in the account", async () => {
   laptop.page.solve("ch01", "e1");
   laptop.open(); await settle();
   expect(has(server.solved("u1"), "ch01/e1"), "the change made just before the reload was lost", server.solved("u1"));
+});
+
+/* ------------------------------------------- other versions of the site -- */
+
+/* JSON with keys sorted at every level: "the same" for anything that has been through jsonb */
+function canon(x) {
+  if (Array.isArray(x)) return "[" + x.map(canon).join(",") + "]";
+  if (x && typeof x === "object") return "{" + Object.keys(x).sort().map((k) => JSON.stringify(k) + ":" + canon(x[k])).join(",") + "}";
+  return JSON.stringify(x === undefined ? null : x);
+}
+const dig = (x, at) => at.reduce((o, k) => (o && typeof o === "object" ? o[k] : undefined), x);
+
+/* A row as a later version of the site might leave it. Beside what this version knows
+   sit fields it has never heard of, at every level its merge rebuilds: a store's own
+   keys, a chapter's record, an exercise's, a section's, a best, a medal. FUTURE lists
+   where they are. The "~meta" keys of the keyed stores hold no object on purpose: an
+   object there is merged as a chapter, section, best or medal and gains that kind's
+   fields, which has a scenario of its own below. */
+const NEWER = {
+  progress: { "~meta": [3, { b: 1, a: 2 }], ch01: { solved: { e1: true }, total: 10, stars: { gold: 2 } } },
+  play: { "~meta": "p", ch01: { done: { m1: true }, total: 3, intro: true } },
+  attempts: { "~meta": 7, ch01: { "~n": [1], e1: { tries: 1, solved: 1700000000000, first: 1, section: "s", rung: 2, flags: { z: 1, a: null } } } },
+  activity: { days: { "2026-10-01": 20 }, freeze: { left: 2, used: ["2026-09-30"] } },
+  lesson: { reached: { ch01: 4 }, pace: "slow" },
+  last: { id: "ch01", section: null },
+  game: {
+    ach: { "first-light": 1700000000000 }, cmp: {}, daily: {}, maxed: 1, v: 1,
+    sec: { "~meta": "s", "ch01#s": { n: 2, ok: 2, box: 1, last: "2026-10-01", ease: 2.5 } },
+    best: { "~meta": 0, standard: { score: 300, hearts: 1, day: "2026-10-01", replay: [1, 2, 3] } },
+    enc: { "~meta": false, "ch01/practice": { medal: 2, day: "2026-10-01", gate: { open: true } } },
+    wallet: { coins: 40, log: [{ id: "a", n: 5 }] }
+  },
+  /* a column this version does not know either */
+  gates: { "boss:ch01": "open" }
+};
+const FUTURE = [
+  ["progress", "~meta"], ["progress", "ch01", "stars"], ["play", "~meta"], ["play", "ch01", "intro"],
+  ["attempts", "~meta"], ["attempts", "ch01", "~n"], ["attempts", "ch01", "e1", "rung"], ["attempts", "ch01", "e1", "flags"],
+  ["activity", "freeze"], ["lesson", "pace"],
+  ["game", "v"], ["game", "wallet"], ["game", "sec", "~meta"], ["game", "sec", "ch01#s", "ease"],
+  ["game", "best", "~meta"], ["game", "best", "standard", "replay"], ["game", "enc", "~meta"], ["game", "enc", "ch01/practice", "gate"]
+];
+/* the paths of FUTURE that `state` no longer holds exactly as NEWER has them */
+function lostFrom(state) {
+  return FUTURE.filter((at) => canon(dig(state, at)) !== canon(dig(NEWER, at)) || dig(state, at) === undefined).map((at) => at.join(" > "));
+}
+function stored(device) {
+  const out = {};
+  ["progress", "play", "attempts", "activity", "lesson", "game"].forEach((f) => { out[f] = device.read(KEYS[f], {}); });
+  return out;
+}
+
+/* this browser has worked on the same chapter, exercise, section, best and medal as NEWER,
+   so every one of those records is rebuilt by the merge rather than copied */
+function worked(d) {
+  d.storage.set(KEYS.progress, JSON.stringify({ ch01: { solved: { e2: true }, total: 10 } }));
+  d.storage.set(KEYS.play, JSON.stringify({ ch01: { done: { m2: true }, total: 3, guess: 1 } }));
+  d.storage.set(KEYS.attempts, JSON.stringify({ ch01: { e1: { tries: 3, solved: 1700000005000, first: 0, section: "s" }, e2: { tries: 1, solved: 1700000009000, first: 1, section: "s" } } }));
+  d.storage.set(KEYS.activity, JSON.stringify({ days: { "2026-10-01": 35, "2026-10-02": 10 } }));
+  d.storage.set(KEYS.lesson, JSON.stringify({ reached: { ch01: 9 }, mode: "page" }));
+  d.storage.set(KEYS.game, JSON.stringify({
+    ach: {}, cmp: {}, daily: {}, maxed: 3,
+    sec: { "ch01#s": { n: 9, ok: 7, box: 4, last: "2026-10-03" } },
+    best: { standard: { score: 900, hearts: 3, day: "2026-10-03" } },
+    enc: { "ch01/practice": { medal: 3, day: "2026-10-03" } }
+  }));
+}
+function newerRow(server) {
+  server.columns.push("gates");
+  server.rows.u1 = Object.assign({ user_id: "u1", reset_at: 0, updated_at: now - 1000 }, clone(NEWER));
+}
+
+scenario("fields a later version of the site saved survive a sync from a device with changes of its own", async () => {
+  const server = new Server();
+  newerRow(server);
+  const d = new Device("laptop", server);
+  worked(d);
+  d.remember("u1"); d.open(); await settle();
+  expect(d.page.status() === "synced", "the sync did not finish", d.page.Account.status());
+  const row = () => server.rows.u1;
+  expect(has(server.solved("u1"), "ch01/e1") && has(server.solved("u1"), "ch01/e2"), "the account does not hold both devices' progress", server.solved("u1"));
+  expect(row().game.best.standard.score === 900 && row().game.enc["ch01/practice"].medal === 3 && row().game.sec["ch01#s"].n === 9 && row().attempts.ch01.e1.tries === 3,
+    "the known fields did not merge by their own rules", { game: row().game, e1: row().attempts.ch01.e1 });
+  expect(lostFrom(row()).length === 0, "the account lost fields this version does not know", lostFrom(row()));
+  expect(lostFrom(stored(d)).length === 0, "this browser lost fields this version does not know", lostFrom(stored(d)));
+  expect(canon(row().gates) === canon(NEWER.gates), "a column this version does not know was changed", row().gates);
+  /* a later change is written straight from this browser, without reading the row again */
+  d.page.solve("ch02", "e1"); await settle();
+  expect(has(server.solved("u1"), "ch02/e1"), "setup: the later change did not reach the account", server.solved("u1"));
+  expect(lostFrom(row()).length === 0 && canon(row().gates) === canon(NEWER.gates), "a later save dropped fields this version does not know", lostFrom(row()));
+  /* and a second device that starts empty receives them whole */
+  const phone = new Device("phone", server);
+  phone.remember("u1"); phone.open(); await settle();
+  expect(lostFrom(stored(phone)).length === 0, "a second device did not receive the unknown fields", lostFrom(stored(phone)));
+  const before = server.writes();
+  d.open(); phone.open(); await settle();
+  expect(server.writes() === before, "reloading with nothing new rewrote the account", server.log.slice(-6));
+});
+
+scenario("an object under an unknown key of a keyed store is merged as a record of that kind, with nothing in it lost", async () => {
+  const server = new Server();
+  const extra = { updated: 5 };
+  server.rows.u1 = {
+    user_id: "u1", reset_at: 0, updated_at: now - 1000,
+    progress: { "~meta": extra }, play: { "~meta": extra }, attempts: { "~meta": extra, ch01: { "~n": { count: 3 } } },
+    game: { sec: { "~meta": extra }, best: { "~meta": extra }, enc: { "~meta": extra } }
+  };
+  const d = new Device("laptop", server);
+  d.open(); d.page.solve("ch01", "e1"); await settle();
+  d.remember("u1"); d.open(); await settle();
+  const row = server.rows.u1;
+  expect(has(server.solved("u1"), "ch01/e1"), "setup: this browser's change did not reach the account", server.solved("u1"));
+  const got = {
+    progress: row.progress["~meta"], play: row.play["~meta"], attempts: row.attempts["~meta"], exercise: row.attempts.ch01["~n"],
+    sec: row.game.sec["~meta"], best: row.game.best["~meta"], enc: row.game.enc["~meta"]
+  };
+  /* what the README promises a later version: its fields are all there, beside the known
+     fields of a chapter, section, best or medal */
+  const want = {
+    progress: { solved: {}, total: 0, updated: 5 }, play: { done: {}, total: 0, updated: 5 }, attempts: { updated: 5 }, exercise: { count: 3 },
+    sec: { n: 0, ok: 0, box: 0, updated: 5 }, best: { score: 0, hearts: 0, day: "", updated: 5 }, enc: { medal: 0, day: "", updated: 5 }
+  };
+  expect(canon(got) === canon(want), "an object under an unknown key did not come out as a record of its store's kind", got);
+  const before = server.writes();
+  d.open(); await settle();
+  expect(server.writes() === before, "the record did not settle: a reload rewrote the account", server.log.slice(-6));
+});
+
+scenario("on the account page a sign-in merges with the account, and signing out there leaves it whole", async () => {
+  const server = new Server();
+  newerRow(server);
+  const d = new Device("laptop", server);
+  worked(d);
+  d.remember("u1"); d.open({ account: true }); await settle();
+  expect(d.page.status() === "synced", "the sync failed on the account page", String((d.page.Account.status().error || {}).message));
+  expect(/class="sync-state" data-state="synced">Synced at /.test(d.page.shown()), "the account page does not show the sync as done", d.page.shown().slice(0, 400));
+  expect(has(server.solved("u1"), "ch01/e1") && has(server.solved("u1"), "ch01/e2"), "the account does not hold both devices' progress", server.solved("u1"));
+  expect(lostFrom(server.rows.u1).length === 0, "the account lost fields this version does not know", lostFrom(server.rows.u1));
+  d.page.solve("ch02", "e1");
+  const { result, error } = await d.page.signOut();
+  expect(!error && result && result.saved === true, "sign-out did not save", { result, error: error && error.message });
+  const s = server.solved("u1");
+  expect(has(s, "ch01/e1") && has(s, "ch01/e2") && has(s, "ch02/e1"), "signing out on the account page lost progress from the account", s);
+  expect(lostFrom(server.rows.u1).length === 0 && canon(server.rows.u1.gates) === canon(NEWER.gates), "signing out dropped fields this version does not know", lostFrom(server.rows.u1));
+  expect(d.solved().length === 0 && d.setAside("u1").length === 0, "the browser was not cleared after a saved sign-out", { live: d.solved(), aside: d.setAside("u1") });
+  expect(/Sign in or create an account/.test(d.page.shown()), "the account page does not show the sign-in form after signing out", d.page.shown().slice(0, 200));
+});
+
+/* account.js with a merge that can be made to fail, as a slip in a later edit might make it */
+const BROKEN = SRC.replace("  function merge(local, remote) {\n", (line) => line + '    if (window.BREAK_MERGE) throw new Error("merge failed");\n');
+
+scenario("a sync whose merge fails is never followed by a save of this browser's unmerged copy", async () => {
+  expect(BROKEN !== SRC, "setup: account.js no longer has the line this scenario patches");
+  const server = new Server();
+  server.rows.u1 = { user_id: "u1", progress: { ch01: { solved: { e1: true, e2: true }, total: 10 } }, reset_at: 0, updated_at: now - 1000 };
+  const d = new Device("laptop", server);
+  d.remember("u1");
+  const page = d.open({ src: BROKEN });
+  page.win.BREAK_MERGE = true;
+  await settle();
+  expect(page.status() === "error", "setup: the sync was expected to fail", page.Account.status());
+  const whole = () => server.writes() === 0 && has(server.solved("u1"), "ch01/e1") && has(server.solved("u1"), "ch01/e2");
+  page.solve("ch03", "e1"); await settle();
+  expect(whole(), "a page that never merged with the account saved its own copy over it", { account: server.solved("u1"), log: server.log.slice(-4) });
+  const { result, error } = await page.signOut();
+  expect(!error && result && result.saved === false, "sign-out claimed the progress was saved", { result, error: error && error.message });
+  expect(whole(), "signing out wrote this browser's unmerged copy over the account", { account: server.solved("u1"), log: server.log.slice(-4) });
+  expect(has(d.setAside("u1"), "ch03/e1"), "the unsaved work was not set aside", d.setAside("u1"));
+  /* with the merge working again, the next sign-in saves it beside what the account held */
+  d.remember("u1"); d.open(); await settle();
+  const s = server.solved("u1");
+  expect(has(s, "ch01/e1") && has(s, "ch01/e2") && has(s, "ch03/e1"), "the account does not hold both its own progress and the work set aside", s);
+});
+
+/* a later version of the site has changed the shape of the data and says so (game.v) */
+function newerShape(server) {
+  server.rows.u1 = {
+    user_id: "u1", progress: { ch01: { solved: { e2: true }, total: 10 } },
+    game: { v: 99, maxed: 2, wallet: { coins: 40 } }, reset_at: 0, updated_at: now - 1000
+  };
+  return canon(server.rows.u1);
+}
+
+scenario("an account saved in a newer shape is merged into this browser but never written", async () => {
+  const server = new Server();
+  const was = newerShape(server);
+  const d = new Device("laptop", server);
+  d.open(); d.page.solve("ch01", "e1"); await settle();
+  d.remember("u1"); d.open(); await settle();
+  expect(has(d.solved(), "ch01/e1") && has(d.solved(), "ch01/e2"), "this browser does not hold both its own progress and the account's", d.solved());
+  expect(d.read(KEYS.game, {}).v === 99 && canon(d.read(KEYS.game, {}).wallet) === canon({ coins: 40 }), "the newer data did not reach this browser", d.read(KEYS.game, {}));
+  expect(d.page.status() === "reload", "the page does not ask for a reload", d.page.Account.status());
+  /* the reader keeps working: checks, solves, leaving the page, coming back */
+  d.page.check("ch01", "e3", true); d.page.solve("ch01", "e3"); await settle();
+  d.page.solve("ch01", "e4");
+  d.open(); await settle();
+  expect(has(d.solved(), "ch01/e3") && has(d.solved(), "ch01/e4"), "work done meanwhile was lost from this browser", d.solved());
+  expect(d.page.status() === "reload", "the reloaded page does not ask for a reload", d.page.Account.status());
+  expect(server.writes() === 0 && canon(server.rows.u1) === was, "the account was written by a version that does not understand it", server.log.filter((l) => !/^select/.test(l)));
+  expect(server.attempts.length === 0 && server.log.indexOf("insert attempts") < 0, "the attempt log was written", server.log.filter((l) => /attempts/.test(l)));
+  /* signing out cannot save either, so the work is set aside rather than cleared */
+  const { result, error } = await d.page.signOut();
+  expect(!error && result && result.saved === false, "sign-out claimed the progress was saved", { result, error: error && error.message });
+  expect(has(d.setAside("u1"), "ch01/e1") && has(d.setAside("u1"), "ch01/e4"), "the unsaved work was not set aside", d.setAside("u1"));
+  expect(server.writes() === 0 && canon(server.rows.u1) === was, "signing out wrote to the account", server.log.filter((l) => !/^select/.test(l)));
+});
+
+scenario("the account page says to reload when the account is in a newer shape", async () => {
+  const server = new Server();
+  const was = newerShape(server);
+  const d = new Device("laptop", server);
+  d.remember("u1"); d.open({ account: true }); await settle();
+  expect(d.page.status() === "reload", "the page does not ask for a reload", d.page.Account.status());
+  expect(/data-state="reload">A newer version of this site has saved to your account\. Reload this page to finish syncing\.</.test(d.page.shown()),
+    "the account page does not tell the reader to reload", d.page.shown().slice(0, 400));
+  expect(server.writes() === 0 && canon(server.rows.u1) === was, "the account was written", server.log.filter((l) => !/^select/.test(l)));
+});
+
+scenario("a tab left open while a newer version of the site saves stops writing", async () => {
+  const { server, laptop } = await twoDevices();
+  laptop.page.solve("ch01", "e1"); await settle();
+  /* another device, running a later version, saves the account in its new shape */
+  now += 60000;
+  Object.assign(server.rows.u1, { game: { v: 99, wallet: { coins: 40 } }, updated_at: now });
+  const was = canon(server.rows.u1);
+  laptop.page.solve("ch01", "e2"); await settle();
+  expect(canon(server.rows.u1) === was, "the stale tab wrote over a row in a shape it does not understand", server.rows.u1);
+  expect(has(laptop.solved(), "ch01/e2") && laptop.read(KEYS.game, {}).v === 99, "the tab did not merge the newer row into this browser", { solved: laptop.solved(), game: laptop.read(KEYS.game, {}) });
+  expect(laptop.page.status() === "reload", "the page does not ask for a reload", laptop.page.Account.status());
+  const writes = server.writes();
+  laptop.page.solve("ch01", "e3"); await settle();
+  expect(server.writes() === writes, "the tab kept trying to write", server.log.slice(-4));
+});
+
+scenario("a tab that finds this browser's data in a newer shape stops writing", async () => {
+  const { server, laptop } = await twoDevices();
+  laptop.page.solve("ch01", "e1"); await settle();
+  /* another tab of this browser, running a later version, has changed the data and not saved yet */
+  laptop.storage.set(KEYS.game, JSON.stringify({ v: 99, wallet: { coins: 40 } }));
+  const writes = server.writes();
+  laptop.page.solve("ch01", "e2"); await settle();
+  expect(server.writes() === writes && !has(server.solved("u1"), "ch01/e2"), "data in a shape this version does not understand was written to the account", server.log.slice(-4));
+  expect(laptop.page.status() === "reload", "the page does not ask for a reload", laptop.page.Account.status());
+  expect(has(laptop.solved(), "ch01/e2") && laptop.read(KEYS.game, {}).v === 99, "this browser lost the work or the newer data", { solved: laptop.solved(), game: laptop.read(KEYS.game, {}) });
+});
+
+scenario("a reset in a stale tab does not wipe an account saved in a newer shape", async () => {
+  const { server, laptop } = await twoDevices();
+  laptop.page.solve("ch01", "e1"); await settle();
+  now += 60000;
+  Object.assign(server.rows.u1, { game: { v: 99, wallet: { coins: 40 } }, updated_at: now });
+  const was = canon(server.rows.u1);
+  now += 60000;
+  laptop.page.resetAll(); await settle();
+  expect(canon(server.rows.u1) === was, "the reset was written over a row in a shape this version does not understand", server.rows.u1);
+  expect(laptop.solved().length === 0, "the reset did not apply in this browser", laptop.solved());
+  expect(laptop.page.status() === "reload", "the page does not ask for a reload", laptop.page.Account.status());
+  expect(Number(laptop.read("bm.sync.v1", {}).resetAt) > 0, "the reset is no longer remembered for the version that can save it", laptop.read("bm.sync.v1", {}));
+});
+
+scenario("a reset from this version clears what it knows, and leaves a column it does not know to the version that does", async () => {
+  const server = new Server();
+  newerRow(server);
+  const d = new Device("laptop", server);
+  d.remember("u1"); d.open(); await settle();
+  now += 60000;
+  d.page.resetAll(); await settle();
+  const row = server.rows.u1;
+  expect(Number(row.reset_at) > 0 && server.solved("u1").length === 0, "the reset did not reach the account", { reset_at: row.reset_at, solved: server.solved("u1") });
+  expect(canon(row.game) === "{}" && canon(row.progress) === "{}" && canon(row.attempts) === "{}", "the reset left fields behind in columns this version knows", { game: row.game, progress: row.progress, attempts: row.attempts });
+  expect(canon(row.gates) === canon(NEWER.gates), "the reset touched a column this version does not know", row.gates);
+});
+
+scenario("a server without the game column still syncs everything else", async () => {
+  const server = new Server();
+  server.columns = server.columns.filter((c) => c !== "game");
+  const d = new Device("laptop", server);
+  d.storage.set(KEYS.game, JSON.stringify({ ach: { "first-light": 1700000000000 } }));
+  /* a new account: there is no row to learn the columns from, so the first save is refused once */
+  d.remember("u1"); d.open(); await settle();
+  d.page.solve("ch01", "e1"); await settle();
+  expect(d.page.status() === "synced", "the sync failed", String((d.page.Account.status().error || {}).message));
+  expect(has(server.solved("u1"), "ch01/e1"), "progress did not reach the account", server.solved("u1"));
+  expect(!("game" in server.rows.u1), "the fake server took a column it does not have");
+  expect(d.read(KEYS.game, {}).ach["first-light"] === 1700000000000, "the game record was lost from this browser", d.read(KEYS.game, {}));
+  expect(server.refused === 1, "expected the first save, and only that one, to be refused", server.refused);
+  /* a device that reads the row first never names the column */
+  const phone = new Device("phone", server);
+  phone.remember("u1"); phone.open(); await settle();
+  phone.page.solve("ch02", "e1"); await settle();
+  expect(has(server.solved("u1"), "ch02/e1") && phone.page.status() === "synced", "the second device did not sync", { solved: server.solved("u1"), status: phone.page.Account.status() });
+  d.open(); await settle();
+  expect(server.refused === 1, "a save named the missing column although the row had shown it is not there", server.refused);
+  const before = server.writes();
+  d.open(); phone.open(); await settle();
+  expect(server.writes() === before, "a page load with nothing new rewrote the account", server.log.slice(-6));
+});
+
+scenario("a project without the attempts table still syncs, and keeps the log for when it has one", async () => {
+  const { server, laptop } = await twoDevices();
+  server.missing.attempts = true;
+  const asked = () => server.log.filter((l) => l === "insert attempts").length;
+  laptop.page.check("ch01", "e1", true); laptop.page.solve("ch01", "e1"); await settle();
+  expect(laptop.page.status() === "synced", "the sync failed", String((laptop.page.Account.status().error || {}).message));
+  expect(has(server.solved("u1"), "ch01/e1"), "progress did not reach the account", server.solved("u1"));
+  /* told once that the table is not there, the page holds the log back for a while */
+  for (const k of ["e2", "e3", "e4"]) { laptop.page.check("ch01", k, true); laptop.page.solve("ch01", k); await settle(); }
+  expect(asked() === 1, "the whole log was sent again with every save although the table is missing", asked());
+  expect(laptop.page.status() === "synced" && has(server.solved("u1"), "ch01/e4"), "progress stopped syncing while the log was held back", server.solved("u1"));
+  /* the owner runs schema.sql; a few minutes on, the checks made meanwhile go with the next save */
+  server.missing = {};
+  now += 5 * 60 * 1000;
+  laptop.page.check("ch01", "e5", false); await settle();
+  expect(server.attempts.map((a) => a.ex_key).join() === "e1,e2,e3,e4,e5", "the log kept while the table was missing did not arrive, once each, in order", server.attempts.map((a) => a.ex_key));
+  server.missing.attempts = true;
+  laptop.page.check("ch01", "e6", true); laptop.page.solve("ch01", "e6");
+  const { result, error } = await laptop.page.signOut();
+  expect(!error && result && result.saved === true && laptop.setAside("u1").length === 0, "signing out treated the missing table as unsaved progress", { result, error: error && error.message });
+});
+
+scenario("a long visit without the attempts table keeps only the newest checks", async () => {
+  const { server, laptop } = await twoDevices();
+  server.missing.attempts = true;
+  laptop.page.check("ch01", "first", true); await settle();
+  for (let i = 0; i < 700; i++) {
+    laptop.page.check("ch01", "k" + i, true);
+    if (i % 100 === 99) await settle();
+  }
+  server.missing = {};
+  now += 5 * 60 * 1000;
+  laptop.page.check("ch01", "last", true); await settle();
+  const keys = server.attempts.map((a) => a.ex_key);
+  expect(keys.length === 500 && keys[0] === "k201" && keys[499] === "last", "expected the newest 500 checks, oldest first", { n: keys.length, first: keys[0], last: keys[keys.length - 1] });
+  expect(laptop.page.status() === "synced", "the sync failed", String((laptop.page.Account.status().error || {}).message));
 });
 
 /* ------------------------------------- signing in with another service -- */

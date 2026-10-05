@@ -1,0 +1,99 @@
+{
+  "about": "A reader's saved state as the site writes it at the last release before the build step: what a returning learner's browser already holds. Hand-written from what the writers in assets/site.js, lesson.js, game.js and arena.js produce (the shapes are in src/types/state.ts), with real chapter, section, exercise and mission ids. Chapter 1 was cleared first try (Gold, already banked in game.enc); chapter 2 is part done, with a miss, two hints and an opened solution; chapter 5 was cleared with one miss (Silver) and its medal is deliberately NOT banked, nor are the Flawless and Steady hand achievements this state has earned, so loading it exercises the backfill. Times are noon UTC on the day named, so the local day is the same in every time zone. tools/suites/upgrade.js seeds this and checks every later release still reads it; never edit it to make that suite pass.",
+  "storage": {
+    "bm.theme": "dark",
+    "bm.progress.v1": {
+      "ch01": { "solved": { "e1": true, "e2": true, "e3": true, "e4": true, "e5": true, "e6": true, "e7": true, "e8": true, "e9": true, "e10": true }, "total": 10 },
+      "ch02": { "solved": { "e1": true, "e2": true, "e3": true }, "total": 10 },
+      "ch05": { "solved": { "e1": true, "e2": true, "e3": true, "e4": true, "e5": true, "e6": true, "e7": true, "e8": true, "e9": true, "e10": true }, "total": 10 }
+    },
+    "bm.play.v1": {
+      "ch01": { "done": { "numberline:0": true, "rationals:1": true }, "total": 8, "guess": 1 },
+      "ch02": { "done": {}, "total": 10 },
+      "ch05": { "done": { "pythagoras:0": true }, "total": 10, "guess": 2 }
+    },
+    "bm.attempts.v1": {
+      "ch01": {
+        "t1": { "tries": 1, "section": "addition", "inline": 1, "solved": 1789214400000, "first": 1 },
+        "t2": { "tries": 1, "section": "addition", "inline": 1, "solved": 1789214445000, "first": 1 },
+        "t3": { "tries": 1, "section": "multiplication", "inline": 1, "solved": 1789214520000, "first": 1 },
+        "e1": { "tries": 1, "section": "addition", "solved": 1789215000000, "first": 1 },
+        "e2": { "tries": 1, "section": "multiplication", "solved": 1789215060000, "first": 1 },
+        "e3": { "tries": 1, "section": "multiplication", "solved": 1789215150000, "first": 1 },
+        "e4": { "tries": 1, "section": "rationals", "solved": 1789215240000, "first": 1 },
+        "e5": { "tries": 1, "section": "inverses", "solved": 1789215300000, "first": 1 },
+        "e6": { "tries": 1, "section": "even-odd", "solved": 1789215420000, "first": 1 },
+        "e7": { "tries": 1, "section": "even-odd", "solved": 1789215480000, "first": 1 },
+        "e8": { "tries": 1, "section": "multiplication", "solved": 1789215570000, "first": 1 },
+        "e9": { "tries": 1, "section": "inverses", "solved": 1789215660000, "first": 1 },
+        "e10": { "tries": 1, "section": "inverses", "solved": 1789215780000, "first": 1 }
+      },
+      "ch02": {
+        "w1": { "tries": 1, "section": "warmup", "inline": 1, "solved": 1789300800000, "first": 1 },
+        "t1": { "tries": 2, "section": "one-unknown", "inline": 1, "hints": 1, "solved": 1789300920000, "first": 0 },
+        "k1": { "skipped": 1, "inline": 1, "section": "one-unknown" },
+        "e1": { "tries": 1, "section": "one-unknown", "solved": 1789301400000, "first": 1 },
+        "e2": { "tries": 3, "section": "one-unknown", "hints": 2, "solved": 1789301640000, "first": 0 },
+        "e3": { "opened": 1, "section": "one-unknown", "tries": 1, "solved": 1789301760000, "first": 0 },
+        "e4": { "tries": 1, "section": "two-unknowns", "hints": 1 },
+        "e5": { "opened": 1, "section": "two-unknowns" }
+      },
+      "ch05": {
+        "w1": { "tries": 1, "section": "warmup", "inline": 1, "solved": 1789387200000, "first": 1 },
+        "t1": { "tries": 1, "section": "distance", "inline": 1, "solved": 1789387260000, "first": 1 },
+        "t2": { "tries": 1, "section": "angles", "inline": 1, "solved": 1789387350000, "first": 1 },
+        "e1": { "tries": 1, "section": "angles", "solved": 1789387800000, "first": 1 },
+        "e2": { "tries": 1, "section": "angles", "solved": 1789387860000, "first": 1 },
+        "e3": { "tries": 1, "section": "parallels", "solved": 1789387950000, "first": 1 },
+        "e4": { "tries": 2, "section": "pythagoras", "hints": 1, "solved": 1789388100000, "first": 0 },
+        "e5": { "tries": 1, "section": "pythagoras", "solved": 1789388160000, "first": 1 },
+        "e6": { "tries": 1, "section": "distance", "solved": 1789388250000, "first": 1 },
+        "e7": { "tries": 1, "section": "parallels", "solved": 1789388340000, "first": 1 },
+        "e8": { "tries": 1, "section": "pythagoras", "solved": 1789388400000, "first": 1 },
+        "e9": { "tries": 1, "section": "distance", "solved": 1789388490000, "first": 1 },
+        "e10": { "tries": 1, "section": "parallels", "solved": 1789388580000, "first": 1 }
+      }
+    },
+    "bm.activity.v1": {
+      "days": { "2026-09-12": 151, "2026-09-13": 37, "2026-09-14": 163, "2026-09-20": 105, "2026-09-21": 63 },
+      "goal": 50
+    },
+    "bm.lesson.v1": { "reached": { "ch01": 20, "ch02": 6, "ch05": 20 }, "mode": "page" },
+    "bm.last": { "id": "ch02", "section": "two-unknowns" },
+    "bm.game.v1": {
+      "ach": { "first-light": 1789214400000, "full-meter": 1789215300000, "boss-down": 1789215780000 },
+      "cmp": { "ch05": { "e1": 1 } },
+      "sec": {
+        "ch01#addition": { "n": 1, "ok": 1, "box": 1, "last": "2026-09-20" },
+        "ch01#multiplication": { "n": 2, "ok": 1, "box": 0, "last": "2026-09-20" },
+        "ch01#rationals": { "n": 2, "ok": 2, "box": 1, "last": "2026-09-20" },
+        "ch01#inverses": { "n": 3, "ok": 3, "box": 2, "last": "2026-09-21" },
+        "ch02#one-unknown": { "n": 2, "ok": 2, "box": 1, "last": "2026-09-20" },
+        "ch05#distance": { "n": 3, "ok": 3, "box": 1, "last": "2026-09-20" },
+        "ch05#angles": { "n": 1, "ok": 1, "box": 1, "last": "2026-09-21" },
+        "ch05#parallels": { "n": 7, "ok": 6, "box": 1, "last": "2026-09-21", "fix": 1789992600000 },
+        "ch05#pythagoras": { "n": 1, "ok": 1, "box": 1, "last": "2026-09-20" }
+      },
+      "best": {
+        "standard": { "score": 1290, "hearts": 2, "day": "2026-09-20" },
+        "daily": { "score": 700, "hearts": 3, "day": "2026-09-21" }
+      },
+      "enc": { "ch01/practice": { "medal": 3, "day": "2026-09-12" } },
+      "daily": { "2026-09-20": 1, "2026-09-21": 1 },
+      "maxed": 3
+    },
+    "bm.run.v1": {
+      "combo": { "pips": 5, "shield": true },
+      "arena": null,
+      "seen": { "level": 9, "ach": 1 },
+      "sets": {
+        "ch01": { "practice": ["e1", "e2", "e3", "e4", "e5", "e6", "e7", "e8", "e9", "e10"], "inline": ["t1", "t2", "k1", "s3d-box", "t3", "t4", "k2", "t5", "t6", "k3", "t7"] },
+        "ch02": { "practice": ["e1", "e2", "e3", "e4", "e5", "e6", "e7", "e8", "e9", "s3d-planes-line"], "inline": ["w1", "w2", "w3", "t1", "t2", "k1", "t3", "t4", "k2", "s3d-planes", "t5"] },
+        "ch05": { "practice": ["e1", "e2", "e3", "e4", "e5", "e6", "e7", "e8", "e9", "e10"], "inline": ["w1", "w2", "w3", "t1", "t2", "k1", "t3", "t4", "s3d-sphere", "t5", "t6", "k2"] }
+      },
+      "paid": ["muueixqo-4rda1v", "muueiywb-f4v283", "muv2k81c-9wq0ze"],
+      "daily": { "day": "2026-09-21", "score": 700, "firstTry": 5, "n": 5, "planned": 5, "ended": "complete" }
+    },
+    "bm.prefs.v1": { "sound": false, "calm": false, "map": "list", "tempo": "extended" }
+  }
+}

@@ -1,7 +1,7 @@
 "use strict";
 /* axe-core on every page × theme at 1280. Violations are warnings for now (counted by
    rule); --strict-axe turns them into failures. Skipped when axe-core does not resolve
-   next to Playwright. */
+   next to Playwright (it is a dev dependency, so after `npm ci` it does). */
 
 module.exports = {
   name: "axe",
@@ -9,7 +9,7 @@ module.exports = {
   description: "axe-core accessibility violations per page × theme (WARN unless --strict-axe)",
   async run(ctx) {
     const { h, report } = ctx;
-    if (!ctx.axeSource) { report.skip("axe-core", "not resolvable from " + require("../lib/pw").from() + " — set BM_PLAYWRIGHT_FROM to a node_modules that has axe-core"); return; }
+    if (!ctx.axeSource) { report.skip("axe-core", "not resolvable from " + require("../lib/pw").from() + " — run `npm ci`"); return; }
     const strict = !!ctx.opts["strict-axe"];
     const byRule = {};
     let pagesRun = 0;
