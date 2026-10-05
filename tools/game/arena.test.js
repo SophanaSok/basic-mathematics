@@ -23,9 +23,14 @@
       it moves the boxes by the usual rule; the result shows the first-try count and rate
       with no target; with nothing left due the lobby says so and names the next check
   11. with nothing due at all (and in Study mode), the tile is off and says when the next is
-  12. XP against farming across a simulated day: a section's 3rd answer pays half, its 5th a
-      quarter, and the result says so plainly; the third finished run pays 1 for finishing;
-      a new day starts the counts again; the counts never reach the synced record */
+  12. XP against farming across a simulated day: the day's first Repair (five answers on one
+      section) pays in full and says nothing of a reduction; a second Repair of that section
+      the same day pays a quarter an answer, and the result says so plainly; the third
+      finished run pays 1 for finishing; a new day starts the counts again; the counts never
+      reach the synced record
+  13. the Arena's own fallback, with no BMGame.recordRun: the boxes move by the one schedule
+      (a clean due showing up one, an early clean one leaves box and date alone, a miss to box
+      0, never to 1) and the XP takes the day's decay from the stored counts */
 "use strict";
 const site = require("../lib/site");
 const target = require("../lib/target");
@@ -532,16 +537,18 @@ async function run() {
         await playOut(p);
         return p.evaluate(() => window.BMArena.state().result);
       };
-      /* five first tries on a section not due (2 each): 2 + 2 + 1 + 1 + 0.5, rounded once */
+      /* the day's first run: five first tries on a section not due (2 each), all in full,
+         since answers in one run never lower each other's rate */
       const r1 = await repair();
-      eq([r1.xp, r1.reduced], [7, ["ch05#parallels"]], "the 3rd answer from one section in a day pays half, the 5th a quarter");
+      eq([r1.xp, r1.reduced, r1.paid.full], [10, [], 10], "the day's first Repair pays in full, five answers on one section and all");
+      check(await p.$("[data-xp-reduced]") === null && !/practised/.test(await p.$eval(".arena-result", (e) => e.textContent)), "and says nothing of a reduction");
+      /* the same section again that day: earlier runs paid 5 of its answers, so a quarter each */
+      const r2 = await repair();
+      eq([r2.xp, r2.reduced, (await runStore(p)).arenaDay.sec["ch05#parallels"]], [3, ["ch05#parallels"], 10], "a second Repair of it the same day pays a quarter an answer, 2.5 rounded once");
       const said = await p.$eval("[data-xp-reduced]", (e) => e.textContent);
-      check(/You've practised this section a lot today; spaced practice tomorrow counts more\./.test(said) && /earned 7 XP instead of 10/.test(said),
+      check(/You've practised this section a lot today; spaced practice tomorrow counts more\./.test(said) && /earned 3 XP instead of 10/.test(said),
         "the result says the XP was reduced, and why: " + said);
       check(!/(lazy|cheat|farm|too much|shame)/i.test(said), "without blame");
-      /* the 6th to 10th: a quarter each */
-      const r2 = await repair();
-      eq([r2.xp, (await runStore(p)).arenaDay.sec["ch05#parallels"]], [3, 10], "the same section later that day pays a quarter an answer");
       /* the third run of a day to earn the finishing bonus pays 1, and says so */
       await p.evaluate(() => { var r = JSON.parse(localStorage.getItem("bm.run.v1")); r.arenaDay.finishes = 2; localStorage.setItem("bm.run.v1", JSON.stringify(r)); });
       await p.goto(url("arena.html"));
@@ -557,9 +564,48 @@ async function run() {
         localStorage.setItem("bm.run.v1", JSON.stringify(r));
       });
       const r4 = await repair();
-      eq([r4.xp, (await runStore(p)).arenaDay], [7, { day: await p.evaluate(() => window.BMSite.dayKey()), sec: { "ch05#parallels": 5 }, finishes: 0 }],
+      eq([r4.xp, (await runStore(p)).arenaDay], [10, { day: await p.evaluate(() => window.BMSite.dayKey()), sec: { "ch05#parallels": 5 }, finishes: 0 }],
         "a new day starts the counts again");
       check(!("arenaDay" in (await game(p))), "the counts are this device's: none of them in the synced game record");
+      await context.close();
+    }
+
+    /* ---------------- 13. the fallback with no game layer: one schedule, the same decay */
+    {
+      const context = await ctx(browser);
+      const p = await open(context, errors, "arena.html", {}, true);
+      /* Parallels in box 1, placed 3 days ago (due today); Angles in box 2, placed 2 days ago
+         (not due until 7 days have passed) */
+      await placeAll(p, (day, back) => ({
+        "ch05#parallels": { n: 1, ok: 1, box: 1, last: back(3) },
+        "ch05#angles": { n: 1, ok: 1, box: 2, last: back(2) }
+      }));
+      const today = await p.evaluate(() => window.BMSite.dayKey());
+      const back2 = await p.evaluate(() => window.BMReview.recall.addDays(window.BMSite.dayKey(), -2));
+      /* a Repair settled by arena.js itself: BMGame.recordRun taken away before the run */
+      const fallbackRepair = async (sec, missAt) => {
+        await p.goto(url("arena.html?repair=" + encodeURIComponent(sec)));
+        await p.evaluate(() => { delete window.BMGame.recordRun; });
+        await p.click('[data-act="start"][data-mode="repair"]');
+        for (let k = 0; k < 5; k++) {
+          await answer(p, k !== missAt);
+          if (k === missAt) await answer(p, true);
+          await next(p);
+        }
+        await p.waitForSelector(".arena-result");
+        return p.evaluate(() => Object.assign({ gone: typeof window.BMGame.recordRun }, window.BMArena.state().result));
+      };
+      const rec = async (id) => { const r = (await game(p)).sec[id]; return [r.box, r.last]; };
+      const f1 = await fallbackRepair("ch05#parallels", -1);
+      eq([f1.gone, f1.xp, f1.reduced], ["undefined", 15, []], "the fallback pays a due section 3 an answer, in full on the day's first run");
+      eq(await rec("ch05#parallels"), [2, today], "a clean, due showing moves the box up one, from 1 to 2, and restarts its clock");
+      const f2 = await fallbackRepair("ch05#parallels", -1);
+      eq([f2.xp, f2.reduced, (await runStore(p)).arenaDay.sec["ch05#parallels"]], [3, ["ch05#parallels"], 10], "the fallback takes the day's decay from the stored counts: a quarter after five");
+      check(/earned 3 XP instead of 10/.test(await p.evaluate(() => (document.querySelector("[data-xp-reduced]") || {}).textContent || "")), "and its result says so");
+      const f3 = await fallbackRepair("ch05#angles", -1);
+      eq([f3.xp, await rec("ch05#angles")], [10, [2, back2]], "an early clean showing leaves the box and its date alone");
+      await fallbackRepair("ch05#angles", 2);
+      eq(await rec("ch05#angles"), [0, today], "a miss sends the section to box 0, not 1, and restarts its clock");
       await context.close();
     }
 

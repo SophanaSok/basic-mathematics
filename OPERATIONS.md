@@ -176,8 +176,11 @@ way round, it has no clue button; either way the card grades as before.
 No SQL and no new synced field: the due review reads the Arena boxes `bm.game.v1.sec` already
 holds, and the two new values (`arenaDay`, the day's Arena XP counts, and `nextHide`, the day the
 next-step card was hidden) live in `bm.run.v1`, which never leaves the device. A sign-out or a
-reset empties that store, so it also starts the day's XP counts again; that is accepted, since
-the most it gives back is one day's full-rate Arena XP.
+reset empties that store, so each one starts the day's XP counts again, as many times as it is
+done, and so does setting the device clock forward to another day. That is accepted: the counts
+only slow XP for practice massed into one day, XP buys nothing and is compared with no one, and
+keeping the counts across a sign-out would charge the next person to sign in on that device
+for the last one's practice.
 
 The deploy moves files between chunks, the case two sections up. The review's modules
 (`src/learn/recall.ts`, `review.ts`, `practice.ts`, `constants.ts`, `src/data/arena-sections.ts`

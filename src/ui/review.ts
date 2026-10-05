@@ -10,13 +10,13 @@
    page gets them. */
 
 import { ARENA_DECAY, ARENA_DECAY_FLOOR, ARENA_FINISH_AFTER, ARENA_FINISH_FULL_PER_DAY, ARENA_FINISH_XP, BOX_DAYS, NEXT_MAX_ITEMS, REVIEW_MAX, REVIEW_PER_SECTION } from "../learn/constants.ts";
-import { addDays, boxOf, byOverdue, dayNumber, dueDate, dueOn, nextDue, overdue, place } from "../learn/recall.ts";
+import { addDays, boxOf, byOverdue, checkDate, checkDue, dayNumber, dueDate, dueOn, isPlaced, nextDue, overdue, place } from "../learn/recall.ts";
 import { dueSplit, interleaved, planReview } from "../learn/review.ts";
 import { arenaDayFor, decay, finishBonus, settleRun, toStore } from "../learn/practice.ts";
 import { ARENA_SECTIONS } from "../data/arena-sections.ts";
 
 export const api = {
-  recall: { dueOn, place, dueDate, overdue, byOverdue, nextDue, boxOf, dayNumber, addDays },
+  recall: { dueOn, place, dueDate, overdue, byOverdue, nextDue, boxOf, dayNumber, addDays, checkDue, checkDate, isPlaced },
   review: { dueSplit, planReview, interleaved },
   practice: { arenaDayFor, toStore, settleRun, decay, finishBonus },
   ARENA_SECTIONS,

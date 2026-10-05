@@ -549,6 +549,23 @@
     });
     return out;
   }
+  /* the day each section was last solved on its page (any exercise or Your turn check), for
+     its first check: a section never placed is due for one a day after that (src/learn/recall.ts
+     checkDue), not straight after it was learned */
+  function seenDays() {
+    var out = {}, all = Attempts ? Attempts.all() : {};
+    Object.keys(all).forEach(function (ch) {
+      var recs = obj(all[ch]);
+      Object.keys(recs).forEach(function (k) {
+        var r = obj(recs[k]), s = r.section, t = num(r.solved);
+        if (!s || s === "warmup" || !(t > 0)) return;
+        var id = s.indexOf("#") > -1 ? s : ch + "#" + s;
+        out[id] = Math.max(out[id] || 0, t);
+      });
+    });
+    Object.keys(out).forEach(function (id) { out[id] = Site.dayKey(new Date(out[id])); });
+    return out;
+  }
   function sectionRows() {
     var map = {}, firsts = scoredFirsts();
     if (Insights) Insights.sections().forEach(function (r) { r.scoredFirst = firsts[r.id] || 0; map[r.id] = r; });
@@ -571,10 +588,11 @@
   function dueOn(sec, day) { return Review.recall.dueOn(obj(sec), day); }
   function isDue(sec) { return dueOn(sec, today()); }
   /* the sections the Arena may draw from: every one that is not new (statusOf), with the
-     struggle score of each, for the "next best step" card (src/ui/next.ts) */
+     struggle score of each, for the "next best step" card (src/ui/next.ts), and the day it was
+     last solved on its page (`seen`), for when it is due for a check */
   function deck(opts) {
     opts = obj(opts);
-    var rows = sectionRows(), g = readGame(), out = [];
+    var rows = sectionRows(), g = readGame(), seen = seenDays(), out = [];
     Object.keys(rows).sort().forEach(function (id) {
       var row = rows[id], sec = obj(g.sec[id]);
       var status = statusOf(row, sec);
@@ -585,7 +603,7 @@
       out.push({
         id: id, status: status, due: isDue(sec), box: num(sec.box), last: sec.last || null,
         label: row.label, title: row.section.title, chapter: row.chapter.id, path: row.path,
-        score: num(row.score)
+        score: num(row.score), seen: seen[id] || null
       });
     });
     return out.sort(function (a, b) {
@@ -611,9 +629,9 @@
      Daily, then pays the run's XP once: 2 per first-try answer (3 if that section was
      due), 1 per answer right on the retry (none on a question without a heart, where a
      wrong answer and "I don't know" lead to the same retry), each worth less the more
-     answers from its section were paid on this device that day (src/learn/practice.ts:
-     the 1st and 2nd in full, the 3rd and 4th at half, then a quarter; summed, then rounded
-     once), 5 for finishing with a heart and at least one answer right for the first two
+     answers from its section earlier runs paid on this device that day (src/learn/practice.ts:
+     in full after none or one, at half after two or three, then a quarter; answers in the
+     same run never lower each other's rate; summed, then rounded once), 5 for finishing with a heart and at least one answer right for the first two
      runs of a day that earn it and 1 after that, and 10 for the day's Daily once it is
      played through, unchanged. The day's counts are bm.run.v1.arenaDay.
      Bests are kept only for ranked (timed, with hearts) runs played to the end; a rematch
@@ -647,7 +665,7 @@
     var right = answers.some(function (a) { return a && (a.first || a.retry); });
     var P = Review.practice, settled = P.settleRun(paid, finished && right && hearts > 0, P.arenaDayFor(readRun().arenaDay, day));
     xp = settled.answers + settled.finish;
-    updateRun(function (r) { r.arenaDay = P.toStore(r.arenaDay, settled.day); });
+    updateRun(function (r) { r.arenaDay = P.toStore(r.arenaDay, settled.day, today()); });
 
     var g = updateGame(function (g) {
       Object.keys(bySec).forEach(function (sid) {

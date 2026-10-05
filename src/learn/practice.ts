@@ -4,9 +4,14 @@
    over days, so the Arena's XP for a section falls the more of it is done on one day, and
    comes back the next. It never falls to nothing: practice is never worthless.
 
-     answers   the k-th XP-paying answer from one section on one local day is worth
-               ARENA_DECAY[k - 1] of its usual XP, then ARENA_DECAY_FLOOR; first-try answers
-               and paid retries alike. A run's answers are summed and rounded once.
+     answers   a section's answers in a run are each worth decay(k) of their usual XP, k being
+               the first count this run adds to that section's paid answers today: answers
+               paid by earlier runs that day set the rate, never answers in the same run. So
+               a learner's first run of the day pays in full however its questions fall (a
+               Repair is five on one section, by design, and a run with only two sections
+               ready puts five on each), and the rate falls only when a section comes back
+               the same day. First-try answers and paid retries alike; a run's answers are
+               summed and rounded once.
      finishing the bonus for finishing a run is paid in full for the first
                ARENA_FINISH_FULL_PER_DAY runs of a day that earn it, ARENA_FINISH_AFTER after.
      the Daily its bonus is not touched (game.js pays it, once a day, as before).
@@ -43,16 +48,21 @@ export function arenaDayFor(stored: unknown, day: string): ArenaDay {
   return { day, sec, finishes: count(s.finishes) };
 }
 
-/** What to keep in the store after settling a run of day `next.day`: that, unless the store
-    already holds a later day's counts (a run dealt yesterday and banked today counts against
-    its own day and leaves today's alone). */
-export function toStore(stored: unknown, next: ArenaDay): ArenaDay {
+/** What to keep in the store after settling a run of day `next.day` on `today`: that,
+    unless the store already holds the counts of a later day that is not after `today` (a run
+    dealt yesterday and banked today counts against its own day and leaves today's alone).
+    Counts stored for a day after `today` can only come from a clock that has since moved
+    back; they are dropped, or no count would be kept until the clock caught up with them.
+    Without `today`, any later day's counts are kept. */
+export function toStore(stored: unknown, next: ArenaDay, today?: string): ArenaDay {
   const s = stored && typeof stored === "object" ? (stored as Record<string, unknown>) : {};
   const was = typeof s.day === "string" ? s.day : "";
-  return was > next.day && dayNumber(was) !== null ? arenaDayFor(stored, was) : next;
+  const ahead = typeof today === "string" && dayNumber(today) !== null && was > today;
+  return was > next.day && dayNumber(was) !== null && !ahead ? arenaDayFor(stored, was) : next;
 }
 
-/** The multiplier for the k-th paid answer (1-based) from one section on one day. */
+/** The multiplier for the k-th paid answer (1-based) from one section on one day, when
+    earlier runs that day have paid k - 1 of them. */
 export function decay(k: number): number {
   const i = Math.max(1, Math.floor(k)) - 1;
   return i < ARENA_DECAY.length ? ARENA_DECAY[i] : ARENA_DECAY_FLOOR;
@@ -77,8 +87,9 @@ export interface Settled {
   full: number;
   /** the finishing bonus paid (0 when the run did not earn one) */
   finish: number;
-  /** the sections whose answers paid less than the full rate, in the order first met;
-      empty when the rounded total is the full one */
+  /** the sections whose answers paid less than the full rate, in the order first met, which
+      can only be because earlier runs that day paid answers from them; empty when the
+      rounded total is the full one */
   reduced: string[];
   /** true when the run earned the finishing bonus and was paid the reduced one */
   finishReduced: boolean;
@@ -87,7 +98,9 @@ export interface Settled {
 }
 
 /** Settle a run's XP against the day's counts. `earned` is true when the run earns the
-    finishing bonus at all (game.js decides: finished, a right answer, a heart left). */
+    finishing bonus at all (game.js decides: finished, a right answer, a heart left). Every
+    answer from a section is paid at the rate the day's earlier runs left that section at,
+    decay(count before this run + 1): answers within one run never lower each other's rate. */
 export function settleRun(paid: readonly PaidAnswer[], earned: boolean, before: ArenaDay): Settled {
   const day: ArenaDay = { day: before.day, sec: Object.assign({}, before.sec), finishes: before.finishes };
   let sum = 0, full = 0;
@@ -96,9 +109,8 @@ export function settleRun(paid: readonly PaidAnswer[], earned: boolean, before: 
     const xp = Number(a.xp);
     if (!(xp > 0)) return;
     const id = String(a.section || "");
-    const k = (day.sec[id] || 0) + 1;
-    day.sec[id] = k;
-    const f = decay(k);
+    const f = decay((before.sec[id] || 0) + 1);
+    day.sec[id] = (day.sec[id] || 0) + 1;
     sum += xp * f;
     full += xp;
     if (f < 1 && reduced.indexOf(id) < 0) reduced.push(id);

@@ -1,7 +1,8 @@
 /* A due review: which sections it asks about, and in what order.
 
-   The Arena's `review` mode (arena.html?mode=review) serves only sections that are due today
-   by the schedule in recall.ts, most overdue first. Every due section gets one question
+   The Arena's `review` mode (arena.html?mode=review) serves only sections that are due for a
+   check today by the schedule in recall.ts (checkDue: a section never placed waits a day
+   after it was last solved on its page), most overdue first. Every due section gets one question
    before any gets a second, so a review spreads over as many due sections as it can; at
    most REVIEW_PER_SECTION questions come from one section and REVIEW_MAX in all. The
    questions go round the sections in turn, so two in a row share a section only when one
@@ -14,7 +15,7 @@
    Pure: no `window`, no DOM. assets/arena.js calls it through window.BMReview. */
 
 import { REVIEW_MAX, REVIEW_PER_SECTION } from "./constants.ts";
-import { byOverdue, type Placed } from "./recall.ts";
+import { byOverdue, checkDue, type Placed } from "./recall.ts";
 
 export interface DueRow extends Placed {
   /** due today (game.js deck(), by recall.ts dueOn) */
@@ -23,10 +24,10 @@ export interface DueRow extends Placed {
   arena: boolean;
 }
 
-/** Today's due sections, most overdue first, split into those the Arena can ask about and
-    those only the chapter page can. */
+/** Today's sections due for a check, most overdue first, split into those the Arena can ask
+    about and those only the chapter page can. */
 export function dueSplit<T extends DueRow>(rows: readonly T[], day: string): { arena: T[]; page: T[] } {
-  const due = byOverdue(rows.filter((r) => r.due), day);
+  const due = byOverdue(rows.filter((r) => r.due && checkDue(r, day)), day);
   return { arena: due.filter((r) => r.arena), page: due.filter((r) => !r.arena) };
 }
 

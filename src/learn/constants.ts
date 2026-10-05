@@ -50,9 +50,11 @@ export const REVIEW_MAX = 10;
 /** Questions from one due section in one review, at most. */
 export const REVIEW_PER_SECTION = 2;
 
-/** The k-th XP-paying Arena answer from one section on one local day is worth
-    ARENA_DECAY[k - 1] of its usual XP, and ARENA_DECAY_FLOOR from then on. Applied to
-    first-try answers and paid retries alike; a run's answers are summed, then rounded once. */
+/** An Arena run's answers from one section, when earlier runs that local day paid k - 1
+    answers from it, are each worth ARENA_DECAY[k - 1] of their usual XP, and
+    ARENA_DECAY_FLOOR from then on. Answers in the same run never lower each other's rate
+    (practice.ts says why). Applied to first-try answers and paid retries alike; a run's
+    answers are summed, then rounded once. */
 export const ARENA_DECAY: readonly number[] = [1, 1, 0.5, 0.5];
 export const ARENA_DECAY_FLOOR = 0.25;
 /** The finishing bonus of a run, and how many finished runs a local day pay it in full;

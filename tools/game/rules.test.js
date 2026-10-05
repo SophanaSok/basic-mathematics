@@ -504,19 +504,37 @@ function world(seedStores) {
   check(!!G.game().ach["took-your-time"], "took-your-time: 10 first-try with 3 after par in a timed run");
 }
 
+/* ------------- the deck carries the day each section was last solved on its page (`seen`) */
+{
+  const noon = new Date(2026, 9, 3, 12).getTime();
+  const w = world({ "bm.attempts.v1": { ch05: {
+    a: { tries: 1, solved: noon - 864e5, first: 1, section: "angles" }, b: { tries: 1, solved: noon, first: 1, section: "angles" },
+    c: { tries: 2, solved: noon - 864e5 * 2, section: "pythagoras" }, d: { tries: 1, inline: 1, solved: noon + 6e5, first: 1, section: "ch05#pythagoras" },
+    e: { tries: 3, section: "angles" }
+  } } });
+  w.win.__rows = [
+    { id: "ch05#angles", solved: 2, score: 0, label: "§5.1", section: { title: "Angles" }, chapter: { id: "ch05" }, path: "x" },
+    { id: "ch05#pythagoras", solved: 2, score: 0.1, label: "§5.4", section: { title: "Pythagoras" }, chapter: { id: "ch05" }, path: "y" }
+  ];
+  eq(w.Game.deck().map((d) => [d.id, d.seen, d.due]), [["ch05#angles", "2026-10-03", true], ["ch05#pythagoras", "2026-10-03", true]],
+    "deck: the latest page solve's day, a Your turn check and a mixed-review id included, an unsolved try not; `due` unchanged");
+}
+
 /* ------------------- Arena XP across a day: less per section the more is done, back tomorrow */
 {
   const w = world();
   const G = w.Game;
   const first = (section, n) => Array.from({ length: n }, () => ({ section, first: true }));
   const day = () => w.read("bm.run.v1").arenaDay;
-  /* A: four first tries on a section never placed (due, so 3 each): 3 + 3 + 1.5 + 1.5 */
+  /* A: the day's first run, four first tries on a section never placed (due, so 3 each):
+     answers in one run never lower each other's rate, so all four in full */
   let r = G.recordRun({ mode: "standard", hearts: 3, score: 400, day: dayKey(), answers: first("ch05#angles", 4) });
-  eq([r.xp, r.parts, r.reduced, r.finishReduced], [9 + 5, { answers: 9, full: 12, finish: 5, daily: 0 }, ["ch05#angles"], false],
-    "the 3rd and 4th answers from one section in a day pay half, the run's finish in full");
+  eq([r.xp, r.parts, r.reduced, r.finishReduced], [12 + 5, { answers: 12, full: 12, finish: 5, daily: 0 }, [], false],
+    "the day's first run pays in full, however many of its answers share a section");
   eq(G.game().sec["ch05#angles"].box, 1, "the decay leaves the boxes to the usual rule: a clean, due showing moves up one");
-  /* B: angles (placed today, not due: 2 each) is on its 5th and 6th, a quarter each; a new
-     section starts the table again; the second finish of the day is still in full */
+  /* B: angles (placed today, not due: 2 each) had 4 answers paid earlier today, so this
+     run's are paid as its 5th, a quarter each; a new section starts the table again; the
+     second finish of the day is still in full */
   r = G.recordRun({ mode: "standard", hearts: 3, score: 300, day: dayKey(), answers: first("ch05#angles", 2).concat(first("ch05#parallels", 1)) });
   eq([r.xp, r.parts.answers, r.parts.full, r.reduced], [1 + 3 + 5, 4, 7, ["ch05#angles"]], "past the 4th, a quarter; another section pays in full; summed and rounded once");
   /* C: a banked run earns no finish and does not count as one; a paid retry decays like a first try */
@@ -533,15 +551,23 @@ function world(seedStores) {
   /* the Daily's 10 is not reduced, whatever the day holds */
   r = G.recordRun({ mode: "daily", hearts: 3, score: 100, day: dayKey(), answers: first("ch05#angles", 1) });
   eq([r.parts.daily, r.parts.answers, r.parts.finish], [10, 1, 1], "the Daily bonus is paid in full beside a decayed answer and finish");
-  eq(w.read("bm.activity.v1").days[dayKey()], 14 + 9 + 1 + 2 + 4 + 12, "what was paid is what reached the day's XP");
-  /* a new local day starts the counts again */
-  const tomorrow = daysAgo(-1);
+  eq(w.read("bm.activity.v1").days[dayKey()], 17 + 9 + 1 + 2 + 4 + 12, "what was paid is what reached the day's XP");
+  /* a new local day starts the counts again: the clock moves on to tomorrow */
+  const tomorrow = daysAgo(-1), today = dayKey();
+  w.win.BMSite.dayKey = (d) => (d ? dayKey(d) : tomorrow);
   r = G.recordRun({ mode: "standard", hearts: 3, score: 100, day: tomorrow, answers: first("ch05#angles", 2) });
   eq([r.xp, r.reduced, day()], [2 + 2 + 5, [], { day: tomorrow, sec: { "ch05#angles": 2 }, finishes: 1 }], "the next day pays in full again, from fresh counts");
   /* a run dealt on an earlier day and settled later counts against its own day, and leaves
      the later day's counts as they were */
-  G.recordRun({ mode: "standard", hearts: 3, score: 100, day: dayKey(), answers: first("ch05#parallels", 1) });
+  G.recordRun({ mode: "standard", hearts: 3, score: 100, day: today, answers: first("ch05#parallels", 1) });
   eq(day(), { day: tomorrow, sec: { "ch05#angles": 2 }, finishes: 1 }, "an older run does not overwrite a later day's counts");
+  /* the clock set back to today: tomorrow's counts can only be a wrong clock's, so they are
+     dropped and today's are kept from here on, and the day's decay still applies */
+  w.win.BMSite.dayKey = dayKey;
+  r = G.recordRun({ mode: "standard", hearts: 3, score: 100, day: today, answers: first("ch05#parallels", 2) });
+  eq([r.parts.answers, day()], [4, { day: today, sec: { "ch05#parallels": 2 }, finishes: 1 }], "a clock moved back keeps that day's counts, not a later day's");
+  r = G.recordRun({ mode: "standard", hearts: 3, score: 100, day: today, answers: first("ch05#parallels", 2) });
+  eq([r.parts.answers, r.reduced, day().sec], [2, ["ch05#parallels"], { "ch05#parallels": 4 }], "so a second run on the same section that day pays less");
   /* damaged counts are read as none */
   const w2 = world({ "bm.run.v1": { arenaDay: { day: dayKey(), sec: { "ch05#angles": "x", "ch05#parallels": -3 }, finishes: "lots" } } });
   r = w2.Game.recordRun({ mode: "standard", hearts: 3, score: 100, day: dayKey(), answers: first("ch05#angles", 1).concat(first("ch05#parallels", 1)) });

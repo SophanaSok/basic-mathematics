@@ -3,9 +3,13 @@
    each chapter (src/ui/next.ts draws it); it pays no XP of its own.
 
    In this order, each at most once:
-     1  due reviews     the sections due for a check today (recall.ts), linked to the
-                        Arena's due review when it can ask about any of them, otherwise
-                        to the most overdue one's page
+     1  due reviews     the sections the Arena can ask about that are due for a check
+                        today (recall.ts checkDue: one never placed waits a day after it
+                        was last solved on its page), linked to the Arena's due review.
+                        A due section the Arena has no problems for is left out: nothing
+                        on its page can mark it checked (an exercise is solved once, and
+                        no self-report counts), so as an item it could never be done. The
+                        due review's own lobby still lists it, as "due, on the page".
      2  a weak section  the one the struggle score marks weakest (game.js deck(): status
                         "shaky"), linked to a Repair run, or to its page where the Arena has
                         no problems for it
@@ -26,6 +30,8 @@ export interface DeckRow {
   last?: unknown;
   /** the struggle score (BMInsights), higher is weaker */
   score?: number;
+  /** the day the section was last solved on its page (YYYY-MM-DD), or null */
+  seen?: unknown;
 }
 
 export interface SectionRef {
@@ -85,29 +91,15 @@ function name(s: SectionRef): string {
 function dueItem(input: NextInput): NextItem | null {
   const arena = new Set(input.arena);
   const rows = input.deck
-    .filter((r) => !!input.sections[r.id])
-    .map((r) => ({ id: r.id, due: !!r.due, box: r.box, last: r.last, arena: arena.has(r.id), index: input.sections[r.id].index }));
-  const split = dueSplit(rows, input.day);
-  const total = split.arena.length + split.page.length;
-  if (!total) return null;
-  const why = "A short check after a gap helps a section stick.";
-  if (split.arena.length) {
-    return {
-      kind: "due",
-      text: total === 1 ? "1 section due for a check" : total + " sections due for a check",
-      why: why + (split.page.length
-        ? " The due review asks about " + (split.arena.length === 1 ? "one" : split.arena.length) + " in the Arena, with no hearts, and links to the " +
-          (split.page.length === 1 ? "one" : split.page.length) + " the Arena cannot ask about."
-        : " The due review asks at most two questions on each, with no hearts."),
-      href: REVIEW_HREF
-    };
-  }
-  const first = input.sections[split.page[0].id];
+    .filter((r) => !!input.sections[r.id] && arena.has(r.id))
+    .map((r) => ({ id: r.id, due: !!r.due, box: r.box, last: r.last, seen: r.seen, arena: true, index: input.sections[r.id].index }));
+  const n = dueSplit(rows, input.day).arena.length;
+  if (!n) return null;
   return {
     kind: "due",
-    text: total === 1 ? name(first) + " is due for a check" : total + " sections due for a check, starting with " + name(first),
-    why: why + " The Arena has no problems for " + (total === 1 ? "this one" : "these") + " yet, so the check is on the page: its examples and exercises.",
-    href: first.path
+    text: n === 1 ? "1 section due for a check" : n + " sections due for a check",
+    why: "A short check after a gap helps a section stick. The due review asks at most two questions on " + (n === 1 ? "it" : "each") + ", with no hearts.",
+    href: REVIEW_HREF
   };
 }
 

@@ -11,6 +11,13 @@
               box only once it is due, and an early one leaves box and clock alone, so daily
               cramming does not fake spacing
 
+   What a due review and the "next best step" card count as due for a check (checkDue) is
+   that rule, but for a section never placed in the Arena: it is ready for its first check
+   BOX_DAYS[0] days after it was last solved on its page (`seen`, a day key from the attempt
+   log), not at once, since a check straight after learning is massed practice, not spaced.
+   With no page solve to go by, it is ready at once, as before. The rule above (the deck's
+   `due`, the XP for a due answer, where a showing places a box) is unchanged.
+
    Days are local day keys, compared as calendar days (UTC arithmetic on the key itself, so a
    daylight-saving change never makes a day 23 or 25 hours long). Nothing here writes to
    `window` or touches the DOM. */
@@ -22,6 +29,8 @@ import { BOX_DAYS } from "./constants.ts";
 export interface Recall {
   box?: unknown;
   last?: unknown;
+  /** the day the section was last solved on its page; read by checkDue and checkDate only */
+  seen?: unknown;
 }
 
 const DAY = /^(\d{4})-(\d{2})-(\d{2})$/;
@@ -75,6 +84,29 @@ export function overdue(sec: unknown, day: string): number | null {
   return now - last - BOX_DAYS[boxOf(sec)];
 }
 
+/** Whether the section has a place in the schedule: a day it was last placed. */
+export function isPlaced(sec: unknown): boolean {
+  return dayNumber(rec(sec).last) !== null;
+}
+
+/** Due for a check on `day`, as a due review and the next-step card count it: due (dueOn),
+    and for a section never placed, at least BOX_DAYS[0] days since it was last solved on its
+    page (`seen`), when that is known. */
+export function checkDue(sec: unknown, day: string): boolean {
+  if (!dueOn(sec, day)) return false;
+  if (isPlaced(sec)) return true;
+  const seen = dayNumber(rec(sec).seen), now = dayNumber(day);
+  return seen === null || now === null || now - seen >= BOX_DAYS[0];
+}
+
+/** The day a section comes due for a check: dueDate for one placed, BOX_DAYS[0] days after
+    its last page solve for one never placed, null when neither is known. */
+export function checkDate(sec: unknown): string | null {
+  if (isPlaced(sec)) return dueDate(sec);
+  const seen = rec(sec).seen;
+  return dayNumber(seen) === null ? null : addDays(String(seen), BOX_DAYS[0]);
+}
+
 /** Where an Arena showing on `day` leaves a section: `missed` is true when any answer on it
     was not right first time. `last` is unchanged (and may be absent) when the box is. */
 export function place(sec: unknown, missed: boolean, day: string): { box: number; last: unknown } {
@@ -89,6 +121,7 @@ export interface Placed {
   id: string;
   box?: unknown;
   last?: unknown;
+  seen?: unknown;
   /** reading order in the course, for ties; the id breaks any that remain */
   index?: number;
 }
@@ -107,13 +140,13 @@ export function byOverdue<T extends Placed>(rows: readonly T[], day: string): T[
   });
 }
 
-/** Of the sections not due on `day`, the one that comes due first, and when; null when
-    every section is due or none has been placed. */
+/** Of the sections not due for a check on `day` (checkDue), the one that comes due first,
+    and when; null when every section is due or none has a date to come due on. */
 export function nextDue<T extends Placed>(rows: readonly T[], day: string): { id: string; day: string } | null {
   let best: { id: string; day: string } | null = null;
   for (const r of rows) {
-    if (dueOn(r, day)) continue;
-    const d = dueDate(r);
+    if (checkDue(r, day)) continue;
+    const d = checkDate(r);
     if (d && (!best || d < best.day || (d === best.day && r.id < best.id))) best = { id: r.id, day: d };
   }
   return best;

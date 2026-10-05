@@ -167,7 +167,8 @@
   /* ------------------------------------------------------------ the deck -- */
 
   /* sections with at least one solved exercise, from the attempt log: how many are
-     solved there, and how many of those are scored ones right first time */
+     solved there, how many of those are scored ones right first time, and when the last
+     was solved (`at`) */
   function solvedSections() {
     var out = {};
     var all = window.BMAttempts ? window.BMAttempts.all() : Store.read(Store.keys.attempts, {}) || {};
@@ -178,9 +179,10 @@
         if (!rec || !rec.solved || !sec || sec === "warmup") return;
         var id = sec.indexOf("#") > -1 ? sec : chId + "#" + sec;
         if (!SECTIONS[id]) return;
-        var s = out[id] = out[id] || { n: 0, first: 0 };
+        var s = out[id] = out[id] || { n: 0, first: 0, at: 0 };
         s.n++;
         if (rec.first && !rec.inline) s.first++;
+        if (+rec.solved > s.at) s.at = +rec.solved;
       });
     });
     return out;
@@ -195,12 +197,13 @@
     return !!(rec && rec.n >= 1);
   }
 
-  /* id -> { id, status: "solid"|"shaky"|"new", due, box, last } for every section the deck knows */
+  /* id -> { id, status: "solid"|"shaky"|"new", due, box, last, seen } for every section the
+     deck knows; `seen` is the day it was last solved on its page */
   function deck() {
     var out = {}, list = gameCall("deck", {});
     if (list && list.length !== undefined) {
       Array.prototype.forEach.call(list, function (d) {
-        if (d && SECTIONS[d.id]) out[d.id] = { id: d.id, status: d.status === "solid" || d.status === "shaky" ? d.status : "new", due: !!d.due, box: d.box, last: d.last };
+        if (d && SECTIONS[d.id]) out[d.id] = { id: d.id, status: d.status === "solid" || d.status === "shaky" ? d.status : "new", due: !!d.due, box: d.box, last: d.last, seen: d.seen || null };
       });
       return out;
     }
@@ -213,24 +216,26 @@
     Object.keys(solved).forEach(function (id) {
       var shaky = scores[id] !== undefined && scores[id] >= WEAK, rec = (gameStore().sec || {})[id];
       if (!shaky && solved[id].n < 2 && !solved[id].first && !(rec && rec.ok > 0)) return;
-      out[id] = { id: id, status: shaky ? "shaky" : "solid", due: isDue(id), box: secRec(id).box, last: secRec(id).last || null };
+      out[id] = { id: id, status: shaky ? "shaky" : "solid", due: isDue(id), box: secRec(id).box, last: secRec(id).last || null,
+        seen: solved[id].at > 0 ? Site.dayKey(new Date(solved[id].at)) : null };
     });
     return out;
   }
   function statusOf(d, id) { return d[id] ? d[id].status : "new"; }
 
-  /* today's due sections of the deck, most overdue first: { arena, page }, those the Arena
-     can ask about (a due review asks about nothing else) and those only their page can */
+  /* today's sections due for a check, most overdue first: { arena, page }, those the Arena
+     can ask about (a due review asks about nothing else) and those only their page can; a
+     section never placed waits a day after it was last solved on its page (recall.ts checkDue) */
   function dueToday(d) {
     var rows = Object.keys(d).map(function (id) {
       var x = d[id];
-      return { id: id, due: !!x.due, box: x.box, last: x.last, arena: hasGen(id), index: SECTIONS[id].order };
+      return { id: id, due: !!x.due, box: x.box, last: x.last, seen: x.seen, arena: hasGen(id), index: SECTIONS[id].order };
     });
     return Review.review.dueSplit(rows, today());
   }
   /* the first section of the deck the Arena can ask about to come due, when none is today */
   function nextDueOf(d) {
-    var rows = Object.keys(d).filter(hasGen).map(function (id) { return { id: id, box: d[id].box, last: d[id].last }; });
+    var rows = Object.keys(d).filter(hasGen).map(function (id) { return { id: id, box: d[id].box, last: d[id].last, seen: d[id].seen }; });
     return Review.recall.nextDue(rows, today());
   }
   /* a day key as words: "tomorrow", or "Thursday 8 October" */
@@ -771,7 +776,7 @@
     });
     var parts = res.xpParts || { finish: 0, daily: 0 };
     var s = P.settleRun(paid, parts.finish > 0, P.arenaDayFor(all.arenaDay, res.day));
-    all.arenaDay = P.toStore(all.arenaDay, s.day);
+    all.arenaDay = P.toStore(all.arenaDay, s.day, today());
     Store.write(RUN_KEY, all, true);
     res.xp = s.answers + s.finish + parts.daily;
     res.paid = { answers: s.answers, full: s.full, finish: s.finish, daily: parts.daily };
@@ -929,15 +934,18 @@
     if (late === null) return "not checked in the Arena yet";
     return late <= 0 ? "due today" : plural(late, "day") + " overdue";
   }
-  /* "Nothing is due …" with the day the next section comes due, when one will */
+  /* "Nothing is due …" with the day the next section comes due, when one will; with no
+     date to give, why: nothing solved yet, or nothing solved the Arena has problems for */
   function nothingDueHtml(d, onPage) {
     var nd = nextDueOf(d);
     var html = onPage ? "Nothing the Arena can ask about is due for a check today." : "Nothing is due for a check today.";
     if (nd) {
       html += " The next is " + esc(secName(nd.id)) + ', due <time datetime="' + esc(nd.day) + '">' +
         (dayWords(nd.day) === "tomorrow" ? "tomorrow" : "on " + esc(dayWords(nd.day))) + "</time>.";
-    } else if (!Object.keys(d).some(hasGen)) {
+    } else if (!Object.keys(d).length) {
       html += " A section joins your reviews once you have solved it on its chapter page.";
+    } else if (!Object.keys(d).some(hasGen)) {
+      html += " The Arena has no problems yet for the sections you have solved, so it has none of them to check.";
     }
     return html;
   }
@@ -967,7 +975,7 @@
       var one = due.page.length === 1;
       html += "<h3>Due, on the page</h3>" +
         '<p class="arena-fine">The Arena has no problems for ' + (one ? "this section" : "these sections") + " yet, so the check is on " + (one ? "its page" : "their pages") +
-        ": reread the section and work its examples again.</p>" +
+        ": reread the section and work its examples again. Only an answer in the Arena moves a check along, so " + (one ? "it stays" : "they stay") + " listed here.</p>" +
         '<ul class="review-page">' + due.page.map(function (r) {
           var info = secInfo(r.id);
           return '<li data-section="' + esc(r.id) + '"><a href="' + esc(root() + info.path) + '">' + esc(secName(r.id)) + '</a> <span class="arena-chip" data-status="due">due, on the page</span></li>';
@@ -1014,7 +1022,8 @@
             rows += '<label class="arena-pick"><input type="checkbox" data-pick="' + esc(id) + '"' + (pk[id] ? " checked" : "") + "> Practise, untimed</label>";
           } else {
             rows += '<span class="arena-chip" data-status="' + st + '">' + (st === "solid" ? "Solid" : "Shaky") + "</span>";
-            if (d[id] && d[id].due) rows += '<span class="arena-chip" data-status="due">Due</span>';
+            /* due for a check, as the due review counts it (a section never placed waits a day after its page solve) */
+            if (d[id] && d[id].due && Review.recall.checkDue(d[id], today())) rows += '<span class="arena-chip" data-status="due">Due</span>';
             if (st === "shaky") rows += '<a class="arena-repair" href="arena.html?repair=' + encodeURIComponent(id) + '">Repair</a>';
           }
           rows += "</span></li>";

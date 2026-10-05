@@ -833,6 +833,48 @@ async function run() {
       eq([c1 && c1.edge, c3 && c3.edge], [false, true], "Study mode keeps the card, with the game's thick coloured edge taken off");
       eq(c.errors, [], "no errors with the card in Study mode");
       await c.context.close();
+      /* 4. just learned: §1.2 (the Arena has problems for it) solved on its page a minute ago,
+         §1.1 (it has none) three days ago, neither ever placed in the Arena. Nothing is due for
+         a check yet: not §1.2, whose first check waits a day after its page solve, and not
+         §1.1, which nothing could ever mark checked. The first item is Continue. */
+      const now = Date.now(), ago3 = now - 864e5 * 3;
+      const learned = {
+        "bm.attempts.v1": JSON.stringify({ ch01: {
+          a1: { tries: 1, first: 1, solved: now - 60000, section: "addition" }, a2: { tries: 1, first: 1, solved: now - 30000, section: "addition" },
+          i1: { tries: 1, first: 1, solved: ago3, section: "integers" }, i2: { tries: 1, first: 1, solved: ago3 + 1, section: "integers" } } }),
+        "bm.last": JSON.stringify({ id: "ch01", section: "addition" })
+      };
+      const e = await open(browser, "index.html", learned);
+      const c4 = await card(e.page);
+      eq([c4 && c4.kinds, c4 && c4.first], [["continue"], "Continue: Chapter 1 · Rules for addition"], "just learned: no section is called due straight after it was learned, nor one nothing can mark checked");
+      await e.page.goto(url("arena.html?mode=review"));
+      await e.page.waitForFunction(() => document.readyState === "complete");
+      const lobby4 = await e.page.evaluate(() => ({
+        none: (document.querySelector(".review-none") || {}).textContent || "",
+        page: Array.from(document.querySelectorAll(".review-page li")).map((li) => li.getAttribute("data-section"))
+      }));
+      check(/^Nothing the Arena can ask about is due for a check today\. The next is §1\.2 Rules for addition, due tomorrow\.$/.test(lobby4.none),
+        "the review lobby names tomorrow for §1.2's first check: " + lobby4.none);
+      eq(lobby4.page, ["ch01#integers"], "and lists §1.1 as due on its page, three days after it was solved");
+      await e.page.goto(url("arena.html"));
+      await e.page.waitForFunction(() => document.readyState === "complete");
+      const chip4 = await e.page.evaluate(() => {
+        var li = Array.from(document.querySelectorAll(".arena-sec")).find((x) => /#addition$/.test(x.querySelector("a").getAttribute("href")));
+        return li ? [li.getAttribute("data-status"), !!li.querySelector('.arena-chip[data-status="due"]')] : null;
+      });
+      eq(chip4, ["solid", false], "the Arena's deck list does not mark §1.2 Due either: the lobby tells one story");
+      eq(e.errors, [], "no errors just after learning");
+      await e.context.close();
+
+      /* 5. only sections the Arena has no problems for: the lobby does not tell the reader to
+         solve a section first, which they have done */
+      const f = await open(browser, "arena.html?mode=review", { "bm.attempts.v1": JSON.stringify({ ch01: {
+        i1: { tries: 1, first: 1, solved: ago3, section: "integers" }, i2: { tries: 1, first: 1, solved: ago3 + 1, section: "integers" } } }) });
+      const none5 = await f.page.$eval(".review-none", (x) => x.textContent);
+      check(/The Arena has no problems yet for the sections you have solved/.test(none5) && !/once you have solved it/.test(none5),
+        "with only such sections solved, the lobby says the Arena has no problems for them: " + none5);
+      eq(f.errors, [], "no errors on that lobby");
+      await f.context.close();
     }
   } finally {
     await browser.close();

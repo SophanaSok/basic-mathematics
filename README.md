@@ -132,18 +132,21 @@ same controls and the same answers.
 ### XP, streaks, and what to review
 
 Correct answers and missions earn XP — most when right first time, less after a miss, least once
-the solution has been opened. In the Arena, XP from one section falls the more you practise it in a
-day (the first two answers that pay count in full, the next two half, then a quarter), and the
-finishing bonus is paid in full for two runs a day, then 1; the next day it is all back, because
-spacing practice out teaches more than piling it up. The result says when that happened and why. A clue never costs anything, and no help pays more than working it
+the solution has been opened. In the Arena, XP from one section falls the more you come back to it
+in a day (after earlier runs have paid two answers from it, its answers count half; after four, a
+quarter), and the finishing bonus is paid in full for two runs a day, then 1. Your first run of a
+day pays in full however its questions fall, a Repair's five on one section included, and the next
+day it is all back, because spacing practice out teaches more than piling it up. The result says when that happened and why. A clue never costs anything, and no help pays more than working it
 out: the first clue changes nothing, an answer right first time after the second or third clue earns
 what an answer right after a miss does, and an answer given with the solution open earns less. The
 header shows your level, today's XP against a daily goal, and your streak of active days.
 
 The contents page and the top of each chapter show **your next steps**: up to three, each with
-the reason for it. First the sections due for a check (linking to the Arena's due review, or to the
-section's page when the Arena cannot ask about it), then the section your answers found hardest
-(linking to a Repair run), then where you left off. It pays no XP, stays in calm mode, and
+the reason for it. First the sections due for a check that the Arena can ask about (linking to its
+due review; a section is first due a day after you last solved something there, not straight
+away), then the section your answers found hardest (linking to a Repair run), then where you left
+off. Sections the Arena has no problems for are not on the card, since nothing could mark them
+checked; the due review lists them. It pays no XP, stays in calm mode, and
 "Hide for today" puts it away until tomorrow.
 
 The **[progress page](https://sophanasok.github.io/basic-mathematics/progress.html)** turns the
@@ -174,7 +177,9 @@ going well. A short version appears above each chapter's recap.
   ([arena.html?mode=review](https://sophanasok.github.io/basic-mathematics/arena.html?mode=review)),
   which asks only about the sections due for a check today, most overdue first, at most two
   questions from each and ten in all, with no hearts; the clock follows your tempo. A section
-  the Arena has no problems for is listed there as due on its page, with a link to it. The
+  you have not met in the Arena yet is first due a day after you last solved something in it on
+  its page. A section the Arena has no problems for is listed there as due on its page, with a
+  link to it. The
   result shows how many answers were right first time, and what share, as information only:
   there is no score to aim for.
 - **Levels and achievements** come from XP. The achievements reward study habits — right first
@@ -700,20 +705,27 @@ The files:
   (`src/ui/review.ts`, which every entry imports ahead of `game.js`).
 - `recordRun` pays a run's XP once: 2 per first-try answer (3 when the section was due), 1 per
   paid retry, each multiplied by `ARENA_DECAY` (1, 1, ½, ½, then ¼) by how many answers from its
-  section have been paid on this device that local day, summed and rounded once per run; 5 for
+  section earlier runs paid on this device that local day (answers in one run never lower each
+  other's rate, so a day's first run, a Repair included, pays in full), summed and rounded once
+  per run; 5 for
   finishing for the first `ARENA_FINISH_FULL_PER_DAY` (2) runs of a day that earn it, then 1;
   the Daily's 10 as before (`src/learn/practice.ts`, the values in `src/learn/constants.ts`,
-  engineering judgement). The counts are `bm.run.v1.arenaDay`, device-only, fresh each day.
+  engineering judgement). The counts are `bm.run.v1.arenaDay`, device-only, fresh each day;
+  counts stored for a day after today (a clock set back) are dropped rather than kept.
   It returns what was paid (`parts`) and which sections paid less (`reduced`), which the result
   screen states plainly.
-- The Arena's `review` mode (`arena.html?mode=review`) serves only sections due today, from the
-  deck, most overdue first (sections never placed after those that have a date), at most
+- The Arena's `review` mode (`arena.html?mode=review`) serves only sections due for a check today,
+  from the deck, most overdue first (sections never placed after those that have a date), at most
   `REVIEW_PER_SECTION` (2) questions a section and `REVIEW_MAX` (10) in all, one per section
   before any gets a second, taking turns (`src/learn/review.ts`); every question heart-free, the
   clock as the tempo says. Due sections without a generator (`src/data/arena-sections.ts` lists
   those with one) are listed as "due, on the page", linked to the section; nothing but an
-  answer moves a box.
-- `src/ui/next.ts` draws the next-step card from `src/learn/next.ts`: due reviews, then the
+  answer moves a box. "Due for a check" (`checkDue` in `src/learn/recall.ts`) is the deck's
+  `due`, except that a section never placed waits `BOX_DAYS[0]` (1) day after it was last solved
+  on its page (`deck()` rows carry that day as `seen`), so a review is never massed onto what
+  was just learned; the deck's `due`, the 3 XP for a due answer and the box rules are unchanged.
+- `src/ui/next.ts` draws the next-step card from `src/learn/next.ts`: due reviews (only sections
+  the Arena can ask about, since nothing on a page can mark a section checked), then the
   weakest section (`deck()` status `shaky`, by struggle score), then where to continue
   (`bm.last`); at most three, each with its reason, no XP. It goes under the Continue button on
   the contents page and into the region banner of a chapter (never a new child of `<main>`), and

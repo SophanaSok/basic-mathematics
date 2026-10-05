@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { BOX_DAYS } from "./constants.ts";
-import { addDays, boxOf, byOverdue, dayNumber, dueDate, dueOn, nextDue, overdue, place } from "./recall.ts";
+import { addDays, boxOf, byOverdue, checkDate, checkDue, dayNumber, dueDate, dueOn, isPlaced, nextDue, overdue, place } from "./recall.ts";
 
 const D = "2026-10-05";
 
@@ -27,6 +27,17 @@ describe("the review schedule", () => {
     expect(dueOn({}, D)).toBe(true);
     expect(dueOn(undefined, D)).toBe(true);
     expect(dueOn({ box: 2, last: "garbage" }, D)).toBe(true);
+  });
+
+  it("counts a section never placed as due for a check a day after it was last solved on its page", () => {
+    /* solved on the page today: due by the schedule, but not for a check until tomorrow */
+    expect([dueOn({ seen: D }, D), checkDue({ seen: D }, D), checkDate({ seen: D })]).toEqual([true, false, "2026-10-06"]);
+    expect([checkDue({ seen: addDays(D, -1) }, D), checkDue({ box: 0, seen: addDays(D, -9) }, D)]).toEqual([true, true]);
+    /* no page solve to go by, or one that cannot be read: at once, as before */
+    expect([checkDue({}, D), checkDue({ seen: "garbage" }, D), checkDate({}), checkDate({ seen: "x" })]).toEqual([true, true, null, null]);
+    /* once placed, `seen` is not read: the box's schedule alone */
+    expect([checkDue({ box: 0, last: addDays(D, -1), seen: D }, D), checkDue({ box: 1, last: addDays(D, -1), seen: addDays(D, -9) }, D)]).toEqual([true, false]);
+    expect([checkDate({ box: 1, last: D, seen: "2026-01-01" }), isPlaced({ last: D }), isPlaced({ last: "x" }), isPlaced(null)]).toEqual(["2026-10-08", true, false, false]);
   });
 
   it("reads a damaged box as the nearest one there is", () => {
@@ -71,5 +82,7 @@ describe("the review schedule", () => {
     ];
     expect(nextDue(rows, D)).toEqual({ id: "y", day: "2026-10-06" });
     expect(nextDue([{ id: "n" }], D)).toBeNull();
+    /* a section solved on its page today and never placed comes due for its first check tomorrow */
+    expect(nextDue([{ id: "x", box: 2, last: D }, { id: "s", seen: D }], D)).toEqual({ id: "s", day: "2026-10-06" });
   });
 });

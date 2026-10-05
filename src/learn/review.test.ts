@@ -21,6 +21,19 @@ describe("a due review's plan", () => {
     expect(dueSplit(rows.map((r) => ({ ...r, due: false })), D)).toEqual({ arena: [], page: [] });
   });
 
+  it("leaves out a section never placed until a day after it was last solved on its page", () => {
+    const rows = [
+      { id: "today", due: true, seen: D, arena: true, index: 0 },
+      { id: "yesterday", due: true, seen: addDays(D, -1), arena: true, index: 1 },
+      { id: "pageToday", due: true, seen: D, arena: false, index: 2 },
+      { id: "pageEarlier", due: true, seen: addDays(D, -5), arena: false, index: 3 },
+      { id: "placed", due: true, box: 0, last: addDays(D, -1), seen: D, arena: true, index: 4 }
+    ];
+    const split = dueSplit(rows, D);
+    expect(split.arena.map((r) => r.id)).toEqual(["placed", "yesterday"]);
+    expect(split.page.map((r) => r.id)).toEqual(["pageEarlier"]);
+  });
+
   it("asks at most two questions a section and ten in all", () => {
     expect([REVIEW_MAX, REVIEW_PER_SECTION]).toEqual([10, 2]);
     for (let n = 0; n <= 14; n++) {

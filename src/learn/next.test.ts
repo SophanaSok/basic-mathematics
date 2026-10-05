@@ -31,12 +31,32 @@ describe("the next best step", () => {
     expect(items[0].why.length).toBeGreaterThan(10);
   });
 
-  it("counts due sections the Arena cannot ask about, and links to the page when they are all there is", () => {
-    const one = nextSteps(state([{ id: "ch01#integers", status: "solid", due: true, box: 0, last: null }]));
-    expect(one[0]).toMatchObject({ kind: "due", text: "§1.1 The integers is due for a check", href: "parts/1/01.html#integers" });
-    const mixed = nextSteps(state([{ id: "ch01#integers", status: "solid", due: true, box: 0, last: null }, placed("ch02#one", 0, 2)]));
-    expect(mixed[0]).toMatchObject({ kind: "due", text: "2 sections due for a check", href: "arena.html?mode=review" });
-    expect(mixed[0].why).toMatch(/cannot ask about/);
+  it("says one section plainly, and why the due review is short", () => {
+    const one = nextSteps(state([placed("ch02#one", 1, 3)]));
+    expect(one[0]).toMatchObject({ kind: "due", text: "1 section due for a check", href: "arena.html?mode=review" });
+    expect(one[0].why).toBe("A short check after a gap helps a section stick. The due review asks at most two questions on it, with no hearts.");
+    expect(nextSteps(state([placed("ch02#one", 1, 3), placed("ch02#two", 0, 1)]))[0].why).toMatch(/two questions on each,/);
+  });
+
+  it("leaves out due sections the Arena cannot ask about: nothing on their page can mark them checked", () => {
+    const noGen = { id: "ch01#integers", status: "solid", due: true, box: 0, last: null, seen: addDays(D, -3) };
+    expect(nextSteps(state([noGen]))).toEqual([]);
+    /* beside one the Arena can ask about, only that one is counted */
+    expect(nextSteps(state([noGen, placed("ch02#one", 0, 2)]))[0]).toMatchObject({ kind: "due", text: "1 section due for a check", href: "arena.html?mode=review" });
+    /* and with a place to continue, the card offers only what can be done */
+    const items = nextSteps(state([noGen, { id: "ch99#gone", status: "solid", due: true }], { last: { id: "ch01", section: "addition" } }));
+    expect(items.map((i) => i.kind)).toEqual(["continue"]);
+  });
+
+  it("does not call a section just learned due: its first check waits a day after its last page solve", () => {
+    const solvedToday = { id: "ch01#addition", status: "solid", due: true, box: 0, last: null, seen: D };
+    const items = nextSteps(state([solvedToday], { last: { id: "ch01", section: "addition" } }));
+    expect(items.map((i) => i.kind)).toEqual(["continue"]);
+    /* the next day it is, and the reason (a gap) is true */
+    const tomorrow = nextSteps(state([solvedToday], { day: addDays(D, 1)!, last: { id: "ch01", section: "addition" } }));
+    expect(tomorrow[0]).toMatchObject({ kind: "due", text: "1 section due for a check" });
+    /* with no page solve to go by, as the schedule has always had it: at once */
+    expect(nextSteps(state([{ ...solvedToday, seen: null }]))[0].kind).toBe("due");
   });
 
   it("then the weakest section, to a Repair run, or to its page without a generator", () => {
@@ -45,6 +65,9 @@ describe("the next best step", () => {
     expect(items[0]).toMatchObject({ kind: "weak", text: "Repair §2.1 One unknown", href: "arena.html?repair=ch02%23one" });
     const page = nextSteps(state([placed("ch01#integers", 1, 0, { status: "shaky", score: 0.5 })]));
     expect(page[0]).toMatchObject({ kind: "weak", text: "Reread §1.1 The integers", href: "parts/1/01.html#integers" });
+    /* a tie goes to the section met first in the course; a row with no score counts as 0 */
+    const tie = nextSteps(state([placed("ch02#two", 1, 0, { status: "shaky", score: 0.5 }), placed("ch02#one", 1, 0, { status: "shaky", score: 0.5 }), placed("ch01#addition", 1, 0, { status: "shaky" })]));
+    expect(tie[0].text).toBe("Repair §2.1 One unknown");
   });
 
   it("then where the reader left off, as the Continue button has it", () => {
@@ -64,6 +87,11 @@ describe("the next best step", () => {
     expect(nextSteps(state([], { here: "ch02", last: { id: "ch02", section: null } }))).toEqual([]);
     expect(nextSteps(state([], { here: "ch01", last: { id: "ch02", section: "two" } }))).toEqual([]);
     expect(nextSteps(state([], { here: "ch01" }))).toEqual([]);
+    /* the practice set has an anchor but no section title */
+    expect(nextSteps(state([], { here: "ch01", last: { id: "ch01", section: "practice" } }))).toEqual([
+      { kind: "continue", text: "Back to Practice", why: "This is where you were reading in this chapter.", href: "parts/1/01.html#practice" }
+    ]);
+    expect(nextSteps(state([], { here: "ch01", last: { id: "ch01", section: "warmup" } }))[0]).toMatchObject({ text: "Back to where you were", href: "parts/1/01.html#warmup" });
   });
 
   it("shows at most three, one of each kind, in that order", () => {
