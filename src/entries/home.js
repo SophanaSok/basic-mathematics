@@ -39,6 +39,12 @@ import "../../assets/game.js";
 import "../ui/settings.ts";
 import "../../assets/config.js";
 import "../../assets/account.js";
+/* progress brought from the old address: the question a carried link asks, and the
+   progress page's import: the addresses (origins.ts), the reading and the merge
+   (format.ts, with account.js's merge), then the page (each named here, as above) */
+import "../carry/origins.ts";
+import "../carry/format.ts";
+import "../ui/carry.ts";
 import "../world/tiers.ts";
 import "../../assets/map3d.js";
 /* the "next best step" card, drawn once the scripts above have run */

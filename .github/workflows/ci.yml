@@ -1,13 +1,31 @@
-# Checks every pull request and every push to main, and deploys main to GitHub Pages.
+# Checks every pull request and every push to main, deploys main to GitHub Pages, and
+# deploys to Cloudflare Pages (main to production, a pull request to a preview).
 #
-#   build    the Node checks (npm run check, the Vitest unit tests among them), the build,
-#            the checks on dist/; dist/ is kept as an artifact
-#   browser  the Chromium checks that do not need WebGL, against that dist/. With build,
-#            this is the gate a deploy waits for.
-#   webgl    the 3D checks (the scene stages, the course map) and the WebGL suite. WebGL
-#            on a runner is software rendering, slow and now and then losing its context,
-#            so these are retried and are not part of the gate
-#   deploy   main only: publishes that same dist/ to GitHub Pages
+#   build       the Node checks (npm run check, the Vitest unit tests among them), the
+#               build, the checks on dist/, the legacy site and its checks; dist/ and
+#               dist-legacy/ are kept as artifacts
+#   browser     the Chromium checks that do not need WebGL, against that dist/. With
+#               build, this is the gate a deploy waits for.
+#   webgl       the 3D checks (the scene stages, the course map) and the WebGL suite.
+#               WebGL on a runner is software rendering, slow and now and then losing its
+#               context, so these are retried and are not part of the gate
+#   deploy      main only: publishes to GitHub Pages that same dist/ (without the two
+#               files only Cloudflare reads, _headers and 404.html), or, once the
+#               repository variable SITE_CUTOVER is "true", dist-legacy/: the old address
+#               then only sends readers, with their progress, to the new one
+#   cloudflare  publishes that same dist/ to Cloudflare Pages with wrangler: a push to
+#               main (or Run workflow) to production, a pull request from a branch of this
+#               repository to a preview, whose address goes into the job summary and one
+#               comment on the pull request. It needs the repository secrets
+#               CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID; without them, and for a
+#               pull request from a fork (which is never given secrets), it says so in a
+#               notice and deploys nothing, and the run stays green. The project is the
+#               repository variable CLOUDFLARE_PROJECT_NAME, or PAGES_PROJECT in
+#               src/carry/origins.ts when that is not set. It runs whatever SITE_CUTOVER
+#               says, so the new address can be tried before the move.
+#
+# OPERATIONS.md, "Moving to Cloudflare Pages", is the owner's runbook for both variables
+# and both secrets.
 #
 # deploy runs only while the repository's Pages source is "GitHub Actions" (Settings,
 # Pages, Build and deployment, Source); pages-source asks. No other source works: the
@@ -67,11 +85,20 @@ jobs:
         run: npm run check:static -- --only=migrations --migrations-base="origin/$BASE_REF"
       - run: npm run build
       - run: npm run check:dist
+      - run: npm run build:legacy
+      - run: npm run check:legacy
       - uses: actions/upload-artifact@v7
         with:
           name: dist
           path: dist
           # dist/.nojekyll
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 7
+      - uses: actions/upload-artifact@v7
+        with:
+          name: dist-legacy
+          path: dist-legacy
           include-hidden-files: true
           if-no-files-found: error
           retention-days: 7
@@ -213,13 +240,151 @@ jobs:
             echo "::error::main is at $head and this run built $SHA: re-running it would publish the older site. Re-run the newest run on main instead, or use Run workflow."
             exit 1
           fi
+      # SITE_CUTOVER (Settings, Secrets and variables, Actions, Variables): unset or
+      # "false", the course as it has always been; "true", the legacy site. Anything else
+      # is a typo, and fails here rather than publish the wrong one.
+      - name: Which site the old address serves (SITE_CUTOVER)
+        id: which
+        env:
+          CUTOVER: ${{ vars.SITE_CUTOVER }}
+        run: |
+          case "$CUTOVER" in
+            true)
+              echo "artifact=dist-legacy" >> "$GITHUB_OUTPUT"
+              echo "### GitHub Pages: the legacy site (SITE_CUTOVER is true)" >> "$GITHUB_STEP_SUMMARY"
+              echo "Every old address now sends its reader, with the progress saved in their browser, to the same page at the new address (dist-legacy/, tools/build-legacy.js)." >> "$GITHUB_STEP_SUMMARY" ;;
+            ""|false)
+              echo "artifact=dist" >> "$GITHUB_OUTPUT"
+              echo "### GitHub Pages: the course (SITE_CUTOVER is ${CUTOVER:-not set})" >> "$GITHUB_STEP_SUMMARY"
+              echo "The full site, as before the move. Set the repository variable SITE_CUTOVER to true to publish the legacy site instead (OPERATIONS.md, \"Moving to Cloudflare Pages\")." >> "$GITHUB_STEP_SUMMARY" ;;
+            *)
+              echo "::error::The repository variable SITE_CUTOVER is \"$CUTOVER\". It must be true (publish the legacy site) or false or unset (publish the course); nothing was deployed."
+              exit 1 ;;
+          esac
       - uses: actions/download-artifact@v8
         with:
-          name: dist
-          path: dist
+          name: ${{ steps.which.outputs.artifact }}
+          path: site
+      # what only Cloudflare Pages reads stays off GitHub Pages, so the course goes out
+      # there exactly as before the move (lib/headers.js)
+      - name: Leave out _headers and 404.html
+        if: steps.which.outputs.artifact == 'dist'
+        run: rm -f site/_headers site/404.html
       - uses: actions/configure-pages@v6
       - uses: actions/upload-pages-artifact@v5
         with:
-          path: dist
+          path: site
       - uses: actions/deploy-pages@v5
         id: deployment
+
+  # Cloudflare Pages, Direct Upload: the build is uploaded as it is, by
+  # cloudflare/wrangler-action v4 (v4.1.3, 2026-09-24) running wrangler 4.147.0, pinned so
+  # a new release of wrangler changes nothing here until it is chosen. The token needs one
+  # permission, Account / Cloudflare Pages / Edit (developers.cloudflare.com, "Use Direct
+  # Upload with continuous integration", read 2026-10-05). The project must exist first:
+  # wrangler asks before it creates one, and in CI it cannot ask (OPERATIONS.md says how to
+  # create it). No checkout: what is uploaded is the gate's dist/, and the branch and
+  # commit are passed to wrangler, which would otherwise read them from git.
+  cloudflare:
+    needs: [build, browser]
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      # the one comment with the preview's address
+      pull-requests: write
+    # one deploy at a time per branch or pull request, in order
+    concurrency:
+      group: cloudflare-${{ github.ref }}
+      cancel-in-progress: false
+    steps:
+      - name: Can this run deploy?
+        id: can
+        env:
+          HAS_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN != '' }}
+          HAS_ACCOUNT: ${{ secrets.CLOUDFLARE_ACCOUNT_ID != '' }}
+          EVENT: ${{ github.event_name }}
+          HEAD_REPO: ${{ github.event.pull_request.head.repo.full_name }}
+          REPO: ${{ github.repository }}
+          HEAD_REF: ${{ github.head_ref }}
+          REF_NAME: ${{ github.ref_name }}
+          PR_SHA: ${{ github.event.pull_request.head.sha }}
+          SHA: ${{ github.sha }}
+          # unset, PAGES_PROJECT in src/carry/origins.ts (check-legacy.js `ci` holds the two together)
+          PROJECT: ${{ vars.CLOUDFLARE_PROJECT_NAME || 'groupupmath' }}
+        run: |
+          project="$PROJECT"
+          if [ "$EVENT" = "pull_request" ] && [ "$HEAD_REPO" != "$REPO" ]; then
+            echo "::notice::No Cloudflare preview for a pull request from a fork: GitHub gives such a run no secrets."
+            echo "go=false" >> "$GITHUB_OUTPUT"; exit 0
+          fi
+          if [ "$HAS_TOKEN" != "true" ] || [ "$HAS_ACCOUNT" != "true" ]; then
+            echo "::notice::Nothing deployed to Cloudflare Pages: the repository secrets CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID are not both set (OPERATIONS.md, \"Moving to Cloudflare Pages\")."
+            echo "go=false" >> "$GITHUB_OUTPUT"; exit 0
+          fi
+          if [ "$EVENT" = "pull_request" ]; then branch="$HEAD_REF"; sha="$PR_SHA"; else branch="$REF_NAME"; sha="$SHA"; fi
+          # both go to wrangler on its command line: names made only of these, or no deploy
+          if ! [[ "$project" =~ ^[a-z0-9][a-z0-9-]*$ ]]; then
+            echo "::error::The repository variable CLOUDFLARE_PROJECT_NAME is \"$project\", which is not a Cloudflare Pages project name (lower-case letters, digits and -); nothing was deployed."
+            exit 1
+          fi
+          if ! [[ "$branch" =~ ^[A-Za-z0-9._/-]+$ ]]; then
+            echo "::notice::No Cloudflare preview for the branch \"$branch\": only letters, digits and . _ / - are passed to wrangler. Rename the branch for a preview."
+            echo "go=false" >> "$GITHUB_OUTPUT"; exit 0
+          fi
+          { echo "go=true"; echo "branch=$branch"; echo "sha=$sha"; echo "project=$project"; } >> "$GITHUB_OUTPUT"
+      - uses: actions/download-artifact@v8
+        if: steps.can.outputs.go == 'true'
+        with:
+          name: dist
+          path: dist
+      - name: Deploy to Cloudflare Pages
+        id: deploy
+        if: steps.can.outputs.go == 'true'
+        uses: cloudflare/wrangler-action@v4
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          wranglerVersion: "4.147.0"
+          command: pages deploy dist --project-name=${{ steps.can.outputs.project }} --branch=${{ steps.can.outputs.branch }} --commit-hash=${{ steps.can.outputs.sha }}
+      - name: Say where it is
+        if: steps.can.outputs.go == 'true'
+        env:
+          URL: ${{ steps.deploy.outputs.deployment-url }}
+          ALIAS: ${{ steps.deploy.outputs.pages-deployment-alias-url }}
+          ENVIRONMENT: ${{ steps.deploy.outputs.pages-environment }}
+          BRANCH: ${{ steps.can.outputs.branch }}
+          PROJECT: ${{ steps.can.outputs.project }}
+          SHA: ${{ steps.can.outputs.sha }}
+          CUTOVER: ${{ vars.SITE_CUTOVER }}
+        run: |
+          {
+            echo "### Cloudflare Pages: ${ENVIRONMENT:-deployed} ($PROJECT, branch $BRANCH)"
+            echo "- This deployment: $URL"
+            if [ -n "$ALIAS" ]; then echo "- The branch's address: $ALIAS"; fi
+            echo "- Commit: $SHA"
+            echo "- SITE_CUTOVER is ${CUTOVER:-not set}: the old address serves $([ "$CUTOVER" = "true" ] && echo "the legacy site, which sends readers here" || echo "the course itself, so this address is not yet where readers go")."
+          } >> "$GITHUB_STEP_SUMMARY"
+      # One comment per pull request, found again by its first line and updated in place.
+      - name: Comment the preview's address on the pull request
+        if: steps.can.outputs.go == 'true' && github.event_name == 'pull_request'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          PR: ${{ github.event.pull_request.number }}
+          URL: ${{ steps.deploy.outputs.deployment-url }}
+          ALIAS: ${{ steps.deploy.outputs.pages-deployment-alias-url }}
+          SHA: ${{ steps.can.outputs.sha }}
+        run: |
+          marker="<!-- cloudflare-pages-preview -->"
+          body="$marker
+          **Preview on Cloudflare Pages** of $SHA: ${ALIAS:-$URL}
+          (this deployment: $URL)
+
+          Sign-in there works only if the preview address is on Supabase's redirect list (OPERATIONS.md, \"Moving to Cloudflare Pages\")."
+          id=$(gh api --paginate "repos/$REPO/issues/$PR/comments" --jq ".[] | select(.user.login == \"github-actions[bot]\" and (.body | startswith(\"$marker\"))) | .id" | head -n 1)
+          if [ -n "$id" ]; then
+            gh api -X PATCH "repos/$REPO/issues/comments/$id" -f body="$body" > /dev/null
+          else
+            gh api -X POST "repos/$REPO/issues/$PR/comments" -f body="$body" > /dev/null
+          fi

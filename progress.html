@@ -18,6 +18,20 @@
     <div class="full dashboard" data-progress>
       <noscript><p>This page is built by JavaScript from the progress saved in your browser.</p></noscript>
     </div>
+    <section class="panel carry-tools" data-carry-tools aria-labelledby="carry" hidden>
+      <h2 id="carry">Bring your progress here</h2>
+      <p data-carry-old hidden>
+        This course used to be at another address. Progress saved there stays in the browser
+        that saved it until you bring it over:
+        <a class="btn ghost" data-carry-link href="about.html#progress">Bring progress from the old address</a>
+      </p>
+      <p>
+        Or import a file of your progress: the one <b>Download my data</b> on the account page
+        makes, or the one the old address offers.
+      </p>
+      <label class="field" for="carry-file"><span>Import a file of your progress</span><input id="carry-file" type="file" accept=".json,application/json" data-carry-file></label>
+      <p class="fine" data-carry-status role="status" aria-live="polite"></p>
+    </section>
   </main>
 </div>
 </body>

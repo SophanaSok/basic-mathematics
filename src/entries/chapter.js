@@ -54,6 +54,12 @@ import "../../assets/encounter.js";
 import "../../assets/lesson.js";
 import "../../assets/config.js";
 import "../../assets/account.js";
+/* progress brought from the old address: the question a carried link asks, and the
+   progress page's import: the addresses (origins.ts), the reading and the merge
+   (format.ts, with account.js's merge), then the page (each named here, as above) */
+import "../carry/origins.ts";
+import "../carry/format.ts";
+import "../ui/carry.ts";
 /* the "next best step" card, drawn once the scripts above have run */
 import "../learn/next.ts";
 import "../ui/next.ts";
