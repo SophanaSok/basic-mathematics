@@ -976,7 +976,8 @@ npm run check:browser   # dist/ served: every page × theme × width (errors, th
                         # Three.js fetched only where there is 3D, overflow, lesson mode),
                         # figures, every exercise typed back, restore of old progress, saved
                         # state from the last release, reduced motion, WebGL and its fallbacks,
-                        # axe. About 8 minutes, and nothing in it needs the network
+                        # axe (button and form names, table headers and heading order fail;
+                        # other rules warn). About 8 minutes, and nothing in it needs the network
 
 npm run check:all       # all of the above, in that order
 ```

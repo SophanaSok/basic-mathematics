@@ -13,7 +13,9 @@ npm run check                              # ~20 s, no browser: typecheck, check
                                            # src/**/<module>.test.ts beside each module, the
                                            # help ladder's, and the review's: recall, review,
                                            # practice, next, and data/arena-sections against
-                                           # the generators)
+                                           # the generators; and a11y/math-text, the line of
+                                           # text a formula is named by, against every
+                                           # formula of the course)
 npm run build && npm run check:dist        # dist/, and that it is the source's site
 npm run test:browser                       # the tools/game Chromium scripts, ~2 min
 npm run check:browser                      # check-browser.js on dist/, ~8 min
@@ -238,7 +240,32 @@ every screenshot and all results — open it in a browser), and `pages/*.png`.
 | `restore` | seeds `bm.progress.v1` with every scored key of the chapter **at `--base`** and loads the working-tree page: each card's engine key must equal the static rule's key for its position, each restored card's question must fingerprint the same as at base, and lesson mode must open every step for a reader with solved work |
 | `upgrade` | a returning reader's whole saved state survives. `fixtures/state-v1.json` (every store, as the last release before the build step writes them) is put into localStorage once, on the served origin, before any page loads; then the home page, the progress page, a cleared chapter and a part-done one are opened in the same profile. After each, the fixture must be **contained** in what is in storage: every key still there with the same value. Not equal, because the site writes on load: objects and lists may have gained entries (backfilled achievements, banked medals, the run store), the counts a page re-derives each visit (`total`, `reached`) may have grown, and `bm.last` names the chapter once one has been opened. The pages must show it too: the saved theme against the system's, Continue on the home page, medals and XP on the progress page, every solved card solved and no other. The last line lists what loading added |
 | `motion` | under `prefers-reduced-motion: reduce` no animation is running at load, after a wrong answer, or after a right one |
-| `axe` | axe-core on every page × theme at 1280 (whole-page mode on chapters); violations are warnings counted by rule, failures with `--strict-axe`; skipped when axe-core does not resolve |
+| `axe` | axe-core on every page × theme at 1280 (whole-page mode on chapters), with `color-contrast` on. A violation of one of the rules in `STRICT_RULES` (`suites/axe.js`) **fails** the run whatever the flags: `button-name`, `label`, `empty-table-header` and `heading-order`, the four the site had violations of and fixed where they came from (below), so none of them can come back. Any other rule's violation is a warning counted by rule, and a failure with `--strict-axe`. Every violating node (page, theme, rule, selector, its markup and axe's reason) is written to `.cache/check/axe.json`, where the report shows two per rule. Skipped when axe-core does not resolve |
+
+The four strict rules, and where each was fixed. The run before the fix warned on 35 page loads
+(every chapter in both themes), 153 nodes per theme: `label` 81 (the radio buttons of 22 choice
+exercises whose options are formulas), `heading-order` 57 (the first worked example under each
+section, an `h4` straight after the section's `h2`), `button-name` 8 (the opening puzzle's guess
+chips of chapters 9, 11 and 16 that are formulas) and `empty-table-header` 7 (the header row of
+chapter 11's table of values, all formulas).
+
+- `button-name`, `label`, `empty-table-header`: an accessible name is plain text worked out from
+  the element's content, and neither axe-core nor Chromium takes any text from KaTeX's `<math>`
+  when it does so (Chromium named the chip `$(7,5)$` `""` and the chip `$\tfrac52$ — five times
+  as much` `" — five times as much"`). `src/ui/math-names.ts`, run by `renderMath` in
+  `assets/site.js` after every typesetting, puts a visually hidden line of text from
+  `src/a11y/math-text.ts` (`(7, 5)`, `x ≤ −3`, `π/6`, read off the MathML, never a value worked
+  out) into each formula inside a button, label, table header, heading, link, summary, legend or
+  caption, and hides that formula's MathML from assistive technology so nothing is read twice.
+  Nothing on screen changes, and the puzzle's names say no more than its chips show.
+- `heading-order`: a `.worked` block's heading is an `h3`, one level below its section's `h2`, and
+  `.worked > h3` in `site.css` sets every property `h3` sets, so it looks as the `h4` did (three
+  chapters' full-page screenshots, before and after, differ in no pixel of a worked example).
+
+Not an axe finding but found on the way: `thead th`, `.tag` and `.ex-solution .answer` are
+uppercase labels, and a formula inside one was uppercased with them, on screen and in its name:
+chapter 11's header row read `Θ` and `Π/6`, a revealed answer `Π/2 AND Π/6`, chapter 14's
+callout `I` for `i`. `.katex { text-transform: none; }` keeps a formula's case.
 
 `--only` takes suite names (`--only=pages,motion`) or a page-path substring (`--only=05-distance`),
 or both; `--skip` takes suite names to leave out. The theme is forced the way the site reads it —
@@ -337,7 +364,9 @@ shell wrote the right head, because the build and the check expand alike; that i
 
 - Firefox and WebKit/Safari (Chromium only: it is the one browser `npx playwright install chromium` downloads).
 - Real devices and touch: the 360px cell is a resized Chromium, not a phone.
-- Screen readers and focus order beyond what axe-core can see statically.
+- Screen readers and focus order beyond what axe-core can see statically. axe runs on each page as
+  it loads, with clean storage: a clue opened, a verdict, a boss result or a solved card is not
+  in what it sees.
 - Answers given on a figure (`data-type="figure"`): the sweep counts and skips them.
 - Visual regression against the base commit: screenshots are taken for eyes, not diffed.
 - The real Supabase account path and the round trip to a real sign-in service: the browser

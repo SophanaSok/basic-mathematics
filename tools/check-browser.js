@@ -17,7 +17,8 @@
    --theme     one theme instead of both;  --vw one viewport instead of both
    --base      git ref whose exercise keys the restore suite seeds (default lib/site.js)
    --headed    show the browser
-   --strict-axe   axe violations fail the run instead of warning
+   --strict-axe   every axe violation fails the run; without it only those of the rules in
+                  STRICT_RULES (suites/axe.js) fail, and the rest are warnings
    --list      print the suites and leave
 
    Output: .cache/check/  — screenshots, report.json, index.html (a contact sheet).
