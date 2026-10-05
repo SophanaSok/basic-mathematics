@@ -492,7 +492,13 @@ placed soon after the `.callout.warn` it illustrates. Its steps are the tempting
 that catches it, and the repair. Keep a Wrong turn unnumbered: chapters cite worked examples by
 number, so putting one into the example numbering would break those references.
 
-Math goes in `$…$` for inline and `$$…$$` for display. `\(…\)` and `\[…\]` also work.
+A `.worked` block opens with an `<h3>` (`<h3><span class="num">Example 1.</span> …</h3>`), one
+level below the section's `<h2>`, so a screen reader's list of headings has no gap; `site.css`
+styles it as a small bar, not as a subsection heading. The axe suite fails a skipped level.
+
+Math goes in `$…$` for inline and `$$…$$` for display. `\(…\)` and `\[…\]` also work. A formula may
+be the whole of a choice, a guess, a table header or a heading: the page gives it a name in text
+(`src/ui/math-names.ts`), so nothing needs an `aria-label` by hand.
 
 #### Puzzle, reveals, and faded examples
 
