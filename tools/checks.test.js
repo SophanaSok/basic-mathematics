@@ -18,12 +18,17 @@
      - apply-shell: whole pages are found again as the kind they were written from; a
        page no kind expands to, or one whose content differs from the base by a byte,
        fails and leaves every page alone
+     - serve (lib/serve.js): a page of the site is served as the shell writes it, and
+       one with <main id="main"> and no marker is refused as the build refuses it; a
+       fixture or report goes out as it is; a tree with no lib/shell.js is a whole site
    Usage: node tools/checks.test.js */
 "use strict";
 const fs = require("fs");
+const os = require("os");
 const path = require("path");
 
 const site = require("./lib/site");
+const serve = require("./lib/serve");
 const shell = require("./lib/shell");
 const { parse } = require("./lib/html");
 const { exercisesOf } = require("./lib/keys");
@@ -376,5 +381,48 @@ function refusal(fn) { try { fn(); return null; } catch (e) { return e.message; 
   check(/^FAIL {2}about\.html: no kind of page in lib\/shell\.js expands to this document/.test(w.lines[0] || "") && /nothing written$/.test(w.lines[w.lines.length - 1] || ""), "… and names the page: " + JSON.stringify(w.lines));
 }
 
-console.log((fails ? "FAILED" : "ok") + " checks: " + passes + " checks passed" + (fails ? ", " + fails + " failed" : ""));
-process.exit(fails ? 1 : 0);
+/* ------------------------------------------------------------------ serve -- */
+/* what lib/serve.js hands out for each kind of HTML file, from a tree written here: the
+   same rule as vite.config.ts, so the server a hand run opens never agrees with a page
+   the build would refuse */
+(async () => {
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "bm-serve-"));
+  const put = (rel, text) => { fs.mkdirSync(path.dirname(path.join(tmp, rel)), { recursive: true }); fs.writeFileSync(path.join(tmp, rel), text); };
+  const whole = '<!doctype html><html><head><title>t</title></head><body data-depth="0"><main id="main"><p>x</p></main></body></html>';
+  const fixture = '<!doctype html><html><head><title>f</title></head><body><main id="main"><p>fixture</p></main></body></html>';
+  /* a source tree: it carries lib/shell.js, so its pages are the shell's to write */
+  put("src/tools/lib/shell.js", "");
+  put("src/index.html", marked('data-depth="0" data-page="home" data-nav="home"'));
+  put("src/parts/p/c.html", marked('data-depth="2" data-chapter="ch99" data-part="algebra"'));
+  put("src/unmarked.html", whole);
+  put("src/parts/p/unmarked.html", whole.replace('data-depth="0"', 'data-depth="2"'));
+  put("src/notes/report.html", fixture);
+  put("fixtures/states.html", fixture);
+  /* a built site: no lib/shell.js, whole pages */
+  put("dist/index.html", whole);
+  put("dist/marked.html", marked('data-depth="0" data-page="home" data-nav="home"'));
+  const get = async (server, rel) => { const r = await fetch(server.url + rel); return { status: r.status, text: await r.text() }; };
+  try {
+    const src = await serve.start(path.join(tmp, "src"), "HEAD", { extraRoots: { "/tools/fixtures/": path.join(tmp, "fixtures") } });
+    try {
+      const page = await get(src, "index.html");
+      eq([page.status, page.text], [200, shell.renderShell(fs.readFileSync(path.join(tmp, "src/index.html"), "utf8"), "index.html")], "serve: a marked page of the source tree goes out as the shell writes it");
+      eq((await get(src, "parts/p/c.html")).status, 200, "serve: so does a chapter page");
+      const refused = await get(src, "unmarked.html");
+      eq([refused.status, /^the shell refuses this page: unmarked\.html: has <main id="main"> but no <!--bm:head-->/.test(refused.text)], [500, true], "serve: a page of the site with <main id=\"main\"> and no marker is refused with the shell's reason, as the build refuses it — got " + JSON.stringify(refused.text.slice(0, 80)));
+      eq((await get(src, "parts/p/unmarked.html")).status, 500, "serve: … under parts/ too");
+      eq((await get(src, "notes/report.html")).text, fixture, "serve: an HTML file that is not a page of the site (a report) goes out as it is");
+      eq((await get(src, "tools/fixtures/states.html")).text, fixture, "serve: so does a fixture, though it has <main id=\"main\">");
+      eq((await get(src, "missing.html")).status, 404, "serve: a file that is not there is a 404");
+    } finally { await src.close(); }
+    const dist = await serve.start(path.join(tmp, "dist"), "HEAD", {});
+    try {
+      eq((await get(dist, "index.html")).text, whole, "serve: a tree with no lib/shell.js (dist/) is a whole site, its pages served as they are");
+      const stray = await get(dist, "marked.html");
+      eq([stray.status, /carries a shell marker, but that tree has no tools\/lib\/shell\.js/.test(stray.text)], [500, true], "serve: … and a marked page in it is refused, not served with its markers");
+    } finally { await dist.close(); }
+  } finally { fs.rmSync(tmp, { recursive: true, force: true }); }
+
+  console.log((fails ? "FAILED" : "ok") + " checks: " + passes + " checks passed" + (fails ? ", " + fails + " failed" : ""));
+  process.exit(fails ? 1 : 0);
+})().catch(e => { console.error("FAIL serve: " + (e.stack || e)); process.exit(1); });

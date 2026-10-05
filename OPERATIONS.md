@@ -38,8 +38,9 @@ The `migrations` check compares against the commit the branch left `main` at, no
 `--base` (which is the progress-keys base and older than every migration). On a topic branch that
 needs nothing extra. Where `main` does not resolve, as in a shallow checkout, it falls back to
 `--base` and prints a warning, because against that base it lets a schema change through.
-Continuous integration **[not yet: R0, item 3]** must therefore pass the commit being merged into
-as `--migrations-base=<ref>`.
+Continuous integration must therefore pass the commit being merged into as
+`--migrations-base=<ref>`: the build job of `.github/workflows/ci.yml` does, on every pull
+request, as `--migrations-base="origin/$BASE_REF"`, with the branch the request merges into.
 
 A change that also needs an Edge Function **[not yet: R5]** goes database, then function, then
 site. The function deploy step will be written here by the release that adds the first function.

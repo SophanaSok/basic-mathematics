@@ -8,7 +8,9 @@
    A source page holds markers where its head and top bar go (lib/shell.js). It is
    served with them written, as the build would hand it on, so the source tree can be
    loaded without a build; a page at the base ref is written by that commit's own
-   lib/shell.js. A page the shell refuses is a 500 with the reason.
+   lib/shell.js. A page the shell refuses is a 500 with the reason, the same page the
+   build and the checks refuse: every page of the site goes through the shell, marked or
+   not, when the tree it comes from carries a lib/shell.js.
    Options:
      gitRoot      the checkout `git show` runs in (default: root). Needed when root is
                   dist/, which holds built files and is not what the ref names.
@@ -31,16 +33,28 @@ const TYPES = {
   ".map": "application/json", ".xml": "application/xml", ".webmanifest": "application/manifest+json"
 };
 
-/* A page written with the shell's markers goes out as the document the shell makes of
-   it; every other file as it is (a page of dist/ and a fixture are whole already).
-   @param shellFor  gives the lib/shell.js to write it with, asked only for a marked page
+/* a page of the site: a root *.html or parts/<dir>/<file>.html, the rule of htmlPages()
+   in lib/site.js and of the bm:shell plugin in vite.config.ts */
+const PAGE = /^(?:parts\/[^/]+\/)?[^/]+\.html$/i;
+
+/* What goes out for an HTML file. A page of the site is written by the shell whether or
+   not it carries a marker, as vite.config.ts writes it, so a page with <main id="main">
+   and no marker is refused here too and not quietly served as it is; any other HTML file
+   (a fixture, a report) only when it carries one. A tree with no tools/lib/shell.js
+   (dist/, a commit before the shell) is a whole site, and its pages go out as they are.
+   @param isPage    whether rel is a page of the site, of the tree it is read from
+   @param shellFor  gives the lib/shell.js of that tree, or null where it has none
    @throws what the shell throws for a page it cannot write */
-function whole(body, rel, shellFor) {
+function whole(body, rel, isPage, shellFor) {
   if (!/\.html$/i.test(rel)) return body;
   const text = body.toString("utf8");
-  if (!shell.isMarked(text)) return body;
+  const marked = shell.isMarked(text);
+  if (!isPage && !marked) return body;
   const write = shellFor();
-  if (!write) throw new Error(rel + " carries a shell marker, but that commit has no tools/lib/shell.js");
+  if (!write) {
+    if (marked) throw new Error(rel + " carries a shell marker, but that tree has no tools/lib/shell.js");
+    return body;
+  }
   return Buffer.from(write.renderShell(text, rel), "utf8");
 }
 
@@ -48,6 +62,9 @@ function start(root, base, opts) {
   opts = opts || {};
   const log = opts.log || (() => {});
   const gitRoot = opts.gitRoot || root;
+  /* the shell of the tree under root: this checkout's lib/shell.js when the tree carries
+     one (the source tree), none when it does not (dist/) */
+  const ownShell = fs.existsSync(path.join(root, "tools", "lib", "shell.js")) ? shell : null;
   const extra = Object.keys(opts.extraRoots || {}).map(prefix => ({ prefix: prefix.replace(/^\/+/, ""), dir: opts.extraRoots[prefix] }));
   const server = http.createServer((req, res) => {
     let url;
@@ -62,12 +79,12 @@ function start(root, base, opts) {
     try {
       if (fromBase) {
         body = git.show(gitRoot, base, rel);
-        if (body !== null) body = whole(body, rel, () => site.shellAt(gitRoot, base));
+        if (body !== null) body = whole(body, rel, PAGE.test(rel), () => site.shellAt(gitRoot, base));
       } else {
         const over = extra.find(x => rel.startsWith(x.prefix));
         const abs = over ? path.join(over.dir, rel.slice(over.prefix.length)) : path.join(root, rel);
         try { if (fs.statSync(abs).isFile()) body = fs.readFileSync(abs); } catch (e) { body = null; }
-        if (body !== null) body = whole(body, rel, () => shell);
+        if (body !== null) body = whole(body, rel, !over && PAGE.test(rel), () => ownShell);
       }
     } catch (e) { refused = e.message; }
     log(req.method + " " + req.url + " -> " + (refused ? 500 : body === null ? 404 : 200));
