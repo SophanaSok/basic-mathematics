@@ -19,6 +19,7 @@ import path from "node:path";
 import { defineConfig, type Plugin } from "vite";
 import { isMarked, renderShell, PAGE_KINDS, VENDOR_STYLES } from "./tools/lib/shell.js";
 import { DIR as VENDOR_DIR, NOTICE, vendorOf, licenseNotice } from "./tools/lib/vendor.js";
+import { FILE as HEADERS, NOT_FOUND, render as renderHeaders, notFoundPage, fromDist } from "./tools/lib/headers.js";
 
 const root = import.meta.dirname;
 
@@ -219,6 +220,26 @@ function licenses(): Plugin {
   };
 }
 
+/* Build-only, and last: the two files only Cloudflare Pages reads (tools/lib/headers.js
+   says what is in them and why). dist/404.html, the page an unknown path gets there;
+   then dist/_headers, the security headers and the caching, written from what dist
+   holds once everything else is in it: the hashes of the inline scripts of every built
+   page and the font files are read off the files themselves, so the policy is never
+   behind the pages. tools/check-dist.js `headers` holds dist to it. GitHub Pages
+   publishes neither (.github/workflows/ci.yml). */
+function cloudflare(): Plugin {
+  let outDir = "";
+  return {
+    name: "bm:cloudflare",
+    apply: "build",
+    configResolved(config) { outDir = path.resolve(config.root, config.build.outDir); },
+    closeBundle() {
+      fs.writeFileSync(path.join(outDir, NOT_FOUND), notFoundPage());
+      fs.writeFileSync(path.join(outDir, HEADERS), renderHeaders(fromDist(outDir, root)));
+    }
+  };
+}
+
 export default defineConfig({
   root,
   /* relative, so the site works under the GitHub Pages sub-path and anywhere else it is
@@ -226,7 +247,7 @@ export default defineConfig({
   base: process.env.BM_BASE || "./",
   /* a site of separate pages: an unknown path is a 404, not index.html */
   appType: "mpa",
-  plugins: [shell(), stylesheetOrder(), plainStylesheetLinks(), licenses()],
+  plugins: [shell(), stylesheetOrder(), plainStylesheetLinks(), licenses(), cloudflare()],
   resolve: {
     /* one copy of Three.js, whatever imports it: a second copy (from a package that
        depended on its own) would be a second chunk and a second set of classes, and

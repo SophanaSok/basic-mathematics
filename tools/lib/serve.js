@@ -10,18 +10,29 @@
    refused with a 500 saying so rather than served half-written. A page at the base ref
    is served as a reader of that commit got it: whole, or written by that commit's own
    lib/shell.js where it is marked (lib/site.js shellAt).
+   Served as Cloudflare Pages serves the build (lib/headers.js): where the tree holds a
+   _headers file, every response of the tree gets the headers its rules give the path
+   asked for, the Content-Security-Policy first among them, so every browser check runs
+   under the policy readers get, and a script or style the policy does not allow is a
+   console error that fails it (lib/browser.js); and a page is found without its .html
+   too (/about serves about.html), as Pages serves it. Nothing from /__base/ or an extra
+   root gets them: an old commit and the test fixtures are not the site being checked.
    Options:
      gitRoot      the checkout `git show` runs in (default: root). Needed when root is
                   dist/, which holds built files and is not what the ref names.
      extraRoots   { "/url/prefix/": directory }: paths under the prefix are read from
                   that directory instead of root. The test fixtures are served this way,
-                  from the source tree, so they never have to be copied into dist/. */
+                  from the source tree, so they never have to be copied into dist/.
+     notFound     answer a path with no file with the tree's 404.html (status 404), as
+                  GitHub Pages and Cloudflare Pages do; otherwise a line of text. The
+                  legacy site's checks use it (tools/game/carry.test.js). */
 const http = require("http");
 const fs = require("fs");
 const path = require("path");
 const git = require("./git");
 const shell = require("./shell");
 const site = require("./site");
+const headers = require("./headers");
 
 const TYPES = {
   ".html": "text/html; charset=utf-8", ".css": "text/css; charset=utf-8", ".js": "text/javascript; charset=utf-8",
@@ -59,31 +70,44 @@ function start(root, base, opts) {
   const log = opts.log || (() => {});
   const gitRoot = opts.gitRoot || root;
   const extra = Object.keys(opts.extraRoots || {}).map(prefix => ({ prefix: prefix.replace(/^\/+/, ""), dir: opts.extraRoots[prefix] }));
+  /* the tree's _headers, read once: a build is not rewritten while it is served */
+  const rules = fs.existsSync(path.join(root, headers.FILE)) ? headers.parse(fs.readFileSync(path.join(root, headers.FILE), "utf8")) : null;
+  const read = (abs) => { try { return fs.statSync(abs).isFile() ? fs.readFileSync(abs) : null; } catch (e) { return null; } };
   const server = http.createServer((req, res) => {
     let url;
     try { url = decodeURIComponent(req.url.split("?")[0].split("#")[0]); } catch (e) { res.writeHead(400); res.end("bad url"); return; }
+    const asked = url;
     let fromBase = false;
     if (url.startsWith("/__base/")) { fromBase = true; url = url.slice("/__base".length); }
     if (url.endsWith("/")) url += "index.html";
-    const rel = path.posix.normalize(url).replace(/^\/+/, "");
+    let rel = path.posix.normalize(url).replace(/^\/+/, "");
     if (rel.startsWith("..")) { res.writeHead(403); res.end("forbidden"); return; }
-    const type = TYPES[path.posix.extname(rel).toLowerCase()] || "application/octet-stream";
-    let body = null, refused = null;
+    let body = null, refused = null, over = null, status = 200;
     try {
       if (fromBase) {
         body = git.show(gitRoot, base, rel);
         if (body !== null) body = atRef(body, rel, gitRoot, base);
       } else {
-        const over = extra.find(x => rel.startsWith(x.prefix));
-        const abs = over ? path.join(over.dir, rel.slice(over.prefix.length)) : path.join(root, rel);
-        try { if (fs.statSync(abs).isFile()) body = fs.readFileSync(abs); } catch (e) { body = null; }
+        over = extra.find(x => rel.startsWith(x.prefix)) || null;
+        body = read(over ? path.join(over.dir, rel.slice(over.prefix.length)) : path.join(root, rel));
+        /* /about is about.html, as Pages serves it */
+        if (body === null && !over && !path.posix.extname(rel) && read(path.join(root, rel + ".html")) !== null) {
+          rel += ".html";
+          body = read(path.join(root, rel));
+        }
+        if (body === null && !over && opts.notFound) {
+          body = read(path.join(root, headers.NOT_FOUND));
+          if (body !== null) { status = 404; rel = headers.NOT_FOUND; }
+        }
         if (body !== null && !over) body = whole(body, rel);
       }
     } catch (e) { refused = e.message; }
-    log(req.method + " " + req.url + " -> " + (refused ? 500 : body === null ? 404 : 200));
+    log(req.method + " " + req.url + " -> " + (refused ? 500 : body === null ? 404 : status));
     if (refused) { res.writeHead(500, { "Content-Type": "text/plain; charset=utf-8", "Cache-Control": "no-store" }); res.end("refused: " + refused); return; }
     if (body === null) { res.writeHead(404, { "Content-Type": "text/plain; charset=utf-8", "Cache-Control": "no-store" }); res.end("not found: " + rel); return; }
-    res.writeHead(200, { "Content-Type": type, "Content-Length": body.length, "Cache-Control": "no-store" });
+    const out = { "Content-Type": TYPES[path.posix.extname(rel).toLowerCase()] || "application/octet-stream", "Content-Length": body.length, "Cache-Control": "no-store" };
+    if (rules && !fromBase && !over) headers.headersFor(rules, asked).forEach(([name, value]) => { out[name] = value; });
+    res.writeHead(status, out);
     res.end(body);
   });
   return new Promise((resolve, reject) => {

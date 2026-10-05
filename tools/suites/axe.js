@@ -43,7 +43,7 @@ module.exports = {
         try {
           await h.open(page, rel);
           if (ctx.chapterOf(rel)) await h.wholePage(page);
-          await page.addScriptTag({ content: ctx.axeSource });
+          await h.injectAxe(page, ctx.axeSource);
           const res = await page.evaluate(async () => {
             const r = await window.axe.run(document, { resultTypes: ["violations"], rules: { "color-contrast": { enabled: true } } });
             return r.violations.map(v => ({ id: v.id, impact: v.impact, help: v.help, nodes: v.nodes.length, sample: v.nodes.slice(0, 2).map(n => n.target.join(" ")),
