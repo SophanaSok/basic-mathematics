@@ -106,7 +106,7 @@
   /* A copy of what is stored, with the settings this file knows normalised; any other
      key is kept as it is, so setPref below writes it back. Each of these stays unset
      until the reader chooses, and unset is the default:
-       map           3D, except on a low-end device (assets/map3d.js decides)
+       map           3D (src/world/tiers.ts picks how much of it the device draws)
        panel         the light reading panel, in either theme
        volume        DEFAULT_VOLUME; a whole number 0 to 100 (assets/sfx.js)
        motion        what the device asks for; "reduce" adds html[data-motion]
@@ -116,7 +116,8 @@
                      (map: "list") is what keeps the list.
        gfxAuto       not the reader's: the tier the course world's watchdog settled on
                      when its frames were slow ("list", "low", "medium"), so the next
-                     visit starts there; any choice of gfx or of the map clears it.
+                     visit starts there ("list" even when the quality was chosen: Low
+                     was too slow); any choice of gfx or of the map clears it.
      src/boot.js stamps the ones that change the first paint (panel, motion,
      transparency) on <html> before it. Where the store cannot be written (blocked
      storage) the reader's choices still hold for the visit: `held` is what was last set. */
@@ -144,14 +145,11 @@
   }
   /* the volume the sound plays at, 0 to 100 */
   function volume(p) { return p.volume === undefined ? DEFAULT_VOLUME : p.volume; }
-  /* whether the course map will be 3D, for the switch in the sheet: as the reader set it,
-     else not where the world gave up as too slow, nor on a low-end device */
+  /* whether the course map will be 3D, for the switch in the sheet: off where the reader
+     switched it off or where the world gave up as too slow (src/world/tiers.ts holds the
+     world to both); switching it on clears the second */
   function map3dOn(p) {
-    if (p.map) return p.map === "3d";
-    if (p.gfxAuto === "list") return false;
-    var low = false;
-    try { low = !!(window.BM3D && window.BM3D.lowEnd && window.BM3D.lowEnd()); } catch (e) { /* assume not */ }
-    return !low;
+    return p.map !== "list" && p.gfxAuto !== "list";
   }
   function applyPrefs(p) {
     var root = document.documentElement;

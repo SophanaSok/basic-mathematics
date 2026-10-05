@@ -162,7 +162,8 @@ going well. A short version appears above each chapter's recap.
   Click an island to open its chapter (on a phone, tap once to pick it, again to open it), or use
   the four buttons above it to fly to a Part. The chapter list below the introduction is always
   there and is the same course in words; it is what a screen reader and the keyboard use, and
-  focusing a chapter in it flies the world there. Graphics quality in the settings sheet picks how
+  focusing a chapter in it picks that chapter's island, so the world is on it when you scroll back
+  up (where the world is on screen too, you see it fly there). Graphics quality in the settings sheet picks how
   much the world draws (Auto, Low, Medium, High); switch the 3D course map off to have the list
   alone. The world moves for a few seconds after you touch it and then holds still; in Study mode
   and with Reduce motion it never moves at all.
@@ -716,22 +717,34 @@ fetched, which **tier** the device gets (`src/world/tiers.ts`):
 
 | Tier | Chosen when | Pixel ratio | Draw calls | Triangles | Props per region | Idle motion |
 | --- | --- | --- | --- | --- | --- | --- |
-| list | no WebGL 2, Save-Data, `?3d=off`, the 3D course map switch off, a low-end device (2 GB or less) unless the map was switched on, or the watchdog gave up | — | — | — | — | — |
-| low | Graphics quality Low; or a software renderer (SwiftShader, llvmpipe, WARP), or a coarse pointer with four cores or fewer | 1 | 10 | 9,000 | the fewest | none |
+| list | no WebGL 2, Save-Data, `?3d=off`, the 3D course map switch off, or the watchdog gave up | — | — | — | — | — |
+| low | Graphics quality Low; or a software renderer (SwiftShader, llvmpipe, WARP), a coarse pointer with four cores or fewer, or a low-end device (2 GB of memory or less) | 1 | 10 | 9,000 | the fewest | none |
 | medium | Graphics quality Medium; everything else | 1.5 | 12 | 11,000 | more | 5 s after input |
 | high | only Graphics quality High | 2 | 12 | 14,000 | the most | 5 s after input |
 
 Each tier also caps the drawing buffer's pixels (1.2, 2.1 and 4.2 million), so a big canvas on a
 dense screen is drawn at fewer device pixels per CSS pixel. A **watchdog** watches the frames
-drawn while something moves: when 60 of them average more than 34 ms (under 30 a second), the
-world steps down one tier, and from low to the list. When the tier was the device's own, the
-tier it settles on is kept in `bm.prefs.v1` as `gfxAuto` (this device's, never synced), so the
-next visit starts there; a choice of graphics quality, or switching the 3D map on, clears it.
-A tier the learner chose is stepped down for the visit only.
+drawn while something moves, and judges them every 60 frames or every 2 seconds of them,
+whichever comes first (never on fewer than 8, so the low tier, whose only frames are camera
+flights, is judged within a few flights even at five frames a second): when they average more
+than 34 ms (under 30 a second), the world steps down one tier, and from low to the list. When
+the tier was the device's own, the tier it settles on is kept in `bm.prefs.v1` as `gfxAuto`
+(this device's, never synced), so the next visit starts there; a choice of graphics quality, or
+switching the 3D map on, clears it. A tier the learner chose is stepped down for the visit
+only, except that the list is kept whatever was chosen: a device too slow for the low tier would
+otherwise fetch Three.js and the world's chunk on every visit only to give them up.
+
+The world's place is kept from the **first paint**. The world stands above the hero, and the
+module that draws it runs after the page is painted, late on a slow network; a box that
+appeared only then would drop the hero the reader is already looking at by the world's height.
+So the inline boot script (`src/boot.js`) makes the cheap tests first (WebGL 2 in the browser,
+no Save-Data, no `?3d=off`, the map not switched off and not given up as too slow) and stamps
+`html[data-world]`, and `assets/map3d.css` holds the box at the size of the Part buttons' row
+and the stage until `map3d.js` fills it, or gives it up and the attribute with it.
 
 When the tier is not the list, the box shows its four Part buttons (disabled until the world
-is drawn) and a "Loading the map" panel at once (so the page does not jump when the world
-arrives), and `map3d.js` fetches Three.js
+is drawn) and a "Loading the map" panel at once, in the place kept for them, and `map3d.js`
+fetches Three.js
 (`BM3D.load()`, the loader the 3D scenes share) and the world's own chunk, `bundle/world.js`
 (`import()` of `src/world/index.ts`), side by side. If either fails the box goes and the list
 stands alone; `BMMap3D.why()` says why. No other page asks for either chunk (the pages suite
@@ -744,8 +757,11 @@ row; `regions.ts` builds them): chimneys with smoke, a furnace, crates and an an
 Foundry; tents, hills and trees in the Fields; a lattice of posts, axis beams and nodes in the Grid;
 a dome, a telescope, stars on rods and rocks in the Observatory; and along each terrace's front
 edge a rim of low pieces (blocks, bushes, capped posts, crystals), set closer with each tier's
-detail. Every prop is inked in its region's `--region-ink`, which stands 3:1 off that region's
-ground in both themes, as does the selection ring. On them stand the chapter islands,
+detail; and behind the Observatory, two rows of **far hills** (`placeRange`), so the last Part,
+which has no terrace rising behind it as the others have, is not framed under a band of empty
+sky. Every prop is inked in its region's `--region-ink`, which stands 3:1 off that region's
+ground in both themes, as does the selection ring (the far hills are not inked: lines that far
+off break into dashes). On them stand the chapter islands,
 the path's stones and the review gates. All of that is **one mesh and one set of ink edges**
 (`batch.ts` merges the primitives with vertex colours and flat normals), so the still world is two
 draw calls; the progress marks (`marks.ts`: ring, boss, flag, stars) are two more, rebuilt only
@@ -762,7 +778,11 @@ the scenes' (ColorManagement off, linear output), so a token goes in and comes o
 Shading is **toon**: a three-band ramp (a three-texel texture built in code, the only texture) on
 one key light, plus an even ambient term, tuned (`lighting.ts`) so a face turned up shows its token
 exactly and the others 0.79 and 0.62 of it. The sky is the region's `--region-sky` and the fog its
-`--region-fog`, mixed between two regions as the camera moves. No post-processing and no bloom.
+`--region-fog`, mixed between two regions as the camera moves. The fog starts 4 units behind the
+camera's target, where the terrace in view ends, so that terrace keeps its colours exactly, and
+is whole 16 behind it: the back of the terrace behind fades by about a third toward the fog, and
+what is further back (the next terraces, the far hills) by half or more. `map.test.js` draws the
+frame without the fog and checks it changes. No post-processing and no bloom.
 Labels over the world sit on solid paper (`--text` on `--surface`, a measured pair).
 
 **Motion.** Frames are drawn on demand: for a camera flight, and on medium and high for five
@@ -772,18 +792,22 @@ frames at all. Study mode and reduced motion (the device's or the sheet's) stop 
 turn flights into cuts. Nothing flashes and nothing loops for longer than the window.
 
 **Keyboard and screen readers.** The canvas is `aria-hidden` and not focusable; the chapter list
-is the accessible version, and the four Part buttons are real buttons. Focusing or hovering a
-chapter in the list flies the camera to its island and marks the list item, while at least half
-the stage is in view (the world stands above the hero and the list below it, so on most screens
-the two are not seen together, and then the world is left where the learner left it); a click on
+is the accessible version, and the four Part buttons are real buttons. Focusing a chapter in the
+list selects its island (ringed and labelled) and marks the list item, at any size: the world
+stands above the hero and the list below it, so on most screens the two are not seen together,
+and then the camera cuts to the island, so a keyboard learner who tabs down the list and scrolls
+back up finds the world on that chapter; where the stage (half of it) and the link are both in
+view, it flies there. Hovering a chapter flies there only while the stage is in view, since a
+pointer sweeping the list is not choosing. A click on
 an island opens the same link as the list (a modified or middle click a new tab, a tap selects
 first). If the world goes (a lost context, the watchdog) while a Part button has the focus, the
 focus moves to the list.
 
 `BMMap3D.info()` is the test handle: `triangles`, `calls` (the last frame's draw calls),
 `pixelRatio`, `tier`, `reason`, `budget` (the tier's caps), `ambient`, `frames`, `bobbing`,
-`flying`, `current`, `hot`, `stones`, `isles` (what each island shows) and `ring` (the
-selection ring's colour).
+`flying`, `current`, `hot`, `stones`, `isles` (what each island shows), `ring` (the
+selection ring's colour) and `fog` (its near and far). `BMMap3D.fog(false)` draws the same view
+at once without the fog (and `fog(true)` with it), for the check that it shows.
 
 ### Lesson mode
 

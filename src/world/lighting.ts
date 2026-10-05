@@ -9,8 +9,19 @@
 
    The sky is a flat colour, the region's --region-sky, and the fog its --region-fog:
    between two regions (a flight, a drag along the path) both are mixed by how far the
-   camera's target is from one row to the next. The fog starts a little beyond what the
-   camera looks at, so what is in view keeps its colours and the far terraces fade. */
+   camera's target is from one row to the next.
+
+   Fog in Three.js is linear in a point's depth along the view (not its distance), from
+   none at `near` to all fog at `far`. The camera looks down at the target at about 43
+   degrees (assets/map3d.js DIR), so the terrace it frames lies between about 5 units in
+   front of the target's depth and 4 behind it, the islands on the terrace behind stand
+   about 5 behind it, and that terrace's back edge 8.5; the one after that, 7.5 to 14.
+   So the fog starts FOG_NEAR behind the target, where the framed terrace ends (it keeps
+   its colours exactly), and is whole FOG_FAR behind it: the islands of the row behind
+   are touched by it, that terrace's back fades by about a third toward --region-fog, and
+   what is further back (the next terraces, the Observatory's far hills) by half or more.
+   tools/game/map.test.js holds this to it: drawn without the fog, the frame changes, and
+   the framed row's islands do not. */
 
 import type { Three } from "./three.ts";
 import type { AmbientLight, DirectionalLight, Scene } from "three";
@@ -28,11 +39,19 @@ export function makeLights(T: Three, scene: Scene): { key: DirectionalLight; amb
   return { key, ambient };
 }
 
+export const FOG_NEAR = 4;
+export const FOG_FAR = 16;
+
+/** where the fog starts and is whole, for a camera `dist` from its target */
+export function fogRange(dist: number): [number, number] {
+  return [dist + FOG_NEAR, dist + FOG_FAR];
+}
+
 /**
  * Sky and fog for a camera whose target is at row `row` (0 at the front; between two
  * integers, between two regions) and `dist` from the camera.
  */
-export function atmosphere(T: Three, scene: Scene, pal: PaletteMap, parts: string[], row: number, dist: number): void {
+export function atmosphere(T: Three, scene: Scene, pal: PaletteMap, parts: string[], row: number, dist: number, fogOn = true): void {
   if (!parts.length) return;
   const a = Math.max(0, Math.min(parts.length - 1, Math.floor(row)));
   const b = Math.min(parts.length - 1, a + 1);
@@ -45,8 +64,10 @@ export function atmosphere(T: Three, scene: Scene, pal: PaletteMap, parts: strin
   const sky = mix("sky"), fog = mix("fog");
   if (scene.background && (scene.background as { isColor?: boolean }).isColor) (scene.background as typeof sky).copy(sky);
   else scene.background = sky;
-  const near = dist + 6, far = dist + 46;
-  if (scene.fog && (scene.fog as { isFog?: boolean }).isFog) {
+  const [near, far] = fogRange(dist);
+  if (!fogOn) {
+    scene.fog = null;
+  } else if (scene.fog && (scene.fog as { isFog?: boolean }).isFog) {
     scene.fog.color.copy(fog);
     (scene.fog as { near: number; far: number }).near = near;
     (scene.fog as { near: number; far: number }).far = far;

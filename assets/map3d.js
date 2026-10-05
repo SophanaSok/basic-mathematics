@@ -5,8 +5,10 @@
    along one path. It is an enhancement above the chapter list, never a replacement
    for it. The list (ol.path inside [data-course-index]) stays the accessible,
    focusable structure; the canvas is aria-hidden and only mirrors it:
-     list → map   focusing or hovering a chapter link flies the camera to its island,
-                  while the stage is in view (otherwise the world is left as it is)
+     list → map   focusing a chapter link selects its island and brings the camera to
+                  it (a flight while the stage and the link are both in view, else a
+                  cut, so the world is there when the learner scrolls back up);
+                  hovering one flies there while the stage is in view
      map → list   a mouse click on an island opens the same link; a tap selects the
                   link first and opens it on a second tap
    Four real buttons fly to a Part.
@@ -24,9 +26,11 @@
    in a hidden tab nothing is drawn, and an idle page asks for no frames at all.
 
    The box stays hidden, and the list looks exactly as it did, when the tier is the
-   list (the 3D map switch off, no WebGL 2, Save-Data, a low-end device, or a watchdog
-   that gave up), Three.js (bundle/three.js, fetched by assets/three-loader.js) or the
-   world chunk cannot be fetched, or the WebGL context is lost.
+   list (the 3D map switch off, no WebGL 2, Save-Data, or a watchdog that gave up),
+   Three.js (bundle/three.js, fetched by assets/three-loader.js) or the world chunk
+   cannot be fetched, or the WebGL context is lost. Its place is kept from the first
+   paint where src/boot.js expects 3D (html[data-world], assets/map3d.css), so the hero
+   below does not drop when this script arrives; whenever the box goes, so does that.
    =========================================================================== */
 import { detectTier, readProbe, stepDown, lower, pixelRatio, TIERS, AMBIENT_MS, FrameWatch } from "../src/world/tiers.ts";
 
@@ -161,6 +165,7 @@ import { detectTier, readProbe, stepDown, lower, pixelRatio, TIERS, AMBIENT_MS, 
       "</div>" +
       '<div class="map3d-probe" aria-hidden="true">' + probes + "</div>";
     box.hidden = false;
+    document.documentElement.setAttribute("data-world", "3d");
   }
 
   /* --------------------------------------------------------------- build ---- */
@@ -201,7 +206,7 @@ import { detectTier, readProbe, stepDown, lower, pixelRatio, TIERS, AMBIENT_MS, 
       flight: null, raf: 0, dirty: true, watch: new FrameWatch(),
       ambientUntil: 0, amb: { t: 0, last: 0, end: 0 }, bobbing: false, frames: 0,
       onscreen: true, hot: -1, hotHow: "", hover: -1, cur: -1, press: null, aux: null, drag: false,
-      observers: [], firstRender: false, done: {}
+      observers: [], firstRender: false, done: {}, noFog: false
     };
     world.showIdle(budget.ambient);
     refresh(true);
@@ -351,8 +356,9 @@ import { detectTier, readProbe, stepDown, lower, pixelRatio, TIERS, AMBIENT_MS, 
     c.position.set(v.t.x + DIR[0] * v.d, v.t.y + DIR[1] * v.d, v.t.z + DIR[2] * v.d);
     c.lookAt(v.t);
     c.updateMatrixWorld();
-    /* the sky and fog of the region below the camera's target, mixed between two */
-    M.world.atmosphere(v.t.z + PART_BACK, v.d);
+    /* the sky and fog of the region below the camera's target, mixed between two (the
+       fog switched off only by BMMap3D.fog(false), for the check that it shows) */
+    M.world.atmosphere(v.t.z + PART_BACK, v.d, !M.noFog);
   }
   function firstView() {
     var v = M.cur > -1
@@ -512,11 +518,14 @@ import { detectTier, readProbe, stepDown, lower, pixelRatio, TIERS, AMBIENT_MS, 
 
   /* Too slow to be pleasant: one tier down (src/world/tiers.ts), the list after low.
      When the tier was the device's (not the learner's choice), the tier it settles on is
-     kept in bm.prefs.v1 gfxAuto, this device's alone, so the next visit starts there. */
+     kept in bm.prefs.v1 gfxAuto, this device's alone, so the next visit starts there. A
+     chosen quality is stepped down for the visit only, but the list is kept whatever the
+     choice: a device too slow for the low tier would otherwise fetch Three.js and the
+     world's chunk again on every visit, to give them up again (a new choice clears it). */
   function degrade() {
     var next = stepDown(M.tier);
     slowCap = next;
-    if (!M.chosen && window.BMGame && typeof window.BMGame.setPref === "function") {
+    if ((!M.chosen || next === "list") && window.BMGame && typeof window.BMGame.setPref === "function") {
       try { window.BMGame.setPref("gfxAuto", next); } catch (e) { /* kept for the visit only */ }
     }
     if (!M) return;
@@ -571,14 +580,17 @@ import { detectTier, readProbe, stepDown, lower, pixelRatio, TIERS, AMBIENT_MS, 
     sel.position.set(s.x, s.y + W.DECK + 0.1, s.z);
     M.world.selectIn(s.part.id);
   }
-  function select(i, how) {
+  /* cut: put the camera there at once (nobody is watching it fly) */
+  function select(i, how, cut) {
     if (!M || i < 0) return;
     var same = M.hot === i;
     M.hot = i;
     M.hotHow = how;
     highlight(M.hover > -1 ? M.hover : i);
     markList();
-    if (!same || !M.viewKind || M.viewKind.i !== i) flyTo(isleView(i));
+    if (!same || !M.viewKind || M.viewKind.i !== i) {
+      if (cut) jump(isleView(i)); else flyTo(isleView(i));
+    }
     request();
   }
   function unselect() {
@@ -589,12 +601,15 @@ import { detectTier, readProbe, stepDown, lower, pixelRatio, TIERS, AMBIENT_MS, 
     request();
   }
 
-  /* list → map, only where it can be seen. The world stands above the hero and the list
-     below it, so at most sizes the two are not on screen together: a chapter focused or
-     hovered in the list moves the camera only while at least half the stage is in view
-     (and, for focus, the link too, since focusing a link out of view scrolls the stage
-     away). Otherwise the world is left alone, so scrolling back up finds it where the
-     learner left it, not at whatever chapter they last tabbed past. */
+  /* list → map. The world stands above the hero and the list below it, so at most sizes
+     the two are not on screen together. A chapter focused in the list is always selected
+     (its island ringed and labelled, the list item marked) and the camera brought to it:
+     a flight when at least half the stage and the link are in view, else a cut, so a
+     keyboard learner who tabs down the list and scrolls back up finds the world on the
+     chapter they were on. (The focus event comes before the browser scrolls the link into
+     view, so a link below the fold reads as out of view here and gets the cut.) A hover
+     moves the world only while the stage is in view: sweeping the pointer down the list
+     is not choosing a chapter, and a mouse user can see where the world is. */
   function stageInView() {
     if (!M) return false;
     var r = M.stage.getBoundingClientRect(), vh = window.innerHeight || document.documentElement.clientHeight;
@@ -609,7 +624,7 @@ import { detectTier, readProbe, stepDown, lower, pixelRatio, TIERS, AMBIENT_MS, 
     if (!M) return;
     var a = closest(e.target, ".stop-link");
     var li = a && closest(a, "li.stop");
-    if (li && linkInView(a) && stageInView()) select(isleIndex(li.getAttribute("data-chapter")), "focus");
+    if (li) select(isleIndex(li.getAttribute("data-chapter")), "focus", !(linkInView(a) && stageInView()));
   });
   host.addEventListener("focusout", function (e) {
     if (!M) return;
@@ -808,6 +823,7 @@ import { detectTier, readProbe, stepDown, lower, pixelRatio, TIERS, AMBIENT_MS, 
     var had = box.contains(document.activeElement);
     box.hidden = true;
     box.innerHTML = "";
+    document.documentElement.removeAttribute("data-world");
     box.removeAttribute("data-drag");
     host.removeAttribute("data-map");
     if (had) {
@@ -828,7 +844,8 @@ import { detectTier, readProbe, stepDown, lower, pixelRatio, TIERS, AMBIENT_MS, 
   function boot() {
     if (M || starting) return;
     var c = decide();
-    if (c.tier === "list") return;
+    /* the boot script's guess kept the box's place; the tier says otherwise */
+    if (c.tier === "list") { document.documentElement.removeAttribute("data-world"); return; }
     starting = true;
     skeleton();
     /* Three.js and the world's own chunk are fetched side by side */
@@ -935,7 +952,18 @@ import { detectTier, readProbe, stepDown, lower, pixelRatio, TIERS, AMBIENT_MS, 
         hot: M.hot > -1 ? ISLES[M.hot].id : null, flying: !!M.flight, bobbing: !!M.bobbing,
         pixelRatio: M.renderer.getPixelRatio(), calls: ri ? ri.calls : null, isles: M.world.kinds(),
         tier: M.tier, reason: choice ? choice.why : "", ambient: !!M.budget.ambient, budget: M.budget, frames: M.frames,
-        ring: "#" + M.world.select.material.color.getHexString() };
+        ring: "#" + M.world.select.material.color.getHexString(),
+        fog: M.scene.fog ? [+M.scene.fog.near.toFixed(2), +M.scene.fog.far.toFixed(2)] : null };
+    },
+    /* for the check that the fog shows (tools/game/map.test.js): the same view drawn at
+       once, without the fog (false) or with it (true), so the canvas can be read in the
+       same task; nothing else switches it */
+    fog: function (on) {
+      if (!M) return false;
+      M.noFog = !on;
+      place();
+      render();
+      return true;
     },
     /* where an island sits on screen, in client pixels */
     where: function (id) {

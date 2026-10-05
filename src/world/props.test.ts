@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { layout, ISLE_R, ROW_Z, segmentDistance } from "./layout.ts";
-import { placeProps, biomeOf, KINDS, EXTRA_COUNT, RIM, RIM_IN, type Prop } from "./props.ts";
+import { placeProps, placeRange, biomeOf, KINDS, EXTRA_COUNT, RIM, RIM_IN, RANGE_HALF, type Prop } from "./props.ts";
 import { course, motifs } from "./course.test-helper.ts";
 
 const C = course();
@@ -65,4 +65,29 @@ describe("the props of each region", () => {
       expect(near).toEqual([]);
     });
   }
+});
+
+describe("the far hills", () => {
+  const last = L.regions[L.regions.length - 1];
+  const peaks = placeRange(L);
+
+  it("stand in two rows behind the last terrace, from side to side, the same every time", () => {
+    expect(peaks.length).toBeGreaterThanOrEqual(16);
+    expect(placeRange(L)).toEqual(peaks);
+    peaks.forEach((pk) => { expect(pk.z).toBeLessThan(last.z0); expect(pk.part).toBe(last.id); });
+    expect(Math.min(...peaks.map((pk) => pk.x))).toBeLessThanOrEqual(-RANGE_HALF + 1);
+    expect(Math.max(...peaks.map((pk) => pk.x))).toBeGreaterThanOrEqual(RANGE_HALF - 4);
+  });
+
+  it("never rise through the terrace: over it, every cone is below the terrace's top", () => {
+    /* a cone's height at the terrace's back edge, the nearest the terrace comes to it */
+    peaks.forEach((pk) => {
+      const atEdge = pk.base + pk.h * Math.max(0, 1 - (last.z0 - pk.z) / pk.r);
+      expect(atEdge).toBeLessThanOrEqual(last.top);
+    });
+  });
+
+  it("stand taller than the terrace, so the last Part's view has hills behind it, not empty sky", () => {
+    expect(Math.min(...peaks.map((pk) => pk.base + pk.h))).toBeGreaterThan(last.top);
+  });
 });

@@ -10,7 +10,7 @@
      grid    The Grid         a lattice of posts, axis beams, nodes on posts
      stars   The Observatory  a dome, a telescope, stars on rods, rocks
    and along each terrace's front edge a rim of low pieces: blocks, bushes, posts with
-   caps, crystals.
+   caps, crystals; and behind the last terrace, two rows of far hills.
    Every shape is a Three.js primitive; there is no texture and no model file. */
 
 import type { Three } from "./three.ts";
@@ -18,7 +18,7 @@ import type { BufferGeometry, CatmullRomCurve3, Group, InstancedMesh, LineSegmen
 import { Kit, type V3 } from "./kit.ts";
 import { paint as batchPaint, type Range } from "./batch.ts";
 import { DECK, PLINTH, type WorldLayout } from "./layout.ts";
-import type { Prop } from "./props.ts";
+import { placeRange, type Prop } from "./props.ts";
 import { prism, circle } from "./shapes.ts";
 import { lookup, type PaletteMap, type WorldMaterials } from "./materials.ts";
 
@@ -174,6 +174,13 @@ export function buildStatic(T: Three, L: WorldLayout, props: Prop[], mats: World
   L.regions.forEach((r) => {
     k.put("box", null, { p: [(r.x0 + r.x1) / 2, (r.top + r.base) / 2, (r.z0 + r.z1) / 2], s: [r.x1 - r.x0, r.top - r.base, r.z1 - r.z0] },
       (ny) => (ny > 0.5 ? "ground:" : "rock:") + r.id, "rink:" + r.id);
+  });
+
+  /* the far hills behind the last terrace (props.ts placeRange), in its ground colour and
+     without ink: their faces are told apart by the light, and lines that far off break
+     up into dashes against the faces they lie on */
+  placeRange(L).forEach((pk) => {
+    k.put("cone6", null, { p: [pk.x, pk.base + pk.h / 2, pk.z], r: [0, pk.turn, 0], s: [pk.r * 2, pk.h, pk.r * 2] }, "ground:" + pk.part, null);
   });
 
   /* the islands: a plinth of paper and a cap in the Part's hue, turned a little each so a row does not look stamped */

@@ -41,8 +41,9 @@ export interface WorldScene {
   kinds(): Record<string, string>;
   /** read the tokens again and repaint (theme or panel changed) */
   repaint(): void;
-  /** sky and fog for a camera target at depth z, `dist` from the camera */
-  atmosphere(z: number, dist: number): void;
+  /** sky and fog for a camera target at depth z, `dist` from the camera; `fog` false
+      draws without the fog (only for the check that it shows) */
+  atmosphere(z: number, dist: number, fog?: boolean): void;
   /** the idle props at time t of the idle motion (ms); `on` false puts them at rest */
   idle(t: number, on: boolean): void;
   /** whether idle props are shown at all (not on the low tier) */
@@ -158,7 +159,7 @@ export function createWorld(T: Three, opts: WorldOptions): WorldScene {
       still.paint(pal);
       if (marks) marks.paint(pal);
     },
-    atmosphere(z, dist) { atmosphere(T, scene, pal, parts, rowAt(z, parts.length), dist); },
+    atmosphere(z, dist, fog = true) { atmosphere(T, scene, pal, parts, rowAt(z, parts.length), dist, fog); },
     idle,
     showIdle(on) { idleShown = on; applyIdleShown(); },
     dispose() {

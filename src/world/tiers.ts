@@ -14,7 +14,8 @@
    the triangles (TIERS; the browser check tools/game/map.test.js holds the world to
    them, through BMMap3D.info()). A watchdog (FrameWatch) steps the world down one tier
    when its frames are slow, and the tier it settles on is kept in bm.prefs.v1 as gfxAuto,
-   this device's alone, so the next visit starts there.
+   this device's alone, so the next visit starts there (for a quality the learner chose,
+   only the list is kept: the step down from Low).
 
    This file is imported by the contents page's entry (src/entries/home.js) and by
    assets/map3d.js, before Three.js or the world chunk is asked for: nothing here
@@ -52,9 +53,14 @@ export const TIERS: Readonly<Record<Quality, Readonly<Budget>>> = {
 
 /** how long idle motion runs after the last input, in ms; then the page asks for no frames */
 export const AMBIENT_MS = 5000;
-/** the watchdog: SAMPLES frames of animation averaging over SLOW_MS each step the world down */
+/** the watchdog: frames of animation averaging over SLOW_MS step the world down, judged
+    every SAMPLES frames or every WINDOW_MS of frame time, whichever comes first (and not
+    on fewer than MIN_SAMPLES), so a device that draws a few frames a second is judged
+    within a few camera flights, not after the sixty frames that take it a dozen */
 export const SLOW_MS = 34;
 export const SAMPLES = 60;
+export const WINDOW_MS = 2000;
+export const MIN_SAMPLES = 8;
 /** a gap between frames this long is a pause (a hidden tab, a long task), not a slow frame */
 export const PAUSE_MS = 1000;
 
@@ -72,7 +78,7 @@ export interface Probe {
   supported: boolean;
   /** BM3D.why when it is not: "no-webgl" | "save-data" | "off" */
   unsupportedWhy: string;
-  /** BM3D.lowEnd(): a device the list suits by default (2 GB of memory or less) */
+  /** BM3D.lowEnd(): 2 GB of memory or less, which gets the low tier */
   lowEnd: boolean;
   /** the primary pointer is coarse (a finger) */
   coarse: boolean;
@@ -91,8 +97,8 @@ export interface TierPrefs {
 
 export interface Choice {
   tier: Tier;
-  /** why: "chosen", "software", "coarse", "default", "settled" for 3D; for the list the
-      reason BMMap3D.why() gives: "no-webgl", "save-data", "off", "list", "low-end", "slow" */
+  /** why: "chosen", "software", "coarse", "low-end", "default", "settled" for 3D; for the
+      list the reason BMMap3D.why() gives: "no-webgl", "save-data", "off", "list", "slow" */
   why: string;
   /** the learner chose this quality in the settings sheet (the watchdog keeps nothing then) */
   chosen: boolean;
@@ -107,21 +113,24 @@ const CHOSEN: Record<string, Quality> = { low: "low", mid: "medium", high: "high
 
 /**
  * The tier for this device and these settings. In order: no WebGL 2, Save-Data or
- * ?3d=off is the list; so is the 3D course map switch off; then a quality the learner
- * chose; then a low-end device keeps the list unless the learner switched the map on;
- * then a software renderer, or a coarse pointer with four cores or fewer, is low, and
- * everything else medium (high is never chosen for the learner); and never above the
- * tier the watchdog settled on, on an earlier visit.
+ * ?3d=off is the list; so is the 3D course map switch off, and a world that was too slow
+ * even on the low tier on an earlier visit (gfxAuto "list", whether or not the quality
+ * was the learner's choice: a new choice clears it); then a quality the learner chose;
+ * then a software renderer, a coarse pointer with four cores or fewer, or a low-end
+ * device (2 GB of memory or less) is low, and everything else medium (high is never
+ * chosen for the learner); and never above the tier the watchdog settled on, on an
+ * earlier visit.
  */
 export function detectTier(probe: Probe, prefs: TierPrefs): Choice {
   if (!probe.supported) return { tier: "list", why: probe.unsupportedWhy || "no-webgl", chosen: false };
   if (prefs.map === "list") return { tier: "list", why: "list", chosen: true };
+  if (prefs.gfxAuto === "list") return { tier: "list", why: "slow", chosen: false };
   const chosen = prefs.gfx ? CHOSEN[prefs.gfx] : undefined;
   if (chosen) return { tier: chosen, why: "chosen", chosen: true };
-  if (probe.lowEnd && prefs.map !== "3d") return { tier: "list", why: "low-end", chosen: false };
   let found: Choice = { tier: "medium", why: "default", chosen: false };
   if (isSoftware(probe.renderer)) found = { tier: "low", why: "software", chosen: false };
   else if (probe.coarse && probe.cores > 0 && probe.cores <= 4) found = { tier: "low", why: "coarse", chosen: false };
+  else if (probe.lowEnd) found = { tier: "low", why: "low-end", chosen: false };
   const settled = prefs.gfxAuto;
   if (isTier(settled) && lower(settled, found.tier) === settled && settled !== found.tier) {
     return { tier: settled, why: settled === "list" ? "slow" : "settled", chosen: false };
@@ -143,31 +152,38 @@ export function pixelRatio(budget: Budget, device: number, w: number, h: number)
 
 /**
  * The watchdog. push() is given the time of each frame drawn while something moves;
- * after SAMPLES of them it answers whether their average was slower than SLOW_MS, and
- * starts again. A gap over PAUSE_MS (a frame held while the tab was hidden, a long task)
- * is not a frame time and is left out; stop() marks the end of a run of motion, so the
- * wait until the next one is not counted either.
+ * once it holds SAMPLES of them, or MIN_SAMPLES or more that add up to WINDOW_MS, it
+ * answers whether their average was slower than SLOW_MS, and starts again. Counting time
+ * as well as frames matters on the low tier, which has no idle motion: only camera
+ * flights reach the watchdog there, and a 700 ms flight at five frames a second is four
+ * frames, so sixty frames would take fifteen flights. A gap over PAUSE_MS (a frame held
+ * while the tab was hidden, a long task) is not a frame time and is left out; stop()
+ * marks the end of a run of motion, so the wait until the next one is not counted either
+ * (the frames already gathered are kept for the next run).
  */
 export class FrameWatch {
   private last = 0;
   private samples: number[] = [];
+  private sum = 0;
   push(t: number): boolean {
     let slow = false;
     /* the same timestamp twice is one frame seen twice, not a frame drawn in no time */
     if (this.last && t === this.last) return false;
     if (this.last && t - this.last < PAUSE_MS) {
       this.samples.push(t - this.last);
-      if (this.samples.length >= SAMPLES) {
-        const avg = this.samples.reduce((a, b) => a + b, 0) / this.samples.length;
+      this.sum += t - this.last;
+      const n = this.samples.length;
+      if (n >= SAMPLES || (n >= MIN_SAMPLES && this.sum >= WINDOW_MS)) {
+        slow = this.sum / n > SLOW_MS;
         this.samples = [];
-        slow = avg > SLOW_MS;
+        this.sum = 0;
       }
     }
     this.last = t;
     return slow;
   }
   stop(): void { this.last = 0; }
-  reset(): void { this.last = 0; this.samples = []; }
+  reset(): void { this.last = 0; this.samples = []; this.sum = 0; }
   get count(): number { return this.samples.length; }
 }
 

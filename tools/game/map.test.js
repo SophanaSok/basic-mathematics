@@ -31,16 +31,25 @@
       printed for each tier; with the 3D map switch off neither chunk is fetched
    6. the watchdog: with every frame 60 ms apart, the world steps down a tier (medium to
       low), keeps the tier it settled on in bm.prefs.v1 gfxAuto, starts there on the next
-      visit, then gives the list back with the reason "slow" and keeps that too
+      visit; then, at five frames a second on low, which has no idle motion and so only
+      flights to judge by, gives the list back within four flights with the reason "slow"
+      and keeps that too; so does Low chosen by the learner, whose list is kept as well
    7. the keyboard: the canvas is aria-hidden and out of the tab order; Tab reaches the
       Part buttons (disabled while the chunk loads), Enter flies to a Part, and the chosen
-      button keeps its colours under the pointer; focusing or hovering a chapter in the
-      list flies to its island and marks it while the stage is in view, and leaves the
-      world as it was when not; a Part button focused when the world goes hands the focus
-      to the list
+      button keeps its colours under the pointer; at 1280x800 and 360x740, where the list
+      is far below the world, Tab down to the first chapter selects its island and marks
+      it, and the world is on it when the learner scrolls back up; hovering a chapter flies
+      there while the stage is in view and leaves the world as it was when not; a Part
+      button focused when the world goes hands the focus to the list
    8. what is left behind: tier changes back and forth leave no GL buffer behind and the
       map switched off frees them all; in the dark theme the selection ring is each
-      region's --region-ink */
+      region's --region-ink
+   9. the page around the world: with the page's module held back 1.5 s (a slow network),
+      the hero does not move when the world arrives (src/boot.js keeps its place from the
+      first paint), at 1280 and 360 wide; and the world starts at main's own padding, as
+      the hero did
+   10. the picture: the fog shows (drawn without it, the frame changes, but not the
+      islands of the row in view), and the last Part's view is not half empty sky */
 "use strict";
 const fs = require("fs");
 const path = require("path");
@@ -56,7 +65,6 @@ const read = (f) => fs.readFileSync(path.join(site.ROOT, f), "utf8");
 const TIMEOUT = +read("assets/three-loader.js").match(/var TIMEOUT = (\d+);/)[1];
 const AMBIENT_MS = +read("src/world/tiers.ts").match(/export const AMBIENT_MS = (\d+);/)[1];
 const BOB_MS = +read("assets/map3d.js").match(/var BOB_MS = (\d+);/)[1];
-const SAMPLES = +read("src/world/tiers.ts").match(/export const SAMPLES = (\d+);/)[1];
 /* the draw calls of the course map before the world (BMMap3D.info().calls at rest, 1280 wide) */
 const CALLS_BEFORE = 109;
 const MEDIUM = { "bm.prefs.v1": '{"gfx":"mid"}' };
@@ -72,8 +80,8 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 
 /* counts requestAnimationFrame calls; with __hide set, callbacks are held (as Chrome holds
    them for a hidden tab) and run on return with the current timestamp; with __slow set,
-   each display frame is handed a timestamp 60 ms after the last one's, as on a device that
-   draws at about 16 frames a second. The fake clock moves once per display frame, not per
+   each display frame is handed a timestamp 60 ms after the last one's (or __slow ms, when
+   it is a number), as on a device that draws at about 16 (or 1000 / __slow) frames a second. The fake clock moves once per display frame, not per
    callback: every callback of one frame gets the same time, as the browser gives it, so
    two loops running side by side show as the same timestamp twice (a per-callback clock
    gave each its own 60 ms and hid them). __frames(ms) counts the display frames over
@@ -92,7 +100,7 @@ const RAF_GATE = "(" + function () {
     window.__raf++;
     return orig(function (t) {
       if (window.__hide) { window.__held.push(cb); return; }
-      if (window.__slow) { if (t !== real) { real = t; fake = Math.max(fake + 60, t); } cb(fake); return; }
+      if (window.__slow) { if (t !== real) { real = t; fake = Math.max(fake + (window.__slow === true ? 60 : window.__slow), t); } cb(fake); return; }
       cb(t);
     });
   };
@@ -138,6 +146,7 @@ async function newContext(browser, opts) {
   });
   await context.addInitScript(RAF_GATE);
   await context.addInitScript(GL_BUFFERS);
+  await context.addInitScript(PIXELS);
   if (opts.hardware) await context.addInitScript(HARDWARE);
   await context.addInitScript((seed) => {
     try { if (!sessionStorage.getItem("__seeded")) { Object.keys(seed).forEach(function (k) { localStorage.setItem(k, seed[k]); }); sessionStorage.setItem("__seeded", "1"); } } catch (e) { /* fine */ }
@@ -203,11 +212,36 @@ async function islandPoint(page) {
 const loaded = (page) => page.evaluate(() => window.BM3D.load().then(function (ok) {
   return new Promise(function (r) { setTimeout(r, 50); }).then(function () {
     return { ok: ok, why: window.BM3D.why, three: !!(window.BM3D.THREE && window.BM3D.THREE.WebGLRenderer), onWindow: "THREE" in window,
-      map: window.BMMap3D.on(), mapWhy: window.BMMap3D.why(), hidden: document.querySelector("[data-map3d]").hidden, list: document.querySelector("[data-course-index]").getAttribute("data-map") };
+      map: window.BMMap3D.on(), mapWhy: window.BMMap3D.why(), hidden: document.querySelector("[data-map3d]").hidden, list: document.querySelector("[data-course-index]").getAttribute("data-map"),
+      kept: document.documentElement.hasAttribute("data-world"), height: document.querySelector("[data-map3d]").offsetHeight };
   });
 }));
 
 const prefsOf = (page) => page.evaluate(() => JSON.parse(localStorage.getItem("bm.prefs.v1") || "{}"));
+
+/* every display frame `gap` ms after the last, then up to `most` flights to a Part, one
+   at a time, until the world gives up; returns how many it took (most + 1 when it did not) */
+async function slowFlights(page, gap, most) {
+  await page.evaluate((g) => { window.__slow = g; }, gap);
+  for (let k = 1; k <= most; k++) {
+    await page.click(".map3d-part[data-p=\"" + (k % 4) + "\"]", { timeout: 3000 }).catch(() => {});
+    await wait(700);
+    if (!(await page.evaluate(() => window.BMMap3D.on()))) return k;
+  }
+  return most + 1;
+}
+
+/* the canvas as drawn just now: BMMap3D.fog() draws in the same task, so the drawing
+   buffer is still there to read (the canvas does not preserve it past the frame) */
+const PIXELS = "(" + function () {
+  window.__pixels = function () {
+    var cv = document.querySelector("[data-map3d] canvas"), g = document.createElement("canvas");
+    g.width = cv.width; g.height = cv.height;
+    var x = g.getContext("2d");
+    x.drawImage(cv, 0, 0);
+    return { w: g.width, h: g.height, d: x.getImageData(0, 0, g.width, g.height).data };
+  };
+} + ")()";
 
 async function run() {
   server = await target.start(site.parseArgs(process.argv.slice(2)));
@@ -350,6 +384,7 @@ async function run() {
       const why = how === "abort" ? "cdn" : "timeout";
       check(l.ok === false && l.why === why && !l.three && !l.onWindow, "when the request for bundle/three.js " + (how === "abort" ? "fails" : "stalls") + ", load() says false with the reason " + JSON.stringify(why) + " and holds no THREE (" + JSON.stringify(l) + ")");
       check(!l.map && l.mapWhy === why && l.hidden && l.list === null, "and the list stands alone, with the map's reason the loader's (" + JSON.stringify({ map: l.map, mapWhy: l.mapWhy, hidden: l.hidden, list: l.list }) + ")");
+      check(!l.kept && l.height === 0, "and the place kept for the world from the first paint is given back (" + JSON.stringify({ kept: l.kept, height: l.height }) + ")");
       check(asked.length === 1, "the chunk was asked for once (" + asked.length + ")");
       if (how === "stall") check(took >= TIMEOUT - 500 && took < TIMEOUT + 4000, "the load gave up after the loader's " + TIMEOUT + " ms (" + took + " ms)");
       const again = await loaded(page);
@@ -416,8 +451,9 @@ async function run() {
       await page.goto(url("index.html"));
       await page.waitForFunction(() => window.BMMap3D && document.querySelector("li.stop"), null, { timeout: 20000 });
       await wait(1500);
-      const s = await page.evaluate(() => ({ on: window.BMMap3D.on(), why: window.BMMap3D.why(), hidden: document.querySelector("[data-map3d]").hidden }));
+      const s = await page.evaluate(() => ({ on: window.BMMap3D.on(), why: window.BMMap3D.why(), hidden: document.querySelector("[data-map3d]").hidden, kept: document.documentElement.hasAttribute("data-world"), height: document.querySelector("[data-map3d]").offsetHeight }));
       check(!s.on && s.why === "list" && s.hidden && asked.length === 0 && world.length === 0, "with the 3D map switch off the list stands alone and neither bundle/three.js nor bundle/world.js is fetched (" + JSON.stringify({ s, three: asked.length, world: world.length }) + ")");
+      check(!s.kept && s.height === 0, "and no place is kept for the world, from the first paint on (" + JSON.stringify(s) + ")");
       await context.close();
     }
 
@@ -436,17 +472,14 @@ async function run() {
       await ready(page);
       const j = await info(page);
       check(j.tier === "low" && j.reason === "settled", "the next visit starts on the tier it settled on (" + JSON.stringify({ tier: j.tier, reason: j.reason }) + ")");
-      /* low has no idle motion: flights are what it draws, and they are slow too */
-      await page.evaluate(() => { window.__slow = true; });
-      let on = true;
-      for (let k = 0; k < 4 * Math.ceil(SAMPLES / 8) && on; k++) {
-        await page.click(".map3d-part[data-p=\"" + (k % 4) + "\"]").catch(() => {});
-        await wait(500);
-        on = await page.evaluate(() => window.BMMap3D.on());
-      }
+      /* low has no idle motion: flights are what it draws. At five frames a second a
+         700 ms flight is four frames, so a watchdog that waited for SAMPLES of them would
+         need about fifteen flights; it judges by time as well (src/world/tiers.ts
+         WINDOW_MS), and four flights are enough */
+      const flights = await slowFlights(page, 200, 4);
       const s = await page.evaluate(() => ({ on: window.BMMap3D.on(), why: window.BMMap3D.why(), hidden: document.querySelector("[data-map3d]").hidden, list: document.querySelector("[data-course-index]").getAttribute("data-map") }));
       const p2 = await prefsOf(page);
-      check(!s.on && s.why === "slow" && s.hidden && s.list === null && p2.gfxAuto === "list", "still slow on low, it gives the list back, says why, and keeps gfxAuto \"list\" (" + JSON.stringify({ s, prefs: p2 }) + ")");
+      check(!s.on && s.why === "slow" && s.hidden && s.list === null && p2.gfxAuto === "list", "at five frames a second on low, it gives the list back within four flights (" + flights + "), says why, and keeps gfxAuto \"list\" (" + JSON.stringify({ s, prefs: p2 }) + ")");
       await page.evaluate(() => { window.__slow = false; });
       await page.reload();
       await page.waitForFunction(() => window.BMMap3D && document.querySelector("li.stop"), null, { timeout: 20000 });
@@ -457,6 +490,29 @@ async function run() {
       await page.waitForFunction(() => window.BMMap3D.on(), null, { timeout: 20000 }).catch(() => {});
       const u = await page.evaluate(() => ({ on: window.BMMap3D.on(), prefs: JSON.parse(localStorage.getItem("bm.prefs.v1")) }));
       check(u.on && !("gfxAuto" in u.prefs), "switching the 3D map on again starts afresh: the world returns and gfxAuto is gone (" + JSON.stringify(u) + ")");
+      await context.close();
+    }
+    {
+      /* Low chosen by the learner: too slow even for that, the world gives the list back
+         and keeps it (gfxAuto "list"), so a device that cannot draw the low tier does not
+         fetch Three.js and the world's chunk on every visit to give them up again; the
+         choice of Low stays as it was, and a new choice starts afresh */
+      const { context, page, asked } = await openMap(browser, { "bm.prefs.v1": '{"gfx":"low"}' });
+      const i = await info(page);
+      const flights = await slowFlights(page, 200, 4);
+      const p = await prefsOf(page);
+      check(i.tier === "low" && i.reason === "chosen" && !(await page.evaluate(() => window.BMMap3D.on())) && p.gfx === "low" && p.gfxAuto === "list",
+        "on Low chosen by the learner, five frames a second give the list back within four flights (" + flights + ") and keep it, the choice untouched (" + JSON.stringify(p) + ")");
+      await page.evaluate(() => { window.__slow = false; });
+      const before = asked.length;
+      await page.reload();
+      await page.waitForFunction(() => window.BMMap3D && document.querySelector("li.stop"), null, { timeout: 20000 });
+      await wait(1000);
+      const t = await page.evaluate(() => ({ on: window.BMMap3D.on(), why: window.BMMap3D.why(), sw: window.BMGame.map3dOn(window.BMGame.prefs()) }));
+      check(!t.on && t.why === "slow" && !t.sw && asked.length === before, "and the next visit keeps the list, fetches no Three.js, and shows the 3D map switch off (" + JSON.stringify(t) + ", asked " + (asked.length - before) + ")");
+      await page.evaluate(() => window.BMGame.setPref("gfx", "low"));
+      await page.waitForFunction(() => window.BMMap3D.on(), null, { timeout: 20000 }).catch(() => {});
+      check(await page.evaluate(() => window.BMMap3D.on()), "choosing a quality again starts afresh: the world returns");
       await context.close();
     }
     {
@@ -503,30 +559,57 @@ async function run() {
       const hoverOff = await look(2);
       await page.mouse.move(0, 0);
       check(hoverOn === restOn && hoverOff !== restOff, "the chosen Part button looks the same under the pointer, and another one changes (" + JSON.stringify({ restOn, hoverOn, restOff, hoverOff }) + ")");
-      /* the list mirrors itself on the map only where that can be seen: at 1280x900 the
-         world (above the hero) and the list (below it) are never on screen together, and
-         focusing a chapter scrolls the stage away, so the world is left as it was */
+      /* a pointer sweeping down the list is not choosing a chapter: with the stage out of
+         view (at 1280x900 the world, above the hero, and the list, below it, are never on
+         screen together) a hover leaves the world where it was */
       const view = () => page.evaluate(() => {
         var r = document.querySelector("[data-map3d] canvas").getBoundingClientRect(), w = window.BMMap3D.where("ch01"), i = window.BMMap3D.info();
         return { hot: i.hot, flying: i.flying, at: [Math.round(w.x - r.left), Math.round(w.y - r.top)], mark: !!document.querySelector("li.stop[data-map-hot]") };
       });
+      await page.evaluate(() => document.querySelector('li.stop[data-chapter="ch09"]').scrollIntoView({ block: "center" }));
+      await wait(600);
       const before = await view();
-      await page.focus('li.stop[data-chapter="ch09"] .stop-link');
+      await page.hover('li.stop[data-chapter="ch09"] .stop-link');
       await wait(1200);
       const away = await view();
-      check(away.hot === null && !away.flying && !away.mark && away.at.join() === before.at.join(), "focusing a chapter in the list while the stage is out of view leaves the world where it was (" + JSON.stringify({ before, away }) + ")");
-      /* on a screen tall enough for both, focus and hover fly to the island and mark the item */
+      check(away.hot === null && !away.flying && !away.mark && away.at.join() === before.at.join(), "hovering a chapter in the list while the stage is out of view leaves the world where it was (" + JSON.stringify({ before, away }) + ")");
+      /* on a screen tall enough for both, hover flies to the island and marks the item */
       await page.setViewportSize({ width: 1280, height: 2400 });
       await page.evaluate(() => { document.activeElement && document.activeElement.blur(); window.scrollTo(0, 0); });
       await wait(600);
-      await page.evaluate(() => document.querySelector('li.stop[data-chapter="ch09"] .stop-link').focus());
-      await wait(1200);
-      const h = await page.evaluate(() => ({ hot: window.BMMap3D.info().hot, mark: !!document.querySelector('li.stop[data-chapter="ch09"][data-map-hot]'), y: window.scrollY }));
-      check(h.hot === "ch09" && h.mark && h.y === 0, "with the stage in view, focusing a chapter in the list flies to its island and marks the list item (" + JSON.stringify(h) + ")");
       await page.hover('li.stop[data-chapter="ch05"] .stop-link');
       await wait(1200);
-      const v = await page.evaluate(() => ({ hot: window.BMMap3D.info().hot, mark: !!document.querySelector('li.stop[data-chapter="ch05"][data-map-hot]') }));
-      check(v.hot === "ch05" && v.mark, "and so does hovering one (" + JSON.stringify(v) + ")");
+      const v = await page.evaluate(() => ({ hot: window.BMMap3D.info().hot, mark: !!document.querySelector('li.stop[data-chapter="ch05"][data-map-hot]'), y: window.scrollY }));
+      check(v.hot === "ch05" && v.mark && v.y === 0, "with the stage in view, hovering a chapter flies to its island and marks the list item (" + JSON.stringify(v) + ")");
+      await context.close();
+    }
+    /* The keyboard at ordinary sizes, where the list is far below the world: Tab from the
+       top, past the Part buttons, to the first chapter. Its island is selected and the
+       list item marked at once (the camera cut there, as nobody can watch it fly), and
+       scrolling back up finds the world on that chapter, with its label. */
+    for (const viewport of [{ width: 1280, height: 800 }, { width: 360, height: 740 }]) {
+      const { context, page } = await openMap(browser, {}, { context: { viewport } });
+      await page.evaluate(() => { document.activeElement && document.activeElement.blur(); window.scrollTo(0, 0); });
+      await wait(300);
+      let ch = null;
+      for (let k = 0; k < 40 && !ch; k++) {
+        await page.keyboard.press("Tab");
+        ch = await page.evaluate(() => { var li = document.activeElement && document.activeElement.closest && document.activeElement.closest("li.stop"); return li && li.getAttribute("data-chapter"); });
+      }
+      await wait(900);
+      const k = await page.evaluate(() => {
+        var i = window.BMMap3D.info(), st = document.querySelector(".map3d-stage").getBoundingClientRect();
+        return { hot: i.hot, flying: i.flying, mark: !!document.querySelector('li.stop[data-chapter="' + i.hot + '"][data-map-hot]'), stageBelowTop: st.bottom > 0 && st.top < window.innerHeight };
+      });
+      check(ch === "ch01" && k.hot === "ch01" && k.mark && !k.flying, viewport.width + "x" + viewport.height + ": Tab to the first chapter selects its island and marks the list item, though the world is out of view (" + JSON.stringify({ ch, k }) + ")");
+      await page.evaluate(() => window.scrollTo(0, 0));
+      await wait(900);
+      const back = await page.evaluate(() => {
+        var r = document.querySelector("[data-map3d] canvas").getBoundingClientRect(), w = window.BMMap3D.where("ch01");
+        var label = document.querySelector('.map3d-label[data-kind="hot"]') || document.querySelector(".map3d-label");
+        return { at: [+((w.x - r.left) / r.width).toFixed(2), +((w.y - r.top) / r.height).toFixed(2)], label: label ? label.textContent : null, focus: document.activeElement && document.activeElement.className };
+      });
+      check(back.at[0] > 0.25 && back.at[0] < 0.75 && back.at[1] > 0.25 && back.at[1] < 0.85 && /Numbers/.test(back.label || ""), viewport.width + "x" + viewport.height + ": scrolled back up, the world is on that chapter, labelled (" + JSON.stringify(back) + ")");
       await context.close();
     }
     {
@@ -562,8 +645,7 @@ async function run() {
       /* in the dark theme the regions' grounds are near black: the selection ring is the
          region's --region-ink, which stands 3:1 off its ground (tools/contrast-pairs.json),
          never the paper ink */
-      /* a screen tall enough for the stage and the whole list, so focusing a chapter selects it */
-      const { context, page } = await openMap(browser, { "bm.theme": '"dark"' }, { context: { viewport: { width: 1280, height: 3200 } } });
+      const { context, page } = await openMap(browser, { "bm.theme": '"dark"' });
       await page.evaluate(() => { window.scrollTo(0, 0); });
       const rows = [];
       for (const p of [0, 1, 2, 3]) {
@@ -575,6 +657,79 @@ async function run() {
         }, p));
       }
       check(await page.evaluate(() => document.documentElement.getAttribute("data-theme")) === "dark" && rows.every((r) => r.hot === r.id && r.ring === r.ink), "in the dark theme the ring around an island is its region's --region-ink (" + JSON.stringify(rows) + ")");
+      await context.close();
+    }
+
+    /* -------------------------------------------- 9: the page around the world */
+    for (const viewport of [{ width: 1280, height: 800 }, { width: 360, height: 740 }]) {
+      /* the page's module (which draws the world) held back 1.5 s, as on a slow network:
+         where the hero is once the page is parsed, and where it is once the world is drawn */
+      const context = await browser.newContext({ viewport, deviceScaleFactor: 1 });
+      await context.route(/^(https?|wss?):/, async (r) => {
+        const u = r.request().url();
+        if (!server.owns(u)) return r.abort();
+        if (/\/bundle\/pages\/index\.js(?:[?#]|$)/.test(u)) await wait(1500);
+        return r.continue();
+      });
+      await context.addInitScript(() => {
+        window.__shifts = [];
+        new PerformanceObserver((l) => l.getEntries().forEach((e) => e.sources.forEach((s) => { if (s.node && s.node.matches && s.node.matches("section.hero")) window.__shifts.push(Math.round(s.currentRect.y - s.previousRect.y)); }))).observe({ type: "layout-shift", buffered: true });
+        document.addEventListener("readystatechange", () => {
+          if (document.readyState === "interactive") window.__parsed = { hero: Math.round(document.querySelector("section.hero").getBoundingClientRect().top), world: document.documentElement.getAttribute("data-world") };
+        });
+      });
+      const page = await context.newPage();
+      await page.goto(url("index.html"));
+      await page.waitForFunction(() => window.BMMap3D && window.BMMap3D.on() && document.querySelector(".map3d-stage[data-state=ready]"), null, { timeout: 20000 });
+      await wait(300);
+      const r = await page.evaluate(() => {
+        var main = document.querySelector("main"), cs = getComputedStyle(main);
+        return { parsed: window.__parsed, hero: Math.round(document.querySelector("section.hero").getBoundingClientRect().top), shifts: window.__shifts,
+          gap: Math.round(document.querySelector(".map3d-parts").getBoundingClientRect().top - main.getBoundingClientRect().top - parseFloat(cs.paddingTop)) };
+      });
+      check(r.parsed && r.parsed.world === "3d" && Math.abs(r.hero - r.parsed.hero) <= 1 && r.shifts.length === 0, viewport.width + " wide, the page's module 1.5 s late: the world's place is kept from the first paint and the hero does not move when it arrives (" + JSON.stringify(r) + ")");
+      check(r.gap === 0, viewport.width + " wide: the world starts at main's own padding, as the hero did (" + r.gap + " px more)");
+      await context.close();
+    }
+
+    /* -------------------------------------------- 10: the picture */
+    for (const theme of ["light", "dark"]) {
+      const { context, page } = await openMap(browser, { "bm.theme": JSON.stringify(theme), "bm.prefs.v1": '{"gfx":"mid"}' }, { reducedMotion: "reduce" });
+      await page.click('.map3d-part[data-p="0"]');
+      await wait(400);
+      /* the fog: the frame without it differs, beyond the row in view; the islands of that row do not */
+      const f = await page.evaluate(() => {
+        var cv = document.querySelector("[data-map3d] canvas"), r = cv.getBoundingClientRect();
+        window.BMMap3D.fog(true);
+        var a = window.__pixels();
+        window.BMMap3D.fog(false);
+        var b = window.__pixels();
+        window.BMMap3D.fog(true);
+        var diff = function (k) { return Math.abs(a.d[k] - b.d[k]) + Math.abs(a.d[k + 1] - b.d[k + 1]) + Math.abs(a.d[k + 2] - b.d[k + 2]); };
+        var changed = 0, lit = 0;
+        for (var k = 0; k < a.d.length; k += 4) { if (diff(k) > 6) changed++; if (a.d[k] + a.d[k + 1] + a.d[k + 2] > 0) lit++; }
+        var row = window.BM_CURRICULUM.parts[0].chapters.map(function (ch) {
+          var w = window.BMMap3D.where(ch.id), x = Math.round((w.x - r.left) * a.w / r.width), y = Math.round((w.y - r.top) * a.h / r.height);
+          return diff((y * a.w + x) * 4);
+        });
+        return { share: +(changed / (a.w * a.h)).toFixed(3), lit: lit > 0, row: row, fog: window.BMMap3D.info().fog };
+      });
+      check(f.lit && f.share >= 0.02 && f.row.every((d) => d <= 6), theme + ": the fog shows: drawn without it, " + (f.share * 100).toFixed(1) + "% of the frame changes (at least 2%), and none of the islands of the row in view (" + JSON.stringify(f) + ")");
+      /* the last Part: no band of empty sky across the top (the far hills stand behind it) */
+      await page.click('.map3d-part[data-p="3"]');
+      await wait(400);
+      const k = await page.evaluate(() => {
+        window.BMMap3D.fog(true);
+        var a = window.__pixels(), at = function (x, y) { var k = (y * a.w + x) * 4; return [a.d[k], a.d[k + 1], a.d[k + 2]]; };
+        var sky = window.BMMap3D.info() && at(Math.round(a.w / 2), 1), rows = 0;
+        for (var y = 1; y < a.h - 1; y++) {
+          var all = true;
+          for (var x = 1; x < a.w - 1 && all; x += 3) { var q = at(x, y); if (Math.abs(q[0] - sky[0]) + Math.abs(q[1] - sky[1]) + Math.abs(q[2] - sky[2]) > 6) all = false; }
+          if (all) rows++;
+        }
+        return { skyRows: rows, rows: a.h };
+      });
+      check(k.skyRows / k.rows <= 0.05, theme + ": the last Part's view is not a band of empty sky (" + k.skyRows + " of " + k.rows + " rows all sky)");
       await context.close();
     }
   } finally {

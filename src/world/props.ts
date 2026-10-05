@@ -153,3 +153,46 @@ export function fits(L: WorldLayout, region: RegionSpot, placed: Prop[], kind: P
   }
   return true;
 }
+
+/** one of the far hills: a cone standing behind the last terrace, its foot hidden by it */
+export interface Peak {
+  /** the last Part's index and id, whose colours it takes */
+  p: number; part: string;
+  x: number; z: number;
+  /** its radius, its height, and the height its foot stands at */
+  r: number; h: number; base: number;
+  turn: number;
+}
+
+/** how far behind the last terrace's back edge the two rows of far hills stand */
+export const RANGE_ROWS = [3, 9];
+/** from side to side, wider than any view of the world */
+export const RANGE_HALF = 30;
+
+/**
+ * The far hills: two rows of tall cones behind the last terrace, the Observatory's, so
+ * the view of the last Part, which has no terrace rising behind it as the others have,
+ * shows hills there and not a third of a screen of empty sky. Their feet stand low enough
+ * that the terrace's back edge hides them from the camera, which looks down from the
+ * front; the fog (src/world/lighting.ts) fades them toward the region's --region-fog.
+ * The same at every tier: a few hundred triangles, inside the one merged mesh.
+ */
+export function placeRange(L: WorldLayout): Peak[] {
+  const last = L.regions[L.regions.length - 1];
+  if (!last) return [];
+  const rnd = random(0xf417 + L.regions.length);
+  const out: Peak[] = [];
+  RANGE_ROWS.forEach((back, row) => {
+    const step = row ? 7 : 5;
+    for (let x = -RANGE_HALF + (row ? step / 2 : 0); x <= RANGE_HALF; x += step) {
+      const h = (row ? 7.5 : 4.5) + rnd() * (row ? 2 : 1.5);
+      out.push({
+        p: last.p, part: last.id,
+        x: x + (rnd() - 0.5) * 1.6, z: last.z0 - back - rnd() * 1.2,
+        r: h * (0.6 + rnd() * 0.12), h, base: last.top - 3,
+        turn: rnd() * Math.PI
+      });
+    }
+  });
+  return out;
+}

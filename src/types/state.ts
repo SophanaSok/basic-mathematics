@@ -159,7 +159,7 @@ export interface RunStore {
 export interface PrefsStore {
   sound: boolean;
   calm: boolean;
-  /** unset until the reader chooses: 3D, except on a low-end device */
+  /** unset until the reader chooses: 3D (src/world/tiers.ts picks the tier) */
   map?: "3d" | "list";
   tempo: "standard" | "extended" | "untimed";
   /** the reading panel: unset until the reader chooses, which means light in both

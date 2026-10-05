@@ -248,8 +248,13 @@ ten minutes:
   say the WebGL renderer's name (`BM3D.renderer`): a software renderer then reads as a hardware
   one and gets the medium tier instead of low, and the watchdog steps it down if it is slow.
 - The settings sheet's Graphics quality Low used to keep the list; it is the world's low tier
-  now, and the 3D course map switch is what keeps the list. A reader who chose Low before the
-  deploy gets the world at its lowest, not the list.
+  now, and the 3D course map switch is what keeps the list. That meaning of Low was never on
+  `main` (the setting arrived on the branch before this one), so no deployed reader has it
+  stored. Should one have it, the world is drawn at its lowest, and if even that is too slow the
+  watchdog gives the list back and keeps it (`gfxAuto: "list"`, whether or not the quality was
+  chosen), so the cost is paid once, not on every visit.
+- A low-end device (2 GB of memory or less) got the list by default before; it gets the low tier
+  now, as the plan's tier rule says, and the watchdog takes it to the list if it is too slow.
 - `bm.prefs.v1` gains `gfxAuto`, written by the watchdog. A tab from before the deploy keeps it
   through its own writes (R0's unknown-key rule) and does not read it.
 

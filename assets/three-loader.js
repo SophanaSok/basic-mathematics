@@ -14,7 +14,8 @@
                          ("cdn": the chunk could not be fetched or run; the name is from
                          when it came from a CDN, and the checks read it)
      BM3D.supported()  → false when 3D should not even be tried (no WebGL 2, Save-Data, ?3d=off)
-     BM3D.lowEnd()     → true on devices that should get the flat picture by default
+     BM3D.lowEnd()     → true on devices whose 3D scenes start as the flat picture (2 GB of
+                         memory or less); the course world gives them its low tier
      BM3D.renderer     → the WebGL renderer's name, once supported() has made its test
                          context ("" when the browser does not say); the course world
                          reads it to give a software renderer its low tier

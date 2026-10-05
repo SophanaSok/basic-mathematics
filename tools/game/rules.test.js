@@ -458,6 +458,9 @@ function world(seedStores) {
   eq(w.read("bm.prefs.v1").gfxAuto, "list", "another setting leaves it");
   w.Game.setPref("map3d", true);
   eq(["gfxAuto" in w.read("bm.prefs.v1"), w.Game.map3dOn(w.Game.prefs())], [false, true], "switching the map on again starts afresh");
+  w.Game.setPref("gfxAuto", "list");
+  eq([w.read("bm.prefs.v1").map, w.Game.map3dOn(w.Game.prefs())], ["3d", false], "the watchdog giving the list back shows the switch off even where the map was switched on (the world keeps the list then too)");
+  w.Game.setPref("map3d", true);
   w.Game.setPref("gfxAuto", "medium"); w.Game.setPref("gfx", "high");
   eq(["gfxAuto" in w.read("bm.prefs.v1"), w.read("bm.prefs.v1").gfx], [false, "high"], "so does choosing a quality");
   w.Game.setPref("gfxAuto", "nonsense");
