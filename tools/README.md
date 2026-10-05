@@ -114,13 +114,28 @@ from the source tree. `/__base/<path>` serves the same path at `--base` through 
 previous commit's site is browsable for comparison without a checkout (`node tools/lib/serve.js`
 runs the server on its own).
 
+The pages take fonts, KaTeX and Three.js from CDNs, and the run does not leave those requests to
+Chromium. A stylesheet or deferred script that neither answers nor fails holds a page's scripts
+and its load event, and one such stall among the several hundred page loads of a run used to end
+it with `page.goto: Timeout 15000ms exceeded` on whichever page it hit. So `lib/browser.js`
+answers every request that is not for the local server itself: Node fetches the URL under a
+4-second deadline, once per run, and every later page gets the same bytes from memory. A request
+that fails or runs out of time is aborted, which the page sees as a failed request and the suites
+count as a third-party **warning**, and that host is then refused at once for the next 30 seconds.
+The second part matters as much as the first: a page chains its CDNs (KaTeX from cdnjs holds the
+deferred scripts, which then ask cdnjs and after it jsDelivr for Three.js), and three deadlines in
+a row are a navigation timeout again. A run with no network therefore still passes, with warnings
+and unrendered formulas, and so does one where every CDN hangs (tried: all proxy variables pointed
+at a socket that accepts and never answers, `NODE_USE_ENV_PROXY=1`).
+
 Output goes to `.cache/check/` (git-ignored): `report.json`, `index.html` (a contact sheet with
 every screenshot and all results — open it in a browser), and `pages/*.png`.
 
 | suite | what it does |
 | --- | --- |
 | `webgl` | runs first. Loads `fixtures/webgl-probe.html` under three Chromium arg sets in turn and launches the shared browser with the first that gives a WebGL context; reports the renderer. Also self-tests the `noWebGL` and `blockUrl` helpers |
-| `pages` | every page × light/dark × 1280×800/360×740 with clean storage: console errors, uncaught errors, same-origin 404s, horizontal overflow, `body[data-lesson="steps"]` and the mode switch on chapter pages, then the switch to whole page and a full-page screenshot. Third-party failures (fonts, KaTeX CDN) are warnings |
+| `thirdparty` | the paragraph above, held to: a local server plays a CDN that accepts a request and never answers, and one that sends headers and stops. The page must finish loading within the deadline with a third-party warning for each file and no failure; a second page asking the stalled host straight away must not wait for it again; a file that is there, used by two pages, must be fetched once. Also reads the suites' source: a context opened with `ctx.browser.newContext` goes around the deadline, and fails here |
+| `pages` | every page × light/dark × 1280×800/360×740 with clean storage: console errors, uncaught errors, same-origin 404s, horizontal overflow, `body[data-lesson="steps"]` and the mode switch on chapter pages, then the switch to whole page and a full-page screenshot. Third-party requests (fonts, the KaTeX CDN) that fail or stall are warnings |
 | `widgets` | every `[data-widget]` has an `svg`/`canvas` and no failure note; then each slider is set to min/max/min with `input` events, each `button.chip` is clicked, and a focusable SVG gets arrow keys and Space. Any exception fails |
 | `missions` | with clean storage no `.missions li[data-done]` exists, headings read "0 of n", `BMPlay` is empty, `BMMissions.total()` matches the page |
 | `exercises` | per chapter, in whole-page mode: a wrong answer on the first scored typed exercise shows feedback with the hint, then the key is accepted; then every exercise is answered with its own key (typed: type and Enter, trying `\|`-alternatives in the engine's order; choice/multi: tick and Check; blank: fill each; order: the up buttons; `figure` kinds are skipped and counted); the score line and completion banner agree; after a reload every solved scored exercise is `data-state="correct"` with `data-restored` and the lesson mode is remembered |
@@ -141,14 +156,16 @@ the same key before paint is covered too.
 Drop a file in `tools/suites/` exporting `{ name, order, description, run(ctx) }`. The runner
 loads every file there; nothing is registered by hand. `ctx` carries the browser, the server URLs,
 the page lists, the curriculum, the flags and the helpers in `lib/browser.js` (`newPage` with
-theme/viewport/storage seeds/reduced motion/no-WebGL, `open`, `settle`, `wholePage`, `screenshot`,
-`noWebGL`, `blockUrl`); results go through `ctx.report.pass/fail/warn/skip`. The full interface is
+theme/viewport/storage seeds/reduced motion/no-WebGL, `newContext`, `open`, `settle`, `wholePage`,
+`screenshot`, `noWebGL`, `blockUrl`); results go through `ctx.report.pass/fail/warn/skip`. The full interface is
 documented at the top of `check-browser.js`. `lib/drive.js` answers exercises by kind for suites
 that need a solved or a wrong card. A `game`, `scenes` or `arena` suite is one more file.
 
 `h.newPage({ storage })` writes its seeds on every page load, which suits a suite that opens one
 page. A suite that follows state across pages seeds once instead, through the browser context's
-`storageState` on `ctx.server.url`'s origin, as `suites/upgrade.js` does.
+`storageState` on `ctx.server.url`'s origin, as `suites/upgrade.js` does. It opens that context
+with `h.newContext(options)`, never `ctx.browser.newContext`: the helper is what puts the
+context's third-party requests under the deadline.
 
 ### The saved-state fixture
 
@@ -177,6 +194,8 @@ Software WebGL is slow and can lose its context under load, which is why CI runs
 (`npm run test:browser:3d`: `game/map.test.js`, and `game/scenes.test.js` with it, though that one
 draws on the SVG painter) and the `webgl` suite in a job of their own, retried, outside the gate
 a deploy waits for; `npm run test:browser:core` and `check-browser.js --skip=webgl` are the gate.
+The gate is not retried, and does not need to be on a CDN's account: see the paragraph on
+third-party requests above.
 Nothing here needs a GPU or a display.
 
 ## check-dist.js
@@ -184,17 +203,20 @@ Nothing here needs a GPU or a display.
 Usage: `node tools/check-dist.js [--dist=<dir>] [--only=<check,check>]` (after `npm run build`)
 
 The build is meant to change nothing a reader can see. This is the check that it did not: same
-output format as `check-static.js`, Node built-ins only, under a second.
+output format as `check-static.js`, Node built-ins only, under a second. It is strict on purpose
+while the build is a pass-through; a later item that moves the shell or the scripts into the
+build changes the check it trips in the same commit.
 
 | check | what it guards |
 | --- | --- |
-| `pages` | every page of the source tree (the `htmlPages` rule in `lib/site.js`, which `vite.config.ts` repeats) is in `dist/` at the same path, no other `.html` is, and `dist/.nojekyll` is there |
+| `pages` | every page of the source tree (the `htmlPages` rule in `lib/site.js`, which `vite.config.ts` repeats) is in `dist/` at the same path, and `dist/.nojekyll` is there. Nothing else is in `dist/` but what the site is made of: a page, a script of `assets/` or `data/`, a file of `public/`, a file a built page links or a built stylesheet names, and a source map beside one of those. Everything in `dist/` is published, so a stray `.env` or `tools/` fails here |
 | `links` | every relative `href`/`src` in the built pages resolves to a file inside `dist/`, and its `#anchor` to an id: the same walk `check-static.js` does on the source (`lib/links.js`) |
-| `root-absolute` | no attribute value is a root-absolute path (`/assets/…`): the site is published under a sub-path, where `/` is not its root. Any value starting with a single `/` on a URL attribute fails; on any other attribute, one that names something in the top level of `dist/` |
+| `root-absolute` | no attribute value is a root-absolute path (`/assets/…`): the site is published under a sub-path, where `/` is not its root. Any value starting with a single `/` on a URL attribute fails; on any other attribute, one that names something in the top level of `dist/`. The same for CSS: no `url(/…)` or `@import "/…"` in a built stylesheet, a `<style>` or a `style` attribute |
 | `main` | for every page, the text from `<main` to `</main>` is the source's, by whitespace-normalised fingerprint: the build may rewrite a `<head>`, never the content (`lesson.js` and the exercise keys depend on it) |
-| `scripts` | every page names the same classic scripts in the same order as its source, and every `.js` under `assets/` and `data/` is in `dist/` byte for byte |
-| `secrets` | no file in `dist/` contains `service_role`, `sb_secret_`, `whsec_`, `sk-ant-`, or a Stripe-style `sk_live_…`/`rk_test_…` key. (The Supabase anon key in `assets/config.js` is public by design and matches none of them) |
-| `stylesheets` | reports how many distinct stylesheets the built pages link, and fails if two chapter pages link different ones. Also the cascade: Vite splits the CSS into shared files and, left alone, links a page's own file before the shared ones, the reverse of the source (`vite.config.ts` puts them back). So for every page, the class names only one source stylesheet uses must all come, in the built CSS the page links, before those of the next source stylesheet |
+| `shell` | for every page, everything around `<main>` is the source's too: the head (viewport, title, the CDN tags, inline scripts), the attributes of `<body>`, the top bar, the footer. The links to the site's own stylesheets and icon, which the build does rewrite and `links` and `stylesheets` answer for, are taken out of both sides first |
+| `scripts` | every page has the same `<script>` tags as its source, in the same order: the same `src`, the same attributes (a dropped `defer` or an added `type="module"` fails), inline and CDN scripts included. And every `.js` under `assets/` and `data/` is in `dist/` byte for byte |
+| `secrets` | no file in `dist/` contains `service_role` (in any case, so `SUPABASE_SERVICE_ROLE_KEY` too), `sb_secret_`, `whsec_`, `sk-ant-`, or a Stripe-style `sk_live_…`/`rk_test_…` key. A legacy Supabase key is a JWT, whose role is base64-encoded and matches no pattern, so every JWT-shaped token is decoded as well and fails unless its role is `anon`. (The Supabase anon key in `assets/config.js` is public by design and passes) |
+| `stylesheets` | reports how many distinct stylesheets the built pages link, and fails if two chapter pages link different ones. Also the cascade: Vite splits the CSS into shared files and, left alone, links a page's own file before the shared ones, the reverse of the source (`vite.config.ts` puts them back). So for every page, the class names only one source stylesheet uses must all come, in the built CSS the page links, before those of the next source stylesheet. And the text: each stylesheet a source page links must be, byte for byte, inside one of the stylesheets the built page links. `vite.config.ts` sets `build.cssMinify: false` for that: Vite's minifier (Lightning CSS) rewrites values the scripts read (`--plot-fill: rgba(38, 70, 212, .14)` becomes `#2646d424`, which `parseColor` in `assets/scenes3d.js` returns `null` for) and merges selectors into `:is()`, changing their weight |
 
 ## Deliberately not covered
 
@@ -241,4 +263,5 @@ without an `id`, it should always report nothing to do.
 The browser ones resolve Playwright and choose the tree to load like `check-browser.js` (`--root`
 or `BM_ROOT`, else `dist/` when current), and each aborts every request that does not go to the
 local server, so none of them depends on a CDN (`map.test.js` answers the one Three.js request
-from `.cache/`, fetching it once).
+from `.cache/`, fetching it once). Without that file `map.test.js` skips its checks and says so;
+when the `CI` variable is set it fails instead, so a CI job cannot pass having tested no map.

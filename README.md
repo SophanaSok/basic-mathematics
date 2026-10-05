@@ -175,7 +175,8 @@ The light/dark toggle sits in the header and follows your system setting until y
 ### Running it locally
 
 ```sh
-npm ci            # once: Vite, TypeScript, Playwright, axe-core. Node 22.18 or newer (.nvmrc: 24)
+npm ci            # once: Vite, TypeScript (and @types/node), Playwright, axe-core.
+                  # Node 22.18 or newer (.nvmrc: 24)
 npm run dev       # the source tree at http://localhost:8000, reloading as you edit
 npm run build     # the site as it is published, into dist/
 npm run preview   # that dist/, at http://localhost:8000
@@ -186,9 +187,11 @@ Both servers take port 8000 and refuse to start on any other:
 ([`supabase/README.md`](supabase/README.md)).
 
 The build changes nothing a reader can see. `dist/` holds the same pages at the same paths and
-the same scripts byte for byte; only the stylesheets and the favicon are bundled and renamed
-(`vite.config.ts` says how, and `npm run check:dist` holds it to that). So the pages are still
-edited by hand, and a page added under `parts/` is picked up by the build without being listed.
+the same scripts byte for byte. Only the stylesheets and the favicon are renamed, and the
+stylesheets joined into shared files: their text is the source's, not minified, because Vite's
+CSS minifier rewrites values the scripts read (`vite.config.ts` says how, and
+`npm run check:dist` holds the build to all of that). So the pages are still edited by hand, and
+a page added under `parts/` is picked up by the build without being listed.
 
 Opening `index.html` straight from disk still works for the source tree: `file://` works because
 the curriculum is loaded as a `<script>` rather than fetched. That stays true until a later
@@ -238,7 +241,7 @@ supabase/migrations/    one file per database change, run on the live project be
 OPERATIONS.md           the runbook: release order, deploys, quotas, secrets, incidents
 tools/                  the checks: static, scenes, generators, game rules, the build, headless browser
 parts/<part>/<nn>-<slug>.html
-package.json            the npm scripts and the four dev dependencies; package-lock.json pins them
+package.json            the npm scripts and the five dev dependencies; package-lock.json pins them
 vite.config.ts          the build: every page in, the same page out; scripts copied as they are
 tsconfig.json           for `npm run typecheck`; covers src/ and vite.config.ts
 src/types/state.ts      the shapes of what the site keeps in localStorage (types only, so far)
@@ -629,15 +632,17 @@ npm run test:node       #   the progress-key, id and lesson-step rules on small 
                         #   sites and tables, sign-in through another service); the game's rules
 
 npm run build           # dist/
-npm run check:dist      # dist/ is the source's site: same pages, links resolve inside it, <main>
-                        # untouched, scripts byte for byte, cascade in the source order, no secrets
+npm run check:dist      # dist/ is the source's site: same pages and nothing extra, links resolve
+                        # inside it, <main> and the page around it untouched, script tags and
+                        # scripts as they were, CSS text and cascade the source's, no secrets
 
 npm run test:browser    # the game, the Arena, the account page, the 3D stages, the new 3D
                         # exercises and the course map, each driven in headless Chromium
 npm run check:browser   # dist/ served: every page × theme × width (errors, overflow, lesson
                         # mode), figures, every exercise typed back, restore of old progress,
                         # saved state from the last release, reduced motion, WebGL and its
-                        # fallbacks, the source tree from file://, axe. About 8 minutes
+                        # fallbacks, the source tree from file://, axe. About 8 minutes.
+                        # A CDN that is down or stalls costs warnings, not a failure
 
 npm run check:all       # all of the above, in that order
 ```
@@ -664,13 +669,17 @@ names; a new `order` list is authored in the right order; a new puzzle's temptin
 
 The site is on GitHub Pages. A push to `main` runs the checks and the build in GitHub Actions,
 and the `deploy` job publishes that run's `dist/` once the `build` and `browser` jobs have passed.
-The WebGL checks run in a job of their own, retried, and do not hold a deploy back.
+The WebGL checks run in a job of their own, retried, and do not hold a deploy back. Runs on
+`main` go one at a time, in the order of the pushes, so an older commit is never published over
+a newer one; for the same reason a re-run of an old run refuses to deploy once `main` has moved
+on (re-run the newest run, or use Run workflow).
 
 **One setting has to be changed by the repository's owner, once, for that to take effect:**
 Settings → Pages → Build and deployment → Source: **GitHub Actions**. Then publish with Actions →
 CI → Run workflow, on `main` (or simply push). Until that is done nothing changes for readers:
 Pages keeps serving the files on `main` as it always has, and the `deploy` job is skipped with a
-notice saying so.
+notice saying so. (If the workflow cannot find out which source is set, because GitHub's API
+refuses or fails, the run fails instead of skipping the deploy quietly.)
 
 To go back: set Source to **Deploy from a branch**, `main`, `/ (root)`. The source tree is still
 a complete site (which is why `.nojekyll` stays at the root), so Pages serves the branch again

@@ -1,7 +1,7 @@
 "use strict";
 /* Helpers the browser suites share: open a page with a forced theme and seeded
-   storage, track what went wrong on it, wait for KaTeX, switch lesson mode, and
-   take a screenshot into the output directory. */
+   storage, keep the CDNs from stalling it, track what went wrong on it, wait for KaTeX,
+   switch lesson mode, and take a screenshot into the output directory. */
 const fs = require("fs");
 const path = require("path");
 
@@ -48,8 +48,76 @@ function track(page, originUrl) {
   return t;
 }
 
+/* ---- third-party requests ------------------------------------------------------
+   The pages take fonts, KaTeX and Three.js from CDNs, in stylesheets and deferred
+   scripts. Left to Chromium, a request that neither answers nor fails holds the page's
+   scripts and its load event until page.goto times out, and one such stall among the
+   several hundred page loads of a run failed the run. So every request that is not for
+   the local server is answered from here instead: fetched by Node under a deadline,
+   once per run, and repeated to every later page from memory. A request that fails or
+   runs out of time is aborted, which the page sees as a failed request and track()
+   counts as a third-party warning.
+   A host that did not answer is then left alone for a while: its requests are aborted
+   at once. That is what keeps a page inside page.goto's 15 s when the whole network
+   stalls, because the pages chain their CDNs (KaTeX from cdnjs holds the scripts, which
+   then ask cdnjs for Three.js, then jsDelivr): the chain waits once per host, not once
+   per request. It also means a CDN that is down costs a run one deadline every so
+   often, not one on every page. */
+const THIRD_PARTY_MS = 4000;
+const THIRD_PARTY_RETRY_MS = 30000;
+const FORWARDED = ["user-agent", "accept", "accept-language", "origin", "referer"];   /* the fonts CSS depends on the browser asking */
+const HOP = new Set(["content-encoding", "content-length", "transfer-encoding", "connection", "keep-alive"]);   /* fetch() has decoded the body */
+const answers = new Map();               /* URL -> Promise<{ status, headers, body } | { error }>, kept when it is a good answer */
+const quiet = new Map();                 /* host -> { at, error }: the last time it did not answer */
+
+async function fetchThirdParty(request) {
+  const all = await request.allHeaders();
+  const headers = {};
+  FORWARDED.forEach(k => { if (all[k]) headers[k] = all[k]; });
+  const method = request.method();
+  const body = method === "GET" || method === "HEAD" ? undefined : request.postDataBuffer() || undefined;
+  if (body && all["content-type"]) headers["content-type"] = all["content-type"];
+  /* the signal covers the body too: a response that starts and never ends is cut off */
+  const res = await fetch(request.url(), { method, headers, body, redirect: "follow", signal: AbortSignal.timeout(THIRD_PARTY_MS) });
+  const out = {};
+  res.headers.forEach((v, k) => { if (!HOP.has(k)) out[k] = v; });
+  return { status: res.status, headers: out, body: Buffer.from(await res.arrayBuffer()) };
+}
+
+async function answerThirdParty(route) {
+  const request = route.request();
+  const url = request.url(), host = new URL(url).host;
+  const key = request.method() === "GET" ? url : null;
+  let answer = key && answers.get(key);
+  if (!answer) {
+    const q = quiet.get(host);
+    if (q && Date.now() - q.at < THIRD_PARTY_RETRY_MS) answer = Promise.resolve({ error: q.error });
+    else {
+      answer = fetchThirdParty(request).then(
+        a => { if (a.status >= 400 && key) answers.delete(key); return a; },          /* an error page is passed on, and asked for again next time */
+        error => { quiet.set(host, { at: Date.now(), error }); if (key) answers.delete(key); return { error }; });
+      if (key) answers.set(key, answer);
+    }
+  }
+  const a = await answer;
+  try {
+    if (a.error) await route.abort(a.error.name === "TimeoutError" ? "timedout" : "failed");
+    else await route.fulfill({ status: a.status, headers: a.headers, body: a.body });
+  } catch (e) { /* the page went away first */ }
+}
+
 function makeHelpers(ctx) {
   const { browser, server, outDir } = ctx;
+
+  /* A browser context whose third-party requests are answered as above. Every context
+     a suite opens comes from here (newPage below, or directly when a suite needs its
+     own options): one opened with browser.newContext is back at the mercy of the CDNs,
+     and the `thirdparty` suite fails a suite that does it. */
+  async function newContext(options) {
+    const context = await browser.newContext(options);
+    await context.route(u => { const s = typeof u === "string" ? u : u.href; return /^https?:/.test(s) && !s.startsWith(server.url); }, answerThirdParty);
+    return context;
+  }
 
   /* a fresh context (so clean storage) and page.
        theme: "light" | "dark"        stored under bm.theme the way site.js stores it (JSON)
@@ -59,7 +127,7 @@ function makeHelpers(ctx) {
   async function newPage(o) {
     o = o || {};
     const theme = o.theme || "light";
-    const context = await browser.newContext({
+    const context = await newContext({
       viewport: VIEWPORTS[o.vw || 1280],
       colorScheme: theme,
       reducedMotion: o.reducedMotion || "no-preference",
@@ -146,7 +214,7 @@ function makeHelpers(ctx) {
     return rel;
   }
 
-  return { newPage, noWebGL, blockUrl, settle, open, wholePage, screenshot, slug, VIEWPORTS, THEME_KEY, LESSON_KEY, PROGRESS_KEY };
+  return { newContext, newPage, noWebGL, blockUrl, settle, open, wholePage, screenshot, slug, VIEWPORTS, THEME_KEY, LESSON_KEY, PROGRESS_KEY };
 }
 
-module.exports = { makeHelpers, track, slug, VIEWPORTS, THEME_KEY, LESSON_KEY, PROGRESS_KEY };
+module.exports = { makeHelpers, track, slug, VIEWPORTS, THEME_KEY, LESSON_KEY, PROGRESS_KEY, THIRD_PARTY_MS };

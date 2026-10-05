@@ -15,6 +15,10 @@
 #
 # "Run workflow" on main (workflow_dispatch) runs all of this again and deploys, without
 # a new commit: the manual way to publish, for instance right after switching the source.
+#
+# The browser checks do not wait on the CDNs the pages use (fonts, KaTeX, Three.js):
+# tools/lib/browser.js fetches each file once per run under a deadline, and one that does
+# not come is a warning. Only the map script needs a download, and fails without it.
 
 name: CI
 
@@ -26,6 +30,14 @@ on:
 
 permissions:
   contents: read
+
+# One run at a time for a branch or a pull request. A new push to a pull request replaces
+# the run in progress. On main nothing in progress is cancelled: runs go one after another
+# in the order of the pushes (of several waiting, only the newest is kept), so an older
+# commit is never deployed after a newer one.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   build:
@@ -122,7 +134,9 @@ jobs:
           exit 1
 
   # main only: asks the repository which Pages source is set, so that `deploy` runs only
-  # when it is "GitHub Actions" and is skipped, not failed, while it is still the branch
+  # when it is "GitHub Actions" and is skipped, not failed, while it is still the branch.
+  # If the question cannot be answered (the API refusing or failing), this job fails and
+  # the run with it: a deploy is never skipped in a green run for a reason nobody chose.
   pages-source:
     if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
     runs-on: ubuntu-latest
@@ -137,10 +151,19 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           REPO: ${{ github.repository }}
         run: |
-          type=$(gh api "repos/$REPO/pages" --jq .build_type || echo unknown)
-          echo "build_type=$type" >> "$GITHUB_OUTPUT"
-          if [ "$type" != "workflow" ]; then
-            echo "::notice::The Pages source is \"$type\", not GitHub Actions, so nothing is deployed from here: Pages goes on serving the branch. To publish dist/, set Settings > Pages > Source to \"GitHub Actions\" and run this workflow on main."
+          # on an HTTP error gh prints the error body to stdout, so the value is only
+          # used when the call succeeded
+          if type=$(gh api "repos/$REPO/pages" --jq .build_type 2> pages-error.txt); then
+            echo "build_type=$type" >> "$GITHUB_OUTPUT"
+            if [ "$type" != "workflow" ]; then
+              echo "::notice::The Pages source is \"$type\", not GitHub Actions, so nothing is deployed from here: Pages goes on serving the branch. To publish dist/, set Settings > Pages > Source to \"GitHub Actions\" and run this workflow on main."
+            fi
+          elif grep -q "HTTP 404" pages-error.txt; then
+            echo "build_type=none" >> "$GITHUB_OUTPUT"
+            echo "::warning::GitHub Pages is not enabled for $REPO, so nothing is deployed from here."
+          else
+            echo "::error::Could not read the Pages source of $REPO, so nothing was deployed: $(tr '\n' ' ' < pages-error.txt)"
+            exit 1
           fi
 
   deploy:
@@ -150,6 +173,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     permissions:
+      # contents: to ask where main is, below
+      contents: read
       pages: write
       id-token: write
     concurrency:
@@ -159,6 +184,21 @@ jobs:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
+      # A first attempt deploys in the order of the pushes (the concurrency group at the
+      # top). Re-running the jobs of an old run is the one way an older dist/ could go
+      # out over a newer one, so a re-run deploys only the commit main is still at.
+      - name: A re-run deploys only the newest commit of main
+        if: github.run_attempt > 1
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          SHA: ${{ github.sha }}
+        run: |
+          head=$(gh api "repos/$REPO/commits/main" --jq .sha)
+          if [ "$head" != "$SHA" ]; then
+            echo "::error::main is at $head and this run built $SHA: re-running it would publish the older site. Re-run the newest run on main instead, or use Run workflow."
+            exit 1
+          fi
       - uses: actions/download-artifact@v8
         with:
           name: dist

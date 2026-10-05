@@ -66,7 +66,7 @@ module.exports = {
        from: there before the first script runs, and never written again by the test.
        The system colour scheme is set against the saved theme, so only the saved choice
        can produce the theme the pages are then checked for. */
-    const context = await ctx.browser.newContext({
+    const context = await h.newContext({
       viewport: h.VIEWPORTS[1280], colorScheme: fixture["bm.theme"] === "dark" ? "light" : "dark", deviceScaleFactor: 1, serviceWorkers: "block",
       storageState: { cookies: [], origins: [{ origin: server.url.replace(/\/$/, ""), localStorage: Object.keys(fixture).map(k => ({ name: k, value: JSON.stringify(fixture[k]) })) }] }
     });

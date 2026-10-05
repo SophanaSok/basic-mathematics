@@ -1,7 +1,8 @@
 /* The build is a pass-through for now: `npm run build` writes the same site into dist/,
-   page for page and at the same paths. Vite bundles the stylesheets and the favicon the
-   pages link to; the scripts are still classic <script defer> tags, which Vite leaves
-   alone and does not emit, so a plugin below copies them across unchanged. */
+   page for page and at the same paths. Vite joins the stylesheets the pages link into
+   shared files, their text unchanged, and renames those and the favicon; the scripts
+   are still classic <script defer> tags, which Vite leaves alone and does not emit, so
+   a plugin below copies them across unchanged. */
 import fs from "node:fs";
 import path from "node:path";
 import { defineConfig, type Plugin } from "vite";
@@ -142,6 +143,14 @@ export default defineConfig({
     outDir: "dist",
     emptyOutDir: true,
     sourcemap: true,
+    /* While the build is a pass-through the stylesheets go out as they are written.
+       Vite's CSS minifier (Lightning CSS) rewrites values as well as white space, and
+       the scripts read some of them: it turns --plot-fill: rgba(38, 70, 212, .14) into
+       #2646d424, which parseColor in assets/scenes3d.js cannot read, and it merges
+       selectors into :is(), which changes their weight. With this off, each source
+       stylesheet is in dist byte for byte inside the file it was joined into, and
+       tools/check-dist.js fails the build that changes that. */
+    cssMinify: false,
     rolldownOptions: { input: htmlPages() }
   },
   /* http://localhost:8000/account.html is on the Supabase redirect allow-list

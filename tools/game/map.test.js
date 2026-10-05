@@ -6,7 +6,8 @@
    The pinned three.min.js is answered from .cache/ (fetched once from jsDelivr and
    checked against the loader's integrity hash); every other request off the local
    server is aborted.
-   Without it, the checks are skipped with a note.
+   Without it, the checks are skipped with a note; under CI (the CI variable set, as
+   GitHub Actions sets it) that is a failure instead, so the job cannot pass on a skip.
 
    1. the "you are here" bob ends: an idle page asks for no frames; never bobs when calm
       or under reduced motion
@@ -44,12 +45,14 @@ const sri = (buf) => crypto.createHash("sha512").update(buf).digest("base64");
 
 function fetchBody(u) {
   return new Promise((resolve, reject) => {
-    https.get(u, (res) => {
+    const req = https.get(u, { timeout: 20000 }, (res) => {
       if (res.statusCode !== 200) { res.resume(); reject(new Error("HTTP " + res.statusCode)); return; }
       const parts = [];
       res.on("data", (c) => parts.push(c));
       res.on("end", () => resolve(Buffer.concat(parts)));
     }).on("error", reject);
+    /* a CDN that goes quiet is a failed download, not a script that never ends */
+    req.on("timeout", () => req.destroy(new Error("no answer for 20 s")));
   });
 }
 async function three() {
@@ -135,7 +138,11 @@ async function islandPoint(page) {
 async function run() {
   const body = await three();
   if (!body) {
-    console.log("SKIP map: three.min.js 0.160.1 is not in .cache/ and could not be fetched from " + JSD);
+    const why = "three.min.js 0.160.1 is not in .cache/ and could not be fetched from " + JSD;
+    /* in CI .cache/ starts empty every time, and a skip there is a green job that
+       tested nothing: fail, and let the job's retry fetch it again */
+    if (process.env.CI) { console.error("FAIL map: " + why); process.exit(1); }
+    console.log("SKIP map: " + why);
     return;
   }
   server = await target.start(site.parseArgs(process.argv.slice(2)));

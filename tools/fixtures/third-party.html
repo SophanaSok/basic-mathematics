@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Third-party requests</title>
+<script>
+/* Depends on another server the two ways the site's pages depend on a CDN: a stylesheet
+   and a deferred script in the head. tools/suites/thirdparty.js passes the server as
+   ?cdn=<origin>/ and names the two files, so it can point them at a server that never
+   answers. window.__dcl is set once the deferred scripts are done with, however they
+   ended: a script that neither arrives nor fails holds that back for ever. */
+(function () {
+  var q = new URLSearchParams(location.search), cdn = q.get("cdn");
+  document.addEventListener("DOMContentLoaded", function () { window.__dcl = true; });
+  if (!cdn) return;
+  document.write('<link rel="stylesheet" href="' + cdn + q.get("css") + '">' +
+    '<script defer src="' + cdn + q.get("js") + '"><\/script>');
+})();
+</script>
+</head>
+<body>
+<p id="out">A page with a stylesheet and a deferred script from another server.</p>
+</body>
+</html>

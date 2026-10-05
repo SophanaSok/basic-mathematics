@@ -40,8 +40,11 @@
      curriculum             data/curriculum.js evaluated
      themes, vws            ["light","dark"] and [1280, 360] as filtered by the flags
      opts                   parsed flags
-     h                      helpers from lib/browser.js: newPage, open, settle, wholePage,
-                            screenshot, noWebGL, blockUrl
+     h                      helpers from lib/browser.js: newPage, newContext, open, settle,
+                            wholePage, screenshot, noWebGL, blockUrl. Open every context
+                            through newPage or newContext, never ctx.browser.newContext:
+                            they answer the pages' CDN requests under a deadline, so that
+                            a CDN that stalls is a warning and not a navigation timeout
      report                 pass(name, detail?), fail(name, detail), warn(name, detail),
                             skip(name, why), cell({...}) for the contact sheet
      axeSource              axe-core source text, or null when it did not resolve
