@@ -236,6 +236,14 @@ async function run() {
         taunt: document.querySelector("#practice .encounter-taunt").hidden, ac: window.__ac
       }));
       eq([calm.combo, calm.hearts, calm.setHearts, calm.sigil, calm.taunt, calm.ac], [true, true, null, true, true, 0], "calm hides combo, hearts, sigil and taunt; no audio");
+      /* the help ladder is learning, not game: all of it stays */
+      const e2 = '#practice .ex[data-key="e2"]';
+      check(!!(await page.$(e2 + " .ex-feedback .ex-offer")), "calm: a miss still offers help");
+      await page.click(e2 + " .ex-clue-btn");
+      check(await page.evaluate((s) => document.activeElement === document.querySelector(s + " .ex-clue[data-level='1']"), e2), "calm: the clue button opens clue 1 and focus moves to it");
+      await page.fill(e2 + " .ex-form input[type=text]", "-" + (await page.$eval(e2, (e) => e.getAttribute("data-answer").split("|")[0])));
+      await page.press(e2 + " .ex-form input[type=text]", "Enter");
+      check(!!(await page.$(e2 + " .ex-feedback .ex-ask")), "calm: a sign-flipped answer still gets its question");
       eq(errors, [], "no errors in calm mode");
       await context.close();
     }
