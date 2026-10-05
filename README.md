@@ -197,18 +197,23 @@ as a file, or published as it is, has no styles, no scripts and no top bar, and 
 longer opens from `file://` at all (module scripts need an http origin).
 
 Apart from that the build changes nothing a reader can see. `dist/` holds the same pages at the
-same paths with the same content. The scripts come out as bundled chunks: each page carries one
-`<script type="module">` for its kind, Vite splits what pages share into shared chunks, and the
-order the scripts run in is the entry's import order (`vite.config.ts` turns on rolldown's
-`strictExecutionOrder` for that, because a shared chunk would otherwise run its modules when it
-is imported, and `site.js` would run before `widgets.js`). The stylesheets and the favicon are
-renamed, and the stylesheets joined into shared files: their text is the source's, not minified,
-because Vite's CSS minifier rewrites values the scripts read (`vite.config.ts` says how, and
-`npm run check:dist` holds the build to all of that). So the content of the pages is still edited
-by hand, and a page added under `parts/` is picked up by the build without being listed. For one
-release the build also copies every script under `assets/` and `data/` into `dist/` unchanged,
-for pages a browser cached before the bundles arrived ([`OPERATIONS.md`](OPERATIONS.md),
-"Scripts"); no built page loads them.
+same paths with the same content. The scripts come out as bundled chunks under `dist/bundle/`:
+each page carries one `<script type="module">` for its own entry chunk, `bundle/pages/<page>.js`,
+Vite splits what pages share into shared chunks, and the order the scripts run in is the entry's
+import order (`vite.config.ts` turns on rolldown's `strictExecutionOrder` for that, because a
+shared chunk would otherwise run its modules when it is imported, and `site.js` would run before
+`widgets.js`). A chunk is named by the page kinds that load what is in it, `bundle/all.js`,
+`bundle/chapter.js`, `bundle/home-chapter.js`, and so are the stylesheets, joined the same way
+into `bundle/all.css` and the rest; nothing in `dist/` carries a hash, because GitHub Pages lets
+a browser keep a page for ten minutes, and a page cached before a deploy must still find its
+scripts after it ([`OPERATIONS.md`](OPERATIONS.md), "What a deploy does to a page a browser
+already holds"). The stylesheets' text is the source's, not minified, because Vite's CSS
+minifier rewrites values the scripts read (`vite.config.ts` says how, and `npm run check:dist`
+holds the build to all of that). So the content of the pages is still edited by hand, and a
+page added under `parts/` is picked up by the build without being listed. For one release the
+build also copies every script under `assets/` and `data/`, and `src/boot.js` as
+`assets/boot.js`, into `dist/` unchanged, for pages a browser cached before the bundles arrived
+([`OPERATIONS.md`](OPERATIONS.md), "Scripts"); no built page loads them.
 
 Two libraries come from CDNs: [KaTeX](https://katex.org) for math typesetting on every page, and
 [Three.js](https://threejs.org) 0.160.1 (the last release with a classic build, pinned with an
@@ -262,7 +267,8 @@ tools/shell.json        what that comes to on each page, as readers have it (the
 parts/<part>/<nn>-<slug>.html
 package.json            the npm scripts and the five dev dependencies; package-lock.json pins them
 vite.config.ts          the build: every page in, its shell written, its entry bundled in import
-                        order, the same content out; assets/ and data/ scripts copied for one release
+                        order into dist/bundle/, each chunk named by the page kinds that load it, the
+                        same content out; assets/ and data/ scripts and boot.js copied for one release
 tsconfig.json           for `npm run typecheck`; covers src/ and vite.config.ts
 src/types/state.ts      the shapes of what the site keeps in localStorage (types only, so far)
 src/types/globals.d.ts  the window.BM* globals the scripts share, each `any` until its file is converted

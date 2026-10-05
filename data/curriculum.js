@@ -1,5 +1,6 @@
 /* Single source of truth for the whole course.
-   Loaded as a plain script (not fetched) so the site works from file:// too.
+   The first import of every page's entry (src/entries/*.js): it sets window.BM_CURRICULUM
+   before any other script runs, and nothing is fetched for it.
    Adding a chapter = one entry here + one HTML file. Navigation builds itself. */
 window.BM_CURRICULUM = {
   title: "Basic Mathematics",

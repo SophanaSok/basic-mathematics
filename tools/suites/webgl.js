@@ -79,11 +79,11 @@ module.exports = {
        there, while the page itself still loads */
     const p2 = await ctx.h.newPage({});
     try {
-      await ctx.h.blockUrl(p2.page, /\/assets\/[^?#]*\.js(?:[?#]|$)/);
+      await ctx.h.blockUrl(p2.page, /\/bundle\/[^?#]*\.js(?:[?#]|$)/);
       await ctx.h.open(p2.page, ctx.chapterPages[0] || "index.html");
       const hasWidgets = await p2.page.evaluate(() => !!window.BMPlot);
-      if (hasWidgets) ctx.report.fail("blockUrl helper", "the site's scripts still ran while every chunk under assets/ was blocked");
-      else ctx.report.pass("blockUrl helper", "blocked every .js under assets/; page still loaded (" + p2.errors.pageErrors.length + " page errors, " + p2.errors.notFound.length + " same-origin failures, as expected from the block)");
+      if (hasWidgets) ctx.report.fail("blockUrl helper", "the site's scripts still ran while every chunk under bundle/ was blocked");
+      else ctx.report.pass("blockUrl helper", "blocked every .js under bundle/; page still loaded (" + p2.errors.pageErrors.length + " page errors, " + p2.errors.notFound.length + " same-origin failures, as expected from the block)");
     } finally { await p2.close(); }
   }
 };

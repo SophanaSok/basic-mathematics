@@ -31,12 +31,53 @@ function sourceScripts() {
   SOURCE_DIRS.forEach(d => site.walk(path.join(ROOT, d), p => /\.js$/.test(p), out));
   return out.map(site.rel);
 }
+/* The copies the build makes for one release (vite.config.ts legacyCopies, the same
+   list): every source script at its own path, and the boot script where it was before
+   it moved to src/. `at` is the path in dist, `from` the source file it must equal. */
+function copies() {
+  return sourceScripts().map(rel => ({ at: rel, from: rel })).concat([{ at: "assets/boot.js", from: "src/boot.js" }]);
+}
+
+/* Where the bundle goes and how it is named (vite.config.ts, output and bundleNames):
+   a page's entry chunk at bundle/pages/<page>.js, every other chunk and stylesheet at
+   bundle/<name>.js or .css where <name> is the page kinds that load what is in it
+   ("all" for every kind, else the kinds joined with "-" in PAGE_KINDS order), the
+   painter at bundle/scenes3d-gl.js, rolldown's runtime under its own name. */
+const BUNDLE = "bundle/";
+const ENTRY_OF = (page) => BUNDLE + "pages/" + page.replace(/\.html$/i, ".js");
+const RUNTIME = BUNDLE + "rolldown-runtime.js";
+/* the kinds a chunk or stylesheet bundle/<name>.<ext> says load it, or null for a
+   name that is not a set of kinds */
+function kindsNamed(file) {
+  const name = path.posix.basename(file).replace(/\.(js|css)$/, "");
+  const kinds = Object.keys(shell.PAGE_KINDS);
+  if (name === "all") return kinds;
+  const parts = name.split("-");
+  return parts.every(k => kinds.includes(k)) && kinds.filter(k => parts.includes(k)).join("-") === name ? parts : null;
+}
+/* the page kinds that load each source file, in PAGE_KINDS order: a script by the
+   entries that import it (the entry itself counts), a stylesheet by the kinds that link
+   it (PAGE_KINDS styles). What vite.config.ts bundleNames reads to name the chunks. */
+const ENTRY_IMPORT = /^\s*import\s+["']([^"']+)["']\s*;?\s*$/;
+function entryImports(entry) {
+  const dir = path.posix.dirname(entry);
+  return fs.readFileSync(path.join(ROOT, entry), "utf8").split("\n").map(l => ENTRY_IMPORT.exec(l)).filter(Boolean)
+    .map(m => path.posix.normalize(path.posix.join(dir, m[1])));
+}
+function kindsLoading() {
+  const by = {};
+  Object.keys(shell.PAGE_KINDS).forEach(kind => {
+    const { entry, styles } = shell.PAGE_KINDS[kind];
+    [entry].concat(entryImports(entry), styles).forEach(f => { (by[f] = by[f] || []).push(kind); });
+  });
+  return by;
+}
 
 /* The module graph of the built site, read from the chunks themselves: every string
-   that names a .js file relative to the chunk ("./x-HASH.js", "../y.js") and resolves
-   to a file in dist is an edge, whether it is in an `import` statement, an `import()`
-   or the list Vite keeps for preloading a dynamic import's dependencies. `sources` of
-   a chunk is what its source map says it was built from, as tree paths. */
+   that names a .js file relative to the chunk ("./x.js", "../y.js") and resolves to a
+   file in dist is an edge, whether it is in an `import` statement, an `import()` or
+   the list Vite keeps for preloading a dynamic import's dependencies. `sources` of a
+   chunk is what its source map says it was built from, as tree paths. */
 function moduleGraph(ctx) {
   const files = new Set(ctx.files);
   const edges = {}, sources = {};
@@ -52,10 +93,15 @@ function moduleGraph(ctx) {
     sources[f] = [];
     if (files.has(f + ".map")) {
       const map = JSON.parse(fs.readFileSync(path.join(DIST, f + ".map"), "utf8"));
-      /* a source is relative to the map file, and climbs out of dist to the tree */
+      /* A source is written relative to the map file and climbs out of the build's
+         output directory to the tree ("../../assets/site.js" from bundle/all.js.map).
+         Taken relative to the root of dist, what is left after the climb is the tree
+         path, wherever this copy of the build sits (--dist may name a directory that is
+         not <repo>/dist), so the climb is dropped rather than resolved on disk. */
       (map.sources || []).forEach(s => {
         if (/^\0|^[a-z]+:/.test(s)) return;    /* a virtual module of the bundler */
-        sources[f].push(site.rel(path.resolve(DIST, path.dirname(f), s)));
+        const rel = path.posix.normalize(path.posix.join(dir, s)).replace(/^(\.\.\/)+/, "");
+        sources[f].push(rel);
       });
     }
     edges[f].forEach(of);
@@ -141,11 +187,12 @@ function firstDifference(s, d) {
 
 /* (a) the same pages at the same paths; .nojekyll for a branch deploy; and nothing else
    in dist but what the site is made of: a page, a copy of a script of assets/ or data/
-   (for one release: vite.config.ts legacyScripts), a file of public/, a file a built
-   page links (its module script and what it preloads, its stylesheets, the icon), a
-   chunk the module graph reaches from a page's script (the GL painter is fetched by a
-   dynamic import), a file a built stylesheet names, and the source map beside any of
-   those. Anything more was put there by mistake, and everything in dist is published. */
+   or of the boot script (for one release: vite.config.ts legacyScripts), a file of
+   public/, a file a built page links (its module script and what it preloads, its
+   stylesheets, the icon), a chunk the module graph reaches from a page's script (the GL
+   painter is fetched by a dynamic import), a file a built stylesheet names, and the
+   source map beside any of those. Anything more was put there by mistake, and
+   everything in dist is published. */
 function checkPages(ctx, r) {
   const built = new Set(ctx.dist.pages);
   ctx.src.pages.forEach(p => {
@@ -155,7 +202,7 @@ function checkPages(ctx, r) {
   if (!ctx.files.includes(".nojekyll")) r.fail("dist/.nojekyll is missing (public/.nojekyll should have been copied)");
 
   const known = new Set(ctx.src.pages);
-  sourceScripts().forEach(p => known.add(p));
+  copies().forEach(c => known.add(c.at));
   const pub = path.join(ROOT, "public");
   site.walk(pub, () => true).forEach(p => known.add(path.relative(pub, p).split(path.sep).join("/")));
   ctx.dist.pages.forEach(page => links.refsOf(ctx.dist.docs[page]).forEach(ref => {
@@ -276,9 +323,10 @@ function checkShell(ctx, r) {
 /* What a built page runs, and that it is what the source page's shell says.
    The script tags, in order: the boot script inline (its text src/boot.js, as the shell
    wrote it), KaTeX's two deferred CDN tags, and one <script type="module"> whose src is
-   a file in dist; nothing else, and in particular no classic <script src> of the site's
-   own. The module tag's src is the one tag the build rewrites, so it is held apart: its
-   attributes but for src are what Vite writes for every module script.
+   the page's own entry chunk, bundle/pages/<page>.js; nothing else, and in particular
+   no classic <script src> of the site's own. The module tag's src is the one tag the
+   build rewrites, so it is held apart: its attributes but for src are what Vite writes
+   for every module script.
    The bundle behind that tag: following the imports from the chunk the tag names, the
    files the chunks were built from (their source maps) are the scripts the kind's entry
    imports (src/entries/<kind>.js, read here), every one and no other; and where the
@@ -286,21 +334,22 @@ function checkShell(ctx, r) {
    they run in is not in the chunks (rolldown wraps and calls them in the entry's order
    under strictExecutionOrder, vite.config.ts); the browser checks prove it, by what the
    pages build.
+   The names: every chunk reached is bundle/<kinds>.js, and every source file in it is
+   imported by exactly the kinds its name says (so the name changes only when what loads
+   the file changes, never because the file was edited: a page a browser cached before a
+   deploy finds its scripts after it), or the painter's bundle/scenes3d-gl.js, or
+   rolldown's runtime; nothing carries a hash.
    No page loads a copy of a source script: nothing a page's tag names and nothing its
    bundle imports is at the path of a file under assets/ or data/. The copies are only
    for pages cached from before the module entries (vite.config.ts legacyScripts), and
    while they are made they are the source byte for byte. */
-const ENTRY_IMPORT = /^\s*import\s+["']([^"']+)["']\s*;?\s*$/;
-function entryImports(entry) {
-  const dir = path.posix.dirname(entry);
-  return fs.readFileSync(path.join(ROOT, entry), "utf8").split("\n").map(l => ENTRY_IMPORT.exec(l)).filter(Boolean)
-    .map(m => path.posix.normalize(path.posix.join(dir, m[1])));
-}
 function checkScripts(ctx, r) {
-  const copies = sourceScripts();
-  const isCopy = new Set(copies);
+  const made = copies();
+  const isCopy = new Set(made.map(c => c.at));
   const boot = "<script>" + normText(shell.bootScript());
   const katex = shell.KATEX_SCRIPTS.map(s => "<script defer src=" + JSON.stringify(s) + ">");
+  const loadedBy = kindsLoading();
+  const named = {};     /* chunk -> its name was checked, once */
   ctx.src.pages.forEach(p => {
     if (!ctx.dist.docs[p]) return;
     r.count++;
@@ -318,26 +367,41 @@ function checkScripts(ctx, r) {
     const modAttrs = Object.keys(mod.el.attrs).filter(k => k !== "src").map(k => k + (mod.el.attrs[k] === "" ? "" : "=" + mod.el.attrs[k])).join(" ");
     if (modAttrs !== "type=module crossorigin") r.fail(p + ": the module script carries " + JSON.stringify(modAttrs) + ", not type=module crossorigin");
     if (tags.length !== want.length + 1) r.fail(p + ": " + tags.length + " script tags, not " + (want.length + 1) + " (the boot script, KaTeX's two, one module): " + tags.slice(want.length).map(t => t.slice(0, 80)).join(" | "));
+    if (mod.file !== ENTRY_OF(p)) r.fail(p + ": its module script is " + mod.file + ", not " + ENTRY_OF(p) + " (a page's entry chunk is named after the page, with no hash)");
     /* the bundle, and that it is the entry's */
     const chunks = ctx.graph.reach(mod.file);
-    const staticOnly = chunks.filter(f => !/scenes3d-gl/.test(f));   /* the painter is the one dynamic import */
+    const staticOnly = chunks.filter(f => f !== BUNDLE + "scenes3d-gl.js");   /* the painter is the one dynamic import */
     const built = new Set();
     staticOnly.forEach(f => ctx.graph.sourcesOf(f).forEach(s => { if (isCopy.has(s)) built.add(s); }));
     const wanted = entryImports(entry);
     const missing = wanted.filter(s => !built.has(s)), extra = Array.from(built).filter(s => !wanted.includes(s));
     if (missing.length || extra.length) r.fail(p + ": the bundle behind " + mod.file + " is not " + entry + "'s" + (missing.length ? "; not in it: " + missing.join(", ") : "") + (extra.length ? "; in it but not imported: " + extra.join(", ") : ""));
     if (wanted.includes("assets/scenes3d.js")) {
-      const painter = chunks.some(f => ctx.graph.sourcesOf(f).includes("assets/scenes3d-gl.js"));
-      if (!painter) r.fail(p + ": no chunk reached from " + mod.file + " is built from assets/scenes3d-gl.js, which scenes3d.js imports on demand");
+      const painter = chunks.filter(f => ctx.graph.sourcesOf(f).includes("assets/scenes3d-gl.js"));
+      if (!painter.length) r.fail(p + ": no chunk reached from " + mod.file + " is built from assets/scenes3d-gl.js, which scenes3d.js imports on demand");
+      else if (painter.join() !== BUNDLE + "scenes3d-gl.js") r.fail(p + ": the painter, assets/scenes3d-gl.js, is built into " + painter.join(", ") + ", not " + BUNDLE + "scenes3d-gl.js on its own");
     }
+    /* the names, each chunk once: what is in it is loaded by the kinds it is named for */
+    chunks.filter(f => f !== mod.file && f !== RUNTIME && f !== BUNDLE + "scenes3d-gl.js" && !named[f]).forEach(f => {
+      named[f] = true;
+      r.count++;
+      const kinds = kindsNamed(f);
+      if (!kinds || path.posix.dirname(f) !== BUNDLE.slice(0, -1)) { r.fail(f + " is reached from " + p + " but is not named for the page kinds that load it (bundle/all.js, bundle/" + Object.keys(shell.PAGE_KINDS).join("-") + ".js or a subset in that order)"); return; }
+      const inside = ctx.graph.sourcesOf(f);
+      if (!inside.length) { r.fail(f + " was built from no file of the tree (its source map names none), so nothing says which kinds load it"); return; }
+      inside.forEach(s => {
+        const by = loadedBy[s] || [];
+        if (by.join("-") !== kinds.join("-")) r.fail(f + " holds " + s + ", which " + (by.length ? "the " + by.join(", ") + " kind" + (by.length === 1 ? " loads" : "s load") : "no kind loads") + "; the chunk's name says " + kinds.join(", "));
+      });
+    });
     const loaded = chunks.concat(links.refsOf(ctx.dist.docs[p]).map(ref => links.targetOf(p, ref.v)).filter(Boolean));
     loaded.filter(f => isCopy.has(f)).forEach(f => r.fail(p + " loads " + f + ", a copy of a source script; a page loads its module entry and nothing else of assets/ or data/"));
   });
-  copies.forEach(rel => {
+  made.forEach(c => {
     r.count++;
-    const built = path.join(DIST, rel);
-    if (!fs.existsSync(built)) { r.fail(rel + " is not in dist (the copies stay one release; vite.config.ts legacyScripts)"); return; }
-    if (!fs.readFileSync(path.join(ROOT, rel)).equals(fs.readFileSync(built))) r.fail(rel + " in dist is not the source file byte for byte");
+    const built = path.join(DIST, c.at);
+    if (!fs.existsSync(built)) { r.fail(c.at + " is not in dist (the copies stay one release; vite.config.ts legacyScripts)"); return; }
+    if (!fs.readFileSync(path.join(ROOT, c.from)).equals(fs.readFileSync(built))) r.fail(c.at + " in dist is not " + c.from + " byte for byte");
   });
 }
 
@@ -441,6 +505,23 @@ function checkStylesheets(ctx, r) {
     const pages = rewritten[f];
     r.fail(f + " is not in the built stylesheets as it is in the source (minified or rewritten by the build?): " + pages.length + " page(s), the first " + pages[0] + " [" + per[pages[0]].join(", ") + "]");
   });
+
+  /* and the names: a built stylesheet is bundle/<kinds>.css, and every source
+     stylesheet in it is linked by exactly those kinds (PAGE_KINDS), as for the chunks */
+  const linkedBy = kindsLoading();
+  Array.from(all).sort().forEach(f => {
+    r.count++;
+    const kinds = kindsNamed(f);
+    if (!kinds || path.posix.dirname(f) !== BUNDLE.slice(0, -1)) { r.fail(f + " is not named for the page kinds that link it (bundle/all.css, or the kinds joined with \"-\" in PAGE_KINDS order)"); return; }
+    let css;
+    try { css = fs.readFileSync(path.join(DIST, f), "utf8"); } catch (e) { return; }      /* reported by `links` */
+    const inside = Array.from(srcFiles).filter(s => css.includes(srcText[s]));
+    if (!inside.length) { r.fail(f + " holds no source stylesheet as it is written, so nothing says which kinds link it"); return; }
+    inside.forEach(s => {
+      const by = linkedBy[s] || [];
+      if (by.join("-") !== kinds.join("-")) r.fail(f + " holds " + s + ", which the " + by.join(", ") + " kind" + (by.length === 1 ? " links" : "s link") + "; the file's name says " + kinds.join(", "));
+    });
+  });
 }
 
 /* ------------------------------------------------------------- runner ---- */
@@ -451,9 +532,9 @@ const CHECKS = [
   { name: "root-absolute", run: checkRootAbsolute, what: "no attribute value, and no url() in the CSS, is a root-absolute path" },
   { name: "main", run: checkMain, what: "<main> of every page is the source's, by fingerprint" },
   { name: "shell", run: checkShell, what: "and so is the page around it, but for its stylesheet, icon and module links" },
-  { name: "scripts", run: checkScripts, what: "boot inline, KaTeX, one module entry whose bundle is its kind's imports; no copy of assets/ or data/ loaded; copies byte for byte" },
+  { name: "scripts", run: checkScripts, what: "boot inline, KaTeX, one module entry whose bundle is its kind's imports, each chunk named for the kinds that load it; no copy loaded; copies byte for byte" },
   { name: "secrets", run: checkSecrets, what: "no server-side key in any built file, as text or inside a JWT" },
-  { name: "stylesheets", run: checkStylesheets, what: "chapter pages share their stylesheets; source CSS unchanged, cascade in source order" }
+  { name: "stylesheets", run: checkStylesheets, what: "chapter pages share their stylesheets; source CSS unchanged, cascade in source order, each file named for the kinds that link it" }
 ];
 
 function main() {
@@ -477,7 +558,8 @@ function main() {
     r.fails.forEach(m => console.log("        ✗ " + m));
     r.warns.forEach(m => console.log("        ! " + m));
   });
-  console.log((anyFail ? "FAILED" : anyWarn ? "passed with warnings" : "all passed") + " in " + ((Date.now() - t0) / 1000).toFixed(1) + "s (" + (site.rel(DIST) || DIST) + "/, " + ctx.files.length + " files)");
+  const where = site.rel(DIST);
+  console.log((anyFail ? "FAILED" : anyWarn ? "passed with warnings" : "all passed") + " in " + ((Date.now() - t0) / 1000).toFixed(1) + "s (" + (where && !where.startsWith("..") ? where : DIST) + "/, " + ctx.files.length + " files)");
   process.exit(anyFail ? 1 : 0);
 }
 

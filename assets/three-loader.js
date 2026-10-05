@@ -12,7 +12,7 @@
      BM3D.lowEnd()     → true on devices that should get the flat picture by default
 
    0.160.1 is the last release that still ships build/three.min.js (later ones are ES
-   modules only, which cannot carry an integrity hash here or load from file://).
+   modules only, which a classic <script> tag with an integrity hash cannot load).
    The pin is frozen like KaTeX's; it prints one deprecation warning when it loads.
    =========================================================================== */
 (function () {

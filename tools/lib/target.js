@@ -21,12 +21,12 @@ const DIST = path.join(site.ROOT, "dist");
 const FIXTURES = "tools/fixtures/";
 
 /* the newest file a build reads: the pages, the shell it writes into each of them and
-   the boot script it inlines, the entries, everything under assets/ and data/, and the
-   build's own configuration */
+   the boot script it inlines, the entries, everything under assets/ and data/, what
+   public/ holds (copied into dist as it is), and the build's own configuration */
 function newestSource() {
   const files = site.htmlPages(site.ROOT).map(p => path.join(site.ROOT, p))
     .concat([path.join(__dirname, "shell.js"), path.join(site.ROOT, "vite.config.ts"), path.join(site.ROOT, "package-lock.json")]);
-  ["src", "assets", "data"].forEach(d => site.walk(path.join(site.ROOT, d), () => true, files));
+  ["src", "assets", "data", "public"].forEach(d => site.walk(path.join(site.ROOT, d), () => true, files));
   let newest = { file: "", at: 0 };
   files.forEach(f => { const at = fs.statSync(f).mtimeMs; if (at > newest.at) newest = { file: site.rel(f), at }; });
   return newest;

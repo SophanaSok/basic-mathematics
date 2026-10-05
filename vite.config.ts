@@ -3,14 +3,18 @@
    writes them, here and in the dev server, before Vite reads the page. In that head are
    the boot script inline, KaTeX's two CDN tags, and one <script type="module"> for the
    page's kind (src/entries/<kind>.js, an ordered list of imports of the site's
-   scripts). Vite bundles that entry, splitting what pages share into shared chunks,
-   joins the stylesheets the pages link into shared files, their text unchanged, and
-   renames those and the favicon. The scripts under assets/ and data/ are still copied
-   across as they are, for one release (see legacyScripts). */
+   scripts). Vite bundles that entry into dist/bundle/: one chunk per set of page kinds
+   that load a file (see bundleNames), the stylesheets joined the same way, their text
+   unchanged, and the favicon beside them. Nothing in dist/ is named by a hash: GitHub
+   Pages lets a browser keep any file for ten minutes, a hash would buy nothing, and a
+   page cached from before a deploy would ask for files the deploy had renamed
+   (OPERATIONS.md, "What a deploy does to a page a browser already holds"). The scripts
+   under assets/ and data/ and the boot script are still copied across as they are, for
+   one release (see legacyScripts). */
 import fs from "node:fs";
 import path from "node:path";
 import { defineConfig, type Plugin } from "vite";
-import { isMarked, renderShell } from "./tools/lib/shell.js";
+import { isMarked, renderShell, PAGE_KINDS } from "./tools/lib/shell.js";
 
 const root = import.meta.dirname;
 
@@ -61,23 +65,67 @@ function scriptFiles(dir: string, out: string[] = []): string[] {
 }
 
 /* Temporary, and build-only: every .js under assets/ and data/ is emitted at its own
-   path, byte for byte, though no page in this build loads one. A page cached before
-   the deploy that brought the module entries (GitHub Pages lets a browser keep a page
-   for up to ten minutes) still asks for assets/site.js and the rest by name, and the
-   WebGL painter it then loads asks for assets/scenes3d-gl.js from the same place; with
-   the copies there such a page keeps working until it is fetched again. The release
-   after the one that ships the entries removes this plugin (OPERATIONS.md, "Scripts").
-   tools/check-dist.js holds the copies to the source byte for byte while they last,
-   and proves no built page loads one. */
+   path, byte for byte, and src/boot.js at assets/boot.js where it was, though no page in
+   this build loads one. A page cached before the deploy that brought the module entries
+   (GitHub Pages lets a browser keep a page for up to ten minutes) still asks for
+   assets/boot.js, assets/site.js and the rest by name, and the WebGL painter it then
+   loads asks for assets/scenes3d-gl.js from the same place; with the copies there such a
+   page keeps working until it is fetched again. The release after the one that ships
+   the entries removes this plugin (OPERATIONS.md, "Scripts"). tools/check-dist.js
+   (`copies` there is this list) holds the copies to the source byte for byte while they
+   last, and proves no built page loads one. */
+function legacyCopies(): { at: string; from: string }[] {
+  return scriptFiles("assets").concat(scriptFiles("data")).map((rel) => ({ at: rel, from: rel }))
+    .concat([{ at: "assets/boot.js", from: "src/boot.js" }]);
+}
 function legacyScripts(): Plugin {
   return {
     name: "bm:legacy-scripts",
     apply: "build",
     generateBundle() {
-      for (const rel of scriptFiles("assets").concat(scriptFiles("data"))) {
-        this.emitFile({ type: "asset", fileName: rel, source: fs.readFileSync(path.join(root, rel)) });
+      for (const copy of legacyCopies()) {
+        this.emitFile({ type: "asset", fileName: copy.at, source: fs.readFileSync(path.join(root, copy.from)) });
       }
     }
+  };
+}
+
+/* How the bundle is split and what its files are called: by the page kinds that load
+   each file, read off tools/lib/shell.js (PAGE_KINDS: each kind's stylesheets and its
+   entry) and the entries themselves (their imports). A file every kind loads goes into
+   dist/bundle/all.js (or all.css); one that only chapters load into bundle/chapter.js;
+   one the contents page and the chapters share into bundle/home-chapter.js, the kinds
+   in PAGE_KINDS order. So a chunk is named by what loads it, and its name changes only
+   when that changes, never because a file in it was edited. Each page's own entry
+   chunk is bundle/pages/<page>.js. The WebGL painter, which no entry imports (it is
+   scenes3d.js's dynamic import), is bundle/scenes3d-gl.js; Vite's own helpers (the
+   modulepreload polyfill, the preload helper) ride in all.js; rolldown's runtime keeps
+   its fixed name. A module this cannot place fails the build rather than get a name
+   rolldown made up, which could change from one build to the next.
+   This is the split rolldown makes on its own; what it adds is the names.
+   tools/check-dist.js reads the same two sources and holds every chunk and stylesheet
+   in dist to the name its contents call for. */
+function bundleNames(): (id: string) => string | null {
+  const kinds = Object.keys(PAGE_KINDS) as (keyof typeof PAGE_KINDS)[];
+  const loadedBy: Record<string, string[]> = {};
+  const add = (rel: string, kind: string) => { (loadedBy[rel] ??= []).push(kind); };
+  for (const kind of kinds) {
+    const { entry, styles } = PAGE_KINDS[kind];
+    add(entry, kind);
+    for (const s of styles) add(s, kind);
+    const dir = path.posix.dirname(entry);
+    for (const m of fs.readFileSync(path.join(root, entry), "utf8").matchAll(/^\s*import\s+["']([^"']+)["']\s*;?\s*$/gm)) {
+      add(path.posix.normalize(path.posix.join(dir, m[1])), kind);
+    }
+  }
+  return (id) => {
+    if (/^\0vite\//.test(id)) return "all";
+    const rel = path.relative(root, id).split(path.sep).join("/");
+    if (/\.html$/i.test(rel)) return null;    /* a page's own entry module: entryFileNames names it */
+    const by = loadedBy[rel];
+    if (by) return by.length === kinds.length ? "all" : by.join("-");
+    if (/^assets\/[^/]+\.js$/.test(rel)) return path.posix.basename(rel, ".js");   /* a dynamic import of a script's own */
+    throw new Error("vite.config.ts bundleNames: no entry or kind loads " + JSON.stringify(rel) + " (from " + id + "), so it has no name in dist/bundle/");
   };
 }
 
@@ -197,7 +245,27 @@ export default defineConfig({
            wrapped in an init function and called in the entry's order, whichever chunk
            it landed in. tools/check-dist.js holds each bundle to the entry's files; the
            browser checks hold the order (figures mount, BMGame finds BMStore). */
-        strictExecutionOrder: true
+        strictExecutionOrder: true,
+        /* No hash in any name (the top of this file says why), and the chunks named by
+           what loads them (bundleNames). [name] of an entry is the page's path without
+           .html; of a chunk, the group's name; of a stylesheet or the favicon, the chunk
+           or file it belongs to. */
+        entryFileNames: "bundle/pages/[name].js",
+        chunkFileNames: "bundle/[name].js",
+        assetFileNames: "bundle/[name][extname]",
+        codeSplitting: {
+          /* false: a module goes where its own name says, not where its importer's
+             does (true would pull every import of an entry into the entry's chunk) */
+          includeDependenciesRecursively: false,
+          groups: [{ debugName: "by-page-kinds", name: bundleNames() }]
+        },
+        /* The init functions one chunk calls in another keep their names (init_site,
+           init_widgets) instead of being shortened to a letter that another build might
+           give to a different function: a browser that holds one chunk from the last
+           deploy and fetches the next from this one still finds what it imports, as
+           long as the file is still in that chunk. (rolldown 1.2: defaults to true for
+           format es.) */
+        minifyInternalExports: false
       }
     }
   },

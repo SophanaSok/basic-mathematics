@@ -116,25 +116,54 @@ Chromium checks that need no WebGL), `webgl` (the 3D checks, retried, outside th
 page in the repository holds its content and two markers. Its `<head>` (every stylesheet and
 script) and its top bar are written by the build
 ([README, "The shell of a page"](README.md#the-shell-of-a-page)), and since the module entries
-(R0, item 6) its scripts are bundled from `src/entries/<kind>.js` into hashed chunks under
-`dist/assets/`. Published as they are, the pages have no styles, no scripts and no top bar.
+(R0, item 6) its scripts are bundled from `src/entries/<kind>.js` into chunks under
+`dist/bundle/`. Published as they are, the pages have no styles, no scripts and no top bar.
 `dist/` is the only thing that can be published.
+
+### What a deploy does to a page a browser already holds
+
+GitHub Pages serves everything with `Cache-Control: max-age=600` (read with `curl -sI` on the
+live site, 2026-10-04): a browser may keep any page, script or stylesheet for ten minutes without
+asking again. So for ten minutes after a deploy some readers are on a page from before it, and
+that page asks for its scripts and stylesheets by name. **Nothing in `dist/` is named by a
+hash, on purpose.** A chunk is `bundle/<kinds>.js`, named by the page kinds that load what is in
+it (`bundle/all.js` for what every page loads, `bundle/chapter.js` for what only chapters load,
+`bundle/home-chapter.js` for what the contents page and the chapters share), a page's own entry
+is `bundle/pages/<page>.js`, the stylesheets are `bundle/<kinds>.css` the same way
+(`vite.config.ts` `bundleNames`; `npm run check:dist` holds every file to the name its contents
+call for). A name therefore changes only when what loads a file changes, never because a file
+was edited, and a cached page finds the current scripts after a deploy that edits scripts,
+which is how the site behaved before the bundles, when every script was its own file. A reader
+with one chunk from the last deploy and the next from this one is on the mixed footing the site
+has always accepted ([README, "Stores, the bus, and accounts"](README.md#stores-the-bus-and-accounts));
+the names a chunk imports from another are the files' own (`init_site`, `init_widgets`), not
+letters a build hands out.
+
+What a deploy can still take from a cached page, for those ten minutes: **adding, removing or
+renaming a script or stylesheet, or changing which page kinds load one**, renames a chunk or
+the function another chunk imports from it, and a page that holds the old graph then fails to
+load its scripts (the inline boot script still runs, so the theme is right; nothing after it
+is, until the page expires). That is accepted: it is rare, it is ten minutes, and it cannot be
+avoided without keeping the previous deploy's chunks, which the build does not have. Do not
+try to work around it by hand. If such a change must not touch a reader mid-session, deploy it
+at a quiet hour.
 
 ### Scripts: the copies under dist/assets/ and dist/data/, one release
 
-The build copies every script under `assets/` and `data/` into `dist/` unchanged, though no
-built page loads one (`vite.config.ts` `legacyScripts`; `npm run check:dist` proves both). They
-are for the deploy that brings the module entries: GitHub Pages serves pages with
-`Cache-Control: max-age=600`, so for up to ten minutes after that deploy a browser can hold a
-page from before it, which asks for `assets/site.js` and the rest by name, and for
-`assets/scenes3d-gl.js` when a 3D scene nears the screen. With the copies there such a page
-keeps working until it is fetched again; without them it would load with no scripts.
+The build copies every script under `assets/` and `data/` into `dist/` unchanged, and
+`src/boot.js` to `assets/boot.js` where it was, though no built page loads one of them
+(`vite.config.ts` `legacyScripts`; `npm run check:dist` proves both). They are for the deploy
+that brings the module entries, for the ten minutes above: a page from before it asks for
+`assets/boot.js`, `assets/site.js` and the rest by name, and for `assets/scenes3d-gl.js` when a
+3D scene nears the screen. With the copies there such a page keeps working until it is fetched
+again; without them it would load with no scripts.
 
 **Remove the copies in the release after the one that ships the module entries** (the plan's
-item 7, npm dependencies, does it): delete the `legacyScripts` plugin from `vite.config.ts`,
-take the copies out of what `check-dist.js` allows in `dist/` (`pages`) and requires
-(`scripts`), and update this section and the README. By then every cached page has long
-expired. Nothing else holds those paths: the built pages name only hashed chunks.
+item 7, npm dependencies, does it): delete the `legacyScripts` plugin and `legacyCopies` from
+`vite.config.ts`, take `copies()` out of `check-dist.js` (what `pages` allows in `dist/`, what
+`scripts` requires and compares), and update this section and the README. By then every cached
+page has long expired, and nothing names those paths: the built pages name only
+`bundle/`.
 
 ### The Pages source: GitHub Actions, set before the page-shell change is merged
 
