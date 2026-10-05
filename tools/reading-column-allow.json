@@ -1,0 +1,321 @@
+{
+  "about": "The reading column stays quiet (tools/check-static.js reading-column): inside it, no animation, no transition that moves something, and no ambient decoration (a gradient or url() background, a motif mask, a soft or glowing shadow, text-shadow, filter) unless a rule is listed here by file, selector as written and kind, with why. `column` is what counts as the column: these class names (a trailing * is a prefix) and elements, wherever a selector names them. The list was seeded with what the site had when the check was written: feedback on the reader's own act, the practice set's boss, and the frame's region banner, every motion of it guarded by reduced motion and Study (calm) mode. Add to it in review, on purpose; an entry that names no rule any more fails.",
+  "column": {
+    "classes": [
+      "region-banner",
+      "banner-*",
+      "goal",
+      "puzzle",
+      "puzzle-*",
+      "guess",
+      "guess-*",
+      "callout",
+      "rule",
+      "worked",
+      "steps",
+      "display",
+      "tbl-wrap",
+      "widget",
+      "controls",
+      "ctrl",
+      "readout",
+      "chips",
+      "chip",
+      "hint-drag",
+      "missions",
+      "practice",
+      "practice-*",
+      "ex",
+      "ex-*",
+      "choices",
+      "choice",
+      "order",
+      "order-*",
+      "blank",
+      "warmup",
+      "reveal",
+      "diagram",
+      "dg-*",
+      "recap",
+      "chapter-done",
+      "chapter-feedback",
+      "burst",
+      "fx-burst",
+      "tick",
+      "step-in",
+      "lesson-mode",
+      "lesson-next",
+      "lesson-note",
+      "lesson-count",
+      "encounter",
+      "encounter-*",
+      "sigil",
+      "sigil-*",
+      "scene3d",
+      "s3d-*"
+    ],
+    "elements": [
+      "main",
+      "figure",
+      "figcaption"
+    ]
+  },
+  "allow": [
+    {
+      "file": "assets/game.css",
+      "selector": ".encounter-sigil::before",
+      "kinds": [
+        "decoration"
+      ],
+      "why": "the boss's sigil: its region's motif behind the solid, beside the reading, not behind it; Study mode removes it"
+    },
+    {
+      "file": "assets/game.css",
+      "selector": ".encounter-seg[data-how=\"solved\"]",
+      "kinds": [
+        "decoration"
+      ],
+      "why": "how a problem was solved, as a hatch on its health-bar segment (and in forced colours, where colour cannot say it): a mark that carries meaning, not ornament"
+    },
+    {
+      "file": "assets/game.css",
+      "selector": ".encounter-seg[data-how=\"opened\"]",
+      "kinds": [
+        "decoration"
+      ],
+      "why": "how a problem was solved, as a hatch on its health-bar segment (and in forced colours, where colour cannot say it): a mark that carries meaning, not ornament"
+    },
+    {
+      "file": "assets/game.css",
+      "selector": "html:not([data-calm]):not([data-motion=\"reduce\"]) .ex[data-state=\"correct\"]:not([data-restored])",
+      "kinds": [
+        "animation"
+      ],
+      "why": "a right answer: the card pops once, the tick draws, the stamp lands, the XP chip rises; feedback on the reader's own act, under a second, never repeated"
+    },
+    {
+      "file": "assets/game.css",
+      "selector": "html:not([data-calm]):not([data-motion=\"reduce\"]) .ex[data-state=\"correct\"]:not([data-restored]) .tick path",
+      "kinds": [
+        "animation"
+      ],
+      "why": "a right answer: the card pops once, the tick draws, the stamp lands, the XP chip rises; feedback on the reader's own act, under a second, never repeated"
+    },
+    {
+      "file": "assets/game.css",
+      "selector": "html:not([data-calm]):not([data-motion=\"reduce\"]) .ex[data-state=\"correct\"]:not([data-restored]) .ex-stamp",
+      "kinds": [
+        "animation"
+      ],
+      "why": "a right answer: the card pops once, the tick draws, the stamp lands, the XP chip rises; feedback on the reader's own act, under a second, never repeated"
+    },
+    {
+      "file": "assets/game.css",
+      "selector": "html:not([data-calm]):not([data-motion=\"reduce\"]) .ex[data-state=\"correct\"]:not([data-restored]) .ex-reward",
+      "kinds": [
+        "animation"
+      ],
+      "why": "a right answer: the card pops once, the tick draws, the stamp lands, the XP chip rises; feedback on the reader's own act, under a second, never repeated"
+    },
+    {
+      "file": "assets/game.css",
+      "selector": "html:not([data-calm]):not([data-motion=\"reduce\"]) .ex[data-state=\"wrong\"] .ex-form",
+      "kinds": [
+        "animation"
+      ],
+      "why": "a miss: the answer form nudges once and the hint fades in; feedback on the reader's own act"
+    },
+    {
+      "file": "assets/game.css",
+      "selector": "html:not([data-calm]):not([data-motion=\"reduce\"]) .ex[data-state=\"wrong\"] .ex-hint:not([data-prev])",
+      "kinds": [
+        "animation"
+      ],
+      "why": "a miss: the answer form nudges once and the hint fades in; feedback on the reader's own act"
+    },
+    {
+      "file": "assets/game.css",
+      "selector": "html:not([data-calm]):not([data-motion=\"reduce\"]) .ex-solution[data-show=\"true\"]",
+      "kinds": [
+        "animation"
+      ],
+      "why": "something the reader opened, or that answers what they did, fades in once"
+    },
+    {
+      "file": "assets/game.css",
+      "selector": "html:not([data-calm]):not([data-motion=\"reduce\"]) details.reveal[open] > :not(summary)",
+      "kinds": [
+        "animation"
+      ],
+      "why": "something the reader opened, or that answers what they did, fades in once"
+    },
+    {
+      "file": "assets/game.css",
+      "selector": "html:not([data-calm]):not([data-motion=\"reduce\"]) .step-in",
+      "kinds": [
+        "animation"
+      ],
+      "why": "something the reader opened, or that answers what they did, fades in once"
+    },
+    {
+      "file": "assets/game.css",
+      "selector": "html:not([data-calm]):not([data-motion=\"reduce\"]) .encounter-result:not([data-revisit])",
+      "kinds": [
+        "animation"
+      ],
+      "why": "something the reader opened, or that answers what they did, fades in once"
+    },
+    {
+      "file": "assets/game.css",
+      "selector": "html:not([data-calm]):not([data-motion=\"reduce\"]) .encounter-regroup",
+      "kinds": [
+        "animation"
+      ],
+      "why": "something the reader opened, or that answers what they did, fades in once"
+    },
+    {
+      "file": "assets/game.css",
+      "selector": "html:not([data-calm]):not([data-motion=\"reduce\"]) details.reveal > summary::after",
+      "kinds": [
+        "transition"
+      ],
+      "why": "the chevron of a reveal turns as it opens: it shows the state, on the reader's own act"
+    },
+    {
+      "file": "assets/game.css",
+      "selector": "html:not([data-calm]):not([data-motion=\"reduce\"]) .lesson-next[data-ready=\"true\"]",
+      "kinds": [
+        "animation"
+      ],
+      "why": "step-by-step reading: the Continue bar pops once when it is ready"
+    },
+    {
+      "file": "assets/game.css",
+      "selector": "html:not([data-calm]):not([data-motion=\"reduce\"]) .missions li[data-fresh]",
+      "kinds": [
+        "animation"
+      ],
+      "why": "a figure's mission just done: the line and its mark pop once"
+    },
+    {
+      "file": "assets/game.css",
+      "selector": "html:not([data-calm]):not([data-motion=\"reduce\"]) .missions li[data-fresh] .mark",
+      "kinds": [
+        "animation"
+      ],
+      "why": "a figure's mission just done: the line and its mark pop once"
+    },
+    {
+      "file": "assets/game.css",
+      "selector": "html:not([data-calm]):not([data-motion=\"reduce\"]) .widget[data-inview] svg[tabindex]",
+      "kinds": [
+        "animation"
+      ],
+      "why": "a figure entering the screen shows once that its handles can be moved (at most two cycles of 800ms)"
+    },
+    {
+      "file": "assets/game.css",
+      "selector": "html:not([data-calm]):not([data-motion=\"reduce\"]) .widget[data-inview] svg [tabindex]",
+      "kinds": [
+        "animation"
+      ],
+      "why": "a figure entering the screen shows once that its handles can be moved (at most two cycles of 800ms)"
+    },
+    {
+      "file": "assets/game.css",
+      "selector": "html:not([data-calm]):not([data-motion=\"reduce\"]) .widget[data-inview] input[type=\"range\"]",
+      "kinds": [
+        "animation"
+      ],
+      "why": "a figure entering the screen shows once that its handles can be moved (at most two cycles of 800ms)"
+    },
+    {
+      "file": "assets/game.css",
+      "selector": "html:not([data-calm]):not([data-motion=\"reduce\"]) .encounter[data-hit] .encounter-sigil",
+      "kinds": [
+        "animation"
+      ],
+      "why": "the practice set's boss answers a solved problem: one hit, a face breaking, a ward or a segment filling, a heart breaking; game presentation that Study mode removes"
+    },
+    {
+      "file": "assets/game.css",
+      "selector": "html:not([data-calm]):not([data-motion=\"reduce\"]) .sigil-face[data-fresh]",
+      "kinds": [
+        "animation"
+      ],
+      "why": "the practice set's boss answers a solved problem: one hit, a face breaking, a ward or a segment filling, a heart breaking; game presentation that Study mode removes"
+    },
+    {
+      "file": "assets/game.css",
+      "selector": "html:not([data-calm]):not([data-motion=\"reduce\"]) .encounter-wards li[data-fresh]",
+      "kinds": [
+        "animation"
+      ],
+      "why": "the practice set's boss answers a solved problem: one hit, a face breaking, a ward or a segment filling, a heart breaking; game presentation that Study mode removes"
+    },
+    {
+      "file": "assets/game.css",
+      "selector": "html:not([data-calm]):not([data-motion=\"reduce\"]) .encounter-cue:not([hidden])",
+      "kinds": [
+        "animation"
+      ],
+      "why": "something the reader opened, or that answers what they did, fades in once"
+    },
+    {
+      "file": "assets/game.css",
+      "selector": "html:not([data-calm]):not([data-motion=\"reduce\"]) .encounter-seg[data-fresh]",
+      "kinds": [
+        "animation"
+      ],
+      "why": "the practice set's boss answers a solved problem: one hit, a face breaking, a ward or a segment filling, a heart breaking; game presentation that Study mode removes"
+    },
+    {
+      "file": "assets/game.css",
+      "selector": "html:not([data-calm]):not([data-motion=\"reduce\"]) .encounter-hearts i[data-break]",
+      "kinds": [
+        "animation"
+      ],
+      "why": "the practice set's boss answers a solved problem: one hit, a face breaking, a ward or a segment filling, a heart breaking; game presentation that Study mode removes"
+    },
+    {
+      "file": "assets/game.css",
+      "selector": "html:not([data-calm]):not([data-motion=\"reduce\"]) .burst i",
+      "kinds": [
+        "animation"
+      ],
+      "why": "the chapter's finish: twelve particles thrown once"
+    },
+    {
+      "file": "assets/site.css",
+      "selector": ".region-banner::after",
+      "kinds": [
+        "decoration"
+      ],
+      "why": "the region banner is a piece of the game frame: its Part's motif in a column of its own, beside the title, never behind text"
+    },
+    {
+      "file": "assets/site.css",
+      "selector": ".choice",
+      "kinds": [
+        "transition"
+      ],
+      "why": "a tile sinks under a press (transform, var(--t-1)): the feedback of the press itself"
+    },
+    {
+      "file": "assets/site.css",
+      "selector": ".guess-chip",
+      "kinds": [
+        "transition"
+      ],
+      "why": "a tile sinks under a press (transform, var(--t-1)): the feedback of the press itself"
+    },
+    {
+      "file": "assets/site.css",
+      "selector": "details.reveal > summary::after",
+      "kinds": [
+        "transition"
+      ],
+      "why": "the chevron of a reveal turns as it opens: it shows the state, on the reader's own act"
+    }
+  ]
+}

@@ -12,8 +12,8 @@
    --migrations-base  the commit the migrations check compares against (default: where
              HEAD left main; continuous integration passes the commit being merged into)
    --shell-base  hold the shell check to the pages of a commit, not to tools/shell.json
-   --strict  WARN counts as FAIL (for the day the infinite-animation and the other
-             "not yet" rules become hard rules)
+   --strict  WARN counts as FAIL (for the day the "not yet" rules, such as the
+             lesson steps, become hard rules)
    --accept-steps  rewrite tools/lesson-steps.json from the working tree, after a change
              to where a chapter's lesson steps are cut that is meant
    --accept-shell  rewrite tools/shell.json from the working tree, after a change to
@@ -854,22 +854,186 @@ function firstDiff(x, y, p) {
 
 /* --------------------------------------------------------------- CSS ----- */
 
+/* The site's own stylesheets: everything under assets/ and src/ but the generated font
+   CSS (tools/gen-fonts.js writes it from the fontsource packages). src/vendor/katex.css
+   is an @import of the package and nothing of its own. */
+const TOKENS_CSS = "src/styles/tokens.css";
+const GENERATED_CSS = ["src/vendor/fonts.css"];
 function cssFiles() {
   const out = [];
   site.walk(path.join(ROOT, "assets"), p => /\.css$/.test(p), out);
-  return out;
+  site.walk(path.join(ROOT, "src"), p => /\.css$/.test(p), out);
+  return out.filter(f => !GENERATED_CSS.includes(site.rel(f)));
+}
+/* the token tables of src/styles/tokens.css (lib/css.js tokens()) */
+function tokenTables() {
+  return cssLib.tokens(read(TOKENS_CSS));
 }
 
+/* The flash-and-loop rule. Nothing animates forever, and nothing repeats more than three
+   times a second (WCAG 2.3.1 counts flashes per second; a repeating animation is one
+   flash a cycle at most): an animation with more than one iteration needs cycles of at
+   least 1000/3 ms. Nor more than three iterations at all: a loop in all but name.
+   Durations written as tokens (var(--t-3), var(--dur-reveal)) are read from tokens.css.
+   An animation whose duration cannot be read fails, so the rule cannot be stepped round.
+   (Web Animations driven from scripts are not in a stylesheet; game.js's are single
+   throws, skipped when still.) */
+/* what is wrong with one stylesheet's animations, var() read from `table`:
+   [{ line, selector, problem }] */
+function animationFaults(css, table) {
+  const out = [];
+  cssLib.animations(css).forEach(a => {
+    const res = (v) => cssLib.resolveVar(v, table);
+    const fault = (problem) => out.push({ line: a.line, selector: a.selector, media: a.media, problem });
+    cssLib.parseAnimation({ value: res(a.value), count: res(a.count), duration: res(a.duration), name: res(a.name) }).forEach(an => {
+      out.push(null);   /* counted */
+      if (an.iterations === Infinity) { fault("animates `" + an.name + "` forever (infinite); nothing on the site loops"); return; }
+      if (!(an.iterations >= 0)) { fault("the iteration count of `" + an.name + "` cannot be read"); return; }
+      if (an.iterations > 3) fault("repeats `" + an.name + "` " + an.iterations + " times; at most 3, or it is a loop in all but name");
+      if (an.ms === null || !isFinite(an.ms)) { fault("the duration of `" + an.name + "` cannot be read (write a time, or a duration token from " + TOKENS_CSS + ")"); return; }
+      if (an.iterations > 1 && an.ms < 1000 / 3) fault("repeats `" + an.name + "` every " + an.ms + "ms, more than three times a second");
+    });
+  });
+  return out;
+}
 function checkAnimations(ctx, r) {
+  const T = tokenTables();
   cssFiles().forEach(f => {
     const rel = site.rel(f);
-    cssLib.animations(fs.readFileSync(f, "utf8")).forEach(a => {
-      r.count++;
-      if (/\binfinite\b/.test(a.value + " " + a.count)) r.warn(rel + ":" + a.line + ": `" + a.selector + "` animates infinitely (" + (a.value || a.count) + ")" + (a.media.length ? " under " + a.media.join(" ") : ""));
+    animationFaults(fs.readFileSync(f, "utf8"), T.light).forEach(x => {
+      if (!x) { r.count++; return; }
+      r.fail(rel + ":" + x.line + ": `" + x.selector + "`" + (x.media.length ? " (under " + x.media.join(" ") + ")" : "") + " " + x.problem);
     });
   });
 }
 
+/* Colours only in tokens: a hex, rgb()/rgba(), hsl()/hsla() or other colour-function
+   literal in any of the site's stylesheets but tokens.css fails. Read in the innermost
+   declaration blocks only (so an id selector is never taken for a hex colour), with
+   data: URIs taken out first (an icon's picture carries its own fill). The words
+   black, white, transparent and currentColor, and the system colours of forced-colours
+   mode, are not palette colours and pass.
+   In tokens.css itself: the colour baked into each answer-blank mark (--mark-ok,
+   --mark-bad, a data: URI, which cannot read a custom property) is the --ok or --bad of
+   the same panel, and the tokens WebGL reads (--region-*, and --plot-* but the fill)
+   are plain six-digit hex in every scope. */
+const COLOUR_LITERAL = /#[0-9a-fA-F]{3,8}\b|\b(?:rgba?|hsla?|hwb|lab|lch|oklab|oklch)\(|(?<![\w-])color\(/g;
+/* the colour literals of a stylesheet's declarations: [{ literal, line }] */
+function colourLiterals(css) {
+  const src = css.replace(/\/\*[\s\S]*?\*\//g, m => m.replace(/[^\n]/g, " "));
+  const out = [];
+  const blocks = /\{([^{}]*)\}/g;
+  let b;
+  while ((b = blocks.exec(src))) {
+    /* a data: URI keeps its length, so the line of a literal after it is still right */
+    const body = b[1].replace(/url\(\s*(["'])data:[\s\S]*?\1\s*\)|url\(\s*data:[^)]*\)/g, m => m.replace(/[^\n]/g, " "));
+    let m;
+    COLOUR_LITERAL.lastIndex = 0;
+    while ((m = COLOUR_LITERAL.exec(body))) out.push({ literal: m[0], line: src.slice(0, b.index + 1 + m.index).split("\n").length });
+  }
+  return out;
+}
+function checkColours(ctx, r) {
+  cssFiles().forEach(f => {
+    const rel = site.rel(f);
+    if (rel === TOKENS_CSS) return;
+    r.count++;
+    colourLiterals(fs.readFileSync(f, "utf8")).forEach(c => r.fail(rel + ":" + c.line + ": colour literal `" + c.literal + "`; colours are defined only in " + TOKENS_CSS + " (add a token there, or use one)"));
+  });
+  const T = tokenTables();
+  const markColour = (v) => { const m = /stroke='%23([0-9a-fA-F]{6})'/.exec(v || ""); return m ? "#" + m[1].toLowerCase() : null; };
+  T.scopes.forEach(sc => {
+    [["--mark-ok", "--ok"], ["--mark-bad", "--bad"]].forEach(([mark, tok]) => {
+      r.count++;
+      const baked = markColour(sc.table[mark]);
+      const want = String(cssLib.resolveVar(sc.table[tok] || "", sc.table)).trim().toLowerCase();
+      if (!baked) r.fail(TOKENS_CSS + " [" + sc.label + "]: " + mark + " carries no stroke colour to compare with " + tok);
+      else if (baked !== want) r.fail(TOKENS_CSS + " [" + sc.label + "]: " + mark + " is drawn in " + baked + " but " + tok + " is " + want + "; the mark must carry the token's value");
+    });
+    const tables = [{ id: null, table: sc.table }].concat(Object.keys(sc.parts).map(id => ({ id, table: sc.parts[id] })));
+    tables.forEach(({ id, table }) => Object.keys(table).forEach(k => {
+      if (!/^--region-/.test(k) && !(/^--plot-/.test(k) && k !== "--plot-fill")) return;
+      r.count++;
+      const v = String(cssLib.resolveVar(table[k], table)).trim();
+      if (!/^#[0-9a-fA-F]{6}$/.test(v)) r.fail(TOKENS_CSS + " [" + sc.label + (id ? "/" + id : "") + "]: " + k + " is " + JSON.stringify(v) + "; WebGL reads it, so it must be plain six-digit hex");
+    }));
+  });
+}
+
+/* The reading column stays quiet. Inside it (the classes and elements `column` lists in
+   tools/reading-column-allow.json: the prose blocks, figures, exercise cards, the
+   practice set) a rule may not run an animation, transition something that moves
+   (transform, a size or a position), or carry ambient decoration (a gradient or url()
+   background, a motif mask, a blurred or glowing shadow, text-shadow, filter or
+   backdrop-filter), unless the allowlist names that rule, in that file, for that kind,
+   with the reason. The list starts as the feedback motion and the marks the site
+   already has, all guarded by reduced motion and Study (calm) mode; anything new has to
+   be added there on purpose, in review. An entry that names nothing any more fails too,
+   so the list stays the truth. */
+const ALLOW_FILE = path.join(__dirname, "reading-column-allow.json");
+const MOTION_PROP = /^(all|transform|translate|scale|rotate|width|height|top|left|right|bottom|inset|margin.*|max-height|max-width)$/;
+const SOFT_SHADOWS = /var\(\s*--(shadow|shadow-1|shadow-2|shadow-float|glow[\w-]*)\s*\)/;
+function columnPatterns(list) {
+  return list.map(p => p.endsWith("*") ? { prefix: p.slice(0, -1) } : { exact: p });
+}
+function inColumn(selector, pats, elements) {
+  const sel = selector.replace(/::?[\w-]+(\([^)]*\))?/g, m => /^:(not|is|where|has)\(/.test(m) ? m : " ");
+  const classes = (sel.match(/\.[A-Za-z_][\w-]*/g) || []).map(c => c.slice(1));
+  if (classes.some(c => pats.some(p => p.exact !== undefined ? c === p.exact : c.startsWith(p.prefix)))) return true;
+  const types = (" " + sel).match(/[\s>+~(,][a-z][a-z0-9]*(?=[\s.#[:>+~),]|$)/g) || [];
+  return types.map(t => t.slice(1)).some(t => elements.includes(t));
+}
+function quietKinds(decls, T) {
+  const kinds = [];
+  const v = (k) => decls[k] === undefined ? "" : String(decls[k]);
+  const res = (x) => cssLib.resolveVar(x, T.light);
+  if (cssLib.parseAnimation({ value: res(v("animation")), name: res(v("animation-name")), duration: res(v("animation-duration")), count: res(v("animation-iteration-count")) }).length) kinds.push("animation");
+  const props = decls["transition-property"] !== undefined ? cssLib.topLevelCommas(v("transition-property"))
+    : cssLib.topLevelCommas(v("transition")).map(item => { const w = cssLib.words(item)[0] || ""; return /^-?[\d.]+m?s$|^var\(/.test(w) ? "all" : w; });
+  if (props.some(p => MOTION_PROP.test(p.trim())) && !/^\s*none\s*$/.test(v("transition"))) kinds.push("transition");
+  const deco = ["background", "background-image"].some(k => /gradient\(|url\(/.test(v(k)))
+    || ["mask", "mask-image", "-webkit-mask", "-webkit-mask-image"].some(k => /--motif|gradient\(/.test(v(k)))
+    || ["text-shadow", "filter", "backdrop-filter", "-webkit-backdrop-filter"].some(k => v(k) && !/^\s*none\s*$/.test(v(k)))
+    || SOFT_SHADOWS.test(v("box-shadow"))
+    || cssLib.topLevelCommas(v("box-shadow")).some(item => {
+      const lens = cssLib.words(item).filter(w => /^-?[\d.]+(px|rem|em)?$/.test(w));
+      return lens.length >= 3 && parseFloat(lens[2]) > 0;
+    });
+  if (deco) kinds.push("decoration");
+  return kinds;
+}
+function checkReadingColumn(ctx, r) {
+  const conf = JSON.parse(fs.readFileSync(ALLOW_FILE, "utf8"));
+  const pats = columnPatterns(conf.column.classes), elements = conf.column.elements;
+  const T = tokenTables();
+  const allowed = new Map();
+  conf.allow.forEach(a => a.kinds.forEach(k => allowed.set(a.file + "\n" + a.selector + "\n" + k, { a, used: false })));
+  cssFiles().forEach(f => {
+    const rel = site.rel(f);
+    if (rel === TOKENS_CSS) return;
+    cssLib.rules(fs.readFileSync(f, "utf8")).forEach(rule => {
+      if (!inColumn(rule.selector, pats, elements)) return;
+      quietKinds(rule.decls, T).forEach(kind => {
+        r.count++;
+        const sel = rule.selector.replace(/\s+/g, " ").trim();
+        const hit = allowed.get(rel + "\n" + sel + "\n" + kind);
+        if (hit) { hit.used = true; return; }
+        r.fail(rel + ":" + rule.line + ": `" + sel + "` adds " + (kind === "decoration" ? "ambient decoration" : kind === "transition" ? "a moving transition" : "an animation") + " inside the reading column; the column stays quiet unless " + path.relative(ROOT, ALLOW_FILE) + " lists the rule, with why");
+      });
+    });
+  });
+  allowed.forEach(({ a, used }, key) => {
+    if (!used) r.fail(path.relative(ROOT, ALLOW_FILE) + ": `" + a.selector + "` in " + a.file + " (" + key.split("\n")[2] + ") matches no rule any more; take it off the list");
+  });
+  r.note(conf.allow.length + " allowed rules; the column is " + conf.column.classes.length + " class patterns and " + elements.join(", "));
+}
+
+/* WCAG 2.x contrast for every pair in tools/contrast-pairs.json, in every scope tokens()
+   makes (the light and dark theme, each with the light and with the dark reading panel)
+   and, for a pair with `parts: true`, under each Part. `themes` and `panels` narrow a
+   pair. A pair whose background is see-through names what is under it (`over`, a
+   token): the background is laid over that first, so a translucent surface is measured
+   as the reader sees it, never skipped. */
 function checkContrast(ctx, r) {
   const pairsFile = path.join(__dirname, "contrast-pairs.json");
   const pairs = JSON.parse(fs.readFileSync(pairsFile, "utf8"));
@@ -878,23 +1042,35 @@ function checkContrast(ctx, r) {
     const rel = site.rel(f);
     const T = cssLib.tokens(fs.readFileSync(f, "utf8"));
     if (!Object.keys(T.light).length) return; /* a stylesheet without tokens: nothing to check */
+    if (rel !== TOKENS_CSS) r.fail(rel + ": defines tokens on :root or a Part; tokens live in " + TOKENS_CSS + " only");
     if (!T.hasDark) r.warn(rel + ": no dark token block found");
     T.drift.forEach(d => r.warn(rel + ": dark tokens differ between the toggle block and the media block — " + d));
+    T.overlap.forEach(o => r.fail(rel + ": " + o + " is set by both a data-theme block and a data-panel block; the frame's tokens and the paper's are kept apart"));
     const skipped = new Set(), unresolved = [];
     pairs.forEach(pair => {
-      const themes = pair.themes || ["light", "dark"];
-      themes.forEach(theme => {
-        const scopes = pair.parts ? partIds.map(id => ({ label: theme + "/" + id, table: Object.assign({}, T[theme], (T.parts[id] || {})[theme] || {}) }))
-          : [{ label: theme, table: T[theme] }];
-        scopes.forEach(sc => {
-          const missing = [pair.fg, pair.bg].filter(t => !sc.table.hasOwnProperty(t));
+      const themes = pair.themes || ["light", "dark"], panels = pair.panels || ["light", "dark"];
+      T.scopes.filter(sc => themes.includes(sc.theme) && panels.includes(sc.panel)).forEach(sc => {
+        const scopes = pair.parts ? partIds.map(id => ({ label: sc.label + "/" + id, table: sc.parts[id] || sc.table }))
+          : [{ label: sc.label, table: sc.table }];
+        scopes.forEach(s => {
+          const names = [pair.fg, pair.bg].concat(pair.over ? [pair.over] : []);
+          const missing = names.filter(t => !s.table.hasOwnProperty(t));
           if (missing.length) { missing.forEach(m => skipped.add(m)); return; }
           r.count++;
-          const fgV = cssLib.resolveVar(sc.table[pair.fg], sc.table), bgV = cssLib.resolveVar(sc.table[pair.bg], sc.table);
-          const fg = cssLib.parseColor(fgV), bg = cssLib.parseColor(bgV);
-          if (!fg || !bg || fg[3] < 1 || bg[3] < 1) { unresolved.push(pair.fg + " on " + pair.bg + " [" + sc.label + "]: " + (fg && bg ? "not opaque" : "not a parseable colour") + " (" + fgV + " / " + bgV + ")"); return; }
+          const val = (t) => cssLib.resolveVar(s.table[t], s.table);
+          const fgV = val(pair.fg), bgV = val(pair.bg);
+          let fg = cssLib.parseColor(fgV), bg = cssLib.parseColor(bgV);
+          const what = pair.fg + " on " + pair.bg + (pair.over ? " over " + pair.over : "") + " [" + s.label + "]";
+          if (!fg || !bg) { unresolved.push(what + ": not a parseable colour (" + fgV + " / " + bgV + ")"); return; }
+          if (bg[3] < 1 && pair.over) {
+            const under = cssLib.parseColor(val(pair.over));
+            if (!under || under[3] < 1) { unresolved.push(what + ": what is under it is not an opaque colour (" + val(pair.over) + ")"); return; }
+            bg = cssLib.over(bg, under);
+          }
+          if (fg[3] < 1 && bg[3] === 1) fg = cssLib.over(fg, bg);
+          if (bg[3] < 1) { r.fail(rel + " " + what + ": the background is see-through (" + bgV + "); name what is under it with `over`, or the pair measures nothing"); return; }
           const ratio = cssLib.contrast(fg, bg);
-          if (ratio < pair.min) r.fail(rel + " [" + sc.label + "]: " + pair.fg + " (" + fgV + ") on " + pair.bg + " (" + bgV + ") = " + ratio.toFixed(2) + ":1, needs " + pair.min + ":1");
+          if (ratio < pair.min) r.fail(rel + " " + what + ": " + pair.fg + " (" + fgV + ") on " + pair.bg + " (" + bgV + ") = " + ratio.toFixed(2) + ":1, needs " + pair.min + ":1");
         });
       });
     });
@@ -920,8 +1096,10 @@ const CHECKS = [
   { name: "migrations", run: checkMigrations, what: "a supabase/schema.sql change since main ships a new, well-named migration; applied ones are untouched" },
   { name: "placeholders", run: checkPlaceholders, what: "no answer box shows an example its own key accepts" },
   { name: "merge", run: checkMerge, what: "BMAccount.merge is commutative, associative, idempotent (2000 seeded cases)" },
-  { name: "animations", run: checkAnimations, what: "no infinite CSS animations (WARN for now)" },
-  { name: "contrast", run: checkContrast, what: "WCAG contrast of token pairs in tools/contrast-pairs.json, both themes, all Parts" }
+  { name: "animations", run: checkAnimations, what: "no CSS animation loops forever, repeats more than 3 times, or more than 3 times a second" },
+  { name: "colours", run: checkColours, what: "colour literals only in src/styles/tokens.css; answer marks carry their tokens; WebGL tokens plain hex" },
+  { name: "reading-column", run: checkReadingColumn, what: "no animation, moving transition or decoration in the reading column but tools/reading-column-allow.json's" },
+  { name: "contrast", run: checkContrast, what: "WCAG contrast of token pairs in tools/contrast-pairs.json, both themes × both panels, all Parts" }
 ];
 
 function main() {
@@ -949,4 +1127,5 @@ function main() {
 }
 
 if (require.main === module) main();
-module.exports = { CHECKS, result, pageKeys, lessonSteps, stepsDiff, shellOf, shellDiff, scriptsProblems, randomState, stripLocalFirst, canon };
+module.exports = { CHECKS, result, pageKeys, lessonSteps, stepsDiff, shellOf, shellDiff, scriptsProblems, randomState, stripLocalFirst, canon,
+  animationFaults, colourLiterals, columnPatterns, inColumn, quietKinds };

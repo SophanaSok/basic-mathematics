@@ -662,7 +662,8 @@
     return gl.promise;
   }
 
-  /* one observer for the theme and the Part colour: re-resolve and repaint every stage */
+  /* one observer for the theme, the reading panel and the Part colour: re-resolve and
+     repaint every stage */
   var themeWatch = false;
   function watchTheme() {
     if (themeWatch || !window.MutationObserver) return;
@@ -670,7 +671,7 @@
     var mo = new MutationObserver(function () {
       stages.forEach(function (st) { st.pal = palette(st.host); st.paint(); });
     });
-    var opts = { attributes: true, attributeFilter: ["data-theme", "data-part"] };
+    var opts = { attributes: true, attributeFilter: ["data-theme", "data-panel", "data-part"] };
     mo.observe(document.documentElement, opts);
     if (document.body) mo.observe(document.body, opts);
     window.addEventListener("beforeprint", function () {

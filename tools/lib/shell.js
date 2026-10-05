@@ -53,7 +53,8 @@ const BOOT = "src/boot.js";
 const VENDOR_STYLES = ["src/vendor/fonts.css", "src/vendor/katex.css"];
 
 /* What each kind of page loads. `styles` are the site's own stylesheets, in cascade
-   order, after VENDOR_STYLES; `entry` is the one module script, which imports the site's
+   order, after VENDOR_STYLES, src/styles/tokens.css (the one file that defines a colour)
+   first; `entry` is the one module script, which imports the site's
    scripts in the order they run (src/entries/<kind>.js lists them). The entry's first
    import is src/vendor/katex.js, which brings in the typesetter from npm and sets
    window.renderMathInElement, so it is there when site.js runs. The boot script is every
@@ -61,16 +62,16 @@ const VENDOR_STYLES = ["src/vendor/fonts.css", "src/vendor/katex.css"];
    up with, and check-static.js fails a change that was not accepted. */
 const PAGE_KINDS = {
   /* index.html: the contents page, with the course map */
-  home: { styles: ["assets/site.css", "assets/game.css", "assets/scenes3d.css", "assets/map3d.css"], entry: "src/entries/home.js" },
+  home: { styles: ["src/styles/tokens.css", "assets/site.css", "assets/game.css", "assets/scenes3d.css", "assets/map3d.css"], entry: "src/entries/home.js" },
   /* about.html, account.html: prose and a form */
-  page: { styles: ["assets/site.css", "assets/game.css"], entry: "src/entries/page.js" },
+  page: { styles: ["src/styles/tokens.css", "assets/site.css", "assets/game.css"], entry: "src/entries/page.js" },
   /* progress.html, insights.html: a page, and assets/insights.js to fill it */
-  dashboard: { styles: ["assets/site.css", "assets/game.css"], entry: "src/entries/dashboard.js" },
+  dashboard: { styles: ["src/styles/tokens.css", "assets/site.css", "assets/game.css"], entry: "src/entries/dashboard.js" },
   /* arena.html: no figures, the problem generators instead */
-  arena: { styles: ["assets/site.css", "assets/game.css", "assets/arena.css"], entry: "src/entries/arena.js" },
+  arena: { styles: ["src/styles/tokens.css", "assets/site.css", "assets/game.css", "assets/arena.css"], entry: "src/entries/arena.js" },
   /* parts/<part>/<chapter>.html: the scene framework, every scene, then site.js, which
      mounts the figures as it runs */
-  chapter: { styles: ["assets/site.css", "assets/game.css", "assets/scenes3d.css"], entry: "src/entries/chapter.js" }
+  chapter: { styles: ["src/styles/tokens.css", "assets/site.css", "assets/game.css", "assets/scenes3d.css"], entry: "src/entries/chapter.js" }
 };
 
 /* how a source file of the tree is read: the file beside this one by default, and the

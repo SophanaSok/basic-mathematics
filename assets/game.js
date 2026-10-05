@@ -93,10 +93,12 @@
     return r;
   }
 
-  /* A copy of what is stored, with the four settings this file knows normalised; any
+  /* A copy of what is stored, with the five settings this file knows normalised; any
      other key is kept as it is, so setPref below writes it back. `map` stays unset until
      the reader chooses: unset means 3D, except on a low-end device (assets/map3d.js
-     decides). */
+     decides). `panel` stays unset until the reader chooses too: unset means the light
+     reading panel, in either theme (src/boot.js stamps html[data-panel] from it before
+     first paint). */
   function prefs() {
     var p = obj(Store.read(K.prefs, {})), out = {};
     Object.keys(p).forEach(function (k) { out[k] = p[k]; });
@@ -104,6 +106,8 @@
     out.calm = p.calm === true;
     if (p.map === "3d" || p.map === "list") out.map = p.map;
     else delete out.map;
+    if (p.panel === "light" || p.panel === "dark") out.panel = p.panel;
+    else delete out.panel;
     out.tempo = p.tempo === "extended" || p.tempo === "untimed" ? p.tempo : "standard";
     return out;
   }
@@ -119,12 +123,16 @@
     if (p.calm) root.setAttribute("data-calm", "true");
     else root.removeAttribute("data-calm");
     root.setAttribute("data-sound", p.sound && !p.calm ? "on" : "off");
+    /* only on a change: the 3D stages and the map repaint when it changes */
+    var panel = p.panel === "dark" ? "dark" : "light";
+    if (root.getAttribute("data-panel") !== panel) root.setAttribute("data-panel", panel);
   }
   function setPref(name, value) {
     var p = prefs();
     if (name === "map3d") { name = "map"; value = value ? "3d" : "list"; }
     if (name === "sound" || name === "calm") p[name] = !!value;
     else if (name === "map") p.map = value === "list" ? "list" : "3d";
+    else if (name === "panel") p.panel = value === "dark" ? "dark" : "light";
     else if (name === "tempo") p.tempo = value === "extended" || value === "untimed" ? value : "standard";
     else return p;
     Store.write(K.prefs, p, true);

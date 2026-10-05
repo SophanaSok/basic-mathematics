@@ -1035,17 +1035,19 @@
     });
   }
 
-  /* theme and calm mode live on <html>; reduced motion on the media query */
+  /* theme, the reading panel and calm mode live on <html>; reduced motion on the media
+     query. The map is on the panel, so it takes the panel's paper: its palette is read
+     again when either attribute changes */
   if (window.MutationObserver) {
     new MutationObserver(function (list) {
       if (!M) return;
-      var theme = list.some(function (m) { return m.attributeName === "data-theme"; });
+      var theme = list.some(function (m) { return m.attributeName === "data-theme" || m.attributeName === "data-panel"; });
       if (theme) applyPalette();
       if (still()) M.bob = null;
       if (M.bobbing && !wantsBob()) { M.bobbing = false; markerAt(0); }
       if (M.flight && still()) jump(M.flight.v);
       request();
-    }).observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme", "data-calm"] });
+    }).observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme", "data-panel", "data-calm"] });
   }
   if (reduceQuery) {
     var onReduce = function () {

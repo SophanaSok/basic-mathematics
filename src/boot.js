@@ -16,6 +16,9 @@
   }
   root.setAttribute("data-theme", theme);
   var prefs = read("bm.prefs.v1") || {};
+  /* the reading panel is light paper in both themes unless the reader chose a dark
+     one; the theme shades the frame round it (src/styles/tokens.css) */
+  root.setAttribute("data-panel", prefs.panel === "dark" ? "dark" : "light");
   if (prefs.calm) root.setAttribute("data-calm", "true");
   root.setAttribute("data-sound", prefs.sound && !prefs.calm ? "on" : "off");
 })();

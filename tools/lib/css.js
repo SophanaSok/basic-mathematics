@@ -91,6 +91,11 @@ function splitDecls(body) {
 }
 
 function isDarkMedia(r) { return r.media.some(m => /prefers-color-scheme\s*:\s*dark/.test(m)); }
+/* @supports blocks describe what the browsers the site is for do, so their tokens are
+   the ones those readers see; every other at-rule context (print, prefers-contrast,
+   prefers-reduced-transparency, forced colours) restates tokens on purpose and is not
+   the screen palette */
+function measuredMedia(r) { return r.media.every(m => /^@supports\b/.test(m) || /prefers-color-scheme\s*:\s*dark/.test(m)); }
 function customProps(decls) {
   const o = {};
   Object.keys(decls).forEach(k => { if (k.startsWith("--")) o[k] = decls[k]; });
@@ -98,40 +103,90 @@ function customProps(decls) {
 }
 function normSel(s) { return s.replace(/\s+/g, " ").replace(/\s*([>+~])\s*/g, "$1").replace(/'/g, '"').trim(); }
 
-/* The token tables. light: bare :root (not in a dark media). dark: :root[data-theme="dark"]
-   and/or :root:not([data-theme="light"]) inside @media (prefers-color-scheme: dark),
-   layered over light. parts[id][theme]: the overrides on [data-part="id"] selectors. */
+/* The selector shapes of a token block: the root (`:root` or `html`), with conditions
+   on it, optionally followed by a Part:
+     :root   :root[data-theme="dark"]   :root[data-panel="dark"]   [data-part="id"]
+     :root[data-theme="dark"] [data-part="id"]   :root[data-panel="dark"] [data-part="id"]
+     :root:not([data-theme="light"])   (inside @media (prefers-color-scheme: dark))
+   data-theme shades the frame and data-panel chooses the reading panel's paper
+   (src/styles/tokens.css). Returns { part, theme, panel, spec } (theme and panel null
+   when the block does not depend on them), or null for any other selector. */
+const ROOT_SHAPE = /^(?:(:root|html)((?:\[data-(?:theme|panel)="(?:light|dark)"\]|:not\(\[data-theme="light"\]\))*)\s?)?(?:\[data-part="([^"]+)"\])?$/;
+function shapeOf(sel, darkMedia) {
+  const m = ROOT_SHAPE.exec(sel);
+  if (!m || (!m[1] && !m[3])) return null;
+  const conds = m[2] || "";
+  let theme = darkMedia ? "dark" : null, panel = null;
+  const t = /\[data-theme="(light|dark)"\]/.exec(conds);
+  if (t) theme = t[1];
+  if (/:not\(\[data-theme="light"\]\)/.test(conds)) theme = "dark";
+  const p = /\[data-panel="(light|dark)"\]/.exec(conds);
+  if (p) panel = p[1];
+  /* specificity as one number: (attributes and pseudo-classes) * 100 + elements */
+  const spec = ((sel.match(/\[/g) || []).length + (m[1] === ":root" ? 1 : 0)) * 100 + (m[1] === "html" ? 1 : 0);
+  return { part: m[3] || null, theme, panel, spec };
+}
+
+/* The theme × panel combinations the site can be in: the light/dark theme (the frame),
+   and the reading panel, light by default in both themes and dark when the reader
+   chooses it. The first two are the defaults. */
+const SCOPES = [
+  { label: "light", theme: "light", panel: "light" },
+  { label: "dark", theme: "dark", panel: "light" },
+  { label: "light, dark panel", theme: "light", panel: "dark" },
+  { label: "dark, dark panel", theme: "dark", panel: "dark" }
+];
+
+/* The token tables. Every block of a shape above (outside print and the other media
+   that restate tokens on purpose) is an entry; a scope's table is the entries whose
+   conditions hold in it, applied in cascade order (specificity, then source order), and
+   a Part's table is the scope's root table with the Part's entries applied over it (a
+   [data-part] element inherits from the root and overrides it).
+     scopes[]           { label, theme, panel, table, parts: { id: table } }
+     light, dark        the default light and dark tables (light panel in both)
+     parts[id][theme]   those two for each Part
+     drift              names a dark colour-scheme media block and the data-theme
+                        toggle set differently
+     overlap            names both the theme and the panel blocks set (they must not:
+                        which wins would hang on source order alone) */
 function tokens(css) {
   const rs = rules(css);
-  const light = {}, darkToggle = {}, darkMedia = {};
-  const parts = {};
-  rs.forEach(r => {
-    /* print, high-contrast and forced-colours blocks restate tokens on purpose; only the
-       screen palette (no media, or a dark colour-scheme media) is the one to measure */
-    if (r.media.length && !isDarkMedia(r)) return;
-    const sel = normSel(r.selector);
+  const entries = [];
+  rs.forEach((r, order) => {
+    if (r.media.length && !measuredMedia(r)) return;
     const props = customProps(r.decls);
     if (!Object.keys(props).length) return;
-    const pm = /\[data-part="([^"]+)"\]/.exec(sel);
-    if (pm) {
-      const id = pm[1];
-      parts[id] = parts[id] || { light: {}, dark: {} };
-      const dark = isDarkMedia(r) || /\[data-theme="dark"\]/.test(sel);
-      if (/\[data-theme="light"\]/.test(sel) && !isDarkMedia(r)) Object.assign(parts[id].light, props);
-      else Object.assign(parts[id][dark ? "dark" : "light"], props);
-      return;
-    }
-    if (sel === ":root" && !isDarkMedia(r)) Object.assign(light, props);
-    else if (sel === ':root[data-theme="dark"]' || sel === 'html[data-theme="dark"]') Object.assign(darkToggle, props);
-    else if (isDarkMedia(r) && /^(:root|html)(:not\(\[data-theme="light"\]\))?$/.test(sel)) Object.assign(darkMedia, props);
+    const shape = shapeOf(normSel(r.selector), isDarkMedia(r));
+    if (!shape) return;
+    entries.push(Object.assign({ props, order, media: isDarkMedia(r) }, shape));
   });
-  /* where both dark layouts exist they should agree; report drift */
-  const drift = [];
-  Object.keys(darkToggle).forEach(k => {
-    if (darkMedia.hasOwnProperty(k) && darkMedia[k] !== darkToggle[k]) drift.push(k + ": toggle=" + darkToggle[k] + " media=" + darkMedia[k]);
+  const holds = (e, sc) => (!e.theme || e.theme === sc.theme) && (!e.panel || e.panel === sc.panel);
+  const apply = (list, into) => list.slice().sort((a, b) => a.spec - b.spec || a.order - b.order).forEach(e => Object.assign(into, e.props));
+  const partIds = Array.from(new Set(entries.filter(e => e.part).map(e => e.part)));
+  const scopes = SCOPES.map(sc => {
+    const table = {};
+    apply(entries.filter(e => !e.part && holds(e, sc)), table);
+    const parts = {};
+    partIds.forEach(id => { parts[id] = Object.assign({}, table); apply(entries.filter(e => e.part === id && holds(e, sc)), parts[id]); });
+    return Object.assign({}, sc, { table, parts });
   });
-  const dark = Object.assign({}, light, darkMedia, darkToggle);
-  return { light, dark, parts, drift, hasDark: !!(Object.keys(darkToggle).length || Object.keys(darkMedia).length) };
+  const drift = [], overlap = [];
+  const rootOf = (f) => { const o = {}; entries.filter(e => !e.part && f(e)).forEach(e => Object.assign(o, e.props)); return o; };
+  const toggle = rootOf(e => e.theme === "dark" && !e.media), media = rootOf(e => e.theme === "dark" && e.media);
+  Object.keys(toggle).forEach(k => { if (media.hasOwnProperty(k) && media[k] !== toggle[k]) drift.push(k + ": toggle=" + toggle[k] + " media=" + media[k]); });
+  const themed = new Set(), panelled = new Set();
+  entries.forEach(e => Object.keys(e.props).forEach(k => {
+    const key = (e.part || ":root") + " " + k;
+    if (e.theme && !e.panel) themed.add(key);
+    if (e.panel && !e.theme) panelled.add(key);
+  }));
+  themed.forEach(k => { if (panelled.has(k)) overlap.push(k); });
+  const legacyParts = {};
+  partIds.forEach(id => { legacyParts[id] = { light: scopes[0].parts[id], dark: scopes[1].parts[id] }; });
+  return {
+    scopes, light: scopes[0].table, dark: scopes[1].table, parts: legacyParts, drift, overlap,
+    hasDark: entries.some(e => e.theme === "dark" || e.panel === "dark")
+  };
 }
 
 /* ---------------------------------------------------------------- colour -- */
@@ -153,11 +208,62 @@ function resolveVar(value, table, seen) {
   return v;
 }
 
-/* "#abc", "#aabbcc", "#aabbccdd", "rgb(1,2,3)", "rgba(1,2,3,.5)", "rgb(1 2 3 / 50%)" -> [r,g,b,a] */
+/* split on the commas that are not inside parentheses */
+function topLevelCommas(s) {
+  const out = [];
+  let depth = 0, cur = "";
+  for (const c of s) {
+    if (c === "(") depth++;
+    if (c === ")") depth--;
+    if (c === "," && depth === 0) { out.push(cur.trim()); cur = ""; continue; }
+    cur += c;
+  }
+  if (cur.trim()) out.push(cur.trim());
+  return out;
+}
+
+/* color-mix(in srgb, A p%, B q%) as CSS Color 5 computes it: the percentages normalised
+   to sum to 100 (a missing one is the rest, both missing 50/50), the channels mixed
+   premultiplied by alpha, so mixing with `transparent` makes a colour see-through
+   rather than darker. Only the srgb space; anything else is null. */
+function colorMix(s) {
+  const m = /^color-mix\(([\s\S]*)\)$/.exec(s);
+  if (!m) return null;
+  const args = topLevelCommas(m[1]);
+  if (args.length !== 3 || !/^in\s+srgb$/.test(args[0])) return null;
+  const part = (a) => {
+    const pm = /^([\s\S]*?)\s+(-?[\d.]+)%$/.exec(a) || /^(-?[\d.]+)%\s+([\s\S]*)$/.exec(a);
+    if (!pm) return { c: parseColor(a), p: null };
+    return /%$/.test(a) ? { c: parseColor(pm[1]), p: parseFloat(pm[2]) } : { c: parseColor(pm[2]), p: parseFloat(pm[1]) };
+  };
+  const x = part(args[1]), y = part(args[2]);
+  if (!x.c || !y.c) return null;
+  let p1 = x.p, p2 = y.p;
+  if (p1 === null && p2 === null) { p1 = 50; p2 = 50; }
+  else if (p1 === null) p1 = 100 - p2;
+  else if (p2 === null) p2 = 100 - p1;
+  const sum = p1 + p2;
+  if (!(sum > 0)) return null;
+  const w1 = p1 / sum, w2 = p2 / sum;
+  const a = x.c[3] * w1 + y.c[3] * w2;
+  if (a === 0) return [0, 0, 0, 0];
+  const ch = [0, 1, 2].map(i => (x.c[i] * x.c[3] * w1 + y.c[i] * y.c[3] * w2) / a);
+  return [ch[0], ch[1], ch[2], Math.min(1, a)];
+}
+
+/* a see-through colour laid over an opaque one */
+function over(top, under) {
+  const a = top[3];
+  return [0, 1, 2].map(i => top[i] * a + under[i] * (1 - a)).concat([1]);
+}
+
+/* "#abc", "#aabbcc", "#aabbccdd", "rgb(1,2,3)", "rgba(1,2,3,.5)", "rgb(1 2 3 / 50%)",
+   "color-mix(in srgb, … p%, …)" -> [r,g,b,a] */
 function parseColor(s) {
   if (s === null || s === undefined) return null;
   s = String(s).trim().toLowerCase();
   if (NAMED.hasOwnProperty(s)) return NAMED[s];
+  if (/^color-mix\(/.test(s)) return colorMix(s);
   let m = /^#([0-9a-f]{3,8})$/.exec(s);
   if (m) {
     const h = m[1];
@@ -195,8 +301,62 @@ function contrast(fg, bg) {
 
 /* animation declarations, with the line they sit on */
 function animations(css) {
-  return rules(css).filter(r => r.decls.animation || r.decls["animation-iteration-count"])
-    .map(r => ({ selector: r.selector, value: r.decls.animation || "", count: r.decls["animation-iteration-count"] || "", line: r.line, media: r.media }));
+  return rules(css).filter(r => r.decls.animation || r.decls["animation-iteration-count"] || r.decls["animation-name"])
+    .map(r => ({ selector: r.selector, value: r.decls.animation || "", count: r.decls["animation-iteration-count"] || "",
+      duration: r.decls["animation-duration"] || "", name: r.decls["animation-name"] || "", line: r.line, media: r.media }));
 }
 
-module.exports = { rules, tokens, resolveVar, parseColor, contrast, luminance, animations };
+/* the words of a value, split on the spaces outside parentheses */
+function words(v) {
+  const out = [];
+  let depth = 0, cur = "";
+  for (const c of String(v)) {
+    if (c === "(") depth++;
+    if (c === ")") depth--;
+    if (/\s/.test(c) && depth === 0) { if (cur) out.push(cur); cur = ""; continue; }
+    cur += c;
+  }
+  if (cur) out.push(cur);
+  return out;
+}
+const ANIM_KEYWORDS = new Set(["linear", "ease", "ease-in", "ease-out", "ease-in-out", "step-start", "step-end", "none",
+  "forwards", "backwards", "both", "normal", "reverse", "alternate", "alternate-reverse", "running", "paused", "infinite",
+  "initial", "inherit", "unset", "revert", "auto"]);
+function timeMs(w) {
+  const m = /^(-?[\d.]+)(ms|s)$/.exec(w);
+  return m ? parseFloat(m[1]) * (m[2] === "s" ? 1000 : 1) : null;
+}
+/* One animation declaration (the shorthand and/or its longhands, var() already resolved)
+   as the animations it runs: [{ name, ms, iterations }], `iterations` Infinity for
+   `infinite`, `ms` null when no duration can be read. `animation: none` runs nothing. */
+function parseAnimation(a) {
+  const out = [];
+  topLevelCommas(a.value || "").forEach(item => {
+    let ms = null, name = null, iterations = 1, times = 0;
+    words(item).forEach(w => {
+      const t = timeMs(w);
+      if (t !== null) { if (times++ === 0) ms = t; return; }
+      if (w === "infinite") { iterations = Infinity; return; }
+      if (/^[\d.]+$/.test(w)) { iterations = parseFloat(w); return; }
+      if (/\(/.test(w)) return;            /* cubic-bezier(), steps() */
+      if (!ANIM_KEYWORDS.has(w) && name === null) name = w;
+    });
+    if (name === null && /(^|\s)none(\s|$)/.test(item)) return;
+    out.push({ name: name || "?", ms, iterations });
+  });
+  if (a.name || a.duration || a.count) {
+    const names = a.name ? topLevelCommas(a.name) : out.map(o => o.name);
+    const durs = a.duration ? topLevelCommas(a.duration).map(timeMs) : null;
+    const counts = a.count ? topLevelCommas(a.count).map(c => c === "infinite" ? Infinity : parseFloat(c)) : null;
+    const n = Math.max(names.length, out.length, 1);
+    for (let i = 0; i < n; i++) {
+      const o = out[i] || (out[i] = { name: names[i % names.length] || "?", ms: null, iterations: 1 });
+      if (a.name && names[i % names.length] === "none") { out[i] = null; continue; }
+      if (durs) o.ms = durs[i % durs.length];
+      if (counts) o.iterations = counts[i % counts.length];
+    }
+  }
+  return out.filter(Boolean);
+}
+
+module.exports = { rules, tokens, SCOPES, resolveVar, parseColor, colorMix, over, contrast, luminance, animations, parseAnimation, words, topLevelCommas };

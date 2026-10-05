@@ -3,7 +3,7 @@
    assets/map3d.js reveals div.map3d and stamps [data-map="3d"] on the course
    index only once 3D is certain to work; until then nothing here applies and
    the list looks exactly as site.css draws it. Tokens only: every colour comes
-   from site.css, and the canvas reads the same tokens at run time.
+   from src/styles/tokens.css, and the canvas reads the same tokens at run time.
    =========================================================================== */
 
 .map3d { margin-top: 2.5rem; }

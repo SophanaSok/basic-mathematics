@@ -51,7 +51,9 @@ function world(seedStores) {
     console, setTimeout, clearTimeout, Math, JSON, Date,
     matchMedia: () => ({ matches: false }),
     document: {
-      documentElement: { hasAttribute: () => false, setAttribute() {}, removeAttribute() {} },
+      /* the attributes the game stamps on <html>, kept so a test can read them; calm mode is
+         read through hasAttribute, which stays false here */
+      documentElement: { attrs: {}, hasAttribute: () => false, getAttribute(n) { return n in this.attrs ? this.attrs[n] : null; }, setAttribute(n, v) { this.attrs[n] = String(v); }, removeAttribute(n) { delete this.attrs[n]; } },
       querySelector: () => null, querySelectorAll: () => [], getElementById: () => null
     },
     BMStore: Store,
@@ -408,6 +410,16 @@ function world(seedStores) {
   eq(w.read("bm.prefs.v1"), p, "a setting this file does not know is not written by setPref");
   p = world({ "bm.prefs.v1": { map: "globe", tempo: "warp" } }).Game.prefs();
   eq([p.sound, p.calm, "map" in p, p.tempo], [false, false, false, "standard"], "the known settings are still normalised");
+
+  /* the reading panel: unset until chosen (light paper), stamped on <html> as data-panel */
+  w = world({ "bm.prefs.v1": { panel: "sepia", calm: true } });
+  eq("panel" in w.Game.prefs(), false, "a panel value the site does not know reads as unset, the light panel");
+  w.Game.setPref("panel", "dark");
+  eq([w.read("bm.prefs.v1").panel, w.read("bm.prefs.v1").calm, w.win.document.documentElement.getAttribute("data-panel")], ["dark", true, "dark"],
+    "setPref(\"panel\", \"dark\") keeps the choice, keeps the other settings and stamps html[data-panel]");
+  w.Game.setPref("panel", "anything");
+  eq([w.read("bm.prefs.v1").panel, w.win.document.documentElement.getAttribute("data-panel")], ["light", "light"], "any other value is the light panel");
+  eq(w.events.filter((e) => e.type === "state").length, 0, "the panel is this device's: no state change for account sync");
 
   /* the game record: an Arena run rewrites a section and a best, and keeps what it does not know */
   w = world({ "bm.game.v1": {

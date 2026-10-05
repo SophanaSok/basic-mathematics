@@ -162,6 +162,9 @@ export interface PrefsStore {
   /** unset until the reader chooses: 3D, except on a low-end device */
   map?: "3d" | "list";
   tempo: "standard" | "extended" | "untimed";
+  /** the reading panel: unset until the reader chooses, which means light in both
+      themes; src/boot.js stamps it as html[data-panel] before first paint */
+  panel?: "light" | "dark";
 }
 
 /* ------------------------------------------------------------- everything -- */

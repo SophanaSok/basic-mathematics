@@ -51,5 +51,46 @@
   { "fg": "--hud-xp", "bg": "--hud-bg", "min": 4.5 },
   { "fg": "--hud-flame", "bg": "--hud-bg", "min": 3 },
   { "fg": "--hud-heart", "bg": "--hud-bg", "min": 3 },
-  { "fg": "--hud-focus", "bg": "--hud-bg", "min": 3 }
+  { "fg": "--hud-focus", "bg": "--hud-bg", "min": 3 },
+
+  { "fg": "--hud-text", "bg": "--hud-chip", "min": 4.5 },
+  { "fg": "--hud-muted", "bg": "--hud-chip", "min": 4.5 },
+  { "fg": "--hud-xp", "bg": "--hud-chip", "min": 4.5 },
+  { "fg": "--hud-heart", "bg": "--hud-chip", "min": 3 },
+  { "fg": "--hud-focus", "bg": "--hud-chip", "min": 3 },
+  { "fg": "--hud-heart", "bg": "--hud-stripe", "over": "--hud-chip", "min": 3 },
+  { "fg": "--hud-text", "bg": "--hud-stripe", "over": "--hud-chip", "min": 4.5 },
+  { "fg": "--on-xp", "bg": "--hud-xp", "min": 4.5 },
+
+  { "fg": "--frame-text", "bg": "--frame-bg", "min": 7 },
+  { "fg": "--frame-text", "bg": "--frame-raised", "min": 7 },
+  { "fg": "--frame-text", "bg": "--scrim", "min": 7 },
+  { "fg": "--frame-muted", "bg": "--frame-bg", "min": 4.5 },
+  { "fg": "--frame-muted", "bg": "--frame-raised", "min": 4.5 },
+  { "fg": "--frame-muted", "bg": "--scrim", "min": 4.5 },
+  { "fg": "--frame-line", "bg": "--frame-bg", "min": 3 },
+  { "fg": "--frame-line", "bg": "--frame-raised", "min": 3 },
+  { "fg": "--frame-accent", "bg": "--frame-bg", "min": 4.5 },
+  { "fg": "--frame-accent", "bg": "--frame-raised", "min": 4.5 },
+  { "fg": "--part-frame", "bg": "--frame-bg", "min": 4.5, "parts": true },
+  { "fg": "--part-frame", "bg": "--frame-raised", "min": 4.5, "parts": true },
+
+  { "fg": "--frame-text", "bg": "--glass-solid", "min": 7 },
+  { "fg": "--frame-text", "bg": "--glass", "over": "--surface", "min": 7 },
+  { "fg": "--frame-text", "bg": "--glass", "over": "--frame-bg", "min": 7 },
+  { "fg": "--frame-muted", "bg": "--glass", "over": "--surface", "min": 4.5 },
+  { "fg": "--hud-xp", "bg": "--glass", "over": "--surface", "min": 4.5 },
+  { "fg": "--focus-frame", "bg": "--glass", "over": "--surface", "min": 3 },
+  { "fg": "--part-frame", "bg": "--glass", "over": "--surface", "min": 3, "parts": true },
+  { "fg": "--frame-accent", "bg": "--glass", "over": "--surface", "min": 3 },
+
+  { "fg": "--focus", "bg": "--bg", "min": 3 },
+  { "fg": "--focus", "bg": "--surface", "min": 3 },
+  { "fg": "--focus", "bg": "--surface-2", "min": 3 },
+  { "fg": "--focus-frame", "bg": "--frame-bg", "min": 3 },
+  { "fg": "--focus-frame", "bg": "--frame-raised", "min": 3 },
+
+  { "fg": "--region-ink", "bg": "--region-ground", "min": 3, "parts": true },
+  { "fg": "--region-ink", "bg": "--region-sky", "min": 3, "parts": true },
+  { "fg": "--region-glow", "bg": "--region-sky", "min": 3, "parts": true }
 ]

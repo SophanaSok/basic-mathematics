@@ -75,7 +75,8 @@ function htmlPages(): Record<string, string> {
    which every entry imports, so all.js; supabase-js and its dependencies into
    bundle/supabase.js; three's two build files into bundle/three.js, shaken down to
    the names src/vendor/three.js exports). The vendor stylesheets every page links (src/vendor/fonts.css and
-   katex.css, VENDOR_STYLES) are every kind's, so they open all.css, before site.css; the
+   katex.css, VENDOR_STYLES) are every kind's, so they open all.css, before the site's own
+   (src/styles/tokens.css, then site.css); the
    packages' CSS they import is inlined into them before rolldown sees a module, and the
    font files it names are emitted beside the bundle. Vite's own helpers (the modulepreload
    polyfill, the preload helper) ride in all.js; rolldown's runtime keeps its fixed
@@ -116,7 +117,7 @@ function bundleNames(): (id: string) => string | null {
 /* Build-only. Vite splits the pages' stylesheets into shared files, and writes the link
    to a page's own file BEFORE the links to the files it shares (vite 8.3: its css-post
    plugin appends the shared files to a list that already holds the page's own). The
-   source has them the other way round (site.css, game.css, then arena.css or
+   source has them the other way round (tokens.css, site.css, game.css, then arena.css or
    map3d.css), and rules of equal weight are settled by that order. So: note the order
    each page links its stylesheets in, note which source files went into which built
    file, and put the built links back in the page's order. If no order of the built

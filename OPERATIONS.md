@@ -190,6 +190,18 @@ fetched again. Nothing is kept for it. One thing to know when reading the loader
 `BM3D.why` still says `cdn` when the chunk could not be fetched or run, since the checks and
 the map read that string; it no longer means a CDN.
 
+### Cached HTML after the game-frame deploy
+
+The deploy that brought the dark game frame and the token file (`src/styles/tokens.css`) added
+a stylesheet to every page, but every page kind links it, so it went into `bundle/all.css` with
+`site.css`, and no file was renamed. For the ten minutes, a page from before the deploy with the
+new `all.css` gets the new look: its old boot script stamps no `data-panel`, and with none the
+panel is the light paper, which is the default anyway. A page from after it with an `all.css`
+from before gets the old look, with the boot script's `data-panel` doing nothing, until the
+stylesheet is fetched again. Either way nothing breaks and nothing is kept for it. A reader who
+chose the dark panel (`bm.prefs.v1` `panel: "dark"`) keeps the choice; there was no such choice
+before this deploy, so a reader of the dark theme now sees light paper in a dark frame.
+
 ### The Pages source: GitHub Actions, set before the page-shell change is merged
 
 The Pages source is a repository setting and not a file, so it is set by hand:

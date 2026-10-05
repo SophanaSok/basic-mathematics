@@ -21,6 +21,9 @@
      - apply-shell: whole pages are found again as the kind they were written from; a
        page no kind expands to, or one whose content differs from the base by a byte,
        fails and leaves every page alone
+     - CSS (lib/css.js and the stylesheet checks): the token tables per theme × panel,
+       color-mix and see-through backgrounds, the flash-and-loop rule, colour literals,
+       and what counts as the reading column and as motion or decoration in it
      - serve (lib/serve.js): a build is served as it is, a page in it that still carries
        a shell marker is refused, a fixture goes out as it is
    Usage: node tools/checks.test.js */
@@ -260,7 +263,7 @@ function refusal(fn) { try { fn(); return null; } catch (e) { return e.message; 
   check(out.endsWith(src.slice(src.indexOf("\n\n<div class=\"wrap\">"))), "everything after the top-bar marker is the source's, byte for byte");
   eq(parse(out).query("head").children_elements.slice(0, 4).map(el => el.name + ":" + (el.getAttribute("charset") || el.getAttribute("name") || el.textContent)),
     ["meta:utf-8", "meta:viewport", "title:A title", "meta:description"], "the head opens with charset, viewport, then the page's own title and description");
-  eq(sheets(out), ["src/vendor/fonts.css", "src/vendor/katex.css", "assets/site.css", "assets/game.css"], "a page links the fonts' and KaTeX's stylesheets, then site.css and game.css");
+  eq(sheets(out), ["src/vendor/fonts.css", "src/vendor/katex.css", "src/styles/tokens.css", "assets/site.css", "assets/game.css"], "a page links the fonts' and KaTeX's stylesheets, then the tokens, site.css and game.css");
   eq(scripts(out), ["src/entries/page.js"], "… and loads the one module entry of its kind, and no other script by URL");
   check(!/https?:\/\//.test(parse(out).query("head").children_elements.map(el => Object.values(el.attrs).join(" ")).join(" ")), "nothing in <head> names another server");
   const all = parse(out).queryAll("script");
@@ -370,7 +373,7 @@ function refusal(fn) { try { fn(); return null; } catch (e) { return e.message; 
   eq(shellDiff(base, base), [], "the same shell is no difference");
   const expanded = render('data-depth="2" data-chapter="ch99" data-part="algebra"', "parts/p/c.html");
   const fontsLink = '<link rel="stylesheet" href="../../src/vendor/fonts.css">', katexLink = '<link rel="stylesheet" href="../../src/vendor/katex.css">';
-  check(expanded.includes(fontsLink + "\n" + katexLink + '\n<link rel="stylesheet" href="../../assets/site.css">'), "the vendor stylesheets are linked in order, before the site's own");
+  check(expanded.includes(fontsLink + "\n" + katexLink + '\n<link rel="stylesheet" href="../../src/styles/tokens.css">\n<link rel="stylesheet" href="../../assets/site.css">'), "the vendor stylesheets are linked in order, before the site's own, the tokens first of those");
   check(/^head entry \d+ is now `<link rel='stylesheet' href='..\/..\/src\/vendor\/fonts.css' media='print'>`, accepted `<link rel='stylesheet' href='..\/..\/src\/vendor\/fonts.css'>`/.test(shellDiff(facts(expanded.replace(fontsLink, fontsLink.replace(">", ' media="print">'))), base)[0] || ""), "an attribute added to a link shows");
   const swapped = expanded.replace(fontsLink + "\n" + katexLink, katexLink + "\n" + fontsLink);
   check(swapped !== expanded && /^head entry \d+ is now `<link rel='stylesheet' href='..\/..\/src\/vendor\/katex.css'>`/.test(shellDiff(facts(swapped), base)[0] || ""), "two stylesheets in the other order show");
@@ -459,6 +462,76 @@ function refusal(fn) { try { fn(); return null; } catch (e) { return e.message; 
   eq(applyShell.run({ write: true }, w.io), 1, "--write with a page no kind expands to exits 1");
   eq([w.written, w.files["index.html"] === was["index.html"], w.lines.filter(l => /^write /.test(l))], [[], true, []], "… writes nothing and claims no write");
   check(/^FAIL {2}about\.html: no kind of page in lib\/shell\.js expands to this document/.test(w.lines[0] || "") && /nothing written$/.test(w.lines[w.lines.length - 1] || ""), "… and names the page: " + JSON.stringify(w.lines));
+}
+
+/* -------------------------------------------------------------------- CSS -- */
+/* lib/css.js and the stylesheet checks, on stylesheets written here: the token tables
+   by theme and panel, color-mix and see-through backgrounds, the flash-and-loop rule,
+   colour literals, and the reading column */
+{
+  const css = require("./lib/css");
+  const T = css.tokens([
+    ":root { --bg: #ffffff; --text: #111111; --frame-bg: #222233; }",
+    ":root[data-theme=\"dark\"] { --frame-bg: #000000; }",
+    ":root[data-panel=\"dark\"] { --bg: #101010; --text: #eeeeee; }",
+    ":root, [data-part=\"a\"] { --part: #aa0000; --region-sky: #ffeeee; }",
+    "[data-part=\"b\"] { --part: #0000aa; --region-sky: #eeeeff; }",
+    ":root[data-panel=\"dark\"] [data-part=\"b\"] { --part: #8888ff; }",
+    ":root[data-theme=\"dark\"] [data-part=\"b\"] { --region-sky: #000022; }",
+    "@media print { :root { --bg: #fafafa; } }",
+    "@supports (color: color-mix(in srgb, red 50%, blue)) { :root { --glass: color-mix(in srgb, var(--frame-bg) 80%, transparent); } }",
+    ".switch { --sw: #123456; }"
+  ].join("\n"));
+  const at = (label) => T.scopes.find(s => s.label === label);
+  eq(T.scopes.map(s => s.label), ["light", "dark", "light, dark panel", "dark, dark panel"], "css tokens(): one table per theme × panel, the defaults first");
+  eq([at("dark").table["--bg"], at("dark").table["--frame-bg"]], ["#ffffff", "#000000"], "… the dark theme shades the frame and leaves the light panel alone");
+  eq([at("light, dark panel").table["--bg"], at("light, dark panel").table["--frame-bg"]], ["#101010", "#222233"], "… the dark panel changes the paper and leaves the frame alone");
+  eq([at("dark, dark panel").parts.b["--part"], at("dark, dark panel").parts.b["--region-sky"], at("dark").parts.b["--part"]], ["#8888ff", "#000022", "#0000aa"],
+    "… a Part takes its own light value in the dark theme unless a block for that theme or panel overrides it");
+  eq([at("light").table["--bg"], at("light").table.hasOwnProperty("--sw")], ["#ffffff", false], "… print blocks and a component's own properties are not the palette");
+  check(at("light").table["--glass"] && /^color-mix/.test(at("light").table["--glass"]), "… an @supports block is, for the browsers it describes");
+  eq(css.tokens(":root[data-theme=\"dark\"] { --x: #000000; }\n:root[data-panel=\"dark\"] { --x: #111111; }").overlap, [":root --x"], "… a name both a theme block and a panel block set is reported");
+
+  eq(css.colorMix("color-mix(in srgb, #000000 50%, #ffffff)").map(Math.round), [128, 128, 128, 1], "css colorMix: half black, half white is grey");
+  eq(css.colorMix("color-mix(in srgb, #1a1f33 88%, transparent)").map(v => +v.toFixed(2)), [26, 31, 51, 0.88], "… mixing with transparent keeps the colour and makes it see-through");
+  eq(css.over(css.parseColor("color-mix(in srgb, #000000 50%, transparent)"), [255, 255, 255, 1]).map(Math.round), [128, 128, 128, 1], "css over(): half-black glass over white is grey");
+  eq(css.parseColor(css.resolveVar("var(--glass)", at("light").table)).map(v => +v.toFixed(2)), [34, 34, 51, 0.8], "… and var() inside color-mix resolves first");
+
+  const P = (value, more) => css.parseAnimation(Object.assign({ value }, more || {}));
+  eq(P("pop 320ms cubic-bezier(.34, 1.56, .64, 1)"), [{ name: "pop", ms: 320, iterations: 1 }], "css parseAnimation: name, duration, one iteration by default");
+  eq(P("tick-draw 400ms 100ms ease-out forwards, here .7s ease-in-out 3"), [{ name: "tick-draw", ms: 400, iterations: 1 }, { name: "here", ms: 700, iterations: 3 }], "… two animations, the second time a delay, seconds read as ms");
+  eq(P("none"), [], "… `none` runs nothing");
+  eq(P("spin 1s linear infinite")[0].iterations, Infinity, "… infinite is infinite");
+  eq(P("", { name: "glow", duration: "250ms", count: "4" }), [{ name: "glow", ms: 250, iterations: 4 }], "… the longhands on their own");
+
+  const { animationFaults, colourLiterals, columnPatterns, inColumn, quietKinds } = require("./check-static");
+  const faults = (text) => animationFaults(text, { "--t-3": "240ms" }).filter(Boolean).map(f => f.selector + ": " + f.problem.split(" ")[0]);
+  eq(faults(".a { animation: pop 320ms ease; } .b { animation: here 700ms ease 3; } .c { animation: x var(--t-3); }"), [], "animations: one pop, three slow repeats and a token duration pass");
+  eq(faults(".c { animation: x var(--t-3) 2; }"), [".c: repeats"], "… a token duration is read: two cycles of 240ms are more than three a second");
+  eq(faults(".a { animation: spin 2s linear infinite; }"), [".a: animates"], "… forever fails");
+  eq(faults(".a { animation: blink 200ms 2; }"), [".a: repeats"], "… two cycles of 200ms (5 a second) fail");
+  eq(faults(".a { animation: nod 800ms 4; }"), [".a: repeats"], "… four slow cycles fail: a loop in all but name");
+  eq(faults(".a { animation: x var(--unknown) 1; }"), [".a: the"], "… a duration that cannot be read fails");
+  eq(faults(".a { animation-name: x; animation-duration: 100ms; animation-iteration-count: infinite; }"), [".a: animates"], "… the longhands are read too");
+
+  eq(colourLiterals("#main .x { color: var(--text); }\n.a { color: #fff; background: rgb(1 2 3); }\n.b { mask: url(\"data:image/svg+xml,%23ff0000\"); border-color: hsl(0 0% 0%); }\n/* #abc */\n.c { background: color-mix(in srgb, var(--a) 5%, black); }")
+    .map(c => c.literal + "@" + c.line), ["#fff@2", "rgb(@2", "hsl(@3"], "colours: literals in declarations, by line; an id selector, a data: URI, a comment and color-mix of tokens pass");
+
+  const pats = columnPatterns(["ex", "ex-*", "widget"]);
+  eq([".ex .tick path", "html:not([data-calm]) .ex-form", ".widget[data-inview] svg", "main > h2::before", ".hud-xpbar i", ".topbar .ex-link-like"].map(s => inColumn(s, pats, ["main"])),
+    [true, true, true, true, false, true], "reading-column: a selector is in the column when it names a column class or element");
+  eq([
+    quietKinds({ animation: "pop 320ms ease" }, { light: {} }),
+    quietKinds({ transition: "border-color .15s, transform var(--t-1)" }, { light: { "--t-1": "80ms" } }),
+    quietKinds({ transition: "background-color .15s" }, { light: {} }),
+    quietKinds({ background: "linear-gradient(red, blue)" }, { light: {} }),
+    quietKinds({ "box-shadow": "0 4px 0 var(--edge)" }, { light: {} }),
+    quietKinds({ "box-shadow": "0 0 12px var(--glow)" }, { light: {} }),
+    quietKinds({ "-webkit-mask-image": "var(--motif)" }, { light: {} }),
+    quietKinds({ "-webkit-mask": "var(--icon-tick) center / contain no-repeat" }, { light: {} }),
+    quietKinds({ animation: "none" }, { light: {} })
+  ], [["animation"], ["transition"], [], ["decoration"], [], ["decoration"], ["decoration"], [], []],
+    "… what counts: an animation, a transition that moves, a gradient, a soft shadow, a motif; not a colour fade, a hard tile edge, an icon mask or `none`");
 }
 
 /* ------------------------------------------------------------------ serve -- */

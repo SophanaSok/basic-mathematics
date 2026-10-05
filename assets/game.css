@@ -2,7 +2,7 @@
    Basic Mathematics — game chrome
    HUD rail counters, region banner stats, exercise card states, encounters,
    toasts, the settings sheet, and every animation on the site.
-   Consumes the tokens in site.css; never defines a colour of its own.
+   Consumes src/styles/tokens.css; never defines a colour of its own.
    The grammar is site.css's: anything you can act on is a tile with a hard edge
    (--shadow-tile), anything you read is a flat panel. All keyframes live in the
    one guarded block at the end, so reduced motion and calm mode stop everything.
@@ -96,7 +96,7 @@ a.hud:hover { border-color: var(--hud-muted); color: var(--hud-text); }
 .hud-timer[data-urgency="low"] .hud-timer-text { color: var(--hud-xp); }
 .hud-timer[data-urgency="critical"] {
   border-color: var(--hud-heart);
-  background-image: repeating-linear-gradient(135deg, color-mix(in srgb, var(--hud-heart) 16%, transparent) 0 5px, transparent 5px 10px);
+  background-image: repeating-linear-gradient(135deg, var(--hud-stripe) 0 5px, transparent 5px 10px);
 }
 .hud-timer[data-urgency="critical"] .hud-timer-text { color: var(--hud-heart); }
 
@@ -710,7 +710,7 @@ html[data-motion="reduce"] *, html[data-motion="reduce"] *::before, html[data-mo
   html:not([data-calm]):not([data-motion="reduce"]) .encounter-seg { transition: background-color var(--t-2); }
   html:not([data-calm]):not([data-motion="reduce"]) .encounter[data-hit] .encounter-sigil { animation: hit 360ms var(--ease-out); }
   html:not([data-calm]):not([data-motion="reduce"]) .sigil-face[data-fresh] { animation: face-break 600ms var(--ease-out); }
-  html:not([data-calm]):not([data-motion="reduce"]) .encounter-wards li[data-fresh] { animation: pop 320ms var(--ease-spring); }
+  html:not([data-calm]):not([data-motion="reduce"]) .encounter-wards li[data-fresh] { --mag: var(--mag-m); animation: pop 320ms var(--ease-spring); }
   html:not([data-calm]):not([data-motion="reduce"]) .encounter-cue:not([hidden]) { animation: fade 220ms ease-out; }
   html:not([data-calm]):not([data-motion="reduce"]) .encounter-seg[data-fresh],
   html:not([data-calm]):not([data-motion="reduce"]) [data-flash] { animation: flash 180ms ease-out; }
@@ -726,7 +726,9 @@ html[data-motion="reduce"] *, html[data-motion="reduce"] *::before, html[data-mo
   html:not([data-calm]):not([data-motion="reduce"]) .toast { animation: toast-in 280ms var(--ease-out) both; }
   html:not([data-calm]):not([data-motion="reduce"]) .toast[data-out] { animation: toast-out 280ms ease-in both; }
 
-  @keyframes pop { 0% { transform: scale(1); } 45% { transform: scale(1.02); } 100% { transform: scale(1); } }
+  /* how far it swells is the size of the event: --mag-s for an answer unless the rule
+     says more (tokens.css, magnitude) */
+  @keyframes pop { 0% { transform: scale(1); } 45% { transform: scale(var(--mag, var(--mag-s))); } 100% { transform: scale(1); } }
   @keyframes nudge {
     0%, 100% { transform: translateX(0); } 25% { transform: translateX(-4px); }
     55% { transform: translateX(4px); } 80% { transform: translateX(-2px); }

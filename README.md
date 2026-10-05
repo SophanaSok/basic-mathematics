@@ -169,7 +169,10 @@ delete all of it.
 Answer keys live in the page source, since the grading happens in your browser. This is a course to
 learn from, not an exam — the only person you can cheat is yourself.
 
-The light/dark toggle sits in the header and follows your system setting until you override it.
+The page is a dark game frame with the reading on a light paper panel set into it, in both themes:
+the light/dark toggle in the header shades the frame, and follows your system setting until you
+override it. The text, worked examples, figures and exercises stay on light paper, which is easier
+to read for long stretches.
 
 ---
 
@@ -263,7 +266,7 @@ data/curriculum.js      single source of truth: parts, chapters, sections
 data/quest.js           regions, bosses (the tempting guess of each chapter's puzzle), review echoes
 data/gen/*.js           seeded problem generators for the Arena, one file per Part plus core.js
 src/boot.js             the one script that runs before first paint, inlined into every page's
-                        <head> by the shell: theme and play settings, plain ES5, never bundled
+                        <head> by the shell: theme, reading panel and play settings, plain ES5, never bundled
 src/entries/*.js        one module entry per kind of page (home, page, dashboard, arena, chapter):
                         an ordered list of imports of the scripts below, which is the order they run in
 src/vendor/katex.js     KaTeX from npm (pinned 0.16.11): sets window.katex and renderMathInElement;
@@ -274,8 +277,11 @@ src/vendor/fonts.css    Inter, Newsreader and Bricolage Grotesque from the fonts
                         every page before katex.css
 src/vendor/supabase.js  supabase-js from npm, imported on demand by assets/account.js: bundle/supabase.js
 src/vendor/three.js     Three.js from npm, the names the site uses, imported on demand by assets/three-loader.js: bundle/three.js
-assets/site.css         tokens (both themes, four regions), base, prose, cards, figures, print
-assets/game.css         HUD, region banner, encounters, card states, toasts, settings, all motion
+src/styles/tokens.css   every colour, duration and shape token: the paper (light, and the dark panel a
+                        reader can choose), the frame (each theme), the four Parts and their 3D
+                        regions, motion, magnitude, focus, glass; the one file that defines a colour
+assets/site.css         base, the frame and the reading panel, prose, cards, figures, print
+assets/game.css         HUD, region banner stats, encounters, card states, toasts, settings, all motion
 assets/scenes3d.css     3D scene stages
 assets/map3d.css        the course map; arena.css the Arena
 assets/site.js          navigation, theme, stores, exercise grading, XP, widget mounting
@@ -362,11 +368,11 @@ the shell writes depends on what `<body>` says:
 `data-page` and `data-nav` are instructions to the shell and are not in the page a reader gets.
 (`data-scenes`, which once named a chapter's 3D scenes, is refused: every chapter's bundle
 carries every scene.) What the shell writes into `<head>`, in order: the page's own tags, the
-boot script inline ([`src/boot.js`](src/boot.js), before the stylesheets, so the theme is set
+boot script inline ([`src/boot.js`](src/boot.js), before the stylesheets, so the theme and the reading panel are set
 before the first paint without a request), the icon, the two vendor stylesheets
 (`src/vendor/fonts.css`, then `src/vendor/katex.css`: `VENDOR_STYLES` in `tools/lib/shell.js`,
 first so that `site.css`'s rules on `.katex` come after KaTeX's and win), the stylesheets of the
-page's kind, and one `<script type="module">` for the kind's entry, `src/entries/<kind>.js`. The
+page's kind (`src/styles/tokens.css` first of them), and one `<script type="module">` for the kind's entry, `src/entries/<kind>.js`. The
 stylesheets and the entry of each kind are `PAGE_KINDS` at the top of `tools/lib/shell.js`; the
 scripts of a kind, in the order they run, are the imports of its entry, so that file is where a
 script is added to every chapter, or moved. The order is part of the site (`site.js` mounts every
@@ -557,7 +563,7 @@ Widgets are plain SVG built through a set of shared helpers: `Plot`, `grid`, `cu
 the end state under `prefers-reduced-motion`), and the style table `S`, all exported on
 `window.BMPlot`. Two more — `dragPoints`, for two-dimensional handles, and `arrowTo` — are
 internal to `widgets.js` and available to any factory in that file. Colours come from CSS custom
-properties, so every figure follows the theme automatically. The convention throughout is: build the frame once, redraw a single `<g>` on each
+properties, so every figure follows the reading panel (light paper, or dark when the reader chose it) automatically. The convention throughout is: build the frame once, redraw a single `<g>` on each
 change, and use the readout to say in words what the picture is claiming.
 
 #### 3D scenes
@@ -707,7 +713,7 @@ memory but keeps the site:
 | `bm.last`, `bm.theme` | where to continue; light or dark |
 | `bm.game.v1` | achievements, compared solutions, recall per section, Arena bests, medals, Daily days (synced) |
 | `bm.run.v1` | the combo meter and an unfinished Arena run (this device only; cleared by reset and sign-out) |
-| `bm.prefs.v1` | calm mode, sound, 3D map, Arena tempo (this device only; survives a reset; keys the site does not know are kept) |
+| `bm.prefs.v1` | calm mode, sound, 3D map, Arena tempo, the reading panel (`panel: "dark"`, unset for light paper) (this device only; survives a reset; keys the site does not know are kept) |
 | `bm.sync.v1` | with accounts on: whose progress this browser holds and the last reset it knows of |
 | `bm.sync.pending.v1` | with accounts on: progress that could not be saved when its reader signed out, kept aside per reader until they sign in here again |
 
@@ -796,6 +802,38 @@ struggle score from 0 (right first time) to 1, averaged per section.
 The theme follows the operating system by default and can be overridden with the toggle in the
 header.
 
+### The look: tokens, the frame and the panel
+
+Every colour on the site is a custom property in [`src/styles/tokens.css`](src/styles/tokens.css),
+which the shell links first of the site's own stylesheets on every page; no other stylesheet
+writes a colour (`check-static.js` `colours` fails a hex, `rgb()` or `hsl()` anywhere else). The
+page has two surfaces, and the tokens keep them apart:
+
+- **The frame** is the page around the reading: the body, with a faint motif of the page's Part
+  (the graph paper on a page of no Part), the top bar, the region banner's band, the toasts. It is
+  dark in both themes; `html[data-theme]` only changes its shade (`--frame-*`, `--hud-*`,
+  `--part-frame`, and the 3D world's `--region-*`, plain six-digit hex because WebGL reads them).
+  The top bar is glass (`--glass`) where the browser can blur what scrolls under it, and its solid
+  colour (`--glass-solid`) everywhere else and when the reader asks for less transparency.
+- **The panel** is the reading column, `.wrap` or `.wrap-narrow`: prose, worked examples, figures,
+  3D scenes, exercise cards, the course map. It is light paper in both themes, because dark text
+  on a light panel reads best for long stretches; a reader can choose a dark panel
+  (`bm.prefs.v1` `panel: "dark"`, for now through `BMGame.setPref("panel", "dark")`, a control in
+  the settings sheet to come), which `src/boot.js` stamps as `html[data-panel]` before the first
+  paint. The paper tokens (`--bg`, `--surface`, `--text`, `--accent`, `--part`, `--plot-*` …)
+  follow `data-panel`, never `data-theme`.
+
+The same file holds the motion tokens (`--dur-press` … `--dur-max` and the easings, with the old
+`--t-1` … `--t-5` kept as aliases), magnitude (`--mag-s`, `--mag-m`, `--mag-l`: how far feedback
+swells, by the size of the event), and the focus recipe (`--focus` on paper, `--focus-frame` on the
+frame). Three static checks hold the rest: `contrast` measures every pair in
+`tools/contrast-pairs.json` in both themes with both panels and every Part, glass laid over the
+paper it can sit on; `animations` fails anything that loops forever or repeats more than three
+times, or more than three times a second; `reading-column` fails an animation, a moving transition
+or decoration inside the reading column and the exercise cards unless
+`tools/reading-column-allow.json` lists the rule with its reason. Print has no frame: paper, ink,
+nothing else.
+
 ### Checking your changes
 
 `tools/` holds the checks, and `package.json` names them. `npm ci` installs what they need;
@@ -807,10 +845,10 @@ npm run check           # everything that needs no browser, about 15 s:
 npm run typecheck       #   tsc over src/ and vite.config.ts
 npm run check:static    #   syntax, progress keys, ids, lesson steps, the shell, links, sections,
                         #   widgets, choices, migrations, placeholders, merge laws, contrast,
-                        #   animations
+                        #   animations (no loop, no flash), colours (only in tokens.css), the reading column
 npm run check:gen       #   every Arena generator over 500 seeds
 npm run check:scenes    #   every 3D scene: mount, controls, missions, answers
-npm run test:node       #   the progress-key, id and lesson-step rules on small pages;
+npm run test:node       #   the progress-key, id and lesson-step rules and the CSS checks on small pages;
                         #   BMAccount.merge with the game store and fields this copy has never heard
                         #   of; account sync (stale tabs, resets, failed sign-outs, newer and older
                         #   sites and tables, sign-in through another service); the game's rules
@@ -832,7 +870,8 @@ npm run check:browser   # dist/ served: every page × theme × width (errors, th
                         # paint, scripts ran, KaTeX rendered, no request to any other server,
                         # Three.js fetched only where there is 3D, overflow, lesson mode),
                         # figures, every exercise typed back, restore of old progress, saved
-                        # state from the last release, reduced motion, WebGL and its fallbacks,
+                        # state from the last release, reduced motion, the frame and the reading panel
+                        # (both themes, both panels, contrast, print), WebGL and its fallbacks,
                         # axe. About 8 minutes, and nothing in it needs the network
 
 npm run check:all       # all of the above, in that order
