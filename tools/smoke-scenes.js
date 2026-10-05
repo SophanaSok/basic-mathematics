@@ -156,13 +156,17 @@ var doc = {
 doc.body = doc.documentElement.appendChild(new Node("body"));
 doc.body.setAttribute("data-chapter", "smoke");
 
-/* the token values, read from the light block of site.css so palette() resolves */
-var tokens = {};
-var css = fs.readFileSync(path.join(ROOT, "assets/site.css"), "utf8");
-var rootBlock = /:root\s*\{([\s\S]*?)\n\}/.exec(css);
-if (rootBlock) rootBlock[1].replace(/(--[\w-]+)\s*:\s*([^;]+);/g, function (m, k, v) { tokens[k] = v.trim(); });
-var partBlock = /\[data-part="algebra"\]\s*\{([^}]*)\}/.exec(css);
-if (partBlock) partBlock[1].replace(/(--[\w-]+)\s*:\s*([^;]+);/g, function (m, k, v) { tokens[k] = v.trim(); });
+/* the token values, read from src/styles/tokens.css (the light theme and panel, under
+   the first Part) so palette() resolves and the shaded draw paths run. A token file
+   that yields none would quietly skip those paths, so that stops the run. */
+var cssLib = require("./lib/css");
+var T = cssLib.tokens(fs.readFileSync(path.join(ROOT, "src/styles/tokens.css"), "utf8"));
+var tokens = Object.assign({}, T.light, (T.scopes[0] && T.scopes[0].parts.algebra) || {});
+Object.keys(tokens).forEach(function (k) { tokens[k] = String(cssLib.resolveVar(tokens[k], tokens)).trim(); });
+if (!/^#[0-9a-fA-F]{6}$/.test(tokens["--plot-curve"] || "")) {
+  console.error("smoke-scenes: no --plot-curve read from src/styles/tokens.css (" + Object.keys(tokens).length + " tokens); the scenes would draw without their palette");
+  process.exit(2);
+}
 
 var listeners = [];
 var win = {

@@ -530,7 +530,7 @@ input.blank[data-ok="false"] { border-color: var(--bad); background-image: var(-
   display: block; max-width: 100%;
   padding: .6rem 1.05rem; border-radius: var(--radius-sm);
   background: var(--hud-bg); color: var(--hud-text);
-  border: 2px solid var(--hud-line); box-shadow: 0 4px 0 color-mix(in srgb, var(--hud-bg) 45%, black);
+  border: 2px solid var(--hud-line); box-shadow: 0 4px 0 color-mix(in srgb, var(--hud-bg) 45%, var(--ink-shadow));
   font-family: var(--sans); font-size: .92rem; font-weight: 500; line-height: 1.35;
 }
 .toast b { font-family: var(--display); font-weight: 700; color: var(--hud-xp); font-variant-numeric: tabular-nums; }
@@ -550,7 +550,7 @@ input.blank[data-ok="false"] { border-color: var(--bad); background-image: var(-
 .toast.ach::before, .toast.level::before {
   content: ""; grid-column: 1; grid-row: 1 / span 4; width: 2.5rem; height: 2.5rem; align-self: center;
   border-radius: var(--radius-xs); background: var(--hud-xp);
-  box-shadow: 0 3px 0 color-mix(in srgb, var(--hud-xp) 50%, black);
+  box-shadow: 0 3px 0 color-mix(in srgb, var(--hud-xp) 50%, var(--ink-shadow));
 }
 .toast.ach::after, .toast.level::after {
   content: ""; grid-column: 1; grid-row: 1 / span 4; justify-self: center; align-self: center;

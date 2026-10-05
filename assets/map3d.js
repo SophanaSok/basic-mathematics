@@ -141,7 +141,7 @@
   /* --------------------------------------------------------------- colours -- */
 
   /* the tokens are read from probes inside the map, so the per-Part blocks and the
-     dark palette in site.css apply exactly as they do to the list */
+     theme and panel blocks of src/styles/tokens.css apply exactly as they do to the list */
   function readPalette(T) {
     var probe = box.querySelector(".map3d-probe");
     function tok(el, name) {

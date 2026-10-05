@@ -326,14 +326,19 @@ function timeMs(w) {
   const m = /^(-?[\d.]+)(ms|s)$/.exec(w);
   return m ? parseFloat(m[1]) * (m[2] === "s" ? 1000 : 1) : null;
 }
+/* a word var() could not resolve: resolveVar() leaves a marker, or the var() itself */
+const UNREAD = /\u0000missing:|var\(/;
 /* One animation declaration (the shorthand and/or its longhands, var() already resolved)
    as the animations it runs: [{ name, ms, iterations }], `iterations` Infinity for
-   `infinite`, `ms` null when no duration can be read. `animation: none` runs nothing. */
+   `infinite`, `ms` null when no duration can be read, and `unread: true` when a word of
+   the shorthand is a var() that did not resolve (it may be the count, or anything else,
+   so nothing about the animation can be trusted). `animation: none` runs nothing. */
 function parseAnimation(a) {
   const out = [];
   topLevelCommas(a.value || "").forEach(item => {
-    let ms = null, name = null, iterations = 1, times = 0;
+    let ms = null, name = null, iterations = 1, times = 0, unread = false;
     words(item).forEach(w => {
+      if (UNREAD.test(w)) { unread = true; return; }
       const t = timeMs(w);
       if (t !== null) { if (times++ === 0) ms = t; return; }
       if (w === "infinite") { iterations = Infinity; return; }
@@ -341,13 +346,13 @@ function parseAnimation(a) {
       if (/\(/.test(w)) return;            /* cubic-bezier(), steps() */
       if (!ANIM_KEYWORDS.has(w) && name === null) name = w;
     });
-    if (name === null && /(^|\s)none(\s|$)/.test(item)) return;
-    out.push({ name: name || "?", ms, iterations });
+    if (name === null && !unread && /(^|\s)none(\s|$)/.test(item)) return;
+    out.push(unread ? { name: name || "?", ms, iterations, unread } : { name: name || "?", ms, iterations });
   });
   if (a.name || a.duration || a.count) {
     const names = a.name ? topLevelCommas(a.name) : out.map(o => o.name);
     const durs = a.duration ? topLevelCommas(a.duration).map(timeMs) : null;
-    const counts = a.count ? topLevelCommas(a.count).map(c => c === "infinite" ? Infinity : parseFloat(c)) : null;
+    const counts = a.count ? topLevelCommas(a.count).map(c => c.trim() === "infinite" ? Infinity : /^\s*[\d.]+\s*$/.test(c) ? parseFloat(c) : NaN) : null;
     const n = Math.max(names.length, out.length, 1);
     for (let i = 0; i < n; i++) {
       const o = out[i] || (out[i] = { name: names[i % names.length] || "?", ms: null, iterations: 1 });
@@ -359,4 +364,63 @@ function parseAnimation(a) {
   return out.filter(Boolean);
 }
 
-module.exports = { rules, tokens, SCOPES, resolveVar, parseColor, colorMix, over, contrast, luminance, animations, parseAnimation, words, topLevelCommas };
+/* The @keyframes of a stylesheet (rules() swallows them): { name: [{ at: [0..1], decls }] },
+   the frames in the order written; `from` is 0 and `to` is 1. */
+function keyframes(css) {
+  const src = stripComments(css);
+  const out = {};
+  const head = /@(?:-webkit-)?keyframes\s+([\w-]+)\s*\{/g;
+  let h;
+  while ((h = head.exec(src))) {
+    let d = 1, k = head.lastIndex;
+    while (k < src.length && d > 0) { if (src[k] === "{") d++; else if (src[k] === "}") d--; k++; }
+    const body = src.slice(head.lastIndex, k - 1);
+    const frames = [];
+    const frame = /([^{}]+)\{([^{}]*)\}/g;
+    let f;
+    while ((f = frame.exec(body))) {
+      const decls = {};
+      splitDecls(f[2]).forEach(dcl => {
+        const colon = dcl.indexOf(":");
+        if (colon !== -1) decls[dcl.slice(0, colon).trim()] = dcl.slice(colon + 1).trim();
+      });
+      const at = f[1].split(",").map(x => x.trim()).map(x => x === "from" ? 0 : x === "to" ? 1 : /^[\d.]+%$/.test(x) ? parseFloat(x) / 100 : null).filter(x => x !== null);
+      frames.push({ at, decls });
+    }
+    out[h[1]] = frames;
+    head.lastIndex = k;
+  }
+  return out;
+}
+
+/* What can flash in a keyframe: its opacity, visibility, and the colours and filter it
+   paints with. A flash (WCAG 2.3.1) is a pair of opposing changes, so a cycle's flashes
+   are half the stretches over which a property keeps changing one way: for opacity a
+   stretch runs while it keeps rising or keeps falling, for the others every change of
+   value is one. Frames the keyframes leave out take the element's own value, which is
+   not known here, so they are not counted (the count can only be low by one). */
+const FLASH_PROPS = ["opacity", "visibility", "color", "background-color", "background", "fill", "stroke", "filter",
+  "outline-color", "border-color", "box-shadow"];
+function flashesPerCycle(frames) {
+  let most = 0;
+  FLASH_PROPS.forEach(prop => {
+    const seq = [];
+    (frames || []).forEach(fr => { if (fr.decls[prop] !== undefined) fr.at.forEach(at => seq.push({ at, v: fr.decls[prop].replace(/\s+/g, " ").trim() })); });
+    seq.sort((a, b) => a.at - b.at);
+    let stretches = 0;
+    if (prop === "opacity") {
+      let dir = 0;
+      for (let i = 1; i < seq.length; i++) {
+        const dv = parseFloat(seq[i].v) - parseFloat(seq[i - 1].v);
+        const s = dv > 0 ? 1 : dv < 0 ? -1 : 0;
+        if (s && s !== dir) { stretches++; dir = s; }
+      }
+    } else {
+      for (let i = 1; i < seq.length; i++) if (seq[i].v !== seq[i - 1].v) stretches++;
+    }
+    most = Math.max(most, Math.floor(stretches / 2));
+  });
+  return most;
+}
+
+module.exports = { rules, tokens, SCOPES, resolveVar, parseColor, colorMix, over, contrast, luminance, animations, parseAnimation, keyframes, flashesPerCycle, words, topLevelCommas };

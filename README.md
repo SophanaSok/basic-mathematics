@@ -806,7 +806,7 @@ header.
 
 Every colour on the site is a custom property in [`src/styles/tokens.css`](src/styles/tokens.css),
 which the shell links first of the site's own stylesheets on every page; no other stylesheet
-writes a colour (`check-static.js` `colours` fails a hex, `rgb()` or `hsl()` anywhere else). The
+writes a colour (`check-static.js` `colours` fails a hex, `rgb()`, `hsl()` or a named colour anywhere else). The
 page has two surfaces, and the tokens keep them apart:
 
 - **The frame** is the page around the reading: the body, with a faint motif of the page's Part
@@ -826,10 +826,12 @@ page has two surfaces, and the tokens keep them apart:
 The same file holds the motion tokens (`--dur-press` … `--dur-max` and the easings, with the old
 `--t-1` … `--t-5` kept as aliases), magnitude (`--mag-s`, `--mag-m`, `--mag-l`: how far feedback
 swells, by the size of the event), and the focus recipe (`--focus` on paper, `--focus-frame` on the
-frame). Three static checks hold the rest: `contrast` measures every pair in
-`tools/contrast-pairs.json` in both themes with both panels and every Part, glass laid over the
-paper it can sit on; `animations` fails anything that loops forever or repeats more than three
-times, or more than three times a second; `reading-column` fails an animation, a moving transition
+frame: the top bar and the skip link that appears over it). Three static checks hold the rest:
+`contrast` measures every pair in `tools/contrast-pairs.json` in both themes with both panels and
+every Part, glass laid over the paper it can sit on, and print restating every paper token the dark
+panel sets; `animations`
+fails anything that loops forever or repeats more than three times, or more than three times a
+second, counting the flashes inside a cycle's `@keyframes`; `reading-column` fails an animation, a moving transition
 or decoration inside the reading column and the exercise cards unless
 `tools/reading-column-allow.json` lists the rule with its reason. Print has no frame: paper, ink,
 nothing else.

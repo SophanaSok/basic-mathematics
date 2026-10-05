@@ -513,9 +513,24 @@ function refusal(fn) { try { fn(); return null; } catch (e) { return e.message; 
   eq(faults(".a { animation: nod 800ms 4; }"), [".a: repeats"], "… four slow cycles fail: a loop in all but name");
   eq(faults(".a { animation: x var(--unknown) 1; }"), [".a: the"], "… a duration that cannot be read fails");
   eq(faults(".a { animation-name: x; animation-duration: 100ms; animation-iteration-count: infinite; }"), [".a: animates"], "… the longhands are read too");
+  eq(faults(".a { --n: infinite; animation: pulse 1s var(--n); }"), [".a: the"], "… a count (or any word) that is a var() tokens.css does not define fails, not taken for one iteration");
+  eq(faults(".a { animation-name: pulse; animation-duration: 1s; animation-iteration-count: var(--n); }"), [".a: the"], "… and so does such a count in the longhand");
+  const strobe = "@keyframes strobe { 0%, 50%, 100% { opacity: 1; } 25%, 75% { opacity: 0; } }\n";
+  eq(faults(strobe + ".a { animation: strobe 300ms; }"), [".a: flashes"], "… a strobe inside one cycle fails: two flashes in 300ms");
+  eq(faults(strobe + ".a { animation: strobe 1.2s; }"), [], "… the same keyframes slowed to two flashes in 1.2s pass");
+  eq(faults("@keyframes blink { 50% { color: var(--x); } }\n.a { animation: blink 250ms 2; }"), [".a: repeats"], "… a colour turned back and forth repeats too");
+  eq(faults("@keyframes dim { 0%, 100% { opacity: 1; } 50% { opacity: .45; } }\n.a { animation: dim 900ms 3; }"), [], "… one slow dip a cycle, three cycles, passes (the site's handle-dim)");
+  eq(faults(".a { animation: strobe 300ms; }"), [], "… keyframes are read from the whole site: none here");
+  eq(animationFaults(".a { animation: strobe 300ms; }", {}, css.keyframes(strobe)).filter(Boolean).map(f => f.problem.split(" ")[0]), ["flashes"], "… and given, they are");
+  eq(css.flashesPerCycle(css.keyframes("@keyframes f { from { opacity: 0; } to { opacity: 1; } }").f), 0, "css flashesPerCycle: a fade in is no flash");
+  eq(css.flashesPerCycle(css.keyframes(strobe).strobe), 2, "… a strobe of four turns is two");
 
-  eq(colourLiterals("#main .x { color: var(--text); }\n.a { color: #fff; background: rgb(1 2 3); }\n.b { mask: url(\"data:image/svg+xml,%23ff0000\"); border-color: hsl(0 0% 0%); }\n/* #abc */\n.c { background: color-mix(in srgb, var(--a) 5%, black); }")
+  eq(colourLiterals("#main .x { color: var(--text); }\n.a { color: #fff; background: rgb(1 2 3); }\n.b { mask: url(\"data:image/svg+xml,%23ff0000\"); border-color: hsl(0 0% 0%); }\n/* #abc */\n.c { background: color-mix(in srgb, var(--a) 5%, var(--ink-shadow)); }")
     .map(c => c.literal + "@" + c.line), ["#fff@2", "rgb(@2", "hsl(@3"], "colours: literals in declarations, by line; an id selector, a data: URI, a comment and color-mix of tokens pass");
+  eq(colourLiterals(".x { color: RGB(1,2,3); }\n.y { background: Hsla(0 0% 0% / .5); border-color: #ABCDEF; }").map(c => c.literal + "@" + c.line), ["RGB(@1", "Hsla(@2", "#ABCDEF@2"],
+    "… in any letter case: CSS function names are case-insensitive");
+  eq(colourLiterals(".x { color: red; box-shadow: 0 3px 0 color-mix(in srgb, var(--a) 50%, black); }\n.y { white-space: nowrap; border: 1px solid currentColor; background: transparent; outline-color: CanvasText; }\n.z { content: \"white\"; -webkit-mask: radial-gradient(circle, transparent 45%, black 48%); animation: red-out 1s; }")
+    .map(c => c.literal + "@" + c.line), ["red@1", "black@1"], "… named colours too, but not white-space, currentColor, transparent, a system colour, a string, a mask's alpha or a name that only starts like one");
 
   const pats = columnPatterns(["ex", "ex-*", "widget"]);
   eq([".ex .tick path", "html:not([data-calm]) .ex-form", ".widget[data-inview] svg", "main > h2::before", ".hud-xpbar i", ".topbar .ex-link-like"].map(s => inColumn(s, pats, ["main"])),
@@ -532,6 +547,28 @@ function refusal(fn) { try { fn(); return null; } catch (e) { return e.message; 
     quietKinds({ animation: "none" }, { light: {} })
   ], [["animation"], ["transition"], [], ["decoration"], [], ["decoration"], ["decoration"], [], []],
     "… what counts: an animation, a transition that moves, a gradient, a soft shadow, a motif; not a colour fade, a hard tile edge, an icon mask or `none`");
+  const toks = { light: { "--grid-motif": "linear-gradient(black 1px, transparent 1px)", "--surface": "#ffffff", "--sheen": "linear-gradient(#fff, #eee)", "--paper-tex": "url(paper.png)",
+    "--mark-ok": "url(\"data:image/svg+xml,x\")", "--icon-tick": "url(\"data:image/svg+xml,y\")" } };
+  eq([
+    quietKinds({ "background-image": "var(--grid-motif)" }, toks),
+    quietKinds({ "-webkit-mask-image": "var(--grid-motif)", "mask-image": "var(--grid-motif)" }, toks),
+    quietKinds({ background: "var(--surface) var(--grid-motif)" }, toks),
+    quietKinds({ "background-image": "var(--motif)" }, toks),
+    quietKinds({ background: "var(--sheen)" }, toks),
+    quietKinds({ "background-image": "var(--paper-tex)" }, toks),
+    quietKinds({ "mask-image": "var(--sheen)" }, toks),
+    quietKinds({ background: "var(--surface)" }, toks),
+    quietKinds({ "background-image": "var(--mark-ok)" }, toks),
+    quietKinds({ "-webkit-mask": "var(--icon-tick) center / contain no-repeat" }, toks)
+  ], [["decoration"], ["decoration"], ["decoration"], ["decoration"], ["decoration"], ["decoration"], ["decoration"], [], [], []],
+    "… read through the tokens: the graph paper (--grid-motif) as a background or a mask, any motif token, a gradient or picture behind a token; not a plain colour, an answer mark or an icon");
+
+  const { printGaps } = require("./check-static");
+  const printed = (css) => printGaps(css).filter(g => g.problem).map(g => g.problem.split(" ")[0]);
+  eq(printed(":root { --on-accent: #fff; }\n:root[data-panel=\"dark\"] { --on-accent: #000; --xp-ink: #ff0; }\n@media print { :root, :root[data-panel=\"dark\"] { --on-accent: #fff; } }"), ["--xp-ink"],
+    "print: a token the dark panel sets and print does not restate is reported");
+  eq(printed(":root[data-panel=\"dark\"] [data-part=\"b\"] { --part: #fff; }\n@media print { :root[data-panel=\"dark\"] [data-part=\"b\"] { --part: #000; } }"), [], "… a Part's dark-panel block restated in print passes");
+  eq(printed("@media print { :root[data-panel=\"dark\"] { --ok: #14713a; --mark-ok: url(\"data:image/svg+xml,stroke='%236fdc98'\"); } }"), ["print's"], "… a print answer mark drawn in another colour than print's --ok is reported");
 }
 
 /* ------------------------------------------------------------------ serve -- */

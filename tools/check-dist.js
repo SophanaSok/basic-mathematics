@@ -493,7 +493,7 @@ function checkOffline(ctx, r) {
       if (links.EXTERNAL.test(v) && !/^data:/i.test(v)) r.fail(f + ": " + JSON.stringify(ref) + " comes from another server");
     });
     /* a font as a data: URL would be downloaded by every page inside the stylesheet; the
-       site's own data: URLs (the tick and cross marks in site.css) are not fonts */
+       site's own data: URLs (the tick and cross marks in src/styles/tokens.css) are not fonts */
     for (const face of css.replace(NO_COMMENTS, "").matchAll(/@font-face\s*\{[^}]*\}/g)) {
       cssRefs(face[0]).forEach(({ ref, v }) => {
         r.count++;

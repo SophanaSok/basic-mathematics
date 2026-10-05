@@ -51,6 +51,8 @@
   { "fg": "--hud-xp", "bg": "--hud-bg", "min": 4.5 },
   { "fg": "--hud-flame", "bg": "--hud-bg", "min": 3 },
   { "fg": "--hud-heart", "bg": "--hud-bg", "min": 3 },
+  { "fg": "--hud-ok", "bg": "--hud-bg", "min": 4.5 },
+  { "fg": "--hud-ok", "bg": "--hud-chip", "min": 3 },
   { "fg": "--hud-focus", "bg": "--hud-bg", "min": 3 },
 
   { "fg": "--hud-text", "bg": "--hud-chip", "min": 4.5 },
@@ -81,6 +83,13 @@
   { "fg": "--frame-muted", "bg": "--glass", "over": "--surface", "min": 4.5 },
   { "fg": "--hud-xp", "bg": "--glass", "over": "--surface", "min": 4.5 },
   { "fg": "--focus-frame", "bg": "--glass", "over": "--surface", "min": 3 },
+  { "fg": "--focus-frame", "bg": "--glass", "over": "--frame-bg", "min": 3 },
+  { "fg": "--hud-heart", "bg": "--glass", "over": "--surface", "min": 3 },
+  { "fg": "--hud-flame", "bg": "--glass", "over": "--surface", "min": 3 },
+  { "fg": "--hud-ok", "bg": "--glass", "over": "--surface", "min": 3 },
+  { "fg": "--hud-heart", "bg": "--glass", "over": "--frame-bg", "min": 3 },
+  { "fg": "--hud-flame", "bg": "--glass", "over": "--frame-bg", "min": 3 },
+  { "fg": "--hud-ok", "bg": "--glass", "over": "--frame-bg", "min": 3 },
   { "fg": "--part-frame", "bg": "--glass", "over": "--surface", "min": 3, "parts": true },
   { "fg": "--frame-accent", "bg": "--glass", "over": "--surface", "min": 3 },
 

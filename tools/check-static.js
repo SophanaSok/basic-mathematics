@@ -875,32 +875,47 @@ function tokenTables() {
    flash a cycle at most): an animation with more than one iteration needs cycles of at
    least 1000/3 ms. Nor more than three iterations at all: a loop in all but name.
    Durations written as tokens (var(--t-3), var(--dur-reveal)) are read from tokens.css.
-   An animation whose duration cannot be read fails, so the rule cannot be stepped round.
+   An animation whose duration or iteration count cannot be read (a var() that tokens.css
+   does not define) fails, so the rule cannot be stepped round. Flashes inside one cycle
+   count too: the @keyframes an animation runs are read (lib/css.js flashesPerCycle), and
+   a cycle that turns its opacity, visibility or colour back and forth is that many
+   repeats, each held to the same three a second.
    (Web Animations driven from scripts are not in a stylesheet; game.js's are single
    throws, skipped when still.) */
-/* what is wrong with one stylesheet's animations, var() read from `table`:
+/* what is wrong with one stylesheet's animations, var() read from `table`, @keyframes
+   from `frames` (all the site's; the stylesheet's own are read as well):
    [{ line, selector, problem }] */
-function animationFaults(css, table) {
+function animationFaults(css, table, frames) {
   const out = [];
+  const kf = Object.assign({}, frames || {}, cssLib.keyframes(css));
   cssLib.animations(css).forEach(a => {
     const res = (v) => cssLib.resolveVar(v, table);
     const fault = (problem) => out.push({ line: a.line, selector: a.selector, media: a.media, problem });
     cssLib.parseAnimation({ value: res(a.value), count: res(a.count), duration: res(a.duration), name: res(a.name) }).forEach(an => {
       out.push(null);   /* counted */
+      if (an.unread) { fault("the animation `" + an.name + "` uses a var() that cannot be read, so how often it runs is unknown (use a token from " + TOKENS_CSS + ")"); return; }
       if (an.iterations === Infinity) { fault("animates `" + an.name + "` forever (infinite); nothing on the site loops"); return; }
       if (!(an.iterations >= 0)) { fault("the iteration count of `" + an.name + "` cannot be read"); return; }
       if (an.iterations > 3) fault("repeats `" + an.name + "` " + an.iterations + " times; at most 3, or it is a loop in all but name");
       if (an.ms === null || !isFinite(an.ms)) { fault("the duration of `" + an.name + "` cannot be read (write a time, or a duration token from " + TOKENS_CSS + ")"); return; }
-      if (an.iterations > 1 && an.ms < 1000 / 3) fault("repeats `" + an.name + "` every " + an.ms + "ms, more than three times a second");
+      if (an.iterations > 1 && an.ms < 1000 / 3) { fault("repeats `" + an.name + "` every " + an.ms + "ms, more than three times a second"); return; }
+      const flashes = cssLib.flashesPerCycle(kf[an.name]);
+      if (flashes * an.iterations > 1 && an.ms / flashes < 1000 / 3)
+        fault("flashes `" + an.name + "` " + flashes + " times in " + an.ms + "ms (its @keyframes turn back and forth), more than three times a second");
     });
   });
   return out;
 }
+/* every @keyframes of the site's stylesheets, by name */
+function siteKeyframes() {
+  return cssFiles().reduce((all, f) => Object.assign(all, cssLib.keyframes(fs.readFileSync(f, "utf8"))), {});
+}
 function checkAnimations(ctx, r) {
   const T = tokenTables();
+  const frames = siteKeyframes();
   cssFiles().forEach(f => {
     const rel = site.rel(f);
-    animationFaults(fs.readFileSync(f, "utf8"), T.light).forEach(x => {
+    animationFaults(fs.readFileSync(f, "utf8"), T.light, frames).forEach(x => {
       if (!x) { r.count++; return; }
       r.fail(rel + ":" + x.line + ": `" + x.selector + "`" + (x.media.length ? " (under " + x.media.join(" ") + ")" : "") + " " + x.problem);
     });
@@ -908,30 +923,57 @@ function checkAnimations(ctx, r) {
 }
 
 /* Colours only in tokens: a hex, rgb()/rgba(), hsl()/hsla() or other colour-function
-   literal in any of the site's stylesheets but tokens.css fails. Read in the innermost
-   declaration blocks only (so an id selector is never taken for a hex colour), with
-   data: URIs taken out first (an icon's picture carries its own fill). The words
-   black, white, transparent and currentColor, and the system colours of forced-colours
-   mode, are not palette colours and pass.
+   literal (in any letter case: CSS function names are case-insensitive), or a named
+   colour (red, black, white, ...), in any of the site's stylesheets but tokens.css
+   fails. Read in the declaration values of the innermost blocks only (so an id selector
+   is never taken for a hex colour, nor `white-space` for white), with data: URIs and
+   quoted strings taken out first (an icon's picture carries its own fill). transparent,
+   currentColor and the system colours of forced-colours mode are not palette colours
+   and pass, and so does a named colour in a mask (only its alpha is read: the black of
+   a mask gradient paints nothing).
    In tokens.css itself: the colour baked into each answer-blank mark (--mark-ok,
    --mark-bad, a data: URI, which cannot read a custom property) is the --ok or --bad of
    the same panel, and the tokens WebGL reads (--region-*, and --plot-* but the fill)
    are plain six-digit hex in every scope. */
-const COLOUR_LITERAL = /#[0-9a-fA-F]{3,8}\b|\b(?:rgba?|hsla?|hwb|lab|lch|oklab|oklch)\(|(?<![\w-])color\(/g;
+const COLOUR_LITERAL = /#[0-9a-f]{3,8}\b|\b(?:rgba?|hsla?|hwb|lab|lch|oklab|oklch)\(|(?<![\w-])color\(/gi;
+const NAMED_COLOURS = ("aliceblue antiquewhite aqua aquamarine azure beige bisque black blanchedalmond blue blueviolet brown "
+  + "burlywood cadetblue chartreuse chocolate coral cornflowerblue cornsilk crimson cyan darkblue darkcyan darkgoldenrod "
+  + "darkgray darkgreen darkgrey darkkhaki darkmagenta darkolivegreen darkorange darkorchid darkred darksalmon darkseagreen "
+  + "darkslateblue darkslategray darkslategrey darkturquoise darkviolet deeppink deepskyblue dimgray dimgrey dodgerblue "
+  + "firebrick floralwhite forestgreen fuchsia gainsboro ghostwhite gold goldenrod gray green greenyellow grey honeydew "
+  + "hotpink indianred indigo ivory khaki lavender lavenderblush lawngreen lemonchiffon lightblue lightcoral lightcyan "
+  + "lightgoldenrodyellow lightgray lightgreen lightgrey lightpink lightsalmon lightseagreen lightskyblue lightslategray "
+  + "lightslategrey lightsteelblue lightyellow lime limegreen linen magenta maroon mediumaquamarine mediumblue mediumorchid "
+  + "mediumpurple mediumseagreen mediumslateblue mediumspringgreen mediumturquoise mediumvioletred midnightblue mintcream "
+  + "mistyrose moccasin navajowhite navy oldlace olive olivedrab orange orangered orchid palegoldenrod palegreen "
+  + "paleturquoise palevioletred papayawhip peachpuff peru pink plum powderblue purple rebeccapurple red rosybrown "
+  + "royalblue saddlebrown salmon sandybrown seagreen seashell sienna silver skyblue slateblue slategray slategrey snow "
+  + "springgreen steelblue tan teal thistle tomato turquoise violet wheat white whitesmoke yellow yellowgreen").split(" ");
+const NAMED_COLOUR = new RegExp("(?<![\\w-])(?:" + NAMED_COLOURS.join("|") + ")(?![\\w-])", "gi");
 /* the colour literals of a stylesheet's declarations: [{ literal, line }] */
 function colourLiterals(css) {
-  const src = css.replace(/\/\*[\s\S]*?\*\//g, m => m.replace(/[^\n]/g, " "));
+  const blank = (m) => m.replace(/[^\n]/g, " ");
+  const src = css.replace(/\/\*[\s\S]*?\*\//g, blank);
   const out = [];
   const blocks = /\{([^{}]*)\}/g;
   let b;
   while ((b = blocks.exec(src))) {
-    /* a data: URI keeps its length, so the line of a literal after it is still right */
-    const body = b[1].replace(/url\(\s*(["'])data:[\s\S]*?\1\s*\)|url\(\s*data:[^)]*\)/g, m => m.replace(/[^\n]/g, " "));
+    /* a data: URI or a string keeps its length, so the line of a literal after it is still right */
+    const body = b[1].replace(/url\(\s*(["'])data:[\s\S]*?\1\s*\)|url\(\s*data:[^)]*\)/g, blank).replace(/"[^"\n]*"|'[^'\n]*'/g, blank);
+    const lineAt = (i) => src.slice(0, b.index + 1 + i).split("\n").length;
     let m;
     COLOUR_LITERAL.lastIndex = 0;
-    while ((m = COLOUR_LITERAL.exec(body))) out.push({ literal: m[0], line: src.slice(0, b.index + 1 + m.index).split("\n").length });
+    while ((m = COLOUR_LITERAL.exec(body))) out.push({ literal: m[0], line: lineAt(m.index) });
+    const decl = /(^|;)\s*([\w-]+)\s*:([^;]*)/g;
+    let d;
+    while ((d = decl.exec(body))) {
+      if (/^(-webkit-)?mask/i.test(d[2])) continue;
+      const at = d.index + d[0].length - d[3].length;
+      NAMED_COLOUR.lastIndex = 0;
+      while ((m = NAMED_COLOUR.exec(d[3]))) out.push({ literal: m[0], line: lineAt(at + m.index) });
+    }
   }
-  return out;
+  return out.sort((x, y) => x.line - y.line);
 }
 function checkColours(ctx, r) {
   cssFiles().forEach(f => {
@@ -964,8 +1006,8 @@ function checkColours(ctx, r) {
    tools/reading-column-allow.json: the prose blocks, figures, exercise cards, the
    practice set) a rule may not run an animation, transition something that moves
    (transform, a size or a position), or carry ambient decoration (a gradient or url()
-   background, a motif mask, a blurred or glowing shadow, text-shadow, filter or
-   backdrop-filter), unless the allowlist names that rule, in that file, for that kind,
+   background, a motif mask or background, a blurred or glowing shadow, text-shadow,
+   filter or backdrop-filter; var() read through tokens.css), unless the allowlist names that rule, in that file, for that kind,
    with the reason. The list starts as the feedback motion and the marks the site
    already has, all guarded by reduced motion and Study (calm) mode; anything new has to
    be added there on purpose, in review. An entry that names nothing any more fails too,
@@ -991,8 +1033,14 @@ function quietKinds(decls, T) {
   const props = decls["transition-property"] !== undefined ? cssLib.topLevelCommas(v("transition-property"))
     : cssLib.topLevelCommas(v("transition")).map(item => { const w = cssLib.words(item)[0] || ""; return /^-?[\d.]+m?s$|^var\(/.test(w) ? "all" : w; });
   if (props.some(p => MOTION_PROP.test(p.trim())) && !/^\s*none\s*$/.test(v("transition"))) kinds.push("transition");
-  const deco = ["background", "background-image"].some(k => /gradient\(|url\(/.test(v(k)))
-    || ["mask", "mask-image", "-webkit-mask", "-webkit-mask-image"].some(k => /--motif|gradient\(/.test(v(k)))
+  /* A background or mask is read through the tokens: var(--grid-motif) is a gradient
+     however it is spelt. Any motif token (--motif, --grid-motif, ...) is decoration
+     wherever it is defined; the answer marks and icons (--mark-*, --icon-*) are a
+     state's picture, not ambience, and stay out of the url() test. */
+  const MOTIF = /--[\w-]*motif(?![\w-])/;
+  const seen = (k) => cssLib.resolveVar(v(k).replace(/var\(\s*--(?:mark|icon)-[\w-]+\s*\)/g, "icon"), T.light);
+  const deco = ["background", "background-image"].some(k => MOTIF.test(v(k)) || /gradient\(|url\(/.test(seen(k)))
+    || ["mask", "mask-image", "-webkit-mask", "-webkit-mask-image"].some(k => MOTIF.test(v(k)) || /gradient\(/.test(seen(k)))
     || ["text-shadow", "filter", "backdrop-filter", "-webkit-backdrop-filter"].some(k => v(k) && !/^\s*none\s*$/.test(v(k)))
     || SOFT_SHADOWS.test(v("box-shadow"))
     || cssLib.topLevelCommas(v("box-shadow")).some(item => {
@@ -1077,6 +1125,35 @@ function checkContrast(ctx, r) {
     if (skipped.size) r.warn(rel + ": SKIP pairs using tokens not defined yet: " + Array.from(skipped).sort().join(", "));
     unresolved.forEach(u => r.warn(rel + ": SKIP " + u));
   });
+  printGaps(read(TOKENS_CSS)).forEach(g => { r.count++; if (g.problem) r.fail(TOKENS_CSS + ":" + g.line + ": " + g.problem); });
+}
+
+/* Print is light paper whatever the screen showed: every token a dark-panel block sets
+   (outside any @media) is restated by the @media print block for the same selector, and
+   the answer marks restated there carry print's own --ok and --bad. A token the dark
+   panel adds later and print forgets would print dark-panel ink on white paper.
+   [{ line, problem }], a null problem for each token found restated. */
+function printGaps(css) {
+  const rs = cssLib.rules(css);
+  const norm = (sel) => sel.replace(/\s+/g, " ").trim();
+  const printed = new Map();
+  rs.filter(x => x.media.some(m => /^@media\s+print\b/.test(m))).forEach(x => {
+    const k = norm(x.selector);
+    printed.set(k, Object.assign(printed.get(k) || {}, x.decls));
+  });
+  const out = [];
+  rs.filter(x => !x.media.length && /\[data-panel="dark"\]/.test(x.selector)).forEach(x => {
+    const k = norm(x.selector), p = printed.get(k) || {};
+    Object.keys(x.decls).filter(t => t.startsWith("--")).forEach(t => out.push({ line: x.line,
+      problem: p[t] !== undefined ? null : t + " is set for `" + k + "` but print does not restate it, so a dark-panel reader prints its dark-panel value on white paper (add it to the @media print block)" }));
+  });
+  const stroke = (v) => { const m = /stroke='%23([0-9a-fA-F]{6})'/.exec(v || ""); return m ? "#" + m[1].toLowerCase() : null; };
+  printed.forEach((p, k) => [["--mark-ok", "--ok"], ["--mark-bad", "--bad"]].forEach(([mark, tok]) => {
+    if (p[mark] === undefined || p[tok] === undefined) return;
+    out.push({ line: 0, problem: stroke(p[mark]) === String(p[tok]).trim().toLowerCase() ? null
+      : "print's " + mark + " for `" + k + "` is drawn in " + stroke(p[mark]) + " but print's " + tok + " is " + p[tok] });
+  }));
+  return out;
 }
 
 /* ------------------------------------------------------------- runner ---- */
@@ -1099,7 +1176,7 @@ const CHECKS = [
   { name: "animations", run: checkAnimations, what: "no CSS animation loops forever, repeats more than 3 times, or more than 3 times a second" },
   { name: "colours", run: checkColours, what: "colour literals only in src/styles/tokens.css; answer marks carry their tokens; WebGL tokens plain hex" },
   { name: "reading-column", run: checkReadingColumn, what: "no animation, moving transition or decoration in the reading column but tools/reading-column-allow.json's" },
-  { name: "contrast", run: checkContrast, what: "WCAG contrast of token pairs in tools/contrast-pairs.json, both themes × both panels, all Parts" }
+  { name: "contrast", run: checkContrast, what: "WCAG contrast of token pairs in tools/contrast-pairs.json, both themes × both panels, all Parts; print restates the dark panel" }
 ];
 
 function main() {
@@ -1128,4 +1205,4 @@ function main() {
 
 if (require.main === module) main();
 module.exports = { CHECKS, result, pageKeys, lessonSteps, stepsDiff, shellOf, shellDiff, scriptsProblems, randomState, stripLocalFirst, canon,
-  animationFaults, colourLiterals, columnPatterns, inColumn, quietKinds };
+  animationFaults, colourLiterals, columnPatterns, inColumn, quietKinds, printGaps };

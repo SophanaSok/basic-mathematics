@@ -112,6 +112,9 @@
   --frame-accent: #93a9ff;
   /* the solid backdrop behind a dialog or sheet; text on it is frame text */
   --scrim: #0d0f18;
+  /* what a tile's hard edge is mixed down with (color-mix(.., var(--ink-shadow))): the
+     edge is its own colour, darker */
+  --ink-shadow: #000000;
 
   /* the scoreboard rail is the frame */
   --hud-bg: var(--frame-bg);
@@ -383,6 +386,13 @@
   :root { --glass: var(--glass-solid); }
 }
 
+/* forced colours keep the alpha of an authored background, so glass would let what
+   scrolls under the top bar show through: it goes solid, as for less transparency
+   (site.css turns the blur off) */
+@media (forced-colors: active) {
+  :root { --glass: var(--glass-solid); }
+}
+
 /* more contrast asked for: lines carry the text colour and the grey goes */
 @media (prefers-contrast: more) {
   :root, :root[data-theme="dark"], :root[data-panel="dark"] {
@@ -405,6 +415,11 @@
     --accent: #2646d4; --accent-soft: #ffffff; --accent-2: #a04608; --accent-2-soft: #ffffff;
     --ok: #14713a; --ok-soft: #ffffff; --bad: #b42318; --bad-soft: #ffffff;
     --hint-ink: #8a3c06; --hint-soft: #ffffff; --on-part: #ffffff;
+    --tile-border: #c2b9a6; --tile-edge: #b0a68f; --accent-deep: #17309f; --focus: #2646d4;
+    --ok-deep: #0d5329; --bad-deep: #861810; --flame: #d4530a; --xp: #f6b40e; --xp-ink: #855600;
+    --on-xp: #171923; --heart: #c81e4a; --on-accent: #ffffff;
+    --shadow-float: 0 10px 30px -10px rgba(20, 22, 31, .35); --shadow-1: 0 1px 2px rgba(23, 24, 28, .05), 0 2px 6px rgba(23, 24, 28, .04);
+    --shadow: 0 1px 2px rgba(23, 24, 28, .05), 0 8px 24px -6px rgba(23, 24, 28, .08);
     --plot-bg: #ffffff; --plot-grid: #e7e0d0; --plot-axis: #777c8c; --plot-curve: #2646d4;
     --plot-curve-2: #a04608; --plot-curve-3: #1f9456; --plot-curve-4: #a3247a; --plot-fill: rgba(38, 70, 212, .14);
     --plot-point: #171923; --plot-ink: #171923; --plot-face-a: #c9d3fb; --plot-face-b: #f6d3ae;
@@ -412,6 +427,11 @@
     --frame-bg: #ffffff; --frame-text: #171923;
     --panel-scheme: light;
     color-scheme: light;
+  }
+  /* the light panel's answer marks, which carry the light --ok and --bad */
+  :root[data-panel="dark"] {
+    --mark-ok: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'%3E%3Cpath d='M4 10.5l4 4 8-9' fill='none' stroke='%2314713a' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+    --mark-bad: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'%3E%3Cpath d='M5 5l10 10M15 5L5 15' fill='none' stroke='%23b42318' stroke-width='3' stroke-linecap='round'/%3E%3C/svg%3E");
   }
   :root[data-panel="dark"], :root[data-panel="dark"] [data-part="algebra"], [data-part="algebra"] { --part: #a04608; --part-soft: #ffffff; --part-deep: #7d3806; }
   :root[data-panel="dark"] [data-part="geometry"], [data-part="geometry"] { --part: #0c736b; --part-soft: #ffffff; --part-deep: #07514b; }
