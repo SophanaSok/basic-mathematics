@@ -857,7 +857,7 @@
     return order;
   }
 
-  /* Help is never charged, and never pays more than effort. A right first check pays the
+  /* A clue is never charged, and no help pays more than effort. A right first check pays the
      first-time rate (and lights a combo pip, assets/game.js bonus) when no clue or only
      the first was opened before it: clue 1 says where to look and gives nothing away.
      After clue 2 or 3 it pays what a solve after a miss pays, and the combo neither

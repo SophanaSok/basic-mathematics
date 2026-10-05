@@ -2,11 +2,13 @@
 /* Pure checks of the game rules in assets/game.js, run in a vm with in-memory stores
    (no DOM: game.js skips its page decoration when there is no document.body).
      - the level curve: level(threshold(L)) = L and a round trip for every xp 0..60000
-     - the combo table: bonus from the pips before, +1 pip, −2 on a first miss, the shield,
-       nothing for later misses or inline misses, nothing for an opened solution or a clue
+     - the combo table: bonus from the pips before, +1 pip, −2 on a first miss or a first
+       answer given with the solution open, the shield, nothing for later misses or inline
+       misses, nothing for opening a solution or a clue
      - hearts and medals on fixtures, including a set solved with no attempt record
-     - the reward invariant: every road to an exercise's first right answer, through the
-       real rules of site.js and game.js, XP, combo, hearts and medal together
+     - the reward invariant: every road to an exercise's first right answer, and the answers
+       after it, through the real rules of site.js and game.js, XP, combo, hearts and medal
+       together
      - every achievement predicate on fixtures, false on an empty store
      - the recall boxes and run XP of recordRun
      - play settings and game records keep what a later version of the site added to them
@@ -159,8 +161,19 @@ function world(seedStores) {
   eq(Game.combo().pips, 3, "second miss on the same exercise: nothing");
   miss({ inline: true });
   eq(Game.combo().pips, 3, "miss on an inline check: nothing");
-  miss({ solutionOpen: true });
-  eq(Game.combo().pips, 3, "miss after opening the solution: nothing");
+  miss({ key: "e13", solutionOpen: true });
+  eq(Game.combo().pips, 1, "a first miss with the solution open: −2 pips, like any first miss");
+  Game.updateRun((run) => { run.combo.pips = 3; });
+  const right = (o) => Store.emit(Object.assign({ type: "attempt", chapter: "ch05", key: "e14", section: "angles", inline: false, correct: true, tryNo: 1, hintLevel: 0, solutionOpen: true }, o));
+  right();
+  eq(Game.combo().pips, 1, "a first answer given with the solution open: −2 pips, what a miss in its place costs");
+  Game.updateRun((run) => { run.combo.pips = 3; });
+  right({ key: "e15", tryNo: 2 });
+  eq(Game.combo().pips, 3, "a right answer with the solution open after a miss: nothing more, the miss was charged");
+  right({ key: "e16", inline: true });
+  eq(Game.combo().pips, 3, "an inline check answered with the solution open: nothing");
+  right({ key: "e17", solutionOpen: false });
+  eq(Game.combo().pips, 3, "a right first answer of one's own: the attempt event takes nothing (bonus adds the pip)");
 
   Game.updateRun((run) => { run.combo.shield = true; });
   miss({ key: "e10" });
@@ -170,7 +183,7 @@ function world(seedStores) {
   eq(Game.combo().pips, 3, "solution opened after a try: meter kept");
   Game.updateRun((run) => { run.combo.shield = false; });
   Store.emit({ type: "opened", chapter: "ch05", key: "e12", section: "angles", inline: false, solved: false, tries: 0 });
-  eq([Game.combo().pips, Game.combo().shield], [3, false], "solution opened before any try: help is never charged, the meter is kept");
+  eq([Game.combo().pips, Game.combo().shield], [3, false], "solution opened before any try: opening it costs nothing, the meter is kept");
   Store.emit({ type: "opened", chapter: "ch05", key: "i3", section: "angles", inline: true, solved: false, tries: 0 });
   eq(Game.combo().pips, 3, "opening an inline check's solution: nothing");
   check(!/emptyMeter|peeked/.test(fs.readFileSync(path.join(ROOT, "assets/game.js"), "utf8")), "game.js has no meter-emptying left for an opened solution");
@@ -222,20 +235,27 @@ function world(seedStores) {
     "isMiss counts wrong checks only, never an opened solution");
 }
 
-/* ----------------- the invariant: help is never punished, never pays more than effort */
+/* ------------ the invariant: a clue is never charged, and no help pays more than effort */
 /* Every road an exercise can take to its first correct answer, made of the actions a
    reader has before it: open clue 1, 2, 3 (in that order), check a wrong answer (up to
    twice), open the solution (once), then the right check. Each road is run through the
    real rules: the record changes of site.js (BMSite.road, as check(), reveal() and the
    ladder's persist apply them), the XP of site.js (xpFor), the combo of game.js (bonus,
-   and onMiss through the attempt event that check() emits), and the hearts and medal of
-   game.js (setStats) for a four-problem set whose other three went right first time.
-   Then, together:
+   and the attempt event that check() emits for every check, wrong or right), and the
+   hearts and medal of game.js (setStats) for a four-problem set whose other three went
+   right first time. After it come five more answers right first time on fresh
+   exercises, because the pips a road keeps or loses pay on every answer after it: the XP
+   is compared after the road and after each of those answers, from every meter (0 to 5
+   pips, with and without a shield). Then, together:
      XP     a right first check pays 10 with no clue or clue 1 only, 6 after clue 2 or 3,
-            6 after a miss, 3 with the solution open; taking any help out of a road never
-            lowers its XP, and no road with clue 2, 3 or the solution beats miss-then-solve
-     combo  a pip is gained exactly when the first-time rate is paid; pips are lost only
-            on a wrong check, and taking help out of a road never saves a pip
+            6 after a miss, 3 with the solution open; a road never earns more, on its
+            exercise or by any answer after it, than the same road with its help taken out,
+            and a road with the solution open never more than the same road with a miss in
+            the solution's place
+     combo  a pip is gained exactly when the first-time rate is paid; two pips (or the
+            shield) go at most once per exercise, on its first check when that check is
+            wrong or made with the solution open, so the solution leaves the meter exactly
+            where a miss in its place would; a clue never costs a pip
      hearts lost only on a wrong check: one per exercise that had one, whatever help
      medal  the solution opened counts like a miss, never better than miss-then-solve;
             clues never count; for a cleared set it is the medal the old rule gave, so no
@@ -253,12 +273,24 @@ function world(seedStores) {
       grow(path.concat(a));
     });
   })([]);
-  const P0 = 2;
+  const P0 = 2, TAIL = 5;
   const keys = ["e1", "e2", "e3", "e4"];
   const F = { tries: 1, solved: 1, first: 1, section: "angles" };
   const w = world();
-  const run = (path) => {
-    w.mem["bm.run.v1"] = JSON.stringify({ combo: { pips: P0, shield: false } });
+  const attempt = (key, rec, ok) => w.Store.emit({
+    type: "attempt", chapter: "ch05", key, section: "angles", inline: false,
+    correct: ok, tryNo: rec.tries, hintLevel: rec.hints || 0, solutionOpen: !!rec.opened
+  });
+  /* the right check, in the order check() makes it: the record, the event, the XP */
+  const answer = (key, rec) => {
+    SITE.road.check(rec, true, 0, false, "angles");
+    attempt(key, rec, true);
+    const base = SITE.xpFor(rec, false);
+    const extra = w.Game.bonus({ chapter: "ch05", key, section: "angles", inline: false, rec, base });
+    return { base, bonus: extra ? extra.bonus : 0 };
+  };
+  const run = (path, pips0 = P0, shield0 = false) => {
+    w.mem["bm.run.v1"] = JSON.stringify({ combo: { pips: pips0, shield: shield0 } });
     const rec = {};
     let misses = 0;
     path.forEach((a) => {
@@ -269,12 +301,17 @@ function world(seedStores) {
       } else {
         misses++;
         SITE.road.check(rec, false, misses === 1 ? 1 : misses === 2 ? 2 : 0, false, "angles");
-        w.Store.emit({ type: "attempt", chapter: "ch05", key: "e4", section: "angles", inline: false, correct: false, tryNo: rec.tries, hintLevel: rec.hints || 0, solutionOpen: !!rec.opened });
+        attempt("e4", rec, false);
       }
     });
-    SITE.road.check(rec, true, 0, false, "angles");
-    const base = SITE.xpFor(rec, false);
-    const extra = w.Game.bonus({ chapter: "ch05", key: "e4", section: "angles", inline: false, rec, base });
+    const own = answer("e4", rec);
+    const c = w.Game.combo();
+    /* the XP after this exercise, and after each answer right first time that follows */
+    const xp = [own.base + own.bonus];
+    for (let i = 0; i < TAIL; i++) {
+      const t = answer("t" + i, {});
+      xp.push(xp[i] + t.base + t.bonus);
+    }
     const S = {
       progress: { ch05: { solved: { e1: true, e2: true, e3: true, e4: true }, total: 4 } },
       attempts: { ch05: { e1: F, e2: F, e3: F, e4: rec } }, play: {}, activity: { days: {} },
@@ -285,15 +322,17 @@ function world(seedStores) {
     const oldMiss = (r) => !!((r.solved && !r.first) || (!r.solved && (r.tries > 0 || r.opened)));
     const oldHearts = Math.max(0, 3 - keys.filter((k) => oldMiss(S.attempts.ch05[k])).length);
     return {
-      base, bonus: extra ? extra.bonus : 0, pips: w.Game.combo().pips, hearts: st.hearts, medal: st.medal,
+      base: own.base, bonus: own.bonus, pips: c.pips, shield: c.shield, xp, hearts: st.hearts, medal: st.medal,
       oldMedal: oldHearts >= 3 ? 3 : oldHearts >= 1 ? 2 : 1, rec
     };
   };
   const out = new Map(roads.map((p) => [p.join(" "), run(p)]));
-  const get = (p) => out.get(p.join(" "));
+  const get = (p) => out.get(p.join(" ")) || run(p);
   const bad = [];
   const want = (cond, path, what) => { if (!cond) bad.push("[" + path.join(" ") + "] " + what); };
   const missThenSolve = get(["w"]);
+  const unhelped = (p) => p.filter((a) => a === "w");
+  const missInstead = (p) => p.map((a) => (a === "s" ? "w" : a));
   roads.forEach((p) => {
     const o = get(p), wrong = p.includes("w"), sol = p.includes("s");
     const clue = Math.max(0, ...p.filter((a) => /^c/.test(a)).map((a) => +a[1]));
@@ -302,8 +341,7 @@ function world(seedStores) {
     if (clue >= 2 || sol) want(o.base + o.bonus <= missThenSolve.base + missThenSolve.bonus, p, "help pays more than miss-then-solve");
     /* combo */
     const firstPays = !sol && !wrong && clue < 2;
-    if (!wrong) want(o.pips === P0 + (firstPays ? 1 : 0), p, "pips " + o.pips + " without a wrong check");
-    if (wrong) want(o.pips <= P0, p, "a road with a miss gained a pip");
+    want(o.pips === (firstPays ? P0 + 1 : wrong || sol ? Math.max(0, P0 - 2) : P0), p, "pips " + o.pips);
     want(o.bonus === (firstPays ? Math.round(10 * 0.2 * P0) : 0), p, "combo bonus " + o.bonus);
     /* hearts */
     want(o.hearts === (wrong ? 2 : 3), p, "hearts " + o.hearts);
@@ -311,19 +349,42 @@ function world(seedStores) {
     want(o.medal === (wrong || sol ? 2 : 3), p, "medal " + o.medal);
     if (sol) want(o.medal <= missThenSolve.medal, p, "the solution earned a better medal than miss-then-solve");
     want(o.medal === o.oldMedal, p, "medal " + o.medal + " differs from the old rule's " + o.oldMedal);
-    /* taking one help action out of the road: never more XP, never fewer pips lost... */
+    /* taking one help action out of the road: never more XP, the same hearts; a clue
+       taken out never saves a pip and never changes the medal */
     p.forEach((a, i) => {
       if (a === "w" || (/^c/.test(a) && p.includes("c" + (+a[1] + 1)))) return;
       const q = p.slice(0, i).concat(p.slice(i + 1)), oq = get(q);
       want(o.base <= oq.base, p, "help raised the XP above the road without it [" + q.join(" ") + "]");
       want(o.hearts === oq.hearts, p, "help changed the hearts");
-      want(P0 - o.pips <= Math.max(0, P0 - oq.pips), p, "help cost a pip that the road without it kept");
-      if (/^c/.test(a)) want(o.medal === oq.medal, p, "a clue changed the medal");
+      if (/^c/.test(a)) {
+        want(P0 - o.pips <= Math.max(0, P0 - oq.pips), p, "a clue cost a pip that the road without it kept");
+        want(o.medal === oq.medal, p, "a clue changed the medal");
+      }
     });
+    /* the solution with a miss in its place: the same meter and medal, never less XP */
+    if (sol) {
+      const m = get(missInstead(p));
+      want(o.pips === m.pips && o.medal === m.medal, p, "the solution left pips " + o.pips + " and medal " + o.medal + " where a miss in its place leaves " + m.pips + " and " + m.medal);
+    }
+    /* over the answers after it, from every meter: never more than effort */
+    for (let pips0 = 0; pips0 <= 5; pips0++) {
+      [false, true].forEach((shield0) => {
+        const from = " from " + pips0 + " pips" + (shield0 ? " and a shield" : "");
+        const r = pips0 === P0 && !shield0 ? o : run(p, pips0, shield0);
+        if (clue || sol) {
+          const e = run(unhelped(p), pips0, shield0);
+          r.xp.forEach((x, k) => want(x <= e.xp[k], p, "help out-earned the road without it [" + unhelped(p).join(" ") + "] " + k + " answers later" + from + ": " + x + " > " + e.xp[k]));
+        }
+        if (sol) {
+          const m = run(missInstead(p), pips0, shield0);
+          r.xp.forEach((x, k) => want(x <= m.xp[k], p, "the solution out-earned a miss in its place " + k + " answers later" + from + ": " + x + " > " + m.xp[k]));
+          want(r.pips === m.pips && r.shield === m.shield, p, "the solution left the meter unlike a miss" + from);
+        }
+      });
+    }
   });
-  eq(bad.slice(0, 8), [], "the reward invariant over " + roads.length + " roads (XP, combo, hearts, medal together)");
+  eq(bad.slice(0, 8), [], "the reward invariant over " + roads.length + " roads and the " + TAIL + " answers after each (XP, combo, hearts, medal together)");
   check(roads.length > 100, "the roads cover the actions (" + roads.length + ")");
-
   /* a medal already banked is never lowered by the new count */
   const banked = world({
     "bm.progress.v1": { ch05: { solved: { e1: true, e2: true, e3: true, e4: true }, total: 4 } },

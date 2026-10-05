@@ -125,7 +125,12 @@ describe("the questions", () => {
 });
 
 describe("each detector", () => {
-  const fires = (given: string, answer: string, type: string, kind: "text" | "multi" = "text") => detect(input(given, answer, type, kind))?.id ?? null;
+  /* the id of what fires, after holding its message to the fixed question for that id */
+  const fires = (given: string, answer: string, type: string, kind: "text" | "multi" = "text") => {
+    const d = detect(input(given, answer, type, kind));
+    if (d) expect(d.question).toBe(QUESTIONS[d.id]);
+    return d?.id ?? null;
+  };
 
   it("sign: a sign flipped anywhere in the answer", () => {
     expect(fires("-7", "7", "number")).toBe("sign");
@@ -184,7 +189,60 @@ describe("each detector", () => {
   });
 });
 
+/* Wrong answers made from a real key by each slip run forwards: every detector's own
+   candidates of the key (the sign flipped, the fraction turned over, a factor of two or a
+   power of ten in or out: each its own inverse, so they are also the slip made), a
+   fraction scaled up so it is no longer reduced, and a list or option set with one
+   member left out. */
+function slips(answer: string, kind: "text" | "multi", type: string): string[] {
+  const base = input(answer, answer, type, kind);
+  const out = new Set<string>();
+  for (const id of ORDER) for (const c of candidates(id, base)) out.add(c);
+  const frac = /(-?\d+)\/(\d+)/g;
+  let m: RegExpExecArray | null;
+  while ((m = frac.exec(answer))) {
+    for (const k of [2, 3]) out.add(answer.slice(0, m.index) + (+m[1] * k) + "/" + (+m[2] * k) + answer.slice(m.index + m[0].length));
+  }
+  if (kind === "multi" || type === "set") {
+    const parts = answer.replace(/[{}\s]/g, "").split(/[,;]/).filter((x) => x !== "");
+    if (parts.length > 1) parts.forEach((_x, i) => out.add(parts.filter((_y, j) => j !== i).join(",")));
+  }
+  out.delete(answer);
+  return Array.from(out);
+}
+
 describe("over the course", () => {
+  it("every message detect() returns is its fixed question, and no part of it grades as the key", () => {
+    const fired = new Set<DetectorId>();
+    const leaks: string[] = [];
+    let asked = 0;
+    for (const key of KEYS) {
+      if (key.kind !== "text" && key.kind !== "multi") continue;
+      const cmp = key.kind === "multi" ? "set" : key.type;
+      /* a message is graded against a key once, however many slips bring it back */
+      const graded = new Map<string, string[]>();
+      const leaking = (q: string) => {
+        if (!graded.has(q)) graded.set(q, pieces(q).filter((p) => SITE.grade(p, key.answer, cmp, key.tol)));
+        return graded.get(q)!;
+      };
+      for (const alt of alternatives(key.answer)) {
+        for (const given of slips(alt, key.kind, key.type)) {
+          if (SITE.grade(given, key.answer, cmp, key.tol)) continue;    /* a slip the key accepts is no slip */
+          const d = detect(input(given, key.answer, key.type, key.kind, key.tol));
+          if (!d) continue;
+          asked++;
+          fired.add(d.id);
+          if (d.question !== QUESTIONS[d.id]) leaks.push(key.where + " " + d.id + " for " + JSON.stringify(given) + ": " + JSON.stringify(d.question));
+          for (const p of leaking(d.question)) leaks.push(key.where + " " + d.id + " for " + JSON.stringify(given) + ": " + JSON.stringify(p));
+        }
+      }
+    }
+    expect(leaks).toEqual([]);
+    /* every detector met real keys, so none of them is outside this check */
+    expect(Array.from(fired).sort()).toEqual(ORDER.slice().sort());
+    expect(asked).toBeGreaterThan(500);
+  }, 60_000);
+
   it("a slip run forwards on a real key is caught, and the question is one of the questions", () => {
     let caught = 0, tried = 0;
     for (const key of KEYS) {

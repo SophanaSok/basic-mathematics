@@ -512,7 +512,8 @@
     return { bonus: b, mult: multOf(before) };
   }
 
-  /* a first miss on a scored exercise costs two pips, unless a shield takes it */
+  /* a first miss on a scored exercise (or a first answer given with the solution open)
+     costs two pips, unless a shield takes it */
   function onMiss() {
     if (calm()) return;
     var why = "";
@@ -1419,7 +1420,12 @@
     if (t === "attempt") {
       lastVerdict = Date.now();
       if (c.correct) pendingEx = findEx(c.key) || pendingEx;
-      else if (!c.inline && c.tryNo === 1 && !c.solutionOpen) onMiss();
+      /* The first check on a scored exercise breaks the run unless it was right by the
+         reader's own work: a wrong one, or a right one with the solution open. Were the
+         second free, the pips it kept would pay on every answer after it, and reading the
+         solution would out-earn trying and missing. Once per exercise, as tryNo is 1
+         only once; opening the solution itself costs nothing. */
+      if (!c.inline && c.tryNo === 1 && (!c.correct || c.solutionOpen)) onMiss();
       schedule();
     } else if (t === "xp") {
       if (pendingEx && (c.why === "exercise" || c.why === "check")) reward(pendingEx, c.xp);
@@ -1438,8 +1444,9 @@
       fillBanner();
       schedule();
     } else if (t === "opened") {
-      /* opened after solving: comparing earns a shield. Opened before: nothing at all,
-         neither the meter nor a heart; help is never charged */
+      /* opened after solving: comparing earns a shield. Opened before: nothing at the
+         opening, neither the meter nor a heart; only an answer given with it open later
+         costs the pips a miss would (the attempt event above) */
       if (c.solved) watchCompare(c);
       schedule();
     } else if (t === "combo") {

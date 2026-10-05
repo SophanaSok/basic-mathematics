@@ -86,10 +86,10 @@ and press **Check** or <kbd>Enter</kbd>.
 When you are stuck, every problem has a **Show a clue** button from the start, saying how many clues
 it has. The first clue only says where to look, the next say more, and the worked solution comes
 last and is always there. A clue opens only when you ask for it (a wrong answer opens nothing by
-itself; it says a clue is there if you want one), and the clues you opened are still open when you
-come back. When a wrong answer looks like a common slip (a sign flipped, a fraction upside down, a
-factor of two, the decimal point moved, a value left out of a list, a fraction not reduced), the card
-asks you about it, without giving the answer away.
+itself; it says a clue is there if you want one), and the clues you opened before solving it are
+still open when you come back. When a wrong answer looks like a common slip (a sign flipped, a
+fraction upside down, a factor of two, the decimal point moved, a value left out of a list, a
+fraction not reduced), the card asks you about it, without giving the answer away.
 
 The last chapter of each Part (the Interlude, and Chapters 7, 11, and 16) carries a further
 **mixed review** set afterward, drawing problems back from earlier chapters in that Part. These
@@ -132,10 +132,10 @@ same controls and the same answers.
 ### XP, streaks, and what to review
 
 Correct answers and missions earn XP — most when right first time, less after a miss, least once
-the solution has been opened. Help never costs anything and never pays more than working it out:
-the first clue changes nothing, and an answer right first time after the second or third clue earns
-what an answer right after a miss does. The header shows your level, today's XP against a daily
-goal, and your streak of active days.
+the solution has been opened. A clue never costs anything, and no help pays more than working it
+out: the first clue changes nothing, an answer right first time after the second or third clue earns
+what an answer right after a miss does, and an answer given with the solution open earns less. The
+header shows your level, today's XP against a daily goal, and your streak of active days.
 
 The **[progress page](https://sophanasok.github.io/basic-mathematics/progress.html)** turns the
 record into advice. The course notes how each question went (tries, misses, whether the solution
@@ -145,16 +145,17 @@ going well. A short version appears above each chapter's recap.
 ### The game
 
 - **Combo.** Each answer right first time fills one of five pips, and a full meter adds up to
-  double XP. A first miss on a practice problem costs two pips; asking for a clue or opening the
-  solution never costs one, and an answer right first time after the second or third clue leaves
-  the meter as it was. Reading a solution *after* getting the answer earns a shield against the
-  next miss.
+  double XP. A first miss on a practice problem costs two pips, and so does answering one with
+  its solution open, so reading the solution first never leaves you better off than trying and
+  missing. A clue never costs a pip, opening the solution costs nothing until you answer with it
+  open, and an answer right first time after the second or third clue leaves the meter as it was.
+  Reading a solution *after* getting the answer earns a shield against the next miss.
 - **Encounters.** Each practice set is a boss: the tempting wrong idea behind the chapter's opening
   puzzle. Every problem solved wears it down, in any order. A wrong answer costs one of three
   hearts; help never does. The medal counts the problems got wrong and the ones solved with the
-  solution open, so reading the solution first is never worth more than a miss, and it decides
-  nothing else: running out of hearts locks nothing, and the course points you at the section to
-  reread.
+  solution open (the finale says how many, beside the hearts kept), so reading the solution first
+  is never worth more than a miss, and it decides nothing else: running out of hearts locks
+  nothing, and the course points you at the section to reread.
 - **The Arena** is the only place with a clock. It serves freshly generated problems from sections
   you have already solved, because speed practice helps with what you know and hurts with what you
   are still learning. A wrong answer costs a heart and stops the clock while you read the hint;
@@ -649,12 +650,14 @@ and to the SVG fallback where it is not.
 - `reveal()` emits `opened`, and the help ladder emits `ladder` when a clue is opened;
 - `BMSite.xpFor`, `paysFirst` and `road` are the reward rules and the record changes a check, an
   opened solution and an opened clue make, which `tools/game/rules.test.js` runs every road of an
-  exercise through. Help is never charged and never pays more than effort: a right first check
-  pays the first-time rate (10, and a combo pip) after no clue or clue 1 only, and 6 with no pip
-  gained or lost after clue 2 or 3; the solution opened before solving pays 3, as it always did; a
-  heart is lost only to a wrong check (`BMGame.isMiss`), and the medal counts misses plus problems
-  solved with the solution open (`BMGame.medalMark`), which for a cleared set is the rule medals
-  always had;
+  exercise through. A clue is never charged, and no help pays more than effort: a right first
+  check pays the first-time rate (10, and a combo pip) after no clue or clue 1 only, and 6 with no
+  pip gained or lost after clue 2 or 3; the solution opened before solving pays 3, as it always did,
+  and the first answer given with it open costs the two pips a first miss costs (game.js, on the
+  `attempt` event), so the pips it would otherwise keep can never pay more, over the answers after
+  it, than a miss in its place; a heart is lost only to a wrong check (`BMGame.isMiss`), and the
+  medal counts misses plus problems solved with the solution open (`BMGame.medalMark`), which for a
+  cleared set is the rule medals always had;
 - `chapterDone` emits `chapterDone` and defers to an active encounter;
 - `BMInsights.adjust` lets a repaired section leave "Areas to strengthen";
 - `BMSite.grade` and `BMSite.refresh` are exported.
@@ -865,11 +868,13 @@ npm run test:node       #   the progress-key, id and lesson-step rules on small 
                         #   BMAccount.merge with the game store and fields this copy has never heard
                         #   of; account sync (stale tabs, resets, failed sign-outs, newer and older
                         #   sites and tables, sign-in through another service); the game's rules,
-                        #   with the one invariant over every road an exercise can take (help is
-                        #   never charged and never pays more than effort: XP, combo, hearts, medal)
+                        #   with the one invariant over every road an exercise can take and the
+                        #   answers after it (a clue is never charged, no help pays more than
+                        #   effort: XP, combo, hearts, medal)
 npm run test:unit       #   Vitest: the TypeScript modules' tests beside them (src/**/<name>.test.ts):
                         #   the ladder's state, the stuck signals, the wrong-answer questions (none
-                        #   of them ever holds anything that grades as any key in the course)
+                        #   of them, nor any message detect() gives for a slip made on a key of
+                        #   the course, holds anything that grades as that key)
 
 npm run build           # dist/
 npm run check:dist      # dist/ is the source's site, each source page taken with its shell

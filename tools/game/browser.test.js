@@ -21,8 +21,10 @@
       opens on a click with focus on it and is still open after a reload; a sign-flipped
       answer gets a question; a card left alone after a miss changes its offer line once
       (under Playwright's clock) and opens nothing; the solution opened on an untouched exercise costs no heart
-      and keeps the combo; a right first answer after clue 2 pays 6 and moves no pip; the
-      keyboard path through clue, check and solution */
+      and keeps the combo, and answering it then pays 3 and costs the two pips a miss would;
+      a right first answer after clue 2 pays 6 and moves no pip; the finale says how many
+      were solved with the solution open, beside the hearts kept; the keyboard path through
+      clue, check and solution */
 "use strict";
 const site = require("../lib/site");
 const target = require("../lib/target");
@@ -471,7 +473,8 @@ async function run() {
       await context.close();
     }
 
-    /* ---- help is never charged: the solution opened first costs no heart and keeps the combo */
+    /* ---- opening the solution first costs no heart and keeps the combo; answering with it
+       open costs the pips a miss would, so it never out-earns one on the answers after it */
     {
       const { context, page, errors } = await open(browser, CH05, {
         "bm.lesson.v1": '{"mode":"page"}', "bm.run.v1": JSON.stringify({ combo: { pips: 3, shield: false } })
@@ -486,7 +489,7 @@ async function run() {
       await answer(page, '#practice .ex[data-key="e2"]', true);
       await wait(700);
       const s2 = await state(page);
-      eq([s2.xp - s1.xp, s2.pips, s2.hearts], [3, s0.pips, 3], "solving it with the solution open: 3 XP, the combo unchanged, still three hearts");
+      eq([s2.xp - s1.xp, s2.pips, s2.hearts], [3, s0.pips - 2, 3], "solving it with the solution open: 3 XP, the two pips a miss would cost, still three hearts");
       /* a right first answer after clue 2: what a solve after a miss pays, and no pip either way */
       const two = await page.evaluate(() => {
         var ex = document.querySelector("#practice .ex[data-hint2]:not([data-state])");
@@ -497,7 +500,19 @@ async function run() {
       await answer(page, '#practice .ex[data-key="' + two + '"]', true);
       await wait(700);
       const s3 = await state(page);
-      eq([s3.xp - s2.xp, s3.pips, s3.hearts], [6, s0.pips, 3], "right first time after clue 2: 6 XP, the combo unchanged");
+      eq([s3.xp - s2.xp, s3.pips, s3.hearts], [6, s2.pips, 3], "right first time after clue 2: 6 XP, the combo unchanged");
+      /* the finale: three hearts kept, a Silver medal, and the line that says why */
+      for (let k = 1; k <= 10; k++) {
+        const sel = '#practice .ex[data-key="e' + k + '"]';
+        if (await page.$eval(sel, (e) => e.getAttribute("data-state") !== "correct")) await answer(page, sel, true);
+      }
+      await wait(1600);
+      const fin = await page.evaluate(() => {
+        var r = document.querySelector("#practice .encounter-result");
+        return r && { shown: !r.hidden, text: r.textContent.replace(/\s+/g, " "), medal: document.querySelector("#practice .encounter").getAttribute("data-medal") };
+      });
+      check(fin && fin.shown && fin.medal === "2" && /3 of 3\s*hearts kept/.test(fin.text) && /1 of 10\s*solved with the solution open/.test(fin.text),
+        "a Silver medal beside three hearts says it counted the solution opened first (" + (fin && fin.text.slice(0, 200)) + ")");
       eq(errors, [], "no errors around free help");
       await context.close();
     }
