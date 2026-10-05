@@ -2,17 +2,18 @@
 /* Every page × theme × viewport, with clean storage: no console errors, no page errors,
    no same-origin 404s, the theme on <html> before the first frame (the inline boot
    script, so a dark page never flashes light), the site's scripts run (window.BMSite,
-   BMGame and BMStore, in which site.js must have gone before game.js), KaTeX there
-   before the module entry ran where it loaded at all, no horizontal overflow at phone
-   width, lesson mode initialised on chapter pages, and a full-page screenshot of each
-   cell for the contact sheet. Chapter pages are shot in whole-page mode (after the mode
-   switch has been clicked, which also exercises it) so the sheet shows the content,
-   not just the first step. */
+   BMGame and BMStore, in which site.js must have gone before game.js), KaTeX there and a
+   formula rendered where the page has one (it comes in the bundle, ahead of site.js),
+   no request to any server but the site's own and Three.js's CDN (a signed-out
+   reader's browser contacts no one else), no horizontal overflow at phone width, lesson
+   mode initialised on chapter pages, and a full-page screenshot of each cell for the
+   contact sheet. Chapter pages are shot in whole-page mode (after the mode switch has
+   been clicked, which also exercises it) so the sheet shows the content, not just the
+   first step. */
 const { slug } = require("../lib/browser");
 
 /* runs before any script of the page: the theme as it stands at the first animation
-   frame, which comes before the first paint; and whether KaTeX's auto-render was there
-   when site.js took its handle on it (BMRenderMath renders nothing without it) */
+   frame, which comes before the first paint */
 const FIRST_FRAME = () => {
   requestAnimationFrame(() => { window.__themeAtFirstFrame = document.documentElement.getAttribute("data-theme"); });
 };
@@ -20,10 +21,9 @@ const FIRST_FRAME = () => {
 module.exports = {
   name: "pages",
   order: 10,
-  description: "every page × light/dark × 1280/360: errors, 404s, theme before first paint, scripts ran, overflow, lesson mode, screenshots",
+  description: "every page × light/dark × 1280/360: errors, 404s, theme before first paint, scripts ran, KaTeX rendered, no third party but Three.js, overflow, lesson mode, screenshots",
   async run(ctx) {
     const { h, report } = ctx;
-    let katexMissingNoted = false;
     for (const rel of ctx.pages) {
       const chapter = ctx.chapterOf(rel);
       for (const theme of ctx.themes) {
@@ -45,11 +45,11 @@ module.exports = {
                BMGame from game.js, which needs BMStore when it runs */
             const ran = await page.evaluate(() => ({ site: !!window.BMSite, game: !!window.BMGame, store: !!window.BMStore, curriculum: !!window.BM_CURRICULUM }));
             Object.keys(ran).forEach(k => { if (!ran[k]) problems.push("window.BM" + (k === "curriculum" ? "_CURRICULUM" : k[0].toUpperCase() + k.slice(1)) + " is missing: the module entry did not run, or not in order"); });
+            /* KaTeX is in the bundle (src/vendor/katex.js, the entry's first import), so
+               it is there, and was there when site.js ran */
             const katex = await page.evaluate(() => !!(window.katex && window.renderMathInElement));
-            if (!katex && !katexMissingNoted) { katexMissingNoted = true; warns.push("KaTeX did not load (offline?) — formulas are unrendered in every screenshot"); }
-            /* where it did load, it was there when the module entry ran: KaTeX's classic
-               deferred tags and the module script share one queue, in document order */
-            if (katex) {
+            if (!katex) problems.push("window.katex or window.renderMathInElement is missing: src/vendor/katex.js did not run");
+            else {
               const rendered = await page.evaluate(() => document.querySelectorAll(".katex").length);
               const math = await page.evaluate(() => /\$[^$]+\$|\\\(/.test(document.body.textContent || ""));
               if (!rendered && math) problems.push("KaTeX loaded but no formula was rendered: renderMathInElement was not there when site.js ran");
@@ -82,6 +82,11 @@ module.exports = {
             problems.push("driver error: " + (e && e.message || e));
           }
           problems.push(...errors.failures());
+          /* the fonts, KaTeX and supabase-js come from the site itself now, and a
+             signed-out reader never fetches the account library at all: a request to
+             anything but the local server and Three.js's CDN is a failure, not a warning */
+          const unexpected = errors.unexpected();
+          if (unexpected.length) problems.push("request(s) to a third party other than Three.js's CDN: " + unexpected.slice(0, 6).join(", ") + (unexpected.length > 6 ? " and " + (unexpected.length - 6) + " more" : ""));
           if (errors.thirdParty.length) warns.push("third-party: " + Array.from(new Set(errors.thirdParty)).slice(0, 4).join("; "));
           await close();
           const status = problems.length ? "fail" : "pass";

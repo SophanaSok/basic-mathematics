@@ -22,8 +22,8 @@ export const TOPBAR_MARK: string;
 export const BODY_INPUTS: string[];
 /** the path of the boot script, which goes into every page inline */
 export const BOOT: string;
-/** KaTeX's two classic deferred scripts, whole URLs */
-export const KATEX_SCRIPTS: string[];
+/** the stylesheets every page links before its kind's own, in cascade order (src/vendor/*.css) */
+export const VENDOR_STYLES: string[];
 export const PAGE_KINDS: Record<"home" | "page" | "dashboard" | "arena" | "chapter", PageKind>;
 export const NAVS: Record<string, [file: string, text: string][]>;
 

@@ -3,6 +3,7 @@
    come before it. Every chapter gets every scene: a scene file only registers a factory
    with BM3D.define, and a chapter mounts the ones its figures name, so there is one
    chapter bundle rather than one per set of scenes (data-scenes used to pick them). */
+import "../vendor/katex.js";
 import "../../data/curriculum.js";
 import "../../data/quest.js";
 import "../../assets/widgets.js";

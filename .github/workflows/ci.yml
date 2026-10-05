@@ -19,9 +19,11 @@
 # "Run workflow" on main (workflow_dispatch) runs all of this again and deploys, without
 # a new commit: the manual way to publish, for instance right after switching the source.
 #
-# The browser checks do not wait on the CDNs the pages use (fonts, KaTeX, Three.js):
-# tools/lib/browser.js fetches each file once per run under a deadline, and one that does
-# not come is a warning. Only the map script needs a download, and fails without it.
+# The browser checks do not wait on the one CDN the pages still use (Three.js; the fonts,
+# KaTeX and supabase-js are npm dependencies in the bundle): tools/lib/browser.js fetches
+# each file once per run under a deadline, and one that does not come is a warning. Any
+# other third-party request is a failure. Only the map script needs a download, and fails
+# without it.
 
 name: CI
 

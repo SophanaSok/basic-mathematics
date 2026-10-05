@@ -1,7 +1,8 @@
 "use strict";
 /* Helpers the browser suites share: open a page with a forced theme and seeded
-   storage, keep the CDNs from stalling it, track what went wrong on it, wait for KaTeX,
-   switch lesson mode, and take a screenshot into the output directory. */
+   storage, keep the one CDN from stalling it, track what went wrong on it and every
+   request it made off the local server, wait for KaTeX and the fonts, switch lesson
+   mode, and take a screenshot into the output directory. */
 const fs = require("fs");
 const path = require("path");
 
@@ -12,12 +13,26 @@ const VIEWPORTS = { 1280: { width: 1280, height: 800 }, 360: { width: 360, heigh
 
 function slug(rel) { return rel.replace(/\.html$/, "").replace(/[^a-zA-Z0-9]+/g, "-").replace(/^-|-$/g, ""); }
 
-/* Everything that went wrong while a page was open. Same-origin trouble is a failure;
-   a third-party resource that did not arrive (fonts, the KaTeX CDN) is a warning,
-   because a local run may well be offline. */
+/* The one thing a page may still ask another server for: Three.js, which
+   assets/three-loader.js fetches from its two CDNs when a 3D scene or the course map
+   nears the screen (read off that file, so the list is the loader's own). The fonts,
+   KaTeX and supabase-js come from the site itself since they moved to npm, so every
+   other request off the local server is a failure in the pages suite (unexpected()
+   below), and the next release moves Three.js too. */
+const THREE_LOADER = path.join(__dirname, "..", "..", "assets", "three-loader.js");
+const ALLOWED_THIRD_PARTY = Array.from(fs.readFileSync(THREE_LOADER, "utf8").matchAll(/"(https:\/\/[^"]+)"/g)).map(m => m[1]);
+if (!ALLOWED_THIRD_PARTY.length) throw new Error("lib/browser.js: no CDN URL found in assets/three-loader.js");
+function allowedThirdParty(url) { return ALLOWED_THIRD_PARTY.some(u => url.split(/[?#]/)[0] === u); }
+
+/* Everything that went wrong while a page was open, and every request it made off the
+   local server. Same-origin trouble is a failure; a third-party resource that did not
+   arrive (Three.js) is a warning, because a local run may well be offline; a
+   third-party request that is not Three.js's is `unexpected`, and the pages suite fails
+   on it: a signed-out reader's browser contacts no one else. */
 function track(page, originUrl) {
-  const t = { console: [], pageErrors: [], notFound: [], thirdParty: [] };
+  const t = { console: [], pageErrors: [], notFound: [], thirdParty: [], requests: [] };
   const sameOrigin = (u) => u.startsWith(originUrl);
+  page.on("request", req => { if (!sameOrigin(req.url())) t.requests.push(req.url()); });
   page.on("console", msg => {
     if (msg.type() !== "error") return;
     const loc = msg.location() || {};
@@ -44,25 +59,27 @@ function track(page, originUrl) {
     else t.thirdParty.push(why + " " + url);
   });
   t.failures = () => t.console.concat(t.pageErrors.map(e => "pageerror: " + e), t.notFound.map(n => "same-origin " + n));
-  t.reset = () => { t.console.length = 0; t.pageErrors.length = 0; t.notFound.length = 0; t.thirdParty.length = 0; };
+  /* the requests off the local server that are not Three.js's, each once */
+  t.unexpected = () => Array.from(new Set(t.requests.filter(u => !allowedThirdParty(u))));
+  t.reset = () => { t.console.length = 0; t.pageErrors.length = 0; t.notFound.length = 0; t.thirdParty.length = 0; t.requests.length = 0; };
   return t;
 }
 
 /* ---- third-party requests ------------------------------------------------------
-   The pages take fonts, KaTeX and Three.js from CDNs, in stylesheets and deferred
-   scripts. Left to Chromium, a request that neither answers nor fails holds the page's
-   scripts and its load event until page.goto times out, and one such stall among the
-   several hundred page loads of a run failed the run. So every request that is not for
-   the local server is answered from here instead: fetched by Node under a deadline,
-   once per run, and repeated to every later page from memory. A request that fails or
-   runs out of time is aborted, which the page sees as a failed request and track()
-   counts as a third-party warning.
+   The pages still take Three.js from a CDN, by a script that runs when a 3D scene nears
+   the screen (the fonts, KaTeX and supabase-js used to come the same way, and are in
+   the bundle now). Left to Chromium, a request that neither answers nor fails holds
+   whatever waits on it until page.goto times out, and one such stall among the several
+   hundred page loads of a run failed the run. So every request that is not for the
+   local server is answered from here instead: fetched by Node under a deadline, once
+   per run, and repeated to every later page from memory. A request that fails or runs
+   out of time is aborted, which the page sees as a failed request and track() counts as
+   a third-party warning.
    A host that did not answer is then left alone for a while: its requests are aborted
    at once. That is what keeps a page inside page.goto's 15 s when the whole network
-   stalls, because the pages chain their CDNs (KaTeX from cdnjs holds the scripts, which
-   then ask cdnjs for Three.js, then jsDelivr): the chain waits once per host, not once
-   per request. It also means a CDN that is down costs a run one deadline every so
-   often, not one on every page. */
+   stalls, because the loader tries its CDNs in turn (cdnjs, then jsDelivr): the chain
+   waits once per host, not once per request. It also means a CDN that is down costs a
+   run one deadline every so often, not one on every page. */
 const THIRD_PARTY_MS = 4000;
 const THIRD_PARTY_RETRY_MS = 30000;
 const FORWARDED = ["user-agent", "accept", "accept-language", "origin", "referer"];   /* the fonts CSS depends on the browser asking */
@@ -175,12 +192,15 @@ function makeHelpers(ctx) {
     await page.route(u => test(typeof u === "string" ? u : u.href), route => route.abort("blockedbyclient"));
   }
 
-  /* load plus KaTeX plus fonts plus a quiet network, with a cap so an offline run still ends */
+  /* load plus KaTeX plus fonts plus a quiet network, with a cap so an offline run still
+     ends. KaTeX comes in the page's module entry (src/vendor/katex.js), which has run by
+     the load event unless the bundle failed; the wait is for that failure not to hang
+     the run, and the pages suite reports the missing globals. */
   async function settle(page) {
     await page.waitForLoadState("load");
     await page.evaluate(async () => {
-      const hasKatex = !!document.querySelector('script[src*="katex"]');
-      if (hasKatex) {
+      const hasEntry = !!document.querySelector('script[type="module"]');
+      if (hasEntry) {
         const t0 = Date.now();
         while (!(window.katex && window.renderMathInElement) && Date.now() - t0 < 6000) await new Promise(r => setTimeout(r, 50));
       }
@@ -217,4 +237,4 @@ function makeHelpers(ctx) {
   return { newContext, newPage, noWebGL, blockUrl, settle, open, wholePage, screenshot, slug, VIEWPORTS, THEME_KEY, LESSON_KEY, PROGRESS_KEY };
 }
 
-module.exports = { makeHelpers, track, slug, VIEWPORTS, THEME_KEY, LESSON_KEY, PROGRESS_KEY, THIRD_PARTY_MS };
+module.exports = { makeHelpers, track, slug, allowedThirdParty, ALLOWED_THIRD_PARTY, VIEWPORTS, THEME_KEY, LESSON_KEY, PROGRESS_KEY, THIRD_PARTY_MS };

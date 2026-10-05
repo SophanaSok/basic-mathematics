@@ -148,22 +148,28 @@ avoided without keeping the previous deploy's chunks, which the build does not h
 try to work around it by hand. If such a change must not touch a reader mid-session, deploy it
 at a quiet hour.
 
-### Scripts: the copies under dist/assets/ and dist/data/, one release
+### Scripts: the copies under dist/assets/ and dist/data/ are gone
 
-The build copies every script under `assets/` and `data/` into `dist/` unchanged, and
-`src/boot.js` to `assets/boot.js` where it was, though no built page loads one of them
-(`vite.config.ts` `legacyScripts`; `npm run check:dist` proves both). They are for the deploy
-that brings the module entries, for the ten minutes above: a page from before it asks for
-`assets/boot.js`, `assets/site.js` and the rest by name, and for `assets/scenes3d-gl.js` when a
-3D scene nears the screen. With the copies there such a page keeps working until it is fetched
-again; without them it would load with no scripts.
+For one release, the one that brought the module entries, the build copied every script under
+`assets/` and `data/` into `dist/` unchanged, and `src/boot.js` to `assets/boot.js`, so that a
+page cached from before that deploy (the ten minutes above) still found `assets/site.js` and the
+rest by name. The release after it, the npm dependencies (R0, item 7), removed the copies: the
+`legacyScripts` plugin is gone from `vite.config.ts`, and `npm run check:dist` (`scripts`) now
+fails a build that has anything at those paths. Every page cached before the module entries has
+long expired, and the built pages name only `bundle/`.
 
-**Remove the copies in the release after the one that ships the module entries** (the plan's
-item 7, npm dependencies, does it): delete the `legacyScripts` plugin and `legacyCopies` from
-`vite.config.ts`, take `copies()` out of `check-dist.js` (what `pages` allows in `dist/`, what
-`scripts` requires and compares), and update this section and the README. By then every cached
-page has long expired, and nothing names those paths: the built pages name only
-`bundle/`.
+### Cached HTML after the npm-dependencies deploy
+
+The deploy that moved the fonts, KaTeX and supabase-js from their CDNs into the bundle changed
+what every page loads: `bundle/all.css` gained the fonts' and KaTeX's rules, `bundle/all.js`
+KaTeX's script and a new module (`src/vendor/katex.js`) that every page's entry chunk now calls
+by name, and the pages lost their CDN tags. The names of the chunks did not change, so a page a
+browser already holds finds its files; but for up to ten minutes after that deploy a browser can
+hold this deploy's entry chunk with the previous deploy's `all.js`, or the other way round, and a
+page on that mixed footing can fail to load its scripts (the inline boot script still runs, so
+the theme is right) until the files are fetched again: the accepted case described above,
+nothing more. No copies are kept for it, and a page from before the deploy that does load runs
+KaTeX twice, once from its CDN tags and once from the bundle, to the same result.
 
 ### The Pages source: GitHub Actions, set before the page-shell change is merged
 
@@ -332,7 +338,6 @@ check it when the first function exists.
 | Duty | From | How often | What it is |
 | --- | --- | --- | --- |
 | Apply migrations | R0 (now) | every change to `schema.sql` | [Section 1](#1-releasing-a-change-that-needs-sql). The first real one is the `events` table in R2 |
-| Remove the copied scripts from the build | the release after the module entries (R0, item 7) | once | [Section 2, "Scripts"](#scripts-the-copies-under-distassets-and-distdata-one-release) |
 | Watch Supabase usage and pausing | now | usage monthly, pausing weekly | [Section 3](#what-to-watch) |
 | Renew expiring provider secrets | now, if Microsoft is enabled | before the expiry date | [Section 4](#rotation-in-outline) |
 | The hint review queue | **[not yet: R2]** | each content wave | Generated hints wait in a review queue; nothing ships unapproved. Approving or rejecting them is the owner's job |

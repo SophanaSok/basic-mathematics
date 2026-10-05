@@ -32,6 +32,7 @@ const path = require("path");
 const site = require("./lib/site");
 const serve = require("./lib/serve");
 const shell = require("./lib/shell");
+const vendor = require("./lib/vendor");
 const { parse } = require("./lib/html");
 const { exercisesOf } = require("./lib/keys");
 const { CHECKS, result, pageKeys, lessonSteps, stepsDiff, shellOf, shellDiff, scriptsProblems } = require("./check-static");
@@ -259,13 +260,23 @@ function refusal(fn) { try { fn(); return null; } catch (e) { return e.message; 
   check(out.endsWith(src.slice(src.indexOf("\n\n<div class=\"wrap\">"))), "everything after the top-bar marker is the source's, byte for byte");
   eq(parse(out).query("head").children_elements.slice(0, 4).map(el => el.name + ":" + (el.getAttribute("charset") || el.getAttribute("name") || el.textContent)),
     ["meta:utf-8", "meta:viewport", "title:A title", "meta:description"], "the head opens with charset, viewport, then the page's own title and description");
-  eq(sheets(out).slice(-2), ["assets/site.css", "assets/game.css"], "a page links site.css then game.css");
-  eq(scripts(out).map(s => s.replace(/^https:.*\//, "cdn:")), ["cdn:katex.min.js", "cdn:auto-render.min.js", "src/entries/page.js"], "… and loads KaTeX's two scripts, then the one module entry of its kind");
+  eq(sheets(out), ["src/vendor/fonts.css", "src/vendor/katex.css", "assets/site.css", "assets/game.css"], "a page links the fonts' and KaTeX's stylesheets, then site.css and game.css");
+  eq(scripts(out), ["src/entries/page.js"], "… and loads the one module entry of its kind, and no other script by URL");
+  check(!/https?:\/\//.test(parse(out).query("head").children_elements.map(el => Object.values(el.attrs).join(" ")).join(" ")), "nothing in <head> names another server");
   const all = parse(out).queryAll("script");
-  eq(all.map(s => (s.hasAttribute("src") ? "" : "inline ") + (s.getAttribute("type") || "") + (s.hasAttribute("defer") ? " defer" : "")), ["inline ", " defer", " defer", "module"], "the boot script is inline, KaTeX's are classic and deferred, the entry is a module");
+  eq(all.map(s => (s.hasAttribute("src") ? "" : "inline ") + (s.getAttribute("type") || "") + (s.hasAttribute("defer") ? " defer" : "")), ["inline ", "module"], "the boot script is inline, the entry is a module, and there is no classic script");
   eq(all[0].textContent.trim(), fs.readFileSync(path.join(site.ROOT, "src/boot.js"), "utf8").trim(), "the inline script is src/boot.js, whole");
   const headOrder = parse(out).query("head").children_elements.map(el => el.name + (el.getAttribute("rel") || "") + (el.getAttribute("type") || ""));
-  check(headOrder.indexOf("script") < headOrder.indexOf("linkstylesheet") && headOrder.indexOf("scriptmodule") === headOrder.length - 1 && headOrder.indexOf("scriptmodule") > headOrder.lastIndexOf("script"), "the boot script comes before every stylesheet, and the module entry last, after KaTeX's tags: " + headOrder.join(","));
+  check(headOrder.indexOf("script") < headOrder.indexOf("linkstylesheet") && headOrder.indexOf("scriptmodule") === headOrder.length - 1, "the boot script comes before every stylesheet, and the module entry last: " + headOrder.join(","));
+  shell.VENDOR_STYLES.forEach(f => check(fs.existsSync(path.join(site.ROOT, f)) && /^\s*@import\s+["'][^"'./]/m.test(fs.readFileSync(path.join(site.ROOT, f), "utf8")), "the vendor stylesheet " + f + " exists and imports a package's CSS"));
+  const vendorModules = vendor.vendorModules();
+  eq(vendorModules.map(v => v.file), ["src/vendor/fonts.css", "src/vendor/katex.css", "src/vendor/katex.js", "src/vendor/supabase.js"], "the vendor modules are the fonts' and KaTeX's stylesheets, KaTeX's script and supabase-js");
+  eq(vendorModules.map(v => v.packages.join(",")), ["@fontsource/bricolage-grotesque,@fontsource/inter,@fontsource/newsreader", "katex", "katex", "@supabase/supabase-js"], "… each importing the packages it is named for");
+  check(vendorModules.find(v => v.file === "src/vendor/supabase.js").all.includes("@supabase/auth-js"), "a package's dependencies come with it (supabase.js brings in @supabase/auth-js)");
+  eq([vendor.vendorOf("node_modules/katex/dist/katex.mjs").file, vendor.vendorOf("node_modules/katex/dist/katex.min.css").file, vendor.vendorOf("node_modules/tslib/tslib.es6.mjs").file], ["src/vendor/katex.js", "src/vendor/katex.css", "src/vendor/supabase.js"], "a node_modules file is placed by its kind and its package: katex's script with katex.js, its stylesheet with katex.css, a dependency of supabase-js with supabase.js");
+  check(/no script under src\/vendor\/ imports/.test(refusal(() => vendor.vendorOf("node_modules/left-pad/index.js")) || ""), "a package no vendor module imports is refused, with the reason");
+  eq(JSON.parse(fs.readFileSync(path.join(site.ROOT, "package.json"), "utf8")).dependencies.katex, "0.16.11", "package.json pins katex at exactly 0.16.11, the version the CDN tags loaded");
+  Object.keys(shell.PAGE_KINDS).forEach(k => check(/^import "\.\.\/vendor\/katex\.js";/m.test(fs.readFileSync(path.join(site.ROOT, shell.PAGE_KINDS[k].entry), "utf8").replace(/\/\*[\s\S]*?\*\//g, "").trim()), "the " + k + " entry imports src/vendor/katex.js first, so renderMathInElement is there when site.js runs"));
   eq(parse(out).query("header.topbar").queryAll("a").map(a => a.getAttribute("href")), ["index.html", "index.html", "about.html"], "the usual top bar: brand, Contents, How to use this");
 
   /* the other kinds and top bars */
@@ -283,7 +294,7 @@ function refusal(fn) { try { fn(); return null; } catch (e) { return e.message; 
   out = render('data-depth="2" data-chapter="ch99" data-part="algebra"', "parts/p/c.html");
   check(/<body data-depth="2" data-chapter="ch99" data-part="algebra">/.test(out), "a chapter keeps data-chapter and data-part");
   const sc = scripts(out);
-  eq([sc.slice(-1), sc.filter(s => /^https:/.test(s)).length, sheets(out).slice(-1)], [["../../src/entries/chapter.js"], 2, ["../../assets/scenes3d.css"]], "it loads the chapter entry by its depth, the CDN scripts get no prefix, and the scenes' stylesheet is every chapter's");
+  eq([sc, sheets(out)[0], sheets(out).slice(-1)], [["../../src/entries/chapter.js"], "../../src/vendor/fonts.css", ["../../assets/scenes3d.css"]], "it loads the chapter entry and the vendor stylesheets by its depth, and the scenes' stylesheet is every chapter's");
   eq(parse(out).query("header.topbar").queryAll("a").map(a => a.getAttribute("href")), ["../../index.html", "../../index.html", "../../about.html"], "the top bar's links climb by data-depth");
   const chapterEntry = fs.readFileSync(path.join(site.ROOT, "src/entries/chapter.js"), "utf8");
   const sceneFiles = fs.readdirSync(path.join(site.ROOT, "assets/scenes")).filter(f => /\.js$/.test(f));
@@ -319,18 +330,22 @@ function refusal(fn) { try { fn(); return null; } catch (e) { return e.message; 
   check(bootLine && base.head.includes("<script type='module' src='../../src/entries/chapter.js'>") && base.head[2] === "<title>A title</title>", "… and every tag of its head, attributes and all, the inline boot script as a fingerprint of its text");
   eq(shellDiff(base, base), [], "the same shell is no difference");
   const expanded = render('data-depth="2" data-chapter="ch99" data-part="algebra"', "parts/p/c.html");
-  const katex1 = '<script defer src="' + shell.KATEX_SCRIPTS[0] + '"></script>', katex2 = '<script defer src="' + shell.KATEX_SCRIPTS[1] + '"></script>';
-  check(/^head entry \d+ is now `<script src='https:[^`]*katex.min.js'>`, accepted `<script defer /.test(shellDiff(facts(expanded.replace(katex1, katex1.replace(" defer", ""))), base)[0] || ""), "a dropped defer shows");
-  const swapped = expanded.replace(katex1 + "\n" + katex2, katex2 + "\n" + katex1);
-  check(swapped !== expanded && /^head entry \d+ is now `<script defer src='https:[^`]*auto-render.min.js'>`/.test(shellDiff(facts(swapped), base)[0] || ""), "two scripts in the other order show");
+  const fontsLink = '<link rel="stylesheet" href="../../src/vendor/fonts.css">', katexLink = '<link rel="stylesheet" href="../../src/vendor/katex.css">';
+  check(expanded.includes(fontsLink + "\n" + katexLink + '\n<link rel="stylesheet" href="../../assets/site.css">'), "the vendor stylesheets are linked in order, before the site's own");
+  check(/^head entry \d+ is now `<link rel='stylesheet' href='..\/..\/src\/vendor\/fonts.css' media='print'>`, accepted `<link rel='stylesheet' href='..\/..\/src\/vendor\/fonts.css'>`/.test(shellDiff(facts(expanded.replace(fontsLink, fontsLink.replace(">", ' media="print">'))), base)[0] || ""), "an attribute added to a link shows");
+  const swapped = expanded.replace(fontsLink + "\n" + katexLink, katexLink + "\n" + fontsLink);
+  check(swapped !== expanded && /^head entry \d+ is now `<link rel='stylesheet' href='..\/..\/src\/vendor\/katex.css'>`/.test(shellDiff(facts(swapped), base)[0] || ""), "two stylesheets in the other order show");
+  const cdn = '<script defer src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.11/katex.min.js"></script>';
+  check(/^head entry \d+ is now `<script defer src='https:[^`]*katex.min.js'>`/.test(shellDiff(facts(expanded.replace(katexLink, katexLink + "\n" + cdn)), base)[0] || ""), "a CDN script put back shows");
   const edited = shellDiff(facts(expanded.replace('root.setAttribute("data-theme", theme);', 'root.setAttribute("data-theme", theme); /* edited */')), base);
   check(edited.length === 1 && /^head entry \d+ is now `<script>#[0-9a-f]+<\/script>`, accepted `<script>#[0-9a-f]+<\/script>`$/.test(edited[0]), "an edit to the boot script shows as a new fingerprint: " + edited[0]);
   /* what the scripts must be, record or no record */
   const problems = (html, kind) => scriptsProblems("parts/p/c.html", parse(html), kind || "chapter");
-  eq(problems(expanded), [], "the scripts of a chapter are the boot script, KaTeX's two and the chapter entry: no problem");
+  eq(problems(expanded), [], "the scripts of a chapter are the boot script and the chapter entry: no problem");
   check(/^the module script is "..\/..\/src\/entries\/chapter.js", not the entry of a home page/.test(problems(expanded, "home")[0] || ""), "a chapter's entry on a page of another kind fails");
   check(/^2 module scripts, not one/.test(problems(expanded.replace('<script type="module" src="../../src/entries/chapter.js"></script>', '<script type="module" src="../../src/entries/chapter.js"></script>\n<script type="module" src="../../src/entries/home.js"></script>'))[0] || ""), "a second module script fails");
-  check(/^the classic scripts are not KaTeX's two/.test(problems(expanded.replace(katex2, katex2 + '\n<script defer src="../../assets/site.js"></script>'))[0] || ""), "a classic script of the site's own fails");
+  check(/^a page has no classic <script src>/.test(problems(expanded.replace(katexLink, katexLink + '\n<script defer src="../../assets/site.js"></script>'))[0] || ""), "a classic script of the site's own fails");
+  check(/^a page has no classic <script src>.*cdnjs/.test(problems(expanded.replace(katexLink, katexLink + "\n" + cdn))[0] || ""), "a classic script from a CDN fails, whatever the record says");
   check(/^the first script of <head> is not the boot script/.test(problems(expanded.replace('root.setAttribute("data-theme", theme);', ""))[0] || ""), "a boot script that is not src/boot.js fails");
   eq(shellDiff(facts(render('data-depth="2" data-chapter="ch99" data-part="geometry"', "parts/p/c.html")), base),
     ["the body tag is now `<body data-depth='2' data-chapter='ch99' data-part='geometry'>`, accepted `<body data-depth='2' data-chapter='ch99' data-part='algebra'>`"], "a changed body attribute shows");
@@ -339,10 +354,22 @@ function refusal(fn) { try { fn(); return null; } catch (e) { return e.message; 
   /* the types vite.config.ts reads are written by hand beside the script */
   const declared = fs.readFileSync(path.join(__dirname, "lib", "shell.d.ts"), "utf8").match(/^export (?:const|function) \w+/gm).map(d => d.split(" ")[2]);
   eq(declared.sort(), Object.keys(shell).sort(), "lib/shell.d.ts declares what lib/shell.js exports, no more and no less");
+  const declaredVendor = fs.readFileSync(path.join(__dirname, "lib", "vendor.d.ts"), "utf8").match(/^export (?:const|function) \w+/gm).map(d => d.split(" ")[2]);
+  eq(declaredVendor.sort(), Object.keys(vendor).sort(), "lib/vendor.d.ts declares what lib/vendor.js exports, no more and no less");
+
+  /* the secrets check of check-dist: the shape of a key, not a word the library uses */
+  const { secretsIn } = require("./check-dist");
+  eq(secretsIn("key.startsWith(`sb_publishable_`)||key.startsWith(`sb_secret_`); /* Never expose your `service_role` key in the browser. */"), [], "supabase-js's own text, which names the prefixes of its keys and says service_role, is no secret");
+  check(/sb_secret_/.test(secretsIn("const k = 'sb_secret_Ab12Cd34Ef56Gh78Ij90Kl12Mn34'")[0] || ""), "a new-format secret key fails");
+  check(/service_role/.test(secretsIn("SUPABASE_SERVICE_ROLE_KEY=eyJhbGciOiJIUzI1NiJ9.e30.abc")[0] || ""), "a service-role key assigned to its usual name fails");
+  check(/role "service_role"/.test(secretsIn("eyJhbGciOiJIUzI1NiJ9." + Buffer.from('{"role":"service_role"}').toString("base64url") + ".sig")[0] || ""), "a JWT whose role is service_role fails");
+  eq(secretsIn("eyJhbGciOiJIUzI1NiJ9." + Buffer.from('{"role":"anon"}').toString("base64url") + ".sig"), [], "the anon key's JWT passes");
+  check(/whsec_/.test(secretsIn("whsec_1234567890abcdef1234567890")[0] || "") && /sk-ant-/.test(secretsIn("sk-ant-api03-1234567890abcdefghij")[0] || ""), "a webhook secret and an Anthropic key fail");
 
   const file = JSON.parse(fs.readFileSync(path.join(__dirname, "shell.json"), "utf8"));
   eq(Object.keys(file).sort(), site.htmlPages(site.ROOT).slice().sort(), "tools/shell.json records every page of the site and no other");
-  check(Object.keys(file).every(p => Array.isArray(file[p].head) && file[p].head.length > 12 && typeof file[p].body === "string" && Array.isArray(file[p].topbar)), "… each as head, body and topbar");
+  check(Object.keys(file).every(p => Array.isArray(file[p].head) && file[p].head.length > 10 && typeof file[p].body === "string" && Array.isArray(file[p].topbar)), "… each as head, body and topbar");
+  check(Object.keys(file).every(p => !file[p].head.some(l => /https?:\/\//.test(l))), "… and no page's head names another server");
 }
 
 /* ------------------------------------------------------------ apply-shell -- */

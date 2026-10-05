@@ -300,11 +300,12 @@ function shellDiff(now, accepted) {
   return out;
 }
 
-/* The scripts of a page: the boot script inline and first, KaTeX's two from the CDN,
-   then one <script type="module"> naming the entry of the page's kind
-   (src/entries/<kind>.js, a file that exists), and no other script. A classic
-   <script src> of the site's own, a second module, or a page of one kind with another
-   kind's entry each fail here, before shell.json is consulted.
+/* The scripts of a page: the boot script inline and first, then one
+   <script type="module"> naming the entry of the page's kind (src/entries/<kind>.js, a
+   file that exists), and no other script. A classic <script src>, of the site's own or
+   from another server (KaTeX comes from npm through the entry now), a second module, or a
+   page of one kind with another kind's entry each fail here, before shell.json is
+   consulted.
    @returns {string[]} what is wrong */
 function scriptsProblems(p, doc, kind) {
   const out = [];
@@ -313,14 +314,13 @@ function scriptsProblems(p, doc, kind) {
   if (!first || first.hasAttribute("src") || normText(first.textContent) !== normText(shell.bootScript())) out.push("the first script of <head> is not the boot script (src/boot.js) inline");
   const srcs = scripts.filter(s => s.hasAttribute("src"));
   const classic = srcs.filter(s => !/^module$/i.test(s.getAttribute("type") || ""));
-  const cdn = classic.map(s => s.getAttribute("src"));
-  if (cdn.join("\n") !== shell.KATEX_SCRIPTS.join("\n") || classic.some(s => !s.hasAttribute("defer"))) out.push("the classic scripts are not KaTeX's two, deferred: " + JSON.stringify(cdn));
+  if (classic.length) out.push("a page has no classic <script src>; every script comes through the module entry: " + JSON.stringify(classic.map(s => s.getAttribute("src"))));
   const mods = srcs.filter(s => /^module$/i.test(s.getAttribute("type") || ""));
   const want = "../".repeat(p.split("/").length - 1) + shell.PAGE_KINDS[kind].entry;
   if (mods.length !== 1) out.push(mods.length + " module scripts, not one: " + JSON.stringify(mods.map(s => s.getAttribute("src"))));
   else if (mods[0].getAttribute("src") !== want) out.push("the module script is " + JSON.stringify(mods[0].getAttribute("src")) + ", not the entry of a " + kind + " page, " + want);
   else if (!exists(shell.PAGE_KINDS[kind].entry)) out.push("the entry " + shell.PAGE_KINDS[kind].entry + " does not exist");
-  if (scripts.length !== 1 + classic.length + mods.length) out.push("a script of <head> is neither the boot script, a KaTeX tag nor the module entry");
+  if (scripts.length !== 1 + mods.length) out.push("a script of <head> is neither the boot script nor the module entry");
   return out;
 }
 

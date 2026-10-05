@@ -12,10 +12,11 @@ help the mathematics stick.
 **Read it here: [sophanasok.github.io/basic-mathematics](https://sophanasok.github.io/basic-mathematics/)**
 
 It is hand-written HTML, CSS, and plain JavaScript files, published through a small build
-([Vite](https://vite.dev)) that writes each page's head and bundles its scripts; KaTeX and (only
-where a 3D scene is on screen) Three.js come from a CDN, and the site works without either.
-Accounts are optional and off by default: with [`assets/config.js`](assets/config.js) left empty
-the site talks to nobody.
+([Vite](https://vite.dev)) that writes each page's head and bundles its scripts, its fonts and
+KaTeX with them. Only Three.js, and only where a 3D scene is on screen, comes from a CDN, and the
+site works without it. Accounts are optional and off by default: with
+[`assets/config.js`](assets/config.js) left empty the site talks to nobody, and a signed-out
+reader's browser contacts no third party at all but, for that 3D library, its CDN.
 
 ---
 
@@ -155,7 +156,9 @@ going well. A short version appears above each chapter's recap.
 Everything is remembered in **your browser**, in local storage — including achievements, medals
 and Arena records. Without an account nothing is sent
 anywhere, so progress will not follow you to another browser or device, and clearing site data
-clears it. There is a deliberate reset button on the about page.
+clears it. There is a deliberate reset button on the about page. The pages themselves fetch
+nothing from anyone but this site (the fonts and the maths typesetting are served with it),
+except the 3D library from its CDN on pages with a 3D scene.
 
 Where the site has accounts switched on, signing in is optional and adds one thing: your progress
 is copied to the course's database and follows you between devices. Each answer check by a
@@ -210,16 +213,26 @@ scripts after it ([`OPERATIONS.md`](OPERATIONS.md), "What a deploy does to a pag
 already holds"). The stylesheets' text is the source's, not minified, because Vite's CSS
 minifier rewrites values the scripts read (`vite.config.ts` says how, and `npm run check:dist`
 holds the build to all of that). So the content of the pages is still edited by hand, and a
-page added under `parts/` is picked up by the build without being listed. For one release the
-build also copies every script under `assets/` and `data/`, and `src/boot.js` as
-`assets/boot.js`, into `dist/` unchanged, for pages a browser cached before the bundles arrived
-([`OPERATIONS.md`](OPERATIONS.md), "Scripts"); no built page loads them.
+page added under `parts/` is picked up by the build without being listed.
 
-Two libraries come from CDNs: [KaTeX](https://katex.org) for math typesetting on every page, and
-[Three.js](https://threejs.org) 0.160.1 (the last release with a classic build, pinned with an
-integrity hash) only when a 3D scene or the course map nears the screen. If either CDN is
-unreachable the page still works: formulas fall back to their TeX source, and every 3D picture is
-drawn flat with the same controls.
+What the site needs from outside its own files comes from npm and goes into the bundle, through
+one module each under `src/vendor/` (`package.json` lists the packages): [KaTeX](https://katex.org)
+for math typesetting on every page (`katex`, pinned at exactly 0.16.11, the version the pages
+loaded from its CDN before, so typesetting is unchanged; `src/vendor/katex.js` is the first import
+of every entry and sets `window.renderMathInElement`, `src/vendor/katex.css` its stylesheet), the
+three typefaces (`@fontsource/inter`, `@fontsource/newsreader`, `@fontsource/bricolage-grotesque`,
+the same weights and styles the Google Fonts link asked for, imported by `src/vendor/fonts.css`
+with `font-display: swap`; the font files come out under `dist/bundle/`), and
+[supabase-js](https://github.com/supabase/supabase-js) for accounts (`@supabase/supabase-js`,
+re-exported by `src/vendor/supabase.js`, which `assets/account.js` imports on demand, so it is a
+chunk of its own, `bundle/supabase.js`, that a signed-out reader on an ordinary page never
+downloads). So no stylesheet, script or font of a page comes from another server
+(`npm run check:dist`, `offline`), and the browser checks fail any page that asks one for
+anything. The one exception, for now, is [Three.js](https://threejs.org) 0.160.1 (the last release
+with a classic build, pinned with an integrity hash), fetched from a CDN by
+`assets/three-loader.js` only when a 3D scene or the course map nears the screen; if that CDN is
+unreachable every 3D picture is drawn flat with the same controls. The next release moves it into
+the bundle too.
 
 ### Layout
 
@@ -237,6 +250,12 @@ src/boot.js             the one script that runs before first paint, inlined int
                         <head> by the shell: theme and play settings, plain ES5, never bundled
 src/entries/*.js        one module entry per kind of page (home, page, dashboard, arena, chapter):
                         an ordered list of imports of the scripts below, which is the order they run in
+src/vendor/katex.js     KaTeX from npm (pinned 0.16.11): sets window.katex and renderMathInElement;
+                        every entry's first import
+src/vendor/katex.css    KaTeX's stylesheet, imported from the package; linked on every page
+src/vendor/fonts.css    Inter, Newsreader and Bricolage Grotesque from the fontsource packages, the
+                        weights the Google Fonts link had; linked on every page before katex.css
+src/vendor/supabase.js  supabase-js from npm, imported on demand by assets/account.js: bundle/supabase.js
 assets/site.css         tokens (both themes, four regions), base, prose, cards, figures, print
 assets/game.css         HUD, region banner, encounters, card states, toasts, settings, all motion
 assets/scenes3d.css     3D scene stages
@@ -261,14 +280,18 @@ supabase/README.md      how to switch accounts on
 supabase/migrations/    one file per database change, run on the live project before the merge
 OPERATIONS.md           the runbook: release order, deploys, quotas, secrets, incidents
 tools/                  the checks: static, scenes, generators, game rules, the build, headless browser
-tools/lib/shell.js      the <head> and the top bar of every page: its stylesheets, the boot script
-                        inline, KaTeX, and the module entry of its kind
+tools/lib/shell.js      the <head> and the top bar of every page: the boot script inline, the vendor
+                        stylesheets, its kind's stylesheets, and the module entry of its kind
+tools/lib/vendor.js     which src/vendor/ module brings in each npm package (and its dependencies):
+                        how the build names node_modules files and check-dist holds them
 tools/shell.json        what that comes to on each page, as readers have it (the `shell` check)
 parts/<part>/<nn>-<slug>.html
-package.json            the npm scripts and the five dev dependencies; package-lock.json pins them
+package.json            the npm scripts, the five dev dependencies and the five the site is built
+                        from (katex, three fontsource packages, supabase-js); package-lock.json pins them
 vite.config.ts          the build: every page in, its shell written, its entry bundled in import
-                        order into dist/bundle/, each chunk named by the page kinds that load it, the
-                        same content out; assets/ and data/ scripts and boot.js copied for one release
+                        order into dist/bundle/, each chunk named by the page kinds that load it (a
+                        node_modules file by its vendor module), the fonts beside them, the same
+                        content out
 tsconfig.json           for `npm run typecheck`; covers src/ and vite.config.ts
 src/types/state.ts      the shapes of what the site keeps in localStorage (types only, so far)
 src/types/globals.d.ts  the window.BM* globals the scripts share, each `any` until its file is converted
@@ -320,26 +343,28 @@ the shell writes depends on what `<body>` says:
 (`data-scenes`, which once named a chapter's 3D scenes, is refused: every chapter's bundle
 carries every scene.) What the shell writes into `<head>`, in order: the page's own tags, the
 boot script inline ([`src/boot.js`](src/boot.js), before the stylesheets, so the theme is set
-before the first paint without a request), the fonts, KaTeX's stylesheet, the icon, the
-stylesheets of the page's kind, KaTeX's two `<script defer>` tags, and one
-`<script type="module">` for the kind's entry, `src/entries/<kind>.js`. The stylesheets and the
-entry of each kind are `PAGE_KINDS` at the top of `tools/lib/shell.js`; the scripts of a kind,
-in the order they run, are the imports of its entry, so that file is where a script is added to
-every chapter, or moved. The order is part of the site (`site.js` mounts every figure as it runs,
-so `widgets.js`, the scene framework and the scenes come before it; `game.js`, `encounter.js` and
-`lesson.js` build on what it did; rules of equal weight are settled by the order of the
-stylesheets), so what each page ends up with is recorded in `tools/shell.json`, and
+before the first paint without a request), the icon, the two vendor stylesheets
+(`src/vendor/fonts.css`, then `src/vendor/katex.css`: `VENDOR_STYLES` in `tools/lib/shell.js`,
+first so that `site.css`'s rules on `.katex` come after KaTeX's and win), the stylesheets of the
+page's kind, and one `<script type="module">` for the kind's entry, `src/entries/<kind>.js`. The
+stylesheets and the entry of each kind are `PAGE_KINDS` at the top of `tools/lib/shell.js`; the
+scripts of a kind, in the order they run, are the imports of its entry, so that file is where a
+script is added to every chapter, or moved. The order is part of the site (`site.js` mounts every
+figure as it runs, so `widgets.js`, the scene framework and the scenes come before it; `game.js`,
+`encounter.js` and `lesson.js` build on what it did; rules of equal weight are settled by the
+order of the stylesheets), so what each page ends up with is recorded in `tools/shell.json`, and
 `check-static.js` fails (`shell`) when a page's head, body attributes or top bar are no longer
-what is recorded, and whatever the record says when a page's scripts are not the boot script,
-KaTeX's two and the one entry of its kind. If the change is meant,
-`node tools/check-static.js --only=shell --accept-shell` records it, and the diff of
+what is recorded, and whatever the record says when a page's scripts are not the boot script and
+the one entry of its kind (a classic `<script src>`, from the site or a CDN, fails). If the change
+is meant, `node tools/check-static.js --only=shell --accept-shell` records it, and the diff of
 `tools/shell.json` shows the reviewer exactly which pages now load what.
 
-The module entry comes after KaTeX's tags on purpose: a classic `<script defer>` and a
-`<script type="module">` wait in one queue and run in document order, so
-`window.renderMathInElement` is there when `site.js` runs. The `pages` suite of
-`check-browser.js` holds that in a real browser, with the theme on `<html>` before the first
-frame and `window.BMSite`, `BMGame` and `BMStore` present on every page.
+KaTeX is the entry's first import (`src/vendor/katex.js`) on purpose: the imports run in order,
+so `window.renderMathInElement` is there when `site.js` runs, as it was when KaTeX's deferred CDN
+tags came before the module script. The `pages` suite of `check-browser.js` holds that in a real
+browser (a formula rendered on every page that has one), with the theme on `<html>` before the
+first frame, `window.BMSite`, `BMGame` and `BMStore` present on every page, and no request to any
+server but the site's own and Three.js's CDN.
 
 The same function runs in two places, so they cannot disagree: the build and `npm run dev`
 (`vite.config.ts`), and every check that reads a page (`tools/lib/site.js`). A page with
@@ -763,18 +788,22 @@ npm run test:node       #   the progress-key, id and lesson-step rules on small 
 
 npm run build           # dist/
 npm run check:dist      # dist/ is the source's site, each source page taken with its shell
-                        # written: same pages and nothing extra, links resolve inside it, <main>
-                        # and the page around it untouched, the boot script inline, KaTeX and one
-                        # module entry whose bundle is its kind's imports and loads no copy of a
-                        # source script, CSS text and cascade the source's, no secrets
+                        # written: same pages and nothing extra, links and font urls resolve
+                        # inside it, <main> and the page around it untouched, the boot script
+                        # inline and one module entry whose bundle is its kind's imports (KaTeX
+                        # by its vendor module), supabase-js a chunk of its own that no page
+                        # names, no copy of a source script, nothing from another server, CSS
+                        # text and cascade the source's with the vendor CSS ahead, no secrets
 
-npm run test:browser    # the game, the Arena, the account page, the 3D stages, the new 3D
-                        # exercises and the course map, each driven in headless Chromium
+npm run test:browser    # the game, the Arena, the account page (and that a signed-out page
+                        # never fetches the supabase chunk), the 3D stages, the new 3D exercises
+                        # and the course map, each driven in headless Chromium
 npm run check:browser   # dist/ served: every page × theme × width (errors, theme before first
-                        # paint, scripts ran, overflow, lesson mode), figures, every exercise
-                        # typed back, restore of old progress, saved state from the last
-                        # release, reduced motion, WebGL and its fallbacks, axe. About 8 minutes.
-                        # A CDN that is down or stalls costs warnings, not a failure
+                        # paint, scripts ran, KaTeX rendered, no third-party request but
+                        # Three.js's, overflow, lesson mode), figures, every exercise typed back,
+                        # restore of old progress, saved state from the last release, reduced
+                        # motion, WebGL and its fallbacks, axe. About 8 minutes. The one CDN
+                        # (Three.js) being down or stalling costs warnings, not a failure
 
 npm run check:all       # all of the above, in that order
 ```

@@ -38,26 +38,27 @@ const TOPBAR_MARK = "<!--bm:topbar-->";
 /* read from <body> and left out of the document */
 const BODY_INPUTS = ["data-page", "data-nav"];
 
-const FONTS = "https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@700;800&family=Inter:wght@400;500;600;700&family=Newsreader:ital,wght@0,400;0,600;1,400&display=swap";
-const KATEX = "https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.11/";
-
 /* The one script that runs before first paint: theme and play settings, so the page is
    painted right from the start. Its text goes into <head> inline, first of all and
    before the stylesheets, so it costs no request and waits on nothing. Plain ES5 on
    purpose: it is not bundled, and it runs on every page as written. */
 const BOOT = "src/boot.js";
-/* KaTeX, from its CDN, as two classic deferred scripts: the typesetter and the
-   auto-render extension site.js calls (window.renderMathInElement) */
-const KATEX_SCRIPTS = [KATEX + "katex.min.js", KATEX + "contrib/auto-render.min.js"];
+
+/* The stylesheets every page links before its own, in this order: the fonts and KaTeX's,
+   each a file under src/vendor/ that imports the npm package's CSS (the build inlines it
+   and writes the font files beside the bundle). They come first so that the site's rules
+   on .katex come after KaTeX's and win, as they did when these were links to Google Fonts
+   and the KaTeX CDN. Nothing on a page comes from another server now (check-dist.js
+   `offline`). */
+const VENDOR_STYLES = ["src/vendor/fonts.css", "src/vendor/katex.css"];
 
 /* What each kind of page loads. `styles` are the site's own stylesheets, in cascade
-   order (the fonts and KaTeX's come before them on every page, see head()); `entry` is
-   the one module script, which imports the site's scripts in the order they run
-   (src/entries/<kind>.js lists them). The boot script and KaTeX's two tags are every
-   page's, and the module comes after KaTeX's: a classic deferred script and a module
-   script wait in one queue, in document order, so renderMathInElement is there when
-   site.js runs. All of that is part of the site: tools/shell.json records what every
-   page ends up with, and check-static.js fails a change that was not accepted. */
+   order, after VENDOR_STYLES; `entry` is the one module script, which imports the site's
+   scripts in the order they run (src/entries/<kind>.js lists them). The entry's first
+   import is src/vendor/katex.js, which brings in the typesetter from npm and sets
+   window.renderMathInElement, so it is there when site.js runs. The boot script is every
+   page's. All of that is part of the site: tools/shell.json records what every page ends
+   up with, and check-static.js fails a change that was not accepted. */
 const PAGE_KINDS = {
   /* index.html: the contents page, with the course map */
   home: { styles: ["assets/site.css", "assets/game.css", "assets/scenes3d.css", "assets/map3d.css"], entry: "src/entries/home.js" },
@@ -135,7 +136,7 @@ function pageInfo(src, relPath) {
 
 /* the lines of <head>; `own` holds the page's own tags as it wrote them */
 function head(info, own) {
-  const at = (p) => /^https?:\/\//.test(p) ? p : info.prefix + p;
+  const at = (p) => info.prefix + p;
   return ['<meta charset="utf-8">']
     .concat(own.robots ? [own.robots] : [])
     .concat([
@@ -143,14 +144,9 @@ function head(info, own) {
       own.title,
       own.description,
       "<script>\n" + bootScript() + "\n</script>",
-      '<link rel="preconnect" href="https://fonts.googleapis.com">',
-      '<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>',
-      '<link rel="stylesheet" href="' + FONTS + '">',
-      '<link rel="stylesheet" href="' + KATEX + 'katex.min.css">',
       '<link rel="icon" href="' + at("assets/favicon.svg") + '" type="image/svg+xml">'
     ])
-    .concat(PAGE_KINDS[info.kind].styles.map(s => '<link rel="stylesheet" href="' + at(s) + '">'))
-    .concat(KATEX_SCRIPTS.map(s => '<script defer src="' + s + '"></script>'))
+    .concat(VENDOR_STYLES.concat(PAGE_KINDS[info.kind].styles).map(s => '<link rel="stylesheet" href="' + at(s) + '">'))
     .concat(['<script type="module" src="' + at(PAGE_KINDS[info.kind].entry) + '"></script>']);
 }
 
@@ -262,4 +258,4 @@ function renderShell(src, relPath) {
   return expand(src, relPath).html;
 }
 
-module.exports = { renderShell, expand, isMarked, pageInfo, useSource, bootScript, PAGE_KINDS, NAVS, KATEX_SCRIPTS, BOOT, HEAD_MARK, TOPBAR_MARK, BODY_INPUTS };
+module.exports = { renderShell, expand, isMarked, pageInfo, useSource, bootScript, PAGE_KINDS, VENDOR_STYLES, NAVS, BOOT, HEAD_MARK, TOPBAR_MARK, BODY_INPUTS };

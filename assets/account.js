@@ -52,7 +52,6 @@
   /* false while the project cannot send email to the public: the two buttons that work
      only through an email (the sign-in link, the password reset) are left out */
   var mail = cfg.emailDelivery !== false;
-  var SDK = "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2";
   var META_KEY = "bm.sync.v1";
   /* "game" only where site.js knows the key, so an older site.js still syncs cleanly */
   var FIELDS = ["progress", "play", "attempts", "activity", "lesson", "last", "game"].filter(function (f) {
@@ -333,24 +332,28 @@
     catch (e) { return false; }
   }
 
+  /* The SDK is supabase-js from npm, bundled as a chunk of its own (src/vendor/supabase.js,
+     dist/bundle/supabase.js) that only this import() fetches, so a page downloads it when a
+     client is first wanted and never otherwise. A window.supabase that is already there is
+     used as it is: the tests put their stand-in there, and so could a page that loaded the
+     library another way. A fetch that fails leaves `loading` clear, so the next call tries
+     again, with the same message as before. */
   function load() {
     if (!configured) return Promise.reject(new Error("Accounts are not configured."));
     if (client) return Promise.resolve(client);
     if (loading) return loading;
     loading = new Promise(function (resolve, reject) {
-      function make() {
+      function make(sdk) {
         try {
-          client = window.supabase.createClient(cfg.supabaseUrl, cfg.supabaseAnonKey);
+          client = sdk.createClient(cfg.supabaseUrl, cfg.supabaseAnonKey);
           resolve(client);
         } catch (e) { reject(e); }
       }
-      if (window.supabase && window.supabase.createClient) return make();
-      var s = document.createElement("script");
-      s.src = SDK;
-      s.async = true;
-      s.onload = make;
-      s.onerror = function () { loading = null; reject(new Error("Could not reach the account service.")); };
-      document.head.appendChild(s);
+      if (window.supabase && window.supabase.createClient) return make(window.supabase);
+      import("../src/vendor/supabase.js").then(make, function () {
+        loading = null;
+        reject(new Error("Could not reach the account service."));
+      });
     });
     return loading;
   }

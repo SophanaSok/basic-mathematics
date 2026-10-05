@@ -1,13 +1,15 @@
 "use strict";
-/* A CDN that stalls must cost a warning, never a navigation timeout. The pages take
-   fonts, KaTeX and Three.js from other servers, and this run loads several hundred
-   pages: left to Chromium, one request that neither answers nor fails holds a page's
-   deferred scripts and its load event until page.goto gives up. lib/browser.js answers
-   those requests itself (a deadline, and each URL fetched once per run); this suite
-   holds it to that, against a local server that plays the CDN:
+/* A CDN that stalls must cost a warning, never a navigation timeout. The pages still
+   take Three.js from another server (the fonts, KaTeX and supabase-js come from the site
+   itself now, and `pages` fails any other third-party request), and this run loads
+   several hundred pages: left to Chromium, one request that neither answers nor fails
+   holds whatever waits on it until page.goto gives up. lib/browser.js answers those
+   requests itself (a deadline, and each URL fetched once per run); this suite holds it
+   to that, against a local server that plays the CDN, with a stylesheet and a deferred
+   script as the hardest case (they hold the page's load event):
      - a request that is accepted and never answered
      - the same host asked again straight away: not waited for a second time, which is
-       what bounds a page that chains its CDNs (KaTeX, then Three.js from two of them)
+       what bounds a loader that tries one CDN after another
      - a response whose headers arrive and whose body never ends
      - a file that is there, asked for by two pages, fetched once
    and reads the suites' source: a context opened around the helper is not covered.

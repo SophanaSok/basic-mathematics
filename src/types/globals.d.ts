@@ -56,4 +56,10 @@ interface Window {
   BMMap3D: any;
   /** assets/account.js: sign-in and sync, and the pure merge */
   BMAccount: any;
+  /** src/vendor/katex.js: KaTeX itself, a console handle and what the browser checks look for */
+  katex: any;
+  /** src/vendor/katex.js: KaTeX's auto-render extension, which renderMath in assets/site.js calls */
+  renderMathInElement: any;
+  /** a supabase-js stand-in the tests put here before the page runs; assets/account.js uses one that is there instead of importing src/vendor/supabase.js */
+  supabase: any;
 }

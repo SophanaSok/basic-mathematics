@@ -17,6 +17,7 @@ const path = require("path");
 
 const site = require("./lib/site");
 const shell = require("./lib/shell");
+const vendor = require("./lib/vendor");
 const { parse, normText, hash } = require("./lib/html");
 const links = require("./lib/links");
 
@@ -31,21 +32,35 @@ function sourceScripts() {
   SOURCE_DIRS.forEach(d => site.walk(path.join(ROOT, d), p => /\.js$/.test(p), out));
   return out.map(site.rel);
 }
-/* The copies the build makes for one release (vite.config.ts legacyCopies, the same
-   list): every source script at its own path, and the boot script where it was before
-   it moved to src/. `at` is the path in dist, `from` the source file it must equal. */
-function copies() {
-  return sourceScripts().map(rel => ({ at: rel, from: rel })).concat([{ at: "assets/boot.js", from: "src/boot.js" }]);
+/* The paths the release before the module entries copied the scripts to, so a page
+   cached from before that deploy still found them: every source script at its own path
+   and the boot script where it was. That release is over, and nothing may be there. */
+function formerCopies() {
+  return sourceScripts().concat(["assets/boot.js"]);
 }
+const IN_NODE_MODULES = /(^|\/)node_modules\//;
 
 /* Where the bundle goes and how it is named (vite.config.ts, output and bundleNames):
    a page's entry chunk at bundle/pages/<page>.js, every other chunk and stylesheet at
    bundle/<name>.js or .css where <name> is the page kinds that load what is in it
-   ("all" for every kind, else the kinds joined with "-" in PAGE_KINDS order), the
-   painter at bundle/scenes3d-gl.js, rolldown's runtime under its own name. */
+   ("all" for every kind, else the kinds joined with "-" in PAGE_KINDS order), the chunks
+   fetched on demand under their modules' own names (ON_DEMAND), rolldown's runtime
+   under its own name. */
 const BUNDLE = "bundle/";
 const ENTRY_OF = (page) => BUNDLE + "pages/" + page.replace(/\.html$/i, ".js");
 const RUNTIME = BUNDLE + "rolldown-runtime.js";
+/* The chunks a dynamic import makes, each under its module's name: the WebGL painter,
+   which scenes3d.js imports when a scene nears the screen, and supabase-js, which
+   account.js imports when it first wants a client (on the account page, or where a
+   session is stored), through src/vendor/supabase.js. `by` is the importer: a page whose
+   entry imports it must reach the chunk through the import(), and no page's HTML may name
+   the chunk, since only that import() is to fetch it (a signed-out reader on an ordinary
+   page never downloads supabase-js; tools/game/account.test.js watches the requests). */
+const ON_DEMAND = [
+  { chunk: BUNDLE + "scenes3d-gl.js", module: "assets/scenes3d-gl.js", by: "assets/scenes3d.js" },
+  { chunk: BUNDLE + "supabase.js", module: vendor.DIR + "/supabase.js", by: "assets/account.js" }
+];
+const onDemand = (f) => ON_DEMAND.some(d => d.chunk === f);
 /* the kinds a chunk or stylesheet bundle/<name>.<ext> says load it, or null for a
    name that is not a set of kinds */
 function kindsNamed(file) {
@@ -57,7 +72,9 @@ function kindsNamed(file) {
 }
 /* the page kinds that load each source file, in PAGE_KINDS order: a script by the
    entries that import it (the entry itself counts), a stylesheet by the kinds that link
-   it (PAGE_KINDS styles). What vite.config.ts bundleNames reads to name the chunks. */
+   it (the vendor stylesheets every page links, then PAGE_KINDS styles), and a file from
+   node_modules/ by the vendor module that brings it in (lib/vendor.js). What
+   vite.config.ts bundleNames reads to name the chunks. */
 const ENTRY_IMPORT = /^\s*import\s+["']([^"']+)["']\s*;?\s*$/;
 function entryImports(entry) {
   const dir = path.posix.dirname(entry);
@@ -68,9 +85,10 @@ function kindsLoading() {
   const by = {};
   Object.keys(shell.PAGE_KINDS).forEach(kind => {
     const { entry, styles } = shell.PAGE_KINDS[kind];
-    [entry].concat(entryImports(entry), styles).forEach(f => { (by[f] = by[f] || []).push(kind); });
+    [entry].concat(entryImports(entry), shell.VENDOR_STYLES, styles).forEach(f => { (by[f] = by[f] || []).push(kind); });
   });
-  return by;
+  /* throws, with the reason, for a node_modules file no vendor module brings in */
+  return (f) => IN_NODE_MODULES.test(f) ? by[vendor.vendorOf(f).file] : by[f];
 }
 
 /* The module graph of the built site, read from the chunks themselves: every string
@@ -186,13 +204,12 @@ function firstDifference(s, d) {
 /* ------------------------------------------------------------- checks ---- */
 
 /* (a) the same pages at the same paths; .nojekyll for a branch deploy; and nothing else
-   in dist but what the site is made of: a page, a copy of a script of assets/ or data/
-   or of the boot script (for one release: vite.config.ts legacyScripts), a file of
-   public/, a file a built page links (its module script and what it preloads, its
-   stylesheets, the icon), a chunk the module graph reaches from a page's script (the GL
-   painter is fetched by a dynamic import), a file a built stylesheet names, and the
-   source map beside any of those. Anything more was put there by mistake, and
-   everything in dist is published. */
+   in dist but what the site is made of: a page, a file of public/, a file a built page
+   links (its module script and what it preloads, its stylesheets, the icon), a chunk the
+   module graph reaches from a page's script (the GL painter and supabase-js are fetched
+   by dynamic imports), a file a built stylesheet names (the fonts), and the source map
+   beside any of those. Anything more was put there by mistake, and everything in dist is
+   published. */
 function checkPages(ctx, r) {
   const built = new Set(ctx.dist.pages);
   ctx.src.pages.forEach(p => {
@@ -202,7 +219,6 @@ function checkPages(ctx, r) {
   if (!ctx.files.includes(".nojekyll")) r.fail("dist/.nojekyll is missing (public/.nojekyll should have been copied)");
 
   const known = new Set(ctx.src.pages);
-  copies().forEach(c => known.add(c.at));
   const pub = path.join(ROOT, "public");
   site.walk(pub, () => true).forEach(p => known.add(path.relative(pub, p).split(path.sep).join("/")));
   ctx.dist.pages.forEach(page => links.refsOf(ctx.dist.docs[page]).forEach(ref => {
@@ -227,10 +243,27 @@ function checkPages(ctx, r) {
   });
 }
 
-/* (b) every relative href/src resolves to a file inside dist, and its anchor to an id */
+/* every url() and @import of a piece of CSS: [{ ref, v }] with ref the text matched */
+function cssRefs(css) {
+  return Array.from(css.replace(NO_COMMENTS, "").matchAll(/(?:url\(\s*|@import\s+(?:url\(\s*)?)["']?([^"')\s;]+)/g)).map(m => ({ ref: m[0], v: m[1] }));
+}
+
+/* (b) every relative href/src resolves to a file inside dist, and its anchor to an id;
+   and so does every url() in a built stylesheet (a font file the fonts' and KaTeX's
+   rules name, relative to the stylesheet, so that it resolves from a page at any depth).
+   A url() that is not a path (data:, another server) is `offline`'s. */
 function checkLinks(ctx, r) {
   const files = new Set(ctx.files);
   links.checkLinks({ pages: ctx.dist.pages, docs: ctx.dist.docs, exists: (rel) => files.has(rel) }, r);
+  ctx.files.filter(f => /\.css$/.test(f)).forEach(f => {
+    cssRefs(fs.readFileSync(path.join(DIST, f), "utf8")).forEach(({ ref, v }) => {
+      if (links.EXTERNAL.test(v)) return;
+      r.count++;
+      const t = links.targetOf(f, v);
+      if (/^\//.test(v)) r.fail(f + ": " + JSON.stringify(ref) + " is a root-absolute path");
+      else if (!t || !files.has(t)) r.fail(f + ": " + JSON.stringify(ref) + " -> " + t + " does not exist in dist");
+    });
+  });
 }
 
 /* (c) nothing points at the server's root: the site is deployed under a sub-path.
@@ -285,7 +318,7 @@ function checkMain(ctx, r) {
 }
 
 /* and so must everything around <main>: the head (viewport, title, the inline boot
-   script, the CDN tags), the attributes of <body>, the top bar, the footer. The head
+   script), the attributes of <body>, the top bar, the footer. The head
    and the top bar are not in the source file: lib/shell.js writes them before Vite
    reads the page (vite.config.ts), and the source side here is that same expansion. So
    this fails a build that expands a page differently from the checks (a marker left
@@ -322,32 +355,35 @@ function checkShell(ctx, r) {
 
 /* What a built page runs, and that it is what the source page's shell says.
    The script tags, in order: the boot script inline (its text src/boot.js, as the shell
-   wrote it), KaTeX's two deferred CDN tags, and one <script type="module"> whose src is
-   the page's own entry chunk, bundle/pages/<page>.js; nothing else, and in particular
-   no classic <script src> of the site's own. The module tag's src is the one tag the
-   build rewrites, so it is held apart: its attributes but for src are what Vite writes
-   for every module script.
+   wrote it) and one <script type="module"> whose src is the page's own entry chunk,
+   bundle/pages/<page>.js; nothing else, and in particular no classic <script src>, of
+   the site's own or anyone's. The module tag's src is the one tag the build rewrites, so
+   it is held apart: its attributes but for src are what Vite writes for every module
+   script.
    The bundle behind that tag: following the imports from the chunk the tag names, the
-   files the chunks were built from (their source maps) are the scripts the kind's entry
-   imports (src/entries/<kind>.js, read here), every one and no other; and where the
-   scene framework is among them, a dynamic import reaches the WebGL painter. The order
-   they run in is not in the chunks (rolldown wraps and calls them in the entry's order
-   under strictExecutionOrder, vite.config.ts); the browser checks prove it, by what the
-   pages build.
-   The names: every chunk reached is bundle/<kinds>.js, and every source file in it is
-   imported by exactly the kinds its name says (so the name changes only when what loads
-   the file changes, never because the file was edited: a page a browser cached before a
-   deploy finds its scripts after it), or the painter's bundle/scenes3d-gl.js, or
-   rolldown's runtime; nothing carries a hash.
-   No page loads a copy of a source script: nothing a page's tag names and nothing its
-   bundle imports is at the path of a file under assets/ or data/. The copies are only
-   for pages cached from before the module entries (vite.config.ts legacyScripts), and
-   while they are made they are the source byte for byte. */
+   files of the tree the chunks were built from (their source maps) are the scripts the
+   kind's entry imports (src/entries/<kind>.js, read here), every one and no other, and
+   every file from node_modules/ among them is brought in by a vendor module the entry
+   imports (lib/vendor.js: KaTeX by src/vendor/katex.js). Where the importer of a module
+   fetched on demand is among them, a dynamic import reaches that module's chunk
+   (ON_DEMAND: the WebGL painter, supabase-js). The order they run in is not in the
+   chunks (rolldown wraps and calls them in the entry's order under strictExecutionOrder,
+   vite.config.ts); the browser checks prove it, by what the pages build.
+   The names: every chunk reached is bundle/<kinds>.js, and every file in it is loaded
+   by exactly the kinds its name says (so the name changes only when what loads the file
+   changes, never because the file was edited: a page a browser cached before a deploy
+   finds its scripts after it), or one of ON_DEMAND, or rolldown's runtime; nothing
+   carries a hash.
+   Each on-demand chunk, once: built from its module and, for a vendor module, the files
+   of its packages, and nothing else; and named by no page's HTML, since only the import()
+   is to fetch it.
+   No page names a source script by its own path, and the copies the release of the module
+   entries made at those paths are gone: nothing is at assets/<script>.js, data/…, or
+   assets/boot.js (OPERATIONS.md, "Scripts"). */
 function checkScripts(ctx, r) {
-  const made = copies();
-  const isCopy = new Set(made.map(c => c.at));
+  const sources = new Set(sourceScripts());
+  const ofTree = (s) => sources.has(s) || s.startsWith(vendor.DIR + "/");    /* what an entry can import */
   const boot = "<script>" + normText(shell.bootScript());
-  const katex = shell.KATEX_SCRIPTS.map(s => "<script defer src=" + JSON.stringify(s) + ">");
   const loadedBy = kindsLoading();
   const named = {};     /* chunk -> its name was checked, once */
   ctx.src.pages.forEach(p => {
@@ -356,33 +392,35 @@ function checkScripts(ctx, r) {
     const info = shell.pageInfo(fs.readFileSync(path.join(ROOT, p), "utf8"), p);
     const entry = shell.PAGE_KINDS[info.kind].entry;
     const tags = scriptTagsOf(ctx.dist.docs[p]);
-    const want = [boot].concat(katex);
-    for (let i = 0; i < want.length; i++) {
-      if (tags[i] === want[i]) continue;
-      r.fail(p + ": script tag " + (i + 1) + " should be " + (i === 0 ? "the boot script inline" : "KaTeX's " + want[i].slice(0, 80)) + ", is " + (tags[i] === undefined ? "missing" : tags[i].slice(0, 120)));
-      return;
-    }
+    if (tags[0] !== boot) { r.fail(p + ": script tag 1 should be the boot script inline, is " + (tags[0] === undefined ? "missing" : tags[0].slice(0, 120))); return; }
     const mod = moduleEntryOf(p, ctx.dist.docs[p]);
     if (!mod.file) { r.fail(p + ": " + mod.why); return; }
     const modAttrs = Object.keys(mod.el.attrs).filter(k => k !== "src").map(k => k + (mod.el.attrs[k] === "" ? "" : "=" + mod.el.attrs[k])).join(" ");
     if (modAttrs !== "type=module crossorigin") r.fail(p + ": the module script carries " + JSON.stringify(modAttrs) + ", not type=module crossorigin");
-    if (tags.length !== want.length + 1) r.fail(p + ": " + tags.length + " script tags, not " + (want.length + 1) + " (the boot script, KaTeX's two, one module): " + tags.slice(want.length).map(t => t.slice(0, 80)).join(" | "));
+    if (tags.length !== 2) r.fail(p + ": " + tags.length + " script tags, not 2 (the boot script and one module): " + tags.slice(1).map(t => t.slice(0, 80)).join(" | "));
     if (mod.file !== ENTRY_OF(p)) r.fail(p + ": its module script is " + mod.file + ", not " + ENTRY_OF(p) + " (a page's entry chunk is named after the page, with no hash)");
     /* the bundle, and that it is the entry's */
     const chunks = ctx.graph.reach(mod.file);
-    const staticOnly = chunks.filter(f => f !== BUNDLE + "scenes3d-gl.js");   /* the painter is the one dynamic import */
-    const built = new Set();
-    staticOnly.forEach(f => ctx.graph.sourcesOf(f).forEach(s => { if (isCopy.has(s)) built.add(s); }));
+    const staticOnly = chunks.filter(f => !onDemand(f));
+    const built = new Set(), foreign = [];
+    staticOnly.forEach(f => ctx.graph.sourcesOf(f).forEach(s => { if (ofTree(s)) built.add(s); else if (IN_NODE_MODULES.test(s)) foreign.push(s); }));
     const wanted = entryImports(entry);
     const missing = wanted.filter(s => !built.has(s)), extra = Array.from(built).filter(s => !wanted.includes(s));
     if (missing.length || extra.length) r.fail(p + ": the bundle behind " + mod.file + " is not " + entry + "'s" + (missing.length ? "; not in it: " + missing.join(", ") : "") + (extra.length ? "; in it but not imported: " + extra.join(", ") : ""));
-    if (wanted.includes("assets/scenes3d.js")) {
-      const painter = chunks.filter(f => ctx.graph.sourcesOf(f).includes("assets/scenes3d-gl.js"));
-      if (!painter.length) r.fail(p + ": no chunk reached from " + mod.file + " is built from assets/scenes3d-gl.js, which scenes3d.js imports on demand");
-      else if (painter.join() !== BUNDLE + "scenes3d-gl.js") r.fail(p + ": the painter, assets/scenes3d-gl.js, is built into " + painter.join(", ") + ", not " + BUNDLE + "scenes3d-gl.js on its own");
-    }
+    const strangers = [];
+    foreign.forEach(s => {
+      let by;
+      try { by = vendor.vendorOf(s).file; } catch (e) { strangers.push(e.message); return; }
+      if (!wanted.includes(by)) strangers.push(s + " (" + by + " brings it in, and the entry does not import that)");
+    });
+    if (strangers.length) r.fail(p + ": the bundle behind " + mod.file + " holds files from node_modules/ that " + entry + " does not account for: " + strangers.join("; "));
+    ON_DEMAND.filter(d => wanted.includes(d.by)).forEach(d => {
+      const where = chunks.filter(f => ctx.graph.sourcesOf(f).includes(d.module));
+      if (!where.length) r.fail(p + ": no chunk reached from " + mod.file + " is built from " + d.module + ", which " + d.by + " imports on demand");
+      else if (where.join() !== d.chunk) r.fail(p + ": " + d.module + " is built into " + where.join(", ") + ", not " + d.chunk + " on its own");
+    });
     /* the names, each chunk once: what is in it is loaded by the kinds it is named for */
-    chunks.filter(f => f !== mod.file && f !== RUNTIME && f !== BUNDLE + "scenes3d-gl.js" && !named[f]).forEach(f => {
+    chunks.filter(f => f !== mod.file && f !== RUNTIME && !onDemand(f) && !named[f]).forEach(f => {
       named[f] = true;
       r.count++;
       const kinds = kindsNamed(f);
@@ -390,28 +428,94 @@ function checkScripts(ctx, r) {
       const inside = ctx.graph.sourcesOf(f);
       if (!inside.length) { r.fail(f + " was built from no file of the tree (its source map names none), so nothing says which kinds load it"); return; }
       inside.forEach(s => {
-        const by = loadedBy[s] || [];
+        let by;
+        try { by = loadedBy(s) || []; } catch (e) { r.fail(f + " holds " + s + ": " + e.message); return; }
         if (by.join("-") !== kinds.join("-")) r.fail(f + " holds " + s + ", which " + (by.length ? "the " + by.join(", ") + " kind" + (by.length === 1 ? " loads" : "s load") : "no kind loads") + "; the chunk's name says " + kinds.join(", "));
       });
     });
-    const loaded = chunks.concat(links.refsOf(ctx.dist.docs[p]).map(ref => links.targetOf(p, ref.v)).filter(Boolean));
-    loaded.filter(f => isCopy.has(f)).forEach(f => r.fail(p + " loads " + f + ", a copy of a source script; a page loads its module entry and nothing else of assets/ or data/"));
+    const refs = links.refsOf(ctx.dist.docs[p]).map(ref => links.targetOf(p, ref.v)).filter(Boolean);
+    refs.filter(f => sources.has(f) || f === "assets/boot.js").forEach(f => r.fail(p + " loads " + f + ", a source script by its own path; a page loads its module entry and nothing else of assets/ or data/"));
+    refs.filter(onDemand).forEach(f => r.fail(p + " names " + f + ", which only the import() of " + ON_DEMAND.find(d => d.chunk === f).by + " is to fetch; a signed-out reader on an ordinary page must not download it"));
   });
-  made.forEach(c => {
+  /* the on-demand chunks, once each */
+  ON_DEMAND.forEach(d => {
     r.count++;
-    const built = path.join(DIST, c.at);
-    if (!fs.existsSync(built)) { r.fail(c.at + " is not in dist (the copies stay one release; vite.config.ts legacyScripts)"); return; }
-    if (!fs.readFileSync(path.join(ROOT, c.from)).equals(fs.readFileSync(built))) r.fail(c.at + " in dist is not " + c.from + " byte for byte");
+    if (!ctx.files.includes(d.chunk)) { r.fail(d.chunk + " is not in dist; " + d.by + " imports " + d.module + " on demand, so the build makes it a chunk under that name"); return; }
+    const inside = ctx.graph.sourcesOf(d.chunk);
+    if (!inside.includes(d.module)) r.fail(d.chunk + " is not built from " + d.module + " (its source map names " + inside.join(", ") + ")");
+    const strays = inside.filter(s => {
+      if (s === d.module) return false;
+      if (!IN_NODE_MODULES.test(s) || !d.module.startsWith(vendor.DIR + "/")) return true;
+      try { return vendor.vendorOf(s).file !== d.module; } catch (e) { return true; }
+    });
+    if (strays.length) r.fail(d.chunk + " holds more than " + d.module + (d.module.startsWith(vendor.DIR + "/") ? " and the files of its packages" : "") + ": " + strays.join(", "));
+  });
+  /* the copies are gone */
+  formerCopies().forEach(f => {
+    r.count++;
+    if (ctx.files.includes(f)) r.fail("dist has " + f + ", a copy of a source script at its own path; the release that kept the copies for cached pages is over (OPERATIONS.md, \"Scripts\"), and the built pages name only bundle/");
   });
 }
 
-/* (e) nothing that looks like a server-side secret is in any built file. The Supabase
+/* (e) nothing a page needs comes from another server. Every <script src>, every <link
+   href> (stylesheets, module preloads, the icon; a preconnect or dns-prefetch names
+   another server by definition) and every url() or @import in a built stylesheet (the
+   fonts) names a file of dist, which `links` then resolves; a data: URL fails too, since
+   every font is a file (vite.config.ts assetsInlineLimit). Links in the content
+   (<a href>) to other sites are the author's and are not touched. Three.js is still
+   fetched from its CDN by assets/three-loader.js when a 3D scene nears the screen: a
+   request a script makes, not a tag on the page, and the next release moves it into the
+   bundle; the browser checks list every request a page makes (lib/browser.js). */
+function checkOffline(ctx, r) {
+  ctx.dist.pages.forEach(page => {
+    const doc = ctx.dist.docs[page];
+    doc.queryAll("script").forEach(s => {
+      r.count++;
+      const src = s.getAttribute("src");
+      if (src !== null && links.EXTERNAL.test(src)) r.fail(page + ":" + s.line + ": <script src=" + JSON.stringify(src) + "> comes from another server");
+    });
+    doc.queryAll("link").forEach(l => {
+      r.count++;
+      const rel = (l.getAttribute("rel") || "").toLowerCase(), href = l.getAttribute("href") || "";
+      if (/(^|\s)(preconnect|dns-prefetch)(\s|$)/.test(rel)) r.fail(page + ":" + l.line + ": <link rel=" + JSON.stringify(rel) + " href=" + JSON.stringify(href) + "> names another server");
+      else if (links.EXTERNAL.test(href)) r.fail(page + ":" + l.line + ": <link rel=" + JSON.stringify(rel) + " href=" + JSON.stringify(href) + "> comes from another server");
+    });
+  });
+  ctx.files.filter(f => /\.css$/.test(f)).forEach(f => {
+    const css = fs.readFileSync(path.join(DIST, f), "utf8");
+    cssRefs(css).forEach(({ ref, v }) => {
+      r.count++;
+      if (links.EXTERNAL.test(v) && !/^data:/i.test(v)) r.fail(f + ": " + JSON.stringify(ref) + " comes from another server");
+    });
+    /* a font as a data: URL would be downloaded by every page inside the stylesheet; the
+       site's own data: URLs (the tick and cross marks in site.css) are not fonts */
+    for (const face of css.replace(NO_COMMENTS, "").matchAll(/@font-face\s*\{[^}]*\}/g)) {
+      cssRefs(face[0]).forEach(({ ref, v }) => {
+        r.count++;
+        if (/^data:/i.test(v)) r.fail(f + ": " + JSON.stringify(ref.slice(0, 60) + "…") + " is a font inlined into the stylesheet; every font is a file of dist (vite.config.ts assetsInlineLimit)");
+      });
+    }
+  });
+}
+
+/* (h) nothing that looks like a server-side secret is in any built file. The Supabase
    anon key in assets/config.js is public by design and matches none of these.
-   service_role in any case, because the usual name of that key is upper-case
-   (SUPABASE_SERVICE_ROLE_KEY). And a legacy Supabase key is a JWT, which carries its
-   role base64-encoded where no pattern sees it: every JWT-shaped token is decoded, and
-   it fails unless its role is the public one, "anon" (or it claims no role at all). */
-const SECRETS = [/service_role/i, /sb_secret_/, /whsec_/, /sk-ant-/, /(sk|rk)_(live|test)_[A-Za-z0-9]{10,}/];
+   Each pattern is the shape of a key, a prefix and the body that follows it, not the
+   prefix alone: supabase-js, now in the bundle, names the prefixes of its own keys
+   (`sb_secret_`, in the code that refuses one) and says "service_role" in its doc
+   comments, which the source map carries; a key is a prefix with a body after it. The
+   service-role key is named in any case, because the usual name of that key is
+   upper-case (SUPABASE_SERVICE_ROLE_KEY), and only where something key-like is assigned
+   to it. And a legacy Supabase key is a JWT, which carries its role base64-encoded where
+   no pattern sees it: every JWT-shaped token is decoded, and it fails unless its role is
+   the public one, "anon" (or it claims no role at all). */
+const SECRETS = [
+  /service_role\w*["'`]?\s*[=:]\s*["'`]?[A-Za-z0-9._-]{16,}/i,
+  /sb_secret_[A-Za-z0-9_-]{16,}/,
+  /whsec_[A-Za-z0-9]{16,}/,
+  /sk-ant-[A-Za-z0-9_-]{16,}/,
+  /(sk|rk)_(live|test)_[A-Za-z0-9]{10,}/
+];
 const JWT = /eyJ[A-Za-z0-9_-]+\.(eyJ[A-Za-z0-9_-]+)\.[A-Za-z0-9_-]*/g;
 /* why the payload of a JWT must not be published, or null */
 function jwtProblem(payload) {
@@ -421,18 +525,24 @@ function jwtProblem(payload) {
   if (typeof role === "string" && role !== "anon") return "a JWT with the role " + JSON.stringify(role);
   return /service_role/i.test(text) ? "a JWT that names service_role" : null;
 }
+/* every secret-shaped thing in a text, as messages (checks.test.js holds the patterns
+   to a real key of each kind, and to supabase-js's own text) */
+function secretsIn(text) {
+  const out = [];
+  SECRETS.forEach(re => {
+    const m = re.exec(text);
+    if (m) out.push("contains " + JSON.stringify(m[0].slice(0, 12) + (m[0].length > 12 ? "…" : "")) + " (matches " + re + ") at byte " + m.index);
+  });
+  for (const m of text.matchAll(JWT)) {
+    const why = jwtProblem(m[1]);
+    if (why) out.push("contains " + why + " (" + JSON.stringify(m[0].slice(0, 12) + "…") + ") at byte " + m.index);
+  }
+  return out;
+}
 function checkSecrets(ctx, r) {
   ctx.files.forEach(f => {
     r.count++;
-    const text = fs.readFileSync(path.join(DIST, f), "latin1");
-    SECRETS.forEach(re => {
-      const m = re.exec(text);
-      if (m) r.fail(f + ": contains " + JSON.stringify(m[0].slice(0, 12) + (m[0].length > 12 ? "…" : "")) + " (matches " + re + ") at byte " + m.index);
-    });
-    for (const m of text.matchAll(JWT)) {
-      const why = jwtProblem(m[1]);
-      if (why) r.fail(f + ": contains " + why + " (" + JSON.stringify(m[0].slice(0, 12) + "…") + ") at byte " + m.index);
-    }
+    secretsIn(fs.readFileSync(path.join(DIST, f), "latin1")).forEach(m => r.fail(f + ": " + m));
   });
 }
 
@@ -443,12 +553,27 @@ function checkSecrets(ctx, r) {
    stylesheets in the order the source page links them. Read off the class names only
    one source file uses: in the built CSS, all of one file's must come before all of
    the next file's.
-   And the text: each stylesheet a source page links must be, unchanged, inside one of
-   the built stylesheets the built page links. The build does not minify CSS for now
-   (vite.config.ts says why), and this is what notices if it starts to.
+   And the text: each of the site's stylesheets a source page links must be, unchanged,
+   inside one of the built stylesheets the built page links. The build does not minify
+   CSS for now (vite.config.ts says why), and this is what notices if it starts to.
+   The vendor stylesheets (lib/shell.js VENDOR_STYLES, src/vendor/*.css) are @import
+   rules of package stylesheets, which the build inlines: each imported stylesheet's text
+   must be in the built one unchanged but for where its fonts are (every url() reduced to
+   the file's name on both sides), in the order of the imports, and all of it before the
+   site's own stylesheets, so that site.css's rules on .katex come after KaTeX's and win
+   as they did when KaTeX's stylesheet was a CDN link.
    And the link itself: rel and href, as the source writes it. Vite adds `crossorigin`,
    which vite.config.ts takes off again, so the link in dist is the source's but for
    the file it names. */
+const URL_NAMES = (css) => css.replace(/url\(\s*["']?([^"')\s]*)["']?\s*\)/g, (m, u) => "url(" + u.split("/").pop() + ")");
+/* the @import rules of a vendor stylesheet, each with the imported file's text */
+function vendorImports(file) {
+  return Array.from(fs.readFileSync(path.join(ROOT, file), "utf8").matchAll(/^\s*@import\s+["']([^"']+)["']\s*;/gm)).map(m => {
+    const at = path.join(ROOT, "node_modules", m[1]);
+    if (!fs.existsSync(at)) throw new Error(file + " imports " + JSON.stringify(m[1]) + ", which is not at node_modules/" + m[1] + "; run `npm ci`");
+    return { spec: m[1], text: URL_NAMES(fs.readFileSync(at, "utf8").trim()) };
+  });
+}
 function checkStylesheets(ctx, r) {
   const all = new Set();
   const per = {};
@@ -468,8 +593,9 @@ function checkStylesheets(ctx, r) {
     }
   });
 
+  const isVendor = (f) => shell.VENDOR_STYLES.includes(f);
   const srcFiles = new Set();
-  ctx.src.pages.forEach(p => stylesheetsOf(p, ctx.src.docs[p]).forEach(f => srcFiles.add(f)));
+  ctx.src.pages.forEach(p => stylesheetsOf(p, ctx.src.docs[p]).forEach(f => { if (!isVendor(f)) srcFiles.add(f); }));
   const classesOf = {}, users = {}, srcText = {};
   srcFiles.forEach(f => {
     srcText[f] = fs.readFileSync(path.join(ROOT, f), "utf8");
@@ -479,14 +605,39 @@ function checkStylesheets(ctx, r) {
   });
   const own = {}, rewritten = {};
   srcFiles.forEach(f => { own[f] = new Set(Array.from(classesOf[f]).filter(c => users[c] === 1)); });
+  const imports = {};
+  shell.VENDOR_STYLES.forEach(f => { try { imports[f] = vendorImports(f); } catch (e) { r.fail(e.message); imports[f] = []; } });
+  /* a built stylesheet holds a vendor stylesheet when it holds every import of it */
+  const holdsVendor = (text, f) => imports[f].length > 0 && imports[f].every(i => URL_NAMES(text).includes(i.text));
   ctx.src.pages.forEach(p => {
     if (!per[p]) return;
     r.count++;
     const builtText = per[p].map(f => { try { return fs.readFileSync(path.join(DIST, f), "utf8"); } catch (e) { return ""; } });
-    /* comments out of both sides: a class name in a comment is not a rule */
-    const css = builtText.join("\n").replace(NO_COMMENTS, "");
+    const joined = builtText.join("\n");
+    /* the vendor stylesheets: each import's text there, in order, and all before the
+       site's own */
+    const named = URL_NAMES(joined);
+    const siteAt = Math.min.apply(null, stylesheetsOf(p, ctx.src.docs[p]).filter(f => !isVendor(f)).map(f => { const i = joined.indexOf(srcText[f]); return i === -1 ? Infinity : i; }));
+    let after = -1, vendorEnd = -1;
+    stylesheetsOf(p, ctx.src.docs[p]).filter(isVendor).forEach(f => imports[f].forEach(i => {
+      r.count++;
+      const at = named.indexOf(i.text);
+      if (at === -1) { r.fail(p + ": the text of " + i.spec + ", which " + f + " imports, is not in the built stylesheets [" + per[p].join(", ") + "] (changed by the build, or the import dropped?)"); return; }
+      if (at < after) r.fail(p + ": " + i.spec + " comes before the stylesheet " + f + " imports ahead of it in the built stylesheets");
+      after = Math.max(after, at);
+      vendorEnd = Math.max(vendorEnd, at + i.text.length);
+    }));
+    /* URL_NAMES shortens the vendor text only, so an index into `named` past it is an
+       index into `joined` moved left by what was cut; the site's text starts at the same
+       character in both when all the vendor text is before it, which is what is asked */
+    if (vendorEnd !== -1 && siteAt !== Infinity && URL_NAMES(joined.slice(0, siteAt)).length < vendorEnd) r.fail(p + ": a vendor stylesheet (" + shell.VENDOR_STYLES.join(", ") + ") comes after one of the site's own in the built stylesheets [" + per[p].join(", ") + "]; site.css's rules on .katex must come after KaTeX's");
+    /* the site's own stylesheets: comments out of both sides (a class name in a comment
+       is not a rule), and the scan starts where the site's text does, past the vendor
+       rules, whose .katex is site.css's class too */
+    const css = (siteAt === Infinity ? joined : joined.slice(siteAt)).replace(NO_COMMENTS, "");
     let last = { file: null, end: -1 };
     for (const f of stylesheetsOf(p, ctx.src.docs[p])) {
+      if (isVendor(f)) continue;
       r.count++;
       if (!builtText.some(t => t.includes(srcText[f]))) (rewritten[f] = rewritten[f] || []).push(p);
       let first = Infinity, end = -1, seen = 0;
@@ -507,7 +658,8 @@ function checkStylesheets(ctx, r) {
   });
 
   /* and the names: a built stylesheet is bundle/<kinds>.css, and every source
-     stylesheet in it is linked by exactly those kinds (PAGE_KINDS), as for the chunks */
+     stylesheet in it (a vendor one by its imports' text) is linked by exactly those
+     kinds (VENDOR_STYLES, PAGE_KINDS), as for the chunks */
   const linkedBy = kindsLoading();
   Array.from(all).sort().forEach(f => {
     r.count++;
@@ -515,10 +667,10 @@ function checkStylesheets(ctx, r) {
     if (!kinds || path.posix.dirname(f) !== BUNDLE.slice(0, -1)) { r.fail(f + " is not named for the page kinds that link it (bundle/all.css, or the kinds joined with \"-\" in PAGE_KINDS order)"); return; }
     let css;
     try { css = fs.readFileSync(path.join(DIST, f), "utf8"); } catch (e) { return; }      /* reported by `links` */
-    const inside = Array.from(srcFiles).filter(s => css.includes(srcText[s]));
+    const inside = Array.from(srcFiles).filter(s => css.includes(srcText[s])).concat(shell.VENDOR_STYLES.filter(v => holdsVendor(css, v)));
     if (!inside.length) { r.fail(f + " holds no source stylesheet as it is written, so nothing says which kinds link it"); return; }
     inside.forEach(s => {
-      const by = linkedBy[s] || [];
+      const by = linkedBy(s) || [];
       if (by.join("-") !== kinds.join("-")) r.fail(f + " holds " + s + ", which the " + by.join(", ") + " kind" + (by.length === 1 ? " links" : "s link") + "; the file's name says " + kinds.join(", "));
     });
   });
@@ -532,9 +684,10 @@ const CHECKS = [
   { name: "root-absolute", run: checkRootAbsolute, what: "no attribute value, and no url() in the CSS, is a root-absolute path" },
   { name: "main", run: checkMain, what: "<main> of every page is the source's, by fingerprint" },
   { name: "shell", run: checkShell, what: "and so is the page around it, but for its stylesheet, icon and module links" },
-  { name: "scripts", run: checkScripts, what: "boot inline, KaTeX, one module entry whose bundle is its kind's imports, each chunk named for the kinds that load it; no copy loaded; copies byte for byte" },
+  { name: "scripts", run: checkScripts, what: "boot inline and one module entry whose bundle is its kind's imports (node_modules files by their vendor module), each chunk named for the kinds that load it; the on-demand chunks on their own, named by no page; no copy of a source script" },
+  { name: "offline", run: checkOffline, what: "no script, link or stylesheet url() of any page comes from another server; no font is inlined" },
   { name: "secrets", run: checkSecrets, what: "no server-side key in any built file, as text or inside a JWT" },
-  { name: "stylesheets", run: checkStylesheets, what: "chapter pages share their stylesheets; source CSS unchanged, cascade in source order, each file named for the kinds that link it" }
+  { name: "stylesheets", run: checkStylesheets, what: "chapter pages share their stylesheets; vendor CSS inlined before the site's, source CSS unchanged, cascade in source order, each file named for the kinds that link it" }
 ];
 
 function main() {
@@ -564,4 +717,4 @@ function main() {
 }
 
 if (require.main === module) main();
-module.exports = { CHECKS };
+module.exports = { CHECKS, secretsIn };

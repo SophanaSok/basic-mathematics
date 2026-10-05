@@ -1,0 +1,7 @@
+/* KaTeX's stylesheet, from the npm package (pinned at 0.16.11, the version the pages
+   loaded from its CDN until this). The build inlines it here with its font files written
+   beside the bundle; the shell links this file on every page after fonts.css and before
+   the site's own stylesheets, where the CDN link was, so site.css's few rules on .katex
+   still come after KaTeX's and win as they did (tools/lib/shell.js VENDOR_STYLES). The
+   typesetter itself is src/vendor/katex.js. */
+@import "katex/dist/katex.min.css";

@@ -1,0 +1,20 @@
+/* The site's three typefaces, self-hosted from the fontsource packages, in the weights
+   and styles the Google Fonts link asked for until this (Bricolage Grotesque 700 and
+   800; Inter 400, 500, 600 and 700; Newsreader 400 and 600, and 400 italic): the static
+   instances, as Google served them for a request of single weights. Each file imported
+   here is a set of @font-face rules, one per subset with its unicode-range, every one
+   with font-display: swap, so a browser fetches only the subsets a page uses and paints
+   with the fallback meanwhile, as before; the build inlines the rules here and writes the
+   font files beside the bundle. The family names are the ones the tokens in
+   assets/site.css name (--sans, --serif, --display), whose fallbacks are unchanged. The
+   shell links this file on every page, first of all its stylesheets, where the Google
+   Fonts link was (tools/lib/shell.js VENDOR_STYLES). */
+@import "@fontsource/bricolage-grotesque/700.css";
+@import "@fontsource/bricolage-grotesque/800.css";
+@import "@fontsource/inter/400.css";
+@import "@fontsource/inter/500.css";
+@import "@fontsource/inter/600.css";
+@import "@fontsource/inter/700.css";
+@import "@fontsource/newsreader/400.css";
+@import "@fontsource/newsreader/600.css";
+@import "@fontsource/newsreader/400-italic.css";

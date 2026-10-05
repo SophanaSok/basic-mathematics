@@ -5,6 +5,7 @@
    window.BM* and declares nothing at the top level, so imported as a module it does
    what it did as a script, and the import order is the run order: site.js first
    initialises the page, and game.js, encounter.js and lesson.js build on what it did. */
+import "../vendor/katex.js";
 import "../../data/curriculum.js";
 import "../../data/quest.js";
 import "../../assets/widgets.js";

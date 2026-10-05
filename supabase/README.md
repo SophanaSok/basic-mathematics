@@ -126,5 +126,7 @@ Row-level security restricts every row to its owner. `exercise_stats()` and `cha
 return aggregates only, and only to admins. `delete_my_account()` removes the caller's auth user,
 and every table cascades from it.
 
-Signed-out visitors never contact Supabase: the SDK is not even downloaded unless a session
-exists or the reader opens the account page.
+Signed-out visitors never contact Supabase: the SDK (supabase-js, an npm dependency bundled as
+`dist/bundle/supabase.js` and fetched from the site itself, never from a CDN) is not even
+downloaded unless a session exists or the reader opens the account page.
+`tools/game/account.test.js` lists the requests a chapter page makes to prove it.
