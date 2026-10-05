@@ -131,6 +131,23 @@ function stylesheetOrder(): Plugin[] {
   }];
 }
 
+/* Build-only. Vite writes `crossorigin` on every stylesheet link it makes (vite 8.3: it
+   is fixed in its html plugin, with no option). The pages link their stylesheets without
+   it, and it is not wanted here: every one of them comes from the site itself, and a
+   page opened from disk (file://) is refused a stylesheet asked for that way, so dist/
+   would open unstyled. Taken off again, the link in dist is the link in the source but
+   for the file it names. */
+function plainStylesheetLinks(): Plugin {
+  return {
+    name: "bm:plain-stylesheet-links",
+    apply: "build",
+    transformIndexHtml: {
+      order: "post",
+      handler: (html) => html.replace(/<link rel="stylesheet" crossorigin href=/g, '<link rel="stylesheet" href=')
+    }
+  };
+}
+
 export default defineConfig({
   root,
   /* relative, so the site works under the GitHub Pages sub-path and anywhere else it is
@@ -138,7 +155,7 @@ export default defineConfig({
   base: process.env.BM_BASE || "./",
   /* a site of separate pages: an unknown path is a 404, not index.html */
   appType: "mpa",
-  plugins: [classicScripts(), stylesheetOrder()],
+  plugins: [classicScripts(), stylesheetOrder(), plainStylesheetLinks()],
   build: {
     outDir: "dist",
     emptyOutDir: true,

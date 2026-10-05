@@ -9,7 +9,7 @@
    --root      the tree the server serves: `dist` for the built site, `.` for the source
                tree; without it lib/target.js picks (dist/ when built and current). Page
                discovery and the static parsing always read the source tree, and the
-               `file` suite always loads it from file://
+               `file` suite always loads dist/ from file://
    --only      a suite name (or several, comma-separated) runs just those suites; anything
                else is matched against page paths and narrows every suite to those pages
    --skip      suite names to leave out (CI runs --skip=webgl as the deploy gate and

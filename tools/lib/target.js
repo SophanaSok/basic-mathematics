@@ -26,6 +26,15 @@ function newestSource() {
   return newest;
 }
 
+/* How the build in dist/ stands to the working tree: null when there is none, "" when
+   no source file is newer than it, and otherwise which file is. */
+function stale() {
+  const built = path.join(DIST, "index.html");
+  if (!fs.existsSync(built)) return null;
+  const newest = newestSource();
+  return newest.at > fs.statSync(built).mtimeMs ? "dist/ is older than " + newest.file : "";
+}
+
 /* -> { root, label, note } ; throws when the directory asked for holds no site */
 function pick(opts) {
   opts = opts || {};
@@ -37,12 +46,9 @@ function pick(opts) {
     }
     return { root, label: root === site.ROOT ? "the source tree" : (site.rel(root) || root) + "/", note: "" };
   }
-  const built = path.join(DIST, "index.html");
-  if (!fs.existsSync(built)) return { root: site.ROOT, label: "the source tree", note: "" };
-  const newest = newestSource();
-  if (newest.at > fs.statSync(built).mtimeMs) {
-    return { root: site.ROOT, label: "the source tree", note: "dist/ is older than " + newest.file + " (npm run build, or --root=dist to load it anyway)" };
-  }
+  const old = stale();
+  if (old === null) return { root: site.ROOT, label: "the source tree", note: "" };
+  if (old) return { root: site.ROOT, label: "the source tree", note: old + " (npm run build, or --root=dist to load it anyway)" };
   return { root: DIST, label: "dist/", note: "" };
 }
 
@@ -61,4 +67,4 @@ async function start(opts) {
   return Object.assign(server, t);
 }
 
-module.exports = { pick, start, DIST };
+module.exports = { pick, start, stale, DIST };

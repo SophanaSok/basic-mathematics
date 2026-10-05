@@ -255,11 +255,21 @@ function checkSecrets(ctx, r) {
    the next file's.
    And the text: each stylesheet a source page links must be, unchanged, inside one of
    the built stylesheets the built page links. The build does not minify CSS for now
-   (vite.config.ts says why), and this is what notices if it starts to. */
+   (vite.config.ts says why), and this is what notices if it starts to.
+   And the link itself: rel and href, as the source writes it. Vite adds `crossorigin`,
+   which a browser opening the page from disk answers by refusing the stylesheet
+   (vite.config.ts takes it off again; the `file` suite of check-browser.js loads the
+   result). */
 function checkStylesheets(ctx, r) {
   const all = new Set();
   const per = {};
   ctx.dist.pages.forEach(p => { per[p] = stylesheetsOf(p, ctx.dist.docs[p]); per[p].forEach(f => all.add(f)); });
+  ctx.dist.pages.forEach(p => ctx.dist.docs[p].queryAll("link").forEach(l => {
+    if (!/(^|\s)stylesheet(\s|$)/i.test(l.getAttribute("rel") || "") || !links.targetOf(p, l.getAttribute("href"))) return;
+    r.count++;
+    const more = Object.keys(l.attrs).filter(a => a !== "rel" && a !== "href");
+    if (more.length) r.fail(p + ":" + l.line + ": the link to " + l.getAttribute("href") + " carries " + more.join(", ") + "; the source's links are rel and href only" + (more.includes("crossorigin") ? ", and with crossorigin the page opens from disk without its stylesheets" : ""));
+  }));
   r.note(all.size + " distinct stylesheet(s) linked across " + ctx.dist.pages.length + " pages: " + Array.from(all).sort().join(", "));
   const chapters = ctx.chapters.filter(p => per[p]);
   chapters.forEach(p => {

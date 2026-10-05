@@ -193,9 +193,10 @@ CSS minifier rewrites values the scripts read (`vite.config.ts` says how, and
 `npm run check:dist` holds the build to all of that). So the pages are still edited by hand, and
 a page added under `parts/` is picked up by the build without being listed.
 
-Opening `index.html` straight from disk still works for the source tree: `file://` works because
-the curriculum is loaded as a `<script>` rather than fetched. That stays true until a later
-release moves the scripts into bundled modules; `dist/` is made to be served, not opened.
+Opening `index.html` straight from disk still works, for the source tree and for `dist/`:
+`file://` works because the curriculum is loaded as a `<script>` rather than fetched, and
+because the build takes off the `crossorigin` Vite puts on its stylesheet links, which a browser
+refuses from disk. That stays true until a later release moves the scripts into bundled modules.
 
 Two libraries come from CDNs: [KaTeX](https://katex.org) for math typesetting on every page, and
 [Three.js](https://threejs.org) 0.160.1 (the last release with a classic build, pinned with an
@@ -641,7 +642,7 @@ npm run test:browser    # the game, the Arena, the account page, the 3D stages, 
 npm run check:browser   # dist/ served: every page × theme × width (errors, overflow, lesson
                         # mode), figures, every exercise typed back, restore of old progress,
                         # saved state from the last release, reduced motion, WebGL and its
-                        # fallbacks, the source tree from file://, axe. About 8 minutes.
+                        # fallbacks, dist/ opened from file://, axe. About 8 minutes.
                         # A CDN that is down or stalls costs warnings, not a failure
 
 npm run check:all       # all of the above, in that order
