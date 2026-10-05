@@ -494,7 +494,9 @@ module.exports = {
       await done(CHAPTER + " [cached from before the HUD script] the bundle installs BMHud, and XP is still earned", problems, errors, close);
     }
 
-    /* the course map: Graphics quality Low keeps the list; the 3D map switch is kept */
+    /* the course map: the 3D map switch is kept and keeps the list; Graphics quality Low
+       is the course world's low tier (src/world/tiers.ts), still 3D, with the switch on
+       and free */
     if (ctx.pages.includes("index.html")) {
       const { page, errors, close } = await fresh("index.html", {});
       const problems = [];
@@ -507,9 +509,14 @@ module.exports = {
         if (off.join() !== "list,list" || (await prefs(page)).map !== "3d") problems.push("the 3D map switch is not kept: off " + JSON.stringify(off) + ", on again " + JSON.stringify((await prefs(page)).map));
         await set(page, 'input[data-pref="gfx"][value="low"]');
         await reload(page);
-        const low = await page.evaluate(() => [JSON.parse(localStorage.getItem("bm.prefs.v1")).gfx, window.BMMap3D.on(), window.BMMap3D.why(), document.querySelector("[data-map3d]") ? document.querySelector("[data-map3d]").hidden : null]);
+        /* the world arrives after the page (two chunks on demand); without WebGL 2 in this
+           browser there is none to wait for, and the tier is not what is checked */
+        await page.waitForFunction(() => window.BMMap3D && (window.BMMap3D.on() || window.BMMap3D.why() === "no-webgl"), null, { timeout: 20000 }).catch(() => {});
+        const low = await page.evaluate(() => ({ gfx: JSON.parse(localStorage.getItem("bm.prefs.v1")).gfx, on: window.BMMap3D.on(), why: window.BMMap3D.why(), tier: window.BMMap3D.on() ? window.BMMap3D.info().tier : null }));
         const sw = await inSheet(page, '[data-pref="map3d"]');
-        if (low.slice(0, 3).join() !== "low,false,gfx-low" || low[3] === false || sw.checked || !sw.disabled) problems.push("Graphics quality Low does not keep the list: " + JSON.stringify({ low, map3dSwitch: sw }));
+        if (low.why === "no-webgl") ctx.report.warn("index.html [Graphics quality Low]", "no WebGL 2 in this browser, so the world's low tier was not drawn");
+        else if (low.gfx !== "low" || !low.on || low.tier !== "low") problems.push("Graphics quality Low does not give the world's low tier: " + JSON.stringify(low));
+        if (!sw.checked || sw.disabled) problems.push("with Graphics quality Low the 3D map switch should show on and free: " + JSON.stringify(sw));
         if (!(await inSheet(page, 'input[data-pref="gfx"][value="low"]')).checked) problems.push("the sheet does not show Low chosen");
       } catch (e) { problems.push("driver error: " + (e && e.message || e)); }
       await done("index.html [Graphics quality, 3D map] kept across a reload and in effect", problems, errors, close);

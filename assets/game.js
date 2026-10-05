@@ -111,12 +111,16 @@
        volume        DEFAULT_VOLUME; a whole number 0 to 100 (assets/sfx.js)
        motion        what the device asks for; "reduce" adds html[data-motion]
        transparency  what the device asks for; "reduce" adds html[data-transparency]
-       gfx           "auto"; or "low", "mid", "high". The course map keeps the list on
-                     "low"; the 3D world will read the rest.
+       gfx           "auto"; or "low", "mid", "high": the course world's quality tier
+                     (src/world/tiers.ts; "mid" is its medium). The 3D course map switch
+                     (map: "list") is what keeps the list.
+       gfxAuto       not the reader's: the tier the course world's watchdog settled on
+                     when its frames were slow ("list", "low", "medium"), so the next
+                     visit starts there; any choice of gfx or of the map clears it.
      src/boot.js stamps the ones that change the first paint (panel, motion,
      transparency) on <html> before it. Where the store cannot be written (blocked
      storage) the reader's choices still hold for the visit: `held` is what was last set. */
-  var DEFAULT_VOLUME = 50, GFX = ["auto", "low", "mid", "high"], held = null;
+  var DEFAULT_VOLUME = 50, GFX = ["auto", "low", "mid", "high"], SETTLED = ["list", "low", "medium"], held = null;
   function prefs() {
     var p = held || obj(Store.read(K.prefs, {})), out = {};
     Object.keys(p).forEach(function (k) { out[k] = p[k]; });
@@ -135,14 +139,16 @@
     else delete out.transparency;
     if (GFX.indexOf(p.gfx) > 0) out.gfx = p.gfx;
     else delete out.gfx;
+    if (SETTLED.indexOf(p.gfxAuto) === -1) delete out.gfxAuto;
     return out;
   }
   /* the volume the sound plays at, 0 to 100 */
   function volume(p) { return p.volume === undefined ? DEFAULT_VOLUME : p.volume; }
-  /* whether the course map will be 3D, for the switch in the sheet */
+  /* whether the course map will be 3D, for the switch in the sheet: as the reader set it,
+     else not where the world gave up as too slow, nor on a low-end device */
   function map3dOn(p) {
-    if (p.gfx === "low") return false;
     if (p.map) return p.map === "3d";
+    if (p.gfxAuto === "list") return false;
     var low = false;
     try { low = !!(window.BM3D && window.BM3D.lowEnd && window.BM3D.lowEnd()); } catch (e) { /* assume not */ }
     return !low;
@@ -177,7 +183,12 @@
     } else if (name === "gfx") {
       if (GFX.indexOf(value) > 0) p.gfx = value;
       else delete p.gfx;
+    } else if (name === "gfxAuto") {
+      if (SETTLED.indexOf(value) !== -1) p.gfxAuto = value;
+      else delete p.gfxAuto;
     } else return p;
+    /* a choice of quality or of the map starts the world afresh */
+    if (name === "gfx" || name === "map") delete p.gfxAuto;
     held = Store.write(K.prefs, p, true) === false ? p : null;
     applyPrefs(p);
     Store.emit({ type: "prefs", prefs: p });

@@ -1,22 +1,34 @@
 /* ===========================================================================
-   Basic Mathematics — the 3D course map (index.html only)
-   An enhancement beside the chapter list, never a replacement for it. The list
-   (ol.path inside [data-course-index]) stays the accessible, focusable structure;
-   the canvas is aria-hidden and only mirrors it:
+   Basic Mathematics — the course world (index.html only)
+   The contents page opens on a lit 3D world of the course: four regions, one per
+   Part, each a terrace of its own with the Part's chapters standing on it as islands
+   along one path. It is an enhancement above the chapter list, never a replacement
+   for it. The list (ol.path inside [data-course-index]) stays the accessible,
+   focusable structure; the canvas is aria-hidden and only mirrors it:
      list → map   focusing or hovering a chapter link flies the camera to its island
      map → list   a mouse click on an island opens the same link; a tap selects the
                   link first and opens it on a second tap
-   Four real buttons fly to a Part. Everything is built from Three.js primitives
-   (no textures, no model files), coloured from the CSS tokens at run time, and
-   drawn on demand: frames run only for a camera flight and for one short bob of the
-   "you are here" marker after the map appears or the camera settles, neither under
-   reduced motion or calm mode; offscreen or in a hidden tab nothing is drawn.
+   Four real buttons fly to a Part.
 
-   The container stays hidden, and the list looks exactly as it did, when the
-   person chose the list map, 3D is unsupported or the device is low-end, Three.js
-   (bundle/three.js, fetched by assets/three-loader.js on demand) cannot be fetched,
-   the WebGL context is lost, or frames are too slow.
+   This file is the camera, the pointer, the labels, the list and the render loop.
+   What is drawn is src/world/ (index.ts and the modules it imports: the terraces and
+   their props, the islands, the progress marks, the light, the sky and fog, the
+   colours, all from Three.js primitives and the CSS tokens), a chunk of its own,
+   bundle/world.js, imported only once the device is to get 3D. Which tier of quality
+   it gets, and when that is the list, is src/world/tiers.ts.
+
+   Drawn on demand: frames run for a camera flight and, on the medium and high tiers,
+   for AMBIENT_MS of idle motion after an input (the marker's bob, the Foundry's smoke,
+   the Observatory's telescope), never under reduced motion or Study mode; offscreen or
+   in a hidden tab nothing is drawn, and an idle page asks for no frames at all.
+
+   The box stays hidden, and the list looks exactly as it did, when the tier is the
+   list (the 3D map switch off, no WebGL 2, Save-Data, a low-end device, or a watchdog
+   that gave up), Three.js (bundle/three.js, fetched by assets/three-loader.js) or the
+   world chunk cannot be fetched, or the WebGL context is lost.
    =========================================================================== */
+import { detectTier, readProbe, stepDown, lower, pixelRatio, TIERS, AMBIENT_MS, FrameWatch } from "../src/world/tiers.ts";
+
 (function () {
   "use strict";
 
@@ -31,17 +43,18 @@
     algebra: "The Foundry", geometry: "The Fields", coordinates: "The Grid", topics: "The Observatory"
   };
 
-  /* the snake: Part p is row p, set back and up; chapters alternate direction per row */
-  var ROW_Z = 7, ROW_Y = 1.5, STEP_X = 3.2;
-  var DECK = 0.36;          /* height of an island's walking surface above its anchor */
-  var STONES = 70;
   var FLIGHT_MS = 700;
-  var BOB_MS = 2400;        /* one rise and fall of the marker, then it rests */
+  var BOB_MS = 2400;        /* one rise and fall of the marker */
   var FOV = 34;
 
-  var M = null;             /* the live map, or null while the list stands alone */
-  var failed = "";          /* why 3D gave up for this visit (lost context, too slow); sticky */
+  var M = null;             /* the live world, or null while the list stands alone */
+  var W = null;             /* the world chunk's exports, once imported */
+  var ISLES = [];           /* one per chapter, in reading order (the world's layout, with the chapter and Part) */
+  var failed = "";          /* why 3D gave up for this visit (lost context, an error); sticky */
+  var slowCap = null;       /* the tier the watchdog stepped down to on this visit, if it did */
   var starting = false;
+  var choice = null;        /* the last detectTier() answer */
+  var probe = null;
 
   /* -------------------------------------------------------------- helpers -- */
 
@@ -72,18 +85,16 @@
     return p && typeof p === "object" ? p : {};
   }
 
-  /* should 3D be tried at all right now? */
-  function wanted() {
-    if (failed) return false;
-    var p = prefs();
-    if (p.map === "list") return false;
-    /* Graphics quality Low in the settings sheet keeps the list (the other tiers are for
-       the 3D world, which reads them itself) */
-    if (p.gfx === "low") return false;
-    if (!BM3D.supported()) return false;
-    /* a low-end device gets the list unless the person switched the map on themselves */
-    if (p.map !== "3d" && BM3D.lowEnd && BM3D.lowEnd()) return false;
-    return true;
+  /* which tier, and why: src/world/tiers.ts, held to what the watchdog allowed on this visit */
+  function decide() {
+    if (failed) return { tier: "list", why: failed, chosen: false };
+    if (!probe) probe = readProbe(BM3D);
+    var c = detectTier(probe, prefs());
+    if (slowCap && c.tier !== "list" && lower(c.tier, slowCap) === slowCap && slowCap !== c.tier) {
+      c = { tier: slowCap, why: slowCap === "list" ? "slow" : "settled", chosen: c.chosen };
+    }
+    choice = c;
+    return c;
   }
 
   var reduceQuery = window.matchMedia ? window.matchMedia("(prefers-reduced-motion: reduce)") : null;
@@ -100,28 +111,16 @@
     var r = Q && Q.regions && Q.regions[part.id];
     return (r && r.name) || REGIONS[part.id] || part.name;
   }
+  function motif(part) {
+    var Q = window.BM_QUEST;
+    var r = Q && Q.regions && Q.regions[part.id];
+    return r && r.motif;
+  }
   function chapterName(ch) {
     if (window.BMSite && window.BMSite.chapterName) return window.BMSite.chapterName(ch);
     return ch.label === "Interlude" ? "Interlude" : "Chapter " + ch.label;
   }
 
-  /* -------------------------------------------------------- course layout -- */
-
-  /* one island per chapter, in reading order, with its place on the snake */
-  var ISLES = [];
-  var REVIEW = {};          /* part id → index of the island whose chapter carries #review */
-  C.parts.forEach(function (part, p) {
-    var n = part.chapters.length, dir = p % 2 === 0 ? 1 : -1;
-    part.chapters.forEach(function (ch, j) {
-      ISLES.push({
-        id: ch.id, ch: ch, part: part, p: p, j: j, n: n,
-        x: (j - (n - 1) / 2) * STEP_X * dir, y: ROW_Y * p, z: -ROW_Z * p
-      });
-      var hasReview = (ch.sections || []).some(function (s) { return s.id === "review"; });
-      if (hasReview) REVIEW[part.id] = ISLES.length - 1;
-    });
-    if (REVIEW[part.id] === undefined && n) REVIEW[part.id] = ISLES.length - 1;
-  });
   function isleIndex(id) {
     for (var i = 0; i < ISLES.length; i++) if (ISLES[i].id === id) return i;
     return -1;
@@ -137,57 +136,14 @@
     var li = host.querySelector('li.stop[data-state="current"]');
     return li ? li.getAttribute("data-chapter") : null;
   }
-  function sideBySide() {
-    var a = box.getBoundingClientRect(), b = host.getBoundingClientRect();
-    return a.width > 0 && a.right <= b.left + 1;
-  }
 
-  /* --------------------------------------------------------------- colours -- */
+  /* ------------------------------------------------------------ the box ---- */
 
-  /* the tokens are read from probes inside the map, so the per-Part blocks and the
-     theme and panel blocks of src/styles/tokens.css apply exactly as they do to the list */
-  function readPalette(T) {
-    var probe = box.querySelector(".map3d-probe");
-    function tok(el, name) {
-      var v = window.getComputedStyle(el).getPropertyValue(name).trim();
-      var c = new T.Color(0.5, 0.5, 0.5);
-      if (/^#[0-9a-f]{3,8}$/i.test(v) || /^rgb/i.test(v)) {
-        if (/^#[0-9a-f]{8}$/i.test(v)) v = v.slice(0, 7);
-        c.setStyle(v);
-      }
-      return c;
-    }
-    var pal = {
-      ink: tok(probe, "--plot-ink"), ground: tok(probe, "--plot-ground"), paper: tok(probe, "--surface"),
-      under: tok(probe, "--surface-2"), stone: tok(probe, "--border-strong"), ok: tok(probe, "--ok"),
-      hot: tok(probe, "--plot-hot"), accent: tok(probe, "--accent"), parts: {}
-    };
-    Array.prototype.forEach.call(probe.querySelectorAll("[data-part]"), function (el) {
-      var part = tok(el, "--part");
-      pal.parts[el.getAttribute("data-part")] = {
-        part: part, soft: tok(el, "--part-soft"), deep: tok(el, "--part-deep"),
-        /* "ahead" is only a colour: the cap fades toward the ground, nothing is locked */
-        ahead: part.clone().lerp(pal.ground, 0.62)
-      };
-    });
-    return pal;
-  }
-
-  /* --------------------------------------------------------------- build ---- */
-
-  function build() {
-    /* the Three.js namespace the loader fetched (src/vendor/three.js exports what is
-       used here, by name); window.THREE is nothing */
-    var T = BM3D.THREE;
-    /* token colours go in and come out unchanged: no conversion to a working colour
-       space, and the renderer writes them as they are */
-    T.ColorManagement.enabled = false;
-
-    var renderer = new T.WebGLRenderer({ antialias: true, alpha: true, powerPreference: "low-power" });
-    renderer.outputColorSpace = T.LinearSRGBColorSpace;
-    renderer.setClearColor(new T.Color(0, 0, 0), 0);
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
-
+  /* the buttons, the stage with its "Loading" panel, and the token probes: shown as soon
+     as the device is to get 3D, so the world's place is kept while it loads and the page
+     does not jump when it arrives (only if loading fails does the box go again) */
+  function skeleton() {
+    if (box.querySelector(".map3d-stage")) return;
     var parts = "";
     C.parts.forEach(function (part, p) {
       parts += '<button type="button" class="map3d-part" data-part="' + esc(part.id) + '" data-p="' + p + '">' +
@@ -202,31 +158,50 @@
         '<div class="map3d-labels" aria-hidden="true"></div>' +
       "</div>" +
       '<div class="map3d-probe" aria-hidden="true">' + probes + "</div>";
+    box.hidden = false;
+  }
 
+  /* --------------------------------------------------------------- build ---- */
+
+  function build(c) {
+    /* the Three.js namespace the loader fetched (src/vendor/three.js exports what is
+       used here and in src/world/, by name); window.THREE is nothing */
+    var T = BM3D.THREE;
+    /* token colours go in and come out unchanged: no conversion to a working colour
+       space, and the renderer writes them as they are (as the scenes do) */
+    T.ColorManagement.enabled = false;
+    var budget = TIERS[c.tier];
+
+    var renderer = new T.WebGLRenderer({ antialias: budget.antialias, alpha: false, powerPreference: "low-power" });
+    renderer.outputColorSpace = T.LinearSRGBColorSpace;
+
+    skeleton();
     var stage = box.querySelector(".map3d-stage");
     var canvas = renderer.domElement;
     canvas.className = "map3d-canvas";
     canvas.setAttribute("aria-hidden", "true");
     stage.insertBefore(canvas, stage.firstChild);
 
-    M = {
-      T: T, renderer: renderer, canvas: canvas, stage: stage,
-      labels: box.querySelector(".map3d-labels"),
-      scene: new T.Scene(), camera: new T.PerspectiveCamera(FOV, 16 / 9, 0.5, 200),
-      geo: {}, mat: {}, pick: [], arches: [], disposables: [],
-      view: { t: new T.Vector3(), d: 18 }, viewKind: null, u: 0,
-      flight: null, raf: 0, dirty: true, lastFrame: 0, samples: [], bob: null, bobbing: false,
-      onscreen: true, hot: -1, hotHow: "", hover: -1, cur: -1, press: null, aux: null, drag: false,
-      observers: [], firstRender: false
-    };
+    var world = W.createWorld(T, {
+      course: C, motifs: C.parts.map(motif), probe: box.querySelector(".map3d-probe"), detail: budget.detail
+    });
+    ISLES = world.layout.isles.map(function (s) {
+      var part = C.parts[s.p];
+      return { id: s.id, ch: part.chapters[s.j], part: part, p: s.p, j: s.j, x: s.x, y: s.y, z: s.z };
+    });
 
-    makeMaterials();
-    makeLights();
-    makeIslands();
-    makePath();
-    makeArches();
-    makeMarkers();
-    applyPalette();
+    M = {
+      T: T, renderer: renderer, canvas: canvas, stage: stage, world: world,
+      labels: box.querySelector(".map3d-labels"),
+      scene: world.scene, camera: new T.PerspectiveCamera(FOV, 16 / 9, 0.5, 200),
+      tier: c.tier, chosen: c.chosen, budget: budget,
+      view: { t: new T.Vector3(), d: 18 }, viewKind: null, u: 0,
+      flight: null, raf: 0, dirty: true, watch: new FrameWatch(),
+      ambientUntil: 0, amb: { t: 0, last: 0, end: 0 }, bobbing: false, frames: 0,
+      onscreen: true, hot: -1, hotHow: "", hover: -1, cur: -1, press: null, aux: null, drag: false,
+      observers: [], firstRender: false, done: {}
+    };
+    world.showIdle(budget.ambient);
     refresh(true);
 
     canvas.addEventListener("webglcontextlost", onLost, false);
@@ -244,7 +219,6 @@
     });
     box.querySelector(".map3d-parts").addEventListener("click", onPartButton);
 
-    /* reveal only now that 3D is certain, so fallback users never see a box come and go */
     box.hidden = false;
     host.setAttribute("data-map", "3d");
     size();
@@ -267,199 +241,21 @@
       M.observers.push(io);
     }
     render();
-    wake();
+    stir();
   }
 
-  function track(x) { M.disposables.push(x); return x; }
-
-  function makeMaterials() {
-    var T = M.T, mat = M.mat;
-    function lambert() { return track(new T.MeshLambertMaterial({ flatShading: true })); }
-    mat.paper = lambert();
-    mat.under = lambert();
-    mat.stone = lambert();
-    mat.ok = lambert();
-    mat.hot = lambert();
-    mat.accent = lambert();
-    mat.pennant = track(new T.MeshLambertMaterial({ flatShading: true, side: T.DoubleSide }));
-    mat.inkFill = track(new T.MeshBasicMaterial());
-    mat.ink = track(new T.LineBasicMaterial({ transparent: true, opacity: 0.72 }));
-    mat.track = track(new T.LineBasicMaterial({ transparent: true, opacity: 0.9 }));
-    mat.cap = {}; mat.capAhead = {}; mat.deep = {};
-    C.parts.forEach(function (part) {
-      mat.cap[part.id] = lambert();
-      mat.capAhead[part.id] = lambert();
-      mat.deep[part.id] = lambert();
-    });
-  }
-
-  function applyPalette() {
-    var pal = readPalette(M.T), mat = M.mat;
-    mat.paper.color.copy(pal.paper);
-    mat.under.color.copy(pal.under);
-    mat.stone.color.copy(pal.stone);
-    mat.ok.color.copy(pal.ok);
-    mat.pennant.color.copy(pal.ok);
-    mat.hot.color.copy(pal.hot);
-    mat.accent.color.copy(pal.accent);
-    mat.inkFill.color.copy(pal.ink);
-    mat.ink.color.copy(pal.ink);
-    mat.track.color.copy(pal.stone);
-    C.parts.forEach(function (part) {
-      var c = pal.parts[part.id];
-      if (!c) return;
-      mat.cap[part.id].color.copy(c.part);
-      mat.capAhead[part.id].color.copy(c.ahead);
-      mat.deep[part.id].color.copy(c.deep);
-    });
-  }
-
-  /* one soft sky and one sun, tuned so a flat top face shows its token colour */
-  function makeLights() {
-    var T = M.T;
-    var sky = new T.HemisphereLight(new T.Color(1, 1, 1), new T.Color(0.72, 0.72, 0.76), 2.05);
-    var sun = new T.DirectionalLight(new T.Color(1, 1, 1), 1.25);
-    sun.position.set(-4, 10, 6);
-    M.scene.add(sky, sun);
-  }
-
-  function withEdges(geo, material, parent, pos, rot) {
-    var T = M.T;
-    var mesh = new T.Mesh(geo, material);
-    var key = geo.uuid;
-    if (!M.geo["edges-" + key]) M.geo["edges-" + key] = track(new T.EdgesGeometry(geo, 25));
-    mesh.add(new T.LineSegments(M.geo["edges-" + key], M.mat.ink));
-    if (pos) mesh.position.copy(pos);
-    if (rot) mesh.rotation.copy(rot);
-    parent.add(mesh);
-    return mesh;
-  }
-
-  function makeIslands() {
-    var T = M.T, g = M.geo;
-    g.body = track(new T.CylinderGeometry(1.25, 0.8, 0.7, 7));
-    g.cap = track(new T.CylinderGeometry(1.28, 1.28, 0.1, 7));
-    g.cone = track(new T.ConeGeometry(0.8, 1.1, 7));
-    var trackPts = [];
-    for (var k = 0; k <= 28; k++) {
-      var a = (k / 28) * Math.PI * 2;
-      trackPts.push(new T.Vector3(Math.cos(a) * 1.45, 0, Math.sin(a) * 1.45));
-    }
-    g.track = track(new T.BufferGeometry().setFromPoints(trackPts));
-
-    ISLES.forEach(function (isle, i) {
-      var grp = new T.Group();
-      grp.position.set(isle.x, isle.y, isle.z);
-      /* turn the heptagon a little per island so the row does not look stamped */
-      grp.rotation.y = (i * 0.9) % (Math.PI * 2 / 7);
-      var body = withEdges(g.body, M.mat.paper, grp);
-      var cap = withEdges(g.cap, M.mat.cap[isle.part.id], grp, new T.Vector3(0, 0.4, 0));
-      withEdges(g.cone, M.mat.under, grp, new T.Vector3(0, -0.9, 0), new T.Euler(Math.PI, 0, 0));
-      var ring = new T.LineLoop(g.track, M.mat.track);
-      ring.position.y = DECK + 0.1;
-      grp.add(ring);
-      body.userData.isle = i;
-      cap.userData.isle = i;
-      M.pick.push(body, cap);
-      isle.grp = grp;
-      isle.cap = cap;
-      isle.dyn = new T.Group();
-      isle.dyn.position.set(isle.x, isle.y, isle.z);
-      M.scene.add(grp, isle.dyn);
-    });
-  }
-
-  /* a curve through every island, with a bend between rows, and stepping stones on it */
-  function makePath() {
-    var T = M.T;
-    var pts = [];
-    C.parts.forEach(function (part, p) {
-      var row = ISLES.filter(function (s) { return s.p === p; });
-      row.forEach(function (s) { pts.push(new T.Vector3(s.x, s.y, s.z)); });
-      var last = row[row.length - 1], dir = p % 2 === 0 ? 1 : -1;
-      if (!last) return;
-      var next = ISLES.filter(function (s) { return s.p === p + 1; })[0];
-      var bend = next
-        ? new T.Vector3((last.x + next.x) / 2 + dir * 2.2, last.y + ROW_Y / 2, last.z - ROW_Z / 2)
-        : new T.Vector3(last.x + dir * 3.1, last.y, last.z);
-      pts.push(bend);
-      part.bend = bend;
-      part.bendAlong = next ? new T.Vector3(0, 0, -1) : new T.Vector3(dir, 0, 0);
-    });
-    var curve = M.curve = new T.CatmullRomCurve3(pts, false, "centripetal");
-
-    /* stones only where the path is in the open, spaced so about STONES of them fit */
-    var N = 900, sp = curve.getSpacedPoints(N), open = [], openLen = 0;
-    for (var k = 0; k <= N; k++) {
-      var q = sp[k], free = true;
-      for (var i = 0; i < ISLES.length && free; i++) {
-        var s = ISLES[i], dx = q.x - s.x, dy = q.y - s.y, dz = q.z - s.z;
-        if (dx * dx + dy * dy * 4 + dz * dz < 1.36 * 1.36) free = false;
-      }
-      open.push(free);
-      if (k && free && open[k - 1]) openLen += q.distanceTo(sp[k - 1]);
-    }
-    var gap = openLen / STONES, acc = gap / 2, placed = [];
-    for (k = 1; k <= N; k++) {
-      if (!(open[k] && open[k - 1])) continue;
-      acc += sp[k].distanceTo(sp[k - 1]);
-      if (acc >= gap) { acc -= gap; placed.push(k); }
-    }
-    M.geo.stone = track(new T.BoxGeometry(0.34, 0.1, 0.26));
-    var stones = new T.InstancedMesh(M.geo.stone, M.mat.stone, placed.length);
-    var o = new T.Object3D();
-    placed.forEach(function (k, n) {
-      var a = sp[Math.max(0, k - 1)], b = sp[Math.min(N, k + 1)];
-      o.position.set(sp[k].x, sp[k].y + DECK - 0.06, sp[k].z);
-      o.rotation.set(0, Math.atan2(b.x - a.x, b.z - a.z) + (n % 2 ? 0.12 : -0.08), 0);
-      o.updateMatrix();
-      stones.setMatrixAt(n, o.matrix);
-    });
-    M.scene.add(stones);
-    M.stoneCount = placed.length;
-  }
-
-  /* a half-torus arch after each Part's last island, linking to that Part's review set */
-  function makeArches() {
-    var T = M.T;
-    M.geo.arch = track(new T.TorusGeometry(0.95, 0.11, 6, 12, Math.PI));
-    M.geo.archHit = track(new T.BoxGeometry(2.2, 1.2, 0.6));
-    C.parts.forEach(function (part) {
-      if (!part.bend || REVIEW[part.id] === undefined) return;
-      var grp = new T.Group();
-      grp.position.set(part.bend.x, part.bend.y + DECK - 0.04, part.bend.z);
-      grp.lookAt(grp.position.clone().add(part.bendAlong));
-      var arch = withEdges(M.geo.arch, M.mat.stone, grp);
-      var hit = new T.Mesh(M.geo.archHit, M.mat.stone);
-      hit.visible = false;
-      hit.position.y = 0.5;
-      hit.userData.isle = REVIEW[part.id];
-      hit.userData.review = true;
-      grp.add(hit);
-      M.pick.push(hit);
-      M.scene.add(grp);
-      M.arches.push({ part: part, isle: REVIEW[part.id], mesh: arch });
-    });
-  }
-
-  function makeMarkers() {
-    var T = M.T, g = M.geo;
-    g.boss = track(new T.IcosahedronGeometry(0.42, 0));
-    g.star = track(new T.OctahedronGeometry(0.26, 0));
-    g.marker = track(new T.OctahedronGeometry(0.3, 0));
-    g.pole = track(new T.CylinderGeometry(0.04, 0.04, 1.5, 5));
-    var shape = new T.Shape();
-    shape.moveTo(0, 0); shape.lineTo(0.78, -0.22); shape.lineTo(0, -0.46); shape.lineTo(0, 0);
-    g.pennant = track(new T.ShapeGeometry(shape));
-    g.select = track(new T.TorusGeometry(1.66, 0.03, 4, 28));
-    g.ring = {};
-
-    M.marker = withEdges(g.marker, M.mat.accent, M.scene);
-    M.marker.scale.set(1, 1.45, 1);
-    M.select = new T.Mesh(g.select, M.mat.inkFill);
-    M.select.rotation.x = -Math.PI / 2;
-    M.select.visible = false;
-    M.scene.add(M.select);
+  /* another tier on a live world: the props rebuilt for its detail, its pixel ratio, its idle motion */
+  function applyTier(c) {
+    if (!M || c.tier === M.tier) { if (M) M.chosen = c.chosen; return; }
+    M.tier = c.tier;
+    M.chosen = c.chosen;
+    M.budget = TIERS[c.tier];
+    M.world.setDetail(M.budget.detail);
+    M.world.showIdle(M.budget.ambient);
+    if (!M.budget.ambient) rest();
+    M.watch.reset();
+    size();
+    request();
   }
 
   /* ---------------------------------------------- progress (the dynamic bits) -- */
@@ -473,66 +269,28 @@
 
   function refresh(quiet) {
     if (!M) return;
-    var T = M.T, g = M.geo, mat = M.mat;
     var P = window.BMProgress;
     var curId = currentId();
     M.cur = curId ? isleIndex(curId) : -1;
     M.done = {};
+    var states = [], ahead = [];
     ISLES.forEach(function (isle, i) {
       var c = P && P.count ? P.count(isle.id) : { solved: 0, total: 0 };
       var total = c.total || 0, solved = Math.min(c.solved || 0, total);
       var done = total > 0 && solved >= total;
-      var pct = total ? solved / total : 0;
       M.done[isle.id] = done;
-      var ahead = !done && i !== M.cur && !solved;
-      isle.cap.material = ahead ? mat.capAhead[isle.part.id] : mat.cap[isle.part.id];
-
-      /* clear last time's ring, boss, flag and stars */
-      var dyn = isle.dyn;
-      while (dyn.children.length) dyn.remove(dyn.children[0]);
-
-      if (pct > 0) {
-        var segs = Math.max(2, Math.ceil(24 * pct));
-        var key = segs + ":" + pct.toFixed(3);
-        if (!g.ring[key]) g.ring[key] = track(new T.TorusGeometry(1.45, 0.05, 6, segs, Math.PI * 2 * pct));
-        var ring = new T.Mesh(g.ring[key], mat.ok);
-        ring.rotation.set(-Math.PI / 2, 0, Math.PI / 2);
-        ring.position.y = DECK + 0.1;
-        ring.userData.kind = "ring";
-        dyn.add(ring);
-      }
-      if (done) {
-        var pole = new T.Mesh(g.pole, mat.inkFill);
-        pole.position.set(-0.5, DECK + 0.8, -0.4);
-        var flag = withEdges(g.pennant, mat.pennant, dyn, new T.Vector3(-0.47, DECK + 1.52, -0.4));
-        flag.rotation.y = -0.35;
-        flag.userData.kind = "flag";
-        dyn.add(pole);
-        var stars = clamp(medalFor(isle.id) || 1, 1, 3);
-        for (var s = 0; s < stars; s++) {
-          var star = withEdges(g.star, mat.hot, dyn, new T.Vector3(0.2 + (s - (stars - 1) / 2) * 0.58, DECK + 0.72, 0.3));
-          star.rotation.y = 0.4;
-          star.userData.kind = "star";
-        }
-      } else {
-        /* the boss is the unsolved part of the set: it shrinks as problems fall */
-        var left = total ? (total - solved) / total : 1;
-        var boss = withEdges(g.boss, mat.deep[isle.part.id], dyn, new T.Vector3(0, DECK + 1.05, 0));
-        boss.scale.setScalar(Math.max(0.28, left));
-        boss.rotation.set(0.4, i * 0.7, 0.2);
-        boss.userData.kind = "boss";
-      }
+      /* "ahead" is only a colour: the cap fades toward the ground, nothing is locked */
+      ahead.push(!done && i !== M.cur && !solved);
+      states.push({ pct: total ? solved / total : 0, done: done, stars: clamp(medalFor(isle.id) || 1, 1, 3) });
     });
-
-    M.arches.forEach(function (a) {
-      a.mesh.material = M.done[ISLES[a.isle].id] ? mat.hot : mat.stone;
-    });
+    var gates = M.world.layout.gates.map(function (g) { return !!M.done[ISLES[g.isle].id]; });
+    M.world.setProgress(states, ahead, gates);
 
     if (M.cur > -1) {
-      M.marker.visible = true;
+      M.world.marker.visible = true;
       markerAt(0);
     } else {
-      M.marker.visible = false;
+      M.world.marker.visible = false;
     }
     markList();
     if (!quiet) request();
@@ -544,8 +302,8 @@
     var isle = ISLES[M.cur];
     if (!isle) return;
     var lift = M.done[isle.id] ? 1.75 : 2.05;
-    M.marker.position.set(isle.x, isle.y + DECK + lift + Math.sin(b * Math.PI * 2) * 0.12, isle.z);
-    M.marker.rotation.y = 0.4 + (1 - Math.cos(b * Math.PI)) / 2 * Math.PI / 2;
+    M.world.marker.position.set(isle.x, isle.y + W.DECK + lift + Math.sin(b * Math.PI * 2) * 0.12, isle.z);
+    M.world.marker.rotation.y = 0.4 + (1 - Math.cos(b * Math.PI)) / 2 * Math.PI / 2;
   }
 
   /* the list item that matches the selected island carries a quiet highlight */
@@ -562,6 +320,7 @@
   /* ---------------------------------------------------------------- camera -- */
 
   var DIR = [0.1, 0.68, 0.73];
+  var PART_BACK = 1.4;      /* a Part's view looks this far behind its row */
 
   function fitDist(width) {
     var tanv = Math.tan((FOV / 2) * Math.PI / 180);
@@ -570,10 +329,11 @@
   function partView(p) {
     var row = ISLES.filter(function (s) { return s.p === p; });
     /* every Part is framed at the scale of the longest row, so flying between them does not zoom */
-    var span = Math.max(4, row.length - 1) * STEP_X + 3.6;
+    var span = Math.max(4, row.length - 1) * W.STEP_X + 3.6;
+    /* the whole terrace in view, with the next one rising behind it */
     return {
-      t: new M.T.Vector3(0, ROW_Y * p + 1, -ROW_Z * p - 2.8),
-      d: clamp(fitDist(span) * 1.25, 12, 30), kind: "part", p: p
+      t: new M.T.Vector3(0, W.ROW_Y * p + 0.6, -W.ROW_Z * p - PART_BACK),
+      d: clamp(fitDist(span) * 1.45, 14, 34), kind: "part", p: p
     };
   }
   function isleView(i) {
@@ -588,6 +348,8 @@
     c.position.set(v.t.x + DIR[0] * v.d, v.t.y + DIR[1] * v.d, v.t.z + DIR[2] * v.d);
     c.lookAt(v.t);
     c.updateMatrixWorld();
+    /* the sky and fog of the region below the camera's target, mixed between two */
+    M.world.atmosphere(v.t.z + PART_BACK, v.d);
   }
   function firstView() {
     var v = M.cur > -1
@@ -618,18 +380,19 @@
     if (v) { M.view.t.copy(v.t); M.view.d = v.d; }
     place();
   }
-  /* where on the path the view now sits, so a drag continues from here */
+  /* where on the path the view now sits, so a drag continues from here; and the idle
+     motion starts again, as after any input */
   function settle() {
-    var best = 0, bd = Infinity, N = 240;
+    var best = 0, bd = Infinity, N = 240, curve = M.world.curve();
     for (var k = 0; k <= N; k++) {
-      var q = M.curve.getPointAt(k / N);
+      var q = curve.getPointAt(k / N);
       var dd = (q.x - M.view.t.x) * (q.x - M.view.t.x) + (q.z - 1.6 - M.view.t.z) * (q.z - 1.6 - M.view.t.z) +
         (q.y + 1.3 - M.view.t.y) * (q.y + 1.3 - M.view.t.y);
       if (dd < bd) { bd = dd; best = k / N; }
     }
     M.u = best;
-    if (!still()) M.bob = { start: 0 };
-    var p = Math.round(clamp(-M.view.t.z / ROW_Z, 0, C.parts.length - 1));
+    stir();
+    var p = Math.round(clamp(-(M.view.t.z + PART_BACK) / W.ROW_Z, 0, C.parts.length - 1));
     Array.prototype.forEach.call(box.querySelectorAll(".map3d-part"), function (b) {
       if (+b.getAttribute("data-p") === p) b.setAttribute("data-on", "true");
       else b.removeAttribute("data-on");
@@ -641,6 +404,7 @@
   function size() {
     var w = M.stage.clientWidth, h = M.stage.clientHeight;
     if (!w || !h) return;
+    M.renderer.setPixelRatio(pixelRatio(M.budget, window.devicePixelRatio || 1, w, h));
     M.renderer.setSize(w, h, false);
     M.camera.aspect = w / h;
     M.camera.updateProjectionMatrix();
@@ -652,6 +416,7 @@
     if (!M) return;
     M.dirty = false;
     M.renderer.render(M.scene, M.camera);
+    M.frames++;
     placeLabels();
     if (!M.firstRender) {
       M.firstRender = true;
@@ -660,7 +425,25 @@
   }
 
   function canAnimate() { return M && M.onscreen && !document.hidden; }
-  function wantsBob() { return M && M.bob && M.marker.visible && !still() && !M.flight && !M.drag; }
+
+  /* Idle motion: on a tier that has it, for AMBIENT_MS after the last input (stir), then
+     to the end of the marker's bob, so it comes to rest where it began; never while the
+     camera flies or is dragged, and never under reduced motion or in Study mode. */
+  function stir() {
+    if (!M || !M.budget.ambient || still()) return;
+    M.ambientUntil = now() + AMBIENT_MS;
+    M.amb.end = 0;
+    wake();
+  }
+  function ambient() { return M && M.ambientUntil > 0 && M.budget.ambient && !still() && !M.flight && !M.drag; }
+  /* at rest: the marker where it began, the props as they stand */
+  function rest() {
+    if (!M) return;
+    M.ambientUntil = 0;
+    M.amb.last = 0;
+    M.amb.end = 0;
+    if (M.bobbing) { M.bobbing = false; markerAt(0); }
+  }
 
   /* draw once soon (render on demand) */
   function request() {
@@ -670,7 +453,7 @@
   }
   function wake() {
     if (!M || M.raf || !canAnimate()) return;
-    if (!M.dirty && !M.flight && !wantsBob()) return;
+    if (!M.dirty && !M.flight && !ambient()) return;
     M.raf = window.requestAnimationFrame(frame);
   }
 
@@ -688,52 +471,54 @@
       place();
       if (k >= 1) { M.flight = null; settle(); } else more = true;
     }
-    if (wantsBob()) {
-      if (!M.bob.start) M.bob.start = t;
-      var b = (t - M.bob.start) / BOB_MS;
-      if (b < 1) {
-        markerAt(b);
+    if (ambient()) {
+      var a = M.amb;
+      if (a.last) a.t += Math.min(t - a.last, 100);
+      a.last = t;
+      var end = false;
+      if (now() >= M.ambientUntil) {
+        if (!a.end) a.end = Math.ceil(a.t / BOB_MS) * BOB_MS;
+        if (a.t >= a.end) { a.t = a.end; end = true; }
+      }
+      M.world.idle(a.t, true);
+      if (end) {
+        M.bobbing = true;
+        rest();
+      } else {
+        if (M.world.marker.visible) markerAt((a.t % BOB_MS) / BOB_MS);
         M.bobbing = true;
         more = true;
-      } else {
-        M.bob = null;
-        M.bobbing = false;
-        markerAt(0);
       }
     } else if (M.bobbing) {
-      M.bob = null;
-      M.bobbing = false;
-      markerAt(0);
+      rest();
     }
     render();
-    if (more) watchdog(t);
-    else M.lastFrame = 0;
+    if (!M) return;
+    if (more) {
+      if (M.watch.push(t)) { degrade(); return; }
+    } else {
+      M.watch.stop();
+    }
     if (M && (more || M.dirty) && canAnimate()) M.raf = window.requestAnimationFrame(frame);
-    else if (M) M.lastFrame = 0;
+    else if (M) M.watch.stop();
   }
 
-  /* too slow to be pleasant: first drop to one device pixel, then give the list back */
-  function watchdog(t) {
-    /* a gap of over a second is a pause (a held frame, a long task), not a slow frame */
-    if (M.lastFrame && t - M.lastFrame < 1000) {
-      M.samples.push(t - M.lastFrame);
-      if (M.samples.length >= 60) {
-        var sum = 0;
-        M.samples.forEach(function (d) { sum += d; });
-        M.samples = [];
-        if (sum / 60 > 50) {
-          if (M.renderer.getPixelRatio() > 1) {
-            M.renderer.setPixelRatio(1);
-            size();
-          } else {
-            failed = "slow";
-            teardown();
-            return;
-          }
-        }
-      }
+  /* Too slow to be pleasant: one tier down (src/world/tiers.ts), the list after low.
+     When the tier was the device's (not the learner's choice), the tier it settles on is
+     kept in bm.prefs.v1 gfxAuto, this device's alone, so the next visit starts there. */
+  function degrade() {
+    var next = stepDown(M.tier);
+    slowCap = next;
+    if (!M.chosen && window.BMGame && typeof window.BMGame.setPref === "function") {
+      try { window.BMGame.setPref("gfxAuto", next); } catch (e) { /* kept for the visit only */ }
     }
-    M.lastFrame = t;
+    if (!M) return;
+    if (next === "list") {
+      failed = "slow";
+      teardown();
+      return;
+    }
+    applyTier({ tier: next, why: "slow", chosen: M.chosen });
   }
 
   /* labels: only the selected or hovered island and the current one, as HTML plates */
@@ -759,8 +544,8 @@
     var sizes = Array.prototype.map.call(M.labels.children, function (el) { return { half: el.offsetWidth / 2, tall: el.offsetHeight }; });
     Array.prototype.forEach.call(M.labels.children, function (el, n) {
       var s = ISLES[+el.getAttribute("data-i")];
-      var lift = el.getAttribute("data-kind") === "current" ? (M.done[s.id] ? 2.35 : 2.65) : (M.done[s.id] ? 1.85 : 1.85);
-      var v = new M.T.Vector3(s.x, s.y + DECK + lift, s.z).project(M.camera);
+      var lift = el.getAttribute("data-kind") === "current" ? (M.done[s.id] ? 2.35 : 2.65) : 1.85;
+      var v = new M.T.Vector3(s.x, s.y + W.DECK + lift, s.z).project(M.camera);
       var x = (v.x + 1) / 2 * w, y = (1 - v.y) / 2 * h;
       var off = v.z > 1 || x < -40 || x > w + 40 || y < 0 || y > h + 20;
       el.style.visibility = off ? "hidden" : "visible";
@@ -773,10 +558,10 @@
   /* -------------------------------------------------------- selection ------ */
 
   function highlight(i) {
-    var s = ISLES[i];
-    if (!s) { M.select.visible = false; return; }
-    M.select.visible = true;
-    M.select.position.set(s.x, s.y + DECK + 0.1, s.z);
+    var s = ISLES[i], sel = M.world.select;
+    if (!s) { sel.visible = false; return; }
+    sel.visible = true;
+    sel.position.set(s.x, s.y + W.DECK + 0.1, s.z);
   }
   function select(i, how) {
     if (!M || i < 0) return;
@@ -824,13 +609,14 @@
     if (M && M.hotHow === "hover") unselect();
   });
 
-  /* map → list */
+  /* map → list: the pointer is tested against invisible stand-ins for the islands and the
+     gates (src/world/regions.ts), since everything drawn is one merged mesh */
   function pickAt(clientX, clientY) {
     var r = M.canvas.getBoundingClientRect();
     var ndc = new M.T.Vector2((clientX - r.left) / r.width * 2 - 1, -((clientY - r.top) / r.height) * 2 + 1);
     var ray = new M.T.Raycaster();
     ray.setFromCamera(ndc, M.camera);
-    var hits = ray.intersectObjects(M.pick, false);
+    var hits = ray.intersectObjects(M.world.pick(), false);
     return hits.length ? hits[0].object.userData : null;
   }
   function hrefFor(hit) {
@@ -843,6 +629,7 @@
     if (!M || (e.button !== undefined && e.button !== 0)) return;
     M.press = { id: e.pointerId, x: e.clientX, y: e.clientY, lx: e.clientX, type: e.pointerType, moved: false, far: false,
       hit: pickAt(e.clientX, e.clientY) };
+    stir();
   }
   function onMove(e) {
     if (!M) return;
@@ -875,6 +662,7 @@
         highlight(i > -1 ? i : M.hot);
         request();
       }
+      stir();
     }
   }
   function onUp(e) {
@@ -909,7 +697,6 @@
     if (a) {
       try { a.focus({ preventScroll: true }); } catch (err) { a.focus(); }
       M.hotHow = "tap";
-      if (sideBySide() && a.scrollIntoView) a.scrollIntoView({ block: "nearest" });
     }
   }
   function sameHit(a, b) { return !!b && a.isle === b.isle && !!a.review === !!b.review; }
@@ -946,7 +733,7 @@
   /* a horizontal drag slides the view along the path, the content following the pointer */
   function pan(dx) {
     if (!dx) return;
-    var c = M.curve, u = M.u, eps = 0.004;
+    var c = M.world.curve(), u = M.u, eps = 0.004;
     var a = c.getPointAt(clamp(u - eps, 0, 1)).project(M.camera);
     var b = c.getPointAt(clamp(u + eps, 0, 1)).project(M.camera);
     var pxPerU = ((b.x - a.x) / 2) * M.stage.clientWidth / (2 * eps);
@@ -960,6 +747,7 @@
     request();
   }
 
+  /* a Part's button flies to its region; the world is above the list, so the page stays where it is */
   function onPartButton(e) {
     if (!M) return;
     var b = closest(e.target, ".map3d-part");
@@ -969,9 +757,6 @@
     Array.prototype.forEach.call(box.querySelectorAll(".map3d-part"), function (x) {
       if (x === b) x.setAttribute("data-on", "true"); else x.removeAttribute("data-on");
     });
-    /* beside the list, bring that Part's heading up too; stacked, the map is what you are looking at */
-    var h = document.getElementById("part-" + C.parts[p].id);
-    if (h && sideBySide()) h.scrollIntoView({ block: "start", behavior: still() ? "auto" : "smooth" });
   }
 
   /* -------------------------------------------------------- lifecycle ------ */
@@ -990,7 +775,7 @@
       m.observers.forEach(function (o) { o.disconnect(); });
       window.removeEventListener("resize", onWindowResize);
       m.canvas.removeEventListener("webglcontextlost", onLost, false);
-      m.disposables.forEach(function (x) { if (x && x.dispose) x.dispose(); });
+      try { m.world.dispose(); } catch (e) { /* already gone */ }
       try { m.renderer.dispose(); } catch (e) { /* already gone */ }
       Array.prototype.forEach.call(host.querySelectorAll("li.stop[data-map-hot]"), function (li) {
         li.removeAttribute("data-map-hot");
@@ -1002,14 +787,34 @@
     host.removeAttribute("data-map");
   }
 
+  /* the world's chunk, imported once (a second call shares the first) */
+  var importing = null;
+  function loadWorld() {
+    if (!importing) {
+      importing = import("../src/world/index.ts").then(function (ns) { W = ns; return true; }, function () { return false; });
+    }
+    return importing;
+  }
+
   function boot() {
-    if (M || starting || !wanted()) return;
+    if (M || starting) return;
+    var c = decide();
+    if (c.tier === "list") return;
     starting = true;
-    BM3D.load().then(function (ok) {
+    skeleton();
+    /* Three.js and the world's own chunk are fetched side by side */
+    Promise.all([BM3D.load(), loadWorld()]).then(function (r) {
       starting = false;
-      if (!ok || M || !wanted()) return;
+      var ok = r[0], world = r[1];
+      if (M) return;
+      var now2 = decide();
+      if (!ok || !world || now2.tier === "list") {
+        if (ok && !world) failed = "cdn";
+        teardown();
+        return;
+      }
       try {
-        build();
+        build(now2);
       } catch (e) {
         failed = "error";
         if (window.console) console.warn("[BM] course map unavailable, showing the list", e);
@@ -1024,12 +829,20 @@
     clearTimeout(refreshTimer);
     refreshTimer = setTimeout(function () { refresh(); }, 0);
   }
+  /* the gfx and map settings last seen, so a choice the learner makes lifts the watchdog's cap */
+  function asked() { var p = prefs(); return String(p.gfx || "") + "/" + String(p.map || ""); }
+  var lastAsked = asked();
   if (window.BMStore && window.BMStore.on) {
     window.BMStore.on(function (c) {
       if (!c) return;
       if (c.type === "prefs") {
-        if (M && !wanted()) teardown();
-        else if (!M) boot();
+        var seen = asked();
+        if (seen !== lastAsked) slowCap = null;
+        lastAsked = seen;
+        var next = decide();
+        if (next.tier === "list") { if (M || starting) teardown(); return; }
+        if (M) applyTier(next);
+        else boot();
         return;
       }
       if (!M) return;
@@ -1040,15 +853,15 @@
   }
 
   /* theme, the reading panel, calm mode and the sheet's Reduce motion live on <html>; the
-     device's reduced motion on the media query. The map is on the panel, so it takes the
-     panel's paper: its palette is read again when the theme or the panel changes */
+     device's reduced motion on the media query. The world reads its colours from the
+     panel's tokens (the islands) and the theme's (the regions), so its palette is read
+     again when either changes */
   if (window.MutationObserver) {
     new MutationObserver(function (list) {
       if (!M) return;
       var theme = list.some(function (m) { return m.attributeName === "data-theme" || m.attributeName === "data-panel"; });
-      if (theme) applyPalette();
-      if (still()) M.bob = null;
-      if (M.bobbing && !wantsBob()) { M.bobbing = false; markerAt(0); }
+      if (theme) { M.world.repaint(); place(); }
+      if (still()) rest();
       if (M.flight && still()) jump(M.flight.v);
       request();
     }).observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme", "data-panel", "data-calm", "data-motion"] });
@@ -1056,9 +869,8 @@
   if (reduceQuery) {
     var onReduce = function () {
       if (!M) return;
-      if (still()) M.bob = null;
+      if (still()) rest();
       if (M.flight && still()) jump(M.flight.v);
-      markerAt(0);
       request();
     };
     if (reduceQuery.addEventListener) reduceQuery.addEventListener("change", onReduce);
@@ -1067,15 +879,19 @@
   document.addEventListener("visibilitychange", function () {
     if (!M) return;
     /* the time spent hidden is not frame time */
-    M.lastFrame = 0;
-    M.samples = [];
+    M.watch.reset();
+    M.amb.last = 0;
     if (!document.hidden) wake();
   });
 
   /* a small handle for the checks in tools/ and for curious readers of the console */
   window.BMMap3D = {
     on: function () { return !!M; },
-    why: function () { return M ? "" : failed || BM3D.why || (prefs().map === "list" ? "list" : prefs().gfx === "low" ? "gfx-low" : ""); },
+    why: function () {
+      if (M) return "";
+      var c = choice || decide();
+      return failed || BM3D.why || (c.tier === "list" ? c.why : "");
+    },
     info: function () {
       if (!M) return null;
       var tris = 0;
@@ -1084,28 +900,22 @@
         var g = o.geometry, n = g.index ? g.index.count / 3 : g.attributes.position.count / 3;
         tris += n * (o.isInstancedMesh ? o.count : 1);
       });
-      /* calls: the draw calls of the last frame, as the renderer counted them */
+      /* calls: the draw calls of the last frame, as the renderer counted them; frames: frames drawn since the world was built */
       var ri = M.renderer.info && M.renderer.info.render;
-      return { triangles: Math.round(tris), stones: M.stoneCount, current: M.cur > -1 ? ISLES[M.cur].id : null,
+      return { triangles: Math.round(tris), stones: M.world.stones(), current: M.cur > -1 ? ISLES[M.cur].id : null,
         hot: M.hot > -1 ? ISLES[M.hot].id : null, flying: !!M.flight, bobbing: !!M.bobbing,
-        pixelRatio: M.renderer.getPixelRatio(), calls: ri ? ri.calls : null, isles: kinds() };
+        pixelRatio: M.renderer.getPixelRatio(), calls: ri ? ri.calls : null, isles: M.world.kinds(),
+        tier: M.tier, reason: choice ? choice.why : "", ambient: !!M.budget.ambient, budget: M.budget, frames: M.frames };
     },
     /* where an island sits on screen, in client pixels */
     where: function (id) {
       var i = isleIndex(id);
       if (!M || i < 0) return null;
       var s = ISLES[i], r = M.canvas.getBoundingClientRect();
-      var v = new M.T.Vector3(s.x, s.y + DECK, s.z).project(M.camera);
+      var v = new M.T.Vector3(s.x, s.y + W.DECK, s.z).project(M.camera);
       return { x: r.left + (v.x + 1) / 2 * r.width, y: r.top + (1 - v.y) / 2 * r.height };
     }
   };
-  function kinds() {
-    var out = {};
-    ISLES.forEach(function (s) {
-      out[s.id] = s.dyn.children.map(function (o) { return o.userData.kind || ""; }).filter(Boolean).join(",");
-    });
-    return out;
-  }
 
   boot();
 })();

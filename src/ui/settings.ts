@@ -28,6 +28,8 @@ interface Prefs {
   motion?: "reduce";
   transparency?: "reduce";
   gfx?: "low" | "mid" | "high";
+  /** the tier the course world's watchdog settled on (src/world/tiers.ts) */
+  gfxAuto?: "list" | "low" | "medium";
 }
 interface Game {
   prefs(): Prefs;
@@ -86,8 +88,7 @@ export function mountSettings(doc: Document = document): boolean {
           : name === "sound" ? soundOn
           : name === "motion" || name === "transparency" ? p[name] === "reduce" || forced[name]
           : !!(p as unknown as Record<string, unknown>)[name];
-        input.disabled = (name === "sound" && p.calm) || (name === "map3d" && p.gfx === "low") ||
-          ((name === "motion" || name === "transparency") && forced[name]);
+        input.disabled = (name === "sound" && p.calm) || ((name === "motion" || name === "transparency") && forced[name]);
         input.setAttribute("aria-checked", input.checked ? "true" : "false");
       } else if (input.type === "radio") {
         const value = name === "theme" ? (site && site.theme ? site.theme() : "system")

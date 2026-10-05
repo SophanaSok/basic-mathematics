@@ -66,17 +66,22 @@ const RUNTIME = BUNDLE + "rolldown-runtime.js";
 /* The chunks a dynamic import makes, each under its module's name: the WebGL painter,
    which scenes3d.js imports when a scene nears the screen; Three.js, which
    three-loader.js imports when a scene or the course map does, through
-   src/vendor/three.js; and supabase-js, which account.js imports when it first wants a
+   src/vendor/three.js; supabase-js, which account.js imports when it first wants a
    client (on the account page, or where a session is stored), through
-   src/vendor/supabase.js. `by` is the importer: a page whose entry imports it must reach
-   the chunk through the import(), and no page's HTML may name the chunk, since only that
-   import() is to fetch it (a signed-out reader on an ordinary page never downloads
-   supabase-js, and a page with no 3D never downloads Three.js; tools/game/account.test.js
-   and the pages suite of check-browser.js watch the requests). */
+   src/vendor/supabase.js; and the course world, which map3d.js imports once the
+   contents page is to draw it in 3D: src/world/index.ts with the modules of src/world/
+   it imports (`dir`: those may be in the chunk too, all but one an entry imports, which
+   goes with that entry's chunks). `by` is the importer: a page whose entry imports it
+   must reach the chunk through the import(), and no page's HTML may name the chunk,
+   since only that import() is to fetch it (a signed-out reader on an ordinary page
+   never downloads supabase-js, and a page with no 3D never downloads Three.js or the
+   world; tools/game/account.test.js, tools/game/map.test.js and the pages suite of
+   check-browser.js watch the requests). */
 const ON_DEMAND = [
   { chunk: BUNDLE + "scenes3d-gl.js", module: "assets/scenes3d-gl.js", by: "assets/scenes3d.js" },
   { chunk: BUNDLE + "three.js", module: vendor.DIR + "/three.js", by: "assets/three-loader.js" },
-  { chunk: BUNDLE + "supabase.js", module: vendor.DIR + "/supabase.js", by: "assets/account.js" }
+  { chunk: BUNDLE + "supabase.js", module: vendor.DIR + "/supabase.js", by: "assets/account.js" },
+  { chunk: BUNDLE + "world.js", module: "src/world/index.ts", by: "assets/map3d.js", dir: "src/world/" }
 ];
 const onDemand = (f) => ON_DEMAND.some(d => d.chunk === f);
 /* the kinds a chunk or stylesheet bundle/<name>.<ext> says load it, or null for a
@@ -461,6 +466,7 @@ function checkScripts(ctx, r) {
     refs.filter(onDemand).forEach(f => r.fail(p + " names " + f + ", which only the import() of " + ON_DEMAND.find(d => d.chunk === f).by + " is to fetch; a signed-out reader on an ordinary page must not download it"));
   });
   /* the on-demand chunks, once each */
+  const loadedAnywhere = kindsLoading();
   ON_DEMAND.forEach(d => {
     r.count++;
     if (!ctx.files.includes(d.chunk)) { r.fail(d.chunk + " is not in dist; " + d.by + " imports " + d.module + " on demand, so the build makes it a chunk under that name"); return; }
@@ -468,10 +474,11 @@ function checkScripts(ctx, r) {
     if (!inside.includes(d.module)) r.fail(d.chunk + " is not built from " + d.module + " (its source map names " + inside.join(", ") + ")");
     const strays = inside.filter(s => {
       if (s === d.module) return false;
+      if (d.dir && s.startsWith(d.dir) && !IN_NODE_MODULES.test(s)) return !!loadedAnywhere(s);
       if (!IN_NODE_MODULES.test(s) || !d.module.startsWith(vendor.DIR + "/")) return true;
       try { return vendor.vendorOf(s).file !== d.module; } catch (e) { return true; }
     });
-    if (strays.length) r.fail(d.chunk + " holds more than " + d.module + (d.module.startsWith(vendor.DIR + "/") ? " and the files of its packages" : "") + ": " + strays.join(", "));
+    if (strays.length) r.fail(d.chunk + " holds more than " + d.module + (d.module.startsWith(vendor.DIR + "/") ? " and the files of its packages" : d.dir ? " and the modules of " + d.dir + " no entry imports" : "") + ": " + strays.join(", "));
   });
   /* the copies are gone */
   formerCopies().forEach(f => {

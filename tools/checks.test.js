@@ -299,16 +299,18 @@ function refusal(fn) { try { fn(); return null; } catch (e) { return e.message; 
   check(/^\^0\.\d+\.\d+$/.test(deps.dependencies.three || "") && (deps.devDependencies["@types/three"] || "").split(".")[1] === deps.dependencies.three.split(".")[1], "package.json holds three to a minor (a caret on 0.x is that), and @types/three is of the same minor: " + deps.dependencies.three + ", " + deps.devDependencies["@types/three"]);
 
   /* Three.js is re-exported by name, and the names are exactly what the scripts use,
-     so the lazy chunk is what the map and the GL painter need and nothing more: every
-     T.<Name> in map3d.js and THREE.<Name> in scenes3d-gl.js (the two readers of
-     BM3D.THREE), and every name src/vendor/three.js exports, must be the same set */
+     so the lazy chunk is what the course world and the GL painter need and nothing more:
+     every T.<Name> in map3d.js and src/world/*.ts and THREE.<Name> in scenes3d-gl.js (the
+     readers of BM3D.THREE), and every name src/vendor/three.js exports, must be the same set */
   const threeVendor = fs.readFileSync(path.join(site.ROOT, "src/vendor/three.js"), "utf8").replace(/\/\*[\s\S]*?\*\//g, "");
   const exported = threeVendor.match(/^export \{[^}]*\} from "three";$/gm).flatMap(line => line.replace(/^export \{|\} from "three";$/g, "").split(",").map(s => s.trim()).filter(Boolean));
   const used = new Set();
-  ["assets/map3d.js", "assets/scenes3d-gl.js"].forEach(f => {
+  const worldFiles = fs.readdirSync(path.join(site.ROOT, "src/world")).filter(f => /\.ts$/.test(f) && !/\.(test|test-helper|d)\.ts$/.test(f)).map(f => "src/world/" + f);
+  check(worldFiles.length > 0, "src/world/ holds the world's modules");
+  ["assets/map3d.js", "assets/scenes3d-gl.js"].concat(worldFiles).forEach(f => {
     for (const m of fs.readFileSync(path.join(site.ROOT, f), "utf8").replace(/\/\*[\s\S]*?\*\//g, "").matchAll(/\b(?:T|THREE|M\.T)\.([A-Z]\w*)/g)) used.add(m[1]);
   });
-  eq(exported.slice().sort(), Array.from(used).sort(), "src/vendor/three.js exports, by name, exactly the Three.js names assets/map3d.js and assets/scenes3d-gl.js use");
+  eq(exported.slice().sort(), Array.from(used).sort(), "src/vendor/three.js exports, by name, exactly the Three.js names assets/map3d.js, src/world/*.ts and assets/scenes3d-gl.js use");
   eq(exported.length, new Set(exported).size, "… each once");
   check(!["assets/map3d.js", "assets/scenes3d.js", "assets/scenes3d-gl.js", "assets/three-loader.js"].some(f => /window\.THREE\b/.test(fs.readFileSync(path.join(site.ROOT, f), "utf8").replace(/\/\*[\s\S]*?\*\//g, ""))), "nothing reads or writes window.THREE: the namespace is BM3D.THREE");
 

@@ -234,6 +234,30 @@ device never opts in. Nothing is stored for it and nothing can break. To take th
 everywhere, remove `OPT_IN` from `tools/lib/shell.js`'s head and deploy; every page then
 navigates as before.
 
+### Cached HTML after the course-world deploy
+
+The deploy that grew the course map into the course world (README, "The course world") renamed
+no file and added one chunk, `bundle/world.js`, which only `assets/map3d.js`'s `import()`
+fetches. `map3d.js` and the module it now needs before anything 3D is fetched
+(`src/world/tiers.ts`) are both in `bundle/home.js`, so they are always of one version. For the
+ten minutes:
+
+- A contents page from before the deploy runs the old map from its cached `home.js` and never
+  asks for `bundle/world.js`; it draws the old map, beside the list as it was laid out then.
+- A page from after it with a `home-chapter.js` from before has the old loader, which does not
+  say the WebGL renderer's name (`BM3D.renderer`): a software renderer then reads as a hardware
+  one and gets the medium tier instead of low, and the watchdog steps it down if it is slow.
+- The settings sheet's Graphics quality Low used to keep the list; it is the world's low tier
+  now, and the 3D course map switch is what keeps the list. A reader who chose Low before the
+  deploy gets the world at its lowest, not the list.
+- `bm.prefs.v1` gains `gfxAuto`, written by the watchdog. A tab from before the deploy keeps it
+  through its own writes (R0's unknown-key rule) and does not read it.
+
+Nothing is kept for it. A later deploy that changes what `src/world/index.ts` exports is the
+case to watch: a `home.js` cached from before and a `world.js` fetched after it would disagree
+for those ten minutes, and the page would fall back to the list (`BMMap3D.why()` says `error`);
+keep the exports' names when changing the world, or accept those minutes of list.
+
 ### The Pages source: GitHub Actions, set before the page-shell change is merged
 
 The Pages source is a repository setting and not a file, so it is set by hand:

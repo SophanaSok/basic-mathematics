@@ -266,7 +266,7 @@ function sheet(info) {
     '    <fieldset class="sheet-group sheet-choice">',
     "      <legend>Graphics quality</legend>",
     '      <div class="sheet-options">' + choice("bm-gfx", "gfx", "auto", "Auto") + choice("bm-gfx", "gfx", "low", "Low") + choice("bm-gfx", "gfx", "mid", "Medium") + choice("bm-gfx", "gfx", "high", "High") + "</div>",
-    "      " + toggle("map3d", "3D course map", "The contents page as a map of four regions. Low graphics keeps the list."),
+    "      " + toggle("map3d", "3D course map", "The contents page opens on a world of four regions. Off, the chapter list stands alone."),
     "    </fieldset>",
     "  </dialog>"
   ];

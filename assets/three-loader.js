@@ -15,6 +15,10 @@
                          when it came from a CDN, and the checks read it)
      BM3D.supported()  → false when 3D should not even be tried (no WebGL 2, Save-Data, ?3d=off)
      BM3D.lowEnd()     → true on devices that should get the flat picture by default
+     BM3D.renderer     → the WebGL renderer's name, once supported() has made its test
+                         context ("" when the browser does not say); the course world
+                         reads it to give a software renderer its low tier
+                         (src/world/tiers.ts)
 
    WebGL 2 is the floor: Three.js's WebGLRenderer has not supported WebGL 1 since r163
    (node_modules/three/src/renderers/WebGLRenderer.js), so a browser with only WebGL 1
@@ -30,6 +34,18 @@
 
   BM3D.why = "";
   BM3D.THREE = BM3D.THREE || null;
+  BM3D.renderer = BM3D.renderer || "";
+
+  /* the renderer's name: the unmasked one where the browser gives it, else whatever
+     RENDERER says (often a generic name, which reads as a hardware renderer) */
+  function rendererOf(gl) {
+    try {
+      var dbg = gl.getExtension && gl.getExtension("WEBGL_debug_renderer_info");
+      return String((dbg && gl.getParameter(dbg.UNMASKED_RENDERER_WEBGL)) || gl.getParameter(gl.RENDERER) || "");
+    } catch (e) {
+      return "";
+    }
+  }
 
   function hasWebGL() {
     if (!window.WebGL2RenderingContext) return false;
@@ -37,6 +53,7 @@
       var c = document.createElement("canvas");
       var gl = c.getContext("webgl2");
       if (!gl) return false;
+      BM3D.renderer = rendererOf(gl);
       var lose = gl.getExtension && gl.getExtension("WEBGL_lose_context");
       if (lose) lose.loseContext();
       return true;

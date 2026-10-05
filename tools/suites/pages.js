@@ -7,7 +7,8 @@
    no request to any server but the site's own (a signed-out reader's browser contacts
    no one else), the Three.js chunk not fetched by a page with no 3D scene and no course
    map (bundle/three.js is loaded on demand, by assets/three-loader.js, only when one of
-   those nears the screen), no horizontal overflow at phone width, lesson mode
+   those nears the screen), the course world's chunk (bundle/world.js, imported by
+   assets/map3d.js) not fetched by a page without the map, no horizontal overflow at phone width, lesson mode
    initialised on chapter pages, and a full-page screenshot of each cell for the contact
    sheet. Chapter pages are shot in whole-page mode (after the mode switch has been
    clicked, which also exercises it) so the sheet shows the content, not just the first
@@ -15,6 +16,7 @@
 const { slug } = require("../lib/browser");
 
 const THREE_CHUNK = /\/bundle\/three\.js(?:[?#]|$)/;
+const WORLD_CHUNK = /\/bundle\/world\.js(?:[?#]|$)/;
 
 /* runs before any script of the page: the theme as it stands at the first animation
    frame, which comes before the first paint */
@@ -88,6 +90,10 @@ module.exports = {
             const has3D = await page.evaluate(() => !!document.querySelector("[data-map3d], [data-widget][data-painter]"));
             const three = errors.own.filter(u => THREE_CHUNK.test(u));
             if (!has3D && three.length) problems.push("fetched " + three[0].replace(/^.*\/bundle\//, "bundle/") + " with no 3D scene and no course map on the page; only assets/three-loader.js is to import it, for one of those");
+            /* and the course world's own chunk only where the course map is */
+            const world = errors.own.filter(u => WORLD_CHUNK.test(u));
+            const hasMap = await page.evaluate(() => !!document.querySelector("[data-map3d]"));
+            if (!hasMap && world.length) problems.push("fetched bundle/world.js with no course map on the page; only assets/map3d.js is to import it");
           } catch (e) {
             problems.push("driver error: " + (e && e.message || e));
           }

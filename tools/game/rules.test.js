@@ -405,17 +405,19 @@ function world(seedStores) {
   const keys = ["e1", "e2", "e3", "e4"];
   const at = (d) => new Date(d + "T12:00:00").getTime();
 
-  /* play settings: a key this file has never heard of outlives every switch (gfxAuto,
-     what the 3D world's watchdog will write, and tutorPromo stand in for them) */
-  let w = world({ "bm.prefs.v1": { calm: true, gfxAuto: { tier: "low", at: 1, why: "slow" }, tutorPromo: false } });
-  eq([w.Game.prefs().calm, w.Game.prefs().gfxAuto, w.Game.prefs().tutorPromo], [true, { tier: "low", at: 1, why: "slow" }, false], "prefs() hands back an unknown key beside the known ones");
+  /* play settings: a key this file has never heard of outlives every switch (skin, a
+     key a later release may write, and tutorPromo stand in for them; gfxAuto, which
+     stood in here until the 3D world's watchdog came to write it, is a known key now,
+     with its own rule below) */
+  let w = world({ "bm.prefs.v1": { calm: true, skin: { marker: "octa", at: 1 }, tutorPromo: false } });
+  eq([w.Game.prefs().calm, w.Game.prefs().skin, w.Game.prefs().tutorPromo], [true, { marker: "octa", at: 1 }, false], "prefs() hands back an unknown key beside the known ones");
   w.Game.setPref("sound", true);
-  eq([w.read("bm.prefs.v1").gfxAuto, w.read("bm.prefs.v1").tutorPromo, w.read("bm.prefs.v1").sound], [{ tier: "low", at: 1, why: "slow" }, false, true], "switching one setting keeps an unknown key");
+  eq([w.read("bm.prefs.v1").skin, w.read("bm.prefs.v1").tutorPromo, w.read("bm.prefs.v1").sound], [{ marker: "octa", at: 1 }, false, true], "switching one setting keeps an unknown key");
   w.Game.setPref("calm", false); w.Game.setPref("map3d", false); w.Game.setPref("tempo", "untimed");
   w.Game.setPref("volume", 35); w.Game.setPref("motion", true); w.Game.setPref("transparency", true); w.Game.setPref("gfx", "mid");
   let p = w.read("bm.prefs.v1");
-  eq([p.gfxAuto, p.tutorPromo, p.sound, p.calm, p.map, p.tempo, p.volume, p.motion, p.transparency, p.gfx],
-    [{ tier: "low", at: 1, why: "slow" }, false, true, false, "list", "untimed", 35, "reduce", "reduce", "mid"], "every setting switched in turn: the unknown keys are still there");
+  eq([p.skin, p.tutorPromo, p.sound, p.calm, p.map, p.tempo, p.volume, p.motion, p.transparency, p.gfx],
+    [{ marker: "octa", at: 1 }, false, true, false, "list", "untimed", 35, "reduce", "reduce", "mid"], "every setting switched in turn: the unknown keys are still there");
   /* the settings stay on this device: a "state" change is what account sync listens for */
   eq([w.events.filter((e) => e.type === "state").length, w.events.filter((e) => e.type === "prefs").length], [0, 8], "switching a setting announces prefs and never a state change");
   w.Game.setPref("nonsense", 1);
@@ -435,12 +437,31 @@ function world(seedStores) {
   w.Game.setPref("motion", false); w.Game.setPref("transparency", false);
   eq(["data-motion" in html(), "data-transparency" in html(), "motion" in w.read("bm.prefs.v1"), "transparency" in w.read("bm.prefs.v1")], [false, false, false, false],
     "switched off, the attributes go and the store keeps nothing: the device's own setting rules again");
+  /* graphics quality is the course world's tier (src/world/tiers.ts): Low is its low
+     tier, still 3D; the 3D map switch is what keeps the list */
   w.Game.setPref("gfx", "low");
-  eq([w.read("bm.prefs.v1").gfx, w.Game.map3dOn(w.Game.prefs())], ["low", false], "Graphics quality Low keeps the course map a list");
+  eq([w.read("bm.prefs.v1").gfx, w.Game.map3dOn(w.Game.prefs())], ["low", true], "Graphics quality Low is stored, and the course map stays 3D (its low tier)");
+  w.Game.setPref("map3d", false);
+  eq([w.read("bm.prefs.v1").map, w.Game.map3dOn(w.Game.prefs())], ["list", false], "the 3D map switch off keeps the list");
   w.Game.setPref("map3d", true);
-  eq(w.Game.map3dOn(w.Game.prefs()), false, "… even with the 3D map switch on, until the quality goes up again");
   w.Game.setPref("gfx", "auto");
-  eq(["gfx" in w.read("bm.prefs.v1"), w.Game.map3dOn(w.Game.prefs())], [false, true], "Auto is stored as no choice, and the map is 3D again");
+  eq(["gfx" in w.read("bm.prefs.v1"), w.Game.map3dOn(w.Game.prefs())], [false, true], "Auto is stored as no choice");
+  /* gfxAuto: the tier the world's watchdog settled on, this device's; never "high", and
+     gone at the next choice of quality or of the map */
+  w = world({ "bm.prefs.v1": { gfxAuto: "low" } });
+  eq(w.Game.prefs().gfxAuto, "low", "a settled tier is read back");
+  eq(world({ "bm.prefs.v1": { gfxAuto: "high" } }).Game.prefs().gfxAuto, undefined, "the watchdog never settles upward: \"high\" reads as unset");
+  eq(world({ "bm.prefs.v1": { gfxAuto: { tier: "low" } } }).Game.prefs().gfxAuto, undefined, "nor does anything but a tier name");
+  w.Game.setPref("gfxAuto", "list");
+  eq([w.read("bm.prefs.v1").gfxAuto, w.Game.map3dOn(w.Game.prefs())], ["list", false], "the watchdog giving the list back shows the 3D map switch off");
+  w.Game.setPref("sound", true);
+  eq(w.read("bm.prefs.v1").gfxAuto, "list", "another setting leaves it");
+  w.Game.setPref("map3d", true);
+  eq(["gfxAuto" in w.read("bm.prefs.v1"), w.Game.map3dOn(w.Game.prefs())], [false, true], "switching the map on again starts afresh");
+  w.Game.setPref("gfxAuto", "medium"); w.Game.setPref("gfx", "high");
+  eq(["gfxAuto" in w.read("bm.prefs.v1"), w.read("bm.prefs.v1").gfx], [false, "high"], "so does choosing a quality");
+  w.Game.setPref("gfxAuto", "nonsense");
+  eq("gfxAuto" in w.read("bm.prefs.v1"), false, "a value that is not a settled tier is not kept");
   eq(w.events.filter((e) => e.type === "state").length, 0, "none of it is a state change for account sync");
 
   /* a store that cannot be written: the choice still holds for the visit */
