@@ -32,6 +32,7 @@
    Each navigation is started by the page (location.assign, as a link's is): one typed
    into the address bar or a reload never has a transition. */
 const browserLib = require("../lib/browser");
+const gl = require("../lib/gl");
 
 const PAGES = ["index.html", "parts/2-geometry/05-distance-and-angles.html", "arena.html", "progress.html", "about.html", "index.html"];
 const CHAPTER = PAGES[1];
@@ -314,7 +315,7 @@ module.exports = {
     if (pages.length >= 3) {
       const route = pages.slice(0, 3);
       let bf = null;
-      try { bf = await ctx.pw.chromium.launch({ channel: "chromium", headless: !ctx.opts.headed, args: ctx.launch.args, ignoreDefaultArgs: ["--disable-back-forward-cache"] }); }
+      try { bf = await ctx.pw.chromium.launch({ channel: "chromium", headless: !ctx.opts.headed, args: ctx.launch.args, env: gl.env(ctx.pw.chromium), ignoreDefaultArgs: ["--disable-back-forward-cache"] }); }
       catch (e) { report.fail("back and forward: launch", "the full Chromium (channel \"chromium\", from npx playwright install chromium) did not start with the back/forward cache on: " + (e && e.message || e)); }
       if (bf) {
         const hb = browserLib.makeHelpers(Object.assign({}, ctx, { browser: bf }));

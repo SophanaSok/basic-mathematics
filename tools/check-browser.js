@@ -32,7 +32,8 @@
      run(ctx)     async; records results through ctx.report and returns nothing
    ctx has:
      pw, browser            the playwright module and the launched Chromium
-     launch                 { args, webgl: {ok, renderer, ...} } chosen by the WebGL probe
+     launch                 { args, env, webgl: {ok, renderer, ...} } chosen by the WebGL probe
+                            (env: whether lib/gl.js held the Vulkan loader to SwiftShader)
      server                 { url, baseUrl, root, label }  — the served build (--root), and
                             /__base/<path> at --base; tools/fixtures/ always comes from source
      root, base, outDir     repo root (the source tree), git ref, output directory
@@ -60,6 +61,7 @@ const site = require("./lib/site");
 const git = require("./lib/git");
 const target = require("./lib/target");
 const browserLib = require("./lib/browser");
+const gl = require("./lib/gl");
 
 const ROOT = site.ROOT;
 const opts = site.parseArgs(process.argv.slice(2));
@@ -198,7 +200,7 @@ async function main() {
   /* the WebGL probe decides how Chromium is launched for everything else */
   const webgl = allSuites.find(s => s.name === "webgl");
   ctx.launch = webgl && webgl.probe ? await webgl.probe(ctx) : { args: [], webgl: null };
-  ctx.browser = await pw.chromium.launch({ headless: !opts.headed, args: ctx.launch.args });
+  ctx.browser = await pw.chromium.launch({ headless: !opts.headed, args: ctx.launch.args, env: gl.env(pw.chromium) });
   ctx.h = browserLib.makeHelpers(ctx);
 
   for (const s of suites) {

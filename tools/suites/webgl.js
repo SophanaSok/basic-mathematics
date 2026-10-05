@@ -7,9 +7,11 @@
    noWebGL / blockUrl helpers that live in lib/browser.js. */
 const path = require("path");
 const browserLib = require("../lib/browser");
+const gl = require("../lib/gl");
 
+/* each launched with lib/gl.js env(), which keeps Chromium off the machine's GPU */
 const ARG_SETS = [
-  ["--enable-unsafe-swiftshader", "--use-angle=swiftshader", "--ignore-gpu-blocklist"],
+  gl.ARGS,
   ["--use-gl=angle", "--use-angle=swiftshader-webgl", "--enable-unsafe-swiftshader", "--ignore-gpu-blocklist"],
   []
 ];
@@ -17,7 +19,7 @@ const ARG_SETS = [
 const FIXTURE = "tools/fixtures/webgl-probe.html";
 
 async function probeWith(pw, args, url, headed, noWebGL) {
-  const browser = await pw.chromium.launch({ headless: !headed, args });
+  const browser = await pw.chromium.launch({ headless: !headed, args, env: gl.env(pw.chromium) });
   try {
     const context = await browser.newContext();
     if (noWebGL) await context.addInitScript(() => {
@@ -48,11 +50,11 @@ async function probe(ctx) {
     tried.push({ args, result: res });
     if (res && res.ok) {
       console.log("WebGL: available with args " + JSON.stringify(args) + " — " + res.renderer + " (" + res.context + ")");
-      return { args, webgl: res, tried };
+      return { args, env: !!gl.env(ctx.pw.chromium), webgl: res, tried };
     }
   }
   console.log("WebGL: NOT available with any arg set; launching with no extra args");
-  return { args: [], webgl: null, tried };
+  return { args: [], env: !!gl.env(ctx.pw.chromium), webgl: null, tried };
 }
 
 module.exports = {
@@ -66,7 +68,10 @@ module.exports = {
       const r = t.result || {};
       ctx.report[r.ok ? "pass" : "warn"]("args " + JSON.stringify(t.args), r.ok ? r.renderer + " via " + r.context : (r.error || "no context"));
     });
-    if (L.webgl && L.webgl.ok) ctx.report.pass("launch config", "args " + JSON.stringify(L.args) + "; renderer: " + L.webgl.renderer + "; vendor: " + L.webgl.vendor + "; " + L.webgl.version);
+    /* SwiftShader, as on a CI runner: a hardware renderer would make this machine's run
+       measure something CI never sees (lib/gl.js) */
+    if (L.webgl && L.webgl.ok && !gl.SOFTWARE.test(L.webgl.renderer || "")) ctx.report.fail("launch config", "args " + JSON.stringify(L.args) + " gave the renderer " + L.webgl.renderer + ", not SwiftShader: the checks would draw on this machine's GPU, which CI does not have (tools/lib/gl.js)");
+    else if (L.webgl && L.webgl.ok) ctx.report.pass("launch config", "args " + JSON.stringify(L.args) + "; renderer: " + L.webgl.renderer + "; vendor: " + L.webgl.vendor + "; " + L.webgl.version + (L.env ? "; the Vulkan loader held to SwiftShader's driver" : ""));
     else ctx.report.fail("launch config", "no arg set produced a WebGL 2 context (the one assets/three-loader.js asks for; WebGL 1 alone does not count); 3D scenes cannot be exercised on this machine. Tried: " + JSON.stringify(L.tried));
     /* the no-WebGL helper must actually remove WebGL, or the degrade-path tests mean nothing */
     const { page, close } = await ctx.h.newPage({ noWebGL: true });

@@ -135,7 +135,7 @@ const state = (page) => page.evaluate(() => {
 async function run() {
   server = await target.start(site.parseArgs(process.argv.slice(2)));
   console.log("browser: " + server.where);
-  const browser = await chromium.launch();
+  const browser = await chromium.launch({ env: require("../lib/gl").env(chromium) });   /* off the machine's GPU: lib/gl.js */
   try {
     /* -------------------------------------------- 1–3: ch05, whole page */
     {

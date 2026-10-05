@@ -7,9 +7,19 @@
    which the page imports on demand; every request off the local server is aborted, so
    nothing here depends on a CDN or a download.
 
-   SwiftShader is a software renderer, so the device's own tier here is low, which has
-   no idle motion (src/world/tiers.ts); the checks of idle motion choose Medium in the
-   settings first (bm.prefs.v1 gfx "mid"), as a learner can.
+   Chromium draws WebGL on SwiftShader here, on every machine (lib/gl.js launches it so,
+   and stops if it gets anything else), so these run as on a CI runner, never on this
+   machine's GPU. SwiftShader is a software renderer, so the device's own tier here is
+   low, which has no idle motion (src/world/tiers.ts): a check about a tier chooses it in
+   the settings first (bm.prefs.v1 gfx "low", "mid", "high"), as a learner can, or gives
+   the probe a renderer's name (RENDERER), and none takes the tier the machine detects.
+
+   Nor does any depend on how fast the machine draws. Software WebGL on a slow runner
+   draws frames the world's watchdog rightly calls slow, and it steps a chosen Medium down
+   to Low in the middle of a check of Medium's idle motion. So the page's animation
+   frames run on a clock of the check's own (RAF_GATE): steady by default, where no frame
+   takes longer than the watchdog's SLOW_MS (but a pause passes through as it is), and
+   exactly 60 or 200 ms a frame in the checks of the watchdog itself.
 
    1. idle motion ends: on Medium the marker bobs (and the props move) for AMBIENT_MS
       after the world appears or the camera settles, to the end of the bob, and then an
@@ -17,19 +27,22 @@
       on the low tier; a flight that lands draws at most once per display frame
    2. a frame held while the tab is hidden, or a long task, does not tear the world down
       or step it down a tier, whether Medium was chosen or is the device's own (a
-      hardware renderer, stubbed), and keeps nothing in bm.prefs.v1
+      hardware renderer, stubbed), and keeps nothing in bm.prefs.v1: every other frame on
+      the steady clock, the pause itself as long as it really was
    3. an island acts like its list link: Ctrl+click and middle click open a new tab, a press
       (either button) on empty ground dragged onto an island and released opens nothing
    4. the loader: the page asks for the Three.js chunk once and only after the map has
       asked for it; when that request fails, load() says false with the reason "cdn" and
       the list stands alone; when it stalls past the loader's timeout, the reason is
       "timeout"; neither case leaves a THREE behind, and nothing is on window.THREE
-   5. the tiers: the device's own tier here is low (a software renderer); each tier
+   5. the tiers: the device's own tier is low for a software renderer (SwiftShader, and a
+      renderer's name stubbed: llvmpipe) and medium for a hardware one (stubbed); each tier
       chosen in the settings is drawn within its budget of draw calls, triangles and
       pixel ratio (TIERS, read through BMMap3D.info().budget), far below the 109 draw
       calls the course map took before the world; the frame times of a flight are
       printed for each tier; with the 3D map switch off neither chunk is fetched
-   6. the watchdog: with every frame 60 ms apart, the world steps down a tier (medium to
+   6. the watchdog, on a clock the check sets frame by frame, whatever the machine
+      draws: with every frame 60 ms apart, the world steps down a tier (medium to
       low), keeps the tier it settled on in bm.prefs.v1 gfxAuto, starts there on the next
       visit; then, at five frames a second on low, which has no idle motion and so only
       flights to judge by, gives the list back within four flights with the reason "slow"
@@ -56,15 +69,19 @@ const path = require("path");
 const site = require("../lib/site");
 const target = require("../lib/target");
 const { chromium } = require("../lib/pw").playwright();
+const gl = require("../lib/gl");
 
 const THREE_CHUNK = /\/bundle\/three\.js(?:[?#]|$)/;
 const WORLD_CHUNK = /\/bundle\/world\.js(?:[?#]|$)/;
-const ARGS = ["--enable-unsafe-swiftshader", "--use-angle=swiftshader", "--ignore-gpu-blocklist"];
 /* the constants these checks wait on, read from their files, so a changed value shows here */
 const read = (f) => fs.readFileSync(path.join(site.ROOT, f), "utf8");
 const TIMEOUT = +read("assets/three-loader.js").match(/var TIMEOUT = (\d+);/)[1];
 const AMBIENT_MS = +read("src/world/tiers.ts").match(/export const AMBIENT_MS = (\d+);/)[1];
 const BOB_MS = +read("assets/map3d.js").match(/var BOB_MS = (\d+);/)[1];
+const SLOW_MS = +read("src/world/tiers.ts").match(/export const SLOW_MS = (\d+);/)[1];
+const PAUSE_MS = +read("src/world/tiers.ts").match(/export const PAUSE_MS = (\d+);/)[1];
+/* the longest frame the steady clock shows: under SLOW_MS, so no run of frames is slow */
+const STEADY_MS = SLOW_MS - 4;
 /* the draw calls of the course map before the world (BMMap3D.info().calls at rest, 1280 wide) */
 const CALLS_BEFORE = 109;
 const MEDIUM = { "bm.prefs.v1": '{"gfx":"mid"}' };
@@ -78,18 +95,36 @@ function check(cond, what) {
 }
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 
-/* counts requestAnimationFrame calls; with __hide set, callbacks are held (as Chrome holds
-   them for a hidden tab) and run on return with the current timestamp; with __slow set,
-   each display frame is handed a timestamp 60 ms after the last one's (or __slow ms, when
-   it is a number), as on a device that draws at about 16 (or 1000 / __slow) frames a second. The fake clock moves once per display frame, not per
-   callback: every callback of one frame gets the same time, as the browser gives it, so
-   two loops running side by side show as the same timestamp twice (a per-callback clock
-   gave each its own 60 ms and hid them). __frames(ms) counts the display frames over
-   `ms` on a loop of its own, which __raf does not count */
-const RAF_GATE = "(" + function () {
+/* The page's animation frames, and the clock they see. __raf counts requestAnimationFrame
+   calls. Every display frame hands each of its callbacks one timestamp, as the browser
+   does, so two loops running side by side show as the same timestamp twice (a per-callback
+   clock gave each its own and hid them). The clock moves once per display frame:
+     - steady, the default: by the real time since the last display frame, but never by
+       more than STEADY_MS, under the watchdog's SLOW_MS, so the speed of the machine is
+       in no check: on a 4-vCPU CI runner SwiftShader draws Medium slowly enough that the
+       watchdog, as it should, steps it down to Low, and a check of Medium's idle motion
+       then found Low. A gap of PAUSE_MS or more (a long task, frames held in a hidden tab)
+       passes through as it is: that a pause is not a slow frame is what is checked there
+     - __slow, true or a number: exactly 60 ms (or __slow ms) a frame, whatever the
+       machine draws, as on a device that draws about 16 (or 1000 / __slow) frames a
+       second, for the checks of the watchdog
+   With __hide set, callbacks are held (as Chrome holds them for a hidden tab) and run on
+   return (__release), on the same clock. __frames(ms) counts the display frames over `ms`
+   and __realRaf is the browser's own requestAnimationFrame (the frame times printed in 5
+   are real ones); neither is counted in __raf */
+const RAF_GATE = (o) => {
   window.__raf = 0; window.__hide = false; window.__held = []; window.__slow = false;
   var orig = window.requestAnimationFrame.bind(window), fake = 0, real = -1;
-  window.__release = function () { var h = window.__held; window.__held = []; h.forEach(function (cb) { orig(cb); }); };
+  function stamp(t) {
+    if (t === real) return fake;
+    if (real < 0) fake = t;
+    else if (window.__slow) fake += window.__slow === true ? 60 : window.__slow;
+    else fake += t - real >= o.pause ? t - real : Math.min(t - real, o.steady);
+    real = t;
+    return fake;
+  }
+  window.__realRaf = orig;
+  window.__release = function () { var h = window.__held; window.__held = []; h.forEach(function (cb) { orig(function (t) { cb(stamp(t)); }); }); };
   window.__frames = function (ms) {
     return new Promise(function (done) {
       var n = 0, t0 = performance.now();
@@ -100,13 +135,12 @@ const RAF_GATE = "(" + function () {
     window.__raf++;
     return orig(function (t) {
       if (window.__hide) { window.__held.push(cb); return; }
-      if (window.__slow) { if (t !== real) { real = t; fake = Math.max(fake + (window.__slow === true ? 60 : window.__slow), t); } cb(fake); return; }
-      cb(t);
+      cb(stamp(t));
     });
   };
   Object.defineProperty(document, "hidden", { configurable: true, get: function () { return window.__hide; } });
   Object.defineProperty(document, "visibilityState", { configurable: true, get: function () { return window.__hide ? "hidden" : "visible"; } });
-} + ")()";
+};
 
 /* live WebGL buffers (made minus deleted), so a check can see what a teardown leaves */
 const GL_BUFFERS = "(" + function () {
@@ -116,17 +150,19 @@ const GL_BUFFERS = "(" + function () {
   P.deleteBuffer = function (b) { if (b && live.has(b)) { live.delete(b); window.__buffers--; } return drop.call(this, b); };
 } + ")()";
 
-/* the WebGL renderer's name, as a hardware GPU would give it, for a check that needs the
-   device's own tier to be medium rather than SwiftShader's low */
-const HARDWARE = "(" + function () {
+/* the WebGL renderer's name the page reads (UNMASKED_RENDERER_WEBGL, or RENDERER), given:
+   for a check that needs the device's own tier to be medium (a hardware GPU's name) or
+   wants the low tier from a software renderer's name rather than from the real one */
+const RENDERER = (name) => {
   var orig = WebGL2RenderingContext.prototype.getParameter;
   WebGL2RenderingContext.prototype.getParameter = function (p) {
-    if (p === 0x9246 || p === 0x1F01) return "ANGLE (Test, Test GPU Direct3D11)";
+    if (p === 0x9246 || p === 0x1F01) return name;
     return orig.call(this, p);
   };
-} + ")()";
+};
+const HARDWARE = "ANGLE (Test, Test GPU Direct3D11)";
 
-/* a context that reaches the local server and nothing else; `three` says what to do
+/* a context that reaches the local server and nothing else, with the clock above; `three` says what to do
    with the request for bundle/three.js: "serve" (the default), "abort", or "stall"
    (hold it open, never answered, until the context closes) */
 async function newContext(browser, opts) {
@@ -144,10 +180,10 @@ async function newContext(browser, opts) {
     }
     return r.continue();
   });
-  await context.addInitScript(RAF_GATE);
+  await context.addInitScript(RAF_GATE, { steady: STEADY_MS, pause: PAUSE_MS });
   await context.addInitScript(GL_BUFFERS);
   await context.addInitScript(PIXELS);
-  if (opts.hardware) await context.addInitScript(HARDWARE);
+  if (opts.hardware || opts.renderer) await context.addInitScript(RENDERER, opts.renderer || HARDWARE);
   await context.addInitScript((seed) => {
     try { if (!sessionStorage.getItem("__seeded")) { Object.keys(seed).forEach(function (k) { localStorage.setItem(k, seed[k]); }); sessionStorage.setItem("__seeded", "1"); } } catch (e) { /* fine */ }
   }, opts.seed || {});
@@ -170,7 +206,10 @@ async function ready(page) {
   await page.evaluate(() => { var c = document.querySelector("[data-map3d] canvas"); window.scrollTo(0, c.getBoundingClientRect().top + window.scrollY - 20); });
 }
 const mapState = (page) => page.evaluate(() => ({ on: window.BMMap3D.on(), why: window.BMMap3D.why(), bob: !!(window.BMMap3D.info() && window.BMMap3D.info().bobbing), raf: window.__raf, held: window.__held.length }));
-const info = (page) => page.evaluate(() => window.BMMap3D.info());
+/* BMMap3D.info(), or, when the world has gone (info() is null: the list stands alone),
+   { gone: true, why } with the reason BMMap3D.why() gives, so a check that expected a
+   world fails saying so rather than the script stopping on a null */
+const info = (page) => page.evaluate(() => window.BMMap3D.info() || { gone: true, why: window.BMMap3D.why() });
 
 /* rAF calls over `ms` of doing nothing, and whether the marker bobbed meanwhile */
 async function idle(page, ms) {
@@ -246,7 +285,7 @@ const PIXELS = "(" + function () {
 async function run() {
   server = await target.start(site.parseArgs(process.argv.slice(2)));
   console.log("map: " + server.where);
-  const browser = await chromium.launch({ args: ARGS });
+  const browser = await gl.launch(chromium, {}, true);
   try {
     /* -------------------------------------------- 1: idle motion ends */
     {
@@ -262,7 +301,7 @@ async function run() {
       /* over the flight's landing and the idle motion after it: one draw per display frame.
          A landing that started a second loop beside the first drew twice per frame, and
          handed the watchdog each timestamp twice, halving the frame time it saw */
-      const d = await page.evaluate(() => { var a = window.BMMap3D.info().frames; return window.__frames(1200).then(function (n) { return { renders: window.BMMap3D.info().frames - a, display: n }; }); });
+      const d = await page.evaluate(() => { var a = (window.BMMap3D.info() || {}).frames; return window.__frames(1200).then(function (n) { return { renders: (window.BMMap3D.info() || {}).frames - a, display: n }; }); });
       check(d.renders > 0 && d.renders <= d.display + 1, "a flight that lands draws at most once per display frame, then and through the idle motion (" + JSON.stringify(d) + ")");
       const f = await idle(page, 2500);
       check(f.frames > 0 && f.bob, "flying to a Part sets it moving again once the camera settles");
@@ -276,7 +315,7 @@ async function run() {
       await context.close();
     }
     for (const how of ["Study mode", "reduced motion", "the low tier"]) {
-      const seed = how === "Study mode" ? { "bm.prefs.v1": '{"calm":true,"gfx":"mid"}' } : how === "the low tier" ? {} : MEDIUM;
+      const seed = how === "Study mode" ? { "bm.prefs.v1": '{"calm":true,"gfx":"mid"}' } : how === "the low tier" ? { "bm.prefs.v1": '{"gfx":"low"}' } : MEDIUM;
       const { context, page } = await openMap(browser, seed, how === "reduced motion" ? { reducedMotion: "reduce" } : {});
       await wait(800);
       const r = await idle(page, 2500);
@@ -394,16 +433,16 @@ async function run() {
     }
 
     /* -------------------------------------------- 5: the tiers and their budgets */
-    {
-      const { context, page } = await openMap(browser, {});
+    /* what the device gets by itself, from the renderer's name the page reads: this
+       browser's own (SwiftShader, lib/gl.js sees to it), a software renderer's given
+       (llvmpipe, Mesa's), and a hardware GPU's given */
+    for (const [label, renderer, tier, why] of [["SwiftShader, this browser's own renderer", null, "low", "software"],
+      ["llvmpipe, a software renderer (its name given)", "llvmpipe (LLVM 17.0.6, 256 bits)", "low", "software"],
+      ["a hardware renderer (its name given) with a fine pointer", HARDWARE, "medium", "default"]]) {
+      const { context, page } = await openMap(browser, {}, renderer ? { renderer } : {});
       const i = await info(page);
-      check(i.tier === "low" && i.reason === "software" && !i.ambient, "SwiftShader, a software renderer, gets the low tier by itself (" + JSON.stringify({ tier: i.tier, reason: i.reason }) + ")");
-      await context.close();
-    }
-    {
-      const { context, page } = await openMap(browser, {}, { hardware: true });
-      const i = await info(page);
-      check(i.tier === "medium" && i.reason === "default", "a hardware renderer with a fine pointer gets medium (" + JSON.stringify({ tier: i.tier, reason: i.reason }) + ")");
+      const seen = await page.evaluate(() => window.BM3D.renderer);
+      check(i.tier === tier && i.reason === why && i.ambient === (tier !== "low") && (renderer ? seen === renderer : /swiftshader/i.test(seen)), label + " gets the " + tier + " tier by itself (" + JSON.stringify({ renderer: seen, tier: i.tier, reason: i.reason, gone: i.gone, why: i.why }) + ")");
       await context.close();
     }
     const measured = [];
@@ -412,27 +451,36 @@ async function run() {
       {
         const { context, page } = await openMap(browser, { "bm.prefs.v1": JSON.stringify({ gfx }) }, { scale: 3 });
         const i = await info(page);
-        check(i.tier === tier && i.reason === "chosen", "Graphics quality " + gfx + " gives the " + tier + " tier (" + i.tier + ", " + i.reason + ")");
-        check(i.pixelRatio === i.budget.dpr, tier + ": pixel ratio " + i.pixelRatio + " on a 3x screen, the tier's cap " + i.budget.dpr);
+        check(i.tier === tier && i.reason === "chosen", "Graphics quality " + gfx + " gives the " + tier + " tier (" + i.tier + ", " + (i.gone ? "the world gone: " + i.why : i.reason) + ")");
+        check(!i.gone && i.pixelRatio === i.budget.dpr, tier + ": pixel ratio " + i.pixelRatio + " on a 3x screen, the tier's cap " + (i.budget && i.budget.dpr));
         await context.close();
       }
       /* at one device pixel: the draw calls and triangles over every Part, and a flight's frame times */
       const { context, page } = await openMap(browser, { "bm.prefs.v1": JSON.stringify({ gfx }) });
       await settled(page);
       const rest = await info(page);
+      if (rest.gone) {
+        check(false, tier + ": the world was there to measure (it went: " + rest.why + ")");
+        await context.close();
+        continue;
+      }
       const times = [], calls = [rest.calls], tris = [rest.triangles], tiers = [rest.tier];
+      let gone = null;
       for (const p of [1, 2, 3, 0]) {
+        /* the real gaps between this machine's frames, on the browser's own clock */
         await page.evaluate(() => {
           var run = window.__ftRun = (window.__ftRun || 0) + 1, last = 0;
           window.__ft = [];
-          (function tick(t) { if (window.__ftRun !== run) return; if (last) window.__ft.push(t - last); last = t; requestAnimationFrame(tick); })(0);
+          (function tick(t) { if (window.__ftRun !== run) return; if (last) window.__ft.push(t - last); last = t; window.__realRaf(tick); })(0);
         });
         await page.click(".map3d-part[data-p=\"" + p + "\"]");
         await wait(900);
         times.push(...await page.evaluate(() => { window.__ftRun++; return window.__ft; }));
         const j = await info(page);
+        if (j.gone) { gone = j.why; break; }
         calls.push(j.calls); tris.push(j.triangles); tiers.push(j.tier);
       }
+      check(!gone, tier + ": the world stays through four flights" + (gone ? " (it went: " + gone + ")" : ""));
       const b = rest.budget;
       times.sort((a, c) => a - c);
       const row = { tier: rest.tier, pixelRatio: rest.pixelRatio, calls: Math.max(...calls), triangles: Math.max(...tris),
@@ -443,7 +491,7 @@ async function run() {
       check(row.triangles <= b.triangles, tier + ": " + row.triangles + " triangles, within " + b.triangles);
       await context.close();
     }
-    console.log("map: budgets measured at 1280x900, one device pixel per CSS pixel, in SwiftShader (a software renderer: frame times are the gaps between animation frames over four flights, and tierAfter is the tier after them, which the watchdog lowers when they are slow):");
+    console.log("map: budgets measured at 1280x900, one device pixel per CSS pixel, in SwiftShader (a software renderer: frame times are this machine's real gaps between animation frames over four flights; the world's watchdog saw the steady clock, so tierAfter, the tier after them, is the tier chosen):");
     measured.forEach((m) => console.log("  " + JSON.stringify(m)));
     {
       const { context, asked, world } = await newContext(browser, { seed: { "bm.prefs.v1": '{"map":"list"}' } });
@@ -563,7 +611,7 @@ async function run() {
          view (at 1280x900 the world, above the hero, and the list, below it, are never on
          screen together) a hover leaves the world where it was */
       const view = () => page.evaluate(() => {
-        var r = document.querySelector("[data-map3d] canvas").getBoundingClientRect(), w = window.BMMap3D.where("ch01"), i = window.BMMap3D.info();
+        var r = document.querySelector("[data-map3d] canvas").getBoundingClientRect(), w = window.BMMap3D.where("ch01") || { x: NaN, y: NaN }, i = window.BMMap3D.info() || {};
         return { hot: i.hot, flying: i.flying, at: [Math.round(w.x - r.left), Math.round(w.y - r.top)], mark: !!document.querySelector("li.stop[data-map-hot]") };
       });
       await page.evaluate(() => document.querySelector('li.stop[data-chapter="ch09"]').scrollIntoView({ block: "center" }));
@@ -579,7 +627,7 @@ async function run() {
       await wait(600);
       await page.hover('li.stop[data-chapter="ch05"] .stop-link');
       await wait(1200);
-      const v = await page.evaluate(() => ({ hot: window.BMMap3D.info().hot, mark: !!document.querySelector('li.stop[data-chapter="ch05"][data-map-hot]'), y: window.scrollY }));
+      const v = await page.evaluate(() => ({ hot: (window.BMMap3D.info() || {}).hot, mark: !!document.querySelector('li.stop[data-chapter="ch05"][data-map-hot]'), y: window.scrollY }));
       check(v.hot === "ch05" && v.mark && v.y === 0, "with the stage in view, hovering a chapter flies to its island and marks the list item (" + JSON.stringify(v) + ")");
       await context.close();
     }
@@ -598,14 +646,14 @@ async function run() {
       }
       await wait(900);
       const k = await page.evaluate(() => {
-        var i = window.BMMap3D.info(), st = document.querySelector(".map3d-stage").getBoundingClientRect();
+        var i = window.BMMap3D.info() || {}, st = document.querySelector(".map3d-stage").getBoundingClientRect();
         return { hot: i.hot, flying: i.flying, mark: !!document.querySelector('li.stop[data-chapter="' + i.hot + '"][data-map-hot]'), stageBelowTop: st.bottom > 0 && st.top < window.innerHeight };
       });
       check(ch === "ch01" && k.hot === "ch01" && k.mark && !k.flying, viewport.width + "x" + viewport.height + ": Tab to the first chapter selects its island and marks the list item, though the world is out of view (" + JSON.stringify({ ch, k }) + ")");
       await page.evaluate(() => window.scrollTo(0, 0));
       await wait(900);
       const back = await page.evaluate(() => {
-        var r = document.querySelector("[data-map3d] canvas").getBoundingClientRect(), w = window.BMMap3D.where("ch01");
+        var r = document.querySelector("[data-map3d] canvas").getBoundingClientRect(), w = window.BMMap3D.where("ch01") || { x: NaN, y: NaN };
         var label = document.querySelector('.map3d-label[data-kind="hot"]') || document.querySelector(".map3d-label");
         return { at: [+((w.x - r.left) / r.width).toFixed(2), +((w.y - r.top) / r.height).toFixed(2)], label: label ? label.textContent : null, focus: document.activeElement && document.activeElement.className };
       });
@@ -653,7 +701,7 @@ async function run() {
           var part = window.BM_CURRICULUM.parts[p], id = part.chapters[0].id;
           document.querySelector('li.stop[data-chapter="' + id + '"] .stop-link').focus();
           var ink = getComputedStyle(document.querySelector('.map3d-probe [data-part="' + part.id + '"]')).getPropertyValue("--region-ink").trim().toLowerCase();
-          return { id: id, hot: window.BMMap3D.info().hot, ring: window.BMMap3D.info().ring, ink: ink };
+          return { id: id, hot: (window.BMMap3D.info() || {}).hot, ring: (window.BMMap3D.info() || {}).ring, ink: ink };
         }, p));
       }
       check(await page.evaluate(() => document.documentElement.getAttribute("data-theme")) === "dark" && rows.every((r) => r.hot === r.id && r.ring === r.ink), "in the dark theme the ring around an island is its region's --region-ink (" + JSON.stringify(rows) + ")");
@@ -709,10 +757,10 @@ async function run() {
         var changed = 0, lit = 0;
         for (var k = 0; k < a.d.length; k += 4) { if (diff(k) > 6) changed++; if (a.d[k] + a.d[k + 1] + a.d[k + 2] > 0) lit++; }
         var row = window.BM_CURRICULUM.parts[0].chapters.map(function (ch) {
-          var w = window.BMMap3D.where(ch.id), x = Math.round((w.x - r.left) * a.w / r.width), y = Math.round((w.y - r.top) * a.h / r.height);
+          var w = window.BMMap3D.where(ch.id) || { x: NaN, y: NaN }, x = Math.round((w.x - r.left) * a.w / r.width), y = Math.round((w.y - r.top) * a.h / r.height);
           return diff((y * a.w + x) * 4);
         });
-        return { share: +(changed / (a.w * a.h)).toFixed(3), lit: lit > 0, row: row, fog: window.BMMap3D.info().fog };
+        return { share: +(changed / (a.w * a.h)).toFixed(3), lit: lit > 0, row: row, fog: (window.BMMap3D.info() || {}).fog };
       });
       check(f.lit && f.share >= 0.02 && f.row.every((d) => d <= 6), theme + ": the fog shows: drawn without it, " + (f.share * 100).toFixed(1) + "% of the frame changes (at least 2%), and none of the islands of the row in view (" + JSON.stringify(f) + ")");
       /* the last Part: no band of empty sky across the top (the far hills stand behind it) */

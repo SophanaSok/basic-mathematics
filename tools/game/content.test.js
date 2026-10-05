@@ -146,7 +146,7 @@ async function browserPart() {
   console.log("content: " + server.where);
   const THREE_CHUNK = /\/bundle\/three\.js(?:[?#]|$)/;
   const offline = (r) => server.owns(r.request().url()) && !THREE_CHUNK.test(r.request().url()) ? r.continue() : r.abort();
-  const browser = await chromium.launch();
+  const browser = await chromium.launch({ env: require("../lib/gl").env(chromium) });   /* off the machine's GPU: lib/gl.js */
   try {
     const cases = [["11", true], ["11 m", true], ["11m", true], ["11 metres", true], ["11 meters", true], ["11.", true],
       ["11.00", true], ["+11", true],

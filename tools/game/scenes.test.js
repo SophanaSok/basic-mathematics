@@ -35,9 +35,10 @@ const target = require("../lib/target");
 const { chromium } = require("../lib/pw").playwright();
 
 const THREE_CHUNK = /\/bundle\/three\.js(?:[?#]|$)/;
-/* software WebGL 2 in headless Chromium, the same three flags as map.test.js and the first
-   set the webgl suite of check-browser.js tries (tools/README.md, "WebGL in headless Chromium") */
-const GL_ARGS = ["--enable-unsafe-swiftshader", "--use-angle=swiftshader", "--ignore-gpu-blocklist"];
+/* software WebGL 2 in headless Chromium, as on a CI runner and never on this machine's GPU:
+   lib/gl.js, the same three flags as map.test.js and the first set the webgl suite of
+   check-browser.js tries (tools/README.md, "WebGL in headless Chromium") */
+const gl = require("../lib/gl");
 
 const SCENES = {
   boxcount: "parts/1-algebra/01-numbers.html",
@@ -496,7 +497,7 @@ async function run() {
   server = await target.start(site.parseArgs(process.argv.slice(2)));
   console.log("scenes: " + server.where);
   try {
-    const browser = await chromium.launch();
+    const browser = await chromium.launch({ env: gl.env(chromium) });
     try {
       await resetButton(browser);
       await swipes(browser);
@@ -505,7 +506,7 @@ async function run() {
     } finally {
       await browser.close();
     }
-    const glBrowser = await chromium.launch({ args: GL_ARGS });
+    const glBrowser = await gl.launch(chromium, {}, true);
     try {
       await painters(glBrowser);
     } finally {
