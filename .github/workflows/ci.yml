@@ -6,9 +6,9 @@
 #               dist-legacy/ are kept as artifacts
 #   browser     the Chromium checks that do not need WebGL, against that dist/, as one job
 #               per part of tools/check-browser.js PARTS, side by side: each runs its part
-#               of check-browser.js --skip=webgl, and the part "rest" (every suite no part
-#               names) also the tools/game scripts of test:browser:core. With build, all of
-#               these jobs are the gate a deploy waits for.
+#               of check-browser.js --skip=webgl, and the part CORE (today "rest", every
+#               suite no part names) also the tools/game scripts of test:browser:core.
+#               With build, all of these jobs are the gate a deploy waits for.
 #   webgl       the 3D checks (the scene stages, the course map) and the WebGL suite.
 #               WebGL on a runner is software rendering, slow and now and then losing its
 #               context, so these are retried and are not part of the gate
@@ -73,7 +73,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     outputs:
-      # the browser job's matrix: the parts of check-browser.js
+      # the browser job's matrix, the parts of check-browser.js, and the one of them whose
+      # job also runs test:browser:core: {"parts":[...],"core":"rest"}
       browser-parts: ${{ steps.parts.outputs.parts }}
     steps:
       - uses: actions/checkout@v7
@@ -86,7 +87,8 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run check
-      # exits 2, and fails the run, when a part names a suite that is not there
+      # exits 2, and fails the run, when a part names a suite that is not there or the
+      # part that runs test:browser:core is no part
       - name: the parts of the browser checks
         id: parts
         run: |
@@ -132,7 +134,7 @@ jobs:
       # the others run to the end when one fails, so each part's report is there to read
       fail-fast: false
       matrix:
-        part: ${{ fromJSON(needs.build.outputs.browser-parts) }}
+        part: ${{ fromJSON(needs.build.outputs.browser-parts).parts }}
     env:
       # the tools/game scripts load the downloaded build, never the source tree
       BM_ROOT: dist
@@ -152,8 +154,10 @@ jobs:
           name: dist
           path: dist
       - run: npx playwright install --with-deps chromium
-      # the tools/game scripts go with the part "rest" (REST in check-browser.js), first
-      - if: matrix.part == 'rest'
+      # the tools/game scripts go first in the job of the part CORE of check-browser.js
+      # (today "rest"), named by --parts, never here; check:legacy's `ci` check fails
+      # when this step or its condition is changed
+      - if: matrix.part == fromJSON(needs.build.outputs.browser-parts).core
         run: npm run test:browser:core
       - name: npm run check:browser -- --skip=webgl --part=${{ matrix.part }}
         run: npm run check:browser -- --skip=webgl --part="$PART"

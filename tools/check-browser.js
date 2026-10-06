@@ -17,8 +17,10 @@
    --part      only the suites of one part of PARTS below ("rest": every suite no part
                names); --only and --skip then narrow that. CI runs the gate as one job
                per part, side by side
-   --parts     check PARTS against tools/suites/ and print the part names as JSON (the
-               browser job's matrix in ci.yml), or exit 2 when a part names no suite
+   --parts     check PARTS against tools/suites/ and print, as JSON, the part names (the
+               browser job's matrix in ci.yml) and CORE, the part whose job also runs
+               test:browser:core: {"parts":[...],"core":"rest"}; exit 2 when a part names
+               no suite
    --theme     one theme instead of both;  --vw one viewport instead of both
    --base      git ref whose exercise keys the restore suite seeds (default lib/site.js)
    --headed    show the browser
@@ -156,11 +158,16 @@ const PARTS = {
 };                                               // rest: transitions 54, motion 28, missions 23,
                                                  //   restore 20, thirdparty 11, upgrade 3
 const REST = "rest";
+/* the part whose job also runs `npm run test:browser:core` (the tools/game scripts of the
+   gate), first. ci.yml reads it from --parts rather than naming a part itself, so renaming
+   a part cannot leave the scripts in no job */
+const CORE = REST;
 
-/* every name a suite's, no suite in two parts, and no part called "rest"; returns
-   the part of each suite, or throws saying what is wrong */
+/* every name a suite's, no suite in two parts, no part called "rest", and CORE one of the
+   parts; returns the part of each suite, or throws saying what is wrong */
 function partOf(allSuites) {
   const part = {};
+  if (CORE !== REST && !PARTS[CORE]) throw new Error("CORE: " + CORE + " is no part, so no job would run test:browser:core");
   for (const p of Object.keys(PARTS)) {
     if (p === REST) throw new Error("PARTS: \"" + REST + "\" is every suite no part names, and cannot be a part of its own");
     for (const n of PARTS[p]) {
@@ -192,7 +199,7 @@ async function main() {
   let parts;
   try { parts = partOf(allSuites); }
   catch (e) { console.error(e.message); return 2; }
-  if (opts.parts) { console.log(JSON.stringify(Object.keys(PARTS).concat(REST))); return 0; }
+  if (opts.parts) { console.log(JSON.stringify({ parts: Object.keys(PARTS).concat(REST), core: CORE })); return 0; }
   if (opts.list) { allSuites.forEach(s => console.log(s.name.padEnd(12) + " " + parts[s.name].padEnd(10) + " " + s.description)); return 0; }
   const part = opts.part === undefined ? null : String(opts.part);
   if (part !== null && part !== REST && !PARTS[part]) { console.error("--part names no part: " + part + " (the parts: " + Object.keys(PARTS).concat(REST).join(", ") + ")"); return 2; }

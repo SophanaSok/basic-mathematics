@@ -181,7 +181,7 @@ async function checkRun(ctx, r) {
    never deploys an older commit of main to production on a re-run, never deploys a pull
    request under its head branch's name (which may be main, the production branch), fails
    a deploy of main that Cloudflare did not make production, and publishes this directory
-   once SITE_CUTOVER is true */
+   once SITE_CUTOVER is true; and the deploy gate it waits for runs test:browser:core */
 function checkCi(ctx, r) {
   const ci = fs.readFileSync(path.join(ROOT, ".github", "workflows", "ci.yml"), "utf8");
   const project = origins.read(ROOT).project;
@@ -201,6 +201,13 @@ function checkCi(ctx, r) {
   r.count++;
   const prod = job.indexOf('if [ "$ENVIRONMENT" != "production" ]');
   if (prod < 0 || prod < wrangler || !/name: A deploy from main is production\n\s+if: [^\n]*github\.event_name != 'pull_request' && github\.ref == 'refs\/heads\/main'/.test(job)) r.fail(".github/workflows/ci.yml: the cloudflare job does not fail a deploy of main that Cloudflare did not make production");
+  /* the deploy gate's tools/game scripts run in the browser job of the part CORE of
+     check-browser.js, which ci.yml reads from --parts: a part named in ci.yml instead
+     would leave them in no job once the part was renamed, and the gate would pass
+     without them */
+  r.count++;
+  const browser = ci.indexOf("\n  browser:") < 0 ? "" : ci.slice(ci.indexOf("\n  browser:") + 1).split(/\n  [a-z-]+:\n/)[0];
+  if (!/part: \$\{\{ fromJSON\(needs\.build\.outputs\.browser-parts\)\.parts \}\}/.test(browser) || !/- if: matrix\.part == fromJSON\(needs\.build\.outputs\.browser-parts\)\.core\n\s+run: npm run test:browser:core\n/.test(browser)) r.fail(".github/workflows/ci.yml: the browser job does not run npm run test:browser:core in the job of the part --parts names as core, so the gate could pass without the tools/game scripts");
   r.count++;
   if (!/name: dist-legacy\n\s+path: dist-legacy/.test(ci) || ci.indexOf('echo "artifact=dist-legacy"') < 0) r.fail(".github/workflows/ci.yml: dist-legacy/ is not kept as an artifact and published when SITE_CUTOVER is true");
 }
@@ -210,7 +217,7 @@ const CHECKS = [
   { name: "same", run: checkSame, what: "every file is what tools/build-legacy.js writes now" },
   { name: "stubs", run: checkStubs, what: "canonical, <noscript> refresh and visible link to the page's new address; a referrer policy that sends this origin; one inline script, allowed by hash, no course files" },
   { name: "run", run: checkRun, what: "each stub run: nothing saved goes plain; progress goes in #bm-carry=, the stores the new address takes and nothing else; signed in, the settings and w:1 alone; 404.html to the front page" },
-  { name: "ci", run: checkCi, what: "the workflow's default Cloudflare project is origins.ts's, a re-run of an old commit of main deploys nothing to Cloudflare, a pull request deploys as pr-<number> and never to production, a deploy of main that is not production fails, and it publishes dist-legacy/ when SITE_CUTOVER is true" }
+  { name: "ci", run: checkCi, what: "the workflow's default Cloudflare project is origins.ts's, a re-run of an old commit of main deploys nothing to Cloudflare, a pull request deploys as pr-<number> and never to production, a deploy of main that is not production fails, it publishes dist-legacy/ when SITE_CUTOVER is true, and test:browser:core runs in the browser job of the part --parts names as core" }
 ];
 
 (async function main() {
