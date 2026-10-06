@@ -220,12 +220,12 @@ The course is moving from GitHub Pages to its own address, **learn.groundupmath.
 Cloudflare Pages. A browser keeps what it saved for each address apart, so once the course has
 moved, the old address sends you to the same page at the new one with the progress this browser
 saved there, inside the link (the part after `#`, which a browser never sends to a server). The
-new address shows you what it holds and asks before keeping any of it; yes adds it to whatever is
-there already. Your sign-in does not come along: if you have an account, sign in again at the new
-address and your progress comes back from it (what your browser held for that account at the old
-address is kept for that account alone, and joined to it when it signs in). If you have more
-progress than fits in a link, the
-old address offers it as a file, which the progress page imports, as it does the account page's
+new address reads it only when you arrive straight from the old address, says what it would add,
+and asks before keeping any of it; yes only adds what this browser does not have yet, and never
+changes or removes anything already there. Your sign-in does not come along, and neither does an
+account's progress: if you were signed in at the old address, sign in again at the new one and
+your account brings everything back. If you have more progress than fits in a link, the old
+address offers it as a file, which the progress page imports, as it does the account page's
 "Download my data".
 
 Everything is remembered in **your browser**, in local storage — including achievements, medals
@@ -414,12 +414,14 @@ assets/lesson.js        step-by-step reading of a chapter
 assets/config.js        Supabase URL and anon key, sign-in providers; empty means no accounts
 assets/account.js       sign-in and sync, listening on BMStore
 src/carry/origins.ts    the site's addresses: the new one (learn.groundupmath.org), the old one, the
-                        Cloudflare Pages project; the bundle and the Node tools both read it
-src/carry/send.js       what the old address's pages run: read this browser's bm.* keys and go to the
-                        new address with them in the fragment (plain ES5, inlined by build-legacy.js)
+                        Cloudflare Pages project, the old one on a local server; the bundle and
+                        the Node tools both read it
+src/carry/send.js       what the old address's pages run: read the stores the new address takes and
+                        go to it with them in the fragment (plain ES5, inlined by build-legacy.js)
 src/carry/page.js       the old address's carry page: the same, or the progress as a file
-src/carry/format.ts     the new address's half: read, check, describe and merge carried progress
-                        (no DOM), with its Vitest test beside it
+src/carry/format.ts     the new address's half: where carried progress may come from, reading and
+                        checking it, and add(), which only adds what this browser lacks and counts
+                        it for the question (no DOM), with its Vitest test beside it
 src/ui/carry.ts         the question a carried link asks, and the progress page's import (window.BMCarry)
 assets/insights.js      renders progress.html and insights.html
 supabase/schema.sql     tables, row-level security, aggregate functions
@@ -1045,7 +1047,7 @@ memory but keeps the site:
 | `bm.run.v1` | the combo meter, an unfinished Arena run, the day's Arena XP counts (`arenaDay`) and the day the next-step card was hidden (`nextHide`) (this device only; cleared by reset and sign-out) |
 | `bm.prefs.v1` | the settings sheet's and the Arena's settings: `calm` (Study mode), `sound`, `volume` (0 to 100, unset is 50), `motion` and `transparency` (`"reduce"`, unset follows the device), `panel` (`"dark"`, unset for light paper), `gfx` (`"low"`, `"mid"`, `"high"`, unset is Auto: the course world's tier), `map` (`"list"` keeps the chapter list alone), `gfxAuto` (not a setting: the tier the world's watchdog settled on, `"list"`, `"low"` or `"medium"`; cleared by a choice of `gfx` or `map`), `tempo` (this device only; survives a reset; keys the site does not know are kept; a value it does not know reads as unset) |
 | `bm.sync.v1` | with accounts on: whose progress this browser holds and the last reset it knows of |
-| `bm.sync.pending.v1` | with accounts on: progress that could not be saved when its reader signed out, kept aside per reader until they sign in here again; and progress brought from the old address for an account that was signed in there (`carried`), kept for that account the same way ([Moving between addresses](#moving-between-addresses)) |
+| `bm.sync.pending.v1` | with accounts on: progress that could not be saved when its reader signed out, kept aside per reader until they sign in here again (never carried from the old address) |
 | `bm.carry.v1` | the fingerprints of the carried payloads this browser was asked about, and the answer (this device only; [Moving between addresses](#moving-between-addresses)) |
 
 Every write is announced on `window.BMStore` (`on(fn)` / `emit(change)`), with change types
@@ -1138,68 +1140,95 @@ struggle score from 0 (right first time) to 1, averaged per section.
 at `https://learn.groundupmath.org` ([`OPERATIONS.md`](OPERATIONS.md), "Moving to Cloudflare
 Pages"), the new address starts empty for everyone. Signed-in readers get everything back from
 their account when they sign in there. A signed-out reader's progress is only in their browser,
-at the old origin, so the old address carries it over:
+at the old origin, so the old address carries it over. Two rules make that safe, each on its own:
+the new address reads carried progress only from a navigation that came from the old origin,
+and what it reads can only add what this browser does not have.
 
 - **The old address** (after the cutover) serves `dist-legacy/` (`tools/build-legacy.js`): one
   page at the path of every page of the site, whose first and only script
-  (`src/carry/send.js`) reads every `bm.*` key but `bm.sync.v1` (the account binding) and
-  `bm.carry.v1`, and goes, with `location.replace`, to the same page at the new address with
-  them in the fragment: `#bm-carry=1z<data>`, where `1` is the format, `z` says the JSON
-  `{"v":1,"s":{<key>:<value>}}` is deflated (`j` where the browser cannot compress), and the
-  data is base64url. When `bm.sync.v1` names an account (the reader was signed in there), its id
-  and last reset go beside the stores as `"a":{"user","resetAt"}`, and nothing else of it: the
-  progress is that account's, and the new address keeps it for that account alone. The page's
-  own anchor follows as `&bm-at=`, unless it is itself a `bm-carry=` payload, which is never
-  sent on. A Supabase session never starts with `bm.` and is never read. Nothing saved, it goes
-  there plainly; longer than `MAX_FRAGMENT` (32,000 characters; a learner who has tried every
-  exercise comes to about 11,000), it goes to the old address's carry page, which offers the
-  progress as a file. Any other path of the old address (`404.html`: a folder, a mistyped
-  address) goes to the front page of the new one, with the progress. Without scripts, a refresh
-  inside `<noscript>` and a link take the reader on, without the progress. An iframe cannot do
-  this: browsers partition an embedded page's storage by the page around it.
-- **The new address** reads the fragment on any page (`src/ui/carry.ts`, every entry imports it
-  after `account.js`), but only on the new address itself, a local server and the project's
-  `pages.dev` addresses (`allowedHost`), never on the old address, which serves this same build
-  until the cutover. It takes the fragment out of the address at once (`history.replaceState`,
-  the anchor put back), and reads it as untrusted (`src/carry/format.ts`): any other format or
-  `v` is refused, and so is a game record whose own `v` says its data is newer than the site
-  writes (`account.js` would keep that mark and stop saving to the account); the fragment is
-  capped, and so is what it inflates to (1 MB), and its nesting; every key must start with `bm.`
-  and none may name an auth token, or the whole payload is refused; `__proto__` is dropped. Then
-  every store is rebuilt field by field from what the site writes (`src/types/state.ts`): solved
-  and done maps of `true`, counts and times that are finite and in range, days that are real
-  dates no later than tomorrow, the settings' known values; anything else in a store is left
-  out, a store that is not one is left out whole, and a payload with nothing left that the
-  reader would be told about is refused. Then it asks, in a modal dialog that names every kind
-  of thing it would write (for the saved-state fixture, "3 chapters, 23 exercises solved, 519 XP,
-  3 achievements, 1 medal, your Arena and review record and your settings", and progress set
-  aside for an account when there is any; never a word of the payload itself, which is never put
-  into the page as HTML). Yes merges: the synced stores through `BMAccount.merge` with this
-  browser's side as the local one, so both sides' progress is kept and this browser's own
-  choices (where to continue, the daily goal, the reading mode) win where the two disagree, and
-  every Daily this browser had stays (the merge alone keeps the latest 60 days); `bm.run.v1`,
-  `bm.prefs.v1` and `bm.theme` only where this browser has none; `bm.sync.pending.v1` merged per
-  reader, each record that arrives marked `carried` (the account page then describes it as
-  progress from the old address and repeats no email or service from it). With an account (`"a"`), the synced stores go instead to `bm.sync.pending.v1` under
-  that account's id, marked `carried`, out of view, and the account merges them in when it signs
-  in on this browser (`account.js` sync, as for progress set aside at a sign-out); the run store
-  stays behind with them. A signed-in reader's account then saves what was merged, as after any
-  change. No changes nothing. Either answer is recorded by the payload's fingerprint in
-  `bm.carry.v1`, so the same payload arriving on its own is never asked about twice; from the old
-  address's carry page (`&bm-ask=1`), which a reader reaches only by asking, it is asked about
-  again, so a no can be taken back. One that is refused gets a short note and is recorded too.
+  (`src/carry/send.js`) reads the stores the new address takes (`TAKEN`: the seven synced stores,
+  `bm.prefs.v1` and `bm.theme`) and goes, with `location.replace`, to the same page at the new
+  address with them in the fragment: `#bm-carry=1z<data>`, where `1` is the format, `z` says the
+  JSON `{"v":1,"s":{<key>:<value>}}` is deflated (`j` where the browser cannot compress), and
+  the data is base64url. Each page states its referrer policy, `<meta name="referrer"
+  content="strict-origin-when-cross-origin">`, before its script, so the navigation carries the
+  old origin and nothing of its path. When `bm.sync.v1` names an account (the reader was signed
+  in there), the synced stores are that account's copy and stay behind: only the settings go,
+  with `"w":1`, which tells the new address to say "sign in here", and nothing else of the
+  account. Set-aside progress (`bm.sync.pending.v1`), the run store, the account binding, a
+  Supabase session and any other key are never read. The page's own anchor follows as `&bm-at=`,
+  unless it is itself a `bm-carry=` payload, which is never sent on. Nothing saved, it goes there
+  plainly; longer than `MAX_FRAGMENT` (32,000 characters; a learner who has tried every exercise
+  comes to about 11,000), it goes to the old address's carry page, which offers the progress as
+  a file. Any other path of the old address (`404.html`: a folder, a mistyped address) goes to
+  the front page of the new one, with the progress. Without scripts, a refresh inside
+  `<noscript>` and a link take the reader on, without the progress. An iframe cannot do this:
+  browsers partition an embedded page's storage by the page around it.
+- **The new address** looks for the fragment on any page (`src/ui/carry.ts`), but only on the
+  new address itself, a local server and the project's `pages.dev` addresses (`allowedHost`),
+  never on the old address, which serves this same build until the cutover. It takes the
+  fragment out of the address at once (`history.replaceState`, the anchor put back). Then:
+  - **Where it came from** (`fromLegacy`): unless `document.referrer`'s origin is exactly the
+    old one (`https://sophanasok.github.io`; on a page served from `localhost`, `LEGACY_LOCAL`,
+    `http://127.0.0.1` on any port, where the tests and the runbook's local trial serve the
+    legacy site), it is not read at all, and a short note points to the progress page. A page
+    on any other origin cannot make a browser send the old origin as the referrer of a
+    navigation it starts: the HTML standard takes the referrer from the document that starts the
+    navigation (for `location.replace` and the location setter, the incumbent global object's
+    document, so a page that sets the location of a window it opened on the old origin is still
+    the referrer), and only the owner publishes at `sophanasok.github.io`, where the stubs send
+    only what that origin's own storage holds. Arriving with no referrer at all (a typed
+    address, a browser set to send none) or from the new address itself is refused the same way;
+    the reader can still bring their progress over from the progress page.
+  - **What it holds** (`decode`, `check`): any other format or `v` is refused, and so is a game
+    record whose own `v` says its data is newer than the site writes; the fragment is capped,
+    and so is what it inflates to (1 MB), and its nesting; every key must start with `bm.` and
+    none may name an auth token, or the whole payload is refused; `__proto__` is dropped. Every
+    store it takes is rebuilt field by field from what the site writes; anything else is left out.
+  - **What it adds** (`add`): only what this browser does not have, and never by
+    `BMAccount.merge`. Solved exercises and done missions join the sets; an exercise's attempt
+    record (once solved) arrives only where this browser has no record of it at all; XP days
+    only where absent and not after today, never the daily goal; a chapter's lesson place, where
+    to continue, `bm.prefs.v1` and `bm.theme` only where absent; in the game record a section's
+    review place only where this browser has none for that section, Daily days only where absent,
+    not after today and within the room the site's 60 leave beside this browser's own,
+    achievements, best scores and rematch medals only where absent, and nothing else. A value
+    here that cannot be read, or is not a record where one is expected, is never written over.
+    `add()` returns the writes and the counts of what they add, and the modal dialog is made
+    from those counts (for the saved-state fixture into an empty browser, "23 exercises solved,
+    31 answer records, 3 missions done, your place in 3 lessons, 519 XP over 5 days, 3
+    achievements, 1 medal, 2 best scores, 9 review sections, 2 Dailies played, where to continue
+    from, your theme and your sound and display settings"; never a word of the payload itself,
+    which is never put into the page as HTML). Yes runs `add()` again on what this browser holds
+    by then and writes that, announcing each synced store as any change is (a signed-in reader's
+    account then saves it as this browser's own); if it would now add something else, the
+    reader is asked again. Nothing new to add, nothing is asked. A payload with `"w":1` adds a
+    line to the dialog (or a note, when there is nothing else) telling the reader to sign in here.
+    Either answer is recorded by the payload's fingerprint in `bm.carry.v1`, so the same payload
+    arriving on its own is never asked about twice; from the old address's carry page
+    (`&bm-ask=1`), which a reader reaches only by asking, it is asked about again, so a no can be
+    taken back.
 - **The progress page**, on the same addresses (the old one, while it still serves the course,
   shows nothing new), has *Bring progress from the old address* (a link to the old address's
-  carry page, which sends the progress back to it), *take it from the old address as a file*
-  (the same page with `&file=1`), and *Import a file of your progress*, which takes the account
-  page's "Download my data" file, or the carry page's, through the same checks, question and
-  merge. The two links lead somewhere only once the old address serves the legacy site.
+  carry page, which sends the progress back to it, from the old origin), *take it from the old
+  address as a file* (the same page with `&file=1`), and *Import a file of your progress*, which
+  takes the account page's "Download my data" file, or the carry page's, through the same
+  checks, `add()` and question. A file is the reader's own choice, so where it came from is not
+  asked; it only adds, as a link does. The two links lead somewhere only once the old address
+  serves the legacy site.
 - **The about page** says where the course is served from and how the carry works, in a
   paragraph (`[data-carry-moved]`) shown only on the same addresses, so the old address's readers
   are told nothing of the move before it happens.
 
-The addresses are written once, in `src/carry/origins.ts`. `src/carry/format.test.ts` and
-`tools/game/carry.test.js` (two origins in Chromium) hold all of it.
+What is left to the account's own rules: progress added to this browser is this browser's own
+from then on, and a reader who later signs in here has it joined to their account the way
+anything done in this browser before signing in is (`account.js` sync, `BMAccount.merge`).
+
+The addresses are written once, in `src/carry/origins.ts`. `src/carry/format.test.ts` (the
+referrer rule, and `add()` over random states of both sides: nothing here ever changes, and the
+counts are what was added), `tools/game/sync.test.js` (review round 3's links against the real
+`account.js`) and `tools/game/carry.test.js` (the real redirect across two origins in Chromium,
+and a third that is neither) hold all of it.
 
 The theme follows the operating system by default and can be set to light or dark in the
 settings sheet ("Match system" goes back to following it).
@@ -1349,18 +1378,20 @@ npm run check:dist      # dist/ is the source's site, each source page taken wit
                         # dist/404.html, which only Cloudflare Pages reads
 npm run build:legacy    # dist-legacy/, the old address after the move
 npm run check:legacy    # a stub at every page path and nothing else; each with its canonical
-                        # link, <noscript> refresh and link to the new address, one inline
-                        # script allowed by hash; each run in a vm, carrying every bm. store
-                        # and the account's id, never a session or a payload in its own
-                        # fragment; 404.html to the front page; the cloudflare job's re-run
-                        # guard
+                        # link, <noscript> refresh and link to the new address, a referrer
+                        # policy that sends its origin, one inline script allowed by hash;
+                        # each run in a vm, carrying the stores the new address takes and
+                        # nothing else (signed in: the settings and w:1 alone), never a
+                        # session or a payload in its own fragment; 404.html to the front
+                        # page; the cloudflare job's re-run guard
 
 npm run test:browser    # the game, the next-step card, the Arena and its due review, the account
                         # page (and that a signed-out page never fetches the supabase chunk), the
                         # 3D stages, the new 3D exercises and the course world (its tiers and
                         # their budgets, the watchdog, idle frames, keyboard), progress carried
                         # from the old address to the new one across two origins (yes, no,
-                        # crafted links, a file, no JavaScript), each driven in headless Chromium
+                        # links from a third origin ignored, a file, no JavaScript), each
+                        # driven in headless Chromium
 npm run check:browser   # dist/ served: every page × theme × width (errors, theme before first
                         # paint, scripts ran, KaTeX rendered, no request to any other server,
                         # Three.js fetched only where there is 3D, the world's chunk only on the

@@ -4,22 +4,23 @@
    dist-legacy/, which GitHub Pages serves once the site has moved): it reads what
    this browser saved at the old address and takes the reader to the same page at the
    new one, with that progress in the address's fragment, which is never sent to any
-   server. The new address asks the reader before it keeps any of it
-   (src/ui/carry.ts) and merges it with what is there (src/carry/format.ts).
+   server. It leaves with location.replace from a page whose referrer policy sends this
+   origin (tools/build-legacy.js writes the <meta name="referrer">): the new address
+   reads the fragment only when the referrer is this origin (src/carry/format.ts
+   fromLegacy), asks the reader, and only adds what that browser does not have.
 
    The fragment is #bm-carry=<format><packing><data>[&bm-at=<the old fragment>]:
      format   "1", the one this file writes; the new address refuses any other
      packing  "z": the data deflated (CompressionStream "deflate-raw"), "j": as it is,
               where the browser cannot compress
-     data     base64url of the UTF-8 of JSON {"v":1,"s":{<key>:<value>,…}[,"a":{…}]},
-              every localStorage key that starts with "bm." and whose value is JSON, but
-              the two that name an account or the new address's own record (KEEP_OUT). A
-              Supabase session ("sb-…-auth-token") never starts with "bm.", and a key
-              that names an auth token is left out whatever it starts with. When this
-              browser was signed in here (bm.sync.v1 names an account), "a" is that
-              account's id and last reset ({"user","resetAt"}, nothing else of it): the
-              progress is that account's, and the new address keeps it for that account
-              alone (src/carry/format.ts, "Whose progress it is").
+     data     base64url of the UTF-8 of JSON {"v":1,"s":{<key>:<value>,…}[,"w":1]}: the
+              stores the new address may take (TAKEN: the progress the site syncs, and
+              the settings), each whose value is JSON. Nothing of an account: when this
+              browser was signed in here (bm.sync.v1 names an account), its synced
+              stores are that account's copy, which the account brings back when the
+              reader signs in at the new address, so they stay here and only "w":1 says
+              that the reader was signed in. No session, no account binding, no progress
+              set aside for a reader, no other key.
    The old fragment is left out when it is itself a carried payload (bm-carry=…), so a
    link to an old page cannot have one sent on as if this page had written it.
    Too long for an address (cfg.limit), the reader goes to the carry page instead,
@@ -35,19 +36,18 @@ var BMCarrySend = (function () {
   var PARAM = "bm-carry";
   var AT = "bm-at";
   var FORMAT = "1";
-  /* the account this browser's progress belongs to (account.js META_KEY): without the
-     session it means nothing at the new address, and there it would make the next
-     sign-in treat the progress as another reader's; and what the new address records
-     about carries it has taken in */
-  var KEEP_OUT = ["bm.sync.v1", "bm.carry.v1"];
+  /* the stores the site syncs to an account (format.ts SYNCED), and the settings that
+     stay on a device (DEVICE): every key the new address may take (TAKEN) */
+  var SYNCED = ["bm.progress.v1", "bm.play.v1", "bm.attempts.v1", "bm.activity.v1", "bm.lesson.v1", "bm.last", "bm.game.v1"];
+  var DEVICE = ["bm.prefs.v1", "bm.theme"];
+  var TAKEN = SYNCED.concat(DEVICE);
 
-  /* the account this browser's progress belongs to, or null */
-  function ownerOf(storage) {
+  /* whether this browser was signed in here: bm.sync.v1 (account.js META_KEY) names an
+     account. Only that it was is sent, nothing of which */
+  function signedIn(storage) {
     var m = null;
     try { m = JSON.parse(storage.getItem("bm.sync.v1")); } catch (e) { m = null; }
-    if (!m || typeof m !== "object" || typeof m.user !== "string" || !/^[A-Za-z0-9-]{1,64}$/.test(m.user)) return null;
-    var r = Number(m.resetAt);
-    return { user: m.user, resetAt: isFinite(r) && r > 0 ? r : 0 };
+    return !!(m && typeof m === "object" && typeof m.user === "string" && m.user);
   }
 
   /* the old page's own fragment, unless it is a carried payload or too long for an anchor */
@@ -56,54 +56,21 @@ var BMCarrySend = (function () {
     return at.length > 200 || at.indexOf(PARAM + "=") >= 0 || at.indexOf(AT + "=") >= 0 ? "" : at;
   }
 
-  function carried(key) {
-    return typeof key === "string" && key.indexOf("bm.") === 0 && KEEP_OUT.indexOf(key) < 0 &&
-      key.toLowerCase().indexOf("auth-token") < 0;
-  }
-
-  /* What the new address never keeps is not sent, since an address is kept in the
-     session and the browser's history: the Arena run in play (bm.run.v1 `arena`, which
-     holds what the reader has typed into the question in front of them; a run is
-     started again there), and the email of each reader whose progress is set aside
-     (bm.sync.pending.v1; the new address names none for a carried record). */
-  function trim(key, value) {
-    var out = value, k;
-    if (key === "bm.run.v1" && value && typeof value === "object" && Object.prototype.hasOwnProperty.call(value, "arena")) {
-      out = {};
-      for (k in value) if (Object.prototype.hasOwnProperty.call(value, k) && k !== "arena" && k !== "__proto__") out[k] = value[k];
-    } else if (key === "bm.sync.pending.v1" && value && typeof value === "object") {
-      out = {};
-      for (k in value) {
-        if (!Object.prototype.hasOwnProperty.call(value, k) || k === "__proto__") continue;
-        var r = value[k], copy = r, f;
-        if (r && typeof r === "object" && Object.prototype.hasOwnProperty.call(r, "email")) {
-          copy = {};
-          for (f in r) if (Object.prototype.hasOwnProperty.call(r, f) && f !== "email" && f !== "__proto__") copy[f] = r[f];
-        }
-        out[k] = copy;
-      }
-    }
-    return out;
-  }
-
-  /* every carried key with its value parsed (and trimmed), keys in order; a value that is
-     not JSON is left behind, as the site itself reads it as missing */
+  /* every key that is sent, with its value parsed, in order; a value that is not JSON is
+     left behind, as the site itself reads it as missing. Signed in, the synced stores
+     are the account's and stay. */
   function collect(storage) {
-    var stores = {}, count = 0, keys = [], i;
-    try {
-      for (i = 0; i < storage.length; i++) keys.push(storage.key(i));
-    } catch (e) { return { stores: stores, count: 0, owner: null }; }
-    keys.sort();
+    var stores = {}, count = 0, was = false, i;
+    try { was = signedIn(storage); } catch (e) { was = false; }
+    var keys = TAKEN.slice().sort();
     for (i = 0; i < keys.length; i++) {
       var k = keys[i], raw = null;
-      if (!carried(k)) continue;
+      if (was && SYNCED.indexOf(k) >= 0) continue;
       try { raw = storage.getItem(k); } catch (e) { raw = null; }
       if (raw === null) continue;
-      try { stores[k] = trim(k, JSON.parse(raw)); count++; } catch (e) { /* unreadable here too */ }
+      try { stores[k] = JSON.parse(raw); count++; } catch (e) { /* unreadable here too */ }
     }
-    var owner = null;
-    try { owner = ownerOf(storage); } catch (e) { owner = null; }
-    return { stores: stores, count: count, owner: owner };
+    return { stores: stores, count: count, signedIn: was };
   }
 
   function utf8(text) {
@@ -118,11 +85,11 @@ var BMCarrySend = (function () {
     return btoa(bin).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
   }
 
-  /* the value of the bm-carry parameter for these stores (and their owner, or none);
-     resolves, never rejects */
-  function encode(stores, owner) {
+  /* the value of the bm-carry parameter for these stores (and whether the reader was
+     signed in here); resolves, never rejects */
+  function encode(stores, was) {
     var payload = { v: 1, s: stores };
-    if (owner) payload.a = { user: owner.user, resetAt: owner.resetAt };
+    if (was) payload.w = 1;
     var bytes = utf8(JSON.stringify(payload));
     var plain = FORMAT + "j" + base64url(bytes);
     if (typeof CompressionStream !== "function" || typeof Response !== "function" || typeof Blob !== "function") return Promise.resolve(plain);
@@ -150,10 +117,10 @@ var BMCarrySend = (function () {
       try { loc.replace(url); } catch (e) { loc.href = url; }
     }
     var got;
-    try { got = collect(window.localStorage); } catch (e) { got = { count: 0 }; }
-    if (!got.count || typeof Promise !== "function") return leave(plain);
+    try { got = collect(window.localStorage); } catch (e) { got = { count: 0, signedIn: false }; }
+    if ((!got.count && !got.signedIn) || typeof Promise !== "function") return leave(plain);
     setTimeout(function () { leave(plain); }, 3000);
-    encode(got.stores, got.owner).then(function (value) {
+    encode(got.stores, got.signedIn).then(function (value) {
       if (value.length > cfg.limit) {
         leave(cfg.carry + "?to=" + encodeURIComponent(cfg.path + query) + (at ? "#" + at : ""));
       } else {
@@ -162,5 +129,5 @@ var BMCarrySend = (function () {
     }).then(null, function () { leave(plain); });
   }
 
-  return { PARAM: PARAM, AT: AT, FORMAT: FORMAT, KEEP_OUT: KEEP_OUT, carried: carried, collect: collect, encode: encode, anchor: anchor, go: go };
+  return { PARAM: PARAM, AT: AT, FORMAT: FORMAT, TAKEN: TAKEN, collect: collect, encode: encode, anchor: anchor, go: go };
 })();

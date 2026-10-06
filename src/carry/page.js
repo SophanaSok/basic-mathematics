@@ -10,11 +10,14 @@
                        (bm-ask=1), so the new address asks even about progress the
                        reader once said no to
      it does not fit   offers it as a file (the shape "Download my data" writes, with
-                       the device's own stores under `device` and the account it
-                       belongs to, if any, as `owner`), which the progress page of the
-                       new address imports, and says how; ?file=1 asks for the file
-                       whatever the size
-   ?to= is a path at the new address and nothing else: anything that is not one is "/".
+                       the settings under `device`, and `signedIn` when this browser
+                       was signed in here, which is all it says of an account), which
+                       the progress page of the new address imports, and says how;
+                       ?file=1 asks for the file whatever the size
+   It leaves as every legacy page does, with location.replace under the page's referrer
+   policy, so the new address sees this origin as the referrer (src/carry/format.ts
+   fromLegacy). ?to= is a path at the new address and nothing else: anything that is not
+   one is "/".
    Plain ES5, inlined as it is (see send.js).
    =========================================================================== */
 var BMCarryPage = (function () {
@@ -35,8 +38,8 @@ var BMCarryPage = (function () {
     } catch (e) { return "/"; }
   }
 
-  /* the file: what "Download my data" writes, and the rest under `device` */
-  function file(stores, from, owner) {
+  /* the file: what "Download my data" writes, and the settings under `device` */
+  function file(stores, from, signedIn) {
     var out = { format: "basic-mathematics-progress", v: 1, from: from, exported: new Date().toISOString() }, device = {}, n = 0;
     Object.keys(SYNCED).forEach(function (f) {
       if (Object.prototype.hasOwnProperty.call(stores, SYNCED[f])) out[f] = stores[SYNCED[f]];
@@ -47,7 +50,7 @@ var BMCarryPage = (function () {
       if (!synced) { device[k] = stores[k]; n++; }
     });
     if (n) out.device = device;
-    if (owner) out.owner = { user: owner.user, resetAt: owner.resetAt };
+    if (signedIn) out.signedIn = true;
     return out;
   }
 
@@ -68,11 +71,11 @@ var BMCarryPage = (function () {
       a.textContent = target.replace(/^https?:\/\//, "");
     });
     var got;
-    try { got = S.collect(window.localStorage); } catch (e) { got = { stores: {}, count: 0, owner: null }; }
-    if (!got.count) { show("carry-none"); return; }
+    try { got = S.collect(window.localStorage); } catch (e) { got = { stores: {}, count: 0, signedIn: false }; }
+    if (!got.count && !got.signedIn) { show("carry-none"); return; }
     function offerFile() {
       document.getElementById("carry-download").addEventListener("click", function () {
-        var blob = new Blob([JSON.stringify(file(got.stores, loc.origin + loc.pathname, got.owner), null, 2)], { type: "application/json" });
+        var blob = new Blob([JSON.stringify(file(got.stores, loc.origin + loc.pathname, got.signedIn), null, 2)], { type: "application/json" });
         var a = document.createElement("a");
         a.href = URL.createObjectURL(blob);
         a.download = "basic-mathematics-progress.json";
@@ -84,7 +87,7 @@ var BMCarryPage = (function () {
     }
     /* ?file=1 asks for the file whatever its size */
     if (/[?&]file=1(&|$)/.test(loc.search) || typeof Promise !== "function") { offerFile(); return; }
-    S.encode(got.stores, got.owner).then(function (value) {
+    S.encode(got.stores, got.signedIn).then(function (value) {
       if (value.length <= cfg.limit) loc.replace(target + "#" + S.PARAM + "=" + value + (at ? "&" + S.AT + "=" + encodeURIComponent(at) : "") + "&bm-ask=1");
       else offerFile();
     }).then(null, offerFile);

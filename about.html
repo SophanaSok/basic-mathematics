@@ -227,14 +227,16 @@
       neither sees your progress. A browser keeps saved progress apart for each address, so the
       old address now only sends you on to the same page here, and brings the progress this
       browser saved there with you. It travels inside the link, in the part after the
-      <code>#</code>, which a browser never sends to any server. This address shows you what it
-      holds and asks before keeping any of it; yes joins it to whatever is already here, and no
-      leaves both as they were. Your sign-in is never brought over: if you used an account, sign
-      in again here and your account's progress comes back as usual (what your browser held for
-      that account at the old address is kept here for that account alone, and saved to it when
-      it signs in). If there is too much to fit in a link, the old address offers it as a file
-      instead, which <a href="progress.html#carry">your progress page</a> can import, as it can
-      the file the account page's download makes. This address remembers which of these it has
+      <code>#</code>, which a browser never sends to any server. This address reads it only when
+      you arrive straight from the old address (your browser tells it which site you came from;
+      a link from anywhere else is not read), shows you what it would add, and asks before
+      keeping any of it. Yes only adds what this browser does not have yet: nothing already here
+      is changed or removed. No leaves both as they were. Your sign-in is never brought over, and
+      neither is an account's progress: if you used an account, sign in again here and your
+      account brings everything back. If there is too much to fit in a link, or your browser does
+      not say which site you came from, <a href="progress.html#carry">your progress page</a> can
+      bring it over as a file the old address offers, or the file the account page's download
+      makes, and adds it the same way. This address remembers which of these it has
       asked you about (<code>bm.carry.v1</code>), so an old link opened again does not ask twice.
     </p>
     <p>

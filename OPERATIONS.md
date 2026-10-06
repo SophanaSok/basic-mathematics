@@ -622,23 +622,40 @@ domain `groundupmath.org` is registered at Porkbun, and its DNS stays there: one
 with the progress a signed-out reader saved there, to the same page at the new address.
 
 Why it has to carry anything: a browser keeps `localStorage` per origin, so the new address
-starts empty for every reader. Signed-in readers lose nothing (their account syncs as soon as they
-sign in again; what their browser held for that account at the old address is carried too, but
-kept for that account alone and joined to it when it signs in, so another reader signing in on the
-same computer never takes it in), but a signed-out reader's progress exists only in their browser,
-at the old origin. The legacy site's pages read it there and hand it over in the address's fragment
-(`#bm-carry=…`), which browsers never send to a server; the new address shows the reader what it
-holds, asks, and joins it to what is there with the site's own merge rules, after rebuilding
-every store from what the site itself writes and a learner needs to keep their progress (a
-crafted link can add no value the site would not have written, names only chapters, sections
-and achievements the course has, and can never change, lower or remove what is already there:
-an exercise's attempt record or a section's place in the review arrives only where there is
-none, in this browser or in the account it is kept for, and the Daily's days, an unsolved
-exercise's tries and an account's own settings are not carried at all). Too much for an address, the old
-address offers it as a file instead, which the new progress page imports. An iframe cannot do
-this: current browsers partition the storage of an embedded page by the page around it. The
-pieces: [`src/carry/`](src/carry/) and `src/ui/carry.ts` (README, "Moving between
-addresses"), `tools/build-legacy.js`, the `cloudflare` and `deploy` jobs of
+starts empty for every reader. Signed-in readers lose nothing: their account syncs as soon as they
+sign in again, and nothing of an account is carried (a browser that was signed in at the old
+address sends only its settings and a "was signed in" mark, and the new address tells the reader
+to sign in). A signed-out reader's progress exists only in their browser, at the old origin. The
+legacy site's pages read it there and hand it over in the address's fragment (`#bm-carry=…`),
+which browsers never send to a server. Two rules make that safe, each on its own:
+
+- **Only from the old origin.** The new address reads the fragment only when `document.referrer`
+  is exactly `https://sophanasok.github.io` (`fromLegacy` in `src/carry/format.ts`). The stubs
+  leave by `location.replace` under `<meta name="referrer" content="strict-origin-when-cross-origin">`,
+  so browsers send that origin and nothing of the path; a page on any other origin cannot make a
+  browser send it (the HTML standard takes a navigation's referrer from the document that starts
+  it). A link from anywhere else, or with no referrer (a typed address, a browser set to send
+  none, such as a hardened Firefox with `network.http.referer.XOriginPolicy` above 0), is not read;
+  the reader gets a note pointing to the progress page, whose *Import a file of your progress*
+  takes the carry page's file. **This is why nothing else you publish at `sophanasok.github.io`
+  (your user site, any other project site) may ever navigate to the new address with a
+  `#bm-carry=` fragment, redirect to an address a visitor chooses, or write `bm.*` keys to
+  `localStorage`**: every GitHub Pages site of the account shares that one origin, and the
+  carry trusts it.
+- **Only adding.** Whatever is read (or imported from a file) can only add what this browser does
+  not have: solved exercises and missions join the sets; an attempt record, a section's place in
+  the review, an XP day, a Daily day (none after today, and only into the room the site's 60 leave),
+  an achievement, a best score, a medal, a lesson place, where to continue and the settings only
+  where this browser has none; never the daily goal, the reading mode, a chapter's total, the run
+  store or any account record. The question names what it adds, in counts, from the same function
+  that writes it. Nothing already in the browser is changed or removed, and the account merge
+  rules are never run on carried data; once added it is this browser's own progress, and joins an
+  account at a later sign-in here as anything done here before signing in does.
+
+Too much for an address, the old address offers it as a file instead, which the new progress page
+imports. An iframe cannot do this: current browsers partition the storage of an embedded page by
+the page around it. The pieces: [`src/carry/`](src/carry/) and `src/ui/carry.ts` (README, "Moving
+between addresses"), `tools/build-legacy.js`, the `cloudflare` and `deploy` jobs of
 [`.github/workflows/ci.yml`](.github/workflows/ci.yml).
 
 Nothing changes for readers until step 8.6. Until then CI keeps publishing the course to GitHub
@@ -831,23 +848,35 @@ address serves the legacy site. Step 3 tries the same carry on your own machine 
    exercise; the account page says *Synced at …*. Open the old address signed in as the same
    account: the exercise is solved there too. That is the path every signed-in reader takes.
 3. **A carried payload, for real.** Before the cutover the old address still serves the course,
-   so stand in for it on your own machine, at an address your browser keeps apart:
+   and the new address takes carried progress only from `https://sophanasok.github.io`, so try
+   the carry on your own machine, with both addresses local: the new one at `localhost`, the old
+   one at `127.0.0.1` (`LEGACY_LOCAL` in `src/carry/origins.ts`; on a page served from
+   `localhost`, the new address takes carried progress from that host on any port, as it takes
+   it from the old origin in production):
    ```sh
-   npm run build && npm run preview            # http://localhost:8000: solve two exercises, then stop it
-   npm run build:legacy && npx vite preview --outDir dist-legacy
+   npm run build && npx vite preview --port 8000                    # the new address
+   npx vite preview --port 8001 --host 127.0.0.1                    # in a second terminal: the course, as the old address
    ```
-   The second command serves the legacy site at the same `http://localhost:8000`, so it reads
-   what you just saved (if port 8000 is taken, give both commands the same `--port`; checked with
-   vite 8.3 on 2026-10-05). Open `http://localhost:8000/parts/1-algebra/01-numbers.html`: it takes
-   you to `https://learn.groundupmath.org/parts/1-algebra/01-numbers`, which asks *Bring over
-   your progress from the old address? 1 chapter, 2 exercises solved …*. Say yes: the two
-   exercises are solved there, the address bar shows no `#bm-carry`, and a reload asks nothing.
-   Then the other answer, in a private window (its storage starts empty, for `localhost:8000`
-   and for the new address alike): stop the legacy preview, run `npm run preview` again, solve
-   one exercise at `http://localhost:8000`, stop it, start the legacy preview again, and open
-   `http://localhost:8000/parts/1-algebra/01-numbers.html` in the same private window. The new
-   address asks; say **No, leave it**: nothing is added (the progress page there shows nothing
-   solved), and opening the old link again asks nothing. Close the private window.
+   Open `http://127.0.0.1:8001/parts/1-algebra/01-numbers.html`, solve two exercises, and stop
+   the second command. Then serve the legacy site in its place, pointed at the first:
+   ```sh
+   node tools/build-legacy.js --origin=http://localhost:8000 --base=/ --out=.cache/trial-legacy
+   npx vite preview --outDir .cache/trial-legacy --port 8001 --host 127.0.0.1
+   ```
+   Open `http://127.0.0.1:8001/parts/1-algebra/01-numbers.html` again: it takes you to
+   `http://localhost:8000/parts/1-algebra/01-numbers`, which asks *Bring over your progress from
+   the old address? 2 exercises solved …*. Say yes: the two exercises are solved there, the
+   address bar shows no `#bm-carry`, and a reload asks nothing. Then paste that same address with
+   a fragment into the address bar yourself (`http://localhost:8000/#bm-carry=1jAAAA`): it is not
+   read, and a note points to the progress page. In a private window, repeat with **No, leave
+   it**: nothing is added, and opening the old link again asks nothing. (Checked with vite 8.3 on
+   2026-10-05; the browser test, `tools/game/carry.test.js`, does all of this in Chromium.)
+   Try it once in Firefox and once in Safari too: CI runs only Chromium, and the carry relies on
+   each sending the old origin as the referrer of the stub's `location.replace` (both implement
+   the HTML standard's rule and honour the stub's `<meta name="referrer">`; Safari's tracking
+   prevention trims a cross-site referrer to its site at most, and `sophanasok.github.io` is a
+   site of its own, `github.io` being a public suffix). If either asks nothing and shows the note
+   instead, the file import is the way for its readers; note which browser and its settings.
 4. **Rollback works** (once there are two production deployments): the project → Deployments →
    the older one → ⋯ → **Rollback to this deployment**; the site serves it; then roll forward to
    the newest the same way. If Cloudflare refuses for a Direct Upload deployment, note it: the
@@ -868,7 +897,8 @@ When 8.1 to 8.5 are done and DNS is settled:
 true)*. `curl -s https://sophanasok.github.io/basic-mathematics/about.html | grep canonical`
 shows `https://learn.groundupmath.org/about`. In the browser you used the course in before (with
 progress at the old address), open `https://sophanasok.github.io/basic-mathematics/` → the new
-address asks to bring your progress → yes → it is there. On the new progress page, *Bring
+address asks to bring your progress → yes → it is there (the first real carry from the real old
+origin: do it in Chrome, Firefox and Safari). On the new progress page, *Bring
 progress from the old address* now opens the old address's carry page, which sends the progress
 back and asks again (so a reader who once said no can still say yes). With JavaScript off, the old
 address still forwards (its meta refresh), without the progress. An old address that is no page
@@ -883,17 +913,21 @@ script could read the reader's progress, and that progress would be stranded.
 
 - **Signed out, with progress, in a browser with scripts:** an old link or bookmark opens for a
   moment at the old address, then the same page at the new one, with a question: *Bring over your
-  progress from the old address?* and what it holds (chapters, exercises solved, XP, settings).
-  **Bring it over** adds it to whatever is at the new address; **No, leave it** leaves both as
-  they were. It is asked once for the same progress. The old address keeps its copy.
+  progress from the old address?* and, in counts, what it would add (exercises solved, XP,
+  achievements, settings, …). **Bring it over** adds only what the new address does not have yet
+  and changes nothing there; **No, leave it** leaves both as they were. It is asked once for the same progress. The old address keeps its copy.
 - **A great deal of progress** (more than fits in a link; a learner who has done the whole
   course fits easily, so this is rare): the old address shows a page with **Download your
   progress** and the steps to import the file on the new progress page.
 - **Signed in:** they sign in again at the new address and their account brings everything back.
-  If their browser was still signed in at the old address, the question says the progress is
-  kept for that account: yes keeps it in the browser, out of view, until that account signs in
-  there, when it is joined to the account; the account page says so meanwhile. Another account
-  signing in on the same browser never takes it in.
+  If their browser was still signed in at the old address, its progress (the account's copy)
+  stays there: the new address brings only the settings it lacks, and says to sign in with the
+  same account. Progress that an old sign-out could not save (set aside at the old address) is not
+  carried either; it is saved only by signing in at the old address before the cutover.
+- **A browser that sends no referrer across sites** (some privacy settings and extensions): the
+  old address still forwards, but the new address does not read the progress and shows a note
+  pointing to the progress page, where *take it from the old address as a file* and *Import a
+  file of your progress* bring it over.
 - **Without scripts:** the old address forwards to the new one; the progress stays behind.
 - **Safari and other browsers that delete a site's storage after a week without a visit:** a
   learner who has not visited the old address recently may have nothing left there to carry.

@@ -11,7 +11,14 @@
                   it serves only dist-legacy/ (tools/build-legacy.js), which sends each
                   old address to the same page at ORIGIN with the reader's progress.
    PAGES_PROJECT  the Cloudflare Pages project's name, the default of the repository
-                  variable CLOUDFLARE_PROJECT_NAME that the deploy job reads. */
+                  variable CLOUDFLARE_PROJECT_NAME that the deploy job reads.
+   LEGACY_LOCAL   the old address on a local server: a page of the new address served
+                  from localhost takes carried progress from a page of this host, on any
+                  port (src/carry/format.ts fromLegacy), as it takes it from LEGACY's
+                  origin anywhere. The browser test (tools/game/carry.test.js) and the
+                  runbook's local trial serve the legacy site here. A scheme and a host,
+                  no port and no path. */
 export const ORIGIN = "https://learn.groundupmath.org";
 export const LEGACY = "https://sophanasok.github.io/basic-mathematics/";
 export const PAGES_PROJECT = "groundupmath";
+export const LEGACY_LOCAL = "http://127.0.0.1";

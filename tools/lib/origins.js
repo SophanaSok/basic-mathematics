@@ -7,7 +7,7 @@ const fs = require("fs");
 const path = require("path");
 
 const FILE = "src/carry/origins.ts";
-const NAMES = ["ORIGIN", "LEGACY", "PAGES_PROJECT"];
+const NAMES = ["ORIGIN", "LEGACY", "PAGES_PROJECT", "LEGACY_LOCAL"];
 
 function read(root) {
   const text = fs.readFileSync(path.join(root || path.resolve(__dirname, "..", ".."), FILE), "utf8");
@@ -22,7 +22,9 @@ function read(root) {
   const legacy = new URL(out.LEGACY);
   if (legacy.protocol !== "https:" || !/\/$/.test(legacy.pathname) || legacy.href !== out.LEGACY) throw new Error(FILE + ": LEGACY must be an https address ending in /, is " + JSON.stringify(out.LEGACY));
   if (!/^[a-z0-9][a-z0-9-]*$/.test(out.PAGES_PROJECT)) throw new Error(FILE + ": PAGES_PROJECT must be a Cloudflare Pages project name (lower-case letters, digits, dashes), is " + JSON.stringify(out.PAGES_PROJECT));
-  return { origin: out.ORIGIN, legacy: out.LEGACY, legacyPath: legacy.pathname, project: out.PAGES_PROJECT };
+  const local = new URL(out.LEGACY_LOCAL);
+  if (local.protocol !== "http:" || ["127.0.0.1", "localhost", "[::1]"].indexOf(local.hostname) < 0 || local.port || local.origin !== out.LEGACY_LOCAL) throw new Error(FILE + ": LEGACY_LOCAL must be http:// and a loopback host, with no port or path, is " + JSON.stringify(out.LEGACY_LOCAL));
+  return { origin: out.ORIGIN, legacy: out.LEGACY, legacyPath: legacy.pathname, project: out.PAGES_PROJECT, legacyLocal: out.LEGACY_LOCAL };
 }
 
 module.exports = { read, FILE };

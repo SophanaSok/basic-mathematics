@@ -67,7 +67,9 @@ function checkSame(ctx, r) {
 /* (c) each stub, read as a page: a canonical link to the page's new address, a refresh
    to it inside <noscript> and a link to it in the text; one script, inline, the first of
    the page, whose policy hash is in the page's own Content-Security-Policy, and which
-   sends this page to that address; no stylesheet, no script file, nothing of the
+   sends this page to that address; before it, one referrer policy that sends this
+   origin on the way out (the new address reads carried progress only from a navigation
+   whose referrer is the old origin); no stylesheet, no script file, nothing of the
    course's bundle. Every address is on the new origin. */
 function checkStubs(ctx, r) {
   const stub = (page, to) => {
@@ -93,6 +95,10 @@ function checkStubs(ctx, r) {
     const body = /<script>([\s\S]*?)<\/script>/.exec(ctx.text[page]);
     if (csp.length !== 1 || !body || csp[0].indexOf("script-src " + sha(body[1]) + ";") < 0) r.fail(where + "its Content-Security-Policy does not allow its own script by hash");
     else if (ctx.text[page].indexOf("Content-Security-Policy") > ctx.text[page].indexOf("<script>")) r.fail(where + "its Content-Security-Policy comes after the script");
+    const referrer = doc.queryAll("meta").filter(m => (m.getAttribute("name") || "").toLowerCase() === "referrer");
+    if (referrer.length !== 1 || referrer[0].getAttribute("content") !== legacy.REFERRER) r.fail(where + "no single <meta name=\"referrer\" content=\"" + legacy.REFERRER + "\"> (" + referrer.map(m => m.getAttribute("content")).join(", ") + "): the new address would not see this origin as the referrer");
+    else if (ctx.text[page].indexOf('name="referrer"') > ctx.text[page].indexOf("<script>")) r.fail(where + "its referrer policy comes after the script");
+    if (/http-equiv="referrer"|referrerpolicy=|rel="[^"]*noreferrer/i.test(ctx.text[page])) r.fail(where + "something else sets a referrer policy");
     const hosts = doc.queryAll("a").concat(doc.queryAll("link")).map(e => e.getAttribute("href")).filter(h => /^https?:/.test(h || ""));
     hosts.forEach(h => { if (new URL(h).origin !== ORIGIN) r.fail(where + "an address off the new origin: " + h); });
   };
@@ -103,10 +109,11 @@ function checkStubs(ctx, r) {
 
 /* (d) each stub run as a browser would run it, in a vm: with nothing saved it goes to
    its new address and nothing more, and never sends on an old fragment that is itself
-   a payload; with progress, a Supabase session, an account binding and another site's
-   key saved, it goes there with #bm-carry=, whose data holds every bm. store and none
-   of the rest, and the account's id alone beside them (inflated here as deflate-raw,
-   the browser's CompressionStream, would); 404.html sends any path to the front page */
+   a payload; with progress, a Supabase session, progress set aside for a reader and
+   another site's key saved, it goes there with #bm-carry=, whose data holds the stores
+   the new address takes and none of the rest; signed in here (an account binding), the
+   settings alone and "w":1, nothing of the account and none of its progress; 404.html
+   sends any path to the front page; deflate-raw reads back in Node */
 function runStub(text, storage, href) {
   const script = /<script>([\s\S]*?)<\/script>/.exec(text)[1];
   const keys = Object.keys(storage);
@@ -126,9 +133,15 @@ async function checkRun(ctx, r) {
   const saved = {
     "bm.progress.v1": JSON.stringify({ ch01: { solved: { e1: true }, total: 10 } }),
     "bm.theme": JSON.stringify("dark"),
-    "bm.sync.v1": JSON.stringify({ user: "u-1" }),
+    "bm.sync.pending.v1": JSON.stringify({ "u-9": { email: "a@b.c", state: {} } }),
+    "bm.run.v1": JSON.stringify({ paid: ["x"] }),
     "sb-ref-auth-token": JSON.stringify({ access_token: "secret" }),
     "other": JSON.stringify("x")
+  };
+  const signedIn = Object.assign({}, saved, { "bm.sync.v1": JSON.stringify({ user: "u-1", resetAt: 5 }) });
+  const payloadOf = (went, to) => {
+    const m = went && /^(.*)#bm-carry=1j([A-Za-z0-9_-]+)$/.exec(went);
+    return m && m[1] === to ? JSON.parse(Buffer.from(m[2], "base64url").toString("utf8")) : null;
   };
   for (const page of ctx.pages) {
     const to = ORIGIN + legacy.targetPath(page);
@@ -140,12 +153,12 @@ async function checkRun(ctx, r) {
     const crafted = await runStub(ctx.text[page], {}, old + "#bm-carry=1jeyJ2IjoxfQ");
     if (crafted !== to) r.fail(page + ": opened with a payload in its own fragment it went to " + crafted + ", not " + to);
     const carried = await runStub(ctx.text[page], saved, old);
-    const m = carried && /^(.*)#bm-carry=1j([A-Za-z0-9_-]+)$/.exec(carried);
-    if (!m || m[1] !== to) { r.fail(page + ": with progress saved it went to " + String(carried).slice(0, 120)); continue; }
-    const payload = JSON.parse(Buffer.from(m[2], "base64url").toString("utf8"));
+    const payload = payloadOf(carried, to);
+    if (!payload) { r.fail(page + ": with progress saved it went to " + String(carried).slice(0, 120)); continue; }
     const keys = Object.keys(payload.s).sort().join(",");
-    if (payload.v !== 1 || keys !== "bm.progress.v1,bm.theme") r.fail(page + ": carried v" + payload.v + " with " + keys + ", not v1 with bm.progress.v1,bm.theme");
-    if (JSON.stringify(payload.a) !== '{"user":"u-1","resetAt":0}' || Object.keys(payload).sort().join() !== "a,s,v") r.fail(page + ": the account went as " + JSON.stringify(payload.a) + " beside " + Object.keys(payload).join() + ", not its id alone");
+    if (payload.v !== 1 || keys !== "bm.progress.v1,bm.theme" || Object.keys(payload).sort().join() !== "s,v") r.fail(page + ": carried " + JSON.stringify(Object.keys(payload)) + " v" + payload.v + " with " + keys + ", not v and s with bm.progress.v1,bm.theme");
+    const theirs = payloadOf(await runStub(ctx.text[page], signedIn, old), to);
+    if (!theirs || Object.keys(theirs.s).sort().join() !== "bm.theme" || theirs.w !== 1 || Object.keys(theirs).sort().join() !== "s,v,w" || /u-1|resetAt/.test(JSON.stringify(theirs))) r.fail(page + ": signed in here it carried " + JSON.stringify(theirs) + ", not the settings alone and w:1");
   }
   /* 404.html sends any path to the front page, which reads carried progress (the new
      address's own 404 page does not); and the deflated form reads back */
@@ -195,8 +208,8 @@ function checkCi(ctx, r) {
 const CHECKS = [
   { name: "files", run: checkFiles, what: "a stub at every page path of the site, the carry page, 404.html, .nojekyll, and nothing else" },
   { name: "same", run: checkSame, what: "every file is what tools/build-legacy.js writes now" },
-  { name: "stubs", run: checkStubs, what: "canonical, <noscript> refresh and visible link to the page's new address; one inline script, allowed by hash, no course files" },
-  { name: "run", run: checkRun, what: "each stub run: nothing saved goes plain; progress goes in #bm-carry=, every bm. store and the account's id, never the session or another key; 404.html to the front page" },
+  { name: "stubs", run: checkStubs, what: "canonical, <noscript> refresh and visible link to the page's new address; a referrer policy that sends this origin; one inline script, allowed by hash, no course files" },
+  { name: "run", run: checkRun, what: "each stub run: nothing saved goes plain; progress goes in #bm-carry=, the stores the new address takes and nothing else; signed in, the settings and w:1 alone; 404.html to the front page" },
   { name: "ci", run: checkCi, what: "the workflow's default Cloudflare project is origins.ts's, a re-run of an old commit of main deploys nothing to Cloudflare, a pull request deploys as pr-<number> and never to production, a deploy of main that is not production fails, and it publishes dist-legacy/ when SITE_CUTOVER is true" }
 ];
 

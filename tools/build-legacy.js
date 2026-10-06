@@ -36,7 +36,13 @@
                      the new address's own 404 page does not read carried progress
      .nojekyll
    Each page holds a Content-Security-Policy in a <meta> (GitHub Pages sends no headers
-   of a site's choosing): nothing but its own inline script and style, by hash.
+   of a site's choosing): nothing but its own inline script and style, by hash. And a
+   referrer policy, <meta name="referrer" content="strict-origin-when-cross-origin">
+   (REFERRER), before its script: the new address reads carried progress only from a
+   navigation whose referrer is this origin (src/carry/format.ts fromLegacy), and this
+   policy sends exactly the origin on the cross-origin location.replace each page leaves
+   by, and the whole address on none. It is the browsers' own default, stated so that no
+   header GitHub Pages might add, and no change of default, can take it away.
    tools/check-legacy.js holds dist-legacy/ to all of it. */
 const fs = require("fs");
 const path = require("path");
@@ -77,6 +83,7 @@ function targetPath(page) {
 function esc(s) { return String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c])); }
 function hash(text) { return "'sha256-" + crypto.createHash("sha256").update(text, "utf8").digest("base64") + "'"; }
 
+const REFERRER = "strict-origin-when-cross-origin";
 const STYLE = ":root { color-scheme: light dark; } body { font: 1.1rem/1.55 system-ui, sans-serif; max-width: 36rem; margin: 4rem auto; padding: 0 16px; } button { font: inherit; padding: .5rem 1rem; }";
 
 /* one standalone page: `script` its one inline script, `refresh` the address a browser
@@ -90,6 +97,7 @@ function standalone(o) {
     "<head>",
     '<meta charset="utf-8">',
     '<meta http-equiv="Content-Security-Policy" content="' + esc(csp) + '">',
+    '<meta name="referrer" content="' + REFERRER + '">',
     '<meta name="viewport" content="width=device-width, initial-scale=1">',
     "<title>" + esc(o.title) + "</title>",
     o.canonical ? '<link rel="canonical" href="' + esc(o.canonical) + '">' : null,
@@ -169,7 +177,7 @@ function build(opts) {
   return Object.assign({ out }, r);
 }
 
-module.exports = { render, build, targetPath };
+module.exports = { render, build, targetPath, REFERRER };
 
 if (require.main === module) {
   const opts = site.parseArgs(process.argv.slice(2));

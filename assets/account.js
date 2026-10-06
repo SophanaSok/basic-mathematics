@@ -307,37 +307,6 @@
     };
   }
 
-  /* Progress brought from the old address (src/carry/format.ts) came in a link or a file
-     that anyone can write, so it can only add to `here` (this browser's progress, or an
-     account's at its sign-in). Two of the merge's rules take one side's record whole or
-     lower a value: an exercise's attempt record ("right first time" only if every side
-     that solved it says so) and a section's place in the review (the later day's box). So
-     a carried record of either kind is taken only where `here` has none for that exercise
-     or section. Everything else merges as two devices do, with `here` as the local side,
-     so its choices (the reading mode, the daily goal, the place to continue from) win. */
-  function adopt(here, carried) {
-    here = obj(here); carried = obj(carried);
-    var fresh = {};
-    Object.keys(carried).forEach(function (f) { fresh[f] = carried[f]; });
-    if (plain(carried.attempts)) {
-      var mine = obj(here.attempts);
-      fresh.attempts = {};
-      Object.keys(carried.attempts).forEach(function (ch) {
-        var have = obj(at(mine, ch)), recs = obj(carried.attempts[ch]), out = {};
-        Object.keys(recs).forEach(function (k) { if (at(have, k) === undefined) out[k] = recs[k]; });
-        if (Object.keys(out).length) fresh.attempts[ch] = out;
-      });
-    }
-    if (plain(carried.game) && plain(carried.game.sec)) {
-      var placed = obj(obj(here.game).sec), sec = {};
-      Object.keys(carried.game.sec).forEach(function (id) { if (at(placed, id) === undefined) sec[id] = carried.game.sec[id]; });
-      fresh.game = {};
-      Object.keys(carried.game).forEach(function (k) { fresh.game[k] = carried.game[k]; });
-      fresh.game.sec = sec;
-    }
-    return merge(here, fresh);
-  }
-
   /* ----------------------------------------------------------- local state -- */
 
   function readLocal() {
@@ -436,11 +405,7 @@
 
   /* Progress that could not be saved when its reader signed out, set aside by reader:
      { <user id>: { email, via, resetAt, state, at } }. It is merged in the next time that
-     reader signs in on this browser, and never shown to anyone else. Progress brought from
-     the old address for an account (src/carry/format.ts plan) is a record marked `carried`,
-     whose state is that progress; when this browser had set progress aside for the same
-     account itself, the carried progress waits beside its own as `brought`. Either way it
-     joins the account through adopt(), never as the account's own. */
+     reader signs in on this browser, and never shown to anyone else. */
   var PENDING_KEY = "bm.sync.pending.v1";
   function pending() { return obj(Store.read(PENDING_KEY, {})); }
   function setPending(fn) {
@@ -452,17 +417,13 @@
     var m = meta(), state = readLocal();
     setPending(function (p) {
       var old = obj(p[u.id]);
-      /* a carried record's reset time is not one this browser made, and its progress is
-         not this browser's own: it stays `brought` (sync) */
-      var brought = old.carried ? old.state : old.brought;
       p[u.id] = {
         email: u.email || "",
         via: methodIds(u),
-        resetAt: Math.max(Number(m.resetAt) || 0, old.carried ? 0 : Number(old.resetAt) || 0),
-        state: old.state && !old.carried ? merge(state, old.state) : state,
+        resetAt: Math.max(Number(m.resetAt) || 0, Number(old.resetAt) || 0),
+        state: old.state ? merge(state, old.state) : state,
         at: Date.now()
       };
-      if (plain(brought)) p[u.id].brought = brought;
     });
   }
 
@@ -582,23 +543,17 @@
       /* a reset made on another device wins over what this browser still remembers of the
          same account; progress made before ever signing in is kept and merged */
       if (m.user === u.id && remoteReset > mine) { local = {}; dropped = true; }
-      var held = hasAside && !(remoteReset > asideReset);
-      var kept = held && !aside.carried ? aside.state : {};
-      /* progress brought from the old address only adds to this browser's and the row's */
-      var brought = held ? obj(aside.carried ? aside.state : aside.brought) : {};
+      var kept = hasAside && !(remoteReset > asideReset) ? aside.state : {};
       /* A reset made on this browser that the row has not heard of. If nothing has been
          saved since it, the row's state is from before the reset and is left out. If
          another device has saved since, its work is kept and this reset is given up:
-         losing a reset can be undone by pressing it again, losing work cannot.
-         Progress carried from the old address (`carried`, src/carry/format.ts) came in a
-         link or a file anyone can write, so its reset time only decides whether what it
-         holds is kept (above): it never applies a reset to the account. */
-      var known = Math.max(mine, aside.carried ? 0 : asideReset), base = remote || {}, resetAt = remoteReset;
+         losing a reset can be undone by pressing it again, losing work cannot. */
+      var known = Math.max(mine, asideReset), base = remote || {}, resetAt = remoteReset;
       if (known > remoteReset) {
         var written = remote ? Date.parse(remote.updated_at) : 0;
         if (!(written >= known)) { base = {}; resetAt = known; }
       }
-      var merged = adopt(merge(merge(local, kept), base), brought);
+      var merged = merge(merge(local, kept), base);
       /* only now has this page seen the row: had the merge failed, the next save would
          read and merge again instead of writing this browser's copy over it */
       seen = remote ? remote.updated_at : null;
@@ -820,7 +775,6 @@
     configured: configured,
     recovering: false,
     merge: merge,
-    adopt: adopt,
     mergeGame: mergeGame,
     providers: providers.slice(),
     label: label,
@@ -1008,12 +962,6 @@
     return Object.keys(held).map(function (id) {
       /* the service is named as well: it is how that reader gets back into the same account */
       var via = (Array.isArray(held[id].via) ? held[id].via : []).filter(known).map(function (p) { return PROVIDERS[p].label; });
-      /* brought from the old address for an account that was signed in there
-         (src/carry/format.ts): nothing failed, it waits for its own account */
-      if (held[id].carried) {
-        return '<p class="form-note">Progress brought from the old address for an account that was signed in there is kept ' +
-          "in this browser, out of view, and will be saved to that account the next time it signs in here.</p>";
-      }
       return '<p class="form-note bad">Progress from your last session as <b>' + esc(mask(held[id].email)) + "</b>" +
         (via.length ? " (signed in with " + esc(listOf(via)) + ")" : "") + " could not be " +
         "saved to that account when it signed out. It has been set aside in this browser, out of view, and will be " +
