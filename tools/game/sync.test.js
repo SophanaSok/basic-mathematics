@@ -531,6 +531,23 @@ scenario("a different reader signing in does not get progress set aside for some
   expect(has(laptop.setAside("u1"), "ch01/e1"), "u1's set-aside progress was lost when u2 signed in", laptop.setAside("u1"));
 });
 
+/* what src/carry/format.ts plan() writes when a reader who was signed in at the old
+   address brings their browser's progress over: set aside for that account, `carried` */
+scenario("progress carried from the old address for an account goes to that account only", async () => {
+  const server = new Server();
+  server.rows.u1 = { user_id: "u1", progress: { ch01: { solved: { e2: true }, total: 10 } }, reset_at: 5, updated_at: now - 1000 };
+  const d = new Device("laptop", server);
+  d.storage.set("bm.sync.pending.v1", JSON.stringify({ u1: { email: "", via: [], resetAt: 5, state: { progress: { ch04: { solved: { e3: true }, total: 10 } } }, at: now - 10, carried: 1 } }));
+  d.remember("u2"); d.open(); await settle();
+  expect(!has(server.solved("u2"), "ch04/e3"), "another account took in the progress carried for u1", server.solved("u2"));
+  expect(!has(d.solved(), "ch04/e3"), "the carried progress was put into view for another account", d.solved());
+  expect(has(d.setAside("u1"), "ch04/e3"), "the progress carried for u1 was lost when u2 signed in", d.setAside("u1"));
+  await d.page.signOut();
+  d.remember("u1"); d.open(); await settle();
+  expect(has(server.solved("u1"), "ch04/e3") && has(server.solved("u1"), "ch01/e2"), "the carried progress did not join u1's account", server.solved("u1"));
+  expect(!d.read("bm.sync.pending.v1", {}).u1, "the carried record was kept after it reached the account", d.read("bm.sync.pending.v1", {}));
+});
+
 scenario("a reset that never reached the account does not wipe work another device saved after it", async () => {
   const { server, laptop, phone } = await twoDevices();
   laptop.page.solve("ch01", "e1"); await settle();

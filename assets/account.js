@@ -962,6 +962,12 @@
     return Object.keys(held).map(function (id) {
       /* the service is named as well: it is how that reader gets back into the same account */
       var via = (Array.isArray(held[id].via) ? held[id].via : []).filter(known).map(function (p) { return PROVIDERS[p].label; });
+      /* brought from the old address for an account that was signed in there
+         (src/carry/format.ts): nothing failed, it waits for its own account */
+      if (held[id].carried) {
+        return '<p class="form-note">Progress brought from the old address for an account that was signed in there is kept ' +
+          "in this browser, out of view, and will be saved to that account the next time it signs in here.</p>";
+      }
       return '<p class="form-note bad">Progress from your last session as <b>' + esc(mask(held[id].email)) + "</b>" +
         (via.length ? " (signed in with " + esc(listOf(via)) + ")" : "") + " could not be " +
         "saved to that account when it signed out. It has been set aside in this browser, out of view, and will be " +

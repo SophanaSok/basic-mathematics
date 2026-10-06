@@ -102,7 +102,7 @@ the `migrations` check refuses any edit to it; fix it with a newer migration.
 ## 2. GitHub Pages
 
 The site is served at <https://sophanasok.github.io/basic-mathematics/>. It is moving to
-Cloudflare Pages at <https://learn.groupupmath.org>; [section 8](#8-moving-to-cloudflare-pages) is
+Cloudflare Pages at <https://learn.groundupmath.org>; [section 8](#8-moving-to-cloudflare-pages) is
 the runbook. Until the repository variable `SITE_CUTOVER` is `true`, everything in this section
 holds as written: GitHub Pages serves the course, from the same `dist/` as before (the two files
 only Cloudflare reads, `_headers` and `404.html`, are left out of what it publishes). From then
@@ -348,6 +348,8 @@ deploy by reverting the commit ([7.2](#72-a-bad-deploy)).
   30 days after it. With the GitHub CLI: `gh run rerun <run-id>`, adding `--failed` for only the
   failed jobs. The `deploy` job of a re-run publishes only when that commit is still the newest on
   `main`; a re-run of an older run fails there instead of putting an older site over a newer one.
+  The `cloudflare` job does the same before it deploys to production (section 8), and
+  `npm run check:legacy` (`ci`) fails if that step is taken out.
 
 GitHub's pages on this, read 2026-10-04:
 [publishing source](https://docs.github.com/en/pages/getting-started-with-github-pages/configuring-a-publishing-source-for-your-github-pages-site),
@@ -497,7 +499,7 @@ check it when the first function exists.
 | --- | --- | --- | --- |
 | Apply migrations | R0 (now) | every change to `schema.sql` | [Section 1](#1-releasing-a-change-that-needs-sql). The first real one is the `events` table in R2 |
 | Watch Supabase usage and pausing | now | usage monthly, pausing weekly | [Section 3](#what-to-watch) |
-| Keep `groupupmath.org` renewed | from the purchase | yearly; auto-renew on | Porkbun → Domain Management → the domain → Auto Renew on, with a card that will still be valid. A lapsed domain takes the site and every reader's saved progress with it, and lets someone else take the name |
+| Keep `groundupmath.org` renewed | from the purchase | yearly; auto-renew on | Porkbun → Domain Management → the domain → Auto Renew on, with a card that will still be valid. A lapsed domain takes the site and every reader's saved progress with it, and lets someone else take the name |
 | Keep the old address forwarding | from the cutover | for at least a year | `SITE_CUTOVER` stays `true` and the GitHub Pages site stays published ([8.9](#89-afterwards-keep-the-old-address-for-a-year)) |
 | Renew expiring provider secrets | now, if Microsoft is enabled | before the expiry date | [Section 4](#rotation-in-outline) |
 | The hint review queue | **[not yet: R2]** | each content wave | Generated hints wait in a review queue; nothing ships unapproved. Approving or rejecting them is the owner's job |
@@ -614,17 +616,21 @@ First decide which key it is.
 
 ## 8. Moving to Cloudflare Pages
 
-The site moves from GitHub Pages to **Cloudflare Pages at `https://learn.groupupmath.org`**. The
-domain `groupupmath.org` is registered at Porkbun, and its DNS stays there: one CNAME record,
+The site moves from GitHub Pages to **Cloudflare Pages at `https://learn.groundupmath.org`**. The
+domain `groundupmath.org` is registered at Porkbun, and its DNS stays there: one CNAME record,
 `learn`, points at the Pages project. GitHub Pages stays for one job: sending each old address,
 with the progress a signed-out reader saved there, to the same page at the new address.
 
 Why it has to carry anything: a browser keeps `localStorage` per origin, so the new address
 starts empty for every reader. Signed-in readers lose nothing (their account syncs as soon as they
-sign in again), but a signed-out reader's progress exists only in their browser, at the old
-origin. The legacy site's pages read it there and hand it over in the address's fragment
+sign in again; what their browser held for that account at the old address is carried too, but
+kept for that account alone and joined to it when it signs in, so another reader signing in on the
+same computer never takes it in), but a signed-out reader's progress exists only in their browser,
+at the old origin. The legacy site's pages read it there and hand it over in the address's fragment
 (`#bm-carry=…`), which browsers never send to a server; the new address shows the reader what it
-holds, asks, and merges it with the site's own merge rules. Too much for an address, the old
+holds, asks, and merges it with the site's own merge rules, after rebuilding every store from
+what the site itself writes (a crafted link can add no value the site would not have written,
+and can never change or remove what is already there). Too much for an address, the old
 address offers it as a file instead, which the new progress page imports. An iframe cannot do
 this: current browsers partition the storage of an embedded page by the page around it. The
 pieces: [`src/carry/`](src/carry/) and `src/ui/carry.ts` (README, "Moving between
@@ -634,19 +640,22 @@ addresses"), `tools/build-legacy.js`, the `cloudflare` and `deploy` jobs of
 Nothing changes for readers until step 8.6. Until then CI keeps publishing the course to GitHub
 Pages exactly as before, and the `cloudflare` job publishes the same build to Cloudflare, where
 it can be tried. Without the two secrets that job deploys nothing, says so in a notice, and
-stays green.
+stays green. What the build says about the move (the about page's paragraph on where the course
+is served from, the progress page's *Bring your progress here*) shows only at the new address
+and its `pages.dev` addresses, never at the old one, so readers of the old address see nothing
+of it before the switch.
 
 The values used below, in one place:
 
 | What | Value |
 | --- | --- |
-| New address | `https://learn.groupupmath.org` (written once, in [`src/carry/origins.ts`](src/carry/origins.ts) `ORIGIN`; never change it once readers' progress is there) |
+| New address | `https://learn.groundupmath.org` (written once, in [`src/carry/origins.ts`](src/carry/origins.ts) `ORIGIN`; never change it once readers' progress is there) |
 | Old address | `https://sophanasok.github.io/basic-mathematics/` (`LEGACY`) |
-| Cloudflare Pages project | `groupupmath` (`PAGES_PROJECT`; the default of the variable `CLOUDFLARE_PROJECT_NAME`) |
-| Its own address | `https://groupupmath.pages.dev`, or that name with a few characters added if Cloudflare finds the name taken: use whatever the project page shows |
-| Previews | `https://<branch>.groupupmath.pages.dev` and `https://<hash>.groupupmath.pages.dev` |
+| Cloudflare Pages project | `groundupmath` (`PAGES_PROJECT`; the default of the variable `CLOUDFLARE_PROJECT_NAME`) |
+| Its own address | `https://groundupmath.pages.dev`, or that name with a few characters added if Cloudflare finds the name taken: use whatever the project page shows |
+| Previews | `https://<branch>.groundupmath.pages.dev` and `https://<hash>.groundupmath.pages.dev` |
 | Repository secrets | `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID` |
-| Repository variables | `CLOUDFLARE_PROJECT_NAME` (optional, default `groupupmath`), `SITE_CUTOVER` (`false` until 8.6, then `true`) |
+| Repository variables | `CLOUDFLARE_PROJECT_NAME` (optional, default `groundupmath`), `SITE_CUTOVER` (`false` until 8.6, then `true`) |
 | Supabase project | `https://jfidvrzonyzfstnykzly.supabase.co` (`assets/config.js`) |
 
 Documentation read for this section on 2026-10-05: Cloudflare Pages
@@ -682,8 +691,8 @@ Porkbun [URL forwarding](https://kb.porkbun.com/article/39-how-to-set-up-url-for
    - *Secrets* tab → **New repository secret**: `CLOUDFLARE_API_TOKEN` = the token;
      `CLOUDFLARE_ACCOUNT_ID` = the account ID.
    - *Variables* tab → **New repository variable**: `SITE_CUTOVER` = `false`. Add
-     `CLOUDFLARE_PROJECT_NAME` = `groupupmath` only if the project gets another name in 8.2
-     (the workflow uses `groupupmath` when it is unset).
+     `CLOUDFLARE_PROJECT_NAME` = `groundupmath` only if the project gets another name in 8.2
+     (the workflow uses `groundupmath` when it is unset).
 
 **Verify:** nothing yet; the first deploy (8.2) is the test of the token. **Undo:** delete the
 two secrets; the `cloudflare` job goes back to a notice. Revoke the token in Cloudflare.
@@ -700,23 +709,23 @@ missing project, and in CI it cannot ask, so the first run would fail. Create it
 1. In a terminal of your own, in this repository (`npm ci` done):
    ```sh
    npx wrangler@4.147.0 login
-   npx wrangler@4.147.0 pages project create groupupmath --production-branch=main
+   npx wrangler@4.147.0 pages project create groundupmath --production-branch=main
    ```
    Run these yourself, not through an AI coding agent: wrangler 4.147 detects such agents and
    then creates a *Workers* project instead of a Pages one (it prints a "Notice to agents" when
    it does). If that has happened, delete what it made in the dashboard and run the command
    again yourself.
    Or in the dashboard: Workers & Pages → **Create** → Pages → **Drag and drop your files**,
-   project name `groupupmath`, and upload the `dist/` folder of a local `npm run build`. Then
+   project name `groundupmath`, and upload the `dist/` folder of a local `npm run build`. Then
    check in the project's settings that the production branch is `main` (where the dashboard
    shows it for a Direct Upload project was not checked for this runbook).
-2. Note the address the project page shows (`groupupmath.pages.dev`, or with a suffix).
+2. Note the address the project page shows (`groundupmath.pages.dev`, or with a suffix).
 3. Actions → CI → **Run workflow** on `main`.
 
 **Verify:** the run's `cloudflare` job is green, and its summary says *Cloudflare Pages:
-production (groupupmath, branch main)* with the deployment's address. Open
-`https://groupupmath.pages.dev/`: the course, working. In a terminal,
-`curl -sI https://groupupmath.pages.dev/ | grep -i -E 'content-security-policy|cache-control'`
+production (groundupmath, branch main)* with the deployment's address. Open
+`https://groundupmath.pages.dev/`: the course, working. In a terminal,
+`curl -sI https://groundupmath.pages.dev/ | grep -i -E 'content-security-policy|cache-control'`
 shows the policy and `public, max-age=0, must-revalidate` (from `dist/_headers`). Open a pull
 request from a branch of this repository: its run comments the preview's address on it, once,
 and updates that comment on every push. **Undo:** Workers & Pages → the project → Settings →
@@ -728,30 +737,33 @@ the secrets are removed too.
 The order matters: Cloudflare must know the domain before the DNS record points at it, or the
 address answers with error 522.
 
-1. Workers & Pages → `groupupmath` → **Custom domains** → **Set up a domain** →
-   `learn.groupupmath.org` → **Continue**. It then shows the record to create (a CNAME to the
+1. Workers & Pages → `groundupmath` → **Custom domains** → **Set up a domain** →
+   `learn.groundupmath.org` → **Continue**. It then shows the record to create (a CNAME to the
    project's `pages.dev` address) and waits.
-2. Porkbun → Domain Management → `groupupmath.org` → **DNS**. If Porkbun's parking records are
+2. Porkbun → Domain Management → `groundupmath.org` → **DNS**. If Porkbun's parking records are
    there (an `ALIAS` for the bare domain and a `*` CNAME, both to `pixie.porkbun.com`), delete
-   them. Add: Type **CNAME**, Host **`learn`**, Answer **`groupupmath.pages.dev`** (the address
+   them. Add: Type **CNAME**, Host **`learn`**, Answer **`groundupmath.pages.dev`** (the address
    from 8.2.2, without `https://`), TTL **600**. Save.
+   Public DNS on 2026-10-05 already showed this record (`learn.groundupmath.org` CNAME
+   `groundupmath.pages.dev`, answering Cloudflare's error 522 while nothing is deployed there):
+   if it is there, check its Answer is the address from 8.2.2 rather than add a second one.
 3. Back in Cloudflare, the domain goes to *Active*, with a certificate, usually within minutes;
    allow up to 24 hours for DNS to spread.
-4. **The bare domain** (optional): Porkbun's free URL forwarding sends `groupupmath.org` to
+4. **The bare domain** (optional): Porkbun's free URL forwarding sends `groundupmath.org` to
    the site. Domain Management → the domain → Details → **URL Forwarding** (edit): Hostname
-   empty, Forward Traffic To `https://learn.groupupmath.org`, advanced settings: **Permanent
+   empty, Forward Traffic To `https://learn.groundupmath.org`, advanced settings: **Permanent
    Redirect (301)** and **Include the requested URI path**. Leave **Wildcard Forwarding off**:
    it would forward `learn` as well and take the site down. Repeat with Hostname `www` if you
    want that name too. Porkbun's page says it takes 10 to 15 minutes. Whether Porkbun's
-   forwarding answers `https://groupupmath.org` with a valid certificate is not stated on that
+   forwarding answers `https://groundupmath.org` with a valid certificate is not stated on that
    page: test it (step 5 below), and if it does not, readers should simply be given the `learn`
    address.
 
-**Verify:** `dig +short CNAME learn.groupupmath.org` prints the `pages.dev` address;
-`https://learn.groupupmath.org/` opens the course with a padlock;
-`curl -sI https://learn.groupupmath.org/about.html` answers a redirect (3xx) with `location: /about`
+**Verify:** `dig +short CNAME learn.groundupmath.org` prints the `pages.dev` address;
+`https://learn.groundupmath.org/` opens the course with a padlock;
+`curl -sI https://learn.groundupmath.org/about.html` answers a redirect (3xx) with `location: /about`
 (Pages' own redirect to the address without `.html`); and, if set up,
-`curl -sI https://groupupmath.org/about` answers `301` to `https://learn.groupupmath.org/about`.
+`curl -sI https://groundupmath.org/about` answers `301` to `https://learn.groundupmath.org/about`.
 **Undo:** delete the CNAME at Porkbun and remove the domain in the project's Custom domains
 (Cloudflare's order: DNS record first, then the domain); delete the URL forward.
 
@@ -762,34 +774,37 @@ allow-list"), so nothing in the code changes; only the lists do. Add, never repl
 
 1. **Supabase** → the project → Authentication → **URL Configuration**.
    - *Redirect URLs* → **Add URL**, each of:
-     - `https://learn.groupupmath.org/account.html`
-     - `https://groupupmath.pages.dev/account.html` (the project's own address from 8.2)
-     - `https://*.groupupmath.pages.dev/**` (previews: `*` stands for one label, which is what a
+     - `https://learn.groundupmath.org/account.html`
+     - `https://groundupmath.pages.dev/account.html` (the project's own address from 8.2)
+     - `https://*.groundupmath.pages.dev/**` (previews: `*` stands for one label, which is what a
        preview's branch or hash is; Supabase documents the pattern rules, not Cloudflare's
        addresses, so test one preview)
      - keep `https://sophanasok.github.io/basic-mathematics/account.html` and
        `http://localhost:8000/account.html`
    - *Site URL*: leave it on the old address until the cutover (8.6), then set it to
-     `https://learn.groupupmath.org/`. Supabase uses it when a request names no address, and in
+     `https://learn.groundupmath.org/`. Supabase uses it when a request names no address, and in
      the emails it sends. While `emailDelivery` is `false` in `assets/config.js` no email goes
      out; before turning it on, check the email templates use `{{ .RedirectTo }}` rather than
      `{{ .SiteURL }}`.
 2. **Google** → Google Cloud console → Google Auth Platform → **Clients** → the web client →
-   *Authorized JavaScript origins* → **Add URI** → `https://learn.groupupmath.org`. Keep
+   *Authorized JavaScript origins* → **Add URI** → `https://learn.groundupmath.org`. Keep
    `https://sophanasok.github.io`. *Authorized redirect URIs* stays the Supabase callback,
    `https://jfidvrzonyzfstnykzly.supabase.co/auth/v1/callback`. Google says a change can take
    from five minutes to a few hours, and takes no wildcards, so previews are not added there:
    Google sign-in on a preview fails at Google, which is expected; test it on the project's own
    `pages.dev` address after adding that origin too, or on `learn`.
 3. **GitHub** sign-in: nothing to change (its callback is Supabase's). Optionally set the OAuth
-   app's Homepage URL to `https://learn.groupupmath.org`.
+   app's Homepage URL to `https://learn.groundupmath.org`.
 
 **Verify:** in 8.5. **Undo:** remove the added entries; the old address keeps working
 throughout.
 
 ### 8.5 Trying the new address end to end
 
-On `https://learn.groupupmath.org` (and once on `https://groupupmath.pages.dev`):
+On `https://learn.groundupmath.org` (and once on `https://groundupmath.pages.dev`). Until 8.6 the
+progress page's *Bring progress from the old address* and *take it from the old address as a
+file* lead to GitHub's own not-found page: the carry page they open exists only once the old
+address serves the legacy site. Step 3 tries the same carry on your own machine instead.
 
 1. **Pages and headers.** Open the contents page, a chapter, the Arena, progress, account; the
    3D world and a chapter's 3D figures appear. In the browser's console there is no
@@ -807,10 +822,15 @@ On `https://learn.groupupmath.org` (and once on `https://groupupmath.pages.dev`)
    The second command serves the legacy site at the same `http://localhost:8000`, so it reads
    what you just saved (if port 8000 is taken, give both commands the same `--port`; checked with
    vite 8.3 on 2026-10-05). Open `http://localhost:8000/parts/1-algebra/01-numbers.html`: it takes
-   you to `https://learn.groupupmath.org/parts/1-algebra/01-numbers`, which asks *Bring over
+   you to `https://learn.groundupmath.org/parts/1-algebra/01-numbers`, which asks *Bring over
    your progress from the old address? 1 chapter, 2 exercises solved …*. Say yes: the two
    exercises are solved there, the address bar shows no `#bm-carry`, and a reload asks nothing.
-   Try once more in a private window and say no: nothing is added.
+   Then the other answer, in a private window (its storage starts empty, for `localhost:8000`
+   and for the new address alike): stop the legacy preview, run `npm run preview` again, solve
+   one exercise at `http://localhost:8000`, stop it, start the legacy preview again, and open
+   `http://localhost:8000/parts/1-algebra/01-numbers.html` in the same private window. The new
+   address asks; say **No, leave it**: nothing is added (the progress page there shows nothing
+   solved), and opening the old link again asks nothing. Close the private window.
 4. **Rollback works** (once there are two production deployments): the project → Deployments →
    the older one → ⋯ → **Rollback to this deployment**; the site serves it; then roll forward to
    the newest the same way. If Cloudflare refuses for a Direct Upload deployment, note it: the
@@ -822,18 +842,21 @@ On `https://learn.groupupmath.org` (and once on `https://groupupmath.pages.dev`)
 
 When 8.1 to 8.5 are done and DNS is settled:
 
-1. Supabase → URL Configuration → *Site URL* = `https://learn.groupupmath.org/` (8.4).
+1. Supabase → URL Configuration → *Site URL* = `https://learn.groundupmath.org/` (8.4).
 2. GitHub → Settings → Secrets and variables → Actions → Variables → `SITE_CUTOVER` → **Update**
    → `true`.
 3. Actions → CI → **Run workflow** on `main` (changing a variable starts no run).
 
 **Verify:** the run's `deploy` summary says *GitHub Pages: the legacy site (SITE_CUTOVER is
 true)*. `curl -s https://sophanasok.github.io/basic-mathematics/about.html | grep canonical`
-shows `https://learn.groupupmath.org/about`. In the browser you used the course in before (with
+shows `https://learn.groundupmath.org/about`. In the browser you used the course in before (with
 progress at the old address), open `https://sophanasok.github.io/basic-mathematics/` → the new
-address asks to bring your progress → yes → it is there. With JavaScript off, the old address
-still forwards (its meta refresh), without the progress. An old address that never existed
-(`…/basic-mathematics/nope.html`) lands on the new address's not-found page.
+address asks to bring your progress → yes → it is there. On the new progress page, *Bring
+progress from the old address* now opens the old address's carry page, which sends the progress
+back and asks again (so a reader who once said no can still say yes). With JavaScript off, the old
+address still forwards (its meta refresh), without the progress. An old address that is no page
+(`…/basic-mathematics/nope.html`, or a folder such as `…/basic-mathematics/parts/1-algebra/`)
+lands on the new address's front page, with the progress.
 
 **Do not** set a custom domain on the GitHub repository's Pages settings, now or later: GitHub
 would then answer every old address with a redirect of its own, before the legacy page's
@@ -849,18 +872,22 @@ script could read the reader's progress, and that progress would be stranded.
 - **A great deal of progress** (more than fits in a link; a learner who has done the whole
   course fits easily, so this is rare): the old address shows a page with **Download your
   progress** and the steps to import the file on the new progress page.
-- **Signed in:** the same question appears if their browser had progress at the old address;
-  either way, they sign in again at the new address and their account brings everything back.
+- **Signed in:** they sign in again at the new address and their account brings everything back.
+  If their browser was still signed in at the old address, the question says the progress is
+  kept for that account: yes keeps it in the browser, out of view, until that account signs in
+  there, when it is joined to the account; the account page says so meanwhile. Another account
+  signing in on the same browser never takes it in.
 - **Without scripts:** the old address forwards to the new one; the progress stays behind.
 - **Safari and other browsers that delete a site's storage after a week without a visit:** a
   learner who has not visited the old address recently may have nothing left there to carry.
   Nothing can be done about that from here; signing in is the safe road.
-- From the new progress page, *Bring progress from the old address* fetches it again at any time,
-  and *Import a file of your progress* takes a "Download my data" file.
+- From the new progress page, *Bring progress from the old address* fetches it again at any time
+  (and asks again, even after a no), *take it from the old address as a file* gives it as a file,
+  and *Import a file of your progress* takes that file or a "Download my data" file.
 
 A short announcement to post:
 
-> **Basic Mathematics has a new address: https://learn.groupupmath.org**
+> **Basic Mathematics has a new address: https://learn.groundupmath.org**
 > The old address still works and sends you to the same page there. If you use the course
 > without an account, the new address will ask whether to bring over the progress saved in your
 > browser: say yes, and it is all there. If you have an account, just sign in again. Please
@@ -875,7 +902,7 @@ A short announcement to post:
 | 8.3 domain | Delete the `learn` CNAME at Porkbun, then remove the custom domain from the project; delete the URL forward |
 | 8.4 sign-in lists | Remove the added Redirect URLs and the Google origin. The old address was never taken off, so nothing breaks |
 | 8.6 cutover | Set `SITE_CUTOVER` to `false` and Run workflow on `main`: the old address serves the course again within minutes. Set Supabase's Site URL back. Progress already brought to the new address stays there; readers who moved keep using it, and the old address still holds what it held |
-| A bad deploy on Cloudflare | Rollback in the project's Deployments (8.5.4), and revert the commit on `main` (7.2) |
+| A bad deploy on Cloudflare | Rollback in the project's Deployments (8.5.4), and revert the commit on `main` (7.2). Re-running an older run on `main` deploys nothing: its `cloudflare` job stops when `main` has moved on |
 
 ### 8.9 Afterwards: keep the old address for a year
 

@@ -29,8 +29,11 @@
      carry/          the carry page (src/carry/page.js after send.js): the same hand-over,
                      for the new address's "Bring progress from the old address", or the
                      progress as a file to import there
-     404.html        what GitHub Pages answers any other path with: the same as a stub,
-                     for the path asked, read in the browser
+     404.html        what GitHub Pages answers any other path with (a folder such as
+                     parts/1-algebra/, a mistyped or retired address): the same as a
+                     stub, but to the front page of the new address, without the old
+                     address's query or fragment. The path is no page there either, and
+                     the new address's own 404 page does not read carried progress
      .nojekyll
    Each page holds a Content-Security-Policy in a <meta> (GitHub Pages sends no headers
    of a site's choosing): nothing but its own inline script and style, by hash.
@@ -128,10 +131,7 @@ function render(opts) {
   files["404.html"] = standalone({
     title: "Basic Mathematics has moved",
     refresh: origin + "/",
-    script: send + "\n(function () {\n  var base = " + JSON.stringify(base) + ", p = window.location.pathname;\n" +
-      "  var rest = p.indexOf(base) === 0 ? p.slice(base.length) : \"\";\n" +
-      "  var path = \"/\" + rest.replace(/(^|\\/)index\\.html$/, \"$1\").replace(/\\.html$/, \"\");\n" +
-      "  BMCarrySend.go({ to: " + JSON.stringify(origin) + " + path, path: path, carry: base + \"carry/\", limit: " + max + " });\n})();",
+    script: send + "\nBMCarrySend.go(" + JSON.stringify({ to: origin + "/", path: "/", carry: base + "carry/", limit: max, bare: true }) + ");",
     body: moved(origin + "/")
   });
   files["carry/index.html"] = standalone({

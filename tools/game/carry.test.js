@@ -18,13 +18,23 @@
       #anchor): it goes to the same chapter at the new address once, with the progress
       in the fragment; the new address asks, saying what it holds; yes merges it with the
       progress already there (both kept, the new address's own choices kept, device
-      stores only where absent); the Supabase session, the account binding and another
-      site's key never arrive; the fragment is gone and the anchor back; a reload and a
-      second visit to the old link ask nothing more
-   2. no leaves everything as it was, and is not asked again
+      stores only where absent); a Supabase session left behind and another site's key
+      never arrive; the fragment is gone and the anchor back; a reload and a second
+      visit to the old link ask nothing more
+   1b. a reader who was signed in at the old address: the question says the progress is
+      kept for that account; yes sets it aside for that account alone (this browser's
+      own progress is not touched, so whoever signs in here first does not take it in),
+      and neither the session nor the account binding arrives
+   2. no leaves everything as it was, and the old link is not asked about again; the
+      carry page, which a reader reaches by asking for it, asks again, and yes then
+      brings it over
    3. a crafted link (a key that is not the site's, an oversized fragment, another
-      format, text made to look like markup) is refused with a note and changes nothing;
-      no markup from it reaches the page
+      format, a game record newer than the site, nothing the site writes, text made to
+      look like markup) is refused with a note and changes nothing; no markup from it
+      reaches the page; values of the wrong kind inside a store (the review's case C)
+      change nothing already here when the reader says yes; set-aside progress for an
+      account is named in the question; an old page whose own fragment is a payload
+      sends the genuine progress and never the crafted one
    4. the file "Download my data" makes, imported on the progress page, goes through the
       same question and merge; a file that is not one is refused
    5. with JavaScript off, an old page's meta refresh takes the reader to the new
@@ -33,8 +43,12 @@
       which offers it as a file; that file, imported at the new address, brings it over
    7. the carry page, as the progress page's link reaches it, sends the progress back
       to the page it was asked for; the link itself points at the old address's carry
-      page; an unknown old path (404.html) goes to the same path at the new address
-   8. no page error and no Content-Security-Policy violation on either origin */
+      page; an unknown old path (404.html, a folder such as parts/1-algebra/) goes to
+      the front page of the new address, which asks about the progress it brings
+   8. the course served at the old address's own origin (sophanasok.github.io, answered
+      here from dist/), as it is until SITE_CUTOVER: no question, and none of what is
+      true only after the move (the about page's paragraph, the progress page's tools)
+   9. no page error and no Content-Security-Policy violation on any origin */
 "use strict";
 const fs = require("fs");
 const path = require("path");
@@ -90,7 +104,7 @@ const SESSION = "sb-jfidvrzonyzfstnykzly-auth-token";
     page.setDefaultTimeout(15000);
     page.on("pageerror", (e) => errors.push(page.url().slice(0, 60) + ": " + e.message));
     /* an unknown path is answered 404 on purpose (case 7), which Chromium reports */
-    page.on("console", (m) => { if (m.type() === "error" && !(/99-nothing/.test(page.url()) && /status of 404/.test(m.text()))) errors.push(page.url().slice(0, 60) + ": console: " + m.text()); });
+    page.on("console", (m) => { if (m.type() === "error" && !(/99-nothing|\/parts\/1-algebra\/$/.test(page.url()) && /status of 404/.test(m.text()))) errors.push(page.url().slice(0, 60) + ": console: " + m.text()); });
     return { context, page, visits };
   }
   async function seed(page, origin, storage) {
@@ -102,6 +116,8 @@ const SESSION = "sb-jfidvrzonyzfstnykzly-auth-token";
     return page.evaluate(() => { const o = {}; for (let i = 0; i < localStorage.length; i++) { const k = localStorage.key(i); o[k] = localStorage.getItem(k); } return o; });
   }
   const parse = (v) => { try { return JSON.parse(v); } catch (e) { return v; } };
+  /* a payload as a link to the new address can carry it, uncompressed */
+  const pack = (payload) => "1j" + Buffer.from(JSON.stringify(payload)).toString("base64url");
   async function question(page) {
     await page.waitForSelector("dialog.carry-ask[open]");
     return page.evaluate(() => {
@@ -109,11 +125,18 @@ const SESSION = "sb-jfidvrzonyzfstnykzly-auth-token";
       return { title: d.querySelector("h2").textContent, what: d.querySelector(".carry-what").textContent, modal: d.matches(":modal"), focus: document.activeElement && document.activeElement.textContent };
     });
   }
+  /* a reader who is signed out at the old address (a session key left behind by another
+     tool would still never be carried), with progress set aside for an account that
+     signed out there with it unsaved */
   const oldState = Object.assign({}, FIXTURE, {
     [SESSION]: JSON.stringify({ access_token: "secret-token", user: { id: "u-1" } }),
-    "bm.sync.v1": { user: "u-1", resetAt: 5 },
-    "bm.sync.pending.v1": { "u-9": { email: "a@b.c", via: ["github"], resetAt: 0, state: { progress: { ch03: { solved: { e2: true }, total: 9 } } }, at: 1 } },
+    "bm.sync.pending.v1": { "u-9": { email: "a@b.c", via: ["github"], resetAt: 0, state: { progress: { ch03: { solved: { e2: true }, total: 9 } } }, at: 1789214400000 } },
     "other.app": "not the site's"
+  });
+  /* a reader who is signed in at the old address */
+  const signedIn = Object.assign({}, FIXTURE, {
+    [SESSION]: JSON.stringify({ access_token: "secret-token", user: { id: "u-1" } }),
+    "bm.sync.v1": { user: "u-1", resetAt: 5 }
   });
   const newState = {
     "bm.progress.v1": { ch09: { solved: { e4: true }, total: 8 }, ch01: { solved: { e11: true }, total: 11 } },
@@ -130,7 +153,7 @@ const SESSION = "sb-jfidvrzonyzfstnykzly-auth-token";
     await page.goto(OLD + "/parts/1-algebra/01-numbers.html#integers");
     const q = await question(page);
     check(/^Bring over your progress from the old address\?$/.test(q.title), "1 the new address asks", q);
-    check(/^3 chapters, 23 exercises solved, \d+ XP and your settings\.$/.test(q.what), "1 … saying what the progress holds", q.what);
+    check(q.what === "3 chapters, 23 exercises solved, 519 XP, 3 achievements, 1 medal, your Arena and review record and your settings. Progress of an account that was signed in at the old address (1 chapter, 1 exercise solved), kept in this browser out of view and saved to that account when it signs in here.", "1 … saying what the progress holds, set-aside progress too", q.what);
     check(q.modal && q.focus === "Bring it over", "1 … in a modal dialog, focus on the answer", q);
     eq(new URL(page.url()).pathname + new URL(page.url()).hash, "/parts/1-algebra/01-numbers#integers", "1 at the same chapter, the fragment already gone and the anchor back");
     eq(visits.old.length, 1, "1 the old address was loaded once");
@@ -154,9 +177,10 @@ const SESSION = "sb-jfidvrzonyzfstnykzly-auth-token";
     eq(parse(s["bm.prefs.v1"]), { sound: false, calm: true }, "1 and its own settings");
     eq(parse(s["bm.theme"]), FIXTURE["bm.theme"], "1 the theme it lacked arrives");
     check(parse(s["bm.game.v1"]) && parse(s["bm.game.v1"]).enc && parse(s["bm.game.v1"]).enc["ch01/practice"], "1 the game record arrives", s["bm.game.v1"]);
-    check(parse(s["bm.sync.pending.v1"]) && parse(s["bm.sync.pending.v1"])["u-9"], "1 progress set aside for a reader arrives", s["bm.sync.pending.v1"]);
+    check(parse(s["bm.sync.pending.v1"]) && parse(s["bm.sync.pending.v1"])["u-9"] && parse(s["bm.sync.pending.v1"])["u-9"].carried === 1, "1 progress set aside for a reader arrives, marked as carried (the account page then names no email from it)", s["bm.sync.pending.v1"]);
     const keys = Object.keys(s);
     check(!keys.some((k) => /^sb-|auth-token/.test(k)) && !keys.includes("bm.sync.v1") && !keys.includes("other.app"), "1 no session, no account binding, no other key", keys);
+    eq(parse(s["bm.attempts.v1"]).ch01.t1, FIXTURE["bm.attempts.v1"].ch01.t1, "1 an attempt arrives as it was written");
     check(!JSON.stringify(s).includes("secret-token"), "1 the session's token is nowhere");
     check(parse(s["bm.carry.v1"]) && Object.values(parse(s["bm.carry.v1"]).seen)[0].took === true, "1 the answer is recorded", s["bm.carry.v1"]);
     /* reload, and the old link again: nothing more is asked */
@@ -168,6 +192,27 @@ const SESSION = "sb-jfidvrzonyzfstnykzly-auth-token";
     await page.waitForTimeout(600);
     check(!(await page.$("dialog.carry-ask")), "1 the same progress from the old link is not asked about again");
     eq(new URL(page.url()).hash, "", "1 … and its fragment is gone");
+    await context.close();
+  }
+
+  /* 1b. signed in at the old address */
+  {
+    const { context, page } = await profile();
+    await seed(page, OLD, signedIn);
+    await seed(page, NEW, newState);
+    await page.goto(OLD + "/progress.html");
+    const q = await question(page);
+    eq(q.what, "Your settings. Progress of an account that was signed in at the old address (3 chapters, 23 exercises solved), kept in this browser out of view and saved to that account when it signs in here.", "1b the question says whose progress it is");
+    await page.click("[data-carry-yes]");
+    await page.waitForSelector(".carry-note");
+    const s = await storageOf(page, NEW);
+    eq(parse(s["bm.progress.v1"]), newState["bm.progress.v1"], "1b this browser's own progress is not touched");
+    const aside = parse(s["bm.sync.pending.v1"]);
+    check(aside && aside["u-1"] && aside["u-1"].carried === 1 && aside["u-1"].resetAt === 5 && JSON.stringify(aside["u-1"].state.progress) === JSON.stringify(FIXTURE["bm.progress.v1"]), "1b it is set aside for that account alone", aside);
+    check(!Object.keys(s).some((k) => /^sb-|auth-token/.test(k)) && !("bm.sync.v1" in s), "1b no session, no account binding", Object.keys(s));
+    /* the page here writes a run store of its own; the old one's ledger is not in it */
+    check(!JSON.stringify(parse(s["bm.run.v1"]) || {}).includes(FIXTURE["bm.run.v1"].paid[0]), "1b the run store stays with the account's progress", s["bm.run.v1"]);
+    eq(parse(s["bm.theme"]), FIXTURE["bm.theme"], "1b the device's own settings it lacked arrive");
     await context.close();
   }
 
@@ -188,18 +233,28 @@ const SESSION = "sb-jfidvrzonyzfstnykzly-auth-token";
     await page.waitForURL(NEW + "/");
     await page.waitForTimeout(600);
     check(!(await page.$("dialog.carry-ask")), "2 and the same progress is not asked about again");
+    /* the reader changes their mind: the carry page (the progress page's link) asks again */
+    await page.goto(OLD + "/carry/?to=" + encodeURIComponent("/progress"));
+    const again = await question(page);
+    check(/^3 chapters, 23 exercises solved/.test(again.what), "2 asked for, the carry page brings the same progress and it is asked about again", again);
+    eq(new URL(page.url()).hash, "", "2 … with the fragment gone");
+    await page.click("[data-carry-yes]");
+    await page.waitForSelector(".carry-note");
+    const after = await storageOf(page, NEW);
+    check(parse(after["bm.progress.v1"]) && parse(after["bm.progress.v1"]).ch05 && parse(after["bm.progress.v1"]).ch05.solved.e10, "2 and yes then brings it over", after["bm.progress.v1"]);
     await context.close();
   }
 
   /* 3. crafted links */
   {
-    const pack = (payload) => "1j" + Buffer.from(JSON.stringify(payload)).toString("base64url");
     const cases = [
       ["a session key", pack({ v: 1, s: { "bm.progress.v1": {}, [SESSION]: "x" } }), /not progress from this site/],
       ["a key of another site", pack({ v: 1, s: { "evil": 1 } }), /not progress from this site/],
       ["an oversized fragment", "1j" + "A".repeat(40000), /larger than any progress/],
       ["another format", "2z" + "AAAA", /different version/],
       ["v 2 inside", pack({ v: 2, s: {} }), /different version/],
+      ["a game record newer than the site", pack({ v: 1, s: { "bm.game.v1": { v: 2 }, "bm.progress.v1": { ch01: { solved: { e1: true } } } } }), /different version/],
+      ["nothing the site writes", pack({ v: 1, s: { "bm.attempts.v1": { ch01: { t1: { solved: "x", tries: "y" } } }, "bm.game.v1": { daily: { "9999-01-01": 1 } } } }), /holds no progress/],
       ["garbage", "1j%%%", /could not be read/]
     ];
     for (const [what, value, says] of cases) {
@@ -219,9 +274,52 @@ const SESSION = "sb-jfidvrzonyzfstnykzly-auth-token";
     const tag = '<img src=x onerror="window.__pwned=1">';
     await page.goto(NEW + "/index.html#bm-carry=" + pack({ v: 1, s: { "bm.progress.v1": { [tag]: { solved: { [tag]: true }, total: 1 } }, "bm.last": { id: tag, section: tag } } }));
     const q = await question(page);
-    check(!/</.test(q.what) && /^1 chapter and 1 exercise solved\.$/.test(q.what), "3 the question counts what markup holds and shows none of it", q.what);
+    check(!/</.test(q.what) && /^1 chapter, 1 exercise solved and your settings\.$/.test(q.what), "3 the question counts what markup holds and shows none of it", q.what);
     check(!(await page.evaluate(() => !!document.querySelector("dialog img, .carry-note img") || !!window.__pwned)), "3 no element is made from it");
     await page.click("[data-carry-no]");
+    await context.close();
+  }
+  /* values of the wrong kind inside a store, beside one real exercise (the review's
+     case C): asked about as that one exercise, and yes changes nothing already here */
+  {
+    const { context, page } = await profile();
+    await seed(page, NEW, FIXTURE);
+    const daily = {};
+    for (let i = 0; i < 60; i++) daily[(9999 - i) + "-01-01"] = 1;
+    await page.goto(NEW + "/index.html#bm-carry=" + pack({ v: 1, s: { "bm.game.v1": { daily, v: 1 }, "bm.attempts.v1": { ch01: { t1: { solved: "x", tries: "y" } } }, "bm.progress.v1": { ch03: { solved: { e1: true }, total: 10 } } } }));
+    const q = await question(page);
+    eq(q.what, "1 chapter and 1 exercise solved.", "3 values the site never writes are not counted");
+    await page.click("[data-carry-yes]");
+    await page.waitForSelector(".carry-note");
+    const s = await storageOf(page, NEW);
+    eq(parse(s["bm.attempts.v1"]).ch01.t1, FIXTURE["bm.attempts.v1"].ch01.t1, "3 an attempt here keeps its time, tries and right-first-time");
+    eq(Object.keys(parse(s["bm.game.v1"]).daily).sort(), Object.keys(FIXTURE["bm.game.v1"].daily).sort(), "3 the Daily here keeps its days");
+    check(parse(s["bm.progress.v1"]).ch03.solved.e1 === true, "3 the one real exercise arrives");
+    await context.close();
+  }
+  /* set-aside progress alone (the review's case B) is named in the question */
+  {
+    const { context, page } = await profile();
+    await page.goto(NEW + "/index.html#bm-carry=" + pack({ v: 1, s: { "bm.sync.pending.v1": { "00000000-0000-0000-0000-000000000000": { email: "support@groundupmath.org", via: ["google"], resetAt: 0, state: { progress: { ch01: { solved: { e1: true }, total: 10 } } }, at: 1789214400000 } } } }));
+    const q = await question(page);
+    check(/^Progress of an account that was signed in at the old address \(1 chapter, 1 exercise solved\)/.test(q.what), "3 set-aside progress is named in the question", q.what);
+    await page.click("[data-carry-no]");
+    await context.close();
+  }
+  /* an old page whose own fragment is a payload (the review's case I): the genuine
+     progress is asked about, and the crafted one is not put back into the address */
+  {
+    const { context, page } = await profile();
+    await seed(page, OLD, FIXTURE);
+    await page.goto(OLD + "/index.html#bm-carry=" + pack({ v: 1, s: { "bm.theme": "light" } }));
+    const q = await question(page);
+    check(/^3 chapters, 23 exercises solved/.test(q.what), "3 the old page sends the progress it holds", q.what);
+    await page.click("[data-carry-yes]");
+    await page.waitForSelector(".carry-note");
+    eq(new URL(page.url()).hash, "", "3 and the crafted fragment is not in the address");
+    await page.reload();
+    await page.waitForTimeout(600);
+    check(!(await page.$("dialog.carry-ask")), "3 a reload asks nothing");
     await context.close();
   }
 
@@ -233,6 +331,7 @@ const SESSION = "sb-jfidvrzonyzfstnykzly-auth-token";
     await page.waitForSelector("[data-carry-tools]:not([hidden])");
     const link = await page.getAttribute("[data-carry-link]", "href");
     eq(link, origins.read(site.ROOT).legacy + "carry/?to=%2Fprogress.html", "4 the progress page links the old address's carry page, back to this page");
+    eq(await page.getAttribute("[data-carry-file-link]", "href"), origins.read(site.ROOT).legacy + "carry/?to=%2Fprogress.html&file=1", "4 … and its file");
     check(await page.isVisible("[data-carry-old]"), "4 … here, at the new address");
     const exported = { progress: FIXTURE["bm.progress.v1"], play: FIXTURE["bm.play.v1"], attempts: FIXTURE["bm.attempts.v1"], activity: FIXTURE["bm.activity.v1"], lesson: FIXTURE["bm.lesson.v1"], last: FIXTURE["bm.last"], game: FIXTURE["bm.game.v1"], exported: "2026-10-05T12:00:00.000Z", account: "someone@example.com", signInWith: ["github"] };
     await page.setInputFiles("[data-carry-file]", { name: "basic-mathematics-progress.json", mimeType: "application/json", buffer: Buffer.from(JSON.stringify(exported, null, 2)) });
@@ -310,13 +409,43 @@ const SESSION = "sb-jfidvrzonyzfstnykzly-auth-token";
     await empty.page.waitForSelector("#carry-none:not([hidden])");
     check(/nothing to bring/.test(await empty.page.textContent("#carry-none")), "7 with nothing saved the carry page says so");
     await empty.page.goto(OLD + "/parts/9-none/99-nothing.html#here");
-    await empty.page.waitForURL(NEW + "/parts/9-none/99-nothing#here");
-    check(true, "7 an unknown old path goes to the same path at the new address");
+    await empty.page.waitForURL(NEW + "/");
+    check(true, "7 an unknown old path goes to the front page of the new address");
     await empty.context.close();
+    /* a folder of the old address (the review's case J), with progress: the front page asks */
+    const folder = await profile();
+    await seed(folder.page, OLD, FIXTURE);
+    await folder.page.goto(OLD + "/parts/1-algebra/");
+    const q = await question(folder.page);
+    check(/^3 chapters, 23 exercises solved/.test(q.what) && new URL(folder.page.url()).pathname === "/", "7 an old folder goes to the front page with the progress, and it is asked about", { url: folder.page.url(), q });
+    await folder.page.click("[data-carry-no]");
+    await folder.context.close();
   }
 
-  /* 8. */
-  check(errors.length === 0, "8 no page error and no Content-Security-Policy violation on either origin", errors);
+  /* 8. the course at the old address's origin, before the move */
+  {
+    const OLD_SITE = "https://sophanasok.github.io/basic-mathematics";
+    const { context, page } = await profile();
+    await context.route(OLD_SITE + "/**", async (r) => {
+      const rest = r.request().url().slice(OLD_SITE.length).replace(/#.*$/, "");
+      const response = await r.fetch({ url: NEW + rest });
+      return r.fulfill({ response });
+    });
+    await page.goto(OLD_SITE + "/about.html");
+    await page.waitForFunction(() => document.readyState === "complete" && !!window.BMCarry);
+    check(await page.evaluate(() => { const p = document.querySelector("[data-carry-moved]"); return !!p && p.hidden; }), "8 the about page's account of the move stays hidden at the old address");
+    await page.goto(OLD_SITE + "/progress.html#bm-carry=1j" + Buffer.from(JSON.stringify({ v: 1, s: { "bm.theme": "dark" } })).toString("base64url"));
+    await page.waitForFunction(() => document.readyState === "complete" && !!window.BMCarry);
+    await page.waitForTimeout(400);
+    check(!(await page.$("dialog.carry-ask")) && await page.evaluate(() => document.querySelector("[data-carry-tools]").hidden), "8 no question, and no carry tools, at the old address");
+    await page.goto(NEW + "/about.html");
+    await page.waitForFunction(() => document.readyState === "complete" && !!window.BMCarry);
+    check(await page.isVisible("[data-carry-moved]"), "8 … where the new address shows the paragraph");
+    await context.close();
+  }
+
+  /* 9. */
+  check(errors.length === 0, "9 no page error and no Content-Security-Policy violation on any origin", errors);
   await browser.close();
   await fresh.close();
   await old.close();

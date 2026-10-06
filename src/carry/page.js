@@ -6,10 +6,14 @@
    long for an address. Either way it reads what this browser saved here, and then:
      nothing saved     says so, with a link to the new address
      it fits           sends the reader on to ?to= at the new address with it in the
-                       fragment, as every legacy page does
+                       fragment, as every legacy page does, marked as asked for
+                       (bm-ask=1), so the new address asks even about progress the
+                       reader once said no to
      it does not fit   offers it as a file (the shape "Download my data" writes, with
-                       the device's own stores under `device`), which the progress page
-                       of the new address imports, and says how
+                       the device's own stores under `device` and the account it
+                       belongs to, if any, as `owner`), which the progress page of the
+                       new address imports, and says how; ?file=1 asks for the file
+                       whatever the size
    ?to= is a path at the new address and nothing else: anything that is not one is "/".
    Plain ES5, inlined as it is (see send.js).
    =========================================================================== */
@@ -29,7 +33,7 @@ var BMCarryPage = (function () {
   }
 
   /* the file: what "Download my data" writes, and the rest under `device` */
-  function file(stores, from) {
+  function file(stores, from, owner) {
     var out = { format: "basic-mathematics-progress", v: 1, from: from, exported: new Date().toISOString() }, device = {}, n = 0;
     Object.keys(SYNCED).forEach(function (f) {
       if (Object.prototype.hasOwnProperty.call(stores, SYNCED[f])) out[f] = stores[SYNCED[f]];
@@ -40,6 +44,7 @@ var BMCarryPage = (function () {
       if (!synced) { device[k] = stores[k]; n++; }
     });
     if (n) out.device = device;
+    if (owner) out.owner = { user: owner.user, resetAt: owner.resetAt };
     return out;
   }
 
@@ -53,18 +58,18 @@ var BMCarryPage = (function () {
   /* cfg: { origin: the new address, limit: as in send.js } */
   function run(cfg) {
     var S = BMCarrySend, loc = window.location;
-    var path = pathFrom(loc.search, cfg.origin), at = loc.hash ? loc.hash.replace(/^#/, "") : "";
+    var path = pathFrom(loc.search, cfg.origin), at = S.anchor(loc.hash);
     var target = cfg.origin + path;
     Array.prototype.forEach.call(document.querySelectorAll("[data-carry-target]"), function (a) {
       a.href = target + (at ? "#" + at : "");
       a.textContent = target.replace(/^https?:\/\//, "");
     });
     var got;
-    try { got = S.collect(window.localStorage); } catch (e) { got = { stores: {}, count: 0 }; }
+    try { got = S.collect(window.localStorage); } catch (e) { got = { stores: {}, count: 0, owner: null }; }
     if (!got.count) { show("carry-none"); return; }
     function offerFile() {
       document.getElementById("carry-download").addEventListener("click", function () {
-        var blob = new Blob([JSON.stringify(file(got.stores, loc.origin + loc.pathname), null, 2)], { type: "application/json" });
+        var blob = new Blob([JSON.stringify(file(got.stores, loc.origin + loc.pathname, got.owner), null, 2)], { type: "application/json" });
         var a = document.createElement("a");
         a.href = URL.createObjectURL(blob);
         a.download = "basic-mathematics-progress.json";
@@ -76,8 +81,8 @@ var BMCarryPage = (function () {
     }
     /* ?file=1 asks for the file whatever its size */
     if (/[?&]file=1(&|$)/.test(loc.search) || typeof Promise !== "function") { offerFile(); return; }
-    S.encode(got.stores).then(function (value) {
-      if (value.length <= cfg.limit) loc.replace(target + "#" + S.PARAM + "=" + value + (at ? "&" + S.AT + "=" + encodeURIComponent(at) : ""));
+    S.encode(got.stores, got.owner).then(function (value) {
+      if (value.length <= cfg.limit) loc.replace(target + "#" + S.PARAM + "=" + value + (at ? "&" + S.AT + "=" + encodeURIComponent(at) : "") + "&bm-ask=1");
       else offerFile();
     }).then(null, offerFile);
   }

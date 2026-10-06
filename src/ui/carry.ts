@@ -6,21 +6,29 @@
       project's pages.dev addresses), an address whose fragment carries bm-carry, as the
       legacy site's pages write it (src/carry/send.js): the fragment is taken out of the
       address at once (history.replaceState, so a reload or a bookmark does not bring it
-      back; the old page's own fragment, bm-at, is put back and scrolled to), the
-      payload is read and checked, and the reader is asked, in a dialog that says what
-      it holds, before anything is kept. Yes merges it (plan()), no leaves everything as
-      it was; either way this browser records the payload's fingerprint in bm.carry.v1,
-      and the same payload is never asked about again. A payload that cannot be read is
-      refused with a short note, and recorded the same way.
+      back; the old page's own fragment, bm-at, is put back and scrolled to, unless it
+      is itself a payload: format.ts safeAt), the payload is read and checked, and the
+      reader is asked, in a dialog that says what it holds, before anything is kept. Yes
+      merges it (plan()), no leaves everything as it was; either way this browser
+      records the payload's fingerprint in bm.carry.v1, and the same payload arriving on
+      its own (an old link opened again) is not asked about again. Arriving from the
+      legacy carry page (bm-ask=1), which a reader only reaches by asking for it, it is
+      asked about whatever was answered before, so a "no" can be taken back. A payload
+      that cannot be read is refused with a short note, and recorded the same way.
    2. On the progress page, on the same hosts (the old address, while it still serves the
-      course, shows nothing new), the section [data-carry-tools]: a link to the legacy
-      carry page, which sends this browser's old progress back here by the same route,
-      and an import of the file "Download my data" makes (or the legacy carry page
-      offers), which goes through the same checks, question and merge.
+      course, shows nothing new), the section [data-carry-tools]: links to the legacy
+      carry page ([data-carry-old]; it exists only once SITE_CUTOVER has put the legacy
+      site at the old address, which OPERATIONS.md says where the new address is tried
+      before that), which sends this browser's old progress back here by the same route,
+      or as a file; and an import of the file "Download my data" makes (or the legacy
+      carry page offers), which goes through the same checks, question and merge.
+   3. On any page, on the same hosts, [data-carry-moved] (the about page's account of
+      where the course is served from): shown here, and never at the old address, whose
+      readers are told nothing of the move until it has happened.
 
    Nothing carried is ever put into the page as HTML: every word is textContent. */
 
-import { allowedHost, asked, decode, describe, FLAG, fingerprint, fromFile, legacyCarryUrl, MAX_FILE, plan, readHash, remember, summary, SYNCED, type Outcome, type Refusal, type Stores } from "../carry/format.ts";
+import { allowedHost, asked, decode, describe, FLAG, fingerprint, fromFile, legacyCarryUrl, MAX_FILE, plan, readHash, remember, summary, SYNCED, type Outcome, type Owner, type Refusal, type Stores } from "../carry/format.ts";
 
 type Answer = (take: boolean) => void;
 
@@ -29,7 +37,8 @@ const REFUSED: Record<Refusal, string> = {
   malformed: "It could not be read, so nothing was changed.",
   size: "It is larger than any progress this site writes, so nothing was changed.",
   keys: "It holds things that are not progress from this site, so nothing was changed.",
-  unsupported: "This browser cannot unpack it, so nothing was changed. Try another browser, or bring your progress over as a file."
+  unsupported: "This browser cannot unpack it, so nothing was changed. Try another browser, or bring your progress over as a file.",
+  empty: "It holds no progress, so nothing was changed."
 };
 
 function el<K extends keyof HTMLElementTagNameMap>(tag: K, cls?: string, text?: string): HTMLElementTagNameMap[K] {
@@ -53,7 +62,7 @@ function ask(title: string, line: string, answer: Answer): HTMLDialogElement {
   const actions = el("p", "actions");
   actions.append(yes, no);
   dialog.append(h, el("p", "carry-what", line),
-    el("p", "fine", "It is added to what this browser already has here. Nothing already here is lost, and the old address keeps its copy."),
+    el("p", "fine", "It is joined to what this browser already has here, the way two devices' progress is joined: nothing solved or earned here is lost, and the old address keeps its copy."),
     actions);
   let settled = false;
   const settle = (take: boolean) => {
@@ -89,7 +98,7 @@ function note(text: string, bad?: boolean): void {
 /* Writes the plan for these stores. Synced stores are written quietly and then
    announced, as a sync announces what it merged ("state" for each, which an account
    that is signed in saves, then "sync", which every view redraws on). */
-function take(stores: Stores): boolean {
+function take(stores: Stores, owner?: Owner): boolean {
   const Store = window.BMStore, Account = window.BMAccount;
   if (!Store || !Account || typeof Account.merge !== "function") return false;
   const read = (key: string): unknown => {
@@ -98,7 +107,7 @@ function take(stores: Stores): boolean {
     if (raw === null) return undefined;
     try { return JSON.parse(raw); } catch (e) { return undefined; }
   };
-  const writes = plan(read, stores, Account.merge);
+  const writes = plan(read, stores, Account.merge, owner);
   let ok = true;
   Object.keys(writes).forEach((k) => { if (!Store.write(k, writes[k], true)) ok = false; });
   const synced = Object.keys(SYNCED).map((f) => SYNCED[f]);
@@ -121,9 +130,9 @@ function offer(outcome: Outcome, title: string, subject: string, done: (took: bo
     done(false);
     return;
   }
-  ask(title, describe(summary(outcome.stores)), (yes) => {
+  ask(title, describe(summary(outcome.stores, outcome.owner)), (yes) => {
     if (yes) {
-      const ok = take(outcome.stores);
+      const ok = take(outcome.stores, outcome.owner);
       note(ok ? "Your progress is here. It was added to what this browser already had." : "Your progress could not be saved in this browser (its storage is full or blocked).", !ok);
     }
     done(yes);
@@ -142,7 +151,7 @@ async function arrived(): Promise<void> {
     if (target) target.scrollIntoView();
   }
   const print = fingerprint(found.value);
-  if (asked(flag(), print)) return;
+  if (asked(flag(), print) && !found.ask) return;
   const outcome = await decode(found.value);
   offer(outcome, "Bring over your progress from the old address?", "The progress in that link", (took) => record(print, took));
 }
@@ -154,8 +163,10 @@ function tools(): void {
   if (!host || !allowedHost(window.location.hostname)) return;
   const old = host.querySelector<HTMLElement>("[data-carry-old]");
   const link = host.querySelector<HTMLAnchorElement>("[data-carry-link]");
+  const asFile = host.querySelector<HTMLAnchorElement>("[data-carry-file-link]");
   if (old && link) {
     link.href = legacyCarryUrl(window.location.pathname);
+    if (asFile) asFile.href = legacyCarryUrl(window.location.pathname, true);
     old.hidden = false;
   }
   const input = host.querySelector<HTMLInputElement>("[data-carry-file]");
@@ -176,9 +187,16 @@ function tools(): void {
   host.hidden = false;
 }
 
+/* 3. what is true only at the new address */
+function moved(): void {
+  if (!allowedHost(window.location.hostname)) return;
+  document.querySelectorAll<HTMLElement>("[data-carry-moved]").forEach((e) => { e.hidden = false; });
+}
+
 export const api = { arrived, tools, take };
 if (typeof window !== "undefined" && typeof document !== "undefined") {
   window.BMCarry = api;
+  moved();
   tools();
   arrived().catch((e) => { if (window.console) console.error("[BM] carried progress", e); });
 }

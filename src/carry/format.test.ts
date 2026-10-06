@@ -7,15 +7,16 @@ import fs from "node:fs";
 import path from "node:path";
 import vm from "node:vm";
 import { describe, expect, it } from "vitest";
-import { allowedHost, asked, check, decode, describe as describeIt, fingerprint, fromFile, legacyCarryUrl, MAX_FRAGMENT, plan, readHash, remember, summary, type Stores } from "./format.ts";
+import { allowedHost, asked, check, decode, describe as describeIt, fingerprint, fromFile, legacyCarryUrl, MAX_FRAGMENT, plan, readHash, remember, safeAt, summary, type Owner, type Stores } from "./format.ts";
 import { LEGACY, ORIGIN } from "./origins.ts";
 
 const ROOT = path.resolve(import.meta.dirname, "..", "..");
 
 type Send = {
-  collect(storage: unknown): { stores: Stores; count: number };
-  encode(stores: Stores): Promise<string>;
+  collect(storage: unknown): { stores: Stores; count: number; owner: Owner | null };
+  encode(stores: Stores, owner?: Owner | null): Promise<string>;
   carried(key: string): boolean;
+  anchor(hash: string): string;
 };
 const send: Send = new Function(fs.readFileSync(path.join(ROOT, "src/carry/send.js"), "utf8") + "\nreturn BMCarrySend;")();
 
@@ -127,26 +128,45 @@ describe("what the old address sends", () => {
     expect(Object.keys(got.stores).sort()).toEqual(["bm.future.v9", "bm.progress.v1", "bm.sync.pending.v1", "bm.theme"]);
     expect(got.count).toBe(4);
     expect(JSON.stringify(got.stores)).not.toMatch(/secret|auth-token|"user"/);
+    /* the account the progress belongs to goes beside it, its id and reset alone */
+    expect(got.owner).toEqual({ user: "u-1", resetAt: 5 });
+    expect(send.collect(storage({ "bm.theme": '"dark"' })).owner).toBeNull();
+    expect(send.collect(storage({ "bm.theme": '"dark"', "bm.sync.v1": '{"user":"<b>x</b>"}' })).owner).toBeNull();
   });
 
-  it("carries Unicode and odd stored values through, compressed and not", async () => {
+  it("never sends on an old fragment that is itself a payload", () => {
+    expect(send.anchor("#integers")).toBe("integers");
+    expect(send.anchor("#bm-carry=1jAAAA")).toBe("");
+    expect(send.anchor("#x&bm-at=bm-carry%3D1j")).toBe("");
+    expect(send.anchor("#" + "a".repeat(300))).toBe("");
+  });
+
+  it("carries Unicode and odd stored values through, compressed and not, and only what the site writes", async () => {
     const odd = {
       "bm.progress.v1": { "ch01": { solved: { "e1": true, "ünïcødé-é": true, "😀": true }, total: 2, note: "</script><b>x</b>    \u0000" } },
       "bm.last": null,
-      "bm.lesson.v1": { reached: { ch01: 3 }, mode: "page", extra: [1, "two", null, { three: 3 }] },
+      "bm.lesson.v1": { reached: { "chäpter-😀": 3 }, mode: "page", extra: [1, "two", null, { three: 3 }] },
+      "bm.theme": "light"
+    };
+    /* what arrives: every value the site writes, Unicode keys and all; the two fields no
+       version of the site writes (note, extra) are left out and counted */
+    const kept = {
+      "bm.progress.v1": { "ch01": { solved: { "e1": true, "ünïcødé-é": true, "😀": true }, total: 2 } },
+      "bm.last": null,
+      "bm.lesson.v1": { reached: { "chäpter-😀": 3 }, mode: "page" },
       "bm.theme": "light"
     };
     const v = await send.encode(odd);
     expect(v).toMatch(/^1[zj][A-Za-z0-9_-]+$/);
     const out = await decode(value(v));
-    expect(out).toEqual({ ok: true, stores: odd, ignored: [] });
+    expect(out).toEqual({ ok: true, stores: kept, ignored: [], dropped: 2 });
     /* without CompressionStream the page sends it as it is, and that reads back too */
     const saved = (globalThis as Record<string, unknown>).CompressionStream;
     (globalThis as Record<string, unknown>).CompressionStream = undefined;
     try {
       const j = await send.encode(odd);
       expect(j.slice(0, 2)).toBe("1j");
-      expect(await decode(j)).toEqual({ ok: true, stores: odd, ignored: [] });
+      expect(await decode(j)).toEqual({ ok: true, stores: kept, ignored: [], dropped: 2 });
     } finally { (globalThis as Record<string, unknown>).CompressionStream = saved; }
   });
 
@@ -210,7 +230,7 @@ describe("what the new address reads", () => {
 
   it("leaves out a store of the wrong shape and a key it does not take, and says so", () => {
     const out = check({ "bm.progress.v1": [1, 2], "bm.last": "ch01", "bm.theme": "purple", "bm.prefs.v1": { sound: true }, "bm.future.v9": {}, "bm.sync.v1": { user: "u" }, "bm.lesson.v1": { reached: {} } });
-    expect(out).toEqual({ ok: true, stores: { "bm.prefs.v1": { sound: true }, "bm.lesson.v1": { reached: {} } }, ignored: ["bm.future.v9", "bm.last", "bm.progress.v1", "bm.sync.v1", "bm.theme"] });
+    expect(out).toEqual({ ok: true, stores: { "bm.prefs.v1": { sound: true }, "bm.lesson.v1": { reached: {} } }, ignored: ["bm.future.v9", "bm.last", "bm.progress.v1", "bm.sync.v1", "bm.theme"], dropped: 0 });
   });
 
   it("takes __proto__ out at every level", async () => {
@@ -223,24 +243,40 @@ describe("what the new address reads", () => {
     expect(({} as Record<string, unknown>).x).toBeUndefined();
   });
 
-  it("reads the fragment and the old page's own anchor", () => {
-    expect(readHash("#bm-carry=1zAbC&bm-at=" + encodeURIComponent("integers é"))).toEqual({ value: "1zAbC", at: "integers é" });
-    expect(readHash("#bm-carry=1jAA")).toEqual({ value: "1jAA", at: "" });
+  it("reads the fragment, the old page's own anchor, and whether the reader asked", () => {
+    expect(readHash("#bm-carry=1zAbC&bm-at=" + encodeURIComponent("integers é"))).toEqual({ value: "1zAbC", at: "integers é", ask: false });
+    expect(readHash("#bm-carry=1jAA")).toEqual({ value: "1jAA", at: "", ask: false });
+    expect(readHash("#bm-carry=1jAA&bm-at=x&bm-ask=1")).toEqual({ value: "1jAA", at: "x", ask: true });
     expect(readHash("#integers")).toBeNull();
     expect(readHash("")).toBeNull();
   });
 
-  it("is read only at the new address, a local server and the project's pages.dev addresses", () => {
-    expect(allowedHost(new URL(ORIGIN).hostname)).toBe(true);
-    ["localhost", "127.0.0.1", "groupupmath.pages.dev", "abc123.groupupmath.pages.dev", "move-to-cloudflare.groupupmath.pages.dev"].forEach((h) => expect(allowedHost(h), h).toBe(true));
-    [new URL(LEGACY).hostname, "evil.example", "pages.dev.evil.example", "learn.groupupmath.org.evil.example", ""].forEach((h) => expect(allowedHost(h), h).toBe(false));
-    expect(legacyCarryUrl("/progress")).toBe(LEGACY + "carry/?to=%2Fprogress");
+  it("never puts back an old anchor that is itself a payload", () => {
+    const crafted = "bm-carry=1j" + Buffer.from('{"v":1,"s":{"bm.theme":"dark"}}').toString("base64url");
+    expect(readHash("#bm-carry=1jAA&bm-at=" + encodeURIComponent(crafted))).toEqual({ value: "1jAA", at: "", ask: false });
+    expect(safeAt(crafted)).toBe("");
+    expect(safeAt("#" + crafted)).toBe("");
+    expect(safeAt("x&bm-carry=1j")).toBe("");
+    expect(safeAt("integers")).toBe("integers");
+    expect(safeAt("a".repeat(201))).toBe("");
   });
 
-  it("says what it holds", () => {
-    expect(describeIt(summary(fixture))).toMatch(/^3 chapters, 23 exercises solved and \d+ XP and your settings\.$|^3 chapters, 23 exercises solved, \d+ XP and your settings\.$/);
+  it("is read only at the new address, a local server and the project's pages.dev addresses", () => {
+    expect(allowedHost(new URL(ORIGIN).hostname)).toBe(true);
+    ["localhost", "127.0.0.1", "groundupmath.pages.dev", "abc123.groundupmath.pages.dev", "move-to-cloudflare.groundupmath.pages.dev"].forEach((h) => expect(allowedHost(h), h).toBe(true));
+    [new URL(LEGACY).hostname, "evil.example", "pages.dev.evil.example", "learn.groundupmath.org.evil.example", ""].forEach((h) => expect(allowedHost(h), h).toBe(false));
+    expect(legacyCarryUrl("/progress")).toBe(LEGACY + "carry/?to=%2Fprogress");
+    expect(legacyCarryUrl("/progress", true)).toBe(LEGACY + "carry/?to=%2Fprogress&file=1");
+  });
+
+  it("says what it holds, every kind of thing it would write", () => {
+    expect(describeIt(summary(fixture))).toBe("3 chapters, 23 exercises solved, 519 XP, 3 achievements, 1 medal, your Arena and review record and your settings.");
     expect(describeIt(summary({ "bm.theme": "dark" }))).toBe("Your settings.");
-    expect(describeIt(summary({}))).toBe("Nothing that changes your progress.");
+    expect(describeIt(summary({ "bm.game.v1": { ach: { "first-light": 1789214400000 }, enc: { "ch01/practice": { medal: 3, day: "2026-09-12" } } } }))).toBe("1 achievement and 1 medal.");
+    expect(describeIt(summary({ "bm.game.v1": { daily: { "2026-09-20": 1 } } }))).toBe("Your Arena and review record.");
+    expect(describeIt(summary({ "bm.sync.pending.v1": { "u-9": { email: "a@b.c", via: ["github"], state: { progress: { ch03: { solved: { e2: true }, total: 9 } } } } } })))
+      .toBe("Progress of an account that was signed in at the old address (1 chapter, 1 exercise solved), kept in this browser out of view and saved to that account when it signs in here.");
+    expect(describeIt(summary({}))).toBe("");
   });
 });
 
@@ -281,7 +317,8 @@ describe("the merge into this browser", () => {
     expect(pend["u-1"]).toMatchObject({ email: "a@b.c", via: ["github", "google"], resetAt: 7, at: 20 });
     const pstate = pend["u-1"].state as { progress: Record<string, unknown> };
     expect(Object.keys(pstate.progress).sort()).toEqual(["ch02", "ch03"]);
-    expect(pend["u-2"]).toEqual({ email: "x@y.z", state: {} });
+    expect(pend["u-2"]).toEqual({ email: "x@y.z", state: {}, carried: 1 });
+    expect(pend["u-1"].carried).toBe(1);
     /* and carrying the same again changes nothing more (the first time may fill in a
        record's known fields, as any merge does) */
     const after = { ...here, ...writes };
@@ -295,6 +332,171 @@ describe("the merge into this browser", () => {
     expect(Object.keys(plan(read(here), { "bm.theme": "dark" }, merge))).toEqual(["bm.theme"]);
     expect(Object.keys(plan(read({}), { "bm.prefs.v1": { sound: true } }, merge))).toEqual(["bm.prefs.v1"]);
     expect(plan(read(here), { "bm.prefs.v1": { sound: true } }, merge)).toEqual({});
+  });
+});
+
+describe("a crafted payload the reader says yes to", () => {
+  const NOW = Date.UTC(2026, 9, 5, 12);
+  const pack = (payload: unknown) => "1j" + Buffer.from(JSON.stringify(payload), "utf8").toString("base64url");
+  const here = JSON.parse(JSON.stringify(fixture)) as Stores;
+  const read = (state: Stores) => (k: string) => (k in state ? JSON.parse(JSON.stringify(state[k])) : undefined);
+  /* what this browser holds after yes, starting from the fixture */
+  async function yes(payload: unknown, base: Stores = here) {
+    const out = await decode(pack(payload), NOW);
+    return { out, state: out.ok ? { ...base, ...plan(read(base), out.stores, merge, out.owner, NOW) } : base };
+  }
+  /* nothing the fixture holds is lost or changed: every solved exercise and mission,
+     every attempt record (a carried record may add to one, never change what it has),
+     every day of XP and of the Daily, every achievement, medal and review placement */
+  function keepsHere(state: Stores, base: Stores = here) {
+    const was = base as Record<string, Record<string, Record<string, unknown>>>, now = state as typeof was;
+    Object.keys(was["bm.progress.v1"]).forEach((ch) => Object.keys(was["bm.progress.v1"][ch].solved as object).forEach((k) =>
+      expect((now["bm.progress.v1"][ch].solved as Record<string, unknown>)[k], ch + " " + k).toBe(true)));
+    Object.keys(was["bm.attempts.v1"]).forEach((ch) => Object.keys(was["bm.attempts.v1"][ch]).forEach((k) =>
+      expect(now["bm.attempts.v1"][ch][k], ch + " " + k).toEqual(was["bm.attempts.v1"][ch][k])));
+    const days = (was["bm.activity.v1"] as unknown as { days: Record<string, number> }).days;
+    Object.keys(days).forEach((d) => expect((now["bm.activity.v1"] as unknown as { days: Record<string, number> }).days[d], d).toBeGreaterThanOrEqual(days[d]));
+    const g = was["bm.game.v1"] as unknown as Record<string, Record<string, unknown>>, h = now["bm.game.v1"] as unknown as Record<string, Record<string, unknown>>;
+    Object.keys(g.daily).forEach((d) => expect(h.daily[d], "daily " + d).toBe(1));
+    Object.keys(g.ach).forEach((k) => expect(h.ach[k], "ach " + k).toBe(g.ach[k]));
+    Object.keys(g.enc).forEach((k) => expect(h.enc[k], "enc " + k).toEqual(g.enc[k]));
+    expect(h.v).toBeUndefined();
+  }
+
+  it("cannot damage an attempt or push out the Daily with values that are not the site's", async () => {
+    /* review case C: 60 Daily days far in the future, and an attempt record of strings */
+    const daily: Record<string, unknown> = {};
+    for (let i = 0; i < 60; i++) daily[(9999 - i) + "-01-01"] = 1;
+    const crafted = { "bm.game.v1": { daily }, "bm.attempts.v1": { ch01: { t1: { solved: "x", tries: "y", first: "no", hints: -1, rung: 1e308 } } } };
+    /* nothing of it is anything the site writes, so there is nothing to ask about */
+    expect(await decode(pack({ v: 1, s: crafted }), NOW)).toEqual({ ok: false, why: "empty" });
+    /* beside one real exercise, it is asked about as that alone, and changes nothing here */
+    const { out, state } = await yes({ v: 1, s: { ...crafted, "bm.progress.v1": { ch03: { solved: { e1: true }, total: 10 } } } });
+    expect(out.ok && describeIt(summary(out.stores))).toBe("1 chapter and 1 exercise solved.");
+    /* 60 days, five fields, and the record they leave empty */
+    expect(out.ok && out.dropped).toBe(66);
+    keepsHere(state);
+    expect((state["bm.attempts.v1"] as Record<string, Record<string, unknown>>).ch01.t1).toEqual({ tries: 1, section: "addition", inline: 1, solved: 1789214400000, first: 1 });
+    expect((state["bm.progress.v1"] as Record<string, { solved: Record<string, true> }>).ch03.solved.e1).toBe(true);
+  });
+
+  it("drops every value of the wrong type, range or day, at every level", async () => {
+    const out = check({
+      "bm.progress.v1": { ch01: { solved: { e1: true, e2: 1, e3: "true" }, total: -3 }, ch02: "x" },
+      "bm.play.v1": { ch01: { done: { "a:0": true, "a:1": false }, total: 1e9, guess: 1.5 } },
+      "bm.attempts.v1": { ch01: { e1: { tries: 2, hints: "1", solved: 5, first: 2, section: 7, opened: 1 } } },
+      "bm.activity.v1": { days: { "2026-10-01": 40, "2026-13-01": 5, "2026-10-09": 5, "2023-12-31": 5, "2026-10-02": -1, "2026-10-03": Number.MAX_VALUE }, goal: 9000 },
+      "bm.lesson.v1": { reached: { ch01: 4, ch02: "9" }, mode: "scroll" },
+      "bm.last": { id: "ch01", section: 3 },
+      "bm.game.v1": {
+        ach: { a: 1789214400000, b: "now", c: 1 }, cmp: { ch01: { e1: 1, e2: "y" } },
+        sec: { "ch01#x": { n: 3, ok: 2, box: 9, last: "2099-01-01", fix: -1 } },
+        best: { standard: { score: 10, hearts: 3, day: "2026-09-01" }, cheat: { score: 1 } },
+        enc: { "ch01/practice": { medal: 4, day: "2026-09-01" } }, maxed: "lots", v: 0
+      },
+      "bm.prefs.v1": { sound: "yes", tempo: "warp", volume: 40, gfx: "mid" },
+      "bm.theme": "dark"
+    }, { now: NOW });
+    expect(out.ok).toBe(true);
+    if (!out.ok) return;
+    expect(out.stores).toEqual({
+      "bm.progress.v1": { ch01: { solved: { e1: true } } },
+      "bm.play.v1": { ch01: { done: { "a:0": true } } },
+      "bm.attempts.v1": { ch01: { e1: { tries: 2, opened: 1 } } },
+      "bm.activity.v1": { days: { "2026-10-01": 40 } },
+      "bm.lesson.v1": { reached: { ch01: 4 } },
+      "bm.last": { id: "ch01" },
+      "bm.game.v1": { ach: { a: 1789214400000 }, cmp: { ch01: { e1: 1 } }, sec: { "ch01#x": { n: 3, ok: 2 } }, best: { standard: { score: 10, hearts: 3, day: "2026-09-01" } }, enc: { "ch01/practice": { day: "2026-09-01" } } },
+      "bm.prefs.v1": { volume: 40, gfx: "mid" },
+      "bm.theme": "dark"
+    });
+    expect(out.ignored).toEqual([]);
+  });
+
+  it("keeps every Daily this browser had when 60 later days of it arrive", async () => {
+    /* this browser played two Dailies in July; the link brings the 60 days before today */
+    const base = { ...here, "bm.game.v1": { ...(here["bm.game.v1"] as object), daily: { "2026-07-01": 1, "2026-07-02": 1 } } };
+    const daily: Record<string, 1> = {};
+    for (let i = 0; i < 60; i++) daily[new Date(NOW - i * 86400000).toISOString().slice(0, 10)] = 1;
+    /* the site's own merge would keep only the latest 60, pushing out both of this browser's */
+    expect(Object.keys((merge({ game: base["bm.game.v1"] }, { game: { daily } }).game as { daily: object }).daily)).not.toContain("2026-07-01");
+    const { out, state } = await yes({ v: 1, s: { "bm.game.v1": { daily }, "bm.progress.v1": { ch03: { solved: { e1: true } } } } }, base);
+    expect(out.ok).toBe(true);
+    keepsHere(state, base);
+    const got = Object.keys((state["bm.game.v1"] as { daily: object }).daily);
+    expect(got).toHaveLength(60);
+    expect(got).toContain("2026-07-01");
+    expect(got).toContain(Object.keys(daily).sort().pop());
+  });
+
+  it("refuses a game record that says it is newer than this site (review case A)", async () => {
+    expect(await decode(pack({ v: 1, s: { "bm.game.v1": { v: 2 } } }), NOW)).toEqual({ ok: false, why: "version" });
+    expect(await decode(pack({ v: 1, s: { "bm.game.v1": { v: 2 }, "bm.progress.v1": { ch01: { solved: { e1: true } } } } }), NOW)).toEqual({ ok: false, why: "version" });
+    expect(await decode(pack({ v: 1, s: { "bm.sync.pending.v1": { u1: { state: { game: { v: 3 }, progress: { ch01: { solved: { e1: true } } } } } } } }), NOW)).toEqual({ ok: false, why: "version" });
+    expect(fromFile(JSON.stringify({ progress: { ch01: { solved: { e1: true } } }, game: { v: 2 } }), NOW)).toEqual({ ok: false, why: "version" });
+    /* v 1 is today's shape and kept; a v that is not a number is not one, and left out */
+    const one = check({ "bm.game.v1": { v: 1, ach: { a: 1789214400000 } }, "bm.theme": "dark" }, { now: NOW });
+    expect(one.ok && one.stores["bm.game.v1"]).toEqual({ v: 1, ach: { a: 1789214400000 } });
+    const odd = check({ "bm.game.v1": { v: "2", ach: { a: 1789214400000 } } }, { now: NOW });
+    expect(odd.ok && odd.stores["bm.game.v1"]).toEqual({ ach: { a: 1789214400000 } });
+    const { state } = await yes({ v: 1, s: { "bm.game.v1": { v: 1 }, "bm.progress.v1": { ch03: { solved: { e1: true } } } } });
+    expect((state["bm.game.v1"] as { v?: number }).v).toBe(1);
+  });
+
+  it("says what set-aside progress it would plant, and refuses one with nothing in it (review case B)", async () => {
+    const aside = { email: "support@groundupmath.org", via: ["google", "myspace"], resetAt: 0, state: { progress: { ch01: { solved: { e1: true } } } }, at: 1789214400000 };
+    const out = await decode(pack({ v: 1, s: { "bm.sync.pending.v1": { "00000000-0000-0000-0000-000000000000": aside, "<b>": aside } } }), NOW);
+    expect(out.ok).toBe(true);
+    if (!out.ok) return;
+    expect(describeIt(summary(out.stores))).toMatch(/^Progress of an account that was signed in at the old address \(1 chapter, 1 exercise solved\)/);
+    /* an unknown service and an id that is not one are left out */
+    expect(Object.keys(out.stores["bm.sync.pending.v1"] as object)).toEqual(["00000000-0000-0000-0000-000000000000"]);
+    expect(((out.stores["bm.sync.pending.v1"] as Record<string, Record<string, unknown>>)["00000000-0000-0000-0000-000000000000"]).via).toBeUndefined();
+    expect(await decode(pack({ v: 1, s: { "bm.sync.pending.v1": { u1: { email: "x@y.z", via: ["google"], state: {} } } } }), NOW)).toEqual({ ok: false, why: "empty" });
+    expect(await decode(pack({ v: 1, s: { "bm.sync.pending.v1": { u1: { email: "x@y.z", state: { progress: { ch01: { solved: { e1: "yes" } } } } } } } }), NOW)).toEqual({ ok: false, why: "empty" });
+  });
+});
+
+describe("progress of an account that was signed in at the old address", () => {
+  const NOW = Date.UTC(2026, 9, 5, 12);
+  const read = (state: Stores) => (k: string) => (k in state ? JSON.parse(JSON.stringify(state[k])) : undefined);
+  const here: Stores = { "bm.progress.v1": { ch09: { solved: { e4: true }, total: 8 } }, "bm.prefs.v1": { sound: true } };
+
+  it("is set aside for that account, never merged into this browser's (review case G)", async () => {
+    const got = send.collect(storage(stored({ ...fixture, "bm.sync.v1": { user: "u-1", resetAt: 5 } })));
+    const v = await send.encode(got.stores, got.owner);
+    const out = await decode(v, NOW);
+    expect(out.ok && out.owner).toEqual({ user: "u-1", resetAt: 5 });
+    if (!out.ok) return;
+    /* the run store goes with the account's progress, and stays behind */
+    expect(out.ignored).toEqual(["bm.run.v1"]);
+    expect(describeIt(summary(out.stores, out.owner))).toBe("Your settings. Progress of an account that was signed in at the old address (3 chapters, 23 exercises solved), kept in this browser out of view and saved to that account when it signs in here.");
+    const writes = plan(read(here), out.stores, merge, out.owner, NOW);
+    expect(Object.keys(writes).sort()).toEqual(["bm.sync.pending.v1", "bm.theme"]);
+    const aside = (writes["bm.sync.pending.v1"] as Record<string, Record<string, unknown>>)["u-1"];
+    expect(aside).toMatchObject({ email: "", via: [], resetAt: 5, at: NOW, carried: 1 });
+    expect(Object.keys(aside.state as object).sort()).toEqual(["activity", "attempts", "game", "last", "lesson", "play", "progress"]);
+    expect(canon((aside.state as Record<string, unknown>).progress)).toBe(canon(fixture["bm.progress.v1"]));
+    /* this browser's own progress is untouched, and so is everything set aside for others */
+    const twice = plan(read({ ...here, ...writes, "bm.sync.pending.v1": { "u-2": { email: "b@c.d", state: { progress: {} } }, ...(writes["bm.sync.pending.v1"] as object) } }), out.stores, merge, out.owner, NOW + 1);
+    expect(Object.keys(twice["bm.sync.pending.v1"] as object).sort()).toEqual(["u-1", "u-2"]);
+    expect(canon(((twice["bm.sync.pending.v1"] as Record<string, Record<string, unknown>>)["u-1"].state as Record<string, unknown>).progress)).toBe(canon(fixture["bm.progress.v1"]));
+  });
+
+  it("refuses an owner that is not an account id", async () => {
+    const pack = (payload: unknown) => "1j" + Buffer.from(JSON.stringify(payload), "utf8").toString("base64url");
+    for (const a of ["u-1", { user: "<b>x</b>" }, { user: "u-1", resetAt: "5" }, { user: "" }]) {
+      expect(await decode(pack({ v: 1, s: { "bm.theme": "dark" }, a }), NOW), JSON.stringify(a)).toEqual({ ok: false, why: "malformed" });
+    }
+  });
+
+  it("travels in the carry page's file too", () => {
+    const file = { format: "basic-mathematics-progress", v: 1, progress: fixture["bm.progress.v1"], owner: { user: "u-1", resetAt: 0 } };
+    const out = fromFile(JSON.stringify(file), NOW);
+    expect(out.ok && out.owner).toEqual({ user: "u-1", resetAt: 0 });
+    /* "Download my data" has no owner, whatever it holds: the reader chose that file */
+    const mine = fromFile(JSON.stringify({ progress: fixture["bm.progress.v1"], owner: { user: "u-1" } }), NOW);
+    expect(mine.ok && mine.owner).toBeUndefined();
   });
 });
 

@@ -22,7 +22,8 @@
    6. a wrong password points a reader who used a button back to the buttons, and a
       sign-up the mailer refuses is explained
    7. five buttons fit a 360px screen
-   8. progress set aside for a reader with no email names the service they use
+   8. progress set aside for a reader with no email names the service they use; progress
+      brought from the old address for an account is described as that, not as a failure
    9. a hand-over that fails, or that the reader comes Back from, frees the button
   10. an error in the address is left alone on pages other than the account page
   11. a signed-out visitor on a chapter page and on the about page fetches nothing off the
@@ -320,6 +321,11 @@ const ALL = ["google", "github", "discord", "facebook", "azure"];
     check(notes.length === 2 && notes.some((n) => /an earlier account \(signed in with GitHub\)/.test(n)), "8 a reader with no email is identified by the service they use", notes);
     check(notes.some((n) => /r\u2022\u2022\u2022@example\.com could not be/.test(n)), "8 an older record without a service still shows its masked email", notes);
     await context.close();
+    /* src/carry/format.ts plan(): an account's progress from the old address */
+    const carried = await open({ providers: ["github"] }, { pending: { u7: { email: "", via: [], resetAt: 0, state: {}, at: 0, carried: 1 } } });
+    const said = await carried.page.evaluate(() => Array.from(document.querySelectorAll("[data-account] form > .form-note")).map((n) => ({ bad: n.classList.contains("bad"), text: n.textContent.replace(/\s+/g, " ") })));
+    check(said.some((n) => !n.bad && /^Progress brought from the old address for an account that was signed in there is kept in this browser, out of view, and will be saved to that account the next time it signs in here\.$/.test(n.text)) && !said.some((n) => /could not be/.test(n.text)), "8 progress carried for an account is described as that, not as a failure", said);
+    await carried.context.close();
   }
 
   /* 9. a hand-over that fails, and coming Back */

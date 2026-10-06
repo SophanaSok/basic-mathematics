@@ -12,6 +12,6 @@
                   old address to the same page at ORIGIN with the reader's progress.
    PAGES_PROJECT  the Cloudflare Pages project's name, the default of the repository
                   variable CLOUDFLARE_PROJECT_NAME that the deploy job reads. */
-export const ORIGIN = "https://learn.groupupmath.org";
+export const ORIGIN = "https://learn.groundupmath.org";
 export const LEGACY = "https://sophanasok.github.io/basic-mathematics/";
-export const PAGES_PROJECT = "groupupmath";
+export const PAGES_PROJECT = "groundupmath";

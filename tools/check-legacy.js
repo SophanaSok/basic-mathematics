@@ -102,10 +102,11 @@ function checkStubs(ctx, r) {
 }
 
 /* (d) each stub run as a browser would run it, in a vm: with nothing saved it goes to
-   its new address and nothing more; with progress, a Supabase session, an account
-   binding and another site's key saved, it goes there with #bm-carry=, whose data holds
-   every bm. store and none of the rest (inflated here as deflate-raw, the browser's
-   CompressionStream, would) */
+   its new address and nothing more, and never sends on an old fragment that is itself
+   a payload; with progress, a Supabase session, an account binding and another site's
+   key saved, it goes there with #bm-carry=, whose data holds every bm. store and none
+   of the rest, and the account's id alone beside them (inflated here as deflate-raw,
+   the browser's CompressionStream, would); 404.html sends any path to the front page */
 function runStub(text, storage, href) {
   const script = /<script>([\s\S]*?)<\/script>/.exec(text)[1];
   const keys = Object.keys(storage);
@@ -136,17 +137,24 @@ async function checkRun(ctx, r) {
     if (!ctx.text[page]) continue;
     const plain = await runStub(ctx.text[page], {}, old + "?mode=review#integers");
     if (plain !== to + "?mode=review#integers") r.fail(page + ": with nothing saved it went to " + plain + ", not " + to + "?mode=review#integers");
+    const crafted = await runStub(ctx.text[page], {}, old + "#bm-carry=1jeyJ2IjoxfQ");
+    if (crafted !== to) r.fail(page + ": opened with a payload in its own fragment it went to " + crafted + ", not " + to);
     const carried = await runStub(ctx.text[page], saved, old);
     const m = carried && /^(.*)#bm-carry=1j([A-Za-z0-9_-]+)$/.exec(carried);
     if (!m || m[1] !== to) { r.fail(page + ": with progress saved it went to " + String(carried).slice(0, 120)); continue; }
     const payload = JSON.parse(Buffer.from(m[2], "base64url").toString("utf8"));
     const keys = Object.keys(payload.s).sort().join(",");
     if (payload.v !== 1 || keys !== "bm.progress.v1,bm.theme") r.fail(page + ": carried v" + payload.v + " with " + keys + ", not v1 with bm.progress.v1,bm.theme");
+    if (JSON.stringify(payload.a) !== '{"user":"u-1","resetAt":0}' || Object.keys(payload).sort().join() !== "a,s,v") r.fail(page + ": the account went as " + JSON.stringify(payload.a) + " beside " + Object.keys(payload).join() + ", not its id alone");
   }
-  /* 404.html sends the path it was asked for; and the deflated form reads back */
+  /* 404.html sends any path to the front page, which reads carried progress (the new
+     address's own 404 page does not); and the deflated form reads back */
   r.count++;
-  const nf = await runStub(ctx.text["404.html"] || "<script></script>", {}, "https://old.example" + BASE + "parts/1-algebra/01-numbers.html#x");
-  if (nf !== ORIGIN + "/parts/1-algebra/01-numbers#x") r.fail("404.html sent parts/1-algebra/01-numbers.html to " + nf);
+  const nf = await runStub(ctx.text["404.html"] || "<script></script>", {}, "https://old.example" + BASE + "parts/1-algebra/?x=1#x");
+  if (nf !== ORIGIN + "/") r.fail("404.html sent parts/1-algebra/ to " + nf + ", not the front page");
+  r.count++;
+  const nfCarry = await runStub(ctx.text["404.html"] || "<script></script>", saved, "https://old.example" + BASE + "parts/1-algebra/");
+  if (!/^[^#]*#bm-carry=1j[A-Za-z0-9_-]+$/.test(String(nfCarry)) || nfCarry.split("#")[0] !== ORIGIN + "/") r.fail("404.html sent progress to " + String(nfCarry).slice(0, 120) + ", not to the front page");
   r.count++;
   const nfOut = await runStub(ctx.text["404.html"] || "<script></script>", {}, "https://elsewhere.example/nope");
   if (nfOut !== ORIGIN + "/") r.fail("404.html sent a path outside " + BASE + " to " + nfOut + ", not the root");
@@ -157,12 +165,19 @@ async function checkRun(ctx, r) {
 
 /* (e) the workflow deploys to the project src/carry/origins.ts names when the repository
    variable is unset (the cloudflare job cannot read that file: it checks nothing out),
-   and publishes this directory once SITE_CUTOVER is true */
+   never deploys an older commit of main to production on a re-run, and publishes this
+   directory once SITE_CUTOVER is true */
 function checkCi(ctx, r) {
   const ci = fs.readFileSync(path.join(ROOT, ".github", "workflows", "ci.yml"), "utf8");
   const project = origins.read(ROOT).project;
   r.count++;
   if (ci.indexOf("${{ vars.CLOUDFLARE_PROJECT_NAME || '" + project + "' }}") < 0) r.fail(".github/workflows/ci.yml: the cloudflare job's default project is not PAGES_PROJECT of src/carry/origins.ts (" + project + ")");
+  /* the production deploy, like the GitHub Pages one, refuses a re-run of an old commit
+     of main: it must come before wrangler runs */
+  r.count++;
+  const job = ci.slice(ci.indexOf("\n  cloudflare:"));
+  const guard = job.indexOf("github.run_attempt > 1"), check = job.indexOf('repos/$REPO/commits/main'), wrangler = job.indexOf("uses: cloudflare/wrangler-action@");
+  if (ci.indexOf("\n  cloudflare:") < 0 || guard < 0 || check < guard || wrangler < 0 || check > wrangler) r.fail(".github/workflows/ci.yml: the cloudflare job does not stop a re-run of an older commit of main before it deploys");
   r.count++;
   if (!/name: dist-legacy\n\s+path: dist-legacy/.test(ci) || ci.indexOf('echo "artifact=dist-legacy"') < 0) r.fail(".github/workflows/ci.yml: dist-legacy/ is not kept as an artifact and published when SITE_CUTOVER is true");
 }
@@ -171,8 +186,8 @@ const CHECKS = [
   { name: "files", run: checkFiles, what: "a stub at every page path of the site, the carry page, 404.html, .nojekyll, and nothing else" },
   { name: "same", run: checkSame, what: "every file is what tools/build-legacy.js writes now" },
   { name: "stubs", run: checkStubs, what: "canonical, <noscript> refresh and visible link to the page's new address; one inline script, allowed by hash, no course files" },
-  { name: "run", run: checkRun, what: "each stub run: nothing saved goes plain; progress goes in #bm-carry=, every bm. store, never the session, the account or another key" },
-  { name: "ci", run: checkCi, what: "the workflow's default Cloudflare project is origins.ts's, and it publishes dist-legacy/ when SITE_CUTOVER is true" }
+  { name: "run", run: checkRun, what: "each stub run: nothing saved goes plain; progress goes in #bm-carry=, every bm. store and the account's id, never the session or another key; 404.html to the front page" },
+  { name: "ci", run: checkCi, what: "the workflow's default Cloudflare project is origins.ts's, a re-run of an old commit of main deploys nothing to Cloudflare, and it publishes dist-legacy/ when SITE_CUTOVER is true" }
 ];
 
 (async function main() {
