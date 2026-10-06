@@ -66,7 +66,7 @@ module.exports = {
             if (!panel) frameOf[rel + " " + theme] = look.frame;
             if (ctx.chapterOf(rel)) await h.wholePage(page);
             if (ctx.axeSource) {
-              await page.addScriptTag({ content: ctx.axeSource });
+              await h.injectAxe(page, ctx.axeSource);
               const bad = await page.evaluate(async () => {
                 const r = await window.axe.run(document, { runOnly: { type: "rule", values: ["color-contrast"] }, resultTypes: ["violations"] });
                 return r.violations.flatMap(v => v.nodes.slice(0, 4).map(n => n.target.join(" ") + ": " + (n.any[0] && n.any[0].message || v.help)));

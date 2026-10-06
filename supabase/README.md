@@ -8,9 +8,15 @@ get an aggregate view of which exercises people struggle with.
 2. **Create the tables.** Dashboard → SQL → New query, paste the whole of
    [`schema.sql`](schema.sql), and run it. It is safe to run again later.
 3. **Allow the site's address.** Dashboard → Authentication → URL Configuration:
-   - Site URL: `https://sophanasok.github.io/basic-mathematics/`
+   - Site URL: `https://sophanasok.github.io/basic-mathematics/` until the site has moved to
+     Cloudflare Pages, then `https://learn.groundupmath.org/` (`OPERATIONS.md`, 8.6)
    - Redirect URLs: `https://sophanasok.github.io/basic-mathematics/account.html` and, for local
-     work, `http://localhost:8000/account.html`
+     work, `http://localhost:8000/account.html`; for the move, also
+     `https://learn.groundupmath.org/account.html`, `https://groundupmath.pages.dev/account.html`
+     (the project's own address) and `https://*.groundupmath.pages.dev/**` (its previews).
+     The site builds every address it hands Supabase from the page it is on
+     (`assets/account.js` `pageUrl()`), so each address it is served from needs its entry
+     ([`OPERATIONS.md`](../OPERATIONS.md), 8.4)
 4. **Give the site its keys.** Dashboard → Project Settings → API. Copy the project URL and the
    `anon` / publishable key into [`../assets/config.js`](../assets/config.js). Never the
    service-role key — `config.js` is public.
@@ -90,7 +96,7 @@ above needs to change.
 
 | Service | Where to register | What to enter there | Notes |
 | --- | --- | --- | --- |
-| Google | Google Cloud console → Google Auth Platform | Branding: app name and support email. Audience: External. Data access: only `openid`, `userinfo.email`, `userinfo.profile`. Clients → Web application: authorised JavaScript origin `https://sophanasok.github.io`, authorised redirect URI = the callback URL | With only those three scopes Google applies no test-user list and no "unverified app" warning. The consent screen names `<project-ref>.supabase.co` rather than the course unless you complete brand verification |
+| Google | Google Cloud console → Google Auth Platform | Branding: app name and support email. Audience: External. Data access: only `openid`, `userinfo.email`, `userinfo.profile`. Clients → Web application: authorised JavaScript origins `https://sophanasok.github.io` and, for the move, `https://learn.groundupmath.org`, authorised redirect URI = the callback URL | With only those three scopes Google applies no test-user list and no "unverified app" warning. The consent screen names `<project-ref>.supabase.co` rather than the course unless you complete brand verification |
 | GitHub | github.com → Settings → Developer settings → OAuth Apps → New OAuth App | Name, homepage URL (the site), authorization callback URL = the callback URL. Generate a client secret | An OAuth App, not a GitHub App. Private email addresses still work |
 | Discord | discord.com/developers → New Application → OAuth2 | Redirects: the callback URL. Copy the client id, reset and copy the secret | A reader whose Discord email is unverified is refused |
 | Facebook | developers.facebook.com → Create App → "Authenticate and request data from users with Facebook Login" | Permissions `email` and `public_profile`; Valid OAuth Redirect URIs: the callback URL; in App settings → Basic an icon and a privacy policy URL (`…/about.html#progress`); then switch the app to Live | While the app is in Development only people with a role on it can sign in. A Facebook account with no confirmed email is refused |

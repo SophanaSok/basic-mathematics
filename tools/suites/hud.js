@@ -285,7 +285,7 @@ module.exports = {
         try {
           await page.click(".hud-menu");
           await page.waitForTimeout(300);
-          await page.addScriptTag({ content: ctx.axeSource });
+          await h.injectAxe(page, ctx.axeSource);
           const bad = await page.evaluate(async () => {
             const r = await window.axe.run({ include: [["#hud-sheet"]] }, { resultTypes: ["violations"] });
             return r.violations.map(v => v.id + " (" + v.nodes.length + "): " + v.help + " — " + v.nodes.slice(0, 2).map(n => n.target.join(" ")).join(" , "));

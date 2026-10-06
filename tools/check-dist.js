@@ -20,6 +20,7 @@ const shell = require("./lib/shell");
 const vendor = require("./lib/vendor");
 const { parse, normText, hash } = require("./lib/html");
 const links = require("./lib/links");
+const headers = require("./lib/headers");
 
 const ROOT = site.ROOT;
 const opts = site.parseArgs(process.argv.slice(2));
@@ -187,7 +188,8 @@ function buildContext() {
     ctx.src.docs[p] = page.doc;
     if (site.chapterIdOf(ctx.src.docs[p])) ctx.chapters.push(p);
   });
-  ctx.dist.pages = site.htmlPages(DIST);
+  /* the pages of the site; 404.html is Cloudflare's alone and stands apart (`headers`) */
+  ctx.dist.pages = site.htmlPages(DIST).filter(p => p !== headers.NOT_FOUND);
   ctx.dist.pages.forEach(p => {
     ctx.dist.text[p] = fs.readFileSync(path.join(DIST, p), "utf8");
     ctx.dist.docs[p] = parse(ctx.dist.text[p]);
@@ -245,6 +247,9 @@ function checkPages(ctx, r) {
 
   const known = new Set(ctx.src.pages);
   known.add(vendor.NOTICE);
+  /* the two files only Cloudflare Pages reads, which `headers` holds to account */
+  known.add(headers.FILE);
+  known.add(headers.NOT_FOUND);
   const pub = path.join(ROOT, "public");
   site.walk(pub, () => true).forEach(p => known.add(path.relative(pub, p).split(path.sep).join("/")));
   ctx.dist.pages.forEach(page => links.refsOf(ctx.dist.docs[page]).forEach(ref => {
@@ -758,6 +763,71 @@ function checkLicences(ctx, r) {
   r.note(packages.length + " package(s) in " + vendor.NOTICE + ": " + packages.map(p => p.name + " " + p.version + " (" + p.license + ")").join(", "));
 }
 
+/* (j) what Cloudflare Pages is told to send (lib/headers.js says what and why).
+   dist/_headers is what render() writes from dist as it is (so the build wrote it last,
+   from these pages and these files), and Pages can read it: at most 100 rules, 2,000
+   characters a line. Its policy lets every page run: the text of each inline script of
+   every page is in script-src by hash, and script-src allows nothing inline otherwise
+   and no eval; connect-src names the Supabase project of assets/config.js, and only it
+   beside the site; frames, plugins, <base> and form targets are shut. Every file of dist
+   meets exactly one Cache-Control rule at every path Pages serves it on (a page also
+   without .html), since two would be joined into one header: the font files (KaTeX's
+   and the typefaces) a week, everything else revalidated; and none as immutable, since
+   no file name in dist is a hash of its content. And dist/404.html
+   stands alone: no script, no stylesheet, one link, to the root. */
+function directives(csp) {
+  const out = {};
+  csp.split(";").map(d => d.trim()).filter(Boolean).forEach(d => { const [name, ...values] = d.split(/\s+/); out[name] = values; });
+  return out;
+}
+function checkHeaders(ctx, r) {
+  r.count++;
+  let text, rules;
+  try { text = fs.readFileSync(path.join(DIST, headers.FILE), "utf8"); } catch (e) { r.fail(headers.FILE + " is not in dist; the build writes it (vite.config.ts cloudflare())"); return; }
+  try { rules = headers.parse(text); } catch (e) { r.fail(e.message); return; }
+  const want = headers.render(headers.fromDist(DIST, ROOT));
+  if (text !== want) r.fail(headers.FILE + " is not what lib/headers.js writes from dist as it is (built before a later change?); " + firstDifference(want, text));
+  r.note(rules.length + " rule(s), the longest line " + Math.max.apply(null, text.split("\n").map(l => l.length)) + " characters");
+  const all = headers.headersFor(rules, "/index.html");
+  const csp = (all.find(([n]) => n.toLowerCase() === "content-security-policy") || [])[1];
+  if (!csp) { r.fail("no Content-Security-Policy for the pages"); return; }
+  const d = directives(csp);
+  const scripts = d["script-src"] || [];
+  ["'unsafe-inline'", "'unsafe-eval'", "*", "data:", "blob:", "http:", "https:"].forEach(bad => { r.count++; if (scripts.includes(bad)) r.fail("script-src allows " + bad); });
+  ctx.dist.pages.forEach(p => headers.inlineScripts(ctx.dist.text[p]).forEach((t, i) => {
+    r.count++;
+    if (!scripts.includes(headers.sha256(t))) r.fail(p + ": inline script " + (i + 1) + " (" + JSON.stringify(t.trim().slice(0, 40)) + "…) is not in script-src by its hash " + headers.sha256(t));
+  }));
+  const fixed = { "object-src": ["'none'"], "frame-src": ["'none'"], "frame-ancestors": ["'none'"], "base-uri": ["'self'"], "form-action": ["'self'"], "default-src": ["'self'"] };
+  Object.keys(fixed).forEach(k => { r.count++; if ((d[k] || []).join(" ") !== fixed[k].join(" ")) r.fail(k + " is " + JSON.stringify((d[k] || []).join(" ")) + ", not " + fixed[k].join(" ")); });
+  r.count++;
+  const supabase = headers.supabaseOrigin(fs.readFileSync(path.join(ROOT, "assets", "config.js"), "utf8"));
+  const connect = ["'self'"].concat(supabase ? [supabase, supabase.replace(/^https:/, "wss:")] : []);
+  if ((d["connect-src"] || []).join(" ") !== connect.join(" ")) r.fail("connect-src is " + JSON.stringify((d["connect-src"] || []).join(" ")) + ", not the site and the Supabase project of assets/config.js (" + connect.join(" ") + ")");
+  ["Permissions-Policy", "Referrer-Policy", "X-Content-Type-Options"].forEach(n => { r.count++; if (!all.some(([k]) => k.toLowerCase() === n.toLowerCase())) r.fail("no " + n + " for the pages"); });
+  r.count++;
+  const opener = (all.find(([n]) => n.toLowerCase() === "cross-origin-opener-policy") || [])[1];
+  if (opener !== headers.OPENER) r.fail("Cross-Origin-Opener-Policy for the pages is " + JSON.stringify(opener) + ", not " + headers.OPENER + " (a page of another origin that opened the window would keep its handle on it: lib/headers.js)");
+  /* one Cache-Control per path, and the right one */
+  ctx.files.filter(f => f !== headers.FILE).forEach(f => headers.servedPaths(f).forEach(at => {
+    r.count++;
+    const by = headers.rulesSetting(rules, at, "Cache-Control");
+    if (by.length !== 1) { r.fail(at + " meets " + by.length + " Cache-Control rules (" + by.join(", ") + "), not one"); return; }
+    const value = headers.headersFor(rules, at).find(([n]) => n.toLowerCase() === "cache-control")[1];
+    const wanted = /\.(woff2?|ttf|otf)$/.test(at) ? headers.WEEK : headers.REVALIDATE;
+    if (value !== wanted) r.fail(at + " is sent with Cache-Control " + JSON.stringify(value) + ", not " + JSON.stringify(wanted));
+    if (/immutable/i.test(value)) r.fail(at + " is sent as immutable, but its name is not a hash of its content");
+  }));
+  /* the 404 page */
+  r.count++;
+  let nf = null;
+  try { nf = parse(fs.readFileSync(path.join(DIST, headers.NOT_FOUND), "utf8")); } catch (e) { r.fail(headers.NOT_FOUND + " is not in dist; the build writes it (vite.config.ts cloudflare())"); return; }
+  if (nf.queryAll("script").length) r.fail(headers.NOT_FOUND + " has a script");
+  if (nf.queryAll("link").length) r.fail(headers.NOT_FOUND + " links a stylesheet or another file");
+  const hrefs = nf.queryAll("a").map(a => a.getAttribute("href"));
+  if (hrefs.join() !== "/") r.fail(headers.NOT_FOUND + " links " + JSON.stringify(hrefs) + ", not the root alone");
+}
+
 /* ------------------------------------------------------------- runner ---- */
 
 const CHECKS = [
@@ -770,6 +840,7 @@ const CHECKS = [
   { name: "offline", run: checkOffline, what: "no script, link or stylesheet url() of any page comes from another server; no font is inlined" },
   { name: "secrets", run: checkSecrets, what: "no server-side key in any built file, as text or inside a JWT" },
   { name: "stylesheets", run: checkStylesheets, what: "chapter pages share their stylesheets; vendor CSS inlined before the site's, source CSS unchanged, cascade in source order, each file named for the kinds that link it" },
+  { name: "headers", run: checkHeaders, what: "_headers is what lib/headers.js writes from dist: every inline script hashed in the CSP, nothing else inline, Supabase in connect-src, one Cache-Control per served path; 404.html stands alone" },
   { name: "licences", run: checkLicences, what: "bundle/LICENSES.txt is the notice written from the installed packages, and every font file and node_modules source in dist is one of theirs" }
 ];
 

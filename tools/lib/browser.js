@@ -126,6 +126,8 @@ function makeHelpers(ctx) {
   async function newContext(options) {
     const context = await browser.newContext(options);
     await context.route(u => { const s = typeof u === "string" ? u : u.href; return /^https?:/.test(s) && !s.startsWith(server.url); }, answerThirdParty);
+    /* a violation of the pages' Content-Security-Policy is a console error and a page
+       error in every context (lib/pw.js guardCsp), which track() fails */
     return context;
   }
 
@@ -219,6 +221,14 @@ function makeHelpers(ctx) {
     return true;
   }
 
+  /* axe-core into a page that is open: run through the DevTools protocol, which the
+     page's Content-Security-Policy does not govern. An inline <script> (Playwright's
+     addScriptTag with content) is what the policy refuses, and was refused, once the
+     server applied dist/_headers (lib/serve.js). */
+  async function injectAxe(page, source) {
+    await page.evaluate(source);
+  }
+
   async function screenshot(page, name, o) {
     const rel = name.replace(/[^a-zA-Z0-9/_.-]+/g, "-") + ".png";
     const abs = path.join(outDir, rel);
@@ -227,7 +237,7 @@ function makeHelpers(ctx) {
     return rel;
   }
 
-  return { newContext, newPage, noWebGL, blockUrl, settle, open, wholePage, screenshot, slug, VIEWPORTS, THEME_KEY, LESSON_KEY, PROGRESS_KEY };
+  return { newContext, newPage, noWebGL, blockUrl, settle, open, wholePage, injectAxe, screenshot, slug, VIEWPORTS, THEME_KEY, LESSON_KEY, PROGRESS_KEY };
 }
 
 module.exports = { makeHelpers, track, slug, VIEWPORTS, THEME_KEY, LESSON_KEY, PROGRESS_KEY, THIRD_PARTY_MS };

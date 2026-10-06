@@ -22,6 +22,34 @@ function places() {
 let found = null;       /* where Playwright resolved from, once it has */
 function from() { return found || places()[0]; }
 
+/* The built pages are served under dist/_headers (lib/serve.js), Content-Security-Policy
+   and all, so every browser script runs them under the policy readers get. What the
+   policy blocks must fail the script that saw it, whichever script that is: every
+   context of a Chromium launched from here reports a violation as a console error and
+   then as an uncaught error on the page, which lib/browser.js track() and every
+   tools/game script's watch on "pageerror" count as a failure. The pages never see it
+   unless they break the policy. */
+const CSP_REPORTER = `document.addEventListener("securitypolicyviolation", function (e) {
+  var what = e.effectiveDirective + " blocked " + (e.blockedURI || "an inline " + (/^style/.test(e.effectiveDirective) ? "style" : "script")) + (e.sourceFile ? " (" + e.sourceFile + ":" + e.lineNumber + ")" : "");
+  console.error("Content-Security-Policy violation: " + what);
+  setTimeout(function () { throw new Error("Content-Security-Policy violation: " + what); }, 0);
+});`;
+function guardCsp(browserType) {
+  if (!browserType || browserType.__bmCsp) return;
+  const launch = browserType.launch.bind(browserType);
+  browserType.launch = async (options) => {
+    const browser = await launch(options);
+    const newContext = browser.newContext.bind(browser);
+    browser.newContext = async (o) => {
+      const context = await newContext(o);
+      await context.addInitScript(CSP_REPORTER);
+      return context;
+    };
+    return browser;
+  };
+  browserType.__bmCsp = true;
+}
+
 function resolvePlaywright() {
   let pw, version = "?", req = null;
   const tried = [];
@@ -47,6 +75,7 @@ function resolvePlaywright() {
     err.code = "NO_PLAYWRIGHT";
     throw err;
   }
+  guardCsp(pw.chromium);
   try { version = req("playwright/package.json").version; } catch (e) { /* fine */ }
   let axeSource = null, axeVersion = null;
   try {
