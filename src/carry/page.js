@@ -16,25 +16,31 @@
                        ?file=1 asks for the file whatever the size
    It leaves as every legacy page does, with location.replace under the page's referrer
    policy, so the new address sees this origin as the referrer (src/carry/format.ts
-   fromLegacy). ?to= is a path at the new address and nothing else: anything that is not
-   one is "/".
+   fromLegacy). ?to= is a page of the new address (cfg.pages: the path of each page of the
+   site there, with and without .html, from tools/build-legacy.js), with its query, and
+   nothing else: anything that is not one is "/". Only a page of the site loads
+   src/ui/carry.ts, which takes the fragment out of the address; any other path is the
+   new address's 404 page, which would leave the whole payload in the address bar and the
+   session history (review round 5).
    Plain ES5, inlined as it is (see send.js).
    =========================================================================== */
 var BMCarryPage = (function () {
   "use strict";
   var SYNCED = { progress: "bm.progress.v1", play: "bm.play.v1", attempts: "bm.attempts.v1", activity: "bm.activity.v1", lesson: "bm.lesson.v1", last: "bm.last", game: "bm.game.v1" };
 
-  /* a path at the new address, from ?to=; "/" for anything else. A control character
-     is refused before parsing (URL drops tabs and newlines, so "/\t/x" would become
-     "//x"), and the parsed path is held to the same rule as the text. */
-  function pathFrom(search, origin) {
+  /* a page at the new address, from ?to=, with its query; "/" for anything else. A
+     control character is refused before parsing (URL drops tabs and newlines, so "/\t/x"
+     would become "//x"), the parsed path is held to the same rule as the text, and it
+     must then be one of `pages` exactly. */
+  function pathFrom(search, origin, pages) {
     var m = /[?&]to=([^&#]*)/.exec(search || ""), p = "/";
     if (m) { try { p = decodeURIComponent(m[1].replace(/\+/g, " ")); } catch (e) { p = "/"; } }
     var single = function (s) { return s.charAt(0) === "/" && s.charAt(1) !== "/" && s.charAt(1) !== "\\"; };
     if (!single(p) || /[\u0000-\u001f\u007f]/.test(p)) return "/";
     try {
       var u = new URL(origin + p);
-      return u.origin === origin && single(u.pathname) ? u.pathname + u.search : "/";
+      var known = Array.isArray(pages) && pages.indexOf(u.pathname) >= 0;
+      return u.origin === origin && single(u.pathname) && known ? u.pathname + u.search : "/";
     } catch (e) { return "/"; }
   }
 
@@ -61,10 +67,10 @@ var BMCarryPage = (function () {
     });
   }
 
-  /* cfg: { origin: the new address, limit: as in send.js } */
+  /* cfg: { origin: the new address, limit: as in send.js, pages: the paths ?to= may name } */
   function run(cfg) {
     var S = BMCarrySend, loc = window.location;
-    var path = pathFrom(loc.search, cfg.origin), at = S.anchor(loc.hash);
+    var path = pathFrom(loc.search, cfg.origin, cfg.pages), at = S.anchor(loc.hash);
     var target = cfg.origin + path;
     Array.prototype.forEach.call(document.querySelectorAll("[data-carry-target]"), function (a) {
       a.href = target + (at ? "#" + at : "");

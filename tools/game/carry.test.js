@@ -45,7 +45,8 @@
       which offers it as a file; that file, imported at the new address, brings it over
    7. the carry page, as the progress page's link reaches it, sends the progress back
       to the page it was asked for; the link itself points at the old address's carry
-      page; an unknown old path (404.html, a folder such as parts/1-algebra/) goes to
+      page; a ?to= that is no page of the site goes to the front page (review round 5:
+      the new address's 404 page would keep the payload in the address); an unknown old path (404.html, a folder such as parts/1-algebra/) goes to
       the front page of the new address, which asks about the progress it brings
    8. the course served at the old address's own origin (sophanasok.github.io, answered
       here from dist/), as it is until SITE_CUTOVER: no question, and none of what is
@@ -493,6 +494,19 @@ const SESSION = "sb-jfidvrzonyzfstnykzly-auth-token";
     await page.waitForURL((u) => u.origin === NEW || String(u).startsWith(NEW), { timeout: 10000 }).catch(() => {});
     check(page.url().startsWith(NEW + "/#bm-carry=") || page.url().startsWith(NEW + "/"), "7 a ?to= that is not a path goes to the root of the new address", page.url());
     await context.close();
+    /* review round 5: a ?to= that is a path but no page of the site would land on the new
+       address's 404 page, which does not load carry.ts, and the payload would stay in the
+       address; it goes to the front page, which asks and takes it out */
+    for (const to of ["/x?y=1", "/x?y=1#bm-carry=1jAAAA", "/%23bm-carry=1jAAAA"]) {
+      const stray = await profile();
+      await seed(stray.page, OLD, FIXTURE);
+      await stray.page.goto(OLD + "/carry/?to=" + encodeURIComponent(to));
+      const sq = await question(stray.page).catch(() => ({ what: "(nothing asked)" }));
+      const su = new URL(stray.page.url());
+      check(su.origin === NEW && su.pathname === "/" && su.search === "" && su.hash === "" && /^23 exercises solved/.test(sq.what), "7 a ?to= that is no page of the site (" + to + ") goes to the front page, which asks and takes the payload out of the address", { url: stray.page.url().slice(0, 120), what: sq.what });
+      if (await stray.page.$("dialog.carry-ask[open]")) await stray.page.click("[data-carry-no]");
+      await stray.context.close();
+    }
     const empty = await profile();
     await empty.page.goto(OLD + "/carry/");
     await empty.page.waitForSelector("#carry-none:not([hidden])");

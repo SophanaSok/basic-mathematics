@@ -28,7 +28,9 @@
                      no second redirect
      carry/          the carry page (src/carry/page.js after send.js): the same hand-over,
                      for the new address's "Bring progress from the old address", or the
-                     progress as a file to import there
+                     progress as a file to import there. Its ?to= may name only a page of
+                     the site (carryPaths: each page's new path, and its path with .html,
+                     which a local server shows), else "/"
      404.html        what GitHub Pages answers any other path with (a folder such as
                      parts/1-algebra/, a mistyped or retired address): the same as a
                      stub, but to the front page of the new address, without the old
@@ -78,6 +80,15 @@ function source(rel) {
 /* a page's path at the new address: its path without .html, "/" for index.html */
 function targetPath(page) {
   return "/" + page.replace(/(^|\/)index\.html$/i, "$1").replace(/\.html$/i, "");
+}
+
+/* the paths the carry page's ?to= may name: each page's path at the new address, and
+   the path of its file, as the progress page's own address shows it where .html is not
+   taken off (a local server) */
+function carryPaths(pages) {
+  const out = [];
+  pages.forEach(page => [targetPath(page), "/" + page].forEach(p => { if (out.indexOf(p) < 0) out.push(p); }));
+  return out;
 }
 
 function esc(s) { return String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c])); }
@@ -144,7 +155,7 @@ function render(opts) {
   });
   files["carry/index.html"] = standalone({
     title: "Bring your progress to the new address",
-    script: send + "\n" + source(PAGE) + "\ndocument.addEventListener(\"DOMContentLoaded\", function () { BMCarryPage.run(" + JSON.stringify({ origin, limit: max }) + "); });",
+    script: send + "\n" + source(PAGE) + "\ndocument.addEventListener(\"DOMContentLoaded\", function () { BMCarryPage.run(" + JSON.stringify({ origin, limit: max, pages: carryPaths(site.htmlPages(ROOT)) }) + "); });",
     body: [
       "<h1>Bring your progress to the new address</h1>",
       '<p id="carry-wait">Reading the progress this browser saved at the old address…</p>',
@@ -177,7 +188,7 @@ function build(opts) {
   return Object.assign({ out }, r);
 }
 
-module.exports = { render, build, targetPath, REFERRER };
+module.exports = { render, build, targetPath, carryPaths, REFERRER };
 
 if (require.main === module) {
   const opts = site.parseArgs(process.argv.slice(2));

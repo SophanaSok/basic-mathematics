@@ -23,7 +23,7 @@ type Send = {
 };
 const send: Send = new Function(fs.readFileSync(path.join(ROOT, "src/carry/send.js"), "utf8") + "\nreturn BMCarrySend;")();
 /* the legacy carry page (src/carry/page.js), as it is inlined after send.js */
-const page: { pathFrom(search: string, origin: string): string; file(stores: Stores, from: string, signedIn: boolean): Record<string, unknown> } =
+const page: { pathFrom(search: string, origin: string, pages?: string[]): string; file(stores: Stores, from: string, signedIn: boolean): Record<string, unknown> } =
   new Function(fs.readFileSync(path.join(ROOT, "src/carry/send.js"), "utf8") + fs.readFileSync(path.join(ROOT, "src/carry/page.js"), "utf8") + "\nreturn BMCarryPage;")();
 
 /* a Storage over a plain map, in insertion order */
@@ -219,12 +219,22 @@ describe("what the old address sends", () => {
     expect(send.collect(storage({ "bm.sync.v1": '{"user":""}', "bm.theme": '"dark"' })).signedIn).toBe(false);
   });
 
-  it("sends the carry page's reader to a single path at the new address and nowhere else", () => {
+  it("sends the carry page's reader to a page of the new address and nowhere else", () => {
     const o = "https://learn.example";
-    expect(page.pathFrom("?to=%2Fprogress%3Fx%3D1", o)).toBe("/progress?x=1");
+    /* the paths build-legacy.js gives the carry page (carryPaths) */
+    const pages = ["/", "/index.html", "/progress", "/progress.html", "/arena", "/arena.html", "/parts/1-algebra/01-numbers", "/parts/1-algebra/01-numbers.html"];
+    expect(page.pathFrom("?to=%2Fprogress%3Fx%3D1", o, pages)).toBe("/progress?x=1");
+    expect(page.pathFrom("?to=%2Farena.html%3Fmode%3Dreview", o, pages)).toBe("/arena.html?mode=review");
+    expect(page.pathFrom("?to=%2Fparts%2F1-algebra%2F01-numbers", o, pages)).toBe("/parts/1-algebra/01-numbers");
     ["?to=//evil.example/", "?to=/%5Cevil.example/", "?to=https://evil.example/", "?to=javascript:alert(1)",
-      "?to=/%09/evil.example", "?to=/%0a/evil.example", "?to=/%0d/evil.example", "?to=%09//evil.example", "?to=/%7F/x", "?to=%E0%A4%A"]
-      .forEach((q) => expect(page.pathFrom(q, o), q).toBe("/"));
+      "?to=/%09/evil.example", "?to=/%0a/evil.example", "?to=/%0d/evil.example", "?to=%09//evil.example", "?to=/%7F/x", "?to=%E0%A4%A",
+      /* review round 5: a path no page serves lands on the new address's 404 page, which
+         does not load carry.ts, so the payload would stay in the address */
+      "?to=/x?y=1", "?to=%2Fx%3Fy%3D1%23bm-carry%3D1jAAAA", "?to=/%2523bm-carry=1jAAAA", "?to=/progress/", "?to=/Progress",
+      "?to=/progress.htm", "?to=/parts/1-algebra/", "?to=/parts/1-algebra/../../progress%2F", "?to=/carry/"]
+      .forEach((q) => expect(page.pathFrom(q, o, pages), q).toBe("/"));
+    /* no list, no page */
+    expect(page.pathFrom("?to=%2Fprogress", o)).toBe("/");
   });
 
   it("puts in the carry page's file the settings under device, and only that the reader was signed in", () => {
