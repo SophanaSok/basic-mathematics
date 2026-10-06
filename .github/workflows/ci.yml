@@ -1,9 +1,11 @@
-# Checks every pull request and every push to main, deploys main to GitHub Pages, and
-# deploys to Cloudflare Pages (main to production, a pull request to a preview).
+# Checks every pull request and every push to main, deploys the course to Cloudflare
+# Pages (main to production, a pull request to a preview), and deploys main's redirect
+# site to GitHub Pages, the old address.
 #
-#   build       the Node checks (npm run check, the Vitest unit tests among them), the
-#               build, the checks on dist/, the legacy site and its checks; dist/ and
-#               dist-legacy/ are kept as artifacts
+#   build       the Node checks (npm run check, the Vitest unit tests and
+#               tools/check-ci.js, which holds this file's deploy guards, among them), the
+#               build, the checks on dist/, the redirect site and its checks; dist/ and
+#               dist-redirects/ are kept as artifacts
 #   browser     the Chromium checks that do not need WebGL, against that dist/, as one job
 #               per part of tools/check-browser.js PARTS, side by side: each runs its part
 #               of check-browser.js --skip=webgl, and the part CORE (today "rest", every
@@ -12,10 +14,10 @@
 #   webgl       the 3D checks (the scene stages, the course map) and the WebGL suite.
 #               WebGL on a runner is software rendering, slow and now and then losing its
 #               context, so these are retried and are not part of the gate
-#   deploy      main only: publishes to GitHub Pages that same dist/ (without the two
-#               files only Cloudflare reads, _headers and 404.html), or, once the
-#               repository variable SITE_CUTOVER is "true", dist-legacy/: the old address
-#               then only sends readers, with their progress, to the new one
+#   deploy      main only: publishes dist-redirects/ to GitHub Pages
+#               (tools/build-redirects.js): each old address only sends its reader to the
+#               same page at learn.groundupmath.org. The course itself is never published
+#               there
 #   cloudflare  publishes that same dist/ to Cloudflare Pages with wrangler: a push to
 #               main (or Run workflow) to production, a pull request from a branch of this
 #               repository to a preview under the branch name pr-<number> (never its own
@@ -26,20 +28,18 @@
 #               CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID; without them, and for a
 #               pull request from a fork (which is never given secrets), it says so in a
 #               notice and deploys nothing, and the run stays green. The project is the
-#               repository variable CLOUDFLARE_PROJECT_NAME, or PAGES_PROJECT in
-#               src/carry/origins.ts when that is not set. It runs whatever SITE_CUTOVER
-#               says, so the new address can be tried before the move.
+#               repository variable CLOUDFLARE_PROJECT_NAME, or the default written in
+#               the job (groundupmath) when that is not set.
 #
-# OPERATIONS.md, "Moving to Cloudflare Pages", is the owner's runbook for both variables
-# and both secrets.
+# OPERATIONS.md section 8, "Hosting", is the owner's runbook for the variable and both
+# secrets.
 #
 # deploy runs only while the repository's Pages source is "GitHub Actions" (Settings,
-# Pages, Build and deployment, Source); pages-source asks. No other source works: the
-# pages in the repository are not whole documents (the build writes their head and top
-# bar, tools/lib/shell.js), so "Deploy from a branch" publishes pages with no stylesheets
-# and no scripts. While the source is that, pages-source fails the run and says what to
-# set. Setting the source back is therefore not a rollback; reverting the commit is.
-# README.md, "Deploying".
+# Pages, Build and deployment, Source); pages-source asks. No other source works:
+# "Deploy from a branch" publishes the repository's own files at the old address, the
+# course's pages without their head and top bar (the build writes those,
+# tools/lib/shell.js) in place of the redirects. While the source is that, pages-source
+# fails the run and says what to set. README.md, "Deploying".
 #
 # "Run workflow" on main (workflow_dispatch) runs all of this again and deploys, without
 # a new commit: the manual way to publish, for instance right after switching the source.
@@ -61,9 +61,10 @@ permissions:
   contents: read
 
 # One run at a time for a branch or a pull request. A new push to a pull request replaces
-# the run in progress. On main nothing in progress is cancelled: runs go one after another
-# in the order of the pushes (of several waiting, only the newest is kept), so an older
-# commit is never deployed after a newer one.
+# the run in progress (in a private repository every minute of a run counts against the
+# account's Actions minutes, so a superseded run is not left to finish). On main nothing in
+# progress is cancelled: runs go one after another in the order of the pushes (of several
+# waiting, only the newest is kept), so an older commit is never deployed after a newer one.
 concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
@@ -102,8 +103,8 @@ jobs:
         run: npm run check:static -- --only=migrations --migrations-base="origin/$BASE_REF"
       - run: npm run build
       - run: npm run check:dist
-      - run: npm run build:legacy
-      - run: npm run check:legacy
+      - run: npm run build:redirects
+      - run: npm run check:redirects
       - uses: actions/upload-artifact@v7
         with:
           name: dist
@@ -114,8 +115,8 @@ jobs:
           retention-days: 7
       - uses: actions/upload-artifact@v7
         with:
-          name: dist-legacy
-          path: dist-legacy
+          name: dist-redirects
+          path: dist-redirects
           include-hidden-files: true
           if-no-files-found: error
           retention-days: 7
@@ -155,7 +156,7 @@ jobs:
           path: dist
       - run: npx playwright install --with-deps chromium
       # the tools/game scripts go first in the job of the part CORE of check-browser.js
-      # (today "rest"), named by --parts, never here; check:legacy's `ci` check fails
+      # (today "rest"), named by --parts, never here; tools/check-ci.js (`core`) fails
       # when this step or its condition is changed
       - if: matrix.part == fromJSON(needs.build.outputs.browser-parts).core
         run: npm run test:browser:core
@@ -207,7 +208,7 @@ jobs:
 
   # main only: asks the repository which Pages source is set, so that `deploy` runs only
   # when it is "GitHub Actions". While it is still the branch this job fails, and the run
-  # with it: Pages is then publishing the repository's files, which are not a whole site,
+  # with it: Pages is then publishing the repository's files instead of the redirects,
   # and a green run would hide that. If the question cannot be answered (the API refusing
   # or failing), it fails as well: a deploy is never skipped in a green run for a reason
   # nobody chose.
@@ -230,7 +231,7 @@ jobs:
           if type=$(gh api "repos/$REPO/pages" --jq .build_type 2> pages-error.txt); then
             echo "build_type=$type" >> "$GITHUB_OUTPUT"
             if [ "$type" != "workflow" ]; then
-              echo "::error::The Pages source is \"$type\", not GitHub Actions, so nothing is deployed from here and Pages is publishing the files of the branch. Those are not a whole site: each page gets its head and top bar from the build, and is served without stylesheets or scripts. Set Settings > Pages > Source to \"GitHub Actions\" and run this workflow on main."
+              echo "::error::The Pages source is \"$type\", not GitHub Actions, so nothing is deployed from here and Pages is publishing the files of the branch at the old address instead of the redirects to learn.groundupmath.org. Set Settings > Pages > Source to \"GitHub Actions\" and run this workflow on main."
               exit 1
             fi
           elif grep -q "HTTP 404" pages-error.txt; then
@@ -260,8 +261,8 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       # A first attempt deploys in the order of the pushes (the concurrency group at the
-      # top). Re-running the jobs of an old run is the one way an older dist/ could go
-      # out over a newer one, so a re-run deploys only the commit main is still at.
+      # top). Re-running the jobs of an old run is the one way an older dist-redirects/
+      # could go out over a newer one, so a re-run deploys only the commit main is still at.
       - name: A re-run deploys only the newest commit of main
         if: github.run_attempt > 1
         env:
@@ -274,36 +275,16 @@ jobs:
             echo "::error::main is at $head and this run built $SHA: re-running it would publish the older site. Re-run the newest run on main instead, or use Run workflow."
             exit 1
           fi
-      # SITE_CUTOVER (Settings, Secrets and variables, Actions, Variables): unset or
-      # "false", the course as it has always been; "true", the legacy site. Anything else
-      # is a typo, and fails here rather than publish the wrong one.
-      - name: Which site the old address serves (SITE_CUTOVER)
-        id: which
-        env:
-          CUTOVER: ${{ vars.SITE_CUTOVER }}
-        run: |
-          case "$CUTOVER" in
-            true)
-              echo "artifact=dist-legacy" >> "$GITHUB_OUTPUT"
-              echo "### GitHub Pages: the legacy site (SITE_CUTOVER is true)" >> "$GITHUB_STEP_SUMMARY"
-              echo "Every old address now sends its reader, with the progress saved in their browser, to the same page at the new address (dist-legacy/, tools/build-legacy.js)." >> "$GITHUB_STEP_SUMMARY" ;;
-            ""|false)
-              echo "artifact=dist" >> "$GITHUB_OUTPUT"
-              echo "### GitHub Pages: the course (SITE_CUTOVER is ${CUTOVER:-not set})" >> "$GITHUB_STEP_SUMMARY"
-              echo "The full site, as before the move. Set the repository variable SITE_CUTOVER to true to publish the legacy site instead (OPERATIONS.md, \"Moving to Cloudflare Pages\")." >> "$GITHUB_STEP_SUMMARY" ;;
-            *)
-              echo "::error::The repository variable SITE_CUTOVER is \"$CUTOVER\". It must be true (publish the legacy site) or false or unset (publish the course); nothing was deployed."
-              exit 1 ;;
-          esac
+      # the redirect site, never the course: tools/check-ci.js (`pages`) fails if this
+      # downloads anything else
       - uses: actions/download-artifact@v8
         with:
-          name: ${{ steps.which.outputs.artifact }}
+          name: dist-redirects
           path: site
-      # what only Cloudflare Pages reads stays off GitHub Pages, so the course goes out
-      # there exactly as before the move (lib/headers.js)
-      - name: Leave out _headers and 404.html
-        if: steps.which.outputs.artifact == 'dist'
-        run: rm -f site/_headers site/404.html
+      - name: Say what the old address serves
+        run: |
+          echo "### GitHub Pages: redirects to learn.groundupmath.org" >> "$GITHUB_STEP_SUMMARY"
+          echo "Every old address sends its reader to the same page at https://learn.groundupmath.org (dist-redirects/, tools/build-redirects.js)." >> "$GITHUB_STEP_SUMMARY"
       - uses: actions/configure-pages@v6
       - uses: actions/upload-pages-artifact@v5
         with:
@@ -344,7 +325,8 @@ jobs:
           REF_NAME: ${{ github.ref_name }}
           PR_SHA: ${{ github.event.pull_request.head.sha }}
           SHA: ${{ github.sha }}
-          # unset, PAGES_PROJECT in src/carry/origins.ts (check-legacy.js `ci` holds the two together)
+          # unset, this default, the one place the project's name is written for CI
+          # (tools/check-ci.js `project` holds it to a valid name)
           PROJECT: ${{ vars.CLOUDFLARE_PROJECT_NAME || 'groundupmath' }}
         run: |
           project="$PROJECT"
@@ -353,7 +335,7 @@ jobs:
             echo "go=false" >> "$GITHUB_OUTPUT"; exit 0
           fi
           if [ "$HAS_TOKEN" != "true" ] || [ "$HAS_ACCOUNT" != "true" ]; then
-            echo "::notice::Nothing deployed to Cloudflare Pages: the repository secrets CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID are not both set (OPERATIONS.md, \"Moving to Cloudflare Pages\")."
+            echo "::notice::Nothing deployed to Cloudflare Pages: the repository secrets CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID are not both set (OPERATIONS.md, section 8)."
             echo "go=false" >> "$GITHUB_OUTPUT"; exit 0
           fi
           # A pull request deploys under pr-<number>, never under its head branch's name:
@@ -409,14 +391,12 @@ jobs:
           BRANCH: ${{ steps.can.outputs.branch }}
           PROJECT: ${{ steps.can.outputs.project }}
           SHA: ${{ steps.can.outputs.sha }}
-          CUTOVER: ${{ vars.SITE_CUTOVER }}
         run: |
           {
             echo "### Cloudflare Pages: ${ENVIRONMENT:-deployed} ($PROJECT, branch $BRANCH)"
             echo "- This deployment: $URL"
             if [ -n "$ALIAS" ]; then echo "- The branch's address: $ALIAS"; fi
             echo "- Commit: $SHA"
-            echo "- SITE_CUTOVER is ${CUTOVER:-not set}: the old address serves $([ "$CUTOVER" = "true" ] && echo "the legacy site, which sends readers here" || echo "the course itself, so this address is not yet where readers go")."
           } >> "$GITHUB_STEP_SUMMARY"
       # wrangler makes a deploy production only when --branch is the project's production
       # branch, and otherwise a preview, without an error. A project created in the
@@ -449,7 +429,7 @@ jobs:
           **Preview on Cloudflare Pages** of $SHA: ${ALIAS:-$URL}
           (this deployment: $URL)
 
-          Sign-in there works only if the preview address is on Supabase's redirect list (OPERATIONS.md, \"Moving to Cloudflare Pages\")."
+          Sign-in there works only if the preview address is on Supabase's redirect list (OPERATIONS.md, 8.4)."
           id=$(gh api --paginate "repos/$REPO/issues/$PR/comments" --jq ".[] | select(.user.login == \"github-actions[bot]\" and (.body | startswith(\"$marker\"))) | .id" | head -n 1)
           if [ -n "$id" ]; then
             gh api -X PATCH "repos/$REPO/issues/comments/$id" -f body="$body" > /dev/null

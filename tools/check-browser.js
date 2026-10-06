@@ -149,7 +149,8 @@ details{margin:.2rem 0}summary{cursor:pointer}pre{white-space:pre-wrap;font-size
    every suite no part names, so a suite dropped into tools/suites/ runs in CI without
    being assigned anywhere; the browser job's matrix is `--parts`, so a part added here
    gets its job. Balanced by each suite's seconds on a runner (CI run 37414123700,
-   2026-10-06), with the rest job also running `npm run test:browser:core` (162 s) first.
+   2026-10-06), with the rest job also running `npm run test:browser:core` first (162 s
+   then, with the carry test since removed among its scripts).
    Move a suite between parts when a job grows past the others. */
 const PARTS = {
   axe: ["axe"],                                  // 289

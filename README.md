@@ -9,9 +9,7 @@ full solutions. It plays like a game — a boss for every practice set, a combo 
 achievements, playable 3D problems and a timed Arena — and every one of those rules is there to
 help the mathematics stick.
 
-**Read it here: [sophanasok.github.io/basic-mathematics](https://sophanasok.github.io/basic-mathematics/)**
-(moving to [learn.groundupmath.org](https://learn.groundupmath.org); the old address will send you
-on, with your progress)
+**Read it here: [learn.groundupmath.org](https://learn.groundupmath.org)**
 
 It is hand-written HTML, CSS, and plain JavaScript files, published through a small build
 ([Vite](https://vite.dev)) that writes each page's head and bundles its scripts, its fonts,
@@ -36,7 +34,7 @@ negative is positive, it argues for it rather than asserting it.
 
 ### Where to start
 
-Begin at **[Chapter 1, Numbers](https://sophanasok.github.io/basic-mathematics/parts/1-algebra/01-numbers.html)**,
+Begin at **[Chapter 1, Numbers](https://learn.groundupmath.org/parts/1-algebra/01-numbers)**,
 even if it looks beneath you. It is where the rules everything else leans on get established, and
 later chapters cite it constantly.
 
@@ -72,7 +70,7 @@ that section as one to come back to). The switch under the chapter title shows t
 instead, and remembers the choice.
 
 The method in three lines, expanded on the
-**[How to use this](https://sophanasok.github.io/basic-mathematics/about.html)** page:
+**[How to use this](https://learn.groundupmath.org/about)** page:
 
 1. **Read with a pencil.** Mathematics is not readable at the speed of prose. When a line of
    algebra appears, work it out yourself before reading the next line.
@@ -151,7 +149,7 @@ off. Sections the Arena has no problems for are not on the card, since nothing c
 checked; the due review lists them. It pays no XP, stays in Study mode, and
 "Hide for today" puts it away until tomorrow.
 
-The **[progress page](https://sophanasok.github.io/basic-mathematics/progress.html)** turns the
+The **[progress page](https://learn.groundupmath.org/progress)** turns the
 record into advice. The course notes how each question went (tries, misses, whether the solution
 was opened first) and lists the **sections worth rereading**, weakest first, alongside the ones
 going well. A short version appears above each chapter's recap.
@@ -176,7 +174,7 @@ going well. A short version appears above each chapter's recap.
   "I don't know" costs nothing, so guessing never pays. Its modes: a **Standard run** of ten
   questions, the **Daily** (five, one attempt a day), a **Boss rematch** of a chapter, a
   **Repair** of a weak section (untimed, no hearts), and the **Due review**
-  ([arena.html?mode=review](https://sophanasok.github.io/basic-mathematics/arena.html?mode=review)),
+  ([arena.html?mode=review](https://learn.groundupmath.org/arena?mode=review)),
   which asks only about the sections due for a check today, most overdue first, at most two
   questions from each and ten in all, with no hearts; the clock follows your tempo. A section
   you have not met in the Arena yet is first due a day after you last solved something in it on
@@ -216,17 +214,10 @@ going well. A short version appears above each chapter's recap.
 
 ### Progress, and what is saved
 
-The course is moving from GitHub Pages to its own address, **learn.groundupmath.org**, on
-Cloudflare Pages. A browser keeps what it saved for each address apart, so once the course has
-moved, the old address sends you to the same page at the new one with the progress this browser
-saved there, inside the link (the part after `#`, which a browser never sends to a server). The
-new address reads it only when you arrive straight from the old address, says what it would add,
-and asks before keeping any of it; yes only adds what this browser does not have yet, and never
-changes or removes anything already there. Your sign-in does not come along, and neither does an
-account's progress: if you were signed in at the old address, sign in again at the new one and
-your account brings everything back. If you have more progress than fits in a link, the old
-address offers it as a file, which the progress page imports, as it does the account page's
-"Download my data".
+The course is served from one address, **learn.groundupmath.org**, on Cloudflare Pages. Its old
+address, `sophanasok.github.io/basic-mathematics`, only sends you on to the same page there; it
+runs none of the course, and a browser keeps what it saved for each address apart, so progress
+saved there stays there.
 
 Everything is remembered in **your browser**, in local storage — including achievements, medals
 and Arena records. Without an account nothing is sent
@@ -262,7 +253,7 @@ npm run dev       # the source tree, each page with its shell written and its en
                   # as modules, at http://localhost:8000, reloading as you edit
 npm run build     # the site as it is published, into dist/
 npm run preview   # that dist/, at http://localhost:8000
-npm run build:legacy  # the old address after the move, into dist-legacy/ (tools/build-legacy.js)
+npm run build:redirects  # what GitHub Pages serves at the old address, into dist-redirects/
 ```
 
 Both servers take port 8000 and refuse to start on any other:
@@ -286,10 +277,10 @@ import order (`vite.config.ts` turns on rolldown's `strictExecutionOrder` for th
 shared chunk would otherwise run its modules when it is imported, and `site.js` would run before
 `widgets.js`). A chunk is named by the page kinds that load what is in it, `bundle/all.js`,
 `bundle/chapter.js`, `bundle/home-chapter.js`, and so are the stylesheets, joined the same way
-into `bundle/all.css` and the rest; nothing in `dist/` carries a hash, because GitHub Pages lets
-a browser keep a page for ten minutes, and a page cached before a deploy must still find its
-scripts after it ([`OPERATIONS.md`](OPERATIONS.md), "What a deploy does to a page a browser
-already holds"). The stylesheets' text is the source's, not minified, because Vite's CSS
+into `bundle/all.css` and the rest; nothing in `dist/` carries a hash, because Cloudflare Pages
+has a browser revalidate every page and script, so a hash would buy nothing, and a page still
+open from before a deploy must still find its scripts after it ([`OPERATIONS.md`](OPERATIONS.md),
+"What a deploy does to a page a browser already holds"). The stylesheets' text is the source's, not minified, because Vite's CSS
 minifier rewrites values the scripts read (`vite.config.ts` says how, and `npm run check:dist`
 holds the build to all of that). So the content of the pages is still edited by hand, and a
 page added under `parts/` is picked up by the build without being listed.
@@ -413,16 +404,6 @@ assets/map3d.js         the course world on the contents page: its tier, camera,
 assets/lesson.js        step-by-step reading of a chapter
 assets/config.js        Supabase URL and anon key, sign-in providers; empty means no accounts
 assets/account.js       sign-in and sync, listening on BMStore
-src/carry/origins.ts    the site's addresses: the new one (learn.groundupmath.org), the old one, the
-                        Cloudflare Pages project, the old one on a local server; the bundle and
-                        the Node tools both read it
-src/carry/send.js       what the old address's pages run: read the stores the new address takes and
-                        go to it with them in the fragment (plain ES5, inlined by build-legacy.js)
-src/carry/page.js       the old address's carry page: the same, or the progress as a file
-src/carry/format.ts     the new address's half: where carried progress may come from, reading and
-                        checking it, and add(), which only adds what this browser lacks and counts
-                        it for the question (no DOM), with its Vitest test beside it
-src/ui/carry.ts         the question a carried link asks, and the progress page's import (window.BMCarry)
 assets/insights.js      renders progress.html and insights.html
 supabase/schema.sql     tables, row-level security, aggregate functions
 supabase/README.md      how to switch accounts on
@@ -437,8 +418,10 @@ tools/lib/shell.js      the <head> and the top bar of every page: the boot scrip
 tools/lib/headers.js    dist/_headers (the Content-Security-Policy, the other security headers, the
                         caching) and dist/404.html, which only Cloudflare Pages reads; the build writes
                         them, lib/serve.js applies them, check-dist holds them
-tools/build-legacy.js   the legacy site in dist-legacy/: what the old address serves after the move
-                        (one stub per page, the carry page, 404.html); check-legacy.js holds it
+tools/build-redirects.js  the redirect site in dist-redirects/: what GitHub Pages serves at the old
+                        address (one page per page path that sends it to learn.groundupmath.org,
+                        and 404.html); check-redirects.js holds it
+tools/check-ci.js       the deploy guards of .github/workflows/ci.yml (part of npm run check)
 tools/lib/vendor.js     which src/vendor/ module brings in each npm package (and its dependencies):
                         how the build names node_modules files and check-dist holds them; and the
                         licence notice the build writes into dist/bundle/LICENSES.txt from them
@@ -457,7 +440,8 @@ vitest.config.ts        for `npm run test:unit`: the src/ unit tests, in Node, a
 src/types/state.ts      the shapes of what the site keeps in localStorage (types only, so far)
 src/types/globals.d.ts  the window.BM* globals the scripts share, each `any` until its file is converted
 public/.nojekyll        copied into dist/
-.github/workflows/      CI: the checks on every pull request, and the deploy of main
+.github/workflows/      CI: the checks on every pull request, the deploys to Cloudflare Pages, and
+                        main's redirect site to GitHub Pages
 .nojekyll               left from when GitHub Pages published the branch itself; nothing needs it now
 ```
 
@@ -1047,8 +1031,7 @@ memory but keeps the site:
 | `bm.run.v1` | the combo meter, an unfinished Arena run, the day's Arena XP counts (`arenaDay`) and the day the next-step card was hidden (`nextHide`) (this device only; cleared by reset and sign-out) |
 | `bm.prefs.v1` | the settings sheet's and the Arena's settings: `calm` (Study mode), `sound`, `volume` (0 to 100, unset is 50), `motion` and `transparency` (`"reduce"`, unset follows the device), `panel` (`"dark"`, unset for light paper), `gfx` (`"low"`, `"mid"`, `"high"`, unset is Auto: the course world's tier), `map` (`"list"` keeps the chapter list alone), `gfxAuto` (not a setting: the tier the world's watchdog settled on, `"list"`, `"low"` or `"medium"`; cleared by a choice of `gfx` or `map`), `tempo` (this device only; survives a reset; keys the site does not know are kept; a value it does not know reads as unset) |
 | `bm.sync.v1` | with accounts on: whose progress this browser holds and the last reset it knows of |
-| `bm.sync.pending.v1` | with accounts on: progress that could not be saved when its reader signed out, kept aside per reader until they sign in here again (never carried from the old address) |
-| `bm.carry.v1` | the fingerprints of the carried payloads this browser was asked about, and the answer (this device only; [Moving between addresses](#moving-between-addresses)) |
+| `bm.sync.pending.v1` | with accounts on: progress that could not be saved when its reader signed out, kept aside per reader until they sign in here again |
 
 Every write is announced on `window.BMStore` (`on(fn)` / `emit(change)`), with change types
 `state`, `attempt`, `solved`, `xp`, `sync`, and `reset`, plus `opened`, `ladder`, `chapterDone`,
@@ -1133,131 +1116,6 @@ sorts after `"10"`. A change to what an existing field means needs a larger `v`.
 
 The "areas to strengthen" ranking is `BMInsights` in `site.js`: each attempted exercise gets a
 struggle score from 0 (right first time) to 1, averaged per section.
-
-### Moving between addresses
-
-`localStorage` belongs to an origin, so when the site moves from GitHub Pages to Cloudflare Pages
-at `https://learn.groundupmath.org` ([`OPERATIONS.md`](OPERATIONS.md), "Moving to Cloudflare
-Pages"), the new address starts empty for everyone. Signed-in readers get everything back from
-their account when they sign in there. A signed-out reader's progress is only in their browser,
-at the old origin, so the old address carries it over. Two rules make that safe, each on its own:
-the new address reads carried progress only from a navigation that came from the old origin,
-and what it reads can only add what this browser does not have.
-
-- **The old address** (after the cutover) serves `dist-legacy/` (`tools/build-legacy.js`): one
-  page at the path of every page of the site, whose first and only script
-  (`src/carry/send.js`) reads the stores the new address takes (`TAKEN`: the seven synced stores,
-  `bm.prefs.v1` and `bm.theme`) and goes, with `location.replace`, to the same page at the new
-  address with them in the fragment: `#bm-carry=1z<data>`, where `1` is the format, `z` says the
-  JSON `{"v":1,"s":{<key>:<value>}}` is deflated (`j` where the browser cannot compress), and
-  the data is base64url. Each page states its referrer policy, `<meta name="referrer"
-  content="strict-origin-when-cross-origin">`, before its script, so the navigation carries the
-  old origin and nothing of its path. When `bm.sync.v1` names an account (the reader was signed
-  in there), the synced stores are that account's copy and stay behind: only the settings go,
-  with `"w":1`, which tells the new address to say "sign in here", and nothing else of the
-  account. Set-aside progress (`bm.sync.pending.v1`), the run store, the account binding, a
-  Supabase session and any other key are never read. The page's own anchor follows as `&bm-at=`,
-  unless it is itself a `bm-carry=` payload, which is never sent on. Nothing saved, it goes there
-  plainly; longer than `MAX_FRAGMENT` (32,000 characters; a learner who has tried every exercise
-  comes to about 11,000), it goes to the old address's carry page, which offers the progress as
-  a file; that page's `?to=` (the page to come back to) may name only a page of the site, else
-  the front page, so the payload never lands on the new address's 404 page, which would not
-  take it out of the address. Any other path of the old address (`404.html`: a folder, a mistyped address) goes to
-  the front page of the new one, with the progress. Without scripts, a refresh inside
-  `<noscript>` and a link take the reader on, without the progress. An iframe cannot do this:
-  browsers partition an embedded page's storage by the page around it.
-- **The new address** looks for the fragment on any page (`src/ui/carry.ts`), but only on the
-  new address itself, a local server and the project's `pages.dev` addresses (`allowedHost`),
-  never on the old address, which serves this same build until the cutover. It takes the
-  fragment out of the address at once (`history.replaceState`, the anchor put back); that
-  cleans the address bar and the tab's session history, not the browser's own history, which
-  has already recorded the arrival address with the payload (OPERATIONS.md section 8). Then:
-  - **Where it came from** (`fromLegacy`): unless `document.referrer`'s origin is exactly the
-    old one (`https://sophanasok.github.io`; on a page served from `localhost`, `LEGACY_LOCAL`,
-    `http://127.0.0.1` on any port, where the tests and the runbook's local trial serve the
-    legacy site), it is not read at all, and a short note points to the progress page. A page
-    on any other origin cannot make a browser send the old origin as the referrer of a
-    navigation it starts: the HTML standard takes the referrer from the document that starts the
-    navigation (for `location.replace` and the location setter, the incumbent global object's
-    document, so a page that sets the location of a window it opened on the old origin is still
-    the referrer). What it cannot tell apart is script running anywhere at
-    `sophanasok.github.io`: every GitHub Pages site of the account shares that origin, so each
-    of them (and any script injected into one or loaded by one from a third party) is as
-    trusted as a stub. OPERATIONS.md section 8 holds them all to one rule (no untrusted text as
-    HTML, no third-party script, a strict CSP) and lists them with the date they were checked;
-    the second rule, add-only, holds whatever arrives. Arriving with no referrer at all (a typed
-    address, a browser set to send none) or from the new address itself is refused the same way;
-    the reader can still bring their progress over from the progress page. The referrer is the
-    page's, not the fragment's, so it is held to the page the stub sent in two more ways: every
-    page here is sent with `Cross-Origin-Opener-Policy: same-origin` (`tools/lib/headers.js`),
-    which takes away the handle of a page on another origin that opened the old address in a
-    window as soon as the new address arrives there (without it, that page could set the
-    window's fragment, then reload it or come back to it, or set it in the instant it arrived:
-    review round 4), and the fragment is read only on the page's own first load (`freshLoad`:
-    the Navigation Timing entry is a `navigate`, never a reload, a step back or forward or a
-    restored session).
-  - **What it holds** (`decode`, `check`): any other format or `v` is refused, and so is a game
-    record whose own `v` says its data is newer than the site writes; the fragment is capped,
-    and so is what it inflates to (1 MB), and its nesting; every key must start with `bm.` and
-    none may name an auth token, or the whole payload is refused; `__proto__` is dropped. Every
-    store it takes is rebuilt field by field from what the site writes; anything else is left out.
-  - **What it adds** (`add`): only what this browser does not have, and never by
-    `BMAccount.merge`. Solved exercises and done missions join the sets; an exercise's attempt
-    record (once solved) arrives only where this browser has no record of it at all; XP days
-    only where absent and not after today, never the daily goal; a chapter's lesson place, where
-    to continue, `bm.prefs.v1` and `bm.theme` only where absent; in the game record a section's
-    review place only where this browser has none for that section, Daily days only where absent,
-    not after today and within the room the site's 60 leave beside this browser's own,
-    achievements, best scores and rematch medals only where absent, and nothing else. A value
-    here that cannot be read, or is not a record where one is expected, or whose stored text is
-    not exactly the JSON the site writes for it (`stored`: a `1e999` or `-0` written back would
-    change), is never written over or into. A place to continue (`bm.last`) is taken only in a
-    chapter the course has, at one of its sections, its warm-up or its practice.
-    `add()` returns the writes and the counts of what they add, and the modal dialog is made
-    from those counts (for the saved-state fixture into an empty browser, "23 exercises solved,
-    31 answer records, 3 missions done, your place in 3 lessons, 519 XP over 5 days, 3
-    achievements, 1 medal, 2 best scores, 9 review sections, 2 Dailies played, where to continue
-    from, your theme and your sound and display settings"; never a word of the payload itself,
-    which is never put into the page as HTML). Yes runs `add()` again on what this browser holds
-    by then and writes that, announcing each synced store as any change is (a signed-in reader's
-    account then saves it as this browser's own); if it would now add something else, the
-    reader is asked again. With accounts on, the dialog also says that what is added joins an
-    account signed in to here, now or later, like anything done in this browser. A yes that
-    cannot be saved (storage full or blocked) says so and is not recorded, so the same link asks
-    again. Nothing new to add, nothing is asked. A payload with `"w":1` adds a
-    line to the dialog (or a note, when there is nothing else) telling the reader to sign in here.
-    Either answer is recorded by the payload's fingerprint in `bm.carry.v1`, so the same payload
-    arriving on its own is never asked about twice; from the old address's carry page
-    (`&bm-ask=1`), which a reader reaches only by asking, it is asked about again, so a no can be
-    taken back.
-- **The progress page**, on the same addresses (the old one, while it still serves the course,
-  shows nothing new), has *Bring progress from the old address* (a link to the old address's
-  carry page, which sends the progress back to it, from the old origin), *take it from the old
-  address as a file* (the same page with `&file=1`), and *Import a file of your progress*, which
-  takes the account page's "Download my data" file, or the carry page's, through the same
-  checks, `add()` and question. A file is the reader's own choice, so where it came from is not
-  asked; it only adds, as a link does. The two links lead somewhere only once the old address
-  serves the legacy site.
-- **The about page** says where the course is served from and how the carry works, in a
-  paragraph (`[data-carry-moved]`) shown only on the same addresses, so the old address's readers
-  are told nothing of the move before it happens.
-
-What is left to the account's own rules: progress added to this browser is this browser's own
-from then on, and a reader who later signs in here has it joined to their account the way
-anything done in this browser before signing in is (`account.js` sync, `BMAccount.merge`). There
-the merge decides between the account's copy and this browser's of the same review section,
-answer record or Daily days (the later review, first only if first on both, the newest 60
-Dailies), so a carry into a browser that is signed out can, at the next sign-in, do what a second
-device of the reader's could, and no more: that is the bar for carried progress, which is the
-reader's own (`tools/game/sync.test.js` holds it to exactly a second device's).
-
-The addresses are written once, in `src/carry/origins.ts`. `src/carry/format.test.ts` (the
-referrer and first-load rules, and `add()` over random states of both sides and random stored
-text: nothing here ever changes, and the counts are what was added), `tools/game/sync.test.js`
-(review round 3's links against the real `account.js`, and a carry into a signed-out browser
-then signed in, against a second device) and `tools/game/carry.test.js` (the real redirect
-across two origins in Chromium, a third that is neither, and that third opening the old
-address in a window and trying to put its own fragment on the page that arrives) hold all of it.
 
 The theme follows the operating system by default and can be set to light or dark in the
 settings sheet ("Match system" goes back to following it).
@@ -1345,8 +1203,9 @@ MDN with them from 28. MDN marks the feature "limited availability", not Baselin
   offered a transition like any other: it runs, or the boot script skips it (its listeners are
   still there), exactly as on a page arriving from a link. A page stays in that cache only while
   nothing makes it ineligible (an `unload` listener, `Cache-Control: no-store` on the page or on
-  a request it makes); the `transitions` suite, with the pages served under GitHub Pages'
-  `max-age=600`, fails when going back or forward does not restore the page.
+  a request it makes); the `transitions` suite, with the pages served under a ten-minute
+  `max-age=600` (harsher than Cloudflare's revalidation), fails when going back or forward does
+  not restore the page.
 - **Study mode and Reduce motion** are attributes on `<html>`, which an at-rule cannot read, so
   the boot script (`src/boot.js`) skips the transition itself: on `pageswap` for the page being
   left (Study mode may have been switched on there since it loaded) and on `pagereveal` for the
@@ -1373,6 +1232,9 @@ npm run typecheck       #   tsc over src/, vite.config.ts and vitest.config.ts
 npm run check:static    #   syntax, progress keys, ids, lesson steps, the shell, links, sections,
                         #   widgets, choices, migrations, placeholders, merge laws, contrast,
                         #   animations (no loop, no flash), colours (only in tokens.css), the reading column
+npm run check:ci        #   the workflow's deploy guards: the default Cloudflare project, the re-run
+                        #   guard before wrangler, pr-<number> previews, main deploys as production,
+                        #   test:browser:core in the gate, GitHub Pages gets dist-redirects/ alone
 npm run check:gen       #   every Arena generator over 500 seeds
 npm run check:scenes    #   every 3D scene: mount, controls, missions, answers
 npm run test:node       #   the progress-key, id and lesson-step rules and the CSS checks on small pages;
@@ -1405,22 +1267,18 @@ npm run check:dist      # dist/ is the source's site, each source page taken wit
                         # ahead, no secrets; dist/_headers (the Content-Security-Policy with the
                         # inline scripts' hashes, Supabase, one Cache-Control per file) and
                         # dist/404.html, which only Cloudflare Pages reads
-npm run build:legacy    # dist-legacy/, the old address after the move
-npm run check:legacy    # a stub at every page path and nothing else; each with its canonical
-                        # link, <noscript> refresh and link to the new address, a referrer
-                        # policy that sends its origin, one inline script allowed by hash;
-                        # each run in a vm, carrying the stores the new address takes and
-                        # nothing else (signed in: the settings and w:1 alone), never a
-                        # session or a payload in its own fragment; 404.html to the front
-                        # page; the cloudflare job's re-run guard
+npm run build:redirects # dist-redirects/, what GitHub Pages serves at the old address
+npm run check:redirects # a redirect at every page path and nothing else; each with its canonical
+                        # link, <noscript> refresh and link to learn.groundupmath.org, robots
+                        # noindex, one inline script, the only thing its policy lets load; each
+                        # run in a vm from the old address (with and without .html, a query, a
+                        # fragment) to the same page there; 404.html to the front page
 
 npm run test:browser    # the game, the next-step card, the Arena and its due review, the account
                         # page (and that a signed-out page never fetches the supabase chunk), the
                         # 3D stages, the new 3D exercises and the course world (its tiers and
-                        # their budgets, the watchdog, idle frames, keyboard), progress carried
-                        # from the old address to the new one across two origins (yes, no,
-                        # links from a third origin ignored, a file, no JavaScript), each
-                        # driven in headless Chromium
+                        # their budgets, the watchdog, idle frames, keyboard), each driven in
+                        # headless Chromium
 npm run check:browser   # dist/ served: every page × theme × width (errors, theme before first
                         # paint, scripts ran, KaTeX rendered, no request to any other server,
                         # Three.js fetched only where there is 3D, the world's chunk only on the
@@ -1466,49 +1324,43 @@ names; a new `order` list is authored in the right order; a new puzzle's temptin
 
 ### Deploying
 
-The site is on GitHub Pages. A push to `main` runs the checks and the build in GitHub Actions,
-and the `deploy` job publishes that run's `dist/` once the `build` and `browser` jobs have passed.
-The WebGL checks run in a job of their own, retried, and do not hold a deploy back. Runs on
-`main` go one at a time, in the order of the pushes, so an older commit is never published over
-a newer one; for the same reason a re-run of an old run refuses to deploy once `main` has moved
-on (re-run the newest run, or use Run workflow).
+The course is served from one place: **Cloudflare Pages, at `https://learn.groundupmath.org`**.
+A push to `main` runs the checks and the build in GitHub Actions, and once the `build` and
+`browser` jobs have passed, the `cloudflare` job publishes that run's `dist/` there as production
+(`cloudflare/wrangler-action`, with the repository secrets `CLOUDFLARE_API_TOKEN` and
+`CLOUDFLARE_ACCOUNT_ID`). Each pull request from a branch of this repository is published the
+same way as a preview, under `pr-<number>`, whose address the job writes into its summary and one
+comment on the pull request; without the secrets, and for a pull request from a fork, it deploys
+nothing and says so in a notice. The WebGL checks run in a job of their own, retried, and do not
+hold a deploy back. Runs on `main` go one at a time, in the order of the pushes, so an older
+commit is never published over a newer one; for the same reason a re-run of an old run refuses
+to deploy once `main` has moved on (re-run the newest run, or use Run workflow, which also
+publishes again without a new commit).
 
-**The Pages source has to be GitHub Actions, and it has to be set before the change that
-introduced the page shell is merged:** Settings → Pages → Build and deployment → Source:
-**GitHub Actions**, by the repository's owner; then publish with Actions → CI → Run workflow, on
-`main` (or simply push). With the older setting, **Deploy from a branch**, GitHub Pages publishes
-the files of `main` as they are, and from that change on those files are not a complete site:
-every page is missing its `<head>` and its top bar until the build has written them
-([The shell of a page](#the-shell-of-a-page)), so readers would get pages with no stylesheets and
-no scripts. The workflow does not paper over that: on `main`, while the source is anything but
-GitHub Actions, the `pages-source` job fails the run with a message saying what to set, and
-nothing is deployed. (It also fails if it cannot find out which source is set, because GitHub's
-API refuses or fails.)
+The site's headers come from `dist/_headers`, which the build writes: a Content-Security-Policy
+that allows exactly what the pages load (the two inline scripts by hash),
+`Cross-Origin-Opener-Policy: same-origin` (no page of another origin keeps a handle on a window
+that arrives here), and caching that revalidates every page and script on every request
+(`tools/lib/headers.js`).
 
-**Switching back to "Deploy from a branch" is no longer a way to roll back.** It used to be,
-while the source tree was the site. To undo a deploy now, revert the commit on `main` and let the
-revert deploy ([`OPERATIONS.md`](OPERATIONS.md), "A bad deploy").
+**The old address only redirects.** GitHub Pages, at `sophanasok.github.io/basic-mathematics/`,
+serves `dist-redirects/` (`tools/build-redirects.js`, the `deploy` job on `main`): one small page
+at the path of every page of the site, whose one inline script sends the reader to the same page
+at `learn.groundupmath.org` with the query and fragment, and a `404.html` that sends anything
+else to the front page. Those pages hold none of the course's code, and nothing of a reader's
+moves with them: what a browser saved at the old address stays there. The course itself is
+never published to GitHub Pages (`npm run check:ci` fails a workflow that would).
 
-Run workflow on `main` is also the way to publish again without a new commit.
+That deploy needs the Pages source to be **GitHub Actions** (Settings → Pages → Build and
+deployment → Source). With **Deploy from a branch**, GitHub Pages would publish the files of
+`main` as they are, the course's pages without their `<head>` and top bar
+([The shell of a page](#the-shell-of-a-page)), in place of the redirects; on `main` the
+`pages-source` job then fails the run with a message saying what to set, and deploys nothing. (It
+also fails if it cannot find out which source is set, because GitHub's API refuses or fails.)
 
-**Cloudflare Pages.** The same run publishes the same `dist/` to Cloudflare Pages (the
-`cloudflare` job, after `build` and `browser`, with `cloudflare/wrangler-action` and the
-repository secrets `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID`): `main` to production,
-at `https://learn.groundupmath.org` once the domain is attached, and each pull request from a
-branch of this repository to a preview, whose address the job writes into its summary and one
-comment on the pull request. Without the secrets, and for a pull request from a fork, it deploys
-nothing and says so in a notice. There, unlike on GitHub Pages, the site has headers of its own,
-from `dist/_headers`, which the build writes: a Content-Security-Policy that allows exactly what
-the pages load (the two inline scripts by hash), `Cross-Origin-Opener-Policy: same-origin` (no
-page of another origin keeps a handle on a window that arrives here), and caching that
-revalidates every page and script on every request (`tools/lib/headers.js`).
-
-**The move.** Until the repository variable `SITE_CUTOVER` is `true`, GitHub Pages keeps serving
-the course exactly as it did (without `_headers` and `404.html`, which only Cloudflare reads).
-From then on it serves `dist-legacy/`, which sends every old address, with the reader's progress,
-to the new one ([Moving between addresses](#moving-between-addresses)). The runbook, with every
-setting to change by hand and how to undo each step, is [`OPERATIONS.md`](OPERATIONS.md), "Moving
-to Cloudflare Pages".
+To undo a deploy, roll back to an earlier deployment in Cloudflare and revert the commit on
+`main` ([`OPERATIONS.md`](OPERATIONS.md), "A bad deploy"). The runbook for the hosting, with
+every setting made by hand and how to check it, is [`OPERATIONS.md`](OPERATIONS.md) section 8.
 
 ## About the text
 

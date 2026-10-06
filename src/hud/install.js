@@ -3,9 +3,9 @@
 
    Every page the shell writes runs the HUD script after its top bar (tools/lib/shell.js
    hudScript()), which puts these functions on window before the bundle runs, and then this
-   does nothing. But a page a browser cached from before the HUD script existed can run
-   this release's bundle for the ten minutes GitHub Pages lets it keep files
-   (OPERATIONS.md, "Cached HTML after the HUD deploy"); without BMHud, site.js could not
+   does nothing. But a page a browser cached from before the HUD script existed could run
+   this release's bundle for the ten minutes GitHub Pages, which served the course then,
+   let it keep files (OPERATIONS.md, "Cached HTML after the HUD deploy"); without BMHud, site.js could not
    count a day's XP and the answer just earned would be lost. So the bundle brings the
    same source along and installs it where it is missing: one copy of the code, the inline
    script and this its two ways onto a page. Each entry imports levels.js and view.js by

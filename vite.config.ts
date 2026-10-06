@@ -10,10 +10,10 @@
    unchanged, and beside them the favicon, every font file the vendor stylesheets
    name, and bundle/LICENSES.txt, the licences of what the bundle holds (licenses()
    below). Nothing on a built page comes from another server (tools/check-dist.js
-   `offline`). Nothing in dist/ is named by a hash: GitHub Pages lets a browser keep any
-   file for ten minutes, a hash would buy nothing, and a page cached from before a deploy
-   would ask for files the deploy had renamed (OPERATIONS.md, "What a deploy does to a
-   page a browser already holds"). */
+   `offline`). Nothing in dist/ is named by a hash: Cloudflare Pages has a browser
+   revalidate every page and script (dist/_headers), so a hash would buy nothing, and a
+   page still open from before a deploy would ask for files the deploy had renamed
+   (OPERATIONS.md, "What a deploy does to a page a browser already holds"). */
 import fs from "node:fs";
 import path from "node:path";
 import { defineConfig, type Plugin } from "vite";
@@ -225,8 +225,7 @@ function licenses(): Plugin {
    then dist/_headers, the security headers and the caching, written from what dist
    holds once everything else is in it: the hashes of the inline scripts of every built
    page and the font files are read off the files themselves, so the policy is never
-   behind the pages. tools/check-dist.js `headers` holds dist to it. GitHub Pages
-   publishes neither (.github/workflows/ci.yml). */
+   behind the pages. tools/check-dist.js `headers` holds dist to it. */
 function cloudflare(): Plugin {
   let outDir = "";
   return {
@@ -242,8 +241,9 @@ function cloudflare(): Plugin {
 
 export default defineConfig({
   root,
-  /* relative, so the site works under the GitHub Pages sub-path and anywhere else it is
-     put, and rootPrefix() in assets/site.js keeps finding its way from data-depth */
+  /* relative, so the site works at the root of learn.groundupmath.org, under a sub-path,
+     and anywhere else it is put, and rootPrefix() in assets/site.js keeps finding its way
+     from data-depth */
   base: process.env.BM_BASE || "./",
   /* a site of separate pages: an unknown path is a 404, not index.html */
   appType: "mpa",

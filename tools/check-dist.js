@@ -229,7 +229,8 @@ function firstDifference(s, d) {
 
 /* ------------------------------------------------------------- checks ---- */
 
-/* (a) the same pages at the same paths; .nojekyll for a branch deploy; and nothing else
+/* (a) the same pages at the same paths; .nojekyll (public/, harmless on Cloudflare
+   Pages, which ignores it); and nothing else
    in dist but what the site is made of: a page, a file of public/, a file a built page
    links (its module script and what it preloads, its stylesheets, the icon), a chunk the
    module graph reaches from a page's script (the GL painter and supabase-js are fetched
@@ -297,7 +298,10 @@ function checkLinks(ctx, r) {
   });
 }
 
-/* (c) nothing points at the server's root: the site is deployed under a sub-path.
+/* (c) nothing points at the server's root: the site is served from the root of
+   learn.groundupmath.org, but relative addresses also work under a sub-path (the test
+   server shows an old commit's site under /__base/; a copy put in a folder), where "/"
+   is someone else's root.
    On the attributes that hold URLs any value starting with one "/" fails; on any other
    attribute, a value that names something in dist's top level ("/assets/…") does. */
 const URL_ATTRS = new Set(["href", "src", "srcset", "poster", "action", "formaction", "data", "xlink:href"]);

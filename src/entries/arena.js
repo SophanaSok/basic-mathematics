@@ -33,10 +33,3 @@ import "../../data/gen/part4.js";
 import "../../assets/arena.js";
 import "../../assets/config.js";
 import "../../assets/account.js";
-/* progress brought from the old address: the question a carried link asks, and the
-   progress page's import: the addresses (origins.ts), the checks and the add-only step
-   (format.ts, which adds only what this browser lacks and never runs account.js's
-   merge), then the page (each named here, as above) */
-import "../carry/origins.ts";
-import "../carry/format.ts";
-import "../ui/carry.ts";
