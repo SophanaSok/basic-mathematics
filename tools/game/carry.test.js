@@ -76,6 +76,15 @@ function check(cond, what, detail) {
   else { fails++; console.error("FAIL " + what + (detail === undefined ? "" : "\n     " + JSON.stringify(detail))); }
 }
 const eq = (a, b, what) => check(JSON.stringify(a) === JSON.stringify(b), what, { got: a, want: b });
+/* Wait for a window that another origin keeps navigating to land at the new address.
+   Not waitForURL: each of the other origin's navigations aborts the one in flight, and
+   waitForURL rejects on the first abort (net::ERR_ABORTED on a slow CI runner) although
+   the window then lands at the new address all the same. */
+async function landsAtNew(page, to) {
+  const until = Date.now() + 15000;
+  while (!page.url().startsWith(to) && Date.now() < until) await page.waitForTimeout(100);
+  check(page.url().startsWith(to), "the window lands at the new address", page.url());
+}
 
 const CACHE = path.join(site.ROOT, ".cache", "carry");
 const SEED = path.join(CACHE, "seed");
@@ -540,7 +549,7 @@ const SESSION = "sb-jfidvrzonyzfstnykzly-auth-token";
       await p.page.goto(THIRD + "/__seed/");
       const [popup] = await Promise.all([p.context.waitForEvent("page"), p.page.evaluate((u) => { window.w = window.open(u, "victim"); }, OLD + "/index.html")]);
       popup.on("pageerror", (e) => errors.push(popup.url().slice(0, 60) + ": " + e.message));
-      await popup.waitForURL((u) => String(u).startsWith(NEW), { timeout: 15000 });
+      await landsAtNew(popup, NEW);
       await popup.waitForLoadState("load");
       await popup.waitForTimeout(300);
       return popup;
@@ -583,7 +592,7 @@ const SESSION = "sb-jfidvrzonyzfstnykzly-auth-token";
         setTimeout(() => { const s = Date.now(); const id = setInterval(() => { try { w.location.href = t; } catch (e) { /* gone */ } if (Date.now() - s > 500) clearInterval(id); }, 2); }, d);
       }, [OLD + "/index.html", NEW + "/#bm-carry=" + EVIL, delay])]);
       popup.on("pageerror", (e) => errors.push(popup.url().slice(0, 60) + ": " + e.message));
-      await popup.waitForURL((u) => String(u).startsWith(NEW), { timeout: 15000 });
+      await landsAtNew(popup, NEW);
       await popup.waitForTimeout(1500);
       await nothing(popup, "a swap " + delay + " ms after the window opened");
       await p.context.close();
