@@ -113,9 +113,13 @@ on it serves `dist-legacy/` instead, which sends every old address to the new on
 [`.github/workflows/ci.yml`](.github/workflows/ci.yml) builds the site into `dist/` and deploys
 that. A push to `main` (merging a pull request) triggers it, and so does **Run workflow** on
 `main`. Its jobs are `build` (the Node checks, the build, the checks on `dist/`), `browser` (the
-Chromium checks that need no WebGL), `webgl` (the 3D checks, retried, outside the gate),
-`pages-source` (asks GitHub which Pages source is set) and `deploy`, which publishes that run's
-`dist/` once `build` and `browser` have passed.
+Chromium checks that need no WebGL, as one job per part, side by side, today `browser (axe)`,
+`browser (pages)`, `browser (exercises)` and `browser (rest)`; the parts are `PARTS` in
+`tools/check-browser.js`, [`tools/README.md`](tools/README.md)), `webgl` (the 3D checks, retried,
+outside the gate), `pages-source` (asks GitHub which Pages source is set), `deploy`, which
+publishes that run's `dist/` once `build` and every `browser` job have passed, and `cloudflare`,
+which publishes the same `dist/` to Cloudflare Pages after the same jobs (section 8). A failed
+`browser` job is re-run like any other (**Re-run failed jobs** re-runs only that part).
 
 **The files in the repository are not the site.** Since the page-shell change (R0, item 5) a
 page in the repository holds its content and two markers. Its `<head>` (every stylesheet and
