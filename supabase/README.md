@@ -15,7 +15,7 @@ get an aggregate view of which exercises people struggle with.
      `http://localhost:8000/account.html`. The site builds every address it hands Supabase from
      the page it is on (`assets/account.js` `pageUrl()`), so each address it is served from
      needs its entry ([`OPERATIONS.md`](../OPERATIONS.md), 8.4). The old address,
-     `sophanasok.github.io`, serves only redirects and needs none
+     `sophanasok.github.io`, serves only redirects and needs none.
 4. **Give the site its keys.** Dashboard → Project Settings → API. Copy the project URL and the
    `anon` / publishable key into [`../assets/config.js`](../assets/config.js). Never the
    service-role key — `config.js` is public.

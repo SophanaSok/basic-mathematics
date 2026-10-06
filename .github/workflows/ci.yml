@@ -261,8 +261,8 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       # A first attempt deploys in the order of the pushes (the concurrency group at the
-      # top). Re-running the jobs of an old run is the one way an older dist/ could go
-      # out over a newer one, so a re-run deploys only the commit main is still at.
+      # top). Re-running the jobs of an old run is the one way an older dist-redirects/
+      # could go out over a newer one, so a re-run deploys only the commit main is still at.
       - name: A re-run deploys only the newest commit of main
         if: github.run_attempt > 1
         env:

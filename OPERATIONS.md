@@ -828,7 +828,12 @@ lands on `https://learn.groundupmath.org/parts/1-algebra/02-linear-equations?x=1
 **Taking the old address down** (whenever you choose; nothing depends on it): Settings → Pages →
 **Unpublish site**, then remove the `pages-source` and `deploy` jobs and the redirect site's
 build from the workflow in the same change, or every run on `main` warns that Pages is not
-enabled. Links to the old address then end at GitHub's own not-found page.
+enabled. The same change removes what holds the workflow to that build, or `npm run check` fails
+in the build job and stops the Cloudflare deploy with it: the `pages` check in
+`tools/check-ci.js` and its row in `tools/README.md`, and `build:redirects` and
+`check:redirects` from the npm scripts and `check:all` (`tools/build-redirects.js` and
+`tools/check-redirects.js` can go too). Links to the old address then end at GitHub's own
+not-found page.
 
 ### 8.7 Rolling back
 

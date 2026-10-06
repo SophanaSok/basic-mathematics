@@ -544,7 +544,7 @@ runs only on GitHub), held by reading the file:
 | `pr` | a pull request deploys under `pr-<number>`, and nothing in the job reads the head branch, so a pull request whose head is `main` cannot reach production |
 | `prod` | a deploy of `main` that Cloudflare did not make production fails, after wrangler ran |
 | `core` | the `browser` job runs `npm run test:browser:core` in the job of the part `--parts` names as core |
-| `pages` | the build job builds, checks and keeps `dist-redirects/`, and the `deploy` job downloads that artifact alone and reads no repository variable: the course is never published to GitHub Pages |
+| `pages` | the build job builds, checks and keeps `dist-redirects/`, and the `deploy` job downloads that artifact alone and reads no repository variable: the course is never published to GitHub Pages. Taking the old address down removes this check with the jobs ([`OPERATIONS.md`](../OPERATIONS.md), 8.6) |
 
 ## apply-shell.js
 
