@@ -34,12 +34,13 @@
         bundle/*.js, *.css, *.map, *.svg, *.txt        revalidated on every request: their
             names carry no hash (vite.config.ts says why), so a deploy changes a file
             under the same name, and a browser must ask
-        KaTeX's fonts (bundle/KaTeX_*)                 a year, immutable: the package is
-            pinned to one exact version (package.json), so a file of that name never
-            changes; a new version of KaTeX would have to rename them
-        the typefaces (bundle/inter-*, newsreader-*, bricolage-*)  a week: named by the
-            fontsource file and not by a hash, and their packages may move within their
-            range, so a changed file would reach every browser within a week
+        the fonts, KaTeX's (bundle/KaTeX_*) and the typefaces (bundle/inter-*,
+            newsreader-*, bricolage-*)                 a week, and not immutable: each is
+            named by its package's file and not by its content (KaTeX_Main-Regular.woff2
+            is called that in every version of KaTeX), so a new version of a package
+            can change a file under the same name, and a changed file reaches every
+            browser within a week. Nothing in dist is named by a hash yet, so nothing is
+            sent as immutable
    check-dist.js `headers` holds dist/_headers to what render() writes from dist, and every
    file of dist to exactly one Cache-Control rule; lib/serve.js applies the file to what it
    serves, so the browser checks run under the same policy. */
@@ -51,7 +52,6 @@ const vm = require("vm");
 const FILE = "_headers";
 const NOT_FOUND = "404.html";
 const REVALIDATE = "public, max-age=0, must-revalidate";
-const IMMUTABLE = "public, max-age=31536000, immutable";
 const WEEK = "public, max-age=604800";
 const MAX_RULES = 100;
 const MAX_LINE = 2000;
@@ -108,7 +108,7 @@ function policy(hashes, supabase) {
 const FONT = /\.(woff2?|ttf|otf)$/i;
 function fontRule(file) {
   const name = path.posix.basename(file);
-  if (/^KaTeX_/.test(name)) return { pattern: "/" + path.posix.dirname(file) + "/KaTeX_*", value: IMMUTABLE };
+  if (/^KaTeX_/.test(name)) return { pattern: "/" + path.posix.dirname(file) + "/KaTeX_*", value: WEEK };
   const family = /^([A-Za-z0-9]+)-/.exec(name);
   if (!family) throw new Error("tools/lib/headers.js: no family in the font file name " + file);
   return { pattern: "/" + path.posix.dirname(file) + "/" + family[1] + "-*", value: WEEK };
@@ -248,4 +248,4 @@ function fromDist(dist, root) {
   return { pages, files: files.filter(f => f !== FILE), config: fs.readFileSync(path.join(root, "assets", "config.js"), "utf8") };
 }
 
-module.exports = { FILE, NOT_FOUND, REVALIDATE, IMMUTABLE, WEEK, MAX_RULES, MAX_LINE, DENIED, render, notFoundPage, parse, matcher, headersFor, rulesSetting, servedPaths, inlineScripts, sha256, supabaseOrigin, fromDist, policy };
+module.exports = { FILE, NOT_FOUND, REVALIDATE, WEEK, MAX_RULES, MAX_LINE, DENIED, render, notFoundPage, parse, matcher, headersFor, rulesSetting, servedPaths, inlineScripts, sha256, supabaseOrigin, fromDist, policy };

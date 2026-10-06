@@ -9,7 +9,8 @@
      4. s3d-det-flat names row 3 with the chapter's own c_1, c_2, c_3
      5. in the browser, s3d-room accepts its answer with or without the unit (and as 11.00
         or +11, which the old number compare took), and still
-        refuses a wrong length with a unit
+        refuses a wrong length with a unit; and no page error or console error on the way,
+        a Content-Security-Policy violation among them (lib/pw.js reports one as both)
    Checks 1 to 4 read the source files; 5 loads the page from the built site as
    lib/target.js serves it (dist/, which must be current), with every request off that
    server aborted and the one for bundle/three.js with it, so the page's 3D stages stay
@@ -147,6 +148,16 @@ async function browserPart() {
   const THREE_CHUNK = /\/bundle\/three\.js(?:[?#]|$)/;
   const offline = (r) => server.owns(r.request().url()) && !THREE_CHUNK.test(r.request().url()) ? r.continue() : r.abort();
   const browser = await chromium.launch({ env: require("../lib/gl").env(chromium) });   /* off the machine's GPU: lib/gl.js */
+  /* every page error and console error, but the requests aborted above */
+  const errors = [];
+  const watch = (page) => {
+    page.on("pageerror", (e) => errors.push("pageerror: " + e.message));
+    page.on("console", (m) => {
+      if (m.type() !== "error" || /Failed to load resource|net::ERR_/.test(m.text())) return;
+      errors.push("console: " + m.text());
+    });
+    return page;
+  };
   try {
     const cases = [["11", true], ["11 m", true], ["11m", true], ["11 metres", true], ["11 meters", true], ["11.", true],
       ["11.00", true], ["+11", true],
@@ -155,7 +166,7 @@ async function browserPart() {
       const context = await browser.newContext();
       await context.route(/^(https?|wss?):/, offline);
       await context.addInitScript(() => { try { localStorage.setItem("bm.lesson.v1", '{"mode":"page"}'); } catch (e) { /* fine */ } });
-      const page = await context.newPage();
+      const page = watch(await context.newPage());
       await page.goto(server.url + CH08);
       await page.waitForFunction(() => document.readyState === "complete");
       const ex = page.locator("#s3d-room");
@@ -171,7 +182,7 @@ async function browserPart() {
        spelt either way) grades right; a wrong length or unit never does */
     const context = await browser.newContext();
     await context.route(/^(https?|wss?):/, offline);
-    const page = await context.newPage();
+    const page = watch(await context.newPage());
     await page.goto(server.url + CH08);
     await page.waitForFunction(() => window.BMSite && document.readyState === "complete");
     const forms = ["11", "11.0", "11.00", "+11", "11.", "11 M", "11 m.", "11 m", "11m", "11.0 m", "11.00 m", "+11 m",
@@ -184,6 +195,7 @@ async function browserPart() {
     }, forms.concat(wrong));
     forms.concat(wrong).forEach((g, i) => eq(got[i], i < forms.length, "s3d-room grade(" + JSON.stringify(g) + ")"));
     await context.close();
+    check(errors.length === 0, "no page error or console error (a Content-Security-Policy violation among them): " + JSON.stringify(errors.slice(0, 5)));
   } finally {
     await browser.close();
     await server.close();

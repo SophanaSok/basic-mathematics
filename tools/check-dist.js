@@ -771,8 +771,9 @@ function checkLicences(ctx, r) {
    and no eval; connect-src names the Supabase project of assets/config.js, and only it
    beside the site; frames, plugins, <base> and form targets are shut. Every file of dist
    meets exactly one Cache-Control rule at every path Pages serves it on (a page also
-   without .html), since two would be joined into one header: KaTeX's fonts a year and
-   immutable, the typefaces a week, everything else revalidated. And dist/404.html
+   without .html), since two would be joined into one header: the font files (KaTeX's
+   and the typefaces) a week, everything else revalidated; and none as immutable, since
+   no file name in dist is a hash of its content. And dist/404.html
    stands alone: no script, no stylesheet, one link, to the root. */
 function directives(csp) {
   const out = {};
@@ -810,8 +811,9 @@ function checkHeaders(ctx, r) {
     const by = headers.rulesSetting(rules, at, "Cache-Control");
     if (by.length !== 1) { r.fail(at + " meets " + by.length + " Cache-Control rules (" + by.join(", ") + "), not one"); return; }
     const value = headers.headersFor(rules, at).find(([n]) => n.toLowerCase() === "cache-control")[1];
-    const wanted = /\/KaTeX_[^/]+\.(woff2?|ttf)$/.test(at) ? headers.IMMUTABLE : /\.(woff2?|ttf|otf)$/.test(at) ? headers.WEEK : headers.REVALIDATE;
+    const wanted = /\.(woff2?|ttf|otf)$/.test(at) ? headers.WEEK : headers.REVALIDATE;
     if (value !== wanted) r.fail(at + " is sent with Cache-Control " + JSON.stringify(value) + ", not " + JSON.stringify(wanted));
+    if (/immutable/i.test(value)) r.fail(at + " is sent as immutable, but its name is not a hash of its content");
   }));
   /* the 404 page */
   r.count++;
