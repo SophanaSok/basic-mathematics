@@ -12,13 +12,14 @@
        the HUD keeps its position: every part of it that both pages show (the level badge
        and XP, the streak, the combo, the account chip, Sound, the menu button) is where it
        was on the page left, with a reader whose combo shows on a chapter only (its shield).
-       The top bar is the one element named. It holds the page no longer than its own
-       animations: it starts within three frames of the page showing and is over in the
-       first or second frame after they end (counted in the page's frames, not in
-       milliseconds: see TIMING). While it runs a click on the
-       HUD is lost (captured elements are not hit-tested): the window, the longest fade, is
-       held to 250ms, and the menu button takes a click again once it is over. And one hop
-       from half-way down a chapter, and one by a link in the open settings sheet: where
+       The top bar is the one element named. The transition's own length is bounded: it
+       starts within three frames of the page showing, each of its animations runs at
+       most 250ms from its start to its end (delay, iterations and end delay counted, at
+       its playback rate), and it is over in the first or second frame after they end
+       (see TIMING). While it runs a click on the HUD is lost (captured elements are not
+       hit-tested): that 250ms is the window, and the menu button takes a click again once
+       it is over. And one hop from half-way down a chapter, and one by a link in the open
+       settings sheet: where
        the sheet is not modal it fades out with the page (its own name while it is open),
        and where it is (a narrow screen, the top layer) it is in the root's fade;
      - skipped: with Study mode, with Reduce motion (the settings), with reduced motion
@@ -77,29 +78,39 @@ const WATCH = ({ key, parts }) => {
     try { vt.swap = JSON.parse(sessionStorage.getItem(key)); sessionStorage.removeItem(key); } catch (x) { /* no storage */ }
     const mine = vt;
     if (!e.viewTransition) { mine.done = true; return; }
-    /* TIMING. The page's frames from the reveal to the finish, and when the transition's
-       animations end on the document timeline (their start time plus their end time,
-       the latest of them, read once they have started). The suite's limit is on these,
-       not on the milliseconds from reveal to finish: those also hold the page arriving
-       doing its own work. Its module scripts run after the first frame, while the
-       animations play, and `finished` is settled on the main thread: on a CI runner a
+    /* TIMING. Three bounds, none of them on the milliseconds from reveal to finish: those
+       also hold the page arriving doing its own work. Its module scripts run after the
+       first frame, while the animations play, and `finished` is settled on the main
+       thread: on a CI runner a
        chapter's transition finished 1009ms after the reveal, and here, held to four
        threads and one and a half CPUs, the contents page's scripts kept the thread 1.1s
        after its first frame, its animations ended at 317ms and it finished at 1139ms, in
        the first frame the page drew after that. Without a transition those scripts take
        as long.
-       What the transition itself could hold is its start (frames before `ready`) and
-       its end (frames drawn once its animations are over), and frames are not drawn
-       while the page's own work holds the thread, so a count of them is that and
-       nothing else. The milliseconds are reported, with the share the page's own work
-       took: from the end of the animations to the finish, a wait in which the page drew
-       no more than those two frames. */
+       What the transition itself holds is
+         - its start: frames before `ready`, at most three;
+         - its animations: each one's length on the document timeline, its computed end
+           time (delay + iterations x duration + end delay) over its playback rate, at
+           most 250ms. That is a property of the animation, not of the machine, so it is
+           a bound in milliseconds that a delay or an extra iteration cannot slip past
+           (the duration alone would let them);
+         - its end: frames drawn once the latest of its animations is over (its start
+           time plus its length, read once all have started), at most two. Frames are not
+           drawn while the page's own work holds the thread, so a count of them is the
+           transition's and nothing else; an animation added after `ready`, which the
+           list above does not hold, shows here as frames it keeps the transition for.
+       So the transition is held to three frames, 250ms and two frames, on any machine.
+       The milliseconds are reported, with the share the page's own work took: from the
+       end of the animations to the finish, a wait in which the page drew no more than
+       those two frames. */
     const frames = [];
     let anims = null, live = true;
+    /* an animation's length on the document timeline: its end time at its playback rate */
+    const span = (a) => a.effect.getComputedTiming().endTime / Math.abs(a.playbackRate || 1);
     const tick = (t) => {
       if (!live) return;
       frames.push(t);
-      if (anims && anims.length && mine.end == null && anims.every(a => a.startTime !== null)) mine.end = Math.max(...anims.map(a => a.startTime + a.effect.getComputedTiming().endTime));
+      if (anims && anims.length && mine.end == null && anims.every(a => a.startTime !== null)) mine.end = Math.max(...anims.map(a => a.startTime + span(a)));
       requestAnimationFrame(tick);
     };
     requestAnimationFrame(tick);
@@ -109,7 +120,7 @@ const WATCH = ({ key, parts }) => {
       vt.readyFrames = frames.length;
       vt.ran = true;
       vt.hitReady = hit();
-      vt.anims = anims.map(a => ({ on: a.effect.pseudoElement, name: a.animationName, ms: a.effect.getComputedTiming().duration }));
+      vt.anims = anims.map(a => ({ on: a.effect.pseudoElement, name: a.animationName, ms: a.effect.getComputedTiming().duration, span: Math.round(span(a)) }));
       const css = (p) => { const s = getComputedStyle(document.documentElement, p); return { w: s.width, h: s.height, t: s.transform, ease: s.animationTimingFunction, blend: s.mixBlendMode, opacity: s.opacity }; };
       vt.hud = css("::view-transition-group(hud)");
       vt.sheetGroup = css("::view-transition-group(hud-sheet)");
@@ -201,7 +212,7 @@ module.exports = {
     /* ---------------------------------------------- transitions on ----- */
     for (const vw of ctx.vws) {
       const { page, errors, close } = await start({ vw, storage: SHIELD });
-      const problems = [], ms = [], deadHits = new Set(), combo = new Set(), sheetNote = [], held = [];
+      const problems = [], ms = [], deadHits = new Set(), combo = new Set(), sheetNote = [], held = [], spans = new Set();
       try {
         for (let i = 1; i < pages.length; i++) {
           const { left, hud, seen } = await go(page, pages[i]);
@@ -235,10 +246,12 @@ module.exports = {
           if (seen.heldByPage > 50) held.push(pages[i].split("/").pop() + " " + seen.heldByPage + "ms");
           /* while it runs the page is not hit-tested (the spec: captured elements behave as
              if pointer-events: none), so a click on the HUD then is lost; the README says so.
-             The window is the longest of the fades: hold it to a quarter of a second, and
-             the menu button to taking clicks again once it is over */
-          const longest = Math.max(0, ...(seen.anims || []).map(a => a.ms));
-          if (!(longest <= 250)) bad("the longest animation is " + longest + "ms: clicks are ignored for that long (README, \"Between pages\")");
+             The window is the longest of its animations from start to end, delay and
+             iterations counted (`span`, TIMING in WATCH), not their durations: hold it to a
+             quarter of a second, and the menu button to taking clicks again once it is over */
+          const longest = (seen.anims || []).reduce((m, a) => a.span > m.span ? a : m, { span: 0 });
+          if (!(longest.span <= 250)) bad("the transition's " + longest.on + " runs " + longest.span + "ms from its start to its end (" + longest.ms + "ms a play): clicks are ignored for that long (README, \"Between pages\": a quarter of a second)");
+          spans.add(longest.span);
           if (seen.hitDone !== "the menu button") bad("once the transition finished, a click on the menu button lands on " + seen.hitDone);
           deadHits.add(seen.hitReady);
           ms.push(seen.ms);
@@ -293,7 +306,7 @@ module.exports = {
       problems.push(...errors.failures());
       await close();
       report[problems.length ? "fail" : "pass"]("transitions on [" + vw + "]: " + pages.join(" -> "),
-        problems.length ? problems.join("\n") : (pages.length - 1) + " navigations each ran a transition, every part of the HUD both pages show where it was (the combo: " + Array.from(combo).join(", ") + ") and the page faded in " + ms.join("/") + "ms (each over in the first frame or two after its animations; the page's own work held the end longer than 50ms: " + (held.length ? held.join(", ") : "none") + "), and one from half-way down a chapter; a click on the menu button lands on " + Array.from(deadHits).join("/") + " while it runs (ignored) and on the button once it is over; from the open sheet, " + sheetNote.join(", "));
+        problems.length ? problems.join("\n") : (pages.length - 1) + " navigations each ran a transition, every part of the HUD both pages show where it was (the combo: " + Array.from(combo).join(", ") + ") and the page faded in " + ms.join("/") + "ms (the longest animation " + Array.from(spans).join("/") + "ms from start to end, each transition over in the first frame or two after its animations; the page's own work held the end longer than 50ms: " + (held.length ? held.join(", ") : "none") + "), and one from half-way down a chapter; a click on the menu button lands on " + Array.from(deadHits).join("/") + " while it runs (ignored) and on the button once it is over; from the open sheet, " + sheetNote.join(", "));
     }
 
     /* ---------------------------------------------------- skipped ------ */

@@ -18,8 +18,9 @@
    draws frames the world's watchdog rightly calls slow, and it steps a chosen Medium down
    to Low in the middle of a check of Medium's idle motion. So the page's animation
    frames run on a clock of the check's own (RAF_GATE): steady by default, where no frame
-   takes longer than the watchdog's SLOW_MS (but a pause passes through as it is), and
-   exactly 60 or 200 ms a frame in the checks of the watchdog itself.
+   takes longer than the watchdog's SLOW_MS (but the pause a check makes, a long task or a
+   hidden tab, passes through as it really was), and exactly 60 or 200 ms a frame in the
+   checks of the watchdog itself.
 
    1. idle motion ends: on Medium the marker bobs (and the props move) for AMBIENT_MS
       after the world appears or the camera settles, to the end of the bob, and then an
@@ -79,9 +80,11 @@ const TIMEOUT = +read("assets/three-loader.js").match(/var TIMEOUT = (\d+);/)[1]
 const AMBIENT_MS = +read("src/world/tiers.ts").match(/export const AMBIENT_MS = (\d+);/)[1];
 const BOB_MS = +read("assets/map3d.js").match(/var BOB_MS = (\d+);/)[1];
 const SLOW_MS = +read("src/world/tiers.ts").match(/export const SLOW_MS = (\d+);/)[1];
-const PAUSE_MS = +read("src/world/tiers.ts").match(/export const PAUSE_MS = (\d+);/)[1];
 /* the longest frame the steady clock shows: under SLOW_MS, so no run of frames is slow */
 const STEADY_MS = SLOW_MS - 4;
+/* the shortest gap the checks of a pause let through the steady clock (__passNext): under
+   the 2.5 s long task and the 3 s hidden tab they make, and far over any frame */
+const PAUSE_GAP = 2000;
 /* the draw calls of the course map before the world (BMMap3D.info().calls at rest, 1280 wide) */
 const CALLS_BEFORE = 109;
 const MEDIUM = { "bm.prefs.v1": '{"gfx":"mid"}' };
@@ -103,8 +106,16 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
        more than STEADY_MS, under the watchdog's SLOW_MS, so the speed of the machine is
        in no check: on a 4-vCPU CI runner SwiftShader draws Medium slowly enough that the
        watchdog, as it should, steps it down to Low, and a check of Medium's idle motion
-       then found Low. A gap of PAUSE_MS or more (a long task, frames held in a hidden tab)
-       passes through as it is: that a pause is not a slow frame is what is checked there
+       then found Low. The one exception is the pause a check makes: __passNext = ms lets
+       the next gap of at least `ms` through as it really was (once; __passed lists the
+       gaps let through). The checks that a pause is not a slow frame set it to PAUSE_GAP
+       as they make the pause (a 2.5 s long task, frames held 3 s in a hidden tab), and
+       check that the pause was let through, so the world's watchdog sees it. It is the
+       check's own number, not a threshold read from src/world/tiers.ts (PAUSE_MS), so a
+       PAUSE_MS raised past the 2.5 s task fails the long-task check: the task then
+       reaches the watchdog as one 2.5 s frame. Not simply "the next frame": the first
+       frame after a long task can carry a timestamp from before it ended (Chromium 153
+       here: a 17 ms gap, then the 2483 ms one)
      - __slow, true or a number: exactly 60 ms (or __slow ms) a frame, whatever the
        machine draws, as on a device that draws about 16 (or 1000 / __slow) frames a
        second, for the checks of the watchdog
@@ -113,13 +124,14 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
    and __realRaf is the browser's own requestAnimationFrame (the frame times printed in 5
    are real ones); neither is counted in __raf */
 const RAF_GATE = (o) => {
-  window.__raf = 0; window.__hide = false; window.__held = []; window.__slow = false;
+  window.__raf = 0; window.__hide = false; window.__held = []; window.__slow = false; window.__passNext = 0; window.__passed = [];
   var orig = window.requestAnimationFrame.bind(window), fake = 0, real = -1;
   function stamp(t) {
     if (t === real) return fake;
     if (real < 0) fake = t;
     else if (window.__slow) fake += window.__slow === true ? 60 : window.__slow;
-    else fake += t - real >= o.pause ? t - real : Math.min(t - real, o.steady);
+    else if (window.__passNext && t - real >= window.__passNext) { fake += t - real; window.__passed.push(Math.round(t - real)); window.__passNext = 0; }
+    else fake += Math.min(t - real, o.steady);
     real = t;
     return fake;
   }
@@ -180,7 +192,7 @@ async function newContext(browser, opts) {
     }
     return r.continue();
   });
-  await context.addInitScript(RAF_GATE, { steady: STEADY_MS, pause: PAUSE_MS });
+  await context.addInitScript(RAF_GATE, { steady: STEADY_MS });
   await context.addInitScript(GL_BUFFERS);
   await context.addInitScript(PIXELS);
   if (opts.hardware || opts.renderer) await context.addInitScript(RENDERER, opts.renderer || HARDWARE);
@@ -337,21 +349,23 @@ async function run() {
       {
         const { context, page } = await openMap(browser, seed, opts);
         await page.click(".map3d-part[data-p=\"2\"]");
-        await page.evaluate(() => { window.__hide = true; document.dispatchEvent(new Event("visibilitychange")); });
+        await page.evaluate((g) => { window.__hide = true; window.__passNext = g; document.dispatchEvent(new Event("visibilitychange")); }, PAUSE_GAP);
         await wait(3000);
         const held = (await mapState(page)).held;
         await page.evaluate(() => { window.__hide = false; document.dispatchEvent(new Event("visibilitychange")); window.__release(); });
         await wait(2500);
-        const s = await mapState(page), i = await info(page), p = await prefsOf(page);
+        const s = await mapState(page), i = await info(page), p = await prefsOf(page), passed = await page.evaluate(() => window.__passed);
+        check(passed.length === 1, "the hidden tab's pause reached the world as it was, " + label + " (gaps let through the steady clock: " + JSON.stringify(passed) + ")");
         check(held > 0 && s.on && !s.why && i.tier === "medium" && !("gfxAuto" in p), "a frame held in a hidden tab keeps the world on its tier, " + label + ", and keeps nothing (held " + held + ", " + JSON.stringify(s) + ", tier " + i.tier + ", prefs " + JSON.stringify(p) + ")");
         await context.close();
       }
       {
         const { context, page } = await openMap(browser, seed, opts);
         await page.click(".map3d-part[data-p=\"2\"]");
-        await page.evaluate(() => { var t = Date.now(); while (Date.now() - t < 2500) { /* a long task */ } });
+        await page.evaluate((g) => { window.__passNext = g; var t = Date.now(); while (Date.now() - t < 2500) { /* a long task */ } }, PAUSE_GAP);
         await wait(3000);
-        const s = await mapState(page), i = await info(page), p = await prefsOf(page);
+        const s = await mapState(page), i = await info(page), p = await prefsOf(page), passed = await page.evaluate(() => window.__passed);
+        check(passed.length === 1, "the long task's pause reached the world as it was, " + label + " (gaps let through the steady clock: " + JSON.stringify(passed) + ")");
         check(s.on && !s.why && i.tier === "medium" && !("gfxAuto" in p), "a 2.5 s long task keeps the world on its tier, " + label + ", and keeps nothing (" + JSON.stringify(s) + ", tier " + i.tier + ", prefs " + JSON.stringify(p) + ")");
         await context.close();
       }
