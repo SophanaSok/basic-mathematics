@@ -653,7 +653,7 @@ The values used below, in one place:
 | Old address | `https://sophanasok.github.io/basic-mathematics/` (`LEGACY`) |
 | Cloudflare Pages project | `groundupmath` (`PAGES_PROJECT`; the default of the variable `CLOUDFLARE_PROJECT_NAME`) |
 | Its own address | `https://groundupmath.pages.dev`, or that name with a few characters added if Cloudflare finds the name taken: use whatever the project page shows |
-| Previews | `https://<branch>.groundupmath.pages.dev` and `https://<hash>.groundupmath.pages.dev` |
+| Previews | `https://pr-<number>.groundupmath.pages.dev` (one per pull request, whatever its branch) and `https://<hash>.groundupmath.pages.dev` |
 | Repository secrets | `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID` |
 | Repository variables | `CLOUDFLARE_PROJECT_NAME` (optional, default `groundupmath`), `SITE_CUTOVER` (`false` until 8.6, then `true`) |
 | Supabase project | `https://jfidvrzonyzfstnykzly.supabase.co` (`assets/config.js`) |
@@ -676,96 +676,109 @@ Porkbun [URL forwarding](https://kb.porkbun.com/article/39-how-to-set-up-url-for
 
 ### 8.1 Cloudflare account, token and GitHub settings
 
-1. Sign up at <https://dash.cloudflare.com/sign-up> (the free plan is enough; Pages' static
-   requests are free and unlimited). Turn on two-factor authentication: My Profile →
-   Authentication.
-2. **The token.** Manage account → **Account API Tokens** → **Create Token** → under *Custom
-   token* **Get started**. Name it `github-actions-pages-deploy`. Permissions: one row,
-   **Account** · **Cloudflare Pages** · **Edit**, and nothing else. Account Resources: *Include*,
-   your account. Leave the IP filter empty (GitHub's runners have no fixed address). Optionally
-   set an end date and put the date in your calendar. **Continue to summary** → **Create Token**,
-   and copy it now: it is shown once.
-3. **The account ID.** It is the 32-character hexadecimal string in the dashboard's address
-   right after `dash.cloudflare.com/`; Workers & Pages → Overview also shows it as *Account ID*.
-4. **GitHub.** The repository → Settings → Secrets and variables → Actions.
-   - *Secrets* tab → **New repository secret**: `CLOUDFLARE_API_TOKEN` = the token;
-     `CLOUDFLARE_ACCOUNT_ID` = the account ID.
-   - *Variables* tab → **New repository variable**: `SITE_CUTOVER` = `false`. Add
-     `CLOUDFLARE_PROJECT_NAME` = `groundupmath` only if the project gets another name in 8.2
-     (the workflow uses `groundupmath` when it is unset).
+**Done** (by 2026-10-05): the Cloudflare account, the token, and the repository secrets
+`CLOUDFLARE_API_TOKEN` (one permission, **Account** · **Cloudflare Pages** · **Edit**, this
+account only) and `CLOUDFLARE_ACCOUNT_ID`. The variable `SITE_CUTOVER` is not set, which the
+workflow reads as `false`; leave it so until 8.6. Set `CLOUDFLARE_PROJECT_NAME` only if the
+project is ever called something other than `groundupmath`.
 
-**Verify:** nothing yet; the first deploy (8.2) is the test of the token. **Undo:** delete the
-two secrets; the `cloudflare` job goes back to a notice. Revoke the token in Cloudflare.
+**Check it is still so:** the repository → Settings → Secrets and variables → Actions lists both
+secrets; Cloudflare → Manage account → **Account API Tokens** lists the token as active, with
+that one permission (and an end date, if you gave it one: put it in your calendar). Two-factor
+authentication is on (My Profile → Authentication). The first deploy (8.2) is the token's test.
+
+**To redo it** (a lost or expired token): Manage account → Account API Tokens → **Create Token**
+→ *Custom token* **Get started**; one permission row, **Account** · **Cloudflare Pages** ·
+**Edit**; Account Resources *Include* this account; no IP filter (GitHub's runners have no fixed
+address). Copy it (it is shown once) into the secret `CLOUDFLARE_API_TOKEN`. The account ID is the
+32-character hexadecimal string after `dash.cloudflare.com/` in the dashboard's address.
+
+**Undo:** delete the two secrets; the `cloudflare` job goes back to a notice. Revoke the token in
+Cloudflare.
 
 ### 8.2 The Pages project (Direct Upload)
 
-**Direct Upload is permanent:** a project made this way can never be switched to Cloudflare's
-Git integration; that would be a new project. That is the intent here: GitHub Actions builds,
-checks and uploads, and Cloudflare only serves.
+**Done** (by 2026-10-05): the project `groundupmath`, created in the dashboard as a Direct
+Upload project, at `https://groundupmath.pages.dev`. It has no deployment yet, so that address
+and `learn` answer Cloudflare's error 522. Direct Upload is permanent: such a project can never
+be switched to Cloudflare's Git integration. That is the intent: GitHub Actions builds, checks
+and uploads, and Cloudflare only serves.
 
-The project must exist before CI deploys to it. `wrangler pages deploy` asks before it creates a
-missing project, and in CI it cannot ask, so the first run would fail. Create it once, by hand:
-
-1. In a terminal of your own, in this repository (`npm ci` done):
+1. **The production branch must be `main`.** wrangler makes a deploy production only when the
+   branch it is given equals the project's production branch, and otherwise makes it a preview
+   without an error; the custom domain serves production only. A Direct Upload project has no
+   setting for this in the dashboard (Cloudflare's [Direct Upload](https://developers.cloudflare.com/pages/get-started/direct-upload/)
+   page, *Production branch configuration*), so read it, and set it if needed, with the API, in
+   a terminal of your own. The token needs Cloudflare Pages Edit: the one in the secret is shown
+   only once, so if you no longer have it, make a second one as in 8.1 with an end date of
+   tomorrow, and delete it afterwards.
    ```sh
-   npx wrangler@4.147.0 login
-   npx wrangler@4.147.0 pages project create groundupmath --production-branch=main
+   read -rs TOKEN      # paste the token; it is not shown and not kept in the shell history
+   ACCOUNT=<the account ID>
+   curl -s -H "Authorization: Bearer $TOKEN" \
+     "https://api.cloudflare.com/client/v4/accounts/$ACCOUNT/pages/projects/groundupmath" \
+     | /usr/bin/jq '.success, .result.production_branch, .result.subdomain'
    ```
-   Run these yourself, not through an AI coding agent: wrangler 4.147 detects such agents and
-   then creates a *Workers* project instead of a Pages one (it prints a "Notice to agents" when
-   it does). If that has happened, delete what it made in the dashboard and run the command
-   again yourself.
-   Or in the dashboard: Workers & Pages → **Create** → Pages → **Drag and drop your files**,
-   project name `groundupmath`, and upload the `dist/` folder of a local `npm run build`. Then
-   check in the project's settings that the production branch is `main` (where the dashboard
-   shows it for a Direct Upload project was not checked for this runbook).
-2. Note the address the project page shows (`groundupmath.pages.dev`, or with a suffix).
-3. Actions → CI → **Run workflow** on `main`.
+   It prints `true`, the production branch, and the project's own address. If the branch is not
+   `"main"`:
+   ```sh
+   curl -s -X PATCH -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+     --data '{"production_branch":"main"}' \
+     "https://api.cloudflare.com/client/v4/accounts/$ACCOUNT/pages/projects/groundupmath" \
+     | /usr/bin/jq '.success, .result.production_branch'
+   unset TOKEN
+   ```
+   The workflow checks this as well: a deploy of `main` that Cloudflare did not make production
+   fails the `cloudflare` job with this same fix in its error.
+2. **The first deployment is this move's own pull request.** The `cloudflare` job exists only on
+   this branch until it is merged, and the secrets are already set, so opening its pull request
+   deploys it as a preview, at `https://pr-<number>.groundupmath.pages.dev` (every pull request
+   from a branch of this repository deploys under `pr-<number>`, never under its branch's name,
+   so none can reach production). The run comments that address on the pull request. Production
+   follows the merge to `main`: that push deploys it. After that, **Run workflow** on `main`
+   deploys again without a new commit.
 
-**Verify:** the run's `cloudflare` job is green, and its summary says *Cloudflare Pages:
-production (groundupmath, branch main)* with the deployment's address. Open
-`https://groundupmath.pages.dev/`: the course, working. In a terminal,
-`curl -sI https://groundupmath.pages.dev/ | grep -i -E 'content-security-policy|cache-control'`
-shows the policy and `public, max-age=0, must-revalidate` (from `dist/_headers`). Open a pull
-request from a branch of this repository: its run comments the preview's address on it, once,
-and updates that comment on every push. **Undo:** Workers & Pages → the project → Settings →
-**Delete project** (it deletes every deployment); the workflow then fails at the deploy until
-the secrets are removed too.
+**Verify:** after the pull request's run, its `cloudflare` job is green and its summary says
+*Cloudflare Pages: preview (groundupmath, branch pr-<number>)*; the preview address opens the
+course. After the merge, the `main` run's summary says *Cloudflare Pages: production
+(groundupmath, branch main)*. Open `https://groundupmath.pages.dev/`: the course, working. In a
+terminal, `curl -sI https://groundupmath.pages.dev/ | grep -i -E 'content-security-policy|cache-control'`
+shows the policy and `public, max-age=0, must-revalidate` (from `dist/_headers`). **Undo:**
+Workers & Pages → the project → Settings → **Delete project** (it deletes every deployment); the
+workflow then fails at the deploy until the secrets are removed too.
 
 ### 8.3 The custom domain, and the bare domain
 
-The order matters: Cloudflare must know the domain before the DNS record points at it, or the
-address answers with error 522.
+**Done** (by 2026-10-05): the custom domain `learn.groundupmath.org` is set up on the project,
+and Porkbun's DNS has the record `learn` CNAME `groundupmath.pages.dev` (public DNS shows it).
+Cloudflare's order was kept: the domain on the project first, then the DNS record.
 
-1. Workers & Pages → `groundupmath` → **Custom domains** → **Set up a domain** →
-   `learn.groundupmath.org` → **Continue**. It then shows the record to create (a CNAME to the
-   project's `pages.dev` address) and waits.
-2. Porkbun → Domain Management → `groundupmath.org` → **DNS**. If Porkbun's parking records are
-   there (an `ALIAS` for the bare domain and a `*` CNAME, both to `pixie.porkbun.com`), delete
-   them. Add: Type **CNAME**, Host **`learn`**, Answer **`groundupmath.pages.dev`** (the address
-   from 8.2.2, without `https://`), TTL **600**. Save.
-   Public DNS on 2026-10-05 already showed this record (`learn.groundupmath.org` CNAME
-   `groundupmath.pages.dev`, answering Cloudflare's error 522 while nothing is deployed there):
-   if it is there, check its Answer is the address from 8.2.2 rather than add a second one.
-3. Back in Cloudflare, the domain goes to *Active*, with a certificate, usually within minutes;
-   allow up to 24 hours for DNS to spread.
-4. **The bare domain** (optional): Porkbun's free URL forwarding sends `groundupmath.org` to
+1. **Check it.** Workers & Pages → `groundupmath` → **Custom domains** lists
+   `learn.groundupmath.org`; once production has a deployment (8.2) it goes to *Active*, with a
+   certificate, usually within minutes (allow up to 24 hours). `dig +short CNAME
+   learn.groundupmath.org` prints `groundupmath.pages.dev.`.
+2. **Porkbun's parking records** (an `ALIAS` for the bare domain and a `*` CNAME, both to
+   `pixie.porkbun.com`) may still be there. They do no harm to `learn`: a wildcard never answers
+   for a name that has its own record (RFC 4592), and public DNS on 2026-10-05 showed `learn`
+   resolving to `groundupmath.pages.dev` beside them. Deleting them is optional, and only changes
+   what other names (`www`, anything else) answer. Step 3 replaces the bare domain's.
+3. **The bare domain** (optional): Porkbun's free URL forwarding sends `groundupmath.org` to
    the site. Domain Management → the domain → Details → **URL Forwarding** (edit): Hostname
    empty, Forward Traffic To `https://learn.groundupmath.org`, advanced settings: **Permanent
    Redirect (301)** and **Include the requested URI path**. Leave **Wildcard Forwarding off**:
    it would forward `learn` as well and take the site down. Repeat with Hostname `www` if you
    want that name too. Porkbun's page says it takes 10 to 15 minutes. Whether Porkbun's
    forwarding answers `https://groundupmath.org` with a valid certificate is not stated on that
-   page: test it (step 5 below), and if it does not, readers should simply be given the `learn`
-   address.
+   page: test it (the last check below), and if it does not, readers should simply be given the
+   `learn` address.
 
-**Verify:** `dig +short CNAME learn.groundupmath.org` prints the `pages.dev` address;
-`https://learn.groundupmath.org/` opens the course with a padlock;
-`curl -sI https://learn.groundupmath.org/about.html` answers a redirect (3xx) with `location: /about`
-(Pages' own redirect to the address without `.html`); and, if set up,
-`curl -sI https://groundupmath.org/about` answers `301` to `https://learn.groundupmath.org/about`.
-**Undo:** delete the CNAME at Porkbun and remove the domain in the project's Custom domains
-(Cloudflare's order: DNS record first, then the domain); delete the URL forward.
+**Verify** (once production has a deployment): `https://learn.groundupmath.org/` opens the
+course with a padlock; `curl -sI https://learn.groundupmath.org/about.html` answers a redirect
+(3xx) with `location: /about` (Pages' own redirect to the address without `.html`); and, if set
+up, `curl -sI https://groundupmath.org/about` answers `301` to
+`https://learn.groundupmath.org/about`. **Undo:** delete the CNAME at Porkbun and remove the
+domain in the project's Custom domains (Cloudflare's order: DNS record first, then the domain);
+delete the URL forward.
 
 ### 8.4 Sign-in: Supabase and Google
 

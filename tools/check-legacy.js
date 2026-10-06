@@ -165,8 +165,10 @@ async function checkRun(ctx, r) {
 
 /* (e) the workflow deploys to the project src/carry/origins.ts names when the repository
    variable is unset (the cloudflare job cannot read that file: it checks nothing out),
-   never deploys an older commit of main to production on a re-run, and publishes this
-   directory once SITE_CUTOVER is true */
+   never deploys an older commit of main to production on a re-run, never deploys a pull
+   request under its head branch's name (which may be main, the production branch), fails
+   a deploy of main that Cloudflare did not make production, and publishes this directory
+   once SITE_CUTOVER is true */
 function checkCi(ctx, r) {
   const ci = fs.readFileSync(path.join(ROOT, ".github", "workflows", "ci.yml"), "utf8");
   const project = origins.read(ROOT).project;
@@ -178,6 +180,14 @@ function checkCi(ctx, r) {
   const job = ci.slice(ci.indexOf("\n  cloudflare:"));
   const guard = job.indexOf("github.run_attempt > 1"), check = job.indexOf('repos/$REPO/commits/main'), wrangler = job.indexOf("uses: cloudflare/wrangler-action@");
   if (ci.indexOf("\n  cloudflare:") < 0 || guard < 0 || check < guard || wrangler < 0 || check > wrangler) r.fail(".github/workflows/ci.yml: the cloudflare job does not stop a re-run of an older commit of main before it deploys");
+  /* wrangler makes a deploy production when --branch is the project's production branch:
+     a pull request goes under pr-<number>, and nothing in the job reads the head branch */
+  r.count++;
+  if (job.indexOf('branch="pr-$PR_NUMBER"') < 0 || /head_ref|HEAD_REF/.test(job)) r.fail(".github/workflows/ci.yml: the cloudflare job does not deploy a pull request under pr-<number>, so a pull request whose head is main would deploy to production");
+  /* and a deploy of main that came out as a preview fails, after wrangler ran */
+  r.count++;
+  const prod = job.indexOf('if [ "$ENVIRONMENT" != "production" ]');
+  if (prod < 0 || prod < wrangler || !/name: A deploy from main is production\n\s+if: [^\n]*github\.event_name != 'pull_request' && github\.ref == 'refs\/heads\/main'/.test(job)) r.fail(".github/workflows/ci.yml: the cloudflare job does not fail a deploy of main that Cloudflare did not make production");
   r.count++;
   if (!/name: dist-legacy\n\s+path: dist-legacy/.test(ci) || ci.indexOf('echo "artifact=dist-legacy"') < 0) r.fail(".github/workflows/ci.yml: dist-legacy/ is not kept as an artifact and published when SITE_CUTOVER is true");
 }
@@ -187,7 +197,7 @@ const CHECKS = [
   { name: "same", run: checkSame, what: "every file is what tools/build-legacy.js writes now" },
   { name: "stubs", run: checkStubs, what: "canonical, <noscript> refresh and visible link to the page's new address; one inline script, allowed by hash, no course files" },
   { name: "run", run: checkRun, what: "each stub run: nothing saved goes plain; progress goes in #bm-carry=, every bm. store and the account's id, never the session or another key; 404.html to the front page" },
-  { name: "ci", run: checkCi, what: "the workflow's default Cloudflare project is origins.ts's, a re-run of an old commit of main deploys nothing to Cloudflare, and it publishes dist-legacy/ when SITE_CUTOVER is true" }
+  { name: "ci", run: checkCi, what: "the workflow's default Cloudflare project is origins.ts's, a re-run of an old commit of main deploys nothing to Cloudflare, a pull request deploys as pr-<number> and never to production, a deploy of main that is not production fails, and it publishes dist-legacy/ when SITE_CUTOVER is true" }
 ];
 
 (async function main() {

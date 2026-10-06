@@ -15,8 +15,11 @@
 #               then only sends readers, with their progress, to the new one
 #   cloudflare  publishes that same dist/ to Cloudflare Pages with wrangler: a push to
 #               main (or Run workflow) to production, a pull request from a branch of this
-#               repository to a preview, whose address goes into the job summary and one
-#               comment on the pull request. It needs the repository secrets
+#               repository to a preview under the branch name pr-<number> (never its own
+#               branch's name, which could be main), whose address goes into the job
+#               summary and one comment on the pull request. A deploy from main that
+#               Cloudflare did not make production (the project's production branch is not
+#               main) fails the job. It needs the repository secrets
 #               CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID; without them, and for a
 #               pull request from a fork (which is never given secrets), it says so in a
 #               notice and deploys nothing, and the run stays green. The project is the
@@ -282,8 +285,8 @@ jobs:
   # a new release of wrangler changes nothing here until it is chosen. The token needs one
   # permission, Account / Cloudflare Pages / Edit (developers.cloudflare.com, "Use Direct
   # Upload with continuous integration", read 2026-10-05). The project must exist first:
-  # wrangler asks before it creates one, and in CI it cannot ask (OPERATIONS.md says how to
-  # create it). No checkout: what is uploaded is the gate's dist/, and the branch and
+  # wrangler asks before it creates one, and in CI it cannot ask (it was created in the
+  # dashboard; OPERATIONS.md 8.2 says how to check its production branch). No checkout: what is uploaded is the gate's dist/, and the branch and
   # commit are passed to wrangler, which would otherwise read them from git.
   cloudflare:
     needs: [build, browser]
@@ -306,7 +309,7 @@ jobs:
           EVENT: ${{ github.event_name }}
           HEAD_REPO: ${{ github.event.pull_request.head.repo.full_name }}
           REPO: ${{ github.repository }}
-          HEAD_REF: ${{ github.head_ref }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
           REF_NAME: ${{ github.ref_name }}
           PR_SHA: ${{ github.event.pull_request.head.sha }}
           SHA: ${{ github.sha }}
@@ -322,7 +325,11 @@ jobs:
             echo "::notice::Nothing deployed to Cloudflare Pages: the repository secrets CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID are not both set (OPERATIONS.md, \"Moving to Cloudflare Pages\")."
             echo "go=false" >> "$GITHUB_OUTPUT"; exit 0
           fi
-          if [ "$EVENT" = "pull_request" ]; then branch="$HEAD_REF"; sha="$PR_SHA"; else branch="$REF_NAME"; sha="$SHA"; fi
+          # A pull request deploys under pr-<number>, never under its head branch's name:
+          # wrangler makes a deploy production when the branch it is given is the project's
+          # production branch, and a pull request whose head is main (main brought into
+          # another branch) would otherwise replace the production site.
+          if [ "$EVENT" = "pull_request" ]; then branch="pr-$PR_NUMBER"; sha="$PR_SHA"; else branch="$REF_NAME"; sha="$SHA"; fi
           # both go to wrangler on its command line: names made only of these, or no deploy
           if ! [[ "$project" =~ ^[a-z0-9][a-z0-9-]*$ ]]; then
             echo "::error::The repository variable CLOUDFLARE_PROJECT_NAME is \"$project\", which is not a Cloudflare Pages project name (lower-case letters, digits and -); nothing was deployed."
@@ -380,6 +387,21 @@ jobs:
             echo "- Commit: $SHA"
             echo "- SITE_CUTOVER is ${CUTOVER:-not set}: the old address serves $([ "$CUTOVER" = "true" ] && echo "the legacy site, which sends readers here" || echo "the course itself, so this address is not yet where readers go")."
           } >> "$GITHUB_STEP_SUMMARY"
+      # wrangler makes a deploy production only when --branch is the project's production
+      # branch, and otherwise a preview, without an error. A project created in the
+      # dashboard for Direct Upload has no setting for it there (OPERATIONS.md 8.2 says how
+      # to read and set it), so a deploy from main that came out as anything else fails.
+      - name: A deploy from main is production
+        if: steps.can.outputs.go == 'true' && github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+        env:
+          ENVIRONMENT: ${{ steps.deploy.outputs.pages-environment }}
+          PROJECT: ${{ steps.can.outputs.project }}
+          URL: ${{ steps.deploy.outputs.deployment-url }}
+        run: |
+          if [ "$ENVIRONMENT" != "production" ]; then
+            echo "::error::Cloudflare made this deploy of main a \"${ENVIRONMENT:-unknown}\" deployment ($URL), not production, so the custom domain still serves the previous production deployment (or nothing). The production branch of the project $PROJECT is not main: set it with the Cloudflare API (PATCH /accounts/<account id>/pages/projects/$PROJECT with {\"production_branch\":\"main\"}, OPERATIONS.md 8.2), then use Run workflow on main."
+            exit 1
+          fi
       # One comment per pull request, found again by its first line and updated in place.
       - name: Comment the preview's address on the pull request
         if: steps.can.outputs.go == 'true' && github.event_name == 'pull_request'
