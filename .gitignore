@@ -9,6 +9,11 @@ desktop.ini
 *.log
 .cache/
 
+# Claude Code's files for one machine, never committed: its local permission settings and
+# the git worktrees it makes (a .claude/settings.json meant for everyone still can be)
+.claude/settings.local.json
+.claude/worktrees/
+
 # Installed and built (npm ci, npm run build)
 node_modules/
 dist/

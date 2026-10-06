@@ -4,7 +4,7 @@
 
    Usage: node tools/check-browser.js [--root=<dir>] [--only=<substring>] [--skip=<suite,suite>]
                                       [--theme=light|dark] [--vw=1280|360] [--base=<ref>]
-                                      [--headed] [--strict-axe] [--list]
+                                      [--headed] [--strict-axe] [--part=<part>] [--list] [--parts]
 
    --root      the build the server serves (default dist/; CI sets BM_ROOT). It must be
                there and newer than everything it is built from, or lib/target.js
@@ -14,6 +14,11 @@
                else is matched against page paths and narrows every suite to those pages
    --skip      suite names to leave out (CI runs --skip=webgl as the deploy gate and
                --only=webgl in a job of its own)
+   --part      only the suites of one part of PARTS below ("rest": every suite no part
+               names); --only and --skip then narrow that. CI runs the gate as one job
+               per part, side by side
+   --parts     check PARTS against tools/suites/ and print the part names as JSON (the
+               browser job's matrix in ci.yml), or exit 2 when a part names no suite
    --theme     one theme instead of both;  --vw one viewport instead of both
    --base      git ref whose exercise keys the restore suite seeds (default lib/site.js)
    --headed    show the browser
@@ -121,7 +126,7 @@ details{margin:.2rem 0}summary{cursor:pointer}pre{white-space:pre-wrap;font-size
 .sum span{display:inline-block;margin-right:1rem}
 </style></head><body>
 <h1>check-browser report</h1>
-<p class="meta">${esc(meta.startedAt)} · ${(meta.durationMs / 1000).toFixed(1)}s · ${esc(meta.served)} · base ${esc(meta.base)} · Playwright ${esc(meta.playwright)} · WebGL ${meta.launch.webgl && meta.launch.webgl.ok ? "ok (" + esc(meta.launch.webgl.renderer) + ") with args " + esc(JSON.stringify(meta.launch.args)) : "unavailable"}</p>
+<p class="meta">${meta.part ? "part " + esc(meta.part) + " · " : ""}${esc(meta.startedAt)} · ${(meta.durationMs / 1000).toFixed(1)}s · ${esc(meta.served)} · base ${esc(meta.base)} · Playwright ${esc(meta.playwright)} · WebGL ${meta.launch.webgl && meta.launch.webgl.ok ? "ok (" + esc(meta.launch.webgl.renderer) + ") with args " + esc(JSON.stringify(meta.launch.args)) : "unavailable"}</p>
 <p class="sum">${Object.values(report.suites).map(s => `<span><b>${esc(s.name)}</b> <span class="${s.fail ? "fail" : "ok"}">${s.pass} ok / ${s.fail} fail</span>${s.warn ? ` <span class="warn">${s.warn} warn</span>` : ""}${s.skip ? ` <span class="skip">${s.skip} skip</span>` : ""} <span class="meta">${(s.ms / 1000).toFixed(0)}s</span></span>`).join("")}</p>`;
   html += `<h2>Failures (${fails.length})</h2>` + (fails.length ? `<table>${fails.map(f => `<tr><td><b>${esc(f.suite)}</b></td><td>${esc(f.name)}</td><td><pre>${esc(typeof f.detail === "string" ? f.detail : JSON.stringify(f.detail, null, 1))}</pre></td></tr>`).join("")}</table>` : "<p class=ok>none</p>");
   html += `<h2>Warnings (${warns.length})</h2>` + (warns.length ? `<details><summary>show</summary><table>${warns.map(f => `<tr><td><b>${esc(f.suite)}</b></td><td>${esc(f.name)}</td><td><pre>${esc(typeof f.detail === "string" ? f.detail : JSON.stringify(f.detail, null, 1))}</pre></td></tr>`).join("")}</table></details>` : "<p class=ok>none</p>");
@@ -133,6 +138,39 @@ details{margin:.2rem 0}summary{cursor:pointer}pre{white-space:pre-wrap;font-size
   html += `<h2>All results</h2>` + Object.values(report.suites).map(s => `<details><summary><b>${esc(s.name)}</b> — ${esc(s.description)} (${s.pass} ok, ${s.fail} fail, ${s.warn} warn, ${s.skip} skip)</summary><table>${s.results.map(r => `<tr><td class="${r.status}">${r.status}</td><td>${esc(r.name)}</td><td>${r.detail ? `<pre>${esc(typeof r.detail === "string" ? r.detail : JSON.stringify(r.detail, null, 1))}</pre>` : ""}</td></tr>`).join("")}</table></details>`).join("");
   html += "</body></html>";
   fs.writeFileSync(path.join(OUT, "index.html"), html);
+}
+
+/* -------------------------------------------------------------- parts ---- */
+
+/* The deploy gate (ci.yml, the browser job) runs these suites as parallel jobs, one per
+   part, each with the same flags (--skip=webgl) as the single run it replaced. "rest" is
+   every suite no part names, so a suite dropped into tools/suites/ runs in CI without
+   being assigned anywhere; the browser job's matrix is `--parts`, so a part added here
+   gets its job. Balanced by each suite's seconds on a runner (CI run 37414123700,
+   2026-10-06), with the rest job also running `npm run test:browser:core` (162 s) first.
+   Move a suite between parts when a job grows past the others. */
+const PARTS = {
+  axe: ["axe"],                                  // 289
+  pages: ["pages", "hud"],                       // 204 + 93
+  exercises: ["exercises", "widgets", "frame"]   // 179 + 87 + 31
+};                                               // rest: transitions 54, motion 28, missions 23,
+                                                 //   restore 20, thirdparty 11, upgrade 3
+const REST = "rest";
+
+/* every name a suite's, no suite in two parts, and no part called "rest"; returns
+   the part of each suite, or throws saying what is wrong */
+function partOf(allSuites) {
+  const part = {};
+  for (const p of Object.keys(PARTS)) {
+    if (p === REST) throw new Error("PARTS: \"" + REST + "\" is every suite no part names, and cannot be a part of its own");
+    for (const n of PARTS[p]) {
+      if (!allSuites.some(s => s.name === n)) throw new Error("PARTS: the part " + p + " names " + n + ", which is no suite in tools/suites/");
+      if (part[n]) throw new Error("PARTS: the suite " + n + " is in two parts, " + part[n] + " and " + p);
+      part[n] = p;
+    }
+  }
+  allSuites.forEach(s => { if (!part[s.name]) part[s.name] = REST; });
+  return part;
 }
 
 /* --------------------------------------------------------------- main ---- */
@@ -151,7 +189,14 @@ function loadSuites() {
 async function main() {
   const t0 = Date.now();
   const allSuites = loadSuites();
-  if (opts.list) { allSuites.forEach(s => console.log(s.name.padEnd(10) + " " + s.description)); return 0; }
+  let parts;
+  try { parts = partOf(allSuites); }
+  catch (e) { console.error(e.message); return 2; }
+  if (opts.parts) { console.log(JSON.stringify(Object.keys(PARTS).concat(REST))); return 0; }
+  if (opts.list) { allSuites.forEach(s => console.log(s.name.padEnd(12) + " " + parts[s.name].padEnd(10) + " " + s.description)); return 0; }
+  const part = opts.part === undefined ? null : String(opts.part);
+  if (part !== null && part !== REST && !PARTS[part]) { console.error("--part names no part: " + part + " (the parts: " + Object.keys(PARTS).concat(REST).join(", ") + ")"); return 2; }
+  const pool = part === null ? allSuites : allSuites.filter(s => parts[s.name] === part);
 
   let pwInfo;
   try { pwInfo = require("./lib/pw").resolvePlaywright(); }
@@ -168,7 +213,7 @@ async function main() {
   const skip = opts.skip ? String(opts.skip).split(",").map(s => s.trim()).filter(Boolean) : [];
   const unknown = skip.filter(o => !allSuites.some(s => s.name === o));
   if (unknown.length) { console.error("--skip names no suite: " + unknown.join(",")); return 2; }
-  const suites = (suiteMatches.length ? allSuites.filter(s => suiteMatches.some(o => s.name === o || s.name.includes(o))) : allSuites)
+  const suites = (suiteMatches.length ? pool.filter(s => suiteMatches.some(o => s.name === o || s.name.includes(o))) : pool)
     .filter(s => !skip.includes(s.name));
 
   let pages = site.htmlPages(ROOT);
@@ -195,6 +240,7 @@ async function main() {
     vws: opts.vw ? [parseInt(opts.vw, 10)] : [1280, 360],
     opts, report, axeSource: pwInfo.axeSource, axeVersion: pwInfo.axeVersion, h: null
   };
+  if (part !== null) console.log("part " + part + ": " + (suites.map(s => s.name).join(", ") || "no suite"));
   console.log("serving " + server.where + " (base " + BASE + " = " + baseSha.slice(0, 10) + " under /__base/); Playwright " + pwInfo.version + " from " + pwInfo.from);
 
   /* the WebGL probe decides how Chromium is launched for everything else */
@@ -217,7 +263,7 @@ async function main() {
   await ctx.browser.close();
   await server.close();
 
-  const meta = { startedAt: new Date(t0).toISOString(), durationMs: Date.now() - t0, served: server.label, base: BASE, baseSha, playwright: pwInfo.version, playwrightFrom: pwInfo.from, axe: pwInfo.axeVersion, launch: ctx.launch, pages, themes: ctx.themes, vws: ctx.vws, only: only };
+  const meta = { startedAt: new Date(t0).toISOString(), durationMs: Date.now() - t0, served: server.label, base: BASE, baseSha, playwright: pwInfo.version, playwrightFrom: pwInfo.from, axe: pwInfo.axeVersion, launch: ctx.launch, pages, themes: ctx.themes, vws: ctx.vws, only: only, part: part };
   fs.writeFileSync(path.join(OUT, "report.json"), JSON.stringify(Object.assign({}, meta, { suites: report.suites, cells: report.cells }), null, 1));
   writeIndex(report, meta);
   const totals = Object.values(report.suites).reduce((a, s) => ({ pass: a.pass + s.pass, fail: a.fail + s.fail, warn: a.warn + s.warn, skip: a.skip + s.skip }), { pass: 0, fail: 0, warn: 0, skip: 0 });

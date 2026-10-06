@@ -233,7 +233,7 @@ Write `function checkThing(ctx, r)` in `check-static.js` — `ctx` has every pag
 
 ## check-browser.js
 
-Usage: `node tools/check-browser.js [--root=<dir>] [--only=<substring>] [--skip=<suite,suite>] [--theme=light|dark] [--vw=1280|360] [--base=<ref>] [--headed] [--strict-axe] [--list]`
+Usage: `node tools/check-browser.js [--root=<dir>] [--only=<substring>] [--skip=<suite,suite>] [--theme=light|dark] [--vw=1280|360] [--base=<ref>] [--headed] [--strict-axe] [--part=<part>] [--list] [--parts]`
 
 Playwright and axe-core are dev dependencies (`package.json`, pinned by `package-lock.json`):
 `npm ci` installs them and `npx playwright install chromium` downloads the browser, once per
@@ -327,7 +327,12 @@ chapter 11's header row read `Θ` and `Π/6`, a revealed answer `Π/2 AND Π/6`,
 callout `I` for `i`. `.katex { text-transform: none; }` keeps a formula's case.
 
 `--only` takes suite names (`--only=pages,motion`) or a page-path substring (`--only=05-distance`),
-or both; `--skip` takes suite names to leave out. The theme is forced the way the site reads it —
+or both; `--skip` takes suite names to leave out. `--part=<part>` runs one part of `PARTS` in
+`check-browser.js`, the split CI runs side by side (below): `--part=rest` is every suite no part
+names, and `--only` and `--skip` narrow a part like the whole. `--list` prints each suite with its
+part; `--parts` checks `PARTS` against the files in `suites/` (a name that is no suite, or a suite
+in two parts, exits 2) and prints the part names as JSON, which is the browser job's matrix. The
+theme is forced the way the site reads it —
 `localStorage["bm.theme"]` holds the JSON string `"dark"`/`"light"` (note the quotes: every store
 value is `JSON.stringify`ed) and the context's `colorScheme` matches — which is how the inline
 boot script reads it before paint.
@@ -341,6 +346,8 @@ theme/viewport/storage seeds/reduced motion/no-WebGL, `newContext`, `open`, `set
 `screenshot`, `noWebGL`, `blockUrl`); results go through `ctx.report.pass/fail/warn/skip`. The full interface is
 documented at the top of `check-browser.js`. `lib/drive.js` answers exercises by kind for suites
 that need a solved or a wrong card. A `game`, `scenes` or `arena` suite is one more file.
+In CI a new suite runs in the part `rest` with no change anywhere else; give it a part in
+`PARTS` when it makes that job the slowest.
 
 `h.newPage({ storage })` writes its seeds on every page load, which suits a suite that opens one
 page. A suite that follows state across pages seeds once instead, through the browser context's
@@ -422,7 +429,12 @@ Software WebGL is slow and can lose its context under load, which is why CI runs
 (`npm run test:browser:3d`: `game/map.test.js`, and `game/scenes.test.js`, whose painter check
 runs under the same flags while the rest of it draws on the SVG painter) and the `webgl` suite
 in a job of their own, retried, outside the gate a deploy waits for; `npm run test:browser:core`
-and `check-browser.js --skip=webgl` are the gate. The gate is not retried, and nothing in it
+and `check-browser.js --skip=webgl` are the gate. The gate runs as one `browser` job per part of
+`PARTS` (`--parts` gives the build job the list), side by side, each `check-browser.js
+--skip=webgl --part=<part>`, and the `rest` job runs `npm run test:browser:core` first: every
+suite once, under the flags the single job used, in about 6 minutes where it took 16 to 21. The
+parts are balanced by the suites' times on a runner (the numbers are beside `PARTS`), and each
+job uploads its own report, `check-browser-report-<part>`. The gate is not retried, and nothing in it
 depends on another server (see the paragraph on third-party requests above) or on the WebGL a
 runner happens to offer: the `tools/game` scripts in it abort the request for `bundle/three.js`,
 so their stages and course map take the flat fallbacks on every machine. The `webgl` probe
