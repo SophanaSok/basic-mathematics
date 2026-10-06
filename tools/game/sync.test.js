@@ -548,6 +548,37 @@ scenario("progress carried from the old address for an account goes to that acco
   expect(!d.read("bm.sync.pending.v1", {}).u1, "the carried record was kept after it reached the account", d.read("bm.sync.pending.v1", {}));
 });
 
+/* A carried record came in a link anyone can write, for any account whose id they know:
+   its reset time must never empty the account or raise the account's reset. */
+scenario("progress carried for an account never applies a reset to it", async () => {
+  for (const resetAt of [now, 1e300]) {
+    const server = new Server();
+    server.rows.u1 = { user_id: "u1", progress: { ch01: { solved: { e1: true, e2: true }, total: 10 }, ch02: { solved: { e5: true }, total: 10 } }, reset_at: 0, updated_at: now - 86400000 };
+    const d = new Device("laptop", server);
+    d.storage.set("bm.sync.pending.v1", JSON.stringify({ u1: { email: "", via: [], resetAt, state: { progress: { ch09: { solved: { e1: true }, total: 3 } } }, at: now, carried: 1 } }));
+    d.remember("u1"); d.open(); await settle();
+    const s = server.solved("u1");
+    expect(["ch01/e1", "ch01/e2", "ch02/e5", "ch09/e1"].every((k) => has(s, k)), "a carried record with reset time " + resetAt + " emptied the account", s);
+    expect(Number(server.rows.u1.reset_at) === 0, "a carried record raised the account's reset", server.rows.u1.reset_at);
+  }
+});
+
+scenario("a carried record set aside again at a sign-out does not become this browser's reset", async () => {
+  const server = new Server();
+  server.rows.u1 = { user_id: "u1", progress: { ch01: { solved: { e1: true }, total: 10 } }, reset_at: 0, updated_at: now - 86400000 };
+  const d = new Device("laptop", server);
+  d.storage.set("bm.sync.pending.v1", JSON.stringify({ u1: { email: "", via: [], resetAt: now, state: { progress: { ch09: { solved: { e1: true }, total: 3 } } }, at: now, carried: 1 } }));
+  /* signed in while the service cannot be reached: the record stays, and the sign-out sets it aside again */
+  server.offline = true;
+  d.remember("u1"); d.open(); await settle();
+  await d.page.signOut();
+  const again = d.read("bm.sync.pending.v1", {}).u1;
+  expect(again && !(Number(again.resetAt) >= now), "setting a carried record aside again kept its reset time", again);
+  server.offline = false;
+  d.remember("u1"); d.open(); await settle();
+  expect(has(server.solved("u1"), "ch01/e1") && has(server.solved("u1"), "ch09/e1"), "the account lost progress", server.solved("u1"));
+});
+
 scenario("a reset that never reached the account does not wipe work another device saved after it", async () => {
   const { server, laptop, phone } = await twoDevices();
   laptop.page.solve("ch01", "e1"); await settle();

@@ -420,7 +420,8 @@
       p[u.id] = {
         email: u.email || "",
         via: methodIds(u),
-        resetAt: Math.max(Number(m.resetAt) || 0, Number(old.resetAt) || 0),
+        /* a carried record's reset time is not one this browser made (sync) */
+        resetAt: Math.max(Number(m.resetAt) || 0, old.carried ? 0 : Number(old.resetAt) || 0),
         state: old.state ? merge(state, old.state) : state,
         at: Date.now()
       };
@@ -547,8 +548,11 @@
       /* A reset made on this browser that the row has not heard of. If nothing has been
          saved since it, the row's state is from before the reset and is left out. If
          another device has saved since, its work is kept and this reset is given up:
-         losing a reset can be undone by pressing it again, losing work cannot. */
-      var known = Math.max(mine, asideReset), base = remote || {}, resetAt = remoteReset;
+         losing a reset can be undone by pressing it again, losing work cannot.
+         Progress carried from the old address (`carried`, src/carry/format.ts) came in a
+         link or a file anyone can write, so its reset time only decides whether what it
+         holds is kept (above): it never applies a reset to the account. */
+      var known = Math.max(mine, aside.carried ? 0 : asideReset), base = remote || {}, resetAt = remoteReset;
       if (known > remoteReset) {
         var written = remote ? Date.parse(remote.updated_at) : 0;
         if (!(written >= known)) { base = {}; resetAt = known; }

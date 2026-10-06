@@ -16,8 +16,9 @@
    is not one the old address wrote); nesting and node count are bounded; "__proto__" is
    taken out at every level. Then every store is rebuilt from what it holds, field by
    field, keeping only what the site itself writes (clean(): solved and done maps of
-   true; counts, timestamps and days that are finite, in range, and never later than
-   tomorrow; the settings' known values): anything else inside a store is left out and
+   true, but never a chapter's total, which its own page writes; counts, timestamps and
+   days that are finite, in range, and never later than tomorrow; reset times no later
+   than now; the settings' known values): anything else inside a store is left out and
    counted (`dropped`), a store that is not one at all is left out whole (`ignored`), so
    a value the merge cannot read never reaches it. The reader is then shown what it
    holds (summary(), which names every kind of thing that would be written) and asked,
@@ -188,14 +189,16 @@ async function inflate(bytes: Uint8Array, max: number): Promise<Uint8Array | nul
 
 /** The owner of a payload (`a`, which send.js writes from bm.sync.v1): absent is
     nobody's; present, it must be an account id and a reset time, or nothing is taken
-    (a malformed one cannot be told from a signed-in reader's progress). */
-function ownerOf(x: unknown): Owner | null | false {
+    (a malformed one cannot be told from a signed-in reader's progress). The reset time
+    is never later than `now`: it only decides which of the carried progress the account
+    keeps (assets/account.js sync), and a carried one never applies a reset there. */
+function ownerOf(x: unknown, now: number): Owner | null | false {
   if (x === undefined) return null;
   if (!plain(x)) return false;
   const user = own(x, "user"), resetAt = own(x, "resetAt");
   if (typeof user !== "string" || !/^[A-Za-z0-9-]{1,64}$/.test(user)) return false;
   if (resetAt !== undefined && !(typeof resetAt === "number" && isFinite(resetAt) && resetAt >= 0)) return false;
-  return { user, resetAt: typeof resetAt === "number" ? resetAt : 0 };
+  return { user, resetAt: typeof resetAt === "number" ? Math.min(resetAt, now) : 0 };
 }
 
 /** The progress in a bm-carry value, checked (check()), or why it is refused. */
@@ -217,7 +220,7 @@ export async function decode(value: string, now: number = Date.now()): Promise<O
   if (!plain(payload)) return { ok: false, why: "malformed" };
   const ver = own(payload, "v");
   if (ver !== 1) return { ok: false, why: typeof ver === "number" ? "version" : "malformed" };
-  const owner = ownerOf(own(payload, "a"));
+  const owner = ownerOf(own(payload, "a"), now);
   if (owner === false) return { ok: false, why: "malformed" };
   return check(own(payload, "s"), { now, owner });
 }
@@ -237,7 +240,7 @@ export function fromFile(text: string, now: number = Date.now()): Outcome {
   if (fmt !== undefined && fmt !== "basic-mathematics-progress") return { ok: false, why: "malformed" };
   const ver = own(data, "v");
   if (ver !== undefined && ver !== 1) return { ok: false, why: typeof ver === "number" ? "version" : "malformed" };
-  const owner = fmt === "basic-mathematics-progress" ? ownerOf(own(data, "owner")) : null;
+  const owner = fmt === "basic-mathematics-progress" ? ownerOf(own(data, "owner"), now) : null;
   if (owner === false) return { ok: false, why: "malformed" };
   const stores: Stores = {};
   let found = 0;
@@ -297,6 +300,8 @@ function isDay(v: unknown, c: Ctx): v is string {
 const isKey = (k: string) => k !== "__proto__" && k.length > 0 && k.length <= 120;
 
 const num = (max: number, min = 0): Rule => (v) => (typeof v === "number" && isFinite(v) && v >= min && v <= max ? v : undefined);
+/** the reset time of a set-aside record: never later than now (ownerOf says why) */
+const resetTime: Rule = (v, c) => (typeof v === "number" && isFinite(v) && v >= 0 ? Math.min(v, c.now) : undefined);
 const whole = (max: number, min = 0): Rule => (v) => (typeof v === "number" && Number.isInteger(v) && v >= min && v <= max ? v : undefined);
 const oneOf = (list: unknown[]): Rule => (v) => (list.indexOf(v) >= 0 ? v : undefined);
 const bool: Rule = (v) => (typeof v === "boolean" ? v : undefined);
@@ -318,11 +323,15 @@ const map = (each: Rule, key?: (k: string, c: Ctx) => boolean): Rule => (x, c) =
   }
   return out;
 };
+/** a field the site writes that is never taken from a carried store, and so is not
+    counted as dropped either */
+const notTaken: Rule = () => undefined;
 /** a record of named fields, each with its rule; any other field is left out */
 const rec = (rules: Record<string, Rule>): Rule => (x, c) => {
   if (!plain(x)) return undefined;
   const out: Record<string, unknown> = {};
   for (const k of Object.keys(x)) {
+    if (has(rules, k) && rules[k] === notTaken) continue;
     const v = has(rules, k) ? rules[k](x[k], c) : undefined;
     if (v === undefined) c.dropped++;
     else out[k] = v;
@@ -349,9 +358,15 @@ const newest = (n: number, inner: Rule): Rule => (x, c) => {
 const MODES = ["standard", "daily", "boss", "repair", "review"];
 const COUNT = whole(1000000);
 
+/* A chapter's `total` (its scored exercises, its missions) is not taken: the merge keeps
+   the larger of two totals, so a total larger than the chapter's would make a finished
+   chapter look unfinished here and, once synced, in the account, where no device could
+   lower it again. The chapter's page writes the real total when it is opened (site.js
+   initExercises, and Play.setTotal), and an account sync brings the one another device
+   wrote. A chapter record with nothing else in it is no record. */
 const STORE: Record<string, Rule> = {
-  "bm.progress.v1": map(rec({ solved: map(yes), total: whole(200) })),
-  "bm.play.v1": map(rec({ done: map(yes), total: whole(200), guess: whole(20) })),
+  "bm.progress.v1": map(filled(rec({ solved: map(yes), total: notTaken }))),
+  "bm.play.v1": map(filled(rec({ done: map(yes), total: notTaken, guess: whole(20) }))),
   "bm.attempts.v1": map(map(filled(rec({
     tries: whole(1000), hints: whole(10), rung: whole(10), opened: flag, inline: flag, section: text(120),
     solved: time, first: oneOf([0, 1]), skipped: flag
@@ -415,7 +430,7 @@ const ASIDE: Rule = map((r, c) => {
   return rec({
     email: (v) => (typeof v === "string" && v.length <= 254 && (v === "" || /^[^\s@]+@[^\s@]+$/.test(v)) ? v : undefined),
     via: (v) => (Array.isArray(v) && v.length <= 5 && v.every((p) => PROVIDERS.indexOf(p) >= 0) ? v.slice() : undefined),
-    resetAt: num(c.now + DAY_MS),
+    resetAt: resetTime,
     state: STATE,
     at: time,
     carried: flag
@@ -551,19 +566,29 @@ export function describe(s: Summary): string {
 
 /* ------------------------------------------------------------- merging -- */
 
-/* two set-aside records (account.js setAside) of the same account */
+/* Two set-aside records (account.js setAside) of the same account. A record this
+   browser set aside itself (not `carried`) keeps its own email, services and reset
+   time, and stays its own: a carried record only adds progress to it, so a link cannot
+   raise its reset time (which assets/account.js sync applies to the account) or name
+   an email or service on it. Two carried records keep the later reset time, which
+   decides only what of them the account keeps. */
 function mergePending(a: unknown, b: unknown, merge: Merge): unknown {
   if (!plain(a)) return b;
   if (!plain(b)) return a;
+  const num = (x: unknown) => (typeof x === "number" && isFinite(x) ? x : 0);
+  const state = merge(plain(a.state) ? a.state : {}, plain(b.state) ? b.state : {}), at = Math.max(num(a.at), num(b.at));
+  const kept = !!a.carried !== !!b.carried ? (a.carried ? b : a) : null;
+  if (kept) {
+    return { email: typeof kept.email === "string" ? kept.email : "", via: Array.isArray(kept.via) ? kept.via.slice() : [], resetAt: num(kept.resetAt), state, at };
+  }
   const via: string[] = [];
   [a.via, b.via].forEach((list) => { if (Array.isArray(list)) list.forEach((p) => { if (typeof p === "string" && via.indexOf(p) < 0) via.push(p); }); });
-  const num = (x: unknown) => (typeof x === "number" && isFinite(x) ? x : 0);
   const out: Record<string, unknown> = {
     email: (typeof a.email === "string" && a.email) || (typeof b.email === "string" && b.email) || "",
     via,
     resetAt: Math.max(num(a.resetAt), num(b.resetAt)),
-    state: merge(plain(a.state) ? a.state : {}, plain(b.state) ? b.state : {}),
-    at: Math.max(num(a.at), num(b.at))
+    state,
+    at
   };
   if (a.carried || b.carried) out.carried = 1;
   return out;
@@ -612,7 +637,9 @@ export function plan(read: (key: string) => unknown, carried: Stores, merge: Mer
     const here = read(PENDING);
     const mine: Record<string, unknown> = plain(here) ? here : {};
     /* every set-aside record that arrives is marked `carried`: the account page then says
-       it came from the old address, and never repeats an email or a service it names */
+       it came from the old address, and never repeats an email or a service it names;
+       arriving for an account this browser has set progress aside for itself, it only
+       adds its progress to that record (mergePending) */
     const incoming: Record<string, unknown> = {};
     if (plain(carried[PENDING])) Object.keys(carried[PENDING] as object).forEach((id) => {
       const r = (carried[PENDING] as Record<string, unknown>)[id];

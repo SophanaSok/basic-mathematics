@@ -61,8 +61,33 @@ var BMCarrySend = (function () {
       key.toLowerCase().indexOf("auth-token") < 0;
   }
 
-  /* every carried key with its value parsed, keys in order; a value that is not JSON is
-     left behind, as the site itself reads it as missing */
+  /* What the new address never keeps is not sent, since an address is kept in the
+     session and the browser's history: the Arena run in play (bm.run.v1 `arena`, which
+     holds what the reader has typed into the question in front of them; a run is
+     started again there), and the email of each reader whose progress is set aside
+     (bm.sync.pending.v1; the new address names none for a carried record). */
+  function trim(key, value) {
+    var out = value, k;
+    if (key === "bm.run.v1" && value && typeof value === "object" && Object.prototype.hasOwnProperty.call(value, "arena")) {
+      out = {};
+      for (k in value) if (Object.prototype.hasOwnProperty.call(value, k) && k !== "arena" && k !== "__proto__") out[k] = value[k];
+    } else if (key === "bm.sync.pending.v1" && value && typeof value === "object") {
+      out = {};
+      for (k in value) {
+        if (!Object.prototype.hasOwnProperty.call(value, k) || k === "__proto__") continue;
+        var r = value[k], copy = r, f;
+        if (r && typeof r === "object" && Object.prototype.hasOwnProperty.call(r, "email")) {
+          copy = {};
+          for (f in r) if (Object.prototype.hasOwnProperty.call(r, f) && f !== "email" && f !== "__proto__") copy[f] = r[f];
+        }
+        out[k] = copy;
+      }
+    }
+    return out;
+  }
+
+  /* every carried key with its value parsed (and trimmed), keys in order; a value that is
+     not JSON is left behind, as the site itself reads it as missing */
   function collect(storage) {
     var stores = {}, count = 0, keys = [], i;
     try {
@@ -74,7 +99,7 @@ var BMCarrySend = (function () {
       if (!carried(k)) continue;
       try { raw = storage.getItem(k); } catch (e) { raw = null; }
       if (raw === null) continue;
-      try { stores[k] = JSON.parse(raw); count++; } catch (e) { /* unreadable here too */ }
+      try { stores[k] = trim(k, JSON.parse(raw)); count++; } catch (e) { /* unreadable here too */ }
     }
     var owner = null;
     try { owner = ownerOf(storage); } catch (e) { owner = null; }

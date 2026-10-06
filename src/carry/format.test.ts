@@ -19,6 +19,9 @@ type Send = {
   anchor(hash: string): string;
 };
 const send: Send = new Function(fs.readFileSync(path.join(ROOT, "src/carry/send.js"), "utf8") + "\nreturn BMCarrySend;")();
+/* the legacy carry page (src/carry/page.js), as it is inlined after send.js */
+const page: { pathFrom(search: string, origin: string): string; file(stores: Stores, from: string, owner: Owner | null): unknown } =
+  new Function(fs.readFileSync(path.join(ROOT, "src/carry/page.js"), "utf8") + "\nreturn BMCarryPage;")();
 
 /* account.js as merge.test.js loads it: no page, no server, just the merge */
 function loadMerge(): (a: Record<string, unknown>, b: Record<string, unknown>) => Record<string, unknown> {
@@ -56,6 +59,13 @@ function canon(x: unknown): string {
   if (Array.isArray(x)) return "[" + x.map(canon).join(",") + "]";
   if (x && typeof x === "object") return "{" + Object.keys(x).sort().map((k) => JSON.stringify(k) + ":" + canon((x as Record<string, unknown>)[k])).join(",") + "}";
   return JSON.stringify(x);
+}
+
+/* a progress or play store as it arrives: every chapter's total is not taken */
+function noTotals(store: unknown): Record<string, unknown> {
+  const out: Record<string, unknown> = {};
+  Object.entries(store as Record<string, Record<string, unknown>>).forEach(([ch, r]) => { const { total: _, ...rest } = r; out[ch] = rest; });
+  return out;
 }
 
 /* the saved-state fixture the upgrade suite seeds: a learner three chapters in */
@@ -134,6 +144,26 @@ describe("what the old address sends", () => {
     expect(send.collect(storage({ "bm.theme": '"dark"', "bm.sync.v1": '{"user":"<b>x</b>"}' })).owner).toBeNull();
   });
 
+  it("leaves out what the new address never keeps: the Arena answer being typed, and set-aside emails", () => {
+    const got = send.collect(storage(stored({
+      "bm.run.v1": { arena: { cur: { given: "TYPED-BY-READER 42" } }, combo: { pips: 2 } },
+      "bm.sync.pending.v1": { "u-9": { email: "someone@example.com", via: ["github"], resetAt: 0, state: { progress: { ch03: { solved: { e2: true } } } }, at: 5 } }
+    })));
+    expect(JSON.stringify(got.stores)).not.toMatch(/TYPED-BY-READER|someone@example\.com|"arena"|"email"/);
+    expect(got.stores["bm.run.v1"]).toEqual({ combo: { pips: 2 } });
+    expect(got.stores["bm.sync.pending.v1"]).toEqual({ "u-9": { via: ["github"], resetAt: 0, state: { progress: { ch03: { solved: { e2: true } } } }, at: 5 } });
+    /* and the file the carry page offers is made from the same */
+    expect(JSON.stringify(page.file(got.stores, "x", null))).not.toMatch(/TYPED-BY-READER|someone@example\.com/);
+  });
+
+  it("sends the carry page's reader to a single path at the new address and nowhere else", () => {
+    const o = "https://learn.example";
+    expect(page.pathFrom("?to=%2Fprogress%3Fx%3D1", o)).toBe("/progress?x=1");
+    ["?to=//evil.example/", "?to=/%5Cevil.example/", "?to=https://evil.example/", "?to=javascript:alert(1)",
+      "?to=/%09/evil.example", "?to=/%0a/evil.example", "?to=/%0d/evil.example", "?to=%09//evil.example", "?to=/%7F/x", "?to=%E0%A4%A"]
+      .forEach((q) => expect(page.pathFrom(q, o), q).toBe("/"));
+  });
+
   it("never sends on an old fragment that is itself a payload", () => {
     expect(send.anchor("#integers")).toBe("integers");
     expect(send.anchor("#bm-carry=1jAAAA")).toBe("");
@@ -148,10 +178,11 @@ describe("what the old address sends", () => {
       "bm.lesson.v1": { reached: { "chäpter-😀": 3 }, mode: "page", extra: [1, "two", null, { three: 3 }] },
       "bm.theme": "light"
     };
-    /* what arrives: every value the site writes, Unicode keys and all; the two fields no
-       version of the site writes (note, extra) are left out and counted */
+    /* what arrives: every value the site writes, Unicode keys and all, but a chapter's
+       total (never taken); the two fields no version of the site writes (note, extra)
+       are left out and counted */
     const kept = {
-      "bm.progress.v1": { "ch01": { solved: { "e1": true, "ünïcødé-é": true, "😀": true }, total: 2 } },
+      "bm.progress.v1": { "ch01": { solved: { "e1": true, "ünïcødé-é": true, "😀": true } } },
       "bm.last": null,
       "bm.lesson.v1": { reached: { "chäpter-😀": 3 }, mode: "page" },
       "bm.theme": "light"
@@ -314,11 +345,13 @@ describe("the merge into this browser", () => {
     expect(writes["bm.theme"]).toBe(fixture["bm.theme"]);
     /* set-aside progress, per reader */
     const pend = writes["bm.sync.pending.v1"] as Record<string, Record<string, unknown>>;
-    expect(pend["u-1"]).toMatchObject({ email: "a@b.c", via: ["github", "google"], resetAt: 7, at: 20 });
+    /* the record this browser set aside itself keeps its own email, services and reset
+       time, and takes in the carried progress (the link cannot raise its reset, which
+       account.js applies to the account, or name a service on it) */
+    expect(pend["u-1"]).toEqual({ email: "a@b.c", via: ["github"], resetAt: 3, at: 20, state: pend["u-1"].state });
     const pstate = pend["u-1"].state as { progress: Record<string, unknown> };
     expect(Object.keys(pstate.progress).sort()).toEqual(["ch02", "ch03"]);
     expect(pend["u-2"]).toEqual({ email: "x@y.z", state: {}, carried: 1 });
-    expect(pend["u-1"].carried).toBe(1);
     /* and carrying the same again changes nothing more (the first time may fill in a
        record's known fields, as any merge does) */
     const after = { ...here, ...writes };
@@ -443,6 +476,51 @@ describe("a crafted payload the reader says yes to", () => {
     expect((state["bm.game.v1"] as { v?: number }).v).toBe(1);
   });
 
+  it("cannot lower a chapter's progress here with a larger total", async () => {
+    /* a finished chapter (the fixture's ch01 is 10 / 10) must stay finished */
+    const payload = { v: 1, s: { "bm.theme": "dark", "bm.progress.v1": { ch01: { solved: {}, total: 200 }, ch05: { solved: {}, total: 200 } }, "bm.play.v1": { ch01: { done: {}, total: 200 } } } };
+    const { out, state } = await yes(payload, Object.fromEntries(Object.entries(here).filter(([k]) => k !== "bm.theme")));
+    expect(out.ok && describeIt(summary(out.stores))).toBe("Your settings.");
+    keepsHere(state);
+    const totals = (k: string) => Object.fromEntries(Object.entries(state[k] as Record<string, { total?: number }>).map(([ch, r]) => [ch, r.total]));
+    const was = (k: string) => Object.fromEntries(Object.entries(here[k] as Record<string, { total?: number }>).map(([ch, r]) => [ch, r.total]));
+    expect(totals("bm.progress.v1")).toEqual(was("bm.progress.v1"));
+    expect(totals("bm.play.v1")).toEqual(was("bm.play.v1"));
+    /* a chapter record that held nothing but a total is no record */
+    expect(out.ok && out.stores["bm.progress.v1"]).toEqual({ ch01: { solved: {} }, ch05: { solved: {} } });
+    expect((await decode(pack({ v: 1, s: { "bm.theme": "dark", "bm.play.v1": { ch01: { total: 200 } } } }), NOW) as { stores: Stores }).stores["bm.play.v1"]).toEqual({});
+  });
+
+  it("never carries a reset time later than now", async () => {
+    const aside = (resetAt: number) => ({ "bm.sync.pending.v1": { u1: { resetAt, state: { progress: { ch09: { solved: { e1: true } } } } } } });
+    for (const resetAt of [NOW + 3600000, 1e300]) {
+      const owned = await decode(pack({ v: 1, a: { user: "u1", resetAt }, s: { "bm.progress.v1": { ch09: { solved: { e1: true } } } } }), NOW);
+      expect(owned.ok && owned.owner).toEqual({ user: "u1", resetAt: NOW });
+      const set = await decode(pack({ v: 1, s: aside(resetAt) }), NOW);
+      expect(set.ok && (set.stores["bm.sync.pending.v1"] as Record<string, { resetAt: number }>).u1.resetAt).toBe(NOW);
+    }
+    const file = fromFile(JSON.stringify({ format: "basic-mathematics-progress", v: 1, progress: { ch09: { solved: { e1: true } } }, owner: { user: "u1", resetAt: 1e300 } }), NOW);
+    expect(file.ok && file.owner).toEqual({ user: "u1", resetAt: NOW });
+    /* an earlier one is kept as it came: it decides what of the progress the account keeps */
+    const early = await decode(pack({ v: 1, s: aside(5) }), NOW);
+    expect(early.ok && (early.stores["bm.sync.pending.v1"] as Record<string, { resetAt: number }>).u1.resetAt).toBe(5);
+  });
+
+  it("never raises the reset time of progress this browser set aside itself", async () => {
+    /* this browser set u1's progress aside at a sign-out, with the reset it knew (3) */
+    const base = { ...here, "bm.sync.pending.v1": { u1: { email: "a@b.c", via: ["github"], resetAt: 3, state: { progress: { ch02: { solved: { e9: true } } } }, at: 10 } } };
+    for (const payload of [
+      { v: 1, a: { user: "u1", resetAt: NOW }, s: { "bm.progress.v1": { ch09: { solved: { e1: true } } } } },
+      { v: 1, s: { "bm.sync.pending.v1": { u1: { email: "x@y.z", via: ["google"], resetAt: NOW, state: { progress: { ch09: { solved: { e1: true } } } } } } } }
+    ]) {
+      const { out, state } = await yes(payload, base);
+      expect(out.ok).toBe(true);
+      const r = (state["bm.sync.pending.v1"] as Record<string, Record<string, unknown>>).u1;
+      expect({ email: r.email, via: r.via, resetAt: r.resetAt, carried: r.carried }).toEqual({ email: "a@b.c", via: ["github"], resetAt: 3, carried: undefined });
+      expect(Object.keys((r.state as { progress: object }).progress).sort()).toEqual(["ch02", "ch09"]);
+    }
+  });
+
   it("says what set-aside progress it would plant, and refuses one with nothing in it (review case B)", async () => {
     const aside = { email: "support@groundupmath.org", via: ["google", "myspace"], resetAt: 0, state: { progress: { ch01: { solved: { e1: true } } } }, at: 1789214400000 };
     const out = await decode(pack({ v: 1, s: { "bm.sync.pending.v1": { "00000000-0000-0000-0000-000000000000": aside, "<b>": aside } } }), NOW);
@@ -476,11 +554,12 @@ describe("progress of an account that was signed in at the old address", () => {
     const aside = (writes["bm.sync.pending.v1"] as Record<string, Record<string, unknown>>)["u-1"];
     expect(aside).toMatchObject({ email: "", via: [], resetAt: 5, at: NOW, carried: 1 });
     expect(Object.keys(aside.state as object).sort()).toEqual(["activity", "attempts", "game", "last", "lesson", "play", "progress"]);
-    expect(canon((aside.state as Record<string, unknown>).progress)).toBe(canon(fixture["bm.progress.v1"]));
+    expect(canon((aside.state as Record<string, unknown>).progress)).toBe(canon(noTotals(fixture["bm.progress.v1"])));
     /* this browser's own progress is untouched, and so is everything set aside for others */
     const twice = plan(read({ ...here, ...writes, "bm.sync.pending.v1": { "u-2": { email: "b@c.d", state: { progress: {} } }, ...(writes["bm.sync.pending.v1"] as object) } }), out.stores, merge, out.owner, NOW + 1);
     expect(Object.keys(twice["bm.sync.pending.v1"] as object).sort()).toEqual(["u-1", "u-2"]);
-    expect(canon(((twice["bm.sync.pending.v1"] as Record<string, Record<string, unknown>>)["u-1"].state as Record<string, unknown>).progress)).toBe(canon(fixture["bm.progress.v1"]));
+    /* (the merge fills in a total it has none for as 0, which the site reads as unknown) */
+    expect(canon(noTotals(((twice["bm.sync.pending.v1"] as Record<string, Record<string, unknown>>)["u-1"].state as Record<string, unknown>).progress))).toBe(canon(noTotals(fixture["bm.progress.v1"])));
   });
 
   it("refuses an owner that is not an account id", async () => {

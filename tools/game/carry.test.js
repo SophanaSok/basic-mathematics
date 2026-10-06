@@ -69,6 +69,12 @@ const eq = (a, b, what) => check(JSON.stringify(a) === JSON.stringify(b), what, 
 const CACHE = path.join(site.ROOT, ".cache", "carry");
 const SEED = path.join(CACHE, "seed");
 const FIXTURE = JSON.parse(fs.readFileSync(path.join(site.ROOT, "tools/fixtures/state-v1.json"), "utf8")).storage;
+/* a progress store as it arrives: a chapter's total is never taken (src/carry/format.ts) */
+function noTotals(store) {
+  const out = {};
+  Object.keys(store).forEach((ch) => { const r = Object.assign({}, store[ch]); delete r.total; out[ch] = r; });
+  return out;
+}
 const SESSION = "sb-jfidvrzonyzfstnykzly-auth-token";
 
 (async () => {
@@ -208,7 +214,7 @@ const SESSION = "sb-jfidvrzonyzfstnykzly-auth-token";
     const s = await storageOf(page, NEW);
     eq(parse(s["bm.progress.v1"]), newState["bm.progress.v1"], "1b this browser's own progress is not touched");
     const aside = parse(s["bm.sync.pending.v1"]);
-    check(aside && aside["u-1"] && aside["u-1"].carried === 1 && aside["u-1"].resetAt === 5 && JSON.stringify(aside["u-1"].state.progress) === JSON.stringify(FIXTURE["bm.progress.v1"]), "1b it is set aside for that account alone", aside);
+    check(aside && aside["u-1"] && aside["u-1"].carried === 1 && aside["u-1"].resetAt === 5 && JSON.stringify(aside["u-1"].state.progress) === JSON.stringify(noTotals(FIXTURE["bm.progress.v1"])), "1b it is set aside for that account alone (every solved exercise, and no chapter total: its page writes that)", aside);
     check(!Object.keys(s).some((k) => /^sb-|auth-token/.test(k)) && !("bm.sync.v1" in s), "1b no session, no account binding", Object.keys(s));
     /* the page here writes a run store of its own; the old one's ledger is not in it */
     check(!JSON.stringify(parse(s["bm.run.v1"]) || {}).includes(FIXTURE["bm.run.v1"].paid[0]), "1b the run store stays with the account's progress", s["bm.run.v1"]);

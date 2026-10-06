@@ -21,14 +21,17 @@ var BMCarryPage = (function () {
   "use strict";
   var SYNCED = { progress: "bm.progress.v1", play: "bm.play.v1", attempts: "bm.attempts.v1", activity: "bm.activity.v1", lesson: "bm.lesson.v1", last: "bm.last", game: "bm.game.v1" };
 
-  /* a path at the new address, from ?to=; "/" for anything else */
+  /* a path at the new address, from ?to=; "/" for anything else. A control character
+     is refused before parsing (URL drops tabs and newlines, so "/\t/x" would become
+     "//x"), and the parsed path is held to the same rule as the text. */
   function pathFrom(search, origin) {
     var m = /[?&]to=([^&#]*)/.exec(search || ""), p = "/";
     if (m) { try { p = decodeURIComponent(m[1].replace(/\+/g, " ")); } catch (e) { p = "/"; } }
-    if (p.charAt(0) !== "/" || p.charAt(1) === "/" || p.charAt(1) === "\\") return "/";
+    var single = function (s) { return s.charAt(0) === "/" && s.charAt(1) !== "/" && s.charAt(1) !== "\\"; };
+    if (!single(p) || /[\u0000-\u001f\u007f]/.test(p)) return "/";
     try {
       var u = new URL(origin + p);
-      return u.origin === origin ? u.pathname + u.search : "/";
+      return u.origin === origin && single(u.pathname) ? u.pathname + u.search : "/";
     } catch (e) { return "/"; }
   }
 
