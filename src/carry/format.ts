@@ -15,9 +15,15 @@
       that origin as the referrer of a navigation it starts: the HTML standard takes the
       referrer from the document that starts the navigation (for location.replace and the
       location setter, the incumbent settings object's document, so a page that sets the
-      location of a window it opened on the old origin is still the referrer). Only the
-      owner publishes at sophanasok.github.io, and the stubs send only what that origin's
-      own storage holds, so a link someone else wrote is dropped unread. The referrer
+      location of a window it opened on the old origin is still the referrer). So a link
+      someone else wrote is dropped unread. What this cannot tell apart is any script
+      that runs at sophanasok.github.io: every GitHub Pages site of the account (the user
+      site and every project site, now or later) is that origin, and script on any of them,
+      the owner's or injected into one of them or loaded by one from a third party, can
+      send any payload a stub could, from any path, or write bm.* keys for a stub to send.
+      So every page there is held to the rule in OPERATIONS.md section 8 (no untrusted text
+      as HTML, no third-party script, a strict CSP), which lists those sites and when they
+      were last checked; rule 2 below holds whatever arrives. The referrer
       is the document's, not the fragment's: a page that kept a handle on the window
       (it opened the stub) could change the fragment of the page that arrived without
       a new document, or reload it or go back to it with its fragment swapped. So the

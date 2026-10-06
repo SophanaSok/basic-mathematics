@@ -6,7 +6,12 @@
       legacy site's pages write it (src/carry/send.js). The fragment is taken out of the
       address at once (history.replaceState, so a reload or a bookmark does not bring it
       back; the old page's own fragment, bm-at, is put back and scrolled to, unless it
-      is itself a payload: format.ts safeAt). Then:
+      is itself a payload: format.ts safeAt). That cleans the address bar and this tab's
+      session history only: the browser has already written the arrival address, payload
+      and all, to its own history, which it offers in suggestions and syncs wherever it
+      syncs history (OPERATIONS.md section 8). It is the reader's signed-out progress and
+      settings, never an account's, and an entry opened from there has no referrer and is
+      not read. Then:
         - Reached from anywhere but the old address (fromLegacy: document.referrer's
           origin is not the legacy origin), or there on anything but the document's
           own first load (freshLoad: a reload, a step back or forward, a restored

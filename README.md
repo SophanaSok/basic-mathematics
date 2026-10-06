@@ -1160,14 +1160,18 @@ and what it reads can only add what this browser does not have.
   unless it is itself a `bm-carry=` payload, which is never sent on. Nothing saved, it goes there
   plainly; longer than `MAX_FRAGMENT` (32,000 characters; a learner who has tried every exercise
   comes to about 11,000), it goes to the old address's carry page, which offers the progress as
-  a file. Any other path of the old address (`404.html`: a folder, a mistyped address) goes to
+  a file; that page's `?to=` (the page to come back to) may name only a page of the site, else
+  the front page, so the payload never lands on the new address's 404 page, which would not
+  take it out of the address. Any other path of the old address (`404.html`: a folder, a mistyped address) goes to
   the front page of the new one, with the progress. Without scripts, a refresh inside
   `<noscript>` and a link take the reader on, without the progress. An iframe cannot do this:
   browsers partition an embedded page's storage by the page around it.
 - **The new address** looks for the fragment on any page (`src/ui/carry.ts`), but only on the
   new address itself, a local server and the project's `pages.dev` addresses (`allowedHost`),
   never on the old address, which serves this same build until the cutover. It takes the
-  fragment out of the address at once (`history.replaceState`, the anchor put back). Then:
+  fragment out of the address at once (`history.replaceState`, the anchor put back); that
+  cleans the address bar and the tab's session history, not the browser's own history, which
+  has already recorded the arrival address with the payload (OPERATIONS.md section 8). Then:
   - **Where it came from** (`fromLegacy`): unless `document.referrer`'s origin is exactly the
     old one (`https://sophanasok.github.io`; on a page served from `localhost`, `LEGACY_LOCAL`,
     `http://127.0.0.1` on any port, where the tests and the runbook's local trial serve the
@@ -1176,8 +1180,12 @@ and what it reads can only add what this browser does not have.
     navigation it starts: the HTML standard takes the referrer from the document that starts the
     navigation (for `location.replace` and the location setter, the incumbent global object's
     document, so a page that sets the location of a window it opened on the old origin is still
-    the referrer), and only the owner publishes at `sophanasok.github.io`, where the stubs send
-    only what that origin's own storage holds. Arriving with no referrer at all (a typed
+    the referrer). What it cannot tell apart is script running anywhere at
+    `sophanasok.github.io`: every GitHub Pages site of the account shares that origin, so each
+    of them (and any script injected into one or loaded by one from a third party) is as
+    trusted as a stub. OPERATIONS.md section 8 holds them all to one rule (no untrusted text as
+    HTML, no third-party script, a strict CSP) and lists them with the date they were checked;
+    the second rule, add-only, holds whatever arrives. Arriving with no referrer at all (a typed
     address, a browser set to send none) or from the new address itself is refused the same way;
     the reader can still bring their progress over from the progress page. The referrer is the
     page's, not the fragment's, so it is held to the page the stub sent in two more ways: every

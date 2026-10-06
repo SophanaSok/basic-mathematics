@@ -627,7 +627,16 @@ sign in again, and nothing of an account is carried (a browser that was signed i
 address sends only its settings and a "was signed in" mark, and the new address tells the reader
 to sign in). A signed-out reader's progress exists only in their browser, at the old origin. The
 legacy site's pages read it there and hand it over in the address's fragment (`#bm-carry=…`),
-which browsers never send to a server. Two rules make that safe, each on its own:
+which browsers never send to a web server. The browser itself does keep it: the arrival
+address, fragment and all, is written to the browser's own history (Chromium records it before
+the page can run; review round 5 found the whole payload in a profile's `History` database), is
+offered back in history and address-bar suggestions, and goes wherever the browser syncs its
+history. `history.replaceState` takes it out of the address bar and the tab's session history
+only. What that history then holds is the reader's own signed-out progress and settings (never
+anything of an account, never a session), and a history entry opened again has no referrer and
+is not read. Keeping it out of every URL would need a different hand-over (a `postMessage`
+from a window the new address opens, or the file alone); that trade is not made here. Two rules
+make the carry safe, each on its own:
 
 - **Only from the old origin.** The new address reads the fragment only when `document.referrer`
   is exactly `https://sophanasok.github.io` (`fromLegacy` in `src/carry/format.ts`). The stubs
@@ -644,11 +653,48 @@ which browsers never send to a server. Two rules make that safe, each on its own
   new address arrives in it and cannot swap the fragment; and the fragment is read only on the
   page's own first load (`freshLoad`: never on a reload, a step back or forward or a restored
   session). Keep that header: without it a page that opens the old address in a window can put
-  a fragment of its own on the page that arrives (review round 4). **This is why nothing else you publish at `sophanasok.github.io`
-  (your user site, any other project site) may ever navigate to the new address with a
-  `#bm-carry=` fragment, redirect to an address a visitor chooses, or write `bm.*` keys to
-  `localStorage`**: every GitHub Pages site of the account shares that one origin, and the
-  carry trusts it.
+  a fragment of its own on the page that arrives (review round 4).
+
+  **The carry trusts every page at `sophanasok.github.io`, not only this repository's.** Every
+  GitHub Pages site of the account (the user site at `/`, and every project site such as
+  `/csv_to_keyed_json/`, now or later) is that one origin. Any script that runs on any of them
+  can do what a stub does, and nothing at the new address can tell it apart: the referrer is
+  only the origin, and same-origin script can also change the path it starts from
+  (`history.replaceState`), open a stub in a frame or window and drive it, or write `bm.*` keys
+  into the old origin's `localStorage` for the real stub to carry. That includes script that is
+  not yours: a script injected through a page that puts untrusted text into HTML (a file the
+  visitor opens, a query string), and every third-party script a page loads. So every page at
+  that origin must, as long as the old address is kept (8.9):
+  - never put text it did not write into the page as HTML (`innerHTML`, `insertAdjacentHTML`,
+    `document.write`, `outerHTML` with data from a file, the address, `postMessage` or the
+    network), only as `textContent` or through `createElement` / `new Option(text, value)`;
+  - load no script from another origin: no CDN script without `integrity` (SRI), and none that
+    cannot be pinned at all (the Tailwind Play CDN, `cdn.tailwindcss.com`, changes under you:
+    build its CSS instead);
+  - carry a strict Content-Security-Policy `<meta>` like the user site's: `script-src 'self'`
+    plus hashes, no `'unsafe-inline'`, no other host;
+  - never navigate to the new address with a `#bm-carry=` fragment, redirect to an address a
+    visitor chooses, or write `bm.*` keys to `localStorage`;
+  - and the user site at `/` must never register a service worker (its scope would cover every
+    project site).
+
+  The sites on that origin, checked on 2026-10-05 (the account's public repositories with Pages
+  on, and each site's front page):
+
+  | Site | Content-Security-Policy | Third-party script | Verdict |
+  | --- | --- | --- | --- |
+  | `/` (user site) | strict `<meta>` | none | meets the rule |
+  | `/ai-usage-tui-site/` | strict `<meta>` | none | meets the rule |
+  | `/basic-mathematics/` | none until 8.6 (the course's policy is in `dist/_headers`, which only Cloudflare sends); from 8.6, `dist-legacy/`'s strict `<meta>` (`tools/check-legacy.js`) | none (the course bundles everything) | meets the rule from 8.6; until then the course is this repository's own code, held to it by review |
+  | `/csv_to_keyed_json/` | **none** | PapaParse 5.4.1 from cdnjs, **no `integrity`** | **breaks it**: `script.js` `updateKeyFieldSelect` puts each CSV header into `<select>` with `innerHTML`, unescaped. A CSV file with a header such as `<img src=x onerror=…>`, opened in the tool, runs script on this origin; review round 5 used it to make the new address offer an attacker's progress (add-only, after the reader's yes). Fix in that repository: `new Option(header, index)`, SRI or a self-hosted PapaParse, a strict CSP |
+  | `/data-validator/` | **none** | none | **not reviewed**: `innerHTML` sinks are fed from the files it loads (`script.js`); audit them and add a strict CSP |
+  | `/json-qa-diff/` | **none** | **`cdn.tailwindcss.com`** (cannot be pinned) | **breaks it**: replace the Play CDN with built CSS, audit its `innerHTML` sinks (`app.js`), add a strict CSP |
+
+  Until every row meets the rule, the carry's first rule is only as strong as the weakest of
+  those sites; the second rule (below) still holds whatever arrives. The new address reads
+  carried progress from its first deploy (8.2), not only from the cutover, so fix those sites
+  now, in their own repositories; 8.6 does not go ahead until they meet the rule, and the
+  check is repeated whenever a new Pages site is published under the account (8.9).
 - **Only adding.** Whatever is read (or imported from a file) can only add what this browser does
   not have: solved exercises and missions join the sets; an attempt record, a section's place in
   the review, an XP day, a Daily day (none after today, and only into the room the site's 60 leave),
@@ -903,7 +949,20 @@ address serves the legacy site. Step 3 tries the same carry on your own machine 
 
 ### 8.6 The cutover: SITE_CUTOVER
 
-When 8.1 to 8.5 are done and DNS is settled:
+When 8.1 to 8.5 are done and DNS is settled, and **every site at `sophanasok.github.io`
+meets the rule in section 8** ("The carry trusts every page at `sophanasok.github.io`"). Check
+the list again first, since a new Pages site may have appeared:
+```sh
+curl -s "https://api.github.com/users/SophanaSok/repos?per_page=100" | /usr/bin/jq -r '.[] | select(.has_pages) | .name'
+for s in "" ai-usage-tui-site csv_to_keyed_json data-validator json-qa-diff; do
+  printf '%-20s ' "/$s"; curl -s "https://sophanasok.github.io/$s/" | grep -c -i 'http-equiv="content-security-policy"'
+done
+```
+Every repository the first command lists must be in section 8's table (with `/` for the user
+site), and every line of the second must print `1` (`/basic-mathematics/` is left out of it
+until step 3 here has put `dist-legacy/` there; add it to the loop afterwards). A policy is
+necessary, not enough: read the policy (no `'unsafe-inline'` in `script-src`, no other host) and the site's own code
+against the rule. Update the table and its date.
 
 1. Supabase → URL Configuration → *Site URL* = `https://learn.groundupmath.org/` (8.4).
 2. GitHub → Settings → Secrets and variables → Actions → Variables → `SITE_CUTOVER` → **Update**
@@ -949,6 +1008,10 @@ script could read the reader's progress, and that progress would be stranded.
 - **Safari and other browsers that delete a site's storage after a week without a visit:** a
   learner who has not visited the old address recently may have nothing left there to carry.
   Nothing can be done about that from here; signing in is the safe road.
+- **Browser history:** the address the old address sends them to, progress included, stays in
+  the browser's history (and in any history the browser syncs), although the address bar shows
+  it without. It is their own signed-out progress, nothing of an account. Clearing that entry
+  from the browser's history removes it; nothing else needs doing.
 - From the new progress page, *Bring progress from the old address* fetches it again at any time
   (and asks again, even after a no), *take it from the old address as a file* gives it as a file,
   and *Import a file of your progress* takes that file or a "Download my data" file.
@@ -979,6 +1042,10 @@ A short announcement to post:
   signed-out learner who has not come back yet still has their progress only there. Google
   reads the instant forward and the canonical links as a permanent move.
 - Never set a custom domain on the GitHub Pages repository (8.6).
+- Every new GitHub Pages site under the account, and every change to one that already exists,
+  is a change to what the carry trusts: hold it to the rule in section 8 ("The carry trusts
+  every page at `sophanasok.github.io`") and add it to that table, with the date, before it
+  is published. Re-run the check in 8.6 every few months while the old address is kept.
 - Keep the domain renewed (section 5).
 - After a year at the least, the old address can go: then take
   `https://sophanasok.github.io/basic-mathematics/account.html` off Supabase's Redirect URLs

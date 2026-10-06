@@ -3,8 +3,10 @@
    The first script of every page of the legacy site (tools/build-legacy.js writes
    dist-legacy/, which GitHub Pages serves once the site has moved): it reads what
    this browser saved at the old address and takes the reader to the same page at the
-   new one, with that progress in the address's fragment, which is never sent to any
-   server. It leaves with location.replace from a page whose referrer policy sends this
+   new one, with that progress in the address's fragment, which is never sent to a web
+   server. The browser does keep it, in its own history (and so wherever it syncs
+   history): the new address takes it out of the address bar and the tab's session
+   history, not out of that (OPERATIONS.md section 8). It leaves with location.replace from a page whose referrer policy sends this
    origin (tools/build-legacy.js writes the <meta name="referrer">): the new address
    reads the fragment only when the referrer is this origin (src/carry/format.ts
    fromLegacy), asks the reader, and only adds what that browser does not have.
