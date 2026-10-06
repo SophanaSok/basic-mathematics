@@ -805,6 +805,9 @@ function checkHeaders(ctx, r) {
   const connect = ["'self'"].concat(supabase ? [supabase, supabase.replace(/^https:/, "wss:")] : []);
   if ((d["connect-src"] || []).join(" ") !== connect.join(" ")) r.fail("connect-src is " + JSON.stringify((d["connect-src"] || []).join(" ")) + ", not the site and the Supabase project of assets/config.js (" + connect.join(" ") + ")");
   ["Permissions-Policy", "Referrer-Policy", "X-Content-Type-Options"].forEach(n => { r.count++; if (!all.some(([k]) => k.toLowerCase() === n.toLowerCase())) r.fail("no " + n + " for the pages"); });
+  r.count++;
+  const opener = (all.find(([n]) => n.toLowerCase() === "cross-origin-opener-policy") || [])[1];
+  if (opener !== headers.OPENER) r.fail("Cross-Origin-Opener-Policy for the pages is " + JSON.stringify(opener) + ", not " + headers.OPENER + " (a page of another origin that opened the window would keep its handle on it: lib/headers.js)");
   /* one Cache-Control per path, and the right one */
   ctx.files.filter(f => f !== headers.FILE).forEach(f => headers.servedPaths(f).forEach(at => {
     r.count++;

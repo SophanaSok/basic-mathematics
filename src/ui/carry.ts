@@ -8,9 +8,15 @@
       back; the old page's own fragment, bm-at, is put back and scrolled to, unless it
       is itself a payload: format.ts safeAt). Then:
         - Reached from anywhere but the old address (fromLegacy: document.referrer's
-          origin is not the legacy origin), nothing more is done with it: it is not
-          read, and the reader is told in a short note that progress is brought over
-          from the progress page, by its file import or its link to the old address.
+          origin is not the legacy origin), or there on anything but the document's
+          own first load (freshLoad: a reload, a step back or forward, a restored
+          session, where the fragment may have been changed after the referrer was
+          set), nothing more is done with it: it is not read, and the reader is told
+          in a short note that progress is brought over from the progress page, by its
+          file import or its link to the old address. (No other origin can change the
+          fragment while the page is first loading: the site's
+          Cross-Origin-Opener-Policy takes away any handle a page that opened the
+          window had on it, tools/lib/headers.js.)
         - From the old address, the payload is read and checked, and add() works out
           what of it this browser does not have. The reader is asked, in a dialog made
           from add()'s own counts, before anything is kept. Yes runs add() again on
@@ -21,7 +27,9 @@
           again) is not asked about again; from the legacy carry page (bm-ask=1),
           which a reader only reaches by asking for it, it is asked about whatever was
           answered before, so a "no" can be taken back. A payload that cannot be read
-          is refused with a short note; one that adds nothing is not asked about.
+          is refused with a short note; one that adds nothing is not asked about. When
+          a yes could not be saved (storage full or blocked), nothing is recorded, so
+          the same link asks again.
       When the old address had a signed-in account (the payload's `w`), the reader is
       told to sign in here with it: its progress comes from the account, never from
       the old browser.
@@ -37,12 +45,17 @@
 
    Nothing here runs BMAccount's merge on carried progress: add() only adds, and what it
    writes is announced as any change to saved state is ("state", then "sync"), which an
-   account that is signed in saves as this browser's own. Nothing carried is ever put
+   account that is signed in saves as this browser's own, and one signed in later
+   merges as it merges anything done here signed out; with accounts on, the question
+   says so (ACCOUNT). Nothing carried is ever put
    into the page as HTML: every word is textContent. */
 
-import { add, adds, allowedHost, asked, type Course, decode, describe, FLAG, fingerprint, fromFile, fromLegacy, legacyCarryUrl, MAX_FILE, readHash, remember, SYNCED, type Outcome, type Refusal } from "../carry/format.ts";
+import { add, adds, allowedHost, asked, type Course, decode, describe, FLAG, fingerprint, freshLoad, fromFile, fromLegacy, legacyCarryUrl, MAX_FILE, readHash, remember, stored, SYNCED, type Outcome, type Refusal } from "../carry/format.ts";
 
 type Answer = (take: boolean) => void;
+/* how a question ended: taken and saved (true), not taken (false), or taken and not
+   saved (null), which is not recorded, so that it is asked again */
+type Done = (took: boolean | null) => void;
 
 const REFUSED: Record<Refusal, string> = {
   version: "It was written by a different version of this site, so nothing was changed.",
@@ -53,6 +66,7 @@ const REFUSED: Record<Refusal, string> = {
 };
 const NOTHING_NEW = "It holds nothing this browser does not already have, so nothing was changed.";
 const SIGN_IN = "You were signed in at the old address: sign in here with the same account, and everything saved to it comes back. Progress from that browser belongs to the account and is not brought over here.";
+const ACCOUNT = "If you sign in here, now or later, it joins your account like any progress made in this browser: where the account already has the same exercise, review section or Daily, the two are merged as from two devices.";
 const NOT_FROM_OLD = "This link holds progress, but it did not come from the old address, so it was not read and nothing was changed. To bring your progress over, use Bring your progress here on your progress page.";
 
 function el<K extends keyof HTMLElementTagNameMap>(tag: K, cls?: string, text?: string): HTMLElementTagNameMap[K] {
@@ -84,6 +98,7 @@ function ask(title: string, line: string, signedIn: boolean, answer: Answer): HT
   actions.append(yes, no);
   dialog.append(h, el("p", "carry-what", line));
   if (signedIn) dialog.append(el("p", "carry-signed-in", SIGN_IN));
+  if (accounts()) dialog.append(el("p", "carry-account", ACCOUNT));
   dialog.append(el("p", "fine", "This is only added to what this browser has here: nothing already here is changed or removed, and the old address keeps its copy."), actions);
   let settled = false;
   const settle = (take: boolean) => {
@@ -101,6 +116,12 @@ function ask(title: string, line: string, signedIn: boolean, answer: Answer): HT
   else dialog.setAttribute("open", "");
   yes.focus();
   return dialog;
+}
+
+/* whether this copy of the site has accounts (assets/config.js) */
+function accounts(): boolean {
+  const cfg = window.BM_CONFIG as { supabaseUrl?: unknown } | undefined;
+  return !!cfg && typeof cfg.supabaseUrl === "string" && !!cfg.supabaseUrl;
 }
 
 /* a short note at the foot of the screen, closed by its button; `link` adds a link to
@@ -123,16 +144,14 @@ function note(text: string, bad?: boolean, link?: boolean): void {
   document.body.appendChild(box);
 }
 
-/* What this browser holds under a key, as add() reads it: undefined where there is
-   none; a value that is not JSON is passed as its text, which add() never writes over.
-   Storage that cannot be read is treated as holding something under every key, so
-   nothing is written over it either. */
+/* What this browser holds under a key, as add() reads it (format.ts stored()):
+   undefined where there is none; a value whose text is not exactly the JSON the site
+   writes is passed as its text, which add() never writes over or into. Storage that
+   cannot be read is treated as holding something under every key, so nothing is
+   written over it either. */
 const BLOCKED = "\u0000blocked";
 function read(key: string): unknown {
-  let raw: string | null = null;
-  try { raw = window.localStorage.getItem(key); } catch (e) { return BLOCKED; }
-  if (raw === null) return undefined;
-  try { return JSON.parse(raw); } catch (e) { return raw; }
+  try { return stored(window.localStorage.getItem(key)); } catch (e) { return BLOCKED; }
 }
 
 /* the chapters, sections and achievements the course has, which a carried key must name
@@ -166,7 +185,8 @@ function write(writes: Record<string, unknown>): boolean {
 function flag(): unknown {
   try { return JSON.parse(String(window.localStorage.getItem(FLAG))); } catch (e) { return null; }
 }
-function record(print: string, took: boolean): void {
+function record(print: string, took: boolean | null): void {
+  if (took === null) return;
   try { window.localStorage.setItem(FLAG, JSON.stringify(remember(flag(), print, took, Date.now()))); } catch (e) { /* storage blocked: nothing could have been kept either */ }
 }
 
@@ -174,7 +194,7 @@ function record(print: string, took: boolean): void {
    is describe() of add()'s counts; yes writes add()'s writes, run again on what this
    browser holds then. Should that now add something other than what was asked about
    (another tab changed this browser's progress meanwhile), it is asked about again. */
-function offer(outcome: Outcome, title: string, subject: string, done: (took: boolean) => void): void {
+function offer(outcome: Outcome, title: string, subject: string, done: Done): void {
   if (!outcome.ok) {
     note(subject + " was not brought over. " + REFUSED[outcome.why], true);
     done(false);
@@ -192,9 +212,13 @@ function offer(outcome: Outcome, title: string, subject: string, done: (took: bo
     const now = add(read, outcome.stores);
     if (describe(now.added) !== line) { offer(outcome, title, subject, done); return; }
     const ok = write(now.writes);
-    note(ok ? "Your progress is here. It was added to what this browser already had." : "Your progress could not be saved in this browser (its storage is full or blocked).", !ok);
-    done(true);
+    note(ok ? "Your progress is here. It was added to what this browser already had." : "Your progress could not be saved in this browser (its storage is full or blocked). Make room and open the link again, or import it as a file.", !ok);
+    done(ok ? true : null);
   });
+}
+
+function navigation(): unknown {
+  try { return performance.getEntriesByType("navigation"); } catch (e) { return null; }
 }
 
 /* 1. a carried fragment */
@@ -208,8 +232,9 @@ async function arrived(): Promise<void> {
     const target = document.getElementById(found.at);
     if (target) target.scrollIntoView();
   }
-  /* only the old address sends progress: from anywhere else it is not even read */
-  if (!fromLegacy(document.referrer, window.location.origin)) {
+  /* only the old address sends progress, and only on the page's own first load: from
+     anywhere else, or on a reload or a step back or forward, it is not even read */
+  if (!fromLegacy(document.referrer, window.location.origin) || !freshLoad(navigation())) {
     if (found.value) note(NOT_FROM_OLD, false, true);
     return;
   }
@@ -242,7 +267,7 @@ function tools(): void {
     if (file.size > MAX_FILE) { offer({ ok: false, why: "size" }, "Import the progress in this file?", "That file", () => { input.value = ""; }); return; }
     file.text().then((text) => {
       offer(fromFile(text, Date.now(), course()), "Import the progress in this file?", "That file", (took) => {
-        say(took ? "Imported " + file.name + "." : "Nothing was imported.");
+        say(took ? "Imported " + file.name + "." : took === null ? file.name + " could not be saved." : "Nothing was imported.");
         input.value = "";
       });
     }, () => { say("That file could not be read."); input.value = ""; });

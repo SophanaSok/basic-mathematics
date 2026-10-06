@@ -25,6 +25,14 @@
             nowhere but here (none posts at all); and no other site may frame a page.
             Navigation is not a fetch: a sign-in leaves for Supabase and the sign-in
             service as a top-level navigation, which no directive governs
+        Cross-Origin-Opener-Policy  same-origin: a page here never shares a browsing
+            context group with a page of another origin, so a page that opened a window
+            which then came here (the legacy stubs send readers here with
+            location.replace, src/carry/send.js) loses its handle on that window the
+            moment this address's page arrives in it, and cannot set its location (a
+            fragment of its own choosing on a page whose referrer is the old address:
+            src/ui/carry.ts) or find it by name. No page of the site opens or is opened
+            by a window of another origin: a sign-in leaves and comes back by redirects
         Permissions-Policy  every powerful feature the site does not use, denied
         Referrer-Policy, X-Content-Type-Options  as Pages sends them by default, stated
         X-Frame-Options  DENY, for browsers that do not read frame-ancestors
@@ -55,6 +63,8 @@ const REVALIDATE = "public, max-age=0, must-revalidate";
 const WEEK = "public, max-age=604800";
 const MAX_RULES = 100;
 const MAX_LINE = 2000;
+/* the opener policy of every response (the rules above say why) */
+const OPENER = "same-origin";
 
 /* every powerful feature the site does not use; each name is one Chromium knows, since an
    unknown one is reported on every page as an error */
@@ -136,6 +146,7 @@ function render(opts) {
     "# (vite.config.ts cloudflare(), tools/lib/headers.js says what each rule is for); never edit it here.",
     "/*",
     "  Content-Security-Policy: " + policy(hashes, supabase),
+    "  Cross-Origin-Opener-Policy: " + OPENER,
     "  Permissions-Policy: " + DENIED.map(f => f + "=()").join(", "),
     "  Referrer-Policy: strict-origin-when-cross-origin",
     "  X-Content-Type-Options: nosniff",
@@ -248,4 +259,4 @@ function fromDist(dist, root) {
   return { pages, files: files.filter(f => f !== FILE), config: fs.readFileSync(path.join(root, "assets", "config.js"), "utf8") };
 }
 
-module.exports = { FILE, NOT_FOUND, REVALIDATE, WEEK, MAX_RULES, MAX_LINE, DENIED, render, notFoundPage, parse, matcher, headersFor, rulesSetting, servedPaths, inlineScripts, sha256, supabaseOrigin, fromDist, policy };
+module.exports = { FILE, NOT_FOUND, REVALIDATE, WEEK, OPENER, MAX_RULES, MAX_LINE, DENIED, render, notFoundPage, parse, matcher, headersFor, rulesSetting, servedPaths, inlineScripts, sha256, supabaseOrigin, fromDist, policy };

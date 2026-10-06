@@ -7,7 +7,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
-import { add, adds, allowedHost, asked, check, DAILY_KEPT, decode, describe as describeIt, fingerprint, fromFile, fromLegacy, legacyCarryUrl, localDay, MAX_FRAGMENT, NONE, readHash, remember, safeAt, TAKEN, type Added, type Course, type Stores } from "./format.ts";
+import { add, adds, allowedHost, asked, check, DAILY_KEPT, decode, describe as describeIt, fingerprint, freshLoad, fromFile, fromLegacy, legacyCarryUrl, localDay, MAX_FRAGMENT, NONE, readHash, remember, safeAt, stored as fromText, TAKEN, type Added, type Course, type Stores } from "./format.ts";
 import { LEGACY, LEGACY_LOCAL, ORIGIN } from "./origins.ts";
 
 const ROOT = path.resolve(import.meta.dirname, "..", "..");
@@ -45,6 +45,15 @@ function canon(x: unknown): string {
 }
 const plain = (x: unknown): x is Record<string, unknown> => !!x && typeof x === "object" && !Array.isArray(x);
 const clone = <T>(x: T): T => (x === undefined ? x : JSON.parse(JSON.stringify(x)));
+
+/* the course, as src/ui/carry.ts course() reads it from data/curriculum.js */
+const COURSE: Course = (() => {
+  const win: { BM_CURRICULUM?: { chapters: { id: string; sections?: { id: string }[] }[] } } = {};
+  new Function("window", fs.readFileSync(path.join(ROOT, "data/curriculum.js"), "utf8"))(win);
+  const chapters: string[] = [], sections: string[] = [];
+  win.BM_CURRICULUM!.chapters.forEach((ch) => { chapters.push(ch.id); (ch.sections || []).forEach((x) => sections.push(ch.id + "#" + x.id)); });
+  return { chapters, sections };
+})();
 
 /* the saved-state fixture the upgrade suite seeds: a learner three chapters in */
 const fixture = JSON.parse(fs.readFileSync(path.join(ROOT, "tools/fixtures/state-v1.json"), "utf8")).storage as Record<string, unknown>;
@@ -307,6 +316,11 @@ describe("where it is taken from", () => {
     expect(fromLegacy(LEGACY_LOCAL + ":8001/", LEGACY_LOCAL + ":8000")).toBe(false);
     expect(fromLegacy(LEGACY_LOCAL + ":8001/", ORIGIN)).toBe(false);
   });
+  it("is read only on the page's own first load: never on a reload, a step back or forward, or when the browser does not say", () => {
+    expect(freshLoad([{ type: "navigate" }])).toBe(true);
+    [[{ type: "reload" }], [{ type: "back_forward" }], [{ type: "prerender" }], [], null, undefined, "navigate", [null], [{}], [{ type: "Navigate" }], { 0: { type: "navigate" }, length: 1 }]
+      .forEach((e) => expect(freshLoad(e), JSON.stringify(e)).toBe(false));
+  });
   it("is read only at the new address, a local server and the project's pages.dev addresses", () => {
     expect(allowedHost(new URL(ORIGIN).hostname)).toBe(true);
     ["localhost", "127.0.0.1", "groundupmath.pages.dev", "abc123.groundupmath.pages.dev"].forEach((h) => expect(allowedHost(h), h).toBe(true));
@@ -390,6 +404,26 @@ describe("what the new address reads", () => {
     expect(safeAt("a".repeat(201))).toBe("");
   });
 
+  it("takes a place to continue from only in a chapter the course has, at one of its sections, its warm-up or its practice", async () => {
+    const last = async (v: unknown, course: Course | null = COURSE) => (await link({ v: 1, s: { "bm.last": v, "bm.theme": "dark" } }, NOW, course ?? undefined))["bm.last"];
+    expect(await last({ id: "ch01", section: "integers" })).toEqual({ id: "ch01", section: "integers" });
+    expect(await last({ id: "ch01", section: "practice" })).toEqual({ id: "ch01", section: "practice" });
+    expect(await last({ id: "ch01", section: "warmup" })).toEqual({ id: "ch01", section: "warmup" });
+    expect(await last({ id: "ch01", section: null })).toEqual({ id: "ch01", section: null });
+    expect(await last({ id: "ch01" })).toEqual({ id: "ch01" });
+    expect(await last(null)).toBeNull();
+    /* review round 4: an id that is a member of every object passed the contents page's
+       lookup and left no chapter marked "you are here" */
+    for (const bad of [{ id: "constructor" }, { id: "toString", section: null }, { id: "valueOf" }, { id: "hasOwnProperty" }, { id: "__proto__" },
+      { id: "ch99", section: null }, { id: "", section: null }, { id: "ch01", section: "constructor" }, { id: "ch01", section: "__proto__" },
+      { id: "ch01", section: "rationals-not" }, { id: "ch02", section: "integers" }, { id: "ch01", section: 1 }, { id: 1 }, "ch01", [], {}]) {
+      expect(await last(bad), JSON.stringify(bad)).toBeUndefined();
+    }
+    /* without the course there is nothing to look an id up in: no place is taken */
+    expect(await last({ id: "ch01", section: null }, null)).toBeUndefined();
+    expect(await last(null, null)).toBeNull();
+  });
+
   it("takes only the chapters, sections and achievements the course has, when the page says", async () => {
     const course: Course = { chapters: ["ch01"], sections: ["ch01#addition"], achievements: ["first-light"] };
     const s = await link({ v: 1, s: {
@@ -413,7 +447,7 @@ describe("adding to this browser", () => {
   };
 
   it("brings everything to a browser that has nothing, and says what, in counts", async () => {
-    const out = check(fixture, { now: NOW });
+    const out = check(fixture, { now: NOW, course: COURSE });
     expect(out.ok).toBe(true);
     if (!out.ok) return;
     const r = holds({}, out.stores);
@@ -424,7 +458,7 @@ describe("adding to this browser", () => {
   });
 
   it("adds nothing to a browser that has it all already", () => {
-    const out = check(fixture, { now: NOW });
+    const out = check(fixture, { now: NOW, course: COURSE });
     if (!out.ok) throw new Error("refused");
     const r = holds(fixture, out.stores);
     expect(r.writes).toEqual({});
@@ -595,51 +629,52 @@ describe("review round 3's payloads", () => {
    own shapes with values of every wrong kind mixed in, and of shapes that are not the
    site's at all, both through check() (as the receiver runs it) and straight into
    add(), which must hold on its own. */
-describe("adding only, over random states", () => {
-  function rng(seed: number) {
-    return () => { seed |= 0; seed = (seed + 0x6d2b79f5) | 0; let t = Math.imul(seed ^ (seed >>> 15), 1 | seed); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
-  }
-  function states(seed: number) {
-    const r = rng(seed);
-    const pick = <T>(xs: T[]): T => xs[Math.floor(r() * xs.length)];
-    const days = [localDay(NOW - 2 * DAY), localDay(NOW - DAY), TODAY, TOMORROW, "2023-12-31", "2026-02-30", "2026-09-01", "x"];
-    const ids = ["ch01", "ch02", "ch03", "__proto__", "e1", "e2", "", "a".repeat(130)];
-    const junk = () => pick<unknown>([null, 0, -1, 1, 1e300, NaN, "x", true, false, [], [1], {}, { a: 1 }, NOW, NOW + DAY, "2026-10-01"]);
-    const value = (good: () => unknown) => (r() < 0.75 ? good() : junk());
-    const mapOf = (keys: string[], each: () => unknown, n = 4) => {
-      const o: Record<string, unknown> = {};
-      for (let i = 0; i < n; i++) if (r() < 0.6) o[pick(keys)] = value(each);
-      return o;
+/* random states of a browser and of what is carried, by seed (below) */
+function rng(seed: number) {
+  return () => { seed |= 0; seed = (seed + 0x6d2b79f5) | 0; let t = Math.imul(seed ^ (seed >>> 15), 1 | seed); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
+}
+function states(seed: number) {
+  const r = rng(seed);
+  const pick = <T>(xs: T[]): T => xs[Math.floor(r() * xs.length)];
+  const days = [localDay(NOW - 2 * DAY), localDay(NOW - DAY), TODAY, TOMORROW, "2023-12-31", "2026-02-30", "2026-09-01", "x"];
+  const ids = ["ch01", "ch02", "ch03", "__proto__", "e1", "e2", "", "a".repeat(130)];
+  const junk = () => pick<unknown>([null, 0, -1, 1, 1e300, NaN, "x", true, false, [], [1], {}, { a: 1 }, NOW, NOW + DAY, "2026-10-01"]);
+  const value = (good: () => unknown) => (r() < 0.75 ? good() : junk());
+  const mapOf = (keys: string[], each: () => unknown, n = 4) => {
+    const o: Record<string, unknown> = {};
+    for (let i = 0; i < n; i++) if (r() < 0.6) o[pick(keys)] = value(each);
+    return o;
+  };
+  const attempt = () => mapOf(["tries", "hints", "opened", "solved", "first", "section", "rung", "other"], () => pick<unknown>([1, 0, 3, NOW - DAY, NOW + DAY, "s1"]), 5);
+  const secRec = () => mapOf(["n", "ok", "box", "last", "fix", "other"], () => pick<unknown>([0, 1, 4, 9, TODAY, TOMORROW, NOW]), 5);
+  const state = (): Record<string, unknown> => {
+    const s: Record<string, unknown> = {
+      "bm.progress.v1": mapOf(ids, () => mapOf(["solved", "total", "x"], () => (r() < 0.7 ? mapOf(ids, () => pick<unknown>([true, false, 1])) : pick<unknown>([3, 10])))),
+      "bm.play.v1": mapOf(ids, () => mapOf(["done", "total", "guess"], () => (r() < 0.7 ? mapOf(ids, () => pick<unknown>([true, 1])) : 2))),
+      "bm.attempts.v1": mapOf(ids, () => mapOf(ids, attempt)),
+      "bm.activity.v1": mapOf(["days", "goal", "x"], () => (r() < 0.7 ? mapOf(days, () => pick<unknown>([1, 50, 0, -5, 1e9])) : 40)),
+      "bm.lesson.v1": mapOf(["reached", "mode"], () => (r() < 0.7 ? mapOf(ids, () => pick<unknown>([1, 3, 0, 2000])) : "steps")),
+      "bm.last": pick<unknown>([undefined, null, { id: "ch01", section: null }, { id: "ch02", section: "s1" }, "x"]),
+      "bm.game.v1": mapOf(["sec", "daily", "ach", "best", "enc", "cmp", "maxed", "v", "x"], () => pick<() => unknown>([
+        () => mapOf(["ch01#s1", "ch01#s2", "ch02#s1", "__proto__"], secRec),
+        () => mapOf(days, () => 1, 8),
+        () => mapOf(["first-light", "boss-down", "x"], () => pick<unknown>([NOW - DAY, NOW + DAY, 0])),
+        () => mapOf(["daily", "standard", "boss:ch01", "x"], () => mapOf(["score", "hearts", "day"], () => pick<unknown>([1, 5, TODAY]))),
+        () => mapOf(["ch01/practice", "ch02/review", "x"], () => mapOf(["medal", "day"], () => pick<unknown>([1, 3, TODAY]))),
+        () => pick<unknown>([1, 99])
+      ])(), 6),
+      "bm.prefs.v1": pick<unknown>([undefined, { sound: true }, { sound: "x" }, []]),
+      "bm.theme": pick<unknown>([undefined, "dark", "light", "purple", "{not json"]),
+      "bm.run.v1": pick<unknown>([undefined, { daily: { day: TODAY } }]),
+      "bm.sync.pending.v1": pick<unknown>([undefined, { u1: { state: {} } }])
     };
-    const attempt = () => mapOf(["tries", "hints", "opened", "solved", "first", "section", "rung", "other"], () => pick<unknown>([1, 0, 3, NOW - DAY, NOW + DAY, "s1"]), 5);
-    const secRec = () => mapOf(["n", "ok", "box", "last", "fix", "other"], () => pick<unknown>([0, 1, 4, 9, TODAY, TOMORROW, NOW]), 5);
-    const state = (): Record<string, unknown> => {
-      const s: Record<string, unknown> = {
-        "bm.progress.v1": mapOf(ids, () => mapOf(["solved", "total", "x"], () => (r() < 0.7 ? mapOf(ids, () => pick<unknown>([true, false, 1])) : pick<unknown>([3, 10])))),
-        "bm.play.v1": mapOf(ids, () => mapOf(["done", "total", "guess"], () => (r() < 0.7 ? mapOf(ids, () => pick<unknown>([true, 1])) : 2))),
-        "bm.attempts.v1": mapOf(ids, () => mapOf(ids, attempt)),
-        "bm.activity.v1": mapOf(["days", "goal", "x"], () => (r() < 0.7 ? mapOf(days, () => pick<unknown>([1, 50, 0, -5, 1e9])) : 40)),
-        "bm.lesson.v1": mapOf(["reached", "mode"], () => (r() < 0.7 ? mapOf(ids, () => pick<unknown>([1, 3, 0, 2000])) : "steps")),
-        "bm.last": pick<unknown>([undefined, null, { id: "ch01", section: null }, { id: "ch02", section: "s1" }, "x"]),
-        "bm.game.v1": mapOf(["sec", "daily", "ach", "best", "enc", "cmp", "maxed", "v", "x"], () => pick<() => unknown>([
-          () => mapOf(["ch01#s1", "ch01#s2", "ch02#s1", "__proto__"], secRec),
-          () => mapOf(days, () => 1, 8),
-          () => mapOf(["first-light", "boss-down", "x"], () => pick<unknown>([NOW - DAY, NOW + DAY, 0])),
-          () => mapOf(["daily", "standard", "boss:ch01", "x"], () => mapOf(["score", "hearts", "day"], () => pick<unknown>([1, 5, TODAY]))),
-          () => mapOf(["ch01/practice", "ch02/review", "x"], () => mapOf(["medal", "day"], () => pick<unknown>([1, 3, TODAY]))),
-          () => pick<unknown>([1, 99])
-        ])(), 6),
-        "bm.prefs.v1": pick<unknown>([undefined, { sound: true }, { sound: "x" }, []]),
-        "bm.theme": pick<unknown>([undefined, "dark", "light", "purple", "{not json"]),
-        "bm.run.v1": pick<unknown>([undefined, { daily: { day: TODAY } }]),
-        "bm.sync.pending.v1": pick<unknown>([undefined, { u1: { state: {} } }])
-      };
-      Object.keys(s).forEach((k) => { if (s[k] === undefined || r() < 0.15) delete s[k]; else if (r() < 0.05) s[k] = junk(); });
-      return JSON.parse(JSON.stringify(s));
-    };
-    return { here: state(), carried: state() };
-  }
+    Object.keys(s).forEach((k) => { if (s[k] === undefined || r() < 0.15) delete s[k]; else if (r() < 0.05) s[k] = junk(); });
+    return JSON.parse(JSON.stringify(s));
+  };
+  return { here: state(), carried: state() };
+}
 
+describe("adding only, over random states", () => {
   it("never changes or removes a value here, and says exactly what it adds", () => {
     let wrote = 0, tried = 0;
     for (let seed = 1; seed <= 1500; seed++) {
@@ -684,10 +719,94 @@ describe("adding only, over random states", () => {
   });
 });
 
+/* What this browser holds is text (localStorage), which the receiver reads with stored()
+   and add() adds to. Writing a store back must not change anything already in it, read
+   back as the site reads it (JSON.parse), compared value for value with Object.is: a
+   number past the double range (1e999, read as Infinity, written as null) and -0
+   (written as 0) are the cases review round 4 found. */
+describe("adding only, to what this browser holds as text", () => {
+  /* every value of `before` is in `after`, exactly (Object.is): a record may only gain keys */
+  function strictly(before: unknown, after: unknown, at = ""): string | null {
+    if (plain(before) || Array.isArray(before)) {
+      if (Array.isArray(before) !== Array.isArray(after) || !after || typeof after !== "object") return at + ": became " + String(after);
+      for (const k of Object.keys(before)) {
+        if (!Object.prototype.hasOwnProperty.call(after, k)) return at + "/" + k + ": removed";
+        const why = strictly((before as Record<string, unknown>)[k], (after as Record<string, unknown>)[k], at + "/" + k);
+        if (why) return why;
+      }
+      return Array.isArray(before) && (after as unknown[]).length !== before.length ? at + ": length changed" : null;
+    }
+    return Object.is(before, after) ? null : at + ": " + String(before) + " became " + String(after);
+  }
+  /* the browser's text after add()'s writes, as BMStore.write stores them */
+  function run(text: Record<string, string>, carried: Stores) {
+    const r = add((k) => fromText(Object.prototype.hasOwnProperty.call(text, k) ? text[k] : null), carried, NOW);
+    const after: Record<string, string> = Object.assign({}, text);
+    Object.keys(r.writes).forEach((k) => { after[k] = JSON.stringify(r.writes[k]); });
+    for (const k of Object.keys(text)) {
+      let b: unknown, a: unknown;
+      try { b = JSON.parse(text[k]); } catch (e) { if (after[k] !== text[k]) return { r, why: k + ": text that is not JSON was written over" }; continue; }
+      a = JSON.parse(after[k]);
+      const why = strictly(b, a, k);
+      if (why) return { r, why };
+    }
+    return { r, why: null };
+  }
+
+  it("reads the site's own JSON, and anything else as the text it is", () => {
+    expect(fromText(null)).toBeUndefined();
+    expect(fromText(undefined)).toBeUndefined();
+    expect(fromText('{"a":1,"b":[1,"x",null]}')).toEqual({ a: 1, b: [1, "x", null] });
+    expect(fromText('"dark"')).toBe("dark");
+    expect(fromText("null")).toBeNull();
+    for (const t of ["1e999", "-0", '{"a": 1}', '{"a":1.0}', '{"a":1E2}', '{"a":-1e999}', "{not json", "dark", ' {"a":1}', '{"a":"\\u00e9"}']) {
+      expect(fromText(t), t).toBe(t);
+    }
+  });
+
+  it("round 4's cases: a 1e999 or -0 in a store is not written back as null or 0", () => {
+    const game = '{"ach":{"first-light":1789214400000},"cmp":1e999}';
+    const a = run({ "bm.game.v1": game }, { "bm.game.v1": { ach: { "boss-down": NOW - DAY } } });
+    expect(a.why).toBeNull();
+    expect(a.r.writes).toEqual({});
+    const days = '{"days":{"2026-10-04":1e999,"2026-10-03":-0}}';
+    const b = run({ "bm.activity.v1": days }, { "bm.activity.v1": { days: { "2026-10-01": 5 } } });
+    expect(b.why).toBeNull();
+    expect(b.r.writes).toEqual({});
+    /* the same stores as the site writes them are added to */
+    expect(run({ "bm.game.v1": '{"ach":{"first-light":1789214400000}}' }, { "bm.game.v1": { ach: { "boss-down": NOW - DAY } } }).r.added.achievements).toBe(1);
+  });
+
+  it("never changes a value already here, whatever the stored text, over random states", () => {
+    const r = (() => { let seed = 99; return () => { seed = (seed * 1103515245 + 12345) & 0x7fffffff; return seed / 0x7fffffff; }; })();
+    const forms = ["1e999", "-1e999", "-0", "1.0", "1E2", "5e-324", "0.1", "1e21", "-0.0"];
+    let wrote = 0, odd = 0;
+    for (let seed = 1; seed <= 1500; seed++) {
+      const { here, carried } = states(seed);
+      const text: Record<string, string> = {};
+      Object.keys(here).forEach((k) => {
+        let t = JSON.stringify(here[k]);
+        if (r() < 0.5) t = t.replace(/(?<=[:[,])-?\d+(\.\d+)?([eE][+-]?\d+)?(?=[,}\]])/g, (m) => (r() < 0.25 ? (odd++, forms[Math.floor(r() * forms.length)]) : m));
+        if (r() < 0.05) t = t.replace(":", ": ");
+        text[k] = t;
+      });
+      const checked = check(clone(carried), { now: NOW, course: COURSE });
+      for (const input of [checked.ok ? checked.stores : null, carried]) {
+        if (!input) continue;
+        const { r: out, why } = run(text, input);
+        if (why) throw new Error("seed " + seed + ": " + why);
+        if (Object.keys(out.writes).length) wrote++;
+      }
+    }
+    expect(odd).toBeGreaterThan(500);
+    expect(wrote).toBeGreaterThan(300);
+  });
+});
+
 describe("a file of progress", () => {
   it("reads what Download my data writes, passing over the account's details", () => {
     const exported = { progress: fixture["bm.progress.v1"], play: fixture["bm.play.v1"], attempts: {}, activity: { days: {} }, lesson: { reached: {} }, last: null, game: {}, exported: "2026-10-05T12:00:00.000Z", account: "a@b.c", signInWith: ["github"], profile: { name: "A" } };
-    const out = fromFile(JSON.stringify(exported, null, 2), NOW);
+    const out = fromFile(JSON.stringify(exported, null, 2), NOW, COURSE);
     expect(out.ok && out.signedIn).toBe(false);
     if (!out.ok) return;
     expect(Object.keys(out.stores).sort()).toEqual(["bm.activity.v1", "bm.attempts.v1", "bm.game.v1", "bm.last", "bm.lesson.v1", "bm.play.v1", "bm.progress.v1"]);

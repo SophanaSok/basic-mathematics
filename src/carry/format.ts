@@ -17,8 +17,15 @@
       location setter, the incumbent settings object's document, so a page that sets the
       location of a window it opened on the old origin is still the referrer). Only the
       owner publishes at sophanasok.github.io, and the stubs send only what that origin's
-      own storage holds, so a link someone else wrote is dropped unread. A file is the
-      learner's own choice and is not gated.
+      own storage holds, so a link someone else wrote is dropped unread. The referrer
+      is the document's, not the fragment's: a page that kept a handle on the window
+      (it opened the stub) could change the fragment of the page that arrived without
+      a new document, or reload it or go back to it with its fragment swapped. So the
+      new address sends Cross-Origin-Opener-Policy: same-origin (tools/lib/headers.js),
+      which takes that handle away the moment the page arrives, and a fragment is read
+      only on the document's own first load (freshLoad: a navigation, never a reload,
+      a step back or forward, or a restored session). A file is the learner's own
+      choice and is not gated.
 
    2. What it can do (add). Whatever arrives, and however it arrived, it can only add what
       this browser does not have; it never replaces, lowers or removes anything already
@@ -39,7 +46,20 @@
       signs in here, and the old address says only that they were (`w`), nothing about the
       account. add() returns both what to write and the counts of what it adds, and the
       question the reader is asked is made from those counts, so what they are told and
-      what is done cannot drift apart.
+      what is done cannot drift apart. What this browser holds is read as the site wrote
+      it (stored()): a value whose text is not what JSON.stringify writes for it (a
+      number past the double range, -0, spacing) is not added to, so nothing in a store
+      is changed by writing the store back.
+
+      What is added is this browser's from then on, as anything done here is: signed in,
+      the account saves it; signed out, it joins an account at the next sign-in by the
+      account's own merge (assets/account.js), as progress made here signed out does,
+      and the question says so. The account's merge is not add(): where the account has
+      the same section, exercise or Daily days, its rules decide (a section's later
+      review wins, an answer is first only if first on both, the newest 60 Dailies are
+      kept), exactly as for a second device that was used signed out. Carried progress
+      is the learner's own (from their old browser, through the gate above, or a file
+      they chose), so it is held to the bar of their own second device and no higher.
 
    Before either, what arrives is read as untrusted: one versioned format (`version`),
    sizes capped before and after inflating (`size`), a top level of "bm." keys and never
@@ -147,6 +167,31 @@ export function fromLegacy(referrer: string, pageOrigin: string): boolean {
   const local = new URL(LEGACY_LOCAL);
   return LOOPBACK.indexOf(page.hostname) >= 0 && page.hostname !== local.hostname &&
     ref.protocol === local.protocol && ref.hostname === local.hostname;
+}
+
+/** Whether the document was loaded by a navigation to it: `entries` is
+    performance.getEntriesByType("navigation"), whose first entry's type is "navigate" for
+    a link, location.replace or a typed address, and "reload", "back_forward" or
+    "prerender" otherwise (Navigation Timing Level 2). A fragment that is there on a
+    reload or a step back or forward may have been put there after the referrer was set,
+    by a same-document navigation the referrer does not describe, so it is not read; nor
+    when the browser does not say. */
+export function freshLoad(entries: unknown): boolean {
+  if (!Array.isArray(entries) || !entries.length) return false;
+  const first = entries[0] as { type?: unknown } | null;
+  return !!first && typeof first === "object" && first.type === "navigate";
+}
+
+/** What this browser holds under a key, from the text localStorage gives: undefined where
+    there is none; the parsed value when the text is exactly what JSON.stringify writes for
+    it, as the site writes every store (BMStore.write); otherwise the text itself, which
+    add() never writes over or into, so that writing a store back can never change what is
+    in it (a 1e999 read as Infinity and written as null, a -0 written as 0). */
+export function stored(raw: string | null | undefined): unknown {
+  if (raw === null || raw === undefined) return undefined;
+  let v: unknown;
+  try { v = JSON.parse(raw); } catch (e) { return raw; }
+  return JSON.stringify(v) === raw ? v : raw;
 }
 
 /** the carry page of the legacy site, which sends this browser's old progress back to
@@ -382,11 +427,21 @@ const STORE: Record<string, Rule> = {
   "bm.attempts.v1": map(map(solvedAttempt), chapterId),
   "bm.activity.v1": rec({ days: map(whole(100000, 1), dayKey), goal: notTaken }),
   "bm.lesson.v1": rec({ reached: map(whole(1000, 1), chapterId), mode: notTaken }),
-  /* the place to continue from: null, or a chapter and a section (or null); else nothing */
+  /* the place to continue from: null, or a chapter of the course and one of its sections,
+     its warm-up or its practice, or no section (assets/site.js writes these); else
+     nothing. Without the course, nothing but null: a place is an id the contents page
+     looks up, and only the course says which ids are places. */
   "bm.last": (v, c) => {
     if (v === null) return null;
-    const r = rec({ id: text(120), section: (s) => (s === null ? null : text(120)(s, c)) })(v, c) as Record<string, unknown> | undefined;
-    return r && typeof r.id === "string" && r.id ? r : undefined;
+    const known = c.course;
+    if (!known || !plain(v)) return undefined;
+    const id = own(v, "id"), section = own(v, "section");
+    if (typeof id !== "string" || !known.chapters.has(id)) return undefined;
+    const place = section === null || section === "warmup" || section === "practice" ||
+      (typeof section === "string" && known.sections.has(id + "#" + section));
+    if (section !== undefined && !place) return undefined;
+    Object.keys(v).forEach((k) => { if (k !== "id" && k !== "section") c.dropped++; });
+    return section === undefined ? { id } : { id, section };
   },
   "bm.game.v1": (v, c) => {
     /* data marked newer than this site writes is refused whole (check()) */
@@ -507,9 +562,9 @@ function addInto(r: Record<string, unknown>, f: string, add: (into: Record<strin
 }
 
 /** What to write so that this browser has what `carried` (check()'s stores) adds, and
-    the counts of it. `read` gives what this browser holds. Only ever adds: every value
-    here before is there after, unchanged (format.test.ts holds this over random states of
-    both sides). A store with nothing to add is not written. `now` sets today, after
+    the counts of it. `read` gives what this browser holds (stored() of its text). Only
+    ever adds: every value here before is there after, unchanged (format.test.ts holds
+    this over random states of both sides, and over random stored text). A store with nothing to add is not written. `now` sets today, after
     which no day is taken. */
 export function add(read: Read, carried: Stores, now: number = Date.now()): { writes: Record<string, unknown>; added: Added } {
   const writes: Record<string, unknown> = {};

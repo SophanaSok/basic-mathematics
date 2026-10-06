@@ -637,7 +637,14 @@ which browsers never send to a server. Two rules make that safe, each on its own
   it). A link from anywhere else, or with no referrer (a typed address, a browser set to send
   none, such as a hardened Firefox with `network.http.referer.XOriginPolicy` above 0), is not read;
   the reader gets a note pointing to the progress page, whose *Import a file of your progress*
-  takes the carry page's file. **This is why nothing else you publish at `sophanasok.github.io`
+  takes the carry page's file. The referrer belongs to the page, not to its fragment, so two more
+  things hold the fragment to the page the stub sent: every response of the new address carries
+  `Cross-Origin-Opener-Policy: same-origin` (`tools/lib/headers.js`), so a page on another
+  origin that opened the old address in a window loses its handle on that window the moment the
+  new address arrives in it and cannot swap the fragment; and the fragment is read only on the
+  page's own first load (`freshLoad`: never on a reload, a step back or forward or a restored
+  session). Keep that header: without it a page that opens the old address in a window can put
+  a fragment of its own on the page that arrives (review round 4). **This is why nothing else you publish at `sophanasok.github.io`
   (your user site, any other project site) may ever navigate to the new address with a
   `#bm-carry=` fragment, redirect to an address a visitor chooses, or write `bm.*` keys to
   `localStorage`**: every GitHub Pages site of the account shares that one origin, and the
@@ -650,7 +657,12 @@ which browsers never send to a server. Two rules make that safe, each on its own
   store or any account record. The question names what it adds, in counts, from the same function
   that writes it. Nothing already in the browser is changed or removed, and the account merge
   rules are never run on carried data; once added it is this browser's own progress, and joins an
-  account at a later sign-in here as anything done here before signing in does.
+  account at a later sign-in here as anything done here before signing in does, which the
+  question says. There the account's merge, not the carry, decides between the account's and the
+  browser's copy of the same review section, answer or Daily days (the later review, first only if
+  first on both, the newest 60 Dailies), exactly as between two devices of the reader: the bar for
+  carried progress, which is the reader's own, is their own second device. A yes that cannot be
+  saved (storage full) is not recorded, so the same link asks again.
 
 Too much for an address, the old address offers it as a file instead, which the new progress page
 imports. An iframe cannot do this: current browsers partition the storage of an embedded page by
@@ -843,7 +855,9 @@ address serves the legacy site. Step 3 tries the same carry on your own machine 
 1. **Pages and headers.** Open the contents page, a chapter, the Arena, progress, account; the
    3D world and a chapter's 3D figures appear. In the browser's console there is no
    *Content Security Policy* error. (CI already runs every browser check under this policy;
-   this is the real server.)
+   this is the real server.) `curl -sI https://learn.groundupmath.org/ | grep -i cross-origin-opener`
+   shows `cross-origin-opener-policy: same-origin`, which keeps another site from tampering with
+   carried progress (section 8, "Only from the old origin").
 2. **Sign-in and sync.** Sign in with Google, sign out; sign in with GitHub. Solve one
    exercise; the account page says *Synced at …*. Open the old address signed in as the same
    account: the exercise is solved there too. That is the path every signed-in reader takes.
@@ -877,6 +891,9 @@ address serves the legacy site. Step 3 tries the same carry on your own machine 
    prevention trims a cross-site referrer to its site at most, and `sophanasok.github.io` is a
    site of its own, `github.io` being a public suffix). If either asks nothing and shows the note
    instead, the file import is the way for its readers; note which browser and its settings.
+   Both also honour the new address's `Cross-Origin-Opener-Policy` (Firefox 79, Safari 15.2) and
+   report the page's own load as a `navigate` entry in Navigation Timing, which the carry
+   requires.
 4. **Rollback works** (once there are two production deployments): the project → Deployments →
    the older one → ⋯ → **Rollback to this deployment**; the site serves it; then roll forward to
    the newest the same way. If Cloudflare refuses for a Direct Upload deployment, note it: the

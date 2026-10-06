@@ -1179,7 +1179,15 @@ and what it reads can only add what this browser does not have.
     the referrer), and only the owner publishes at `sophanasok.github.io`, where the stubs send
     only what that origin's own storage holds. Arriving with no referrer at all (a typed
     address, a browser set to send none) or from the new address itself is refused the same way;
-    the reader can still bring their progress over from the progress page.
+    the reader can still bring their progress over from the progress page. The referrer is the
+    page's, not the fragment's, so it is held to the page the stub sent in two more ways: every
+    page here is sent with `Cross-Origin-Opener-Policy: same-origin` (`tools/lib/headers.js`),
+    which takes away the handle of a page on another origin that opened the old address in a
+    window as soon as the new address arrives there (without it, that page could set the
+    window's fragment, then reload it or come back to it, or set it in the instant it arrived:
+    review round 4), and the fragment is read only on the page's own first load (`freshLoad`:
+    the Navigation Timing entry is a `navigate`, never a reload, a step back or forward or a
+    restored session).
   - **What it holds** (`decode`, `check`): any other format or `v` is refused, and so is a game
     record whose own `v` says its data is newer than the site writes; the fragment is capped,
     and so is what it inflates to (1 MB), and its nesting; every key must start with `bm.` and
@@ -1193,7 +1201,10 @@ and what it reads can only add what this browser does not have.
     review place only where this browser has none for that section, Daily days only where absent,
     not after today and within the room the site's 60 leave beside this browser's own,
     achievements, best scores and rematch medals only where absent, and nothing else. A value
-    here that cannot be read, or is not a record where one is expected, is never written over.
+    here that cannot be read, or is not a record where one is expected, or whose stored text is
+    not exactly the JSON the site writes for it (`stored`: a `1e999` or `-0` written back would
+    change), is never written over or into. A place to continue (`bm.last`) is taken only in a
+    chapter the course has, at one of its sections, its warm-up or its practice.
     `add()` returns the writes and the counts of what they add, and the modal dialog is made
     from those counts (for the saved-state fixture into an empty browser, "23 exercises solved,
     31 answer records, 3 missions done, your place in 3 lessons, 519 XP over 5 days, 3
@@ -1202,7 +1213,10 @@ and what it reads can only add what this browser does not have.
     which is never put into the page as HTML). Yes runs `add()` again on what this browser holds
     by then and writes that, announcing each synced store as any change is (a signed-in reader's
     account then saves it as this browser's own); if it would now add something else, the
-    reader is asked again. Nothing new to add, nothing is asked. A payload with `"w":1` adds a
+    reader is asked again. With accounts on, the dialog also says that what is added joins an
+    account signed in to here, now or later, like anything done in this browser. A yes that
+    cannot be saved (storage full or blocked) says so and is not recorded, so the same link asks
+    again. Nothing new to add, nothing is asked. A payload with `"w":1` adds a
     line to the dialog (or a note, when there is nothing else) telling the reader to sign in here.
     Either answer is recorded by the payload's fingerprint in `bm.carry.v1`, so the same payload
     arriving on its own is never asked about twice; from the old address's carry page
@@ -1222,13 +1236,20 @@ and what it reads can only add what this browser does not have.
 
 What is left to the account's own rules: progress added to this browser is this browser's own
 from then on, and a reader who later signs in here has it joined to their account the way
-anything done in this browser before signing in is (`account.js` sync, `BMAccount.merge`).
+anything done in this browser before signing in is (`account.js` sync, `BMAccount.merge`). There
+the merge decides between the account's copy and this browser's of the same review section,
+answer record or Daily days (the later review, first only if first on both, the newest 60
+Dailies), so a carry into a browser that is signed out can, at the next sign-in, do what a second
+device of the reader's could, and no more: that is the bar for carried progress, which is the
+reader's own (`tools/game/sync.test.js` holds it to exactly a second device's).
 
 The addresses are written once, in `src/carry/origins.ts`. `src/carry/format.test.ts` (the
-referrer rule, and `add()` over random states of both sides: nothing here ever changes, and the
-counts are what was added), `tools/game/sync.test.js` (review round 3's links against the real
-`account.js`) and `tools/game/carry.test.js` (the real redirect across two origins in Chromium,
-and a third that is neither) hold all of it.
+referrer and first-load rules, and `add()` over random states of both sides and random stored
+text: nothing here ever changes, and the counts are what was added), `tools/game/sync.test.js`
+(review round 3's links against the real `account.js`, and a carry into a signed-out browser
+then signed in, against a second device) and `tools/game/carry.test.js` (the real redirect
+across two origins in Chromium, a third that is neither, and that third opening the old
+address in a window and trying to put its own fragment on the page that arrives) hold all of it.
 
 The theme follows the operating system by default and can be set to light or dark in the
 settings sheet ("Match system" goes back to following it).
@@ -1470,8 +1491,9 @@ branch of this repository to a preview, whose address the job writes into its su
 comment on the pull request. Without the secrets, and for a pull request from a fork, it deploys
 nothing and says so in a notice. There, unlike on GitHub Pages, the site has headers of its own,
 from `dist/_headers`, which the build writes: a Content-Security-Policy that allows exactly what
-the pages load (the two inline scripts by hash), and caching that revalidates every page and
-script on every request (`tools/lib/headers.js`).
+the pages load (the two inline scripts by hash), `Cross-Origin-Opener-Policy: same-origin` (no
+page of another origin keeps a handle on a window that arrives here), and caching that
+revalidates every page and script on every request (`tools/lib/headers.js`).
 
 **The move.** Until the repository variable `SITE_CUTOVER` is `true`, GitHub Pages keeps serving
 the course exactly as it did (without `_headers` and `404.html`, which only Cloudflare reads).

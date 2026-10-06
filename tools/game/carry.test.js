@@ -50,6 +50,15 @@
    8. the course served at the old address's own origin (sophanasok.github.io, answered
       here from dist/), as it is until SITE_CUTOVER: no question, and none of what is
       true only after the move (the about page's paragraph, the progress page's tools)
+   10. review round 4: a page of another origin that opens the old address in a window
+      keeps no handle on it once the new address arrives there (every page here is sent
+      with Cross-Origin-Opener-Policy: same-origin, lib/headers.js), so it cannot put a
+      fragment of its own on the page that arrived with the old origin as its referrer:
+      not after it arrived (then reloaded, or gone away from and come back to), and not
+      in the instant it arrives. And a fragment on the page after its own first load
+      (put there here as such a page would, then reloaded) is not read
+   11. a yes whose progress could not be saved (storage full) is not recorded as
+      answered: the same link asks again once there is room
    9. no page error and no Content-Security-Policy violation on any origin */
 "use strict";
 const fs = require("fs");
@@ -138,7 +147,8 @@ const SESSION = "sb-jfidvrzonyzfstnykzly-auth-token";
     return page.evaluate(() => {
       const d = document.querySelector("dialog.carry-ask");
       const s = d.querySelector(".carry-signed-in");
-      return { title: d.querySelector("h2").textContent, what: d.querySelector(".carry-what").textContent, signedIn: s ? s.textContent : null, modal: d.matches(":modal"), focus: document.activeElement && document.activeElement.textContent };
+      const a = d.querySelector(".carry-account");
+      return { title: d.querySelector("h2").textContent, what: d.querySelector(".carry-what").textContent, signedIn: s ? s.textContent : null, account: a ? a.textContent : null, modal: d.matches(":modal"), focus: document.activeElement && document.activeElement.textContent };
     });
   }
   /* in any key order: records are built in their own */
@@ -181,6 +191,7 @@ const SESSION = "sb-jfidvrzonyzfstnykzly-auth-token";
     check(ach.includes("first-light") && !ach.includes("full-meter"), "1 … the one achievement it does not name is one this browser already has", ach);
     check(q.signedIn === null, "1 … and nothing about signing in", q.signedIn);
     check(q.modal && q.focus === "Bring it over", "1 … in a modal dialog, focus on the answer", q);
+    check(/^If you sign in here, now or later, it joins your account like any progress made in this browser/.test(q.account || ""), "1 … saying that it joins an account signed in to here, as anything done here does", q.account);
     eq(new URL(page.url()).pathname + new URL(page.url()).hash, "/parts/1-algebra/01-numbers#integers", "1 at the same chapter, the fragment already gone and the anchor back");
     eq(visits.old.length, 1, "1 the old address was loaded once");
     const arrived = await page.evaluate(() => ({ href: window.__arrived, referrer: window.__referrer }));
@@ -338,7 +349,7 @@ const SESSION = "sb-jfidvrzonyzfstnykzly-auth-token";
     const tag = '<img src=x onerror="window.__pwned=1">';
     await from(page, OLD, NEW + "/index.html#bm-carry=" + pack({ v: 1, s: { "bm.progress.v1": { [tag]: { solved: { e1: true } }, ch01: { solved: { [tag]: true }, total: 1 } }, "bm.last": { id: tag, section: tag } } }));
     const q = await question(page);
-    check(!/</.test(q.what) && q.what === "1 exercise solved and where to continue from.", "3 the question counts what markup holds and shows none of it (a chapter the course lacks is left out)", q.what);
+    check(!/</.test(q.what) && q.what === "1 exercise solved.", "3 the question counts what markup holds and shows none of it (a chapter the course lacks, and a place to continue in one, are left out)", q.what);
     check(!(await page.evaluate(() => !!document.querySelector("dialog img, .carry-note img") || !!window.__pwned)), "3 no element is made from it");
     await page.click("[data-carry-no]");
     await context.close();
@@ -510,6 +521,121 @@ const SESSION = "sb-jfidvrzonyzfstnykzly-auth-token";
     await page.goto(NEW + "/about.html");
     await page.waitForFunction(() => document.readyState === "complete" && !!window.BMCarry);
     check(await page.isVisible("[data-carry-moved]"), "8 … where the new address shows the paragraph");
+    await context.close();
+  }
+
+  /* 10. another origin's handle on the window: review round 4's three ways in
+     (scratchpad gate/hist.cjs and gate/race.cjs), each with a payload that would show if
+     it were read: three exercises, a theme and settings, in a browser with none */
+  {
+    const EVIL = pack({ v: 1, s: { "bm.progress.v1": { ch01: { solved: { e1: true, e2: true, e3: true } } }, "bm.theme": "dark", "bm.prefs.v1": { sound: false, volume: 0 } } });
+    {
+      const p = await profile();
+      const res = await p.context.request.get(NEW + "/index.html");
+      eq(res.headers()["cross-origin-opener-policy"], "same-origin", "10 the new address's pages are sent with Cross-Origin-Opener-Policy: same-origin");
+      await p.context.close();
+    }
+    /* a page of THIRD that opens the old address's front page in a window named "victim" */
+    async function opened(p) {
+      await p.page.goto(THIRD + "/__seed/");
+      const [popup] = await Promise.all([p.context.waitForEvent("page"), p.page.evaluate((u) => { window.w = window.open(u, "victim"); }, OLD + "/index.html")]);
+      popup.on("pageerror", (e) => errors.push(popup.url().slice(0, 60) + ": " + e.message));
+      await popup.waitForURL((u) => String(u).startsWith(NEW), { timeout: 15000 });
+      await popup.waitForLoadState("load");
+      await popup.waitForTimeout(300);
+      return popup;
+    }
+    const nothing = async (popup, what) => {
+      check(!(await popup.$("dialog.carry-ask")), "10 " + what + ": nothing is asked");
+      const s = await popup.evaluate(() => ({ p: localStorage.getItem("bm.progress.v1"), t: localStorage.getItem("bm.theme"), prefs: localStorage.getItem("bm.prefs.v1"), flag: localStorage.getItem("bm.carry.v1") }));
+      check(!/e3/.test(s.p || "") && !s.t && !s.prefs && !s.flag, "10 " + what + ": nothing of the payload is stored", s);
+    };
+    {
+      const p = await profile();
+      const popup = await opened(p);
+      eq(await popup.evaluate(() => document.referrer), OLD + "/", "10 the window arrives at the new address with the old origin as its referrer");
+      eq(await p.page.evaluate(() => window.w.closed), true, "10 … and the page that opened it holds a closed window");
+      /* a fragment swap (hist.cjs), then a reload of the entry */
+      await p.page.evaluate((t) => { try { window.w.location.href = t; } catch (e) { /* no window */ } }, NEW + "/#bm-carry=" + EVIL);
+      await popup.waitForTimeout(400);
+      eq(new URL(popup.url()).hash, "", "10 the other origin cannot change the arrived page's fragment");
+      await popup.reload();
+      await popup.waitForTimeout(600);
+      await nothing(popup, "a fragment swap, then a reload");
+      /* away to the other origin's page, from where it would go back (hist.cjs `back`) */
+      await p.page.evaluate((u) => { try { window.w.location.href = u; } catch (e) { /* no window */ } }, THIRD + "/__seed/?away");
+      await popup.waitForTimeout(600);
+      check(popup.url().startsWith(NEW), "10 the other origin cannot send the window anywhere", popup.url());
+      /* nor find it by its name */
+      await p.page.evaluate((t) => { const v = window.open("", "victim"); if (v) { try { v.location.href = t; } catch (e) { /* none */ } } }, NEW + "/#bm-carry=" + EVIL);
+      await popup.waitForTimeout(600);
+      eq(new URL(popup.url()).hash, "", "10 … nor reach it by its name");
+      await nothing(popup, "a window looked up by name");
+      await p.context.close();
+    }
+    /* the swap in the instant the new page arrives (race.cjs): every 2 ms from a start
+       around when the stub leaves; from 0 ms the new page is THIRD's own navigation */
+    for (const delay of [0, 5, 10, 15, 20, 30]) {
+      const p = await profile();
+      await p.page.goto(THIRD + "/__seed/");
+      const [popup] = await Promise.all([p.context.waitForEvent("page"), p.page.evaluate(([u, t, d]) => {
+        const w = window.open(u, "victim");
+        setTimeout(() => { const s = Date.now(); const id = setInterval(() => { try { w.location.href = t; } catch (e) { /* gone */ } if (Date.now() - s > 500) clearInterval(id); }, 2); }, d);
+      }, [OLD + "/index.html", NEW + "/#bm-carry=" + EVIL, delay])]);
+      popup.on("pageerror", (e) => errors.push(popup.url().slice(0, 60) + ": " + e.message));
+      await popup.waitForURL((u) => String(u).startsWith(NEW), { timeout: 15000 });
+      await popup.waitForTimeout(1500);
+      await nothing(popup, "a swap " + delay + " ms after the window opened");
+      await p.context.close();
+    }
+    /* a fragment on a page that arrived from the old address, after its own first load,
+       then a reload: the referrer is still the old origin, the load is not a navigation */
+    {
+      const p = await profile();
+      await from(p.page, OLD, NEW + "/index.html");
+      eq(await p.page.evaluate(() => document.referrer), OLD + "/", "10 setup: a page that arrived from the old address");
+      await p.page.evaluate((v) => history.replaceState(null, "", "#bm-carry=" + v), EVIL);
+      await p.page.reload();
+      await p.page.waitForSelector("dialog.carry-ask[open], .carry-note");
+      const after = await p.page.evaluate(() => ({ type: performance.getEntriesByType("navigation")[0].type, referrer: document.referrer, note: (document.querySelector(".carry-note p") || {}).textContent }));
+      check(after.type === "reload" && after.referrer === OLD + "/" && /did not come from the old address/.test(after.note), "10 a fragment there on a reload is not read, though the referrer is the old origin; a note says so", after);
+      eq(new URL(p.page.url()).hash, "", "10 … and it is gone");
+      await nothing(p.page, "a fragment read on a reload");
+      await p.context.close();
+    }
+  }
+
+  /* 11. a yes that could not be saved */
+  {
+    const { context, page } = await profile();
+    /* the new address's storage refuses the progress store while test.full is set, as a
+       full one would (the record of the answer, being small, still fits) */
+    await context.addInitScript(() => {
+      const set = Storage.prototype.setItem;
+      Storage.prototype.setItem = function (k, v) {
+        if (this === window.localStorage && k === "bm.progress.v1" && window.localStorage.getItem("test.full") === "1") throw new DOMException("full", "QuotaExceededError");
+        return set.call(this, k, v);
+      };
+    });
+    await seed(page, OLD, FIXTURE);
+    await seed(page, NEW, { "test.full": 1 });
+    await page.goto(OLD + "/index.html");
+    await question(page);
+    await page.click("[data-carry-yes]");
+    await page.waitForSelector(".carry-note.bad");
+    check(/could not be saved/.test(await page.textContent(".carry-note")), "11 a yes that could not be saved says so", await page.textContent(".carry-note"));
+    check(!(await page.evaluate(() => localStorage.getItem("bm.carry.v1"))), "11 … and is not recorded as answered", await page.evaluate(() => localStorage.getItem("bm.carry.v1")));
+    await page.evaluate(() => localStorage.removeItem("test.full"));
+    await page.goto(OLD + "/index.html");
+    await page.waitForURL((u) => String(u).startsWith(NEW));
+    const asks = await page.waitForSelector("dialog.carry-ask[open]", { timeout: 5000 }).then(() => true, () => false);
+    check(asks, "11 the same link asks again once there is room");
+    if (asks) {
+      check(/^23 exercises solved/.test((await question(page)).what), "11 … about the same progress");
+      await page.click("[data-carry-yes]");
+      await page.waitForSelector(".carry-note:not(.bad)");
+      check(await page.evaluate(() => !!JSON.parse(localStorage.getItem("bm.progress.v1")).ch05), "11 … and yes then brings it over");
+    }
     await context.close();
   }
 
