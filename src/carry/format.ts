@@ -15,15 +15,17 @@
    (`keys`, which refuses the whole of it: a payload that tries to plant something else
    is not one the old address wrote); nesting and node count are bounded; "__proto__" is
    taken out at every level. Then every store is rebuilt from what it holds, field by
-   field, keeping only what the site itself writes (clean(): solved and done maps of
-   true, but never a chapter's total, which its own page writes; counts, timestamps and
-   days that are finite, in range, and never later than tomorrow; reset times no later
-   than now; the settings' known values): anything else inside a store is left out and
-   counted (`dropped`), a store that is not one at all is left out whole (`ignored`), so
-   a value the merge cannot read never reaches it. The reader is then shown what it
-   holds (summary(), which names every kind of thing that would be written) and asked,
-   and nothing is written until they say yes; a payload with nothing to show is refused
-   (`empty`). Nothing of it is ever put into the page as HTML.
+   field, keeping only what the site itself writes and a learner needs to keep their
+   progress (the rules under "shapes": solved and done maps of true; an exercise's
+   attempt record once it is solved; counts, timestamps and days that are finite, in
+   range, and never later than today; reset times no later than now; the settings' known
+   values; chapters, sections and achievements the course has, when the page says which
+   those are): anything else inside a store is left out and counted (`dropped`), a store
+   that is not one at all is left out whole (`ignored`), so a value the merge cannot read
+   never reaches it. The reader is then shown what it holds (summary(), which names every
+   kind of thing that would be written) and asked, and nothing is written until they say
+   yes; a payload with nothing to show is refused (`empty`). Nothing of it is ever put
+   into the page as HTML.
 
    Whose progress it is. A reader who was signed in at the old address has their
    progress in their account, and signs in again here (the session is never carried).
@@ -34,14 +36,24 @@
    account.js setAside does at a sign-out), out of view, and merged into that account
    the next time it signs in on this browser; another account never takes them in.
 
-   Where it goes (plan): the synced stores are merged with what this browser already
-   holds by the site's own merge (BMAccount.merge in assets/account.js, the rule an
-   account sync uses), with this browser's side as the local one, so its choices win
-   where two devices simply disagree and nothing on either side is lost (the one rule of
-   that merge that drops anything, the game record's latest 60 days of the Daily, keeps
-   every day this browser had); the stores that stay on a device (the run store, the
-   settings, the theme) are set only where this browser has none; progress set aside for
-   a reader is merged per reader. The account binding (bm.sync.v1) is never written. */
+   Where it goes (plan): carried progress only ever adds. The synced stores are joined to
+   what this browser already holds by BMAccount.adopt (assets/account.js): the site's own
+   merge, with this browser's side as the local one, so its choices win where two
+   devices simply disagree, except that an exercise's attempt record and a section's
+   place in the review are taken only where this browser has none (the merge would
+   otherwise let a carried one lower them). Progress set aside for an account joins that
+   account the same way at its sign-in (account.js sync). The stores that stay on a
+   device (the run store, the settings, the theme) are set only where this browser has
+   none; progress set aside for a reader is kept per reader. The account binding
+   (bm.sync.v1) is never written.
+
+   Left out because a learner keeps their progress without it, and a link could use it
+   to take something away: the Daily's days (a day there spends that day's Daily), the
+   run store's day records, a chapter's opening-puzzle guess, an unsolved exercise's
+   tries, clues and opened solution (they decide what its first solve earns here), and,
+   in progress set aside for an account, the reading mode, the daily goal and the place
+   to continue from (the account holds its own) and the email and services of the
+   sign-in. */
 
 import { LEGACY, ORIGIN } from "./origins.ts";
 
@@ -99,6 +111,12 @@ export type Outcome =
   | { ok: true; stores: Stores; ignored: string[]; dropped: number; owner?: Owner }
   | { ok: false; why: Refusal };
 export type Merge = (local: Record<string, unknown>, remote: Record<string, unknown>) => Record<string, unknown>;
+/** BMAccount's merge (two devices) and adopt (carried progress into what is here) */
+export type Joins = { merge: Merge; adopt: Merge };
+/** what the course has, from the page (window.BM_CURRICULUM, BMGame.ACHIEVEMENTS):
+    chapter ids, section ids as "<chapter>#<section>", and achievement ids. Given, a
+    carried key that names none of them is left out. */
+export type Course = { chapters: string[]; sections: string[]; achievements?: string[] };
 
 const SYNCED_KEYS = Object.keys(SYNCED).map((f) => SYNCED[f]);
 
@@ -202,7 +220,7 @@ function ownerOf(x: unknown, now: number): Owner | null | false {
 }
 
 /** The progress in a bm-carry value, checked (check()), or why it is refused. */
-export async function decode(value: string, now: number = Date.now()): Promise<Outcome> {
+export async function decode(value: string, now: number = Date.now(), course?: Course): Promise<Outcome> {
   const v = String(value || "");
   if (v.length > MAX_FRAGMENT + 2) return { ok: false, why: "size" };
   if (v.charAt(0) !== FORMAT) return { ok: false, why: /^[0-9]/.test(v) ? "version" : "malformed" };
@@ -222,7 +240,7 @@ export async function decode(value: string, now: number = Date.now()): Promise<O
   if (ver !== 1) return { ok: false, why: typeof ver === "number" ? "version" : "malformed" };
   const owner = ownerOf(own(payload, "a"), now);
   if (owner === false) return { ok: false, why: "malformed" };
-  return check(own(payload, "s"), { now, owner });
+  return check(own(payload, "s"), { now, owner, course });
 }
 
 /** The progress in a file: what "Download my data" writes ({ progress, play, attempts,
@@ -231,7 +249,7 @@ export async function decode(value: string, now: number = Date.now()): Promise<O
     stores that stay on a device, by key) and `account` (the owner, as `a` above) when it
     wrote the file. A file of "Download my data" has no owner: the reader who imports it
     chose that file. */
-export function fromFile(text: string, now: number = Date.now()): Outcome {
+export function fromFile(text: string, now: number = Date.now(), course?: Course): Outcome {
   if (String(text).length > MAX_FILE) return { ok: false, why: "size" };
   let data: unknown;
   try { data = JSON.parse(String(text).replace(/^﻿/, "")); } catch (e) { return { ok: false, why: "malformed" }; }
@@ -258,7 +276,7 @@ export function fromFile(text: string, now: number = Date.now()): Outcome {
     }
   }
   if (!found) return { ok: false, why: "malformed" };
-  return check(stores, { now, owner });
+  return check(stores, { now, owner, course });
 }
 
 /* nesting and size: the deepest level and the number of values, or false past the caps;
@@ -284,8 +302,10 @@ function bounded(x: unknown): boolean {
    (src/types/state.ts, read off the writers). A rule returns the value to keep, or
    undefined to leave it out; leaving something out counts it in `dropped`. Keys of
    records the site names by chapter, exercise or section are any string of up to 120
-   characters (they are ids from the pages, and are never put into a page as HTML). */
-type Ctx = { now: number; latest: string; dropped: number; newer: boolean };
+   characters (they are ids from the pages, and are never put into a page as HTML); with
+   the course given, a chapter, section or achievement it does not have is left out. */
+type Known = { chapters: Set<string>; sections: Set<string>; achievements: Set<string> | null };
+type Ctx = { now: number; latest: string; dropped: number; newer: boolean; course: Known | null };
 type Rule = (v: unknown, c: Ctx) => unknown;
 
 function localDay(t: number): string {
@@ -298,6 +318,12 @@ function isDay(v: unknown, c: Ctx): v is string {
   return isFinite(d.getTime()) && d.toISOString().slice(0, 10) === v;
 }
 const isKey = (k: string) => k !== "__proto__" && k.length > 0 && k.length <= 120;
+/* ids the course has (any, when the page did not say) */
+const chapterId = (k: string, c: Ctx) => !c.course || c.course.chapters.has(k);
+const sectionId = (k: string, c: Ctx) => !c.course || c.course.sections.has(k);
+const achievementId = (k: string, c: Ctx) => !c.course || !c.course.achievements || c.course.achievements.has(k);
+/* a rematch medal's set: "<chapter>/practice" or "<chapter>/review" */
+const setId = (k: string, c: Ctx) => { const m = /^(.+)\/(practice|review)$/.exec(k); return !!m && chapterId(m[1], c); };
 
 const num = (max: number, min = 0): Rule => (v) => (typeof v === "number" && isFinite(v) && v >= min && v <= max ? v : undefined);
 /** the reset time of a set-aside record: never later than now (ownerOf says why) */
@@ -344,51 +370,57 @@ const filled = (inner: Rule): Rule => (x, c) => {
   const r = inner(x, c);
   return plain(r) && !Object.keys(r).length ? undefined : r;
 };
-/** the newest `n` keys of a map of days */
-const newest = (n: number, inner: Rule): Rule => (x, c) => {
-  const m = inner(x, c) as Record<string, unknown> | undefined;
-  if (!m) return m;
-  const keys = Object.keys(m).sort();
-  const out: Record<string, unknown> = {};
-  keys.slice(-n).forEach((k) => { out[k] = m[k]; });
-  c.dropped += Math.max(0, keys.length - n);
-  return out;
-};
-
 const MODES = ["standard", "daily", "boss", "repair", "review"];
 const COUNT = whole(1000000);
+
+/* An exercise's attempt record is taken once the exercise is solved, and then only
+   where this browser (or the account) has no record of it (BMAccount.adopt). An unsolved
+   one is not: its tries, clues and opened solution decide what the first solve here
+   earns (site.js Road.check: right first time is one try and no solution opened), so a
+   link could otherwise take that away from every exercise not yet solved. The help
+   ladder's place (`rung`) and a skip are an unsolved exercise's too. */
+const ATTEMPT = filled(rec({
+  tries: whole(1000), hints: whole(10), opened: flag, inline: flag, section: text(120),
+  solved: time, first: oneOf([0, 1]), rung: notTaken, skipped: notTaken
+}));
+const solvedAttempt: Rule = (x, c) => {
+  const r = ATTEMPT(x, c) as Record<string, unknown> | undefined;
+  return r && typeof r.solved === "number" ? r : undefined;
+};
 
 /* A chapter's `total` (its scored exercises, its missions) is not taken: the merge keeps
    the larger of two totals, so a total larger than the chapter's would make a finished
    chapter look unfinished here and, once synced, in the account, where no device could
    lower it again. The chapter's page writes the real total when it is opened (site.js
    initExercises, and Play.setTotal), and an account sync brings the one another device
-   wrote. A chapter record with nothing else in it is no record. */
+   wrote. A chapter record with nothing else in it is no record. Nor is the opening
+   puzzle's guess (`guess`): the puzzle asks again, and a guess a link brought would
+   answer it. */
 const STORE: Record<string, Rule> = {
-  "bm.progress.v1": map(filled(rec({ solved: map(yes), total: notTaken }))),
-  "bm.play.v1": map(filled(rec({ done: map(yes), total: notTaken, guess: whole(20) }))),
-  "bm.attempts.v1": map(map(filled(rec({
-    tries: whole(1000), hints: whole(10), rung: whole(10), opened: flag, inline: flag, section: text(120),
-    solved: time, first: oneOf([0, 1]), skipped: flag
-  })))),
+  "bm.progress.v1": map(filled(rec({ solved: map(yes), total: notTaken })), chapterId),
+  "bm.play.v1": map(filled(rec({ done: map(yes), total: notTaken, guess: notTaken })), chapterId),
+  "bm.attempts.v1": map(map(solvedAttempt), chapterId),
   "bm.activity.v1": rec({ days: map(whole(100000), (k, c) => isDay(k, c)), goal: whole(500, 5) }),
-  "bm.lesson.v1": rec({ reached: map(whole(1000)), mode: oneOf(["steps", "page"]) }),
+  "bm.lesson.v1": rec({ reached: map(whole(1000), chapterId), mode: oneOf(["steps", "page"]) }),
   /* the place to continue from: null, or a chapter and a section (or null); else nothing */
   "bm.last": (v, c) => {
     if (v === null) return null;
     const r = rec({ id: text(120), section: (s) => (s === null ? null : text(120)(s, c)) })(v, c) as Record<string, unknown> | undefined;
     return r && typeof r.id === "string" && r.id ? r : undefined;
   },
+  /* The Daily's days (`daily`) are not taken: a day there is that day's Daily spent
+     (assets/arena.js dailySpent), and the merge keeps only the latest 60, so carried days
+     would push out days played here. */
   "bm.game.v1": (v, c) => {
     /* data marked newer than this site writes is refused whole, not merged (check()) */
     if (plain(v) && typeof own(v, "v") === "number" && (own(v, "v") as number) > SCHEMA) c.newer = true;
     return rec({
-      ach: map(time),
-      cmp: map(map(flag)),
-      sec: map(rec({ n: COUNT, ok: COUNT, box: whole(4), last: day, fix: time })),
+      ach: map(time, achievementId),
+      cmp: map(map(flag), chapterId),
+      sec: map(rec({ n: COUNT, ok: COUNT, box: whole(4), last: day, fix: time }), sectionId),
       best: map(rec({ score: whole(10000000), hearts: whole(10), day }), (k) => MODES.indexOf(k) >= 0),
-      enc: map(rec({ medal: whole(3, 1), day })),
-      daily: newest(60, map(flag, (k, c) => isDay(k, c))),
+      enc: map(rec({ medal: whole(3, 1), day }), setId),
+      daily: notTaken,
       maxed: COUNT,
       v: oneOf([SCHEMA])
     })(v, c);
@@ -400,36 +432,49 @@ const STORE: Record<string, Rule> = {
     gfx: oneOf(["auto", "low", "mid", "high"]), gfxAuto: oneOf(["list", "low", "medium"])
   }),
   /* this device's scratchpad; the Arena run in play (`arena`, whose shape assets/arena.js
-     owns) is not taken: a run is started again at the new address */
+     owns) is not taken: a run is started again at the new address. Nor are the day's
+     Daily result (`daily`) and Arena tally (`arenaDay`): the one spends today's Daily,
+     the other lowers what today's Arena answers pay. */
   "bm.run.v1": rec({
     combo: rec({ pips: whole(100), shield: bool }),
     seen: rec({ level: whole(100000), ach: flag }),
-    sets: map(rec({ practice: ids(500), review: ids(500), inline: ids(500) })),
+    sets: map(rec({ practice: ids(500), review: ids(500), inline: ids(500) }), chapterId),
     paid: ids(30),
     picks: map(flag),
-    daily: rec({ day, score: whole(10000000), firstTry: whole(1000), n: whole(1000), planned: whole(1000), ended: text(32) }),
-    arenaDay: rec({ day, sec: map(whole(1000000)), finishes: whole(1000) }),
+    daily: notTaken,
+    arenaDay: notTaken,
     nextHide: day
   })
 };
+/* What progress set aside for an account brings: the synced stores, but not the choices
+   the account already holds for itself (the reading mode, the daily goal, the place to
+   continue from), which would otherwise replace its own on a browser that has none. */
+const ACCOUNT: Record<string, Rule> = {
+  "bm.activity.v1": rec({ days: map(whole(100000), (k, c) => isDay(k, c)), goal: notTaken }),
+  "bm.lesson.v1": rec({ reached: map(whole(1000), chapterId), mode: notTaken }),
+  "bm.last": notTaken
+};
+const accountRule = (key: string): Rule => (has(ACCOUNT, key) ? ACCOUNT[key] : STORE[key]);
 /* a synced state by field ({ progress, play, … }), as an account row and a set-aside
    record hold it */
 const STATE: Rule = (x, c) => {
   if (!plain(x)) return undefined;
   const out: Record<string, unknown> = {};
   for (const f of Object.keys(x)) {
-    const v = has(SYNCED, f) ? STORE[SYNCED[f]](x[f], c) : undefined;
+    if (has(SYNCED, f) && accountRule(SYNCED[f]) === notTaken) continue;
+    const v = has(SYNCED, f) ? accountRule(SYNCED[f])(x[f], c) : undefined;
     if (v === undefined) c.dropped++;
     else out[f] = v;
   }
   return out;
 };
-/* progress set aside for a reader: by account id, with how they signed in */
+/* progress set aside for a reader, by account id; how they signed in (email, via) is not
+   taken: the account page names neither for progress brought from the old address */
 const ASIDE: Rule = map((r, c) => {
   if (!plain(r) || !plain(own(r, "state"))) return undefined;
   return rec({
-    email: (v) => (typeof v === "string" && v.length <= 254 && (v === "" || /^[^\s@]+@[^\s@]+$/.test(v)) ? v : undefined),
-    via: (v) => (Array.isArray(v) && v.length <= 5 && v.every((p) => PROVIDERS.indexOf(p) >= 0) ? v.slice() : undefined),
+    email: notTaken,
+    via: notTaken,
     resetAt: resetTime,
     state: STATE,
     at: time,
@@ -438,24 +483,34 @@ const ASIDE: Rule = map((r, c) => {
 }, (k) => /^[A-Za-z0-9-]{1,64}$/.test(k));
 STORE[PENDING] = ASIDE;
 
+function known(course: Course | undefined): Known | null {
+  if (!course) return null;
+  return {
+    chapters: new Set(course.chapters), sections: new Set(course.sections),
+    achievements: course.achievements ? new Set(course.achievements) : null
+  };
+}
+
 /** The stores of a payload as this site may take them: refused whole when it is not a
     map of "bm." keys, is too big, or holds data newer than this site writes; every
     store rebuilt from what the site writes (the rules above), a store that is not one
     left out whole and named in `ignored`, anything left out inside one counted in
-    `dropped`. With an owner, the run store (which goes with the owner's progress) is
-    left out too. Refused as `empty` when nothing is left that the reader would be told
-    about (summary()). */
-export function check(stores: unknown, opts?: { now?: number; owner?: Owner | null }): Outcome {
+    `dropped`. With an owner, the run store (which goes with the owner's progress) and
+    the place to continue from (the account has its own) are left out too, and the
+    synced stores are read as a set-aside record's (ACCOUNT). Refused as `empty` when
+    nothing is left that the reader would be told about (summary()). */
+export function check(stores: unknown, opts?: { now?: number; owner?: Owner | null; course?: Course }): Outcome {
   if (!plain(stores)) return { ok: false, why: "malformed" };
   const keys = Object.keys(stores);
   if (keys.some((k) => k.indexOf("bm.") !== 0 || /auth-token|^sb-/i.test(k))) return { ok: false, why: "keys" };
   if (!bounded(stores)) return { ok: false, why: "size" };
   const now = opts && typeof opts.now === "number" ? opts.now : Date.now();
   const owner = opts && opts.owner ? opts.owner : undefined;
-  const c: Ctx = { now, latest: localDay(now + DAY_MS), dropped: 0, newer: false };
+  const c: Ctx = { now, latest: localDay(now), dropped: 0, newer: false, course: known(opts && opts.course) };
   const out: Stores = {}, ignored: string[] = [];
   keys.sort().forEach((k) => {
-    const v = has(STORE, k) && !(owner && k === "bm.run.v1") ? STORE[k](stores[k], c) : undefined;
+    const rule = !has(STORE, k) || (owner && k === "bm.run.v1") ? undefined : owner ? accountRule(k) : STORE[k];
+    const v = rule && rule !== notTaken ? rule(stores[k], c) : undefined;
     if (v === undefined) ignored.push(k);
     else out[k] = v;
   });
@@ -470,50 +525,71 @@ function count(x: unknown): number {
   return plain(x) ? Object.keys(x).filter((k) => !!x[k]).length : 0;
 }
 
-export type Summary = {
-  chapters: number; solved: number; xp: number; achievements: number; medals: number; record: boolean; settings: boolean;
+/** what a synced state holds, as the question names it */
+export type Tally = { chapters: number; solved: number; xp: number; achievements: number; medals: number; record: boolean };
+export type Summary = Tally & {
+  settings: boolean;
   /** progress set aside for accounts, out of view until each signs in here */
-  aside: { accounts: number; chapters: number; solved: number };
+  aside: Tally & { accounts: number };
 };
 
-/* the chapters, solved exercises and XP of a synced state, by key */
-function tally(stores: Stores) {
-  const chapters = new Set<string>();
-  let solved = 0, xp = 0;
+/* The chapters, solved exercises, XP, achievements, medals and Arena record of a synced
+   state, by key. An exercise is solved when the progress or an attempt record says so,
+   counted once: an attempt record is taken only once solved, and it counts toward the
+   achievements for answers right first time. */
+function tally(stores: Stores): Tally {
+  const chapters = new Set<string>(), solved = new Set<string>();
+  let xp = 0;
   const progress = stores[SYNCED.progress], play = stores[SYNCED.play], attempts = stores[SYNCED.attempts];
   const lesson = stores[SYNCED.lesson], activity = stores[SYNCED.activity], game = stores[SYNCED.game];
   if (plain(progress)) Object.keys(progress).forEach((ch) => {
     const r = progress[ch];
-    const n = plain(r) ? count(r.solved) : 0;
-    if (n) { chapters.add(ch); solved += n; }
+    if (plain(r) && plain(r.solved)) Object.keys(r.solved).forEach((k) => { if ((r.solved as Record<string, unknown>)[k]) { chapters.add(ch); solved.add(ch + "\n" + k); } });
   });
   if (plain(play)) Object.keys(play).forEach((ch) => { const r = play[ch]; if (plain(r) && count(r.done)) chapters.add(ch); });
-  if (plain(attempts)) Object.keys(attempts).forEach((ch) => { if (count(attempts[ch])) chapters.add(ch); });
+  if (plain(attempts)) Object.keys(attempts).forEach((ch) => {
+    const recs = attempts[ch];
+    if (!plain(recs)) return;
+    Object.keys(recs).forEach((k) => {
+      const r = recs[k];
+      if (!plain(r)) return;
+      chapters.add(ch);
+      if (typeof r.solved === "number") solved.add(ch + "\n" + k);
+    });
+  });
   if (plain(lesson) && plain(lesson.reached)) Object.keys(lesson.reached).forEach((ch) => {
     const n = (lesson.reached as Record<string, unknown>)[ch];
     if (typeof n === "number" && n > 0) chapters.add(ch);
   });
-  if (plain(game) && plain(game.cmp)) Object.keys(game.cmp).forEach((ch) => { if (count((game.cmp as Record<string, unknown>)[ch])) chapters.add(ch); });
+  const g = plain(game) ? game : {};
+  if (plain(g.cmp)) Object.keys(g.cmp).forEach((ch) => { if (count((g.cmp as Record<string, unknown>)[ch])) chapters.add(ch); });
   if (plain(activity) && plain(activity.days)) Object.keys(activity.days).forEach((d) => {
     const n = (activity.days as Record<string, unknown>)[d];
     if (typeof n === "number" && isFinite(n) && n > 0) xp += n;
   });
-  return { chapters: chapters.size, solved, xp: Math.round(xp) };
+  return {
+    chapters: chapters.size, solved: solved.size, xp: Math.round(xp),
+    achievements: count(g.ach), medals: count(g.enc),
+    record: count(g.sec) > 0 || count(g.best) > 0 || (typeof g.maxed === "number" && g.maxed > 0)
+  };
 }
 function byKey(state: unknown): Stores {
   const out: Stores = {};
   if (plain(state)) Object.keys(SYNCED).forEach((f) => { if (has(state, f)) out[SYNCED[f]] = state[f]; });
   return out;
 }
+const nothing = (t: Tally) => !t.chapters && !t.solved && !t.xp && !t.achievements && !t.medals && !t.record;
 
 /** What the reader is told before anything is kept: every kind of thing that would be
     written. The chapters the progress touches (an exercise solved or tried, a mission
-    done, a lesson step reached, a solution compared), the scored exercises solved, the
-    XP, the achievements and medals, whether it holds an Arena or review record, whether
-    settings come with it (the device's own stores, the reading mode, the daily goal, the
-    place to continue from), and progress set aside for accounts. With an owner, the
-    synced stores are that account's and are counted as set aside. */
-export function summary(stores: Stores, owner?: Owner): Summary {
+    done, a lesson step reached, a solution compared), the exercises solved, the XP, the
+    achievements and medals, whether it holds an Arena or review record, whether settings
+    come with it (the device's own stores, the reading mode, the daily goal, the place to
+    continue from), and the same of progress set aside for accounts. With an owner, the
+    synced stores are that account's and are counted as set aside. With `read` (what
+    this browser holds, as plan() takes it), settings are named only where this browser
+    has none of its own, since only those are written. */
+export function summary(stores: Stores, owner?: Owner, read?: (key: string) => unknown): Summary {
   const mine: Stores = {}, aside: Record<string, Stores> = {};
   Object.keys(stores).forEach((k) => { if (!(owner && SYNCED_KEYS.indexOf(k) >= 0)) mine[k] = stores[k]; });
   const pending = stores[PENDING];
@@ -524,21 +600,28 @@ export function summary(stores: Stores, owner?: Owner): Summary {
     if (Object.keys(theirs).length) aside[owner.user] = Object.assign({}, aside[owner.user] || {}, theirs);
   }
   const t = tally(mine);
-  const game = mine[SYNCED.game], activity = mine[SYNCED.activity], lesson = mine[SYNCED.lesson];
-  const g = plain(game) ? game : {};
-  const a = { accounts: 0, chapters: 0, solved: 0 };
+  const a = { accounts: 0, chapters: 0, solved: 0, xp: 0, achievements: 0, medals: 0, record: false };
   Object.keys(aside).forEach((id) => {
     const s = tally(aside[id]);
-    if (s.chapters || s.solved || s.xp) { a.accounts++; a.chapters += s.chapters; a.solved += s.solved; }
+    if (nothing(s)) return;
+    a.accounts++; a.chapters += s.chapters; a.solved += s.solved; a.xp += s.xp;
+    a.achievements += s.achievements; a.medals += s.medals; a.record = a.record || s.record;
   });
-  return {
-    chapters: t.chapters, solved: t.solved, xp: t.xp,
-    achievements: count(g.ach), medals: count(g.enc),
-    record: count(g.sec) > 0 || count(g.best) > 0 || count(g.daily) > 0 || (typeof g.maxed === "number" && g.maxed > 0),
-    settings: DEVICE.some((k) => k in mine) || (plain(lesson) && "mode" in lesson) || (plain(activity) && "goal" in activity) ||
-      (SYNCED.last in mine && mine[SYNCED.last] !== null),
-    aside: a
+  /* a setting is written only where this browser has none (plan(), and the merge's
+     local side for the synced ones) */
+  const here = (k: string, field?: string) => {
+    if (!read) return false;
+    const v = read(k);
+    return field ? plain(v) && v[field] !== undefined && v[field] !== null : v !== undefined && v !== null;
   };
+  const activity = mine[SYNCED.activity], lesson = mine[SYNCED.lesson];
+  return Object.assign(t, {
+    settings: DEVICE.some((k) => k in mine && !here(k)) ||
+      (plain(lesson) && "mode" in lesson && !here(SYNCED.lesson, "mode")) ||
+      (plain(activity) && "goal" in activity && !here(SYNCED.activity, "goal")) ||
+      (SYNCED.last in mine && mine[SYNCED.last] !== null && !here(SYNCED.last)),
+    aside: a
+  });
 }
 
 /** what the question says, plain text; "" when there is nothing to say (check() then
@@ -547,59 +630,63 @@ export function describe(s: Summary): string {
   const n = (k: number, one: string, many: string) => k + " " + (k === 1 ? one : many);
   const list = (parts: string[]) => parts.length === 1 ? parts[0] : parts.slice(0, -1).join(", ") + " and " + parts[parts.length - 1];
   const cap = (t: string) => t.charAt(0).toUpperCase() + t.slice(1);
-  const parts: string[] = [];
-  if (s.chapters || s.solved) parts.push(n(s.chapters, "chapter", "chapters"), n(s.solved, "exercise solved", "exercises solved"));
-  if (s.xp) parts.push(s.xp + " XP");
-  if (s.achievements) parts.push(n(s.achievements, "achievement", "achievements"));
-  if (s.medals) parts.push(n(s.medals, "medal", "medals"));
-  if (s.record) parts.push("your Arena and review record");
+  const kinds = (t: Tally, record: string) => {
+    const parts: string[] = [];
+    if (t.chapters || t.solved) parts.push(n(t.chapters, "chapter", "chapters"), n(t.solved, "exercise solved", "exercises solved"));
+    if (t.xp) parts.push(t.xp + " XP");
+    if (t.achievements) parts.push(n(t.achievements, "achievement", "achievements"));
+    if (t.medals) parts.push(n(t.medals, "medal", "medals"));
+    if (t.record) parts.push(record);
+    return parts;
+  };
+  const parts = kinds(s, "your Arena and review record");
   if (s.settings) parts.push("your settings");
   const out: string[] = [];
   if (parts.length) out.push(cap(list(parts)) + ".");
   if (s.aside.accounts) {
-    out.push((s.aside.accounts === 1 ? "Progress of an account that was signed in at the old address (" : "Progress of " + s.aside.accounts + " accounts that were signed in at the old address (") +
-      n(s.aside.chapters, "chapter", "chapters") + ", " + n(s.aside.solved, "exercise solved", "exercises solved") +
-      "), kept in this browser out of view and saved to " + (s.aside.accounts === 1 ? "that account" : "each account") + " when it signs in here.");
+    const one = s.aside.accounts === 1;
+    out.push((one ? "Progress of an account that was signed in at the old address (" : "Progress of " + s.aside.accounts + " accounts that were signed in at the old address (") +
+      kinds(s.aside, one ? "its Arena and review record" : "their Arena and review records").join(", ") +
+      "), kept in this browser out of view and saved to " + (one ? "that account" : "each account") + " when it signs in here.");
   }
   return out.join(" ");
 }
 
 /* ------------------------------------------------------------- merging -- */
 
+const finite = (x: unknown) => (typeof x === "number" && isFinite(x) ? x : 0);
+const stateOf = (r: Record<string, unknown>, k: string) => (plain(r[k]) ? r[k] as Record<string, unknown> : {});
+
 /* Two set-aside records (account.js setAside) of the same account. A record this
-   browser set aside itself (not `carried`) keeps its own email, services and reset
-   time, and stays its own: a carried record only adds progress to it, so a link cannot
-   raise its reset time (which assets/account.js sync applies to the account) or name
-   an email or service on it. Two carried records keep the later reset time, which
-   decides only what of them the account keeps. */
+   browser set aside itself (not `carried`) keeps its own email, services, reset time and
+   progress: a carried record's progress waits beside it as `brought`, which joins the
+   account only as carried progress does (BMAccount.adopt), so a link cannot raise its
+   reset time (which account.js sync applies to the account), name an email or service
+   on it, or pass its progress off as this browser's own. Two carried records keep the
+   later reset time, which decides only what of them the account keeps. */
 function mergePending(a: unknown, b: unknown, merge: Merge): unknown {
   if (!plain(a)) return b;
   if (!plain(b)) return a;
-  const num = (x: unknown) => (typeof x === "number" && isFinite(x) ? x : 0);
-  const state = merge(plain(a.state) ? a.state : {}, plain(b.state) ? b.state : {}), at = Math.max(num(a.at), num(b.at));
-  const kept = !!a.carried !== !!b.carried ? (a.carried ? b : a) : null;
-  if (kept) {
-    return { email: typeof kept.email === "string" ? kept.email : "", via: Array.isArray(kept.via) ? kept.via.slice() : [], resetAt: num(kept.resetAt), state, at };
+  const at = Math.max(finite(a.at), finite(b.at));
+  if (!a.carried !== !b.carried) {
+    const mine = a.carried ? b : a, theirs = a.carried ? a : b;
+    return {
+      email: typeof mine.email === "string" ? mine.email : "", via: Array.isArray(mine.via) ? mine.via.slice() : [],
+      resetAt: finite(mine.resetAt), state: stateOf(mine, "state"), at,
+      brought: merge(stateOf(mine, "brought"), stateOf(theirs, "state"))
+    };
   }
-  const via: string[] = [];
-  [a.via, b.via].forEach((list) => { if (Array.isArray(list)) list.forEach((p) => { if (typeof p === "string" && via.indexOf(p) < 0) via.push(p); }); });
-  const out: Record<string, unknown> = {
-    email: (typeof a.email === "string" && a.email) || (typeof b.email === "string" && b.email) || "",
-    via,
-    resetAt: Math.max(num(a.resetAt), num(b.resetAt)),
-    state,
-    at
-  };
-  if (a.carried || b.carried) out.carried = 1;
-  return out;
+  /* both carried (plan() marks every record that arrives) */
+  return { email: "", via: [], resetAt: Math.max(finite(a.resetAt), finite(b.resetAt)), state: merge(stateOf(a, "state"), stateOf(b, "state")), at, carried: 1 };
 }
 
 /** What to write for carried stores, given what this browser holds (`read` gives a
     store's parsed value, or undefined where there is none or it cannot be read): the
-    key -> value pairs, each a merge that keeps both sides, or a device store this
-    browser does not have. Nothing else is touched. With an owner, the synced stores go
-    to that account's set-aside record instead of into this browser's progress. */
-export function plan(read: (key: string) => unknown, carried: Stores, merge: Merge, owner?: Owner, now: number = Date.now()): Record<string, unknown> {
+    key -> value pairs, the synced stores joined to this browser's (BMAccount.adopt, which
+    only adds), and a device store this browser does not have. Nothing else is touched.
+    With an owner, the synced stores go to that account's set-aside record instead of
+    into this browser's progress. */
+export function plan(read: (key: string) => unknown, carried: Stores, joins: Joins, owner?: Owner, now: number = Date.now()): Record<string, unknown> {
   const writes: Record<string, unknown> = {};
   const fields = Object.keys(SYNCED).filter((f) => has(carried, SYNCED[f]));
   let theirs: Record<string, unknown> | null = null;
@@ -614,20 +701,7 @@ export function plan(read: (key: string) => unknown, carried: Stores, merge: Mer
       if (here !== undefined) local[f] = here;
       if (has(carried, SYNCED[f])) remote[f] = carried[SYNCED[f]];
     });
-    const merged = merge(local, remote);
-    /* the game record keeps the latest 60 days of the Daily: every one this browser had
-       stays, and carried days fill what room is left, newest first */
-    if (plain(merged.game) && plain(local.game) && plain(local.game.daily)) {
-      const mineDays = Object.keys(local.game.daily).filter((d) => d !== "__proto__" && (local.game as { daily: Record<string, unknown> }).daily[d]);
-      const all = Object.keys(merged.game.daily as object);
-      if (mineDays.some((d) => all.indexOf(d) < 0)) {
-        const room = Math.max(60, mineDays.length) - mineDays.length;
-        const extra = all.filter((d) => mineDays.indexOf(d) < 0).sort().reverse().slice(0, room);
-        const daily: Record<string, 1> = {};
-        mineDays.concat(extra).sort().forEach((d) => { daily[d] = 1; });
-        merged.game = Object.assign({}, merged.game, { daily });
-      }
-    }
+    const merged = joins.adopt(local, remote);
     fields.forEach((f) => { writes[SYNCED[f]] = f === "last" ? (merged[f] === undefined ? null : merged[f]) : merged[f]; });
   }
   DEVICE.forEach((k) => {
@@ -636,20 +710,20 @@ export function plan(read: (key: string) => unknown, carried: Stores, merge: Mer
   if (plain(carried[PENDING]) || theirs) {
     const here = read(PENDING);
     const mine: Record<string, unknown> = plain(here) ? here : {};
-    /* every set-aside record that arrives is marked `carried`: the account page then says
-       it came from the old address, and never repeats an email or a service it names;
-       arriving for an account this browser has set progress aside for itself, it only
-       adds its progress to that record (mergePending) */
+    /* every set-aside record that arrives is carried, with no email or service: the
+       account page then says it came from the old address; arriving for an account this
+       browser has set progress aside for itself, it waits beside that record
+       (mergePending) */
     const incoming: Record<string, unknown> = {};
     if (plain(carried[PENDING])) Object.keys(carried[PENDING] as object).forEach((id) => {
       const r = (carried[PENDING] as Record<string, unknown>)[id];
-      if (id !== "__proto__" && plain(r)) incoming[id] = Object.assign({}, r, { carried: 1 });
+      if (id !== "__proto__" && plain(r)) incoming[id] = { email: "", via: [], resetAt: finite(r.resetAt), state: stateOf(r, "state"), at: finite(r.at), carried: 1 };
     });
-    if (theirs) Object.keys(theirs).forEach((id) => { incoming[id] = has(incoming, id) ? mergePending(incoming[id], theirs![id], merge) : theirs![id]; });
+    if (theirs) Object.keys(theirs).forEach((id) => { incoming[id] = has(incoming, id) ? mergePending(incoming[id], theirs![id], joins.merge) : theirs![id]; });
     const out: Record<string, unknown> = {};
     Object.keys(mine).concat(Object.keys(incoming)).forEach((id) => {
       if (id === "__proto__" || has(out, id)) return;
-      out[id] = mergePending(own(mine, id), own(incoming, id), merge);
+      out[id] = mergePending(own(mine, id), own(incoming, id), joins.merge);
     });
     writes[PENDING] = out;
   }

@@ -574,9 +574,110 @@ scenario("a carried record set aside again at a sign-out does not become this br
   await d.page.signOut();
   const again = d.read("bm.sync.pending.v1", {}).u1;
   expect(again && !(Number(again.resetAt) >= now), "setting a carried record aside again kept its reset time", again);
+  /* and its progress is still carried progress, beside this browser's own, not part of it */
+  expect(again && solvedIn((again.brought || {}).progress).indexOf("ch09/e1") > -1 && solvedIn((again.state || {}).progress).indexOf("ch09/e1") < 0,
+    "setting a carried record aside again made its progress this browser's own", again);
   server.offline = false;
   d.remember("u1"); d.open(); await settle();
   expect(has(server.solved("u1"), "ch01/e1") && has(server.solved("u1"), "ch09/e1"), "the account lost progress", server.solved("u1"));
+});
+
+/* Progress brought from the old address goes through the real reader of src/carry/format.ts
+   (decode, then plan with BMAccount's merge and adopt, as src/ui/carry.ts take() writes it). */
+const FORMAT = require("url").pathToFileURL(path.join(ROOT, "src/carry/format.ts")).href;
+const pack = (payload) => "1j" + Buffer.from(JSON.stringify(payload), "utf8").toString("base64url");
+async function carry(page, payload) {
+  const f = await import(FORMAT);
+  const out = await f.decode(pack(payload), now);
+  if (!out.ok) throw new Error("the carry was refused: " + out.why);
+  const writes = f.plan((k) => page.Store.read(k, undefined), out.stores, { merge: page.Account.merge, adopt: page.Account.adopt }, out.owner, now);
+  Object.keys(writes).forEach((k) => page.Store.write(k, writes[k], true));
+  Object.keys(writes).filter((k) => Object.values(f.SYNCED).indexOf(k) > -1).forEach((k) => page.Store.emit({ type: "state", key: k }));
+  page.Store.emit({ type: "sync" });
+  return f.describe(f.summary(out.stores, out.owner));
+}
+const dayOf = (ms) => new Date(ms).toISOString().slice(0, 10);
+/* an account three sections into the review's top boxes, two exercises right first time */
+const HELD = {
+  sec: { "ch01#addition": { n: 6, ok: 6, box: 4, last: "2026-10-01" }, "ch01#rationals": { n: 5, ok: 5, box: 3, last: "2026-10-02" } },
+  attempts: { ch01: { e1: { tries: 1, solved: Date.parse("2026-10-01T10:00:00Z"), first: 1, section: "addition" }, e2: { tries: 1, solved: Date.parse("2026-10-01T10:05:00Z"), first: 1, section: "addition" } } }
+};
+/* what a crafted link brings for the same: every box 0 on today, every solve earliest and not first */
+const LOWER = {
+  sec: { "ch01#addition": { n: 0, ok: 0, box: 0, last: dayOf(now) }, "ch01#rationals": { n: 0, ok: 0, box: 0, last: dayOf(now) }, "ch02#one-unknown": { n: 2, ok: 2, box: 1, last: dayOf(now) } },
+  attempts: { ch01: { e1: { solved: Date.UTC(2024, 0, 1), first: 0, hints: 10, tries: 1000 }, e2: { solved: Date.UTC(2024, 0, 1), first: 0, hints: 10, tries: 1000 } }, ch02: { e3: { solved: Date.UTC(2026, 8, 1), first: 1, section: "one-unknown" } } }
+};
+function keptHeld(row, what) {
+  const sec = (row.game || {}).sec || {}, a = (row.attempts || {}).ch01 || {};
+  expect(sec["ch01#addition"] && sec["ch01#addition"].box === 4 && sec["ch01#rationals"] && sec["ch01#rationals"].box === 3, what + ": the account's review boxes were lowered", sec);
+  const same = (x, y) => JSON.stringify(x, Object.keys(x || {}).sort()) === JSON.stringify(y, Object.keys(y || {}).sort());
+  expect(same(a.e1, HELD.attempts.ch01.e1) && same(a.e2, HELD.attempts.ch01.e2), what + ": the account's right-first-time answers were changed", a);
+  /* what the account had no record of arrives */
+  expect(sec["ch02#one-unknown"] && sec["ch02#one-unknown"].box === 1, what + ": a section the account never placed did not arrive", sec);
+  expect(row.attempts.ch02 && row.attempts.ch02.e3 && row.attempts.ch02.e3.first === 1, what + ": an exercise the account had no record of did not arrive", row.attempts);
+}
+
+/* review round 3: a link lowered every box and every "right first time" of the account a
+   signed-in reader was using, and the account then took it to every device */
+scenario("a carried link never lowers a signed-in reader's review places or first-try answers", async () => {
+  const { server, laptop, phone } = await twoDevices();
+  laptop.page.Store.write(KEYS.game, { sec: HELD.sec });
+  laptop.page.Store.write(KEYS.attempts, HELD.attempts);
+  await settle();
+  phone.open(); await settle();
+  await carry(phone.page, { v: 1, s: { "bm.game.v1": { sec: LOWER.sec }, "bm.attempts.v1": LOWER.attempts } });
+  await settle();
+  keptHeld(server.rows.u1, "signed in");
+  laptop.open(); await settle();
+  keptHeld({ game: laptop.read(KEYS.game, {}), attempts: laptop.read(KEYS.attempts, {}) }, "on the other device");
+});
+
+/* review round 3: a record set aside for an account (`a`) replaced that account's goal,
+   reading mode and place to continue, lowered its boxes and first-try answers, and pushed
+   its own Daily days out, at its next sign-in on this browser */
+scenario("progress carried for an account only adds to that account at its sign-in", async () => {
+  const daily = {};
+  for (let i = 0; i < 20; i++) daily[dayOf(now - (100 + i * 3) * 86400000)] = 1;
+  const row = () => ({ user_id: "u1", progress: { ch01: { solved: { e1: true, e2: true }, total: 10 } }, attempts: HELD.attempts, activity: { days: {}, goal: 50 },
+    lesson: { reached: { ch01: 3 }, mode: "page" }, last: { id: "ch05", section: "s3" }, game: { sec: HELD.sec, daily }, reset_at: 0, updated_at: now - 86400000 });
+  const fake = {};
+  for (let i = -1; i < 59; i++) fake[dayOf(now - i * 86400000)] = 1;
+  const crafted = { "bm.progress.v1": { ch01: { solved: { e9: true } } }, "bm.attempts.v1": LOWER.attempts, "bm.game.v1": { sec: LOWER.sec, daily: fake },
+    "bm.activity.v1": { goal: 5 }, "bm.lesson.v1": { mode: "steps" }, "bm.last": { id: "ch01", section: null } };
+  /* through the reader, with an owner; then the same record as the set-aside store
+     would hold it if it named all of that (what sync() does with it, whatever wrote it) */
+  for (const how of ["owner", "record"]) {
+    const server = new Server();
+    server.rows.u1 = row();
+    const d = new Device("new-origin", server);
+    d.open(); await settle();
+    if (how === "owner") await carry(d.page, { v: 1, a: { user: "u1", resetAt: 0 }, s: crafted });
+    else d.storage.set("bm.sync.pending.v1", JSON.stringify({ u1: { email: "", via: [], resetAt: 0, at: now, carried: 1, state: {
+      progress: crafted["bm.progress.v1"], attempts: LOWER.attempts, game: { sec: LOWER.sec }, activity: { goal: 5, days: {} }, lesson: { mode: "steps", reached: {} }, last: { id: "ch01", section: null } } } }));
+    d.remember("u1"); d.open(); await settle();
+    const r = server.rows.u1;
+    keptHeld(r, how);
+    expect(r.activity.goal === 50 && r.lesson.mode === "page" && r.last && r.last.id === "ch05", how + ": the account's own choices were replaced", { goal: r.activity.goal, mode: r.lesson.mode, last: r.last });
+    const lost = Object.keys(daily).filter((k) => !(r.game.daily || {})[k]);
+    expect(!lost.length && !(r.game.daily || {})[dayOf(now + 86400000)], how + ": the account's Daily days were changed", { lost, kept: Object.keys(r.game.daily || {}).length });
+    expect(has(server.solved("u1"), "ch01/e9") && has(server.solved("u1"), "ch01/e1"), how + ": the carried progress did not join the account", server.solved("u1"));
+    expect(!d.read("bm.sync.pending.v1", {}).u1, how + ": the carried record was kept after it reached the account");
+  }
+});
+
+scenario("progress carried beside this browser's own set-aside record joins the account as carried progress", async () => {
+  const server = new Server();
+  server.rows.u1 = { user_id: "u1", progress: { ch01: { solved: { e1: true }, total: 10 } }, attempts: HELD.attempts, game: { sec: HELD.sec }, reset_at: 0, updated_at: now - 86400000 };
+  const d = new Device("laptop", server);
+  /* this browser's own record (a sign-out that could not save), then a link for the same account */
+  d.storage.set("bm.sync.pending.v1", JSON.stringify({ u1: { email: "u1@example.com", via: [], resetAt: 0, state: { progress: { ch03: { solved: { e4: true }, total: 10 } } }, at: now - 1000 } }));
+  d.open(); await settle();
+  await carry(d.page, { v: 1, a: { user: "u1", resetAt: 0 }, s: { "bm.progress.v1": { ch09: { solved: { e1: true } } }, "bm.game.v1": { sec: LOWER.sec }, "bm.attempts.v1": LOWER.attempts } });
+  const held = d.read("bm.sync.pending.v1", {}).u1;
+  expect(held && !held.carried && held.email === "u1@example.com" && held.brought && solvedIn(held.state.progress).join() === "ch03/e4", "the carried progress was made part of this browser's own record", held);
+  d.remember("u1"); d.open(); await settle();
+  keptHeld(server.rows.u1, "beside its own");
+  expect(["ch01/e1", "ch03/e4", "ch09/e1"].every((k) => has(server.solved("u1"), k)), "the account lost progress", server.solved("u1"));
 });
 
 scenario("a reset that never reached the account does not wipe work another device saved after it", async () => {

@@ -7,7 +7,7 @@ import fs from "node:fs";
 import path from "node:path";
 import vm from "node:vm";
 import { describe, expect, it } from "vitest";
-import { allowedHost, asked, check, decode, describe as describeIt, fingerprint, fromFile, legacyCarryUrl, MAX_FRAGMENT, plan, readHash, remember, safeAt, summary, type Owner, type Stores } from "./format.ts";
+import { allowedHost, asked, check, decode, describe as describeIt, fingerprint, fromFile, legacyCarryUrl, MAX_FRAGMENT, plan, readHash, remember, safeAt, summary, type Course, type Joins, type Owner, type Stores } from "./format.ts";
 import { LEGACY, ORIGIN } from "./origins.ts";
 
 const ROOT = path.resolve(import.meta.dirname, "..", "..");
@@ -23,8 +23,8 @@ const send: Send = new Function(fs.readFileSync(path.join(ROOT, "src/carry/send.
 const page: { pathFrom(search: string, origin: string): string; file(stores: Stores, from: string, owner: Owner | null): unknown } =
   new Function(fs.readFileSync(path.join(ROOT, "src/carry/page.js"), "utf8") + "\nreturn BMCarryPage;")();
 
-/* account.js as merge.test.js loads it: no page, no server, just the merge */
-function loadMerge(): (a: Record<string, unknown>, b: Record<string, unknown>) => Record<string, unknown> {
+/* account.js as merge.test.js loads it: no page, no server, just the merge and adopt */
+function loadJoins(): Joins {
   const noop = () => {};
   const win: Record<string, unknown> = {
     console, BM_CONFIG: {}, location: { hash: "", search: "", href: "file:///x/index.html" }, addEventListener: noop,
@@ -39,9 +39,11 @@ function loadMerge(): (a: Record<string, unknown>, b: Record<string, unknown>) =
   win.window = win;
   vm.createContext(win);
   vm.runInContext(fs.readFileSync(path.join(ROOT, "assets/account.js"), "utf8"), win, { filename: "account.js" });
-  return (win.BMAccount as { merge: never }).merge;
+  const account = win.BMAccount as Joins;
+  return { merge: account.merge, adopt: account.adopt };
 }
-const merge = loadMerge();
+const joins = loadJoins();
+const merge = joins.merge;
 
 /* a Storage over a plain map, in insertion order */
 function storage(entries: Record<string, string>) {
@@ -210,7 +212,8 @@ describe("what the old address sends", () => {
     expect(big.length).toBeLessThan(12000);
     expect(big.length).toBeLessThan(MAX_FRAGMENT);
     const back = await decode(big);
-    expect(back.ok && summary(back.stores)).toMatchObject({ chapters: 17, solved: 206 });
+    /* every exercise of the course, scored and Your turn checks alike, solved */
+    expect(back.ok && summary(back.stores)).toMatchObject({ chapters: 17, solved: 388 });
   });
 
   it("is too long for an address when the stores are larger than any the site writes", async () => {
@@ -301,10 +304,13 @@ describe("what the new address reads", () => {
   });
 
   it("says what it holds, every kind of thing it would write", () => {
-    expect(describeIt(summary(fixture))).toBe("3 chapters, 23 exercises solved, 519 XP, 3 achievements, 1 medal, your Arena and review record and your settings.");
+    /* 23 scored exercises and 8 Your turn checks solved */
+    expect(describeIt(summary(fixture))).toBe("3 chapters, 31 exercises solved, 519 XP, 3 achievements, 1 medal, your Arena and review record and your settings.");
     expect(describeIt(summary({ "bm.theme": "dark" }))).toBe("Your settings.");
     expect(describeIt(summary({ "bm.game.v1": { ach: { "first-light": 1789214400000 }, enc: { "ch01/practice": { medal: 3, day: "2026-09-12" } } } }))).toBe("1 achievement and 1 medal.");
-    expect(describeIt(summary({ "bm.game.v1": { daily: { "2026-09-20": 1 } } }))).toBe("Your Arena and review record.");
+    expect(describeIt(summary({ "bm.game.v1": { best: { daily: { score: 10, hearts: 3, day: "2026-09-20" } } } }))).toBe("Your Arena and review record.");
+    /* an exercise solved in an attempt record alone is counted, once */
+    expect(describeIt(summary({ "bm.progress.v1": { ch01: { solved: { e1: true } } }, "bm.attempts.v1": { ch01: { e1: { solved: 1789214400000 }, e2: { solved: 1789214400000 } } } }))).toBe("1 chapter and 2 exercises solved.");
     expect(describeIt(summary({ "bm.sync.pending.v1": { "u-9": { email: "a@b.c", via: ["github"], state: { progress: { ch03: { solved: { e2: true }, total: 9 } } } } } })))
       .toBe("Progress of an account that was signed in at the old address (1 chapter, 1 exercise solved), kept in this browser out of view and saved to that account when it signs in here.");
     expect(describeIt(summary({}))).toBe("");
@@ -326,7 +332,7 @@ describe("the merge into this browser", () => {
   it("never loses either side, keeps this browser's choices, and fills only absent device stores", () => {
     const carried = JSON.parse(JSON.stringify(fixture)) as Stores;
     carried["bm.sync.pending.v1"] = { "u-1": { email: "", via: ["google"], resetAt: 7, state: { progress: { ch03: { solved: { e1: true }, total: 9 } } }, at: 20 }, "u-2": { email: "x@y.z", state: {} } };
-    const writes = plan(read(here), carried, merge);
+    const writes = plan(read(here), carried, joins);
     const p = writes["bm.progress.v1"] as Record<string, { solved: Record<string, true>; total: number }>;
     const fp = fixture["bm.progress.v1"] as Record<string, { solved: Record<string, true> }>;
     /* everything on each side is there */
@@ -348,23 +354,24 @@ describe("the merge into this browser", () => {
     /* the record this browser set aside itself keeps its own email, services and reset
        time, and takes in the carried progress (the link cannot raise its reset, which
        account.js applies to the account, or name a service on it) */
-    expect(pend["u-1"]).toEqual({ email: "a@b.c", via: ["github"], resetAt: 3, at: 20, state: pend["u-1"].state });
-    const pstate = pend["u-1"].state as { progress: Record<string, unknown> };
-    expect(Object.keys(pstate.progress).sort()).toEqual(["ch02", "ch03"]);
-    expect(pend["u-2"]).toEqual({ email: "x@y.z", state: {}, carried: 1 });
+    expect(pend["u-1"]).toEqual({ email: "a@b.c", via: ["github"], resetAt: 3, at: 20, state: (here["bm.sync.pending.v1"] as Record<string, Record<string, unknown>>)["u-1"].state, brought: pend["u-1"].brought });
+    /* and the carried progress waits beside its own, to join the account as carried
+       progress does (BMAccount.adopt), never as this browser's own */
+    expect(Object.keys((pend["u-1"].brought as { progress: object }).progress)).toEqual(["ch03"]);
+    expect(pend["u-2"]).toEqual({ email: "", via: [], resetAt: 0, state: {}, at: 0, carried: 1 });
     /* and carrying the same again changes nothing more (the first time may fill in a
        record's known fields, as any merge does) */
     const after = { ...here, ...writes };
-    const twice = { ...after, ...plan(read(after), carried, merge) };
-    const again = plan(read(twice), carried, merge);
+    const twice = { ...after, ...plan(read(after), carried, joins) };
+    const again = plan(read(twice), carried, joins);
     Object.keys(again).forEach((k) => expect(canon(again[k]), k).toBe(canon(twice[k])));
     ["bm.progress.v1", "bm.attempts.v1", "bm.play.v1", "bm.game.v1"].forEach((k) => expect(canon(twice[k]), k).toBe(canon(after[k])));
   });
 
   it("writes only the stores that were carried", () => {
-    expect(Object.keys(plan(read(here), { "bm.theme": "dark" }, merge))).toEqual(["bm.theme"]);
-    expect(Object.keys(plan(read({}), { "bm.prefs.v1": { sound: true } }, merge))).toEqual(["bm.prefs.v1"]);
-    expect(plan(read(here), { "bm.prefs.v1": { sound: true } }, merge)).toEqual({});
+    expect(Object.keys(plan(read(here), { "bm.theme": "dark" }, joins))).toEqual(["bm.theme"]);
+    expect(Object.keys(plan(read({}), { "bm.prefs.v1": { sound: true } }, joins))).toEqual(["bm.prefs.v1"]);
+    expect(plan(read(here), { "bm.prefs.v1": { sound: true } }, joins)).toEqual({});
   });
 });
 
@@ -376,7 +383,7 @@ describe("a crafted payload the reader says yes to", () => {
   /* what this browser holds after yes, starting from the fixture */
   async function yes(payload: unknown, base: Stores = here) {
     const out = await decode(pack(payload), NOW);
-    return { out, state: out.ok ? { ...base, ...plan(read(base), out.stores, merge, out.owner, NOW) } : base };
+    return { out, state: out.ok ? { ...base, ...plan(read(base), out.stores, joins, out.owner, NOW) } : base };
   }
   /* nothing the fixture holds is lost or changed: every solved exercise and mission,
      every attempt record (a carried record may add to one, never change what it has),
@@ -406,8 +413,9 @@ describe("a crafted payload the reader says yes to", () => {
     /* beside one real exercise, it is asked about as that alone, and changes nothing here */
     const { out, state } = await yes({ v: 1, s: { ...crafted, "bm.progress.v1": { ch03: { solved: { e1: true }, total: 10 } } } });
     expect(out.ok && describeIt(summary(out.stores))).toBe("1 chapter and 1 exercise solved.");
-    /* 60 days, five fields, and the record they leave empty */
-    expect(out.ok && out.dropped).toBe(66);
+    /* four fields, and the record they leave empty (the Daily's days are not taken at
+       all, nor is the help ladder's place) */
+    expect(out.ok && out.dropped).toBe(5);
     keepsHere(state);
     expect((state["bm.attempts.v1"] as Record<string, Record<string, unknown>>).ch01.t1).toEqual({ tries: 1, section: "addition", inline: 1, solved: 1789214400000, first: 1 });
     expect((state["bm.progress.v1"] as Record<string, { solved: Record<string, true> }>).ch03.solved.e1).toBe(true);
@@ -435,7 +443,7 @@ describe("a crafted payload the reader says yes to", () => {
     expect(out.stores).toEqual({
       "bm.progress.v1": { ch01: { solved: { e1: true } } },
       "bm.play.v1": { ch01: { done: { "a:0": true } } },
-      "bm.attempts.v1": { ch01: { e1: { tries: 2, opened: 1 } } },
+      "bm.attempts.v1": { ch01: {} },
       "bm.activity.v1": { days: { "2026-10-01": 40 } },
       "bm.lesson.v1": { reached: { ch01: 4 } },
       "bm.last": { id: "ch01" },
@@ -446,20 +454,108 @@ describe("a crafted payload the reader says yes to", () => {
     expect(out.ignored).toEqual([]);
   });
 
-  it("keeps every Daily this browser had when 60 later days of it arrive", async () => {
-    /* this browser played two Dailies in July; the link brings the 60 days before today */
+  it("never takes the Daily's days, today's run records, or any day later than today", async () => {
+    /* review round 3: a carried Daily day of today or tomorrow spent that Daily here, and
+       60 recent ones pushed out the days this browser (or an account) had played */
     const base = { ...here, "bm.game.v1": { ...(here["bm.game.v1"] as object), daily: { "2026-07-01": 1, "2026-07-02": 1 } } };
     const daily: Record<string, 1> = {};
-    for (let i = 0; i < 60; i++) daily[new Date(NOW - i * 86400000).toISOString().slice(0, 10)] = 1;
-    /* the site's own merge would keep only the latest 60, pushing out both of this browser's */
-    expect(Object.keys((merge({ game: base["bm.game.v1"] }, { game: { daily } }).game as { daily: object }).daily)).not.toContain("2026-07-01");
-    const { out, state } = await yes({ v: 1, s: { "bm.game.v1": { daily }, "bm.progress.v1": { ch03: { solved: { e1: true } } } } }, base);
+    for (let i = -1; i < 59; i++) daily[new Date(NOW - i * 86400000).toISOString().slice(0, 10)] = 1;
+    const today = "2026-10-05", tomorrow = "2026-10-06";
+    const { out, state } = await yes({ v: 1, s: {
+      "bm.game.v1": { daily, sec: { "ch03#order": { n: 2, ok: 2, box: 1, last: tomorrow } } },
+      "bm.activity.v1": { days: { [today]: 30, [tomorrow]: 40 } },
+      "bm.run.v1": { daily: { day: today, score: 5 }, arenaDay: { day: today, sec: { "ch01#addition": 1000000 } }, combo: { pips: 2 } },
+      "bm.progress.v1": { ch03: { solved: { e1: true } } }
+    } }, Object.fromEntries(Object.entries(base).filter(([k]) => k !== "bm.run.v1")));
+    expect(out.ok).toBe(true);
+    if (!out.ok) return;
+    expect((out.stores["bm.game.v1"] as Record<string, unknown>).daily).toBeUndefined();
+    expect(out.stores["bm.game.v1"]).toEqual({ sec: { "ch03#order": { n: 2, ok: 2, box: 1 } } });
+    expect(out.stores["bm.activity.v1"]).toEqual({ days: { [today]: 30 } });
+    expect(out.stores["bm.run.v1"]).toEqual({ combo: { pips: 2 } });
+    keepsHere(state, base);
+    expect(Object.keys((state["bm.game.v1"] as { daily: object }).daily)).toEqual(["2026-07-01", "2026-07-02"]);
+  });
+
+  it("never lowers a review placement or an attempt this browser has (review round 3)", async () => {
+    /* every section here in the top boxes, every exercise right first time */
+    const tomorrow = "2026-10-06", today = "2026-10-05";
+    const g = here["bm.game.v1"] as { sec: Record<string, unknown> };
+    const sec: Record<string, unknown> = {}, low: Record<string, unknown> = {};
+    Object.keys(g.sec).forEach((id) => { sec[id] = { n: 6, ok: 6, box: 4, last: "2026-10-01" }; low[id] = { n: 0, ok: 0, box: 0, last: tomorrow }; });
+    const base = { ...here, "bm.game.v1": { ...g, sec } };
+    const a = here["bm.attempts.v1"] as Record<string, Record<string, unknown>>;
+    const worse: Record<string, Record<string, unknown>> = {};
+    Object.keys(a).forEach((ch) => { worse[ch] = {}; Object.keys(a[ch]).forEach((k) => { worse[ch][k] = { solved: Date.UTC(2024, 0, 1), first: 0, hints: 10, tries: 1000, opened: 1 }; }); });
+    /* the same, with the day today, which check() takes */
+    Object.keys(low).forEach((id) => { (low[id] as { last: string }).last = today; });
+    low["ch09#new-one"] = { n: 1, ok: 1, box: 2, last: today };
+    worse.ch09 = { e7: { solved: Date.UTC(2026, 9, 1), first: 1, section: "s" } };
+    const { out, state } = await yes({ v: 1, s: { "bm.game.v1": { sec: low }, "bm.attempts.v1": worse } }, base);
     expect(out.ok).toBe(true);
     keepsHere(state, base);
-    const got = Object.keys((state["bm.game.v1"] as { daily: object }).daily);
-    expect(got).toHaveLength(60);
-    expect(got).toContain("2026-07-01");
-    expect(got).toContain(Object.keys(daily).sort().pop());
+    const after = (state["bm.game.v1"] as { sec: Record<string, unknown> }).sec;
+    Object.keys(sec).forEach((id) => expect(after[id], id).toEqual(sec[id]));
+    /* what this browser has no record of arrives */
+    expect(after["ch09#new-one"]).toEqual({ n: 1, ok: 1, box: 2, last: today });
+    expect((state["bm.attempts.v1"] as Record<string, Record<string, unknown>>).ch09.e7).toEqual({ solved: Date.UTC(2026, 9, 1), first: 1, section: "s" });
+  });
+
+  it("takes an attempt record only once the exercise is solved", async () => {
+    /* review round 3: a carried try or opened solution on an exercise not yet solved made
+       its first right answer here pay the second-try or opened rate */
+    const unsolved = { ch01: { e11: { tries: 1 }, e12: { opened: 1, rung: 3 }, e13: { hints: 2, skipped: 1, section: "addition" } } };
+    expect(await decode(pack({ v: 1, s: { "bm.attempts.v1": unsolved } }), NOW)).toEqual({ ok: false, why: "empty" });
+    const { out, state } = await yes({ v: 1, s: { "bm.attempts.v1": { ...unsolved, ch03: { e1: { solved: Date.UTC(2026, 9, 1), first: 0, tries: 2, hints: 1, rung: 2 } } } } });
+    expect(out.ok && describeIt(summary(out.stores))).toBe("1 chapter and 1 exercise solved.");
+    const recs = state["bm.attempts.v1"] as Record<string, Record<string, unknown>>;
+    ["e11", "e12", "e13"].forEach((k) => expect(recs.ch01[k], k).toBeUndefined());
+    expect(recs.ch03.e1).toEqual({ solved: Date.UTC(2026, 9, 1), first: 0, tries: 2, hints: 1 });
+  });
+
+  it("takes only the chapters, sections and achievements the course has, when the page says", async () => {
+    const win: Record<string, unknown> = {};
+    vm.runInNewContext(fs.readFileSync(path.join(ROOT, "data/curriculum.js"), "utf8"), { window: win });
+    const C = win.BM_CURRICULUM as { chapters: { id: string; sections: { id: string }[] }[] };
+    const course: Course = {
+      chapters: C.chapters.map((ch) => ch.id),
+      sections: C.chapters.flatMap((ch) => ch.sections.map((s) => ch.id + "#" + s.id)),
+      achievements: ["first-light", "sure-hand"]
+    };
+    const s = {
+      "bm.progress.v1": { ch01: { solved: { e1: true } }, zz: { solved: { e1: true, e2: true } } },
+      "bm.attempts.v1": { zz: { e1: { solved: Date.UTC(2026, 9, 1), first: 1 } } },
+      "bm.play.v1": { "not-a-chapter": { done: { "a:0": true } } },
+      "bm.lesson.v1": { reached: { ch02: 3, nope: 9 } },
+      "bm.game.v1": {
+        ach: { "first-light": Date.UTC(2026, 9, 1), "no-such-achievement": Date.UTC(2026, 9, 1) },
+        cmp: { zz: { e1: 1 } }, sec: { "ch01#addition": { n: 1, ok: 1 }, "ch01#nope": { n: 1, ok: 1 } },
+        enc: { "ch01/practice": { medal: 3, day: "2026-09-01" }, "zz/practice": { medal: 3, day: "2026-09-01" }, "ch01/boss": { medal: 3, day: "2026-09-01" } }
+      }
+    };
+    const out = await decode(pack({ v: 1, s }), NOW, course);
+    expect(out.ok).toBe(true);
+    if (!out.ok) return;
+    expect(out.stores).toEqual({
+      "bm.progress.v1": { ch01: { solved: { e1: true } } },
+      "bm.attempts.v1": {},
+      "bm.play.v1": {},
+      "bm.lesson.v1": { reached: { ch02: 3 } },
+      "bm.game.v1": { ach: { "first-light": Date.UTC(2026, 9, 1) }, cmp: {}, sec: { "ch01#addition": { n: 1, ok: 1 } }, enc: { "ch01/practice": { medal: 3, day: "2026-09-01" } } }
+    });
+    expect(out.dropped).toBe(9);
+    expect(describeIt(summary(out.stores))).toBe("2 chapters, 1 exercise solved, 1 achievement, 1 medal and your Arena and review record.");
+    /* without the course (a test, a page that has not loaded it) the ids are not checked */
+    const any = await decode(pack({ v: 1, s }), NOW);
+    expect(any.ok && Object.keys(any.stores["bm.progress.v1"] as object)).toEqual(["ch01", "zz"]);
+  });
+
+  it("names settings only where this browser has none, since only those are written", () => {
+    const stores = { "bm.theme": "light", "bm.lesson.v1": { reached: {}, mode: "steps" }, "bm.last": { id: "ch01" } } as Stores;
+    const has = (state: Record<string, unknown>) => (k: string) => state[k];
+    expect(describeIt(summary(stores, undefined, has({})))).toBe("Your settings.");
+    expect(describeIt(summary(stores, undefined, has({ "bm.theme": "dark", "bm.lesson.v1": { mode: "page" }, "bm.last": { id: "ch02" } })))).toBe("");
+    expect(describeIt(summary(stores, undefined, has({ "bm.theme": "dark", "bm.lesson.v1": { reached: {} }, "bm.last": { id: "ch02" } })))).toBe("Your settings.");
   });
 
   it("refuses a game record that says it is newer than this site (review case A)", async () => {
@@ -517,7 +613,9 @@ describe("a crafted payload the reader says yes to", () => {
       expect(out.ok).toBe(true);
       const r = (state["bm.sync.pending.v1"] as Record<string, Record<string, unknown>>).u1;
       expect({ email: r.email, via: r.via, resetAt: r.resetAt, carried: r.carried }).toEqual({ email: "a@b.c", via: ["github"], resetAt: 3, carried: undefined });
-      expect(Object.keys((r.state as { progress: object }).progress).sort()).toEqual(["ch02", "ch09"]);
+      /* its own progress stays its own, and the carried progress waits beside it */
+      expect(Object.keys((r.state as { progress: object }).progress)).toEqual(["ch02"]);
+      expect(Object.keys((r.brought as { progress: object }).progress)).toEqual(["ch09"]);
     }
   });
 
@@ -533,6 +631,25 @@ describe("a crafted payload the reader says yes to", () => {
     expect(await decode(pack({ v: 1, s: { "bm.sync.pending.v1": { u1: { email: "x@y.z", via: ["google"], state: {} } } } }), NOW)).toEqual({ ok: false, why: "empty" });
     expect(await decode(pack({ v: 1, s: { "bm.sync.pending.v1": { u1: { email: "x@y.z", state: { progress: { ch01: { solved: { e1: "yes" } } } } } } } }), NOW)).toEqual({ ok: false, why: "empty" });
   });
+
+  it("names whatever set-aside progress holds, and never brings an account's own choices (review round 3)", async () => {
+    /* achievements, a medal and review placements alone, with a theme this browser has:
+       the question used to say only "Your settings." */
+    const game = { sec: { "ch01#addition": { n: 0, ok: 0, box: 0, last: "2026-10-05" } }, ach: { "sure-hand": 1789214400000 }, enc: { "ch01/practice": { medal: 1, day: "2026-09-01" } } };
+    const owned = await decode(pack({ v: 1, a: { user: "0b6f2c1e-1", resetAt: 0 }, s: { "bm.theme": "light", "bm.game.v1": game } }), NOW);
+    expect(owned.ok).toBe(true);
+    if (!owned.ok) return;
+    const line = describeIt(summary(owned.stores, owned.owner, (k) => (k === "bm.theme" ? "dark" : undefined)));
+    expect(line).toBe("Progress of an account that was signed in at the old address (1 achievement, 1 medal, its Arena and review record), kept in this browser out of view and saved to that account when it signs in here.");
+    /* the reading mode, the daily goal and the place to continue from are the account's
+       own: progress set aside for it, by its owner or in the set-aside store, has none */
+    const choices = { "bm.activity.v1": { days: { "2026-10-01": 20 }, goal: 5 }, "bm.lesson.v1": { reached: { ch01: 2 }, mode: "steps" }, "bm.last": { id: "ch01", section: null } };
+    const byOwner = await decode(pack({ v: 1, a: { user: "u1", resetAt: 0 }, s: choices }), NOW);
+    expect(byOwner.ok && byOwner.stores).toEqual({ "bm.activity.v1": { days: { "2026-10-01": 20 } }, "bm.lesson.v1": { reached: { ch01: 2 } } });
+    expect(byOwner.ok && byOwner.ignored).toEqual(["bm.last"]);
+    const aside = await decode(pack({ v: 1, s: { "bm.sync.pending.v1": { u1: { state: { activity: choices["bm.activity.v1"], lesson: choices["bm.lesson.v1"], last: choices["bm.last"] } } } } }), NOW);
+    expect(aside.ok && (aside.stores["bm.sync.pending.v1"] as Record<string, unknown>).u1).toEqual({ state: { activity: { days: { "2026-10-01": 20 } }, lesson: { reached: { ch01: 2 } } } });
+  });
 });
 
 describe("progress of an account that was signed in at the old address", () => {
@@ -546,17 +663,18 @@ describe("progress of an account that was signed in at the old address", () => {
     const out = await decode(v, NOW);
     expect(out.ok && out.owner).toEqual({ user: "u-1", resetAt: 5 });
     if (!out.ok) return;
-    /* the run store goes with the account's progress, and stays behind */
-    expect(out.ignored).toEqual(["bm.run.v1"]);
-    expect(describeIt(summary(out.stores, out.owner))).toBe("Your settings. Progress of an account that was signed in at the old address (3 chapters, 23 exercises solved), kept in this browser out of view and saved to that account when it signs in here.");
-    const writes = plan(read(here), out.stores, merge, out.owner, NOW);
+    /* the run store goes with the account's progress, and stays behind; the account has
+       its own place to continue from */
+    expect(out.ignored).toEqual(["bm.last", "bm.run.v1"]);
+    expect(describeIt(summary(out.stores, out.owner))).toBe("Your settings. Progress of an account that was signed in at the old address (3 chapters, 31 exercises solved, 519 XP, 3 achievements, 1 medal, its Arena and review record), kept in this browser out of view and saved to that account when it signs in here.");
+    const writes = plan(read(here), out.stores, joins, out.owner, NOW);
     expect(Object.keys(writes).sort()).toEqual(["bm.sync.pending.v1", "bm.theme"]);
     const aside = (writes["bm.sync.pending.v1"] as Record<string, Record<string, unknown>>)["u-1"];
     expect(aside).toMatchObject({ email: "", via: [], resetAt: 5, at: NOW, carried: 1 });
-    expect(Object.keys(aside.state as object).sort()).toEqual(["activity", "attempts", "game", "last", "lesson", "play", "progress"]);
+    expect(Object.keys(aside.state as object).sort()).toEqual(["activity", "attempts", "game", "lesson", "play", "progress"]);
     expect(canon((aside.state as Record<string, unknown>).progress)).toBe(canon(noTotals(fixture["bm.progress.v1"])));
     /* this browser's own progress is untouched, and so is everything set aside for others */
-    const twice = plan(read({ ...here, ...writes, "bm.sync.pending.v1": { "u-2": { email: "b@c.d", state: { progress: {} } }, ...(writes["bm.sync.pending.v1"] as object) } }), out.stores, merge, out.owner, NOW + 1);
+    const twice = plan(read({ ...here, ...writes, "bm.sync.pending.v1": { "u-2": { email: "b@c.d", state: { progress: {} } }, ...(writes["bm.sync.pending.v1"] as object) } }), out.stores, joins, out.owner, NOW + 1);
     expect(Object.keys(twice["bm.sync.pending.v1"] as object).sort()).toEqual(["u-1", "u-2"]);
     /* (the merge fills in a total it has none for as 0, which the site reads as unknown) */
     expect(canon(noTotals(((twice["bm.sync.pending.v1"] as Record<string, Record<string, unknown>>)["u-1"].state as Record<string, unknown>).progress))).toBe(canon(noTotals(fixture["bm.progress.v1"])));

@@ -159,7 +159,7 @@ const SESSION = "sb-jfidvrzonyzfstnykzly-auth-token";
     await page.goto(OLD + "/parts/1-algebra/01-numbers.html#integers");
     const q = await question(page);
     check(/^Bring over your progress from the old address\?$/.test(q.title), "1 the new address asks", q);
-    check(q.what === "3 chapters, 23 exercises solved, 519 XP, 3 achievements, 1 medal, your Arena and review record and your settings. Progress of an account that was signed in at the old address (1 chapter, 1 exercise solved), kept in this browser out of view and saved to that account when it signs in here.", "1 … saying what the progress holds, set-aside progress too", q.what);
+    check(q.what === "3 chapters, 31 exercises solved, 519 XP, 3 achievements, 1 medal, your Arena and review record and your settings. Progress of an account that was signed in at the old address (1 chapter, 1 exercise solved), kept in this browser out of view and saved to that account when it signs in here.", "1 … saying what the progress holds, set-aside progress too", q.what);
     check(q.modal && q.focus === "Bring it over", "1 … in a modal dialog, focus on the answer", q);
     eq(new URL(page.url()).pathname + new URL(page.url()).hash, "/parts/1-algebra/01-numbers#integers", "1 at the same chapter, the fragment already gone and the anchor back");
     eq(visits.old.length, 1, "1 the old address was loaded once");
@@ -208,7 +208,7 @@ const SESSION = "sb-jfidvrzonyzfstnykzly-auth-token";
     await seed(page, NEW, newState);
     await page.goto(OLD + "/progress.html");
     const q = await question(page);
-    eq(q.what, "Your settings. Progress of an account that was signed in at the old address (3 chapters, 23 exercises solved), kept in this browser out of view and saved to that account when it signs in here.", "1b the question says whose progress it is");
+    eq(q.what, "Your settings. Progress of an account that was signed in at the old address (3 chapters, 31 exercises solved, 519 XP, 3 achievements, 1 medal, its Arena and review record), kept in this browser out of view and saved to that account when it signs in here.", "1b the question says whose progress it is");
     await page.click("[data-carry-yes]");
     await page.waitForSelector(".carry-note");
     const s = await storageOf(page, NEW);
@@ -242,7 +242,7 @@ const SESSION = "sb-jfidvrzonyzfstnykzly-auth-token";
     /* the reader changes their mind: the carry page (the progress page's link) asks again */
     await page.goto(OLD + "/carry/?to=" + encodeURIComponent("/progress"));
     const again = await question(page);
-    check(/^3 chapters, 23 exercises solved/.test(again.what), "2 asked for, the carry page brings the same progress and it is asked about again", again);
+    check(/^3 chapters, 31 exercises solved/.test(again.what), "2 asked for, the carry page brings the same progress and it is asked about again", again);
     eq(new URL(page.url()).hash, "", "2 … with the fragment gone");
     await page.click("[data-carry-yes]");
     await page.waitForSelector(".carry-note");
@@ -275,10 +275,11 @@ const SESSION = "sb-jfidvrzonyzfstnykzly-auth-token";
       check(!Object.keys(s).some((k) => /^sb-|^evil/.test(k)), "3 " + what + ": nothing of it is stored", Object.keys(s));
       await context.close();
     }
-    /* markup in what is carried is never markup on the page */
+    /* markup in what is carried is never markup on the page (a chapter the course does
+       not have is left out, so the markup is an exercise's id and the place to continue) */
     const { context, page } = await profile();
     const tag = '<img src=x onerror="window.__pwned=1">';
-    await page.goto(NEW + "/index.html#bm-carry=" + pack({ v: 1, s: { "bm.progress.v1": { [tag]: { solved: { [tag]: true }, total: 1 } }, "bm.last": { id: tag, section: tag } } }));
+    await page.goto(NEW + "/index.html#bm-carry=" + pack({ v: 1, s: { "bm.progress.v1": { [tag]: { solved: { e1: true } }, ch01: { solved: { [tag]: true }, total: 1 } }, "bm.last": { id: tag, section: tag } } }));
     const q = await question(page);
     check(!/</.test(q.what) && /^1 chapter, 1 exercise solved and your settings\.$/.test(q.what), "3 the question counts what markup holds and shows none of it", q.what);
     check(!(await page.evaluate(() => !!document.querySelector("dialog img, .carry-note img") || !!window.__pwned)), "3 no element is made from it");
@@ -303,6 +304,32 @@ const SESSION = "sb-jfidvrzonyzfstnykzly-auth-token";
     check(parse(s["bm.progress.v1"]).ch03.solved.e1 === true, "3 the one real exercise arrives");
     await context.close();
   }
+  /* review round 3: a lower review box or a later "not right first time" never replaces
+     what is here, a setting this browser has is not asked about, and a chapter or an
+     achievement the course does not have is neither counted nor kept */
+  {
+    const { context, page } = await profile();
+    await seed(page, NEW, FIXTURE);
+    const sec = {}, worse = {};
+    Object.keys(FIXTURE["bm.game.v1"].sec).forEach((id) => { sec[id] = { n: 0, ok: 0, box: 0, last: new Date().toISOString().slice(0, 10) }; });
+    Object.keys(FIXTURE["bm.attempts.v1"].ch01).forEach((k) => { worse[k] = { solved: Date.UTC(2024, 0, 1), first: 0, tries: 1000, hints: 10 }; });
+    await page.goto(NEW + "/index.html#bm-carry=" + pack({ v: 1, s: { "bm.game.v1": { sec, ach: { "no-such-achievement": 1789214400000 } }, "bm.attempts.v1": { ch01: worse }, "bm.progress.v1": { zz: { solved: { e1: true } } }, "bm.theme": "light" } }));
+    const q = await question(page);
+    eq(q.what, "1 chapter, " + Object.keys(worse).length + " exercises solved and your Arena and review record.", "3 only what the course has is counted, and no setting this browser has");
+    await page.click("[data-carry-yes]");
+    await page.waitForSelector(".carry-note");
+    const s = await storageOf(page, NEW);
+    /* in any key order: the merge builds records in its own */
+    const sorted = (x) => (x && typeof x === "object" ? Object.fromEntries(Object.keys(x).sort().map((k) => [k, sorted(x[k])])) : x);
+    eq(sorted(parse(s["bm.game.v1"]).sec), sorted(FIXTURE["bm.game.v1"].sec), "3 every review place here stays");
+    eq(sorted(parse(s["bm.attempts.v1"]).ch01), sorted(FIXTURE["bm.attempts.v1"].ch01), "3 every attempt here stays");
+    check(!("zz" in parse(s["bm.progress.v1"])) && !("no-such-achievement" in parse(s["bm.game.v1"]).ach), "3 a chapter or achievement the course does not have is not kept", { progress: Object.keys(parse(s["bm.progress.v1"])), ach: parse(s["bm.game.v1"]).ach });
+    eq(parse(s["bm.theme"]), FIXTURE["bm.theme"], "3 the theme here stays");
+    await page.goto(NEW + "/progress.html#bm-carry=" + pack({ v: 1, s: { "bm.theme": "light" } }));
+    await page.waitForSelector(".carry-note");
+    check(!(await page.$("dialog.carry-ask")) && /nothing this browser does not already have/.test(await page.textContent(".carry-note")), "3 a payload of settings this browser has is not asked about", await page.textContent(".carry-note"));
+    await context.close();
+  }
   /* set-aside progress alone (the review's case B) is named in the question */
   {
     const { context, page } = await profile();
@@ -319,7 +346,7 @@ const SESSION = "sb-jfidvrzonyzfstnykzly-auth-token";
     await seed(page, OLD, FIXTURE);
     await page.goto(OLD + "/index.html#bm-carry=" + pack({ v: 1, s: { "bm.theme": "light" } }));
     const q = await question(page);
-    check(/^3 chapters, 23 exercises solved/.test(q.what), "3 the old page sends the progress it holds", q.what);
+    check(/^3 chapters, 31 exercises solved/.test(q.what), "3 the old page sends the progress it holds", q.what);
     await page.click("[data-carry-yes]");
     await page.waitForSelector(".carry-note");
     eq(new URL(page.url()).hash, "", "3 and the crafted fragment is not in the address");
@@ -342,7 +369,7 @@ const SESSION = "sb-jfidvrzonyzfstnykzly-auth-token";
     const exported = { progress: FIXTURE["bm.progress.v1"], play: FIXTURE["bm.play.v1"], attempts: FIXTURE["bm.attempts.v1"], activity: FIXTURE["bm.activity.v1"], lesson: FIXTURE["bm.lesson.v1"], last: FIXTURE["bm.last"], game: FIXTURE["bm.game.v1"], exported: "2026-10-05T12:00:00.000Z", account: "someone@example.com", signInWith: ["github"] };
     await page.setInputFiles("[data-carry-file]", { name: "basic-mathematics-progress.json", mimeType: "application/json", buffer: Buffer.from(JSON.stringify(exported, null, 2)) });
     const q = await question(page);
-    check(/^Import the progress in this file\?$/.test(q.title) && /^3 chapters, 23 exercises solved/.test(q.what), "4 the file is asked about like a link", q);
+    check(/^Import the progress in this file\?$/.test(q.title) && /^3 chapters, 31 exercises solved/.test(q.what), "4 the file is asked about like a link", q);
     await page.click("[data-carry-yes]");
     await page.waitForFunction(() => /Imported basic-mathematics-progress\.json/.test(document.querySelector("[data-carry-status]").textContent));
     const s = await page.evaluate(() => ({ p: JSON.parse(localStorage.getItem("bm.progress.v1")), last: JSON.parse(localStorage.getItem("bm.last")), keys: Object.keys(localStorage) }));
@@ -389,7 +416,7 @@ const SESSION = "sb-jfidvrzonyzfstnykzly-auth-token";
     await page.waitForSelector("[data-carry-tools]:not([hidden])");
     await page.setInputFiles("[data-carry-file]", file);
     const q = await question(page);
-    check(new RegExp("^4 chapters, " + (N + 23) + " exercises solved").test(q.what), "6 importing it asks, with all of it", q.what);
+    check(new RegExp("^4 chapters, " + (N + 31) + " exercises solved").test(q.what), "6 importing it asks, with all of it", q.what);
     await page.click("[data-carry-yes]");
     await page.waitForFunction(() => /Imported/.test(document.querySelector("[data-carry-status]").textContent));
     const n = await page.evaluate(() => Object.keys(JSON.parse(localStorage.getItem("bm.progress.v1")).ch12.solved).length);
@@ -423,7 +450,7 @@ const SESSION = "sb-jfidvrzonyzfstnykzly-auth-token";
     await seed(folder.page, OLD, FIXTURE);
     await folder.page.goto(OLD + "/parts/1-algebra/");
     const q = await question(folder.page);
-    check(/^3 chapters, 23 exercises solved/.test(q.what) && new URL(folder.page.url()).pathname === "/", "7 an old folder goes to the front page with the progress, and it is asked about", { url: folder.page.url(), q });
+    check(/^3 chapters, 31 exercises solved/.test(q.what) && new URL(folder.page.url()).pathname === "/", "7 an old folder goes to the front page with the progress, and it is asked about", { url: folder.page.url(), q });
     await folder.page.click("[data-carry-no]");
     await folder.context.close();
   }

@@ -14,7 +14,9 @@
       its own (an old link opened again) is not asked about again. Arriving from the
       legacy carry page (bm-ask=1), which a reader only reaches by asking for it, it is
       asked about whatever was answered before, so a "no" can be taken back. A payload
-      that cannot be read is refused with a short note, and recorded the same way.
+      that cannot be read is refused with a short note, and recorded the same way; so is
+      one that holds only settings this browser already has (the question names a
+      setting only where it would be written: summary() with this browser's stores).
    2. On the progress page, on the same hosts (the old address, while it still serves the
       course, shows nothing new), the section [data-carry-tools]: links to the legacy
       carry page ([data-carry-old]; it exists only once SITE_CUTOVER has put the legacy
@@ -28,7 +30,7 @@
 
    Nothing carried is ever put into the page as HTML: every word is textContent. */
 
-import { allowedHost, asked, decode, describe, FLAG, fingerprint, fromFile, legacyCarryUrl, MAX_FILE, plan, readHash, remember, summary, SYNCED, type Outcome, type Owner, type Refusal, type Stores } from "../carry/format.ts";
+import { allowedHost, asked, type Course, decode, describe, FLAG, fingerprint, fromFile, legacyCarryUrl, MAX_FILE, plan, readHash, remember, summary, SYNCED, type Outcome, type Owner, type Refusal, type Stores } from "../carry/format.ts";
 
 type Answer = (take: boolean) => void;
 
@@ -40,6 +42,7 @@ const REFUSED: Record<Refusal, string> = {
   unsupported: "This browser cannot unpack it, so nothing was changed. Try another browser, or bring your progress over as a file.",
   empty: "It holds no progress, so nothing was changed."
 };
+const NOTHING_NEW = "It holds nothing this browser does not already have, so nothing was changed.";
 
 function el<K extends keyof HTMLElementTagNameMap>(tag: K, cls?: string, text?: string): HTMLElementTagNameMap[K] {
   const e = document.createElement(tag);
@@ -95,19 +98,35 @@ function note(text: string, bad?: boolean): void {
   document.body.appendChild(box);
 }
 
+/* what this browser holds under a key, as plan() reads it */
+function read(key: string): unknown {
+  let raw: string | null = null;
+  try { raw = window.localStorage.getItem(key); } catch (e) { return undefined; }
+  if (raw === null) return undefined;
+  try { return JSON.parse(raw); } catch (e) { return undefined; }
+}
+
+/* the chapters, sections and achievements the course has, which a carried key must name
+   (data/curriculum.js, assets/game.js); nothing when the page has not loaded them */
+function course(): Course | undefined {
+  const C = window.BM_CURRICULUM as { chapters?: { id: string; sections?: { id: string }[] }[] } | undefined;
+  if (!C || !Array.isArray(C.chapters) || !C.chapters.length) return undefined;
+  const chapters: string[] = [], sections: string[] = [];
+  C.chapters.forEach((ch) => {
+    chapters.push(ch.id);
+    (ch.sections || []).forEach((s) => sections.push(ch.id + "#" + s.id));
+  });
+  const list = window.BMGame && Array.isArray(window.BMGame.ACHIEVEMENTS) ? window.BMGame.ACHIEVEMENTS as { id: string }[] : null;
+  return list ? { chapters, sections, achievements: list.map((a) => a.id) } : { chapters, sections };
+}
+
 /* Writes the plan for these stores. Synced stores are written quietly and then
    announced, as a sync announces what it merged ("state" for each, which an account
    that is signed in saves, then "sync", which every view redraws on). */
 function take(stores: Stores, owner?: Owner): boolean {
   const Store = window.BMStore, Account = window.BMAccount;
-  if (!Store || !Account || typeof Account.merge !== "function") return false;
-  const read = (key: string): unknown => {
-    let raw: string | null = null;
-    try { raw = window.localStorage.getItem(key); } catch (e) { return undefined; }
-    if (raw === null) return undefined;
-    try { return JSON.parse(raw); } catch (e) { return undefined; }
-  };
-  const writes = plan(read, stores, Account.merge, owner);
+  if (!Store || !Account || typeof Account.merge !== "function" || typeof Account.adopt !== "function") return false;
+  const writes = plan(read, stores, { merge: Account.merge, adopt: Account.adopt }, owner);
   let ok = true;
   Object.keys(writes).forEach((k) => { if (!Store.write(k, writes[k], true)) ok = false; });
   const synced = Object.keys(SYNCED).map((f) => SYNCED[f]);
@@ -130,7 +149,14 @@ function offer(outcome: Outcome, title: string, subject: string, done: (took: bo
     done(false);
     return;
   }
-  ask(title, describe(summary(outcome.stores, outcome.owner)), (yes) => {
+  /* only what would be written is named: a setting this browser already has is not */
+  const line = describe(summary(outcome.stores, outcome.owner, read));
+  if (!line) {
+    note(subject + " was not brought over. " + NOTHING_NEW);
+    done(false);
+    return;
+  }
+  ask(title, line, (yes) => {
     if (yes) {
       const ok = take(outcome.stores, outcome.owner);
       note(ok ? "Your progress is here. It was added to what this browser already had." : "Your progress could not be saved in this browser (its storage is full or blocked).", !ok);
@@ -152,7 +178,7 @@ async function arrived(): Promise<void> {
   }
   const print = fingerprint(found.value);
   if (asked(flag(), print) && !found.ask) return;
-  const outcome = await decode(found.value);
+  const outcome = await decode(found.value, Date.now(), course());
   offer(outcome, "Bring over your progress from the old address?", "The progress in that link", (took) => record(print, took));
 }
 
@@ -178,7 +204,7 @@ function tools(): void {
     say("");
     if (file.size > MAX_FILE) { offer({ ok: false, why: "size" }, "Import the progress in this file?", "That file", () => { input.value = ""; }); return; }
     file.text().then((text) => {
-      offer(fromFile(text), "Import the progress in this file?", "That file", (took) => {
+      offer(fromFile(text, Date.now(), course()), "Import the progress in this file?", "That file", (took) => {
         say(took ? "Imported " + file.name + "." : "Nothing was imported.");
         input.value = "";
       });

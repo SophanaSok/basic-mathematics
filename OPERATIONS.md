@@ -628,9 +628,13 @@ kept for that account alone and joined to it when it signs in, so another reader
 same computer never takes it in), but a signed-out reader's progress exists only in their browser,
 at the old origin. The legacy site's pages read it there and hand it over in the address's fragment
 (`#bm-carry=…`), which browsers never send to a server; the new address shows the reader what it
-holds, asks, and merges it with the site's own merge rules, after rebuilding every store from
-what the site itself writes (a crafted link can add no value the site would not have written,
-and can never change or remove what is already there). Too much for an address, the old
+holds, asks, and joins it to what is there with the site's own merge rules, after rebuilding
+every store from what the site itself writes and a learner needs to keep their progress (a
+crafted link can add no value the site would not have written, names only chapters, sections
+and achievements the course has, and can never change, lower or remove what is already there:
+an exercise's attempt record or a section's place in the review arrives only where there is
+none, in this browser or in the account it is kept for, and the Daily's days, an unsolved
+exercise's tries and an account's own settings are not carried at all). Too much for an address, the old
 address offers it as a file instead, which the new progress page imports. An iframe cannot do
 this: current browsers partition the storage of an embedded page by the page around it. The
 pieces: [`src/carry/`](src/carry/) and `src/ui/carry.ts` (README, "Moving between
