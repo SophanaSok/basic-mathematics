@@ -8,7 +8,7 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "build:legacy": "node tools/build-legacy.js",
+    "build:redirects": "node tools/build-redirects.js",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit",
     "gen:fonts": "node tools/gen-fonts.js",
@@ -17,14 +17,15 @@
     "check:scenes": "node tools/smoke-scenes.js",
     "test:node": "node tools/checks.test.js && node tools/game/merge.test.js && node tools/game/sync.test.js && node tools/game/rules.test.js",
     "test:unit": "vitest run",
-    "test:browser:core": "node tools/game/browser.test.js && node tools/game/arena.test.js && node tools/game/account.test.js && node tools/game/content.test.js && node tools/game/carry.test.js",
+    "test:browser:core": "node tools/game/browser.test.js && node tools/game/arena.test.js && node tools/game/account.test.js && node tools/game/content.test.js",
     "test:browser:3d": "node tools/game/scenes.test.js && node tools/game/map.test.js",
     "test:browser": "npm run test:browser:core && npm run test:browser:3d",
     "check:dist": "node tools/check-dist.js",
-    "check:legacy": "node tools/check-legacy.js",
+    "check:redirects": "node tools/check-redirects.js",
+    "check:ci": "node tools/check-ci.js",
     "check:browser": "node tools/check-browser.js --root=dist",
-    "check": "npm run typecheck && npm run check:static && npm run check:gen && npm run check:scenes && npm run test:node && npm run test:unit",
-    "check:all": "npm run check && npm run build && npm run check:dist && npm run build:legacy && npm run check:legacy && npm run test:browser && npm run check:browser"
+    "check": "npm run typecheck && npm run check:static && npm run check:ci && npm run check:gen && npm run check:scenes && npm run test:node && npm run test:unit",
+    "check:all": "npm run check && npm run build && npm run check:dist && npm run build:redirects && npm run check:redirects && npm run test:browser && npm run check:browser"
   },
   "devDependencies": {
     "@types/node": "^24.19.1",

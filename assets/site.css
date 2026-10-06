@@ -1002,26 +1002,6 @@ table.owner th[aria-sort="descending"] .link::after { content: " ↓"; }
 .field input { font-family: var(--sans); width: 100%; }
 .form-note { font-family: var(--sans); font-size: .88rem !important; margin: 1rem 0 0; padding: .6rem .8rem; border-radius: var(--radius-sm); background: var(--accent-soft); color: var(--text); }
 .form-note.bad { background: var(--bad-soft); color: var(--bad); }
-/* Progress brought from the old address (src/ui/carry.ts): the question, a modal
-   dialog on the paper; the note after it, at the foot of the screen; and the progress
-   page's tools, a panel like the account page's */
-.carry-ask {
-  width: min(30rem, calc(100vw - 32px)); padding: 1.4rem 1.5rem; border: 1px solid var(--border-strong);
-  border-radius: var(--radius); background: var(--surface); color: var(--text); font-family: var(--sans);
-}
-.carry-ask::backdrop { background: var(--scrim-glass); }
-.carry-ask h2 { margin: 0 0 .7rem; font-size: 1.2rem; }
-.carry-ask .carry-what { font-weight: 600; }
-.carry-ask .actions { margin-top: 1.2rem; }
-.carry-note {
-  position: fixed; left: 50%; bottom: max(1rem, env(safe-area-inset-bottom)); z-index: 80; transform: translateX(-50%);
-  display: flex; align-items: center; gap: .8rem; width: min(34rem, calc(100vw - 32px)); padding: .7rem .9rem;
-  border: 1px solid var(--border-strong); border-radius: var(--radius-sm); background: var(--surface); color: var(--text);
-  font-family: var(--sans); font-size: .9rem; box-shadow: var(--shadow-float);
-}
-.carry-note p { margin: 0; flex: 1; }
-.carry-note.bad p { color: var(--bad); }
-.carry-tools { margin-top: 2rem; }
 .sync-state { font-family: var(--sans); font-size: .84rem !important; color: var(--muted); }
 .sync-state[data-state="error"] { color: var(--bad); }
 .sync-state[data-state="synced"]::before {

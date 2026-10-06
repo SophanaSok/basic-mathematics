@@ -17,7 +17,7 @@ desktop.ini
 # Installed and built (npm ci, npm run build)
 node_modules/
 dist/
-dist-legacy/
+dist-redirects/
 
 # Secrets never go in the repo: .env.example says which names are expected
 .env
