@@ -378,8 +378,14 @@ at the 90th percentile), which the world's watchdog rightly calls slow: on CI it
 chosen Medium down to Low in the middle of the checks of Medium's idle motion, and the world was
 gone during the budget checks, where `info()` returned null and the script stopped on it. So `game/map.test.js` gives the page's animation frames the timestamps of its own
 clock (`RAF_GATE`): by default no frame seems longer than `SLOW_MS` less 4 ms, whatever the
-machine draws, while a gap of `PAUSE_MS` or more (a long task, a hidden tab) passes through as
-it was, since that a pause is not a slow frame is one of the checks; the checks of the watchdog
+machine draws. The one exception is the pause a check makes: the checks that a pause is not a
+slow frame (a 2.5 s long task, frames held 3 s in a hidden tab) set `__passNext` to
+`PAUSE_GAP` (2 s) as they make it, the next gap at least that long goes through as it really
+was, and the check fails if none did, so the watchdog sees the pause. That is the check's own
+number, not a threshold read from `src/world/tiers.ts`, so a `PAUSE_MS` raised past 2.5 s fails
+the long-task check on its own. (Not simply the next frame: the first frame after a long task
+can carry a timestamp from before it ended; here a 17 ms gap came first, then the 2483 ms one.)
+The checks of the watchdog
 set every frame to exactly 60 or 200 ms. A check about a tier chooses it (`gfx` in
 `bm.prefs.v1`) or names the renderer the page reads (`RENDERER`: llvmpipe for a software
 renderer, a Direct3D GPU for a hardware one) beside the real SwiftShader, and the frame times it
