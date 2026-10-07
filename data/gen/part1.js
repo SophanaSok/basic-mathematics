@@ -323,7 +323,7 @@
         "The expression is $" + b + "^{" + e + "}$."
       ];
       if (e < 0) steps.push("A negative exponent means a reciprocal: $" + b + "^{" + e + "} = \\frac{1}{" + b + "^{" + -e + "}} = " + powTex(b, e) + "$.");
-      else if (e === 0) steps.push("Any non-zero number to the power $0$ is $1$.");
+      else if (e === 0) steps.push("Any nonzero number to the power $0$ is $1$.");
       else steps.push("$" + b + "^{" + e + "} = " + powTex(b, e) + "$.");
       return {
         q: "Write $\\dfrac{" + b + "^{" + m + "} \\cdot " + b + "^{" + n + "}}{" + b + "^{" + k + "}}$ as a single number.",

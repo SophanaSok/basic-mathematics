@@ -365,10 +365,10 @@
       Object.keys(obj(S.progress)).forEach(function (ch) { n = Math.max(n, count(obj(S.progress[ch]).solved)); });
       return [Math.min(n, 1), 1];
     }),
-    A("steady-hand", "Steady hand", "Get 25 answers right first time.", function (S) {
+    A("steady-hand", "Steady hand", "Get 25 answers right the first time.", function (S) {
       return [countRecs(S, function (r) { return r.solved && r.first; }), 25];
     }),
-    A("sure-hand", "Sure hand", "Get 100 answers right first time.", function (S) {
+    A("sure-hand", "Sure hand", "Get 100 answers right the first time.", function (S) {
       return [countRecs(S, function (r) { return r.solved && r.first; }), 100];
     }),
     A("full-meter", "Full meter", "Fill the combo meter: five first-try answers in a row.", function (S) {
@@ -450,7 +450,7 @@
     A("regular", "Regular", "Play the Daily on seven days.", function (S) {
       return [count(S.game.daily), 7];
     }),
-    A("took-your-time", "Took your time", "In one timed Arena run, get 10 right first time with at least three answered after par.", function (S) {
+    A("took-your-time", "Took your time", "In one timed Arena run, get 10 right the first time with at least three answered after par.", function (S) {
       return [S.game.ach["took-your-time"] ? 1 : 0, 1];
     }),
     A("streak-3", "Three in a row", "Study on three days in a row.", function (S) {

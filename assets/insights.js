@@ -63,7 +63,7 @@
   }
 
   function sectionRow(r, weak) {
-    var detail = r.first + " of " + r.n + " right first time";
+    var detail = r.first + " of " + r.n + " right the first time";
     if (r.solved < r.n) detail += " · " + (r.n - r.solved) + " not solved yet";
     return '<li class="area">' +
       '<a class="area-title" href="' + esc(r.path) + '"><span class="area-label">' + esc(r.label) + "</span> " +
@@ -85,7 +85,7 @@
     });
     var cols = Game ? 5 : 4;
     var html = '<div class="tbl-wrap"><table class="chapters"><thead><tr><th>Chapter</th><th>Exercises</th>' +
-      '<th class="num">Missions</th><th class="num">Right first time</th>' +
+      '<th class="num">Missions</th><th class="num">Right the first time</th>' +
       (Game ? '<th class="num">Medal</th>' : "") + "</tr></thead><tbody>";
     C.parts.forEach(function (part) {
       html += '<tr class="part-row" data-part="' + esc(part.id) + '"><th colspan="' + cols + '">Part ' + part.num + " — " + esc(part.name) + "</th></tr>";
@@ -197,7 +197,7 @@
       html += tile("Total XP", Activity.total(), "");
     }
     html += tile("Exercises solved", solved, plural(done, "chapter") + " finished");
-    html += tile("Right first time", tried ? pct(first, tried) + "%" : "—", tried ? "of " + tried + " questions tried" : "nothing tried yet");
+    html += tile("Right the first time", tried ? pct(first, tried) + "%" : "—", tried ? "of " + tried + " questions tried" : "nothing tried yet");
     html += tile("Missions", "★ " + stars, "on the figures");
     html += "</div>";
 

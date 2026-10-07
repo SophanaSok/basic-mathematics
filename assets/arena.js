@@ -1050,13 +1050,13 @@
 
   function rulesHtml() {
     return '<details class="arena-rules"><summary>How a run is scored</summary><ul>' +
-      "<li>Right first time within par: <b>100</b>, plus 20 for each answer in your current streak (up to +100).</li>" +
-      "<li>Right first time after par, before the time runs out at twice par: <b>60</b>, and the streak holds.</li>" +
+      "<li>Right the first time within par: <b>100</b>, plus 20 for each answer in your current streak (up to +100).</li>" +
+      "<li>Right the first time after par, before the time runs out at twice par: <b>60</b>, and the streak holds.</li>" +
       "<li>Wrong: the clock stops, the hint appears, and you get one untimed retry worth <b>30</b>. A wrong answer costs a heart, at most one per question.</li>" +
       "<li>“I don't know” and running out of time score nothing but never cost a heart, so where a heart is at stake a guess is always worse than passing.</li>" +
       "<li>Where no heart is at stake (shaky sections, sections you pick by hand, a due review, Untimed tempo, Study mode), “I don't know” brings up the same hint and retry as a wrong answer, and that retry scores nothing, so a guess never beats passing.</li>" +
       "<li>Shaky sections, sections you pick by hand, and problems with only a few possible answers come without the clock.</li>" +
-      "<li>A due review asks only about sections due for a check today, most overdue first, at most two questions from each and ten in all. A section answered right first time goes further into its schedule; a miss brings it back sooner.</li>" +
+      "<li>A due review asks only about sections due for a check today, most overdue first, at most two questions from each and ten in all. A section answered right the first time goes further into its schedule; a miss brings it back sooner.</li>" +
       "<li>XP from one section falls the more you practice it in a day: the first two answers that pay count in full, the next two half, then a quarter. The finishing bonus is paid in full for two runs a day, then 1. Spaced practice on another day counts in full again.</li>" +
       "<li>The Daily is one attempt a day: once a Daily you have answered in ends, finished or banked, the next one comes with tomorrow's seed.</li>" +
       "<li>The clock stops while you read feedback, while paused, and while the page is hidden. Being faster than par earns nothing extra.</li>" +
@@ -1120,7 +1120,7 @@
       '<span class="arena-count">Question <b data-count></b> of ' + run.qs.length + "</span>" +
       '<span class="arena-hearts-slot"></span>' +
       '<span class="arena-score"><b data-score>0</b> points</span>' +
-      '<span class="arena-streak" title="Answers right first time within par, in a row">Streak <b data-streak>0</b></span>' +
+      '<span class="arena-streak" title="Answers right the first time within par, in a row">Streak <b data-streak>0</b></span>' +
       '<button type="button" class="btn ghost small arena-pause" data-act="pause" aria-keyshortcuts="Escape">Pause</button>' +
       "</div>" +
       '<p class="arena-fine arena-calmnote" hidden>Study mode was switched on during this run, so the rest of it has no clock and no hearts, and it counts as an Untimed run.</p>' +
@@ -1345,7 +1345,7 @@
           : "No medal this time: finish with at least one heart to earn one.") + "</p>";
     }
     if (res.mode === "repair") {
-      html += "<p>" + res.firstTry + " of " + res.n + " right first time. " +
+      html += "<p>" + res.firstTry + " of " + res.n + " right the first time. " +
         (res.repaired ? "That is enough to mark " + esc(secName(res.section)) + " as repaired."
           : res.finished ? "Every answer right, four of them first time, marks it repaired; reread it and try again whenever you like."
           : "A repair counts once all " + res.planned + " questions are answered, every one right and four of them first time. Start it again whenever you like.") + "</p>";
@@ -1353,13 +1353,13 @@
     if (res.mode === "review" && res.n) {
       var checked = {};
       res.answers.forEach(function (a) { checked[a.section] = 1; });
-      html += "<p>" + plural(Object.keys(checked).length, "section") + " checked. A section answered right first time each time goes further into its schedule; one with a miss comes back sooner.</p>";
+      html += "<p>" + plural(Object.keys(checked).length, "section") + " checked. A section answered right the first time each time goes further into its schedule; one with a miss comes back sooner.</p>";
     }
     if (res.replay) html += '<p class="arena-fine">That day\'s Daily had already been played, here or in another tab or on another device, so this one pays no XP and keeps no best.</p>';
     html += '<div class="arena-stats">';
     if (res.hearts !== null) html += tile("Hearts left", res.hearts + " <small>of " + res.maxHearts + "</small>", heartsHtml(res.hearts, res.maxHearts));
     /* the first-try count and rate, as information: no target to hit */
-    var rate = res.n ? Math.round((100 * res.firstTry) / res.n) + "% right first time" : "";
+    var rate = res.n ? Math.round((100 * res.firstTry) / res.n) + "% right the first time" : "";
     html += tile("First try", res.firstTry + " <small>of " + res.n + "</small>", [rate, res.n < res.planned ? plural(res.planned - res.n, "question") + " not reached" : ""].filter(Boolean).join(" · "));
     html += tile("XP earned", "+" + res.xp, xpNote(res));
     html += tile("Best streak", String(res.bestStreak), "");
@@ -1379,7 +1379,7 @@
       });
       html += "</ul>";
     } else if (res.n) {
-      html += "<p>Every answer was right first time. Nothing to reread from this run.</p>";
+      html += "<p>Every answer was right the first time. Nothing to reread from this run.</p>";
     }
     html += "</div>";
     html += '<div class="arena-actions"><button type="button" class="btn" data-act="again">' + (res.mode === "daily" ? "A Standard run" : res.mode === "review" ? "Review what is still due" : "Another run") + "</button>" +
@@ -1388,7 +1388,7 @@
     screenEl().innerHTML = html;
     var h = screenEl().querySelector("#arena-result-h");
     if (h) { try { h.focus({ preventScroll: true }); } catch (e) { h.focus(); } }
-    say(title + ". " + res.score + " points, " + res.firstTry + " of " + res.n + " right first time, " + res.xp + " XP." +
+    say(title + ". " + res.score + " points, " + res.firstTry + " of " + res.n + " right the first time, " + res.xp + " XP." +
       (res.reduced && res.reduced.length ? " Less XP than usual for a section practiced a lot today; spaced practice tomorrow counts more." : "") +
       (weak.length ? " Worth rereading: " + secName(weak[0].id) + "." : ""));
   }

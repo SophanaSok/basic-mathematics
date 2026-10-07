@@ -103,7 +103,7 @@
     missions: [
       { text: "Make OQ exactly 7, with no coordinate 0.", test: function (s) { return s.x && s.y && s.z && sq(s) === 49; } },
       { text: "Make a cube’s diagonal: all three coordinates equal.", test: function (s) { return s.x && s.x === s.y && s.y === s.z; } },
-      { text: "Make a distance that needs Pythagoras only once.", test: function (s) {
+      { text: "Make a distance that needs the Pythagorean theorem only once.", test: function (s) {
           var zeros = (s.x === 0) + (s.y === 0) + (s.z === 0);
           return zeros === 1;
         } }
