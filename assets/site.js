@@ -691,6 +691,17 @@
   /* how a typed answer is compared with one key: src/core/grade.ts */
   function matches(given, answer, type, tol) { return Core.matches(given, answer, type, tol); }
 
+  /* What a form or unread verdict tells the learner (src/core/answer/messages.ts, through
+     BMCore.messages; the Arena asks here too). One retype message is worded by the owner's
+     answer to decision 0002's Q4: (a), a mixed number is read, so "2 and 1/3" is told to
+     type it with a space or as a fraction. */
+  var Q4 = "a";
+  function verdictMessage(v) {
+    if (v.kind === "unread") return Core.messages.unreadMessage(v.reason, Q4);
+    if (v.kind === "form") return Core.messages.formMessage(v.reason, v.read);
+    return "";
+  }
+
   var TICK = '<svg class="tick" viewBox="0 0 20 20" aria-hidden="true"><path d="M4 10.5l4 4 8-9"/></svg>';
 
   function slice(list) { return Array.prototype.slice.call(list); }
@@ -1006,13 +1017,33 @@
       function verdict(kind, html) {
         return '<p class="ex-verdict ' + kind + '" data-kind="' + kind + '">' + html + "</p>";
       }
+      /* "We read that as 3/2", after a wrong or form verdict, only where the reading changed
+         the spelling in a way that matters: a mixed number, a ½-style character or a
+         labeled point (decision 0002, decided defaults). Never for a decimal, a dropped $
+         or +, a trailing dot or whitespace. */
+      function readLine(given, v) {
+        if (typeof given !== "string" || typeof v.read !== "string" || !/\d\s+\d+\s*\/|[½¼¾⅓⅔]|[a-z]\s*=/i.test(given)) return "";
+        return '<p class="ex-next hint">' + escapeHtml(Core.messages.readMessage(v.read)) + "</p>";
+      }
+      /* the note beside a right unreduced fraction: "6/4 is 3/2 in lowest terms." */
+      function noteLine(v) {
+        if (!v.notes || v.notes.indexOf("unreduced") < 0) return "";
+        var m = /^(-?)(\d{1,15})\/(\d{1,15})$/.exec(v.read || "");
+        if (!m) return "";
+        var a = parseInt(m[2], 10), b = parseInt(m[3], 10), g = b;
+        for (var r = a; r; ) { var t = g % r; g = r; r = t; }
+        if (!g || g === 1) return "";
+        var lowest = m[1] + (a / g) + (b / g === 1 ? "" : "/" + (b / g));
+        return '<p class="ex-next hint">' + escapeHtml(Core.messages.lowestMessage(v.read, lowest)) + "</p>";
+      }
       /* how the first correct answer came: first try, after misses, or with the solution open */
       function resultOf(rec) {
         if (!rec || !rec.solved) return "";
         return rec.first ? "first" : rec.opened ? "assisted" : "retry";
       }
 
-      function markCorrect(fromStorage) {
+      /* `note` is the line after the tick on a fresh right answer (noteLine), none on a restore */
+      function markCorrect(fromStorage, note) {
         ex.setAttribute("data-state", "correct");
         var result = resultOf(Attempts.get(chapterId, key));
         if (result) ex.setAttribute("data-result", result);
@@ -1020,9 +1051,9 @@
         if (fromStorage) ex.setAttribute("data-restored", "true");
         else ex.removeAttribute("data-restored");
         if (orderList) orderItems.forEach(function (li) { orderList.appendChild(li); });
-        blanks.forEach(function (b) { b.setAttribute("data-ok", "true"); b.removeAttribute("aria-invalid"); });
+        blanks.forEach(function (b) { b.setAttribute("data-ok", "true"); b.removeAttribute("aria-invalid"); b.removeAttribute("data-verdict"); });
         if (solution) showBtn.removeAttribute("data-suggested");
-        say(verdict("ok", TICK + " Correct.") +
+        say(verdict("ok", TICK + " Correct.") + (note || "") +
           (solution ? '<p class="ex-next hint">Compare your reasoning with the solution below.</p>' : ""));
         if (!fromStorage && !inline) {
           var before = solvedCount();
@@ -1051,30 +1082,49 @@
           return { given: vals };
         }
         if (kind === "figure") {
-          return { given: figure && typeof figure.__answer === "function" ? String(figure.__answer()) : "" };
+          var made = figure && typeof figure.__answer === "function" ? String(figure.__answer()) : "";
+          if (made.trim() === "") return { empty: "Make your answer on the figure first." };
+          return { given: made };
         }
         if (String(inputEl.value).trim() === "") return { empty: "Type an answer, then press Check." };
         return { given: inputEl.value };
       }
 
+      /* The verdict on what was read (decision 0002: right, form, wrong or unread, as
+         BMCore.judge gives it; an order is right or wrong by position). On a blank card
+         each blank is judged with its own key and type and the card's tol: an unread
+         blank stops the check (`blank` says which), with nothing marked; every blank right
+         is right; any blank wrong is wrong; otherwise some blank is right in value in a
+         form its key does not take, and the card is form with the first such reason. A
+         form blank is marked like a wrong one (data-ok false) and carries
+         data-verdict="form", which question() skips; the tag is cleared here before any
+         blank is marked, and in markCorrect(). */
       function judge(given) {
         if (kind === "order") {
-          return given === orderItems.map(function (li, j) { return String(j); }).join(",");
+          return given === orderItems.map(function (li, j) { return String(j); }).join(",")
+            ? { kind: "right", alt: 0, read: given, notes: [] } : { kind: "wrong", read: null };
         }
         if (kind === "blank") {
-          var all = true;
-          blanks.forEach(function (b, j) {
-            var ok = alternatives(b.getAttribute("data-answer")).some(function (a) {
-              return matches(given[j], a, b.getAttribute("data-type"), tol);
-            });
-            b.setAttribute("data-ok", ok ? "true" : "false");
-            if (!ok) all = false;
+          blanks.forEach(function (b) { b.removeAttribute("data-verdict"); });
+          var vs = blanks.map(function (b, j) {
+            return Core.judge(given[j], Core.specOf({ answer: b.getAttribute("data-answer"), type: b.getAttribute("data-type"), tol: tol }));
           });
-          return all;
+          for (var u = 0; u < vs.length; u++) {
+            if (vs[u].kind === "unread") return { kind: "unread", reason: vs[u].reason, at: vs[u].at, blank: u };
+          }
+          var card = { kind: "right", alt: 0, read: "", notes: [] };
+          blanks.forEach(function (b, j) {
+            var v = vs[j];
+            b.setAttribute("data-ok", v.kind === "right" ? "true" : "false");
+            if (v.kind === "form") b.setAttribute("data-verdict", "form");
+            if (v.kind === "wrong") card = v;
+            else if (v.kind === "form" && card.kind === "right") card = v;
+          });
+          return card;
         }
         var cmp = kind === "choice" ? "number" : kind === "multi" ? "set"
           : kind === "figure" ? (ex.getAttribute("data-compare") || "exact") : type;
-        return answers.some(function (a) { return matches(given, a, cmp, tol); });
+        return Core.judge(given, Core.specOf({ answer: ex.getAttribute("data-answer"), type: cmp, tol: tol }));
       }
 
       /* A question about a wrong answer (src/learn/detectors.ts), graded by this card's own
@@ -1090,7 +1140,8 @@
         if (kind === "multi") return Learn.detect({ given: given, kind: "multi", type: "multi", answers: answers, grade: on(answers, "set") });
         if (kind === "blank") {
           for (var j = 0; j < blanks.length; j++) {
-            if (blanks[j].getAttribute("data-ok") !== "false") continue;
+            /* the first blank that is wrong: a form blank has the right value, so no slip explains it */
+            if (blanks[j].getAttribute("data-ok") !== "false" || blanks[j].getAttribute("data-verdict") === "form") continue;
             var keys = alternatives(blanks[j].getAttribute("data-answer")), bt = blanks[j].getAttribute("data-type");
             var d = Learn.detect({ given: given[j], kind: "text", type: bt, answers: keys, grade: on(keys, bt) });
             if (d) return d;
@@ -1106,7 +1157,28 @@
           say(verdict("nudge", r.empty));
           return;
         }
-        var ok = judge(r.given);
+        var v = judge(r.given);
+        if (v.kind === "unread") {
+          /* no single reading: say what to type, as for an empty box (Q2(a) of decision
+             0002). Nothing is marked or recorded, and no clue moves. */
+          var retype = verdictMessage(v);
+          if (kind === "blank") retype = "Blank " + (v.blank + 1) + ": " + retype;
+          say(verdict("nudge", escapeHtml(retype)));
+          return;
+        }
+        if (v.kind === "form") {
+          /* the right value in a form the key does not take: its reason, at no cost on a
+             page (Q1(c)): no credit, no miss, no attempt record, no clue. A form blank wears
+             the mark a wrong one does; the card itself is in no state. */
+          ex.removeAttribute("data-state");
+          blanks.forEach(function (b) {
+            if (b.getAttribute("data-ok") === "false") b.setAttribute("aria-invalid", "true");
+            else b.removeAttribute("aria-invalid");
+          });
+          say(verdict("form", escapeHtml(verdictMessage(v))) + readLine(r.given, v));
+          return;
+        }
+        var ok = v.kind === "right";
         /* `hints` follows misses, so a wrong re-check after a correct answer starts at the first */
         if (!ok) misses++;
         var level = ok ? 0 : misses === 1 && hint ? 1 : misses === 2 && hint2 ? 2 : 0;
@@ -1133,7 +1205,7 @@
         }
         if (ok) {
           if (ladder) ladder.afterRight();
-          markCorrect(false);
+          markCorrect(false, noteLine(v));
         } else {
           /* drop and re-set the state so the shake replays on every miss */
           ex.removeAttribute("data-state");
@@ -1151,7 +1223,7 @@
             : '<p class="ex-next hint">Not yet. Work it through once more' + (solution ? ", or open the solution." : ".") + "</p>";
           /* every clue open (or none to open): the solution button is the suggestion */
           if (solution && !(ladder && Learn.ladder.canOpen(ladder.state))) showBtn.setAttribute("data-suggested", "true");
-          say(verdict("no", "✗ Not right.") + after);
+          say(verdict("no", "✗ Not right.") + readLine(r.given, v) + after);
           renderMath(feedback);
         }
       }
@@ -1344,7 +1416,7 @@
   window.BMSite = {
     rootPrefix: rootPrefix, escapeHtml: escapeHtml, chapterName: chapterName, dayKey: dayKey,
     chapterOf: function () { return chapterOf(document.body); },
-    grade: grade, matches: matches, refresh: refresh, renderMath: renderMath, XP: XP, xpFor: xpFor,
+    grade: grade, matches: matches, verdictMessage: verdictMessage, refresh: refresh, renderMath: renderMath, XP: XP, xpFor: xpFor,
     paysFirst: paysFirst, road: Road,
     /* the theme the reader chose, "light", "dark" or "system", and choosing it */
     theme: themeChoice, setTheme: setTheme
