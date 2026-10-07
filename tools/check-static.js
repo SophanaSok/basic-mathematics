@@ -1225,32 +1225,47 @@ const PURE_FILE = /\.[cm]?[jt]sx?$/;
 const NOT_PURE = /\.(test|test-helper|d)\.[cm]?[jt]sx?$/;
 const PAGE_GLOBALS = /\b(window|document|localStorage|sessionStorage)\b/g;
 
-/* [{ at, text, string }]: the names and literals of a module's code, off the AST of
-   rolldown's parser (the one vite builds with), so no comment is ever read and a regex
+/* [{ at, text, value, string }]: the names and literals of a module's code, off the AST
+   of rolldown's parser (the one vite builds with), so no comment is ever read and a regex
    or a string holding "//", "/*" or a quote is only itself. `at` is the UTF-16 offset of
-   `text` in the source; `string` marks a string, template or regex. Throws when the
-   module does not parse. */
+   `text`, the source as written, in the file; `string` marks a string, template, JSX text
+   or regex; `value` is what a string or a template's text reads as once its escapes are
+   undone ("\u0077indow" is window), null for the rest. Throws when the module does not
+   parse. */
 function codeWords(src, file) {
   const lang = (/\.[cm]?([jt]sx?)$/.exec(file || "") || [null, "ts"])[1];
   const out = [];
   const walk = (n) => {
     if (Array.isArray(n)) return n.forEach(walk);
     if (!n || typeof n !== "object") return;
-    if (n.type === "Identifier" || n.type === "PrivateIdentifier" || n.type === "JSXIdentifier") out.push({ at: n.start, text: n.name, string: false });
-    else if (n.type === "Literal" || n.type === "TemplateElement" || n.type === "JSXText") out.push({ at: n.start, text: src.slice(n.start, n.end), string: true });
+    if (n.type === "Identifier" || n.type === "PrivateIdentifier" || n.type === "JSXIdentifier") out.push({ at: n.start, text: n.name, value: null, string: false });
+    else if (n.type === "Literal" || n.type === "TemplateElement" || n.type === "JSXText") {
+      const value = n.type === "Literal" ? n.value : n.type === "TemplateElement" ? n.value && n.value.cooked : null;
+      out.push({ at: n.start, text: src.slice(n.start, n.end), value: typeof value === "string" ? value : null, string: true });
+    }
     Object.keys(n).forEach(k => walk(n[k]));
   };
   walk(parseAst(src, { lang }, file));
   return out.sort((a, b) => a.at - b.at);
 }
 
-/* [{ line, name, string }] for every page global a module's code names */
+/* [{ line, name, string }] for every page global a module's code names: by the line it
+   is written on, and a name only a string's value spells (its escapes undone) by the
+   line the string starts on */
 function pureProblems(src, file) {
   const out = [];
+  const lineAt = (at) => src.slice(0, at).split("\n").length;
+  const names = (text) => { const found = []; let m; PAGE_GLOBALS.lastIndex = 0; while ((m = PAGE_GLOBALS.exec(text))) found.push(m); return found; };
   codeWords(src, file).forEach(w => {
-    let m;
-    PAGE_GLOBALS.lastIndex = 0;
-    while ((m = PAGE_GLOBALS.exec(w.text))) out.push({ line: src.slice(0, w.at + m.index).split("\n").length, name: m[1], string: w.string });
+    const written = names(w.text);
+    written.forEach(m => out.push({ line: lineAt(w.at + m.index), name: m[1], string: w.string }));
+    if (w.value === null) return;
+    const left = written.map(m => m[1]);
+    names(w.value).forEach(m => {
+      const i = left.indexOf(m[1]);
+      if (i > -1) left.splice(i, 1);
+      else out.push({ line: lineAt(w.at), name: m[1], string: true });
+    });
   });
   return out;
 }

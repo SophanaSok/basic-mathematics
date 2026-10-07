@@ -26,8 +26,9 @@
        and what counts as the reading column and as motion or decoration in it
      - pure-core: a page global named in a module's code is found, by line, and one in a
        string is told apart; one in a comment is not; a "//", "/*" or quote inside a string
-       or a regex hides nothing; a module that does not parse is refused; every script
-       extension is read but tests, test helpers and declaration files
+       or a regex hides nothing; one in a template's text, in JSX text or spelled with an
+       escape is found; a module that does not parse is refused; every script extension
+       is read but tests, test helpers and declaration files
      - entries: one with src/ui/core.ts only commented out, or after site.js, fails
      - serve (lib/serve.js): a build is served as it is, a page in it that still carries
        a shell marker is refused, a fixture goes out as it is
@@ -655,6 +656,11 @@ function refusal(fn) { try { fn(); return null; } catch (e) { return e.message; 
   eq(found("const q = /\"/; // window\nconst n = 1;"), [], "… and a quote inside a regex opens no string, so the comment after it stays one");
   eq(found("/* a\nb */ const t = `\n${document}`;\n// c\nwindow;"), ["document@3", "window@5"], "… a name's line is its line in the file, past comments and templates that span lines");
   eq(pureProblems('const s = "Open it in a new window"; let w: Window = window;', "x.ts").map(x => x.string), [true, false], "… a name in a string is told apart, so the failure can say copy counts too; a type named Window is not window");
+  eq(found("const t = `close the\nwindow`;", "x.ts"), ["window@2"], "… a name in a template's text counts, on the line it is written on");
+  eq(found("const d = globalThis[`document`];", "x.ts"), ["document@1"], "… and one in a template used as a key");
+  eq(found("export const P = () => <p>the\nwindow</p>;", "x.tsx"), ["window@2"], "… and one in JSX text");
+  eq(found('const s = "\\u0077indow";\nconst t = `${1}\n\\u{64}ocument`;', "x.ts"), ["window@1", "document@2"], "… and one a string or a template spells with an escape, by the line its text starts on");
+  eq(found('const s = "window \\u0077indow";', "x.ts"), ["window@1", "window@1"], "… each time, the written one once");
   check(refusal(() => pureProblems("const = ;", "x.ts")) !== null, "… a module that does not parse is refused, not passed");
   eq(["a.ts", "a.js", "a.mts", "a.cts", "a.mjs", "a.cjs", "a.tsx", "a.jsx", "a.test.ts", "a.test.mts", "a.test-helper.ts", "a.d.ts", "a.d.mts", "a.json"].filter(isPureFile), ["a.ts", "a.js", "a.mts", "a.cts", "a.mjs", "a.cjs", "a.tsx", "a.jsx"],
     "… every script under the pure directories is read, whatever its extension, but tests, test helpers and declaration files");
