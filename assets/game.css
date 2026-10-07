@@ -356,6 +356,8 @@ html[data-calm] .hud-sound { opacity: .5; cursor: not-allowed; }
 .ex-verdict.ok { color: var(--ok); font-size: 1.05rem; }
 .ex-verdict.no { color: var(--bad); font-size: .86rem; }
 .ex-verdict.nudge { color: var(--muted); font-family: var(--sans); font-weight: 500; font-size: .92rem; }
+/* the right value in a form the key does not take: a hint's ink, no cross and no tick */
+.ex-verdict.form { color: var(--hint-ink); font-family: var(--sans); font-weight: 500; font-size: .92rem; }
 .ex-verdict .tick, .ex-feedback .tick { width: 1.15em; height: 1.15em; flex: none; }
 .ex-feedback .tick path { fill: none; stroke: currentColor; stroke-width: 2.6; stroke-linecap: round; stroke-linejoin: round; }
 

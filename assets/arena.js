@@ -41,9 +41,9 @@
   "use strict";
 
   var host = document.querySelector("[data-arena]");
-  var Store = window.BMStore, Site = window.BMSite, Gen = window.BMGen;
+  var Store = window.BMStore, Site = window.BMSite, Gen = window.BMGen, Core = window.BMCore;
   var C = window.BM_CURRICULUM, Review = window.BMReview;
-  if (!host || !Store || !Site || !C) return;
+  if (!host || !Store || !Site || !Core || !C) return;
   var esc = Site.escapeHtml;
 
   if (!Gen || !Gen.list().length || !Review) {
@@ -551,11 +551,18 @@
     var phase = run.cur.phase;
     if (phase === "done") { next(); return; }
     var given = view.input.value;
-    if (String(given).trim() === "") { nudge("Type an answer, then press Check."); return; }
+    /* The verdict (decision 0002), read from BMCore at check time: right and wrong settle
+       as ever; an answer with no single reading (an empty box among them) is a nudge to
+       retype, which stays on the question, keeps the clock running and costs nothing
+       (Q2(a)); the right value in a form the problem does not take is a miss like a wrong
+       answer, heart and streak (Q1(c)), and its reason stands in for the miss text. */
+    var v;
+    try { v = Core.judge(clean(given, prob.type), Core.specOf(prob)); } catch (e) { v = { kind: "wrong", read: null }; }
+    if (v.kind === "unread") { nudge(Site.verdictMessage(v)); return; }
     nudge("");
-    var ok = false;
-    try { ok = Site.grade(clean(given, prob.type), prob.answer, prob.type, prob.tol); } catch (e) { ok = false; }
+    var ok = v.kind === "right";
     run.cur.given = given;
+    run.cur.form = v.kind === "form" ? Site.verdictMessage(v) : null;
     if (phase === "ask") {
       var el = elapsed();
       /* an answer that arrives after the cap (a frozen tab, a slow tick) is a timeout */
@@ -1242,7 +1249,9 @@
       /* reached by a wrong answer, or by "I don't know" where no heart is at stake */
       html = (a && a.pass
         ? '<p class="arena-verdict" data-kind="pass">No heart at stake here, so first a hint.</p>'
-        : '<p class="arena-verdict" data-kind="no">✗ Not right' + (a && a.lost ? ", and that cost a heart." : ".") + "</p>") +
+        : run.cur.form
+          ? '<p class="arena-verdict" data-kind="no" data-verdict="form">✗ ' + esc(run.cur.form) + (a && a.lost ? " That cost a heart." : "") + "</p>"
+          : '<p class="arena-verdict" data-kind="no">✗ Not right' + (a && a.lost ? ", and that cost a heart." : ".") + "</p>") +
         '<div class="arena-hint"><span class="arena-hint-label">Hint</span><p class="arena-hint-text"></p></div>' +
         '<p class="arena-next">' + (cur.timed ? "The clock has stopped. " : "") + "Try once more, or open the solution." +
         (a && a.hf ? " Without a heart at stake, the second try scores no points." : "") + "</p>";
@@ -1263,7 +1272,8 @@
         html = '<p class="arena-verdict" data-kind="pass">Passing was the honest move. No heart lost; here is how it goes.</p>' + stepsHtml(true) + nextBtn;
         view.feedback.setAttribute("data-kind", "solution");
       } else {
-        html = '<p class="arena-verdict" data-kind="' + (a.gaveUp ? "pass" : "no") + '">' + (a.gaveUp ? "Here is how it goes." : "✗ Still not right. Here is how it goes.") + "</p>" + stepsHtml(true) + nextBtn;
+        html = '<p class="arena-verdict" data-kind="' + (a.gaveUp ? "pass" : "no") + '"' + (!a.gaveUp && run.cur.form ? ' data-verdict="form"' : "") + ">" +
+          (a.gaveUp ? "Here is how it goes." : run.cur.form ? "✗ " + esc(run.cur.form) + " Here is how it goes." : "✗ Still not right. Here is how it goes.") + "</p>" + stepsHtml(true) + nextBtn;
         view.feedback.setAttribute("data-kind", "solution");
       }
       if (run.hearts === 0) html = '<p class="arena-out">That was your last heart. The run ends here; the results name the section to reread.</p>' + html;
