@@ -23,7 +23,7 @@ window.BM_QUEST = {
     ch03: { name: "The Hidden Fraction", tempting: 0,
       taunt: "With a big enough numerator and denominator, some fraction must land on me exactly." },
     ch04: { name: "The Fenced Field", tempting: 3,
-      taunt: "Forty metres of fence is forty metres of fence. The shape cannot matter." },
+      taunt: "Forty meters of fence is forty meters of fence. The shape cannot matter." },
     interlude: { name: "The Backwards Arrow", tempting: 1,
       taunt: "If a vowel means an even number, then surely an even number means a vowel." },
     ch05: { name: "The Torn Triangle", tempting: 3,

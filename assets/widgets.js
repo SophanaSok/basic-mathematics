@@ -1003,7 +1003,7 @@
         alt: "<b>Alternate interior angles.</b> Opposite sides of the transversal, inside the strip — both " +
           fmt(th) + "°. A corresponding pair followed by a vertical pair.",
         vert: "<b>Vertical angles.</b> Opposite angles at one crossing are equal: both " + fmt(th) +
-          "°. Each of them plus the same neighbour of " + fmt(other) + "° makes a straight 180°.",
+          "°. Each of them plus the same neighbor of " + fmt(other) + "° makes a straight 180°.",
         none: "Eight angles, two numbers. Every angle here is either " + fmt(th) + "° or " + fmt(other) + "°."
       }[show] + "<br>At each crossing " + fmt(th) + "° + " + fmt(other) + "° = 180°.";
     }
@@ -1358,7 +1358,7 @@
     var h0 = 1, k0 = -1, r = 3;
     var P = Plot({
       w: 660, h: 420, xmin: -7, xmax: 7, ymin: -5, ymax: 5,
-      label: "A circle with adjustable centre and radius"
+      label: "A circle with adjustable center and radius"
     });
     host.appendChild(P.svg);
     grid(P, 1, 1, { tickStep: 2, yTickStep: 2 });
@@ -1382,18 +1382,18 @@
       function sgn(v, name) { return v === 0 ? "" : (v > 0 ? " + " + v + name : " − " + Math.abs(v) + name); }
       out.innerHTML = "<b>" + term(h0, "x") + "² + " + term(k0, "y") + "² = " + r * r + "</b><br>" +
         "Expanded: x² + y²" + sgn(D, "x") + sgn(E, "y") + sgn(F, "") + " = 0<br>" +
-        "Going the other way — from the expanded form back to the centre and radius — is completing the square, " +
+        "Going the other way — from the expanded form back to the center and radius — is completing the square, " +
         "once in x and once in y.";
     }
 
     var c = controls(host);
-    c.appendChild(slider("centre x", -4, 4, 1, h0, function (v) { h0 = v; draw(); }).wrap);
-    c.appendChild(slider("centre y", -3, 3, 1, k0, function (v) { k0 = v; draw(); }).wrap);
+    c.appendChild(slider("center x", -4, 4, 1, h0, function (v) { h0 = v; draw(); }).wrap);
+    c.appendChild(slider("center y", -3, 3, 1, k0, function (v) { k0 = v; draw(); }).wrap);
     c.appendChild(slider("r", 1, 4, 1, r, function (v) { r = v; draw(); }).wrap);
     missions(host, "circleeq", [
       { text: "Make the equation x² + y² = 16.", test: function () { return h0 === 0 && k0 === 0 && r === 4; } },
       { text: "Make the expanded form contain + 4x and − 6y.", test: function () { return h0 === -2 && k0 === 3; } },
-      { text: "Centre on the x-axis, circle through the origin.", test: function () { return k0 === 0 && Math.abs(h0) === r; } }
+      { text: "Center on the x-axis, circle through the origin.", test: function () { return k0 === 0 && Math.abs(h0) === r; } }
     ]);
     draw();
   };
@@ -1997,7 +1997,7 @@
     missions(host, "geoseries", [
       { text: "Make the limit exactly 4.", test: function () { return Math.abs(r) < 1 && near(1 / (1 - r), 4, 1e-6); } },
       { text: "Make the sums overshoot and undershoot on their way in.", test: function () { return r < 0 && r > -1 && n >= 3; } },
-      { text: "Make the sums bounce between 1 and 0 for ever.", test: function () { return near(r, -1) && n >= 3; } }
+      { text: "Make the sums bounce between 1 and 0 forever.", test: function () { return near(r, -1) && n >= 3; } }
     ]);
     draw();
   };

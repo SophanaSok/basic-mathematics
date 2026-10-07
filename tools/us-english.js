@@ -164,7 +164,8 @@ const WORDING = [
   [/\bpavements?\b/gi, "sidewalk"],
   [/\bcosts?\s+marks\b/gi, "loses points"],
   [/\bcinemas?\b/gi, "movie theater"],
-  [/\bstalls?\b/gi, "stand"]
+  [/\bstalls?\b/gi, "stand"],
+  [/\bfor ever\b/gi, "forever"]
 ];
 
 /* ------------------------------------------------------------ the files -- */
