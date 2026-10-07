@@ -27,13 +27,6 @@
   "data/quest.js": {
     "metres": 2
   },
-  "parts/3-coordinates/08-coordinates.html": {
-    "centre": 39,
-    "centred": 5,
-    "metres": 1,
-    "parametrisation": 2,
-    "recognise": 1
-  },
   "parts/3-coordinates/09-operations-on-points.html": {
     "recognise": 2
   },

@@ -43,8 +43,8 @@
     <div class="goal">
       <strong>By the end of this chapter you can</strong>
       locate points by coordinates and name the quadrants, derive and use the distance formula,
-      recognise and manipulate the equation of a circle in both centre–radius and expanded form,
-      recover a circle's centre and radius by completing the square, and generate all the rational
+      recognize and manipulate the equation of a circle in both center–radius and expanded form,
+      recover a circle's center and radius by completing the square, and generate all the rational
       points on the unit circle from a single parameter.
     </div>
 
@@ -77,7 +77,7 @@
           <p>
             $(x-3)^2 = x^2 - 6x + 9$, so $x^2 - 6x = (x-3)^2 - 9$. See <a
             href="../1-algebra/04-quadratic-equations.html#completing">§4.2</a> — it is used twice
-            over in §8.3 to find the centre of a circle.
+            over in §8.3 to find the center of a circle.
           </p>
         </div>
       </div>
@@ -152,7 +152,7 @@
       <p>
         Nothing in the plane singles out an origin or a direction; we chose them. A different choice
         gives every point different coordinates while leaving all the geometry intact. This is the
-        reason a well-posed problem lets you <em>place</em> the axes — put the origin at the centre
+        reason a well-posed problem lets you <em>place</em> the axes — put the origin at the center
         of the circle, or a vertex of the triangle on the $x$-axis — and a well-chosen placement can
         cut the algebra in half.
       </p>
@@ -327,8 +327,8 @@
 
     <h2 id="circle">8.3 The equation of a circle</h2>
     <p>
-      A <b>circle</b> of centre $C$ and radius $r$ is the set of points at distance exactly $r$ from
-      $C$. That is a sentence about distance, and we now have distance as a formula — so the
+      A <b>circle</b> with center $C$ and radius $r$ is the set of points at distance exactly $r$
+      from $C$. That is a sentence about distance, and we now have distance as a formula — so the
       sentence becomes an equation.
     </p>
     <p>
@@ -342,15 +342,15 @@
       <span class="tag">Equation of a circle</span>
       <p>
         $$(x-h)^2 + (y-k)^2 = r^{2}.$$
-        Centred at the origin this is simply $x^2 + y^2 = r^2$.
+        Centered at the origin this is simply $x^2 + y^2 = r^2$.
       </p>
     </div>
 
     <figure>
       <div class="widget" data-widget="circleeq"></div>
       <figcaption>
-        <b>Centre, radius, equation.</b> Move the centre and change the radius, and watch both forms
-        of the equation update. Note the sign convention: a centre at $x = 3$ appears in the
+        <b>Center, radius, equation.</b> Move the center and change the radius, and watch both forms
+        of the equation update. Note the sign convention: a center at $x = 3$ appears in the
         equation as $(x - 3)$.
       </figcaption>
     </figure>
@@ -359,31 +359,31 @@
       <span class="tag">The sign trap</span>
       <p>
         $(x-h)$ contains <em>minus</em> $h$. So $(x-3)^2 + (y+2)^2 = 25$ is the circle of radius
-        $5$ centred at $(3,-2)$ — not $(3,2)$, and not $(-3,2)$. Read $(y+2)$ as $(y - (-2))$ every
+        $5$ centered at $(3,-2)$ — not $(3,2)$, and not $(-3,2)$. Read $(y+2)$ as $(y - (-2))$ every
         time until it stops needing thought.
       </p>
     </div>
 
     <div class="worked">
-      <h3><span class="num">Wrong turn.</span> Copying the centre's signs straight in</h3>
+      <h3><span class="num">Wrong turn.</span> Copying the center's signs straight in</h3>
       <div class="body">
-        <p>Write the equation of the circle of radius $5$ centred at $(3, -2)$.</p>
+        <p>Write the equation of the circle of radius $5$ centered at $(3, -2)$.</p>
         <ol class="steps">
-          <li><b>The tempting move.</b> The centre is $(3,-2)$, so copy those numbers in as they
+          <li><b>The tempting move.</b> The center is $(3,-2)$, so copy those numbers in as they
             stand: $(x-3)^2 + (y-2)^2 = 25$.</li>
-          <li><b>The check.</b> The left side measures the squared distance from the centre, so
-            putting the intended centre into it must give $0$. Substituting $(3,-2)$:
-            $(3-3)^2 + (-2-2)^2 = 0 + 16 = 16$, not $0$. The intended centre does not even sit at
+          <li><b>The check.</b> The left side measures the squared distance from the center, so
+            putting the intended center into it must give $0$. Substituting $(3,-2)$:
+            $(3-3)^2 + (-2-2)^2 = 0 + 16 = 16$, not $0$. The intended center does not even sit at
             the middle of the circle that was written down.</li>
           <li><b>Why.</b> The template is $(x-h)^2 + (y-k)^2 = r^2$, and $k = -2$ here, so the
-            second bracket is $\bigl(y - (-2)\bigr) = (y+2)$. The equation written above has
-            $k = +2$: it is the circle centred at $(3, 2)$, a reflection of the one wanted.</li>
-          <li><b>The repair.</b> $(x-3)^2 + (y+2)^2 = 25$. Substituting the centre now gives
+            second pair of parentheses is $\bigl(y - (-2)\bigr) = (y+2)$. The equation written
+            above has $k = +2$: it is the circle centered at $(3, 2)$, a reflection of the one wanted.</li>
+          <li><b>The repair.</b> $(x-3)^2 + (y+2)^2 = 25$. Substituting the center now gives
             $0 + 0 = 0$ ✓, and a point that should be on the circle, say $(3, 3)$ — five units
             straight up from $(3,-2)$ — gives $0 + 25 = 25$ ✓. $\blacksquare$</li>
         </ol>
         <p class="note">
-          The substitution in step 2 is worth keeping as a habit: the centre is the one point whose
+          The substitution in step 2 is worth keeping as a habit: the center is the one point whose
           coordinates must make the left side vanish, so it costs a few seconds to confirm you
           wrote down the circle you meant.
         </p>
@@ -395,14 +395,14 @@
          data-hint="Read (x + 4) as (x − (−4)).">
       <div class="ex-q">
         <p>
-          What is the centre of the circle $(x+4)^2 + (y-1)^2 = 9$?
+          What is the center of the circle $(x+4)^2 + (y-1)^2 = 9$?
         </p>
       </div>
       <div class="ex-solution">
         <p class="answer">Answer: $(-4, 1)$</p>
         <p>
           Matching $(x - h)^2 + (y - k)^2 = r^2$: $h = -4$ and $k = 1$. Check by substituting: the
-          centre must make the left side $0$, and $(-4 + 4)^2 + (1 - 1)^2 = 0$ ✓. The radius is $3$.
+          center must make the left side $0$, and $(-4 + 4)^2 + (1 - 1)^2 = 0$ ✓. The radius is $3$.
         </p>
       </div>
     </div>
@@ -410,13 +410,13 @@
     <p>
       Expanding the equation gives $x^2 + y^2 - 2hx - 2ky + (h^2+k^2-r^2) = 0$: something of the
       shape $x^2 + y^2 + Dx + Ey + F = 0$. Going back the other way — from the expanded form to the
-      centre and radius — is completing the square from
+      center and radius — is completing the square from
       <a href="../1-algebra/04-quadratic-equations.html#completing">Chapter 4</a>, done once in $x$
       and once in $y$.
     </p>
 
     <div class="worked">
-      <h3><span class="num">Example 2.</span> Recovering the centre and radius</h3>
+      <h3><span class="num">Example 2.</span> Recovering the center and radius</h3>
       <div class="body">
         <p>Describe the set of points satisfying $x^2 + y^2 - 6x + 4y - 12 = 0$.</p>
         <ol class="steps">
@@ -427,18 +427,18 @@
           <li>And in $y$: half of $4$ is $2$, so $y^2+4y = (y+2)^2 - 4$.</li>
           <li>Substituting: $(x-3)^2 - 9 + (y+2)^2 - 4 = 12$, that is,
             $$(x-3)^2 + (y+2)^2 = 25.$$</li>
-          <li>A circle of centre $(3,-2)$ and radius $5$. $\blacksquare$</li>
+          <li>A circle with center $(3,-2)$ and radius $5$. $\blacksquare$</li>
         </ol>
         <p class="note">
           If the right-hand side had come out negative, no point would satisfy the equation; if
-          zero, only the centre itself. The discriminant idea from Chapter 4, wearing different
+          zero, only the center itself. The discriminant idea from Chapter 4, wearing different
           clothes.
         </p>
       </div>
     </div>
 
     <div class="worked">
-      <h3><span class="num">Your turn, with help.</span> Centre and radius from the expanded form</h3>
+      <h3><span class="num">Your turn, with help.</span> Center and radius from the expanded form</h3>
       <div class="body">
         <p>
           Describe the set of points satisfying $x^2 + y^2 + 2x - 10y + 1 = 0$. Try each step before
@@ -467,7 +467,7 @@
             <details class="reveal">
               <summary>Read off the answer</summary>
               <p>
-                A circle with centre $(-1, 5)$ and radius $5$. $\blacksquare$
+                A circle with center $(-1, 5)$ and radius $5$. $\blacksquare$
               </p>
             </details>
           </li>
@@ -485,7 +485,7 @@
       <div class="ex-solution">
         <p class="answer">Answer: $3$</p>
         <p>
-          $x^2 - 4x = (x-2)^2 - 4$, so the equation becomes $(x-2)^2 + y^2 = 9$: centre $(2,0)$,
+          $x^2 - 4x = (x-2)^2 - 4$, so the equation becomes $(x-2)^2 + y^2 = 9$: center $(2,0)$,
           radius $\sqrt9 = 3$.
         </p>
       </div>
@@ -499,16 +499,16 @@
     </p>
     <div class="display">$$x^2 + y^2 + z^2 = R^2.$$</div>
     <p>
-      This is the <b>sphere</b> of centre $O$ and radius $R$: the surface of a ball, not its inside.
+      This is the <b>sphere</b> with center $O$ and radius $R$: the surface of a ball, not its inside.
     </p>
     <p>
       Now cut it with a level sheet, the points at height $c$, which is the plane $z = c$. A point on
       both has its $z$ fixed at $c$, so the sphere's equation becomes $x^2 + y^2 + c^2 = R^2$, that is
-      $x^2 + y^2 = R^2 - c^2$. Inside the plane that is the equation of a circle centred on the
+      $x^2 + y^2 = R^2 - c^2$. Inside the plane that is the equation of a circle centered on the
       $z$-axis, with radius $\sqrt{R^2 - c^2}$.
     </p>
     <details class="reveal">
-      <summary><span class="ask">A sphere of radius $5$ is cut by the plane $z = 3$, three-fifths of the way from the centre to the top. Is the circle it cuts out more or less than three-fifths as wide as the sphere?</span>Decide, then open</summary>
+      <summary><span class="ask">A sphere of radius $5$ is cut by the plane $z = 3$, three-fifths of the way from the center to the top. Is the circle it cuts out more or less than three-fifths as wide as the sphere?</span>Decide, then open</summary>
       <p>
         More, by a lot. The slice is $x^2 + y^2 = 25 - 9 = 16$, a circle of radius $4$: four-fifths
         of the sphere's radius, not three-fifths. Near its middle a sphere stands almost upright, so
@@ -517,7 +517,7 @@
       </p>
     </details>
     <p>
-      The picture behind the algebra is one right triangle. Go from $O$ up the $z$-axis to the centre
+      The picture behind the algebra is one right triangle. Go from $O$ up the $z$-axis to the center
       $(0, 0, c)$ of the slice, then straight across the plane to a point of the circle. The first leg
       is vertical and the second lies in a level plane, so the angle between them is right; the
       hypotenuse runs from $O$ to a point of the sphere, so it is $R$. Calling the slice's radius $r$,
@@ -530,7 +530,7 @@
       <div class="widget" data-widget="sphereslice"></div>
       <figcaption>
         <b>A circle one dimension up.</b> Move the plane with the slider, or drag its handle up and
-        down; drag anywhere else to turn the sphere. The triangle from the centre has hypotenuse
+        down; drag anywhere else to turn the sphere. The triangle from the center has hypotenuse
         $R = 5$ and legs $c$ and $r$, so the slice at height $c$ has $r^2 = 25 - c^2$.
       </figcaption>
     </figure>
@@ -549,19 +549,19 @@
           $x^2 + y^2 = 9$ we need $25 - c^2 = 9$, so $c^2 = 16$, and $c = 4$ or $c = -4$.
         </p>
         <p>
-          In the picture: the triangle from the centre has hypotenuse $5$ and a horizontal leg of
+          In the picture: the triangle from the center has hypotenuse $5$ and a horizontal leg of
           $3$, the slice's radius, so its vertical leg is $\sqrt{25 - 9} = 4$, pointing up or down.
           The two slices are mirror images of each other in the floor $z = 0$.
         </p>
       </div>
     </div>
 
-    <div class="ex" data-inline id="k2" data-label="Section check" data-type="blank" data-hint="Compare with (x − h)² + (y − k)² = r². Watch the sign inside the second bracket.">
+    <div class="ex" data-inline id="k2" data-label="Section check" data-type="blank" data-hint="Compare with (x − h)² + (y − k)² = r². Watch the sign inside the second pair of parentheses.">
       <div class="ex-q">
-        <p>The circle $(x - 3)^2 + (y + 1)^2 = 16$ has centre $($ <span class="blank" data-answer="3"></span> $,$ <span class="blank" data-answer="-1"></span> $)$ and radius <span class="blank" data-answer="4"></span>.</p>
+        <p>The circle $(x - 3)^2 + (y + 1)^2 = 16$ has center $($ <span class="blank" data-answer="3"></span> $,$ <span class="blank" data-answer="-1"></span> $)$ and radius <span class="blank" data-answer="4"></span>.</p>
       </div>
       <div class="ex-solution">
-        <p class="answer">Answer: centre $(3, -1)$, radius $4$</p>
+        <p class="answer">Answer: center $(3, -1)$, radius $4$</p>
         <p>$y + 1 = y - (-1)$, so $k = -1$; and $r^2 = 16$ gives $r = 4$.</p>
       </div>
     </div>
@@ -607,7 +607,7 @@
          data-hint="x = (1 − t²)/(1 + t²) and y = 2t/(1 + t²).">
       <div class="ex-q">
         <p>
-          Use the parametrisation with $t = 2$. Which point of the unit circle do you get?
+          Use the parametrization with $t = 2$. Which point of the unit circle do you get?
         </p>
       </div>
       <div class="ex-solution">
@@ -683,7 +683,7 @@
            data-placeholder="e.g. (3,-2)"
            data-hint="Read (x − h)² + (y − k)² = r² and be careful with the signs.">
         <div class="ex-q">
-          <p>What is the centre of the circle $(x-2)^2 + (y+5)^2 = 9$?</p>
+          <p>What is the center of the circle $(x-2)^2 + (y+5)^2 = 9$?</p>
         </div>
         <div class="ex-solution">
           <p class="answer">Answer: $(2,-5)$</p>
@@ -709,7 +709,7 @@
             $$(x^2-2x) + (y^2+8y) = -1$$
             $$(x-1)^2 - 1 + (y+4)^2 - 16 = -1$$
             $$(x-1)^2 + (y+4)^2 = 16.$$
-            So the centre is $(1,-4)$ and the radius is $\sqrt{16} = 4$.
+            So the center is $(1,-4)$ and the radius is $\sqrt{16} = 4$.
           </p>
         </div>
       </div>
@@ -736,7 +736,7 @@
       </div>
 
       <div class="ex" id="e6" data-section="circle" data-answer="2"
-           data-hint="Is the distance from the centre less than, equal to, or more than the radius?">
+           data-hint="Is the distance from the center less than, equal to, or more than the radius?">
         <div class="ex-q">
           <p>
             Does the point $(6,2)$ lie inside, on, or outside the circle
@@ -753,7 +753,7 @@
           <p class="answer">Answer: on the circle</p>
           <p>
             Substitute: $(6-2)^2 + (2+1)^2 = 16 + 9 = 25$, which is exactly $r^2$. So the point is
-            at distance $5$ from the centre $(2,-1)$ — on the circle.
+            at distance $5$ from the center $(2,-1)$ — on the circle.
           </p>
           <p>
             In general: substitute and compare with $r^2$. Less means inside, more means outside.
@@ -780,7 +780,7 @@
            data-hint="Use x = (1 − t²)/(1 + t²) and y = 2t/(1 + t²).">
         <div class="ex-q">
           <p>
-            Using the parametrisation of §8.4 with $t = \tfrac12$, which rational point of the unit
+            Using the parametrization of §8.4 with $t = \tfrac12$, which rational point of the unit
             circle do you get?
           </p>
         </div>
@@ -795,17 +795,17 @@
       </div>
 
       <div class="ex" id="e9" data-section="circle" data-type="number" data-answer="13"
-           data-hint="The radius is the distance from the centre to any point on the circle."
+           data-hint="The radius is the distance from the center to any point on the circle."
            data-hint2="Δx = 12 and Δy = 5.">
         <div class="ex-q">
           <p>
-            A circle has centre $(2,-3)$ and passes through $(14,2)$. What is its radius?
+            A circle has center $(2,-3)$ and passes through $(14,2)$. What is its radius?
           </p>
         </div>
         <div class="ex-solution">
           <p class="answer">Answer: $13$</p>
           <p>
-            The radius is the distance from the centre to that point:
+            The radius is the distance from the center to that point:
             $$r = \sqrt{(14-2)^2 + (2-(-3))^2} = \sqrt{144 + 25} = \sqrt{169} = 13.$$
             The circle's equation is therefore $(x-2)^2 + (y+3)^2 = 169$.
           </p>
@@ -839,7 +839,7 @@
       </div>
 
       <div class="ex" id="s3d-room" data-section="distance-formula" data-answer="11|11.0|11.00|+11|11 m|11.0 m|11.00 m|+11 m|11 metre|11 metres|11 meter|11 meters"
-           data-placeholder="in metres"
+           data-placeholder="in meters"
            data-hint="Find the floor diagonal's square first."
            data-hint2="Then that diagonal and the height are the legs of a second right triangle.">
         <div class="ex-q">
@@ -882,7 +882,7 @@
           coordinates.</li>
         <li>"Distance from $(h,k)$ equals $r$" becomes $(x-h)^2 + (y-k)^2 = r^2$; mind the minus
           signs.</li>
-        <li>Completing the square in $x$ and in $y$ converts $x^2+y^2+Dx+Ey+F=0$ back into centre
+        <li>Completing the square in $x$ and in $y$ converts $x^2+y^2+Dx+Ey+F=0$ back into center
           and radius.</li>
         <li>Sweeping lines of rational slope through $(-1,0)$ generates every rational point of the
           unit circle — and every Pythagorean triple with it.</li>
