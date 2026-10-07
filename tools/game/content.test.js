@@ -175,7 +175,7 @@ async function browserPart() {
       await input.press("Enter");
       const st = await ex.getAttribute("data-state");
       eq(st, right ? "correct" : "wrong", "s3d-room graded " + JSON.stringify(given));
-      if (given === "11") eq(await input.getAttribute("placeholder"), "in metres", "s3d-room keeps its placeholder");
+      if (given === "11") eq(await input.getAttribute("placeholder"), "in meters", "s3d-room keeps its placeholder");
       await context.close();
     }
     /* every way of writing 11 (bare, as the old number compare took it, or with the unit
