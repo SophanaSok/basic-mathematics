@@ -1,12 +1,5 @@
 {
   "assets/account.js": {
     "cancelled": 1
-  },
-  "assets/arena.js": {
-    "practise": 3,
-    "practised": 4
-  },
-  "assets/insights.js": {
-    "practised": 1
   }
 }

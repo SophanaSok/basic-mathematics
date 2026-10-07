@@ -541,12 +541,12 @@ async function run() {
          since answers in one run never lower each other's rate */
       const r1 = await repair();
       eq([r1.xp, r1.reduced, r1.paid.full], [10, [], 10], "the day's first Repair pays in full, five answers on one section and all");
-      check(await p.$("[data-xp-reduced]") === null && !/practised/.test(await p.$eval(".arena-result", (e) => e.textContent)), "and says nothing of a reduction");
+      check(await p.$("[data-xp-reduced]") === null && !/practi[cs]ed/.test(await p.$eval(".arena-result", (e) => e.textContent)), "and says nothing of a reduction");
       /* the same section again that day: earlier runs paid 5 of its answers, so a quarter each */
       const r2 = await repair();
       eq([r2.xp, r2.reduced, (await runStore(p)).arenaDay.sec["ch05#parallels"]], [3, ["ch05#parallels"], 10], "a second Repair of it the same day pays a quarter an answer, 2.5 rounded once");
       const said = await p.$eval("[data-xp-reduced]", (e) => e.textContent);
-      check(/You've practised this section a lot today; spaced practice tomorrow counts more\./.test(said) && /earned 3 XP instead of 10/.test(said),
+      check(/You've practiced this section a lot today; spaced practice tomorrow counts more\./.test(said) && /earned 3 XP instead of 10/.test(said),
         "the result says the XP was reduced, and why: " + said);
       check(!/(lazy|cheat|farm|too much|shame)/i.test(said), "without blame");
       /* the third run of a day to earn the finishing bonus pays 1, and says so */

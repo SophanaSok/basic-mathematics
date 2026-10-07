@@ -238,13 +238,12 @@
     var rows = Object.keys(d).filter(hasGen).map(function (id) { return { id: id, box: d[id].box, last: d[id].last, seen: d[id].seen }; });
     return Review.recall.nextDue(rows, today());
   }
-  /* a day key as words: "tomorrow", or "Thursday 8 October" */
+  /* a day key as words: "tomorrow", or the day in the browser's own order ("Thursday, October 8"
+     in a US browser, "Thursday 8 October" in a UK one), as insights.js writes its dates */
   function dayWords(key) {
     if (key === Review.recall.addDays(today(), 1)) return "tomorrow";
     var p = String(key).split("-"), d = new Date(+p[0], +p[1] - 1, +p[2]);
-    var DAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
-    var MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
-    return DAYS[d.getDay()] + " " + d.getDate() + " " + MONTHS[d.getMonth()];
+    return d.toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" });
   }
 
   function picks() { var p = runStore().picks; return p && typeof p === "object" ? p : {}; }
@@ -865,7 +864,7 @@
         "<span><b>" + o[1] + "</b><small>" + o[2] + "</small></span></label>";
     });
     html += "</div>";
-    if (t === "untimed") html += '<p class="arena-fine">Untimed runs still pay XP and still count towards recall, but keep no best scores and win no medals.</p>';
+    if (t === "untimed") html += '<p class="arena-fine">Untimed runs still pay XP and still count toward recall, but keep no best scores and win no medals.</p>';
     else if (calm()) html += '<p class="arena-fine">Study mode is on, so hearts are switched off; the clock runs only because you chose it.</p>';
     return html + "</fieldset>";
   }
@@ -1019,7 +1018,7 @@
             '<a class="arena-sec-name" href="' + esc(root() + info.path) + '"><span class="arena-sec-label">' + esc(info.label) + "</span> " + esc(s.title) + "</a>" +
             '<span class="arena-sec-meta">';
           if (st === "new") {
-            rows += '<label class="arena-pick"><input type="checkbox" data-pick="' + esc(id) + '"' + (pk[id] ? " checked" : "") + "> Practise, untimed</label>";
+            rows += '<label class="arena-pick"><input type="checkbox" data-pick="' + esc(id) + '"' + (pk[id] ? " checked" : "") + "> Practice, untimed</label>";
           } else {
             rows += '<span class="arena-chip" data-status="' + st + '">' + (st === "solid" ? "Solid" : "Shaky") + "</span>";
             /* due for a check, as the due review counts it (a section never placed waits a day after its page solve) */
@@ -1051,7 +1050,7 @@
       "<li>Where no heart is at stake (shaky sections, sections you pick by hand, a due review, Untimed tempo, Study mode), “I don't know” brings up the same hint and retry as a wrong answer, and that retry scores nothing, so a guess never beats passing.</li>" +
       "<li>Shaky sections, sections you pick by hand, and problems with only a few possible answers come without the clock.</li>" +
       "<li>A due review asks only about sections due for a check today, most overdue first, at most two questions from each and ten in all. A section answered right first time goes further into its schedule; a miss brings it back sooner.</li>" +
-      "<li>XP from one section falls the more you practise it in a day: the first two answers that pay count in full, the next two half, then a quarter. The finishing bonus is paid in full for two runs a day, then 1. Spaced practice on another day counts in full again.</li>" +
+      "<li>XP from one section falls the more you practice it in a day: the first two answers that pay count in full, the next two half, then a quarter. The finishing bonus is paid in full for two runs a day, then 1. Spaced practice on another day counts in full again.</li>" +
       "<li>The Daily is one attempt a day: once a Daily you have answered in ends, finished or banked, the next one comes with tomorrow's seed.</li>" +
       "<li>The clock stops while you read feedback, while paused, and while the page is hidden. Being faster than par earns nothing extra.</li>" +
       "</ul></details>";
@@ -1071,7 +1070,7 @@
       html += '<div class="arena-card arena-empty"><h2>Your deck fills up as you solve</h2>' +
         "<p>The Arena asks about a section once you have solved two of its problems on the chapter page, or one practice problem first time, so the clock never meets material you are still learning. " +
         "Solve a few practice problems in any chapter and those sections join your deck here.</p>" +
-        "<p>Want to try it now? Tick sections below to practise them untimed and without hearts.</p>" +
+        "<p>Want to try it now? Check sections below to practice them untimed and without hearts.</p>" +
         '<p><a class="btn ghost" href="index.html">Go to the chapters</a></p></div>';
     }
     if (!params.boss && !params.repair || dk.count) {
@@ -1251,7 +1250,7 @@
     } else if (a) {
       if (a.first) {
         html = '<p class="arena-verdict" data-kind="ok">✓ Correct. <b>+' + a.pts + "</b></p>" +
-          (a.late ? '<p class="arena-next">After par, so 60 points and the streak holds. Inside par it would have counted towards the streak.</p>' : "") +
+          (a.late ? '<p class="arena-next">After par, so 60 points and the streak holds. Inside par it would have counted toward the streak.</p>' : "") +
           stepsHtml(false) + nextBtn;
         view.feedback.setAttribute("data-kind", "ok");
       } else if (a.retry) {
@@ -1380,7 +1379,7 @@
     var h = screenEl().querySelector("#arena-result-h");
     if (h) { try { h.focus({ preventScroll: true }); } catch (e) { h.focus(); } }
     say(title + ". " + res.score + " points, " + res.firstTry + " of " + res.n + " right first time, " + res.xp + " XP." +
-      (res.reduced && res.reduced.length ? " Less XP than usual for a section practised a lot today; spaced practice tomorrow counts more." : "") +
+      (res.reduced && res.reduced.length ? " Less XP than usual for a section practiced a lot today; spaced practice tomorrow counts more." : "") +
       (weak.length ? " Worth rereading: " + secName(weak[0].id) + "." : ""));
   }
 
@@ -1408,11 +1407,11 @@
     var secs = Array.isArray(res.reduced) ? res.reduced.filter(function (id) { return !!secInfo(id); }) : [];
     var lines = [];
     if (secs.length) {
-      lines.push((secs.length === 1 ? "You've practised this section a lot today" : "You've practised these sections a lot today") +
+      lines.push((secs.length === 1 ? "You've practiced this section a lot today" : "You've practiced these sections a lot today") +
         "; spaced practice tomorrow counts more. " +
         (res.paid && res.paid.full > res.paid.answers
           ? "Your answers earned " + res.paid.answers + " XP instead of " + res.paid.full + ", with " : "Less XP for ") +
-        secs.map(function (id) { return esc(secName(id)); }).join(", ") + " practised again today.");
+        secs.map(function (id) { return esc(secName(id)); }).join(", ") + " practiced again today.");
     }
     if (res.finishReduced) {
       lines.push("The finishing bonus is paid in full for the first " + Review.constants.ARENA_FINISH_FULL_PER_DAY + " runs of a day, so this one added " +
