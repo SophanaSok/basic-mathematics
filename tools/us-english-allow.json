@@ -23,9 +23,5 @@
   },
   "data/quest.js": {
     "metres": 2
-  },
-  "parts/4-topics/15-induction-and-summations.html": {
-    "neighbour": 1,
-    "totalling": 1
   }
 }
