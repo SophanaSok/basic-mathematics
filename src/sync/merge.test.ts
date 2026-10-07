@@ -138,7 +138,7 @@ describe("the merge moved from assets/account.js", () => {
     }
     expect(unknown).toBeGreaterThan(1900);
     expect(sections).toBeGreaterThan(1000);
-    }, LONG);
+  }, LONG);
 });
 
 describe("the merge laws", () => {
