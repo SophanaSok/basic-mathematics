@@ -48,7 +48,7 @@ The owner can override any of these; none needs an answer to start. The design's
 - The calculator band (`|a-b|·10⁹ ≤ max(1,|a|,|b|)`) and `data-tol` (absolute, inclusive, read exactly from `String(tol)` including exponent notation) are computed exactly.
 - "We read that as 3/2" shows on `wrong` and `form` only for a mixed number, a `½`-style character or labels.
 - Grid-in (SAT student-produced response) accepts unreduced fractions that fit, refuses leading zeros that pad the width, and ignores tol.
-- The diagnostic stores `{kind, reason, grader: GRADER}`; a retake under another grader revision is labelled, never re-graded.
+- The diagnostic stores `{kind, reason, grader: GRADER}`; a retake under another grader revision is labeled, never re-graded.
 - A key with an empty `|` piece (`|x|`) is one answer, so `x` is wrong for it. Typing the whole key `(6,-2)|6,-2` stays right.
 - Length limits: number, fraction and set over 200 characters or a digit run over 40 are `unread/too-long`; expr and exact over 1,000 characters.
 - Expr whitespace is deleted, as today, except around a mixed number; expr and exact return `unread` only when empty or too long.

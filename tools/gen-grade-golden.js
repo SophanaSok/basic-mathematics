@@ -99,8 +99,8 @@ function detectorKeys() {
   return Array.from(byKey.values());
 }
 
-/* The example rows of the typed-grader design (~/.claude/plans/grade-equivalence-design.md,
-   the tables of sections 3.1 to 3.4), recorded here on the unchanged grader so the ledger
+/* The example rows of the typed-grader design (docs/decisions/0002-typed-grader.md names
+   it; the tables of its sections 3.1 to 3.4), recorded here on the unchanged grader so the ledger
    that later PRs keep against this file names every row whose verdict they change. One
    entry per key, type and tolerance: [answer, type, tol, the answers given]. Each goes
    through givensOf() as a detector fixture does, so the key itself, its pieces and their
