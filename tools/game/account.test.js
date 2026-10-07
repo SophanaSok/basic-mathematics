@@ -212,7 +212,7 @@ const ALL = ["google", "github", "discord", "facebook", "azure"];
         search: location.search, hash: location.hash, button: !!document.getElementById("acct-oauth-github")
       };
     });
-    check(seen.text && /cancelled or refused/.test(seen.text), "4 a cancelled sign-in is explained in plain words", seen.text);
+    check(seen.text && /canceled or refused/.test(seen.text), "4 a canceled sign-in is explained in plain words", seen.text);
     check(seen.alerted && seen.focused, "4 the explanation is drawn as an alert and keeps the focus through later redraws", seen);
     check(seen.search === "?keep=1" && seen.hash === "", "4 the error is taken out of the address and the rest is kept", { search: seen.search, hash: seen.hash });
     check(seen.button, "4 the form is still there to try again");
@@ -234,7 +234,7 @@ const ALL = ["google", "github", "discord", "facebook", "azure"];
     for (const [tail, want] of coded) {
       const c = await open({ providers: ["discord"] }, { tail });
       const m = await text(c.page, "#acct-returned");
-      check(m && want.test(m) && !/cancelled or refused/.test(m), "4 " + tail.match(/error_code=(\w+)/)[1] + " gets its own explanation", m);
+      check(m && want.test(m) && !/cancel+ed or refused/.test(m), "4 " + tail.match(/error_code=(\w+)/)[1] + " gets its own explanation", m);
       await c.context.close();
     }
 

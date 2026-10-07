@@ -726,7 +726,7 @@
     }
     if (r.code === "signup_disabled") return "New accounts are not being accepted at the moment.";
     if (r.code === "otp_expired") return "That link has expired or has already been used. Ask for a new one.";
-    if (r.error === "access_denied") return "Sign-in was cancelled or refused, so nothing has changed. You can try again.";
+    if (r.error === "access_denied") return "Sign-in was canceled or refused, so nothing has changed. You can try again.";
     if (r.error === "server_error") {
       return "The sign-in could not be completed. That service may not have confirmed your email address, or the address " +
         "belongs to more than one account here. Try another way of signing in.";

@@ -291,7 +291,7 @@
           var a = s.ghost ? s.ghost.moves.join("") : "", b = s.moves.join("");
           return (a === "tf" && b === "ft") || (a === "ft" && b === "tf");
         } },
-      { text: "Show the back cover upside down: back cover up, with the book’s top edge pointing towards you.",
+      { text: "Show the back cover upside down: back cover up, with the book’s top edge pointing toward you.",
         test: function (s) {
           var m = matOf(s.moves);
           return det(m) < 0 && m[0][1] === 0 && m[1][1] === -1;
