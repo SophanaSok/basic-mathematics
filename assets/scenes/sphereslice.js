@@ -46,7 +46,7 @@
   }
 
   window.BM3D.define("sphereslice", {
-    label: "A sphere of radius 5 cut by a horizontal plane, the circle where they meet, and the right triangle from the centre to that circle",
+    label: "A sphere of radius 5 cut by a horizontal plane, the circle where they meet, and the right triangle from the center to that circle",
     sibling: "circleeq",
     view: {
       az: AZ, el: EL, center: [0, 0, 0], radius: 7,

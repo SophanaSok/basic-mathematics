@@ -8,20 +8,5 @@
   },
   "assets/insights.js": {
     "practised": 1
-  },
-  "assets/scenes/sphereslice.js": {
-    "centre": 1
-  },
-  "assets/widgets.js": {
-    "centre": 5,
-    "neighbour": 1
-  },
-  "data/curriculum.js": {
-    "centre": 1,
-    "organised": 1,
-    "parametrising": 1
-  },
-  "data/quest.js": {
-    "metres": 2
   }
 }

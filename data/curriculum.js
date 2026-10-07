@@ -42,7 +42,7 @@ window.BM_CURRICULUM = {
           sections: [
             { id: "one-unknown", title: "One unknown", summary: "What solving means, and the two moves that preserve a solution set." },
             { id: "two-unknowns", title: "Equations in two unknowns", summary: "Elimination, and the three possible outcomes." },
-            { id: "three-unknowns", title: "Equations in three unknowns", summary: "The same method, organised so it cannot run away from you." },
+            { id: "three-unknowns", title: "Equations in three unknowns", summary: "The same method, organized so it cannot run away from you." },
             { id: "word-problems", title: "Turning words into equations", summary: "Naming unknowns and extracting one equation per fact." }
           ]
         },
@@ -167,8 +167,8 @@ window.BM_CURRICULUM = {
           sections: [
             { id: "coord-systems", title: "Coordinate systems", summary: "Axes, ordered pairs, quadrants." },
             { id: "distance-formula", title: "Distance between points", summary: "The distance formula as Pythagoras in coordinates." },
-            { id: "circle", title: "Equation of a circle", summary: "Centre and radius read off from the equation, and completing the square again." },
-            { id: "rational-points", title: "Rational points on a circle", summary: "Parametrising the solutions of x² + y² = 1 in fractions." }
+            { id: "circle", title: "Equation of a circle", summary: "Center and radius read off from the equation, and completing the square again." },
+            { id: "rational-points", title: "Rational points on a circle", summary: "Parametrizing the solutions of x² + y² = 1 in fractions." }
           ]
         },
         {
@@ -179,7 +179,7 @@ window.BM_CURRICULUM = {
           status: "full",
           blurb: "Adding points, scaling them, and reflecting them — geometry done by arithmetic on coordinates.",
           sections: [
-            { id: "dilations", title: "Dilations and reflections", summary: "Multiplying a point by a number; reflecting in the axes and the origin." },
+            { id: "dilations", title: "Dilations and reflections", summary: "Multiplying a point by a number; reflecting in the axes and through the origin." },
             { id: "addition-points", title: "Addition and the parallelogram law", summary: "Coordinatewise addition and the picture that explains it." },
             { id: "subtraction", title: "Subtraction and located vectors", summary: "Q − P as the arrow from P to Q." }
           ]

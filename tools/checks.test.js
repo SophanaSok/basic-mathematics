@@ -882,6 +882,7 @@ function refusal(fn) { try { fn(); return null; } catch (e) { return e.message; 
   const words = 'var g = { id: "lin-brackets", c: "par-tick" };\nvar h = "Expand the brackets towards the end, then tick it; square brackets stay.";';
   eq(lock(words, GEN), [], "us-english: wording (brackets, towards, tick) never fails the check");
   eq(us.scanText(words, GEN, { wording: true }).map(h => h.form + "@" + h.line), ["brackets@2", "towards@2", "tick@2"], "… and --report=wording lists the prose ones, not lin-brackets, par-tick or square brackets");
+  eq(us.scanText('var s = "It runs for ever; forever and for every n are US.";', GEN, { wording: true }).map(h => h.form + "@" + h.line), ["for ever@1"], "… \"for ever\" is reported, \"forever\" and \"for every\" are not");
 
   /* the allow file */
   const two = page("<p>The centre.</p>\n<p>Another centre.</p>");
