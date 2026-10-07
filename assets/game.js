@@ -258,7 +258,7 @@
   var MEDALS = ["", "Bronze", "Silver", "Gold"];
 
   /* an enc record is replaced by a higher medal, or by the same medal on an earlier day
-     (the rule account.js mergeGame applies too) */
+     (the rule mergeGame in src/sync/merge.ts applies too) */
   function outranks(medal, day, old) {
     old = obj(old);
     return !old.medal || medal > num(old.medal) || (medal === num(old.medal) && day < String(old.day || "9999"));

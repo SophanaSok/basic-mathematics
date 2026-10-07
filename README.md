@@ -403,7 +403,8 @@ assets/map3d.js         the course world on the contents page: its tier, camera,
                         chapter list it mirrors, the render loop (what it draws is src/world/)
 assets/lesson.js        step-by-step reading of a chapter
 assets/config.js        Supabase URL and anon key, sign-in providers; empty means no accounts
-assets/account.js       sign-in and sync, listening on BMStore
+assets/account.js       sign-in and sync, listening on BMStore; the merge it syncs with is
+                        src/sync/merge.ts, which it finds on window.BMMerge (src/ui/core.ts)
 assets/insights.js      renders progress.html and insights.html
 supabase/schema.sql     tables, row-level security, aggregate functions
 supabase/README.md      how to switch accounts on
@@ -1045,7 +1046,7 @@ filled in and the reader has a session (or opens the account page) — otherwise
 downloaded. Sync is a merge, never an overwrite: unions for solved exercises and missions, the
 larger number for each day's XP, the furthest lesson step, the highest clue opened on an exercise
 (`rung`: a number beats anything that is not one, so a damaged value cannot hold it back).
-`BMAccount.merge(a, b)` is pure and
+`BMAccount.merge(a, b)` (`src/sync/merge.ts`) is pure and
 gives the same result in either order. A save only lands on the version of the account a page
 last saw, so a tab that has fallen behind another device merges first instead of overwriting it.
 A deliberate reset is timestamped so other devices drop their copies rather than merging them
@@ -1091,7 +1092,7 @@ that adds a synced field has to ship after it and can rely on them:
   - A key is data whatever it is called, `constructor` and `toString` included. The one name
     that is not carried is `__proto__`, which cannot be written back as an ordinary field.
 - **The data says which shape it is in.** `v` in the game record, merged by taking the larger
-  number. No `v` means 1, which is what this copy understands (`SCHEMA` in `account.js`), and
+  number. No `v` means 1, which is what this copy understands (`SCHEMA` in `src/sync/merge.ts`), and
   nothing writes one yet. It is inside the data, not a column, so no SQL has to run before a
   site that reads it is deployed, and in the game record because that is the one synced store
   whose top level is a fixed set of named fields. A page that meets a `v` above its `SCHEMA`,

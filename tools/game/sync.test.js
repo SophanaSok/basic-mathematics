@@ -33,6 +33,8 @@ const vm = require("vm");
 
 const ROOT = path.resolve(__dirname, "../..");
 const SRC = fs.readFileSync(path.join(ROOT, "assets/account.js"), "utf8");
+/* the merge every entry puts up ahead of account.js (src/ui/core.ts), read by Node itself */
+const MERGE = require("../../src/ui/core.ts").merge;
 const ONLY = (process.argv.find((a) => a.startsWith("--only=")) || "").slice(7);
 const REF = "testref";
 const SESSION_KEY = "sb-" + REF + "-auth-token";
@@ -323,6 +325,8 @@ class Page {
       }
     };
     win.window = win;
+    /* `merge` builds the page's BMMerge from its window, for a merge that can be broken */
+    win.BMMerge = opts.merge ? opts.merge(win) : MERGE;
     vm.createContext(win);
     vm.runInContext(opts.src || SRC, win, { filename: "assets/account.js" });
     this.Account = win.BMAccount;
@@ -747,8 +751,14 @@ scenario("on the account page a sign-in merges with the account, and signing out
   expect(/Sign in or create an account/.test(d.page.shown()), "the account page does not show the sign-in form after signing out", d.page.shown().slice(0, 200));
 });
 
-/* account.js with a merge that can be made to fail, as a slip in a later edit might make it */
-const BROKEN = SRC.replace("  function merge(local, remote) {\n", (line) => line + '    if (window.BREAK_MERGE) throw new Error("merge failed");\n');
+/* the merge module the page receives (src/sync/merge.ts, on window.BMMerge) with a merge
+   that can be made to fail, as a slip in a later edit might make it */
+const BROKEN = (win) => Object.assign({}, MERGE, {
+  merge: (local, remote) => {
+    if (win.BREAK_MERGE) throw new Error("merge failed");
+    return MERGE.merge(local, remote);
+  }
+});
 
 scenario("a sync whose merge fails is never followed by a save of this browser's unmerged copy", async () => {
   expect(BROKEN !== SRC, "setup: account.js no longer has the line this scenario patches");
@@ -756,7 +766,7 @@ scenario("a sync whose merge fails is never followed by a save of this browser's
   server.rows.u1 = { user_id: "u1", progress: { ch01: { solved: { e1: true, e2: true }, total: 10 } }, reset_at: 0, updated_at: now - 1000 };
   const d = new Device("laptop", server);
   d.remember("u1");
-  const page = d.open({ src: BROKEN });
+  const page = d.open({ merge: BROKEN });
   page.win.BREAK_MERGE = true;
   await settle();
   expect(page.status() === "error", "setup: the sync was expected to fail", page.Account.status());

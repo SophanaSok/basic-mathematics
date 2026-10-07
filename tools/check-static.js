@@ -35,6 +35,7 @@ const { parse, normText, hash } = require("./lib/html");
 const { exercisesOf } = require("./lib/keys");
 const cssLib = require("./lib/css");
 const links = require("./lib/links");
+const { rng, randomState, UNKNOWN_KEYS } = require("./lib/random-state");
 const { parseAst } = require("rolldown/parseAst");
 
 const ROOT = site.ROOT;
@@ -658,6 +659,8 @@ function checkPlaceholders(ctx, r) {
 
 /* -------------------------------------------------- account merge laws -- */
 
+/* BMAccount.merge from assets/account.js, under a stub window, with the BMMerge every
+   entry puts up ahead of it (src/ui/core.ts, read by Node itself), which it delegates to */
 function loadMerge() {
   const src = read("assets/account.js");
   const noop = () => {};
@@ -674,109 +677,13 @@ function loadMerge() {
     addEventListener: noop, matchMedia: () => ({ matches: false }), setTimeout, clearTimeout, console, Promise, URL, document
   };
   window.window = window;
+  window.BMMerge = require(path.join(ROOT, "src/ui/core.ts")).merge;
   const sandbox = { window, document, console, setTimeout, clearTimeout, Promise, URL, Infinity, Math, Date, Object, Array, JSON };
   vm.createContext(sandbox);
   vm.runInContext(src, sandbox, { filename: "assets/account.js" });
   const A = window.BMAccount;
   if (!A || typeof A.merge !== "function") throw new Error("assets/account.js did not export BMAccount.merge under the stub");
   return A.merge;
-}
-
-/* a small seeded PRNG so a failing case can be reproduced by seed */
-function rng(seed) {
-  let s = seed >>> 0 || 1;
-  const next = () => { s ^= s << 13; s >>>= 0; s ^= s >>> 17; s ^= s << 5; s >>>= 0; return s / 4294967296; };
-  next.int = (n) => Math.floor(next() * n);
-  next.pick = (arr) => arr[next.int(arr.length)];
-  next.maybe = (p) => next() < (p === undefined ? 0.5 : p);
-  return next;
-}
-
-const CHAPTERS = ["ch01", "ch02", "ch05", "interlude"];
-const KEYS = ["e1", "e2", "e3", "k1", "k2", "t1", "p4"];
-const DAYS = ["2026-09-28", "2026-09-29", "2026-09-30", "2026-10-01"];
-/* What a later version of the site might store that this one has never heard of
-   (account.js `later`): few keys and few values, so two devices often hold the same key
-   and disagree about it. The two objects differ only in the order of their keys. One key
-   is named like something every object inherits, and is data all the same. */
-const UNKNOWN_KEYS = ["zz", "~later", "faded", "constructor"];
-/* what an attempt record's `rung` (the help ladder) may hold: the clue numbers the site
-   writes, and what a damaged or differently-minded record might, so the rule for it
-   (account.js maxRung: numbers above everything else) is held to over all of them */
-const RUNG_VALUES = [1, 2, 3, 3, 0, 5, -1, "2", "x", true, null, [1], { a: 1 }];
-const UNKNOWN_VALUES = [0, 7, -1, "x", "", true, null, [1, 2], [2, 1], { a: 1, b: [1] }, { b: [1], a: 1 }, { a: { c: 2 } }];
-function randomState(R) {
-  const st = {};
-  const pickSome = (arr, p) => arr.filter(() => R.maybe(p === undefined ? 0.5 : p));
-  const unknown = (into, values) => {
-    pickSome(UNKNOWN_KEYS, 0.2).forEach(k => { into[k] = JSON.parse(JSON.stringify(R.pick(values))); });
-    return into;
-  };
-  /* an unknown field of a record can hold anything */
-  const fields = (rec) => unknown(rec, UNKNOWN_VALUES);
-  /* an unknown key of a store keyed by chapter, exercise, section and so on is passed
-     through only when it holds no record: a record there is merged as one of that kind,
-     the same path as the known keys take */
-  const entries = (map) => unknown(map, UNKNOWN_VALUES.filter(v => !v || typeof v !== "object" || Array.isArray(v)));
-  st.progress = {};
-  pickSome(CHAPTERS).forEach(ch => {
-    const solved = {}; pickSome(KEYS).forEach(k => { solved[k] = true; });
-    st.progress[ch] = fields({ solved, total: R.int(12) });
-  });
-  entries(st.progress);
-  st.play = {};
-  pickSome(CHAPTERS).forEach(ch => {
-    const done = {}; pickSome(["pythagoras:0", "pythagoras:1", "linsys:0"]).forEach(k => { done[k] = true; });
-    const rec = { done, total: R.int(6) };
-    if (R.maybe(0.6)) rec.guess = R.int(4);
-    st.play[ch] = fields(rec);
-  });
-  entries(st.play);
-  /* attempt records as site.js writes them (initExercises check()/reveal(), the ladder's
-     persist, lesson.js advance()): `tries` >= 1 when present, `hints` only 1 or 2, `rung`
-     a clue number (and now and then something else: RUNG_VALUES), `first` only alongside
-     `solved`, `skipped` never alongside `solved`, and `section`/`inline` fixed by the
-     page markup — so two devices can never disagree about them for the same key */
-  st.attempts = {};
-  pickSome(CHAPTERS).forEach(ch => {
-    st.attempts[ch] = {};
-    pickSome(KEYS).forEach((k, idx) => {
-      const a = {};
-      const inlineKey = /^[kt]/.test(k);
-      if (R.maybe(0.8)) a.tries = 1 + R.int(4);
-      else a.opened = 1;                      /* solution opened before any check */
-      if (a.tries && R.maybe(0.4)) a.hints = 1 + R.int(2);
-      if (R.maybe(0.35)) a.rung = R.maybe(0.8) ? 1 + R.int(3) : JSON.parse(JSON.stringify(R.pick(RUNG_VALUES)));
-      if (R.maybe(0.3)) a.opened = 1;
-      if (inlineKey) a.inline = 1;
-      if (R.maybe(0.85)) a.section = ["one-unknown", "ch02#one-unknown", "warmup"][(ch.length + k.charCodeAt(1)) % 3];
-      if (a.tries && R.maybe(0.5)) { a.solved = 1700000000000 + R.int(1e9); a.first = a.tries === 1 && !a.opened ? 1 : 0; }
-      else if (inlineKey && R.maybe(0.3)) a.skipped = 1;
-      st.attempts[ch][k] = fields(a);
-    });
-    entries(st.attempts[ch]);
-  });
-  entries(st.attempts);
-  const days = {}; pickSome(DAYS).forEach(d => { days[d] = 1 + R.int(80); });
-  st.activity = fields({ days });
-  if (R.maybe(0.5)) st.activity.goal = R.pick([20, 30, 50]);
-  const reached = {}; pickSome(CHAPTERS).forEach(ch => { reached[ch] = 1 + R.int(30); });
-  st.lesson = fields({ reached });
-  if (R.maybe(0.5)) st.lesson.mode = R.pick(["steps", "page"]);
-  st.last = R.maybe(0.6) ? { id: R.pick(CHAPTERS), section: R.maybe() ? "one-unknown" : null } : null;
-  /* the game layer that is about to land; mergeGame does not exist yet */
-  const ach = {}; pickSome(["first-solve", "ten-day", "chapter-1"]).forEach(k => { ach[k] = 1700000000000 + R.int(1e9); });
-  const cmp = {}; pickSome(CHAPTERS, 0.4).forEach(ch => { cmp[ch] = {}; pickSome(KEYS, 0.4).forEach(k => { cmp[ch][k] = 1; }); });
-  const sec = {}; pickSome(["ch02#one-unknown", "ch05#angles"]).forEach(s => {
-    sec[s] = fields({ n: R.int(10), ok: R.int(10), box: R.int(5), last: R.pick(DAYS), fix: 1700000000000 + R.int(1e9) });
-  });
-  const best = {}; pickSome(["sprint", "survival"]).forEach(m => { best[m] = fields({ score: R.int(500), hearts: R.int(4), day: R.pick(DAYS) }); });
-  const enc = {}; pickSome(["ch02/practice", "ch05/practice"]).forEach(e => { enc[e] = fields({ medal: R.pick(["bronze", "silver", "gold"]), day: R.pick(DAYS) }); });
-  const daily = {}; pickSome(DAYS).forEach(d => { daily[d] = 1; });
-  st.game = fields({ ach, cmp, sec: entries(sec), best: entries(best), enc: entries(enc), daily, maxed: R.int(5) });
-  /* the shape marker a later version may set (account.js SCHEMA): absent on most devices */
-  if (R.maybe(0.3)) st.game.v = R.pick([1, 2, 9, 10]);   /* 9 and 10: the larger number is not the later string */
-  return st;
 }
 
 /* every place in a state where one of UNKNOWN_KEYS sits, as a path of keys; what it holds
@@ -810,6 +717,9 @@ function canon(x) {
 }
 
 function checkMerge(ctx, r) {
+  /* the merge is src/sync/merge.ts, one copy: account.js takes it from BMMerge */
+  const own = /\bfunction\s+mergeGame\b/.exec(read("assets/account.js"));
+  if (own) r.fail("assets/account.js:" + read("assets/account.js").slice(0, own.index).split("\n").length + ": defines mergeGame again; the merge is src/sync/merge.ts, which account.js finds on window.BMMerge");
   let merge;
   try { merge = loadMerge(); } catch (e) { r.fail(e.message); return; }
   const N = 2000;
@@ -819,7 +729,8 @@ function checkMerge(ctx, r) {
   for (let i = 0; i < N; i++) {
     const seed = R.int(2 ** 31);
     const S = rng(seed);
-    const a = randomState(S), b = randomState(S), c = randomState(S);
+    /* mergeAttempt still takes either side's section, so the states agree about it */
+    const a = randomState(S, { sectionConflicts: false }), b = randomState(S, { sectionConflicts: false }), c = randomState(S, { sectionConflicts: false });
     r.count++;
     let ab, ba, abc, abc2, m;
     try {
@@ -1305,7 +1216,7 @@ const CHECKS = [
   { name: "migrations", run: checkMigrations, what: "a supabase/schema.sql change since main ships a new, well-named migration; applied ones are untouched" },
   { name: "placeholders", run: checkPlaceholders, what: "no answer box shows an example its own key accepts" },
   { name: "pure-core", run: checkPureCore, what: "no module under src/core/, src/sync/, src/learn/ names window, document, localStorage or sessionStorage (comments aside)" },
-  { name: "merge", run: checkMerge, what: "BMAccount.merge is commutative, associative, idempotent (2000 seeded cases)" },
+  { name: "merge", run: checkMerge, what: "BMAccount.merge (src/sync/merge.ts, through BMMerge) is commutative, associative, idempotent (2000 seeded cases); account.js has no mergeGame of its own" },
   { name: "animations", run: checkAnimations, what: "no CSS animation loops forever, repeats more than 3 times, or more than 3 times a second" },
   { name: "colours", run: checkColours, what: "colour literals only in src/styles/tokens.css; answer marks carry their tokens; WebGL tokens plain hex" },
   { name: "reading-column", run: checkReadingColumn, what: "no animation, moving transition or decoration in the reading column but tools/reading-column-allow.json's" },

@@ -29,7 +29,8 @@
        or a regex hides nothing; one in a template's text, in JSX text or spelled with an
        escape is found; a module that does not parse is refused; every script extension
        is read but tests, test helpers and declaration files
-     - entries: one with src/ui/core.ts only commented out, or after site.js, fails
+     - entries: one with src/ui/core.ts only commented out, or after site.js, fails; the
+       pure modules it installs (src/core/, src/sync/merge.ts) come before it
      - serve (lib/serve.js): a build is served as it is, a page in it that still carries
        a shell marker is refused, a fixture goes out as it is
    Usage: node tools/checks.test.js */
@@ -345,14 +346,15 @@ function refusal(fn) { try { fn(); return null; } catch (e) { return e.message; 
   Object.keys(shell.PAGE_KINDS).forEach(k => check(/^import "\.\.\/vendor\/katex\.js";/m.test(fs.readFileSync(path.join(site.ROOT, shell.PAGE_KINDS[k].entry), "utf8").replace(/\/\*[\s\S]*?\*\//g, "").trim()), "the " + k + " entry imports src/vendor/katex.js first, so renderMathInElement is there when site.js runs"));
   /* an import counts only as a statement at the start of its line, as the katex rule reads
      it, so one commented out with // is not taken for the real thing */
+  const pureModules = ["../core/grade.ts", "../core/rules.ts", "../core/curriculum.ts", "../core/config.ts", "../sync/merge.ts"];
   const coreFirst = (src) => {
     const entry = src.replace(/\/\*[\s\S]*?\*\//g, "");
     const at = (f) => { const m = new RegExp('^import "' + f.replace(/\./g, "\\.") + '";', "m").exec(entry); return m ? m.index : -1; };
-    return at("../ui/core.ts") > -1 && at("../ui/core.ts") < at("../../assets/site.js") && ["grade", "rules", "curriculum", "config"].every(m => at("../core/" + m + ".ts") > -1 && at("../core/" + m + ".ts") < at("../ui/core.ts"));
+    return at("../ui/core.ts") > -1 && at("../ui/core.ts") < at("../../assets/site.js") && pureModules.every(m => at(m) > -1 && at(m) < at("../ui/core.ts"));
   };
   Object.keys(shell.PAGE_KINDS).forEach(k => check(coreFirst(fs.readFileSync(path.join(site.ROOT, shell.PAGE_KINDS[k].entry), "utf8")),
-    "the " + k + " entry imports src/core/ and then src/ui/core.ts before site.js, so window.BMCore is there when site.js runs"));
-  const inOrder = ["grade", "rules", "curriculum", "config"].map(m => 'import "../core/' + m + '.ts";').concat('import "../ui/core.ts";', 'import "../../assets/site.js";').join("\n");
+    "the " + k + " entry imports src/core/ and src/sync/merge.ts and then src/ui/core.ts before site.js, so window.BMCore and window.BMMerge are there when site.js and account.js run"));
+  const inOrder = pureModules.map(m => 'import "' + m + '";').concat('import "../ui/core.ts";', 'import "../../assets/site.js";').join("\n");
   eq([inOrder, inOrder.replace('import "../ui/core.ts";', '// import "../ui/core.ts";'), inOrder.replace('import "../ui/core.ts";', "/* the installer */").replace('import "../../assets/site.js";', 'import "../../assets/site.js";\nimport "../ui/core.ts";')].map(coreFirst), [true, false, false],
     "… an entry that has src/ui/core.ts only commented out with //, or imports it after site.js, fails that rule");
   eq(pageLinks(out).map(a => a.getAttribute("href")), ["index.html", "index.html", "about.html"], "the usual top bar: brand, Contents, How to use this");

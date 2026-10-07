@@ -16,13 +16,21 @@
    carried through every merge and written back as they came (later, carryOver). A row
    whose data is marked as a newer shape than this file understands is merged into
    this browser but never written (SCHEMA), and only the columns the server has are
-   sent (lacks).
+   sent (lacks). The merge itself, with those rules, is src/sync/merge.ts, which this
+   file finds on window.BMMerge.
    =========================================================================== */
 (function () {
   "use strict";
 
   var Store = window.BMStore, Site = window.BMSite;
   if (!Store || !Site) return;
+  /* BMMerge (src/ui/core.ts, imported by every entry ahead of site.js) holds the merge
+     (src/sync/merge.ts): every rule for two copies of the progress, the canonical JSON and
+     the newest shape of the data this version may write. Without it this file does
+     nothing: no sign-in, no sync, no account page. */
+  var M = window.BMMerge;
+  if (!M) { if (window.console) console.error("[BM] BMMerge missing"); return; }
+  var obj = M.obj, str = M.str, canon = M.canon, merge = M.merge, SCHEMA = M.SCHEMA, versionOf = M.versionOf;
 
   var cfg = window.BM_CONFIG || {};
   var configured = !!(cfg.supabaseUrl && cfg.supabaseAnonKey);
@@ -57,255 +65,6 @@
   var FIELDS = ["progress", "play", "attempts", "activity", "lesson", "last", "game"].filter(function (f) {
     return !!Store.keys[f];
   });
-
-  function obj(x) { return x && typeof x === "object" && !Array.isArray(x) ? x : {}; }
-  /* The keys of both, each once. A key is data, whatever it is called: one named like
-     something every object inherits ("constructor", "toString") is listed like any other,
-     and at() reads only what the object itself holds, so the inherited thing is never
-     mistaken for a value. The one exception is "__proto__", which cannot be written back
-     as an ordinary field and is left out of every record built here. */
-  function keysOf(a, b) {
-    var seen = Object.create(null), out = [];
-    Object.keys(obj(a)).concat(Object.keys(obj(b))).forEach(function (k) {
-      if (k !== "__proto__" && !seen[k]) { seen[k] = true; out.push(k); }
-    });
-    return out.sort();
-  }
-  function at(o, k) { return Object.prototype.hasOwnProperty.call(o, k) ? o[k] : undefined; }
-  function plain(x) { return !!x && typeof x === "object" && !Array.isArray(x); }
-
-  /* JSON with object keys sorted at every level: jsonb hands keys back in its own order */
-  function canon(x) {
-    if (Array.isArray(x)) return "[" + x.map(canon).join(",") + "]";
-    if (x && typeof x === "object") {
-      return "{" + Object.keys(x).sort().filter(function (k) { return x[k] !== undefined; })
-        .map(function (k) { return JSON.stringify(k) + ":" + canon(x[k]); }).join(",") + "}";
-    }
-    return JSON.stringify(x === undefined ? null : x);
-  }
-
-  /* ------------------------------------------------------------- merging -- */
-
-  /* What this version has no rule for is not its to drop: a later version of the site may
-     have put it there. One rule covers every such value. Held by one side only, it is
-     kept; held by both, the one whose canonical JSON (canon) is the later string is kept.
-     That is a maximum, so order, grouping and repetition matter no more than they do for
-     the fields with rules of their own. Each such field is merged by itself, not along
-     with whichever record wins on the known fields. */
-  function later(p, q) {
-    if (p === undefined) return q;
-    if (q === undefined) return p;
-    return canon(p) >= canon(q) ? p : q;
-  }
-  /* adds to a freshly built record every field of x and y that is not in `known` */
-  function carryOver(out, x, y, known) {
-    keysOf(x, y).forEach(function (k) {
-      if (known.indexOf(k) < 0) out[k] = later(at(x, k), at(y, k));
-    });
-    return out;
-  }
-  /* Where a store is keyed by chapter, exercise, section or the like, every key is merged
-     as a record of that kind, whether this version knows the key or not: a chapter added
-     next year must still merge as a chapter. So an object under a key this version does
-     not know comes out with that kind's known fields filled in, and merged field by field
-     when both sides hold one. A value that is a record on neither side has no fields to
-     merge, and goes through whole; that includes a damaged value under a known key,
-     which is no longer turned into an empty record here (site.js writes over it). */
-  function opaque(p, q) { return !plain(p) && !plain(q); }
-
-  function mergeProgress(a, b) {
-    var out = {};
-    keysOf(a, b).forEach(function (ch) {
-      var p = at(obj(a), ch), q = at(obj(b), ch);
-      if (opaque(p, q)) { out[ch] = later(p, q); return; }
-      var x = obj(p), y = obj(q), solved = {};
-      keysOf(x.solved, y.solved).forEach(function (k) { solved[k] = true; });
-      out[ch] = carryOver({ solved: solved, total: Math.max(x.total || 0, y.total || 0) }, x, y, ["solved", "total"]);
-    });
-    return out;
-  }
-
-  function mergePlay(a, b) {
-    var out = {};
-    keysOf(a, b).forEach(function (ch) {
-      var p = at(obj(a), ch), q = at(obj(b), ch);
-      if (opaque(p, q)) { out[ch] = later(p, q); return; }
-      var x = obj(p), y = obj(q), done = {};
-      keysOf(x.done, y.done).forEach(function (k) { done[k] = true; });
-      var rec = { done: done, total: Math.max(x.total || 0, y.total || 0) };
-      var guess = x.guess !== undefined && x.guess !== null ? x.guess : y.guess;
-      if (guess !== undefined && guess !== null) rec.guess = guess;
-      out[ch] = carryOver(rec, x, y, ["done", "total", "guess"]);
-    });
-    return out;
-  }
-
-  /* The help ladder's position (`rung`, the highest clue opened while unsolved): the
-     larger number. A value that is not a number (damaged, or written by a version that
-     meant something else by it) loses to any number, and two such values fall back to
-     the rule for unknown fields, so the result is still a maximum over one total order
-     (numbers above everything else) and the merge laws hold. Present on neither side,
-     absent; 0 is kept as it was written. */
-  function isNum(v) { return typeof v === "number" && isFinite(v); }
-  function maxRung(p, q) {
-    if (p === undefined) return q;
-    if (q === undefined) return p;
-    if (isNum(p) && isNum(q)) return Math.max(p, q);
-    if (isNum(p)) return p;
-    if (isNum(q)) return q;
-    return later(p, q);
-  }
-
-  /* one exercise's record seen from two devices */
-  var ATTEMPT = ["tries", "hints", "rung", "opened", "inline", "section", "solved", "first", "skipped"];
-  function mergeAttempt(x, y) {
-    if (!plain(x) || !plain(y)) return plain(x) ? x : plain(y) ? y : later(x, y);
-    var out = {};
-    var tries = Math.max(x.tries || 0, y.tries || 0);
-    var hints = Math.max(x.hints || 0, y.hints || 0);
-    var rung = maxRung(at(x, "rung"), at(y, "rung"));
-    if (tries) out.tries = tries;
-    if (hints) out.hints = hints;
-    if (rung !== undefined) out.rung = rung;
-    if (x.opened || y.opened) out.opened = 1;
-    if (x.inline || y.inline) out.inline = 1;
-    var section = x.section || y.section;
-    if (section) out.section = section;
-    if (x.solved || y.solved) {
-      out.solved = Math.min(x.solved || Infinity, y.solved || Infinity);
-      /* "right first time" only if every device that solved it says so */
-      out.first = (!x.solved || x.first) && (!y.solved || y.first) ? 1 : 0;
-    } else if (x.skipped || y.skipped) {
-      out.skipped = 1;
-    }
-    return carryOver(out, x, y, ATTEMPT);
-  }
-
-  function mergeAttempts(a, b) {
-    var out = {};
-    keysOf(a, b).forEach(function (ch) {
-      var p = at(obj(a), ch), q = at(obj(b), ch);
-      if (opaque(p, q)) { out[ch] = later(p, q); return; }
-      var x = obj(p), y = obj(q);
-      out[ch] = {};
-      keysOf(x, y).forEach(function (k) { out[ch][k] = mergeAttempt(at(x, k), at(y, k)); });
-    });
-    return out;
-  }
-
-  function mergeActivity(a, b) {
-    a = obj(a); b = obj(b);
-    var days = {};
-    keysOf(a.days, b.days).forEach(function (d) {
-      days[d] = Math.max(at(obj(a.days), d) || 0, at(obj(b.days), d) || 0);
-    });
-    var out = { days: days };
-    var goal = a.goal || b.goal;
-    if (goal) out.goal = goal;
-    return carryOver(out, a, b, ["days", "goal"]);
-  }
-
-  function mergeLesson(a, b) {
-    a = obj(a); b = obj(b);
-    var reached = {};
-    keysOf(a.reached, b.reached).forEach(function (ch) {
-      reached[ch] = Math.max(at(obj(a.reached), ch) || 0, at(obj(b.reached), ch) || 0);
-    });
-    var out = { reached: reached };
-    var mode = a.mode || b.mode;
-    if (mode) out.mode = mode;
-    return carryOver(out, a, b, ["reached", "mode"]);
-  }
-
-  /* The game layer's record (bm.game.v1). Every field merges so that order, grouping
-     and repetition never matter:
-       ach    union, keeping the earliest unlock time
-       cmp    union of compared solutions
-       sec    per section: n, ok and fix by max (ok never above n); the pair
-              (last, box) taken whole from whichever is later, then higher
-       best   per mode: highest score, then most hearts, then the earlier day
-       enc    per set: the higher rematch medal, then the earlier day
-       daily  union, keeping the latest 60 days
-       maxed  max
-       v      max: the shape of the whole synced state (SCHEMA below); left out until a
-              version of the site sets it
-     Anything else in the record, or in one of its sec, best or enc entries, is carried
-     (later). */
-  function num(x) { x = Number(x); return isFinite(x) ? x : 0; }
-  function str(x) { return typeof x === "string" ? x : ""; }
-  var GAME = ["ach", "cmp", "sec", "best", "enc", "daily", "maxed", "v"];
-  function mergeGame(a, b) {
-    a = obj(a); b = obj(b);
-    var out = { ach: {}, cmp: {}, sec: {}, best: {}, enc: {}, daily: {}, maxed: Math.max(num(a.maxed), num(b.maxed)) };
-    var v = Math.max(num(a.v), num(b.v));
-    if (v > 0) out.v = v;
-    var ach = [obj(a.ach), obj(b.ach)];
-    keysOf(ach[0], ach[1]).forEach(function (id) {
-      var t = [num(at(ach[0], id)), num(at(ach[1], id))].filter(function (x) { return x > 0; });
-      if (t.length) out.ach[id] = Math.min.apply(null, t);
-    });
-    var cmp = [obj(a.cmp), obj(b.cmp)];
-    keysOf(cmp[0], cmp[1]).forEach(function (ch) {
-      var x = obj(at(cmp[0], ch)), y = obj(at(cmp[1], ch)), rec = {};
-      keysOf(x, y).forEach(function (k) { if (at(x, k) || at(y, k)) rec[k] = 1; });
-      out.cmp[ch] = rec;
-    });
-    var sec = [obj(a.sec), obj(b.sec)];
-    keysOf(sec[0], sec[1]).forEach(function (id) {
-      var p = at(sec[0], id), q = at(sec[1], id);
-      if (opaque(p, q)) { out.sec[id] = later(p, q); return; }
-      var x = obj(p), y = obj(q);
-      var n = Math.max(num(x.n), num(y.n));
-      /* each side's ok is held to its own n first, which keeps the merge associative */
-      var rec = { n: n, ok: Math.max(Math.min(num(x.ok), num(x.n)), Math.min(num(y.ok), num(y.n))) };
-      var lx = str(x.last), ly = str(y.last);
-      var pick = lx > ly || (lx === ly && num(x.box) >= num(y.box)) ? x : y;
-      rec.box = num(pick.box);
-      if (str(pick.last)) rec.last = str(pick.last);
-      var fix = Math.max(num(x.fix), num(y.fix));
-      if (fix) rec.fix = fix;
-      out.sec[id] = carryOver(rec, x, y, ["n", "ok", "box", "last", "fix"]);
-    });
-    var best = [obj(a.best), obj(b.best)];
-    keysOf(best[0], best[1]).forEach(function (mode) {
-      var p = at(best[0], mode), q = at(best[1], mode);
-      if (opaque(p, q)) { out.best[mode] = later(p, q); return; }
-      var list = [p, q].filter(plain)
-        .map(function (r) { return { score: num(r.score), hearts: num(r.hearts), day: str(r.day) }; });
-      list.sort(function (r, s) {
-        return (s.score - r.score) || (s.hearts - r.hearts) || (r.day < s.day ? -1 : r.day > s.day ? 1 : 0);
-      });
-      out.best[mode] = carryOver(list[0], obj(p), obj(q), ["score", "hearts", "day"]);
-    });
-    var enc = [obj(a.enc), obj(b.enc)];
-    keysOf(enc[0], enc[1]).forEach(function (id) {
-      var p = at(enc[0], id), q = at(enc[1], id);
-      if (opaque(p, q)) { out.enc[id] = later(p, q); return; }
-      var list = [p, q].filter(plain)
-        .map(function (r) { return { medal: num(r.medal), day: str(r.day) }; });
-      list.sort(function (r, s) { return (s.medal - r.medal) || (r.day < s.day ? -1 : r.day > s.day ? 1 : 0); });
-      out.enc[id] = carryOver(list[0], obj(p), obj(q), ["medal", "day"]);
-    });
-    var daily = [obj(a.daily), obj(b.daily)];
-    keysOf(daily[0], daily[1]).filter(function (d) { return at(daily[0], d) || at(daily[1], d); })
-      .reverse().slice(0, 60).sort().forEach(function (d) { out.daily[d] = 1; });
-    return carryOver(out, a, b, GAME);
-  }
-
-  /* local first: where two devices simply disagree (the reading mode, the daily goal,
-     the place to continue from), this device keeps its own */
-  function merge(local, remote) {
-    local = obj(local); remote = obj(remote);
-    return {
-      progress: mergeProgress(local.progress, remote.progress),
-      play: mergePlay(local.play, remote.play),
-      attempts: mergeAttempts(local.attempts, remote.attempts),
-      activity: mergeActivity(local.activity, remote.activity),
-      lesson: mergeLesson(local.lesson, remote.lesson),
-      last: local.last || remote.last || null,
-      game: mergeGame(local.game, remote.game)
-    };
-  }
 
   /* ----------------------------------------------------------- local state -- */
 
@@ -384,7 +143,7 @@
      when the account has no row yet, otherwise its updated_at exactly as the server
      sent it back. `owned` is set once this page has claimed this browser's progress
      for the reader, so a sign-out in another tab can be noticed. `ahead` is set while
-     the reader's data is in a newer shape than this file may write (SCHEMA below). */
+     the reader's data is in a newer shape than this file may write (SCHEMA). */
   var seen, owned = false, ahead = false;
   /* one sync at a time per page; each waits for the one before to settle */
   var chain = Promise.resolve();
@@ -427,21 +186,11 @@
     });
   }
 
-  /* The newest shape of the synced data this file understands. A later version of the
-     site that changes what a known field means, so that the merge above would damage
-     it, marks the data by saving a larger number as `v` in the game record (mergeGame
-     keeps the largest). It travels inside the data so that no SQL has to run before a
-     site that reads it is deployed, and in the game record because that is the one
-     synced store whose top level is a fixed set of named fields, each with its own
-     rule: the others are keyed by chapter, or hold this device's own choices. No `v`
-     means 1, and this file never writes one, so what is stored today stays as it is.
-
-     Data marked newer than SCHEMA is still merged into this browser, so the reader keeps
-     working with everything they have, but the page then writes nothing to the account,
-     neither the row nor the attempt log (`ahead`), and the account page asks for a
-     reload, which fetches the newer site. */
-  var SCHEMA = 1;
-  function versionOf(state) { return num(obj(obj(state).game).v); }
+  /* Data marked newer than the shape this version understands (BMMerge.SCHEMA, the game
+     record's `v`; src/sync/merge.ts) is still merged into this browser, so the reader
+     keeps working with everything they have, but the page then writes nothing to the
+     account, neither the row nor the attempt log (`ahead`), and the account page asks for
+     a reload, which fetches the newer site. */
 
   /* Columns of user_state the server turned out not to have. They are not sent, so a
      project whose tables are older than this file still syncs the rest; what they would
@@ -774,8 +523,8 @@
   var Account = {
     configured: configured,
     recovering: false,
-    merge: merge,
-    mergeGame: mergeGame,
+    merge: M.merge,
+    mergeGame: M.mergeGame,
     providers: providers.slice(),
     label: label,
     methods: methodIds,

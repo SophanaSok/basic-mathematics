@@ -59,7 +59,7 @@ interface Window {
   BMGen: any;
   /** assets/map3d.js: the 3D course map on the contents page */
   BMMap3D: any;
-  /** assets/account.js: sign-in and sync, and the pure merge */
+  /** assets/account.js: sign-in and sync, and the merge it takes from BMMerge */
   BMAccount: any;
   /** src/ui/ladder.ts: the help ladder (mount), the wrong-answer questions (detect) and the
       pure modules under src/learn/, for assets/site.js, which cannot import them, and the
@@ -73,6 +73,9 @@ interface Window {
       curriculum refs and the settings reader, for assets/site.js and assets/game.js, which
       cannot import them; typed */
   BMCore: typeof import("../ui/core.ts").core;
+  /** src/ui/core.ts: the sync merge (src/sync/merge.ts), for assets/account.js, which
+      cannot import it; typed */
+  BMMerge: typeof import("../ui/core.ts").merge;
   /** src/ui/next.ts: the "next best step" card (render, items, hide), a console and test handle */
   BMNext: typeof import("../ui/next.ts").api;
   /** src/ui/math-names.ts: names the buttons, labels, table headers and headings whose
