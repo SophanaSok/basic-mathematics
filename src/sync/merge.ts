@@ -109,6 +109,23 @@ export function maxRung(p: any, q: any) {
   return later(p, q);
 }
 
+/* An attempt record's `section`: the section of the page its exercise was asked in. Two
+   devices can disagree about it (the page's markup moved the exercise between them, or a
+   record was damaged), so it has a rule of its own that keeps the merge laws. A non-empty
+   string beats absent or empty, and between two strings the greater by UTF-16 code units
+   wins (JavaScript's own `>` on strings, not the order of code points). A value that is
+   not a string but is truthy (damaged, or written by a version that meant something
+   else by it) loses to any non-empty string, and two such values fall back to the rule
+   for unknown fields (later), so the result is still a maximum over one total order.
+   Empty, absent or another falsy value on both sides: absent, as before. */
+export function maxSection(p: any, q: any) {
+  var sp = typeof p === "string" && p !== "", sq = typeof q === "string" && q !== "";
+  if (sp && sq) return p >= q ? p : q;
+  if (sp) return p;
+  if (sq) return q;
+  return later(p || undefined, q || undefined);
+}
+
 /* one exercise's record seen from two devices */
 export const ATTEMPT = ["tries", "hints", "rung", "opened", "inline", "section", "solved", "first", "skipped"];
 export function mergeAttempt(x: any, y: any) {
@@ -122,8 +139,8 @@ export function mergeAttempt(x: any, y: any) {
   if (rung !== undefined) out.rung = rung;
   if (x.opened || y.opened) out.opened = 1;
   if (x.inline || y.inline) out.inline = 1;
-  var section = x.section || y.section;
-  if (section) out.section = section;
+  var section = maxSection(at(x, "section"), at(y, "section"));
+  if (section !== undefined) out.section = section;
   if (x.solved || y.solved) {
     out.solved = Math.min(x.solved || Infinity, y.solved || Infinity);
     /* "right first time" only if every device that solved it says so */

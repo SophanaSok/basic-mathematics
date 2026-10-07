@@ -1045,7 +1045,9 @@ nothing about a server.
 filled in and the reader has a session (or opens the account page) — otherwise the SDK is never
 downloaded. Sync is a merge, never an overwrite: unions for solved exercises and missions, the
 larger number for each day's XP, the furthest lesson step, the highest clue opened on an exercise
-(`rung`: a number beats anything that is not one, so a damaged value cannot hold it back).
+(`rung`: a number beats anything that is not one, so a damaged value cannot hold it back), and
+the section an exercise was asked in, where two devices disagree, the greater name by UTF-16 code
+units (a name beats none).
 `BMAccount.merge(a, b)` (`src/sync/merge.ts`) is pure and
 gives the same result in either order. A save only lands on the version of the account a page
 last saw, so a tab that has fallen behind another device merges first instead of overwriting it.

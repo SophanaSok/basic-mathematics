@@ -5,7 +5,7 @@ import path from "node:path";
 import vm from "node:vm";
 import { describe, expect, it } from "vitest";
 import { merge as installed } from "../ui/core.ts";
-import { merge, mergeAttempt, mergeGame } from "./merge.ts";
+import { maxSection, merge, mergeAttempt, mergeGame } from "./merge.ts";
 
 const ROOT = path.resolve(import.meta.dirname, "../..");
 /* the random states of tools/check-static.js's `merge` check, shared with it */
@@ -138,11 +138,14 @@ describe("the merge moved from assets/account.js", () => {
 });
 
 describe("the merge laws", () => {
-  it("hold over 2,000 seeded triples, the fields kept local aside", () => {
+  /* the states of tools/lib/random-state.js as they come (sectionConflicts on): one
+     attempt section in ten is another non-empty one, so two devices often disagree */
+  it("hold over 2,000 seeded triples where devices disagree about sections, the fields kept local aside", () => {
     const R = rng(20261007);
+    let disagree = 0;
     for (let i = 0; i < 2000; i++) {
       const seed = R.int(2 ** 31), S = rng(seed);
-      const [a, b, c] = [0, 1, 2].map(() => randomState(S, { sectionConflicts: false }));
+      const [a, b, c] = [0, 1, 2].map(() => randomState(S));
       const law = (name: string, x: unknown, y: unknown) => {
         const p = canon(stripLocalFirst(x)), q = canon(stripLocalFirst(y));
         if (p !== q) expect(p, "seed " + seed + ": " + name).toBe(q);
@@ -151,13 +154,57 @@ describe("the merge laws", () => {
       law("merge(a, b) = merge(b, a)", ab, merge(b, a));
       law("merge(merge(a, b), c) = merge(a, merge(b, c))", merge(ab, c), merge(a, merge(b, c)));
       law("merge(m, m) = m", merge(ab, ab), ab);
+      /* and every record both sides hold has the greater of their two sections */
+      Object.keys(a.attempts).forEach((ch) => Object.keys(a.attempts[ch] || {}).forEach((k) => {
+        const p = a.attempts[ch][k], q = b.attempts && b.attempts[ch] && b.attempts[ch][k];
+        if (!p || typeof p !== "object" || !q || typeof q !== "object") return;
+        if (p.section && q.section && p.section !== q.section) disagree++;
+        const want = [p.section, q.section].filter((s) => typeof s === "string" && s !== "").sort().pop();
+        const got = ab.attempts[ch][k].section;
+        if (got !== want) expect(got, "seed " + seed + ": attempts." + ch + "." + k + ".section from " + canon([p.section, q.section])).toBe(want);
+      }));
     }
+    expect(disagree).toBeGreaterThan(200);
   });
 });
 
 describe("an attempt record's section", () => {
-  it("is the one either side holds", () => {
-    expect(mergeAttempt({ section: "a" }, {})).toEqual({ section: "a" });
-    expect(mergeAttempt({}, { section: "a" })).toEqual({ section: "a" });
+  const sec = (x: unknown, y: unknown) => (mergeAttempt(x, y) as any).section;
+  const both = (x: unknown, y: unknown) => [sec(x, y), sec(y, x)];
+
+  it("is the one side's when the other has none, and the greater string when both have one", () => {
+    expect(both({ section: "a" }, { section: "b" })).toEqual(["b", "b"]);
+    expect(both({ section: "a" }, {})).toEqual(["a", "a"]);
+    expect(both({}, { section: "" })).toEqual([undefined, undefined]);
+    expect(mergeAttempt({}, { section: "" })).toEqual({});
+    expect(both({ section: "a" }, { section: "" })).toEqual(["a", "a"]);
+    expect(both({ section: "a" }, { section: "a" })).toEqual(["a", "a"]);
+  });
+
+  it("orders two strings by UTF-16 code units, not by code points", () => {
+    /* U+FF5E is one code unit, 0xFF5E; U+1F600 is the pair 0xD83D 0xDE00, the smaller by
+       code units and the larger by code points */
+    expect(both({ section: "\uff5e" }, { section: "\ud83d\ude00" })).toEqual(["\uff5e", "\uff5e"]);
+    expect(both({ section: "Warmup" }, { section: "warmup" })).toEqual(["warmup", "warmup"]);
+    expect(both({ section: "ch02" }, { section: "ch02#one-unknown" })).toEqual(["ch02#one-unknown", "ch02#one-unknown"]);
+  });
+
+  it("puts a non-empty string over anything else, and orders two other values by their canonical JSON", () => {
+    expect(both({ section: 7 }, { section: "a" })).toEqual(["a", "a"]);
+    expect(both({ section: { a: 1 } }, {})).toEqual([{ a: 1 }, { a: 1 }]);
+    expect(both({ section: 7 }, { section: [1] })).toEqual([[1], [1]]);
+    expect(both({ section: 0 }, { section: null })).toEqual([undefined, undefined]);
+    expect(both({ section: false }, { section: "" })).toEqual([undefined, undefined]);
+  });
+
+  it("is a maximum over one order: commutative, associative and idempotent over every pair and triple of values", () => {
+    const values = [undefined, "", "a", "b", "A", "ch02#one-unknown", "\uff5e", "\ud83d\ude00", 0, 7, null, false, true, [1], { a: 1 }];
+    for (const p of values) {
+      expect(canon(maxSection(p, p)), canon(p)).toBe(canon(maxSection(p, undefined)));
+      for (const q of values) {
+        expect(canon(maxSection(p, q)), canon([p, q])).toBe(canon(maxSection(q, p)));
+        for (const r of values) expect(canon(maxSection(maxSection(p, q), r)), canon([p, q, r])).toBe(canon(maxSection(p, maxSection(q, r))));
+      }
+    }
   });
 });

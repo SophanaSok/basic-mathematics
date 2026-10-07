@@ -729,8 +729,8 @@ function checkMerge(ctx, r) {
   for (let i = 0; i < N; i++) {
     const seed = R.int(2 ** 31);
     const S = rng(seed);
-    /* mergeAttempt still takes either side's section, so the states agree about it */
-    const a = randomState(S, { sectionConflicts: false }), b = randomState(S, { sectionConflicts: false }), c = randomState(S, { sectionConflicts: false });
+    /* two devices sometimes disagree about an attempt's section (mergeAttempt's maxSection) */
+    const a = randomState(S), b = randomState(S), c = randomState(S);
     r.count++;
     let ab, ba, abc, abc2, m;
     try {
