@@ -1124,14 +1124,15 @@ function printGaps(css) {
 
 /* ----------------------------------------------------------- pure core -- */
 
-/* The modules under src/core/, src/sync/ and src/learn/ are pure: Node and Vitest load
-   them as they are, and the page gets them only through an installer under src/ui/
-   (window.BMCore, BMReview, BMLearn). So none of their code names the page's globals; a
+/* The modules under src/core/, src/sync/, src/learn/ and src/data/ are pure: Node and
+   Vitest load them as they are, and the page gets them only through an installer under
+   src/ui/ (window.BMCore, BMReview, BMLearn) or as the data a src/ui/ module imports
+   (src/data/arena-sections.ts; src/data/skills.ts, which nothing imports yet). So none of their code names the page's globals; a
    string that names one counts, since globalThis["window"] would reach it. Their tests,
    test helpers and declaration files are left out: the tests build a stub window to run
    assets/site.js under. Erasable TypeScript only is tsconfig.json's erasableSyntaxOnly
    (typecheck). */
-const PURE_DIRS = ["src/core", "src/sync", "src/learn"];
+const PURE_DIRS = ["src/core", "src/sync", "src/learn", "src/data"];
 const PURE_FILE = /\.[cm]?[jt]sx?$/;
 const NOT_PURE = /\.(test|test-helper|d)\.[cm]?[jt]sx?$/;
 const PAGE_GLOBALS = /\b(window|document|localStorage|sessionStorage)\b/g;
@@ -1215,7 +1216,7 @@ const CHECKS = [
   { name: "order", run: checkOrder, what: "order lists have >= 2 items; blanks carry keys" },
   { name: "migrations", run: checkMigrations, what: "a supabase/schema.sql change since main ships a new, well-named migration; applied ones are untouched" },
   { name: "placeholders", run: checkPlaceholders, what: "no answer box shows an example its own key accepts" },
-  { name: "pure-core", run: checkPureCore, what: "no module under src/core/, src/sync/, src/learn/ names window, document, localStorage or sessionStorage (comments aside)" },
+  { name: "pure-core", run: checkPureCore, what: "no module under src/core/, src/sync/, src/learn/, src/data/ names window, document, localStorage or sessionStorage (comments aside)" },
   { name: "merge", run: checkMerge, what: "BMAccount.merge (src/sync/merge.ts, through BMMerge) is commutative, associative, idempotent (2000 seeded cases); account.js has no mergeGame of its own" },
   { name: "animations", run: checkAnimations, what: "no CSS animation loops forever, repeats more than 3 times, or more than 3 times a second" },
   { name: "colours", run: checkColours, what: "colour literals only in src/styles/tokens.css; answer marks carry their tokens; WebGL tokens plain hex" },
