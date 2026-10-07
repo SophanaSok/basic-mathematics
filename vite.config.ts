@@ -72,7 +72,10 @@ function htmlPages(): Record<string, string> {
    bundle/scenes3d-gl.js, supabase-js (account.js's, through src/vendor/supabase.js) is
    bundle/supabase.js, Three.js (three-loader.js's, through src/vendor/three.js) is
    bundle/three.js, and the course world (map3d.js's import of src/world/index.ts, with
-   the modules of src/world/ it imports that no entry does) is bundle/world.js. A file
+   the modules of src/world/ it imports that no entry does) is bundle/world.js. The typed
+   grader's modules (src/core/answer/, which src/ui/core.ts imports) are named by no
+   entry: each goes where src/core/grade.ts goes, which every entry imports, so all.js,
+   and a module of it that comes into use later needs no entry's edit. A file
    from node_modules/ goes where the vendor module that
    brings it in goes (tools/lib/vendor.js: KaTeX's scripts with src/vendor/katex.js,
    which every entry imports, so all.js; supabase-js and its dependencies into
@@ -89,6 +92,7 @@ function htmlPages(): Record<string, string> {
    tools/check-dist.js reads the same sources and holds every chunk and stylesheet in
    dist to the name its contents call for. */
 const WORLD_DIR = "src/world/";
+const GRADER = "src/core/grade.ts", GRADER_DIR = "src/core/answer/";
 function bundleNames(): (id: string) => string | null {
   const kinds = Object.keys(PAGE_KINDS) as (keyof typeof PAGE_KINDS)[];
   const loadedBy: Record<string, string[]> = {};
@@ -108,6 +112,7 @@ function bundleNames(): (id: string) => string | null {
     if (by) return by.length === kinds.length ? "all" : by.join("-");
     if (/^assets\/[^/]+\.js$/.test(rel)) return path.posix.basename(rel, ".js");   /* a dynamic import of a script's own */
     if (rel.startsWith(WORLD_DIR)) return "world";                                  /* the course world, map3d.js's import() */
+    if (rel.startsWith(GRADER_DIR)) return nameOf(GRADER, id);                      /* the grader's modules, with grade.ts */
     if (rel.startsWith(VENDOR_DIR + "/")) return path.posix.basename(rel, ".js");  /* a vendor module imported on demand */
     if (/(^|\/)node_modules\//.test(rel)) return nameOf(vendorOf(rel).file, id);    /* with the vendor module that brings it in */
     throw new Error("vite.config.ts bundleNames: no entry or kind loads " + JSON.stringify(rel) + " (from " + id + "), so it has no name in dist/bundle/");

@@ -98,8 +98,11 @@ function kindsNamed(file) {
 /* the page kinds that load each source file, in PAGE_KINDS order: a script by the
    entries that import it (the entry itself counts), a stylesheet by the kinds that link
    it (the vendor stylesheets every page links, then PAGE_KINDS styles), and a file from
-   node_modules/ by the vendor module that brings it in (lib/vendor.js). What
-   vite.config.ts bundleNames reads to name the chunks. */
+   node_modules/ by the vendor module that brings it in (lib/vendor.js), and a module of
+   the typed grader (src/core/answer/), which no entry names, by the kinds that load
+   src/core/grade.ts. What vite.config.ts bundleNames reads to name the chunks. */
+const GRADER = "src/core/grade.ts", GRADER_DIR = "src/core/answer/";
+const ofGrader = (f) => f.startsWith(GRADER_DIR);
 const ENTRY_IMPORT = /^\s*import\s+["']([^"']+)["']\s*;?\s*$/;
 function entryImports(entry) {
   const dir = path.posix.dirname(entry);
@@ -113,7 +116,7 @@ function kindsLoading() {
     [entry].concat(entryImports(entry), shell.VENDOR_STYLES, styles).forEach(f => { (by[f] = by[f] || []).push(kind); });
   });
   /* throws, with the reason, for a node_modules file no vendor module brings in */
-  return (f) => IN_NODE_MODULES.test(f) ? by[vendor.vendorOf(f).file] : by[f];
+  return (f) => IN_NODE_MODULES.test(f) ? by[vendor.vendorOf(f).file] : ofGrader(f) ? by[GRADER] : by[f];
 }
 
 /* The module graph of the built site, read from the chunks themselves: every string
@@ -398,7 +401,9 @@ function checkShell(ctx, r) {
    script.
    The bundle behind that tag: following the imports from the chunk the tag names, the
    files of the tree the chunks were built from (their source maps) are the scripts the
-   kind's entry imports (src/entries/<kind>.js, read here), every one and no other, and
+   kind's entry imports (src/entries/<kind>.js, read here), every one and no other (but
+   for the typed grader's modules, src/core/answer/, which no entry names and which go
+   with src/core/grade.ts, so a module of it brought into use needs no entry's edit), and
    every file from node_modules/ among them is brought in by a vendor module the entry
    imports (lib/vendor.js: KaTeX by src/vendor/katex.js). Where the importer of a module
    fetched on demand is among them, a dynamic import reaches that module's chunk
@@ -443,7 +448,9 @@ function checkScripts(ctx, r) {
     const built = new Set(), foreign = [];
     staticOnly.forEach(f => ctx.graph.sourcesOf(f).forEach(s => { if (ofTree(s)) built.add(s); else if (IN_NODE_MODULES.test(s)) foreign.push(s); }));
     const wanted = entryImports(entry);
-    const missing = wanted.filter(s => !built.has(s)), extra = Array.from(built).filter(s => !wanted.includes(s));
+    /* the grader's modules ride with grade.ts: in the bundle of an entry that imports it,
+       as many of them as its imports reach */
+    const missing = wanted.filter(s => !built.has(s)), extra = Array.from(built).filter(s => !wanted.includes(s) && !(ofGrader(s) && wanted.includes(GRADER)));
     if (missing.length || extra.length) r.fail(p + ": the bundle behind " + mod.file + " is not " + entry + "'s" + (missing.length ? "; not in it: " + missing.join(", ") : "") + (extra.length ? "; in it but not imported: " + extra.join(", ") : ""));
     const strangers = [];
     foreign.forEach(s => {
@@ -840,7 +847,7 @@ const CHECKS = [
   { name: "root-absolute", run: checkRootAbsolute, what: "no attribute value, and no url() in the CSS, is a root-absolute path" },
   { name: "main", run: checkMain, what: "<main> of every page is the source's, by fingerprint" },
   { name: "shell", run: checkShell, what: "and so is the page around it, but for its stylesheet, icon and module links" },
-  { name: "scripts", run: checkScripts, what: "boot inline, one module entry whose bundle is its kind's imports (node_modules files by their vendor module), the HUD script inline after the top bar, each chunk named for the kinds that load it; the on-demand chunks on their own, named by no page; no copy of a source script" },
+  { name: "scripts", run: checkScripts, what: "boot inline, one module entry whose bundle is its kind's imports (node_modules files by their vendor module, src/core/answer/ with grade.ts), the HUD script inline after the top bar, each chunk named for the kinds that load it; the on-demand chunks on their own, named by no page; no copy of a source script" },
   { name: "offline", run: checkOffline, what: "no script, link or stylesheet url() of any page comes from another server; no font is inlined" },
   { name: "secrets", run: checkSecrets, what: "no server-side key in any built file, as text or inside a JWT" },
   { name: "stylesheets", run: checkStylesheets, what: "chapter pages share their stylesheets; vendor CSS inlined before the site's, source CSS unchanged, cascade in source order, each file named for the kinds that link it" },
