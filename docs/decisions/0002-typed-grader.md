@@ -2,7 +2,7 @@
 
 ## Decision
 
-Proposed, not yet decided: the owner has not answered the six questions below. This note records them, the defaults that need no answer, and the baseline the first PR lays down. The design is `~/.claude/plans/grade-equivalence-design.md` (revision 6, patch 1).
+Decided by the owner on 2026-10-07: the six questions below were answered on the decisions page, the recommended option in every case, with no notes. This note records the answers, the defaults that need no answer, and the baseline the first PR laid down. The design is `~/.claude/plans/grade-equivalence-design.md` (revision 6, patch 1).
 
 Grading stays in the browser and stays pure. Numbers, fractions, sets and points are read into exact rationals and compared by value; algebra keeps a string comparison with eight fixed rules. A new `judge()` returns one of four verdicts, each with a reason:
 
@@ -17,16 +17,18 @@ Proof is a ledger. The golden file is frozen at T1, graded by `src/core/answer/l
 
 ## Owner questions
 
-Each answer changes what gets built. None is needed by T1, which records today's grader only.
+Each answer changes what gets built. None was needed by T1, which records today's grader only. Answered by the owner on 2026-10-07, on the decisions page: the recommended option on all six.
 
 | # | Question | Options | Recommended | Needed by | Answer |
 |---|---|---|---|---|---|
-| Q1 | What does a `form` verdict cost on pages and in the Arena? (`[6,-2]` for a point, `0.667` for 2/3) | (a) nothing anywhere; (b) a miss everywhere; (c) nothing on pages, a miss in the Arena | (c): in the Arena, with hearts and a clock, a free `form` would be a closeness probe | T5 | open |
-| Q2 | What does an `unread` verdict cost? (`1-1/2`, `1,5`, `4 adults`, `x = 3`, `140°` on a page) | (a) nothing, like an empty box; (b) an attempt | (a), on pages and in the Arena: it says what to type and leaks nothing | T5 | open |
-| Q3 | Unreduced fractions: `6/4` for 3/2, `8/2` for 4 | (a) right, with a note; (b) `form/unreduced` everywhere; (c) as (a), but a fraction typed for a whole-number key is `form` | (a): no exercise prompt asks for lowest terms | T6 | open |
-| Q4 | Mixed numbers: `1 1/2` | (a) read as 3/2 in number, fraction and point boxes, refused in set boxes; (b) refused everywhere with "type 3/2 or 1.5" | (a): today `1 1/2` is read as 11/2 | T6 (T2 builds either) | open |
-| Q5 | A rounded decimal for an exact key with no `data-tol`: `0.667` for 2/3 | (a) `form/rounded`; (b) wrong, as today; (c) right | (a); the 1e-9 calculator band stays right, and it never applies when a tol is set | T6 | open |
-| Q6 | In exam mode and the diagnostic, when is a `form` reason shown? | (a) during the test; (b) after submission | (b): `form` scores as not correct and is explained on review; `unread` is shown at once | exam mode, diagnostic | open |
+| Q1 | What does a `form` verdict cost on pages and in the Arena? (`[6,-2]` for a point, `0.667` for 2/3) | (a) nothing anywhere; (b) a miss everywhere; (c) nothing on pages, a miss in the Arena | (c): in the Arena, with hearts and a clock, a free `form` would be a closeness probe | T5 | (c): a right value in the wrong form costs nothing on a page and counts as a miss in the Arena, and the reason is shown either way |
+| Q2 | What does an `unread` verdict cost? (`1-1/2`, `1,5`, `4 adults`, `x = 3`, `140°` on a page) | (a) nothing, like an empty box; (b) an attempt | (a), on pages and in the Arena: it says what to type and leaks nothing | T5 | (a): a retype request costs nothing, on pages and in the Arena; the learner just types it again |
+| Q3 | Unreduced fractions: `6/4` for 3/2, `8/2` for 4 | (a) right, with a note; (b) `form/unreduced` everywhere; (c) as (a), but a fraction typed for a whole-number key is `form` | (a): no exercise prompt asks for lowest terms | T6 | (a): an unreduced fraction is right, with a note about the simpler form |
+| Q4 | Mixed numbers: `1 1/2` | (a) read as 3/2 in number, fraction and point boxes, refused in set boxes; (b) refused everywhere with "type 3/2 or 1.5" | (a): today `1 1/2` is read as 11/2 | T6 (T2 builds either) | (a): `1 1/2` reads as 3/2, except in a list (set) box, which asks for a retype |
+| Q5 | A rounded decimal for an exact key with no `data-tol`: `0.667` for 2/3 | (a) `form/rounded`; (b) wrong, as today; (c) right | (a); the 1e-9 calculator band stays right, and it never applies when a tol is set | T6 | (a): a rounded decimal for an exact key is "right value, wrong form", not a plain miss; its cost follows Q1 |
+| Q6 | In exam mode and the diagnostic, when is a `form` reason shown? | (a) during the test; (b) after submission | (b): `form` scores as not correct and is explained on review; `unread` is shown at once | exam mode, diagnostic | (b): in exam mode and the placement check, the form reason is shown after submission, on the review screen; a retype request is still shown at once |
+
+**What the answers unblock.** T5 (pages and the Arena show the new verdicts) has Q1 and Q2. T6 (the new grading of numbers, fractions, sets and points goes live) has Q3 to Q5. Exam mode and the placement check's review screen have Q6; the placement check records the same rule as its own DG2 (0003). T1 to T4 are merged: PRs #26 (the baseline), #27 (the reader and messages), #30 (the ledger harness) and #33 (`judge`, `specOf` and the messages on `window.BMCore`).
 
 ## Decided defaults
 
@@ -66,4 +68,4 @@ The owner can override any of these; none needs an answer to start. The design's
 
 ## Status
 
-Proposed, 2026-10-07, with T1. The six questions are open; their answers are recorded in this note when the owner gives them, before T5 (Q1, Q2) and T6 (Q3, Q4, Q5).
+Proposed, 2026-10-07, with T1. Decided by the owner the same day, on the decisions page: the recommended option on all six questions, with no notes. T1 to T4 are merged (PRs #26, #27, #30, #33); T5 (Q1, Q2) and T6 (Q3, Q4, Q5) can start, and exam mode and the placement check build on Q6.
