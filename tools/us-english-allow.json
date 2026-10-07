@@ -24,16 +24,6 @@
   "data/quest.js": {
     "metres": 2
   },
-  "parts/4-topics/12-functions.html": {
-    "generalises": 1,
-    "realisation": 1,
-    "recognisable": 1,
-    "recognise": 1
-  },
-  "parts/4-topics/14-complex-numbers.html": {
-    "rationalise": 1,
-    "rationalising": 1
-  },
   "parts/4-topics/15-induction-and-summations.html": {
     "neighbour": 1,
     "totalling": 1
