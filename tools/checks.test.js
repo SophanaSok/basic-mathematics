@@ -39,6 +39,21 @@
        the anchor sectionAnchors gives a section (a practice section whose h2 carries no
        id, an h2 that carries it, a section that is not a practice one), and the real
        tree passing with its 76 sections
+     - us-english (tools/us-english.js and the check): a British spelling in prose, in a
+       reader attribute (data-tip too), a <title>, a <textarea>, an inline <script>, a
+       script's string ("Cancelled." and toast("colour") among them) or a \text{} body in a
+       formula fails; one in a comment, an identifier, a URL, a code attribute (data-answer,
+       class, id), markup inside a string, a key-like string, a DOM call's name argument or
+       the rest of a formula passes, a formula followed across a `+` chain (part3.js:45's
+       "$: centre $" is prose) and into a conditional's branches; test files are not read,
+       tools/lib/shell.js is, and a script that does not parse is a problem; the spelling
+       map's later additions (deca-, hecto-, -isational, circumcentre, dreamt, enquiry ...)
+       are found; the pound sign (in a formula too, and &pound;), "pounds" and a price in
+       pence ("5p" alone, n + "p each") fail; wording
+       ("brackets", "lin-brackets") passes the check and only the prose one is reported;
+       a count above or below its allowance fails, as does an empty or malformed entry;
+       --write keeps capitals and leaves keys, formulas and money alone; the real tree
+       passes against tools/us-english-allow.json
      - entries: one with src/ui/core.ts only commented out, or after site.js, fails; the
        pure modules it installs (src/core/, src/sync/merge.ts) come before it
      - serve (lib/serve.js): a build is served as it is, a page in it that still carries
@@ -784,6 +799,114 @@ function refusal(fn) { try { fn(); return null; } catch (e) { return e.message; 
   /* the real tree */
   const real = require("child_process").spawnSync(process.execPath, [path.join(__dirname, "check-static.js"), "--only=skills"], { encoding: "utf8" });
   check(real.status === 0 && /^PASS  skills +76 /m.test(real.stdout), "skills: the real tree passes, counting its 76 curriculum sections — got " + real.stdout + real.stderr);
+}
+
+/* ------------------------------------------------------------- us-english -- */
+/* the scan of tools/us-english.js on pages and scripts written here, and the lock on its
+   hits: one case per context it reads or skips, and per rule of the allow file */
+{
+  const us = require("./us-english");
+  const PAGE = "parts/9-test/99-page.html", GEN = "data/gen/test.js";
+  /* a page whose body starts on line 3 */
+  const page = (body) => "<!doctype html>\n<html><head><title>A page</title></head><body>\n" + body + "\n</body></html>\n";
+  const forms = (src, file) => us.scanText(src, file).map(h => h.form + "@" + h.line);
+  const lock = (src, file, allow) => us.lockProblems({ [file]: us.scanText(src, file) }, allow || {});
+
+  const prose = lock(page("<p>The centre of the circle.</p>"), PAGE);
+  check(prose.length === 1 && /^parts\/9-test\/99-page\.html:3: "centre" 1 times, 0 allowed: write "center"/.test(prose[0]), "us-english: a British spelling in prose fails, by line, with the US word — got " + JSON.stringify(prose));
+  eq(lock(page("<!-- the centre, the colour -->\n<p>Plain words.</p>"), PAGE), [], "us-english: … one in an HTML comment passes");
+  eq(lock("// the centre\n/* a colour */\nvar centre = 1;\nfunction colour(x) { return x; }\nvar k = tokenColour;", GEN), [], "… and in a script's comments and identifiers");
+  eq(forms(page('<div class="ex centre" id="centre" data-section="centre" data-answer="11 metres|11 meters"\n  data-hint="Find the centre." data-placeholder="in metres">x</div>'), PAGE), ["centre@4", "metres@4"],
+    "… in data-answer, id, class or data-section it passes; in data-hint or data-placeholder it is reader text");
+  eq(forms(page('<meta name="description" content="Recognise a centre.">\n<meta name="robots" content="colour">'), PAGE), ["recognise@3", "centre@3"], "… a description is reader text, another meta's content is not");
+  eq(forms(page("<p>$r_{centre}$, $$colour^2$$ and \\(grey\\) but centred.</p>"), PAGE), ["centred@3"], "… inside $…$, $$…$$ or \\(…\\) it passes; after the formula closes it is prose again");
+  eq(forms(page("<p>$12\\text{ metres}$, $\\textrm{colour}$, $\\mathrm{centre}$, $\\operatorname*{grey}(x)$, $\\text{a $r_{centre}$ b}$ and $\\text{2 pence}$.</p>"), PAGE), ["metres@3", "colour@3", "centre@3", "grey@3", "pence@3"],
+    "… but the body of \\text{}, \\textrm{}, \\mathrm{} or \\operatorname{} in a formula is words, and fails (a formula inside it is math again)");
+  eq(forms('var s = "$12" + u + "\\\\text{ metres}$";', GEN), ["metres@1"], "… in a script's formula too");
+  eq(forms(page('<span data-tip="The centre">x</span> and <textarea>colour</textarea>'), PAGE), ["centre@3", "colour@3"], "… a data-tip (site.css shows it with attr()) and a <textarea>'s text are reader text");
+  eq(forms("<!doctype html>\n<html><head><title>Colour</title></head><body>\n<script>var s = \"Centre\", t = 'a' + \"-centre\";</script>\n</body></html>\n", PAGE), ["colour@2", "centre@3"],
+    "… a <title> is reader text, and an inline <script>'s strings are read as a script's");
+  eq(forms(page("<p>see https://example.org/centre, bm.centre.v1 and <code>centre()</code></p>"), PAGE), [], "… in a URL, a dotted name or <code> it passes");
+
+  /* a formula followed across one + chain (data/gen/part3.js:45): "$: centre $" opens by closing one */
+  eq(forms('var s = "So $(" + x + ")^2 = " + r + "$: centre $" + pt(h, k) + "$, radius $" + r + "$.";', GEN), ["centre@1"],
+    "us-english: \"… $\" + x + \"$: centre $\" + y + \"$\" fails on centre, read across the chain and not one literal at a time");
+  eq(forms('var s = "$x = " + y + " r_{centre}$";', GEN), [], "… and a literal after an operand inside an open formula stays in it");
+  eq(forms('var s = `So $${x}$: centre $${y}$`;', GEN), ["centre@1"], "… a template is one chain too");
+  eq(forms('var a = "What is its " + (askR ? "radius" : "centre") + "?";\nvar b = "$" + (neg ? "r_{centre}" : "x") + "$";', GEN), ["centre@1"],
+    "… a conditional's branches are read where they land: in prose they count, in a formula they do not");
+
+  /* strings that are code */
+  eq(forms([
+    'el.classList.add("centred"); el.setAttribute("aria-label", "The centre");',
+    'if (x === "colour") y = { "centre": 1, centre: 2 }[k] || o["centre"];',
+    'document.querySelector(".centre"); var c = "arena-centre", d = "tokenColour";',
+    "html = '<div class=\"centre\" data-ask=\"centre\">Centre</div>';",
+    'switch (k) { case "centre": break; }'
+  ].join("\n"), GEN), ["centre@1", "centre@4"],
+    "us-english: a class, a compared string, a key, a selector, a key-like string, markup and a case label pass; an aria-label's value and markup's text fail");
+  eq(forms('var u = "practise"; var l = "Last practised";', "assets/x.ts"), ["practise@1", "practised@1"], "… a single word is reader text (a ternary's \"centre\" is one), as is a TypeScript file's string");
+  eq(forms('var a = "Cancelled.", b = "Colour:", c = "Centre!", d = "lin-centre.", e = "bm.colour.v1";', GEN), ["cancelled@1", "colour@1", "centre@1"],
+    "… a full stop, colon or other sentence mark at a word's end does not make it a key; a hyphen or an inner dot still does");
+  eq(forms('el.getAttribute("colour"); document.getElementById("centre");\ntoast("colour");', GEN), ["colour@2"], "… the name a DOM call takes passes, a word another call takes (toast) fails");
+
+  /* the files */
+  eq(["src/learn/stuck.test.ts", "src/world/course.test-helper.ts", "src/types/globals.d.ts", "src/vendor/katex.js", "tools/check-static.js", "docs/a.html", "src/core/grade.ts", "assets/arena.js", "data/gen/part3.js", "about.html", "parts/1-algebra/01-numbers.html"].filter(us.isScanned),
+    ["src/core/grade.ts", "assets/arena.js", "data/gen/part3.js", "about.html", "parts/1-algebra/01-numbers.html"], "us-english: test files, test helpers, declarations, vendor files and tools are not read; pages and scripts under assets, data and src are");
+  check(!us.scannedFiles().some(f => /\.test\./.test(f)) && us.scannedFiles().includes("data/gen/part3.js"), "… so no *.test.* file of the tree is scanned");
+  eq(["tools/lib/shell.js", "tools/lib/site.js"].filter(us.isScanned), ["tools/lib/shell.js"], "us-english: tools/lib/shell.js, which writes the top bar and settings sheet into every page, is read; no other tool is");
+  check(us.scannedFiles().includes("tools/lib/shell.js"), "… and it is among the tree's scanned files");
+  eq(forms('lines.push(toggle("calm", "Study mode", "Grey cards and no colour."));', "tools/lib/shell.js"), ["grey@1", "colour@1"], "… its strings read as a script's");
+  {
+    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "bm-us-"));
+    try {
+      fs.mkdirSync(path.join(tmp, "assets"));
+      fs.writeFileSync(path.join(tmp, "assets/bad.js"), "var = ;\nvar s = 'centre';\n");
+      fs.writeFileSync(path.join(tmp, "assets/ok.js"), "var s = 'centre';\n");
+      fs.writeFileSync(path.join(tmp, "allow.json"), JSON.stringify({ "assets/bad.js": { centre: 1 }, "assets/ok.js": { centre: 1 } }));
+      const r = us.check(tmp, path.join(tmp, "allow.json"));
+      check(r.problems.length === 1 && /^assets\/bad\.js: does not parse, so its strings cannot be read/.test(r.problems[0]), "us-english: a script that does not parse is a problem, and its allowances are not held against it — got " + JSON.stringify(r.problems));
+    } finally { fs.rmSync(tmp, { recursive: true, force: true }); }
+  }
+
+  /* money */
+  eq(forms(page("<p>It costs £9, a 5p coin or 10p, in pounds and pence; $£2$.</p>"), PAGE), ["£@3", "5p@3", "10p@3", "pounds@3", "pence@3", "£@3"], "us-english: £ (in a formula too), a price in pence, pounds and pence fail");
+  eq(forms(page("<p>It costs $\\$9$, so $2p + 3$ and $b$ dollars.</p>"), PAGE), [], "… dollars as $\\$9$ pass, and $2p$ in a formula is algebra");
+  eq(forms('var o = { q: "A stall sells coffee at £" + p + " and tea at £" + q + "." };', GEN), ["£@1", "£@1"], "… in a generator's chain too");
+  eq(forms(page("<p>It costs &pound;9 or &#163;2.</p>"), PAGE), ["£@3", "£@3"], "… &pound; and &#163; are the pound sign");
+  eq(forms('var a = "5p", b = "2.5p:", c = "p5";\nvar s = n + "p each", t = "Costs " + q + "p", u = `${n}p`, v = n + "pt", w = "$" + n + "p$";', GEN), ["5p@1", "2.5p@1", "<n>p@2", "<n>p@2", "<n>p@2"],
+    "… a one-word price in pence is money, not a key, and so is a \"p\" after an operand of a chain (counted as <n>p), but not in a formula");
+
+  /* wording is report-only */
+  const words = 'var g = { id: "lin-brackets", c: "par-tick" };\nvar h = "Expand the brackets towards the end, then tick it; square brackets stay.";';
+  eq(lock(words, GEN), [], "us-english: wording (brackets, towards, tick) never fails the check");
+  eq(us.scanText(words, GEN, { wording: true }).map(h => h.form + "@" + h.line), ["brackets@2", "towards@2", "tick@2"], "… and --report=wording lists the prose ones, not lin-brackets, par-tick or square brackets");
+
+  /* the allow file */
+  const two = page("<p>The centre.</p>\n<p>Another centre.</p>");
+  eq(lock(two, PAGE, { [PAGE]: { centre: 2 } }), [], "us-english: hits within their allowance pass");
+  check(/:3,4: "centre" 2 times, 1 allowed/.test(lock(two, PAGE, { [PAGE]: { centre: 1 } }).join()), "… a count that rises fails, naming every line of the form");
+  check(/allows "centre" 3 times, 2 found: lower it to 2/.test(lock(two, PAGE, { [PAGE]: { centre: 3 } }).join()), "… a count that falls fails until the allowance is lowered, so the list only shrinks");
+  check(/allows "colour" 1 times, 0 found: lower it to 0 \(take it off\)/.test(lock(two, PAGE, { [PAGE]: { centre: 2, colour: 1 } }).join()), "… a form no longer found must leave the list");
+  check(/has no forms; take the file off/.test(lock(page("<p>x</p>"), PAGE, { [PAGE]: {} }).join()), "… a file entry with nothing in it fails");
+  check(/an allowance is a whole number/.test(lock(two, PAGE, { [PAGE]: { centre: "2" } }).join()), "… an allowance that is not a whole number fails");
+
+  /* the spelling map: metric prefixes, -isational and -isably, the centres of a triangle and
+     compounds, and a few single words */
+  eq(forms(page("<p>A decametre, hectometres, a decimetre and a kilolitre; organisational and recognisably;\nthe circumcentre, incentres and orthocentre, a centrepiece and a centreline; dreamt, spoilt, an enquiry.</p>"), PAGE),
+    ["decametre@3", "hectometres@3", "decimetre@3", "kilolitre@3", "organisational@3", "recognisably@3", "circumcentre@4", "incentres@4", "orthocentre@4", "centrepiece@4", "centreline@4", "dreamt@4", "spoilt@4", "enquiry@4"],
+    "us-english: the spelling map holds the deca-, hecto- and deci- units, -isational, -isably, the triangle's centres, centre compounds, dreamt, spoilt and enquiry");
+
+  /* --write */
+  const w = us.rewrite(page('<p data-hint="Centre first.">CENTRE, centred, £9 and $r_{centre}$.</p>\n<div class="ex" data-answer="11 metres">metres</div>'), PAGE);
+  eq(w.text.split("\n").slice(2, 4), ['<p data-hint="Center first.">CENTER, centered, £9 and $r_{centre}$.</p>', '<div class="ex" data-answer="11 metres">meters</div>'],
+    "us-english --write: spellings become US with their capitals; a key, a formula and money are left alone");
+  eq(us.rewrite('var s = "So $" + x + "$: centre $" + y + "$";\nvar t = "a \\u0063entre";', GEN).text, 'var s = "So $" + x + "$: center $" + y + "$";\nvar t = "a \\u0063entre";', "… across a chain too; a word spelled with an escape is left to edit by hand");
+
+  /* the real tree */
+  const real = us.check();
+  eq(real.problems, [], "us-english: the real tree passes against tools/us-english-allow.json");
+  check(CHECKS.some(c => c.name === "us-english"), "us-english: check-static runs it");
 }
 
 /* ------------------------------------------------------------------ serve -- */
