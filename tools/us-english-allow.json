@@ -33,15 +33,6 @@
   "data/quest.js": {
     "metres": 2
   },
-  "parts/2-geometry/05-distance-and-angles.html": {
-    "centre": 2,
-    "neighbour": 4,
-    "neighbouring": 2,
-    "neighbours": 1
-  },
-  "parts/2-geometry/06-isometries.html": {
-    "centre": 6
-  },
   "parts/2-geometry/07-area.html": {
     "cancelled": 1,
     "centre": 4,
