@@ -610,7 +610,8 @@ function checkMigrations(ctx, r) {
 
 /* ------------------------------------------------------- placeholders -- */
 
-/* BMSite.grade from assets/site.js, under a window with no DOM to speak of */
+/* BMSite.grade from assets/site.js, under a window with no DOM to speak of, and with the
+   BMCore every entry puts up ahead of it (src/ui/core.ts, read by Node itself) */
 function loadGrade() {
   const noop = () => {};
   const el = {
@@ -628,6 +629,7 @@ function loadGrade() {
   };
   window.window = window;
   window.self = window;
+  window.BMCore = require(path.join(ROOT, "src/ui/core.ts")).core;
   vm.createContext(window);
   vm.runInContext(read("assets/site.js"), window, { filename: "assets/site.js" });
   if (!window.BMSite || typeof window.BMSite.grade !== "function") throw new Error("assets/site.js did not export BMSite.grade under the stub");

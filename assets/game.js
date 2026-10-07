@@ -38,7 +38,10 @@
   /* the level curve, the combo's multiplier and the HUD's drawing: the one copy, put on
      the page by the HUD script after the top bar (src/hud/levels.js, view.js) */
   var HUD = window.BMHud;
-  if (!Store || !Site || !Review || !HUD) return;
+  /* BMCore (src/ui/core.ts, imported ahead of site.js) holds the exercise rules this file
+     counts hearts and medals by, the same copy site.js pays by */
+  var Rules = window.BMCore && window.BMCore.rules;
+  if (!Store || !Site || !Review || !HUD || !Rules) return;
   var C = window.BM_CURRICULUM || { parts: [], chapters: [] };
   var Progress = window.BMProgress, Attempts = window.BMAttempts, Play = window.BMPlay;
   var Activity = window.BMActivity, Insights = window.BMInsights;
@@ -218,52 +221,13 @@
     };
   }
 
-  /* A miss is a wrong check on the road to the first correct answer: solved after one,
-     or tried and not solved yet. Asking for help is not a miss: a clue or the solution
-     opened never costs a heart. */
-  function isMiss(rec) {
-    rec = obj(rec);
-    return rec.solved ? num(rec.tries) > 1 : num(rec.tries) > 0;
-  }
-  /* What the medal counts against a set: a miss, or an exercise solved without being
-     right first time some other way (the solution was open). So reading the solution
-     and then answering can never earn a better medal than missing and then solving:
-     both count once. For a solved record this is exactly "not right first time", the
-     rule medals were always earned by, so no medal a cleared set showed before changes. */
-  function medalMark(rec) {
-    rec = obj(rec);
-    return isMiss(rec) || !!(rec.solved && (rec.opened || !rec.first));
-  }
-
-  /* How one practice or review set stands: health is what is left unsolved, hearts are
-     three less the misses (wrong checks only), and the medal, earned only once the set
-     is cleared, is three less the misses and solutions opened before solving. */
-  function setStats(S, chapterId, keys) {
-    S = S || stores();
-    keys = keys || [];
-    var solvedMap = obj(obj(obj(S.progress)[chapterId]).solved);
-    var recs = obj(obj(S.attempts)[chapterId]);
-    var out = { total: keys.length, solved: 0, first: 0, misses: 0, marks: 0, how: [], lastSolved: 0, tried: 0 };
-    keys.forEach(function (k) {
-      var rec = obj(recs[k]), how = "open";
-      if (solvedMap[k]) {
-        out.solved++;
-        how = rec.solved ? (rec.first ? "first" : rec.opened ? "opened" : "solved") : "unknown";
-        if (rec.solved && rec.first) out.first++;
-        if (num(rec.solved) > out.lastSolved) out.lastSolved = num(rec.solved);
-      }
-      if (isMiss(rec)) out.misses++;
-      if (medalMark(rec)) out.marks++;
-      if (rec.tries || rec.opened || solvedMap[k]) out.tried++;
-      out.how.push(how);
-    });
-    out.hp = out.total - out.solved;
-    out.hearts = Math.max(0, 3 - out.misses);
-    out.won = out.total > 0 && out.solved >= out.total;
-    var kept = Math.max(0, 3 - out.marks);
-    out.medal = out.won ? (kept >= 3 ? 3 : kept >= 1 ? 2 : 1) : 0;
-    return out;
-  }
+  /* A miss (a wrong check on the road to the first correct answer; asking for help is not
+     one), what the medal counts against a set (a miss, or a solve with the solution open),
+     and how one practice or review set stands (health, hearts and medal): src/core/rules.ts,
+     handed this file's stores when the caller has none */
+  function isMiss(rec) { return Rules.isMiss(rec); }
+  function medalMark(rec) { return Rules.medalMark(rec); }
+  function setStats(S, chapterId, keys) { return Rules.setStats(S || stores(), chapterId, keys); }
 
   function setKeys(S, chapterId, set) {
     var rec = obj(obj(obj(S.run).sets)[chapterId]);

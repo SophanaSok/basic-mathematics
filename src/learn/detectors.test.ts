@@ -4,6 +4,7 @@ import vm from "node:vm";
 import { createRequire } from "node:module";
 import { describe, expect, it } from "vitest";
 import { candidates, detect, ORDER, QUESTIONS, type DetectInput, type DetectorId } from "./detectors.ts";
+import { core } from "../ui/core.ts";
 
 /* ------------------------------------------------- the site's own grading -- */
 
@@ -28,7 +29,9 @@ function loadSite(): SiteGrading {
   };
   const win: Record<string, unknown> = {
     document, console, addEventListener: noop, matchMedia: () => ({ matches: false, addEventListener: noop }),
-    localStorage: { getItem: () => null, setItem: noop, removeItem: noop }
+    localStorage: { getItem: () => null, setItem: noop, removeItem: noop },
+    /* the grader site.js delegates to, which every entry puts up ahead of it */
+    BMCore: core
   };
   win.window = win;
   win.self = win;

@@ -69,6 +69,10 @@ interface Window {
       rules (src/learn/recall.ts, review.ts, practice.ts), for assets/game.js and
       assets/arena.js, which cannot import them; typed */
   BMReview: typeof import("../ui/review.ts").api;
+  /** src/ui/core.ts: the grader and the exercise rules (src/core/grade.ts, rules.ts), the
+      curriculum refs and the settings reader, for assets/site.js and assets/game.js, which
+      cannot import them; typed */
+  BMCore: typeof import("../ui/core.ts").core;
   /** src/ui/next.ts: the "next best step" card (render, items, hide), a console and test handle */
   BMNext: typeof import("../ui/next.ts").api;
   /** src/ui/math-names.ts: names the buttons, labels, table headers and headings whose
