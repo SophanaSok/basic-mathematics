@@ -95,12 +95,14 @@ export interface TupleReading {
     set's whole text. */
 export interface Refusal { ok: false; reason: UnreadReason | null; at: number }
 
+/* both frozen, so a module that imports them cannot change how an answer reads */
+
 /** The rule ids this module switches, for the tests that turn each one off */
-export const READ_RULES: readonly RuleId[] = ["N-unicode", "N-divide", "N-dot", "N-named", "N-refuse", "N-space",
-  "N-mixed", "N-comma", "N-bracket", "L-sep", "L-pm", "L-zero", "L-mixed", "T-zero"];
+export const READ_RULES: readonly RuleId[] = Object.freeze(["N-unicode", "N-divide", "N-dot", "N-named", "N-refuse", "N-space",
+  "N-mixed", "N-comma", "N-bracket", "L-sep", "L-pm", "L-zero", "L-mixed", "T-zero"]);
 
 /** Words that make a number an expression, not a number with units: "2 pi", "25pi" */
-export const MATH_WORDS: readonly string[] = ["pi", "sqrt", "root", "abs", "sin", "cos", "tan", "log", "ln", "exp"];
+export const MATH_WORDS: readonly string[] = Object.freeze(["pi", "sqrt", "root", "abs", "sin", "cos", "tan", "log", "ln", "exp"]);
 
 const NONE: ReadonlySet<RuleId> = new Set();
 const VULGAR: Record<string, string> = { "½": " 1/2 ", "¼": " 1/4 ", "¾": " 3/4 ", "⅓": " 1/3 ", "⅔": " 2/3 " };

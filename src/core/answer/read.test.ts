@@ -75,6 +75,10 @@ describe("cleaning", () => {
   it("lists the maths words that make a number an expression, not units", () => {
     expect(MATH_WORDS).toEqual(["pi", "sqrt", "root", "abs", "sin", "cos", "tan", "log", "ln", "exp"]);
   });
+
+  it("freezes the lists it exports, so an importer cannot change how an answer reads", () => {
+    expect([Object.isFrozen(MATH_WORDS), Object.isFrozen(READ_RULES)]).toEqual([true, true]);
+  });
 });
 
 describe("one number (section 3.1)", () => {
@@ -220,6 +224,15 @@ describe("a set (section 3.2)", () => {
     const at = (t: string) => { const r = readList(t, A); return r.ok ? null : r.at; };
     expect([at("x=2, 3"), at("2, x=3"), at("1,,2, 000"), at("1; 2 1/3"), at("1, 2 and 1/3"), at("(1,2)"), at("")]).toEqual([0, 1, 2, 1, 1, 0, 0]);
     expect((readNumber("4, -4", A) as Refusal).at).toBe(0);
+  });
+
+  it("reads two trailing full stops in a set or point box, where the box and then the member each peel one, but not in a number box", () => {
+    expect(each(["7..", "7. .", "3/2.."], (t) => num(t))).toEqual(all(["7..", "7. .", "3/2.."], "unread/expression"));
+    expect(each(["7..", "2,-7..", "2,-7. .", "{2;-7}.."], (t) => list(t))).toEqual({
+      "7..": "7/1", "2,-7..": "2/1, -7/1", "2,-7. .": "2/1, -7/1", "{2;-7}..": "unread/expression"
+    });
+    /* a point's brackets are stripped after one full stop only */
+    expect([tuple("6,-2.."), tuple("x=6, y=-2.."), tuple("(6,-2).."), tuple("(6,-2).")]).toEqual(["6/1, -2/1", "6/1, -2/1 notation", "no point", "6/1, -2/1"]);
   });
 
   it("writes `read` as the members in typed order", () => {
