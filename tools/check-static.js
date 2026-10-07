@@ -6,8 +6,8 @@
                                      [--accept-steps] [--accept-shell]
                                      [--migrations-base=<git ref>] [--shell-base=<git ref>]
 
-   --base    the commit to compare progress keys against (default: the clean tree the
-             harness was written on, see lib/site.js DEFAULT_BASE)
+   --base    the commit to compare progress keys against (default: DEFAULT_BASE in
+             tools/lib/site.js; move it forward when a change to the exercises is deliberate)
    --only    run one check by name (the names printed in the first column)
    --migrations-base  the commit the migrations check compares against (default: where
              HEAD left main; continuous integration passes the commit being merged into)
@@ -1385,6 +1385,25 @@ function checkPureCore(ctx, r) {
   });
 }
 
+/* --------------------------------------------------------- US English -- */
+
+/* Decision 0001: what a reader is shown is in US English, and money is in dollars. The
+   scan is tools/us-english.js (what counts as reader-facing, the word lists, a formula
+   followed across a script's `+` chain); this holds its spelling and money hits to
+   tools/us-english-allow.json, {file: {form: count}}, which recorded every one on the day
+   the lock went in. A form found more often than its allowance fails, and so does an
+   allowance higher than what is found, so the list only shrinks, until it is {}. Wording
+   (brackets, towards ...) is never held here: `us-english.js --report=wording` lists it. */
+function checkUsEnglish(ctx, r) {
+  const us = require("./us-english");
+  const res = us.check(ROOT);
+  r.count = res.files.length;
+  res.problems.forEach(m => r.fail(m));
+  const files = Object.keys(res.allow);
+  const left = files.reduce((n, f) => n + Object.keys(res.allow[f] || {}).reduce((k, form) => k + (+res.allow[f][form] || 0), 0), 0);
+  r.note(left + " British spellings and money forms still allowed, in " + files.length + " files (" + path.relative(ROOT, us.ALLOW_FILE) + ")");
+}
+
 /* ------------------------------------------------------------- runner ---- */
 
 const CHECKS = [
@@ -1407,6 +1426,7 @@ const CHECKS = [
   { name: "animations", run: checkAnimations, what: "no CSS animation loops forever, repeats more than 3 times, or more than 3 times a second" },
   { name: "colours", run: checkColours, what: "colour literals only in src/styles/tokens.css; answer marks carry their tokens; WebGL tokens plain hex" },
   { name: "reading-column", run: checkReadingColumn, what: "no animation, moving transition or decoration in the reading column but tools/reading-column-allow.json's" },
+  { name: "us-english", run: checkUsEnglish, what: "no British spelling or pound money in reader-facing text beyond tools/us-english-allow.json, whose counts only fall" },
   { name: "contrast", run: checkContrast, what: "WCAG contrast of token pairs in tools/contrast-pairs.json, both themes × both panels, all Parts; print restates the dark panel" }
 ];
 
