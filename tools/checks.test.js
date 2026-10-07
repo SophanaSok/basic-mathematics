@@ -36,6 +36,16 @@
        repeating, each course rule and its approximate pass, a generator with no record,
        an override for no generator or changing nothing, a repeated tag, act.mod first),
        and the real tree passing with its 76 sections
+     - us-english (tools/us-english.js and the check): a British spelling in prose, in a
+       reader attribute or in a script's string fails; one in a comment, an identifier, a
+       URL, a code attribute (data-answer, class, id), markup inside a string, a key-like
+       string or a formula passes, a formula followed across a `+` chain (part3.js:45's
+       "$: centre $" is prose) and into a conditional's branches; test files are not read;
+       the pound sign (in a formula too), "pounds" and a price in pence fail; wording
+       ("brackets", "lin-brackets") passes the check and only the prose one is reported;
+       a count above or below its allowance fails, as does an empty or malformed entry;
+       --write keeps capitals and leaves keys, formulas and money alone; the real tree
+       passes against tools/us-english-allow.json
      - entries: one with src/ui/core.ts only commented out, or after site.js, fails; the
        pure modules it installs (src/core/, src/sync/merge.ts) come before it
      - serve (lib/serve.js): a build is served as it is, a page in it that still carries
@@ -770,6 +780,82 @@ function refusal(fn) { try { fn(); return null; } catch (e) { return e.message; 
   /* the real tree */
   const real = require("child_process").spawnSync(process.execPath, [path.join(__dirname, "check-static.js"), "--only=skills"], { encoding: "utf8" });
   check(real.status === 0 && /^PASS  skills +76 /m.test(real.stdout), "skills: the real tree passes, counting its 76 curriculum sections — got " + real.stdout + real.stderr);
+}
+
+/* ------------------------------------------------------------- us-english -- */
+/* the scan of tools/us-english.js on pages and scripts written here, and the lock on its
+   hits: one case per context it reads or skips, and per rule of the allow file */
+{
+  const us = require("./us-english");
+  const PAGE = "parts/9-test/99-page.html", GEN = "data/gen/test.js";
+  /* a page whose body starts on line 3 */
+  const page = (body) => "<!doctype html>\n<html><head><title>A page</title></head><body>\n" + body + "\n</body></html>\n";
+  const forms = (src, file) => us.scanText(src, file).map(h => h.form + "@" + h.line);
+  const lock = (src, file, allow) => us.lockProblems({ [file]: us.scanText(src, file) }, allow || {});
+
+  const prose = lock(page("<p>The centre of the circle.</p>"), PAGE);
+  check(prose.length === 1 && /^parts\/9-test\/99-page\.html:3: "centre" 1 times, 0 allowed: write "center"/.test(prose[0]), "us-english: a British spelling in prose fails, by line, with the US word — got " + JSON.stringify(prose));
+  eq(lock(page("<!-- the centre, the colour -->\n<p>Plain words.</p>"), PAGE), [], "us-english: … one in an HTML comment passes");
+  eq(lock("// the centre\n/* a colour */\nvar centre = 1;\nfunction colour(x) { return x; }\nvar k = tokenColour;", GEN), [], "… and in a script's comments and identifiers");
+  eq(forms(page('<div class="ex centre" id="centre" data-section="centre" data-answer="11 metres|11 meters"\n  data-hint="Find the centre." data-placeholder="in metres">x</div>'), PAGE), ["centre@4", "metres@4"],
+    "… in data-answer, id, class or data-section it passes; in data-hint or data-placeholder it is reader text");
+  eq(forms(page('<meta name="description" content="Recognise a centre.">\n<meta name="robots" content="colour">'), PAGE), ["recognise@3", "centre@3"], "… a description is reader text, another meta's content is not");
+  eq(forms(page("<p>$\\text{centre}$, $$\\text{colour}$$ and \\(\\text{grey}\\) but centred.</p>"), PAGE), ["centred@3"], "… inside $…$, $$…$$ or \\(…\\) it passes; after the formula closes it is prose again");
+  eq(forms(page("<p>see https://example.org/centre, bm.centre.v1 and <code>centre()</code></p>"), PAGE), [], "… in a URL, a dotted name or <code> it passes");
+
+  /* a formula followed across one + chain (data/gen/part3.js:45): "$: centre $" opens by closing one */
+  eq(forms('var s = "So $(" + x + ")^2 = " + r + "$: centre $" + pt(h, k) + "$, radius $" + r + "$.";', GEN), ["centre@1"],
+    "us-english: \"… $\" + x + \"$: centre $\" + y + \"$\" fails on centre, read across the chain and not one literal at a time");
+  eq(forms('var s = "$x = " + y + " \\\\text{centre}$";', GEN), [], "… and a literal after an operand inside an open formula stays in it");
+  eq(forms('var s = `So $${x}$: centre $${y}$`;', GEN), ["centre@1"], "… a template is one chain too");
+  eq(forms('var a = "What is its " + (askR ? "radius" : "centre") + "?";\nvar b = "$" + (neg ? "\\\\text{centre}" : "x") + "$";', GEN), ["centre@1"],
+    "… a conditional's branches are read where they land: in prose they count, in a formula they do not");
+
+  /* strings that are code */
+  eq(forms([
+    'el.classList.add("centred"); el.setAttribute("aria-label", "The centre");',
+    'if (x === "colour") y = { "centre": 1, centre: 2 }[k] || o["centre"];',
+    'document.querySelector(".centre"); var c = "arena-centre", d = "tokenColour";',
+    "html = '<div class=\"centre\" data-ask=\"centre\">Centre</div>';",
+    'switch (k) { case "centre": break; }'
+  ].join("\n"), GEN), ["centre@1", "centre@4"],
+    "us-english: a class, a compared string, a key, a selector, a key-like string, markup and a case label pass; an aria-label's value and markup's text fail");
+  eq(forms('var u = "practise"; var l = "Last practised";', "assets/x.ts"), ["practise@1", "practised@1"], "… a single word is reader text (a ternary's \"centre\" is one), as is a TypeScript file's string");
+
+  /* the files */
+  eq(["src/learn/stuck.test.ts", "src/world/course.test-helper.ts", "src/types/globals.d.ts", "src/vendor/katex.js", "tools/check-static.js", "docs/a.html", "src/core/grade.ts", "assets/arena.js", "data/gen/part3.js", "about.html", "parts/1-algebra/01-numbers.html"].filter(us.isScanned),
+    ["src/core/grade.ts", "assets/arena.js", "data/gen/part3.js", "about.html", "parts/1-algebra/01-numbers.html"], "us-english: test files, test helpers, declarations, vendor files and tools are not read; pages and scripts under assets, data and src are");
+  check(!us.scannedFiles().some(f => /\.test\./.test(f)) && us.scannedFiles().includes("data/gen/part3.js"), "… so no *.test.* file of the tree is scanned");
+
+  /* money */
+  eq(forms(page("<p>It costs £9, a 5p coin or 10p, in pounds and pence; $£2$.</p>"), PAGE), ["£@3", "5p@3", "10p@3", "pounds@3", "pence@3", "£@3"], "us-english: £ (in a formula too), a price in pence, pounds and pence fail");
+  eq(forms(page("<p>It costs $\\$9$, so $2p + 3$ and $b$ dollars.</p>"), PAGE), [], "… dollars as $\\$9$ pass, and $2p$ in a formula is algebra");
+  eq(forms('var o = { q: "A stall sells coffee at £" + p + " and tea at £" + q + "." };', GEN), ["£@1", "£@1"], "… in a generator's chain too");
+
+  /* wording is report-only */
+  const words = 'var g = { id: "lin-brackets", c: "par-tick" };\nvar h = "Expand the brackets towards the end, then tick it; square brackets stay.";';
+  eq(lock(words, GEN), [], "us-english: wording (brackets, towards, tick) never fails the check");
+  eq(us.scanText(words, GEN, { wording: true }).map(h => h.form + "@" + h.line), ["brackets@2", "towards@2", "tick@2"], "… and --report=wording lists the prose ones, not lin-brackets, par-tick or square brackets");
+
+  /* the allow file */
+  const two = page("<p>The centre.</p>\n<p>Another centre.</p>");
+  eq(lock(two, PAGE, { [PAGE]: { centre: 2 } }), [], "us-english: hits within their allowance pass");
+  check(/:3,4: "centre" 2 times, 1 allowed/.test(lock(two, PAGE, { [PAGE]: { centre: 1 } }).join()), "… a count that rises fails, naming every line of the form");
+  check(/allows "centre" 3 times, 2 found: lower it to 2/.test(lock(two, PAGE, { [PAGE]: { centre: 3 } }).join()), "… a count that falls fails until the allowance is lowered, so the list only shrinks");
+  check(/allows "colour" 1 times, 0 found: lower it to 0 \(take it off\)/.test(lock(two, PAGE, { [PAGE]: { centre: 2, colour: 1 } }).join()), "… a form no longer found must leave the list");
+  check(/has no forms; take the file off/.test(lock(page("<p>x</p>"), PAGE, { [PAGE]: {} }).join()), "… a file entry with nothing in it fails");
+  check(/an allowance is a whole number/.test(lock(two, PAGE, { [PAGE]: { centre: "2" } }).join()), "… an allowance that is not a whole number fails");
+
+  /* --write */
+  const w = us.rewrite(page('<p data-hint="Centre first.">CENTRE, centred, £9 and $\\text{centre}$.</p>\n<div class="ex" data-answer="11 metres">metres</div>'), PAGE);
+  eq(w.text.split("\n").slice(2, 4), ['<p data-hint="Center first.">CENTER, centered, £9 and $\\text{centre}$.</p>', '<div class="ex" data-answer="11 metres">meters</div>'],
+    "us-english --write: spellings become US with their capitals; a key, a formula and money are left alone");
+  eq(us.rewrite('var s = "So $" + x + "$: centre $" + y + "$";\nvar t = "a \\u0063entre";', GEN).text, 'var s = "So $" + x + "$: center $" + y + "$";\nvar t = "a \\u0063entre";', "… across a chain too; a word spelled with an escape is left to edit by hand");
+
+  /* the real tree */
+  const real = us.check();
+  eq(real.problems, [], "us-english: the real tree passes against tools/us-english-allow.json");
+  check(CHECKS.some(c => c.name === "us-english"), "us-english: check-static runs it");
 }
 
 /* ------------------------------------------------------------------ serve -- */
