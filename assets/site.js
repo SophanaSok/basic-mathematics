@@ -693,11 +693,11 @@
 
   /* What a form or unread verdict tells the learner (src/core/answer/messages.ts, through
      BMCore.messages; the Arena asks here too). One retype message is worded by the owner's
-     answer to decision 0002's Q4: (a), a mixed number is read, so "2 and 1/3" is told to
-     type it with a space or as a fraction. */
-  var Q4 = "a";
+     answer to decision 0002's Q4, read from BMCore.owner, the answer the grader reads by:
+     under (a) a mixed number is read, so "2 and 1/3" is told to type it with a space or as
+     a fraction. */
   function verdictMessage(v) {
-    if (v.kind === "unread") return Core.messages.unreadMessage(v.reason, Q4);
+    if (v.kind === "unread") return Core.messages.unreadMessage(v.reason, Core.owner.q4);
     if (v.kind === "form") return Core.messages.formMessage(v.reason, v.read);
     return "";
   }
@@ -1020,11 +1020,21 @@
       /* "We read that as 3/2", after a wrong or form verdict, only where the reading changed
          the spelling in a way that matters: a mixed number, a ½-style character or a
          labeled point (decision 0002, decided defaults). Never for a decimal, a dropped $
-         or +, a trailing dot or whitespace. */
-      function readLine(given, v) {
-        if (typeof given !== "string" || typeof v.read !== "string" || !/\d\s+\d+\s*\/|[½¼¾⅓⅔]|[a-z]\s*=/i.test(given)) return "";
+         or +, a trailing dot or whitespace. `t` is the box's type (a blank's own): a
+         number, fraction or set box, or a point, an exact box whose reading is a tuple
+         "(6, -2)"; an expr box, and exact text, never get the line, and the label case is
+         a number box's or a point's. */
+      function readLine(given, v, t) {
+        if (typeof given !== "string" || typeof v.read !== "string") return "";
+        var number = t === "number" || t === "fraction" || t === "set";
+        var point = !number && t !== "expr" && /^\(.*\)$/.test(v.read);
+        if (!number && !point) return "";
+        if (!/\d\s+\d+\s*\/|[½¼¾⅓⅔]/.test(given) && !(t !== "set" && /[a-z]\s*=/i.test(given))) return "";
         return '<p class="ex-next hint">' + escapeHtml(Core.messages.readMessage(v.read)) + "</p>";
       }
+      /* the answer and the box type a reading line is about: a blank's own on a blank card */
+      function readOf(r, v) { return kind === "blank" ? r.given[v.blank] : r.given; }
+      function typeOf(v) { return kind === "blank" ? blanks[v.blank].getAttribute("data-type") || "number" : type; }
       /* the note beside a right unreduced fraction: "6/4 is 3/2 in lowest terms." */
       function noteLine(v) {
         if (!v.notes || v.notes.indexOf("unreduced") < 0) return "";
@@ -1097,28 +1107,32 @@
          is right; any blank wrong is wrong; otherwise some blank is right in value in a
          form its key does not take, and the card is form with the first such reason. A
          form blank is marked like a wrong one (data-ok false) and carries
-         data-verdict="form", which question() skips; the tag is cleared here before any
-         blank is marked, and in markCorrect(). */
+         data-verdict="form", which question() skips; the tag is cleared here once no blank
+         is unread (an unread blank leaves the last check's marks as they are), before any
+         blank is marked, and in markCorrect(). The card's verdict is the first wrong
+         blank's, else the first form blank's, with `blank` saying which, so the reading
+         line and the detectors speak of the same blank. */
       function judge(given) {
         if (kind === "order") {
           return given === orderItems.map(function (li, j) { return String(j); }).join(",")
             ? { kind: "right", alt: 0, read: given, notes: [] } : { kind: "wrong", read: null };
         }
         if (kind === "blank") {
-          blanks.forEach(function (b) { b.removeAttribute("data-verdict"); });
           var vs = blanks.map(function (b, j) {
             return Core.judge(given[j], Core.specOf({ answer: b.getAttribute("data-answer"), type: b.getAttribute("data-type"), tol: tol }));
           });
           for (var u = 0; u < vs.length; u++) {
             if (vs[u].kind === "unread") return { kind: "unread", reason: vs[u].reason, at: vs[u].at, blank: u };
           }
+          blanks.forEach(function (b) { b.removeAttribute("data-verdict"); });
           var card = { kind: "right", alt: 0, read: "", notes: [] };
           blanks.forEach(function (b, j) {
             var v = vs[j];
             b.setAttribute("data-ok", v.kind === "right" ? "true" : "false");
             if (v.kind === "form") b.setAttribute("data-verdict", "form");
-            if (v.kind === "wrong") card = v;
-            else if (v.kind === "form" && card.kind === "right") card = v;
+            if ((v.kind === "wrong" && card.kind !== "wrong") || (v.kind === "form" && card.kind === "right")) {
+              card = { kind: v.kind, alt: v.alt, read: v.read, reason: v.reason, blank: j };
+            }
           });
           return card;
         }
@@ -1175,7 +1189,7 @@
             if (b.getAttribute("data-ok") === "false") b.setAttribute("aria-invalid", "true");
             else b.removeAttribute("aria-invalid");
           });
-          say(verdict("form", escapeHtml(verdictMessage(v))) + readLine(r.given, v));
+          say(verdict("form", escapeHtml(verdictMessage(v))) + readLine(readOf(r, v), v, typeOf(v)));
           return;
         }
         var ok = v.kind === "right";
@@ -1223,7 +1237,7 @@
             : '<p class="ex-next hint">Not yet. Work it through once more' + (solution ? ", or open the solution." : ".") + "</p>";
           /* every clue open (or none to open): the solution button is the suggestion */
           if (solution && !(ladder && Learn.ladder.canOpen(ladder.state))) showBtn.setAttribute("data-suggested", "true");
-          say(verdict("no", "✗ Not right.") + readLine(r.given, v) + after);
+          say(verdict("no", "✗ Not right.") + readLine(readOf(r, v), v, typeOf(v)) + after);
           renderMath(feedback);
         }
       }
