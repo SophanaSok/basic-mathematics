@@ -33,17 +33,6 @@
   "data/quest.js": {
     "metres": 2
   },
-  "parts/1-algebra/01-numbers.html": {
-    "analogue": 1,
-    "cancelling": 4,
-    "memorise": 1,
-    "recognising": 1
-  },
-  "parts/1-algebra/03-real-numbers.html": {
-    "cancelling": 1,
-    "centre": 2,
-    "rationalising": 1
-  },
   "parts/1-algebra/04-quadratic-equations.html": {
     "centre": 2,
     "memorised": 1,
