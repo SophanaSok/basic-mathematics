@@ -110,9 +110,9 @@ at the new address, and nothing of the course.
 ### How it deploys
 
 [`.github/workflows/ci.yml`](.github/workflows/ci.yml) builds the site into `dist/` and deploys
-that. A push to `main` (merging a pull request) triggers it, and so does **Run workflow** on
-`main`. Its jobs are `build` (the Node checks, the build, the checks on `dist/`, the redirect site
-and its checks), `browser` (the Chromium checks that need no WebGL, as one job per part, side by
+that. A push to `main` (merging a pull request) triggers it, unless it changes only Markdown
+and `docs/` ([When CI runs](#when-ci-runs)), and so does **Run workflow** on `main`. Its jobs
+are `build` (the Node checks, the build, the checks on `dist/`, the redirect site and its checks), `browser` (the Chromium checks that need no WebGL, as one job per part, side by
 side, today `browser (axe)`, `browser (pages)`, `browser (exercises)` and `browser (rest)`; the
 parts are `PARTS` in `tools/check-browser.js`, [`tools/README.md`](tools/README.md)), `webgl`
 (the 3D checks, retried, outside the gate), `cloudflare`, which publishes that run's `dist/` to
@@ -351,6 +351,43 @@ GitHub's pages on this, read 2026-10-04:
 [publishing source](https://docs.github.com/en/pages/getting-started-with-github-pages/configuring-a-publishing-source-for-your-github-pages-site),
 [re-running workflows](https://docs.github.com/en/actions/how-tos/manage-workflow-runs/re-run-workflows-and-jobs).
 
+### When CI runs
+
+`ci.yml` runs for every pull request and every push to `main` **except one that changes only
+Markdown and `docs/`** (`paths-ignore: ["**/*.md", "docs/**"]` on both events). Such a change
+costs no Actions minutes (a full run is about 30), gets no Cloudflare preview, and deploys
+nothing, which is right: `dist/` and `dist-redirects/` are built from none of those files, so
+production already matches it.
+
+- **What still runs CI:** any change with at least one other file in it. For a pull request
+  GitHub compares the whole pull request with its base, so a Markdown-only push to a pull request
+  that also changes code still gets a full run.
+- **Why these files are safe to skip:** no check reads `README.md`, `OPERATIONS.md` or anything
+  in `docs/` (they are named only in comments and messages), and the migrations check passes over
+  `supabase/migrations/README.md`. `npm run check:ci` (`skip`) keeps it so: it fails if either
+  list changes, if there is a Markdown file in `public/` (copied into `dist/` as it is, so it
+  would be published), `src/`, `assets/`, `data/` or `parts/`, and if `docs/` holds anything
+  but Markdown, or if `supabase/migrations/` holds Markdown other than its `README.md` (the
+  migrations check would read it as a migration).
+- **A docs-only pull request has no checks.** It is merged on review alone; "merge only with CI
+  green" means "no CI run is expected" for it.
+- **A failed deploy under a docs-only commit:** once a docs-only commit sits on top of `main`,
+  re-running the older code commit's failed jobs is refused by the re-run guard (`main` has
+  moved). Use **Run workflow** on `main` instead; it builds and deploys the newest commit.
+- **Very large pull requests:** GitHub compares at most 300 changed files for path filters. A pull
+  request over 300 files that is mostly Markdown may skip a code change; check it with **Run
+  workflow**.
+- **Required checks:** `main` has no branch protection and no ruleset (checked 2026-10-06). If a
+  CI job is ever made a required check, a Markdown-only pull request never gets it and waits on
+  "Expected" forever (GitHub: a workflow skipped by path filtering leaves its checks pending);
+  then replace `paths-ignore` with GitHub's documented alternative, a job that always runs and
+  reports, with the expensive jobs skipped by a job-level `if:`.
+- **To run it anyway** (for instance to republish): **Run workflow** on `main`, which has no path
+  filter.
+
+GitHub's page, read 2026-10-06:
+[path filters](https://docs.github.com/en/actions/reference/workflows-and-actions/workflow-syntax#onpushpull_requestpull_request_targetpathspaths-ignore).
+
 ## 3. Supabase
 
 ### What is stored
@@ -494,7 +531,7 @@ check it when the first function exists.
 | Apply migrations | R0 (now) | every change to `schema.sql` | [Section 1](#1-releasing-a-change-that-needs-sql). The first real one is the `events` table in R2 |
 | Watch Supabase usage and pausing | now | usage monthly, pausing weekly | [Section 3](#what-to-watch) |
 | Keep `groundupmath.org` renewed | from the purchase | yearly; auto-renew on | Porkbun → Domain Management → the domain → Auto Renew on, with a card that will still be valid. A lapsed domain takes the site and every reader's saved progress with it, and lets someone else take the name. The bare domain and `www` forward to `learn` (Porkbun URL Forwarding, [8.3](#83-the-custom-domain-and-the-bare-domain)); after any DNS change there, rerun 8.3's check |
-| Watch GitHub Actions minutes | once the repository is private | a week after, then monthly | GitHub → Settings → Billing → Usage. A private repository's runs use the account's included minutes; one full run of CI is about 30 billed minutes. Without a payment method GitHub blocks runs past the quota rather than billing them. If it is tight, run the `webgl` job only when 3D files change |
+| Watch GitHub Actions minutes | once the repository is private | a week after, then monthly | GitHub → Settings → Billing → Usage. A private repository's runs use the account's included minutes; one full run of CI is about 30 billed minutes, and a change to only Markdown and `docs/` starts none ([When CI runs](#when-ci-runs)). Without a payment method GitHub blocks runs past the quota rather than billing them. If it is tight, run the `webgl` job only when 3D files change |
 | Renew expiring provider secrets | now, if Microsoft is enabled | before the expiry date | [Section 4](#rotation-in-outline) |
 | The hint review queue | **[not yet: R2]** | each content wave | Generated hints wait in a review queue; nothing ships unapproved. Approving or rejecting them is the owner's job |
 | League abuse handling | **[not yet: R4]** | weekly, and on a report | Offensive or impersonating behaviour, and scores that look farmed. The tools for removing someone from a cohort come with R4 |

@@ -87,13 +87,39 @@ function checkPages(ci, r) {
   if (artifacts.join() !== "dist-redirects" || /vars\./.test(deploy)) r.fail(FILE + ": the deploy job does not publish dist-redirects/ alone (it downloads " + JSON.stringify(artifacts) + (/vars\./.test(deploy) ? " and reads a repository variable" : "") + ")");
 }
 
+/* (g) a pull request or a push to main that changes only Markdown and docs/ starts no run
+   (paths-ignore). The list stays those two patterns, the same for both events, so it
+   cannot grow to cover a file the build or a check reads; and the build reads no file the
+   two patterns cover: no Markdown where it copies or bundles files (public/ goes into
+   dist/ as it is), and nothing but Markdown in docs/ */
+const SKIP = '["**/*.md", "docs/**"]';
+const BUILD_DIRS = ["public", "src", "assets", "data", "parts"];
+function checkSkip(ci, r) {
+  r.count++;
+  const at = ci.search(/^on:\n/m);
+  const on = at < 0 ? "" : ci.slice(at).split(/\n(?=\S)/)[0];
+  const lists = on.match(/^ +paths(-ignore)?:.*$/gm) || [];
+  const want = /^on:\n  pull_request:\n    paths-ignore: (.*)\n  push:\n    branches: \[main\]\n    paths-ignore: (.*)\n  workflow_dispatch:\s*$/.exec(on);
+  if (!want || want[1] !== SKIP || want[2] !== SKIP || lists.length !== 2) r.fail(FILE + ": the triggers are not pull_request and push to main, each with paths-ignore: " + SKIP + ", and workflow_dispatch (found " + JSON.stringify(lists.map(s => s.trim())) + ")");
+  else r.note("no run for a change to only " + SKIP);
+  BUILD_DIRS.forEach(d => {
+    r.count++;
+    site.walk(path.join(site.ROOT, d), p => /\.md$/i.test(p)).forEach(p => r.fail(path.relative(site.ROOT, p) + " is Markdown in " + d + "/, which the build reads, and a change to only it would start no run of " + FILE + " (paths-ignore)"));
+  });
+  r.count++;
+  site.walk(path.join(site.ROOT, "supabase", "migrations"), p => /\.md$/i.test(p) && path.basename(p) !== "README.md").forEach(p => r.fail(path.relative(site.ROOT, p) + " is Markdown in supabase/migrations/, which check-static's migrations check reads as a migration, and a change to only it would start no run of " + FILE + " (paths-ignore)"));
+  r.count++;
+  site.walk(path.join(site.ROOT, "docs"), p => !/\.md$/i.test(p)).forEach(p => r.fail(path.relative(site.ROOT, p) + " is in docs/ and is not Markdown: a change to only it would start no run of " + FILE + " (paths-ignore docs/**), so keep docs/ to prose"));
+}
+
 const CHECKS = [
   { name: "project", run: checkProject, what: "the cloudflare job's default project is a Cloudflare Pages project name" },
   { name: "rerun", run: checkRerun, what: "a re-run of an older commit of main stops before wrangler deploys" },
   { name: "pr", run: checkPrBranch, what: "a pull request deploys as pr-<number>, never under its head branch's name" },
   { name: "prod", run: checkProduction, what: "a deploy of main that Cloudflare did not make production fails" },
   { name: "core", run: checkCore, what: "test:browser:core runs in the browser job of the part --parts names as core" },
-  { name: "pages", run: checkPages, what: "GitHub Pages gets dist-redirects/, built and checked in the build job, and never dist/" }
+  { name: "pages", run: checkPages, what: "GitHub Pages gets dist-redirects/, built and checked in the build job, and never dist/" },
+  { name: "skip", run: checkSkip, what: "only a change to Markdown or docs/ alone starts no run, and the build reads none of it" }
 ];
 
 (function main() {

@@ -1,4 +1,5 @@
-# Checks every pull request and every push to main, deploys the course to Cloudflare
+# Checks every pull request and every push to main that changes more than Markdown and
+# docs/ (the `on:` block says which paths count), deploys the course to Cloudflare
 # Pages (main to production, a pull request to a preview), and deploys main's redirect
 # site to GitHub Pages, the old address.
 #
@@ -51,10 +52,26 @@
 
 name: CI
 
+# A pull request or a push to main that changes only Markdown (`**/*.md`) and docs/
+# (`docs/**`) starts no run (paths-ignore: a run starts when any changed file is outside
+# both). Nothing the build or a check reads is among them: no tool opens README.md,
+# OPERATIONS.md or a file of docs/, and the migrations check skips
+# supabase/migrations/README.md. The one place a Markdown file would be published is
+# public/, which the build copies into dist/ as it is, so tools/check-ci.js (`skip`) fails
+# when public/ holds one, when docs/ holds anything but Markdown, and when either list
+# below is anything but these two patterns. For a pull request GitHub compares the whole
+# pull request with its base, so a prose-only push to a pull request that changes code
+# still runs everything. No check is required on main (no branch protection, no ruleset);
+# one made required would leave a prose-only pull request waiting for it. A prose-only
+# push to main deploys nothing and needs nothing deployed: dist/ and dist-redirects/ are
+# built from none of these files. Run workflow still runs everything. OPERATIONS.md,
+# section 2, "When CI runs".
 on:
   pull_request:
+    paths-ignore: ["**/*.md", "docs/**"]
   push:
     branches: [main]
+    paths-ignore: ["**/*.md", "docs/**"]
   workflow_dispatch:
 
 permissions:
