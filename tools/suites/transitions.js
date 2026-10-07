@@ -383,8 +383,9 @@ module.exports = {
         ];
         try {
           for (const c of CASES) {
-            /* served as GitHub Pages serves it (OPERATIONS.md: max-age=600): the test server's
-               no-store keeps a page out of the cache */
+            /* served with a ten-minute cache (max-age=600, as GitHub Pages served the course
+               before Cloudflare): harsher than Cloudflare's revalidation, and the test
+               server's no-store would keep a page out of the cache */
             const pagesHeaders = (context) => context.route((u) => u.href.startsWith(server.url), async (r) => {
               try {
                 const res = await r.fetch();

@@ -22,10 +22,7 @@
                   dist/, which holds built files and is not what the ref names.
      extraRoots   { "/url/prefix/": directory }: paths under the prefix are read from
                   that directory instead of root. The test fixtures are served this way,
-                  from the source tree, so they never have to be copied into dist/.
-     notFound     answer a path with no file with the tree's 404.html (status 404), as
-                  GitHub Pages and Cloudflare Pages do; otherwise a line of text. The
-                  legacy site's checks use it (tools/game/carry.test.js). */
+                  from the source tree, so they never have to be copied into dist/. */
 const http = require("http");
 const fs = require("fs");
 const path = require("path");
@@ -82,7 +79,7 @@ function start(root, base, opts) {
     if (url.endsWith("/")) url += "index.html";
     let rel = path.posix.normalize(url).replace(/^\/+/, "");
     if (rel.startsWith("..")) { res.writeHead(403); res.end("forbidden"); return; }
-    let body = null, refused = null, over = null, status = 200;
+    let body = null, refused = null, over = null;
     try {
       if (fromBase) {
         body = git.show(gitRoot, base, rel);
@@ -95,19 +92,15 @@ function start(root, base, opts) {
           rel += ".html";
           body = read(path.join(root, rel));
         }
-        if (body === null && !over && opts.notFound) {
-          body = read(path.join(root, headers.NOT_FOUND));
-          if (body !== null) { status = 404; rel = headers.NOT_FOUND; }
-        }
         if (body !== null && !over) body = whole(body, rel);
       }
     } catch (e) { refused = e.message; }
-    log(req.method + " " + req.url + " -> " + (refused ? 500 : body === null ? 404 : status));
+    log(req.method + " " + req.url + " -> " + (refused ? 500 : body === null ? 404 : 200));
     if (refused) { res.writeHead(500, { "Content-Type": "text/plain; charset=utf-8", "Cache-Control": "no-store" }); res.end("refused: " + refused); return; }
     if (body === null) { res.writeHead(404, { "Content-Type": "text/plain; charset=utf-8", "Cache-Control": "no-store" }); res.end("not found: " + rel); return; }
     const out = { "Content-Type": TYPES[path.posix.extname(rel).toLowerCase()] || "application/octet-stream", "Content-Length": body.length, "Cache-Control": "no-store" };
     if (rules && !fromBase && !over) headers.headersFor(rules, asked).forEach(([name, value]) => { out[name] = value; });
-    res.writeHead(status, out);
+    res.writeHead(200, out);
     res.end(body);
   });
   return new Promise((resolve, reject) => {

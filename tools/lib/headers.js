@@ -4,8 +4,9 @@
    2026-10-05), and dist/404.html, the page Pages answers an unknown path with. The build
    writes both (vite.config.ts cloudflare()), because the policy names things only the
    build knows: the hashes of the two scripts every page carries inline, and the
-   Supabase project in assets/config.js. GitHub Pages ignores neither file but uses
-   neither; its deploy leaves them out (.github/workflows/ci.yml).
+   Supabase project in assets/config.js. Cloudflare Pages is the only host of dist/
+   (GitHub Pages serves the redirect site, tools/build-redirects.js, which holds its
+   policy in a <meta> of each page).
 
    The rules, in the file's own syntax (a path pattern, then indented `Name: value`
    lines; a splat `*` matches anything, `:name` anything but "/"; a request takes the
@@ -26,13 +27,12 @@
             Navigation is not a fetch: a sign-in leaves for Supabase and the sign-in
             service as a top-level navigation, which no directive governs
         Cross-Origin-Opener-Policy  same-origin: a page here never shares a browsing
-            context group with a page of another origin, so a page that opened a window
-            which then came here (the legacy stubs send readers here with
-            location.replace, src/carry/send.js) loses its handle on that window the
-            moment this address's page arrives in it, and cannot set its location (a
-            fragment of its own choosing on a page whose referrer is the old address:
-            src/ui/carry.ts) or find it by name. No page of the site opens or is opened
-            by a window of another origin: a sign-in leaves and comes back by redirects
+            context group with a page of another origin, so a page of another site that
+            opened a window which then came here (a link, or the old address's redirect)
+            loses its handle on that window the moment this address's page arrives in it,
+            and cannot navigate it or find it by name. Cheap hardening: no page of the
+            site opens or is opened by a window of another origin, since a sign-in
+            leaves and comes back by redirects
         Permissions-Policy  every powerful feature the site does not use, denied
         Referrer-Policy, X-Content-Type-Options  as Pages sends them by default, stated
         X-Frame-Options  DENY, for browsers that do not read frame-ancestors

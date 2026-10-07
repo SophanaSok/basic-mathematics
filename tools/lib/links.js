@@ -56,7 +56,7 @@ function checkLinks(tree, r) {
       const file = targetOf(page, v), target = file || page;
       if (file) {
         const where = page + ":" + el.line + ": " + what + " " + JSON.stringify(v);
-        /* the site is served from a sub-path on GitHub Pages, where "/" is someone else's root */
+        /* relative only: the site must work under a sub-path too, where "/" is someone else's root */
         if (/^\//.test(v)) { r.fail(where + " is a root-absolute path"); return; }
         if (file === ".." || file.startsWith("../")) { r.fail(where + " -> " + file + " is outside the site"); return; }
         if (!tree.exists(file)) { r.fail(where + " -> " + file + " does not exist"); return; }
