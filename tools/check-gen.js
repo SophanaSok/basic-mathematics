@@ -6,7 +6,8 @@
    the same problem; every alternative of the answer key is accepted by the
    site's own grader (BMSite.grade, loaded from assets/site.js) with the
    problem's type; verify() returns true; the hint does not give the answer away
-   (π and √ answers included).
+   (π and √ answers included); no formula in the question, hint or steps holds
+   prose, and no "$" is left unpaired (a bare "$9" where $\$9$ was meant).
    For spelled-out keys (expr, exact) a small evaluator reads what each spelling
    means: every alternative must mean the same; near-misses (a number off by one,
    the sign flipped, the conjugate, the other bracket of an interval, …) must not
@@ -91,6 +92,27 @@ if (!Gen) { console.error("data/gen/core.js did not define BMGen"); process.exit
 
 var TYPES = { number: 1, exact: 1, set: 1, expr: 1, fraction: 1 };
 var BAD = /NaN|undefined|Infinity|\[object/;
+
+/* A bare "$9" in a sentence opens a formula that runs to the next "$", and KaTeX
+   sets the prose between them as math without a word of complaint (a dollar is
+   written $\$9$, as on the pages). The formulas of a string are found as
+   src/a11y/math-text.test.ts finds them on the pages ($$...$$ first; "\$" is a
+   dollar sign, never an end): three plain words in a row in one, outside \text{}
+   and \mathrm{}, are that prose, and a "$" left with no partner is the same slip. */
+function proseInMath(s) {
+  var m, re = /\$\$([\s\S]+?)\$\$|(?<!\\)\$((?:\\.|[^$\\])+?)\$/g;
+  while ((m = re.exec(s))) {
+    var tex = m[1] !== undefined ? m[1] : m[2];
+    if (/\b[a-z]{2,}\s+[a-z]{2,}\s+[a-z]{2,}\b/i.test(tex.replace(/\\(?:text|mathrm)\s*\{[^{}]*\}/g, " ").replace(/\\[a-zA-Z]+/g, " "))) return "prose inside the formula $" + tex + "$";
+  }
+  if ((s.replace(/\\\$/g, "").replace(/\$\$/g, "").match(/\$/g) || []).length % 2) return "a $ with no partner";
+  return "";
+}
+/* the rule itself, on strings whose verdict is known */
+[["Tea is $3 and coffee is $4.", true], ["It costs $9.", true], ["Tea costs $\\$9$ and coffee $x$ more.", false],
+  ["Area $= \\tfrac12 \\cdot \\text{base and height}$.", false], ["$$x^2 + 1$$ and $y$", false]].forEach(function (c) {
+  if (!!proseInMath(c[0]) !== c[1]) fail("formula rule", null, JSON.stringify(c[0]) + (c[1] ? " is not caught" : " is caught, but it is fine"));
+});
 
 /* every string reachable from the problem, except functions */
 function strings(p) {
@@ -384,6 +406,10 @@ list.forEach(function (spec) {
     strings(p).forEach(function (s) {
       if (typeof s !== "string") fail(spec.id, seed, "a non-string step");
       else if (BAD.test(s)) fail(spec.id, seed, "bad text: " + s);
+    });
+    [p.q, p.hint].concat(p.steps).forEach(function (s) {
+      var why = typeof s === "string" && proseInMath(s);
+      if (why) fail(spec.id, seed, why + ": " + s);
     });
     if (snapshot(p) !== snapshot(again)) fail(spec.id, seed, "not deterministic");
     var first = p.answer.split("|")[0].trim();
