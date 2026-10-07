@@ -33,15 +33,6 @@
   "data/quest.js": {
     "metres": 2
   },
-  "parts/1-algebra/04-quadratic-equations.html": {
-    "centre": 2,
-    "memorised": 1,
-    "metres": 1,
-    "recognising": 1
-  },
-  "parts/1-algebra/interlude-logic.html": {
-    "labelling": 1
-  },
   "parts/2-geometry/05-distance-and-angles.html": {
     "centre": 2,
     "neighbour": 4,
