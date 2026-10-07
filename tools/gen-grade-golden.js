@@ -1,11 +1,13 @@
 #!/usr/bin/env node
 "use strict";
-/* Writes tools/fixtures/grade-golden.json: what the grader says about a fixed set of
-   answers, so a change to how answers are graded shows up as a diff of that file, and
-   src/core/grade.test.ts holds the grader to it case by case. It grades with
-   src/core/answer/legacy.ts, a byte copy of src/core/grade.ts frozen as the baseline the
-   typed grader's ledger is measured from, never with the live grader: once grade.ts
-   changes, this still writes the same file, and --check still finds it current.
+/* Writes tools/fixtures/grade-golden.json, the frozen baseline of the typed grader: what
+   src/core/answer/legacy.ts, a byte copy of src/core/grade.ts as it stood before the typed
+   grader, says about a fixed set of answers. It never grades with the live grader, so
+   once grade.ts changes this still writes the same file. The file is not written again
+   until the ledger is folded into it (the design's Later list): a verdict the grader
+   changes on purpose goes in tools/fixtures/grade-ledger.json instead, which
+   tools/gen-grade-ledger.js writes from this file, and src/core/grade.test.ts holds the
+   grader to the two together.
 
    The keys, each graded under its own type and tolerance:
      - every answer key on the course's pages: every typed answer, every blank's own key
@@ -34,11 +36,14 @@
    The output depends only on the tree: pages in lib/site.js htmlPages order, exercises
    in document order, generators in the order data/gen/ adds them, seeds from a fixed
    mulberry32 stream. The grader it uses is frozen, so only a change to the keys or to
-   this file changes the output; run it again after one, and read the diff.
+   this file changes the output. A content change that adds or edits a key is no reason
+   to write it again: the ledger replays the file's own keys, and an exercise whose type
+   or tol moved is listed in the ledger's specs.
 
    Usage: node tools/gen-grade-golden.js [--check]
-     --check   write nothing; exit 1 if the file on disk differs from a fresh run. It reads
-               the live pages, so a content change that adds or edits a key fails it too */
+     --check   write nothing; exit 1 if the file is missing or differs from a fresh run. It
+               reads the live pages, so after a content change that adds or edits a key it
+               reports a difference: the check of a change that writes the file, not a gate */
 
 const fs = require("fs");
 const path = require("path");
@@ -387,8 +392,10 @@ if (require.main === module) {
   const text = serialise(groups, cases);
   const file = path.join(ROOT, OUT);
   if (process.argv.includes("--check")) {
-    const ok = fs.existsSync(file) && fs.readFileSync(file, "utf8") === text;
-    console.log(OUT + (ok ? " is current: " + groups.length + " keys, " + cases + " cases" : " differs from a fresh run; write it with node tools/gen-grade-golden.js and read the diff"));
+    const missing = !fs.existsSync(file), ok = !missing && fs.readFileSync(file, "utf8") === text;
+    console.log(OUT + (ok ? " is current: " + groups.length + " keys, " + cases + " cases"
+      : missing ? " is missing; write it with node tools/gen-grade-golden.js"
+      : " differs from a fresh run; write it with node tools/gen-grade-golden.js and read the diff"));
     process.exit(ok ? 0 : 1);
   }
   fs.writeFileSync(file, text);
