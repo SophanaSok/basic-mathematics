@@ -108,7 +108,11 @@ Object.assign(SPELLING, { manoeuvred: "maneuvered", manoeuvring: "maneuvering", 
   "canonicalis", "conceptualis", "contextualis", "dramatis", "internalis", "italicis", "memorialis",
   "mobilis", "patronis", "socialis", "trivialis", "verbalis", "economis", "energis", "globalis",
   "humanis", "magnetis", "marginalis", "metabolis", "oxidis", "atomis", "totalis", "visualis"
-].forEach(stem => family(stem, stem.replace(/is$/, "iz"), ["e", "es", "ed", "ing", "ation", "ations", "ational", "er", "ers", "able", "ably"]));
+].forEach(stem => {
+  family(stem, stem.replace(/is$/, "iz"), ["e", "es", "ed", "ing", "ation", "ations", "ational", "er", "ers", "able", "ably"]);
+  /* and with un- in front ("unrecognisably", "unorganised") */
+  family("un" + stem, "un" + stem.replace(/is$/, "iz"), ["ed", "able", "ably"]);
+});
 /* -yse ("analyses" is also the plural of analysis, in both) */
 ["analys", "paralys", "catalys", "electrolys", "hydrolys", "dialys"].forEach(stem => family(stem, stem.replace(/ys$/, "yz"), ["e", "ed", "ing", "er", "ers"]));
 /* a doubled l before -ed, -ing, -er (cancellation keeps both: it is US too) */

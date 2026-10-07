@@ -36,7 +36,7 @@
         return {
           q: "Two lines cross. One of the four angles is $" + t + "°$. How large, in degrees, is the angle next to it?",
           type: "number", answer: String(180 - t),
-          hint: "Two neighbouring angles at a crossing lie along one of the lines.",
+          hint: "Two neighboring angles at a crossing lie along one of the lines.",
           steps: [
             "The angle next to it shares a side with it, and together they make a straight line.",
             "So it measures $180° - " + t + "° = " + (180 - t) + "°$."
@@ -47,9 +47,9 @@
       return {
         q: "Two lines cross. One of the four angles is $" + t + "°$. What is the sum, in degrees, of the other three?",
         type: "number", answer: String(360 - t),
-        hint: "Find each of the other three from the one you know: neighbours make a straight line, opposite angles are equal.",
+        hint: "Find each of the other three from the one you know: neighbors make a straight line, opposite angles are equal.",
         steps: [
-          "The two neighbours each measure $180° - " + t + "° = " + (180 - t) + "°$, and the opposite angle is vertical to it, so it is $" + t + "°$.",
+          "The two neighbors each measure $180° - " + t + "° = " + (180 - t) + "°$, and the opposite angle is vertical to it, so it is $" + t + "°$.",
           "The sum is $" + (180 - t) + "° + " + (180 - t) + "° + " + t + "° = " + (360 - t) + "°$."
         ],
         verify: function () { return 2 * (180 - t) + t === 360 - t; }
@@ -286,7 +286,7 @@
         var p = r.int(3, 14), q = r.int(p + 1, p + 10), t = r.int(2, 10);
         if (((p + q) * t) % 2) t++;
         return {
-          q: "A trapezium has parallel sides $" + p + "$ and $" + q + "$, and the perpendicular distance between them is $" + t + "$. What is its area?",
+          q: "A trapezoid has parallel sides $" + p + "$ and $" + q + "$, and the perpendicular distance between them is $" + t + "$. What is its area?",
           type: "number", answer: String((p + q) * t / 2),
           hint: "Cut it along a diagonal into two triangles that share the same height.",
           steps: [
@@ -317,7 +317,7 @@
       if (kind === "ring") {
         var r1 = r.int(1, 8), r2 = r1 + r.int(1, 6), k = r2 * r2 - r1 * r1;
         return {
-          q: "A ring lies between two circles with the same centre, of radii $" + r1 + "$ and $" + r2 + "$. What is its area? Give the exact value in terms of $\\pi$.",
+          q: "A ring lies between two circles with the same center, of radii $" + r1 + "$ and $" + r2 + "$. What is its area? Give the exact value in terms of $\\pi$.",
           type: "expr", answer: u.piAns(k, 1),
           placeholder: "e.g. 9pi",
           hint: "The ring is the larger disc with the smaller disc taken out.",

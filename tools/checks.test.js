@@ -48,8 +48,9 @@
        "$: centre $" is prose) and into a conditional's branches; test files are not read,
        tools/lib/shell.js is, and a script that does not parse is a problem; the spelling
        map's later additions (deca-, hecto-, -isational, circumcentre, dreamt, enquiry ...)
-       are found; the pound sign (in a formula too, and &pound;), "pounds" and a price in
-       pence ("5p" alone, n + "p each") fail; wording
+       are found, as are the -ise forms with un- in front ("unrecognisably"); the pound
+       sign (in a formula too, and &pound;), "pounds" and a price in pence ("5p" alone,
+       n + "p each") fail; wording
        ("brackets", "lin-brackets") passes the check and only the prose one is reported;
        a count above or below its allowance fails, as does an empty or malformed entry;
        --write keeps capitals and leaves keys, formulas and money alone; the real tree
@@ -896,6 +897,10 @@ function refusal(fn) { try { fn(); return null; } catch (e) { return e.message; 
   eq(forms(page("<p>A decametre, hectometres, a decimetre and a kilolitre; organisational and recognisably;\nthe circumcentre, incentres and orthocentre, a centrepiece and a centreline; dreamt, spoilt, an enquiry.</p>"), PAGE),
     ["decametre@3", "hectometres@3", "decimetre@3", "kilolitre@3", "organisational@3", "recognisably@3", "circumcentre@4", "incentres@4", "orthocentre@4", "centrepiece@4", "centreline@4", "dreamt@4", "spoilt@4", "enquiry@4"],
     "us-english: the spelling map holds the deca-, hecto- and deci- units, -isational, -isably, the triangle's centres, centre compounds, dreamt, spoilt and enquiry");
+  eq(forms(page("<p>It grows unrecognisably thin, an unrecognised shape, unorganised and unrealisable.</p>"), PAGE),
+    ["unrecognisably@3", "unrecognised@3", "unorganised@3", "unrealisable@3"],
+    "us-english: … and the -ise forms with un- in front");
+  eq(us.rewrite(page("<p>Unrecognisably thin.</p>"), PAGE).text.split("\n")[2], "<p>Unrecognizably thin.</p>", "us-english --write: … which it writes the US way, capital kept");
 
   /* --write */
   const w = us.rewrite(page('<p data-hint="Centre first.">CENTRE, centred, £9 and $r_{centre}$.</p>\n<div class="ex" data-answer="11 metres">metres</div>'), PAGE);
