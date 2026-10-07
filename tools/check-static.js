@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 "use strict";
-/* Static checks for the site — Node built-ins only, no browser.
+/* Static checks for the site — Node built-ins (and rolldown's parser, for pure-core), no browser.
 
    Usage: node tools/check-static.js [--base=<git ref>] [--only=<check name>] [--strict]
                                      [--accept-steps] [--accept-shell]
@@ -35,6 +35,7 @@ const { parse, normText, hash } = require("./lib/html");
 const { exercisesOf } = require("./lib/keys");
 const cssLib = require("./lib/css");
 const links = require("./lib/links");
+const { parseAst } = require("rolldown/parseAst");
 
 const ROOT = site.ROOT;
 const opts = site.parseArgs(process.argv.slice(2));
@@ -1214,62 +1215,61 @@ function printGaps(css) {
 
 /* The modules under src/core/, src/sync/ and src/learn/ are pure: Node and Vitest load
    them as they are, and the page gets them only through an installer under src/ui/
-   (window.BMCore, BMReview, BMLearn). So none of them names the page's globals once its
-   comments are gone; a string that names one counts, since globalThis["window"] would
-   reach it. Their tests are left out: they build a stub window to run assets/site.js
-   under. Erasable TypeScript only is tsconfig.json's erasableSyntaxOnly (typecheck). */
+   (window.BMCore, BMReview, BMLearn). So none of their code names the page's globals; a
+   string that names one counts, since globalThis["window"] would reach it. Their tests,
+   test helpers and declaration files are left out: the tests build a stub window to run
+   assets/site.js under. Erasable TypeScript only is tsconfig.json's erasableSyntaxOnly
+   (typecheck). */
 const PURE_DIRS = ["src/core", "src/sync", "src/learn"];
+const PURE_FILE = /\.[cm]?[jt]sx?$/;
+const NOT_PURE = /\.(test|test-helper|d)\.[cm]?[jt]sx?$/;
 const PAGE_GLOBALS = /\b(window|document|localStorage|sessionStorage)\b/g;
 
-/* the source with its comments blanked (line breaks kept, so lines still count), read past
-   strings and template literals so a "//" inside one is not taken for a comment */
-function stripComments(src) {
-  let out = "", i = 0, quote = null;
-  while (i < src.length) {
-    const c = src[i], next = src[i + 1];
-    if (quote) {
-      out += c;
-      if (c === "\\") { out += next === undefined ? "" : next; i += 2; continue; }
-      if (c === quote) quote = null;
-      i++;
-    } else if (c === "/" && next === "*") {
-      const end = src.indexOf("*/", i + 2), stop = end < 0 ? src.length : end + 2;
-      out += src.slice(i, stop).replace(/[^\n]/g, " ");
-      i = stop;
-    } else if (c === "/" && next === "/") {
-      const end = src.indexOf("\n", i), stop = end < 0 ? src.length : end;
-      out += " ".repeat(stop - i);
-      i = stop;
-    } else {
-      if (c === '"' || c === "'" || c === "`") quote = c;
-      out += c;
-      i++;
-    }
-  }
-  return out;
+/* [{ at, text, string }]: the names and literals of a module's code, off the AST of
+   rolldown's parser (the one vite builds with), so no comment is ever read and a regex
+   or a string holding "//", "/*" or a quote is only itself. `at` is the UTF-16 offset of
+   `text` in the source; `string` marks a string, template or regex. Throws when the
+   module does not parse. */
+function codeWords(src, file) {
+  const lang = (/\.[cm]?([jt]sx?)$/.exec(file || "") || [null, "ts"])[1];
+  const out = [];
+  const walk = (n) => {
+    if (Array.isArray(n)) return n.forEach(walk);
+    if (!n || typeof n !== "object") return;
+    if (n.type === "Identifier" || n.type === "PrivateIdentifier" || n.type === "JSXIdentifier") out.push({ at: n.start, text: n.name, string: false });
+    else if (n.type === "Literal" || n.type === "TemplateElement" || n.type === "JSXText") out.push({ at: n.start, text: src.slice(n.start, n.end), string: true });
+    Object.keys(n).forEach(k => walk(n[k]));
+  };
+  walk(parseAst(src, { lang }, file));
+  return out.sort((a, b) => a.at - b.at);
 }
 
-/* [{ line, name }] for every page global a module's code names */
-function pureProblems(src) {
+/* [{ line, name, string }] for every page global a module's code names */
+function pureProblems(src, file) {
   const out = [];
-  stripComments(src).split("\n").forEach((text, i) => {
+  codeWords(src, file).forEach(w => {
     let m;
     PAGE_GLOBALS.lastIndex = 0;
-    while ((m = PAGE_GLOBALS.exec(text))) out.push({ line: i + 1, name: m[1] });
+    while ((m = PAGE_GLOBALS.exec(w.text))) out.push({ line: src.slice(0, w.at + m.index).split("\n").length, name: m[1], string: w.string });
   });
   return out;
 }
 
+function isPureFile(p) { return PURE_FILE.test(p) && !NOT_PURE.test(p); }
+
 function pureFiles() {
   const out = [];
-  PURE_DIRS.forEach(d => site.walk(path.join(ROOT, d), p => /\.(ts|js)$/.test(p) && !/\.(test|test-helper|d)\.ts$/.test(p), out));
+  PURE_DIRS.forEach(d => site.walk(path.join(ROOT, d), isPureFile, out));
   return out.map(site.rel);
 }
 
 function checkPureCore(ctx, r) {
   pureFiles().forEach(rel => {
     r.count++;
-    pureProblems(read(rel)).forEach(x => r.fail(rel + ":" + x.line + ": names `" + x.name + "`; a module under " + PURE_DIRS.join(", ") + " is pure (the page gets it through an installer under src/ui/)"));
+    let found;
+    try { found = pureProblems(read(rel), rel); } catch (e) { r.fail(rel + ": does not parse, so its names cannot be read: " + e.message.split("\n").slice(0, 3).join(" ")); return; }
+    found.forEach(x => r.fail(rel + ":" + x.line + ": names `" + x.name + "`" + (x.string ? " in a string" : "") + "; a module under " + PURE_DIRS.join(", ") + " is pure (the page gets it through an installer under src/ui/)" +
+      (x.string ? ". A string counts, since globalThis[\"" + x.name + "\"] would reach the page's own: copy a reader sees says it another way (\"the page\", \"this tab\")" : "")));
   });
 }
 
@@ -1322,5 +1322,5 @@ function main() {
 }
 
 if (require.main === module) main();
-module.exports = { CHECKS, result, loadGrade, stripComments, pureProblems, pageKeys, lessonSteps, stepsDiff, shellOf, shellDiff, scriptsProblems, randomState, stripLocalFirst, canon,
+module.exports = { CHECKS, result, loadGrade, pureProblems, isPureFile, pageKeys, lessonSteps, stepsDiff, shellOf, shellDiff, scriptsProblems, randomState, stripLocalFirst, canon,
   animationFaults, colourLiterals, columnPatterns, inColumn, quietKinds, printGaps };

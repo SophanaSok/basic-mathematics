@@ -24,8 +24,11 @@
      - CSS (lib/css.js and the stylesheet checks): the token tables per theme × panel,
        color-mix and see-through backgrounds, the flash-and-loop rule, colour literals,
        and what counts as the reading column and as motion or decoration in it
-     - pure-core: a page global named in a module's code is found, by line; one in a
-       comment is not, a "//" inside a string does not hide the code after it
+     - pure-core: a page global named in a module's code is found, by line, and one in a
+       string is told apart; one in a comment is not; a "//", "/*" or quote inside a string
+       or a regex hides nothing; a module that does not parse is refused; every script
+       extension is read but tests, test helpers and declaration files
+     - entries: one with src/ui/core.ts only commented out, or after site.js, fails
      - serve (lib/serve.js): a build is served as it is, a page in it that still carries
        a shell marker is refused, a fixture goes out as it is
    Usage: node tools/checks.test.js */
@@ -339,12 +342,18 @@ function refusal(fn) { try { fn(); return null; } catch (e) { return e.message; 
   check(/SIL OPEN FONT LICENSE Version 1\.1/.test(notice) && /Reserved Font Name KaTeX_/.test(notice), "the notice carries the Open Font License's text, and the KaTeX fonts' own notice");
   eq(vendor.NOTICE, "bundle/LICENSES.txt", "the notice goes beside the bundle");
   Object.keys(shell.PAGE_KINDS).forEach(k => check(/^import "\.\.\/vendor\/katex\.js";/m.test(fs.readFileSync(path.join(site.ROOT, shell.PAGE_KINDS[k].entry), "utf8").replace(/\/\*[\s\S]*?\*\//g, "").trim()), "the " + k + " entry imports src/vendor/katex.js first, so renderMathInElement is there when site.js runs"));
-  Object.keys(shell.PAGE_KINDS).forEach(k => {
-    const entry = fs.readFileSync(path.join(site.ROOT, shell.PAGE_KINDS[k].entry), "utf8").replace(/\/\*[\s\S]*?\*\//g, "");
-    const at = (f) => entry.indexOf('import "' + f + '";');
-    check(at("../ui/core.ts") > -1 && at("../ui/core.ts") < at("../../assets/site.js") && ["grade", "rules", "curriculum", "config"].every(m => at("../core/" + m + ".ts") > -1 && at("../core/" + m + ".ts") < at("../ui/core.ts")),
-      "the " + k + " entry imports src/core/ and then src/ui/core.ts before site.js, so window.BMCore is there when site.js runs");
-  });
+  /* an import counts only as a statement at the start of its line, as the katex rule reads
+     it, so one commented out with // is not taken for the real thing */
+  const coreFirst = (src) => {
+    const entry = src.replace(/\/\*[\s\S]*?\*\//g, "");
+    const at = (f) => { const m = new RegExp('^import "' + f.replace(/\./g, "\\.") + '";', "m").exec(entry); return m ? m.index : -1; };
+    return at("../ui/core.ts") > -1 && at("../ui/core.ts") < at("../../assets/site.js") && ["grade", "rules", "curriculum", "config"].every(m => at("../core/" + m + ".ts") > -1 && at("../core/" + m + ".ts") < at("../ui/core.ts"));
+  };
+  Object.keys(shell.PAGE_KINDS).forEach(k => check(coreFirst(fs.readFileSync(path.join(site.ROOT, shell.PAGE_KINDS[k].entry), "utf8")),
+    "the " + k + " entry imports src/core/ and then src/ui/core.ts before site.js, so window.BMCore is there when site.js runs"));
+  const inOrder = ["grade", "rules", "curriculum", "config"].map(m => 'import "../core/' + m + '.ts";').concat('import "../ui/core.ts";', 'import "../../assets/site.js";').join("\n");
+  eq([inOrder, inOrder.replace('import "../ui/core.ts";', '// import "../ui/core.ts";'), inOrder.replace('import "../ui/core.ts";', "/* the installer */").replace('import "../../assets/site.js";', 'import "../../assets/site.js";\nimport "../ui/core.ts";')].map(coreFirst), [true, false, false],
+    "… an entry that has src/ui/core.ts only commented out with //, or imports it after site.js, fails that rule");
   eq(pageLinks(out).map(a => a.getAttribute("href")), ["index.html", "index.html", "about.html"], "the usual top bar: brand, Contents, How to use this");
 
   /* the HUD and the sheet are in the markup: every slot labelled in a sentence, the game
@@ -636,12 +645,19 @@ function refusal(fn) { try { fn(); return null; } catch (e) { return e.message; 
 
 /* -------------------------------------------------------------- pure-core -- */
 {
-  const { pureProblems, stripComments } = require("./check-static");
-  const found = (src) => pureProblems(src).map(x => x.name + "@" + x.line);
+  const { pureProblems, isPureFile } = require("./check-static");
+  const found = (src, file) => pureProblems(src, file).map(x => x.name + "@" + x.line);
   eq(found("export const a = window.x;\nconst d = document;\nlocalStorage.getItem('k'); sessionStorage;"), ["window@1", "document@2", "localStorage@3", "sessionStorage@3"], "pure-core: every page global the code names is found, by line");
   eq(found("/* window, document */\n// localStorage\nexport const w = 1; /* sessionStorage\n window */ const windowed = 2;"), [], "… not one in a comment, nor a longer name that holds one");
   eq(found('const url = "https://x"; const g = globalThis["window"];\nconst t = `//${document}`;'), ["window@1", "document@2"], "… a \"//\" inside a string is no comment, and a name in a string counts");
-  eq(stripComments("a /* b\nc */ d // e\nf").split("\n").length, 3, "… blanking the comments keeps the lines");
+  eq(found("const r = /\\/\\//; const w = window;"), ["window@1"], "… a \"//\" inside a regex is no comment either");
+  eq(found("const r = /a\\/*/;\nconst d = document;"), ["document@2"], "… nor is a \"/*\": the code after it is read");
+  eq(found("const q = /\"/; // window\nconst n = 1;"), [], "… and a quote inside a regex opens no string, so the comment after it stays one");
+  eq(found("/* a\nb */ const t = `\n${document}`;\n// c\nwindow;"), ["document@3", "window@5"], "… a name's line is its line in the file, past comments and templates that span lines");
+  eq(pureProblems('const s = "Open it in a new window"; let w: Window = window;', "x.ts").map(x => x.string), [true, false], "… a name in a string is told apart, so the failure can say copy counts too; a type named Window is not window");
+  check(refusal(() => pureProblems("const = ;", "x.ts")) !== null, "… a module that does not parse is refused, not passed");
+  eq(["a.ts", "a.js", "a.mts", "a.cts", "a.mjs", "a.cjs", "a.tsx", "a.jsx", "a.test.ts", "a.test.mts", "a.test-helper.ts", "a.d.ts", "a.d.mts", "a.json"].filter(isPureFile), ["a.ts", "a.js", "a.mts", "a.cts", "a.mjs", "a.cjs", "a.tsx", "a.jsx"],
+    "… every script under the pure directories is read, whatever its extension, but tests, test helpers and declaration files");
 }
 
 /* ------------------------------------------------------------------ serve -- */
