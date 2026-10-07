@@ -27,14 +27,6 @@
   "data/quest.js": {
     "metres": 2
   },
-  "parts/3-coordinates/09-operations-on-points.html": {
-    "recognise": 2
-  },
-  "parts/3-coordinates/10-segments-rays-lines.html": {
-    "metre": 1,
-    "metres": 1,
-    "recognising": 1
-  },
   "parts/3-coordinates/11-trigonometry.html": {
     "centre": 4,
     "centred": 2,
