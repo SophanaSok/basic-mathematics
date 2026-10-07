@@ -45,6 +45,23 @@ function mathOf(tex: string): MathNode {
 
 const say = (tex: string) => mathText(mathOf(tex));
 
+/* every formula on the chapter pages, as KaTeX's auto-render finds them: $$...$$ first,
+   then $...$, where "\$" is a dollar sign inside a formula ($\$12$) and never one of its
+   ends; a scan that paired on it would read the prose between two prices as TeX */
+let formulasOnce: Set<string> | null = null;
+function courseFormulas(): Set<string> {
+  if (formulasOnce) return formulasOnce;
+  const formulas = new Set<string>();
+  for (const dir of ["parts/1-algebra", "parts/2-geometry", "parts/3-coordinates", "parts/4-topics"]) {
+    for (const f of fs.readdirSync(path.join(ROOT, dir))) {
+      if (!f.endsWith(".html")) continue;
+      const src = fs.readFileSync(path.join(ROOT, dir, f), "utf8").replace(/<(script|style|svg)[\s\S]*?<\/\1>/g, "").replace(/<[^>]+>/g, " ");
+      for (const m of src.matchAll(/\$\$([\s\S]+?)\$\$|(?<!\\)\$((?:\\.|[^$\\])+?)\$/g)) formulas.add(html.parse((m[1] ?? m[2]).trim()).children.map(c => c.text).join(""));
+    }
+  }
+  return (formulasOnce = formulas);
+}
+
 describe("mathText", () => {
   it("reads the opening puzzles' guesses as they are drawn", () => {
     expect(say("(7,5)")).toBe("(7, 5)");
@@ -126,15 +143,7 @@ describe("mathText", () => {
      TeX source, and none with a character the line should never carry. This is what
      keeps a name from going blank again when a chapter gains a new construction. */
   it("gives a line for every formula in the course", () => {
-    const pages: string[] = [];
-    for (const dir of ["parts/1-algebra", "parts/2-geometry", "parts/3-coordinates", "parts/4-topics"]) {
-      for (const f of fs.readdirSync(path.join(ROOT, dir))) if (f.endsWith(".html")) pages.push(path.join(ROOT, dir, f));
-    }
-    const formulas = new Set<string>();
-    for (const p of pages) {
-      const src = fs.readFileSync(p, "utf8").replace(/<(script|style|svg)[\s\S]*?<\/\1>/g, "").replace(/<[^>]+>/g, " ");
-      for (const m of src.matchAll(/\$\$([\s\S]+?)\$\$|\$([^$]+?)\$/g)) formulas.add(html.parse((m[1] ?? m[2]).trim()).children.map(c => c.text).join(""));
-    }
+    const formulas = courseFormulas();
     expect(formulas.size).toBeGreaterThan(1000);
     const bad: string[] = [];
     for (const tex of formulas) {
@@ -144,5 +153,14 @@ describe("mathText", () => {
       if (!line || /\\|undefined|\u2061|\u2062|∣/.test(line)) bad.push(tex + " => " + JSON.stringify(line));
     }
     expect(bad).toEqual([]);
+  });
+
+  /* A bare "$9" in a sentence opens a formula that runs to the next "$", and KaTeX sets
+     the prose between them as math without a word of complaint (a dollar is written
+     $\$9$). Three plain words in a row, outside \text{} and \mathrm{}, are that prose. */
+  it("finds no prose inside a formula", () => {
+    const prose = [...courseFormulas()].filter(tex =>
+      /\b[a-z]{2,}\s+[a-z]{2,}\s+[a-z]{2,}\b/i.test(tex.replace(/\\(?:text|mathrm)\s*\{[^{}]*\}/g, " ").replace(/\\[a-zA-Z]+/g, " ")));
+    expect(prose).toEqual([]);
   });
 });

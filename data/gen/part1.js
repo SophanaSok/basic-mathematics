@@ -156,7 +156,7 @@
       if (s === p) s = -p;
       var t = p * (x + q) - s * x, k = p - s, rhs = t - p * q;
       var steps = [
-        "Multiply out the bracket: $" + poly([[p, "x"], [p * q, ""]]) + " = " + poly([[s, "x"], [t, ""]]) + "$.",
+        "Multiply out the parentheses: $" + poly([[p, "x"], [p * q, ""]]) + " = " + poly([[s, "x"], [t, ""]]) + "$.",
         move(s, "x") + ": $" + poly([[k, "x"], [p * q, ""]]) + " = " + t + "$.",
         move(p * q, "") + ": $" + poly([[k, "x"]]) + " = " + rhs + "$."
       ];
@@ -165,7 +165,7 @@
       return {
         q: "Solve $" + p + "(" + shift("x", q) + ") = " + poly([[s, "x"], [t, ""]]) + "$ for $x$.",
         type: "number", answer: String(x),
-        hint: "Multiply out the bracket first, then collect the x terms on one side.",
+        hint: "Multiply out the parentheses first, then collect the x terms on one side.",
         steps: steps,
         verify: function () { return p * (x + q) === s * x + t && rhs === k * x; }
       };
@@ -230,7 +230,7 @@
       var p = r.int(3, 6), q = r.int(2, p - 1), cn = r.int(6, 40), tn = r.int(6, 40);
       var n = cn + tn, total = p * cn + q * tn, wantC = r.chance(0.6);
       return {
-        q: "A stall sells coffee at £" + p + " and tea at £" + q + ". It sold $" + n + "$ drinks and took £" + total + ". How many " + (wantC ? "coffees" : "teas") + " were sold?",
+        q: "A stand sells coffee at $\\$" + p + "$ and tea at $\\$" + q + "$. It sold $" + n + "$ drinks and took $\\$" + total + "$. How many " + (wantC ? "coffees" : "teas") + " were sold?",
         type: "number", answer: String(wantC ? cn : tn),
         hint: "Name the two counts, then write one equation for the number of drinks and one for the money.",
         steps: [

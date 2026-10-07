@@ -21,9 +21,6 @@
     "organised": 1,
     "parametrising": 1
   },
-  "data/gen/part1.js": {
-    "£": 3
-  },
   "data/gen/part2.js": {
     "centre": 1,
     "neighbouring": 1,
@@ -41,13 +38,6 @@
     "cancelling": 4,
     "memorise": 1,
     "recognising": 1
-  },
-  "parts/1-algebra/02-linear-equations.html": {
-    "10p": 2,
-    "5p": 2,
-    "pounds": 2,
-    "recognise": 1,
-    "£": 14
   },
   "parts/1-algebra/03-real-numbers.html": {
     "cancelling": 1,
