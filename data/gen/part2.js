@@ -115,7 +115,7 @@
         return {
           q: "A right triangle has hypotenuse $" + c + "$ and one leg $" + a + "$. How long is the other leg?",
           type: "number", answer: String(b),
-          hint: "Write Pythagoras with the unknown leg, then subtract.",
+          hint: "Write the Pythagorean theorem with the unknown leg, then subtract.",
           steps: ["$" + a + "^2 + b^2 = " + c + "^2$, so $b^2 = " + c * c + " - " + a * a + " = " + b * b + "$.", "$b = \\sqrt{" + b * b + "} = " + b + "$."],
           verify: function () { return a * a + b * b === c * c; }
         };
@@ -170,9 +170,9 @@
       };
     }
     return {
-      xaxis: { name: "reflection in the $x$-axis", rule: "(x, -y)", kind: kind, f: function (p) { return [p[0], -p[1]]; } },
-      yaxis: { name: "reflection in the $y$-axis", rule: "(-x, y)", kind: kind, f: function (p) { return [-p[0], p[1]]; } },
-      diag: { name: "reflection in the line $y = x$", rule: "(y, x)", kind: kind, f: function (p) { return [p[1], p[0]]; } },
+      xaxis: { name: "reflection across the $x$-axis", rule: "(x, -y)", kind: kind, f: function (p) { return [p[0], -p[1]]; } },
+      yaxis: { name: "reflection across the $y$-axis", rule: "(-x, y)", kind: kind, f: function (p) { return [-p[0], p[1]]; } },
+      diag: { name: "reflection across the line $y = x$", rule: "(y, x)", kind: kind, f: function (p) { return [p[1], p[0]]; } },
       half: { name: "rotation by $180°$ about the origin", rule: "(-x, -y)", kind: kind, f: function (p) { return [-p[0], -p[1]]; } }
     }[kind];
   }
@@ -320,17 +320,17 @@
           q: "A ring lies between two circles with the same center, of radii $" + r1 + "$ and $" + r2 + "$. What is its area? Give the exact value in terms of $\\pi$.",
           type: "expr", answer: u.piAns(k, 1),
           placeholder: "e.g. 9pi",
-          hint: "The ring is the larger disc with the smaller disc taken out.",
+          hint: "The ring is the larger disk with the smaller disk taken out.",
           steps: ["Area $= \\pi \\cdot " + r2 + "^2 - \\pi \\cdot " + r1 + "^2 = \\pi(" + r2 * r2 + " - " + r1 * r1 + ")$.", "$= " + u.piTex(k, 1) + "$."],
           verify: function () { return Math.abs(Math.PI * r2 * r2 - Math.PI * r1 * r1 - k * Math.PI) < 1e-9; }
         };
       }
       var rad = r.int(2, 12), dia = kind === "diameter";
       return {
-        q: "A circle has " + (dia ? "diameter $" + 2 * rad : "radius $" + rad) + "$. What is the area of the disc it bounds? Give the exact value in terms of $\\pi$.",
+        q: "A circle has " + (dia ? "diameter $" + 2 * rad : "radius $" + rad) + "$. What is the area of the disk it bounds? Give the exact value in terms of $\\pi$.",
         type: "expr", answer: u.piAns(rad * rad, 1),
         placeholder: "e.g. 9pi",
-        hint: dia ? "The area formula uses the radius, which is half the diameter." : "Area of a disc is π times the square of the radius.",
+        hint: dia ? "The area formula uses the radius, which is half the diameter." : "Area of a disk is π times the square of the radius.",
         steps: (dia ? ["The radius is half the diameter: $" + rad + "$."] : []).concat([
           "Area $= \\pi r^2 = \\pi \\cdot " + rad + "^2 = " + u.piTex(rad * rad, 1) + "$."
         ]),

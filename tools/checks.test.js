@@ -883,6 +883,11 @@ function refusal(fn) { try { fn(); return null; } catch (e) { return e.message; 
   eq(lock(words, GEN), [], "us-english: wording (brackets, towards, tick) never fails the check");
   eq(us.scanText(words, GEN, { wording: true }).map(h => h.form + "@" + h.line), ["brackets@2", "towards@2", "tick@2"], "… and --report=wording lists the prose ones, not lin-brackets, par-tick or square brackets");
   eq(us.scanText('var s = "It runs for ever; forever and for every n are US.";', GEN, { wording: true }).map(h => h.form + "@" + h.line), ["for ever@1"], "… \"for ever\" is reported, \"forever\" and \"for every\" are not");
+  const sweep = 'var k = { id: "disc", s: "ch07#disc", g: "disc-area", w: "pythagoras" };\nvar t = "A non-zero leg: is it right-angled? The disc, by Pythagoras; a reflection in the axis, reflected in a line, reflecting in the mid-line; right first time.";';
+  eq(lock(sweep, GEN), [], "us-english: the sweep's wording (non-zero, right-angled, disc, Pythagoras, reflection in, mid-line, right first time) never fails the check");
+  eq(us.scanText(sweep, GEN, { wording: true }).map(h => h.form + "@" + h.line),
+    ["non-zero@2", "right-angled@2", "disc@2", "pythagoras@2", "reflection in@2", "reflected in@2", "reflecting in@2", "mid-line@2", "right first time@2"],
+    "… and --report=wording lists them in prose, not the one-word \"disc\", \"ch07#disc\", \"disc-area\" or a lowercase \"pythagoras\" name");
 
   /* the allow file */
   const two = page("<p>The centre.</p>\n<p>Another centre.</p>");

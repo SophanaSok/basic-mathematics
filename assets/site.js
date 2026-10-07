@@ -650,7 +650,7 @@
     var weak = rows.filter(function (r) { return r.score >= WEAK; })
       .sort(function (a, b) { return b.score - a.score; }).slice(0, 3);
     var html = '<span class="tag">How this chapter is going</span>' +
-      "<p>Right first time on <b>" + first + "</b> of the <b>" + n + "</b> questions you have tried here.</p>";
+      "<p>Right the first time on <b>" + first + "</b> of the <b>" + n + "</b> questions you have tried here.</p>";
     html += weak.length
       ? "<p>Worth another look: " + weak.map(function (r) {
           return '<a href="#' + escapeHtml(r.section.id) + '">' + escapeHtml(r.label + " " + r.section.title) + "</a>";

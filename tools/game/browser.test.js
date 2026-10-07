@@ -217,7 +217,7 @@ async function run() {
         };
       });
       check(fin && fin.shown && fin.last && !fin.revisit, "finale shows as the last child of #practice");
-      check(fin && /9 of 10\s*right first time/.test(fin.text), "finale counts first-try answers (" + (fin && fin.text.slice(0, 120)) + ")");
+      check(fin && /9 of 10\s*right the first time/.test(fin.text), "finale counts first-try answers (" + (fin && fin.text.slice(0, 120)) + ")");
       eq(fin && [fin.medal, fin.state, fin.rematch, fin.openAll], ["2", "won", true, true], "Silver medal, won, rematch and open-all buttons");
       const hud = await page.evaluate(() => document.querySelector(".hud .hud-hearts").hidden);
       check(hud, "header hearts hide once the set is won");

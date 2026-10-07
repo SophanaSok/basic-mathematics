@@ -3,7 +3,7 @@
 <head>
 <!--bm:head-->
 <title>7. Area and Applications — Basic Mathematics</title>
-<meta name="description" content="Area of rectangles, triangles, and discs; circumference; and the scaling law that ties them together.">
+<meta name="description" content="Area of rectangles, triangles, and disks; circumference; and the scaling law that ties them together.">
 </head>
 <body data-depth="2" data-chapter="ch07" data-part="geometry">
 <!--bm:topbar-->
@@ -43,7 +43,7 @@
     <div class="goal">
       <strong>By the end of this chapter you can</strong>
       derive the triangle formula from the rectangle rather than recall it, apply the scaling law
-      (lengths $\times r$, areas $\times r^2$) to real questions, explain why the area of a disc is
+      (lengths $\times r$, areas $\times r^2$) to real questions, explain why the area of a disk is
       $\pi r^2$ by way of inscribed polygons, and say precisely what $\pi$ is and why the same $\pi$
       appears in both $2\pi r$ and $\pi r^2$.
     </div>
@@ -61,14 +61,14 @@
 
       <p>
         Three quick ones from earlier chapters, to wake up what this chapter stands on. They are
-        not scored. If one will not come, its solution says where to look.
+        not scored. If one doesn't come to you, its solution says where to look.
       </p>
 
       <div class="ex" data-inline id="w1" data-label="Warm-up 1" data-answer="1"
            data-hint="Test a² + b² against c², with the longest side as c.">
         <div class="ex-q">
           <p>
-            Is the triangle with sides $7$, $24$, $25$ right-angled?
+            Is the triangle with sides $7$, $24$, $25$ a right triangle?
           </p>
         </div>
         <ul class="choices">
@@ -147,7 +147,7 @@
       The first fixes the unit and the scale; the other two say area is a sensible notion of
       "amount of plane". Notice that (2) is a statement about the isometries of
       <a href="06-isometries.html#isometries">Chapter 6</a>, and that we already used (2) and (3)
-      together in the dissection proof of Pythagoras. Everything below is those three facts, applied
+      together in the dissection proof of the Pythagorean theorem. Everything below is those three facts, applied
       with a pair of scissors.
     </p>
 
@@ -202,7 +202,7 @@
     </div>
 
     <p>
-      For a triangle that is not right-angled, drop the perpendicular from one vertex to the
+      For a triangle that is not a right triangle, drop the perpendicular from one vertex to the
       opposite side — the <b>height</b> $h$ relative to that <b>base</b> $b$. The perpendicular
       splits the triangle into two right triangles (or, if the foot falls outside, into a difference
       of two). Either way the arithmetic collapses to the same statement:
@@ -341,7 +341,7 @@
             $\blacksquare$</li>
         </ol>
         <p class="note">
-          We never needed the formula for the area of a disc. The scaling law alone settles it,
+          We never needed the formula for the area of a disk. The scaling law alone settles it,
           because both pizzas are the same shape.
         </p>
       </div>
@@ -461,10 +461,10 @@
       </div>
     </div>
 
-    <h2 id="disc">7.3 Area of a disc</h2>
+    <h2 id="disc">7.3 Area of a disk</h2>
     <p>
       A circle has no straight sides, so none of the cutting arguments above applies directly. The
-      way forward is to approximate — to trap the disc between shapes we <em>can</em> measure, and
+      way forward is to approximate — to trap the disk between shapes we <em>can</em> measure, and
       squeeze.
     </p>
     <p>
@@ -476,7 +476,7 @@
     <p>
       where $p_n$ is the polygon's perimeter. Now let $n$ grow. The sides shorten, the polygon
       presses outward against the circle, $a_n \to r$, and $p_n$ approaches the circle's
-      circumference $C$. So the area of the disc is $\tfrac12 r C$.
+      circumference $C$. So the area of the disk is $\tfrac12 r C$.
     </p>
 
     <figure>
@@ -511,7 +511,7 @@
       Two remarks on the number itself. First, $\pi$ is irrational — like $\sqrt2$ in
       <a href="../1-algebra/03-real-numbers.html#why-more">Chapter 3</a>, it is not the ratio of two
       integers, so $22/7$ and $3.14159$ are approximations and nothing more. Second, this makes the
-      area of a disc a genuinely new kind of quantity: no dissection into finitely many polygonal
+      area of a disk a genuinely new kind of quantity: no dissection into finitely many polygonal
       pieces will ever produce it exactly. The limit is not laziness; it is unavoidable.
     </p>
 
@@ -523,8 +523,8 @@
           the path?
         </p>
         <ol class="steps">
-          <li>The path is a disc of radius $7$ with a disc of radius $5$ removed.</li>
-          <li>By assumption (3), area of path $=$ area of big disc $-$ area of small disc:
+          <li>The path is a disk of radius $7$ with a disk of radius $5$ removed.</li>
+          <li>By assumption (3), area of path $=$ area of big disk $-$ area of small disk:
             $$\pi(7)^2 - \pi(5)^2 = \pi(49 - 25) = 24\pi.$$</li>
           <li>Numerically $24\pi \approx 75.4$ square meters. $\blacksquare$</li>
         </ol>
@@ -543,7 +543,7 @@
           Find its area exactly. Try each step before opening it.
         </p>
         <ol class="steps">
-          <li>By assumption (3) the track is the big disc with the small one removed:
+          <li>By assumption (3) the track is the big disk with the small one removed:
             $\pi \cdot 34^2 - \pi \cdot 30^2$.</li>
           <li>
             <details class="reveal">
@@ -594,7 +594,7 @@
         <ol class="steps">
           <li>Take the side $14$ as the base and let the foot of the height split it into $x$ and
             $14 - x$.</li>
-          <li>Pythagoras on each half, with the common height $h$:
+          <li>The Pythagorean theorem on each half, with the common height $h$:
             $$13^2 - x^2 = h^2 = 15^2 - (14-x)^2.$$</li>
           <li>Expand the right side: $225 - (196 - 28x + x^2) = 29 + 28x - x^2$. So
             $169 - x^2 = 29 + 28x - x^2$, and the $x^2$ cancels.</li>
@@ -735,7 +735,7 @@
       </div>
 
       <div class="ex" id="e7" data-section="disc" data-type="number" data-answer="24"
-           data-hint="Subtract the inner disc from the outer one, and factor before multiplying.">
+           data-hint="Subtract the inner disk from the outer one, and factor before multiplying.">
         <div class="ex-q">
           <p>
             A ring lies between circles of radius $5$ and $7$, with the same center. Its area is
@@ -805,7 +805,7 @@
           <p class="answer">Answer: $54$</p>
           <p>
             Test for a right angle first: $9^2 + 12^2 = 81 + 144 = 225 = 15^2$. So by the converse
-            of Pythagoras the triangle is right-angled, with the legs $9$ and $12$ perpendicular to
+            of the Pythagorean theorem the triangle is a right triangle, with the legs $9$ and $12$ perpendicular to
             each other.
           </p>
           <p>
@@ -825,7 +825,7 @@
       </p>
 
       <div class="ex" id="e11" data-section="ch05#pythagoras" data-type="number" data-answer="10"
-           data-hint="Pythagoras: the square of the hypotenuse is the sum of the squares of the legs.">
+           data-hint="The Pythagorean theorem: the square of the hypotenuse is the sum of the squares of the legs.">
         <div class="ex-q">
           <p>A right triangle has legs $6$ and $8$. What is the length of the hypotenuse?</p>
         </div>
@@ -862,7 +862,7 @@
         </div>
         <ul class="choices">
           <li>Rotation about a point</li>
-          <li>Reflection in a line</li>
+          <li>Reflection across a line</li>
           <li>Scaling every distance by a factor of $2$</li>
           <li>Translation</li>
         </ul>
@@ -889,7 +889,7 @@
         <div class="ex-solution">
           <p class="answer">Answer: $4$</p>
           <p>
-            The identity, the $180°$ rotation, and reflections in the two lines through opposite
+            The identity, the $180°$ rotation, and reflections across the two lines through opposite
             side midpoints — four in total, as noted alongside the square's $8$ in
             <a href="06-isometries.html#symmetry">Chapter 6</a>.
           </p>
@@ -955,7 +955,7 @@
           perpendicular height matters.</li>
         <li>Scaling by $r$ multiplies every length by $r$ and every area by $r^2$. Most everyday
           mistakes about size are this law being ignored.</li>
-        <li>Inscribed polygons give area $= \tfrac12 r C$ for a disc, before $\pi$ is even
+        <li>Inscribed polygons give area $= \tfrac12 r C$ for a disk, before $\pi$ is even
           mentioned.</li>
         <li>$\pi$ is <em>defined</em> as $C/2r$; then $C = 2\pi r$ and area $= \pi r^2$ follow, which
           is why the same $\pi$ appears in both.</li>

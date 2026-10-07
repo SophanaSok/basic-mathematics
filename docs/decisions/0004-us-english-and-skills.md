@@ -20,7 +20,7 @@
 | reflection in, reflected in (a line) | reflection across | 21 "reflection in" plus 3 "reflected in", 24 in all; one more, in `assets/scenes/flipbook.js`, is a code comment; the verb forms "reflect in" and "reflecting in" have 8 more hits for the card to treat the same way |
 | mid-line | midline | 2, both in widgets.js |
 
-Five exercise questions change wording (interlude e10, 05 e5, 07 w1, 06 k1 and e1), so the sweep moves the progress base once. Section ids never change.
+Six exercise questions change wording (interlude e10, 05 e5, 07 w1, 06 k1, e1 and e6, the last a verb form the item table counts under "reflect in"), so the sweep moves the progress base once. Section ids never change.
 
 **SK1 (a). A fifth course value, `beyond`, labeled "Beyond Algebra 2".** It holds the 9 advanced sections (chapter 16's matrices and determinants, the complex plane and polar form, the trig addition formulas, permutations, induction) and 3 generator overrides (`trig-exact`, `compose-fn`, `cx-divide`). No learner is ever placed into it: the placement check draws no item from it, and the plan lists it only under "Going further". This extends 0001's four course bands, for the scope page only.
 

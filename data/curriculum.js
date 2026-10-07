@@ -127,7 +127,7 @@ window.BM_CURRICULUM = {
           status: "full",
           blurb: "The motions that preserve distance — translations, rotations, reflections — and symmetry as invariance under them.",
           sections: [
-            { id: "mappings-plane", title: "Some standard mappings of the plane", summary: "Translation, rotation about a point, reflection in a line, dilation." },
+            { id: "mappings-plane", title: "Some standard mappings of the plane", summary: "Translation, rotation about a point, reflection across a line, dilation." },
             { id: "isometries", title: "Isometries", summary: "Distance-preserving maps, composition, and why congruence is an isometry statement." },
             { id: "symmetry", title: "Symmetry", summary: "The symmetries of a figure form a group under composition." }
           ]
@@ -138,11 +138,11 @@ window.BM_CURRICULUM = {
           title: "Area and Applications",
           file: "07-area.html",
           status: "full",
-          blurb: "Area of rectangles, triangles, and discs; circumference; and the scaling law that ties them together.",
+          blurb: "Area of rectangles, triangles, and disks; circumference; and the scaling law that ties them together.",
           sections: [
             { id: "polygons", title: "Area of rectangles and triangles", summary: "From the rectangle to the triangle by cutting and rearranging." },
             { id: "scaling", title: "Scaling", summary: "Scale lengths by r and area scales by r² — with the consequences." },
-            { id: "disc", title: "Area of a disc", summary: "Inscribed polygons approaching πr², and what π is." },
+            { id: "disc", title: "Area of a disk", summary: "Inscribed polygons approaching πr², and what π is." },
             { id: "circumference", title: "Circumference of a circle", summary: "Why the same π appears in 2πr and πr²." },
             { id: "review", title: "Mixed review", summary: "Problems drawn back across Chapters 5–7, to test what stuck." }
           ]
@@ -163,10 +163,10 @@ window.BM_CURRICULUM = {
           title: "Coordinates and Geometry",
           file: "08-coordinates.html",
           status: "full",
-          blurb: "The coordinate plane, the distance formula from Pythagoras, and the equation of a circle.",
+          blurb: "The coordinate plane, the distance formula from the Pythagorean theorem, and the equation of a circle.",
           sections: [
             { id: "coord-systems", title: "Coordinate systems", summary: "Axes, ordered pairs, quadrants." },
-            { id: "distance-formula", title: "Distance between points", summary: "The distance formula as Pythagoras in coordinates." },
+            { id: "distance-formula", title: "Distance between points", summary: "The distance formula as the Pythagorean theorem in coordinates." },
             { id: "circle", title: "Equation of a circle", summary: "Center and radius read off from the equation, and completing the square again." },
             { id: "rational-points", title: "Rational points on a circle", summary: "Parametrizing the solutions of x² + y² = 1 in fractions." }
           ]
@@ -179,7 +179,7 @@ window.BM_CURRICULUM = {
           status: "full",
           blurb: "Adding points, scaling them, and reflecting them — geometry done by arithmetic on coordinates.",
           sections: [
-            { id: "dilations", title: "Dilations and reflections", summary: "Multiplying a point by a number; reflecting in the axes and through the origin." },
+            { id: "dilations", title: "Dilations and reflections", summary: "Multiplying a point by a number; reflecting across the axes and through the origin." },
             { id: "addition-points", title: "Addition and the parallelogram law", summary: "Coordinatewise addition and the picture that explains it." },
             { id: "subtraction", title: "Subtraction and located vectors", summary: "Q − P as the arrow from P to Q." }
           ]

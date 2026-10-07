@@ -359,7 +359,7 @@
     el.setAttribute("data-revisit", "true");
     var html = "<p><b>" + esc(set.name) + "</b> " + (set.review ? "cleared" : "is down") +
       (medal ? " · " + stars(medal, true) + " " + MEDALS[medal] + " medal" : "") +
-      " · " + st.first + " of " + st.total + " right first time" +
+      " · " + st.first + " of " + st.total + " right the first time" +
       (set.review ? "" : ' · <a href="' + rematchHref() + '">Rematch in the Arena</a>') + "</p>";
     if (el.innerHTML !== html) el.innerHTML = html;
     el.hidden = false;
@@ -399,7 +399,7 @@
     el.removeAttribute("data-revisit");
     var html = '<p class="encounter-result-title"><b>' + esc(set.name) + "</b> " + (set.review ? "cleared." : "is down.") + "</p>";
     html += '<p class="encounter-medal" data-medal="' + medal + '">' + stars(medal) + " " + MEDALS[medal] + " medal</p>";
-    html += '<div class="stats"><div class="stat"><b>' + st.first + " of " + st.total + "</b><span>right first time</span></div>";
+    html += '<div class="stats"><div class="stat"><b>' + st.first + " of " + st.total + "</b><span>right the first time</span></div>";
     if (!isCalm) html += '<div class="stat"><b>' + st.hearts + " of 3</b><span>hearts kept</span></div>";
     /* the medal counts what hearts do not: problems solved with the solution open first
        (setStats marks less misses), so a medal below the hearts can be read from here */
@@ -443,7 +443,7 @@
       });
     });
     announce(set.name + (set.review ? " cleared. " : " is down. ") + MEDALS[medal] + " medal, " + st.first + " of " +
-      st.total + " right first time.", { priority: "high" });
+      st.total + " right the first time.", { priority: "high" });
 
     var still = window.BMFx ? window.BMFx.still() : false;
     var r = el.getBoundingClientRect ? el.getBoundingClientRect() : null;

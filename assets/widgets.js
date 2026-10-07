@@ -1152,7 +1152,7 @@
       var name = {
         trans: "Translation by (" + dx + ", " + dy + ")",
         rot: "Rotation by " + ang + "° about the origin",
-        refl: "Reflection in " + (axis === "x" ? "the x-axis" : axis === "y" ? "the y-axis" : "the line y = x"),
+        refl: "Reflection across " + (axis === "x" ? "the x-axis" : axis === "y" ? "the y-axis" : "the line y = x"),
         dil: "Dilation by 1.6 about the origin"
       }[kind];
       var formula = {
@@ -1322,7 +1322,7 @@
       });
       var d2 = dx * dx + dy * dy;
       out.innerHTML = "<b>AB = √(" + fmt(dx) + "² + " + fmt(dy) + "²) = √" + fmt(d2) + " = " + fmt(Math.sqrt(d2), 4) + "</b><br>" +
-        "The dashed legs are horizontal and vertical, so the angle between them is right and Pythagoras applies. " +
+        "The dashed legs are horizontal and vertical, so the angle between them is right and the Pythagorean theorem applies. " +
         "That is the whole content of the distance formula.";
     }
 
@@ -1346,7 +1346,7 @@
           var dx = B.x - A.x, dy = B.y - A.y;
           return dx * dx + dy * dy === 169;
         } },
-      { text: "Make a distance that needs no Pythagoras at all.", test: function () {
+      { text: "Make a distance that can be read off without the Pythagorean theorem.", test: function () {
           return (A.x === B.x) !== (A.y === B.y);
         } }
     ]);
@@ -1575,7 +1575,7 @@
       out.innerHTML = "<b>θ = " + deg + "° = " + fmt(rad, 4) + " radians</b><br>" +
         "cos θ = " + fmt(cx, 4) + " &nbsp;·&nbsp; sin θ = " + fmt(sy, 4) + "<br>" +
         "Check: cos²θ + sin²θ = " + fmt(cx * cx + sy * sy, 6) +
-        " — Pythagoras on the dashed triangle, whose hypotenuse is the radius 1.<br>" +
+        " — the Pythagorean theorem on the dashed triangle, whose hypotenuse is the radius 1.<br>" +
         "The thick arc has length " + fmt(rad, 4) + ": that is what radian measure means.";
     }
 
@@ -1741,7 +1741,7 @@
         (showLog
           ? "The logarithm is its mirror image in the dashed line y = x: it swaps every pair (x, y) for (y, x), " +
             "so it is defined exactly where the exponential had values — the positive numbers."
-          : "Switch the logarithm on to see the same curve reflected in y = x.");
+          : "Switch the logarithm on to see the same curve reflected across y = x.");
     }
 
     var c = controls(host);
@@ -2446,9 +2446,9 @@
       "0,-1,1,0": "rotation by 90° counterclockwise",
       "-1,0,0,-1": "rotation by 180°",
       "0,1,-1,0": "rotation by 270° counterclockwise",
-      "-1,0,0,1": "the flip left to right (in the vertical mid-line)",
-      "1,0,0,-1": "the flip top to bottom (in the horizontal mid-line)",
-      "0,1,1,0": "the flip in the diagonal through the upper right corner",
+      "-1,0,0,1": "the flip left to right (across the vertical midline)",
+      "1,0,0,-1": "the flip top to bottom (across the horizontal midline)",
+      "0,1,1,0": "the flip across the diagonal through the upper right corner",
       "0,-1,-1,0": "the flip in the diagonal through the upper left corner"
     };
     var cur = I, hist = "", seen = {}, from = I, u = 1;

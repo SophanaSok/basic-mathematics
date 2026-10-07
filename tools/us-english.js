@@ -165,7 +165,18 @@ const WORDING = [
   [/\bcosts?\s+marks\b/gi, "loses points"],
   [/\bcinemas?\b/gi, "movie theater"],
   [/\bstalls?\b/gi, "stand"],
-  [/\bfor ever\b/gi, "forever"]
+  [/\bfor ever\b/gi, "forever"],
+  /* the cross-Part sweep (decision 0004, SW1). "disc" only beside another word, so the
+     one-word id ("disc" in data/curriculum.js) is not a hit; the data-section, the anchors,
+     "ch07#disc" and "disc-area" are code anyway, as is the widgets.js variable. Pythagoras
+     with its capital: the lowercase "pythagoras" is a section, figure and mission name. */
+  [/\bnon-zero\b/gi, "nonzero"],
+  [/\bright-angled\b/gi, "right triangle"],
+  [/(?<=\S\s+)discs?\b|\bdiscs?\b(?=\s+\S)/gi, "disk"],
+  [/\bPythagoras\b/g, "the Pythagorean theorem"],
+  [/\breflect(?:ion|ions|ed|ing|s)?\s+in\b/gi, "reflection across"],
+  [/\bmid-lines?\b/gi, "midline"],
+  [/\bright first time\b/gi, "right the first time"]
 ];
 
 /* ------------------------------------------------------------ the files -- */
