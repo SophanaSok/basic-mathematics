@@ -24,6 +24,8 @@
      - CSS (lib/css.js and the stylesheet checks): the token tables per theme × panel,
        color-mix and see-through backgrounds, the flash-and-loop rule, colour literals,
        and what counts as the reading column and as motion or decoration in it
+     - pure-core: a page global named in a module's code is found, by line; one in a
+       comment is not, a "//" inside a string does not hide the code after it
      - serve (lib/serve.js): a build is served as it is, a page in it that still carries
        a shell marker is refused, a fixture goes out as it is
    Usage: node tools/checks.test.js */
@@ -337,6 +339,12 @@ function refusal(fn) { try { fn(); return null; } catch (e) { return e.message; 
   check(/SIL OPEN FONT LICENSE Version 1\.1/.test(notice) && /Reserved Font Name KaTeX_/.test(notice), "the notice carries the Open Font License's text, and the KaTeX fonts' own notice");
   eq(vendor.NOTICE, "bundle/LICENSES.txt", "the notice goes beside the bundle");
   Object.keys(shell.PAGE_KINDS).forEach(k => check(/^import "\.\.\/vendor\/katex\.js";/m.test(fs.readFileSync(path.join(site.ROOT, shell.PAGE_KINDS[k].entry), "utf8").replace(/\/\*[\s\S]*?\*\//g, "").trim()), "the " + k + " entry imports src/vendor/katex.js first, so renderMathInElement is there when site.js runs"));
+  Object.keys(shell.PAGE_KINDS).forEach(k => {
+    const entry = fs.readFileSync(path.join(site.ROOT, shell.PAGE_KINDS[k].entry), "utf8").replace(/\/\*[\s\S]*?\*\//g, "");
+    const at = (f) => entry.indexOf('import "' + f + '";');
+    check(at("../ui/core.ts") > -1 && at("../ui/core.ts") < at("../../assets/site.js") && ["grade", "rules", "curriculum", "config"].every(m => at("../core/" + m + ".ts") > -1 && at("../core/" + m + ".ts") < at("../ui/core.ts")),
+      "the " + k + " entry imports src/core/ and then src/ui/core.ts before site.js, so window.BMCore is there when site.js runs");
+  });
   eq(pageLinks(out).map(a => a.getAttribute("href")), ["index.html", "index.html", "about.html"], "the usual top bar: brand, Contents, How to use this");
 
   /* the HUD and the sheet are in the markup: every slot labelled in a sentence, the game
@@ -624,6 +632,16 @@ function refusal(fn) { try { fn(); return null; } catch (e) { return e.message; 
     "print: a token the dark panel sets and print does not restate is reported");
   eq(printed(":root[data-panel=\"dark\"] [data-part=\"b\"] { --part: #fff; }\n@media print { :root[data-panel=\"dark\"] [data-part=\"b\"] { --part: #000; } }"), [], "… a Part's dark-panel block restated in print passes");
   eq(printed("@media print { :root[data-panel=\"dark\"] { --ok: #14713a; --mark-ok: url(\"data:image/svg+xml,stroke='%236fdc98'\"); } }"), ["print's"], "… a print answer mark drawn in another colour than print's --ok is reported");
+}
+
+/* -------------------------------------------------------------- pure-core -- */
+{
+  const { pureProblems, stripComments } = require("./check-static");
+  const found = (src) => pureProblems(src).map(x => x.name + "@" + x.line);
+  eq(found("export const a = window.x;\nconst d = document;\nlocalStorage.getItem('k'); sessionStorage;"), ["window@1", "document@2", "localStorage@3", "sessionStorage@3"], "pure-core: every page global the code names is found, by line");
+  eq(found("/* window, document */\n// localStorage\nexport const w = 1; /* sessionStorage\n window */ const windowed = 2;"), [], "… not one in a comment, nor a longer name that holds one");
+  eq(found('const url = "https://x"; const g = globalThis["window"];\nconst t = `//${document}`;'), ["window@1", "document@2"], "… a \"//\" inside a string is no comment, and a name in a string counts");
+  eq(stripComments("a /* b\nc */ d // e\nf").split("\n").length, 3, "… blanking the comments keeps the lines");
 }
 
 /* ------------------------------------------------------------------ serve -- */

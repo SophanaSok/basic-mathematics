@@ -5,6 +5,7 @@ import vm from "node:vm";
 import { describe, expect, it } from "vitest";
 import * as levels from "./levels.js";
 import * as view from "./view.js";
+import { core } from "../ui/core.ts";
 
 const ROOT = path.resolve(import.meta.dirname, "../..");
 const require = createRequire(import.meta.url);
@@ -33,7 +34,9 @@ function siteDayKey(): (d?: Date) => string {
       readyState: "complete", body: el, documentElement: el, querySelector: () => null, querySelectorAll: () => [],
       getElementById: () => null, createElement: () => el, addEventListener: noop
     },
-    localStorage: { getItem: () => null, setItem: noop, removeItem: noop }
+    localStorage: { getItem: () => null, setItem: noop, removeItem: noop },
+    /* which every entry puts up ahead of site.js */
+    BMCore: core
   };
   win.window = win;
   vm.createContext(win);

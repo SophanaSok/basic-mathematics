@@ -41,6 +41,10 @@ function dayKey(d) {
 }
 function daysAgo(n) { const d = new Date(); d.setDate(d.getDate() - n); return dayKey(d); }
 
+/* src/ui/core.ts, the module every entry imports ahead of site.js for window.BMCore (the
+   grader and the exercise rules), read by Node itself */
+const CORE = require("../../src/ui/core.ts").core;
+
 /* The real exercise rules of assets/site.js (xpFor, paysFirst, and Road, how a check,
    an opened solution and an opened clue change an exercise's record), from the file run
    under a stub window, as tools/check-static.js runs it for grading. */
@@ -57,7 +61,8 @@ function loadSite() {
       readyState: "complete", body: el, documentElement: el, querySelector: () => null, querySelectorAll: () => [],
       getElementById: () => null, createElement: () => el, addEventListener: noop
     },
-    localStorage: { getItem: () => null, setItem: noop, removeItem: noop }
+    localStorage: { getItem: () => null, setItem: noop, removeItem: noop },
+    BMCore: CORE
   };
   win.window = win;
   win.self = win;
@@ -123,7 +128,9 @@ function world(seedStores) {
     },
     BMInsights: { WEAK: 0.34, sections: () => win.__rows || [] },
     /* the schedule and the Arena's XP rules, which every entry puts up before game.js */
-    BMReview: REVIEW
+    BMReview: REVIEW,
+    /* the exercise rules (hearts, medals), likewise */
+    BMCore: CORE
   };
   win.window = win;
   vm.createContext(win);

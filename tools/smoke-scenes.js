@@ -7,7 +7,7 @@
    drives every slider to both ends, every chip, button and matrix cell, keys and
    drags on the stage; fails on NaN/Infinity in any emitted attribute; then applies
    each `cases` entry and grades String(__answer()) with the site's own matcher
-   (lifted from assets/site.js). Exits non-zero on any failure. */
+   (src/core/grade.ts, the grader the pages use). Exits non-zero on any failure. */
 "use strict";
 var fs = require("fs");
 var path = require("path");
@@ -193,13 +193,10 @@ function load(rel) {
   vm.runInContext(fs.readFileSync(file, "utf8"), ctx, { filename: rel });
 }
 
-/* --------------------------------------------- the site's grader, lifted -- */
-var site = fs.readFileSync(path.join(ROOT, "assets/site.js"), "utf8");
-var a = site.indexOf("function basicClean"), b = site.indexOf("var TICK");
-var c1 = site.indexOf("function alternatives"), c2 = site.indexOf("/* Which section an exercise tests");
-if (a < 0 || b < 0 || c1 < 0 || c2 < 0) { console.error("could not find the grader in assets/site.js"); process.exit(2); }
-var grader = new Function(site.slice(a, b) + site.slice(c1, c2) +
-  "return function (given, answer, type) { return alternatives(answer).some(function (x) { return matches(given, x, type, 0); }); };")();
+/* ------------------------------------------------------ the site's grader -- */
+/* src/core/grade.ts, the grader the pages use, read by Node itself */
+var gradeOf = require(path.join(ROOT, "src/core/grade.ts")).grade;
+var grader = function (given, answer, type) { return gradeOf(given, answer, type, 0); };
 
 /* ------------------------------------------------------------- running -- */
 load("assets/widgets.js");

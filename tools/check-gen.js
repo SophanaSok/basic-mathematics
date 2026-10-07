@@ -70,6 +70,9 @@ function load(ctx, rel) {
 }
 
 var ctx = makeContext();
+/* the grader site.js delegates to, put up as every entry puts it up ahead of site.js
+   (src/ui/core.ts, read by Node itself) */
+ctx.BMCore = require(path.join(ROOT, "src/ui/core.ts")).core;
 load(ctx, "data/curriculum.js");
 load(ctx, "assets/site.js");
 var genDir = path.join(ROOT, "data/gen");

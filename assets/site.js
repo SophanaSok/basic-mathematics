@@ -14,6 +14,13 @@
 (function () {
   "use strict";
 
+  /* BMCore (src/ui/core.ts, imported by every entry ahead of this file) holds the grader
+     and the exercise rules: one copy, for this file, game.js and the tools. Without it
+     nothing here can grade or pay, so nothing is built. */
+  var Core = window.BMCore;
+  if (!Core) { if (window.console) console.error("[BM] BMCore missing"); return; }
+  var Rules = Core.rules;
+
   var THEME_KEY = "bm.theme";
   var PROGRESS_KEY = "bm.progress.v1";
   var PLAY_KEY = "bm.play.v1";
@@ -183,8 +190,9 @@
   window.BMAttempts = Attempts;
 
   /* XP per day. The streak, the daily goal and the total are all derived from this one
-     map, so two devices merge by taking the larger number for each day. */
-  var XP = { first: 10, solved: 6, opened: 3, inlineFirst: 5, inline: 3, inlineOpened: 1, mission: 5 };
+     map, so two devices merge by taking the larger number for each day. What each answer
+     pays is src/core/rules.ts's. */
+  var XP = Rules.XP;
   var DEFAULT_GOAL = 30;
 
   function dayKey(d) {
@@ -560,19 +568,10 @@
 
   /* ------------------------------------------------- where it is going ---- */
 
-  /* How hard one exercise was for this reader, from 0 (right first time) to 1.
-     null when there is nothing to go on. */
-  function struggle(rec) {
-    if (!rec || (!rec.tries && !rec.opened && !rec.skipped)) return null;
-    var s;
-    if (rec.solved) s = rec.first ? 0 : Math.min(0.8, 0.35 + 0.15 * Math.max(0, (rec.tries || 2) - 2));
-    else s = rec.tries ? 0.7 : 0.45;
-    if (rec.opened) s += 0.25;
-    if ((rec.hints || 0) >= 2) s += 0.1;
-    return Math.min(1, s);
-  }
-
-  var WEAK = 0.34, STRONG = 0.12;
+  /* How hard one exercise was for this reader, from 0 (right first time) to 1, and the
+     scores that make a section weak or strong: src/core/rules.ts */
+  var struggle = Rules.struggle;
+  var WEAK = Rules.WEAK, STRONG = Rules.STRONG;
 
   var Insights = {
     WEAK: WEAK,
@@ -689,101 +688,15 @@
     });
   }
 
-  /* strip the noise readers add without changing meaning */
-  function basicClean(s) {
-    return String(s)
-      .trim()
-      .replace(/\s+/g, "")
-      .replace(/[−–—]/g, "-")   /* unicode minus / dashes */
-      .replace(/[×⋅]/g, "*")          /* × · */
-      .replace(/√/g, "sqrt")               /* √ */
-      .replace(/π/g, "pi")
-      .replace(/≤/g, "<=")
-      .replace(/≥/g, ">=")
-      .replace(/≠/g, "!=")
-      .toLowerCase();
-  }
-
-  function gcd(a, b) { a = Math.abs(a); b = Math.abs(b); while (b) { var t = b; b = a % b; a = t; } return a; }
-
-  /* a number, a fraction a/b, or a simple signed decimal -> JS number */
-  function toNumber(s) {
-    var t = basicClean(s).replace(/\$/g, "").replace(/^\+/, "");
-    if (t === "") return null;
-    var frac = /^(-?\d+(?:\.\d+)?)\/(-?\d+(?:\.\d+)?)$/.exec(t);
-    if (frac) {
-      var den = parseFloat(frac[2]);
-      if (den === 0) return null;
-      return parseFloat(frac[1]) / den;
-    }
-    if (/^-?\d+(?:\.\d+)?$/.test(t)) return parseFloat(t);
-    if (/^-?\.\d+$/.test(t)) return parseFloat(t);
-    return null;
-  }
-
-  /* tol, when given on the exercise as data-tol, is an absolute tolerance —
-     used where the expected answer is itself a rounded decimal. */
-  function sameNumber(a, b, tol) {
-    if (a === null || b === null) return false;
-    if (tol) return Math.abs(a - b) <= tol + 1e-12;
-    var scale = Math.max(1, Math.abs(a), Math.abs(b));
-    return Math.abs(a - b) <= 1e-9 * scale;
-  }
-
-  /* algebraic expression: compare after removing cosmetic differences */
-  function normExpr(s) {
-    var t = basicClean(s)
-      .replace(/\$/g, "")
-      .replace(/\\left|\\right|\\,|\\!|\\;/g, "")
-      .replace(/\\cdot|\\times/g, "*")
-      .replace(/\\frac\{([^{}]*)\}\{([^{}]*)\}/g, "($1)/($2)")
-      .replace(/\\sqrt\{([^{}]*)\}/g, "sqrt($1)")
-      .replace(/\\sqrt/g, "sqrt")
-      .replace(/\{|\}/g, "")
-      .replace(/\*/g, "")
-      .replace(/^\((.*)\)$/, "$1");
-    /* a plain sum may be written in any order: ac+bd and bd+ac are the same answer.
-       Only safe when there are no brackets left to split through. */
-    if (t.indexOf("+") > 0 && t.indexOf("(") === -1 && t.indexOf(")") === -1) {
-      t = t.split("+").sort().join("+");
-    }
-    return t;
-  }
-
-  /* "2,-3" -> [-3, 2]; order never matters in a list of answers */
-  function numberList(s) {
-    var parts = basicClean(s).replace(/[{}]/g, "").split(/[,;]/).filter(function (x) { return x !== ""; });
-    var nums = parts.map(toNumber);
-    if (!nums.length || nums.some(function (n) { return n === null; })) return null;
-    return nums.sort(function (a, b) { return a - b; });
-  }
-
-  function matches(given, answer, type, tol) {
-    if (type === "number" || type === "fraction") {
-      return sameNumber(toNumber(given), toNumber(answer), tol);
-    }
-    if (type === "set") {
-      var ng = numberList(given), na = numberList(answer);
-      if (!ng || !na || ng.length !== na.length) return false;
-      return ng.every(function (v, i) { return sameNumber(v, na[i], tol); });
-    }
-    if (type === "expr") return normExpr(given) === normExpr(answer);
-    /* "exact" / default: forgiving text compare */
-    return basicClean(given).replace(/\.$/, "") === basicClean(answer).replace(/\.$/, "");
-  }
+  /* how a typed answer is compared with one key: src/core/grade.ts */
+  function matches(given, answer, type, tol) { return Core.matches(given, answer, type, tol); }
 
   var TICK = '<svg class="tick" viewBox="0 0 20 20" aria-hidden="true"><path d="M4 10.5l4 4 8-9"/></svg>';
 
   function slice(list) { return Array.prototype.slice.call(list); }
 
-  /* "|" separates alternative accepted answers — but an answer may itself contain
-     a bar (|x|), so the unsplit string is always a candidate too. */
-  function alternatives(raw) {
-    raw = (raw || "").trim();
-    return [raw].concat(raw.split("|"))
-      .map(function (s) { return s.trim(); })
-      .filter(function (s) { return s !== ""; });
-  }
+  /* a key's "|" alternatives, the unsplit key among them: src/core/grade.ts */
+  function alternatives(raw) { return Core.alternatives(raw); }
 
   /* Which section an exercise tests. Practice problems say so in data-section; an
      inline check belongs to the section whose heading it sits under. */
@@ -816,57 +729,11 @@
     return order;
   }
 
-  /* A clue is never charged, and no help pays more than effort. A right first check pays the
-     first-time rate (and lights a combo pip, assets/game.js bonus) when no clue or only
-     the first was opened before it: clue 1 says where to look and gives nothing away.
-     After clue 2 or 3 it pays what a solve after a miss pays, and the combo neither
-     gains nor loses. The record's `first` keeps its meaning (right on the first check,
-     solution not open), since the struggle score and the achievements read it. */
-  var CLUE_FREE = 1;
-  function paysFirst(rec) {
-    var rung = Number(rec && rec.rung);
-    return !!(rec && rec.first && !rec.opened) && !(isFinite(rung) && rung > CLUE_FREE);
-  }
-  function xpFor(rec, inline) {
-    if (rec.opened) return inline ? XP.inlineOpened : XP.opened;
-    if (paysFirst(rec)) return inline ? XP.inlineFirst : XP.first;
-    return inline ? XP.inline : XP.solved;
-  }
-
-  /* How one exercise's record changes on the road to its first correct answer, as pure
-     functions of the record, so the rules can be held to on their own
-     (tools/game/rules.test.js runs every road through them). initExercises applies them
-     through Attempts.update, only while the exercise is unsolved. */
-  var Road = {
-    /* a check, right or wrong; `level` is the hint level the misses reached (`hints`) */
-    check: function (a, ok, level, inline, section) {
-      a.tries = (a.tries || 0) + 1;
-      if (section) a.section = section;
-      if (inline) a.inline = 1;
-      if (level > (a.hints || 0)) a.hints = level;
-      if (ok) {
-        a.solved = Date.now();
-        a.first = a.tries === 1 && !a.opened ? 1 : 0;
-        delete a.skipped;
-      }
-      return a;
-    },
-    /* the solution opened before solving */
-    reveal: function (a, inline, section) {
-      a.opened = 1;
-      if (section) a.section = section;
-      if (inline) a.inline = 1;
-      return a;
-    },
-    /* clue `rung` opened before solving: the highest is kept */
-    clue: function (a, rung, inline, section) {
-      var was = Number(a.rung);
-      if (!(isFinite(was) && was >= rung)) a.rung = rung;
-      if (section) a.section = section;
-      if (inline) a.inline = 1;
-      return a;
-    }
-  };
+  /* What a right answer pays (a clue is never charged, and no help pays more than effort),
+     and Road, how one exercise's record changes on the road to its first correct answer,
+     as pure functions of the record: src/core/rules.ts. initExercises applies Road through
+     Attempts.update, only while the exercise is unsolved. */
+  var paysFirst = Rules.paysFirst, xpFor = Rules.xpFor, Road = Rules.Road;
 
   function initExercises(chapter) {
     var exs = document.querySelectorAll(".ex");
@@ -1465,9 +1332,7 @@
     });
   }
   /* grade one answer against a key with `|` alternatives, exactly as the exercises do */
-  function grade(given, answer, type, tol) {
-    return alternatives(answer).some(function (a) { return matches(given, a, type || "exact", tol || 0); });
-  }
+  function grade(given, answer, type, tol) { return Core.grade(given, answer, type, tol); }
   /* redraw everything built from saved state, after the game layer changes it */
   function refresh() {
     buildHud();

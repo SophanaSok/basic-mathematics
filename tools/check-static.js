@@ -610,7 +610,8 @@ function checkMigrations(ctx, r) {
 
 /* ------------------------------------------------------- placeholders -- */
 
-/* BMSite.grade from assets/site.js, under a window with no DOM to speak of */
+/* BMSite.grade from assets/site.js, under a window with no DOM to speak of, and with the
+   BMCore every entry puts up ahead of it (src/ui/core.ts, read by Node itself) */
 function loadGrade() {
   const noop = () => {};
   const el = {
@@ -628,6 +629,7 @@ function loadGrade() {
   };
   window.window = window;
   window.self = window;
+  window.BMCore = require(path.join(ROOT, "src/ui/core.ts")).core;
   vm.createContext(window);
   vm.runInContext(read("assets/site.js"), window, { filename: "assets/site.js" });
   if (!window.BMSite || typeof window.BMSite.grade !== "function") throw new Error("assets/site.js did not export BMSite.grade under the stub");
@@ -1208,6 +1210,69 @@ function printGaps(css) {
   return out;
 }
 
+/* ----------------------------------------------------------- pure core -- */
+
+/* The modules under src/core/, src/sync/ and src/learn/ are pure: Node and Vitest load
+   them as they are, and the page gets them only through an installer under src/ui/
+   (window.BMCore, BMReview, BMLearn). So none of them names the page's globals once its
+   comments are gone; a string that names one counts, since globalThis["window"] would
+   reach it. Their tests are left out: they build a stub window to run assets/site.js
+   under. Erasable TypeScript only is tsconfig.json's erasableSyntaxOnly (typecheck). */
+const PURE_DIRS = ["src/core", "src/sync", "src/learn"];
+const PAGE_GLOBALS = /\b(window|document|localStorage|sessionStorage)\b/g;
+
+/* the source with its comments blanked (line breaks kept, so lines still count), read past
+   strings and template literals so a "//" inside one is not taken for a comment */
+function stripComments(src) {
+  let out = "", i = 0, quote = null;
+  while (i < src.length) {
+    const c = src[i], next = src[i + 1];
+    if (quote) {
+      out += c;
+      if (c === "\\") { out += next === undefined ? "" : next; i += 2; continue; }
+      if (c === quote) quote = null;
+      i++;
+    } else if (c === "/" && next === "*") {
+      const end = src.indexOf("*/", i + 2), stop = end < 0 ? src.length : end + 2;
+      out += src.slice(i, stop).replace(/[^\n]/g, " ");
+      i = stop;
+    } else if (c === "/" && next === "/") {
+      const end = src.indexOf("\n", i), stop = end < 0 ? src.length : end;
+      out += " ".repeat(stop - i);
+      i = stop;
+    } else {
+      if (c === '"' || c === "'" || c === "`") quote = c;
+      out += c;
+      i++;
+    }
+  }
+  return out;
+}
+
+/* [{ line, name }] for every page global a module's code names */
+function pureProblems(src) {
+  const out = [];
+  stripComments(src).split("\n").forEach((text, i) => {
+    let m;
+    PAGE_GLOBALS.lastIndex = 0;
+    while ((m = PAGE_GLOBALS.exec(text))) out.push({ line: i + 1, name: m[1] });
+  });
+  return out;
+}
+
+function pureFiles() {
+  const out = [];
+  PURE_DIRS.forEach(d => site.walk(path.join(ROOT, d), p => /\.(ts|js)$/.test(p) && !/\.(test|test-helper|d)\.ts$/.test(p), out));
+  return out.map(site.rel);
+}
+
+function checkPureCore(ctx, r) {
+  pureFiles().forEach(rel => {
+    r.count++;
+    pureProblems(read(rel)).forEach(x => r.fail(rel + ":" + x.line + ": names `" + x.name + "`; a module under " + PURE_DIRS.join(", ") + " is pure (the page gets it through an installer under src/ui/)"));
+  });
+}
+
 /* ------------------------------------------------------------- runner ---- */
 
 const CHECKS = [
@@ -1224,6 +1289,7 @@ const CHECKS = [
   { name: "order", run: checkOrder, what: "order lists have >= 2 items; blanks carry keys" },
   { name: "migrations", run: checkMigrations, what: "a supabase/schema.sql change since main ships a new, well-named migration; applied ones are untouched" },
   { name: "placeholders", run: checkPlaceholders, what: "no answer box shows an example its own key accepts" },
+  { name: "pure-core", run: checkPureCore, what: "no module under src/core/, src/sync/, src/learn/ names window, document, localStorage or sessionStorage (comments aside)" },
   { name: "merge", run: checkMerge, what: "BMAccount.merge is commutative, associative, idempotent (2000 seeded cases)" },
   { name: "animations", run: checkAnimations, what: "no CSS animation loops forever, repeats more than 3 times, or more than 3 times a second" },
   { name: "colours", run: checkColours, what: "colour literals only in src/styles/tokens.css; answer marks carry their tokens; WebGL tokens plain hex" },
@@ -1256,5 +1322,5 @@ function main() {
 }
 
 if (require.main === module) main();
-module.exports = { CHECKS, result, pageKeys, lessonSteps, stepsDiff, shellOf, shellDiff, scriptsProblems, randomState, stripLocalFirst, canon,
+module.exports = { CHECKS, result, loadGrade, stripComments, pureProblems, pageKeys, lessonSteps, stepsDiff, shellOf, shellDiff, scriptsProblems, randomState, stripLocalFirst, canon,
   animationFaults, colourLiterals, columnPatterns, inColumn, quietKinds, printGaps };

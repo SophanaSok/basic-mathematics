@@ -355,7 +355,9 @@ function loadSite(stores) {
       readyState: "complete", body: el, documentElement: el, querySelector: () => null, querySelectorAll: () => [],
       getElementById: () => null, createElement: () => el, addEventListener: noop
     },
-    localStorage: { getItem: (k) => (k in mem ? mem[k] : null), setItem: (k, v) => { mem[k] = String(v); }, removeItem: (k) => { delete mem[k]; } }
+    localStorage: { getItem: (k) => (k in mem ? mem[k] : null), setItem: (k, v) => { mem[k] = String(v); }, removeItem: (k) => { delete mem[k]; } },
+    /* the grader and the exercise rules, which every entry puts up ahead of site.js */
+    BMCore: require("../../src/ui/core.ts").core
   };
   win.window = win;
   win.self = win;
