@@ -115,8 +115,10 @@ function kindsLoading() {
     const { entry, styles } = shell.PAGE_KINDS[kind];
     [entry].concat(entryImports(entry), shell.VENDOR_STYLES, styles).forEach(f => { (by[f] = by[f] || []).push(kind); });
   });
-  /* throws, with the reason, for a node_modules file no vendor module brings in */
-  return (f) => IN_NODE_MODULES.test(f) ? by[vendor.vendorOf(f).file] : ofGrader(f) ? by[GRADER] : by[f];
+  /* in vite.config.ts bundleNames' order: what an entry names itself first, then a grader
+     module by grade.ts, then a node_modules file by its vendor module (which throws, with
+     the reason, for one no vendor module brings in) */
+  return (f) => by[f] || (ofGrader(f) ? by[GRADER] : IN_NODE_MODULES.test(f) ? by[vendor.vendorOf(f).file] : undefined);
 }
 
 /* The module graph of the built site, read from the chunks themselves: every string
@@ -449,8 +451,11 @@ function checkScripts(ctx, r) {
     staticOnly.forEach(f => ctx.graph.sourcesOf(f).forEach(s => { if (ofTree(s)) built.add(s); else if (IN_NODE_MODULES.test(s)) foreign.push(s); }));
     const wanted = entryImports(entry);
     /* the grader's modules ride with grade.ts: in the bundle of an entry that imports it,
-       as many of them as its imports reach */
-    const missing = wanted.filter(s => !built.has(s)), extra = Array.from(built).filter(s => !wanted.includes(s) && !(ofGrader(s) && wanted.includes(GRADER)));
+       as many of them as its imports reach. grade.ts itself is a facade of re-exports, so
+       rolldown maps no code to it: it counts as built when a module of the grader is */
+    const graderBuilt = Array.from(built).some(ofGrader);
+    const missing = wanted.filter(s => !built.has(s) && !(s === GRADER && graderBuilt));
+    const extra = Array.from(built).filter(s => !wanted.includes(s) && !(ofGrader(s) && wanted.includes(GRADER)));
     if (missing.length || extra.length) r.fail(p + ": the bundle behind " + mod.file + " is not " + entry + "'s" + (missing.length ? "; not in it: " + missing.join(", ") : "") + (extra.length ? "; in it but not imported: " + extra.join(", ") : ""));
     const strangers = [];
     foreign.forEach(s => {

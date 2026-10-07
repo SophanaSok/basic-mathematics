@@ -11,7 +11,7 @@
    page gets them. */
 
 import { alternatives, grade, matches } from "../core/grade.ts";
-import { judge, specOf } from "../core/answer/check.ts";
+import { OWNER, judge, specOf } from "../core/answer/check.ts";
 import { formMessage, lowestMessage, readMessage, unreadMessage } from "../core/answer/messages.ts";
 import { CLUE_FREE, FADED_RUNG, Road, STRONG, WEAK, XP, fadedOf, isMiss, medalMark, paysFirst, setStats, struggle, xpFor } from "../core/rules.ts";
 import { chapterById, exerciseRef, generatorRef, sectionRef } from "../core/curriculum.ts";
@@ -19,10 +19,12 @@ import { readConfig } from "../core/config.ts";
 import { SCHEMA, canon, merge as mergeStates, mergeGame, obj, str, versionOf } from "../sync/merge.ts";
 
 /* grade() is true exactly where judge() says right (src/core/grade.test.ts holds them
-   together); judgeOff(), the ledger tool's switch, stays off the page */
+   together); judgeOff(), the ledger tool's switch, stays off the page. `owner` is the
+   owner's answers to decision 0002's questions, the ones the grader reads, so the one
+   message worded by Q4 (messages.ts unreadMessage) is worded as the reader reads */
 export const core = {
   grade, matches, alternatives,
-  judge, specOf,
+  judge, specOf, owner: OWNER,
   messages: { unreadMessage, formMessage, readMessage, lowestMessage },
   rules: { XP, CLUE_FREE, FADED_RUNG, fadedOf, paysFirst, xpFor, Road, struggle, WEAK, STRONG, isMiss, medalMark, setStats },
   curriculum: { chapterById, sectionRef, exerciseRef, generatorRef },

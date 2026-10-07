@@ -126,17 +126,18 @@ describe("grade() against the golden file and the ledger", () => {
   }, LONG);
 });
 
-describe("judge() over the old grader", () => {
-  it("is right with the alternative that matched, wrong, or unread for an empty box, and nothing else", () => {
+describe("judge() as the pages call it", () => {
+  it("is right with the alternative that matched, wrong with its reading, or unread for an empty box", () => {
     const spec = { answer: "2|4", type: "number" };
     expect(judge("4", spec)).toEqual({ kind: "right", alt: 2, read: "4", notes: [] });
     expect(judge(" 2 ", spec)).toEqual({ kind: "right", alt: 1, read: "2", notes: [] });
-    expect(judge("5", spec)).toEqual({ kind: "wrong", read: null });
+    expect(judge("5", spec)).toEqual({ kind: "wrong", read: "5" });
     expect([judge("", spec), judge(" \t", spec)]).toEqual([{ kind: "unread", reason: "empty", at: 0 }, { kind: "unread", reason: "empty", at: 0 }]);
     expect(judge("|x|", { answer: "|x|", type: "expr" })).toMatchObject({ kind: "right", alt: 0 });
     expect(judge("4", { answer: "" })).toEqual({ kind: "wrong", read: null });
-    /* no rule to switch yet */
-    expect(judgeOff("4.", spec, new Set(LEDGER_TOOL.ORDER))).toEqual(judge("4.", spec));
+    /* with every rule switched off, the old grader's verdict (check.test.ts holds this on every golden case) */
+    expect(judgeOff("4.", spec, new Set(LEDGER_TOOL.ORDER))).toEqual({ kind: "wrong", read: null });
+    expect(judge("4.", spec)).toEqual({ kind: "right", alt: 2, read: "4", notes: [] });
   });
 
   it("reads a spec as the pages and the Arena hold it", () => {
@@ -148,9 +149,12 @@ describe("judge() over the old grader", () => {
 });
 
 describe("the ledger tool", () => {
-  /* a judge with two made-up rules over the old grader, to drive the tool down every path:
-     "N-dot" drops a trailing full stop, and "N-mixed", wrong on purpose, reads "a b/c" as
-     a + b + c; any text with "kg" in it is unread (units), and one with " ~ " unread (spaces) */
+  /* a judge with two made-up rules over the old grader (legacy.ts, so they are the only
+     rules), to drive the tool down every path: "N-dot" drops a trailing full stop, and
+     "N-mixed", wrong on purpose, reads "a b/c" as a + b + c; any text with "kg" in it is
+     unread (units), and one with " ~ " unread (spaces) */
+  const right = (given: unknown): Verdict => ({ kind: "right", alt: 0, read: String(given), notes: [] });
+  const old: Judge = (given, spec) => (legacyGrade(given, spec.answer, spec.type, spec.tol) ? right(given) : { kind: "wrong", read: null });
   const fakeOff: JudgeOff = (given, spec, off) => {
     let t = String(given);
     if (/kg/.test(t)) return { kind: "unread", reason: "units", at: 0 };
@@ -158,7 +162,7 @@ describe("the ledger tool", () => {
     if (!off.has("N-dot")) t = t.replace(/\.$/, "");
     const m = /^(\d+) (\d+)\/(\d+)$/.exec(t);
     if (m && !off.has("N-mixed")) t = String(Number(m[1]) + Number(m[2]) + Number(m[3]));
-    return judge(t, spec);
+    return old(t, spec);
   };
   const fakeJudge: Judge = (given, spec) => fakeOff(given, spec, new Set());
   const golden = (groups: [string, string, string, number, string[]][]): { groups: Group[] } => ({
@@ -176,10 +180,9 @@ describe("the ledger tool", () => {
   const FAKE = { golden: GOLD, judge: fakeJudge, judgeOff: fakeOff, keys: [] };
   const run = (o: BuildOptions = {}) => LEDGER_TOOL.build({ ...FAKE, reviewed: [], ...o });
   const always = (v: (given: unknown) => Verdict, off: (o: ReadonlySet<RuleId>) => boolean = () => false) => {
-    const judgeOff: JudgeOff = (given, spec, o) => (off(o) ? judge(given, spec) : v(given));
+    const judgeOff: JudgeOff = (given, spec, o) => (off(o) ? old(given, spec) : v(given));
     return { judgeOff, judge: ((given, spec) => judgeOff(given, spec, new Set())) as Judge };
   };
-  const right = (given: unknown): Verdict => ({ kind: "right", alt: 0, read: String(given), notes: [] });
 
   it("puts each change down to its rule: a switch for a flip, the reason for a form or unread verdict", () => {
     const { ledger, problems } = run();
@@ -236,7 +239,8 @@ describe("the ledger tool", () => {
     expect(LEDGER_TOOL.check({ ...FAKE, text: LEDGER_TOOL.serialise({ ...ledger, revision: GRADER + 1 }) })).toEqual(differs);
     /* reviewed is read off the file, so the hand-written block is never rewritten */
     expect(LEDGER_TOOL.check({ ...FAKE, text: LEDGER_TOOL.serialise({ ...ledger, reviewed: [{ from: "k1", given: "7.", why: "by hand" }] }) })).toEqual([]);
-    expect(LEDGER_TOOL.check({ golden: GOLD, keys: [], text: null })).toEqual([]);
+    /* a judge that changes nothing (the old grader itself) and no file: the empty ledger, no problem */
+    expect(LEDGER_TOOL.check({ golden: GOLD, keys: [], text: null, judge: old, judgeOff: (g, s) => old(g, s) })).toEqual([]);
   });
 
   it("reports a missing golden file as a problem, not a crash", () => {

@@ -2,8 +2,8 @@
    exercise asks for, and the four verdicts a typed answer can get. Type-only, so it erases
    to nothing.
 
-   The reader (read.ts) and the messages (messages.ts) use it so far; judge() in check.ts
-   is still to come, and nothing the site loads imports any of them yet. */
+   The reader (read.ts), the messages (messages.ts) and judge() in check.ts use it; the
+   site reaches them through src/core/grade.ts and window.BMCore (src/ui/core.ts). */
 
 import type { AnswerType } from "./legacy.ts";
 
@@ -42,8 +42,8 @@ export type Verdict =
   | { kind: "unread"; reason: UnreadReason; at: number };
 
 /** The owner's answers to decision 0002's questions that change a verdict, given to the
-    grader rather than assumed by it. None is answered yet; the recommended ones are Q3(a),
-    Q4(a) and Q5(a).
+    grader rather than assumed by it. Answered on 2026-10-07 with the recommended options,
+    Q3(a), Q4(a) and Q5(a), which check.ts OWNER records.
       q3  an unreduced fraction (6/4 for 3/2): (a) right, with a note; (b) form/unreduced;
           (c) as (a), but a fraction for a whole-number key is form/unreduced
       q4  a mixed number (1 1/2): (a) read as 3/2 in number, fraction and point boxes and

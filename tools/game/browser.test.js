@@ -39,6 +39,15 @@
       BMLearn.detect); in the Arena, unread nudges, stays on the question and keeps the clock
       running, form costs a heart and the streak and its reason replaces the miss text, on the
       retry too and across a reload; and 500 seeded golden cases judged in Chromium agree with Node
+  11. the real verdicts, with the typed grader live: on 01-numbers 0.667 for the key 2/3 is
+      form/rounded at no cost, 1-1/2 is an unread nudge worded by the owner's Q4(a), 1 1/2 is
+      wrong (it is 3/2) with the "We read that as 3/2" line, 4/6 is right with the
+      lowest-terms note, a mixed number in a blank marks that blank and shows its reading,
+      and an unread blank leaves the last check's marks; on 08-coordinates a wrong x=3 on an
+      exact card shows no reading line, 8/2 stays wrong for 4|iv, and a labeled point for a
+      point key is form/notation with its reading; in the Arena, on frac-sum problems set into the run, the key with º or ˚
+      is unread/units (a nudge, no heart, the clock runs on), with " deg" or ° it is still
+      right after clean(), and its 3-place decimal is form/rounded, a miss with its reason
    and the settings sheet: a modal sheet at 360 that keeps the focus and gives it back on
    Escape, beside the rail at 1280, the theme chosen in it even with storage blocked (the
    `hud` suite of check-browser.js covers every setting and the HUD's layout) */
@@ -1058,6 +1067,151 @@ async function run() {
       s = await ar();
       eq([s.phase, s.hearts, s.verdict], ["retry", 1, ["no", null, "✗ Not right, and that cost a heart."]], "a wrong answer still reads as before");
       eq(a.errors, [], "no errors through the injected verdicts in the Arena");
+      await a.context.close();
+    }
+
+    /* ------------- 11. real verdicts: the typed grader on 01-numbers and in the Arena */
+    {
+      const CH01 = "parts/1-algebra/01-numbers.html";
+      const { context, page, errors } = await open(browser, CH01, { "bm.lesson.v1": '{"mode":"page"}' });
+      const card = (sel) => page.evaluate((sel) => {
+        var ex = document.querySelector(sel), fb = ex.querySelector(".ex-feedback"), v = fb.querySelector(".ex-verdict");
+        return {
+          state: ex.getAttribute("data-state"), kind: v && v.getAttribute("data-kind"),
+          text: fb.getAttribute("data-show") === "true" ? fb.textContent.replace(/\s+/g, " ").trim() : "",
+          blanks: Array.prototype.map.call(ex.querySelectorAll("input.blank"), function (b) { return [b.getAttribute("data-ok"), b.getAttribute("data-verdict"), b.getAttribute("aria-invalid")]; })
+        };
+      }, sel);
+      const typed = async (sel, value) => { await page.fill(sel + " .ex-form input[type=text]", value); await page.click(sel + " .ex-form .btn:not(.ghost)"); };
+      const fill = async (sel, vals) => {
+        const inputs = await page.$$(sel + " input.blank");
+        for (let i = 0; i < vals.length; i++) await inputs[i].fill(vals[i]);
+        await page.click(sel + " .ex-form .btn:not(.ghost)");
+      };
+      const attempts = () => page.evaluate(() => JSON.parse(localStorage.getItem("bm.attempts.v1") || "{}").ch01 || {});
+      /* t7 is the number key 2/3 with no tol; t5 has no type (exact) and the key 1; k3 is the blanks [8, 3, 11] */
+      const T7 = ".ex#t7", K3 = ".ex#k3";
+      eq(await page.$eval(T7, (e) => [e.getAttribute("data-type"), e.getAttribute("data-answer"), e.getAttribute("data-tol")]), ["number", "2/3", null], "t7 is the number key 2/3 with no tol");
+      await typed(T7, "0.667");
+      let c = await card(T7);
+      eq([c.kind, c.text, c.state, (await attempts()).t7], ["form", "That is rounded. Give the exact value.", null, undefined], "0.667 for 2/3 is form/rounded, at no cost");
+      await typed(T7, "1-1/2");
+      c = await card(T7);
+      eq([c.kind, c.text, c.state], ["nudge", "Type a mixed number with a space, like 2 1/3, or as a fraction, like 7/3.", null], "1-1/2 is unread/ambiguous-mixed, a retype nudge worded by the owner's Q4(a)");
+      await typed(T7, "1 1/2");
+      c = await card(T7);
+      check(c.state === "wrong" && /Not right\./.test(c.text) && /We read that as 3\/2\./.test(c.text) && (await attempts()).t7.tries === 1, "1 1/2 is wrong (Q4(a): it is 3/2), with the reading line, as the first try: " + c.text);
+      await typed(T7, "4/6");
+      c = await card(T7);
+      check(c.state === "correct" && /Correct\.\s*4\/6 is 2\/3 in lowest terms\./.test(c.text), "4/6 is right with the lowest-terms note (Q3(a)): " + c.text);
+      /* blanks: the reading line names the blank's own reading; an unread blank leaves the last marks */
+      await fill(K3, ["1 1/2", "3", "11"]);
+      c = await card(K3);
+      eq([c.state, c.blanks, /We read that as 3\/2\./.test(c.text)], ["wrong", [["false", null, "true"], ["true", null, null], ["true", null, null]], true], "a mixed number in a blank: the card is wrong, that blank marked, and its reading shown");
+      await fill(K3, ["8", "x=3", "11"]);
+      c = await card(K3);
+      eq([c.kind, c.text, c.state, c.blanks], ["nudge", "Blank 2: Type just the number.", "wrong", [["false", null, "true"], ["true", null, null], ["true", null, null]]], "an unread blank stops the check, named, and the last check's marks stay as they were");
+      await fill(K3, ["8", "3", "11"]);
+      c = await card(K3);
+      eq([c.state, c.blanks], ["correct", [["true", null, null], ["true", null, null], ["true", null, null]]], "all right: the marks reset");
+      eq(errors, [], "no errors through the real verdicts on a page");
+      await context.close();
+
+      /* exact cards on 08-coordinates: t1 is the scalar key 4|iv, e3 the point key (2,-5)|2,-5; neither has a type */
+      const x = await open(browser, "parts/3-coordinates/08-coordinates.html", { "bm.lesson.v1": '{"mode":"page"}' });
+      const xcard = (sel) => x.page.evaluate((sel) => {
+        var ex = document.querySelector(sel), fb = ex.querySelector(".ex-feedback"), v = fb.querySelector(".ex-verdict");
+        return { state: ex.getAttribute("data-state"), kind: v && v.getAttribute("data-kind"), text: fb.getAttribute("data-show") === "true" ? fb.textContent.replace(/\s+/g, " ").trim() : "" };
+      }, sel);
+      const xtyped = async (sel, value) => { await x.page.fill(sel + " .ex-form input[type=text]", value); await x.page.click(sel + " .ex-form .btn:not(.ghost)"); };
+      const XT1 = ".ex#t1", XE3 = "#practice .ex#e3";
+      eq(await x.page.$eval(XT1, (e) => [e.getAttribute("data-type"), e.getAttribute("data-answer")]), [null, "4|iv"], "t1 is the exact key 4|iv");
+      eq(await x.page.$eval(XE3, (e) => [e.getAttribute("data-type"), e.getAttribute("data-answer")]), [null, "(2,-5)|2,-5"], "e3 is the exact key (2,-5)|2,-5");
+      await xtyped(XT1, "x=3");
+      c = await xcard(XT1);
+      check(c.state === "wrong" && /Not right\./.test(c.text) && !/We read that as/.test(c.text), "a wrong x=3 on an exact card shows no reading line: " + c.text);
+      await xtyped(XT1, "8/2");
+      c = await xcard(XT1);
+      check(c.state === "wrong" && !/We read that as/.test(c.text), "a scalar exact key stays text: 8/2 is wrong for 4|iv, with no reading line: " + c.text);
+      await xtyped(XE3, "y=-5, x=2");
+      c = await xcard(XE3);
+      check(c.kind === "form" && c.state === null && /^Right values\. Write it as \(2, -5\)\.\s*We read that as \(2, -5\)\.$/.test(c.text), "a labeled point for a point key is form/notation, with its reading, at no cost: " + c.text);
+      await xtyped(XE3, "(2.0, -5)");
+      c = await xcard(XE3);
+      check(c.state === "correct" && /Correct\./.test(c.text), "the point by value is right: " + c.text);
+      eq(x.errors, [], "no errors through the real verdicts on the exact cards");
+      await x.context.close();
+
+      /* the Arena, on frac-sum problems set into the run (BMArena.state() is the live run) */
+      const a = await open(browser, "arena.html", {});
+      await a.page.evaluate(() => {
+        var all = {}, t = Date.now() - 864e5 * 2;
+        window.BMGen.list().forEach(function (s) {
+          var ch = s.section.split("#")[0], sec = s.section.split("#")[1], recs = all[ch] = all[ch] || {};
+          recs["z" + sec + "1"] = { tries: 1, first: 1, solved: t, section: sec };
+          recs["z" + sec + "2"] = { tries: 1, first: 1, solved: t + 1, section: sec };
+        });
+        localStorage.setItem("bm.attempts.v1", JSON.stringify(all));
+      });
+      await a.page.reload();
+      await a.page.waitForFunction(() => document.readyState === "complete");
+      /* three frac-sum seeds: any two, and one whose value rounded at 3 places is form/rounded in Node */
+      const { judge, specOf } = require("../../src/core/answer/check.ts");
+      const { readNumber } = require("../../src/core/answer/read.ts");
+      const { roundTo } = require("../../src/core/answer/rational.ts");
+      const probs = await a.page.evaluate(() => { var out = []; for (var s = 1; s <= 80; s++) { var p = window.BMGen.make("frac-sum", s); out.push({ s: s, answer: p.answer, type: p.type }); } return out; });
+      const decimal3 = (key) => { const r = readNumber(key, { q4: "a" }); if (!r.ok) return null; const q = roundTo(r.value, 3); const n = (q.n < 0n ? -q.n : q.n).toString().padStart(4, "0"); return (q.n < 0n ? "-" : "") + n.slice(0, -3) + "." + n.slice(-3); };
+      const numberOf = (p) => (p.type === "number" || p.type === "fraction") && readNumber(p.answer.split("|")[0], { q4: "a" }).ok;
+      const plain = probs.filter(numberOf), rounded = probs.find((p) => numberOf(p) && judge(decimal3(p.answer.split("|")[0]), specOf(p)).kind === "form");
+      check(plain.length >= 2 && !!rounded, "frac-sum gives two number problems and one whose 3-place decimal is form/rounded (" + plain.length + ", " + (rounded && rounded.s) + ")");
+      const picked = [plain[0], plain[1], rounded];
+      const ar = () => a.page.evaluate(() => {
+        var r = window.BMArena.state(), q = r.qs[r.i], p = window.BMGen.make(q.g, q.s), v = document.querySelector(".arena-feedback .arena-verdict"), n = document.querySelector(".arena-nudge");
+        return { i: r.i, phase: r.cur.phase, el: r.cur.el, hearts: r.hearts, streak: r.streak, timed: q.timed, hf: q.hf, g: q.g, s: q.s, key: String(p.answer).split("|")[0], type: p.type, ans: r.ans[r.i] || null,
+          verdict: v && [v.getAttribute("data-kind"), v.getAttribute("data-verdict"), v.textContent.trim()], nudge: n && !n.hidden ? n.textContent : "" };
+      });
+      const type = async (value) => { await a.page.fill("#arena-answer", value); await a.page.click('.arena-run [data-act="check"]'); };
+      const next = async () => { await a.page.click('.arena-feedback [data-act="next"]'); };
+      await a.page.click('[data-act="start"][data-mode="standard"]');
+      /* the next three questions become the picked frac-sum problems, timed, with hearts at stake */
+      await a.page.evaluate((seeds) => {
+        var r = window.BMArena.state();
+        seeds.forEach(function (s, j) { var q = r.qs[r.i + 1 + j]; q.g = "frac-sum"; q.s = s; q.timed = true; q.hf = false; q.par = 60; });
+      }, picked.map((p) => p.s));
+      await a.page.click('.arena-run [data-act="pass"]');
+      if ((await ar()).phase === "retry") await a.page.click('.arena-run [data-act="pass"]');
+      await next();
+      let s = await ar();
+      eq([s.g, s.s, s.type, s.timed, s.hf, s.hearts, s.phase], ["frac-sum", picked[0].s, "fraction", true, false, 3, "ask"], "the first picked problem is up, timed, hearts at stake");
+      const k1 = s.key;
+      await type(k1 + "º");
+      await wait(2300);
+      s = await ar();
+      eq([s.nudge, s.phase, s.hearts, s.ans, s.el > 0], ["Type the number without units.", "ask", 3, null, true], "the key with º is unread/units: a nudge, no heart, nothing recorded, the clock runs on");
+      await type(k1 + "˚");
+      s = await ar();
+      eq([s.nudge, s.phase, s.hearts], ["Type the number without units.", "ask", 3], "and with ˚ too");
+      await type(k1 + " deg");
+      s = await ar();
+      eq([s.phase, s.hearts, s.nudge, s.ans && s.ans.first, s.verdict && s.verdict[0]], ["done", 3, "", true, "ok"], "the key with \" deg\" is still right after clean()");
+      await next();
+      s = await ar();
+      const k2 = s.key;
+      await type(k2 + "°");
+      s = await ar();
+      eq([s.g, s.s, s.phase, s.hearts, s.verdict && s.verdict[0]], ["frac-sum", picked[1].s, "done", 3, "ok"], "the key with ° is right after clean()");
+      await next();
+      s = await ar();
+      eq([s.g, s.s, s.phase, s.streak], ["frac-sum", picked[2].s, "ask", 2], "the third picked problem is up, with a streak of 2");
+      await type(decimal3(s.key));
+      s = await ar();
+      eq([s.phase, s.hearts, s.streak, s.ans && s.ans.miss, s.ans && s.ans.lost, s.nudge, s.verdict],
+        ["retry", 2, 0, true, true, "", ["no", "form", "✗ That is rounded. Give the exact value. That cost a heart."]],
+        "a rounded decimal for a fraction key is form/rounded: a miss in the Arena (Q1(c)), heart and streak, with its reason");
+      await type(s.key);
+      s = await ar();
+      eq([s.phase, s.hearts, s.verdict && s.verdict[0]], ["done", 2, "ok"], "the exact fraction on the retry is right");
+      eq(a.errors, [], "no errors through the real verdicts in the Arena");
       await a.context.close();
     }
   } finally {

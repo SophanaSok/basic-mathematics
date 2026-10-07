@@ -112,7 +112,9 @@ function bundleNames(): (id: string) => string | null {
     if (by) return by.length === kinds.length ? "all" : by.join("-");
     if (/^assets\/[^/]+\.js$/.test(rel)) return path.posix.basename(rel, ".js");   /* a dynamic import of a script's own */
     if (rel.startsWith(WORLD_DIR)) return "world";                                  /* the course world, map3d.js's import() */
-    if (rel.startsWith(GRADER_DIR)) return nameOf(GRADER, id);                      /* the grader's modules, with grade.ts */
+    /* the grader's modules, with grade.ts: after `by`, so one an entry named itself would
+       go by that entry (tools/check-dist.js kindsLoading reads them in the same order) */
+    if (rel.startsWith(GRADER_DIR)) return nameOf(GRADER, id);
     if (rel.startsWith(VENDOR_DIR + "/")) return path.posix.basename(rel, ".js");  /* a vendor module imported on demand */
     if (/(^|\/)node_modules\//.test(rel)) return nameOf(vendorOf(rel).file, id);    /* with the vendor module that brings it in */
     throw new Error("vite.config.ts bundleNames: no entry or kind loads " + JSON.stringify(rel) + " (from " + id + "), so it has no name in dist/bundle/");
