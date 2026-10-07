@@ -377,6 +377,9 @@ src/learn/*.ts          the learning logic, no DOM and no window: the help ladde
                         each with a Vitest test beside it, <module>.test.ts
 src/data/arena-sections.ts  the sections the Arena has generators for, for pages without them;
                         its test holds it to data/gen/*.js
+src/data/skills.ts      one skill per section: its Common Core code, course and SAT, ACT,
+                        Accuplacer and ALEKS tags, and the generators that test something else;
+                        imported by no page yet
 src/ui/ladder.ts        the help ladder on a card: the button, the clues, focus, the offer line;
                         puts window.BMLearn up for site.js. The chapter entry imports all of these
 src/ui/review.ts        puts the review's schedule and XP rules up as window.BMReview, for game.js
@@ -1234,7 +1237,7 @@ the browser ones also need Chromium once, `npx playwright install chromium`
 npm run check           # everything that needs no browser, about 20 s:
 npm run typecheck       #   tsc over src/, vite.config.ts and vitest.config.ts
 npm run check:static    #   syntax, progress keys, ids, lesson steps, the shell, links, sections,
-                        #   widgets, choices, migrations, placeholders, merge laws, contrast,
+                        #   skills, widgets, choices, migrations, placeholders, merge laws, contrast,
                         #   animations (no loop, no flash), colours (only in tokens.css), the reading column
 npm run check:ci        #   the workflow's deploy guards: the default Cloudflare project, the re-run
                         #   guard before wrangler, pr-<number> previews, main deploys as production,
