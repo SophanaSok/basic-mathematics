@@ -27,15 +27,18 @@
      - pure-core: a page global named in a module's code is found, by line, and one in a
        string is told apart; one in a comment is not; a "//", "/*" or quote inside a string
        or a regex hides nothing; one in a template's text, in JSX text or spelled with an
-       escape is found; a module that does not parse is refused; every script extension
-       is read but tests, test helpers and declaration files
+       escape is found, and marked as in a string; a module that does not parse is
+       refused; every script extension is read but tests, test helpers and declaration
+       files
      - skills: each rule of the skills check on a small tree that breaks only it (a
        section with no record, a container with one, a key that is no section, CONTAINERS
-       against the practice sections, an exercise with no data-section or one naming a
+       against the practice sections or listing one twice, an exercise with no data-section or one naming a
        container, bare or a ref, a malformed, unknown or wrongly lettered code, also
        repeating, each course rule and its approximate pass, a generator with no record,
        an override for no generator or changing nothing, a repeated tag, act.mod first),
-       and the real tree passing with its 76 sections
+       the anchor sectionAnchors gives a section (a practice section whose h2 carries no
+       id, an h2 that carries it, a section that is not a practice one), and the real
+       tree passing with its 76 sections
      - us-english (tools/us-english.js and the check): a British spelling in prose, in a
        reader attribute (data-tip too), a <title>, a <textarea>, an inline <script>, a
        script's string ("Cancelled." and toast("colour") among them) or a \text{} body in a
@@ -685,6 +688,7 @@ function refusal(fn) { try { fn(); return null; } catch (e) { return e.message; 
   eq(found("export const P = () => <p>the\nwindow</p>;", "x.tsx"), ["window@2"], "… and one in JSX text");
   eq(found('const s = "\\u0077indow";\nconst t = `${1}\n\\u{64}ocument`;', "x.ts"), ["window@1", "document@2"], "… and one a string or a template spells with an escape, by the line its text starts on");
   eq(found('const s = "window \\u0077indow";', "x.ts"), ["window@1", "window@1"], "… each time, the written one once");
+  eq(pureProblems('const s = "\\u0077indow";\nconst t = `\\u{64}ocument`;', "x.ts").map(x => x.name + ":" + x.string), ["window:true", "document:true"], "… and a name found only through an escape is marked as in a string");
   check(refusal(() => pureProblems("const = ;", "x.ts")) !== null, "… a module that does not parse is refused, not passed");
   eq(["a.ts", "a.js", "a.mts", "a.cts", "a.mjs", "a.cjs", "a.tsx", "a.jsx", "a.test.ts", "a.test.mts", "a.test-helper.ts", "a.d.ts", "a.d.mts", "a.json"].filter(isPureFile), ["a.ts", "a.js", "a.mts", "a.cts", "a.mjs", "a.cjs", "a.tsx", "a.jsx"],
     "… every script under the pure directories is read, whatever its extension, but tests, test helpers and declaration files");
@@ -695,7 +699,7 @@ function refusal(fn) { try { fn(); return null; } catch (e) { return e.message; 
    it, and once on the real tree; generator records resolve through src/data/skills.ts's
    own resolveOverride */
 {
-  const { codeProblems, courseProblems, exerciseRefs, skillsProblems } = require("./check-static");
+  const { codeProblems, courseProblems, exerciseRefs, sectionAnchors, skillsProblems } = require("./check-static");
   const codes = {
     "8.EE.C.8": { plus: false, subs: { a: false, b: false, c: false } },
     "HSA.REI.B.3": { plus: false, subs: {} },
@@ -727,6 +731,16 @@ function refusal(fn) { try { fn(); return null; } catch (e) { return e.message; 
   hit({ SKILLS: withSkill("ch01#zzz", rec({})) }, /^SKILLS\[ch01#zzz\]: no curriculum section/, "skills 1b: a SKILLS key that is no section fails");
   hit({ sections: SECTIONS.concat({ ref: "ch01#c", anchor: "h2" }), CONTAINERS: ["ch01#review", "ch01#c"] }, /CONTAINERS lists ch01#c, which is not a mixed-review section/, "skills 1c: a CONTAINERS entry whose anchor is an h2 fails");
   hit({ CONTAINERS: [] }, /^ch01#review: a mixed-review section .* missing from CONTAINERS/, "skills 1c: a practice section left out of CONTAINERS fails");
+  hit({ CONTAINERS: ["ch01#review", "ch01#review"] }, /^CONTAINERS lists ch01#review twice$/, "skills 1c: a container listed twice fails");
+  /* the anchors skillsTree gives the sections, from the chapter pages */
+  const anchorsOf = (body, ids) => sectionAnchors({ chapters: [{ id: "ch01", path: "c.html", sections: ids.map(id => ({ id })) }] },
+    { "c.html": parse("<!doctype html><html><head><title>t</title></head><body><main>" + body + "</main></body></html>") }).map(s => s.ref + ":" + s.anchor);
+  eq(anchorsOf('<h2 id="a">A</h2><section class="practice" id="review"><h2>Mixed review</h2><p>x</p></section>', ["a", "review"]), ["ch01#a:h2", "ch01#review:practice"],
+    "skills: a <section class=\"practice\"> carrying the id, its h2 carrying none, is a practice anchor");
+  eq(anchorsOf('<section class="practice"><h2 id="drill">Drill</h2></section>', ["drill"]), ["ch01#drill:h2"], "skills: … an h2 carrying the id inside a practice section is an h2 anchor");
+  eq(anchorsOf('<h2 id="both">Both</h2><section class="practice" id="both"><p>x</p></section>', ["both"]), ["ch01#both:h2"], "skills: … and an h2 carrying the id wins over a practice section carrying it too, as curriculum's does");
+  eq(anchorsOf('<section class="note practiced" id="n"><p>x</p></section><div class="practice" id="d"><p>x</p></div>', ["n", "d"]), ["ch01#n:h2", "ch01#d:h2"],
+    "skills: … a section without the practice class, or a practice element that is no section, is not a practice anchor");
   /* 2 scored exercises */
   hit({ exercises: [{ where: "p.html:9 (key e9)", ref: "" }] }, /^p\.html:9 \(key e9\): a scored exercise with no data-section/, "skills 2a: a scored exercise with no data-section fails");
   hit({ exercises: [{ where: "p.html:9 (key e9)", ref: "ch01#review" }] }, /data-section names ch01#review, a mixed-review container/, "skills 2b: a data-section naming a container as a ref fails");

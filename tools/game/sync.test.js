@@ -761,7 +761,10 @@ const BROKEN = (win) => Object.assign({}, MERGE, {
 });
 
 scenario("a sync whose merge fails is never followed by a save of this browser's unmerged copy", async () => {
-  expect(BROKEN !== SRC, "setup: account.js no longer has the line this scenario patches");
+  const probe = BROKEN({ BREAK_MERGE: true });
+  let threw = false;
+  try { probe.merge({}, {}); } catch (e) { threw = true; }
+  expect(typeof probe.merge === "function" && threw, "setup: the broken merge module does not fail while BREAK_MERGE is set");
   const server = new Server();
   server.rows.u1 = { user_id: "u1", progress: { ch01: { solved: { e1: true, e2: true }, total: 10 } }, reset_at: 0, updated_at: now - 1000 };
   const d = new Device("laptop", server);
