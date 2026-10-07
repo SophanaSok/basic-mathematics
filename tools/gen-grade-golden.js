@@ -11,11 +11,14 @@
        one option as a number, several as a set), every figure's (data-compare)
      - the hand cases of src/learn/detectors.test.ts (the detector fixtures)
      - 2,000 problems of the Arena's generators (data/gen/), drawn with seeded seeds
+     - the first key of each type again with no type (null), as grade() takes it
    The answers given against each key: the whole key, and for each of its "|"
    alternatives the alternative itself, its sign flipped (in front, and everywhere), its
    reciprocal, its first number times 10 and divided by 10, its unicode spellings (−, –,
    ×, √, π, ≤, ≥, ≠, upper case) and its whitespace variants (padded, spaced out, a
-   trailing full stop).
+   trailing full stop); then (nearOf) the em dash, the near misses either side of a
+   tolerance and of the relative band, a set's other spellings and an expr's explicit
+   products, so every edge the grader draws has a case on each side of it.
 
    The output depends only on the tree: pages in lib/site.js htmlPages order, exercises
    in document order, generators in the order data/gen/ adds them, seeds from a fixed
@@ -152,6 +155,49 @@ function variantsOf(alt) {
   return out;
 }
 
+/* The near misses a rule decides and the spellings the variants above never send, added
+   after them so the lists of the first fixture keep their order: "-" written as an em
+   dash; a key with a tolerance moved by ± 0.5, 1 and 1.2 of it (inside, on the edge,
+   outside); a number, fraction or set key without one scaled by 1 ± 1e-10 (inside the
+   relative band) and 1 ± 1e-7 (outside it); a set joined by ";", in braces and
+   reversed; an expr with its products written with "*", and "*" written "⋅" (U+22C5,
+   the dot operator basicClean() reads). Numbers are read here without the grader; a
+   value JavaScript prints with an exponent is left out. */
+const NUMBER_TYPES = ["number", "fraction", "set"];
+
+/* the numbers of a key piece ("3/4", "0.38,2.62", "{1;2}"), or null */
+function valuesOf(alt) {
+  const vals = alt.replace(/[{}]/g, "").split(/[,;]/).map(p => {
+    const m = /^(-?\d+(?:\.\d+)?)(?:\/(\d+(?:\.\d+)?))?$/.exec(p.trim());
+    const den = m && m[2] !== undefined ? parseFloat(m[2]) : 1;
+    return m && den !== 0 ? parseFloat(m[1]) / den : null;
+  });
+  return vals.every(v => v !== null) ? vals : null;
+}
+function written(vals) {
+  const s = vals.map(String);
+  return s.some(x => /e/.test(x)) ? null : s.join(",");
+}
+
+function nearOf(alt, key) {
+  const out = [], vals = valuesOf(alt);
+  const push = (s) => { if (s !== null) out.push(s); };
+  if (alt.indexOf("-") > -1) out.push(alt.replace(/-/g, "—"));
+  if (vals && key.tol > 0) {
+    [0.5, 1, 1.2].forEach(k => [1, -1].forEach(sign => push(written(vals.map(v => +(v + sign * k * key.tol).toPrecision(12))))));
+  } else if (vals && NUMBER_TYPES.includes(key.type)) {
+    [1e-10, 1e-7].forEach(e => [1, -1].forEach(sign => push(written(vals.map(v => v * (1 + sign * e))))));
+  }
+  if (key.type === "set" && /[,;]/.test(alt)) {
+    const items = alt.replace(/[{}]/g, "").split(/[,;]/);
+    out.push(items.join(";"), "{" + items.join(",") + "}", items.slice().reverse().join(","));
+  }
+  const starred = key.type === "expr" ? alt.replace(/(\d)(?=[a-z(])/gi, "$1*") : alt;
+  if (starred !== alt) out.push(starred);
+  if (starred.indexOf("*") > -1) out.push(starred.replace(/\*/g, "⋅"));
+  return out;
+}
+
 /* "|" alternatives, read here without the grader, so a key's own pieces are always tried */
 function pieces(answer) {
   const raw = (answer || "").trim();
@@ -164,14 +210,23 @@ function givensOf(key) {
   (key.extra || []).forEach(add);
   add(key.answer);
   pieces(key.answer).forEach(alt => variantsOf(alt).forEach(add));
+  pieces(key.answer).forEach(alt => nearOf(alt, key).forEach(add));
   return out;
 }
 
 /* ------------------------------------------------------------------ main -- */
 
+/* the first key of each type once more with no type, graded as grade() grades a key that
+   names none */
+function untypedKeys(keys) {
+  const seen = new Set();
+  return keys.filter(k => !seen.has(k.type) && seen.add(k.type)).map(k => Object.assign({}, k, { from: "type null: " + k.from, type: null }));
+}
+
 function build() {
   const grade = loadGrade();
-  const keys = courseKeys().concat(detectorKeys(), genKeys());
+  let keys = courseKeys().concat(detectorKeys(), genKeys());
+  keys = keys.concat(untypedKeys(keys));
   let cases = 0;
   const groups = keys.map(k => {
     const right = [], wrong = [];
