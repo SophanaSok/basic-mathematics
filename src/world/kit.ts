@@ -13,7 +13,8 @@ export class Kit {
   readonly edges = new EdgeBatch();
   private cache = new Map<string, { geo: BufferGeometry; edges: BufferGeometry | null }>();
   private o: Object3D;
-  constructor(readonly T: Three) { this.o = new T.Object3D(); }
+  readonly T: Three;
+  constructor(T: Three) { this.T = T; this.o = new T.Object3D(); }
 
   /** a matrix from a position, an Euler rotation (XYZ) and a scale */
   matrix(at: Place): Matrix4 {
