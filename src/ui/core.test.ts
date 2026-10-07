@@ -18,7 +18,7 @@ describe("the modules under src/core/", () => {
   it("add no global when Node imports them, and neither does the installer", () => {
     const files = (fs.readdirSync(path.join(ROOT, "src/core"), { recursive: true }) as string[])
       .map((f) => f.split(path.sep).join("/")).filter((f) => /\.ts$/.test(f) && !/\.(test|d)\.ts$/.test(f)).sort();
-    expect(files).toEqual(expect.arrayContaining(["config.ts", "curriculum.ts", "grade.ts", "rules.ts", "store.ts"]));
+    expect(files).toEqual(expect.arrayContaining(["config.ts", "curriculum.ts", "grade.ts", "rules.ts", "store.ts", "answer/check.ts"]));
     for (const f of files) expect(f).toMatch(/^(answer\/)?[a-z]+\.ts$/);
     const urls = files.map((f) => "src/core/" + f).concat("src/ui/core.ts").map((f) => new URL("file://" + path.join(ROOT, f)).href);
     const script = "const before = Reflect.ownKeys(globalThis).map(String);" +
@@ -31,22 +31,27 @@ describe("the modules under src/core/", () => {
 });
 
 describe("window.BMCore", () => {
-  it("is the grader, its verdicts and messages, the rules, the refs and the settings reader", () => {
-    expect(Object.keys(core)).toEqual(["grade", "matches", "alternatives", "judge", "specOf", "messages", "rules", "curriculum", "config"]);
+  it("is the grader, its verdicts, the owner's answers and the messages, the rules, the refs and the settings reader", () => {
+    expect(Object.keys(core)).toEqual(["grade", "matches", "alternatives", "judge", "specOf", "owner", "messages", "rules", "curriculum", "config"]);
+    /* the owner's answers of 2026-10-07 (decision 0002), frozen, so site.js words the Q4 message as the reader reads */
+    expect(core.owner).toEqual({ q3: "a", q4: "a", q5: "a" });
+    expect(Object.isFrozen(core.owner)).toBe(true);
     expect(Object.keys(core.rules).sort()).toEqual(["CLUE_FREE", "FADED_RUNG", "Road", "STRONG", "WEAK", "XP", "fadedOf", "isMiss", "medalMark", "paysFirst", "setStats", "struggle", "xpFor"]);
     expect(Object.keys(core.messages)).toEqual(["unreadMessage", "formMessage", "readMessage", "lowestMessage"]);
     expect(core.grade("1/2", "0.5", "number")).toBe(true);
   });
 
-  /* the typed grader as a page will call it: still over the old grader, so a verdict is
-     right exactly where grade() says true; judgeOff() is the tools' and never on the page */
+  /* the typed grader as a page calls it: a verdict is right exactly where grade() says
+     true, and a wrong one carries its reading; judgeOff() is the tools' and never on the page */
   it("judges an answer from what the page holds, and leaves the tools' switch off", () => {
     const spec = core.specOf({ answer: "1/2", type: "number", tol: "" });
     expect(spec).toEqual({ answer: "1/2", type: "number", tol: 0 });
     expect(core.judge(" 0.5 ", spec)).toEqual({ kind: "right", alt: 0, read: "0.5", notes: [] });
-    expect(core.judge("2", spec)).toEqual({ kind: "wrong", read: null });
+    expect(core.judge("2", spec)).toEqual({ kind: "wrong", read: "2" });
     expect(core.judge("  ", spec)).toEqual({ kind: "unread", reason: "empty", at: 0 });
-    expect(core.messages.unreadMessage("empty", "a")).toBe("Type an answer, then press Check.");
+    expect(core.judge("0.67", spec)).toEqual({ kind: "wrong", read: "0.67" });
+    expect(core.judge("0.50", spec)).toMatchObject({ kind: "right" });
+    expect(core.messages.unreadMessage("empty", core.owner.q4)).toBe("Type an answer, then press Check.");
     expect("judgeOff" in core).toBe(false);
   });
 });
