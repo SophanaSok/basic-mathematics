@@ -29,6 +29,16 @@
       due, a weak one, only a place to continue), outside <main>'s children, hidden for the
       day by its button (device-only, still hidden after a reload, back the next day), and
       kept in Study mode without the game's colour
+  10. the verdicts of decision 0002 (typed grader), injected into BMCore.judge (site.js and
+      arena.js read it at check time): on a page a form verdict shows its reason, the reading
+      line for a labeled point, and costs nothing (Q1(c): no XP, no pip, no attempt record);
+      an unread one is a retype nudge (Q2(a)); a right unreduced fraction carries the
+      lowest-terms note; an unread blank stops the check, named, marking nothing; a form
+      blank is marked like a wrong one and tagged data-verdict="form", cleared by the next
+      check; [form, wrong] blanks ask the detectors about the wrong one (a stub
+      BMLearn.detect); in the Arena, unread nudges, stays on the question and keeps the clock
+      running, form costs a heart and the streak and its reason replaces the miss text, on the
+      retry too and across a reload; and 500 seeded golden cases judged in Chromium agree with Node
    and the settings sheet: a modal sheet at 360 that keeps the focus and gives it back on
    Escape, beside the rail at 1280, the theme chosen in it even with storage blocked (the
    `hud` suite of check-browser.js covers every setting and the HUD's layout) */
@@ -49,6 +59,28 @@ function eq(a, b, what) {
   check(JSON.stringify(a) === JSON.stringify(b), what + " — got " + JSON.stringify(a) + ", want " + JSON.stringify(b));
 }
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+
+/* BMCore.judge replaced on the page (page.evaluate(INJECT, map)), on the one object site.js
+   and arena.js read it from: a given in `map` (trimmed) gets that verdict, any other the
+   real one */
+function INJECT(map) {
+  var real = window.BMCore.judge;
+  window.BMCore.judge = function (given, spec) {
+    var v = map[String(given).trim()];
+    return v ? JSON.parse(JSON.stringify(v)) : real(given, spec);
+  };
+}
+/* mulberry32, the seeded stream the grading tools use */
+function mulberry(seed) {
+  let a = seed >>> 0;
+  return function () {
+    a = (a + 0x6d2b79f5) >>> 0;
+    let t = a;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
 
 /* counts AudioContext constructions, so a test can assert none happen with sound off */
 const AUDIO_SPY = "(" + function () {
@@ -891,6 +923,142 @@ async function run() {
         "with only such sections solved, the lobby says the Arena has no problems for them: " + none5);
       eq(f.errors, [], "no errors on that lobby");
       await f.context.close();
+    }
+
+    /* ------------- 10. verdicts: injected form and unread on a page and in the Arena; parity */
+    {
+      const FORM = { kind: "form", alt: 0, read: "(6, -2)", reason: "notation" };
+      const UNREAD = { kind: "unread", reason: "named", at: 0 };
+      const VERDICTS = { "FORM": FORM, "y=-2, x=6": FORM, "UNREAD": UNREAD, "6/4": { kind: "right", alt: 0, read: "6/4", notes: ["unreduced"] } };
+      const { context, page, errors } = await open(browser, CH05, { "bm.lesson.v1": '{"mode":"page"}' });
+      await page.evaluate(INJECT, VERDICTS);
+      const card = (sel) => page.evaluate((sel) => {
+        var ex = document.querySelector(sel), fb = ex.querySelector(".ex-feedback"), v = fb.querySelector(".ex-verdict");
+        return {
+          state: ex.getAttribute("data-state"), kind: v && v.getAttribute("data-kind"),
+          text: fb.getAttribute("data-show") === "true" ? fb.textContent.replace(/\s+/g, " ").trim() : "",
+          blanks: Array.prototype.map.call(ex.querySelectorAll("input.blank"), function (b) { return [b.getAttribute("data-ok"), b.getAttribute("data-verdict"), b.getAttribute("aria-invalid")]; })
+        };
+      }, sel);
+      const typed = async (sel, value) => { await page.fill(sel + " .ex-form input[type=text]", value); await page.click(sel + " .ex-form .btn:not(.ghost)"); };
+      const fill = async (sel, vals) => {
+        const inputs = await page.$$(sel + " input.blank");
+        for (let i = 0; i < vals.length; i++) await inputs[i].fill(vals[i]);
+        await page.click(sel + " .ex-form .btn:not(.ghost)");
+      };
+      const attempts = () => page.evaluate(() => JSON.parse(localStorage.getItem("bm.attempts.v1") || "{}").ch05 || {});
+      const E1 = '#practice .ex[data-key="e1"]', K1 = '.ex[data-key="k1"]', K2 = '.ex[data-key="k2"]';
+      const s0 = await state(page);
+      await typed(E1, "FORM");
+      let c = await card(E1);
+      eq([c.kind, c.text, c.state], ["form", "Right values. Write it as (6, -2).", null], "a form verdict shows its reason and leaves the card in no state");
+      const s1 = await state(page);
+      eq([s1.xp, s1.pips, (await attempts()).e1], [s0.xp, s0.pips, undefined], "and costs nothing on a page: no XP, no pip, no attempt record");
+      await typed(E1, "y=-2, x=6");
+      check(/We read that as \(6, -2\)\./.test((await card(E1)).text), "a labeled point gets the reading line");
+      await typed(E1, "FORM");
+      check(!/We read that as/.test((await card(E1)).text), "no reading line without a mixed number, a ½ or a label");
+      await typed(E1, "UNREAD");
+      c = await card(E1);
+      eq([c.kind, c.text, c.state, (await attempts()).e1], ["nudge", "Type just the number.", null, undefined], "an unread verdict is a retype nudge: no state, no record");
+      await typed(E1, "987654");
+      c = await card(E1);
+      check(c.state === "wrong" && /Not right/.test(c.text) && (await attempts()).e1.tries === 1, "a wrong answer after them is the first try: " + c.text);
+      await typed(E1, "6/4");
+      c = await card(E1);
+      check(c.state === "correct" && /Correct\.\s*6\/4 is 3\/2 in lowest terms\./.test(c.text), "a right unreduced fraction is correct, with the lowest-terms note: " + c.text);
+      eq((await attempts()).e1.tries, 2, "the right answer is the second try");
+
+      /* blanks: k1 is [35, 145], k2 is [289, 17] */
+      await fill(K1, ["35", "UNREAD"]);
+      c = await card(K1);
+      eq([c.kind, c.text, c.blanks], ["nudge", "Blank 2: Type just the number.", [[null, null, null], [null, null, null]]], "an unread blank stops the check, named, with nothing marked");
+      await fill(K1, ["35", "FORM"]);
+      c = await card(K1);
+      eq([c.kind, c.text, c.state, c.blanks, (await attempts()).k1], ["form", "Right values. Write it as (6, -2).", null, [["true", null, null], ["false", "form", "true"]], undefined],
+        "one form blank: the card is form at no cost, the blank marked like a wrong one and tagged");
+      await fill(K1, ["35", "987654"]);
+      c = await card(K1);
+      eq([c.state, c.blanks[1], (await attempts()).k1.tries], ["wrong", ["false", null, "true"], 1], "a wrong answer in that blank next: the tag is cleared before the mark, and the miss counts");
+      /* [form, wrong]: the detectors are asked about the wrong blank, never the form one */
+      await page.evaluate(() => { window.__asked = []; window.BMLearn.detect = function (inp) { window.__asked.push(inp.given); return null; }; });
+      await fill(K2, ["FORM", "987654"]);
+      c = await card(K2);
+      eq([c.state, c.blanks, await page.evaluate(() => window.__asked)], ["wrong", [["false", "form", "true"], ["false", null, "true"]], ["987654"]], "[form, wrong] blanks: wrong, and the detectors see the second blank only");
+      await fill(K2, ["289", "17"]);
+      c = await card(K2);
+      eq([c.state, c.blanks], ["correct", [["true", null, null], ["true", null, null]]], "all right: the marks reset and the tag goes");
+      eq(errors, [], "no errors through the injected verdicts on a page");
+      await context.close();
+
+      /* the Arena: BMCore.judge read at check time; unread nudges, form is a miss */
+      const a = await open(browser, "arena.html", {});
+      await a.page.evaluate(() => {
+        /* every section the generators cover, solid in the deck, as arena.test.js seeds it */
+        var all = {}, t = Date.now() - 864e5 * 2;
+        window.BMGen.list().forEach(function (s) {
+          var ch = s.section.split("#")[0], sec = s.section.split("#")[1], recs = all[ch] = all[ch] || {};
+          recs["z" + sec + "1"] = { tries: 1, first: 1, solved: t, section: sec };
+          recs["z" + sec + "2"] = { tries: 1, first: 1, solved: t + 1, section: sec };
+        });
+        localStorage.setItem("bm.attempts.v1", JSON.stringify(all));
+      });
+      await a.page.reload();
+      await a.page.waitForFunction(() => document.readyState === "complete");
+      /* parity first, on the real judge: 500 seeded golden cases in Chromium against Node */
+      {
+        const golden = require("../fixtures/grade-golden.json");
+        const { judge, specOf } = require("../../src/core/answer/check.ts");
+        const all = [];
+        golden.groups.forEach((g) => { g.right.concat(g.wrong).forEach((given) => all.push({ given, answer: g.answer, type: g.type, tol: g.tol })); });
+        const rand = mulberry(20261007), picked = [];
+        for (let i = 0; i < 500; i++) picked.push(all[Math.floor(rand() * all.length)]);
+        const node = picked.map((x) => judge(x.given, specOf(x)));
+        const web = await a.page.evaluate((cs) => cs.map((x) => window.BMCore.judge(x.given, window.BMCore.specOf(x))), picked);
+        let differ = 0;
+        for (let i = 0; i < picked.length; i++) if (JSON.stringify(node[i]) !== JSON.stringify(web[i])) differ++;
+        eq([web.length, differ], [500, 0], "BMCore.judge in Chromium agrees with Node on 500 seeded golden cases");
+      }
+      await a.page.evaluate(INJECT, VERDICTS);
+      const ar = () => a.page.evaluate(() => {
+        var r = window.BMArena.state(), q = r.qs[r.i], v = document.querySelector(".arena-feedback .arena-verdict"), n = document.querySelector(".arena-nudge");
+        return { i: r.i, phase: r.cur.phase, el: r.cur.el, hearts: r.hearts, streak: r.streak, timed: q.timed, hf: q.hf, ans: r.ans[r.i] || null,
+          verdict: v && [v.getAttribute("data-kind"), v.getAttribute("data-verdict"), v.textContent.trim()], nudge: n && !n.hidden ? n.textContent : "" };
+      });
+      const type = async (value) => { await a.page.fill("#arena-answer", value); await a.page.click('.arena-run [data-act="check"]'); };
+      await a.page.click('[data-act="start"][data-mode="standard"]');
+      for (let k = 0; k < 10; k++) {
+        const s = await ar();
+        if (s.timed && !s.hf) break;
+        await a.page.click('.arena-run [data-act="pass"]');
+        if ((await ar()).phase === "retry") await a.page.click('.arena-run [data-act="pass"]');
+        await a.page.click('.arena-feedback [data-act="next"]');
+      }
+      let s = await ar();
+      check(s.timed && !s.hf && s.hearts === 3, "on a timed question with hearts");
+      await type("UNREAD");
+      await wait(2300);
+      s = await ar();
+      eq([s.nudge, s.phase, s.hearts, s.ans, s.el > 0], ["Type just the number.", "ask", 3, null, true], "unread in the Arena: a nudge, still asking, no heart, nothing recorded, and the clock runs on");
+      await type("FORM");
+      s = await ar();
+      eq([s.phase, s.hearts, s.streak, s.ans && s.ans.miss, s.ans && s.ans.lost, s.nudge, s.verdict],
+        ["retry", 2, 0, true, true, "", ["no", "form", "✗ Right values. Write it as (6, -2). That cost a heart."]],
+        "form in the Arena is a miss (heart, streak), and its reason stands in for the miss text");
+      await a.page.reload();
+      await a.page.waitForFunction(() => document.readyState === "complete");
+      s = await ar();
+      eq([s.phase, s.verdict && s.verdict[2]], ["retry", "✗ Right values. Write it as (6, -2). That cost a heart."], "the reason survives a reload with the run");
+      await a.page.evaluate(INJECT, VERDICTS);
+      await type("FORM");
+      s = await ar();
+      eq([s.phase, s.hearts, s.verdict], ["done", 2, ["no", "form", "✗ Right values. Write it as (6, -2). Here is how it goes."]], "form on the retry: the second miss, with its reason");
+      await a.page.click('.arena-feedback [data-act="next"]');
+      await type("987654321");
+      s = await ar();
+      eq([s.phase, s.hearts, s.verdict], ["retry", 1, ["no", null, "✗ Not right, and that cost a heart."]], "a wrong answer still reads as before");
+      eq(a.errors, [], "no errors through the injected verdicts in the Arena");
+      await a.context.close();
     }
   } finally {
     await browser.close();
