@@ -33,13 +33,14 @@ import "../a11y/math-text.ts";
 import "../ui/math-names.ts";
 /* a formula or table that scrolls sideways becomes a tab stop while it does */
 import "../ui/scroll-regions.ts";
-/* the grader and the exercise rules, which site.js and game.js find on window.BMCore:
-   the pure modules first, then the one that puts them up. Before site.js, which builds
-   nothing without them */
+/* the grader and the exercise rules, which site.js and game.js find on window.BMCore,
+   and the sync merge, which account.js finds on window.BMMerge: the pure modules first,
+   then the one that puts them up. Before site.js, which builds nothing without them */
 import "../core/grade.ts";
 import "../core/rules.ts";
 import "../core/curriculum.ts";
 import "../core/config.ts";
+import "../sync/merge.ts";
 import "../ui/core.ts";
 import "../../assets/site.js";
 import "../../assets/sfx.js";

@@ -37,7 +37,9 @@ function loadAccount() {
       },
       read: (k, f) => f, write: noop, on: noop, emit: noop
     },
-    BMSite: { rootPrefix: () => "", escapeHtml: (s) => String(s) }
+    BMSite: { rootPrefix: () => "", escapeHtml: (s) => String(s) },
+    /* the merge every entry puts up ahead of account.js (src/ui/core.ts), read by Node itself */
+    BMMerge: require("../../src/ui/core.ts").merge
   };
   win.window = win;
   vm.createContext(win);

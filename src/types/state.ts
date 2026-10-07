@@ -127,7 +127,7 @@ export interface SectionRecall {
 }
 
 /** bm.game.v1: the synced game record. Every field merges so that order, grouping and
-    repetition never matter (mergeGame in assets/account.js). */
+    repetition never matter (mergeGame in src/sync/merge.ts). */
 export interface GameStore {
   /** achievement id -> when it was unlocked. Merge: union, earliest time */
   ach: Record<string, Timestamp>;
