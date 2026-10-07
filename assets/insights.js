@@ -143,7 +143,7 @@
     html += '<div class="stats">';
     html += tile("Due now", due.length, plural(deck.length, "section") + " in play");
     html += tile("Holding", holding, "sections in box 4 or 5");
-    html += tile("Last practised", last ? esc(dayLabel(last)) : "—", last ? "in the Arena" : "no Arena run yet");
+    html += tile("Last practiced", last ? esc(dayLabel(last)) : "—", last ? "in the Arena" : "no Arena run yet");
     html += tile("First-try recall", n ? ok + "<small> / " + n + "</small>" : "—", n ? pct(ok, n) + "% of Arena answers" : "");
     html += "</div>";
     if (due.length) {
