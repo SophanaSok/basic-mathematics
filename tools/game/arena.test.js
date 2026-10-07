@@ -495,7 +495,7 @@ async function run() {
       /* 3 a first try on a due section: Angles 3 + 3, One unknown 3 (its retry has no heart at stake, so pays none), Distance 3 + 3; no finishing bonus without hearts */
       eq([res.xp, res.firstTry, res.n], [15, 5, 6], "the review's XP and first-try count");
       const text = await p.$eval(".arena-result", (e) => e.textContent);
-      check(/5 of 6/.test(text) && /83% right first time/.test(text), "the result shows the first-try count and rate");
+      check(/5 of 6/.test(text) && /83% right the first time/.test(text), "the result shows the first-try count and rate");
       check(!/85\s*(%|percent)/i.test(text) && !/target|aim for/i.test(text), "with no target band and no 85 percent figure");
       check(/3 sections checked/.test(text), "and how many sections it checked");
       eq(await p.$eval('.arena-result [data-act="again"]', (b) => b.textContent), "Review what is still due", "the next run offered is the review again");
