@@ -1266,25 +1266,32 @@ function skillsProblems(tree) {
   return out;
 }
 
-/* the tree skillsProblems reads, from the working tree */
-function skillsTree(ctx) {
-  const M = loadSkills();
-  const codes = JSON.parse(read("tools/fixtures/ccss-codes.json"));
+/* [{ ref, anchor }] for every curriculum section, its anchor "practice" exactly when
+   checkCurriculum's practice branch accepts it (no h2 carries the id and the element that
+   does is a <section class="practice">), "h2" otherwise; docs are keyed by chapter path */
+function sectionAnchors(curriculum, docs) {
   const sections = [];
-  ctx.curriculum.chapters.forEach(ch => {
-    const doc = ctx.docs[ch.path];
+  curriculum.chapters.forEach(ch => {
+    const doc = docs[ch.path];
     const h2 = new Set(), ids = {};
     if (doc) {
       doc.queryAll("h2").forEach(h => { if (h.id) h2.add(h.id); });
       for (const el of doc.elements()) if (el.id) ids[el.id] = el;
     }
     ch.sections.forEach(s => {
-      /* "practice" exactly when checkCurriculum's practice branch accepts it */
       const el = ids[s.id];
       const practice = !h2.has(s.id) && !!el && el.name === "section" && /(^|\s)practice(\s|$)/.test(el.getAttribute("class") || "");
       sections.push({ ref: ch.id + "#" + s.id, anchor: practice ? "practice" : "h2" });
     });
   });
+  return sections;
+}
+
+/* the tree skillsProblems reads, from the working tree */
+function skillsTree(ctx) {
+  const M = loadSkills();
+  const codes = JSON.parse(read("tools/fixtures/ccss-codes.json"));
+  const sections = sectionAnchors(ctx.curriculum, ctx.docs);
   const exercises = [];
   Object.keys(ctx.chapters).forEach(page => {
     exerciseRefs(ctx.chapters[page], exercisesOf(ctx.docs[page]), page).forEach(e => exercises.push(e));
@@ -1294,7 +1301,7 @@ function skillsTree(ctx) {
 
 function checkSkills(ctx, r) {
   const tree = skillsTree(ctx);
-  r.count = tree.sections.length;
+  r.count = new Set(tree.sections.map(s => s.ref)).size;
   skillsProblems(tree).forEach(m => r.fail(m));
   r.note(Object.keys(tree.SKILLS).length + " skills, " + tree.CONTAINERS.length + " containers, " + Object.keys(tree.generators).length + " generators (" +
     Object.keys(tree.GENERATOR_SKILLS).length + " with an override), " + tree.exercises.length + " scored exercises, " + Object.keys(tree.codes).length + " codes known");
@@ -1304,7 +1311,7 @@ function checkSkills(ctx, r) {
 
 /* The modules under src/core/, src/sync/, src/learn/ and src/data/ are pure: Node and
    Vitest load them as they are, and the page gets them only through an installer under
-   src/ui/ (window.BMCore, BMReview, BMLearn) or as the data a src/ui/ module imports
+   src/ui/ (window.BMCore, BMReview, BMLearn) or as the data a src/ui/ module or an entry imports
    (src/data/arena-sections.ts; src/data/skills.ts, which nothing imports yet). So none of their code names the page's globals; a
    string that names one counts, since globalThis["window"] would reach it. Their tests,
    test helpers and declaration files are left out: the tests build a stub window to run
@@ -1390,7 +1397,7 @@ const CHECKS = [
   { name: "links", run: checkLinks, what: "relative hrefs/srcs resolve to files, anchors to ids" },
   { name: "widgets", run: checkWidgets, what: "every data-widget / data-figure is a defined factory" },
   { name: "sections", run: checkSections, what: "every data-section names a real section" },
-  { name: "skills", run: checkSkills, what: "src/data/skills.ts: a record per section but the mixed-review ones, every scored exercise credits one, official codes, courses by the code, every generator resolves" },
+  { name: "skills", run: checkSkills, what: "src/data/skills.ts: a record per section but the mixed-review ones, every scored exercise names a section, never a container, official codes, courses by the code, every generator resolves" },
   { name: "choices", run: checkChoices, what: "choice/multi answer indices are within the options" },
   { name: "order", run: checkOrder, what: "order lists have >= 2 items; blanks carry keys" },
   { name: "migrations", run: checkMigrations, what: "a supabase/schema.sql change since main ships a new, well-named migration; applied ones are untouched" },
@@ -1428,5 +1435,5 @@ function main() {
 }
 
 if (require.main === module) main();
-module.exports = { CHECKS, result, loadGrade, pureProblems, isPureFile, codeProblems, courseProblems, exerciseRefs, skillsProblems, pageKeys, lessonSteps, stepsDiff, shellOf, shellDiff, scriptsProblems, randomState, stripLocalFirst, canon,
+module.exports = { CHECKS, result, loadGrade, pureProblems, isPureFile, codeProblems, courseProblems, exerciseRefs, sectionAnchors, skillsProblems, pageKeys, lessonSteps, stepsDiff, shellOf, shellDiff, scriptsProblems, randomState, stripLocalFirst, canon,
   animationFaults, colourLiterals, columnPatterns, inColumn, quietKinds, printGaps };
