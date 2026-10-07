@@ -503,7 +503,7 @@ check it when the first function exists.
 | --- | --- | --- | --- |
 | Apply migrations | R0 (now) | every change to `schema.sql` | [Section 1](#1-releasing-a-change-that-needs-sql). The first real one is the `events` table in R2 |
 | Watch Supabase usage and pausing | now | usage monthly, pausing weekly | [Section 3](#what-to-watch) |
-| Keep `groundupmath.org` renewed | from the purchase | yearly; auto-renew on | Porkbun → Domain Management → the domain → Auto Renew on, with a card that will still be valid. A lapsed domain takes the site and every reader's saved progress with it, and lets someone else take the name |
+| Keep `groundupmath.org` renewed | from the purchase | yearly; auto-renew on | Porkbun → Domain Management → the domain → Auto Renew on, with a card that will still be valid. A lapsed domain takes the site and every reader's saved progress with it, and lets someone else take the name. The bare domain and `www` forward to `learn` (Porkbun URL Forwarding, [8.3](#83-the-custom-domain-and-the-bare-domain)); after any DNS change there, rerun 8.3's check |
 | Keep the old address forwarding | from the cutover | for at least a year | `SITE_CUTOVER` stays `true` and the GitHub Pages site stays published ([8.9](#89-afterwards-keep-the-old-address-for-a-year)) |
 | Renew expiring provider secrets | now, if Microsoft is enabled | before the expiry date | [Section 4](#rotation-in-outline) |
 | The hint review queue | **[not yet: R2]** | each content wave | Generated hints wait in a review queue; nothing ships unapproved. Approving or rejecting them is the owner's job |
@@ -841,27 +841,43 @@ Cloudflare's order was kept: the domain on the project first, then the DNS recor
    certificate, usually within minutes (allow up to 24 hours). `dig +short CNAME
    learn.groundupmath.org` prints `groundupmath.pages.dev.`.
 2. **Porkbun's parking records** (an `ALIAS` for the bare domain and a `*` CNAME, both to
-   `pixie.porkbun.com`) may still be there. They do no harm to `learn`: a wildcard never answers
-   for a name that has its own record (RFC 4592), and public DNS on 2026-10-05 showed `learn`
-   resolving to `groundupmath.pages.dev` beside them. Deleting them is optional, and only changes
-   what other names (`www`, anything else) answer. Step 3 replaces the bare domain's.
-3. **The bare domain** (optional): Porkbun's free URL forwarding sends `groundupmath.org` to
-   the site. Domain Management → the domain → Details → **URL Forwarding** (edit): Hostname
-   empty, Forward Traffic To `https://learn.groundupmath.org`, advanced settings: **Permanent
-   Redirect (301)** and **Include the requested URI path**. Leave **Wildcard Forwarding off**:
-   it would forward `learn` as well and take the site down. Repeat with Hostname `www` if you
-   want that name too. Porkbun's page says it takes 10 to 15 minutes. Whether Porkbun's
-   forwarding answers `https://groundupmath.org` with a valid certificate is not stated on that
-   page: test it (the last check below), and if it does not, readers should simply be given the
-   `learn` address.
+   `pixie.porkbun.com`) were **deleted on 2026-10-06**. Until then the bare domain showed
+   Porkbun's parking page over HTTP and failed the TLS handshake over HTTPS. Porkbun's
+   instructions say to remove records that conflict with a URL forward before adding one. The
+   DNS list now holds only `learn` CNAME `groundupmath.pages.dev`; the forwards in step 3 add
+   their own records, which the DNS list does not show. Do not add an `ALIAS`, `A` or `*` record
+   for the bare domain or `www` while the forwards exist.
+3. **The bare domain and `www`** (**done** 2026-10-06; required, since a visitor who types the
+   domain must not land on a parking page or a certificate error): Porkbun's free URL
+   forwarding sends both to the site. Domain Management → the domain → Details → **URL
+   Forwarding** (edit), two forwards, each with Forward Traffic To
+   `https://learn.groundupmath.org`, **Wildcard Forwarding off**, and under advanced settings
+   **Permanent Redirect (301)** and **Include the requested URI path**:
+   - Hostname empty (the bare domain);
+   - Hostname `www`.
+
+   Wildcard forwarding is **ticked by default**: untick it, or the forward also takes `learn` and
+   the site goes down. Porkbun warns that the domain "already has DNS records for another
+   service" (that is `learn`); with wildcard off the warning does not apply. The *Current
+   Forwards* table then lists both hosts as `permanent`, path `yes`, wildcard `no`. HTTP
+   redirects at once; HTTPS needs the certificate Porkbun issues for the forward:
+   on 2026-10-06 it took about 5 minutes. It is a Let's Encrypt certificate for
+   `groundupmath.org` and `*.groundupmath.org`, valid 90 days, and Porkbun renews it while the
+   domain uses Porkbun's DNS. Until it exists, HTTPS on these names gets no answer at all.
 
 **Verify** (once production has a deployment): `https://learn.groundupmath.org/` opens the
 course with a padlock; `curl -sI https://learn.groundupmath.org/about.html` answers a redirect
-(3xx) with `location: /about` (Pages' own redirect to the address without `.html`); and, if set
-up, `curl -sI https://groundupmath.org/about` answers `301` to
-`https://learn.groundupmath.org/about`. **Undo:** delete the CNAME at Porkbun and remove the
-domain in the project's Custom domains (Cloudflare's order: DNS record first, then the domain);
-delete the URL forward.
+(3xx) with `location: /about` (Pages' own redirect to the address without `.html`); and the bare
+domain and `www` redirect, keeping the path, over both schemes:
+```sh
+for u in http://groundupmath.org/ https://groundupmath.org/ https://groundupmath.org/about \
+         http://www.groundupmath.org/ https://www.groundupmath.org/arena; do
+  echo "$u -> $(curl -s -o /dev/null -m 10 -w '%{http_code} %{redirect_url}' "$u")"; done
+```
+Every line prints `301 https://learn.groundupmath.org/<the same path>`; `000` means no answer
+(over HTTPS: no certificate yet). **Undo:** delete the CNAME at Porkbun and remove the domain
+in the project's Custom domains (Cloudflare's order: DNS record first, then the domain); delete
+the two URL forwards.
 
 ### 8.4 Sign-in: Supabase and Google
 
