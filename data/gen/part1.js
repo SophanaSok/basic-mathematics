@@ -230,7 +230,7 @@
       var p = r.int(3, 6), q = r.int(2, p - 1), cn = r.int(6, 40), tn = r.int(6, 40);
       var n = cn + tn, total = p * cn + q * tn, wantC = r.chance(0.6);
       return {
-        q: "A stand sells coffee at $\\$" + p + "$ and tea at $\\$" + q + "$. It sold $" + n + "$ drinks and took $\\$" + total + "$. How many " + (wantC ? "coffees" : "teas") + " were sold?",
+        q: "A stand sells coffee at $\\$" + p + "$ and tea at $\\$" + q + "$. It sold $" + n + "$ drinks and took in $\\$" + total + "$. How many " + (wantC ? "coffees" : "teas") + " were sold?",
         type: "number", answer: String(wantC ? cn : tn),
         hint: "Name the two counts, then write one equation for the number of drinks and one for the money.",
         steps: [
