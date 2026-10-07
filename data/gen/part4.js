@@ -19,7 +19,7 @@
       return {
         q: "If $f(x) = " + poly([[a, "x^2"], [b, "x"], [c, ""]]) + "$, what is $f(" + x + ")$?",
         type: "number", answer: String(value),
-        hint: "Replace every x by the number, in brackets, and square before multiplying.",
+        hint: "Replace every x by the number, in parentheses, and square before multiplying.",
         steps: [
           "$f(" + x + ") = " + a + " \\cdot " + par(x) + "^2 " + signed(b) + " \\cdot " + par(x) + " " + signed(c) + "$.",
           "$= " + a + " \\cdot " + x * x + " " + signed(b * x) + " " + signed(c) + " = " + value + "$."
@@ -194,7 +194,7 @@
         q: "Compute $(" + u.cxTex(a, b) + ")(" + u.cxTex(c, d) + ")$.",
         type: "expr", answer: u.cxAns(re, im),
         placeholder: "e.g. 3+4i",
-        hint: "Multiply out as with any two brackets, then replace i² by −1.",
+        hint: "Multiply out as with any two sets of parentheses, then replace i² by −1.",
         steps: [
           "Expand: $" + par(a) + " \\cdot " + par(c) + " + " + par(a) + " \\cdot " + par(d) + "i + " + par(b) + " \\cdot " + par(c) + "i + " + par(b) + " \\cdot " + par(d) + "i^2$.",
           "$= " + a * c + " " + signed(a * d) + "i " + signed(b * c) + "i " + signed(b * d) + "i^2$, and $i^2 = -1$.",
