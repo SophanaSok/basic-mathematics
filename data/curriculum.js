@@ -179,7 +179,7 @@ window.BM_CURRICULUM = {
           status: "full",
           blurb: "Adding points, scaling them, and reflecting them — geometry done by arithmetic on coordinates.",
           sections: [
-            { id: "dilations", title: "Dilations and reflections", summary: "Multiplying a point by a number; reflecting in the axes and the origin." },
+            { id: "dilations", title: "Dilations and reflections", summary: "Multiplying a point by a number; reflecting in the axes and through the origin." },
             { id: "addition-points", title: "Addition and the parallelogram law", summary: "Coordinatewise addition and the picture that explains it." },
             { id: "subtraction", title: "Subtraction and located vectors", summary: "Q − P as the arrow from P to Q." }
           ]

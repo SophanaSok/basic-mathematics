@@ -31,7 +31,7 @@ window.BM_QUEST = {
     ch06: { name: "The Order of Moves", tempting: 0,
       taunt: "Same two moves, same result. The order is just bookkeeping." },
     ch07: { name: "The Half-Again Pizza", tempting: 0,
-      taunt: "Half as wide again is half as much pizza again. Pay for the width." },
+      taunt: "Half again as wide is half again as much pizza. Pay for the width." },
     ch08: { name: "The Last Triple", tempting: 1,
       taunt: "Whole-number right triangles are rare birds. A few more and the supply runs out." },
     ch09: { name: "The Fourth Corner", tempting: 0,
