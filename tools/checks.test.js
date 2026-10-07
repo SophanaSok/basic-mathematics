@@ -29,6 +29,13 @@
        or a regex hides nothing; one in a template's text, in JSX text or spelled with an
        escape is found; a module that does not parse is refused; every script extension
        is read but tests, test helpers and declaration files
+     - skills: each rule of the skills check on a small tree that breaks only it (a
+       section with no record, a container with one, a key that is no section, CONTAINERS
+       against the practice sections, an exercise with no data-section or one naming a
+       container, bare or a ref, a malformed, unknown or wrongly lettered code, also
+       repeating, each course rule and its approximate pass, a generator with no record,
+       an override for no generator or changing nothing, a repeated tag, act.mod first),
+       and the real tree passing with its 76 sections
      - entries: one with src/ui/core.ts only commented out, or after site.js, fails; the
        pure modules it installs (src/core/, src/sync/merge.ts) come before it
      - serve (lib/serve.js): a build is served as it is, a page in it that still carries
@@ -666,6 +673,103 @@ function refusal(fn) { try { fn(); return null; } catch (e) { return e.message; 
   check(refusal(() => pureProblems("const = ;", "x.ts")) !== null, "… a module that does not parse is refused, not passed");
   eq(["a.ts", "a.js", "a.mts", "a.cts", "a.mjs", "a.cjs", "a.tsx", "a.jsx", "a.test.ts", "a.test.mts", "a.test-helper.ts", "a.d.ts", "a.d.mts", "a.json"].filter(isPureFile), ["a.ts", "a.js", "a.mts", "a.cts", "a.mjs", "a.cjs", "a.tsx", "a.jsx"],
     "… every script under the pure directories is read, whatever its extension, but tests, test helpers and declaration files");
+}
+
+/* ----------------------------------------------------------------- skills -- */
+/* the skills check's rules (design §5), each on a small tree written here that breaks only
+   it, and once on the real tree; generator records resolve through src/data/skills.ts's
+   own resolveOverride */
+{
+  const { codeProblems, courseProblems, exerciseRefs, skillsProblems } = require("./check-static");
+  const codes = {
+    "8.EE.C.8": { plus: false, subs: { a: false, b: false, c: false } },
+    "HSA.REI.B.3": { plus: false, subs: {} },
+    "HSN.CN.A.3": { plus: true, subs: {} },
+    "HSF.BF.A.1": { plus: false, subs: { a: false, b: false, c: true } }
+  };
+  const rec = (o) => Object.assign({ ccss: "HSA.REI.B.3", also: [], course: "algebra-1", sat: [], act: ["act.phm.alg"], accuplacer: [], aleks: [] }, o);
+  const SECTIONS = [{ ref: "ch01#a", anchor: "h2" }, { ref: "ch01#b", anchor: "h2" }, { ref: "ch01#review", anchor: "practice" }];
+  const tree = (o) => Object.assign({
+    SKILLS: { "ch01#a": rec({}), "ch01#b": rec({ ccss: "8.EE.C.8.b", course: "pre-algebra" }) },
+    CONTAINERS: ["ch01#review"],
+    GENERATOR_SKILLS: { "g-two": { ccss: "HSN.CN.A.3", course: "beyond" } },
+    generators: { "g-one": "ch01#a", "g-two": "ch01#b" },
+    sections: SECTIONS,
+    exercises: [{ where: "p.html:1 (key e1)", ref: "ch01#a" }, { where: "p.html:2 (key e2)", ref: "ch01#b" }],
+    codes
+  }, o);
+  const base = tree({});
+  const withSkill = (ref, s) => Object.assign({}, base.SKILLS, { [ref]: s });
+  const probs = (o) => skillsProblems(tree(o));
+  const hit = (o, re, what) => { const p = probs(o); check(p.some(m => re.test(m)), what + " — got " + JSON.stringify(p)); };
+  const clean = (o, what) => eq(probs(o), [], what);
+
+  clean({}, "skills: a small tree that keeps every rule passes");
+  /* 1 coverage */
+  hit({ SKILLS: { "ch01#b": base.SKILLS["ch01#b"] }, generators: { "g-two": "ch01#b" } }, /^ch01#a: a curriculum section with no record/, "skills 1a: a section with no record and not a container fails");
+  hit({ SKILLS: withSkill("ch01#review", rec({})) }, /^ch01#review: in CONTAINERS and has a record/, "skills 1a: a container with a record fails");
+  hit({ CONTAINERS: ["ch01#review", "ch01#a"] }, /^ch01#a: in CONTAINERS and has a record/, "skills 1a: a section in both lists fails");
+  hit({ SKILLS: withSkill("ch01#zzz", rec({})) }, /^SKILLS\[ch01#zzz\]: no curriculum section/, "skills 1b: a SKILLS key that is no section fails");
+  hit({ sections: SECTIONS.concat({ ref: "ch01#c", anchor: "h2" }), CONTAINERS: ["ch01#review", "ch01#c"] }, /CONTAINERS lists ch01#c, which is not a mixed-review section/, "skills 1c: a CONTAINERS entry whose anchor is an h2 fails");
+  hit({ CONTAINERS: [] }, /^ch01#review: a mixed-review section .* missing from CONTAINERS/, "skills 1c: a practice section left out of CONTAINERS fails");
+  /* 2 scored exercises */
+  hit({ exercises: [{ where: "p.html:9 (key e9)", ref: "" }] }, /^p\.html:9 \(key e9\): a scored exercise with no data-section/, "skills 2a: a scored exercise with no data-section fails");
+  hit({ exercises: [{ where: "p.html:9 (key e9)", ref: "ch01#review" }] }, /data-section names ch01#review, a mixed-review container/, "skills 2b: a data-section naming a container as a ref fails");
+  const page = chapter([
+    ex('id="e1" data-section="review" data-answer="1"', "One?"),
+    ex('id="e2" data-section="ch02#one-unknown" data-answer="2"', "Two?"),
+    ex('id="e3" data-answer="3"', "Three?"),
+    ex('id="e4" data-section="warmup" data-answer="4"', "Four?"),
+    ex('data-inline id="t1" data-section="review" data-answer="5"', "Five?")
+  ]);
+  const refs = exerciseRefs("ch07", exercisesOf(page), "p.html");
+  eq(refs.map(e => e.ref), ["ch07#review", "ch02#one-unknown", "", ""], "skills: exerciseRefs makes a bare data-section its chapter's ref, keeps a ref, gives \"\" for none and the warm-up, and skips inline exercises");
+  hit({ sections: SECTIONS.concat({ ref: "ch07#review", anchor: "practice" }), CONTAINERS: ["ch01#review", "ch07#review"], exercises: refs.slice(0, 1) },
+    /^p\.html:\d+ \(key e1\): data-section names ch07#review/, "skills 2b: a bare data-section=\"review\" on the ch07 page fails once made a ref");
+  /* 3 code form */
+  eq(codeProblems("8.EE.C.8.b", codes), [], "skills 3: an official code with a recorded letter passes");
+  eq(codeProblems("HSA.REI.B.3", codes), [], "skills 3: an official code with no letter passes");
+  hit({ SKILLS: withSkill("ch01#a", rec({ ccss: "HSA-REI.B.3" })) }, /SKILLS\[ch01#a\]: "HSA-REI\.B\.3" is not a code of the form/, "skills 3a: a malformed ccss fails");
+  hit({ SKILLS: withSkill("ch01#a", rec({ also: ["8.EE.8"] })) }, /SKILLS\[ch01#a\]: "8\.EE\.8" is not a code of the form/, "skills 3a: a malformed code in also fails");
+  hit({ SKILLS: withSkill("ch01#a", rec({ ccss: "HSA.REI.B.9" })) }, /SKILLS\[ch01#a\]: HSA\.REI\.B\.9 is not a Common Core standard/, "skills 3b: an unknown ccss fails");
+  hit({ SKILLS: withSkill("ch01#a", rec({ also: ["8.EE.C.9"] })) }, /SKILLS\[ch01#a\]: 8\.EE\.C\.9 is not a Common Core standard/, "skills 3b: an unknown code in also fails");
+  hit({ SKILLS: withSkill("ch01#b", rec({ ccss: "8.EE.C.8.d", course: "pre-algebra" })) }, /SKILLS\[ch01#b\]: 8\.EE\.C\.8\.d: 8\.EE\.C\.8 has no sub-standard d/, "skills 3c: an unknown sub-letter in ccss fails");
+  hit({ SKILLS: withSkill("ch01#a", rec({ also: ["HSA.REI.B.3.a"] })) }, /HSA\.REI\.B\.3 has no sub-standard a/, "skills 3c: an unknown sub-letter in also fails");
+  hit({ SKILLS: withSkill("ch01#a", rec({ also: ["HSA.REI.B.3"] })) }, /also repeats its primary code HSA\.REI\.B\.3/, "skills 3d: also repeating ccss fails");
+  hit({ SKILLS: withSkill("ch01#a", rec({ also: ["8.EE.C.8.a", "8.EE.C.8.a"] })) }, /also lists 8\.EE\.C\.8\.a twice/, "skills 3d: also repeating itself fails");
+  hit({ GENERATOR_SKILLS: { "g-two": { ccss: "HSN.CN.A.9", course: "beyond" } } }, /^generator g-two \(ch01#b, resolved\): HSN\.CN\.A\.9 is not a Common Core standard/, "skills 3: an override whose ccss is unknown fails, on the record resolveOverride gives");
+  /* 4 course */
+  eq(courseProblems(rec({ ccss: "HSF.BF.A.1.c", course: "beyond" }), codes), [], "skills 4: a (+) sub-standard in beyond passes");
+  eq(courseProblems(rec({ ccss: null, course: "geometry" }), codes), [], "skills 4: a null code in a high-school course passes");
+  const course4 = [
+    ["a (+) code not banded beyond", rec({ ccss: "HSN.CN.A.3", course: "algebra-2" }), /HSN\.CN\.A\.3 is \(\+\), so its course is beyond/],
+    ["a (+) sub-standard not banded beyond", rec({ ccss: "HSF.BF.A.1.c", course: "algebra-2" }), /HSF\.BF\.A\.1\.c is \(\+\)/],
+    ["beyond on a non-(+) high-school code", rec({ course: "beyond" }), /course beyond, but HSA\.REI\.B\.3 is not \(\+\)/],
+    ["beyond on a grade-8 code", rec({ ccss: "8.EE.C.8.b", course: "beyond" }), /course beyond, but 8\.EE\.C\.8\.b is not \(\+\)/],
+    ["beyond on a null code", rec({ ccss: null, course: "beyond" }), /course beyond, but its code is null/],
+    ["a grade-8 code banded algebra-1", rec({ ccss: "8.EE.C.8.b", course: "algebra-1" }), /8\.EE\.C\.8\.b is a grade 6-8 code, so its course is pre-algebra/],
+    ["a non-(+) high-school code banded pre-algebra", rec({ course: "pre-algebra" }), /HSA\.REI\.B\.3 is a high-school code, so its course is one of/]
+  ];
+  course4.forEach(([what, s, re]) => {
+    hit({ SKILLS: withSkill("ch01#a", s) }, re, "skills 4: " + what + " fails");
+    clean({ SKILLS: withSkill("ch01#a", Object.assign({}, s, { approx: true })) }, "skills 4: " + what + " passes when the code is approximate");
+  });
+  hit({ GENERATOR_SKILLS: { "g-two": { ccss: "HSN.CN.A.3" } } }, /^generator g-two \(ch01#b, resolved\): HSN\.CN\.A\.3 is \(\+\), so its course is beyond, not pre-algebra/, "skills 4: an override setting a (+) code without course beyond fails");
+  clean({ GENERATOR_SKILLS: { "g-two": { ccss: "HSN.CN.A.3", approx: true } } }, "skills 4: … and passes when the override marks it approximate");
+  /* 5 generators */
+  hit({ generators: Object.assign({}, base.generators, { "g-three": "ch01#review" }) }, /^generator g-three: its section ch01#review has no record \(a container\)/, "skills 5a: a generator whose section is a container fails");
+  hit({ generators: Object.assign({}, base.generators, { "g-three": "ch09#nowhere" }) }, /^generator g-three: its section ch09#nowhere has no record/, "skills 5a: a generator whose section is unknown fails");
+  hit({ GENERATOR_SKILLS: Object.assign({}, base.GENERATOR_SKILLS, { "g-none": { course: "beyond" } }) }, /^GENERATOR_SKILLS\[g-none\]: no generator has the id g-none/, "skills 5b: an override for an unknown generator fails");
+  hit({ GENERATOR_SKILLS: Object.assign({}, base.GENERATOR_SKILLS, { "g-one": { course: "algebra-1", act: ["act.phm.alg"] } }) }, /^GENERATOR_SKILLS\[g-one\]: changes nothing over ch01#a's record/, "skills 5c: an override that changes nothing fails");
+  hit({ GENERATOR_SKILLS: Object.assign({}, base.GENERATOR_SKILLS, { "g-one": {} }) }, /^GENERATOR_SKILLS\[g-one\]: changes nothing/, "skills 5c: an empty override fails");
+  /* 6 tags */
+  hit({ SKILLS: withSkill("ch01#a", rec({ accuplacer: ["qas.lineq", "aaf.lineq", "qas.lineq"] })) }, /SKILLS\[ch01#a\]: accuplacer lists qas\.lineq twice/, "skills 6a: a tag repeated within a list fails");
+  hit({ SKILLS: withSkill("ch01#a", rec({ act: ["act.mod", "act.phm.alg"] })) }, /SKILLS\[ch01#a\]: act\.mod comes first/, "skills 6b: act.mod first fails");
+  hit({ SKILLS: withSkill("ch01#a", rec({ act: ["act.mod"] })) }, /SKILLS\[ch01#a\]: act\.mod comes first/, "skills 6b: act.mod alone fails");
+  clean({ SKILLS: withSkill("ch01#a", rec({ act: ["act.phm.alg", "act.mod"] })) }, "skills 6b: act.mod after a category passes");
+  /* the real tree */
+  const real = require("child_process").spawnSync(process.execPath, [path.join(__dirname, "check-static.js"), "--only=skills"], { encoding: "utf8" });
+  check(real.status === 0 && /^PASS  skills +76 /m.test(real.stdout), "skills: the real tree passes, counting its 76 curriculum sections — got " + real.stdout + real.stderr);
 }
 
 /* ------------------------------------------------------------------ serve -- */

@@ -1237,7 +1237,7 @@ the browser ones also need Chromium once, `npx playwright install chromium`
 npm run check           # everything that needs no browser, about 20 s:
 npm run typecheck       #   tsc over src/, vite.config.ts and vitest.config.ts
 npm run check:static    #   syntax, progress keys, ids, lesson steps, the shell, links, sections,
-                        #   widgets, choices, migrations, placeholders, merge laws, contrast,
+                        #   skills, widgets, choices, migrations, placeholders, merge laws, contrast,
                         #   animations (no loop, no flash), colours (only in tokens.css), the reading column
 npm run check:ci        #   the workflow's deploy guards: the default Cloudflare project, the re-run
                         #   guard before wrangler, pr-<number> previews, main deploys as production,

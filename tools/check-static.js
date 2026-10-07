@@ -1122,6 +1122,184 @@ function printGaps(css) {
   return out;
 }
 
+/* --------------------------------------------------------------- skills -- */
+
+/* src/data/skills.ts against the course: one record per curriculum section but the
+   mixed-review containers (a <section class="practice"> with no h2), every scored exercise
+   crediting a section with a record, every code official (tools/fixtures/ccss-codes.json,
+   the 237 grade 6 through high-school standards and their sub-standard letters, parsed from
+   the CCSS PDF), each record's course following its code, and every Arena generator
+   resolving to a record. The module is read by Node itself, as loadGrade reads
+   src/ui/core.ts, and a generator's record is resolved with the module's own
+   resolveOverride, so no copy of that rule lives here. */
+const CCSS_FORM = /^(?:[678]\.(?:RP|NS|EE|G|SP|F)|HS[NAFGS]\.[A-Z]{1,3})\.[A-D]\.\d{1,2}(?:\.[a-e])?$/;
+const HS_COURSES = ["algebra-1", "geometry", "algebra-2"];
+
+function loadSkills() { return require(path.join(ROOT, "src/data/skills.ts")); }
+
+/* { id: section } for every Arena generator: data/gen/*.js run in a vm, as the Arena page
+   runs them (core.js first, since it defines BMGen) */
+function generatorSections() {
+  const win = {};
+  win.window = win;
+  win.self = win;
+  vm.createContext(win);
+  const files = fs.readdirSync(path.join(ROOT, "data/gen")).filter(f => /\.js$/.test(f))
+    .sort((a, b) => (a === "core.js" ? -1 : b === "core.js" ? 1 : a < b ? -1 : a > b ? 1 : 0));
+  files.forEach(f => vm.runInContext(read("data/gen/" + f), win, { filename: "data/gen/" + f }));
+  if (!win.BMGen || typeof win.BMGen.list !== "function") throw new Error("data/gen/core.js did not define BMGen.list");
+  const out = {};
+  win.BMGen.list().forEach(g => { out[g.id] = g.section; });
+  return out;
+}
+
+/* a code's base standard and sub-standard letter: "HSA.REI.B.4.b" is HSA.REI.B.4 and b */
+function codeParts(code) {
+  const p = String(code).split(".");
+  return { base: p.slice(0, 4).join("."), letter: p[4] || null };
+}
+
+/* what is wrong with one code against the list: its form, its standard, its letter */
+function codeProblems(code, list) {
+  if (typeof code !== "string" || !CCSS_FORM.test(code)) return [JSON.stringify(code) + " is not a code of the form 8.EE.C.7.b or HSA.REI.B.4.b"];
+  const { base, letter } = codeParts(code);
+  if (!Object.prototype.hasOwnProperty.call(list, base)) return [(letter ? code + ": " + base : code) + " is not a Common Core standard from grade 6 through high school (tools/fixtures/ccss-codes.json)"];
+  if (letter && !Object.prototype.hasOwnProperty.call(list[base].subs || {}, letter)) return [code + ": " + base + " has no sub-standard " + letter];
+  return [];
+}
+
+/* the course rule (design §3.2): a grade 6-8 primary code means pre-algebra, a (+) code or
+   (+) sub-standard means beyond and beyond means a (+) code, a high-school non-(+) code one
+   of algebra-1, geometry, algebra-2. An approximate code is exempt; a code the list does not
+   hold is codeProblems' to report */
+function courseProblems(skill, list) {
+  if (skill.approx) return [];
+  const code = skill.ccss;
+  let plus = false, known = false, grade = false;
+  if (typeof code === "string" && CCSS_FORM.test(code)) {
+    const { base, letter } = codeParts(code);
+    const std = Object.prototype.hasOwnProperty.call(list, base) ? list[base] : null;
+    if (std) {
+      known = true;
+      plus = !!std.plus || !!(letter && std.subs && std.subs[letter]);
+      grade = /^[678]\./.test(code);
+    }
+  }
+  const course = skill.course;
+  if (course === "beyond" && !plus) return ["course beyond, but " + (code === null ? "its code is null" : code + " is not (+)") + ": beyond is for (+) content"];
+  if (!known) return [];
+  if (plus && course !== "beyond") return [code + " is (+), so its course is beyond, not " + course];
+  if (grade && course !== "pre-algebra") return [code + " is a grade 6-8 code, so its course is pre-algebra, not " + course];
+  if (!grade && !plus && HS_COURSES.indexOf(course) === -1) return [code + " is a high-school code, so its course is one of " + HS_COURSES.join(", ") + ", not " + course];
+  return [];
+}
+
+/* [{ where, ref }] for a chapter page's scored exercises (exercisesOf's), each data-section
+   as a ref: a bare value is its own chapter's ("review" on ch07 is ch07#review), a ref is
+   itself, and none, an empty one or "warmup" give "" (src/core/curriculum.ts sectionRef) */
+function exerciseRefs(chapterId, exercises, page) {
+  const { sectionRef } = require(path.join(ROOT, "src/core/curriculum.ts"));
+  return exercises.filter(e => !e.inline).map(e => ({
+    where: (page || chapterId) + ":" + e.line + " (key " + e.key + ")",
+    ref: sectionRef(chapterId, e.el.getAttribute("data-section"))
+  }));
+}
+
+/* every rule of the skills check (design §5) over
+   tree = { SKILLS, CONTAINERS, GENERATOR_SKILLS, generators: { id: section },
+            sections: [{ ref, anchor: "h2" | "practice" }], exercises: [{ where, ref }], codes };
+   tree.resolveOverride, when given, is the module's own (skillsTree passes it); a test's
+   small tree leaves it out and gets the module's own too */
+function skillsProblems(tree) {
+  const resolve = tree.resolveOverride || loadSkills().resolveOverride;
+  const { SKILLS, CONTAINERS, GENERATOR_SKILLS, generators, sections, exercises, codes } = tree;
+  const out = [];
+  const has = (o, k) => Object.prototype.hasOwnProperty.call(o, k);
+  const containers = new Set(CONTAINERS);
+  const sectionRefs = new Set(sections.map(s => s.ref));
+
+  /* 1. coverage */
+  sections.forEach(s => {
+    const rec = has(SKILLS, s.ref), box = containers.has(s.ref);
+    if (!rec && !box) out.push(s.ref + ": a curriculum section with no record in SKILLS and not in CONTAINERS");
+    if (rec && box) out.push(s.ref + ": in CONTAINERS and has a record in SKILLS; a mixed-review container carries none");
+  });
+  Object.keys(SKILLS).forEach(ref => { if (!sectionRefs.has(ref)) out.push("SKILLS[" + ref + "]: no curriculum section is " + ref); });
+  const practice = new Set(sections.filter(s => s.anchor === "practice").map(s => s.ref));
+  CONTAINERS.forEach((ref, i) => {
+    if (CONTAINERS.indexOf(ref) !== i) out.push("CONTAINERS lists " + ref + " twice");
+    else if (!practice.has(ref)) out.push("CONTAINERS lists " + ref + ", which is not a mixed-review section (a <section class=\"practice\"> with no h2)");
+  });
+  practice.forEach(ref => { if (!containers.has(ref)) out.push(ref + ": a mixed-review section (a <section class=\"practice\"> with no h2) missing from CONTAINERS"); });
+
+  /* 2. scored exercises, by their resolved ref */
+  exercises.forEach(e => {
+    if (e.ref === "") out.push(e.where + ": a scored exercise with no data-section, so it credits no skill");
+    else if (containers.has(e.ref)) out.push(e.where + ": data-section names " + e.ref + ", a mixed-review container with no skill; name the section the problem comes from");
+  });
+
+  /* 3, 4, 6 on one record */
+  const recordProblems = (label, s) => {
+    const codesOf = [s.ccss].filter(c => c !== null).concat(s.also || []);
+    codesOf.forEach(c => codeProblems(c, codes).forEach(m => out.push(label + ": " + m)));
+    if (s.ccss !== null && (s.also || []).indexOf(s.ccss) > -1) out.push(label + ": also repeats its primary code " + s.ccss);
+    (s.also || []).forEach((c, i) => { if (s.also.indexOf(c) !== i) out.push(label + ": also lists " + c + " twice"); });
+    courseProblems(s, codes).forEach(m => out.push(label + ": " + m));
+    ["sat", "act", "accuplacer", "aleks"].forEach(f => {
+      const tags = s[f] || [];
+      tags.forEach((t, i) => { if (tags.indexOf(t) !== i) out.push(label + ": " + f + " lists " + t + " twice"); });
+    });
+    if ((s.act || [])[0] === "act.mod") out.push(label + ": act.mod comes first; it is an overlay, and the first ACT tag is the reporting category");
+  };
+  Object.keys(SKILLS).forEach(ref => recordProblems("SKILLS[" + ref + "]", SKILLS[ref]));
+
+  /* 5. generators, and their resolved records */
+  Object.keys(generators).forEach(id => {
+    const ref = generators[id];
+    if (!has(SKILLS, ref)) { out.push("generator " + id + ": its section " + ref + " has no record (" + (containers.has(ref) ? "a container" : "no such section in SKILLS") + ")"); return; }
+    if (!has(GENERATOR_SKILLS, id)) return; /* its record is its section's, checked above */
+    const resolved = resolve(SKILLS[ref], GENERATOR_SKILLS[id]);
+    if (canon(resolved) === canon(SKILLS[ref])) out.push("GENERATOR_SKILLS[" + id + "]: changes nothing over " + ref + "'s record; drop it");
+    else recordProblems("generator " + id + " (" + ref + ", resolved)", resolved);
+  });
+  Object.keys(GENERATOR_SKILLS).forEach(id => { if (!has(generators, id)) out.push("GENERATOR_SKILLS[" + id + "]: no generator has the id " + id); });
+  return out;
+}
+
+/* the tree skillsProblems reads, from the working tree */
+function skillsTree(ctx) {
+  const M = loadSkills();
+  const codes = JSON.parse(read("tools/fixtures/ccss-codes.json"));
+  const sections = [];
+  ctx.curriculum.chapters.forEach(ch => {
+    const doc = ctx.docs[ch.path];
+    const h2 = new Set(), ids = {};
+    if (doc) {
+      doc.queryAll("h2").forEach(h => { if (h.id) h2.add(h.id); });
+      for (const el of doc.elements()) if (el.id) ids[el.id] = el;
+    }
+    ch.sections.forEach(s => {
+      /* "practice" exactly when checkCurriculum's practice branch accepts it */
+      const el = ids[s.id];
+      const practice = !h2.has(s.id) && !!el && el.name === "section" && /(^|\s)practice(\s|$)/.test(el.getAttribute("class") || "");
+      sections.push({ ref: ch.id + "#" + s.id, anchor: practice ? "practice" : "h2" });
+    });
+  });
+  const exercises = [];
+  Object.keys(ctx.chapters).forEach(page => {
+    exerciseRefs(ctx.chapters[page], exercisesOf(ctx.docs[page]), page).forEach(e => exercises.push(e));
+  });
+  return { SKILLS: M.SKILLS, CONTAINERS: M.CONTAINERS, GENERATOR_SKILLS: M.GENERATOR_SKILLS, generators: generatorSections(), sections, exercises, codes, resolveOverride: M.resolveOverride };
+}
+
+function checkSkills(ctx, r) {
+  const tree = skillsTree(ctx);
+  r.count = tree.sections.length;
+  skillsProblems(tree).forEach(m => r.fail(m));
+  r.note(Object.keys(tree.SKILLS).length + " skills, " + tree.CONTAINERS.length + " containers, " + Object.keys(tree.generators).length + " generators (" +
+    Object.keys(tree.GENERATOR_SKILLS).length + " with an override), " + tree.exercises.length + " scored exercises, " + Object.keys(tree.codes).length + " codes known");
+}
+
 /* ----------------------------------------------------------- pure core -- */
 
 /* The modules under src/core/, src/sync/, src/learn/ and src/data/ are pure: Node and
@@ -1212,6 +1390,7 @@ const CHECKS = [
   { name: "links", run: checkLinks, what: "relative hrefs/srcs resolve to files, anchors to ids" },
   { name: "widgets", run: checkWidgets, what: "every data-widget / data-figure is a defined factory" },
   { name: "sections", run: checkSections, what: "every data-section names a real section" },
+  { name: "skills", run: checkSkills, what: "src/data/skills.ts: a record per section but the mixed-review ones, every scored exercise credits one, official codes, courses by the code, every generator resolves" },
   { name: "choices", run: checkChoices, what: "choice/multi answer indices are within the options" },
   { name: "order", run: checkOrder, what: "order lists have >= 2 items; blanks carry keys" },
   { name: "migrations", run: checkMigrations, what: "a supabase/schema.sql change since main ships a new, well-named migration; applied ones are untouched" },
@@ -1249,5 +1428,5 @@ function main() {
 }
 
 if (require.main === module) main();
-module.exports = { CHECKS, result, loadGrade, pureProblems, isPureFile, pageKeys, lessonSteps, stepsDiff, shellOf, shellDiff, scriptsProblems, randomState, stripLocalFirst, canon,
+module.exports = { CHECKS, result, loadGrade, pureProblems, isPureFile, codeProblems, courseProblems, exerciseRefs, skillsProblems, pageKeys, lessonSteps, stepsDiff, shellOf, shellDiff, scriptsProblems, randomState, stripLocalFirst, canon,
   animationFaults, colourLiterals, columnPatterns, inColumn, quietKinds, printGaps };

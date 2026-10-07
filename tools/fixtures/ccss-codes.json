@@ -1,0 +1,1058 @@
+{
+"6.RP.A.1": {
+"plus": false,
+"subs": {}
+},
+"6.RP.A.2": {
+"plus": false,
+"subs": {}
+},
+"6.RP.A.3": {
+"plus": false,
+"subs": {
+"a": false,
+"b": false,
+"c": false,
+"d": false
+}
+},
+"6.NS.A.1": {
+"plus": false,
+"subs": {}
+},
+"6.NS.B.2": {
+"plus": false,
+"subs": {}
+},
+"6.NS.B.3": {
+"plus": false,
+"subs": {}
+},
+"6.NS.B.4": {
+"plus": false,
+"subs": {}
+},
+"6.NS.C.5": {
+"plus": false,
+"subs": {}
+},
+"6.NS.C.6": {
+"plus": false,
+"subs": {
+"a": false,
+"b": false,
+"c": false
+}
+},
+"6.NS.C.7": {
+"plus": false,
+"subs": {
+"a": false,
+"b": false,
+"c": false,
+"d": false
+}
+},
+"6.NS.C.8": {
+"plus": false,
+"subs": {}
+},
+"6.EE.A.1": {
+"plus": false,
+"subs": {}
+},
+"6.EE.A.2": {
+"plus": false,
+"subs": {
+"a": false,
+"b": false,
+"c": false
+}
+},
+"6.EE.A.3": {
+"plus": false,
+"subs": {}
+},
+"6.EE.A.4": {
+"plus": false,
+"subs": {}
+},
+"6.EE.B.5": {
+"plus": false,
+"subs": {}
+},
+"6.EE.B.6": {
+"plus": false,
+"subs": {}
+},
+"6.EE.B.7": {
+"plus": false,
+"subs": {}
+},
+"6.EE.B.8": {
+"plus": false,
+"subs": {}
+},
+"6.EE.C.9": {
+"plus": false,
+"subs": {}
+},
+"6.G.A.1": {
+"plus": false,
+"subs": {}
+},
+"6.G.A.2": {
+"plus": false,
+"subs": {}
+},
+"6.G.A.3": {
+"plus": false,
+"subs": {}
+},
+"6.G.A.4": {
+"plus": false,
+"subs": {}
+},
+"6.SP.A.1": {
+"plus": false,
+"subs": {}
+},
+"6.SP.A.2": {
+"plus": false,
+"subs": {}
+},
+"6.SP.A.3": {
+"plus": false,
+"subs": {}
+},
+"6.SP.B.4": {
+"plus": false,
+"subs": {}
+},
+"6.SP.B.5": {
+"plus": false,
+"subs": {
+"a": false,
+"b": false,
+"c": false,
+"d": false
+}
+},
+"7.RP.A.1": {
+"plus": false,
+"subs": {}
+},
+"7.RP.A.2": {
+"plus": false,
+"subs": {
+"a": false,
+"b": false,
+"c": false,
+"d": false
+}
+},
+"7.RP.A.3": {
+"plus": false,
+"subs": {}
+},
+"7.NS.A.1": {
+"plus": false,
+"subs": {
+"a": false,
+"b": false,
+"c": false,
+"d": false
+}
+},
+"7.NS.A.2": {
+"plus": false,
+"subs": {
+"a": false,
+"b": false,
+"c": false,
+"d": false
+}
+},
+"7.NS.A.3": {
+"plus": false,
+"subs": {}
+},
+"7.EE.A.1": {
+"plus": false,
+"subs": {}
+},
+"7.EE.A.2": {
+"plus": false,
+"subs": {}
+},
+"7.EE.B.3": {
+"plus": false,
+"subs": {}
+},
+"7.EE.B.4": {
+"plus": false,
+"subs": {
+"a": false,
+"b": false
+}
+},
+"7.G.A.1": {
+"plus": false,
+"subs": {}
+},
+"7.G.A.2": {
+"plus": false,
+"subs": {}
+},
+"7.G.A.3": {
+"plus": false,
+"subs": {}
+},
+"7.G.B.4": {
+"plus": false,
+"subs": {}
+},
+"7.G.B.5": {
+"plus": false,
+"subs": {}
+},
+"7.G.B.6": {
+"plus": false,
+"subs": {}
+},
+"7.SP.A.1": {
+"plus": false,
+"subs": {}
+},
+"7.SP.A.2": {
+"plus": false,
+"subs": {}
+},
+"7.SP.B.3": {
+"plus": false,
+"subs": {}
+},
+"7.SP.B.4": {
+"plus": false,
+"subs": {}
+},
+"7.SP.C.5": {
+"plus": false,
+"subs": {}
+},
+"7.SP.C.6": {
+"plus": false,
+"subs": {}
+},
+"7.SP.C.7": {
+"plus": false,
+"subs": {
+"a": false,
+"b": false
+}
+},
+"7.SP.C.8": {
+"plus": false,
+"subs": {
+"a": false,
+"b": false,
+"c": false
+}
+},
+"8.NS.A.1": {
+"plus": false,
+"subs": {}
+},
+"8.NS.A.2": {
+"plus": false,
+"subs": {}
+},
+"8.EE.A.1": {
+"plus": false,
+"subs": {}
+},
+"8.EE.A.2": {
+"plus": false,
+"subs": {}
+},
+"8.EE.A.3": {
+"plus": false,
+"subs": {}
+},
+"8.EE.A.4": {
+"plus": false,
+"subs": {}
+},
+"8.EE.B.5": {
+"plus": false,
+"subs": {}
+},
+"8.EE.B.6": {
+"plus": false,
+"subs": {}
+},
+"8.EE.C.7": {
+"plus": false,
+"subs": {
+"a": false,
+"b": false
+}
+},
+"8.EE.C.8": {
+"plus": false,
+"subs": {
+"a": false,
+"b": false,
+"c": false
+}
+},
+"8.F.A.1": {
+"plus": false,
+"subs": {}
+},
+"8.F.A.2": {
+"plus": false,
+"subs": {}
+},
+"8.F.A.3": {
+"plus": false,
+"subs": {}
+},
+"8.F.B.4": {
+"plus": false,
+"subs": {}
+},
+"8.F.B.5": {
+"plus": false,
+"subs": {}
+},
+"8.G.A.1": {
+"plus": false,
+"subs": {
+"a": false,
+"b": false,
+"c": false
+}
+},
+"8.G.A.2": {
+"plus": false,
+"subs": {}
+},
+"8.G.A.3": {
+"plus": false,
+"subs": {}
+},
+"8.G.A.4": {
+"plus": false,
+"subs": {}
+},
+"8.G.A.5": {
+"plus": false,
+"subs": {}
+},
+"8.G.B.6": {
+"plus": false,
+"subs": {}
+},
+"8.G.B.7": {
+"plus": false,
+"subs": {}
+},
+"8.G.B.8": {
+"plus": false,
+"subs": {}
+},
+"8.G.C.9": {
+"plus": false,
+"subs": {}
+},
+"8.SP.A.1": {
+"plus": false,
+"subs": {}
+},
+"8.SP.A.2": {
+"plus": false,
+"subs": {}
+},
+"8.SP.A.3": {
+"plus": false,
+"subs": {}
+},
+"8.SP.A.4": {
+"plus": false,
+"subs": {}
+},
+"HSN.RN.A.1": {
+"plus": false,
+"subs": {}
+},
+"HSN.RN.A.2": {
+"plus": false,
+"subs": {}
+},
+"HSN.RN.B.3": {
+"plus": false,
+"subs": {}
+},
+"HSN.Q.A.1": {
+"plus": false,
+"subs": {}
+},
+"HSN.Q.A.2": {
+"plus": false,
+"subs": {}
+},
+"HSN.Q.A.3": {
+"plus": false,
+"subs": {}
+},
+"HSN.CN.A.1": {
+"plus": false,
+"subs": {}
+},
+"HSN.CN.A.2": {
+"plus": false,
+"subs": {}
+},
+"HSN.CN.A.3": {
+"plus": true,
+"subs": {}
+},
+"HSN.CN.B.4": {
+"plus": true,
+"subs": {}
+},
+"HSN.CN.B.5": {
+"plus": true,
+"subs": {}
+},
+"HSN.CN.B.6": {
+"plus": true,
+"subs": {}
+},
+"HSN.CN.C.7": {
+"plus": false,
+"subs": {}
+},
+"HSN.CN.C.8": {
+"plus": true,
+"subs": {}
+},
+"HSN.CN.C.9": {
+"plus": true,
+"subs": {}
+},
+"HSN.VM.A.1": {
+"plus": true,
+"subs": {}
+},
+"HSN.VM.A.2": {
+"plus": true,
+"subs": {}
+},
+"HSN.VM.A.3": {
+"plus": true,
+"subs": {}
+},
+"HSN.VM.B.4": {
+"plus": true,
+"subs": {
+"a": false,
+"b": false,
+"c": false
+}
+},
+"HSN.VM.B.5": {
+"plus": true,
+"subs": {
+"a": false,
+"b": false
+}
+},
+"HSN.VM.C.6": {
+"plus": true,
+"subs": {}
+},
+"HSN.VM.C.7": {
+"plus": true,
+"subs": {}
+},
+"HSN.VM.C.8": {
+"plus": true,
+"subs": {}
+},
+"HSN.VM.C.9": {
+"plus": true,
+"subs": {}
+},
+"HSN.VM.C.10": {
+"plus": true,
+"subs": {}
+},
+"HSN.VM.C.11": {
+"plus": true,
+"subs": {}
+},
+"HSN.VM.C.12": {
+"plus": true,
+"subs": {}
+},
+"HSA.SSE.A.1": {
+"plus": false,
+"subs": {
+"a": false,
+"b": false
+}
+},
+"HSA.SSE.A.2": {
+"plus": false,
+"subs": {}
+},
+"HSA.SSE.B.3": {
+"plus": false,
+"subs": {
+"a": false,
+"b": false,
+"c": false
+}
+},
+"HSA.SSE.B.4": {
+"plus": false,
+"subs": {}
+},
+"HSA.APR.A.1": {
+"plus": false,
+"subs": {}
+},
+"HSA.APR.B.2": {
+"plus": false,
+"subs": {}
+},
+"HSA.APR.B.3": {
+"plus": false,
+"subs": {}
+},
+"HSA.APR.C.4": {
+"plus": false,
+"subs": {}
+},
+"HSA.APR.C.5": {
+"plus": true,
+"subs": {}
+},
+"HSA.APR.D.6": {
+"plus": false,
+"subs": {}
+},
+"HSA.APR.D.7": {
+"plus": true,
+"subs": {}
+},
+"HSA.CED.A.1": {
+"plus": false,
+"subs": {}
+},
+"HSA.CED.A.2": {
+"plus": false,
+"subs": {}
+},
+"HSA.CED.A.3": {
+"plus": false,
+"subs": {}
+},
+"HSA.CED.A.4": {
+"plus": false,
+"subs": {}
+},
+"HSA.REI.A.1": {
+"plus": false,
+"subs": {}
+},
+"HSA.REI.A.2": {
+"plus": false,
+"subs": {}
+},
+"HSA.REI.B.3": {
+"plus": false,
+"subs": {}
+},
+"HSA.REI.B.4": {
+"plus": false,
+"subs": {
+"a": false,
+"b": false
+}
+},
+"HSA.REI.C.5": {
+"plus": false,
+"subs": {}
+},
+"HSA.REI.C.6": {
+"plus": false,
+"subs": {}
+},
+"HSA.REI.C.7": {
+"plus": false,
+"subs": {}
+},
+"HSA.REI.C.8": {
+"plus": true,
+"subs": {}
+},
+"HSA.REI.C.9": {
+"plus": true,
+"subs": {}
+},
+"HSA.REI.D.10": {
+"plus": false,
+"subs": {}
+},
+"HSA.REI.D.11": {
+"plus": false,
+"subs": {}
+},
+"HSA.REI.D.12": {
+"plus": false,
+"subs": {}
+},
+"HSF.IF.A.1": {
+"plus": false,
+"subs": {}
+},
+"HSF.IF.A.2": {
+"plus": false,
+"subs": {}
+},
+"HSF.IF.A.3": {
+"plus": false,
+"subs": {}
+},
+"HSF.IF.B.4": {
+"plus": false,
+"subs": {}
+},
+"HSF.IF.B.5": {
+"plus": false,
+"subs": {}
+},
+"HSF.IF.B.6": {
+"plus": false,
+"subs": {}
+},
+"HSF.IF.C.7": {
+"plus": false,
+"subs": {
+"a": false,
+"b": false,
+"c": false,
+"d": true,
+"e": false
+}
+},
+"HSF.IF.C.8": {
+"plus": false,
+"subs": {
+"a": false,
+"b": false
+}
+},
+"HSF.IF.C.9": {
+"plus": false,
+"subs": {}
+},
+"HSF.BF.A.1": {
+"plus": false,
+"subs": {
+"a": false,
+"b": false,
+"c": true
+}
+},
+"HSF.BF.A.2": {
+"plus": false,
+"subs": {}
+},
+"HSF.BF.B.3": {
+"plus": false,
+"subs": {}
+},
+"HSF.BF.B.4": {
+"plus": false,
+"subs": {
+"a": false,
+"b": true,
+"c": true,
+"d": true
+}
+},
+"HSF.BF.B.5": {
+"plus": true,
+"subs": {}
+},
+"HSF.LE.A.1": {
+"plus": false,
+"subs": {
+"a": false,
+"b": false,
+"c": false
+}
+},
+"HSF.LE.A.2": {
+"plus": false,
+"subs": {}
+},
+"HSF.LE.A.3": {
+"plus": false,
+"subs": {}
+},
+"HSF.LE.A.4": {
+"plus": false,
+"subs": {}
+},
+"HSF.LE.B.5": {
+"plus": false,
+"subs": {}
+},
+"HSF.TF.A.1": {
+"plus": false,
+"subs": {}
+},
+"HSF.TF.A.2": {
+"plus": false,
+"subs": {}
+},
+"HSF.TF.A.3": {
+"plus": true,
+"subs": {}
+},
+"HSF.TF.A.4": {
+"plus": true,
+"subs": {}
+},
+"HSF.TF.B.5": {
+"plus": false,
+"subs": {}
+},
+"HSF.TF.B.6": {
+"plus": true,
+"subs": {}
+},
+"HSF.TF.B.7": {
+"plus": true,
+"subs": {}
+},
+"HSF.TF.C.8": {
+"plus": false,
+"subs": {}
+},
+"HSF.TF.C.9": {
+"plus": true,
+"subs": {}
+},
+"HSG.CO.A.1": {
+"plus": false,
+"subs": {}
+},
+"HSG.CO.A.2": {
+"plus": false,
+"subs": {}
+},
+"HSG.CO.A.3": {
+"plus": false,
+"subs": {}
+},
+"HSG.CO.A.4": {
+"plus": false,
+"subs": {}
+},
+"HSG.CO.A.5": {
+"plus": false,
+"subs": {}
+},
+"HSG.CO.B.6": {
+"plus": false,
+"subs": {}
+},
+"HSG.CO.B.7": {
+"plus": false,
+"subs": {}
+},
+"HSG.CO.B.8": {
+"plus": false,
+"subs": {}
+},
+"HSG.CO.C.9": {
+"plus": false,
+"subs": {}
+},
+"HSG.CO.C.10": {
+"plus": false,
+"subs": {}
+},
+"HSG.CO.C.11": {
+"plus": false,
+"subs": {}
+},
+"HSG.CO.D.12": {
+"plus": false,
+"subs": {}
+},
+"HSG.CO.D.13": {
+"plus": false,
+"subs": {}
+},
+"HSG.SRT.A.1": {
+"plus": false,
+"subs": {
+"a": false,
+"b": false
+}
+},
+"HSG.SRT.A.2": {
+"plus": false,
+"subs": {}
+},
+"HSG.SRT.A.3": {
+"plus": false,
+"subs": {}
+},
+"HSG.SRT.B.4": {
+"plus": false,
+"subs": {}
+},
+"HSG.SRT.B.5": {
+"plus": false,
+"subs": {}
+},
+"HSG.SRT.C.6": {
+"plus": false,
+"subs": {}
+},
+"HSG.SRT.C.7": {
+"plus": false,
+"subs": {}
+},
+"HSG.SRT.C.8": {
+"plus": false,
+"subs": {}
+},
+"HSG.SRT.D.9": {
+"plus": true,
+"subs": {}
+},
+"HSG.SRT.D.10": {
+"plus": true,
+"subs": {}
+},
+"HSG.SRT.D.11": {
+"plus": true,
+"subs": {}
+},
+"HSG.C.A.1": {
+"plus": false,
+"subs": {}
+},
+"HSG.C.A.2": {
+"plus": false,
+"subs": {}
+},
+"HSG.C.A.3": {
+"plus": false,
+"subs": {}
+},
+"HSG.C.A.4": {
+"plus": true,
+"subs": {}
+},
+"HSG.C.B.5": {
+"plus": false,
+"subs": {}
+},
+"HSG.GPE.A.1": {
+"plus": false,
+"subs": {}
+},
+"HSG.GPE.A.2": {
+"plus": false,
+"subs": {}
+},
+"HSG.GPE.A.3": {
+"plus": true,
+"subs": {}
+},
+"HSG.GPE.B.4": {
+"plus": false,
+"subs": {}
+},
+"HSG.GPE.B.5": {
+"plus": false,
+"subs": {}
+},
+"HSG.GPE.B.6": {
+"plus": false,
+"subs": {}
+},
+"HSG.GPE.B.7": {
+"plus": false,
+"subs": {}
+},
+"HSG.GMD.A.1": {
+"plus": false,
+"subs": {}
+},
+"HSG.GMD.A.2": {
+"plus": true,
+"subs": {}
+},
+"HSG.GMD.A.3": {
+"plus": false,
+"subs": {}
+},
+"HSG.GMD.B.4": {
+"plus": false,
+"subs": {}
+},
+"HSG.MG.A.1": {
+"plus": false,
+"subs": {}
+},
+"HSG.MG.A.2": {
+"plus": false,
+"subs": {}
+},
+"HSG.MG.A.3": {
+"plus": false,
+"subs": {}
+},
+"HSS.ID.A.1": {
+"plus": false,
+"subs": {}
+},
+"HSS.ID.A.2": {
+"plus": false,
+"subs": {}
+},
+"HSS.ID.A.3": {
+"plus": false,
+"subs": {}
+},
+"HSS.ID.A.4": {
+"plus": false,
+"subs": {}
+},
+"HSS.ID.B.5": {
+"plus": false,
+"subs": {}
+},
+"HSS.ID.B.6": {
+"plus": false,
+"subs": {
+"a": false,
+"b": false,
+"c": false
+}
+},
+"HSS.ID.C.7": {
+"plus": false,
+"subs": {}
+},
+"HSS.ID.C.8": {
+"plus": false,
+"subs": {}
+},
+"HSS.ID.C.9": {
+"plus": false,
+"subs": {}
+},
+"HSS.IC.A.1": {
+"plus": false,
+"subs": {}
+},
+"HSS.IC.A.2": {
+"plus": false,
+"subs": {}
+},
+"HSS.IC.B.3": {
+"plus": false,
+"subs": {}
+},
+"HSS.IC.B.4": {
+"plus": false,
+"subs": {}
+},
+"HSS.IC.B.5": {
+"plus": false,
+"subs": {}
+},
+"HSS.IC.B.6": {
+"plus": false,
+"subs": {}
+},
+"HSS.CP.A.1": {
+"plus": false,
+"subs": {}
+},
+"HSS.CP.A.2": {
+"plus": false,
+"subs": {}
+},
+"HSS.CP.A.3": {
+"plus": false,
+"subs": {}
+},
+"HSS.CP.A.4": {
+"plus": false,
+"subs": {}
+},
+"HSS.CP.A.5": {
+"plus": false,
+"subs": {}
+},
+"HSS.CP.B.6": {
+"plus": false,
+"subs": {}
+},
+"HSS.CP.B.7": {
+"plus": false,
+"subs": {}
+},
+"HSS.CP.B.8": {
+"plus": true,
+"subs": {}
+},
+"HSS.CP.B.9": {
+"plus": true,
+"subs": {}
+},
+"HSS.MD.A.1": {
+"plus": true,
+"subs": {}
+},
+"HSS.MD.A.2": {
+"plus": true,
+"subs": {}
+},
+"HSS.MD.A.3": {
+"plus": true,
+"subs": {}
+},
+"HSS.MD.A.4": {
+"plus": true,
+"subs": {}
+},
+"HSS.MD.B.5": {
+"plus": true,
+"subs": {
+"a": false,
+"b": false
+}
+},
+"HSS.MD.B.6": {
+"plus": true,
+"subs": {}
+},
+"HSS.MD.B.7": {
+"plus": true,
+"subs": {}
+}
+}
