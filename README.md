@@ -409,6 +409,7 @@ supabase/schema.sql     tables, row-level security, aggregate functions
 supabase/README.md      how to switch accounts on
 supabase/migrations/    one file per database change, run on the live project before the merge
 OPERATIONS.md           the runbook: release order, deploys, quotas, secrets, incidents
+docs/decisions/         decision notes, numbered: what was decided, why, what it changes and requires
 tools/                  the checks: static, scenes, generators, game rules, the build, headless browser
 tools/lib/shell.js      the <head> and the top bar of every page: the boot script inline, the
                         view-transition opt-in inline, the vendor stylesheets, its kind's
