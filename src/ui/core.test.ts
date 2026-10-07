@@ -12,10 +12,14 @@ const ROOT = path.resolve(import.meta.dirname, "../..");
 
 describe("the modules under src/core/", () => {
   /* in a Node of its own, as tools/ loads them (type stripping): every name on globalThis
-     before the imports is every name after */
+     before the imports is every name after. Every module under src/core/, the grader's in
+     src/core/answer/ too, so one added there is imported here with no edit to this list:
+     it has to hold the five at the top, and every name has to be one this walk reads */
   it("add no global when Node imports them, and neither does the installer", () => {
-    const files = fs.readdirSync(path.join(ROOT, "src/core")).filter((f) => /\.ts$/.test(f) && !/\.(test|d)\.ts$/.test(f)).sort();
-    expect(files).toEqual(["config.ts", "curriculum.ts", "grade.ts", "rules.ts", "store.ts"]);
+    const files = (fs.readdirSync(path.join(ROOT, "src/core"), { recursive: true }) as string[])
+      .map((f) => f.split(path.sep).join("/")).filter((f) => /\.ts$/.test(f) && !/\.(test|d)\.ts$/.test(f)).sort();
+    expect(files).toEqual(expect.arrayContaining(["config.ts", "curriculum.ts", "grade.ts", "rules.ts", "store.ts"]));
+    for (const f of files) expect(f).toMatch(/^(answer\/)?[a-z]+\.ts$/);
     const urls = files.map((f) => "src/core/" + f).concat("src/ui/core.ts").map((f) => new URL("file://" + path.join(ROOT, f)).href);
     const script = "const before = Reflect.ownKeys(globalThis).map(String);" +
       "for (const u of " + JSON.stringify(urls) + ") await import(u);" +
@@ -27,10 +31,23 @@ describe("the modules under src/core/", () => {
 });
 
 describe("window.BMCore", () => {
-  it("is the grader, the rules, the refs and the settings reader", () => {
-    expect(Object.keys(core)).toEqual(["grade", "matches", "alternatives", "rules", "curriculum", "config"]);
+  it("is the grader, its verdicts and messages, the rules, the refs and the settings reader", () => {
+    expect(Object.keys(core)).toEqual(["grade", "matches", "alternatives", "judge", "specOf", "messages", "rules", "curriculum", "config"]);
     expect(Object.keys(core.rules).sort()).toEqual(["CLUE_FREE", "FADED_RUNG", "Road", "STRONG", "WEAK", "XP", "fadedOf", "isMiss", "medalMark", "paysFirst", "setStats", "struggle", "xpFor"]);
+    expect(Object.keys(core.messages)).toEqual(["unreadMessage", "formMessage", "readMessage", "lowestMessage"]);
     expect(core.grade("1/2", "0.5", "number")).toBe(true);
+  });
+
+  /* the typed grader as a page will call it: still over the old grader, so a verdict is
+     right exactly where grade() says true; judgeOff() is the tools' and never on the page */
+  it("judges an answer from what the page holds, and leaves the tools' switch off", () => {
+    const spec = core.specOf({ answer: "1/2", type: "number", tol: "" });
+    expect(spec).toEqual({ answer: "1/2", type: "number", tol: 0 });
+    expect(core.judge(" 0.5 ", spec)).toEqual({ kind: "right", alt: 0, read: "0.5", notes: [] });
+    expect(core.judge("2", spec)).toEqual({ kind: "wrong", read: null });
+    expect(core.judge("  ", spec)).toEqual({ kind: "unread", reason: "empty", at: 0 });
+    expect(core.messages.unreadMessage("empty", "a")).toBe("Type an answer, then press Check.");
+    expect("judgeOff" in core).toBe(false);
   });
 });
 
