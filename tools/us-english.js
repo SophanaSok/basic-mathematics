@@ -10,34 +10,45 @@
           node tools/us-english.js --shrink                 lower tools/us-english-allow.json to
                                                             what is found (never raises a count)
 
-   With no files, every reader-facing file: the root pages and parts/<dir>/<page>.html, and
-   the scripts under assets/, data/ and src/ but src/vendor/, tests (*.test.*, *.test-helper.*)
-   and declaration files. Three lists:
+   With no files, every reader-facing file: the root pages and parts/<dir>/<page>.html, the
+   scripts under assets/, data/ and src/ but src/vendor/, tests (*.test.*, *.test-helper.*)
+   and declaration files, and tools/lib/shell.js, which writes the top bar and the settings
+   sheet into every page. Three lists:
      SPELLING  British word -> US word, matched as a whole word in any letter case. The check
                (`us-english` in check-static.js) counts these, and --write rewrites them with
                the original's capitals (Centre -> Center).
-     MONEY     the pound sign (in math too), "pound", "pounds", "pence" and a price in pence
-               ("10p"). Counted by the check; never written: a dollar in prose is $\$9$, not
-               $9 (KaTeX would open a formula), so each one is rewritten by hand.
+     MONEY     the pound sign (in math too, and as &pound;), "pound", "pounds", "pence" and a
+               price in pence ("10p", or a "p" right after an operand of a chain, n + "p each",
+               counted as the form "<n>p"). Counted by the check; never written: a dollar in
+               prose is $\$9$, not $9 (KaTeX would open a formula), so each one is rewritten by
+               hand.
      WORDING   British words that are not misspellings (brackets, towards, tick ...).
                Report-only: never in the check or the allow file, never written.
 
    What counts as reader-facing, by context:
-     pages     text, a <title>, and the values of the reader attributes (READER_ATTR); not
-               comments, other attributes (id, class, data-answer, data-section, ...), <style>,
-               or <code>/<pre>/<kbd>/<samp>, which are code (KaTeX skips them too)
+     pages     text, a <title>, a <textarea>, the values of the reader attributes (READER_ATTR:
+               data-hint*, data-label, data-placeholder, data-tip, placeholder, title, alt and the
+               aria-* text ones), a title or description meta's content, and the strings of an
+               inline <script> (read as a script); not comments, other attributes (id, class,
+               data-answer, data-section, ...), <style>, or <code>/<pre>/<kbd>/<samp>, which are
+               code (KaTeX skips them too)
      scripts   string literals and template text, read off rolldown's AST as check-static's
                pure-core check reads them, so no comment or identifier is ever seen. A string
-               with no space that reads as a key ("lin-brackets", "bm.play.v1") is code, and so
-               are object keys, operands of a comparison, `case` labels, computed member names,
-               module names, and the names a DOM call takes (classList, getAttribute, ...).
+               with no space that reads as a key ("lin-brackets", "bm.play.v1"; a full stop,
+               colon or other sentence mark at its end does not count, so "Cancelled." is a
+               word, and "5p" is money) is code, and so are object keys, operands of a
+               comparison, `case` labels, computed member names, module names, and the names a
+               DOM call takes (classList, getAttribute, ...): toast("...") is a call like any.
                A string holding markup is read as markup: tag names and attributes other than
                the reader ones are code.
      both      math is not prose: $...$, $$...$$, \(...\), \[...\] as assets/site.js gives KaTeX,
                found as KaTeX's auto-render finds them (a backslash escapes inside math, nothing
-               escapes outside it). In a script the formula is followed across the operands of
-               one `+` chain (and a template): a string that is not a literal keeps the state, so
-               "$: centre $" after "... = " + x reads ": centre " as prose. A word that is part
+               escapes outside it), but the body of \text{}, \textrm{}, \textbf{}, \textit{},
+               \textsf{}, \textnormal{}, \mbox{}, \mathrm{} and \operatorname{} in one is shown
+               as words, so it is prose again ($12\text{ metres}$ counts). In a script the
+               formula is followed across the operands of one `+` chain (and a template): a
+               string that is not a literal keeps the state, so "$: centre $" after
+               "... = " + x reads ": centre " as prose. A word that is part
                of an identifier (camelCase, digits, underscores, a dot between letters) or of a
                URL is code. */
 
@@ -76,10 +87,12 @@ family("armour", "armor", ["", "ed"]);
 ["rigour", "vigour", "saviour", "candour", "splendour", "clamour", "valour"].forEach(w => family(w, w.replace(/our$/, "or"), [""]));
 /* -re */
 family("centre", "center", ["", "s"]);
-family("epicentre", "epicenter", ["", "s"]);
+/* the centres of a triangle, and the compounds written as one word */
+["epi", "circum", "in", "ortho", "ex", "bary"].forEach(p => family(p + "centre", p + "center", ["", "s"]));
+["piece", "line", "fold", "board"].forEach(c => family("centre" + c, "center" + c, ["", "s"]));
 Object.assign(SPELLING, { centred: "centered", centring: "centering" });
-["", "kilo", "centi", "milli", "nano", "micro"].forEach(p => family(p + "metre", p + "meter", ["", "s"]));
-["", "milli", "centi", "deci"].forEach(p => family(p + "litre", p + "liter", ["", "s"]));
+["", "kilo", "hecto", "deca", "deci", "centi", "milli", "micro", "nano"].forEach(p => family(p + "metre", p + "meter", ["", "s"]));
+["", "kilo", "hecto", "deca", "deci", "centi", "milli", "micro"].forEach(p => family(p + "litre", p + "liter", ["", "s"]));
 ["fibre", "theatre", "calibre", "sombre", "spectre", "lustre", "sabre", "meagre"].forEach(w => family(w, w.replace(/re$/, "er"), [""].concat(/^(fibre|theatre|spectre|sabre)$/.test(w) ? ["s"] : [])));
 family("manoeuvre", "maneuver", ["", "s"]);
 Object.assign(SPELLING, { manoeuvred: "maneuvered", manoeuvring: "maneuvering", manoeuvrable: "maneuverable" });
@@ -95,7 +108,7 @@ Object.assign(SPELLING, { manoeuvred: "maneuvered", manoeuvring: "maneuvering", 
   "canonicalis", "conceptualis", "contextualis", "dramatis", "internalis", "italicis", "memorialis",
   "mobilis", "patronis", "socialis", "trivialis", "verbalis", "economis", "energis", "globalis",
   "humanis", "magnetis", "marginalis", "metabolis", "oxidis", "atomis", "totalis", "visualis"
-].forEach(stem => family(stem, stem.replace(/is$/, "iz"), ["e", "es", "ed", "ing", "ation", "ations", "er", "ers", "able"]));
+].forEach(stem => family(stem, stem.replace(/is$/, "iz"), ["e", "es", "ed", "ing", "ation", "ations", "ational", "er", "ers", "able", "ably"]));
 /* -yse ("analyses" is also the plural of analysis, in both) */
 ["analys", "paralys", "catalys", "electrolys", "hydrolys", "dialys"].forEach(stem => family(stem, stem.replace(/ys$/, "yz"), ["e", "ed", "ing", "er", "ers"]));
 /* a doubled l before -ed, -ing, -er (cancellation keeps both: it is US too) */
@@ -122,7 +135,8 @@ Object.assign(SPELLING, {
   grey: "gray", greys: "grays", greyed: "grayed", greying: "graying", greyish: "grayish", greyscale: "grayscale",
   programme: "program", programmes: "programs", maths: "math",
   judgement: "judgment", judgements: "judgments", acknowledgement: "acknowledgment", acknowledgements: "acknowledgments",
-  whilst: "while", amongst: "among", learnt: "learned", spelt: "spelled",
+  whilst: "while", amongst: "among", learnt: "learned", spelt: "spelled", dreamt: "dreamed", spoilt: "spoiled",
+  enquiry: "inquiry", enquiries: "inquiries", enquire: "inquire", enquires: "inquires", enquired: "inquired", enquiring: "inquiring",
   anticlockwise: "counterclockwise", ageing: "aging", storey: "story", storeys: "stories",
   cheque: "check", cheques: "checks", tyre: "tire", tyres: "tires", aluminium: "aluminum",
   sceptic: "skeptic", sceptics: "skeptics", sceptical: "skeptical", scepticism: "skepticism",
@@ -152,11 +166,13 @@ const WORDING = [
 /* ------------------------------------------------------------ the files -- */
 
 const SCRIPT = /\.[cm]?[jt]sx?$/;
+/* the one tool whose strings every page shows: the top bar and the settings sheet it writes */
+const SHELL = "tools/lib/shell.js";
 const NOT_READER = /\.(test|test-helper)\.[cm]?[jt]sx?$|\.d\.[cm]?ts$/;
 
 /* true for a repo-relative path whose text a reader is shown (see the head of this file) */
 function isScanned(rel) {
-  if (/^[^/]+\.html$/i.test(rel) || /^parts\/[^/]+\/[^/]+\.html$/i.test(rel)) return true;
+  if (/^[^/]+\.html$/i.test(rel) || /^parts\/[^/]+\/[^/]+\.html$/i.test(rel) || rel === SHELL) return true;
   return /^(assets|data|src)\//.test(rel) && !/^src\/vendor\//.test(rel) && SCRIPT.test(rel) && !NOT_READER.test(rel);
 }
 
@@ -168,6 +184,7 @@ function scannedFiles(root) {
     const rel = path.relative(root, p).split(path.sep).join("/");
     if (isScanned(rel)) out.push(rel);
   }));
+  if (fs.existsSync(path.join(root, SHELL))) out.push(SHELL);
   return out.sort();
 }
 
@@ -206,7 +223,7 @@ function cook(raw, base) {
 
 /* ---------------------------------------------------- markup and math -- */
 
-const READER_ATTR = /^(data-hint\d*|data-label|data-placeholder|placeholder|title|alt|aria-label|aria-description|aria-roledescription|aria-valuetext)$/;
+const READER_ATTR = /^(data-hint\d*|data-label|data-placeholder|data-tip|placeholder|title|alt|aria-label|aria-description|aria-roledescription|aria-valuetext)$/;
 const CODE_TAGS = new Set(["code", "pre", "kbd", "samp"]);
 const RAW_TAGS = new Set(["script", "style", "textarea", "title"]);
 const MATH = [["$$", "$$"], ["\\[", "\\]"], ["$", "$"], ["\\(", "\\)"]];
@@ -223,6 +240,31 @@ function endOfMath(right, text, from, to) {
   }
   return -1;
 }
+/* the commands whose argument a formula shows as words: their bodies are prose again (a
+   formula inside one, $…$, is math again) */
+const TEXT_CMD = /\\(?:text|textrm|textbf|textit|textsf|textnormal|mbox|mathrm|operatorname\*?)\s*\{/y;
+/* marks math[k] for every character of text[from, to) that KaTeX would take as a formula,
+   then takes the bodies of TEXT_CMD in it out again */
+function formula(text, from, to, math) {
+  for (let k = from; k < to; k++) math[k] = true;
+  for (let i = from; i < to; i++) {
+    if (text[i] !== "\\") continue;
+    TEXT_CMD.lastIndex = i;
+    const m = TEXT_CMD.exec(text);
+    if (!m || i + m[0].length > to) { i++; continue; }
+    const body = i + m[0].length;
+    let level = 0, end = body;
+    for (; end < to; end++) {
+      if (text[end] === "\\") end++;
+      else if (text[end] === "{") level++;
+      else if (text[end] === "}" && level-- === 0) break;
+    }
+    end = Math.min(end, to);
+    for (let k = body; k < end; k++) math[k] = false;
+    markMath(text, body, end, math, false);
+    i = end;
+  }
+}
 /* marks math[i] for every character of text[from, to) that KaTeX would take as a formula;
    `open`: the text starts inside an inline formula */
 function markMath(text, from, to, math, open) {
@@ -230,7 +272,7 @@ function markMath(text, from, to, math, open) {
   if (open) {
     const end = endOfMath("$", text, from, to);
     const stop = end === -1 ? to : end + 1;
-    for (let k = from; k < stop; k++) math[k] = true;
+    formula(text, from, stop, math);
     i = stop;
   }
   while (i < to) {
@@ -240,7 +282,7 @@ function markMath(text, from, to, math, open) {
     j--;
     const end = endOfMath(d[1], text, j + d[0].length, to);
     if (end === -1) return;
-    for (let k = j; k < end + d[1].length; k++) math[k] = true;
+    formula(text, j, end + d[1].length, math);
     i = end + d[1].length;
   }
 }
@@ -355,6 +397,11 @@ function wordsOf(text, from, to, math, kinds) {
         }
         continue;
       }
+      /* a price in pence whose number is an operand of the chain (n + "p each", `${n}p`) */
+      if (word === "p" && before === GAP && !IDENT_CHAR.test(after)) {
+        if (kinds.money) out.push({ kind: "money", form: "<n>p", us: "cents", i: a, len: 1 });
+        continue;
+      }
       /* part of an identifier: next to a digit, _ or $, a dot between letters, or camelCase */
       if (a > from && (IDENT_CHAR.test(before) || (before === "." && /[A-Za-z0-9]/.test(text[a - 2] || "")))) continue;
       if (IDENT_CHAR.test(after) || (after === "." && /[A-Za-z0-9]/.test(text[b + 1] || "") && b + 1 < to)) continue;
@@ -416,9 +463,12 @@ const COMPARE = new Set(["===", "!==", "==", "!=", "in", "instanceof"]);
 const TS_EXPRESSION = new Set(["TSAsExpression", "TSSatisfiesExpression", "TSNonNullExpression", "TSTypeAssertion", "TSInstantiationExpression"]);
 
 /* a string that is a key, a class, an id or a path, not words: no space, and a hyphen, a dot,
-   an underscore, a digit or a capital after a small letter somewhere in it */
+   an underscore, a digit or a capital after a small letter somewhere in it. The punctuation
+   that ends a sentence (". : ! ? ,") is not a mark of one when it is last, so "Cancelled."
+   and "Note:" are words, and a price in pence ("5p", "2.5p") is money, not a key. */
 function isKey(text) {
-  const s = text.split(GAP).join("");
+  const s = text.split(GAP).join("").replace(/[.:!?,;]+$/, "");
+  if (/^\d+(\.\d+)?p$/.test(s)) return false;
   return !/\s/.test(s) && /^[A-Za-z0-9_$.#:\[\]=\/@%-]*$/.test(s) && /[-_.#:\[\]=\/@%\d]|[a-z][A-Z]/.test(s);
 }
 
