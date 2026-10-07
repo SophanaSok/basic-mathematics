@@ -197,6 +197,25 @@ describe("a set (section 3.2)", () => {
     expect([list("1,".repeat(100) + "1"), list("1," + "2".repeat(41))]).toEqual(["unread/too-long", "unread/too-long"]);
   });
 
+  it("refuses a mixed number and a zero-led member behind a $, brackets, a trailing full stop or ±", () => {
+    const texts = ["$2 1/3", "(2 1/3)", "-(2 1/3)", "- $2 1/3", "{$2 1/3}", "2 1/3., 5", "2½., 5", "±2 1/3", "+/-1 1/2", "±2½",
+      "1,$000", "1,(000)", "1,-(05)", "±05", "+-000", "$0.5, (0)", "±0.5"];
+    const want = {
+      "$2 1/3": "unread/mixed-in-set", "(2 1/3)": "unread/mixed-in-set", "-(2 1/3)": "unread/mixed-in-set", "- $2 1/3": "unread/mixed-in-set",
+      "{$2 1/3}": "unread/mixed-in-set", "2 1/3., 5": "unread/mixed-in-set", "2½., 5": "unread/mixed-in-set", "±2 1/3": "unread/mixed-in-set",
+      "+/-1 1/2": "unread/mixed-in-set", "±2½": "unread/mixed-in-set", "1,$000": "unread/list-comma", "1,(000)": "unread/list-comma",
+      "1,-(05)": "unread/list-comma", "±05": "unread/list-comma", "+-000": "unread/list-comma", "$0.5, (0)": "1/2, 0/1", "±0.5": "1/2, -1/2"
+    };
+    expect(each(texts, (t) => list(t))).toEqual(want);
+    /* the same under Q4(b): the reason does not depend on how the mixed number is written */
+    expect(each(texts, (t) => list(t, B))).toEqual(want);
+    const at = (t: string) => { const r = readList(t, A); return r.ok ? null : r.at; };
+    expect([at("5, (2 1/3)"), at("5; $2 1/3."), at("1, ±05")]).toEqual([1, 1, 1]);
+    /* off: read as the old grader read them */
+    expect([list("$2 1/3", offA("L-mixed")), list("(2 1/3)", offA("L-mixed")), list("±2 1/3", offA("L-mixed")), list("1,$000", offA("L-zero")), list("±05", offA("L-zero"))])
+      .toEqual(["7/3", "7/3", "7/3, -7/3", "1/1, 0/1", "5/1, -5/1"]);
+  });
+
   it("says which member a refusal is about", () => {
     const at = (t: string) => { const r = readList(t, A); return r.ok ? null : r.at; };
     expect([at("x=2, 3"), at("2, x=3"), at("1,,2, 000"), at("1; 2 1/3"), at("1, 2 and 1/3"), at("(1,2)"), at("")]).toEqual([0, 1, 2, 1, 1, 0, 0]);
@@ -223,6 +242,8 @@ describe("a point (section 3.3)", () => {
     expect(each(["(1,000)", "1,000", "(1, 000)", "(1,05)", "(-05,1)", "x=6, x=-2", "x=6, -2", "a=6, b=-2", "x=1, y=2, w=3", "(6,-2]", "(x+1,y)", "(1,y+x)", "7", "(7)", "(6,)", "{6,-2}", "(1,2),(3,4)"], (t) => tuple(t)))
       .toEqual(all(["(1,000)", "1,000", "(1, 000)", "(1,05)", "(-05,1)", "x=6, x=-2", "x=6, -2", "a=6, b=-2", "x=1, y=2, w=3", "(6,-2]", "(x+1,y)", "(1,y+x)", "7", "(7)", "(6,)", "{6,-2}", "(1,2),(3,4)"], "no point"));
     expect([tuple("(1,0)"), tuple("1,0"), tuple("(1000000000,1)")]).toEqual(["1/1, 0/1", "1/1, 0/1", "1000000000/1, 1/1"]);
+    expect(each(["(1,$000)", "(1,(000))", "(1,-(05))", "($05,1)", "x=1, y=$000"], (t) => tuple(t))).toEqual(all(["(1,$000)", "(1,(000))", "(1,-(05))", "($05,1)", "x=1, y=$000"], "no point"));
+    expect([tuple("(1,$0)"), tuple("(1,(0))"), tuple("(1,$000)", offA("T-zero"))]).toEqual(["1/1, 0/1", "1/1, 0/1", "1/1, 0/1"]);
     expect([tuple("(" + "1,".repeat(98) + "1)"), tuple("(" + "1,".repeat(99) + "1)")]).toEqual([Array(99).fill("1/1").join(", "), "no point"]);
   });
 

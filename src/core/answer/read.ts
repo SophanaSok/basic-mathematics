@@ -30,9 +30,10 @@
      N-bracket  "(7)", "(3)/(2)" (off: not read)
      L-sep      " or " and " and " between set members (off: only , and ;)
      L-pm       ±7 as two members (off: refused as plus-minus)
-     L-zero     a member led by 0 and a digit ("000", "-05") refused (off: read)
-     L-mixed    "2 1/3", "2 and 1/3" refused in a set (off: read as a mixed number, or
-                split on " and ")
+     L-zero     a member led by 0 and a digit ("000", "-05", "$000", "(05)", "±05") refused
+                (off: read)
+     L-mixed    "2 1/3", "2 and 1/3" refused in a set, behind a $, ± or brackets too (off:
+                read as a mixed number, or split on " and ")
      T-zero     a coordinate led by 0 and a digit makes the text no point (off: read); a
                 guard for tests, never a ledger rule
    A leading $ and ignoring empty set members are what the old grader did, and have no id.
@@ -145,10 +146,13 @@ interface Parsed {
   /** signs on the numerator side inside brackets: (-4) counts one */
   signs: number;
 }
-/* the grammar's other outcomes: no reading, a zero denominator, Q4(b)'s refusal */
-type NotParsed = null | "zero" | "mixed";
+/* the grammar's other outcomes: no reading, a zero denominator, Q4(b)'s refusal, a mixed
+   number in a set (L-mixed) */
+type NotParsed = null | "zero" | "mixed" | "mixed-in-set";
 
-interface Ctx { commas: boolean; off: ReadonlySet<RuleId>; q4: Owner["q4"] }
+/* set: reading a set's member, where a mixed number is refused (L-mixed) wherever it stands,
+   behind a $, in brackets or before a trailing full stop */
+interface Ctx { commas: boolean; off: ReadonlySet<RuleId>; q4: Owner["q4"]; set: boolean }
 
 const gcd = (a: bigint, b: bigint): bigint => { while (b) { const r = a % b; a = b; b = r; } return a; };
 const noZeros = (atom: string) => atom.replace(/^0+(?=\d)/, "");
@@ -175,6 +179,7 @@ function fractionPart(s: string) {
 function parseValue(t: string, c: Ctx): Parsed | NotParsed {
   let m = MIXED.exec(t);
   if (m) {
+    if (c.set && !c.off.has("L-mixed")) return "mixed-in-set";
     /* N-mixed off: the old grader deleted the space, so 1 1/2 was 11/2 */
     if (c.off.has("N-mixed")) return parseValue(m[1] + m[2] + "/" + m[3], c);
     const w = BigInt(m[1]), a = BigInt(m[2]), b = BigInt(m[3]);
@@ -275,12 +280,12 @@ function readOne(t: string, c: Ctx): NumberReading | Refusal {
     t = t.replace(/\$/g, "").replace(/^\+ ?/, "");
   }
   let r = parseSigned(t, c);
-  if (r === "mixed") return no("mixed");
+  if (r === "mixed" || r === "mixed-in-set") return no(r);
   if (r === "zero") return no(refuse ? "expression" : null);
   if (r === null && t.includes(" ")) {
     if (!off.has("N-space")) { if (SPACED.test(t)) return no("spaces"); }
     else r = parseSigned(t.replace(/ /g, ""), c);
-    if (r === "mixed" || r === "zero") r = null;
+    if (!isParsed(r)) r = null;
   }
   if (!isParsed(r)) return no(refuse ? "expression" : null);
   const read = (r.neg ? "-" : "") + r.body;
@@ -291,17 +296,20 @@ const vulgar = (text: unknown, off: ReadonlySet<RuleId>) => !off.has("N-unicode"
 
 /** One number in a number or fraction box, or a key of those types */
 export function readNumber(text: unknown, o: ReadOptions): NumberReading | Refusal {
-  const off = o.off || NONE, r = readOne(cleanNumber(text, off), { commas: true, off, q4: o.q4 });
+  const off = o.off || NONE, r = readOne(cleanNumber(text, off), { commas: true, off, q4: o.q4, set: false });
   return r.ok && !r.show && vulgar(text, off) ? { ...r, show: true } : r;
 }
 
 /* "[sign] int and int/int", a member on its own: one mixed number or two members */
 const AND_MIXED_MEMBER = /(^|[,;] ?| or )[+-]? ?\d+ and \d+ ?\/ ?\d+( ?[,;]| or | and |$)/;
 const SPACE_MIXED = /^[+-]? ?\d+ \d+ ?\/ ?\d+$/;
+/* a member or coordinate led by 0 and a digit ("000", "-05"), behind the signs, $ and
+   brackets the grammar reads past ("$000", "(05)") */
+const ZERO_LED = /^[+-]? ?(?:\$ ?)?[+-]? ?(?:\( ?[+-]? ?)*0\d/;
 
 /** A set box, or a key of that type: its members in typed order */
 export function readList(text: unknown, o: ReadOptions): ListReading | Refusal {
-  const off = o.off || NONE, refuse = !off.has("N-refuse"), c: Ctx = { commas: false, off, q4: o.q4 };
+  const off = o.off || NONE, refuse = !off.has("N-refuse"), c: Ctx = { commas: false, off, q4: o.q4, set: true };
   let t = cleanNumber(text, off);
   if (t === "") return no("empty");
   if (refuse && t.length > 200) return no("too-long");
@@ -315,10 +323,12 @@ export function readList(text: unknown, o: ReadOptions): ListReading | Refusal {
   const parts = t.split(sep).map((x) => x.trim()).filter((x) => x !== "");
   const members: NumberReading[] = [];
   for (let i = 0; i < parts.length; i++) {
-    const p = parts[i], pm = off.has("L-pm") ? null : /^(?:±|\+-|\+\/-) ?(.*)$/.exec(p);
-    if (!pm && !off.has("L-zero") && /^[+-]? ?0\d/.test(p)) return no("list-comma", i);
-    if (!pm && !off.has("L-mixed") && SPACE_MIXED.test(p)) return no("mixed-in-set", i);
-    const r = readOne(pm ? pm[1] : p, c);
+    /* in order (section 3.2 step 4): ± first, then the zero-led and mixed checks on what is
+       left, so ±05 and ±2 1/3 are refused as 05 and 2 1/3 are */
+    const pm = off.has("L-pm") ? null : /^(?:±|\+-|\+\/-) ?(.*)$/.exec(parts[i]), p = pm ? pm[1] : parts[i];
+    if (!off.has("L-zero") && ZERO_LED.test(p)) return no("list-comma", i);
+    if (!off.has("L-mixed") && SPACE_MIXED.test(p)) return no("mixed-in-set", i);
+    const r = readOne(p, c);
     if (!r.ok) return no(r.reason, i);
     members.push(r);
     if (pm) members.push({ ...r, value: make(-r.value.n, r.value.d), float: -r.float, read: r.read.startsWith("-") ? r.read.slice(1) : "-" + r.read });
@@ -332,7 +342,7 @@ export function readList(text: unknown, o: ReadOptions): ListReading | Refusal {
     optional (...), [...] or <...>, labeled all or none with x, y (and z), each label once;
     at most 200 characters. The same rule says whether a key is a point. */
 export function readTuple(text: unknown, o: ReadOptions): TupleReading | null {
-  const off = o.off || NONE, c: Ctx = { commas: false, off, q4: o.q4 };
+  const off = o.off || NONE, c: Ctx = { commas: false, off, q4: o.q4, set: false };
   let t = cleanNumber(text, off), notation = false;
   if (t.length > 200) return null;
   /* not N-dot's: the old exact compare, which a point key's text compare still is, already
@@ -347,7 +357,7 @@ export function readTuple(text: unknown, o: ReadOptions): TupleReading | null {
   for (let p of parts) {
     const m = /^([a-z]) ?= ?(.*)$/.exec(p);
     if (m) { labels.push(m[1]); p = m[2]; }
-    if (!off.has("T-zero") && /^[+-]? ?0\d/.test(p)) return null;
+    if (!off.has("T-zero") && ZERO_LED.test(p)) return null;
     const r = readOne(p, c);
     if (!r.ok) return null;
     values.push(r);
