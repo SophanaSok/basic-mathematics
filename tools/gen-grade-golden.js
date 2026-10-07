@@ -1,15 +1,19 @@
 #!/usr/bin/env node
 "use strict";
-/* Writes tools/fixtures/grade-golden.json: what the site's grader (BMSite.grade, loaded
-   from assets/site.js as tools/check-static.js loads it) says about a fixed set of
+/* Writes tools/fixtures/grade-golden.json: what the grader says about a fixed set of
    answers, so a change to how answers are graded shows up as a diff of that file, and
-   src/core/grade.test.ts holds the grader to it case by case.
+   src/core/grade.test.ts holds the grader to it case by case. It grades with
+   src/core/answer/legacy.ts, a byte copy of src/core/grade.ts frozen as the baseline the
+   typed grader's ledger is measured from, never with the live grader: once grade.ts
+   changes, this still writes the same file, and --check still finds it current.
 
    The keys, each graded under its own type and tolerance:
-     - every answer key on the course's pages: every typed answer, every blank's own key,
-       every option list and tick-every-option list (as site.js judge() grades them:
-       one option as a number, several as a set), every figure's (data-compare)
+     - every answer key on the course's pages: every typed answer, every blank's own key
+       (a blank with no data-type is a number, as site.js sets it on the live page), every
+       option list and tick-every-option list (as site.js judge() grades them: one option
+       as a number, several as a set), every figure's (data-compare)
      - the hand cases of src/learn/detectors.test.ts (the detector fixtures)
+     - the learner cases (LEARNER_CASES): the typed-grader design's example rows
      - 2,000 problems of the Arena's generators (data/gen/), drawn with seeded seeds
      - the first key of each type again with no type (null), as grade() takes it
    The answers given against each key: the whole key, and for each of its "|"
@@ -29,10 +33,12 @@
 
    The output depends only on the tree: pages in lib/site.js htmlPages order, exercises
    in document order, generators in the order data/gen/ adds them, seeds from a fixed
-   mulberry32 stream. Run it again after a change that is meant to change grading, and
-   read the diff.
+   mulberry32 stream. The grader it uses is frozen, so only a change to the keys or to
+   this file changes the output; run it again after one, and read the diff.
 
-   Usage: node tools/gen-grade-golden.js */
+   Usage: node tools/gen-grade-golden.js [--check]
+     --check   write nothing; exit 1 if the file on disk differs from a fresh run. It reads
+               the live pages, so a content change that adds or edits a key fails it too */
 
 const fs = require("fs");
 const path = require("path");
@@ -40,7 +46,7 @@ const vm = require("vm");
 
 const site = require("./lib/site");
 const { exercisesOf } = require("./lib/keys");
-const { loadGrade } = require("./check-static");
+const { grade } = require("../src/core/answer/legacy.ts");
 
 const ROOT = site.ROOT;
 const OUT = "tools/fixtures/grade-golden.json";
@@ -58,7 +64,7 @@ function courseKeys() {
       const from = page + "#" + e.key;
       if (e.kind === "blank") {
         e.el.queryAll(".blank").forEach((b, j) => {
-          out.push({ from: from + " blank " + (j + 1), answer: b.getAttribute("data-answer") || "", type: b.getAttribute("data-type") || "exact", tol });
+          out.push({ from: from + " blank " + (j + 1), answer: b.getAttribute("data-answer") || "", type: b.getAttribute("data-type") || "number", tol });
         });
       } else if (e.kind === "order") {
         /* judged by the order of its items, never by the grader */
@@ -91,6 +97,96 @@ function detectorKeys() {
     byKey.get(id).extra.push(given);
   });
   return Array.from(byKey.values());
+}
+
+/* The example rows of the typed-grader design (~/.claude/plans/grade-equivalence-design.md,
+   the tables of sections 3.1 to 3.4), recorded here on the unchanged grader so the ledger
+   that later PRs keep against this file names every row whose verdict they change. One
+   entry per key, type and tolerance: [answer, type, tol, the answers given]. Each goes
+   through givensOf() as a detector fixture does, so the key itself, its pieces and their
+   variants are graded too. A few rows the tables do not show stay as well ((a)+(b), -x^2,
+   the sums across a relation). The design's grid-mode rows (section 3.6) and Arena-only
+   rows have no place here: a group has no grid or Arena field. A row added to one of
+   those tables is added here in the same change. */
+const LEARNER_CASES = [
+  /* 3.1 number and fraction */
+  ["3/2", "number", 0, ["3/2", "1.5", "1.50", "(3)/(2)", "3÷2", "3/2.", "1.5.", "1 1/2", "1½", "1 ½", "6/4", "1 100/200", "x = 3/2", "3/2 = x", "31/2", "1.49", "1+1/2", "sqrt(9)/2", "1-1/2", "1 and 1/2", "1,5", "1 1 / 2", "1 . 5", "1 1/2 cups", "½2", "1½0"]],
+  ["11/2", "number", 0, ["1 1/2"]],
+  ["32/21", "number", 0, ["1 11/21", "3 2/21"]],
+  ["7/4", "number", 0, ["1 3/4", "-1 3/4"]],
+  ["-1/2", "number", 0, ["-1 1/2"]],
+  ["7/3", "number", 0, ["2 and 1/3"]],
+  ["2/3", "number", 0, ["0.6666666667", "0.667", ".6667", "0.66", "0.6"]],
+  ["1", "number", 0, ["1.000000001", "0.999999999"]],
+  ["2.807", "number", 0.005, ["2.81", "2.80", "2.808", "2.812", "2.8120000000005", "2.8019999999995"]],
+  ["1", "number", 1e-7, ["1.0000001", "1.0000002"]],
+  ["5050", "number", 0, ["5,050", "$5,050", "5 050", "50 50"]],
+  ["500", "number", 0, ["0,500"]],
+  ["7", "number", 0, ["7.", "(7)", "+7", "07", "7.00", "7 = x", "x=7", "７"]],
+  ["2", "number", 0, ["y = 2", "x = 2"]],
+  ["4", "number", 0, ["8/2", "-(-4)", "four", "4 adults", "11 m", "4xy", "±4", "4e0", "3:4"]],
+  ["-1", "number", 0, ["1/-1", "(-1)", "-(1)"]],
+  ["-4", "number", 0, ["−4", "‐4", "- 4", "-$4", "$-4"]],
+  ["140", "number", 0, ["140°", "140 º", "140º", "140 ˚", "140 degrees", "140deg"]],
+  ["3.1416", "number", 0.001, ["3.142°"]],
+  ["12.50", "number", 0, ["1$2.50", "12.50$", "£12.50", "$12.50"]],
+  ["0.5", "number", 0, ["50%"]],
+  ["4|-4", "number", 0, ["4,-4", "4, -4", "4 or -4", "±4", "-4,4"]],
+  ["6.2832", "number", 0.001, ["2pi", "2 pi", "2π", "pi"]],
+  ["78.5", "number", 0.1, ["25pi", "3 i", "4xy"]],
+  /* 3.2 set */
+  ["2,-7", "set", 0, ["-7, 2", "{2;-7}", "x=2, x=-7", "x = 2 or x = -7", "2 and -7", "2,-7.", "2,-7,", "2,,-7", "2,2,-7", "2 -7", "(2,-7)"]],
+  ["3,-3", "set", 0, ["z = 3, z = -3", "3 or -3"]],
+  ["7,-7", "set", 0, ["±7", "+-7"]],
+  ["2,1/3", "set", 0, ["2 1/3", "2 and 1/3"]],
+  ["7/3", "set", 0, ["2 1/3", "2 and 1/3"]],
+  ["2,-1/3", "set", 0, ["2 and -1/3"]],
+  ["1/2,1/3", "set", 0, ["1/2 and 1/3"]],
+  ["1,2", "set", 0, ["1.000000001,2"]],
+  ["1,0", "set", 0, ["1,000"]],
+  ["1.00,1.02", "set", 0.01, ["1.01, 1.00"]],
+  /* 3.3 points (exact keys) */
+  ["(6,-2)|6,-2", "exact", 0, ["(6.0,-2)", "(+6, −2)", "( 6 , - 2 )", "(12/2,-2)", "[6,-2]", "<6,-2>", "x=6, y=-2", "y=-2, x=6", "(-2,6)", "x=6, x=-2", "(6.0000000001,-2)"]],
+  ["(1000000001,1)|1000000001,1", "exact", 0, ["(1000000000,1)"]],
+  ["(-2,6)|-2,6", "exact", 0, ["y=-2, x=6"]],
+  ["(1,0)|1,0", "exact", 0, ["(1,000)", "1,000", "(1, 000)"]],
+  ["(1,5)|1,5", "exact", 0, ["(1,05)"]],
+  ["1,000", "exact", 0, ["(1,0)", "1,0"]],
+  ["(11/2,3)|11/2,3", "exact", 0, ["(1 1/2, 3)", "(1 1/2,3)"]],
+  ["3,2,1|(3,2,1)", "exact", 0, ["[3,2,1]"]],
+  /* 3.4 expr, and exact text */
+  ["x^2+1", "expr", 0, ["x^2+1."]],
+  ["|x|", "expr", 0, ["abs(x)", "|x|."]],
+  ["x^2", "expr", 0, ["x^(2)", "x**2"]],
+  ["(2k+1)^-1", "expr", 0, ["(2k+1)^(-1)"]],
+  ["3x-6", "expr", 0, ["3x+(-6)"]],
+  ["22i-26", "expr", 0, ["22i+-26"]],
+  ["x-2y", "expr", 0, ["x+(-2)y"]],
+  ["(1/2)sqrt(2)", "expr", 0, ["((1/2)sqrt(2))"]],
+  ["x^2-28x+196", "expr", 0, ["-28x+x^2+196"]],
+  ["2-7i", "expr", 0, ["-7i+2"]],
+  ["1/(2k+1)", "expr", 0, ["1/(1+2k)"]],
+  ["x-23", "expr", 0, ["x+(-2)3"]],
+  ["5-1.5", "expr", 0, ["5+(-1).5"]],
+  ["3-x2", "expr", 0, ["3+(-x)2"]],
+  ["x^23", "expr", 0, ["x^(2)3"]],
+  ["x-2^2", "expr", 0, ["x+(-2)^2"]],
+  ["(11/6)pi", "expr", 0, ["(1 1/6)pi", "1 1/6pi"]],
+  ["11/2", "exact", 0, ["1 1/2"]],
+  ["64pi", "expr", 0, ["6*4pi"]],
+  ["23", "expr", 0, ["2*3"]],
+  ["3x-2", "expr", 0, ["3x*-2"]],
+  ["-x^2", "expr", 0, ["x^2*-1"]],
+  ["y=3x+5", "expr", 0, ["y=3x-(-5)", "5+y=3x"]],
+  ["(1,y+x)", "expr", 0, ["(x+1,y)"]],
+  ["(a)+(b)", "expr", 0, ["a+b"]],
+  ["x+5<=7", "expr", 0, ["5+x<=7"]],
+  ["x-2<5", "expr", 0, ["-2<5+x"]],
+  ["y=2x+3", "expr", 0, ["2x+3=y"]]
+];
+
+function learnerKeys() {
+  return LEARNER_CASES.map(([answer, type, tol, extra]) => ({ from: "learner " + JSON.stringify(answer) + " " + type + (tol ? " tol " + tol : ""), answer, type, tol, extra }));
 }
 
 /* mulberry32, as data/gen/core.js has it */
@@ -267,8 +363,7 @@ function untypedKeys(keys) {
 }
 
 function build() {
-  const grade = loadGrade();
-  let keys = courseKeys().concat(detectorKeys(), genKeys());
+  let keys = courseKeys().concat(detectorKeys(), learnerKeys(), genKeys());
   keys = keys.concat(untypedKeys(keys));
   let cases = 0;
   const groups = keys.map(k => {
@@ -282,15 +377,22 @@ function build() {
 /* one group per line, so a change to grading is a readable diff */
 function serialise(groups, cases) {
   return "{\n" +
-    '  "about": ' + JSON.stringify("Written by tools/gen-grade-golden.js from assets/site.js's grader; src/core/grade.test.ts holds grade() to it. Each group: a key, its type and tolerance, and the answers graded right and wrong against it.") + ",\n" +
+    '  "about": ' + JSON.stringify("Written by tools/gen-grade-golden.js with src/core/answer/legacy.ts, the frozen copy of the grader; src/core/grade.test.ts holds grade() to it. Each group: a key, its type and tolerance, and the answers graded right and wrong against it.") + ",\n" +
     '  "cases": ' + cases + ",\n" +
     '  "groups": [\n' + groups.map(g => "    " + JSON.stringify(g)).join(",\n") + "\n  ]\n}\n";
 }
 
 if (require.main === module) {
   const { groups, cases } = build();
-  fs.writeFileSync(path.join(ROOT, OUT), serialise(groups, cases));
+  const text = serialise(groups, cases);
+  const file = path.join(ROOT, OUT);
+  if (process.argv.includes("--check")) {
+    const ok = fs.existsSync(file) && fs.readFileSync(file, "utf8") === text;
+    console.log(OUT + (ok ? " is current: " + groups.length + " keys, " + cases + " cases" : " differs from a fresh run; write it with node tools/gen-grade-golden.js and read the diff"));
+    process.exit(ok ? 0 : 1);
+  }
+  fs.writeFileSync(file, text);
   console.log("wrote " + OUT + ": " + groups.length + " keys, " + cases + " cases");
 }
 
-module.exports = { build, serialise, OUT };
+module.exports = { build, serialise, OUT, courseKeys };
