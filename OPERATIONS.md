@@ -110,9 +110,9 @@ at the new address, and nothing of the course.
 ### How it deploys
 
 [`.github/workflows/ci.yml`](.github/workflows/ci.yml) builds the site into `dist/` and deploys
-that. A push to `main` (merging a pull request) triggers it, unless it changes only Markdown and
-`docs/` ([When CI runs](#when-ci-runs)), and so does **Run workflow** on `main`. Its jobs are `build` (the Node checks, the build, the checks on `dist/`, the redirect site
-and its checks), `browser` (the Chromium checks that need no WebGL, as one job per part, side by
+that. A push to `main` (merging a pull request) triggers it, unless it changes only Markdown
+and `docs/` ([When CI runs](#when-ci-runs)), and so does **Run workflow** on `main`. Its jobs
+are `build` (the Node checks, the build, the checks on `dist/`, the redirect site and its checks), `browser` (the Chromium checks that need no WebGL, as one job per part, side by
 side, today `browser (axe)`, `browser (pages)`, `browser (exercises)` and `browser (rest)`; the
 parts are `PARTS` in `tools/check-browser.js`, [`tools/README.md`](tools/README.md)), `webgl`
 (the 3D checks, retried, outside the gate), `cloudflare`, which publishes that run's `dist/` to
@@ -367,7 +367,16 @@ production already matches it.
   `supabase/migrations/README.md`. `npm run check:ci` (`skip`) keeps it so: it fails if either
   list changes, if there is a Markdown file in `public/` (copied into `dist/` as it is, so it
   would be published), `src/`, `assets/`, `data/` or `parts/`, and if `docs/` holds anything
-  but Markdown.
+  but Markdown, or if `supabase/migrations/` holds Markdown other than its `README.md` (the
+  migrations check would read it as a migration).
+- **A docs-only pull request has no checks.** It is merged on review alone; "merge only with CI
+  green" means "no CI run is expected" for it.
+- **A failed deploy under a docs-only commit:** once a docs-only commit sits on top of `main`,
+  re-running the older code commit's failed jobs is refused by the re-run guard (`main` has
+  moved). Use **Run workflow** on `main` instead; it builds and deploys the newest commit.
+- **Very large pull requests:** GitHub compares at most 300 changed files for path filters. A pull
+  request over 300 files that is mostly Markdown may skip a code change; check it with **Run
+  workflow**.
 - **Required checks:** `main` has no branch protection and no ruleset (checked 2026-10-06). If a
   CI job is ever made a required check, a Markdown-only pull request never gets it and waits on
   "Expected" forever (GitHub: a workflow skipped by path filtering leaves its checks pending);

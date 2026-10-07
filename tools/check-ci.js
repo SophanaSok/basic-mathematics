@@ -107,6 +107,8 @@ function checkSkip(ci, r) {
     site.walk(path.join(site.ROOT, d), p => /\.md$/i.test(p)).forEach(p => r.fail(path.relative(site.ROOT, p) + " is Markdown in " + d + "/, which the build reads, and a change to only it would start no run of " + FILE + " (paths-ignore)"));
   });
   r.count++;
+  site.walk(path.join(site.ROOT, "supabase", "migrations"), p => /\.md$/i.test(p) && path.basename(p) !== "README.md").forEach(p => r.fail(path.relative(site.ROOT, p) + " is Markdown in supabase/migrations/, which check-static's migrations check reads as a migration, and a change to only it would start no run of " + FILE + " (paths-ignore)"));
+  r.count++;
   site.walk(path.join(site.ROOT, "docs"), p => !/\.md$/i.test(p)).forEach(p => r.fail(path.relative(site.ROOT, p) + " is in docs/ and is not Markdown: a change to only it would start no run of " + FILE + " (paths-ignore docs/**), so keep docs/ to prose"));
 }
 

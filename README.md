@@ -1327,9 +1327,9 @@ names; a new `order` list is authored in the right order; a new puzzle's temptin
 ### Deploying
 
 The course is served from one place: **Cloudflare Pages, at `https://learn.groundupmath.org`**.
-A push to `main` runs the checks and the build in GitHub Actions (unless it changes only Markdown
-and `docs/`, which the site is not built from: OPERATIONS.md, "When CI runs"), and once the `build` and
-`browser` jobs have passed, the `cloudflare` job publishes that run's `dist/` there as production
+A push to `main` runs the checks and the build in GitHub Actions (unless it changes only
+Markdown and `docs/`, which the site is not built from: OPERATIONS.md, "When CI runs"), and once
+the `build` and `browser` jobs have passed, the `cloudflare` job publishes that run's `dist/` there as production
 (`cloudflare/wrangler-action`, with the repository secrets `CLOUDFLARE_API_TOKEN` and
 `CLOUDFLARE_ACCOUNT_ID`). Each pull request from a branch of this repository is published the
 same way as a preview, under `pr-<number>`, whose address the job writes into its summary and one
