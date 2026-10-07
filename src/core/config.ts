@@ -20,8 +20,11 @@ export interface Config {
 function obj(x: unknown): Record<string, unknown> { return x && typeof x === "object" && !Array.isArray(x) ? x as Record<string, unknown> : {}; }
 function str(x: unknown): string { return typeof x === "string" ? x : ""; }
 
-/** The settings with every default filled in, as assets/account.js reads them: a missing
-    or damaged field takes its default, and emailDelivery is on unless it is false. */
+/** The settings with every default filled in: a missing or damaged field takes its
+    default, and emailDelivery is on unless it is false. Not yet all of how
+    assets/account.js reads them: providers here are every string in the list, in order,
+    while account.js also drops an id it has no button for and a repeated one, and offers
+    none unless both Supabase strings are set. Those rules move in with account.js. */
 export function readConfig(raw: unknown): Config {
   const c = obj(raw), learn = obj(c.learn);
   return {

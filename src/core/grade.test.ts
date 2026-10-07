@@ -6,8 +6,9 @@ import { alternatives, basicClean, grade, matches, normExpr, numberList, sameNum
 const ROOT = path.resolve(import.meta.dirname, "../..");
 
 /* tools/fixtures/grade-golden.json: what assets/site.js's grader said before it moved here
-   (tools/gen-grade-golden.js wrote it on the old code) */
-interface Group { from: string; answer: string; type: string; tol: number; right: string[]; wrong: string[] }
+   (tools/gen-grade-golden.js wrote it on the old code), with the near misses and spellings
+   added after the move on the unchanged grader, every case of the first file kept */
+interface Group { from: string; answer: string; type: string | null; tol: number; right: string[]; wrong: string[] }
 const GOLDEN = JSON.parse(fs.readFileSync(path.join(ROOT, "tools/fixtures/grade-golden.json"), "utf8")) as { cases: number; groups: Group[] };
 
 describe("grade() against the golden file", () => {
@@ -24,10 +25,11 @@ describe("grade() against the golden file", () => {
     }
     expect(drift).toEqual([]);
     expect(cases).toBe(GOLDEN.cases);
-    /* every key on the pages, the detector fixtures and 2,000 Arena problems */
+    /* every key on the pages, the detector fixtures, 2,000 Arena problems and one key of each type untyped */
     expect(GOLDEN.groups.filter((g) => g.from.startsWith("gen ")).length).toBe(2000);
     expect(GOLDEN.groups.filter((g) => g.from.startsWith("parts/")).length).toBeGreaterThan(380);
-    expect(cases).toBeGreaterThan(40000);
+    expect(GOLDEN.groups.filter((g) => g.type === null).length).toBe(5);
+    expect(cases).toBeGreaterThan(60000);
   });
 
   it("holds each of a key's \"|\" pieces right against it (the unsplit key is one only for text)", () => {

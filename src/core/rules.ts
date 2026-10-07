@@ -108,10 +108,12 @@ export function medalMark(rec: unknown): boolean {
   return isMiss(r) || !!(r.solved && (r.opened || !r.first));
 }
 
-/** The stores setStats reads: game.js's stores() has these and more. */
+/** The stores setStats reads: game.js's stores() has these and more. Each is read as
+    whatever it holds, a damaged one too, so each is `unknown`; whole, they are a
+    {@link ProgressStore} and an {@link AttemptsStore}. */
 export interface SetStores {
-  progress?: ProgressStore | unknown;
-  attempts?: AttemptsStore | unknown;
+  progress?: unknown;
+  attempts?: unknown;
 }
 
 /** How one set stands (setStats). */

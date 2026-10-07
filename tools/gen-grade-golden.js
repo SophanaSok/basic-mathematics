@@ -11,11 +11,21 @@
        one option as a number, several as a set), every figure's (data-compare)
      - the hand cases of src/learn/detectors.test.ts (the detector fixtures)
      - 2,000 problems of the Arena's generators (data/gen/), drawn with seeded seeds
+     - the first key of each type again with no type (null), as grade() takes it
    The answers given against each key: the whole key, and for each of its "|"
    alternatives the alternative itself, its sign flipped (in front, and everywhere), its
    reciprocal, its first number times 10 and divided by 10, its unicode spellings (−, –,
    ×, √, π, ≤, ≥, ≠, upper case) and its whitespace variants (padded, spaced out, a
-   trailing full stop).
+   trailing full stop); then (nearOf) the em dash, the near misses either side of a
+   tolerance and of the relative band, a set's other spellings and an expr's explicit
+   products; then (moreOf) the size of the slack past a tolerance, the absolute floor
+   under the relative band (keys near 0), a set's empty parts, and an expr's terms
+   reordered and its outer brackets. So sameNumber()'s numeric edges (the slack, the
+   tolerance, the relative band and its floor) have a case on each side, and numberList()
+   and normExpr() are sent each spelling they forgive. Not every rule has a case: no given
+   holds TeX (\frac, \sqrt, \cdot, \left), a "$" or a number written ".5", so those
+   rewrites of normExpr() and toNumber() are held only by the hand cases in
+   src/core/grade.test.ts (\frac, "$", ".5"), or by nothing.
 
    The output depends only on the tree: pages in lib/site.js htmlPages order, exercises
    in document order, generators in the order data/gen/ adds them, seeds from a fixed
@@ -152,6 +162,84 @@ function variantsOf(alt) {
   return out;
 }
 
+/* The near misses a rule decides and the spellings the variants above never send, added
+   after them so the lists of the first fixture keep their order: "-" written as an em
+   dash; a key with a tolerance moved by ± 0.5, 1 and 1.2 of it (inside, on the edge,
+   outside); a number, fraction or set key without one scaled by 1 ± 1e-10 (inside the
+   relative band) and 1 ± 1e-7 (outside it); a set joined by ";", in braces and
+   reversed; an expr with its products written with "*", and "*" written "⋅" (U+22C5,
+   the dot operator basicClean() reads). Numbers are read here without the grader; a
+   value JavaScript prints with an exponent is left out. */
+const NUMBER_TYPES = ["number", "fraction", "set"];
+
+/* the numbers of a key piece ("3/4", "0.38,2.62", "{1;2}"), or null */
+function valuesOf(alt) {
+  const vals = alt.replace(/[{}]/g, "").split(/[,;]/).map(p => {
+    const m = /^(-?\d+(?:\.\d+)?)(?:\/(\d+(?:\.\d+)?))?$/.exec(p.trim());
+    const den = m && m[2] !== undefined ? parseFloat(m[2]) : 1;
+    return m && den !== 0 ? parseFloat(m[1]) / den : null;
+  });
+  return vals.every(v => v !== null) ? vals : null;
+}
+function written(vals) {
+  const s = vals.map(String);
+  return s.some(x => /e/.test(x)) ? null : s.join(",");
+}
+
+function nearOf(alt, key) {
+  const out = [], vals = valuesOf(alt);
+  const push = (s) => { if (s !== null) out.push(s); };
+  if (alt.indexOf("-") > -1) out.push(alt.replace(/-/g, "—"));
+  if (vals && key.tol > 0) {
+    [0.5, 1, 1.2].forEach(k => [1, -1].forEach(sign => push(written(vals.map(v => +(v + sign * k * key.tol).toPrecision(12))))));
+  } else if (vals && NUMBER_TYPES.includes(key.type)) {
+    [1e-10, 1e-7].forEach(e => [1, -1].forEach(sign => push(written(vals.map(v => v * (1 + sign * e))))));
+  }
+  if (key.type === "set" && /[,;]/.test(alt)) {
+    const items = alt.replace(/[{}]/g, "").split(/[,;]/);
+    out.push(items.join(";"), "{" + items.join(",") + "}", items.slice().reverse().join(","));
+  }
+  const starred = key.type === "expr" ? alt.replace(/(\d)(?=[a-z(])/gi, "$1*") : alt;
+  if (starred !== alt) out.push(starred);
+  if (starred.indexOf("*") > -1) out.push(starred.replace(/\*/g, "⋅"));
+  return out;
+}
+
+/* The edges nearOf() left unpinned, added after everything above so the lists of the
+   fixture before them keep their order too, each written out in decimal:
+     - a toleranced key moved by its tolerance plus 1e-10 and plus 1e-11 (just past the
+       1e-12 slack sameNumber() allows) and by 1.05 of it, either way;
+     - any other number, fraction or set key whose numbers include one under 1 in size
+       (0 among them, which no scaling moves) with those numbers moved by 5e-10 and 8e-10
+       (inside the absolute floor of the relative band) and by 1e-7 (outside it), either way;
+     - a set with a separator at its end, at its start and doubled (the empty parts the
+       grader drops);
+     - an expr with the terms of a sum with no brackets in reverse order, and the whole
+       expr in one more pair of brackets.
+   The last two only for a single alternative, not the unsplit key that holds a "|". */
+function fixed(x) {
+  return x.toFixed(13).replace(/0+$/, "").replace(/\.$/, "").replace(/^-0$/, "0");
+}
+function moreOf(alt, key) {
+  const out = [], vals = valuesOf(alt);
+  if (vals && key.tol > 0) {
+    [key.tol + 1e-10, key.tol + 1e-11, 1.05 * key.tol].forEach(d => [1, -1].forEach(sign => out.push(vals.map(v => fixed(v + sign * d)).join(","))));
+  } else if (vals && NUMBER_TYPES.includes(key.type) && vals.some(v => Math.abs(v) < 1)) {
+    [5e-10, 8e-10, 1e-7].forEach(d => [1, -1].forEach(sign => out.push(vals.map(v => (Math.abs(v) < 1 ? fixed(v + sign * d) : String(v))).join(","))));
+  }
+  if (alt.indexOf("|") > -1) return out;
+  if (key.type === "set") {
+    const sep = (/[,;]/.exec(alt) || [","])[0];
+    out.push(alt + sep, sep + alt);
+    if (/[,;]/.test(alt)) out.push(alt.replace(/[,;]/, s => s + s));
+  }
+  if (key.type === "expr") {
+    if (alt.indexOf("+") > 0 && !/[()]/.test(alt)) out.push(alt.split("+").reverse().join("+"));
+    out.push("(" + alt + ")");
+  }
+  return out;
+}
+
 /* "|" alternatives, read here without the grader, so a key's own pieces are always tried */
 function pieces(answer) {
   const raw = (answer || "").trim();
@@ -164,14 +252,24 @@ function givensOf(key) {
   (key.extra || []).forEach(add);
   add(key.answer);
   pieces(key.answer).forEach(alt => variantsOf(alt).forEach(add));
+  pieces(key.answer).forEach(alt => nearOf(alt, key).forEach(add));
+  pieces(key.answer).forEach(alt => moreOf(alt, key).forEach(add));
   return out;
 }
 
 /* ------------------------------------------------------------------ main -- */
 
+/* the first key of each type once more with no type, graded as grade() grades a key that
+   names none */
+function untypedKeys(keys) {
+  const seen = new Set();
+  return keys.filter(k => !seen.has(k.type) && seen.add(k.type)).map(k => Object.assign({}, k, { from: "type null: " + k.from, type: null }));
+}
+
 function build() {
   const grade = loadGrade();
-  const keys = courseKeys().concat(detectorKeys(), genKeys());
+  let keys = courseKeys().concat(detectorKeys(), genKeys());
+  keys = keys.concat(untypedKeys(keys));
   let cases = 0;
   const groups = keys.map(k => {
     const right = [], wrong = [];
