@@ -18,15 +18,21 @@
        whose switch alone gives back the old boolean, else the first pair that does
        ("A+B"). A change neither finds is refused unless `reviewed` lists it.
    A flip from wrong to right must also pass the value gate, or be listed in `reviewed`.
+   A `reviewed` entry that matches no flip from wrong to right and no change without a rule
+   is stale, and refused.
 
    The value gate is a second reading of the answer and the key, written here and sharing
    no code with src/core/answer/, so a reader bug that accepts a wrong value is refused:
+     - the key's alternatives: the whole key and each "|" piece, except that a key whose
+       "|" split has an empty piece (|x|) is one alternative, as A-abs reads it;
      - number, fraction, set, and a point given for a point (exact or no type): lower case,
        whitespace collapsed, the dashes as "-", one trailing full stop dropped; a mixed
        number ("-1 1/2" is -3/2) read first, otherwise spaces deleted and a plain decimal or
        a/b (a sign on either part), but never a space between two digits (5 050, 1 1 / 2); a set strips one {...} and splits on , and ; only, a
-       point strips one (...) and splits on ,; compared exactly in BigInt, within the tol
-       (read from String(tol), exponent notation included) or the band
+       point strips one (...) and splits on , and is no point when a coordinate is led by 0
+       and a digit (05, -05; design section 3.3); compared exactly in BigInt, within the tol
+       (read from String(tol), exponent notation included; an infinite tol takes any value)
+       or the band
        |a-b|*1e9 <= max(1,|a|,|b|), a set by sorted pairing, a point equal in order;
      - expr, exact and no type, unless a space stands between two digits (1 1/6pi could be
        a mixed number, which the expr rules never read): lower case, whitespace deleted, ² ³ as ^2 ^3, · ⋅ × as *,
@@ -41,7 +47,8 @@
 
    The file, one entry per line:
      revision  check.ts GRADER
-     rules     {id, rule}: each rule that names an entry (both of a pair), and no other
+     rules     {id, rule}: each rule that names an entry (both of a pair), and no other; an
+               entry no rule gives back is "unattributed" (and in reviewed), which names none
      flips     {from, given, answer, type, tol, was, now, verdict, rule}: every boolean change
      verdicts  {from, given, kind, reason, rule}: every wrong answer now form or unread
      specs     {from, was, now}: every course exercise whose type or tol is not its golden
@@ -89,13 +96,13 @@ const RULES = {
   "N-exact": "Numbers are compared exactly in BigInt, the 1e-9 band and a tol included, not in floats.",
   "N-unicode": "½ ¼ ¾ ⅓ ⅔, the dashes ‐ ‒ ﹣ － and full-width digits are read.",
   "N-divide": "÷ is read as /.",
-  "N-dot": "A trailing full stop is dropped in a number, fraction or set box.",
+  "N-dot": "A trailing period is dropped in a number, fraction or set box.",
   "N-named": "A number named with a letter (x = 3) is refused as named.",
   "N-refuse": "Text with no single reading (units, a symbol, words, an expression, two values) is refused with its reason.",
   "N-space": "A space inside a number is refused, not deleted.",
   "N-mixed": "A mixed number (1 1/2) is read by its value, 3/2.",
   "N-comma": "Thousands commas (5,050) are read in a number or fraction box.",
-  "N-bracket": "A number in brackets ((7), (3)/(2)) is read.",
+  "N-bracket": "A number in parentheses ((7), (3)/(2)) is read.",
   "N-round": "A decimal equal to the key rounded or cut at its own places, with no tol, is form/rounded.",
   "N-whole": "A fraction typed for a whole-number key is form/unreduced (Q3(c) only).",
   "L-sep": "\" or \" and \" and \" separate the members of a set, as , and ; do.",
@@ -108,14 +115,13 @@ const RULES = {
   "E-mixed": "A mixed number in an expression keeps a mark, so it never equals a key.",
   "E-star": "· is read as *, and a * is kept before a digit, a point, + or -.",
   "E-pow": "** is read as ^, and ^(n) as ^n for an integer n.",
-  "E-dot": "A trailing full stop is dropped in an expression.",
+  "E-dot": "A trailing period is dropped in an expression.",
   "E-abs": "|e| is read as abs(e).",
   "E-plusneg": "+(-t) is read as -t for one term t, and +- as -.",
-  "E-paren": "An outer pair of brackets is stripped only when the two match each other.",
-  "E-terms": "The signed terms of a sum are sorted at every depth, never across a relation or a comma.",
-  "unattributed": "No rule or pair of rules gives the change back; read by hand (reviewed)."
+  "E-paren": "An outer pair of parentheses is stripped only when the two match each other.",
+  "E-terms": "The signed terms of a sum are sorted at every depth, never across a relation or a comma."
 };
-const ORDER = Object.keys(RULES).filter(id => id !== "unattributed");
+const ORDER = Object.keys(RULES);
 
 /* a form or unread verdict's rule, by its reason */
 const REASON_RULE = {
@@ -172,7 +178,7 @@ function gateNumber(t) {
 
 function close(a, b, tol) {
   const diff = absQ(sub(a, b));
-  if (tol > 0) return cmpQ(diff, decimal(String(tol))) <= 0;
+  if (tol > 0) { const t = decimal(String(tol)); return t ? cmpQ(diff, t) <= 0 : tol === Infinity; }
   /* |a-b| * 1e9 <= max(1, |a|, |b|) */
   const big = [rat(1n, 1n), absQ(a), absQ(b)].reduce((x, y) => (cmpQ(x, y) >= 0 ? x : y));
   return cmpQ(rat(diff.n * 1000000000n, diff.d), big) <= 0;
@@ -185,12 +191,13 @@ function gateSet(text) {
   return vals.length && vals.every(v => v) ? vals.sort(cmpQ) : null;
 }
 
-/* a point: one outer (...) stripped, k >= 2 coordinates split on "," */
+/* a point: one outer (...) stripped, k >= 2 coordinates split on ",", none led by 0 and a
+   digit (T-zero: "(05,1)" is no point) */
 function gatePoint(text) {
   let t = cleanNumberSide(text);
   if (/^\(.*\)$/.test(t)) t = t.slice(1, -1);
   const parts = t.split(",").map(s => s.trim());
-  if (parts.length < 2) return null;
+  if (parts.length < 2 || parts.some(p => /^[+-]? ?0\d/.test(p))) return null;
   const vals = parts.map(gateNumber);
   return vals.every(v => v) ? vals : null;
 }
@@ -308,7 +315,12 @@ function sameExpr(given, key) {
   });
 }
 
-const pieces = (answer) => { const raw = String(answer || "").trim(); return [raw].concat(raw.split("|")).map(s => s.trim()).filter(s => s !== ""); };
+/* the key's alternatives: the whole key and its "|" pieces, but a key whose split has an
+   empty piece (|x|, |x|+1) is one alternative, as A-abs reads it, never its bars' insides */
+const pieces = (answer) => {
+  const raw = String(answer || "").trim(), split = raw.split("|").map(s => s.trim());
+  return (split.length > 1 && split.includes("") ? [raw] : [raw].concat(split)).filter(s => s !== "");
+};
 const NUMBER_TYPES = ["number", "fraction"];
 
 /** Whether the value gate reads `given` as the value of a key alternative */
@@ -372,8 +384,14 @@ function specDrift(golden, keys) {
   return out;
 }
 
-function readGolden() {
-  return JSON.parse(fs.readFileSync(path.join(ROOT, GOLDEN), "utf8"));
+function readGolden(file) {
+  return JSON.parse(fs.readFileSync(path.join(ROOT, file || GOLDEN), "utf8"));
+}
+
+/* the problem a missing golden file is, or null */
+function goldenMissing(file) {
+  file = file || GOLDEN;
+  return fs.existsSync(path.join(ROOT, file)) ? null : file + " is missing: the frozen baseline the ledger is measured from (git checkout it; it is not written again)";
 }
 
 /* the grader's boolean */
@@ -381,9 +399,10 @@ const rightOf = (v) => v.kind === "right";
 
 /** Run the grader over the golden file: { ledger, problems }. The golden file, the judge,
     the `reviewed` block and the course's keys can be handed in (the tests give a judge of
-    their own); by default they are the file, check.ts, the block on disk and the pages. */
+    their own); by default they are the file (`goldenFile`, from the root, or GOLDEN),
+    check.ts, the block on disk and the pages. */
 function build(o = {}) {
-  const golden = o.golden || readGolden();
+  const golden = o.golden || readGolden(o.goldenFile);
   const judge = o.judge || check.judge, judgeOff = o.judgeOff || check.judgeOff;
   const reviewed = o.reviewed || readLedger().reviewed;
   const keys = o.keys || courseKeys();
@@ -400,7 +419,6 @@ function build(o = {}) {
         const kindChange = !was && (v.kind === "form" || (v.kind === "unread" && v.reason !== "empty"));
         if (was === now && !kindChange) continue;
         const id = caseId(g.from, given), review = listed.get(id);
-        if (review) used.add(id);
         let rule = null;
         if (v.kind === "form" || v.kind === "unread") rule = ruleOfReason(v.reason);
         else {
@@ -415,6 +433,8 @@ function build(o = {}) {
           if (!review) problems.push(label + ": no rule or pair of rules gives back the old verdict; fix it or list it in reviewed");
           rule = "unattributed";
         }
+        /* reviewed is for a new right answer, or a change no rule gives back */
+        if (review && ((!was && now) || rule === "unattributed")) used.add(id);
         if (!was && now && !review && !gate(given, g.answer, g.type, g.tol)) {
           problems.push(label + ": now right (" + rule + "), but the value gate does not read it as the key's value; fix it or list it in reviewed");
         }
@@ -425,7 +445,7 @@ function build(o = {}) {
       }
     }
   });
-  reviewed.forEach(r => { if (!used.has(caseId(r.from, r.given))) problems.push("reviewed: " + r.from + ": " + JSON.stringify(r.given) + " matches no change"); });
+  reviewed.forEach(r => { if (!used.has(caseId(r.from, r.given))) problems.push("reviewed: " + r.from + ": " + JSON.stringify(r.given) + " matches no new right answer and no change without a rule"); });
 
   const ids = new Set();
   flips.concat(verdicts).forEach(e => e.rule.split("+").forEach(r => ids.add(r)));
@@ -436,6 +456,8 @@ function build(o = {}) {
 /** What --check does: the problems build() finds, and a file on disk that differs from a
     fresh run (`text`: the file's text, null for no file; read from disk by default) */
 function checkLedger(o = {}) {
+  const missing = o.golden ? null : goldenMissing(o.goldenFile);
+  if (missing) return [missing];
   const text = o.text !== undefined ? o.text : (fs.existsSync(path.join(ROOT, OUT)) ? fs.readFileSync(path.join(ROOT, OUT), "utf8") : null);
   const disk = readLedger(text);
   const { ledger, problems } = build(Object.assign({ reviewed: disk.reviewed }, o));
@@ -478,6 +500,8 @@ if (require.main === module) {
   const args = process.argv.slice(2);
   const arg = (name) => { const i = args.indexOf(name); return i < 0 ? null : args[i + 1]; };
   let failed = false;
+  const missing = goldenMissing();
+  if (missing) { console.error(missing); process.exit(1); }
   if (args.includes("--rules")) {
     const allowed = (arg("--rules") || "").split(",").filter(Boolean), base = arg("--base") || "origin/main";
     if (!git.resolveRef(ROOT, base)) { console.error("--base: " + base + " is not a commit"); process.exit(1); }

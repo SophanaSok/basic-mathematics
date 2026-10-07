@@ -31,7 +31,7 @@ interface Ledger { revision: number; rules: { id: string; rule: string }[]; flip
 interface Key { from: string; type: string | null; tol: number }
 type Judge = (given: unknown, spec: AnswerSpec) => Verdict;
 type JudgeOff = (given: unknown, spec: AnswerSpec, off: ReadonlySet<RuleId>) => Verdict;
-interface BuildOptions { golden?: { groups: Group[] }; judge?: Judge; judgeOff?: JudgeOff; reviewed?: Reviewed[]; keys?: Key[]; text?: string | null }
+interface BuildOptions { golden?: { groups: Group[] }; goldenFile?: string; judge?: Judge; judgeOff?: JudgeOff; reviewed?: Reviewed[]; keys?: Key[]; text?: string | null }
 const LEDGER_TOOL = require(path.join(ROOT, "tools/gen-grade-ledger.js")) as {
   build(o?: BuildOptions): { ledger: Ledger; problems: string[] };
   check(o?: BuildOptions): string[];
@@ -108,7 +108,8 @@ describe("grade() against the golden file and the ledger", () => {
       if (legacyGrade(v.given, g.answer, g.type, g.tol) || now.kind !== v.kind || !("reason" in now) || now.reason !== v.reason) fake.push(v.from + ": " + v.given);
     }
     expect(fake).toEqual([]);
-    const named = new Set([...LEDGER.flips, ...LEDGER.verdicts].flatMap((e) => e.rule.split("+")));
+    /* an unattributed entry (listed in reviewed) names no rule */
+    const named = new Set([...LEDGER.flips, ...LEDGER.verdicts].flatMap((e) => e.rule.split("+")).filter((r) => r !== "unattributed"));
     expect(LEDGER.rules.map((r) => r.id).sort()).toEqual([...named].sort());
   });
 
@@ -199,7 +200,13 @@ describe("the ledger tool", () => {
     expect(problems).toEqual(["k4: \"1 2/3\" against \"6\" (number): now right (N-mixed), but the value gate does not read it as the key's value; fix it or list it in reviewed"]);
     const reviewed = [{ from: "k4", given: "1 2/3", why: "read by hand" }];
     expect(run({ golden: g, reviewed })).toMatchObject({ problems: [], ledger: { reviewed } });
-    expect(run({ reviewed: [{ from: "k1", given: "9", why: "gone" }] }).problems).toEqual(["reviewed: k1: \"9\" matches no change"]);
+    expect(run({ reviewed: [{ from: "k1", given: "9", why: "gone" }] }).problems).toEqual(["reviewed: k1: \"9\" matches no new right answer and no change without a rule"]);
+    /* a change the gate need not read and a rule gives back leaves its entry stale: k3's
+       flip to unread by N-space, and k2's verdict by its reason */
+    expect(run({ reviewed: [{ from: "k3", given: "1 ~ 2", why: "by hand" }, { from: "k2", given: "3 kg", why: "by hand" }] }).problems).toEqual([
+      "reviewed: k3: \"1 ~ 2\" matches no new right answer and no change without a rule",
+      "reviewed: k2: \"3 kg\" matches no new right answer and no change without a rule"
+    ]);
   });
 
   it("names the first pair of rules when no single switch gives the old verdict back, and refuses a change none does", () => {
@@ -207,7 +214,11 @@ describe("the ledger tool", () => {
     expect(run({ golden: g, ...always(right, (o) => o.has("N-unicode") && o.has("L-sep")) }).ledger.flips[0].rule).toBe("N-unicode+L-sep");
     expect(run({ golden: g, ...always(right) }).problems).toEqual(["k5: \"2.\" against \"2\" (number): no rule or pair of rules gives back the old verdict; fix it or list it in reviewed"]);
     expect(run({ golden: g, ...always(right), reviewed: [{ from: "k5", given: "2.", why: "by hand" }] }))
-      .toMatchObject({ problems: [], ledger: { flips: [{ rule: "unattributed" }], rules: [{ id: "unattributed" }] } });
+      .toMatchObject({ problems: [], ledger: { flips: [{ rule: "unattributed" }], rules: [] } });
+    /* a flip from right to wrong that no rule gives back is cleared by reviewed too */
+    const k7 = golden([["k7", "2", "number", 0, ["2"]]]), wrong = (): Verdict => ({ kind: "wrong", read: null });
+    expect(run({ golden: k7, ...always(wrong) }).problems).toEqual(["k7: \"2\" against \"2\" (number): no rule or pair of rules gives back the old verdict; fix it or list it in reviewed"]);
+    expect(run({ golden: k7, ...always(wrong), reviewed: [{ from: "k7", given: "2", why: "by hand" }] })).toMatchObject({ problems: [], ledger: { rules: [] } });
   });
 
   it("fails when legacy.ts does not say what the golden file says", () => {
@@ -226,6 +237,11 @@ describe("the ledger tool", () => {
     /* reviewed is read off the file, so the hand-written block is never rewritten */
     expect(LEDGER_TOOL.check({ ...FAKE, text: LEDGER_TOOL.serialise({ ...ledger, reviewed: [{ from: "k1", given: "7.", why: "by hand" }] }) })).toEqual([]);
     expect(LEDGER_TOOL.check({ golden: GOLD, keys: [], text: null })).toEqual([]);
+  });
+
+  it("reports a missing golden file as a problem, not a crash", () => {
+    expect(LEDGER_TOOL.check({ goldenFile: "tools/fixtures/no-such-golden.json", text: null }))
+      .toEqual(["tools/fixtures/no-such-golden.json is missing: the frozen baseline the ledger is measured from (git checkout it; it is not written again)"]);
   });
 
   it("lists a course exercise whose type or tol moved from its golden group's", () => {
@@ -247,6 +263,9 @@ describe("the ledger tool", () => {
     expect(LEDGER_TOOL.ORDER).not.toContain("T-zero");
     expect(LEDGER_TOOL.ORDER).not.toContain("T-final");
     for (const id of LEDGER_TOOL.ORDER) expect(LEDGER_TOOL.RULES[id], id).toMatch(/^\S.*\.$/);
+    /* the sentences go into the ledger file, in US English; "unattributed" is no rule */
+    expect(Object.keys(LEDGER_TOOL.RULES)).toEqual(LEDGER_TOOL.ORDER);
+    expect(Object.values(LEDGER_TOOL.RULES).filter((r) => /full stop|bracket/i.test(r))).toEqual([]);
   });
 });
 
@@ -261,6 +280,8 @@ describe("the value gate", () => {
     expect([gate("1.000000001", "1", "number"), gate("1.00000001", "1", "number"), gate("0.6666666667", "2/3", "number")]).toEqual([true, false, true]);
     expect([gate("1.0000001", "1", "number", 1e-7), gate("1.0000002", "1", "number", 1e-7), gate("2.812", "2.807", "number", 0.005), gate("2.8120000000005", "2.807", "number", 0.005)])
       .toEqual([true, false, true, false]);
+    /* an infinite tol takes any value, and never throws */
+    expect([gate("100", "1", "number", Infinity), gate("9,-4", "1,2", "set", Infinity), gate("x", "1", "number", Infinity)]).toEqual([true, true, false]);
   });
 
   it("leaves to a reader by hand what it does not read: commas, $, brackets, ½, full-width digits, ÷, and a space between digits", () => {
@@ -273,9 +294,14 @@ describe("the value gate", () => {
       .toEqual([true, true, false, true, true]);
     expect([gate("-0,5", "(0,5)|0,5", "exact"), gate("(12/2,-2)", "(6,-2)|6,-2", "exact"), gate("(-2,6)", "(6,-2)|6,-2", "exact"), gate("(6.0000000001,-2)", "(6,-2)|6,-2", "exact"), gate("(1000000000,1)", "(1000000001,1)", "exact")])
       .toEqual([true, true, false, false, false]);
+    /* T-zero: a coordinate led by 0 and a digit makes no point (design section 3.3) */
+    expect([gate("(05,1)", "(5,1)", "exact"), gate("(1,-05)", "(1,-5)|1,-5", "exact"), gate("(- 05,1)", "(-5,1)", "exact"), gate("05,1", "5,1", "exact"), gate("(0.5,-0)", "(1/2,0)", "exact")])
+      .toEqual([false, false, false, false, true]);
   });
 
   it("takes an expression as text, or by its value at three seeded points", () => {
+    /* A-abs: |x| is one alternative, never its bars' inside x */
+    expect([gate("x.", "|x|", "expr"), gate("x", "|x|+1", "expr"), gate("abs(x)", "|x|", "expr"), gate("|x|", "|x|", "expr")]).toEqual([false, false, true, true]);
     expect([gate("|x|.", "|x|", "expr"), gate("abs(x)", "|x|", "expr"), gate("x**2", "x^2", "expr"), gate("((1/2)·sqrt(2))", "sqrt(2)/2|(1/2)sqrt(2)", "expr"), gate("-28x+x^2+196", "x^2-28x+196", "expr"), gate("(2k+1)^(-1)", "(2k+1)^-1", "expr"), gate("x²", "x^2", "expr")])
       .toEqual([true, true, true, true, true, true, true]);
     /* the design's must-stay-wrong rows that differ in value, and a mixed number in an expression */
