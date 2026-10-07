@@ -38,6 +38,13 @@ const RUNG_VALUES = [1, 2, 3, 3, 0, 5, -1, "2", "x", true, null, [1], { a: 1 }];
    points */
 const SECTIONS = ["one-unknown", "ch02#one-unknown", "warmup"];
 const OTHER_SECTIONS = SECTIONS.concat("Warmup", "practice", "ch05#angles", "\uff5e", "\ud83d\ude00");
+/* what a damaged or differently-minded record may hold as its section instead of a string
+   (sectionConflicts only), so maxSection's rule for values that are not strings (they
+   lose to any non-empty string, and two of them fall back to `later`) is held to as well.
+   Only truthy ones: a lone record's falsy section (0, false, '', null) is kept as it is
+   by the merge and dropped when that result is merged with itself, an older gap that
+   moved over with the merge and is not this rule's */
+const SECTION_DAMAGED = [5, true, [1], { a: 1 }];
 const UNKNOWN_VALUES = [0, 7, -1, "x", "", true, null, [1, 2], [2, 1], { a: 1, b: [1] }, { b: [1], a: 1 }, { a: { c: 2 } }];
 function randomState(R, opts) {
   const conflicts = !opts || opts.sectionConflicts !== false;
@@ -74,7 +81,8 @@ function randomState(R, opts) {
      page markup — so two devices can never disagree about them for the same key. But
      with `sectionConflicts` (the default), one section in ten is another non-empty one
      (OTHER_SECTIONS), as a page whose markup moved an exercise, or a damaged record,
-     would leave it, so two devices often disagree about it */
+     would leave it, so two devices often disagree about it, and one in twenty is not a
+     string at all (SECTION_DAMAGED) */
   st.attempts = {};
   pickSome(CHAPTERS).forEach(ch => {
     st.attempts[ch] = {};
@@ -90,6 +98,7 @@ function randomState(R, opts) {
       if (R.maybe(0.85)) {
         a.section = SECTIONS[(ch.length + k.charCodeAt(1)) % 3];
         if (conflicts && R.maybe(0.1)) a.section = R.pick(OTHER_SECTIONS.filter(s => s !== a.section));
+        if (conflicts && R.maybe(0.05)) a.section = JSON.parse(JSON.stringify(R.pick(SECTION_DAMAGED)));
       }
       if (a.tries && R.maybe(0.5)) { a.solved = 1700000000000 + R.int(1e9); a.first = a.tries === 1 && !a.opened ? 1 : 0; }
       else if (inlineKey && R.maybe(0.3)) a.skipped = 1;
@@ -120,4 +129,4 @@ function randomState(R, opts) {
   return st;
 }
 
-module.exports = { rng, randomState, CHAPTERS, KEYS, DAYS, UNKNOWN_KEYS, UNKNOWN_VALUES, RUNG_VALUES, SECTIONS, OTHER_SECTIONS };
+module.exports = { rng, randomState, CHAPTERS, KEYS, DAYS, UNKNOWN_KEYS, UNKNOWN_VALUES, RUNG_VALUES, SECTIONS, OTHER_SECTIONS, SECTION_DAMAGED };

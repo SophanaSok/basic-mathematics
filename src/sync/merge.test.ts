@@ -100,6 +100,10 @@ describe("a page without it", () => {
   });
 });
 
+/* the two 2,000-triple tests: about 4s and 2s here, past vitest's 5s default on a slower
+   CI runner (5.8s for the first one there) */
+const LONG = 60_000;
+
 describe("the merge moved from assets/account.js", () => {
   /* the merge as it was, from the commit it was moved from, run as the page ran it */
   const old = runAccount(execFileSync("git", ["show", BEFORE_MOVE + ":assets/account.js"], { cwd: ROOT, encoding: "utf8" }), {}).win.BMAccount;
@@ -134,15 +138,16 @@ describe("the merge moved from assets/account.js", () => {
     }
     expect(unknown).toBeGreaterThan(1900);
     expect(sections).toBeGreaterThan(1000);
-  });
+    }, LONG);
 });
 
 describe("the merge laws", () => {
   /* the states of tools/lib/random-state.js as they come (sectionConflicts on): one
-     attempt section in ten is another non-empty one, so two devices often disagree */
+     attempt section in ten is another non-empty one, so two devices often disagree, and
+     one in twenty is not a string (SECTION_DAMAGED) */
   it("hold over 2,000 seeded triples where devices disagree about sections, the fields kept local aside", () => {
     const R = rng(20261007);
-    let disagree = 0;
+    let disagree = 0, damaged = 0;
     for (let i = 0; i < 2000; i++) {
       const seed = R.int(2 ** 31), S = rng(seed);
       const [a, b, c] = [0, 1, 2].map(() => randomState(S));
@@ -159,13 +164,19 @@ describe("the merge laws", () => {
         const p = a.attempts[ch][k], q = b.attempts && b.attempts[ch] && b.attempts[ch][k];
         if (!p || typeof p !== "object" || !q || typeof q !== "object") return;
         if (p.section && q.section && p.section !== q.section) disagree++;
-        const want = [p.section, q.section].filter((s) => typeof s === "string" && s !== "").sort().pop();
+        if ([p.section, q.section].some((s) => s && typeof s !== "string")) damaged++;
+        /* non-empty strings first, the greater by code units; then truthy values that are
+           not strings, the greater by canonical JSON */
+        const strs = [p.section, q.section].filter((s) => typeof s === "string" && s !== "").sort();
+        const others = [p.section, q.section].filter((s) => s && typeof s !== "string").sort((s, t) => (canon(s) < canon(t) ? -1 : canon(s) > canon(t) ? 1 : 0));
+        const want = strs.length ? strs.pop() : others.pop();
         const got = ab.attempts[ch][k].section;
-        if (got !== want) expect(got, "seed " + seed + ": attempts." + ch + "." + k + ".section from " + canon([p.section, q.section])).toBe(want);
+        if (canon(got) !== canon(want)) expect(got, "seed " + seed + ": attempts." + ch + "." + k + ".section from " + canon([p.section, q.section])).toEqual(want);
       }));
     }
     expect(disagree).toBeGreaterThan(200);
-  });
+    expect(damaged).toBeGreaterThan(100);
+  }, LONG);
 });
 
 describe("an attempt record's section", () => {
