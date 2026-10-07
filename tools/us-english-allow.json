@@ -21,23 +21,11 @@
     "organised": 1,
     "parametrising": 1
   },
-  "data/gen/part2.js": {
-    "centre": 1,
-    "neighbouring": 1,
-    "neighbours": 2,
-    "trapezium": 1
-  },
   "data/gen/part3.js": {
     "centre": 3
   },
   "data/quest.js": {
     "metres": 2
-  },
-  "parts/2-geometry/07-area.html": {
-    "cancelled": 1,
-    "centre": 4,
-    "metres": 3,
-    "trapezium": 2
   },
   "parts/3-coordinates/08-coordinates.html": {
     "centre": 39,
