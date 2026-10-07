@@ -1235,7 +1235,8 @@ npm run check:static    #   syntax, progress keys, ids, lesson steps, the shell,
                         #   animations (no loop, no flash), colours (only in tokens.css), the reading column
 npm run check:ci        #   the workflow's deploy guards: the default Cloudflare project, the re-run
                         #   guard before wrangler, pr-<number> previews, main deploys as production,
-                        #   test:browser:core in the gate, GitHub Pages gets dist-redirects/ alone
+                        #   test:browser:core in the gate, GitHub Pages gets dist-redirects/ alone,
+                        #   no run for a change to only Markdown and docs/ (and nothing built from them)
 npm run check:gen       #   every Arena generator over 500 seeds
 npm run check:scenes    #   every 3D scene: mount, controls, missions, answers
 npm run test:node       #   the progress-key, id and lesson-step rules and the CSS checks on small pages;
@@ -1326,7 +1327,8 @@ names; a new `order` list is authored in the right order; a new puzzle's temptin
 ### Deploying
 
 The course is served from one place: **Cloudflare Pages, at `https://learn.groundupmath.org`**.
-A push to `main` runs the checks and the build in GitHub Actions, and once the `build` and
+A push to `main` runs the checks and the build in GitHub Actions (unless it changes only Markdown
+and `docs/`, which the site is not built from: OPERATIONS.md, "When CI runs"), and once the `build` and
 `browser` jobs have passed, the `cloudflare` job publishes that run's `dist/` there as production
 (`cloudflare/wrangler-action`, with the repository secrets `CLOUDFLARE_API_TOKEN` and
 `CLOUDFLARE_ACCOUNT_ID`). Each pull request from a branch of this repository is published the

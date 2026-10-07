@@ -546,6 +546,7 @@ runs only on GitHub), held by reading the file:
 | `prod` | a deploy of `main` that Cloudflare did not make production fails, after wrangler ran |
 | `core` | the `browser` job runs `npm run test:browser:core` in the job of the part `--parts` names as core |
 | `pages` | the build job builds, checks and keeps `dist-redirects/`, and the `deploy` job downloads that artifact alone and reads no repository variable: the course is never published to GitHub Pages. Taking the old address down removes this check with the jobs ([`OPERATIONS.md`](../OPERATIONS.md), 8.6) |
+| `skip` | `pull_request` and `push` (to `main`) each carry `paths-ignore: ["**/*.md", "docs/**"]` and nothing else, so a change to only prose starts no run and the list cannot grow to cover code; and the build reads none of what it covers: no Markdown in `public/` (copied into `dist/` as it is), `src/`, `assets/`, `data/` or `parts/`, and nothing but Markdown in `docs/` ([`OPERATIONS.md`](../OPERATIONS.md), "When CI runs") |
 
 ## apply-shell.js
 
