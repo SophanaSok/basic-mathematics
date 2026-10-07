@@ -9,7 +9,10 @@
 /** How a key is compared: "number" and "fraction" by value, "set" as a list of numbers in
     any order, "expr" as an expression with its cosmetic differences removed, anything
     else ("exact", or none) as forgiving text. */
-export type AnswerType = "number" | "fraction" | "set" | "expr" | "exact" | string;
+export type KnownAnswerType = "number" | "fraction" | "set" | "expr" | "exact";
+/** A known type, or any other string a page carries (graded as "exact"); `string & {}`
+    keeps the known names from collapsing into plain `string`, so editors still offer them. */
+export type AnswerType = KnownAnswerType | (string & {});
 
 /* strip the noise readers add without changing meaning */
 export function basicClean(s: unknown): string {
