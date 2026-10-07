@@ -42,13 +42,13 @@
       var steps = [
         "Group the $x$ terms and the $y$ terms: $(" + poly([[1, "x^2"], [D, "x"]]) + ") + (" + poly([[1, "y^2"], [E, "y"]]) + ") = " + -F + "$.",
         "Complete each square: $(" + shift("x", -h) + ")^2 - " + h * h + " + (" + shift("y", -k) + ")^2 - " + k * k + " = " + -F + "$.",
-        "So $(" + shift("x", -h) + ")^2 + (" + shift("y", -k) + ")^2 = " + rad * rad + "$: centre $" + pt(h, k) + "$, radius $\\sqrt{" + rad * rad + "} = " + rad + "$."
+        "So $(" + shift("x", -h) + ")^2 + (" + shift("y", -k) + ")^2 = " + rad * rad + "$: center $" + pt(h, k) + "$, radius $\\sqrt{" + rad * rad + "} = " + rad + "$."
       ];
       return {
-        q: "The equation $" + eq + "$ describes a circle. What is its " + (askR ? "radius" : "centre") + "?",
+        q: "The equation $" + eq + "$ describes a circle. What is its " + (askR ? "radius" : "center") + "?",
         type: askR ? "number" : "exact", answer: askR ? String(rad) : ptAns(h, k),
         placeholder: askR ? "" : "e.g. (3,-2)",
-        hint: "Complete the square in x and in y separately, then compare with the centre–radius form.",
+        hint: "Complete the square in x and in y separately, then compare with the center–radius form.",
         steps: steps,
         verify: function () {
           /* the point one radius to the right of the centre lies on the circle, and so does the one above it */
@@ -99,7 +99,7 @@
         hint: "Multiplying a point by a number multiplies each coordinate.",
         steps: [
           "$" + name + " = (" + c + " \\cdot " + par(P[0]) + ",\\; " + c + " \\cdot " + par(P[1]) + ")$.",
-          "$= " + pt(Q[0], Q[1]) + "$" + (c === -1 ? ", the reflection of $P$ in the origin." : ".")
+          "$= " + pt(Q[0], Q[1]) + "$" + (c === -1 ? ", the reflection of $P$ through the origin." : ".")
         ],
         verify: function () { return Q[0] / c === P[0] && Q[1] / c === P[1]; }
       };
