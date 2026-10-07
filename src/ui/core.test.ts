@@ -39,6 +39,8 @@ describe("window.BMCore", () => {
     expect(Object.keys(core.rules).sort()).toEqual(["CLUE_FREE", "FADED_RUNG", "Road", "STRONG", "WEAK", "XP", "fadedOf", "isMiss", "medalMark", "paysFirst", "setStats", "struggle", "xpFor"]);
     expect(Object.keys(core.messages)).toEqual(["unreadMessage", "formMessage", "readMessage", "lowestMessage"]);
     expect(core.grade("1/2", "0.5", "number")).toBe(true);
+    /* and it is the typed grader, not legacy.ts: a trailing period is right only there */
+    expect([core.grade("7.", "7", "number"), core.matches("7.", "7", "number")]).toEqual([true, true]);
   });
 
   /* the typed grader as a page calls it: a verdict is right exactly where grade() says
