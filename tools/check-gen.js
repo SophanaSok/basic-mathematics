@@ -103,13 +103,15 @@ function proseInMath(s) {
   var m, re = /\$\$([\s\S]+?)\$\$|(?<!\\)\$((?:\\.|[^$\\])+?)\$/g;
   while ((m = re.exec(s))) {
     var tex = m[1] !== undefined ? m[1] : m[2];
+    /* a bare price ends just before the next one with a space: "$2 each, pads $" */
+    if (m[2] !== undefined && /^\s|\s$/.test(tex)) return "a formula that starts or ends with a space, $" + tex + "$ (a bare price?)";
     if (/\b[a-z]{2,}\s+[a-z]{2,}\s+[a-z]{2,}\b/i.test(tex.replace(/\\(?:text|mathrm)\s*\{[^{}]*\}/g, " ").replace(/\\[a-zA-Z]+/g, " "))) return "prose inside the formula $" + tex + "$";
   }
   if ((s.replace(/\\\$/g, "").replace(/\$\$/g, "").match(/\$/g) || []).length % 2) return "a $ with no partner";
   return "";
 }
 /* the rule itself, on strings whose verdict is known */
-[["Tea is $3 and coffee is $4.", true], ["It costs $9.", true], ["Tea costs $\\$9$ and coffee $x$ more.", false],
+[["Tea is $3 and coffee is $4.", true], ["It costs $9.", true], ["Pens cost $2 each, pads $3.", true], ["Tea costs $9 and coffee $4.", true], ["Tea costs $\\$9$ and coffee $x$ more.", false],
   ["Area $= \\tfrac12 \\cdot \\text{base and height}$.", false], ["$$x^2 + 1$$ and $y$", false]].forEach(function (c) {
   if (!!proseInMath(c[0]) !== c[1]) fail("formula rule", null, JSON.stringify(c[0]) + (c[1] ? " is not caught" : " is caught, but it is fine"));
 });
