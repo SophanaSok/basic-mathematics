@@ -1,0 +1,8 @@
+/* ===========================================================================
+   Basic Mathematics — the placement check (diagnostic.html only)
+   A stub: layout lands with the page's script. Colours come only from
+   src/styles/tokens.css; none is written here.
+   =========================================================================== */
+
+.diag { max-width: 40rem; font-family: var(--sans); }
+.diag .lede { max-width: var(--measure); }

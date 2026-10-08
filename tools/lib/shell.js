@@ -84,6 +84,9 @@ const PAGE_KINDS = {
   /* arena.html: no figures, the problem generators instead; the due review's stylesheet
      after arena.css, whose cards and chips it builds on */
   arena: { styles: ["src/styles/tokens.css", "assets/site.css", "assets/game.css", "assets/arena.css", "assets/review.css"], entry: "src/entries/arena.js" },
+  /* diagnostic.html: the placement check; the Arena's problem generators, and a stylesheet
+     of its own after the game's */
+  diagnostic: { styles: ["src/styles/tokens.css", "assets/site.css", "assets/game.css", "assets/diagnostic.css"], entry: "src/entries/diagnostic.js" },
   /* parts/<part>/<chapter>.html: the scene framework, every scene, then site.js, which
      mounts the figures as it runs; the help ladder's own stylesheet after the card rules of
      game.css it builds on, and the next-step card's last */
