@@ -115,11 +115,20 @@ describe("seedOf", () => {
     inCourse("pre-algebra").forEach((r) => expect(seed(t, r)).toBeNull());
   });
 
+  it("perOf reads no take as empty, and never takes __proto__ as a section", () => {
+    expect([perOf(null as never), perOf(undefined as never), perOf({ blocks: {} } as never)]).toEqual([{}, {}, {}]);
+    const per = perOf({ day: "2026-10-07", band: "algebra-1", blocks: [{ course: "algebra-1", pass: true, items: [{ sec: "__proto__", k: "right" }, { sec: "ch01#addition", k: "right" }] }] } as never);
+    expect(Object.getPrototypeOf(per)).toBe(Object.prototype);
+    expect(per).toEqual({ "ch01#addition": { n: 1, o: 1 } });
+  });
+
   it("nothing for a rushed take, or one that says it was not seeded", () => {
     const t = take([...L], [...L], {}, { rushed: true, seeded: false });
     REFS.forEach((r) => expect(seed(t, r)).toBeNull());
     const u = take([...L], [...L], {}, { seeded: false });
     REFS.forEach((r) => expect(seed(u, r)).toBeNull());
+    const w = take([...L], [...L], {}, { rushed: true });
+    REFS.forEach((r) => expect(seed(w, r)).toBeNull());
   });
 
   it("nothing for a take with no readable day", () => {

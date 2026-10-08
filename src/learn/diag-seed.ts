@@ -83,14 +83,14 @@ export function latestTake(diag: unknown): DiagTake | null {
 /* -------------------------------------------------------------------- seeds -- */
 
 const itemsOf = (take: DiagTake): DiagItem[] =>
-  (take.blocks ?? []).flatMap((b) => plain(b) && Array.isArray(b.items) ? b.items.filter(plain) as unknown as DiagItem[] : []);
+  (plain(take) && Array.isArray(take.blocks) ? take.blocks : []).flatMap((b) => plain(b) && Array.isArray(b.items) ? b.items.filter(plain) as unknown as DiagItem[] : []);
 
 /** What each asked section counted: `n` every recorded answer, `o` the right ones. A section
     asked twice (Geometry's `point-sum`) adds both. This is item 15's checkpoint input. */
 export function perOf(take: DiagTake): Record<SectionRef, Per> {
   const out: Record<string, Per> = {};
   itemsOf(take).forEach((i) => {
-    if (typeof i.sec !== "string") return;
+    if (typeof i.sec !== "string" || (i.sec as string) === "__proto__") return; /* never a section, and it would set out's prototype */
     const p = Object.hasOwn(out, i.sec) ? out[i.sec] : (out[i.sec] = { n: 0, o: 0 });
     p.n++;
     if (i.k === "right") p.o++;
@@ -103,7 +103,7 @@ export function perOf(take: DiagTake): Record<SectionRef, Per> {
     not cleared whatever is above it. */
 function clearedOf(take: DiagTake): { asked: Set<string>; clear: Set<string>; implied: Set<string> } {
   const asked = new Set<string>(), clear = new Set<string>(), implied = new Set<string>();
-  (take.blocks ?? []).forEach((b) => {
+  (plain(take) && Array.isArray(take.blocks) ? take.blocks : []).forEach((b) => {
     if (!plain(b) || !isPlaceable(b.course)) return;
     asked.add(b.course);
     if (b.pass === true) clear.add(b.course);
