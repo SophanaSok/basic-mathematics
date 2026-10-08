@@ -355,7 +355,7 @@ describe("the pieces", () => {
 
   it("splits a key on | and keeps the whole key, for an answer such as |x|", () => {
     expect(alternatives(" a | b ")).toEqual(["a | b", "a", "b"]);
-    expect(alternatives("|x|")).toEqual(["|x|", "x"]);
+    expect(alternatives("|x|")).toEqual(["|x|"]);
     expect(alternatives(null)).toEqual([]);
     expect(grade("|x|", "|x|")).toBe(true);
     expect(grade("4", "2|4", "number")).toBe(true);

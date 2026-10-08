@@ -21,8 +21,13 @@
                compared by exact value in order, no band and no tol (T-value), or is
                form/notation when it used [...], <...> or labels (T-notation), and that
                compare is final (a guard, T-final, tests only: off, the text compare is
-               tried after it). Any other exact or expr text is compared as the old grader
-               compared it (legacy.ts; the expr rules come with the next revision)
+               tried after it)
+     text      any other exact text, and expr, is compared by expr.ts: expr by its string
+               rules (E-mixed, E-star, E-pow, E-dot, E-abs, E-plusneg, E-paren, E-terms), and
+               exact as the old forgiving text compare, with a mixed number marked (E-mixed)
+   A key is split on "|" into alternatives, unless a piece is empty: |x| is one answer, so x
+   is not right for it (A-abs). The whole key stays the first alternative, so typing the
+   whole key (6,-2)|6,-2 is right.
    Across a key's "|" alternatives the ranking is right > form > wrong. An answer with no
    single reading is unread, decided by read.ts from the text and the type alone, never
    from the key; expr and exact are unread only when empty or over 1,000 characters.
@@ -33,25 +38,26 @@
    recorded here and read nowhere else: their (a) is what the compare does.
 
    Every rule is a switch: judgeOff() is judge() with the rules in `off` doing what the old
-   grader did (the reader's rules inside read.ts, N-exact, N-round, L-repeat, T-value and
-   T-notation here), for tools/gen-grade-ledger.js, which puts each changed verdict of the
-   frozen baseline (tools/fixtures/grade-golden.json) down to the first rule whose switch
-   gives the old verdict back, and lists them in tools/fixtures/grade-ledger.json at this
-   GRADER revision. judgeOff() never reaches the pages.
+   grader did (the reader's rules inside read.ts, the expr rules inside expr.ts, and A-abs,
+   N-exact, N-round, L-repeat, T-value and T-notation here), for tools/gen-grade-ledger.js,
+   which puts each changed verdict of the frozen baseline (tools/fixtures/grade-golden.json)
+   down to the first rule whose switch gives the old verdict back, and lists them in
+   tools/fixtures/grade-ledger.json at this GRADER revision. judgeOff() never reaches the
+   pages.
 
    Pure: no `window`, no DOM, no float in any decision. */
 
-import { alternatives, matches as legacyMatches, sameNumber, type AnswerType } from "./legacy.ts";
+import { alternatives as legacyAlternatives, sameNumber, type AnswerType } from "./legacy.ts";
+import { sameText } from "./expr.ts";
 import { readList, readNumber, readTuple, type ListReading, type NumberReading, type Refusal } from "./read.ts";
 import { abs, cmp, eq, fromDecimal, roundTo, sub, truncTo, type Q } from "./rational.ts";
 import type { AnswerSpec, FormReason, Note, Owner, RuleId, Verdict } from "./types.ts";
 
-export { alternatives };
 export { readNumber } from "./read.ts";
 
 /** The grader's revision: tools/fixtures/grade-ledger.json's `revision`, stored beside a
     diagnostic's verdicts. A change that adds ledger entries moves it on. */
-export const GRADER = 2;
+export const GRADER = 3;
 
 /** The owner's answers to decision 0002's questions (decided 2026-10-07): the recommended
     option on each. The pages read q4 for the one message worded by it. */
@@ -72,6 +78,20 @@ export function specOf(src: { answer?: unknown; type?: unknown; tol?: unknown; g
   };
   if (src.grid === true) spec.grid = true;
   return spec;
+}
+
+/* "|" separates a key's alternatives, and the whole key is the first of them; a key with an
+   empty piece (|x|) is one answer (A-abs; off, its bars split it as before) */
+function altsOf(raw: string | null | undefined, off: ReadonlySet<RuleId>): string[] {
+  const whole = (raw || "").trim(), pieces = whole.split("|");
+  if (!off.has("A-abs") && pieces.length > 1 && pieces.some((s) => s.trim() === "")) return [whole];
+  return legacyAlternatives(whole);
+}
+
+/** A key's alternatives, as judge() reads them: the whole key, then each "|" piece, unless a
+    piece is empty (|x| is one answer) */
+export function alternatives(raw: string | null | undefined): string[] {
+  return altsOf(raw, NONE);
 }
 
 /* ------------------------------------------------------------- compare -- */
@@ -144,8 +164,8 @@ function judgeAlts(given: unknown, alts: string[], type: string, tol: number, of
     const g = readList(text, o);
     return g.ok ? rank(g, alts, (s) => readList(s, o), (k) => compareList(g, k, tol, off), []) : refused(g);
   }
-  /* expr, exact and any other type: the old text compare, but a point key is compared by
-     value when the given reads as a tuple of its arity, and that compare is final */
+  /* expr, exact and any other type: the text compare of expr.ts, but a point key is compared
+     by value when the given reads as a tuple of its arity, and that compare is final */
   if (!off.has("N-refuse") && text.length > 1000) return { kind: "unread", reason: "too-long", at: 0 };
   const gt = type === "expr" ? null : readTuple(text, o);
   let form = -1, point = false;
@@ -160,7 +180,7 @@ function judgeAlts(given: unknown, alts: string[], type: string, tol: number, of
         } else if (!off.has("T-final")) continue;
       }
     }
-    if (legacyMatches(text, alts[i], type, tol)) return { kind: "right", alt: i, read: text.trim(), notes: [] };
+    if (sameText(text, alts[i], type, off)) return { kind: "right", alt: i, read: text.trim(), notes: [] };
   }
   const read = gt && point ? gt.read : null;
   return form < 0 || read === null ? { kind: "wrong", read } : { kind: "form", alt: form, read, reason: "notation" };
@@ -168,7 +188,7 @@ function judgeAlts(given: unknown, alts: string[], type: string, tol: number, of
 
 /** judge() with the rules in `off` doing what the old grader did (tools and tests only) */
 export function judgeOff(given: unknown, spec: AnswerSpec, off: ReadonlySet<RuleId>): Verdict {
-  return judgeAlts(given, alternatives(spec.answer), spec.type || "exact", spec.tol || 0, off);
+  return judgeAlts(given, altsOf(spec.answer, off), spec.type || "exact", spec.tol || 0, off);
 }
 
 /** A typed answer's verdict against its key */
