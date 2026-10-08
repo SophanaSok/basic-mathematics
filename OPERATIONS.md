@@ -105,11 +105,12 @@ the `migrations` check refuses any edit to it; fix it with a newer migration.
    confirms with the Q-columns query that `user_state.diag` is `jsonb`, not nullable, default
    `'{}'::jsonb`. Then check that the live account page still syncs. All of this comes before
    D-5 merges.
-2. Until then the site leaves the column out (`lacks` in `account.js`), so a result stays in the
-   browser and "once per account" holds per device only.
+2. The site deployed before D-5 never names the column, so applying it early is safe. If D-5
+   ever ran without it, `lacks` in `account.js` would leave the column out: a result would stay
+   in the browser and "once per account" would hold per device only.
 3. D-5 and D-6 ship in one deploy, at a quiet hour. An older tab's sign-out does not clear
    `bm.diag.v1`, so until old tabs reload the next person to sign in on that browser would merge
-   that take as their own (design `diagnostic-design.md` section 5.5, "Old tabs").
+   that take as their own.
 4. Rollback is the table above: leave the column. A reset never clears it, by design.
 
 ## 2. Deploys
