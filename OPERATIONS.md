@@ -99,6 +99,20 @@ A migration is frozen from the moment it has been applied to the live project, n
 merge: after step 2, change it only by one of the two routes in the table. Once it is on `main`
 the `migrations` check refuses any edit to it; fix it with a newer migration.
 
+### The placement check's `diag` column (D-4, then D-5 and D-6)
+
+1. The owner applies `supabase/migrations/20261008081415_diag.sql` on the live project and
+   confirms with the Q-columns query that `user_state.diag` is `jsonb`, not nullable, default
+   `'{}'::jsonb`. Then check that the live account page still syncs. All of this comes before
+   D-5 merges.
+2. The site deployed before D-5 never names the column, so applying it early is safe. If D-5
+   ever ran without it, `lacks` in `account.js` would leave the column out: a result would stay
+   in the browser and "once per account" would hold per device only.
+3. D-5 and D-6 ship in one deploy, at a quiet hour. An older tab's sign-out does not clear
+   `bm.diag.v1`, so until old tabs reload the next person to sign in on that browser would merge
+   that take as their own.
+4. Rollback is the table above: leave the column. A reset never clears it, by design.
+
 ## 2. Deploys
 
 The course is served from one place: **Cloudflare Pages, at <https://learn.groundupmath.org>**
@@ -398,6 +412,9 @@ the two cannot drift apart.
 One fact from it matters for operations: `user_state` is a copy of what each reader's browser
 already holds, and sync is a merge, so a reader's browser can put their row back. The `attempts`
 log exists only on the server.
+
+Unlike every other `user_state` column, `diag` (the placement-check results) survives a reset;
+only Delete my account removes it (see `docs/decisions/0003-placement-check.md`).
 
 ### The auth redirect allow-list
 

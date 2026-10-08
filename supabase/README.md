@@ -53,6 +53,10 @@ the same instant. Running the SQL first is still the rule; these are what happen
   this copy knows, so a column added for a later release keeps its value. That holds for a reset
   as well: an older copy empties the columns it knows and cannot empty one it cannot name, so a
   release that adds a `user_state` column must clear it itself when it sees `reset_at` advance.
+  The one exception is `diag` (placement-check results): a reset deliberately keeps it, so a
+  reset does not reopen the free check (decision 0003). Once the site syncs it (card D-5), it
+  keeps it through a reset on every device, and only Delete my account removes the account's
+  copy.
 - **Columns the server does not have are left out.** The site reads its row with `select *`, sees
   which columns exist, and sends only those. A new account has no row to read, so its first save
   may be refused once (PostgREST `PGRST204`, "Could not find the '…' column of 'user_state' in the
@@ -122,7 +126,7 @@ redirect list), add the id to `providers` locally, and open `account.html`.
 
 | Table | Contents |
 | --- | --- |
-| `user_state` | One row per reader, holding the same JSON the site keeps in `localStorage`: solved exercises, missions, per-exercise attempt records, XP per day, lesson position, and the game record (achievements, compared solutions, Arena bests, rematch medals, review boxes). Play settings and the combo meter stay in the browser. |
+| `user_state` | One row per reader, holding the same JSON the site keeps in `localStorage`: solved exercises, missions, per-exercise attempt records, XP per day, lesson position, and the game record (achievements, compared solutions, Arena bests, rematch medals, review boxes), and the placement-check results (for each finished check: the day, the class the reader said they finished last, the items asked and whether each was right, wrong or skipped, the course band it placed them in, and whether many answers came very fast; never typed answers or timings), which survive Reset all progress. Play settings and the combo meter stay in the browser. |
 | `attempts` | One row per answer check by a signed-in reader: chapter, exercise key, section, right or wrong, try number, hint level, whether the solution was open. Typed answers are never stored. |
 | `profiles` | An optional display name. |
 | `admins` | The user ids allowed to call the aggregate functions. |
