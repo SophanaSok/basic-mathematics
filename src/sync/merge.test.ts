@@ -5,7 +5,7 @@ import path from "node:path";
 import vm from "node:vm";
 import { describe, expect, it } from "vitest";
 import { merge as installed } from "../ui/core.ts";
-import { maxSection, merge, mergeAttempt, mergeGame } from "./merge.ts";
+import { maxSection, merge, mergeAttempt, mergeDiag, mergeGame } from "./merge.ts";
 
 const ROOT = path.resolve(import.meta.dirname, "../..");
 /* the random states of tools/check-static.js's `merge` check, shared with it */
@@ -34,6 +34,14 @@ function stripLocalFirst(m: any) {
   if (c.activity) delete c.activity.goal;
   if (c.lesson) delete c.lesson.mode;
   if (c.play) Object.keys(c.play).forEach((ch) => { if (c.play[ch]) delete c.play[ch].guess; });
+  return c;
+}
+
+/* the old merge has no `diag`, so the comparison with it is over everything else */
+function stripDiag(m: any) {
+  if (!m || typeof m !== "object" || !("diag" in m)) return m;
+  const c = { ...m };
+  delete c.diag;
   return c;
 }
 
@@ -116,7 +124,7 @@ describe("the merge moved from assets/account.js", () => {
       const seed = R.int(2 ** 31), S = rng(seed);
       /* the states the old merge's laws were held to: two devices never disagree about a
          section, which the old merge took from either side */
-      const [a, b, c] = [0, 1, 2].map(() => randomState(S, { sectionConflicts: false }));
+      const [a, b, c] = [0, 1, 2].map(() => randomState(S, { sectionConflicts: false, diag: false }));
       const pairs: [string, (m: any) => unknown][] = [
         ["merge(a, b)", (m) => m.merge(a, b)],
         ["merge(b, a)", (m) => m.merge(b, a)],
@@ -126,7 +134,7 @@ describe("the merge moved from assets/account.js", () => {
         ["mergeGame(a.game, b.game)", (m) => m.mergeGame(a.game, b.game)]
       ];
       for (const [name, run] of pairs) {
-        const now = canon(run({ merge, mergeGame })), then = canon(run(old));
+        const now = canon(stripDiag(run({ merge, mergeGame }))), then = canon(run(old));
         if (now !== then) expect(now, "seed " + seed + ": " + name).toBe(then);
       }
       /* what the states held: fields no version knows, and sections on both sides */
@@ -176,6 +184,140 @@ describe("the merge laws", () => {
     }
     expect(disagree).toBeGreaterThan(200);
     expect(damaged).toBeGreaterThan(100);
+  }, LONG);
+});
+
+describe("the placement check's record (diag)", () => {
+  const take = (day: string, band: string, more: Record<string, unknown> = {}) => ({ v: 1, day, band, ...more });
+  const T1 = take("2026-10-01", "geometry"), T2 = take("2026-10-02", "algebra-1"), T3 = take("2026-10-03", "pre-algebra");
+  const D = (takes: unknown, more: Record<string, unknown> = {}) => ({ takes, ...more });
+  const same = (x: unknown, y: unknown, why?: string) => expect(canon(x), why).toBe(canon(y));
+
+  it("is kept by merge, from either side and from both", () => {
+    same(merge({ diag: D({ a: T1 }) }, {}).diag, D({ a: T1 }));
+    same(merge({}, { diag: D({ a: T1 }) }).diag, D({ a: T1 }));
+    same(merge({ diag: D({ a: T1 }) }, { diag: D({ a: T1 }) }).diag, D({ a: T1 }));
+    /* the other fields come out as they did, and diag is the seventh-plus-one key */
+    expect(Object.keys(merge({}, {})).sort()).toEqual(["activity", "attempts", "diag", "game", "last", "lesson", "play", "progress"]);
+  });
+
+  it("is an empty record of takes when neither side has one, or when a side's is not an object", () => {
+    same(merge({}, {}).diag, D({}));
+    same(merge({ diag: undefined }, { diag: null }).diag, D({}));
+    for (const bad of ["x", 7, true, [1], [], [{ takes: { a: T1 } }]]) {
+      same(merge({ diag: bad }, {}).diag, D({}), "diag " + canon(bad));
+      same(merge({ diag: bad }, { diag: D({ a: T1 }) }).diag, D({ a: T1 }), "diag " + canon(bad) + " beside a take");
+      same(merge({ diag: D(bad) }, { diag: D({ a: T1 }) }).diag, D({ a: T1 }), "takes " + canon(bad) + " beside a take");
+    }
+  });
+
+  it("is the union of the takes of both sides", () => {
+    same(mergeDiag(D({ a: T1, b: T2 }), D({ c: T3 })), D({ a: T1, b: T2, c: T3 }));
+    same(mergeDiag(D({ c: T3 }), D({ a: T1, b: T2 })), D({ a: T1, b: T2, c: T3 }));
+    /* a take both sides hold alike is kept once; and an empty side loses nothing */
+    same(mergeDiag(D({ a: T1 }), D({ a: T1 })), D({ a: T1 }));
+    same(mergeDiag(D({ a: T1 }), D({})), D({ a: T1 }));
+  });
+
+  it("keeps, for one id with different content on each side, the whole copy whose canonical JSON is the later string", () => {
+    /* "geometry" sorts after "algebra-1" */
+    same(mergeDiag(D({ a: T1 }), D({ a: T2 })), D({ a: T1 }));
+    same(mergeDiag(D({ a: T2 }), D({ a: T1 })), D({ a: T1 }));
+    /* whole, never field by field: no mix of the two, and an unknown field inside travels with its copy */
+    const x = take("2026-10-01", "geometry", { extra: [1] }), y = take("2026-10-09", "algebra-1", { other: 2 });
+    const m = mergeDiag(D({ a: x }), D({ a: y })).takes.a;
+    expect([canon(x), canon(y)]).toContain(canon(m));
+    same(m, x);
+    expect(mergeDiag(D({ a: y }), D({ a: take("2026-10-01", "algebra-1") })).takes.a).toEqual(take("2026-10-09", "algebra-1", { other: 2 }));
+  });
+
+  it("carries a top-level field it has no rule for: alone, or the later of two", () => {
+    same(mergeDiag(D({}, { zz: 1 }), D({})), D({}, { zz: 1 }));
+    same(mergeDiag(D({}, { zz: 1 }), D({}, { zz: 7 })), D({}, { zz: 7 }));
+    same(mergeDiag(D({}, { zz: [1, 2] }), D({}, { zz: [2, 1] })), D({}, { zz: [2, 1] }));
+    same(mergeDiag({ zz: { a: 1 } }, { takes: { a: T1 } }), D({ a: T1 }, { zz: { a: 1 } }));
+    /* "takes" itself is the takes, never carried as an unknown field */
+    expect(Object.keys(mergeDiag(D({ a: T1 }), D({ b: T2 })))).toEqual(["takes"]);
+  });
+
+  it("treats a damaged take as an ordinary value: it never erases a take, and loses to one", () => {
+    for (const bad of ["x", "", 7, null, true, [1], []]) {
+      same(mergeDiag(D({ a: bad }), D({ a: T1 })), D({ a: T1 }), canon(bad));
+      same(mergeDiag(D({ a: T1 }), D({ a: bad })), D({ a: T1 }), canon(bad));
+      same(mergeDiag(D({ a: bad }), D({})), D({ a: bad }), "alone: " + canon(bad));
+    }
+  });
+
+  it("treats ids named like inherited properties as data, and leaves __proto__ out", () => {
+    const hostile = JSON.parse('{"takes":{"__proto__":{"v":1,"day":"2026-10-01","band":"geometry"},"constructor":{"v":1,"day":"2026-10-02"},"toString":7,"hasOwnProperty":null,"valueOf":[1]}}');
+    const m = mergeDiag(hostile, {});
+    expect(Object.keys(m.takes).sort()).toEqual(["constructor", "hasOwnProperty", "toString", "valueOf"]);
+    expect(Object.getPrototypeOf(m.takes)).toBe(Object.prototype);
+    expect(({} as any).band).toBeUndefined();
+    expect(m.takes.constructor).toEqual({ v: 1, day: "2026-10-02" });
+    expect(m.takes.toString).toBe(7);
+    same(mergeDiag(m, hostile), m);
+    /* nothing inherited is read as a take held by the other side */
+    same(mergeDiag(D({}), D({ constructor: T1 })), D({ constructor: T1 }));
+    expect(Object.keys(mergeDiag(D({}), D({})).takes)).toEqual([]);
+    /* a top-level field named like one is carried like any other */
+    const top = JSON.parse('{"__proto__":{"a":1},"constructor":3,"takes":{}}');
+    expect(Object.keys(mergeDiag(top, {})).sort()).toEqual(["constructor", "takes"]);
+    expect(Object.getPrototypeOf(mergeDiag(top, {}))).toBe(Object.prototype);
+  });
+
+  it("does not change its arguments", () => {
+    const a = D({ a: T1 }, { zz: [1] }), b = D({ a: T2, b: T3 });
+    const before = canon([a, b]);
+    mergeDiag(a, b);
+    expect(canon([a, b])).toBe(before);
+  });
+
+  it("holds the three laws over every combination of a small set of hostile values", () => {
+    const values: unknown[] = [undefined, null, "x", 7, [1], {}, D({}), D(null), D("x"), D({ a: T1 }), D({ a: T2 }), D({ a: T1, b: T3 }),
+      D({ a: null, b: "x" }), D({ constructor: T1 }), D({ constructor: 7 }), D({ a: T1 }, { zz: 1 }), D({}, { zz: 7 }), D({}, { zz: [1] }), { zz: 2 }];
+    for (const p of values) {
+      same(mergeDiag(p, p), mergeDiag(p, undefined), canon(p));
+      for (const q of values) {
+        same(mergeDiag(p, q), mergeDiag(q, p), canon([p, q]));
+        for (const r of values) same(mergeDiag(mergeDiag(p, q), r), mergeDiag(p, mergeDiag(q, r)), canon([p, q, r]));
+      }
+    }
+  });
+
+  it("holds the three laws over 2,000 seeded triples of random states, diag included, and the states held takes in common", () => {
+    const R = rng(20261008);
+    let shared = 0, differing = 0, damagedTakes = 0, damagedDiag = 0, unknownTop = 0;
+    const takesOf = (d: any) => (d && typeof d === "object" && !Array.isArray(d) && d.takes && typeof d.takes === "object" && !Array.isArray(d.takes) ? d.takes : {});
+    for (let i = 0; i < 2000; i++) {
+      const seed = R.int(2 ** 31), S = rng(seed);
+      const [a, b, c] = [0, 1, 2].map(() => randomState(S));
+      const law = (name: string, x: any, y: any) => {
+        const p = canon(x.diag), q = canon(y.diag);
+        if (p !== q) expect(p, "seed " + seed + ": " + name).toBe(q);
+      };
+      const ab = merge(a, b);
+      law("merge(a, b) = merge(b, a)", ab, merge(b, a));
+      law("merge(merge(a, b), c) = merge(a, merge(b, c))", merge(ab, c), merge(a, merge(b, c)));
+      law("merge(m, m) = m", merge(ab, ab), ab);
+      /* each take either side holds is in the result, as the later copy */
+      const ta = takesOf(a.diag), tb = takesOf(b.diag), got = takesOf(ab.diag);
+      const own = (o: any, k: string) => (Object.hasOwn(o, k) ? o[k] : undefined);
+      for (const id of new Set([...Object.keys(ta), ...Object.keys(tb)])) {
+        const held = [own(ta, id), own(tb, id)].filter((v) => v !== undefined).map(canon).sort();
+        if (canon(own(got, id)) !== held[held.length - 1]) expect(canon(own(got, id)), "seed " + seed + ": diag.takes." + id).toBe(held[held.length - 1]);
+        if (Object.hasOwn(ta, id) && Object.hasOwn(tb, id)) { shared++; if (canon(ta[id]) !== canon(tb[id])) differing++; }
+      }
+      expect(Object.keys(got).sort(), "seed " + seed).toEqual([...new Set([...Object.keys(ta), ...Object.keys(tb)])].sort());
+      if (Object.values(ta).some((t: any) => !t || typeof t !== "object" || Array.isArray(t))) damagedTakes++;
+      if ([a.diag, b.diag].some((d) => !d || typeof d !== "object" || Array.isArray(d) || (d.takes !== undefined && (typeof d.takes !== "object" || Array.isArray(d.takes) || d.takes === null)))) damagedDiag++;
+      if ([a.diag, b.diag].some((d) => d && typeof d === "object" && Object.keys(d).some((k) => k !== "takes"))) unknownTop++;
+    }
+    expect(shared).toBeGreaterThan(500);
+    expect(differing).toBeGreaterThan(200);
+    expect(damagedTakes).toBeGreaterThan(100);
+    expect(damagedDiag).toBeGreaterThan(100);
+    expect(unknownTop).toBeGreaterThan(300);
   }, LONG);
 });
 
