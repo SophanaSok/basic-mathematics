@@ -1168,6 +1168,17 @@ scenario("a take seeded in the row survives saves, a conflict, a stale device, a
   expect(onDevice(laptop) === "t1", "signing in again did not bring the take back", onDevice(laptop));
 });
 
+scenario("a take made before ever signing in is merged into the account at the first sign-in", async () => {
+  const server = new Server();
+  const d = new Device("laptop", server);
+  d.open();
+  finishTake(d.page, "t1"); await settle();
+  expect(d.read("bm.sync.v1", {}).user === undefined, "setup: the browser already belongs to an account");
+  d.remember("u1"); d.open(); await settle();
+  expect(takeIds(server.rows.u1.diag) === "t1", "the take made before signing in did not reach the account", server.rows.u1 && server.rows.u1.diag);
+  expect(onDevice(d) === "t1", "this browser lost the take at sign-in", onDevice(d));
+});
+
 scenario("a server without the diag column still syncs, and the take stays local", async () => {
   const server = new Server();
   server.columns = server.columns.filter((c) => c !== "diag");
