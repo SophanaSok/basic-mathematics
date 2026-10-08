@@ -1402,12 +1402,88 @@ function checkSkills(ctx, r) {
     Object.keys(tree.GENERATOR_SKILLS).length + " with an override), " + tree.exercises.length + " scored exercises, " + Object.keys(tree.codes).length + " codes known");
 }
 
+/* ------------------------------------------------------- section work -- */
+
+/* The exercises each page offers, per section, counted as the app reads them: a scored
+   exercise by its data-section (sectionRef: a bare value is its own chapter's, none and
+   "warmup" credit no section), an inline "Your turn" check by its own data-section if it has
+   one, else by the nearest preceding top-level <h2 id> under <main> (assets/site.js
+   sectionOf; the warm-up block is no section). Returns { counts: { ref: n } for the
+   curriculum's sections in reading order, nonzero only, stray: [{ where, ref }] for an
+   exercise credited to a ref that is no curriculum section, scored, inline: totals } */
+function sectionWorkCounts(curriculum, docs, chapters) {
+  const { sectionRef } = require(path.join(ROOT, "src/core/curriculum.ts"));
+  const known = new Set();
+  curriculum.chapters.forEach(ch => ch.sections.forEach(s => known.add(ch.id + "#" + s.id)));
+  const tally = {}, stray = [];
+  let scored = 0, inline = 0;
+  Object.keys(chapters).forEach(page => {
+    const chId = chapters[page];
+    exercisesOf(docs[page]).forEach(e => {
+      let section = e.el.getAttribute("data-section");
+      if (!section && e.inline) {
+        let top = e.el;
+        while (top.parent && !(top.parent.type === "element" && top.parent.name === "main")) top = top.parent;
+        section = "";
+        if (top.parent && top.id !== "warmup") {
+          const sibs = top.parent.children.filter(c => c.type === "element");
+          for (let i = sibs.indexOf(top) - 1; i >= 0; i--) {
+            if (sibs[i].name === "h2" && sibs[i].id) { section = sibs[i].id; break; }
+          }
+        }
+      }
+      const ref = sectionRef(chId, section);
+      if (ref === "") return;
+      if (!known.has(ref)) { stray.push({ where: page + ":" + e.line, ref }); return; }
+      tally[ref] = (tally[ref] || 0) + 1;
+      if (e.inline) inline++; else scored++;
+    });
+  });
+  const counts = {};
+  known.forEach(ref => { if (tally[ref]) counts[ref] = tally[ref]; });
+  return { counts, stray, scored, inline };
+}
+
+/* the failures of src/data/section-work.ts against the pages; text is the file's source,
+   so each failure can name its line */
+function sectionWorkProblems(table, counts, text) {
+  const lines = String(text).split("\n");
+  const lineOf = ref => lines.findIndex(l => l.indexOf('"' + ref + '"') > -1) + 1;
+  const where = "src/data/section-work.ts";
+  const out = [];
+  const has = (o, k) => Object.prototype.hasOwnProperty.call(o, k);
+  Object.keys(table).forEach(ref => {
+    const n = lineOf(ref), have = table[ref];
+    if (!has(counts, ref)) out.push(where + ":" + n + ": \"" + ref + "\": " + have + " but the pages offer " + (counts[ref] || 0) + " exercises there (or it is no curriculum section); delete this line");
+    else if (have !== counts[ref]) out.push(where + ":" + n + ": \"" + ref + "\": " + have + " but the pages offer " + counts[ref] + "; change this line to `\"" + ref + "\": " + counts[ref] + ",`");
+  });
+  const order = Object.keys(counts);
+  order.forEach((ref, i) => {
+    if (has(table, ref)) return;
+    let after = 0;
+    for (let j = i - 1; j >= 0 && !after; j--) after = has(table, order[j]) ? lineOf(order[j]) : 0;
+    out.push(where + ": \"" + ref + "\" is missing; add `\"" + ref + "\": " + counts[ref] + ",` " + (after ? "after line " + after : "first in SECTION_WORK") + " (reading order)");
+  });
+  return out;
+}
+
+function checkSectionWork(ctx, r) {
+  const rel = "src/data/section-work.ts";
+  const { SECTION_WORK } = require(path.join(ROOT, rel));
+  const got = sectionWorkCounts(ctx.curriculum, ctx.docs, ctx.chapters);
+  r.count = Object.keys(got.counts).length;
+  got.stray.forEach(s => r.fail(s.where + ": an exercise credited to " + s.ref + ", which is no curriculum section"));
+  sectionWorkProblems(SECTION_WORK, got.counts, read(rel)).forEach(m => r.fail(m));
+  r.note(r.count + " sections with work, " + got.scored + " scored and " + got.inline + " inline exercises");
+}
+
 /* ----------------------------------------------------------- pure core -- */
 
 /* The modules under src/core/, src/sync/, src/learn/ and src/data/ are pure: Node and
    Vitest load them as they are, and the page gets them only through an installer under
    src/ui/ (window.BMCore, BMReview, BMLearn) or as the data a src/ui/ module or an entry imports
-   (src/data/arena-sections.ts; src/data/skills.ts, which nothing imports yet). So none of their code names the page's globals; a
+   (src/data/arena-sections.ts and src/data/section-work.ts; src/data/skills.ts is imported by
+   src/learn/diagnostic.ts). So none of their code names the page's globals; a
    string that names one counts, since globalThis["window"] would reach it. Their tests,
    test helpers and declaration files are left out: the tests build a stub window to run
    assets/site.js under. Erasable TypeScript only is tsconfig.json's erasableSyntaxOnly
@@ -1512,6 +1588,7 @@ const CHECKS = [
   { name: "widgets", run: checkWidgets, what: "every data-widget / data-figure is a defined factory" },
   { name: "sections", run: checkSections, what: "every data-section names a real section" },
   { name: "skills", run: checkSkills, what: "src/data/skills.ts: a record per section but the mixed-review ones, every scored exercise names a section, never a container, official codes, courses by the code, every generator resolves" },
+  { name: "section-work", run: checkSectionWork, what: "src/data/section-work.ts: the scored plus inline exercises each section's page offers, as the app attributes them; absent means 0" },
   { name: "choices", run: checkChoices, what: "choice/multi answer indices are within the options" },
   { name: "order", run: checkOrder, what: "order lists have >= 2 items; blanks carry keys" },
   { name: "migrations", run: checkMigrations, what: "a supabase/schema.sql change since main ships a new, well-named migration; applied ones are untouched" },
@@ -1551,5 +1628,5 @@ function main() {
 }
 
 if (require.main === module) main();
-module.exports = { CHECKS, result, loadCore, barProblem, siteJudgeProblem, pureProblems, isPureFile, codeProblems, courseProblems, exerciseRefs, sectionAnchors, skillsProblems, pageKeys, lessonSteps, stepsDiff, shellOf, shellDiff, scriptsProblems, randomState, stripLocalFirst, canon,
+module.exports = { CHECKS, result, loadCore, barProblem, siteJudgeProblem, pureProblems, isPureFile, codeProblems, courseProblems, exerciseRefs, sectionAnchors, skillsProblems, sectionWorkCounts, sectionWorkProblems, pageKeys, lessonSteps, stepsDiff, shellOf, shellDiff, scriptsProblems, randomState, stripLocalFirst, canon,
   animationFaults, colourLiterals, columnPatterns, inColumn, quietKinds, printGaps };
