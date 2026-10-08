@@ -32,6 +32,19 @@
    single reading is unread, decided by read.ts from the text and the type alone, never
    from the key; expr and exact are unread only when empty or over 1,000 characters.
 
+   Grid mode (spec.grid, exam items only: the SAT's student-produced response, the design's
+   section 3.6) replaces the reader. The trimmed input, W characters wide (5, or 6 when it
+   starts with a minus sign), is held to four rules, and the first it breaks is the unread
+   reason: only digits, ".", "/" and a leading "-" (grid-chars); at most W characters
+   (grid-length); no number part led by a 0 and another digit, so 000.7, 07 and 7/01 do not
+   pad the width (grid-zeros); an integer, a decimal or a/b with b not 0 (grid-chars). Then
+   each key alternative, read as a number: an entry equal to it is right (4/6 for 2/3 too);
+   and, only when its exact decimal does not fit in W (2/3, 1234.5, but not 12.5 or 1/16),
+   an integer or decimal equal to it rounded or cut at the entry's own places is right at
+   full width, or with no places when a point and a digit would not fit (1234 for 1234.5),
+   and form/grid-width when it has places and is shorter (0.66 for 2/3). Anything else is
+   wrong. The tol and the type are not read, and GRID is the revision of these rules.
+
    The owner's answers (OWNER): Q3(a), so an unreduced fraction is right with a note and
    N-whole (Q3(c)) is not built; Q4(a), the reader's option, so 1 1/2 is 3/2 in a number,
    fraction or point box and refused in a set; Q5(a), the N-round step above. q3 and q5 are
@@ -43,14 +56,14 @@
    which puts each changed verdict of the frozen baseline (tools/fixtures/grade-golden.json)
    down to the first rule whose switch gives the old verdict back, and lists them in
    tools/fixtures/grade-ledger.json at this GRADER revision. judgeOff() never reaches the
-   pages.
+   pages. Grid mode has no switches: no golden case is graded in it.
 
    Pure: no `window`, no DOM, no float in any decision. */
 
 import { alternatives as legacyAlternatives, sameNumber, type AnswerType } from "./legacy.ts";
 import { sameText } from "./expr.ts";
 import { readList, readNumber, readTuple, type ListReading, type NumberReading, type Refusal } from "./read.ts";
-import { abs, cmp, eq, fromDecimal, roundTo, sub, truncTo, type Q } from "./rational.ts";
+import { abs, cmp, eq, fromDecimal, make, roundTo, sub, truncTo, type Q } from "./rational.ts";
 import type { AnswerSpec, FormReason, Note, Owner, RuleId, Verdict } from "./types.ts";
 
 export { readNumber } from "./read.ts";
@@ -58,6 +71,10 @@ export { readNumber } from "./read.ts";
 /** The grader's revision: tools/fixtures/grade-ledger.json's `revision`, stored beside a
     diagnostic's verdicts. A change that adds ledger entries moves it on. */
 export const GRADER = 3;
+
+/** The revision of grid mode's rules (the design's section 3.6), stored beside an exam
+    result's verdicts next to GRADER. A change to any grid rule moves it on. */
+export const GRID = 1;
 
 /** The owner's answers to decision 0002's questions (decided 2026-10-07): the recommended
     option on each. The pages read q4 for the one message worded by it. */
@@ -186,8 +203,63 @@ function judgeAlts(given: unknown, alts: string[], type: string, tol: number, of
   return form < 0 || read === null ? { kind: "wrong", read } : { kind: "form", alt: form, read, reason: "notation" };
 }
 
-/** judge() with the rules in `off` doing what the old grader did (tools and tests only) */
+/* ----------------------------------------------------------------- grid -- */
+
+/* the decimal of a terminating value with no leading zero (.0625, 1234.5, -7), or null when
+   it does not terminate */
+function shortDecimal(v: Q): string | null {
+  let d = v.d, twos = 0, fives = 0;
+  while (d % 2n === 0n) { d /= 2n; twos++; }
+  while (d % 5n === 0n) { d /= 5n; fives++; }
+  if (d !== 1n) return null;
+  const k = Math.max(twos, fives), m = v.n < 0n ? -v.n : v.n;
+  const digits = String(m * 10n ** BigInt(k) / v.d).padStart(k + 1, "0");
+  const whole = digits.slice(0, digits.length - k);
+  return (v.n < 0n ? "-" : "") + (k ? (whole === "0" ? "" : whole) + "." + digits.slice(-k) : whole);
+}
+
+/* An entry in grid mode against the key alternatives `alts` (section 3.6): rules 1-4 on
+   the trimmed input, then each alternative, read as a number, by rules 5 and 6 */
+function judgeGrid(given: unknown, alts: string[]): Verdict {
+  const t = String(given).trim();
+  if (t === "") return { kind: "unread", reason: "empty", at: 0 };
+  const width = (neg: boolean) => (neg ? 6 : 5);
+  const W = width(t[0] === "-");
+  /* 1: digits, a point, a fraction bar, and a minus sign first only */
+  if (!/^-?[0-9./]*$/.test(t)) return { kind: "unread", reason: "grid-chars", at: 0 };
+  /* 2: at most W characters */
+  if (t.length > W) return { kind: "unread", reason: "grid-length", at: 0 };
+  /* 3: no number part (the digits before a point, a numerator, a denominator) led by a 0
+     and another digit */
+  if (t.replace(/^-/, "").split("/").some((part) => /^0\d/.test(part))) return { kind: "unread", reason: "grid-zeros", at: 0 };
+  /* 4: an integer, a decimal, or a/b with b not 0 */
+  const dec = /^-?(\d+\.?\d*|\.\d+)$/.test(t), frac = /^(-?\d+)\/(\d+)$/.exec(t);
+  if (!dec && !(frac && BigInt(frac[2]) !== 0n)) return { kind: "unread", reason: "grid-chars", at: 0 };
+  const value = frac ? make(BigInt(frac[1]), BigInt(frac[2])) : (fromDecimal(t) as Q);
+  const point = t.indexOf("."), places = dec && point >= 0 ? t.length - point - 1 : 0;
+  const before = point >= 0 ? point : t.length;
+  let form = -1;
+  for (let i = 0; i < alts.length; i++) {
+    const k = readNumber(alts[i], { q4: OWNER.q4, off: NONE });
+    if (!k.ok) continue;
+    /* 5: equal to the value, an unreduced fraction that fits too */
+    if (eq(value, k.value)) return { kind: "right", alt: i, read: t, notes: [] };
+    /* 6: only when the value's exact decimal does not fit, an integer or decimal that is the
+       value rounded or cut at its own places: right at full width, or with no places when a
+       point and a digit would not fit; form/grid-width with places and short of W */
+    const exact = shortDecimal(k.value);
+    if (!dec || (exact !== null && exact.length <= width(k.value.n < 0n))) continue;
+    if (!eq(value, roundTo(k.value, places)) && !eq(value, truncTo(k.value, places))) continue;
+    if (t.length === W || (places === 0 && before + 2 > W)) return { kind: "right", alt: i, read: t, notes: [] };
+    if (places > 0 && form < 0) form = i;
+  }
+  return form < 0 ? { kind: "wrong", read: t } : { kind: "form", alt: form, read: t, reason: "grid-width" };
+}
+
+/** judge() with the rules in `off` doing what the old grader did (tools and tests only).
+    In grid mode the grid's rules decide, and the tol and the type are not read. */
 export function judgeOff(given: unknown, spec: AnswerSpec, off: ReadonlySet<RuleId>): Verdict {
+  if (spec.grid) return judgeGrid(given, altsOf(spec.answer, off));
   return judgeAlts(given, altsOf(spec.answer, off), spec.type || "exact", spec.tol || 0, off);
 }
 
