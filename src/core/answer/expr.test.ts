@@ -141,8 +141,10 @@ describe("each rule's step, on and off", () => {
     expect([norm("-28x+x^2+196"), norm("x^2-28x+196"), norm("1/(1+2k)"), norm("2^-1+x"), norm("x/-2+1"), norm("3x*-2+1"), norm("x+-2")])
       .toEqual(["196+x^2-28x", "196+x^2-28x", "1/(1+2k)", "2^-1+x", "1+x/-2", "1+3x*-2", "x-2"]);
     expect([norm("y=3x+5"), norm("x+5<=7"), norm("x+1,y"), norm("b-a+c")]).toEqual(["y=3x+5", "x+5<=7", "x+1,y", "b+c-a"]);
-    /* an unclosed ( keeps what follows it as it is */
-    expect(norm("b+a(c+d")).toBe("a(c+d+b");
+    /* unbalanced brackets are left unsorted, so two broken halves never sort into a key */
+    expect([norm("b+a(c+d"), norm("k)+2(j")]).toEqual(["b+a(c+d", "k)+2(j"]);
+    for (const [given, key] of [["k)+2(j", "2(k+j)"], ["2k)+1/(1", "1/(2k+1)"], ["2k)^-1+(1", "(2k+1)^-1"], ["x)(2+y)+(1", "(x+1)(y+2)"], ["y)z+(x", "(x+y)z"]])
+      expect(norm(given), given).not.toBe(norm(key));
     expect([norm("y=3x+5", without("E-terms")), norm("b-a+c", without("E-terms")), norm("1/(1+2k)", without("E-terms"))]).toEqual(["5+y=3x", "b-a+c", "1/(1+2k)"]);
   });
 });

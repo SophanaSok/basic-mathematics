@@ -22,8 +22,8 @@
     11  E-paren    an outer (...) is stripped while its two brackets match each other (off: one
                    outer ( and ) are stripped, matched or not, so (1/2)sqrt(2) lost both)
     12  E-terms    the signed terms of a sum, split on + and - at depth 0 but not after ^ ( / *
-                   or a sign, are sorted at every depth, and left alone when the text holds a
-                   relation (< > = !) or a comma (off: a sum with no brackets at all is split
+                   or a sign, are sorted at every depth, and left alone when the text has a
+                   relation (< > = !), a comma or unbalanced brackets (off: a sum with no brackets at all is split
                    on + and sorted, across a relation or a comma too)
 
    Every rule is a switch: a rule in `off` does what the old grader did, so with every E- rule
@@ -52,6 +52,13 @@ function closing(s: string, i: number): number {
     else if (s[j] === ")" && --depth === 0) return j;
   }
   return -1;
+}
+
+/* whether every ( closes and no ) comes before its ( */
+function balanced(s: string): boolean {
+  let depth = 0;
+  for (const c of s) if ((depth += c === "(" ? 1 : c === ")" ? -1 : 0) < 0) return false;
+  return depth === 0;
 }
 
 /* step 12: the signed terms of a sum sorted, inside every bracket too. A + or - starts a
@@ -100,7 +107,7 @@ export function norm(s: unknown, off: ReadonlySet<RuleId> = NONE): string {
   if (off.has("E-terms")) {
     /* a plain sum may be written in any order, when there are no brackets to split through */
     if (t.indexOf("+") > 0 && t.indexOf("(") === -1 && t.indexOf(")") === -1) t = t.split("+").sort().join("+");
-  } else if (!/[<>=!,]/.test(t)) t = sortTerms(t);
+  } else if (!/[<>=!,]/.test(t) && balanced(t)) t = sortTerms(t);
   return t;
 }
 
