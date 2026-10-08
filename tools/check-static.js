@@ -612,47 +612,114 @@ function checkMigrations(ctx, r) {
 
 /* ------------------------------------------------------- placeholders -- */
 
-/* BMSite.grade from assets/site.js, under a window with no DOM to speak of, and with the
-   BMCore every entry puts up ahead of it (src/ui/core.ts, read by Node itself) */
-function loadGrade() {
-  const noop = () => {};
-  const el = {
-    getAttribute: () => null, setAttribute: noop, removeAttribute: noop, hasAttribute: () => false,
-    appendChild: noop, insertBefore: noop, querySelector: () => null, querySelectorAll: () => [],
-    addEventListener: noop, classList: { add: noop, remove: noop }, style: {}
-  };
-  const document = {
-    readyState: "complete", body: el, documentElement: el, querySelector: () => null, querySelectorAll: () => [],
-    getElementById: () => null, createElement: () => el, addEventListener: noop
-  };
-  const window = {
-    document, console, addEventListener: noop, matchMedia: () => ({ matches: false, addEventListener: noop }),
-    localStorage: { getItem: () => null, setItem: noop, removeItem: noop }
-  };
-  window.window = window;
-  window.self = window;
-  window.BMCore = require(path.join(ROOT, "src/ui/core.ts")).core;
-  vm.createContext(window);
-  vm.runInContext(read("assets/site.js"), window, { filename: "assets/site.js" });
-  if (!window.BMSite || typeof window.BMSite.grade !== "function") throw new Error("assets/site.js did not export BMSite.grade under the stub");
-  return window.BMSite.grade;
+/* The typed grader as the pages reach it: the core object every entry puts on
+   window.BMCore (src/ui/core.ts, read by Node itself). site.js judges every typed answer
+   with Core.judge(given, Core.specOf(...)), so a core without judge() is refused here. */
+function loadCore() {
+  const core = require(path.join(ROOT, "src/ui/core.ts")).core;
+  ["judge", "specOf", "alternatives"].forEach(f => {
+    if (!core || typeof core[f] !== "function") throw new Error("src/ui/core.ts: the core object (window.BMCore) has no " + f + "(), which assets/site.js grades through");
+  });
+  return core;
 }
 
 /* A placeholder shows the form an answer takes ("e.g. 2,-3"). If the grader would mark
-   what it shows as correct, the empty box is giving the answer away. */
+   what it shows as right, or as the right value in another form (a rounding, a point in
+   brackets), the empty box is giving the answer away. */
 function checkPlaceholders(ctx, r) {
-  const grade = loadGrade();
+  const Core = loadCore();
   Object.keys(ctx.docs).forEach(page => {
     exercisesOf(ctx.docs[page]).forEach(e => {
       const shown = e.el.getAttribute("data-placeholder");
       if (!shown || e.kind !== "text") return;
       r.count++;
-      const tol = parseFloat(e.el.getAttribute("data-tol") || "") || 0;
+      const spec = Core.specOf({ answer: e.answer, type: e.type, tol: e.el.getAttribute("data-tol") });
       const example = /\be\.g\.\s*(.+)$/.exec(shown);
       const given = [shown].concat(example ? [example[1]] : []).map(s => s.trim());
-      if (given.some(g => grade(g, e.answer, e.type, tol))) {
-        r.fail(page + ":" + e.line + ": placeholder " + JSON.stringify(shown) + " is graded correct against the key " + JSON.stringify(e.answer));
+      given.forEach(g => {
+        const v = Core.judge(g, spec);
+        if (v.kind === "right" || v.kind === "form") {
+          r.fail(page + ":" + e.line + ": placeholder " + JSON.stringify(shown) + " is graded " + (v.kind === "form" ? "form/" + v.reason : "right")
+            + " against the key " + JSON.stringify(e.answer) + (g === shown ? "" : " (its example " + JSON.stringify(g) + ")"));
+        }
+      });
+    });
+  });
+}
+
+/* --------------------------------------------------------- answer-spec -- */
+
+/* Every key a page grades, with the spec site.js grades it by: a typed box by its
+   data-type (exact when it has none), a blank by its own data-type (number when it has
+   none) and the card's data-tol, a choice as a number, a tick-every-option list as a set,
+   a figure by its data-compare. An order is judged by position, never by the grader. */
+function pageSpecs(doc) {
+  const out = [];
+  exercisesOf(doc).forEach(e => {
+    const tol = e.el.getAttribute("data-tol");
+    const at = (line, answer, type) => out.push({ line, answer, type, tol });
+    if (e.kind === "blank") e.el.queryAll(".blank").forEach(b => at(b.line, b.getAttribute("data-answer") || "", b.getAttribute("data-type") || "number"));
+    else if (e.kind === "choice") at(e.line, e.answer, "number");
+    else if (e.kind === "multi") at(e.line, e.answer, "set");
+    else if (e.kind === "figure") at(e.line, e.answer, e.el.getAttribute("data-compare") || "exact");
+    else if (e.kind === "text") at(e.line, e.answer, e.type);
+  });
+  return out;
+}
+
+/* The bar lint (the design's section 3.5) for an expr key: a key that splits on "|" into
+   alternatives must split into whole answers, so 2|x|-1 is never right for 2, x or -1.
+   Each piece is non-empty, does not start with + * / ^ ) or end with + - * / ^ (, and is
+   not a single letter other than i, unless the whole key is one |e|, which alternatives()
+   keeps as one answer. Absolute value is written abs() everywhere else. */
+function barProblem(key) {
+  const k = key.trim();
+  if (!k.includes("|") || /^\|[^|]+\|$/.test(k)) return null;
+  const bad = k.split("|").map(s => s.trim()).find(s => s === "" || /^[+*/^)]/.test(s) || /[+\-*/^(]$/.test(s) || /^[a-hj-z]$/i.test(s));
+  return bad === undefined ? null : bad === "" ? "an empty piece" : "the piece " + JSON.stringify(bad);
+}
+
+/* What a key promises the grader (decision 0002): a data-tol is a finite number >= 0, and
+   only on a key compared by value (an exact or expr key is compared as text, so a tol
+   there would do nothing); every alternative judges right against its own key under its
+   own spec (each one after the whole key, or the only one: |x| is one answer); and an expr
+   key passes the bar lint. */
+/* the body of assets/site.js's judge(), from its line to the } at its own indent, or null */
+function siteJudgeBody(src) {
+  const m = /^([ \t]*)function judge\(/m.exec(src);
+  if (!m) return null;
+  const end = src.indexOf("\n" + m[1] + "}", m.index);
+  return end < 0 ? null : src.slice(m.index, end);
+}
+
+/* why a site.js source's judge() does not grade through Core.judge, or null */
+function siteJudgeProblem(src) {
+  const body = siteJudgeBody(src);
+  if (body === null) return "has no judge()";
+  return /\bCore\.judge\(/.test(body) ? null : "judge() does not call Core.judge, so the cards would not show the typed grader's verdicts";
+}
+
+function checkAnswerSpec(ctx, r) {
+  const Core = loadCore();
+  const site = siteJudgeProblem(read("assets/site.js"));
+  if (site) r.fail("assets/site.js: " + site);
+  Object.keys(ctx.docs).forEach(page => {
+    pageSpecs(ctx.docs[page]).forEach(k => {
+      r.count++;
+      const where = page + ":" + k.line + ": key " + JSON.stringify(k.answer) + " (" + k.type + ")";
+      if (k.tol != null) {
+        const t = String(k.tol).trim() === "" ? NaN : Number(k.tol);
+        if (!Number.isFinite(t) || t < 0) r.fail(where + ": data-tol " + JSON.stringify(k.tol) + " is not a finite number >= 0");
+        if (k.type === "exact" || k.type === "expr") r.fail(where + ": data-tol " + JSON.stringify(k.tol) + " on a key compared as text; a tol is for number, fraction and set keys");
       }
+      const spec = Core.specOf({ answer: k.answer, type: k.type, tol: k.tol });
+      const alts = Core.alternatives(k.answer);
+      (alts.length > 1 ? alts.slice(1) : alts).forEach(a => {
+        const v = Core.judge(a, spec);
+        if (v.kind !== "right") r.fail(where + ": its alternative " + JSON.stringify(a) + " is judged " + (v.kind === "right" || v.kind === "wrong" ? v.kind : v.kind + "/" + v.reason) + " against it");
+      });
+      const bar = k.type === "expr" && barProblem(k.answer);
+      if (bar) r.fail(where + ": " + bar + " between its bars; write absolute value as abs() (bar lint)");
     });
   });
 }
@@ -1129,7 +1196,7 @@ function printGaps(css) {
    crediting a section with a record, every code official (tools/fixtures/ccss-codes.json,
    the 237 grade 6 through high-school standards and their sub-standard letters, parsed from
    the CCSS PDF), each record's course following its code, and every Arena generator
-   resolving to a record. The module is read by Node itself, as loadGrade reads
+   resolving to a record. The module is read by Node itself, as loadCore reads
    src/ui/core.ts, and a generator's record is resolved with the module's own
    resolveOverride, so no copy of that rule lives here. */
 const CCSS_FORM = /^(?:[678]\.(?:RP|NS|EE|G|SP|F)|HS[NAFGS]\.[A-Z]{1,3})\.[A-D]\.\d{1,2}(?:\.[a-e])?$/;
@@ -1420,7 +1487,8 @@ const CHECKS = [
   { name: "choices", run: checkChoices, what: "choice/multi answer indices are within the options" },
   { name: "order", run: checkOrder, what: "order lists have >= 2 items; blanks carry keys" },
   { name: "migrations", run: checkMigrations, what: "a supabase/schema.sql change since main ships a new, well-named migration; applied ones are untouched" },
-  { name: "placeholders", run: checkPlaceholders, what: "no answer box shows an example its own key accepts" },
+  { name: "placeholders", run: checkPlaceholders, what: "no answer box shows an example its own key judges right or form" },
+  { name: "answer-spec", run: checkAnswerSpec, what: "data-tol finite, >= 0, never on exact or expr keys; every alternative of a key judged right against it; no barred expr key splits a |e|; site.js judge() grades through BMCore.judge" },
   { name: "pure-core", run: checkPureCore, what: "no module under src/core/, src/sync/, src/learn/, src/data/ names window, document, localStorage or sessionStorage (comments aside)" },
   { name: "merge", run: checkMerge, what: "BMAccount.merge (src/sync/merge.ts, through BMMerge) is commutative, associative, idempotent (2000 seeded cases); account.js has no mergeGame of its own" },
   { name: "animations", run: checkAnimations, what: "no CSS animation loops forever, repeats more than 3 times, or more than 3 times a second" },
@@ -1455,5 +1523,5 @@ function main() {
 }
 
 if (require.main === module) main();
-module.exports = { CHECKS, result, loadGrade, pureProblems, isPureFile, codeProblems, courseProblems, exerciseRefs, sectionAnchors, skillsProblems, pageKeys, lessonSteps, stepsDiff, shellOf, shellDiff, scriptsProblems, randomState, stripLocalFirst, canon,
+module.exports = { CHECKS, result, loadCore, barProblem, siteJudgeProblem, pureProblems, isPureFile, codeProblems, courseProblems, exerciseRefs, sectionAnchors, skillsProblems, pageKeys, lessonSteps, stepsDiff, shellOf, shellDiff, scriptsProblems, randomState, stripLocalFirst, canon,
   animationFaults, colourLiterals, columnPatterns, inColumn, quietKinds, printGaps };
