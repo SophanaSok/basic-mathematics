@@ -165,6 +165,81 @@ export interface RunStore {
   arenaDay?: { day: DayKey; sec: Record<SectionRef, number>; finishes: number };
   /** the day the "next best step" card was hidden for (src/ui/next.ts) */
   nextHide?: DayKey;
+  /** the placement check in play (src/learn/diagnostic.ts owns its shape); cleared at
+      completion, so no typed text and no timing outlives the run */
+  diag?: DiagRun;
+}
+
+/* ------------------------------------------------------------ diagnostic -- */
+
+/** A course the placement check can give as a band. Never "beyond". */
+export type Placeable = "pre-algebra" | "algebra-1" | "geometry" | "algebra-2";
+/** What a finished item says. `unread` is never stored (it uses up nothing); an unknown kind
+    reads as not right. */
+export type DiagKind = "right" | "form" | "wrong" | "skip";
+/** What the learner said they had finished most recently. */
+export type DiagFrom = "none" | "pre" | "a1" | "geo" | "a2" | "unsure";
+
+/** One question of a finished take. The `form` reason and the `unread` count stay in the
+    device run (DiagRunItem), where the live answer list reads them. */
+export interface DiagItem { g: string; s: number; sec: SectionRef; k: DiagKind }
+export interface DiagBlock { course: Placeable; pass: boolean; items: DiagItem[] }
+
+/** One finished placement check: written once, never changed. Merge: union by take id. */
+export interface DiagTake {
+  /** take shape */
+  v: 1;
+  /** local day it finished; never milliseconds */
+  day: DayKey;
+  from: DiagFrom;
+  start: Placeable;
+  /** never "beyond" */
+  band: Placeable;
+  /** every course cleared */
+  all?: true;
+  /** the band, when its own block was a near miss (by count, or by `form` answers) */
+  close?: Placeable;
+  /** BLUEPRINT at the time */
+  blueprint: number;
+  /** GRADER at the time: labelled, never re-graded */
+  grader: number;
+  /** uint32 */
+  seed: number;
+  /** the courses asked, in the order asked; each holds only the items answered */
+  blocks: DiagBlock[];
+  /** whether the finishing device seeded review boxes */
+  seeded: boolean;
+  rushed?: true;
+}
+
+/** bm.diag.v1. Merge: union of takes by id, `later` on a clash. */
+export interface DiagStore { takes?: Record<string, DiagTake>; [other: string]: unknown }
+
+/** An item in the device run: the take's item as it is dealt, answered or not, plus what only
+    the live answer list reads. None of it is synced. */
+export interface DiagRunItem {
+  g: string;
+  s: number;
+  sec: SectionRef;
+  k?: DiagKind;
+  /** the `form` reason (a FormReason); the reading itself is never kept */
+  r?: string;
+  /** non-empty `unread` submissions before the final answer */
+  u?: number;
+  /** seconds to the answer; skips have none */
+  secs?: number;
+}
+/** bm.run.v1.diag: dealt a block at a time, so a reload shows the same question. */
+export interface DiagRun {
+  id: string;
+  seed: number;
+  from: DiagFrom;
+  start: Placeable;
+  blueprint: number;
+  began: DayKey;
+  blocks: { course: Placeable; items: DiagRunItem[] }[];
+  /** `unread` submissions on the open item so far, and the latest reason (an UnreadReason) */
+  pending: { u: number; r?: string };
 }
 
 /** bm.prefs.v1: this device only, never cleared. */
@@ -201,6 +276,7 @@ export interface StoredState {
   "bm.game.v1": GameStore;
   "bm.run.v1": RunStore;
   "bm.prefs.v1": PrefsStore;
+  "bm.diag.v1": DiagStore;
 }
 
 /** What an account carries between devices: the argument and result of BMAccount.merge.
@@ -213,4 +289,5 @@ export interface SyncedState {
   lesson: LessonStore;
   last: LastStore;
   game: GameStore;
+  diag?: DiagStore;
 }
