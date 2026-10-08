@@ -43,8 +43,14 @@ the card or hand it to Opus, never a third retry on Sonnet.
    reviewer runs with `model: opus`.
 4. Blockers and majors get a fix pass now, then the implementer runs `check:all`.
    Minor-only findings roll into the next card's brief.
-5. Merge through a PR after CI is green. Then remove the worktree and delete the local
-   branch in the same session (GitHub deletes the remote branch on merge).
+5. Merge through a PR once CI is green, and green means a foreground tool result in
+   this session: `gh pr checks <n>` or `gh run watch <id> --exit-status` exiting 0.
+   Never wait on CI in a background command, and never act on a completion notice that
+   did not arrive as a tool result. The merge guard in `~/.claude/hooks/gh-merge-guard.sh`
+   (a PreToolUse hook in `~/.claude/settings.json`) refuses `gh pr merge` unless GitHub
+   reports every check passed; a run longer than the 10-minute foreground limit is
+   handed to the `runner`. Then remove the worktree and delete the local branch in the
+   same session (GitHub deletes the remote branch on merge).
 
 ## Budget rules
 - One implementer, two reviewers, a fix pass only when something survives. No critic
