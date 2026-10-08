@@ -14,6 +14,9 @@
      `finished` is true; "beyond" is never a placement.
    - Already in hand lists every course below the current start course; one the learner moved
      past by working through it is treated like a cleared course.
+   - Under the Geometry hold the reading sections come before the picked ones.
+   - The tag "not-asked" ("not asked in the check") is new wording, not in section 8; the owner
+     reviews it with D-10's and D-12's wording.
    - A "Read" section is listed when it is before the last section picked for "Start here"
      (or when fewer than PLAN_START_ITEMS sections are left). */
 
@@ -22,7 +25,7 @@ import { ARENA_SECTIONS } from "../data/arena-sections.ts";
 import { SECTION_WORK } from "../data/section-work.ts";
 import { COURSE_LABELS, CONTAINERS, skillOf as realSkillOf, type Course } from "../data/skills.ts";
 import { PLAN_REVIEW_ITEMS, PLAN_START_ITEMS, DIAG_HOLD_FROM } from "./constants.ts";
-import { L, PRE } from "./diagnostic.ts";
+import { L, PRE, isPlaceable } from "./diagnostic.ts";
 import { perOf } from "./diag-seed.ts";
 
 /** A section's mark in the plan. */
@@ -50,7 +53,7 @@ export interface PlanInput {
   /** a section's title, where the outline has one */
   titleOf?: (ref: SectionRef) => string | undefined;
   /** the section's record (src/data/skills.ts skillOf); null for a container */
-  skillOf?: (ref: SectionRef) => { course: string } | null;
+  skillOf?: (ref: SectionRef) => { course: Course } | null;
   /** whether the Arena has a generator for the section (default: ARENA_SECTIONS) */
   hasGenerator?: (ref: SectionRef) => boolean;
   /** BMGame.sectionStatus: "new", "shaky" or "solid" */
@@ -137,7 +140,7 @@ export function planOf(input: PlanInput): Plan | null {
   input.refs.forEach((r) => {
     const s = skillOf(r);
     if (!s || CONTAINERS.includes(r)) return;
-    const c = s.course as Course;
+    const c = s.course;
     courseOf.set(r, c);
     if (!inCourse.has(c)) inCourse.set(c, []);
     inCourse.get(c)!.push(r);
@@ -145,16 +148,27 @@ export function planOf(input: PlanInput): Plan | null {
   const secs = (c: Course): SectionRef[] => inCourse.get(c) ?? [];
 
   /* the last index in reading order with an attempt row, for the reading sections */
+  const rows = new Map<SectionRef, PlanRow | null | undefined>();
+  const rowOf = (r: SectionRef) => {
+    if (!rows.has(r)) rows.set(r, input.row(r));
+    return rows.get(r);
+  };
   let lastRow = -1;
-  input.refs.forEach((r, i) => { if (input.row(r)) lastRow = i; });
+  input.refs.forEach((r, i) => { if (rowOf(r)) lastRow = i; });
   const idx = new Map<SectionRef, number>();
   input.refs.forEach((r, i) => idx.set(r, i));
   const isRead = (r: SectionRef) => !gen(r) && ws(r) === 0;
+  /* memoized: BMGame.sectionStatus rebuilds every section row per call */
+  const doneMemo = new Map<SectionRef, boolean>();
   const done = (r: SectionRef): boolean => {
-    if (isRead(r)) return lastRow > idx.get(r)!;
-    if (input.status(r) === "solid") return true;
-    const w = ws(r), row = input.row(r);
-    return w > 0 && !!row && row.solved >= w;
+    const known = doneMemo.get(r);
+    if (known !== undefined) return known;
+    let d: boolean;
+    if (isRead(r)) d = lastRow > idx.get(r)!;
+    else if (input.status(r) === "solid") d = true;
+    else { const w = ws(r), row = rowOf(r); d = w > 0 && !!row && row.solved >= w; }
+    doneMemo.set(r, d);
+    return d;
   };
 
   const item = (r: SectionRef, tag: PlanTag | null = null): PlanItem => {
@@ -167,7 +181,8 @@ export function planOf(input: PlanInput): Plan | null {
   let start: Placeable = take.band;
   let finished = false;
   for (;;) {
-    if (!secs(start).every(done)) break;
+    /* a course with no section in the outline is not done: the walk stops there */
+    if (!secs(start).length || !secs(start).every(done)) break;
     const next = L[L.indexOf(start) + 1];
     if (!next) { finished = true; break; }
     start = next;
@@ -189,7 +204,7 @@ export function planOf(input: PlanInput): Plan | null {
   if (first) first.highlight = true;
 
   /* Review first: not-right items in cleared courses, until done */
-  const clearedCourse = (c: Course) => stat[c as Placeable] === "clear";
+  const clearedCourse = (c: Course) => isPlaceable(c) && stat[c] === "clear";
   const inStart = new Set(startHere.map((i) => i.ref));
   const reviewFirst = input.refs
     .filter((r) => courseOf.has(r) && clearedCourse(courseOf.get(r)!) && missed(r) && !done(r) && !inStart.has(r))
@@ -200,8 +215,10 @@ export function planOf(input: PlanInput): Plan | null {
   const preReview = reviewFirst.some((i) => courseOf.get(i.ref) === "pre-algebra");
   const packs = input.packs.length && (take.band === "pre-algebra" || preReview)
     ? input.packs
-      .filter((p) => L.indexOf(p.course as Placeable) >= 0 && L.indexOf(p.course as Placeable) <= L.indexOf(start))
-      .sort((a, b) => L.indexOf(a.course as Placeable) - L.indexOf(b.course as Placeable))
+      .map((p) => ({ p, at: isPlaceable(p.course) ? L.indexOf(p.course) : -1 }))
+      .filter((x) => x.at >= 0 && x.at <= L.indexOf(start))
+      .sort((a, b) => a.at - b.at)
+      .map((x) => x.p)
     : [];
 
   /* Coming up: courses above start, with the shown-already mark where the check cleared them */
@@ -214,7 +231,7 @@ export function planOf(input: PlanInput): Plan | null {
     const kind = s === "clear" ? "clear" : s === "implied" ? "implied" : "done";
     const tagOf = (r: SectionRef): PlanTag | null => {
       if (kind === "implied") return "not-asked-skim";
-      if (c === "geometry" && kind === "clear" && !held && GEO_UNASKED.has(r)) return "not-asked-work";
+      if (c === "geometry" && kind === "clear" && GEO_UNASKED.has(r)) return "not-asked-work";
       return !gen(r) ? "not-asked-skim" : null;
     };
     const g = group(c, secs(c).map((r) => item(r, tagOf(r))));

@@ -289,6 +289,73 @@ describe("Already in hand and Coming up", () => {
   });
 });
 
+describe("robustness", () => {
+  it("calls status and row at most once per ref on the real curriculum", () => {
+    const calls = { status: new Map<string, number>(), row: new Map<string, number>() };
+    const count = (m: Map<string, number>, r: string) => m.set(r, (m.get(r) ?? 0) + 1);
+    const w = world();
+    const t = take("pre-algebra", [], ["pre-algebra"]);
+    planOf(input(t, w, {
+      status: (r) => { count(calls.status, r); return "new"; },
+      row: (r) => { count(calls.row, r); return null; }
+    }));
+    expect(calls.status.size).toBeGreaterThan(0);
+    [...calls.status.values(), ...calls.row.values()].forEach((n) => expect(n).toBeLessThanOrEqual(1));
+    const solid = new Map<string, number>();
+    planOf(input(take("algebra-2", ["algebra-1", "geometry", "algebra-2"]), w, {
+      status: (r) => { count(solid, r); return "new"; }
+    }));
+    [...solid.values()].forEach((n) => expect(n).toBeLessThanOrEqual(1));
+  });
+
+  it("does not walk to Algebra 2 or finish when the outline is empty", () => {
+    const p = plan(take("pre-algebra", [], ["pre-algebra"]), world(), { refs: [] });
+    expect(p.start).toBe("pre-algebra");
+    expect(p.finished).toBe(false);
+    expect(p.startHere).toEqual([]);
+  });
+});
+
+describe("the hold set", () => {
+  const geoPlan = (from: DiagTake["from"]) =>
+    plan(take("geometry", ["algebra-1", "geometry"], ["algebra-1", "geometry"], from));
+  const GEO = FORMS.geometry.map((f) => f.sec);
+
+  (["none", "pre", "a1"] as const).forEach((from) => it(`holds ${from}`, () => {
+    const refs = refsOf(places(geoPlan(from)));
+    refs.forEach((r) => expect(GEO).not.toContain(r));
+  }));
+  (["unsure", "geo", "a2"] as const).forEach((from) => it(`does not hold ${from}`, () => {
+    const p = geoPlan(from);
+    expect(refsOf(places(p))).toEqual(courseSecs("geometry").filter((r) => !isReading(r)).slice(0, PLAN_START_ITEMS));
+    expect(p.startHere.some((i) => i.tag === "not-asked")).toBe(false);
+  }));
+
+  it("tags an asked Geometry section the check missed, under the hold", () => {
+    const t = take("geometry", ["algebra-1", "geometry"], ["algebra-1", "geometry"], "a1");
+    const geo = t.blocks.find((b) => b.course === "geometry")!;
+    const asked = geo.items[1].sec;
+    expect(GEO).toContain(asked);
+    geo.items.forEach((i) => { if (i.sec === asked) i.k = "wrong"; });
+    const w = world(); /* everything else in Geometry is done, so the missed asked section is up */
+    courseSecs("geometry").filter((r) => r !== asked && !isReading(r)).forEach((r) => w.solid.add(r));
+    const p = plan(t, w);
+    expect(p.start).toBe("geometry");
+    expect(p.startHere.find((i) => i.ref === asked)?.tag).toBe("missed");
+  });
+
+  it("lists the four unasked Geometry sections as worth working through once a held Geometry is done", () => {
+    const t = take("geometry", ["algebra-1", "geometry"], ["algebra-1", "geometry"], "a1");
+    const w = world();
+    courseSecs("geometry").forEach((r) => w.solid.add(r));
+    const p = plan(t, w);
+    expect(p.start).toBe("algebra-2");
+    const geo = p.inHand.find((h) => h.course === "geometry")!;
+    expect(geo.items.filter((i) => i.tag === "not-asked-work").map((i) => i.ref).sort())
+      .toEqual(["ch06#isometries", "ch06#symmetry", "interlude#logic", "interlude#quantifiers"]);
+  });
+});
+
 describe("Review first", () => {
   it("lists missed sections of cleared courses in reading order, at most PLAN_REVIEW_ITEMS, until done", () => {
     const t = take("geometry", ["pre-algebra", "algebra-1"]);
