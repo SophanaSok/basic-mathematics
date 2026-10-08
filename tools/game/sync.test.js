@@ -40,7 +40,7 @@ const REF = "testref";
 const SESSION_KEY = "sb-" + REF + "-auth-token";
 const KEYS = {
   progress: "bm.progress.v1", play: "bm.play.v1", last: "bm.last", attempts: "bm.attempts.v1",
-  activity: "bm.activity.v1", lesson: "bm.lesson.v1", game: "bm.game.v1", run: "bm.run.v1", prefs: "bm.prefs.v1"
+  activity: "bm.activity.v1", lesson: "bm.lesson.v1", diag: "bm.diag.v1", game: "bm.game.v1", run: "bm.run.v1", prefs: "bm.prefs.v1"
 };
 const clone = (x) => (x === undefined ? undefined : JSON.parse(JSON.stringify(x)));
 
@@ -83,7 +83,7 @@ function pgTime(ms) {
 
 /* user_state as supabase/schema.sql makes it: each column a save may leave out, and what
    it then holds */
-const DEFAULTS = { progress: {}, play: {}, attempts: {}, activity: {}, lesson: {}, last: null, game: {}, reset_at: 0 };
+const DEFAULTS = { progress: {}, play: {}, attempts: {}, activity: {}, lesson: {}, last: null, game: {}, diag: {}, reset_at: 0 };
 
 class Server {
   constructor() {
@@ -1047,6 +1047,148 @@ scenario("a reader with no email address still syncs, and a failed sign-out sets
   server.offline = false;
   d.remember("u9", { email: undefined, app_metadata: { providers: ["github"] } }); d.open(); await settle();
   expect(has(server.solved("u9"), "ch01/e2"), "the set-aside progress did not reach the account", server.solved("u9"));
+});
+
+/* ------------------------------------------- the placement check's takes -- */
+
+/* A minimal finished take (src/types/state.ts DiagTake). */
+const take = (day) => ({ v: 1, day, from: "start", start: "algebra-1", band: "algebra-1", blueprint: 1, grader: 1, seed: 7, blocks: [], seeded: false });
+const takeIds = (diag) => Object.keys(((diag || {}).takes) || {}).sort().join(",");
+/* the page finishes a take: written once, through the store, so the account hears of it */
+function finishTake(page, id, day) {
+  const d = page.Store.read(KEYS.diag, {});
+  d.takes = d.takes || {};
+  d.takes[id] = take(day || "2026-10-04");
+  page.Store.write(KEYS.diag, d);
+}
+const onDevice = (dev) => takeIds(dev.read(KEYS.diag, {}));
+
+scenario("a take finished on one device survives a reset from a tab that never pulled it", async () => {
+  const { server, laptop, phone } = await twoDevices();
+  laptop.page.solve("ch01", "e1"); await settle();
+  now += 60000;
+  finishTake(phone.page, "t1"); await settle();
+  expect(takeIds(server.rows.u1.diag) === "t1", "setup: the take did not reach the account", server.rows.u1.diag);
+  now += 60000;
+  /* the laptop's page has not pulled since before the take */
+  expect(onDevice(laptop) === "", "setup: the laptop already holds the take", onDevice(laptop));
+  laptop.page.resetAll(); await settle();
+  expect(takeIds(server.rows.u1.diag) === "t1", "the reset dropped the take from the account", server.rows.u1.diag);
+  expect(Number(server.rows.u1.reset_at) > 0 && server.solved("u1").length === 0, "the reset did not reach the account", { reset_at: server.rows.u1.reset_at, solved: server.solved("u1") });
+  expect(onDevice(laptop) === "t1", "the laptop does not hold the take after its reset", onDevice(laptop));
+  phone.open(); await settle();
+  expect(onDevice(phone) === "t1", "the phone lost the take when it synced again", onDevice(phone));
+  expect(takeIds(server.rows.u1.diag) === "t1", "the account lost the take", server.rows.u1.diag);
+});
+
+scenario("a take finished offline before a reset elsewhere survives when the device syncs", async () => {
+  const { server, laptop, phone } = await twoDevices();
+  laptop.page.solve("ch01", "e1"); await settle();
+  phone.open(); await settle();
+  server.offline = true;
+  finishTake(phone.page, "t1"); await settle();
+  server.offline = false;
+  now += 60000;
+  laptop.page.resetAll(); await settle();
+  expect(server.solved("u1").length === 0 && Number(server.rows.u1.reset_at) > 0, "setup: the reset did not reach the account", server.rows.u1);
+  phone.open(); await settle();
+  expect(onDevice(phone) === "t1", "the phone lost its offline take", onDevice(phone));
+  expect(takeIds(server.rows.u1.diag) === "t1", "the account did not receive the offline take", server.rows.u1.diag);
+  expect(phone.solved().length === 0, "the phone kept progress the reset cleared", phone.solved());
+  laptop.open(); await settle();
+  expect(onDevice(laptop) === "t1", "the laptop did not receive the take", onDevice(laptop));
+});
+
+scenario("a take set aside at an unsaved sign-out survives a newer reset", async () => {
+  const { server, laptop, phone } = await twoDevices();
+  server.offline = true;
+  laptop.page.solve("ch01", "e1");
+  finishTake(laptop.page, "t1"); await settle();
+  await laptop.page.signOut();
+  const aside = laptop.read("bm.sync.pending.v1", {}).u1;
+  expect(aside && takeIds(aside.state.diag) === "t1", "setup: the take was not set aside", aside);
+  server.offline = false;
+  now += 60000;
+  phone.page.resetAll(); await settle();
+  expect(Number(server.rows.u1.reset_at) > 0, "setup: the reset did not reach the account");
+  laptop.remember("u1"); laptop.open(); await settle();
+  expect(takeIds(server.rows.u1.diag) === "t1", "the set-aside take was dropped by the newer reset", server.rows.u1.diag);
+  expect(onDevice(laptop) === "t1", "this browser does not hold the set-aside take", onDevice(laptop));
+  expect(!has(server.solved("u1"), "ch01/e1"), "the set-aside progress came back past a newer reset", server.solved("u1"));
+});
+
+scenario("a reset on another device clears progress here but keeps the takes", async () => {
+  const { server, laptop, phone } = await twoDevices();
+  laptop.page.solve("ch01", "e1");
+  finishTake(laptop.page, "t1"); await settle();
+  phone.open(); await settle();
+  expect(has(phone.solved(), "ch01/e1") && onDevice(phone) === "t1", "setup: the phone did not receive both", { solved: phone.solved(), diag: onDevice(phone) });
+  now += 60000;
+  phone.page.resetAll(); await settle();
+  laptop.open(); await settle();
+  expect(laptop.solved().length === 0, "the reset did not clear progress here", laptop.solved());
+  expect(onDevice(laptop) === "t1", "the reset on another device emptied the takes here", onDevice(laptop));
+  expect(takeIds(server.rows.u1.diag) === "t1", "the account lost the take", server.rows.u1.diag);
+});
+
+scenario("a different account signing in on the same browser does not inherit the takes", async () => {
+  const server = new Server();
+  const d = new Device("shared", server);
+  d.storage.set("bm.sync.v1", JSON.stringify({ user: "u2", resetAt: 0 }));
+  d.storage.set(KEYS.diag, JSON.stringify({ takes: { t9: take("2026-10-01") } }));
+  d.remember("u1"); d.open(); await settle();
+  expect(!server.rows.u1 || takeIds(server.rows.u1.diag) === "", "another reader's take went into u1's account", server.rows.u1 && server.rows.u1.diag);
+  expect(onDevice(d) === "", "u1 inherited the previous reader's take", onDevice(d));
+});
+
+scenario("a take seeded in the row survives saves, a conflict, a stale device, a re-open and a sign-out", async () => {
+  const server = new Server();
+  server.rows.u1 = { user_id: "u1", diag: { takes: { t1: take("2026-10-01") } }, reset_at: 0, updated_at: now - 1000 };
+  const laptop = new Device("laptop", server), phone = new Device("phone", server);
+  laptop.remember("u1"); phone.remember("u1");
+  laptop.open(); await settle();
+  phone.open(); await settle();
+  expect(onDevice(laptop) === "t1" && onDevice(phone) === "t1", "setup: the devices did not receive the take", { laptop: onDevice(laptop), phone: onDevice(phone) });
+  /* two devices saving at the same moment: a conflict */
+  laptop.page.solve("ch01", "e1");
+  phone.page.solve("ch02", "e1");
+  await settle();
+  expect(takeIds(server.rows.u1.diag) === "t1", "a conflict dropped the take", server.rows.u1.diag);
+  /* a stale device: the laptop's page is behind the phone's later save */
+  now += 60000;
+  phone.page.solve("ch03", "e1"); await settle();
+  laptop.page.solve("ch04", "e1"); await settle();
+  expect(takeIds(server.rows.u1.diag) === "t1", "a stale device's save dropped the take", server.rows.u1.diag);
+  laptop.open(); phone.open(); await settle();
+  expect(onDevice(laptop) === "t1" && onDevice(phone) === "t1", "a re-open lost the take", { laptop: onDevice(laptop), phone: onDevice(phone) });
+  await laptop.page.signOut();
+  expect(takeIds(server.rows.u1.diag) === "t1", "sign-out dropped the take from the account", server.rows.u1.diag);
+  expect(onDevice(laptop) === "", "sign-out left the take in this browser", onDevice(laptop));
+  laptop.remember("u1"); laptop.open(); await settle();
+  expect(onDevice(laptop) === "t1", "signing in again did not bring the take back", onDevice(laptop));
+});
+
+scenario("a server without the diag column still syncs, and the take stays local", async () => {
+  const server = new Server();
+  server.columns = server.columns.filter((c) => c !== "diag");
+  const d = new Device("laptop", server);
+  d.remember("u1"); d.open(); await settle();
+  finishTake(d.page, "t1");
+  d.page.solve("ch01", "e1"); await settle();
+  expect(d.page.status() === "synced", "the sync failed", String((d.page.Account.status().error || {}).message));
+  expect(has(server.solved("u1"), "ch01/e1"), "progress did not reach the account", server.solved("u1"));
+  expect(!("diag" in server.rows.u1), "the fake server took a column it does not have");
+  expect(onDevice(d) === "t1", "the take was lost from this browser", onDevice(d));
+  d.open(); await settle();
+  expect(onDevice(d) === "t1" && d.page.status() === "synced", "a re-open lost the take or failed", onDevice(d));
+});
+
+scenario("the page can tell a stored session without loading the SDK", async () => {
+  const d = new Device("laptop", new Server());
+  d.open();
+  expect(d.page.Account.hasSession() === false, "a signed-out page reported a session");
+  d.remember("u1"); d.open();
+  expect(d.page.Account.hasSession() === true, "a stored session was not reported");
 });
 
 /* --------------------------------------------------------------- runner -- */

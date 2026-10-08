@@ -61,8 +61,8 @@
      only through an email (the sign-in link, the password reset) are left out */
   var mail = cfg.emailDelivery !== false;
   var META_KEY = "bm.sync.v1";
-  /* "game" only where site.js knows the key, so an older site.js still syncs cleanly */
-  var FIELDS = ["progress", "play", "attempts", "activity", "lesson", "last", "game"].filter(function (f) {
+  /* "game" and "diag" only where site.js knows the key, so an older site.js still syncs cleanly */
+  var FIELDS = ["progress", "play", "attempts", "activity", "lesson", "last", "game", "diag"].filter(function (f) {
     return !!Store.keys[f];
   });
 
@@ -287,12 +287,16 @@
       var remoteReset = remote ? Number(remote.reset_at) || 0 : 0;
       var mine = m.user === u.id ? Number(m.resetAt) || 0 : 0;
       var asideReset = hasAside ? Number(aside.resetAt) || 0 : 0;
-      /* progress left by a different account on this browser is not this reader's */
+      /* progress left by a different account on this browser is not this reader's, and
+         neither are its placement-check takes (decision 0003) */
       if (m.user && m.user !== u.id) { local = {}; dropped = true; }
       /* a reset made on another device wins over what this browser still remembers of the
          same account; progress made before ever signing in is kept and merged */
-      if (m.user === u.id && remoteReset > mine) { local = {}; dropped = true; }
-      var kept = hasAside && !(remoteReset > asideReset) ? aside.state : {};
+      /* a reset keeps the placement-check takes (decision 0003): without this a
+         take finished elsewhere would be emptied here too */
+      if (m.user === u.id && remoteReset > mine) { local = { diag: local.diag }; dropped = true; }
+      /* the same for what was set aside: a newer reset drops its progress, not its takes */
+      var kept = hasAside && !(remoteReset > asideReset) ? aside.state : { diag: obj(aside.state).diag };
       /* A reset made on this browser that the row has not heard of. If nothing has been
          saved since it, the row's state is from before the reset and is left out. If
          another device has saved since, its work is kept and this reset is given up:
@@ -300,7 +304,9 @@
       var known = Math.max(mine, asideReset), base = remote || {}, resetAt = remoteReset;
       if (known > remoteReset) {
         var written = remote ? Date.parse(remote.updated_at) : 0;
-        if (!(written >= known)) { base = {}; resetAt = known; }
+        /* the row's takes survive this reset too: a tab that never pulled them must not
+           drop them from the account (decision 0003) */
+        if (!(written >= known)) { base = { diag: (remote || {}).diag }; resetAt = known; }
       }
       var merged = merge(merge(local, kept), base);
       /* only now has this page seen the row: had the merge failed, the next save would
@@ -522,6 +528,7 @@
   var started = null;
   var Account = {
     configured: configured,
+    hasSession: hasStoredSession,
     recovering: false,
     merge: M.merge,
     mergeGame: M.mergeGame,

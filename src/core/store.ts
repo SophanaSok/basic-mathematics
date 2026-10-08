@@ -14,6 +14,8 @@ export const STORE_KEYS = {
   attempts: "bm.attempts.v1",
   activity: "bm.activity.v1",
   lesson: "bm.lesson.v1",
+  /* the placement check's takes: synced, and kept through a reset (decision 0003) */
+  diag: "bm.diag.v1",
   /* the game layer (assets/game.js): game is synced, run and prefs stay on this device */
   game: "bm.game.v1",
   run: "bm.run.v1",

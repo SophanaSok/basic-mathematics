@@ -114,7 +114,7 @@ describe("the settings", () => {
 describe("the store keys", () => {
   it("are the keys the scripts use", () => {
     const site = fs.readFileSync(path.join(ROOT, "assets/site.js"), "utf8");
-    for (const k of ["bm.theme", "bm.progress.v1", "bm.play.v1", "bm.last", "bm.attempts.v1", "bm.activity.v1", "bm.lesson.v1", "bm.game.v1", "bm.run.v1", "bm.prefs.v1"]) {
+    for (const k of ["bm.theme", "bm.progress.v1", "bm.play.v1", "bm.last", "bm.attempts.v1", "bm.activity.v1", "bm.lesson.v1", "bm.diag.v1", "bm.game.v1", "bm.run.v1", "bm.prefs.v1"]) {
       expect(site).toContain('"' + k + '"');
       expect(Object.values(STORE_KEYS)).toContain(k);
     }
