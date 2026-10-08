@@ -138,7 +138,8 @@
       if ((s.box || 0) >= 3) holding++;
       n += s.n || 0;
       ok += Math.min(s.ok || 0, s.n || 0);
-      if (s.last && s.last > last) last = s.last;
+      /* only a section the Arena has asked about (n > 0): a placement-check seed sets last too */
+      if ((s.n || 0) > 0 && s.last && s.last > last) last = s.last;
     });
     html += '<div class="stats">';
     html += tile("Due now", due.length, plural(deck.length, "section") + " in play");
@@ -230,9 +231,9 @@
     html += '<section class="panel"><h2>Chapter by chapter</h2>' + chapterTable() + "</section>";
     if (Game) html += recallPanel() + achievementsPanel();
 
+    /* says where the page's data comes from, without inviting sign-up (decision 0003) */
     if (Account && Account.configured && !Account.user()) {
-      html += '<p class="muted">This page is built from what this browser has saved. ' +
-        '<a href="account.html">Sign in</a> to keep it across devices.</p>';
+      html += '<p class="muted">This page is built from what this browser has saved.</p>';
     }
     page.innerHTML = html;
     Array.prototype.forEach.call(page.querySelectorAll("[data-goal]"), function (b) {
