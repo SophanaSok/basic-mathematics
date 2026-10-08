@@ -262,6 +262,24 @@ export function mergeGame(a: any, b: any) {
   return carryOver(out, a, b, GAME);
 }
 
+/* The placement check's record (bm.diag.v1): `{ takes: { <id>: take } }`, and whatever a
+   later version adds beside `takes`. A take is written once and never changed, so it is
+   merged whole, never field by field: field by field could pair one device's answers
+   with another's band. The takes are a union by id; an id both sides hold with different
+   content is the one whose canonical JSON is the later string (later), so each device
+   keeps one copy of every take whatever order they meet in. That is a maximum over one
+   total order, so the three laws hold, and nothing here is ever dropped. Opaque on
+   purpose: an unknown field inside a take travels with whichever copy wins (the `merge`
+   check in tools/check-static.js stops at diag.takes.<id> for that reason). A `diag` or
+   a `takes` that is not an object (damaged) reads as empty, as `sec` does in mergeGame;
+   a take that is damaged (a string, an array, null) is an ordinary value under later.
+   "__proto__" as a take id is left out by keysOf, like every other record built here. */
+export function mergeDiag(a: any, b: any) {
+  var A = obj(a), B = obj(b), TA = obj(at(A, "takes")), TB = obj(at(B, "takes")), takes: any = {};
+  keysOf(TA, TB).forEach(function (id) { takes[id] = later(at(TA, id), at(TB, id)); });
+  return carryOver({ takes: takes }, A, B, ["takes"]);
+}
+
 /* local first: where two devices simply disagree (the reading mode, the daily goal,
    the place to continue from), this device keeps its own */
 export function merge(local: any, remote: any) {
@@ -273,7 +291,8 @@ export function merge(local: any, remote: any) {
     activity: mergeActivity(local.activity, remote.activity),
     lesson: mergeLesson(local.lesson, remote.lesson),
     last: local.last || remote.last || null,
-    game: mergeGame(local.game, remote.game)
+    game: mergeGame(local.game, remote.game),
+    diag: mergeDiag(local.diag, remote.diag)
   };
 }
 

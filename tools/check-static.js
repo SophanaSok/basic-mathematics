@@ -754,11 +754,15 @@ function loadMerge() {
 }
 
 /* every place in a state where one of UNKNOWN_KEYS sits, as a path of keys; what it holds
-   is not looked into */
+   is not looked into. A placement-check take (diag.takes.<id>) is opaque: it is written
+   once and merged whole (mergeDiag), so an unknown field inside one travels with whichever
+   copy wins instead of being merged on its own, and the walk stops at the take. A take id
+   that is one of UNKNOWN_KEYS is still listed, as the take itself. */
 function unknownPaths(x, at, out) {
   if (!x || typeof x !== "object" || Array.isArray(x)) return out;
   Object.keys(x).forEach(k => {
     if (UNKNOWN_KEYS.indexOf(k) > -1) out.push(at.concat(k));
+    else if (at.length === 2 && at[0] === "diag" && at[1] === "takes") return;
     else unknownPaths(x[k], at.concat(k), out);
   });
   return out;
@@ -816,6 +820,23 @@ function checkMerge(ctx, r) {
     law("idempotence merge(m,m)=m", m, ab);
     /* local-first fields keep the local value */
     if (a.last && canon(ab.last) !== canon(a.last)) r.fail("seed " + seed + ": merge did not keep local `last`");
+    /* the placement check: every take either side holds is in the result, as the later of
+       the copies (a take is merged whole), and nothing else is; a side's diag or takes that
+       is not an object reads as empty */
+    {
+      const takes = (d) => { const t = d && typeof d === "object" && !Array.isArray(d) ? d.takes : undefined; return t && typeof t === "object" && !Array.isArray(t) ? t : {}; };
+      const own = (o, k) => Object.prototype.hasOwnProperty.call(o, k) ? o[k] : undefined;
+      const ta = takes(a.diag), tb = takes(b.diag), got = takes(ab.diag);
+      const ids = Object.keys(ta).concat(Object.keys(tb)).filter(k => k !== "__proto__");
+      ids.forEach(id => {
+        const held = [own(ta, id), own(tb, id)].filter(v => v !== undefined).map(canon).sort();
+        if (canon(own(got, id)) !== held[held.length - 1] || own(got, id) === undefined) {
+          if (!seen.diag) r.fail("seed " + seed + ": diag.takes." + id + " should be the later of " + held.join(" and ") + ", got " + canon(own(got, id)));
+          seen.diag = 1;
+        }
+      });
+      Object.keys(got).forEach(id => { if (ids.indexOf(id) < 0 && !seen.diagExtra) { r.fail("seed " + seed + ": diag.takes." + id + " was made up"); seen.diagExtra = 1; } });
+    }
     if (ab.game !== undefined) {
       gameSeen = true;
       /* once mergeGame exists: unions, maxima, earliest achievement time */
@@ -859,6 +880,13 @@ function checkMerge(ctx, r) {
      canonical JSON from two */
   const y = merge({ attempts: { ch01: { e1: { tries: 2, faded: 1, note: "a" } } } }, { attempts: { ch01: { e1: { tries: 1, faded: 3 } } } });
   if (canon(y.attempts.ch01.e1) !== canon({ tries: 2, faded: 3, note: "a" })) r.fail("hand case: unknown attempt fields were not carried through: " + JSON.stringify(y.attempts));
+  /* and the placement check, which merge must always carry (a merge that dropped it while
+     the sync lists it would wipe it from the browser and the account): a union of takes by
+     id, one side's alone kept, a clash the later canonical JSON, kept whole (canon puts "band":"geometry" after "band":"algebra-1") */
+  const t1 = { v: 1, day: "2026-10-01", band: "geometry" }, t2 = { v: 1, day: "2026-10-02", band: "algebra-1", extra: 1 };
+  const dm = merge({ diag: { takes: { a: t1, c: t1 } } }, { diag: { takes: { b: t2, c: t2 } } });
+  if (canon(dm.diag) !== canon({ takes: { a: t1, b: t2, c: t1 } })) r.fail("hand case: diag takes are not a union by id with the later copy kept whole: " + JSON.stringify(dm.diag));
+  if (canon(merge({ diag: { takes: { a: t1 } } }, {}).diag) !== canon({ takes: { a: t1 } }) || canon(merge({}, { diag: { takes: { a: t1 } } }).diag) !== canon({ takes: { a: t1 } })) r.fail("hand case: a take held by one side only was dropped");
   /* and the ladder's rung, which has a rule: the larger number, where the fallback for
      unknown fields would have kept "9" over 10 */
   const z = merge({ attempts: { ch01: { e1: { tries: 1, rung: 10 } } } }, { attempts: { ch01: { e1: { rung: 9 } } } });

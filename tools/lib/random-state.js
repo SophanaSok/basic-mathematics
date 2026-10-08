@@ -7,7 +7,12 @@
    (rng(seed)). sectionConflicts (default true) lets two devices disagree about an
    attempt record's `section`; false gives exactly the states the generator gave before
    that option existed, seed for seed, which the differential test against the merge as
-   it was in assets/account.js needs, since that merge took either side's section. */
+   it was in assets/account.js needs, since that merge took either side's section.
+   diag (default true) adds the placement check's record (bm.diag.v1) as the last thing
+   drawn, so every other field of a state is the same as before it existed; but each state
+   after the first in one stream (a, b, c from one generator) now follows a longer draw,
+   so false gives exactly the earlier stream, and the differential test against the old
+   merge, which has no diag, passes it. */
 
 /* a small seeded PRNG so a failing case can be reproduced by seed */
 function rng(seed) {
@@ -46,6 +51,39 @@ const OTHER_SECTIONS = SECTIONS.concat("Warmup", "practice", "ch05#angles", "\uf
    moved over with the merge and is not this rule's */
 const SECTION_DAMAGED = [5, true, [1], { a: 1 }];
 const UNKNOWN_VALUES = [0, 7, -1, "x", "", true, null, [1, 2], [2, 1], { a: 1, b: [1] }, { b: [1], a: 1 }, { a: { c: 2 } }];
+/* The placement check's takes (src/types/state.ts DiagTake), few ids and few bodies so two
+   devices often hold the same id: now identical, now different. An id may be one of
+   UNKNOWN_KEYS, and "constructor" is data all the same. A take body never holds one of
+   UNKNOWN_KEYS: a take is merged whole (mergeDiag), so the `merge` check does not look
+   inside it. Damaged takes are values the merge keeps like any other. */
+const TAKE_IDS = ["d1", "d2", "d3", "zz", "~later", "constructor"];
+const TAKE_BODIES = [
+  { v: 1, day: "2026-09-30", from: "a1", start: "algebra-1", band: "geometry", blueprint: 1, grader: 1, seed: 7, blocks: [], seeded: true },
+  { v: 1, day: "2026-10-01", from: "none", start: "pre-algebra", band: "pre-algebra", blueprint: 1, grader: 1, seed: 9, blocks: [{ course: "pre-algebra", pass: false, items: [{ g: "x", s: 1, sec: "ch01#integers", k: "wrong" }] }], seeded: false, rushed: true },
+  { v: 1, day: "2026-10-01", from: "a2", start: "algebra-2", band: "algebra-2", all: true, blueprint: 1, grader: 1, seed: 4294967295, blocks: [], seeded: true },
+  { v: 2, day: "2026-10-01", band: "beyond", extra: [2, 1] }
+];
+const TAKE_DAMAGED = ["x", "", 7, null, true, [1], [], {}];
+function randomDiag(R) {
+  const unknown = (into) => {
+    pickSomeOf(UNKNOWN_KEYS, 0.2, R).forEach(k => { into[k] = JSON.parse(JSON.stringify(R.pick(UNKNOWN_VALUES))); });
+    return into;
+  };
+  /* once in thirty a diag that is not an object, and once in twenty a `takes` that is not */
+  if (R.maybe(1 / 30)) return JSON.parse(JSON.stringify(R.pick(TAKE_DAMAGED)));
+  const d = {};
+  if (R.maybe(0.95)) {
+    if (R.maybe(1 / 20)) d.takes = JSON.parse(JSON.stringify(R.pick(TAKE_DAMAGED)));
+    else {
+      d.takes = {};
+      pickSomeOf(TAKE_IDS, 0.4, R).forEach(id => {
+        d.takes[id] = R.maybe(0.1) ? JSON.parse(JSON.stringify(R.pick(TAKE_DAMAGED))) : JSON.parse(JSON.stringify(R.pick(TAKE_BODIES)));
+      });
+    }
+  }
+  return unknown(d);
+}
+const pickSomeOf = (arr, p, R) => arr.filter(() => R.maybe(p));
 function randomState(R, opts) {
   const conflicts = !opts || opts.sectionConflicts !== false;
   const st = {};
@@ -126,7 +164,9 @@ function randomState(R, opts) {
   st.game = fields({ ach, cmp, sec: entries(sec), best: entries(best), enc: entries(enc), daily, maxed: R.int(5) });
   /* the shape marker a later version may set (account.js SCHEMA): absent on most devices */
   if (R.maybe(0.3)) st.game.v = R.pick([1, 2, 9, 10]);   /* 9 and 10: the larger number is not the later string */
+  /* last, so that every draw above is the same with or without it */
+  if (!opts || opts.diag !== false) st.diag = randomDiag(R);
   return st;
 }
 
-module.exports = { rng, randomState, CHAPTERS, KEYS, DAYS, UNKNOWN_KEYS, UNKNOWN_VALUES, RUNG_VALUES, SECTIONS, OTHER_SECTIONS, SECTION_DAMAGED };
+module.exports = { rng, randomState, randomDiag, TAKE_IDS, TAKE_BODIES, TAKE_DAMAGED, CHAPTERS, KEYS, DAYS, UNKNOWN_KEYS, UNKNOWN_VALUES, RUNG_VALUES, SECTIONS, OTHER_SECTIONS, SECTION_DAMAGED };
