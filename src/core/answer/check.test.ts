@@ -87,8 +87,8 @@ function decimalOf(r: R, places: number): string {
 }
 
 describe("the grader's revision and the owner's answers", () => {
-  it("is revision 2, with the owner's answers of 2026-10-07 frozen", () => {
-    expect(GRADER).toBe(2);
+  it("is revision 3, with the owner's answers of 2026-10-07 frozen", () => {
+    expect(GRADER).toBe(3);
     expect(OWNER).toEqual({ q3: "a", q4: "a", q5: "a" });
     expect(Object.isFrozen(OWNER)).toBe(true);
   });
@@ -98,7 +98,7 @@ describe("the grader's revision and the owner's answers", () => {
     expect([matches("6/4", "3/2", "number"), matches("0.667", "2/3", "number"), matches("2,2,-7", "2,-7", "set"), matches("(6.0,-2)", "(6,-2)", "exact"), matches("Yes.", "yes", null)]).toEqual([true, false, false, true, true]);
     /* matches() takes one alternative: a key with a bar is text */
     expect([matches("6,-2", "(6,-2)|6,-2", "exact"), matches("4", "2|4", "number")]).toEqual([false, false]);
-    expect(alternatives("|x|")).toEqual(["|x|", "x"]);
+    expect(alternatives("|x|")).toEqual(["|x|"]);
     expect(specOf({ answer: "3/2", type: "fraction", tol: "0.01" })).toEqual({ answer: "3/2", type: "fraction", tol: 0.01 });
   });
 });
@@ -230,8 +230,8 @@ describe("the compare rules' switches", () => {
     /* N-round, L-repeat, T-value, T-notation: wrong, as today */
     expect([off("0.667", "2/3", "number", 0, "N-round"), off("2,2,-7", "2,-7", "set", 0, "L-repeat"), off("(6.0,-2)", "(6,-2)|6,-2", "exact", 0, "T-value"), off("-0,5", "(0,5)|0,5", "exact", 0, "T-value"), off("[6,-2]", "(6,-2)|6,-2", "exact", 0, "T-notation")])
       .toEqual(["wrong", "wrong", "wrong", "wrong", "wrong"]);
-    /* T-final, a guard: off, the text compare runs after a failed value compare */
-    expect([off("(1 1/2, 3)", "(11/2,3)|11/2,3", "exact", 0, "T-final"), off("(1 1/2, 3)", "(11/2,3)|11/2,3", "exact", 0, "N-mixed")]).toEqual(["right", "right"]);
+    /* T-final, a guard: off, the text compare runs after a failed value compare (E-mixed off too, or the text compare marks the mixed number) */
+    expect([off("(1 1/2, 3)", "(11/2,3)|11/2,3", "exact", 0, "T-final", "E-mixed"), off("(1 1/2, 3)", "(11/2,3)|11/2,3", "exact", 0, "N-mixed")]).toEqual(["right", "right"]);
     /* a reader rule reaches the verdict: off, what does not read is an expression (N-refuse on) or wrong (off) */
     expect([off("7.", "7", "number", 0, "N-dot"), off("7.", "7", "number", 0, "N-dot", "N-refuse"), off("1 1/2", "11/2", "number", 0, "N-mixed"), off("140°", "140", "number", 0, "N-refuse"), off("2 and -7", "2,-7", "set", 0, "L-sep")])
       .toEqual(["unread/expression", "wrong", "right", "wrong", "unread/expression"]);
