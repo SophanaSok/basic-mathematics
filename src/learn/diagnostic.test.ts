@@ -38,6 +38,10 @@ const FROMS: DiagFrom[] = ["none", "pre", "a1", "geo", "a2", "unsure"];
 const size = (c: Placeable) => FORMS[c].length;
 const key = (c: Placeable) => ({ "pre-algebra": "pre", "algebra-1": "a1", "geometry": "geo", "algebra-2": "a2" } as const)[c];
 
+/* the 10,000-table monotone property: about 2s here, 6.1s on the CI runner, past vitest's
+   5s default, so it gets the budget merge.test.ts gives its long property tests */
+const LONG = 60_000;
+
 /* a small seeded generator for the property tests and the simulation (mulberry32) */
 function mulberry(seed: number): () => number {
   let a = seed >>> 0;
@@ -338,7 +342,7 @@ describe("placeOf and the Geometry hold", () => {
         });
       });
     }
-  });
+  }, LONG);
 });
 
 describe("close", () => {
