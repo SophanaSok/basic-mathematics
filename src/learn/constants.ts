@@ -11,6 +11,9 @@
 
    No module here writes to `window` or touches the DOM, so Node and Vitest can load it. */
 
+import type { Owner } from "../core/answer/types.ts";
+import type { DiagFrom } from "../types/state.ts";
+
 /** Checks that count as rapid when this many fall inside STUCK_RAPID_WINDOW_MS. */
 export const STUCK_RAPID_CHECKS = 3;
 /** The window, in milliseconds, for STUCK_RAPID_CHECKS. */
@@ -65,3 +68,42 @@ export const ARENA_FINISH_AFTER = 1;
 
 /** Items on the "next best step" card, at most. */
 export const NEXT_MAX_ITEMS = 3;
+
+/* -------------------------------------------------------------- diagnostic --
+
+   The placement check (docs/decisions/0003-placement-check.md, src/learn/diagnostic.ts).
+   Block sizes and cuts come from binomial arithmetic and a toy simulation, not from
+   learners, so they are first guesses like the rest of this file. Any change to a size, a
+   cut, the forms or the walk bumps BLUEPRINT; a stored take keeps its label and is never
+   re-scored. */
+
+/** The version of the forms, block sizes, cuts and walk. */
+export const BLUEPRINT = 1;
+/** Questions in a block, and how many right clear it. Pre-algebra, Algebra 1, Geometry,
+    Algebra 2. A block stops as soon as its answer is settled. */
+export const DIAG_SIZE = { pre: 8, a1: 8, geo: 6, a2: 6 } as const;
+export const DIAG_PASS = { pre: 5, a1: 5, geo: 4, a2: 4 } as const;
+/** The non-empty `unread` submissions on one question after which the line adds the hint
+    to press "I haven't learned this yet". */
+export const DIAG_UNREAD_HINT = 2;
+/** The owner's answer to the grader's Q4 (a mixed number) that the check passes to
+    unreadMessage; it changes only the ambiguous-mixed sentence. */
+export const DIAG_Q4: Owner["q4"] = "a";
+/** Self-reports below Geometry: a cleared Geometry block never places such a learner past
+    Geometry, since all its questions are coordinate work and sets (decision 0003, DG3). */
+export const DIAG_HOLD_FROM: readonly DiagFrom[] = ["none", "pre", "a1"];
+/** Whether a right value in the wrong form (a `form` verdict) counts toward clearing a
+    block. Decision 0003, DG2: it does not. It sets the "close" mark instead. */
+export const DIAG_FORM_RIGHT: boolean = false;
+/** Whether the page shows a `form` explanation at once. Read by the page only, never by
+    scoring; the item is used up either way. */
+export const DIAG_FORM_NOW: boolean = false;
+/** The highest review box a placement seed sets. */
+export const DIAG_MAX_BOX = 1;
+/** An answer under max(RUSH_FLOOR_S, RUSH_FRACTION of the question's par) seconds is fast;
+    RUSH_COUNT fast answers make a take rushed, and a rushed take seeds nothing. */
+export const RUSH_FLOOR_S = 3;
+export const RUSH_FRACTION = 0.1;
+export const RUSH_COUNT = 4;
+/** How long a signed-in visit waits for the account's takes before using this browser's. */
+export const DIAG_SYNC_WAIT_MS = 8000;
