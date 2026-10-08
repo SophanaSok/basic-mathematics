@@ -1214,6 +1214,112 @@ async function run() {
       eq(a.errors, [], "no errors through the real verdicts in the Arena");
       await a.context.close();
     }
+
+    /* ----- the placement check's seed (D-7): BMGame.seedRecall, §6 of the design */
+    {
+      const U = "ch02#one-unknown", A = "ch05#angles", P = "ch05#parallels";
+      const two = (ch, section, at) => ({ [ch]: { e1: { tries: 1, solved: at || 1, first: 1, section }, e2: { tries: 1, solved: (at || 1) + 1, first: 1, section } } });
+      const yest = dayAgo(1);
+      const lastTile = (page) => page.evaluate(() => {
+        var t = Array.from(document.querySelectorAll("#recall .stat")).find((x) => /Last practiced/.test(x.textContent));
+        return t && [t.querySelector(".stat-value").textContent, t.querySelector(".stat-sub").textContent];
+      });
+
+      /* a seeded, never-worked section stays out of deck() and does not set "Last practiced" */
+      {
+        const a = await open(browser, "progress.html", { "bm.attempts.v1": JSON.stringify(two("ch05", "angles")) });   /* solid on its page, never placed */
+        const wrote = await a.page.evaluate(([u, d]) => window.BMGame.seedRecall({ [u]: { box: 1, last: d } }), [U, yest]);
+        eq(wrote, [U], "seedRecall returns the ids it wrote");
+        eq(await a.page.evaluate((u) => JSON.parse(localStorage.getItem("bm.game.v1")).sec[u], U), { box: 1, last: yest }, "and writes box and last only: no n, ok or fix");
+        eq(await a.page.evaluate(() => window.BMGame.deck().map((d) => d.id)), [A], "a seeded section stays out of deck()");
+        eq(await a.page.evaluate((u) => window.BMGame.sectionStatus(u), U), "new", "its status is still new");
+        await a.page.reload();
+        await a.page.waitForFunction(() => document.readyState === "complete");
+        eq(await lastTile(a.page), ["—", "no Arena run yet"], "a seed does not set \"Last practiced\" on the progress page");
+        check(!/Sign in|across devices/.test(await a.page.$eval("[data-progress]", (e) => e.textContent)), "the progress page has no \"Sign in\" sentence when signed out");
+        eq(a.errors, [], "no errors with a seed");
+        await a.context.close();
+      }
+
+      /* "Last practiced" still reads a section with Arena answers (n > 0), and shows that day */
+      {
+        const a = await open(browser, "progress.html", {
+          "bm.attempts.v1": JSON.stringify(two("ch05", "angles")),
+          "bm.game.v1": JSON.stringify({ sec: { [A]: { n: 2, ok: 2, box: 1, last: dayAgo(10) }, [U]: { box: 1, last: yest } } })
+        });
+        const want = await a.page.evaluate((d) => { var m = d.split("-"); return new Date(+m[0], +m[1] - 1, +m[2]).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" }); }, dayAgo(10));
+        eq(await lastTile(a.page), [want, "in the Arena"], "a section with Arena answers sets \"Last practiced\" to its day, not the seed's");
+        await a.context.close();
+      }
+
+      /* both guards at write time; unknown fields kept; bad input dropped */
+      {
+        const a = await open(browser, "progress.html", {
+          "bm.attempts.v1": JSON.stringify(two("ch05", "parallels")),
+          "bm.game.v1": JSON.stringify({ v: 2, sec: { [A]: { n: 1, ok: 1, box: 2, last: dayAgo(5) }, "ch01#addition": { box: 0, keep: "me", fix: 7 } } })
+        });
+        const patch = {
+          [A]: { n: 9, box: 0, last: yest }, [P]: { box: 1, last: yest }, [U]: { box: 1, last: yest, n: 5, ok: 5, extra: 1 },
+          "ch01#addition": { box: 1, last: yest, keep: "me", fix: 7 }, "ch01#integers": { box: 2, last: yest },
+          "ch01#bad": { box: 1, last: "tomorrow" }, "ch01#bad2": { box: "1", last: yest }
+        };
+        const wrote = await a.page.evaluate((p) => window.BMGame.seedRecall(p), patch);
+        eq(wrote.slice().sort(), ["ch01#addition", U], "a placed section and a section with an attempt row are skipped; a box other than 0 or 1 and a bad day are dropped");
+        const g = await a.page.evaluate(() => JSON.parse(localStorage.getItem("bm.game.v1")));
+        eq(g.sec[A], { n: 1, ok: 1, box: 2, last: dayAgo(5) }, "the placed section is untouched");
+        check(g.sec[P] === undefined, "the section with an attempt row is not seeded");
+        eq(g.sec[U], { box: 1, last: yest }, "n, ok and other fields in the patch are not written");
+        eq(JSON.stringify(g.sec["ch01#addition"], Object.keys(g.sec["ch01#addition"]).sort()), JSON.stringify({ box: 1, fix: 7, keep: "me", last: yest }), "an existing unplaced record keeps its fields");
+        eq(g.v, 2, "and so does the rest of the game record");
+        const bad = await a.page.evaluate(() => [null, "x", 3, [], undefined, JSON.parse('{"__proto__":{"box":1,"last":"2026-01-01"}}')].map((p) => window.BMGame.seedRecall(p)));
+        eq(bad, [[], [], [], [], [], []], "a patch that is not an object, or only __proto__, writes nothing");
+        eq(await a.page.evaluate(() => ({}).box), undefined, "and pollutes nothing");
+        eq(await a.page.evaluate((p) => window.BMGame.seedRecall(p), patch), [], "a second seed writes nothing: what the first wrote is placed");
+        /* the guards read the state at the moment of writing, not when the patch was made */
+        await a.page.evaluate(() => {
+          var g = JSON.parse(localStorage.getItem("bm.game.v1"));
+          g.sec["ch01#integers"] = { n: 1, ok: 1, box: 3, last: "2026-01-01" };
+          localStorage.setItem("bm.game.v1", JSON.stringify(g));
+        });
+        eq(await a.page.evaluate(() => window.BMGame.seedRecall({ "ch01#integers": { box: 0, last: "2026-02-02" } })), [], "a section placed since the patch was made is skipped");
+        eq(await a.page.evaluate(() => JSON.parse(localStorage.getItem("bm.game.v1")).sec["ch01#integers"].box), 3, "and keeps its box");
+        eq(a.errors, [], "no errors seeding");
+        await a.context.close();
+      }
+
+      /* worked on its page, never placed: not seeded, still due now, 3 XP on its first Arena answer */
+      {
+        const a = await open(browser, "progress.html", { "bm.attempts.v1": JSON.stringify(two("ch02", "one-unknown")) });
+        eq(await a.page.evaluate((p) => window.BMGame.seedRecall(p), { [U]: { box: 1, last: yest } }), [], "a section worked on its page is not seeded");
+        const d = await a.page.evaluate((u) => window.BMGame.deck().filter((x) => x.id === u).map((x) => [x.status, x.due, x.box, x.last]), U);
+        eq(d, [["solid", true, 0, null]], "it is solid, due now, in box 0 and never placed");
+        const xp = await a.page.evaluate((u) => window.BMGame.recordRun({ answers: [{ section: u, first: true }], mode: "standard" }).parts.answers, U);
+        eq(xp, 3, "its first Arena answer pays 3 XP, the due bonus");
+        await a.context.close();
+      }
+
+      /* §6.3: a box 0 seed that page work then makes solid today is due for a check today, and
+         sorts ahead of a never-placed due section */
+      {
+        const a = await open(browser, "progress.html", {});
+        eq(await a.page.evaluate(([u, d]) => window.BMGame.seedRecall({ [u]: { box: 0, last: d } }), [U, yest]), [U], "the box 0 seed is written on a section never worked");
+        const solved = Date.now();
+        await a.page.evaluate(([ch2, ch5]) => {
+          localStorage.setItem("bm.attempts.v1", JSON.stringify(Object.assign({}, ch2, ch5)));
+        }, [two("ch02", "one-unknown", solved), two("ch05", "angles", solved - 864e5 * 3)]);
+        await a.page.reload();
+        await a.page.waitForFunction(() => document.readyState === "complete");
+        const order = await a.page.evaluate(() => {
+          var R = window.BMReview.recall, day = window.BMSite.dayKey();
+          var rows = window.BMGame.deck().filter((d) => d.due && R.checkDue(d, day));
+          return { due: rows.map((r) => r.id).sort(), order: R.byOverdue(rows, day).map((r) => r.id) };
+        });
+        eq(order.due, [U, A], "the seeded section, solved on its page today, is due for a check today; so is the unseeded one solved three days ago");
+        eq(order.order, [U, A], "and it sorts ahead of the never-placed section");
+        eq(await a.page.evaluate((a5) => window.BMGame.deck().filter((d) => d.id === a5).map((d) => d.last), A), [null], "(the unseeded section was never placed)");
+        await a.context.close();
+      }
+    }
   } finally {
     await browser.close();
     await server.close();

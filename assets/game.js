@@ -89,6 +89,41 @@
     return g;
   }
 
+  /* The placement check's seed (src/learn/diag-seed.ts seedPatch): `patch` is
+     { [sectionRef]: record }, each the section's record with `box` (0 or 1) and `last` (a day
+     key) set. Only those two fields are written, never n, ok or fix, and the rest of an
+     existing record is kept. Both guards are repeated here against the state at the moment of
+     writing: an id whose record is placed (real Arena history) or that has an attempt row (it
+     was worked on its page) is dropped. Returns the ids written. */
+  function seedRecall(patch) {
+    var written = [];
+    if (!patch || typeof patch !== "object" || Array.isArray(patch)) return written;
+    var recall = Review.recall, picks = {};
+    Object.keys(patch).forEach(function (id) {
+      if (id === "__proto__" || !Object.prototype.hasOwnProperty.call(patch, id)) return;
+      var r = patch[id];
+      if (!r || typeof r !== "object" || Array.isArray(r)) return;
+      if (r.box !== 0 && r.box !== 1) return;
+      if (typeof r.last !== "string" || recall.dayNumber(r.last) === null) return;
+      picks[id] = { box: r.box, last: r.last };
+    });
+    if (!Object.keys(picks).length) return written;
+    updateGame(function (g) {
+      var rows = sectionRows();
+      Object.keys(picks).forEach(function (id) {
+        var cur = Object.prototype.hasOwnProperty.call(g.sec, id) ? g.sec[id] : undefined;
+        if (recall.isPlaced(cur) || rows[id]) return;
+        var rec = {};
+        Object.keys(obj(cur)).forEach(function (k) { rec[k] = cur[k]; });
+        rec.box = picks[id].box;
+        rec.last = picks[id].last;
+        g.sec[id] = rec;
+        written.push(id);
+      });
+    });
+    return written;
+  }
+
   /* the fields this file reads are normalised; any others (the Arena's picks, its ledger
      of paid runs, today's Daily) are carried through untouched, so a write here keeps them */
   function readRun() {
@@ -1372,7 +1407,8 @@
     settle: function () { return settle(); },
     ACHIEVEMENTS: ACHIEVEMENTS, stores: stores,
     announce: announce, hud: hud, hudHearts: hudHearts, hudTimer: hudTimer,
-    run: readRun, game: readGame, updateRun: updateRun
+    run: readRun, game: readGame, updateRun: updateRun,
+    seedRecall: seedRecall
   };
 
   /* -------------------------------------------------------------- boot ---- */
