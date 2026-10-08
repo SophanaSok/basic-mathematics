@@ -55,6 +55,13 @@
        a count above or below its allowance fails, as does an empty or malformed entry;
        --write keeps capitals and leaves keys, formulas and money alone; the real tree
        passes against tools/us-english-allow.json
+     - answer-spec: an expr key whose bars split it into part answers (2|x|-1, 2|x|, x|-x,
+       2|x-1|+3) fails the bar lint, and |x| and 1|i pass; a negative, infinite or empty
+       data-tol fails, and so does a tol on an exact or an expr key; 1/8|0.125, a blank
+       card and a tol on a number key pass; an alternative its own key does not judge
+       right (1/2|one half) fails; judge() is on the core object the check loads
+     - placeholders: an example its own key judges right, or form (a rounding, a point in
+       square brackets), fails; an example it judges wrong or unread passes
      - entries: one with src/ui/core.ts only commented out, or after site.js, fails; the
        pure modules it installs (src/core/, src/sync/merge.ts) come before it
      - serve (lib/serve.js): a build is served as it is, a page in it that still carries
@@ -71,7 +78,7 @@ const shell = require("./lib/shell");
 const vendor = require("./lib/vendor");
 const { parse } = require("./lib/html");
 const { exercisesOf } = require("./lib/keys");
-const { CHECKS, result, pageKeys, lessonSteps, stepsDiff, shellOf, shellDiff, scriptsProblems } = require("./check-static");
+const { CHECKS, result, loadCore, barProblem, siteJudgeProblem, pageKeys, lessonSteps, stepsDiff, shellOf, shellDiff, scriptsProblems } = require("./check-static");
 const assignIds = require("./assign-ids");
 const applyShell = require("./apply-shell");
 
@@ -800,6 +807,80 @@ function refusal(fn) { try { fn(); return null; } catch (e) { return e.message; 
   /* the real tree */
   const real = require("child_process").spawnSync(process.execPath, [path.join(__dirname, "check-static.js"), "--only=skills"], { encoding: "utf8" });
   check(real.status === 0 && /^PASS  skills +76 /m.test(real.stdout), "skills: the real tree passes, counting its 76 curriculum sections — got " + real.stdout + real.stderr);
+}
+
+/* ------------------------------------------------- answer-spec, placeholders -- */
+{
+  const rule = (name) => CHECKS.filter(c => c.name === name)[0];
+  const run = (name, blocks) => {
+    const r = result();
+    const ctx = { pages: ["page.html"], docs: { "page.html": parse(chapter(blocks)) } };
+    let threw = null;
+    try { rule(name).run(ctx, r); } catch (e) { threw = e.message; }
+    return { fails: r.fails, count: r.count, threw };
+  };
+  const spec = (attrs) => run("answer-spec", [ex(attrs, "Question?")]);
+  check(rule("answer-spec") && /\S/.test(rule("answer-spec").what || ""), "answer-spec: check-static runs it, with a what line");
+  check(typeof loadCore().judge === "function", "answer-spec: the core object it loads (src/ui/core.ts, window.BMCore) has judge()");
+
+  /* site.js's judge() grades through Core.judge */
+  const siteSrc = fs.readFileSync(path.join(__dirname, "..", "assets", "site.js"), "utf8");
+  eq(siteJudgeProblem(siteSrc), null, "answer-spec: assets/site.js's judge() calls Core.judge");
+  check(/does not call Core\.judge/.test(String(siteJudgeProblem(siteSrc.replace(/Core\.judge\(/g, "Core.grade(")))), "answer-spec: a judge() that stops calling Core.judge fails");
+  eq(siteJudgeProblem("function grade() {}"), "has no judge()", "answer-spec: a site.js with no judge() fails");
+  /* the bar lint */
+  let k = spec('id="e1" data-type="expr" data-answer="2|x|-1"');
+  check(k.fails.some(m => /the piece "x" between its bars.*bar lint/.test(m)), "answer-spec: the expr key 2|x|-1 fails the bar lint: " + JSON.stringify(k.fails));
+  k = spec('id="e1" data-type="expr" data-answer="2|x|"');
+  check(k.fails.some(m => /between its bars.*bar lint/.test(m)), "answer-spec: the expr key 2|x| fails the bar lint: " + JSON.stringify(k.fails));
+  eq([barProblem("x|-x"), barProblem("2|x-1|+3"), barProblem("x+|y"), barProblem("f(|x)"), barProblem("2||3"), barProblem("2x|3x|")],
+    ['the piece "x"', 'the piece "+3"', 'the piece "x+"', 'the piece "f("', "an empty piece", "an empty piece"],
+    "answer-spec: x|-x and 2|x-1|+3 fail the bar lint, as do a piece ending in + or (, and an empty piece");
+  eq([barProblem("|x|"), barProblem(" |x-1| "), barProblem("1|i"), barProblem("3x-6|-6+3x"), barProblem("2x")], [null, null, null, null, null],
+    "answer-spec: one |e|, 1|i, two whole answers and a key with no bar pass the bar lint");
+  k = spec('id="e1" data-type="expr" data-answer="|x|"');
+  eq([k.fails, k.count], [[], 1], "answer-spec: the expr key |x| passes, judged right against itself as one answer");
+  k = spec('id="e1" data-answer="2|x|-1"');
+  check(!k.fails.some(m => /bar lint/.test(m)), "answer-spec: the bar lint is for expr keys only: " + JSON.stringify(k.fails));
+
+  /* the tol */
+  k = spec('id="e1" data-type="number" data-tol="-1" data-answer="3.14"');
+  check(k.fails.some(m => /data-tol "-1" is not a finite number >= 0/.test(m)), "answer-spec: a tol of -1 fails: " + JSON.stringify(k.fails));
+  eq(["Infinity", "abc", "", "1e999"].map(t => spec('id="e1" data-type="number" data-tol="' + t + '" data-answer="3.14"').fails.length), [1, 1, 1, 1],
+    "answer-spec: an infinite, unreadable or empty tol fails");
+  k = spec('id="e1" data-tol="0.01" data-answer="(6,-2)"');
+  check(k.fails.some(m => /\(exact\): data-tol "0\.01" on a key compared as text/.test(m)), "answer-spec: a tol on an exact key (no data-type) fails: " + JSON.stringify(k.fails));
+  k = spec('id="e1" data-type="exact" data-tol="0" data-answer="7"');
+  eq(k.fails.length, 1, "answer-spec: … a tol of 0 too, written on an exact key");
+  k = spec('id="e1" data-type="expr" data-tol="0.1" data-answer="2x"');
+  check(k.fails.some(m => /\(expr\): data-tol "0\.1" on a key compared as text/.test(m)), "answer-spec: a tol on an expr key fails: " + JSON.stringify(k.fails));
+  eq(["number", "fraction", "set"].map(t => spec('id="e1" data-type="' + t + '" data-tol="0.005" data-answer="2.807"').fails), [[], [], []],
+    "answer-spec: a tol of 0.005 on a number, fraction or set key passes");
+  k = spec('id="e1" data-type="number" data-tol="1e-7" data-answer="1"');
+  eq(k.fails, [], "answer-spec: a tol in exponent notation passes");
+
+  /* every alternative right against its own key */
+  k = spec('id="e1" data-type="number" data-answer="1/8|0.125"');
+  eq([k.fails, k.count], [[], 1], "answer-spec: the number key 1/8|0.125 passes");
+  k = spec('id="e1" data-type="number" data-answer="1/2|one half"');
+  check(k.fails.some(m => /its alternative "one half" is judged unread\/words against it/.test(m)), "answer-spec: an alternative its own number key does not read fails: " + JSON.stringify(k.fails));
+  k = run("answer-spec", [ex('id="e1" data-type="blank" data-tol="0.01"', 'x = <span class="blank" data-answer="2.5"></span>, y = <span class="blank" data-answer="1/3|0.333"></span>')]);
+  eq([k.fails, k.count], [[], 2], "answer-spec: a blank card is checked blank by blank, as number keys with the card's tol");
+  k = run("answer-spec", [ex('id="e1" data-type="blank" data-tol="0.01"', '<span class="blank" data-type="exact" data-answer="x"></span>')]);
+  eq(k.fails.length, 1, "answer-spec: … and the card's tol on an exact blank fails");
+
+  /* placeholders */
+  const ph = (attrs) => run("placeholders", [ex(attrs, "Question?")]);
+  k = ph('id="e1" data-type="number" data-answer="4" data-placeholder="e.g. 4"');
+  check(k.fails.some(m => /placeholder "e\.g\. 4" is graded right against the key "4" \(its example "4"\)/.test(m)), "placeholders: an example its own key accepts fails: " + JSON.stringify(k.fails));
+  k = ph('id="e1" data-type="number" data-answer="2/3" data-placeholder="e.g. 0.67"');
+  check(k.fails.some(m => /is graded form\/rounded/.test(m)), "placeholders: an example its key judges form (a rounding) fails: " + JSON.stringify(k.fails));
+  k = ph('id="e1" data-answer="(6,-2)" data-placeholder="e.g. [6,-2]"');
+  check(k.fails.some(m => /is graded form\/notation/.test(m)), "placeholders: … and so does a point in square brackets: " + JSON.stringify(k.fails));
+  k = ph('id="e1" data-type="number" data-answer="4" data-placeholder="e.g. 1/2"');
+  eq([k.fails, k.count, k.threw], [[], 1, null], "placeholders: an example judged wrong passes");
+  k = ph('id="e1" data-type="number" data-answer="4" data-placeholder="a number"');
+  eq(k.fails, [], "placeholders: one judged unread passes");
 }
 
 /* ------------------------------------------------------------- us-english -- */
