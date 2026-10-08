@@ -107,3 +107,6 @@ export const RUSH_FRACTION = 0.1;
 export const RUSH_COUNT = 4;
 /** How long a signed-in visit waits for the account's takes before using this browser's. */
 export const DIAG_SYNC_WAIT_MS = 8000;
+/** How many sections the study plan's "Start here" lists, and how many "Review first" lists at most. */
+export const PLAN_START_ITEMS = 3;
+export const PLAN_REVIEW_ITEMS = 5;
