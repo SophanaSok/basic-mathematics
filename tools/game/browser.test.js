@@ -1287,6 +1287,34 @@ async function run() {
         await a.context.close();
       }
 
+      /* the day must be a real one before today; the ref must be in the curriculum; a seed that
+         writes nothing emits nothing, and one that writes emits the change the account pushes */
+      {
+        const a = await open(browser, "progress.html", {});
+        await a.page.evaluate(() => { window.__ev = 0; window.BMStore.on((c) => { if (c.type === "state" && c.key === "bm.game.v1") window.__ev++; }); });
+        const ev = () => a.page.evaluate(() => window.__ev);
+        const seed = (p) => a.page.evaluate((p) => window.BMGame.seedRecall(p), p);
+        const today = dayAgo(0), future = (() => { const d = new Date(); d.setDate(d.getDate() + 3); const t = (x) => (x < 10 ? "0" : "") + x; return d.getFullYear() + "-" + t(d.getMonth() + 1) + "-" + t(d.getDate()); })();
+        const none = { "ch01#addition": { box: 1, last: today }, "ch01#integers": { box: 1, last: future }, "ch02#one-unknown": { box: 1, last: "2026-13-45" },
+          "ch05#angles": { box: 0, last: "yesterday" }, "x#1": { box: 1, last: yest }, constructor: { box: 1, last: yest }, "ch01#nope": { box: 1, last: yest }, "ch01": { box: 1, last: yest } };
+        eq(await seed(none), [], "today, a future day, an impossible date, a non-date, an unknown ref and a bare name are not written");
+        eq([await ev(), await a.page.evaluate(() => localStorage.getItem("bm.game.v1"))], [0, null], "and nothing is stored or emitted for them");
+        eq(await seed({ "ch01#addition": { box: 1, last: yest } }), ["ch01#addition"], "a real earlier day on a known ref is written");
+        eq(await ev(), 1, "and it emits the bm.game.v1 change that drives the account push");
+        eq(await seed({ "ch01#addition": { box: 1, last: yest } }), [], "the same seed again writes nothing");
+        eq(await ev(), 1, "and emits nothing");
+        await a.context.close();
+      }
+
+      /* signed out, the page says where its data comes from, and does not invite sign-up */
+      {
+        const a = await open(browser, "progress.html", {});
+        check(await a.page.evaluate(() => window.BMAccount && window.BMAccount.configured), "(the build has accounts configured)");
+        const t = await a.page.$eval("[data-progress]", (e) => e.textContent);
+        check(t.indexOf("This page is built from what this browser has saved.") > -1 && !/Sign in/.test(t), "signed out, the progress page says it is built from what this browser has saved, with no sign-in line");
+        await a.context.close();
+      }
+
       /* worked on its page, never placed: not seeded, still due now, 3 XP on its first Arena answer */
       {
         const a = await open(browser, "progress.html", { "bm.attempts.v1": JSON.stringify(two("ch02", "one-unknown")) });
