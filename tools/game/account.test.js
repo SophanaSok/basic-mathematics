@@ -28,7 +28,8 @@
   11. a signed-out visitor on a chapter page and on the about page fetches nothing off the
       local server and never the supabase chunk, and the list of what it does fetch is
       printed; the account page with no stand-in fetches bundle/supabase.js, the real
-      library, and draws the form with it, with nothing sent to Supabase */
+      library, and draws the form with it, with nothing sent to Supabase
+  12. the drawn page says accounts are for people 13 or older, signed out and signed in */
 "use strict";
 const site = require("../lib/site");
 const target = require("../lib/target");
@@ -280,6 +281,18 @@ const ALL = ["google", "github", "discord", "facebook", "azure"];
     check(seen.empty === 0, "5 no empty bold name is drawn", seen.empty);
     check(seen.avatar === "R" && seen.title === "Signed in as reader9", "5 the top bar uses the username", { avatar: seen.avatar, title: seen.title });
     await b.context.close();
+  }
+
+  /* 12. the age line shows on the drawn page, signed out and signed in */
+  {
+    const out = await open({ providers: ["google"] });
+    const outText = await text(out.page, "main");
+    check(/13 or older/.test(outText) && /A parent can make one/.test(outText), "12 signed out, the page says accounts are for people 13 or older, or made by a parent", outText);
+    await out.context.close();
+    const inn = await open({ providers: ["google"] }, { session: { user: { id: "u1", email: "reader@example.com", app_metadata: { provider: "google", providers: ["google"] } } } });
+    const inText = await text(inn.page, "main");
+    check(/13 or older/.test(inText) && /A parent can make one/.test(inText), "12 signed in, the page says accounts are for people 13 or older, or made by a parent", inText);
+    await inn.context.close();
   }
 
   /* 6. a wrong password, with buttons on the page */
