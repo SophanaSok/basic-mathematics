@@ -22,7 +22,7 @@ runnable done-when, and that is what makes a weaker implementer safe.
 | Opus (main session) | orchestrate, judge | briefs and task cards; threat-model design reviews for risky items; grader and verdict logic in `src/core/answer/`; second reviewer on risky cards; fix passes when a finding survives; merge decisions; `OPERATIONS.md` procedures |
 | Sonnet (`implementer`, `reviewer`) | build, review | cards of ≤5 files and ~2h with a runnable done-when; tests from a spec; wording edits guarded by the us-english lock and golden file; ADR drafts; tooling upkeep; commit messages; first reviewer on every card, both reviewers on ordinary cards |
 | Haiku (`runner`, Explore) | search, run, report | code search; running npm scripts and returning only failures; moving `DEFAULT_BASE` in `tools/lib/site.js` after question text changes; worktree and branch cleanup; collecting `git log` and PR state |
-| Fable | on request only | design judge work the owner asks for; a card that has failed twice on Opus |
+| Fable | owner's request or orchestrator's call | design judge work the owner asks for; a card that has failed twice on Opus; work that would greatly benefit (below) |
 
 **Risky** = reads untrusted input or touches accounts, sync, money, leagues, currency
 or gates. Risky items get a threat-model design review before implementation and an
@@ -30,6 +30,12 @@ Opus second reviewer.
 
 Escalate by failure count, not mood: a second failure on the same card means split
 the card or hand it to Opus, never a third retry on Sonnet.
+
+The orchestrator may call Fable (`model: "fable"` on the Agent call) without asking
+when a wrong call would be costly and no runnable check would catch it: a threat-model
+design review on a risky item, settling conflicting designs, or a root cause Opus has
+not found after a real attempt. Never for building or reviewing an ordinary card. Say
+in one line which task and why before launching, and name each Fable use in the PR body.
 
 ## The loop (one card per session)
 1. Brief the `implementer` with the card id, the files it may touch, the done-when
