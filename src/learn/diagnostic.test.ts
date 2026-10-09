@@ -520,16 +520,27 @@ describe("the rule, regression with the Geometry hold", () => {
 /* ------------------------------------------------------ the run's shell (D-9a) -- */
 
 const known = (g: string) => g !== "nope" && Object.values(FORMS).some((f) => f.some((x) => x.g === g));
+const stub: Make = (g, s) => ({ q: g + s, par: 10 + (s % 7) });
+/* a whole block of `course` in form order, the first kinds answered */
+const blockOf = (course: Placeable, kinds: DiagKind[]): any => ({
+  course, items: FORMS[course].map((f, i) => ({ g: f.g, s: 100 + i, sec: f.sec, ...(i < kinds.length ? { k: kinds[i] } : {}) }))
+});
 const goodRun = (): any => ({
   id: "abcde12345", seed: 12345, from: "pre", start: "algebra-1", blueprint: BLUEPRINT, began: "2026-10-07",
   blocks: [{ course: "algebra-1", items: [
     { g: "poly-eval", s: 7, sec: "ch12#definition-fn", k: "right", secs: 4.5 },
     { g: "ineq-flip", s: 9, sec: "ch03#order", k: "form", r: "rounded", u: 2 },
-    { g: "abs-solve", s: 11, sec: "ch03#absolute" }
+    { g: "abs-solve", s: 11, sec: "ch03#absolute" },
+    { g: "quad-roots", s: 12, sec: "ch04#formula" },
+    { g: "pow-frac", s: 13, sec: "ch03#powers" },
+    { g: "exp-solve", s: 14, sec: "ch12#exponential" },
+    { g: "quad-square", s: 15, sec: "ch04#square-roots" },
+    { g: "vertex-x", s: 16, sec: "ch04#graph" }
   ] }],
   pending: { u: 1, r: "words" }
 });
 const withRun = (patch: (r: any) => void): unknown => { const r = goodRun(); patch(r); return r; };
+const RIGHT5: DiagKind[] = ["right", "right", "right", "right", "right"];
 
 describe("readRun", () => {
   it("reads a valid run back equal to its input, as a new object", () => {
@@ -538,6 +549,8 @@ describe("readRun", () => {
     expect(r).toEqual(x);
     expect(r).not.toBe(x);
     expect(r!.blocks[0]).not.toBe(x.blocks[0]);
+    const two = withRun((r) => { r.blocks = [blockOf("algebra-1", RIGHT5), blockOf("geometry", ["wrong"])]; });
+    expect(readRun(two, known)).toEqual(two);
   });
   it("refuses what is not a run", () => {
     [null, undefined, [], "x", 5, true, {}, [goodRun()]].forEach((x) => expect(readRun(x, known)).toBeNull());
@@ -555,14 +568,30 @@ describe("readRun", () => {
       (r) => { r.seed = 1.5; },
       (r) => { r.began = "yesterday"; },
       (r) => { r.began = 20261007; },
+      (r) => { r.began = "2026-02-31"; },
       (r) => { r.id = ""; },
       (r) => { r.id = "x".repeat(65); },
+      (r) => { r.id = "__proto__"; },
+      (r) => { r.id = "ABC12"; },
+      (r) => { r.id = "a-b"; },
       (r) => { r.from = "toString"; },
       (r) => { r.start = "geometry"; },
       (r) => { r.blocks[0].items[0].s = 0; },
       (r) => { r.blocks[0].items[0].k = "unread"; },
       (r) => { r.blocks[0].items[0].sec = 5; },
-      (r) => { r.blocks = {}; }
+      (r) => { r.blocks = {}; },
+      // stuck runs: no next item, nothing to deal, not finished
+      (r) => { r.blocks[0].items = []; },
+      (r) => { r.blocks[0].items = r.blocks[0].items.slice(0, 2); r.blocks[0].items[1].k = "right"; },
+      (r) => { r.blocks.push(blockOf("geometry", ["right", "right", "right", "right"])); },
+      (r) => { delete r.blocks[0].items[0].k; },
+      // not the form: a generator twice, a section moved
+      (r) => { Object.assign(r.blocks[0].items[2], { g: "pow-frac", sec: "ch03#powers" }); },
+      (r) => { r.blocks[0].items[2].sec = "ch03#order"; },
+      // not the block the walk deals
+      (r) => { r.blocks = [blockOf("pre-algebra", [])]; },
+      (r) => { r.blocks = [blockOf("algebra-1", RIGHT5), blockOf("algebra-2", [])]; },
+      (r) => { r.blocks = [blockOf("algebra-1", RIGHT5), blockOf("pre-algebra", [])]; }
     ];
     bad.forEach((p, i) => expect(readRun(withRun(p), known), "fixture " + i).toBeNull());
   });
@@ -577,19 +606,18 @@ describe("readRun", () => {
     const evil = JSON.parse('{"__proto__": {"polluted": 1}, "constructor": 1}');
     expect(readRun(evil, known)).toBeNull();
     const x = JSON.parse(JSON.stringify(goodRun()).replace('"id"', '"__proto__":{"polluted":1},"constructor":{"x":1},"id"'));
-    const item = JSON.parse('{"g":"poly-eval","s":7,"sec":"ch12#definition-fn","__proto__":{"polluted":1}}');
-    x.blocks[0].items.push(item);
+    x.blocks[0].items[2] = JSON.parse('{"g":"abs-solve","s":11,"sec":"ch03#absolute","__proto__":{"polluted":1}}');
     const r = readRun(x, known)!;
     expect(r).not.toBeNull();
     expect(Object.hasOwn(r, "__proto__")).toBe(false);
     expect(Object.hasOwn(r, "constructor")).toBe(false);
-    expect(Object.hasOwn(r.blocks[0].items[3], "__proto__")).toBe(false);
+    expect(Object.hasOwn(r.blocks[0].items[2], "__proto__")).toBe(false);
     expect(({} as any).polluted).toBeUndefined();
     expect(readRun(JSON.parse('{"__proto__":{"id":"a"}}'), known)).toBeNull();
   });
-  it("never throws on random JSON-ish values, and its output reads back unchanged", () => {
+  it("never throws on random JSON-ish values; what it accepts reads back unchanged and can go on", () => {
     const rand = mulberry(2026);
-    const pick = <T,>(a: T[]): T => a[Math.floor(rand() * a.length)];
+    const pick = <T,>(a: readonly T[]): T => a[Math.floor(rand() * a.length)];
     const val = (d: number): any => {
       const t = rand();
       if (d > 3 || t < 0.5) return pick<any>([null, true, 0, 1, -1, 7, 2 ** 32, 1.5, "", "a", "algebra-1", "pre", "2026-10-07", "right", "poly-eval", "__proto__", BLUEPRINT, NaN, []]);
@@ -598,27 +626,43 @@ describe("readRun", () => {
       for (let i = Math.floor(rand() * 4); i > 0; i--) Object.defineProperty(o, pick(["id", "g", "s", "k", "sec", "u", "r", "secs", "__proto__", "x"]), { value: val(d + 1), enumerable: true, writable: true, configurable: true });
       return o;
     };
-    // mutate a valid run so that some inputs get deep enough to pass
-    const mutate = (x: any): any => {
-      if (Array.isArray(x)) return x.map((v) => mutate(v));
+    // a run part way through a real walk, so that the inputs reach every check
+    const outs: Outcome[] = [{ kind: "right" }, { kind: "wrong" }, { kind: "skip" }, { kind: "form", reason: "notation" },
+      { kind: "unread", reason: "named" }, { kind: "empty" }];
+    const base = (): DiagRun => {
+      let run = freshRun(pick(FROMS), Math.floor(rand() * 2 ** 32), "abcde12345", "2026-10-07");
+      for (let n = Math.floor(rand() * 30); n > 0 && !finished(run); n--) run = step(deal(run, stub, hash, rng), pick(outs), rand() * 40);
+      return run;
+    };
+    // then damage it, lightly or not at all
+    const mutate = (x: any, rate: number): any => {
+      if (Array.isArray(x)) return x.map((v) => mutate(v, rate));
       if (x && typeof x === "object") {
         const o: any = {};
-        Object.keys(x).forEach((k) => { if (rand() > 0.05) o[k] = rand() < 0.08 ? val(2) : mutate(x[k]); });
+        Object.keys(x).forEach((k) => { if (rand() >= rate) o[k] = rand() < rate * 1.5 ? val(2) : mutate(x[k], rate); });
         return o;
       }
-      return rand() < 0.04 ? val(2) : x;
+      return rand() < rate ? val(2) : x;
     };
-    let ok = 0;
+    let ok = 0, damaged = 0;
     for (let i = 0; i < 20_000; i++) {
-      const x = i % 2 ? val(0) : mutate(goodRun());
+      const rate = rand() < 0.3 ? 0 : rand() * 0.05;
+      const x = i % 2 ? val(0) : mutate(base(), rate);
       const r = readRun(x, known);
-      if (r) { ok++; expect(readRun(r, known)).toEqual(r); }
+      if (!r) continue;
+      ok++;
+      if (rate > 0) damaged++;
+      expect(readRun(r, known)).toEqual(r);
+      // the invariant: an open question, or a block to deal, or the end
+      expect(nextItem(r) !== null || deal(r, stub, hash, rng) !== r || finished(r)).toBe(true);
     }
-    expect(ok).toBeGreaterThan(100);
+    expect(ok).toBeGreaterThan(1000);
+    expect(damaged).toBeGreaterThan(100);
   }, LONG);
 });
 
 describe("newRun, deal and the run end to end", () => {
+  const back = (r: DiagRun) => readRun(JSON.parse(JSON.stringify(r)), known);
   it("starts empty at the start of the self-report", () => {
     FROMS.forEach((f) => expect(freshRun(f, 5, "id1", "2026-10-07")).toEqual({
       id: "id1", seed: 5, from: f, start: START_OF[f], blueprint: BLUEPRINT, began: "2026-10-07", blocks: [], pending: { u: 0 }
@@ -626,11 +670,10 @@ describe("newRun, deal and the run end to end", () => {
     expect(readRun(freshRun("none", 5, "id1", "2026-10-07"), known)).not.toBeNull();
   });
   it("deals, steps and finishes into a take, with a stub make", () => {
-    const stub: Make = (g, s) => ({ q: g + s, par: 10 + (s % 7) });
     let run = freshRun("geo", 4242, "run1", "2026-10-07");
     for (let guard = 0; guard < 100 && !finished(run); guard++) {
       run = deal(run, stub, hash, rng);
-      expect(readRun(run, () => true)).not.toBeNull();
+      expect(back(run)).toEqual(run);
       expect(deal(run, stub, hash, rng)).toBe(run);
       run = step(run, { kind: "right" }, 20);
     }
@@ -641,11 +684,44 @@ describe("newRun, deal and the run end to end", () => {
     expect(take.band).toBe("algebra-2");
     expect(take.all).toBe(true);
   });
+  it("reads every step of a mixed run back through JSON as the same run", () => {
+    const outs: Outcome[] = [
+      { kind: "unread", reason: "words" }, { kind: "form", reason: "rounded" }, { kind: "wrong" }, { kind: "skip" },
+      { kind: "right" }, { kind: "empty" }, { kind: "unread", reason: "spaces" }, { kind: "unread" }, { kind: "right" },
+      { kind: "right" }, { kind: "form", reason: "unreduced" }, { kind: "right" }
+    ];
+    let run = freshRun("pre", 4242, "run1", "2026-10-07");
+    expect(back(run)).toEqual(run);
+    for (let n = 0; n < 200 && !finished(run); n++) {
+      run = deal(run, stub, hash, rng);
+      expect(back(run)).toEqual(run);
+      run = step(run, outs[n % outs.length], 7.25);
+      expect(back(run)).toEqual(run);
+    }
+    expect(finished(run)).toBe(true);
+    const items = run.blocks.flatMap((b) => b.items);
+    expect(items.some((i) => i.k === "form" && i.r === "rounded" && i.u === 1 && i.secs === 7.25)).toBe(true);
+    expect(items.some((i) => i.k === "skip" && i.secs === undefined)).toBe(true);
+    expect(items.some((i) => i.u === 2)).toBe(true);
+    expect(run.blocks.length).toBeGreaterThan(1);
+    expect(() => finish(run, "2026-10-07", 3)).not.toThrow();
+  });
   it("draws a block from (seed, course) alone", () => {
-    const stub: Make = (g, s) => ({ q: g + s, par: 10 });
     const a = deal(freshRun("none", 77, "a", "2026-10-07"), stub, hash, rng);
     expect(a.blocks).toHaveLength(1);
     expect(a.blocks[0].items).toEqual(drawBlock("pre-algebra", 77, stub, hash, rng));
+  });
+  it("deals a later block the same whichever route reached it", () => {
+    const walk = (from: DiagFrom, kind: "right" | "wrong") => {
+      let run = deal(freshRun(from, 31337, "r", "2026-10-07"), make, hash, rng);
+      while (nextItem(run)) run = step(run, { kind }, 5);
+      return deal(run, make, hash, rng);
+    };
+    const up = walk("none", "right"), down = walk("a1", "wrong");
+    expect(up.blocks.map((b) => b.course)).toEqual(["pre-algebra", "algebra-1"]);
+    expect(down.blocks.map((b) => b.course)).toEqual(["geometry", "algebra-1"]);
+    expect(up.blocks[1].items).toEqual(down.blocks[1].items);
+    expect(up.blocks[1].items).toEqual(drawBlock("algebra-1", 31337, make, hash, rng));
   });
 });
 
@@ -656,9 +732,9 @@ describe("withTake", () => {
     expect(r.extra).toBe(1);
     expect(r.takes).toEqual({ t1: take });
   });
-  it("adds beside existing takes and keeps their other fields", () => {
-    const r = withTake({ takes: { a: take, junk: null }, extra: [1] }, take, "b")!;
-    expect(Object.keys(r.takes!).sort()).toEqual(["a", "b"]);
+  it("adds beside existing takes, keeps every other entry, damaged or not, and the other fields", () => {
+    const r = withTake({ takes: { a: take, junk: null, n: 5 }, extra: [1] }, take, "b")!;
+    expect(r.takes).toEqual({ a: take, junk: null, n: 5, b: take });
     expect(r.extra).toEqual([1]);
   });
   it("is idempotent by id", () => {
@@ -666,26 +742,33 @@ describe("withTake", () => {
     expect(once.takes).toEqual({ t1: take });
     expect(withTake(once, take, "t1")).toBeNull();
   });
+  it("replaces a damaged entry under its id rather than counting it as written", () => {
+    [null, 5, "x", [take]].forEach((d) => expect(withTake({ takes: { t1: d, a: take } }, take, "t1")!.takes).toEqual({ t1: take, a: take }));
+  });
   it("treats a non-object store as empty", () => {
     [null, "x", [1], 3, undefined].forEach((s) => expect(withTake(s, take, "t")).toEqual({ takes: { t: take } }));
   });
-  it("stores a __proto__ id as an own key, not a prototype", () => {
+  it("never sets a prototype, and leaves out a stored __proto__ take as mergeDiag does", () => {
     const r = withTake({}, take, "__proto__")!;
     expect(Object.hasOwn(r.takes!, "__proto__")).toBe(true);
     expect(Object.getPrototypeOf(r.takes)).toBe(Object.prototype);
     expect(withTake(r, take, "__proto__")).toBeNull();
-    const parsed = JSON.parse('{"takes":{"__proto__":{"a":1}},"__proto__":{"b":2}}');
+    const parsed = JSON.parse('{"takes":{"__proto__":{"a":1},"x":{"b":1}},"__proto__":{"b":2}}');
     const w = withTake(parsed, take, "z")!;
     expect(Object.getPrototypeOf(w)).toBe(Object.prototype);
+    expect(Object.getPrototypeOf(w.takes)).toBe(Object.prototype);
     expect((w as any).b).toBeUndefined();
-    expect(Object.keys(w.takes!).sort()).toEqual(["__proto__", "z"]);
+    expect(Object.keys(w.takes!).sort()).toEqual(["x", "z"]);
   });
 });
 
 describe("takeId", () => {
   it("is 10 characters of [0-9a-z]", () => {
-    [new Uint32Array(4), new Uint32Array([0xffffffff, 0xffffffff, 0xffffffff, 0xffffffff]), new Uint32Array(0), new Uint32Array(1)]
+    [new Uint32Array(4), new Uint32Array([0xffffffff, 0xffffffff, 0xffffffff, 0xffffffff]), new Uint32Array(8)]
       .forEach((w) => expect(takeId(w)).toMatch(/^[0-9a-z]{10}$/));
+  });
+  it("refuses fewer than 4 random words", () => {
+    [0, 1, 2, 3].forEach((n) => expect(() => takeId(new Uint32Array(n))).toThrow(RangeError));
   });
   it("gives distinct ids for 10,000 random inputs", () => {
     const rand = mulberry(99);
