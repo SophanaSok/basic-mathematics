@@ -28,6 +28,7 @@
   var ATTEMPTS_KEY = "bm.attempts.v1";
   var ACTIVITY_KEY = "bm.activity.v1";
   var LESSON_KEY = "bm.lesson.v1";
+  var DIAG_KEY = "bm.diag.v1";
   var GAME_KEY = "bm.game.v1";
   var RUN_KEY = "bm.run.v1";
   var PREFS_KEY = "bm.prefs.v1";
@@ -65,6 +66,8 @@
     keys: {
       progress: PROGRESS_KEY, play: PLAY_KEY, last: LAST_KEY,
       attempts: ATTEMPTS_KEY, activity: ACTIVITY_KEY, lesson: LESSON_KEY,
+      /* the placement check: synced, and not cleared by a reset (decision 0003) */
+      diag: DIAG_KEY,
       /* the game layer (assets/game.js): game is synced, run and prefs stay on this device */
       game: GAME_KEY, run: RUN_KEY, prefs: PREFS_KEY
     },
@@ -670,9 +673,10 @@
         writeStore(LESSON_KEY, {});
         writeStore(GAME_KEY, {});
         writeStore(RUN_KEY, {});
+        /* DIAG_KEY stays: a reset keeps the placement-check results (decision 0003) */
         Store.emit({ type: "reset" });
         buildHud();
-        btn.textContent = "Progress cleared";
+        btn.textContent = "Progress cleared. Placement-check results were kept.";
         btn.disabled = true;
         buildHome();
         buildCourseStats();
