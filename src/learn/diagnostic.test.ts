@@ -11,7 +11,8 @@ import type { DiagBlock, DiagKind, DiagRun, Placeable } from "../types/state.ts"
 import { BLUEPRINT, DIAG_FORM_RIGHT, DIAG_HOLD_FROM, DIAG_PASS, DIAG_SIZE } from "./constants.ts";
 import {
   COVERAGE, FORMAT, FORMS, L, PRE, START_OF, closeBy, closeOf, drawBlock, finish, finished, formatOf, isPlaceable,
-  nextBlock, nextItem, outcomeOf, placeOf, scoreBlock, statusOf, step, stripDegrees,
+  deal, newRun as freshRun, nextBlock, nextItem, outcomeOf, placeOf, readRun, runOf, scoreBlock, statusOf, step, stripDegrees,
+  takeId, withTake,
   type DiagFrom, type Make, type Outcome, type Status
 } from "./diagnostic.ts";
 
@@ -513,5 +514,203 @@ describe("the rule, regression with the Geometry hold", () => {
     const r = simulate(true, 20_000);
     expect(r.told).toBeLessThanOrEqual(0.25);
     expect(r.max).toBeLessThanOrEqual(28);
+  });
+});
+
+/* ------------------------------------------------------ the run's shell (D-9a) -- */
+
+const known = (g: string) => g !== "nope" && Object.values(FORMS).some((f) => f.some((x) => x.g === g));
+const goodRun = (): any => ({
+  id: "abcde12345", seed: 12345, from: "pre", start: "algebra-1", blueprint: BLUEPRINT, began: "2026-10-07",
+  blocks: [{ course: "algebra-1", items: [
+    { g: "poly-eval", s: 7, sec: "ch12#definition-fn", k: "right", secs: 4.5 },
+    { g: "ineq-flip", s: 9, sec: "ch03#order", k: "form", r: "rounded", u: 2 },
+    { g: "abs-solve", s: 11, sec: "ch03#absolute" }
+  ] }],
+  pending: { u: 1, r: "words" }
+});
+const withRun = (patch: (r: any) => void): unknown => { const r = goodRun(); patch(r); return r; };
+
+describe("readRun", () => {
+  it("reads a valid run back equal to its input, as a new object", () => {
+    const x = goodRun();
+    const r = readRun(x, known);
+    expect(r).toEqual(x);
+    expect(r).not.toBe(x);
+    expect(r!.blocks[0]).not.toBe(x.blocks[0]);
+  });
+  it("refuses what is not a run", () => {
+    [null, undefined, [], "x", 5, true, {}, [goodRun()]].forEach((x) => expect(readRun(x, known)).toBeNull());
+  });
+  it("refuses damaged fields", () => {
+    const bad: ((r: any) => void)[] = [
+      (r) => { r.blocks = Array.from({ length: 50 }, () => r.blocks[0]); },
+      (r) => { r.blocks[0].items = Array.from({ length: DIAG_SIZE.a1 + 1 }, () => r.blocks[0].items[0]); },
+      (r) => { r.blocks[0].items[0].g = "nope"; },
+      (r) => { r.blueprint = 0; },
+      (r) => { r.blocks.push({ course: "algebra-1", items: [] }); },
+      (r) => { r.blocks[0].course = "beyond"; },
+      (r) => { r.seed = -1; },
+      (r) => { r.seed = 2 ** 32; },
+      (r) => { r.seed = 1.5; },
+      (r) => { r.began = "yesterday"; },
+      (r) => { r.began = 20261007; },
+      (r) => { r.id = ""; },
+      (r) => { r.id = "x".repeat(65); },
+      (r) => { r.from = "toString"; },
+      (r) => { r.start = "geometry"; },
+      (r) => { r.blocks[0].items[0].s = 0; },
+      (r) => { r.blocks[0].items[0].k = "unread"; },
+      (r) => { r.blocks[0].items[0].sec = 5; },
+      (r) => { r.blocks = {}; }
+    ];
+    bad.forEach((p, i) => expect(readRun(withRun(p), known), "fixture " + i).toBeNull());
+  });
+  it("normalises pending and drops bad optional fields", () => {
+    expect(readRun(withRun((r) => { r.pending = null; }), known)!.pending).toEqual({ u: 0 });
+    expect(readRun(withRun((r) => { r.pending = { u: -1 }; }), known)!.pending).toEqual({ u: 0 });
+    expect(readRun(withRun((r) => { r.pending = { u: 3, r: 5 }; }), known)!.pending).toEqual({ u: 3 });
+    const it0 = readRun(withRun((r) => { Object.assign(r.blocks[0].items[0], { r: 3, u: 0, secs: -1, extra: 1 }); }), known)!.blocks[0].items[0];
+    expect(it0).toEqual({ g: "poly-eval", s: 7, sec: "ch12#definition-fn", k: "right" });
+  });
+  it("never leaks an own __proto__ key", () => {
+    const evil = JSON.parse('{"__proto__": {"polluted": 1}, "constructor": 1}');
+    expect(readRun(evil, known)).toBeNull();
+    const x = JSON.parse(JSON.stringify(goodRun()).replace('"id"', '"__proto__":{"polluted":1},"constructor":{"x":1},"id"'));
+    const item = JSON.parse('{"g":"poly-eval","s":7,"sec":"ch12#definition-fn","__proto__":{"polluted":1}}');
+    x.blocks[0].items.push(item);
+    const r = readRun(x, known)!;
+    expect(r).not.toBeNull();
+    expect(Object.hasOwn(r, "__proto__")).toBe(false);
+    expect(Object.hasOwn(r, "constructor")).toBe(false);
+    expect(Object.hasOwn(r.blocks[0].items[3], "__proto__")).toBe(false);
+    expect(({} as any).polluted).toBeUndefined();
+    expect(readRun(JSON.parse('{"__proto__":{"id":"a"}}'), known)).toBeNull();
+  });
+  it("never throws on random JSON-ish values, and its output reads back unchanged", () => {
+    const rand = mulberry(2026);
+    const pick = <T,>(a: T[]): T => a[Math.floor(rand() * a.length)];
+    const val = (d: number): any => {
+      const t = rand();
+      if (d > 3 || t < 0.5) return pick<any>([null, true, 0, 1, -1, 7, 2 ** 32, 1.5, "", "a", "algebra-1", "pre", "2026-10-07", "right", "poly-eval", "__proto__", BLUEPRINT, NaN, []]);
+      if (t < 0.7) return Array.from({ length: Math.floor(rand() * 5) }, () => val(d + 1));
+      const o: any = {};
+      for (let i = Math.floor(rand() * 4); i > 0; i--) Object.defineProperty(o, pick(["id", "g", "s", "k", "sec", "u", "r", "secs", "__proto__", "x"]), { value: val(d + 1), enumerable: true, writable: true, configurable: true });
+      return o;
+    };
+    // mutate a valid run so that some inputs get deep enough to pass
+    const mutate = (x: any): any => {
+      if (Array.isArray(x)) return x.map((v) => mutate(v));
+      if (x && typeof x === "object") {
+        const o: any = {};
+        Object.keys(x).forEach((k) => { if (rand() > 0.05) o[k] = rand() < 0.08 ? val(2) : mutate(x[k]); });
+        return o;
+      }
+      return rand() < 0.04 ? val(2) : x;
+    };
+    let ok = 0;
+    for (let i = 0; i < 20_000; i++) {
+      const x = i % 2 ? val(0) : mutate(goodRun());
+      const r = readRun(x, known);
+      if (r) { ok++; expect(readRun(r, known)).toEqual(r); }
+    }
+    expect(ok).toBeGreaterThan(100);
+  }, LONG);
+});
+
+describe("newRun, deal and the run end to end", () => {
+  it("starts empty at the start of the self-report", () => {
+    FROMS.forEach((f) => expect(freshRun(f, 5, "id1", "2026-10-07")).toEqual({
+      id: "id1", seed: 5, from: f, start: START_OF[f], blueprint: BLUEPRINT, began: "2026-10-07", blocks: [], pending: { u: 0 }
+    }));
+    expect(readRun(freshRun("none", 5, "id1", "2026-10-07"), known)).not.toBeNull();
+  });
+  it("deals, steps and finishes into a take, with a stub make", () => {
+    const stub: Make = (g, s) => ({ q: g + s, par: 10 + (s % 7) });
+    let run = freshRun("geo", 4242, "run1", "2026-10-07");
+    for (let guard = 0; guard < 100 && !finished(run); guard++) {
+      run = deal(run, stub, hash, rng);
+      expect(readRun(run, () => true)).not.toBeNull();
+      expect(deal(run, stub, hash, rng)).toBe(run);
+      run = step(run, { kind: "right" }, 20);
+    }
+    expect(finished(run)).toBe(true);
+    expect(deal(run, stub, hash, rng)).toBe(run);
+    expect(run.blocks.map((b) => b.course)).toEqual(["algebra-2", "geometry"]);
+    const take = finish(run, "2026-10-07", 3);
+    expect(take.band).toBe("algebra-2");
+    expect(take.all).toBe(true);
+  });
+  it("draws a block from (seed, course) alone", () => {
+    const stub: Make = (g, s) => ({ q: g + s, par: 10 });
+    const a = deal(freshRun("none", 77, "a", "2026-10-07"), stub, hash, rng);
+    expect(a.blocks).toHaveLength(1);
+    expect(a.blocks[0].items).toEqual(drawBlock("pre-algebra", 77, stub, hash, rng));
+  });
+});
+
+describe("withTake", () => {
+  const take = finish(drive(newRun("a1", 11), () => ({ kind: "right" })), "2026-10-07", 3);
+  it("keeps unknown fields and treats a non-object takes as empty", () => {
+    const r = withTake({ takes: 5, extra: 1 }, take, "t1")!;
+    expect(r.extra).toBe(1);
+    expect(r.takes).toEqual({ t1: take });
+  });
+  it("adds beside existing takes and keeps their other fields", () => {
+    const r = withTake({ takes: { a: take, junk: null }, extra: [1] }, take, "b")!;
+    expect(Object.keys(r.takes!).sort()).toEqual(["a", "b"]);
+    expect(r.extra).toEqual([1]);
+  });
+  it("is idempotent by id", () => {
+    const once = withTake(undefined, take, "t1")!;
+    expect(once.takes).toEqual({ t1: take });
+    expect(withTake(once, take, "t1")).toBeNull();
+  });
+  it("treats a non-object store as empty", () => {
+    [null, "x", [1], 3, undefined].forEach((s) => expect(withTake(s, take, "t")).toEqual({ takes: { t: take } }));
+  });
+  it("stores a __proto__ id as an own key, not a prototype", () => {
+    const r = withTake({}, take, "__proto__")!;
+    expect(Object.hasOwn(r.takes!, "__proto__")).toBe(true);
+    expect(Object.getPrototypeOf(r.takes)).toBe(Object.prototype);
+    expect(withTake(r, take, "__proto__")).toBeNull();
+    const parsed = JSON.parse('{"takes":{"__proto__":{"a":1}},"__proto__":{"b":2}}');
+    const w = withTake(parsed, take, "z")!;
+    expect(Object.getPrototypeOf(w)).toBe(Object.prototype);
+    expect((w as any).b).toBeUndefined();
+    expect(Object.keys(w.takes!).sort()).toEqual(["__proto__", "z"]);
+  });
+});
+
+describe("takeId", () => {
+  it("is 10 characters of [0-9a-z]", () => {
+    [new Uint32Array(4), new Uint32Array([0xffffffff, 0xffffffff, 0xffffffff, 0xffffffff]), new Uint32Array(0), new Uint32Array(1)]
+      .forEach((w) => expect(takeId(w)).toMatch(/^[0-9a-z]{10}$/));
+  });
+  it("gives distinct ids for 10,000 random inputs", () => {
+    const rand = mulberry(99);
+    const ids = new Set<string>();
+    for (let i = 0; i < 10_000; i++) ids.add(takeId(new Uint32Array(4).map(() => Math.floor(rand() * 2 ** 32))));
+    expect(ids.size).toBe(10_000);
+  }, LONG);
+});
+
+describe("runOf", () => {
+  const run = goodRun();
+  it("starts from {} for a string, array or null", () => {
+    ["x", [1, 2], null, undefined, 4].forEach((s) => expect(runOf(s, run)).toEqual({ diag: run }));
+  });
+  it("keeps the other keys, sets diag, and removes it on undefined", () => {
+    expect(runOf({ combo: 3, diag: "old" }, run)).toEqual({ combo: 3, diag: run });
+    expect(runOf({ combo: 3, diag: run }, undefined)).toEqual({ combo: 3 });
+    expect(Object.hasOwn(runOf({ diag: run }, undefined), "diag")).toBe(false);
+    expect(runOf("x", undefined)).toEqual({});
+  });
+  it("does not mutate its input or set a prototype from __proto__", () => {
+    const stored = JSON.parse('{"combo":1,"__proto__":{"p":1}}');
+    const out = runOf(stored, run);
+    expect(stored).not.toHaveProperty("diag");
+    expect(Object.getPrototypeOf(out)).toBe(Object.prototype);
+    expect((out as any).p).toBeUndefined();
   });
 });

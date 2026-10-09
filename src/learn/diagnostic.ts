@@ -28,11 +28,12 @@
 import { COURSES } from "../data/skills.ts";
 import type { FormReason, Verdict } from "../core/answer/types.ts";
 import type {
-  DiagBlock, DiagFrom, DiagItem, DiagKind, DiagRun, DiagRunItem, DiagTake, Placeable, SectionRef
+  DiagBlock, DiagFrom, DiagItem, DiagKind, DiagRun, DiagRunItem, DiagStore, DiagTake, Placeable, SectionRef
 } from "../types/state.ts";
 import {
   BLUEPRINT, DIAG_FORM_RIGHT, DIAG_HOLD_FROM, DIAG_PASS, DIAG_SIZE, RUSH_COUNT, RUSH_FLOOR_S, RUSH_FRACTION
 } from "./constants.ts";
+import { dayNumber } from "./recall.ts";
 
 export { BLUEPRINT };
 export type { DiagBlock, DiagFrom, DiagItem, DiagKind, DiagRun, DiagRunItem, DiagTake, DiagStore, Placeable } from "../types/state.ts";
@@ -374,4 +375,132 @@ export function finish(run: DiagRun, day: string, grader: number, parOf?: (g: st
     v: 1, day, from: run.from, start: run.start, band, ...(all ? { all } : {}), ...(close ? { close } : {}),
     blueprint: run.blueprint, grader, seed: run.seed, blocks, seeded: !rushed, ...(rushed ? { rushed: true as const } : {})
   };
+}
+
+/* ------------------------------------------------------- the run's shell, storage -- */
+
+const KINDS: readonly string[] = ["right", "form", "wrong", "skip"];
+const MAX_ID = 64, MAX_TEXT = 200;
+const SEED_MAX = 2147483646; // drawBlock's item seed is 1 + hash % 2147483646 (design 3.5)
+
+const isObj = (x: unknown): x is Record<string, unknown> => typeof x === "object" && x !== null && !Array.isArray(x);
+const own = (o: Record<string, unknown>, k: string): unknown => (Object.hasOwn(o, k) ? o[k] : undefined);
+const whole = (x: unknown, min: number, max = Number.MAX_SAFE_INTEGER): x is number =>
+  typeof x === "number" && Number.isInteger(x) && x >= min && x <= max;
+/** Sets an own property without ever touching the prototype, even for the key "__proto__". */
+function put(o: Record<string, unknown>, k: string, v: unknown): void {
+  Object.defineProperty(o, k, { value: v, enumerable: true, writable: true, configurable: true });
+}
+function copyOwn(o: unknown): Record<string, unknown> {
+  const out: Record<string, unknown> = {};
+  if (isObj(o)) for (const k of Object.keys(o)) put(out, k, o[k]);
+  return out;
+}
+
+function readItem(x: unknown, known: (g: string) => boolean): DiagRunItem | null {
+  if (!isObj(x)) return null;
+  const g = own(x, "g"), s = own(x, "s"), sec = own(x, "sec"), k = own(x, "k");
+  if (typeof g !== "string" || g.length > MAX_TEXT || !known(g)) return null;
+  if (!whole(s, 1, SEED_MAX)) return null;
+  if (typeof sec !== "string" || sec.length > MAX_TEXT) return null;
+  if (k !== undefined && !(typeof k === "string" && KINDS.includes(k))) return null;
+  const item: DiagRunItem = { g, s, sec: sec as SectionRef };
+  if (k !== undefined) item.k = k as DiagKind;
+  const r = own(x, "r"), u = own(x, "u"), secs = own(x, "secs");
+  if (typeof r === "string" && r.length <= MAX_TEXT) item.r = r;
+  if (whole(u, 1)) item.u = u;
+  if (typeof secs === "number" && Number.isFinite(secs) && secs >= 0) item.secs = secs;
+  return item;
+}
+
+/** A stored `bm.run.v1.diag` as a run, or null when any part of it is not one (threat model
+    B1). `known` says whether a generator id exists (the page passes the registry's test).
+    The result is built fresh from validated fields only; the input is never returned and no
+    prototype key is read. Never throws on JSON-parsed input, and reading its own output
+    gives it back unchanged. */
+export function readRun(x: unknown, known: (g: string) => boolean): DiagRun | null {
+  try {
+    if (!isObj(x)) return null;
+    const id = own(x, "id"), seed = own(x, "seed"), from = own(x, "from"), start = own(x, "start");
+    const began = own(x, "began"), blocks = own(x, "blocks"), pending = own(x, "pending");
+    if (typeof id !== "string" || id.length === 0 || id.length > MAX_ID) return null;
+    if (!whole(seed, 0, 4294967295)) return null;
+    if (typeof from !== "string" || !Object.hasOwn(START_OF, from)) return null;
+    if (!isPlaceable(start) || start !== START_OF[from as DiagFrom]) return null;
+    if (own(x, "blueprint") !== BLUEPRINT) return null;
+    if (typeof began !== "string" || dayNumber(began) === null) return null;
+    if (!Array.isArray(blocks) || blocks.length > L.length) return null;
+    const out: DiagRun["blocks"] = [];
+    for (const b of blocks) {
+      if (!isObj(b)) return null;
+      const course = own(b, "course"), items = own(b, "items");
+      if (!isPlaceable(course) || out.some((o) => o.course === course)) return null;
+      if (!Array.isArray(items) || items.length > DIAG_SIZE[SHORT[course]]) return null;
+      const list: DiagRunItem[] = [];
+      for (const it of items) {
+        const item = readItem(it, known);
+        if (!item) return null;
+        list.push(item);
+      }
+      out.push({ course, items: list });
+    }
+    const pend: DiagRun["pending"] = { u: 0 };
+    if (isObj(pending) && whole(own(pending, "u"), 0)) {
+      pend.u = own(pending, "u") as number;
+      const r = own(pending, "r");
+      if (typeof r === "string" && r.length <= MAX_TEXT) pend.r = r;
+    }
+    return { id, seed, from: from as DiagFrom, start, blueprint: BLUEPRINT, began, blocks: out, pending: pend };
+  } catch {
+    return null;
+  }
+}
+
+/** A run as it starts: nothing dealt, nothing pending. The page supplies the seed, id and
+    day (the id from takeId), since the core has no clock or randomness. */
+export function newRun(from: DiagFrom, seed: number, id: string, day: string): DiagRun {
+  return { id, seed, from, start: START_OF[from], blueprint: BLUEPRINT, began: day, blocks: [], pending: { u: 0 } };
+}
+
+/** The run with its next block dealt, when none is open and the walk is not over; otherwise
+    the same run. The block is drawn from (run.seed, course) alone, which is design 3.5's
+    per-block rule: the same block on any device after any reload. */
+export function deal(run: DiagRun, make: Make, hash: Hash, rng: MakeRng): DiagRun {
+  if (nextItem(run) || finished(run)) return run;
+  const course = nextBlock(statusOf(run.blocks), run.start);
+  if (!course) return run;
+  return { ...run, blocks: [...run.blocks, { course, items: drawBlock(course, run.seed, make, hash, rng) }] };
+}
+
+/** `bm.diag.v1` with a take added under `id`, or null when it already holds that id (a take
+    is written once, threat model A1). Unknown top-level fields are kept (A4); a `store` or
+    `takes` that is not an object counts as empty, and entries of `takes` that are not
+    objects are dropped. An id of "__proto__" becomes an own key. */
+export function withTake(store: unknown, take: DiagTake, id: string): DiagStore | null {
+  const old = isObj(store) ? own(store, "takes") : undefined;
+  if (isObj(old) && Object.hasOwn(old, id)) return null;
+  const takes: Record<string, unknown> = {};
+  if (isObj(old)) for (const k of Object.keys(old)) if (isObj(old[k])) put(takes, k, old[k]);
+  put(takes, id, take);
+  const out = copyOwn(store);
+  put(out, "takes", takes);
+  return out as DiagStore;
+}
+
+/** A take id from random words (the page passes crypto.getRandomValues(new Uint32Array(4))):
+    10 characters of [0-9a-z]. */
+export function takeId(rand: Uint32Array): string {
+  const n = Math.max(rand.length, 1);
+  let id = "";
+  for (let i = 0; i < 10; i++) id += (((rand[i % n] ?? 0) >>> (5 * Math.floor(i / n))) % 36).toString(36);
+  return id;
+}
+
+/** The `bm.run.v1` value to write (B4): the other own keys of `stored` kept, `diag` set to
+    `run` or removed when `run` is undefined. A string, array or null `stored` starts from {}. */
+export function runOf(stored: unknown, run: DiagRun | undefined): Record<string, unknown> {
+  const out = copyOwn(stored);
+  delete out.diag;
+  if (run !== undefined) put(out, "diag", run);
+  return out;
 }
