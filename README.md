@@ -232,6 +232,16 @@ signed-in reader is also logged (which question, right or wrong, which try — n
 typed) so the author can see which questions are too hard. The account page can download or
 delete all of it.
 
+The placement check's results (`bm.diag.v1`: the class finished last, the day, which questions
+were asked, whether each was right, whether many answers came very fast, and the suggested
+course; never what was typed, never how long an answer took) are kept through "Reset all
+progress". Without an account they are only in this browser; signed in, they are also copied to
+the account, which neither the reset nor clearing the browser's data removes, and the next
+sign-in brings them back. They are deleted with the account on the account page. Review boxes in
+`bm.game.v1` may be started from them; the reset clears those boxes but keeps the results, so the
+course may start review schedules from them again. An unfinished placement check, with how long
+each answer took, is kept in this browser only and deleted when the check ends.
+
 Answer keys live in the page source, since the grading happens in your browser. This is a course to
 learn from, not an exam — the only person you can cheat is yourself.
 
@@ -486,7 +496,7 @@ the shell writes depends on what `<body>` says:
 | --- | --- |
 | `data-depth` | how many directories deep the file is (`0` at the root, `2` for a chapter); every path the shell writes is made relative with it, and so are the links `site.js` generates |
 | `data-chapter` | the page is a chapter: kind `chapter` |
-| `data-page` | for any other page, its kind: `home` (the contents page, with the course world), `page` (prose or a form), `dashboard` (a page that `assets/insights.js` fills), `arena` |
+| `data-page` | for any other page, its kind: `home` (the contents page, with the course world), `page` (prose or a form), `dashboard` (a page that `assets/insights.js` fills), `arena`, `diagnostic` (the placement check) |
 | `data-nav` | the links of the top bar: `home` (only *How to use this*), `about` (*Contents* and *Progress*), or left out for the usual *Contents* and *How to use this* |
 
 `data-page` and `data-nav` are instructions to the shell and are not in the page a reader gets.
@@ -1033,7 +1043,8 @@ memory but keeps the site:
 | `bm.lesson.v1` | reading mode and the furthest step reached in each chapter |
 | `bm.last`, `bm.theme` | where to continue; light or dark, or nothing to match the system (this device only) |
 | `bm.game.v1` | achievements, compared solutions, recall per section, Arena bests, medals, Daily days (synced) |
-| `bm.run.v1` | the combo meter, an unfinished Arena run, the day's Arena XP counts (`arenaDay`) and the day the next-step card was hidden (`nextHide`) (this device only; cleared by reset and sign-out) |
+| `bm.diag.v1` | placement-check takes: class finished last, day, questions asked, right or wrong, whether many answers were very fast, suggested course; never typed text or timings (synced; kept through "Reset all progress"; cleared from this browser on sign-out; the account copy is removed only by Delete my account) |
+| `bm.run.v1` | the combo meter, an unfinished Arena run or placement check (with per-answer timings, deleted when the check ends), the day's Arena XP counts (`arenaDay`) and the day the next-step card was hidden (`nextHide`) (this device only; cleared by reset and sign-out) |
 | `bm.prefs.v1` | the settings sheet's and the Arena's settings: `calm` (Study mode), `sound`, `volume` (0 to 100, unset is 50), `motion` and `transparency` (`"reduce"`, unset follows the device), `panel` (`"dark"`, unset for light paper), `gfx` (`"low"`, `"mid"`, `"high"`, unset is Auto: the course world's tier), `map` (`"list"` keeps the chapter list alone), `gfxAuto` (not a setting: the tier the world's watchdog settled on, `"list"`, `"low"` or `"medium"`; cleared by a choice of `gfx` or `map`), `tempo` (this device only; survives a reset; keys the site does not know are kept; a value it does not know reads as unset) |
 | `bm.sync.v1` | with accounts on: whose progress this browser holds and the last reset it knows of |
 | `bm.sync.pending.v1` | with accounts on: progress that could not be saved when its reader signed out, kept aside per reader until they sign in here again |
