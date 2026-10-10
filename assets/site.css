@@ -1064,3 +1064,16 @@ table.owner th[aria-sort="descending"] .link::after { content: " ↓"; }
   h2 { break-after: avoid; }
   a { color: var(--text); }
 }
+
+/* the study plan (src/ui/plan.ts) on the progress page; the placement check's own page styles it in diagnostic.css */
+#plan .plan-sub { margin: 0 0 .8rem; font-size: .9rem; font-weight: 500; font-family: var(--sans); }
+.diag-plan:empty { display: none; }
+.diag-plan h4 { margin: 1.1rem 0 .4rem; font-size: 1rem; font-family: var(--sans); }
+.diag-plan h5 { margin: .7rem 0 .3rem; font-size: .9rem; font-weight: 650; color: var(--muted); font-family: var(--sans); }
+.diag-plan ul { margin: 0 0 .5rem; padding-left: 1.2rem; font-family: var(--sans); }
+.diag-plan li { margin: .25rem 0; }
+.diag-plan-first { font-weight: 650; }
+.diag-plan-group { margin: .4rem 0; }
+.diag-plan-hand { margin-top: 1rem; }
+.diag-plan-hand > summary { cursor: pointer; }
+.diag-plan-hand > summary h4 { display: inline; margin: 0; }

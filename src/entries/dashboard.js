@@ -37,4 +37,12 @@ import "../../assets/game.js";
 import "../ui/settings.ts";
 import "../../assets/config.js";
 import "../../assets/account.js";
+/* the placement check's study plan, which insights.js draws when a take exists: the pure
+   modules first, then the one that puts window.BMPlan up. Before insights.js */
+import "../data/skills.ts";
+import "../data/section-work.ts";
+import "../learn/diagnostic.ts";
+import "../learn/diag-seed.ts";
+import "../learn/plan.ts";
+import "../ui/plan.ts";
 import "../../assets/insights.js";
