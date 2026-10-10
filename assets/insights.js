@@ -176,6 +176,7 @@
   /* "Your plan", first on the page and only when a take exists: BMPlan.render leaves the
      slot empty without one, and then there is no panel at all (no invitation here; the
      check is not linked from this page). The h2 and h3 keep BMPlan's h4 heads in order. */
+  var handOpen = false;
   function planPanel() {
     var Plan = window.BMPlan;
     if (!Plan || typeof Plan.render !== "function") return;
@@ -183,6 +184,12 @@
     slot.className = "diag-plan";
     try { Plan.render(slot); } catch (e) { return; }
     if (!slot.firstChild) return;
+    /* every redraw rebuilds the plan, so "Already in hand" keeps the reader's open or shut */
+    var hand = slot.querySelector("details");
+    if (hand) {
+      hand.open = handOpen;
+      hand.addEventListener("toggle", function () { handOpen = hand.open; });
+    }
     var sec = document.createElement("section");
     sec.className = "panel";
     sec.id = "plan";
