@@ -21,3 +21,14 @@
 .diag .diag-small { color: var(--muted); font-size: .9rem; max-width: var(--measure); }
 .diag .diag-status:empty, .diag .diag-notice:empty { margin: 0; }
 .diag .btn { margin-right: .5rem; margin-block: .25rem; }
+
+/* the result and the return view (diag-result.ts) */
+.diag .diag-table { border-collapse: collapse; width: 100%; margin-block: 1rem; }
+.diag .diag-table th, .diag .diag-table td { text-align: left; vertical-align: top; padding: .5rem .6rem; border: 1px solid var(--border-strong); }
+.diag .diag-table thead th { background: var(--surface); }
+.diag .diag-table p { margin: 0 0 .35rem; }
+.diag .diag-answers { overflow-x: auto; max-width: 100%; }
+.diag summary { cursor: pointer; font-weight: 700; }
+.diag .diag-typed { overflow-wrap: anywhere; }
+.diag .diag-plan:empty { display: none; }
+.diag .diag-note { max-width: var(--measure); }

@@ -31,7 +31,8 @@ const RUN_KEY = "bm.run.v1", DIAG_KEY = "bm.diag.v1", GAME_KEY = "bm.game.v1";
 const SAVED = "Your place is saved. You can stop any time.";
 const UNSAVED = "This browser isn't saving right now, so finish in one sitting.";
 const TAKE_UNSAVED = "This browser isn't saving right now, so this result may not be kept.";
-const RETURN_LINE = "You've finished this check.";
+/* the return view (D-10b): its own section, with "Take it again" to the Prep page */
+const RETURN_LINK = '#diag-return a[href="prep.html#diagnostic"]';
 const CHECKING = "Checking your saved results…";
 const NO_ACCOUNT = "We couldn't reach your account just now, so this uses what this browser has saved.";
 const MOVED = "This check continued in another tab.";
@@ -510,8 +511,8 @@ module.exports = {
       await open(page);
       await plantTake(page, "earlier1");
       await reload(page);
-      check(p, await shown(page, "diag-done"), "the return stub is not showing");
-      check(p, (await textOf(page, "diag-done-line")) === RETURN_LINE, "line: " + (await textOf(page, "diag-done-line")));
+      check(p, await shown(page, "diag-return"), "the return view is not showing");
+      check(p, (await page.locator(RETURN_LINK).count()) === 1, "no Take it again link to prep.html#diagnostic");
       check(p, !(await shown(page, "diag-intro")), "the intro is showing");
       check(p, (await runNow(page)) === null, "a run was written");
       check(p, !/Prep/.test(await page.evaluate(() => document.querySelector("main").textContent)), "Prep content on the return view");
@@ -577,8 +578,8 @@ module.exports = {
     }, Object.assign(async (page) => {
       const p = [];
       await page.goto(server.url + PAGE, { waitUntil: "load" });
-      await page.waitForFunction(() => !document.getElementById("diag-done").hidden, null, { polling: 100 });
-      check(p, (await textOf(page, "diag-done-line")) === RETURN_LINE, "line: " + (await textOf(page, "diag-done-line")));
+      await page.waitForFunction(() => !document.getElementById("diag-return").hidden, null, { polling: 100 });
+      check(p, (await page.locator(RETURN_LINK).count()) === 1, "no Take it again link to prep.html#diagnostic");
       check(p, (await textOf(page, "diag-notice")) === "", "notice: " + (await textOf(page, "diag-notice")));
       check(p, (await runNow(page)) === null, "a run was written");
       check(p, (await takes(page)).some((t) => t.band === "geometry"), "the account's take did not reach this browser");
@@ -621,7 +622,7 @@ module.exports = {
       await walk(page, skip);
       await overflow("done"); await axe("done");
       await reload(page);
-      check(p, (await textOf(page, "diag-done-line")) === RETURN_LINE, "the return stub is not showing");
+      check(p, await shown(page, "diag-return"), "the return view is not showing");
       await overflow("return"); await axe("return");
       return p;
     }

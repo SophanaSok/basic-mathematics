@@ -81,10 +81,13 @@
       </form>
       <p id="diag-saved" class="diag-small">Your place is saved. You can stop any time.</p>
     </section>
-    <section id="diag-done" hidden aria-label="All done">
-      <h2 id="diag-done-head" tabindex="-1">All done</h2>
-      <p id="diag-done-line"></p>
+    <section id="diag-done" hidden aria-label="Your result">
+      <div id="diag-result"></div>
+      <p id="diag-done-line" class="diag-small"></p>
       <p><button type="button" id="diag-done-over" class="btn ghost" hidden>Start over</button></p>
+    </section>
+    <section id="diag-return" hidden aria-label="Your starting point">
+      <div id="diag-return-view"></div>
     </section>
     <section id="diag-gone" hidden aria-label="Not available">
       <p id="diag-gone-line" class="diag-note"></p>

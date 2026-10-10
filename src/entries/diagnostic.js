@@ -48,3 +48,5 @@ import "../data/skills.ts";
 import "../learn/diagnostic.ts";
 import "../learn/diag-seed.ts";
 import "../ui/diagnostic.ts";
+/* the result and the return view, which the page above draws with */
+import "../ui/diag-result.ts";
