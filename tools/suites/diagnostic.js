@@ -15,7 +15,8 @@
        return stub (D1), the signed-in wait (D2), a take written in another tab mid-run (D3),
        the run cleared in another tab (E1);
      - D-13: the result's words and the answer list after a reload, the return view and Prep,
-       the gate after it opened, the signed-in gate (?again, `off`, status `error`, createClient
+       the gate after it opened (and a reset in this tab mid-run, a draw that throws after the
+       gate), the signed-in gate (?again, `off`, status `error`, createClient
        throwing, no takes, a pull after the 8 s wait) and hostile takes in the return view. The
        plan on the progress page is the plan suite (tools/suites/plan.js).
    Determinism: a run is pre-written to bm.run.v1.diag with page.evaluate and the page loaded
@@ -41,6 +42,7 @@ const CHECKING = "Checking your saved results…";
 const NO_ACCOUNT = "We couldn't reach your account just now, so this uses what this browser has saved.";
 const MOVED = "This check continued in another tab.";
 const CHANGED_TAB = "The saved check changed in another tab.";
+const CHANGED = "The saved check changed.";
 const EMPTY = "Type an answer, then press Submit.";
 const ALL_LINE = "You did well on every course we asked about. Your plan starts with review and then the chapters that go further.";
 const RUSHED_LINE = "Some answers came very fast. If any were guesses, this suggestion may be too low. Your review schedule wasn't changed.";
@@ -51,7 +53,8 @@ const GEOMETRY_LINE = "Geometry here meant coordinates, lines, circles and sets.
 
 /* a stand-in for supabase-js: no network; a session if window.__sdk.session is set; a stored
    row for the account if window.__sdk.row is set; a getSession that never answers if
-   window.__sdk.never is set; every query answering with an error if window.__sdk.fail is set;
+   window.__sdk.never is set; every query (not getSession, so the session still resolves and the
+   pull is what fails) answering with an error if window.__sdk.fail is set;
    createClient throwing if window.__sdk.boom is set; every query held until window.__release()
    is called if window.__sdk.hold is set (a pull that comes late) */
 const SDK = function () {
@@ -76,7 +79,7 @@ const SDK = function () {
         rpc() { return Promise.resolve(answer(null)); },
         auth: {
           onAuthStateChange() { return { data: { subscription: { unsubscribe() {} } } }; },
-          getSession() { return cfg.never ? new Promise(() => {}) : Promise.resolve(answer({ session: cfg.session || null })); },
+          getSession() { return cfg.never ? new Promise(() => {}) : Promise.resolve({ data: { session: cfg.session || null }, error: null }); },
           signOut() { return Promise.resolve({ error: null }); }
         }
       };
@@ -498,11 +501,11 @@ module.exports = {
     await kase("reload mid-block resumes the same question text; Start over deals new text", {}, async (page) => {
       const p = [];
       await begin(page, "a2");
-      const q1 = await textOf(page, "diag-prompt");
       await page.locator("#diag-skip").click();
       await page.waitForFunction(() => document.getElementById("diag-q-head").textContent === "Question 2");
       const q2 = await textOf(page, "diag-prompt");
-      const seed = (await runNow(page)).seed;
+      const before = await runNow(page);
+      const seed = before.seed;
       await reload(page);
       await page.waitForFunction(() => !document.getElementById("diag-resume").hidden);
       check(p, /answered 1 question\./.test(await textOf(page, "diag-resume-line")), "resume line: " + (await textOf(page, "diag-resume-line")));
@@ -518,7 +521,10 @@ module.exports = {
       await page.waitForFunction(() => !document.getElementById("diag-question").hidden);
       const d = await runNow(page);
       check(p, d && d.seed !== seed, "the new run has the old seed");
-      check(p, (await textOf(page, "diag-prompt")) !== q1, "Start over dealt the same question text");
+      /* new questions, judged by the dealt item seeds: two seeds can deal the same first
+         prompt text now and then, so the text alone would fail by chance */
+      const seeds = (r) => JSON.stringify(r.blocks[0].items.map((i) => i.s));
+      check(p, d && d.id !== before.id && seeds(d) !== seeds(before), "Start over dealt the same questions");
       return p;
     });
 
@@ -940,26 +946,40 @@ module.exports = {
       return p;
     }, { label: "gate: ?again with a stored session skips the account wait (no CHECKING, Start offered at once)" }));
 
+    /* The next three end the wait without the 8 s timer: Playwright's clock is installed and
+       paused before the page loads (install alone lets time flow on, and the timer would fire
+       within the timeout), so that timer cannot fire and only the branch under test can give
+       the notice (the generous timeout is for a slow machine, not for the timer) */
+    const freeze = async (page) => { const t = Date.now(); await page.clock.install({ time: t }); await page.clock.pauseAt(t + 1000); };
+    const noticeWithoutTimer = (page) => page.waitForFunction((line) => document.getElementById("diag-notice").textContent === line, NO_ACCOUNT, { polling: 100, timeout: 20000 });
+
     await signedIn({ token: true }, Object.assign(async (page) => {
       const p = [];
+      await freeze(page);
       await page.goto(server.url + PAGE, { waitUntil: "load" });
-      await page.waitForFunction((line) => document.getElementById("diag-notice").textContent === line, NO_ACCOUNT, { timeout: 5000 });
+      await noticeWithoutTimer(page);
       check(p, await introOffered(page), "the intro with Start is not showing");
       return p;
     }, { label: "gate: `off` with a kept session and no user (an expired token, offline) shows the couldn't-reach notice without the 8 s wait" }));
 
+    /* the session resolves (a user, so not the `off` branch above); the pull's query answers
+       with an error, so sync() throws and the status is `error` */
     await signedIn({ session: SESSION, fail: true }, Object.assign(async (page) => {
       const p = [];
+      await freeze(page);
       await page.goto(server.url + PAGE, { waitUntil: "load" });
-      await page.waitForFunction((line) => document.getElementById("diag-notice").textContent === line, NO_ACCOUNT, { timeout: 5000 });
+      await noticeWithoutTimer(page);
+      const state = await page.evaluate(() => ({ state: window.BMAccount.status().state, user: !!window.BMAccount.user() }));
+      check(p, state.state === "error" && state.user, "not the `error` branch: " + JSON.stringify(state));
       check(p, await introOffered(page), "the intro with Start is not showing");
       return p;
     }, { label: "gate: status `error` (the account answers with an error) shows the notice without the 8 s wait" }));
 
     await signedIn({ session: SESSION, boom: true }, Object.assign(async (page) => {
       const p = [];
+      await freeze(page);
       await page.goto(server.url + PAGE, { waitUntil: "load" });
-      await page.waitForFunction((line) => document.getElementById("diag-notice").textContent === line, NO_ACCOUNT, { timeout: 5000 });
+      await noticeWithoutTimer(page);
       check(p, await introOffered(page), "the intro with Start is not showing");
       return p;
     }, { label: "gate: createClient throws, so ready() rejects: the notice, the intro with Start" }));
@@ -1116,7 +1136,8 @@ module.exports = {
       await reload(page);
       await page.evaluate(() => { const a = document.querySelector('#diag-return a[href="prep.html#diagnostic"]'); window.__link = a; a.focus(); });
       await page.evaluate(() => window.BMStore.emit({ type: "sync" }));
-      /* a no-op sync is answered when a marker sync after it is: both run in order */
+      /* BMStore.emit calls its listeners synchronously, so the page has answered the sync by the
+         time this evaluate returns: no wait is needed before looking */
       const kept = await page.evaluate(() => ({ same: document.activeElement === window.__link, linked: document.body.contains(window.__link) }));
       check(p, kept.same && kept.linked, "a sync that changed nothing moved the focus or redrew the view: " + JSON.stringify(kept));
       await page.evaluate((t) => {
@@ -1150,7 +1171,6 @@ module.exports = {
       const other = await context.newPage();
       await other.goto(server.url + PAGE, { waitUntil: "load" });
       await h.settle(other);
-      await listen(page);
       await other.evaluate((id) => {
         const d = { takes: {} };
         d.takes[id] = { v: 1, day: "2026-10-07", from: "none", start: "pre-algebra", band: "pre-algebra", blueprint: 1, grader: 3, seed: 7, blocks: [], seeded: true };
@@ -1179,6 +1199,46 @@ module.exports = {
       });
       await page.waitForFunction(() => !document.getElementById("diag-intro").hidden);
       check(p, (await textOf(page, "diag-notice")) === CHANGED_TAB, "notice: " + (await textOf(page, "diag-notice")));
+      check(p, !(await shown(page, "diag-return")), "the return view is showing");
+      return p;
+    });
+
+    /* a reset in this tab (site.js's About button, account.js's writeLocal) empties bm.run.v1
+       with no storage event; the page hears only the `reset` change on BMStore */
+    await kase("gate: a reset in this tab empties the run mid-question: the intro with \"changed\"", {}, async (page) => {
+      const p = [];
+      await begin(page, "unsure");
+      check(p, await shown(page, "diag-question"), "no question showing before the reset");
+      await page.evaluate(() => {
+        const all = JSON.parse(localStorage.getItem("bm.run.v1"));
+        delete all.diag;
+        localStorage.setItem("bm.run.v1", JSON.stringify(all));
+        window.BMStore.emit({ type: "reset" });
+      });
+      /* emit is synchronous: the page has answered by now */
+      check(p, await shown(page, "diag-intro") && !(await shown(page, "diag-question")), "the intro is not showing after the reset");
+      check(p, (await textOf(page, "diag-notice")) === CHANGED, "notice: " + (await textOf(page, "diag-notice")));
+      check(p, (await runNow(page)) === null, "the dropped run was written back");
+      return p;
+    });
+
+    /* gate().then(...).catch: the draw after the gate throws. Nothing in renderReturn throws on
+       its own (BMPlan.render is caught inside it), so an init script makes the first DOM call on
+       the return view's box throw; the catch must still offer Start, and nothing goes uncaught */
+    await kase("gate: the return view's draw throws after the gate: the intro with Start offered, no page error", {}, async (page, context) => {
+      const p = [];
+      await context.addInitScript(() => {
+        const real = Element.prototype.replaceChildren;
+        Element.prototype.replaceChildren = function (...nodes) {
+          if (this.id === "diag-return-view") { window.__drawThrew = true; throw new Error("stand-in draw failure"); }
+          return real.apply(this, nodes);
+        };
+      });
+      await open(page);
+      await putDiag(page, { aaa1: takeOf() });
+      await page.reload({ waitUntil: "load" });
+      await page.waitForFunction(() => !document.getElementById("diag-intro").hidden && !document.getElementById("diag-start").hidden, null, { timeout: 5000 });
+      check(p, await page.evaluate(() => window.__drawThrew === true), "the stand-in did not throw (the case tests nothing)");
       check(p, !(await shown(page, "diag-return")), "the return view is showing");
       return p;
     });
