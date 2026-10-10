@@ -76,6 +76,8 @@ interface Window {
   /** src/ui/core.ts: the sync merge (src/sync/merge.ts), for assets/account.js, which
       cannot import it; typed */
   BMMerge: typeof import("../ui/core.ts").merge;
+  /** src/ui/diagnostic.ts: the placement check page (gate, screen), a console and test handle */
+  BMDiag: typeof import("../ui/diagnostic.ts").api;
   /** src/ui/next.ts: the "next best step" card (render, items, hide), a console and test handle */
   BMNext: typeof import("../ui/next.ts").api;
   /** src/ui/math-names.ts: names the buttons, labels, table headers and headings whose

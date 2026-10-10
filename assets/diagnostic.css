@@ -6,3 +6,18 @@
 
 .diag { max-width: 40rem; font-family: var(--sans); }
 .diag .lede { max-width: var(--measure); }
+
+.diag [hidden] { display: none; }
+.diag section { margin-block: 1rem; }
+.diag fieldset { border: 0; padding: 0; margin: 1rem 0; }
+.diag legend { font-weight: 700; padding: 0; margin-bottom: .4rem; }
+.diag fieldset label { display: block; padding-block: .3rem; }
+.diag label[for="diag-input"] { display: block; font-weight: 700; margin-bottom: .3rem; }
+.diag input[type="text"] {
+  box-sizing: border-box; width: 100%; max-width: 24rem; font: inherit; padding: .55rem .7rem;
+  color: var(--text); background: var(--surface); border: 2px solid var(--border-strong); border-radius: var(--radius-xs);
+}
+.diag .diag-prompt { overflow-x: auto; max-width: 100%; }
+.diag .diag-small { color: var(--muted); font-size: .9rem; max-width: var(--measure); }
+.diag .diag-status:empty, .diag .diag-notice:empty { margin: 0; }
+.diag .btn { margin-right: .5rem; margin-block: .25rem; }
