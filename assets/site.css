@@ -1077,3 +1077,4 @@ table.owner th[aria-sort="descending"] .link::after { content: " ↓"; }
 .diag-plan-hand { margin-top: 1rem; }
 .diag-plan-hand > summary { cursor: pointer; }
 .diag-plan-hand > summary + h4 { margin-top: .8rem; }
+.diag-plan h4 + .diag-plan-hand { margin-top: 0; }

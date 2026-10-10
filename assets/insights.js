@@ -285,7 +285,7 @@
     /* a take finished in another tab: the placement check writes bm.diag.v1 there */
     window.addEventListener("storage", function (e) {
       if (e.storageArea !== window.localStorage) return;
-      if (e.key === "bm.diag.v1" || e.key === null) drawProgress();
+      if (e.key === ((window.BMStore && window.BMStore.keys.diag) || "bm.diag.v1") || e.key === null) drawProgress();
     });
   }
 
