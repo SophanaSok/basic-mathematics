@@ -29,7 +29,7 @@
         This isn't a grade. It doesn't predict an SAT, ACT or placement-test score. It only tells
         you where to begin in this course.
       </p>
-      <form id="diag-start" class="diag-form" novalidate>
+      <form id="diag-start" class="diag-form" novalidate hidden>
         <fieldset id="diag-from" aria-describedby="diag-intro-status">
           <legend>Which math class did you finish most recently?</legend>
           <label><input type="radio" name="from" value="none"> I haven't finished pre-algebra yet</label>
@@ -71,7 +71,7 @@
       <div id="diag-prompt" class="diag-prompt"></div>
       <form id="diag-answer" class="diag-form" novalidate>
         <label for="diag-input">Your answer</label>
-        <input id="diag-input" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" aria-describedby="diag-format diag-unread">
+        <input id="diag-input" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" aria-describedby="diag-prompt diag-format diag-unread">
         <p id="diag-format" class="diag-small"></p>
         <p id="diag-unread" class="diag-status" role="status"></p>
         <p>
@@ -84,6 +84,7 @@
     <section id="diag-done" hidden aria-label="All done">
       <h2 id="diag-done-head" tabindex="-1">All done</h2>
       <p id="diag-done-line"></p>
+      <p><button type="button" id="diag-done-over" class="btn ghost" hidden>Start over</button></p>
     </section>
     <section id="diag-gone" hidden aria-label="Not available">
       <p id="diag-gone-line" class="diag-note"></p>

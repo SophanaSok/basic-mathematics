@@ -33,7 +33,11 @@ const RETRY = " Try again, or press I haven't learned this yet.";
 const STUCK = " If you're stuck, press I haven't learned this yet.";
 const SAVED = "Your place is saved. You can stop any time.";
 const UNSAVED = "This browser isn't saving right now, so finish in one sitting.";
-const TAKE_UNSAVED = "This browser isn't saving right now, so this result won't be here next time. You may want to write down your starting point.";
+const DONE_LINE = "You've finished the questions.";
+const TAKE_UNSAVED = "This browser isn't saving right now, so this result may not be kept.";
+const MOVED = "This check continued in another tab.";
+const CHANGED_TAB = "The saved check changed in another tab.";
+const CHANGED = "The saved check changed.";
 const NO_GEN = "The problem generators did not load, so the check cannot start. Reload the page to try again.";
 const NO_MAKE = "The check could not make a question. Reload the page to try again.";
 
@@ -48,6 +52,12 @@ let shownAt = 0;
 /* what was typed on each answered question and how the grader read it (F1): memory only,
    never stored or logged, emptied on start over and whenever a run ends */
 let kept: { g: string; s: number; text: string; read: unknown }[] = [];
+/* the canonical form of the stored run as this page last wrote or read it: a sync, a reset
+   or a clear() that leaves it as it was changes nothing here (E1, §5.1) */
+let seen = "null";
+/* bumped on every change to the unread line, so a line set a frame late never lands on a
+   newer one (see unreadLine) */
+let unreadSeq = 0;
 /* the par of each generator the page has made, for the take's rush count (G1) */
 const pars = new Map<string, number>();
 
@@ -63,10 +73,28 @@ function show(next: Screen): void {
 }
 function notice(line: string): void { text("diag-notice", line); }
 function focusOn(id: string): void { const el = $(id); if (el) el.focus(); }
+function focusFirstChoice(): void {
+  const first = document.querySelector<HTMLInputElement>('#diag-from input[name="from"]');
+  if (first) first.focus();
+}
+
+/** The line under the answer box. It is a live region: it is emptied now and filled on the
+    next frame, so the same line said twice is announced twice. */
+function unreadLine(line: string): void {
+  const el = $("diag-unread");
+  const seq = ++unreadSeq;
+  if (!el) return;
+  el.textContent = "";
+  if (!line) return;
+  const put = (): void => { if (seq === unreadSeq) el.textContent = line; };
+  if (typeof window.requestAnimationFrame === "function") window.requestAnimationFrame(put);
+  else put();
+}
 
 /* a page that has not the globals it needs (B2): a note, never a blank page */
 function gone(line: string): void {
   run = null;
+  kept = [];
   text("diag-gone-line", line);
   show("gone");
 }
@@ -80,11 +108,17 @@ function haveGlobals(): boolean {
   return !!(w.BMStore && w.BMSite && w.BMCore && w.BMGen && typeof w.BMGen.make === "function" && typeof w.BMGen.get === "function");
 }
 
+/** bm.run.v1's `diag` as stored, unchecked: for comparing only, never for use. */
+function rawDiag(): unknown {
+  const all = window.BMStore.read(window.BMStore.keys.run, {});
+  return isObj(all) && Object.hasOwn(all, "diag") ? all.diag : undefined;
+}
+
 /** The stored run, or null: read only through readRun (B1), with the generator registry as
     the test of a known generator. `damaged` says a value was there that was not a run. */
 function storedRun(): { run: DiagRun | null; damaged: boolean } {
-  const all = window.BMStore.read(window.BMStore.keys.run, {});
-  const raw = isObj(all) && Object.hasOwn(all, "diag") ? all.diag : undefined;
+  const raw = rawDiag();
+  seen = window.BMMerge.canon(raw ?? null);
   if (raw === undefined || raw === null) return { run: null, damaged: false };
   const r = readRun(raw, (g) => !!window.BMGen?.get(g));
   return { run: r, damaged: r === null };
@@ -95,7 +129,8 @@ function storedRun(): { run: DiagRun | null; damaged: boolean } {
 function persist(next: DiagRun | undefined): boolean {
   const S = window.BMStore;
   const ok = !!S.write(S.keys.run, runOf(S.read(S.keys.run, {}), next), true);
-  if (!ok && next !== undefined) unsaved = true;
+  if (ok) seen = window.BMMerge.canon(next ?? null);
+  else if (next !== undefined) unsaved = true;
   return ok;
 }
 
@@ -149,7 +184,7 @@ function showQuestion(r: DiagRun, moveFocus: boolean): void {
     input.placeholder = typeof prob.placeholder === "string" ? prob.placeholder : "your answer";
   }
   text("diag-format", formatOf(at.item.g, prob.type) || "");
-  text("diag-unread", "");
+  unreadLine("");
   paintSaved();
   show("question");
   shownAt = performance.now();
@@ -174,7 +209,7 @@ function answer(skip: boolean): void {
   if (!at) return;
   const input = $<HTMLInputElement>("diag-input");
   const given = input ? input.value : "";
-  if (!skip && given.trim() === "") { text("diag-unread", EMPTY_LINE); return; }
+  if (!skip && given.trim() === "") { unreadLine(EMPTY_LINE); return; }
   const prob = made(at.item.g, at.item.s);
   if (!prob) { gone(NO_MAKE); return; }
 
@@ -189,6 +224,9 @@ function answer(skip: boolean): void {
     }
     outcome = outcomeOf(v);
     read = (v as { read?: unknown }).read ?? null;
+    /* a box the grader read as empty (all of it stripped, a lone °) is the empty box: the
+       same line, and nothing counted or written */
+    if (outcome.kind === "unread" && (!outcome.reason || outcome.reason === "empty")) { unreadLine(EMPTY_LINE); return; }
   }
 
   const secs = (performance.now() - shownAt) / 1000;
@@ -200,11 +238,8 @@ function answer(skip: boolean): void {
 
   if (outcome.kind === "unread") {
     /* decided from the typed text alone: nothing is used up, and the box keeps its text */
-    const reason = outcome.reason;
-    const base = reason && reason !== "empty"
-      ? window.BMCore.messages.unreadMessage(reason as UnreadReason, DIAG_Q4)
-      : EMPTY_LINE;
-    text("diag-unread", base + RETRY + (after.pending.u >= DIAG_UNREAD_HINT ? STUCK : ""));
+    const base = window.BMCore.messages.unreadMessage(outcome.reason as UnreadReason, DIAG_Q4);
+    unreadLine(base + RETRY + (after.pending.u >= DIAG_UNREAD_HINT ? STUCK : ""));
     paintSaved();
     return;
   }
@@ -236,8 +271,9 @@ function seed(take: DiagTake): void {
 /** The finish (A1 to A3): the take is built, added to a fresh read of bm.diag.v1 by run id,
     and only if that write returned true are the boxes seeded and the run cleared. A take
     already under this id is shown and nothing is written or seeded. A failed take write
-    keeps the run, so the next load finishes it again. */
-function finishRun(r: DiagRun): void {
+    keeps the run, so the next load finishes it again, and offers Start over so that is not a
+    dead end. `keepNotice` is for a finish another tab caused: its notice stays. */
+function finishRun(r: DiagRun, keepNotice = false): void {
   const S = window.BMStore;
   let take: DiagTake;
   try {
@@ -259,11 +295,11 @@ function finishRun(r: DiagRun): void {
   }
   kept = [];
   run = saved ? null : r;
-  text("diag-done-line", saved
-    ? "You answered all the questions. Your answers are saved in this browser."
-    : TAKE_UNSAVED);
+  text("diag-done-line", saved ? DONE_LINE : TAKE_UNSAVED);
+  const over = $("diag-done-over");
+  if (over) over.hidden = saved;
   show("done");
-  notice("");
+  if (!keepNotice) notice("");
   focusOn("diag-done-head");
 }
 
@@ -294,8 +330,7 @@ function start(): void {
   const from = picked ? picked.value : "";
   if (!Object.hasOwn(START_OF, from)) {
     text("diag-intro-status", "Choose one answer to start.");
-    const first = document.querySelector<HTMLInputElement>('#diag-from input[name="from"]');
-    if (first) first.focus();
+    focusFirstChoice();
     return;
   }
   text("diag-intro-status", "");
@@ -331,7 +366,7 @@ function startOver(): void {
   persist(undefined);
   notice("");
   showIntro();
-  focusOn("diag-from");
+  focusFirstChoice();
 }
 
 /* ------------------------------------------------------------ other tabs (E1) -- */
@@ -346,22 +381,14 @@ function parse(raw: string | null): Record<string, unknown> {
   }
 }
 
-/** A `storage` event: only a change to bm.run.v1 (or a clear) that changes `diag` matters;
-    the Arena's and the game's writes to the same key do not. Then the stored run is adopted
-    through readRun, never the memory copy. Events on bm.diag.v1 are ignored (D3), and a
-    take that goes missing is not rewritten (A6). */
-function onStorage(e: StorageEvent): void {
-  const S = window.BMStore;
-  if (e.key !== null && e.key !== S.keys.run) return;
-  if (screen === "done" || screen === "gone") return;
-  const was = e.key === null ? run : parse(e.oldValue).diag;
-  const now = e.key === null ? undefined : parse(e.newValue).diag;
-  const canon = window.BMMerge.canon;
-  if (canon(was ?? null) === canon(now ?? null)) return;
+/** The stored run changed under this page: adopted through readRun, never the memory copy,
+    or, when it is gone, the intro with `goneLine`. */
+function elsewhere(goneLine: string): void {
   const { run: stored, damaged } = storedRun();
   if (stored) {
-    notice("This check continued in another tab.");
-    if (finished(stored)) { finishRun(stored); return; }
+    if (!run || run.id !== stored.id) kept = [];
+    notice(MOVED);
+    if (finished(stored)) { finishRun(stored, true); return; }
     if (screen === "question") proceed(stored, false);
     else showResume(stored);
     return;
@@ -370,13 +397,49 @@ function onStorage(e: StorageEvent): void {
   const had = run !== null;
   kept = [];
   showIntro();
-  notice(had ? "This check continued in another tab." : "");
+  notice(had ? goneLine : "");
+}
+
+/** Whether `diag` as stored now is what this page last wrote or read, or what it holds. */
+function unchanged(): boolean {
+  const canon = window.BMMerge.canon;
+  const now = canon(rawDiag() ?? null);
+  return now === seen || now === canon(run ?? null);
+}
+
+/** A `storage` event: only a change to bm.run.v1 in localStorage (or a clear) that changes
+    `diag` matters; the Arena's and the game's writes to the same key do not. Events on
+    bm.diag.v1 are ignored (D3), and a take that goes missing is not rewritten (A6). */
+function onStorage(e: StorageEvent): void {
+  const S = window.BMStore;
+  if (e.storageArea !== window.localStorage) return;
+  if (e.key !== null && e.key !== S.keys.run) return;
+  if (screen === "done" || screen === "gone") return;
+  if (e.key === null) {
+    if (unchanged()) return;
+  } else {
+    const canon = window.BMMerge.canon;
+    if (canon(parse(e.oldValue).diag ?? null) === canon(parse(e.newValue).diag ?? null)) return;
+  }
+  elsewhere(CHANGED_TAB);
+}
+
+/** A sync or a reset in this tab (§5.1): account.js's writeLocal can empty bm.run.v1 with no
+    storage event, and the next write must not put the dropped run back. */
+function onChange(c: unknown): void {
+  if (!isObj(c) || (c.type !== "sync" && c.type !== "reset")) return;
+  if (screen === "done" || screen === "gone") return;
+  if (unchanged()) return;
+  elsewhere(CHANGED);
 }
 
 /* -------------------------------------------------------------------- boot -- */
 
 function load(): void {
   if (!haveGlobals()) { gone(NO_GEN); return; }
+  /* the Start form is hidden in the HTML, so a page whose script never ran offers nothing */
+  const form = $("diag-start");
+  if (form) form.hidden = false;
   const { run: stored, damaged } = storedRun();
   if (damaged) persist(undefined);
   if (!stored) { gate(); showIntro(); return; }
@@ -391,7 +454,9 @@ function bind(): void {
   $("diag-skip")?.addEventListener("click", () => answer(true));
   $("diag-keep")?.addEventListener("click", () => { if (run) { notice(""); proceed(run, true); } });
   $("diag-over")?.addEventListener("click", startOver);
+  $("diag-done-over")?.addEventListener("click", startOver);
   window.addEventListener("storage", onStorage);
+  if (window.BMStore && typeof window.BMStore.on === "function") window.BMStore.on(onChange);
 }
 
 export const api = { gate, screen: (): Screen => screen };
