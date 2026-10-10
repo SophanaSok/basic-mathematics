@@ -1076,4 +1076,4 @@ table.owner th[aria-sort="descending"] .link::after { content: " ↓"; }
 .diag-plan-group { margin: .4rem 0; }
 .diag-plan-hand { margin-top: 1rem; }
 .diag-plan-hand > summary { cursor: pointer; }
-.diag-plan-hand > summary h4 { display: inline; margin: 0; }
+.diag-plan-hand > summary + h4 { margin-top: .8rem; }
