@@ -50,3 +50,8 @@ import "../learn/diag-seed.ts";
 import "../ui/diagnostic.ts";
 /* the result and the return view, which the page above draws with */
 import "../ui/diag-result.ts";
+/* the study plan the result and the return view draw: what it reads, the pure rules, then the
+   installer */
+import "../data/section-work.ts";
+import "../learn/plan.ts";
+import "../ui/plan.ts";

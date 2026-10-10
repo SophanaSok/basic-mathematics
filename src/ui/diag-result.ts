@@ -12,7 +12,7 @@
      are shown as textContent, in a node renderMath never sees. renderMath runs only on nodes
      that hold a generator's own text (a question, an answer, a worked step).
    - Takes are read through latestTake and takesOf only (src/learn/diag-seed.ts).
-   - The plan (D-12) has an empty slot, marked below, and no text of its own. */
+   - The plan (src/ui/plan.ts) fills the slot marked below; this file adds only its heading. */
 
 import { formMessage } from "../core/answer/messages.ts";
 import type { FormReason } from "../core/answer/types.ts";
@@ -198,11 +198,14 @@ function lines(v: View, live: boolean): HTMLElement[] {
   return out;
 }
 
-/** The plan goes here (D-12: src/ui/plan.ts fills it). Empty on purpose: no text, no heading. */
-function planSlot(): HTMLElement {
+/** The plan goes here (src/ui/plan.ts fills it), built from the take this view draws, so a
+    take that did not save gets its own plan. No plan, no heading: the slot stays empty. */
+function planSlot(take: unknown): HTMLElement {
   const slot = node("div", undefined, "diag-plan");
   slot.id = "diag-plan";
   slot.setAttribute("data-slot", "plan");
+  try { window.BMPlan?.render(slot, take); } catch { slot.replaceChildren(); }
+  if (slot.childNodes.length) slot.insertBefore(node("h3", "Your plan"), slot.firstChild);
   return slot;
 }
 
@@ -299,7 +302,7 @@ export function renderResult(into: HTMLElement, take: unknown, live: readonly Li
   into.appendChild(table(v));
   into.appendChild(node("p", NOTE, "diag-small"));
   into.appendChild(coverage(v));
-  into.appendChild(planSlot());
+  into.appendChild(planSlot(take));
   const list = live ? answers(live) : null;
   if (list) into.appendChild(list);
   return true;
@@ -345,7 +348,7 @@ export function renderReturn(into: HTMLElement, diag: unknown, opts: ResultOptio
   into.appendChild(table(v));
   into.appendChild(node("p", NOTE, "diag-small"));
   into.appendChild(coverage(v));
-  into.appendChild(planSlot());
+  into.appendChild(planSlot(latest));
   const before = earlierOf(diag, latest).map((t) => {
     const band = isPlaceable(t.band) ? NAME[t.band] : null;
     if (!band) return null;

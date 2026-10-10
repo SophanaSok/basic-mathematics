@@ -271,6 +271,18 @@ describe("Already in hand and Coming up", () => {
     expect(geo.map((g) => g.course)).toEqual(["algebra-2"]);
   });
 
+  it("never marks a missed section of a course cleared above the band as shown already", () => {
+    const t = take("geometry", ["algebra-1", "algebra-2"], ["algebra-1", "geometry", "algebra-2"]);
+    t.blocks.find((b) => b.course === "geometry")!.pass = false;
+    const a2b = t.blocks.find((b) => b.course === "algebra-2")!;
+    a2b.items[0] = { ...a2b.items[0], k: "wrong" };
+    const miss = a2b.items[0].sec;
+    const a2 = plan(t).comingUp.find((g) => g.course === "algebra-2")!;
+    const it = a2.items.find((i) => i.ref === miss)!;
+    expect(it.tag).toBeNull();
+    expect(a2.items.some((i) => i.tag === "skim-shown")).toBe(true);
+  });
+
   it("puts beyond sections only in Going further", () => {
     const p = plan(take("pre-algebra", [], ["pre-algebra"]));
     expect(refsOf(p.goingFurther)).toEqual(REFS.filter((r) => skillOf(r)?.course === "beyond"));
