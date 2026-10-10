@@ -3,8 +3,8 @@
    run's shell, the take) and src/learn/diag-seed.ts (what the take seeds); this file is the
    page: it reads and writes storage, makes the questions with the Arena's generators
    (window.BMGen), grades with the page's grader (window.BMCore.judge) and draws the screens.
-   The result screen and the return view are D-10; the gate that decides which screen opens
-   first (reading takes, the signed-in wait, ?again) is D-9c and fills gate() below.
+   The result screen and the return view are D-10 (showReturn below is its stub); the gate
+   that decides which screen opens first (reading takes, the signed-in wait, ?again) is gate().
 
    What this file holds to (the D-9 threat model, ~/.claude/plans/d9-threat-model.md):
    - Nothing is written to the page as HTML: createElement and textContent only, and only the
@@ -16,17 +16,17 @@
      after that write returned true (A1 to A3). */
 
 import { GRADER } from "../core/answer/check.ts";
-import { DIAG_Q4, DIAG_UNREAD_HINT } from "../learn/constants.ts";
+import { DIAG_Q4, DIAG_SYNC_WAIT_MS, DIAG_UNREAD_HINT } from "../learn/constants.ts";
 import {
   deal, finish, finished, formatOf, newRun, nextItem, outcomeOf, readRun, runOf, step, stripDegrees, takeId, withTake,
   START_OF, type DiagFrom, type DiagRun, type DiagTake, type Make
 } from "../learn/diagnostic.ts";
-import { seedPatch } from "../learn/diag-seed.ts";
+import { isFirst, seedPatch } from "../learn/diag-seed.ts";
 import { SKILLS, skillOf } from "../data/skills.ts";
 import type { UnreadReason } from "../core/answer/types.ts";
 import type { SectionRef } from "../types/state.ts";
 
-type Screen = "intro" | "resume" | "question" | "done" | "gone";
+type Screen = "intro" | "resume" | "question" | "done" | "return" | "gone";
 
 const EMPTY_LINE = "Type an answer, then press Submit. If you haven't learned this yet, press I haven't learned this yet.";
 const RETRY = " Try again, or press I haven't learned this yet.";
@@ -39,6 +39,9 @@ const MOVED = "This check continued in another tab.";
 const CHANGED_TAB = "The saved check changed in another tab.";
 const CHANGED = "The saved check changed.";
 const NO_GEN = "The problem generators did not load, so the check cannot start. Reload the page to try again.";
+const CHECKING = "Checking your saved results…";
+const NO_ACCOUNT = "We couldn't reach your account just now, so this uses what this browser has saved.";
+const RETURN_LINE = "You've finished this check.";
 const NO_MAKE = "The check could not make a question. Reload the page to try again.";
 
 /* ------------------------------------------------------------------ memory -- */
@@ -60,16 +63,24 @@ let seen = "null";
 let unreadSeq = 0;
 /* the par of each generator the page has made, for the take's rush count (G1) */
 const pars = new Map<string, number>();
+/* the page was opened with ?again (presence only: its value is never read, shown or kept, C2) */
+let again = false;
 
 /* ------------------------------------------------------------------- page -- */
 
 const $ = <T extends HTMLElement>(id: string): T | null => document.getElementById(id) as T | null;
 const text = (id: string, value: string): void => { const el = $(id); if (el) el.textContent = value; };
 
-const SECTIONS: readonly Screen[] = ["intro", "resume", "question", "done", "gone"];
+/* the return stub is drawn in the done section until D-10 gives it a view of its own */
+const SECTION_OF: Readonly<Record<Screen, string>> = {
+  intro: "diag-intro", resume: "diag-resume", question: "diag-question", done: "diag-done", return: "diag-done", gone: "diag-gone"
+};
 function show(next: Screen): void {
   screen = next;
-  SECTIONS.forEach((name) => { const el = $("diag-" + (name === "gone" ? "gone" : name)); if (el) el.hidden = name !== next; });
+  (Object.keys(SECTION_OF) as Screen[]).forEach((name) => {
+    const el = $(SECTION_OF[name]);
+    if (el) el.hidden = SECTION_OF[name] !== SECTION_OF[next];
+  });
 }
 function notice(line: string): void { text("diag-notice", line); }
 function focusOn(id: string): void { const el = $(id); if (el) el.focus(); }
@@ -305,15 +316,84 @@ function finishRun(r: DiagRun, keepNotice = false): void {
 
 /* ------------------------------------------------------------- the screens -- */
 
-/** Which screen a visit with no run in progress opens on. D-9c fills this: reading the takes
-    to show a return view, the signed-in wait, `?again`. */
-function gate(): "intro" {
-  return "intro";
+/** Waits, for at most DIAG_SYNC_WAIT_MS, until the account has pulled its takes into this
+    browser. True when it did (or there is nothing to wait for), false on a timeout, an error
+    or a rejection (D2). It resolves at once when the status already says it is settled. */
+function accountSettled(A: any): Promise<boolean> {
+  return new Promise<boolean>((resolve) => {
+    let over = false;
+    let ready = false;
+    const end = (ok: boolean): void => { if (over) return; over = true; clearTimeout(timer); resolve(ok); };
+    const timer = setTimeout(() => end(false), DIAG_SYNC_WAIT_MS);
+    const look = (): void => {
+      if (over || !ready) return;
+      try {
+        const state = A.status().state;
+        /* "off" is the state before a signed-in page has started its first pull, so it
+           settles only when there is no one signed in */
+        if (state === "error") end(false);
+        else if (state === "synced" || state === "reload" || (state === "off" && !A.user())) end(true);
+      } catch {
+        end(false);
+      }
+    };
+    try {
+      A.onChange(look);
+      window.BMStore.on((c: unknown) => { if (isObj(c) && c.type === "sync") look(); });
+      Promise.resolve(A.ready()).then(() => { ready = true; look(); }, () => end(false));
+    } catch {
+      end(false);
+    }
+  });
+}
+
+/** Which screen a visit with no run in progress opens on (§7.2): the return view when a take
+    exists and the page was not opened with ?again, else the intro. Signed out, the takes are
+    this browser's, read at once. With a stored session the account's takes are waited for,
+    never longer than DIAG_SYNC_WAIT_MS, and a wait that fails reads this browser's with the
+    §2.6 notice. Takes are counted only through isFirst. */
+async function gate(): Promise<"intro" | "return"> {
+  let line = "";
+  try {
+    const A = window.BMAccount;
+    if (A && A.configured && A.hasSession()) {
+      notice(CHECKING);
+      if (!(await accountSettled(A))) line = NO_ACCOUNT;
+    }
+  } catch {
+    line = NO_ACCOUNT;
+  }
+  notice(line);
+  if (again) return "intro";
+  const S = window.BMStore;
+  return isFirst(S.read(S.keys.diag, {})) ? "intro" : "return";
+}
+
+/** D-10 replaces this with the result and the plan. */
+function showReturn(): void {
+  run = null;
+  kept = [];
+  text("diag-done-line", RETURN_LINE);
+  const over = $("diag-done-over");
+  if (over) over.hidden = true;
+  show("return");
+}
+
+/** Takes the query off the address once a run is on screen (§7.3): the path and the hash
+    stay, so a reload resumes the run and does not open another intro. */
+function stripAgain(): void {
+  if (!again) return;
+  again = false;
+  try {
+    window.history.replaceState(window.history.state, "", window.location.pathname + window.location.hash);
+  } catch { /* the address keeps its query; nothing else depends on it */ }
 }
 
 function showIntro(): void {
   run = null;
   text("diag-intro-status", "");
+  const form = $("diag-start");
+  if (form) form.hidden = false;
   show("intro");
 }
 
@@ -349,6 +429,7 @@ function start(): void {
   if (!next) { gone(NO_MAKE); return; }
   persist(next);
   showQuestion(next, true);
+  stripAgain();
 }
 
 function words(n: number): Uint32Array {
@@ -414,7 +495,7 @@ function onStorage(e: StorageEvent): void {
   const S = window.BMStore;
   if (e.storageArea !== window.localStorage) return;
   if (e.key !== null && e.key !== S.keys.run) return;
-  if (screen === "done" || screen === "gone") return;
+  if (screen === "done" || screen === "return" || screen === "gone") return;
   if (e.key === null) {
     if (unchanged()) return;
   } else {
@@ -428,7 +509,7 @@ function onStorage(e: StorageEvent): void {
     storage event, and the next write must not put the dropped run back. */
 function onChange(c: unknown): void {
   if (!isObj(c) || (c.type !== "sync" && c.type !== "reset")) return;
-  if (screen === "done" || screen === "gone") return;
+  if (screen === "done" || screen === "return" || screen === "gone") return;
   if (unchanged()) return;
   elsewhere(CHANGED);
 }
@@ -437,15 +518,25 @@ function onChange(c: unknown): void {
 
 function load(): void {
   if (!haveGlobals()) { gone(NO_GEN); return; }
-  /* the Start form is hidden in the HTML, so a page whose script never ran offers nothing */
-  const form = $("diag-start");
-  if (form) form.hidden = false;
+  try { again = new URLSearchParams(window.location.search).has("again"); } catch { again = false; }
   const { run: stored, damaged } = storedRun();
   if (damaged) persist(undefined);
-  if (!stored) { gate(); showIntro(); return; }
-  /* a stored run that is already finished is finished again; a take under its id absorbs it */
-  if (finished(stored)) { finishRun(stored); return; }
-  showResume(stored);
+  if (stored) {
+    /* a run in progress is resumed always, ?again or not (D1) */
+    stripAgain();
+    /* a stored run that is already finished is finished again; a take under its id absorbs it */
+    if (finished(stored)) { finishRun(stored); return; }
+    showResume(stored);
+    return;
+  }
+  /* the Start form stays hidden until the gate has answered */
+  show("intro");
+  void gate().then((next) => {
+    /* another tab moved the page while the gate waited: that screen stands */
+    if (run !== null || screen !== "intro") return;
+    if (next === "return") showReturn();
+    else showIntro();
+  });
 }
 
 function bind(): void {
