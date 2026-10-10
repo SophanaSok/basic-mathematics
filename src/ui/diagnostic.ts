@@ -21,7 +21,7 @@ import {
   deal, finish, finished, formatOf, newRun, nextItem, outcomeOf, readRun, runOf, step, stripDegrees, takeId, withTake,
   START_OF, type DiagFrom, type DiagRun, type DiagTake, type Make
 } from "../learn/diagnostic.ts";
-import { isFirst, seedPatch } from "../learn/diag-seed.ts";
+import { isFirst, seedPatch, takesOf } from "../learn/diag-seed.ts";
 import { renderResult, renderReturn, type LiveAnswer } from "./diag-result.ts";
 import { SKILLS, skillOf } from "../data/skills.ts";
 import type { UnreadReason } from "../core/answer/types.ts";
@@ -68,6 +68,12 @@ let unreadSeq = 0;
 const pars = new Map<string, number>();
 /* the page was opened with ?again (presence only: its value is never read, shown or kept, C2) */
 let again = false;
+/* the id of the take the result screen shows, when its write returned true: a sign-out or a
+   sync that drops it from bm.diag.v1 takes the result off the page (F1) */
+let shownTake: string | null = null;
+/* the canonical form of bm.diag.v1 the return view was last drawn from: a sync that leaves it
+   as it was does not redraw it (and so does not drop the keyboard focus) */
+let drawn: string | null = null;
 
 /* ------------------------------------------------------------------- page -- */
 
@@ -81,7 +87,13 @@ function show(next: Screen): void {
   /* leaving the result: what was typed goes with it, from memory and from the page (F1) */
   if (screen === "done" && next !== "done") {
     kept = [];
+    shownTake = null;
     $("diag-result")?.replaceChildren();
+  }
+  /* leaving the return view: a hidden section never holds a band a sign-out has taken away */
+  if (screen === "return" && next !== "return") {
+    drawn = null;
+    $("diag-return-view")?.replaceChildren();
   }
   screen = next;
   (Object.keys(SECTION_OF) as Screen[]).forEach((name) => {
@@ -327,15 +339,24 @@ function finishRun(r: DiagRun, keepNotice = false): void {
   const over = $("diag-done-over");
   if (over) over.hidden = saved;
   show("done");
+  shownTake = saved ? r.id : null;
   if (!keepNotice) notice("");
   focusOn("diag-done-head");
 }
 
 /* ------------------------------------------------------------- the screens -- */
 
-/** Whether someone is signed in, for the line under the result. */
+/** Whether the take can be said to be in the account too, for the line under the result:
+    someone is signed in and the account is not off or failing. */
 function signedIn(): boolean {
-  try { return !!window.BMAccount?.user?.(); } catch { return false; }
+  try {
+    const A = window.BMAccount;
+    if (!A?.user?.()) return false;
+    const state: unknown = A.status?.()?.state;
+    return typeof state === "string" && state !== "error" && state !== "off";
+  } catch {
+    return false;
+  }
 }
 
 /** Waits, for at most DIAG_SYNC_WAIT_MS, until the account has pulled its takes into this
@@ -406,13 +427,27 @@ function showReturn(): void {
   const box = $("diag-return-view");
   if (box) renderReturn(box, diag, { headId: "diag-return-head" });
   show("return");
+  drawn = window.BMMerge.canon(diag);
 }
 
 /** The return screen after another tab or a sync changed the takes (a sign-out clears them):
     the gate's answer again, from this browser's copy, which is what the account's takes were
-    merged into. */
+    merged into. Takes as they were drawn are not drawn again. */
 function regate(): void {
   if (again) return;
+  const S = window.BMStore;
+  if (window.BMMerge.canon(S.read(S.keys.diag, {})) === drawn) return;
+  showReturn();
+}
+
+/** The result screen after another tab or a sync changed the takes: when the take it shows was
+    saved and is no longer stored (a sign-out, or a sync that dropped it), the result and what
+    was typed leave the page for the return view, or the intro when no take is left. Nothing is
+    written (A6). */
+function takeCheck(): void {
+  if (shownTake === null) return;
+  const S = window.BMStore;
+  if (takesOf(S.read(S.keys.diag, {})).includes(shownTake)) return;
   showReturn();
 }
 
@@ -513,10 +548,13 @@ function elsewhere(goneLine: string): void {
   }
   if (damaged) persist(undefined);
   const had = run !== null;
+  const goneId = run ? run.id : null;
   kept = [];
-  /* the run is gone because another tab finished it: its take is here now */
+  /* the run is gone because another tab finished it: its take is here now, under its id. A
+     run gone any other way (another tab's Start over, a reset) is the intro, whatever takes
+     there are */
   const S = window.BMStore;
-  if (!again && !pending && !isFirst(S.read(S.keys.diag, {}))) { notice(""); showReturn(); return; }
+  if (!again && goneId !== null && takesOf(S.read(S.keys.diag, {})).includes(goneId)) { notice(""); showReturn(); return; }
   showIntro();
   notice(had ? goneLine : "");
 }
@@ -530,11 +568,20 @@ function unchanged(): boolean {
 
 /** A `storage` event: only a change to bm.run.v1 in localStorage (or a clear) that changes
     `diag` matters; the Arena's and the game's writes to the same key do not. Events on
-    bm.diag.v1 are ignored (D3), and a take that goes missing is not rewritten (A6). */
+    bm.diag.v1 are ignored mid-run (D3); on the result, the return view and the intro with no
+    run they re-read the takes. A take that goes missing is not rewritten (A6). */
 function onStorage(e: StorageEvent): void {
   const S = window.BMStore;
   if (e.storageArea !== window.localStorage) return;
-  if (screen === "return" && (e.key === null || e.key === S.keys.diag)) { regate(); return; }
+  const takesMoved = e.key === null || e.key === S.keys.diag;
+  if (screen === "return" && takesMoved) { regate(); return; }
+  if (screen === "done" && takesMoved) { takeCheck(); return; }
+  /* another tab brought a take (it finished a check, or pulled the account's): the return view */
+  if (takesMoved && screen === "intro" && run === null && !pending && !again && !isFirst(S.read(S.keys.diag, {}))) {
+    notice("");
+    showReturn();
+    return;
+  }
   if (e.key !== null && e.key !== S.keys.run) return;
   if (screen === "done" || screen === "return" || screen === "gone") return;
   if (e.key === null) {
@@ -551,7 +598,8 @@ function onStorage(e: StorageEvent): void {
 function onChange(c: unknown): void {
   if (!isObj(c) || (c.type !== "sync" && c.type !== "reset")) return;
   if (screen === "return") { regate(); return; }
-  if (screen === "done" || screen === "gone") return;
+  if (screen === "done") { takeCheck(); return; }
+  if (screen === "gone") return;
   if (!unchanged()) { elsewhere(CHANGED); return; }
   /* a pull that came after the wait gave up: the takes it brought are read, and the notice
      that the account could not be reached goes with it */

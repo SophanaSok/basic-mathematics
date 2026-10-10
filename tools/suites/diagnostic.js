@@ -594,6 +594,75 @@ module.exports = {
       return p;
     });
 
+    /* ----------------------------------------------- a sign-out under the result -- */
+
+    /* the first answer typed (so "You typed" is drawn), the rest skipped: band Pre-algebra
+       after 5 questions, and the result on screen */
+    const TYPED_THEN_SKIP = (n) => (n === 0 ? "right" : "skip");
+    const resultShows = (page) => page.evaluate(() => {
+      const t = document.querySelector("main").textContent;
+      return { typed: /You typed:/.test(t), band: /Start with: Pre-algebra/.test(t), box: document.getElementById("diag-result").childNodes.length };
+    });
+    /* what account.js's clearLocal does to the two keys this page reads: bm.run.v1 first */
+    const signOut = (page) => page.evaluate(() => {
+      localStorage.setItem("bm.run.v1", "{}");
+      localStorage.setItem("bm.diag.v1", "{}");
+    });
+
+    await kase("F1: a sign-out in another tab while the result shows: the typed text and the band leave the page, the intro shows, nothing written", {}, async (page, context) => {
+      const p = [];
+      await begin(page, "unsure");
+      await walk(page, TYPED_THEN_SKIP);
+      const before = await resultShows(page);
+      check(p, before.typed && before.band, "the result did not draw the typed text and the band: " + JSON.stringify(before));
+      const other = await context.newPage();
+      await other.goto(server.url + PAGE, { waitUntil: "load" });
+      await h.settle(other);
+      await signOut(other);
+      await page.waitForFunction(() => !document.getElementById("diag-intro").hidden);
+      const after = await resultShows(page);
+      check(p, !after.typed && !after.band && after.box === 0, "the signed-out reader's result is still in the page: " + JSON.stringify(after));
+      check(p, !(await shown(page, "diag-done")), "the result is still showing");
+      check(p, (await raw(page, DIAG_KEY)) === "{}", "bm.diag.v1 was written: " + (await raw(page, DIAG_KEY)));
+      return p;
+    });
+
+    await kase("F1: a same-tab sync that keeps the take leaves the result; one that drops it shows the intro with the typed text and band gone", {}, async (page) => {
+      const p = [];
+      await begin(page, "unsure");
+      await walk(page, TYPED_THEN_SKIP);
+      await page.evaluate(() => window.BMStore.emit({ type: "sync" }));
+      const kept = await resultShows(page);
+      check(p, (await shown(page, "diag-done")) && kept.typed && kept.band, "a sync that kept the take moved the result: " + JSON.stringify(kept));
+      await page.evaluate(() => {
+        const S = window.BMStore;
+        S.write(S.keys.run, {}, true);
+        S.write(S.keys.diag, {}, true);
+        S.emit({ type: "sync" });
+      });
+      await page.waitForFunction(() => !document.getElementById("diag-intro").hidden);
+      const after = await resultShows(page);
+      check(p, !after.typed && !after.band && after.box === 0, "the dropped take's result is still in the page: " + JSON.stringify(after));
+      check(p, (await raw(page, DIAG_KEY)) === "{}", "bm.diag.v1 was written: " + (await raw(page, DIAG_KEY)));
+      return p;
+    });
+
+    await kase("a sign-out in another tab while the return view shows: the intro, and the hidden return section holds no band", {}, async (page, context) => {
+      const p = [];
+      await open(page);
+      await plantTake(page, "earlier1");
+      await reload(page);
+      check(p, await shown(page, "diag-return"), "the return view is not showing");
+      const other = await context.newPage();
+      await other.goto(server.url + PAGE, { waitUntil: "load" });
+      await h.settle(other);
+      await signOut(other);
+      await page.waitForFunction(() => !document.getElementById("diag-intro").hidden);
+      const left = await page.evaluate(() => document.getElementById("diag-return-view").childNodes.length);
+      check(p, left === 0, "the return section still holds " + left + " nodes");
+      return p;
+    });
+
     /* ------------------------------------------------- 360 px and axe in each state -- */
 
     async function states(page, vw, theme) {

@@ -112,7 +112,7 @@ function viewOf(take: unknown): View | null {
 const heldOf = (v: View): boolean => v.band === "geometry" && v.count.geometry.clear;
 
 /** What a row says (the status words of §2.4). Null skips the row. */
-function statusOf(v: View, c: Placeable): string {
+function statusOf(v: View, c: Placeable): string | null {
   const n = v.count[c];
   const tally = String(n.right) + " right, " + String(n.not) + " not yet.";
   const at = L.indexOf(c), bandAt = L.indexOf(v.band);
@@ -129,15 +129,23 @@ function statusOf(v: View, c: Placeable): string {
     const by = L.find((x) => v.count[x].clear && (() => { for (let p = PRE[x]; p; p = PRE[p]) if (p === c) return true; return false; })());
     if (by) return "Not asked. Because you did well in " + NAME[by] + ", we skipped it. Skim it if it looks familiar.";
   }
+  /* Below the band, neither asked nor implied: no walk ends that way (every course below the
+     band is cleared, asked or implied, §3.4), so only a hostile or damaged take gets here. It
+     is not "Later", which would say the course comes after the band: the row is left out. */
+  if (at < bandAt) return null;
   return "Later";
 }
 
-/** "October 7, 2026" from a day key that is yyyy-mm-dd, else null. */
+/** "October 7, 2026" from a day key that is yyyy-mm-dd and a real day, else null. The day is
+    rebuilt with Date.UTC and must come back as it went in, so February 31 or month 13 is no
+    date (and a year below 100, which Date.UTC reads as 19xx, is none either). */
 function dateOf(day: unknown): string | null {
   const m = typeof day === "string" ? /^(\d{4})-(\d{2})-(\d{2})$/.exec(day) : null;
   if (!m) return null;
-  const month = +m[2] - 1, d = +m[3];
-  return month >= 0 && month < 12 && d >= 1 && d <= 31 ? MONTH[month] + " " + String(d) + ", " + m[1] : null;
+  const year = +m[1], month = +m[2] - 1, d = +m[3];
+  const at = new Date(Date.UTC(year, month, d));
+  if (at.getUTCFullYear() !== year || at.getUTCMonth() !== month || at.getUTCDate() !== d) return null;
+  return MONTH[month] + " " + String(d) + ", " + m[1];
 }
 
 /* ---------------------------------------------------------------- the pieces -- */
@@ -152,11 +160,13 @@ function table(v: View): HTMLTableElement {
   });
   const body = t.createTBody();
   L.forEach((c) => {
+    const status = statusOf(v, c);
+    if (status === null) return;
     const row = body.insertRow();
     const th = node("th", NAME[c]);
     th.scope = "row";
     row.appendChild(th);
-    row.insertCell().textContent = statusOf(v, c);
+    row.insertCell().textContent = status;
   });
   return t;
 }
