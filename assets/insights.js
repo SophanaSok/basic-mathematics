@@ -173,6 +173,37 @@
       '<ul class="achievements">' + items.join("") + "</ul></section>";
   }
 
+  /* "Your plan", first on the page and only when a take exists: BMPlan.render leaves the
+     slot empty without one, and then there is no panel at all (no invitation here; the
+     check is not linked from this page). The h2 and h3 keep BMPlan's h4 heads in order. */
+  var handOpen = false;
+  function planPanel() {
+    var Plan = window.BMPlan;
+    if (!Plan || typeof Plan.render !== "function") return;
+    var slot = document.createElement("div");
+    slot.className = "diag-plan";
+    try { Plan.render(slot); } catch (e) { return; }
+    if (!slot.firstChild) return;
+    /* every redraw rebuilds the plan, so "Already in hand" keeps the reader's open or shut */
+    var hand = slot.querySelector("details");
+    if (hand) {
+      hand.open = handOpen;
+      hand.addEventListener("toggle", function () { handOpen = hand.open; });
+    }
+    var sec = document.createElement("section");
+    sec.className = "panel";
+    sec.id = "plan";
+    var h2 = document.createElement("h2");
+    h2.textContent = "Your plan";
+    var h3 = document.createElement("h3");
+    h3.className = "plan-sub muted";
+    h3.textContent = "From your placement check";
+    sec.appendChild(h2);
+    sec.appendChild(h3);
+    sec.appendChild(slot);
+    page.insertBefore(sec, page.firstChild);
+  }
+
   function drawProgress() {
     var solved = 0, total = 0, done = 0, stars = 0;
     C.chapters.forEach(function (ch) {
@@ -236,6 +267,7 @@
       html += '<p class="muted">This page is built from what this browser has saved.</p>';
     }
     page.innerHTML = html;
+    planPanel();
     Array.prototype.forEach.call(page.querySelectorAll("[data-goal]"), function (b) {
       b.addEventListener("click", function () {
         Activity.setGoal(b.getAttribute("data-goal"));
