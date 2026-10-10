@@ -109,7 +109,6 @@
   "diagnostic.html": {
     "head": [
       "<meta charset='utf-8'>",
-      "<meta name='robots' content='noindex'>",
       "<meta name='viewport' content='width=device-width, initial-scale=1'>",
       "<title>Find your starting point — Basic Mathematics</title>",
       "<meta name='description' content='A short placement check with no timer: it suggests which course to start with, Pre-algebra, Algebra 1, Geometry or Algebra 2.'>",
