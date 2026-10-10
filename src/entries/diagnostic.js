@@ -42,3 +42,9 @@ import "../../data/gen/part3.js";
 import "../../data/gen/part4.js";
 import "../../assets/config.js";
 import "../../assets/account.js";
+/* the placement check: the skills it reads, the pure rules (the walk, the run and the take, what
+   a take seeds), then the page's installer, which needs all of them and the globals above */
+import "../data/skills.ts";
+import "../learn/diagnostic.ts";
+import "../learn/diag-seed.ts";
+import "../ui/diagnostic.ts";

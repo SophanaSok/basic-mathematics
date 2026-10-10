@@ -12,35 +12,82 @@
 <div class="wrap-narrow">
   <main id="main" class="diag">
     <h1>Find your starting point</h1>
-    <p class="lede">
-      Answer some math questions, and we'll suggest which course to start with: Pre-algebra,
-      Algebra 1, Geometry or Algebra 2. Then we'll make you a study plan.
-    </p>
-    <ul>
-      <li>It stops as soon as we know where to start: at least 4 questions, and never more than 28.</li>
-      <li>There's no timer, so take as long as you need. You can stop and come back later in this browser.</li>
-      <li>Work on paper. Please don't use a calculator or look things up. The plan is only useful if it shows what you can do on your own.</li>
-      <li>If you haven't learned something yet, press <strong>I haven't learned this yet</strong>. That gives you the best plan. Guessing doesn't help.</li>
-      <li>We won't say right or not as you go. You'll see how you did at the end.</li>
-    </ul>
-    <p>
-      This isn't a grade. It doesn't predict an SAT, ACT or placement-test score. It only tells
-      you where to begin in this course.
-    </p>
-    <noscript><p>The check makes its questions with JavaScript, so it needs JavaScript switched on. The chapters work without it.</p></noscript>
-    <details>
-      <summary>For parents: what this is.</summary>
-      <p>
-        The questions are made fresh for each try and checked in this browser. A fixed rule picks
-        the course from how many questions in each course were answered right. It isn't a
-        standardized or nationally normed test, and the rule hasn't been checked against real
-        learners yet: if the suggestion doesn't match what you know of your learner, trust what
-        you know. You're welcome to sit with your learner and read questions aloud, but please
-        don't help with the math. A Geometry result here means coordinate geometry; the check has
-        no proof questions yet. What's saved, and where:
-        <a href="about.html#progress">Progress and privacy</a>.
+    <p id="diag-notice" class="diag-notice" role="status"></p>
+    <section id="diag-intro" aria-label="Before you start">
+      <p class="lede">
+        Answer some math questions, and we'll suggest which course to start with: Pre-algebra,
+        Algebra 1, Geometry or Algebra 2. Then we'll make you a study plan.
       </p>
-    </details>
+      <ul>
+        <li>It stops as soon as we know where to start: at least 4 questions, and never more than 28.</li>
+        <li>There's no timer, so take as long as you need. You can stop and come back later in this browser.</li>
+        <li>Work on paper. Please don't use a calculator or look things up. The plan is only useful if it shows what you can do on your own.</li>
+        <li>If you haven't learned something yet, press <strong>I haven't learned this yet</strong>. That gives you the best plan. Guessing doesn't help.</li>
+        <li>We won't say right or not as you go. You'll see how you did at the end.</li>
+      </ul>
+      <p>
+        This isn't a grade. It doesn't predict an SAT, ACT or placement-test score. It only tells
+        you where to begin in this course.
+      </p>
+      <form id="diag-start" class="diag-form" novalidate>
+        <fieldset id="diag-from" aria-describedby="diag-intro-status">
+          <legend>Which math class did you finish most recently?</legend>
+          <label><input type="radio" name="from" value="none"> I haven't finished pre-algebra yet</label>
+          <label><input type="radio" name="from" value="pre"> Pre-algebra, or 7th or 8th grade math</label>
+          <label><input type="radio" name="from" value="a1"> Algebra 1</label>
+          <label><input type="radio" name="from" value="geo"> Geometry</label>
+          <label><input type="radio" name="from" value="a2"> Algebra 2 or higher</label>
+          <label><input type="radio" name="from" value="unsure"> I'm not sure</label>
+        </fieldset>
+        <p id="diag-intro-status" class="diag-status" role="status"></p>
+        <button type="submit" class="btn big">Start</button>
+      </form>
+      <noscript><p>The check makes its questions with JavaScript, so it needs JavaScript switched on. The chapters work without it.</p></noscript>
+      <details>
+        <summary>For parents: what this is.</summary>
+        <p>
+          The questions are made fresh for each try and checked in this browser. A fixed rule picks
+          the course from how many questions in each course were answered right. It isn't a
+          standardized or nationally normed test, and the rule hasn't been checked against real
+          learners yet: if the suggestion doesn't match what you know of your learner, trust what
+          you know. You're welcome to sit with your learner and read questions aloud, but please
+          don't help with the math. A Geometry result here means coordinate geometry; the check has
+          no proof questions yet. What's saved, and where:
+          <a href="about.html#progress">Progress and privacy</a>.
+        </p>
+      </details>
+    </section>
+    <section id="diag-resume" hidden aria-label="Welcome back">
+      <h2 id="diag-resume-head" tabindex="-1">Welcome back.</h2>
+      <p id="diag-resume-line"></p>
+      <p>
+        <button type="button" id="diag-keep" class="btn big">Keep going</button>
+        <button type="button" id="diag-over" class="btn ghost">Start over with new questions</button>
+      </p>
+      <p class="diag-small">If someone else started this check, choose Start over.</p>
+    </section>
+    <section id="diag-question" hidden aria-label="Question">
+      <h2 id="diag-q-head" tabindex="-1">Question</h2>
+      <div id="diag-prompt" class="diag-prompt"></div>
+      <form id="diag-answer" class="diag-form" novalidate>
+        <label for="diag-input">Your answer</label>
+        <input id="diag-input" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" aria-describedby="diag-format diag-unread">
+        <p id="diag-format" class="diag-small"></p>
+        <p id="diag-unread" class="diag-status" role="status"></p>
+        <p>
+          <button type="submit" class="btn big">Submit</button>
+          <button type="button" id="diag-skip" class="btn ghost">I haven't learned this yet</button>
+        </p>
+      </form>
+      <p id="diag-saved" class="diag-small">Your place is saved. You can stop any time.</p>
+    </section>
+    <section id="diag-done" hidden aria-label="All done">
+      <h2 id="diag-done-head" tabindex="-1">All done</h2>
+      <p id="diag-done-line"></p>
+    </section>
+    <section id="diag-gone" hidden aria-label="Not available">
+      <p id="diag-gone-line" class="diag-note"></p>
+    </section>
   </main>
 </div>
 </body>
