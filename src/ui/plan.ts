@@ -1,11 +1,13 @@
 /* The study plan on the page: gathers what planOf (src/learn/plan.ts) needs from the
    globals, asks it for the plan, and draws the lines of design section 8 in display order.
-   window.BMPlan.render(el) fills `el`, or leaves it empty when there is no plan.
+   window.BMPlan.render(el, take?) fills `el`, or leaves it empty when there is no plan. With
+   a take it plans from that take (the result just drawn); without one it reads the latest
+   stored take (the progress page).
 
    What this file holds to (the D-9 threat model C1/C2, and the D-12 brief):
    - Nothing is written as HTML: createElement and textContent only.
-   - The plan is derived on every call and nothing is stored. A take comes from storage,
-     which is untrusted, and is read only through latestTake. Every title and every link
+   - The plan is derived on every call and nothing is stored. A take, whether passed in or
+     read from storage, is untrusted and is read only through latestTake. Every title and every link
      comes from the curriculum (window.BM_CURRICULUM), never from storage; course labels and
      tag words come from fixed tables. Counts are String(n).
    - Each read of a global is guarded: a missing global or a throw gives no plan, never a
@@ -37,9 +39,11 @@ function outline(): Map<SectionRef, Place> | null {
   return out;
 }
 
-function gather(): { plan: Plan; where: Map<SectionRef, Place> } | null {
+function gather(given?: unknown): { plan: Plan; where: Map<SectionRef, Place> } | null {
   try {
-    const take = latestTake(window.BMStore.read(window.BMStore.keys.diag, {}));
+    const take = given === undefined
+      ? latestTake(window.BMStore.read(window.BMStore.keys.diag, {}))
+      : latestTake({ takes: { given } });
     if (!take) return null;
     const where = outline();
     if (!where) return null;
@@ -93,10 +97,16 @@ function list(items: readonly PlanItem[], where: Map<SectionRef, Place>): HTMLUL
   return ul;
 }
 
-function groupBlock(g: PlanGroup, where: Map<SectionRef, Place>, head: string): HTMLElement {
+function sections(n: number): string {
+  return String(n) + (n === 1 ? " section" : " sections");
+}
+
+/** A course inside a line: an h5 under the line's h4, then its sections. With `brief`, the
+    sections are listed only when one of them is tagged (a course cleared above the band). */
+function groupBlock(g: PlanGroup, where: Map<SectionRef, Place>, head: string, brief = false): HTMLElement {
   const d = node("div", undefined, "diag-plan-group");
-  d.appendChild(node("p", head + " (" + String(g.count) + (g.count === 1 ? " section" : " sections") + ")"));
-  d.appendChild(list(g.items, where));
+  d.appendChild(node("h5", head + " (" + sections(g.count) + ")"));
+  if (!brief || g.items.some((i) => i.tag === "skim-shown")) d.appendChild(list(g.items, where));
   return d;
 }
 
@@ -106,7 +116,7 @@ function draw(el: Element, p: Plan, where: Map<SectionRef, Place>): void {
 
   add(node("h4", "Start here"));
   if (p.startHere.length) add(list(p.startHere, where));
-  else add(node("p", p.finished ? "You have worked through every course here." : "Nothing left in this course."));
+  else add(node("p", p.finished ? "You have worked through every course here." : "Nothing to start in this course yet."));
 
   if (p.reviewFirst.length) {
     add(node("h4", "Review first"));
@@ -127,13 +137,16 @@ function draw(el: Element, p: Plan, where: Map<SectionRef, Place>): void {
   const coming = p.comingUp.filter((g) => g.count > 0);
   if (coming.length) {
     add(node("h4", "Coming up"));
-    coming.forEach((g) => add(groupBlock(g, where, g.label)));
+    coming.forEach((g) => add(groupBlock(g, where, g.label, true)));
   }
 
   const hand = p.inHand.filter((g) => g.count > 0);
   if (hand.length) {
     const d = node("details", undefined, "diag-plan-hand");
-    d.appendChild(node("summary", "Already in hand"));
+    /* a heading inside the summary, so the course heads below sit under it in the outline */
+    const sum = node("summary");
+    sum.appendChild(node("h4", "Already in hand"));
+    d.appendChild(sum);
     d.appendChild(node("p", "You can skim these."));
     hand.forEach((g) => d.appendChild(groupBlock(g, where, g.kind === "implied" ? g.label + ": " + g.heading : g.label)));
     add(d);
@@ -145,10 +158,11 @@ function draw(el: Element, p: Plan, where: Map<SectionRef, Place>): void {
   }
 }
 
-/** Draw the plan into `el`, replacing what is there; leave it empty when there is no plan. */
-function render(el: Element): void {
+/** Draw the plan into `el`, replacing what is there; leave it empty when there is no plan.
+    `take` is the take to plan from; without it, the latest stored take. */
+function render(el: Element, take?: unknown): void {
   el.replaceChildren();
-  const got = gather();
+  const got = gather(take);
   if (!got) return;
   try {
     draw(el, got.plan, got.where);

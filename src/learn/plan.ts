@@ -221,9 +221,10 @@ export function planOf(input: PlanInput): Plan | null {
       .map((x) => x.p)
     : [];
 
-  /* Coming up: courses above start, with the shown-already mark where the check cleared them */
+  /* Coming up: courses above start, with the shown-already mark where the check cleared them:
+     only on sections answered right, since a missed one is in Review first, not shown */
   const comingUp = L.slice(L.indexOf(start) + 1).map((c) => group(c, secs(c).filter((r) => !done(r)).map((r) =>
-    item(r, stat[c] === "clear" && asked(r) ? "skim-shown" : null))));
+    item(r, stat[c] === "clear" && asked(r) && !missed(r) ? "skim-shown" : null))));
 
   /* Already in hand: every course below start */
   const inHand: PlanHand[] = L.slice(0, L.indexOf(start)).map((c) => {
