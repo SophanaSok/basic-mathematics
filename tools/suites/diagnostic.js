@@ -1277,5 +1277,52 @@ module.exports = {
     }
     await kase("360 px and axe in every state (intro, resume, question, done, return): light, 360", { theme: "light", vw: 360 }, (page) => states(page, 360, "light"));
     await kase("axe in every state (intro, resume, question, done, return): dark, 1280", { theme: "dark", vw: 1280 }, (page) => states(page, 1280, "dark"));
+
+    /* ------------------------------------------------------------ D-14 launch -- */
+
+    const LAUNCH_TAKE = {
+      v: 1, day: "2026-10-07", from: "pre", start: "algebra-1", band: "geometry", blueprint: 1, grader: 3, seed: 7, seeded: true,
+      blocks: [{ course: "geometry", pass: true, items: [["perp-slope", "ch10#lines"], ["point-sum", "ch09#addition-points"], ["seg-point", "ch10#segments"], ["circle-read", "ch08#circle"]].map((f, i) => ({ g: f[0], s: 101 + i, sec: f[1], k: "right" })) }]
+    };
+    await kase("launch: the home page's line reaches the check; the progress page invites with no take and shows the plan with one", {}, async (page) => {
+      const p = [];
+      await h.open(page, "index.html");
+      const line = await page.evaluate(() => {
+        const a = document.querySelector('main a[href="diagnostic.html"]');
+        return a ? { text: a.textContent, para: a.parentElement.textContent.replace(/\s+/g, " ").trim() } : null;
+      });
+      check(p, !!line && line.text === "Find your starting point" && line.para === "Not sure where to start? Find your starting point.", "the home page's line: " + JSON.stringify(line));
+      await page.locator('main a[href="diagnostic.html"]').click();
+      await page.waitForURL(/diagnostic\.html/);
+      check(p, await page.evaluate(() => /Find your starting point/.test(document.querySelector("h1").textContent)), "the link did not reach the check");
+      await h.open(page, "progress.html");
+      const inv = await page.evaluate(() => {
+        const e = document.getElementById("start-check");
+        const a = e && e.querySelector("a");
+        return {
+          first: document.querySelector("[data-progress]").firstElementChild.id,
+          text: e ? e.textContent.replace(/\s+/g, " ").trim() : null,
+          href: a ? a.getAttribute("href") : null,
+          plan: !!document.getElementById("plan")
+        };
+      });
+      check(p, inv.first === "start-check" && inv.href === "diagnostic.html" && !inv.plan, "no take, the invitation: " + JSON.stringify(inv));
+      check(p, inv.text === "Find your starting point: a short placement check with no timer.", "the invitation's words: " + inv.text);
+      check(p, !/sign in|sign up|log in|account|create/i.test(inv.text || ""), "sign-up wording in the invitation");
+      await page.evaluate((take) => localStorage.setItem("bm.diag.v1", JSON.stringify({ takes: { launch1: take } })), LAUNCH_TAKE);
+      await reload(page);
+      const withTake = await page.evaluate(() => ({ plan: !!document.getElementById("plan"), inv: !!document.getElementById("start-check") }));
+      check(p, withTake.plan && !withTake.inv, "with a take: " + JSON.stringify(withTake));
+      return p;
+    });
+
+    await kase("launch precondition: account.html, signed out, says accounts are for people 13 or older, or made by a parent", {}, async (page) => {
+      const p = [];
+      await h.open(page, "account.html");
+      const text = await page.evaluate(() => document.body.innerText.replace(/\s+/g, " "));
+      check(p, /13 or older/.test(text), "the rendered account page does not say \"13 or older\"");
+      check(p, /A parent can make one/.test(text), "the rendered account page does not say a parent can make one");
+      return p;
+    });
   }
 };

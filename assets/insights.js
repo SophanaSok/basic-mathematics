@@ -173,11 +173,28 @@
       '<ul class="achievements">' + items.join("") + "</ul></section>";
   }
 
-  /* "Your plan", first on the page and only when a take exists: BMPlan.render leaves the
-     slot empty without one, and then there is no panel at all (no invitation here; the
-     check is not linked from this page). The h2 and h3 keep BMPlan's h4 heads in order. */
+  /* "Your plan", first on the page when a take exists. BMPlan.render leaves the slot empty
+     without one, and then the same place holds an invitation to the check (never to sign up;
+     no minutes are claimed, none are measured). The h2 and h3 keep BMPlan's h4 heads in order. */
   var handOpen = false;
+  /* whether this browser holds a placement take (any own entry of bm.diag.v1's takes that is a
+     record, as takesOf counts them) */
+  function hasTake() {
+    var d = Store.read(Store.keys.diag, {}), t = d && typeof d === "object" ? d.takes : null;
+    if (!t || typeof t !== "object" || Array.isArray(t)) return false;
+    return Object.keys(t).some(function (k) { var x = t[k]; return !!x && typeof x === "object" && !Array.isArray(x); });
+  }
   function planPanel() {
+    /* no take: the invitation to the check. A take the plan cannot read or draw: nothing, never
+       the invitation, whose link would only open the return view */
+    if (!hasTake()) {
+      var inv = document.createElement("section");
+      inv.className = "panel";
+      inv.id = "start-check";
+      inv.innerHTML = '<p><a href="diagnostic.html">Find your starting point</a>: a short placement check with no timer.</p>';
+      page.insertBefore(inv, page.firstChild);
+      return;
+    }
     var Plan = window.BMPlan;
     if (!Plan || typeof Plan.render !== "function") return;
     var slot = document.createElement("div");

@@ -145,11 +145,22 @@ module.exports = {
     await panelCase("light", 1280);
     await panelCase("dark", 360);
 
-    await kase("progress page with no take: no panel and no empty slot", {}, async (page) => {
+    await kase("progress page with no take: the invitation, no plan panel and no empty slot", {}, async (page) => {
       const p = [];
       await h.open(page, PROGRESS);
-      const seen = await page.evaluate(() => ({ panel: !!document.getElementById("plan"), slot: !!document.querySelector(".diag-plan"), stats: !!document.querySelector(".stats") }));
-      check(p, !seen.panel && !seen.slot, "a panel or an empty slot: " + JSON.stringify(seen));
+      const seen = await page.evaluate(() => ({ panel: !!document.getElementById("plan"), slot: !!document.querySelector(".diag-plan"), stats: !!document.querySelector(".stats"), invite: !!document.getElementById("start-check") }));
+      check(p, !seen.panel && !seen.slot, "a plan panel or an empty slot: " + JSON.stringify(seen));
+      check(p, seen.invite, "no invitation to the check");
+      check(p, seen.stats, "the page itself is not drawn");
+      return p;
+    });
+
+    await kase("progress page with a take the plan cannot read: neither the plan nor the invitation", {}, async (page) => {
+      const p = [];
+      await h.open(page, PROGRESS);
+      await page.evaluate(() => { localStorage.setItem("bm.diag.v1", JSON.stringify({ takes: { bad: { v: 99, band: "nowhere" } } })); window.BMStore.emit({ type: "sync" }); });
+      const seen = await page.evaluate(() => ({ panel: !!document.getElementById("plan"), invite: !!document.getElementById("start-check"), stats: !!document.querySelector(".stats") }));
+      check(p, !seen.panel && !seen.invite, "a plan or an invitation for an unreadable take: " + JSON.stringify(seen));
       check(p, seen.stats, "the page itself is not drawn");
       return p;
     });
@@ -272,9 +283,90 @@ module.exports = {
         await other.evaluate(() => localStorage.setItem("bm.diag.v1", "{}"));
         await page.waitForFunction(() => !document.getElementById("plan"), null, { timeout: 5000 });
         check(p, await page.evaluate(() => !document.querySelector(".diag-plan")), "an empty slot is left");
+        check(p, await page.evaluate(() => !!document.getElementById("start-check")), "the invitation did not replace the plan");
       } finally {
         await other.close();
       }
+      return p;
+    });
+
+    await kase("progress page: a localStorage.clear() in a second tab (a null-key storage event) removes the panel and the invitation takes its place", {}, async (page, context) => {
+      const p = [];
+      await h.open(page, PAGE);
+      await plant(page);
+      await h.open(page, PROGRESS);
+      check(p, await page.evaluate(() => !!document.getElementById("plan")), "no panel to begin with");
+      const other = await context.newPage();
+      try {
+        await h.open(other, PROGRESS);
+        await other.evaluate(() => localStorage.clear());
+        await page.waitForFunction(() => !document.getElementById("plan"), null, { timeout: 5000 });
+        check(p, await page.evaluate(() => !document.querySelector(".diag-plan")), "an empty slot is left");
+        check(p, await page.evaluate(() => !!document.getElementById("start-check")), "the invitation did not replace the plan");
+      } finally {
+        await other.close();
+      }
+      return p;
+    });
+
+    /* the worst case: a moved-start note, 3 Start here, 5 Review first, at 360 px with the fold shut.
+       Band Geometry, both courses cleared, six misses in Algebra 1 (so five Review first), and every
+       Geometry section done (the page's BMGame and BMInsights told so) so the start moves to Algebra 2. */
+    const A1 = [["poly-eval", "ch12#definition-fn"], ["ineq-flip", "ch03#order"], ["abs-solve", "ch03#absolute"], ["pow-frac", "ch03#powers"], ["quad-square", "ch04#square-roots"], ["vertex-x", "ch04#graph"], ["exp-solve", "ch12#exponential"], ["quad-roots", "ch04#formula"]];
+    const GEO_SECS = ["interlude#logic", "interlude#quantifiers", "interlude#sets", "ch06#isometries", "ch06#symmetry", "ch08#circle", "ch09#addition-points", "ch10#segments", "ch10#lines"];
+    const WORST = {
+      v: 1, day: "2026-10-07", from: "pre", start: "algebra-1", band: "geometry", blueprint: 1, grader: 3, seed: 7, seeded: true,
+      blocks: [
+        { course: "algebra-1", pass: true, items: A1.map((f, i) => ({ g: f[0], s: 11 + i, sec: f[1], k: i < 6 ? "wrong" : "right" })) },
+        { course: "geometry", pass: true, items: GEO.map((f, i) => ({ g: f[0], s: 101 + i, sec: f[1], k: "right" })) }
+      ]
+    };
+    /* 700 px guards the compact form: the worst case the plan allows (the moved note, 3 Start here,
+       5 Review first) measured 668 px at 360 px on 2026-10-10, about one phone screen. Unfolding the
+       rest (4385 px) or a longer list would fail it. */
+    await kase("progress page at 360 px with a worst-case take: the panel is at most 700 px tall with the fold shut, and the fold hides more", { vw: 360 }, async (page) => {
+      const p = [];
+      await h.open(page, PAGE);
+      await page.evaluate((take) => localStorage.setItem("bm.diag.v1", JSON.stringify({ takes: { worst1: take } })), WORST);
+      await h.open(page, PROGRESS);
+      /* only while the plan is drawn, the page's BMGame and BMInsights say Geometry is done */
+      await page.evaluate((secs) => {
+        const render = window.BMPlan.render;
+        window.BMPlan.render = function () {
+          const status = window.BMGame.sectionStatus, sections = window.BMInsights.sections;
+          window.BMGame.sectionStatus = (r) => (secs.includes(r) ? "solid" : status(r));
+          window.BMInsights.sections = () => sections().concat(secs.concat(["ch16#det-props"]).map((id) => ({ id, solved: 2 })));
+          try { return render.apply(this, arguments); } finally { window.BMGame.sectionStatus = status; window.BMInsights.sections = sections; }
+        };
+      }, GEO_SECS);
+      /* a goal chip redraws the page, and so the plan, from the patched state */
+      await page.locator('[data-goal="50"]').click();
+      await page.waitForFunction(() => document.querySelector('[data-goal="50"]').getAttribute("aria-pressed") === "true");
+      const size = () => page.evaluate(() => {
+        const el = document.getElementById("plan");
+        const cs = getComputedStyle(el);
+        return Math.round(el.getBoundingClientRect().height + parseFloat(cs.marginTop) + parseFloat(cs.marginBottom));
+      });
+      const m = await page.evaluate(() => {
+        const slot = document.querySelector("#plan .diag-plan");
+        const d = slot && slot.querySelector("details.diag-plan-hand");
+        const tile = document.querySelector(".stats > *");
+        return {
+          start: slot ? slot.querySelector(":scope > ul").children.length : -1,
+          shut: !!d && !d.open,
+          top: tile ? Math.round(tile.getBoundingClientRect().top + window.scrollY) : null,
+          note: slot ? (slot.querySelector(":scope > p") || {}).textContent || null : null,
+          review5: slot ? (slot.querySelectorAll(":scope > h4")[1] ? slot.querySelectorAll(":scope > ul")[1].children.length : 0) : -1
+        };
+      });
+      const shutH = await size();
+      await page.locator(".diag-plan-hand summary").click();
+      await page.waitForFunction(() => document.querySelector(".diag-plan-hand").open);
+      const openH = await size();
+      check(p, m.shut, "the fold is not shut");
+      check(p, m.note === "Your plan now starts in Algebra 2" && m.start === 3 && m.review5 === 5, "not the worst case: " + JSON.stringify(m));
+      check(p, shutH <= 700, "the worst-case panel with the fold shut is " + shutH + " px (bound 700)");
+      check(p, openH > shutH, "opening the fold does not make the panel taller: " + shutH + " then " + openH);
       return p;
     });
   }
