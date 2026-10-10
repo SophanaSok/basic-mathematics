@@ -29,7 +29,7 @@
 const drive = require("../lib/drive");
 const { track, VIEWPORTS } = require("../lib/browser");
 
-const PAGES = ["index.html", "parts/2-geometry/05-distance-and-angles.html", "arena.html", "progress.html"];
+const PAGES = ["index.html", "parts/2-geometry/05-distance-and-angles.html", "arena.html", "progress.html", "diagnostic.html"];
 const CHAPTER = PAGES[1];
 
 function dayKey(d) {
@@ -58,7 +58,7 @@ const LONG = {
 /* every kind of top bar (the usual links, the contents page's one, the about page's two,
    a chapter's hearts, the Arena's hearts and clock), and the widths the sweep sets: the
    phones, the tablets, the small laptops and either side of every step of the collapse */
-const BARS = ["index.html", "parts/2-geometry/05-distance-and-angles.html", "arena.html", "progress.html", "about.html"];
+const BARS = ["index.html", "parts/2-geometry/05-distance-and-angles.html", "arena.html", "progress.html", "about.html", "diagnostic.html"];
 const SWEEP = [320, 359, 360, 375, 390, 414, 420, 421, 440, 441, 480, 481, 520, 521, 600, 615, 616, 690, 691, 720, 768, 800, 801,
   834, 860, 861, 900, 940, 941, 1024, 1050, 1051, 1100, 1120, 1121, 1180, 1240, 1241, 1280];
 
