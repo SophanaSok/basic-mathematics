@@ -1,6 +1,6 @@
 /* The study plan on the page: gathers what planOf (src/learn/plan.ts) needs from the
    globals, asks it for the plan, and draws the lines of design section 8 in display order.
-   window.BMPlan.render(el, take?) fills `el`, or leaves it empty when there is no plan. With
+   window.BMPlan.render(el, take?, opts?) fills `el`, or leaves it empty when there is no plan. With
    a take it plans from that take (the result just drawn); without one it reads the latest
    stored take (the progress page).
 
@@ -110,7 +110,7 @@ function groupBlock(g: PlanGroup, where: Map<SectionRef, Place>, head: string, b
   return d;
 }
 
-function draw(el: Element, p: Plan, where: Map<SectionRef, Place>): void {
+function draw(el: Element, p: Plan, where: Map<SectionRef, Place>, compact: boolean): void {
   const add = (n: Node) => el.appendChild(n);
   if (p.movedNote) add(node("p", p.movedNote));
 
@@ -135,37 +135,59 @@ function draw(el: Element, p: Plan, where: Map<SectionRef, Place>): void {
   }
 
   const coming = p.comingUp.filter((g) => g.count > 0);
-  if (coming.length) {
-    add(node("h4", "Coming up"));
-    coming.forEach((g) => add(groupBlock(g, where, g.label, true)));
+  const hand = p.inHand.filter((g) => g.count > 0);
+  const handGroups = (into: Element) => hand.forEach((g) => into.appendChild(groupBlock(g, where, g.kind === "implied" ? g.label + ": " + g.heading : g.label)));
+  const comingBlock = (into: Element) => {
+    into.appendChild(node("h4", "Coming up"));
+    coming.forEach((g) => into.appendChild(groupBlock(g, where, g.label, true)));
+  };
+  const furtherBlock = (into: Element) => {
+    into.appendChild(node("h4", "Going further"));
+    into.appendChild(list(p.goingFurther, where));
+  };
+
+  if (compact) {
+    /* one shut fold for the three later lines; their heads sit inside it, never in the summary */
+    if (coming.length || hand.length || p.goingFurther.length) {
+      const d = node("details", undefined, "diag-plan-hand");
+      d.appendChild(node("summary", "See the whole plan"));
+      if (coming.length) comingBlock(d);
+      if (hand.length) {
+        d.appendChild(node("h4", "Already in hand"));
+        d.appendChild(node("p", "You can skim these."));
+        handGroups(d);
+      }
+      if (p.goingFurther.length) furtherBlock(d);
+      add(d);
+    }
+    return;
   }
 
-  const hand = p.inHand.filter((g) => g.count > 0);
+  if (coming.length) comingBlock(el);
+
   if (hand.length) {
+    /* the heading is a sibling before the fold, never inside the summary */
+    add(node("h4", "Already in hand"));
     const d = node("details", undefined, "diag-plan-hand");
-    /* a heading inside the summary, so the course heads below sit under it in the outline */
-    const sum = node("summary");
-    sum.appendChild(node("h4", "Already in hand"));
-    d.appendChild(sum);
+    d.appendChild(node("summary", "Show the sections you can skim"));
     d.appendChild(node("p", "You can skim these."));
-    hand.forEach((g) => d.appendChild(groupBlock(g, where, g.kind === "implied" ? g.label + ": " + g.heading : g.label)));
+    handGroups(d);
     add(d);
   }
 
-  if (p.goingFurther.length) {
-    add(node("h4", "Going further"));
-    add(list(p.goingFurther, where));
-  }
+  if (p.goingFurther.length) furtherBlock(el);
 }
 
 /** Draw the plan into `el`, replacing what is there; leave it empty when there is no plan.
-    `take` is the take to plan from; without it, the latest stored take. */
-function render(el: Element, take?: unknown): void {
+    `take` is the take to plan from; without it, the latest stored take. With `opts.compact`
+    (the progress page), Start here and Review first stay open and the later lines fold into
+    one shut "See the whole plan". */
+function render(el: Element, take?: unknown, opts?: { compact?: boolean }): void {
   el.replaceChildren();
   const got = gather(take);
   if (!got) return;
   try {
-    draw(el, got.plan, got.where);
+    draw(el, got.plan, got.where, !!(opts && opts.compact));
   } catch {
     el.replaceChildren();
   }

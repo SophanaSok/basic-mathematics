@@ -182,10 +182,10 @@
     if (!Plan || typeof Plan.render !== "function") return;
     var slot = document.createElement("div");
     slot.className = "diag-plan";
-    try { Plan.render(slot); } catch (e) { return; }
+    try { Plan.render(slot, undefined, { compact: true }); } catch (e) { return; }
     if (!slot.firstChild) return;
-    /* every redraw rebuilds the plan, so "Already in hand" keeps the reader's open or shut */
-    var hand = slot.querySelector("details");
+    /* every redraw rebuilds the plan, so "See the whole plan" keeps the reader's open or shut */
+    var hand = slot.querySelector("details.diag-plan-hand");
     if (hand) {
       hand.open = handOpen;
       hand.addEventListener("toggle", function () { handOpen = hand.open; });
@@ -282,6 +282,11 @@
       if (c.type === "sync" || c.type === "reset" || c.type === "achievement" || c.type === "level") drawProgress();
     });
     if (Account) Account.onChange(drawProgress);
+    /* a take finished in another tab: the placement check writes bm.diag.v1 there */
+    window.addEventListener("storage", function (e) {
+      if (e.storageArea !== window.localStorage) return;
+      if (e.key === ((window.BMStore && window.BMStore.keys.diag) || "bm.diag.v1") || e.key === null) drawProgress();
+    });
   }
 
   /* --------------------------------------------------------- author's view -- */
