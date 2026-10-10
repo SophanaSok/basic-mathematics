@@ -177,13 +177,17 @@
      without one, and then the same place holds an invitation to the check (never to sign up;
      no minutes are claimed, none are measured). The h2 and h3 keep BMPlan's h4 heads in order. */
   var handOpen = false;
+  /* whether this browser holds a placement take (any own entry of bm.diag.v1's takes that is a
+     record, as takesOf counts them) */
+  function hasTake() {
+    var d = Store.read(Store.keys.diag, {}), t = d && typeof d === "object" ? d.takes : null;
+    if (!t || typeof t !== "object" || Array.isArray(t)) return false;
+    return Object.keys(t).some(function (k) { var x = t[k]; return !!x && typeof x === "object" && !Array.isArray(x); });
+  }
   function planPanel() {
-    var Plan = window.BMPlan;
-    if (!Plan || typeof Plan.render !== "function") return;
-    var slot = document.createElement("div");
-    slot.className = "diag-plan";
-    try { Plan.render(slot, undefined, { compact: true }); } catch (e) { return; }
-    if (!slot.firstChild) {
+    /* no take: the invitation to the check. A take the plan cannot read or draw: nothing, never
+       the invitation, whose link would only open the return view */
+    if (!hasTake()) {
       var inv = document.createElement("section");
       inv.className = "panel";
       inv.id = "start-check";
@@ -191,6 +195,12 @@
       page.insertBefore(inv, page.firstChild);
       return;
     }
+    var Plan = window.BMPlan;
+    if (!Plan || typeof Plan.render !== "function") return;
+    var slot = document.createElement("div");
+    slot.className = "diag-plan";
+    try { Plan.render(slot, undefined, { compact: true }); } catch (e) { return; }
+    if (!slot.firstChild) return;
     /* every redraw rebuilds the plan, so "See the whole plan" keeps the reader's open or shut */
     var hand = slot.querySelector("details.diag-plan-hand");
     if (hand) {

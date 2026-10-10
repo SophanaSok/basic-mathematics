@@ -148,8 +148,19 @@ module.exports = {
     await kase("progress page with no take: the invitation, no plan panel and no empty slot", {}, async (page) => {
       const p = [];
       await h.open(page, PROGRESS);
-      const seen = await page.evaluate(() => ({ panel: !!document.getElementById("plan"), slot: !!document.querySelector(".diag-plan"), stats: !!document.querySelector(".stats") }));
+      const seen = await page.evaluate(() => ({ panel: !!document.getElementById("plan"), slot: !!document.querySelector(".diag-plan"), stats: !!document.querySelector(".stats"), invite: !!document.getElementById("start-check") }));
       check(p, !seen.panel && !seen.slot, "a plan panel or an empty slot: " + JSON.stringify(seen));
+      check(p, seen.invite, "no invitation to the check");
+      check(p, seen.stats, "the page itself is not drawn");
+      return p;
+    });
+
+    await kase("progress page with a take the plan cannot read: neither the plan nor the invitation", {}, async (page) => {
+      const p = [];
+      await h.open(page, PROGRESS);
+      await page.evaluate(() => { localStorage.setItem("bm.diag.v1", JSON.stringify({ takes: { bad: { v: 99, band: "nowhere" } } })); window.BMStore.emit({ type: "sync" }); });
+      const seen = await page.evaluate(() => ({ panel: !!document.getElementById("plan"), invite: !!document.getElementById("start-check"), stats: !!document.querySelector(".stats") }));
+      check(p, !seen.panel && !seen.invite, "a plan or an invitation for an unreadable take: " + JSON.stringify(seen));
       check(p, seen.stats, "the page itself is not drawn");
       return p;
     });
@@ -272,13 +283,14 @@ module.exports = {
         await other.evaluate(() => localStorage.setItem("bm.diag.v1", "{}"));
         await page.waitForFunction(() => !document.getElementById("plan"), null, { timeout: 5000 });
         check(p, await page.evaluate(() => !document.querySelector(".diag-plan")), "an empty slot is left");
+        check(p, await page.evaluate(() => !!document.getElementById("start-check")), "the invitation did not replace the plan");
       } finally {
         await other.close();
       }
       return p;
     });
 
-    await kase("progress page: a localStorage.clear() in a second tab (a null-key storage event) removes the panel", {}, async (page, context) => {
+    await kase("progress page: a localStorage.clear() in a second tab (a null-key storage event) removes the panel and the invitation takes its place", {}, async (page, context) => {
       const p = [];
       await h.open(page, PAGE);
       await plant(page);
@@ -290,6 +302,7 @@ module.exports = {
         await other.evaluate(() => localStorage.clear());
         await page.waitForFunction(() => !document.getElementById("plan"), null, { timeout: 5000 });
         check(p, await page.evaluate(() => !document.querySelector(".diag-plan")), "an empty slot is left");
+        check(p, await page.evaluate(() => !!document.getElementById("start-check")), "the invitation did not replace the plan");
       } finally {
         await other.close();
       }
