@@ -78,6 +78,8 @@ interface Window {
   BMMerge: typeof import("../ui/core.ts").merge;
   /** src/ui/diagnostic.ts: the placement check page (gate, screen), a console and test handle */
   BMDiag: typeof import("../ui/diagnostic.ts").api;
+  /** src/ui/plan.ts: the study plan (render), for the diagnostic page; typed */
+  BMPlan: typeof import("../ui/plan.ts").api;
   /** src/ui/next.ts: the "next best step" card (render, items, hide), a console and test handle */
   BMNext: typeof import("../ui/next.ts").api;
   /** src/ui/math-names.ts: names the buttons, labels, table headers and headings whose

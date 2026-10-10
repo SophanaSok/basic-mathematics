@@ -12,7 +12,7 @@
      are shown as textContent, in a node renderMath never sees. renderMath runs only on nodes
      that hold a generator's own text (a question, an answer, a worked step).
    - Takes are read through latestTake and takesOf only (src/learn/diag-seed.ts).
-   - The plan (D-12) has an empty slot, marked below, and no text of its own. */
+   - The plan (src/ui/plan.ts) fills the slot marked below; this file adds only its heading. */
 
 import { formMessage } from "../core/answer/messages.ts";
 import type { FormReason } from "../core/answer/types.ts";
@@ -198,11 +198,13 @@ function lines(v: View, live: boolean): HTMLElement[] {
   return out;
 }
 
-/** The plan goes here (D-12: src/ui/plan.ts fills it). Empty on purpose: no text, no heading. */
+/** The plan goes here (src/ui/plan.ts fills it). No plan, no heading: the slot stays empty. */
 function planSlot(): HTMLElement {
   const slot = node("div", undefined, "diag-plan");
   slot.id = "diag-plan";
   slot.setAttribute("data-slot", "plan");
+  try { window.BMPlan?.render(slot); } catch { slot.replaceChildren(); }
+  if (slot.childNodes.length) slot.insertBefore(node("h3", "Your plan"), slot.firstChild);
   return slot;
 }
 
