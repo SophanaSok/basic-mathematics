@@ -216,6 +216,42 @@
       "<script>#da34f45a</script>"
     ]
   },
+  "prep.html": {
+    "head": [
+      "<meta charset='utf-8'>",
+      "<meta name='robots' content='noindex'>",
+      "<meta name='viewport' content='width=device-width, initial-scale=1'>",
+      "<title>Prep — Basic Mathematics</title>",
+      "<meta name='description' content='Prep is a paid plan we&#39;re getting ready for families: diagnostic re-takes, exam practice, parent reports and an AI tutor.'>",
+      "<script>#ec845843</script>",
+      "<style>#2b16b645</style>",
+      "<link rel='icon' href='assets/favicon.svg' type='image/svg+xml'>",
+      "<link rel='stylesheet' href='src/vendor/fonts.css'>",
+      "<link rel='stylesheet' href='src/vendor/katex.css'>",
+      "<link rel='stylesheet' href='src/styles/tokens.css'>",
+      "<link rel='stylesheet' href='assets/site.css'>",
+      "<link rel='stylesheet' href='assets/game.css'>",
+      "<script type='module' src='src/entries/page.js'>"
+    ],
+    "body": "<body data-depth='0'>",
+    "topbar": [
+      "Skip to content -> #main",
+      "∑ Basic Mathematics -> index.html",
+      "Contents -> index.html",
+      "How to use this -> about.html",
+      "Level 1, Counter. 0 of 25 XP to level 2. Open your progress. -> progress.html",
+      "Sign in -> account.html",
+      "button: Sound",
+      "button: Menu and settings",
+      "button: Close menu and settings",
+      "Contents -> index.html",
+      "How to use this -> about.html",
+      "Your progress -> progress.html",
+      "Arena -> arena.html",
+      "Your account -> account.html",
+      "<script>#da34f45a</script>"
+    ]
+  },
   "progress.html": {
     "head": [
       "<meta charset='utf-8'>",
