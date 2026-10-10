@@ -97,7 +97,7 @@ const ALPHA = (s) => {
 module.exports = {
   name: "hud",
   order: 46,
-  description: "the HUD and the settings sheet: no layout shift when the bundle loads (4 page kinds), the top bar fits from 320 to 1280 wide (5 kinds), the sheet by mouse and keyboard, modal focus trap, each setting kept and taking effect, axe on the open sheet",
+  description: "the HUD and the settings sheet: no layout shift when the bundle loads (5 page kinds), the top bar fits from 320 to 1280 wide (6 kinds), the sheet by mouse and keyboard, modal focus trap, each setting kept and taking effect, axe on the open sheet",
   async run(ctx) {
     const { h, report, server } = ctx;
 

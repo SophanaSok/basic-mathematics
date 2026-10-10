@@ -31,7 +31,8 @@ const RUN_KEY = "bm.run.v1", DIAG_KEY = "bm.diag.v1", GAME_KEY = "bm.game.v1";
 const SAVED = "Your place is saved. You can stop any time.";
 const UNSAVED = "This browser isn't saving right now, so finish in one sitting.";
 const TAKE_UNSAVED = "This browser isn't saving right now, so this result may not be kept.";
-const RETURN_LINE = "You've finished this check.";
+/* the return view (D-10b): its own section, with "Take it again" to the Prep page */
+const RETURN_LINK = '#diag-return a[href="prep.html#diagnostic"]';
 const CHECKING = "Checking your saved results…";
 const NO_ACCOUNT = "We couldn't reach your account just now, so this uses what this browser has saved.";
 const MOVED = "This check continued in another tab.";
@@ -510,8 +511,8 @@ module.exports = {
       await open(page);
       await plantTake(page, "earlier1");
       await reload(page);
-      check(p, await shown(page, "diag-done"), "the return stub is not showing");
-      check(p, (await textOf(page, "diag-done-line")) === RETURN_LINE, "line: " + (await textOf(page, "diag-done-line")));
+      check(p, await shown(page, "diag-return"), "the return view is not showing");
+      check(p, (await page.locator(RETURN_LINK).count()) === 1, "no Take it again link to prep.html#diagnostic");
       check(p, !(await shown(page, "diag-intro")), "the intro is showing");
       check(p, (await runNow(page)) === null, "a run was written");
       check(p, !/Prep/.test(await page.evaluate(() => document.querySelector("main").textContent)), "Prep content on the return view");
@@ -577,8 +578,8 @@ module.exports = {
     }, Object.assign(async (page) => {
       const p = [];
       await page.goto(server.url + PAGE, { waitUntil: "load" });
-      await page.waitForFunction(() => !document.getElementById("diag-done").hidden, null, { polling: 100 });
-      check(p, (await textOf(page, "diag-done-line")) === RETURN_LINE, "line: " + (await textOf(page, "diag-done-line")));
+      await page.waitForFunction(() => !document.getElementById("diag-return").hidden, null, { polling: 100 });
+      check(p, (await page.locator(RETURN_LINK).count()) === 1, "no Take it again link to prep.html#diagnostic");
       check(p, (await textOf(page, "diag-notice")) === "", "notice: " + (await textOf(page, "diag-notice")));
       check(p, (await runNow(page)) === null, "a run was written");
       check(p, (await takes(page)).some((t) => t.band === "geometry"), "the account's take did not reach this browser");
@@ -590,6 +591,75 @@ module.exports = {
       await open(page);
       check(p, !errors.own.some((u) => /\/bundle\/supabase\.js/.test(u)), "bundle/supabase.js was requested");
       check(p, errors.unexpected().length === 0, "requests off the local server: " + errors.unexpected().join(", "));
+      return p;
+    });
+
+    /* ----------------------------------------------- a sign-out under the result -- */
+
+    /* the first answer typed (so "You typed" is drawn), the rest skipped: band Pre-algebra
+       after 5 questions, and the result on screen */
+    const TYPED_THEN_SKIP = (n) => (n === 0 ? "right" : "skip");
+    const resultShows = (page) => page.evaluate(() => {
+      const t = document.querySelector("main").textContent;
+      return { typed: /You typed:/.test(t), band: /Start with: Pre-algebra/.test(t), box: document.getElementById("diag-result").childNodes.length };
+    });
+    /* what account.js's clearLocal does to the two keys this page reads: bm.run.v1 first */
+    const signOut = (page) => page.evaluate(() => {
+      localStorage.setItem("bm.run.v1", "{}");
+      localStorage.setItem("bm.diag.v1", "{}");
+    });
+
+    await kase("F1: a sign-out in another tab while the result shows: the typed text and the band leave the page, the intro shows, nothing written", {}, async (page, context) => {
+      const p = [];
+      await begin(page, "unsure");
+      await walk(page, TYPED_THEN_SKIP);
+      const before = await resultShows(page);
+      check(p, before.typed && before.band, "the result did not draw the typed text and the band: " + JSON.stringify(before));
+      const other = await context.newPage();
+      await other.goto(server.url + PAGE, { waitUntil: "load" });
+      await h.settle(other);
+      await signOut(other);
+      await page.waitForFunction(() => !document.getElementById("diag-intro").hidden);
+      const after = await resultShows(page);
+      check(p, !after.typed && !after.band && after.box === 0, "the signed-out reader's result is still in the page: " + JSON.stringify(after));
+      check(p, !(await shown(page, "diag-done")), "the result is still showing");
+      check(p, (await raw(page, DIAG_KEY)) === "{}", "bm.diag.v1 was written: " + (await raw(page, DIAG_KEY)));
+      return p;
+    });
+
+    await kase("F1: a same-tab sync that keeps the take leaves the result; one that drops it shows the intro with the typed text and band gone", {}, async (page) => {
+      const p = [];
+      await begin(page, "unsure");
+      await walk(page, TYPED_THEN_SKIP);
+      await page.evaluate(() => window.BMStore.emit({ type: "sync" }));
+      const kept = await resultShows(page);
+      check(p, (await shown(page, "diag-done")) && kept.typed && kept.band, "a sync that kept the take moved the result: " + JSON.stringify(kept));
+      await page.evaluate(() => {
+        const S = window.BMStore;
+        S.write(S.keys.run, {}, true);
+        S.write(S.keys.diag, {}, true);
+        S.emit({ type: "sync" });
+      });
+      await page.waitForFunction(() => !document.getElementById("diag-intro").hidden);
+      const after = await resultShows(page);
+      check(p, !after.typed && !after.band && after.box === 0, "the dropped take's result is still in the page: " + JSON.stringify(after));
+      check(p, (await raw(page, DIAG_KEY)) === "{}", "bm.diag.v1 was written: " + (await raw(page, DIAG_KEY)));
+      return p;
+    });
+
+    await kase("a sign-out in another tab while the return view shows: the intro, and the hidden return section holds no band", {}, async (page, context) => {
+      const p = [];
+      await open(page);
+      await plantTake(page, "earlier1");
+      await reload(page);
+      check(p, await shown(page, "diag-return"), "the return view is not showing");
+      const other = await context.newPage();
+      await other.goto(server.url + PAGE, { waitUntil: "load" });
+      await h.settle(other);
+      await signOut(other);
+      await page.waitForFunction(() => !document.getElementById("diag-intro").hidden);
+      const left = await page.evaluate(() => document.getElementById("diag-return-view").childNodes.length);
+      check(p, left === 0, "the return section still holds " + left + " nodes");
       return p;
     });
 
@@ -621,7 +691,7 @@ module.exports = {
       await walk(page, skip);
       await overflow("done"); await axe("done");
       await reload(page);
-      check(p, (await textOf(page, "diag-done-line")) === RETURN_LINE, "the return stub is not showing");
+      check(p, await shown(page, "diag-return"), "the return view is not showing");
       await overflow("return"); await axe("return");
       return p;
     }
