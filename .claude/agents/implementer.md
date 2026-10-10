@@ -21,6 +21,11 @@ Procedure:
    when the brief says so (normally the final fix pass).
 4. Never commit, branch, push or touch `.env`.
 
+Finish what you start: before your report, nothing you started may still be running. A command
+you ran in the background is waited for (or stopped) and its result read; a local server,
+browser or Playwright script you launched is closed. A report sent with work still running
+leaves the task showing as active for hours after it is done.
+
 Report in this shape, nothing else:
 - Files changed (path and one line each).
 - Done-when: command and pass/fail.

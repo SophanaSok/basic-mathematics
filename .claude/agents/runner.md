@@ -16,6 +16,11 @@ Rules:
 - Cleanup requests (`git worktree remove`, `git branch -d`) only for the paths and
   branches named in the request; refuse `-D`, force or anything naming `main`.
 
+Finish what you start: before your report, nothing you started may still be running. A command
+you ran in the background is waited for (or stopped) and its result read; a local server,
+browser or Playwright script you launched is closed. A report sent with work still running
+leaves the task showing as active for hours after it is done.
+
 Report in this shape, nothing else:
 - Command and exit code.
 - For a test run: each failing test or check by name, with the first error block
