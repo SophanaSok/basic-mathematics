@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Chart fixture — Basic Mathematics</title>
+<!--
+  One data chart of each kind (assets/widgets.js W.chart, src/ui/chart.ts). It is not a page
+  of the site: tools/suites/widgets.js takes the <main> below, puts it into the built
+  about.html (so it has the real stylesheets, scripts and shell) and serves that as
+  /charts-fixture.html. No course page uses a chart yet; this keeps them checked.
+-->
+</head>
+<body>
+<main id="main">
+  <h1>Charts</h1>
+
+  <h2>Dot plot</h2>
+  <figure class="widget" data-widget="chart" data-kind="dot">
+    <table>
+      <thead><tr><th>Pets per household</th></tr></thead>
+      <tbody><tr><td>0</td></tr><tr><td>1</td></tr><tr><td>1</td></tr><tr><td>2</td></tr><tr><td>2</td></tr><tr><td>2</td></tr><tr><td>4</td></tr></tbody>
+    </table>
+    <figcaption>Pets per household in seven homes.</figcaption>
+  </figure>
+
+  <h2>Histogram</h2>
+  <figure class="widget" data-widget="chart" data-kind="hist" data-width="10">
+    <table>
+      <thead><tr><th>Test score</th></tr></thead>
+      <tbody><tr><td>52</td></tr><tr><td>58</td></tr><tr><td>61</td></tr><tr><td>67</td></tr><tr><td>70</td></tr><tr><td>71</td></tr><tr><td>74</td></tr><tr><td>78</td></tr><tr><td>83</td></tr><tr><td>95</td></tr></tbody>
+    </table>
+    <figcaption>Scores on a test, in bins of width 10.</figcaption>
+  </figure>
+
+  <h2>Box plot</h2>
+  <figure class="widget" data-widget="chart" data-kind="box">
+    <table>
+      <thead><tr><th>Minutes to school</th></tr></thead>
+      <tbody><tr><td>5</td></tr><tr><td>8</td></tr><tr><td>10</td></tr><tr><td>12</td></tr><tr><td>15</td></tr><tr><td>20</td></tr><tr><td>35</td></tr></tbody>
+    </table>
+    <figcaption>How long seven students take to get to school.</figcaption>
+  </figure>
+
+  <h2>Bar chart</h2>
+  <figure class="widget" data-widget="chart" data-kind="bar">
+    <table>
+      <thead><tr><th>Pet</th><th>Votes</th></tr></thead>
+      <tbody><tr><td>Cats</td><td>12</td></tr><tr><td>Dogs</td><td>15</td></tr><tr><td>Fish</td><td>4</td></tr><tr><td>Birds</td><td>7</td></tr></tbody>
+    </table>
+    <figcaption>Favorite pet, by votes.</figcaption>
+  </figure>
+
+  <h2>Scatterplot</h2>
+  <figure class="widget" data-widget="chart" data-kind="scatter">
+    <table>
+      <thead><tr><th>Temperature (°C)</th><th>Change in sales</th></tr></thead>
+      <tbody><tr><td>−5</td><td>−8</td></tr><tr><td>0</td><td>−3</td></tr><tr><td>6</td><td>2</td></tr><tr><td>12</td><td>9</td></tr><tr><td>20</td><td>14</td></tr></tbody>
+    </table>
+    <figcaption>Temperature against the change in daily sales.</figcaption>
+  </figure>
+</main>
+</body>
+</html>

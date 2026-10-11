@@ -702,6 +702,34 @@ function refusal(fn) { try { fn(); return null; } catch (e) { return e.message; 
     "… every script under the pure directories is read, whatever its extension, but tests, test helpers and declaration files");
 }
 
+/* ----------------------------------------------------------------- charts -- */
+/* the widgets check's chart rules: a good figure passes, each bad one says why */
+{
+  const { chartProblems } = require("./check-static");
+  const fig = (kind, inner, attrs) => parse('<figure class="widget" data-widget="chart" data-kind="' + kind + '"' + (attrs || "") + ">" + inner + "</figure>").query("figure");
+  const table = (head, rows) => "<table><thead><tr>" + head.map(t => "<th>" + t + "</th>").join("") + "</tr></thead><tbody>" +
+    rows.map(r => "<tr>" + r.map(t => "<td>" + t + "</td>").join("") + "</tr>").join("") + "</tbody></table>";
+  const cap = "<figcaption>Caption.</figcaption>";
+  const probs = (kind, inner, attrs) => chartProblems(fig(kind, inner, attrs));
+  eq(probs("dot", table(["Score"], [["3"], ["4"], ["4"]]) + cap), [], "charts: a good dot plot passes");
+  eq(probs("hist", table(["Score"], [["3.5"], ["4"]]) + cap, ' data-width="2"'), [], "… a histogram with a bin width passes");
+  eq(probs("box", table(["Score"], [["\u22123"], ["1,000"]]) + cap), [], "… a box plot with a minus sign and a comma passes");
+  eq(probs("bar", table(["Pet", "Count"], [["Cats", "4"], ["Dogs", "6"]]) + cap), [], "… a bar chart passes");
+  eq(probs("scatter", table(["x", "y"], [["-1", "2"], ["3", "-4.5"]]) + cap), [], "… a scatterplot passes");
+  check(/unknown|not one of/.test(probs("pie", table(["a"], [["1"]]) + cap)[0]), "… an unknown data-kind fails");
+  check(probs("dot", table(["Score"], [["3"]])).some(m => /figcaption/.test(m)), "… a missing figcaption fails");
+  check(probs("dot", cap).some(m => /<table>/.test(m)), "… a missing table fails");
+  check(probs("dot", table(["Score"], [["3"], ["many"]]) + cap).some(m => /"many" is not a number/.test(m)), "… a non-numeric cell fails");
+  check(probs("dot", table(["Score", "More"], [["3", "4"]]) + cap).length >= 2, "… a dot plot with two columns fails, header and row");
+  check(probs("scatter", table(["x"], [["3"]]) + cap).length >= 2, "… a scatterplot with one column fails");
+  check(probs("bar", table(["Pet", "Count"], [["Cats", "many"]]) + cap).some(m => /not a number/.test(m)), "… a bar with a non-numeric value fails");
+  check(probs("bar", table(["Pet", "Count"], [[" ", "3"]]) + cap).some(m => /no label/.test(m)), "… a bar with no label fails");
+  check(probs("dot", "<table><tbody><tr><td>3</td></tr></tbody></table>" + cap).some(m => /header row/.test(m)), "… a table without a header row fails");
+  check(probs("dot", table(["Score"], []) + cap).some(m => /no data rows/.test(m)), "… a table with no rows fails");
+  check(probs("dot", table(["Score"], [["3"]]) + cap, ' data-width="2"').some(m => /data-width/.test(m)), "… data-width on a dot plot fails");
+  check(probs("hist", table(["Score"], [["3"]]) + cap, ' data-width="0"').some(m => /data-width/.test(m)), "… a bin width of 0 fails");
+}
+
 /* ----------------------------------------------------------------- skills -- */
 /* the skills check's rules (design §5), each on a small tree written here that breaks only
    it, and once on the real tree; generator records resolve through src/data/skills.ts's
