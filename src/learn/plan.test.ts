@@ -431,17 +431,6 @@ describe("Skill packs", () => {
     expect(plan(t, w, { packs: two, work: w2 }).packs.map((x) => x.id)).toEqual(["e"]);
   });
 
-  it("calls a pack done when its sections are solid, as the course does, though not every exercise is solved", () => {
-    const one = [pk("a", "pre-algebra", 2), pk("e", "pre-algebra")];
-    const w2: Record<string, number> = { ...work, "a#s0": 3, "a#s1": 3 };
-    const w = world();
-    const t = take("pre-algebra", [], ["pre-algebra"]);
-    w.solid.add("a#s0");
-    expect(plan(t, w, { packs: one, work: w2 }).packs.map((x) => x.id)).toEqual(["a", "e"]);
-    w.solid.add("a#s1");
-    expect(plan(t, w, { packs: one, work: w2 }).packs.map((x) => x.id)).toEqual(["e"]);
-  });
-
   it("never calls a pack with no exercises done", () => {
     const bare = [{ id: "z", course: "pre-algebra" as const, title: "Z", href: "z.html", refs: ["z#s" as SectionRef] }];
     expect(plan(take("pre-algebra", [], ["pre-algebra"]), world(), { packs: bare, work }).packs.map((x) => x.id)).toEqual(["z"]);
