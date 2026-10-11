@@ -814,12 +814,31 @@ function refusal(fn) { try { fn(); return null; } catch (e) { return e.message; 
   const { checkInstall } = require("./check-ci");
   const step = (extra, cmd) => "jobs:\n  browser:\n    steps:\n      - uses: actions/checkout@v7\n      - name: install\n" + extra + "        run: |\n          " + cmd + "\n      - run: npm test\n";
   const run = (ci) => { const r = result(); checkInstall(ci, r); return r.fails; };
-  const wrapped = "if timeout 240 npx playwright install --with-deps chromium; then exit 0; fi";
-  eq(run(step("        timeout-minutes: 13\n", wrapped)), [], "install: a step with timeout-minutes and a timeout wrapper passes");
+  const counted = (ci) => { const r = result(); checkInstall(ci, r); return r.count; };
+  const wrapped = "if timeout -k 20 240 npx playwright install --with-deps chromium; then exit 0; fi";
+  const T13 = "        timeout-minutes: 13\n";
+  eq(run(step(T13, wrapped)), [], "install: a step with timeout-minutes and a killing timeout wrapper passes");
+  eq(run(step(T13, "timeout --kill-after=20 240 npx playwright install chromium")), [], "install: --kill-after=N is a kill too");
   check(/no step-level timeout-minutes/.test(run(step("", wrapped)).join()) && run(step("", wrapped)).length === 1, "install: a step with no timeout-minutes fails, for that alone");
-  check(/without a `timeout <seconds>` wrapper/.test(run(step("        timeout-minutes: 13\n", "npx playwright install --with-deps chromium")).join()) && run(step("        timeout-minutes: 13\n", "npx playwright install chromium")).length === 1, "install: an install with no timeout wrapper fails, for that alone");
+  eq(run(step("    timeout-minutes: 13\n", wrapped)).length, 1, "install: a timeout-minutes indented as a job key (4 spaces) is not the step's");
+  eq(run(step("        timeout-minutes: thirteen\n", wrapped)).length, 1, "install: timeout-minutes must be a number");
+  check(/without a `timeout -k/.test(run(step(T13, "npx playwright install --with-deps chromium")).join()) && run(step(T13, "npx playwright install chromium")).length === 1, "install: an install with no timeout wrapper fails, for that alone");
+  eq(run(step(T13, "timeout 240 npx playwright install chromium")).length, 1, "install: a timeout that never kills fails");
+  eq(run(step(T13, "timeout -k 20 4m npx playwright install chromium")).length, 1, "install: the wrapper's limit is in plain seconds");
+  eq(run(step(T13, wrapped + "\n          npx playwright install chromium")).length, 1, "install: a second, bare install in a wrapped step fails");
+  eq(run(step(T13, 'echo "timeout -k 20 240 npx playwright install"\n          npx playwright install chromium')).length, 1, "install: an echo of the wrapper does not wrap the install");
+  eq(run(step(T13, wrapped + '\n          echo "::warning::playwright install failed"')), [], "install: an echo that names the install is not one");
+  eq(run(step(T13, wrapped).replace("- name: install", "- name: npx playwright install (three tries)")), [], "install: a step name that names the install runs nothing");
   eq(run(step("", "npx playwright install chromium")).length, 2, "install: a bare install step fails both ways");
   eq(run("jobs:\n  a:\n    steps:\n      - run: npm ci\n      # playwright install is not run here\n").length, 1, "install: a workflow with no install step fails, and a comment is no step");
+  /* two browser jobs, each with its own install step */
+  const job = (name, install) => "  " + name + ":\n    steps:\n" + (install ? "      - name: install " + name + "\n" + T13 + "        run: |\n          " + wrapped + "\n" : "") + "      - run: npm run " + (name === "webgl" ? "test:browser:3d" : "check:browser") + "\n";
+  const two = (a, b) => "jobs:\n  build:\n    steps:\n      - run: npm ci\n" + job("browser", a) + job("webgl", b);
+  eq(run(two(true, true)), [], "install: two browser jobs with an install step each pass");
+  eq(counted(two(true, true)), 5, "install: one count for the file, one per install step and one per browser job");
+  check(/the job "webgl" runs the browser tests with no playwright install step/.test(run(two(true, false)).join()) && run(two(true, false)).length === 1, "install: a browser job without its own install step fails, though another job has one");
+  eq(run(two(false, true)).length, 1, "install: either job may be the one missing it");
+  eq(run(two(true, true).replace(wrapped, "npx playwright install chromium")).length, 1, "install: each of two install steps is checked, not only the first");
 }
 
 /* ------------------------------------------------- answer-spec, placeholders -- */
