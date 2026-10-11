@@ -34,7 +34,9 @@ export interface Layout {
   x: Axis | null; y: Axis | null;
   xLabel: string; yLabel: string;
   dots: { cx: number; cy: number; r: number; value: number }[];
-  bars: { x: number; y: number; width: number; height: number; label: string; value: number; lo?: number; hi?: number }[];
+  bars: { x: number; y: number; width: number; height: number; label: string; lines: string[]; value: number; lo?: number; hi?: number }[];
+  /** the y of the value 0 when it is inside a bar chart's or scatterplot's range, for a zero line */
+  zeroY: number | null;
   points: { cx: number; cy: number; x: number; y: number }[];
   /** the five-number summary and its pixel positions (box plots) */
   five: Five | null;
@@ -84,13 +86,19 @@ export function quartiles(values: number[]): Five | null {
   return { min: v[0], q1: median(lower), median: median(v), q3: median(upper), max: v[n - 1] };
 }
 
+/** the most bins a histogram draws; a bin width that would give more falls back to the
+    automatic width (the static check refuses such a data-width) */
+export const MAX_BINS = 60;
+
 /** histogram bins: each is [lo, hi), so a value on an edge counts in the bin to its right,
     and the last bin is the one the largest value falls in (an all-equal set is one bin) */
 export function bins(values: number[], width?: number): { edges: number[]; counts: number[]; width: number } {
   const v = values.filter((x) => isFinite(x));
   if (!v.length) return { edges: [], counts: [], width: 1 };
   const min = Math.min(...v), max = Math.max(...v);
-  const bw = width && width > 0 ? width : (min === max ? 1 : niceTicks(min, max, 6).step);
+  const auto = min === max ? 1 : niceTicks(min, max, 6).step;
+  let bw = width && width > 0 ? width : auto;
+  if (Math.floor(clean(max / bw)) - Math.floor(clean(min / bw)) + 1 > MAX_BINS) bw = auto;
   const start = clean(Math.floor(clean(min / bw)) * bw);
   const at = (x: number) => Math.floor(clean((x - start) / bw));
   const n = at(max) + 1;
@@ -99,6 +107,27 @@ export function bins(values: number[], width?: number): { edges: number[]; count
   const counts = new Array<number>(n).fill(0);
   v.forEach((x) => { counts[at(x)]++; });
   return { edges, counts, width: bw };
+}
+
+/** an x-axis label is 11px text: this many px a character is a safe overestimate */
+export const CHAR_PX = 6.5;
+/** a bar's category label in at most two lines, each no wider than the band: words wrap,
+    and what does not fit ends in an ellipsis (the full text is in the table) */
+export function wrapLabel(text: string, band: number): string[] {
+  const max = Math.max(3, Math.floor(band / CHAR_PX));
+  const fit = (t: string) => (t.length > max ? t.slice(0, max - 1) + "…" : t);
+  const lines: string[] = [];
+  text.trim().split(/\s+/).filter(Boolean).forEach((word) => {
+    const last = lines.length - 1;
+    if (last >= 0 && (lines[last] + " " + word).length <= max) lines[last] += " " + word;
+    else lines.push(fit(word));
+  });
+  if (lines.length > 2) {
+    const t = lines[1];
+    lines.length = 2;
+    lines[1] = t.length < max ? t + "…" : t.slice(0, max - 1) + "…";
+  }
+  return lines.length ? lines : [""];
 }
 
 const axisOf = (t: ReturnType<typeof niceTicks>, from: number, to: number): Axis => ({
@@ -110,11 +139,11 @@ const axisOf = (t: ReturnType<typeof niceTicks>, from: number, to: number): Axis
     scatter { x, y }. A row without a finite number is dropped */
 export function chartLayout(kind: Kind, rows: Row[], opts: Opts = {}): Layout {
   const w = opts.w || 660, h = opts.h || 300;
-  const box = { l: 48, r: 24, t: 16, b: kind === "bar" ? 44 : 40 };
+  const box = { l: 48, r: 24, t: 16, b: kind === "bar" ? 56 : 40 };
   const out: Layout = {
     kind, w, h, empty: true, box: { l: box.l, r: w - box.r, t: box.t, b: h - box.b },
     x: null, y: null, xLabel: opts.xLabel || "", yLabel: opts.yLabel || "",
-    dots: [], bars: [], points: [], five: null, fivePx: null
+    dots: [], bars: [], points: [], zeroY: null, five: null, fivePx: null
   };
   const num = (x: unknown): x is number => typeof x === "number" && isFinite(x);
   const L = out.box.l, R = out.box.r, T = out.box.t, B = out.box.b;
@@ -137,7 +166,7 @@ export function chartLayout(kind: Kind, rows: Row[], opts: Opts = {}): Layout {
       out.bars = bn.counts.map((count, i) => {
         const x0 = px(bn.edges[i]), x1 = px(bn.edges[i + 1]);
         const top = B + ((count - 0) / (yt.max - 0)) * (T - B);
-        return { x: x0, y: top, width: x1 - x0, height: B - top, label: label(bn.edges[i]) + " to " + label(bn.edges[i + 1]), value: count, lo: bn.edges[i], hi: bn.edges[i + 1] };
+        return { x: x0, y: top, width: x1 - x0, height: B - top, lines: [], label: label(bn.edges[i]) + " to " + label(bn.edges[i + 1]), value: count, lo: bn.edges[i], hi: bn.edges[i + 1] };
       });
       return out;
     }
@@ -148,9 +177,11 @@ export function chartLayout(kind: Kind, rows: Row[], opts: Opts = {}): Layout {
       const stacks = new Map<number, number>();
       v.sort((a, b) => a - b).forEach((value) => stacks.set(clean(value), (stacks.get(clean(value)) || 0) + 1));
       const tallest = Math.max(...stacks.values());
-      const r = Math.max(2, Math.min(7, (B - T - 4) / (2 * tallest + 1)));
+      /* the radius shrinks (no floor) until the tallest stack fits under the plot top */
+      const r = Math.max(0.25, Math.min(7, (B - T - tallest - 1) / (2 * tallest)));
+      const step = tallest > 1 ? Math.min(2 * r + 1, (B - T - 2 * r - 4) / (tallest - 1)) : 0;
       stacks.forEach((n, value) => {
-        for (let k = 0; k < n; k++) out.dots.push({ cx: px(value), cy: B - r - 2 - k * (2 * r + 1), r, value });
+        for (let k = 0; k < n; k++) out.dots.push({ cx: px(value), cy: B - r - 2 - k * step, r, value });
       });
       return out;
     }
@@ -170,9 +201,10 @@ export function chartLayout(kind: Kind, rows: Row[], opts: Opts = {}): Layout {
     out.y = axisOf(yt, B, T);
     const py = (value: number) => B + ((value - yt.min) / (yt.max - yt.min)) * (T - B);
     const band = (R - L) / items.length, width = Math.min(band * 0.7, 90);
+    out.zeroY = yt.min < 0 ? py(0) : null;
     out.bars = items.map((r, i) => {
       const x = L + band * i + (band - width) / 2, y = py(r.value), y0 = py(0);
-      return { x, y: Math.min(y, y0), width, height: Math.abs(y0 - y), label: r.label, value: r.value };
+      return { x, y: Math.min(y, y0), width, height: Math.abs(y0 - y), label: r.label, lines: wrapLabel(r.label, band), value: r.value };
     });
     return out;
   }
@@ -184,6 +216,7 @@ export function chartLayout(kind: Kind, rows: Row[], opts: Opts = {}): Layout {
   const yt = niceTicks(Math.min(...pts.map((p) => p.y)), Math.max(...pts.map((p) => p.y)));
   out.x = axisOf(xt, L, R);
   out.y = axisOf(yt, B, T);
+  out.zeroY = yt.min < 0 && yt.max > 0 ? B + ((0 - yt.min) / (yt.max - yt.min)) * (T - B) : null;
   out.points = pts.map((p) => ({
     x: p.x, y: p.y,
     cx: L + ((p.x - xt.min) / (xt.max - xt.min)) * (R - L),
@@ -193,5 +226,5 @@ export function chartLayout(kind: Kind, rows: Row[], opts: Opts = {}): Layout {
 }
 
 if (typeof window !== "undefined") {
-  (window as unknown as { BMChart: unknown }).BMChart = { chartLayout, quartiles, bins, niceTicks };
+  (window as unknown as { BMChart: unknown }).BMChart = { chartLayout, quartiles, bins, niceTicks, MAX_BINS };
 }
