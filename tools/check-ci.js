@@ -112,6 +112,25 @@ function checkSkip(ci, r) {
   site.walk(path.join(site.ROOT, "docs"), p => !/\.md$/i.test(p)).forEach(p => r.fail(path.relative(site.ROOT, p) + " is in docs/ and is not Markdown: a change to only it would start no run of " + FILE + " (paths-ignore docs/**), so keep docs/ to prose"));
 }
 
+/* (h) a stuck browser download once held a job until its job timeout, so every step that
+   runs `playwright install` has a step-level timeout-minutes as a backstop and wraps the
+   install in coreutils `timeout`, which gives each try of its loop its own limit */
+function installSteps(ci) {
+  const code = ci.split("\n").filter(l => !/^\s*#/.test(l)).join("\n");
+  return code.split(/\n(?=      - )/).filter(s => /\bplaywright install\b/.test(s));
+}
+function checkInstall(ci, r) {
+  const steps = installSteps(ci);
+  r.count++;
+  if (!steps.length) r.fail(FILE + ": no step runs playwright install, so this check guards nothing");
+  steps.forEach(s => {
+    r.count++;
+    const name = (/name: ([^\n]+)/.exec(s) || [0, s.split("\n")[0].trim()])[1];
+    if (!/^ {8}timeout-minutes: \d+$/m.test(s)) r.fail(FILE + ": the step " + JSON.stringify(name) + " runs playwright install with no step-level timeout-minutes");
+    if (!/\btimeout \d+ npx playwright install\b/.test(s)) r.fail(FILE + ": the step " + JSON.stringify(name) + " runs playwright install without a `timeout <seconds>` wrapper, so a stuck download takes the whole step");
+  });
+}
+
 const CHECKS = [
   { name: "project", run: checkProject, what: "the cloudflare job's default project is a Cloudflare Pages project name" },
   { name: "rerun", run: checkRerun, what: "a re-run of an older commit of main stops before wrangler deploys" },
@@ -119,10 +138,13 @@ const CHECKS = [
   { name: "prod", run: checkProduction, what: "a deploy of main that Cloudflare did not make production fails" },
   { name: "core", run: checkCore, what: "test:browser:core runs in the browser job of the part --parts names as core" },
   { name: "pages", run: checkPages, what: "GitHub Pages gets dist-redirects/, built and checked in the build job, and never dist/" },
-  { name: "skip", run: checkSkip, what: "only a change to Markdown or docs/ alone starts no run, and the build reads none of it" }
+  { name: "skip", run: checkSkip, what: "only a change to Markdown or docs/ alone starts no run, and the build reads none of it" },
+  { name: "install", run: checkInstall, what: "every playwright install step has a timeout-minutes and a timeout wrapper per try" }
 ];
 
-(function main() {
+module.exports = { checkInstall };
+
+if (require.main === module) (function main() {
   const t0 = Date.now();
   const ci = fs.readFileSync(path.join(site.ROOT, FILE), "utf8");
   let anyFail = false;

@@ -171,7 +171,17 @@ jobs:
         with:
           name: dist
           path: dist
-      - run: npx playwright install --with-deps chromium
+      # a stuck download once held a job here until its job timeout, so each try gets its
+      # own limit and the step has a backstop; tools/check-ci.js (`install`) fails when
+      # either is missing
+      - name: npx playwright install (up to three tries)
+        timeout-minutes: 13
+        run: |
+          for try in 1 2 3; do
+            if timeout 240 npx playwright install --with-deps chromium; then exit 0; fi
+            echo "::warning::playwright install failed on try $try"
+          done
+          exit 1
       # the tools/game scripts go first in the job of the part CORE of check-browser.js
       # (today "rest"), named by --parts, never here; tools/check-ci.js (`core`) fails
       # when this step or its condition is changed
@@ -207,7 +217,17 @@ jobs:
         with:
           name: dist
           path: dist
-      - run: npx playwright install --with-deps chromium
+      # a stuck download once held a job here until its job timeout, so each try gets its
+      # own limit and the step has a backstop; tools/check-ci.js (`install`) fails when
+      # either is missing
+      - name: npx playwright install (up to three tries)
+        timeout-minutes: 13
+        run: |
+          for try in 1 2 3; do
+            if timeout 240 npx playwright install --with-deps chromium; then exit 0; fi
+            echo "::warning::playwright install failed on try $try"
+          done
+          exit 1
       - name: npm run test:browser:3d (up to three tries)
         run: |
           for try in 1 2 3; do

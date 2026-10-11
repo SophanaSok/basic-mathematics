@@ -809,6 +809,19 @@ function refusal(fn) { try { fn(); return null; } catch (e) { return e.message; 
   check(real.status === 0 && /^PASS  skills +76 /m.test(real.stdout), "skills: the real tree passes, counting its 76 curriculum sections — got " + real.stdout + real.stderr);
 }
 
+/* ------------------------------------------------- check-ci: install -- */
+{
+  const { checkInstall } = require("./check-ci");
+  const step = (extra, cmd) => "jobs:\n  browser:\n    steps:\n      - uses: actions/checkout@v7\n      - name: install\n" + extra + "        run: |\n          " + cmd + "\n      - run: npm test\n";
+  const run = (ci) => { const r = result(); checkInstall(ci, r); return r.fails; };
+  const wrapped = "if timeout 240 npx playwright install --with-deps chromium; then exit 0; fi";
+  eq(run(step("        timeout-minutes: 13\n", wrapped)), [], "install: a step with timeout-minutes and a timeout wrapper passes");
+  check(/no step-level timeout-minutes/.test(run(step("", wrapped)).join()) && run(step("", wrapped)).length === 1, "install: a step with no timeout-minutes fails, for that alone");
+  check(/without a `timeout <seconds>` wrapper/.test(run(step("        timeout-minutes: 13\n", "npx playwright install --with-deps chromium")).join()) && run(step("        timeout-minutes: 13\n", "npx playwright install chromium")).length === 1, "install: an install with no timeout wrapper fails, for that alone");
+  eq(run(step("", "npx playwright install chromium")).length, 2, "install: a bare install step fails both ways");
+  eq(run("jobs:\n  a:\n    steps:\n      - run: npm ci\n      # playwright install is not run here\n").length, 1, "install: a workflow with no install step fails, and a comment is no step");
+}
+
 /* ------------------------------------------------- answer-spec, placeholders -- */
 {
   const rule = (name) => CHECKS.filter(c => c.name === name)[0];
