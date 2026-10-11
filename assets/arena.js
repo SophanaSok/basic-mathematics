@@ -1038,7 +1038,7 @@
       if (!total) return;
       var open = ready || (!anyReady && !html);
       html += '<details class="arena-part" data-part="' + part.id + '"' + (open ? " open" : "") + ">" +
-        "<summary><span>Part " + part.num + " — " + esc(part.name) + '</span><span class="arena-part-count">' + ready + " of " + total + " ready</span></summary>" +
+        "<summary><span>" + (part.beside ? "" : "Part " + part.num + " — ") + esc(part.name) + '</span><span class="arena-part-count">' + ready + " of " + total + " ready</span></summary>" +
         '<ul class="arena-secs">' + rows + "</ul></details>";
     });
     var sum = counts.solid + counts.shaky + counts.picked;

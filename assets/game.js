@@ -515,7 +515,8 @@
       return best;
     }),
     A("ground-up", "From the ground up", "Finish every exercise in the course.", function (S) {
-      return [C.chapters.filter(function (ch) { return chapterFinished(S, ch); }).length, C.chapters.length || 17];
+      var list = C.courseChapters || C.chapters;
+      return [list.filter(function (ch) { return chapterFinished(S, ch); }).length, list.length || 17];
     })
   ];
   function countFix(S) {

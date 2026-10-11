@@ -11,7 +11,7 @@
 
 import type { Three } from "./three.ts";
 import type { Mesh, Scene } from "three";
-import { layout, rowAt, DECK, ROW_Z, ROW_Y, STEP_X, type CourseShape, type WorldLayout } from "./layout.ts";
+import { layout, rowAt, worldParts, DECK, ROW_Z, ROW_Y, STEP_X, type CourseShape, type WorldLayout } from "./layout.ts";
 import { placeProps } from "./props.ts";
 import { makeMaterials, readPalette, type PaletteMap } from "./materials.ts";
 import { makeLights, atmosphere } from "./lighting.ts";
@@ -62,7 +62,7 @@ export interface WorldOptions {
 
 export function createWorld(T: Three, opts: WorldOptions): WorldScene {
   const L = layout(opts.course);
-  const parts = opts.course.parts.map((p) => p.id);
+  const parts = worldParts(opts.course).map((p) => p.id);
   const scene = new T.Scene();
   const mats = makeMaterials(T);
   let pal: PaletteMap = readPalette(T, opts.probe);

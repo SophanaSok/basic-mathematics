@@ -312,6 +312,9 @@ window.BM_CURRICULUM = {
     });
   });
   c.chapters = flat;
+  /* the course's own reading order: a Part marked beside (the skill packs) sits next to
+     the course, so "next chapter" and "the whole course" never walk into it */
+  c.courseChapters = flat.filter(function (ch) { return !ch.part.beside; });
   c.chapterById = function (id) {
     return flat.filter(function (ch) { return ch.id === id; })[0] || null;
   };

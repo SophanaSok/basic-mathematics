@@ -42,6 +42,8 @@ import { detectTier, readProbe, stepDown, lower, pixelRatio, TIERS, AMBIENT_MS, 
   var box = document.querySelector("[data-map3d]");
   var host = document.querySelector("[data-course-index]");
   if (!C || !C.parts || !BM3D || !BM3D.load || !box || !host) return;
+  /* the Parts the map draws: a beside Part (the skill packs) has no island on it */
+  var MAP_PARTS = C.parts.filter(function (part) { return !part.beside; });
 
   /* region names until data/quest.js supplies them */
   var REGIONS = {
@@ -151,12 +153,12 @@ import { detectTier, readProbe, stepDown, lower, pixelRatio, TIERS, AMBIENT_MS, 
   function skeleton() {
     if (box.querySelector(".map3d-stage")) return;
     var parts = "";
-    C.parts.forEach(function (part, p) {
+    MAP_PARTS.forEach(function (part, p) {
       parts += '<button type="button" class="map3d-part" data-part="' + esc(part.id) + '" data-p="' + p + '" disabled>' +
         "<b>Part " + esc(part.num) + '</b><span class="map3d-sep"> · </span><span>' + esc(regionName(part)) + "</span></button>";
     });
     var probes = "";
-    C.parts.forEach(function (part) { probes += '<i data-part="' + esc(part.id) + '"></i>'; });
+    MAP_PARTS.forEach(function (part) { probes += '<i data-part="' + esc(part.id) + '"></i>'; });
     box.innerHTML =
       '<div class="map3d-parts" role="group" aria-label="Show a Part on the course map">' + parts + "</div>" +
       '<div class="map3d-stage" data-state="loading">' +
@@ -190,10 +192,10 @@ import { detectTier, readProbe, stepDown, lower, pixelRatio, TIERS, AMBIENT_MS, 
     stage.insertBefore(canvas, stage.firstChild);
 
     var world = W.createWorld(T, {
-      course: C, motifs: C.parts.map(motif), probe: box.querySelector(".map3d-probe"), detail: budget.detail
+      course: C, motifs: MAP_PARTS.map(motif), probe: box.querySelector(".map3d-probe"), detail: budget.detail
     });
     ISLES = world.layout.isles.map(function (s) {
-      var part = C.parts[s.p];
+      var part = MAP_PARTS[s.p];
       return { id: s.id, ch: part.chapters[s.j], part: part, p: s.p, j: s.j, x: s.x, y: s.y, z: s.z };
     });
 
@@ -401,7 +403,7 @@ import { detectTier, readProbe, stepDown, lower, pixelRatio, TIERS, AMBIENT_MS, 
     }
     M.u = best;
     stir();
-    var p = Math.round(clamp(-(M.view.t.z + PART_BACK) / W.ROW_Z, 0, C.parts.length - 1));
+    var p = Math.round(clamp(-(M.view.t.z + PART_BACK) / W.ROW_Z, 0, MAP_PARTS.length - 1));
     Array.prototype.forEach.call(box.querySelectorAll(".map3d-part"), function (b) {
       if (+b.getAttribute("data-p") === p) b.setAttribute("data-on", "true");
       else b.removeAttribute("data-on");

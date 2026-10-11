@@ -413,7 +413,8 @@
   function buildChapterNav(chapter) {
     var host = document.querySelector("[data-chapter-nav]");
     if (!host || !chapter) return;
-    var list = C.chapters;
+    /* a course chapter walks the course; a pack walks the packs of its own Part only */
+    var list = chapter.part && chapter.part.beside ? chapter.part.chapters : (C.courseChapters || C.chapters);
     var i = -1;
     list.forEach(function (ch, k) { if (ch.id === chapter.id) i = k; });
     var root = rootPrefix();
@@ -451,7 +452,7 @@
     });
     /* "you are here": the chapter last opened, unless it is finished; then the first unfinished one */
     if (last && last.id && counts[last.id] && !counts[last.id].done) currentId = last.id;
-    else C.chapters.some(function (ch) {
+    else (C.courseChapters || C.chapters).some(function (ch) {
       if (ch.status === "full" && !counts[ch.id].done) { currentId = ch.id; return true; }
       return false;
     });
@@ -460,8 +461,9 @@
     C.parts.forEach(function (part) {
       var done = part.chapters.filter(function (ch) { return counts[ch.id].done; }).length;
       html += '<section class="part" data-part="' + escapeHtml(part.id) + '">';
-      html += '<div class="part-head"><span class="roman" aria-hidden="true">' + part.num +
-        '</span><h2 id="part-' + part.id + '">Part ' + part.num + " — " + escapeHtml(part.name) + "</h2>" +
+      /* a beside Part (the skill packs) is titled by its name alone, with no part number */
+      html += '<div class="part-head"><span class="roman" aria-hidden="true">' + (part.beside ? "" : part.num) +
+        '</span><h2 id="part-' + part.id + '">' + (part.beside ? "" : "Part " + part.num + " — ") + escapeHtml(part.name) + "</h2>" +
         '<span class="part-count">' + done + " / " + part.chapters.length + " complete</span></div>";
       html += '<p class="part-blurb">' + escapeHtml(part.blurb) + "</p>";
       html += '<ol class="path">';
@@ -518,7 +520,7 @@
     var host = document.querySelector("[data-course-stats]");
     if (!host) return;
     var solved = 0, total = 0, chaptersDone = 0, full = 0;
-    C.chapters.forEach(function (ch) {
+    (C.courseChapters || C.chapters).forEach(function (ch) {
       if (ch.status === "full") full++;
       var c = Progress.count(ch.id);
       solved += c.solved;
@@ -1271,7 +1273,9 @@
     Store.emit({ type: "chapterDone", chapter: chapter ? chapter.id : null, fresh: !!fresh });
     /* an encounter (assets/encounter.js) plays its own finish inside the practice set */
     if (window.BMEncounter && window.BMEncounter.active) fresh = false;
-    var list = C.chapters || [], next = null;
+    /* the course's order; a pack's "next" is the next pack of its own Part, never the course */
+    var beside = !!(chapter && chapter.part && chapter.part.beside);
+    var list = beside ? chapter.part.chapters : (C.courseChapters || C.chapters || []), next = null;
     if (chapter) list.forEach(function (ch, k) { if (ch.id === chapter.id) next = list[k + 1] || null; });
     var box = document.createElement("div");
     box.className = "chapter-done";
@@ -1287,7 +1291,7 @@
     html += next
       ? 'Next: <a href="' + rootPrefix() + escapeHtml(next.path) + '">' +
         escapeHtml((next.label === "Interlude" ? "" : next.label + ". ") + next.title) + " →</a>"
-      : "That was the last chapter — the whole course is behind you.";
+      : beside ? "That was the last pack." : "That was the last chapter — the whole course is behind you.";
     box.innerHTML = html;
     var recap = document.querySelector(".recap");
     if (recap && recap.parentNode) recap.parentNode.insertBefore(box, recap);
