@@ -42,7 +42,7 @@ export interface SectionRef {
   /** from the site root: parts/…/x.html#id */
   path: string;
   chapter: string;
-  /** reading order in the course */
+  /** reading order in the course (a pack's sections follow the course's) */
   index: number;
 }
 
@@ -64,6 +64,8 @@ export interface NextInput {
   sections: Readonly<Record<string, SectionRef>>;
   /** in reading order */
   chapters: readonly ChapterRef[];
+  /** the skill packs' pages, beside the course: found by a visit, never part of the walk */
+  packs?: readonly ChapterRef[];
   /** bm.last as stored */
   last: unknown;
   /** the chapter this page is, or null off a chapter page */
@@ -125,7 +127,7 @@ function weakItem(input: NextInput): NextItem | null {
 
 function continueItem(input: NextInput): NextItem | null {
   const last = input.last && typeof input.last === "object" ? (input.last as { id?: unknown; section?: unknown }) : null;
-  const ch = last ? input.chapters.find((c) => c.id === last.id) : undefined;
+  const ch = last ? input.chapters.find((c) => c.id === last.id) ?? (input.packs || []).find((c) => c.id === last.id) : undefined;
   const here = input.here || null;
   /* nowhere to continue from yet: a reader who has not started has the contents page's own
      "Start with Chapter 1" button, and the card does not repeat it */

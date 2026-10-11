@@ -15,17 +15,32 @@
 
 import type { SectionRef } from "../types/state.ts";
 import { latestTake } from "../learn/diag-seed.ts";
-import { planOf, TAG_TEXT, type Plan, type PlanGroup, type PlanItem } from "../learn/plan.ts";
+import { planOf, TAG_TEXT, type Plan, type PlanPack, type PlanGroup, type PlanItem } from "../learn/plan.ts";
+import { isPlaceable } from "../learn/diagnostic.ts";
+import { isBeside } from "../core/curriculum.ts";
 import { SECTION_WORK } from "../data/section-work.ts";
 import { skillOf } from "../data/skills.ts";
 
 interface Place { title: string; href: string }
 
-/** Every section of the curriculum in reading order, with its title and its page address
-    relative to the current page. Null when the curriculum cannot be read. */
-function outline(): Map<SectionRef, Place> | null {
+/** The chapters of the curriculum's Parts, the beside Parts (skill packs) or the rest. With no
+    parts to tell them apart, the flat list is the course. */
+function chaptersOf(beside: boolean): any[] | null {
   const cur = window.BM_CURRICULUM;
-  const chapters: unknown = cur && (cur.chapters || (cur.parts || []).flatMap((p: { chapters?: unknown[] }) => p.chapters || []));
+  if (!cur) return null;
+  if (Array.isArray(cur.parts)) {
+    return cur.parts
+      .filter((p: { beside?: true }) => isBeside(p) === beside)
+      .flatMap((p: { chapters?: unknown[] }) => p.chapters || []);
+  }
+  return beside ? [] : Array.isArray(cur.chapters) ? cur.chapters : null;
+}
+
+/** Every section of the course in reading order, with its title and its page address
+    relative to the current page. A beside Part's sections are left out (they are listed under
+    their pack, never twice). Null when the curriculum cannot be read. */
+export function outline(): Map<SectionRef, Place> | null {
+  const chapters = chaptersOf(false);
   if (!Array.isArray(chapters)) return null;
   const root: string = String(window.BMSite.rootPrefix());
   const out = new Map<SectionRef, Place>();
@@ -35,6 +50,22 @@ function outline(): Map<SectionRef, Place> | null {
       if (typeof s.id !== "string" || typeof s.title !== "string") return;
       out.set((ch.id + "#" + s.id) as SectionRef, { title: s.title, href: root + ch.path + "#" + s.id });
     });
+  });
+  return out;
+}
+
+/** The skill packs: one per chapter of a beside Part that names a course the plan places. */
+export function packList(): PlanPack[] {
+  const chapters = chaptersOf(true) || [];
+  const root: string = String(window.BMSite.rootPrefix());
+  const out: PlanPack[] = [];
+  chapters.forEach((ch: { id?: unknown; title?: unknown; path?: unknown; course?: unknown; sections?: unknown }) => {
+    if (typeof ch.id !== "string" || typeof ch.title !== "string" || typeof ch.path !== "string") return;
+    if (!isPlaceable(ch.course)) return;
+    const refs = Array.isArray(ch.sections)
+      ? ch.sections.filter((s: { id?: unknown }) => typeof s.id === "string").map((s: { id: string }) => (ch.id + "#" + s.id) as SectionRef)
+      : [];
+    out.push({ id: ch.id, course: ch.course, title: ch.title, href: root + ch.path, refs });
   });
   return out;
 }
@@ -60,7 +91,7 @@ function gather(given?: unknown): { plan: Plan; where: Map<SectionRef, Place> } 
       status: (r) => String(window.BMGame.sectionStatus(r)),
       row: (r) => rows.get(r) ?? null,
       work: SECTION_WORK,
-      packs: []
+      packs: packList()
     });
     return plan ? { plan, where } : null;
   } catch {
@@ -128,7 +159,9 @@ function draw(el: Element, p: Plan, where: Map<SectionRef, Place>, compact: bool
     const ul = node("ul");
     p.packs.forEach((k) => {
       const li = node("li");
-      li.appendChild(document.createTextNode(k.title));
+      const a = node("a", k.title);
+      a.href = k.href;
+      li.appendChild(a);
       ul.appendChild(li);
     });
     add(ul);

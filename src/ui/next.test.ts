@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { input } from "./next.ts";
+import { nextSteps } from "../learn/next.ts";
 import { courseWithPacks } from "../world/course.test-helper.ts";
 
 /* input() reads the live stores off window; a stub window with the curriculum is enough */
@@ -20,7 +21,26 @@ describe("the next-step card's input", () => {
     const inp = input()!;
     expect(inp.chapters.length).toBe(17);
     expect(inp.chapters.map((c) => c.id)).not.toContain("pk-percent");
-    expect(Object.keys(inp.sections).some((id) => id.startsWith("pk-"))).toBe(false);
+  });
+
+  it("hands the packs over separately, their sections after the course's", () => {
+    withWindow(courseWithPacks());
+    const inp = input()!;
+    expect(inp.packs!.map((c) => c.id)).toEqual(["pk-percent", "pk-ratio"]);
+    const courseMax = Math.max(...Object.values(inp.sections).filter((s) => !s.chapter.startsWith("pk-")).map((s) => s.index));
+    expect(inp.sections["pk-percent#of-a-number"].index).toBeGreaterThan(courseMax);
+  });
+
+  it("continues to a pack the reader last visited, and offers a weak pack section", () => {
+    const C: any = courseWithPacks();
+    withWindow(C);
+    const base = input()!;
+    const last = { id: "pk-percent", section: "review" };
+    const items = nextSteps({ ...base, last, deck: [{ id: "pk-percent#of-a-number", status: "shaky", due: false }] });
+    expect(items.map((i) => i.kind)).toEqual(["weak", "continue"]);
+    expect(items[1].href).toBe("parts/5-packs/pk-percent.html#review");
+    /* the course's chapters never include a pack, so ch16 does not walk into one */
+    expect(base.chapters[base.chapters.length - 1].id).not.toMatch(/^pk-/);
   });
 
   it("falls back to every chapter when courseChapters is absent", () => {
