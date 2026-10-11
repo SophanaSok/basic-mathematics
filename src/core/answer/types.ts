@@ -5,9 +5,12 @@
    The reader (read.ts), the messages (messages.ts) and judge() in check.ts use it; the
    site reaches them through src/core/grade.ts and window.BMCore (src/ui/core.ts). */
 
-import type { AnswerType } from "./legacy.ts";
+import type { KnownAnswerType as OldKnownAnswerType } from "./legacy.ts";
 
-export type { AnswerType };
+/** The old grader's types, and the percent and ratio boxes of decision 0005, which it never
+    had (any other string a page carries is graded as "exact") */
+export type KnownAnswerType = OldKnownAnswerType | "percent" | "ratio";
+export type AnswerType = KnownAnswerType | (string & {});
 
 /** An exercise's key as the grader sees it: the `|`-separated key, its data-type, its
     data-tol (absolute), and grid mode, which only exam items set (SAT student-produced
@@ -19,15 +22,17 @@ export interface AnswerSpec { answer: string; type?: AnswerType | null; tol?: nu
 export type Note = "unreduced" | "mixed" | "thousands";
 
 /** The right value in a form the exercise does not take. "unreduced" is used only under
-    Q3(b) or Q3(c), "grid-width" only in grid mode. */
+    Q3(b) or Q3(c), "grid-width" only in grid mode; "notation" is a point in [...], <...>
+    or labels, a decimal in a percent box (0.35), or one number in a ratio box (3/4). */
 export type FormReason = "rounded" | "notation" | "repeated" | "grid-width" | "unreduced";
 
 /** Why a typed answer has no single reading, so the learner retypes it. Decided from the
-    typed text and the type alone, never from the key. "mixed" is used only under Q4(b). */
+    typed text and the type alone, never from the key. "mixed" is used only under Q4(b),
+    "ratio-terms" only in a ratio box. */
 export type UnreadReason = "empty" | "too-long" | "named" | "words" | "expression" | "spaces" | "ambiguous-mixed"
   | "list" | "decimal-comma" | "list-comma" | "mixed-in-set" | "brackets" | "percent" | "units" | "symbol"
   | "plus-minus" | "scientific" | "ratio" | "grid-chars" | "grid-length" | "grid-zeros"
-  | "mixed";
+  | "mixed" | "ratio-terms";
 
 /** A rule's id ("N-dot", "L-sep", "E-pow", ...). Each rule is a switch: in a set of rules
     switched off, its step does what the grader before it did. */

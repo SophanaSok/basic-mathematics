@@ -32,7 +32,8 @@ const UNREAD: Record<Exclude<UnreadReason, "ambiguous-mixed">, string> = {
   "grid-chars": "Use only digits, a decimal point, a fraction bar (/) and a minus sign at the front.",
   "grid-length": "Use at most 5 characters, or 6 with a minus sign.",
   "grid-zeros": "Leave out the zeros in front, like the 0 in 07. A single 0 before the decimal point is fine.",
-  "mixed": "Type it as a fraction, like 3/2, or as a decimal, like 1.5."
+  "mixed": "Type it as a fraction, like 3/2, or as a decimal, like 1.5.",
+  "ratio-terms": "Type the ratio with digits and a colon between the terms, like 2:5."
 };
 
 /** Why the answer could not be read, and what to type instead */
@@ -45,11 +46,15 @@ export function unreadMessage(reason: UnreadReason, q4: Owner["q4"]): string {
 }
 
 /** Why the right value still does not count. `read` is the typed answer as the reader read
-    it, which the notation message shows in the form a point takes: "(6, -2)". */
+    it, which the notation message shows in the form the box takes: a point "(6, -2)", a
+    percent "35%" (check.ts writes 0.35 so), a ratio "3:4" (and 3/4). */
 export function formMessage(reason: FormReason, read: string): string {
   switch (reason) {
     case "rounded": return "That is rounded. Give the exact value.";
-    case "notation": return "Right values. Write it as " + read + ".";
+    case "notation":
+      if (/%$/.test(read)) return "Write it as a percent, like " + read + ".";
+      if (read.includes(":")) return "Write it as a ratio, like " + read + ".";
+      return "Right values. Write it as " + read + ".";
     case "repeated": return "Right values. List each one once.";
     case "grid-width": return "Use every space: give more decimal places.";
     case "unreduced": return "Simplify the fraction.";

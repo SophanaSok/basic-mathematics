@@ -211,7 +211,8 @@ function genKeys() {
   win.window = win;
   vm.createContext(win);
   const dir = path.join(ROOT, "data/gen");
-  const files = fs.readdirSync(dir).filter(f => /\.js$/.test(f)).sort((a, b) => (a === "core.js" ? -1 : b === "core.js" ? 1 : a < b ? -1 : a > b ? 1 : 0));
+  /* the five files the golden file was frozen with, core first: a later file (packs.js) would reorder the draw */
+  const files = ["core.js", "part1.js", "part2.js", "part3.js", "part4.js"];
   files.forEach(f => vm.runInContext(fs.readFileSync(path.join(dir, f), "utf8"), win, { filename: "data/gen/" + f }));
   const Gen = win.BMGen, list = Gen.list(), rand = mulberry(GEN_SEED), out = [];
   for (let i = 0; i < GEN_PROBLEMS; i++) {

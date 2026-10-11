@@ -101,7 +101,8 @@ async function answerWithKey(ex, meta) {
 async function answerWrong(ex, meta) {
   meta = meta || await info(ex);
   if (meta.kind !== "text") throw new Error("answerWrong only drives typed exercises");
-  const wrong = meta.type === "number" || meta.type === "fraction" || meta.type === "set" ? "987654321" : "notananswer987";
+  const wrong = meta.type === "ratio" ? "987654321:1"
+    : ["number", "fraction", "set", "percent"].includes(meta.type) ? "987654321" : "notananswer987";
   await typeAnswer(ex, wrong);
 }
 

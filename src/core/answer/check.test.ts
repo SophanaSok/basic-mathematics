@@ -6,6 +6,7 @@ import { rolldown } from "rolldown";
 import { describe, expect, it } from "vitest";
 import { GRADER, OWNER, alternatives, grade, judge, judgeOff, matches, specOf } from "./check.ts";
 import { grade as legacyGrade } from "./legacy.ts";
+import { formMessage } from "./messages.ts";
 import type { AnswerSpec, Verdict } from "./types.ts";
 
 /* The compare of the typed grader (decision 0002): every verdict row of the design's tables
@@ -222,6 +223,93 @@ describe("a point against an exact key (section 3.3)", () => {
   });
 });
 
+describe("a percent box against its key (decision 0005, PQ2)", () => {
+  it("takes the key in percent units, with or without a %, and the tol in percent units", () => {
+    expect(each(["35", "35%", "35 %", "35.0", "35%.", "35.00 %", "+35%", "$35"], (t) => v(t, "35", "percent"))).toEqual(all(["35", "35%", "35 %", "35.0", "35%.", "35.00 %", "+35%", "$35"], "right"));
+    expect([v("35", "35%", "percent"), v("-5%", "-5", "percent"), v("12.5%", "25/2", "percent"), v("33 1/3%", "100/3", "percent"), v("5,050%", "5050", "percent")]).toEqual(["right", "right", "right", "right mixed", "right thousands"]);
+    expect([v("36", "35", "percent"), v("3.5", "35", "percent"), v("350", "35", "percent"), v("-35", "35", "percent"), v("35", "36|34", "percent")]).toEqual(Array(5).fill("wrong"));
+    expect([v("35.4", "35", "percent", 0.5), v("35.5%", "35", "percent", 0.5), v("35.6", "35", "percent", 0.5), v("34.5", "35", "percent", 0.5)]).toEqual(["right", "right", "wrong", "right"]);
+    expect([readOf("35", "35", "percent"), readOf("35 %", "35", "percent"), readOf("36", "35", "percent"), readOf("33 1/3", "100/3", "percent")]).toEqual(["35%", "35%", "36%", "100/3%"]);
+  });
+
+  it("makes the right value written as a decimal or a fraction of 1 form/notation, and a key of that value itself right", () => {
+    expect(each(["0.35", ".35", "7/20", "0.350", "0.35."], (t) => v(t, "35", "percent") + " " + readOf(t, "35", "percent"))).toEqual(all(["0.35", ".35", "7/20", "0.350", "0.35."], "form/notation 35%"));
+    expect([v("0.35", "0.35", "percent"), v("0.35%", "0.35", "percent"), v("0.0035", "0.35", "percent"), readOf("0.0035", "0.35", "percent")]).toEqual(["right", "right", "form/notation", "0.35%"]);
+    expect([v("1", "100", "percent"), v("1.25", "125", "percent"), v("-0.05", "-5", "percent"), v("1/3", "100/3", "percent"), readOf("1/3", "100/3", "percent")]).toEqual(["form/notation", "form/notation", "form/notation", "form/notation", "33 1/3%"]);
+    /* within the tol a hundred times over, and rounded the same way as the percent would be */
+    expect([v("0.354", "35", "percent", 0.5), (judge("0.354", spec("35", "percent", 0.5)) as { read: string }).read, v("0.36", "35", "percent", 0.5), v("0.333", "100/3", "percent"), readOf("0.333", "100/3", "percent"), v("0.3", "30.4", "percent")])
+      .toEqual(["form/notation", "35.4%", "wrong", "form/notation", "33.3%", "wrong"]);
+    expect(formMessage("notation", "35%")).toBe("Write it as a percent, like 35%.");
+  });
+
+  it("makes a rounded percent form/rounded with no tol (Q5(a)), counting a decimal's places as the value it stands for", () => {
+    expect([v("33.3", "100/3", "percent"), v("33.3%", "100/3", "percent"), v("33.33", "100/3", "percent"), v("66.7", "200/3", "percent"), v("66.6", "200/3", "percent")]).toEqual(Array(5).fill("form/rounded"));
+    expect([v("33", "100/3", "percent"), v("33.4", "100/3", "percent"), v("33.3", "100/3", "percent", 0.1), v("33.3", "100/3", "percent", 0.01)]).toEqual(["wrong", "wrong", "right", "wrong"]);
+  });
+
+  it("refuses words, a stray % and the rest from the text alone", () => {
+    expect(each(["35 percent", "35 per cent", "thirty-five percent", "35%%", "%35", "3:4", "x = 35", "35 cups", "", "4, -4", "35 , 5"], (t) => v(t, "35", "percent"))).toEqual({
+      "35 percent": "unread/words", "35 per cent": "unread/words", "thirty-five percent": "unread/expression", "35%%": "unread/symbol", "%35": "unread/symbol",
+      "3:4": "unread/ratio", "x = 35": "unread/named", "35 cups": "unread/units", "": "unread/empty", "4, -4": "unread/list", "35 , 5": "unread/list"
+    });
+  });
+});
+
+describe("a ratio box against its key (decision 0005, PQ3)", () => {
+  it("is right for the key's terms, by : or to, and for an equivalent unreduced ratio with the note", () => {
+    expect(each(["3:4", "3 : 4", "3 to 4", "3 TO 4.", "3∶4", "3:4.", "1.5:2", "3/4:1", "(3):(4)"], (t) => v(t, "3:4", "ratio"))).toEqual(all(["3:4", "3 : 4", "3 to 4", "3 TO 4.", "3∶4", "3:4.", "1.5:2", "3/4:1", "(3):(4)"], "right"));
+    expect([v("6:8", "3:4", "ratio"), readOf("6:8", "3:4", "ratio"), v("6 to 8", "3:4", "ratio"), v("2:4:6", "1:2:3", "ratio"), v("1:2:3", "2:4:6", "ratio"), v("3:4", "6:8", "ratio")])
+      .toEqual(["right unreduced", "6:8", "right unreduced", "right unreduced", "right", "right"]);
+    expect([readOf("3 to 4", "3:4", "ratio"), readOf("3 : 4", "3:4", "ratio")]).toEqual(["3:4", "3:4"]);
+  });
+
+  it("makes one number equal to a two-term key's quotient form/notation, and is wrong for the rest", () => {
+    expect(each(["3/4", "0.75", "6/8", ".75"], (t) => v(t, "3:4", "ratio") + " " + readOf(t, "3:4", "ratio"))).toEqual(all(["3/4", "0.75", "6/8", ".75"], "form/notation 3:4"));
+    expect([v("1.5", "6:4", "ratio"), readOf("1.5", "6:4", "ratio"), v("4/3", "3:4", "ratio"), v("0.75", "3:4:5", "ratio"), v("1", "3:4", "ratio")]).toEqual(["form/notation", "3:2", "wrong", "wrong", "wrong"]);
+    expect(each(["4:3", "3:5", "-3:-4", "0:0", "3:-4", "6:8:10", "3:4:0"], (t) => v(t, "3:4", "ratio"))).toEqual(all(["4:3", "3:5", "-3:-4", "0:0", "3:-4", "6:8:10", "3:4:0"], "wrong"));
+    /* a different number of terms is wrong, never unread, whichever side has more */
+    expect([v("3:4", "3:4:5", "ratio"), v("3:4:5:6", "3:4:5", "ratio"), judge("3:4", spec("3:4:5", "ratio"))]).toEqual(["wrong", "wrong", { kind: "wrong", read: "3:4" }]);
+    expect(formMessage("notation", "3:4")).toBe("Write it as a ratio, like 3:4.");
+  });
+
+  it("matches nothing for a key that is not two or more positive terms, and takes no tol", () => {
+    expect([v("0.75", "0.75", "ratio"), v("0:4", "0:4", "ratio"), v("-3:4", "-3:4", "ratio"), v("3:4", "x|3:4", "ratio")]).toEqual(["wrong", "wrong", "wrong", "right"]);
+    expect([v("3.01:4", "3:4", "ratio", 0.1), v("3.0000000001:4", "3:4", "ratio")]).toEqual(["wrong", "wrong"]);
+  });
+
+  it("refuses from the text alone, with the ratio's own retype message where the number box's would mislead", () => {
+    expect(each(["3:", ":4", "3::4", "3,4", "0,75", "three to four", "75%", "3x:4", "3:4 cups", "x = 3", "3 4:5", "", "3 to 4 to"], (t) => v(t, "3:4", "ratio"))).toEqual({
+      "3:": "unread/ratio-terms", ":4": "unread/ratio-terms", "3::4": "unread/ratio-terms", "3,4": "unread/ratio-terms", "0,75": "unread/ratio-terms",
+      "three to four": "unread/ratio-terms", "75%": "unread/ratio-terms", "3x:4": "unread/ratio-terms", "3:4 cups": "unread/units", "x = 3": "unread/named",
+      "3 4:5": "unread/spaces", "": "unread/empty", "3 to 4 to": "unread/ratio-terms"
+    });
+    expect(judge("3:x", spec("3:4", "ratio"))).toEqual({ kind: "unread", reason: "ratio-terms", at: 0 });
+  });
+});
+
+describe("the percent and ratio round trip", () => {
+  it("is right on 2,000 random ratios scaled by a factor, wrong reversed, form as a quotient; and a percent right in percent units, form as a fraction of 1", () => {
+    const rand = mulberry(9), bad: string[] = [];
+    const int = (n: number) => 1n + BigInt(Math.floor(rand() * n));
+    for (let i = 0; i < 2000; i++) {
+      const terms = Array.from({ length: rand() < 0.7 ? 2 : 3 }, () => int(50)), f = int(9), key = terms.join(":");
+      const want = (given: string, w: string) => { const got = v(given, key, "ratio").split(" ")[0]; if (got !== w) bad.push(given + " for " + key + ": " + got); };
+      want(terms.map((t) => t * f).join(" : "), "right");
+      want(terms.map(String).join(" to "), "right");
+      if (terms.some((t, j) => t * terms[0] !== terms[0] * terms[terms.length - 1 - j])) want(terms.slice().reverse().join(":"), "wrong");
+      if (terms.length === 2) want(terms[0] * f + "/" + terms[1] * f, "form/notation");
+      else want(terms[0] + "/" + terms[1], "wrong");
+      const p = BigInt(Math.floor(rand() * 20000)) - 5000n, q = int(40), pk = p + "/" + q;
+      const pct = (given: string, w: string) => { const got = v(given, pk, "percent"); if (got.split(" ")[0] !== w) bad.push(given + " for " + pk + "%: " + got); };
+      pct(pk, "right");
+      pct(pk + " %", "right");
+      if (p !== 0n) pct(p + "/" + q * 100n, "form/notation");
+      pct(p + 1n + "/" + q, "wrong");
+    }
+    expect(bad).toEqual([]);
+  });
+});
+
 describe("the compare rules' switches", () => {
   it("do their own step on, and the old grader's step off", () => {
     /* N-exact: the readings' floats, as the old sameNumber compared them */
@@ -302,10 +390,11 @@ describe("round trip (test 3)", () => {
 
 describe("refusals depend on the input only (test 4)", () => {
   it("gives the same unread reason for two keys and tols of a type, and in expr and exact only empty or too-long", () => {
-    const rand = mulberry(4), ALPHABET = "0123456789 .,/-+()$x=e½±%°:{}[];<>|!√π÷−‐７£#a^*and or";
+    const rand = mulberry(4), ALPHABET = "0123456789 .,/-+()$x=e½±%°:{}[];<>|!√π÷−‐７£#a^*and or to∶";
     const KEYS: Record<string, [string, number][]> = {
       number: [["3/2", 0], ["-250", 0.5]], fraction: [["7/4", 0], ["1", 1e-7]], set: [["2,-7", 0], ["1.00,1.02", 0.01]],
-      expr: [["x^2+1", 0], ["3x-6", 0]], exact: [["(6,-2)|6,-2", 0], ["yes", 0]]
+      expr: [["x^2+1", 0], ["3x-6", 0]], exact: [["(6,-2)|6,-2", 0], ["yes", 0]],
+      percent: [["35", 0], ["100/3", 0.5]], ratio: [["3:4", 0], ["2:3:5", 0]]
     };
     const bad: string[] = [];
     let judgements = 0;
@@ -320,7 +409,7 @@ describe("refusals depend on the input only (test 4)", () => {
       }
     }
     expect(bad).toEqual([]);
-    expect(judgements).toBe(200000);
+    expect(judgements).toBe(280000);
   }, LONG);
 });
 
@@ -403,14 +492,14 @@ describe("perturbation of every golden key (test 5)", () => {
 describe("hostile input and every tol (test 6)", () => {
   it("never throws on 100,000 random strings, deep brackets and long runs, with every type", () => {
     const rand = mulberry(6), ALPHABET = "0123456789 .,/-+()$x=e½±%°:{}[];<>|!√π÷−‐７£#a^*\u0000\ud800";
-    const TYPES = ["number", "fraction", "set", "exact", "expr", null];
+    const TYPES = ["number", "fraction", "set", "exact", "expr", "percent", "ratio", null];
     const texts = ["(".repeat(1000) + "7" + ")".repeat(1000), "1".repeat(10000), "1/".repeat(5000), "( ".repeat(3000), "½".repeat(2000),
       "x=" + "=".repeat(5000), "1 ".repeat(5000) + "/2", "$".repeat(5000), ", ".repeat(5000), "\u0000￿\ud800", "－".repeat(100) + "7", "9".repeat(10000) + "/" + "9".repeat(10000)];
     for (let i = 0; i < 100000; i++) texts.push(Array.from({ length: 1 + Math.floor(rand() * 16) }, () => ALPHABET[Math.floor(rand() * ALPHABET.length)]).join(""));
     let n = 0;
     for (let i = 0; i < texts.length; i++) {
       const type = TYPES[i % TYPES.length];
-      judge(texts[i], spec("3/2|(6,-2)|x^2", type, i % 7 === 0 ? 0.01 : 0));
+      judge(texts[i], spec(type === "ratio" ? "3:4|2:3:5" : "3/2|(6,-2)|x^2", type, i % 7 === 0 ? 0.01 : 0));
       n++;
     }
     expect(n).toBe(texts.length);
