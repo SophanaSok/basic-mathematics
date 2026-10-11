@@ -229,6 +229,7 @@ describe("a percent box against its key (decision 0005, PQ2)", () => {
     expect([v("35", "35%", "percent"), v("-5%", "-5", "percent"), v("12.5%", "25/2", "percent"), v("33 1/3%", "100/3", "percent"), v("5,050%", "5050", "percent")]).toEqual(["right", "right", "right", "right mixed", "right thousands"]);
     expect([v("36", "35", "percent"), v("3.5", "35", "percent"), v("350", "35", "percent"), v("-35", "35", "percent"), v("35", "36|34", "percent")]).toEqual(Array(5).fill("wrong"));
     expect([v("35.4", "35", "percent", 0.5), v("35.5%", "35", "percent", 0.5), v("35.6", "35", "percent", 0.5), v("34.5", "35", "percent", 0.5)]).toEqual(["right", "right", "wrong", "right"]);
+    expect(each(["35％", "35 ％", "35﹪", "0.35％"], (t) => v(t, "35", "percent"))).toEqual({ "35％": "right", "35 ％": "right", "35﹪": "right", "0.35％": "wrong" });
     expect([readOf("35", "35", "percent"), readOf("35 %", "35", "percent"), readOf("36", "35", "percent"), readOf("33 1/3", "100/3", "percent")]).toEqual(["35%", "35%", "36%", "100/3%"]);
   });
 
@@ -236,9 +237,16 @@ describe("a percent box against its key (decision 0005, PQ2)", () => {
     expect(each(["0.35", ".35", "7/20", "0.350", "0.35."], (t) => v(t, "35", "percent") + " " + readOf(t, "35", "percent"))).toEqual(all(["0.35", ".35", "7/20", "0.350", "0.35."], "form/notation 35%"));
     expect([v("0.35", "0.35", "percent"), v("0.35%", "0.35", "percent"), v("0.0035", "0.35", "percent"), readOf("0.0035", "0.35", "percent")]).toEqual(["right", "right", "form/notation", "0.35%"]);
     expect([v("1", "100", "percent"), v("1.25", "125", "percent"), v("-0.05", "-5", "percent"), v("1/3", "100/3", "percent"), readOf("1/3", "100/3", "percent")]).toEqual(["form/notation", "form/notation", "form/notation", "form/notation", "33 1/3%"]);
-    /* within the tol a hundred times over, and rounded the same way as the percent would be */
-    expect([v("0.354", "35", "percent", 0.5), (judge("0.354", spec("35", "percent", 0.5)) as { read: string }).read, v("0.36", "35", "percent", 0.5), v("0.333", "100/3", "percent"), readOf("0.333", "100/3", "percent"), v("0.3", "30.4", "percent")])
-      .toEqual(["form/notation", "35.4%", "wrong", "form/notation", "33.3%", "wrong"]);
+    /* within the tol a hundred times over; a hundred times over and rounded is form/rounded
+       (fixed by this one rule, so the exact value it asks for is then form/notation, and the
+       percent that message shows is right); and with a % typed, the value is the percent */
+    expect([v("0.354", "35", "percent", 0.5), (judge("0.354", spec("35", "percent", 0.5)) as { read: string }).read, v("0.36", "35", "percent", 0.5), v("0.3", "30.4", "percent")])
+      .toEqual(["form/notation", "35.4%", "wrong", "wrong"]);
+    expect(each(["0.33 100/3", "0.333 100/3", "0.12 12.5", "0.35 35.4", "0.67 200/3"], (t) => v(t.split(" ")[0], t.split(" ")[1], "percent")))
+      .toEqual(all(["0.33 100/3", "0.333 100/3", "0.12 12.5", "0.35 35.4", "0.67 200/3"], "form/rounded"));
+    expect(each(["1/3 100/3", "0.125 12.5", "0.354 35.4", "2/3 200/3"], (t) => { const [g, k] = t.split(" "), r = readOf(g, k, "percent"); return v(g, k, "percent") + " " + r + " " + v(String(r), k, "percent"); }))
+      .toEqual({ "1/3 100/3": "form/notation 33 1/3% right mixed", "0.125 12.5": "form/notation 12.5% right", "0.354 35.4": "form/notation 35.4% right", "2/3 200/3": "form/notation 66 2/3% right mixed" });
+    expect([v("0.35%", "35", "percent"), v("0.35 %", "35", "percent"), v("1/3%", "100/3", "percent"), v("0.33%", "100/3", "percent"), v("0.354%", "35", "percent", 0.5)]).toEqual(Array(5).fill("wrong"));
     expect(formMessage("notation", "35%")).toBe("Write it as a percent, like 35%.");
   });
 

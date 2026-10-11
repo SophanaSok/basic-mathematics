@@ -315,10 +315,10 @@ export function readNumber(text: unknown, o: ReadOptions): NumberReading | Refus
 
 /** A percent box, or a key of that type: one number in percent units, so 35, 35% and 35 %
     are all 35. Its `read` ends in "%". A % anywhere else is a symbol here, and a number
-    followed by the word percent is words. */
+    followed by the word percent is words. The full-width ％ and the small ﹪ are a %. */
 export function readPercent(text: unknown, o: ReadOptions): NumberReading | Refusal {
   const off = o.off || NONE;
-  let t = cleanNumber(text, off);
+  let t = cleanNumber(text, off).replace(/[％﹪]/g, "%");
   if (!off.has("N-dot") && t !== "." && / ?\.$/.test(t)) t = t.replace(/ ?\.$/, "");
   if (t.length <= 200 && /^[^a-z]*\d ?per ?cent$/.test(t)) return no("words");
   const r = readOne(t.replace(/ ?%$/, ""), { commas: true, off, q4: o.q4, set: false });

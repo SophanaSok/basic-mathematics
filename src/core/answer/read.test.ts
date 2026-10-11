@@ -276,6 +276,11 @@ describe("a percent box (decision 0005, PQ2)", () => {
       "35": "35/1", "35%": "35/1", "35 %": "35/1", "35.0": "35/1", "35%.": "35/1", " 35 % ": "35/1", "+35%": "35/1", "$35%": "35/1", "７０%": "70/1", "35/1%": "35/1"
     });
     expect([pct("0.35"), pct("33 1/3%"), pct("-5 %"), pct("5,050%"), pct("½%")]).toEqual(["7/20", "100/3", "-5/1", "5050/1", "1/2"]);
+    /* the full-width ％ and the small ﹪ are a %, at the end only */
+    expect(each(["35％", "35 ％", "35﹪", "３５％", "35％％", "％35", "35%％"], (t) => pct(t))).toEqual({
+      "35％": "35/1", "35 ％": "35/1", "35﹪": "35/1", "３５％": "35/1", "35％％": "unread/symbol", "％35": "unread/symbol", "35%％": "unread/symbol"
+    });
+    expect(ok(readPercent("35％", A)).read).toBe("35%");
     const r = (t: string) => { const x = ok(readPercent(t, A)); return [x.read, x.shape, x.places, x.show, x.notes.join()]; };
     expect([r("35"), r("35.50 %"), r("33 1/3%"), r("½%"), r("6/4%")]).toEqual([
       ["35%", "integer", 0, false, ""], ["35.50%", "decimal", 2, false, ""], ["100/3%", "mixed", 0, true, "mixed"], ["1/2%", "fraction", 0, true, ""], ["6/4%", "fraction", 0, false, "unreduced"]]);
