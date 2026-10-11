@@ -114,20 +114,39 @@ function checkSkip(ci, r) {
 
 /* (h) a stuck browser download once held a job until its job timeout, so every step that
    runs `playwright install` has a step-level timeout-minutes as a backstop and wraps the
-   install in coreutils `timeout`, which gives each try of its loop its own limit */
-function installSteps(ci) {
-  const code = ci.split("\n").filter(l => !/^\s*#/.test(l)).join("\n");
+   install in coreutils `timeout`, which gives each try of its loop its own limit. The
+   wrapper kills (-k) after its TERM, since a wedged apt under --with-deps can ignore the
+   TERM and hold the dpkg lock against every later try. Each line that runs the install
+   is wrapped (a second, bare install in the same step is caught; a step name or an echo
+   that names it runs nothing), and every job that runs the browser tests has its own
+   install step */
+const INSTALL = /\b(npx|npm exec) playwright install\b/;
+const WRAPPED = /\btimeout (-k \d+|--kill-after=\d+) \d+ (npx|npm exec) playwright install\b/;
+function uncommented(ci) { return ci.split("\n").filter(l => !/^\s*#/.test(l)).join("\n"); }
+function installSteps(code) {
   return code.split(/\n(?=      - )/).filter(s => /\bplaywright install\b/.test(s));
 }
+/* every job, as { name, code }, from its `  <name>:` line under jobs: to the next job's */
+function jobs(code) {
+  const at = code.indexOf("\njobs:\n");
+  const body = at < 0 ? (code.startsWith("jobs:\n") ? code.slice(6) : "") : code.slice(at + 7);
+  return body.split(/\n(?=  [a-z][\w-]*:\n)/).map(s => ({ name: (/^ {2}([a-z][\w-]*):/.exec(s) || [0, ""])[1], code: s })).filter(j => j.name);
+}
 function checkInstall(ci, r) {
-  const steps = installSteps(ci);
+  const code = uncommented(ci);
+  const steps = installSteps(code);
   r.count++;
   if (!steps.length) r.fail(FILE + ": no step runs playwright install, so this check guards nothing");
   steps.forEach(s => {
     r.count++;
     const name = (/name: ([^\n]+)/.exec(s) || [0, s.split("\n")[0].trim()])[1];
     if (!/^ {8}timeout-minutes: \d+$/m.test(s)) r.fail(FILE + ": the step " + JSON.stringify(name) + " runs playwright install with no step-level timeout-minutes");
-    if (!/\btimeout \d+ npx playwright install\b/.test(s)) r.fail(FILE + ": the step " + JSON.stringify(name) + " runs playwright install without a `timeout <seconds>` wrapper, so a stuck download takes the whole step");
+    const runs = s.split("\n").filter(l => INSTALL.test(l) && !/^\s*(- )?name:/.test(l) && !/^\s*echo\b/.test(l));
+    if (!runs.length || runs.some(l => !WRAPPED.test(l))) r.fail(FILE + ": the step " + JSON.stringify(name) + " runs playwright install without a `timeout -k <seconds> <seconds>` wrapper, so a stuck download takes the whole step");
+  });
+  jobs(code).filter(j => /\b(test|check):browser\b/.test(j.code)).forEach(j => {
+    r.count++;
+    if (!installSteps(j.code).length) r.fail(FILE + ": the job " + JSON.stringify(j.name) + " runs the browser tests with no playwright install step of its own");
   });
 }
 
@@ -139,7 +158,7 @@ const CHECKS = [
   { name: "core", run: checkCore, what: "test:browser:core runs in the browser job of the part --parts names as core" },
   { name: "pages", run: checkPages, what: "GitHub Pages gets dist-redirects/, built and checked in the build job, and never dist/" },
   { name: "skip", run: checkSkip, what: "only a change to Markdown or docs/ alone starts no run, and the build reads none of it" },
-  { name: "install", run: checkInstall, what: "every playwright install step has a timeout-minutes and a timeout wrapper per try" }
+  { name: "install", run: checkInstall, what: "every job that runs the browser tests has a playwright install step, with a timeout-minutes and a killing timeout wrapper per try" }
 ];
 
 module.exports = { checkInstall };
