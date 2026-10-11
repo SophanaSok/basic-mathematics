@@ -297,9 +297,10 @@ page added under `parts/` is picked up by the build without being listed.
 
 What the site needs from outside its own files comes from npm and goes into the bundle, through
 one module each under `src/vendor/` (`package.json` lists the packages): [KaTeX](https://katex.org)
-for math typesetting on every page (`katex`, pinned at exactly 0.16.11, the version the pages
-loaded from its CDN before, so typesetting is unchanged; `src/vendor/katex.js` is the first import
-of every entry and sets `window.renderMathInElement`, `src/vendor/katex.css` its stylesheet), the
+for math typesetting on every page (`katex`, pinned at exactly 0.16.47; it was 0.16.11, the
+version the pages loaded from its CDN before, until advisory GHSA-cg87-wmx4-v546 moved it
+along that line; `src/vendor/katex.js` is the first import of every entry and sets
+`window.renderMathInElement`, `src/vendor/katex.css` its stylesheet), the
 three typefaces (`@fontsource-variable/inter`, `@fontsource-variable/newsreader` and
 `@fontsource-variable/bricolage-grotesque` for the upright faces, `@fontsource/newsreader` for the
 italic: the very files Google Fonts served a browser for the link the pages used to carry, byte
@@ -358,7 +359,7 @@ src/world/*.ts          the course world itself (index.ts and what it imports: l
                         bundle/world.js; Vitest tests beside them
 src/entries/*.js        one module entry per kind of page (home, page, dashboard, arena, chapter):
                         an ordered list of imports of the scripts below, which is the order they run in
-src/vendor/katex.js     KaTeX from npm (pinned 0.16.11): sets window.katex and renderMathInElement;
+src/vendor/katex.js     KaTeX from npm (pinned 0.16.47): sets window.katex and renderMathInElement;
                         every entry's first import
 src/vendor/katex.css    KaTeX's stylesheet, imported from the package; linked on every page
 src/vendor/fonts.css    Inter, Newsreader and Bricolage Grotesque from the fontsource packages, the
