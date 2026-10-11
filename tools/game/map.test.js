@@ -124,7 +124,7 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
    and __realRaf is the browser's own requestAnimationFrame (the frame times printed in 5
    are real ones); neither is counted in __raf */
 const RAF_GATE = (o) => {
-  window.__raf = 0; window.__hide = false; window.__held = []; window.__slow = false; window.__passNext = 0; window.__passed = [];
+  window.__raf = 0; window.__rafFrom = []; window.__hide = false; window.__held = []; window.__slow = false; window.__passNext = 0; window.__passed = [];
   var orig = window.requestAnimationFrame.bind(window), fake = 0, real = -1;
   function stamp(t) {
     if (t === real) return fake;
@@ -145,6 +145,11 @@ const RAF_GATE = (o) => {
   };
   window.requestAnimationFrame = function (cb) {
     window.__raf++;
+    /* who asked: three frames of the caller's stack, file:line only, so a frame counted
+       where none was expected names its source in the check's message */
+    window.__rafFrom.push(String(new Error().stack || "").split("\n").slice(2, 5).map(function (l) {
+      var m = /([^\/\s(]+:\d+):\d+\)?$/.exec(l.trim()); return m ? m[1] : l.trim().slice(0, 40);
+    }).join(" < "));
     return orig(function (t) {
       if (window.__hide) { window.__held.push(cb); return; }
       cb(stamp(t));
@@ -217,7 +222,7 @@ async function ready(page) {
     document.querySelector(".map3d-stage[data-state=ready]"), null, { timeout: 20000 });
   await page.evaluate(() => { var c = document.querySelector("[data-map3d] canvas"); window.scrollTo(0, c.getBoundingClientRect().top + window.scrollY - 20); });
 }
-const mapState = (page) => page.evaluate(() => ({ on: window.BMMap3D.on(), why: window.BMMap3D.why(), bob: !!(window.BMMap3D.info() && window.BMMap3D.info().bobbing), raf: window.__raf, held: window.__held.length }));
+const mapState = (page) => page.evaluate(() => ({ on: window.BMMap3D.on(), why: window.BMMap3D.why(), bob: !!(window.BMMap3D.info() && window.BMMap3D.info().bobbing), raf: window.__raf, from: window.__rafFrom.slice(), held: window.__held.length }));
 /* BMMap3D.info(), or, when the world has gone (info() is null: the list stands alone),
    { gone: true, why } with the reason BMMap3D.why() gives, so a check that expected a
    world fails saying so rather than the script stopping on a null */
@@ -228,7 +233,9 @@ async function idle(page, ms) {
   const a = await mapState(page);
   let bob = false;
   for (let t = 0; t < ms; t += 250) { await wait(250); bob = bob || (await mapState(page)).bob; }
-  return { frames: (await mapState(page)).raf - a.raf, bob };
+  const b = await mapState(page);
+  /* the frames counted in the window, each with who asked for it */
+  return { frames: b.raf - a.raf, bob, from: b.from.slice(a.from.length) };
 }
 /* waits (up to the idle window, a bob and some slack) until idle motion has stopped */
 async function settled(page) {
