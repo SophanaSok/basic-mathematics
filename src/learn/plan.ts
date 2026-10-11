@@ -224,11 +224,12 @@ export function planOf(input: PlanInput): Plan | null {
     .map((r) => item(r, "missed"));
 
   /* Skill packs: those at or below the start course that are not done, nearest the start
-     course first, at most PLAN_PACK_ITEMS. A pack is done when every exercise of its sections
-     is solved; one with no exercises is never done (nothing on it can be solved). */
+     course first, at most PLAN_PACK_ITEMS. A pack is done when each of its sections with
+     exercises is done by the course's own rule (solid, or every exercise solved); one with no
+     exercises is never done (nothing on it can be solved). */
   const packDone = (p: PlanPack): boolean => {
     const scored = (p.refs ?? []).filter((r) => ws(r) > 0);
-    return scored.length > 0 && scored.every((r) => (rowOf(r)?.solved ?? 0) >= ws(r));
+    return scored.length > 0 && scored.every(done);
   };
   const packs = input.packs
     .map((p, i) => ({ p, i, at: isPlaceable(p.course) ? L.indexOf(p.course) : -1 }))
