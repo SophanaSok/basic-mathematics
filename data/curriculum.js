@@ -321,6 +321,20 @@ window.BM_CURRICULUM = {
             { id: "percent", title: "Percent of and percent change", summary: "A percent is a ratio per hundred; the part, the whole and the percent, and a change measured against the original, with its multiplier." },
             { id: "repeated", title: "Repeated change", summary: "The same percent applied again and again multiplies the multipliers: growth, decay, percents of percents and successive discounts." }
           ]
+        },
+        {
+          id: "pk-data",
+          label: "B",
+          title: "Data and Statistics",
+          file: "pk-data.html",
+          status: "full",
+          course: "pre-algebra",
+          blurb:
+            "Summarizing a list of numbers by its center and its spread, and reading dot plots, histograms, box plots and two-way tables.",
+          sections: [
+            { id: "center", title: "Center and spread", summary: "Mean, median and mode say where a list is centered; range, quartiles and the interquartile range say how far it spreads, and one extreme value moves the mean much further than the median." },
+            { id: "displays", title: "Reading displays", summary: "A dot plot, a histogram, a box plot and a two-way table each show a list or a survey in a different way, and each answers some questions easily and others not at all." }
+          ]
         }
       ]
     }

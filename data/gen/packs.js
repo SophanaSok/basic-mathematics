@@ -1,5 +1,7 @@
 /* data/gen/packs.js — Arena generators for the skill packs (Part V, beside the course).
-   Pack A, "Ratios, Rates and Percent": sections 1–4 (ratios, proportions, percent, repeated change). Each problem uses
+   Pack A, "Ratios, Rates and Percent": sections 1–4 (ratios, proportions, percent, repeated change).
+   Pack B, "Data and Statistics": section 1 so far (center and spread; the quartiles follow the
+   median-of-halves rule of src/ui/chart.ts, the rule of the SAT and ACT). Each problem uses
    only what its section has built so far. Hints name the next idea, never the numbers; steps
    are the worked solution; verify() recomputes the answer by a different route (the concrete
    counts behind a ratio, a cross-product, the unit rate). A dollar is written $\$9$ inside
@@ -700,6 +702,155 @@
           /* count it out with the whole as 10,000: the first group, then the second out of it */
           var first = 10000 * a1 / 100, second = first * a2 / 100;
           return Math.abs(second / 100 - pct) < 1e-9;
+        }
+      };
+    }
+  });
+
+  /* ============================================================ pack B: data */
+
+  /* the numbers of a list as math, "$4$, $9$, $11$" */
+  function listTex(a) { return a.map(function (x) { return "$" + clean(x) + "$"; }).join(", "); }
+  function sortedCopy(a) { return a.slice().sort(function (x, y) { return x - y; }); }
+  function sumOf(a) { return a.reduce(function (s, x) { return s + x; }, 0); }
+  /* the median of a list, whatever its order */
+  function medianOf(a) {
+    var s = sortedCopy(a), n = s.length;
+    return n % 2 ? s[(n - 1) / 2] : (s[n / 2 - 1] + s[n / 2]) / 2;
+  }
+  /* n different integers from lo..hi (a short list from a short range), in no order */
+  function distinctInts(r, n, lo, hi) {
+    var pool = [], i;
+    for (i = lo; i <= hi; i++) pool.push(i);
+    var out = [];
+    while (out.length < n) out.push(pool.splice(r.int(0, pool.length - 1), 1)[0]);
+    return out;
+  }
+
+  /* what the numbers measure, with a range each could plausibly take */
+  var DATA_CONTEXTS = [
+    { lo: 55, hi: 100, intro: "A student's quiz scores are" },
+    { lo: 48, hi: 92, intro: "The daily high temperatures last week, in degrees, were" },
+    { lo: 10, hi: 90, intro: "The minutes of homework a student did on different nights were" },
+    { lo: 40, hi: 98, intro: "A basketball team scored these points in its games:" },
+    { lo: 12, hi: 60, intro: "A shop counted these customers in different hours:" }
+  ];
+
+  /* --------------------------------------------- pack B §1: center and spread -- */
+
+  G.add({
+    id: "pk-center-summary", section: "pk-data#center", par: 50, timed: true,
+    make: function (r) {
+      var c = r.pick(DATA_CONTEXTS), kind = r.pick(["mean", "median", "range", "mode"]);
+      var n = kind === "median" ? r.int(5, 9) : r.int(5, 8), vals = [], guard = 0, i;
+      if (kind === "mode") {
+        /* one value three times, the rest all different from it and from each other */
+        var pool = distinctInts(r, n - 2, c.lo, c.hi);
+        vals = pool.slice(0, n - 3);
+        var m0 = pool[n - 3];
+        vals.push(m0, m0, m0);
+        vals = r.shuffle(vals);
+      } else {
+        do {
+          vals = [];
+          for (i = 0; i < n; i++) vals.push(r.int(c.lo, c.hi));
+          guard++;
+        } while (kind === "mean" && sumOf(vals) % n !== 0 && guard < 400);
+        if (kind === "mean" && sumOf(vals) % n !== 0) vals = [70, 82, 76, 90, 62];
+      }
+      var s = sortedCopy(vals), total = sumOf(vals), len = vals.length, ans, steps, ask, hint;
+      if (kind === "mean") {
+        ans = total / len; ask = "mean";
+        hint = "The mean shares the total out evenly: add the values, then divide by how many there are.";
+        steps = ["The total is $" + vals.join(" + ") + " = " + total + "$.", "Divide by the number of values: $" + total + " \\div " + len + " = " + clean(ans) + "$."];
+      } else if (kind === "median") {
+        ans = medianOf(vals); ask = "median";
+        hint = "Put the values in order first. The median is the middle one, or the midpoint of the middle two.";
+        steps = ["In order: " + listTex(s) + ".", len % 2
+          ? "There are $" + len + "$ values, so the median is the middle one, number $" + ((len + 1) / 2) + "$: $" + clean(ans) + "$."
+          : "There are $" + len + "$ values, so the median is the midpoint of the middle two, $" + s[len / 2 - 1] + "$ and $" + s[len / 2] + "$: $" + clean(ans) + "$."];
+      } else if (kind === "range") {
+        ans = s[len - 1] - s[0]; ask = "range";
+        hint = "The range is the distance from the smallest value to the largest.";
+        steps = ["The largest value is $" + s[len - 1] + "$ and the smallest is $" + s[0] + "$.", "The range is $" + s[len - 1] + " - " + s[0] + " = " + ans + "$."];
+      } else {
+        ans = vals.filter(function (x) { return vals.filter(function (y) { return y === x; }).length === 3; })[0];
+        ask = "mode";
+        hint = "The mode is the value that occurs most often. Putting the values in order puts the repeats side by side.";
+        steps = ["In order: " + listTex(s) + ".", "The value $" + ans + "$ appears three times and no other value repeats, so the mode is $" + ans + "$."];
+      }
+      return {
+        q: c.intro + " " + listTex(vals) + ". What is the " + ask + "?",
+        type: "number", answer: clean(ans), placeholder: ask,
+        hint: hint, steps: steps,
+        verify: function () {
+          if (kind === "mean") return vals.reduce(function (d, x) { return d + (x - ans); }, 0) === 0;
+          if (kind === "median") {
+            /* count how many lie on each side of the key */
+            var below = vals.filter(function (x) { return x < ans; }).length, above = vals.filter(function (x) { return x > ans; }).length;
+            return below <= len / 2 && above <= len / 2 && (len % 2 ? vals.indexOf(ans) > -1 : true);
+          }
+          if (kind === "range") return Math.min.apply(null, vals) + ans === Math.max.apply(null, vals);
+          var top = vals.filter(function (x) { return x === ans; }).length;
+          return top === 3 && vals.every(function (x) { return x === ans || vals.filter(function (y) { return y === x; }).length === 1; });
+        }
+      };
+    }
+  });
+
+  G.add({
+    id: "pk-mean-missing", section: "pk-data#center", par: 70, timed: true,
+    make: function (r) {
+      var n = r.int(4, 7), m = r.int(70, 90), known, miss, guard = 0, i;
+      do {
+        known = [];
+        for (i = 0; i < n - 1; i++) known.push(Math.max(50, Math.min(100, m + r.int(-14, 14))));
+        miss = n * m - sumOf(known);
+        guard++;
+      } while ((miss < 40 || miss > 100) && guard < 400);
+      if (miss < 40 || miss > 100) { m = 80; known = [76, 84, 90]; miss = 70; }
+      var k = known.length, names = ["first", "second", "third", "fourth", "fifth", "sixth"];
+      return {
+        q: "A student's first $" + k + "$ test scores are " + listTex(known) + ". What score does the next test need, so that the mean of all $" + (k + 1) + "$ scores is $" + m + "$?",
+        type: "number", answer: String(miss), placeholder: "score",
+        hint: "A given mean fixes the total of all the tests. Work out that total first, then see how much of it is still missing.",
+        steps: [
+          "For a mean of $" + m + "$ over $" + (k + 1) + "$ scores the total must be $" + (k + 1) + " \\cdot " + m + " = " + ((k + 1) * m) + "$.",
+          "The scores so far total $" + known.join(" + ") + " = " + sumOf(known) + "$.",
+          "The score still needed is the rest: $" + ((k + 1) * m) + " - " + sumOf(known) + " = " + miss + "$."
+        ],
+        verify: function () {
+          /* put the key in the list and take the mean */
+          return (sumOf(known) + miss) / (known.length + 1) === m && miss >= 40 && miss <= 100;
+        }
+      };
+    }
+  });
+
+  G.add({
+    id: "pk-iqr", section: "pk-data#center", par: 90, timed: true,
+    make: function (r) {
+      var c = r.pick(DATA_CONTEXTS), n = r.int(7, 14), vals = [], i;
+      for (i = 0; i < n; i++) vals.push(r.int(c.lo, c.hi));
+      var s = sortedCopy(vals), h = n >> 1, lower = s.slice(0, h), upper = s.slice(n - h);
+      var q1 = medianOf(lower), q3 = medianOf(upper), iqr = q3 - q1;
+      var odd = n % 2 === 1;
+      return {
+        q: c.intro + " " + listTex(vals) + ". What is the interquartile range? (Use the rule of the SAT and ACT: split the ordered list into a lower and an upper half, leaving out the middle value when the count is odd.)",
+        type: "number", answer: clean(iqr), placeholder: "IQR",
+        hint: "Order the values, split them into two halves, and take the median of each half. The interquartile range is the distance between those two medians.",
+        steps: [
+          "In order: " + listTex(s) + ".",
+          odd ? "There are $" + n + "$ values, so the median, $" + clean(medianOf(s)) + "$, is left out and each half has $" + h + "$ values."
+              : "There are $" + n + "$ values, so each half has $" + h + "$ values.",
+          "The lower half is " + listTex(lower) + ", with median $Q_1 = " + clean(q1) + "$. The upper half is " + listTex(upper) + ", with median $Q_3 = " + clean(q3) + "$.",
+          "The interquartile range is $Q_3 - Q_1 = " + clean(q3) + " - " + clean(q1) + " = " + clean(iqr) + "$."
+        ],
+        verify: function () {
+          /* the halves by position instead of by slicing, each median by trimming both ends in pairs */
+          function trim(a) { a = a.slice(); while (a.length > 2) { a.shift(); a.pop(); } return (a[0] + a[a.length - 1]) / 2; }
+          var lo = s.filter(function (x, j) { return j < Math.floor(n / 2); }), up = s.filter(function (x, j) { return j >= Math.ceil(n / 2); });
+          return trim(up) - trim(lo) === iqr && iqr >= 0 && lo.length === up.length;
         }
       };
     }

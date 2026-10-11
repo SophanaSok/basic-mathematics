@@ -277,6 +277,12 @@ export const SKILLS: Readonly<Record<SectionRef, Skill>> = {
     sat: ["sat.psda.pct"], act: ["act.ies"], accuplacer: ["qas.ratio"], aleks: ["ppl.real"] },
   "pk-percent#repeated": { ccss: "7.RP.A.3", also: ["HSF.LE.A.1.c", "8.EE.A.1"], course: "pre-algebra",
     sat: ["sat.psda.pct"], act: ["act.ies"], accuplacer: ["qas.ratio"], aleks: ["ppl.real"] },
+
+  /* pack B */
+  "pk-data#center": { ccss: "6.SP.B.5.c", also: ["6.SP.A.2", "6.SP.A.3", "7.SP.B.4"], course: "pre-algebra",
+    sat: ["sat.psda.data1"], act: ["act.phm.sp"], accuplacer: ["qas.stats"], aleks: [] },
+  "pk-data#displays": { ccss: "6.SP.B.4", also: ["HSS.ID.A.1", "8.SP.A.4"], course: "pre-algebra",
+    sat: ["sat.psda.data1", "sat.psda.data2"], act: ["act.phm.sp"], accuplacer: ["qas.stats"], aleks: [] },
 };
 
 /** Generators (data/gen/*.js, by id) whose test differs from their section's record. */

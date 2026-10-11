@@ -76,8 +76,8 @@ function fixtureSource() {
   const C = sb.window.BM_CURRICULUM;
   const part = C.parts[C.parts.length - 1];
   eq([part.id, part.num, part.dir, part.beside], ["packs", "V", "5-packs", true], "the last Part of data/curriculum.js is Part V, the skill packs, beside");
-  eq(part.chapters.map((c) => c.id + ":" + c.label + ":" + c.course), ["pk-percent:A:pre-algebra"], "pack A is the only pack so far");
-  eq([C.chapters.length, C.courseChapters.length], [18, 17], "the real tree: 18 chapters, 17 in the course");
+  eq(part.chapters.map((c) => c.id + ":" + c.label + ":" + c.course), ["pk-percent:A:pre-algebra", "pk-data:B:pre-algebra"], "packs A and B are the packs so far");
+  eq([C.chapters.length, C.courseChapters.length], [19, 17], "the real tree: 19 chapters, 17 in the course");
 }
 
 /* ------------------------------------------------------ assets/site.js pages */
