@@ -99,6 +99,8 @@ function loadCurriculum(src) {
     C.parts.forEach(part => part.chapters.forEach(ch => { ch.part = part; ch.path = "parts/" + part.dir + "/" + ch.file; C.chapters.push(ch); }));
     C.chapterById = id => C.chapters.filter(ch => ch.id === id)[0] || null;
   }
+  /* the course's own reading order, without the chapters of a beside Part (the skill packs) */
+  if (!Array.isArray(C.courseChapters)) C.courseChapters = C.chapters.filter(ch => !(ch.part && ch.part.beside));
   return C;
 }
 function curriculum(root) {

@@ -31,7 +31,7 @@ export function input(): NextInput | null {
   const sections: Record<string, SectionRef> = {};
   const chapters: ChapterRef[] = [];
   let index = 0;
-  (C.chapters || []).forEach((ch: any) => {
+  (C.courseChapters || C.chapters || []).forEach((ch: any) => {
     chapters.push({
       id: ch.id, name: Site.chapterName(ch), title: ch.title, path: ch.path,
       sections: ch.sections.map((s: any) => ({ id: s.id, title: s.title }))

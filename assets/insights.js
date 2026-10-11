@@ -88,7 +88,7 @@
       '<th class="num">Missions</th><th class="num">Right the first time</th>' +
       (Game ? '<th class="num">Medal</th>' : "") + "</tr></thead><tbody>";
     C.parts.forEach(function (part) {
-      html += '<tr class="part-row" data-part="' + esc(part.id) + '"><th colspan="' + cols + '">Part ' + part.num + " — " + esc(part.name) + "</th></tr>";
+      html += '<tr class="part-row" data-part="' + esc(part.id) + '"><th colspan="' + cols + '">' + (part.beside ? "" : "Part " + part.num + " — ") + esc(part.name) + "</th></tr>";
       part.chapters.forEach(function (ch) {
         var c = Progress.count(ch.id), m = Play.count(ch.id);
         html += '<tr data-part="' + esc(part.id) + '"><td><a href="' + esc(ch.path) + '">' +

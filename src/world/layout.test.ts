@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { layout, rowAt, segmentDistance, ISLE_R, ROW_Z, ROW_Y, PLINTH } from "./layout.ts";
-import { course } from "./course.test-helper.ts";
+import { layout, rowAt, worldParts, segmentDistance, ISLE_R, ROW_Z, ROW_Y, PLINTH } from "./layout.ts";
+import { course, courseWithPacks, motifs } from "./course.test-helper.ts";
 
 const C = course();
 const L = layout(C);
@@ -59,5 +59,24 @@ describe("the course world's layout", () => {
     expect(rowAt(5, 4)).toBe(0);
     expect(segmentDistance(0, 1, [-1, 0, 0], [1, 0, 0])).toBeCloseTo(1);
     expect(segmentDistance(3, 0, [-1, 0, 0], [1, 0, 0])).toBeCloseTo(2);
+  });
+});
+
+describe("a Part beside the course", () => {
+  const P = courseWithPacks();
+  const LP = layout(P);
+
+  it("has no island, row, gate or region in the world", () => {
+    expect(LP.isles.length).toBe(17);
+    expect(LP.isles.map((s) => s.id)).toEqual(L.isles.map((s) => s.id));
+    expect(LP.regions.map((r) => r.id)).toEqual(C.parts.map((p) => p.id));
+    expect(LP.gates.length).toBe(4);
+    expect(LP.path).toEqual(L.path);
+    expect(worldParts(P).length).toBe(4);
+  });
+
+  it("gives createWorld the same four arches", () => {
+    expect(worldParts(P).map((p) => (p as { id: string }).id)).toEqual(C.parts.map((p) => p.id));
+    expect(motifs(P).length).toBe(4);
   });
 });

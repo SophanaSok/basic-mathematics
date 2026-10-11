@@ -20,7 +20,12 @@ export const ISLE_R = 1.45;      /* an island's footprint, its progress ring inc
 export type Vec3 = [number, number, number];
 
 export interface CourseShape {
-  parts: { id: string; chapters: { id: string; sections?: { id: string }[] }[] }[];
+  parts: { id: string; beside?: true; chapters: { id: string; sections?: { id: string }[] }[] }[];
+}
+
+/** The Parts the world draws: a beside Part (the skill packs) has no island, row or arch. */
+export function worldParts<P extends { beside?: true }>(course: { parts: P[] }): P[] {
+  return course.parts.filter((p) => !p.beside);
 }
 
 export interface IsleSpot {
@@ -55,7 +60,8 @@ export interface WorldLayout {
 export function layout(course: CourseShape): WorldLayout {
   const isles: IsleSpot[] = [];
   const review: Record<string, number> = {};
-  course.parts.forEach((part, p) => {
+  const parts = worldParts(course);
+  parts.forEach((part, p) => {
     const n = part.chapters.length, dir = p % 2 === 0 ? 1 : -1;
     part.chapters.forEach((ch, j) => {
       isles.push({ id: ch.id, p, part: part.id, j, n, x: (j - (n - 1) / 2) * STEP_X * dir, y: ROW_Y * p, z: -ROW_Z * p });
@@ -66,7 +72,7 @@ export function layout(course: CourseShape): WorldLayout {
 
   const path: Vec3[] = [];
   const gates: GateSpot[] = [];
-  course.parts.forEach((part, p) => {
+  parts.forEach((part, p) => {
     const row = isles.filter((s) => s.p === p);
     row.forEach((s) => path.push([s.x, s.y, s.z]));
     const last = row[row.length - 1];
@@ -82,7 +88,7 @@ export function layout(course: CourseShape): WorldLayout {
     }
   });
 
-  const regions: RegionSpot[] = course.parts.map((part, p) => ({
+  const regions: RegionSpot[] = parts.map((part, p) => ({
     id: part.id, p,
     x0: -HALF_W, x1: HALF_W,
     z0: -ROW_Z * p - ROW_Z / 2, z1: -ROW_Z * p + ROW_Z / 2,

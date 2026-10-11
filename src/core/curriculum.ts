@@ -22,6 +22,8 @@ export interface Chapter {
   /** set by data/curriculum.js once the parts are read: the part, and "parts/<dir>/<file>" */
   part?: Part;
   path?: string;
+  /** a pack's course tag, when it belongs to one */
+  course?: string;
 }
 
 export interface Part {
@@ -31,6 +33,9 @@ export interface Part {
   dir: string;
   blurb?: string;
   chapters: Chapter[];
+  /** true for a Part that sits beside the course (the skill packs): out of the reading order,
+      the "whole course" counts and the 3D world */
+  beside?: true;
 }
 
 export interface Curriculum {
@@ -39,6 +44,13 @@ export interface Curriculum {
   parts: Part[];
   /** every chapter in reading order, as data/curriculum.js flattens them */
   chapters?: Chapter[];
+  /** the same list without the chapters of a beside Part: the course's own reading order */
+  courseChapters?: Chapter[];
+}
+
+/** Whether a Part sits beside the course rather than in it. */
+export function isBeside(part: Pick<Part, "beside"> | null | undefined): boolean {
+  return !!(part && part.beside);
 }
 
 /** The chapter with this id, or null; read from the parts, so a curriculum that has not

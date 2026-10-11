@@ -21,6 +21,8 @@
   if (!Store || !Site || !Game || !C || !main || !chapterId) return;
   var chapter = C.chapterById(chapterId);
   if (!chapter) return;
+  /* a skill pack (a beside Part) has a plain practice set: no cube, title card or taunt */
+  if (chapter.part && chapter.part.beside) return;
 
   var Q = window.BM_QUEST || {};
   var region = (Q.regions || {})[chapter.part.id] || { solid: "cube" };
@@ -380,7 +382,7 @@
   }
 
   function nextChapter() {
-    var list = C.chapters, next = null;
+    var list = C.courseChapters || C.chapters, next = null;
     list.forEach(function (ch, k) { if (ch.id === chapterId) next = list[k + 1] || null; });
     return next;
   }
