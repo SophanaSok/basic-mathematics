@@ -176,7 +176,7 @@ jobs:
       # the dpkg lock against the next try) and the step has a backstop;
       # tools/check-ci.js (`install`) fails when either is missing
       - name: npx playwright install (up to three tries)
-        timeout-minutes: 13
+        timeout-minutes: 15
         run: |
           for try in 1 2 3; do
             if timeout -k 20 240 npx playwright install --with-deps chromium; then exit 0; fi
@@ -224,7 +224,7 @@ jobs:
       # the dpkg lock against the next try) and the step has a backstop;
       # tools/check-ci.js (`install`) fails when either is missing
       - name: npx playwright install (up to three tries)
-        timeout-minutes: 13
+        timeout-minutes: 15
         run: |
           for try in 1 2 3; do
             if timeout -k 20 240 npx playwright install --with-deps chromium; then exit 0; fi

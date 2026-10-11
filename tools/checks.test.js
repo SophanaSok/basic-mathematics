@@ -828,6 +828,7 @@ function refusal(fn) { try { fn(); return null; } catch (e) { return e.message; 
   eq(run(step(T13, wrapped + "\n          npx playwright install chromium")).length, 1, "install: a second, bare install in a wrapped step fails");
   eq(run(step(T13, 'echo "timeout -k 20 240 npx playwright install"\n          npx playwright install chromium')).length, 1, "install: an echo of the wrapper does not wrap the install");
   eq(run(step(T13, wrapped + '\n          echo "::warning::playwright install failed"')), [], "install: an echo that names the install is not one");
+  eq(run(step(T13, wrapped + '\n          echo "retrying npx playwright install"')), [], "install: an echo that names the whole command is not one either");
   eq(run(step(T13, wrapped).replace("- name: install", "- name: npx playwright install (three tries)")), [], "install: a step name that names the install runs nothing");
   eq(run(step("", "npx playwright install chromium")).length, 2, "install: a bare install step fails both ways");
   eq(run("jobs:\n  a:\n    steps:\n      - run: npm ci\n      # playwright install is not run here\n").length, 1, "install: a workflow with no install step fails, and a comment is no step");
