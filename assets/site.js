@@ -1041,15 +1041,20 @@
       /* the answer and the box type a reading line is about: a blank's own on a blank card */
       function readOf(r, v) { return kind === "blank" ? r.given[v.blank] : r.given; }
       function typeOf(v) { return kind === "blank" ? blanks[v.blank].getAttribute("data-type") || "number" : type; }
-      /* the note beside a right unreduced fraction: "6/4 is 3/2 in lowest terms." */
+      /* the note beside a right unreduced fraction or ratio: "6/4 is 3/2 in lowest terms.",
+         "6:8 is 3:4 in lowest terms." A ratio's terms are read without their thousands
+         commas ("1,000:2,000 is 1:2 in lowest terms."); a fraction's are not. */
       function noteLine(v) {
         if (!v.notes || v.notes.indexOf("unreduced") < 0) return "";
-        var m = /^(-?)(\d{1,15})\/(\d{1,15})$/.exec(v.read || "");
-        if (!m) return "";
-        var a = parseInt(m[2], 10), b = parseInt(m[3], 10), g = b;
-        for (var r = a; r; ) { var t = g % r; g = r; r = t; }
+        var read = v.read || "", terms = read.replace(/,(?=\d{3}(?!\d))/g, "");
+        var ratio = /^\d{1,15}(?::\d{1,15})+$/.test(terms);
+        var m = /^(-?)(\d{1,15})\/(\d{1,15})$/.exec(read);
+        if (!m && !ratio) return "";
+        var parts = ratio ? terms.split(":").map(Number) : [parseInt(m[2], 10), parseInt(m[3], 10)], g = 0;
+        parts.forEach(function (x) { for (var r = x; r; ) { var t = g % r; g = r; r = t; } });
         if (!g || g === 1) return "";
-        var lowest = m[1] + (a / g) + (b / g === 1 ? "" : "/" + (b / g));
+        var low = parts.map(function (x) { return x / g; });
+        var lowest = ratio ? low.join(":") : m[1] + low[0] + (low[1] === 1 ? "" : "/" + low[1]);
         return '<p class="ex-next hint">' + escapeHtml(Core.messages.lowestMessage(v.read, lowest)) + "</p>";
       }
       /* how the first correct answer came: first try, after misses, or with the solution open */

@@ -13,6 +13,12 @@
                   7 and -7, each member read as a number without thousands commas
      readTuple    a point: k >= 2 coordinates in an optional (...), [...] or <...>, or labeled
                   x=, y= (z=); null when the text is not a point
+     readPercent  a percent box (decision 0005): one number in percent units, a % at its
+                  end dropped; "35 percent" refused as words
+     readRatio    a ratio box (decision 0005): terms split on : or " to ", each read as a
+                  number, or one number with no separator (3/4, which check.ts makes
+                  form/notation); a refusal whose message speaks of one number, or of a
+                  fraction, is "ratio-terms" here
 
    Every rule is a switch. A rule id in `off` makes its step do what the grader before it
    did (src/core/answer/legacy.ts), so a tool can switch one rule off and see which change
@@ -78,6 +84,11 @@ export interface NumberReading {
 }
 
 export interface ListReading { ok: true; members: NumberReading[]; read: string; show: boolean }
+
+/** A ratio box's text: its terms in typed order, one when no separator was typed. `read` is
+    the terms joined by ":" (3 to 4 is 3:4); `notes` is ["unreduced"] when every term is a
+    whole number and they share a factor (6:8). */
+export interface RatioReading { ok: true; terms: NumberReading[]; read: string; show: boolean; notes: Note[] }
 
 export interface TupleReading {
   values: NumberReading[];
@@ -300,6 +311,40 @@ const vulgar = (text: unknown, off: ReadonlySet<RuleId>) => !off.has("N-unicode"
 export function readNumber(text: unknown, o: ReadOptions): NumberReading | Refusal {
   const off = o.off || NONE, r = readOne(cleanNumber(text, off), { commas: true, off, q4: o.q4, set: false });
   return r.ok && !r.show && vulgar(text, off) ? { ...r, show: true } : r;
+}
+
+/** A percent box, or a key of that type: one number in percent units, so 35, 35% and 35 %
+    are all 35. Its `read` ends in "%". A % anywhere else is a symbol here, and a number
+    followed by the word percent is words. The full-width ％ and the small ﹪ are a %. */
+export function readPercent(text: unknown, o: ReadOptions): NumberReading | Refusal {
+  const off = o.off || NONE;
+  let t = cleanNumber(text, off).replace(/[％﹪]/g, "%");
+  if (!off.has("N-dot") && t !== "." && / ?\.$/.test(t)) t = t.replace(/ ?\.$/, "");
+  if (t.length <= 200 && /^[^a-z]*\d ?per ?cent$/.test(t)) return no("words");
+  const r = readOne(t.replace(/ ?%$/, ""), { commas: true, off, q4: o.q4, set: false });
+  if (!r.ok) return r.reason === "percent" ? no("symbol") : r;
+  return { ...r, read: r.read + "%", show: r.show || vulgar(text, off) };
+}
+
+/* the refusals of a term whose message speaks of one number or of a fraction */
+const NOT_A_TERM: readonly (UnreadReason | null)[] = ["words", "expression", "list", "decimal-comma", "plus-minus", "percent"];
+
+/** A ratio box, or a key of that type */
+export function readRatio(text: unknown, o: ReadOptions): RatioReading | Refusal {
+  const off = o.off || NONE, c: Ctx = { commas: true, off, q4: o.q4, set: false };
+  let t = cleanNumber(text, off).replace(/∶/g, ":");
+  if (t === "") return no("empty");
+  if (t.length > 200) return no("too-long");
+  if (!off.has("N-dot") && t !== "." && / ?\.$/.test(t)) t = t.replace(/ ?\.$/, "");
+  const terms: NumberReading[] = [], parts = t.split(/ ?: ?|(?:^| )to(?: |$)/);
+  for (const p of parts) {
+    const r = p === "" ? no("ratio-terms") : readOne(p, c);
+    if (!r.ok) return no(NOT_A_TERM.includes(r.reason) ? "ratio-terms" : r.reason);
+    terms.push(r);
+  }
+  const whole = terms.every((x) => x.shape === "integer" && x.value.n > 0n);
+  const notes: Note[] = terms.length > 1 && whole && terms.reduce((g, x) => gcd(g, x.value.n), 0n) > 1n ? ["unreduced"] : [];
+  return { ok: true, terms, read: terms.map((x) => x.read).join(":"), show: terms.some((x) => x.show) || vulgar(text, off), notes };
 }
 
 /* "[sign] int and int/int", a member on its own: one mixed number or two members */

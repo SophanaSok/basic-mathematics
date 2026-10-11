@@ -4,8 +4,8 @@ import { describe, expect, it } from "vitest";
 import { numberList, toNumber } from "./legacy.ts";
 import { formMessage, lowestMessage, readMessage, unreadMessage } from "./messages.ts";
 import { abs, add, cmp, div, eq, fromDecimal, make, mul, neg, roundTo, sub, truncTo } from "./rational.ts";
-import { MATH_WORDS, READ_RULES, cleanNumber, readList, readNumber, readTuple } from "./read.ts";
-import type { ListReading, NumberReading, ReadOptions, Refusal, TupleReading } from "./read.ts";
+import { MATH_WORDS, READ_RULES, cleanNumber, readList, readNumber, readPercent, readRatio, readTuple } from "./read.ts";
+import type { ListReading, NumberReading, RatioReading, ReadOptions, Refusal, TupleReading } from "./read.ts";
 import type { FormReason, UnreadReason } from "./types.ts";
 
 /* The reader of the typed grader (decision 0002): the rows of the design's tables in
@@ -24,9 +24,12 @@ const q = (r: { value: { n: bigint; d: bigint } }) => r.value.n + "/" + r.value.
 /* "n/d" for a reading, "unread/<reason>" for a refusal */
 const num = (text: string, o: ReadOptions = A) => { const r = readNumber(text, o); return r.ok ? q(r) : "unread/" + r.reason; };
 const list = (text: string, o: ReadOptions = A) => { const r = readList(text, o); return r.ok ? r.members.map(q).join(", ") : "unread/" + r.reason; };
+const pct = (text: string, o: ReadOptions = A) => { const r = readPercent(text, o); return r.ok ? q(r) : "unread/" + r.reason; };
+const ratio = (text: string, o: ReadOptions = A) => { const r = readRatio(text, o); return r.ok ? r.terms.map(q).join(" : ") : "unread/" + r.reason; };
 const tuple = (text: string, o: ReadOptions = A) => { const r = readTuple(text, o); return r ? r.values.map(q).join(", ") + (r.notation ? " notation" : "") : "no point"; };
 const ok = (r: NumberReading | Refusal): NumberReading => { if (!r.ok) throw new Error("no reading: " + r.reason); return r; };
 const okList = (r: ListReading | Refusal): ListReading => { if (!r.ok) throw new Error("no reading: " + r.reason); return r; };
+const okRatio = (r: RatioReading | Refusal): RatioReading => { if (!r.ok) throw new Error("no reading: " + r.reason); return r; };
 const okTuple = (r: TupleReading | null): TupleReading => { if (!r) throw new Error("not a point"); return r; };
 const each = (texts: string[], f: (t: string) => string) => Object.fromEntries(texts.map((t) => [t, f(t)]));
 const all = (texts: string[], want: string) => Object.fromEntries(texts.map((t) => [t, want]));
@@ -267,6 +270,54 @@ describe("a point (section 3.3)", () => {
   });
 });
 
+describe("a percent box (decision 0005, PQ2)", () => {
+  it("reads one number in percent units, a % at its end dropped, and writes `read` with a %", () => {
+    expect(each(["35", "35%", "35 %", "35.0", "35%.", " 35 % ", "+35%", "$35%", "７０%", "35/1%"], (t) => pct(t))).toEqual({
+      "35": "35/1", "35%": "35/1", "35 %": "35/1", "35.0": "35/1", "35%.": "35/1", " 35 % ": "35/1", "+35%": "35/1", "$35%": "35/1", "７０%": "70/1", "35/1%": "35/1"
+    });
+    expect([pct("0.35"), pct("33 1/3%"), pct("-5 %"), pct("5,050%"), pct("½%")]).toEqual(["7/20", "100/3", "-5/1", "5050/1", "1/2"]);
+    /* the full-width ％ and the small ﹪ are a %, at the end only */
+    expect(each(["35％", "35 ％", "35﹪", "３５％", "35％％", "％35", "35%％"], (t) => pct(t))).toEqual({
+      "35％": "35/1", "35 ％": "35/1", "35﹪": "35/1", "３５％": "35/1", "35％％": "unread/symbol", "％35": "unread/symbol", "35%％": "unread/symbol"
+    });
+    expect(ok(readPercent("35％", A)).read).toBe("35%");
+    const r = (t: string) => { const x = ok(readPercent(t, A)); return [x.read, x.shape, x.places, x.show, x.notes.join()]; };
+    expect([r("35"), r("35.50 %"), r("33 1/3%"), r("½%"), r("6/4%")]).toEqual([
+      ["35%", "integer", 0, false, ""], ["35.50%", "decimal", 2, false, ""], ["100/3%", "mixed", 0, true, "mixed"], ["1/2%", "fraction", 0, true, ""], ["6/4%", "fraction", 0, false, "unreduced"]]);
+  });
+
+  it("refuses the word percent as words, a % anywhere but the end as a symbol, and the rest as a number box does", () => {
+    expect(each(["35 percent", "35percent", "35 per cent", "35.5 percent", "percent", "35%%", "%35", "3%5", "%", "35 pct", "3:4", "4, -4", "x = 35%", "1".repeat(41) + "%"], (t) => pct(t))).toEqual({
+      "35 percent": "unread/words", "35percent": "unread/words", "35 per cent": "unread/words", "35.5 percent": "unread/words", "percent": "unread/words",
+      "35%%": "unread/symbol", "%35": "unread/symbol", "3%5": "unread/symbol", "%": "unread/empty", "35 pct": "unread/units", "3:4": "unread/ratio",
+      "4, -4": "unread/list", "x = 35%": "unread/named", ["1".repeat(41) + "%"]: "unread/too-long"
+    });
+  });
+});
+
+describe("a ratio box (decision 0005, PQ3)", () => {
+  it("reads terms split on : or to, or one number, and writes `read` with colons", () => {
+    expect(each(["3:4", "3 : 4", "3 to 4", "3 TO 4.", "3∶4", "1.5:2", "1/2 : 2/3", "1 1/2:2", "6:8:10", "3/4", "0.75", "1,000:2"], (t) => ratio(t))).toEqual({
+      "3:4": "3/1 : 4/1", "3 : 4": "3/1 : 4/1", "3 to 4": "3/1 : 4/1", "3 TO 4.": "3/1 : 4/1", "3∶4": "3/1 : 4/1", "1.5:2": "3/2 : 2/1",
+      "1/2 : 2/3": "1/2 : 2/3", "1 1/2:2": "3/2 : 2/1", "6:8:10": "6/1 : 8/1 : 10/1", "3/4": "3/4", "0.75": "3/4", "1,000:2": "1000/1 : 2/1"
+    });
+    /* signs and zeros read: a ratio of them is wrong, which is check.ts's */
+    expect([ratio("-3:4"), ratio("0:0")]).toEqual(["-3/1 : 4/1", "0/1 : 0/1"]);
+    const r = (t: string) => { const x = okRatio(readRatio(t, A)); return [x.read, x.notes.join(), x.show]; };
+    expect([r("3 to 4"), r("6:8"), r("2:4:6"), r("2:4:5"), r("1.5:3"), r("6/8"), r("½:1"), r("-2:-4")]).toEqual([
+      ["3:4", "", false], ["6:8", "unreduced", false], ["2:4:6", "unreduced", false], ["2:4:5", "", false], ["1.5:3", "", false], ["6/8", "", false], ["1/2:1", "", true], ["-2:-4", "", false]]);
+  });
+
+  it("refuses an empty term, and a term the number box would send to one number or a fraction, as ratio-terms", () => {
+    expect(each(["3:", ":4", "3::4", "3 to", "3,4", "0,75", "three to four", "75%", "3x:4", "4,-4", "±3:4", "3:4 cups", "x = 3", "3 4:5", "3:4°", "", "1:".repeat(100) + "1"], (t) => ratio(t))).toEqual({
+      "3:": "unread/ratio-terms", ":4": "unread/ratio-terms", "3::4": "unread/ratio-terms", "3 to": "unread/ratio-terms", "3,4": "unread/ratio-terms",
+      "0,75": "unread/ratio-terms", "three to four": "unread/ratio-terms", "75%": "unread/ratio-terms", "3x:4": "unread/ratio-terms", "4,-4": "unread/ratio-terms",
+      "±3:4": "unread/ratio-terms", "3:4 cups": "unread/units", "x = 3": "unread/named", "3 4:5": "unread/spaces", "3:4°": "unread/units", "": "unread/empty",
+      ["1:".repeat(100) + "1"]: "unread/too-long"
+    });
+  });
+});
+
 describe("every rule's switch", () => {
   /* [rule, what it reads, on, off]: off is the old grader's step */
   const ROWS: [string, () => string[]][] = [
@@ -344,10 +395,10 @@ describe("hostile input", () => {
       "x=" + "=".repeat(5000), "1 ".repeat(5000) + "/2", "$".repeat(5000), ", ".repeat(5000), "\u0000￿\ud800", "－".repeat(100) + "7"];
     let seed = 1;
     const rnd = () => { seed = (seed * 1103515245 + 12345) % 2147483648; return seed / 2147483648; };
-    const ALPHABET = "0123456789 .,/-+()$x=e½±%°:{}[];<>|!√π÷−‐７£#a";
+    const ALPHABET = "0123456789 .,/-+()$x=e½±%°:{}[];<>|!√π÷−‐７£#a∶to";
     for (let i = 0; i < 2000; i++) texts.push(Array.from({ length: 1 + Math.floor(rnd() * 12) }, () => ALPHABET[Math.floor(rnd() * ALPHABET.length)]).join(""));
     for (const o of [A, B, { q4: "a", off: new Set(READ_RULES) }, { q4: "b", off: new Set(READ_RULES) }] as ReadOptions[]) {
-      for (const t of texts) expect(() => { readNumber(t, o); readList(t, o); readTuple(t, o); }, JSON.stringify(t.slice(0, 40))).not.toThrow();
+      for (const t of texts) expect(() => { readNumber(t, o); readList(t, o); readTuple(t, o); readPercent(t, o); readRatio(t, o); }, JSON.stringify(t.slice(0, 40))).not.toThrow();
     }
   });
 });
@@ -355,7 +406,7 @@ describe("hostile input", () => {
 describe("messages", () => {
   const UNREAD: UnreadReason[] = ["empty", "too-long", "named", "words", "expression", "spaces", "ambiguous-mixed", "list", "decimal-comma",
     "list-comma", "mixed-in-set", "brackets", "percent", "units", "symbol", "plus-minus", "scientific", "ratio", "grid-chars", "grid-length",
-    "grid-zeros", "mixed"];
+    "grid-zeros", "mixed", "ratio-terms"];
   const FORM: FormReason[] = ["rounded", "notation", "repeated", "grid-width", "unreduced"];
 
   it("gives every reason a sentence", () => {
@@ -382,5 +433,8 @@ describe("messages", () => {
     expect(formMessage("notation", okTuple(readTuple("y=-2, x=6", A)).read)).toBe("Right values. Write it as (6, -2).");
     expect(readMessage(ok(readNumber("1 1/2", A)).read)).toBe("We read that as 3/2.");
     expect(lowestMessage("6/4", "3/2")).toBe("6/4 is 3/2 in lowest terms.");
+    expect([formMessage("notation", "35%"), formMessage("notation", "33 1/3%"), formMessage("notation", "3:4"), lowestMessage("6:8", "3:4")]).toEqual([
+      "Write it as a percent, like 35%.", "Write it as a percent, like 33 1/3%.", "Write it as a ratio, like 3:4.", "6:8 is 3:4 in lowest terms."]);
+    expect(unreadMessage("ratio-terms", "a")).toBe("Type the ratio with digits and a colon between the terms, like 2:5.");
   });
 });

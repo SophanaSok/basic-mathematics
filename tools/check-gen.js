@@ -90,7 +90,7 @@ function fail(id, seed, msg) { failures.push(id + (seed === null ? "" : " seed "
 if (!Site || typeof Site.grade !== "function") { console.error("assets/site.js did not export BMSite.grade"); process.exit(1); }
 if (!Gen) { console.error("data/gen/core.js did not define BMGen"); process.exit(1); }
 
-var TYPES = { number: 1, exact: 1, set: 1, expr: 1, fraction: 1 };
+var TYPES = { number: 1, exact: 1, set: 1, expr: 1, fraction: 1, percent: 1, ratio: 1 };
 var BAD = /NaN|undefined|Infinity|\[object/;
 
 /* A bare "$9" in a sentence opens a formula that runs to the next "$", and KaTeX

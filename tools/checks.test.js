@@ -57,8 +57,8 @@
        passes against tools/us-english-allow.json
      - answer-spec: an expr key whose bars split it into part answers (2|x|-1, 2|x|, x|-x,
        2|x-1|+3) fails the bar lint, and |x| and 1|i pass; a negative, infinite or empty
-       data-tol fails, and so does a tol on an exact or an expr key; 1/8|0.125, a blank
-       card and a tol on a number key pass; an alternative its own key does not judge
+       data-tol fails, and so does a tol on an exact, an expr or a ratio key; 1/8|0.125, a
+       blank card and a tol on a number, fraction, set or percent key pass; an alternative its own key does not judge
        right (1/2|one half) fails; judge() is on the core object the check loads
      - placeholders: an example its own key judges right, or form (a rounding, a point in
        square brackets), fails; an example it judges wrong or unread passes
@@ -915,8 +915,10 @@ function refusal(fn) { try { fn(); return null; } catch (e) { return e.message; 
   eq(k.fails.length, 1, "answer-spec: … a tol of 0 too, written on an exact key");
   k = spec('id="e1" data-type="expr" data-tol="0.1" data-answer="2x"');
   check(k.fails.some(m => /\(expr\): data-tol "0\.1" on a key compared as text/.test(m)), "answer-spec: a tol on an expr key fails: " + JSON.stringify(k.fails));
-  eq(["number", "fraction", "set"].map(t => spec('id="e1" data-type="' + t + '" data-tol="0.005" data-answer="2.807"').fails), [[], [], []],
-    "answer-spec: a tol of 0.005 on a number, fraction or set key passes");
+  k = spec('id="e1" data-type="ratio" data-tol="0.1" data-answer="3:4"');
+  check(k.fails.some(m => /\(ratio\): data-tol "0\.1" on a ratio key, which is compared exactly/.test(m)), "answer-spec: a tol on a ratio key fails: " + JSON.stringify(k.fails));
+  eq(["number", "fraction", "set", "percent"].map(t => spec('id="e1" data-type="' + t + '" data-tol="0.005" data-answer="2.807"').fails), [[], [], [], []],
+    "answer-spec: a tol of 0.005 on a number, fraction, set or percent key passes");
   k = spec('id="e1" data-type="number" data-tol="1e-7" data-answer="1"');
   eq(k.fails, [], "answer-spec: a tol in exponent notation passes");
 

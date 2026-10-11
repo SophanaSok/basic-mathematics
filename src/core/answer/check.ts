@@ -22,6 +22,18 @@
                form/notation when it used [...], <...> or labels (T-notation), and that
                compare is final (a guard, T-final, tests only: off, the text compare is
                tried after it)
+     percent   (decision 0005, PQ2) the key and the answer in percent units, a trailing %
+               read: the number compare, N-round counting a decimal's places as the value
+               it stands for (33.3 is 0.333, so form/rounded for 100/3); else, unless a %
+               was typed, the answer a hundred times over: right is form/notation (0.35 for
+               35), its `read` the answer as a percent (35%); rounded is form/rounded (0.33
+               for 100/3)
+     ratio     (decision 0005, PQ3) a key of two or more positive terms (3:4); an answer of
+               as many positive terms, each the key's times one factor, is right, with the
+               unreduced note when its whole-number terms share a factor (6:8); one number
+               equal to a two-term key's quotient (3/4, 0.75) is form/notation, its `read`
+               the answer as a ratio (3:4); anything else, a different number of terms
+               among it, is wrong. Exact: no tol, no band
      text      any other exact text, and expr, is compared by expr.ts: expr by its string
                rules (E-mixed, E-star, E-pow, E-dot, E-abs, E-plusneg, E-paren, E-terms), and
                exact as the old forgiving text compare, with a mixed number marked (E-mixed)
@@ -56,15 +68,16 @@
    which puts each changed verdict of the frozen baseline (tools/fixtures/grade-golden.json)
    down to the first rule whose switch gives the old verdict back, and lists them in
    tools/fixtures/grade-ledger.json at this GRADER revision. judgeOff() never reaches the
-   pages. Grid mode has no switches: no golden case is graded in it.
+   pages. Grid mode has no switches: no golden case is graded in it. Nor have the percent
+   and ratio compares, boxes the old grader never had: no golden case has either type.
 
    Pure: no `window`, no DOM, no float in any decision. */
 
-import { alternatives as legacyAlternatives, sameNumber, type AnswerType } from "./legacy.ts";
+import { alternatives as legacyAlternatives, sameNumber } from "./legacy.ts";
 import { sameText } from "./expr.ts";
-import { readList, readNumber, readTuple, type ListReading, type NumberReading, type Refusal } from "./read.ts";
-import { abs, cmp, eq, fromDecimal, make, roundTo, sub, truncTo, type Q } from "./rational.ts";
-import type { AnswerSpec, FormReason, Note, Owner, RuleId, Verdict } from "./types.ts";
+import { readList, readNumber, readPercent, readRatio, readTuple, type ListReading, type NumberReading, type RatioReading, type Refusal } from "./read.ts";
+import { abs, cmp, div, eq, fromDecimal, make, mul, roundTo, sub, truncTo, type Q } from "./rational.ts";
+import type { AnswerSpec, AnswerType, FormReason, Note, Owner, RuleId, Verdict } from "./types.ts";
 
 export { readNumber } from "./read.ts";
 
@@ -126,13 +139,46 @@ function within(a: Q, b: Q, tol: number): boolean {
   return cmp({ n: d.n * BILLION, d: d.d }, big) <= 0;
 }
 
-/* one reading against one key reading: true (right), false (wrong) or a form reason */
-function compareNumber(g: NumberReading, k: NumberReading, tol: number, off: ReadonlySet<RuleId>): boolean | FormReason {
+/* one reading against one key reading: true (right), false (wrong) or a form reason. `shift`
+   is 2 in a percent box, where 33.3 is 0.333, three places of the value it stands for */
+function compareNumber(g: NumberReading, k: NumberReading, tol: number, off: ReadonlySet<RuleId>, shift = 0): boolean | FormReason {
   if (off.has("N-exact") ? sameNumber(g.float, k.float, tol) : within(g.value, k.value, tol)) return true;
   /* N-round (Q5(a)): a decimal of two or more places that is the key rounded or cut there */
-  if (!tol && !off.has("N-round") && g.shape === "decimal" && g.places >= 2
+  if (!tol && !off.has("N-round") && g.shape === "decimal" && g.places + shift >= 2
     && (eq(g.value, roundTo(k.value, g.places)) || eq(g.value, truncTo(k.value, g.places)))) return "rounded";
   return false;
+}
+
+/* a percent box's reading against its key: right, or form/rounded, by the number compare
+   in percent units; else, by the value a hundred times over (`x100`, null when a % was
+   typed, so 0.35% is 0.35 and never 35), form/notation when that is right (0.35 for 35) and
+   form/rounded when that is rounded (0.33 for 100/3). Not notation then: its message would
+   show 33%, which is wrong; "rounded" asks for the exact value, and the exact value written
+   so (1/3) is notation, whose message shows 33 1/3%, which is right. Each message, followed,
+   leads to a right answer, and no answer gets two form messages for one fault. */
+function comparePercent(g: NumberReading, x100: NumberReading | null, k: NumberReading, tol: number, off: ReadonlySet<RuleId>): boolean | FormReason {
+  const r = compareNumber(g, k, tol, off, 2);
+  if (r || !x100) return r;
+  const x = compareNumber(x100, k, tol, off, 2);
+  return x === true ? "notation" : x;
+}
+
+/* a ratio box's reading against a key of two or more positive terms: right when it has as
+   many positive terms, each the key's times one factor (6:8 for 3:4); form/notation when it
+   is one number, the quotient of a two-term key (3/4, 0.75); else wrong. Exact, with no
+   tol and no band, as a point is. A key that is not such a ratio matches nothing. */
+function compareRatio(g: RatioReading, k: RatioReading): boolean | FormReason {
+  const kt = k.terms.map((t) => t.value), gt = g.terms.map((t) => t.value);
+  if (kt.length < 2 || kt.some((t) => t.n <= 0n)) return false;
+  if (gt.length === 1) return kt.length === 2 && eq(gt[0], div(kt[0], kt[1])) && "notation";
+  return gt.length === kt.length && gt.every((t, i) => t.n > 0n && eq(mul(t, kt[0]), mul(gt[0], kt[i])));
+}
+
+/* a value as a percent box shows it: a decimal when it ends (35, 12.5), else a mixed
+   number (33 1/3), with a % */
+function percentText(v: Q): string {
+  const s = shortDecimal(v), m = v.n < 0n ? -v.n : v.n, w = m / v.d;
+  return (s !== null ? s.replace(/^(-?)\./, "$10.") : (v.n < 0n ? "-" : "") + (w ? w + " " : "") + m % v.d + "/" + v.d) + "%";
 }
 
 function compareList(g: ListReading, k: ListReading, tol: number, off: ReadonlySet<RuleId>): boolean | FormReason {
@@ -180,6 +226,21 @@ function judgeAlts(given: unknown, alts: string[], type: string, tol: number, of
   if (type === "set") {
     const g = readList(text, o);
     return g.ok ? rank(g, alts, (s) => readList(s, o), (k) => compareList(g, k, tol, off), []) : refused(g);
+  }
+  if (type === "percent") {
+    const g = readPercent(text, o);
+    if (!g.ok) return refused(g);
+    /* the value a hundred times over, at the given's own places counted in percent units;
+       none when the given carries a % (only a trailing one reads) */
+    const x100 = /[%％﹪]/.test(text) ? null : { ...g, value: mul(g.value, make(100n)), float: g.float * 100, places: g.places - 2 };
+    const v = rank(g, alts, (s) => readPercent(s, o), (k) => comparePercent(g, x100, k, tol, off), g.notes);
+    return v.kind === "form" && v.reason === "notation" ? { ...v, read: percentText(x100!.value) } : v;
+  }
+  if (type === "ratio") {
+    const g = readRatio(text, o);
+    if (!g.ok) return refused(g);
+    const v = rank(g, alts, (s) => readRatio(s, o), (k) => compareRatio(g, k), g.notes);
+    return v.kind === "form" ? { ...v, read: g.terms[0].value.n + ":" + g.terms[0].value.d } : v;
   }
   /* expr, exact and any other type: the text compare of expr.ts, but a point key is compared
      by value when the given reads as a tuple of its arity, and that compare is final */

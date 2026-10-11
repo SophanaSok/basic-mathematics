@@ -745,7 +745,8 @@ function checkAnswerSpec(ctx, r) {
       if (k.tol != null) {
         const t = String(k.tol).trim() === "" ? NaN : Number(k.tol);
         if (!Number.isFinite(t) || t < 0) r.fail(where + ": data-tol " + JSON.stringify(k.tol) + " is not a finite number >= 0");
-        if (k.type === "exact" || k.type === "expr") r.fail(where + ": data-tol " + JSON.stringify(k.tol) + " on a key compared as text; a tol is for number, fraction and set keys");
+        if (k.type === "exact" || k.type === "expr") r.fail(where + ": data-tol " + JSON.stringify(k.tol) + " on a key compared as text; a tol is for number, fraction, set and percent keys");
+        if (k.type === "ratio") r.fail(where + ": data-tol " + JSON.stringify(k.tol) + " on a ratio key, which is compared exactly; a tol is for number, fraction, set and percent keys");
       }
       const spec = Core.specOf({ answer: k.answer, type: k.type, tol: k.tol });
       const alts = Core.alternatives(k.answer);
