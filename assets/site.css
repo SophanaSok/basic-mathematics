@@ -1063,6 +1063,9 @@ table.owner th[aria-sort="descending"] .link::after { content: " ↓"; }
   .rule, .worked, .ex, figure, .callout { break-inside: avoid; }
   h2 { break-after: avoid; }
   a { color: var(--text); }
+  /* a chart's data table is its text alternative: on paper the toggle is gone and the table shows */
+  .widget[data-widget="chart"] .controls { display: none; }
+  .widget[data-widget="chart"] table { display: table !important; }
 }
 
 /* the study plan (src/ui/plan.ts) on the progress page; the placement check's own page styles it in diagnostic.css */

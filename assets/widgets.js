@@ -2646,8 +2646,11 @@
      the source and the text a screen reader gets; the chart above it is decoration
      (aria-hidden) and the table sits behind a "Show the data" button. dot, hist, box: one
      numeric column; bar: a label column and a numeric one; scatter: x and y. A histogram's
-     data-width is its bin width (without it, a nice step for about six bins). The geometry
-     is chartLayout (src/ui/chart.ts, on window.BMChart); this draws it. */
+     data-width is its bin width (without it, a nice step for about six bins). A data row may
+     start with a row header (<th scope="row">). The geometry is chartLayout
+     (src/ui/chart.ts, on window.BMChart); this draws it. A failure here must never take the
+     table with it (it is the screen-reader text), so W.chart catches its own, logs it and
+     leaves the table shown; a second call on a mounted host does nothing. */
   var chartSeq = 0;
   function cellNumber(t) {
     t = String(t).replace(/[−–]/g, "-").replace(/,/g, "").trim();
@@ -2655,14 +2658,26 @@
   }
   W.chart = function (host) {
     var table = host.querySelector("table");
+    if (!table || host.hasAttribute("data-chart-mounted")) return;
+    host.setAttribute("data-chart-mounted", "");
+    var added = [];
+    try { drawChart(host, table, added); }
+    catch (e) {
+      added.forEach(function (n) { if (n.parentNode) n.parentNode.removeChild(n); });
+      table.hidden = false;
+      if (window.console) console.error("[BM] chart failed; its table is kept", e);
+    }
+  };
+  function drawChart(host, table, added) {
     var kind = host.getAttribute("data-kind");
     var C = window.BMChart;
-    if (!table || !C) return;
+    if (!C) return;
     var rows = [], heads = [];
     Array.prototype.forEach.call(table.querySelectorAll("tr"), function (tr) {
       var th = tr.querySelectorAll("th"), td = tr.querySelectorAll("td");
       if (!td.length) { if (!heads.length) heads = Array.prototype.map.call(th, function (c) { return c.textContent.trim(); }); return; }
-      var c = Array.prototype.map.call(td, function (x) { return x.textContent; });
+      /* a data row's cells, a row header (<th>) first included */
+      var c = Array.prototype.map.call(tr.querySelectorAll("th, td"), function (x) { return x.textContent; });
       if (kind === "bar") rows.push({ label: c[0].trim(), value: cellNumber(c[1]) });
       else if (kind === "scatter") rows.push({ x: cellNumber(c[0]), y: cellNumber(c[1]) });
       else rows.push({ value: cellNumber(c[0]) });
@@ -2692,6 +2707,7 @@
       g.appendChild(el("text", { x: t.pos, y: b.b + 19, "text-anchor": "middle", style: S.tick }, t.label));
     });
     g.appendChild(el("line", { x1: b.l, y1: b.b, x2: b.r, y2: b.b, style: S.axis }));
+    if (L.zeroY !== null) g.appendChild(el("line", { x1: b.l, y1: L.zeroY, x2: b.r, y2: L.zeroY, style: S.axis }));
     if (L.y) g.appendChild(el("line", { x1: b.l, y1: b.t, x2: b.l, y2: b.b, style: S.axis }));
     if (L.xLabel) g.appendChild(el("text", { x: (b.l + b.r) / 2, y: L.h - 6, "text-anchor": "middle", style: S.label }, L.xLabel));
     if (L.yLabel) g.appendChild(el("text", { x: 4, y: b.t - 4, style: S.label }, L.yLabel));
@@ -2699,7 +2715,9 @@
     L.bars.forEach(function (bar) {
       g.appendChild(el("rect", { x: bar.x, y: bar.y, width: bar.width, height: bar.height,
         style: kind === "hist" ? "fill:var(--plot-fill);stroke:var(--plot-curve);stroke-width:1.5" : "fill:var(--plot-curve);stroke:none" }));
-      if (kind === "bar") g.appendChild(el("text", { x: bar.x + bar.width / 2, y: b.b + 19, "text-anchor": "middle", style: S.tick }, bar.label));
+      if (kind === "bar") bar.lines.forEach(function (line, k) {
+        g.appendChild(el("text", { x: bar.x + bar.width / 2, y: b.b + 19 + k * 13, "text-anchor": "middle", style: S.tick }, line));
+      });
     });
     L.dots.forEach(function (d) { g.appendChild(el("circle", { cx: d.cx, cy: d.cy, r: d.r, style: S.ptA })); });
     L.points.forEach(function (d) { g.appendChild(el("circle", { cx: d.cx, cy: d.cy, r: 5, style: S.ptA })); });
@@ -2716,18 +2734,22 @@
     table.id = id;
     var bar = h("div", { class: "controls" });
     var toggle = h("button", { type: "button", class: "chip" }, "Show the data");
+    var SHOW = "Show the data", HIDE = "Hide the data";
     toggle.setAttribute("aria-expanded", "false");
     toggle.setAttribute("aria-controls", id);
     toggle.addEventListener("click", function () {
       var open = toggle.getAttribute("aria-expanded") !== "true";
       toggle.setAttribute("aria-expanded", open ? "true" : "false");
+      toggle.textContent = open ? HIDE : SHOW;
       table.hidden = !open;
     });
     bar.appendChild(toggle);
     table.hidden = true;
     host.insertBefore(P.svg, table);
+    added.push(P.svg);
     host.insertBefore(bar, table);
-  };
+    added.push(bar);
+  }
 
   window.BMWidgets = W;
   window.BMPlot = { Plot: Plot, grid: grid, curvePath: curvePath, el: el, S: S, slider: slider, chips: chips, controls: controls, readout: readout, note: note, dragX: dragX, fmt: fmt, missions: missions, animate: animate };

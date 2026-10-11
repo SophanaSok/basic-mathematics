@@ -448,8 +448,10 @@ function widgetNames() {
 
 /* a data chart (W.chart in assets/widgets.js, src/ui/chart.ts): the figure's data-kind is
    known, it holds a <table> of the shape its kind reads (a header row, then numbers: one
-   column for dot, hist and box, a label and a number for bar, two numbers for scatter),
-   and a <figcaption>. Returns the problems, each a sentence */
+   column for dot, hist and box, a label and a number for bar, two numbers for scatter; a
+   data row may start with a row header <th>), a <figcaption>, and a histogram bin width
+   that gives at most 60 bins (src/ui/chart.ts MAX_BINS). Returns the problems, each a sentence */
+const CHART_MAX_BINS = 60;
 const CHART_COLUMNS = { dot: 1, hist: 1, box: 1, bar: 2, scatter: 2 };
 function chartProblems(fig) {
   const kind = fig.getAttribute("data-kind");
@@ -467,7 +469,7 @@ function chartProblems(fig) {
   else if (head[0].queryAll("th").length !== cols) out.push("a " + kind + " chart has " + cols + " column" + (cols > 1 ? "s" : "") + ", the header row has " + head[0].queryAll("th").length);
   if (!body.length) out.push("the table has no data rows");
   body.forEach(tr => {
-    const cells = tr.queryAll("td");
+    const cells = tr.queryAll("th, td");
     if (cells.length !== cols) { out.push("a data row has " + cells.length + " cell(s), a " + kind + " chart reads " + cols); return; }
     cells.forEach((td, i) => {
       const t = td.textContent;
@@ -477,6 +479,14 @@ function chartProblems(fig) {
   });
   const width = fig.getAttribute("data-width");
   if (width !== null && !(kind === "hist" && numeric(width) && parseFloat(width) > 0)) out.push("data-width is a histogram's bin width, a number above 0");
+  else if (width !== null) {
+    const v = body.map(tr => tr.queryAll("th, td")[0]).filter(Boolean).map(td => td.textContent.replace(/[\u2212\u2013]/g, "-").replace(/,/g, "").trim()).filter(numeric).map(parseFloat);
+    /* counted as src/ui/chart.ts bins() counts them, its clean() included, so 4.1 / 0.01
+       is 410 here as there and the two never disagree at the cap */
+    const bw = parseFloat(width), clean = x => Math.round(x * 1e9) / 1e9;
+    if (v.length && Math.floor(clean(Math.max(...v) / bw)) - Math.floor(clean(Math.min(...v) / bw)) + 1 > CHART_MAX_BINS)
+      out.push("data-width " + width + " would give more than " + CHART_MAX_BINS + " bins");
+  }
   return out;
 }
 

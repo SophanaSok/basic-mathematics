@@ -29,8 +29,9 @@ async function settledPainters(page) {
 /* The chart fixture (tools/fixtures/charts.html, one chart of each kind): its <main> goes
    into the built about.html, which has the real stylesheets and scripts, and is served as
    /charts-fixture.html. Each chart mounts a decorative SVG, its "Show the data" button
-   shows and hides the table and flips aria-expanded, and axe (STRICT_RULES) passes in
-   both themes. */
+   shows and hides the table (turning into "Hide the data") and flips aria-expanded, a second
+   W.chart call on a host adds nothing, a chart whose drawing throws keeps its table shown,
+   the table shows in print, and axe (STRICT_RULES) passes in both themes. */
 const fs = require("fs");
 const path = require("path");
 const FIXTURE_URL = "charts-fixture.html";
@@ -53,7 +54,7 @@ async function chartFixture(ctx) {
         return { kind: f.getAttribute("data-kind"), svg: !!svg, hidden: svg && svg.getAttribute("aria-hidden"), shapes: svg ? svg.querySelectorAll("circle, rect").length : 0,
           button: !!b, controls: b && t && b.getAttribute("aria-controls") === t.id, expanded: b && b.getAttribute("aria-expanded"), shown: t && getComputedStyle(t).display !== "none" };
       }));
-      if (figs.length !== 5) problems.push(figs.length + " charts mounted, want 5");
+      if (figs.length !== 6) problems.push(figs.length + " charts mounted, want 6");
       figs.forEach(f => {
         if (!f.svg || f.hidden !== "true" || !f.shapes) problems.push(f.kind + ": no aria-hidden svg with shapes in it");
         else if (!f.button || !f.controls) problems.push(f.kind + ": no toggle button whose aria-controls is the table");
@@ -63,10 +64,35 @@ async function chartFixture(ctx) {
       for (let i = 0; i < await buttons.count() && !problems.length; i++) {
         const b = buttons.nth(i), t = page.locator("#" + await b.getAttribute("aria-controls"));
         await b.click();
-        if (await b.getAttribute("aria-expanded") !== "true" || !await t.isVisible()) problems.push("chart " + i + ": the button does not show the table");
+        if (await b.getAttribute("aria-expanded") !== "true" || !await t.isVisible() || await b.textContent() !== "Hide the data") problems.push("chart " + i + ": the button does not show the table");
         await b.click();
-        if (await b.getAttribute("aria-expanded") !== "false" || await t.isVisible()) problems.push("chart " + i + ": the button does not hide the table again");
+        if (await b.getAttribute("aria-expanded") !== "false" || await t.isVisible() || await b.textContent() !== "Show the data") problems.push("chart " + i + ": the button does not hide the table again");
       }
+      /* a second call does nothing; a throwing draw keeps the table, shown, and logs once */
+      const again = await page.evaluate(() => {
+        const f = document.querySelector('[data-widget="chart"]'), count = () => f.querySelectorAll("svg, button").length, before = count();
+        window.BMWidgets.chart(f);
+        const fresh = document.createElement("figure");
+        fresh.innerHTML = '<table><thead><tr><th>n</th></tr></thead><tbody><tr><td>1</td></tr><tr><td>2</td></tr></tbody></table>';
+        fresh.setAttribute("data-kind", "dot");
+        const t = fresh.querySelector("table");
+        t.hidden = true;
+        document.body.appendChild(fresh);
+        const real = window.BMChart.chartLayout, logged = [], log = console.error;
+        window.BMChart.chartLayout = () => { throw new Error("drawing failed (the suite's stub)"); };
+        console.error = (...a) => logged.push(a.join(" "));
+        try { window.BMWidgets.chart(fresh); } finally { window.BMChart.chartLayout = real; console.error = log; }
+        const shown = !t.hidden && getComputedStyle(t).display !== "none";
+        const out = { doubled: count() - before, shown, kept: !!fresh.querySelector("table"), extras: fresh.querySelectorAll("svg, button").length, logged: logged.length };
+        fresh.remove();
+        return out;
+      });
+      if (again.doubled) problems.push("a second W.chart call added " + again.doubled + " element(s)");
+      if (!again.shown || !again.kept || again.extras || again.logged !== 1) problems.push("a failed draw: table shown " + again.shown + ", kept " + again.kept + ", extra elements " + again.extras + ", errors logged " + again.logged);
+      await page.emulateMedia({ media: "print" });
+      const printed = await page.evaluate(() => Array.from(document.querySelectorAll('[data-widget="chart"]')).filter(f => getComputedStyle(f.querySelector("table")).display === "none" || getComputedStyle(f.querySelector(".controls")).display !== "none").length);
+      if (printed) problems.push(printed + " chart(s) hide the table or show the toggle in print");
+      await page.emulateMedia({ media: "screen" });
       problems.push(...errors.failures());
       if (ctx.axeSource) {
         await h.injectAxe(page, ctx.axeSource);
@@ -75,7 +101,7 @@ async function chartFixture(ctx) {
         bad.forEach(v => (strict.includes(v.id) || ctx.opts["strict-axe"] ? problems : []).push("axe " + v.id + ": " + v.help + " — " + v.nodes.join(" , ")));
         bad.filter(v => !strict.includes(v.id)).forEach(v => report.warn(label, "axe " + v.id + " [warning]: " + v.help + " — " + v.nodes.join(" , ")));
       }
-      report[problems.length ? "fail" : "pass"](label, problems.length ? problems.join("\n") : "5 charts, toggles, no console error" + (ctx.axeSource ? ", strict axe clean" : ""));
+      report[problems.length ? "fail" : "pass"](label, problems.length ? problems.join("\n") : "6 charts, toggles, guard, failure kept, print, no console error" + (ctx.axeSource ? ", strict axe clean" : ""));
     } catch (e) { report.fail(label, "driver error: " + (e && e.stack || e)); }
     finally { await close(); }
   }

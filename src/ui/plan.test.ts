@@ -29,6 +29,16 @@ describe("the plan's outline and packs", () => {
     }]);
   });
 
+  it("skips a null Part or chapter instead of losing the whole plan", () => {
+    const C: any = courseWithPacks();
+    C.parts.unshift(null);
+    C.parts[1].chapters.push(null);
+    C.parts.find((p: any) => p && p.beside).chapters.push(null, "x");
+    withWindow(C);
+    expect(outline()!.size).toBeGreaterThan(0);
+    expect(() => packList()).not.toThrow();
+  });
+
   it("has no packs without a beside Part", () => {
     withWindow({ chapters: [] });
     expect(packList()).toEqual([]);
