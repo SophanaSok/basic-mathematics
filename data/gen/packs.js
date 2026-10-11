@@ -115,17 +115,20 @@
   G.add({
     id: "pk-speed-rate", section: "pk-percent#ratios", par: 50, timed: true,
     make: function (r) {
-      var kind = r.pick(["hours", "minutes"]), mover = r.pick(["A cyclist", "A bus", "A runner", "A delivery truck"]);
-      var v, d, text, steps, ans;
+      /* each mover at a speed it could keep up: [name, slowest, fastest] in miles per hour */
+      var kind = r.pick(["hours", "minutes"]), who = r.pick([["A runner", 5, 9], ["A cyclist", 10, 18], ["A bus", 20, 45], ["A delivery truck", 30, 60]]);
+      var mover = who[0], v, d, text, steps, ans;
       if (kind === "hours") {
         var h = r.int(2, 6);
-        v = r.int(4, 14) * 5; d = v * h;
+        v = r.int(who[1], who[2]); d = v * h;
         text = mover + " travels $" + d + "$ miles in $" + h + "$ hours at a steady speed. What is the speed in miles per hour?";
         ans = v;
         steps = ["Speed is distance divided by time: $" + d + " \\div " + h + " = " + v + "$.", "So the speed is $" + v + "$ miles per hour."];
       } else {
-        var m = r.pick([10, 12, 15, 20, 30]), d2 = r.int(2, 9);
-        v = d2 * (60 / m);
+        /* a whole number of miles in m minutes, so the speed is a multiple of 60/m */
+        var m = r.pick([10, 12, 15, 20, 30]), k = 60 / m;
+        var d2 = r.int(Math.ceil(who[1] / k), Math.floor(who[2] / k));
+        v = d2 * k;
         text = mover + " travels $" + d2 + "$ miles in $" + m + "$ minutes at a steady speed. What is the speed in miles per hour?";
         ans = v;
         steps = [
