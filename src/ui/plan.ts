@@ -29,9 +29,11 @@ function chaptersOf(beside: boolean): any[] | null {
   const cur = window.BM_CURRICULUM;
   if (!cur) return null;
   if (Array.isArray(cur.parts)) {
+    /* a null Part or chapter is skipped, so one bad entry cannot take the whole plan away */
     return cur.parts
-      .filter((p: { beside?: true }) => isBeside(p) === beside)
-      .flatMap((p: { chapters?: unknown[] }) => p.chapters || []);
+      .filter((p: { beside?: true } | null) => !!p && isBeside(p) === beside)
+      .flatMap((p: { chapters?: unknown }) => (Array.isArray(p.chapters) ? p.chapters : []))
+      .filter((ch: unknown) => !!ch && typeof ch === "object");
   }
   return beside ? [] : Array.isArray(cur.chapters) ? cur.chapters : null;
 }
