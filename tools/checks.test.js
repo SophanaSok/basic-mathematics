@@ -727,6 +727,11 @@ function refusal(fn) { try { fn(); return null; } catch (e) { return e.message; 
   check(probs("dot", "<table><tbody><tr><td>3</td></tr></tbody></table>" + cap).some(m => /header row/.test(m)), "… a table without a header row fails");
   check(probs("dot", table(["Score"], []) + cap).some(m => /no data rows/.test(m)), "… a table with no rows fails");
   check(probs("dot", table(["Score"], [["3"]]) + cap, ' data-width="2"').some(m => /data-width/.test(m)), "… data-width on a dot plot fails");
+  eq(probs("bar", "<table><thead><tr><th>Pet</th><th>Count</th></tr></thead><tbody><tr><th scope=\"row\">Cats</th><td>4</td></tr></tbody></table>" + cap), [], "… a bar chart whose rows start with a row header passes");
+  check(probs("dot", "<table><thead><tr><th>Score</th></tr></thead><tbody><tr><th scope=\"row\">3</th><td>4</td></tr></tbody></table>" + cap).some(m => /2 cell/.test(m)), "… a row header counts as a cell, so an extra one fails");
+  check(probs("hist", table(["Score"], [["0"], ["1000000"]]) + cap, ' data-width="0.001"').some(m => /more than 60 bins/.test(m)), "… a bin width giving more than 60 bins fails");
+  eq(probs("hist", table(["Score"], [["0"], ["590"]]) + cap, ' data-width="10"'), [], "… a bin width giving exactly 60 bins passes");
+  check(probs("hist", table(["Score"], [["0"], ["600"]]) + cap, ' data-width="10"').some(m => /more than 60 bins/.test(m)), "… 61 bins fails");
   check(probs("hist", table(["Score"], [["3"]]) + cap, ' data-width="0"').some(m => /data-width/.test(m)), "… a bin width of 0 fails");
 }
 
