@@ -1,7 +1,7 @@
 /* data/gen/packs.js — Arena generators for the skill packs (Part V, beside the course).
    Pack A, "Ratios, Rates and Percent": sections 1–4 (ratios, proportions, percent, repeated change).
    Pack B, "Data and Statistics": section 1 so far (center and spread; the quartiles follow the
-   median-of-halves rule of src/ui/chart.ts, the rule of the SAT and ACT). Each problem uses
+   median-of-halves rule of src/ui/chart.ts). Each problem uses
    only what its section has built so far. Hints name the next idea, never the numbers; steps
    are the worked solution; verify() recomputes the answer by a different route (the concrete
    counts behind a ratio, a cross-product, the unit rate). A dollar is written $\$9$ inside
@@ -756,7 +756,12 @@
           for (i = 0; i < n; i++) vals.push(r.int(c.lo, c.hi));
           guard++;
         } while (kind === "mean" && sumOf(vals) % n !== 0 && guard < 400);
-        if (kind === "mean" && sumOf(vals) % n !== 0) vals = [70, 82, 76, 90, 62];
+        if (kind === "mean" && sumOf(vals) % n !== 0) {
+          /* never reached in practice; the fallback pairs v-k with v+k, so the mean is v and every value is in range */
+          var v0 = Math.round((c.lo + c.hi) / 2), k0 = 1;
+          vals = n % 2 ? [v0] : [];
+          while (vals.length < n) { vals.push(v0 - k0, v0 + k0); k0++; }
+        }
       }
       var s = sortedCopy(vals), total = sumOf(vals), len = vals.length, ans, steps, ask, hint;
       if (kind === "mean") {
@@ -786,9 +791,10 @@
         verify: function () {
           if (kind === "mean") return vals.reduce(function (d, x) { return d + (x - ans); }, 0) === 0;
           if (kind === "median") {
-            /* count how many lie on each side of the key */
-            var below = vals.filter(function (x) { return x < ans; }).length, above = vals.filter(function (x) { return x > ans; }).length;
-            return below <= len / 2 && above <= len / 2 && (len % 2 ? vals.indexOf(ans) > -1 : true);
+            /* a fresh sort, read by position: the middle one, or the midpoint of the middle two */
+            var f = vals.slice().sort(function (a, b) { return a - b; });
+            if (len % 2) return f[(len - 1) / 2] === ans && f.filter(function (x) { return x < ans; }).length <= (len - 1) / 2 && f.lastIndexOf(ans) >= (len - 1) / 2;
+            return (f[len / 2 - 1] + f[len / 2]) / 2 === ans;
           }
           if (kind === "range") return Math.min.apply(null, vals) + ans === Math.max.apply(null, vals);
           var top = vals.filter(function (x) { return x === ans; }).length;
@@ -836,7 +842,7 @@
       var q1 = medianOf(lower), q3 = medianOf(upper), iqr = q3 - q1;
       var odd = n % 2 === 1;
       return {
-        q: c.intro + " " + listTex(vals) + ". What is the interquartile range? (Use the rule of the SAT and ACT: split the ordered list into a lower and an upper half, leaving out the middle value when the count is odd.)",
+        q: c.intro + " " + listTex(vals) + ". What is the interquartile range? (Split the ordered list into a lower and an upper half, leaving out the middle value when the count is odd.)",
         type: "number", answer: clean(iqr), placeholder: "IQR",
         hint: "Order the values, split them into two halves, and take the median of each half. The interquartile range is the distance between those two medians.",
         steps: [

@@ -45,7 +45,7 @@
     <div class="goal">
       <strong>By the end of this pack you can</strong>
       find the mean, median and mode of a list and say which of them an extreme value moves, find the
-      range, the quartiles and the interquartile range by the rule the SAT and ACT use, tell which of
+      range, the quartiles and the interquartile range by the course's rule, tell which of
       two lists is more spread out without computing anything, and read a dot plot, a histogram, a
       box plot and a two-way table, saying what each one shows and what it hides.
     </div>
@@ -130,7 +130,7 @@
     </p>
     <p>
       The <b>median</b> is the middle value once the list is put in order. It splits the list so that
-      half the values lie on each side. When the count is odd, one value sits in the middle. When it is
+      about half the values lie on each side. When the count is odd, one value sits in the middle. When it is
       even, no value does, so the median is the midpoint of the middle two, as in warm-up 3. The
       <b>mode</b> is the value that occurs most often. A list can have no mode or several, but the mode
       is the only one of the three that makes sense for categories such as favorite colors. These are
@@ -146,15 +146,15 @@
       simplest number is the <b>range</b>, the largest value minus the smallest. It is easy, but it
       listens to only two values, so one odd value ruins it. A better idea reuses the median. The
       median cuts the list in halves; the median of the lower half is the first quartile
-      $Q_1$, and the median of the upper half is the third quartile $Q_3$. A quarter of the values lie
-      below $Q_1$, a quarter above $Q_3$, and the middle half between them, so
+      $Q_1$, and the median of the upper half is the third quartile $Q_3$. About a quarter of the values lie
+      below $Q_1$, about a quarter above $Q_3$, and about half between them, so
       $Q_3 - Q_1$, the <b>interquartile range</b> (IQR), is the width of the middle half, and the
       extreme values cannot move it.
     </p>
     <p>
       Here is the rule exactly, because quartiles are one place where books disagree: put the list in
       order, split it into a lower and an upper half, <em>leaving out the middle value when the count is
-      odd</em>, and take the median of each half. This is the rule the SAT and the ACT use, and the one
+      odd</em>, and take the median of each half. This is the rule most US textbooks and graphing calculators use, and the one
       this course uses. Other textbooks and some software cut differently and can give a slightly
       different $Q_1$ for a short list. Finally, two other measures of spread are worth knowing by
       name. The <b>mean absolute deviation</b> is the average distance of the values from the mean.
@@ -311,7 +311,7 @@
       Finally, a <b>two-way table</b> sorts a group by two features at once, such as grade and how a
       student gets to school. Its inside entries are counts, and the totals around the edge are the
       sums of the rows and columns. The skill is choosing the right total to divide by, and it is the
-      part-to-whole question of the ratio pack: a fraction &ldquo;of the bus riders&rdquo; has the bus
+      part-to-whole question of <a href="pk-percent.html#ratios">Pack A.1</a>: a fraction &ldquo;of the bus riders&rdquo; has the bus
       column's total underneath, while a fraction &ldquo;of the seventh graders&rdquo; has the row's.
       The words after &ldquo;of&rdquo; name the group you divide by.
     </p>
@@ -428,7 +428,7 @@
           <li>Read the five numbers off the plot, or off the table below it: smallest $52$, $Q_1 = 61$,
             median $70$, $Q_3 = 84$, largest $95$.</li>
           <li>The interquartile range is $84 - 61 = 23$. The range is $95 - 52 = 43$.</li>
-          <li>The median leaves out itself and has $5$ scores on each side. So $5$ of the $11$ scored
+          <li>The median is one of the $11$ scores, with $5$ on each side. So $5$ of the $11$ scored
             above it: the fraction is $\frac{5}{11}$.</li>
           <li>Check the quartiles by the rule: the lower five scores are $52, 58, 61, 64, 68$, whose median
             is $61$ ✓, and the upper five are $73, 79, 84, 88, 95$, whose median is $84$ ✓.
@@ -528,14 +528,14 @@
       </div>
       <p>
         Answer each with a single number, or with two numbers separated by a comma where the
-        question asks for two. Quartiles follow the rule of the SAT and ACT: the middle value is left
+        question asks for two. Quartiles follow the course's rule: the middle value is left
         out of both halves when the count is odd. When a question asks you to compare two lists, the
         answer is the number that settles the comparison.
       </p>
 
       <div class="ex" id="e1" data-section="center" data-type="number" data-answer="80" data-placeholder="mean"
            data-hint="The mean shares the total out evenly: add the values and divide by how many there are."
-           data-hint2="Six scores add to 480.">
+           data-hint2="Add the six scores first, then divide by how many there are.">
         <div class="ex-q"><p>A student's quiz scores are $72, 85, 90, 68, 85, 80$. What is the mean score?</p></div>
         <div class="ex-solution">
           <p class="answer">Answer: $80$</p>
@@ -636,15 +636,14 @@
           <p class="answer">Answer: $20$ points</p>
           <p>
             Class A: $90 - 70 = 20$. Class B: $100 - 60 = 40$. The difference is $40 - 20 = 20$. With
-            the same mean, Class B is the more spread out, and its standard deviation would be larger
-            too.
+            the same mean, Class B is the more spread out.
           </p>
         </div>
       </div>
 
       <div class="ex" id="e9" data-section="displays" data-type="number" data-answer="3.5" data-placeholder="mean"
            data-hint="Each dot is one person. Add up all the values the dots stand for, then divide by the number of dots."
-           data-hint2="Count the dots: 12. The values add to 42.">
+           data-hint2="There are 12 dots. Each stack contributes its value times its height to the total.">
         <div class="ex-q">
           <figure class="widget" data-widget="chart" data-kind="dot">
             <table>
@@ -723,7 +722,7 @@
 
       <div class="ex" id="e11" data-section="displays" data-type="fraction" data-answer="3/8" data-placeholder="e.g. 1/2"
            data-hint="The group is every ride, so the bottom of the fraction is the total count. The top adds the bars from 30 minutes onward."
-           data-hint2="The bars at 30, 40 and 50 minutes hold 3, 2 and 1 rides.">
+           data-hint2="Add the bars from 30 minutes onward, and the bars before them too, to find the total.">
         <div class="ex-q">
           <figure class="widget" data-widget="chart" data-kind="hist" data-width="10">
             <table>
@@ -790,14 +789,14 @@
           <p>
             The median, $9$, is the eighth of fifteen values and is left out. The lower seven,
             $3, 4, 4, 5, 6, 7, 8$, have median $5$. The upper seven, $10, 12, 13, 13, 15, 18, 22$, have
-            median $13$. The IQR is $13 - 5 = 8$.
+            median $13$.
           </p>
         </div>
       </div>
 
       <div class="ex" id="e13" data-section="displays" data-type="fraction" data-answer="11/20" data-placeholder="e.g. 1/2"
            data-hint="The words after &ldquo;of&rdquo; name the group. Which total goes underneath?"
-           data-hint2="Everyone who bought school lunch is the group: that is the School column's total.">
+           data-hint2="Everyone who bought school lunch is the group: that is the School lunch column's total.">
         <div class="ex-q">
           <table>
             <caption>Lunch choices of $100$ students</caption>
@@ -822,7 +821,7 @@
 
       <div class="ex" id="e14" data-section="displays" data-type="fraction" data-answer="3/5" data-placeholder="e.g. 1/2"
            data-hint="First find how many people own a dog. That total goes underneath."
-           data-hint2="The dog owners are the Dog column: 36 adults and 24 children.">
+           data-hint2="The dog owners are the Dog column. Add its two entries to get the group.">
         <div class="ex-q">
           <table>
             <caption>Pets owned by $100$ people</caption>
@@ -859,12 +858,12 @@
       </div>
       <ul>
         <li>The mean is the total shared out equally, so mean times count is the total. The median is
-          the middle of the ordered list, with half the values on each side. The mode is the most
+          the middle of the ordered list, with about half the values on each side. The mode is the most
           frequent value.</li>
         <li>An extreme value drags the mean but hardly moves the median or the quartiles, which is why
           incomes and house prices are quoted by their medians.</li>
         <li>The range is the largest minus the smallest. The quartiles are the medians of the lower
-          and upper halves, leaving out the middle value of an odd list (the SAT and ACT rule), and the
+          and upper halves, leaving out the middle value of an odd list, and the
           interquartile range $Q_3 - Q_1$ is the width of the middle half.</li>
         <li>Of two lists with the same mean, the one whose values lie farther from it has the larger
           standard deviation and mean absolute deviation. Neither is computed in this course.</li>

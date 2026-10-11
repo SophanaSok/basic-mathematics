@@ -27,7 +27,7 @@ module.exports = {
           const play = window.BMPlay ? window.BMPlay.chapter(chapter) : null;
           const inExercise = Array.from(document.querySelectorAll(".ex .missions")).length;
           return { n: lis.length, done, heads: heads.length, badHead, bmTotal: window.BMMissions ? window.BMMissions.total() : null,
-            playDone: play ? Object.keys(play.done).length : null, playTotal: play ? play.total : null, inExercise, figures: document.querySelectorAll("[data-widget]").length };
+            playDone: play ? Object.keys(play.done).length : null, playTotal: play ? play.total : null, inExercise, figures: document.querySelectorAll("[data-widget]:not([data-widget=chart])").length };
         }, chapter);
         total += m.n;
         const problems = [];
