@@ -291,9 +291,13 @@ html[data-calm] .hud-sound { opacity: .5; cursor: not-allowed; }
   .hud-combo { gap: 4px; padding: 0 .35rem; }
   .hud-combo i { width: 7px; height: 7px; }
 }
-/* the narrowest: the level's badge alone (its label still says the XP) */
+/* the narrowest: the level's badge alone; the XP span leaves the row but not the
+   accessibility tree, so a screen reader still hears the XP (as .visually-hidden) */
 @media (max-width: 359px) {
-  .hud > .hud-xp { display: none; }
+  .hud > .hud-xp {
+    position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; border: 0;
+    overflow: hidden; clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap;
+  }
   .hud-level { padding-right: .3rem; }
 }
 /* ------------------------------------------------- region banner meta ---- */
