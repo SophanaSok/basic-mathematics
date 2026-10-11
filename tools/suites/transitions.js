@@ -153,7 +153,7 @@ const WATCH = ({ key, parts }) => {
 
 const BAR = () => { const r = document.querySelector(".topbar").getBoundingClientRect(); return [r.x, r.y, r.width, r.height]; };
 /* the HUD, part by part: what a reader sees stay put or jump when the page changes */
-const HUD_PARTS = [["the level badge and XP", ".topbar .hud-level"], ["the streak", ".topbar .hud-streak"], ["the combo", ".topbar .hud-combo"],
+const HUD_PARTS = [["the level badge", ".topbar .hud-level"], ["the XP bar", ".topbar .hud-xp"], ["the streak", ".topbar .hud-streak"], ["the combo", ".topbar .hud-combo"],
   ["the account chip", ".topbar .acct"], ["Sound", ".topbar .hud-sound"], ["the menu button", ".topbar .hud-menu"]];
 const PARTS = (parts) => Object.fromEntries(parts.map(([k, sel]) => {
   const el = document.querySelector(sel);
