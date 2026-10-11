@@ -1,5 +1,5 @@
 /* data/gen/packs.js — Arena generators for the skill packs (Part V, beside the course).
-   Pack A, "Ratios, Rates and Percent": sections 1–2 (ratios, proportions). Each problem uses
+   Pack A, "Ratios, Rates and Percent": sections 1–4 (ratios, proportions, percent, repeated change). Each problem uses
    only what its section has built so far. Hints name the next idea, never the numbers; steps
    are the worked solution; verify() recomputes the answer by a different route (the concrete
    counts behind a ratio, a cross-product, the unit rate). A dollar is written $\$9$ inside
@@ -279,6 +279,427 @@
           /* build a real flock: L of the middle kind, then count the others and compare */
           var mid = L, first = p * mid / q, last = s * mid / rr;
           return Number.isInteger(first) && Number.isInteger(last) && first * key[1] === last * key[0] && isReduced(key);
+        }
+      };
+    }
+  });
+
+  /* ------------------------------------------ pack A §3: percent and change -- */
+
+  /* 8000 gives 8{,}000, so a thousands comma stays inside math */
+  function fmt(n) { return String(n).replace(/\B(?=(\d{3})+(?!\d))/g, "{,}"); }
+  /* whole dollars as math: 20000 gives $\$20{,}000$; a dollar amount that may carry cents is usd() or this */
+  function dollars(x) {
+    var s = clean(x), parts = s.split("."), whole = fmt(parts[0]);
+    return "$\\$" + whole + (parts[1] ? "." + (parts[1].length < 2 ? parts[1] + "0" : parts[1]) : "") + "$";
+  }
+  /* a placeholder example that is never the key */
+  function pctHolder(ans) { return String(ans) === "40" ? "e.g. 30%" : "e.g. 40%"; }
+  /* a percent key that is not whole says so, since 32.5 rounded to 33 would be wrong */
+  function exactPct(ans) { return Number.isInteger(Number(ans)) ? "" : " Give the exact percent."; }
+
+  var FINDS = [
+    ["A school has", "students", "ride a bus to school"],
+    ["A survey asked", "people", "prefer tea to coffee"],
+    ["A town has", "residents", "own a bicycle"],
+    ["A choir has", "singers", "play an instrument"]
+  ];
+  var FIND_PCT = [10, 15, 20, 25, 30, 35, 40, 45, 60, 75, 80];
+
+  G.add({
+    id: "pk-percent-find", section: "pk-percent#percent", par: 50, timed: true,
+    make: function (r) {
+      var c = r.pick(FINDS), p = r.pick(FIND_PCT), N = 20 * r.int(2, 20), k = N * p / 100;
+      var kind = r.pick(["part", "percent", "whole"]);
+      if (kind === "part") {
+        return {
+          q: c[0] + " $" + N + "$ " + c[1] + ", and $" + p + "\\%$ of them " + c[2] + ". How many of them " + c[2] + "?",
+          type: "number", answer: String(k), placeholder: c[1],
+          hint: "A percent of a number is that percent, written as a decimal, times the number. \"Of\" means times.",
+          steps: [
+            "Write the percent as a decimal: $" + p + "\\% = " + clean(p / 100) + "$.",
+            "Multiply by the whole: $" + clean(p / 100) + " \\cdot " + N + " = " + k + "$.",
+            "So $" + k + "$ of the " + c[1] + " " + c[2] + "."
+          ],
+          verify: function () {
+            /* the part over the whole must be the percent over 100: cross-multiplied, no division */
+            return k * 100 === p * N && Number.isInteger(k) && k > 0 && k < N;
+          }
+        };
+      }
+      if (kind === "percent") {
+        return {
+          q: c[0] + " $" + N + "$ " + c[1] + ", and $" + k + "$ of them " + c[2] + ". What percent of the " + c[1] + " " + c[2] + "?",
+          type: "percent", answer: String(p), placeholder: pctHolder(p),
+          hint: "A percent is the part over the whole, put per hundred. Which number is the part, and which is the whole?",
+          steps: [
+            "Part over whole: $\\dfrac{" + k + "}{" + N + "} = " + clean(k / N) + "$.",
+            "Per hundred, that is $" + clean(k / N) + " \\cdot 100 = " + p + "$.",
+            "So $" + p + "\\%$ of the " + c[1] + " " + c[2] + "."
+          ],
+          verify: function () {
+            /* the percent of the whole must give the part back */
+            return Math.round(N * Number(String(p)) / 100) === k && k * 100 / N === p;
+          }
+        };
+      }
+      return {
+        q: "$" + k + "$ " + c[1] + " " + c[2] + ", and that is $" + p + "\\%$ of all the " + c[1] + ". How many " + c[1] + " are there in all?",
+        type: "number", answer: String(N), placeholder: c[1],
+        hint: "The number given is a part, and the percent says how big a part of the whole it is. Which operation undoes taking a percent of something?",
+        steps: [
+          "Let the whole be $w$. Then $" + clean(p / 100) + " w = " + k + "$, because $" + p + "\\%$ of the whole is the part.",
+          "Divide both sides by $" + clean(p / 100) + "$: $w = " + k + " \\div " + clean(p / 100) + " = " + N + "$."
+        ],
+        verify: function () {
+          /* take the percent of the key: the part must come back */
+          return N * p === k * 100 && N > k;
+        }
+      };
+    }
+  });
+
+  var CHANGES = [
+    /* most: the largest percent change the thing plausibly makes in one step */
+    { money: true, what: "A bicycle's price", up: "rose", down: "fell", lo: 4, hi: 40, most: 50 },
+    { money: true, what: "A household's monthly electric bill", up: "rose", down: "fell", lo: 3, hi: 12, most: 30 },
+    { money: false, what: "Attendance at a school play", up: "rose", down: "fell", lo: 4, hi: 40, most: 60 },
+    { money: false, what: "A town's population", up: "grew", down: "shrank", lo: 20, hi: 200, most: 15 }
+  ];
+  var CHANGE_PCT = [5, 10, 15, 20, 25, 30, 40, 50, 60];
+
+  G.add({
+    id: "pk-percent-change", section: "pk-percent#percent", par: 60, timed: true,
+    make: function (r) {
+      var kind = r.pick(["up", "down", "error"]);
+      if (kind === "error") {
+        var A = r.pick([20, 25, 40, 50, 80, 100, 200]), pe = r.pick([2, 4, 5, 10]), E = A * pe / 100, over = r.pick([true, false]);
+        var M = over ? A + E : A - E, ctx = r.pick(["scale", "board"]);
+        return {
+          q: ctx === "scale"
+            ? "A laboratory scale reads $" + clean(M) + "$ grams for a mass that is known to be exactly $" + A + "$ grams. What is the percent error of the reading?"
+            : "A student measures a board as $" + clean(M) + "$ centimeters long. The board's true length is $" + A + "$ centimeters. What is the percent error of the measurement?",
+          type: "percent", answer: String(pe), placeholder: pctHolder(pe),
+          hint: "Percent error is the size of the error compared with the true value, not with the reading.",
+          steps: [
+            "The error is $|" + clean(M) + " - " + A + "| = " + clean(E) + "$.",
+            "Compare it with the true value: $\\dfrac{" + clean(E) + "}{" + A + "} = " + clean(E / A) + "$.",
+            "As a percent that is $" + pe + "\\%$."
+          ],
+          verify: function () {
+            /* from the key outward: the true value times (1 +/- percent) is the reading */
+            var back = over ? A * (100 + pe) / 100 : A * (100 - pe) / 100;
+            return Math.abs(back - M) < 1e-9 && Math.abs(Math.abs(M - A) * 100 - pe * A) < 1e-9;
+          }
+        };
+      }
+      var c = r.pick(CHANGES), p = r.pick(CHANGE_PCT.filter(function (x) { return x <= c.most; })), base = 20 * r.int(c.lo, c.hi), up = kind === "up";
+      var next = base * (up ? 100 + p : 100 - p) / 100;
+      var f = function (x) { return c.money ? dollars(x) : "$" + fmt(x) + "$"; };
+      var verb = up ? c.up : c.down, word = up ? "increase" : "decrease";
+      return {
+        q: c.what + " " + verb + " from " + f(base) + " to " + f(next) + ". What was the percent " + word + "?",
+        type: "percent", answer: String(p), placeholder: pctHolder(p),
+        hint: "A percent change compares the change with the amount you started from. Which of the two numbers is that?",
+        steps: [
+          "The change is the difference: $|" + fmt(next) + " - " + fmt(base) + "| = " + fmt(Math.abs(next - base)) + "$.",
+          "The original is $" + fmt(base) + "$, so the percent change is $\\dfrac{" + fmt(Math.abs(next - base)) + "}{" + fmt(base) + "} = " + clean(Math.abs(next - base) / base) + "$.",
+          "As a percent, that is a " + word + " of $" + p + "\\%$."
+        ],
+        verify: function () {
+          /* apply the percent to the start: the other value must come back, by integer cross-products */
+          var change = Math.abs(next - base);
+          return change * 100 === p * base && (up ? next > base : next < base) && (up ? base * (100 + p) === next * 100 : base * (100 - p) === next * 100);
+        }
+      };
+    }
+  });
+
+  var SHOP = ["pair of boots", "backpack", "jacket", "desk lamp", "pair of headphones"];
+
+  G.add({
+    id: "pk-percent-price", section: "pk-percent#percent", par: 70, timed: true,
+    make: function (r) {
+      var kind = r.pick(["tax", "tip", "discount-tax", "sale-reverse", "raise-reverse"]), item = r.pick(SHOP);
+      if (kind === "tax") {
+        var P = r.pick([20, 24, 30, 36, 40, 45, 50, 60, 75, 80]), t = r.pick([5, 6, 8, 10]);
+        var total = P * (100 + t) / 100;
+        return {
+          q: "A " + item + " costs " + dollars(P) + " before tax, and the sales tax is $" + t + "\\%$. What is the total price with tax, in dollars?",
+          type: "number", answer: clean(total), placeholder: "dollars",
+          hint: "The price with tax is the price plus a percent of it. One multiplier does both steps at once.",
+          steps: [
+            "The tax is $" + clean(t / 100) + " \\cdot " + P + " = " + clean(P * t / 100) + "$ dollars.",
+            "The total is $" + P + " + " + clean(P * t / 100) + " = " + clean(total) + "$ dollars.",
+            "Check with the multiplier: $" + clean(1 + t / 100) + " \\cdot " + P + " = " + clean(total) + "$."
+          ],
+          verify: function () {
+            /* in cents: the price plus the tax, each a whole number of cents */
+            var cents = P * 100, taxCents = P * t;
+            return cents + taxCents === Math.round(total * 100);
+          }
+        };
+      }
+      if (kind === "tip") {
+        var B = r.int(24, 96), tp = r.pick([15, 18, 20, 25]);
+        var paid = B * (100 + tp) / 100;
+        return {
+          q: "A restaurant bill is " + dollars(B) + " before the tip. You leave a $" + tp + "\\%$ tip on the bill. How many dollars do you pay in all?",
+          type: "number", answer: clean(paid), placeholder: "dollars",
+          hint: "You pay the bill and the tip together. The tip is a percent of the bill, not of the total.",
+          steps: [
+            "The tip is $" + clean(tp / 100) + " \\cdot " + B + " = " + clean(B * tp / 100) + "$ dollars.",
+            "You pay $" + B + " + " + clean(B * tp / 100) + " = " + clean(paid) + "$ dollars.",
+            "Check with the multiplier: $" + clean(1 + tp / 100) + " \\cdot " + B + " = " + clean(paid) + "$."
+          ],
+          verify: function () {
+            var tipCents = B * tp, billCents = B * 100;
+            return billCents + tipCents === Math.round(paid * 100) && tp > 0;
+          }
+        };
+      }
+      if (kind === "discount-tax") {
+        var P2 = 20 * r.int(2, 10), d = r.pick([10, 20, 25, 30, 40]), t2 = r.pick([5, 8, 10]);
+        var sale = P2 * (100 - d) / 100, tot = sale * (100 + t2) / 100;
+        return {
+          q: "A " + item + " costs " + dollars(P2) + ". It is marked $" + d + "\\%$ off, and then $" + t2 + "\\%$ sales tax is added to the sale price. What is the total in dollars?",
+          type: "number", answer: clean(tot), placeholder: "dollars",
+          hint: "Do the changes in the order they happen. The tax is charged on the sale price, not on the price before the discount.",
+          steps: [
+            "The sale price is $" + clean((100 - d) / 100) + " \\cdot " + P2 + " = " + clean(sale) + "$ dollars.",
+            "The tax is charged on that: $" + clean(1 + t2 / 100) + " \\cdot " + clean(sale) + " = " + clean(tot) + "$ dollars."
+          ],
+          verify: function () {
+            /* in cents, step by step: price, minus the discount, plus the tax on what is left */
+            var cents = P2 * 100, afterCents = cents - cents * d / 100, totCents = afterCents + afterCents * t2 / 100;
+            return Math.abs(totCents - tot * 100) < 1e-6 && Math.abs(afterCents - sale * 100) < 1e-6;
+          }
+        };
+      }
+      if (kind === "sale-reverse") {
+        var O = 20 * r.int(2, 12), d3 = r.pick([10, 20, 25, 30, 40, 50]), s = O * (100 - d3) / 100;
+        return {
+          q: "During a sale every price is reduced by $" + d3 + "\\%$. A " + item + " now costs " + dollars(s) + ". What was its price before the sale, in dollars?",
+          type: "number", answer: String(O), placeholder: "dollars",
+          hint: "The sale price is a percent of the original price. Which percent? Then ask what the original must be.",
+          steps: [
+            "A $" + d3 + "\\%$ discount leaves $" + (100 - d3) + "\\%$ of the original, so $" + clean((100 - d3) / 100) + "x = " + s + "$.",
+            "Divide both sides by $" + clean((100 - d3) / 100) + "$: $x = " + s + " \\div " + clean((100 - d3) / 100) + " = " + O + "$ dollars."
+          ],
+          verify: function () {
+            /* discount the key: the sale price must come back, with the discount exactly d3 percent of it */
+            return O - O * d3 / 100 === s && O * d3 % 100 === 0 && O > s;
+          }
+        };
+      }
+      var R = 100 * r.int(5, 15), g = r.pick([5, 10, 15, 20, 25]), nr = R * (100 + g) / 100;
+      return {
+        q: "After a $" + g + "\\%$ increase, the monthly rent on an apartment is " + dollars(nr) + ". What was the rent before the increase, in dollars?",
+        type: "number", answer: String(R), placeholder: "dollars",
+        hint: "The increase was a percent of the old rent, so the new rent is a multiple of the old. Which multiple?",
+        steps: [
+          "A $" + g + "\\%$ increase multiplies by $" + clean(1 + g / 100) + "$, so $" + clean(1 + g / 100) + "x = " + nr + "$.",
+          "Divide both sides by $" + clean(1 + g / 100) + "$: $x = " + nr + " \\div " + clean(1 + g / 100) + " = " + R + "$ dollars."
+        ],
+        verify: function () {
+          /* raise the key: the new rent must come back, and the key must be less */
+          return R + R * g / 100 === nr && R < nr;
+        }
+      };
+    }
+  });
+
+  /* ------------------------------------------- pack A §4: repeated change -- */
+
+  /* one thing that grows or decays by a fixed percent per period: [text(B, r, n), rates, periods,
+     smallest and largest start]. The start is a multiple of the smallest number that keeps every
+     period's amount a whole number, so the answer terminates. */
+  var GROWTHS = [
+    { grow: true, rates: [5, 10], ns: [2, 3], lo: 5000, hi: 60000,
+      text: function (B, p, n) { return "A town has $" + fmt(B) + "$ people and grows $" + p + "\\%$ a year. How many people live there after $" + n + "$ years?"; }, unit: "people" },
+    { grow: true, rates: [20, 25, 50], ns: [2, 3], lo: 500, hi: 20000,
+      text: function (B, p, n) { return "A culture starts with $" + fmt(B) + "$ bacteria and grows $" + p + "\\%$ every hour. How many bacteria are there after $" + n + "$ hours?"; }, unit: "bacteria" },
+    { grow: true, rates: [5, 10], ns: [2, 3], lo: 1000, hi: 30000,
+      text: function (B, p, n) { return "A savings account holds " + dollars(B) + " and earns $" + p + "\\%$ interest a year, which is added to the balance each year. How many dollars are in the account after $" + n + "$ years?"; }, unit: "dollars" },
+    { grow: false, rates: [10, 20], ns: [2, 3], lo: 12000, hi: 40000, mult: 1000,
+      text: function (B, p, n) { return "A car is worth " + dollars(B) + " when new and loses $" + p + "\\%$ of its value each year. What is it worth after $" + n + "$ years, in dollars?"; }, unit: "dollars" },
+    { grow: false, rates: [25], ns: [2], lo: 800, hi: 2400, mult: 400,
+      text: function (B, p, n) { return "A laptop is worth " + dollars(B) + " when new and loses $" + p + "\\%$ of its value each year. What is it worth after $" + n + "$ years, in dollars?"; }, unit: "dollars" },
+    { grow: false, rates: [50], ns: [2, 3], lo: 48, hi: 400, mult: 8,
+      text: function (B, p, n) { return "A patient takes a $" + B + "$-milligram dose of a drug whose amount in the blood falls $" + p + "\\%$ every $4$ hours. How many milligrams are left after $" + (4 * n) + "$ hours?"; }, unit: "milligrams" }
+  ];
+
+  G.add({
+    id: "pk-repeat-grow", section: "pk-percent#repeated", par: 80, timed: true,
+    make: function (r) {
+      var c = r.pick(GROWTHS), p = r.pick(c.rates), n = r.pick(c.ns);
+      var a = c.grow ? 100 + p : 100 - p, g = gcd(a, 100), na = a / g, nb = 100 / g, D = Math.pow(nb, n);
+      var unit = c.mult || D, lo = Math.ceil(c.lo / unit), hi = Math.floor(c.hi / unit);
+      var B = unit * (hi < lo ? lo : r.int(lo, hi));
+      /* a base that is a multiple of D keeps every period whole */
+      if (B % D !== 0) B = D * Math.ceil(B / D);
+      var ans = B / D * Math.pow(na, n), mult = a / 100, chain = [B], i;
+      for (i = 1; i <= n; i++) chain.push(chain[i - 1] * a / 100);
+      var total = Number(Math.pow(mult, n).toFixed(6));
+      return {
+        q: c.text(B, p, n), type: "number", answer: String(ans), placeholder: c.unit,
+        hint: "Each period's change is a percent of the amount at the start of that period, so the multipliers multiply and do not add. Find one period's multiplier first.",
+        steps: [
+          "One period multiplies by $" + clean(mult) + "$ (" + (c.grow ? "$1 + " : "$1 - ") + clean(p / 100) + "$).",
+          "Period by period: $" + chain.map(fmt).join(" \\to ") + "$.",
+          "All at once: $" + clean(mult) + "^{" + n + "} = " + clean(total) + "$, and $" + clean(total) + " \\cdot " + fmt(B) + " = " + fmt(ans) + "$."
+        ],
+        verify: function () {
+          /* exact rationals, a period at a time: the amount (num/den) times (100 +/- p)/100, reduced */
+          var num = B, den = 1, k, m = c.grow ? 100 + p : 100 - p;
+          for (k = 0; k < n; k++) {
+            num *= m; den *= 100;
+            var g2 = gcd(num, den);
+            num /= g2; den /= g2;
+            if (den !== 1) return false;       /* every period's amount is a whole number */
+          }
+          return num === ans && (c.grow ? ans > B : ans < B);
+        }
+      };
+    }
+  });
+
+  var DISCOUNT_PCT = [10, 20, 25, 30, 40, 50];
+  var COUPON_PCT = [10, 20, 25, 30, 40];
+  /* [name, dearest list price in dollars] */
+  var WARES = [["jacket", 300], ["pair of sneakers", 200], ["backpack", 160], ["bicycle helmet", 120], ["winter coat", 400]];
+
+  G.add({
+    id: "pk-repeat-discount", section: "pk-percent#repeated", par: 80, timed: true,
+    make: function (r) {
+      var d1 = r.pick(DISCOUNT_PCT), d2 = r.pick(COUPON_PCT), wr = r.pick(WARES), ware = wr[0];
+      var again = 0;
+      while (d2 === d1 && again++ < 60) d2 = r.pick(COUPON_PCT);
+      if (d2 === d1) d2 = d1 === 10 ? 20 : 10;
+      var fits = [], q;
+      for (q = 40; q <= wr[1]; q += 20) if ((q * (100 - d1) * (100 - d2)) % 10000 === 0) fits.push(q);
+      var P = r.pick(fits.length ? fits : [120]);
+      var final = P * (100 - d1) * (100 - d2) / 10000, left = (100 - d1) * (100 - d2) / 100, single = 100 - left;
+      if (r.pick([true, false])) {
+        return {
+          q: "A " + ware + " is priced at " + dollars(P) + " and is $" + d1 + "\\%$ off. At the register a coupon takes a further $" + d2 + "\\%$ off the sale price. How many dollars does it cost?",
+          type: "number", answer: String(final), placeholder: "dollars",
+          hint: "The coupon is a percent of the sale price, not of the price on the tag. Each discount is a multiplier below 1.",
+          steps: [
+            "After the first discount: $" + clean((100 - d1) / 100) + " \\cdot " + P + " = " + clean(P * (100 - d1) / 100) + "$ dollars.",
+            "The coupon is taken from that: $" + clean((100 - d2) / 100) + " \\cdot " + clean(P * (100 - d1) / 100) + " = " + final + "$ dollars.",
+            "Check with one multiplier: $" + clean((100 - d1) / 100) + " \\cdot " + clean((100 - d2) / 100) + " = " + clean(left / 100) + "$, and $" + clean(left / 100) + " \\cdot " + P + " = " + final + "$."
+          ],
+          verify: function () {
+            /* a single discount of `single` percent must reach the same price, and the order must not matter */
+            var swapped = P * (100 - d2) / 100 * (100 - d1) / 100;
+            return Math.abs(P - P * single / 100 - final) < 1e-6 && Math.abs(swapped - final) < 1e-6 && final < P;
+          }
+        };
+      }
+      return {
+        q: "A store takes $" + d1 + "\\%$ off a price, then a further $" + d2 + "\\%$ off the reduced price. What single percent discount gives the same final price?" + exactPct(clean(single)),
+        type: "percent", answer: clean(single), placeholder: pctHolder(clean(single)),
+        hint: "Adding the two percents is wrong: the second discount is taken from the reduced price. Think about what part of the original price is left.",
+        steps: [
+          "The multipliers are $" + clean((100 - d1) / 100) + "$ and $" + clean((100 - d2) / 100) + "$, and $" + clean((100 - d1) / 100) + " \\cdot " + clean((100 - d2) / 100) + " = " + clean(left / 100) + "$ of the price is left.",
+          "So $1 - " + clean(left / 100) + " = " + clean(single / 100) + "$ has gone: a single discount of $" + clean(single) + "\\%$."
+        ],
+        verify: function () {
+          /* follow a price of 100 through both discounts */
+          var first = 100 - d1, second = first - first * d2 / 100;
+          return Math.abs(100 - second - single) < 1e-9 && single > Math.max(d1, d2) && single < d1 + d2;
+        }
+      };
+    }
+  });
+
+  G.add({
+    id: "pk-repeat-mixed", section: "pk-percent#repeated", par: 90, timed: true,
+    make: function (r) {
+      var kind = r.pick(["compare", "net", "nested-count", "nested-percent"]);
+      if (kind === "compare") {
+        var pr = r.pick([[2, 4], [2, 5], [2, 10], [2, 20], [3, 5], [3, 10], [3, 20]]), n = pr[0], p = pr[1], P;
+        var cands = [1000, 2000, 3000, 4000, 5000, 8000, 10000, 15000, 20000].filter(function (x) {
+          return (x * (Math.pow(100 + p, n) - Math.pow(100, n) - n * p * Math.pow(100, n - 1))) % Math.pow(100, n) === 0;
+        });
+        P = r.pick(cands.length ? cands : [10000]);
+        var simple = P + n * (P * p / 100), compound = P * Math.pow(100 + p, n) / Math.pow(100, n), diff = compound - simple;
+        return {
+          q: "Two accounts start with " + dollars(P) + " and earn $" + p + "\\%$ a year. In Plan A each year pays $" + p + "\\%$ of the original " + dollars(P) +
+            ". In Plan B each year's interest is added to the balance, and the next year's $" + p + "\\%$ is taken of that new balance. After $" + n + "$ years, how many dollars more does Plan B hold than Plan A?",
+          type: "number", answer: clean(diff), placeholder: "dollars",
+          hint: "Compare the two plans year by year. They differ from the second year on, where Plan B takes its percent of a bigger balance.",
+          steps: [
+            "Plan A pays the same each year: $" + clean(P * p / 100) + "$ dollars, a balance of $" + fmt(clean(simple)) + "$ after $" + n + "$ years.",
+            "Plan B multiplies by $" + clean(1 + p / 100) + "$ each year: $" + clean(1 + p / 100) + "^{" + n + "} = " + clean(Math.pow(1 + p / 100, n)) + "$, a balance of $" + fmt(clean(compound)) + "$.",
+            "The difference is $" + fmt(clean(compound)) + " - " + fmt(clean(simple)) + " = " + clean(diff) + "$ dollars."
+          ],
+          verify: function () {
+            /* year by year in cents: Plan B's balance grows by p percent of itself, Plan A's by p percent of P */
+            var a = P * 100, b = P * 100, y;
+            for (y = 0; y < n; y++) { a += P * p; b += b * p / 100; }
+            return Math.abs((b - a) / 100 - diff) < 1e-6 && diff > 0;
+          }
+        };
+      }
+      if (kind === "net") {
+        var up, down, guard = 0;
+        do { up = r.pick([10, 20, 25, 30, 40, 50]); down = r.pick([10, 20, 25, 30, 40, 50]); } while (((100 + up) * (100 - down) >= 10000) && guard++ < 80);
+        if ((100 + up) * (100 - down) >= 10000) { up = 20; down = 20; }
+        var net = 100 - (100 + up) * (100 - down) / 100, what = r.pick([["A stock's price", "week"], ["The price of a concert ticket", "month"]]);
+        return {
+          q: what[0] + " rises $" + up + "\\%$ in one " + what[1] + " and falls $" + down + "\\%$ the next " + what[1] + ". By what percent is the price lower after the two " + what[1] + "s than at the start?" + exactPct(clean(net)),
+          type: "percent", answer: clean(net), placeholder: pctHolder(clean(net)),
+          hint: "Do not add the two percents: the fall is a percent of the price after the rise. Follow an easy starting price through both changes.",
+          steps: [
+            "The multipliers are $" + clean(1 + up / 100) + "$ and $" + clean(1 - down / 100) + "$, and $" + clean(1 + up / 100) + " \\cdot " + clean(1 - down / 100) + " = " + clean((100 + up) * (100 - down) / 10000) + "$.",
+            "So the price is $" + clean((100 + up) * (100 - down) / 100) + "\\%$ of the start: $" + clean(net) + "\\%$ lower."
+          ],
+          verify: function () {
+            /* start at 100, then the rise, then the fall: the price must be `net` below 100 */
+            var after = 100 + up, end = after - after * down / 100;
+            return Math.abs(100 - end - net) < 1e-9 && net > 0;
+          }
+        };
+      }
+      var NEST = [
+        { pl: "students", c1: "are in the band", c2: "the band members", c3: "play brass", ask: "play brass in the band", f: [10, 20, 25], s: [10, 20, 25, 40, 50] },
+        { pl: "cars on the lot", c1: "are SUVs", c2: "the SUVs", c3: "are red", ask: "are red SUVs", f: [20, 25, 40, 50], s: [10, 20, 25, 30] },
+        { pl: "trees in the orchard", c1: "are apple trees", c2: "the apple trees", c3: "are ripe", ask: "are ripe apple trees", f: [20, 25, 40, 50, 60, 80], s: [20, 25, 40, 50, 60, 80] }
+      ];
+      var nn = r.pick(NEST), a1 = r.pick(nn.f), a2 = r.pick(nn.s);
+      var cand = [200, 400, 500, 800, 1000, 1200, 1600, 2000].filter(function (x) { return (x * a1 * a2) % 10000 === 0; });
+      var N = r.pick(cand.length ? cand : [2000]), total = N * a1 * a2 / 10000;
+      var lead = "Of the $" + fmt(N) + "$ " + nn.pl + ", $" + a1 + "\\%$ " + nn.c1 + ", and $" + a2 + "\\%$ of " + nn.c2 + " " + nn.c3 + ".";
+      if (kind === "nested-count") {
+        return {
+          q: lead + " How many of the " + nn.pl + " " + nn.ask + "?",
+          type: "number", answer: String(total), placeholder: "count",
+          hint: "The second percent is of the group the first percent picked out, not of everything. Take the percents one after the other.",
+          steps: [
+            "The first group is $" + clean(a1 / 100) + " \\cdot " + fmt(N) + " = " + fmt(N * a1 / 100) + "$.",
+            "The second percent is of that group: $" + clean(a2 / 100) + " \\cdot " + fmt(N * a1 / 100) + " = " + fmt(total) + "$."
+          ],
+          verify: function () {
+            /* one multiplier for both: a1 percent of a2 percent is a1*a2/100 percent of the whole */
+            return N * (a1 * a2 / 100) / 100 === total && total < N * a1 / 100;
+          }
+        };
+      }
+      var pct = a1 * a2 / 100;
+      return {
+        q: lead + " What percent of all the " + nn.pl + " " + nn.ask + "?" + exactPct(clean(pct)),
+        type: "percent", answer: clean(pct), placeholder: pctHolder(clean(pct)),
+        hint: "Percents of percents multiply, they do not add. Write each percent as a decimal.",
+        steps: [
+          "The second percent is of the first group, so multiply the decimals: $" + clean(a1 / 100) + " \\cdot " + clean(a2 / 100) + " = " + clean(a1 * a2 / 10000) + "$.",
+          "As a percent of the whole, that is $" + clean(pct) + "\\%$."
+        ],
+        verify: function () {
+          /* count it out with the whole as 10,000: the first group, then the second out of it */
+          var first = 10000 * a1 / 100, second = first * a2 / 100;
+          return Math.abs(second / 100 - pct) < 1e-9;
         }
       };
     }
