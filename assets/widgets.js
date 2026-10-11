@@ -2640,6 +2640,95 @@
     draw();
   };
 
+  /* ================================================================ data chart
+     <figure class="widget" data-widget="chart" data-kind="dot|hist|box|bar|scatter"> holds
+     the data as a <table> (a header row names the axes) and a <figcaption>. The table is
+     the source and the text a screen reader gets; the chart above it is decoration
+     (aria-hidden) and the table sits behind a "Show the data" button. dot, hist, box: one
+     numeric column; bar: a label column and a numeric one; scatter: x and y. A histogram's
+     data-width is its bin width (without it, a nice step for about six bins). The geometry
+     is chartLayout (src/ui/chart.ts, on window.BMChart); this draws it. */
+  var chartSeq = 0;
+  function cellNumber(t) {
+    t = String(t).replace(/[−–]/g, "-").replace(/,/g, "").trim();
+    return /^[-+]?(\d+\.?\d*|\.\d+)$/.test(t) ? parseFloat(t) : NaN;
+  }
+  W.chart = function (host) {
+    var table = host.querySelector("table");
+    var kind = host.getAttribute("data-kind");
+    var C = window.BMChart;
+    if (!table || !C) return;
+    var rows = [], heads = [];
+    Array.prototype.forEach.call(table.querySelectorAll("tr"), function (tr) {
+      var th = tr.querySelectorAll("th"), td = tr.querySelectorAll("td");
+      if (!td.length) { if (!heads.length) heads = Array.prototype.map.call(th, function (c) { return c.textContent.trim(); }); return; }
+      var c = Array.prototype.map.call(td, function (x) { return x.textContent; });
+      if (kind === "bar") rows.push({ label: c[0].trim(), value: cellNumber(c[1]) });
+      else if (kind === "scatter") rows.push({ x: cellNumber(c[0]), y: cellNumber(c[1]) });
+      else rows.push({ value: cellNumber(c[0]) });
+    });
+    var width = parseFloat(host.getAttribute("data-width"));
+    var L = C.chartLayout(kind, rows, {
+      width: width > 0 ? width : undefined,
+      xLabel: heads[0],
+      yLabel: kind === "hist" ? "Count" : heads[1]
+    });
+    if (L.empty) return;
+
+    var P = Plot({ w: L.w, h: L.h, label: "", xmin: 0, xmax: L.w, ymin: 0, ymax: L.h });
+    P.svg.removeAttribute("role");
+    P.svg.removeAttribute("aria-label");
+    P.svg.setAttribute("aria-hidden", "true");
+    var g = P.layer();
+    var b = L.box, i;
+    /* gridlines under the data, then the axes and their tick labels */
+    if (L.y) L.y.ticks.forEach(function (t) {
+      g.appendChild(el("line", { x1: b.l, y1: t.pos, x2: b.r, y2: t.pos, style: S.grid }));
+      g.appendChild(el("text", { x: b.l - 7, y: t.pos + 4, "text-anchor": "end", style: S.tick }, t.label));
+    });
+    if (L.x) L.x.ticks.forEach(function (t) {
+      if (kind === "scatter") g.appendChild(el("line", { x1: t.pos, y1: b.t, x2: t.pos, y2: b.b, style: S.grid }));
+      g.appendChild(el("line", { x1: t.pos, y1: b.b, x2: t.pos, y2: b.b + 5, style: S.axis }));
+      g.appendChild(el("text", { x: t.pos, y: b.b + 19, "text-anchor": "middle", style: S.tick }, t.label));
+    });
+    g.appendChild(el("line", { x1: b.l, y1: b.b, x2: b.r, y2: b.b, style: S.axis }));
+    if (L.y) g.appendChild(el("line", { x1: b.l, y1: b.t, x2: b.l, y2: b.b, style: S.axis }));
+    if (L.xLabel) g.appendChild(el("text", { x: (b.l + b.r) / 2, y: L.h - 6, "text-anchor": "middle", style: S.label }, L.xLabel));
+    if (L.yLabel) g.appendChild(el("text", { x: 4, y: b.t - 4, style: S.label }, L.yLabel));
+
+    L.bars.forEach(function (bar) {
+      g.appendChild(el("rect", { x: bar.x, y: bar.y, width: bar.width, height: bar.height,
+        style: kind === "hist" ? "fill:var(--plot-fill);stroke:var(--plot-curve);stroke-width:1.5" : "fill:var(--plot-curve);stroke:none" }));
+      if (kind === "bar") g.appendChild(el("text", { x: bar.x + bar.width / 2, y: b.b + 19, "text-anchor": "middle", style: S.tick }, bar.label));
+    });
+    L.dots.forEach(function (d) { g.appendChild(el("circle", { cx: d.cx, cy: d.cy, r: d.r, style: S.ptA })); });
+    L.points.forEach(function (d) { g.appendChild(el("circle", { cx: d.cx, cy: d.cy, r: 5, style: S.ptA })); });
+    if (L.fivePx) {
+      var f = L.fivePx, mid = f.y + f.height / 2;
+      g.appendChild(el("line", { x1: f.min, y1: mid, x2: f.q1, y2: mid, style: S.axis }));
+      g.appendChild(el("line", { x1: f.q3, y1: mid, x2: f.max, y2: mid, style: S.axis }));
+      [f.min, f.max].forEach(function (x) { g.appendChild(el("line", { x1: x, y1: mid - 10, x2: x, y2: mid + 10, style: S.axis })); });
+      g.appendChild(el("rect", { x: f.q1, y: f.y, width: f.q3 - f.q1, height: f.height, style: "fill:var(--plot-fill);stroke:var(--plot-curve);stroke-width:2" }));
+      g.appendChild(el("line", { x1: f.median, y1: f.y, x2: f.median, y2: f.y + f.height, style: S.curve }));
+    }
+
+    var id = table.id || "chart-data-" + (++chartSeq);
+    table.id = id;
+    var bar = h("div", { class: "controls" });
+    var toggle = h("button", { type: "button", class: "chip" }, "Show the data");
+    toggle.setAttribute("aria-expanded", "false");
+    toggle.setAttribute("aria-controls", id);
+    toggle.addEventListener("click", function () {
+      var open = toggle.getAttribute("aria-expanded") !== "true";
+      toggle.setAttribute("aria-expanded", open ? "true" : "false");
+      table.hidden = !open;
+    });
+    bar.appendChild(toggle);
+    table.hidden = true;
+    host.insertBefore(P.svg, table);
+    host.insertBefore(bar, table);
+  };
+
   window.BMWidgets = W;
   window.BMPlot = { Plot: Plot, grid: grid, curvePath: curvePath, el: el, S: S, slider: slider, chips: chips, controls: controls, readout: readout, note: note, dragX: dragX, fmt: fmt, missions: missions, animate: animate };
 })();

@@ -26,6 +26,61 @@ async function settledPainters(page) {
   return { done, states };
 }
 
+/* The chart fixture (tools/fixtures/charts.html, one chart of each kind): its <main> goes
+   into the built about.html, which has the real stylesheets and scripts, and is served as
+   /charts-fixture.html. Each chart mounts a decorative SVG, its "Show the data" button
+   shows and hides the table and flips aria-expanded, and axe (STRICT_RULES) passes in
+   both themes. */
+const fs = require("fs");
+const path = require("path");
+const FIXTURE_URL = "charts-fixture.html";
+async function chartFixture(ctx) {
+  const { h, report } = ctx;
+  const main = /<main id="main">[\s\S]*<\/main>/.exec(fs.readFileSync(path.join(ctx.root, "tools", "fixtures", "charts.html"), "utf8"))[0];
+  const strict = require("./axe").STRICT_RULES;
+  for (const theme of ctx.themes) {
+    const label = "chart fixture [" + theme + "]";
+    const { page, errors, close } = await h.newPage({ theme, vw: 1280 });
+    try {
+      await page.route(ctx.server.url + FIXTURE_URL, async route => {
+        const res = await route.fetch({ url: ctx.server.url + "about.html" });
+        await route.fulfill({ response: res, body: (await res.text()).replace(/<main id="main">[\s\S]*<\/main>/, () => main) });
+      });
+      await h.open(page, FIXTURE_URL);
+      const problems = [];
+      const figs = await page.evaluate(() => Array.from(document.querySelectorAll('[data-widget="chart"]')).map(f => {
+        const svg = f.querySelector("svg"), t = f.querySelector("table"), b = f.querySelector("button[aria-controls]");
+        return { kind: f.getAttribute("data-kind"), svg: !!svg, hidden: svg && svg.getAttribute("aria-hidden"), shapes: svg ? svg.querySelectorAll("circle, rect").length : 0,
+          button: !!b, controls: b && t && b.getAttribute("aria-controls") === t.id, expanded: b && b.getAttribute("aria-expanded"), shown: t && getComputedStyle(t).display !== "none" };
+      }));
+      if (figs.length !== 5) problems.push(figs.length + " charts mounted, want 5");
+      figs.forEach(f => {
+        if (!f.svg || f.hidden !== "true" || !f.shapes) problems.push(f.kind + ": no aria-hidden svg with shapes in it");
+        else if (!f.button || !f.controls) problems.push(f.kind + ": no toggle button whose aria-controls is the table");
+        else if (f.expanded !== "false" || f.shown) problems.push(f.kind + ": the table starts shown (aria-expanded " + f.expanded + ")");
+      });
+      const buttons = page.locator('[data-widget="chart"] button[aria-controls]');
+      for (let i = 0; i < await buttons.count() && !problems.length; i++) {
+        const b = buttons.nth(i), t = page.locator("#" + await b.getAttribute("aria-controls"));
+        await b.click();
+        if (await b.getAttribute("aria-expanded") !== "true" || !await t.isVisible()) problems.push("chart " + i + ": the button does not show the table");
+        await b.click();
+        if (await b.getAttribute("aria-expanded") !== "false" || await t.isVisible()) problems.push("chart " + i + ": the button does not hide the table again");
+      }
+      problems.push(...errors.failures());
+      if (ctx.axeSource) {
+        await h.injectAxe(page, ctx.axeSource);
+        const bad = await page.evaluate(async () => (await window.axe.run(document, { resultTypes: ["violations"], rules: { "color-contrast": { enabled: true } } }))
+          .violations.map(v => ({ id: v.id, help: v.help, nodes: v.nodes.map(n => n.target.join(" ")).slice(0, 3) })));
+        bad.forEach(v => (strict.includes(v.id) || ctx.opts["strict-axe"] ? problems : []).push("axe " + v.id + ": " + v.help + " — " + v.nodes.join(" , ")));
+        bad.filter(v => !strict.includes(v.id)).forEach(v => report.warn(label, "axe " + v.id + " [warning]: " + v.help + " — " + v.nodes.join(" , ")));
+      }
+      report[problems.length ? "fail" : "pass"](label, problems.length ? problems.join("\n") : "5 charts, toggles, no console error" + (ctx.axeSource ? ", strict axe clean" : ""));
+    } catch (e) { report.fail(label, "driver error: " + (e && e.stack || e)); }
+    finally { await close(); }
+  }
+}
+
 module.exports = {
   name: "widgets",
   order: 20,
@@ -118,6 +173,7 @@ module.exports = {
         report.fail(rel, "driver error: " + (e && e.stack || e));
       } finally { await close(); }
     }
+    await chartFixture(ctx);
     report.pass("total", totalHosts + " widget hosts driven on " + ctx.chapterPages.length + " chapters");
   }
 };

@@ -16,6 +16,7 @@ import "../hud/view.js";
 import "../hud/install.js";
 import "../../data/curriculum.js";
 import "../../data/quest.js";
+import "../ui/chart.ts";
 import "../../assets/widgets.js";
 import "../../assets/three-loader.js";
 /* the spaced-review schedule and the Arena's XP rules, which game.js (and the Arena)

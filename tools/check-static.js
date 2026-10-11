@@ -446,6 +446,40 @@ function widgetNames() {
   return { names, scenes: scenes.length };
 }
 
+/* a data chart (W.chart in assets/widgets.js, src/ui/chart.ts): the figure's data-kind is
+   known, it holds a <table> of the shape its kind reads (a header row, then numbers: one
+   column for dot, hist and box, a label and a number for bar, two numbers for scatter),
+   and a <figcaption>. Returns the problems, each a sentence */
+const CHART_COLUMNS = { dot: 1, hist: 1, box: 1, bar: 2, scatter: 2 };
+function chartProblems(fig) {
+  const kind = fig.getAttribute("data-kind");
+  if (!CHART_COLUMNS.hasOwnProperty(kind)) return ["data-kind " + JSON.stringify(kind) + " is not one of " + Object.keys(CHART_COLUMNS).join(", ")];
+  const out = [];
+  const table = fig.query("table");
+  if (!fig.query("figcaption")) out.push("a chart needs a <figcaption>");
+  if (!table) return out.concat("a chart needs a <table> of its data");
+  const cols = CHART_COLUMNS[kind];
+  const numeric = (t) => /^[-+]?(\d+\.?\d*|\.\d+)$/.test(t.replace(/[\u2212\u2013]/g, "-").replace(/,/g, "").trim());
+  const rows = table.queryAll("tr");
+  const head = rows.filter(tr => tr.query("th") && !tr.query("td"));
+  const body = rows.filter(tr => tr.query("td"));
+  if (!head.length) out.push("the table needs a header row (<th>) naming the axes");
+  else if (head[0].queryAll("th").length !== cols) out.push("a " + kind + " chart has " + cols + " column" + (cols > 1 ? "s" : "") + ", the header row has " + head[0].queryAll("th").length);
+  if (!body.length) out.push("the table has no data rows");
+  body.forEach(tr => {
+    const cells = tr.queryAll("td");
+    if (cells.length !== cols) { out.push("a data row has " + cells.length + " cell(s), a " + kind + " chart reads " + cols); return; }
+    cells.forEach((td, i) => {
+      const t = td.textContent;
+      if (kind === "bar" && i === 0) { if (!t.trim()) out.push("a bar has no label"); }
+      else if (!numeric(t)) out.push("the cell " + JSON.stringify(t.trim()) + " is not a number");
+    });
+  });
+  const width = fig.getAttribute("data-width");
+  if (width !== null && !(kind === "hist" && numeric(width) && parseFloat(width) > 0)) out.push("data-width is a histogram's bin width, a number above 0");
+  return out;
+}
+
 function checkWidgets(ctx, r) {
   const { names, scenes } = widgetNames();
   r.note(names.size + " figure factories known (" + scenes + " scene files)");
@@ -456,6 +490,7 @@ function checkWidgets(ctx, r) {
         r.count++;
         const v = el.getAttribute(attr);
         if (!names.has(v)) r.fail(page + ":" + el.line + ": " + attr + "=" + JSON.stringify(v) + " is not defined in assets/widgets.js or assets/scenes/");
+        if (attr === "data-widget" && v === "chart") chartProblems(el).forEach(m => r.fail(page + ":" + el.line + ": chart: " + m));
       });
     }
   });
@@ -1585,7 +1620,7 @@ const CHECKS = [
   { name: "shell", run: checkShell, what: "each page's head, body tag and top bar, as lib/shell.js writes them, are the ones in tools/shell.json; one module entry per page, its kind's" },
   { name: "curriculum", run: checkCurriculum, what: "every chapter file exists; every section id is an <h2 id> in it" },
   { name: "links", run: checkLinks, what: "relative hrefs/srcs resolve to files, anchors to ids" },
-  { name: "widgets", run: checkWidgets, what: "every data-widget / data-figure is a defined factory" },
+  { name: "widgets", run: checkWidgets, what: "every data-widget / data-figure is a defined factory; a chart has a known kind, a numeric table of its shape and a caption" },
   { name: "sections", run: checkSections, what: "every data-section names a real section" },
   { name: "skills", run: checkSkills, what: "src/data/skills.ts: a record per section but the mixed-review ones, every scored exercise names a section, never a container, official codes, courses by the code, every generator resolves" },
   { name: "section-work", run: checkSectionWork, what: "src/data/section-work.ts: the scored plus inline exercises each section's page offers, as the app attributes them; absent means 0" },
@@ -1628,5 +1663,6 @@ function main() {
 }
 
 if (require.main === module) main();
-module.exports = { CHECKS, result, loadCore, barProblem, siteJudgeProblem, pureProblems, isPureFile, codeProblems, courseProblems, exerciseRefs, sectionAnchors, skillsProblems, sectionWorkCounts, sectionWorkProblems, pageKeys, lessonSteps, stepsDiff, shellOf, shellDiff, scriptsProblems, randomState, stripLocalFirst, canon,
+module.exports = {
+  chartProblems, CHECKS, result, loadCore, barProblem, siteJudgeProblem, pureProblems, isPureFile, codeProblems, courseProblems, exerciseRefs, sectionAnchors, skillsProblems, sectionWorkCounts, sectionWorkProblems, pageKeys, lessonSteps, stepsDiff, shellOf, shellDiff, scriptsProblems, randomState, stripLocalFirst, canon,
   animationFaults, colourLiterals, columnPatterns, inColumn, quietKinds, printGaps };

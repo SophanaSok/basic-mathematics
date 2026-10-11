@@ -5,6 +5,7 @@ import "../hud/view.js";
 import "../hud/install.js";
 import "../../data/curriculum.js";
 import "../../data/quest.js";
+import "../ui/chart.ts";
 import "../../assets/widgets.js";
 /* the spaced-review schedule and the Arena's XP rules, which game.js (and the Arena)
    find on window.BMReview: the pure modules first, then the one that puts them up */
