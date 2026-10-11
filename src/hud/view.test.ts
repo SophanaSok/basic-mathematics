@@ -93,7 +93,8 @@ describe("what the HUD shows", () => {
     const days = { [daysBefore(now, 0)]: 12, [daysBefore(now, 1)]: 58 };
     const v = view.hudView({ activity: { days, goal: 40 }, run: { combo: { pips: 2, shield: true } }, prefs: { sound: true }, now });
     expect(v.labels).toEqual({
-      level: "Level 3, Reckoner. 10 of 45 XP to level 4. Open your progress.",
+      level: "Level 3, Reckoner. Open your progress.",
+      xp: "10 of 45 XP to level 4.",
       streak: "2-day streak. 12 of 40 XP today.",
       combo: "Combo 2 of 5, XP times 1.4, shield ready"
     });

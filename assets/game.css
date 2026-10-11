@@ -29,7 +29,7 @@
 /* level: a badge tile and the XP bar, with the XP in words under it */
 .hud-level {
   display: inline-flex; align-items: center; gap: .55rem; min-height: 40px;
-  padding: 0 .55rem 0 .3rem; border-radius: var(--radius-xs);
+  padding: 0 0 0 .3rem; border-radius: var(--radius-xs);
   color: var(--hud-muted); text-decoration: none;
 }
 .hud-level:hover { background: var(--hud-chip); }
@@ -39,7 +39,7 @@
   border: 1.5px solid var(--hud-xp); box-shadow: 0 2px 0 var(--hud-edge);
 }
 .hud-badge b { font-size: 1rem; font-weight: 800; line-height: 1; color: var(--hud-xp); text-align: center; }
-.hud-level .hud-xp { display: flex; flex-direction: column; gap: .3rem; width: 6.25rem; }
+.hud > .hud-xp { display: flex; flex-direction: column; gap: .3rem; width: 6.25rem; margin: 0 .55rem 0 .05rem; }
 .hud-xpbar {
   display: block; position: relative; width: 100%; height: 6px; border-radius: 3px;
   background: var(--hud-track); overflow: hidden;
@@ -278,24 +278,27 @@ html[data-calm] .hud-sound { opacity: .5; cursor: not-allowed; }
 @media (max-width: 480px) {
   .hud-combo[data-pips="0"], .hud-combo[data-pips="1"] { display: none; }
   .hud { gap: .35rem; }
-  .hud-level .hud-xp { width: 5rem; }
+  .hud > .hud-xp { width: 5rem; margin-left: .2rem; }
 }
 @media (max-width: 440px) {
   .hud-xptext { display: none; }
-  .hud-level .hud-xp { gap: 0; width: 4rem; }
+  .hud > .hud-xp { gap: 0; width: 4rem; }
 }
 @media (max-width: 420px) {
   .topbar { padding-inline: 12px; }
   .hud { gap: .25rem; }
-  .hud-level { padding-right: .3rem; }
-  .hud-level .hud-xp { width: 3rem; }
+  .hud > .hud-xp { width: 3rem; margin-left: .3rem; margin-right: .3rem; }
   .hud-combo { gap: 4px; padding: 0 .35rem; }
   .hud-combo i { width: 7px; height: 7px; }
 }
-/* the narrowest: the level's badge alone (its label still says the XP) */
+/* the narrowest: the level's badge alone; the XP span leaves the row but not the
+   accessibility tree, so a screen reader still hears the XP (as .visually-hidden) */
 @media (max-width: 359px) {
-  .hud-level .hud-xp { display: none; }
-  .hud-level { gap: 0; padding-right: .3rem; }
+  .hud > .hud-xp {
+    position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; border: 0;
+    overflow: hidden; clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap;
+  }
+  .hud-level { padding-right: .3rem; }
 }
 /* ------------------------------------------------- region banner meta ---- */
 /* game.js fills the row; its height is reserved so the page does not shift. */

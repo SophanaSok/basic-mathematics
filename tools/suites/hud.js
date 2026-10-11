@@ -1,14 +1,14 @@
 "use strict";
 /* The HUD and the settings sheet (tools/lib/shell.js writes their markup into every top
    bar; src/hud/ fills the HUD before first paint; src/ui/settings.ts runs the sheet):
-     - no layout shift: on the contents page, a chapter, the Arena and the progress page,
+     - no layout shift: on the contents page, a chapter, the Arena, the progress page and the diagnostic (5 page kinds),
        each theme and width, with a reader's XP, streak, combo and a boss fight under way,
        every box of the HUD (the bar, the group, each slot, the account chip, the sound and
        menu buttons) and what it says are the same before the bundle runs (readyState
        "interactive"), at DOMContentLoaded and after load, fonts and all;
      - the collapse: every kind of top bar with the widest HUD, from 320 to 1280 wide, is
        never wider than the window and keeps the menu button on screen at its right end,
-       and at each width the HUD's lasting parts (level, streak, combo, account chip,
+       and at each width the HUD's lasting parts (level badge, XP bar, streak, combo, account chip,
        Sound, menu) are in the same place on every kind of bar, so no page moves them;
      - the sheet opens and closes by mouse and by keyboard, beside the rail and not modal
        at 1280, as a modal sheet at 360 that keeps the focus inside it; Escape, the close
@@ -160,11 +160,11 @@ module.exports = {
        middle and sits at the right end of the bar (not mid-bar when the links are gone).
        One page per kind of top bar, resized, not reloaded: the media queries are all that
        changes. And at each width, the parts of the HUD a reader keeps an eye on (the level
-       badge and XP, the streak, the combo, the account chip, Sound, the menu button) sit in
+       badge, the XP bar, the streak, the combo, the account chip, Sound, the menu button) sit in
        the same place on every kind of bar that shows them, so going from page to page
        (the README's "Between pages") moves none of them: the hearts and the clock, which
        only some kinds have, are to their left (lib/shell.js hud()). */
-    const HELD = [["the level badge and XP", ".hud-level"], ["the streak", ".hud-streak"], ["the combo", ".hud-combo"],
+    const HELD = [["the level badge", ".hud-level"], ["the XP bar", ".hud-xp"], ["the streak", ".hud-streak"], ["the combo", ".hud-combo"],
       ["the account chip", ".acct"], ["Sound", ".hud-sound"], ["the menu button", ".hud-menu"]];
     const held = {};
     for (const rel of BARS.filter(p => ctx.pages.includes(p))) {
@@ -213,7 +213,7 @@ module.exports = {
           }
         }
         report[problems.length ? "fail" : "pass"]("every kind of top bar [320 to 1280, " + SWEEP.length + " widths] the HUD holds still from page to page",
-          problems.length ? problems.join("\n") : "at every width the level badge and XP, the streak, the combo, the account chip, Sound and the menu button are in the same place on " + bars.join(", ") + " wherever they show");
+          problems.length ? problems.join("\n") : "at every width the level badge, the XP bar, the streak, the combo, the account chip, Sound and the menu button are in the same place on " + bars.join(", ") + " wherever they show");
       }
     }
 

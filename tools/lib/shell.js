@@ -224,9 +224,9 @@ function hud(info) {
   if (TIMER_ON.includes(info.kind)) lines.push('      <span class="hud-timer" role="timer" aria-label="No clock running" data-urgency="ok" data-slot hidden><span class="hud-timer-text"></span></span>');
   lines.push(
     '      <span class="hud-combo" role="img" aria-label="Combo 0 of 5, XP times 1" data-pips="0" hidden><i></i><i></i><i></i><i></i><i></i></span>',
-    '      <a class="hud-level" href="' + p + 'progress.html" aria-label="Level 1, Counter. 0 of 25 XP to level 2. Open your progress.">' +
-      '<span class="hud-badge" aria-hidden="true"><b>1</b></span>' +
-      '<span class="hud-xp" aria-hidden="true"><span class="hud-xpbar"><i></i></span><span class="hud-xptext"><b>0</b> / <span class="hud-span">25</span> XP</span></span></a>',
+    '      <a class="hud-level" href="' + p + 'progress.html" aria-label="Level 1, Counter. Open your progress.">' +
+      '<span class="hud-badge" aria-hidden="true"><b>1</b></span></a>',
+    '      <span class="hud-xp" role="img" aria-label="0 of 25 XP to level 2."><span class="hud-xpbar"><i></i></span><span class="hud-xptext"><b>0</b> / <span class="hud-span">25</span> XP</span></span>',
     '      <span class="hud-streak" role="img" aria-label="0-day streak. 0 of 30 XP today."><span class="goal-ring"></span>' + icon("flame") + "<b>0</b></span>",
     "    </div>");
   return lines;
