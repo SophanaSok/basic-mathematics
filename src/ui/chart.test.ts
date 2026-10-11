@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { bins, chartLayout, niceStep, niceTicks, quartiles } from "./chart.ts";
+import { bins, CHAR_PX, chartLayout, MAX_BINS, niceStep, niceTicks, quartiles, wrapLabel } from "./chart.ts";
 
 const vals = (...v: number[]) => v.map((value) => ({ value }));
 /* every number anywhere in a layout is finite (JSON would turn a NaN into null) */
@@ -140,5 +140,56 @@ describe("chartLayout", () => {
       expect(L.empty).toBe(false);
       finite(L);
     }
+  });
+});
+
+describe("hardening (K-3b)", () => {
+  it("caps a histogram's bins, falling back to the automatic width", () => {
+    const b = bins([0, 1e6], 0.001);
+    expect(b.counts.length).toBeLessThanOrEqual(MAX_BINS);
+    expect(b.width).toBeGreaterThan(0.001);
+    expect(bins([0, 590], 10).counts.length).toBe(MAX_BINS);
+    expect(bins([0, 600], 10).counts.length).toBeLessThanOrEqual(MAX_BINS);
+    expect(() => chartLayout("hist", vals(0, 1e6), { width: 0.001 })).not.toThrow();
+  });
+  it("wraps a bar label to two lines no wider than its band", () => {
+    const band = 80;
+    for (const text of ["Chocolate chip cookies", "Cats", "Supercalifragilisticexpialidocious", "a b c d e f g h i j k l m n o p", ""]) {
+      const lines = wrapLabel(text, band);
+      expect(lines.length).toBeGreaterThanOrEqual(1);
+      expect(lines.length).toBeLessThanOrEqual(2);
+      lines.forEach((l) => expect(l.length * CHAR_PX).toBeLessThanOrEqual(band));
+    }
+    expect(wrapLabel("Cats", band)).toEqual(["Cats"]);
+    expect(wrapLabel("Chocolate chip cookies", 120)).toEqual(["Chocolate chip", "cookies"]);
+    expect(wrapLabel("Chocolate chip cookies and cream", band).at(-1)).toMatch(/…$/);
+  });
+  it("gives every bar chart label lines that fit its band", () => {
+    const names = ["Chocolate chip cookies", "Oatmeal raisin cookies", "Peanut butter cookies", "Sugar cookies", "Ginger snaps", "Shortbread biscuits"];
+    const L = chartLayout("bar", names.map((label, i) => ({ label, value: i + 1 })));
+    const band = (L.box.r - L.box.l) / names.length;
+    L.bars.forEach((b) => b.lines.forEach((l) => expect(l.length * CHAR_PX).toBeLessThanOrEqual(band)));
+  });
+  it("draws a zero line when 0 is inside a bar chart's or scatter's range", () => {
+    const bar = chartLayout("bar", [{ label: "a", value: -3 }, { label: "b", value: 5 }]);
+    expect(bar.zeroY).not.toBeNull();
+    expect(bar.zeroY).toBeLessThan(bar.box.b);
+    expect(bar.zeroY).toBeGreaterThan(bar.box.t);
+    expect(chartLayout("bar", [{ label: "a", value: 3 }]).zeroY).toBeNull();
+    const sc = chartLayout("scatter", [{ x: 0, y: -2 }, { x: 1, y: 4 }]);
+    expect(sc.zeroY).not.toBeNull();
+    expect(chartLayout("scatter", [{ x: 0, y: 2 }, { x: 1, y: 4 }]).zeroY).toBeNull();
+  });
+  it("keeps a tall dot stack under the plot top by shrinking the dots", () => {
+    for (const n of [7, 50, 120, 600]) {
+      const L = chartLayout("dot", vals(...new Array<number>(n).fill(3)));
+      expect(L.dots.length).toBe(n);
+      L.dots.forEach((d) => {
+        expect(d.cy - d.r).toBeGreaterThanOrEqual(L.box.t - 1e-9);
+        expect(d.cy + d.r).toBeLessThanOrEqual(L.box.b + 1e-9);
+      });
+    }
+    expect(chartLayout("dot", vals(...new Array<number>(50).fill(3))).dots[0].r).toBeLessThan(2.5);
+    expect(chartLayout("dot", vals(1, 2, 2)).dots[0].r).toBe(7);
   });
 });
