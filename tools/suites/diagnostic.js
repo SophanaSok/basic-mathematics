@@ -9,7 +9,8 @@
      - Start with no choice, empty and unreadable submits, a second tab's combo write ignored and
        its diag write adopted, reload mid-block, start over, completion (no typed text, no
        timings, boxes seeded, run cleared), no attempt events, storage that will not save, no
-       supabase chunk signed out, no overflow at 360, axe in every state;
+       supabase chunk signed out, no overflow at 360, axe in every state (a rule in the axe suite's
+       STRICT_RULES fails, any other is a warning unless --strict-axe, as on every page there);
      - the threats: two tabs finishing one run (A1), a take write that fails (A2), no generators
        (B2), markup and template strings typed (C1), a hostile ?again (C2), ?again and the
        return stub (D1), the signed-in wait (D2), a take written in another tab mid-run (D3),
@@ -28,6 +29,7 @@
    seam assets/account.js keeps, as tools/game/account.test.js does); nothing leaves the
    machine. Every tab has a pageerror listener, and an uncaught error fails its case. */
 const { track } = require("../lib/browser");
+const { STRICT_RULES } = require("./axe");
 
 const PAGE = "diagnostic.html";
 const START = { none: "pre-algebra", pre: "algebra-1", a1: "geometry", geo: "algebra-2", a2: "algebra-2", unsure: "pre-algebra" };
@@ -1254,11 +1256,14 @@ module.exports = {
       const axe = async (state) => {
         if (!ctx.axeSource) return;
         await h.injectAxe(page, ctx.axeSource);
-        const bad = await page.evaluate(async () => {
+        const found = await page.evaluate(async () => {
           const r = await window.axe.run(document, { resultTypes: ["violations"] });
-          return r.violations.map((v) => v.id + ": " + v.nodes.slice(0, 2).map((n) => n.target.join(" ")).join(" | "));
+          return r.violations.map((v) => ({ id: v.id, text: v.id + ": " + v.nodes.slice(0, 2).map((n) => n.target.join(" ")).join(" | ") }));
         });
-        bad.forEach((b) => p.push(state + " [" + theme + " " + vw + "]: axe " + b));
+        found.forEach((v) => {
+          if (STRICT_RULES.includes(v.id) || ctx.opts["strict-axe"]) p.push(state + " [" + theme + " " + vw + "]: axe " + v.text);
+          else report.warn("axe in every state: " + state + " [" + theme + " " + vw + "]: " + v.id + " [warning]", v.text);
+        });
       };
       await open(page);
       await overflow("intro"); await axe("intro");

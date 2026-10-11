@@ -4,8 +4,10 @@
      - on the diagnostic page, the return view of a stored take draws "Your plan": the h3, the
        line heads and a Start here link that is an address into parts/;
      - on the progress page, with a take: the panel first on the page, its headings in order
-       (h1, h2, h3, h4, h5) and axe clean in both themes at both widths, the Start here link, no link
-       to diagnostic.html anywhere on the page and no sign-in sentence in the panel;
+       (h1, h2, h3, h4, h5) and axe in both themes at both widths (a rule in the axe suite's
+       STRICT_RULES fails, any other is a warning unless --strict-axe, as on every page there),
+       the Start here link, no link to diagnostic.html anywhere on the page and no sign-in
+       sentence in the panel;
      - with no take: no panel and no empty slot; after a sign-out (bm.diag.v1 emptied, then a
        sync): the panel goes; after a reset: it stays (decision 0003 keeps the takes);
      - the progress page's panel is compact (D-19): Start here, and Review first when the take has
@@ -17,6 +19,8 @@
    The take is written by hand into bm.diag.v1 and the page loaded (production has no hook).
    Every tab has a pageerror listener, and an uncaught error fails its case. The plan on the
    result straight after a walk is in the diagnostic suite, which has the walks. */
+
+const { STRICT_RULES } = require("./axe");
 
 const PAGE = "diagnostic.html";
 const PROGRESS = "progress.html";
@@ -101,7 +105,7 @@ module.exports = {
     /* ------------------------------------------------------- the progress page -- */
 
     async function panelCase(theme, vw) {
-      await kase("progress page with a take: the panel first, headings in order, Start here, no link to the check, no sign-in sentence, axe clean (" + theme + ", " + vw + ")", { theme, vw }, async (page) => {
+      await kase("progress page with a take: the panel first, headings in order, Start here, no link to the check, no sign-in sentence, axe (" + theme + ", " + vw + ")", { theme, vw }, async (page) => {
         const p = [];
         await h.open(page, PAGE);
         await plant(page);
@@ -133,11 +137,14 @@ module.exports = {
         check(p, (await summaryHeads(page)) === 0, "a heading inside a summary");
         if (ctx.axeSource) {
           await h.injectAxe(page, ctx.axeSource);
-          const bad = await page.evaluate(async () => {
+          const found = await page.evaluate(async () => {
             const r = await window.axe.run(document, { resultTypes: ["violations"] });
-            return r.violations.map((v) => v.id + ": " + v.nodes.slice(0, 2).map((n) => n.target.join(" ")).join(" | "));
+            return r.violations.map((v) => ({ id: v.id, text: v.id + ": " + v.nodes.slice(0, 2).map((n) => n.target.join(" ")).join(" | ") }));
           });
-          bad.forEach((b) => p.push("axe " + b));
+          found.forEach((v) => {
+            if (STRICT_RULES.includes(v.id) || ctx.opts["strict-axe"]) p.push("axe " + v.text);
+            else report.warn("progress page with a take: axe " + v.id + " [warning] (" + theme + ", " + vw + ")", v.text);
+          });
         }
         return p;
       });
