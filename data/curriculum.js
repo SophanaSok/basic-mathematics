@@ -314,10 +314,12 @@ window.BM_CURRICULUM = {
           status: "full",
           course: "pre-algebra",
           blurb:
-            "Comparing quantities by ratio and by rate, unit prices and speeds, and solving proportions, the arithmetic behind a large share of every gate exam.",
+            "Comparing quantities by ratio and by rate, unit prices and speeds, proportions, percent and percent change, and repeated change: the arithmetic behind a large share of every gate exam.",
           sections: [
             { id: "ratios", title: "Ratios and rates", summary: "A ratio compares two quantities; a rate divides one by the other, and a unit rate settles which is the better buy." },
-            { id: "proportions", title: "Proportions", summary: "Two equal ratios, solved by multiplying both sides by the denominators." }
+            { id: "proportions", title: "Proportions", summary: "Two equal ratios, solved by multiplying both sides by the denominators." },
+            { id: "percent", title: "Percent of and percent change", summary: "A percent is a ratio per hundred; the part, the whole and the percent, and a change measured against the original, with its multiplier." },
+            { id: "repeated", title: "Repeated change", summary: "The same percent applied again and again multiplies the multipliers: growth, decay, percents of percents and successive discounts." }
           ]
         }
       ]

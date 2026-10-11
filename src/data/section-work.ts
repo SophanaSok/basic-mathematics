@@ -82,5 +82,7 @@ export const SECTION_WORK: Readonly<Partial<Record<SectionRef, number>>> = {
   "ch16#det-props": 7,
   "ch16#cramer": 4,
   "pk-percent#ratios": 9,
-  "pk-percent#proportions": 10
+  "pk-percent#proportions": 10,
+  "pk-percent#percent": 11,
+  "pk-percent#repeated": 11
 };

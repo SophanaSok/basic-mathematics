@@ -333,6 +333,12 @@
     "h2#proportions to div#t4",
     "div.worked to div#t5",
     "div#t6",
+    "h2#percent to div#t7",
+    "div.worked to div#t8",
+    "div#t9",
+    "h2#repeated to div#t10",
+    "div.worked to div#t11",
+    "div#t12",
     "section#practice",
     "div.recap to nav.chapter-nav"
   ]

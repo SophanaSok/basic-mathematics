@@ -3,7 +3,7 @@
 <head>
 <!--bm:head-->
 <title>Pack A. Ratios, Rates and Percent — Basic Mathematics</title>
-<meta name="description" content="Ratios and rates, unit prices and speeds, and proportions solved by cross-multiplying: the arithmetic the gate exams ask for and the book leaves out.">
+<meta name="description" content="Ratios and rates, unit prices and speeds, proportions, percent and percent change, and repeated change: the arithmetic the gate exams ask for and the book leaves out.">
 </head>
 <body data-depth="2" data-chapter="pk-percent" data-part="packs">
 <!--bm:topbar-->
@@ -18,8 +18,8 @@
       <h1>Ratios, Rates and Percent</h1>
       <p class="lede">
         Comparing two quantities is the most common thing a word problem asks of you, and the
-        exams ask it constantly. This pack says what a ratio and a rate are, why the rules for
-        working with them hold, and how to keep a problem from fooling you.
+        exams ask it constantly. This pack says what a ratio, a rate and a percent are, why the rules
+        for working with them hold, and how to keep a problem from fooling you.
       </p>
 
       <div class="banner-meta" data-banner-meta></div>
@@ -37,14 +37,16 @@
         <li>20 minutes</li>
         <li>5 minutes</li>
       </ul>
-      <p class="puzzle-after">Most people's first answer is wrong. The idea of a rate, in the first section, settles it in two lines.</p>
+      <p class="puzzle-after">Most people's first answer is wrong. The idea of a rate, in the first section, settles it in two lines. (And if a price rises 20% and then falls 20%, is it back where it began? The third section settles that one.)</p>
     </div>
 
     <div class="goal">
       <strong>By the end of this pack you can</strong>
       write a ratio in lowest terms and tell a part-to-part ratio from a part-to-whole one, find
-      and compare unit rates, solve a proportion and say why cross-multiplying works, and spot the
-      number in a word problem that does not belong to the question.
+      and compare unit rates, solve a proportion and say why cross-multiplying works, find a percent of a
+      quantity, the whole from a part, or the percent itself, work out a percent change and undo it,
+      combine repeated changes by multiplying their multipliers, and spot the number in a word
+      problem that does not belong to the question.
     </div>
 
     <section class="warmup" id="warmup">
@@ -389,6 +391,290 @@
       </div>
     </div>
 
+    <h2 id="percent">A.3 Percent of and percent change</h2>
+    <p>
+      <b>Percent</b> means "per hundred", and that makes it a ratio of the kind in A.1, with the
+      second term fixed at $100$. To say that $35\%$ of the voters back a plan is to say that the
+      ratio of supporters to voters is $35 : 100$, which is $7 : 20$ in lowest terms, so
+      $35\% = \frac{35}{100} = 0.35$. Nothing is new but the choice of $100$, a convenience like the unit rate: it puts
+      every comparison on the same footing. Is $\frac{7}{20}$ a bigger share than $\frac{9}{25}$?
+      Hard to say. Is $35\%$ bigger than $36\%$? Easy.
+    </p>
+    <p>
+      Every percent problem has three numbers, the <b>whole</b>, the <b>part</b> and the
+      <b>percent</b>, and one fact joins them: part over whole equals percent over $100$. That is a
+      proportion of A.2, solved the same way whichever number is missing. Multiply both sides by the
+      whole and the part is $\frac{p}{100}$ times the whole, so $35\%$ of $60$ is $0.35 \cdot 60 = 21$,
+      the word "of" meaning "times". Divide instead by $\frac{p}{100}$ and the whole appears: if $21$
+      is $35\%$ of a number, the number is $21 \div 0.35 = 60$. Divide the part by the whole and put
+      the result per hundred, and the percent appears: $\frac{21}{60} \cdot 100 = 35$. These are three
+      uses of one fact, so if you catch yourself memorizing three rules, go back to the proportion.
+    </p>
+    <p>
+      Now a price goes from $\$40$ to $\$50$. It has risen by $\$10$, but "by what percent?" asks
+      for that change as a share of something, and the something has to be named. It is the
+      <b>original</b> amount. A percent change says how big the change is compared with where you
+      started, just as "per hundred" counts hundreds of the starting amount: $\frac{10}{40} = 25\%$.
+      Run it backward, from $\$50$ to $\$40$, and the change is again $\$10$, but it is now measured
+      against $\$50$: $\frac{10}{50} = 20\%$. A $25\%$ rise and a $20\%$ fall are the same change
+      in dollars, and there is no contradiction, because the base differs. In general
+      $\text{percent change} = \dfrac{\text{new} - \text{original}}{\text{original}} \cdot 100$, and a
+      negative result is a decrease. The same recipe with the true value underneath is a
+      <b>percent error</b>: a scale reading $52.5$ grams for a $50$-gram standard is off by
+      $2.5$ grams, or $\frac{2.5}{50} = 5\%$.
+    </p>
+    <p>
+      There is a shorter way to see a change. Raising a number $x$ by $15\%$ adds $15\%$ of it to
+      itself, $x + 0.15x$, and taking out the common factor $x$ gives $1.15x$. So a $15\%$ increase
+      is multiplication by $1.15$, and a $15\%$ decrease is multiplication by $1 - 0.15 = 0.85$. This
+      is the <b>multiplier</b>. It joins two steps, find the percent and add it on, into one: a
+      price with $8\%$ tax is $1.08$ times the price, and after $20\%$ off it is $0.8$ times.
+      It also says how to undo a change: if you know $1.15x$, divide by $1.15$.
+    </p>
+    <p>
+      The multiplier also exposes the classic trap. A price rises $20\%$ and then falls $20\%$. Is
+      it back where it began? Start at $\$100$. The rise makes it $1.2 \cdot 100 = \$120$. The fall
+      takes $20\%$ of the new price, not the old, which is $\$24$, and leaves $\$96$. Together the
+      two multipliers are $1.2 \cdot 0.8 = 0.96$, a net fall of $4\%$. The fall comes from a
+      bigger base than the rise did, so a rise and a fall by the same percent never cancel.
+    </p>
+
+    <div class="worked">
+      <h3><span class="num">Example 5.</span> A percent change from two values</h3>
+      <div class="body">
+        <p>
+          A town had $8{,}000$ people in 2015 and $9{,}200$ in 2025. What is the percent change in
+          its population?
+        </p>
+        <ol class="steps">
+          <li>The change is $9{,}200 - 8{,}000 = 1{,}200$ people.</li>
+          <li>The original is the base, the population in 2015: $\frac{1{,}200}{8{,}000} = 0.15$,
+            which is $15\%$.</li>
+          <li>Check with the multiplier: $8{,}000 \cdot 1.15 = 9{,}200$ ✓. The population rose
+            $15\%$. $\blacksquare$</li>
+        </ol>
+        <p class="note">
+          Dividing by $9{,}200$, the newer number, would give about $13\%$. It is the wrong base: the
+          question asks how much the town grew compared with how big it was.
+        </p>
+      </div>
+    </div>
+
+    <div class="ex" data-inline id="t7" data-type="number" data-answer="3.6" data-placeholder="dollars"
+         data-hint="A percent of a number is that percent, written as a decimal, times the number."
+         data-hint2="Eight percent is eight per hundred, a decimal with two places.">
+      <div class="ex-q">
+        <p>
+          A pair of boots costs $\$45$, and the sales tax is $8\%$. How many dollars is the tax?
+        </p>
+      </div>
+      <div class="ex-solution">
+        <p class="answer">Answer: $\$3.60$</p>
+        <p>
+          $8\% = 0.08$, and $0.08 \cdot 45 = 3.6$. Check: $10\%$ of $45$ is $4.5$, and $8\%$ is a
+          little less ✓.
+        </p>
+      </div>
+    </div>
+
+    <div class="worked">
+      <h3><span class="num">Example 6.</span> Undoing a raise</h3>
+      <div class="body">
+        <p>
+          After a $15\%$ raise, Dana earns $\$23$ an hour. What did she earn before the raise?
+        </p>
+        <ol class="steps">
+          <li>The raise multiplied the old wage by $1.15$. Call the old wage $x$, so
+            $1.15x = 23$.</li>
+          <li>Divide both sides by $1.15$: $x = 23 \div 1.15 = 20$.</li>
+          <li>Check by raising it: $15\%$ of $20$ is $3$, and $20 + 3 = 23$ ✓. She earned $\$20$
+            an hour. $\blacksquare$</li>
+        </ol>
+        <p class="note">
+          Taking $15\%$ of $\$23$ and subtracting it gives $\$19.55$, which is wrong. The $15\%$ was
+          taken from the old wage, not from the new one, so it cannot be taken off the new one.
+        </p>
+      </div>
+    </div>
+
+    <div class="ex" data-inline id="t8" data-type="percent" data-answer="15" data-placeholder="e.g. 40%"
+         data-hint="A percent change compares the change with the amount you started from."
+         data-hint2="Find the change in dollars first. The price before it fell is the base.">
+      <div class="ex-q">
+        <p>
+          A phone's price fell from $\$80$ to $\$68$. What was the percent decrease?
+        </p>
+      </div>
+      <div class="ex-solution">
+        <p class="answer">Answer: $15\%$</p>
+        <p>
+          The change is $80 - 68 = 12$ dollars, and $\frac{12}{80} = 0.15$, which is $15\%$. Check:
+          $80 \cdot 0.85 = 68$ ✓.
+        </p>
+      </div>
+    </div>
+
+    <div class="ex" data-inline id="t9" data-type="number" data-answer="49.5" data-placeholder="dollars"
+         data-hint="The second change is a percent of the new price, not of the 50 dollars."
+         data-hint2="Give each change its own multiplier, and apply them one after the other.">
+      <div class="ex-q">
+        <p>
+          A $\$50$ shirt goes up in price by $10\%$, and then the new price goes down by $10\%$. What
+          is the final price in dollars?
+        </p>
+      </div>
+      <div class="ex-solution">
+        <p class="answer">Answer: $\$49.50$</p>
+        <p>
+          After the rise: $50 \cdot 1.1 = 55$. After the fall: $55 \cdot 0.9 = 49.5$. Not back to
+          $\$50$, as the trap predicts: $1.1 \cdot 0.9 = 0.99$.
+        </p>
+      </div>
+    </div>
+
+    <h2 id="repeated">A.4 Repeated change</h2>
+    <p>
+      Suppose a town of $8{,}000$ people grows $5\%$ a year. After one year the multiplier of A.3
+      gives $8{,}000 \cdot 1.05 = 8{,}400$. In the second year the town grows another $5\%$, but of
+      what? Of the $8{,}400$ it has now, not of the $8{,}000$ it began with. So the second year
+      multiplies by $1.05$ again, $8{,}400 \cdot 1.05 = 8{,}820$, and a third year gives $9{,}261$.
+      Every year multiplies by the same $1.05$, so after three years the total multiplier is
+      $1.05 \cdot 1.05 \cdot 1.05$, written $1.05^3$ for short. The exponent says how many copies of
+      the multiplier are multiplied together and nothing more, and a calculator will tell you that
+      $1.05^3 = 1.157625$. Repeated change is repeated multiplication.
+    </p>
+    <p>
+      Compare that with simple counting. Adding $5\%$ of the original three times makes $15\%$, a
+      multiplier of $1.15$, and $8{,}000 \cdot 1.15 = 9{,}200$. The repeated answer, $9{,}261$, is
+      larger by $61$, and the reason is that later steps take their percent of growth that is
+      already there: the second year's growth is $420$, which is the first year's $400$ plus $5\%$
+      of that $400$. A "simple" change takes every step from the original amount; a repeated
+      change, also called a <b>compound</b> change, takes each step from the latest amount. Over two
+      or three steps the gap is small, and each extra step widens it. Notice too that the total
+      growth is $1.157625 - 1 = 0.157625$, about $15.8\%$ and not $15\%$.
+    </p>
+    <p>
+      A decrease works the same way with a multiplier below $1$. A car that loses $20\%$ of its
+      value each year is multiplied by $0.8$ each year, so after three years it is worth
+      $0.8^3 = 0.512$ of what it was, and the total loss is $1 - 0.512 = 0.488$, or $48.8\%$. It is
+      not $60\%$, because each year's $20\%$ is taken from a smaller amount than the year before. A
+      useful check on any answer: growth should beat simple counting, and decay should lose less
+      than simple counting does.
+    </p>
+    <p>
+      The same idea handles a <b>percent of a percent</b>. If $40\%$ of a club are juniors and
+      $25\%$ of the juniors are on the team, then the junior players are $0.25 \cdot 0.4 = 0.1$ of
+      the club, which is $10\%$. Percents of percents multiply, they do not add. So do successive
+      discounts. A coupon for $10\%$ off, used on a price already cut by $30\%$, takes $10\%$ of the
+      smaller price. The multipliers are $0.7$ and $0.9$, the price becomes $0.63$ of the original,
+      and the single discount that does the same is $1 - 0.63 = 37\%$, not $40\%$. Since
+      multiplication can be done in either order, $0.7 \cdot 0.9 = 0.9 \cdot 0.7$, it makes no
+      difference which discount comes first, and a price discounted and then taxed ends at the same
+      place as one taxed and then discounted.
+    </p>
+    <p>
+      Read the last line of the question before the first number. It may ask for the final amount,
+      for the total multiplier, for the overall percent change, which is the multiplier minus
+      $1$, or for the single discount that matches several, which is $1$ minus the multiplier.
+    </p>
+
+    <div class="worked">
+      <h3><span class="num">Example 7.</span> Savings that earn on their earnings</h3>
+      <div class="body">
+        <p>
+          A savings account holds $\$2{,}000$ and earns $10\%$ interest a year, each year's interest
+          being added to the balance. How much is in the account after $3$ years, and how does that
+          compare with adding $10\%$ of the original three times?
+        </p>
+        <ol class="steps">
+          <li>Each year multiplies the balance by $1.1$.</li>
+          <li>Year by year: $2{,}000 \to 2{,}200 \to 2{,}420 \to 2{,}662$.</li>
+          <li>All at once: $1.1^3 = 1.331$, and $2{,}000 \cdot 1.331 = 2{,}662$ ✓. The balance is
+            $\$2{,}662$.</li>
+          <li>Simple counting adds $3 \cdot 200 = 600$ and reaches $\$2{,}600$, so repeated change
+            is worth $\$62$ more. $\blacksquare$</li>
+        </ol>
+        <p class="note">
+          The extra $\$62$ is interest earned by earlier interest, which simple counting never sees.
+        </p>
+      </div>
+    </div>
+
+    <div class="ex" data-inline id="t10" data-type="number" data-answer="6050" data-placeholder="people"
+         data-hint="The second year's growth is a percent of the town after the first year."
+         data-hint2="Both years apply the same multiplier. How many times is it applied?">
+      <div class="ex-q">
+        <p>
+          A town of $5{,}000$ people grows $10\%$ a year. How many people live there after $2$ years?
+        </p>
+      </div>
+      <div class="ex-solution">
+        <p class="answer">Answer: $6{,}050$ people</p>
+        <p>
+          $5{,}000 \cdot 1.1 = 5{,}500$, and $5{,}500 \cdot 1.1 = 6{,}050$. Adding $10\%$ of $5{,}000$
+          twice would stop at $6{,}000$.
+        </p>
+      </div>
+    </div>
+
+    <div class="worked">
+      <h3><span class="num">Example 8.</span> Two discounts are not one big one</h3>
+      <div class="body">
+        <p>
+          A $\$200$ jacket is marked down $30\%$, and a coupon then takes $10\%$ off the sale price.
+          What does the jacket cost, and what single discount is the same?
+        </p>
+        <ol class="steps">
+          <li>After the markdown: $0.7 \cdot 200 = 140$ dollars.</li>
+          <li>After the coupon, taken from the sale price: $0.9 \cdot 140 = 126$ dollars.</li>
+          <li>The total multiplier is $0.7 \cdot 0.9 = 0.63$, so the single discount is
+            $1 - 0.63 = 0.37$, which is $37\%$.</li>
+          <li>Check: $37\%$ of $200$ is $74$, and $200 - 74 = 126$ ✓. The jacket costs $\$126$.
+            $\blacksquare$</li>
+        </ol>
+        <p class="note">
+          Adding the discounts to get $40\%$ off would give $\$120$, which is $\$6$ too low: the
+          coupon's $10\%$ is of $\$140$, not of $\$200$.
+        </p>
+      </div>
+    </div>
+
+    <div class="ex" data-inline id="t11" data-type="percent" data-answer="12" data-placeholder="e.g. 40%"
+         data-hint="A percent of a percent: the second percent is of the adults, not of everyone."
+         data-hint2="Write each percent as a decimal. Percents of percents combine by multiplying.">
+      <div class="ex-q">
+        <p>
+          Of the people at a fair, $40\%$ are adults, and $30\%$ of the adults arrived by bus. What
+          percent of all the people are adults who arrived by bus?
+        </p>
+      </div>
+      <div class="ex-solution">
+        <p class="answer">Answer: $12\%$</p>
+        <p>
+          $0.3 \cdot 0.4 = 0.12$, which is $12\%$. Check with $100$ people: $40$ adults, and $30\%$
+          of $40$ is $12$ ✓.
+        </p>
+      </div>
+    </div>
+
+    <div class="ex" data-inline id="t12" data-type="percent" data-answer="55" data-placeholder="e.g. 40%"
+         data-hint="The second discount is taken from the reduced price. First ask what part of the original price is left."
+         data-hint2="Combine the two multipliers. The single discount is whatever is missing from one whole.">
+      <div class="ex-q">
+        <p>
+          A $40\%$ discount is followed by a further $25\%$ off the new price. What single percent
+          discount gives the same final price?
+        </p>
+      </div>
+      <div class="ex-solution">
+        <p class="answer">Answer: $55\%$</p>
+        <p>
+          $0.6 \cdot 0.75 = 0.45$ of the price is left, so $1 - 0.45 = 0.55$ is gone: $55\%$, not
+          $65\%$. Check with $\$100$: $\$60$ after the first, $\$45$ after the second ✓.
+        </p>
+      </div>
+    </div>
+
     <!-- ====================================================== practice ==== -->
     <section class="practice" id="practice">
       <div class="practice-head">
@@ -574,6 +860,228 @@
           </p>
         </div>
       </div>
+
+      <div class="ex" id="e14" data-section="percent" data-type="number" data-answer="55.2" data-placeholder="dollars"
+           data-hint="The tip is a percent of the bill, and you pay the bill and the tip together. A single multiplier does both at once."
+           data-hint2="Paying the bill plus 15% of it is paying one multiple of the bill. Which multiple?">
+        <div class="ex-q"><p>A restaurant bill is $\$48$ before the tip. You leave a $15\%$ tip on the bill. How many dollars do you pay in all?</p></div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $\$55.20$</p>
+          <p>
+            The tip is $0.15 \cdot 48 = 7.2$ dollars, and $48 + 7.2 = 55.2$. By the multiplier: a
+            $15\%$ increase multiplies by $1.15$, and $1.15 \cdot 48 = 55.2$ ✓.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" id="e15" data-section="percent" data-type="percent" data-answer="75" data-placeholder="e.g. 40%"
+           data-hint="A percent is a part over the whole, per hundred. Which number is the part, and which is the whole?"
+           data-hint2="Write the share of shots made as a fraction, then ask what that fraction is out of 100.">
+        <div class="ex-q"><p>Maya made $21$ of her $28$ free throws in a game. What percent of her free throws did she make?</p></div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $75\%$</p>
+          <p>
+            Part over whole: $\frac{21}{28} = \frac34 = 0.75$, which is $75\%$. Check: $75\%$ of
+            $28$ is $0.75 \cdot 28 = 21$ ✓.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" id="e16" data-section="percent" data-type="number" data-answer="150" data-placeholder="students"
+           data-hint="The 45 is a part, and 30% says how big a part of the whole it is. Which operation undoes taking 30% of something?"
+           data-hint2="Write 'thirty percent of the whole is 45' as an equation with the whole as the unknown.">
+        <div class="ex-q"><p>A school has $45$ seniors, and the seniors are $30\%$ of all its students. How many students does the school have?</p></div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $150$ students</p>
+          <p>
+            Let the whole be $w$. Then $0.3w = 45$, so $w = 45 \div 0.3 = 150$. Check: $30\%$ of $150$
+            is $0.3 \cdot 150 = 45$ ✓.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" id="e17" data-section="percent" data-type="number" data-answer="64.8" data-placeholder="dollars"
+           data-hint="Do the changes in the order they happen. The tax is charged on the sale price, not on the price before the discount."
+           data-hint2="Each change is a multiplier: one below 1 for the discount, one above 1 for the tax.">
+        <div class="ex-q"><p>A pair of shoes costs $\$80$. It is marked $25\%$ off, and then $8\%$ sales tax is added to the sale price. What is the total in dollars?</p></div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $\$64.80$</p>
+          <p>
+            The sale price is $0.75 \cdot 80 = 60$ dollars. The tax is on that: $1.08 \cdot 60 = 64.8$.
+            Check the other way: the tax is $0.08 \cdot 60 = 4.8$, and $60 + 4.8 = 64.8$ ✓.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" id="e18" data-section="percent" data-type="percent" data-answer="15" data-placeholder="e.g. 40%"
+           data-hint="A percent change compares the change with the starting value. Which month's bill is the starting value?"
+           data-hint2="Find the difference between the two bills first, then compare it with the bill you started from, not the one you ended at.">
+        <div class="ex-q">
+          <p>A household's electric bill in two months is shown below. What is the percent increase from March to July?</p>
+          <table>
+            <thead><tr><th>Month</th><th>Bill</th></tr></thead>
+            <tbody>
+              <tr><td>March</td><td>$\$80$</td></tr>
+              <tr><td>July</td><td>$\$92$</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $15\%$</p>
+          <p>
+            The change is $92 - 80 = 12$ dollars, and the original is March's $80$:
+            $\frac{12}{80} = 0.15$, which is $15\%$. Check: $80 \cdot 1.15 = 92$ ✓.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" id="e19" data-section="percent" data-type="percent" data-answer="20" data-placeholder="e.g. 40%"
+           data-hint="The question asks for a decrease, so the answer is the size of the drop as a percent of where it started."
+           data-hint2="The starting value is Friday's. Compare the drop with that.">
+        <div class="ex-q"><p>Attendance at a school play fell from $1{,}250$ people on Friday to $1{,}000$ on Saturday. What was the percent decrease?</p></div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $20\%$</p>
+          <p>
+            The drop is $1{,}250 - 1{,}000 = 250$, and $\frac{250}{1{,}250} = 0.2$, which is $20\%$.
+            Check: $1{,}250 \cdot 0.8 = 1{,}000$ ✓.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" id="e20" data-section="percent" data-type="number" data-answer="60" data-placeholder="dollars"
+           data-hint="The sale price is a percent of the original price. Which percent?"
+           data-hint2="Write 'that percent of the original price is 48 dollars' as an equation with the original as the unknown.">
+        <div class="ex-q"><p>During a sale every price is reduced by $20\%$. A coat's sale price is $\$48$. What was its price before the sale, in dollars?</p></div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $\$60$</p>
+          <p>
+            A $20\%$ discount multiplies by $0.8$, so $0.8x = 48$ and $x = 48 \div 0.8 = 60$. Check:
+            $20\%$ of $60$ is $12$, and $60 - 12 = 48$ ✓. Adding $20\%$ of $48$ to $48$ would give $57.60$, which is wrong: the
+            discount was a percent of the original, not of the sale price.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" id="e21" data-section="percent" data-type="percent" data-answer="5" data-placeholder="e.g. 40%"
+           data-hint="Percent error is the size of the error compared with the true value."
+           data-hint2="Find the error in grams first. The true mass is the base, not the reading.">
+        <div class="ex-q"><p>A laboratory scale reads $52.5$ grams for a mass that is known to be exactly $50$ grams. What is the percent error of the reading?</p></div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $5\%$</p>
+          <p>
+            The error is $52.5 - 50 = 2.5$ grams, and $\frac{2.5}{50} = 0.05$, which is $5\%$ of the
+            true value. Check: $5\%$ of $50$ is $2.5$ ✓.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" id="e22" data-section="repeated" data-type="number" data-answer="9261" data-placeholder="people"
+           data-hint="Each year's growth is a percent of that year's population, so the yearly changes multiply and do not add."
+           data-hint2="Say what the population is multiplied by in one year, then count how many years it is multiplied.">
+        <div class="ex-q"><p>A town has $8{,}000$ people and grows $5\%$ a year. How many people live there after $3$ years?</p></div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $9{,}261$ people</p>
+          <p>
+            Each year multiplies by $1.05$: $8{,}000 \to 8{,}400 \to 8{,}820 \to 9{,}261$. All at once,
+            $1.05^3 = 1.157625$ and $8{,}000 \cdot 1.157625 = 9{,}261$ ✓.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" id="e23" data-section="repeated" data-type="number" data-answer="10240" data-placeholder="dollars"
+           data-hint="Losing 20% of its value leaves some percent of it. What happens to the value left over in the next year?"
+           data-hint2="The same fraction of the value is kept each year. Apply it as many times as there are years.">
+        <div class="ex-q"><p>A $\$20{,}000$ car loses $20\%$ of its value each year. What is it worth after $3$ years, in dollars?</p></div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $\$10{,}240$</p>
+          <p>
+            Each year multiplies by $0.8$: $20{,}000 \to 16{,}000 \to 12{,}800 \to 10{,}240$. All at
+            once, $0.8^3 = 0.512$ and $0.512 \cdot 20{,}000 = 10{,}240$ ✓. It lost $48.8\%$, not
+            $60\%$.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" id="e24" data-section="repeated" data-type="percent" data-answer="44" data-placeholder="e.g. 40%"
+           data-hint="It is not 50%: the second discount is taken from the reduced price. Think about what part of the original price is left."
+           data-hint2="Combine what is left after each discount. The single discount is the part that has gone.">
+        <div class="ex-q"><p>A store takes $30\%$ off a price, then a further $20\%$ off the reduced price. What single percent discount gives the same final price?</p></div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $44\%$</p>
+          <p>
+            The multipliers are $0.7$ and $0.8$, and $0.7 \cdot 0.8 = 0.56$ of the price is left, so
+            $1 - 0.56 = 0.44$ has gone. Check with $\$100$: $\$70$, then $0.8 \cdot 70 = \$56$ ✓.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" id="e25" data-section="repeated" data-type="percent" data-answer="10" data-placeholder="e.g. 40%"
+           data-hint="Do not add +20% and -25%: the fall is a percent of the price after the rise."
+           data-hint2="Follow an easy starting price, like 100, through both weeks.">
+        <div class="ex-q"><p>A stock's price rises $20\%$ in one week and falls $25\%$ the next week. By what percent is the price lower after the two weeks than at the start?</p></div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $10\%$</p>
+          <p>
+            The multipliers are $1.2$ and $0.75$, and $1.2 \cdot 0.75 = 0.9$, so the price is $90\%$
+            of the start: $10\%$ lower. Check from $\$100$: $\$120$, then $0.75 \cdot 120 = \$90$ ✓.
+            Adding the changes would have given a $5\%$ fall, which is wrong.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" id="e26" data-section="repeated" data-type="number" data-answer="80" data-placeholder="students"
+           data-hint="The second percent is of the band members, not of all 800 students. Take the two percents one after the other."
+           data-hint2="Start by finding how many students are in the band.">
+        <div class="ex-q"><p>Of $800$ students, $25\%$ are in the band, and $40\%$ of the band members play a brass instrument. How many students play brass in the band?</p></div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $80$ students</p>
+          <p>
+            The band has $0.25 \cdot 800 = 200$ students, and $0.4 \cdot 200 = 80$ of them play brass.
+            Check: percents of percents multiply, $0.25 \cdot 0.4 = 0.1$, and $10\%$ of $800$ is $80$ ✓.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" id="e27" data-section="repeated" data-type="number" data-answer="8" data-placeholder="dollars"
+           data-hint="The two plans differ only from the second year on. Compare the interest each earns in that year."
+           data-hint2="Under Plan A every year pays the same dollars. Plan B's second year pays 4% of the balance after year 1.">
+        <div class="ex-q"><p>Two plans start with $\$5{,}000$ at $4\%$ a year. In Plan A each year pays $4\%$ of the original $\$5{,}000$. In Plan B each year's interest is added to the balance, and the next year's $4\%$ is taken of that new balance. After $2$ years, how many dollars more does Plan B hold than Plan A?</p></div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $\$8$</p>
+          <p>
+            Plan A: $2 \cdot 200 = 400$ dollars of interest, a balance of $5{,}400$. Plan B: after one
+            year $5{,}200$, and $1.04 \cdot 5{,}200 = 5{,}408$. The difference is $5{,}408 - 5{,}400 = 8$
+            dollars, which is $4\%$ of the first year's $200$ ✓.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" id="e28" data-section="repeated" data-type="number" data-answer="108" data-placeholder="dollars"
+           data-hint="The coupon is a percent of the sale price, not of the price on the tag."
+           data-hint2="Each discount is a multiplier below 1. Apply both.">
+        <div class="ex-q"><p>A backpack is priced at $\$150$ and is $20\%$ off. At the register a coupon takes a further $10\%$ off the sale price. How many dollars does the backpack cost?</p></div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $\$108$</p>
+          <p>
+            Sale price: $0.8 \cdot 150 = 120$. With the coupon: $0.9 \cdot 120 = 108$. Check with the
+            single multiplier: $0.8 \cdot 0.9 = 0.72$, and $0.72 \cdot 150 = 108$ ✓. It is $28\%$ off,
+            not $30\%$.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" id="e29" data-section="repeated" data-type="number" data-answer="12" data-placeholder="milligrams"
+           data-hint="After each 4-hour period the amount is multiplied by the same number. How many such periods fit in 12 hours?"
+           data-hint2="Falling by 50% leaves half. Apply that once for every period.">
+        <div class="ex-q"><p>A patient takes a $96$-milligram dose of a drug whose amount in the blood falls $50\%$ every $4$ hours. How many milligrams are left after $12$ hours?</p></div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $12$ milligrams</p>
+          <p>
+            Twelve hours is $3$ periods of $4$ hours. Each period multiplies by $0.5$:
+            $96 \to 48 \to 24 \to 12$. All at once, $0.5^3 = 0.125$ and $0.125 \cdot 96 = 12$ ✓.
+          </p>
+        </div>
+      </div>
     </section>
 
     <div class="recap">
@@ -604,6 +1112,17 @@
           only the numbers that grow together. A relationship with a fixed charge on top is not
           proportional.</li>
         <li>To mix two ratios, first make the quantity they share the same number in both.</li>
+        <li>Percent means per hundred, a ratio with $100$ underneath. Part over whole equals percent
+          over $100$ gives the part, the whole or the percent, whichever is missing; "of" means
+          times.</li>
+        <li>A percent change is the change divided by the <em>original</em>, so the same dollars are
+          a different percent up than down. A $15\%$ rise multiplies by $1.15$, a $15\%$ fall by
+          $0.85$, and to undo a change you divide by its multiplier.</li>
+        <li>A rise and a fall by the same percent do not cancel: $1.2 \cdot 0.8 = 0.96$.</li>
+        <li>The same percent applied again and again multiplies the multipliers: three years at
+          $5\%$ is $1.05^3$, more than $15\%$ because later steps take a percent of growth already
+          there. Percents of percents multiply, and so do successive discounts, so two discounts of
+          $30\%$ and $10\%$ make $37\%$, not $40\%$.</li>
       </ul>
     </div>
 
