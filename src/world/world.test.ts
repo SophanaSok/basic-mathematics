@@ -17,6 +17,8 @@ import type { Three } from "./three.ts";
 
 const T = THREE as unknown as Three;
 const C = course();
+/* the world draws the four Parts of the course; the real Part V (pack A) is beside them and has no region */
+const PARTS = C.parts.filter((p) => !p.beside);
 const L = layout(C);
 const MOT = motifs(C);
 
@@ -24,7 +26,7 @@ const MOT = motifs(C);
 function palette(): PaletteMap {
   const pal: PaletteMap = new Map();
   const names = ["paper", "under", "stone", "ok", "hot", "accent", "ink", "plotGround"];
-  C.parts.forEach((p) => ["part", "deep", "soft", "ground", "rock", "sky", "fog", "glow", "rink", "ahead"].forEach((k) => names.push(k + ":" + p.id)));
+  PARTS.forEach((p) => ["part", "deep", "soft", "ground", "rock", "sky", "fog", "glow", "rink", "ahead"].forEach((k) => names.push(k + ":" + p.id)));
   names.forEach((n, i) => pal.set(n, new THREE.Color().setRGB(((i * 37) % 255) / 255, ((i * 91) % 255) / 255, ((i * 13) % 255) / 255)));
   return pal;
 }
@@ -163,7 +165,7 @@ describe("the ink and the teardown", () => {
     const many = buildStatic(T, L, placeProps(L, MOT, 2), mats, pal);
     /* more props add no paper ink (the islands' own edges are the same in both) */
     expect(inked(many, pal, "ink")).toBe(inked(few, pal, "ink"));
-    for (const p of C.parts) expect(inked(many, pal, "rink:" + p.id)).toBeGreaterThan(inked(few, pal, "rink:" + p.id));
+    for (const p of PARTS) expect(inked(many, pal, "rink:" + p.id)).toBeGreaterThan(inked(few, pal, "rink:" + p.id));
     few.dispose(); many.dispose(); mats.dispose();
   });
 

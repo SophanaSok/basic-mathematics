@@ -323,5 +323,17 @@
     "section#practice",
     "section#review",
     "div.recap to nav.chapter-nav"
+  ],
+  "pk-percent": [
+    "header.region-banner to div#puzzle",
+    "div.goal to section#warmup",
+    "h2#ratios to div#t1",
+    "div.worked to div#t2",
+    "div#t3",
+    "h2#proportions to div#t4",
+    "div.worked to div#t5",
+    "div#t6",
+    "section#practice",
+    "div.recap to nav.chapter-nav"
   ]
 }

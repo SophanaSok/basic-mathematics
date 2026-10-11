@@ -7,7 +7,7 @@ import { FORMS } from "../learn/diagnostic.ts";
 import { BLUEPRINT } from "../learn/constants.ts";
 import { SKILLS } from "../data/skills.ts";
 import type { DiagTake } from "../types/state.ts";
-import { courseWithPacks } from "../world/course.test-helper.ts";
+import { course, courseWithPacks } from "../world/course.test-helper.ts";
 
 describe("seedRefs", () => {
   const skills: Record<string, unknown> = { ...SKILLS, "pk-percent#of-a-number": { course: "pre-algebra" }, "pk-ratio#simplify": { course: "pre-algebra" } };
@@ -16,7 +16,13 @@ describe("seedRefs", () => {
     const refs = seedRefs(courseWithPacks(), skills);
     expect(refs).not.toContain("pk-percent#of-a-number");
     expect(refs).not.toContain("pk-ratio#simplify");
-    expect(refs.length).toBe(Object.keys(SKILLS).length);
+    expect(refs.length).toBe(Object.keys(SKILLS).filter((r) => !r.startsWith("pk-")).length);
+  });
+
+  it("seeds none of pack A's sections on the real curriculum", () => {
+    const refs = seedRefs(course(), SKILLS);
+    expect(Object.keys(SKILLS)).toContain("pk-percent#ratios");
+    expect(refs.some((r) => r.startsWith("pk-"))).toBe(false);
   });
 
   it("keeps a pk- name that is in no beside Part", () => {

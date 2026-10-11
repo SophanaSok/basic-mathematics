@@ -40,6 +40,7 @@ import "../../data/gen/part1.js";
 import "../../data/gen/part2.js";
 import "../../data/gen/part3.js";
 import "../../data/gen/part4.js";
+import "../../data/gen/packs.js";
 import "../../assets/config.js";
 import "../../assets/account.js";
 /* the placement check: the skills it reads, the pure rules (the walk, the run and the take, what

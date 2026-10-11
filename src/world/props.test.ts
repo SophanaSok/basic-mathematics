@@ -4,12 +4,14 @@ import { placeProps, placeRange, biomeOf, KINDS, EXTRA_COUNT, RIM, RIM_IN, RANGE
 import { course, motifs } from "./course.test-helper.ts";
 
 const C = course();
+/* the world draws the four Parts of the course; the real Part V (pack A) is beside them and has no region */
+const PARTS = C.parts.filter((p) => !p.beside);
 const L = layout(C);
 const M = motifs(C);
 
 describe("the props of each region", () => {
   it("are each Part's own: the Foundry forges, the Fields tents, the Grid lattices, the Observatory a dome", () => {
-    expect(C.parts.map((p, i) => biomeOf(M[i], i))).toEqual(["forge", "fields", "grid", "stars"]);
+    expect(PARTS.map((p, i) => biomeOf(M[i], i))).toEqual(["forge", "fields", "grid", "stars"]);
     const props = placeProps(L, M, 0);
     const kinds = (p: number) => props.filter((q) => q.p === p).map((q) => q.kind);
     expect(kinds(0)).toEqual(expect.arrayContaining(["chimney", "furnace", "crates"]));
@@ -34,7 +36,7 @@ describe("the props of each region", () => {
   it("dress each terrace's front edge with a rim of its own kind, closer set with each tier's detail", () => {
     for (const d of [0, 1, 2] as const) {
       const props = placeProps(L, M, d);
-      C.parts.forEach((part, p) => {
+      PARTS.forEach((part, p) => {
         const rim = props.filter((q) => q.p === p && q.kind === RIM[biomeOf(M[p], p)]);
         expect(rim.length, part.id + " at detail " + d).toBeGreaterThanOrEqual(5);
         rim.forEach((q) => expect(Math.abs(q.z - (L.regions[p].z1 - RIM_IN))).toBeLessThan(0.1));

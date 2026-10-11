@@ -125,7 +125,8 @@ import { detectTier, readProbe, stepDown, lower, pixelRatio, TIERS, AMBIENT_MS, 
   }
   function chapterName(ch) {
     if (window.BMSite && window.BMSite.chapterName) return window.BMSite.chapterName(ch);
-    return ch.label === "Interlude" ? "Interlude" : "Chapter " + ch.label;
+    if (ch.label === "Interlude") return "Interlude";
+    return (ch.part && ch.part.beside ? "Pack " : "Chapter ") + ch.label;
   }
 
   function isleIndex(id) {
@@ -140,8 +141,16 @@ import { detectTier, readProbe, stepDown, lower, pixelRatio, TIERS, AMBIENT_MS, 
     return li ? li.querySelector(".stop-link") : null;
   }
   function currentId() {
-    var li = host.querySelector('li.stop[data-state="current"]');
-    return li ? li.getAttribute("data-chapter") : null;
+    /* a pack has no island: "you are here" is the current stop that has one, else the
+       first unfinished island of the course */
+    var lis = host.querySelectorAll("li.stop"), first = null, k, id;
+    for (k = 0; k < lis.length; k++) {
+      id = lis[k].getAttribute("data-chapter");
+      if (isleIndex(id) < 0) continue;
+      if (lis[k].getAttribute("data-state") === "current") return id;
+      if (first === null && lis[k].getAttribute("data-state") !== "done") first = id;
+    }
+    return first;
   }
 
   /* ------------------------------------------------------------ the box ---- */
@@ -626,7 +635,11 @@ import { detectTier, readProbe, stepDown, lower, pixelRatio, TIERS, AMBIENT_MS, 
     if (!M) return;
     var a = closest(e.target, ".stop-link");
     var li = a && closest(a, "li.stop");
-    if (li) select(isleIndex(li.getAttribute("data-chapter")), "focus", !(linkInView(a) && stageInView()));
+    if (!li) return;
+    var fi = isleIndex(li.getAttribute("data-chapter"));
+    /* a pack has no island: clear what an earlier focus ringed rather than leave it */
+    if (fi < 0) { if (M.hotHow === "focus" || M.hotHow === "hover") unselect(); return; }
+    select(fi, "focus", !(linkInView(a) && stageInView()));
   });
   host.addEventListener("focusout", function (e) {
     if (!M) return;
@@ -638,7 +651,7 @@ import { detectTier, readProbe, stepDown, lower, pixelRatio, TIERS, AMBIENT_MS, 
     var li = a && closest(a, "li.stop");
     if (!li) return;
     var i = isleIndex(li.getAttribute("data-chapter"));
-    if (i === M.hot) return;
+    if (i < 0 || i === M.hot) return;
     clearTimeout(hoverTimer);
     /* a short pause, so sweeping the pointer down the list does not whip the camera about */
     hoverTimer = setTimeout(function () { if (stageInView()) select(i, "hover"); }, 140);

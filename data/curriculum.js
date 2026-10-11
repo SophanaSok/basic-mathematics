@@ -296,6 +296,31 @@ window.BM_CURRICULUM = {
           ]
         }
       ]
+    },
+    {
+      id: "packs",
+      num: "V",
+      name: "Skill packs",
+      dir: "5-packs",
+      beside: true,
+      blurb:
+        "Short units on what the gate tests ask and Lang's book leaves out: percent, data, chance, units. Use any of them, in any order, alongside the course.",
+      chapters: [
+        {
+          id: "pk-percent",
+          label: "A",
+          title: "Ratios, Rates and Percent",
+          file: "pk-percent.html",
+          status: "full",
+          course: "pre-algebra",
+          blurb:
+            "Comparing quantities by ratio and by rate, unit prices and speeds, and solving proportions, the arithmetic behind a large share of every gate exam.",
+          sections: [
+            { id: "ratios", title: "Ratios and rates", summary: "A ratio compares two quantities; a rate divides one by the other, and a unit rate settles which is the better buy." },
+            { id: "proportions", title: "Proportions", summary: "Two equal ratios, solved by multiplying both sides by the denominators." }
+          ]
+        }
+      ]
     }
   ]
 };

@@ -111,8 +111,8 @@
     var s = owner.sections[idx];
     return {
       id: sid, chapter: owner, section: s,
-      label: owner.label === "Interlude" ? s.title : "§" + owner.label + "." + (idx + 1),
-      full: (owner.label === "Interlude" ? "" : "§" + owner.label + "." + (idx + 1) + " ") + s.title,
+      label: owner.label === "Interlude" ? s.title : (owner.part && owner.part.beside ? "Pack " : "§") + owner.label + "." + (idx + 1),
+      full: (owner.label === "Interlude" ? "" : (owner.part && owner.part.beside ? "Pack " : "§") + owner.label + "." + (idx + 1) + " ") + s.title,
       href: owner === chapter ? "#" + sid : root + owner.path + "#" + sid
     };
   }

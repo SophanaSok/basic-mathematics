@@ -226,14 +226,14 @@ module.exports = {
       await plant(page);
       await h.open(page, PROGRESS);
       let st = await compactState(page);
-      check(p, !!st && st.top.join() === "Start here", "visible lines with a clean take: " + JSON.stringify(st));
+      check(p, !!st && st.top.join() === "Start here,Skill packs", "visible lines with a clean take (pack A is listed as a pre-algebra pack): " + JSON.stringify(st));
       check(p, !!st && !!st.fold && st.fold.open === false && st.fold.summary === "See the whole plan", "the fold: " + JSON.stringify(st && st.fold));
       check(p, !!st && !!st.fold && st.fold.heads.join() === "Coming up,Already in hand,Going further", "the fold's lines: " + JSON.stringify(st && st.fold));
       await page.evaluate((take) => localStorage.setItem("bm.diag.v1", JSON.stringify({ takes: { plan1: take } })), MISS);
       await reload(page);
       await h.open(page, PROGRESS);
       st = await compactState(page);
-      check(p, !!st && st.top.join() === "Start here,Review first", "visible lines with a miss: " + JSON.stringify(st));
+      check(p, !!st && st.top.join() === "Start here,Review first,Skill packs", "visible lines with a miss: " + JSON.stringify(st));
       check(p, !!st && !!st.fold && st.fold.open === false, "the fold is not shut: " + JSON.stringify(st && st.fold));
       return p;
     });
@@ -330,8 +330,9 @@ module.exports = {
     };
     /* 700 px guards the compact form: the worst case the plan allows (the moved note, 3 Start here,
        5 Review first) measured 668 px at 360 px on 2026-10-10, about one phone screen. Unfolding the
-       rest (4385 px) or a longer list would fail it. */
-    await kase("progress page at 360 px with a worst-case take: the panel is at most 700 px tall with the fold shut, and the fold hides more", { vw: 360 }, async (page) => {
+       rest (4385 px) or a longer list would fail it. Pack A (K-4) adds a "Skill packs" line, which took
+       it to 740 px on 2026-10-11, so the bound is 780; each pack listed (up to 3) adds a line. */
+    await kase("progress page at 360 px with a worst-case take: the panel is at most 780 px tall with the fold shut, and the fold hides more", { vw: 360 }, async (page) => {
       const p = [];
       await h.open(page, PAGE);
       await page.evaluate((take) => localStorage.setItem("bm.diag.v1", JSON.stringify({ takes: { worst1: take } })), WORST);
@@ -372,7 +373,7 @@ module.exports = {
       const openH = await size();
       check(p, m.shut, "the fold is not shut");
       check(p, m.note === "Your plan now starts in Algebra 2" && m.start === 3 && m.review5 === 5, "not the worst case: " + JSON.stringify(m));
-      check(p, shutH <= 700, "the worst-case panel with the fold shut is " + shutH + " px (bound 700)");
+      check(p, shutH <= 780, "the worst-case panel with the fold shut is " + shutH + " px (bound 780)");
       check(p, openH > shutH, "opening the fold does not make the panel taller: " + shutH + " then " + openH);
       return p;
     });
