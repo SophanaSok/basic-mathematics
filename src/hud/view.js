@@ -89,7 +89,7 @@ export function comboOf(run) {
  *   streak: number, today: number, goal: number, ring: number,
  *   combo: { shown: boolean, pips: number, shield: boolean, mult: number },
  *   sound: boolean,
- *   labels: { level: string, streak: string, combo: string } }} HudView
+ *   labels: { level: string, xp: string, streak: string, combo: string } }} HudView
  */
 
 /** What the HUD shows. Pure: the same stores give the same view.
@@ -106,7 +106,8 @@ export function hudView(input) {
     combo: { shown: !calm && (c.pips > 0 || (!!input.chapter && c.shield)), pips: c.pips, shield: c.shield, mult: multOf(c.pips) },
     sound: sound,
     labels: {
-      level: "Level " + inf.level + ", " + inf.rank + ". " + inf.into + " of " + inf.span + " XP to level " + (inf.level + 1) + ". Open your progress.",
+      level: "Level " + inf.level + ", " + inf.rank + ". Open your progress.",
+      xp: inf.into + " of " + inf.span + " XP to level " + (inf.level + 1) + ".",
       streak: streak + "-day streak. " + today + " of " + goal + " XP today.",
       combo: "Combo " + c.pips + " of 5, XP times " + multOf(c.pips) + (c.shield ? ", shield ready" : "")
     }
@@ -134,6 +135,7 @@ export function paint(doc, v) {
   const q = (/** @type {string} */ s) => /** @type {HTMLElement | null} */ (hud.querySelector(s));
 
   attr(q(".hud-level"), "aria-label", v.labels.level);
+  attr(q(".hud-xp"), "aria-label", v.labels.xp);
   text(q(".hud-badge b"), String(v.level));
   prop(q(".hud-xpbar i"), "width", v.pct + "%");
   text(q(".hud-xptext b"), String(v.into));

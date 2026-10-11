@@ -20,8 +20,11 @@ const path = require("path");
                              at 360px a display formula or a table wider than the column
                              scrolled, and a keyboard could not reach what was past its edge
                              (src/ui/scroll-regions.ts makes it a named tab stop while it
-                             overflows); seen only at 360, which is why the suite runs both */
-const STRICT_RULES = ["button-name", "label", "empty-table-header", "heading-order", "scrollable-region-focusable"];
+                             overflows); seen only at 360, which is why the suite runs both
+     label-content-name-mismatch
+                             the HUD's level link read "1" and "0 / 25 XP" but was named
+                             "Level 1, ..."; the XP is a sibling role=img now (lib/shell.js) */
+const STRICT_RULES = ["button-name", "label", "empty-table-header", "heading-order", "scrollable-region-focusable", "label-content-name-mismatch"];
 
 module.exports = {
   name: "axe",
