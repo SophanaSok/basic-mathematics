@@ -289,16 +289,21 @@ function answer(skip: boolean): void {
 
 /** The refs a take may seed: every record in `skills` except a section of a beside Part (a
     skill pack), found by the curriculum and never by a name. The placement check never seeds
-    a pack section. */
+    a pack section, so a curriculum that cannot be read seeds nothing: it cannot say which
+    sections are packs. */
 export function seedRefs(cur: { parts?: unknown } | null | undefined, skills: Record<string, unknown>): SectionRef[] {
-  const parts: { beside?: true; chapters?: { id?: unknown }[] }[] = cur && Array.isArray(cur.parts) ? cur.parts : [];
+  if (!cur || !Array.isArray(cur.parts)) return [];
+  const parts: ({ beside?: true; chapters?: unknown } | null)[] = cur.parts;
   const pack = new Set<string>();
-  parts.forEach((p) => { if (isBeside(p)) (p.chapters || []).forEach((ch) => { if (typeof ch.id === "string") pack.add(ch.id); }); });
+  parts.forEach((p) => {
+    if (p && isBeside(p) && Array.isArray(p.chapters)) p.chapters.forEach((ch: { id?: unknown } | null) => { if (ch && typeof ch.id === "string") pack.add(ch.id); });
+  });
   return Object.keys(skills).filter((ref) => !pack.has(ref.split("#")[0])) as SectionRef[];
 }
 
-/** Lays a finished take's seeds over the review boxes (A3: the caller catches). */
-function seed(take: DiagTake): void {
+/** Lays a finished take's seeds over the review boxes (A3: the caller catches). Exported for
+    its test only. */
+export function seed(take: DiagTake): void {
   const Game = window.BMGame;
   if (!Game || typeof Game.seedRecall !== "function") return;
   const worked = new Set<string>();
