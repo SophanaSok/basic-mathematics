@@ -481,8 +481,10 @@ function chartProblems(fig) {
   if (width !== null && !(kind === "hist" && numeric(width) && parseFloat(width) > 0)) out.push("data-width is a histogram's bin width, a number above 0");
   else if (width !== null) {
     const v = body.map(tr => tr.queryAll("th, td")[0]).filter(Boolean).map(td => td.textContent.replace(/[\u2212\u2013]/g, "-").replace(/,/g, "").trim()).filter(numeric).map(parseFloat);
-    const bw = parseFloat(width);
-    if (v.length && Math.floor(Math.max(...v) / bw) - Math.floor(Math.min(...v) / bw) + 1 > CHART_MAX_BINS)
+    /* counted as src/ui/chart.ts bins() counts them, its clean() included, so 4.1 / 0.01
+       is 410 here as there and the two never disagree at the cap */
+    const bw = parseFloat(width), clean = x => Math.round(x * 1e9) / 1e9;
+    if (v.length && Math.floor(clean(Math.max(...v) / bw)) - Math.floor(clean(Math.min(...v) / bw)) + 1 > CHART_MAX_BINS)
       out.push("data-width " + width + " would give more than " + CHART_MAX_BINS + " bins");
   }
   return out;

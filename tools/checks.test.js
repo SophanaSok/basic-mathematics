@@ -732,6 +732,7 @@ function refusal(fn) { try { fn(); return null; } catch (e) { return e.message; 
   check(probs("hist", table(["Score"], [["0"], ["1000000"]]) + cap, ' data-width="0.001"').some(m => /more than 60 bins/.test(m)), "… a bin width giving more than 60 bins fails");
   eq(probs("hist", table(["Score"], [["0"], ["590"]]) + cap, ' data-width="10"'), [], "… a bin width giving exactly 60 bins passes");
   check(probs("hist", table(["Score"], [["0"], ["600"]]) + cap, ' data-width="10"').some(m => /more than 60 bins/.test(m)), "… 61 bins fails");
+  check(probs("hist", table(["Score"], [["3.5"], ["4.1"]]) + cap, ' data-width="0.01"').some(m => /more than 60 bins/.test(m)), "… a float edge (4.1 / 0.01 is 409.99…) is counted as chart.ts counts it: 61 bins fails");
   check(probs("hist", table(["Score"], [["3"]]) + cap, ' data-width="0"').some(m => /data-width/.test(m)), "… a bin width of 0 fails");
 }
 
