@@ -17,6 +17,8 @@
    - Under the Geometry hold the reading sections come before the picked ones.
    - The tag "not-asked" ("not asked in the check") is new wording, not in section 8; the owner
      reviews it with D-10's and D-12's wording.
+   - Skill packs: at most PLAN_PACK_ITEMS not-done packs at or below the start course, nearest
+     first (K-6).
    - A "Read" section is listed when it is before the last section picked for "Start here"
      (or when fewer than PLAN_START_ITEMS sections are left). */
 
@@ -40,7 +42,17 @@ export const TAG_TEXT: Readonly<Record<PlanTag, string>> = {
   "not-asked": "not asked in the check"
 };
 
-export interface PlanPack { id: string; course: Course; title: string; href: string }
+export interface PlanPack {
+  id: string;
+  course: Course;
+  title: string;
+  href: string;
+  /** the pack's section refs: it is done when every one with exercises is solved */
+  refs?: readonly SectionRef[];
+}
+
+/** The most packs the plan lists. */
+export const PLAN_PACK_ITEMS = 3;
 export interface PlanRow { solved: number }
 
 export interface PlanInput {
@@ -211,15 +223,19 @@ export function planOf(input: PlanInput): Plan | null {
     .slice(0, PLAN_REVIEW_ITEMS)
     .map((r) => item(r, "missed"));
 
-  /* Skill packs: Pre-algebra band, or pre-algebra sections in Review first; at or below start */
-  const preReview = reviewFirst.some((i) => courseOf.get(i.ref) === "pre-algebra");
-  const packs = input.packs.length && (take.band === "pre-algebra" || preReview)
-    ? input.packs
-      .map((p) => ({ p, at: isPlaceable(p.course) ? L.indexOf(p.course) : -1 }))
-      .filter((x) => x.at >= 0 && x.at <= L.indexOf(start))
-      .sort((a, b) => a.at - b.at)
-      .map((x) => x.p)
-    : [];
+  /* Skill packs: those at or below the start course that are not done, nearest the start
+     course first, at most PLAN_PACK_ITEMS. A pack is done when every exercise of its sections
+     is solved; one with no exercises is never done (nothing on it can be solved). */
+  const packDone = (p: PlanPack): boolean => {
+    const scored = (p.refs ?? []).filter((r) => ws(r) > 0);
+    return scored.length > 0 && scored.every((r) => (rowOf(r)?.solved ?? 0) >= ws(r));
+  };
+  const packs = input.packs
+    .map((p, i) => ({ p, i, at: isPlaceable(p.course) ? L.indexOf(p.course) : -1 }))
+    .filter((x) => x.at >= 0 && x.at <= L.indexOf(start) && !packDone(x.p))
+    .sort((a, b) => b.at - a.at || a.i - b.i)
+    .slice(0, PLAN_PACK_ITEMS)
+    .map((x) => x.p);
 
   /* Coming up: courses above start, with the shown-already mark where the check cleared them:
      only on sections answered right, since a missed one is in Review first, not shown */

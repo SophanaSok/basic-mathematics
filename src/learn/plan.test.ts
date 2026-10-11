@@ -8,7 +8,7 @@ import { CONTAINERS, skillOf } from "../data/skills.ts";
 import type { DiagKind, DiagTake, Placeable, SectionRef } from "../types/state.ts";
 import { BLUEPRINT, PLAN_REVIEW_ITEMS, PLAN_START_ITEMS } from "./constants.ts";
 import { FORMS, L } from "./diagnostic.ts";
-import { planOf, TAG_TEXT, type Plan, type PlanInput, type PlanPack } from "./plan.ts";
+import { planOf, PLAN_PACK_ITEMS, TAG_TEXT, type Plan, type PlanInput, type PlanPack } from "./plan.ts";
 
 const DAY = "2026-10-08";
 const REFS: SectionRef[] = course().parts.flatMap((p) => p.chapters.flatMap((c) => (c.sections ?? []).map((s) => `${c.id}#${s.id}` as SectionRef)));
@@ -388,27 +388,58 @@ describe("Review first", () => {
 });
 
 describe("Skill packs", () => {
-  const packs: PlanPack[] = [
-    { id: "b", course: "algebra-1", title: "B", href: "b.html" },
-    { id: "a", course: "pre-algebra", title: "A", href: "a.html" },
-    { id: "c", course: "algebra-2", title: "C", href: "c.html" }
-  ];
+  const pk = (id: string, course: PlanPack["course"], n = 1): PlanPack => ({
+    id, course, title: id.toUpperCase(), href: id + ".html", refs: Array.from({ length: n }, (_, i) => `${id}#s${i}` as SectionRef)
+  });
+  const packs = [pk("a", "pre-algebra"), pk("b", "algebra-1"), pk("c", "algebra-2"), pk("d", "algebra-1"), pk("e", "pre-algebra"), pk("f", "algebra-2")];
+  const work = { ...SECTION_WORK } as Record<string, number>;
+  packs.forEach((p) => p.refs!.forEach((r) => { work[r] = 3; }));
+  const ids = (t: DiagTake, w = world(), extra: Partial<PlanInput> = {}) => plan(t, w, { packs, work, ...extra }).packs.map((x) => x.id);
+  const wholeCourse = (cs: string[]) => { const w = world(); cs.forEach((c) => courseSecs(c).forEach((r) => w.solid.add(r))); return w; };
 
   it("draws nothing when there are no packs", () => {
     expect(plan(take("pre-algebra", [], ["pre-algebra"])).packs).toEqual([]);
   });
 
-  it("lists a pre-algebra band's packs at or below the start course, pre-algebra first", () => {
-    const p = plan(take("pre-algebra", [], ["pre-algebra"]), world(), { packs });
-    expect(p.packs.map((x) => x.id)).toEqual(["a"]);
-    const w = world(); courseSecs("pre-algebra").forEach((r) => w.solid.add(r));
-    expect(plan(take("pre-algebra", [], ["pre-algebra"]), w, { packs }).packs.map((x) => x.id)).toEqual(["a", "b"]);
+  it("gives a pre-algebra learner the pre-algebra packs only", () => {
+    expect(ids(take("pre-algebra", [], ["pre-algebra"]))).toEqual(["a", "e"]);
   });
 
-  it("is drawn for a higher band only when Review first holds pre-algebra sections", () => {
-    expect(plan(take("algebra-1", ["pre-algebra"], ["pre-algebra", "algebra-1"]), world(), { packs }).packs).toEqual([]);
-    const t = take("algebra-1", ["pre-algebra"], ["pre-algebra", "algebra-1"]);
-    t.blocks[0].items[0].k = "wrong";
-    expect(plan(t, world(), { packs }).packs.map((x) => x.id)).toEqual(["a", "b"]);
+  it("gives an algebra-1 learner algebra-1 packs first, then pre-algebra", () => {
+    expect(ids(take("algebra-1", ["pre-algebra"], ["pre-algebra", "algebra-1"]))).toEqual(["b", "d", "a"]);
+  });
+
+  it("gives an algebra-2 learner algebra-2 packs first, at most PLAN_PACK_ITEMS", () => {
+    const t = take("algebra-2", ["algebra-1", "geometry", "algebra-2"]);
+    expect(PLAN_PACK_ITEMS).toBe(3);
+    expect(ids(t)).toEqual(["c", "f", "b"]);
+  });
+
+  it("follows the start course when the plan moves up", () => {
+    const t = take("pre-algebra", [], ["pre-algebra"]);
+    expect(ids(t, wholeCourse(["pre-algebra"]))).toEqual(["b", "d", "a"]);
+  });
+
+  it("drops a pack once every exercise of it is solved, and keeps one part done", () => {
+    const two = [pk("a", "pre-algebra", 2), pk("e", "pre-algebra")];
+    const w2: Record<string, number> = { ...work, "a#s0": 3, "a#s1": 3 };
+    const w = world();
+    w.solved["a#s0"] = 3;
+    const t = take("pre-algebra", [], ["pre-algebra"]);
+    expect(plan(t, w, { packs: two, work: w2 }).packs.map((x) => x.id)).toEqual(["a", "e"]);
+    w.solved["a#s1"] = 3;
+    expect(plan(t, w, { packs: two, work: w2 }).packs.map((x) => x.id)).toEqual(["e"]);
+  });
+
+  it("never calls a pack with no exercises done", () => {
+    const bare = [{ id: "z", course: "pre-algebra" as const, title: "Z", href: "z.html", refs: ["z#s" as SectionRef] }];
+    expect(plan(take("pre-algebra", [], ["pre-algebra"]), world(), { packs: bare, work }).packs.map((x) => x.id)).toEqual(["z"]);
+  });
+
+  it("lists a pack once, and none from the beyond course", () => {
+    const t = take("algebra-2", ["algebra-1", "geometry", "algebra-2"]);
+    const got = ids(t, world(), { packs: [...packs, { id: "x", course: "beyond", title: "X", href: "x.html" }] });
+    expect(new Set(got).size).toBe(got.length);
+    expect(got).not.toContain("x");
   });
 });

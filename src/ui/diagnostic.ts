@@ -23,6 +23,7 @@ import {
 } from "../learn/diagnostic.ts";
 import { isFirst, seedPatch, takesOf } from "../learn/diag-seed.ts";
 import { renderResult, renderReturn, type LiveAnswer } from "./diag-result.ts";
+import { isBeside } from "../core/curriculum.ts";
 import { SKILLS, skillOf } from "../data/skills.ts";
 import type { UnreadReason } from "../core/answer/types.ts";
 import type { SectionRef } from "../types/state.ts";
@@ -286,15 +287,30 @@ function answer(skip: boolean): void {
 
 /* ------------------------------------------------------------------ finish -- */
 
-/** Lays a finished take's seeds over the review boxes (A3: the caller catches). */
-function seed(take: DiagTake): void {
+/** The refs a take may seed: every record in `skills` except a section of a beside Part (a
+    skill pack), found by the curriculum and never by a name. The placement check never seeds
+    a pack section, so a curriculum that cannot be read seeds nothing: it cannot say which
+    sections are packs. */
+export function seedRefs(cur: { parts?: unknown } | null | undefined, skills: Record<string, unknown>): SectionRef[] {
+  if (!cur || !Array.isArray(cur.parts)) return [];
+  const parts: ({ beside?: true; chapters?: unknown } | null)[] = cur.parts;
+  const pack = new Set<string>();
+  parts.forEach((p) => {
+    if (p && isBeside(p) && Array.isArray(p.chapters)) p.chapters.forEach((ch: { id?: unknown } | null) => { if (ch && typeof ch.id === "string") pack.add(ch.id); });
+  });
+  return Object.keys(skills).filter((ref) => !pack.has(ref.split("#")[0])) as SectionRef[];
+}
+
+/** Lays a finished take's seeds over the review boxes (A3: the caller catches). Exported for
+    its test only. */
+export function seed(take: DiagTake): void {
   const Game = window.BMGame;
   if (!Game || typeof Game.seedRecall !== "function") return;
   const worked = new Set<string>();
   try { (window.BMInsights?.sections() || []).forEach((row: { id: string }) => worked.add(row.id)); } catch { /* none worked */ }
   const g = typeof Game.game === "function" ? Game.game() : null;
   const sec = g && isObj(g.sec) ? g.sec : undefined;
-  const patch = seedPatch(take, Object.keys(SKILLS) as SectionRef[], sec, (ref) => worked.has(ref), skillOf);
+  const patch = seedPatch(take, seedRefs(window.BM_CURRICULUM, SKILLS), sec, (ref) => worked.has(ref), skillOf);
   if (Object.keys(patch).length) Game.seedRecall(patch);
 }
 

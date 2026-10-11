@@ -30,9 +30,12 @@ export function input(): NextInput | null {
   if (!Game || typeof Game.deck !== "function" || !Site || !Store || !C) return null;
   const sections: Record<string, SectionRef> = {};
   const chapters: ChapterRef[] = [];
+  const packs: ChapterRef[] = [];
   let index = 0;
-  (C.courseChapters || C.chapters || []).forEach((ch: any) => {
-    chapters.push({
+  /* the course walk, then the packs: a pack's sections are known to the card (a due or weak
+     one is offered) and a visit to a pack continues there, but "chapters" stays the course */
+  const take = (list: any[], into: ChapterRef[]) => list.forEach((ch: any) => {
+    into.push({
       id: ch.id, name: Site.chapterName(ch), title: ch.title, path: ch.path,
       sections: ch.sections.map((s: any) => ({ id: s.id, title: s.title }))
     });
@@ -44,9 +47,13 @@ export function input(): NextInput | null {
       };
     });
   });
+  const course: any[] = C.courseChapters || C.chapters || [];
+  take(course, chapters);
+  const inCourse = new Set(course.map((ch: any) => ch.id));
+  take((C.chapters || []).filter((ch: any) => !inCourse.has(ch.id)), packs);
   const here = Site.chapterOf ? Site.chapterOf() : null;
   return {
-    day: Site.dayKey(), deck: Game.deck({}) || [], arena: ARENA_SECTIONS, sections, chapters,
+    day: Site.dayKey(), deck: Game.deck({}) || [], arena: ARENA_SECTIONS, sections, chapters, packs,
     last: Store.read(Store.keys.last, null), here: here ? here.id : null
   };
 }
