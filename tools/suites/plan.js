@@ -5,8 +5,9 @@
        line heads and a Start here link that is an address into parts/;
      - on the progress page, with a take: the panel first on the page, its headings in order
        (h1, h2, h3, h4, h5) and axe in both themes at both widths (a rule in the axe suite's
-       STRICT_RULES fails, any other is a warning, as on every page there), the Start here link, no link
-       to diagnostic.html anywhere on the page and no sign-in sentence in the panel;
+       STRICT_RULES fails, any other is a warning unless --strict-axe, as on every page there),
+       the Start here link, no link to diagnostic.html anywhere on the page and no sign-in
+       sentence in the panel;
      - with no take: no panel and no empty slot; after a sign-out (bm.diag.v1 emptied, then a
        sync): the panel goes; after a reset: it stays (decision 0003 keeps the takes);
      - the progress page's panel is compact (D-19): Start here, and Review first when the take has
@@ -141,7 +142,7 @@ module.exports = {
             return r.violations.map((v) => ({ id: v.id, text: v.id + ": " + v.nodes.slice(0, 2).map((n) => n.target.join(" ")).join(" | ") }));
           });
           found.forEach((v) => {
-            if (STRICT_RULES.includes(v.id)) p.push("axe " + v.text);
+            if (STRICT_RULES.includes(v.id) || ctx.opts["strict-axe"]) p.push("axe " + v.text);
             else report.warn("progress page with a take: axe " + v.id + " [warning] (" + theme + ", " + vw + ")", v.text);
           });
         }

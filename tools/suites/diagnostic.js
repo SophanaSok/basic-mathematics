@@ -10,7 +10,7 @@
        its diag write adopted, reload mid-block, start over, completion (no typed text, no
        timings, boxes seeded, run cleared), no attempt events, storage that will not save, no
        supabase chunk signed out, no overflow at 360, axe in every state (a rule in the axe suite's
-       STRICT_RULES fails, any other is a warning, as on every page there);
+       STRICT_RULES fails, any other is a warning unless --strict-axe, as on every page there);
      - the threats: two tabs finishing one run (A1), a take write that fails (A2), no generators
        (B2), markup and template strings typed (C1), a hostile ?again (C2), ?again and the
        return stub (D1), the signed-in wait (D2), a take written in another tab mid-run (D3),
@@ -1261,7 +1261,7 @@ module.exports = {
           return r.violations.map((v) => ({ id: v.id, text: v.id + ": " + v.nodes.slice(0, 2).map((n) => n.target.join(" ")).join(" | ") }));
         });
         found.forEach((v) => {
-          if (STRICT_RULES.includes(v.id)) p.push(state + " [" + theme + " " + vw + "]: axe " + v.text);
+          if (STRICT_RULES.includes(v.id) || ctx.opts["strict-axe"]) p.push(state + " [" + theme + " " + vw + "]: axe " + v.text);
           else report.warn("axe in every state: " + state + " [" + theme + " " + vw + "]: " + v.id + " [warning]", v.text);
         });
       };
