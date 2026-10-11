@@ -313,7 +313,7 @@
 
   function chapterLabel(id) {
     var ch = C.chapterById(id);
-    return ch ? (ch.label === "Interlude" ? "Interlude" : "Ch " + ch.label) : id;
+    return ch ? (ch.label === "Interlude" ? "Interlude" : (ch.part && ch.part.beside ? "Pack " : "Ch ") + ch.label) : id;
   }
   function sectionLabel(chapterId, sec) {
     if (!sec) return "—";
@@ -321,7 +321,7 @@
     if (cut > -1) { owner0 = sec.slice(0, cut); sid = sec.slice(cut + 1); }
     var ch = C.chapterById(owner0), title = sid;
     if (ch) ch.sections.forEach(function (s, i) {
-      if (s.id === sid) title = (ch.label === "Interlude" ? "" : "§" + ch.label + "." + (i + 1) + " ") + s.title;
+      if (s.id === sid) title = (ch.label === "Interlude" ? "" : (ch.part && ch.part.beside ? "Pack " : "§") + ch.label + "." + (i + 1) + " ") + s.title;
     });
     return title;
   }

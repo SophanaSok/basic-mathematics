@@ -43,6 +43,13 @@ describe("the next-step card's input", () => {
     expect(base.chapters[base.chapters.length - 1].id).not.toMatch(/^pk-/);
   });
 
+  it("labels a pack's sections \"Pack A.1\", and a course chapter's \"§2.1\"", () => {
+    withWindow(courseWithPacks());
+    const inp = input()!;
+    expect(inp.sections["pk-percent#of-a-number"].label).toBe("Pack A.1");
+    expect(inp.sections["ch02#one-unknown"].label).toBe("§2.1");
+  });
+
   it("falls back to every chapter when courseChapters is absent", () => {
     const C: any = courseWithPacks();
     delete C.courseChapters;

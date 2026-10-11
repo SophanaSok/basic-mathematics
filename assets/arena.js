@@ -155,7 +155,7 @@
     ch.sections.forEach(function (s, i) {
       SECTIONS[ch.id + "#" + s.id] = {
         id: ch.id + "#" + s.id, chapter: ch, section: s, index: i, order: reading++,
-        label: ch.label === "Interlude" ? "Interlude" : "§" + ch.label + "." + (i + 1),
+        label: ch.label === "Interlude" ? "Interlude" : (ch.part && ch.part.beside ? "Pack " : "§") + ch.label + "." + (i + 1),
         path: ch.path + "#" + s.id, part: ch.part.id
       };
     });

@@ -42,7 +42,7 @@ export function input(): NextInput | null {
     ch.sections.forEach((s: any, i: number) => {
       const id = ch.id + "#" + s.id;
       sections[id] = {
-        id, label: ch.label === "Interlude" ? "Interlude" : "§" + ch.label + "." + (i + 1),
+        id, label: ch.label === "Interlude" ? "Interlude" : (ch.part?.beside ? "Pack " : "§") + ch.label + "." + (i + 1),
         title: s.title, path: ch.path + "#" + s.id, chapter: ch.id, index: index++
       };
     });

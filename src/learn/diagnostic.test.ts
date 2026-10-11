@@ -22,7 +22,7 @@ function loadGen(): Record<string, any> {
   const win: Record<string, any> = {};
   win.window = win;
   createContext(win);
-  ["core", "part1", "part2", "part3", "part4"].forEach((p) => {
+  ["core", "part1", "part2", "part3", "part4", "packs"].forEach((p) => {
     const f = "data/gen/" + p + ".js";
     runInContext(readFileSync(join(ROOT, f), "utf8"), win, { filename: f });
   });

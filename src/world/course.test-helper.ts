@@ -30,7 +30,7 @@ export const FIXTURE_PACKS = {
   ]
 };
 
-/** The real curriculum plus the fixture Part, flattened by data/curriculum.js's own code
+/** The real curriculum's four Parts plus the fixture Part, flattened by data/curriculum.js's own code
     (the Part goes in between the literal and the flattening IIFE). */
 export function courseWithPacks(): ReturnType<typeof course> & { chapters: { id: string }[]; courseChapters: { id: string }[] } {
   const src = fs.readFileSync(path.join(ROOT, "data/curriculum.js"), "utf8");
@@ -38,7 +38,10 @@ export function courseWithPacks(): ReturnType<typeof course> & { chapters: { id:
   const window: Record<string, unknown> = {};
   const ctx = vm.createContext({ window });
   vm.runInContext(src.slice(0, cut), ctx, { filename: "data/curriculum.js" });
-  (window.BM_CURRICULUM as { parts: unknown[] }).parts.push(JSON.parse(JSON.stringify(FIXTURE_PACKS)));
+  /* the real Part V (pack A) goes first, so the fixture's two packs are the only packs */
+  const C = window.BM_CURRICULUM as { parts: { beside?: boolean }[] };
+  C.parts = C.parts.filter((p) => !p.beside);
+  C.parts.push(JSON.parse(JSON.stringify(FIXTURE_PACKS)));
   vm.runInContext(src.slice(cut), ctx, { filename: "data/curriculum.js" });
   return window.BM_CURRICULUM as never;
 }

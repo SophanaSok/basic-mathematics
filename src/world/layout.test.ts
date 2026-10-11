@@ -3,11 +3,13 @@ import { layout, rowAt, worldParts, segmentDistance, ISLE_R, ROW_Z, ROW_Y, PLINT
 import { course, courseWithPacks, motifs } from "./course.test-helper.ts";
 
 const C = course();
+/* the world draws the four Parts of the course; the real Part V (pack A) is beside them and has no region */
+const PARTS = C.parts.filter((p) => !p.beside);
 const L = layout(C);
 
 describe("the course world's layout", () => {
   it("stands one island per chapter, in reading order, each Part on its own row", () => {
-    expect(L.isles.map((s) => s.id)).toEqual(C.parts.flatMap((p) => p.chapters.map((ch) => ch.id)));
+    expect(L.isles.map((s) => s.id)).toEqual(PARTS.flatMap((p) => p.chapters.map((ch) => ch.id)));
     expect(L.isles.length).toBe(17);
     L.isles.forEach((s) => {
       expect(s.z).toBe(-ROW_Z * s.p);
@@ -21,15 +23,15 @@ describe("the course world's layout", () => {
   });
 
   it("has a review gate per Part, at the island of the chapter that carries #review", () => {
-    expect(L.gates.map((g) => g.part)).toEqual(C.parts.map((p) => p.id));
+    expect(L.gates.map((g) => g.part)).toEqual(PARTS.map((p) => p.id));
     L.gates.forEach((g) => {
-      const ch = C.parts[g.p].chapters.find((c) => c.id === L.isles[g.isle].id)!;
+      const ch = PARTS[g.p].chapters.find((c) => c.id === L.isles[g.isle].id)!;
       expect((ch.sections || []).some((s) => s.id === "review")).toBe(true);
     });
   });
 
   it("gives each Part a terrace under all its islands and its gate, one step up and back from the last", () => {
-    expect(L.regions.map((r) => r.id)).toEqual(C.parts.map((p) => p.id));
+    expect(L.regions.map((r) => r.id)).toEqual(PARTS.map((p) => p.id));
     L.regions.forEach((r, p) => {
       expect(r.top).toBeCloseTo(ROW_Y * p - PLINTH);
       if (p) {
@@ -69,14 +71,14 @@ describe("a Part beside the course", () => {
   it("has no island, row, gate or region in the world", () => {
     expect(LP.isles.length).toBe(17);
     expect(LP.isles.map((s) => s.id)).toEqual(L.isles.map((s) => s.id));
-    expect(LP.regions.map((r) => r.id)).toEqual(C.parts.map((p) => p.id));
+    expect(LP.regions.map((r) => r.id)).toEqual(PARTS.map((p) => p.id));
     expect(LP.gates.length).toBe(4);
     expect(LP.path).toEqual(L.path);
     expect(worldParts(P).length).toBe(4);
   });
 
   it("gives createWorld the same four arches", () => {
-    expect(worldParts(P).map((p) => (p as { id: string }).id)).toEqual(C.parts.map((p) => p.id));
+    expect(worldParts(P).map((p) => (p as { id: string }).id)).toEqual(PARTS.map((p) => p.id));
     expect(motifs(P).length).toBe(4);
   });
 });

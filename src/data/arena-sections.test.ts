@@ -19,7 +19,7 @@ function load(files: string[]): Record<string, any> {
 
 describe("the sections the Arena can ask about", () => {
   it("are exactly the generators' sections, in reading order", () => {
-    const gen = load(["core", "part1", "part2", "part3", "part4"].map((p) => "data/gen/" + p + ".js")).BMGen;
+    const gen = load(["core", "part1", "part2", "part3", "part4", "packs"].map((p) => "data/gen/" + p + ".js")).BMGen;
     const C = load(["data/curriculum.js"]).BM_CURRICULUM;
     const order: string[] = [];
     C.chapters.forEach((ch: any) => ch.sections.forEach((s: any) => order.push(ch.id + "#" + s.id)));

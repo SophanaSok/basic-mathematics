@@ -14,6 +14,8 @@
    (chapterDone), the progress table and funnel of assets/insights.js, the Arena's deck of
    assets/arena.js and the map of assets/map3d.js are inside page-sized closures that need
    a DOM; their edits are one filter each, and map.test.js holds the map to four Part buttons.
+   The real Part V (data/curriculum.js) is checked on its own below, and the pack naming
+   ("Pack A", never "Chapter A") and the home card's lack of an empty number square.
    Usage: node tools/game/beside.test.js */
 "use strict";
 const fs = require("fs");
@@ -37,11 +39,13 @@ const PACKS = {
   ]
 };
 
-/* the curriculum source with the fixture Part put in ahead of its flattening code */
+/* the curriculum source with the fixture Part put in ahead of its flattening code; the real
+   Part V (pack A) is dropped first, so the fixture's two packs are the only packs */
 function fixtureSource() {
   const src = read("data/curriculum.js");
   const cut = src.indexOf("/* Flat chapter list");
-  return src.slice(0, cut) + "window.BM_CURRICULUM.parts.push(" + JSON.stringify(PACKS) + ");\n" + src.slice(cut);
+  return src.slice(0, cut) + "window.BM_CURRICULUM.parts = window.BM_CURRICULUM.parts.filter(function (p) { return !p.beside; });\n" +
+    "window.BM_CURRICULUM.parts.push(" + JSON.stringify(PACKS) + ");\n" + src.slice(cut);
 }
 
 /* ---------------------------------------------- courseChapters, both flatteners */
@@ -62,6 +66,18 @@ function fixtureSource() {
       '{ id: "b", beside: true, chapters: [{ id: "p1", file: "p1.html" }], dir: "2" }] };');
     eq([old.chapters.length, old.courseChapters.map((c) => c.id)], [2, ["c1"]], "the older layout builds courseChapters too");
   }
+}
+
+/* ------------------------------------------------- the real Part V in the curriculum */
+{
+  const sb = { window: {} };
+  vm.createContext(sb);
+  vm.runInContext(read("data/curriculum.js"), sb);
+  const C = sb.window.BM_CURRICULUM;
+  const part = C.parts[C.parts.length - 1];
+  eq([part.id, part.num, part.dir, part.beside], ["packs", "V", "5-packs", true], "the last Part of data/curriculum.js is Part V, the skill packs, beside");
+  eq(part.chapters.map((c) => c.id + ":" + c.label + ":" + c.course), ["pk-percent:A:pre-algebra"], "pack A is the only pack so far");
+  eq([C.chapters.length, C.courseChapters.length], [18, 17], "the real tree: 18 chapters, 17 in the course");
 }
 
 /* ------------------------------------------------------ assets/site.js pages */
@@ -114,6 +130,9 @@ const hrefs = (html) => (html.match(/href="[^"]*"/g) || []);
   eq(order.slice(-1), ['data-part="packs"'], "the pack card is drawn last, after Part IV");
   check(order.length >= 5, "five Part cards in all: " + order.join(" "));
   check(/<h2 id="part-packs">Skill packs<\/h2>/.test(html), "the pack card is titled by its name alone");
+  check(/<div class="part-head"><h2 id="part-packs">/.test(html), "the pack card draws no empty number square");
+  check(/<span class="roman" aria-hidden="true">I<\/span>/.test(html), "course Parts still draw their numeral");
+  check(/<span class="label">Pack A<\/span>/.test(html) && !/Chapter A/.test(html), "a pack reads Pack A, never Chapter A");
   check(!/Part V/.test(html), "no part number in the pack card");
   check(/<h2 id="part-\w+">Part I — /.test(html), "course Parts still read Part I —");
   check(/data-chapter="pk-ratio"/.test(html), "the packs are listed");

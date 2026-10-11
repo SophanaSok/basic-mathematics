@@ -1,0 +1,615 @@
+<!doctype html>
+<html lang="en">
+<head>
+<!--bm:head-->
+<title>Pack A. Ratios, Rates and Percent — Basic Mathematics</title>
+<meta name="description" content="Ratios and rates, unit prices and speeds, and proportions solved by cross-multiplying: the arithmetic the gate exams ask for and the book leaves out.">
+</head>
+<body data-depth="2" data-chapter="pk-percent" data-part="packs">
+<!--bm:topbar-->
+
+<div class="wrap">
+<div class="layout">
+  <aside class="sidebar" data-sidebar></aside>
+  <main id="main">
+
+    <header class="region-banner">
+      <p class="eyebrow">Skill packs · Pack A</p>
+      <h1>Ratios, Rates and Percent</h1>
+      <p class="lede">
+        Comparing two quantities is the most common thing a word problem asks of you, and the
+        exams ask it constantly. This pack says what a ratio and a rate are, why the rules for
+        working with them hold, and how to keep a problem from fooling you.
+      </p>
+
+      <div class="banner-meta" data-banner-meta></div>
+
+    </header>
+
+    <div class="puzzle" id="puzzle">
+      <span class="tag">A puzzle to carry through the pack</span>
+      <p>
+        Five machines make five widgets in five minutes. How long would it take one hundred
+        machines to make one hundred widgets?
+      </p>
+      <ul class="guess">
+        <li>100 minutes</li>
+        <li>20 minutes</li>
+        <li>5 minutes</li>
+      </ul>
+      <p class="puzzle-after">Most people's first answer is wrong. The idea of a rate, in the first section, settles it in two lines.</p>
+    </div>
+
+    <div class="goal">
+      <strong>By the end of this pack you can</strong>
+      write a ratio in lowest terms and tell a part-to-part ratio from a part-to-whole one, find
+      and compare unit rates, solve a proportion and say why cross-multiplying works, and spot the
+      number in a word problem that does not belong to the question.
+    </div>
+
+    <section class="warmup" id="warmup">
+      <div class="callout aside">
+        <span class="tag">Before you start</span>
+        <p>
+          This pack leans on <a href="../1-algebra/01-numbers.html#rationals">fractions as single
+          numbers</a> (Chapter 1) and on <a href="../1-algebra/02-linear-equations.html#one-unknown">the
+          two legal moves for an equation</a> (Chapter 2). You need no other part of the course, and
+          you can read the pack at any point alongside it.
+        </p>
+      </div>
+
+      <p>
+        Three quick ones to wake up what the pack stands on. They are not scored. If one doesn't
+        come to you, its solution says where to look.
+      </p>
+
+      <div class="ex" data-inline id="w1" data-label="Warm-up 1" data-type="fraction" data-answer="3/4"
+           data-placeholder="e.g. 1/2"
+           data-hint="Divide the top and the bottom by the same number, the largest that goes into both.">
+        <div class="ex-q">
+          <p>
+            Write $\dfrac{18}{24}$ in lowest terms.
+          </p>
+        </div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $\dfrac34$</p>
+          <p>
+            The largest number that divides both $18$ and $24$ is $6$, and
+            $\frac{18}{24} = \frac{18 \div 6}{24 \div 6} = \frac34$. See <a
+            href="../1-algebra/01-numbers.html#rationals">§1.5</a>. A ratio is simplified the same way.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" data-inline id="w2" data-label="Warm-up 2" data-type="number" data-answer="16"
+           data-hint="Dividing by a number means multiplying by its inverse.">
+        <div class="ex-q">
+          <p>
+            Compute $12 \div \dfrac34$.
+          </p>
+        </div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $16$</p>
+          <p>
+            Dividing by $\frac34$ is multiplying by its inverse $\frac43$: $12 \cdot \frac43 = 16$. See
+            <a href="../1-algebra/01-numbers.html#inverses">§1.6</a>. Rates are quotients, and this is
+            the move behind them.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" data-inline id="w3" data-label="Warm-up 3" data-type="number" data-answer="12"
+           data-hint="Which number, multiplied by both sides, frees x?">
+        <div class="ex-q">
+          <p>
+            Solve $\dfrac{x}{4} = 3$.
+          </p>
+        </div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $x = 12$</p>
+          <p>
+            Multiply both sides by $4$, which is not zero: $x = 12$. See <a
+            href="../1-algebra/02-linear-equations.html#one-unknown">§2.1</a>. Solving a proportion is
+            this move done twice.
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <h2 id="ratios">A.1 Ratios and rates</h2>
+    <p>
+      A <b>ratio</b> compares two quantities of the same kind by saying how many there are of one for
+      the other. A bag holds $8$ red marbles and $12$ blue ones, so the ratio of red to blue is
+      $8 : 12$. Shrink the bag to $2$ red and $3$ blue and nothing about the comparison has changed,
+      so $8 : 12$ and $2 : 3$ are the same ratio. The reason is that a ratio records only how the two
+      numbers compare, and a comparison survives multiplying or dividing both numbers by the same
+      nonzero number. That is exactly the rule for equal fractions in <a
+      href="../1-algebra/01-numbers.html#rationals">Chapter 1</a>, and it gives the rule for
+      simplifying: divide both terms by their greatest common factor. When no number but $1$ divides
+      both, the ratio is in <b>lowest terms</b>. Here the common factor is $4$, and $8 : 12$ becomes
+      $2 : 3$.
+    </p>
+    <p>
+      Two kinds of ratio hide behind the same words. Red to blue, $2 : 3$, compares one <b>part</b>
+      with another. Red to all the marbles compares a part with the <b>whole</b>, and the whole is
+      $2 + 3 = 5$ marbles, so the ratio is $2 : 5$. As a fraction, red is $\frac25$ of the marbles,
+      not $\frac23$. Most slips come from counting the wrong whole, so read the words after "to" and
+      ask what they count. Order matters too: blue to red is $3 : 2$, a different ratio.
+    </p>
+    <p>
+      A <b>rate</b> is a ratio of two quantities of different kinds, such as miles and hours or
+      dollars and ounces, written with the word "per". To find it, divide. If a car goes $150$ miles
+      in $3$ hours, then $150 \div 3 = 50$ miles for each hour, or $50$ miles per hour. A rate with
+      "one" underneath is a <b>unit rate</b>. It matters because two rates that count different
+      amounts cannot be compared as they stand: is $12$ ounces for $\$3.00$ a better price than $20$
+      ounces for $\$4.60$? Dividing each by its amount turns two statements about different amounts
+      into two statements about the same amount, one ounce, and now the prices can be set side by
+      side.
+    </p>
+    <p>
+      Units are a check on which way to divide. Carry them through like numbers: miles divided by
+      hours is miles per hour, and $50$ miles per hour times $2$ hours is $100$ miles, because the
+      hours cancel. If the units you end with are not the ones the question asks for, you divided the
+      wrong way round. And if the units of the time differ from the units of the rate, convert before
+      dividing: $30$ minutes is half an hour, not $30$ hours.
+    </p>
+
+    <div class="worked">
+      <h3><span class="num">Example 1.</span> The better buy</h3>
+      <div class="body">
+        <p>
+          A $12$-ounce box of cereal costs $\$3.00$, and a $20$-ounce box costs $\$4.60$. Which box
+          is cheaper per ounce, and by how much?
+        </p>
+        <ol class="steps">
+          <li>Work in cents, so the division stays in whole numbers: $\$3.00$ is $300$ cents and
+            $\$4.60$ is $460$ cents.</li>
+          <li>Small box: $300 \div 12 = 25$ cents per ounce.</li>
+          <li>Large box: $460 \div 20 = 23$ cents per ounce.</li>
+          <li>Check by multiplying back: $25 \cdot 12 = 300$ ✓ and $23 \cdot 20 = 460$ ✓.
+            The large box is cheaper, by $2$ cents per ounce. $\blacksquare$</li>
+        </ol>
+        <p class="note">
+          Neither total price nor box size answers the question alone. Only the price for one ounce
+          does, and a bigger box is not always the cheaper one.
+        </p>
+      </div>
+    </div>
+
+    <div class="ex" data-inline id="t1" data-type="ratio" data-answer="3:5" data-placeholder="e.g. 1:2"
+         data-hint="Games won out of games played is a part-to-whole ratio. How many games were played?"
+         data-hint2="Games played is the wins and the losses together.">
+      <div class="ex-q">
+        <p>
+          A team has won $12$ games and lost $8$. What is the ratio of games won to games played, in
+          lowest terms?
+        </p>
+      </div>
+      <div class="ex-solution">
+        <p class="answer">Answer: $3 : 5$</p>
+        <p>
+          Games played: $12 + 8 = 20$. The ratio is $12 : 20$, and dividing both terms by $4$ gives
+          $3 : 5$. Won to lost would have been $12 : 8 = 3 : 2$, a different ratio.
+        </p>
+      </div>
+    </div>
+
+    <div class="worked">
+      <h3><span class="num">Example 2.</span> A rate in the wrong units</h3>
+      <div class="body">
+        <p>
+          A runner covers $2.4$ miles in $18$ minutes. What is her speed in miles per hour?
+        </p>
+        <ol class="steps">
+          <li>The answer is wanted per hour, so change the time first: $18$ minutes is
+            $\frac{18}{60} = \frac{3}{10}$ of an hour.</li>
+          <li>Divide the distance by the time: $2.4 \div \frac{3}{10} = 2.4 \cdot \frac{10}{3} = 8$.</li>
+          <li>Check by running it forward: $8$ miles per hour for $\frac{3}{10}$ of an hour is
+            $8 \cdot \frac{3}{10} = 2.4$ miles ✓. Her speed is $8$ miles per hour. $\blacksquare$</li>
+        </ol>
+        <p class="note">
+          Dividing $2.4$ by $18$ would give miles per <em>minute</em>, about $0.133$, a perfectly good
+          rate but not the one asked for. The units gave it away.
+        </p>
+      </div>
+    </div>
+
+    <div class="ex" data-inline id="t2" data-type="number" data-answer="5" data-placeholder="gallons per minute"
+         data-hint="A rate is a quotient. Which quantity goes on the bottom, if the answer is per minute?"
+         data-hint2="Divide the amount of water by the number of minutes.">
+      <div class="ex-q">
+        <p>
+          A hose fills a $45$-gallon tub in $9$ minutes. How many gallons does it deliver per minute?
+        </p>
+      </div>
+      <div class="ex-solution">
+        <p class="answer">Answer: $5$ gallons per minute</p>
+        <p>
+          $45 \div 9 = 5$. Check: $5$ gallons per minute for $9$ minutes is $5 \cdot 9 = 45$ gallons ✓.
+        </p>
+      </div>
+    </div>
+
+    <div class="ex" data-inline id="t3" data-type="number" data-answer="21" data-placeholder="cents per ounce"
+         data-hint="Find the price per ounce of each box, in cents, and keep the lower one."
+         data-hint2="Divide 330 by 15, and 504 by 24.">
+      <div class="ex-q">
+        <p>
+          Cereal A is $15$ ounces for $\$3.30$. Cereal B is $24$ ounces for $\$5.04$. What is the
+          lower price per ounce, in cents?
+        </p>
+      </div>
+      <div class="ex-solution">
+        <p class="answer">Answer: $21$ cents per ounce</p>
+        <p>
+          A: $330 \div 15 = 22$ cents. B: $504 \div 24 = 21$ cents. B is cheaper per ounce, at $21$
+          cents. Check: $21 \cdot 24 = 504$ ✓.
+        </p>
+      </div>
+    </div>
+
+    <h2 id="proportions">A.2 Proportions</h2>
+    <p>
+      A <b>proportion</b> is a statement that two ratios are equal:
+      $\dfrac{a}{b} = \dfrac{c}{d}$. They turn up whenever one quantity is a fixed multiple of
+      another: the price is a fixed multiple of the number of items, the miles are a fixed multiple of
+      the hours at a steady speed, and the real distance is a fixed multiple of the distance on the
+      map. If a recipe needs $3$ cups of flour for $12$ muffins, then every muffin takes the same
+      share of flour, so $24$ muffins take twice as much and $6$ muffins take half.
+    </p>
+    <p>
+      The standard way to solve a proportion is to <b>cross-multiply</b>, and here is why it works.
+      Start with $\dfrac{a}{b} = \dfrac{c}{d}$ where $b$ and $d$ are not zero. Multiplying both sides
+      by $b$ keeps the equation true, and gives $a = \dfrac{bc}{d}$. Multiplying both sides by $d$ then
+      gives $ad = bc$. Cross-multiplying is nothing more than multiplying both sides by both
+      denominators, the second legal move of <a
+      href="../1-algebra/02-linear-equations.html#one-unknown">Chapter 2</a>. Because neither
+      denominator is zero, each step can be undone, so the new equation has exactly the same
+      solutions. It also hands you a test: $\frac{a}{b} = \frac{c}{d}$ exactly when $ad = bc$. For
+      $\frac{x}{12} = \frac{21}{14}$ it says $14x = 12 \cdot 21 = 252$, so $x = 18$. Reducing first
+      is quicker: $\frac{21}{14} = \frac32$, and $12 \cdot \frac32 = 18$.
+    </p>
+    <p>
+      The hard part is not solving but <b>setting up</b>. Keep the same kind of quantity in the same
+      place on both sides: flour over muffins on the left means flour over muffins on the right. Write
+      the units in, as in $\dfrac{3 \text{ cups}}{12 \text{ muffins}} = \dfrac{x \text{ cups}}{30 \text{ muffins}}$.
+      A flipped side, muffins over flour, would give a wrong answer with every step done correctly.
+      The other route is to find the unit rate first, here $\frac{3}{12} = \frac14$ cup per muffin,
+      and multiply by the new count. Both routes are the same equation seen two ways, so use
+      whichever suits the numbers.
+    </p>
+    <p>
+      Two warnings. First, a word problem often carries numbers the question does not need. The oven
+      temperature does not change with the size of the batch; the eggs do, but nobody asked about
+      them. Ask of each number: if I doubled the batch, would this one double? Use the ones that do
+      and are asked about. Second, a proportion works only when the ratio really is constant. A taxi
+      that charges $\$3$ plus $\$2$ per mile is not proportional, because $2$ miles do not cost twice
+      what $1$ mile does. A proportion also solves a sharing problem: when two quantities are shared
+      $2 : 7$ and the total is $45$, there are $2 + 7 = 9$ equal parts, each $45 \div 9 = 5$.
+    </p>
+
+    <div class="worked">
+      <h3><span class="num">Example 3.</span> A proportion with a number that does not belong</h3>
+      <div class="body">
+        <p>
+          A recipe makes $12$ muffins from $3$ cups of flour and $2$ eggs, and bakes them for $25$
+          minutes at $350$ degrees. How many cups of flour make $30$ muffins?
+        </p>
+        <ol class="steps">
+          <li>Only the flour and the number of muffins change together. The eggs, the time and the
+            oven are not part of this question.</li>
+          <li>Set flour over muffins on both sides:
+            $\dfrac{3}{12} = \dfrac{x}{30}$.</li>
+          <li>Multiply both sides by $30$: $x = \dfrac{3 \cdot 30}{12} = \dfrac{90}{12} = 7.5$.</li>
+          <li>Check by the unit rate: $\frac{3}{12} = \frac14$ cup per muffin, and
+            $30 \cdot \frac14 = 7.5$ ✓. The batch needs $7.5$ cups of flour. $\blacksquare$</li>
+        </ol>
+      </div>
+    </div>
+
+    <div class="ex" data-inline id="t4" data-type="number" data-answer="15" data-placeholder="x ="
+         data-hint="Multiply both sides by both denominators, or cross-multiply."
+         data-hint2="The cross-products are 5 times 24 and 8 times x.">
+      <div class="ex-q">
+        <p>
+          Solve $\dfrac{5}{8} = \dfrac{x}{24}$.
+        </p>
+      </div>
+      <div class="ex-solution">
+        <p class="answer">Answer: $x = 15$</p>
+        <p>
+          Cross-multiplying: $8x = 5 \cdot 24 = 120$, so $x = 15$. Check: $\frac{15}{24}$ reduces
+          to $\frac58$ ✓.
+        </p>
+      </div>
+    </div>
+
+    <div class="worked">
+      <h3><span class="num">Example 4.</span> Mixing two ratios</h3>
+      <div class="body">
+        <p>
+          The ratio of apples to oranges is $3 : 4$, and the ratio of oranges to pears is $6 : 5$.
+          What is the ratio of apples to pears?
+        </p>
+        <ol class="steps">
+          <li>The two ratios share the oranges, but write them with different numbers, $4$ and $6$.
+            Make them the same number. The least common multiple of $4$ and $6$ is $12$.</li>
+          <li>Multiply the first ratio by $3$: $3 : 4 = 9 : 12$. Multiply the second by $2$:
+            $6 : 5 = 12 : 10$.</li>
+          <li>Now the oranges are $12$ in both, so apples : oranges : pears is $9 : 12 : 10$, and
+            apples to pears is $9 : 10$, already in lowest terms.</li>
+          <li>Check with real fruit: $12$ oranges go with $9$ apples, and $\frac{9}{12} = \frac34$ ✓;
+            they go with $10$ pears, and $\frac{12}{10} = \frac65$ ✓. $\blacksquare$</li>
+        </ol>
+        <p class="note">
+          Simply writing $3 : 5$ ignores that the "$4$" and the "$6$" count oranges on different
+          scales. The shared quantity must be made equal before the outer two are compared.
+        </p>
+      </div>
+    </div>
+
+    <div class="ex" data-inline id="t5" data-type="number" data-answer="10" data-placeholder="inches"
+         data-hint="Width goes over height on both sides: a photo and its enlargement keep the same ratio."
+         data-hint2="Set 6 over 4 equal to 15 over x.">
+      <div class="ex-q">
+        <p>
+          A photo $6$ inches wide and $4$ inches tall is enlarged so that it is $15$ inches wide. If
+          the enlargement keeps the same shape, how many inches tall is it?
+        </p>
+      </div>
+      <div class="ex-solution">
+        <p class="answer">Answer: $10$ inches</p>
+        <p>
+          $\frac{6}{4} = \frac{15}{x}$, so $6x = 4 \cdot 15 = 60$ and $x = 10$. Check: the width
+          grew by a factor of $\frac{15}{6} = 2.5$, and $4 \cdot 2.5 = 10$ ✓.
+        </p>
+      </div>
+    </div>
+
+    <div class="ex" data-inline id="t6" data-answer="2"
+         data-hint="In a proportional relationship the ratio of cost to amount is the same at every size. Test one price at two amounts."
+         data-hint2="Find the cost of 1 unit and the cost of 2 units in each choice. Does twice the amount cost twice as much?">
+      <div class="ex-q">
+        <p>
+          Which of these is a proportional relationship between cost and amount?
+        </p>
+      </div>
+      <ul class="choices">
+        <li>A taxi charges $\$3$ plus $\$2$ per mile.</li>
+        <li>A tutor charges $\$25$ per hour, with no other fee.</li>
+        <li>A phone plan costs $\$20$ plus $\$5$ per gigabyte.</li>
+      </ul>
+      <div class="ex-solution">
+        <p class="answer">Answer: the tutor</p>
+        <p>
+          Only the tutor's cost doubles when the hours double. The taxi charges $\$5$ for $1$ mile and
+          $\$7$ for $2$, and the phone plan $\$25$ for $1$ gigabyte and $\$30$ for $2$: each has a fixed
+          charge on top, so the ratio of cost to amount changes with the amount.
+        </p>
+      </div>
+    </div>
+
+    <!-- ====================================================== practice ==== -->
+    <section class="practice" id="practice">
+      <div class="practice-head">
+        <h2 style="margin-top:0">Practice</h2>
+        <span class="practice-score" data-practice-score></span>
+      </div>
+      <p>
+        Give a ratio as two numbers with a colon, like $3 : 4$, and a rate or an unknown as a single
+        number. Ask yourself in each problem what is being compared, and which numbers belong to the
+        question.
+      </p>
+
+      <div class="ex" id="e1" data-section="ratios" data-type="ratio" data-answer="3:4" data-placeholder="e.g. 1:2"
+           data-hint="Write the numbers in the order the question names them, then divide both by the largest number that goes into each."
+           data-hint2="The largest number that divides both 18 and 24 is 6.">
+        <div class="ex-q"><p>A class has $18$ girls and $24$ boys. What is the ratio of girls to boys, in lowest terms?</p></div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $3 : 4$</p>
+          <p>
+            The ratio is $18 : 24$. Dividing both terms by $6$ gives $3 : 4$. Check: $3 \cdot 6 = 18$
+            and $4 \cdot 6 = 24$ ✓.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" id="e2" data-section="ratios" data-type="ratio" data-answer="2:5" data-placeholder="e.g. 1:2"
+           data-hint="This compares a part with the whole. The second term counts every marble, not only the other color."
+           data-hint2="There are 20 marbles in all, so the ratio of red to all is 8 to 20.">
+        <div class="ex-q"><p>A bag holds $20$ marbles, of which $8$ are red and the rest are blue. What is the ratio of red marbles to all the marbles, in lowest terms?</p></div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $2 : 5$</p>
+          <p>
+            Red to all is $8 : 20$, and dividing by $4$ gives $2 : 5$. The ratio of red to <em>blue</em>
+            would be $8 : 12 = 2 : 3$, a part-to-part ratio; here the question asks for part to
+            whole.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" id="e3" data-section="ratios" data-type="ratio" data-answer="2:3" data-placeholder="e.g. 1:2"
+           data-hint="First find how many students ride the bus. Then keep the order the question asks for: bus riders first."
+           data-hint2="The bus riders are the students who do not walk: 35 minus 21.">
+        <div class="ex-q"><p>Of $35$ students surveyed, $21$ walk to school and the rest ride a bus. What is the ratio of bus riders to walkers, in lowest terms?</p></div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $2 : 3$</p>
+          <p>
+            Bus riders: $35 - 21 = 14$. In the order asked the ratio is $14 : 21$, and dividing both
+            terms by $7$ gives $2 : 3$. Writing it as $3 : 2$ puts the walkers first, which answers a
+            different question.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" id="e4" data-section="ratios" data-type="number" data-answer="25" data-placeholder="cents per ounce"
+           data-hint="Compare the price for one ounce, not the prices of the jars. Work in cents."
+           data-hint2="Divide each total in cents by its number of ounces and keep the lower result.">
+        <div class="ex-q"><p>A $16$-ounce jar of peanut butter costs $\$4.48$, and a $40$-ounce jar costs $\$10.00$. What is the lower price per ounce, in cents?</p></div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $25$ cents per ounce</p>
+          <p>
+            Small jar: $448 \div 16 = 28$ cents per ounce. Large jar: $1000 \div 40 = 25$ cents per
+            ounce. The lower price is $25$ cents, from the large jar. Check: $25 \cdot 40 = 1000$ ✓.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" id="e5" data-section="ratios" data-type="number" data-answer="60" data-placeholder="miles per hour"
+           data-hint="Speed is distance divided by time. The units of the answer are miles per hour, so check you divide miles by hours."
+           data-hint2="The time is 4.5 hours, so divide 270 by 4.5.">
+        <div class="ex-q"><p>A train covers $270$ miles in $4.5$ hours at a steady speed. What is its speed in miles per hour?</p></div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $60$ miles per hour</p>
+          <p>
+            $270 \div 4.5 = 60$. Check by running it forward: $60 \cdot 4.5 = 270$ miles ✓.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" id="e6" data-section="ratios" data-type="number" data-answer="13.5" data-placeholder="miles per hour"
+           data-hint="The answer is per hour but the time is in minutes. First say what fraction of an hour the time is."
+           data-hint2="40 minutes is two thirds of an hour.">
+        <div class="ex-q"><p>A cyclist rides $9$ miles in $40$ minutes at a steady speed. What is her speed in miles per hour?</p></div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $13.5$ miles per hour</p>
+          <p>
+            $40$ minutes is $\frac{40}{60} = \frac23$ of an hour. Speed is $9 \div \frac23 = 9 \cdot \frac32 = 13.5$
+            miles per hour. Check: $13.5 \cdot \frac23 = 9$ miles ✓.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" id="e7" data-section="proportions" data-type="number" data-answer="6"
+           data-hint="Cross-multiply, or reduce the fraction on the right first."
+           data-hint2="The cross-products are 35 times x and 15 times 14.">
+        <div class="ex-q"><p>Solve for $x$: $\dfrac{x}{15} = \dfrac{14}{35}$.</p></div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $x = 6$</p>
+          <p>
+            Cross-multiplying: $35x = 15 \cdot 14 = 210$, so $x = 6$. Check: $\frac{14}{35} = \frac25$
+            and $\frac{6}{15} = \frac25$ ✓.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" id="e8" data-section="proportions" data-type="number" data-answer="21"
+           data-hint="The unknown is on the bottom. Multiplying both sides by both denominators still works."
+           data-hint2="The cross-products are 9 times 14 and 6 times x.">
+        <div class="ex-q"><p>Solve for $x$: $\dfrac{9}{x} = \dfrac{6}{14}$.</p></div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $x = 21$</p>
+          <p>
+            Cross-multiplying: $6x = 9 \cdot 14 = 126$, so $x = 21$. Check: $\frac{9}{21} = \frac37$
+            and $\frac{6}{14} = \frac37$ ✓.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" id="e9" data-section="proportions" data-type="number" data-answer="10" data-placeholder="cups of milk"
+           data-hint="Some of these numbers have nothing to do with the question. Keep the two that grow together: milk and the number of people served."
+           data-hint2="Milk over people is 4 over 6 on the left; the right side has x over 15.">
+        <div class="ex-q"><p>A pancake recipe serves $6$ people and uses $4$ cups of milk, $3$ eggs and $2$ teaspoons of salt. The pancakes are cooked at $375$ degrees. How many cups of milk are needed to serve $15$ people?</p></div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $10$ cups</p>
+          <p>
+            Only milk and people are proportional here and asked about. $\frac{4}{6} = \frac{x}{15}$, so
+            $6x = 60$ and $x = 10$. Check by the unit rate: $\frac46 = \frac23$ cup per person, and
+            $15 \cdot \frac23 = 10$ ✓.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" id="e10" data-section="proportions" data-type="number" data-answer="75" data-placeholder="kilometers"
+           data-hint="Put centimeters over kilometers on both sides, the scale on one and the two cities on the other."
+           data-hint2="Write 3 over 50 equals 4.5 over x.">
+        <div class="ex-q"><p>On a map, $3$ centimeters stand for $50$ kilometers. Two cities are $4.5$ centimeters apart on the map. How many kilometers apart are they?</p></div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $75$ kilometers</p>
+          <p>
+            $\frac{3}{50} = \frac{4.5}{x}$, so $3x = 50 \cdot 4.5 = 225$ and $x = 75$. Check: the map
+            distance is $\frac{4.5}{3} = 1.5$ times the scale, and $1.5 \cdot 50 = 75$ ✓.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" id="e11" data-section="proportions" data-type="number" data-answer="252" data-placeholder="dollars"
+           data-hint="Pay is proportional to hours, not to days. Find the pay for one hour first."
+           data-hint2="She earns 63 dollars for 7 hours, so one hour pays 63 divided by 7.">
+        <div class="ex-q"><p>Maria earns $\$63$ for $7$ hours of work. Last week she worked on $5$ different days, $28$ hours in all, at the same rate. How many dollars did she earn last week?</p></div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $\$252$</p>
+          <p>
+            One hour pays $63 \div 7 = 9$ dollars, so $28$ hours pay $28 \cdot 9 = 252$ dollars. The
+            number of days is a distractor. Check: $\frac{63}{7} = \frac{252}{28} = 9$ ✓.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" id="e12" data-section="proportions" data-type="ratio" data-answer="15:8" data-placeholder="e.g. 1:2"
+           data-hint="The two ratios share the dogs, but write them with different numbers. Make the dogs the same number in both."
+           data-hint2="The least common multiple of 6 and 9 is 18.">
+        <div class="ex-q"><p>The ratio of cats to dogs is $5 : 6$, and the ratio of dogs to birds is $9 : 4$. What is the ratio of cats to birds, in lowest terms?</p></div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $15 : 8$</p>
+          <p>
+            Make the dogs $18$ in both: $5 : 6 = 15 : 18$ (multiply by $3$) and $9 : 4 = 18 : 8$
+            (multiply by $2$). So cats : dogs : birds is $15 : 18 : 8$, and cats to birds is
+            $15 : 8$, which is in lowest terms. Check: $18$ dogs go with $15$ cats, and
+            $\frac{15}{18} = \frac56$ ✓, and with $8$ birds, and $\frac{18}{8} = \frac94$ ✓.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" id="e13" data-section="proportions" data-type="number" data-answer="10" data-placeholder="cups"
+           data-hint="The 2 : 7 splits the drink into equal parts. Count the parts first."
+           data-hint2="There are 2 + 7 = 9 equal parts, so find how many cups one part is.">
+        <div class="ex-q"><p>Juice concentrate and water are mixed in the ratio $2 : 7$. How many cups of concentrate are in $45$ cups of the mixture?</p></div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $10$ cups</p>
+          <p>
+            The mixture has $2 + 7 = 9$ equal parts, so one part is $45 \div 9 = 5$ cups and the
+            concentrate is $2 \cdot 5 = 10$ cups. As a proportion: $\frac{2}{9} = \frac{x}{45}$,
+            so $9x = 90$ and $x = 10$. Check: the water is $7 \cdot 5 = 35$ cups, and $10 + 35 = 45$ ✓.
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <div class="recap">
+      <h2>Recap</h2>
+      <div class="puzzle-answer">
+        <span class="tag">Back to the puzzle</span>
+        <p data-your-guess></p>
+        <p>
+          Look at one machine. Five machines make five widgets in five minutes, so each machine makes
+          one widget in five minutes: its rate is one widget per five minutes, whatever the other
+          machines do. One hundred machines each make one widget in those five minutes, which is one
+          hundred widgets. The answer is $5$ minutes. The tempting answer, $100$ minutes, scales the
+          time with the number of widgets; but the machines grow in number too, and the two growths
+          cancel.
+        </p>
+      </div>
+      <ul>
+        <li>A ratio compares two numbers, and it is unchanged when both are multiplied or divided by the
+          same nonzero number. Lowest terms: divide by the greatest common factor.</li>
+        <li>Part to part and part to whole are different ratios. Read the words after "to" and
+          count what they count; the whole is the parts added together.</li>
+        <li>A rate is a ratio of different kinds of quantity. A unit rate puts the second quantity at
+          one, and it is the only fair way to compare two prices or two speeds. Convert units
+          before dividing, and let the units tell you which way to divide.</li>
+        <li>A proportion says two ratios are equal. Cross-multiplying is multiplying both sides by both
+          denominators; $\frac{a}{b} = \frac{c}{d}$ exactly when $ad = bc$.</li>
+        <li>Setting up is the hard part: the same kind of quantity in the same place on both sides, and
+          only the numbers that grow together. A relationship with a fixed charge on top is not
+          proportional.</li>
+        <li>To mix two ratios, first make the quantity they share the same number in both.</li>
+      </ul>
+    </div>
+
+    <nav class="chapter-nav" data-chapter-nav aria-label="Previous and next pack"></nav>
+  </main>
+</div>
+</div>
+</body>
+</html>

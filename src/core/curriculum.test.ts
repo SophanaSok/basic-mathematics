@@ -18,8 +18,11 @@ describe("a Part beside the course", () => {
     expect((C as any).chapterById("pk-ratio").path).toBe("parts/5-packs/pk-ratio.html");
   });
 
-  it("is the whole list on the real course, which has no beside Part", () => {
+  it("holds the real Part V, pack A, out of courseChapters", () => {
     const C = course() as any;
-    expect(C.courseChapters.map((c: any) => c.id)).toEqual(C.chapters.map((c: any) => c.id));
+    expect(C.chapters.length).toBe(18);
+    expect(C.courseChapters.length).toBe(17);
+    expect(C.courseChapters.map((c: any) => c.id)).not.toContain("pk-percent");
+    expect(C.chapterById("pk-percent").part.beside).toBe(true);
   });
 });

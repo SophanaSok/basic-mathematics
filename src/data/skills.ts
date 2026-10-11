@@ -267,6 +267,12 @@ export const SKILLS: Readonly<Record<SectionRef, Skill>> = {
     sat: [], act: ["act.phm.nq"], accuplacer: [], aleks: [] },
   "ch16#cramer": { ccss: "8.EE.C.8.b", also: ["HSA.REI.C.6", "HSA.REI.C.8", "HSN.VM.C.10"], course: "pre-algebra",  // Owner Q3: course by tested work, lower grade wins a tie
     sat: ["sat.alg.sys"], act: ["act.phm.alg"], accuplacer: ["qas.lineq", "aaf.lineq"], aleks: ["ppl.eqineq"] },
+
+  /* Part V, the skill packs (beside the course): pack A */
+  "pk-percent#ratios": { ccss: "6.RP.A.3.b", also: ["6.RP.A.1", "6.RP.A.2", "6.RP.A.3.d"], course: "pre-algebra",
+    sat: ["sat.psda.ratio"], act: ["act.ies"], accuplacer: ["qas.ratio"], aleks: ["ppl.real"] },
+  "pk-percent#proportions": { ccss: "6.RP.A.3.a", also: ["7.RP.A.2.c", "7.RP.A.2.b"], course: "pre-algebra",
+    sat: ["sat.psda.ratio"], act: ["act.ies"], accuplacer: ["qas.ratio"], aleks: ["ppl.real", "ppl.eqineq"] },
 };
 
 /** Generators (data/gen/*.js, by id) whose test differs from their section's record. */

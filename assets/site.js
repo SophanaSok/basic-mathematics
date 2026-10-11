@@ -435,7 +435,9 @@
   /* ---------------------------------------------------------- home page -- */
 
   function chapterName(ch) {
-    return ch.label === "Interlude" ? "Interlude" : "Chapter " + ch.label;
+    if (ch.label === "Interlude") return "Interlude";
+    /* a skill pack (a chapter of a beside Part) reads "Pack A", never "Chapter A" */
+    return (ch.part && ch.part.beside ? "Pack " : "Chapter ") + ch.label;
   }
 
   /* The course as a path: one stop per chapter, strung along a line. Nothing is locked —
@@ -462,8 +464,8 @@
       var done = part.chapters.filter(function (ch) { return counts[ch.id].done; }).length;
       html += '<section class="part" data-part="' + escapeHtml(part.id) + '">';
       /* a beside Part (the skill packs) is titled by its name alone, with no part number */
-      html += '<div class="part-head"><span class="roman" aria-hidden="true">' + (part.beside ? "" : part.num) +
-        '</span><h2 id="part-' + part.id + '">' + (part.beside ? "" : "Part " + part.num + " — ") + escapeHtml(part.name) + "</h2>" +
+      html += '<div class="part-head">' + (part.beside ? "" : '<span class="roman" aria-hidden="true">' + part.num + "</span>") +
+        '<h2 id="part-' + part.id + '">' + (part.beside ? "" : "Part " + part.num + " — ") + escapeHtml(part.name) + "</h2>" +
         '<span class="part-count">' + done + " / " + part.chapters.length + " complete</span></div>";
       html += '<p class="part-blurb">' + escapeHtml(part.blurb) + "</p>";
       html += '<ol class="path">';
@@ -604,7 +606,7 @@
           if (!row) {
             row = map[id] = {
               id: id, chapter: ch, section: ch.sections[idx],
-              label: ch.label === "Interlude" ? "Interlude" : "§" + ch.label + "." + (idx + 1),
+              label: ch.label === "Interlude" ? "Interlude" : (ch.part && ch.part.beside ? "Pack " : "§") + ch.label + "." + (idx + 1),
               path: ch.path + "#" + sid, n: 0, solved: 0, first: 0, sum: 0
             };
             list.push(row);
@@ -1291,7 +1293,7 @@
       for (var i = 0; i < 12; i++) html += '<i style="--i:' + i + '"></i>';
       html += "</span>";
     }
-    html += "<b>" + (chapter ? escapeHtml(chapter.label === "Interlude" ? "Interlude" : "Chapter " + chapter.label) : "Chapter") +
+    html += "<b>" + (chapter ? escapeHtml(chapterName(chapter)) : "Chapter") +
       " complete.</b> Every exercise here is solved. ";
     html += next
       ? 'Next: <a href="' + rootPrefix() + escapeHtml(next.path) + '">' +
