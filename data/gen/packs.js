@@ -295,6 +295,8 @@
   }
   /* a placeholder example that is never the key */
   function pctHolder(ans) { return String(ans) === "40" ? "e.g. 30%" : "e.g. 40%"; }
+  /* a percent key that is not whole says so, since 32.5 rounded to 33 would be wrong */
+  function exactPct(ans) { return Number.isInteger(Number(ans)) ? "" : " Give the exact percent."; }
 
   var FINDS = [
     ["A school has", "students", "ride a bus to school"],
@@ -358,10 +360,11 @@
   });
 
   var CHANGES = [
-    { money: true, what: "A bicycle's price", up: "rose", down: "fell", lo: 4, hi: 40 },
-    { money: true, what: "A household's monthly electric bill", up: "rose", down: "fell", lo: 3, hi: 12 },
-    { money: false, what: "Attendance at a school play", up: "rose", down: "fell", lo: 4, hi: 40 },
-    { money: false, what: "A town's population", up: "grew", down: "shrank", lo: 20, hi: 200 }
+    /* most: the largest percent change the thing plausibly makes in one step */
+    { money: true, what: "A bicycle's price", up: "rose", down: "fell", lo: 4, hi: 40, most: 50 },
+    { money: true, what: "A household's monthly electric bill", up: "rose", down: "fell", lo: 3, hi: 12, most: 30 },
+    { money: false, what: "Attendance at a school play", up: "rose", down: "fell", lo: 4, hi: 40, most: 60 },
+    { money: false, what: "A town's population", up: "grew", down: "shrank", lo: 20, hi: 200, most: 15 }
   ];
   var CHANGE_PCT = [5, 10, 15, 20, 25, 30, 40, 50, 60];
 
@@ -390,7 +393,7 @@
           }
         };
       }
-      var c = r.pick(CHANGES), p = r.pick(CHANGE_PCT), base = 20 * r.int(c.lo, c.hi), up = kind === "up";
+      var c = r.pick(CHANGES), p = r.pick(CHANGE_PCT.filter(function (x) { return x <= c.most; })), base = 20 * r.int(c.lo, c.hi), up = kind === "up";
       var next = base * (up ? 100 + p : 100 - p) / 100;
       var f = function (x) { return c.money ? dollars(x) : "$" + fmt(x) + "$"; };
       var verb = up ? c.up : c.down, word = up ? "increase" : "decrease";
@@ -595,7 +598,7 @@
         };
       }
       return {
-        q: "A store takes $" + d1 + "\\%$ off a price, then a further $" + d2 + "\\%$ off the reduced price. What single percent discount gives the same final price?",
+        q: "A store takes $" + d1 + "\\%$ off a price, then a further $" + d2 + "\\%$ off the reduced price. What single percent discount gives the same final price?" + exactPct(clean(single)),
         type: "percent", answer: clean(single), placeholder: pctHolder(clean(single)),
         hint: "Adding the two percents is wrong: the second discount is taken from the reduced price. Think about what part of the original price is left.",
         steps: [
@@ -646,7 +649,7 @@
         if ((100 + up) * (100 - down) >= 10000) { up = 20; down = 20; }
         var net = 100 - (100 + up) * (100 - down) / 100, what = r.pick([["A stock's price", "week"], ["The price of a concert ticket", "month"]]);
         return {
-          q: what[0] + " rises $" + up + "\\%$ in one " + what[1] + " and falls $" + down + "\\%$ the next " + what[1] + ". By what percent is the price lower after the two " + what[1] + "s than at the start?",
+          q: what[0] + " rises $" + up + "\\%$ in one " + what[1] + " and falls $" + down + "\\%$ the next " + what[1] + ". By what percent is the price lower after the two " + what[1] + "s than at the start?" + exactPct(clean(net)),
           type: "percent", answer: clean(net), placeholder: pctHolder(clean(net)),
           hint: "Do not add the two percents: the fall is a percent of the price after the rise. Follow an easy starting price through both changes.",
           steps: [
@@ -686,7 +689,7 @@
       }
       var pct = a1 * a2 / 100;
       return {
-        q: lead + " What percent of all the " + nn.pl + " " + nn.ask + "?",
+        q: lead + " What percent of all the " + nn.pl + " " + nn.ask + "?" + exactPct(clean(pct)),
         type: "percent", answer: clean(pct), placeholder: pctHolder(clean(pct)),
         hint: "Percents of percents multiply, they do not add. Write each percent as a decimal.",
         steps: [
