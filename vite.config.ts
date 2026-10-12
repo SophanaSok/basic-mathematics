@@ -71,7 +71,7 @@ function htmlPages(): Record<string, string> {
    is a chunk under its own name: the WebGL painter (scenes3d.js's dynamic import) is
    bundle/scenes3d-gl.js, supabase-js (account.js's, through src/vendor/supabase.js) is
    bundle/supabase.js, Three.js (three-loader.js's, through src/vendor/three.js) is
-   bundle/three.js, and the course world (map3d.js's import of src/world/index.ts, with
+   bundle/three.js, and the course world (map3d.js's and src/ui/form-view.ts's import of src/world/index.ts, with
    the modules of src/world/ it imports that no entry does) is bundle/world.js. The typed
    grader's modules (src/core/answer/, which src/ui/core.ts imports) are named by no
    entry: each goes where src/core/grade.ts goes, which every entry imports, so all.js,
