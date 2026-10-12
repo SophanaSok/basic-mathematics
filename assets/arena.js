@@ -35,6 +35,12 @@
    Daily is one attempt a day (bm.run.v1.daily keeps today's result for the lobby).
    Nothing here writes bm.attempts.v1 or bm.progress.v1, and no .ex element is
    ever created.
+
+   The Daily board (decision 0006, supabase/schema.sql): a finished Daily that is not a
+   replay is sent once, through window.BMAccount, to submit_daily for a signed-in reader who
+   joined the board, and today's board (daily_board) is drawn under the result.
+   bm.run.v1.board keeps { day, rank, size, sent } from the last fetch, for the lobby's
+   Daily tile. BM_CONFIG.board "off" (or no accounts) means no board, and nothing sent.
    window.BMGame, BMSfx and the HUD are optional: each is feature-detected.
    =========================================================================== */
 (function () {
@@ -85,6 +91,12 @@
   function now() { return Date.now(); }
   function today() { return Site.dayKey(); }
   function plural(n, word) { return n + " " + word + (n === 1 ? "" : "s"); }
+  /* 1st, 2nd, 3rd, 4th, 11th, 12th, 13th, 21st */
+  function ordinal(n) {
+    n = Math.floor(Number(n) || 0);
+    var t = n % 100, u = n % 10;
+    return n + (t > 10 && t < 14 ? "th" : u === 1 ? "st" : u === 2 ? "nd" : u === 3 ? "rd" : "th");
+  }
   function clockText(s) {
     s = Math.max(0, Math.ceil(s - 1e-9));
     var m = Math.floor(s / 60), r = s % 60;
@@ -1128,7 +1140,8 @@
     if (dailyDone()) {
       var t = dailyToday();
       var said = t ? "Done today: " + plural(t.score, "point") + ", " + t.firstTry + " of " + t.n + " first try" : "Done today";
-      return modeTile("daily", "5 questions · today's seed", esc(said) + ". A new one tomorrow.", "done");
+      var placed = boardLine();
+      return modeTile("daily", "5 questions · today's seed", esc(said) + ". " + (placed ? esc(placed) + ". " : "") + "A new one tomorrow.", "done");
     }
     var open = openRun(saved) && saved.mode === "daily" && saved.day === today();
     return modeTile("daily", "5 questions · today's seed", open ? "Today's run is waiting where you left it" : "+10 XP once a day · one attempt", !open && !dk.count);
@@ -1410,6 +1423,8 @@
         cb && cb.fresh ? "New fastest" : fastest ? "Fastest " + msText(fastest) : "Every answer right the first time, all on the clock, sets one.");
     }
     html += "</div>";
+    /* filled after this script and account.js have both started (fillBoard) */
+    if (boardWanted(res)) html += "<div data-arena-board></div>";
     if (res.keys) html += '<p class="arena-fine">Played by keyboard alone.</p>';
     html += reducedHtml(res);
     html += '<div class="arena-review">';
@@ -1435,6 +1450,7 @@
     screenEl().innerHTML = html;
     var h = screenEl().querySelector("#arena-result-h");
     if (h) { try { h.focus({ preventScroll: true }); } catch (e) { h.focus(); } }
+    if (boardWanted(res)) setTimeout(function () { fillBoard(res); }, 0);
     say(title + ". " + res.score + " points, " + res.firstTry + " of " + res.n + " right the first time, " + res.xp + " XP." +
       (res.reduced && res.reduced.length ? " Less XP than usual for a section practiced a lot today; spaced practice tomorrow counts more." : "") +
       (weak.length ? " Worth rereading: " + secName(weak[0].id) + "." : ""));
@@ -1478,6 +1494,137 @@
     return '<div class="arena-card review-reduced" data-xp-reduced><p>' + lines.join("</p><p>") + "</p></div>";
   }
 
+  /* ------------------------------------------------------- the Daily board -- */
+
+  /* The switch is read when it is used: assets/config.js and account.js start after this
+     file. "off", no accounts, or no account script means no board and no request. */
+  function boardOn() {
+    try { return !!(Core.config && Core.config.readConfig(window.BM_CONFIG).board === "on"); } catch (e) { return false; }
+  }
+  function account() {
+    var A = window.BMAccount;
+    return A && typeof A === "object" && A.configured && typeof A.rpc === "function" ? A : null;
+  }
+  function boardWanted(res) { return !!(res && res.mode === "daily" && res.finished && !res.replay && boardOn()); }
+  function boardRec(day) {
+    var b = runStore().board;
+    return b && typeof b === "object" && b.day === day ? b : null;
+  }
+  function setBoardRec(day, rank, size) {
+    var all = runStore();
+    all.board = { day: day, rank: rank === null || rank === undefined || !isFinite(Number(rank)) ? null : Number(rank), size: Math.max(0, Number(size) || 0), sent: 1 };
+    Store.write(RUN_KEY, all, true);
+  }
+  /* "Today: 4th of 12" on the Daily tile, from the last board fetched for today */
+  function boardLine() {
+    if (!boardOn()) return "";
+    var b = boardRec(today());
+    if (!b || !b.sent) return "";
+    return "Today: " + (b.rank ? ordinal(b.rank) + " of " + Number(b.size) : "unranked");
+  }
+
+  /* One console line at most for anything the board does not get: a missing function (the
+     migration not applied), a bound the server refused, no network. None reaches the page. */
+  var boardWarned = false;
+  function boardWarn(e) {
+    if (boardWarned || !window.console) return;
+    boardWarned = true;
+    console.warn("[BM] Daily board: not recorded", e && e.message ? e.message : e);
+  }
+  function notOnBoard(e) { return /not on the board/i.test(String(e && e.message || e || "")); }
+
+  /* What this page has asked for each day: a submit in flight or done is never sent again,
+     whatever redraws the result; a refusal is remembered until the reader joins. */
+  var boardJob = {};
+
+  function boardSlot() { var el = screenEl(); return el ? el.querySelector("[data-arena-board]") : null; }
+  function drawBoard(html) {
+    var slot = boardSlot();
+    if (!slot) return;
+    slot.innerHTML = html ? '<section class="arena-board" aria-labelledby="arena-board-h"><h3 id="arena-board-h">Today\'s Daily board</h3>' + html + "</section>" : "";
+  }
+  var BOARD_NOTE = '<p class="arena-fine">Names are made up for the day; the Daily draws from each player\'s own deck.</p>';
+  function boardSignIn() {
+    return '<p class="arena-fine"><a href="' + esc(root() + "account.html") + '">Sign in</a> to join the Daily board.</p>';
+  }
+  function boardJoinHtml(failed) {
+    return "<p>Others see a made-up name for the day, your Daily score and your time. Turning it off in your account removes your rows.</p>" +
+      (failed ? '<p class="arena-fine" role="status">Could not join just now. Try again in a moment.</p>' : "") +
+      '<div class="arena-actions"><button type="button" class="btn" data-act="board-join">Join the Daily board</button></div>';
+  }
+  function boardTable(rows) {
+    var size = rows.length && isFinite(Number(rows[0].entries)) ? Number(rows[0].entries) : rows.length;
+    if (!rows.length || size < 3) return '<p>The board appears once three people have played today\'s Daily.</p>' + BOARD_NOTE;
+    var body = rows.map(function (r) {
+      var ms = r.ms === null || r.ms === undefined || !(Number(r.ms) > 0) ? "—" : msText(r.ms);
+      return "<tr" + (r.mine === true ? ' data-mine="true"' : "") + "><td>" + Number(r.rank) + "</td><td>" + esc(String(r.handle == null ? "" : r.handle)) +
+        (r.mine === true ? ' <small>(you)</small>' : "") + "</td><td>" + Number(r.score) + "</td><td>" + esc(ms) + "</td></tr>";
+    }).join("");
+    return '<table class="arena-board-table"><thead><tr><th scope="col">Rank</th><th scope="col">Name</th><th scope="col">Score</th><th scope="col">Time</th></tr></thead>' +
+      "<tbody>" + body + "</tbody></table>" + BOARD_NOTE;
+  }
+
+  /* send the run (once), then fetch and draw the day's board */
+  function sendAndShow(A, res) {
+    var day = res.day, job = boardJob[day] = boardJob[day] || {};
+    if (job.refused) { drawBoard(boardJoinHtml(false)); return null; }
+    if (!job.sent) {
+      var held = boardRec(day);
+      job.sent = held && held.sent ? Promise.resolve(held.rank) : A.rpc("submit_daily", {
+        p_day: day, p_score: Number(res.score) || 0, p_n: Number(res.n) || 0, p_firsts: Number(res.firstTry) || 0,
+        p_ms: res.clean && Number(res.clean.ms) > 0 ? Math.round(Number(res.clean.ms)) : null
+      }).then(function (rank) {
+        setBoardRec(day, rank, (boardRec(day) || {}).size);
+        return rank;
+      });
+      /* a refusal waits for the reader to join; any other failure is not sent again from
+         this page */
+      job.sent.then(null, function (e) {
+        if (notOnBoard(e)) { job.sent = null; job.refused = true; }
+      });
+    }
+    return job.sent.then(function (rank) {
+      return A.rpc("daily_board", { p_day: day }).then(function (rows) {
+        rows = Array.isArray(rows) ? rows.filter(function (r) { return r && typeof r === "object"; }) : [];
+        var mine = rows.filter(function (r) { return r.mine === true; })[0];
+        var size = rows.length && isFinite(Number(rows[0].entries)) ? Number(rows[0].entries) : rows.length;
+        /* under three players the board is hidden, and so is a rank */
+        setBoardRec(day, size < 3 ? null : mine ? mine.rank : rank, size);
+        drawBoard(boardTable(rows));
+      });
+    }).then(null, function (e) {
+      if (notOnBoard(e)) { drawBoard(boardJoinHtml(false)); return; }
+      boardWarn(e);
+      drawBoard("");
+    });
+  }
+
+  function fillBoard(res) {
+    if (!boardSlot() || !boardWanted(res)) return;
+    var A = account();
+    if (!A) return;
+    /* a signed-out visitor never loads the account service for this */
+    if (typeof A.hasSession === "function" && !A.hasSession()) { drawBoard(boardSignIn()); return; }
+    A.ready().then(function () {
+      if (!boardSlot()) return;
+      if (!A.user()) { drawBoard(boardSignIn()); return; }
+      sendAndShow(A, res);
+    }, function (e) { boardWarn(e); });
+  }
+
+  function joinBoard(btn) {
+    var res = run && run.result, A = account();
+    if (!res || !boardWanted(res) || !A || !A.user() || typeof A.setBoard !== "function") return;
+    btn.disabled = true;
+    A.setBoard(true).then(function () {
+      delete boardJob[res.day];
+      sendAndShow(A, res);
+    }, function (e) {
+      boardWarn(e);
+      drawBoard(boardJoinHtml(true));
+    });
+  }
+
   /* ------------------------------------------------------------ events ---- */
 
   host.addEventListener("click", function (e) {
@@ -1510,6 +1657,7 @@
       clearRun();
       startRun(m || "standard", opt);
     } else if (act === "lobby") { clearRun(); renderLobby(); }
+    else if (act === "board-join") joinBoard(t);
   });
 
   host.addEventListener("change", function (e) {

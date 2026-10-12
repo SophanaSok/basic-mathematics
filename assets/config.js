@@ -18,4 +18,9 @@ window.BM_CONFIG = {
      reaches the project's team): leaves out "Email me a sign-in link" and "Forgot
      password", which work only through an email. Set to true once custom SMTP is set up. */
   emailDelivery: false
+  /* The Daily board (docs/decisions/0006-keyboard-and-speedruns.md) is on by default, for
+     signed-in readers who join it. To switch it off, add  board: "off"  as a setting here
+     (with a comma after emailDelivery's value): nothing is sent to or fetched from the
+     board, the Arena shows no board and the account page shows no Daily board switch.
+     Apply the board's part of supabase/schema.sql before leaving it on (supabase/README.md). */
 };

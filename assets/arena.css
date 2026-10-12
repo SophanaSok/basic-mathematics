@@ -235,6 +235,19 @@ html[data-calm] .arena-hearts { display: none; }
 .arena-weak small { color: var(--muted); margin-left: .3rem; }
 .arena-weak-links { display: flex; gap: .8rem; }
 
+/* the Daily board under a Daily's result (decision 0006): the reader's own row marked by
+   weight and a rule as well as colour */
+.arena-board { margin: .2rem 0 .9rem; }
+.arena-board h3 { margin: 0 0 .4rem; font-size: 1.05rem; }
+.arena-board > p { margin: 0 0 .5rem; }
+.arena-board-table { width: 100%; border-collapse: collapse; font-size: .92rem; font-variant-numeric: tabular-nums; }
+.arena-board-table th { text-align: left; font-size: .7rem; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); padding: .3rem .5rem; border-bottom: 1px solid var(--border-strong); }
+.arena-board-table td { padding: .4rem .5rem; border-top: 1px solid var(--border); }
+.arena-board-table td:first-child, .arena-board-table th:first-child { width: 3.5rem; }
+.arena-board-table tr[data-mine] td { background: var(--accent-soft); color: var(--text); font-weight: 700; }
+.arena-board-table tr[data-mine] td:first-child { box-shadow: inset 3px 0 0 var(--accent); }
+.arena-board-table small { font-weight: 500; color: var(--text); }
+
 @media (max-width: 560px) {
   .arena-card, .arena-deck, .arena-rules, .arena-result { padding: 1rem; }
   .arena-q { padding: .9rem 1rem 1rem; }
