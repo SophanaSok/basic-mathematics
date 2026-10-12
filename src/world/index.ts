@@ -113,7 +113,6 @@ export function createWorld(T: Three, opts: WorldOptions): WorldScene {
   let ringPart = parts[0];
   const paintRing = () => { mats.inkFill.color.copy(pal.get("rink:" + ringPart) || pal.get("ink")!); };
   const paintOwn = () => {
-    mats.accent.color.copy(pal.get("accent")!);
     paintRing();
     mats.puff.color.copy(pal.get("under")!);
   };
