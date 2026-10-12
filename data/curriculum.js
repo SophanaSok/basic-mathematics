@@ -378,10 +378,12 @@ window.BM_CURRICULUM = {
           status: "full",
           course: "algebra-1",
           blurb:
-            "Slope as a rate of change, writing a linear model from a story, two points or a table, and (in later sections) inequalities in one and two unknowns and systems of inequalities: reading what the slope and the starting value mean, predicting, and answering when a quantity reaches a target.",
+            "Slope as a rate of change, writing a linear model from a story, two points or a table, inequalities in one and in two unknowns, and systems of inequalities: reading what the slope and the starting value mean, predicting, and answering when a quantity reaches a target.",
           sections: [
             { id: "slope", title: "Slope as a rate of change", summary: "The slope of a line is the change in y over the change in x and the same between any two points; it means how much y changes for one more x, with units, its sign says rising, falling or flat, and in y = mx + b the slope is the rate and b the starting value." },
-            { id: "model", title: "Writing a linear model", summary: "A starting value and a constant rate make y = mx + b; write it from a story, from two points (the slope first, then b from one point) or from a table, check it at a point not used, predict with it, solve mx + b = T for when, and say where the model stops making sense." }
+            { id: "model", title: "Writing a linear model", summary: "A starting value and a constant rate make y = mx + b; write it from a story, from two points (the slope first, then b from one point) or from a table, check it at a point not used, predict with it, solve mx + b = T for when, and say where the model stops making sense." },
+            { id: "ineq1", title: "Inequalities in one unknown", summary: "An inequality describes a set of numbers; adding or subtracting keeps the order, multiplying or dividing by a positive number keeps it and by a negative number reverses it, so solve ax + b <= c and write the solution as x >= k, translate at most, at least and fewer than, find the least or greatest whole number that works, and read a range such as 10 <= x <= 20." },
+            { id: "ineq2", title: "Inequalities in two unknowns and systems", summary: "The line y = mx + b is the boundary and one side of it is the solution set of y > mx + b; a test point such as (0, 0) settles the side, the boundary belongs to the set for <= and >= and not for < and >, and a system is the overlap, with its corner found by solving the two boundary equations." }
           ]
         }
       ]

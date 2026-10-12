@@ -313,6 +313,10 @@ export const SKILLS: Readonly<Record<SectionRef, Skill>> = {
     sat: ["sat.alg.lin1", "sat.alg.linf"], act: ["act.phm.alg", "act.mod"], accuplacer: ["qas.linapp", "aaf.linapp"], aleks: ["ppl.eqineq"] },
   "pk-linear#model": { ccss: "HSA.CED.A.2", also: ["8.F.B.4", "HSF.LE.A.2", "HSF.BF.A.1.a"], course: "algebra-1",
     sat: ["sat.alg.lin1", "sat.alg.linf"], act: ["act.phm.alg", "act.mod"], accuplacer: ["qas.linapp", "aaf.linapp"], aleks: ["ppl.eqineq"] },
+  "pk-linear#ineq1": { ccss: "HSA.REI.B.3", also: ["7.EE.B.4.b", "HSA.CED.A.1", "HSA.CED.A.3"], course: "algebra-1",
+    sat: ["sat.alg.ineq", "sat.alg.sys"], act: ["act.phm.alg"], accuplacer: ["qas.lineq", "aaf.lineq"], aleks: ["ppl.eqineq"] },
+  "pk-linear#ineq2": { ccss: "HSA.REI.D.12", also: ["HSA.CED.A.3", "HSA.REI.C.6"], course: "algebra-1",
+    sat: ["sat.alg.ineq", "sat.alg.sys"], act: ["act.phm.alg"], accuplacer: ["qas.lineq", "aaf.lineq"], aleks: ["ppl.eqineq"] },
 };
 
 /** Generators (data/gen/*.js, by id) whose test differs from their section's record. */
