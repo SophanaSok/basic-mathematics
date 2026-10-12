@@ -1,6 +1,7 @@
 -- Migration 20261012042339_daily_board: the Daily board (docs/decisions/0006-keyboard-and-speedruns.md).
--- Adds profiles.board (the reader's opt-in, off by default), the daily_runs table (row-level
--- security on, no policies: unreadable and unwritable from the browser) and the functions
+-- Adds profiles.board (the reader's opt-in, off by default), the daily_runs table and the
+-- board_secret table holding the key the board's names are hashed with (both with row-level
+-- security on and no policies: unreadable and unwritable from the browser), and the functions
 -- submit_daily(), daily_board() and leave_board(). Apply it in the SQL editor on the live project
 -- before the pull request that ships the board on the site (K-10g) is merged. It is backward
 -- compatible: it only adds, and the site now live never names the column, the table or the
@@ -19,16 +20,33 @@ create table if not exists public.daily_runs (
   score integer not null check (score between 0 and 1000),
   n integer not null check (n between 1 and 5),
   firsts integer not null check (firsts between 0 and n),
-  ms integer check (ms is null or ms between n * 1000 and n * 600000),  -- only for a clean run
+  -- assets/arena.js points(): right first time pays 100 plus 20 per answer of streak, so the
+  -- most n questions can pay is 100n + 10n(n - 1) (700 for the Daily's 5)
+  check (score <= 100 * n + 10 * n * (n - 1)),
+  ms integer check (ms is null or ms between n * 250 and n * 600000),  -- only for a clean run; a quick answer can take under a second
   submitted_at timestamptz not null default now(),
   primary key (user_id, day)
 );
 create index if not exists daily_runs_day_idx on public.daily_runs (day, score desc, ms asc, submitted_at asc);
 
+-- The key the board's generated names are hashed with, made once per project: without it a
+-- user id cannot be turned into the names it had. One row; only daily_board() reads it.
+create table if not exists public.board_secret (
+  id boolean primary key default true check (id),
+  secret text not null
+);
+-- 64 hex digits from two random UUIDs (gen_random_uuid() is in core Postgres and draws on the
+-- same strong random source as pgcrypto); the where clause keeps a re-run from replacing it.
+insert into public.board_secret (secret)
+select pg_catalog.replace(pg_catalog.gen_random_uuid()::text || pg_catalog.gen_random_uuid()::text, '-', '')
+where not exists (select 1 from public.board_secret);
+
 -- ------------------------------------------------------- row-level security --
 
 alter table public.daily_runs enable row level security;   -- no policies: only the board functions touch it
 revoke all on table public.daily_runs from anon, authenticated;
+alter table public.board_secret enable row level security;   -- no policies: only daily_board() reads it
+revoke all on table public.board_secret from anon, authenticated;
 
 -- --------------------------------------------------------------- functions --
 
@@ -54,7 +72,9 @@ begin
   if uid is null then
     raise exception 'not signed in';
   end if;
-  if not coalesce((select p.board from public.profiles p where p.id = uid), false) then
+  -- for share: a concurrent leave_board() either waits for this insert and deletes it, or has
+  -- already committed and this sees board = false
+  if not coalesce((select p.board from public.profiles p where p.id = uid for share), false) then
     raise exception 'not on the board';
   end if;
   if p_day is null or p_day !~ '^\d{4}-\d{2}-\d{2}$' then
@@ -88,8 +108,9 @@ end;
 $$;
 
 -- One day's board: the top 20 and the caller's own row if it is lower, each with its rank and
--- a name made from a one-way hash of the reader and the day (stable for the day, different the
--- next, never anything a person typed). No rows while fewer than three have played. Never
+-- a name ("Quick Prism 07") made from a one-way hash, keyed with board_secret, of the reader and
+-- the day: stable for the day, different the next, never anything a person typed, and not
+-- computable from a user id alone. No rows while fewer than three have played. Never
 -- returns a user id, an email or a display name.
 create or replace function public.daily_board(p_day text)
 returns table (rank integer, handle text, score integer, ms integer, mine boolean, entries integer)
@@ -98,6 +119,7 @@ as $$
 declare
   uid uuid := (select auth.uid());
   total integer;
+  board_key text;
   adj constant text[] := array[
     'quick', 'bright', 'calm', 'steady', 'brisk', 'keen', 'merry', 'sunny',
     'bold', 'clever', 'gentle', 'nimble', 'swift', 'eager', 'jolly', 'lively',
@@ -118,16 +140,21 @@ begin
   if total < 3 then
     return;
   end if;
+  select b.secret into board_key from public.board_secret b where b.id;
+  if board_key is null then
+    raise exception 'board secret missing';
+  end if;
   return query
     with ranked as (
       select d.user_id, d.score, d.ms,
              (row_number() over (order by d.score desc, d.ms asc nulls last, d.submitted_at asc, d.user_id))::integer as rk,
-             pg_catalog.decode(pg_catalog.md5(d.user_id::text || p_day), 'hex') as h
+             pg_catalog.decode(pg_catalog.md5(board_key || d.user_id::text || p_day), 'hex') as h
       from public.daily_runs d join public.profiles p on p.id = d.user_id
       where d.day = p_day and p.board
     )
     select r.rk,
-           pg_catalog.initcap(adj[1 + pg_catalog.get_byte(r.h, 0) % 32] || ' ' || noun[1 + pg_catalog.get_byte(r.h, 1) % 32]),
+           pg_catalog.initcap(adj[1 + pg_catalog.get_byte(r.h, 0) % 32] || ' ' || noun[1 + pg_catalog.get_byte(r.h, 1) % 32])
+             || ' ' || pg_catalog.lpad((pg_catalog.get_byte(r.h, 2) % 100)::text, 2, '0'),
            r.score, r.ms, r.user_id = uid, total
     from ranked r
     where r.rk <= 20 or r.user_id = uid
