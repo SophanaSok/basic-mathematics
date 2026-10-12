@@ -2656,6 +2656,31 @@
     t = String(t).replace(/[−–]/g, "-").replace(/,/g, "").trim();
     return /^[-+]?(\d+\.?\d*|\.\d+)$/.test(t) ? parseFloat(t) : NaN;
   }
+  /* The figure for a chart a generator returns, without drawing it (call W.chart on the result):
+       spec = { kind: "dot"|"hist"|"box"|"bar"|"scatter", head: [column names],
+                rows: [number] for dot, hist, box; [label, value] for bar; [x, y] for scatter,
+                caption: "a sentence", width: a histogram's bin width (optional) }
+     Built with DOM calls, so no text is read as markup. */
+  W.chartFigure = function (spec) {
+    var fig = document.createElement("figure");
+    fig.className = "widget";
+    fig.setAttribute("data-widget", "chart");
+    fig.setAttribute("data-kind", spec.kind);
+    if (spec.width) fig.setAttribute("data-width", String(spec.width));
+    var table = document.createElement("table"), head = document.createElement("tr");
+    spec.head.forEach(function (h) { var th = document.createElement("th"); th.textContent = String(h); head.appendChild(th); });
+    table.appendChild(head);
+    spec.rows.forEach(function (row) {
+      var tr = document.createElement("tr");
+      [].concat(row).forEach(function (cell) { var td = document.createElement("td"); td.textContent = String(cell); tr.appendChild(td); });
+      table.appendChild(tr);
+    });
+    fig.appendChild(table);
+    var cap = document.createElement("figcaption");
+    cap.textContent = spec.caption;
+    fig.appendChild(cap);
+    return fig;
+  };
   W.chart = function (host) {
     var table = host.querySelector("table");
     if (!table || host.hasAttribute("data-chart-mounted")) return;

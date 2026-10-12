@@ -168,6 +168,7 @@ html[data-calm] .arena-hearts { display: none; }
   overflow-x: auto; overflow-y: hidden;
 }
 .arena-q-text .katex-display { margin: .6em 0; }
+.arena-q-chart { margin: 0 0 1rem; min-width: 0; }
 .arena-form { display: flex; flex-wrap: wrap; gap: .6rem; align-items: center; }
 .arena-form input {
   flex: 1 1 12rem; min-width: 0; max-width: 20rem;

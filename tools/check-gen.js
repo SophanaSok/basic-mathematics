@@ -123,7 +123,34 @@ function strings(p) {
   return out;
 }
 function snapshot(p) {
-  return JSON.stringify({ q: p.q, a: p.answer, t: p.type, h: p.hint, s: p.steps, ph: p.placeholder || "", tol: p.tol });
+  return JSON.stringify({ q: p.q, a: p.answer, t: p.type, h: p.hint, s: p.steps, ph: p.placeholder || "", tol: p.tol, c: p.chart });
+}
+
+/* a problem's chart: { kind, head, rows, caption, width? } (see the top of data/gen/packs.js).
+   Returns what is wrong with it, or "". The column counts are the authored-figure rules of
+   tools/check-static.js; the bin cap is MAX_BINS of src/ui/chart.ts. */
+var CHART_COLS = { dot: 1, hist: 1, box: 1, bar: 2, scatter: 2 };
+var CHART_MAX_BINS = Number((fs.readFileSync(path.join(ROOT, "src/ui/chart.ts"), "utf8").match(/export const MAX_BINS = (\d+)/) || [])[1]) || 60;
+function chartProblem(c) {
+  if (!c || typeof c !== "object") return "chart is not an object";
+  if (!CHART_COLS.hasOwnProperty(c.kind)) return "unknown chart kind " + JSON.stringify(c.kind);
+  var cols = CHART_COLS[c.kind], num = function (x) { return typeof x === "number" && isFinite(x); };
+  if (!Array.isArray(c.head) || c.head.length !== cols || !c.head.every(function (h) { return typeof h === "string" && h.trim(); }))
+    return "chart head must be " + cols + " non-empty name(s) for a " + c.kind + " chart";
+  if (!Array.isArray(c.rows) || !c.rows.length) return "chart has no rows";
+  for (var i = 0; i < c.rows.length; i++) {
+    var row = c.rows[i];
+    if (cols === 1 ? !num(row) : !(Array.isArray(row) && row.length === 2 && (c.kind === "bar" ? typeof row[0] === "string" && row[0].trim() : num(row[0])) && num(row[1])))
+      return "chart row " + i + " is not " + (cols === 1 ? "a number" : c.kind === "bar" ? "[label, value]" : "[x, y]") + ": " + JSON.stringify(row);
+  }
+  if (typeof c.caption !== "string" || !c.caption.trim()) return "chart caption is empty";
+  if (c.width !== undefined) {
+    if (c.kind !== "hist" || !num(c.width) || !(c.width > 0)) return "chart width must be a number above 0, on a hist chart";
+    var round = function (x) { return Math.round(x * 1e9) / 1e9; };
+    var mn = Math.min.apply(null, c.rows), mx = Math.max.apply(null, c.rows);
+    if (Math.floor(round(mx / c.width)) - Math.floor(round(mn / c.width)) + 1 > CHART_MAX_BINS) return "chart width " + c.width + " gives more than " + CHART_MAX_BINS + " bins";
+  }
+  return "";
 }
 
 /* ---- what an answer means, worked out independently of the grader ----
@@ -413,6 +440,7 @@ list.forEach(function (spec) {
       var why = typeof s === "string" && proseInMath(s);
       if (why) fail(spec.id, seed, why + ": " + s);
     });
+    if (p.chart !== undefined) { var cwhy = chartProblem(p.chart); if (cwhy) fail(spec.id, seed, cwhy); }
     if (snapshot(p) !== snapshot(again)) fail(spec.id, seed, "not deterministic");
     var first = p.answer.split("|")[0].trim();
     if (!first) fail(spec.id, seed, "empty answer");
