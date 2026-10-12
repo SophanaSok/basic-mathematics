@@ -37,3 +37,7 @@ import "../../assets/game.js";
 import "../ui/settings.ts";
 import "../../assets/config.js";
 import "../../assets/account.js";
+/* the keyboard layer: the pure keymap, then the DOM half, last, once everything it
+   drives is up */
+import "../ui/keymap.ts";
+import "../ui/keys.ts";
