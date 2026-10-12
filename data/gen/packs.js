@@ -2287,7 +2287,7 @@
       : "$1$ " + one(c.big) + " $= " + c.f + "$ " + c.small + ", so one cubic " + one(c.big) + " is a cube with edges of $" + c.f + "$ " + c.small + " and holds $" + c.f + "^3 = " + numc(F) + "$ cubic " + c.small);
     var factor = (up ? "\\dfrac{1\\text{ " + one(c.big) + "}}{" + c.f + "\\text{ " + c.small + "}}" : "\\dfrac{" + c.f + "\\text{ " + c.small + "}}{1\\text{ " + one(c.big) + "}}");
     return {
-      q: "Convert " + "$" + numc(given) + "$ " + (given === 1 ? powOne(from, p) : powName(from, p)) + " to " + powName(to, p) + ". How many " + powName(to, p) + " is that?",
+      q: "How many " + powName(to, p) + (given === 1 ? " is $" : " are $") + numc(given) + "$ " + (given === 1 ? powOne(from, p) : powName(from, p)) + "?",
       type: "number", answer: num(ans), placeholder: powName(to, p),
       hint: "Use the length fact with the same ‘the unit you are leaving goes underneath’ rule, but a " + (p === 2 ? "square" : "cube") + " has the length in " + (p === 2 ? "two directions" : "three directions") + ", so the factor is used " + (p === 2 ? "twice" : "three times") + ". Then ask whether the number should grow or shrink.",
       steps: [
@@ -2415,9 +2415,9 @@
 
   /* the scale as a word statement: one drawn unit stands for N real ones */
   var MAP_SCALES = [
-    { d: "inches", rl: "miles", ds: "inch", ns: [5, 10, 20, 25, 40, 50, 100], ks: [1.5, 2, 2.5, 3, 3.5, 4, 4.5, 5, 6, 7.5, 8], what: "two towns" },
-    { d: "centimeters", rl: "kilometers", ds: "centimeter", ns: [2, 5, 10, 20, 25, 50], ks: [1.5, 2, 2.5, 3, 3.5, 4, 4.5, 5, 6, 7.5, 8, 12], what: "two lakes" },
-    { d: "inches", rl: "feet", ds: "inch", ns: [2, 4, 5, 8, 10], ks: [1.5, 2, 2.5, 3, 3.5, 4, 4.5, 6, 7.5, 9], what: "two corners of a floor plan" }
+    { d: "inches", rl: "miles", ds: "inch", ns: [5, 10, 20, 25, 40, 50, 100], ks: [1.5, 2, 2.5, 3, 3.5, 4, 4.5, 5, 6, 7.5, 8], what: "two towns", src: "map" },
+    { d: "centimeters", rl: "kilometers", ds: "centimeter", ns: [2, 5, 10, 20, 25, 50], ks: [1.5, 2, 2.5, 3, 3.5, 4, 4.5, 5, 6, 7.5, 8, 12], what: "two lakes", src: "map" },
+    { d: "inches", rl: "feet", ds: "inch", ns: [2, 4, 5, 8, 10], ks: [1.5, 2, 2.5, 3, 3.5, 4, 4.5, 6, 7.5, 9], what: "two corners of a floor plan", src: "plan" }
   ];
 
   G.add({
@@ -2426,35 +2426,37 @@
       if (r.chance(0.35)) {
         /* a ratio with no units: the real length is N times the drawn one, in the same unit */
         var N = r.pick([100, 200, 250, 500, 1000, 2000, 5000]), d = r.pick([2, 3, 4, 4.5, 5, 6, 7.5, 8, 12]), cm = d * N, m = cm / 100;
+        /* a wall up to 60 m; longer lengths are a path or a road */
+        var obj = N <= 500 ? "wall" : (N === 1000 ? "path" : "road");
         return {
-          q: "A plan has the scale $1 : " + N + "$. A wall measures $" + num(d) + "$ centimeters on the plan. How many meters long is the real wall?",
+          q: "A plan has the scale $1 : " + N + "$. A " + obj + " measures $" + num(d) + "$ centimeters on the plan. How many meters long is the real " + obj + "?",
           type: "number", answer: num(m), placeholder: "meters",
           hint: "A ratio with no units means the real length is that many times the drawn length, in whatever unit you measure. Find the real length in the unit you measured, then convert to the unit asked for.",
-          steps: ["The real length is $" + N + "$ times the drawn one: $" + num(d) + " \\cdot " + N + " = " + num(cm) + "$ centimeters.", "$" + num(cm) + "\\text{ cm}\\cdot\\frac{1\\text{ m}}{100\\text{ cm}} = " + num(m) + "$ meters.", "Check: the real wall is far longer than its drawing."],
+          steps: ["The real length is $" + N + "$ times the drawn one: $" + num(d) + " \\cdot " + N + " = " + num(cm) + "$ centimeters.", "$" + num(cm) + "\\text{ cm}\\cdot\\frac{1\\text{ m}}{100\\text{ cm}} = " + num(m) + "$ meters.", "Check: the real length is far longer than its drawing."],
           verify: function () {
             /* the proportion drawn : real = 1 : N, with the real length in meters */
-            return Math.abs(d / (m * 100) - 1 / N) < 1e-9 && sameSizeP(cm, "centimeters", m, "meters", 1) && m > d / 100 && m <= 800;
+            return Math.abs(d / (m * 100) - 1 / N) < 1e-9 && sameSizeP(cm, "centimeters", m, "meters", 1) && m > d / 100 && m >= 2 && (obj === "wall" ? m <= 60 : m >= 20 && m <= 600);
           }
         };
       }
       var c = r.pick(MAP_SCALES), n = r.pick(c.ns), k = r.pick(c.ks), real = k * n;
       return {
-        q: "On a map, $1$ " + c.ds + " stands for $" + n + "$ " + c.rl + ". " + c.what.charAt(0).toUpperCase() + c.what.slice(1) + " are $" + num(k) + "$ " + c.d + " apart on the map. How many " + c.rl + " apart are they really?",
+        q: "On a " + c.src + ", $1$ " + c.ds + " stands for $" + n + "$ " + c.rl + ". " + c.what.charAt(0).toUpperCase() + c.what.slice(1) + " are $" + num(k) + "$ " + c.d + " apart on the " + c.src + ". How many " + c.rl + " apart are they really?",
         type: "number", answer: num(real), placeholder: c.rl,
         hint: "The scale is a conversion factor between the drawing and the world. Put the drawn unit underneath so that it cancels, and the real unit is left.",
-        steps: ["The scale gives the factor $\\dfrac{" + n + "\\text{ " + c.rl + "}}{1\\text{ " + c.ds + "}}$, with the drawn unit underneath.", "$" + num(k) + "\\text{ " + c.d + "}\\cdot\\dfrac{" + n + "\\text{ " + c.rl + "}}{1\\text{ " + c.ds + "}} = " + num(real) + "$ " + c.rl + ".", "Check: the real distance is larger than the map distance, as the scale says."],
+        steps: ["The scale gives the factor $\\dfrac{" + n + "\\text{ " + c.rl + "}}{1\\text{ " + c.ds + "}}$, with the drawn unit underneath.", "$" + num(k) + "\\text{ " + c.d + "}\\cdot\\dfrac{" + n + "\\text{ " + c.rl + "}}{1\\text{ " + c.ds + "}} = " + num(real) + "$ " + c.rl + ".", "Check: the real distance is larger than the drawn one, as the scale says."],
         verify: function () {
-          /* the proportion 1 : n = k : real, by cross-multiplying */
-          return Math.abs(1 * real - n * k) < 1e-9 && real > k && real <= 2000;
+          /* the proportion 1 : n = k : real, solved for the ratio of drawn to real instead of the product */
+          return Math.abs(k / real - 1 / n) < 1e-12 && Math.abs(real / k - n) < 1e-9 && real > k && real <= 2000;
         }
       };
     }
   });
 
   var DRAW_SCALES = [
-    { d: "inches", rl: "feet", ds: "inch", ns: [2, 4, 5, 8, 10], drs: [2, 3, 4, 4.5, 5, 6, 7.5, 9], what: "a wall" },
-    { d: "inches", rl: "miles", ds: "inch", ns: [5, 10, 20, 25, 50], drs: [1.5, 2, 3, 3.5, 4, 5, 6, 7.5], what: "a road" },
-    { d: "centimeters", rl: "meters", ds: "centimeter", ns: [2, 5, 10, 20, 50], drs: [2, 3, 4, 4.5, 5, 6, 7.5, 12], what: "a garden path" }
+    { d: "inches", rl: "feet", ds: "inch", ns: [2, 4, 5, 8, 10, 12], drs: [2, 2.5, 3, 3.5, 4, 4.5, 5, 5.5, 6, 6.5, 7, 7.5, 8, 8.5, 9, 9.5, 10, 10.5, 11, 11.5, 12, 13, 14], what: "a wall" },
+    { d: "inches", rl: "miles", ds: "inch", ns: [5, 10, 20, 25, 40, 50], drs: [1.5, 2, 2.5, 3, 3.5, 4, 4.5, 5, 5.5, 6, 6.5, 7, 7.5, 8, 9, 10], what: "a road" },
+    { d: "centimeters", rl: "meters", ds: "centimeter", ns: [2, 5, 10, 20, 50], drs: [2, 3, 4, 4.5, 5, 6, 7, 7.5, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24], what: "a garden path" }
   ];
 
   G.add({
@@ -2468,21 +2470,23 @@
           type: "number", answer: num(dr), placeholder: c.d,
           hint: "Use the scale as a conversion factor again, but this time you are leaving the real unit, so the real unit goes underneath.",
           steps: ["The factor is $\\dfrac{1\\text{ " + c.ds + "}}{" + n + "\\text{ " + c.rl + "}}$, with the real unit underneath so that it cancels.", "$" + num(real) + "\\text{ " + c.rl + "}\\cdot\\dfrac{1\\text{ " + c.ds + "}}{" + n + "\\text{ " + c.rl + "}} = " + num(dr) + "$ " + c.d + ".", "Check: the drawing is smaller than the real length, as it should be."],
-          verify: function () { return Math.abs(dr * n - real) < 1e-9 && dr < real && dr >= 1 && dr <= 14; }
+          verify: function () { /* cross-multiplied: 1 : n = drawn : real */ return Math.abs(dr / real - 1 / n) < 1e-12 && dr < real && dr >= 1 && dr <= 24; }
         };
       }
       if (kind === "scale") {
-        var e = r.pick([{ d: "inches", rl: "feet", ds: "inch", ns: [2, 3, 4, 5, 6, 8, 10, 12], page: [6, 8, 9, 10], what: "hall" }, { d: "centimeters", rl: "meters", ds: "centimeter", ns: [2, 4, 5, 10, 20, 25], page: [10, 12, 15, 20, 24], what: "field" }]);
+        var e = r.pick([{ d: "inches", rl: "feet", ds: "inch", ns: [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 14, 15, 16, 18, 20], page: [6, 7, 8, 9, 10, 11], what: "hall" }, { d: "centimeters", rl: "meters", ds: "centimeter", ns: [2, 4, 5, 6, 8, 10, 15, 20, 25, 30, 35, 40], page: [10, 12, 14, 15, 16, 18, 20, 22, 24], what: "field" }]);
         var nn = r.pick(e.ns), pg = r.pick(e.page), realLen = nn * pg;
+        /* the text's own pair (a 36-foot hall on 9 inches) and the exercise pair (42 feet on 6 inches) are not repeated */
+        if (e.what === "hall" && ((nn === 4 && pg === 9) || (nn === 7 && pg === 6))) { nn = 5; realLen = nn * pg; }
         return {
           q: "A " + e.what + " is $" + num(realLen) + "$ " + e.rl + " long. To fit a page it is drawn $" + num(pg) + "$ " + e.d + " long. How many " + e.rl + " does $1$ " + e.ds + " on the drawing stand for?",
           type: "number", answer: num(nn), placeholder: e.rl + " per " + e.ds,
           hint: "The scale is the real length for one drawn unit. A rate with the real length on top and the drawn length underneath gives it.",
           steps: ["The scale is real length over drawn length: $\\dfrac{" + num(realLen) + "\\text{ " + e.rl + "}}{" + num(pg) + "\\text{ " + e.d + "}}$.", "$" + num(realLen) + " \\div " + num(pg) + " = " + num(nn) + "$, so $1$ " + e.ds + " stands for $" + num(nn) + "$ " + e.rl + "."],
-          verify: function () { return Math.abs(nn * pg - realLen) < 1e-9 && nn * 1 < realLen && realLen <= 800; }
+          verify: function () { /* drawn : real = 1 : n, cross-multiplied */ return Math.abs(pg / realLen - 1 / nn) < 1e-12 && nn < realLen && realLen <= 1000; }
         };
       }
-      var N2 = r.pick([10, 20, 24, 25, 50, 100]), mm = r.pick([4, 5, 8, 10, 12, 15, 20, 24, 30]), mReal = mm * N2 / 100;
+      var N2 = r.pick([10, 20, 24, 25, 40, 50, 100]), mm = r.pick([4, 5, 6, 7, 8, 9, 10, 12, 14, 22, 15, 16, 18, 20, 21, 24, 25, 28, 30, 32, 35, 36, 40, 45]), mReal = mm * N2 / 100;
       return {
         q: "A model has the scale $1 : " + N2 + "$. The real object is " + qty(mReal, "meters") + " long. How many centimeters long is the model?",
         type: "number", answer: num(mm), placeholder: "centimeters",
@@ -2508,7 +2512,9 @@
         };
       }
       if (kind === "area") {
-        var kk = r.pick([2, 3, 4, 5, 10, 1.5]), a = r.pick([2, 3, 4, 5, 6, 8, 12, 20]), a2 = a * kk * kk;
+        var kk = r.pick([2, 3, 4, 5, 10, 1.5]), a = r.pick([2, 3, 4, 5, 6, 8, 12, 20]), a2;
+        if (a === 20 && kk === 2) a = 12; /* the text's own check */
+        a2 = a * kk * kk;
         return {
           q: "A figure with an area of $" + num(a) + "$ square centimeters is enlarged by a scale factor of $" + num(kk) + "$. What is the area of the enlargement, in square centimeters?",
           type: "number", answer: num(a2), placeholder: "square centimeters",
@@ -2522,7 +2528,9 @@
         };
       }
       if (kind === "map") {
-        var N = r.pick([10, 20, 50, 100, 200, 500, 1000]), sq = r.pick([1, 2, 3, 4, 5, 6, 8, 12]), cm2 = sq * N * N, m2 = cm2 / 10000;
+        /* drawn areas that give real areas of 20 to 2000 square meters */
+        var MAPS = { 100: [24, 30, 40, 48, 60, 80, 100, 120, 150], 200: [6, 8, 10, 12, 15, 20, 24, 30], 500: [2, 3, 4, 6, 8, 10, 12, 15], 1000: [1, 2, 3, 4, 5, 6, 8, 10, 12] };
+        var N = r.pick([100, 200, 500, 1000]), sq = r.pick(MAPS[N]), cm2 = sq * N * N, m2 = cm2 / 10000;
         return {
           q: "A plan has the scale $1 : " + N + "$. A garden covers $" + num(sq) + "$ square centimeters on the plan. What is its real area, in square meters?",
           type: "number", answer: num(m2), placeholder: "square meters",
@@ -2531,7 +2539,7 @@
           verify: function () {
             /* a square of this area: the drawn side times N is a real side in cm, then meters, then square */
             var side = Math.sqrt(sq), realSide = side * N / 100;
-            return Math.abs(realSide * realSide - m2) <= 1e-9 * Math.max(1, m2) && m2 <= 2000000 && N <= 1000;
+            return Math.abs(realSide * realSide - m2) <= 1e-9 * Math.max(1, m2) && m2 >= 20 && m2 <= 2000 && MAPS[N].indexOf(sq) >= 0;
           }
         };
       }
