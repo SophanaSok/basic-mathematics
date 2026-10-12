@@ -1,0 +1,885 @@
+<!doctype html>
+<html lang="en">
+<head>
+<!--bm:head-->
+<title>Pack B. Data and Statistics — Basic Mathematics</title>
+<meta name="description" content="Mean, median, mode, range and quartiles, and how to read dot plots, histograms, box plots and two-way tables: the data skills the gate exams ask for and the book leaves out.">
+</head>
+<body data-depth="2" data-chapter="pk-data" data-part="packs">
+<!--bm:topbar-->
+
+<div class="wrap">
+<div class="layout">
+  <aside class="sidebar" data-sidebar></aside>
+  <main id="main">
+
+    <header class="region-banner">
+      <p class="eyebrow">Skill packs · Pack B</p>
+      <h1>Data and Statistics</h1>
+      <p class="lede">
+        A list of numbers is hard to take in, so we replace it by a few that stand for it, or draw it.
+        This pack says what the mean, the median and the quartiles are, why each one is the number it
+        is, and how to read the graphs and tables the exams put in front of you without being fooled by
+        them.
+      </p>
+
+      <div class="banner-meta" data-banner-meta></div>
+
+    </header>
+
+    <div class="puzzle" id="puzzle">
+      <span class="tag">A puzzle to carry through the pack</span>
+      <p>
+        A small company has five employees, who earn $\$40{,}000$, $\$40{,}000$, $\$45{,}000$,
+        $\$50{,}000$ and $\$225{,}000$ a year. An advertisement says: &ldquo;Our average salary is
+        $\$80{,}000$.&rdquo; Is that a fair picture of what a worker there earns?
+      </p>
+      <ul class="guess">
+        <li>Yes: a typical worker earns about $\$80{,}000$</li>
+        <li>No: a typical worker earns far less than $\$80{,}000$</li>
+        <li>No: a typical worker earns far more than $\$80{,}000$</li>
+      </ul>
+      <p class="puzzle-after">The advertisement did not lie, and still it misleads. The first section says which &ldquo;average&rdquo; it used and which one it left out. (The second section is about drawing the numbers, so that a picture can do for you what a single number cannot.)</p>
+    </div>
+
+    <div class="goal">
+      <strong>By the end of this pack you can</strong>
+      find the mean, median and mode of a list and say which of them an extreme value moves, find the
+      range, the quartiles and the interquartile range by the course's rule, tell which of
+      two lists is more spread out without computing anything, and read a dot plot, a histogram, a
+      box plot and a two-way table, saying what each one shows and what it hides.
+    </div>
+
+    <section class="warmup" id="warmup">
+      <div class="callout aside">
+        <span class="tag">Before you start</span>
+        <p>
+          This pack leans on <a href="../1-algebra/01-numbers.html#rationals">fractions as single
+          numbers</a> (Chapter 1) and on <a href="../1-algebra/02-linear-equations.html#one-unknown">the
+          two legal moves for an equation</a> (Chapter 2). You need no other part of the course, and
+          you can read the pack at any point alongside it.
+        </p>
+      </div>
+
+      <p>
+        Three quick ones to wake up what the pack stands on. They are not scored. If one doesn't
+        come to you, its solution says where to look.
+      </p>
+
+      <div class="ex" data-inline id="w1" data-label="Warm-up 1" data-type="number" data-answer="10"
+           data-placeholder="e.g. 7"
+           data-hint="Add the three numbers, then divide the total by how many there are.">
+        <div class="ex-q">
+          <p>
+            Compute $\dfrac{6 + 10 + 14}{3}$.
+          </p>
+        </div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $10$</p>
+          <p>
+            The top is $30$, and $30 \div 3 = 10$. The mean of a list is exactly this: a sum divided
+            by a count.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" data-inline id="w2" data-label="Warm-up 2" data-type="fraction" data-answer="1/4"
+           data-placeholder="e.g. 1/2"
+           data-hint="Divide the top and the bottom by the same number, the largest that goes into both.">
+        <div class="ex-q">
+          <p>
+            Write $\dfrac{12}{48}$ in lowest terms.
+          </p>
+        </div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $\dfrac14$</p>
+          <p>
+            The largest number that divides both is $12$, and $\frac{12}{48} = \frac{1}{4}$. See <a
+            href="../1-algebra/01-numbers.html#rationals">§1.5</a>. Counts are turned into fractions
+            of a group the same way.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" data-inline id="w3" data-label="Warm-up 3" data-type="number" data-answer="6.5"
+           data-placeholder="e.g. 3.5"
+           data-hint="The number halfway between two numbers is half their sum.">
+        <div class="ex-q">
+          <p>
+            What number is exactly halfway between $5$ and $8$?
+          </p>
+        </div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $6.5$</p>
+          <p>
+            Half the sum: $\frac{5 + 8}{2} = \frac{13}{2} = 6.5$. Check: $6.5 - 5 = 1.5$ and $8 - 6.5 = 1.5$
+            ✓. This is how a median is found when a list has an even number of values.
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <h2 id="center">B.1 Center and spread</h2>
+    <p>
+      The <b>mean</b> of a list is the sum of its values divided by how many there are. The reason
+      that recipe is the right one is what the mean means: it is the value every item would have if
+      the total were shared out equally. Five salaries that add to $\$400{,}000$, shared equally, give
+      $\$80{,}000$ each. Read it backwards and it is the most useful fact in the subject: <b>mean times
+      count is the total</b>. A mean of $86$ over five tests means the five scores add to
+      $5 \cdot 86 = 430$, and that one line solves every &ldquo;what score do I need&rdquo; problem.
+    </p>
+    <p>
+      The <b>median</b> is the middle value once the list is put in order. It splits the list so that
+      about half the values lie on each side. When the count is odd, one value sits in the middle. When it is
+      even, no value does, so the median is the midpoint of the middle two, as in warm-up 3. The
+      <b>mode</b> is the value that occurs most often. A list can have no mode or several, but the mode
+      is the only one of the three that makes sense for categories such as favorite colors. These are
+      three answers to one question, &ldquo;where is the center?&rdquo;, and they can disagree. The mean
+      feels every value, so one extreme value drags it. The median only counts values: change the
+      largest from $225{,}000$ to a million and the median does not stir. That is the answer to the
+      puzzle. The advertisement gave the mean, $\$80{,}000$, but four of the five earn $\$50{,}000$ or
+      less, and the median, $\$45{,}000$, is the number that describes them.
+    </p>
+    <p>
+      Two lists can have the same center and still differ. Two classes both average $80$, one with
+      scores from $70$ to $90$ and the other from $60$ to $100$. To say how far a list spreads, the
+      simplest number is the <b>range</b>, the largest value minus the smallest. It is easy, but it
+      listens to only two values, so one odd value ruins it. A better idea reuses the median. The
+      median cuts the list in halves; the median of the lower half is the first quartile
+      $Q_1$, and the median of the upper half is the third quartile $Q_3$. About a quarter of the values lie
+      below $Q_1$, about a quarter above $Q_3$, and about half between them, so
+      $Q_3 - Q_1$, the <b>interquartile range</b> (IQR), is the width of the middle half, and the
+      extreme values cannot move it.
+    </p>
+    <p>
+      Here is the rule exactly, because quartiles are one place where books disagree: put the list in
+      order, split it into a lower and an upper half, <em>leaving out the middle value when the count is
+      odd</em>, and take the median of each half. This is the rule most US textbooks and graphing calculators use, and the one
+      this course uses. Other textbooks and some software cut differently and can give a slightly
+      different $Q_1$ for a short list. Finally, two other measures of spread are worth knowing by
+      name. The <b>mean absolute deviation</b> is the average distance of the values from the mean.
+      The <b>standard deviation</b> is a cousin of it. You will not compute it in this course, but you
+      should know what it says: the farther the values sit from their mean, the larger it is. So of two
+      lists with the same mean, the one whose values are more scattered has the larger standard
+      deviation.
+    </p>
+
+    <div class="worked">
+      <h3><span class="num">Example 1.</span> Three centers and a range</h3>
+      <div class="body">
+        <p>
+          A hiker counts the birds seen on six mornings: $3, 14, 8, 5, 8, 4$. Find the mean, the
+          median, the mode and the range.
+        </p>
+        <ol class="steps">
+          <li>Put the list in order: $3, 4, 5, 8, 8, 14$.</li>
+          <li>Mean: the total is $3 + 4 + 5 + 8 + 8 + 14 = 42$, and $42 \div 6 = 7$.</li>
+          <li>Median: six values, so take the midpoint of the middle two, $5$ and $8$:
+            $\frac{5 + 8}{2} = 6.5$.</li>
+          <li>Mode: $8$ occurs twice and every other value once. Range: $14 - 3 = 11$.</li>
+          <li>Check the mean by sharing: six mornings of $7$ birds each is $42$ ✓.
+            $\blacksquare$</li>
+        </ol>
+        <p class="note">
+          The mean, $7$, is above the median, $6.5$, because the one large day, $14$, pulls it up.
+        </p>
+      </div>
+    </div>
+
+    <div class="ex" data-inline id="t1" data-type="number" data-answer="7" data-placeholder="mean"
+         data-hint="The mean shares the total out evenly: add, then divide by the count."
+         data-hint2="The five scores add to 35.">
+      <div class="ex-q">
+        <p>
+          A student scores $6, 9, 4, 9, 7$ on five quizzes. What is the mean score?
+        </p>
+      </div>
+      <div class="ex-solution">
+        <p class="answer">Answer: $7$</p>
+        <p>
+          $6 + 9 + 4 + 9 + 7 = 35$ and $35 \div 5 = 7$. Check: five scores of $7$ make $35$ ✓.
+        </p>
+      </div>
+    </div>
+
+    <div class="worked">
+      <h3><span class="num">Example 2.</span> Quartiles of an odd list</h3>
+      <div class="body">
+        <p>
+          Find the quartiles and the interquartile range of $15, 3, 9, 12, 6, 18, 2, 8, 14, 5, 11$.
+        </p>
+        <ol class="steps">
+          <li>Put the list in order: $2, 3, 5, 6, 8, 9, 11, 12, 14, 15, 18$. There are $11$ values.</li>
+          <li>The median is the sixth value, $9$. Because the count is odd, leave it out of both halves.</li>
+          <li>The lower half is $2, 3, 5, 6, 8$, and its median is $Q_1 = 5$. The upper half is
+            $11, 12, 14, 15, 18$, and its median is $Q_3 = 14$.</li>
+          <li>The interquartile range is $14 - 5 = 9$.</li>
+          <li>Check by counting: two halves of $5$ values and the median left out make $11$ ✓, and
+            $Q_1$ and $Q_3$ are both values of the list, as they must be when each half has an odd
+            number of values. $\blacksquare$</li>
+        </ol>
+        <p class="note">
+          With an even count, nothing is left out: eight values split into two halves of four, and
+          each quartile is the midpoint of a middle pair.
+        </p>
+      </div>
+    </div>
+
+    <div class="ex" data-inline id="t2" data-type="number" data-answer="92" data-placeholder="score"
+         data-hint="A mean fixes the total. Work out the total all four scores must reach."
+         data-hint2="Four scores averaging 85 total 340. How much do the three known scores add to?">
+      <div class="ex-q">
+        <p>
+          A student's first three test scores are $82, 90, 76$. What must the fourth score be for a mean
+          of $85$ over all four?
+        </p>
+      </div>
+      <div class="ex-solution">
+        <p class="answer">Answer: $92$</p>
+        <p>
+          The four scores must total $4 \cdot 85 = 340$. The first three give $82 + 90 + 76 = 248$,
+          so the fourth is $340 - 248 = 92$. Check: $\frac{248 + 92}{4} = \frac{340}{4} = 85$ ✓.
+        </p>
+      </div>
+    </div>
+
+    <div class="ex" data-inline id="t3" data-type="number" data-answer="9" data-placeholder="IQR"
+         data-hint="Order the list, split it into two halves of four, and take the median of each half."
+         data-hint2="The lower half is 4, 6, 10, 12 and the upper half is 14, 16, 18, 22.">
+      <div class="ex-q">
+        <p>
+          What is the interquartile range of $16, 4, 22, 10, 14, 6, 18, 12$?
+        </p>
+      </div>
+      <div class="ex-solution">
+        <p class="answer">Answer: $9$</p>
+        <p>
+          In order: $4, 6, 10, 12, 14, 16, 18, 22$. The halves are $4, 6, 10, 12$ with median
+          $\frac{6 + 10}{2} = 8$, and $14, 16, 18, 22$ with median $\frac{16 + 18}{2} = 17$. The IQR
+          is $17 - 8 = 9$.
+        </p>
+      </div>
+    </div>
+
+    <h2 id="displays">B.2 Reading displays</h2>
+    <p>
+      A picture of data keeps some information and throws the rest away, and reading it well starts
+      with knowing which. A <b>dot plot</b> puts one dot above a number line for each value, stacking
+      the dots when a value repeats. Nothing is lost: every value is still there to be counted, so you
+      can read the mode (the tallest stack), the median (count in from either end) and the range
+      directly. It suits a short list.
+    </p>
+    <figure class="widget" data-widget="chart" data-kind="dot">
+      <table>
+        <tr><th>Books read</th></tr>
+        <tr><td>0</td></tr>
+        <tr><td>1</td></tr>
+        <tr><td>1</td></tr>
+        <tr><td>1</td></tr>
+        <tr><td>2</td></tr>
+        <tr><td>2</td></tr>
+        <tr><td>2</td></tr>
+        <tr><td>2</td></tr>
+        <tr><td>3</td></tr>
+        <tr><td>3</td></tr>
+        <tr><td>4</td></tr>
+        <tr><td>5</td></tr>
+      </table>
+      <figcaption>Books read last month by $12$ students, one dot per student. The tallest stack is at $2$.</figcaption>
+    </figure>
+    <p>
+      For a long list, or for measurements such as times and heights, a <b>histogram</b> groups the
+      values into equal-width <b>bins</b> and draws a bar for each, as tall as the number of values in
+      it. The bars touch, because the number line is continuous. The bins are half-open: the bin
+      from $5$ to $10$ includes $5$ and stops short of $10$, so a value of exactly $10$ is counted in
+      the next bin. What a histogram gives up is the individual values. A bar says that $8$ values lie
+      between $5$ and $10$, not which. So you can read the center only roughly: the median lies in the
+      bin where the running count from the left passes half. Keep one trap in view: the height is a
+      <em>count</em>, so the tallest bar is the most common range of values, not the largest value.
+    </p>
+    <p>
+      A <b>box plot</b> keeps only five numbers: the smallest value, $Q_1$, the median, $Q_3$ and the
+      largest. The box runs from $Q_1$ to $Q_3$ with a line at the median, and the whiskers run out to
+      the smallest and largest values. The quartiles are those of the first section, found by the same
+      rule. The central fact is that each of the four pieces, two whiskers and two halves of the box,
+      holds about a quarter of the values, however long it is drawn. A long whisker only means the
+      values there are thinly spread. The width of the box is the IQR, and the whole length is the
+      range. A box plot cannot show a count or a mode, but because it is so compact, two or three of
+      them fit on one axis to compare groups.
+    </p>
+    <p>
+      Finally, a <b>two-way table</b> sorts a group by two features at once, such as grade and how a
+      student gets to school. Its inside entries are counts, and the totals around the edge are the
+      sums of the rows and columns. The skill is choosing the right total to divide by, and it is the
+      part-to-whole question of <a href="pk-percent.html#ratios">Pack A.1</a>: a fraction &ldquo;of the bus riders&rdquo; has the bus
+      column's total underneath, while a fraction &ldquo;of the seventh graders&rdquo; has the row's.
+      The words after &ldquo;of&rdquo; name the group you divide by.
+    </p>
+
+    <div class="worked">
+      <h3><span class="num">Example 3.</span> Counting from a histogram</h3>
+      <div class="body">
+        <figure class="widget" data-widget="chart" data-kind="hist" data-width="5">
+          <table>
+        <tr><th>Wait (minutes)</th></tr>
+        <tr><td>2</td></tr>
+        <tr><td>3</td></tr>
+        <tr><td>4</td></tr>
+        <tr><td>6</td></tr>
+        <tr><td>7</td></tr>
+        <tr><td>7</td></tr>
+        <tr><td>8</td></tr>
+        <tr><td>9</td></tr>
+        <tr><td>11</td></tr>
+        <tr><td>12</td></tr>
+        <tr><td>12</td></tr>
+        <tr><td>13</td></tr>
+        <tr><td>14</td></tr>
+        <tr><td>16</td></tr>
+        <tr><td>17</td></tr>
+        <tr><td>18</td></tr>
+        <tr><td>21</td></tr>
+        <tr><td>22</td></tr>
+        <tr><td>24</td></tr>
+        <tr><td>26</td></tr>
+      </table>
+          <figcaption>Minutes $20$ patients waited at a clinic, in bins of width $5$ minutes.</figcaption>
+        </figure>
+        <p>
+          How many patients waited $10$ minutes or more, and in which bin does the median wait lie?
+        </p>
+        <ol class="steps">
+          <li>The bars, from the left, count $3, 5, 5, 3, 3, 1$ patients. They add to $20$ ✓, so every
+            patient is in some bar.</li>
+          <li>Waits of $10$ minutes or more are the bins from $10$ onward: $5 + 3 + 3 + 1 = 12$.</li>
+          <li>Half of the $20$ patients is $10$. Running count from the left: $3$, then $8$, then
+            $13$. It passes $10$ in the bin from $10$ to $15$, so the median wait lies there.</li>
+          <li>Check from the other side: the first two bins hold $8$ patients, so $12$ waited $10$ or
+            more ✓. $\blacksquare$</li>
+        </ol>
+        <p class="note">
+          The histogram cannot say the median exactly: it knows the bin, not the value. The list
+          behind it has $12$ and $12$ in the middle.
+        </p>
+      </div>
+    </div>
+
+    <div class="ex" data-inline id="t4" data-type="number" data-answer="5" data-placeholder="students"
+         data-hint="Each dot is one student. Count the dots above every value larger than 2."
+         data-hint2="Add the stacks at 3, 4 and 6.">
+      <div class="ex-q">
+        <figure class="widget" data-widget="chart" data-kind="dot">
+          <table>
+        <tr><th>Books read</th></tr>
+        <tr><td>0</td></tr>
+        <tr><td>1</td></tr>
+        <tr><td>1</td></tr>
+        <tr><td>2</td></tr>
+        <tr><td>2</td></tr>
+        <tr><td>2</td></tr>
+        <tr><td>2</td></tr>
+        <tr><td>3</td></tr>
+        <tr><td>3</td></tr>
+        <tr><td>4</td></tr>
+        <tr><td>4</td></tr>
+        <tr><td>6</td></tr>
+      </table>
+          <figcaption>Books read last month by $12$ students, one dot per student.</figcaption>
+        </figure>
+        <p>
+          How many of these students read more than $2$ books?
+        </p>
+      </div>
+      <div class="ex-solution">
+        <p class="answer">Answer: $5$ students</p>
+        <p>
+          The stacks above $3$, $4$ and $6$ hold $2$, $2$ and $1$ dots: $2 + 2 + 1 = 5$. Check from
+          the other side: the stacks at $0$, $1$ and $2$ hold $1 + 2 + 4 = 7$ students, and
+          $7 + 5 = 12$ ✓.
+        </p>
+      </div>
+    </div>
+
+    <div class="worked">
+      <h3><span class="num">Example 4.</span> Reading a box plot</h3>
+      <div class="body">
+        <figure class="widget" data-widget="chart" data-kind="box">
+          <table>
+        <tr><th>Score</th></tr>
+        <tr><td>52</td></tr>
+        <tr><td>58</td></tr>
+        <tr><td>61</td></tr>
+        <tr><td>64</td></tr>
+        <tr><td>68</td></tr>
+        <tr><td>70</td></tr>
+        <tr><td>73</td></tr>
+        <tr><td>79</td></tr>
+        <tr><td>84</td></tr>
+        <tr><td>88</td></tr>
+        <tr><td>95</td></tr>
+      </table>
+          <figcaption>Scores of $11$ students on a test, as a box plot.</figcaption>
+        </figure>
+        <p>
+          Find the median, the interquartile range and the range, and say what fraction of the
+          students scored above the median.
+        </p>
+        <ol class="steps">
+          <li>Read the five numbers off the plot, or off the table below it: smallest $52$, $Q_1 = 61$,
+            median $70$, $Q_3 = 84$, largest $95$.</li>
+          <li>The interquartile range is $84 - 61 = 23$. The range is $95 - 52 = 43$.</li>
+          <li>The median is one of the $11$ scores, with $5$ on each side. So $5$ of the $11$ scored
+            above it: the fraction is $\frac{5}{11}$.</li>
+          <li>Check the quartiles by the rule: the lower five scores are $52, 58, 61, 64, 68$, whose median
+            is $61$ ✓, and the upper five are $73, 79, 84, 88, 95$, whose median is $84$ ✓.
+            $\blacksquare$</li>
+        </ol>
+        <p class="note">
+          The box is wider on the right of the median ($14$ against $9$), so the scores above the
+          median are the more spread out, though each piece still holds about a quarter of them.
+        </p>
+      </div>
+    </div>
+
+    <div class="ex" data-inline id="t5" data-type="number" data-answer="14" data-placeholder="IQR"
+         data-hint="The width of the box is the interquartile range: the distance from Q1 to Q3."
+         data-hint2="Q1 is the median of the lower three values, Q3 the median of the upper three.">
+      <div class="ex-q">
+        <figure class="widget" data-widget="chart" data-kind="box">
+          <table>
+        <tr><th>Delivery time (minutes)</th></tr>
+        <tr><td>12</td></tr>
+        <tr><td>15</td></tr>
+        <tr><td>18</td></tr>
+        <tr><td>20</td></tr>
+        <tr><td>26</td></tr>
+        <tr><td>29</td></tr>
+        <tr><td>35</td></tr>
+      </table>
+          <figcaption>Seven delivery times in minutes, as a box plot.</figcaption>
+        </figure>
+        <p>
+          What is the interquartile range of these delivery times?
+        </p>
+      </div>
+      <div class="ex-solution">
+        <p class="answer">Answer: $14$ minutes</p>
+        <p>
+          The median is $20$, left out. The lower three, $12, 15, 18$, have median $Q_1 = 15$. The upper
+          three, $26, 29, 35$, have median $Q_3 = 29$. The IQR is $29 - 15 = 14$.
+        </p>
+      </div>
+    </div>
+
+    <div class="worked">
+      <h3><span class="num">Example 5.</span> Two ways to divide a two-way table</h3>
+      <div class="body">
+        <table>
+          <caption>How $80$ students get to school</caption>
+          <thead><tr><th scope="col">Grade</th><th scope="col">Walk</th><th scope="col">Bus</th><th scope="col">Total</th></tr></thead>
+          <tbody>
+            <tr><th scope="row">Grade 7</th><td>14</td><td>26</td><td>40</td></tr>
+            <tr><th scope="row">Grade 8</th><td>21</td><td>19</td><td>40</td></tr>
+            <tr><th scope="row">Total</th><td>35</td><td>45</td><td>80</td></tr>
+          </tbody>
+        </table>
+        <p>
+          What fraction of the seventh graders ride the bus, and what fraction of the bus riders are
+          seventh graders?
+        </p>
+        <ol class="steps">
+          <li>&ldquo;Of the seventh graders&rdquo; makes the grade-7 row the group: $40$ students, of whom
+            $26$ ride the bus. The fraction is $\frac{26}{40} = \frac{13}{20}$.</li>
+          <li>&ldquo;Of the bus riders&rdquo; makes the bus column the group: $45$ students, of whom
+            $26$ are in grade 7. The fraction is $\frac{26}{45}$.</li>
+          <li>Check that the edges add up: $14 + 26 = 40$, $14 + 21 = 35$, and $35 + 45 = 80$ ✓.
+            $\blacksquare$</li>
+        </ol>
+        <p class="note">
+          Same entry on top, $26$, and different fractions, because the group underneath changed.
+        </p>
+      </div>
+    </div>
+
+    <div class="ex" data-inline id="t6" data-type="fraction" data-answer="3/5" data-placeholder="e.g. 1/2"
+         data-hint="The words after &ldquo;of&rdquo; name the group. Use the table in Example 5 and find that group's total."
+         data-hint2="The walkers are the Walk column: 35 students, of whom 21 are in grade 8.">
+      <div class="ex-q">
+        <p>
+          In the table of Example 5, what fraction of the students who walk are in grade 8, in lowest
+          terms?
+        </p>
+      </div>
+      <div class="ex-solution">
+        <p class="answer">Answer: $\dfrac35$</p>
+        <p>
+          The group is the walkers, $35$ students, and $21$ of them are in grade 8:
+          $\frac{21}{35} = \frac35$. Check: the other $14$ walkers are in grade 7, and
+          $\frac{14}{35} = \frac25$, with $\frac35 + \frac25 = 1$ ✓.
+        </p>
+      </div>
+    </div>
+
+    <!-- ====================================================== practice ==== -->
+    <section class="practice" id="practice">
+      <div class="practice-head">
+        <h2 style="margin-top:0">Practice</h2>
+        <span class="practice-score" data-practice-score></span>
+      </div>
+      <p>
+        Answer each with a single number, or with two numbers separated by a comma where the
+        question asks for two. Quartiles follow the course's rule: the middle value is left
+        out of both halves when the count is odd. When a question asks you to compare two lists, the
+        answer is the number that settles the comparison.
+      </p>
+
+      <div class="ex" id="e1" data-section="center" data-type="number" data-answer="80" data-placeholder="mean"
+           data-hint="The mean shares the total out evenly: add the values and divide by how many there are."
+           data-hint2="Add the six scores first, then divide by how many there are.">
+        <div class="ex-q"><p>A student's quiz scores are $72, 85, 90, 68, 85, 80$. What is the mean score?</p></div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $80$</p>
+          <p>
+            The total is $72 + 85 + 90 + 68 + 85 + 80 = 480$, and $480 \div 6 = 80$. Check: six
+            scores of $80$ make $480$ ✓.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" id="e2" data-section="center" data-type="number" data-answer="65.5" data-placeholder="median"
+           data-hint="Put the temperatures in order first. With an even count there is no single middle value."
+           data-hint2="Take the midpoint of the fourth and fifth values in order.">
+        <div class="ex-q"><p>The daily high temperatures last week were $61, 58, 70, 66, 72, 59, 65, 74$ degrees. What is the median?</p></div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $65.5$ degrees</p>
+          <p>
+            In order: $58, 59, 61, 65, 66, 70, 72, 74$. Eight values, so the median is the midpoint of
+            the fourth and fifth, $65$ and $66$: $\frac{65 + 66}{2} = 65.5$. Four values lie on each
+            side ✓.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" id="e3" data-section="center" data-type="number" data-answer="9" data-placeholder="mode"
+           data-hint="The mode is the value that appears most often. Putting the values in order puts repeats side by side."
+           data-hint2="Only one value appears more than once.">
+        <div class="ex-q"><p>A basketball team scored these points in eight games: $9, 4, 7, 9, 12, 9, 6, 11$. What is the mode?</p></div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $9$ points</p>
+          <p>
+            In order: $4, 6, 7, 9, 9, 9, 11, 12$. The value $9$ appears three times and every other
+            value once, so the mode is $9$.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" id="e4" data-section="center" data-type="number" data-answer="90" data-placeholder="score"
+           data-hint="A mean fixes the total of all the scores. Work out that total, then see how much of it the known scores already give."
+           data-hint2="Five scores with a mean of 86 total 430.">
+        <div class="ex-q"><p>A student's first four test scores are $78, 84, 90, 88$. What must the fifth score be for a mean of $86$ over all five?</p></div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $90$</p>
+          <p>
+            Five scores with mean $86$ total $5 \cdot 86 = 430$. The first four total $78 + 84 + 90 + 88 = 340$,
+            so the fifth is $430 - 340 = 90$. Check: $\frac{340 + 90}{5} = 86$ ✓.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" id="e5" data-section="center" data-type="number" data-answer="8" data-placeholder="IQR"
+           data-hint="Order the list, split it into two halves, and take the median of each half. The IQR is the distance between those medians."
+           data-hint2="The count is even, so nothing is left out: each half has five values.">
+        <div class="ex-q"><p>A shop counted these customers in ten different hours: $11, 3, 17, 8, 20, 6, 14, 5, 12, 9$. What is the interquartile range?</p></div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $8$</p>
+          <p>
+            In order: $3, 5, 6, 8, 9, 11, 12, 14, 17, 20$. The lower half is $3, 5, 6, 8, 9$, with
+            median $Q_1 = 6$. The upper half is $11, 12, 14, 17, 20$, with median $Q_3 = 14$. The IQR
+            is $14 - 6 = 8$.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" id="e6" data-section="center" data-type="set" data-answer="7,15" data-placeholder="e.g. 4,9"
+           data-hint="Order the list. The count is odd, so the middle value is left out of both halves."
+           data-hint2="The halves are the five smallest and the five largest values. Find the median of each.">
+        <div class="ex-q"><p>For the list $12, 5, 18, 8, 3, 15, 9, 20, 11, 7, 14$, find the first and third quartiles. Give $Q_1$ and $Q_3$, separated by a comma.</p></div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $Q_1 = 7$ and $Q_3 = 15$</p>
+          <p>
+            In order: $3, 5, 7, 8, 9, 11, 12, 14, 15, 18, 20$. The median, $11$, is left out. The lower
+            half $3, 5, 7, 8, 9$ has median $7$, and the upper half $12, 14, 15, 18, 20$ has median
+            $15$.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" id="e7" data-section="center" data-type="number" data-answer="65" data-placeholder="thousands of dollars"
+           data-hint="Find the mean and the median separately, then subtract the smaller from the larger. Put the list in order for the median."
+           data-hint2="Both are in thousands of dollars. One house sold for far more than the rest.">
+        <div class="ex-q"><p>Five houses sold for $\$150$, $\$160$, $\$165$, $\$170$ and $\$505$ thousand. How many thousand dollars larger is the mean price than the median price?</p></div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $65$ thousand dollars</p>
+          <p>
+            The total is $1150$, so the mean is $\frac{1150}{5} = 230$. The middle of the ordered list is
+            $165$, so the median is $165$. The difference is $230 - 165 = 65$. One expensive house
+            pulls the mean far above what a typical house cost.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" id="e8" data-section="center" data-type="number" data-answer="20" data-placeholder="points"
+           data-hint="Both classes have the same mean, so the mean cannot settle which is more spread out. Compare the ranges."
+           data-hint2="Subtract the smaller range from the larger.">
+        <div class="ex-q"><p>Class A scored $70, 75, 80, 85, 90$ and Class B scored $60, 70, 80, 90, 100$. Both classes have a mean of $80$. By how many points is the range of Class B larger than the range of Class A?</p></div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $20$ points</p>
+          <p>
+            Class A: $90 - 70 = 20$. Class B: $100 - 60 = 40$. The difference is $40 - 20 = 20$. With
+            the same mean, Class B is the more spread out.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" id="e9" data-section="displays" data-type="number" data-answer="3.5" data-placeholder="mean"
+           data-hint="Each dot is one person. Add up all the values the dots stand for, then divide by the number of dots."
+           data-hint2="There are 12 dots. Each stack contributes its value times its height to the total.">
+        <div class="ex-q">
+          <figure class="widget" data-widget="chart" data-kind="dot">
+            <table>
+        <tr><th>Cousins</th></tr>
+        <tr><td>1</td></tr>
+        <tr><td>1</td></tr>
+        <tr><td>2</td></tr>
+        <tr><td>2</td></tr>
+        <tr><td>2</td></tr>
+        <tr><td>3</td></tr>
+        <tr><td>3</td></tr>
+        <tr><td>4</td></tr>
+        <tr><td>5</td></tr>
+        <tr><td>5</td></tr>
+        <tr><td>6</td></tr>
+        <tr><td>8</td></tr>
+      </table>
+            <figcaption>Number of cousins that each of $12$ students has, one dot per student.</figcaption>
+          </figure>
+          <p>What is the mean number of cousins?</p>
+        </div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $3.5$ cousins</p>
+          <p>
+            Reading the stacks: $1 + 1 + 2 + 2 + 2 + 3 + 3 + 4 + 5 + 5 + 6 + 8 = 42$ cousins among
+            $12$ students, and $42 \div 12 = 3.5$.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" id="e10" data-section="displays" data-type="number" data-answer="8" data-placeholder="people"
+           data-hint="The bin from 5 to 10 includes 5 and stops short of 10. Find that bar."
+           data-hint2="Read the height of the second bar from the left.">
+        <div class="ex-q">
+          <figure class="widget" data-widget="chart" data-kind="hist" data-width="5">
+            <table>
+        <tr><th>Wait (minutes)</th></tr>
+        <tr><td>1</td></tr>
+        <tr><td>2</td></tr>
+        <tr><td>2</td></tr>
+        <tr><td>3</td></tr>
+        <tr><td>4</td></tr>
+        <tr><td>5</td></tr>
+        <tr><td>5</td></tr>
+        <tr><td>6</td></tr>
+        <tr><td>7</td></tr>
+        <tr><td>7</td></tr>
+        <tr><td>8</td></tr>
+        <tr><td>9</td></tr>
+        <tr><td>9</td></tr>
+        <tr><td>10</td></tr>
+        <tr><td>11</td></tr>
+        <tr><td>12</td></tr>
+        <tr><td>13</td></tr>
+        <tr><td>14</td></tr>
+        <tr><td>14</td></tr>
+        <tr><td>15</td></tr>
+        <tr><td>16</td></tr>
+        <tr><td>17</td></tr>
+        <tr><td>19</td></tr>
+        <tr><td>21</td></tr>
+      </table>
+            <figcaption>Minutes $24$ customers waited in a line, in bins of width $5$ minutes.</figcaption>
+          </figure>
+          <p>How many customers waited at least $5$ minutes but less than $10$?</p>
+        </div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $8$ customers</p>
+          <p>
+            The bar for $5$ up to $10$ holds the waits $5, 5, 6, 7, 7, 8, 9, 9$: eight. The two waits of
+            exactly $5$ are in this bin, not the one before. Check: the bars read $5, 8, 6, 4, 1$ and
+            add to $24$ ✓.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" id="e11" data-section="displays" data-type="fraction" data-answer="3/8" data-placeholder="e.g. 1/2"
+           data-hint="The group is every ride, so the bottom of the fraction is the total count. The top adds the bars from 30 minutes onward."
+           data-hint2="Add the bars from 30 minutes onward, and the bars before them too, to find the total.">
+        <div class="ex-q">
+          <figure class="widget" data-widget="chart" data-kind="hist" data-width="10">
+            <table>
+        <tr><th>Ride (minutes)</th></tr>
+        <tr><td>4</td></tr>
+        <tr><td>8</td></tr>
+        <tr><td>12</td></tr>
+        <tr><td>15</td></tr>
+        <tr><td>17</td></tr>
+        <tr><td>19</td></tr>
+        <tr><td>22</td></tr>
+        <tr><td>23</td></tr>
+        <tr><td>25</td></tr>
+        <tr><td>27</td></tr>
+        <tr><td>31</td></tr>
+        <tr><td>34</td></tr>
+        <tr><td>36</td></tr>
+        <tr><td>41</td></tr>
+        <tr><td>45</td></tr>
+        <tr><td>52</td></tr>
+      </table>
+            <figcaption>Length in minutes of $16$ bus rides, in bins of width $10$ minutes.</figcaption>
+          </figure>
+          <p>What fraction of the rides lasted $30$ minutes or more, in lowest terms?</p>
+        </div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $\dfrac38$</p>
+          <p>
+            The bars read $2, 4, 4, 3, 2, 1$ and add to $16$. From $30$ minutes on: $3 + 2 + 1 = 6$
+            rides, so the fraction is $\frac{6}{16} = \frac38$.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" id="e12" data-section="displays" data-type="set" data-answer="5,13" data-placeholder="e.g. 4,9"
+           data-hint="The box runs from the first quartile to the third quartile. Find each by the median-of-halves rule."
+           data-hint2="The count is odd, so the median is left out. Each half has seven values.">
+        <div class="ex-q">
+          <figure class="widget" data-widget="chart" data-kind="box">
+            <table>
+        <tr><th>Days to arrive</th></tr>
+        <tr><td>3</td></tr>
+        <tr><td>4</td></tr>
+        <tr><td>4</td></tr>
+        <tr><td>5</td></tr>
+        <tr><td>6</td></tr>
+        <tr><td>7</td></tr>
+        <tr><td>8</td></tr>
+        <tr><td>9</td></tr>
+        <tr><td>10</td></tr>
+        <tr><td>12</td></tr>
+        <tr><td>13</td></tr>
+        <tr><td>13</td></tr>
+        <tr><td>15</td></tr>
+        <tr><td>18</td></tr>
+        <tr><td>22</td></tr>
+      </table>
+            <figcaption>Days that $15$ packages took to arrive, as a box plot.</figcaption>
+          </figure>
+          <p>Give the first and third quartiles, $Q_1$ and $Q_3$, separated by a comma.</p>
+        </div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $Q_1 = 5$ and $Q_3 = 13$</p>
+          <p>
+            The median, $9$, is the eighth of fifteen values and is left out. The lower seven,
+            $3, 4, 4, 5, 6, 7, 8$, have median $5$. The upper seven, $10, 12, 13, 13, 15, 18, 22$, have
+            median $13$.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" id="e13" data-section="displays" data-type="fraction" data-answer="11/20" data-placeholder="e.g. 1/2"
+           data-hint="The words after &ldquo;of&rdquo; name the group. Which total goes underneath?"
+           data-hint2="Everyone who bought school lunch is the group: that is the School lunch column's total.">
+        <div class="ex-q">
+          <table>
+            <caption>Lunch choices of $100$ students</caption>
+            <thead><tr><th scope="col">Students</th><th scope="col">Packed</th><th scope="col">School lunch</th><th scope="col">Total</th></tr></thead>
+            <tbody>
+              <tr><th scope="row">Boys</th><td>18</td><td>27</td><td>45</td></tr>
+              <tr><th scope="row">Girls</th><td>22</td><td>33</td><td>55</td></tr>
+              <tr><th scope="row">Total</th><td>40</td><td>60</td><td>100</td></tr>
+            </tbody>
+          </table>
+          <p>What fraction of the students who bought school lunch are girls, in lowest terms?</p>
+        </div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $\dfrac{11}{20}$</p>
+          <p>
+            The group is the $60$ school-lunch buyers, of whom $33$ are girls: $\frac{33}{60} = \frac{11}{20}$.
+            The fraction of <em>girls</em> who bought school lunch would be $\frac{33}{55}$, a different
+            fraction.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" id="e14" data-section="displays" data-type="fraction" data-answer="3/5" data-placeholder="e.g. 1/2"
+           data-hint="First find how many people own a dog. That total goes underneath."
+           data-hint2="The dog owners are the Dog column. Add its two entries to get the group.">
+        <div class="ex-q">
+          <table>
+            <caption>Pets owned by $100$ people</caption>
+            <thead><tr><th scope="col">Owner</th><th scope="col">Cat</th><th scope="col">Dog</th></tr></thead>
+            <tbody>
+              <tr><th scope="row">Adults</th><td>24</td><td>36</td></tr>
+              <tr><th scope="row">Children</th><td>16</td><td>24</td></tr>
+            </tbody>
+          </table>
+          <p>Each person owns one pet. What fraction of the dog owners are adults, in lowest terms?</p>
+        </div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $\dfrac35$</p>
+          <p>
+            Dog owners: $36 + 24 = 60$. Of them, $36$ are adults: $\frac{36}{60} = \frac35$.
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <div class="recap">
+      <h2>Recap</h2>
+      <div class="puzzle-answer">
+        <span class="tag">Back to the puzzle</span>
+        <p data-your-guess></p>
+        <p>
+          The advertisement quoted the mean: $\frac{40 + 40 + 45 + 50 + 225}{5} = 80$ thousand dollars. But
+          the one salary of $\$225{,}000$ pulls the mean up, and four of the five workers earn
+          $\$50{,}000$ or less. The median is the middle of the ordered list, $\$45{,}000$, and it does
+          not feel how large the largest salary is. A typical worker earns far less than the
+          advertised $\$80{,}000$. When a number is offered as &ldquo;the average&rdquo;, ask which
+          average, and ask what the extreme value is doing to it.
+        </p>
+      </div>
+      <ul>
+        <li>The mean is the total shared out equally, so mean times count is the total. The median is
+          the middle of the ordered list, with about half the values on each side. The mode is the most
+          frequent value.</li>
+        <li>An extreme value drags the mean but hardly moves the median or the quartiles, which is why
+          incomes and house prices are quoted by their medians.</li>
+        <li>The range is the largest minus the smallest. The quartiles are the medians of the lower
+          and upper halves, leaving out the middle value of an odd list, and the
+          interquartile range $Q_3 - Q_1$ is the width of the middle half.</li>
+        <li>Of two lists with the same mean, the one whose values lie farther from it has the larger
+          standard deviation and mean absolute deviation. Neither is computed in this course.</li>
+        <li>A dot plot keeps every value. A histogram groups values into half-open bins and keeps only
+          counts, so its center is known only to a bin, and its tallest bar is the commonest range, not
+          the largest value.</li>
+        <li>A box plot keeps five numbers, and each of its four pieces holds about a quarter of the
+          values, however long it looks. It shows no counts and no mode.</li>
+        <li>In a two-way table, the words after &ldquo;of&rdquo; name the row or column whose total goes
+          underneath. The same entry gives different fractions of different groups.</li>
+      </ul>
+    </div>
+
+    <nav class="chapter-nav" data-chapter-nav aria-label="Previous and next pack"></nav>
+  </main>
+</div>
+</div>
+</body>
+</html>

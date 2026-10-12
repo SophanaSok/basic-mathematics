@@ -10,7 +10,9 @@ import type { DiagTake } from "../types/state.ts";
 import { course, courseWithPacks } from "../world/course.test-helper.ts";
 
 describe("seedRefs", () => {
-  const skills: Record<string, unknown> = { ...SKILLS, "pk-percent#of-a-number": { course: "pre-algebra" }, "pk-ratio#simplify": { course: "pre-algebra" } };
+  /* the fixture Part holds two fixture packs; the real packs' records stay out, so a new real pack changes nothing here */
+  const realSkills = Object.fromEntries(Object.entries(SKILLS).filter(([ref]) => !ref.startsWith("pk-")));
+  const skills: Record<string, unknown> = { ...realSkills, "pk-percent#of-a-number": { course: "pre-algebra" }, "pk-ratio#simplify": { course: "pre-algebra" } };
 
   it("drops the refs of a beside Part's chapters, by the curriculum", () => {
     const refs = seedRefs(courseWithPacks(), skills);
