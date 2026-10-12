@@ -5,7 +5,8 @@
    that the form store has no record of, `settleForms` writes form.got["<n>"] = now (never over an earlier time,
    every other field of the store kept) and tells the bus {type: "form", highest, worn,
    fresh}. Then the announce-once, as game.js does for a level, over run.seen.form:
-     - the first load, a sync and a reset take in what is already true quietly;
+     - the first load, a sync and a reset take in what is already true quietly (a sync never
+       counts the progress page's evolution as played: it is owed until that page plays it);
      - a stage reached while the page is open gives one toast naming the highest stage
        (when several came at once, still one) and one polite-high announcement. The progress
        page has no toast: the evolution moment there (src/ui/forms.ts, run.seen.evolved) is
@@ -21,10 +22,12 @@ function esc(s: string): string {
   return String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c] as string);
 }
 
-/** `quiet`: take everything in without a toast (and, past the first load, count the
-    evolution moment as played); `first`: the install call, which leaves a played-count that
-    is already a number alone, so a pending evolution is still there for the progress page */
-export function settleForms(quiet?: boolean, first?: boolean): void {
+/** `quiet`: take everything in without a toast (the first load, a sync, a reset). The
+    progress page's own marker, run.seen.evolved, is set here only when it is not yet a
+    number (a fresh device), never on a sync: account sync fires on every page load for a
+    signed-in learner, and a stage reached on this device, or brought by the sync, is still
+    owed its evolution on the progress page. */
+export function settleForms(quiet?: boolean): void {
   const G = window.BMGame, S = window.BMStore;
   if (!G || !S) return;
   let form: unknown, xp = 0;
@@ -50,7 +53,7 @@ export function settleForms(quiet?: boolean, first?: boolean): void {
   const seen = G.run().seen as { form?: unknown; evolved?: unknown };
   const behind = typeof seen.form === "number" && hi < seen.form;
   if (typeof seen.form !== "number" || quiet || behind) {
-    const setEvolved = typeof seen.evolved !== "number" || (quiet && !first);
+    const setEvolved = typeof seen.evolved !== "number";
     if (seen.form !== hi || setEvolved) {
       G.updateRun((r: { seen: Record<string, unknown> }) => {
         r.seen.form = hi;
@@ -79,7 +82,7 @@ function later(): void {
 
 if (typeof window !== "undefined" && typeof document !== "undefined" && window.BMGame && window.BMStore) {
   window.BMFormUnlock = { settle: settleForms };
-  settleForms(true, true);
+  settleForms(true);
   window.BMStore.on((c: { type?: string }) => {
     if (!c) return;
     if (c.type === "xp" || c.type === "level") later();

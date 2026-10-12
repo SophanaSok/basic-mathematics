@@ -117,16 +117,12 @@ async function main() {
     /* 3 */
     {
       const { page } = await open("progress.html", seeds(300, PENDING));
-      const seen = new Set();
-      const t0 = Date.now();
-      while (Date.now() - t0 < 6000 && !seen.has("done")) {
-        const a = await seqAttr(page);
-        if (a) seen.add(a);
-        await wait(40);
-      }
-      check(["anticipate", "flash", "reveal", "done"].every((s) => seen.has(s)), "3: the sequence passes through every step", [...seen]);
+      /* the panel logs every step it passes (data-form-seq-log), so the path is read whole rather than sampled */
+      await page.waitForSelector('#form[data-form-seq="done"]', { timeout: 6000 }).catch(() => {});
+      const log = (await page.evaluate(() => (document.querySelector("#form") || { getAttribute: () => "" }).getAttribute("data-form-seq-log"))) || "";
+      check(log === "anticipate flash reveal done", "3: the sequence passes through every step", log);
       const cap = await page.textContent("#form .form-caption").catch(() => "");
-      check(cap === "Evolved: Wayfinder. Stage 3 of 5 unlocked.", "3: the caption", cap);
+      check(cap === "Evolved: Wayfinder. Stages 2 and 3 unlocked.", "3: the caption names both stages since the last played", cap);
       const run = await store(page, "bm.run.v1");
       check(run.seen.evolved === 3, "3: seen.evolved is 3", run.seen);
       await page.click("[data-form-done]");
@@ -140,7 +136,7 @@ async function main() {
       const { page } = await open("progress.html", seeds(300, Object.assign({ "bm.prefs.v1": JSON.stringify({ motion: "reduce" }) }, PENDING)), { reduced: true });
       await page.waitForSelector("#form .form-caption", { timeout: 200 }).catch(() => {});
       const st = await page.evaluate(() => ({ cap: (document.querySelector("#form .form-caption") || {}).textContent, anims: document.getAnimations().length }));
-      check(st.cap === "Evolved: Wayfinder. Stage 3 of 5 unlocked.", "4: the caption is there at once", st.cap);
+      check(st.cap === "Evolved: Wayfinder. Stages 2 and 3 unlocked.", "4: the caption is there at once", st.cap);
       check(st.anims === 0, "4: no animation runs", st.anims);
       const run = await store(page, "bm.run.v1");
       check(run.seen.evolved === 3, "4: seen.evolved is 3", run.seen);
@@ -202,6 +198,40 @@ async function main() {
       const game = await store(page, "bm.game.v1");
       const got = (game.form && game.form.got) || {};
       check(["2", "3", "4"].every((k) => got[k] > 0), "8: stages 2, 3 and 4 recorded", got);
+      /* a sync (account.js emits one on every load for a signed-in learner) leaves the
+         evolution owed: seen.evolved stays where it was */
+      await page.evaluate(() => window.BMStore.emit({ type: "sync" }));
+      await wait(200);
+      const run = await store(page, "bm.run.v1");
+      check(run.seen.form === 4 && run.seen.evolved === 1, "8: a sync keeps the evolution pending", run.seen);
+    }
+    /* 9: the stages unlocked elsewhere play on the progress page, named together */
+    {
+      const { page } = await open("progress.html", seeds(700, { "bm.run.v1": JSON.stringify({ seen: { form: 4, evolved: 1 } }) }));
+      await page.waitForSelector('#form[data-form-seq="done"]', { timeout: 6000 }).catch(() => {});
+      const cap = await page.textContent("#form .form-caption").catch(() => "");
+      check(cap === "Evolved: Surveyor. Stages 2 to 4 unlocked.", "9: the caption names the stages since the last played", cap);
+      const run = await store(page, "bm.run.v1");
+      check(run.seen.evolved === 4, "9: seen.evolved is 4", run.seen);
+    }
+    /* 10: a first load with progress past stage 1 and no seen: recorded, quiet, nothing plays */
+    {
+      const { page } = await open("progress.html", seeds(300, {}));
+      await wait(1500);
+      const game = await store(page, "bm.game.v1"), run = await store(page, "bm.run.v1");
+      const got = (game && game.form && game.form.got) || {};
+      check(got["2"] > 0 && got["3"] > 0 && !("1" in got), "10: stages 2 and 3 recorded, never 1", got);
+      check(run.seen.form === 3 && run.seen.evolved === 3, "10: seen.form and seen.evolved are 3", run.seen);
+      check((await seqAttr(page)) === null, "10: no sequence on a first load");
+      const toasts = await page.evaluate(() => document.querySelectorAll(".toast.form").length);
+      check(toasts === 0, "10: no toast on a first load", toasts);
+    }
+    /* 11: a fresh visit writes nothing to the game store */
+    {
+      const { page } = await open("progress.html", {});
+      await wait(1200);
+      const game = await store(page, "bm.game.v1");
+      check(game === null || !game.form, "11: a first visit records no form", game && game.form);
     }
   } finally {
     for (const c of contexts) { try { await c.close(); } catch (e) { /* closed already */ } }

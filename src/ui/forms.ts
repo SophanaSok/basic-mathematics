@@ -50,8 +50,9 @@ let timer = 0;
 
 interface Seq { from: number; hi: number; swapped: boolean; step: string; timers: number[]; multi: number[] }
 let seq: Seq | null = null;
-/* the stages recorded together by the latest unlock seen live, for the caption's wording */
-let liveFresh: number[] = [];
+/* the stage whose evolution this page played, kept here as well as in run.seen.evolved, so
+   a storage that cannot be written (a full quota) does not replay it after Done */
+let played = 0;
 
 function gameForm(): unknown {
   try { return window.BMGame.game().form; } catch { return undefined; }
@@ -225,17 +226,26 @@ function evolvedNow(): unknown {
   try { return window.BMGame.run().seen.evolved; } catch { return undefined; }
 }
 function box(): HTMLElement | null { return panel ? q(".form-view") : null; }
+/* the step on the panel, and a log of the steps passed, so a test can read the whole path
+   rather than sample it */
+function setStep(step: string): void {
+  if (!panel) return;
+  panel.setAttribute("data-form-seq", step);
+  panel.setAttribute("data-form-seq-log", ((panel.getAttribute("data-form-seq-log") || "") + " " + step).trim());
+}
 function seqHost(): HTMLElement | null { return panel ? q("[data-form-seq-box]") : null; }
 
 function maybeEvolve(hi: number, wo: number): void {
   if (!panel || seq) return;
   const ev = evolvedNow();
-  if (typeof ev !== "number" || hi <= ev) return;
+  if (typeof ev !== "number" || hi <= Math.max(ev, played)) return;
   const from = Math.max(1, Math.min(wo, ev));
-  const multi = liveFresh.filter((n) => n > ev && n <= hi);
+  /* every stage past the last one played: "Stage 3", or "Stages 2 and 3", "Stages 2 to 4" */
+  const multi: number[] = [];
+  for (let n = ev + 1; n <= hi; n++) multi.push(n);
   seq = { from, hi, swapped: false, step: "anticipate", timers: [], multi };
   if (stillNow()) { caption(); return; }
-  panel.setAttribute("data-form-seq", "anticipate");
+  setStep("anticipate");
   const b = box();
   if (b) b.classList.add("is-anticipating");
   if (view) view.wake();
@@ -257,7 +267,7 @@ function swap(): void {
 function flash(): void {
   if (!seq || !panel) return;
   seq.step = "flash";
-  panel.setAttribute("data-form-seq", "flash");
+  setStep("flash");
   const b = box();
   if (b) {
     b.classList.remove("is-anticipating");
@@ -274,14 +284,14 @@ function reveal(): void {
   if (!seq || !panel) return;
   swap();
   seq.step = "reveal";
-  panel.setAttribute("data-form-seq", "reveal");
+  setStep("reveal");
   const b = box();
   if (b) {
     b.querySelectorAll(".form-flash").forEach((e) => e.remove());
     b.classList.add("is-revealing");
     try { window.BMFx.burst(b); } catch { /* the sequence goes on without it */ }
   }
-  try { if (window.BMSfx && window.BMSfx.enabled()) window.BMSfx.play("achievement"); } catch { /* no sound */ }
+  try { if (window.BMSfx && window.BMSfx.enabled()) window.BMSfx.play("level-up"); } catch { /* no sound */ }
   seq.timers.push(window.setTimeout(caption, T_REVEAL));
 }
 
@@ -306,7 +316,8 @@ function caption(): void {
   }
   swap();
   s.step = "done";
-  panel.setAttribute("data-form-seq", "done");
+  setStep("done");
+  played = Math.max(played, s.hi);
   const host = seqHost();
   if (host) {
     host.innerHTML = '<p class="form-caption" role="status"></p>' +
@@ -319,19 +330,30 @@ function caption(): void {
   refresh();
 }
 
-function dismiss(): void {
+/* the sequence taken down without a word: timers, the key listener, the classes, the step */
+function clear(): void {
   if (!seq || !panel) return;
   seq.timers.forEach((t) => window.clearTimeout(t));
   document.removeEventListener("keydown", onKey);
   seq = null;
   panel.removeAttribute("data-form-seq");
+  panel.removeAttribute("data-form-seq-log");
+  const b = box();
+  if (b) { b.classList.remove("is-anticipating", "is-revealing"); b.querySelectorAll(".form-flash").forEach((e) => e.remove()); }
   const host = seqHost();
   if (host) host.innerHTML = "";
+}
+function dismiss(): void {
+  if (!seq || !panel) return;
+  clear();
   refresh();
 }
 
 function onKey(e: KeyboardEvent): void {
-  if (e.key === "Escape" && seq && seq.step !== "done") caption();
+  if (e.key !== "Escape" || !seq || seq.step === "done") return;
+  /* an open dialog (the larger view, the palette, the settings sheet) owns Escape */
+  if (e.defaultPrevented || document.querySelector("dialog[open]")) return;
+  caption();
 }
 
 /* the path's pictures: each stage reached, drawn once, again when the Part or the theme changes */
@@ -458,15 +480,19 @@ function mount(): void {
     if (t && t.closest && t.closest("[data-form-done]")) { dismiss(); return; }
     if (t && t.closest && t.closest("[data-form-large]")) openView();
   });
-  window.BMStore.on((c: { type?: string; fresh?: number[]; quiet?: boolean }) => {
+  window.BMStore.on((c: { type?: string }) => {
     if (!c || !c.type) return;
-    if (c.type === "form" && !c.quiet && Array.isArray(c.fresh) && c.fresh.length > 1) liveFresh = c.fresh.slice();
+    /* a reset mid-sequence: the progress it celebrated is gone, so it goes without a word */
+    if (c.type === "reset" && seq) clear();
     if (WATCH.indexOf(c.type) !== -1) later();
   });
+  /* leaving mid-sequence leaves it owed: nothing is written, and a page restored from the
+     back/forward cache (pageshow) refreshes and plays it again from the start */
   window.addEventListener("pagehide", () => {
-    if (seq) seq.timers.forEach((t) => window.clearTimeout(t));
+    if (seq && seq.step !== "done") clear();
     if (timer) window.clearTimeout(timer);
   });
+  window.addEventListener("pageshow", (e) => { if (e.persisted) later(); });
   document.addEventListener("visibilitychange", () => { if (!document.hidden) later(); });
   refresh();
 }

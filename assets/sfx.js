@@ -155,8 +155,10 @@
       else if (c.cue === "heart") play("heart-lost");
     } else if (c.type === "level") {
       setTimeout(function () { play("level-up"); }, 500);
-    } else if (c.type === "form") {
-      if (c.fresh && c.fresh.length && !c.quiet) setTimeout(function () { play("level-up"); }, 500);
+    } else if (c.type === "form" && !document.querySelector("[data-form]")) {
+      /* the toast's note, after the level's own (a stage is always a level too); on the
+         progress page the evolution's reveal plays its note itself */
+      if (c.fresh && c.fresh.length && !c.quiet) setTimeout(function () { play("achievement"); }, 900);
     } else if (c.type === "achievement") {
       setTimeout(function () { play("achievement"); }, 900);
     }
