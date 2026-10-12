@@ -400,9 +400,12 @@ describe("game.form", () => {
     expect(form({ wear: { n: 5, at: WEAR_AT_MAX + 1 } }, { wear: { n: 2, at: 20 } }).wear).toEqual({ n: 2, at: 20 });
     expect(form({ wear: { n: 5, at: WEAR_AT_MAX } }, { wear: { n: 2, at: 20 } }).wear).toEqual({ n: 5, at: WEAR_AT_MAX });
     expect(form({ wear: { n: 5, at: -1 } }, { wear: { n: 2, at: 20 } }).wear).toEqual({ n: 2, at: 20 });
+    /* the bound's lower end: 0 counts, so a choice stamped at the epoch is still a choice */
+    expect(form({ wear: { n: 5, at: 0 } }, {}).wear).toEqual({ n: 5, at: 0 });
     /* both past the bound: neither qualifies, and the two go through later, whole */
     expect(form({ wear: { n: 5, at: 1e308 } }, { wear: { n: 2, at: 1e300 } }).wear).toEqual({ n: 5, at: 1e308 });
   });
+
   it("carries unknown fields of form and of wear", () => {
     const r = form({ next: "a", wear: { n: 1, at: 1, z: "b" } }, { next: "c", wear: { n: 1, at: 2, z: "a" } });
     expect(r).toEqual({ next: "c", wear: { n: 1, at: 2, z: "b" } });
