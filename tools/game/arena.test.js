@@ -748,12 +748,12 @@ async function run() {
 
       /* Hands off the mouse: an exercise (not a Your turn check) solved with no pointer in
          the ten seconds before */
-      const kb = (pointerAt, inline) => p.evaluate(({ pointerAt, inline }) => {
+      const kb = (pointerAt, inline, fresh) => p.evaluate(({ pointerAt, inline, fresh }) => {
         window.BMKeys.pointerAt = pointerAt === "now" ? Date.now() : pointerAt;
-        window.BMStore.emit({ type: "solved", chapter: "ch05", key: "e1", inline: inline });
+        window.BMStore.emit({ type: "solved", chapter: "ch05", key: "e1", inline: inline, fresh: fresh !== false });
         return JSON.parse(localStorage.getItem("bm.run.v1")).kb || 0;
-      }, { pointerAt, inline });
-      eq([await kb(0, false), await kb("now", false), await kb(0, true)], [1, 1, 1], "a solve counts by keyboard alone only with no recent pointer, and a Your turn check does not count");
+      }, { pointerAt, inline, fresh });
+      eq([await kb(0, false), await kb("now", false), await kb(0, true), await kb(0, false, false)], [1, 1, 1, 1], "a solve counts by keyboard alone only with no recent pointer; a Your turn check and a re-check of a solved card do not count");
       await p.evaluate(() => { var r = JSON.parse(localStorage.getItem("bm.run.v1")); r.kb = 24; localStorage.setItem("bm.run.v1", JSON.stringify(r)); });
       eq(await kb(0, false), 25, "the 25th counts");
       await p.waitForFunction(() => !!(JSON.parse(localStorage.getItem("bm.game.v1") || "{}").ach || {})["hands-off"], null, { timeout: 2000 }).catch(() => {});

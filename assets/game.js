@@ -1387,10 +1387,11 @@
       hud();
       schedule();
     } else if (t === "solved") {
-      /* Hands off the mouse: an exercise (not a Your turn check) solved with no pointer
-         used in the ten seconds before (src/ui/keys.ts stamps pointerAt) */
+      /* Hands off the mouse: an exercise (not a Your turn check) solved for the first time
+         (`fresh`: a re-check of a solved card is not a solve) with no pointer used in the
+         ten seconds before (src/ui/keys.ts stamps pointerAt) */
       var K10 = window.BMKeys;
-      if (!c.inline && K10 && Date.now() - num(K10.pointerAt) > 10000) updateRun(function (r) { r.kb = num(r.kb) + 1; });
+      if (c.fresh && !c.inline && K10 && Date.now() - num(K10.pointerAt) > 10000) updateRun(function (r) { r.kb = num(r.kb) + 1; });
       stamp(findEx(c.key));
       pendingEx = null;
       fillBanner();
