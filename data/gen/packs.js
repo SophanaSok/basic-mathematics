@@ -934,6 +934,9 @@
         steps = ["The leftmost dot is at $" + s[0] + "$ and the rightmost is at $" + s[len - 1] + "$.", "The range is $" + s[len - 1] + " - " + s[0] + " = " + ans + "$."];
       } else {
         var up = kind === "atleast";
+        /* the threshold sits inside the data's span, so the count is never every dot or none
+           (the range is never 0: the mode is unique and there are at least ten values) */
+        k = up ? r.int(s[0] + 1, s[len - 1]) : r.int(s[0], s[len - 1] - 1);
         var chosen = s.filter(function (x) { return up ? x >= k : x <= k; });
         ans = chosen.length;
         ask = "How many " + c.subj + " " + c.pred + " " + (up ? "at least" : "at most") + " $" + k + "$ " + c.noun + "?";
@@ -960,7 +963,7 @@
           }
           if (kind === "range") return keys[keys.length - 1] - keys[0] === ans;
           keys.forEach(function (x) { if (kind === "atleast" ? x >= k : x <= k) sum += t[x]; });
-          return sum === ans;
+          return sum === ans && ans > 0 && ans < len; /* a count is never every dot or none */
         }
       };
     }
