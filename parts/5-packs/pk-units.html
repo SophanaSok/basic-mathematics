@@ -1,0 +1,640 @@
+<!doctype html>
+<html lang="en">
+<head>
+<!--bm:head-->
+<title>Pack D. Units and Measurement — Basic Mathematics</title>
+<meta name="description" content="Measurements as numbers with units, conversion factors that equal one, converting inches to miles and hours to seconds, rates with units, unit rates, distance, rate and time, and converting a rate: the unit skills the gate exams ask for and the book leaves out.">
+</head>
+<body data-depth="2" data-chapter="pk-units" data-part="packs">
+<!--bm:topbar-->
+
+<div class="wrap">
+<div class="layout">
+  <aside class="sidebar" data-sidebar></aside>
+  <main id="main">
+
+    <header class="region-banner">
+      <p class="eyebrow">Skill packs · Pack D</p>
+      <h1>Units and Measurement</h1>
+      <p class="lede">
+        A number alone does not say how much. Five what? This pack treats the unit as part of the
+        answer, shows why multiplying by a fraction equal to one changes the unit and not the size,
+        and uses that one idea to convert inches, ounces, cups and seconds, both in the US customary
+        system and in the metric system. Then it turns to rates such as miles per hour and dollars per pound,
+        where the units themselves tell you whether the arithmetic is set up the right way up.
+      </p>
+
+      <div class="banner-meta" data-banner-meta></div>
+
+    </header>
+
+    <div class="puzzle" id="puzzle">
+      <span class="tag">A puzzle to carry through the pack</span>
+      <p>
+        A car drives at $60$ miles per hour. About how far does it go in one second?
+      </p>
+      <ul class="guess">
+        <li>About $1$ foot</li>
+        <li>About $88$ feet</li>
+        <li>About $5{,}000$ feet</li>
+      </ul>
+      <p class="puzzle-after">The speed is given in miles and hours, and the question is asked in feet and seconds, so one number has to pass through two conversions at once. The first section says how a single measurement changes units. (The second section converts a rate, by changing its top and its bottom separately.)</p>
+    </div>
+
+    <div class="goal">
+      <strong>By the end of this pack you can</strong>
+      write a measurement with its unit, build a conversion factor from a known fact and put it the
+      right way up so the unit you are leaving cancels, convert one-step and two-step measurements in
+      the US customary and metric systems, check an answer by asking whether a smaller unit should give
+      a bigger number, find a unit rate, use distance equals rate times time with the units lined up,
+      convert a rate by converting its top and its bottom, compare offers given in different units, and
+      read the units of an answer to catch a setup that is upside down.
+    </div>
+
+    <section class="warmup" id="warmup">
+      <div class="callout aside">
+        <span class="tag">Before you start</span>
+        <p>
+          This pack leans on <a href="../1-algebra/01-numbers.html#rationals">fractions and decimals as
+          numbers</a> (Chapter 1), multiplying and dividing them, and nothing else from the course. You
+          can read the pack at any point alongside it.
+        </p>
+      </div>
+
+      <p>
+        Three quick ones to wake up what the pack stands on. They are not scored. If one doesn't
+        come to you, its solution says where to look.
+      </p>
+
+      <div class="ex" data-inline id="w1" data-label="Warm-up 1" data-type="fraction" data-answer="1/5"
+           data-placeholder="e.g. 1/2"
+           data-hint="Divide the top and the bottom by the same number, the largest that goes into both.">
+        <div class="ex-q">
+          <p>
+            Write $\dfrac{12}{60}$ in lowest terms.
+          </p>
+        </div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $\dfrac15$</p>
+          <p>
+            The largest number that divides both is $12$, and $\frac{12}{60} = \frac{1}{5}$. See <a
+            href="../1-algebra/01-numbers.html#rationals">§1.5</a>. Minutes out of an hour reduce this way:
+            $12$ minutes is $\frac15$ of an hour.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" data-inline id="w2" data-label="Warm-up 2" data-type="number" data-answer="100"
+           data-placeholder="e.g. 7"
+           data-hint="Multiply as whole numbers first, then place the decimal point.">
+        <div class="ex-q">
+          <p>
+            Compute $2.5 \cdot 40$.
+          </p>
+        </div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $100$</p>
+          <p>
+            $25 \cdot 40 = 1000$, and one decimal place in $2.5$ moves the point once: $100$. Check:
+            $2 \cdot 40 + 0.5 \cdot 40 = 80 + 20 = 100$ ✓.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" data-inline id="w3" data-label="Warm-up 3" data-type="number" data-answer="1.5"
+           data-placeholder="e.g. 0.5"
+           data-hint="A fraction bar means divide: divide the top by the bottom.">
+        <div class="ex-q">
+          <p>
+            Write $\dfrac{90}{60}$ as a decimal.
+          </p>
+        </div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $1.5$</p>
+          <p>
+            $90 \div 60 = 1.5$. Check: $60 + 30 = 90$, and $30$ is half of $60$ ✓. This is how $90$
+            minutes becomes $1.5$ hours.
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <h2 id="convert">D.1 Converting units</h2>
+    <p>
+      A <b>measurement</b> is a number together with a <b>unit</b>: $5$ feet, $12$ ounces, $40$ miles
+      per hour. The unit is part of the answer. The number $5$ by itself does not say whether a rope
+      is that long or a bag is that heavy, and $5$ feet and $60$ inches are the same length written
+      two ways. Converting a measurement changes the unit and the number together so that the size
+      stays the same.
+    </p>
+    <p>
+      The tool is the <b>conversion factor</b>. Twelve inches and one foot are the same length, so the
+      fraction $\frac{12\text{ in}}{1\text{ ft}}$ equals $1$, and so does $\frac{1\text{ ft}}{12\text{ in}}$.
+      Multiplying by $1$ changes how a quantity is written and not how much it is. Units cancel top
+      against bottom just as numbers do:
+      $$5\text{ ft}\cdot\frac{12\text{ in}}{1\text{ ft}} = 60\text{ in}.$$
+    </p>
+    <p>
+      Which way up does the factor go? Argue it once. We want the unit we start with to disappear, and
+      a unit disappears only when it stands on top in the measurement and on the bottom in the factor.
+      So the unit you are leaving goes <em>underneath</em>. For feet to inches the feet go underneath,
+      as above. Turn the factor over and you get $5\text{ ft}\cdot\frac{1\text{ ft}}{12\text{ in}}$,
+      which leaves feet times feet per inch, a unit that means nothing here. With the rule &ldquo;the unit
+      I am leaving goes on the bottom&rdquo; there is no need to remember whether to multiply or divide: the
+      units choose.
+    </p>
+    <p>
+      A sanity check costs nothing. The same length measured in a smaller unit takes more of them, so
+      converting to a smaller unit makes the number bigger ($5$ feet is $60$ inches) and converting to
+      a larger unit makes it smaller ($60$ inches is $5$ feet). If your answer goes the wrong way, the
+      factor is upside down.
+    </p>
+    <table>
+      <caption>Conversion facts worth knowing</caption>
+      <thead><tr><th scope="col">Measure</th><th scope="col">US customary</th><th scope="col">Metric</th></tr></thead>
+      <tbody>
+        <tr><th scope="row">Length</th><td>$12$ in $= 1$ ft; $3$ ft $= 1$ yd; $5280$ ft $= 1$ mi</td><td>$10$ mm $= 1$ cm; $100$ cm $= 1$ m; $1000$ m $= 1$ km</td></tr>
+        <tr><th scope="row">Weight or mass</th><td>$16$ oz $= 1$ lb (the pound, abbreviated lb)</td><td>$1000$ g $= 1$ kg</td></tr>
+        <tr><th scope="row">Capacity</th><td>$2$ cups $= 1$ pt; $2$ pt $= 1$ qt; $4$ qt $= 1$ gal</td><td>$1000$ mL $= 1$ L</td></tr>
+        <tr><th scope="row">Time (both systems)</th><td colspan="2">$60$ s $= 1$ min; $60$ min $= 1$ h; $24$ h $= 1$ day; $7$ days $= 1$ week</td></tr>
+      </tbody>
+    </table>
+    <p>
+      The metric system is built on prefixes that always mean the same thing: <b>milli</b> is a
+      thousandth, <b>centi</b> a hundredth and <b>kilo</b> a thousand. So $1$ kilometer is $1000$
+      meters, $1$ meter is $100$ centimeters, and the same prefixes work for grams and liters. A
+      metric conversion moves the decimal point, because the factors are powers of ten.
+    </p>
+    <p>
+      Often there is no single fact joining two units, as with hours and seconds. Then chain two
+      factors, each with the unit being left underneath, so that the middle unit cancels as well. Every
+      factor is still a fraction equal to $1$, and so the whole product is too. Between the two systems
+      you need one fact, which an exam states in the question: $1$ inch $= 2.54$ centimeters, and
+      $1$ mile is about $1.6$ kilometers. Use it exactly like any other factor, and when the fact says
+      &ldquo;about&rdquo; the answer is only about.
+    </p>
+
+    <div class="worked">
+      <h3><span class="num">Example 1.</span> A factor, turned the right way</h3>
+      <div class="body">
+        <p>
+          A class lasts $150$ minutes. How many hours is that?
+        </p>
+        <ol class="steps">
+          <li>The fact is $1$ hour $= 60$ minutes. We are leaving minutes, so minutes go on the
+            bottom: the factor is $\frac{1\text{ h}}{60\text{ min}}$.</li>
+          <li>$150\text{ min}\cdot\frac{1\text{ h}}{60\text{ min}} = \frac{150}{60}\text{ h} = 2.5\text{ h}$.</li>
+          <li>The sanity check agrees: hours are the larger unit, so the number fell, from $150$ to $2.5$.</li>
+          <li>Check the other way: $2.5\text{ h}\cdot\frac{60\text{ min}}{1\text{ h}} = 150$ min ✓.
+            $\blacksquare$</li>
+        </ol>
+        <p class="note">
+          Two hours is $120$ minutes and three hours is $180$, so $150$ minutes must lie between two
+          and three hours, and $2.5$ does.
+        </p>
+      </div>
+    </div>
+
+    <div class="ex" data-inline id="t1" data-type="number" data-answer="3" data-placeholder="yards"
+         data-hint="The unit you are leaving, feet, goes on the bottom of the factor."
+         data-hint2="Three feet make one yard. Should the number of yards be bigger or smaller than the number of feet?">
+      <div class="ex-q">
+        <p>
+          A hallway is $9$ feet long. How many yards is that?
+        </p>
+      </div>
+      <div class="ex-solution">
+        <p class="answer">Answer: $3$ yards</p>
+        <p>
+          $9\text{ ft}\cdot\frac{1\text{ yd}}{3\text{ ft}} = 3\text{ yd}$. Check: $3$ yards of $3$ feet each
+          is $9$ feet ✓.
+        </p>
+      </div>
+    </div>
+
+    <div class="ex" data-inline id="t2" data-type="number" data-answer="2500" data-placeholder="grams"
+         data-hint="The prefix kilo means a thousand. The unit you are leaving goes on the bottom."
+         data-hint2="One kilogram is 1000 grams, and you have more than two kilograms, so expect more than 2000 grams.">
+      <div class="ex-q">
+        <p>
+          A bag of rice has a mass of $2.5$ kilograms. How many grams is that?
+        </p>
+      </div>
+      <div class="ex-solution">
+        <p class="answer">Answer: $2500$ grams</p>
+        <p>
+          $2.5\text{ kg}\cdot\frac{1000\text{ g}}{1\text{ kg}} = 2500\text{ g}$. Check: the decimal point moved three
+          places to the right, and $2500\text{ g}\div 1000 = 2.5$ kg ✓.
+        </p>
+      </div>
+    </div>
+
+    <div class="worked">
+      <h3><span class="num">Example 2.</span> Two factors in a chain</h3>
+      <div class="body">
+        <p>
+          A hiking trail is $2$ miles long. How many inches is that?
+        </p>
+        <ol class="steps">
+          <li>There is no one fact for miles and inches, but $1$ mile $= 5280$ feet and $1$ foot $= 12$
+            inches. Go through feet.</li>
+          <li>$2\text{ mi}\cdot\frac{5280\text{ ft}}{1\text{ mi}}\cdot\frac{12\text{ in}}{1\text{ ft}}$: the miles
+            cancel, then the feet cancel, and inches are left.</li>
+          <li>$2\cdot 5280 = 10{,}560$ feet, and $10{,}560\cdot 12 = 126{,}720$ inches.</li>
+          <li>Check by a different path, through yards: $1$ mile is $1760$ yards, so $2$ miles is $3520$
+            yards, and $3520\cdot 36 = 126{,}720$ inches ✓. The size also fits: inches are small, so
+            the number should be large. $\blacksquare$</li>
+        </ol>
+        <p class="note">
+          Each factor on its own is a fraction equal to $1$, so the product of the two is too, and the
+          trail is no longer or shorter than before.
+        </p>
+      </div>
+    </div>
+
+    <div class="ex" data-inline id="t3" data-type="number" data-answer="10800" data-placeholder="seconds"
+         data-hint="Hours do not meet seconds in one fact. Go through minutes with two factors."
+         data-hint2="One hour is 60 minutes, and one minute is 60 seconds. Multiply by both factors.">
+      <div class="ex-q">
+        <p>
+          A flight takes $3$ hours. How many seconds is that?
+        </p>
+      </div>
+      <div class="ex-solution">
+        <p class="answer">Answer: $10{,}800$ seconds</p>
+        <p>
+          $3\text{ h}\cdot\frac{60\text{ min}}{1\text{ h}}\cdot\frac{60\text{ s}}{1\text{ min}} = 3\cdot 3600 = 10{,}800$ s.
+          Check: $3$ hours is $180$ minutes, and $180\cdot 60 = 10{,}800$ ✓.
+        </p>
+      </div>
+    </div>
+
+    <h2 id="rates">D.2 Rates with units</h2>
+    <p>
+      A <b>rate</b> is a quotient of two measurements, and it carries a unit of its own. If a car
+      travels $150$ miles in $3$ hours, the rate is $\frac{150\text{ miles}}{3\text{ hours}} = 50$ miles
+      per hour. Other rates are dollars per pound, words per minute and gallons per minute. The word
+      &ldquo;per&rdquo; means divided by, so the unit after it goes on the bottom. The <b>unit rate</b> is the rate
+      per one of the bottom unit: $50$ miles for each hour, found by dividing the top by the bottom.
+      (Pack A, <a href="pk-percent.html#ratios">where rates began</a>, goes further into ratios, but
+      this pack does not need it.)
+    </p>
+    <p>
+      The rule for motion is $d = r\,t$, distance equals rate times time. Put the units in and it
+      explains itself: $\frac{\text{miles}}{\text{hour}}\cdot\text{hours}$, and the hours cancel, leaving
+      miles. The two rearrangements are $r = \frac{d}{t}$ and $t = \frac{d}{r}$. The units tell you
+      which to use. Miles divided by miles per hour is $\text{miles}\cdot\frac{\text{hours}}{\text{miles}}$,
+      which is hours. So a time is a distance over a rate. The same pattern holds for prices
+      ($\frac{\text{dollars}}{\text{lb}}\cdot\text{lb}$ is dollars) and for pay.
+    </p>
+    <p>
+      Before you multiply, the units must line up. A speed in miles per hour times a time in minutes
+      leaves a mixed unit, miles times minutes per hour, which is neither a distance nor a mistake you
+      can see in the digits. Convert one so that the time is in the unit on the bottom of the rate:
+      $40$ minutes is $\frac{40}{60}$ of an hour.
+    </p>
+    <p>
+      A rate has two units, so converting it takes two factors, one for the top and one for the bottom.
+      Take $12$ kilometers per hour in meters per minute. The top changes by
+      $\frac{1000\text{ m}}{1\text{ km}}$, and the bottom, per hour, changes by $\frac{1\text{ h}}{60\text{ min}}$,
+      since an hour is $60$ minutes:
+      $$12\,\frac{\text{km}}{\text{h}}\cdot\frac{1000\text{ m}}{1\text{ km}}\cdot\frac{1\text{ h}}{60\text{ min}} = \frac{12000}{60}\,\frac{\text{m}}{\text{min}} = 200\,\frac{\text{m}}{\text{min}}.$$
+      The kilometers cancel and the hours cancel, which is how you know both factors are the right way
+      up. To <em>compare</em> two offers or two speeds given in different units, bring both to one
+      unit first and then compare the unit rates. Comparing $\$3.50$ for a bag with $\$5.20$ for a
+      bigger bag tells you nothing until both are per pound, or per ounce.
+    </p>
+    <p>
+      Last, the units are a check you can run on your own setup. If a calculation for a speed ends in
+      hours per mile, the fraction is upside down. If the unit of an answer is miles times hours, you
+      multiplied where a division was needed. Write the unit with every number, let them cancel, and
+      accept the result only when the unit that remains is the one the question asked for.
+    </p>
+
+    <div class="worked">
+      <h3><span class="num">Example 3.</span> Distance when the time is in minutes</h3>
+      <div class="body">
+        <p>
+          A train moves at $72$ miles per hour for $40$ minutes. How far does it go?
+        </p>
+        <ol class="steps">
+          <li>The rate has hours on the bottom, so put the time in hours:
+            $40\text{ min}\cdot\frac{1\text{ h}}{60\text{ min}} = \frac{2}{3}\text{ h}$.</li>
+          <li>$d = r\,t = 72\,\frac{\text{mi}}{\text{h}}\cdot\frac{2}{3}\text{ h} = 48$ miles. The hours cancel,
+            and miles are what a distance should be in.</li>
+          <li>Check by changing the rate instead: $72$ miles per hour is $\frac{72}{60} = 1.2$ miles per
+            minute, and $1.2\cdot 40 = 48$ miles ✓. $\blacksquare$</li>
+        </ol>
+        <p class="note">
+          In a whole hour the train would go $72$ miles, and $40$ minutes is less than an hour, so an
+          answer below $72$ is the right size.
+        </p>
+      </div>
+    </div>
+
+    <div class="ex" data-inline id="t4" data-type="number" data-answer="4" data-placeholder="gallons per minute"
+         data-hint="A rate is the top quantity divided by the bottom quantity, and the unit after per is the bottom."
+         data-hint2="The question asks for gallons per minute, so gallons go on top and minutes on the bottom.">
+      <div class="ex-q">
+        <p>
+          A faucet fills $36$ gallons in $9$ minutes. How many gallons per minute is that?
+        </p>
+      </div>
+      <div class="ex-solution">
+        <p class="answer">Answer: $4$ gallons per minute</p>
+        <p>
+          $\frac{36\text{ gal}}{9\text{ min}} = 4$ gallons per minute. Check: $4\cdot 9 = 36$ ✓.
+        </p>
+      </div>
+    </div>
+
+    <div class="ex" data-inline id="t5" data-type="number" data-answer="2.5" data-placeholder="hours"
+         data-hint="Time is distance divided by rate. Check that the miles cancel and hours are left."
+         data-hint2="Write miles over miles per hour, and divide the numbers 150 and 60.">
+      <div class="ex-q">
+        <p>
+          How many hours does a trip of $150$ miles take at $60$ miles per hour?
+        </p>
+      </div>
+      <div class="ex-solution">
+        <p class="answer">Answer: $2.5$ hours</p>
+        <p>
+          $t = \frac{150\text{ mi}}{60\text{ mi/h}} = 2.5$ h. Check: $60\cdot 2.5 = 150$ miles ✓.
+        </p>
+      </div>
+    </div>
+
+    <div class="worked">
+      <h3><span class="num">Example 4.</span> Comparing two offers in different units</h3>
+      <div class="body">
+        <p>
+          Store A sells $6$ pounds of rice for $\$8.70$. Store B sells $40$ ounces of the same rice for
+          $\$3.50$. Which is cheaper per pound, and by how much?
+        </p>
+        <ol class="steps">
+          <li>The offers are in different units, so bring both to dollars per pound. Store A:
+            $\frac{\$8.70}{6\text{ lb}} = \$1.45$ per pound.</li>
+          <li>Store B first needs its ounces in pounds:
+            $40\text{ oz}\cdot\frac{1\text{ lb}}{16\text{ oz}} = 2.5\text{ lb}$. Then
+            $\frac{\$3.50}{2.5\text{ lb}} = \$1.40$ per pound.</li>
+          <li>Store B is cheaper by $\$1.45 - \$1.40 = \$0.05$ per pound.</li>
+          <li>Check with one amount for both. At Store A, $2.5$ lb would cost $2.5\cdot 1.45 = \$3.625$,
+            more than Store B's $\$3.50$ for the same $2.5$ lb ✓. $\blacksquare$</li>
+        </ol>
+        <p class="note">
+          The comparison is fair only because both prices are for one pound (lb). Comparing the totals,
+          $\$8.70$ and $\$3.50$, would have said nothing.
+        </p>
+      </div>
+    </div>
+
+    <div class="ex" data-inline id="t6" data-type="number" data-answer="6000" data-placeholder="meters per hour"
+         data-hint="Only the top of the rate changes, kilometers to meters. The bottom stays per hour."
+         data-hint2="A kilometer is a thousand meters, so each kilometer in the top becomes 1000 meters.">
+      <div class="ex-q">
+        <p>
+          A walker covers $6$ kilometers per hour. How many meters per hour is that?
+        </p>
+      </div>
+      <div class="ex-solution">
+        <p class="answer">Answer: $6000$ meters per hour</p>
+        <p>
+          $6\,\frac{\text{km}}{\text{h}}\cdot\frac{1000\text{ m}}{1\text{ km}} = 6000$ m per hour. Check: $6000$ m
+          is $6$ km, so the walker still covers $6$ km each hour ✓.
+        </p>
+      </div>
+    </div>
+
+    <!-- ====================================================== practice ==== -->
+    <section class="practice" id="practice">
+      <div class="practice-head">
+        <h2 style="margin-top:0">Practice</h2>
+        <span class="practice-score" data-practice-score></span>
+      </div>
+      <p>
+        Give each answer as a number in the unit the question names, without writing the unit. Use a
+        decimal, such as $4.5$, where the answer is not whole. Where a question states a fact joining
+        two systems, use it exactly as stated. Money is in dollars.
+      </p>
+
+      <div class="ex" id="e1" data-section="convert" data-type="number" data-answer="7" data-placeholder="feet"
+           data-hint="The unit you are leaving, inches, goes on the bottom of the conversion factor."
+           data-hint2="A foot is made of 12 inches. Will the answer in feet be a bigger or a smaller number than the inches?">
+        <div class="ex-q"><p>A banner is $84$ inches long. How many feet long is it?</p></div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $7$ feet</p>
+          <p>
+            $84\text{ in}\cdot\frac{1\text{ ft}}{12\text{ in}} = 7$ ft. Check: $7$ feet of $12$ inches each is
+            $7\cdot 12 = 84$ inches ✓.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" id="e2" data-section="convert" data-type="number" data-answer="56" data-placeholder="ounces"
+           data-hint="There are 16 ounces in a pound. Decide which unit is on the bottom of the factor."
+           data-hint2="A pound is the larger unit, so the number of ounces should be bigger than the number of pounds.">
+        <div class="ex-q"><p>A bag of flour weighs $3.5$ pounds. How many ounces is that?</p></div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $56$ ounces</p>
+          <p>
+            $3.5\text{ lb}\cdot\frac{16\text{ oz}}{1\text{ lb}} = 56$ oz. Check: $56\div 16 = 3.5$ lb ✓.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" id="e3" data-section="convert" data-type="number" data-answer="4.5" data-placeholder="kilometers"
+           data-hint="Kilo means a thousand. The unit you are leaving, meters, goes underneath."
+           data-hint2="You are moving to the larger unit, so the number gets smaller: the decimal point moves three places.">
+        <div class="ex-q"><p>A trail is $4500$ meters long. How many kilometers long is it?</p></div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $4.5$ kilometers</p>
+          <p>
+            $4500\text{ m}\cdot\frac{1\text{ km}}{1000\text{ m}} = 4.5$ km. Check: $4.5\cdot 1000 = 4500$ meters ✓.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" id="e4" data-section="convert" data-type="number" data-answer="0.75" data-placeholder="liters"
+           data-hint="Milli means a thousandth, so there are a thousand milliliters in a liter."
+           data-hint2="A liter is the larger unit, so expect fewer than the number of milliliters, and less than one liter here.">
+        <div class="ex-q"><p>A bottle holds $750$ milliliters. How many liters does it hold?</p></div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $0.75$ liters</p>
+          <p>
+            $750\text{ mL}\cdot\frac{1\text{ L}}{1000\text{ mL}} = 0.75$ L. Check: $0.75\cdot 1000 = 750$ mL ✓.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" id="e5" data-section="convert" data-type="number" data-answer="24" data-placeholder="cups"
+           data-hint="Quarts and cups are not joined by one fact in the table. Go through pints with two factors."
+           data-hint2="Quarts go to pints, and then pints go to cups. Find the number of pints first.">
+        <div class="ex-q"><p>A recipe needs $6$ quarts of broth. How many cups is that?</p></div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $24$ cups</p>
+          <p>
+            $6\text{ qt}\cdot\frac{2\text{ pt}}{1\text{ qt}}\cdot\frac{2\text{ cups}}{1\text{ pt}} = 6\cdot 2\cdot 2 = 24$ cups.
+            Check: one quart is $4$ cups, and $6\cdot 4 = 24$ ✓.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" id="e6" data-section="convert" data-type="number" data-answer="2" data-placeholder="hours"
+           data-hint="You are going from seconds up to hours, and there is no single fact between them. Chain two factors, each with the unit being left underneath."
+           data-hint2="Seconds go to minutes and then minutes go to hours. Find the number of minutes first.">
+        <div class="ex-q"><p>A film lasts $7200$ seconds. How many hours is that?</p></div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $2$ hours</p>
+          <p>
+            $7200\text{ s}\cdot\frac{1\text{ min}}{60\text{ s}}\cdot\frac{1\text{ h}}{60\text{ min}} = \frac{7200}{3600} = 2$ h.
+            Check: $2$ hours of $3600$ seconds each is $7200$ seconds ✓.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" id="e7" data-section="convert" data-type="number" data-answer="15.24" data-placeholder="centimeters"
+           data-hint="The question gives the fact joining the two systems. Use it as a conversion factor with the unit you are leaving underneath."
+           data-hint2="Each inch counts as 2.54 centimeters, so multiply the number of inches by 2.54.">
+        <div class="ex-q"><p>A phone is $6$ inches long. Use $1$ inch $= 2.54$ centimeters. How many centimeters long is the phone?</p></div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $15.24$ centimeters</p>
+          <p>
+            $6\text{ in}\cdot\frac{2.54\text{ cm}}{1\text{ in}} = 15.24$ cm. Check by an estimate: $6\cdot 2.5 = 15$,
+            and the extra $6\cdot 0.04 = 0.24$ makes $15.24$ ✓.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" id="e8" data-section="rates" data-type="number" data-answer="1.25" data-placeholder="dollars per pound"
+           data-hint="A unit price is a rate: the money on top and the pounds (lb) underneath."
+           data-hint2="Divide the number of dollars by the number of pounds (lb).">
+        <div class="ex-q"><p>$5$ pounds of potatoes cost $\$6.25$. How many dollars per pound is that?</p></div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $\$1.25$ per pound</p>
+          <p>
+            $\frac{\$6.25}{5\text{ lb}} = \$1.25$ per pound. Check: $5\cdot 1.25 = 6.25$ ✓.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" id="e9" data-section="rates" data-type="number" data-answer="3.5" data-placeholder="miles per hour"
+           data-hint="A speed is distance over time. Put the unit after the word per on the bottom."
+           data-hint2="Divide the miles walked by the hours it took.">
+        <div class="ex-q"><p>A hiker walks $14$ miles in $4$ hours. What is the speed in miles per hour?</p></div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $3.5$ miles per hour</p>
+          <p>
+            $\frac{14\text{ mi}}{4\text{ h}} = 3.5$ miles per hour. Check: $3.5\cdot 4 = 14$ miles ✓.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" id="e10" data-section="rates" data-type="number" data-answer="10" data-placeholder="miles"
+           data-hint="Distance is rate times time, but the time has to be in the unit on the bottom of the rate."
+           data-hint2="Change the minutes to a fraction of an hour first. Forty minutes is part of an hour, so expect fewer miles than the speed.">
+        <div class="ex-q"><p>A cyclist rides at $15$ miles per hour for $40$ minutes. How many miles does the cyclist ride?</p></div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $10$ miles</p>
+          <p>
+            $40$ minutes is $\frac{40}{60} = \frac23$ hour, so $d = 15\cdot\frac23 = 10$ miles. Check: $15$ miles
+            per hour is $\frac{15}{60} = 0.25$ mile per minute, and $0.25\cdot 40 = 10$ ✓.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" id="e11" data-section="rates" data-type="number" data-answer="75" data-placeholder="minutes"
+           data-hint="Time is distance divided by rate: miles over miles per hour leaves hours. Then change to the unit the question asks for."
+           data-hint2="Divide to get the time in hours, then change the hours to minutes with a factor.">
+        <div class="ex-q"><p>A car travels $35$ miles at $28$ miles per hour. How many minutes does the trip take?</p></div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $75$ minutes</p>
+          <p>
+            $t = \frac{35}{28} = 1.25$ hours, and $1.25\cdot 60 = 75$ minutes. Check: $28$ miles per hour is
+            $\frac{28}{60}$ mile per minute, and $75\cdot\frac{28}{60} = 35$ miles ✓.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" id="e12" data-section="rates" data-type="number" data-answer="15" data-placeholder="meters per second"
+           data-hint="A rate has two units. Convert the top with one factor and the bottom with another, each with the unit being left underneath."
+           data-hint2="Kilometers to meters changes the top. Hours to seconds changes the bottom, and there are 3600 seconds in an hour.">
+        <div class="ex-q"><p>A bus moves at $54$ kilometers per hour. How many meters per second is that?</p></div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $15$ meters per second</p>
+          <p>
+            $54\,\frac{\text{km}}{\text{h}}\cdot\frac{1000\text{ m}}{1\text{ km}}\cdot\frac{1\text{ h}}{3600\text{ s}} = \frac{54000}{3600} = 15$ m/s.
+            Check: at $15$ meters per second, one hour is $15\cdot 3600 = 54{,}000$ m, which is
+            $54$ km ✓.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" id="e13" data-section="rates" data-type="number" data-answer="0.6" data-placeholder="dollars per ounce"
+           data-hint="Only the bottom of this rate changes, from pounds to ounces. A pound is made of 16 ounces."
+           data-hint2="One ounce costs a sixteenth of what a pound costs, so the number gets smaller.">
+        <div class="ex-q"><p>Coffee costs $\$9.60$ per pound. How many dollars per ounce is that?</p></div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $\$0.60$ per ounce</p>
+          <p>
+            $\frac{\$9.60}{1\text{ lb}}\cdot\frac{1\text{ lb}}{16\text{ oz}} = \$0.60$ per ounce. Check: $16$ ounces at
+            $\$0.60$ each is $16\cdot 0.6 = \$9.60$ ✓.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" id="e14" data-section="rates" data-type="number" data-answer="3" data-placeholder="cents per ounce"
+           data-hint="Bring both brands to the same unit price before comparing: dollars per ounce, or cents per ounce."
+           data-hint2="Brand B is sold in pounds, so change its pounds to ounces first. Then find each price per ounce and subtract.">
+        <div class="ex-q"><p>Brand A sells $12$ ounces of peanut butter for $\$3.00$. Brand B sells $1.5$ pounds for $\$5.28$. How many cents per ounce cheaper is brand B than brand A?</p></div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $3$ cents per ounce</p>
+          <p>
+            Brand A: $\frac{300\text{ cents}}{12\text{ oz}} = 25$ cents per ounce. Brand B: $1.5$ pounds is
+            $1.5\cdot 16 = 24$ ounces, and $\frac{528\text{ cents}}{24\text{ oz}} = 22$ cents per ounce. The
+            difference is $25 - 22 = 3$ cents. Check with one amount: $24$ ounces of brand A would cost
+            $2\cdot\$3.00 = \$6.00$, which is $\$0.72$ more than brand B, and $72\div 24 = 3$ ✓.
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <div class="recap">
+      <h2>Recap</h2>
+      <div class="puzzle-answer">
+        <span class="tag">Back to the puzzle</span>
+        <p data-your-guess></p>
+        <p>
+          The car goes about $88$ feet in a second. Convert the top and the bottom of the rate:
+          $60\,\frac{\text{mi}}{\text{h}}\cdot\frac{5280\text{ ft}}{1\text{ mi}}\cdot\frac{1\text{ h}}{3600\text{ s}} = \frac{316{,}800}{3600} = 88$ feet per second.
+          A quicker route is that $60$ miles per hour is a mile a minute, and a mile is $5280$ feet in
+          $60$ seconds, which is $88$ feet in each. The size of a speed does not change with the unit;
+          only the number and the unit written beside it do.
+        </p>
+      </div>
+      <ul>
+        <li>A measurement is a number and a unit, and the unit is part of the answer.</li>
+        <li>A conversion factor is a fraction equal to $1$, such as $\frac{12\text{ in}}{1\text{ ft}}$.
+          Put the unit you are leaving on the bottom so that it cancels. The size stays the same.</li>
+        <li>A smaller unit needs a bigger number and a larger unit a smaller one. Use this to check
+          every conversion.</li>
+        <li>Metric prefixes mean the same thing everywhere: milli is $\frac{1}{1000}$, centi is
+          $\frac{1}{100}$, kilo is $1000$. Where there is no single fact, chain factors (hours to
+          seconds, miles to inches). A fact between systems is given in the question, and
+          &ldquo;about&rdquo; stays about.</li>
+        <li>A rate is a quotient of two measurements with a unit of its own, and the unit rate is the
+          rate per one of the bottom unit.</li>
+        <li>$d = r\,t$, $r = \frac{d}{t}$, $t = \frac{d}{r}$. Line up the units before you multiply, and
+          let them cancel.</li>
+        <li>Convert a rate by converting its top and its bottom separately, and compare offers by
+          bringing both to one unit rate.</li>
+        <li>The unit of the result is a check on the setup: hours per mile when you wanted miles per
+          hour means the fraction is upside down.</li>
+      </ul>
+    </div>
+
+    <nav class="chapter-nav" data-chapter-nav aria-label="Previous and next pack"></nav>
+  </main>
+</div>
+</div>
+</body>
+</html>

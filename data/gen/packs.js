@@ -3,6 +3,7 @@
    Pack B, "Data and Statistics": sections 1-4 (center and spread; reading displays; scatterplots and lines of fit; samples and claims).
    Pack C, "Chance and Counting": sections 1-4 (probability as a fraction of outcomes; compound events;
    two-way tables and conditional probability; counting arrangements).
+   Pack D, "Units and Measurement": sections 1-2 (converting units; rates with units).
    The quartiles follow the median-of-halves rule of src/ui/chart.ts.
 
    A problem may carry a chart the Arena draws with the page widget (assets/widgets.js,
@@ -1938,6 +1939,283 @@
           /* list the orders; person 0 is first and person 1 second */
           var perms = allPerms(m), hits = countIf(perms, function (p) { return p[0] === 0 && p[1] === 1; });
           return perms.length === factorial(m) && keyIs(ans3, hits, perms.length) && hits > 0;
+        }
+      };
+    }
+  });
+
+  /* --------------------------------------------- pack D §1: converting units -- */
+
+  /* a number for the page, with float noise removed: 4.5, 126720 */
+  function num(x) { return clean(x); }
+  /* "5 feet" or "1.5 feet" as math plus the unit name: $5$ feet */
+  function qty(x, name) { return "$" + num(x) + "$ " + name; }
+  /* one-step facts: big unit, small unit, how many small ones make one big one, and the biggest sensible count of big ones */
+  var ONE_STEP = [
+    { big: "feet", small: "inches", f: 12, max: 20, use: "a board" },
+    { big: "yards", small: "feet", f: 3, max: 40, use: "a field" },
+    { big: "miles", small: "feet", f: 5280, max: 6, use: "a road" },
+    { big: "pounds", small: "ounces", f: 16, max: 12, use: "a bag of flour" },
+    { big: "cups", small: "tablespoons", f: 16, max: 10, use: "a pot of broth" },
+    { big: "gallons", small: "quarts", f: 4, max: 15, use: "a tank of water" },
+    { big: "quarts", small: "pints", f: 2, max: 20, use: "a jug of juice" },
+    { big: "pints", small: "cups", f: 2, max: 20, use: "a bottle of milk" },
+    { big: "hours", small: "minutes", f: 60, max: 12, use: "a class" },
+    { big: "minutes", small: "seconds", f: 60, max: 30, use: "a song" },
+    { big: "days", small: "hours", f: 24, max: 14, use: "a trip" },
+    { big: "weeks", small: "days", f: 7, max: 12, use: "a project" }
+  ];
+  var HALVES = [2, 3, 4, 5, 6, 7, 8, 9, 12, 2.5, 3.5, 4.5, 1.5, 0.5];
+
+  G.add({
+    id: "pk-unit-one", section: "pk-units#convert", par: 40, timed: true,
+    make: function (r) {
+      var c = r.pick(ONE_STEP), up = r.chance(0.5), k, ans, given, from, to;
+      /* k is the count of big units; the small count is k times the fact */
+      do { k = r.pick(HALVES); } while (k > c.max || Math.abs(k * c.f - Math.round(k * c.f)) > 1e-9);
+      if (!up) { from = c.big; to = c.small; given = k; ans = k * c.f; }
+      else { from = c.small; to = c.big; given = k * c.f; ans = k; }
+      return {
+        q: "Convert " + qty(given, from) + " to " + to + ". How many " + to + " is that?",
+        type: "number", answer: num(ans), placeholder: to,
+        hint: "Write a conversion factor, a fraction equal to one, with the unit you are leaving on the bottom so that it cancels. Then ask whether the answer should be a bigger number or a smaller one.",
+        steps: [
+          "The fact is $1$ " + c.big.replace(/s$/, "") + " $= " + c.f + "$ " + c.small + ", so the factor is " + (up ? "$\\dfrac{1\\text{ " + c.big.replace(/s$/, "") + "}}{" + c.f + "\\text{ " + c.small + "}}$" : "$\\dfrac{" + c.f + "\\text{ " + c.small + "}}{1\\text{ " + c.big.replace(/s$/, "") + "}}$") + ", with " + from + " underneath.",
+          (up ? "$" + num(given) + " \\div " + c.f + " = " + num(ans) + "$" : "$" + num(given) + " \\cdot " + c.f + " = " + num(ans) + "$") + " " + to + ".",
+          "Check: " + (up ? "going to the bigger unit gives a smaller number" : "going to the smaller unit gives a bigger number") + ", as it should."
+        ],
+        verify: function () {
+          /* convert back with the other factor, and check the size of the number against the unit */
+          var back = up ? ans * c.f : ans / c.f;
+          return Math.abs(back - given) < 1e-6 && (up ? ans < given : ans > given) && ans > 0 && k * c.f <= 6 * 5280;
+        }
+      };
+    }
+  });
+
+  /* two-step chains: the units in order, the facts between them, and a sensible count of the first unit */
+  var CHAINS = [
+    { u: ["hours", "minutes", "seconds"], f: [60, 60], ks: [2, 3, 4, 5, 6, 1.5, 2.5] },
+    { u: ["days", "hours", "minutes"], f: [24, 60], ks: [2, 3, 4, 5, 7, 0.5, 1.5] },
+    { u: ["weeks", "days", "hours"], f: [7, 24], ks: [2, 3, 4, 5, 6, 8] },
+    { u: ["kilometers", "meters", "centimeters"], f: [1000, 100], ks: [2, 3, 4, 5, 6, 8, 9, 0.5, 1.5, 2.5] },
+    { u: ["kilograms", "grams", "milligrams"], f: [1000, 1000], ks: [2, 3, 4, 5, 0.5, 1.5, 2.5] },
+    { u: ["gallons", "quarts", "pints"], f: [4, 2], ks: [2, 3, 4, 5, 6, 8, 10, 12, 2.5, 3.5] },
+    { u: ["quarts", "pints", "cups"], f: [2, 2], ks: [3, 4, 5, 6, 7, 8, 9, 12, 2.5, 3.5] },
+    { u: ["yards", "feet", "inches"], f: [3, 12], ks: [2, 3, 4, 5, 6, 8, 10, 12, 15, 20, 2.5, 4.5] },
+    { u: ["miles", "yards", "feet"], f: [1760, 3], ks: [2, 3, 4, 5, 0.5, 1.5, 2.5] },
+    { u: ["miles", "feet", "inches"], f: [5280, 12], ks: [0.5, 1.5, 2, 2.5] }
+  ];
+
+  G.add({
+    id: "pk-unit-chain", section: "pk-units#convert", par: 70, timed: true,
+    make: function (r) {
+      var c = r.pick(CHAINS), k = r.pick(c.ks), up = r.chance(0.4), total = c.f[0] * c.f[1];
+      var small = k * total, from = up ? c.u[2] : c.u[0], to = up ? c.u[0] : c.u[2];
+      var given = up ? small : k, ans = up ? k : small;
+      var one = function (i) { return c.u[i].replace(/s$/, ""); };
+      var fa = c.f[0], fb = c.f[1];
+      return {
+        q: "Convert " + qty(given, from) + " to " + to + ". How many " + to + " is that?",
+        type: "number", answer: num(ans), placeholder: to,
+        hint: "There is no single fact joining these two units, so go through the unit in the middle. Use two conversion factors, each with the unit you are leaving on the bottom.",
+        steps: up ? [
+          "Go from " + from + " to " + c.u[1] + " first: divide by $" + fb + "$ (there are $" + fb + "$ " + c.u[2] + " in one " + one(1) + "), which gives $" + num(given / fb) + "$ " + c.u[1] + ".",
+          "Then to " + to + ": divide by $" + fa + "$ (there are $" + fa + "$ " + c.u[1] + " in one " + one(0) + "), which gives $" + num(ans) + "$ " + to + ".",
+          "Check: both steps went to bigger units, so the number fell each time."
+        ] : [
+          "Go from " + from + " to " + c.u[1] + " first: multiply by $" + fa + "$ (one " + one(0) + " is $" + fa + "$ " + c.u[1] + "), which gives $" + num(given * fa) + "$ " + c.u[1] + ".",
+          "Then to " + to + ": multiply by $" + fb + "$ (one " + one(1) + " is $" + fb + "$ " + c.u[2] + "), which gives $" + num(ans) + "$ " + to + ".",
+          "Check: both steps went to smaller units, so the number rose each time."
+        ],
+        verify: function () {
+          /* walk the answer back one factor at a time */
+          var back = up ? ans * fa * fb : ans / fb / fa;
+          return Math.abs(back - given) < 1e-6 && Math.abs(small - k * fa * fb) < 1e-6 && (up ? ans < given : ans > given) && ans > 0;
+        }
+      };
+    }
+  });
+
+  /* metric prefixes: the unit with the prefix, the base unit, and how many prefixed units make one base unit (or the reverse) */
+  var METRIC = [
+    { big: "kilometers", small: "meters", f: 1000, vs: [0.5, 1.5, 2.5, 3.2, 4.8, 6, 7.5, 9, 12, 18, 25] },
+    { big: "meters", small: "centimeters", f: 100, vs: [0.5, 0.75, 1.5, 2.4, 3.6, 4.2, 6, 7.5, 12] },
+    { big: "meters", small: "millimeters", f: 1000, vs: [0.5, 0.75, 1.5, 2.4, 3.6, 4.2, 6] },
+    { big: "centimeters", small: "millimeters", f: 10, vs: [0.5, 1.5, 2.5, 3.2, 4.8, 6, 7.5, 12, 18, 24] },
+    { big: "kilograms", small: "grams", f: 1000, vs: [0.5, 0.75, 1.5, 2.5, 3.2, 4.8, 6, 7.5, 9] },
+    { big: "grams", small: "milligrams", f: 1000, vs: [0.25, 0.5, 0.75, 1.5, 2.5, 3.2, 4.8, 6] },
+    { big: "liters", small: "milliliters", f: 1000, vs: [0.25, 0.5, 0.75, 1.5, 2.5, 3.2, 4.8, 6] }
+  ];
+
+  G.add({
+    id: "pk-unit-metric", section: "pk-units#convert", par: 40, timed: true,
+    make: function (r) {
+      var c = r.pick(METRIC), v = r.pick(c.vs), up = r.chance(0.5);
+      var smallCount = Math.round(v * c.f * 1000) / 1000, given = up ? smallCount : v, ans = up ? v : smallCount;
+      var from = up ? c.small : c.big, to = up ? c.big : c.small;
+      var shift = c.f === 1000 ? 3 : c.f === 100 ? 2 : 1;
+      return {
+        q: "Convert " + qty(given, from) + " to " + to + ". How many " + to + " is that?",
+        type: "number", answer: num(ans), placeholder: to,
+        hint: "The prefix says how many of the smaller unit make one of the larger: kilo and milli are a thousand, centi is a hundred. Put the unit you are leaving on the bottom of the factor, and decide whether the number should grow or shrink.",
+        steps: [
+          "One " + c.big.replace(/s$/, "") + " is $" + c.f + "$ " + c.small + ", so the factor is " + (up ? "$\\dfrac{1\\text{ " + c.big.replace(/s$/, "") + "}}{" + c.f + "\\text{ " + c.small + "}}$" : "$\\dfrac{" + c.f + "\\text{ " + c.small + "}}{1\\text{ " + c.big.replace(/s$/, "") + "}}$") + ".",
+          up ? "$" + num(given) + " \\div " + c.f + " = " + num(ans) + "$ " + to + " (the decimal point moves " + shift + " place" + (shift > 1 ? "s" : "") + " to the left)."
+             : "$" + num(given) + " \\cdot " + c.f + " = " + num(ans) + "$ " + to + " (the decimal point moves " + shift + " place" + (shift > 1 ? "s" : "") + " to the right).",
+          "Check: " + (up ? "the larger unit needs fewer of them" : "the smaller unit needs more of them") + "."
+        ],
+        verify: function () {
+          /* shift the digits instead of multiplying: a power of ten, then convert back */
+          var p = Math.pow(10, shift), back = up ? ans * p : ans / p;
+          return Math.abs(back - given) < 1e-6 && c.f === p && (up ? ans < given : ans > given) && ans > 0;
+        }
+      };
+    }
+  });
+
+  /* --------------------------------------------- pack D §2: rates with units -- */
+
+  /* a rate and the amounts behind it: the rate is chosen first so every total is exact */
+  var UNIT_RATES = [
+    { s: "A cyclist rides {a} miles in {b} hours.", a: "miles", b: "hours", per: "mile", pu: "hour", rates: [9, 10, 12, 14, 15, 16, 18], bs: [2, 3, 4, 5] },
+    { s: "A car travels {a} miles in {b} hours.", a: "miles", b: "hours", per: "mile", pu: "hour", rates: [40, 45, 50, 55, 60, 65], bs: [2, 3, 4, 5, 6] },
+    { s: "A runner covers {a} miles in {b} hours.", a: "miles", b: "hours", per: "mile", pu: "hour", rates: [6, 7.5, 8, 9, 10], bs: [2, 3, 4] },
+    { s: "A typist enters {a} words in {b} minutes.", a: "words", b: "minutes", per: "word", pu: "minute", rates: [35, 40, 45, 50, 60, 65, 70], bs: [4, 5, 6, 8, 10] },
+    { s: "A reader finishes {a} pages in {b} hours.", a: "pages", b: "hours", per: "page", pu: "hour", rates: [20, 25, 30, 36, 40, 45], bs: [2, 3, 4, 5] },
+    { s: "A hose delivers {a} gallons in {b} minutes.", a: "gallons", b: "minutes", per: "gallon", pu: "minute", rates: [2, 2.5, 3, 4, 5, 7.5], bs: [4, 6, 8, 10, 12] },
+    { s: "A car uses {b} gallons of gas to drive {a} miles.", a: "miles", b: "gallons", per: "mile", pu: "gallon", rates: [24, 28, 30, 32, 35, 40], bs: [4, 5, 8, 10, 12] },
+    { s: "A heart beats {a} times in {b} minutes.", a: "beats", b: "minutes", per: "beat", pu: "minute", rates: [60, 66, 70, 72, 75, 80], bs: [3, 5, 10] }
+  ];
+  var PRICED = [
+    { s: "{b} pounds of grapes cost {a}.", b: "pounds", pu: "pound", rates: [1.25, 1.5, 2.4, 2.75, 3.5, 4.25], bs: [2, 3, 4, 5, 6, 8] },
+    { s: "{b} pounds of cheese cost {a}.", b: "pounds", pu: "pound", rates: [4.5, 5.25, 6, 7.5, 8.75], bs: [2, 3, 4, 5] },
+    { s: "{b} gallons of paint cost {a}.", b: "gallons", pu: "gallon", rates: [18, 22.5, 25, 28], bs: [2, 3, 4, 5] },
+    { s: "{b} feet of rope cost {a}.", b: "feet", pu: "foot", rates: [0.4, 0.55, 0.75, 1.2, 1.5], bs: [10, 15, 20, 25, 30] },
+    { s: "{b} gallons of milk cost {a}.", b: "gallons", pu: "gallon", rates: [3.5, 3.75, 4.2, 4.5], bs: [2, 3, 4, 5, 6] },
+    { s: "A worker earns {a} for {b} hours of work.", b: "hours", pu: "hour", rates: [9, 10.5, 12, 12.5, 14, 15, 16.5, 18], bs: [3, 4, 5, 6, 8] }
+  ];
+
+  G.add({
+    id: "pk-rate-unit", section: "pk-units#rates", par: 50, timed: true,
+    make: function (r) {
+      var priced = r.chance(0.45), c = priced ? r.pick(PRICED) : r.pick(UNIT_RATES), rate = r.pick(c.rates), b = r.pick(c.bs);
+      var cents = Math.round(rate * 100), total = cents * b, q, holder, perText;
+      if (priced) {
+        q = c.s.replace("{a}", usd(total)).replace("{b}", "$" + b + "$") + " How many dollars is that per " + c.pu + "?";
+        holder = "dollars per " + c.pu; perText = "dollars per " + c.pu;
+      } else {
+        q = c.s.replace("{a}", "$" + num(total / 100) + "$").replace("{b}", "$" + b + "$") + " What is the rate in " + c.a + " per " + c.pu + "?";
+        holder = c.a + " per " + c.pu; perText = c.a + " per " + c.pu;
+      }
+      return {
+        q: q, type: "number", answer: num(rate), placeholder: holder,
+        hint: "A rate is a quotient of two measurements, and its unit is the top unit per one of the bottom unit. Decide which quantity goes on the bottom, then divide.",
+        steps: [
+          "The question asks for " + perText + ", so the amount named after “per” goes on the bottom: $" + b + "$ " + c.b + ".",
+          "Divide the other amount by it: $" + (priced ? "\\$" + num(total / 100) : num(total / 100)) + " \\div " + b + " = " + num(rate) + "$.",
+          "The rate is $" + num(rate) + "$ " + perText + "."
+        ],
+        verify: function () {
+          /* multiply the rate back by the bottom amount, in whole hundredths */
+          return Math.round(Math.round(rate * 100) * b) === total && rate > 0 && (priced ? rate <= 30 : rate <= 80);
+        }
+      };
+    }
+  });
+
+  /* distance, rate and time where the time is not in the unit of the rate */
+  var MOVERS = [
+    { who: "A cyclist", speeds: [9, 12, 15, 18] },
+    { who: "A bus", speeds: [24, 30, 36, 45] },
+    { who: "A car", speeds: [36, 45, 48, 60] },
+    { who: "A jogger", speeds: [6, 9, 12] }
+  ];
+  var MINS = [10, 15, 20, 30, 40, 45, 90, 120];
+
+  G.add({
+    id: "pk-rate-drt", section: "pk-units#rates", par: 70, timed: true,
+    make: function (r) {
+      var kind = r.pick(["dist", "dist", "time", "rate", "print"]), m = r.pick(MOVERS), S = r.pick(m.speeds), t, q, ans, holder, steps, hint, ver;
+      if (kind === "dist") {
+        do { t = r.pick(MINS); } while (Math.abs(S * t / 60 * 100 - Math.round(S * t / 60 * 100)) > 1e-9);
+        ans = S * t / 60; holder = "miles";
+        q = m.who + " moves at $" + S + "$ miles per hour for $" + t + "$ minutes. How many miles does it go?";
+        hint = "Distance is rate times time, but the time must be in the unit the rate uses on the bottom. Change the minutes first, then multiply.";
+        steps = ["The rate has hours on the bottom, so write the time in hours: $" + t + "$ minutes $= \\frac{" + t + "}{60}$ hour.", "$d = rt = " + S + " \\cdot \\frac{" + t + "}{60} = " + num(ans) + "$ miles."];
+        ver = function () { return Math.abs((S / 60) * t - ans) < 1e-6; };
+      } else if (kind === "time") {
+        var th = r.pick([0.5, 0.75, 1.25, 1.5, 2, 2.5, 3, 3.5, 4.5]), inMin = r.chance(0.5), D = S * th;
+        ans = inMin ? th * 60 : th; holder = inMin ? "minutes" : "hours";
+        q = m.who + " goes $" + num(D) + "$ miles at $" + S + "$ miles per hour. How many " + holder + " does the trip take?";
+        hint = "Time is distance divided by rate, and the units tell you so: miles divided by miles per hour leaves hours." + (inMin ? " The question wants minutes, so convert at the end." : "");
+        steps = ["$t = d \\div r = " + num(D) + " \\div " + S + " = " + num(th) + "$ hours."];
+        if (inMin) steps = ["$t = d \\div r = " + num(D) + " \\div " + S + " = " + num(th) + "$ hours.", "In minutes: $" + num(th) + " \\cdot 60 = " + num(ans) + "$."];
+        ver = function () { return Math.abs(S * (ans / (inMin ? 60 : 1)) - D) < 1e-6; };
+      } else if (kind === "rate") {
+        var rate = r.pick([9, 12, 15, 18, 24, 30, 36, 45, 60]), tm = r.pick([10, 15, 20, 30, 40, 45, 90]), D2 = rate * tm / 60;
+        S = rate; ans = rate; holder = "miles per hour";
+        q = "A driver" + " covers $" + num(D2) + "$ miles in $" + tm + "$ minutes. What is the speed in miles per hour?";
+        hint = "Rate is distance divided by time. The answer is wanted per hour, so the time on the bottom must be in hours.";
+        steps = ["$" + tm + "$ minutes $= \\frac{" + tm + "}{60}$ hour.", "$r = d \\div t = " + num(D2) + " \\div \\frac{" + tm + "}{60} = " + num(rate) + "$ miles per hour."];
+        ver = function () { return Math.abs((D2 / tm) * 60 - rate) < 1e-6 && rate <= 65; };
+      } else {
+        var ppm = r.pick([10, 12, 15, 20, 24, 30]), hrs = r.pick([0.5, 1.5, 2, 2.5]);
+        ans = ppm * 60 * hrs; holder = "pages";
+        q = "A printer prints $" + ppm + "$ pages per minute. How many pages does it print in $" + num(hrs) + "$ hours?";
+        hint = "The rate is per minute and the time is in hours, so line the units up before you multiply.";
+        steps = ["$" + num(hrs) + "$ hours $= " + num(hrs * 60) + "$ minutes.", "$" + ppm + " \\cdot " + num(hrs * 60) + " = " + num(ans) + "$ pages."];
+        ver = function () { return Math.abs((ppm * 60) * hrs - ans) < 1e-6; };
+      }
+      return {
+        q: q, type: "number", answer: num(ans), placeholder: holder, hint: hint, steps: steps,
+        verify: function () { return ver() && ans > 0; }
+      };
+    }
+  });
+
+  /* converting a rate: the top and the bottom each get a factor.
+     tn/td converts the top unit, bn/bd the bottom one: to = from * (tn/td) / (bn/bd) */
+  var RATE_CASES = [
+    { from: ["feet", "second"], to: ["miles", "hour"], tn: 1, td: 5280, bn: 1, bd: 3600, facts: "$1$ mile $= 5280$ feet and $1$ hour $= 3600$ seconds",
+      names: ["feet per second", "miles per hour"], pairs: [[22, 15], [44, 30], [66, 45], [88, 60], [110, 75]], who: "A car" },
+    { from: ["kilometers", "hour"], to: ["meters", "second"], tn: 1000, td: 1, bn: 3600, bd: 1, facts: "$1$ kilometer $= 1000$ meters and $1$ hour $= 3600$ seconds",
+      names: ["kilometers per hour", "meters per second"], pairs: [[18, 5], [36, 10], [54, 15], [72, 20], [90, 25], [108, 30]], who: "A bus" },
+    { from: ["gallons", "minute"], to: ["gallons", "hour"], tn: 1, td: 1, bn: 1, bd: 60, facts: "$1$ hour $= 60$ minutes",
+      names: ["gallons per minute", "gallons per hour"], pairs: [[2, 120], [2.5, 150], [3, 180], [4, 240], [4.5, 270], [7.5, 450]], who: "A pump" },
+    { from: ["kilometers", "hour"], to: ["meters", "minute"], tn: 1000, td: 1, bn: 60, bd: 1, facts: "$1$ kilometer $= 1000$ meters and $1$ hour $= 60$ minutes",
+      names: ["kilometers per hour", "meters per minute"], pairs: [[3, 50], [6, 100], [9, 150], [12, 200], [15, 250], [18, 300]], who: "A walker" },
+    { from: ["miles", "hour"], to: ["miles", "minute"], tn: 1, td: 1, bn: 60, bd: 1, facts: "$1$ hour $= 60$ minutes",
+      names: ["miles per hour", "miles per minute"], pairs: [[15, 0.25], [24, 0.4], [30, 0.5], [36, 0.6], [45, 0.75], [48, 0.8], [60, 1]], who: "A train" },
+    { from: ["dollars", "pound"], to: ["dollars", "ounce"], tn: 1, td: 1, bn: 16, bd: 1, facts: "$1$ pound $= 16$ ounces",
+      names: ["dollars per pound", "dollars per ounce"], pairs: [[3.2, 0.2], [4.8, 0.3], [6.4, 0.4], [8, 0.5], [9.6, 0.6], [11.2, 0.7]], who: "A shop", money: true }
+  ];
+
+  G.add({
+    id: "pk-rate-convert", section: "pk-units#rates", par: 80, timed: true,
+    make: function (r) {
+      var c0 = r.pick(RATE_CASES), pr = r.pick(c0.pairs), rev = r.chance(0.5);
+      /* going backwards swaps the two units and inverts both factors */
+      var c = rev ? { from: c0.to, to: c0.from, tn: c0.td, td: c0.tn, bn: c0.bd, bd: c0.bn, names: [c0.names[1], c0.names[0]] } : c0;
+      var given = rev ? pr[1] : pr[0], ans = rev ? pr[0] : pr[1], fromName = c.names[0], toName = c.names[1];
+      var gtxt = c0.money ? usd(Math.round(given * 100)) : "$" + num(given) + "$";
+      var q = c0.who + " moves at " + gtxt + " " + fromName + ". What is that in " + toName + "?";
+      if (c0.money) q = "A shop sells coffee at " + gtxt + " " + fromName + ". What is that in " + toName + "?";
+      var fq = function (n, d) { return d === 1 ? String(n) : "\\frac{" + n + "}{" + d + "}"; };
+      var topStep = c.tn === c.td ? "The top unit (" + c.from[0] + ") stays the same." : "Top: " + c.from[0] + " to " + c.to[0] + ", multiply by $" + fq(c.tn, c.td) + "$.";
+      var botStep = c.bn === c.bd ? "The bottom unit stays the same." : "Bottom: " + c.from[1] + " to " + c.to[1] + " multiplies the bottom by $" + fq(c.bn, c.bd) + "$, so the rate is divided by $" + fq(c.bn, c.bd) + "$.";
+      return {
+        q: q, type: "number", answer: num(ans), placeholder: toName,
+        hint: "A rate has two units, one on the top and one on the bottom. Convert each with its own factor, the unit you are leaving underneath, and keep the top and the bottom straight.",
+        steps: [
+          "The facts: " + c0.facts + ".",
+          topStep, botStep,
+          "Together: $" + num(given) + " \\cdot " + fq(c.tn, c.td) + " \\div " + fq(c.bn, c.bd) + " = " + num(ans) + "$ " + toName + "."
+        ],
+        verify: function () {
+          /* the factors multiply to the answer, and the reverse conversion returns the given rate */
+          var fwd = given * c.tn * c.bd / (c.td * c.bn), back = ans * c.td * c.bn / (c.tn * c.bd);
+          return Math.abs(fwd - ans) < 1e-9 && Math.abs(back - given) < 1e-9 && ans > 0 && given > 0 && (c0.money ? given <= 20 : given <= 450);
         }
       };
     }

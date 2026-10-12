@@ -92,5 +92,7 @@ export const SECTION_WORK: Readonly<Partial<Record<SectionRef, number>>> = {
   "pk-chance#outcomes": 10,
   "pk-chance#compound": 10,
   "pk-chance#twoway": 9,
-  "pk-chance#counting": 9
+  "pk-chance#counting": 9,
+  "pk-units#convert": 10,
+  "pk-units#rates": 10
 };

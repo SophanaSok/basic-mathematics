@@ -353,6 +353,20 @@ window.BM_CURRICULUM = {
             { id: "twoway", title: "Two-way tables and conditional probability", summary: "A probability read from a whole two-way table divides by the grand total, one read from a single row or column divides by that group's total and is conditional, P(A given B) is not P(B given A), and independence means the conditional equals the unconditional." },
             { id: "counting", title: "Counting arrangements", summary: "Choices multiply, n distinct items can be arranged in n! orders, k items chosen in order from n take the product of k falling factors, codes with and without repeats differ in what is used up, a probability is one over the arrangements, and counting groups where order does not matter divides out the orders." }
           ]
+        },
+        {
+          id: "pk-units",
+          label: "D",
+          title: "Units and Measurement",
+          file: "pk-units.html",
+          status: "full",
+          course: "pre-algebra",
+          blurb:
+            "Measurements as numbers with units, conversion factors that equal one, and rates with their own units: converting inches to miles and hours to seconds, unit rates, distance, rate and time, and converting a rate.",
+          sections: [
+            { id: "convert", title: "Converting units", summary: "A measurement is a number with a unit; a conversion factor is a fraction equal to one with the unit you are leaving on the bottom, so it cancels; chains of factors join units with no direct fact, and a smaller unit needs a larger number." },
+            { id: "rates", title: "Rates with units", summary: "A rate is a quotient of two measurements with a unit of its own; the unit rate is the rate per one; distance is rate times time with the units aligned, a rate converts by its top and bottom separately, and the units of an answer catch an upside-down setup." }
+          ]
         }
       ]
     }
