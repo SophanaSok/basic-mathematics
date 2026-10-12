@@ -155,6 +155,8 @@
       else if (c.cue === "heart") play("heart-lost");
     } else if (c.type === "level") {
       setTimeout(function () { play("level-up"); }, 500);
+    } else if (c.type === "form") {
+      if (c.fresh && c.fresh.length && !c.quiet) setTimeout(function () { play("level-up"); }, 500);
     } else if (c.type === "achievement") {
       setTimeout(function () { play("achievement"); }, 900);
     }

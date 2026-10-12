@@ -8,7 +8,12 @@
      - Which stage is reached and which is worn come from src/core/forms.ts, over the game
        store's `form` and the XP. Equip writes form.wear = { n, at } and nothing else of the
        store; `at` is always later than the one it replaces, so a choice made here wins the
-       sync merge. It never writes `got` (the evolution moment, card F-6, does).
+       sync merge. It never writes `got` (src/ui/form-unlock.ts does).
+     - The evolution moment: when the highest stage is past run.seen.evolved, the panel plays
+       one sequence (anticipate 700 ms, flash 500, reveal 700, then a caption with Done), its
+       step in data-form-seq on the panel. Skip, or Escape in the first three steps, goes to
+       the caption; under BMFx.still() it is a cut. Nothing is modal. The caption step sets
+       run.seen.evolved, so a reload plays nothing.
      - Without 3D (no WebGL, the list tier, a failed fetch, a lost context) the box shows a
        card with the stage number, and the page is whole. The box keeps its 4:5 shape in
        every state, so nothing moves.
@@ -42,6 +47,11 @@ const snaps: Record<number, string> = {};
 let snapKey = "";
 let themeKey = "";
 let timer = 0;
+
+interface Seq { from: number; hi: number; swapped: boolean; step: string; timers: number[]; multi: number[] }
+let seq: Seq | null = null;
+/* the stages recorded together by the latest unlock seen live, for the caption's wording */
+let liveFresh: number[] = [];
 
 function gameForm(): unknown {
   try { return window.BMGame.game().form; } catch { return undefined; }
@@ -93,6 +103,7 @@ function build(): HTMLElement {
       '<span class="form-pic"><img alt="" hidden><b class="form-pip" aria-hidden="true">' + f.n + "</b></span>" +
       '<b class="form-tile-name">' + esc(f.name) + "</b>" +
       '<span class="form-tile-level"></span>' +
+      '<span class="form-tile-tag"></span>' +
       '<button type="button" class="btn ghost small form-equip" data-equip="' + f.n + '" aria-pressed="false" hidden>Equip</button>' +
     "</li>").join("");
   const el = document.createElement("section");
@@ -107,6 +118,7 @@ function build(): HTMLElement {
         '<p class="form-name"><b data-f="name"></b> <span class="muted" data-f="tag"></span></p>' +
         '<p data-f="blurb"></p>' +
         '<p class="form-next" data-f="next"></p>' +
+        '<div class="form-seq" data-form-seq-box></div>' +
         '<span class="meter form-meter" data-tone="part" role="progressbar" aria-label="Progress to the next form" ' +
           'aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><span style="width:0%"></span></span>' +
         '<details class="form-counts"><summary>What counts</summary>' + xpRules() + "</details>" +
@@ -138,6 +150,9 @@ function now(): Now {
 export function refresh(): void {
   if (!panel) return;
   const { form, xp, hi, wo, part } = now();
+  maybeEvolve(hi, wo);
+  /* until the flash swaps it, the view keeps the form shown before the evolution */
+  const shownN = seq && !seq.swapped ? seq.from : seq && seq.step !== "done" ? seq.hi : wo;
   const nx = nextInfo(form, xp);
   const cur = stageOf(wo);
   panel.setAttribute("data-part", part);
@@ -158,7 +173,7 @@ export function refresh(): void {
   }
   /* the fallback card (the page's and the dialog's) */
   document.querySelectorAll<HTMLElement>(".form-fallback [data-f=pip]").forEach((b) => {
-    if (b.closest("#form, .form-dialog") && b.textContent !== String(wo)) b.textContent = String(wo);
+    if (b.closest("#form, .form-dialog") && b.textContent !== String(shownN)) b.textContent = String(shownN);
   });
   if (dialog) {
     dialog.setAttribute("data-part", part);
@@ -176,6 +191,9 @@ export function refresh(): void {
     const lv = li.querySelector(".form-tile-level") as HTMLElement;
     if (open) lv.textContent = "Level " + f.level;
     else lv.innerHTML = LOCK + " Unlocks at level " + f.level;
+    const tag = li.querySelector(".form-tile-tag") as HTMLElement;
+    const tagText = f.n === wo && f.n === hi ? "Equipped \u00b7 Highest" : f.n === wo ? "Equipped" : f.n === hi ? "Highest" : "";
+    if (tag.textContent !== tagText) tag.textContent = tagText;
     const btn = li.querySelector("button") as HTMLButtonElement;
     btn.hidden = !open;
     btn.setAttribute("aria-pressed", String(f.n === wo));
@@ -185,12 +203,134 @@ export function refresh(): void {
     if (btn.getAttribute("aria-label") !== aria) btn.setAttribute("aria-label", aria);
   });
   if (view) {
-    view.show(wo, part);
+    view.show(shownN, part);
     const tk = [document.documentElement.getAttribute("data-theme"), document.documentElement.getAttribute("data-panel"),
       window.getComputedStyle(panel).getPropertyValue("--accent")].join("|");
     if (tk !== themeKey) { themeKey = tk; view.repaint(); }
     takeSnapshots(hi, part, tk);
   }
+}
+
+
+/* ------------------------------------------------------------ evolution moment --- */
+
+const T_ANTICIPATE = 700, T_FLASH = 500, T_REVEAL = 700;
+
+function num(v: unknown): number { return typeof v === "number" && isFinite(v) ? v : 0; }
+function stillNow(): boolean {
+  try { return !!(window.BMFx && window.BMFx.still && window.BMFx.still()); } catch { return false; }
+}
+function evolvedNow(): unknown {
+  try { return window.BMGame.run().seen.evolved; } catch { return undefined; }
+}
+function box(): HTMLElement | null { return panel ? q(".form-view") : null; }
+function seqHost(): HTMLElement | null { return panel ? q("[data-form-seq-box]") : null; }
+
+function maybeEvolve(hi: number, wo: number): void {
+  if (!panel || seq) return;
+  const ev = evolvedNow();
+  if (typeof ev !== "number" || hi <= ev) return;
+  const from = Math.max(1, Math.min(wo, ev));
+  const multi = liveFresh.filter((n) => n > ev && n <= hi);
+  seq = { from, hi, swapped: false, step: "anticipate", timers: [], multi };
+  if (stillNow()) { caption(); return; }
+  panel.setAttribute("data-form-seq", "anticipate");
+  const b = box();
+  if (b) b.classList.add("is-anticipating");
+  if (view) view.wake();
+  const host = seqHost();
+  if (host) host.innerHTML = '<button type="button" class="btn ghost small" data-form-skip>Skip</button>';
+  document.addEventListener("keydown", onKey);
+  seq.timers.push(window.setTimeout(flash, T_ANTICIPATE));
+}
+
+function swap(): void {
+  if (!seq || seq.swapped) return;
+  seq.swapped = true;
+  if (view) view.show(seq.hi, partId());
+  document.querySelectorAll<HTMLElement>(".form-fallback [data-f=pip]").forEach((b) => {
+    if (b.closest("#form, .form-dialog")) b.textContent = String(seq!.hi);
+  });
+}
+
+function flash(): void {
+  if (!seq || !panel) return;
+  seq.step = "flash";
+  panel.setAttribute("data-form-seq", "flash");
+  const b = box();
+  if (b) {
+    b.classList.remove("is-anticipating");
+    const f = document.createElement("span");
+    f.className = "form-flash";
+    f.setAttribute("aria-hidden", "true");
+    b.appendChild(f);
+  }
+  seq.timers.push(window.setTimeout(swap, T_FLASH / 2));
+  seq.timers.push(window.setTimeout(reveal, T_FLASH));
+}
+
+function reveal(): void {
+  if (!seq || !panel) return;
+  swap();
+  seq.step = "reveal";
+  panel.setAttribute("data-form-seq", "reveal");
+  const b = box();
+  if (b) {
+    b.querySelectorAll(".form-flash").forEach((e) => e.remove());
+    b.classList.add("is-revealing");
+    try { window.BMFx.burst(b); } catch { /* the sequence goes on without it */ }
+  }
+  try { if (window.BMSfx && window.BMSfx.enabled()) window.BMSfx.play("achievement"); } catch { /* no sound */ }
+  seq.timers.push(window.setTimeout(caption, T_REVEAL));
+}
+
+function stagesText(s: Seq): string {
+  const name = stageOf(s.hi).name;
+  const st = s.multi;
+  if (st.length < 2) return "Evolved: " + name + ". Stage " + s.hi + " of " + LAST_FORM + " unlocked.";
+  const list = st.length === 2 ? st[0] + " and " + st[1] : st[0] + " to " + st[st.length - 1];
+  return "Evolved: " + name + ". Stages " + list + " unlocked.";
+}
+
+function caption(): void {
+  if (!seq || !panel) return;
+  const s = seq;
+  s.timers.forEach((t) => window.clearTimeout(t));
+  s.timers = [];
+  document.removeEventListener("keydown", onKey);
+  const b = box();
+  if (b) {
+    b.classList.remove("is-anticipating", "is-revealing");
+    b.querySelectorAll(".form-flash").forEach((e) => e.remove());
+  }
+  swap();
+  s.step = "done";
+  panel.setAttribute("data-form-seq", "done");
+  const host = seqHost();
+  if (host) {
+    host.innerHTML = '<p class="form-caption" role="status"></p>' +
+      '<button type="button" class="btn small" data-form-done>Done</button>';
+    (host.querySelector(".form-caption") as HTMLElement).textContent = stagesText(s);
+  }
+  try {
+    window.BMGame.updateRun((r: { seen: Record<string, unknown> }) => { r.seen.evolved = Math.max(num(r.seen.evolved), s.hi); });
+  } catch { /* the sequence just plays again next time */ }
+  refresh();
+}
+
+function dismiss(): void {
+  if (!seq || !panel) return;
+  seq.timers.forEach((t) => window.clearTimeout(t));
+  document.removeEventListener("keydown", onKey);
+  seq = null;
+  panel.removeAttribute("data-form-seq");
+  const host = seqHost();
+  if (host) host.innerHTML = "";
+  refresh();
+}
+
+function onKey(e: KeyboardEvent): void {
+  if (e.key === "Escape" && seq && seq.step !== "done") caption();
 }
 
 /* the path's pictures: each stage reached, drawn once, again when the Part or the theme changes */
@@ -313,9 +453,19 @@ function mount(): void {
     const t = e.target as Element | null;
     const eq = t && t.closest ? (t.closest("[data-equip]") as HTMLElement | null) : null;
     if (eq) { equip(Number(eq.getAttribute("data-equip"))); return; }
+    if (t && t.closest && t.closest("[data-form-skip]")) { caption(); return; }
+    if (t && t.closest && t.closest("[data-form-done]")) { dismiss(); return; }
     if (t && t.closest && t.closest("[data-form-large]")) openView();
   });
-  window.BMStore.on((c: { type?: string }) => { if (c && c.type && WATCH.indexOf(c.type) !== -1) later(); });
+  window.BMStore.on((c: { type?: string; fresh?: number[]; quiet?: boolean }) => {
+    if (!c || !c.type) return;
+    if (c.type === "form" && !c.quiet && Array.isArray(c.fresh) && c.fresh.length > 1) liveFresh = c.fresh.slice();
+    if (WATCH.indexOf(c.type) !== -1) later();
+  });
+  window.addEventListener("pagehide", () => {
+    if (seq) seq.timers.forEach((t) => window.clearTimeout(t));
+    if (timer) window.clearTimeout(timer);
+  });
   document.addEventListener("visibilitychange", () => { if (!document.hidden) later(); });
   refresh();
 }

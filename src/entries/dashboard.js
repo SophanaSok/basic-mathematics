@@ -56,6 +56,7 @@ import "../../assets/insights.js";
 /* the "Your form" panel insights.js leaves a place for: the 3D view, then the panel */
 import "../ui/form-view.ts";
 import "../ui/forms.ts";
+import "../ui/form-unlock.ts";
 /* the keyboard layer: the pure keymap, then the DOM half, last, once everything it
    drives is up */
 import "../ui/keymap.ts";
