@@ -321,12 +321,14 @@ import { detectTier, readProbe, stepDown, lower, pixelRatio, TIERS, AMBIENT_MS, 
   }
 
   /* b: how far through the hop, 0 (at rest) to 1. The marker is the learner's form and
-     stands on the island, front-right of it (clear of the boss at the centre and the flag
-     at the back-left), facing the camera side (+z); in the idle window it hops a little */
+     stands at the front of the island, a little right of the middle: clear of the boss at
+     the centre, the flag at the back-left and the stars across the front half (z 0.3, out
+     to x 0.78), and inside the cap (radius 1.28) with the last form's base (0.3) and body;
+     it faces the camera side (+z), and in the idle window it hops a little */
   function markerAt(b) {
     var isle = ISLES[M.cur];
     if (!isle) return;
-    M.world.marker.position.set(isle.x + 0.75, isle.y + W.DECK + Math.max(0, Math.sin(b * Math.PI * 2)) * 0.06, isle.z + 0.55);
+    M.world.marker.position.set(isle.x + 0.2, isle.y + W.DECK + Math.max(0, Math.sin(b * Math.PI * 2)) * 0.06, isle.z + 0.9);
     M.world.marker.rotation.y = 0;
   }
 

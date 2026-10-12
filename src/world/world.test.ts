@@ -104,19 +104,22 @@ describe("the marker", () => {
   it("is the learner's form: one mesh and one set of edges under it, freed with the world", () => {
     /* the tokens are read from a probe element; Node has neither, so a stand-in answers with none */
     vi.stubGlobal("window", { getComputedStyle: () => ({ getPropertyValue: () => "" }) });
-    const probe = { querySelectorAll: () => [] } as unknown as Element;
-    const world = createWorld(T, { course: C, motifs: MOT, probe, detail: 0 });
-    world.setForm(3, "geometry");
-    expect(world.marker.children.length).toBe(1);
-    const group = world.marker.children[0];
-    expect(group.children.filter((o) => (o as THREE.Mesh).isMesh).length).toBe(1);
-    expect(group.children.filter((o) => (o as THREE.LineSegments).isLineSegments).length).toBe(1);
-    const geos = group.children.map((o) => (o as THREE.Mesh).geometry);
-    let freed = 0;
-    geos.forEach((g) => g.addEventListener("dispose", () => { freed++; }));
-    world.dispose();
-    expect(freed).toBe(2);
-    vi.unstubAllGlobals();
+    try {
+      const probe = { querySelectorAll: () => [] } as unknown as Element;
+      const world = createWorld(T, { course: C, motifs: MOT, probe, detail: 0 });
+      world.setForm(3, "geometry");
+      expect(world.marker.children.length).toBe(1);
+      const group = world.marker.children[0];
+      expect(group.children.filter((o) => (o as THREE.Mesh).isMesh).length).toBe(1);
+      expect(group.children.filter((o) => (o as THREE.LineSegments).isLineSegments).length).toBe(1);
+      const geos = group.children.map((o) => (o as THREE.Mesh).geometry);
+      let freed = 0;
+      geos.forEach((g) => g.addEventListener("dispose", () => { freed++; }));
+      world.dispose();
+      expect(freed).toBe(2);
+    } finally {
+      vi.unstubAllGlobals();
+    }
   });
 });
 
