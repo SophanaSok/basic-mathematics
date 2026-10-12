@@ -11,7 +11,7 @@ const shell = require("./shell");
 const { parse } = require("./html");
 
 const ROOT = path.resolve(__dirname, "..", "..");
-const DEFAULT_BASE = "2fa4585";
+const DEFAULT_BASE = "1699aa3";
 
 function rel(p) { return path.relative(ROOT, p).split(path.sep).join("/"); }
 
