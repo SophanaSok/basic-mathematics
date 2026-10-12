@@ -237,6 +237,20 @@ async function idle(page, ms) {
   /* the frames counted in the window, each with who asked for it */
   return { frames: b.raf - a.raf, bob, from: b.from.slice(a.from.length) };
 }
+/* waits until the page has asked for no frame for 400 ms (up to 10 s): a flight has landed
+   and its loop has stopped. The flight is FLIGHT_MS on the page's clock, which moves at most
+   STEADY_MS per display frame, so it needs about 24 frames however slow the renderer; a fixed
+   wait after a click put the machine's speed in the check (SwiftShader on a CI runner draws
+   the low tier at about 50 ms a frame, and 24 of those is the whole wait) */
+async function landed(page) {
+  let last = (await mapState(page)).raf, quiet = 0;
+  for (let t = 0; t < 10000 && quiet < 400; t += 100) {
+    await wait(100);
+    const raf = (await mapState(page)).raf;
+    if (raf === last) quiet += 100; else { quiet = 0; last = raf; }
+  }
+  return quiet >= 400;
+}
 /* waits (up to the idle window, a bob and some slack) until idle motion has stopped */
 async function settled(page) {
   for (let t = 0; t < AMBIENT_MS + BOB_MS + 3000; t += 100) {
@@ -341,7 +355,7 @@ async function run() {
       const i = await info(page);
       check(!r.bob && r.frames === 0, "no idle motion and no frames with " + how + " (" + JSON.stringify(r) + ", tier " + i.tier + ")");
       await page.click(".map3d-part[data-p=\"2\"]");
-      await wait(how === "the low tier" ? 1200 : 300);
+      check(await landed(page), "the flight to a Part lands with " + how);
       const s = await idle(page, 1500);
       check(!s.bob && s.frames === 0, "nor after flying to a Part with " + how + " (" + JSON.stringify(s) + ")");
       await context.close();
