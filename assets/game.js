@@ -773,10 +773,12 @@
       /* the fastest clean run: a clean record (ms > 0) on file is beaten only by a lower ms;
          an equal one keeps the earlier day */
       if (ranked && finished && cleanMs > 0 && g.best[mode] && typeof g.best[mode] === "object") {
-        var pc = obj(g.best[mode].clean), had = num(pc.ms) > 0;
-        var fresh = !had || cleanMs < num(pc.ms);
-        if (fresh || (cleanMs === num(pc.ms) && day < String(pc.day || ""))) {
-          g.best[mode].clean = over(pc, { ms: cleanMs, day: day }, ["ms", "day"]);
+        /* a stored one counts only as the merge reads it (src/sync/merge.ts cleanOf): a
+           record whose ms is a number above 0 */
+        var pc = obj(g.best[mode].clean), had = typeof pc.ms === "number" && isFinite(pc.ms) && pc.ms > 0;
+        var fresh = !had || cleanMs < pc.ms;
+        if (fresh || (cleanMs === pc.ms && day < String(pc.day || ""))) {
+          g.best[mode].clean = over(had ? pc : {}, { ms: cleanMs, day: day }, ["ms", "day"]);
         }
         beaten = fresh && had;
         cleanOut = { ms: cleanMs, best: num(g.best[mode].clean.ms), fresh: fresh };
@@ -800,7 +802,9 @@
     var firsts = answers.filter(function (a) { return a && a.first; });
     var late = firsts.filter(function (a) { return a.late; }).length;
     if (timed && firsts.length >= 10 && late >= 3) unlock("took-your-time");
-    if (timed && ranked && firsts.length >= 10 && late === 0) unlock("under-par");
+    /* Under par needs the clock: ten first-try answers that were timed, none after par */
+    var onPar = firsts.filter(function (a) { return a.timed && !a.late; }).length;
+    if (timed && ranked && onPar >= 10 && late === 0) unlock("under-par");
     if (beaten) updateRun(function (r) { r.pb = num(r.pb) + 1; });
     /* Returning champion, from the run itself: on a tie the enc record keeps the earlier
        day, so a later Silver may leave no trace there. "0" stands for a set cleared

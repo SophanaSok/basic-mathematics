@@ -195,7 +195,7 @@ export function mergeLesson(a: any, b: any) {
             (last, box) taken whole from whichever is later, then higher
      best   per mode: highest score, then most hearts, then the earlier day; its
             `clean` (the fastest clean run, { ms, day }) on its own: the lower ms, then
-            the earlier day, from the sides whose clean is a record with ms > 0 (any
+            the earlier day, from the sides whose clean is a record with a number ms > 0 (any
             other clean is ignored); unknown fields inside it are carried (later)
      enc    per set: the higher rematch medal, then the earlier day
      daily  union, keeping the latest 60 days
@@ -207,11 +207,12 @@ export function mergeLesson(a: any, b: any) {
 export function num(x: any) { x = Number(x); return isFinite(x) ? x : 0; }
 export function str(x: any) { return typeof x === "string" ? x : ""; }
 export const GAME = ["ach", "cmp", "sec", "best", "enc", "daily", "maxed", "v"];
-/* A best entry's fastest clean run, { ms, day }: of the two that are records with ms > 0,
+/* A best entry's fastest clean run, { ms, day }: of the two that are records whose ms is a
+   number above 0 (a string, 0, an array or null is no clean run and is ignored),
    the lower ms, then the earlier day (the empty string, for a day that is not a string,
    sorts first); undefined when neither is one. A minimum over one total order, so the
    three laws hold; the unknown fields of both are carried, as in any other record. */
-export function cleanOf(x: any) { return plain(x) && num(x.ms) > 0 ? x : undefined; }
+export function cleanOf(x: any) { return plain(x) && typeof x.ms === "number" && isFinite(x.ms) && x.ms > 0 ? x : undefined; }
 export function mergeClean(p: any, q: any) {
   var list = [cleanOf(p), cleanOf(q)].filter(Boolean);
   if (!list.length) return undefined;

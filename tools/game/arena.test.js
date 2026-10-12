@@ -34,11 +34,13 @@
   14. speed-run rewards (decision 0006): a ranked run right the first time throughout, every
       question on the clock, records its time as the mode's fastest clean run, says "New
       fastest" (and "Played by keyboard alone" when no pointer was used) and unlocks Under
-      par; one with a miss records none and keeps the earlier one; the lobby tile shows it;
-      through BMGame.recordRun: a faster clean run replaces it and counts toward Personal
-      best, a slower one or an unranked one does not, a tie keeps the earlier day, a better
-      score keeps it; one late answer keeps Under par locked; Hands off the mouse counts
-      exercises solved with no pointer in the last ten seconds */
+      par; one with a miss, or one paused once, records none and keeps the earlier one; a
+      click mid-run is remembered across a reload; the lobby tile shows the time in tenths;
+      a boss rematch shows the rematches' fastest; through BMGame.recordRun: a faster clean
+      run replaces it and counts toward Personal best, a slower one or an unranked one does
+      not, a tie keeps the earlier day, a better score keeps it; one late answer, or untimed
+      answers, keep Under par locked; Hands off the mouse counts exercises solved with no
+      pointer in the last ten seconds */
 "use strict";
 const site = require("../lib/site");
 const target = require("../lib/target");
@@ -673,24 +675,31 @@ async function run() {
         r.qs.forEach(function (q, k) { if (k >= r.i) { q.timed = true; q.hf = false; q.par = Math.max(q.par, 120); } });
       });
       const today = await p.evaluate(() => window.BMSite.dayKey());
+      /* every question still to come answered right by keyboard: Enter checks, Enter on Next */
+      const playKeys = async () => {
+        for (let k = 0; k < 12; k++) {
+          if (await p.$(".arena-result")) break;
+          await p.evaluate(() => {
+            var r = window.BMArena.state(), q = r.qs[r.i];
+            document.getElementById("arena-answer").value = String(window.BMGen.make(q.g, q.s).answer).split("|")[0];
+          });
+          await p.press("#arena-answer", "Enter");
+          await p.keyboard.press("Enter");
+        }
+        await p.waitForSelector(".arena-result");
+      };
+      /* the result screen's times, as arena.js msText writes them: m:ss.t */
+      const clock = (ms) => { const t = Math.round(ms / 100), s = Math.floor(t / 10) % 60; return Math.floor(t / 600) + ":" + String(s).padStart(2, "0") + "." + (t % 10); };
       /* a Standard run by keyboard alone: no pointer event from the start to the result */
       await p.$eval('[data-act="start"][data-mode="standard"]', (b) => b.click());
       await p.waitForSelector(".arena-run");
       await allTimed();
-      for (let k = 0; k < 12; k++) {
-        if (await p.$(".arena-result")) break;
-        await p.evaluate(() => {
-          var r = window.BMArena.state(), q = r.qs[r.i];
-          document.getElementById("arena-answer").value = String(window.BMGen.make(q.g, q.s).answer).split("|")[0];
-        });
-        await p.press("#arena-answer", "Enter");
-        await p.keyboard.press("Enter");
-      }
-      await p.waitForSelector(".arena-result");
+      await playKeys();
       const r1 = await p.evaluate(() => window.BMArena.state().result);
       const g1 = await game(p);
       const c1 = (g1.best.standard || {}).clean || {};
       check(r1.ranked && r1.finished && r1.firstTry === 10 && r1.answers.every((a) => !a.late), "the keyboard run is ranked, finished, 10 right the first time, none late");
+      check(r1.answers.every((a) => a.timed === true && !a.stopped), "its answers say they were on the clock, never stopped");
       check(r1.clean && r1.clean.ms > 0 && r1.answers.every((a) => typeof a.el === "number"), "a run right the first time throughout, on the clock, is clean, with a time — got " + JSON.stringify(r1.clean));
       eq([c1.ms, c1.day], [r1.clean && r1.clean.ms, today], "its time is recorded as the mode's fastest clean run");
       eq(r1.cleanBest, { ms: r1.clean && r1.clean.ms, best: r1.clean && r1.clean.ms, fresh: true }, "recordRun says it set the record");
@@ -699,7 +708,6 @@ async function run() {
       check(/Played by keyboard alone\./.test(text1), "and that it was played by keyboard alone");
       check(!!(g1.ach || {})["under-par"], "10 right the first time with none after par unlocks Under par");
       check(!(await runStore(p)).pb, "the first clean run is not a Personal best beaten");
-      const clock = (ms) => { const s = Math.ceil(ms / 1000 - 1e-9); return Math.floor(s / 60) + ":" + String(s % 60).padStart(2, "0"); };
 
       /* the lobby tile */
       await p.click('.arena-result [data-act="lobby"]');
@@ -719,6 +727,31 @@ async function run() {
       const text2 = await p.$eval(".arena-result", (e) => e.textContent);
       check(/Clean time—/.test(text2) && text2.includes("Fastest " + clock(c1.ms)) && !/New fastest/.test(text2), "its result shows no clean time and the record it did not beat");
       check(!/keyboard alone/.test(text2), "a run played with the mouse does not say keyboard alone");
+
+      /* paused once on a question already read: otherwise clean, but not clean */
+      await p.click('.arena-result [data-act="again"]');
+      await p.waitForSelector(".arena-run");
+      await allTimed();
+      await p.keyboard.press("Escape");
+      eq((await p.evaluate(() => window.BMArena.state().cur)).stopped, 1, "a pause during the question marks it stopped");
+      await p.keyboard.press("Escape");
+      await playKeys();
+      const r3 = await p.evaluate(() => { var r = window.BMArena.state(); return { res: r.result, stopped: r.ans.map((a) => a.stopped || 0) }; });
+      eq([r3.res.firstTry, r3.res.clean, r3.stopped], [10, null, [1, 0, 0, 0, 0, 0, 0, 0, 0, 0]], "a run paused once, all else clean, is not clean");
+      eq((await game(p)).best.standard.clean, c1, "and leaves the fastest clean run as it was");
+
+      /* a click mid-run is remembered across a reload: no keyboard line at the end */
+      await p.$eval('.arena-result [data-act="again"]', (b) => b.click());
+      await p.waitForSelector(".arena-run");
+      eq((await runStore(p)).arena.pointer, 0, "a run starts with no pointer use");
+      await p.click("#arena-answer");
+      eq((await runStore(p)).arena.pointer, 1, "a click during the run is kept with it");
+      await p.reload();
+      await p.waitForFunction(() => document.readyState === "complete");
+      await p.waitForSelector(".arena-run");
+      eq((await runStore(p)).arena.pointer, 1, "and survives the reload, which resumes the run");
+      await playKeys();
+      check(!/keyboard alone/.test(await p.$eval(".arena-result", (e) => e.textContent)), "a run clicked in before a reload and finished by keyboard does not say keyboard alone");
 
       /* recordRun itself, with built results */
       const rr = (o) => p.evaluate((o) => {
@@ -760,17 +793,39 @@ async function run() {
       check(!!((await game(p)).ach || {})["hands-off"], "25 solved by keyboard alone unlock Hands off the mouse");
       await context.close();
 
-      /* Under par stays locked with one answer after par, or in an unranked run */
+      /* Under par stays locked with one answer after par, in an unranked run, or with
+         untimed answers (a Standard run of soft sections only) */
       const c2 = await ctx(browser);
       const q = await open(c2, errors, "arena.html", {}, true);
-      const up = (late, ranked) => q.evaluate(({ late, ranked }) => {
+      const up = (late, ranked, timed) => q.evaluate(({ late, ranked, timed }) => {
         var answers = [];
-        for (var k = 0; k < 10; k++) answers.push({ section: "ch05#angles", first: true, late: k === late, el: 1000 });
+        for (var k = 0; k < 10; k++) answers.push({ section: "ch05#angles", first: true, late: k === late, el: 1000, timed: timed });
         window.BMGame.recordRun({ mode: "standard", answers: answers, hearts: 3, score: 1000, day: window.BMSite.dayKey(), ranked: ranked, finished: true, timed: true, planned: 10 });
         return !!(JSON.parse(localStorage.getItem("bm.game.v1")).ach || {})["under-par"];
-      }, { late, ranked });
-      eq([await up(3, true), await up(-1, false), await up(-1, true)], [false, false, true], "Under par: not with one late answer, not unranked; yes with none late in a ranked run");
+      }, { late, ranked, timed });
+      eq([await up(3, true, true), await up(-1, false, true), await up(-1, true, false), await up(-1, true, true)], [false, false, false, true],
+        "Under par: not with one late answer, not unranked, not with 10 untimed first tries; yes with 10 timed and none late in a ranked run");
       await c2.close();
+
+      /* the times in tenths, and a boss rematch's fastest (game.js keeps rematches under "boss") */
+      const c3 = await ctx(browser);
+      const seeded = { "bm.game.v1": JSON.stringify({ best: {
+        standard: { score: 900, hearts: 3, day: "2026-01-01", clean: { ms: 64300, day: "2026-01-01" } },
+        boss: { score: 99999, hearts: 3, day: "2026-01-01", clean: { ms: 4100, day: "2026-01-01" } } } }) };
+      const b = await open(c3, errors, "arena.html", seeded, true);
+      check((await b.$eval('[data-act="start"][data-mode="standard"]', (e) => e.textContent)).includes("Fastest clean 1:04.3"), "the lobby tile shows the time in tenths");
+      eq([clock(4100), clock(4900)], ["0:04.1", "0:04.9"], "4.1 s and 4.9 s read apart");
+      await b.goto(url("arena.html?boss=ch05"));
+      await b.click('.arena-context [data-act="start"]');
+      await b.waitForSelector(".arena-run");
+      await answer(b, false);
+      await answer(b, true);
+      await next(b);
+      await playOut(b);
+      const rb = await b.evaluate(() => window.BMArena.state().result);
+      const textB = await b.$eval(".arena-result", (e) => e.textContent);
+      check(rb.mode === "boss" && rb.ranked && rb.finished && rb.clean === null && textB.includes("Fastest 0:04.1"), "an unclean boss rematch shows the rematches' fastest clean time — got " + JSON.stringify([rb.ranked, rb.finished, rb.clean]));
+      await c3.close();
     }
 
     eq(errors, [], "no page errors");
