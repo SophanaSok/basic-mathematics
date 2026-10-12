@@ -840,7 +840,7 @@ function refusal(fn) { try { fn(); return null; } catch (e) { return e.message; 
   clean({ SKILLS: withSkill("ch01#a", rec({ act: ["act.phm.alg", "act.mod"] })) }, "skills 6b: act.mod after a category passes");
   /* the real tree */
   const real = require("child_process").spawnSync(process.execPath, [path.join(__dirname, "check-static.js"), "--only=skills"], { encoding: "utf8" });
-  check(real.status === 0 && /^PASS  skills +88 /m.test(real.stdout), "skills: the real tree passes, counting its 88 curriculum sections — got " + real.stdout + real.stderr);
+  check(real.status === 0 && /^PASS  skills +90 /m.test(real.stdout), "skills: the real tree passes, counting its 90 curriculum sections — got " + real.stdout + real.stderr);
 }
 
 /* ------------------------------------------------- check-ci: install -- */
@@ -974,6 +974,11 @@ function refusal(fn) { try { fn(); return null; } catch (e) { return e.message; 
   eq(forms(page("<p>$12\\text{ metres}$, $\\textrm{colour}$, $\\mathrm{centre}$, $\\operatorname*{grey}(x)$, $\\text{a $r_{centre}$ b}$ and $\\text{2 pence}$.</p>"), PAGE), ["metres@3", "colour@3", "centre@3", "grey@3", "pence@3"],
     "… but the body of \\text{}, \\textrm{}, \\mathrm{} or \\operatorname{} in a formula is words, and fails (a formula inside it is math again)");
   eq(forms('var s = "$12" + u + "\\\\text{ metres}$";', GEN), ["metres@1"], "… in a script's formula too");
+  eq(forms(page("<p>The jacket costs 40 pounds, and the pound fell against the dollar.</p>"), PAGE), ["pounds@3", "pound@3"], "us-english: pound money fails");
+  eq(forms(page("<p>The bag weighs 5 pounds. The pound (lb) is 16 ounces. Buy 3 pounds of grapes at a dollar per pound. A kilogram is about 2.2 pounds.</p>"), PAGE), [],
+    "… but the pound as a weight passes: followed by of or (lb, after per, or with lb, oz, ounce, weigh, weight or kilogram within 60 characters");
+  eq(forms('var q = n + " pounds of rice cost " + usd(c) + ". What does it cost per pound?"; var m = "It costs " + n + " pounds.";', GEN), ["pounds@1"], "… in a script's strings too: the weight passes, the price fails");
+  eq(forms('var U = { big: "pounds", small: "ounces" }; var t = "<td>pounds</td>";', GEN), [], "… and a literal that is the bare word names the unit");
   eq(forms(page('<span data-tip="The centre">x</span> and <textarea>colour</textarea>'), PAGE), ["centre@3", "colour@3"], "… a data-tip (site.css shows it with attr()) and a <textarea>'s text are reader text");
   eq(forms("<!doctype html>\n<html><head><title>Colour</title></head><body>\n<script>var s = \"Centre\", t = 'a' + \"-centre\";</script>\n</body></html>\n", PAGE), ["colour@2", "centre@3"],
     "… a <title> is reader text, and an inline <script>'s strings are read as a script's");

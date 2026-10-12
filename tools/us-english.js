@@ -155,6 +155,22 @@ Object.assign(SPELLING, {
 
 /* whole words that are money, with the pound sign and a price in pence found apart */
 const MONEY_WORDS = new Set(["pound", "pounds", "pence"]);
+/* "pound" as a weight (the skill packs teach US customary units) is not money: the word
+   followed by "of" or "(lb", preceded by "per", standing alone as a whole literal or text
+   node (a unit name), or with a weight word (lb, oz, ounce, weigh, weight, kilogram) within
+   60 characters of it in the same text. Money is "pound" in a sentence on its own, "pounds"
+   with a price, or the sign. */
+const WEIGHT_CUE = /\b(lbs?|oz|ounces?|weigh(?:s|ed|ing)?|weight|kilograms?)\b/i;
+function weightSense(text, a, b, from, to) {
+  const word = text.slice(a, b).toLowerCase();
+  if (word === "pence") return false;
+  /* a literal or text node that is the bare word ("pounds" in a generator's unit table, a
+     table cell) names the unit; money in a UI string never stands alone like that here */
+  if (/^\s*pounds?\s*$/i.test(text.slice(from, to))) return true;
+  const after = text.slice(b, Math.min(to, b + 6)), before = text.slice(Math.max(from, a - 6), a);
+  if (/^\s+of\b/.test(after) || /^\s*\(lb/.test(after) || /\bper\s+$/.test(before)) return true;
+  return WEIGHT_CUE.test(text.slice(Math.max(from, a - 60), Math.min(to, b + 60)));
+}
 
 /* report-only: [pattern, US wording]; the pattern is matched in prose with math taken out */
 const WORDING = [
@@ -424,7 +440,7 @@ function wordsOf(text, from, to, math, kinds) {
       if (/[a-z][A-Z]/.test(word)) continue;
       const lower = word.toLowerCase();
       if (kinds.spelling && Object.prototype.hasOwnProperty.call(SPELLING, lower)) out.push({ kind: "spelling", form: lower, us: matchCase(word, SPELLING[lower]), i: a, len: b - a });
-      else if (kinds.money && MONEY_WORDS.has(lower)) out.push({ kind: "money", form: lower, us: lower === "pence" ? "cents" : "dollars", i: a, len: b - a });
+      else if (kinds.money && MONEY_WORDS.has(lower) && !weightSense(text, a, b, from, to)) out.push({ kind: "money", form: lower, us: lower === "pence" ? "cents" : "dollars", i: a, len: b - a });
     }
   }
   if (kinds.wording) {
