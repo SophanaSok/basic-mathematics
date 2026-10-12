@@ -1523,17 +1523,25 @@
     var b = runStore().board;
     return b && typeof b === "object" && b.day === day ? b : null;
   }
-  function setBoardRec(day, rank, size) {
+  /* bm.run.v1.board is one of: { day, refused: day } (not on the board; nothing sent),
+     { day, sent: 1 } (sent, the board not yet answered), or { day, sent: 1, rank, size }
+     once daily_board has answered. A size is never written without that answer. */
+  function keepBoard(day, rec) {
     var all = runStore();
-    all.board = { day: day, rank: rank === null || rank === undefined || !isFinite(Number(rank)) ? null : Number(rank), size: Math.max(0, Number(size) || 0), sent: 1 };
+    rec.day = day;
+    all.board = rec;
     Store.write(RUN_KEY, all, true);
   }
-  /* "Today: 4th of 12" on the Daily tile, from the last board fetched for today */
+  function rankOf(x) { return x === null || x === undefined || !isFinite(Number(x)) || Number(x) < 1 ? null : Math.floor(Number(x)); }
+  /* "Today: 4th of 12" on the Daily tile, from the last board fetched for today: only once
+     three have played, and only while this browser holds a session, so a signed-out or
+     expired browser never shows a stale place */
   function boardLine() {
-    if (!boardOn()) return "";
+    var A = account();
+    if (!boardOn() || !A || typeof A.hasSession !== "function" || !A.hasSession()) return "";
     var b = boardRec(today());
-    if (!b || !b.sent) return "";
-    return "Today: " + (b.rank ? ordinal(b.rank) + " of " + Number(b.size) : "unranked");
+    if (!b || !b.sent || !(Number(b.size) >= 3)) return "";
+    return "Today: " + (rankOf(b.rank) ? ordinal(b.rank) + " of " + Number(b.size) : "unranked");
   }
 
   /* One console line at most for anything the board does not get: a missing function (the
@@ -1577,23 +1585,43 @@
       "<tbody>" + body + "</tbody></table>" + BOARD_NOTE;
   }
 
-  /* send the run (once), then fetch and draw the day's board */
-  function sendAndShow(A, res) {
-    var day = res.day, job = boardJob[day] = boardJob[day] || {};
-    if (job.refused) { drawBoard(boardJoinHtml(false)); return null; }
+  /* What the profile says of the opt-in: true, false, or null when it cannot tell (no
+     row, no board column yet, the read failed) */
+  function optedIn(A) {
+    if (typeof A.profile !== "function") return Promise.resolve(null);
+    return A.profile().then(function (p) { return p && typeof p.board === "boolean" ? p.board : null; }, function () { return null; });
+  }
+  /* A clean time outside a quarter second to ten minutes a question is not sent; the score
+     still is */
+  function sentMs(res) {
+    var n = Number(res.n) || 0, ms = res.clean ? Math.round(Number(res.clean.ms)) : NaN;
+    return isFinite(ms) && n > 0 && ms >= n * 250 && ms <= n * 600000 ? ms : null;
+  }
+
+  /* send the run (once, and only for a reader on the board), then fetch and draw the day's
+     board; `joined` when the reader has just joined, so the profile need not be asked */
+  function sendAndShow(A, res, joined) {
+    var day = res.day, job = boardJob[day] = boardJob[day] || {}, held = boardRec(day);
+    if (!joined && (job.refused || (held && held.refused === day && !held.sent))) {
+      job.refused = true;
+      drawBoard(boardJoinHtml(false));
+      return null;
+    }
     if (!job.sent) {
-      var held = boardRec(day);
-      job.sent = held && held.sent ? Promise.resolve(held.rank) : A.rpc("submit_daily", {
-        p_day: day, p_score: Number(res.score) || 0, p_n: Number(res.n) || 0, p_firsts: Number(res.firstTry) || 0,
-        p_ms: res.clean && Number(res.clean.ms) > 0 ? Math.round(Number(res.clean.ms)) : null
+      job.sent = held && held.sent ? Promise.resolve(null) : (joined ? Promise.resolve(true) : optedIn(A)).then(function (on) {
+        /* not on the board: no number leaves the device */
+        if (on === false) throw new Error("not on the board");
+        return A.rpc("submit_daily", {
+          p_day: day, p_score: Number(res.score) || 0, p_n: Number(res.n) || 0, p_firsts: Number(res.firstTry) || 0, p_ms: sentMs(res)
+        });
       }).then(function (rank) {
-        setBoardRec(day, rank, (boardRec(day) || {}).size);
-        return rank;
+        keepBoard(day, { sent: 1 });
+        return rankOf(rank);
       });
-      /* a refusal waits for the reader to join; any other failure is not sent again from
-         this page */
+      /* a refusal waits for the reader to join, here and after a reload; any other failure
+         is not sent again from this page */
       job.sent.then(null, function (e) {
-        if (notOnBoard(e)) { job.sent = null; job.refused = true; }
+        if (notOnBoard(e)) { job.sent = null; job.refused = true; keepBoard(day, { refused: day }); }
       });
     }
     return job.sent.then(function (rank) {
@@ -1601,8 +1629,9 @@
         rows = Array.isArray(rows) ? rows.filter(function (r) { return r && typeof r === "object"; }) : [];
         var mine = rows.filter(function (r) { return r.mine === true; })[0];
         var size = rows.length && isFinite(Number(rows[0].entries)) ? Number(rows[0].entries) : rows.length;
-        /* under three players the board is hidden, and so is a rank */
-        setBoardRec(day, size < 3 ? null : mine ? mine.rank : rank, size);
+        /* the rank the submit returned, else the reader's row; under three players the
+           board is hidden, and so is a rank */
+        keepBoard(day, { sent: 1, rank: size < 3 ? null : rank !== null ? rank : mine ? rankOf(mine.rank) : null, size: Math.max(0, size) });
         drawBoard(boardTable(rows));
       });
     }).then(null, function (e) {
@@ -1631,7 +1660,9 @@
     btn.disabled = true;
     A.setBoard(true).then(function () {
       delete boardJob[res.day];
-      sendAndShow(A, res);
+      var held = boardRec(res.day);
+      if (held && !held.sent) { var all = runStore(); delete all.board; Store.write(RUN_KEY, all, true); }
+      sendAndShow(A, res, true);
     }, function (e) {
       boardWarn(e);
       drawBoard(boardJoinHtml(true));
@@ -1768,6 +1799,8 @@
     if (saved0) clearRun();
     renderLobby();
   }
+  /* the Daily tile's place on the board needs account.js, which starts after this file */
+  setTimeout(function () { if (screen === "lobby" && boardLine()) renderLobby(); }, 0);
 
   window.BMArena = {
     state: function () { return run; },
