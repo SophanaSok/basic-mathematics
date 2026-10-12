@@ -15,6 +15,9 @@ export interface Config {
     /** "off" is the event sync's kill switch; any other value means "on" */
     events: "on" | "off";
   };
+  /** "off" is the Daily board's kill switch (nothing submitted or fetched, no board in the
+      Arena, no switch on the account page); any other value means "on" */
+  board: "on" | "off";
 }
 
 function obj(x: unknown): Record<string, unknown> { return x && typeof x === "object" && !Array.isArray(x) ? x as Record<string, unknown> : {}; }
@@ -32,6 +35,7 @@ export function readConfig(raw: unknown): Config {
     supabaseAnonKey: str(c.supabaseAnonKey),
     providers: Array.isArray(c.providers) ? c.providers.filter((p): p is string => typeof p === "string") : [],
     emailDelivery: c.emailDelivery !== false,
-    learn: { events: learn.events === "off" ? "off" : "on" }
+    learn: { events: learn.events === "off" ? "off" : "on" },
+    board: c.board === "off" ? "off" : "on"
   };
 }
