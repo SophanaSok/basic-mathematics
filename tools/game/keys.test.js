@@ -47,7 +47,8 @@
       arena.html; in steps mode "exercise 3" then Enter shows the step and focuses the card; / in
       an answer box types a slash, / during an Arena run opens nothing, / in the cheat sheet
       leaves the sheet; both themes, no page errors and no CSP violations
-  21. t from the page goes to the card the boss marks (.ex[data-target="true"]) with the cursor; with
+  21. t from the page goes to the card the boss marks (.ex[data-target="true"]) with the cursor, revealing
+      its lesson step in step-by-step mode; with
       the practice set all solved and no target it goes to the first unsolved card elsewhere, and
       when every card is solved nothing moves; t in an answer box types the letter; both themes */
 "use strict";
@@ -282,6 +283,20 @@ async function run() {
     }
 
     /* ------------------------------------------------- 21: t, the boss's target */
+    {
+      /* step-by-step mode: the target sits in a step not shown yet; t reveals it and lands */
+      const { context, page, errors } = await open(browser, CH, STEPS);
+      const hiddenTarget = await page.evaluate(() => { var t = document.querySelector('.ex[data-target="true"]'); return !!t && !!t.closest("[hidden]"); });
+      check(hiddenTarget, "steps: the boss's target starts in a hidden step");
+      await page.keyboard.press("t");
+      await page.waitForFunction(() => { var a = document.activeElement; return !!a && a.matches('.ex[data-target="true"]'); }, null, { timeout: 2000 }).catch(() => {});
+      eq(await page.evaluate(() => {
+        var a = document.activeElement;
+        return [a.matches('.ex[data-target="true"]'), a.hasAttribute("data-keys-cursor"), !a.closest("[hidden]")];
+      }), [true, true, true], "steps: t reveals the step and lands on the target with the cursor");
+      eq(errors, [], "no errors (t in steps mode)");
+      await context.close();
+    }
     for (const theme of ["light", "dark"]) {
       const TH = { "bm.theme": JSON.stringify(theme) };
       const pre = theme + ": ";

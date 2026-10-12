@@ -250,10 +250,11 @@ function perform(action: Action): void {
       return;
     }
     case "target": {
-      const list = items().filter((el) => el.matches(".ex"));
+      /* the boss's target may sit in a lesson step not shown yet: reach it as the palette does */
+      const list = Array.prototype.filter.call(document.querySelectorAll(".ex[id]"), (el: HTMLElement) => reachable(el)) as HTMLElement[];
       const to = list.find((el) => el.getAttribute("data-target") === "true") ||
         list.find((el) => el.getAttribute("data-state") !== "correct");
-      if (to) moveTo(to);
+      if (to) goToId(to.id);
       return;
     }
     case "enter": if (ex) enter(ex); return;
@@ -483,31 +484,35 @@ function palLand(id: string): void {
   if (visible(el)) moveTo(el);
 }
 
+/** Move the cursor to the element with this id, revealing the lesson step it sits in first
+    (lesson.js shows the steps up to a hash target). */
+function goToId(id: string): void {
+  const el = document.getElementById(id);
+  if (!el) return;
+  if (visible(el)) { palLand(id); return; }
+  let done = false;
+  const land = () => {
+    if (done) return;
+    done = true;
+    window.removeEventListener("hashchange", land);
+    palLand(id);
+  };
+  window.addEventListener("hashchange", land);
+  setTimeout(land, 300);
+  try {
+    if (location.hash === "#" + id) history.replaceState(history.state, "", location.pathname + location.search);
+  } catch { /* no history: the hash still changes below when it differs */ }
+  location.hash = "#" + id;
+}
+
 function palGo(i: number): void {
   const t = palShown[i];
   if (!t || !pal) return;
   if (t.id) {
-    const id = t.id;
     returnTo = null;
     returnCursor = false;
     pal.close();
-    const el = document.getElementById(id);
-    if (!el) return;
-    if (visible(el)) { palLand(id); return; }
-    /* in a lesson step not shown yet: lesson.js reveals the steps up to a hash target */
-    let done = false;
-    const land = () => {
-      if (done) return;
-      done = true;
-      window.removeEventListener("hashchange", land);
-      palLand(id);
-    };
-    window.addEventListener("hashchange", land);
-    setTimeout(land, 300);
-    try {
-      if (location.hash === "#" + id) history.replaceState(history.state, "", location.pathname + location.search);
-    } catch { /* no history: the hash still changes below when it differs */ }
-    location.hash = "#" + id;
+    goToId(t.id);
     return;
   }
   if (t.href) {
