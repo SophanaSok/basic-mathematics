@@ -923,9 +923,10 @@ function checkMerge(ctx, r) {
         const mf = fm(ow(ab.game, "form"));
         if (rec(wa) && rec(wb) && (!rec(mf.wear) || mf.wear.at !== Math.max(wa.at, wb.at))) r.fail("seed " + seed + ": game.form.wear.at should be the larger of the two");
         /* one side counts and the other does not: the one that counts is kept, whole */
-        if (rec(wa) !== rec(wb)) {
+        if (!!rec(wa) !== !!rec(wb)) {
           const keep = rec(wa) ? wa : wb;
-          if (!rec(mf.wear) || mf.wear.at !== keep.at || mf.wear.n !== Number(keep.n)) r.fail("seed " + seed + ": game.form.wear should be the one side's that counts");
+          const numOf = x => { const n = Number(x); return isFinite(n) ? n : 0; };  /* merge.ts num() */
+          if (!rec(mf.wear) || mf.wear.at !== keep.at || mf.wear.n !== numOf(keep.n)) r.fail("seed " + seed + ": game.form.wear should be the one side's that counts " + JSON.stringify([wa, wb, mf.wear]));
         }
         const ga = fm(ow(fm(ow(a.game, "form")), "got")), gb = fm(ow(fm(ow(b.game, "form")), "got")), gm = fm(mf.got);
         Object.keys(ga).concat(Object.keys(gb)).filter(k => k !== "__proto__").forEach(k => {
