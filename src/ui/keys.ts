@@ -86,8 +86,17 @@ function reduced(): boolean {
     document.documentElement.getAttribute("data-motion") === "reduce";
 }
 
+const LENT = "data-keys-tabindex";   /* the layer lent this element its tabindex="-1" */
+
+function drop(el: HTMLElement): void {
+  el.removeAttribute(ATTR);
+  /* a card or heading takes a mouse click's focus while it has a tabindex; give it back
+     once the cursor leaves, so a click on a card's padding never arms h or s */
+  if (el.hasAttribute(LENT)) { el.removeAttribute("tabindex"); el.removeAttribute(LENT); }
+}
+
 function setCursor(el: HTMLElement | null): void {
-  if (cursor && cursor !== el) cursor.removeAttribute(ATTR);
+  if (cursor && cursor !== el) drop(cursor);
   cursor = el;
   if (el) el.setAttribute(ATTR, "");
 }
@@ -109,7 +118,7 @@ function labelOf(el: HTMLElement): string {
 function moveTo(el: HTMLElement, opts?: { scroll?: boolean; quiet?: boolean }): void {
   const o = opts || {};
   const native = el.matches("a[href], button, input, select, textarea, summary, [tabindex]");
-  if (!native) el.setAttribute("tabindex", "-1");
+  if (!native) { el.setAttribute("tabindex", "-1"); el.setAttribute(LENT, ""); }
   focus(el);
   if (o.scroll !== false) {
     try { el.scrollIntoView({ block: el.matches(".ex") ? "center" : "nearest", behavior: reduced() ? "auto" : "smooth" }); }
@@ -198,6 +207,8 @@ function leave(wasInsert: boolean): void {
     /* from a box or a clue, back to the card; from the card itself, to the page */
     const ex = a.closest(".ex") as HTMLElement | null;
     if (ex && (wasInsert || !a.matches(NATIVE))) { moveTo(ex, { scroll: false, quiet: true }); return; }
+    /* a link or button the reader tabbed to keeps the focus: nothing to leave */
+    if (!a.hasAttribute(ATTR) && a.matches(NATIVE)) return;
   }
   setCursor(null);
   if (a) a.blur();
@@ -337,11 +348,11 @@ function tip(): void {
 function onKey(e: KeyboardEvent): void {
   if (e.defaultPrevented) return;
   const m = mode();
+  const a = active();
   if (e.key === "Tab") {
-    if (m !== "off" && kind === "chapter") tip();
+    if (m !== "off" && kind === "chapter" && !inDialog(a)) tip();
     return;
   }
-  const a = active();
   /* an open dialog keeps its keys, Escape included (its close request) */
   if (inDialog(a)) return;
   const where = at();
@@ -375,7 +386,7 @@ function mount(): void {
     /* the window losing focus (another window, devtools) keeps the cursor for the return */
     if (!document.hasFocus()) return;
     const t = e.target as HTMLElement | null;
-    if (t && t === cursor) { t.removeAttribute(ATTR); cursor = null; }
+    if (t && t === cursor) { drop(t); cursor = null; }
   });
   document.addEventListener("pointerdown", () => { api.pointerAt = Date.now(); }, { passive: true, capture: true });
 }

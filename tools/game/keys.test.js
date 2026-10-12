@@ -222,6 +222,19 @@ async function run() {
       eq(await page.$eval(S + " .ex-solution", (e) => e.getAttribute("data-show")), "true", "s shows the solution");
       await page.keyboard.press("s");
       eq(await page.$eval(S + " .ex-solution", (e) => e.getAttribute("data-show")), null, "s again hides it");
+      /* a mouse click on a card's padding must not arm h: the lent tabindex goes with the cursor */
+      await page.keyboard.press("Escape");
+      eq(await page.$eval(S, (e) => e.hasAttribute("tabindex")), false, "the card gives its tabindex back when the cursor leaves");
+      const P = '#practice .ex[data-hint]:not([data-state]):not([data-key="' + hk + '"])';
+      if (await page.$(P)) {
+        const open = (e) => Array.prototype.filter.call(e.querySelectorAll(".ex-clue"), (c) => !c.closest("[hidden]") && c.getClientRects().length > 0).length;
+        const was = await page.$eval(P, open);
+        const box = await page.$eval(P, (e) => { e.scrollIntoView({ block: "center" }); var r = e.getBoundingClientRect(); return { x: r.left + 4, y: r.top + 4 }; });
+        await page.mouse.click(box.x, box.y);
+        await page.keyboard.press("h");
+        await wait(150);
+        eq(await page.$eval(P, open), was, "h after a click on a card's padding opens nothing");
+      }
       eq(errors, [], "no errors (text, choice, clue, solution)");
       await context.close();
     }
