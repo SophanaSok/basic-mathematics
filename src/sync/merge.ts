@@ -205,7 +205,7 @@ export function mergeLesson(a: any, b: any) {
             finite time, a key with none dropped; written (as {} at least) once either
             side's form holds a `got` field, so presence is an OR and stays idempotent.
             `wear` ({ n, at }, the stage shown and when it was chosen): of the sides
-            whose wear is a record with a finite number `at`, the greater `at`, then
+            whose wear is a record with a number `at` from 0 to WEAR_AT_MAX, the greater `at`, then
             the greater n (num); unknown fields of those records are carried (later);
             a wear that is no such record is ignored, and when neither is one the two
             go through later. Unknown fields of form are carried (later)
@@ -229,11 +229,15 @@ export function mergeClean(p: any, q: any) {
   both.sort(function (r, s) { return (r.ms - s.ms) || (r.day < s.day ? -1 : r.day > s.day ? 1 : 0); });
   return carryOver(both[0], obj(cleanOf(p)), obj(cleanOf(q)), ["ms", "day"]);
 }
-/* A form's wear, { n, at }: only a record with a finite number `at` counts (anything
-   else, a string `at` included, is ignored while the other side has one). A maximum of
-   (at, n) over two sides, so the three laws hold; unknown fields are carried from the
-   qualifying records only, which keeps a damaged wear from changing the grouping. */
-export function wearOf(x: any) { return plain(x) && typeof x.at === "number" && isFinite(x.at) ? x : undefined; }
+/* A form's wear, { n, at }: only a record whose `at` is a number from 0 to WEAR_AT_MAX
+   counts (anything else, a string `at` or one past the bound included, is ignored while
+   the other side has one). The bound is the year 2100 in ms: a later `at` is damaged or
+   forged, and without the bound one such value would beat every honest choice for
+   good, since the rule is a maximum of (at, n) over two sides. That keeps the three
+   laws; unknown fields are carried from the qualifying records only, which keeps a
+   damaged wear from changing the grouping. */
+export const WEAR_AT_MAX = 4102444800000;
+export function wearOf(x: any) { return plain(x) && typeof x.at === "number" && x.at >= 0 && x.at <= WEAR_AT_MAX ? x : undefined; }
 export function mergeWear(p: any, q: any) {
   var list = [wearOf(p), wearOf(q)].filter(Boolean);
   if (!list.length) return later(p, q);

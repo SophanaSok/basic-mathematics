@@ -835,7 +835,7 @@ function canon(x) {
 
 /* a form for the merge check: stages and times, a wear, and now and then damage */
 function randomForm(S) {
-  const odd = [null, "x", 7, [1], [], { at: "5", n: 2 }, { at: 1e999 }, { n: 3 }, JSON.parse('{"__proto__":{"at":9}}'), 1e308];
+  const odd = [null, "x", 7, [1], [], { at: "5", n: 2 }, { at: 1e999 }, { n: 4, at: 9e15 }, { n: 3 }, JSON.parse('{"__proto__":{"at":9}}'), 1e308];
   if (S.maybe(0.1)) return JSON.parse(JSON.stringify(S.pick(odd)));
   const f = {};
   if (S.maybe(0.7)) {
@@ -913,7 +913,8 @@ function checkMerge(ctx, r) {
       {
         const fm = f => f && typeof f === "object" && !Array.isArray(f) ? f : {};
         const ow = (o, k) => o && typeof o === "object" && !Array.isArray(o) && Object.prototype.hasOwnProperty.call(o, k) ? o[k] : undefined;
-        const rec = w => w && typeof w === "object" && !Array.isArray(w) && typeof w.at === "number" && isFinite(w.at);
+        /* a wear counts only with an `at` from 0 to the year 2100 in ms (merge.ts WEAR_AT_MAX) */
+        const rec = w => w && typeof w === "object" && !Array.isArray(w) && typeof w.at === "number" && w.at >= 0 && w.at <= 4102444800000;
         const wa = ow(fm(ow(a.game, "form")), "wear"), wb = ow(fm(ow(b.game, "form")), "wear");
         const mf = fm(ow(ab.game, "form"));
         if (rec(wa) && rec(wb) && (!rec(mf.wear) || mf.wear.at !== Math.max(wa.at, wb.at))) r.fail("seed " + seed + ": game.form.wear.at should be the larger of the two");
