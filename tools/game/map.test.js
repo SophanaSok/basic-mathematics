@@ -148,7 +148,7 @@ const RAF_GATE = (o) => {
     /* who asked: three frames of the caller's stack, file:line only, so a frame counted
        where none was expected names its source in the check's message */
     window.__rafFrom.push(String(new Error().stack || "").split("\n").slice(2, 5).map(function (l) {
-      var m = /([^\/\s(]+:\d+):\d+\)?$/.exec(l.trim()); return m ? m[1] : l.trim().slice(0, 40);
+      var m = /([^\/\s(]+:\d+:\d+)\)?$/.exec(l.trim()); return m ? m[1] : l.trim().slice(0, 40);
     }).join(" < "));
     return orig(function (t) {
       if (window.__hide) { window.__held.push(cb); return; }
