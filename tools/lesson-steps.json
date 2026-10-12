@@ -333,6 +333,10 @@
     "h2#displays to div#t4",
     "div.worked to div#t5",
     "div.worked to div#t6",
+    "h2#scatter to div#t7",
+    "div#t8",
+    "h2#samples to div#t9",
+    "div#t10",
     "section#practice",
     "div.recap to nav.chapter-nav"
   ],

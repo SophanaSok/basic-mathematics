@@ -330,10 +330,12 @@ window.BM_CURRICULUM = {
           status: "full",
           course: "pre-algebra",
           blurb:
-            "Summarizing a list of numbers by its center and its spread, and reading dot plots, histograms, box plots and two-way tables.",
+            "Summarizing a list of numbers by its center and its spread, reading dot plots, histograms, box plots, two-way tables and scatterplots, using a line of fit, and judging what a sample and a claim can show.",
           sections: [
             { id: "center", title: "Center and spread", summary: "Mean, median and mode say where a list is centered; range, quartiles and the interquartile range say how far it spreads, and one extreme value moves the mean much further than the median." },
-            { id: "displays", title: "Reading displays", summary: "A dot plot, a histogram, a box plot and a two-way table each show a list or a survey in a different way, and each answers some questions easily and others not at all." }
+            { id: "displays", title: "Reading displays", summary: "A dot plot, a histogram, a box plot and a two-way table each show a list or a survey in a different way, and each answers some questions easily and others not at all." },
+            { id: "scatter", title: "Scatterplots and lines of fit", summary: "A scatterplot shows two measurements for each individual; a given line of fit predicts one from the other, its slope is the change per one more x, a residual is actual minus predicted, and beyond the data the line is a guess." },
+            { id: "samples", title: "Samples and claims", summary: "A random sample gives every member an equal chance and a convenience sample is biased; a sample proportion estimates a population count, larger samples vary less, and a sample cannot speak for another group or prove a cause." }
           ]
         }
       ]
