@@ -82,6 +82,8 @@ interface Window {
   BMPlan: typeof import("../ui/plan.ts").api;
   /** src/ui/next.ts: the "next best step" card (render, items, hide), a console and test handle */
   BMNext: typeof import("../ui/next.ts").api;
+  /** src/ui/forms.ts: the "Your form" panel (refresh, equip, view), a console and test handle */
+  BMForms: typeof import("../ui/forms.ts").api;
   /** src/ui/math-names.ts: names the buttons, labels, table headers and headings whose
       content is a formula (name), for assets/site.js's renderMath; typed */
   BMMathNames: typeof import("../ui/math-names.ts").api;

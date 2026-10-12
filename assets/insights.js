@@ -32,6 +32,11 @@
   /* ----------------------------------------------------- reader dashboard -- */
 
   var page = document.querySelector("[data-progress]");
+  /* the "Your form" panel's place (src/ui/forms.ts fills it): one element kept across
+     redraws, placed once above the dashboard (the previous sibling of [data-progress]) */
+  var formSlot = document.createElement("div");
+  formSlot.className = "form-slot";
+  formSlot.setAttribute("data-form", "");
 
   function lastDays(n) {
     var days = Activity.all().days, out = [], d = new Date();
@@ -222,6 +227,9 @@
   }
 
   function drawProgress() {
+    /* the slot goes in once, ahead of the dashboard, and is never moved: a redraw of the
+       dashboard does not touch it, so focus inside the panel stays and the canvas stays */
+    if (!formSlot.parentNode && page.parentNode) page.parentNode.insertBefore(formSlot, page);
     var solved = 0, total = 0, done = 0, stars = 0;
     C.chapters.forEach(function (ch) {
       var c = Progress.count(ch.id);
