@@ -10,7 +10,7 @@
    3. a pending evolution plays anticipate, flash, reveal, done; the caption; seen.evolved
       is 3; a reload plays nothing
    4. the same under reduced motion: a cut, no animation, the caption at once
-   5. Skip jumps to the caption
+   5. Skip jumps to the caption; Escape with no dialog open does the same and counts it played
    6. progress.html?3d=off: the flat card, pips on the tiles, no Three.js request
    7. a chapter page: crossing a stage gives one toast, records got, no Three.js; no
       second toast; none after a reload
@@ -149,6 +149,20 @@ async function main() {
       await page.waitForSelector("#form .form-caption", { timeout: 300 }).catch(() => {});
       const cap = await page.textContent("#form .form-caption").catch(() => "");
       check(/^Evolved: Wayfinder/.test(cap), "5: Skip shows the caption at once", cap);
+    }
+    /* 5b: Escape, with no dialog open, does what Skip does; a reload then plays nothing */
+    {
+      const { page } = await open("progress.html", seeds(300, PENDING));
+      await page.waitForSelector('#form[data-form-seq="anticipate"]', { timeout: 5000 }).catch(() => {});
+      await page.keyboard.press("Escape");
+      await page.waitForSelector("#form .form-caption", { timeout: 300 }).catch(() => {});
+      const cap = await page.textContent("#form .form-caption").catch(() => "");
+      check(/^Evolved: Wayfinder/.test(cap), "5b: Escape shows the caption at once", cap);
+      const run = await page.evaluate(() => JSON.parse(localStorage.getItem("bm.run.v1") || "{}"));
+      check(run.seen && run.seen.evolved === 3, "5b: Escape counts the evolution as played", run.seen);
+      await page.reload({ waitUntil: "load" });
+      await page.waitForSelector("#form[data-form-seq]", { timeout: 1500 }).catch(() => {});
+      check((await seqAttr(page)) === null, "5b: a reload plays nothing");
     }
     /* 6 */
     {
