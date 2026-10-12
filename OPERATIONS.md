@@ -333,6 +333,8 @@ ten minutes:
   now, as the plan's tier rule says, and the watchdog takes it to the list if it is too slow.
 - `bm.prefs.v1` gains `gfxAuto`, written by the watchdog. A tab from before the deploy keeps it
   through its own writes (R0's unknown-key rule) and does not read it.
+- `bm.prefs.v1` gains `keys` with the keyboard layer (K-10d): `false` turns the single-key
+  shortcuts off; absent means on. Device-local like every pref, never synced or exported.
 
 Nothing is kept for it. A later deploy that changes what `src/world/index.ts` exports is the
 case to watch: a contents page left open from before it, whose `home.js` then fetches the new

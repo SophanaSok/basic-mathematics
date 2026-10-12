@@ -177,6 +177,7 @@
     Object.keys(p).forEach(function (k) { out[k] = p[k]; });
     out.sound = p.sound === true;
     out.calm = p.calm === true;
+    out.keys = p.keys !== false;
     if (p.map === "3d" || p.map === "list") out.map = p.map;
     else delete out.map;
     if (p.panel === "light" || p.panel === "dark") out.panel = p.panel;
@@ -221,6 +222,7 @@
     var p = prefs();
     if (name === "map3d") { name = "map"; value = value ? "3d" : "list"; }
     if (name === "sound" || name === "calm") p[name] = !!value;
+    else if (name === "keys") p.keys = !!value;
     else if (name === "map") p.map = value === "list" ? "list" : "3d";
     else if (name === "panel") p.panel = value === "dark" ? "dark" : "light";
     else if (name === "tempo") p.tempo = value === "extended" || value === "untimed" ? value : "standard";
