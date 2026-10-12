@@ -79,6 +79,8 @@ const fields = (rec) => sprinkle(rec, NEW_VALUES);
    entry, as they always have. */
 const entries = (map) => sprinkle(map, NEW_VALUES.filter((v) => v !== null && (typeof v !== "object" || Array.isArray(v))));
 
+/* what a damaged or differently-minded record might hold as a best entry's `clean` */
+const CLEAN_ODD = ["fast", { ms: 0, day: "2026-01-01" }, { ms: "3000", day: "2026-01-01" }, [], null, { ms: -5 }, { day: "2026-01-02" }];
 /* what a damaged or differently-minded record might hold as `rung` */
 const RUNG_ODD = [0, 5, -1, "2", "x", true, null, [1], { a: 1 }];
 /* account.js's rule for `rung`, written out again: the larger number, a number over
@@ -146,8 +148,9 @@ function gameState() {
     ["standard", "daily", "repair"].forEach((m) => {
       if (!chance(0.5)) return;
       g.best[m] = fields({ score: int(4) * 100, hearts: int(4), day: day(int(10)) });
-      /* the fastest clean run: few times and days, so two sides often tie */
-      if (chance(0.5)) g.best[m].clean = fields({ ms: int(5) * 1000 + 1000, day: day(int(10)) });
+      /* the fastest clean run: few times and days, so two sides often tie; now and then
+         one that is no clean run (CLEAN_ODD), which the merge ignores */
+      if (chance(0.5)) g.best[m].clean = chance(0.75) ? fields({ ms: int(5) * 1000 + 1000, day: day(int(10)) }) : JSON.parse(JSON.stringify(pick(CLEAN_ODD)));
     });
     entries(g.best);
   }
@@ -301,6 +304,8 @@ const rc4 = mg({ best: { d: { score: 1, hearts: 0, day: "2026-01-01", clean: "fa
   { best: { d: { score: 1, hearts: 0, day: "2026-01-01", clean: { ms: 5000, day: "2026-01-02" } }, e: { score: 1, hearts: 0, day: "2026-01-01" } } });
 if (canon(rc4.best.d.clean) !== canon({ ms: 5000, day: "2026-01-02" }) || "clean" in rc4.best.e) fail("best.clean: a malformed one (a string, ms 0) is ignored", -2, JSON.stringify(rc4.best));
 if (canon(mg({ best: { d: { score: 1, hearts: 0, day: "2026-01-01", clean: [3000] } } }, {}).best.d) !== canon({ score: 1, hearts: 0, day: "2026-01-01" })) fail("best.clean: an array is no clean run", -2);
+const rc4b = mg({ best: { d: { score: 1, hearts: 0, day: "2026-01-01", clean: { ms: "3000", day: "2026-01-01" } } } }, { best: { d: { score: 1, hearts: 0, day: "2026-01-01", clean: { ms: 5000, day: "2026-01-02" } } } });
+if (canon(rc4b.best.d.clean) !== canon({ ms: 5000, day: "2026-01-02" }) || "clean" in mg({ best: { d: { clean: null } } }, { best: { d: { clean: { ms: "1" } } } }).best.d) fail("best.clean: an ms that is not a number, or a null, is no clean run", -2, JSON.stringify(rc4b.best.d));
 const rc5 = mg({ best: { d: { score: 2, hearts: 1, day: "2026-01-01", run: "a", clean: { ms: 6000, day: "2026-01-01", path: 1 } } } },
   { best: { d: { score: 3, hearts: 1, day: "2026-01-02", lap: [1], clean: { ms: 4000, day: "2026-01-02" } } } });
 if (canon(rc5.best.d) !== canon({ score: 3, hearts: 1, day: "2026-01-02", run: "a", lap: [1], clean: { ms: 4000, day: "2026-01-02", path: 1 } })) fail("best.clean: unknown fields beside it and inside it are still carried", -2, JSON.stringify(rc5.best.d));
