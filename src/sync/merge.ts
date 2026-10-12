@@ -193,7 +193,10 @@ export function mergeLesson(a: any, b: any) {
      cmp    union of compared solutions
      sec    per section: n, ok and fix by max (ok never above n); the pair
             (last, box) taken whole from whichever is later, then higher
-     best   per mode: highest score, then most hearts, then the earlier day
+     best   per mode: highest score, then most hearts, then the earlier day; its
+            `clean` (the fastest clean run, { ms, day }) on its own: the lower ms, then
+            the earlier day, from the sides whose clean is a record with ms > 0 (any
+            other clean is ignored); unknown fields inside it are carried (later)
      enc    per set: the higher rematch medal, then the earlier day
      daily  union, keeping the latest 60 days
      maxed  max
@@ -204,6 +207,18 @@ export function mergeLesson(a: any, b: any) {
 export function num(x: any) { x = Number(x); return isFinite(x) ? x : 0; }
 export function str(x: any) { return typeof x === "string" ? x : ""; }
 export const GAME = ["ach", "cmp", "sec", "best", "enc", "daily", "maxed", "v"];
+/* A best entry's fastest clean run, { ms, day }: of the two that are records with ms > 0,
+   the lower ms, then the earlier day (the empty string, for a day that is not a string,
+   sorts first); undefined when neither is one. A minimum over one total order, so the
+   three laws hold; the unknown fields of both are carried, as in any other record. */
+export function cleanOf(x: any) { return plain(x) && num(x.ms) > 0 ? x : undefined; }
+export function mergeClean(p: any, q: any) {
+  var list = [cleanOf(p), cleanOf(q)].filter(Boolean);
+  if (!list.length) return undefined;
+  var both = list.map(function (r) { return { ms: num(r.ms), day: str(r.day) }; });
+  both.sort(function (r, s) { return (r.ms - s.ms) || (r.day < s.day ? -1 : r.day > s.day ? 1 : 0); });
+  return carryOver(both[0], obj(cleanOf(p)), obj(cleanOf(q)), ["ms", "day"]);
+}
 export function mergeGame(a: any, b: any) {
   a = obj(a); b = obj(b);
   var out: any = { ach: {}, cmp: {}, sec: {}, best: {}, enc: {}, daily: {}, maxed: Math.max(num(a.maxed), num(b.maxed)) };
@@ -245,7 +260,9 @@ export function mergeGame(a: any, b: any) {
     list.sort(function (r, s) {
       return (s.score - r.score) || (s.hearts - r.hearts) || (r.day < s.day ? -1 : r.day > s.day ? 1 : 0);
     });
-    out.best[mode] = carryOver(list[0], obj(p), obj(q), ["score", "hearts", "day"]);
+    var rec: any = list[0], clean = mergeClean(at(obj(p), "clean"), at(obj(q), "clean"));
+    if (clean) rec.clean = clean;
+    out.best[mode] = carryOver(rec, obj(p), obj(q), ["score", "hearts", "day", "clean"]);
   });
   var enc = [obj(a.enc), obj(b.enc)];
   keysOf(enc[0], enc[1]).forEach(function (id) {

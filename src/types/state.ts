@@ -134,8 +134,11 @@ export interface GameStore {
   /** solutions compared with a correct answer. Merge: union */
   cmp: Record<ChapterId, Record<ExerciseKey, Flag>>;
   sec: Record<SectionRef, SectionRecall>;
-  /** best ranked run per mode. Merge: higher score, then more hearts, then earlier day */
-  best: Partial<Record<ArenaMode, { score: number; hearts: number; day: DayKey }>>;
+  /** best ranked run per mode. Merge: higher score, then more hearts, then earlier day.
+      `clean` is the fastest clean run (ranked, played to the end, every answer right the
+      first time and on the clock), its summed answer time in ms and the day it was set;
+      merged on its own: lower ms, then earlier day (mergeClean) */
+  best: Partial<Record<ArenaMode, { score: number; hearts: number; day: DayKey; clean?: { ms: number; day: DayKey } }>>;
   /** medal per set, "<chapter>/practice" or "<chapter>/review": banked when the set is
       seen cleared, raised by a rematch. Merge: higher medal, then earlier day */
   enc: Record<string, { medal: Exclude<Medal, 0>; day: DayKey }>;
@@ -163,6 +166,12 @@ export interface RunStore {
   /** the day's Arena XP counts (src/learn/practice.ts): answers paid per section, and runs
       that earned the finishing bonus; a new local day starts them again */
   arenaDay?: { day: DayKey; sec: Record<SectionRef, number>; finishes: number };
+  /** how often a faster clean Arena run replaced an earlier one (Personal best) */
+  pb?: number;
+  /** exercises solved on chapter pages with no pointer use in the ten seconds before (Hands off the mouse) */
+  kb?: number;
+  /** the first-Tab toast pointing at "?" has been shown on this device (src/ui/keys.ts) */
+  keysTip?: 1;
   /** the day the "next best step" card was hidden for (src/ui/next.ts) */
   nextHide?: DayKey;
   /** the placement check in play (src/learn/diagnostic.ts owns its shape); cleared at

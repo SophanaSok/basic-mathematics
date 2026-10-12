@@ -15,11 +15,13 @@
 
    Stores:
      bm.game.v1   synced: achievements, compared solutions, the Arena's review
-                  boxes, bests, medals (rematches, and clears seen on a chapter
-                  page), Daily days, how often the meter filled
+                  boxes, bests (with the fastest clean run), medals (rematches,
+                  and clears seen on a chapter page), Daily days, how often the
+                  meter filled
      bm.run.v1    this device only: the combo meter, what has been announced, a
                   cache of which exercises make up each set, the day's Arena answers
-                  per section for the XP decay (arenaDay), and the Arena's own fields
+                  per section for the XP decay (arenaDay), the Personal best and
+                  Hands off the mouse counters (pb, kb), and the Arena's own fields
                   and the next-step card's (which this file keeps as it finds them)
      bm.prefs.v1  this device only, never cleared: sound, calm, map, tempo, panel,
                   volume, motion, transparency, gfx (the settings sheet,
@@ -80,7 +82,7 @@
     Object.keys(old).forEach(function (k) { if (known.indexOf(k) < 0) rec[k] = old[k]; });
     return rec;
   }
-  var SEC = ["n", "ok", "box", "last", "fix"], BEST = ["score", "hearts", "day"], ENC = ["medal", "day"];
+  var SEC = ["n", "ok", "box", "last", "fix"], BEST = ["score", "hearts", "day", "clean"], ENC = ["medal", "day"];
   function writeGame(g) { return Store.write(K.game, g); }
   function updateGame(fn) {
     var g = readGame();
@@ -499,6 +501,16 @@
     A("took-your-time", "Took your time", "In one timed Arena run, get 10 right the first time with at least three answered after par.", function (S) {
       return [S.game.ach["took-your-time"] ? 1 : 0, 1];
     }),
+    A("under-par", "Under par", "In one ranked Arena run, get 10 right the first time with none answered after par.", function (S) {
+      return [S.game.ach["under-par"] ? 1 : 0, 1];
+    }),
+    /* the two counters below are this device's own (bm.run.v1), like the day's Arena counts */
+    A("personal-best", "Personal best", "Beat your own fastest clean Arena run three times.", function (S) {
+      return [num(obj(S.run).pb), 3];
+    }),
+    A("hands-off", "Hands off the mouse", "Solve 25 exercises on chapter pages by keyboard alone.", function (S) {
+      return [num(obj(S.run).kb), 25];
+    }),
     A("streak-3", "Three in a row", "Study on three days in a row.", function (S) {
       return [longestRun(obj(S.activity).days), 3];
     }),
@@ -688,8 +700,11 @@
      runs of a day that earn it and 1 after that, and 10 for the day's Daily once it is
      played through, unchanged. The day's counts are bm.run.v1.arenaDay.
      Bests are kept only for ranked (timed, with hearts) runs played to the end; a rematch
-     medal needs that and a heart left. `ranked` and `finished` default to true for older
-     callers. (The Arena itself allows one Daily a day; see assets/arena.js.) */
+     medal needs that and a heart left. So is the fastest clean run, best[mode].clean
+     { ms, day }, from result.clean { ms } (assets/arena.js buildResult): the lower ms, on a
+     tie the earlier day, whether or not the score beat the best; one that replaces an
+     earlier one counts toward Personal best (bm.run.v1.pb). `ranked` and `finished`
+     default to true for older callers. (The Arena itself allows one Daily a day; see assets/arena.js.) */
   function recordRun(result) {
     result = obj(result);
     var answers = Array.isArray(result.answers) ? result.answers : [];
@@ -699,6 +714,7 @@
     var score = Math.max(0, Math.round(num(result.score)));
     var ranked = result.ranked !== false, finished = result.finished !== false;
     var xp = 0, dailyBonus = false, newMedal = 0, before = readGame();
+    var cleanMs = Math.round(num(obj(result.clean).ms)), cleanOut = null, beaten = false;
     var bySec = {}, paid = [];
     var boss = result.boss ? String(result.boss) : "", S0 = stores();
     var bs = bossState(S0, boss, before), bossSet = bs.set, cleared = bs.cleared;
@@ -750,7 +766,20 @@
       if (ranked && finished && (!g.best[mode] || score > num(prev.score) ||
           (score === num(prev.score) && hearts > num(prev.hearts)) ||
           (score === num(prev.score) && hearts === num(prev.hearts) && day < String(prev.day || "9999")))) {
+        /* over() leaves `clean` behind (it is in BEST), so it is carried here */
         g.best[mode] = over(prev, { score: score, hearts: hearts, day: day }, BEST);
+        if (prev.clean !== undefined) g.best[mode].clean = prev.clean;
+      }
+      /* the fastest clean run: a clean record (ms > 0) on file is beaten only by a lower ms;
+         an equal one keeps the earlier day */
+      if (ranked && finished && cleanMs > 0 && g.best[mode] && typeof g.best[mode] === "object") {
+        var pc = obj(g.best[mode].clean), had = num(pc.ms) > 0;
+        var fresh = !had || cleanMs < num(pc.ms);
+        if (fresh || (cleanMs === num(pc.ms) && day < String(pc.day || ""))) {
+          g.best[mode].clean = over(pc, { ms: cleanMs, day: day }, ["ms", "day"]);
+        }
+        beaten = fresh && had;
+        cleanOut = { ms: cleanMs, best: num(g.best[mode].clean.ms), fresh: fresh };
       }
       /* a rematch only raises a medal the set has earned (cleared, above), and never one
          lost on hearts */
@@ -771,6 +800,8 @@
     var firsts = answers.filter(function (a) { return a && a.first; });
     var late = firsts.filter(function (a) { return a.late; }).length;
     if (timed && firsts.length >= 10 && late >= 3) unlock("took-your-time");
+    if (timed && ranked && firsts.length >= 10 && late === 0) unlock("under-par");
+    if (beaten) updateRun(function (r) { r.pb = num(r.pb) + 1; });
     /* Returning champion, from the run itself: on a tie the enc record keeps the earlier
        day, so a later Silver may leave no trace there. "0" stands for a set cleared
        before solves were timed, which any rematch comes after. */
@@ -785,7 +816,7 @@
     /* parts: what the XP is made of, and what the answers would have paid at the full
        rate; reduced: the sections whose answers paid less today (the result screen says why) */
     return {
-      xp: xp, medal: newMedal, game: g, cleared: cleared,
+      xp: xp, medal: newMedal, game: g, cleared: cleared, clean: cleanOut,
       parts: { answers: settled.answers, full: settled.full, finish: settled.finish, daily: dailyBonus ? 10 : 0 },
       reduced: settled.reduced, finishReduced: settled.finishReduced
     };
@@ -1356,6 +1387,10 @@
       hud();
       schedule();
     } else if (t === "solved") {
+      /* Hands off the mouse: an exercise (not a Your turn check) solved with no pointer
+         used in the ten seconds before (src/ui/keys.ts stamps pointerAt) */
+      var K10 = window.BMKeys;
+      if (!c.inline && K10 && Date.now() - num(K10.pointerAt) > 10000) updateRun(function (r) { r.kb = num(r.kb) + 1; });
       stamp(findEx(c.key));
       pendingEx = null;
       fillBanner();

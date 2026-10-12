@@ -144,7 +144,10 @@ function gameState() {
   if (chance(0.6)) {
     g.best = {};
     ["standard", "daily", "repair"].forEach((m) => {
-      if (chance(0.5)) g.best[m] = fields({ score: int(4) * 100, hearts: int(4), day: day(int(10)) });
+      if (!chance(0.5)) return;
+      g.best[m] = fields({ score: int(4) * 100, hearts: int(4), day: day(int(10)) });
+      /* the fastest clean run: few times and days, so two sides often tie */
+      if (chance(0.5)) g.best[m].clean = fields({ ms: int(5) * 1000 + 1000, day: day(int(10)) });
     });
     entries(g.best);
   }
@@ -286,6 +289,21 @@ const r2 = mg({ sec: { s: { n: 4, ok: 4, box: 3, last: "2026-03-01" } } }, { sec
 if (canon(r2.sec.s) !== canon({ n: 6, ok: 4, box: 0, last: "2026-03-05", fix: 7 })) fail("sec rule", -2, JSON.stringify(r2.sec.s));
 const r3 = mg({ best: { d: { score: 500, hearts: 1, day: "2026-01-09" } } }, { best: { d: { score: 500, hearts: 1, day: "2026-01-02" } } });
 if (r3.best.d.day !== "2026-01-02") fail("best: tie goes to the earlier day", -2);
+/* the fastest clean run (best[mode].clean) merges on its own: the lower ms, then the earlier day */
+const rc1 = mg({ best: { d: { score: 900, hearts: 3, day: "2026-01-05", clean: { ms: 9000, day: "2026-01-05" } } } },
+  { best: { d: { score: 400, hearts: 1, day: "2026-01-02", clean: { ms: 7000, day: "2026-01-08" } } } });
+if (canon(rc1.best.d) !== canon({ score: 900, hearts: 3, day: "2026-01-05", clean: { ms: 7000, day: "2026-01-08" } })) fail("best.clean: the lower ms wins, even beside the higher score and more hearts", -2, JSON.stringify(rc1.best.d));
+const rc2 = mg({ best: { d: { score: 5, hearts: 1, day: "2026-01-01", clean: { ms: 7000, day: "2026-01-09" } } } }, { best: { d: { score: 5, hearts: 1, day: "2026-01-01", clean: { ms: 7000, day: "2026-01-03" } } } });
+if (canon(rc2.best.d.clean) !== canon({ ms: 7000, day: "2026-01-03" })) fail("best.clean: a tie on ms takes the earlier day", -2, JSON.stringify(rc2.best.d));
+const rc3 = mg({ best: { d: { score: 800, hearts: 2, day: "2026-01-01" } } }, { best: { d: { score: 100, hearts: 0, day: "2026-01-04", clean: { ms: 20000, day: "2026-01-04" } } } });
+if (canon(rc3.best.d) !== canon({ score: 800, hearts: 2, day: "2026-01-01", clean: { ms: 20000, day: "2026-01-04" } })) fail("best.clean: a side without one loses to a side with one", -2, JSON.stringify(rc3.best.d));
+const rc4 = mg({ best: { d: { score: 1, hearts: 0, day: "2026-01-01", clean: "fast" }, e: { score: 1, hearts: 0, day: "2026-01-01", clean: { ms: 0, day: "2026-01-01" } } } },
+  { best: { d: { score: 1, hearts: 0, day: "2026-01-01", clean: { ms: 5000, day: "2026-01-02" } }, e: { score: 1, hearts: 0, day: "2026-01-01" } } });
+if (canon(rc4.best.d.clean) !== canon({ ms: 5000, day: "2026-01-02" }) || "clean" in rc4.best.e) fail("best.clean: a malformed one (a string, ms 0) is ignored", -2, JSON.stringify(rc4.best));
+if (canon(mg({ best: { d: { score: 1, hearts: 0, day: "2026-01-01", clean: [3000] } } }, {}).best.d) !== canon({ score: 1, hearts: 0, day: "2026-01-01" })) fail("best.clean: an array is no clean run", -2);
+const rc5 = mg({ best: { d: { score: 2, hearts: 1, day: "2026-01-01", run: "a", clean: { ms: 6000, day: "2026-01-01", path: 1 } } } },
+  { best: { d: { score: 3, hearts: 1, day: "2026-01-02", lap: [1], clean: { ms: 4000, day: "2026-01-02" } } } });
+if (canon(rc5.best.d) !== canon({ score: 3, hearts: 1, day: "2026-01-02", run: "a", lap: [1], clean: { ms: 4000, day: "2026-01-02", path: 1 } })) fail("best.clean: unknown fields beside it and inside it are still carried", -2, JSON.stringify(rc5.best.d));
 const r4 = mg({ enc: { e: { medal: 2, day: "2026-01-01" } } }, { enc: { e: { medal: 3, day: "2026-02-01" } } });
 if (r4.enc.e.medal !== 3) fail("enc: higher medal", -2);
 

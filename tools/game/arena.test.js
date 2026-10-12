@@ -30,7 +30,15 @@
       reach the synced record
   13. the Arena's own fallback, with no BMGame.recordRun: the boxes move by the one schedule
       (a clean due showing up one, an early clean one leaves box and date alone, a miss to box
-      0, never to 1) and the XP takes the day's decay from the stored counts */
+      0, never to 1) and the XP takes the day's decay from the stored counts
+  14. speed-run rewards (decision 0006): a ranked run right the first time throughout, every
+      question on the clock, records its time as the mode's fastest clean run, says "New
+      fastest" (and "Played by keyboard alone" when no pointer was used) and unlocks Under
+      par; one with a miss records none and keeps the earlier one; the lobby tile shows it;
+      through BMGame.recordRun: a faster clean run replaces it and counts toward Personal
+      best, a slower one or an unranked one does not, a tie keeps the earlier day, a better
+      score keeps it; one late answer keeps Under par locked; Hands off the mouse counts
+      exercises solved with no pointer in the last ten seconds */
 "use strict";
 const site = require("../lib/site");
 const target = require("../lib/target");
@@ -651,6 +659,118 @@ async function run() {
       await fallbackRepair("ch05#angles", 2);
       eq(await rec("ch05#angles"), [0, today], "a miss sends the section to box 0, not 1, and restarts its clock");
       await context.close();
+    }
+
+    /* ---------------- 14. speed-run rewards: the fastest clean run, Under par, Personal best */
+    {
+      const context = await ctx(browser);
+      const p = await open(context, errors, "arena.html", {}, true);
+      /* a run may deal an untimed question (few possible answers), which a clean run cannot
+         hold: put every question still to come on the clock, with a heart at stake and a
+         par no quick answer misses */
+      const allTimed = () => p.evaluate(() => {
+        var r = window.BMArena.state();
+        r.qs.forEach(function (q, k) { if (k >= r.i) { q.timed = true; q.hf = false; q.par = Math.max(q.par, 120); } });
+      });
+      const today = await p.evaluate(() => window.BMSite.dayKey());
+      /* a Standard run by keyboard alone: no pointer event from the start to the result */
+      await p.$eval('[data-act="start"][data-mode="standard"]', (b) => b.click());
+      await p.waitForSelector(".arena-run");
+      await allTimed();
+      for (let k = 0; k < 12; k++) {
+        if (await p.$(".arena-result")) break;
+        await p.evaluate(() => {
+          var r = window.BMArena.state(), q = r.qs[r.i];
+          document.getElementById("arena-answer").value = String(window.BMGen.make(q.g, q.s).answer).split("|")[0];
+        });
+        await p.press("#arena-answer", "Enter");
+        await p.keyboard.press("Enter");
+      }
+      await p.waitForSelector(".arena-result");
+      const r1 = await p.evaluate(() => window.BMArena.state().result);
+      const g1 = await game(p);
+      const c1 = (g1.best.standard || {}).clean || {};
+      check(r1.ranked && r1.finished && r1.firstTry === 10 && r1.answers.every((a) => !a.late), "the keyboard run is ranked, finished, 10 right the first time, none late");
+      check(r1.clean && r1.clean.ms > 0 && r1.answers.every((a) => typeof a.el === "number"), "a run right the first time throughout, on the clock, is clean, with a time — got " + JSON.stringify(r1.clean));
+      eq([c1.ms, c1.day], [r1.clean && r1.clean.ms, today], "its time is recorded as the mode's fastest clean run");
+      eq(r1.cleanBest, { ms: r1.clean && r1.clean.ms, best: r1.clean && r1.clean.ms, fresh: true }, "recordRun says it set the record");
+      const text1 = await p.$eval(".arena-result", (e) => e.textContent);
+      check(/Clean time/.test(text1) && /New fastest/.test(text1), "the result shows the clean time as the new fastest");
+      check(/Played by keyboard alone\./.test(text1), "and that it was played by keyboard alone");
+      check(!!(g1.ach || {})["under-par"], "10 right the first time with none after par unlocks Under par");
+      check(!(await runStore(p)).pb, "the first clean run is not a Personal best beaten");
+      const clock = (ms) => { const s = Math.ceil(ms / 1000 - 1e-9); return Math.floor(s / 60) + ":" + String(s % 60).padStart(2, "0"); };
+
+      /* the lobby tile */
+      await p.click('.arena-result [data-act="lobby"]');
+      const tile1 = await p.$eval('[data-act="start"][data-mode="standard"]', (b) => b.textContent);
+      check(tile1.includes("Fastest clean " + clock(c1.ms)), "the lobby tile shows the fastest clean run — got " + JSON.stringify(tile1));
+
+      /* one miss: no clean time, and the earlier record stays */
+      await p.click('[data-act="start"][data-mode="standard"]');
+      await allTimed();
+      await answer(p, false);
+      await answer(p, true);
+      await next(p);
+      await playOut(p);
+      const r2 = await p.evaluate(() => window.BMArena.state().result);
+      eq([r2.ranked, r2.finished, r2.clean], [true, true, null], "a ranked run with a miss is not clean");
+      eq((await game(p)).best.standard.clean, c1, "and keeps the earlier fastest clean run");
+      const text2 = await p.$eval(".arena-result", (e) => e.textContent);
+      check(/Clean time—/.test(text2) && text2.includes("Fastest " + clock(c1.ms)) && !/New fastest/.test(text2), "its result shows no clean time and the record it did not beat");
+      check(!/keyboard alone/.test(text2), "a run played with the mouse does not say keyboard alone");
+
+      /* recordRun itself, with built results */
+      const rr = (o) => p.evaluate((o) => {
+        var back = window.BMGame.recordRun(Object.assign({ mode: "standard", answers: [], hearts: 3, score: 100, day: window.BMSite.dayKey(),
+          ranked: true, finished: true, timed: true, planned: 10 }, o));
+        var g = JSON.parse(localStorage.getItem("bm.game.v1"));
+        return { back: back.clean, best: g.best.standard, pb: JSON.parse(localStorage.getItem("bm.run.v1")).pb || 0 };
+      }, o);
+      const big = await rr({ score: 99999, clean: null });
+      eq([big.best.score, big.best.clean, big.back], [99999, c1, null], "a better score that is not clean keeps the fastest clean run");
+      const slow = await rr({ clean: { ms: c1.ms + 5000 } });
+      eq([slow.back, slow.best.clean, slow.pb], [{ ms: c1.ms + 5000, best: c1.ms, fresh: false }, c1, 0], "a slower clean run does not replace it");
+      check(c1.ms >= 8, "the clean run took some milliseconds");
+      const t2 = Math.floor(c1.ms / 2);
+      const fast = await rr({ clean: { ms: t2 } });
+      eq([fast.back, fast.best.clean, fast.best.score, fast.pb], [{ ms: t2, best: t2, fresh: true }, { ms: t2, day: today }, 99999, 1], "a faster clean run replaces it, whatever the score, and counts toward Personal best");
+      const yesterday = await p.evaluate(() => window.BMReview.recall.addDays(window.BMSite.dayKey(), -1));
+      const tie = await rr({ clean: { ms: t2 }, day: yesterday });
+      eq([tie.back.fresh, tie.best.clean, tie.pb], [false, { ms: t2, day: yesterday }, 1], "a tie on time keeps the earlier day and is no Personal best");
+      const loose = await rr({ clean: { ms: 1 }, ranked: false });
+      eq([loose.back, loose.best.clean], [null, { ms: t2, day: yesterday }], "an unranked run records no clean time");
+      await rr({ clean: { ms: Math.floor(t2 / 2) } });
+      const third = await rr({ clean: { ms: Math.floor(t2 / 4) } });
+      eq(third.pb, 3, "three faster clean runs count three");
+      await p.waitForFunction(() => !!(JSON.parse(localStorage.getItem("bm.game.v1") || "{}").ach || {})["personal-best"], null, { timeout: 2000 }).catch(() => {});
+      check(!!((await game(p)).ach || {})["personal-best"], "three beaten fastest clean runs unlock Personal best");
+
+      /* Hands off the mouse: an exercise (not a Your turn check) solved with no pointer in
+         the ten seconds before */
+      const kb = (pointerAt, inline) => p.evaluate(({ pointerAt, inline }) => {
+        window.BMKeys.pointerAt = pointerAt === "now" ? Date.now() : pointerAt;
+        window.BMStore.emit({ type: "solved", chapter: "ch05", key: "e1", inline: inline });
+        return JSON.parse(localStorage.getItem("bm.run.v1")).kb || 0;
+      }, { pointerAt, inline });
+      eq([await kb(0, false), await kb("now", false), await kb(0, true)], [1, 1, 1], "a solve counts by keyboard alone only with no recent pointer, and a Your turn check does not count");
+      await p.evaluate(() => { var r = JSON.parse(localStorage.getItem("bm.run.v1")); r.kb = 24; localStorage.setItem("bm.run.v1", JSON.stringify(r)); });
+      eq(await kb(0, false), 25, "the 25th counts");
+      await p.waitForFunction(() => !!(JSON.parse(localStorage.getItem("bm.game.v1") || "{}").ach || {})["hands-off"], null, { timeout: 2000 }).catch(() => {});
+      check(!!((await game(p)).ach || {})["hands-off"], "25 solved by keyboard alone unlock Hands off the mouse");
+      await context.close();
+
+      /* Under par stays locked with one answer after par, or in an unranked run */
+      const c2 = await ctx(browser);
+      const q = await open(c2, errors, "arena.html", {}, true);
+      const up = (late, ranked) => q.evaluate(({ late, ranked }) => {
+        var answers = [];
+        for (var k = 0; k < 10; k++) answers.push({ section: "ch05#angles", first: true, late: k === late, el: 1000 });
+        window.BMGame.recordRun({ mode: "standard", answers: answers, hearts: 3, score: 1000, day: window.BMSite.dayKey(), ranked: ranked, finished: true, timed: true, planned: 10 });
+        return !!(JSON.parse(localStorage.getItem("bm.game.v1")).ach || {})["under-par"];
+      }, { late, ranked });
+      eq([await up(3, true), await up(-1, false), await up(-1, true)], [false, false, true], "Under par: not with one late answer, not unranked; yes with none late in a ranked run");
+      await c2.close();
     }
 
     eq(errors, [], "no page errors");
