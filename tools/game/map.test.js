@@ -342,18 +342,24 @@ async function run() {
       const g = await idle(page, 1500);
       check(g.frames === 0 && !g.bob, "and the page asks for no frames (" + JSON.stringify(g) + ")");
       /* a page with no game layer (BMGame absent, as in a stripped build) still refreshes: the
-         form falls back to stage 1, the marker stays, and no listener fails (a listener's
-         throw is caught and logged by the store, so the log is read, not the page errors) */
-      const noGame = await page.evaluate(() => {
-        const G = window.BMGame, err = console.error, logged = [];
+         form falls back to stage 1, the marker stays, and no listener fails. The listener only
+         schedules the refresh (a 0 ms timer), so BMGame stays absent until that timer has run;
+         the world is at rest here, so a frame drawn proves the refresh ran. A listener's throw
+         is caught and logged by the store, so the log is read; a throw from the refresh itself
+         is a page error, checked below */
+      const noGame = await page.evaluate(() => new Promise((done) => {
+        const G = window.BMGame, err = console.error, logged = [], before = window.BMMap3D.info().frames;
         window.BMGame = undefined;
         console.error = function () { logged.push(Array.prototype.map.call(arguments, String).join(" ")); };
         try { window.BMStore.emit({ type: "form", highest: 1, worn: 1, fresh: [] }); }
-        finally { window.BMGame = G; console.error = err; }
-        const i = window.BMMap3D.info();
-        return { logged, current: i && i.current, calls: i && i.calls };
-      });
-      check(noGame.logged.length === 0 && !!noGame.current, "a form refresh without BMGame fails no listener and keeps the marker on the current island (" + JSON.stringify(noGame) + ")");
+        catch (e) { logged.push("emit threw: " + e.message); }
+        setTimeout(() => {
+          window.BMGame = G; console.error = err;
+          const i = window.BMMap3D.info();
+          done({ logged, current: i && i.current, drew: i ? i.frames - before : null });
+        }, 400);
+      }));
+      check(noGame.logged.length === 0 && !!noGame.current && noGame.drew > 0, "a form refresh with BMGame absent runs, fails no listener and keeps the marker on the current island (" + JSON.stringify(noGame) + ")");
       check(errors.length === 0, "no errors on the map page: " + errors.join("; "));
       const l = await loaded(page);
       check(asked.length === 1 && l.ok && l.three && !l.onWindow, "the page asked for bundle/three.js once, the loader holds the namespace on BM3D.THREE and nothing is on window.THREE (" + JSON.stringify({ asked, l }) + ")");
