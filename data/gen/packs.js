@@ -1402,7 +1402,7 @@
         var t = {}; letters.forEach(function (x) { t[x] = (t[x] || 0) + 1; });
         if (vowel) { fav = (t.A || 0) + (t.E || 0) + (t.I || 0) + (t.O || 0) + (t.U || 0); test = function (x) { return "AEIOU".indexOf(x) > -1; }; }
         else { fav = t[L]; test = function (x) { return x === L; }; }
-        q = "Each letter of the word " + w + " is written on its own card, and the cards are shuffled face down. One card is drawn. What is the probability that it shows " + (vowel ? "a vowel" : "the letter " + L) + "?";
+        q = "Each letter of the word " + w + " is written on its own card, and the cards are shuffled face down. One card is drawn. What is the probability that it shows " + (vowel ? "a vowel? Count Y as a consonant." : "the letter " + L + "?");
         why = ["The word has $" + total + "$ letters, so there are $" + total + "$ equally likely cards.", "The cards in the event number $" + fav + "$" + (vowel ? " (the vowels A, E, I, O, U)" : " (the letter " + L + " appears that many times)") + "."];
       }
       var ans = fracAns(fav, total);

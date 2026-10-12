@@ -145,7 +145,7 @@
       the <b>complement</b> rule: $P(\text{not } A) = 1 - P(A)$. It is a shortcut whenever &ldquo;not
       $A$&rdquo; is the hard thing to count: the chance of rain is $35\%$, so the chance of no rain is
       $100\% - 35\% = 65\%$. These are the set words of the Interlude at work, and &ldquo;not&rdquo;
-      is the words &ldquo;everything else&rdquo;.
+      means &ldquo;everything else&rdquo;.
     </p>
     <p>
       Counting gives the <b>theoretical probability</b>, what the setup says should happen. You can
@@ -574,8 +574,8 @@
         <div class="ex-solution">
           <p class="answer">Answer: $75\%$</p>
           <p>
-            In either group: $15 + 12 - 6 = 21$ students. $P = \frac{21}{28} = \frac34 = 75\%$. Check with the
-            diagram: $9$ only soccer, $6$ both, $6$ only band is $21$ ✓.
+            In either group: $15 + 12 - 6 = 21$ students. $P = \frac{21}{28} = \frac34 = 75\%$. Check by
+            regions: $9$ only soccer, $6$ both, $6$ only band is $21$ ✓.
           </p>
         </div>
       </div>
@@ -597,7 +597,7 @@
 
       <div class="ex" id="e14" data-section="compound" data-type="fraction" data-answer="8/15" data-placeholder="e.g. 1/2"
            data-hint="There are two orders that give one pen of each color: red then blue, and blue then red."
-           data-hint2="Find each order as a product of two fractions, the second taken from a box with one pen fewer, and then add the two orders.">
+           data-hint2="Find the chance of red then blue, with the second fraction taken from the smaller box. The other order is found the same way.">
         <div class="ex-q"><p>A box holds $6$ red pens and $4$ blue pens. Two are drawn one after the other without replacement. What is the probability that one is red and one is blue?</p></div>
         <div class="ex-solution">
           <p class="answer">Answer: $\dfrac{8}{15}$</p>
@@ -637,8 +637,8 @@
           the number of first choices times the number of second choices.</li>
         <li>Independent events: $P(A \text{ and } B) = P(A) \cdot P(B)$. For &ldquo;or&rdquo;, add and take
           away the overlap once: $P(A) + P(B) - P(A \text{ and } B)$.</li>
-        <li>Without replacement the second fraction changes: the top and the bottom both lose the
-          marble that was taken.</li>
+        <li>Without replacement the second fraction changes: the bottom always loses the marble that
+          was taken, and the top loses it too when the second draw is the same kind.</li>
       </ul>
     </div>
 
