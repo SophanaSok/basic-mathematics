@@ -847,6 +847,13 @@ html[data-motion="reduce"] *, html[data-motion="reduce"] *::before, html[data-mo
   html:not([data-calm]):not([data-motion="reduce"]) :not([data-map="3d"]) > .part .stop[data-state="current"] .stop-node { animation: here 700ms ease-in-out 3; }
   html:not([data-calm]):not([data-motion="reduce"]) .ring { animation: ring-in 600ms var(--ease-out) both; }
 
+  /* the evolution moment on the progress page (src/ui/forms.ts): a ring widens under the
+     figure, a flash covers the view, the new form grows in; each once */
+  html:not([data-calm]):not([data-motion="reduce"]) .form-view.is-anticipating::after { animation: form-ring 700ms var(--ease-out) both; }
+  html:not([data-calm]):not([data-motion="reduce"]) .form-flash { animation: form-flash 500ms ease-in-out both; }
+  html:not([data-calm]):not([data-motion="reduce"]) .form-view.is-revealing .form-canvas,
+  html:not([data-calm]):not([data-motion="reduce"]) .form-view.is-revealing .form-fallback { animation: form-grow 700ms var(--ease-out) both; }
+
   /* toasts */
   html:not([data-calm]):not([data-motion="reduce"]) .toast { animation: toast-in 280ms var(--ease-out) both; }
   html:not([data-calm]):not([data-motion="reduce"]) .toast[data-out] { animation: toast-out 280ms ease-in both; }
@@ -916,6 +923,9 @@ html[data-motion="reduce"] *, html[data-motion="reduce"] *::before, html[data-mo
     0%, 100% { box-shadow: 0 0 0 6px var(--bg), 0 0 0 9px var(--part-soft); }
     50% { box-shadow: 0 0 0 6px var(--bg), 0 0 0 13px var(--part-soft); }
   }
+  @keyframes form-ring { from { transform: translateX(-50%) scale(.4); opacity: .9; } to { transform: translateX(-50%) scale(1.5); opacity: 0; } }
+  @keyframes form-flash { 0%, 100% { opacity: 0; } 50% { opacity: .9; } }
+  @keyframes form-grow { from { transform: scale(.6); } to { transform: scale(1); } }
   @keyframes toast-in { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }
   @keyframes toast-out { to { opacity: 0; transform: translateY(-8px); } }
 }
@@ -979,6 +989,16 @@ html[data-motion="reduce"] *, html[data-motion="reduce"] *::before, html[data-mo
 .form-tile-name { font-size: 1rem; }
 .form-tile-level { display: inline-flex; align-items: center; gap: .3rem; font-size: .85rem; color: var(--muted); }
 .form-lock { flex: none; }
+.form-tile-tag { font-size: .75rem; font-weight: 600; color: var(--muted); min-height: 1em; }
+.form-tile-tag:empty { display: none; }
+.form-view.is-anticipating::after {
+  content: ""; position: absolute; left: 50%; bottom: 10%; width: 60%; aspect-ratio: 3 / 1; border-radius: 50%;
+  border: 3px solid var(--accent); transform: translateX(-50%); pointer-events: none;
+}
+.form-flash { position: absolute; inset: 0; z-index: 2; background: var(--surface); opacity: 0; pointer-events: none; }
+.form-seq { margin: 0 0 .9rem; }
+.form-seq:empty { display: none; }
+.form-caption { margin: 0 0 .6rem; font-weight: 600; }
 .form-equip[hidden] { display: none; }
 
 .form-dialog {

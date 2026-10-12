@@ -33,6 +33,9 @@ import "../ui/core.ts";
 import "../../assets/site.js";
 import "../../assets/sfx.js";
 import "../../assets/game.js";
+import "../data/forms.ts";
+import "../core/forms.ts";
+import "../ui/form-unlock.ts";
 import "../ui/settings.ts";
 /* the problem generators */
 import "../../data/gen/core.js";

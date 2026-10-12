@@ -161,6 +161,8 @@ export interface RunStore {
     ach?: Flag;
     /** the highest form stage whose unlock this device has shown */
     form?: number;
+    /** the highest stage whose evolution the progress page has played */
+    evolved?: number;
   };
   /** which exercises make up each set of a chapter this device has opened */
   sets: Record<ChapterId, { practice?: ExerciseKey[]; review?: ExerciseKey[]; inline: ExerciseKey[] }>;
