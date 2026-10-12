@@ -1,0 +1,663 @@
+<!doctype html>
+<html lang="en">
+<head>
+<!--bm:head-->
+<title>Pack E. Linear Models and Inequalities — Basic Mathematics</title>
+<meta name="description" content="Slope as a rate of change with its units, the sign of a slope, reading the rate and the starting value from y = mx + b, and writing a linear model from a story, two points or a table, then using it to predict and to find when: the algebra skills the gate exams ask for and the book leaves out.">
+</head>
+<body data-depth="2" data-chapter="pk-linear" data-part="packs">
+<!--bm:topbar-->
+
+<div class="wrap">
+<div class="layout">
+  <aside class="sidebar" data-sidebar></aside>
+  <main id="main">
+
+    <header class="region-banner">
+      <p class="eyebrow">Skill packs · Pack E</p>
+      <h1>Linear Models and Inequalities</h1>
+      <p class="lede">
+        Many quantities start somewhere and then change by the same amount at every step: a taxi
+        fare, a draining tank, a plant, a temperature that falls through the evening. This pack
+        turns that picture into algebra. It first says what the slope of a line means as a rate of
+        change, with its units, and why any two points of a line give the same one. Then it writes
+        the model $y = mx + b$ from a story, from two points or from a table, and uses it to predict a
+        value and to find when a quantity reaches a target. Later sections take up inequalities in
+        one and two unknowns, and systems of inequalities.
+      </p>
+
+      <div class="banner-meta" data-banner-meta></div>
+
+    </header>
+
+    <div class="puzzle" id="puzzle">
+      <span class="tag">A puzzle to carry through the pack</span>
+      <p>
+        A taxi ride of $3$ miles costs $\$11$, and a ride of $5$ miles costs $\$17$. If the fare
+        follows a straight line, what does a ride of $10$ miles cost?
+      </p>
+      <ul class="guess">
+        <li>$\$22$</li>
+        <li>$\$32$</li>
+        <li>$\$34$</li>
+      </ul>
+      <p class="puzzle-after">Doubling the fare for $5$ miles is tempting, and it fails, because part of the fare is charged before the taxi moves at all. Two rides are enough to find both the part that grows with the distance and the part that does not. The first section finds the part that grows, the rate of change. (The second section finds the fixed part and writes the whole fare as one expression. Inequalities come in the sections after that.)</p>
+    </div>
+
+    <div class="goal">
+      <strong>By the end of this pack you can</strong>
+      find the slope of a line from two points or from a table, even when the table's steps are
+      uneven, say what a slope means in a sentence with its units, tell from its sign whether a
+      quantity rises, falls or stays flat, read the rate and the starting value from
+      $y = mx + b$, write the model from a story, from two points or from a table and check it
+      at a point you did not use, predict a value with it, solve $mx + b = T$ to find when a quantity
+      reaches a target, and say where a model stops making sense.
+    </div>
+
+    <section class="warmup" id="warmup">
+      <div class="callout aside">
+        <span class="tag">Before you start</span>
+        <p>
+          This pack leans on <a href="../1-algebra/01-numbers.html#rationals">fractions and decimals as
+          numbers</a> (Chapter 1) and on <a href="../1-algebra/02-linear-equations.html#one-unknown">solving
+          an equation in one unknown</a> (Chapter 2). You can read the pack at any point alongside the course.
+        </p>
+      </div>
+
+      <p>
+        Three quick ones to wake up what the pack stands on. They are not scored. If one doesn't
+        come to you, its solution says where to look.
+      </p>
+
+      <div class="ex" data-inline id="w1" data-label="Warm-up 1" data-type="number" data-answer="3"
+           data-placeholder="e.g. 2"
+           data-hint="Subtract on the top and on the bottom first, then divide.">
+        <div class="ex-q">
+          <p>
+            Compute $\dfrac{17 - 5}{6 - 2}$.
+          </p>
+        </div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $3$</p>
+          <p>
+            The top is $12$ and the bottom is $4$, and $12 \div 4 = 3$. Check: $3 \cdot 4 = 12$ ✓. This
+            quotient of two differences is the shape of everything in the pack.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" data-inline id="w2" data-label="Warm-up 2" data-type="number" data-answer="6"
+           data-placeholder="e.g. 10"
+           data-hint="Put the number in for $x$ first, do the multiplication, then subtract.">
+        <div class="ex-q">
+          <p>
+            Evaluate $18 - 4x$ when $x = 3$.
+          </p>
+        </div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $6$</p>
+          <p>
+            $4 \cdot 3 = 12$, and $18 - 12 = 6$. Check: $6 + 12 = 18$ ✓.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" data-inline id="w3" data-label="Warm-up 3" data-type="number" data-answer="5"
+           data-placeholder="e.g. 2"
+           data-hint="Undo the addition first, then undo the multiplication.">
+        <div class="ex-q">
+          <p>
+            Solve $3x + 4 = 19$.
+          </p>
+        </div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $x = 5$</p>
+          <p>
+            Subtract $4$ from both sides to get $3x = 15$, then divide both sides by $3$. See <a
+            href="../1-algebra/02-linear-equations.html#one-unknown">§2.1</a>. Check: $3 \cdot 5 + 4 = 19$ ✓.
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <h2 id="slope">E.1 Slope as a rate of change</h2>
+    <p>
+      Take two points on a line, with $x$ across and $y$ up. Going from the first to the second, $x$
+      changes by some amount, the <b>run</b>, and $y$ changes by some amount, the <b>rise</b>, which is
+      negative when $y$ falls. The <b>slope</b> of the line is the rise divided by the run:
+      $$m = \frac{\text{rise}}{\text{run}} = \frac{y_2 - y_1}{x_2 - x_1}.$$
+      Subtract in the same order on the top and the bottom. Swap the two points and both
+      differences change sign, so the quotient is the same.
+    </p>
+    <p>
+      Does it matter which two points you pick? It does not, and this is why slope belongs to the line
+      and not to the pair. Draw the rise-and-run triangle for one pair of points, and another for a second
+      pair on the same line. In each, the run is horizontal, the rise is vertical and the line itself is
+      the slanted side. Both triangles have a right angle. The horizontal sides are parallel, so the line meets
+      them at the same angle in each triangle. Two equal angles make the triangles similar, and similar
+      triangles have their sides in the same ratio, so rise over run comes out the same in both. If the
+      line falls, the triangle sits below the horizontal and the rise is negative, and the argument is
+      the same.
+    </p>
+    <p>
+      Now use it. Take a run of exactly $1$: the rise is then $m$ itself. So the slope says <em>how much
+      $y$ changes for one more $x$</em>, and when the axes carry units, so does the slope: the units of
+      $y$ per unit of $x$. A fare that rises $\$6$ over $2$ miles has slope $\frac{6}{2} = 3$ dollars per
+      mile. This is the <b>rate of change</b>. A table of a straight line works the same way. Pick any two
+      rows. If the steps in $x$ are not equal, divide by the actual gap in $x$ and not by the number of
+      rows between them.
+    </p>
+    <p>
+      The sign tells the story. A positive slope means $y$ rises as $x$ grows, a negative slope means it
+      falls, and a slope of zero means it stays flat, because a rise of zero over any run is zero. In
+      the model $y = mx + b$, the number $m$ is the slope, and $b$ is the value of $y$ when $x = 0$, the
+      starting value. For $y = 15 + 25h$, the cost $y$ of $h$ hours, each hour adds $25$ dollars and
+      the start is $15$ dollars. The rate and the total are different things: the total changes from
+      hour to hour, and the rate is how fast it changes.
+    </p>
+    <p>
+      Read the story with care. &ldquo;$\$40$ for the first hour and $\$25$ for each hour after&rdquo; gives
+      a rate of $25$ dollars per hour, not $40$. At $1$ hour the cost is $40$, and one hour earlier, at
+      $0$ hours, it would be $40 - 25 = 15$. (Lines get a full chapter later, in <a
+      href="../3-coordinates/10-segments-rays-lines.html#lines">Chapter 10</a>, and Pack B's <a
+      href="pk-data.html#scatter">scatterplots</a> used the slope of a line of fit. Neither is needed
+      here.)
+    </p>
+
+    <div class="worked">
+      <h3><span class="num">Example 1.</span> Slope from two points, with its unit</h3>
+      <div class="body">
+        <p>
+          A balloon is $300$ feet up after $2$ minutes and $780$ feet up after $8$ minutes. At what rate
+          is it rising?
+        </p>
+        <ol class="steps">
+          <li>The rise is the change in height: $780 - 300 = 480$ feet. The run is the change in time:
+            $8 - 2 = 6$ minutes.</li>
+          <li>$m = \dfrac{480\text{ ft}}{6\text{ min}} = 80$ feet per minute.</li>
+          <li>The slope is positive, and the balloon is going up, as the numbers said.</li>
+          <li>Check by the other order: $\dfrac{300 - 780}{2 - 8} = \dfrac{-480}{-6} = 80$ ✓. Check by
+            using it: $6$ minutes at $80$ feet per minute is $480$ feet, and $300 + 480 = 780$ ✓.
+            $\blacksquare$</li>
+        </ol>
+        <p class="note">
+          The unit of the answer comes from the question: feet on the top, minutes on the bottom.
+        </p>
+      </div>
+    </div>
+
+    <div class="ex" data-inline id="t1" data-type="number" data-answer="2" data-placeholder="e.g. 3"
+         data-hint="The slope is the change in $y$ divided by the change in $x$. Subtract in the same order on the top and the bottom."
+         data-hint2="How far does $y$ go up between the two points, and how far across does $x$ go?">
+      <div class="ex-q">
+        <p>
+          A line passes through $(1, 4)$ and $(5, 12)$. What is its slope?
+        </p>
+      </div>
+      <div class="ex-solution">
+        <p class="answer">Answer: $2$</p>
+        <p>
+          $\dfrac{12 - 4}{5 - 1} = \dfrac{8}{4} = 2$. Check: four steps of $2$ take $y$ from $4$ to
+          $4 + 8 = 12$ ✓.
+        </p>
+      </div>
+    </div>
+
+    <div class="ex" data-inline id="t2" data-type="number" data-answer="7" data-placeholder="dollars per hour"
+         data-hint="In $y = mx + b$ one number multiplies the count and one does not. Which one is the change for each extra hour?"
+         data-hint2="Compare what the model gives at $0$ hours and at $1$ hour.">
+      <div class="ex-q">
+        <p>
+          The cost in dollars of renting a ladder for $h$ hours is $C = 12 + 7h$. How many dollars per hour
+          does the cost change?
+        </p>
+      </div>
+      <div class="ex-solution">
+        <p class="answer">Answer: $7$ dollars per hour</p>
+        <p>
+          The number that multiplies $h$ is the rate, $7$. The $12$ is the start. Check: at $0$ hours the
+          cost is $12$, at $1$ hour it is $19$, and $19 - 12 = 7$ ✓.
+        </p>
+      </div>
+    </div>
+
+    <div class="worked">
+      <h3><span class="num">Example 2.</span> A table with uneven steps</h3>
+      <div class="body">
+        <p>
+          The water level in a pond is measured on four days. Is it changing at a steady rate, and
+          if so what is the rate?
+        </p>
+        <table>
+          <caption>Water level in a pond on four days</caption>
+          <thead><tr><th scope="col">Day</th><th scope="col">Level (centimeters)</th></tr></thead>
+          <tbody>
+            <tr><th scope="row">0</th><td>$80$</td></tr>
+            <tr><th scope="row">2</th><td>$74$</td></tr>
+            <tr><th scope="row">5</th><td>$65$</td></tr>
+            <tr><th scope="row">9</th><td>$53$</td></tr>
+          </tbody>
+        </table>
+        <ol class="steps">
+          <li>The days are $2$, $3$ and $4$ apart, so compare each step with its own gap.
+            Days $0$ to $2$: $\frac{74 - 80}{2 - 0} = -3$. Days $2$ to $5$: $\frac{65 - 74}{5 - 2} = -3$.
+            Days $5$ to $9$: $\frac{53 - 65}{9 - 5} = -3$.</li>
+          <li>All three agree, so the level changes at a steady rate: $-3$ centimeters per day.</li>
+          <li>The slope is negative, so the pond is falling.</li>
+          <li>Check from the ends: $\frac{53 - 80}{9 - 0} = \frac{-27}{9} = -3$ ✓. $\blacksquare$</li>
+        </ol>
+        <p class="note">
+          Each change in level goes with its own gap in days; a change from one step over the gap of
+          another gives a wrong rate.
+        </p>
+      </div>
+    </div>
+
+    <div class="ex" data-inline id="t3" data-type="number" data-answer="5" data-placeholder="dollars"
+         data-hint="The charge for the first hour is the value at $1$ hour, not at $0$ hours."
+         data-hint2="How much does the cost change from one hour to the next, and which way do you go to reach $0$ hours?">
+      <div class="ex-q">
+        <p>
+          A parking garage charges $\$9$ for the first hour and $\$4$ for each hour after. What would the
+          line through these charges give for $0$ hours, in dollars?
+        </p>
+      </div>
+      <div class="ex-solution">
+        <p class="answer">Answer: $\$5$</p>
+        <p>
+          The cost at $1$ hour is $9$, and one hour earlier it is $4$ less: $9 - 4 = 5$. Check: the line
+          $5 + 4h$ gives $9$ at $1$ hour and $13$ at $2$ hours, and $13 = 9 + 4$ ✓.
+        </p>
+      </div>
+    </div>
+
+    <h2 id="model">E.2 Writing a linear model</h2>
+    <p>
+      Many situations have a starting value and a constant rate. A bike rental costs $\$6$ to start and
+      $\$4$ for each hour. The cost after $x$ hours is the start plus $x$ copies of the rate, because
+      each hour adds the same amount: $6 + 4x$. In general a quantity that starts at $b$ and changes by
+      $m$ for every one more $x$ is
+      $$y = mx + b,$$
+      where $b$ is the value when $x = 0$ and $m$ is the change per one more $x$. When the quantity
+      falls, $m$ is negative, and the model subtracts.
+    </p>
+    <p>
+      To write a model from a story, name the count with a letter, find the start (the value before
+      anything has happened) and find the rate (the amount that repeats). Then write start plus rate
+      times count, and read the units: dollars plus dollars per hour times hours leaves dollars.
+    </p>
+    <p>
+      To write it from <b>two data points</b>, find $m$ first, as in the last section. Then put one
+      point and $m$ into $y = mx + b$ and solve for $b$. Why do two points settle the line? Two points
+      fix the slope, by rise over run. And the slope together with one point fixes $b$: from that point,
+      each step of $1$ in $x$ moves $y$ by $m$, so going back to $x = 0$ lands on exactly one value.
+      Nothing is left to choose. A table works the same way, since two of its rows are two points.
+    </p>
+    <p>
+      Check the model against a point you did not use. The two points that built it fit by construction,
+      so they prove nothing. A third point that fits is evidence, and one that does not means a slip,
+      or a situation that is not linear.
+    </p>
+    <p>
+      Then use it. To <em>predict</em>, put a value of $x$ into the model. To answer a
+      &ldquo;when&rdquo; question, set the model equal to the target and solve $mx + b = T$: subtract $b$ from
+      both sides, then divide by $m$. Last, ask when the model makes sense. A count of tickets is a whole
+      number that is not negative, and a plant does not grow at the same rate forever. Inside the range of
+      the data the model is a good description. Beyond it, as Pack B said of lines of fit, it is a guess.
+    </p>
+
+    <div class="worked">
+      <h3><span class="num">Example 3.</span> A model from a table, checked at a third row</h3>
+      <div class="body">
+        <p>
+          A tutoring service lists the total paid after some sessions. Write the total in dollars
+          after $n$ sessions, assuming a fixed fee plus a price per session.
+        </p>
+        <table>
+          <caption>Total paid for tutoring sessions</caption>
+          <thead><tr><th scope="col">Sessions</th><th scope="col">Total (dollars)</th></tr></thead>
+          <tbody>
+            <tr><th scope="row">2</th><td>$95$</td></tr>
+            <tr><th scope="row">5</th><td>$215$</td></tr>
+            <tr><th scope="row">8</th><td>$335$</td></tr>
+          </tbody>
+        </table>
+        <ol class="steps">
+          <li>Use the first two rows. The rate is $m = \frac{215 - 95}{5 - 2} = \frac{120}{3} = 40$
+            dollars per session.</li>
+          <li>Put the first row into $y = 40n + b$: $95 = 40 \cdot 2 + b$, so $b = 95 - 80 = 15$.</li>
+          <li>The model is $y = 40n + 15$: a fee of $\$15$ and $\$40$ for each session.</li>
+          <li>Check at the third row, which was not used: $40 \cdot 8 + 15 = 335$ ✓. Check $b$ from the
+            other row: $215 - 40 \cdot 5 = 15$ ✓. $\blacksquare$</li>
+        </ol>
+        <p class="note">
+          The fee $b$ is the value at $0$ sessions, which the table never lists. The model finds it.
+        </p>
+      </div>
+    </div>
+
+    <div class="ex" data-inline id="t4" data-type="expr" data-answer="3n+5|5+3n" data-placeholder="e.g. 2n+7"
+         data-hint="The start is the value before any week has passed. The rate is what each week adds."
+         data-hint2="What is the height when $n = 0$, and how much does each extra week add?">
+      <div class="ex-q">
+        <p>
+          A sprout is $5$ centimeters tall and grows $3$ centimeters each week. Write its height in
+          centimeters after $n$ weeks, in terms of $n$.
+        </p>
+      </div>
+      <div class="ex-solution">
+        <p class="answer">Answer: $3n + 5$</p>
+        <p>
+          Start $5$, plus $3$ for each of the $n$ weeks. Check at $n = 2$: the formula gives $11$, and the
+          story gives $5 + 3 + 3 = 11$ ✓.
+        </p>
+      </div>
+    </div>
+
+    <div class="ex" data-inline id="t5" data-type="number" data-answer="5" data-placeholder="centimeters"
+         data-hint="A prediction puts the given count into the model."
+         data-hint2="How many centimeters does the candle lose in all over the given time, and where did it start?">
+      <div class="ex-q">
+        <p>
+          A candle's height in centimeters after $t$ hours is $H = 20 - 2.5t$. How tall is it after $6$
+          hours?
+        </p>
+      </div>
+      <div class="ex-solution">
+        <p class="answer">Answer: $5$ centimeters</p>
+        <p>
+          $20 - 2.5 \cdot 6 = 20 - 15 = 5$. Check hour by hour: $17.5$, $15$, $12.5$, $10$, $7.5$, $5$ ✓.
+        </p>
+      </div>
+    </div>
+
+    <div class="worked">
+      <h3><span class="num">Example 4.</span> When does it reach the target?</h3>
+      <div class="body">
+        <p>
+          A tank holds $260$ gallons and drains $8$ gallons each minute. After how many minutes does
+          it hold $100$ gallons? For how long does the model make sense?
+        </p>
+        <ol class="steps">
+          <li>The model is $G = 260 - 8t$, with $t$ in minutes. We want $G = 100$.</li>
+          <li>$260 - 8t = 100$. Subtract $260$ from both sides: $-8t = -160$. Divide by $-8$: $t = 20$ minutes.</li>
+          <li>The model makes sense while the tank has water in it, from $t = 0$ until $G = 0$, that is until
+            $t = 260 \div 8 = 32.5$ minutes.</li>
+          <li>Check by substituting: $260 - 8 \cdot 20 = 100$ ✓. Check another way: the tank must lose
+            $260 - 100 = 160$ gallons, and at $8$ gallons a minute that takes $160 \div 8 = 20$ minutes ✓.
+            $\blacksquare$</li>
+        </ol>
+        <p class="note">
+          After $32.5$ minutes the formula would give a negative amount of water, which is impossible. The
+          domain of the model is the range where the story holds.
+        </p>
+      </div>
+    </div>
+
+    <div class="ex" data-inline id="t6" data-type="number" data-answer="8" data-placeholder="e.g. 3"
+         data-hint="Put the slope and the point into $y = mx + b$. Only $b$ is unknown."
+         data-hint2="How much does $y$ change between $x = 0$ and $x = 3$, and in which direction do you travel back to $0$?">
+      <div class="ex-q">
+        <p>
+          A line has slope $4$ and passes through $(3, 20)$. What is $b$, the value of $y$ when $x = 0$?
+        </p>
+      </div>
+      <div class="ex-solution">
+        <p class="answer">Answer: $8$</p>
+        <p>
+          $20 = 4 \cdot 3 + b$, so $b = 20 - 12 = 8$. Check: $4 \cdot 3 + 8 = 20$ ✓.
+        </p>
+      </div>
+    </div>
+
+    <!-- ====================================================== practice ==== -->
+    <section class="practice" id="practice">
+      <div class="practice-head">
+        <h2 style="margin-top:0">Practice</h2>
+        <span class="practice-score" data-practice-score></span>
+      </div>
+      <p>
+        Give each answer as a number in the unit the question names, without writing the unit. Use a
+        decimal, such as $4.5$, where the answer is not whole, and a negative number where the quantity
+        falls. Where a question asks for an expression, use the letter it names. Money is in dollars.
+      </p>
+
+      <div class="ex" id="e1" data-section="slope" data-type="number" data-answer="4" data-placeholder="e.g. 2"
+           data-hint="The slope is the change in $y$ over the change in $x$. Decide which difference goes on top."
+           data-hint2="How far does $y$ rise between the two points, and how far does $x$ run?">
+        <div class="ex-q"><p>Find the slope of the line through $(2, 9)$ and $(5, 21)$.</p></div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $4$</p>
+          <p>
+            $\dfrac{21 - 9}{5 - 2} = \dfrac{12}{3} = 4$. Check in the other order: $\dfrac{9 - 21}{2 - 5} = \dfrac{-12}{-3} = 4$ ✓.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" id="e2" data-section="slope" data-type="number" data-answer="-3" data-placeholder="e.g. -2"
+           data-hint="Subtract in the same order on the top and the bottom, and take care with the negative coordinates."
+           data-hint2="Subtracting a negative number adds. How far does $y$ change, and how far does $x$ change?">
+        <div class="ex-q"><p>Find the slope of the line through $(-3, 10)$ and $(1, -2)$.</p></div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $-3$</p>
+          <p>
+            $\dfrac{-2 - 10}{1 - (-3)} = \dfrac{-12}{4} = -3$. Check in the other order:
+            $\dfrac{10 - (-2)}{-3 - 1} = \dfrac{12}{-4} = -3$ ✓. The line falls as $x$ grows, so a negative slope fits.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" id="e3" data-section="slope" data-type="fraction" data-answer="4/5" data-placeholder="e.g. 3/4"
+           data-hint="Not every slope is a whole number. Write the rise over the run as a fraction in lowest terms."
+           data-hint2="Find the rise and the run separately first. Do they share a factor?">
+        <div class="ex-q"><p>Find the slope of the line through $(-2, 1)$ and $(3, 5)$. Give it as a fraction.</p></div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $\dfrac45$</p>
+          <p>
+            $\dfrac{5 - 1}{3 - (-2)} = \dfrac{4}{5}$, already in lowest terms. Check in the other order:
+            $\dfrac{1 - 5}{-2 - 3} = \dfrac{-4}{-5} = \dfrac45$ ✓.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" id="e4" data-section="slope" data-type="number" data-answer="60" data-placeholder="dollars per hour"
+           data-hint="The rate of change is how much the bill changes for one more hour. Use the two jobs as two points."
+           data-hint2="How much more is the bill for the longer job, and how many more hours is it?">
+        <div class="ex-q"><p>A plumber's bill is $\$140$ for a $2$-hour job and $\$260$ for a $4$-hour job. If the bill follows a straight line, what is the plumber's rate of change, in dollars per hour?</p></div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $60$ dollars per hour</p>
+          <p>
+            $\dfrac{260 - 140}{4 - 2} = \dfrac{120}{2} = 60$. Check: two more hours at $60$ is $120$, and
+            $140 + 120 = 260$ ✓.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" id="e5" data-section="slope" data-type="number" data-answer="3.5" data-placeholder="centimeters per week"
+           data-hint="A table of a straight line has the same rate between any two rows. Pick two rows and divide the change in height by the change in weeks."
+           data-hint2="Pick two rows. How many weeks apart are they, not how many rows?">
+        <div class="ex-q">
+          <p>A gardener measures a plant. What is its rate of change, in centimeters per week?</p>
+          <table>
+            <caption>Height of a plant in four weeks of measuring</caption>
+            <thead><tr><th scope="col">Week</th><th scope="col">Height (centimeters)</th></tr></thead>
+            <tbody>
+              <tr><th scope="row">1</th><td>$14$</td></tr>
+              <tr><th scope="row">2</th><td>$17.5$</td></tr>
+              <tr><th scope="row">4</th><td>$24.5$</td></tr>
+              <tr><th scope="row">7</th><td>$35$</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $3.5$ centimeters per week</p>
+          <p>
+            From week $1$ to week $7$: $\dfrac{35 - 14}{7 - 1} = \dfrac{21}{6} = 3.5$. Check with the other rows,
+            each over its own gap: $\frac{17.5 - 14}{1} = 3.5$, $\frac{24.5 - 17.5}{2} = 3.5$ and
+            $\frac{35 - 24.5}{3} = 3.5$ ✓.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" id="e6" data-section="slope" data-type="number" data-answer="-15" data-placeholder="gallons per minute"
+           data-hint="The tank is draining, so the quantity falls. Think about what that does to the sign of the rate."
+           data-hint2="How much does the amount of water change between the two readings, and how many minutes apart are they?">
+        <div class="ex-q"><p>A tank holds $400$ gallons after $4$ minutes of draining and $325$ gallons after $9$ minutes. What is the rate of change of the water, in gallons per minute?</p></div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $-15$ gallons per minute</p>
+          <p>
+            $\dfrac{325 - 400}{9 - 4} = \dfrac{-75}{5} = -15$. Check: $5$ minutes at $-15$ is $-75$, and
+            $400 - 75 = 325$ ✓.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" id="e7" data-section="slope" data-type="number" data-answer="-9" data-placeholder="degrees Fahrenheit"
+           data-hint="The number that multiplies the hours is the change for one hour. What does a negative sign there mean?"
+           data-hint2="Find the temperature at the start and the temperature at the end of the time, and compare them.">
+        <div class="ex-q"><p>The temperature in degrees Fahrenheit $h$ hours after midnight is $T = 62 - 1.5h$. By how many degrees does it change over $6$ hours? Use a negative number for a fall.</p></div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $-9$ degrees</p>
+          <p>
+            The rate is $-1.5$ degrees per hour, and $-1.5 \cdot 6 = -9$. Check: $T(0) = 62$ and
+            $T(6) = 62 - 9 = 53$, and $53 - 62 = -9$ ✓.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" id="e8" data-section="model" data-type="expr" data-answer="20n+35|35+20n" data-placeholder="e.g. 4n+10"
+           data-hint="The membership fee is paid once, and the monthly price is paid every month. Which of them multiplies the number of months?"
+           data-hint2="What is the total cost at $0$ months, and how much does each extra month add?">
+        <div class="ex-q"><p>A gym charges a $\$35$ membership fee and $\$20$ each month. Write the total cost in dollars after $n$ months, in terms of $n$.</p></div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $20n + 35$</p>
+          <p>
+            The fee is the start, $35$, and each of the $n$ months adds $20$. Check at $n = 2$: the formula gives $75$,
+            and the story gives $35 + 20 + 20 = 75$ ✓.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" id="e9" data-section="model" data-type="expr" data-answer="100-6t|-6t+100" data-placeholder="e.g. 80-5t"
+           data-hint="The battery is losing charge, so the rate takes away from the start instead of adding to it."
+           data-hint2="What is the charge at $0$ hours, and how much does it lose in each hour?">
+        <div class="ex-q"><p>A phone battery is at $100$ percent and loses $6$ percent each hour. Write the percent left after $t$ hours, in terms of $t$.</p></div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $100 - 6t$</p>
+          <p>
+            Start at $100$ and take away $6$ for each of the $t$ hours. Check at $t = 3$: the formula gives
+            $100 - 18 = 82$, and the story gives $100 - 6 - 6 - 6 = 82$ ✓.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" id="e10" data-section="model" data-type="number" data-answer="3" data-placeholder="dollars"
+           data-hint="Two rows of a table are two points. Find the rate first, then go back to $0$ miles."
+           data-hint2="How much does the fare change per mile, and how many miles do you go back from the first row?">
+        <div class="ex-q">
+          <p>A taxi company lists two fares. If the fare follows a straight line, what is the starting charge, the fare for $0$ miles, in dollars?</p>
+          <table>
+            <caption>Taxi fares for two rides</caption>
+            <thead><tr><th scope="col">Distance (miles)</th><th scope="col">Fare (dollars)</th></tr></thead>
+            <tbody>
+              <tr><th scope="row">2</th><td>$10$</td></tr>
+              <tr><th scope="row">6</th><td>$24$</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $\$3$</p>
+          <p>
+            The rate is $\frac{24 - 10}{6 - 2} = \frac{14}{4} = 3.5$ dollars per mile, and $10 = 3.5 \cdot 2 + b$ gives
+            $b = 10 - 7 = 3$. Check with the other row: $24 - 3.5 \cdot 6 = 24 - 21 = 3$ ✓.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" id="e11" data-section="model" data-type="number" data-answer="47" data-placeholder="centimeters"
+           data-hint="Two measurements are two points. What does a line need besides one point?"
+           data-hint2="After finding the rate, how many weeks is the new time beyond the later measurement?">
+        <div class="ex-q"><p>A plant is $19$ centimeters tall after $3$ weeks and $31$ centimeters tall after $6$ weeks. Assuming it keeps growing at the same steady rate, how many centimeters tall is it after $10$ weeks?</p></div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $47$ centimeters</p>
+          <p>
+            The rate is $\frac{31 - 19}{6 - 3} = 4$ centimeters per week, and $b = 19 - 4 \cdot 3 = 7$, so $H = 7 + 4n$, with $n$ the number of weeks, and
+            $H(10) = 47$. Check from week $6$: four more weeks at $4$ is $16$, and $31 + 16 = 47$ ✓. This is beyond the
+            data, so it is a prediction and not a measurement.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" id="e12" data-section="model" data-type="number" data-answer="10" data-placeholder="weeks"
+           data-hint="Is this asking for a value of the model, or for when the model reaches a target?"
+           data-hint2="By how much does the balance have to grow in all?">
+        <div class="ex-q"><p>A savings account holds $\$150$ and gains $\$35$ each week. After how many weeks does it hold $\$500$?</p></div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $10$ weeks</p>
+          <p>
+            $150 + 35w = 500$, so $35w = 350$ and $w = 10$. Check: $150 + 35 \cdot 10 = 500$ ✓.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" id="e13" data-section="model" data-type="number" data-answer="9" data-placeholder="hours"
+           data-hint="The temperature falls, so the model subtracts. Set it equal to the target and solve."
+           data-hint2="How many degrees does the temperature have to fall in all, and how many does it fall each hour?">
+        <div class="ex-q"><p>At 4 p.m. the temperature is $76$°F and it falls $4$°F each hour. After how many hours does it reach $40$°F?</p></div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $9$ hours</p>
+          <p>
+            $76 - 4h = 40$, so $4h = 36$ and $h = 9$. Check: $76 - 4 \cdot 9 = 40$ ✓.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" id="e14" data-section="model" data-type="expr" data-answer="35h+20|20+35h" data-placeholder="e.g. 10h+5"
+           data-hint="The first hour costs more than the hours after it, so the start is not $55$."
+           data-hint2="What would the line give for $0$ hours?">
+        <div class="ex-q"><p>A repair shop charges $\$55$ for the first hour and $\$35$ for each hour after. Write the charge in dollars for a job of $h$ hours, in terms of $h$.</p></div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $35h + 20$</p>
+          <p>
+            The rate is $35$ dollars per hour. At $1$ hour the charge is $55$, so one hour earlier it would be
+            $55 - 35 = 20$, the start. Check at $h = 3$: the formula gives $20 + 105 = 125$, and the story gives
+            $55 + 35 + 35 = 125$ ✓.
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <div class="recap">
+      <h2>Recap</h2>
+      <div class="puzzle-answer">
+        <span class="tag">Back to the puzzle</span>
+        <p data-your-guess></p>
+        <p>
+          A ride of $10$ miles costs $\$32$. The rate is $\frac{17 - 11}{5 - 3} = 3$ dollars per mile, and
+          from $11 = 3 \cdot 3 + b$ the fixed charge is $b = 2$ dollars, so the fare is $2 + 3x$ and
+          $2 + 30 = 32$. A second route: from the $5$-mile ride, five more miles add $5 \cdot 3 = 15$,
+          and $17 + 15 = 32$. Doubling $\$17$ gives $34$ for $10$ miles, which is too much, because it
+          counts the fixed charge twice.
+        </p>
+      </div>
+      <ul>
+        <li>The slope is $\dfrac{y_2 - y_1}{x_2 - x_1}$, with the points subtracted in the same order, and it is the same
+          for any two points of a line because the rise-and-run triangles are similar.</li>
+        <li>The slope means how much $y$ changes for one more $x$, in units of $y$ per unit of $x$.
+          A positive slope rises, a negative one falls, and zero is flat.</li>
+        <li>From a table, use the actual gap in $x$. From a story such as &ldquo;$\$40$ for the first hour and $\$25$
+          for each hour after&rdquo;, the rate is the amount that repeats.</li>
+        <li>In $y = mx + b$, $m$ is the rate and $b$ is the value at $x = 0$. The total changes, and the rate is how fast.</li>
+        <li>Write a model as start plus rate times count. Two points fix a line: the slope first, then $b$ from one point.</li>
+        <li>Check a model at a point you did not use, predict by putting in a value, and find when by solving
+          $mx + b = T$.</li>
+        <li>A model makes sense for the counts that occur, and beyond the data it is a guess.</li>
+      </ul>
+    </div>
+
+    <nav class="chapter-nav" data-chapter-nav aria-label="Previous and next pack"></nav>
+  </main>
+</div>
+</div>
+</body>
+</html>

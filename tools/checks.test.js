@@ -840,7 +840,7 @@ function refusal(fn) { try { fn(); return null; } catch (e) { return e.message; 
   clean({ SKILLS: withSkill("ch01#a", rec({ act: ["act.phm.alg", "act.mod"] })) }, "skills 6b: act.mod after a category passes");
   /* the real tree */
   const real = require("child_process").spawnSync(process.execPath, [path.join(__dirname, "check-static.js"), "--only=skills"], { encoding: "utf8" });
-  check(real.status === 0 && /^PASS  skills +92 /m.test(real.stdout), "skills: the real tree passes, counting its 92 curriculum sections — got " + real.stdout + real.stderr);
+  check(real.status === 0 && /^PASS  skills +94 /m.test(real.stdout), "skills: the real tree passes, counting its 94 curriculum sections — got " + real.stdout + real.stderr);
 }
 
 /* ------------------------------------------------- check-ci: install -- */
