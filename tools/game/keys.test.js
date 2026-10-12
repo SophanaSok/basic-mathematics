@@ -46,7 +46,10 @@
       does nothing, Escape closes it and gives the card back the focus; "arena" then Enter opens
       arena.html; in steps mode "exercise 3" then Enter shows the step and focuses the card; / in
       an answer box types a slash, / during an Arena run opens nothing, / in the cheat sheet
-      leaves the sheet; both themes, no page errors and no CSP violations */
+      leaves the sheet; both themes, no page errors and no CSP violations
+  21. t from the page goes to the card the boss marks (.ex[data-target="true"]) with the cursor; with
+      the practice set all solved and no target it goes to the first unsolved card elsewhere, and
+      when every card is solved nothing moves; t in an answer box types the letter; both themes */
 "use strict";
 const site = require("../lib/site");
 const target = require("../lib/target");
@@ -276,6 +279,51 @@ async function run() {
       }
       eq(errors, [], "no errors (text, choice, clue, solution)");
       await context.close();
+    }
+
+    /* ------------------------------------------------- 21: t, the boss's target */
+    for (const theme of ["light", "dark"]) {
+      const TH = { "bm.theme": JSON.stringify(theme) };
+      const pre = theme + ": ";
+      {
+        const { context, page, errors } = await open(browser, CH, Object.assign({}, TH, PAGE));
+        const marked = await page.evaluate(() => document.querySelectorAll('.ex[data-target="true"]').length);
+        check(marked >= 1, pre + "t: the boss marks a target (" + marked + ")");
+        await page.evaluate(() => { if (document.activeElement) document.activeElement.blur(); });
+        await page.keyboard.press("t");
+        eq(await page.evaluate(() => {
+          var a = document.activeElement, first = document.querySelector('.ex[data-target="true"]');
+          return [a === first, a.hasAttribute("data-keys-cursor")];
+        }), [true, true], pre + "t from the page lands on the target with the cursor");
+        /* typing in a box keeps the letter */
+        await page.keyboard.press("Escape");
+        await goTo(page, '.ex[data-kind="text"]:not([data-state])');
+        await page.keyboard.press("i");
+        await page.keyboard.press("t");
+        eq(await page.evaluate(() => [document.activeElement.tagName, document.activeElement.value]), ["INPUT", "t"], pre + "t in an answer box types the letter");
+        eq(errors, [], pre + "no errors (t, target)");
+        await context.close();
+      }
+      {
+        /* the practice set all solved: no target, so the first unsolved card elsewhere */
+        const solved = {};
+        for (let i = 1; i <= 30; i++) solved["e" + i] = true;
+        solved["s3d-planes-line"] = true;
+        const seed = Object.assign({}, TH, PAGE, { "bm.progress.v1": JSON.stringify({ ch02: { solved, total: 10 } }) });
+        const { context, page, errors } = await open(browser, CH, seed);
+        const want = await page.evaluate(() => {
+          var list = window.BMKeys.items().filter((e) => e.matches(".ex"));
+          var el = list.find((e) => e.getAttribute("data-state") !== "correct");
+          return { none: document.querySelectorAll('.ex[data-target="true"]').length, i: el ? window.BMKeys.items().indexOf(el) : -1 };
+        });
+        eq(want.none, 0, pre + "t: no target once the practice set is solved");
+        await page.evaluate(() => { if (document.activeElement) document.activeElement.blur(); });
+        await page.keyboard.press("t");
+        if (want.i >= 0) eq((await where(page)).i, want.i, pre + "t falls back to the first unsolved card");
+        else eq((await where(page)).body, true, pre + "t with everything solved moves nothing");
+        eq(errors, [], pre + "no errors (t, fallback)");
+        await context.close();
+      }
     }
 
     /* ----------------------------------------------------------- 5: unsolved */
