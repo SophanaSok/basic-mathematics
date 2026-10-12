@@ -252,12 +252,26 @@ describe("step: help and the keys left to the browser", () => {
     for (const kind of KINDS) expect(press("?", { kind }).action).toEqual({ type: "help" });
   });
   it("leaves the browser's own keys alone on every kind", () => {
-    const keys = ["/", "'", ",", " ", "Tab", "Home", "End", "PageUp", "PageDown", "ArrowLeft", "ArrowRight"];
+    const keys = ["'", ",", " ", "Tab", "Home", "End", "PageUp", "PageDown", "ArrowLeft", "ArrowRight"];
     for (const kind of KINDS) {
       for (const at of ["body", "card", "item"] as At[]) {
         for (const k of keys) expect(press(k, { kind, at }).handled).toBe(false);
       }
     }
+  });
+});
+
+describe("step: the go-to palette", () => {
+  it("/ opens the palette on every kind and place", () => {
+    for (const kind of KINDS) {
+      for (const at of ["body", "card", "item"] as At[]) {
+        expect(press("/", { kind, at }).action).toEqual({ type: "palette" });
+      }
+    }
+  });
+  it("/ does nothing in insert mode or during an Arena run", () => {
+    expect(press("/", { mode: "insert" }).handled).toBe(false);
+    expect(press("/", { kind: "arena", arenaScreen: "run" }).handled).toBe(false);
   });
 });
 

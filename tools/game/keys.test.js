@@ -9,15 +9,18 @@
       data-keys-cursor) and say where it is in #bm-live; ArrowDown moves it from a card;
       Escape drops it; ArrowDown on the bare page still scrolls the page
    2. a text card: Enter goes into its box, typing reaches the box, Escape comes back to the
-      card, c checks it, Escape leaves
+      card, c checks it, Escape leaves; on an order card i focuses a move button and Escape
+      comes back to the card
    3. a choice card: the right option's digit picks it, Enter checks it right
    4. h opens a clue, s shows the solution and s again hides it
    5. n from the page goes to the first unsolved card; from a solved card n and N skip the
       solved ones
    6. in steps mode j lands only on cards in the steps shown, and Enter on the page shows
       the next step; Enter on a sidebar link the reader tabbed to follows the link
-   7. } and { move between section headings, ] follows the next-chapter link
-   8. ? opens the cheat sheet, a modal with a heading per group and a key for every key; j
+   7. } and { move between section headings, ] follows the next-chapter link; in steps mode,
+      with the chapter links in a step not shown yet, ] and [ still follow them
+   8. ? opens the cheat sheet, a modal with a heading per group and a key for every key, the
+      focus on its title and scrolled to the top; j
       does nothing while it is open; Escape closes it and gives the focus back
    9. Ctrl, Alt and Meta with j do nothing; with the settings sheet open j does nothing and
       Escape still closes the sheet
@@ -35,7 +38,15 @@
   17. diagnostic: no items (j does nothing), ? opens the sheet, Escape closes it
   18. no page errors on any of those pages in both themes
   19. the Keyboard shortcuts switch: off, j and ? do nothing and the settings sheet shows it
-      unchecked; on, j moves again; the choice survives a reload */
+      unchecked; on, j moves again; the choice survives a reload
+  20. the go-to palette: / opens #keys-palette, modal, the box focused, 12 options and the first
+      selected; ArrowDown, ArrowDown, ArrowUp select the second, the arrows wrap, Home, End, Tab
+      and Shift+Tab move it; "pract" puts the Practice heading first (aria-activedescendant
+      names it) and Enter closes it on the heading, with the cursor; "exercise 3" then Enter lands on card e3; "zzzzqq" shows "Nothing matches", Enter
+      does nothing, Escape closes it and gives the card back the focus; "arena" then Enter opens
+      arena.html; in steps mode "exercise 3" then Enter shows the step and focuses the card; / in
+      an answer box types a slash, / during an Arena run opens nothing, / in the cheat sheet
+      leaves the sheet; both themes, no page errors and no CSP violations */
 "use strict";
 const site = require("../lib/site");
 const target = require("../lib/target");
@@ -153,12 +164,14 @@ async function run() {
         var have = Array.prototype.map.call(d.querySelectorAll("kbd"), (k) => k.textContent);
         return {
           open: d.open, modal: d.matches(":modal"), focusIn: d.contains(document.activeElement),
+          onTitle: document.activeElement === d.querySelector("#keys-sheet-title"), top: d.scrollTop,
           h3: Array.prototype.map.call(d.querySelectorAll("h3"), (h) => h.textContent),
           groups: groups.map((g) => g.group), missing: want.filter((k) => have.indexOf(k) < 0),
           title: d.querySelector("h2#keys-sheet-title").textContent, label: d.getAttribute("aria-labelledby")
         };
       });
       eq([sheet.open, sheet.modal, sheet.focusIn], [true, true, true], theme + ": ? opens the cheat sheet, modal, with the focus in it");
+      eq([sheet.onTitle, sheet.top], [true, 0], theme + ": the focus starts on its title, scrolled to the top (not on Close, at the bottom)");
       eq(sheet.h3, sheet.groups, theme + ": a heading per group");
       eq(sheet.missing, [], theme + ": a kbd for every key");
       eq([sheet.title, sheet.label], ["Keyboard shortcuts", "keys-sheet-title"], theme + ": named by its heading");
@@ -197,6 +210,20 @@ async function run() {
       check(/^(wrong|correct)$/.test(st[0]) && st[1], "c checks the card: a state and a verdict (" + st[0] + ")");
       await page.keyboard.press("Escape");
       eq((await where(page)).body, true, "Escape on the card leaves to the page");
+
+      /* an order card: i focuses a move button, which Escape leaves for the card */
+      const O = '.ex[data-kind="order"]';
+      if (await page.$(O) === null) check(false, "the chapter has an order card");
+      else {
+        await goTo(page, O);
+        const ok = await page.evaluate(() => document.activeElement.id);
+        await page.keyboard.press("i");
+        eq(await page.evaluate(() => document.activeElement.matches(".order-move")), true, "i on an order card focuses a move button");
+        await page.keyboard.press("Escape");
+        eq(await page.evaluate(() => { var a = document.activeElement; return [a.id, a.matches(".ex"), a.hasAttribute("data-keys-cursor")]; }), [ok, true, true],
+          "Escape from the move button comes back to the order card, with the cursor");
+        await page.keyboard.press("Escape");
+      }
 
       /* -------------------------------------------------- 3: a choice card */
       const C = '#practice .ex[data-kind="choice"]';
@@ -340,6 +367,21 @@ async function run() {
       await Promise.all([page.waitForNavigation(), page.keyboard.press("]")]);
       eq(page.url(), next, "] follows the next-chapter link");
       eq(errors, [], "no errors (sections, chapters)");
+      await context.close();
+    }
+    {
+      const { context, page, errors } = await open(browser, CH, STEPS);
+      const nav = await page.evaluate(() => {
+        var n = document.querySelector("[data-chapter-nav]");
+        return { hidden: !!n.closest("[hidden]"), next: n.querySelector("a.next").href, here: location.href };
+      });
+      check(nav.hidden, "steps mode: the chapter links start in a hidden step");
+      await Promise.all([page.waitForNavigation(), page.keyboard.press("]")]);
+      eq(page.url(), nav.next, "steps mode: ] follows the hidden next-chapter link");
+      await page.waitForFunction(() => document.readyState === "complete" && !!window.BMKeys && window.BMKeys.kind === "chapter");
+      await Promise.all([page.waitForNavigation(), page.keyboard.press("[")]);
+      eq(page.url(), nav.here, "steps mode: [ comes back");
+      eq(errors, [], "no errors (steps, chapters)");
       await context.close();
     }
 
@@ -586,6 +628,137 @@ async function run() {
       eq((await where(page)).body, true, pre + "reload: j does nothing");
       eq(errors, [], pre + "no errors (switch)");
       await context.close();
+    }
+    /* --------------------------------------------------- 20: the go-to palette */
+    {
+      const pal = (page) => page.evaluate(() => {
+        var d = document.getElementById("keys-palette"), input = d && d.querySelector("input");
+        var opts = d ? Array.prototype.map.call(d.querySelectorAll("li[role=option]"), (li) => ({
+          id: li.id, label: li.firstChild.textContent, sel: li.getAttribute("aria-selected") === "true", mark: li.hasAttribute("data-selected")
+        })) : [];
+        var empty = d && d.querySelector(".keys-palette-empty");
+        return {
+          open: !!d && d.open, modal: !!d && d.matches(":modal"), focused: !!input && document.activeElement === input,
+          value: input ? input.value : null, active: input ? input.getAttribute("aria-activedescendant") : null,
+          opts: opts, selected: opts.findIndex((o) => o.sel && o.mark), marks: opts.filter((o) => o.mark).length,
+          empty: !!empty && !empty.hidden && empty.getClientRects().length > 0
+        };
+      });
+      const onCard = (page, id) => page.evaluate((id) => { var a = document.activeElement; return [a.id, a.matches(".ex"), a.hasAttribute("data-keys-cursor")]; }, id);
+      for (const theme of ["light", "dark"]) {
+        const pre = theme + ": palette: ";
+        const { context, page, errors } = await open(browser, CH, Object.assign({ "bm.theme": JSON.stringify(theme) }, PAGE));
+        await page.keyboard.press("/");
+        let p = await pal(page);
+        eq([p.open, p.modal, p.focused, p.value], [true, true, true, ""], pre + "/ opens it, modal, with the box focused and empty");
+        eq([p.opts.length, p.selected, p.marks, p.active], [12, 0, 1, "keys-palette-opt-0"], pre + "12 options, the first selected");
+        await keys(page, ["ArrowDown", "ArrowDown", "ArrowUp"]);
+        p = await pal(page);
+        eq([p.selected, p.marks, p.active], [1, 1, "keys-palette-opt-1"], pre + "ArrowDown, ArrowDown, ArrowUp select the second");
+        await keys(page, ["ArrowUp", "ArrowUp"]);
+        eq((await pal(page)).selected, 11, pre + "ArrowUp from the first wraps to the last");
+        await page.keyboard.press("Home");
+        eq((await pal(page)).selected, 0, pre + "Home goes to the first");
+        await page.keyboard.press("Tab");
+        eq(await page.evaluate(() => document.activeElement.matches("#keys-palette [data-keys-close]")), true, pre + "Tab moves to the Close button");
+        await page.keyboard.press("Tab");
+        p = await pal(page);
+        eq([p.selected, p.focused], [0, true], pre + "Tab again returns to the box with the selection kept");
+        await page.keyboard.press("End");
+        eq((await pal(page)).selected, 11, pre + "End goes to the last");
+        await page.keyboard.type("pract");
+        p = await pal(page);
+        check(p.opts.length > 0 && /Practice/.test(p.opts[0].label), pre + '"pract" puts Practice first (' + (p.opts[0] && p.opts[0].label) + ")");
+        eq([p.active, p.selected], [p.opts[0] && p.opts[0].id, 0], pre + "typing selects the first again and aria-activedescendant names it");
+        await page.keyboard.press("Enter");
+        await wait(100);
+        const head = await page.evaluate(() => {
+          var a = document.activeElement, sec = document.getElementById("practice");
+          return [document.getElementById("keys-palette").open, a.tagName, /Practice/.test(a.textContent), !!sec && sec.contains(a), a.hasAttribute("data-keys-cursor")];
+        });
+        eq(head, [false, "H2", true, true, true], pre + "Enter closes it on the Practice heading, with the cursor");
+
+        await page.keyboard.press("/");
+        eq((await pal(page)).value, "", pre + "opened again, the box is empty");
+        await page.keyboard.type("exercise 3");
+        p = await pal(page);
+        eq(p.opts[0] && p.opts[0].label, "Exercise 3", pre + '"exercise 3" puts Exercise 3 first');
+        check(p.opts.some((o) => o.label === "Exercise 3"), pre + "(and it is listed)");
+        await page.keyboard.press("Enter");
+        await wait(100);
+        eq(await onCard(page), ["e3", true, true], pre + "Enter focuses card e3, with the cursor");
+        check(await page.waitForFunction(() => /^Exercise \d+ of \d+: Exercise 3/.test(document.getElementById("bm-live").textContent), null, { timeout: 5000 }).then(() => true, () => false),
+          pre + "and #bm-live says where it is");
+
+        await page.keyboard.press("/");
+        await page.keyboard.type("zzzzqq");
+        p = await pal(page);
+        eq([p.opts.length, p.empty, p.active], [0, true, null], pre + '"zzzzqq": no options and "Nothing matches"');
+        await page.keyboard.press("Enter");
+        p = await pal(page);
+        eq([p.open, p.focused], [true, true], pre + "Enter with nothing listed does nothing");
+        await page.keyboard.press("Escape");
+        await wait(150);
+        eq([(await pal(page)).open].concat(await onCard(page)), [false, "e3", true, true], pre + "Escape closes it and the cursor is back on the card");
+
+        /* in an answer box, / is typed (insert mode) */
+        await goTo(page, '#practice .ex[data-kind="text"]');
+        await page.keyboard.press("Enter");
+        await page.keyboard.press("/");
+        eq(await page.evaluate(() => { var a = document.activeElement; return [a.matches(".ex-form input[type=text]"), a.value.slice(-1), document.getElementById("keys-palette").open]; }),
+          [true, "/", false], pre + "/ in an answer box types a slash and opens nothing");
+        await page.evaluate(() => { document.activeElement.value = ""; });
+        await keys(page, ["Escape", "Escape"]);
+
+        await page.keyboard.press("/");
+        await page.keyboard.type("arena");
+        p = await pal(page);
+        eq(p.opts[0] && p.opts[0].label, "Arena", pre + '"arena" puts the Arena page first');
+        await Promise.all([page.waitForNavigation(), page.keyboard.press("Enter")]);
+        check(/arena\.html$/.test(page.url()), pre + "Enter opens arena.html (" + page.url() + ")");
+        eq(errors, [], pre + "no errors and no CSP violations");
+        await context.close();
+      }
+
+      /* steps mode: the card sits in a step not shown yet */
+      {
+        const { context, page, errors } = await open(browser, CH, STEPS);
+        eq(await page.evaluate(() => { var e = document.getElementById("e3"); return !!e.closest("[hidden]") || !e.getClientRects().length; }), true, "palette, steps: card e3 starts hidden");
+        const shown = await page.evaluate(() => window.BMLesson.shown());
+        await page.keyboard.press("/");
+        await page.keyboard.type("exercise 3");
+        await page.keyboard.press("Enter");
+        const landed = await page.waitForFunction(() => document.activeElement && document.activeElement.id === "e3", null, { timeout: 2000 }).then(() => true, () => false);
+        check(landed, "palette, steps: Enter on Exercise 3 focuses the card");
+        eq(await page.evaluate((s) => [window.BMLesson.shown() > s, !document.getElementById("e3").closest("[hidden]"), document.activeElement.hasAttribute("data-keys-cursor")], shown),
+          [true, true, true], "palette, steps: the step is shown and the card has the cursor");
+
+        /* the cheat sheet keeps its keys */
+        await page.keyboard.press("?");
+        await page.keyboard.press("/");
+        eq(await page.evaluate(() => [document.getElementById("keys-sheet").open, document.getElementById("keys-palette").open, document.getElementById("keys-sheet").contains(document.activeElement)]),
+          [true, false, true], "palette: / with the cheat sheet open leaves the sheet and opens no palette");
+        await page.keyboard.press("Escape");
+        eq(errors, [], "palette, steps: no errors");
+        await context.close();
+      }
+
+      /* an Arena run keeps its keys */
+      {
+        const { context, page, errors } = await open(browser, "arena.html", {}, { kind: "arena" });
+        await SOLID(page);
+        await page.reload();
+        await page.waitForFunction(() => document.readyState === "complete" && !!window.BMKeys && window.BMKeys.kind === "arena");
+        await page.keyboard.press("1");
+        const ran = await page.waitForSelector('body[data-arena-screen="run"]', { timeout: 2000 }).then(() => true, () => false);
+        check(ran, "palette, arena: 1 starts a run");
+        if (ran) {
+          await page.keyboard.press("/");
+          eq(await page.evaluate(() => { var d = document.getElementById("keys-palette"); return !!d && d.open; }), false, "palette, arena: / during a run opens nothing");
+        }
+        eq(errors, [], "palette, arena: no errors");
+        await context.close();
+      }
     }
   } finally {
     await browser.close();
