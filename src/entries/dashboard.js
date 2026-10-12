@@ -47,3 +47,7 @@ import "../learn/diag-seed.ts";
 import "../learn/plan.ts";
 import "../ui/plan.ts";
 import "../../assets/insights.js";
+/* the keyboard layer: the pure keymap, then the DOM half, last, once everything it
+   drives is up */
+import "../ui/keymap.ts";
+import "../ui/keys.ts";

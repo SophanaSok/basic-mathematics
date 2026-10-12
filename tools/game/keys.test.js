@@ -23,7 +23,17 @@
       Escape still closes the sheet
   10. the first Tab on a chapter shows one toast pointing at "?", never again on this device,
       and no toast without a Tab
-  11. no page errors and no Content-Security-Policy violations anywhere; 1 and 8 in both themes */
+  11. no page errors and no Content-Security-Policy violations anywhere; 1 and 8 in both themes
+  12. home: j, j, G, k move over the stops and the next-step card, Escape drops it, g a goes to
+      the Arena; no keyboard tip on Tab (the tip is chapter-only)
+  13. Arena lobby: j lands on a mode tile, 1 starts a run; during the run j, ? do nothing, Escape
+      pauses and resumes, and after Back to the lobby, g h goes home; with no deck 1 does nothing
+  14. progress: j lands on an area title, ? opens a sheet without the Exercise group, Escape closes it
+  15. about (a plain page): j lands on the first h2[id] (tabindex -1), } and { move between headings,
+      g p goes to the progress page
+  16. account: j walks the buttons and inputs (the email box is the third), typing goes in, Escape blurs it
+  17. diagnostic: no items (j does nothing), ? opens the sheet, Escape closes it
+  18. no page errors on any of those pages in both themes */
 "use strict";
 const site = require("../lib/site");
 const target = require("../lib/target");
@@ -63,7 +73,7 @@ async function open(browser, page0, seed, opts) {
     Object.keys(seed).forEach(function (k) { localStorage.setItem(k, seed[k]); });
   }, seed || {});
   await page.goto(url(page0));
-  await page.waitForFunction(() => document.readyState === "complete" && !!window.BMKeys && window.BMKeys.kind === "chapter");
+  await page.waitForFunction((kind) => document.readyState === "complete" && !!window.BMKeys && window.BMKeys.kind === kind, opts.kind || "chapter");
   return { context, page, errors };
 }
 
@@ -372,6 +382,168 @@ async function run() {
       eq(await toastsMatching(b.page), 0, "no tip without a Tab");
       eq(b.errors, [], "no errors (no tip)");
       await b.context.close();
+    }
+
+    /* ------------------------------------- 12 to 18: every other page kind, both themes */
+    const SOLID = async (page) => {
+      await page.evaluate(() => {
+        var all = {}, t = Date.now() - 864e5 * 2;
+        window.BMGen.list().forEach((s) => {
+          var ch = s.section.split("#")[0], sec = s.section.split("#")[1], recs = all[ch] = all[ch] || {};
+          recs["z" + sec + "1"] = { tries: 1, first: 1, solved: t, section: sec };
+          recs["z" + sec + "2"] = { tries: 1, first: 1, solved: t + 1, section: sec };
+        });
+        localStorage.setItem("bm.attempts.v1", JSON.stringify(all));
+      });
+    };
+    const act = (page) => page.evaluate(() => {
+      var a = document.activeElement;
+      return { body: a === document.body, cursor: !!a && a.hasAttribute("data-keys-cursor"), marked: document.querySelectorAll("[data-keys-cursor]").length,
+        tag: a && a.tagName, cls: a && a.className, id: a && a.id };
+    });
+    const sheetOpen = (page) => page.evaluate(() => { var d = document.getElementById("keys-sheet"); return !!d && d.open; });
+    const WEAK = { "bm.attempts.v1": JSON.stringify({ ch05: { x1: { section: "parallels", solved: Date.now() - 864e5, first: false, tries: 3 } } }) };
+    for (const theme of ["light", "dark"]) {
+      const TH = { "bm.theme": JSON.stringify(theme) };
+      const pre = theme + ": ";
+
+      /* ------------------------------------------------------------ 12: home */
+      {
+        const { context, page, errors } = await open(browser, "index.html", TH, { kind: "home" });
+        await page.keyboard.press("j");
+        const first = await page.evaluate(() => [document.activeElement === document.querySelector("a.stop-link"), document.activeElement.hasAttribute("data-keys-cursor")]);
+        eq(first, [true, true], pre + "home: j focuses the first stop link, with the cursor");
+        await page.keyboard.press("j");
+        eq(await page.evaluate(() => window.BMKeys.items().indexOf(document.activeElement)), 1, pre + "home: j again goes to the second item");
+        await page.keyboard.press("G");
+        const last = await page.evaluate(() => { var l = window.BMKeys.items(); return [l.indexOf(document.activeElement), l.length - 1, document.activeElement.matches("a.stop-link, a.next-step-link")]; });
+        eq([last[0], last[2]], [last[1], true], pre + "home: G goes to the last item (" + last[1] + ")");
+        await page.keyboard.press("k");
+        eq(await page.evaluate(() => window.BMKeys.items().indexOf(document.activeElement)), last[1] - 1, pre + "home: k goes to the one before");
+        await page.keyboard.press("Escape");
+        const o = await act(page);
+        eq([o.body, o.marked], [true, 0], pre + "home: Escape drops the cursor");
+        await Promise.all([page.waitForNavigation(), keys(page, ["g", "a"])]);
+        check(/arena\.html$/.test(page.url()), pre + "home: g a goes to arena.html (" + page.url() + ")");
+        eq(errors, [], pre + "no errors (home)");
+        await context.close();
+
+        const t = await open(browser, "index.html", TH, { kind: "home" });
+        await t.page.keyboard.press("Tab");
+        await wait(1500);
+        eq(await toastsMatching(t.page), 0, pre + "home: Tab shows no keyboard tip");
+        await t.context.close();
+      }
+
+      /* ------------------------------------------------------ 13: Arena lobby */
+      {
+        const { context, page, errors } = await open(browser, "arena.html", TH, { kind: "arena" });
+        await SOLID(page);
+        await page.reload();
+        await page.waitForFunction(() => document.readyState === "complete" && !!window.BMKeys && window.BMKeys.kind === "arena");
+        await page.keyboard.press("j");
+        eq(await page.evaluate(() => [document.activeElement === document.querySelector(".arena-mode"), document.activeElement.hasAttribute("data-keys-cursor")]), [true, true], pre + "arena: j focuses the first mode tile");
+        await page.keyboard.press("Escape");
+        eq((await act(page)).body, true, pre + "arena: Escape leaves the tile");
+        await page.keyboard.press("1");
+        const ran = await page.waitForSelector('body[data-arena-screen="run"]', { timeout: 2000 }).then(() => true, () => false);
+        check(ran, pre + "arena: 1 starts a Standard run");
+        if (ran) {
+          const before = await page.evaluate(() => document.activeElement && document.activeElement.id);
+          await page.keyboard.press("j");
+          const d = await page.evaluate(() => [document.activeElement && document.activeElement.id, document.querySelectorAll("[data-keys-cursor]").length]);
+          eq(d, [before, 0], pre + "arena: during a run j moves nothing (focus on " + before + ")");
+          await page.keyboard.press("?");
+          eq(await sheetOpen(page), false, pre + "arena: ? opens no sheet during a run");
+          await page.keyboard.press("Escape");
+          check(await page.waitForSelector('[data-act="unpause"]', { state: "visible", timeout: 1500 }).then(() => true, () => false), pre + "arena: Escape pauses");
+          await page.keyboard.press("Escape");
+          check(await page.waitForSelector('[data-act="unpause"]', { state: "hidden", timeout: 1500 }).then(() => true, () => false), pre + "arena: Escape again resumes");
+          await page.click('[data-act="pause"]');
+          await page.click('[data-act="leave"]');
+          await page.waitForSelector('body:not([data-arena-screen="run"])');
+          await page.evaluate(() => { document.activeElement && document.activeElement.blur(); });
+          await Promise.all([page.waitForNavigation(), keys(page, ["g", "h"])]);
+          check(/\/(index\.html)?$/.test(page.url()), pre + "arena: g h goes home (" + page.url() + ")");
+        }
+        eq(errors, [], pre + "no errors (arena)");
+        await context.close();
+
+        const e = await open(browser, "arena.html", TH, { kind: "arena" });
+        await e.page.keyboard.press("1");
+        await wait(500);
+        eq([await e.page.evaluate(() => document.body.getAttribute("data-arena-screen")), (await act(e.page)).body], ["lobby", true], pre + "arena: with no deck 1 starts nothing and the focus stays on the page");
+        eq(e.errors, [], pre + "no errors (arena, no deck)");
+        await e.context.close();
+      }
+
+      /* ---------------------------------------------------------- 14: progress */
+      {
+        const { context, page, errors } = await open(browser, "progress.html", Object.assign({}, TH, WEAK), { kind: "progress" });
+        await page.keyboard.press("j");
+        eq(await page.evaluate(() => [document.activeElement.matches("li.area a.area-title"), document.activeElement.hasAttribute("data-keys-cursor")]), [true, true], pre + "progress: j lands on an area title");
+        await page.keyboard.press("?");
+        eq(await sheetOpen(page), true, pre + "progress: ? opens the sheet");
+        const txt = await page.evaluate(() => document.getElementById("keys-sheet").textContent);
+        check(!/Check the answer/.test(txt), pre + "progress: no Exercise group in the sheet");
+        await page.keyboard.press("Escape");
+        await wait(100);
+        eq(await sheetOpen(page), false, pre + "progress: Escape closes it");
+        eq(errors, [], pre + "no errors (progress)");
+        await context.close();
+      }
+
+      /* ------------------------------------------------------------ 15: about */
+      {
+        const { context, page, errors } = await open(browser, "about.html", TH, { kind: "page" });
+        const heads = await page.$$eval("h2[id]", (l) => l.map((h) => h.id));
+        const at = () => page.evaluate(() => { var a = document.activeElement; return a.matches("h2[id]") && a.hasAttribute("data-keys-cursor") ? [a.id, a.getAttribute("tabindex")] : null; });
+        await page.keyboard.press("j");
+        eq(await at(), [heads[0], "-1"], pre + "about: j focuses the first h2[id], tabindex -1");
+        await page.keyboard.press("}");
+        eq((await at() || [])[0], heads[1], pre + "about: } goes to the next heading");
+        await page.keyboard.press("{");
+        eq((await at() || [])[0], heads[0], pre + "about: { goes back");
+        await page.keyboard.press("Escape");
+        await Promise.all([page.waitForNavigation(), keys(page, ["g", "p"])]);
+        check(/progress\.html$/.test(page.url()), pre + "about: g p goes to progress.html (" + page.url() + ")");
+        eq(errors, [], pre + "no errors (about)");
+        await context.close();
+      }
+
+      /* ---------------------------------------------------------- 16: account */
+      {
+        const { context, page, errors } = await open(browser, "account.html", TH, { kind: "account" });
+        /* the signed-out form lists two OAuth buttons before the first input, so the email box is the third item */
+        const isEmail = () => page.evaluate(() => document.activeElement === document.getElementById("acct-email"));
+        await page.keyboard.press("j");
+        eq(await page.evaluate(() => document.activeElement.id), "acct-oauth-google", pre + "account: j focuses the first item (the Google button)");
+        await keys(page, ["j", "j"]);
+        eq(await isEmail(), true, pre + "account: j j more reaches the first input");
+        await page.keyboard.type("a");
+        eq(await page.evaluate(() => document.activeElement.value), "a", pre + "account: typing goes into it");
+        await page.keyboard.press("Escape");
+        eq((await act(page)).body, true, pre + "account: Escape leaves the input");
+        await keys(page, ["j", "j", "j"]);
+        eq(await isEmail(), true, pre + "account: j from the page starts over, and the third item is the input again");
+        eq(errors, [], pre + "no errors (account)");
+        await context.close();
+      }
+
+      /* ------------------------------------------------------- 17: diagnostic */
+      {
+        const { context, page, errors } = await open(browser, "diagnostic.html", TH, { kind: "diagnostic" });
+        await page.keyboard.press("j");
+        const d = await act(page);
+        eq([d.body, d.marked], [true, 0], pre + "diagnostic: j moves nothing");
+        await page.keyboard.press("?");
+        eq(await sheetOpen(page), true, pre + "diagnostic: ? opens the sheet");
+        await page.keyboard.press("Escape");
+        await wait(100);
+        eq(await sheetOpen(page), false, pre + "diagnostic: Escape closes it");
+        eq(errors, [], pre + "no errors (diagnostic)");
+        await context.close();
+      }
     }
   } finally {
     await browser.close();
