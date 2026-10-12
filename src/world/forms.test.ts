@@ -66,12 +66,14 @@ describe("each form", () => {
       expect(d.calls).toBe(f.calls);
       expect(d.calls).toBeGreaterThan(2);
       expect(d.calls).toBeLessThanOrEqual(12);
-      expect(d.triangles).toBeLessThan(1000);
+      expect(d.triangles).toBe(f.triangles);
+      expect(d.triangles).toBeLessThan(900);
+      if (s === 5) expect(d.calls).toBe(11);
       f.dispose();
     }
   });
 
-  it("stands with its feet at the ground, facing forward, and grows from stage to stage", () => {
+  it("stands with its feet at the ground, facing forward, and grows from stage to stage, live or baked alike", () => {
     let last = 0;
     const dims: string[] = [];
     for (const s of STAGES) {
@@ -82,6 +84,13 @@ describe("each form", () => {
       expect(b.max.y).toBeCloseTo(f.height, 1);
       expect(f.height).toBeGreaterThan(last);
       last = f.height;
+      /* the baked figure is the same pose: its box agrees with the live one within the
+         looseness of a rotated part's own box */
+      const baked = buildForm(T, s, mats, pal, "algebra", { live: false });
+      const bb = box(baked.group);
+      expect(Math.abs(bb.max.y - b.max.y)).toBeLessThan(0.03);
+      expect(Math.abs(bb.max.x - b.max.x)).toBeLessThan(0.03);
+      baked.dispose();
       /* the silhouette: each stage's box differs from every other's in more than height */
       dims.push([b.max.x - b.min.x, b.max.z - b.min.z].map((v) => v.toFixed(2)).join("x"));
       f.dispose();
@@ -144,13 +153,18 @@ describe("each form", () => {
     geos.forEach((g) => g.addEventListener("dispose", () => { freed++; }));
     let matFreed = false;
     mats.solid.addEventListener("dispose", () => { matFreed = true; });
+    /* the halo's own material (the one mesh without vertex colours) goes with the rest */
+    const halo = f.group.children.find((c) => (c as THREE.Mesh).isMesh && !(c as THREE.Mesh).geometry.getAttribute("color")) as THREE.Mesh;
+    let haloFreed = false;
+    (halo.material as THREE.Material).addEventListener("dispose", () => { haloFreed = true; });
     f.dispose();
     expect(freed).toBe(geos.length);
+    expect(haloFreed).toBe(true);
     expect(matFreed).toBe(false);
   });
 
   it("holds the stage to 1..5", () => {
-    expect([clampStage(0), clampStage(9), clampStage(NaN), clampStage("3"), clampStage(3.7), clampStage(5)]).toEqual([1, 5, 1, 1, 3, 5]);
+    expect([clampStage(0), clampStage(9), clampStage(NaN), clampStage("3"), clampStage(3.7), clampStage(5), clampStage(Infinity), clampStage(-Infinity)]).toEqual([1, 5, 1, 1, 3, 5, 5, 1]);
     expect(FORM_STAGES).toBe(5);
     const f = buildForm(T, 42, mats, pal, "algebra", { live: false });
     expect(f.stage).toBe(5);

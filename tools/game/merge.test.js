@@ -117,7 +117,7 @@ function attemptRec(ch, k) {
 
 /* bm.game.v1.form: stage times and a wear, few values so two sides often tie, and now and
    then damage (a form, got or wear of the wrong shape, an `at` that is no number) */
-const FORM_ODD = [null, "x", 7, [1], [], { at: "5", n: 2 }, { n: 3 }, { at: 4, n: "z" }, JSON.parse('{"__proto__":{"at":9},"n":1}')];
+const FORM_ODD = [null, "x", 7, [1], [], { at: "5", n: 2 }, { n: 3 }, { at: 4, n: "z" }, JSON.parse('{"__proto__":{"at":9},"n":1}'), { n: 4, at: 9e15 }];
 function formState() {
   if (chance(0.1)) return JSON.parse(JSON.stringify(pick(FORM_ODD)));
   const f = {};

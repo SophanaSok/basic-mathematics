@@ -888,7 +888,7 @@ fetched, which **tier** the device gets (`src/world/tiers.ts`):
 | Tier | Chosen when | Pixel ratio | Draw calls | Triangles | Props per region | Idle motion |
 | --- | --- | --- | --- | --- | --- | --- |
 | list | no WebGL 2, Save-Data, `?3d=off`, the 3D course map switch off, or the watchdog gave up | — | — | — | — | — |
-| low | Graphics quality Low; or a software renderer (SwiftShader, llvmpipe, WARP), a coarse pointer with four cores or fewer, or a low-end device (2 GB of memory or less) | 1 | 10 | 9,000 | the fewest | none |
+| low | Graphics quality Low; or a software renderer (SwiftShader, llvmpipe, WARP), a coarse pointer with four cores or fewer, or a low-end device (2 GB of memory or less) | 1 | 10 | 9,500 | the fewest | none |
 | medium | Graphics quality Medium; everything else | 1.5 | 12 | 11,000 | more | 5 s after input |
 | high | only Graphics quality High | 2 | 12 | 14,000 | the most | 5 s after input |
 
@@ -936,6 +936,8 @@ the path's stones and the review gates. All of that is **one mesh and one set of
 (`batch.ts` merges the primitives with vertex colours and flat normals), so the still world is two
 draw calls; the progress marks (`marks.ts`: ring, boss, flag, stars) are two more, rebuilt only
 when progress changes; the marker, the selection ring, the smoke and the telescope are the rest.
+The marker is the learner's form (`forms.ts`, drawn at three quarters of its size), standing on
+the current island and baked into two draw calls; it hops a little in the idle window.
 The course map before the world took 109 draw calls a frame at rest and up to 139 in flight; the
 world took at most 9 at any tier, width or Part in headless Chromium (7 at 1280 wide, where
 `tools/game/map.test.js` measures it). The pointer is tested against invisible
@@ -956,8 +958,8 @@ frame without the fog and checks it changes. No post-processing and no bloom.
 Labels over the world sit on solid paper (`--text` on `--surface`, a measured pair).
 
 **Motion.** Frames are drawn on demand: for a camera flight, and on medium and high for five
-seconds of **idle motion** after an input (the marker's bob, the Foundry's smoke, the
-Observatory's telescope), which then runs to the end of the bob and stops; an idle page asks for no
+seconds of **idle motion** after an input (the marker's hop, the Foundry's smoke, the
+Observatory's telescope), which then runs to the end of the hop and stops; an idle page asks for no
 frames at all. Study mode and reduced motion (the device's or the sheet's) stop idle motion and
 turn flights into cuts. Nothing flashes and nothing loops for longer than the window.
 

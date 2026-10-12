@@ -50,6 +50,9 @@ import "../ui/settings.ts";
 import "../../assets/config.js";
 import "../../assets/account.js";
 import "../world/tiers.ts";
+/* the pure modules map3d.js reads the worn form from */
+import "../data/forms.ts";
+import "../core/forms.ts";
 import "../../assets/map3d.js";
 /* the "next best step" card, drawn once the scripts above have run */
 import "../learn/next.ts";
