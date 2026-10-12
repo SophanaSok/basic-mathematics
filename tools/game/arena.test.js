@@ -201,6 +201,22 @@ async function run() {
       await context.close();
     }
 
+    /* ---------------------------------------- 1c. a scatterplot is drawn too, two header cells and a row per point */
+    {
+      const context = await ctx(browser);
+      const seed = { "bm.attempts.v1": JSON.stringify({ "pk-data": { x1: { section: "scatter", solved: Date.now() - 864e5, first: false, tries: 3 } } }) };
+      const p = await open(context, errors, "arena.html?repair=pk-data%23scatter", seed);
+      await p.click('[data-act="start"][data-mode="repair"]');
+      await p.waitForSelector(".arena-q");
+      const card = await p.evaluate(() => {
+        var fig = document.querySelector(".arena-q figure[data-widget='chart']"), st = window.BMArena.state();
+        return { kind: fig && fig.getAttribute("data-kind"), svg: !!(fig && fig.querySelector("svg")), th: fig ? fig.querySelectorAll("table th").length : 0,
+          rows: fig ? fig.querySelectorAll("table tr").length - 1 : 0, want: window.BMGen.make(st.qs[st.i].g, st.qs[st.i].s).chart };
+      });
+      eq([card.kind, card.svg, card.th, card.rows], ["scatter", true, 2, card.want.rows.length], "a scatter question draws a scatter figure with two header cells and a row per point");
+      await context.close();
+    }
+
     /* ---------------------------------------- 2. the Daily: one attempt a day */
     {
       const context = await ctx(browser);

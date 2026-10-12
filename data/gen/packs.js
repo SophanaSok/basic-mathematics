@@ -1,11 +1,11 @@
 /* data/gen/packs.js — Arena generators for the skill packs (Part V, beside the course).
    Pack A, "Ratios, Rates and Percent": sections 1–4 (ratios, proportions, percent, repeated change).
-   Pack B, "Data and Statistics": sections 1 and 2 so far (center and spread; reading displays).
+   Pack B, "Data and Statistics": sections 1-4 (center and spread; reading displays; scatterplots and lines of fit; samples and claims).
    The quartiles follow the median-of-halves rule of src/ui/chart.ts.
 
    A problem may carry a chart the Arena draws with the page widget (assets/widgets.js,
    W.chartFigure then W.chart):  chart: { kind, head, rows, caption, width? }
-     kind     "dot" | "hist" | "box" (also "bar" | "scatter", not used yet)
+     kind     "dot" | "hist" | "box" | "scatter" (also "bar", not used yet)
      head     the column names, an array of strings (one for dot, hist, box)
      rows     numbers for dot, hist, box; [label, value] pairs for bar; [x, y] for scatter
      caption  one sentence, shown under the chart
@@ -1091,6 +1091,266 @@
           if (kind === "q3") return a3 === ans;
           if (kind === "iqr") return a3 - a1 === ans && ans >= 0;
           return f[m - 1] - f[0] === ans;
+        }
+      };
+    }
+  });
+
+  /* --------------------------------------- pack B §3: scatterplots and lines of fit -- */
+
+  /* "y = -3x + 160", "y = 2x + 7" (m is never 0 or 1 here) */
+  function lineTex(m, b) { return "y = " + (m < 0 ? "-" : "") + (Math.abs(m) === 1 ? "" : Math.abs(m)) + "x " + (b < 0 ? "- " : "+ ") + Math.abs(b); }
+
+  /* what a scatterplot's two measurements are; x runs x0, x0+dx, ... for n points */
+  var SCATTER_CONTEXTS = [
+    { what: "the hours each of several students studied and their test scores", xh: "Hours studied", yh: "Test score", cap: "Hours studied and test score, one point per student.",
+      xdesc: "the hours studied", ydesc: "the test score", yunit: "points", x0: 1, dx: 1, ms: [2, 3, 4], b: [30, 45], sign: 1, ymax: 100 },
+    { what: "the temperature and the cups of hot chocolate a café sold on several days", xh: "Temperature (°F)", yh: "Cups sold", cap: "Temperature and cups of hot chocolate sold, one point per day.",
+      xdesc: "the temperature in degrees", ydesc: "the cups sold", yunit: "cups", x0: 10, dx: 5, ms: [-2, -3, -4], b: [10, 30], sign: -1, ymax: 300 },
+    { what: "the height of a plant at the end of each week", xh: "Week", yh: "Height (cm)", cap: "Height of a plant at the end of each week.",
+      xdesc: "the week", ydesc: "the height in centimeters", yunit: "centimeters", x0: 1, dx: 1, ms: [2, 3, 4], b: [8, 20], sign: 1, ymax: 100 },
+    { what: "the number of days students were absent and their final grades", xh: "Days absent", yh: "Final grade", cap: "Days absent and final grade, one point per student.",
+      xdesc: "the days absent", ydesc: "the final grade", yunit: "points", x0: 1, dx: 1, ms: [-2, -3], b: [35, 50], sign: -1, ymax: 100 }
+  ];
+
+  /* a context, a line y = mx + b and n points above and below it by small whole residuals,
+     none on the line, between 2 and n-2 of them above */
+  function scatterData(r) {
+    var c = r.pick(SCATTER_CONTEXTS), n = r.int(8, 12), m = r.pick(c.ms), xs = [], rows = [], res = [], i, guard = 0, above;
+    for (i = 0; i < n; i++) xs.push(c.x0 + i * c.dx);
+    var xmax = xs[n - 1], b = c.sign < 0 ? -m * xmax + r.int(c.b[0], c.b[1]) : r.int(c.b[0], c.b[1]);
+    do {
+      res = []; above = 0;
+      for (i = 0; i < n; i++) { var e = r.pick([-3, -2, -1, 1, 2, 3]); res.push(e); if (e > 0) above++; }
+      guard++;
+    } while ((above < 2 || above > n - 2) && guard < 200);
+    if (above < 2 || above > n - 2) { res = []; above = 0; for (i = 0; i < n; i++) { res.push(i % 2 ? -1 : 1); if (i % 2 === 0) above++; } }
+    for (i = 0; i < n; i++) rows.push([xs[i], m * xs[i] + b + res[i]]);
+    return { c: c, n: n, m: m, b: b, xs: xs, rows: rows, res: res, above: above };
+  }
+  function scatterLead(d) {
+    return "The scatterplot shows " + d.c.what + ". A line of fit is $" + lineTex(d.m, d.b) + "$, where $x$ is " + d.c.xdesc + " and $y$ is " + d.c.ydesc + ". ";
+  }
+  /* every row's y and the line's value at every row's x lie in 0..ymax, and so does any extra number given */
+  function inRange(d, rows, extra) {
+    var ok = true;
+    rows.forEach(function (p) { var pr = stepLine(d.m, d.b, p[0]); if (!(p[1] > 0 && p[1] <= d.c.ymax && pr > 0 && pr <= d.c.ymax)) ok = false; });
+    (extra || []).forEach(function (v) { if (!(v > 0 && v <= d.c.ymax)) ok = false; });
+    return ok;
+  }
+  function scatterChart(d) { return { kind: "scatter", head: [d.c.xh, d.c.yh], rows: d.rows, caption: d.c.cap }; }
+  /* the prediction at x by stepping from the line's value at x = 0, one x at a time: another route to m*x + b */
+  function stepLine(m, b, x) { var y = b, i; for (i = 0; i < x; i++) y += m; return y; }
+
+  G.add({
+    id: "pk-scatter-predict", section: "pk-data#scatter", par: 60, timed: true,
+    make: function (r) {
+      var d = scatterData(r), kind = r.pick(["predict", "predict", "solve"]);
+      var lo = d.xs[0], hi = d.xs[d.n - 1], x = r.int(lo, hi), ans, ask, hint, steps;
+      if (kind === "predict") {
+        ans = d.m * x + d.b;
+        ask = "What does the line predict for " + d.c.ydesc + " when $x = " + x + "$?";
+        hint = "To predict, put the value of x into the equation of the line in its place, then multiply and add.";
+        steps = ["Put $x = " + x + "$ into the line: $y = " + d.m + " \\cdot " + x + (d.b < 0 ? " - " : " + ") + Math.abs(d.b) + "$.", "That is $" + (d.m * x) + (d.b < 0 ? " - " : " + ") + Math.abs(d.b) + " = " + ans + "$."];
+      } else {
+        var target = d.m * x + d.b;
+        ans = x;
+        ask = "For what value of $x$ does the line predict $y = " + target + "$?";
+        hint = "Set the line's y equal to the given value and solve for x with the two moves for an equation.";
+        steps = ["Set $" + d.m + "x " + (d.b < 0 ? "- " : "+ ") + Math.abs(d.b) + " = " + target + "$.", "Take away $" + d.b + "$ from both sides: $" + d.m + "x = " + (target - d.b) + "$.", "Divide both sides by $" + d.m + "$: $x = " + x + "$."];
+      }
+      return {
+        q: scatterLead(d) + ask,
+        type: "number", answer: clean(ans), placeholder: kind === "solve" ? "x" : d.c.yunit,
+        hint: hint, steps: steps, chart: scatterChart(d),
+        verify: function () {
+          var rows = this.chart ? this.chart.rows : d.rows;
+          if (rows.length !== d.n || !inRange(d, rows, [d.m * x + d.b])) return false;
+          if (kind === "predict") return stepLine(d.m, d.b, x) === ans;
+          /* walk the x values up from the left until the predicted y reaches the target */
+          var t = d.m * x + d.b, k, found = null;
+          for (k = lo; k <= hi; k++) if (stepLine(d.m, d.b, k) === t) { found = k; break; }
+          return found === ans;
+        }
+      };
+    }
+  });
+
+  G.add({
+    id: "pk-scatter-residual", section: "pk-data#scatter", par: 80, timed: true,
+    make: function (r) {
+      var d = scatterData(r), kind = r.pick(["residual", "above", "above", "residual"]), ans, ask, hint, steps, k = r.int(0, d.n - 1);
+      if (kind === "residual") {
+        var px = d.rows[k][0], py = d.rows[k][1], pred = d.m * px + d.b;
+        ans = py - pred;
+        ask = "What is the residual of the point at $x = " + px + "$? Take actual minus predicted.";
+        hint = "A residual is the actual value minus the predicted value. Find what the line predicts at that x, then read the point's own y in the table.";
+        steps = ["The point at $x = " + px + "$ has $y = " + py + "$. The line predicts $" + d.m + " \\cdot " + px + (d.b < 0 ? " - " : " + ") + Math.abs(d.b) + " = " + pred + "$.", "Actual minus predicted: $" + py + " - " + (pred < 0 ? "(" + pred + ")" : pred) + " = " + ans + "$."];
+      } else {
+        ans = d.above;
+        ask = "How many of the $" + d.n + "$ points lie above the line?";
+        hint = "A point is above the line when its actual y is larger than the line predicts at its x. Work out the prediction for each x and compare.";
+        var preds = d.xs.map(function (x) { return d.m * x + d.b; }), up = [];
+        d.rows.forEach(function (p, i) { if (p[1] > preds[i]) up.push(p[0]); });
+        steps = ["The line predicts " + listTex(preds) + " for $x = " + d.xs.map(String).join(", ") + "$.", "The actual value is larger at $x = " + up.join(", ") + "$: that is $" + up.length + "$ points."];
+      }
+      return {
+        q: scatterLead(d) + ask,
+        type: "number", answer: clean(ans), placeholder: kind === "residual" ? "residual" : "points",
+        hint: hint, steps: steps, chart: scatterChart(d),
+        verify: function () {
+          var rows = this.chart ? this.chart.rows : d.rows, i, cnt = 0;
+          if (rows.length !== d.n || !inRange(d, rows)) return false;
+          if (kind === "residual") return rows[k][1] - stepLine(d.m, d.b, rows[k][0]) === ans && ans !== 0;
+          /* recount from the table: a point is above when its y exceeds the stepped prediction */
+          for (i = 0; i < rows.length; i++) if (rows[i][1] > stepLine(d.m, d.b, rows[i][0])) cnt++;
+          return cnt === ans && ans >= 1 && ans < rows.length;
+        }
+      };
+    }
+  });
+
+  G.add({
+    id: "pk-scatter-slope", section: "pk-data#scatter", par: 80, timed: true,
+    make: function (r) {
+      var d = scatterData(r), kind = r.pick(["slope", "perone", "twoPoint"]), ans, ask, hint, steps;
+      /* two x values on the line, far enough apart to read: for a half-integer slope never needed here (m is whole) */
+      var a = r.int(0, d.n - 4), x1 = d.xs[a], x2 = d.xs[a + r.int(2, 3)], y1 = d.m * x1 + d.b, y2 = d.m * x2 + d.b;
+      var lead = "The scatterplot shows " + d.c.what + ". A line of fit passes through $(" + x1 + ", " + y1 + ")$ and $(" + x2 + ", " + y2 + ")$, where $x$ is " + d.c.xdesc + " and $y$ is " + d.c.ydesc + ". ";
+      var rise = y2 - y1, run = x2 - x1;
+      var work = ["The rise is $" + y2 + " - " + (y1 < 0 ? "(" + y1 + ")" : y1) + " = " + rise + "$ and the run is $" + x2 + " - " + x1 + " = " + run + "$.", "The slope is $\\frac{" + rise + "}{" + run + "} = " + d.m + "$."];
+      var xq = d.xs[r.int(0, d.n - 1)];
+      if (kind === "slope") {
+        ans = d.m;
+        ask = "What is the slope of the line?";
+        hint = "The slope is the rise over the run between the two points: the change in y divided by the change in x.";
+        steps = work;
+      } else if (kind === "perone") {
+        ans = d.m;
+        ask = "By how much does the predicted $y$ change for each one more $x$? (A decrease is a negative number.)";
+        hint = "That change per one more x is the slope. Find it from the rise and the run between the two points.";
+        steps = work.concat("So the predicted $y$ changes by $" + d.m + "$ for each one more $x$.");
+      } else {
+        ans = d.m * xq + d.b;
+        ask = "What does the line predict for " + d.c.ydesc + " when $x = " + xq + "$?";
+        hint = "Find the slope from the two points first. Then move from one of the points to the new x, adding the slope for each one more x.";
+        steps = work.concat("From $(" + x1 + ", " + y1 + ")$ to $x = " + xq + "$ is $" + (xq - x1) + "$ more in $x$, which changes $y$ by $" + d.m + " \\cdot " + (xq < x1 ? "(" + (xq - x1) + ")" : (xq - x1)) + " = " + (d.m * (xq - x1)) + "$, so $y = " + y1 + (d.m * (xq - x1) < 0 ? " - " : " + ") + Math.abs(d.m * (xq - x1)) + " = " + ans + "$.");
+      }
+      return {
+        q: lead + ask,
+        type: "number", answer: clean(ans), placeholder: kind === "twoPoint" ? d.c.yunit : "slope",
+        hint: hint, steps: steps, chart: scatterChart(d),
+        verify: function () {
+          /* the slope from the points as a fraction, then, for a prediction, by interpolating between them */
+          var s = (y2 - y1) / (x2 - x1);
+          if (x2 === x1 || s !== d.m || !inRange(d, this.chart ? this.chart.rows : d.rows, [y1, y2, d.m * xq + d.b])) return false;
+          if (kind !== "twoPoint") return s === ans;
+          return y1 + (xq - x1) * (y2 - y1) / (x2 - x1) === ans;
+        }
+      };
+    }
+  });
+
+  /* --------------------------------------------- pack B §4: samples and claims -- */
+
+  /* a sample "In a random sample of $n$ students, $k$ walk to school." */
+  var SAMPLE_CONTEXTS = [
+    { pop: "A school has", noun: "students", does: "walk to school", all: "students walk to school" },
+    { pop: "A town has", noun: "residents", does: "favor building a new park", all: "residents favor the park" },
+    { pop: "A district has", noun: "voters", does: "support the measure", all: "voters support the measure" },
+    { pop: "A gym has", noun: "members", does: "come at least three times a week", all: "members come that often" },
+    { pop: "A college has", noun: "students", does: "own a bicycle", all: "students own a bicycle" }
+  ];
+  /* sample sizes for which 100k/n is a multiple of 0.5 */
+  var SAMPLE_SIZES = [20, 25, 40, 50, 100, 200];
+  function sampleLine(c, n, k) { return "In a random sample of $" + n + "$ " + c.noun + ", $" + k + "$ " + c.does + ". "; }
+
+  G.add({
+    id: "pk-sample-percent", section: "pk-data#samples", par: 50, timed: true,
+    make: function (r) {
+      var c = r.pick(SAMPLE_CONTEXTS), n = r.pick(SAMPLE_SIZES), kind = r.pick(["percent", "percent", "count"]);
+      if (kind === "percent") {
+        var k = r.int(2, n - 2), p = 100 * k / n;
+        return {
+          q: sampleLine(c, n, k) + "What percent of the sample is that?" + exactPct(clean(p)),
+          type: "percent", answer: clean(p), placeholder: pctHolder(clean(p)),
+          hint: "A sample percent is the part over the sample size, per hundred. Which number is the part, and which is the whole sample?",
+          steps: ["The sample proportion is $\\frac{" + k + "}{" + n + "} = " + clean(k / n) + "$.", "As a percent that is $" + clean(p) + "\\%$."],
+          verify: function () {
+            /* the percent of the sample size must give back the count */
+            return Math.abs(p * n / 100 - k) < 1e-9 && k > 0 && k < n;
+          }
+        };
+      }
+      var pc = r.pick([10, 15, 20, 24, 30, 35, 36, 45, 60, 65, 72, 85]), nn = r.pick([100, 200, 400, 500]);
+      var cnt = pc * nn / 100;
+      return {
+        q: "In a random sample of $" + nn + "$ " + c.noun + ", $" + pc + "\\%$ " + c.does + ". How many of the " + c.noun + " in the sample is that?",
+        type: "number", answer: String(cnt), placeholder: "count",
+        hint: "A percent of the sample is a part of the sample. Write the percent as a decimal and multiply by the sample size.",
+        steps: ["As a decimal, $" + pc + "\\% = " + clean(pc / 100) + "$.", "The count is $" + clean(pc / 100) + " \\cdot " + nn + " = " + cnt + "$."],
+        verify: function () { return cnt * 100 === pc * nn && Number.isInteger(cnt) && cnt < nn; }
+      };
+    }
+  });
+
+  G.add({
+    id: "pk-sample-estimate", section: "pk-data#samples", par: 80, timed: true,
+    make: function (r) {
+      var c = r.pick(SAMPLE_CONTEXTS), kind = r.pick(["estimate", "estimate", "two", "larger"]);
+      if (kind === "estimate") {
+        var n = r.pick([40, 50, 80, 100, 200, 250]), f = r.int(Math.ceil(1000 / n), Math.ceil(1000 / n) + 30), N = n * f, k = r.int(3, n - 3), ans = k * f;
+        return {
+          q: c.pop + " $" + fmt(N) + "$ " + c.noun + ". " + sampleLine(c, n, k) + "Estimate how many of all the " + c.all + ".",
+          type: "number", answer: String(ans), placeholder: "count",
+          hint: "Find the proportion of the sample, then take that same proportion of the whole group. It is a proportion of the kind in Pack A.2.",
+          steps: ["The sample proportion is $\\frac{" + k + "}{" + n + "} = " + clean(k / n) + "$.", "Assume the whole group has the same proportion: $" + clean(k / n) + " \\cdot " + fmt(N) + " = " + fmt(ans) + "$."],
+          verify: function () {
+            /* cross-multiplication: k / n = ans / N */
+            return k * N === ans * n && ans > 0 && ans < N;
+          }
+        };
+      }
+      if (kind === "two") {
+        var n2 = r.pick([40, 50, 80, 100, 200]), f2 = r.int(Math.ceil(1000 / n2), Math.ceil(1000 / n2) + 30), N2 = n2 * f2, k1 = r.int(3, n2 - 8), k2 = k1 + r.int(2, 6);
+        return {
+          q: c.pop + " $" + fmt(N2) + "$ " + c.noun + ". One random sample of $" + n2 + "$ finds $" + k1 + "$ who " + c.does + ", and another random sample of $" + n2 + "$ finds $" + k2 + "$. Give the two estimates of how many of all the " + c.all + ", separated by a comma, smaller first.",
+          type: "set", answer: (k1 * f2) + "," + (k2 * f2), placeholder: "e.g. 400,900",
+          hint: "For each sample, find its proportion and take that proportion of the whole group.",
+          steps: ["The first sample gives $\\frac{" + k1 + "}{" + n2 + "} \\cdot " + fmt(N2) + " = " + fmt(k1 * f2) + "$.", "The second gives $\\frac{" + k2 + "}{" + n2 + "} \\cdot " + fmt(N2) + " = " + fmt(k2 * f2) + "$."],
+          verify: function () {
+            /* both estimates by cross-multiplying, and the smaller first */
+            var e1 = k1 * f2, e2 = k2 * f2;
+            return k1 * N2 === e1 * n2 && k2 * N2 === e2 * n2 && e1 < e2 && e1 + "," + e2 === this.answer;
+          }
+        };
+      }
+      var big = r.pick([200, 500]), small = r.pick([50, 100]), g = r.int(2, 9), N3 = 1000 * g;
+      var kb = r.int(10, big - 10), ks = Math.max(1, Math.min(small - 1, Math.round(kb * small / big) + r.pick([-3, -2, 2, 3])));
+      var ans3 = kb * N3 / big;
+      return {
+        q: c.pop + " $" + fmt(N3) + "$ " + c.noun + ". A random sample of $" + small + "$ finds $" + ks + "$ who " + c.does + ", and another random sample of $" + big + "$ finds $" + kb + "$. Use the larger sample to estimate how many of all the " + c.all + ".",
+        type: "number", answer: String(ans3), placeholder: "count",
+        hint: "Larger samples vary less, so use the sample of " + big + ". Find its proportion, then take that proportion of the whole group.",
+        steps: ["The larger sample is the one of $" + big + "$. Its proportion is $\\frac{" + kb + "}{" + big + "} = " + clean(kb / big) + "$.", "$" + clean(kb / big) + " \\cdot " + fmt(N3) + " = " + fmt(ans3) + "$."],
+        verify: function () { return kb * N3 === ans3 * big && Number.isInteger(ans3) && big > small; }
+      };
+    }
+  });
+
+  G.add({
+    id: "pk-sample-compare", section: "pk-data#samples", par: 70, timed: true,
+    make: function (r) {
+      var c = r.pick(SAMPLE_CONTEXTS), n = r.pick([20, 25, 40, 50]), k1 = r.int(2, n - 8), k2 = k1 + r.int(2, 6);
+      var p1 = 100 * k1 / n, p2 = 100 * k2 / n, ans = p2 - p1;
+      return {
+        q: "Two random samples of $" + n + "$ " + c.noun + " are taken from the same group. In the first, $" + k1 + "$ " + c.does + "; in the second, $" + k2 + "$. By how many percentage points do the two sample percents differ?",
+        type: "number", answer: clean(ans), placeholder: "percentage points",
+        hint: "Find each sample's percent on its own, then subtract the smaller from the larger.",
+        steps: ["The first sample is $\\frac{" + k1 + "}{" + n + "} = " + clean(p1) + "\\%$ and the second is $\\frac{" + k2 + "}{" + n + "} = " + clean(p2) + "\\%$.", "The difference is $" + clean(p2) + " - " + clean(p1) + " = " + clean(ans) + "$ percentage points."],
+        verify: function () {
+          /* both samples have the same size, so the gap in counts, per hundred of the sample */
+          return Math.abs((k2 - k1) * 100 / n - ans) < 1e-9 && k2 > k1 && ans > 0;
         }
       };
     }

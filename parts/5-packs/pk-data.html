@@ -3,7 +3,7 @@
 <head>
 <!--bm:head-->
 <title>Pack B. Data and Statistics — Basic Mathematics</title>
-<meta name="description" content="Mean, median, mode, range and quartiles, and how to read dot plots, histograms, box plots and two-way tables: the data skills the gate exams ask for and the book leaves out.">
+<meta name="description" content="Mean, median, mode, range and quartiles, how to read dot plots, histograms, box plots, two-way tables and scatterplots, and how to judge a sample and a claim: the data skills the gate exams ask for and the book leaves out.">
 </head>
 <body data-depth="2" data-chapter="pk-data" data-part="packs">
 <!--bm:topbar-->
@@ -20,7 +20,8 @@
         A list of numbers is hard to take in, so we replace it by a few that stand for it, or draw it.
         This pack says what the mean, the median and the quartiles are, why each one is the number it
         is, and how to read the graphs and tables the exams put in front of you without being fooled by
-        them.
+        them. It then asks the same question of pairs of measurements, which a scatterplot and a line
+        of fit summarize, and of samples, which stand in for a population too large to ask.
       </p>
 
       <div class="banner-meta" data-banner-meta></div>
@@ -39,7 +40,7 @@
         <li>No: a typical worker earns far less than $\$80{,}000$</li>
         <li>No: a typical worker earns far more than $\$80{,}000$</li>
       </ul>
-      <p class="puzzle-after">The advertisement did not lie, and still it misleads. The first section says which &ldquo;average&rdquo; it used and which one it left out. (The second section is about drawing the numbers, so that a picture can do for you what a single number cannot.)</p>
+      <p class="puzzle-after">The advertisement did not lie, and still it misleads. The first section says which &ldquo;average&rdquo; it used and which one it left out. (The second section is about drawing the numbers, so that a picture can do for you what a single number cannot. The last two ask when a few cases, a line through points or a sample of a population, can be trusted to speak for all of them.)</p>
     </div>
 
     <div class="goal">
@@ -47,7 +48,9 @@
       find the mean, median and mode of a list and say which of them an extreme value moves, find the
       range, the quartiles and the interquartile range by the course's rule, tell which of
       two lists is more spread out without computing anything, and read a dot plot, a histogram, a
-      box plot and a two-way table, saying what each one shows and what it hides.
+      box plot and a two-way table, saying what each one shows and what it hides, then use a line of fit
+      to predict and to find a residual, tell a random sample from a convenience sample, estimate a
+      population from a sample proportion, and say what a claim from a sample can and cannot show.
     </div>
 
     <section class="warmup" id="warmup">
@@ -520,6 +523,236 @@
       </div>
     </div>
 
+    <h2 id="scatter">B.3 Scatterplots and lines of fit</h2>
+    <p>
+      Some data come two at a time. Each student has a number of hours studied and a test score; each
+      winter day has a temperature and a count of the cups of hot chocolate a caf&eacute; sold. A
+      <b>scatterplot</b> draws each individual as one point, the first measurement across and the
+      second up. A dot plot has one number per individual and can only say how many; a scatterplot
+      can ask a new question, whether the two measurements move together.
+    </p>
+    <p>
+      When the points drift upward to the right, so that more of one goes with more of the other, the
+      <b>association</b> is <b>positive</b>. When they drift downward, as the price of a used car does
+      with its age, it is <b>negative</b>. When they make a shapeless cloud, there is <b>no
+      association</b>: knowing one measurement tells you nothing about the other. By eye you also look
+      for a <b>cluster</b>, a group of points set apart from the others (often two kinds of individual
+      mixed in one plot), and for an <b>outlier</b>, a single point far from the pattern. An outlier
+      is not an error to be rubbed out; it is a question to be asked about that one case.
+    </p>
+    <figure class="widget" data-widget="chart" data-kind="scatter">
+      <table>
+        <tr><th>Age of car (years)</th><th>Price (thousands of dollars)</th></tr>
+        <tr><td>1</td><td>22</td></tr>
+        <tr><td>2</td><td>20</td></tr>
+        <tr><td>3</td><td>18</td></tr>
+        <tr><td>4</td><td>17</td></tr>
+        <tr><td>5</td><td>15</td></tr>
+        <tr><td>6</td><td>19</td></tr>
+        <tr><td>7</td><td>12</td></tr>
+        <tr><td>8</td><td>10</td></tr>
+        <tr><td>9</td><td>9</td></tr>
+        <tr><td>10</td><td>7</td></tr>
+      </table>
+      <figcaption>Age and asking price of $10$ used cars. The prices fall as the cars age, except for the car at $6$ years, an outlier.</figcaption>
+    </figure>
+    <p>
+      If the points follow a roughly straight path, a line can summarize them, the way a mean
+      summarizes a list: a <b>line of fit</b> runs close to the points, with about as many above it
+      as below. Computing the best line is a method for a later course, so here the line is
+      <em>given</em>, by an equation $y = mx + b$, and your work is to use it. To make a
+      <b>prediction</b>, put the value of $x$ into the equation and read off $y$. The number $m$, the
+      <b>slope</b>, has a plain meaning: it is how much the predicted $y$ changes for <em>one more</em>
+      $x$. Given two points on the line, it is the rise over the run, $\frac{y_2 - y_1}{x_2 - x_1}$
+      (a later chapter treats slope in full; this sentence is all the pack needs).
+    </p>
+    <p>
+      A real point is seldom on the line, and the gap has a name. The <b>residual</b> of a point is
+      the actual value minus the predicted value. It is positive for a point above the line,
+      negative for a point below it, and zero for a point on it, so the order of the subtraction
+      matters. A line that fits well has small residuals of both signs. Finally, a line of fit was
+      drawn through data with $x$ between two limits, and it knows nothing outside them. Predicting inside the
+      limits is reasonable. Going beyond them, <b>extrapolation</b>, is a guess, because nothing in
+      the data says the pattern continues: a line that rises with study time would promise a score of
+      $155$ for twenty hours.
+    </p>
+
+    <div class="worked">
+      <h3><span class="num">Example 6.</span> Using a line of fit</h3>
+      <div class="body">
+        <figure class="widget" data-widget="chart" data-kind="scatter">
+          <table>
+            <tr><th>Hours studied</th><th>Test score</th></tr>
+            <tr><td>1</td><td>62</td></tr>
+            <tr><td>2</td><td>64</td></tr>
+            <tr><td>3</td><td>72</td></tr>
+            <tr><td>4</td><td>73</td></tr>
+            <tr><td>5</td><td>82</td></tr>
+            <tr><td>6</td><td>84</td></tr>
+            <tr><td>7</td><td>91</td></tr>
+            <tr><td>8</td><td>94</td></tr>
+          </table>
+          <figcaption>Hours studied and test score for $8$ students. A line of fit for them is $y = 5x + 55$.</figcaption>
+        </figure>
+        <p>
+          Use the line $y = 5x + 55$. Predict the score for $4.5$ hours, say what the slope means, find
+          the residual of the student who studied $4$ hours, and count the points above the line.
+        </p>
+        <ol class="steps">
+          <li>Prediction: $5 \cdot 4.5 + 55 = 22.5 + 55 = 77.5$. The $4.5$ lies between the smallest
+            $x$, $1$, and the largest, $8$, so this is a prediction inside the data.</li>
+          <li>Slope: the line passes through $(2, 65)$ and $(6, 85)$, and
+            $\frac{85 - 65}{6 - 2} = 5$. Each extra hour of study goes with $5$ more points predicted.</li>
+          <li>Residual at $4$ hours: the student scored $73$, the line predicts $5 \cdot 4 + 55 = 75$,
+            and $73 - 75 = -2$. The point lies $2$ below the line.</li>
+          <li>Predicted scores for $x = 1, \dots, 8$ are $60, 65, 70, 75, 80, 85, 90, 95$, and the
+            scores $62, 64, 72, 73, 82, 84, 91, 94$ are above at $x = 1, 3, 5, 7$: $4$ points.</li>
+          <li>Check: the residuals are $+2, -1, +2, -2, +2, -1, +1, -1$, four positive and four
+            negative, which is what &ldquo;about as many above as below&rdquo; looks like.
+            $\blacksquare$</li>
+        </ol>
+        <p class="note">
+          At $20$ hours the line says $155$, which no test allows. Far outside the data, the line is
+          a guess, and a poor one.
+        </p>
+      </div>
+    </div>
+
+    <div class="ex" data-inline id="t7" data-type="number" data-answer="3" data-placeholder="residual"
+         data-hint="A residual is the actual value minus the predicted value. First find what the line predicts."
+         data-hint2="The line predicts 3 times 5 plus 20 for this student.">
+      <div class="ex-q">
+        <p>
+          A line of fit is $y = 3x + 20$. A student with $x = 5$ has $y = 38$. What is the residual of
+          that student?
+        </p>
+      </div>
+      <div class="ex-solution">
+        <p class="answer">Answer: $3$</p>
+        <p>
+          The line predicts $3 \cdot 5 + 20 = 35$. Actual minus predicted: $38 - 35 = 3$, so the
+          point lies $3$ above the line.
+        </p>
+      </div>
+    </div>
+
+    <div class="ex" data-inline id="t8" data-type="number" data-answer="2.5" data-placeholder="slope"
+         data-hint="The slope is the rise over the run between the two points: the change in y divided by the change in x."
+         data-hint2="The rise is 22 minus 12, and the run is 5 minus 1.">
+      <div class="ex-q">
+        <p>
+          A line of fit passes through $(1, 12)$ and $(5, 22)$. By how much does the predicted $y$
+          increase for each one more $x$?
+        </p>
+      </div>
+      <div class="ex-solution">
+        <p class="answer">Answer: $2.5$</p>
+        <p>
+          The rise is $22 - 12 = 10$ and the run is $5 - 1 = 4$, so the slope is
+          $\frac{10}{4} = 2.5$. Check: four steps of $2.5$ make $10$ ✓.
+        </p>
+      </div>
+    </div>
+
+    <h2 id="samples">B.4 Samples and claims</h2>
+    <p>
+      Nobody asks every student in a school, or every voter in a state. The whole group a question
+      is about is the <b>population</b>; the part actually asked is the <b>sample</b>. A sample is
+      worth only what its choice is worth, and that is the whole difficulty. Suppose you want to
+      know whether students like the new cafeteria menu, and you ask the thirty students at the
+      nearest table. They are easy to reach, and for that very reason they may not be like the rest:
+      the same table might hold the football team.
+    </p>
+    <p>
+      The fair way is a <b>random sample</b>, in which every member of the population is equally
+      likely to be chosen, as when names are drawn from a hat. Then the way you chose
+      does not favor one opinion over another. A <b>convenience sample</b>, the people nearest to hand,
+      has a <b>bias</b> built in, and a bigger one does not mend it: three hundred members of the
+      chess club are still the chess club.
+    </p>
+    <p>
+      From a random sample you may estimate the population by <b>proportional reasoning</b>, the
+      method of <a href="pk-percent.html#proportions">Pack A.2</a>. If $18$ of $80$ students sampled
+      walk to school, the <b>sample proportion</b> is $\frac{18}{80} = 22.5\%$, and we expect about
+      the same proportion of the whole school to walk. In a school of $1{,}200$ that is $0.225
+      \cdot 1{,}200$ students. It is an estimate, not a count, and the next point says why.
+    </p>
+    <p>
+      Two random samples from the same population differ. Say $40\%$ of a town likes a new park,
+      which we could only know by asking everyone. One random sample of $20$ people might give $6$
+      yes answers, $30\%$, and another $11$, $55\%$. Neither sample is wrong; each is a different
+      handful. But the size of the sample matters: two random samples of $200$ might give $78$ and
+      $84$ yes answers, $39\%$ and $42\%$, much closer to each other and to the truth. <b>Larger
+      samples vary less</b>. You will meet formulas for how much, but the habit worth having now is
+      to ask how big the sample was before believing the percent.
+    </p>
+    <p>
+      That is also what limits a claim. A sample speaks for the population it was drawn from and for
+      no other: a random sample of one school's students tells us little about another school's. And a
+      pattern in a sample, even a strong one, is an association and not a proof of <em>cause</em>.
+      Students who study more may score higher, but a survey cannot tell us that studying is the
+      reason, since something else, such as how much sleep they get, might be behind both.
+      Only an experiment that assigns the treatment at random can speak of cause.
+    </p>
+
+    <div class="worked">
+      <h3><span class="num">Example 7.</span> Estimating a population from a sample</h3>
+      <div class="body">
+        <p>
+          A school has $1{,}200$ students. A random sample of $80$ of them is asked how they get to
+          school, and $18$ say they walk. Estimate how many students walk. A second random sample of
+          $80$ finds $22$ walkers; by how many percentage points do the two sample percents differ?
+        </p>
+        <ol class="steps">
+          <li>The first sample proportion is $\frac{18}{80} = 0.225 = 22.5\%$.</li>
+          <li>Assume the school has the same proportion: $0.225 \cdot 1{,}200 = 270$ walkers.</li>
+          <li>As a proportion, $\frac{18}{80} = \frac{x}{1{,}200}$. The $80$ was multiplied by $15$ to
+            make $1{,}200$, so $x = 18 \cdot 15 = 270$ ✓.</li>
+          <li>The second sample gives $\frac{22}{80} = 27.5\%$, which would estimate $330$ walkers.
+            The two percents differ by $27.5 - 22.5 = 5$ percentage points.</li>
+          <li>Check: $270$ and $330$ differ by $60$, which is $5\%$ of $1{,}200$ ✓. $\blacksquare$</li>
+        </ol>
+        <p class="note">
+          Two fair samples, two different estimates. The truth may well lie near both, which
+          is why one sample is never quoted as an exact count.
+        </p>
+      </div>
+    </div>
+
+    <div class="ex" data-inline id="t9" data-type="number" data-answer="224" data-placeholder="students"
+         data-hint="Find the proportion of the sample, then take that proportion of the whole population."
+         data-hint2="The sample proportion is 14 out of 50, which is 0.28.">
+      <div class="ex-q">
+        <p>
+          In a random sample of $50$ students from a school of $800$, $14$ prefer the new menu. Estimate
+          how many of the $800$ students prefer it.
+        </p>
+      </div>
+      <div class="ex-solution">
+        <p class="answer">Answer: $224$ students</p>
+        <p>
+          The sample proportion is $\frac{14}{50} = 0.28$, and $0.28 \cdot 800 = 224$. Check:
+          $800 \div 50 = 16$, and $14 \cdot 16 = 224$ ✓.
+        </p>
+      </div>
+    </div>
+
+    <div class="ex" data-inline id="t10" data-type="percent" data-answer="65" data-placeholder="e.g. 40%"
+         data-hint="A sample percent is the part over the sample size, per hundred."
+         data-hint2="Divide 26 by 40, then write the result as a percent.">
+      <div class="ex-q">
+        <p>
+          In a random sample of $40$ voters, $26$ favor a measure. What percent of the sample favors it?
+        </p>
+      </div>
+      <div class="ex-solution">
+        <p class="answer">Answer: $65\%$</p>
+        <p>
+          $\frac{26}{40} = 0.65$, which is $65\%$. Check: $65\%$ of $40$ is $0.65 \cdot 40 = 26$ ✓.
+        </p>
+      </div>
+    </div>
+
     <!-- ====================================================== practice ==== -->
     <section class="practice" id="practice">
       <div class="practice-head">
@@ -530,7 +763,9 @@
         Answer each with a single number, or with two numbers separated by a comma where the
         question asks for two. Quartiles follow the course's rule: the middle value is left
         out of both halves when the count is odd. When a question asks you to compare two lists, the
-        answer is the number that settles the comparison.
+        answer is the number that settles the comparison. A line of fit is always given, and a
+        residual is the actual value minus the predicted one. Give a percent as a number, with or
+        without the sign.
       </p>
 
       <div class="ex" id="e1" data-section="center" data-type="number" data-answer="80" data-placeholder="mean"
@@ -840,7 +1075,219 @@
           </p>
         </div>
       </div>
-    </section>
+
+      <div class="ex" id="e15" data-section="scatter" data-type="number" data-answer="3" data-placeholder="points"
+           data-hint="A point above the line has an actual value larger than the line predicts. Work out what the line predicts for each temperature."
+           data-hint2="The line predicts 130 cups at 10 degrees, 115 at 15, and so on for the rest. Compare each with the cups actually sold.">
+        <div class="ex-q">
+          <figure class="widget" data-widget="chart" data-kind="scatter">
+            <table>
+              <tr><th>Temperature (&deg;F)</th><th>Cups sold</th></tr>
+              <tr><td>10</td><td>134</td></tr>
+              <tr><td>15</td><td>112</td></tr>
+              <tr><td>20</td><td>105</td></tr>
+              <tr><td>25</td><td>83</td></tr>
+              <tr><td>30</td><td>73</td></tr>
+              <tr><td>35</td><td>51</td></tr>
+              <tr><td>40</td><td>38</td></tr>
+              <tr><td>45</td><td>22</td></tr>
+            </table>
+            <figcaption>Temperature and cups of hot chocolate sold on $8$ days.</figcaption>
+          </figure>
+          <p>The scatterplot shows the temperature and the cups of hot chocolate sold on $8$ days. A line of fit is $y = -3x + 160$. How many of the $8$ points lie above the line?</p></div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $3$ points</p>
+          <p>
+            The line predicts $130, 115, 100, 85, 70, 55, 40, 25$ cups. The cups sold were $134, 112, 105, 83, 73, 51, 38, 22$. The actual number is larger on the days at $10$, $20$ and $30$ degrees: $3$ points. The other five lie below the line.
+          </p>
+        </div>
+      </div>
+      <div class="ex" id="e16" data-section="scatter" data-type="number" data-answer="80" data-placeholder="points"
+           data-hint="Put the number of hours into the equation of the line in place of x."
+           data-hint2="Multiply 4 by 7, then add 52.">
+        <div class="ex-q"><p>A line of fit for the test score $y$ of a student who studied $x$ hours is $y = 4x + 52$. What score does the line predict for a student who studied $7$ hours?</p></div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $80$ points</p>
+          <p>
+            $4 \cdot 7 + 52 = 28 + 52 = 80$. Check: the line predicts $52$ for no study, and each of $7$ hours adds $4$: $52 + 28 = 80$ ✓.
+          </p>
+        </div>
+      </div>
+      <div class="ex" id="e17" data-section="scatter" data-type="number" data-answer="4" data-placeholder="points per hour"
+           data-hint="The slope is the rise over the run between the two points."
+           data-hint2="The rise is 76 minus 52, and the run is 10 minus 4.">
+        <div class="ex-q"><p>A line of fit for test scores against hours studied passes through $(4, 52)$ and $(10, 76)$. By how many points does the predicted score rise for each one more hour of study?</p></div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $4$ points per hour</p>
+          <p>
+            The rise is $76 - 52 = 24$ and the run is $10 - 4 = 6$, so the slope is $\frac{24}{6} = 4$. Check: from $x = 4$ to $x = 10$ is six steps of $4$, which is $24$ ✓.
+          </p>
+        </div>
+      </div>
+      <div class="ex" id="e18" data-section="scatter" data-type="number" data-answer="5" data-placeholder="points"
+           data-hint="A point is above the line when the plant is taller than the line predicts for its week. Work out the prediction for each week."
+           data-hint2="The line predicts 15 cm in week 1, 18 in week 2, and so on for the rest. Compare each with the height in the table.">
+        <div class="ex-q">
+          <figure class="widget" data-widget="chart" data-kind="scatter">
+            <table>
+              <tr><th>Week</th><th>Height (cm)</th></tr>
+              <tr><td>1</td><td>16</td></tr>
+              <tr><td>2</td><td>17</td></tr>
+              <tr><td>3</td><td>23</td></tr>
+              <tr><td>4</td><td>25</td></tr>
+              <tr><td>5</td><td>26</td></tr>
+              <tr><td>6</td><td>31</td></tr>
+              <tr><td>7</td><td>32</td></tr>
+              <tr><td>8</td><td>38</td></tr>
+              <tr><td>9</td><td>38</td></tr>
+            </table>
+            <figcaption>Height of a plant at the end of each of $9$ weeks.</figcaption>
+          </figure>
+          <p>The scatterplot shows the height of a plant measured each week for $9$ weeks. A line of fit is $y = 3x + 12$. How many of the $9$ points lie above the line?</p></div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $5$ points</p>
+          <p>
+            The line predicts $15, 18, 21, 24, 27, 30, 33, 36, 39$. The heights are $16, 17, 23, 25, 26, 31, 32, 38, 38$. The plant is taller than predicted in weeks $1, 3, 4, 6$ and $8$: $5$ points. Check: the residuals are $+1, -1, +2, +1, -1, +1, -1, +2, -1$, five positive and four negative ✓.
+          </p>
+        </div>
+      </div>
+      <div class="ex" id="e19" data-section="scatter" data-type="number" data-answer="-1" data-placeholder="residual"
+           data-hint="A residual is actual minus predicted. Find what the line predicts for week 7, then subtract it from the plant's height in week 7."
+           data-hint2="Find 3 times 7, then add 12.">
+        <div class="ex-q">
+          <figure class="widget" data-widget="chart" data-kind="scatter">
+            <table>
+              <tr><th>Week</th><th>Height (cm)</th></tr>
+              <tr><td>1</td><td>16</td></tr>
+              <tr><td>2</td><td>17</td></tr>
+              <tr><td>3</td><td>23</td></tr>
+              <tr><td>4</td><td>25</td></tr>
+              <tr><td>5</td><td>26</td></tr>
+              <tr><td>6</td><td>31</td></tr>
+              <tr><td>7</td><td>32</td></tr>
+              <tr><td>8</td><td>38</td></tr>
+              <tr><td>9</td><td>38</td></tr>
+            </table>
+            <figcaption>Height of a plant at the end of each of $9$ weeks.</figcaption>
+          </figure>
+          <p>For the same plant data, with the line $y = 3x + 12$, what is the residual of the week $7$ point? Take actual minus predicted.</p></div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $-1$</p>
+          <p>
+            The line predicts $3 \cdot 7 + 12 = 33$. The plant measured $32$. Actual minus predicted is $32 - 33 = -1$, so the point lies $1$ below the line.
+          </p>
+        </div>
+      </div>
+      <div class="ex" id="e20" data-section="scatter" data-type="number" data-answer="11" data-placeholder="weeks"
+           data-hint="Set the line's y equal to 45 and solve for x with the two moves for an equation."
+           data-hint2="Subtract 12 from both sides, then divide both sides by 3.">
+        <div class="ex-q"><p>A line of fit for a plant's height in centimeters after $x$ weeks is $y = 3x + 12$. After how many weeks does the line predict a height of $45$ centimeters?</p></div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $11$ weeks</p>
+          <p>
+            $3x + 12 = 45$, so $3x = 33$ and $x = 11$. Check: $3 \cdot 11 + 12 = 45$ ✓. This is a prediction beyond a plant measured for $9$ weeks, so treat it as a guess.
+          </p>
+        </div>
+      </div>
+      <div class="ex" id="e21" data-section="scatter" data-type="fraction" data-answer="3/4" data-placeholder="e.g. 1/2"
+           data-hint="The slope is the change in y over the change in x between the two points. Give it as a fraction in lowest terms."
+           data-hint2="The rise is 8 minus 5, and the run is 6 minus 2.">
+        <div class="ex-q"><p>A line of fit passes through $(2, 5)$ and $(6, 8)$. What is its slope, as a fraction in lowest terms?</p></div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $\dfrac34$</p>
+          <p>
+            The rise is $8 - 5 = 3$ and the run is $6 - 2 = 4$, so the slope is $\frac34$: three more units of $y$ for every four more of $x$. Check: from $x = 2$ to $x = 6$ is $4$ steps, and $4 \cdot \frac34 = 3$ ✓.
+          </p>
+        </div>
+      </div>
+      <div class="ex" id="e22" data-section="scatter" data-type="set" data-answer="13,27" data-placeholder="e.g. 4,9"
+           data-hint="Replace x in the equation by each value in turn and give the two predictions in the order of the x values."
+           data-hint2="Do 2 times 3 plus 7 first, then 2 times 10 plus 7.">
+        <div class="ex-q"><p>A line of fit is $y = 2x + 7$. Give the values it predicts for $x = 3$ and for $x = 10$, separated by a comma.</p></div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $13$ and $27$</p>
+          <p>
+            $2 \cdot 3 + 7 = 13$ and $2 \cdot 10 + 7 = 27$. Check: $7$ more in $x$ adds $2 \cdot 7 = 14$ to the prediction, and $13 + 14 = 27$ ✓.
+          </p>
+        </div>
+      </div>
+      <div class="ex" id="e23" data-section="samples" data-type="percent" data-answer="85" data-placeholder="e.g. 40%"
+           data-hint="A sample percent is the part of the sample over the whole sample, per hundred."
+           data-hint2="Divide 17 by 20, then write the result as a percent.">
+        <div class="ex-q"><p>In a random sample of $20$ students, $17$ say they own a bicycle. What percent of the sample owns a bicycle?</p></div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $85\%$</p>
+          <p>
+            $\frac{17}{20} = 0.85$, which is $85\%$. Check: $85\%$ of $20$ is $0.85 \cdot 20 = 17$ ✓.
+          </p>
+        </div>
+      </div>
+      <div class="ex" id="e24" data-section="samples" data-type="number" data-answer="1800" data-placeholder="residents"
+           data-hint="Find the proportion of the sample that favors the park, then take that proportion of the whole town."
+           data-hint2="The sample proportion is 24 out of 60, which is 0.4.">
+        <div class="ex-q"><p>A town has $4{,}500$ residents. In a random sample of $60$ residents, $24$ favor building a new park. Estimate how many of the town's residents favor it.</p></div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $1{,}800$ residents</p>
+          <p>
+            The sample proportion is $\frac{24}{60} = 0.4$, and $0.4 \cdot 4{,}500 = 1{,}800$. Check: $4{,}500 \div 60 = 75$, and $24 \cdot 75 = 1{,}800$ ✓.
+          </p>
+        </div>
+      </div>
+      <div class="ex" id="e25" data-section="samples" data-type="number" data-answer="90" data-placeholder="shoppers"
+           data-hint="A percent of the sample is a part of the sample. Change the percent to a decimal and multiply by the sample size."
+           data-hint2="Thirty-six percent is 0.36.">
+        <div class="ex-q"><p>In a random sample of $250$ shoppers, $36\%$ paid by card. How many of the shoppers in the sample paid by card?</p></div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $90$ shoppers</p>
+          <p>
+            $0.36 \cdot 250 = 90$. Check: $\frac{90}{250} = 0.36$ ✓.
+          </p>
+        </div>
+      </div>
+      <div class="ex" id="e26" data-section="samples" data-type="number" data-answer="17.5" data-placeholder="percentage points"
+           data-hint="Find each sample's percent separately, then subtract the smaller from the larger."
+           data-hint2="Find 14 out of 40 and 21 out of 40 as percents.">
+        <div class="ex-q"><p>Two random samples of $40$ students are asked about the school lunch. In the first, $14$ like it; in the second, $21$ like it. By how many percentage points do the two sample percents differ?</p></div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $17.5$ percentage points</p>
+          <p>
+            The first sample gives $\frac{14}{40} = 35\%$ and the second $\frac{21}{40} = 52.5\%$. The difference is $52.5 - 35 = 17.5$. Samples this small can differ a lot without either being wrong.
+          </p>
+        </div>
+      </div>
+      <div class="ex" id="e27" data-section="samples" data-type="percent" data-answer="80" data-placeholder="e.g. 40%"
+           data-hint="First find what percent of the students asked said math. Whether that percent is a fair picture of the whole school is a separate question."
+           data-hint2="Divide 24 by 30, then write the result as a percent.">
+        <div class="ex-q"><p>A student wants to know what percent of her school likes math best, so she asks the $30$ members of the math club, and $24$ say math. What percent of this sample said math?</p></div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $80\%$</p>
+          <p>
+            $\frac{24}{30} = 0.8$, which is $80\%$. But the math club is a convenience sample, biased toward math: the $80\%$ describes the club and says little about the school.
+          </p>
+        </div>
+      </div>
+      <div class="ex" id="e28" data-section="samples" data-type="number" data-answer="3360" data-placeholder="residents"
+           data-hint="Use the larger sample, since larger samples vary less. Find its proportion, then take that proportion of the town."
+           data-hint2="The larger sample is the one of 500 people: 140 out of 500 is 0.28.">
+        <div class="ex-q"><p>A town has $12{,}000$ residents. A random sample of $100$ finds $30$ who ride the bus, and another random sample of $500$ finds $140$. Use the larger sample to estimate how many of the town's residents ride the bus.</p></div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $3{,}360$ residents</p>
+          <p>
+            The larger sample gives $\frac{140}{500} = 0.28$, and $0.28 \cdot 12{,}000 = 3{,}360$. The smaller sample would have said $0.30 \cdot 12{,}000 = 3{,}600$; the larger one is the one to trust more. Check: $12{,}000 \div 500 = 24$ and $140 \cdot 24 = 3{,}360$ ✓.
+          </p>
+        </div>
+      </div>
+      <div class="ex" id="e29" data-section="samples" data-type="set" data-answer="480,600" data-placeholder="e.g. 400,900"
+           data-hint="For each sample, find its proportion and take that proportion of the $2{,}000$ students."
+           data-hint2="The proportions are 12 out of 50 and 15 out of 50.">
+        <div class="ex-q"><p>A school has $2{,}000$ students. One random sample of $50$ finds $12$ who bike to school, and another random sample of $50$ finds $15$. Give the two estimates of how many of the $2{,}000$ bike, separated by a comma.</p></div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $480$ and $600$</p>
+          <p>
+            $\frac{12}{50} \cdot 2{,}000 = 0.24 \cdot 2{,}000 = 480$ and $\frac{15}{50} \cdot 2{,}000 = 0.3 \cdot 2{,}000 = 600$. Check: $2{,}000 \div 50 = 40$, and $12 \cdot 40 = 480$, $15 \cdot 40 = 600$ ✓. Two fair samples, two estimates.
+          </p>
+        </div>
+      </div>    </section>
 
     <div class="recap">
       <h2>Recap</h2>
@@ -874,6 +1321,18 @@
           values, however long it looks. It shows no counts and no mode.</li>
         <li>In a two-way table, the words after &ldquo;of&rdquo; name the row or column whose total goes
           underneath. The same entry gives different fractions of different groups.</li>
+        <li>A scatterplot shows two measurements for each individual. Points drifting up to the right
+          are positively associated, down to the right negatively, and a shapeless cloud has no
+          association; look for clusters and outliers by eye.</li>
+        <li>A line of fit $y = mx + b$ summarizes a straight-looking pattern. Put $x$ in to predict.
+          The slope $m$ is the change in predicted $y$ for one more $x$, the rise over the run between
+          two points on the line. A residual is actual minus predicted, positive above the line.
+          Beyond the range of the data the line is a guess.</li>
+        <li>A random sample gives every member of the population the same chance, and a convenience
+          sample is biased whatever its size. An estimate of the population is the sample proportion
+          times the population, by proportional reasoning.</li>
+        <li>Two random samples differ, and larger samples vary less. A sample speaks only for its own
+          population, and an association in it is not a proof of cause.</li>
       </ul>
     </div>
 
