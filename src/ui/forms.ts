@@ -151,8 +151,9 @@ export function refresh(): void {
   if (!panel) return;
   const { form, xp, hi, wo, part } = now();
   maybeEvolve(hi, wo);
-  /* until the flash swaps it, the view keeps the form shown before the evolution */
-  const shownN = seq && !seq.swapped ? seq.from : seq && seq.step !== "done" ? seq.hi : wo;
+  /* until the flash swaps it, the view keeps the form shown before the evolution; from the
+     swap to Done it shows the new form, whatever is worn, so the caption and the figure agree */
+  const shownN = seq ? (seq.swapped ? seq.hi : seq.from) : wo;
   const nx = nextInfo(form, xp);
   const cur = stageOf(wo);
   panel.setAttribute("data-part", part);
