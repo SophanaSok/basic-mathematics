@@ -20,7 +20,7 @@ describe("a Part beside the course", () => {
 
   it("holds the real Part V, pack A, out of courseChapters", () => {
     const C = course() as any;
-    expect(C.chapters.length).toBe(19);
+    expect(C.chapters.length).toBe(20);
     expect(C.courseChapters.length).toBe(17);
     expect(C.courseChapters.map((c: any) => c.id)).not.toContain("pk-percent");
     expect(C.chapterById("pk-percent").part.beside).toBe(true);
