@@ -46,8 +46,8 @@ export type StoreChange =
   | ({ type: "opened"; solved: boolean; tries: number; ex: unknown } & ExerciseChange)
   /** a clue of the help ladder was opened */
   | ({ type: "ladder"; rung: number } & ExerciseChange)
-  /** an exercise was solved for the first time */
-  | { type: "solved"; chapter: ChapterId; key: ExerciseKey; inline: boolean }
+  /** an exercise was marked correct; `fresh` is true on its first solve, false on a re-check */
+  | { type: "solved"; chapter: ChapterId; key: ExerciseKey; inline: boolean; fresh?: boolean }
   /** XP was added to today (BMActivity.add); bonus and mult when the combo added a share */
   | { type: "xp"; xp: number; why: string; goalMet: boolean; bonus?: number; mult?: number }
   /** every store was emptied */

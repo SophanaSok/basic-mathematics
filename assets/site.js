@@ -1066,7 +1066,9 @@
       }
 
       /* `note` is the line after the tick on a fresh right answer (noteLine), none on a restore */
-      function markCorrect(fromStorage, note) {
+      /* `fresh` is true on the first solve; a re-check of a solved card still paints and
+         announces but tells the bus it is not new (the game layer counts only fresh ones) */
+      function markCorrect(fromStorage, note, fresh) {
         ex.setAttribute("data-state", "correct");
         var result = resultOf(Attempts.get(chapterId, key));
         if (result) ex.setAttribute("data-result", result);
@@ -1084,7 +1086,7 @@
           updateScore();
           if (total && before < total && solvedCount() >= total) chapterDone(chapter, true);
         }
-        if (!fromStorage) Store.emit({ type: "solved", chapter: chapterId, key: key, inline: inline });
+        if (!fromStorage) Store.emit({ type: "solved", chapter: chapterId, key: key, inline: inline, fresh: !!fresh });
       }
 
       /* what the reader has put in: { given } or { empty: a nudge to finish answering } */
@@ -1210,7 +1212,8 @@
         if (!ok) misses++;
         var level = ok ? 0 : misses === 1 && hint ? 1 : misses === 2 && hint2 ? 2 : 0;
         /* only the road to the first correct answer is recorded; re-solving changes nothing */
-        if (!solvedBefore()) {
+        var fresh = !solvedBefore();
+        if (fresh) {
           var rec = Attempts.update(chapterId, key, function (a) { Road.check(a, ok, level, inline, section); });
           Store.emit({
             type: "attempt", chapter: chapterId, key: key, section: section, inline: inline,
@@ -1232,7 +1235,7 @@
         }
         if (ok) {
           if (ladder) ladder.afterRight();
-          markCorrect(false, noteLine(v));
+          markCorrect(false, noteLine(v), fresh);
         } else {
           /* drop and re-set the state so the shake replays on every miss */
           ex.removeAttribute("data-state");

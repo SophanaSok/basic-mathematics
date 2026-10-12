@@ -90,6 +90,15 @@
     var m = Math.floor(s / 60), r = s % 60;
     return m + ":" + (r < 10 ? "0" : "") + r;
   }
+  /* a clean run's time in milliseconds, as m:ss.t (tenths, so 4.1 s reads faster than 4.9 s) */
+  function msText(ms) {
+    var t = Math.round(Math.max(0, Number(ms) || 0) / 100), s = Math.floor(t / 10) % 60, m = Math.floor(t / 600);
+    return m + ":" + (s < 10 ? "0" : "") + s + "." + (t % 10);
+  }
+  /* the ms of a stored fastest clean run, { ms, day }, or 0 when it is none (src/sync/merge.ts cleanOf) */
+  function cleanMs(c) {
+    return c && typeof c === "object" && !Array.isArray(c) && typeof c.ms === "number" && isFinite(c.ms) && c.ms > 0 ? c.ms : 0;
+  }
   function root() { return Site.rootPrefix(); }
 
   function prefs() {
@@ -404,7 +413,7 @@
     run = {
       v: 1, id: t0.toString(36) + "-" + plan.seed.toString(36), calm: calm(),
       mode: mode, boss: mode === "boss" ? opt.boss : null, section: mode === "repair" ? opt.section : null,
-      day: today(), tempo: plan.tempo, seed: plan.seed, started: t0,
+      day: today(), tempo: plan.tempo, seed: plan.seed, started: t0, pointer: 0,
       hearts: plan.heartsOn ? HEARTS : null, max: HEARTS, score: 0, streak: 0, bestStreak: 0,
       qs: plan.qs, i: 0, ans: [], cur: freshCur(), done: false, paid: false, ended: null
     };
@@ -531,8 +540,13 @@
   /* no heart at stake on this question: a shaky or hand-picked section, Untimed, calm */
   function heartFree() { return run.hearts === null || !!q().hf; }
 
+  /* entry.el: the answer's elapsed time in whole milliseconds (the clock's seconds, capped
+     at the timeout), what a clean run's time is summed from */
   function record(entry) {
     var cur = q();
+    entry.el = Math.max(0, Math.round(Number(entry.el) || 0));
+    /* the clock was stopped (a pause, the tab hidden) after the question was read */
+    if (run.cur.stopped) entry.stopped = 1;
     entry.section = cur.sec;
     entry.due = cur.due;
     entry.timed = cur.timed;
@@ -573,7 +587,7 @@
         var p = points(el);
         if (!p.late) { run.streak++; run.bestStreak = Math.max(run.bestStreak, run.streak); }
         run.score += p.pts;
-        record({ first: true, retry: false, pass: false, timeout: false, miss: false, late: p.late, pts: p.pts });
+        record({ first: true, retry: false, pass: false, timeout: false, miss: false, late: p.late, pts: p.pts, el: run.cur.el * 1000 });
         run.cur.phase = "done";
         sfx("correct-first");
       } else {
@@ -581,7 +595,7 @@
         var lost = loseHeart();
         run.cur.phase = "retry";
         run.cur.lost = lost;
-        record({ first: false, retry: false, pass: false, timeout: false, miss: true, lost: lost, late: false, pts: 0 });
+        record({ first: false, retry: false, pass: false, timeout: false, miss: true, lost: lost, late: false, pts: 0, el: run.cur.el * 1000 });
         sfx("miss");
         if (lost) { sfx("heart-lost"); view.justLost = true; }
       }
@@ -608,7 +622,7 @@
       stopClock();
       run.cur.el = Math.min(el, 2 * q().par);
       run.streak = 0;
-      record({ first: false, retry: false, pass: true, timeout: false, miss: false, late: false, pts: 0 });
+      record({ first: false, retry: false, pass: true, timeout: false, miss: false, late: false, pts: 0, el: run.cur.el * 1000 });
       if (heartFree()) phase = "retry";
     } else if (run.cur.phase === "retry") {
       run.ans[run.i].gaveUp = true;
@@ -624,7 +638,7 @@
     stopClock();
     run.cur.el = 2 * q().par;
     run.streak = 0;
-    record({ first: false, retry: false, pass: false, timeout: true, miss: false, late: false, pts: 0 });
+    record({ first: false, retry: false, pass: false, timeout: true, miss: false, late: false, pts: 0, el: run.cur.el * 1000 });
     run.cur.phase = "done";
     sfx("timeout");
     saveRun(false);
@@ -648,7 +662,7 @@
   function pause(on) {
     if (!run || run.done || screen !== "run") return;
     if (on === run.cur.paused) return;
-    if (on) { stopClock(); run.cur.paused = true; }
+    if (on) { stopClock(); run.cur.paused = true; if (run.cur.phase === "ask") run.cur.stopped = 1; }
     else run.cur.paused = false;
     saveRun(true);
     paintPause();
@@ -680,7 +694,8 @@
 
   function buildResult(r, reason) {
     var answers = r.ans.filter(Boolean).map(function (a) {
-      return { section: a.section, first: !!a.first, retry: !!a.retry, pass: !!a.pass, timeout: !!a.timeout, late: !!a.late, due: !!a.due, hf: !!a.hf };
+      return { section: a.section, first: !!a.first, retry: !!a.retry, pass: !!a.pass, timeout: !!a.timeout, late: !!a.late, due: !!a.due, hf: !!a.hf,
+        el: Math.max(0, Math.round(Number(a.el) || 0)), timed: !!a.timed };
     });
     var finished = reason === "complete";
     var firsts = answers.filter(function (a) { return a.first; }).length;
@@ -694,12 +709,21 @@
     var ranked = TEMPO[r.tempo] > 0 && r.hearts !== null;
     var medal = 0;
     if (r.mode === "boss" && finished && ranked && r.hearts > 0) medal = r.hearts >= HEARTS ? 3 : 2;
+    /* a clean run: ranked, played to the end (every planned question answered), every
+       answer right the first time and every question on the clock (a soft question has
+       none), the clock never stopped on a question already read (a pause, the tab hidden);
+       its time is the answers' elapsed milliseconds summed. An answer saved before answers
+       carried their time (no `el`) makes it not clean. */
+    var given = r.ans.filter(Boolean), ms = 0;
+    var isClean = ranked && finished && given.length > 0 && given.length === r.qs.length &&
+      given.every(function (a) { ms += Math.max(0, Math.round(Number(a.el) || 0)); return a.first && a.timed && !a.skipped && !a.stopped && typeof a.el === "number"; });
     return {
       mode: r.mode, boss: r.boss || undefined, section: r.section || undefined,
       answers: answers, hearts: r.hearts, maxHearts: r.max, score: r.score, day: r.day,
       tempo: r.tempo, ranked: ranked, timed: TEMPO[r.tempo] > 0 && r.mode !== "repair",
       finished: finished, ended: reason, n: answers.length, planned: r.qs.length,
       firstTry: firsts, bestStreak: r.bestStreak || 0, medal: medal,
+      clean: isClean && ms > 0 ? { ms: ms } : null,
       /* the game layer's rule, kept here for when it is absent: played to the end, every
          answer right, at least four in five of them first time */
       repaired: r.mode === "repair" && finished && answers.length > 0 && answers.length >= r.qs.length &&
@@ -722,6 +746,9 @@
     r.paid = true;
     r.ended = reason;
     r.result = result;
+    /* no pointer used while the run was on screen (run.pointer, kept with the run so a
+       reload does not forget it; 0 from the start, absent on runs from before) */
+    if (r.pointer === 0) result.keys = true;
     all.paid = ledger.concat([id]).slice(-PAID_KEEP);
     all.arena = reason === "banked" ? null : r;
     Store.write(RUN_KEY, all, true);
@@ -742,6 +769,8 @@
         result.paid = back.parts || null;
         result.reduced = back.reduced || [];
         result.finishReduced = !!back.finishReduced;
+        /* the fastest clean run on record for the mode: { ms, best, fresh } or null */
+        result.cleanBest = back.clean || null;
       }
       result.medal = payload.boss && back ? back.medal || 0 : 0;
       /* a ranked rematch that kept a heart and still won nothing: the set is not cleared */
@@ -811,6 +840,13 @@
       g.best = g.best && typeof g.best === "object" ? g.best : {};
       var key = res.mode === "boss" ? "boss:" + res.boss : res.mode, b0 = g.best[key];
       if (!b0 || res.score > b0.score || (res.score === b0.score && res.hearts > b0.hearts)) g.best[key] = carried(b0, { score: res.score, hearts: res.hearts, day: res.day });
+      /* the fastest clean run, by the rule game.js recordRun keeps: the lower ms, on a tie the earlier day */
+      var bk = g.best[key], c0 = bk && typeof bk === "object" ? bk.clean : null, had = cleanMs(c0);
+      if (bk && typeof bk === "object" && res.clean && res.clean.ms > 0) {
+        var fresh = !had || res.clean.ms < had;
+        if (fresh || (res.clean.ms === had && res.day < String(c0.day || ""))) g.best[key].clean = carried(had ? c0 : null, { ms: res.clean.ms, day: res.day });
+        res.cleanBest = { ms: res.clean.ms, best: cleanMs(g.best[key].clean), fresh: fresh };
+      }
     }
     if (res.mode === "daily" && res.finished) {
       g.daily = g.daily && typeof g.daily === "object" ? g.daily : {};
@@ -861,6 +897,7 @@
       '<span class="arena-mode-meta">' + meta + "</span>" +
       (extra ? '<span class="arena-mode-extra">' + extra + "</span>" : "") +
       (best && best.score ? '<span class="arena-mode-best">Best <b>' + best.score + "</b></span>" : "") +
+      (best && cleanMs(best.clean) ? '<span class="arena-mode-best">Fastest clean <b>' + msText(best.clean.ms) + "</b></span>" : "") +
       "</button>";
   }
 
@@ -1376,7 +1413,17 @@
     html += tile("First try", res.firstTry + " <small>of " + res.n + "</small>", [rate, res.n < res.planned ? plural(res.planned - res.n, "question") + " not reached" : ""].filter(Boolean).join(" · "));
     html += tile("XP earned", "+" + res.xp, xpNote(res));
     html += tile("Best streak", String(res.bestStreak), "");
+    if (res.ranked && res.finished) {
+      /* the fastest clean run: this run's time, and what is on record for the mode */
+      /* kept under the mode by game.js recordRun (a rematch under "boss", whatever the
+         chapter), under "boss:<chapter>" by the fallback above */
+      var cb = res.cleanBest, b = bests();
+      var fastest = cb ? cb.best : cleanMs((b[res.mode] || {}).clean) || (res.mode === "boss" && res.boss ? cleanMs((b["boss:" + res.boss] || {}).clean) : 0);
+      html += tile("Clean time", res.clean ? msText(res.clean.ms) : "—",
+        cb && cb.fresh ? "New fastest" : fastest ? "Fastest " + msText(fastest) : "Every answer right the first time, all on the clock, sets one.");
+    }
     html += "</div>";
+    if (res.keys) html += '<p class="arena-fine">Played by keyboard alone.</p>';
     html += reducedHtml(res);
     html += '<div class="arena-review">';
     if (weak.length) {
@@ -1501,9 +1548,19 @@
   /* the clock never runs while nobody can see the question */
   document.addEventListener("visibilitychange", function () {
     if (!run || screen !== "run") return;
-    if (document.hidden) { stopClock(); saveRun(true); }
-    else startClock();
+    if (document.hidden) {
+      stopClock();
+      /* the question stays read while its clock is off: the run is no longer clean */
+      if (run && !run.done && run.cur.phase === "ask") run.cur.stopped = 1;
+      saveRun(true);
+    } else startClock();
   });
+  /* any pointer use while a run is on screen: it was not played by keyboard alone */
+  document.addEventListener("pointerdown", function () {
+    if (!run || run.done || screen !== "run" || run.pointer === 1) return;
+    run.pointer = 1;
+    saveRun(true);
+  }, { passive: true, capture: true });
   window.addEventListener("pagehide", function () {
     if (!run) return;
     if (screen !== "run" || run.done) return;

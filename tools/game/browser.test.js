@@ -340,7 +340,7 @@ async function run() {
             recall: !!document.querySelector("#recall")
           }));
           check(info.hud && info.theme === theme, p + " (" + theme + ", " + width + "): HUD and theme");
-          if (p === "progress.html") eq([info.achievements, info.recall], [25, true], "progress page lists 25 achievements and the Recall panel");
+          if (p === "progress.html") eq([info.achievements, info.recall], [28, true], "progress page lists 28 achievements and the Recall panel");
           eq(errors, [], p + " (" + theme + ", " + width + "): no console errors");
           await context.close();
         }

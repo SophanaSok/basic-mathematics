@@ -418,6 +418,9 @@ log exists only on the server.
 Unlike every other `user_state` column, `diag` (the placement-check results) survives a reset;
 only Delete my account removes it (see `docs/decisions/0003-placement-check.md`).
 
+`bm.game.v1.best[mode]` may carry `clean {ms, day}`, the fastest clean Arena run, merged by the
+lower `ms` (then the earlier day) whichever side holds the better score.
+
 ### The auth redirect allow-list
 
 Dashboard → Authentication → URL Configuration. The site sends every sign-in, sign-up

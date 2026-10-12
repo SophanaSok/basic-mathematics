@@ -425,8 +425,8 @@ function world(seedStores) {
   const empty = world().Game;
   const S0 = empty.stores();
   const ids = empty.ACHIEVEMENTS.map((a) => a.id);
-  eq(ids.length, 25, "25 achievements");
-  eq(new Set(ids).size, 25, "achievement ids are unique");
+  eq(ids.length, 28, "28 achievements");
+  eq(new Set(ids).size, 28, "achievement ids are unique");
   empty.ACHIEVEMENTS.forEach((a) => {
     const p = a.test(S0);
     check(Array.isArray(p) && p.length === 2 && p[0] < p[1] && typeof a.title === "string" && a.text, a.id + " is false on an empty store");
