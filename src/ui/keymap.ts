@@ -32,6 +32,7 @@ export type Action =
   | { type: "contents" }
   | { type: "settings" }
   | { type: "help" }
+  | { type: "palette" }
   | { type: "leave" }
   | { type: "continue" }
   | { type: "arenaStart"; mode: "standard" | "daily" | "review" };
@@ -155,6 +156,8 @@ export function step(state: KeyState, ev: KeyEvent, ctx: Ctx): Result {
       return act({ type: "chapter", delta: 1 });
     case "?":
       return act({ type: "help" });
+    case "/":
+      return act({ type: "palette" });
     default:
       break;
   }
@@ -229,6 +232,7 @@ export const BINDINGS: Binding[] = [
   { keys: ["g p"], label: "Your progress", kinds: "all", where: "any", group: "Go" },
   { keys: ["g c"], label: "Contents", kinds: "all", where: "any", group: "Go" },
   { keys: ["g s"], label: "Settings", kinds: "all", where: "any", group: "Go" },
+  { keys: ["/"], label: "Go to a section, exercise, chapter or page", kinds: "all", where: "any", group: "Go" },
   { keys: ["?"], label: "This list", kinds: "all", where: "any", group: "Help" },
 ];
 
