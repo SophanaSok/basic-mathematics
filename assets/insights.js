@@ -32,6 +32,11 @@
   /* ----------------------------------------------------- reader dashboard -- */
 
   var page = document.querySelector("[data-progress]");
+  /* the "Your form" panel's place (src/ui/forms.ts fills it): one element kept across
+     redraws, so the panel and its canvas are not made again when the page is */
+  var formSlot = document.createElement("div");
+  formSlot.className = "form-slot";
+  formSlot.setAttribute("data-form", "");
 
   function lastDays(n) {
     var days = Activity.all().days, out = [], d = new Date();
@@ -285,6 +290,7 @@
     }
     page.innerHTML = html;
     planPanel();
+    page.insertBefore(formSlot, page.firstChild);
     Array.prototype.forEach.call(page.querySelectorAll("[data-goal]"), function (b) {
       b.addEventListener("click", function () {
         Activity.setGoal(b.getAttribute("data-goal"));

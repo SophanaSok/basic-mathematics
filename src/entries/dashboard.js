@@ -8,6 +8,12 @@ import "../../data/curriculum.js";
 import "../../data/quest.js";
 import "../ui/chart.ts";
 import "../../assets/widgets.js";
+/* Three.js's loader (the "Your form" view asks for it when it nears the screen), the
+   quality tiers it draws at, and the forms' data and stage logic: the pure modules first */
+import "../../assets/three-loader.js";
+import "../world/tiers.ts";
+import "../data/forms.ts";
+import "../core/forms.ts";
 /* the spaced-review schedule and the Arena's XP rules, which game.js (and the Arena)
    find on window.BMReview: the pure modules first, then the one that puts them up */
 import "../learn/constants.ts";
@@ -47,6 +53,9 @@ import "../learn/diag-seed.ts";
 import "../learn/plan.ts";
 import "../ui/plan.ts";
 import "../../assets/insights.js";
+/* the "Your form" panel insights.js leaves a place for: the 3D view, then the panel */
+import "../ui/form-view.ts";
+import "../ui/forms.ts";
 /* the keyboard layer: the pure keymap, then the DOM half, last, once everything it
    drives is up */
 import "../ui/keymap.ts";

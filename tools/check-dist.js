@@ -73,7 +73,7 @@ const RUNTIME = BUNDLE + "rolldown-runtime.js";
    src/vendor/supabase.js; and the course world, which map3d.js imports once the
    contents page is to draw it in 3D: src/world/index.ts with the modules of src/world/
    it imports (`dir`: those may be in the chunk too, all but one an entry imports, which
-   goes with that entry's chunks). `by` is the importer: a page whose entry imports it
+   goes with that entry's chunks). `by` is the importer (or a list of them): a page whose entry imports one
    must reach the chunk through the import(), and no page's HTML may name the chunk,
    since only that import() is to fetch it (a signed-out reader on an ordinary page
    never downloads supabase-js, and a page with no 3D never downloads Three.js or the
@@ -83,8 +83,12 @@ const ON_DEMAND = [
   { chunk: BUNDLE + "scenes3d-gl.js", module: "assets/scenes3d-gl.js", by: "assets/scenes3d.js" },
   { chunk: BUNDLE + "three.js", module: vendor.DIR + "/three.js", by: "assets/three-loader.js" },
   { chunk: BUNDLE + "supabase.js", module: vendor.DIR + "/supabase.js", by: "assets/account.js" },
-  { chunk: BUNDLE + "world.js", module: "src/world/index.ts", by: "assets/map3d.js", dir: "src/world/" }
+  { chunk: BUNDLE + "world.js", module: "src/world/index.ts", by: ["assets/map3d.js", "src/ui/form-view.ts"], dir: "src/world/" }
 ];
+/* `by` is one importer or a list of them (the course world has two: the map and the
+   "Your form" view), as a list and as words */
+const importers = (d) => [].concat(d.by);
+const importersOf = (d) => importers(d).join(" or ");
 const onDemand = (f) => ON_DEMAND.some(d => d.chunk === f);
 /* the kinds a chunk or stylesheet bundle/<name>.<ext> says load it, or null for a
    name that is not a set of kinds */
@@ -464,9 +468,9 @@ function checkScripts(ctx, r) {
       if (!wanted.includes(by)) strangers.push(s + " (" + by + " brings it in, and the entry does not import that)");
     });
     if (strangers.length) r.fail(p + ": the bundle behind " + mod.file + " holds files from node_modules/ that " + entry + " does not account for: " + strangers.join("; "));
-    ON_DEMAND.filter(d => wanted.includes(d.by)).forEach(d => {
+    ON_DEMAND.filter(d => importers(d).some(b => wanted.includes(b))).forEach(d => {
       const where = chunks.filter(f => ctx.graph.sourcesOf(f).includes(d.module));
-      if (!where.length) r.fail(p + ": no chunk reached from " + mod.file + " is built from " + d.module + ", which " + d.by + " imports on demand");
+      if (!where.length) r.fail(p + ": no chunk reached from " + mod.file + " is built from " + d.module + ", which " + importersOf(d) + " imports on demand");
       else if (where.join() !== d.chunk) r.fail(p + ": " + d.module + " is built into " + where.join(", ") + ", not " + d.chunk + " on its own");
     });
     /* the names, each chunk once: what is in it is loaded by the kinds it is named for */
@@ -485,13 +489,13 @@ function checkScripts(ctx, r) {
     });
     const refs = links.refsOf(ctx.dist.docs[p]).map(ref => links.targetOf(p, ref.v)).filter(Boolean);
     refs.filter(f => sources.has(f) || f === "assets/boot.js").forEach(f => r.fail(p + " loads " + f + ", a source script by its own path; a page loads its module entry and nothing else of assets/ or data/"));
-    refs.filter(onDemand).forEach(f => r.fail(p + " names " + f + ", which only the import() of " + ON_DEMAND.find(d => d.chunk === f).by + " is to fetch; a signed-out reader on an ordinary page must not download it"));
+    refs.filter(onDemand).forEach(f => r.fail(p + " names " + f + ", which only the import() of " + importersOf(ON_DEMAND.find(d => d.chunk === f)) + " is to fetch; a signed-out reader on an ordinary page must not download it"));
   });
   /* the on-demand chunks, once each */
   const loadedAnywhere = kindsLoading();
   ON_DEMAND.forEach(d => {
     r.count++;
-    if (!ctx.files.includes(d.chunk)) { r.fail(d.chunk + " is not in dist; " + d.by + " imports " + d.module + " on demand, so the build makes it a chunk under that name"); return; }
+    if (!ctx.files.includes(d.chunk)) { r.fail(d.chunk + " is not in dist; " + importersOf(d) + " imports " + d.module + " on demand, so the build makes it a chunk under that name"); return; }
     const inside = ctx.graph.sourcesOf(d.chunk);
     if (!inside.includes(d.module)) r.fail(d.chunk + " is not built from " + d.module + " (its source map names " + inside.join(", ") + ")");
     const strays = inside.filter(s => {
