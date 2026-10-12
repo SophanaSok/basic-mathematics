@@ -26,5 +26,5 @@ export const ARENA_SECTIONS: readonly string[] = [
   "ch15#summations", "ch15#geometric",
   "ch16#det2", "ch16#det3", "ch16#det-props", "ch16#cramer",
   "pk-percent#ratios", "pk-percent#proportions", "pk-percent#percent", "pk-percent#repeated",
-  "pk-data#center"
+  "pk-data#center", "pk-data#displays"
 ];

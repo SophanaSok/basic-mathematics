@@ -1,7 +1,18 @@
 /* data/gen/packs.js — Arena generators for the skill packs (Part V, beside the course).
    Pack A, "Ratios, Rates and Percent": sections 1–4 (ratios, proportions, percent, repeated change).
-   Pack B, "Data and Statistics": section 1 so far (center and spread; the quartiles follow the
-   median-of-halves rule of src/ui/chart.ts). Each problem uses
+   Pack B, "Data and Statistics": sections 1 and 2 so far (center and spread; reading displays).
+   The quartiles follow the median-of-halves rule of src/ui/chart.ts.
+
+   A problem may carry a chart the Arena draws with the page widget (assets/widgets.js,
+   W.chartFigure then W.chart):  chart: { kind, head, rows, caption, width? }
+     kind     "dot" | "hist" | "box" (also "bar" | "scatter", not used yet)
+     head     the column names, an array of strings (one for dot, hist, box)
+     rows     numbers for dot, hist, box; [label, value] pairs for bar; [x, y] for scatter
+     caption  one sentence, shown under the chart
+     width    a histogram's bin width, set when the question states the bins
+   The rows are the raw data; the widget bins them (half-open [lo, hi), as bins() in
+   src/ui/chart.ts) and finds the quartiles itself. tools/check-gen.js checks the shape.
+   Each problem uses
    only what its section has built so far. Hints name the next idea, never the numbers; steps
    are the worked solution; verify() recomputes the answer by a different route (the concrete
    counts behind a ratio, a cross-product, the unit rate). A dollar is written $\$9$ inside
@@ -729,11 +740,11 @@
 
   /* what the numbers measure, with a range each could plausibly take */
   var DATA_CONTEXTS = [
-    { lo: 55, hi: 100, intro: "A student's quiz scores are" },
-    { lo: 48, hi: 92, intro: "The daily high temperatures last week, in degrees, were" },
-    { lo: 10, hi: 90, intro: "The minutes of homework a student did on different nights were" },
-    { lo: 40, hi: 98, intro: "A basketball team scored these points in its games:" },
-    { lo: 12, hi: 60, intro: "A shop counted these customers in different hours:" }
+    { lo: 55, hi: 100, intro: "A student's quiz scores are", what: "a student's quiz scores", head: "Score", cap: "A student's quiz scores." },
+    { lo: 48, hi: 92, intro: "The daily high temperatures last week, in degrees, were", what: "the daily high temperatures, in degrees, over a stretch of days", head: "Degrees", cap: "Daily high temperatures in degrees." },
+    { lo: 10, hi: 90, intro: "The minutes of homework a student did on different nights were", what: "the minutes of homework a student did on different nights", head: "Minutes", cap: "Minutes of homework on different nights." },
+    { lo: 40, hi: 98, intro: "A basketball team scored these points in its games:", what: "the points a basketball team scored in its games", head: "Points", cap: "Points scored by a basketball team." },
+    { lo: 12, hi: 60, intro: "A shop counted these customers in different hours:", what: "the customers a shop counted in different hours", head: "Customers", cap: "Customers counted in different hours." }
   ];
 
   /* --------------------------------------------- pack B §1: center and spread -- */
@@ -793,8 +804,10 @@
           if (kind === "median") {
             /* a fresh sort, read by position: the middle one, or the midpoint of the middle two */
             var f = vals.slice().sort(function (a, b) { return a - b; });
+            var le = f.filter(function (x) { return x <= ans; }).length, ge = f.filter(function (x) { return x >= ans; }).length;
             if (len % 2) return f[(len - 1) / 2] === ans && f.filter(function (x) { return x < ans; }).length <= (len - 1) / 2 && f.lastIndexOf(ans) >= (len - 1) / 2;
-            return (f[len / 2 - 1] + f[len / 2]) / 2 === ans;
+            /* the key sits between the middle two, so exactly half the values are at most it and half at least it (a tie in the middle adds to both) */
+            return (f[len / 2 - 1] + f[len / 2]) / 2 === ans && le >= len / 2 && ge >= len / 2 && f.filter(function (x) { return x < ans; }).length <= len / 2 && f.filter(function (x) { return x > ans; }).length <= len / 2;
           }
           if (kind === "range") return Math.min.apply(null, vals) + ans === Math.max.apply(null, vals);
           var top = vals.filter(function (x) { return x === ans; }).length;
@@ -856,7 +869,228 @@
           /* the halves by position instead of by slicing, each median by trimming both ends in pairs */
           function trim(a) { a = a.slice(); while (a.length > 2) { a.shift(); a.pop(); } return (a[0] + a[a.length - 1]) / 2; }
           var lo = s.filter(function (x, j) { return j < Math.floor(n / 2); }), up = s.filter(function (x, j) { return j >= Math.ceil(n / 2); });
-          return trim(up) - trim(lo) === iqr && iqr >= 0 && lo.length === up.length;
+          /* and by counting: in each half at least half the values are at most its median, and at least half are at least it */
+          function splits(half, med) {
+            return half.filter(function (x) { return x <= med; }).length >= half.length / 2 && half.filter(function (x) { return x >= med; }).length >= half.length / 2 &&
+              half.filter(function (x) { return x < med; }).length <= half.length / 2 && half.filter(function (x) { return x > med; }).length <= half.length / 2;
+          }
+          return trim(up) - trim(lo) === iqr && iqr >= 0 && lo.length === up.length && splits(lo, q1) && splits(up, q3) &&
+            vals.filter(function (x) { return x < q1; }).length <= Math.floor(n / 2) / 2 && vals.filter(function (x) { return x > q3; }).length <= Math.floor(n / 2) / 2;
+        }
+      };
+    }
+  });
+
+  /* --------------------------------------------- pack B §2: reading displays -- */
+
+  /* the numbers of a list, counted by value: { value: how many } */
+  function tally(a) {
+    var t = {};
+    a.forEach(function (x) { t[x] = (t[x] || 0) + 1; });
+    return t;
+  }
+
+  var DOT_CONTEXTS = [
+    { lo: 0, hi: 6, what: "the number of pets in each household on a street", head: "Pets", cap: "Pets in each household on one street.", subj: "households", pred: "have", noun: "pets" },
+    { lo: 0, hi: 7, what: "the goals a school team scored in each of its games", head: "Goals", cap: "Goals scored by a school team, one dot per game.", subj: "games", pred: "had", noun: "goals" },
+    { lo: 0, hi: 8, what: "the number of books each student in a class read last month", head: "Books", cap: "Books read last month, one dot per student.", subj: "students", pred: "read", noun: "books" },
+    { lo: 1, hi: 8, what: "the number of emails a teacher got on each school day", head: "Emails", cap: "Emails received on each school day.", subj: "days", pred: "had", noun: "emails" }
+  ];
+
+  G.add({
+    id: "pk-dot-read", section: "pk-data#displays", par: 60, timed: true,
+    make: function (r) {
+      var c = r.pick(DOT_CONTEXTS), n = r.int(10, 16), vals, guard = 0, i;
+      /* one value with at least three dots and more than any other */
+      function uniqueMode(a) {
+        var t = tally(a), best = 0, nBest = 0;
+        Object.keys(t).forEach(function (key) { if (t[key] > best) { best = t[key]; nBest = 1; } else if (t[key] === best) nBest++; });
+        return nBest === 1 && best >= 3;
+      }
+      do {
+        vals = [];
+        for (i = 0; i < n; i++) vals.push(r.int(c.lo, c.hi));
+        guard++;
+      } while (!uniqueMode(vals) && guard < 400);
+      if (!uniqueMode(vals)) vals = [c.lo + 1, c.lo + 1, c.lo + 1, c.lo, c.lo + 2, c.lo + 3, c.lo + 4, c.lo + 5, c.lo + 2, c.lo + 4]; /* never reached in practice */
+      var s = sortedCopy(vals), len = vals.length, kind = r.pick(["mode", "median", "range", "atleast", "atmost"]);
+      var k = r.int(c.lo + 2, c.hi - 1), ans, ask, hint, steps, cnt = tally(vals);
+      if (kind === "mode") {
+        ans = +Object.keys(cnt).sort(function (x, y) { return cnt[y] - cnt[x]; })[0];
+        ask = "What is the mode?";
+        hint = "The mode is the value with the most dots stacked above it. Look for the tallest stack.";
+        steps = ["The tallest stack is above $" + ans + "$, with $" + cnt[ans] + "$ dots, more than any other value.", "The mode is $" + ans + "$."];
+      } else if (kind === "median") {
+        ans = medianOf(vals);
+        ask = "What is the median?";
+        hint = "Each dot is one value. Count the dots, then count in from the left end to the middle one, or the middle two.";
+        steps = ["There are $" + len + "$ dots. Read from the left, the values are " + listTex(s) + ".",
+          len % 2 ? "The median is the middle one, number $" + ((len + 1) / 2) + "$: $" + clean(ans) + "$."
+                  : "The median is the midpoint of the middle two, numbers $" + (len / 2) + "$ and $" + (len / 2 + 1) + "$, which are $" + s[len / 2 - 1] + "$ and $" + s[len / 2] + "$: $" + clean(ans) + "$."];
+      } else if (kind === "range") {
+        ans = s[len - 1] - s[0];
+        ask = "What is the range?";
+        hint = "The range runs from the leftmost dot to the rightmost dot.";
+        steps = ["The leftmost dot is at $" + s[0] + "$ and the rightmost is at $" + s[len - 1] + "$.", "The range is $" + s[len - 1] + " - " + s[0] + " = " + ans + "$."];
+      } else {
+        var up = kind === "atleast";
+        /* the threshold sits inside the data's span, so the count is never every dot or none
+           (the range is never 0: the mode is unique and there are at least ten values) */
+        k = up ? r.int(s[0] + 1, s[len - 1]) : r.int(s[0], s[len - 1] - 1);
+        var chosen = s.filter(function (x) { return up ? x >= k : x <= k; });
+        ans = chosen.length;
+        ask = "How many " + c.subj + " " + c.pred + " " + (up ? "at least" : "at most") + " $" + k + "$ " + c.noun + "?";
+        hint = up ? "At least a value includes the stack at that value and every stack to its right. Add up the dots in those stacks."
+                  : "At most a value includes the stack at that value and every stack to its left. Add up the dots in those stacks.";
+        steps = ["The values " + (up ? "$" + k + "$ or more" : "$" + k + "$ or less") + " are " + listTex(chosen) + ".", "Counting those dots gives $" + ans + "$."];
+      }
+      return {
+        q: "The dot plot shows " + c.what + ". " + ask,
+        type: "number", answer: clean(ans), placeholder: "number",
+        hint: hint, steps: steps,
+        chart: { kind: "dot", head: [c.head], rows: vals, caption: c.cap },
+        verify: function () {
+          /* from the stacks: how many dots over each value, read off the chart's rows */
+          var rows = this.chart ? this.chart.rows : vals;
+          var t = tally(rows), keys = Object.keys(t).map(Number).sort(function (a, b) { return a - b; }), total = 0, sum = 0;
+          keys.forEach(function (x) { total += t[x]; });
+          if (total !== len) return false;
+          if (kind === "mode") return t[ans] > 0 && keys.every(function (x) { return x === ans || t[x] < t[ans]; });
+          if (kind === "median") {
+            /* walk the stacks from the left to the dot at each middle position */
+            var at = function (pos) { var run = 0, j; for (j = 0; j < keys.length; j++) { run += t[keys[j]]; if (run >= pos) return keys[j]; } return NaN; };
+            return len % 2 ? at((len + 1) / 2) === ans : (at(len / 2) + at(len / 2 + 1)) / 2 === ans;
+          }
+          if (kind === "range") return keys[keys.length - 1] - keys[0] === ans;
+          keys.forEach(function (x) { if (kind === "atleast" ? x >= k : x <= k) sum += t[x]; });
+          return sum === ans && ans > 0 && ans < len; /* a count is never every dot or none */
+        }
+      };
+    }
+  });
+
+  var HIST_CONTEXTS = [
+    { what: "the quiz scores of the students in a class", w: 10, s0: 30, head: "Score", cap: "Quiz scores, one value per student." },
+    { what: "the minutes each student took to get to school", w: 5, s0: 0, head: "Minutes", cap: "Minutes to get to school, one value per student." },
+    { what: "the heights, in centimeters, of the seedlings in a greenhouse", w: 4, s0: 8, head: "Height", cap: "Seedling heights in centimeters." },
+    { what: "the ages of the people on a bus tour", w: 10, s0: 10, head: "Age", cap: "Ages of the people on a bus tour." }
+  ];
+
+  G.add({
+    id: "pk-hist-read", section: "pk-data#displays", par: 80, timed: true,
+    make: function (r) {
+      var c = r.pick(HIST_CONTEXTS), kind = r.pick(["bin", "range", "below", "median"]);
+      var nb = r.int(4, 5), w = c.w, s0 = c.s0 + w * r.int(0, 2), i, j;
+      var n = kind === "median" ? 2 * r.int(10, 19) + 1 : r.int(20, 40);
+      /* the count in each bin: at least one, so the first and last bins hold the extremes and the chart bins exactly these */
+      var counts = [];
+      for (i = 0; i < nb; i++) counts.push(1);
+      for (i = 0; i < n - nb; i++) counts[r.int(0, nb - 1)]++;
+      var vals = [], edges = [];
+      for (i = 0; i < nb; i++) for (j = 0; j < counts[i]; j++) vals.push(r.int(s0 + i * w, s0 + (i + 1) * w - 1));
+      vals = r.shuffle(vals);
+      for (i = 0; i <= nb; i++) edges.push(s0 + i * w);
+      var lead = "The histogram shows " + c.what + ", in bins " + w + " wide. A value on the edge between two bins is counted in the bin to its right: a value of $" + edges[1] + "$ is in the bin that starts at $" + edges[1] + "$. ";
+      var ans, ask, hint, steps, b = 0, lo = 0, hi = 0, e = 1;
+      var countsTex = counts.map(function (x, bi) { return "$" + edges[bi] + "$ to $" + edges[bi + 1] + "$: $" + x + "$"; }).join("; ");
+      var plus = function (a) { return a.map(function (x) { return "$" + x + "$"; }).join(" + "); };
+      if (kind === "bin") {
+        b = r.int(0, nb - 1);
+        ans = counts[b];
+        ask = "How many values are in the bin from $" + edges[b] + "$ up to $" + edges[b + 1] + "$?";
+        hint = "Find the bar that starts at the left number of the bin and read its height. The height counts the values in the bin.";
+        steps = ["Counting the values in each bin, " + countsTex + ".", "The bin from $" + edges[b] + "$ up to $" + edges[b + 1] + "$ holds $" + ans + "$ values."];
+      } else if (kind === "range") {
+        lo = r.int(0, nb - 2); hi = r.int(lo + 1, nb - 1);
+        ans = 0;
+        for (i = lo; i <= hi; i++) ans += counts[i];
+        ask = "How many values are at least $" + edges[lo] + "$ but less than $" + edges[hi + 1] + "$?";
+        hint = "That range is several whole bins side by side. Read the height of each of those bars and add them.";
+        steps = ["Counting the values in each bin, " + countsTex + ".", "The range covers the bins from $" + edges[lo] + "$ to $" + edges[hi + 1] + "$: " + plus(counts.slice(lo, hi + 1)) + " $= " + ans + "$."];
+      } else if (kind === "below") {
+        e = r.int(1, nb - 1);
+        ans = 0;
+        for (i = 0; i < e; i++) ans += counts[i];
+        ask = "How many values are less than $" + edges[e] + "$?";
+        hint = "Values below an edge are in the bins to the left of it. Add the heights of all those bars.";
+        steps = ["Counting the values in each bin, " + countsTex + ".", "Every bin left of $" + edges[e] + "$ counts: " + plus(counts.slice(0, e)) + " $= " + ans + "$."];
+      } else {
+        var mid = (n + 1) / 2, run = 0, mb = 0;
+        while (run + counts[mb] < mid) { run += counts[mb]; mb++; }
+        ans = edges[mb];
+        ask = "The median is the middle value of the $" + n + "$ values. What is the left edge of the bin that holds the median?";
+        hint = "Find the position of the middle value, then add the bar heights from the left until the running total reaches that position.";
+        steps = ["With $" + n + "$ values the median is value number $" + mid + "$. Counting the values in each bin, " + countsTex + ".",
+          "The bins before the bin from $" + edges[mb] + "$ to $" + edges[mb + 1] + "$ hold $" + run + "$ values, fewer than $" + mid + "$, and with that bin the total reaches $" + (run + counts[mb]) + "$. So value number $" + mid + "$ is in that bin.",
+          "The left edge of that bin is $" + ans + "$."];
+      }
+      return {
+        q: lead + ask,
+        type: "number", answer: clean(ans), placeholder: "number",
+        hint: hint, steps: steps,
+        chart: { kind: "hist", head: [c.head], rows: vals, caption: c.cap, width: w },
+        verify: function () {
+          /* count the raw rows against the half-open edges [lo, hi), not through the bin counts */
+          var rows = this.chart ? this.chart.rows : vals;
+          function inRange(a, z) { return rows.filter(function (x) { return x >= a && x < z; }).length; }
+          if (rows.length !== n) return false;
+          if (kind === "bin") return inRange(edges[b], edges[b] + w) === ans;
+          if (kind === "range") return inRange(edges[lo], edges[hi] + w) === ans;
+          if (kind === "below") return rows.filter(function (x) { return x < edges[e]; }).length === ans;
+          var m = sortedCopy(rows)[(n - 1) / 2], k2 = 0;
+          while (!(edges[k2] <= m && m < edges[k2] + w)) k2++;
+          return edges[k2] === ans;
+        }
+      };
+    }
+  });
+
+  G.add({
+    id: "pk-box-read", section: "pk-data#displays", par: 90, timed: true,
+    make: function (r) {
+      var c = r.pick(DATA_CONTEXTS), n = r.int(9, 15), vals = [], i;
+      for (i = 0; i < n; i++) vals.push(r.int(c.lo, c.hi));
+      var s = sortedCopy(vals), h = n >> 1, lower = s.slice(0, h), upper = s.slice(n - h);
+      var q1 = medianOf(lower), q3 = medianOf(upper), med = medianOf(s), mn = s[0], mx = s[n - 1];
+      var kind = r.pick(["median", "q1", "q3", "iqr", "range"]), ans, ask, hint, steps;
+      var five = "The five numbers are the minimum, the first quartile, the median, the third quartile and the maximum. ";
+      if (kind === "median") {
+        ans = med; ask = "What is the median?";
+        hint = "The median is the line inside the box. Read where it falls on the scale.";
+        steps = [five + "Here they are $" + clean(mn) + "$, $" + clean(q1) + "$, $" + clean(med) + "$, $" + clean(q3) + "$ and $" + clean(mx) + "$.", "The median is the middle one, $" + clean(med) + "$."];
+      } else if (kind === "q1") {
+        ans = q1; ask = "What is the first quartile, $Q_1$?";
+        hint = "The first quartile is where the box starts, its left end.";
+        steps = [five + "Here they are $" + clean(mn) + "$, $" + clean(q1) + "$, $" + clean(med) + "$, $" + clean(q3) + "$ and $" + clean(mx) + "$.", "The box starts at the first quartile, $Q_1 = " + clean(q1) + "$."];
+      } else if (kind === "q3") {
+        ans = q3; ask = "What is the third quartile, $Q_3$?";
+        hint = "The third quartile is where the box ends, its right end.";
+        steps = [five + "Here they are $" + clean(mn) + "$, $" + clean(q1) + "$, $" + clean(med) + "$, $" + clean(q3) + "$ and $" + clean(mx) + "$.", "The box ends at the third quartile, $Q_3 = " + clean(q3) + "$."];
+      } else if (kind === "iqr") {
+        ans = q3 - q1; ask = "What is the interquartile range?";
+        hint = "The interquartile range is the length of the box: its right end minus its left end.";
+        steps = [five + "The box runs from $Q_1 = " + clean(q1) + "$ to $Q_3 = " + clean(q3) + "$.", "The interquartile range is $" + clean(q3) + " - " + clean(q1) + " = " + clean(ans) + "$."];
+      } else {
+        ans = mx - mn; ask = "What is the range?";
+        hint = "The range is the whole spread of the data: from the end of the left whisker to the end of the right whisker.";
+        steps = [five + "The whiskers end at $" + clean(mn) + "$ and $" + clean(mx) + "$.", "The range is $" + clean(mx) + " - " + clean(mn) + " = " + clean(ans) + "$."];
+      }
+      return {
+        q: "The box plot shows " + c.what + ". A box plot shows five numbers: the minimum, the first quartile $Q_1$, the median, the third quartile $Q_3$ and the maximum. " + ask,
+        type: "number", answer: clean(ans), placeholder: kind === "iqr" ? "IQR" : kind === "range" ? "range" : "number",
+        hint: hint, steps: steps,
+        chart: { kind: "box", head: [c.head], rows: vals, caption: c.cap },
+        verify: function () {
+          /* the quartiles of the chart's rows, each half trimmed in pairs from both ends (the page's hand method) */
+          var rows = this.chart ? this.chart.rows : vals, f = sortedCopy(rows), m = f.length;
+          function trim(a) { a = a.slice(); while (a.length > 2) { a.shift(); a.pop(); } return (a[0] + a[a.length - 1]) / 2; }
+          var half = Math.floor(m / 2), a1 = trim(f.slice(0, half)), a3 = trim(f.slice(m - half)), am = m % 2 ? f[(m - 1) / 2] : (f[m / 2 - 1] + f[m / 2]) / 2;
+          if (m !== n) return false;
+          if (kind === "median") return am === ans;
+          if (kind === "q1") return a1 === ans;
+          if (kind === "q3") return a3 === ans;
+          if (kind === "iqr") return a3 - a1 === ans && ans >= 0;
+          return f[m - 1] - f[0] === ans;
         }
       };
     }

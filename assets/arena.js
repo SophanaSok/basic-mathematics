@@ -1178,6 +1178,18 @@
     }
   }
 
+  /* a generator's chart (dot plot, histogram, box plot) goes under the question text, drawn
+     by the page widget; the old one goes first. Without the widget the question still stands. */
+  function paintChart(spec) {
+    var old = view.card.querySelectorAll("figure[data-widget='chart']");
+    for (var i = 0; i < old.length; i++) old[i].parentNode.removeChild(old[i]);
+    if (!spec || !window.BMWidgets || !window.BMWidgets.chartFigure) return;
+    var fig = window.BMWidgets.chartFigure(spec);
+    fig.classList.add("arena-q-chart");
+    view.text.parentNode.insertBefore(fig, view.text.nextSibling);
+    window.BMWidgets.chart(fig);
+  }
+
   function paintQuestion() {
     var cur = q();
     try { prob = Gen.make(cur.g, cur.s); } catch (e) { prob = null; }
@@ -1194,6 +1206,7 @@
     paintTag();
     view.text.textContent = prob.q;
     Site.renderMath(view.text);
+    paintChart(prob.chart);
     view.input.value = run.cur.phase === "ask" ? "" : run.cur.given || "";
     view.input.placeholder = prob.placeholder || (prob.type === "set" ? "e.g. 2,-3" : prob.type === "expr" ? "your answer" : "your answer");
     paintStatus();

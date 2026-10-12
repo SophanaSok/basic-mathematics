@@ -173,6 +173,34 @@ async function run() {
       await context.close();
     }
 
+    /* ---------------------------------------- 1b. a generator's chart is drawn in the question */
+    {
+      const context = await ctx(browser);
+      const seed = { "bm.attempts.v1": JSON.stringify({ "pk-data": { x1: { section: "displays", solved: Date.now() - 864e5, first: false, tries: 3 } } }) };
+      const p = await open(context, errors, "arena.html?repair=pk-data%23displays", seed);
+      await p.click('[data-act="start"][data-mode="repair"]');
+      const COLS = { dot: 1, hist: 1, box: 1, bar: 2, scatter: 2 };
+      const kinds = [];
+      for (let k = 0; k < 5; k++) {
+        await p.waitForSelector(".arena-q");
+        const card = await p.evaluate(() => {
+          var figs = document.querySelectorAll(".arena-q figure[data-widget='chart']"), fig = figs[0];
+          return { n: figs.length, kind: fig && fig.getAttribute("data-kind"), svg: !!(fig && fig.querySelector("svg")),
+            tables: fig ? fig.querySelectorAll("table").length : 0, th: fig ? fig.querySelectorAll("table th").length : 0,
+            rows: fig ? fig.querySelectorAll("table tr").length - 1 : 0, mounted: !!(fig && fig.hasAttribute("data-chart-mounted")),
+            want: window.BMGen.make(window.BMArena.state().qs[window.BMArena.state().i].g, window.BMArena.state().qs[window.BMArena.state().i].s).chart };
+        });
+        kinds.push(card.kind);
+        eq([card.n, card.svg, card.tables, card.mounted], [1, true, 1, true], "question " + (k + 1) + " of the displays section holds one drawn chart with its table");
+        eq([card.th, card.rows], [COLS[card.kind], card.want.rows.length], "question " + (k + 1) + "'s table has the " + card.kind + " header and a row per value");
+        await answer(p, true);
+        await next(p).catch(() => {});
+        if (await p.$(".arena-result")) break;
+      }
+      check(kinds.every((x) => ["dot", "hist", "box"].includes(x)), "the charts are dot, hist or box — got " + kinds.join());
+      await context.close();
+    }
+
     /* ---------------------------------------- 2. the Daily: one attempt a day */
     {
       const context = await ctx(browser);

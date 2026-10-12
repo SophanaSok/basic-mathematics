@@ -13,6 +13,10 @@ import "../learn/recall.ts";
 import "../learn/review.ts";
 import "../learn/practice.ts";
 import "../data/arena-sections.ts";
+/* the chart a generator returns (a dot plot, histogram or box plot): the geometry on
+   window.BMChart, then the widget that draws it, in the order home.js has them */
+import "../ui/chart.ts";
+import "../../assets/widgets.js";
 import "../ui/review.ts";
 /* names for the buttons, labels, table headers and headings whose content is a
    formula, which site.js gives after every renderMath (window.BMMathNames): the pure
