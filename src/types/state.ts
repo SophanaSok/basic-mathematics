@@ -7,7 +7,7 @@
      assets/site.js     Progress, Play, Attempts, Activity, the theme and `last`
      assets/lesson.js   the lesson store
      assets/game.js     the game, run and prefs stores (readGame, readRun, prefs, recordRun,
-                        bankMedals)
+                        bankMedals); the game store's `form` (src/core/forms.ts)
      assets/arena.js    the run-store fields game.js carries through untouched
      assets/account.js  merge(): which stores sync, and how each field combines
 
@@ -146,13 +146,22 @@ export interface GameStore {
   daily: Record<DayKey, Flag>;
   /** how often the combo meter filled. Merge: max */
   maxed: number;
+  form?: FormStore;
 }
+
+/** the learner's form (avatar). Merge: got union keeping the earliest time; wear the later `at`, then the higher n */
+export interface FormStore { got?: Record<string, Timestamp>; wear?: { n: number; at: Timestamp } }
 
 /** bm.run.v1: this device's scratchpad. Never synced; emptied by a reset or a sign-out. */
 export interface RunStore {
   combo: { pips: number; shield: boolean };
   /** what has already been announced, so a reload repeats nothing */
-  seen: { level?: number; ach?: Flag };
+  seen: {
+    level?: number;
+    ach?: Flag;
+    /** the highest form stage whose unlock this device has shown */
+    form?: number;
+  };
   /** which exercises make up each set of a chapter this device has opened */
   sets: Record<ChapterId, { practice?: ExerciseKey[]; review?: ExerciseKey[]; inline: ExerciseKey[] }>;
   /** the Arena run in play, or the last one finished (assets/arena.js owns its shape) */
