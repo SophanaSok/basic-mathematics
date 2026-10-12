@@ -89,10 +89,13 @@ export function step(state: KeyState, ev: KeyEvent, ctx: Ctx): Result {
   if (pending && ctx.now - state.since > PREFIX_MS) pending = null;
 
   const key = ev.key;
+  const { kind, at } = ctx;
+  const hasItems = kind !== "diagnostic";
   if (pending === "g") {
+    /* a second key completes the prefix; any other key drops it and acts on its own */
     switch (key) {
       case "g":
-        return act({ type: "edge", to: "first" });
+        return hasItems ? act({ type: "edge", to: "first" }) : NONE;
       case "h":
         return act({ type: "goto", to: "home" });
       case "a":
@@ -104,13 +107,12 @@ export function step(state: KeyState, ev: KeyEvent, ctx: Ctx): Result {
       case "s":
         return act({ type: "settings" });
       default:
-        return NONE;
+        break;
     }
   }
 
-  const { kind, at } = ctx;
-  const hasItems = kind !== "diagnostic";
-  const card = at === "card";
+  /* exercise cards exist on chapter pages only */
+  const card = at === "card" && kind === "chapter";
 
   switch (key) {
     case "g":
@@ -215,12 +217,12 @@ export const BINDINGS: Binding[] = [
   { keys: ["{", "}"], label: "Next or previous section", kinds: ["chapter", "page"], where: "any", group: "Move" },
   { keys: ["[", "]"], label: "Next or previous chapter", kinds: "all", where: "any", group: "Move" },
   { keys: ["Enter"], label: "Continue the lesson", kinds: ["chapter"], where: ["body"], group: "Move" },
-  { keys: ["Enter", "i"], label: "Type in the box", kinds: ["chapter"], where: ["card"], group: "Exercise" },
+  { keys: ["Enter", "i"], label: "Type in the box, or check once answered", kinds: ["chapter"], where: ["card"], group: "Exercise" },
   { keys: ["c"], label: "Check the answer", kinds: ["chapter"], where: ["card"], group: "Exercise" },
   { keys: ["h"], label: "Show a clue", kinds: ["chapter"], where: ["card"], group: "Exercise" },
   { keys: ["s"], label: "Show or hide the solution", kinds: ["chapter"], where: ["card"], group: "Exercise" },
   { keys: ["1-9"], label: "Pick an option", kinds: ["chapter"], where: ["card"], group: "Exercise" },
-  { keys: ["Esc"], label: "Leave the box", kinds: "all", where: ["card", "item"], group: "Move" },
+  { keys: ["Esc"], label: "Leave the box, or drop the cursor", kinds: "all", where: ["card", "item"], group: "Move" },
   { keys: ["1", "2", "3"], label: "Start a Standard, Daily or Review run", kinds: ["arena"], where: ["body"], group: "Go" },
   { keys: ["g h"], label: "Home", kinds: "all", where: "any", group: "Go" },
   { keys: ["g a"], label: "Arena", kinds: "all", where: "any", group: "Go" },

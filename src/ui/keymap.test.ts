@@ -98,6 +98,29 @@ describe("step: the g prefix", () => {
     const r = step({ pending: "g", since: 1000 }, { key: "x" }, ctx());
     expect(r).toEqual({ action: null, state: INITIAL, handled: false });
   });
+  it("a stale prefix is dropped and the key then acts on its own", () => {
+    const r = step({ pending: "g", since: 0 }, { key: "j" }, ctx({ now: PREFIX_MS + 1 }));
+    expect(r.action).toEqual({ type: "move", delta: 1 });
+    expect(r.state).toEqual(INITIAL);
+  });
+  it("g then Escape at a card still leaves it, and g then j moves", () => {
+    const esc = step({ pending: "g", since: 1000 }, { key: "Escape" }, ctx({ at: "card" }));
+    expect(esc.action).toEqual({ type: "leave" });
+    const j = step({ pending: "g", since: 1000 }, { key: "j" }, ctx());
+    expect(j.action).toEqual({ type: "move", delta: 1 });
+    expect(j.state).toEqual(INITIAL);
+  });
+  it("g g does nothing on the diagnostic page, which has no items", () => {
+    const r = step({ pending: "g", since: 1000 }, { key: "g" }, ctx({ kind: "diagnostic" }));
+    expect(r).toEqual({ action: null, state: INITIAL, handled: false });
+  });
+  it("a guard clears a pending prefix", () => {
+    const st: KeyState = { pending: "g", since: 1000 };
+    expect(step(st, { key: "g", ctrlKey: true }, ctx()).state).toEqual(INITIAL);
+    expect(step(st, { key: "g" }, ctx({ mode: "insert" })).state).toEqual(INITIAL);
+    expect(step(st, { key: "g" }, ctx({ mode: "off" })).state).toEqual(INITIAL);
+    expect(step(st, { key: "g" }, ctx({ kind: "arena", arenaScreen: "run" })).state).toEqual(INITIAL);
+  });
   it("go-to keys work on every kind", () => {
     const want: Record<string, unknown> = {
       h: { type: "goto", to: "home" },
@@ -297,6 +320,58 @@ describe("BINDINGS", () => {
       const order = cheatSheet(kind).map((g) => g.group);
       const rank = order.map((g) => ["Move", "Exercise", "Go", "Help"].indexOf(g));
       expect(rank).toEqual([...rank].sort((a, b) => a - b));
+    }
+  });
+});
+
+describe("BINDINGS against step", () => {
+  /* every row's keys must fire step() for every kind and place the row claims, and
+     a chapter-only or card-only row must not fire elsewhere; this is what keeps the
+     cheat sheet honest */
+  const ATS: At[] = ["body", "card", "item"];
+  const keyOf = (shown: string): KeyEvent[] => {
+    if (shown === "g g") return [{ key: "g" }, { key: "g" }];
+    if (shown.startsWith("g ")) return [{ key: "g" }, { key: shown.slice(2) }];
+    if (shown === "↓") return [{ key: "ArrowDown" }];
+    if (shown === "↑") return [{ key: "ArrowUp" }];
+    if (shown === "Esc") return [{ key: "Escape" }];
+    if (shown === "1-9") return [{ key: "5" }];
+    return [{ key: shown }];
+  };
+  const fires = (shown: string, kind: Kind, at: At): boolean => {
+    let st: KeyState = INITIAL;
+    let r = { action: null as unknown, state: st, handled: false };
+    for (const ev of keyOf(shown)) {
+      r = step(st, ev, ctx({ kind, at, now: 1000 }));
+      st = r.state;
+    }
+    return r.handled && r.action !== null;
+  };
+  it("fires where the row says it does", () => {
+    for (const b of BINDINGS) {
+      const kinds = b.kinds === "all" ? KINDS : b.kinds;
+      const ats = b.where === "any" ? ATS : b.where;
+      for (const kind of kinds) for (const at of ats) for (const k of b.keys) {
+        expect(fires(k, kind, at), `${k} on ${kind} at ${at}`).toBe(true);
+      }
+    }
+  });
+  it("stays quiet where the row says it does not", () => {
+    for (const b of BINDINGS) {
+      if (b.kinds === "all" && b.where === "any") continue;
+      const kinds = b.kinds === "all" ? KINDS : b.kinds;
+      const ats = b.where === "any" ? ATS : b.where;
+      for (const kind of KINDS) for (const at of ATS) {
+        if (kinds.includes(kind) && ats.includes(at)) continue;
+        for (const k of b.keys) {
+          /* a key may be claimed by another row for this kind and place */
+          const covers = (shown: string) => shown === k || (shown === "1-9" && /^[1-9]$/.test(k));
+          const other = BINDINGS.some((o) => o !== b && o.keys.some(covers) &&
+            (o.kinds === "all" || o.kinds.includes(kind)) && (o.where === "any" || o.where.includes(at)));
+          if (other) continue;
+          expect(fires(k, kind, at), `${k} on ${kind} at ${at}`).toBe(false);
+        }
+      }
     }
   });
 });
