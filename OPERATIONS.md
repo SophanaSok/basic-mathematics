@@ -81,7 +81,7 @@ from pg_proc p join pg_namespace n on n.oid = p.pronamespace
 where n.nspname = 'public' order by p.proname;
 ```
 
-**Q-board**: the Daily board's table, its functions, and its lock (K-10f). The first query
+**Q-board**: the Daily board's tables, its functions, and their locks (K-10f). The first query
 lists the columns of `daily_runs` (Q-columns with the table name); `user_id`, `day`, `score`,
 `n`, `firsts` and `submitted_at` are not nullable, `ms` is.
 
@@ -100,13 +100,42 @@ where nspname = 'public' and proname in ('submit_daily', 'daily_board', 'leave_b
 ```
 
 Row-level security on, with no policies at all, so the browser can neither read nor write the
-table: `rls_on` must be `true` and `policies` `0`.
+tables: two rows, `rls_on` `true` and `policies` `0` on each.
 
 ```sql
-select c.relrowsecurity as rls_on,
-       (select count(*) from pg_policies p where p.schemaname = 'public' and p.tablename = 'daily_runs') as policies
+select c.relname, c.relrowsecurity as rls_on,
+       (select count(*) from pg_policies p where p.schemaname = 'public' and p.tablename = c.relname) as policies
 from pg_class c join pg_namespace n on n.oid = c.relnamespace
-where n.nspname = 'public' and c.relname = 'daily_runs';
+where n.nspname = 'public' and c.relname in ('daily_runs', 'board_secret')
+order by c.relname;
+```
+
+No table privileges for the browser's roles either: this must return **0 rows**. The same
+query on `profiles` lists `anon` and `authenticated`, which is how to tell it is looking.
+
+```sql
+select table_name, grantee, privilege_type
+from information_schema.role_table_grants
+where table_schema = 'public' and table_name in ('daily_runs', 'board_secret')
+  and grantee in ('anon', 'authenticated')
+order by table_name, grantee, privilege_type;
+```
+
+The three functions run as their owner with an empty search path: three rows, each with
+`prosecdef` `t` and `proconfig` `{"search_path=\"\""}`.
+
+```sql
+select p.proname, p.prosecdef, p.proconfig
+from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+where n.nspname = 'public' and p.proname in ('submit_daily', 'daily_board', 'leave_board')
+order by p.proname;
+```
+
+The key the generated names are hashed with exists: one row, `true`. Never select the secret
+itself into a shared screen or a ticket; it is what keeps a user id from being turned into names.
+
+```sql
+select count(*) = 1 and bool_and(secret ~ '^[0-9a-f]{64}$') as key_ok from public.board_secret;
 ```
 
 If the SQL ran but the site still reports a column or table as not found, the API layer may be
@@ -145,7 +174,9 @@ the `migrations` check refuses any edit to it; fix it with a newer migration.
 
 1. The owner applies `supabase/migrations/20261012042339_daily_board.sql` on the live project
    and confirms with the Q-board queries that `daily_runs` has its seven columns, that the three
-   functions exist, and that row-level security is on with no policies; and with Q-columns on
+   functions exist as definers with an empty search path, that `daily_runs` and `board_secret`
+   have row-level security on with no policies and no grants to `anon` or `authenticated`, and
+   that the key row exists; and with Q-columns on
    `profiles` that `board` is `boolean`, not nullable, default `false`. Then check that the live
    account page still syncs. All of this comes before K-10g merges.
 2. The migration only adds, and the site deployed before K-10g never names the column, the table
@@ -155,8 +186,9 @@ the `migrations` check refuses any edit to it; fix it with a newer migration.
    event log (R2); a forged row buys only a generated name on one day's list, and nothing in the
    course reads a rank. If the board misbehaves, turn it off with `board: "off"`
    ([6](#6-kill-switches)).
-4. Rollback is the table above: leave the table and functions. To empty the board, run
-   `truncate public.daily_runs;` in the SQL editor; it holds nothing else.
+4. Rollback is the table above: leave the tables and functions. To empty the board, run
+   `truncate public.daily_runs;` in the SQL editor; it holds nothing else. Leave
+   `board_secret` alone: a new key renames everyone on today's board.
 
 ## 2. Deploys
 
