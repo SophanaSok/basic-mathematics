@@ -220,7 +220,7 @@ export const BINDINGS: Binding[] = [
   { keys: ["↓", "↑"], label: "Next or previous exercise", kinds: WITH_ITEMS, where: ["card", "item"], group: "Move" },
   { keys: ["g g", "G"], label: "First or last exercise", kinds: WITH_ITEMS, where: "any", group: "Move" },
   { keys: ["n", "N"], label: "Next or previous unsolved exercise", kinds: ["chapter"], where: "any", group: "Move" },
-  { keys: ["t"], label: "The next exercise the boss is waiting for", kinds: ["chapter"], where: "any", group: "Move" },
+  { keys: ["t"], label: "The boss's next exercise, else the first unsolved", kinds: ["chapter"], where: "any", group: "Move" },
   { keys: ["{", "}"], label: "Next or previous section", kinds: ["chapter", "page"], where: "any", group: "Move" },
   { keys: ["[", "]"], label: "Next or previous chapter", kinds: "all", where: "any", group: "Move" },
   { keys: ["Enter"], label: "Continue the lesson", kinds: ["chapter"], where: ["body"], group: "Move" },
