@@ -53,10 +53,12 @@ function mode(): Mode {
   return a && (a.matches(INSERT) || inDialog(a)) ? "insert" : "normal";
 }
 
+/* focus inside a card (the card itself, or a clue the ladder focused) counts as the card,
+   so c, h, s, Enter and Escape keep working while a clue is being read */
 function at(): At {
   const a = active();
   if (!a) return "body";
-  if (a.matches(".ex")) return "card";
+  if (a.matches(".ex") || (a.closest(".ex") && !a.matches(NATIVE))) return "card";
   if (a.hasAttribute(ATTR) || a.matches(NATIVE)) return "item";
   return "body";
 }
@@ -177,7 +179,7 @@ function click(sel: string, root?: ParentNode | null): boolean {
 
 function card(): HTMLElement | null {
   const a = active();
-  return a && a.matches(".ex") ? a : null;
+  return a ? (a.closest(".ex") as HTMLElement | null) : null;
 }
 
 function enter(ex: HTMLElement): void {
@@ -192,9 +194,10 @@ function enter(ex: HTMLElement): void {
 
 function leave(wasInsert: boolean): void {
   const a = active();
-  if (wasInsert && a) {
+  if (a && !a.matches(".ex")) {
+    /* from a box or a clue, back to the card; from the card itself, to the page */
     const ex = a.closest(".ex") as HTMLElement | null;
-    if (ex) { moveTo(ex, { scroll: false, quiet: true }); return; }
+    if (ex && (wasInsert || !a.matches(NATIVE))) { moveTo(ex, { scroll: false, quiet: true }); return; }
   }
   setCursor(null);
   if (a) a.blur();
@@ -204,7 +207,7 @@ function perform(action: Action, wasInsert: boolean): void {
   const ex = card();
   switch (action.type) {
     case "move": {
-      const to = nextIn(items(), active() && at() !== "body" ? active() : null, action.delta);
+      const to = nextIn(items(), ex || (active() && at() !== "body" ? active() : null), action.delta);
       if (to) moveTo(to);
       return;
     }
@@ -216,7 +219,7 @@ function perform(action: Action, wasInsert: boolean): void {
     }
     case "unsolved": {
       const list = items().filter((el) => el.matches(".ex") && el.getAttribute("data-state") !== "correct");
-      const from = active() && at() !== "body" ? active() : null;
+      const from = ex || (active() && at() !== "body" ? active() : null);
       let to: HTMLElement | null | undefined;
       if (!from) to = action.delta > 0 ? list[0] : list[list.length - 1];
       else if (action.delta > 0) to = list.find((el) => after(from, el));
@@ -369,6 +372,8 @@ function mount(): void {
   kind = detectKind((sel) => !!document.querySelector(sel));
   document.addEventListener("keydown", onKey);
   document.addEventListener("focusout", (e) => {
+    /* the window losing focus (another window, devtools) keeps the cursor for the return */
+    if (!document.hasFocus()) return;
     const t = e.target as HTMLElement | null;
     if (t && t === cursor) { t.removeAttribute(ATTR); cursor = null; }
   });

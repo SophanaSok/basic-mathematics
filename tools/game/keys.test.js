@@ -208,7 +208,16 @@ async function run() {
       await wait(150);
       eq(await page.evaluate((k) => { var c = document.querySelector('#practice .ex[data-key="' + k + '"] .ex-clue'); return !!c && !c.closest("[hidden]") && c.getClientRects().length > 0; }, hk), true, "h opens a clue on the card");
       const S = '#practice .ex[data-key="' + hk + '"]';
+      /* the ladder focuses the new clue; the layer still counts that as the card */
+      eq(await page.evaluate(() => !!document.activeElement.closest(".ex-ladder")), true, "the new clue has the focus");
+      eq(await page.evaluate(() => window.BMKeys.at()), "card", "focus in a clue counts as the card");
+      await page.keyboard.press("j");
+      eq(await page.evaluate((k) => { var a = document.activeElement, c = document.querySelector('#practice .ex[data-key="' + k + '"]'); return a.matches(".ex") && !!(c.compareDocumentPosition(a) & 4); }, hk), true, "j from a clue moves to the next card");
       await goTo(page, S);
+      await page.keyboard.press("h");
+      await wait(150);
+      await page.keyboard.press("Escape");
+      eq(await page.evaluate((k) => document.activeElement.getAttribute("data-key"), hk), hk, "Escape from a clue returns to its card");
       await page.keyboard.press("s");
       eq(await page.$eval(S + " .ex-solution", (e) => e.getAttribute("data-show")), "true", "s shows the solution");
       await page.keyboard.press("s");
