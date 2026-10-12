@@ -932,6 +932,44 @@
       "<script>#f817ee57</script>"
     ]
   },
+  "parts/5-packs/pk-chance.html": {
+    "head": [
+      "<meta charset='utf-8'>",
+      "<meta name='viewport' content='width=device-width, initial-scale=1'>",
+      "<title>Pack C. Chance and Counting — Basic Mathematics</title>",
+      "<meta name='description' content='Probability as a fraction of equally likely outcomes, the complement, experimental and theoretical probability, expected counts, and compound events by a list, a table or a tree: the chance and counting skills the gate exams ask for and the book leaves out.'>",
+      "<script>#ec845843</script>",
+      "<style>#2b16b645</style>",
+      "<link rel='icon' href='../../assets/favicon.svg' type='image/svg+xml'>",
+      "<link rel='stylesheet' href='../../src/vendor/fonts.css'>",
+      "<link rel='stylesheet' href='../../src/vendor/katex.css'>",
+      "<link rel='stylesheet' href='../../src/styles/tokens.css'>",
+      "<link rel='stylesheet' href='../../assets/site.css'>",
+      "<link rel='stylesheet' href='../../assets/game.css'>",
+      "<link rel='stylesheet' href='../../assets/scenes3d.css'>",
+      "<link rel='stylesheet' href='../../assets/ladder.css'>",
+      "<link rel='stylesheet' href='../../assets/review.css'>",
+      "<script type='module' src='../../src/entries/chapter.js'>"
+    ],
+    "body": "<body data-depth='2' data-chapter='pk-chance' data-part='packs'>",
+    "topbar": [
+      "Skip to content -> #main",
+      "∑ Basic Mathematics -> ../../index.html",
+      "Contents -> ../../index.html",
+      "How to use this -> ../../about.html",
+      "Level 1, Counter. Open your progress. -> ../../progress.html",
+      "Sign in -> ../../account.html",
+      "button: Sound",
+      "button: Menu and settings",
+      "button: Close menu and settings",
+      "Contents -> ../../index.html",
+      "How to use this -> ../../about.html",
+      "Your progress -> ../../progress.html",
+      "Arena -> ../../arena.html",
+      "Your account -> ../../account.html",
+      "<script>#f817ee57</script>"
+    ]
+  },
   "parts/5-packs/pk-data.html": {
     "head": [
       "<meta charset='utf-8'>",

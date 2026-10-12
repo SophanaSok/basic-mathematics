@@ -337,6 +337,20 @@ window.BM_CURRICULUM = {
             { id: "scatter", title: "Scatterplots and lines of fit", summary: "A scatterplot shows two measurements for each individual; a given line of fit predicts one from the other, its slope is the change per one more x, a residual is actual minus predicted, and beyond the data the line is a guess." },
             { id: "samples", title: "Samples and claims", summary: "A random sample gives every member an equal chance and a convenience sample is biased; a sample proportion estimates a population count, larger samples vary less, and a sample cannot speak for another group or prove a cause." }
           ]
+        },
+        {
+          id: "pk-chance",
+          label: "C",
+          title: "Chance and Counting",
+          file: "pk-chance.html",
+          status: "full",
+          course: "pre-algebra",
+          blurb:
+            "Probability as a fraction of equally likely outcomes, the complement, experimental against theoretical probability and expected counts, and compound events by a list, a table or a tree.",
+          sections: [
+            { id: "outcomes", title: "Probability as a fraction of outcomes", summary: "With equally likely outcomes, the probability of an event is the favorable outcomes over all outcomes, a number from 0 to 1; the complement is 1 minus it, trials estimate it, and the expected count is the probability times the number of trials." },
+            { id: "compound", title: "Compound events", summary: "A two-step sample space is listed in order, in a table or in a tree; independent events multiply, an or adds and takes away the overlap once, and a draw without replacement changes the second fraction." }
+          ]
         }
       ]
     }

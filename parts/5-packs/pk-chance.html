@@ -1,0 +1,650 @@
+<!doctype html>
+<html lang="en">
+<head>
+<!--bm:head-->
+<title>Pack C. Chance and Counting — Basic Mathematics</title>
+<meta name="description" content="Probability as a fraction of equally likely outcomes, the complement, experimental and theoretical probability, expected counts, and compound events by a list, a table or a tree: the chance and counting skills the gate exams ask for and the book leaves out.">
+</head>
+<body data-depth="2" data-chapter="pk-chance" data-part="packs">
+<!--bm:topbar-->
+
+<div class="wrap">
+<div class="layout">
+  <aside class="sidebar" data-sidebar></aside>
+  <main id="main">
+
+    <header class="region-banner">
+      <p class="eyebrow">Skill packs · Pack C</p>
+      <h1>Chance and Counting</h1>
+      <p class="lede">
+        Chance sounds vague, but when the outcomes are equally likely it comes down to counting. This
+        pack says what a probability is and why it is a fraction, how to find the chance that
+        something does not happen, how an experiment estimates a probability that counting would give
+        exactly, and how to count the outcomes of two steps without missing any.
+      </p>
+
+      <div class="banner-meta" data-banner-meta></div>
+
+    </header>
+
+    <div class="puzzle" id="puzzle">
+      <span class="tag">A puzzle to carry through the pack</span>
+      <p>
+        Two fair coins are flipped. Alex reasons: &ldquo;There are three things that can happen:
+        two heads, one head, or no heads. So the chance of two heads is $\frac13$.&rdquo; Is Alex
+        right?
+      </p>
+      <ul class="guess">
+        <li>Yes: the chance of two heads is $\frac13$</li>
+        <li>No: the chance of two heads is $\frac14$</li>
+        <li>No: the chance of two heads is $\frac12$</li>
+      </ul>
+      <p class="puzzle-after">Alex counted the outcomes, which is the right idea, and still got a wrong answer. The first section says what a probability counts. (The second section is about listing the outcomes of two steps, so that you never miscount them.)</p>
+    </div>
+
+    <div class="goal">
+      <strong>By the end of this pack you can</strong>
+      find the probability of an event as the number of favorable outcomes over the number of equally
+      likely outcomes, find the probability that it does not happen, tell an experimental probability
+      from a theoretical one, predict how many times an event should occur in a number of trials, list
+      the outcomes of two steps, and find the probability that two events both happen, that one or
+      the other happens, or that two draws without replacement both go a given way.
+    </div>
+
+    <section class="warmup" id="warmup">
+      <div class="callout aside">
+        <span class="tag">Before you start</span>
+        <p>
+          This pack leans on <a href="../1-algebra/01-numbers.html#rationals">fractions as single
+          numbers</a> (Chapter 1) and on the words &ldquo;and&rdquo;, &ldquo;or&rdquo; and
+          &ldquo;not&rdquo; as they are used for <a href="../1-algebra/interlude-logic.html#sets">sets</a>
+          (the Interlude). You need no other part of the course, and you can read the pack at any
+          point alongside it.
+        </p>
+      </div>
+
+      <p>
+        Three quick ones to wake up what the pack stands on. They are not scored. If one doesn't
+        come to you, its solution says where to look.
+      </p>
+
+      <div class="ex" data-inline id="w1" data-label="Warm-up 1" data-type="fraction" data-answer="3/10"
+           data-placeholder="e.g. 1/2"
+           data-hint="Divide the top and the bottom by the same number, the largest that goes into both.">
+        <div class="ex-q">
+          <p>
+            Write $\dfrac{6}{20}$ in lowest terms.
+          </p>
+        </div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $\dfrac{3}{10}$</p>
+          <p>
+            The largest number that divides both is $2$, and $\frac{6}{20} = \frac{3}{10}$. See <a
+            href="../1-algebra/01-numbers.html#rationals">§1.5</a>. A probability is a fraction, and
+            it is usually written this way.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" data-inline id="w2" data-label="Warm-up 2" data-type="fraction" data-answer="5/8"
+           data-placeholder="e.g. 1/2"
+           data-hint="Write 1 as a fraction with the same bottom as the other one, then subtract the tops.">
+        <div class="ex-q">
+          <p>
+            Compute $1 - \dfrac{3}{8}$.
+          </p>
+        </div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $\dfrac58$</p>
+          <p>
+            Write $1 = \frac88$, so $\frac88 - \frac38 = \frac58$. Check: $\frac38 + \frac58 = \frac88 = 1$
+            ✓. This is exactly how &ldquo;not&rdquo; is computed in the first section.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" data-inline id="w3" data-label="Warm-up 3" data-type="number" data-answer="12"
+           data-placeholder="e.g. 7"
+           data-hint="A fraction of a number: divide by the bottom, then multiply by the top.">
+        <div class="ex-q">
+          <p>
+            What is $\dfrac{2}{5}$ of $30$?
+          </p>
+        </div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $12$</p>
+          <p>
+            $30 \div 5 = 6$ and $2 \cdot 6 = 12$, so $\frac25 \cdot 30 = 12$. Check: $12$ out of $30$ reduces
+            to $\frac25$ ✓. This is how an expected count is found.
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <h2 id="outcomes">C.1 Probability as a fraction of outcomes</h2>
+    <p>
+      An <b>experiment</b> is anything with an uncertain result: flipping a coin, rolling a die,
+      drawing a marble from a bag. Each possible result is an <b>outcome</b>, and the list of all of
+      them is the <b>sample space</b>. For a die it is $1, 2, 3, 4, 5, 6$. An <b>event</b> is a set of
+      outcomes we care about, such as &ldquo;an even number&rdquo;, which is $2, 4, 6$. Suppose the
+      outcomes are <b>equally likely</b>: each is as likely as any other. Then there is no reason to
+      favor any of them, so each gets the same share of the chance, and with $N$ outcomes that share
+      is $\frac1N$. An event with $k$ outcomes in it gets $k$ shares, and so
+      $$P(\text{event}) = \frac{\text{number of favorable outcomes}}{\text{number of outcomes in all}} = \frac{k}{N}.$$
+      That is the whole idea, and the care goes into the counting. The chance of an even number on a
+      die is $\frac36 = \frac12$. The fraction is never negative and never more than $1$, because $k$
+      is between $0$ and $N$. A probability of $0$ means the event cannot happen, a probability of
+      $1$ means it must, and the same number written as a percent says it per hundred: $\frac14$ is
+      $25\%$. A spinner needs one extra thought. If it is cut into $8$ equal sections, three red and
+      five blue, the outcomes to count are the eight sections, not the two colors: the chance of red
+      is $\frac38$, not $\frac12$.
+    </p>
+    <p>
+      Every outcome is either in the event or out of it. So the favorable outcomes and the others
+      together make all $N$, which says that $P(\text{event}) + P(\text{not the event}) = 1$. This is
+      the <b>complement</b> rule: $P(\text{not } A) = 1 - P(A)$. It is a shortcut whenever &ldquo;not
+      $A$&rdquo; is the hard thing to count: the chance of rain is $35\%$, so the chance of no rain is
+      $100\% - 35\% = 65\%$. These are the set words of the Interlude at work, and &ldquo;not&rdquo;
+      is the words &ldquo;everything else&rdquo;.
+    </p>
+    <p>
+      Counting gives the <b>theoretical probability</b>, what the setup says should happen. You can
+      also run the experiment and see. The <b>experimental probability</b> is the relative frequency,
+      the number of times the event happened over the number of trials. If a coin lands heads $46$
+      times in $80$ tosses, the experimental probability of heads is $\frac{46}{80}$, which is a bit
+      above the theoretical $\frac12$. Nothing is wrong with the coin. Chance wanders, and short runs
+      wander the most. The more trials there are, the more the relative frequency tends to settle near
+      the theoretical value, and that is why a large survey can be trusted more than a small one, and
+      why a theoretical value, when you can find it, is better than a few trials.
+    </p>
+    <p>
+      The same fraction predicts counts. In $n$ trials of an event with probability $p$, the
+      <b>expected count</b> is $p \cdot n$. In $60$ rolls of a die, a six has probability $\frac16$, so
+      we expect $\frac16 \cdot 60 = 10$ sixes. &ldquo;Expect&rdquo; is not &ldquo;get&rdquo;. It is
+      the average over many such runs, and a single run of $60$ rolls may well give $8$ or $13$.
+    </p>
+
+    <div class="worked">
+      <h3><span class="num">Example 1.</span> Counting outcomes, and the complement</h3>
+      <div class="body">
+        <p>
+          A bag holds $9$ red, $6$ blue and $5$ yellow marbles. One is drawn at random. Find the
+          probability that it is blue, the probability that it is not blue, and the first as a percent.
+        </p>
+        <ol class="steps">
+          <li>The sample space is the marbles in the bag, all equally likely:
+            $9 + 6 + 5 = 20$ outcomes.</li>
+          <li>The favorable outcomes are the blue marbles: $6$. So
+            $P(\text{blue}) = \frac{6}{20} = \frac{3}{10}$.</li>
+          <li>By the complement rule, $P(\text{not blue}) = 1 - \frac{3}{10} = \frac{7}{10}$.</li>
+          <li>As a percent, $\frac{3}{10} = \frac{30}{100} = 30\%$.</li>
+          <li>Check by counting the others: $9 + 5 = 14$ marbles are not blue, and
+            $\frac{14}{20} = \frac{7}{10}$ ✓. $\blacksquare$</li>
+        </ol>
+        <p class="note">
+          The answer $\frac{6}{20}$ is also correct. We reduce it only because the smaller fraction
+          is easier to compare.
+        </p>
+      </div>
+    </div>
+
+    <div class="ex" data-inline id="t1" data-type="fraction" data-answer="3/8" data-placeholder="e.g. 1/2"
+         data-hint="The probability is the number of favorable outcomes over the number of equally likely outcomes."
+         data-hint2="The sample space is the eight faces. Count the faces that are in the event.">
+      <div class="ex-q">
+        <p>
+          A fair die has $8$ faces numbered $1$ to $8$. It is rolled once. What is the probability that
+          it shows a number greater than $5$?
+        </p>
+      </div>
+      <div class="ex-solution">
+        <p class="answer">Answer: $\dfrac38$</p>
+        <p>
+          The outcomes greater than $5$ are $6, 7, 8$: three of the eight. So the probability is
+          $\frac38$. Check: the others, $1$ to $5$, are five faces, and $\frac38 + \frac58 = 1$ ✓.
+        </p>
+      </div>
+    </div>
+
+    <div class="worked">
+      <h3><span class="num">Example 2.</span> Experiment, theory and expected count</h3>
+      <div class="body">
+        <p>
+          A spinner has $8$ equal sections: $3$ red, $4$ blue and $1$ gold. It is spun $40$ times and
+          lands on red $14$ times. Find the experimental probability of red, the theoretical
+          probability of red, and the number of reds expected in $40$ spins.
+        </p>
+        <ol class="steps">
+          <li>Experimental: the event happened $14$ times in $40$ trials, so the relative frequency is
+            $\frac{14}{40} = \frac{7}{20}$, or $35\%$.</li>
+          <li>Theoretical: $3$ of the $8$ equal sections are red, so $P(\text{red}) = \frac38$.</li>
+          <li>Expected count: $\frac38 \cdot 40 = 15$, since $40 \div 8 = 5$ and $3 \cdot 5 = 15$.</li>
+          <li>Compare: the run gave $14$, one short of the $15$ expected. That is the ordinary
+            wandering of chance, not a sign that the spinner is unfair ✓. $\blacksquare$</li>
+        </ol>
+        <p class="note">
+          Here the experimental $\frac{7}{20}$ is $0.35$ and the theoretical $\frac38$ is $0.375$. With
+          $400$ spins the two would usually be closer.
+        </p>
+      </div>
+    </div>
+
+    <div class="ex" data-inline id="t2" data-type="percent" data-answer="65" data-placeholder="e.g. 40%"
+         data-hint="Rain and no rain cover every outcome, so their chances add up to a whole."
+         data-hint2="Here the whole is 100%. Take the chance of rain out of it.">
+      <div class="ex-q">
+        <p>
+          The forecast gives a $35\%$ chance of rain tomorrow. What is the chance, as a percent, that it
+          does not rain?
+        </p>
+      </div>
+      <div class="ex-solution">
+        <p class="answer">Answer: $65\%$</p>
+        <p>
+          $100\% - 35\% = 65\%$. Check: $35\% + 65\% = 100\%$ ✓.
+        </p>
+      </div>
+    </div>
+
+    <div class="ex" data-inline id="t3" data-type="number" data-answer="24" data-placeholder="count"
+         data-hint="The expected count is the probability times the number of trials."
+         data-hint2="A fraction times a count is that fraction of the count: divide by the bottom, then multiply by the top.">
+      <div class="ex-q">
+        <p>
+          The probability that a spinner lands on blue is $\dfrac25$. If it is spun $60$ times, how many
+          blues do you expect?
+        </p>
+      </div>
+      <div class="ex-solution">
+        <p class="answer">Answer: $24$</p>
+        <p>
+          $\frac25 \cdot 60$: $60 \div 5 = 12$, and $2 \cdot 12 = 24$. Check: $24$ out of $60$ reduces
+          to $\frac25$ ✓.
+        </p>
+      </div>
+    </div>
+
+    <h2 id="compound">C.2 Compound events</h2>
+    <p>
+      Many events take two steps: flip a coin and roll a die, draw a card and then another. The way not
+      to lose outcomes is to list them in an organized way, one step after the other. For two coins
+      the list is $HH, HT, TH, TT$. That is <em>four</em> equally likely outcomes, and the answer to
+      the puzzle: &ldquo;one head&rdquo; is two of them, $HT$ and $TH$, so it is not one outcome to
+      count beside the others. The chance of two heads is $\frac14$. A table does the same job: rows
+      for the first step, columns for the second, one cell for each pair. A tree draws it as
+      branches, and the number of pairs is the number of choices at the first step times the number
+      at the second. A coin and a die make $2 \cdot 6 = 12$ pairs.
+    </p>
+    <table>
+      <thead><tr><th></th><th>1</th><th>2</th><th>3</th><th>4</th><th>5</th><th>6</th></tr></thead>
+      <tbody>
+        <tr><th>H</th><td>H1</td><td>H2</td><td>H3</td><td>H4</td><td>H5</td><td>H6</td></tr>
+        <tr><th>T</th><td>T1</td><td>T2</td><td>T3</td><td>T4</td><td>T5</td><td>T6</td></tr>
+      </tbody>
+    </table>
+    <p>
+      Now ask for &ldquo;heads <em>and</em> an even number&rdquo;. In the table those are $H2, H4, H6$:
+      $3$ of $12$, which is $\frac14$. The same answer comes without the table. Half of the pairs have
+      heads, and of those, half have an even die, so the chance is $\frac12$ of $\frac12$, which is a
+      product. When the two steps <b>do not affect each other</b> (the events are
+      <b>independent</b>), $P(A \text{ and } B) = P(A) \cdot P(B)$. The reason is the one just given:
+      $P(B)$ is the share of the second step's outcomes in $B$, and that share is the same whatever the
+      first step did, so it takes that share of the share $P(A)$.
+    </p>
+    <p>
+      For &ldquo;<em>or</em>&rdquo;, adding is the right first move but it counts twice any outcome
+      that is in both events. For $A$ or $B$, the outcomes in both are counted once in $A$ and once in
+      $B$, so we take them away once: $P(A \text{ or } B) = P(A) + P(B) - P(A \text{ and } B)$. If the
+      two events cannot happen together, there is nothing to take away. This is the same overlap rule
+      as for counting the members of two sets.
+    </p>
+    <p>
+      The last case is where the steps do affect each other. Draw two marbles from a bag
+      <em>without replacement</em>, which means the first stays out. The second draw is made from a
+      smaller bag, so its fraction has changed. With $5$ red and $3$ blue marbles, the chance that
+      the first is red is $\frac58$. Given that, $4$ red remain among $7$ marbles, so the chance that
+      the second is red is $\frac47$. The chance of both is the product, $\frac58 \cdot \frac47$. If the
+      first marble were put back, the second fraction would stay $\frac58$.
+    </p>
+
+    <div class="worked">
+      <h3><span class="num">Example 3.</span> A probability with &ldquo;or&rdquo;</h3>
+      <div class="body">
+        <p>
+          Cards numbered $1$ to $20$ are shuffled and one is drawn. What is the probability that its
+          number is a multiple of $3$ or a multiple of $5$?
+        </p>
+        <ol class="steps">
+          <li>Multiples of $3$: $3, 6, 9, 12, 15, 18$, which is $6$ cards. Multiples of $5$:
+            $5, 10, 15, 20$, which is $4$ cards.</li>
+          <li>The card $15$ is in both lists, so adding $6 + 4$ counts it twice. Cards in either list:
+            $6 + 4 - 1 = 9$.</li>
+          <li>There are $20$ equally likely cards, so the probability is $\frac{9}{20}$.</li>
+          <li>Check by listing the cards once each: $3, 5, 6, 9, 10, 12, 15, 18, 20$ is $9$ numbers ✓.
+            $\blacksquare$</li>
+        </ol>
+        <p class="note">
+          In probabilities, the same steps read $\frac{6}{20} + \frac{4}{20} - \frac{1}{20} = \frac{9}{20}$.
+        </p>
+      </div>
+    </div>
+
+    <div class="ex" data-inline id="t4" data-type="fraction" data-answer="1/4" data-placeholder="e.g. 1/2"
+         data-hint="The coin and the die do not affect each other, so find the chance of each alone and combine them with the rule for and."
+         data-hint2="The chance of tails is the share of the coin's outcomes that are tails. Find the chance that a die is odd the same way.">
+      <div class="ex-q">
+        <p>
+          A fair coin is flipped and a fair six-sided die is rolled. What is the probability of tails
+          and an odd number?
+        </p>
+      </div>
+      <div class="ex-solution">
+        <p class="answer">Answer: $\dfrac14$</p>
+        <p>
+          $P(\text{tails}) = \frac12$ and $P(\text{odd}) = \frac36 = \frac12$, so the probability of both is
+          $\frac12 \cdot \frac12 = \frac14$. Check: in the table, $T1, T3, T5$ are $3$ of $12$ pairs, and
+          $\frac{3}{12} = \frac14$ ✓.
+        </p>
+      </div>
+    </div>
+
+    <div class="worked">
+      <h3><span class="num">Example 4.</span> Two draws without replacement</h3>
+      <div class="body">
+        <p>
+          A bag holds $5$ red and $3$ blue marbles. Two are drawn one after the other without putting
+          the first back. What is the probability that both are red?
+        </p>
+        <ol class="steps">
+          <li>The first draw is red with probability $\frac58$.</li>
+          <li>Given that, $4$ red marbles are left among $7$, so the second is red with probability
+            $\frac47$.</li>
+          <li>Both happen: $\frac58 \cdot \frac47 = \frac{20}{56} = \frac{5}{14}$.</li>
+          <li>Check by counting ordered pairs of different marbles: $8 \cdot 7 = 56$ in all, and
+            $5 \cdot 4 = 20$ of them are red then red. $\frac{20}{56} = \frac{5}{14}$ ✓.
+            $\blacksquare$</li>
+        </ol>
+        <p class="note">
+          Had the first marble been put back, the answer would be $\frac58 \cdot \frac58 = \frac{25}{64}$,
+          a little larger.
+        </p>
+      </div>
+    </div>
+
+    <div class="ex" data-inline id="t5" data-type="fraction" data-answer="7/10" data-placeholder="e.g. 1/2"
+         data-hint="Count the numbers that are even and the numbers greater than 6, then correct for the numbers that are in both lists."
+         data-hint2="List the even numbers from 1 to 10, then the numbers greater than 6, and look for those on both lists.">
+      <div class="ex-q">
+        <p>
+          A number from $1$ to $10$ is chosen at random. What is the probability that it is even or
+          greater than $6$?
+        </p>
+      </div>
+      <div class="ex-solution">
+        <p class="answer">Answer: $\dfrac{7}{10}$</p>
+        <p>
+          Even: $2, 4, 6, 8, 10$ (5 numbers). Greater than $6$: $7, 8, 9, 10$ (4 numbers). In both: $8, 10$
+          (2 numbers). In either: $5 + 4 - 2 = 7$. Check by listing: $2, 4, 6, 7, 8, 9, 10$ is $7$
+          numbers ✓.
+        </p>
+      </div>
+    </div>
+
+    <div class="ex" data-inline id="t6" data-type="fraction" data-answer="1/3" data-placeholder="e.g. 1/2"
+         data-hint="The first marble is not put back, so the second fraction is taken from a smaller bag."
+         data-hint2="Write the chance that the first is blue, then the chance that the second is blue given that, with one blue and one marble gone.">
+      <div class="ex-q">
+        <p>
+          A bag holds $4$ red and $6$ blue marbles. Two are drawn one after the other without
+          replacement. What is the probability that both are blue?
+        </p>
+      </div>
+      <div class="ex-solution">
+        <p class="answer">Answer: $\dfrac13$</p>
+        <p>
+          $\frac{6}{10} \cdot \frac{5}{9} = \frac{30}{90} = \frac13$. Check by counting ordered pairs:
+          $10 \cdot 9 = 90$ in all, and $6 \cdot 5 = 30$ are blue then blue ✓.
+        </p>
+      </div>
+    </div>
+
+    <!-- ====================================================== practice ==== -->
+    <section class="practice" id="practice">
+      <div class="practice-head">
+        <h2 style="margin-top:0">Practice</h2>
+        <span class="practice-score" data-practice-score></span>
+      </div>
+      <p>
+        Give each probability as a fraction, each count as a single number, and each answer that asks
+        for a percent as a percent. Every die, coin, spinner section, card and marble is equally
+        likely unless the question says otherwise, and a draw is made at random.
+      </p>
+
+      <div class="ex" id="e1" data-section="outcomes" data-type="fraction" data-answer="2/5" data-placeholder="e.g. 1/2"
+           data-hint="Probability is favorable outcomes over equally likely outcomes. Here the outcomes are the marbles."
+           data-hint2="Add up the three colors to find how many marbles are in the bag.">
+        <div class="ex-q"><p>A bag holds $5$ red, $7$ blue and $8$ green marbles. One marble is drawn at random. What is the probability that it is green?</p></div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $\dfrac25$</p>
+          <p>
+            The bag holds $5 + 7 + 8 = 20$ marbles, and $8$ are green. So $P = \frac{8}{20} = \frac25$.
+            Check: the other colors are $12$ marbles, and $\frac{8}{20} + \frac{12}{20} = 1$ ✓.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" id="e2" data-section="outcomes" data-type="fraction" data-answer="1/4" data-placeholder="e.g. 1/2"
+           data-hint="List the sample space, then pick out the outcomes that are in the event."
+           data-hint2="A multiple of 4 is a number you reach by counting by fours. Count how many of them are on the die.">
+        <div class="ex-q"><p>A fair $12$-sided die is numbered $1$ to $12$. It is rolled once. What is the probability of a multiple of $4$?</p></div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $\dfrac14$</p>
+          <p>
+            The multiples of $4$ from $1$ to $12$ are $4, 8, 12$: three outcomes of twelve, so
+            $P = \frac{3}{12} = \frac14$.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" id="e3" data-section="outcomes" data-type="fraction" data-answer="4/11" data-placeholder="e.g. 1/2"
+           data-hint="Each letter, repeats included, is its own card. Count the cards first."
+           data-hint2="Go through the word letter by letter and mark each one that is A, E, I, O or U.">
+        <div class="ex-q"><p>Each letter of the word PROBABILITY is written on its own card, and the cards are shuffled face down. One card is drawn. What is the probability that it shows a vowel? (Count Y as a consonant.)</p></div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $\dfrac{4}{11}$</p>
+          <p>
+            The word has $11$ letters, so there are $11$ cards. The vowels are O, A, I, I: four cards.
+            So $P = \frac{4}{11}$. It cannot be reduced, because $11$ is prime.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" id="e4" data-section="outcomes" data-type="fraction" data-answer="4/7" data-placeholder="e.g. 1/2"
+           data-hint="Either find the chance of black and take it from a whole, or count the socks that are not black."
+           data-hint2="The drawer holds 14 socks in all.">
+        <div class="ex-q"><p>A drawer holds $6$ black, $5$ white and $3$ gray socks. One sock is taken out without looking. What is the probability that it is not black?</p></div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $\dfrac47$</p>
+          <p>
+            There are $6 + 5 + 3 = 14$ socks, and $14 - 6 = 8$ are not black. So $P = \frac{8}{14} = \frac47$.
+            Check by the complement: $1 - \frac{6}{14} = \frac{8}{14}$ ✓.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" id="e5" data-section="outcomes" data-type="percent" data-answer="72" data-placeholder="e.g. 40%"
+           data-hint="Find the probability of not walking as a fraction of the class, or find the chance of walking and take it from a whole."
+           data-hint2="Out of 25, a percent is easy: write the fraction with 100 on the bottom.">
+        <div class="ex-q"><p>Of the $25$ students in a class, $7$ walk to school. One student is chosen at random. What is the probability, as a percent, that the student does not walk?</p></div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $72\%$</p>
+          <p>
+            $25 - 7 = 18$ students do not walk, so $P = \frac{18}{25} = \frac{72}{100} = 72\%$. Check:
+            $\frac{7}{25} = 28\%$ walk, and $28\% + 72\% = 100\%$ ✓.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" id="e6" data-section="outcomes" data-type="fraction" data-answer="23/40" data-placeholder="e.g. 1/2"
+           data-hint="An experimental probability is a relative frequency: how often the event happened, out of how many trials."
+           data-hint2="Write times it happened over times tried, then see whether the fraction can be reduced.">
+        <div class="ex-q"><p>A coin is tossed $80$ times and lands heads $46$ times. What is the experimental probability of heads?</p></div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $\dfrac{23}{40}$</p>
+          <p>
+            The relative frequency is $\frac{46}{80}$, and dividing both by $2$ gives $\frac{23}{40}$. It is a
+            little above the theoretical $\frac12 = \frac{20}{40}$, which is ordinary for $80$ tosses.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" id="e7" data-section="outcomes" data-type="number" data-answer="36" data-placeholder="count"
+           data-hint="The expected count is the probability times the number of trials."
+           data-hint2="The probability of red is the share of the equal sections that are red.">
+        <div class="ex-q"><p>A spinner has $8$ equal sections: $3$ red, $4$ blue and $1$ gold. It is spun $96$ times. About how many times would you expect it to land on red?</p></div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $36$</p>
+          <p>
+            $P(\text{red}) = \frac38$, so the expected count is $\frac38 \cdot 96$: $96 \div 8 = 12$ and
+            $3 \cdot 12 = 36$.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" id="e8" data-section="compound" data-type="fraction" data-answer="1/5" data-placeholder="e.g. 1/2"
+           data-hint="The two spinners do not affect each other, so find the chance for each alone and use the rule for and."
+           data-hint2="Each spinner has its own list of equally likely numbers. Count the even ones on each.">
+        <div class="ex-q"><p>Spinner A has $4$ equal sections numbered $1$ to $4$. Spinner B has $5$ equal sections numbered $1$ to $5$. Both are spun. What is the probability that both show an even number?</p></div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $\dfrac15$</p>
+          <p>
+            Spinner A: $2$ of $4$, so $\frac12$. Spinner B: $2, 4$, so $\frac25$. Both: $\frac12 \cdot \frac25 = \frac{2}{10} = \frac15$.
+            Check by counting pairs: $4 \cdot 5 = 20$ in all, and $2 \cdot 2 = 4$ have two even numbers,
+            $\frac{4}{20} = \frac15$ ✓.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" id="e9" data-section="compound" data-type="fraction" data-answer="15/64" data-placeholder="e.g. 1/2"
+           data-hint="Putting the marble back means the bag is the same for both draws, so the draws do not affect each other."
+           data-hint2="Find the chance of red from the full bag, and the chance of green from the full bag.">
+        <div class="ex-q"><p>A bag holds $3$ red and $5$ green marbles. A marble is drawn, put back, and the bag is shaken. A second marble is drawn. What is the probability that the first is red and the second is green?</p></div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $\dfrac{15}{64}$</p>
+          <p>
+            Each draw is from $8$ marbles. $P(\text{red}) = \frac38$ and $P(\text{green}) = \frac58$, so
+            $\frac38 \cdot \frac58 = \frac{15}{64}$. Check: there are $8 \cdot 8 = 64$ ordered pairs of
+            draws, and $3 \cdot 5 = 15$ are red then green ✓.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" id="e10" data-section="compound" data-type="number" data-answer="15" data-placeholder="pizzas"
+           data-hint="Make an organized list or a table, with one row for each crust and one column for each topping."
+           data-hint2="Each crust pairs with every topping, so every row of the table has the same number of cells.">
+        <div class="ex-q"><p>A pizza shop offers $3$ crusts and $5$ toppings. A pizza has one crust and one topping. How many different pizzas can be ordered?</p></div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $15$</p>
+          <p>
+            The table has $3$ rows (crusts) and $5$ columns (toppings), and each cell is a different
+            pizza: $3 \cdot 5 = 15$. A tree gives the same count: $3$ branches, each splitting into $5$.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" id="e11" data-section="compound" data-type="fraction" data-answer="1/3" data-placeholder="e.g. 1/2"
+           data-hint="Count the multiples of each number, then correct for any number that is on both lists."
+           data-hint2="A number that is a multiple of both 4 and 6 is a multiple of 12. List those too.">
+        <div class="ex-q"><p>Cards numbered $1$ to $30$ are shuffled and one is drawn. What is the probability that its number is a multiple of $4$ or a multiple of $6$?</p></div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $\dfrac13$</p>
+          <p>
+            Multiples of $4$: $4, 8, \dots, 28$ is $7$ cards. Multiples of $6$: $6, 12, \dots, 30$ is $5$ cards.
+            Both, the multiples of $12$: $12, 24$ is $2$ cards. In either: $7 + 5 - 2 = 10$, so
+            $P = \frac{10}{30} = \frac13$. Check by listing: $4, 6, 8, 12, 16, 18, 20, 24, 28, 30$ is $10$
+            numbers ✓.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" id="e12" data-section="compound" data-type="percent" data-answer="75" data-placeholder="e.g. 40%"
+           data-hint="Adding the two counts counts the students who do both twice."
+           data-hint2="Find how many students are in at least one activity by taking the overlap away once, then compare that count with the whole class.">
+        <div class="ex-q"><p>In a class of $28$ students, $15$ play soccer, $12$ are in the band, and $6$ do both. One student is chosen at random. What is the probability, as a percent, that the student plays soccer or is in the band?</p></div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $75\%$</p>
+          <p>
+            In either group: $15 + 12 - 6 = 21$ students. $P = \frac{21}{28} = \frac34 = 75\%$. Check with the
+            diagram: $9$ only soccer, $6$ both, $6$ only band is $21$ ✓.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" id="e13" data-section="compound" data-type="fraction" data-answer="1/5" data-placeholder="e.g. 1/2"
+           data-hint="The first card is not put back, so the second fraction is taken from a smaller hand."
+           data-hint2="Three of the six cards are even. Once an even card is gone, count the even cards left and the cards left.">
+        <div class="ex-q"><p>Six cards are numbered $1$ to $6$. Two are drawn one after the other without replacement. What is the probability that both are even?</p></div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $\dfrac15$</p>
+          <p>
+            The first is even with probability $\frac36$. Then $2$ even cards remain among $5$, so the second
+            is even with probability $\frac25$. Both: $\frac36 \cdot \frac25 = \frac{6}{30} = \frac15$. Check
+            by listing the pairs of evens: $2$ and $4$, $2$ and $6$, $4$ and $6$ is $3$ pairs, out of
+            $15$ pairs of cards, and $\frac{3}{15} = \frac15$ ✓.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" id="e14" data-section="compound" data-type="fraction" data-answer="8/15" data-placeholder="e.g. 1/2"
+           data-hint="There are two orders that give one pen of each color: red then blue, and blue then red."
+           data-hint2="Find each order as a product of two fractions, the second taken from a box with one pen fewer, and then add the two orders.">
+        <div class="ex-q"><p>A box holds $6$ red pens and $4$ blue pens. Two are drawn one after the other without replacement. What is the probability that one is red and one is blue?</p></div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $\dfrac{8}{15}$</p>
+          <p>
+            Red then blue: $\frac{6}{10} \cdot \frac{4}{9} = \frac{24}{90}$. Blue then red:
+            $\frac{4}{10} \cdot \frac{6}{9} = \frac{24}{90}$. Add: $\frac{48}{90} = \frac{8}{15}$. Check by
+            counting ordered pairs: $10 \cdot 9 = 90$ in all, and $2 \cdot 6 \cdot 4 = 48$ have one of each
+            color ✓.
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <div class="recap">
+      <h2>Recap</h2>
+      <div class="puzzle-answer">
+        <span class="tag">Back to the puzzle</span>
+        <p data-your-guess></p>
+        <p>
+          Alex's three cases are not equally likely. The equally likely outcomes of two coins are
+          $HH, HT, TH, TT$, and &ldquo;one head&rdquo; is two of the four. So the chance of two heads is
+          $\frac14$, which is also $\frac12 \cdot \frac12$ by the rule for independent events. Before
+          you count, check that the things you count are equally likely.
+        </p>
+      </div>
+      <ul>
+        <li>With equally likely outcomes, $P(\text{event})$ is the number of favorable outcomes over the
+          number of outcomes in all. It lies from $0$ (cannot happen) to $1$ (must happen) and can be
+          written as a percent.</li>
+        <li>Count the outcomes, not the colors: a spinner of $8$ equal sections, $3$ of them red, gives
+          $\frac38$.</li>
+        <li>The complement rule: $P(\text{not } A) = 1 - P(A)$.</li>
+        <li>Experimental probability is the relative frequency from trials. It wanders, and settles
+          nearer the theoretical value as the trials grow.</li>
+        <li>The expected count in $n$ trials is $p \cdot n$. It is an average, not a promise.</li>
+        <li>List the outcomes of two steps in order, in a table or in a tree. The number of pairs is
+          the number of first choices times the number of second choices.</li>
+        <li>Independent events: $P(A \text{ and } B) = P(A) \cdot P(B)$. For &ldquo;or&rdquo;, add and take
+          away the overlap once: $P(A) + P(B) - P(A \text{ and } B)$.</li>
+        <li>Without replacement the second fraction changes: the top and the bottom both lose the
+          marble that was taken.</li>
+      </ul>
+    </div>
+
+    <nav class="chapter-nav" data-chapter-nav aria-label="Previous and next pack"></nav>
+  </main>
+</div>
+</div>
+</body>
+</html>

@@ -1,6 +1,7 @@
 /* data/gen/packs.js — Arena generators for the skill packs (Part V, beside the course).
    Pack A, "Ratios, Rates and Percent": sections 1–4 (ratios, proportions, percent, repeated change).
    Pack B, "Data and Statistics": sections 1-4 (center and spread; reading displays; scatterplots and lines of fit; samples and claims).
+   Pack C, "Chance and Counting": sections 1-2 (probability as a fraction of outcomes; compound events).
    The quartiles follow the median-of-halves rule of src/ui/chart.ts.
 
    A problem may carry a chart the Arena draws with the page widget (assets/widgets.js,
@@ -1351,6 +1352,307 @@
         verify: function () {
           /* both samples have the same size, so the gap in counts, per hundred of the sample */
           return Math.abs((k2 - k1) * 100 / n - ans) < 1e-9 && k2 > k1 && ans > 0;
+        }
+      };
+    }
+  });
+  /* --------------------------------------------- pack C §1: probability as a fraction of outcomes -- */
+
+  var fracAns = u.fracAns, fracTex = u.fracTex;
+  /* how many items of an array pass a test */
+  function countIf(a, f) { var n = 0; a.forEach(function (x) { if (f(x)) n++; }); return n; }
+  /* a key "a/b" (or "a") as [numerator, denominator] */
+  function keyParts(k) { var p = String(k).split("/"); return [Number(p[0]), p[1] === undefined ? 1 : Number(p[1])]; }
+  /* the whole numbers 1 to n */
+  function upTo(n) { var a = [], i; for (i = 1; i <= n; i++) a.push(i); return a; }
+  /* an unreduced fraction as math: \frac{3}{8} */
+  function fr(n, d) { return "\\frac{" + n + "}{" + d + "}"; }
+  /* does the key "a/b" equal fav over total? (cross-multiplied, so no division) */
+  function keyIs(key, fav, total) { var k = keyParts(key); return k[0] * total === fav * k[1]; }
+
+  var WORDS = ["MISSISSIPPI", "PROBABILITY", "MATHEMATICS", "BANANA", "CALIFORNIA", "TENNESSEE"];
+
+  G.add({
+    id: "pk-prob-single", section: "pk-chance#outcomes", par: 40, timed: true,
+    make: function (r) {
+      var kind = r.pick(["bag", "bag", "die", "cards"]), q, total, fav, why, items, test;
+      if (kind === "bag") {
+        var cols = r.shuffle(["red", "blue", "green", "yellow", "white"]).slice(0, 3), cn = [r.int(2, 9), r.int(2, 9), r.int(2, 9)];
+        var two = r.chance(0.3), pickIdx = r.int(0, 2), chosen = two ? [cols[pickIdx], cols[(pickIdx + 1) % 3]] : [cols[pickIdx]];
+        total = cn[0] + cn[1] + cn[2];
+        fav = 0;
+        cols.forEach(function (c, i) { if (chosen.indexOf(c) > -1) fav += cn[i]; });
+        items = [];
+        cols.forEach(function (c, i) { var j; for (j = 0; j < cn[i]; j++) items.push(c); });
+        test = function (x) { return chosen.indexOf(x) > -1; };
+        q = "A bag holds $" + cn[0] + "$ " + cols[0] + ", $" + cn[1] + "$ " + cols[1] + " and $" + cn[2] + "$ " + cols[2] + " marbles. One marble is drawn at random. What is the probability that it is " + chosen.join(" or ") + "?";
+        why = ["The bag holds $" + cn[0] + " + " + cn[1] + " + " + cn[2] + " = " + total + "$ marbles, all equally likely to be drawn.", "The favorable marbles are the " + chosen.join(" and the ") + " ones: $" + fav + "$ of them."];
+      } else if (kind === "die") {
+        var n = r.pick([6, 8, 10, 12]), ev = r.pick(["even", "greater", "multiple"]), m = r.pick([2, 3, 4, 5]), k = r.int(2, n - 2), text;
+        if (ev === "even") { fav = n / 2; test = function (x) { return x % 2 === 0; }; text = "an even number"; }
+        else if (ev === "greater") { fav = n - k; test = function (x) { return x > k; }; text = "a number greater than $" + k + "$"; }
+        else { fav = Math.floor(n / m); test = function (x) { return x % m === 0; }; text = "a multiple of $" + m + "$"; }
+        total = n; items = upTo(n);
+        q = "A fair die has $" + n + "$ faces numbered $1$ to $" + n + "$. It is rolled once. What is the probability that it shows " + text + "?";
+        why = ["The sample space is $1, 2, \\dots, " + n + "$: $" + n + "$ equally likely outcomes.",
+          "The outcomes in the event are " + listTex(items.filter(test)) + ": $" + fav + "$ of them."];
+      } else {
+        var w = r.pick(WORDS), letters = w.split(""), vowel = r.chance(0.5), L = r.pick(letters);
+        total = letters.length; items = letters;
+        var t = {}; letters.forEach(function (x) { t[x] = (t[x] || 0) + 1; });
+        if (vowel) { fav = (t.A || 0) + (t.E || 0) + (t.I || 0) + (t.O || 0) + (t.U || 0); test = function (x) { return "AEIOU".indexOf(x) > -1; }; }
+        else { fav = t[L]; test = function (x) { return x === L; }; }
+        q = "Each letter of the word " + w + " is written on its own card, and the cards are shuffled face down. One card is drawn. What is the probability that it shows " + (vowel ? "a vowel" : "the letter " + L) + "?";
+        why = ["The word has $" + total + "$ letters, so there are $" + total + "$ equally likely cards.", "The cards in the event number $" + fav + "$" + (vowel ? " (the vowels A, E, I, O, U)" : " (the letter " + L + " appears that many times)") + "."];
+      }
+      var ans = fracAns(fav, total);
+      return {
+        q: q, type: "fraction", answer: ans, placeholder: "e.g. 1/2",
+        hint: "Probability is the number of favorable outcomes over the number of equally likely outcomes. Count each of the two before you divide.",
+        steps: why.concat(["The probability is $" + fr(fav, total) + "$" + (u.gcd(fav, total) > 1 ? ", which is $" + fracTex(fav, total) + "$ in lowest terms." : ".")]),
+        verify: function () {
+          /* list every outcome and count those that pass the test */
+          return keyIs(ans, countIf(items, test), items.length) && items.length === total && fav > 0 && fav < total;
+        }
+      };
+    }
+  });
+
+  G.add({
+    id: "pk-prob-complement", section: "pk-chance#outcomes", par: 40, timed: true,
+    make: function (r) {
+      var kind = r.pick(["count", "count", "percent", "fraction"]);
+      if (kind === "count") {
+        var c = r.pick([
+          { lead: "A bag holds $N$ marbles, $K$ of them red. One marble is drawn at random.", ask: "that it is not red", yes: "red" },
+          { lead: "A class has $N$ students, $K$ of whom walk to school. One student is chosen at random.", ask: "that the student does not walk to school", yes: "walk" },
+          { lead: "A box holds $N$ pens, $K$ of them blue. One pen is picked at random.", ask: "that it is not blue", yes: "blue" }
+        ]);
+        var N = r.int(8, 24), K = r.int(2, N - 3), ans = fracAns(N - K, N);
+        return {
+          q: c.lead.replace("$N$", "$" + N + "$").replace("$K$", "$" + K + "$") + " What is the probability " + c.ask + "?",
+          type: "fraction", answer: ans, placeholder: "e.g. 1/2",
+          hint: "Either the event happens or it does not, and the two chances add to a whole. Find the chance of the event itself, or count what is left over.",
+          steps: ["Of the $" + N + "$, the event has $" + K + "$, so the rest, $" + N + " - " + K + " = " + (N - K) + "$, are not in it.",
+            "The probability is $" + fr(N - K, N) + "$" + (u.gcd(N - K, N) > 1 ? ", which is $" + fracTex(N - K, N) + "$ in lowest terms." : ".")],
+          verify: function () {
+            /* list the items and count those that are not the event */
+            var all = [], i;
+            for (i = 0; i < N; i++) all.push(i < K ? c.yes : "other");
+            return keyIs(ans, countIf(all, function (x) { return x !== c.yes; }), all.length);
+          }
+        };
+      }
+      if (kind === "percent") {
+        var p = 5 * r.int(1, 19), a = 100 - p, what = r.pick([
+          ["The forecast says there is a $" + p + "\\%$ chance of rain tomorrow.", "that it does not rain"],
+          ["A seed packet says each seed has a $" + p + "\\%$ chance of sprouting.", "that a seed does not sprout"],
+          ["A player wins a game of chance $" + p + "\\%$ of the time.", "that the player loses"]
+        ]);
+        return {
+          q: what[0] + " What is the chance, as a percent, " + what[1] + "?",
+          type: "percent", answer: String(a), placeholder: pctHolder(a),
+          hint: "The event and its opposite together cover every outcome. Think about what the whole amounts to when it is written as a percent.",
+          steps: ["The whole is $100\\%$, and the event takes $" + p + "\\%$ of it.", "What is left is $100\\% - " + p + "\\% = " + a + "\\%$."],
+          verify: function () {
+            /* out of 100 equally likely cases, p are the event and the rest are not */
+            return countIf(upTo(100), function (x) { return x > p; }) === a && a > 0 && a < 100;
+          }
+        };
+      }
+      var b = r.pick([5, 6, 7, 8, 9, 10, 12]), a0 = r.int(1, b - 1), ansF = fracAns(b - a0, b);
+      return {
+        q: "The probability that Maya wins a game is $" + fr(a0, b) + "$. What is the probability that she does not win?",
+        type: "fraction", answer: ansF, placeholder: "e.g. 1/2",
+        hint: "Winning and not winning together cover every outcome, so their probabilities add to a whole. Write the whole as a fraction with the same bottom.",
+        steps: ["The whole is $" + fr(b, b) + "$.", "Not winning is $" + fr(b, b) + " - " + fr(a0, b) + " = " + fr(b - a0, b) + "$" + (u.gcd(b - a0, b) > 1 ? ", which is $" + fracTex(b - a0, b) + "$ in lowest terms." : ".")],
+        verify: function () {
+          /* the two probabilities add to 1: cross-multiplied sum */
+          var k = keyParts(ansF), g = keyParts(fracAns(a0, b));
+          return k[0] * g[1] + g[0] * k[1] === k[1] * g[1] && k[0] > 0 && k[0] < k[1];
+        }
+      };
+    }
+  });
+
+  G.add({
+    id: "pk-prob-expected", section: "pk-chance#outcomes", par: 60, timed: true,
+    make: function (r) {
+      var kind = r.pick(["die", "fraction", "past"]);
+      if (kind === "die") {
+        var ev = r.pick([["a six", 1, function (x) { return x === 6; }], ["an even number", 3, function (x) { return x % 2 === 0; }], ["a number greater than $4$", 2, function (x) { return x > 4; }], ["a $1$ or a $2$", 2, function (x) { return x < 3; }]]);
+        var blocks = r.int(2, 20), t = 6 * blocks, ans = ev[1] * blocks;
+        return {
+          q: "A fair six-sided die is rolled $" + t + "$ times. About how many times would you expect it to show " + ev[0] + "?",
+          type: "number", answer: String(ans), placeholder: "count",
+          hint: "The expected count is the probability of the event times the number of trials. Find the probability from the faces first.",
+          steps: ["The event contains $" + ev[1] + "$ of the $6$ equally likely faces, so the probability is $" + fr(ev[1], 6) + "$" + (u.gcd(ev[1], 6) > 1 ? ", which is $" + fracTex(ev[1], 6) + "$" : "") + ".",
+            "The expected count is $" + fr(ev[1], 6) + " \\cdot " + t + " = " + ans + "$."],
+          verify: function () {
+            /* roll the die's six faces once per block of six rolls, and add up the hits */
+            var hits = 0, i;
+            for (i = 0; i < blocks; i++) hits += countIf(upTo(6), ev[2]);
+            return hits === ans && blocks * 6 === t;
+          }
+        };
+      }
+      if (kind === "fraction") {
+        var d = r.pick([4, 5, 6, 8, 10]), nn = r.int(1, d - 1), mult = r.int(3, 30), T = d * mult, ans2 = nn * mult;
+        var what = r.pick(["a spinner lands on blue", "a seed sprouts", "a free throw goes in"]);
+        return {
+          q: "The probability that " + what + " is $" + fr(nn, d) + "$. In $" + T + "$ tries, about how many times would you expect it?",
+          type: "number", answer: String(ans2), placeholder: "count",
+          hint: "Multiply the probability by the number of tries. A fraction of a count is found by dividing by the bottom and multiplying by the top.",
+          steps: ["The expected count is $" + fr(nn, d) + " \\cdot " + T + "$.", "Divide $" + T + "$ by $" + d + "$ to get $" + mult + "$, then multiply by $" + nn + "$: $" + ans2 + "$."],
+          verify: function () {
+            /* the same rate: expected count over tries equals the probability, cross-multiplied */
+            return ans2 * d === nn * T && Number.isInteger(ans2);
+          }
+        };
+      }
+      var m = r.pick([20, 24, 25, 30, 40, 50]), k = r.int(3, m - 3), red = u.reduce(k, m), N = red.d * r.int(2, 12), ans3 = red.n * (N / red.d);
+      var ctx = r.pick([["A player made $" + k + "$ of her last $" + m + "$ free throws.", "free throws", "makes"], ["A machine made $" + m + "$ parts, and $" + k + "$ of them were defective.", "parts", "defective ones"], ["Of $" + m + "$ seeds planted, $" + k + "$ sprouted.", "seeds", "sprouts"]]);
+      return {
+        q: ctx[0] + " Using these results as the probability, how many " + ctx[2] + " would you expect in the next $" + N + "$ " + ctx[1] + "?",
+        type: "number", answer: String(ans3), placeholder: "count",
+        hint: "The past results give an experimental probability, the part that succeeded out of all the trials. Then use probability times number of trials.",
+        steps: ["The experimental probability is $" + fr(k, m) + "$, which is $" + fracTex(k, m) + "$.", "The expected count in $" + N + "$ is $" + fracTex(k, m) + " \\cdot " + N + " = " + ans3 + "$."],
+        verify: function () {
+          /* the new count over the new tries matches the old count over the old tries, cross-multiplied */
+          return ans3 * m === k * N && Number.isInteger(ans3) && ans3 > 0 && ans3 < N;
+        }
+      };
+    }
+  });
+
+  /* --------------------------------------------- pack C §2: compound events -- */
+
+  /* one step of a two-step game: how it is told, its equally likely outcomes, and an event on them */
+  function chanceStep(r, kind) {
+    var n, k, e;
+    if (kind === "coin") {
+      e = r.pick([["the coin shows heads", function (o) { return o === "H"; }], ["the coin shows tails", function (o) { return o === "T"; }]]);
+      return { act: "a fair coin is flipped", outcomes: ["H", "T"], text: e[0], test: e[1] };
+    }
+    if (kind === "die") {
+      n = r.pick([6, 8]); k = r.int(2, n - 3);
+      e = r.pick([["the die shows an even number", function (o) { return o % 2 === 0; }], ["the die shows a number greater than $" + k + "$", function (o) { return o > k; }], ["the die shows a multiple of $3$", function (o) { return o % 3 === 0; }]]);
+      return { act: "a fair die with $" + n + "$ faces is rolled", outcomes: upTo(n), text: e[0], test: e[1] };
+    }
+    if (kind === "spinner") {
+      n = r.pick([4, 5, 8, 10]); k = r.int(1, n - 2);
+      e = r.pick([["the spinner stops on an even number", function (o) { return o % 2 === 0; }], ["the spinner stops on an odd number", function (o) { return o % 2 === 1; }], ["the spinner stops on a number less than $" + (k + 1) + "$", function (o) { return o <= k; }]]);
+      return { act: "a spinner with $" + n + "$ equal sections numbered $1$ to $" + n + "$ is spun", outcomes: upTo(n), text: e[0], test: e[1] };
+    }
+    var red = r.int(2, 6), blue = r.int(2, 6), items = [], i;
+    for (i = 0; i < red; i++) items.push("red");
+    for (i = 0; i < blue; i++) items.push("blue");
+    var col = r.pick(["red", "blue"]);
+    return { act: "one marble is drawn at random from a bag of $" + red + "$ red and $" + blue + "$ blue marbles", outcomes: items, text: "the marble is " + col, test: function (o) { return o === col; } };
+  }
+
+  G.add({
+    id: "pk-compound-and", section: "pk-chance#compound", par: 60, timed: true,
+    make: function (r) {
+      var kinds = r.shuffle(["coin", "die", "spinner", "bag"]).slice(0, 2), a = chanceStep(r, kinds[0]), b = chanceStep(r, kinds[1]);
+      var fa = countIf(a.outcomes, a.test), fb = countIf(b.outcomes, b.test), ta = a.outcomes.length, tb = b.outcomes.length, ans = fracAns(fa * fb, ta * tb);
+      return {
+        q: "In a game, " + a.act + " and " + b.act + ". The two steps do not affect each other. What is the probability that " + a.text + " and " + b.text + "?",
+        type: "fraction", answer: ans, placeholder: "e.g. 1/2",
+        hint: "Find the probability of each step on its own. Because the steps do not affect each other, the chance of both is found by the rule for and.",
+        steps: ["The first step: $" + fr(fa, ta) + "$" + (u.gcd(fa, ta) > 1 ? " $= " + fracTex(fa, ta) + "$" : "") + ". The second step: $" + fr(fb, tb) + "$" + (u.gcd(fb, tb) > 1 ? " $= " + fracTex(fb, tb) + "$" : "") + ".",
+          "Multiply: $" + fr(fa, ta) + " \\cdot " + fr(fb, tb) + " = " + fr(fa * fb, ta * tb) + "$" + (u.gcd(fa * fb, ta * tb) > 1 ? ", which is $" + fracTex(fa * fb, ta * tb) + "$ in lowest terms." : ".")],
+        verify: function () {
+          /* list every pair of outcomes and count the pairs where both events happen */
+          var pairs = 0, hits = 0;
+          a.outcomes.forEach(function (x) { b.outcomes.forEach(function (y) { pairs++; if (a.test(x) && b.test(y)) hits++; }); });
+          return pairs === ta * tb && keyIs(ans, hits, pairs) && hits > 0 && hits < pairs;
+        }
+      };
+    }
+  });
+
+  G.add({
+    id: "pk-compound-or", section: "pk-chance#compound", par: 80, timed: true,
+    make: function (r) {
+      var kind = r.pick(["multiples", "survey", "mixed"]);
+      if (kind === "multiples") {
+        var n = r.pick([20, 24, 30, 36, 40]), a, b, guard = 0;
+        do { a = r.int(2, 9); b = r.int(2, 9); } while ((a === b || lcm(a, b) > n) && guard++ < 100);
+        if (a === b || lcm(a, b) > n) { a = 3; b = 5; }
+        var fa = Math.floor(n / a), fb = Math.floor(n / b), fab = Math.floor(n / lcm(a, b)), fav = fa + fb - fab, ans = fracAns(fav, n);
+        return {
+          q: "Cards numbered $1$ to $" + n + "$ are shuffled and one is drawn. What is the probability that the number is a multiple of $" + a + "$ or a multiple of $" + b + "$?",
+          type: "fraction", answer: ans, placeholder: "e.g. 1/2",
+          hint: "Adding the two counts counts some cards twice. Find which cards are in both groups, and take them away once.",
+          steps: ["Multiples of $" + a + "$: $" + fa + "$ cards. Multiples of $" + b + "$: $" + fb + "$ cards. Multiples of both, that is of $" + lcm(a, b) + "$: $" + fab + "$ cards.",
+            "Cards in either group: $" + fa + " + " + fb + " - " + fab + " = " + fav + "$.", "The probability is $" + fr(fav, n) + "$" + (u.gcd(fav, n) > 1 ? ", which is $" + fracTex(fav, n) + "$ in lowest terms." : ".")],
+          verify: function () {
+            /* list the cards and count those passing either test */
+            return keyIs(ans, countIf(upTo(n), function (x) { return x % a === 0 || x % b === 0; }), n) && fav > 0 && fav < n;
+          }
+        };
+      }
+      if (kind === "mixed") {
+        var N2 = r.pick([8, 10, 12, 20]), k = r.int(2, N2 - 4), evens = N2 / 2, big = N2 - k, both = evens - Math.floor(k / 2), fav2 = evens + big - both, ans2 = fracAns(fav2, N2);
+        return {
+          q: "A spinner has $" + N2 + "$ equal sections numbered $1$ to $" + N2 + "$. What is the probability that it stops on an even number or on a number greater than $" + k + "$?",
+          type: "fraction", answer: ans2, placeholder: "e.g. 1/2",
+          hint: "Count the outcomes that are even and the outcomes that are greater, then correct for any outcome in both groups before dividing.",
+          steps: ["Even numbers: $" + evens + "$. Numbers greater than $" + k + "$: $" + big + "$. Even and greater than $" + k + "$: $" + both + "$.",
+            "Outcomes in either group: $" + evens + " + " + big + " - " + both + " = " + fav2 + "$.", "The probability is $" + fr(fav2, N2) + "$" + (u.gcd(fav2, N2) > 1 ? ", which is $" + fracTex(fav2, N2) + "$ in lowest terms." : ".")],
+          verify: function () {
+            return keyIs(ans2, countIf(upTo(N2), function (x) { return x % 2 === 0 || x > k; }), N2) && fav2 > 0 && fav2 < N2;
+          }
+        };
+      }
+      var c = r.pick([["play soccer", "are in the band", "plays soccer", "is in the band"], ["have a dog", "have a cat", "has a dog", "has a cat"], ["take French", "take Spanish", "takes French", "takes Spanish"]]);
+      var onlyA = r.int(2, 10), onlyB = r.int(2, 10), both2 = r.int(2, 8), none = r.int(1, 8), N3 = onlyA + onlyB + both2 + none, S = onlyA + both2, B = onlyB + both2, fav3 = S + B - both2, ans3 = fracAns(fav3, N3);
+      return {
+        q: "In a group of $" + N3 + "$ students, $" + S + "$ " + c[0] + ", $" + B + "$ " + c[1] + ", and $" + both2 + "$ do both. One student is chosen at random. What is the probability that the student " + c[2] + " or " + c[3] + "?",
+        type: "fraction", answer: ans3, placeholder: "e.g. 1/2",
+        hint: "The students who do both are inside each of the two counts. Add the counts, then take away the ones counted twice.",
+        steps: ["Add the two counts: $" + S + " + " + B + " = " + (S + B) + "$. The $" + both2 + "$ who do both were counted twice.", "Students in either group: $" + (S + B) + " - " + both2 + " = " + fav3 + "$.",
+          "The probability is $" + fr(fav3, N3) + "$" + (u.gcd(fav3, N3) > 1 ? ", which is $" + fracTex(fav3, N3) + "$ in lowest terms." : ".")],
+        verify: function () {
+          /* the three regions of the diagram: only one, only the other, both; the rest are in neither */
+          var regions = (S - both2) + (B - both2) + both2;
+          return regions === fav3 && N3 - none === regions && keyIs(ans3, regions, N3) && regions < N3;
+        }
+      };
+    }
+  });
+
+  G.add({
+    id: "pk-compound-noreplace", section: "pk-chance#compound", par: 90, timed: true,
+    make: function (r) {
+      var c = r.pick([["marbles", "marble", "red", "blue"], ["pens", "pen", "black", "green"], ["tiles", "tile", "red", "white"]]);
+      var R = r.int(2, 9), B = r.int(2, 9), T = R + B, kind = r.pick(["first", "second", "mixed"]), fav, text, route, i;
+      if (kind === "first") { fav = R * (R - 1); text = "both are " + c[2]; route = fr(R, T) + " \\cdot " + fr(R - 1, T - 1); }
+      else if (kind === "second") { fav = B * (B - 1); text = "both are " + c[3]; route = fr(B, T) + " \\cdot " + fr(B - 1, T - 1); }
+      else { fav = 2 * R * B; text = "one is " + c[2] + " and one is " + c[3]; route = fr(R, T) + " \\cdot " + fr(B, T - 1) + " + " + fr(B, T) + " \\cdot " + fr(R, T - 1); }
+      var den = T * (T - 1), ans = fracAns(fav, den), items = [];
+      for (i = 0; i < R; i++) items.push(c[2]);
+      for (i = 0; i < B; i++) items.push(c[3]);
+      return {
+        q: "A bag holds $" + R + "$ " + c[2] + " and $" + B + "$ " + c[3] + " " + c[0] + ". Two " + c[0] + " are drawn one after the other without putting the first back. What is the probability that " + text + "?",
+        type: "fraction", answer: ans, placeholder: "e.g. 1/2",
+        hint: kind === "mixed"
+          ? "There are two orders that give one of each, so work out each order and add. In each order, the second fraction is taken from a bag with one fewer."
+          : "After the first draw the bag has one fewer, and the second fraction changes with it. Multiply the chance of the first draw by the chance of the second.",
+        steps: kind === "mixed"
+          ? ["First then second: $" + fr(R, T) + " \\cdot " + fr(B, T - 1) + "$. The other order: $" + fr(B, T) + " \\cdot " + fr(R, T - 1) + "$.", "Add: $" + route + " = " + fr(fav, den) + "$" + (u.gcd(fav, den) > 1 ? ", which is $" + fracTex(fav, den) + "$ in lowest terms." : ".")]
+          : ["The first draw: $" + (kind === "first" ? fr(R, T) : fr(B, T)) + "$. With one gone, the second draw is $" + (kind === "first" ? fr(R - 1, T - 1) : fr(B - 1, T - 1)) + "$.",
+            "Multiply: $" + route + " = " + fr(fav, den) + "$" + (u.gcd(fav, den) > 1 ? ", which is $" + fracTex(fav, den) + "$ in lowest terms." : ".")],
+        verify: function () {
+          /* every ordered pair of two different items, counted */
+          var pairs = 0, hits = 0, x, y;
+          for (x = 0; x < items.length; x++) for (y = 0; y < items.length; y++) {
+            if (x === y) continue;
+            pairs++;
+            if (kind === "mixed" ? items[x] !== items[y] : (items[x] === items[y] && items[x] === (kind === "first" ? c[2] : c[3]))) hits++;
+          }
+          return pairs === den && keyIs(ans, hits, pairs) && hits > 0 && hits < pairs && T <= 20;
         }
       };
     }

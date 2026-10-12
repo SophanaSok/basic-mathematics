@@ -324,6 +324,18 @@
     "section#review",
     "div.recap to nav.chapter-nav"
   ],
+  "pk-chance": [
+    "header.region-banner to div#puzzle",
+    "div.goal to section#warmup",
+    "h2#outcomes to div#t1",
+    "div.worked to div#t2",
+    "div#t3",
+    "h2#compound to div#t4",
+    "div.worked to div#t5",
+    "div#t6",
+    "section#practice",
+    "div.recap to nav.chapter-nav"
+  ],
   "pk-data": [
     "header.region-banner to div#puzzle",
     "div.goal to section#warmup",
