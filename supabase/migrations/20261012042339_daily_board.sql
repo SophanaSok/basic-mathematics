@@ -22,7 +22,7 @@ create table if not exists public.daily_runs (
   firsts integer not null check (firsts between 0 and n),
   -- assets/arena.js points(): right first time pays 100 plus 20 per answer of streak, so the
   -- most n questions can pay is 100n + 10n(n - 1) (700 for the Daily's 5)
-  check (score <= 100 * n + 10 * n * (n - 1)),
+  check (score <= 100 * firsts + 10 * firsts * (firsts - 1) + 30 * (n - firsts)),
   ms integer check (ms is null or ms between n * 250 and n * 600000),  -- only for a clean run; a quick answer can take under a second
   submitted_at timestamptz not null default now(),
   primary key (user_id, day)
