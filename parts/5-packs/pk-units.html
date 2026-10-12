@@ -3,7 +3,7 @@
 <head>
 <!--bm:head-->
 <title>Pack D. Units and Measurement — Basic Mathematics</title>
-<meta name="description" content="Measurements as numbers with units, conversion factors that equal one, converting inches to miles and hours to seconds, rates with units, unit rates, distance, rate and time, and converting a rate: the unit skills the gate exams ask for and the book leaves out.">
+<meta name="description" content="Measurements as numbers with units, conversion factors that equal one, converting inches to miles and hours to seconds, rates with units, unit rates, distance, rate and time, converting a rate, area and volume units, and scale: the unit skills the gate exams ask for and the book leaves out.">
 </head>
 <body data-depth="2" data-chapter="pk-units" data-part="packs">
 <!--bm:topbar-->
@@ -21,7 +21,9 @@
         answer, shows why multiplying by a fraction equal to one changes the unit and not the size,
         and uses that one idea to convert inches, ounces, cups and seconds, both in the US customary
         system and in the metric system. Then it turns to rates such as miles per hour and dollars per pound,
-        where the units themselves tell you whether the arithmetic is set up the right way up.
+        where the units themselves tell you whether the arithmetic is set up the right way up. Last come
+        area and volume, where the factor is squared or cubed, and scale drawings and maps, where the
+        scale is one more conversion factor.
       </p>
 
       <div class="banner-meta" data-banner-meta></div>
@@ -38,7 +40,7 @@
         <li>About $88$ feet</li>
         <li>About $5{,}000$ feet</li>
       </ul>
-      <p class="puzzle-after">The speed is given in miles and hours, and the question is asked in feet and seconds, so one number has to pass through two conversions at once. The first section says how a single measurement changes units. (The second section converts a rate, by changing its top and its bottom separately.)</p>
+      <p class="puzzle-after">The speed is given in miles and hours, and the question is asked in feet and seconds, so one number has to pass through two conversions at once. The first section says how a single measurement changes units. (The second section converts a rate, by changing its top and its bottom separately. The third and fourth ask what happens to the factors for an area and for a drawing.)</p>
     </div>
 
     <div class="goal">
@@ -47,8 +49,11 @@
       right way up so the unit you are leaving cancels, convert one-step and two-step measurements in
       the US customary and metric systems, check an answer by asking whether a smaller unit should give
       a bigger number, find a unit rate, use distance equals rate times time with the units lined up,
-      convert a rate by converting its top and its bottom, compare offers given in different units, and
-      read the units of an answer to catch a setup that is upside down.
+      convert a rate by converting its top and its bottom, compare offers given in different units,
+      read the units of an answer to catch a setup that is upside down, convert square and cubic units
+      with the length factor squared or cubed, find the cost of covering an area, and use a scale to
+      move between a drawing and the real thing, remembering that areas change by the square of the
+      scale factor.
     </div>
 
     <section class="warmup" id="warmup">
@@ -156,6 +161,8 @@
         <tr><th scope="row">Length</th><td>$12$ in $= 1$ ft; $3$ ft $= 1$ yd; $1760$ yd $= 1$ mi; $5280$ ft $= 1$ mi</td><td>$10$ mm $= 1$ cm; $100$ cm $= 1$ m; $1000$ m $= 1$ km</td></tr>
         <tr><th scope="row">Weight or mass</th><td>$16$ oz $= 1$ lb (the pound, abbreviated lb)</td><td>$1000$ g $= 1$ kg</td></tr>
         <tr><th scope="row">Capacity</th><td>$2$ cups $= 1$ pt; $2$ pt $= 1$ qt; $4$ qt $= 1$ gal</td><td>$1000$ mL $= 1$ L</td></tr>
+        <tr><th scope="row">Area</th><td>$1$ ft$^2 = 144$ in$^2$; $1$ yd$^2 = 9$ ft$^2$</td><td>$1$ m$^2 = 10{,}000$ cm$^2$</td></tr>
+        <tr><th scope="row">Volume</th><td>$1$ yd$^3 = 27$ ft$^3$; $1$ ft$^3 = 1728$ in$^3$</td><td>$1$ m$^3 = 1{,}000{,}000$ cm$^3$; $1$ mL $= 1$ cm$^3$; $1$ L $= 1000$ cm$^3$</td></tr>
         <tr><th scope="row">Time (both systems)</th><td colspan="2">$60$ s $= 1$ min; $60$ min $= 1$ h; $24$ h $= 1$ day; $7$ days $= 1$ week</td></tr>
       </tbody>
     </table>
@@ -407,6 +414,273 @@
       </div>
     </div>
 
+    <h2 id="area">D.3 Area and volume units</h2>
+    <p>
+      A conversion factor for a length does not carry over to an area unchanged. A <b>square foot</b>
+      is a square that is one foot on each side. Cut it into small squares one inch on a side: the
+      square is $12$ inches wide, so each row holds $12$ of them, and there are $12$ rows. That is
+      $12 \cdot 12 = 144$ square inches, not $12$. The same argument works for any unit, because an
+      area is a length times a length, and so a factor for an area is the length factor
+      <em>squared</em>:
+      $$\left(\frac{12\text{ in}}{1\text{ ft}}\right)^2 = \frac{144\text{ in}^2}{1\text{ ft}^2}.$$
+      A volume is a length times a length times a length, so a volume factor is the length factor
+      <em>cubed</em>. A <b>cubic yard</b> is a cube $3$ feet on each edge and holds $3 \cdot 3 \cdot 3 = 27$
+      cubic feet. In the metric system the factors are powers of a hundred and a thousand:
+      $1\text{ m}^2 = 100 \cdot 100 = 10{,}000\text{ cm}^2$ and
+      $1\text{ m}^3 = 100^3 = 1{,}000{,}000\text{ cm}^3$.
+    </p>
+    <p>
+      Use the squared factor exactly as you used the others: the unit you are leaving goes where it
+      cancels. To go from square yards to square feet you leave yards, so yards go underneath, and
+      the factor $\left(\frac{3\text{ ft}}{1\text{ yd}}\right)^2 = \frac{9\text{ ft}^2}{1\text{ yd}^2}$
+      cancels the square yards. The common mistake is to multiply an area by the length factor, $12$ or
+      $3$, when the factor is $144$ or $9$. The sanity check from D.1 catches it, and catches it
+      harder for area: the smaller unit takes more of them, and for an area <em>much</em> more. If a
+      room of $20$ square feet comes out as $60$ square inches, think again: a square inch is a speck
+      beside a square foot.
+    </p>
+    <p>
+      Capacity and volume meet in the metric system, which is built to make them agree. One milliliter
+      is exactly the capacity of a cube $1$ centimeter on each edge: $1\text{ mL} = 1\text{ cm}^3$. Since
+      $1\text{ L} = 1000\text{ mL}$, a liter is $1000\text{ cm}^3$. So when a box has a volume of
+      $480\text{ cm}^3$, it holds $480$ milliliters. The US system has no such luck. Gallons and quarts
+      measure capacity, cubic inches and cubic feet measure volume, and a question that joins them
+      states the fact it needs.
+    </p>
+    <p>
+      Area gives rates of their own. A price per square foot is a rate whose bottom unit is an area,
+      and it multiplies the number of square feet to give a cost: $\frac{\$}{\text{ft}^2}\cdot\text{ft}^2$ leaves dollars.
+      The rate must match the unit of the area. If the floor is measured in square feet and the price
+      is per square yard, change one of them first. Nine square feet make a square yard, so a price
+      per square yard is nine times the price per square foot, since the bigger unit costs more.
+      (Pack A, <a href="pk-percent.html#proportions">where proportions began</a>, argues about scaling
+      from the other side, but this pack does not need it.)
+    </p>
+
+    <div class="worked">
+      <h3><span class="num">Example 5.</span> Square yards to square feet</h3>
+      <div class="body">
+        <p>
+          A rug has an area of $4.5$ square yards. What is its area in square feet?
+        </p>
+        <ol class="steps">
+          <li>Yards are the unit we are leaving, so yards go underneath. A yard is $3$ feet, so the
+            factor is $\left(\frac{3\text{ ft}}{1\text{ yd}}\right)^2 = \frac{9\text{ ft}^2}{1\text{ yd}^2}$.</li>
+          <li>$4.5\text{ yd}^2\cdot\frac{9\text{ ft}^2}{1\text{ yd}^2} = 40.5\text{ ft}^2$.</li>
+          <li>The sanity check agrees: feet are the smaller unit, so the number rose, and by a factor of
+            $9$, not $3$.</li>
+          <li>Check by the sides. A rug $1.5$ yards by $3$ yards has area $4.5$ square yards. In feet
+            it is $4.5$ by $9$, and $4.5 \cdot 9 = 40.5$ square feet ✓. $\blacksquare$</li>
+        </ol>
+        <p class="note">
+          Had we multiplied by $3$ we would have got $13.5$, which is the area of a rug less than four
+          feet long and wide: far too small.
+        </p>
+      </div>
+    </div>
+
+    <div class="ex" data-inline id="t7" data-type="number" data-answer="432" data-placeholder="square inches"
+         data-hint="An area uses the length factor twice. A foot is 12 inches, so a square foot holds 12 times 12 square inches."
+         data-hint2="Find the square inches in one square foot, then multiply by the number of square feet.">
+      <div class="ex-q">
+        <p>
+          A shelf has a top of $3$ square feet. How many square inches is that?
+        </p>
+      </div>
+      <div class="ex-solution">
+        <p class="answer">Answer: $432$ square inches</p>
+        <p>
+          $3\text{ ft}^2\cdot\frac{144\text{ in}^2}{1\text{ ft}^2} = 432\text{ in}^2$. Check: a shelf $3$ feet
+          by $1$ foot is $36$ inches by $12$ inches, and $36 \cdot 12 = 432$ ✓.
+        </p>
+      </div>
+    </div>
+
+    <div class="ex" data-inline id="t8" data-type="number" data-answer="200" data-placeholder="milliliters"
+         data-hint="The volume of a box is length times width times height. One milliliter is one cubic centimeter."
+         data-hint2="Multiply the three edges in centimeters. The number of cubic centimeters is the number of milliliters.">
+      <div class="ex-q">
+        <p>
+          A box is $10$ centimeters long, $5$ centimeters wide and $4$ centimeters high. How many
+          milliliters does it hold when it is full?
+        </p>
+      </div>
+      <div class="ex-solution">
+        <p class="answer">Answer: $200$ milliliters</p>
+        <p>
+          $10 \cdot 5 \cdot 4 = 200\text{ cm}^3$, and $1\text{ cm}^3 = 1\text{ mL}$, so the box holds $200$
+          mL. Check: the bottom holds $50$ cubic centimeters in a layer, and there are $4$ layers: $4 \cdot 50 = 200$ ✓.
+        </p>
+      </div>
+    </div>
+
+    <div class="worked">
+      <h3><span class="num">Example 6.</span> The cost of carpeting a room</h3>
+      <div class="body">
+        <p>
+          A room is $12$ feet by $15$ feet. Carpet costs $\$4.50$ per square foot. What does it cost to
+          carpet the room?
+        </p>
+        <ol class="steps">
+          <li>The price is per square foot, so find the area in square feet: $12 \cdot 15 = 180\text{ ft}^2$.</li>
+          <li>$180\text{ ft}^2\cdot\frac{\$4.50}{1\text{ ft}^2} = \$810$. The square feet cancel and dollars are
+            left.</li>
+          <li>The size is plausible: a hundred square feet would cost $\$450$, and this room is nearly
+            twice that.</li>
+          <li>Check by square yards. The price per square yard is $9 \cdot \$4.50 = \$40.50$. The room is
+            $4$ yards by $5$ yards, which is $20\text{ yd}^2$, and $20 \cdot 40.50 = \$810$ ✓. $\blacksquare$</li>
+        </ol>
+        <p class="note">
+          Both routes cost the same because a square yard of carpet is nine square feet of the same
+          carpet, with nine times the price.
+        </p>
+      </div>
+    </div>
+
+    <div class="ex" data-inline id="t9" data-type="number" data-answer="150" data-placeholder="dollars"
+         data-hint="The price is per square foot, so multiply the number of square feet by it."
+         data-hint2="Check that the square feet cancel and only dollars are left.">
+      <div class="ex-q">
+        <p>
+          Tile costs $\$6$ per square foot. How many dollars does it cost to tile a floor of $25$ square feet?
+        </p>
+      </div>
+      <div class="ex-solution">
+        <p class="answer">Answer: $\$150$</p>
+        <p>
+          $25\text{ ft}^2\cdot\frac{\$6}{1\text{ ft}^2} = \$150$. Check: $25$ is a quarter of $100$, and $100$
+          square feet would cost $\$600$, a quarter of which is $\$150$ ✓.
+        </p>
+      </div>
+    </div>
+
+    <h2 id="scale">D.4 Scale</h2>
+    <p>
+      A <b>scale drawing</b> or a map keeps every length in the same ratio to the real length it
+      shows. The scale says what the ratio is. &ldquo;$1$ inch $= 50$ miles&rdquo; is a statement that one inch on
+      the map and $50$ miles on the ground are the same length in two worlds. That makes it a
+      conversion factor between the drawing and the world, and you use it exactly as the factors of
+      D.1: the unit you are leaving goes underneath. A distance measured on the map in inches
+      leaves inches, so inches go underneath, $\frac{50\text{ mi}}{1\text{ in}}$, and miles are what is left. Going the other way,
+      from a real distance to the drawing, you are leaving miles, so the factor is
+      $\frac{1\text{ in}}{50\text{ mi}}$.
+    </p>
+    <p>
+      A scale is also written as a ratio with no units, $1 : 200$. It says the real length is $200$
+      times the drawn one, <em>in whatever unit you measure</em>. A line $2$ centimeters long on a plan
+      at $1 : 200$ stands for $2 \cdot 200 = 400$ centimeters, which is $4$ meters. The same $2$ in a different
+      unit would give $400$ of that unit. Nothing in the ratio says centimeters; you pick the unit
+      for the measurement and change units afterwards if you want a more sensible one for the answer.
+    </p>
+    <p>
+      To fit a page, choose the scale the other way round. A hall $36$ feet long has to fit a sheet
+      $9$ inches long. The drawing is $9$ inches for $36$ feet, so $1$ inch stands for
+      $36 \div 9 = 4$ feet. Round to a friendly scale such as $1$ inch $= 5$ feet if you want an easy
+      one, as long as the drawing still fits.
+    </p>
+    <p>
+      Two figures with the same shape and different sizes are <b>similar</b>, and the <b>scale factor</b>
+      $k$ is the number that takes one to the other. Every length is multiplied by $k$. An area is
+      not. Take a square with side $s$. Its area is $s \cdot s$. Make the side $k s$ and the area is
+      $ks \cdot ks = k^2\,s^2$, so the area was multiplied by $k^2$. The same argument works for any
+      shape, because any area is built of lengths multiplied in twos. Double every length and the
+      area is four times as big; triple every length and it is nine times as big. In the same way, a
+      map at $1 : 1000$ has real lengths $1000$ times the map's, and so its real areas are
+      $1000^2 = 1{,}000{,}000$ times the map's: the map shows an area that is a million times smaller
+      than the ground.
+    </p>
+
+    <div class="worked">
+      <h3><span class="num">Example 7.</span> A real distance from a map</h3>
+      <div class="body">
+        <p>
+          A map says $1$ inch $= 50$ miles. Two towns are $3.5$ inches apart on the map. How far apart
+          are they?
+        </p>
+        <ol class="steps">
+          <li>The scale is the factor $\frac{50\text{ mi}}{1\text{ in}}$, with inches underneath because
+            inches are what we are leaving.</li>
+          <li>$3.5\text{ in}\cdot\frac{50\text{ mi}}{1\text{ in}} = 175$ miles.</li>
+          <li>The answer is bigger than $3.5$, as it should be: the map shrinks the ground.</li>
+          <li>Check by proportion: $\frac{1\text{ in}}{50\text{ mi}}$ must equal $\frac{3.5\text{ in}}{175\text{ mi}}$, and
+            $175 \div 3.5 = 50$ ✓. $\blacksquare$</li>
+        </ol>
+        <p class="note">
+          Two inches would be $100$ miles and four inches $200$ miles, so $3.5$ inches must lie
+          between them, and $175$ does.
+        </p>
+      </div>
+    </div>
+
+    <div class="ex" data-inline id="t10" data-type="number" data-answer="35" data-placeholder="kilometers"
+         data-hint="Use the scale as a conversion factor with the drawn unit underneath, so that it cancels."
+         data-hint2="Each centimeter on the map stands for 5 kilometers. Multiply the map distance by it.">
+      <div class="ex-q">
+        <p>
+          On a map, $1$ centimeter stands for $5$ kilometers. A trail is $7$ centimeters long on the map. How many kilometers long is the real trail?
+        </p>
+      </div>
+      <div class="ex-solution">
+        <p class="answer">Answer: $35$ kilometers</p>
+        <p>
+          $7\text{ cm}\cdot\frac{5\text{ km}}{1\text{ cm}} = 35$ km. Check: $35 \div 5 = 7$ centimeters back on the map ✓.
+        </p>
+      </div>
+    </div>
+
+    <div class="ex" data-inline id="t11" data-type="number" data-answer="6" data-placeholder="meters"
+         data-hint="A ratio with no units means the real length is that many times the drawn length, in the unit you measured."
+         data-hint2="Multiply the drawn length by the number in the ratio, then change centimeters to meters.">
+      <div class="ex-q">
+        <p>
+          A plan has the scale $1 : 200$. A hall measures $3$ centimeters on the plan. How many meters long is the real hall?
+        </p>
+      </div>
+      <div class="ex-solution">
+        <p class="answer">Answer: $6$ meters</p>
+        <p>
+          $3 \cdot 200 = 600$ centimeters, and $600\text{ cm}\cdot\frac{1\text{ m}}{100\text{ cm}} = 6$ m.
+          Check: $6$ meters is $600$ centimeters, and $600 \div 200 = 3$ ✓.
+        </p>
+      </div>
+    </div>
+
+    <div class="worked">
+      <h3><span class="num">Example 8.</span> Lengths times $k$, areas times $k^2$</h3>
+      <div class="body">
+        <p>
+          A rectangle is $4$ cm by $6$ cm. It is enlarged by the scale factor $k = 3$. What are its new
+          dimensions and its new area?
+        </p>
+        <ol class="steps">
+          <li>Each length is multiplied by $3$: the new rectangle is $12$ cm by $18$ cm.</li>
+          <li>The new area is $12 \cdot 18 = 216\text{ cm}^2$, and the old area was $4 \cdot 6 = 24\text{ cm}^2$.</li>
+          <li>The area was multiplied by $216 \div 24 = 9 = 3^2$, not by $3$.</li>
+          <li>Check from the other side: $24 \cdot k^2 = 24 \cdot 9 = 216$ ✓. $\blacksquare$</li>
+        </ol>
+        <p class="note">
+          Multiplying the lengths by $3$ makes three copies along one side and three along the other,
+          so nine copies of the old rectangle fit in the new one.
+        </p>
+      </div>
+    </div>
+
+    <div class="ex" data-inline id="t12" data-type="number" data-answer="80" data-placeholder="square centimeters"
+         data-hint="Every length is multiplied by the scale factor, so the area is multiplied by the scale factor times itself."
+         data-hint2="The scale factor is 2, so find 2 times 2 first and then multiply the area by it.">
+      <div class="ex-q">
+        <p>
+          A figure with an area of $20$ square centimeters is enlarged by a scale factor of $2$. What is the area of the enlargement, in square centimeters?
+        </p>
+      </div>
+      <div class="ex-solution">
+        <p class="answer">Answer: $80$ square centimeters</p>
+        <p>
+          $20 \cdot 2^2 = 80$. Check: a rectangle $4$ by $5$ becomes $8$ by $10$, and $8 \cdot 10 = 80$ ✓.
+        </p>
+      </div>
+    </div>
+
     <!-- ====================================================== practice ==== -->
     <section class="practice" id="practice">
       <div class="practice-head">
@@ -416,7 +690,9 @@
       <p>
         Give each answer as a number in the unit the question names, without writing the unit. Use a
         decimal, such as $4.5$, where the answer is not whole. Where a question states a fact joining
-        two systems, use it exactly as stated. Money is in dollars.
+        two systems, use it exactly as stated. For an area or a volume, give the number of square or cubic
+        units. A scale of the form $1 : N$ has no units, so the real length is $N$ times the drawn one.
+        Money is in dollars.
       </p>
 
       <div class="ex" id="e1" data-section="convert" data-type="number" data-answer="7" data-placeholder="feet"
@@ -598,6 +874,174 @@
           </p>
         </div>
       </div>
+
+      <div class="ex" id="e15" data-section="area" data-type="number" data-answer="1008" data-placeholder="square inches"
+           data-hint="An area uses the length factor twice. A foot is 12 inches, so think of a square foot cut into rows of square inches."
+           data-hint2="Find how many square inches make one square foot, then multiply by the number of square feet.">
+        <div class="ex-q"><p>A tabletop has an area of $7$ square feet. How many square inches is that?</p></div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $1008$ square inches</p>
+          <p>
+            $7\text{ ft}^2\cdot\frac{144\text{ in}^2}{1\text{ ft}^2} = 1008\text{ in}^2$. Check: $7 \cdot 100 = 700$ and $7 \cdot 44 = 308$, and $700 + 308 = 1008$ ✓.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" id="e16" data-section="area" data-type="number" data-answer="6" data-placeholder="square yards"
+           data-hint="You are going to a larger unit, so the number gets smaller, and the area factor is the length factor squared."
+           data-hint2="A yard is 3 feet, so a square yard holds 3 times 3 square feet. Divide by that.">
+        <div class="ex-q"><p>A patio covers $54$ square feet. How many square yards is that?</p></div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $6$ square yards</p>
+          <p>
+            $54\text{ ft}^2\cdot\frac{1\text{ yd}^2}{9\text{ ft}^2} = 6\text{ yd}^2$. Check: $6$ square yards of $9$ square feet each is $6 \cdot 9 = 54$ ✓.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" id="e17" data-section="area" data-type="number" data-answer="35000" data-placeholder="square centimeters"
+           data-hint="A meter is 100 centimeters. Square the length factor to get the factor for an area."
+           data-hint2="A square meter holds 100 times 100 square centimeters.">
+        <div class="ex-q"><p>A sheet of plywood has an area of $3.5$ square meters. How many square centimeters is that?</p></div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $35{,}000$ square centimeters</p>
+          <p>
+            $3.5\text{ m}^2\cdot\frac{10{,}000\text{ cm}^2}{1\text{ m}^2} = 35{,}000\text{ cm}^2$. Check: $35{,}000 \div 10{,}000 = 3.5$ square meters ✓.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" id="e18" data-section="area" data-type="number" data-answer="135" data-placeholder="cubic feet"
+           data-hint="A volume uses the length factor three times. A yard is 3 feet."
+           data-hint2="A cubic yard holds 3 times 3 times 3 cubic feet.">
+        <div class="ex-q"><p>A truck delivers $5$ cubic yards of soil. How many cubic feet is that?</p></div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $135$ cubic feet</p>
+          <p>
+            $5\text{ yd}^3\cdot\frac{27\text{ ft}^3}{1\text{ yd}^3} = 135\text{ ft}^3$. Check: $135 \div 27 = 5$ cubic yards ✓.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" id="e19" data-section="area" data-type="number" data-answer="3" data-placeholder="liters"
+           data-hint="A milliliter is a cubic centimeter. First find the volume of the box, then change milliliters to liters."
+           data-hint2="Multiply the three edges to get cubic centimeters, call that milliliters, then use 1000 milliliters in a liter.">
+        <div class="ex-q"><p>A tank is $20$ centimeters long, $15$ centimeters wide and $10$ centimeters high. How many liters does it hold when it is full?</p></div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $3$ liters</p>
+          <p>
+            $20 \cdot 15 \cdot 10 = 3000\text{ cm}^3 = 3000$ mL, and $3000\text{ mL}\cdot\frac{1\text{ L}}{1000\text{ mL}} = 3$ L. Check: the bottom is $300\text{ cm}^2$, and $10$ layers of $300$ make $3000$ ✓.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" id="e20" data-section="area" data-type="number" data-answer="378" data-placeholder="dollars"
+           data-hint="The price is per square foot, so find the area of the room in square feet first."
+           data-hint2="Multiply the length by the width, then multiply by the price per square foot.">
+        <div class="ex-q"><p>A room is $9$ feet long and $12$ feet wide. Flooring costs $\$3.50$ per square foot. How many dollars does it cost to cover the room?</p></div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $\$378$</p>
+          <p>
+            The area is $9 \cdot 12 = 108\text{ ft}^2$, and $108\cdot\$3.50 = \$378$. Check: $100 \cdot 3.50 = 350$ and $8 \cdot 3.50 = 28$, and $350 + 28 = 378$ ✓.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" id="e21" data-section="area" data-type="number" data-answer="36" data-placeholder="dollars per square yard"
+           data-hint="A square yard is larger than a square foot, so the price per square yard is the larger number."
+           data-hint2="A square yard holds 3 times 3 square feet, each at the price per square foot.">
+        <div class="ex-q"><p>Fabric costs $\$4$ per square foot. How many dollars per square yard is that?</p></div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $\$36$ per square yard</p>
+          <p>
+            $\frac{\$4}{1\text{ ft}^2}\cdot\frac{9\text{ ft}^2}{1\text{ yd}^2} = \$36$ per square yard. Check: $\$36 \div 9 = \$4$ per square foot ✓.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" id="e22" data-section="scale" data-type="number" data-answer="90" data-placeholder="miles"
+           data-hint="The scale is a conversion factor. The drawn unit goes underneath so that it cancels."
+           data-hint2="Each inch on the map stands for 20 miles. Multiply the map distance by it.">
+        <div class="ex-q"><p>A map has the scale $1$ inch $= 20$ miles. Two cities are $4.5$ inches apart on the map. How many miles apart are they?</p></div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $90$ miles</p>
+          <p>
+            $4.5\text{ in}\cdot\frac{20\text{ mi}}{1\text{ in}} = 90$ mi. Check: $90 \div 20 = 4.5$ inches ✓.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" id="e23" data-section="scale" data-type="number" data-answer="9" data-placeholder="inches"
+           data-hint="Going from the real distance to the drawing, the real unit is the one you are leaving, so it goes underneath."
+           data-hint2="Divide the real distance by the number of miles one inch stands for.">
+        <div class="ex-q"><p>A map uses the scale $1$ inch $= 15$ miles. A highway is really $135$ miles long. How many inches long is it on the map?</p></div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $9$ inches</p>
+          <p>
+            $135\text{ mi}\cdot\frac{1\text{ in}}{15\text{ mi}} = 9$ in. Check: $9 \cdot 15 = 135$ miles ✓.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" id="e24" data-section="scale" data-type="number" data-answer="20" data-placeholder="meters"
+           data-hint="A ratio with no units means the real length is that many times the drawn one, in whatever unit you measure."
+           data-hint2="Multiply in centimeters, then change centimeters to meters.">
+        <div class="ex-q"><p>A site plan has the scale $1 : 500$. A fence measures $4$ centimeters on the plan. How many meters long is the real fence?</p></div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $20$ meters</p>
+          <p>
+            $4 \cdot 500 = 2000$ cm, and $2000\text{ cm}\cdot\frac{1\text{ m}}{100\text{ cm}} = 20$ m. Check: $20$ m is $2000$ cm, and $2000 \div 500 = 4$ ✓.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" id="e25" data-section="scale" data-type="number" data-answer="20" data-placeholder="centimeters"
+           data-hint="The model is the real length divided by the number in the ratio. Put the real length in centimeters first."
+           data-hint2="Change meters to centimeters, then divide by the number in the ratio.">
+        <div class="ex-q"><p>A model car is built to the scale $1 : 24$. The real car is $4.8$ meters long. How many centimeters long is the model?</p></div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $20$ centimeters</p>
+          <p>
+            $4.8$ m is $480$ cm, and $480 \div 24 = 20$ cm. Check: $20 \cdot 24 = 480$ cm, which is $4.8$ m ✓.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" id="e26" data-section="scale" data-type="number" data-answer="4" data-placeholder="feet per inch"
+           data-hint="The scale is the real length for one drawn unit: a rate with the real length on top and the drawn length underneath."
+           data-hint2="Divide the real length by the drawn length.">
+        <div class="ex-q"><p>A banner is $36$ feet long. To fit a page it is drawn $9$ inches long. How many feet does $1$ inch on the drawing stand for?</p></div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $4$ feet per inch</p>
+          <p>
+            $\frac{36\text{ ft}}{9\text{ in}} = 4$ feet per inch. Check: $9 \cdot 4 = 36$ feet ✓.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" id="e27" data-section="scale" data-type="number" data-answer="112" data-placeholder="square centimeters"
+           data-hint="Every length is multiplied by the scale factor, so the area is multiplied by the scale factor squared."
+           data-hint2="The scale factor is 4. Find 4 times 4, then multiply the area by it.">
+        <div class="ex-q"><p>A figure with an area of $7$ square centimeters is enlarged by a scale factor of $4$. What is the area of the enlargement, in square centimeters?</p></div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $112$ square centimeters</p>
+          <p>
+            $7 \cdot 4^2 = 7 \cdot 16 = 112$. Check: a rectangle $1$ by $7$ becomes $4$ by $28$, and $4 \cdot 28 = 112$ ✓.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" id="e28" data-section="scale" data-type="number" data-answer="6" data-placeholder="square meters"
+           data-hint="Real lengths are the scale number times the drawn ones, so real areas are that number squared times the drawn area. Then use the squared factor for meters."
+           data-hint2="Multiply the area by 50 twice, then divide square centimeters by 10,000 to get square meters.">
+        <div class="ex-q"><p>A floor plan has the scale $1 : 50$. A room covers $24$ square centimeters on the plan. What is the real floor area, in square meters?</p></div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $6$ square meters</p>
+          <p>
+            $24 \cdot 50^2 = 60{,}000\text{ cm}^2$, and $60{,}000 \div 10{,}000 = 6\text{ m}^2$. Check: a plan room $4$ cm by $6$ cm is $200$ cm by $300$ cm, which is $2$ m by $3$ m, and $2 \cdot 3 = 6$ ✓.
+          </p>
+        </div>
+      </div>
     </section>
 
     <div class="recap">
@@ -631,6 +1075,12 @@
           bringing both to one unit rate.</li>
         <li>The unit of the result is a check on the setup: hours per mile when you wanted miles per
           hour means the fraction is upside down.</li>
+        <li>A factor for an area is the length factor squared, and for a volume cubed: $1$ ft$^2 = 144$ in$^2$,
+          $1$ yd$^3 = 27$ ft$^3$. Multiplying an area by the length factor is the common mistake.
+          A milliliter is a cubic centimeter, and a price per square foot times the area is the cost.</li>
+        <li>A scale is a conversion factor between the drawing and the world, with the unit you are
+          leaving underneath. A ratio such as $1 : 200$ multiplies a drawn length by $200$ in any unit.
+          A scale factor $k$ multiplies lengths by $k$ and areas by $k^2$.</li>
       </ul>
     </div>
 

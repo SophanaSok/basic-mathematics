@@ -303,6 +303,10 @@ export const SKILLS: Readonly<Record<SectionRef, Skill>> = {
     sat: ["sat.psda.ratio"], act: ["act.ies", "act.phm.nq"], accuplacer: ["qas.ratio"], aleks: [] },
   "pk-units#rates": { ccss: "6.RP.A.3.b", also: ["7.RP.A.1", "HSN.Q.A.1", "HSN.Q.A.2"], course: "pre-algebra",
     sat: ["sat.psda.ratio"], act: ["act.ies", "act.phm.nq"], accuplacer: ["qas.ratio"], aleks: [] },
+  "pk-units#area": { ccss: "7.G.B.6", also: ["6.G.A.2", "HSN.Q.A.1"], course: "pre-algebra",
+    sat: ["sat.psda.ratio"], act: ["act.ies", "act.phm.nq"], accuplacer: ["qas.ratio"], aleks: [] },
+  "pk-units#scale": { ccss: "7.G.A.1", also: ["7.RP.A.2", "HSG.SRT.A.2"], course: "pre-algebra",
+    sat: ["sat.psda.ratio"], act: ["act.ies", "act.phm.nq"], accuplacer: ["qas.ratio"], aleks: [] },
 };
 
 /** Generators (data/gen/*.js, by id) whose test differs from their section's record. */
