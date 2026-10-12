@@ -1,7 +1,8 @@
 /* data/gen/packs.js — Arena generators for the skill packs (Part V, beside the course).
    Pack A, "Ratios, Rates and Percent": sections 1–4 (ratios, proportions, percent, repeated change).
    Pack B, "Data and Statistics": sections 1-4 (center and spread; reading displays; scatterplots and lines of fit; samples and claims).
-   Pack C, "Chance and Counting": sections 1-2 (probability as a fraction of outcomes; compound events).
+   Pack C, "Chance and Counting": sections 1-4 (probability as a fraction of outcomes; compound events;
+   two-way tables and conditional probability; counting arrangements).
    The quartiles follow the median-of-halves rule of src/ui/chart.ts.
 
    A problem may carry a chart the Arena draws with the page widget (assets/widgets.js,
@@ -1653,6 +1654,290 @@
             if (kind === "mixed" ? items[x] !== items[y] : (items[x] === items[y] && items[x] === (kind === "first" ? c[2] : c[3]))) hits++;
           }
           return pairs === den && keyIs(ans, hits, pairs) && hits > 0 && hits < pairs && T <= 20;
+        }
+      };
+    }
+  });
+
+  /* --------------------------------------------- pack C §3: two-way tables and conditional probability -- */
+
+  /* two questions asked of every member of a group; sg is the form that follows "the student", pl the form that follows "those who" */
+  var TW_CONTEXTS = [
+    { noun: "students", one: "student",
+      A: [{ pl: "play a sport", sg: "plays a sport" }, { pl: "do not play a sport", sg: "does not play a sport" }],
+      B: [{ pl: "ride the bus", sg: "rides the bus" }, { pl: "walk to school", sg: "walks to school" }] },
+    { noun: "people", one: "person",
+      A: [{ pl: "own a bike", sg: "owns a bike" }, { pl: "do not own a bike", sg: "does not own a bike" }],
+      B: [{ pl: "live in town", sg: "lives in town" }, { pl: "live outside town", sg: "lives outside town" }] },
+    { noun: "students", one: "student",
+      A: [{ pl: "are in the band", sg: "is in the band" }, { pl: "are not in the band", sg: "is not in the band" }],
+      B: [{ pl: "take Spanish", sg: "takes Spanish" }, { pl: "take French", sg: "takes French" }] },
+    { noun: "families", one: "family",
+      A: [{ pl: "have a dog", sg: "has a dog" }, { pl: "do not have a dog", sg: "does not have a dog" }],
+      B: [{ pl: "have a yard", sg: "has a yard" }, { pl: "do not have a yard", sg: "does not have a yard" }] }
+  ];
+
+  /* a 2 by 2 table of counts, stated in words, with every cell at least 2 */
+  function twoWay(r) {
+    var c = r.pick(TW_CONTEXTS), cell = [[r.int(2, 12), r.int(2, 12)], [r.int(2, 12), r.int(2, 12)]];
+    var rowT = [cell[0][0] + cell[0][1], cell[1][0] + cell[1][1]], colT = [cell[0][0] + cell[1][0], cell[0][1] + cell[1][1]], N = rowT[0] + rowT[1];
+    var text = "A survey of $" + N + "$ " + c.noun + " found that $" + rowT[0] + "$ of them " + c.A[0].pl + " and the other $" + rowT[1] + "$ " + c.A[1].pl +
+      ". Of those who " + c.A[0].pl + ", $" + cell[0][0] + "$ " + c.B[0].pl + " (the rest " + c.B[1].pl + "). Of those who " + c.A[1].pl + ", $" + cell[1][0] + "$ " + c.B[0].pl + " (the rest " + c.B[1].pl + ").";
+    var fill = "The four cells: " + c.A[0].pl + " and " + c.B[0].pl + ", $" + cell[0][0] + "$; " + c.A[0].pl + " and " + c.B[1].pl + ", $" + rowT[0] + " - " + cell[0][0] + " = " + cell[0][1] + "$; " +
+      c.A[1].pl + " and " + c.B[0].pl + ", $" + cell[1][0] + "$; " + c.A[1].pl + " and " + c.B[1].pl + ", $" + rowT[1] + " - " + cell[1][0] + " = " + cell[1][1] + "$.";
+    /* the survey as a list of individuals, [row, column] for each person */
+    var people = [], i, j, k;
+    for (i = 0; i < 2; i++) for (j = 0; j < 2; j++) for (k = 0; k < cell[i][j]; k++) people.push([i, j]);
+    return { c: c, cell: cell, rowT: rowT, colT: colT, N: N, text: text, fill: fill, people: people };
+  }
+  function lowest(n, d) { return u.gcd(n, d) > 1 ? ", which is $" + fracTex(n, d) + "$ in lowest terms." : "."; }
+
+  G.add({
+    id: "pk-twoway-read", section: "pk-chance#twoway", par: 70, timed: true,
+    make: function (r) {
+      var t = twoWay(r), c = t.c, kind = r.pick(["cell", "row", "col"]), i = r.int(0, 1), j = r.int(0, 1), fav, q, say;
+      if (kind === "cell") { fav = t.cell[i][j]; say = "the " + c.one + " " + c.A[i].sg + " and " + c.B[j].sg; }
+      else if (kind === "row") { fav = t.rowT[i]; say = "the " + c.one + " " + c.A[i].sg; }
+      else { fav = t.colT[j]; say = "the " + c.one + " " + c.B[j].sg; }
+      var ans = fracAns(fav, t.N);
+      q = t.text + " One " + c.one + " is chosen at random. What is the probability that " + say + "?";
+      return {
+        q: q, type: "fraction", answer: ans, placeholder: "e.g. 1/2",
+        hint: "Fill in the four cells of a table first. Then count the cells the question asks about, and divide by the number of " + c.noun + " in the whole survey.",
+        steps: [t.fill, kind === "cell" ? "The event is one cell: $" + fav + "$ of the $" + t.N + "$ " + c.noun + "." : "The event is a whole " + (kind === "row" ? "row" : "column") + ", its total: $" + fav + "$ of the $" + t.N + "$ " + c.noun + ".",
+          "The probability is $" + fr(fav, t.N) + "$" + lowest(fav, t.N)],
+        verify: function () {
+          /* count the individuals one by one */
+          var hits = countIf(t.people, function (p) { return kind === "cell" ? p[0] === i && p[1] === j : (kind === "row" ? p[0] === i : p[1] === j); });
+          return t.people.length === t.N && keyIs(ans, hits, t.N) && hits > 0 && hits < t.N;
+        }
+      };
+    }
+  });
+
+  G.add({
+    id: "pk-twoway-given", section: "pk-chance#twoway", par: 80, timed: true,
+    make: function (r) {
+      var t = twoWay(r), c = t.c, byRow = r.chance(0.5), i = r.int(0, 1), j = r.int(0, 1), group, fav, q, ans;
+      if (byRow) {
+        group = t.rowT[i]; fav = t.cell[i][j];
+        q = t.text + " One " + c.one + " is chosen at random from those who " + c.A[i].pl + ". What is the probability that the " + c.one + " " + c.B[j].sg + "?";
+      } else {
+        group = t.colT[j]; fav = t.cell[i][j];
+        q = t.text + " One " + c.one + " is chosen at random from those who " + c.B[j].pl + ". What is the probability that the " + c.one + " " + c.A[i].sg + "?";
+      }
+      ans = fracAns(fav, group);
+      return {
+        q: q, type: "fraction", answer: ans, placeholder: "e.g. 1/2",
+        hint: "The words after “from those who” name the group, and only that group counts. Fill in the table, find the group's total, and see how many of the group are in the event.",
+        steps: [t.fill, "The group is " + (byRow ? "the row" : "the column") + " of those who " + (byRow ? c.A[i].pl : c.B[j].pl) + ": $" + group + "$ " + c.noun + ". Of them, $" + fav + "$ " + (byRow ? c.B[j].pl : c.A[i].pl) + ".",
+          "The probability is $" + fr(fav, group) + "$" + lowest(fav, group)],
+        verify: function () {
+          /* keep only the people in the group, then count the event among them */
+          var inGroup = t.people.filter(function (p) { return byRow ? p[0] === i : p[1] === j; });
+          var hits = countIf(inGroup, function (p) { return p[0] === i && p[1] === j; });
+          return inGroup.length === group && keyIs(ans, hits, inGroup.length) && hits > 0 && hits < group;
+        }
+      };
+    }
+  });
+
+  G.add({
+    id: "pk-twoway-compare", section: "pk-chance#twoway", par: 80, timed: true,
+    make: function (r) {
+      var c = r.pick(TW_CONTEXTS), sizes = [20, 25, 50], t1 = r.pick(sizes), t2 = r.pick(sizes), c1 = r.int(2, t1 - 2), c2 = r.int(2, t2 - 2), guard = 0;
+      var kind = r.pick(["diff", "diff", "percent"]), j = r.int(0, 1);
+      while (kind === "diff" && c1 * t2 === c2 * t1 && guard++ < 50) c2 = r.int(2, t2 - 2);
+      if (kind === "diff" && c1 * t2 === c2 * t1) { t1 = 20; t2 = 20; c1 = r.int(2, 18); c2 = c1 === 10 ? 4 : 10; }
+      var p1 = 100 * c1 / t1, p2 = 100 * c2 / t2;
+      if (kind === "percent") {
+        var ansP = String(p1);
+        return {
+          q: "Of the $" + t1 + "$ " + c.noun + " who " + c.A[0].pl + ", $" + c1 + "$ " + c.B[j].pl + ". What percent of those who " + c.A[0].pl + " " + c.B[j].pl + "?",
+          type: "percent", answer: ansP, placeholder: pctHolder(p1),
+          hint: "A percent is a part of the group named after \u201cof\u201d. Write the part over the group's total, then change it to a fraction whose bottom is one hundred.",
+          steps: ["The group has $" + t1 + "$ " + c.noun + ", and $" + c1 + "$ of them are in the event.", "$" + fr(c1, t1) + " = " + fr(p1, 100) + " = " + p1 + "\\%$."],
+          verify: function () { return (t1 - c1) * 100 === (100 - p1) * t1 && c1 >= 2 && c1 <= t1 - 2 && p1 > 0 && p1 < 100; }
+        };
+      }
+      /* the group with the higher percent goes first, so the difference is positive */
+      var A0 = c.A[0], A1 = c.A[1], B = c.B[j], ans = Math.abs(p1 - p2);
+      var swap = p1 < p2, first = swap ? A1 : A0, second = swap ? A0 : A1;
+      var tA = swap ? t2 : t1, cA = swap ? c2 : c1, tB = swap ? t1 : t2, cB = swap ? c1 : c2;
+      return {
+        q: "Of the $" + t1 + "$ " + c.noun + " who " + A0.pl + ", $" + c1 + "$ " + B.pl + ". Of the $" + t2 + "$ who " + A1.pl + ", $" + c2 + "$ " + B.pl + ". The percent of those who " + first.pl + " who " + B.pl + " is how many percentage points higher than the percent of those who " + second.pl + " who " + B.pl + "?",
+        type: "number", answer: clean(ans), placeholder: "percentage points",
+        hint: "The groups may differ in size, so compare fractions, not counts. Find each group's percent on its own, then subtract.",
+        steps: ["Those who " + first.pl + ": $" + fr(cA, tA) + " = " + clean(100 * cA / tA) + "\\%$. Those who " + second.pl + ": $" + fr(cB, tB) + " = " + clean(100 * cB / tB) + "\\%$.",
+          "The difference is $" + clean(100 * cA / tA) + " - " + clean(100 * cB / tB) + " = " + clean(ans) + "$ percentage points."],
+        verify: function () {
+          /* over a common bottom: the gap of cross products, per hundred */
+          var gap = 100 * (cA * tB - cB * tA) / (tA * tB);
+          return Math.abs(gap - ans) < 1e-9 && ans > 0 && ans < 100 && cA < tA && cB < tB;
+        }
+      };
+    }
+  });
+
+  /* --------------------------------------------- pack C §4: counting arrangements -- */
+
+  /* the number of sequences of k items from n, found by walking every one (repeat: an item may come again) */
+  function seqCount(n, k, repeat) {
+    var total = 0, used = [], i;
+    for (i = 0; i < n; i++) used.push(false);
+    (function walk(depth) {
+      var x;
+      if (depth === k) { total++; return; }
+      for (x = 0; x < n; x++) {
+        if (!repeat && used[x]) continue;
+        used[x] = true; walk(depth + 1); used[x] = false;
+      }
+    })(0);
+    return total;
+  }
+  /* every arrangement of 0..n-1 */
+  function allPerms(n) {
+    var out = [], cur = [], used = [], i;
+    for (i = 0; i < n; i++) used.push(false);
+    (function walk() {
+      var x;
+      if (cur.length === n) { out.push(cur.slice()); return; }
+      for (x = 0; x < n; x++) {
+        if (used[x]) continue;
+        used[x] = true; cur.push(x); walk(); cur.pop(); used[x] = false;
+      }
+    })();
+    return out;
+  }
+  function factorial(n) { return n <= 1 ? 1 : n * factorial(n - 1); }
+  /* n times n-1 times ... for k factors, as math: 8 \cdot 7 \cdot 6 */
+  function falling(n, k) { var a = [], i; for (i = 0; i < k; i++) a.push(n - i); return a.join(" \\cdot "); }
+  function fallingVal(n, k) { var v = 1, i; for (i = 0; i < k; i++) v *= n - i; return v; }
+
+  var CT_KINDS = [
+    { lead: "Mo has ", items: ["shirts", "pairs of pants", "pairs of shoes"], tail: "An outfit is one of each kind. How many different outfits can Mo make?" },
+    { lead: "A diner offers ", items: ["main dishes", "sides", "drinks"], tail: "A meal is one of each kind. How many different meals can be ordered?" },
+    { lead: "A deli makes sandwiches from ", items: ["breads", "meats", "cheeses"], tail: "A sandwich has one of each kind. How many different sandwiches are possible?" }
+  ];
+
+  G.add({
+    id: "pk-count-principle", section: "pk-chance#counting", par: 50, timed: true,
+    make: function (r) {
+      if (r.chance(0.6)) {
+        var c = r.pick(CT_KINDS), m = r.int(2, 3), f = [], i;
+        for (i = 0; i < m; i++) f.push(r.int(2, 9));
+        var words = f.map(function (x, idx) { return "$" + x + "$ " + c.items[idx]; }), list = words.length === 2 ? words.join(" and ") : words[0] + ", " + words[1] + " and " + words[2];
+        var prod = f.reduce(function (a, b) { return a * b; }, 1);
+        return {
+          q: c.lead + list + ". " + c.tail.replace("one of each kind", m === 2 ? "one of each of the two kinds" : "one of each kind"),
+          type: "number", answer: String(prod), placeholder: "count",
+          hint: "Each choice can be paired with every choice at the next step, and the number of choices at one step does not depend on the others. Multiply, or think of a list with one row for each first choice.",
+          steps: ["There are " + f.map(function (x) { return "$" + x + "$"; }).join(", ") + " choices at the steps.", "The counting principle multiplies them: $" + f.join(" \\cdot ") + " = " + prod + "$."],
+          verify: function () {
+            /* walk every combination */
+            var n = 0, a, b, d;
+            for (a = 0; a < f[0]; a++) for (b = 0; b < f[1]; b++) for (d = 0; d < (f[2] || 1); d++) n++;
+            return n === prod && prod <= 99999;
+          }
+        };
+      }
+      var D = r.pick([3, 4, 5, 6, 10]), K = r.int(2, 4);
+      while (Math.pow(D, K) > 10000) K--;
+      var total = Math.pow(D, K), what = D === 10 ? "each digit is any of $0$ to $9$" : "each digit is any of $1$ to $" + D + "$";
+      return {
+        q: "A lock code is $" + K + "$ digits long. In every place " + what + ", and a digit may be used again. How many different codes are there?",
+        type: "number", answer: String(total), placeholder: "count",
+        hint: "A digit may be used again, so every place has the same number of choices. Multiply the choices for the places.",
+        steps: ["Each of the $" + K + "$ places has $" + D + "$ choices, since nothing is used up.", "$" + new Array(K + 1).join(D + " \\cdot ").replace(/ \\cdot $/, "") + " = " + total + "$."],
+        verify: function () { return seqCount(D, K, true) === total && total <= 10000; }
+      };
+    }
+  });
+
+  G.add({
+    id: "pk-count-arrange", section: "pk-chance#counting", par: 70, timed: true,
+    make: function (r) {
+      var kind = r.pick(["all", "some", "some", "choose"]);
+      if (kind === "all") {
+        var n = r.int(3, 7), c = r.pick([["different books", "stand in a row on a shelf"], ["different songs", "be played one after another"], ["students", "stand in a line for a photo"], ["different flags", "hang in a row on a wall"]]), ans = factorial(n);
+        return {
+          q: "In how many different orders can $" + n + "$ " + c[0] + " " + c[1] + "?",
+          type: "number", answer: String(ans), placeholder: "count",
+          hint: "Fill the places one at a time, left to right. Each time, ask how many of the items are still available.",
+          steps: ["The first place has $" + n + "$ choices, the next has one fewer, and so on down to $1$ for the last.", "$" + falling(n, n) + " = " + ans + "$."],
+          verify: function () { return allPerms(n).length === ans && ans <= 5040; }
+        };
+      }
+      if (kind === "some") {
+        var N = r.int(5, 9), K = r.int(2, 3), ans2 = fallingVal(N, K);
+        var c2 = r.pick([
+          ["A club of $" + N + "$ members elects a " + (K === 2 ? "president and a vice president" : "president, a vice president and a treasurer") + ", all different people. In how many ways can the offices be filled?"],
+          ["$" + N + "$ runners race, and the " + (K === 2 ? "first and second" : "first, second and third") + " places win medals. In how many different ways can the medals go to runners?"],
+          ["A code is $" + K + "$ different letters in order, chosen from $" + N + "$ letters, with no letter used twice. How many codes are there?"]
+        ]);
+        return {
+          q: c2[0], type: "number", answer: String(ans2), placeholder: "count",
+          hint: "Fill the " + (K === 2 ? "two places" : "three places") + " in order. Each choice uses up one of the items, so each step has one fewer choice than the step before.",
+          steps: ["The first place has $" + N + "$ choices, and each place after it has one fewer, for $" + K + "$ places.", "$" + falling(N, K) + " = " + ans2 + "$."],
+          verify: function () { return seqCount(N, K, false) === ans2 && ans2 <= 99999; }
+        };
+      }
+      var M = r.int(4, 7), P = M <= 5 ? r.int(2, 3) : 2, ordered = fallingVal(M, P), per = factorial(P), ans3 = ordered / per;
+      var who = r.pick([["students", "A teacher picks $" + P + "$ of $" + M + "$ students for a team"], ["players", "A coach picks $" + P + "$ of $" + M + "$ players to carry the equipment"], ["friends", "Ana picks $" + P + "$ of her $" + M + "$ friends to invite to a movie"]]);
+      return {
+        q: who[1] + ". The order does not matter, only who is picked. How many different groups can be picked?",
+        type: "number", answer: String(ans3), placeholder: "count",
+        hint: "First count the picks as if the order mattered. Then ask how many of those ordered picks give the same group, and divide by that.",
+        steps: ["With order mattering: $" + falling(M, P) + " = " + ordered + "$.", "Each group is counted once for every order of its $" + P + "$ members, and there are $" + falling(P, P) + " = " + per + "$ orders.", "So the number of groups is $" + ordered + " \\div " + per + " = " + ans3 + "$."],
+        verify: function () {
+          /* walk every subset of the M items and keep those with P members */
+          var cnt = 0, mask, bits, b;
+          for (mask = 0; mask < (1 << M); mask++) { bits = 0; for (b = 0; b < M; b++) if (mask & (1 << b)) bits++; if (bits === P) cnt++; }
+          return cnt === ans3 && Number.isInteger(ans3) && ans3 <= 99999;
+        }
+      };
+    }
+  });
+
+  G.add({
+    id: "pk-count-prob", section: "pk-chance#counting", par: 90, timed: true,
+    make: function (r) {
+      var kind = r.pick(["order", "guess", "top"]);
+      if (kind === "order") {
+        var n = r.int(3, 5), titles = ["Atlas", "Birds", "Cacti", "Drums", "Eagles"].slice(0, n), total = factorial(n), ans = fracAns(1, total);
+        return {
+          q: "The books " + titles.join(", ") + " are put on a shelf in a random order, every order equally likely. What is the probability that they stand in alphabetical order?",
+          type: "fraction", answer: ans, placeholder: "e.g. 1/2",
+          hint: "Only one order is alphabetical. Count all the equally likely orders, and put one over that count.",
+          steps: ["The number of orders is $" + falling(n, n) + " = " + total + "$, all equally likely.", "Exactly one of them is alphabetical, so the probability is $\\frac{1}{" + total + "}$."],
+          verify: function () {
+            /* list the orders and keep those that are in increasing order */
+            var perms = allPerms(n), good = countIf(perms, function (p) { return p.every(function (x, i) { return x === i; }); });
+            return good === 1 && keyIs(ans, good, perms.length) && perms.length === total;
+          }
+        };
+      }
+      if (kind === "guess") {
+        var rep = r.chance(0.5), K = r.int(2, 3), D = rep ? r.pick([4, 5, 6, 10]) : r.pick([5, 6, 8, 10]), tot = rep ? Math.pow(D, K) : fallingVal(D, K), ans2 = fracAns(1, tot);
+        var range = D === 10 ? "$0$ to $9$" : "$1$ to $" + D + "$";
+        return {
+          q: "A lock code is $" + K + "$ digits, each digit from " + range + ", " + (rep ? "and a digit may be used again" : "and no digit is used twice") + ". Every code is equally likely. A person guesses one code at random. What is the probability that the guess is right?",
+          type: "fraction", answer: ans2, placeholder: "e.g. 1/2",
+          hint: "Only one code opens the lock. Count the equally likely codes with the counting principle, remembering whether a digit may be used again.",
+          steps: ["The number of codes is $" + (rep ? new Array(K + 1).join(D + " \\cdot ").replace(/ \\cdot $/, "") : falling(D, K)) + " = " + tot + "$.", "One of them is right, so the probability is $\\frac{1}{" + tot + "}$."],
+          verify: function () { return seqCount(D, K, rep) === tot && keyIs(ans2, 1, tot) && tot <= 10000; }
+        };
+      }
+      var m = r.int(4, 7), ans3 = fracAns(1, m * (m - 1)), who = r.pick([["Ana", "Ben"], ["Cleo", "Dev"], ["Eli", "Fay"]]);
+      return {
+        q: "$" + m + "$ friends, including " + who[0] + " and " + who[1] + ", line up in a random order, every order equally likely. What is the probability that " + who[0] + " is first and " + who[1] + " is second?",
+        type: "fraction", answer: ans3, placeholder: "e.g. 1/2",
+        hint: "Count the equally likely orders of all the friends. Then count the orders that begin with the two named friends in the right places.",
+        steps: ["All orders: $" + falling(m, m) + " = " + factorial(m) + "$.", "With the first two places fixed, the other " + (m - 2) + " friends can stand in $" + (m - 2 > 1 ? falling(m - 2, m - 2) : "1") + " = " + factorial(m - 2) + "$ orders.", "The probability is $" + fr(factorial(m - 2), factorial(m)) + "$" + lowest(factorial(m - 2), factorial(m))],
+        verify: function () {
+          /* list the orders; person 0 is first and person 1 second */
+          var perms = allPerms(m), hits = countIf(perms, function (p) { return p[0] === 0 && p[1] === 1; });
+          return perms.length === factorial(m) && keyIs(ans3, hits, perms.length) && hits > 0;
         }
       };
     }

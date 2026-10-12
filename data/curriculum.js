@@ -346,10 +346,12 @@ window.BM_CURRICULUM = {
           status: "full",
           course: "pre-algebra",
           blurb:
-            "Probability as a fraction of equally likely outcomes, the complement, experimental against theoretical probability and expected counts, and compound events by a list, a table or a tree.",
+            "Probability as a fraction of equally likely outcomes, the complement, experimental against theoretical probability and expected counts, compound events by a list, a table or a tree, two-way tables and conditional probability, and counting arrangements.",
           sections: [
             { id: "outcomes", title: "Probability as a fraction of outcomes", summary: "With equally likely outcomes, the probability of an event is the favorable outcomes over all outcomes, a number from 0 to 1; the complement is 1 minus it, trials estimate it, and the expected count is the probability times the number of trials." },
-            { id: "compound", title: "Compound events", summary: "A two-step sample space is listed in order, in a table or in a tree; independent events multiply, an or adds and takes away the overlap once, and a draw without replacement changes the second fraction." }
+            { id: "compound", title: "Compound events", summary: "A two-step sample space is listed in order, in a table or in a tree; independent events multiply, an or adds and takes away the overlap once, and a draw without replacement changes the second fraction." },
+            { id: "twoway", title: "Two-way tables and conditional probability", summary: "A probability read from a whole two-way table divides by the grand total, one read from a single row or column divides by that group's total and is conditional, P(A given B) is not P(B given A), and independence means the conditional equals the unconditional." },
+            { id: "counting", title: "Counting arrangements", summary: "Choices multiply, n distinct items can be arranged in n! orders, k items chosen in order from n take the product of k falling factors, codes with and without repeats differ in what is used up, a probability is one over the arrangements, and counting groups where order does not matter divides out the orders." }
           ]
         }
       ]

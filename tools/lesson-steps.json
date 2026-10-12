@@ -333,6 +333,11 @@
     "h2#compound to div#t4",
     "div.worked to div#t5",
     "div#t6",
+    "h2#twoway to div#t7",
+    "div#t8",
+    "h2#counting to div#t9",
+    "div#t10",
+    "p to div#t11",
     "section#practice",
     "div.recap to nav.chapter-nav"
   ],
