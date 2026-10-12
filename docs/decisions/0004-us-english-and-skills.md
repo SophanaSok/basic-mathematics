@@ -6,6 +6,8 @@
 
 **US2 (yes). Wording changes too, not only spelling.** Brackets are parentheses, towards is toward, pavement is sidewalk, cinema is movie theater, a stall is a stand, "costs marks" is "costs points", tick is check. Shipped in U1 to U7 (PRs #28 to #41). The six wording hits left (about.html, arena.js, flipbook.js) go in with U8 and U9. The code name in `src/core/answer/read.ts` stays.
 
+**US4 (a). The spelling lock has one semantic exemption: "pound" as a weight.** The skill packs teach US customary units, so "pounds" in prose and "lb" in math is how a US textbook writes the unit. `weightSense` in `tools/us-english.js` passes "pound(s)" only with a cue in reach: followed by "of" or "(lb", preceded by "per" or "weigh(s|ed) <number>", the bare word as a whole literal or table cell, or lb, oz, ounce or kilogram within 40 characters of it in the same text. Everything else about money stays strict and independent of the cues: the pound sign, `&pound;`, a price in pence, "pence" and "pounds sterling" fail wherever they appear. The five cases in `tools/checks.test.js` are the specification; the allow list stays empty. Shipped in K-11 (PR #112). Rule for the next flag: fix the page, not the scanner. A weight use the cues miss ("a 2-pound bag", "lifted 200 pounds") gets "(lb)" at the page's first mention of the unit, as `pk-units.html` does; extend the cue list only when the same sentence shape is flagged a third time, and update the test cases first. No page-wide or file-wide switch: a British price next to a conversion table must still be caught.
+
 **US3 (yes). The US English plan owns the pound-to-dollar rewrite.** U1 (PR #28) rewrote page 02 and the Part I generator in dollars; no pound sign is left in the chapters or generators. It replaces L7 of the grader design.
 
 **SW1 (a). The final cross-Part wording sweep is approved in full,** in one card with one progress base update. Counted on this worktree (main at 4f2d801) over parts/, assets/, data/ and the root pages:
@@ -36,6 +38,8 @@ US2: 0001 says the text is rewritten for US readers, and a US reader expects "pa
 
 US3: L7's check counted pound signs, which misses pence and the word "pounds" (6 lines), had no rule for writing a dollar sign in prose (`$` is the KaTeX delimiter), and did not plan the progress base update. One card owns page 02's money lines.
 
+US4: without it the units pack could not name the unit in prose ("per lb" and "the lb is 16 ounces" read badly), and an allow-list entry would have reopened the list the lock closed. The cue list is narrow enough that every money form the lock knows still fails, and small enough to be read in full.
+
 SW1: these are British phrasings the spelling lock cannot catch, collected card by card in the review notes. US textbooks say "nonzero", "right triangle", "disk", "the Pythagorean theorem" and "reflection across". One pass finishes the job, and a progress base update costs the same whether 3 or 5 questions change.
 
 SK1: Common Core marks this content (+), which no Traditional-pathway course holds. Folding it into Algebra 2 would pull exact trig values into the placement check.
@@ -55,3 +59,5 @@ SK3: every consumer of a course reads evidence: the placement check places from 
 ## Status
 
 Decided by the owner, 2026-10-07, on the decisions page: the recommended option on all seven questions, with no notes. US2, US3 and SK1 to SK3 record what already shipped (PRs #28 to #41 and PR #23).
+
+US4 decided by the owner, 2026-10-12, after a review of the change on main: keep it, record it here, and fix pages rather than extend the cues.
