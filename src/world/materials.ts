@@ -40,8 +40,6 @@ export interface WorldMaterials {
   solid: MeshToonMaterial;
   /** every ink edge: vertex colours */
   ink: LineBasicMaterial;
-  /** the "you are here" marker */
-  accent: MeshToonMaterial;
   /** the selection ring, unlit ink */
   inkFill: MeshBasicMaterial;
   /** the Foundry's smoke */
@@ -54,12 +52,11 @@ export function makeMaterials(T: Three): WorldMaterials {
   const ramp = toonRamp(T);
   const solid = new T.MeshToonMaterial({ vertexColors: true, gradientMap: ramp });
   const ink = new T.LineBasicMaterial({ vertexColors: true, transparent: true, opacity: 0.72 });
-  const accent = new T.MeshToonMaterial({ gradientMap: ramp });
   const inkFill = new T.MeshBasicMaterial();
   const puff = new T.MeshToonMaterial({ gradientMap: ramp });
   return {
-    solid, ink, accent, inkFill, puff, ramp,
-    dispose() { [solid, ink, accent, inkFill, puff, ramp].forEach((x) => x.dispose()); }
+    solid, ink, inkFill, puff, ramp,
+    dispose() { [solid, ink, inkFill, puff, ramp].forEach((x) => x.dispose()); }
   };
 }
 
