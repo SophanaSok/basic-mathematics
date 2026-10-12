@@ -2,9 +2,11 @@
    each tier draws stays inside the tier's budget, in the worst state the course can be
    in, and the merged batches keep their colours where they belong. The browser check
    tools/game/map.test.js measures the same budgets on the drawn page. */
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import * as THREE from "three";
 import type { Object3D } from "three";
+import { createWorld, MARKER_SCALE } from "./index.ts";
+import { buildForm } from "./forms.ts";
 import { layout } from "./layout.ts";
 import { placeProps } from "./props.ts";
 import { makeMaterials, type PaletteMap } from "./materials.ts";
@@ -65,9 +67,10 @@ describe("each tier's budget", () => {
       if (still.puffs) still.puffs.mesh.visible = budget.ambient;
       for (const states of [finished, untouched, halfway]) {
         const marks = buildMarks(T, L, states, mats, pal);
-        /* plus the marker (a mesh and its edges) and the selection ring */
-        const marker = new THREE.Mesh(new THREE.OctahedronGeometry(0.3, 0));
-        marker.add(new THREE.LineSegments(new THREE.EdgesGeometry(marker.geometry)));
+        /* plus the marker (the largest form, two draws) and the selection ring */
+        const form = buildForm(T, 5, mats, pal, "algebra", { live: false });
+        form.group.scale.setScalar(MARKER_SCALE);
+        const marker = form.group;
         const ring = new THREE.Mesh(new THREE.TorusGeometry(1.66, 0.03, 4, 28));
         const objects: Object3D[] = [still.mesh, still.edges, marks.mesh, marks.edges, marker, ring];
         if (still.puffs) objects.push(still.puffs.mesh);
@@ -76,6 +79,7 @@ describe("each tier's budget", () => {
         expect(d.calls).toBeLessThanOrEqual(budget.calls);
         expect(d.triangles).toBeLessThanOrEqual(budget.triangles);
         marks.dispose();
+        form.dispose();
       }
       still.dispose();
       mats.dispose();
@@ -93,6 +97,26 @@ describe("each tier's budget", () => {
     expect(still.arches.length).toBe(4);
     still.dispose();
     mats.dispose();
+  });
+});
+
+describe("the marker", () => {
+  it("is the learner's form: one mesh and one set of edges under it, freed with the world", () => {
+    /* the tokens are read from a probe element; Node has neither, so a stand-in answers with none */
+    vi.stubGlobal("window", { getComputedStyle: () => ({ getPropertyValue: () => "" }) });
+    const probe = { querySelectorAll: () => [] } as unknown as Element;
+    const world = createWorld(T, { course: C, motifs: MOT, probe, detail: 0 });
+    world.setForm(3, "geometry");
+    expect(world.marker.children.length).toBe(1);
+    const group = world.marker.children[0];
+    expect(group.children.filter((o) => (o as THREE.Mesh).isMesh).length).toBe(1);
+    expect(group.children.filter((o) => (o as THREE.LineSegments).isLineSegments).length).toBe(1);
+    const geos = group.children.map((o) => (o as THREE.Mesh).geometry);
+    let freed = 0;
+    geos.forEach((g) => g.addEventListener("dispose", () => { freed++; }));
+    world.dispose();
+    expect(freed).toBe(2);
+    vi.unstubAllGlobals();
   });
 });
 

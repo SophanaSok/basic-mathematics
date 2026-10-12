@@ -6,17 +6,21 @@
 
    map3d.js keeps the camera, the pointer, the labels, the chapter list and the render
    loop; this file owns what is drawn: the terraces and props (regions.ts), the islands,
-   path and gates, the progress marks (marks.ts), the marker, the lights, the sky and the
+   path and gates, the progress marks (marks.ts), the marker (the learner's form), the lights, the sky and the
    fog (lighting.ts), and the colours (materials.ts). */
 
 import type { Three } from "./three.ts";
-import type { Mesh, Scene } from "three";
+import type { Group, Mesh, Object3D, Scene } from "three";
 import { layout, rowAt, worldParts, DECK, ROW_Z, ROW_Y, STEP_X, type CourseShape, type WorldLayout } from "./layout.ts";
 import { placeProps } from "./props.ts";
 import { makeMaterials, readPalette, type PaletteMap } from "./materials.ts";
 import { makeLights, atmosphere } from "./lighting.ts";
 import { buildStatic, placePuffs, PUFF_MS, type StaticWorld } from "./regions.ts";
 import { buildMarks, type IsleState, type Marks } from "./marks.ts";
+import { buildForm, type FormLook } from "./forms.ts";
+
+/** the form on the map stands this much smaller than the figure the progress page shows */
+export const MARKER_SCALE = 0.75;
 
 export { DECK, ROW_Z, ROW_Y, STEP_X, rowAt };
 export type { IsleState, WorldLayout };
@@ -28,12 +32,16 @@ export interface WorldScene {
   pick(): import("three").Object3D[];
   curve(): import("three").CatmullRomCurve3;
   stones(): number;
-  /** the "you are here" marker and the selection ring */
-  marker: Mesh;
+  /** the "you are here" marker (a group: the learner's form stands under it, so it is the
+      same object for the world's life) and the selection ring */
+  marker: Object3D;
   select: Mesh;
   /** the selection ring's ink: the --region-ink of the Part it stands in, so it stands
       3:1 off that region's ground in either theme (tools/contrast-pairs.json) */
   selectIn(part: string): void;
+  /** stand the learner's form of this stage (1..5) on the marker, its cloak in the hue of
+      the Part: two draw calls, everything baked; a form built before is freed */
+  setForm(stage: number, part: string): void;
   /** rebuild the still world at another level of detail (a tier change) */
   setDetail(detail: 0 | 1 | 2): void;
   /** the islands' progress, in layout order; which caps are "ahead" (not started) */
@@ -58,6 +66,8 @@ export interface WorldOptions {
   /** the element holding the token probes (one <i data-part> per Part) */
   probe: Element;
   detail: 0 | 1 | 2;
+  /** the form the marker starts as (default: stage 1, in the first Part) */
+  form?: { stage: number; part: string };
 }
 
 export function createWorld(T: Three, opts: WorldOptions): WorldScene {
@@ -85,35 +95,30 @@ export function createWorld(T: Three, opts: WorldOptions): WorldScene {
   };
   const applyIdleShown = () => { if (still.puffs) still.puffs.mesh.visible = idleShown; };
 
-  const markerGeo = new T.OctahedronGeometry(0.3, 0);
-  const markerEdges = new T.EdgesGeometry(markerGeo, 25);
-  const marker = new T.Mesh(markerGeo, mats.accent);
-  marker.add(new T.LineSegments(markerEdges, mats.ink));
-  marker.scale.set(1, 1.45, 1);
+  const marker = new T.Group();
   marker.visible = false;
+  let form: FormLook | null = null;
+  const stand = (stage: number, part: string) => {
+    if (form) { marker.remove(form.group); form.dispose(); }
+    form = buildForm(T, stage, mats, pal, part, { live: false });
+    form.group.scale.setScalar(MARKER_SCALE);
+    marker.add(form.group);
+  };
   const selectGeo = new T.TorusGeometry(1.66, 0.03, 4, 28);
   const select = new T.Mesh(selectGeo, mats.inkFill);
   select.rotation.x = -Math.PI / 2;
   select.visible = false;
   scene.add(marker, select);
 
-  /* the marker's edges are plain ink, painted on the line material's vertex colours */
-  const markerInk = () => {
-    const n = markerEdges.getAttribute("position").count;
-    const c = pal.get("ink")!;
-    const arr = new Float32Array(n * 3);
-    for (let i = 0; i < n; i++) { arr[i * 3] = c.r; arr[i * 3 + 1] = c.g; arr[i * 3 + 2] = c.b; }
-    markerEdges.setAttribute("color", new T.BufferAttribute(arr, 3));
-  };
   let ringPart = parts[0];
   const paintRing = () => { mats.inkFill.color.copy(pal.get("rink:" + ringPart) || pal.get("ink")!); };
   const paintOwn = () => {
     mats.accent.color.copy(pal.get("accent")!);
     paintRing();
     mats.puff.color.copy(pal.get("under")!);
-    markerInk();
   };
   paintOwn();
+  stand(opts.form ? opts.form.stage : 1, opts.form ? opts.form.part : parts[0]);
   addStatic();
   idle(0, false);
 
@@ -134,6 +139,7 @@ export function createWorld(T: Three, opts: WorldOptions): WorldScene {
   return {
     scene, layout: L, marker, select,
     selectIn(part) { ringPart = part; paintRing(); },
+    setForm: stand,
     pick: () => still.pick,
     curve: () => still.curve,
     stones: () => still.stones,
@@ -156,6 +162,7 @@ export function createWorld(T: Three, opts: WorldOptions): WorldScene {
     repaint() {
       pal = readPalette(T, opts.probe);
       paintOwn();
+      if (form) form.paint(pal);
       still.paint(pal);
       if (marks) marks.paint(pal);
     },
@@ -166,7 +173,8 @@ export function createWorld(T: Three, opts: WorldOptions): WorldScene {
       removeStatic();
       still.dispose();
       if (marks) marks.dispose();
-      markerGeo.dispose(); markerEdges.dispose(); selectGeo.dispose();
+      if (form) form.dispose();
+      selectGeo.dispose();
       mats.dispose();
     }
   };
