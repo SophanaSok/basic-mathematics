@@ -833,6 +833,10 @@ function canon(x) {
   return "{" + Object.keys(x).sort().filter(k => x[k] !== undefined).map(k => JSON.stringify(k) + ":" + canon(x[k])).join(",") + "}";
 }
 
+/* the bound on a wear's `at`, read off src/sync/merge.ts so this check and the merge agree */
+const WEAR_AT_MAX = Number((/export const WEAR_AT_MAX = (\d+);/.exec(read("src/sync/merge.ts")) || [])[1]);
+if (!(WEAR_AT_MAX > 0)) throw new Error("tools/check-static.js: src/sync/merge.ts no longer declares WEAR_AT_MAX as a plain number");
+
 /* a form for the merge check: stages and times, a wear, and now and then damage */
 function randomForm(S) {
   const odd = [null, "x", 7, [1], [], { at: "5", n: 2 }, { at: 1e999 }, { n: 4, at: 9e15 }, { n: 3 }, JSON.parse('{"__proto__":{"at":9}}'), 1e308];
@@ -913,11 +917,16 @@ function checkMerge(ctx, r) {
       {
         const fm = f => f && typeof f === "object" && !Array.isArray(f) ? f : {};
         const ow = (o, k) => o && typeof o === "object" && !Array.isArray(o) && Object.prototype.hasOwnProperty.call(o, k) ? o[k] : undefined;
-        /* a wear counts only with an `at` from 0 to the year 2100 in ms (merge.ts WEAR_AT_MAX) */
-        const rec = w => w && typeof w === "object" && !Array.isArray(w) && typeof w.at === "number" && w.at >= 0 && w.at <= 4102444800000;
+        /* a wear counts only with an `at` from 0 to WEAR_AT_MAX, read off merge.ts so the two cannot drift */
+        const rec = w => w && typeof w === "object" && !Array.isArray(w) && typeof w.at === "number" && w.at >= 0 && w.at <= WEAR_AT_MAX;
         const wa = ow(fm(ow(a.game, "form")), "wear"), wb = ow(fm(ow(b.game, "form")), "wear");
         const mf = fm(ow(ab.game, "form"));
         if (rec(wa) && rec(wb) && (!rec(mf.wear) || mf.wear.at !== Math.max(wa.at, wb.at))) r.fail("seed " + seed + ": game.form.wear.at should be the larger of the two");
+        /* one side counts and the other does not: the one that counts is kept, whole */
+        if (rec(wa) !== rec(wb)) {
+          const keep = rec(wa) ? wa : wb;
+          if (!rec(mf.wear) || mf.wear.at !== keep.at || mf.wear.n !== Number(keep.n)) r.fail("seed " + seed + ": game.form.wear should be the one side's that counts");
+        }
         const ga = fm(ow(fm(ow(a.game, "form")), "got")), gb = fm(ow(fm(ow(b.game, "form")), "got")), gm = fm(mf.got);
         Object.keys(ga).concat(Object.keys(gb)).filter(k => k !== "__proto__").forEach(k => {
           const t = [ow(ga, k), ow(gb, k)].map(Number).filter(x => isFinite(x) && x > 0); /* num(): a value that reads as a number counts, as in ach */

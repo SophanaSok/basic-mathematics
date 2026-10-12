@@ -231,11 +231,12 @@ export function mergeClean(p: any, q: any) {
 }
 /* A form's wear, { n, at }: only a record whose `at` is a number from 0 to WEAR_AT_MAX
    counts (anything else, a string `at` or one past the bound included, is ignored while
-   the other side has one). The bound is the year 2100 in ms: a later `at` is damaged or
-   forged, and without the bound one such value would beat every honest choice for
-   good, since the rule is a maximum of (at, n) over two sides. That keeps the three
-   laws; unknown fields are carried from the qualifying records only, which keeps a
-   damaged wear from changing the grouping. */
+   the other side has one). The bound is the year 2100 in ms: a later `at` is damaged
+   (1e308 is valid JSON), and without the bound one such value would beat every honest
+   choice for good, since the rule is a maximum of (at, n) over two sides. A value under
+   the bound is trusted: it is the learner's own row and the choice is only cosmetic.
+   That keeps the three laws; unknown fields are carried from the qualifying records
+   only, which keeps a damaged wear from changing the grouping. */
 export const WEAR_AT_MAX = 4102444800000;
 export function wearOf(x: any) { return plain(x) && typeof x.at === "number" && x.at >= 0 && x.at <= WEAR_AT_MAX ? x : undefined; }
 export function mergeWear(p: any, q: any) {
