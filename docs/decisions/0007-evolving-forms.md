@@ -13,7 +13,7 @@ Decided by the owner on 2026-10-12.
 **Where it shows.**
 - The form stands on the current island of the course world in place of the marker octahedron: baked, two draw calls, scaled 0.75, its cloak in the Part's hue.
 - The progress page shows it live in "Your form", with the path of five, Equip and a larger view.
-- The unlock plays a short skippable evolution on the progress page (card F-6, in progress: anticipation, a white-out, the reveal, a caption; a cut under reduced motion or Study mode) and toasts once elsewhere.
+- The unlock plays a short skippable evolution on the progress page (anticipation, a white-out, the reveal, a caption; a cut under reduced motion or Study mode) and toasts once elsewhere; a first visit writes nothing, since stage 1 is the start.
 - Without WebGL a card with the stage number stands in.
 
 **Procedural only.** No model files. `buildForm` in `src/world/forms.ts` is the one seam a model could replace later.
@@ -42,4 +42,4 @@ Threat model, stated plainly:
 
 ## Status
 
-Decided by the owner, 2026-10-12. Cards F-1 to F-5 built; F-6 in progress.
+Decided by the owner, 2026-10-12. Cards F-1 to F-6 built (F-6 as PR #107); the names and the about-page sentence await the owner.
