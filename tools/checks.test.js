@@ -976,9 +976,11 @@ function refusal(fn) { try { fn(); return null; } catch (e) { return e.message; 
   eq(forms('var s = "$12" + u + "\\\\text{ metres}$";', GEN), ["metres@1"], "… in a script's formula too");
   eq(forms(page("<p>The jacket costs 40 pounds, and the pound fell against the dollar.</p>"), PAGE), ["pounds@3", "pound@3"], "us-english: pound money fails");
   eq(forms(page("<p>The bag weighs 5 pounds. The pound (lb) is 16 ounces. Buy 3 pounds of grapes at a dollar per pound. A kilogram is about 2.2 pounds.</p>"), PAGE), [],
-    "… but the pound as a weight passes: followed by of or (lb, after per, or with lb, oz, ounce, weigh, weight or kilogram within 60 characters");
+    "… but the pound as a weight passes: followed by of or (lb, after per or weighs <n>, or with lb, oz, ounce or kilogram within 40 characters");
   eq(forms('var q = n + " pounds of rice cost " + usd(c) + ". What does it cost per pound?"; var m = "It costs " + n + " pounds.";', GEN), ["pounds@1"], "… in a script's strings too: the weight passes, the price fails");
   eq(forms('var U = { big: "pounds", small: "ounces" }; var t = "<td>pounds</td>";', GEN), [], "… and a literal that is the bare word names the unit");
+  eq(forms(page("<p>A ticket is 15 pounds. Weigh up the choices. The weight of the bill was 40 pounds. He paid 40 pounds sterling. The pound fell against the dollar all through the autumn of that year, and a kilogram is 2.2 pounds.</p>"), PAGE), ["pounds@3", "pounds@3", "pounds@3", "pound@3"],
+    "… and a weight word out of reach, the verb weigh up, the noun weight, sterling, or a unit word far off the money word still fail");
   eq(forms(page('<span data-tip="The centre">x</span> and <textarea>colour</textarea>'), PAGE), ["centre@3", "colour@3"], "… a data-tip (site.css shows it with attr()) and a <textarea>'s text are reader text");
   eq(forms("<!doctype html>\n<html><head><title>Colour</title></head><body>\n<script>var s = \"Centre\", t = 'a' + \"-centre\";</script>\n</body></html>\n", PAGE), ["colour@2", "centre@3"],
     "… a <title> is reader text, and an inline <script>'s strings are read as a script's");

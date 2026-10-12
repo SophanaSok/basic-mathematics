@@ -156,20 +156,21 @@ Object.assign(SPELLING, {
 /* whole words that are money, with the pound sign and a price in pence found apart */
 const MONEY_WORDS = new Set(["pound", "pounds", "pence"]);
 /* "pound" as a weight (the skill packs teach US customary units) is not money: the word
-   followed by "of" or "(lb", preceded by "per", standing alone as a whole literal or text
-   node (a unit name), or with a weight word (lb, oz, ounce, weigh, weight, kilogram) within
-   60 characters of it in the same text. Money is "pound" in a sentence on its own, "pounds"
-   with a price, or the sign. */
-const WEIGHT_CUE = /\b(lbs?|oz|ounces?|weigh(?:s|ed|ing)?|weight|kilograms?)\b/i;
+   followed by "of" or "(lb", preceded by "per" or by "weigh(s|ed) <number>", standing alone
+   as a whole literal or text node (a unit name), or with a unit word (lb, oz, ounce,
+   kilogram) within 40 characters of it in the same text. Money is "pound" in a sentence on
+   its own, "pounds" with a price, "pounds sterling", or the sign. */
+const WEIGHT_CUE = /\b(lbs?|oz|ounces?|kilograms?)\b/i;
 function weightSense(text, a, b, from, to) {
   const word = text.slice(a, b).toLowerCase();
   if (word === "pence") return false;
   /* a literal or text node that is the bare word ("pounds" in a generator's unit table, a
      table cell) names the unit; money in a UI string never stands alone like that here */
   if (/^\s*pounds?\s*$/i.test(text.slice(from, to))) return true;
-  const after = text.slice(b, Math.min(to, b + 6)), before = text.slice(Math.max(from, a - 6), a);
-  if (/^\s+of\b/.test(after) || /^\s*\(lb/.test(after) || /\bper\s+$/.test(before)) return true;
-  return WEIGHT_CUE.test(text.slice(Math.max(from, a - 60), Math.min(to, b + 60)));
+  const after = text.slice(b, Math.min(to, b + 12)), before = text.slice(Math.max(from, a - 24), a);
+  if (/^\s+sterling\b/i.test(after)) return false;
+  if (/^\s+of\b/.test(after) || /^\s*\(lb/.test(after) || /\bper\s+$/i.test(before) || /\bweigh(?:s|ed)?\s+(?:about\s+|over\s+|under\s+)?[\d.,]+\s*$/i.test(before)) return true;
+  return WEIGHT_CUE.test(text.slice(Math.max(from, a - 40), Math.min(to, b + 40)));
 }
 
 /* report-only: [pattern, US wording]; the pattern is matched in prose with math taken out */
