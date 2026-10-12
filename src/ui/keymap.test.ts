@@ -173,6 +173,16 @@ describe("step: moving", () => {
       expect(press("N", { kind }).handled).toBe(false);
     }
   });
+  it("t jumps to the boss's target on a chapter only", () => {
+    for (const at of ["body", "card", "item"] as At[]) {
+      expect(press("t", { at }).action).toEqual({ type: "target" });
+    }
+    for (const kind of KINDS.filter((k) => k !== "chapter")) {
+      expect(press("t", { kind }).handled).toBe(false);
+    }
+    expect(press("t", { mode: "insert" }).handled).toBe(false);
+    expect(press("t", { kind: "arena", arenaScreen: "run" }).handled).toBe(false);
+  });
   it("braces change section on chapter and page only", () => {
     for (const kind of KINDS) {
       const on = kind === "chapter" || kind === "page";

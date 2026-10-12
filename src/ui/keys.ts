@@ -249,6 +249,13 @@ function perform(action: Action): void {
       if (to) moveTo(to);
       return;
     }
+    case "target": {
+      const list = items().filter((el) => el.matches(".ex"));
+      const to = list.find((el) => el.getAttribute("data-target") === "true") ||
+        list.find((el) => el.getAttribute("data-state") !== "correct");
+      if (to) moveTo(to);
+      return;
+    }
     case "enter": if (ex) enter(ex); return;
     case "check": if (ex) click(".ex-form > button.btn:not(.ghost)", ex); return;
     case "clue": if (ex) click(".ex-clue-btn", ex); return;

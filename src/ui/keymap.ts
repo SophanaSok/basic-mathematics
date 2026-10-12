@@ -21,6 +21,7 @@ export type Action =
   | { type: "move"; delta: 1 | -1 }
   | { type: "edge"; to: "first" | "last" }
   | { type: "unsolved"; delta: 1 | -1 }
+  | { type: "target" }
   | { type: "enter" }
   | { type: "check" }
   | { type: "clue" }
@@ -132,6 +133,8 @@ export function step(state: KeyState, ev: KeyEvent, ctx: Ctx): Result {
       return kind === "chapter" ? act({ type: "unsolved", delta: 1 }) : NONE;
     case "N":
       return kind === "chapter" ? act({ type: "unsolved", delta: -1 }) : NONE;
+    case "t":
+      return kind === "chapter" ? act({ type: "target" }) : NONE;
     case "Enter":
       if (card) return act({ type: ctx.answered ? "check" : "enter" });
       if (at === "body" && kind === "chapter") return act({ type: "continue" });
@@ -217,6 +220,7 @@ export const BINDINGS: Binding[] = [
   { keys: ["↓", "↑"], label: "Next or previous exercise", kinds: WITH_ITEMS, where: ["card", "item"], group: "Move" },
   { keys: ["g g", "G"], label: "First or last exercise", kinds: WITH_ITEMS, where: "any", group: "Move" },
   { keys: ["n", "N"], label: "Next or previous unsolved exercise", kinds: ["chapter"], where: "any", group: "Move" },
+  { keys: ["t"], label: "The next exercise the boss is waiting for", kinds: ["chapter"], where: "any", group: "Move" },
   { keys: ["{", "}"], label: "Next or previous section", kinds: ["chapter", "page"], where: "any", group: "Move" },
   { keys: ["[", "]"], label: "Next or previous chapter", kinds: "all", where: "any", group: "Move" },
   { keys: ["Enter"], label: "Continue the lesson", kinds: ["chapter"], where: ["body"], group: "Move" },
