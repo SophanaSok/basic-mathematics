@@ -128,11 +128,18 @@ redirect list), add the id to `providers` locally, and open `account.html`.
 | --- | --- |
 | `user_state` | One row per reader, holding the same JSON the site keeps in `localStorage`: solved exercises, missions, per-exercise attempt records, XP per day, lesson position, and the game record (achievements, compared solutions, Arena bests, rematch medals, review boxes), and the placement-check results (for each finished check: the day, the class the reader said they finished last, the items asked and whether each was right, wrong or skipped, the course band it placed them in, and whether many answers came very fast; never typed answers or timings), which survive Reset all progress. Play settings and the combo meter stay in the browser. |
 | `attempts` | One row per answer check by a signed-in reader: chapter, exercise key, section, right or wrong, try number, hint level, whether the solution was open. Typed answers are never stored. |
-| `profiles` | An optional display name. |
+| `profiles` | An optional display name, and `board`: whether the reader joined the Daily board (off unless they turn it on). |
+| `daily_runs` | One row per reader per day they played the Arena's Daily while on the Daily board: `day` (their local date, `YYYY-MM-DD`), `score`, `n` (questions asked, at most 5), `firsts` (right first time), `ms` (the run's time, kept only when every answer was right first time), and `submitted_at`. The first result for a day is the one kept. The numbers are reported by the page and only bounds-checked here. |
 | `admins` | The user ids allowed to call the aggregate functions. |
 
 Row-level security restricts every row to its owner. `exercise_stats()` and `chapter_stats()`
-return aggregates only, and only to admins. `delete_my_account()` removes the caller's auth user,
+return aggregates only, and only to admins. `daily_runs` has row-level security on and no
+policies, so the browser can neither read nor write it, its owner included; only
+`submit_daily()`, `daily_board()` and `leave_board()` touch it. Only readers whose `board` is
+on are counted or listed, so turning it off takes a reader off the board at once, even before
+their rows are deleted. A day's board, shown to signed-in readers once three of them have played, holds a generated name (from a one-way hash of the reader and the
+day, so it changes every day), the score and the time, and never a user id, email or display
+name. `leave_board()` turns `board` off and deletes the caller's `daily_runs` rows. `delete_my_account()` removes the caller's auth user,
 and every table cascades from it.
 
 Signed-out visitors never contact Supabase: the SDK (supabase-js, an npm dependency bundled as

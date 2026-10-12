@@ -103,9 +103,9 @@ describe("the curriculum refs", () => {
 
 describe("the settings", () => {
   it("fill every default, and read an unknown events value as on", () => {
-    expect(readConfig(undefined)).toEqual({ supabaseUrl: "", supabaseAnonKey: "", providers: [], emailDelivery: true, learn: { events: "on" } });
+    expect(readConfig(undefined)).toEqual({ supabaseUrl: "", supabaseAnonKey: "", providers: [], emailDelivery: true, learn: { events: "on" }, board: "on" });
     expect(readConfig({ supabaseUrl: "u", supabaseAnonKey: "k", providers: ["google", 3], emailDelivery: false, learn: { events: "off" } }))
-      .toEqual({ supabaseUrl: "u", supabaseAnonKey: "k", providers: ["google"], emailDelivery: false, learn: { events: "off" } });
+      .toEqual({ supabaseUrl: "u", supabaseAnonKey: "k", providers: ["google"], emailDelivery: false, learn: { events: "off" }, board: "on" });
     expect(readConfig({ learn: { events: "OFF" }, providers: "google" }).learn.events).toBe("on");
     expect(readConfig({ learn: { events: "OFF" }, providers: "google" }).providers).toEqual([]);
   });
