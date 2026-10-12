@@ -53,6 +53,11 @@ describe("nextInfo", () => {
     expect(nextInfo(null, 225).stage.n).toBe(3);
     expect(nextInfo(null, 585).next?.n).toBe(5);
   });
+  it("clamps progress to 0 when a recorded stage sits above the xp", () => {
+    const z = nextInfo({ got: { "4": 1 } }, 0);
+    expect([z.stage.n, z.pct, z.toGo, z.need]).toEqual([4, 0, 1260, 1260]);
+    expect([stageOf(NaN).n, stageOf(Infinity).n, stageOf(-Infinity).n]).toEqual([1, 1, 1]);
+  });
   it("is complete at the last", () => {
     const z = nextInfo(null, 5000);
     expect([z.stage.n, z.next, z.need, z.toGo, z.pct, z.final]).toEqual([5, null, 1260, 0, 100, true]);
@@ -72,7 +77,10 @@ describe("damaged input", () => {
       expect(w).toBeGreaterThanOrEqual(1);
       expect(w).toBeLessThanOrEqual(h);
       expect(fresh(f, x).every((n) => n >= 1 && n <= h)).toBe(true);
-      expect(nextInfo(f, x).pct).toBeGreaterThanOrEqual(0);
+      const z = nextInfo(f, x);
+      expect(z.pct).toBeGreaterThanOrEqual(0);
+      expect(z.pct).toBeLessThanOrEqual(100);
+      expect(isFinite(z.xp) && z.xp <= 1e15 && z.toGo >= 0 && z.stage.n === h).toBe(true);
     }
   });
   it("drops bad got entries", () => {

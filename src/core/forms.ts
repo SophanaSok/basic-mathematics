@@ -6,7 +6,7 @@
 
 import { FORMS, LAST_FORM } from "../data/forms.ts";
 import type { FormStage } from "../data/forms.ts";
-import { level, threshold } from "../hud/levels.js";
+import { level, threshold, MAX_XP } from "../hud/levels.js";
 
 function num(v: unknown): number {
   const n = Number(v);
@@ -90,7 +90,8 @@ export interface NextInfo {
 export function nextInfo(form: unknown, xp: unknown): NextInfo {
   const stage = stageOf(highest(form, xp));
   const next = stage.n >= LAST_FORM ? null : stageOf(stage.n + 1);
-  const x = Math.max(0, num(xp));
+  /* held to MAX_XP as level() holds it, so xp and level agree */
+  const x = Math.min(MAX_XP, Math.max(0, num(xp)));
   const from = threshold(stage.level);
   const need = next ? threshold(next.level) : from;
   const final = stage.n === LAST_FORM;
