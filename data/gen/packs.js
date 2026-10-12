@@ -1748,7 +1748,7 @@
       var c = r.pick(TW_CONTEXTS), sizes = [20, 25, 50], t1 = r.pick(sizes), t2 = r.pick(sizes), c1 = r.int(2, t1 - 2), c2 = r.int(2, t2 - 2), guard = 0;
       var kind = r.pick(["diff", "diff", "percent"]), j = r.int(0, 1);
       while (kind === "diff" && c1 * t2 === c2 * t1 && guard++ < 50) c2 = r.int(2, t2 - 2);
-      if (kind === "diff" && c1 * t2 === c2 * t1) { t2 = 20; c2 = c1 === 10 ? 4 : 10; t1 = 20; }
+      if (kind === "diff" && c1 * t2 === c2 * t1) { t1 = 20; t2 = 20; c1 = r.int(2, 18); c2 = c1 === 10 ? 4 : 10; }
       var p1 = 100 * c1 / t1, p2 = 100 * c2 / t2;
       if (kind === "percent") {
         var ansP = String(p1);
@@ -1757,7 +1757,7 @@
           type: "percent", answer: ansP, placeholder: pctHolder(p1),
           hint: "A percent is a part of the group named after \u201cof\u201d. Write the part over the group's total, then change it to a fraction whose bottom is one hundred.",
           steps: ["The group has $" + t1 + "$ " + c.noun + ", and $" + c1 + "$ of them are in the event.", "$" + fr(c1, t1) + " = " + fr(p1, 100) + " = " + p1 + "\\%$."],
-          verify: function () { return c1 * 100 === p1 * t1 && p1 > 0 && p1 < 100; }
+          verify: function () { return (t1 - c1) * 100 === (100 - p1) * t1 && c1 >= 2 && c1 <= t1 - 2 && p1 > 0 && p1 < 100; }
         };
       }
       /* the group with the higher percent goes first, so the difference is positive */
@@ -1767,7 +1767,7 @@
       return {
         q: "Of the $" + t1 + "$ " + c.noun + " who " + A0.pl + ", $" + c1 + "$ " + B.pl + ". Of the $" + t2 + "$ who " + A1.pl + ", $" + c2 + "$ " + B.pl + ". The percent of those who " + first.pl + " who " + B.pl + " is how many percentage points higher than the percent of those who " + second.pl + " who " + B.pl + "?",
         type: "number", answer: clean(ans), placeholder: "percentage points",
-        hint: "Compare relative frequencies, not the raw counts, because the two groups have different sizes. Find each group's percent on its own, then subtract.",
+        hint: "The groups may differ in size, so compare fractions, not counts. Find each group's percent on its own, then subtract.",
         steps: ["Those who " + first.pl + ": $" + fr(cA, tA) + " = " + clean(100 * cA / tA) + "\\%$. Those who " + second.pl + ": $" + fr(cB, tB) + " = " + clean(100 * cB / tB) + "\\%$.",
           "The difference is $" + clean(100 * cA / tA) + " - " + clean(100 * cB / tB) + " = " + clean(ans) + "$ percentage points."],
         verify: function () {
@@ -1930,7 +1930,7 @@
       }
       var m = r.int(4, 7), ans3 = fracAns(1, m * (m - 1)), who = r.pick([["Ana", "Ben"], ["Cleo", "Dev"], ["Eli", "Fay"]]);
       return {
-        q: m + " friends, including " + who[0] + " and " + who[1] + ", line up in a random order, every order equally likely. What is the probability that " + who[0] + " is first and " + who[1] + " is second?",
+        q: "$" + m + "$ friends, including " + who[0] + " and " + who[1] + ", line up in a random order, every order equally likely. What is the probability that " + who[0] + " is first and " + who[1] + " is second?",
         type: "fraction", answer: ans3, placeholder: "e.g. 1/2",
         hint: "Count the equally likely orders of all the friends. Then count the orders that begin with the two named friends in the right places.",
         steps: ["All orders: $" + falling(m, m) + " = " + factorial(m) + "$.", "With the first two places fixed, the other " + (m - 2) + " friends can stand in $" + (m - 2 > 1 ? falling(m - 2, m - 2) : "1") + " = " + factorial(m - 2) + "$ orders.", "The probability is $" + fr(factorial(m - 2), factorial(m)) + "$" + lowest(factorial(m - 2), factorial(m))],

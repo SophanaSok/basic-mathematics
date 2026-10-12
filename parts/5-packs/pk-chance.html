@@ -467,7 +467,10 @@
       equals the unconditional: $P(A \mid B) = P(A)$. In the table, $P(\text{bus}) = \frac{7}{20} =
       35\%$ while $P(\text{bus} \mid \text{sport}) = 37.5\%$. They are close but not equal, so in this
       survey sport and bus are slightly related. In a table, independence shows up as the same
-      relative frequency in every row.
+      relative frequency in every row. This is the product rule of C.2 in other words. If
+      $P(A \mid B) = P(A)$, then the share of group $B$ that is $A$ equals the share of everyone
+      that is $A$, and taking that share of $P(B)$ gives $P(A \text{ and } B) = P(A) \cdot P(B)$.
+      Read the other way, the product rule divided by $P(B)$ gives back $P(A \mid B) = P(A)$.
     </p>
 
     <div class="worked">
@@ -523,21 +526,21 @@
       </div>
     </div>
 
-    <div class="ex" data-inline id="t8" data-type="fraction" data-answer="5/7" data-placeholder="e.g. 1/2"
-         data-hint="The question names the students who ride the bus as the group, so only they are counted in the bottom."
-         data-hint2="Build the table: the sport players who ride the bus are given, and the others who ride the bus are given too. Add them to get the group.">
+    <div class="ex" data-inline id="t8" data-type="fraction" data-answer="7/8" data-placeholder="e.g. 1/2"
+         data-hint="The question names the pool users as the group, so only they are counted in the bottom."
+         data-hint2="The pool users come from two groups, members and non-members.">
       <div class="ex-q">
         <p>
-          Of $60$ students, $40$ play a sport. Of the sport players, $15$ ride the bus, and of the other
-          students, $6$ ride the bus. What fraction of the students who ride the bus play a sport?
+          Of $80$ people at a gym, $50$ are members. Of the members, $35$ use the pool, and of the
+          non-members, $5$ use the pool. What fraction of the people who use the pool are members?
         </p>
       </div>
       <div class="ex-solution">
-        <p class="answer">Answer: $\dfrac57$</p>
+        <p class="answer">Answer: $\dfrac78$</p>
         <p>
-          The bus riders are $15 + 6 = 21$ students, and $15$ of them play a sport, so the fraction is
-          $\frac{15}{21} = \frac57$. Check: this is the table of this section, and the column total
-          there is $21$ ✓.
+          The pool users are $35 + 5 = 40$ people, and $35$ of them are members, so the fraction is
+          $\frac{35}{40} = \frac78$. Check: the other $5$ pool users are not members, and
+          $\frac{5}{40} = \frac18$, with $\frac78 + \frac18 = 1$ ✓.
         </p>
       </div>
     </div>
@@ -615,19 +618,21 @@
       </div>
     </div>
 
-    <div class="ex" data-inline id="t10" data-type="number" data-answer="120" data-placeholder="count"
-         data-hint="Fill the places one at a time. After each choice, one fewer friend is available."
-         data-hint2="The first place has one choice for each friend. Each place after it has one fewer, down to the last place.">
+    <div class="ex" data-inline id="t10" data-type="number" data-answer="840" data-placeholder="count"
+         data-hint="Fill the places one at a time. After each choice, one fewer trophy is available."
+         data-hint2="The display has four places. How many trophies can go in the first place, and how many are left for the second?">
       <div class="ex-q">
         <p>
-          Five friends line up for a photo. In how many different orders can they stand?
+          A school has $7$ different trophies, and a shelf has room for $4$ of them in a row. How many
+          different displays can be made?
         </p>
       </div>
       <div class="ex-solution">
-        <p class="answer">Answer: $120$</p>
+        <p class="answer">Answer: $840$</p>
         <p>
-          $5 \cdot 4 \cdot 3 \cdot 2 \cdot 1 = 5! = 120$. Check: one more friend than the $4! = 24$ orders
-          of four friends, and the new friend can join in $5$ places, so $24 \cdot 5 = 120$ ✓.
+          $7 \cdot 6 \cdot 5 \cdot 4 = 840$. Check: all $7$ trophies in a row make $7! = 5040$ orders, and
+          the last three places can be swapped among themselves in $3! = 6$ ways without changing the
+          four on display, so $5040 \div 6 = 840$ ✓.
         </p>
       </div>
     </div>
@@ -907,7 +912,7 @@
 
       <div class="ex" id="e16" data-section="twoway" data-type="fraction" data-answer="13/25" data-placeholder="e.g. 1/2"
            data-hint="A margin is the total of a row or a column. Fill in the table, then find the total of the column the question names."
-           data-hint2="The families with a cat come from two groups: those with a dog and those without. Add the two cells.">
+           data-hint2="The families with a cat are the Cat column, which has two cells. Find what each cell is.">
         <div class="ex-q"><p>In a survey of $50$ families, $32$ have a dog. Of the families with a dog, $20$ also have a cat, and of the families without a dog, $6$ have a cat. One family is chosen at random. What is the probability that the family has a cat?</p></div>
         <div class="ex-solution">
           <p class="answer">Answer: $\dfrac{13}{25}$</p>
@@ -919,7 +924,7 @@
 
       <div class="ex" id="e17" data-section="twoway" data-type="fraction" data-answer="4/7" data-placeholder="e.g. 1/2"
            data-hint="The words after &ldquo;given&rdquo; or &ldquo;of&rdquo; name the group. Only that row counts in the bottom of the fraction."
-           data-hint2="Find the total of the evening class row, and how many of that row prefer coffee.">
+           data-hint2="Which row is the group? Find its total.">
         <div class="ex-q"><table>
           <caption>Drink preference of $75$ adults, by class</caption>
           <thead><tr><th scope="col">Class</th><th scope="col">Tea</th><th scope="col">Coffee</th><th scope="col">Total</th></tr></thead>
@@ -940,7 +945,7 @@
 
       <div class="ex" id="e18" data-section="twoway" data-type="fraction" data-answer="3/10" data-placeholder="e.g. 1/2"
            data-hint="This time the group is a column. Say which column the question names, and use its total."
-           data-hint2="The households with a pet are the Pet column. Find its total and how many of those households rent.">
+           data-hint2="The households with a pet are the Pet column. Find its total.">
         <div class="ex-q"><table>
           <caption>$60$ households, by housing and pets</caption>
           <thead><tr><th scope="col">Housing</th><th scope="col">Pet</th><th scope="col">No pet</th><th scope="col">Total</th></tr></thead>
@@ -973,7 +978,7 @@
 
       <div class="ex" id="e20" data-section="twoway" data-type="number" data-answer="12" data-placeholder="percentage points"
            data-hint="Compare relative frequencies, not raw counts, because the two grades have different numbers of students."
-           data-hint2="Write each grade&rsquo;s fraction as a percent, then subtract the smaller percent from the larger.">
+           data-hint2="Write grade 7&rsquo;s fraction as a percent first.">
         <div class="ex-q"><p>In a survey, $12$ of the $20$ students in grade 7 and $18$ of the $25$ students in grade 8 said they like the new schedule. The percent of grade 8 who like it is how many percentage points higher than the percent of grade 7?</p></div>
         <div class="ex-solution">
           <p class="answer">Answer: $12$</p>
@@ -985,7 +990,7 @@
 
       <div class="ex" id="e21" data-section="twoway" data-type="number" data-answer="12" data-placeholder="students"
            data-hint="Independence means the conditional probability equals the unconditional one. Here that says both grades have the same share with a dog."
-           data-hint2="Find the fraction of the grade 7 students who have a dog, then take that same fraction of the grade 8 students.">
+           data-hint2="Find the fraction of the grade 7 students who have a dog.">
         <div class="ex-q"><p>In grade 7, $20$ of the $50$ students have a dog. Grade 8 has $30$ students. For having a dog to be independent of grade, how many of the grade 8 students would have a dog?</p></div>
         <div class="ex-solution">
           <p class="answer">Answer: $12$</p>
@@ -995,62 +1000,62 @@
         </div>
       </div>
 
-      <div class="ex" id="e22" data-section="counting" data-type="number" data-answer="72" data-placeholder="count"
+      <div class="ex" id="e22" data-section="counting" data-type="number" data-answer="60" data-placeholder="count"
            data-hint="The steps are independent of each other, so the number of ways is a product."
-           data-hint2="Write the number of choices at each of the three steps, and multiply them.">
-        <div class="ex-q"><p>A pizza place offers $4$ crusts, $6$ toppings and $3$ sizes. A pizza has one crust, one topping and one size. How many different pizzas can be ordered?</p></div>
+           data-hint2="How many choices are there at each of the three steps?">
+        <div class="ex-q"><p>A sandwich shop offers $5$ breads, $3$ fillings and $4$ sauces. A sandwich has one bread, one filling and one sauce. How many different sandwiches can be made?</p></div>
         <div class="ex-solution">
-          <p class="answer">Answer: $72$</p>
+          <p class="answer">Answer: $60$</p>
           <p>
-            $4 \cdot 6 \cdot 3 = 72$. Check: the crusts and toppings make $24$ pairs, and each pair comes in $3$ sizes, $24 \cdot 3 = 72$ ✓.
+            $5 \cdot 3 \cdot 4 = 60$. Check: the breads and fillings make $15$ pairs, and each pair goes with $4$ sauces, $15 \cdot 4 = 60$ ✓.
           </p>
         </div>
       </div>
 
-      <div class="ex" id="e23" data-section="counting" data-type="number" data-answer="1000" data-placeholder="count"
+      <div class="ex" id="e23" data-section="counting" data-type="number" data-answer="10000" data-placeholder="count"
            data-hint="A digit may be used again, so every place has the same number of choices."
-           data-hint2="There are ten digits from 0 to 9, and the code has three places.">
-        <div class="ex-q"><p>A bike lock has $3$ dials, and each dial can show any digit from $0$ to $9$. How many different codes can be set?</p></div>
+           data-hint2="Count the digits that one dial can show.">
+        <div class="ex-q"><p>A suitcase lock has $4$ dials, and each dial can show any digit from $0$ to $9$. How many different codes can be set?</p></div>
         <div class="ex-solution">
-          <p class="answer">Answer: $1000$</p>
+          <p class="answer">Answer: $10000$</p>
           <p>
-            $10 \cdot 10 \cdot 10 = 1000$. Check: the codes run from $000$ to $999$, which is $1000$ numbers ✓.
+            $10 \cdot 10 \cdot 10 \cdot 10 = 10000$. Check: the codes run from $0000$ to $9999$, and $9999 - 0 + 1 = 10000$ numbers ✓.
           </p>
         </div>
       </div>
 
-      <div class="ex" id="e24" data-section="counting" data-type="number" data-answer="720" data-placeholder="count"
+      <div class="ex" id="e24" data-section="counting" data-type="number" data-answer="40320" data-placeholder="count"
            data-hint="Fill the places one at a time. Each choice uses up one of the books."
            data-hint2="The first place has a choice for every book, and each place after it has one fewer.">
-        <div class="ex-q"><p>In how many different orders can $6$ different books be placed in a row on a shelf?</p></div>
+        <div class="ex-q"><p>In how many different orders can $8$ different books be placed in a row on a shelf?</p></div>
         <div class="ex-solution">
-          <p class="answer">Answer: $720$</p>
+          <p class="answer">Answer: $40320$</p>
           <p>
-            $6 \cdot 5 \cdot 4 \cdot 3 \cdot 2 \cdot 1 = 720$. Check: $5! = 120$, and the sixth book can be inserted in $6$ places, $120 \cdot 6 = 720$ ✓.
+            $8 \cdot 7 \cdot 6 \cdot 5 \cdot 4 \cdot 3 \cdot 2 \cdot 1 = 40320$. Check: $7! = 5040$, and the eighth book can be inserted among the other seven in $8$ places, $5040 \cdot 8 = 40320$ ✓.
           </p>
         </div>
       </div>
 
-      <div class="ex" id="e25" data-section="counting" data-type="number" data-answer="336" data-placeholder="count"
-           data-hint="Gold, silver and bronze go to different runners, so each medal removes one runner from those still available."
-           data-hint2="Count the runners who can get gold, then the runners left for silver, then the runners left for bronze, and multiply those three.">
-        <div class="ex-q"><p>Eight runners race, and the first three places win gold, silver and bronze medals. In how many different ways can the three medals be given?</p></div>
+      <div class="ex" id="e25" data-section="counting" data-type="number" data-answer="504" data-placeholder="count"
+           data-hint="The three jobs go to different members, so each job removes one member from those still available."
+           data-hint2="After the president is chosen, how many members are left for secretary?">
+        <div class="ex-q"><p>A club of $9$ members elects a president, a secretary and a treasurer. No member holds two jobs. In how many different ways can the three jobs be filled?</p></div>
         <div class="ex-solution">
-          <p class="answer">Answer: $336$</p>
+          <p class="answer">Answer: $504$</p>
           <p>
-            $8 \cdot 7 \cdot 6 = 336$. Check: for any one set of three runners there are $3! = 6$ ways to hand them the medals, and $336 \div 6 = 56$ sets of three runners, which is a whole number ✓.
+            $9 \cdot 8 \cdot 7 = 504$. Check: once the president is chosen, the other $8$ members fill the two remaining jobs in $8 \cdot 7 = 56$ ways, and each of the $9$ presidents allows that, $9 \cdot 56 = 504$ ✓.
           </p>
         </div>
       </div>
 
       <div class="ex" id="e26" data-section="counting" data-type="number" data-answer="20" data-placeholder="count"
            data-hint="Only who is picked matters, not the order. First count the picks as if the order mattered."
-           data-hint2="Divide the ordered count by the number of orders in which one group of three players can be listed.">
+           data-hint2="How many orders can one group of three players be listed in?">
         <div class="ex-q"><p>A coach picks $3$ of $6$ players to carry the equipment. The order does not matter, only who is picked. How many different groups can be picked?</p></div>
         <div class="ex-solution">
           <p class="answer">Answer: $20$</p>
           <p>
-            Counting in order: $6 \cdot 5 \cdot 4 = 120$. One group of three can be listed in $3 \cdot 2 \cdot 1 = 6$ orders, so $120 \div 6 = 20$ groups. Check: choosing the $3$ who stay behind picks the same groups, and the count is again $20$ ✓.
+            Counting in order: $6 \cdot 5 \cdot 4 = 120$. One group of three can be listed in $3 \cdot 2 \cdot 1 = 6$ orders, so $120 \div 6 = 20$ groups. Check: the groups with player A are A and a pair from the other $5$, $5 \cdot 4 \div 2 = 10$, and the groups without A are $3$ of the other $5$, $5 \cdot 4 \cdot 3 \div 6 = 10$, and $10 + 10 = 20$ ✓.
           </p>
         </div>
       </div>
@@ -1062,7 +1067,7 @@
         <div class="ex-solution">
           <p class="answer">Answer: $\dfrac{1}{60}$</p>
           <p>
-            The number of codes is $5 \cdot 4 \cdot 3 = 60$, and one is right, so $P = \frac{1}{60}$. Check: if a digit could be used again there would be $5 \cdot 5 \cdot 5 = 125$ codes, more than $60$ ✓.
+            The number of codes is $5 \cdot 4 \cdot 3 = 60$, and one is right, so $P = \frac{1}{60}$. Check: arranging all $5$ digits gives $5! = 120$ orders, and the two digits left out can swap without changing the code, so $120 \div 2 = 60$ ✓.
           </p>
         </div>
       </div>
@@ -1102,7 +1107,7 @@
           groups by their relative frequencies, not their raw counts, and events are independent when
           $P(A \mid B) = P(A)$.</li>
         <li>Choices multiply. $n$ different items can be arranged in $n! = n \cdot (n-1) \cdots 2 \cdot 1$
-          orders, and $k$ of them in order in $k$ falling factors starting at $n$. A code that may repeat
+          orders, and arranging $k$ of them in order takes $k$ factors, falling by one from $n$. A code that may repeat
           has the same number of choices at every place, and one that may not repeat has one fewer each
           time. For a probability, put the favorable arrangements over all of them. When order does not
           matter, divide the ordered count by the orders of one group.</li>
