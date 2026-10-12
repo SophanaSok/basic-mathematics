@@ -71,7 +71,7 @@ const RUNTIME = BUNDLE + "rolldown-runtime.js";
    src/vendor/three.js; supabase-js, which account.js imports when it first wants a
    client (on the account page, or where a session is stored), through
    src/vendor/supabase.js; and the course world, which map3d.js imports once the
-   contents page is to draw it in 3D: src/world/index.ts with the modules of src/world/
+   contents page is to draw it in 3D, and src/ui/form-view.ts imports on the progress page: src/world/index.ts with the modules of src/world/
    it imports (`dir`: those may be in the chunk too, all but one an entry imports, which
    goes with that entry's chunks). `by` is the importer (or a list of them): a page whose entry imports one
    must reach the chunk through the import(), and no page's HTML may name the chunk,

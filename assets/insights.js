@@ -33,7 +33,7 @@
 
   var page = document.querySelector("[data-progress]");
   /* the "Your form" panel's place (src/ui/forms.ts fills it): one element kept across
-     redraws, so the panel and its canvas are not made again when the page is */
+     redraws, placed once above the dashboard (the previous sibling of [data-progress]) */
   var formSlot = document.createElement("div");
   formSlot.className = "form-slot";
   formSlot.setAttribute("data-form", "");
@@ -227,6 +227,9 @@
   }
 
   function drawProgress() {
+    /* the slot goes in once, ahead of the dashboard, and is never moved: a redraw of the
+       dashboard does not touch it, so focus inside the panel stays and the canvas stays */
+    if (!formSlot.parentNode && page.parentNode) page.parentNode.insertBefore(formSlot, page);
     var solved = 0, total = 0, done = 0, stars = 0;
     C.chapters.forEach(function (ch) {
       var c = Progress.count(ch.id);
@@ -290,7 +293,6 @@
     }
     page.innerHTML = html;
     planPanel();
-    page.insertBefore(formSlot, page.firstChild);
     Array.prototype.forEach.call(page.querySelectorAll("[data-goal]"), function (b) {
       b.addEventListener("click", function () {
         Activity.setGoal(b.getAttribute("data-goal"));

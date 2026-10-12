@@ -927,7 +927,7 @@ html[data-motion="reduce"] *, html[data-motion="reduce"] *::before, html[data-mo
    canvas or the card that stands in for it, so nothing moves when the canvas arrives. No
    animation. */
 
-.form-slot { display: block; }
+.form-slot { display: block; margin-top: 1rem; max-width: none; }
 .form-slot:empty { display: none; }
 .form-panel { margin-bottom: 1.4rem; }
 .form-body { display: grid; grid-template-columns: minmax(0, 300px) minmax(0, 1fr); gap: 1.2rem 1.6rem; align-items: start; }

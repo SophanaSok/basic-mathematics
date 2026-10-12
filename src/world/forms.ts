@@ -66,7 +66,8 @@ interface Keys { body: string; paper: string; under: string; stone: string; gold
 
 type Anim = (g: Group, t: number) => void;
 
-interface Live { g: Group; rest: Place; anim: Anim; geos: BufferGeometry[]; ranges: Range[][] }
+/* a live part's rest pose is kept as nine numbers, so idle() allocates nothing per frame */
+interface Live { g: Group; rest: Float64Array; anim: Anim; geos: BufferGeometry[]; ranges: Range[][] }
 
 /* what a stage's script builds with */
 interface Build {
@@ -78,7 +79,7 @@ interface Build {
   flat(pts: [number, number][], depth: number, at: Place, paint: string, ink?: string | null): void;
   /** a moving part: `build` stamps its pieces (into a kit of its own when live, else into the
       main kit at the rest pose); `anim` moves its group with time */
-  part(rest: Place, build: (k: Kit, parent: Matrix4 | null, put: Build["put"], flat: Build["flat"]) => void, anim: Anim): void;
+  part(rest: Place, build: (put: Build["put"], flat: Build["flat"]) => void, anim: Anim): void;
   /** the Luminary's translucent halo, live only */
   halo(at: Place, radius: number): void;
 }
@@ -112,11 +113,10 @@ const turn = (t: number) => (t / TURN_MS) * TAU;
 function pip(b: Build): void {
   const K = b.K;
   b.put("disc", { p: [0, 0.025, 0], s: [0.6, 0.05, 0.6] }, K.paper);
-  b.part({ p: [0, 0.05, 0] }, (k, m, put, flat) => {
+  b.part({ p: [0, 0.05, 0] }, (put, flat) => {
     put("pebble", { p: [0, 0.2, 0], s: [0.46, 0.4, 0.44], r: [0, 0.3, 0] }, K.body);
     put("box", { p: [0.03, 0.22, 0.2], s: [0.04, 0.14, 0.03], r: [0, 0, -0.3] }, K.ink, null);
     flat([[0, 0], [0.1, 0.16], [0.02, 0.28], [-0.07, 0.14]], 0.03, { p: [0.02, 0.38, 0], r: [0.25, 0, -0.2] }, K.grow);
-    void k; void m;
   }, (g, t) => {
     g.scale.set(1, 1 + 0.03 * breath(t), 1);
     g.rotation.z = 0.03 * breath(t, 1);
@@ -129,14 +129,13 @@ function sprig(b: Build): void {
   const K = b.K;
   b.put("disc", { p: [0, 0.025, 0], s: [0.64, 0.05, 0.64] }, K.paper);
   for (const x of [-0.09, 0.09]) b.put("bar", { p: [x, 0.16, 0], s: [0.07, 0.22, 0.07] }, K.stone);
-  b.part({ p: [0, 0.27, 0], r: [0.12, 0, 0] }, (k, m, put, flat) => {
+  b.part({ p: [0, 0.27, 0], r: [0.12, 0, 0] }, (put, flat) => {
     put("pebble", { p: [0, 0.17, 0], s: [0.42, 0.36, 0.4], r: [0, 0.3, 0] }, K.body);
     put("bar", { p: [0, 0.38, 0], s: [0.05, 0.1, 0.05] }, K.stone);
     put("octa", { p: [0, 0.52, 0], s: 0.3, r: [0, Math.PI / 4, 0] }, K.body);
     put("box", { p: [0, 0.52, 0.11], s: [0.03, 0.08, 0.02] }, K.ink, null);
     flat([[0, 0], [0.09, 0.14], [0.01, 0.24], [-0.06, 0.12]], 0.03, { p: [0.03, 0.64, 0], r: [0.2, 0, -0.5] }, K.grow);
     flat([[0, 0], [0.06, 0.12], [-0.01, 0.24], [-0.09, 0.14]], 0.03, { p: [-0.03, 0.64, 0], r: [0.2, 0, 0.5] }, K.grow);
-    void k; void m;
   }, (g, t) => {
     g.position.y = 0.27 + Math.max(0, breath(t)) * 0.04;
     g.rotation.x = 0.12 + 0.04 * breath(t, 0.5);
@@ -175,17 +174,15 @@ function wayfinder(b: Build): void {
   b.put("disc", { p: [0, 0.025, 0], s: [0.7, 0.05, 0.7] }, K.paper);
   walker(b, { legH: 0.3, legX: 0.11, torso: [[-0.17, 0], [0.17, 0], [0.22, 0.42], [-0.22, 0.42]], depth: 0.22, torsoY: 0.35, neckY: 0.8, headS: 0.32, headY: 0.98, shoulderX: 0.25, shoulderY: 0.75, staffX: 0.42 });
   for (const x of [-0.25, 0.25]) b.put("octa", { p: [x, 0.75, 0], s: 0.18 }, K.deep);
-  b.part({ p: [0, 0.76, -0.12], r: [-0.22, 0, 0] }, (k, m, put, flat) => {
+  b.part({ p: [0, 0.76, -0.12], r: [-0.22, 0, 0] }, (put, flat) => {
     cape(flat, K, 0.17, 0.74, 0.3);
-    void k; void m; void put;
   }, (g, t) => {
     g.rotation.x = -0.22 + 0.03 * breath(t);
     g.rotation.z = 0.02 * breath(t, 1);
   });
   b.put("staff", { p: [0.42, 0.65, 0.12], s: [0.05, 1.3, 0.05] }, K.stone);
-  b.part({ p: [0.42, 1.3, 0.12], r: [0.25, 0, 0] }, (k, m, put) => {
+  b.part({ p: [0.42, 1.3, 0.12], r: [0.25, 0, 0] }, (put) => {
     put("ringS", { s: 0.26 }, K.gold, null);
-    void k; void m;
   }, (g, t) => { g.rotation.y = turn(t); });
 }
 
@@ -206,18 +203,16 @@ function surveyor(b: Build): void {
   b.put("box", { p: [0, 0.9, -0.12], s: [0.5, 0.06, 0.08] }, K.deep);
   cape(b.flat, K, 0.2, 0.8, 0.36, { p: [0, 0.86, -0.14], r: [-0.2, 0, 0] });
   b.put("staff", { p: [0.52, 0.8, 0.18], s: [0.05, 1.6, 0.05] }, K.stone);
-  b.part({ p: [0.52, 1.6, 0.18] }, (k, m, put) => {
+  b.part({ p: [0.52, 1.6, 0.18] }, (put) => {
     put("ringS", { s: 0.26 }, K.gold, null);
     put("ringS", { s: 0.36, r: [Math.PI / 2, 0, 0] }, K.gold, null);
-    void k; void m;
   }, (g, t) => { g.rotation.y = turn(t); });
-  b.part({ p: [0, 0.72, 0], r: [0.55, 0, 0] }, (k, m, put) => {
+  b.part({ p: [0, 0.72, 0], r: [0.55, 0, 0] }, (put) => {
     put("ringM", { s: 1.0, r: [Math.PI / 2, 0, 0] }, K.stone, null);
     for (let i = 0; i < 3; i++) {
       const a = (i / 3) * TAU;
       put("octa", { p: [Math.cos(a) * 0.5, 0, Math.sin(a) * 0.5], s: 0.14, r: [0, a, 0] }, K.gold);
     }
-    void k; void m;
   }, (g, t) => { g.rotation.y = turn(t); });
 }
 
@@ -240,36 +235,34 @@ function luminary(b: Build): void {
   cape(b.flat, K, 0.22, 0.96, 0.4, { p: [0, 1.0, -0.16], r: [-0.2, 0, 0] });
   b.put("disc", { p: [0, 1.22, -0.17], s: [0.5, 0.02, 0.5], r: [Math.PI / 2, 0, 0] }, K.paper);
   b.halo({ p: [0, 1.22, -0.2], r: [Math.PI / 2, 0, 0] }, 0.3);
-  b.part({ p: [0, 1.5, 0] }, (k, m, put) => {
+  b.part({ p: [0, 1.5, 0] }, (put) => {
     for (let i = 0; i < 5; i++) {
       const a = (i / 5) * TAU;
       put("octa", { p: [Math.cos(a) * 0.22, 0, Math.sin(a) * 0.22], s: 0.12, r: [0, a, 0] }, K.gold);
     }
-    void k; void m;
   }, (g, t) => {
     g.rotation.y = turn(t) * 0.75;
     g.scale.setScalar(1 + 0.04 * breath(t));
   });
-  b.part({ p: [0, 0.95, 0], r: [0.55, 0, 0] }, (k, m, put) => { put("ringL", { s: 1.15, r: [Math.PI / 2, 0, 0] }, K.gold, null); void k; void m; }, (g, t) => { g.rotation.y = turn(t); });
-  b.part({ p: [0, 0.95, 0], r: [-0.55, 0, 0.35] }, (k, m, put) => { put("ringL", { s: 1.15, r: [Math.PI / 2, 0, 0] }, K.stone, null); void k; void m; }, (g, t) => { g.rotation.y = -turn(t); });
+  b.part({ p: [0, 0.95, 0], r: [0.55, 0, 0] }, (put) => { put("ringL", { s: 1.15, r: [Math.PI / 2, 0, 0] }, K.gold, null); }, (g, t) => { g.rotation.y = turn(t); });
+  b.part({ p: [0, 0.95, 0], r: [-0.55, 0, 0.35] }, (put) => { put("ringL", { s: 1.15, r: [Math.PI / 2, 0, 0] }, K.stone, null); }, (g, t) => { g.rotation.y = -turn(t); });
   b.put("staff", { p: [0.55, 1.0, 0.2], s: [0.05, 2.0, 0.05] }, K.stone);
-  b.part({ p: [0.55, 2.0, 0.2] }, (k, m, put) => {
+  b.part({ p: [0.55, 2.0, 0.2] }, (put) => {
     put("octa", { p: [0, 0.12, 0], s: 0.22 }, K.gold);
     put("ringS", { p: [0, -0.08, 0], s: 0.3 }, K.gold, null);
-    void k; void m;
   }, (g, t) => { g.rotation.y = turn(t); });
 }
 
 const STAGES: ((b: Build) => void)[] = [pip, sprig, wayfinder, surveyor, luminary];
-/* each stage's size: the natural figure above scaled so the five stand 0.6, 0.85, 1.2,
-   1.45 and 1.8 tall, visibly growing from one to the next */
+/* each stage's size: the natural figure above scaled so the five stand about 0.6, 0.8,
+   1.1, 1.35 and 1.75 tall (measured: `height`), visibly growing from one to the next */
 const SIZE = [0.85, 0.74, 0.78, 0.77, 0.79];
 
 /* ----------------------------------------------------------- the builder ---- */
 
-/** the stage number held to 1..FORM_STAGES; anything else is 1 */
+/** the stage number held to 1..FORM_STAGES (an infinity to the nearer end); NaN and anything not a number is 1 */
 export function clampStage(n: unknown): number {
-  const v = typeof n === "number" && isFinite(n) ? Math.floor(n) : 1;
+  const v = typeof n === "number" && !isNaN(n) ? Math.floor(n) : 1;
   return Math.min(FORM_STAGES, Math.max(1, v));
 }
 
@@ -316,18 +309,18 @@ export function buildForm(T: Three, stageIn: unknown, mats: WorldMaterials, pal:
     part(rest, build, anim) {
       if (!live) {
         const m = place(k, base, rest);
-        build(k, m, putIn(k, m), flatIn(k, m));
+        build(putIn(k, m), flatIn(k, m));
         return;
       }
       const k2 = new Kit(T);
       shapes(k2);
-      build(k2, null, putIn(k2, null), flatIn(k2, null));
+      build(putIn(k2, null), flatIn(k2, null));
       const solid = k2.solids.build(T, P), edge = k2.edges.build(T, P);
       k2.dispose();
       const g = new T.Group();
       g.add(new T.Mesh(solid.geometry, mats.solid), new T.LineSegments(edge.geometry, mats.ink));
       root.add(g);
-      const l: Live = { g, rest, anim, geos: [solid.geometry, edge.geometry], ranges: [solid.ranges, edge.ranges] };
+      const l: Live = { g, rest: restOf(rest), anim, geos: [solid.geometry, edge.geometry], ranges: [solid.ranges, edge.ranges] };
       lives.push(l);
       atRest(l);
     },
@@ -356,11 +349,16 @@ export function buildForm(T: Three, stageIn: unknown, mats: WorldMaterials, pal:
   root.updateMatrixWorld(true);
   const height = new T.Box3().setFromObject(root).max.y;
 
+  function restOf(at: Place): Float64Array {
+    const p = at.p || [0, 0, 0], r = at.r || [0, 0, 0], s = at.s === undefined ? 1 : at.s;
+    const sc = typeof s === "number" ? [s, s, s] : s;
+    return new Float64Array([p[0], p[1], p[2], r[0], r[1], r[2], sc[0], sc[1], sc[2]]);
+  }
   function atRest(l: Live): void {
-    l.g.position.set(...(l.rest.p || [0, 0, 0]));
-    l.g.rotation.set(...(l.rest.r || [0, 0, 0]));
-    const s = l.rest.s === undefined ? 1 : l.rest.s;
-    if (typeof s === "number") l.g.scale.setScalar(s); else l.g.scale.set(...s);
+    const r = l.rest;
+    l.g.position.set(r[0], r[1], r[2]);
+    l.g.rotation.set(r[3], r[4], r[5]);
+    l.g.scale.set(r[6], r[7], r[8]);
   }
 
   let triangles = solid.geometry.getAttribute("position").count / 3 + haloRanges;

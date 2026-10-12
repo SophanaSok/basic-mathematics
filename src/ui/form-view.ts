@@ -200,7 +200,7 @@ export function createFormView(box: HTMLElement, probe: Element, onState?: (s: "
   }
 
   function snapshot(stage: number, part: string, px: number): string | null {
-    if (state !== "3d" || !renderer || !scene || !canvas) return null;
+    if (state !== "3d" || !renderer || !scene || !canvas || document.hidden) return null;
     try {
       const r = renderer, s = scene;
       const ratio = r.getPixelRatio();

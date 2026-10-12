@@ -2,8 +2,8 @@
    what unlocks the next, the path of five forms with an Equip button on each one reached,
    and a larger view in a dialog.
 
-     - assets/insights.js keeps one empty <div data-form> and puts it first on the page
-       after every redraw; this file fills it once and updates its text in place, so the
+     - assets/insights.js keeps one empty <div data-form> and puts it once above the dashboard
+       (it is never moved); this file fills it once and updates its text in place, so the
        canvas (src/ui/form-view.ts) is never made again.
      - Which stage is reached and which is worn come from src/core/forms.ts, over the game
        store's `form` and the XP. Equip writes form.wear = { n, at } and nothing else of the
@@ -22,6 +22,8 @@ import { createFormView, type FormView } from "./form-view.ts";
 
 const WATCH = ["sync", "reset", "level", "xp", "form", "theme", "prefs"];
 const SNAP_PX = 120;
+/* 2100-01-01 in ms: the latest `at` of a stored wear that is believed */
+const MAX_AT = 4102444800000;
 
 function isObj(v: unknown): v is Record<string, unknown> {
   return typeof v === "object" && v !== null && !Array.isArray(v);
@@ -100,7 +102,7 @@ function build(): HTMLElement {
   el.innerHTML =
     '<div class="panel-head"><h2 id="form-h">Your form</h2><span class="muted" data-f="stage"></span></div>' +
     '<div class="form-body">' +
-      '<div class="form-view">' + fallbackHtml() + "</div>" +
+      '<div class="form-view" data-form-view>' + fallbackHtml() + "</div>" +
       '<div class="form-info">' +
         '<p class="form-name"><b data-f="name"></b> <span class="muted" data-f="tag"></span></p>' +
         '<p data-f="blurb"></p>' +
@@ -159,6 +161,7 @@ export function refresh(): void {
     if (b.closest("#form, .form-dialog") && b.textContent !== String(wo)) b.textContent = String(wo);
   });
   if (dialog) {
+    dialog.setAttribute("data-part", part);
     const h = dialog.querySelector(".form-dialog-title");
     if (h && h.textContent !== cur.name) h.textContent = cur.name;
   }
@@ -178,6 +181,8 @@ export function refresh(): void {
     btn.setAttribute("aria-pressed", String(f.n === wo));
     const label = f.n === wo ? "Equipped" : "Equip";
     if (btn.textContent !== label) btn.textContent = label;
+    const aria = (f.n === wo ? "Equipped: " : "Equip ") + f.name;
+    if (btn.getAttribute("aria-label") !== aria) btn.setAttribute("aria-label", aria);
   });
   if (view) {
     view.show(wo, part);
@@ -191,9 +196,11 @@ export function refresh(): void {
 /* the path's pictures: each stage reached, drawn once, again when the Part or the theme changes */
 function takeSnapshots(hi: number, part: string, tk: string): void {
   if (!view || view.state !== "3d") return;
+  /* a hidden tab draws nothing: the visibilitychange listener comes back here */
+  if (document.hidden) return;
   const key = part + "|" + hi + "|" + tk;
   if (key === snapKey) return;
-  snapKey = key;
+  let all = true;
   for (let n = 1; n <= LAST_FORM; n++) {
     const li = q('.form-tile[data-stage="' + n + '"]');
     const img = li && (li.querySelector("img") as HTMLImageElement | null);
@@ -201,8 +208,13 @@ function takeSnapshots(hi: number, part: string, tk: string): void {
     if (!img || !pip) continue;
     const url = n <= hi ? view.snapshot(n, part, SNAP_PX) : null;
     if (url) { snaps[n] = url; img.src = url; img.hidden = false; pip.hidden = true; }
-    else { delete snaps[n]; img.removeAttribute("src"); img.hidden = true; pip.hidden = false; }
+    else {
+      delete snaps[n]; img.removeAttribute("src"); img.hidden = true; pip.hidden = false;
+      if (n <= hi) all = false;
+    }
   }
+  /* the key is kept only when every reached stage got its picture, so a null retries */
+  if (all) snapKey = key;
 }
 
 function later(): void {
@@ -220,12 +232,19 @@ export function equip(n: number): boolean {
   const hi = highest(form, xp);
   if (typeof n !== "number" || !isFinite(n) || n < 1 || n > hi) return false;
   const n1 = Math.floor(n);
+  const wo = worn(form, xp);
   const key = S.keys.game;
   const raw = S.read(key, {});
   const game: Record<string, unknown> = isObj(raw) ? raw : {};
   const old: Record<string, unknown> = isObj(game.form) ? game.form : {};
-  const oldAt = isObj(old.wear) && typeof old.wear.at === "number" ? old.wear.at : 0;
-  game.form = { ...old, wear: { n: n1, at: Math.max(Date.now(), oldAt + 1) } };
+  if (n1 === wo) return true;
+  /* The old `at` comes from storage (or a sync), so it is read as a number and bounded:
+     a value past the year 2100 is damaged or hostile and counts as 0, else one such
+     value would make every later choice on this account sit beyond reach of the clock. */
+  const rawAt = isObj(old.wear) ? Number(old.wear.at) : 0;
+  const oldAt = isFinite(rawAt) && rawAt > 0 ? Math.min(rawAt, MAX_AT) : 0;
+  const at = Math.max(Date.now(), oldAt + 1);
+  game.form = { ...old, wear: { n: n1, at } };
   S.write(key, game);
   S.emit({ type: "form", highest: hi, worn: n1, fresh: [] });
   refresh();
@@ -272,7 +291,10 @@ export function openView(): void {
 
 /* ------------------------------------------------------------------- mount --- */
 
+let mounted = false;
 function mount(): void {
+  if (mounted) return;
+  mounted = true;
   slot = document.querySelector<HTMLElement>("[data-form]");
   if (!slot || !window.BMGame || !window.BMStore) return;
   panel = build();
@@ -294,6 +316,7 @@ function mount(): void {
     if (t && t.closest && t.closest("[data-form-large]")) openView();
   });
   window.BMStore.on((c: { type?: string }) => { if (c && c.type && WATCH.indexOf(c.type) !== -1) later(); });
+  document.addEventListener("visibilitychange", () => { if (!document.hidden) later(); });
   refresh();
 }
 
@@ -301,7 +324,7 @@ export const api = { refresh, equip, view: openView };
 
 if (typeof window !== "undefined" && typeof document !== "undefined") {
   window.BMForms = api;
-  /* after the rest of the page's modules (site.js, game.js, insights.js) have run */
-  if (document.readyState === "complete") setTimeout(mount, 0);
-  else window.addEventListener("load", mount);
+  /* at once: the slot is drawn synchronously by assets/insights.js, which the entry
+     imports earlier, so the panel is there with the first paint and moves nothing */
+  mount();
 }
