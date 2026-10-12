@@ -463,6 +463,7 @@ function palRender(): void {
   });
   palEmpty.hidden = palShown.length > 0;
   palList.hidden = palShown.length === 0;
+  palInput.setAttribute("aria-expanded", palShown.length > 0 ? "true" : "false");
   palSelect(0);
 }
 
@@ -515,7 +516,14 @@ function palKey(e: KeyboardEvent): void {
   switch (e.key) {
     case "ArrowDown": e.preventDefault(); palSelect(palAt + 1); return;
     case "ArrowUp": e.preventDefault(); palSelect(palAt - 1); return;
-    case "Tab": e.preventDefault(); palSelect(palAt + (e.shiftKey ? -1 : 1)); return;
+    case "Tab": {
+      /* the box and Close are the two tab stops; the arrows move over the options */
+      const close = palInput && palInput.closest("dialog") ? (palInput.closest("dialog") as HTMLElement).querySelector("[data-keys-close]") as HTMLElement | null : null;
+      if (!close) { e.preventDefault(); return; }
+      e.preventDefault();
+      if (e.target === palInput) close.focus(); else palInput && palInput.focus();
+      return;
+    }
     case "Home": e.preventDefault(); palSelect(0); return;
     case "End": e.preventDefault(); palSelect(palShown.length - 1); return;
     case "Enter": e.preventDefault(); palGo(palAt); return;
@@ -560,6 +568,7 @@ function palBuild(): HTMLDialogElement {
   d.appendChild(list);
   const empty = document.createElement("p");
   empty.className = "keys-palette-empty";
+  empty.setAttribute("role", "status");
   empty.textContent = "Nothing matches";
   empty.hidden = true;
   d.appendChild(empty);
@@ -569,6 +578,10 @@ function palBuild(): HTMLDialogElement {
   close.setAttribute("data-keys-close", "");
   close.textContent = "Close";
   close.addEventListener("click", () => d.close());
+  close.addEventListener("keydown", (e) => {
+    if (e.key === "Tab") { e.preventDefault(); input.focus(); }
+    else if (e.key === "Escape") { e.preventDefault(); d.close(); }
+  });
   d.appendChild(close);
   d.addEventListener("close", restore);
   document.body.appendChild(d);

@@ -162,7 +162,11 @@ html[data-calm] .hud-sound { opacity: .5; cursor: not-allowed; }
 .keys-sheet [data-keys-close] { margin-top: 1rem; }
 /* the go-to palette "/" opens: the same paper, a full-width box and a plain list; the
    selected row as the Arena board marks the reader's own row */
-.keys-palette input { display: block; width: 100%; box-sizing: border-box; margin: 0 0 .5rem; }
+.keys-palette input {
+  display: block; width: 100%; box-sizing: border-box; margin: 0 0 .5rem; min-height: 2.6rem; padding: .4rem .6rem;
+  font: inherit; font-size: 1rem; background: var(--bg); color: var(--text);
+  border: 2px solid var(--line-ui); border-radius: var(--radius-sm);
+}
 .keys-palette [role=listbox] { list-style: none; margin: 0; padding: 0; }
 .keys-palette [role=option] { padding: .35rem .6rem; border-radius: var(--radius-xs); cursor: pointer; }
 .keys-palette [role=option][data-selected] { background: var(--accent-soft); color: var(--text); box-shadow: inset 3px 0 0 var(--accent); }

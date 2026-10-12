@@ -105,8 +105,9 @@ function aliases(t: Target): string[] {
     /* "e3" names Exercise 3, not Warm-up 3 */
     const m = /^exercise\s+(\d+)\s*$/i.exec(t.label);
     if (m) out.push("e" + m[1]);
+    /* the key itself ("w3", "t1"); a bare number stays a chapter's alias */
     const tail = (t.id || "").split(/[^a-z0-9]+/i).filter(Boolean).pop();
-    if (tail) out.push(tail.toLowerCase());
+    if (tail && /[a-z]/i.test(tail)) out.push(tail.toLowerCase());
   } else if (t.kind === "chapter") {
     const m = /(\d+)/.exec(t.label);
     if (m) {

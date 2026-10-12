@@ -657,9 +657,13 @@ async function run() {
         eq([p.selected, p.marks, p.active], [1, 1, "keys-palette-opt-1"], pre + "ArrowDown, ArrowDown, ArrowUp select the second");
         await keys(page, ["ArrowUp", "ArrowUp"]);
         eq((await pal(page)).selected, 11, pre + "ArrowUp from the first wraps to the last");
-        await keys(page, ["Home", "Tab", "Tab", "Shift+Tab"]);
+        await page.keyboard.press("Home");
+        eq((await pal(page)).selected, 0, pre + "Home goes to the first");
+        await page.keyboard.press("Tab");
+        eq(await page.evaluate(() => document.activeElement.matches("#keys-palette [data-keys-close]")), true, pre + "Tab moves to the Close button");
+        await page.keyboard.press("Tab");
         p = await pal(page);
-        eq([p.selected, p.focused], [1, true], pre + "Home goes to the first, Tab and Shift+Tab move the selection and keep the focus in the box");
+        eq([p.selected, p.focused], [0, true], pre + "Tab again returns to the box with the selection kept");
         await page.keyboard.press("End");
         eq((await pal(page)).selected, 11, pre + "End goes to the last");
         await page.keyboard.type("pract");
