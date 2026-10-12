@@ -1104,13 +1104,13 @@
   /* what a scatterplot's two measurements are; x runs x0, x0+dx, ... for n points */
   var SCATTER_CONTEXTS = [
     { what: "the hours each of several students studied and their test scores", xh: "Hours studied", yh: "Test score", cap: "Hours studied and test score, one point per student.",
-      xdesc: "the hours studied", ydesc: "the test score", yunit: "points", x0: 1, dx: 1, ms: [3, 4, 5], b: [40, 60], sign: 1 },
+      xdesc: "the hours studied", ydesc: "the test score", yunit: "points", x0: 1, dx: 1, ms: [2, 3, 4], b: [30, 45], sign: 1, ymax: 100 },
     { what: "the temperature and the cups of hot chocolate a café sold on several days", xh: "Temperature (°F)", yh: "Cups sold", cap: "Temperature and cups of hot chocolate sold, one point per day.",
-      xdesc: "the temperature in degrees", ydesc: "the cups sold", yunit: "cups", x0: 10, dx: 5, ms: [-2, -3, -4], b: [10, 30], sign: -1 },
+      xdesc: "the temperature in degrees", ydesc: "the cups sold", yunit: "cups", x0: 10, dx: 5, ms: [-2, -3, -4], b: [10, 30], sign: -1, ymax: 300 },
     { what: "the height of a plant at the end of each week", xh: "Week", yh: "Height (cm)", cap: "Height of a plant at the end of each week.",
-      xdesc: "the week", ydesc: "the height in centimeters", yunit: "centimeters", x0: 1, dx: 1, ms: [2, 3, 4], b: [8, 20], sign: 1 },
+      xdesc: "the week", ydesc: "the height in centimeters", yunit: "centimeters", x0: 1, dx: 1, ms: [2, 3, 4], b: [8, 20], sign: 1, ymax: 100 },
     { what: "the number of days students were absent and their final grades", xh: "Days absent", yh: "Final grade", cap: "Days absent and final grade, one point per student.",
-      xdesc: "the days absent", ydesc: "the final grade", yunit: "points", x0: 1, dx: 1, ms: [-2, -3], b: [35, 50], sign: -1 }
+      xdesc: "the days absent", ydesc: "the final grade", yunit: "points", x0: 1, dx: 1, ms: [-2, -3], b: [35, 50], sign: -1, ymax: 100 }
   ];
 
   /* a context, a line y = mx + b and n points above and below it by small whole residuals,
@@ -1130,6 +1130,13 @@
   }
   function scatterLead(d) {
     return "The scatterplot shows " + d.c.what + ". A line of fit is $" + lineTex(d.m, d.b) + "$, where $x$ is " + d.c.xdesc + " and $y$ is " + d.c.ydesc + ". ";
+  }
+  /* every row's y and the line's value at every row's x lie in 0..ymax, and so does any extra number given */
+  function inRange(d, rows, extra) {
+    var ok = true;
+    rows.forEach(function (p) { var pr = stepLine(d.m, d.b, p[0]); if (!(p[1] > 0 && p[1] <= d.c.ymax && pr > 0 && pr <= d.c.ymax)) ok = false; });
+    (extra || []).forEach(function (v) { if (!(v > 0 && v <= d.c.ymax)) ok = false; });
+    return ok;
   }
   function scatterChart(d) { return { kind: "scatter", head: [d.c.xh, d.c.yh], rows: d.rows, caption: d.c.cap }; }
   /* the prediction at x by stepping from the line's value at x = 0, one x at a time: another route to m*x + b */
@@ -1158,7 +1165,7 @@
         hint: hint, steps: steps, chart: scatterChart(d),
         verify: function () {
           var rows = this.chart ? this.chart.rows : d.rows;
-          if (rows.length !== d.n) return false;
+          if (rows.length !== d.n || !inRange(d, rows, [d.m * x + d.b])) return false;
           if (kind === "predict") return stepLine(d.m, d.b, x) === ans;
           /* walk the x values up from the left until the predicted y reaches the target */
           var t = d.m * x + d.b, k, found = null;
@@ -1193,7 +1200,7 @@
         hint: hint, steps: steps, chart: scatterChart(d),
         verify: function () {
           var rows = this.chart ? this.chart.rows : d.rows, i, cnt = 0;
-          if (rows.length !== d.n) return false;
+          if (rows.length !== d.n || !inRange(d, rows)) return false;
           if (kind === "residual") return rows[k][1] - stepLine(d.m, d.b, rows[k][0]) === ans && ans !== 0;
           /* recount from the table: a point is above when its y exceeds the stepped prediction */
           for (i = 0; i < rows.length; i++) if (rows[i][1] > stepLine(d.m, d.b, rows[i][0])) cnt++;
@@ -1236,7 +1243,7 @@
         verify: function () {
           /* the slope from the points as a fraction, then, for a prediction, by interpolating between them */
           var s = (y2 - y1) / (x2 - x1);
-          if (x2 === x1 || s !== d.m) return false;
+          if (x2 === x1 || s !== d.m || !inRange(d, this.chart ? this.chart.rows : d.rows, [y1, y2, d.m * xq + d.b])) return false;
           if (kind !== "twoPoint") return s === ans;
           return y1 + (xq - x1) * (y2 - y1) / (x2 - x1) === ans;
         }
@@ -1292,7 +1299,7 @@
     make: function (r) {
       var c = r.pick(SAMPLE_CONTEXTS), kind = r.pick(["estimate", "estimate", "two", "larger"]);
       if (kind === "estimate") {
-        var n = r.pick([40, 50, 80, 100, 200, 250]), f = r.int(8, 40), N = n * f, k = r.int(3, n - 3), ans = k * f;
+        var n = r.pick([40, 50, 80, 100, 200, 250]), f = r.int(Math.ceil(1000 / n), Math.ceil(1000 / n) + 30), N = n * f, k = r.int(3, n - 3), ans = k * f;
         return {
           q: c.pop + " $" + fmt(N) + "$ " + c.noun + ". " + sampleLine(c, n, k) + "Estimate how many of all the " + c.all + ".",
           type: "number", answer: String(ans), placeholder: "count",
@@ -1305,7 +1312,7 @@
         };
       }
       if (kind === "two") {
-        var n2 = r.pick([40, 50, 80, 100, 200]), f2 = r.int(8, 40), N2 = n2 * f2, k1 = r.int(3, n2 - 8), k2 = k1 + r.int(2, 6);
+        var n2 = r.pick([40, 50, 80, 100, 200]), f2 = r.int(Math.ceil(1000 / n2), Math.ceil(1000 / n2) + 30), N2 = n2 * f2, k1 = r.int(3, n2 - 8), k2 = k1 + r.int(2, 6);
         return {
           q: c.pop + " $" + fmt(N2) + "$ " + c.noun + ". One random sample of $" + n2 + "$ finds $" + k1 + "$ who " + c.does + ", and another random sample of $" + n2 + "$ finds $" + k2 + "$. Give the two estimates of how many of all the " + c.all + ", separated by a comma, smaller first.",
           type: "set", answer: (k1 * f2) + "," + (k2 * f2), placeholder: "e.g. 400,900",
