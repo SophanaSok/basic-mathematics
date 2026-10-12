@@ -23,7 +23,7 @@
         change, with its units, and why any two points of a line give the same one. Then it writes
         the model $y = mx + b$ from a story, from two points or from a table, and uses it to predict a
         value and to find when a quantity reaches a target. The last two sections turn to inequalities:
-        the numbers that satisfy one, which a negative multiplier turns around, and the regions of
+        the numbers that satisfy one, where a negative multiplier turns the sign around, and the regions of
         the plane that satisfy one or two at once.
       </p>
 
@@ -446,8 +446,8 @@
       &ldquo;within budget&rdquo; mean $\le$. &ldquo;At least&rdquo; means $\ge$.
       &ldquo;Fewer than&rdquo;, &ldquo;less than&rdquo; and &ldquo;under&rdquo; mean $&lt;$, and
       &ldquo;more than&rdquo; and &ldquo;over&rdquo; mean $&gt;$. When the unknown counts things, only
-      whole numbers count. If the solution is $n \le 10.8$, the greatest whole number that works is
-      $10$, and if it is $n \ge 5.2$, the least is $6$. Move into the solution set, never to the
+      whole numbers count. If the solution is $n \le 7.4$, the greatest whole number that works is
+      $7$, and if it is $n \ge 5.2$, the least is $6$. Move into the solution set, never to the
       nearest whole number.
     </p>
     <p>
@@ -499,7 +499,8 @@
         <p class="answer">Answer: $h &lt; 48$</p>
         <p>
           &ldquo;Under&rdquo; means below, and a rider exactly $48$ inches tall is not under $48$, so the
-          sign is strict. The other two point the wrong way. Check: a rider of $40$ inches is under $48$,
+          sign is strict. $h \le 48$ would let in a rider of exactly $48$ inches, and $h &gt; 48$ and
+          $h \ge 48$ point the wrong way. Check: a rider of $40$ inches is under $48$,
           and $40 &lt; 48$ ✓.
         </p>
       </div>
@@ -529,19 +530,21 @@
       </div>
     </div>
 
-    <div class="ex" data-inline id="t8" data-type="number" data-answer="-4" data-placeholder="e.g. 5"
+    <div class="ex" data-inline id="t8" data-type="number" data-answer="-5" data-placeholder="e.g. 5"
          data-hint="Divide both sides by the number that multiplies $x$. Before you write the sign, ask whether that number is positive or negative."
-         data-hint2="Which number do you divide $12$ by, and is it positive or negative?">
+         data-hint2="Once you have the boundary, which side of it do the solutions lie on, and is the boundary itself allowed?">
       <div class="ex-q">
         <p>
-          The solution of $-3x \ge 12$ is every $x$ on one side of a boundary $x = k$. What is $k$?
+          What is the greatest integer $x$ with $-3x &gt; 12$?
         </p>
       </div>
       <div class="ex-solution">
-        <p class="answer">Answer: $-4$</p>
+        <p class="answer">Answer: $-5$</p>
         <p>
-          Divide both sides by $-3$ and turn the sign around: $x \le -4$. Check one number on each side:
-          $x = -5$ gives $-3 \cdot (-5) = 15 \ge 12$, true, and $x = 0$ gives $0 \ge 12$, false ✓.
+          Divide both sides by $-3$ and turn the sign around: $x &lt; -4$. The sign is strict, so $-4$ is out and
+          the greatest integer is $-5$. Without the flip the solution would read $x &gt; -4$, which has no greatest
+          integer at all. Check one number on each side: $x = -5$ gives $-3 \cdot (-5) = 15 &gt; 12$, true, and
+          $x = -4$ gives $12 &gt; 12$, false ✓.
         </p>
       </div>
     </div>
@@ -579,11 +582,16 @@
       &ldquo;above the line&rdquo;, and settled with a point.
     </p>
     <p>
+      Every point above the line sits straight above a point of the line with the same $x$. Moving from one
+      point to another without crossing the line cannot turn true into false, since the two sides would have
+      to be equal where it crosses. So one point off the line will decide a whole side. Fixing $x$ also fixes
+      a column of points, so &ldquo;the greatest $y$ for this $x$&rdquo; is a question with one unknown.
+    </p>
+    <p>
       Not every inequality arrives solved for $y$, and $3x + 2y \le 24$ does not. A <b>test point</b>
       works for any of them. Choose a point that is not on the boundary, often $(0, 0)$, and put it
       in. If it makes the inequality true, the solution is the side that holds the point, and if false,
-      the other side. One point decides a whole side because the two sides of the inequality can only
-      trade places in size by passing through a point where they are equal, and that is the line.
+      the other side. One point decides a whole side, for the reason in the last paragraph.
     </p>
     <p>
       The boundary belongs to the solution for $\le$ and $\ge$, drawn as a solid line, and not for
@@ -597,7 +605,7 @@
       it satisfies every one of them, so the solution is the overlap of the regions. The corner where
       two boundary lines meet is found by solving the two equations together, as in Chapter 2's <a
       href="../1-algebra/02-linear-equations.html#two-unknowns">two unknowns</a>, where this
-      continues. To count the whole-number points of a small region, go through the values of $x$ one
+      method began. To count the whole-number points of a small region, go through the values of $x$ one
       at a time and list the $y$ that work.
     </p>
 
@@ -611,7 +619,7 @@
           <li>The boundary is the line $y = \frac12 x - 2$. The origin is not on it, since
             $\frac12 \cdot 0 - 2 = -2$ and not $0$, so use $(0, 0)$ as the test point.</li>
           <li>Put it in: $0 \le -2$ is false. The origin is not in the region, so the region is the
-            other side, below the line.</li>
+            other side, below the line (the origin is above it).</li>
           <li>The sign is $\le$, so the line belongs to the region and is drawn solid.</li>
           <li>Check with points. $(0, -5)$ is below the line: $-5 \le -2$, true. $(4, 0)$ is on the
             line, since $\frac12 \cdot 4 - 2 = 0$: $0 \le 0$, true. $(0, 1)$ is above the line:
@@ -935,36 +943,39 @@
         </div>
       </div>
 
-      <div class="ex" id="e16" data-section="ineq1" data-type="number" data-answer="3" data-placeholder="e.g. 5"
+      <div class="ex" id="e16" data-section="ineq1" data-type="number" data-answer="4" data-placeholder="e.g. 5"
            data-hint="Undo the constant first. The number that multiplies $x$ is negative, so think about what dividing by it does to the sign."
-           data-hint2="What is on the right once the constant is moved, and what is the sign of the number you divide by?">
-        <div class="ex-q"><p>The solution of $22 - 6x &lt; 4$ is every $x$ on one side of a boundary $x = k$. What is $k$?</p></div>
+           data-hint2="Once you have the boundary, which side of it do the solutions lie on, and does the strict sign let the boundary in?">
+        <div class="ex-q"><p>What is the least integer $x$ with $22 - 6x &lt; 4$?</p></div>
         <div class="ex-solution">
-          <p class="answer">Answer: $3$</p>
+          <p class="answer">Answer: $4$</p>
           <p>
-            Subtract $22$: $-6x &lt; -18$. Divide by $-6$, which is negative, so the sign turns around: $x &gt; 3$.
-            Check: $x = 4$ gives $22 - 24 = -2 &lt; 4$, true. $x = 2$ gives $22 - 12 = 10 &lt; 4$, false. The sign is strict,
-            so $x = 3$ itself gives $22 - 18 = 4 &lt; 4$, false, and $3$ is not a solution ✓.
+            Subtract $22$: $-6x &lt; -18$. Divide by $-6$, which is negative, so the sign turns around: $x &gt; 3$. The
+            sign is strict, so $3$ is out and the least integer is $4$. Without the flip the solution would read
+            $x &lt; 3$, which has no least integer. Check: $x = 4$ gives $22 - 24 = -2 &lt; 4$, true. $x = 3$ gives
+            $22 - 18 = 4 &lt; 4$, false, and $x = 2$ gives $10 &lt; 4$, false ✓.
           </p>
         </div>
       </div>
 
-      <div class="ex" id="e17" data-section="ineq1" data-type="number" data-answer="-10" data-placeholder="e.g. -4"
+      <div class="ex" id="e17" data-section="ineq1" data-type="number" data-answer="-11" data-placeholder="e.g. -4"
            data-hint="A fraction of $x$ is undone by multiplying. Before you write the sign, look at whether the number you multiply by is positive or negative."
-           data-hint2="What is on the right after you take away the constant, and what number multiplies $x$ in the term that has it?">
-        <div class="ex-q"><p>The solution of $-\dfrac{x}{2} + 3 &gt; 8$ is every $x$ on one side of a boundary $x = k$. What is $k$?</p></div>
+           data-hint2="Once you have the boundary, which side of it do the solutions lie on, and does the strict sign let the boundary in?">
+        <div class="ex-q"><p>What is the greatest integer $x$ with $-\dfrac{x}{2} + 3 &gt; 8$?</p></div>
         <div class="ex-solution">
-          <p class="answer">Answer: $-10$</p>
+          <p class="answer">Answer: $-11$</p>
           <p>
             Subtract $3$: $-\frac{x}{2} &gt; 5$. Multiply by $-2$, which is negative, so the sign turns around: $x &lt; -10$.
-            Check: $x = -12$ gives $6 + 3 = 9 &gt; 8$, true, and $x = -8$ gives $4 + 3 = 7 &gt; 8$, false ✓.
+            The sign is strict, so $-10$ is out and the greatest integer is $-11$. Without the flip the solution would
+            read $x &gt; -10$, which has no greatest integer. Check: $x = -11$ gives $5.5 + 3 = 8.5 &gt; 8$, true, and
+            $x = -10$ gives $5 + 3 = 8 &gt; 8$, false ✓.
           </p>
         </div>
       </div>
 
       <div class="ex" id="e18" data-section="ineq1" data-answer="3"
            data-hint="Check Dana's answer with a test number: pick one her answer allows and put it into the original inequality."
-           data-hint2="Try $x = 0$ in $-4x &gt; 20$. Is it true, and does Dana's answer include $0$?">
+           data-hint2="Which side of $-5$ should the solutions lie on? Put one number from each side into $-4x &gt; 20$.">
         <div class="ex-q"><p>Dana solved $-4x &gt; 20$ and wrote $x &gt; -5$. What went wrong?</p></div>
         <ul class="choices">
           <li>Nothing: the answer is correct.</li>
@@ -973,7 +984,7 @@
           <li>The number should be $5$ and the sign turned around, giving $x &lt; 5$.</li>
         </ul>
         <div class="ex-solution">
-          <p class="answer">Answer: the sign should have turned around, giving $x &lt; -5$</p>
+          <p class="answer">Answer: dividing by $-4$ should have turned the sign around, giving $x &lt; -5$</p>
           <p>
             Dividing by $-4$ is dividing by a negative number, so the sign turns around: $x &lt; -5$. Check with
             numbers: $x = -6$ gives $24 &gt; 20$, true, and it fits $x &lt; -5$. $x = 0$ gives $0 &gt; 20$, false,
@@ -1026,7 +1037,7 @@
 
       <div class="ex" id="e22" data-section="ineq2" data-answer="2"
            data-hint="Compare $y$ with the value of $3x - 1$ at the same $x$. Then ask whether a point where they are equal counts for this sign."
-           data-hint2="Take a point of the line, such as $(0, -1)$. What happens to $y$ if you move it straight up, and does the point itself satisfy a strict inequality?">
+           data-hint2="Take $(0, -1)$ on the line. Put it, a point just above it and a point just below it into $y &gt; 3x - 1$.">
         <div class="ex-q"><p>Which description matches the points $(x, y)$ with $y &gt; 3x - 1$?</p></div>
         <ul class="choices">
           <li>Above the line $y = 3x - 1$, and the line itself is included.</li>
@@ -1053,20 +1064,21 @@
           <p>
             $(1, 2)$: $2 \le 4$, true. $(0, 5)$: $5 \le 3$, false. $(2, 5)$: $5 \le 5$, true, because the sign is
             $\le$ and the point is on the line. $(-2, -3)$: $-3 \le 1$, true. That is three points. Check by the
-            line: the line is at height $3$ above $x = 0$, and only $(0, 5)$ lies above its line ✓.
+            line: at $(1, 2)$ the line is at $4$, and $2$ is below it. At $(2, 5)$ the line is at $5$, and the point is on it.
+            At $(-2, -3)$ the line is at $1$, and $-3$ is below it. Only $(0, 5)$ sits above its line, which is at $3$ there ✓.
           </p>
         </div>
       </div>
 
-      <div class="ex" id="e24" data-section="ineq2" data-type="number" data-answer="2" data-placeholder="e.g. 4"
-           data-hint="Fix $x$ first so the right side is a single number. Then ask whether that number itself is allowed."
-           data-hint2="What is the right side when $x = 3$, and is the sign strict?">
-        <div class="ex-q"><p>A region is described by $y &lt; -2x + 9$. For the points of the region with $x = 3$, what is the greatest integer $y$?</p></div>
+      <div class="ex" id="e24" data-section="ineq2" data-type="number" data-answer="6" data-placeholder="e.g. 4"
+           data-hint="Fix $x$ so only $y$ is left. A non-strict sign allows the boundary, but is the boundary an integer here?"
+           data-hint2="What is the right side at $x = 3$?">
+        <div class="ex-q"><p>A region is described by $y \le 1.5x + 2$. For the points of the region with $x = 3$, what is the greatest integer $y$?</p></div>
         <div class="ex-solution">
-          <p class="answer">Answer: $2$</p>
+          <p class="answer">Answer: $6$</p>
           <p>
-            At $x = 3$ the right side is $-6 + 9 = 3$, so $y &lt; 3$, and $3$ is not allowed. The greatest integer is
-            $2$. Check: $2 &lt; 3$ is true and $3 &lt; 3$ is false ✓.
+            At $x = 3$ the right side is $1.5 \cdot 3 + 2 = 6.5$, so $y \le 6.5$. The boundary $6.5$ is allowed but is
+            not an integer, so the greatest integer is $6$. Check: $6 \le 6.5$ is true and $7 \le 6.5$ is false ✓.
           </p>
         </div>
       </div>
@@ -1161,6 +1173,8 @@
         <li>Add or subtract anything, or multiply or divide by a positive number, and an inequality keeps its
           direction. Multiply or divide by a negative number and the sign turns around, since a reflection through
           $0$ swaps left and right.</li>
+        <li>A constraint from a story, such as $px + qy \le T$ with $x \ge 0$ and $y \ge 0$, is an inequality in two
+          unknowns. A range joined by &ldquo;and&rdquo; is the overlap of two conditions, and its integers are listed.</li>
         <li>Check a solution with a test number on each side of the boundary. The boundary itself is in the set for
           $\le$ and $\ge$ and not for $&lt;$ and $&gt;$. A count asks for a whole number inside the solution set.</li>
         <li>In the plane, $y &gt; mx + b$ is the region above the line and $y &lt; mx + b$ the region below it. A

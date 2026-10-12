@@ -2979,6 +2979,15 @@
       var p = ineqPick(r), rel = r.pick(IRELS), constFirst = r.chance(0.35), a = p.a, b = p.b, c = p.c, k = p.k;
       var sol = a > 0 ? rel : IREL[rel].flip, below = sol === "<" || sol === "<=";
       var kind = r.pick(["bound", "extreme", "extreme"]);
+      /* a negative coefficient: the boundary is the same with or without the flip, so ask for an integer, and keep the
+         key off the no-flip answer (a whole k with a non-strict sign gives the same integer on both sides) */
+      if (a < 0) {
+        kind = "extreme";
+        if (k === Math.floor(k) && (rel === "<=" || rel === ">=")) {
+          rel = rel === "<=" ? "<" : ">";
+          sol = IREL[rel].flip; below = sol === "<" || sol === "<=";
+        }
+      }
       var lhs = iLin(a, b, constFirst), ans, ask, tail;
       if (kind === "bound") {
         ans = k;
@@ -3007,7 +3016,16 @@
           if (at(k) !== (rel === "<=" || rel === ">=")) return false;
           if (at(lo) === at(hi)) return false;
           if (at(hi) !== !below) return false;
-          if (kind === "bound") return Math.abs(ans - k) < 1e-9;
+          if (kind === "bound") return a > 0 && Math.abs(ans - k) < 1e-9;
+          if (a < 0) {
+            /* the answer of a learner who does not flip: the extreme integer of the side x rel k, found by listing */
+            var wrong = null, t;
+            for (t = -40; t <= 40; t++) {
+              if (!ineqHolds(rel, t, k)) continue;
+              if (below) { if (wrong === null) wrong = t; } else wrong = t;
+            }
+            if (wrong === null || wrong === ans) return false;
+          }
           if (below) return at(ans) && !at(ans + 1) && at(ans - 1);
           return at(ans) && !at(ans - 1) && at(ans + 1);
         }
@@ -3265,13 +3283,19 @@
         }
         return cc;
       }
+      /* does this inequality leave out at least one point of the box? */
+      function cuts(a, b, rel, c) {
+        var x, y;
+        for (x = 0; x <= X; x++) for (y = 0; y <= Y; y++) if (!ineqHolds(rel, a * x + b * y, c)) return true;
+        return false;
+      }
       do {
         X = r.int(3, 6); Y = r.int(3, 6);
         a1 = r.int(1, 3); b1 = r.int(1, 3); rel1 = r.pick(["<", "<="]); c1 = r.int(4, 14);
         a2 = r.pick([1, 1, 2]); b2 = r.pick([-1, -1, -2]); rel2 = r.pick([">", ">=", "<", "<="]); c2 = r.int(-3, 3);
         cols = countAll(); total = 0;
         cols.forEach(function (v) { total += v; });
-        ok = total >= 6 && total <= 30 && total < (X + 1) * (Y + 1) - 2;
+        ok = total >= 6 && total <= 30 && total < (X + 1) * (Y + 1) - 2 && cuts(a1, b1, rel1, c1) && cuts(a2, b2, rel2, c2);
       } while (!ok && guard++ < 200);
       if (!ok) {
         X = 4; Y = 4; a1 = 1; b1 = 1; rel1 = "<="; c1 = 5; a2 = 1; b2 = -1; rel2 = ">="; c2 = 0;
