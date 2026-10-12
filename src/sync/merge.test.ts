@@ -361,3 +361,81 @@ describe("an attempt record's section", () => {
     }
   });
 });
+
+describe("game.form", () => {
+  const T = 1700000000000;
+  const form = (a: any, b: any) => mergeGame({ form: a }, { form: b }).form;
+  const hasForm = (g: any) => Object.prototype.hasOwnProperty.call(g, "form");
+
+  it("is left out when neither side has one", () => {
+    expect(hasForm(mergeGame({}, {}))).toBe(false);
+    expect(hasForm(mergeGame({ maxed: 2 }, { ach: { x: 1 } }))).toBe(false);
+  });
+
+  it("keeps a form held by one side only", () => {
+    const f = { got: { "1": T }, wear: { n: 2, at: T } };
+    expect(mergeGame({ form: f }, {}).form).toEqual(f);
+    expect(mergeGame({}, { form: f }).form).toEqual(f);
+  });
+
+  it("unions got, each stage at its lowest positive time, dropping stages with none", () => {
+    expect(form({ got: { "1": 9, "2": 5, "4": 0 } }, { got: { "1": 4, "3": 7, "4": -1, "5": "x" } }))
+      .toEqual({ got: { "1": 4, "2": 5, "3": 7 } });
+  });
+
+  it("writes got as {} once either side held a got field, and not otherwise", () => {
+    expect(form({ got: {} }, {})).toEqual({ got: {} });
+    expect(form({ got: [1] }, { wear: { n: 1, at: 1 } })).toEqual({ got: {}, wear: { n: 1, at: 1 } });
+    expect(form({ wear: { n: 1, at: 1 } }, {})).toEqual({ wear: { n: 1, at: 1 } });
+  });
+
+  it("takes the wear with the later at, then the higher n", () => {
+    expect(form({ wear: { n: 5, at: 10 } }, { wear: { n: 1, at: 20 } }).wear).toEqual({ n: 1, at: 20 });
+    expect(form({ wear: { n: 2, at: 10 } }, { wear: { n: 3, at: 10 } }).wear).toEqual({ n: 3, at: 10 });
+    expect(form({ wear: { n: "4", at: 10 } }, { wear: { n: "x", at: 10 } }).wear).toEqual({ n: 4, at: 10 });
+  });
+
+  it("carries unknown fields of form and of wear", () => {
+    const r = form({ next: "a", wear: { n: 1, at: 1, z: "b" } }, { next: "c", wear: { n: 1, at: 2, z: "a" } });
+    expect(r).toEqual({ next: "c", wear: { n: 1, at: 2, z: "b" } });
+  });
+
+  it("ignores damaged values instead of throwing", () => {
+    for (const bad of ["x", [1], null, 7, true]) {
+      expect(mergeGame({ form: bad }, { form: bad }).form).toEqual(bad === null ? null : bad);
+      expect(form(bad, { got: { "1": 3 } })).toEqual({ got: { "1": 3 } });
+      expect(form({ got: { "1": 3 } }, bad)).toEqual({ got: { "1": 3 } });
+    }
+    expect(form({ got: [5, 6] }, { got: { "2": 3 } })).toEqual({ got: { "2": 3 } });
+    expect(form({ wear: { n: 9, at: "99" } }, { wear: { n: 1, at: 5 } }).wear).toEqual({ n: 1, at: 5 });
+    expect(form({ wear: { n: 9, at: "99" } }, {}).wear).toEqual({ n: 9, at: "99" });
+    expect(form({ wear: { n: 1, at: 1e999 } }, { wear: { n: 1, at: 2 } }).wear).toEqual({ n: 1, at: 2 });
+  });
+
+  it("treats __proto__ as data it does not write, and huge numbers as numbers", () => {
+    const bad = JSON.parse('{"got":{"__proto__":5,"2":9},"wear":{"__proto__":{"x":1},"n":1,"at":3},"__proto__":{"polluted":1}}');
+    const r = form(bad, bad);
+    expect(Object.keys(r.got)).toEqual(["2"]);
+    expect(Object.getPrototypeOf(r.got)).toBe(Object.prototype);
+    expect(Object.prototype.hasOwnProperty.call(r, "__proto__")).toBe(false);
+    expect(({} as any).polluted).toBeUndefined();
+    expect(form({ got: { "1": 1e308 } }, { got: { "1": 2e308 } })).toEqual({ got: { "1": 1e308 } });
+    expect(form({ wear: { n: 1e308, at: 5 } }, { wear: { n: 2, at: 5 } }).wear).toEqual({ n: 1e308, at: 5 });
+  });
+
+  it("is commutative, associative and idempotent over hand-built values", () => {
+    const forms: any[] = [undefined, null, "x", [1], {}, { got: {} }, { got: { "1": 5 } }, { got: { "1": 3, "2": 8 } }, { got: [1] },
+      { wear: { n: 1, at: 10 } }, { wear: { n: 2, at: 10 } }, { wear: { n: 1, at: 20, z: 1 } }, { wear: { n: 9, at: "20" } }, { wear: "x" }, { wear: [1] },
+      { next: "a" }, { next: 2, got: { "3": 1 }, wear: { n: 3, at: 5, z: 2 } }];
+    const g = (f: any) => (f === undefined ? {} : { form: f });
+    const m = (p: any, q: any) => mergeGame(p, q);
+    for (const p of forms.map(g)) {
+      expect(canon(m(p, p)), canon(p)).toBe(canon(m(m(p, p), p)));
+      for (const q of forms.map(g)) {
+        expect(canon(m(p, q)), canon([p, q])).toBe(canon(m(q, p)));
+        expect(canon(m(m(p, q), m(p, q)))).toBe(canon(m(p, q)));
+        for (const r of forms.map(g)) expect(canon(m(m(p, q), r)), canon([p, q, r])).toBe(canon(m(p, m(q, r))));
+      }
+    }
+  });
+});

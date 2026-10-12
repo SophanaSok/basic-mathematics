@@ -200,13 +200,22 @@ export function mergeLesson(a: any, b: any) {
      enc    per set: the higher rematch medal, then the earlier day
      daily  union, keeping the latest 60 days
      maxed  max
+     form   left out when neither side has one. Neither a record: whole, by later. Else
+            `got` (stage -> first-reached ms): union, each key the lowest positive
+            finite time, a key with none dropped; written (as {} at least) once either
+            side's form holds a `got` field, so presence is an OR and stays idempotent.
+            `wear` ({ n, at }, the stage shown and when it was chosen): of the sides
+            whose wear is a record with a finite number `at`, the greater `at`, then
+            the greater n (num); unknown fields of those records are carried (later);
+            a wear that is no such record is ignored, and when neither is one the two
+            go through later. Unknown fields of form are carried (later)
      v      max: the shape of the whole synced state (SCHEMA below); left out until a
             version of the site sets it
    Anything else in the record, or in one of its sec, best or enc entries, is carried
    (later). */
 export function num(x: any) { x = Number(x); return isFinite(x) ? x : 0; }
 export function str(x: any) { return typeof x === "string" ? x : ""; }
-export const GAME = ["ach", "cmp", "sec", "best", "enc", "daily", "maxed", "v"];
+export const GAME = ["ach", "cmp", "sec", "best", "enc", "daily", "maxed", "form", "v"];
 /* A best entry's fastest clean run, { ms, day }: of the two that are records whose ms is a
    number above 0 (a string, 0, an array or null is no clean run and is ignored),
    the lower ms, then the earlier day (the empty string, for a day that is not a string,
@@ -219,6 +228,33 @@ export function mergeClean(p: any, q: any) {
   var both = list.map(function (r) { return { ms: num(r.ms), day: str(r.day) }; });
   both.sort(function (r, s) { return (r.ms - s.ms) || (r.day < s.day ? -1 : r.day > s.day ? 1 : 0); });
   return carryOver(both[0], obj(cleanOf(p)), obj(cleanOf(q)), ["ms", "day"]);
+}
+/* A form's wear, { n, at }: only a record with a finite number `at` counts (anything
+   else, a string `at` included, is ignored while the other side has one). A maximum of
+   (at, n) over two sides, so the three laws hold; unknown fields are carried from the
+   qualifying records only, which keeps a damaged wear from changing the grouping. */
+export function wearOf(x: any) { return plain(x) && typeof x.at === "number" && isFinite(x.at) ? x : undefined; }
+export function mergeWear(p: any, q: any) {
+  var list = [wearOf(p), wearOf(q)].filter(Boolean);
+  if (!list.length) return later(p, q);
+  var both = list.map(function (r) { return { n: num(r.n), at: num(r.at) }; });
+  both.sort(function (r, s) { return (s.at - r.at) || (s.n - r.n); });
+  return carryOver(both[0], obj(wearOf(p)), obj(wearOf(q)), ["n", "at"]);
+}
+export function mergeForm(p: any, q: any) {
+  if (opaque(p, q)) return later(p, q);
+  var x = obj(p), y = obj(q), out: any = {};
+  if (at(x, "got") !== undefined || at(y, "got") !== undefined) {
+    var gx = obj(at(x, "got")), gy = obj(at(y, "got"));
+    out.got = {};
+    keysOf(gx, gy).forEach(function (st) {
+      var t = [num(at(gx, st)), num(at(gy, st))].filter(function (n) { return n > 0; });
+      if (t.length) out.got[st] = Math.min.apply(null, t);
+    });
+  }
+  var wear = mergeWear(at(x, "wear"), at(y, "wear"));
+  if (wear !== undefined) out.wear = wear;
+  return carryOver(out, x, y, ["got", "wear"]);
 }
 export function mergeGame(a: any, b: any) {
   a = obj(a); b = obj(b);
@@ -277,6 +313,11 @@ export function mergeGame(a: any, b: any) {
   var daily = [obj(a.daily), obj(b.daily)];
   keysOf(daily[0], daily[1]).filter(function (d) { return at(daily[0], d) || at(daily[1], d); })
     .reverse().slice(0, 60).sort().forEach(function (d) { out.daily[d] = 1; });
+  var fa = at(a, "form"), fb = at(b, "form");
+  if (fa !== undefined || fb !== undefined) {
+    var form = mergeForm(fa, fb);
+    if (form !== undefined) out.form = form;
+  }
   return carryOver(out, a, b, GAME);
 }
 
