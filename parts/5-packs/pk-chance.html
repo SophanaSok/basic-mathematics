@@ -3,7 +3,7 @@
 <head>
 <!--bm:head-->
 <title>Pack C. Chance and Counting — Basic Mathematics</title>
-<meta name="description" content="Probability as a fraction of equally likely outcomes, the complement, experimental and theoretical probability, expected counts, and compound events by a list, a table or a tree: the chance and counting skills the gate exams ask for and the book leaves out.">
+<meta name="description" content="Probability as a fraction of equally likely outcomes, the complement, experimental and theoretical probability, expected counts, and compound events by a list, a table or a tree, two-way tables and conditional probability, and counting arrangements: the chance and counting skills the gate exams ask for and the book leaves out.">
 </head>
 <body data-depth="2" data-chapter="pk-chance" data-part="packs">
 <!--bm:topbar-->
@@ -20,7 +20,9 @@
         Chance sounds vague, but when the outcomes are equally likely it comes down to counting. This
         pack says what a probability is and why it is a fraction, how to find the chance that
         something does not happen, how an experiment estimates a probability that counting would give
-        exactly, and how to count the outcomes of two steps without missing any.
+        exactly, and how to count the outcomes of two steps without missing any, how to read a probability from a
+        two-way table when you are told which group to look in, and how to count arrangements, codes
+        and orders.
       </p>
 
       <div class="banner-meta" data-banner-meta></div>
@@ -39,7 +41,7 @@
         <li>No: the chance of two heads is $\frac14$</li>
         <li>No: the chance of two heads is $\frac12$</li>
       </ul>
-      <p class="puzzle-after">Alex counted the outcomes, which is the right idea, and still got a wrong answer. The first section says what a probability counts. (The second section is about listing the outcomes of two steps, so that you never miscount them.)</p>
+      <p class="puzzle-after">Alex counted the outcomes, which is the right idea, and still got a wrong answer. The first section says what a probability counts. (The second section is about listing the outcomes of two steps, so that you never miscount them. The third and fourth read a probability from a table and count arrangements by multiplying choices.)</p>
     </div>
 
     <div class="goal">
@@ -48,7 +50,10 @@
       likely outcomes, find the probability that it does not happen, tell an experimental probability
       from a theoretical one, predict how many times an event should occur in a number of trials, list
       the outcomes of two steps, and find the probability that two events both happen, that one or
-      the other happens, or that two draws without replacement both go a given way.
+      the other happens, or that two draws without replacement both go a given way, read a probability
+      from a two-way table and tell a conditional probability from a probability over the whole table,
+      compare groups by their relative frequencies, count outcomes by multiplying choices, and count the
+      arrangements of some or all of a set of items.
     </div>
 
     <section class="warmup" id="warmup">
@@ -409,6 +414,281 @@
       </div>
     </div>
 
+    <h2 id="twoway">C.3 Two-way tables and conditional probability</h2>
+    <p>
+      A survey often asks each person two questions at once: does the student play a sport, and does
+      the student ride the bus? A <b>two-way table</b> counts the answers in a grid, one question down
+      the side and the other across the top. Each cell counts the people who gave one particular pair
+      of answers. The <b>totals</b> in the last column and the last row (the margins) say how many
+      gave each answer to one question alone, and the corner holds the grand total.
+    </p>
+    <table>
+      <caption>How $60$ students get to school, by whether they play a sport</caption>
+      <thead><tr><th scope="col">Group</th><th scope="col">Bus</th><th scope="col">Walk</th><th scope="col">Total</th></tr></thead>
+      <tbody>
+        <tr><th scope="row">Plays a sport</th><td>15</td><td>25</td><td>40</td></tr>
+        <tr><th scope="row">No sport</th><td>6</td><td>14</td><td>20</td></tr>
+        <tr><th scope="row">Total</th><td>21</td><td>39</td><td>60</td></tr>
+      </tbody>
+    </table>
+    <p>
+      Choose one of the $60$ students at random. Every student is equally likely, so a probability
+      read from the whole table divides by the grand total, $60$. The chance of a student who plays a
+      sport and rides the bus is one cell over the grand total, $\frac{15}{60} = \frac14$. The chance
+      of a student who rides the bus, whether or not the student plays a sport, is a margin over the
+      grand total, $\frac{21}{60} = \frac{7}{20}$.
+    </p>
+    <p>
+      Now suppose we are told the student plays a sport. The twenty students with no sport are no
+      longer in the picture. The group is the top row, $40$ students, and $15$ of them ride the bus,
+      so the chance is $\frac{15}{40} = \frac38$. This is a <b>conditional probability</b>: the
+      probability of one event <em>given that</em> another has happened. We write it $P(\text{bus}
+      \mid \text{sport})$ and read it &ldquo;the probability of bus given sport&rdquo;. The bar means
+      &ldquo;given&rdquo;. What changed from the first calculation is the bottom of the fraction:
+      the denominator is the total of the group named after &ldquo;given&rdquo;, and not the grand
+      total.
+    </p>
+    <p>
+      Conditional probabilities compare groups fairly. Fifteen sport players ride the bus against only
+      $6$ of the others, but the groups are different sizes, so the raw counts say little. The
+      relative frequency of each row does: $\frac{15}{40} = 37.5\%$ of the sport players ride the bus,
+      and $\frac{6}{20} = 30\%$ of the others do. When a question asks which group is more likely to
+      do something, compare these row (or column) fractions.
+    </p>
+    <p>
+      Take care with the direction. The same $15$ gives a different fraction when the group changes:
+      of the $21$ students who ride the bus, $15$ play a sport, so $P(\text{sport} \mid \text{bus}) =
+      \frac{15}{21} = \frac57$, which is not $P(\text{bus} \mid \text{sport}) = \frac38$. In general
+      $P(A \mid B)$ and $P(B \mid A)$ are different questions. Almost every sparrow is a bird, and
+      few birds are sparrows.
+    </p>
+    <p>
+      Sometimes knowing the group changes nothing. Events are <b>independent</b> when the conditional
+      equals the unconditional: $P(A \mid B) = P(A)$. In the table, $P(\text{bus}) = \frac{7}{20} =
+      35\%$ while $P(\text{bus} \mid \text{sport}) = 37.5\%$. They are close but not equal, so in this
+      survey sport and bus are slightly related. In a table, independence shows up as the same
+      relative frequency in every row.
+    </p>
+
+    <div class="worked">
+      <h3><span class="num">Example 5.</span> Reading one row, and reading it backwards</h3>
+      <div class="body">
+        <table>
+          <caption>$50$ families, by yard and dog</caption>
+          <thead><tr><th scope="col">Group</th><th scope="col">Dog</th><th scope="col">No dog</th><th scope="col">Total</th></tr></thead>
+          <tbody>
+            <tr><th scope="row">Has a yard</th><td>18</td><td>12</td><td>30</td></tr>
+            <tr><th scope="row">No yard</th><td>4</td><td>16</td><td>20</td></tr>
+            <tr><th scope="row">Total</th><td>22</td><td>28</td><td>50</td></tr>
+          </tbody>
+        </table>
+        <p>
+          Find $P(\text{dog} \mid \text{yard})$ and $P(\text{dog} \mid \text{no yard})$, and say which
+          kind of family is more likely to have a dog. Then find $P(\text{yard} \mid \text{dog})$.
+        </p>
+        <ol class="steps">
+          <li>&ldquo;Given a yard&rdquo; makes the yard row the group: $30$ families, of whom $18$ have
+            a dog. $P(\text{dog} \mid \text{yard}) = \frac{18}{30} = \frac35$.</li>
+          <li>&ldquo;Given no yard&rdquo; makes the other row the group: $20$ families, $4$ with a dog.
+            $P(\text{dog} \mid \text{no yard}) = \frac{4}{20} = \frac15$.</li>
+          <li>Compare $\frac35 = 60\%$ with $\frac15 = 20\%$: a family with a yard is more likely to have
+            a dog.</li>
+          <li>Backwards, the group is the dog column: $22$ families, of whom $18$ have a yard.
+            $P(\text{yard} \mid \text{dog}) = \frac{18}{22} = \frac{9}{11}$.</li>
+          <li>Check that the edges add up: $18 + 12 = 30$, $18 + 4 = 22$, and $22 + 28 = 50$ ✓.
+            $\blacksquare$</li>
+        </ol>
+        <p class="note">
+          The $18$ is on top of both $\frac35$ and $\frac{9}{11}$. Only the group underneath changed.
+        </p>
+      </div>
+    </div>
+
+    <div class="ex" data-inline id="t7" data-type="fraction" data-answer="3/7" data-placeholder="e.g. 1/2"
+         data-hint="The words after &ldquo;of&rdquo; name the group. Use the table in Example 5 and find that group's total."
+         data-hint2="The families with no dog are the No dog column. Find its total, and how many of those families have a yard.">
+      <div class="ex-q">
+        <p>
+          In the table of Example 5, what fraction of the families with no dog have a yard, in lowest
+          terms?
+        </p>
+      </div>
+      <div class="ex-solution">
+        <p class="answer">Answer: $\dfrac37$</p>
+        <p>
+          The group is the families with no dog, $28$ of them, and $12$ have a yard:
+          $\frac{12}{28} = \frac37$. Check: the other $16$ have no yard, and $\frac{16}{28} = \frac47$,
+          with $\frac37 + \frac47 = 1$ ✓.
+        </p>
+      </div>
+    </div>
+
+    <div class="ex" data-inline id="t8" data-type="fraction" data-answer="5/7" data-placeholder="e.g. 1/2"
+         data-hint="The question names the students who ride the bus as the group, so only they are counted in the bottom."
+         data-hint2="Build the table: the sport players who ride the bus are given, and the others who ride the bus are given too. Add them to get the group.">
+      <div class="ex-q">
+        <p>
+          Of $60$ students, $40$ play a sport. Of the sport players, $15$ ride the bus, and of the other
+          students, $6$ ride the bus. What fraction of the students who ride the bus play a sport?
+        </p>
+      </div>
+      <div class="ex-solution">
+        <p class="answer">Answer: $\dfrac57$</p>
+        <p>
+          The bus riders are $15 + 6 = 21$ students, and $15$ of them play a sport, so the fraction is
+          $\frac{15}{21} = \frac57$. Check: this is the table of this section, and the column total
+          there is $21$ ✓.
+        </p>
+      </div>
+    </div>
+
+    <h2 id="counting">C.4 Counting arrangements</h2>
+    <p>
+      In C.2 we listed the outcomes of two steps in rows: for each first choice, the same number of
+      second choices. Every row of the list has the same length, so the list has (rows) times (row
+      length) entries. That is the <b>counting principle</b>: if a task is done in steps, and each
+      step has a number of choices that does not depend on what was chosen before, the number of ways
+      is the product of the numbers of choices. A third step multiplies again. With $3$ shirts, $4$
+      pairs of pants and $2$ pairs of shoes there are $3 \cdot 4 \cdot 2 = 24$ outfits.
+    </p>
+    <p>
+      Arrangements are the case where the choices shrink. Put three books, Atlas, Birds and Cacti, in
+      a row on a shelf. The first place can take any of the $3$ books. Whichever is chosen, $2$ are
+      left for the second place, and then $1$ for the last. So there are $3 \cdot 2 \cdot 1 = 6$ orders:
+      ABC, ACB, BAC, BCA, CAB, CBA. For $n$ different items the count is $n \cdot (n-1) \cdots 2 \cdot 1$,
+      which is written $n!$ and read &ldquo;$n$ factorial&rdquo;. So $4! = 24$, $5! = 120$, $6! = 720$
+      and $7! = 5040$. The count grows fast, which is why a list stops being a good way to find it.
+    </p>
+    <p>
+      We often arrange only some of the items. Eight runners race, and the first three places win
+      medals: how many ways can the medals go out? The gold medal can go to any of $8$ runners, the
+      silver to any of the $7$ left, the bronze to any of the $6$ left: $8 \cdot 7 \cdot 6 = 336$. The
+      product stops after as many factors as there are places, each one smaller by one than the
+      factor before. There is no formula to memorize. Ask at every place how many items are still
+      available.
+    </p>
+    <p>
+      That question separates two kinds of code. If a digit may be used again, nothing is used up, and
+      every place has the same number of choices: a code of $3$ digits from $0$ to $9$ has
+      $10 \cdot 10 \cdot 10 = 1000$ possibilities. If the digits must all be different, each digit
+      chosen is gone for the later places, and the count is $10 \cdot 9 \cdot 8 = 720$.
+    </p>
+
+    <div class="worked">
+      <h3><span class="num">Example 6.</span> Codes with and without repeats</h3>
+      <div class="body">
+        <p>
+          A door code has $4$ digits, each chosen from $1$ to $6$. How many codes are there if a digit
+          may be used more than once? How many if all four digits must be different?
+        </p>
+        <ol class="steps">
+          <li>With repeats allowed, each of the $4$ places has $6$ choices:
+            $6 \cdot 6 \cdot 6 \cdot 6 = 1296$.</li>
+          <li>With all digits different, the first place has $6$ choices and every later place has one
+            fewer: $6 \cdot 5 \cdot 4 \cdot 3 = 360$.</li>
+          <li>As a check on the idea, try $2$ places and the digits $1, 2, 3$. Repeats allowed: the
+            list $11, 12, 13, 21, 22, 23, 31, 32, 33$ is $9 = 3 \cdot 3$ codes. All different: $12, 13, 21, 23,
+            31, 32$ is $6 = 3 \cdot 2$ codes ✓. $\blacksquare$</li>
+        </ol>
+        <p class="note">
+          The code with all digits different is a smaller number than the one with repeats allowed,
+          because it keeps only some of the codes of the first kind.
+        </p>
+      </div>
+    </div>
+
+    <div class="ex" data-inline id="t9" data-type="number" data-answer="72" data-placeholder="count"
+         data-hint="The choices at the steps do not depend on one another, so use the counting principle."
+         data-hint2="An order is one crust, one topping and one size. Write the number of choices at each of the three steps.">
+      <div class="ex-q">
+        <p>
+          A pizza shop offers $4$ crusts, $6$ toppings and $3$ sizes. A pizza has one of each. How many
+          different pizzas can be ordered?
+        </p>
+      </div>
+      <div class="ex-solution">
+        <p class="answer">Answer: $72$</p>
+        <p>
+          $4 \cdot 6 \cdot 3 = 72$. Check: the crusts and toppings alone make $4 \cdot 6 = 24$ pairs, and
+          each pair comes in $3$ sizes, $24 \cdot 3 = 72$ ✓.
+        </p>
+      </div>
+    </div>
+
+    <div class="ex" data-inline id="t10" data-type="number" data-answer="120" data-placeholder="count"
+         data-hint="Fill the places one at a time. After each choice, one fewer friend is available."
+         data-hint2="The first place has one choice for each friend. Each place after it has one fewer, down to the last place.">
+      <div class="ex-q">
+        <p>
+          Five friends line up for a photo. In how many different orders can they stand?
+        </p>
+      </div>
+      <div class="ex-solution">
+        <p class="answer">Answer: $120$</p>
+        <p>
+          $5 \cdot 4 \cdot 3 \cdot 2 \cdot 1 = 5! = 120$. Check: one more friend than the $4! = 24$ orders
+          of four friends, and the new friend can join in $5$ places, so $24 \cdot 5 = 120$ ✓.
+        </p>
+      </div>
+    </div>
+
+    <p>
+      The arrangements are also the equally likely outcomes of a random order, and so they give
+      probabilities. Put the three books on the shelf in a random order. The $6$ orders are equally
+      likely, and only one of them, ABC, is alphabetical, so the chance is $\frac16$. Count the
+      arrangements, and put the favorable ones over them. The idea of listing the rearrangements
+      of a set returns, as functions, in
+      <a href="../4-topics/13-mappings.html#permutations">§13.3</a>, but this pack does not need it.
+    </p>
+    <p>
+      Finally, sometimes only <em>who</em> is chosen matters, not the order. Choose a team of $2$
+      students from $5$. Counting in order gives $5 \cdot 4 = 20$, but the pair Ana and Ben was counted
+      twice, once as Ana then Ben and once as Ben then Ana. Every team is counted once for each order of
+      its members, so we divide: list the orders of one chosen group, and divide the ordered count by
+      that number.
+    </p>
+
+    <div class="worked">
+      <h3><span class="num">Example 7.</span> Choosing a group when order does not matter</h3>
+      <div class="body">
+        <p>
+          A teacher picks $2$ of the $5$ students A, B, C, D and E to carry the equipment. How many
+          different pairs can be picked?
+        </p>
+        <ol class="steps">
+          <li>Count as if the order mattered: $5 \cdot 4 = 20$ ordered picks.</li>
+          <li>One pair can be picked in $2 \cdot 1 = 2$ orders, such as AB and BA, so each pair has been
+            counted $2$ times.</li>
+          <li>Divide: $20 \div 2 = 10$ pairs.</li>
+          <li>Check by listing the pairs once each: AB, AC, AD, AE, BC, BD, BE, CD, CE, DE is $10$ ✓.
+            $\blacksquare$</li>
+        </ol>
+        <p class="note">
+          For a group of $3$ the ordered count is divided by $3 \cdot 2 \cdot 1 = 6$, the orders of one
+          group of three.
+        </p>
+      </div>
+    </div>
+
+    <div class="ex" data-inline id="t11" data-type="fraction" data-answer="1/24" data-placeholder="e.g. 1/2"
+         data-hint="The orders are equally likely, and just one of them is alphabetical. Count all the orders."
+         data-hint2="Fill the four places in a row one at a time: four books can go first, and one fewer for each place after it. Multiply to get all the orders.">
+      <div class="ex-q">
+        <p>
+          Four different books are put on a shelf in a random order. What is the probability that they
+          stand in alphabetical order?
+        </p>
+      </div>
+      <div class="ex-solution">
+        <p class="answer">Answer: $\dfrac{1}{24}$</p>
+        <p>
+          The number of orders is $4 \cdot 3 \cdot 2 \cdot 1 = 24$, all equally likely, and one is
+          alphabetical, so the probability is $\frac{1}{24}$. Check: with $3$ books it was $\frac16$ and
+          with a fourth book each of the $6$ orders can place it in $4$ ways, $6 \cdot 4 = 24$ ✓.
+        </p>
+      </div>
+    </div>
+
     <!-- ====================================================== practice ==== -->
     <section class="practice" id="practice">
       <div class="practice-head">
@@ -418,7 +698,9 @@
       <p>
         Give each probability as a fraction, each count as a single number, and each answer that asks
         for a percent as a percent. Every die, coin, spinner section, card and marble is equally
-        likely unless the question says otherwise, and a draw is made at random.
+        likely unless the question says otherwise, and a draw is made at random. In a survey, a person is
+        chosen at random, and a question that says &ldquo;of those who&rdquo; or &ldquo;given that&rdquo;
+        names the group to count in the bottom of the fraction. For a count of ways, give the number.
       </p>
 
       <div class="ex" id="e1" data-section="outcomes" data-type="fraction" data-answer="2/5" data-placeholder="e.g. 1/2"
@@ -610,6 +892,180 @@
           </p>
         </div>
       </div>
+
+      <div class="ex" id="e15" data-section="twoway" data-type="fraction" data-answer="3/8" data-placeholder="e.g. 1/2"
+           data-hint="A probability read from the whole table divides by the grand total. Work out the four cells first."
+           data-hint2="Find how many students play a sport and ride the bus, and how many students are surveyed in all.">
+        <div class="ex-q"><p>Of $40$ students, $24$ play a sport. Of the sport players, $15$ ride the bus, and of the other students, $6$ ride the bus. One student is chosen at random. What is the probability that the student plays a sport and rides the bus?</p></div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $\dfrac38$</p>
+          <p>
+            The cell for sport and bus is $15$ of the $40$ students, so $P = \frac{15}{40} = \frac38$. Check by filling the table: sport and walk $24 - 15 = 9$, no sport and bus $6$, no sport and walk $16 - 6 = 10$, and $15 + 9 + 6 + 10 = 40$ ✓.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" id="e16" data-section="twoway" data-type="fraction" data-answer="13/25" data-placeholder="e.g. 1/2"
+           data-hint="A margin is the total of a row or a column. Fill in the table, then find the total of the column the question names."
+           data-hint2="The families with a cat come from two groups: those with a dog and those without. Add the two cells.">
+        <div class="ex-q"><p>In a survey of $50$ families, $32$ have a dog. Of the families with a dog, $20$ also have a cat, and of the families without a dog, $6$ have a cat. One family is chosen at random. What is the probability that the family has a cat?</p></div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $\dfrac{13}{25}$</p>
+          <p>
+            Families with a cat: $20 + 6 = 26$ of the $50$, so $P = \frac{26}{50} = \frac{13}{25}$. Check: the families without a cat are $12$ with a dog and $12$ without, $24$, and $26 + 24 = 50$ ✓.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" id="e17" data-section="twoway" data-type="fraction" data-answer="4/7" data-placeholder="e.g. 1/2"
+           data-hint="The words after &ldquo;given&rdquo; or &ldquo;of&rdquo; name the group. Only that row counts in the bottom of the fraction."
+           data-hint2="Find the total of the evening class row, and how many of that row prefer coffee.">
+        <div class="ex-q"><table>
+          <caption>Drink preference of $75$ adults, by class</caption>
+          <thead><tr><th scope="col">Class</th><th scope="col">Tea</th><th scope="col">Coffee</th><th scope="col">Total</th></tr></thead>
+          <tbody>
+            <tr><th scope="row">Morning</th><td>12</td><td>28</td><td>40</td></tr>
+            <tr><th scope="row">Evening</th><td>15</td><td>20</td><td>35</td></tr>
+            <tr><th scope="row">Total</th><td>27</td><td>48</td><td>75</td></tr>
+          </tbody>
+        </table>
+        <p>An adult is chosen at random from the evening class. What is the probability that the adult prefers coffee?</p></div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $\dfrac47$</p>
+          <p>
+            The group is the evening row, $35$ adults, and $20$ prefer coffee, so $P(\text{coffee} \mid \text{evening}) = \frac{20}{35} = \frac47$. Check: the other $15$ prefer tea, and $\frac{15}{35} = \frac37$, with $\frac47 + \frac37 = 1$ ✓.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" id="e18" data-section="twoway" data-type="fraction" data-answer="3/10" data-placeholder="e.g. 1/2"
+           data-hint="This time the group is a column. Say which column the question names, and use its total."
+           data-hint2="The households with a pet are the Pet column. Find its total and how many of those households rent.">
+        <div class="ex-q"><table>
+          <caption>$60$ households, by housing and pets</caption>
+          <thead><tr><th scope="col">Housing</th><th scope="col">Pet</th><th scope="col">No pet</th><th scope="col">Total</th></tr></thead>
+          <tbody>
+            <tr><th scope="row">Own</th><td>21</td><td>15</td><td>36</td></tr>
+            <tr><th scope="row">Rent</th><td>9</td><td>15</td><td>24</td></tr>
+            <tr><th scope="row">Total</th><td>30</td><td>30</td><td>60</td></tr>
+          </tbody>
+        </table>
+        <p>Of the households with a pet, what fraction rent?</p></div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $\dfrac{3}{10}$</p>
+          <p>
+            The group is the households with a pet, $30$ of them, and $9$ of those rent: $\frac{9}{30} = \frac{3}{10}$. Check: the other $21$ own, and $\frac{21}{30} = \frac{7}{10}$, with $\frac{3}{10} + \frac{7}{10} = 1$ ✓.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" id="e19" data-section="twoway" data-type="fraction" data-answer="9/11" data-placeholder="e.g. 1/2"
+           data-hint="The condition is the thing after &ldquo;chosen from&rdquo;, not the thing asked about. Name the group before counting."
+           data-hint2="First find how many students play piano in all, band members and the others together. Then see how many of them are in the band.">
+        <div class="ex-q"><p>Of $60$ students, $36$ are in the band. Of the band members, $27$ play piano, and of the other students, $6$ play piano. A student is chosen at random from the piano players. What is the probability that the student is in the band?</p></div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $\dfrac{9}{11}$</p>
+          <p>
+            The piano players number $27 + 6 = 33$, and $27$ of them are in the band, so $P(\text{band} \mid \text{piano}) = \frac{27}{33} = \frac{9}{11}$. The reverse, $P(\text{piano} \mid \text{band}) = \frac{27}{36} = \frac34$, is a different number ✓.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" id="e20" data-section="twoway" data-type="number" data-answer="12" data-placeholder="percentage points"
+           data-hint="Compare relative frequencies, not raw counts, because the two grades have different numbers of students."
+           data-hint2="Write each grade&rsquo;s fraction as a percent, then subtract the smaller percent from the larger.">
+        <div class="ex-q"><p>In a survey, $12$ of the $20$ students in grade 7 and $18$ of the $25$ students in grade 8 said they like the new schedule. The percent of grade 8 who like it is how many percentage points higher than the percent of grade 7?</p></div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $12$</p>
+          <p>
+            Grade 7: $\frac{12}{20} = 60\%$. Grade 8: $\frac{18}{25} = \frac{72}{100} = 72\%$. The difference is $72 - 60 = 12$ percentage points. Check: the raw counts, $18$ and $12$, would have suggested a gap of $6$, which is misleading because the grades differ in size ✓.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" id="e21" data-section="twoway" data-type="number" data-answer="12" data-placeholder="students"
+           data-hint="Independence means the conditional probability equals the unconditional one. Here that says both grades have the same share with a dog."
+           data-hint2="Find the fraction of the grade 7 students who have a dog, then take that same fraction of the grade 8 students.">
+        <div class="ex-q"><p>In grade 7, $20$ of the $50$ students have a dog. Grade 8 has $30$ students. For having a dog to be independent of grade, how many of the grade 8 students would have a dog?</p></div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $12$</p>
+          <p>
+            In grade 7 the fraction is $\frac{20}{50} = \frac25$. For independence, grade 8 must have the same fraction, $\frac25 \cdot 30 = 12$. Check: in all, $20 + 12 = 32$ of $80$ have a dog, $\frac{32}{80} = \frac25$, equal to each grade&rsquo;s share ✓.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" id="e22" data-section="counting" data-type="number" data-answer="72" data-placeholder="count"
+           data-hint="The steps are independent of each other, so the number of ways is a product."
+           data-hint2="Write the number of choices at each of the three steps, and multiply them.">
+        <div class="ex-q"><p>A pizza place offers $4$ crusts, $6$ toppings and $3$ sizes. A pizza has one crust, one topping and one size. How many different pizzas can be ordered?</p></div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $72$</p>
+          <p>
+            $4 \cdot 6 \cdot 3 = 72$. Check: the crusts and toppings make $24$ pairs, and each pair comes in $3$ sizes, $24 \cdot 3 = 72$ ✓.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" id="e23" data-section="counting" data-type="number" data-answer="1000" data-placeholder="count"
+           data-hint="A digit may be used again, so every place has the same number of choices."
+           data-hint2="There are ten digits from 0 to 9, and the code has three places.">
+        <div class="ex-q"><p>A bike lock has $3$ dials, and each dial can show any digit from $0$ to $9$. How many different codes can be set?</p></div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $1000$</p>
+          <p>
+            $10 \cdot 10 \cdot 10 = 1000$. Check: the codes run from $000$ to $999$, which is $1000$ numbers ✓.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" id="e24" data-section="counting" data-type="number" data-answer="720" data-placeholder="count"
+           data-hint="Fill the places one at a time. Each choice uses up one of the books."
+           data-hint2="The first place has a choice for every book, and each place after it has one fewer.">
+        <div class="ex-q"><p>In how many different orders can $6$ different books be placed in a row on a shelf?</p></div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $720$</p>
+          <p>
+            $6 \cdot 5 \cdot 4 \cdot 3 \cdot 2 \cdot 1 = 720$. Check: $5! = 120$, and the sixth book can be inserted in $6$ places, $120 \cdot 6 = 720$ ✓.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" id="e25" data-section="counting" data-type="number" data-answer="336" data-placeholder="count"
+           data-hint="Gold, silver and bronze go to different runners, so each medal removes one runner from those still available."
+           data-hint2="Count the runners who can get gold, then the runners left for silver, then the runners left for bronze, and multiply those three.">
+        <div class="ex-q"><p>Eight runners race, and the first three places win gold, silver and bronze medals. In how many different ways can the three medals be given?</p></div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $336$</p>
+          <p>
+            $8 \cdot 7 \cdot 6 = 336$. Check: for any one set of three runners there are $3! = 6$ ways to hand them the medals, and $336 \div 6 = 56$ sets of three runners, which is a whole number ✓.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" id="e26" data-section="counting" data-type="number" data-answer="20" data-placeholder="count"
+           data-hint="Only who is picked matters, not the order. First count the picks as if the order mattered."
+           data-hint2="Divide the ordered count by the number of orders in which one group of three players can be listed.">
+        <div class="ex-q"><p>A coach picks $3$ of $6$ players to carry the equipment. The order does not matter, only who is picked. How many different groups can be picked?</p></div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $20$</p>
+          <p>
+            Counting in order: $6 \cdot 5 \cdot 4 = 120$. One group of three can be listed in $3 \cdot 2 \cdot 1 = 6$ orders, so $120 \div 6 = 20$ groups. Check: choosing the $3$ who stay behind picks the same groups, and the count is again $20$ ✓.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" id="e27" data-section="counting" data-type="fraction" data-answer="1/60" data-placeholder="e.g. 1/2"
+           data-hint="Only one code opens the lock. Count the equally likely codes, and notice that no digit is used twice."
+           data-hint2="The first digit has a choice for each of the five digits, and each digit after it has one fewer.">
+        <div class="ex-q"><p>A lock code is $3$ different digits, chosen from $1$ to $5$ with no digit used twice. Every code is equally likely. One guess is made at random. What is the probability that it is right?</p></div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $\dfrac{1}{60}$</p>
+          <p>
+            The number of codes is $5 \cdot 4 \cdot 3 = 60$, and one is right, so $P = \frac{1}{60}$. Check: if a digit could be used again there would be $5 \cdot 5 \cdot 5 = 125$ codes, more than $60$ ✓.
+          </p>
+        </div>
+      </div>
     </section>
 
     <div class="recap">
@@ -640,6 +1096,16 @@
           away the overlap once: $P(A) + P(B) - P(A \text{ and } B)$.</li>
         <li>Without replacement the second fraction changes: the bottom always loses the marble that
           was taken, and the top loses it too when the second draw is the same kind.</li>
+        <li>In a two-way table, a probability over the whole table divides by the grand total. A
+          conditional probability, $P(A \mid B)$, &ldquo;the probability of $A$ given $B$&rdquo;, divides
+          by the total of the group $B$ only. $P(A \mid B)$ and $P(B \mid A)$ are different. Compare
+          groups by their relative frequencies, not their raw counts, and events are independent when
+          $P(A \mid B) = P(A)$.</li>
+        <li>Choices multiply. $n$ different items can be arranged in $n! = n \cdot (n-1) \cdots 2 \cdot 1$
+          orders, and $k$ of them in order in $k$ falling factors starting at $n$. A code that may repeat
+          has the same number of choices at every place, and one that may not repeat has one fewer each
+          time. For a probability, put the favorable arrangements over all of them. When order does not
+          matter, divide the ordered count by the orders of one group.</li>
       </ul>
     </div>
 
