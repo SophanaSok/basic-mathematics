@@ -362,10 +362,12 @@ window.BM_CURRICULUM = {
           status: "full",
           course: "pre-algebra",
           blurb:
-            "Measurements as numbers with units, conversion factors that equal one, and rates with their own units: converting inches to miles and hours to seconds, unit rates, distance, rate and time, and converting a rate.",
+            "Measurements as numbers with units, conversion factors that equal one, rates with their own units, area and volume units, and scale: converting inches to miles and hours to seconds, unit rates, distance, rate and time, converting a rate, square and cubic units, the cost of carpet, and scale drawings and maps.",
           sections: [
             { id: "convert", title: "Converting units", summary: "A measurement is a number with a unit; a conversion factor is a fraction equal to one with the unit you are leaving on the bottom, so it cancels; chains of factors join units with no direct fact, and a smaller unit needs a larger number." },
-            { id: "rates", title: "Rates with units", summary: "A rate is a quotient of two measurements with a unit of its own; the unit rate is the rate per one; distance is rate times time with the units aligned, a rate converts by its top and bottom separately, and the units of an answer catch an upside-down setup." }
+            { id: "rates", title: "Rates with units", summary: "A rate is a quotient of two measurements with a unit of its own; the unit rate is the rate per one; distance is rate times time with the units aligned, a rate converts by its top and bottom separately, and the units of an answer catch an upside-down setup." },
+            { id: "area", title: "Area and volume units", summary: "A square foot holds 12 times 12 square inches, so the factor for an area is the length factor squared and for a volume cubed; a milliliter is a cubic centimeter, and a price per square foot times the area gives the cost." },
+            { id: "scale", title: "Scale", summary: "A scale such as 1 inch = 50 miles is a conversion factor between the drawing and the world, a ratio such as 1 : 200 multiplies a drawn length by 200 in any unit, and a scale factor k multiplies lengths by k and areas by k squared." }
           ]
         }
       ]

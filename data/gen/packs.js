@@ -3,7 +3,8 @@
    Pack B, "Data and Statistics": sections 1-4 (center and spread; reading displays; scatterplots and lines of fit; samples and claims).
    Pack C, "Chance and Counting": sections 1-4 (probability as a fraction of outcomes; compound events;
    two-way tables and conditional probability; counting arrangements).
-   Pack D, "Units and Measurement": sections 1-2 (converting units; rates with units).
+   Pack D, "Units and Measurement": sections 1-4 (converting units; rates with units; area and volume units;
+   scale).
    The quartiles follow the median-of-halves rule of src/ui/chart.ts.
 
    A problem may carry a chart the Arena draws with the page widget (assets/widgets.js,
@@ -2247,6 +2248,308 @@
           var fwd = given * c.tn * c.bd / (c.td * c.bn), back = ans * c.td * c.bn / (c.tn * c.bd);
           return Math.abs(fwd - ans) < 1e-9 && Math.abs(back - given) < 1e-9 && ans > 0 && given > 0 && (c0.money ? given <= 20 : given <= 450);
         }
+      };
+    }
+  });
+
+  /* --------------------------------------------- pack D §3: area and volume units -- */
+
+  /* the same size in the base unit, to the power p (inches squared, meters cubed ...), on both sides */
+  function sameSizeP(a, fromU, b, toU, p) {
+    var x = a * Math.pow(BASE[fromU], p), y = b * Math.pow(BASE[toU], p);
+    return Math.abs(x - y) <= 1e-9 * Math.max(Math.abs(x), Math.abs(y), 1);
+  }
+  /* a number for the page with the thousands marked as in the lessons: 10{,}000 (math only) */
+  function numc(x) {
+    var t = num(x), m = /^(-?\d+)(\..*)?$/.exec(t);
+    if (!m || m[1].replace("-", "").length < 5) return t;
+    return m[1].replace(/\B(?=(\d{3})+$)/g, "{,}") + (m[2] || "");
+  }
+  /* the word for a square or cubic unit: "square feet", "cubic yards" */
+  function powName(name, p) { return (p === 2 ? "square " : "cubic ") + name; }
+  function powOne(name, p) { return (p === 2 ? "square " : "cubic ") + one(name); }
+  /* a length fact: the big unit, the small unit, the small ones in one big one, the sensible counts of the big unit (area, volume) */
+  var LENGTH_FACTS = [
+    { big: "feet", small: "inches", f: 12, ks2: [2, 3, 4, 5, 6, 7, 8, 9, 12, 2.5, 0.5], ks3: [0.5, 1, 2, 3] },
+    { big: "yards", small: "feet", f: 3, ks2: [2, 3, 4, 5, 6, 8, 10, 12, 15, 20, 25, 2.5, 4.5, 0.5], ks3: [2, 3, 4, 5, 6, 8, 10, 12, 15, 20, 2.5, 4.5] },
+    { big: "yards", small: "inches", f: 36, ks2: [0.5, 1, 2, 3], ks3: [0.5, 1] },
+    { big: "meters", small: "centimeters", f: 100, ks2: [2, 3, 4, 5, 6, 8, 9, 12, 0.5, 1.5, 2.5, 3.5, 7.5], ks3: [0.5, 1.5, 2, 3, 4, 5] },
+    { big: "centimeters", small: "millimeters", f: 10, ks2: [2, 3, 4, 5, 6, 8, 9, 12, 15, 25, 1.5, 2.5, 3.5], ks3: [2, 3, 4, 5, 6, 8, 9, 12, 1.5, 2.5] },
+    { big: "kilometers", small: "meters", f: 1000, ks2: [0.5, 1.5, 2, 3, 4, 5, 8], ks3: [] }
+  ];
+
+  /* the shared body of the square-unit and cubic-unit conversions */
+  function powConvert(r, p) {
+    var c = r.pick(p === 3 ? LENGTH_FACTS.filter(function (x) { return x.ks3.length; }) : LENGTH_FACTS), up = r.chance(0.5), k = r.pick(p === 2 ? c.ks2 : c.ks3), F = Math.pow(c.f, p);
+    var smallCount = Math.round(k * F * 1000) / 1000;
+    var from = up ? c.small : c.big, to = up ? c.big : c.small, given = up ? smallCount : k, ans = up ? k : smallCount;
+    var fact = (p === 2 ? "$1$ " + one(c.big) + " $= " + c.f + "$ " + c.small + ", so one square " + one(c.big) + " is a square with sides of $" + c.f + "$ " + c.small + " and holds $" + c.f + " \\cdot " + c.f + " = " + numc(F) + "$ square " + c.small
+      : "$1$ " + one(c.big) + " $= " + c.f + "$ " + c.small + ", so one cubic " + one(c.big) + " is a cube with edges of $" + c.f + "$ " + c.small + " and holds $" + c.f + "^3 = " + numc(F) + "$ cubic " + c.small);
+    var factor = (up ? "\\dfrac{1\\text{ " + one(c.big) + "}}{" + c.f + "\\text{ " + c.small + "}}" : "\\dfrac{" + c.f + "\\text{ " + c.small + "}}{1\\text{ " + one(c.big) + "}}");
+    return {
+      q: "How many " + powName(to, p) + (given === 1 ? " is $" : " are $") + numc(given) + "$ " + (given === 1 ? powOne(from, p) : powName(from, p)) + "?",
+      type: "number", answer: num(ans), placeholder: powName(to, p),
+      hint: "Use the length fact with the same ‘the unit you are leaving goes underneath’ rule, but a " + (p === 2 ? "square" : "cube") + " has the length in " + (p === 2 ? "two directions" : "three directions") + ", so the factor is used " + (p === 2 ? "twice" : "three times") + ". Then ask whether the number should grow or shrink.",
+      steps: [
+        fact + ".",
+        "The factor is $\\left(" + factor + "\\right)^" + p + "$, which is $" + numc(F) + "$ " + powName(c.small, p) + " per " + powOne(c.big, p) + ".",
+        (up ? "$" + numc(given) + " \\div " + numc(F) + " = " + numc(ans) + "$" : "$" + numc(given) + " \\cdot " + numc(F) + " = " + numc(ans) + "$") + " " + (ans === 1 ? powOne(to, p) : powName(to, p)) + ".",
+        "Check: " + (up ? "the larger unit needs fewer of them" : "the smaller unit needs more of them, far more than for a length") + "."
+      ],
+      verify: function () {
+        /* through the base unit (inches, meters ...), one length at a time, instead of the squared factor */
+        var viaBase = given * Math.pow(BASE[from] / BASE[to], p);
+        return Math.abs(viaBase - ans) <= 1e-9 * Math.max(1, Math.abs(ans)) && sameSizeP(given, from, ans, to, p) && (up ? ans < given : ans > given) && ans > 0 && Math.max(given, ans) <= 10000000;
+      }
+    };
+  }
+
+  G.add({
+    id: "pk-area-convert", section: "pk-units#area", par: 60, timed: true,
+    make: function (r) { return powConvert(r, 2); }
+  });
+
+  G.add({
+    id: "pk-volume-convert", section: "pk-units#area", par: 70, timed: true,
+    make: function (r) {
+      var kind = r.pick(["cubic", "cubic", "box", "liters"]);
+      if (kind === "cubic") return powConvert(r, 3);
+      if (kind === "box") {
+        var l = r.pick([10, 12, 15, 20, 25, 30]), w = r.pick([4, 5, 8, 10, 12, 15]), h = r.pick([2, 4, 5, 6, 10]), v = l * w * h;
+        return {
+          q: "A box is $" + l + "$ centimeters long, $" + w + "$ centimeters wide and $" + h + "$ centimeters high. One milliliter fills exactly one cubic centimeter. How many milliliters does the box hold when it is full?",
+          type: "number", answer: num(v), placeholder: "milliliters",
+          hint: "The volume of a box is length times width times height. In the metric system a cubic centimeter and a milliliter are the same amount, so no conversion is needed.",
+          steps: ["Volume: $" + l + " \\cdot " + w + " \\cdot " + h + " = " + v + "$ cubic centimeters.", "$1$ mL $= 1$ cm$^3$, so the box holds $" + v + "$ milliliters."],
+          verify: function () {
+            /* the base area times the height, and the layers of one centimeter */
+            var layers = 0, i; for (i = 0; i < h; i++) layers += l * w;
+            return layers === v && v === l * (w * h) && v >= 60 && v <= 20000;
+          }
+        };
+      }
+      var L = r.pick([0.25, 0.5, 0.75, 1.5, 2, 2.5, 3, 4, 5, 8, 12]), toLiters = r.chance(0.5), cm3 = Math.round(L * 1000);
+      return {
+        q: toLiters
+          ? "A tank has a volume of $" + num(cm3) + "$ cubic centimeters. Use $1$ liter $= 1000$ milliliters and $1$ mL $= 1$ cm$^3$. How many liters does it hold?"
+          : "A bottle holds $" + num(L) + "$ liters. Use $1$ liter $= 1000$ milliliters and $1$ mL $= 1$ cm$^3$. What is its volume in cubic centimeters?",
+        type: "number", answer: num(toLiters ? L : cm3), placeholder: toLiters ? "liters" : "cubic centimeters",
+        hint: "A milliliter and a cubic centimeter are the same amount, so first say the volume in milliliters. Then use the liter fact with the unit you are leaving underneath.",
+        steps: toLiters ? [
+          "$" + num(cm3) + "$ cm$^3$ is $" + num(cm3) + "$ mL, since $1$ mL $= 1$ cm$^3$.",
+          "$" + num(cm3) + "\\text{ mL}\\cdot\\frac{1\\text{ L}}{1000\\text{ mL}} = " + num(L) + "$ liters.",
+          "Check: liters are the larger unit, so the number fell."
+        ] : [
+          "$" + num(L) + "\\text{ L}\\cdot\\frac{1000\\text{ mL}}{1\\text{ L}} = " + num(cm3) + "$ mL.",
+          "$1$ mL $= 1$ cm$^3$, so the volume is $" + num(cm3) + "$ cubic centimeters.",
+          "Check: cubic centimeters are the small unit, so the number rose."
+        ],
+        verify: function () {
+          /* a liter is a cube of 10 cm on each edge: 10 * 10 * 10 cubic centimeters */
+          var perLiter = 10 * 10 * 10;
+          return Math.abs(L * perLiter - cm3) < 1e-6 && L > 0 && cm3 <= 12000;
+        }
+      };
+    }
+  });
+
+  /* rooms: whole-foot sides in multiples of three where a square yard matters, so the yards come out exact */
+  G.add({
+    id: "pk-area-rate", section: "pk-units#area", par: 70, timed: true,
+    make: function (r) {
+      var kind = r.pick(["room", "room", "perft", "yard", "peryd"]), guard = 0, l, w, cents, area;
+      var pickRoom = function (step) { var arr = step === 3 ? [9, 12, 15, 18, 21] : [8, 9, 10, 11, 12, 14, 15, 16, 18, 20]; do { l = r.pick(arr); w = r.pick(arr); area = l * w; } while ((area < 80 || area > 400) && guard++ < 200); if (area < 80 || area > 400) { l = 12; w = 12; area = 144; } };
+      if (kind === "room") {
+        pickRoom(1); cents = r.pick([200, 225, 250, 275, 300, 350, 375, 400, 450, 500, 550, 600, 650, 700, 800]);
+        var cost = area * cents;
+        return {
+          q: "A room is $" + l + "$ feet long and $" + w + "$ feet wide. Carpet costs " + usd(cents) + " per square foot. What is the cost, in dollars, to carpet the whole room?",
+          type: "number", answer: num(cost / 100), placeholder: "dollars",
+          hint: "The area of a rectangle is length times width, in square feet, and the price is per square foot. Find the area, then multiply by the price per square foot.",
+          steps: ["Area: $" + l + " \\cdot " + w + " = " + area + "$ square feet.", "Cost: $" + area + "\\text{ ft}^2\\cdot " + usd(cents).slice(1, -1) + "\\text{ per ft}^2 = \\$" + num(cost / 100) + "$.", "The square feet cancel and dollars are left."],
+          verify: function () {
+            /* row by row: each foot of length is a strip of w square feet */
+            var sum = 0, i; for (i = 0; i < l; i++) sum += w * cents;
+            return sum === cost && area >= 80 && area <= 400 && cents >= 200 && cents <= 800;
+          }
+        };
+      }
+      if (kind === "perft") {
+        pickRoom(1); cents = r.pick([200, 225, 250, 275, 300, 350, 375, 400, 450, 500, 550, 600, 650, 700, 800]);
+        var total = area * cents;
+        return {
+          q: "Tile for a floor of $" + area + "$ square feet costs " + usd(total) + " in all. How many dollars per square foot is that?",
+          type: "number", answer: num(cents / 100), placeholder: "dollars per square foot",
+          hint: "A price per square foot is the total cost divided by the number of square feet. Put the cost on top and the area underneath.",
+          steps: ["The rate is dollars per square foot, so the area goes on the bottom: $" + area + "$ square feet.", "$\\$" + num(total / 100) + " \\div " + area + " = \\$" + num(cents / 100) + "$ per square foot."],
+          verify: function () { return Math.round(cents * area) === total && cents >= 200 && cents <= 800; }
+        };
+      }
+      if (kind === "yard") {
+        pickRoom(3); var perYd = r.pick([18, 20, 22.5, 24, 27, 30, 36, 40]), yards = area / 9, costY = Math.round(perYd * yards * 100);
+        return {
+          q: "A room is $" + l + "$ feet long and $" + w + "$ feet wide. Carpet costs " + usd(Math.round(perYd * 100)) + " per square yard. What is the cost, in dollars, to carpet the room? ($1$ yard $= 3$ feet.)",
+          type: "number", answer: num(costY / 100), placeholder: "dollars",
+          hint: "The price is per square yard, so the area must be in square yards. Convert the length and the width to yards, or convert the area with the squared factor, before you multiply by the price.",
+          steps: ["A square yard is $3 \\cdot 3 = 9$ square feet, so the area in square yards is $" + area + " \\div 9 = " + num(yards) + "$.", "Cost: $" + num(yards) + " \\cdot " + usd(Math.round(perYd * 100)).slice(1, -1) + " = " + usd(costY).slice(1, -1) + "$."],
+          verify: function () {
+            /* price per square foot instead, on the area in square feet */
+            var viaFeet = Math.round((perYd / 9) * area * 100);
+            return Math.abs(viaFeet - costY) <= 1 && area % 9 === 0 && area >= 80 && area <= 400;
+          }
+        };
+      }
+      cents = r.pick([200, 250, 300, 350, 400, 450, 500, 600, 700, 800]);
+      var perYard = cents * 9;
+      return {
+        q: "Flooring costs " + usd(cents) + " per square foot. How many dollars per square yard is that? ($1$ yard $= 3$ feet.)",
+        type: "number", answer: num(perYard / 100), placeholder: "dollars per square yard",
+        hint: "A square yard holds many square feet, and the price per square yard is for all of them. Find how many square feet make one square yard, then multiply the price per square foot by it.",
+        steps: ["A square yard is a square $3$ feet on a side, so it holds $3 \\cdot 3 = 9$ square feet.", "$\\$" + num(cents / 100) + "\\text{ per ft}^2\\cdot 9\\text{ ft}^2\\text{ per yd}^2 = \\$" + num(perYard / 100) + "$ per square yard.", "Check: a square yard is the larger unit, so its price is the larger number."],
+        verify: function () { return Math.round(cents * 3 * 3) === perYard && perYard > cents && cents >= 200 && cents <= 800; }
+      };
+    }
+  });
+
+  /* --------------------------------------------- pack D §4: scale -- */
+
+  /* the scale as a word statement: one drawn unit stands for N real ones */
+  var MAP_SCALES = [
+    { d: "inches", rl: "miles", ds: "inch", ns: [5, 10, 20, 25, 40, 50, 100], ks: [1.5, 2, 2.5, 3, 3.5, 4, 4.5, 5, 6, 7.5, 8], what: "two towns", src: "map" },
+    { d: "centimeters", rl: "kilometers", ds: "centimeter", ns: [2, 5, 10, 20, 25, 50], ks: [1.5, 2, 2.5, 3, 3.5, 4, 4.5, 5, 6, 7.5, 8, 12], what: "two lakes", src: "map" },
+    { d: "inches", rl: "feet", ds: "inch", ns: [2, 4, 5, 8, 10], ks: [1.5, 2, 2.5, 3, 3.5, 4, 4.5, 6, 7.5, 9], what: "two corners of a floor plan", src: "plan" }
+  ];
+
+  G.add({
+    id: "pk-scale-real", section: "pk-units#scale", par: 50, timed: true,
+    make: function (r) {
+      if (r.chance(0.35)) {
+        /* a ratio with no units: the real length is N times the drawn one, in the same unit */
+        var N = r.pick([100, 200, 250, 500, 1000, 2000, 5000]), d = r.pick([2, 3, 4, 4.5, 5, 6, 7.5, 8, 12]), cm = d * N, m = cm / 100;
+        /* a wall up to 60 m; longer lengths are a path or a road */
+        var obj = N <= 500 ? "wall" : (N === 1000 ? "path" : "road");
+        return {
+          q: "A plan has the scale $1 : " + N + "$. A " + obj + " measures $" + num(d) + "$ centimeters on the plan. How many meters long is the real " + obj + "?",
+          type: "number", answer: num(m), placeholder: "meters",
+          hint: "A ratio with no units means the real length is that many times the drawn length, in whatever unit you measure. Find the real length in the unit you measured, then convert to the unit asked for.",
+          steps: ["The real length is $" + N + "$ times the drawn one: $" + num(d) + " \\cdot " + N + " = " + num(cm) + "$ centimeters.", "$" + num(cm) + "\\text{ cm}\\cdot\\frac{1\\text{ m}}{100\\text{ cm}} = " + num(m) + "$ meters.", "Check: the real length is far longer than its drawing."],
+          verify: function () {
+            /* the proportion drawn : real = 1 : N, with the real length in meters */
+            return Math.abs(d / (m * 100) - 1 / N) < 1e-9 && sameSizeP(cm, "centimeters", m, "meters", 1) && m > d / 100 && m >= 2 && (obj === "wall" ? m <= 60 : m >= 20 && m <= 600);
+          }
+        };
+      }
+      var c = r.pick(MAP_SCALES), n = r.pick(c.ns), k = r.pick(c.ks), real = k * n;
+      return {
+        q: "On a " + c.src + ", $1$ " + c.ds + " stands for $" + n + "$ " + c.rl + ". " + c.what.charAt(0).toUpperCase() + c.what.slice(1) + " are $" + num(k) + "$ " + c.d + " apart on the " + c.src + ". How many " + c.rl + " apart are they really?",
+        type: "number", answer: num(real), placeholder: c.rl,
+        hint: "The scale is a conversion factor between the drawing and the world. Put the drawn unit underneath so that it cancels, and the real unit is left.",
+        steps: ["The scale gives the factor $\\dfrac{" + n + "\\text{ " + c.rl + "}}{1\\text{ " + c.ds + "}}$, with the drawn unit underneath.", "$" + num(k) + "\\text{ " + c.d + "}\\cdot\\dfrac{" + n + "\\text{ " + c.rl + "}}{1\\text{ " + c.ds + "}} = " + num(real) + "$ " + c.rl + ".", "Check: the real distance is larger than the drawn one, as the scale says."],
+        verify: function () {
+          /* the proportion 1 : n = k : real, solved for the ratio of drawn to real instead of the product */
+          return Math.abs(k / real - 1 / n) < 1e-12 && Math.abs(real / k - n) < 1e-9 && real > k && real <= 2000;
+        }
+      };
+    }
+  });
+
+  var DRAW_SCALES = [
+    { d: "inches", rl: "feet", ds: "inch", ns: [2, 4, 5, 8, 10, 12], drs: [2, 2.5, 3, 3.5, 4, 4.5, 5, 5.5, 6, 6.5, 7, 7.5, 8, 8.5, 9, 9.5, 10, 10.5, 11, 11.5, 12, 13, 14], what: "a wall" },
+    { d: "inches", rl: "miles", ds: "inch", ns: [5, 10, 20, 25, 40, 50], drs: [1.5, 2, 2.5, 3, 3.5, 4, 4.5, 5, 5.5, 6, 6.5, 7, 7.5, 8, 9, 10], what: "a road" },
+    { d: "centimeters", rl: "meters", ds: "centimeter", ns: [2, 5, 10, 20, 50], drs: [2, 3, 4, 4.5, 5, 6, 7, 7.5, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24], what: "a garden path" }
+  ];
+
+  G.add({
+    id: "pk-scale-draw", section: "pk-units#scale", par: 60, timed: true,
+    make: function (r) {
+      var kind = r.pick(["draw", "draw", "scale", "model"]);
+      if (kind === "draw") {
+        var c = r.pick(DRAW_SCALES), n = r.pick(c.ns), dr = r.pick(c.drs), real = dr * n;
+        return {
+          q: "A drawing uses the scale $1$ " + c.ds + " $= " + n + "$ " + c.rl + ". " + c.what.charAt(0).toUpperCase() + c.what.slice(1) + " is really $" + num(real) + "$ " + c.rl + " long. How many " + c.d + " long is it on the drawing?",
+          type: "number", answer: num(dr), placeholder: c.d,
+          hint: "Use the scale as a conversion factor again, but this time you are leaving the real unit, so the real unit goes underneath.",
+          steps: ["The factor is $\\dfrac{1\\text{ " + c.ds + "}}{" + n + "\\text{ " + c.rl + "}}$, with the real unit underneath so that it cancels.", "$" + num(real) + "\\text{ " + c.rl + "}\\cdot\\dfrac{1\\text{ " + c.ds + "}}{" + n + "\\text{ " + c.rl + "}} = " + num(dr) + "$ " + c.d + ".", "Check: the drawing is smaller than the real length, as it should be."],
+          verify: function () { /* cross-multiplied: 1 : n = drawn : real */ return Math.abs(dr / real - 1 / n) < 1e-12 && dr < real && dr >= 1 && dr <= 24; }
+        };
+      }
+      if (kind === "scale") {
+        var e = r.pick([{ d: "inches", rl: "feet", ds: "inch", ns: [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 14, 15, 16, 18, 20], page: [6, 7, 8, 9, 10, 11], what: "hall" }, { d: "centimeters", rl: "meters", ds: "centimeter", ns: [2, 4, 5, 6, 8, 10, 15, 20, 25, 30, 35, 40], page: [10, 12, 14, 15, 16, 18, 20, 22, 24], what: "field" }]);
+        var nn = r.pick(e.ns), pg = r.pick(e.page), realLen = nn * pg;
+        /* the text's own pair (a 36-foot hall on 9 inches) and the exercise pair (42 feet on 6 inches) are not repeated */
+        if (e.what === "hall" && ((nn === 4 && pg === 9) || (nn === 7 && pg === 6))) { nn = 5; realLen = nn * pg; }
+        return {
+          q: "A " + e.what + " is $" + num(realLen) + "$ " + e.rl + " long. To fit a page it is drawn $" + num(pg) + "$ " + e.d + " long. How many " + e.rl + " does $1$ " + e.ds + " on the drawing stand for?",
+          type: "number", answer: num(nn), placeholder: e.rl + " per " + e.ds,
+          hint: "The scale is the real length for one drawn unit. A rate with the real length on top and the drawn length underneath gives it.",
+          steps: ["The scale is real length over drawn length: $\\dfrac{" + num(realLen) + "\\text{ " + e.rl + "}}{" + num(pg) + "\\text{ " + e.d + "}}$.", "$" + num(realLen) + " \\div " + num(pg) + " = " + num(nn) + "$, so $1$ " + e.ds + " stands for $" + num(nn) + "$ " + e.rl + "."],
+          verify: function () { /* drawn : real = 1 : n, cross-multiplied */ return Math.abs(pg / realLen - 1 / nn) < 1e-12 && nn < realLen && realLen <= 1000; }
+        };
+      }
+      var N2 = r.pick([10, 20, 24, 25, 40, 50, 100]), mm = r.pick([4, 5, 6, 7, 8, 9, 10, 12, 14, 22, 15, 16, 18, 20, 21, 24, 25, 28, 30, 32, 35, 36, 40, 45]), mReal = mm * N2 / 100;
+      return {
+        q: "A model has the scale $1 : " + N2 + "$. The real object is " + qty(mReal, "meters") + " long. How many centimeters long is the model?",
+        type: "number", answer: num(mm), placeholder: "centimeters",
+        hint: "A ratio with no units means the real length is that many times the model. Put the real length in centimeters, then divide by the number in the ratio.",
+        steps: ["The real object in centimeters: $" + num(mReal) + "\\text{ m}\\cdot\\frac{100\\text{ cm}}{1\\text{ m}} = " + num(mReal * 100) + "$ cm.", "The model is $1$ part to $" + N2 + "$ parts of the real length: $" + num(mReal * 100) + " \\div " + N2 + " = " + num(mm) + "$ centimeters."],
+        verify: function () { return Math.abs(mm * N2 - Math.round(mReal * 100)) < 1e-6 && sameSizeP(mReal, "meters", mm * N2, "centimeters", 1) && mm < mReal * 100; }
+      };
+    }
+  });
+
+  G.add({
+    id: "pk-scale-area", section: "pk-units#scale", par: 80, timed: true,
+    make: function (r) {
+      var kind = r.pick(["length", "area", "area", "map", "findk"]);
+      if (kind === "length") {
+        var k = r.pick([2, 3, 4, 5, 1.5, 2.5]), s = r.pick([2, 3, 4, 5, 6, 8, 10, 12]), big = k * s;
+        return {
+          q: "A rectangle is enlarged by a scale factor of $" + num(k) + "$. One side of the original is $" + num(s) + "$ centimeters. How many centimeters long is that side in the enlargement?",
+          type: "number", answer: num(big), placeholder: "centimeters",
+          hint: "A scale factor multiplies every length. It does not multiply the unit.",
+          steps: ["Lengths are multiplied by the scale factor $k = " + num(k) + "$.", "$" + num(k) + " \\cdot " + num(s) + " = " + num(big) + "$ centimeters."],
+          verify: function () { return Math.abs(big / k - s) < 1e-9 && big > s; }
+        };
+      }
+      if (kind === "area") {
+        var kk = r.pick([2, 3, 4, 5, 10, 1.5]), a = r.pick([2, 3, 4, 5, 6, 8, 12, 20]), a2;
+        if (a === 20 && kk === 2) a = 12; /* the text's own check */
+        a2 = a * kk * kk;
+        return {
+          q: "A figure with an area of $" + num(a) + "$ square centimeters is enlarged by a scale factor of $" + num(kk) + "$. What is the area of the enlargement, in square centimeters?",
+          type: "number", answer: num(a2), placeholder: "square centimeters",
+          hint: "Lengths are multiplied by the scale factor, and an area is a length times a length. So the area is multiplied by the scale factor used twice.",
+          steps: ["Areas are multiplied by $k^2 = " + num(kk) + "^2 = " + num(kk * kk) + "$.", "$" + num(a) + " \\cdot " + num(kk * kk) + " = " + num(a2) + "$ square centimeters."],
+          verify: function () {
+            /* take a square of this area: its side times k, then square the new side */
+            var side = Math.sqrt(a), newSide = side * kk;
+            return Math.abs(newSide * newSide - a2) < 1e-6 && a2 > a;
+          }
+        };
+      }
+      if (kind === "map") {
+        /* drawn areas that give real areas of 20 to 2000 square meters */
+        var MAPS = { 100: [24, 30, 40, 48, 60, 80, 100, 120, 150], 200: [6, 8, 10, 12, 15, 20, 24, 30], 500: [2, 3, 4, 6, 8, 10, 12, 15], 1000: [1, 2, 3, 4, 5, 6, 8, 10, 12] };
+        var N = r.pick([100, 200, 500, 1000]), sq = r.pick(MAPS[N]), cm2 = sq * N * N, m2 = cm2 / 10000;
+        return {
+          q: "A plan has the scale $1 : " + N + "$. A garden covers $" + num(sq) + "$ square centimeters on the plan. What is its real area, in square meters?",
+          type: "number", answer: num(m2), placeholder: "square meters",
+          hint: "Real lengths are the scale number times the drawn ones, so real areas are the square of that. Then convert square centimeters to square meters with the squared factor.",
+          steps: ["Areas are multiplied by $" + N + "^2 = " + num(N * N) + "$: $" + num(sq) + " \\cdot " + num(N * N) + " = " + num(cm2) + "$ square centimeters.", "$1$ m$^2 = 10{,}000$ cm$^2$, so $" + num(cm2) + " \\div 10{,}000 = " + num(m2) + "$ square meters."],
+          verify: function () {
+            /* a square of this area: the drawn side times N is a real side in cm, then meters, then square */
+            var side = Math.sqrt(sq), realSide = side * N / 100;
+            return Math.abs(realSide * realSide - m2) <= 1e-9 * Math.max(1, m2) && m2 >= 20 && m2 <= 2000 && MAPS[N].indexOf(sq) >= 0;
+          }
+        };
+      }
+      var k3 = r.pick([2, 3, 4, 5, 6]), a3 = r.pick([2, 3, 5, 6, 7]), big3 = a3 * k3 * k3;
+      return {
+        q: "Two similar figures have areas of $" + num(a3) + "$ square inches and $" + num(big3) + "$ square inches. By what scale factor is the smaller figure enlarged to the larger?",
+        type: "number", answer: num(k3), placeholder: "scale factor",
+        hint: "Areas are multiplied by the scale factor squared. Divide the areas to find how many times larger the area is, then ask which number times itself gives that.",
+        steps: ["The area is multiplied by $k^2$: $\\dfrac{" + num(big3) + "}{" + num(a3) + "} = " + num(k3 * k3) + "$.", "$k^2 = " + num(k3 * k3) + "$, and $" + num(k3) + " \\cdot " + num(k3) + " = " + num(k3 * k3) + "$, so $k = " + num(k3) + "$."],
+        verify: function () { return Math.abs(Math.sqrt(big3 / a3) - k3) < 1e-9 && a3 * k3 * k3 === big3 && k3 > 1; }
       };
     }
   });
