@@ -137,7 +137,7 @@
     <p>
       Which way up does the factor go? Argue it once. We want the unit we start with to disappear, and
       a unit disappears only when it stands on top in the measurement and on the bottom in the factor.
-      So the unit you are leaving goes <em>underneath</em>. For feet to inches the feet go underneath,
+      So the unit you are leaving goes <em>underneath</em> the factor. For feet to inches the feet go underneath,
       as above. Turn the factor over and you get $5\text{ ft}\cdot\frac{1\text{ ft}}{12\text{ in}}$,
       which leaves feet times feet per inch, a unit that means nothing here. With the rule &ldquo;the unit
       I am leaving goes on the bottom&rdquo; there is no need to remember whether to multiply or divide: the
@@ -153,7 +153,7 @@
       <caption>Conversion facts worth knowing</caption>
       <thead><tr><th scope="col">Measure</th><th scope="col">US customary</th><th scope="col">Metric</th></tr></thead>
       <tbody>
-        <tr><th scope="row">Length</th><td>$12$ in $= 1$ ft; $3$ ft $= 1$ yd; $5280$ ft $= 1$ mi</td><td>$10$ mm $= 1$ cm; $100$ cm $= 1$ m; $1000$ m $= 1$ km</td></tr>
+        <tr><th scope="row">Length</th><td>$12$ in $= 1$ ft; $3$ ft $= 1$ yd; $1760$ yd $= 1$ mi; $5280$ ft $= 1$ mi</td><td>$10$ mm $= 1$ cm; $100$ cm $= 1$ m; $1000$ m $= 1$ km</td></tr>
         <tr><th scope="row">Weight or mass</th><td>$16$ oz $= 1$ lb (the pound, abbreviated lb)</td><td>$1000$ g $= 1$ kg</td></tr>
         <tr><th scope="row">Capacity</th><td>$2$ cups $= 1$ pt; $2$ pt $= 1$ qt; $4$ qt $= 1$ gal</td><td>$1000$ mL $= 1$ L</td></tr>
         <tr><th scope="row">Time (both systems)</th><td colspan="2">$60$ s $= 1$ min; $60$ min $= 1$ h; $24$ h $= 1$ day; $7$ days $= 1$ week</td></tr>
@@ -298,9 +298,11 @@
       Take $12$ kilometers per hour in meters per minute. The top changes by
       $\frac{1000\text{ m}}{1\text{ km}}$, and the bottom, per hour, changes by $\frac{1\text{ h}}{60\text{ min}}$,
       since an hour is $60$ minutes:
-      $$12\,\frac{\text{km}}{\text{h}}\cdot\frac{1000\text{ m}}{1\text{ km}}\cdot\frac{1\text{ h}}{60\text{ min}} = \frac{12000}{60}\,\frac{\text{m}}{\text{min}} = 200\,\frac{\text{m}}{\text{min}}.$$
+      $$12\,\frac{\text{km}}{\text{h}}\cdot\frac{1000\text{ m}}{1\text{ km}}\cdot\frac{1\text{ h}}{60\text{ min}} = \frac{12{,}000}{60}\,\frac{\text{m}}{\text{min}} = 200\,\frac{\text{m}}{\text{min}}.$$
       The kilometers cancel and the hours cancel, which is how you know both factors are the right way
-      up. To <em>compare</em> two offers or two speeds given in different units, bring both to one
+      up. Note the hours factor: a unit on the bottom of the rate leaves from the bottom, so its factor
+      puts that unit on top. Either way the rule is the same: the unit you are leaving goes where it
+      cancels. To <em>compare</em> two offers or two speeds given in different units, bring both to one
       unit first and then compare the unit rates. Comparing $\$3.50$ for a bag with $\$5.20$ for a
       bigger bag tells you nothing until both are per pound, or per ounce.
     </p>
@@ -350,16 +352,16 @@
 
     <div class="ex" data-inline id="t5" data-type="number" data-answer="2.5" data-placeholder="hours"
          data-hint="Time is distance divided by rate. Check that the miles cancel and hours are left."
-         data-hint2="Write miles over miles per hour, and divide the numbers 150 and 60.">
+         data-hint2="Each hour of the trip covers one speed's worth of miles. Ask how many of those hours fit into the whole distance.">
       <div class="ex-q">
         <p>
-          How many hours does a trip of $150$ miles take at $60$ miles per hour?
+          How many hours does a trip of $90$ miles take at $36$ miles per hour?
         </p>
       </div>
       <div class="ex-solution">
         <p class="answer">Answer: $2.5$ hours</p>
         <p>
-          $t = \frac{150\text{ mi}}{60\text{ mi/h}} = 2.5$ h. Check: $60\cdot 2.5 = 150$ miles ✓.
+          $t = \frac{90\text{ mi}}{36\text{ mi/h}} = 2.5$ h. Check: $36\cdot 2 = 72$ miles in two hours, and the other $18$ miles is half of $36$, so half an hour more ✓.
         </p>
       </div>
     </div>
@@ -432,7 +434,7 @@
 
       <div class="ex" id="e2" data-section="convert" data-type="number" data-answer="56" data-placeholder="ounces"
            data-hint="There are 16 ounces in a pound. Decide which unit is on the bottom of the factor."
-           data-hint2="A pound is the larger unit, so the number of ounces should be bigger than the number of pounds.">
+           data-hint2="Ounces are the smaller unit, so there should be more ounces than pounds.">
         <div class="ex-q"><p>A bag of flour weighs $3.5$ pounds. How many ounces is that?</p></div>
         <div class="ex-solution">
           <p class="answer">Answer: $56$ ounces</p>
@@ -444,7 +446,7 @@
 
       <div class="ex" id="e3" data-section="convert" data-type="number" data-answer="4.5" data-placeholder="kilometers"
            data-hint="Kilo means a thousand. The unit you are leaving, meters, goes underneath."
-           data-hint2="You are moving to the larger unit, so the number gets smaller: the decimal point moves three places.">
+           data-hint2="You are moving to the larger unit, so the answer is a smaller number than 4500.">
         <div class="ex-q"><p>A trail is $4500$ meters long. How many kilometers long is it?</p></div>
         <div class="ex-solution">
           <p class="answer">Answer: $4.5$ kilometers</p>
@@ -529,15 +531,15 @@
         </div>
       </div>
 
-      <div class="ex" id="e10" data-section="rates" data-type="number" data-answer="10" data-placeholder="miles"
+      <div class="ex" id="e10" data-section="rates" data-type="number" data-answer="5" data-placeholder="miles"
            data-hint="Distance is rate times time, but the time has to be in the unit on the bottom of the rate."
-           data-hint2="Change the minutes to a fraction of an hour first. Forty minutes is part of an hour, so expect fewer miles than the speed.">
-        <div class="ex-q"><p>A cyclist rides at $15$ miles per hour for $40$ minutes. How many miles does the cyclist ride?</p></div>
+           data-hint2="Change the minutes to a fraction of an hour first. Twenty minutes is part of an hour, so expect fewer miles than the speed.">
+        <div class="ex-q"><p>A cyclist rides at $15$ miles per hour for $20$ minutes. How many miles does the cyclist ride?</p></div>
         <div class="ex-solution">
-          <p class="answer">Answer: $10$ miles</p>
+          <p class="answer">Answer: $5$ miles</p>
           <p>
-            $40$ minutes is $\frac{40}{60} = \frac23$ hour, so $d = 15\cdot\frac23 = 10$ miles. Check: $15$ miles
-            per hour is $\frac{15}{60} = 0.25$ mile per minute, and $0.25\cdot 40 = 10$ ✓.
+            $20$ minutes is $\frac{20}{60} = \frac13$ hour, so $d = 15\cdot\frac13 = 5$ miles. Check: $15$ miles
+            per hour is $\frac{15}{60} = 0.25$ mile per minute, and $0.25\cdot 20 = 5$ ✓.
           </p>
         </div>
       </div>
@@ -556,13 +558,13 @@
       </div>
 
       <div class="ex" id="e12" data-section="rates" data-type="number" data-answer="15" data-placeholder="meters per second"
-           data-hint="A rate has two units. Convert the top with one factor and the bottom with another, each with the unit being left underneath."
-           data-hint2="Kilometers to meters changes the top. Hours to seconds changes the bottom, and there are 3600 seconds in an hour.">
+           data-hint="A rate has two units. Convert the top with one factor and the bottom with another, each set up so that each unit you are leaving cancels."
+           data-hint2="Kilometers to meters changes the top. Hours to seconds changes the bottom.">
         <div class="ex-q"><p>A bus moves at $54$ kilometers per hour. How many meters per second is that?</p></div>
         <div class="ex-solution">
           <p class="answer">Answer: $15$ meters per second</p>
           <p>
-            $54\,\frac{\text{km}}{\text{h}}\cdot\frac{1000\text{ m}}{1\text{ km}}\cdot\frac{1\text{ h}}{3600\text{ s}} = \frac{54000}{3600} = 15$ m/s.
+            $54\,\frac{\text{km}}{\text{h}}\cdot\frac{1000\text{ m}}{1\text{ km}}\cdot\frac{1\text{ h}}{3600\text{ s}} = \frac{54{,}000}{3600} = 15$ m/s.
             Check: at $15$ meters per second, one hour is $15\cdot 3600 = 54{,}000$ m, which is
             $54$ km ✓.
           </p>
@@ -571,7 +573,7 @@
 
       <div class="ex" id="e13" data-section="rates" data-type="number" data-answer="0.6" data-placeholder="dollars per ounce"
            data-hint="Only the bottom of this rate changes, from pounds to ounces. A pound is made of 16 ounces."
-           data-hint2="One ounce costs a sixteenth of what a pound costs, so the number gets smaller.">
+           data-hint2="The pounds (lb) are on the bottom of the rate, so the factor needs lb on top and ounces underneath, and the lb cancel.">
         <div class="ex-q"><p>Coffee costs $\$9.60$ per pound. How many dollars per ounce is that?</p></div>
         <div class="ex-solution">
           <p class="answer">Answer: $\$0.60$ per ounce</p>
@@ -614,7 +616,7 @@
       <ul>
         <li>A measurement is a number and a unit, and the unit is part of the answer.</li>
         <li>A conversion factor is a fraction equal to $1$, such as $\frac{12\text{ in}}{1\text{ ft}}$.
-          Put the unit you are leaving on the bottom so that it cancels. The size stays the same.</li>
+          Put the unit you are leaving where it cancels, which is on the bottom for a unit on top of the measurement. The size stays the same.</li>
         <li>A smaller unit needs a bigger number and a larger unit a smaller one. Use this to check
           every conversion.</li>
         <li>Metric prefixes mean the same thing everywhere: milli is $\frac{1}{1000}$, centi is
