@@ -294,7 +294,7 @@ function twelve() {
       check(table.rows === 12, "3 twelve rows drawn", table.rows);
       check(JSON.stringify(table.mine) === "[3]", "3 the fourth row, and only it, is the reader's (data-mine)", table.mine);
       check(table.first === "<b>x</b>" && table.bold === 0, "3 a handle written as markup is shown as text", { first: table.first, bold: table.bold });
-      check(table.times[0] === "0:21" && table.times[2] === "—", "3 times as m:ss, a missing one as a dash", table.times.slice(0, 3));
+      check(table.times[0] === "0:21.0" && table.times[2] === "—", "3 times as m:ss.t, a missing one as a dash", table.times.slice(0, 3));
       check(JSON.stringify(table.cols) === JSON.stringify(["Rank", "Name", "Score", "Time"]), "3 rank, name, score and time", table.cols);
       check(/Names are made up for the day; the Daily draws from each player's own deck\./.test(table.note), "3 the line about names and decks", table.note);
       const rec = await runBoard(p);
