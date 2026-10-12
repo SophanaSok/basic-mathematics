@@ -652,7 +652,7 @@ without removing its code.
 | `supabaseUrl` and `supabaseAnonKey` both `""` | No accounts at all. Nothing is loaded from or sent to Supabase; progress stays in each browser |
 | an id removed from `providers` | That sign-in button disappears. Remove it here first, then disable the service in Supabase |
 | `emailDelivery: false` | No "Email me a sign-in link", no "Forgot password" |
-| `board: "off"` | No Daily board: nothing is submitted or fetched, the Arena shows no board and the account page hides the switch (from K-10g) |
+| `board: "off"` | No Daily board: nothing is submitted or fetched, the Arena shows no board and the account page hides the switch (from K-10g). This is the site's side only; a tab from before the deploy, or anything else holding a session, can still call the functions. For a full stop run `revoke execute on function public.submit_daily(text, integer, integer, integer, integer), public.daily_board(text) from authenticated;` in the SQL editor (leave `leave_board()` callable so readers can still leave), and `grant` them back to switch it on |
 
 **Planned [not yet]:** the plan adds `tutor.enabled` (R5; the tutor is built with it `false`) and
 one flag each for leagues (R4), the shop (R3), gates (R3) and streak reminders (R3). Only

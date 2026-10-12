@@ -17,7 +17,7 @@
     "check:scenes": "node tools/smoke-scenes.js",
     "test:node": "node tools/checks.test.js && node tools/game/merge.test.js && node tools/game/sync.test.js && node tools/game/rules.test.js && node tools/game/beside.test.js",
     "test:unit": "vitest run",
-    "test:browser:core": "node tools/game/browser.test.js && node tools/game/arena.test.js && node tools/game/account.test.js && node tools/game/content.test.js && node tools/game/keys.test.js",
+    "test:browser:core": "node tools/game/browser.test.js && node tools/game/arena.test.js && node tools/game/account.test.js && node tools/game/content.test.js && node tools/game/keys.test.js && node tools/game/board.test.js",
     "test:browser:3d": "node tools/game/scenes.test.js && node tools/game/map.test.js",
     "test:browser": "npm run test:browser:core && npm run test:browser:3d",
     "check:dist": "node tools/check-dist.js",

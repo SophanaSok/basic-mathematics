@@ -60,6 +60,19 @@
   /* false while the project cannot send email to the public: the two buttons that work
      only through an email (the sign-in link, the password reset) are left out */
   var mail = cfg.emailDelivery !== false;
+  /* The Daily board's kill switch (BM_CONFIG.board "off", read by src/core/config.ts): no
+     switch on the account page, and setBoard sends nothing. Without the settings reader
+     the board is off, as arena.js has it. */
+  var boardOn = configured && !!(window.BMCore && window.BMCore.config) && window.BMCore.config.readConfig(cfg).board === "on";
+  /* this browser's note of the day's board (arena.js keeps it in bm.run.v1.board): `all`
+     forgets it whatever it holds, otherwise only a refusal noted before the reader joined */
+  function forgetBoard(all) {
+    if (!Store.keys.run) return;
+    var r = obj(Store.read(Store.keys.run, {}));
+    if (!r.board || (!all && obj(r.board).sent)) return;
+    delete r.board;
+    Store.write(Store.keys.run, r, true);
+  }
   var META_KEY = "bm.sync.v1";
   /* "game" and "diag" only where site.js knows the key, so an older site.js still syncs cleanly */
   var FIELDS = ["progress", "play", "attempts", "activity", "lesson", "last", "game", "diag"].filter(function (f) {
@@ -612,10 +625,27 @@
     syncNow: function () {
       return Account.ready().then(function () { return user ? pull() : null; });
     },
+    /* the display name and, with the board on, whether the reader joined it; a project
+       whose profiles have no board column yet still gives the name */
     profile: function () {
       return Account.ready().then(function (c) {
-        return c.from("profiles").select("display_name").eq("id", user.id).maybeSingle();
-      }).then(unwrap);
+        var read = function (cols) { return c.from("profiles").select(cols).eq("id", user.id).maybeSingle().then(unwrap); };
+        if (!boardOn) return read("display_name");
+        return read("display_name, board").then(null, function () { return read("display_name"); });
+      });
+    },
+    /* the Daily board (decision 0006): on joins it (the profile's board column only, so the
+       name is kept); off is leave_board(), which also deletes the reader's rows, and
+       forgets this browser's note of today's place */
+    boardOn: boardOn,
+    setBoard: function (on) {
+      if (!boardOn) return Promise.reject(new Error("The Daily board is switched off on this site."));
+      if (!user) return Promise.reject(new Error("Sign in first."));
+      var u = user;
+      return Account.ready().then(function (c) {
+        if (on) return c.from("profiles").upsert({ id: u.id, board: true }).then(unwrap).then(function () { forgetBoard(false); });
+        return c.rpc("leave_board", {}).then(unwrap).then(function () { forgetBoard(true); });
+      });
     },
     saveProfile: function (name) {
       return Account.ready().then(function (c) {
@@ -627,6 +657,8 @@
       return Account.ready().then(function (c) {
         return c.rpc("delete_my_account").then(unwrap).then(function () {
           setMeta(function (m) { delete m.user; delete m.resetAt; });
+          /* the account's place on the Daily board went with it */
+          forgetBoard(true);
           return c.auth.signOut();
         });
       });
@@ -837,6 +869,11 @@
           esc(listOf(ways)) + ".</p>" : "") +
         '<p class="sync-state" data-state="' + status.state + '">' + esc(st) + "</p>" +
         field("acct-name", "Display name (optional)", "text", 'autocomplete="nickname" maxlength="60"') +
+        (boardOn && board !== null ? '<label class="switch acct-board"><input id="acct-board" type="checkbox" role="switch"' + (boardShown() ? " checked" : "") +
+          (boardBusy ? ' disabled aria-busy="true"' : "") +
+          ' aria-checked="' + (boardShown() ? "true" : "false") + '" aria-labelledby="acct-board-name" aria-describedby="acct-board-note">' +
+          '<span id="acct-board-name">Daily board</span><small id="acct-board-note">Signed-in readers see a made-up name that changes daily, ' +
+          "your Daily score and your time. Off removes your rows.</small></label>" : "") +
         '<p class="actions"><button class="btn" id="acct-save" type="button">Save name</button>' +
         '<button class="btn ghost" id="acct-sync" type="button">Sync now</button>' +
         '<button class="btn ghost" id="acct-out" type="button">Sign out</button></p>' + NOTE +
@@ -957,15 +994,52 @@
     });
     var nameEl = document.getElementById("acct-name");
     if (nameEl && name !== null) nameEl.value = name;
+    var boardEl = document.getElementById("acct-board");
+    if (boardEl) boardEl.addEventListener("change", function () {
+      if (boardBusy) return;
+      boardBusy = true;
+      boardWant = boardEl.checked;
+      paintBoard();
+      var want = boardWant;
+      Account.setBoard(want).then(function () {
+        board = want;
+        boardBusy = false;
+        paintBoard();
+        say(want ? "You are on the Daily board." : "You have left the Daily board, and your rows are removed.");
+      }, function (e) {
+        boardBusy = false;
+        paintBoard();
+        if (window.console) window.console.warn("[BM] Daily board switch:", e && e.message ? e.message : e);
+        say("Could not update the Daily board just now.", true);
+      });
+    });
+  }
+  /* the switch as it should read: while a change is in flight, the state asked for */
+  function boardShown() { return boardBusy ? boardWant : !!board; }
+  /* the switch now on the page, which a redraw may have replaced */
+  function paintBoard() {
+    var el = document.getElementById("acct-board");
+    if (!el) return;
+    el.checked = boardShown();
+    el.disabled = boardBusy;
+    el.setAttribute("aria-checked", boardShown() ? "true" : "false");
+    if (boardBusy) el.setAttribute("aria-busy", "true");
+    else el.removeAttribute("aria-busy");
   }
 
-  var name = null, nameFor = null, drawnFor = null, carry = null;
+  /* board: whether the reader joined the Daily board, null until the profile is read;
+     boardBusy while a change to it is in flight, boardWant what that change asks for */
+  var name = null, nameFor = null, drawnFor = null, carry = null, board = null, boardBusy = false, boardWant = false;
   Account.onChange(function () {
     if (user && nameFor !== user.id) {
       nameFor = user.id;
-      Account.profile().then(function (p) { name = p && p.display_name ? p.display_name : ""; draw(); }, function () { name = ""; });
+      Account.profile().then(function (p) {
+        name = p && p.display_name ? p.display_name : "";
+        board = p && typeof p.board === "boolean" ? p.board : p ? null : false;
+        draw();
+      }, function () { name = ""; });
     }
-    if (!user) { name = null; nameFor = null; }
+    if (!user) { name = null; nameFor = null; board = null; }
     /* a message about a sign-in that did not go through is no use to a reader who is signed in */
     if (user) returnedText = "";
     /* a redraw would wipe what is being typed — unless who is signed in has changed */
