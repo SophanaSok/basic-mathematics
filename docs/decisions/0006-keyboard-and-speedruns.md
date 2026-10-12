@@ -4,7 +4,7 @@
 
 Three linked choices, decided by the owner on 2026-10-11.
 
-**The keyboard layer.** Vim-flavoured single keys where they fit and plain mnemonic keys elsewhere.
+**The keyboard layer.** Vim-flavored single keys where they fit and plain mnemonic keys elsewhere.
 - The cursor is the focus, so screen readers, the 3D map and the settings sheet follow it for free.
 - Insert mode leaves typing alone; only Escape is taken there.
 - An open dialog and an Arena run keep their own keys. A link the reader tabbed to keeps its native Enter.
