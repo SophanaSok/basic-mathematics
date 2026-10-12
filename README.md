@@ -83,6 +83,12 @@ The method in three lines, expanded on the
 Every chapter ends with a practice set of about ten problems that check themselves. Type an answer
 and press **Check** or <kbd>Enter</kbd>.
 
+The keyboard can drive the whole page. `src/ui/keymap.ts` is the pure table (which key does what on
+which page) and `src/ui/keys.ts` is the DOM half, mounted by every entry. The cursor is the focus,
+so screen readers, the 3D map and the settings sheet follow it with no extra work; <kbd>?</kbd>
+opens the list for the page you are on. The **Keyboard shortcuts** switch in the settings (the
+`keys` pref, on by default, kept on the device) turns it off. `tools/game/keys.test.js` covers it.
+
 When you are stuck, every problem has a **Show a clue** button from the start, saying how many clues
 it has. The first clue only says where to look, the next say more, and the worked solution comes
 last and is always there. A clue opens only when you ask for it (a wrong answer opens nothing by

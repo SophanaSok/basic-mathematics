@@ -33,7 +33,9 @@
       g p goes to the progress page
   16. account: j walks the buttons and inputs (the email box is the third), typing goes in, Escape blurs it
   17. diagnostic: no items (j does nothing), ? opens the sheet, Escape closes it
-  18. no page errors on any of those pages in both themes */
+  18. no page errors on any of those pages in both themes
+  19. the Keyboard shortcuts switch: off, j and ? do nothing and the settings sheet shows it
+      unchecked; on, j moves again; the choice survives a reload */
 "use strict";
 const site = require("../lib/site");
 const target = require("../lib/target");
@@ -553,6 +555,37 @@ async function run() {
         eq(errors, [], pre + "no errors (diagnostic)");
         await context.close();
       }
+    }
+    /* ------------------------------------------------------- 19: the switch */
+    {
+      const pre = "switch: ";
+      const sheetOpen = (page) => page.evaluate(() => { var d = document.getElementById("keys-sheet"); return !!d && d.open; });
+      const { context, page, errors } = await open(browser, CH, PAGE);
+      await page.evaluate(() => window.BMGame.setPref("keys", false));
+      await page.keyboard.press("j");
+      const off = await where(page);
+      eq([off.body, off.marked], [true, 0], pre + "switch off: j moves nothing");
+      await page.keyboard.press("?");
+      eq(await sheetOpen(page), false, pre + "switch off: ? opens no sheet");
+      await page.click(".hud-menu");
+      eq(await page.evaluate(() => { var i = document.querySelector('#hud-sheet [data-pref="keys"]'); return i ? i.checked : null; }), false, pre + "switch off: the settings sheet shows it unchecked");
+      await page.keyboard.press("Escape");
+      await page.evaluate(() => window.BMGame.setPref("keys", true));
+      await page.keyboard.press("j");
+      eq((await where(page)).i, 0, pre + "switch on: j moves again");
+      await page.reload();
+      await page.waitForFunction(() => document.readyState === "complete" && !!window.BMKeys);
+      eq(await page.evaluate(() => window.BMGame.prefs().keys), true, pre + "reload: on stays on");
+      await page.keyboard.press("j");
+      eq((await where(page)).i, 0, pre + "reload: j moves");
+      await page.evaluate(() => window.BMGame.setPref("keys", false));
+      await page.reload();
+      await page.waitForFunction(() => document.readyState === "complete" && !!window.BMKeys);
+      eq(await page.evaluate(() => window.BMGame.prefs().keys), false, pre + "reload: off stays off");
+      await page.keyboard.press("j");
+      eq((await where(page)).body, true, pre + "reload: j does nothing");
+      eq(errors, [], pre + "no errors (switch)");
+      await context.close();
     }
   } finally {
     await browser.close();
