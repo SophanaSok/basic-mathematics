@@ -39,7 +39,7 @@
       <ul class="guess">
         <li>$\$22$</li>
         <li>$\$32$</li>
-        <li>$\$37$</li>
+        <li>$\$34$</li>
       </ul>
       <p class="puzzle-after">Doubling the fare for $5$ miles is tempting, and it fails, because part of the fare is charged before the taxi moves at all. Two rides are enough to find both the part that grows with the distance and the part that does not. The first section finds the part that grows, the rate of change. (The second section finds the fixed part and writes the whole fare as one expression. Inequalities come in the sections after that.)</p>
     </div>
@@ -113,7 +113,7 @@
         <div class="ex-solution">
           <p class="answer">Answer: $x = 5$</p>
           <p>
-            Take $4$ from both sides to get $3x = 15$, then divide both sides by $3$. See <a
+            Subtract $4$ from both sides to get $3x = 15$, then divide both sides by $3$. See <a
             href="../1-algebra/02-linear-equations.html#one-unknown">§2.1</a>. Check: $3 \cdot 5 + 4 = 19$ ✓.
           </p>
         </div>
@@ -133,9 +133,11 @@
       Does it matter which two points you pick? It does not, and this is why slope belongs to the line
       and not to the pair. Draw the rise-and-run triangle for one pair of points, and another for a second
       pair on the same line. In each, the run is horizontal, the rise is vertical and the line itself is
-      the slanted side. The horizontal sides are parallel and so are the vertical ones, so the two
-      triangles have equal angles and are similar. Similar triangles have their sides in the same
-      ratio, so rise over run comes out the same in both.
+      the slanted side. Both triangles have a right angle. The horizontal sides are parallel, so the line meets
+      them at the same angle in each triangle. Two equal angles make the triangles similar, and similar
+      triangles have their sides in the same ratio, so rise over run comes out the same in both. If the
+      line falls, the triangle sits below the horizontal and the rise is negative, and the argument is
+      the same.
     </p>
     <p>
       Now use it. Take a run of exactly $1$: the rise is then $m$ itself. So the slope says <em>how much
@@ -245,8 +247,8 @@
           <li>Check from the ends: $\frac{53 - 80}{9 - 0} = \frac{-27}{9} = -3$ ✓. $\blacksquare$</li>
         </ol>
         <p class="note">
-          Dividing the drop of the first step by the number of days of the last would have mixed gaps.
-          Each rise goes with its own run.
+          Each change in level goes with its own gap in days; a change from one step over the gap of
+          another gives a wrong rate.
         </p>
       </div>
     </div>
@@ -298,7 +300,7 @@
     </p>
     <p>
       Then use it. To <em>predict</em>, put a value of $x$ into the model. To answer a
-      &ldquo;when&rdquo; question, set the model equal to the target and solve $mx + b = T$: take $b$ from
+      &ldquo;when&rdquo; question, set the model equal to the target and solve $mx + b = T$: subtract $b$ from
       both sides, then divide by $m$. Last, ask when the model makes sense. A count of tickets is a whole
       number that is not negative, and a plant does not grow at the same rate forever. Inside the range of
       the data the model is a good description. Beyond it, as Pack B said of lines of fit, it is a guess.
@@ -378,7 +380,7 @@
         </p>
         <ol class="steps">
           <li>The model is $G = 260 - 8t$, with $t$ in minutes. We want $G = 100$.</li>
-          <li>$260 - 8t = 100$. Take $260$ from both sides: $-8t = -160$. Divide by $-8$: $t = 20$ minutes.</li>
+          <li>$260 - 8t = 100$. Subtract $260$ from both sides: $-8t = -160$. Divide by $-8$: $t = 20$ minutes.</li>
           <li>The model makes sense while the tank has water in it, from $t = 0$ until $G = 0$, that is until
             $t = 260 \div 8 = 32.5$ minutes.</li>
           <li>Check by substituting: $260 - 8 \cdot 20 = 100$ ✓. Check another way: the tank must lose
@@ -420,14 +422,14 @@
         falls. Where a question asks for an expression, use the letter it names. Money is in dollars.
       </p>
 
-      <div class="ex" id="e1" data-section="slope" data-type="number" data-answer="3" data-placeholder="e.g. 2"
+      <div class="ex" id="e1" data-section="slope" data-type="number" data-answer="4" data-placeholder="e.g. 2"
            data-hint="The slope is the change in $y$ over the change in $x$. Decide which difference goes on top."
            data-hint2="How far does $y$ rise between the two points, and how far does $x$ run?">
-        <div class="ex-q"><p>Find the slope of the line through $(2, 7)$ and $(6, 19)$.</p></div>
+        <div class="ex-q"><p>Find the slope of the line through $(2, 9)$ and $(5, 21)$.</p></div>
         <div class="ex-solution">
-          <p class="answer">Answer: $3$</p>
+          <p class="answer">Answer: $4$</p>
           <p>
-            $\dfrac{19 - 7}{6 - 2} = \dfrac{12}{4} = 3$. Check in the other order: $\dfrac{7 - 19}{2 - 6} = \dfrac{-12}{-4} = 3$ ✓.
+            $\dfrac{21 - 9}{5 - 2} = \dfrac{12}{3} = 4$. Check in the other order: $\dfrac{9 - 21}{2 - 5} = \dfrac{-12}{-3} = 4$ ✓.
           </p>
         </div>
       </div>
@@ -473,25 +475,26 @@
 
       <div class="ex" id="e5" data-section="slope" data-type="number" data-answer="3.5" data-placeholder="centimeters per week"
            data-hint="A table of a straight line has the same rate between any two rows. Pick two rows and divide the change in height by the change in weeks."
-           data-hint2="How much does the height change between the first row and the last, and how many weeks apart are they?">
+           data-hint2="Pick two rows. How many weeks apart are they, not how many rows?">
         <div class="ex-q">
           <p>A gardener measures a plant. What is its rate of change, in centimeters per week?</p>
           <table>
-            <caption>Height of a plant over four weeks</caption>
+            <caption>Height of a plant in four weeks of measuring</caption>
             <thead><tr><th scope="col">Week</th><th scope="col">Height (centimeters)</th></tr></thead>
             <tbody>
               <tr><th scope="row">1</th><td>$14$</td></tr>
               <tr><th scope="row">2</th><td>$17.5$</td></tr>
-              <tr><th scope="row">3</th><td>$21$</td></tr>
               <tr><th scope="row">4</th><td>$24.5$</td></tr>
+              <tr><th scope="row">7</th><td>$35$</td></tr>
             </tbody>
           </table>
         </div>
         <div class="ex-solution">
           <p class="answer">Answer: $3.5$ centimeters per week</p>
           <p>
-            From week $1$ to week $4$: $\dfrac{24.5 - 14}{4 - 1} = \dfrac{10.5}{3} = 3.5$. Check: each step
-            between neighboring rows is $3.5$ ($17.5 - 14$, $21 - 17.5$, $24.5 - 21$) ✓.
+            From week $1$ to week $7$: $\dfrac{35 - 14}{7 - 1} = \dfrac{21}{6} = 3.5$. Check with the other rows,
+            each over its own gap: $\frac{17.5 - 14}{1} = 3.5$, $\frac{24.5 - 17.5}{2} = 3.5$ and
+            $\frac{35 - 24.5}{3} = 3.5$ ✓.
           </p>
         </div>
       </div>
@@ -509,46 +512,46 @@
         </div>
       </div>
 
-      <div class="ex" id="e7" data-section="slope" data-type="number" data-answer="-10" data-placeholder="degrees Fahrenheit"
+      <div class="ex" id="e7" data-section="slope" data-type="number" data-answer="-9" data-placeholder="degrees Fahrenheit"
            data-hint="The number that multiplies the hours is the change for one hour. What does a negative sign there mean?"
            data-hint2="Find the temperature at the start and the temperature at the end of the time, and compare them.">
-        <div class="ex-q"><p>The temperature in degrees Fahrenheit $h$ hours after midnight is $T = 54 - 2.5h$. By how many degrees does it change over $4$ hours? Use a negative number for a fall.</p></div>
+        <div class="ex-q"><p>The temperature in degrees Fahrenheit $h$ hours after midnight is $T = 62 - 1.5h$. By how many degrees does it change over $6$ hours? Use a negative number for a fall.</p></div>
         <div class="ex-solution">
-          <p class="answer">Answer: $-10$ degrees</p>
+          <p class="answer">Answer: $-9$ degrees</p>
           <p>
-            The rate is $-2.5$ degrees per hour, and $-2.5 \cdot 4 = -10$. Check: $T(0) = 54$ and
-            $T(4) = 54 - 10 = 44$, and $44 - 54 = -10$ ✓.
+            The rate is $-1.5$ degrees per hour, and $-1.5 \cdot 6 = -9$. Check: $T(0) = 62$ and
+            $T(6) = 62 - 9 = 53$, and $53 - 62 = -9$ ✓.
           </p>
         </div>
       </div>
 
-      <div class="ex" id="e8" data-section="model" data-type="expr" data-answer="25n+40|40+25n" data-placeholder="e.g. 4n+10"
-           data-hint="The joining fee is paid once, and the monthly price is paid every month. Which of them multiplies the number of months?"
+      <div class="ex" id="e8" data-section="model" data-type="expr" data-answer="20n+35|35+20n" data-placeholder="e.g. 4n+10"
+           data-hint="The membership fee is paid once, and the monthly price is paid every month. Which of them multiplies the number of months?"
            data-hint2="What is the total cost at $0$ months, and how much does each extra month add?">
-        <div class="ex-q"><p>A gym charges a $\$40$ joining fee and $\$25$ each month. Write the total cost in dollars after $n$ months, in terms of $n$.</p></div>
+        <div class="ex-q"><p>A gym charges a $\$35$ membership fee and $\$20$ each month. Write the total cost in dollars after $n$ months, in terms of $n$.</p></div>
         <div class="ex-solution">
-          <p class="answer">Answer: $25n + 40$</p>
+          <p class="answer">Answer: $20n + 35$</p>
           <p>
-            The fee is the start, $40$, and each of the $n$ months adds $25$. Check at $n = 2$: the formula gives $90$,
-            and the story gives $40 + 25 + 25 = 90$ ✓.
+            The fee is the start, $35$, and each of the $n$ months adds $20$. Check at $n = 2$: the formula gives $75$,
+            and the story gives $35 + 20 + 20 = 75$ ✓.
           </p>
         </div>
       </div>
 
-      <div class="ex" id="e9" data-section="model" data-type="expr" data-answer="500-12t|-12t+500" data-placeholder="e.g. 80-5t"
-           data-hint="The tank is losing water, so the rate takes away from the start instead of adding to it."
-           data-hint2="What does the tank hold at $0$ minutes, and how much does it lose in each minute?">
-        <div class="ex-q"><p>A tank holds $500$ gallons and drains $12$ gallons each minute. Write the number of gallons left after $t$ minutes, in terms of $t$.</p></div>
+      <div class="ex" id="e9" data-section="model" data-type="expr" data-answer="100-6t|-6t+100" data-placeholder="e.g. 80-5t"
+           data-hint="The battery is losing charge, so the rate takes away from the start instead of adding to it."
+           data-hint2="What is the charge at $0$ hours, and how much does it lose in each hour?">
+        <div class="ex-q"><p>A phone battery is at $100$ percent and loses $6$ percent each hour. Write the percent left after $t$ hours, in terms of $t$.</p></div>
         <div class="ex-solution">
-          <p class="answer">Answer: $500 - 12t$</p>
+          <p class="answer">Answer: $100 - 6t$</p>
           <p>
-            Start at $500$ and take away $12$ for each of the $t$ minutes. Check at $t = 3$: the formula gives
-            $500 - 36 = 464$, and the story gives $500 - 12 - 12 - 12 = 464$ ✓.
+            Start at $100$ and take away $6$ for each of the $t$ hours. Check at $t = 3$: the formula gives
+            $100 - 18 = 82$, and the story gives $100 - 6 - 6 - 6 = 82$ ✓.
           </p>
         </div>
       </div>
 
-      <div class="ex" id="e10" data-section="model" data-type="number" data-answer="5" data-placeholder="dollars"
+      <div class="ex" id="e10" data-section="model" data-type="number" data-answer="3" data-placeholder="dollars"
            data-hint="Two rows of a table are two points. Find the rate first, then go back to $0$ miles."
            data-hint2="How much does the fare change per mile, and how many miles do you go back from the first row?">
         <div class="ex-q">
@@ -557,28 +560,28 @@
             <caption>Taxi fares for two rides</caption>
             <thead><tr><th scope="col">Distance (miles)</th><th scope="col">Fare (dollars)</th></tr></thead>
             <tbody>
-              <tr><th scope="row">4</th><td>$17$</td></tr>
-              <tr><th scope="row">6</th><td>$23$</td></tr>
+              <tr><th scope="row">2</th><td>$10$</td></tr>
+              <tr><th scope="row">6</th><td>$24$</td></tr>
             </tbody>
           </table>
         </div>
         <div class="ex-solution">
-          <p class="answer">Answer: $\$5$</p>
+          <p class="answer">Answer: $\$3$</p>
           <p>
-            The rate is $\frac{23 - 17}{6 - 4} = 3$ dollars per mile, and $17 = 3 \cdot 4 + b$ gives
-            $b = 17 - 12 = 5$. Check with the other row: $23 - 3 \cdot 6 = 23 - 18 = 5$ ✓.
+            The rate is $\frac{24 - 10}{6 - 2} = \frac{14}{4} = 3.5$ dollars per mile, and $10 = 3.5 \cdot 2 + b$ gives
+            $b = 10 - 7 = 3$. Check with the other row: $24 - 3.5 \cdot 6 = 24 - 21 = 3$ ✓.
           </p>
         </div>
       </div>
 
       <div class="ex" id="e11" data-section="model" data-type="number" data-answer="47" data-placeholder="centimeters"
-           data-hint="Build the line from the two measurements: the rate first, then the starting value. Then use it."
+           data-hint="Two measurements are two points. What does a line need besides one point?"
            data-hint2="After finding the rate, how many weeks is the new time beyond the later measurement?">
         <div class="ex-q"><p>A plant is $19$ centimeters tall after $3$ weeks and $31$ centimeters tall after $6$ weeks. Assuming it keeps growing at the same steady rate, how many centimeters tall is it after $10$ weeks?</p></div>
         <div class="ex-solution">
           <p class="answer">Answer: $47$ centimeters</p>
           <p>
-            The rate is $\frac{31 - 19}{6 - 3} = 4$ centimeters per week, and $b = 19 - 4 \cdot 3 = 7$, so $H = 7 + 4n$ and
+            The rate is $\frac{31 - 19}{6 - 3} = 4$ centimeters per week, and $b = 19 - 4 \cdot 3 = 7$, so $H = 7 + 4n$, with $n$ the number of weeks, and
             $H(10) = 47$. Check from week $6$: four more weeks at $4$ is $16$, and $31 + 16 = 47$ ✓. This is beyond the
             data, so it is a prediction and not a measurement.
           </p>
@@ -586,8 +589,8 @@
       </div>
 
       <div class="ex" id="e12" data-section="model" data-type="number" data-answer="10" data-placeholder="weeks"
-           data-hint="Write the balance as a model, set it equal to the target, and solve for the number of weeks."
-           data-hint2="How much more than the starting amount does the account need, and how much does each week add?">
+           data-hint="Is this asking for a value of the model, or for when the model reaches a target?"
+           data-hint2="By how much does the balance have to grow in all?">
         <div class="ex-q"><p>A savings account holds $\$150$ and gains $\$35$ each week. After how many weeks does it hold $\$500$?</p></div>
         <div class="ex-solution">
           <p class="answer">Answer: $10$ weeks</p>
@@ -600,7 +603,7 @@
       <div class="ex" id="e13" data-section="model" data-type="number" data-answer="9" data-placeholder="hours"
            data-hint="The temperature falls, so the model subtracts. Set it equal to the target and solve."
            data-hint2="How many degrees does the temperature have to fall in all, and how many does it fall each hour?">
-        <div class="ex-q"><p>At 4 p.m. the temperature is $76°$F and it falls $4°$F each hour. After how many hours does it reach $40°$F?</p></div>
+        <div class="ex-q"><p>At 4 p.m. the temperature is $76$°F and it falls $4$°F each hour. After how many hours does it reach $40$°F?</p></div>
         <div class="ex-solution">
           <p class="answer">Answer: $9$ hours</p>
           <p>
@@ -609,15 +612,16 @@
         </div>
       </div>
 
-      <div class="ex" id="e14" data-section="model" data-type="number" data-answer="12" data-placeholder="items"
-           data-hint="Items come in whole numbers, and the money you have is a limit. Solve for the count that would use exactly all of it, then decide what to do with the result."
-           data-hint2="If the exact solution is not a whole number, should the count be rounded up or down so the cost stays within the limit?">
-        <div class="ex-q"><p>The cost in dollars of a delivery order of $n$ items is $C = 4.5 + 2n$. You have $\$30$. What is the largest number of items you can order?</p></div>
+      <div class="ex" id="e14" data-section="model" data-type="expr" data-answer="35h+20|20+35h" data-placeholder="e.g. 10h+5"
+           data-hint="The first hour costs more than the hours after it, so the start is not $55$."
+           data-hint2="What would the line give for $0$ hours?">
+        <div class="ex-q"><p>A repair shop charges $\$55$ for the first hour and $\$35$ for each hour after. Write the charge in dollars for a job of $h$ hours, in terms of $h$.</p></div>
         <div class="ex-solution">
-          <p class="answer">Answer: $12$ items</p>
+          <p class="answer">Answer: $35h + 20$</p>
           <p>
-            $4.5 + 2n = 30$ gives $n = 12.75$, but items are whole, and the cost must not pass $\$30$, so round down to $12$.
-            Check: $12$ items cost $4.5 + 24 = \$28.50$, and $13$ items cost $4.5 + 26 = \$30.50$, which is too much ✓.
+            The rate is $35$ dollars per hour. At $1$ hour the charge is $55$, so one hour earlier it would be
+            $55 - 35 = 20$, the start. Check at $h = 3$: the formula gives $20 + 105 = 125$, and the story gives
+            $55 + 35 + 35 = 125$ ✓.
           </p>
         </div>
       </div>

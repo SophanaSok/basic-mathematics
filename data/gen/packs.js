@@ -2569,7 +2569,7 @@
       tell: "A taxi charges {b} to start and {m} for each mile.",
       ask: "Write the fare in dollars for a ride of ${L}$ miles, in terms of ${L}$.",
       model: "A taxi's fare $F$, in dollars, for a ride of $n$ miles is modeled by",
-      when: "How many miles can you ride?", whenWith: "The total is {T}.", tab: "A taxi company lists fares for rides of different lengths." },
+      at: "for a ride of {X}", when: "How many miles can you ride?", whenWith: "The fare comes to {T}.", tab: "A taxi company lists fares for rides of different lengths." },
     { id: "plumber", xp: "hours", xs: "hour", y: "dollars", ys: "dollar", money: true, sign: 1, L: "h", Y: "B", name: "bill",
       per: "dollars per hour", yin: "in dollars", th: ["Time (hours)", "Bill (dollars)"],
       rates: [40, 45, 50, 60, 75, 80, 90, 100, 120], starts: [20, 25, 30, 40, 50, 60], xmax: 8, lo: 40, hi: 120, ymin: 0, ymax: 1100,
@@ -2577,7 +2577,7 @@
       tell: "A plumber charges a visit fee of {b} plus {m} for each hour of work.",
       ask: "Write the bill in dollars for ${L}$ hours of work, in terms of ${L}$.",
       model: "A plumber's bill $B$, in dollars, for $h$ hours of work is modeled by",
-      when: "For how many hours did the plumber work?", whenWith: "The bill is {T}.", tab: "A plumber's bill is recorded for jobs of different lengths." },
+      when: "For how many hours did the plumber work?", at: "for {X} of work", whenWith: "The bill comes to {T}.", tab: "A plumber's bill is recorded for jobs of different lengths." },
     { id: "plant", xp: "weeks", xs: "week", y: "centimeters", ys: "centimeter", sign: 1, L: "n", Y: "H", name: "height",
       per: "centimeters per week", yin: "in centimeters", th: ["Time (weeks)", "Height (centimeters)"],
       rates: [1.5, 2, 2.5, 3, 3.5, 4, 4.5, 5], starts: [4, 5, 6, 8, 10, 12, 15, 20], xmax: 10, lo: 1, hi: 5, ymin: 0, ymax: 80,
@@ -2585,7 +2585,7 @@
       tell: "A plant is {b} tall and grows {m} each week.",
       ask: "Write the height in centimeters after ${L}$ weeks, in terms of ${L}$.",
       model: "A plant's height $H$, in centimeters, after $n$ weeks is modeled by",
-      when: "After how many weeks is the plant that tall?", whenWith: "The height is {T}.", tab: "A gardener measures a plant each week." },
+      when: "After how many weeks is the plant that tall?", at: "after {X}", whenWith: "Later the plant is {T} tall.", tab: "A gardener measures a plant each week." },
     { id: "tank", xp: "minutes", xs: "minute", y: "gallons", ys: "gallon", sign: -1, L: "t", Y: "G", name: "amount of water in the tank",
       per: "gallons per minute", yin: "in gallons", th: ["Time (minutes)", "Water in the tank (gallons)"],
       rates: [2, 3, 4, 5, 6, 8, 10, 12, 15, 20], starts: [100, 150, 200, 240, 300, 400], xmax: 20, lo: 2, hi: 20, ymin: 0, ymax: 400,
@@ -2593,23 +2593,23 @@
       tell: "A tank holds {b} and drains {m} each minute.",
       ask: "Write the number of gallons left after ${L}$ minutes, in terms of ${L}$.",
       model: "The water $G$, in gallons, left in a draining tank after $t$ minutes is modeled by",
-      when: "After how many minutes is that much left?", whenWith: "The tank holds {T}.", tab: "A pump drains a tank, and the water is measured over time." },
+      when: "After how many minutes is that much left?", at: "after {X} of draining", whenWith: "Later the tank holds {T}.", tab: "A pump drains a tank, and the water is measured over time." },
     { id: "warm", xp: "hours", xs: "hour", y: "degrees Fahrenheit", ys: "degree Fahrenheit", deg: true, sign: 1, L: "h", Y: "T", name: "temperature",
-      per: "degrees per hour", yin: "in degrees Fahrenheit", th: ["Time (hours)", "Temperature (°F)"],
+      per: "degrees per hour", per1: "degree per hour", yin: "in degrees Fahrenheit", th: ["Time (hours)", "Temperature (°F)"],
       rates: [1, 2, 3, 4, 5], starts: [-10, 0, 10, 20, 30, 40, 50], xmax: 8, lo: 1, hi: 5, ymin: -20, ymax: 110,
       pts: "On a morning that warms steadily, it is {y1} after {x1} and {y2} after {x2}.",
       tell: "At 6 a.m. the temperature is {b}, and it rises {m} each hour.",
       ask: "Write the temperature in degrees Fahrenheit ${L}$ hours after 6 a.m., in terms of ${L}$.",
       model: "The temperature $T$, in degrees Fahrenheit, $h$ hours after 6 a.m. is modeled by",
-      when: "After how many hours does it get there?", whenWith: "The temperature reaches {T}.", tab: "A weather station logs the temperature on a warming morning." },
+      at: "after {X}", when: "After how many hours does it get there?", whenWith: "Later it is {T}.", tab: "A weather station logs the temperature on a warming morning." },
     { id: "cool", xp: "hours", xs: "hour", y: "degrees Fahrenheit", ys: "degree Fahrenheit", deg: true, sign: -1, L: "h", Y: "T", name: "temperature",
-      per: "degrees per hour", yin: "in degrees Fahrenheit", th: ["Time (hours)", "Temperature (°F)"],
+      per: "degrees per hour", per1: "degree per hour", yin: "in degrees Fahrenheit", th: ["Time (hours)", "Temperature (°F)"],
       rates: [1, 2, 3, 4, 5], starts: [30, 40, 50, 60, 70, 80, 90], xmax: 8, lo: 1, hi: 5, ymin: -20, ymax: 110,
       pts: "On an evening that cools steadily, it is {y1} after {x1} and {y2} after {x2}.",
       tell: "At 3 p.m. the temperature is {b}, and it falls {m} each hour.",
       ask: "Write the temperature in degrees Fahrenheit ${L}$ hours after 3 p.m., in terms of ${L}$.",
       model: "The temperature $T$, in degrees Fahrenheit, $h$ hours after 3 p.m. is modeled by",
-      when: "After how many hours does it get there?", whenWith: "The temperature reaches {T}.", tab: "A weather station logs the temperature on a cooling evening." }
+      at: "after {X}", when: "After how many hours does it get there?", whenWith: "Later it is {T}.", tab: "A weather station logs the temperature on a cooling evening." }
   ];
 
   /* a value of the quantity as the page writes it: $\$12.50$, $18$ centimeters, $-5$°F */
@@ -2638,20 +2638,35 @@
     if (!linInRange(c, b, c.sign * rate)) { b = bs[0]; rate = rs[0]; }
     return { b: b, rate: rate, m: c.sign * rate };
   }
-  /* y = b + m x, written b first: "5 + 3n" or "300 - 12t" */
-  function linEq(c, b, m) { return clean(b) + (m < 0 ? " - " : " + ") + clean(Math.abs(m)) + c.L; }
+  /* the term m x as written: "3n", "n" for a rate of 1, with a minus for a falling line */
+  function linTerm(c, m) { return (m < 0 ? "-" : "") + (Math.abs(m) === 1 ? "" : clean(Math.abs(m))) + c.L; }
+  /* y = b + m x, written b first: "5 + 3n" or "300 - 12t"; a zero start is left out ("5h") and a rate of 1 is "h" */
+  function linEq(c, b, m) {
+    var a = linTerm(c, Math.abs(m));
+    if (b === 0) return (m < 0 ? "-" : "") + a;
+    return clean(b) + (m < 0 ? " - " : " + ") + a;
+  }
   /* the same line as the page's expr key: every spelling, in the order learners write them */
   function linKey(c, b, m) {
-    var a = clean(Math.abs(m)) + c.L;
+    var a = linTerm(c, Math.abs(m));
+    if (b === 0) return (m < 0 ? "-" : "") + a;
     return m < 0 ? clean(b) + "-" + a + "|-" + a + "+" + clean(b) : a + "+" + clean(b) + "|" + clean(b) + "+" + a;
   }
-  /* read a sum such as "5 + 3n" or "-12t+300" at a count, from its text alone */
+  /* read a sum such as "5 + 3n", "-12t+300" or "n" at a count, from its text alone */
   function linEval(s, L, x) {
-    var re = new RegExp("([+-]?)(\\d+(?:\\.\\d+)?)(" + L + "?)", "g"), t = 0, m, text = s.replace(/\s+/g, "");
-    while ((m = re.exec(text))) t += (m[1] === "-" ? -1 : 1) * Number(m[2]) * (m[3] ? x : 1);
+    var text = s.replace(/\s+/g, ""), terms = text.match(/[+-]?[^+-]+/g) || [], t = 0, k;
+    for (k = 0; k < terms.length; k++) {
+      var sign = terms[k].charAt(0) === "-" ? -1 : 1, body = terms[k].replace(/^[+-]/, "");
+      if (body.charAt(body.length - 1) === L) {
+        var coef = body.slice(0, -1);
+        t += sign * (coef === "" ? 1 : Number(coef)) * x;
+      } else t += sign * Number(body);
+    }
     return Number(t.toFixed(6));
   }
-  /* the units of a slope in words: "dollars per mile" is c.per */
+  /* the units of a slope in words: "dollars per mile" is c.per; after a rate of exactly 1 the setting's
+     per1 ("degree per hour") when it has one, so a step never reads "1 degrees per hour" */
+  function linPer(c, m) { return Math.abs(m) === 1 && c.per1 ? c.per1 : c.per; }
   function linSlopeHelp(c) { return c.sign < 0 ? " Use a negative number, because the quantity falls." : ""; }
   var SLOPE_PLAIN_M = [-4, -3, -2, -1, 1, 2, 3, 4, 5, 6, -0.5, 0.5, 1.5, 2.5, -1.5];
 
@@ -2672,7 +2687,7 @@
           steps: [
             "Rate of change $= \\dfrac{\\text{change in the " + c.name + "}}{\\text{change in the " + c.xp + "}}$.",
             "$\\dfrac{" + clean(B[1]) + " - " + (A[1] < 0 ? "(" + clean(A[1]) + ")" : clean(A[1])) + "}{" + clean(B[0]) + " - " + clean(A[0]) + "} = \\dfrac{" + clean(B[1] - A[1]) + "}{" + clean(B[0] - A[0]) + "} = " + clean(p.m) + "$.",
-            "The rate is $" + clean(p.m) + "$ " + c.per + "."
+            "The rate is $" + clean(p.m) + "$ " + linPer(c, p.m) + "."
           ],
           verify: function () {
             /* subtract in the other order, then find the line through the first point and test the second */
@@ -2745,13 +2760,18 @@
         steps: [
           "Pick the first and the last columns: the count goes from $" + clean(xs[0]) + "$ to $" + clean(xs[3]) + "$, a change of $" + clean(xs[3] - xs[0]) + "$.",
           "The " + c.name + " goes from $" + clean(ys[0]) + "$ to $" + clean(ys[3]) + "$, a change of $" + clean(ys[3] - ys[0]) + "$.",
-          "$\\dfrac{" + clean(ys[3] - ys[0]) + "}{" + clean(xs[3] - xs[0]) + "} = " + clean(p.m) + "$ " + c.per + "."
+          "$\\dfrac{" + clean(ys[3] - ys[0]) + "}{" + clean(xs[3] - xs[0]) + "} = " + clean(p.m) + "$ " + linPer(c, p.m) + "."
         ],
         verify: function () {
-          /* every neighboring pair gives the same rate, so the rate is a line's, and it matches the answer */
-          for (var k = 0; k < 3; k++) {
-            if (Math.abs((ys[k + 1] - ys[k]) / (xs[k + 1] - xs[k]) - p.m) > 1e-9) return false;
+          /* walk from the first value by the rate, one unit of the count at a time, and land on every later value;
+             the first-to-last quotient and every neighboring quotient agree with the rate */
+          var cur = ys[0], k, x;
+          for (k = 1; k < 4; k++) {
+            for (x = xs[k - 1]; x < xs[k]; x++) cur = Number((cur + p.m).toFixed(6));
+            if (Math.abs(cur - ys[k]) > 1e-9) return false;
+            if (Math.abs((ys[k] - ys[k - 1]) / (xs[k] - xs[k - 1]) - p.m) > 1e-9) return false;
           }
+          if (Math.abs((ys[3] - ys[0]) / (xs[3] - xs[0]) - p.m) > 1e-9) return false;
           return xs[0] < xs[1] && xs[1] < xs[2] && xs[2] < xs[3] && p.rate >= c.lo && p.rate <= c.hi && linInRange(c, p.b, p.m);
         }
       };
@@ -2767,7 +2787,7 @@
         ans = p.m;
         ask = "By how many " + c.y + " does the " + c.name + " change for each extra " + c.xs + "? Give the rate in " + c.per + "." + linSlopeHelp(c);
         hint = "In " + "$y = b + mx$, one of the two numbers is the change for one more unit. Decide which one multiplies the count.";
-        steps = ["The number that multiplies $" + c.L + "$ is the change for each extra " + c.xs + ": $" + clean(p.m) + "$ " + c.per + "."];
+        steps = ["The number that multiplies $" + c.L + "$ is the change for each extra " + c.xs + ": $" + clean(p.m) + "$ " + linPer(c, p.m) + "."];
       } else if (kind === "start") {
         ans = p.b;
         ask = "What is the " + c.name + " at the start, when $" + c.L + " = 0$? Give it " + c.yin + ".";
@@ -2777,7 +2797,7 @@
         ans = c.sign * p.rate * k;
         ask = "By how much does the " + c.name + " change when $" + c.L + "$ grows by " + linX(c, k) + "? Give the change " + c.yin + "." + linSlopeHelp(c);
         hint = "Each extra unit changes the quantity by the rate. Find the rate in the model first, then think about how many units were added.";
-        steps = ["The rate is $" + clean(p.m) + "$ " + c.per + ".", "Over $" + k + "$ more " + c.xp + ": $" + clean(p.m) + " \\cdot " + k + " = " + clean(ans) + "$ " + c.y + "."];
+        steps = ["The rate is $" + clean(p.m) + "$ " + linPer(c, p.m) + ".", "Over $" + k + "$ more " + c.xp + ": $" + clean(p.m) + " \\cdot " + k + " = " + clean(ans) + "$ " + c.y + "."];
       }
       return {
         q: c.model + " $" + c.Y + " = " + rhs + "$. " + ask,
@@ -2798,11 +2818,17 @@
     make: function (r) {
       var c0 = r.pick(LIN), p = linPick(r, c0, true);
       /* the count is x here: tools/check-gen.js reads x in a key and no other letter */
-      var c = Object.assign({}, c0, { L: "x" }), key = linKey(c, p.b, p.m);
+      var c = {}, key, ph, k0;
+      for (k0 in c0) if (c0.hasOwnProperty(k0)) c[k0] = c0[k0];
+      c.L = "x"; key = linKey(c, p.b, p.m);
       var story = fill(c.tell, { b: linY(c, p.b), m: linY(c, p.rate) });
+      /* an example that is not an answer: rate 7 is in no setting, and a different example stands in if it ever matched */
+      ph = c.sign < 0 ? "90-7x" : "7x+3";
+      if (key.split("|").indexOf(ph) >= 0) ph = c.sign < 0 ? "95-9x" : "9x+2";
+      if (key.split("|").indexOf(ph) >= 0) throw new Error("pk-model-write: the placeholder is an alternative of the key");
       return {
         q: story + " " + fill(c.ask, { L: "x" }),
-        type: "expr", answer: key, placeholder: "e.g. " + (c.sign < 0 ? "50-4" : "4") + "x" + (c.sign < 0 ? "" : "+50"),
+        type: "expr", answer: key, placeholder: "e.g. " + ph,
         hint: "The start is what you have before any " + c.xs + " goes by, and the rate is what each " + c.xs + " adds or takes away. Decide which of the two multiplies the count.",
         steps: [
           "The value at the start is $" + clean(p.b) + "$ " + c.y + ".",
@@ -2811,10 +2837,11 @@
         ],
         verify: function () {
           /* the key at two counts against the story told one step at a time */
-          for (var n of [2, 5]) {
-            var run = p.b, j;
+          var ns = [2, 5], i, n, run, j, alts = key.split("|");
+          for (i = 0; i < ns.length; i++) {
+            n = ns[i]; run = p.b;
             for (j = 0; j < n; j++) run += p.m;
-            if (key.split("|").some(function (alt) { return Math.abs(linEval(alt, c.L, n) - run) > 1e-9; })) return false;
+            if (alts.some(function (alt) { return Math.abs(linEval(alt, c.L, n) - run) > 1e-9; })) return false;
           }
           return p.rate !== 1 && p.rate >= c.lo && p.rate <= c.hi && linInRange(c, p.b, p.m);
         }
@@ -2836,15 +2863,15 @@
       if (kind === "slope") {
         ans = p.m; ask = "What is the rate of change, in " + c.per + "?" + linSlopeHelp(c);
         hint = "Two points on a line give its rate: the change in the quantity over the change in the count.";
-        steps = ["$\\dfrac{" + clean(y2) + " - " + (y1 < 0 ? "(" + clean(y1) + ")" : clean(y1)) + "}{" + clean(x2) + " - " + clean(x1) + "} = " + clean(p.m) + "$ " + c.per + "."];
+        steps = ["$\\dfrac{" + clean(y2) + " - " + (y1 < 0 ? "(" + clean(y1) + ")" : clean(y1)) + "}{" + clean(x2) + " - " + clean(x1) + "} = " + clean(p.m) + "$ " + linPer(c, p.m) + "."];
       } else if (kind === "start") {
-        ans = p.b; ask = "What was the value at the start, when the count was $0$? Give it " + c.yin + ".";
+        ans = p.b; ask = "What was the value at the start, at " + linX(c, 0) + "? Give it " + c.yin + ".";
         hint = "Find the rate from the two points first. Then go back from one of the points to where the count is zero.";
         steps = ["Rate: $\\dfrac{" + clean(y2 - y1) + "}{" + clean(x2 - x1) + "} = " + clean(p.m) + "$.", "Put one point into $y = b + mx$: $" + clean(y1) + " = b + " + (p.m < 0 ? "(" + clean(p.m) + ")" : clean(p.m)) + " \\cdot " + clean(x1) + "$, so $b = " + clean(p.b) + "$."];
       } else {
-        ans = y3; ask = "Using the line, what is the value when the count is " + clean(x3) + "? Give it " + c.yin + ".";
+        ans = y3; ask = "Using the line, what is the value " + fill(c.at, { X: linX(c, x3) }) + "? Give it " + c.yin + ".";
         hint = "Find the rate and the starting value of the line first. Then put the new count into the model.";
-        steps = ["Rate: $\\dfrac{" + clean(y2 - y1) + "}{" + clean(x2 - x1) + "} = " + clean(p.m) + "$; start: $b = " + clean(p.b) + "$.", "At $" + clean(x3) + "$: $" + clean(p.b) + (p.m < 0 ? " - " : " + ") + clean(Math.abs(p.m)) + " \\cdot " + clean(x3) + " = " + clean(y3) + "$."];
+        steps = ["Rate: $\\dfrac{" + clean(y2 - y1) + "}{" + clean(x2 - x1) + "} = " + clean(p.m) + "$; start: $b = " + clean(p.b) + "$.", "At $" + clean(x3) + "$: $" + (p.b === 0 ? (p.m < 0 ? "-" : "") : clean(p.b) + (p.m < 0 ? " - " : " + ")) + clean(Math.abs(p.m)) + " \\cdot " + clean(x3) + " = " + clean(y3) + "$."];
       }
       return {
         q: intro + " " + ask, type: "number", answer: clean(ans), placeholder: kind === "slope" ? c.per : c.y,
@@ -2861,22 +2888,30 @@
   G.add({
     id: "pk-model-when", section: "pk-linear#model", par: 70, timed: true,
     make: function (r) {
-      var c = r.pick(LIN), p = linPick(r, c, false), x0 = r.int(2, Math.max(2, c.xmax - 1)), T = linAt(p.b, p.m, x0), guard = 0;
-      while (!(T >= c.ymin && T <= c.ymax) && guard++ < 60) { x0 = r.int(2, Math.max(2, c.xmax - 1)); T = linAt(p.b, p.m, x0); }
-      if (!(T >= c.ymin && T <= c.ymax)) { x0 = 2; T = linAt(p.b, p.m, x0); }
-      var story = fill(c.tell, { b: linY(c, p.b), m: linY(c, p.rate) }), eq = linEq(c, p.b, p.m);
+      var c, p, x0, T, tries = 0, ok;
+      /* the target lies strictly inside the setting's range, and above 0 for money, height and water */
+      function good() { return T > c.ymin && T < c.ymax && (c.deg || T > 0); }
+      do {
+        c = r.pick(LIN); p = linPick(r, c, false); x0 = r.int(2, Math.max(2, c.xmax - 1)); T = linAt(p.b, p.m, x0); ok = good();
+      } while (!ok && tries++ < 200);
+      if (!ok) { c = LIN[0]; p = { b: 3, rate: 2, m: 2 }; x0 = 2; T = 7; }
+      var story = fill(c.tell, { b: linY(c, p.b), m: linY(c, p.rate) }), eq = linEq(c, p.b, p.m), term = linTerm(c, p.m);
       return {
         q: story + " " + fill(c.whenWith, { T: linY(c, T) }) + " " + c.when,
         type: "number", answer: clean(x0), placeholder: c.xp,
         hint: "Set the model equal to the value you are given and solve for the count. First take away the part that does not depend on the count, then split what is left by the rate.",
         steps: [
           "The model is $" + c.Y + " = " + eq + "$, and we want $" + c.Y + " = " + clean(T) + "$.",
-          "$" + clean(T) + " = " + eq + "$, so $" + clean(T - p.b) + " = " + clean(p.m) + c.L + "$.",
+          p.b === 0 ? "There is no start to take away, so $" + clean(T) + " = " + term + "$." : "$" + clean(T) + " = " + eq + "$, so $" + clean(T - p.b) + " = " + term + "$.",
           "$" + c.L + " = " + clean(T - p.b) + " \\div " + (p.m < 0 ? "(" + clean(p.m) + ")" : clean(p.m)) + " = " + clean(x0) + "$ " + c.xp + "."
         ],
         verify: function () {
           /* put the answer back into the model, and solve the other way round */
-          return Math.abs(linAt(p.b, p.m, x0) - T) < 1e-9 && Math.abs((T - p.b) / p.m - x0) < 1e-9 && x0 === Math.floor(x0) && x0 >= 2 && x0 <= c.xmax &&
+          /* count steps from the start by the rate until the value reaches the target, and compare with the answer */
+          var cur = p.b, steps = 0;
+          while ((p.m > 0 ? cur < T - 1e-9 : cur > T + 1e-9) && steps < 400) { cur = Number((cur + p.m).toFixed(6)); steps++; }
+          return steps === x0 && Math.abs(cur - T) < 1e-9 && good() &&
+            Math.abs(linAt(p.b, p.m, x0) - T) < 1e-9 && Math.abs((T - p.b) / p.m - x0) < 1e-9 && x0 === Math.floor(x0) && x0 >= 2 && x0 <= c.xmax &&
             p.rate >= c.lo && p.rate <= c.hi && linInRange(c, p.b, p.m);
         }
       };
