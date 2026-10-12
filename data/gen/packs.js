@@ -5,8 +5,8 @@
    two-way tables and conditional probability; counting arrangements).
    Pack D, "Units and Measurement": sections 1-4 (converting units; rates with units; area and volume units;
    scale).
-   Pack E, "Linear Models and Inequalities": sections 1-2 so far (slope as a rate of change; writing a linear
-   model).
+   Pack E, "Linear Models and Inequalities": sections 1-4 (slope as a rate of change; writing a linear
+   model; inequalities in one unknown; inequalities in two unknowns and systems).
    The quartiles follow the median-of-halves rule of src/ui/chart.ts.
 
    A problem may carry a chart the Arena draws with the page widget (assets/widgets.js,
@@ -2913,6 +2913,412 @@
           return steps === x0 && Math.abs(cur - T) < 1e-9 && good() &&
             Math.abs(linAt(p.b, p.m, x0) - T) < 1e-9 && Math.abs((T - p.b) / p.m - x0) < 1e-9 && x0 === Math.floor(x0) && x0 >= 2 && x0 <= c.xmax &&
             p.rate >= c.lo && p.rate <= c.hi && linInRange(c, p.b, p.m);
+        }
+      };
+    }
+  });
+
+  /* ------------------------------------------ pack E: inequalities -- */
+
+  var IREL = {
+    "<": { tex: "<", flip: ">" }, "<=": { tex: "\\le", flip: ">=" },
+    ">": { tex: ">", flip: "<" }, ">=": { tex: "\\ge", flip: "<=" }
+  };
+  var IRELS = ["<", "<=", ">", ">="];
+  /* does l rel r hold? */
+  function ineqHolds(rel, l, r) {
+    if (rel === "<") return l < r;
+    if (rel === "<=") return l <= r;
+    if (rel === ">") return l > r;
+    return l >= r;
+  }
+  /* a term of a sum, signed: "3x" first, " - 2y" after; a coefficient of 1 is left out */
+  function iTerm(a, v, first) {
+    var mag = Math.abs(a) === 1 ? "" : clean(Math.abs(a));
+    if (first) return (a < 0 ? "-" : "") + mag + v;
+    return (a < 0 ? " - " : " + ") + mag + v;
+  }
+  /* a x + b, or b + a x when the constant is written first */
+  function iLin(a, b, constFirst) {
+    if (b === 0) return iTerm(a, "x", true);
+    if (constFirst) return clean(b) + iTerm(a, "x", false);
+    return iTerm(a, "x", true) + (b < 0 ? " - " : " + ") + clean(Math.abs(b));
+  }
+  /* an integer test: ceil and floor without float noise (the values here are multiples of 0.5) */
+  function iFloor(v) { return Math.floor(v + 1e-9); }
+  function iCeil(v) { return Math.ceil(v - 1e-9); }
+  /* the money format of the pack: $\$12$ */
+  function iMoney(v) { return "$\\$" + clean(v) + "$"; }
+  function iPlace(ans, first, second) { return "e.g. " + ans === first ? second : first; }
+  /* n / d in lowest terms as math, with a decimal after it when it is not whole: \frac{89}{6} (about 14.83) */
+  function iQuot(n, d) {
+    var g = gcd(Math.abs(n), Math.abs(d)) || 1, nn = n / g, dd = d / g;
+    if (dd < 0) { nn = -nn; dd = -dd; }
+    if (dd === 1) return clean(nn);
+    var dec = nn / dd;
+    return (nn < 0 ? "-" : "") + "\\frac{" + Math.abs(nn) + "}{" + dd + "}" + (Math.abs(dec * 2 - Math.round(dec * 2)) < 1e-9 ? " = " + clean(dec) : " \\approx " + dec.toFixed(2));
+  }
+
+  /* a x + b rel c for a whole-number a (not 0, not 1 or -1), a whole or half-whole boundary k, a whole b and c */
+  function ineqPick(r) {
+    var a, b, k, c, guard = 0, ok = false;
+    do {
+      a = r.pick([-9, -8, -7, -6, -5, -4, -3, -2, 2, 3, 4, 5, 6, 7, 8, 9]);
+      k = r.int(-10, 10) + ((a % 2 === 0 && r.chance(0.4)) ? 0.5 : 0);
+      b = r.nonzero(-20, 20);
+      c = a * k + b;
+      ok = k !== 0 && Math.abs(c) <= 60 && c === Math.floor(c) && c !== b;
+    } while (!ok && guard++ < 120);
+    if (!ok) { a = 3; b = 5; k = 4; c = 17; }
+    return { a: a, b: b, k: k, c: c };
+  }
+
+  G.add({
+    id: "pk-ineq-solve", section: "pk-linear#ineq1", par: 60, timed: true,
+    make: function (r) {
+      var p = ineqPick(r), rel = r.pick(IRELS), constFirst = r.chance(0.35), a = p.a, b = p.b, c = p.c, k = p.k;
+      var sol = a > 0 ? rel : IREL[rel].flip, below = sol === "<" || sol === "<=";
+      var kind = r.pick(["bound", "extreme", "extreme"]);
+      /* a negative coefficient: the boundary is the same with or without the flip, so ask for an integer, and keep the
+         key off the no-flip answer (a whole k with a non-strict sign gives the same integer on both sides) */
+      if (a < 0) {
+        kind = "extreme";
+        if (k === Math.floor(k) && (rel === "<=" || rel === ">=")) {
+          rel = rel === "<=" ? "<" : ">";
+          sol = IREL[rel].flip; below = sol === "<" || sol === "<=";
+        }
+      }
+      var lhs = iLin(a, b, constFirst), ans, ask, tail;
+      if (kind === "bound") {
+        ans = k;
+        ask = "Solve $" + lhs + " " + IREL[rel].tex + " " + clean(c) + "$. The solution is every $x$ on one side of a boundary. What is the boundary value, the number $k$ in the answer?";
+        tail = "The boundary is $x = " + clean(k) + "$.";
+      } else if (below) {
+        ans = sol === "<=" ? iFloor(k) : iCeil(k) - 1;
+        ask = "What is the greatest integer $x$ that satisfies $" + lhs + " " + IREL[rel].tex + " " + clean(c) + "$?";
+        tail = "The solution is $x " + IREL[sol].tex + " " + clean(k) + "$, so the greatest integer is $" + clean(ans) + "$.";
+      } else {
+        ans = sol === ">=" ? iCeil(k) : iFloor(k) + 1;
+        ask = "What is the least integer $x$ that satisfies $" + lhs + " " + IREL[rel].tex + " " + clean(c) + "$?";
+        tail = "The solution is $x " + IREL[sol].tex + " " + clean(k) + "$, so the least integer is $" + clean(ans) + "$.";
+      }
+      var key = clean(ans);
+      var step1 = (b > 0 ? "Subtract $" + clean(b) + "$ from" : "Add $" + clean(-b) + "$ to") + " both sides, and the sign stays: $" + iTerm(a, "x", true) + " " + IREL[rel].tex + " " + clean(c - b) + "$.";
+      var step2 = a > 0 ? "Divide both sides by $" + clean(a) + "$, which is positive, so the sign stays: $x " + IREL[sol].tex + " " + clean(k) + "$."
+        : "Divide both sides by $" + clean(a) + "$, which is negative, so the sign turns around: $x " + IREL[sol].tex + " " + clean(k) + "$.";
+      return {
+        q: ask, type: "number", answer: key, placeholder: iPlace(key, "e.g. 5", "e.g. 6"),
+        hint: "Undo the addition or subtraction first, then undo the multiplication. Ask whether the number you divide by is positive or negative before you write the sign.",
+        steps: [step1, step2, tail],
+        verify: function () {
+          /* a test number on each side of the boundary, put into the original inequality */
+          var lo = k - 1, hi = k + 1, at = function (x) { return ineqHolds(rel, a * x + b, c); };
+          if (at(k) !== (rel === "<=" || rel === ">=")) return false;
+          if (at(lo) === at(hi)) return false;
+          if (at(hi) !== !below) return false;
+          if (kind === "bound") return a > 0 && Math.abs(ans - k) < 1e-9;
+          if (a < 0) {
+            /* the answer of a learner who does not flip: the extreme integer of the side x rel k, found by listing */
+            var wrong = null, t;
+            for (t = -40; t <= 40; t++) {
+              if (!ineqHolds(rel, t, k)) continue;
+              if (below) { if (wrong === null) wrong = t; } else wrong = t;
+            }
+            if (wrong === null || wrong === ans) return false;
+          }
+          if (below) return at(ans) && !at(ans + 1) && at(ans - 1);
+          return at(ans) && !at(ans - 1) && at(ans + 1);
+        }
+      };
+    }
+  });
+
+  /* stories with a start s, a step p for each item, and a limit T. dir "max" (the total may not pass T) or "min" (the total must reach T);
+     lo/hi bound the limit; the answer count stays between 3 and 30 */
+  var IWORDS = [
+    { id: "hall", dir: "max", money: true, ss: [20, 25, 30, 40, 50], ps: [6, 8, 9, 12, 15, 18], tlo: 60, thi: 500,
+      story: "A hall charges {s} to book and {p} for each guest. The organizers ", ask: "What is the largest number of guests they can invite?",
+      phrase: { "<=": "can spend at most {T}.", "<": "want the total to come to less than {T}." } },
+    { id: "books", dir: "max", money: true, ss: [5, 8, 10, 12, 15], ps: [3, 4, 5, 7, 9, 11], tlo: 40, thi: 300,
+      story: "A school orders notebooks at {p} each, with a shipping fee of {s}. The school ", ask: "What is the largest number of notebooks it can order?",
+      phrase: { "<=": "has a budget of {T}, and the order may use all of it.", "<": "needs the order to cost under {T}." } },
+    { id: "lift", dir: "max", money: false, unit: "pounds", ss: [140, 160, 180, 200, 220], ps: [15, 20, 25, 30, 35, 45], tlo: 400, thi: 1500,
+      story: "A worker who weighs {s} loads crates of {p} each onto a freight elevator. The elevator ", ask: "What is the greatest number of crates the worker can load and still ride along?",
+      phrase: { "<=": "is rated for at most {T}.", "<": "must carry under {T}." } },
+    { id: "save", dir: "min", money: true, ss: [20, 35, 50, 75, 90], ps: [8, 10, 12, 15, 20, 25], tlo: 100, thi: 500,
+      story: "You have {s} and save {p} each week. You ", ask: "What is the fewest number of weeks you must save?",
+      phrase: { ">=": "want to have at least {T}.", ">": "want to have more than {T}." } },
+    { id: "points", dir: "min", money: false, unit: "points", ss: [40, 60, 80, 120, 150], ps: [8, 12, 15, 20, 25], tlo: 200, thi: 700,
+      story: "A student has {s} in a course and earns {p} for each quiz. The student ", ask: "What is the fewest number of quizzes the student must take?",
+      phrase: { ">=": "needs at least {T} to earn the badge.", ">": "needs more than {T} to earn the badge." } }
+  ];
+  function iVal(w, v) { return w.money ? iMoney(v) : "$" + clean(v) + "$ " + w.unit; }
+
+  /* the limit that makes n0 the answer, with offset off in 0..p-1 (see the cases: each leaves n0 + 1 or n0 - 1 on the wrong side) */
+  function iLimit(rel, s, p, n0, off) {
+    if (rel === "<=") return s + p * n0 + off;
+    if (rel === "<") return s + p * n0 + 1 + off;
+    if (rel === ">=") return s + p * n0 - off;
+    return s + p * (n0 - 1) + off;
+  }
+
+  G.add({
+    id: "pk-ineq-words", section: "pk-linear#ineq1", par: 70, timed: true,
+    make: function (r) {
+      var w = r.pick(IWORDS), s, p, n0, T, guard = 0, ok = false, n, i;
+      var rel = r.pick(w.dir === "max" ? ["<=", "<=", "<"] : [">=", ">=", ">"]);
+      do {
+        s = r.pick(w.ss); p = r.pick(w.ps); n0 = r.int(3, 25);
+        T = iLimit(rel, s, p, n0, r.int(0, p - 1));
+        ok = T >= w.tlo && T <= w.thi;
+      } while (!ok && guard++ < 200);
+      if (!ok) {
+        s = w.ss[0]; p = w.ps[0];
+        for (n = 3; n <= 30 && !ok; n++) { n0 = n; T = iLimit(rel, s, p, n0, 0); ok = T >= w.tlo && T <= w.thi; }
+      }
+      var kx = (T - s) / p, key, steps;
+      if (w.dir === "max") key = String(rel === "<=" ? iFloor(kx) : iCeil(kx) - 1);
+      else key = String(rel === ">=" ? iCeil(kx) : iFloor(kx) + 1);
+      steps = [
+        "With $n$ items the total is $" + clean(s) + " + " + clean(p) + "n$, and the story needs it $" + IREL[rel].tex + " " + clean(T) + "$.",
+        "$" + clean(p) + "n " + IREL[rel].tex + " " + clean(T - s) + "$, so $n " + IREL[rel].tex + " " + iQuot(T - s, p) + "$.",
+        "The count is a whole number, so the " + (w.dir === "max" ? "greatest" : "least") + " count that works is $" + key + "$."
+      ];
+      return {
+        q: w.story.replace("{s}", iVal(w, s)).replace("{p}", iVal(w, p)) + w.phrase[rel].replace("{T}", iVal(w, T)) + " " + w.ask,
+        type: "number", answer: key, placeholder: iPlace(key, "e.g. 12", "e.g. 13"),
+        hint: "Write the total as a start plus the amount for each item, and compare it with the limit. Solve it as an equation first, then ask which whole numbers keep the comparison true.",
+        steps: steps,
+        verify: function () {
+          /* try the counts one at a time, adding the step each time, and read off the last or the first that works */
+          var m, best = -1, firstOk = -1, tot;
+          for (m = 0; m <= 60; m++) {
+            tot = s;
+            for (i = 0; i < m; i++) tot += p;
+            if (ineqHolds(rel, tot, T)) { if (firstOk < 0) firstOk = m; best = m; }
+          }
+          var found = w.dir === "max" ? best : firstOk;
+          return String(found) === key && found === n0 && found >= 3 && found <= 30 && T >= w.tlo && T <= w.thi;
+        }
+      };
+    }
+  });
+
+  /* the integers from -40 to 40 that satisfy every test, in increasing order */
+  function iScan(tests) {
+    var out = [], x, j, good;
+    for (x = -40; x <= 40; x++) {
+      good = true;
+      for (j = 0; j < tests.length; j++) if (!tests[j](x)) { good = false; break; }
+      if (good) out.push(x);
+    }
+    return out;
+  }
+
+  G.add({
+    id: "pk-ineq-range", section: "pk-linear#ineq1", par: 70, timed: true,
+    make: function (r) {
+      var kind = r.pick(["chain", "chain", "solved"]), guard = 0, ok = false, q, keyList, tests, steps, lo, hi, r1, r2, i, n;
+      if (kind === "chain") {
+        do {
+          lo = r.int(-8, 4); hi = lo + r.int(2, 8); r1 = r.pick(["<", "<="]); r2 = r.pick(["<", "<="]);
+          n = (hi - lo + 1) - (r1 === "<" ? 1 : 0) - (r2 === "<" ? 1 : 0);
+          ok = n >= 2 && n <= 7;
+        } while (!ok && guard++ < 100);
+        if (!ok) { lo = -2; hi = 3; r1 = "<"; r2 = "<="; }
+        var first = r1 === "<" ? lo + 1 : lo, last = r2 === "<" ? hi - 1 : hi;
+        keyList = [];
+        for (i = first; i <= last; i++) keyList.push(i);
+        q = "List all the integers $x$ that satisfy $" + clean(lo) + " " + IREL[r1].tex + " x " + IREL[r2].tex + " " + clean(hi) + "$, separated by commas.";
+        tests = [function (x) { return ineqHolds(r1, lo, x) && ineqHolds(r2, x, hi); }];
+        steps = [
+          "The inequality asks for both at once: $x$ is " + (r1 === "<" ? "greater than" : "at least") + " $" + clean(lo) + "$ and " + (r2 === "<" ? "less than" : "at most") + " $" + clean(hi) + "$.",
+          "The least integer allowed is $" + clean(first) + "$ and the greatest is $" + clean(last) + "$.",
+          "The integers are $" + keyList.join(", ") + "$."
+        ];
+      } else {
+        var a, b, k, c, rel, solRel, other, L, below, lim, simple;
+        do {
+          var pk = ineqPick(r);
+          a = pk.a; b = pk.b; k = pk.k; c = pk.c; rel = r.pick(IRELS);
+          solRel = a > 0 ? rel : IREL[rel].flip; below = solRel === "<" || solRel === "<=";
+          other = below ? r.pick([">", ">="]) : r.pick(["<", "<="]);
+          L = k + (below ? -1 : 1) * r.int(2, 6);
+          L = Math.round(L);
+          tests = [function (x) { return ineqHolds(rel, a * x + b, c); }, function (x) { return ineqHolds(other, x, L); }];
+          keyList = iScan(tests);
+          ok = keyList.length >= 2 && keyList.length <= 7 && Math.abs(L) <= 12 && Math.abs(a) <= 9;
+        } while (!ok && guard++ < 150);
+        if (!ok) {
+          a = 2; b = 1; c = 9; rel = "<="; k = 4; L = 0; other = ">"; solRel = "<="; below = true;
+          tests = [function (x) { return ineqHolds(rel, a * x + b, c); }, function (x) { return ineqHolds(other, x, L); }];
+          keyList = iScan(tests);
+        }
+        q = "List all the integers $x$ that satisfy both $" + iLin(a, b, false) + " " + IREL[rel].tex + " " + clean(c) + "$ and $x " + IREL[other].tex + " " + clean(L) + "$, separated by commas.";
+        lim = keyList;
+        steps = [
+          "Solve the first one: " + (b > 0 ? "subtract $" + clean(b) + "$" : "add $" + clean(-b) + "$") + " to get $" + iTerm(a, "x", true) + " " + IREL[rel].tex + " " + clean(c - b) + "$, then divide by $" + clean(a) + "$" + (a < 0 ? ", which turns the sign around" : "") + ": $x " + IREL[solRel].tex + " " + clean(k) + "$.",
+          "Both together: $x " + IREL[solRel].tex + " " + clean(k) + "$ and $x " + IREL[other].tex + " " + clean(L) + "$.",
+          "The integers are $" + keyList.join(", ") + "$."
+        ];
+      }
+      var key = keyList.join(",");
+      return {
+        q: q, type: "set", answer: key, placeholder: key === "1,2,3" ? "e.g. 4,5,6" : "e.g. 1,2,3",
+        hint: kind === "chain" ? "Decide for each end whether the number itself is allowed, then list the whole numbers between the ends in increasing order."
+          : "Solve the first inequality on its own, taking care with the sign when you divide. Then keep the numbers that meet both conditions.",
+        steps: steps,
+        verify: function () {
+          /* try every integer from -40 to 40 in the original statement; the list is in increasing order and has 2 to 7 elements */
+          var scan = iScan(tests), j;
+          for (j = 1; j < scan.length; j++) if (scan[j] <= scan[j - 1]) return false;
+          return scan.join(",") === key && scan.length >= 2 && scan.length <= 7 && Math.abs(scan[0]) < 40 && Math.abs(scan[scan.length - 1]) < 40;
+        }
+      };
+    }
+  });
+
+  G.add({
+    id: "pk-ineq2-side", section: "pk-linear#ineq2", par: 55, timed: true,
+    make: function (r) {
+      var m, b, x0, v, rel, guard = 0, ok = false, ans, lowest, y;
+      do {
+        m = r.pick([-6, -5, -4, -3, -2, -1, 1, 2, 3, 4, 5, 6, -2.5, -1.5, -0.5, 0.5, 1.5, 2.5]);
+        b = r.nonzero(-9, 9); x0 = r.nonzero(-6, 6); v = m * x0 + b; rel = r.pick(IRELS);
+        ok = Math.abs(v) <= 40 && v !== 0;
+      } while (!ok && guard++ < 100);
+      if (!ok) { m = 2; b = 3; x0 = 4; v = 11; rel = "<"; }
+      lowest = rel === ">" || rel === ">=";
+      if (rel === "<") ans = iCeil(v) - 1; else if (rel === "<=") ans = iFloor(v); else if (rel === ">") ans = iFloor(v) + 1; else ans = iCeil(v);
+      var key = String(ans), line = iLin(m, b, false);
+      return {
+        q: "A region of the plane is described by $y " + IREL[rel].tex + " " + line + "$. For the points of the region with $x = " + clean(x0) + "$, what is the " + (lowest ? "smallest" : "largest") + " integer $y$?",
+        type: "number", answer: key, placeholder: iPlace(key, "e.g. 3", "e.g. 4"),
+        hint: "Fix the value of $x$ first: the right side becomes one number. Then ask which integers $y$ stand on the correct side of it, and whether that number itself is allowed.",
+        steps: [
+          "At $x = " + clean(x0) + "$ the right side is $" + (m < 0 ? "(" + clean(m) + ")" : clean(m)) + " \\cdot " + (x0 < 0 ? "(" + clean(x0) + ")" : clean(x0)) + (b < 0 ? " - " + clean(-b) : " + " + clean(b)) + " = " + clean(v) + "$.",
+          "So the condition is $y " + IREL[rel].tex + " " + clean(v) + "$" + ((rel === "<" || rel === ">") ? ", and $" + clean(v) + "$ itself is " + (v === Math.floor(v) ? "not allowed" : "not a whole number anyway") + "." : "."),
+          "The " + (lowest ? "smallest" : "largest") + " integer that works is $" + key + "$."
+        ],
+        verify: function () {
+          /* test the integers near the line in the original inequality */
+          var lo = Math.floor(v) - 4, hi = Math.ceil(v) + 4, good = [], t;
+          for (t = lo; t <= hi; t++) if (ineqHolds(rel, t, m * x0 + b)) good.push(t);
+          if (!good.length) return false;
+          y = lowest ? good[0] : good[good.length - 1];
+          return y === ans && good.length >= 4 && !ineqHolds(rel, lowest ? ans - 1 : ans + 1, v) && ineqHolds(rel, ans, v);
+        }
+      };
+    }
+  });
+
+  /* two items sold at a price each (whole dollars); the limit stays between $20 and $500 */
+  var IBUY = [
+    { X: "sandwiches", Y: "juices", px: [6, 7, 8, 9, 10, 12], py: [2, 3, 4, 5] },
+    { X: "adult tickets", Y: "child tickets", px: [9, 12, 15, 18, 20], py: [5, 6, 8, 10] },
+    { X: "pens", Y: "notebooks", px: [2, 3, 4, 5], py: [3, 4, 6, 7, 9] },
+    { X: "wraps", Y: "smoothies", px: [7, 8, 9, 11], py: [4, 5, 6] },
+    { X: "paint cans", Y: "brushes", px: [14, 18, 22, 25], py: [3, 5, 7, 9] }
+  ];
+
+  G.add({
+    id: "pk-ineq2-budget", section: "pk-linear#ineq2", par: 70, timed: true,
+    make: function (r) {
+      var it = r.pick(IBUY), px, py, T, x0, rem, ans, guard = 0, ok = false, mode = r.pick(["y", "y", "x"]), extra;
+      do {
+        px = r.pick(it.px); py = r.pick(it.py); x0 = r.int(2, 12); extra = r.int(0, py - 1);
+        ans = r.int(2, 14);
+        if (mode === "y") T = px * x0 + py * ans + extra;
+        else { ans = r.int(3, 30); T = px * ans + r.int(0, px - 1); }
+        ok = T >= 20 && T <= 500 && px !== py;
+      } while (!ok && guard++ < 150);
+      if (!ok) { it = IBUY[0]; px = 6; py = 2; x0 = 4; ans = 5; extra = 0; T = 34; mode = "y"; }
+      var q = "At a shop, $x$ is the number of " + it.X + " bought, at " + iMoney(px) + " each, and $y$ is the number of " + it.Y + " bought, at " + iMoney(py) + " each. The total must be within a budget of " + iMoney(T) + ", so $" + clean(px) + "x + " + clean(py) + "y \\le " + clean(T) + "$, with $x \\ge 0$ and $y \\ge 0$. ";
+      var steps, key;
+      if (mode === "y") {
+        rem = T - px * x0; key = String(ans);
+        q += "If " + clean(x0) + " " + it.X + " are bought, what is the greatest number of " + it.Y + " that can also be bought?";
+        steps = [
+          "Put $x = " + clean(x0) + "$: $" + clean(px) + " \\cdot " + clean(x0) + " = " + clean(px * x0) + "$, so $" + clean(py) + "y \\le " + clean(T) + " - " + clean(px * x0) + " = " + clean(rem) + "$.",
+          "$y \\le " + iQuot(rem, py) + "$, and $y$ counts " + it.Y + ", so it is a whole number.",
+          "The greatest is $y = " + key + "$."
+        ];
+      } else {
+        key = String(ans);
+        q += "If no " + it.Y + " are bought, what is the greatest number of " + it.X + " that can be bought?";
+        steps = [
+          "Put $y = 0$: $" + clean(px) + "x \\le " + clean(T) + "$.",
+          "$x \\le " + iQuot(T, px) + "$, and $x$ counts " + it.X + ", so it is a whole number.",
+          "The greatest is $x = " + key + "$."
+        ];
+      }
+      return {
+        q: q, type: "number", answer: key, placeholder: iPlace(key, "e.g. 8", "e.g. 9"),
+        hint: "Put the number you are given into the constraint, so only one unknown is left. Then find how many whole items fit under the budget.",
+        steps: steps,
+        verify: function () {
+          /* buy one more at a time until the next one would break the budget */
+          var n = 0, cost = mode === "y" ? px * x0 : 0, step = mode === "y" ? py : px, guardN = 0;
+          if (cost > T) return false;
+          while (cost + step <= T && guardN++ < 200) { cost += step; n++; }
+          return String(n) === key && cost <= T && cost + step > T && n >= 2 && n <= 30 && T >= 20 && T <= 500;
+        }
+      };
+    }
+  });
+
+  /* a x + b y rel c, with a and b whole and not both 0 */
+  function iLin2(a, b) { return iTerm(a, "x", true) + (b === 0 ? "" : iTerm(b, "y", false)); }
+
+  G.add({
+    id: "pk-ineq2-count", section: "pk-linear#ineq2", par: 90, timed: true,
+    make: function (r) {
+      var X, Y, a1, b1, c1, rel1, a2, b2, c2, rel2, guard = 0, ok = false, cols, total;
+      function countAll() {
+        var cc = [], x, y, t;
+        for (x = 0; x <= X; x++) {
+          t = 0;
+          for (y = 0; y <= Y; y++) if (ineqHolds(rel1, a1 * x + b1 * y, c1) && ineqHolds(rel2, a2 * x + b2 * y, c2)) t++;
+          cc.push(t);
+        }
+        return cc;
+      }
+      /* does this inequality leave out at least one point of the box? */
+      function cuts(a, b, rel, c) {
+        var x, y;
+        for (x = 0; x <= X; x++) for (y = 0; y <= Y; y++) if (!ineqHolds(rel, a * x + b * y, c)) return true;
+        return false;
+      }
+      do {
+        X = r.int(3, 6); Y = r.int(3, 6);
+        a1 = r.int(1, 3); b1 = r.int(1, 3); rel1 = r.pick(["<", "<="]); c1 = r.int(4, 14);
+        a2 = r.pick([1, 1, 2]); b2 = r.pick([-1, -1, -2]); rel2 = r.pick([">", ">=", "<", "<="]); c2 = r.int(-3, 3);
+        cols = countAll(); total = 0;
+        cols.forEach(function (v) { total += v; });
+        ok = total >= 6 && total <= 30 && total < (X + 1) * (Y + 1) - 2 && cuts(a1, b1, rel1, c1) && cuts(a2, b2, rel2, c2);
+      } while (!ok && guard++ < 200);
+      if (!ok) {
+        X = 4; Y = 4; a1 = 1; b1 = 1; rel1 = "<="; c1 = 5; a2 = 1; b2 = -1; rel2 = ">="; c2 = 0;
+        cols = countAll(); total = 0;
+        cols.forEach(function (v) { total += v; });
+      }
+      var key = String(total), parts = [], x;
+      for (x = 0; x <= X; x++) parts.push("$x = " + x + "$: " + cols[x]);
+      return {
+        q: "The whole-number points $(x, y)$ with $0 \\le x \\le " + X + "$ and $0 \\le y \\le " + Y + "$ are marked. How many of them satisfy both $" + iLin2(a1, b1) + " " + IREL[rel1].tex + " " + clean(c1) + "$ and $" + iLin2(a2, b2) + " " + IREL[rel2].tex + " " + clean(c2) + "$?",
+        type: "number", answer: key, placeholder: iPlace(key, "e.g. 12", "e.g. 13"),
+        hint: "Go through the values of $x$ one at a time. For each, put it into both inequalities and see which values of $y$ in the box are left.",
+        steps: [
+          "For each $x$, count the whole numbers $y$ from $0$ to $" + Y + "$ that meet both conditions: " + parts.join("; ") + ".",
+          "Add them: $" + cols.join(" + ") + " = " + key + "$."
+        ],
+        verify: function () {
+          /* list the points row by row (y first) and test each one in the original two inequalities */
+          var y, x2, n = 0, pts = [];
+          for (y = 0; y <= Y; y++) for (x2 = 0; x2 <= X; x2++) {
+            if (ineqHolds(rel1, a1 * x2 + b1 * y, c1) && ineqHolds(rel2, a2 * x2 + b2 * y, c2)) { n++; pts.push([x2, y]); }
+          }
+          return String(n) === key && n === pts.length && n >= 6 && n <= 30;
         }
       };
     }

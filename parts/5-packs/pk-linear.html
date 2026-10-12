@@ -3,7 +3,7 @@
 <head>
 <!--bm:head-->
 <title>Pack E. Linear Models and Inequalities — Basic Mathematics</title>
-<meta name="description" content="Slope as a rate of change with its units, the sign of a slope, reading the rate and the starting value from y = mx + b, and writing a linear model from a story, two points or a table, then using it to predict and to find when: the algebra skills the gate exams ask for and the book leaves out.">
+<meta name="description" content="Slope as a rate of change with its units, the sign of a slope, reading the rate and the starting value from y = mx + b, and writing a linear model from a story, two points or a table, then using it to predict and to find when; solving inequalities in one unknown, with the sign flip for a negative, and describing regions and systems of inequalities in two unknowns: the algebra skills the gate exams ask for and the book leaves out.">
 </head>
 <body data-depth="2" data-chapter="pk-linear" data-part="packs">
 <!--bm:topbar-->
@@ -22,8 +22,9 @@
         turns that picture into algebra. It first says what the slope of a line means as a rate of
         change, with its units, and why any two points of a line give the same one. Then it writes
         the model $y = mx + b$ from a story, from two points or from a table, and uses it to predict a
-        value and to find when a quantity reaches a target. Later sections take up inequalities in
-        one and two unknowns, and systems of inequalities.
+        value and to find when a quantity reaches a target. The last two sections turn to inequalities:
+        the numbers that satisfy one, where a negative multiplier turns the sign around, and the regions of
+        the plane that satisfy one or two at once.
       </p>
 
       <div class="banner-meta" data-banner-meta></div>
@@ -41,7 +42,7 @@
         <li>$\$32$</li>
         <li>$\$34$</li>
       </ul>
-      <p class="puzzle-after">Doubling the fare for $5$ miles is tempting, and it fails, because part of the fare is charged before the taxi moves at all. Two rides are enough to find both the part that grows with the distance and the part that does not. The first section finds the part that grows, the rate of change. (The second section finds the fixed part and writes the whole fare as one expression. Inequalities come in the sections after that.)</p>
+      <p class="puzzle-after">Doubling the fare for $5$ miles is tempting, and it fails, because part of the fare is charged before the taxi moves at all. Two rides are enough to find both the part that grows with the distance and the part that does not. The first section finds the part that grows, the rate of change. (The second section finds the fixed part and writes the whole fare as one expression. The last two ask the question in the other direction: how long a ride a given budget allows, and which pairs of values a budget permits.)</p>
     </div>
 
     <div class="goal">
@@ -51,7 +52,11 @@
       quantity rises, falls or stays flat, read the rate and the starting value from
       $y = mx + b$, write the model from a story, from two points or from a table and check it
       at a point you did not use, predict a value with it, solve $mx + b = T$ to find when a quantity
-      reaches a target, and say where a model stops making sense.
+      reaches a target, and say where a model stops making sense. You can also solve an inequality in one unknown, turn
+      the sign around when you multiply or divide by a negative number, test the answer on both sides
+      of the boundary, and find the least or greatest whole number that works. In two unknowns you can
+      tell which side of a line an inequality describes, settle it with a test point, and find the
+      corner and the whole-number points of a system.
     </div>
 
     <section class="warmup" id="warmup">
@@ -410,6 +415,302 @@
       </div>
     </div>
 
+    <h2 id="ineq1">E.3 Inequalities in one unknown</h2>
+    <p>
+      An equation picks out a number, and an inequality picks out a set of numbers. The statement
+      $x &gt; 3$ is true of every number to the right of $3$ on the number line, and the
+      <b>solution</b> of $2x + 1 &gt; 7$ is the set of all $x$ that make it true. To solve it is to
+      describe that set as simply as $x &gt; 3$, which you can also say in words: $x$ is any number
+      greater than $3$.
+    </p>
+    <p>
+      Solving works as it does for an equation, with one new rule, and the number line says why.
+      Adding the same number to both sides slides the whole line along: two points move the same
+      distance in the same direction, so the one that was on the left is still on the left.
+      Subtracting is the same slide the other way. Multiplying by a positive number stretches the line
+      away from $0$, or squeezes it toward $0$, without carrying any point across $0$ or past another,
+      so the order stays. Multiplying by a negative number does that and then reflects the line
+      through $0$, and a reflection swaps left and right: $1 &lt; 6$, but $-1 &gt; -6$. So dividing
+      both sides by a negative number <em>flips the sign</em>. This is the one move to watch.
+    </p>
+    <p>
+      To solve $ax + b \le c$, subtract $b$ from both sides and then divide by $a$, turning the sign
+      around when $a$ is negative. Write the result as $x \ge k$ or $x \le k$ and say it in words.
+      Then check with one test number on each side of $k$, put into the <em>original</em> inequality:
+      the number on the solution side must make it true and the other must make it false. The
+      boundary $k$ itself makes it true for $\le$ and $\ge$, and false for $&lt;$ and $&gt;$. A
+      forgotten flip shows up at once, because the true side and the false side come out swapped.
+    </p>
+    <p>
+      Stories use words for the signs. &ldquo;At most&rdquo;, &ldquo;no more than&rdquo; and
+      &ldquo;within budget&rdquo; mean $\le$. &ldquo;At least&rdquo; means $\ge$.
+      &ldquo;Fewer than&rdquo;, &ldquo;less than&rdquo; and &ldquo;under&rdquo; mean $&lt;$, and
+      &ldquo;more than&rdquo; and &ldquo;over&rdquo; mean $&gt;$. When the unknown counts things, only
+      whole numbers count. If the solution is $n \le 7.4$, the greatest whole number that works is
+      $7$, and if it is $n \ge 5.2$, the least is $6$. Move into the solution set, never to the
+      nearest whole number.
+    </p>
+    <p>
+      Two conditions joined by &ldquo;and&rdquo; make a range, and the solution is where they overlap.
+      &ldquo;Between $10$ and $20$ inclusive&rdquo; is $10 \le x \le 20$, which is $x \ge 10$ and
+      $x \le 20$ together, and its integers are $10, 11, \dots, 20$. With strict signs the end numbers
+      drop out: $10 &lt; x &lt; 20$ leaves $11$ through $19$. (Chapter 3's <a
+      href="../1-algebra/03-real-numbers.html#order">order section</a> is where this began, with the
+      same rules proved from the axioms. You do not need it here.)
+    </p>
+
+    <div class="worked">
+      <h3><span class="num">Example 5.</span> Dividing by a negative number</h3>
+      <div class="body">
+        <p>
+          Solve $11 - 2x \le 3$.
+        </p>
+        <ol class="steps">
+          <li>Subtract $11$ from both sides. The sign stays: $-2x \le -8$.</li>
+          <li>Divide both sides by $-2$. The number is negative, so the sign turns around: $x \ge 4$.</li>
+          <li>In words: $x$ is any number that is at least $4$.</li>
+          <li>Check with a number on each side. For $x = 5$, on the solution side: $11 - 10 = 1$, and
+            $1 \le 3$ is true. For $x = 3$, on the other side: $11 - 6 = 5$, and $5 \le 3$ is false.
+            The boundary $x = 4$ gives $11 - 8 = 3 \le 3$, true ✓. $\blacksquare$</li>
+        </ol>
+        <p class="note">
+          Had the sign not been turned, the answer would read $x \le 4$, which includes $3$, and the
+          test of $3$ fails. A test number on each side catches a missed flip.
+        </p>
+      </div>
+    </div>
+
+    <div class="ex" data-inline id="t7" data-answer="2"
+         data-hint="Under means below, and the number itself is not below itself. Which sign leaves the end number out?"
+         data-hint2="Would a rider exactly $48$ inches tall be under $48$ inches?">
+      <div class="ex-q">
+        <p>
+          A ride has a sign: riders must be under $48$ inches tall. With $h$ the height in inches, which
+          inequality describes who may ride?
+        </p>
+      </div>
+      <ul class="choices">
+        <li>$h \le 48$</li>
+        <li>$h &lt; 48$</li>
+        <li>$h &gt; 48$</li>
+        <li>$h \ge 48$</li>
+      </ul>
+      <div class="ex-solution">
+        <p class="answer">Answer: $h &lt; 48$</p>
+        <p>
+          &ldquo;Under&rdquo; means below, and a rider exactly $48$ inches tall is not under $48$, so the
+          sign is strict. $h \le 48$ would let in a rider of exactly $48$ inches, and $h &gt; 48$ and
+          $h \ge 48$ point the wrong way. Check: a rider of $40$ inches is under $48$,
+          and $40 &lt; 48$ ✓.
+        </p>
+      </div>
+    </div>
+
+    <div class="worked">
+      <h3><span class="num">Example 6.</span> How many whole hours?</h3>
+      <div class="body">
+        <p>
+          A kayak rental charges a $\$20$ fee plus $\$6$ for each hour. You have $\$85$. What is the
+          greatest whole number of hours you can rent for?
+        </p>
+        <ol class="steps">
+          <li>For $h$ hours the cost is $20 + 6h$, and &ldquo;you have $\$85$&rdquo; means it must be at
+            most $85$: $20 + 6h \le 85$.</li>
+          <li>Subtract $20$: $6h \le 65$. Divide by $6$, which is positive, so the sign stays:
+            $h \le \frac{65}{6}$, about $10.83$.</li>
+          <li>Hours are counted in whole numbers, and $11$ is above $10.83$, so the greatest is
+            $10$ hours.</li>
+          <li>Check both neighbors in the story. $10$ hours cost $20 + 60 = 80$, and $80 \le 85$ ✓.
+            $11$ hours cost $20 + 66 = 86$, and $86 &gt; 85$, so it is too much. $\blacksquare$</li>
+        </ol>
+        <p class="note">
+          Rounding $10.83$ to the nearest whole number gives $11$, which costs too much. Move toward
+          the side the inequality allows.
+        </p>
+      </div>
+    </div>
+
+    <div class="ex" data-inline id="t8" data-type="number" data-answer="-5" data-placeholder="e.g. 5"
+         data-hint="Divide both sides by the number that multiplies $x$. Before you write the sign, ask whether that number is positive or negative."
+         data-hint2="Once you have the boundary, which side of it do the solutions lie on, and is the boundary itself allowed?">
+      <div class="ex-q">
+        <p>
+          What is the greatest integer $x$ with $-3x &gt; 12$?
+        </p>
+      </div>
+      <div class="ex-solution">
+        <p class="answer">Answer: $-5$</p>
+        <p>
+          Divide both sides by $-3$ and turn the sign around: $x &lt; -4$. The sign is strict, so $-4$ is out and
+          the greatest integer is $-5$. Without the flip the solution would read $x &gt; -4$, which has no greatest
+          integer at all. Check one number on each side: $x = -5$ gives $-3 \cdot (-5) = 15 &gt; 12$, true, and
+          $x = -4$ gives $12 &gt; 12$, false ✓.
+        </p>
+      </div>
+    </div>
+
+    <div class="ex" data-inline id="t9" data-type="set" data-answer="-1,0,1,2,3" data-placeholder="e.g. 1,2,3"
+         data-hint="For each end of the range, decide whether the number itself is allowed. Then list the whole numbers in between in increasing order."
+         data-hint2="Which is the least integer greater than $-2$, and which is the greatest integer not above $3$?">
+      <div class="ex-q">
+        <p>
+          List all the integers $x$ with $-2 &lt; x \le 3$, separated by commas.
+        </p>
+      </div>
+      <div class="ex-solution">
+        <p class="answer">Answer: $-1, 0, 1, 2, 3$</p>
+        <p>
+          The left end is strict, so $-2$ is out and the least integer is $-1$. The right end is not
+          strict, so $3$ is in. Check: from $-1$ to $3$ is five integers, and $-2 &lt; -1$ and $3 \le 3$
+          both hold, while $-2 &lt; -2$ and $4 \le 3$ both fail ✓.
+        </p>
+      </div>
+    </div>
+
+    <h2 id="ineq2">E.4 Inequalities in two unknowns and systems</h2>
+    <p>
+      With two unknowns, a solution is a pair $(x, y)$, a point of the plane, and the solutions of an
+      inequality fill a region. Take $y &gt; 2x + 1$. The points with $y = 2x + 1$ form a line, and the
+      line is the <b>boundary</b>: it is where the two sides are equal, so it is where the
+      inequality changes from true to false. Which side is the solution?
+    </p>
+    <p>
+      Stand on any point of the line and look straight up. The $x$ has not changed, so $2x + 1$ has
+      not changed, but $y$ is larger, so $y &gt; 2x + 1$ is true. Straight down, $y$ is smaller and it is
+      false. So the points above the line are the solution of $y &gt; 2x + 1$, and the points below it
+      are the solution of $y &lt; 2x + 1$. This page draws no figures. A region is described in words, as
+      &ldquo;above the line&rdquo;, and settled with a point.
+    </p>
+    <p>
+      Every point above the line sits straight above a point of the line with the same $x$. Moving from one
+      point to another without crossing the line cannot turn true into false, since the two sides would have
+      to be equal where it crosses. So one point off the line will decide a whole side. Fixing $x$ also fixes
+      a column of points, so &ldquo;the greatest $y$ for this $x$&rdquo; is a question with one unknown.
+    </p>
+    <p>
+      Not every inequality arrives solved for $y$, and $3x + 2y \le 24$ does not. A <b>test point</b>
+      works for any of them. Choose a point that is not on the boundary, often $(0, 0)$, and put it
+      in. If it makes the inequality true, the solution is the side that holds the point, and if false,
+      the other side. One point decides a whole side, for the reason in the last paragraph.
+    </p>
+    <p>
+      The boundary belongs to the solution for $\le$ and $\ge$, drawn as a solid line, and not for
+      $&lt;$ and $&gt;$, drawn as a dashed one. A point on the line makes the two sides equal, so it
+      passes the first pair and fails the second.
+    </p>
+    <p>
+      A constraint from a story is an inequality like this. Pens at $\$3$ and pads at $\$2$ with $\$24$
+      to spend give $3x + 2y \le 24$, and $x \ge 0$ and $y \ge 0$ as well, because counts are not
+      negative. A <b>system</b> of inequalities is several at once. A point satisfies the system when
+      it satisfies every one of them, so the solution is the overlap of the regions. The corner where
+      two boundary lines meet is found by solving the two equations together, as in Chapter 2's <a
+      href="../1-algebra/02-linear-equations.html#two-unknowns">two unknowns</a>, where this
+      method began. To count the whole-number points of a small region, go through the values of $x$ one
+      at a time and list the $y$ that work.
+    </p>
+
+    <div class="worked">
+      <h3><span class="num">Example 7.</span> Which side, and does the line belong?</h3>
+      <div class="body">
+        <p>
+          Describe the region $y \le \frac12 x - 2$, and say whether the line belongs to it.
+        </p>
+        <ol class="steps">
+          <li>The boundary is the line $y = \frac12 x - 2$. The origin is not on it, since
+            $\frac12 \cdot 0 - 2 = -2$ and not $0$, so use $(0, 0)$ as the test point.</li>
+          <li>Put it in: $0 \le -2$ is false. The origin is not in the region, so the region is the
+            other side, below the line (the origin is above it).</li>
+          <li>The sign is $\le$, so the line belongs to the region and is drawn solid.</li>
+          <li>Check with points. $(0, -5)$ is below the line: $-5 \le -2$, true. $(4, 0)$ is on the
+            line, since $\frac12 \cdot 4 - 2 = 0$: $0 \le 0$, true. $(0, 1)$ is above the line:
+            $1 \le -2$, false ✓. $\blacksquare$</li>
+        </ol>
+        <p class="note">
+          The test point was false, so the answer is the side <em>away</em> from it. A true test point
+          would have given the side it sits on.
+        </p>
+      </div>
+    </div>
+
+    <div class="ex" data-inline id="t10" data-type="number" data-answer="10" data-placeholder="e.g. 5"
+         data-hint="Fix the value of $x$ first, so the right side becomes one number. Then ask whether that number itself is allowed."
+         data-hint2="What is the right side when $x = 4$, and is the sign strict?">
+      <div class="ex-q">
+        <p>
+          A region is described by $y &lt; 2x + 3$. For the points of the region with $x = 4$, what is the
+          greatest integer $y$?
+        </p>
+      </div>
+      <div class="ex-solution">
+        <p class="answer">Answer: $10$</p>
+        <p>
+          At $x = 4$ the right side is $2 \cdot 4 + 3 = 11$, so $y &lt; 11$, and $11$ itself is not
+          allowed. Check: $10 &lt; 11$ is true and $11 &lt; 11$ is false ✓.
+        </p>
+      </div>
+    </div>
+
+    <div class="ex" data-inline id="t11" data-type="number" data-answer="14" data-placeholder="e.g. 6"
+         data-hint="Put the value of $x$ into the constraint, so only $y$ is left. Then ask how many whole items fit."
+         data-hint2="How much of the budget is left after the first item, and what does one of the second cost?">
+      <div class="ex-q">
+        <p>
+          Tickets cost $\$4$ and snacks cost $\$3$, and the budget is $\$50$, so $4x + 3y \le 50$ with
+          $x \ge 0$ and $y \ge 0$. If $2$ tickets are bought, what is the greatest number of snacks
+          that can also be bought?
+        </p>
+      </div>
+      <div class="ex-solution">
+        <p class="answer">Answer: $14$</p>
+        <p>
+          With $x = 2$: $3y \le 50 - 8 = 42$, so $y \le 14$. Check by cost: $2$ tickets and $14$ snacks
+          cost $8 + 42 = 50$, which is within the budget, and $15$ snacks cost $53$, which is not ✓.
+        </p>
+      </div>
+    </div>
+
+    <div class="worked">
+      <h3><span class="num">Example 8.</span> A system and its corner</h3>
+      <div class="body">
+        <p>
+          A point must satisfy $x + y \le 8$ and $x - y \ge 2$. Find the corner where the two boundary
+          lines meet, and decide whether $(4, 1)$ is a solution of the system.
+        </p>
+        <ol class="steps">
+          <li>The boundary lines are $x + y = 8$ and $x - y = 2$. At the corner both hold.</li>
+          <li>Adding the two equations removes $y$: $2x = 10$, so $x = 5$, and then $y = 8 - 5 = 3$.
+            The corner is $(5, 3)$.</li>
+          <li>Test $(4, 1)$ in both: $4 + 1 = 5 \le 8$, true, and $4 - 1 = 3 \ge 2$, true. It
+            satisfies both, so it is a solution of the system.</li>
+          <li>Check the corner in the other equation of each line: $5 - 3 = 2$ and $5 + 3 = 8$, so it
+            is on both lines ✓. A point outside, $(6, 3)$, gives $6 + 3 = 9 \le 8$, false, so it is
+            correctly left out. $\blacksquare$</li>
+        </ol>
+        <p class="note">
+          The corner satisfies both inequalities, because both are $\le$ or $\ge$ and the corner is on
+          both boundaries.
+        </p>
+      </div>
+    </div>
+
+    <div class="ex" data-inline id="t12" data-type="number" data-answer="7" data-placeholder="e.g. 3"
+         data-hint="At the corner both equations are true at once. Use one equation to say what $y$ equals, and put that into the other."
+         data-hint2="What does the first equation say $y$ equals, and where does that expression go in the second?">
+      <div class="ex-q">
+        <p>
+          The lines $y = 2x - 3$ and $x + y = 12$ are the boundaries of a system. What is the
+          $y$-coordinate of the corner where they meet?
+        </p>
+      </div>
+      <div class="ex-solution">
+        <p class="answer">Answer: $7$</p>
+        <p>
+          Put $y = 2x - 3$ into the second equation: $x + 2x - 3 = 12$, so $3x = 15$ and $x = 5$, and
+          $y = 2 \cdot 5 - 3 = 7$. Check in the other equation: $5 + 7 = 12$ ✓.
+        </p>
+      </div>
+    </div>
+
     <!-- ====================================================== practice ==== -->
     <section class="practice" id="practice">
       <div class="practice-head">
@@ -419,7 +720,10 @@
       <p>
         Give each answer as a number in the unit the question names, without writing the unit. Use a
         decimal, such as $4.5$, where the answer is not whole, and a negative number where the quantity
-        falls. Where a question asks for an expression, use the letter it names. Money is in dollars.
+        falls. Where a question asks for an expression, use the letter it names. Money is in dollars. An
+        inequality is never typed as an answer. A question about one asks for a number (a boundary, or the
+        greatest or least whole number that works), or for a list of integers separated by commas, or for
+        one choice among the options shown.
       </p>
 
       <div class="ex" id="e1" data-section="slope" data-type="number" data-answer="4" data-placeholder="e.g. 2"
@@ -625,6 +929,220 @@
           </p>
         </div>
       </div>
+
+      <div class="ex" id="e15" data-section="ineq1" data-type="number" data-answer="7" data-placeholder="e.g. 3"
+           data-hint="Undo the subtraction first, then undo the multiplication, and ask whether the sign needs to change."
+           data-hint2="What is left on the right side once the constant is dealt with, and what multiplies $x$?">
+        <div class="ex-q"><p>The solution of $5x - 6 \ge 29$ is every $x$ on one side of a boundary $x = k$. What is $k$?</p></div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $7$</p>
+          <p>
+            Add $6$: $5x \ge 35$. Divide by $5$, which is positive, so the sign stays: $x \ge 7$. Check a number on
+            each side: $x = 8$ gives $40 - 6 = 34 \ge 29$, true, and $x = 6$ gives $30 - 6 = 24 \ge 29$, false ✓.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" id="e16" data-section="ineq1" data-type="number" data-answer="4" data-placeholder="e.g. 5"
+           data-hint="Undo the constant first. The number that multiplies $x$ is negative, so think about what dividing by it does to the sign."
+           data-hint2="Once you have the boundary, which side of it do the solutions lie on, and does the strict sign let the boundary in?">
+        <div class="ex-q"><p>What is the least integer $x$ with $22 - 6x &lt; 4$?</p></div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $4$</p>
+          <p>
+            Subtract $22$: $-6x &lt; -18$. Divide by $-6$, which is negative, so the sign turns around: $x &gt; 3$. The
+            sign is strict, so $3$ is out and the least integer is $4$. Without the flip the solution would read
+            $x &lt; 3$, which has no least integer. Check: $x = 4$ gives $22 - 24 = -2 &lt; 4$, true. $x = 3$ gives
+            $22 - 18 = 4 &lt; 4$, false, and $x = 2$ gives $10 &lt; 4$, false ✓.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" id="e17" data-section="ineq1" data-type="number" data-answer="-11" data-placeholder="e.g. -4"
+           data-hint="A fraction of $x$ is undone by multiplying. Before you write the sign, look at whether the number you multiply by is positive or negative."
+           data-hint2="Once you have the boundary, which side of it do the solutions lie on, and does the strict sign let the boundary in?">
+        <div class="ex-q"><p>What is the greatest integer $x$ with $-\dfrac{x}{2} + 3 &gt; 8$?</p></div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $-11$</p>
+          <p>
+            Subtract $3$: $-\frac{x}{2} &gt; 5$. Multiply by $-2$, which is negative, so the sign turns around: $x &lt; -10$.
+            The sign is strict, so $-10$ is out and the greatest integer is $-11$. Without the flip the solution would
+            read $x &gt; -10$, which has no greatest integer. Check: $x = -11$ gives $5.5 + 3 = 8.5 &gt; 8$, true, and
+            $x = -10$ gives $5 + 3 = 8 &gt; 8$, false ✓.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" id="e18" data-section="ineq1" data-answer="3"
+           data-hint="Check Dana's answer with a test number: pick one her answer allows and put it into the original inequality."
+           data-hint2="Which side of $-5$ should the solutions lie on? Put one number from each side into $-4x &gt; 20$.">
+        <div class="ex-q"><p>Dana solved $-4x &gt; 20$ and wrote $x &gt; -5$. What went wrong?</p></div>
+        <ul class="choices">
+          <li>Nothing: the answer is correct.</li>
+          <li>The sign should stay but the number should be $5$, giving $x &gt; 5$.</li>
+          <li>Dividing by $-4$ should have turned the sign around, giving $x &lt; -5$.</li>
+          <li>The number should be $5$ and the sign turned around, giving $x &lt; 5$.</li>
+        </ul>
+        <div class="ex-solution">
+          <p class="answer">Answer: dividing by $-4$ should have turned the sign around, giving $x &lt; -5$</p>
+          <p>
+            Dividing by $-4$ is dividing by a negative number, so the sign turns around: $x &lt; -5$. Check with
+            numbers: $x = -6$ gives $24 &gt; 20$, true, and it fits $x &lt; -5$. $x = 0$ gives $0 &gt; 20$, false,
+            yet Dana's answer includes $0$ ✓.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" id="e19" data-section="ineq1" data-type="number" data-answer="25" data-placeholder="e.g. 10"
+           data-hint="Write the total cost for a number of notebooks and compare it with the budget. The count must be a whole number."
+           data-hint2="How much of the budget is left after the shipping fee, and what does one notebook cost?">
+        <div class="ex-q"><p>A school buys notebooks at $\$3.50$ each, with a $\$12$ shipping fee for the order. The budget is $\$100$. What is the greatest number of notebooks it can buy?</p></div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $25$ notebooks</p>
+          <p>
+            $12 + 3.5n \le 100$, so $3.5n \le 88$ and $n \le 25.14\ldots$, and the greatest whole number is $25$.
+            Check both neighbors: $25$ notebooks cost $12 + 87.5 = 99.5 \le 100$, and $26$ cost
+            $12 + 91 = 103 &gt; 100$ ✓.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" id="e20" data-section="ineq1" data-type="number" data-answer="6" data-placeholder="e.g. 3"
+           data-hint="The order qualifies once its total reaches the minimum. Rounding to the nearest whole number can fail here, so ask which whole numbers keep the inequality true."
+           data-hint2="How much more than the cart's current total does the order need, and how much does one book add?">
+        <div class="ex-q"><p>An order qualifies for free shipping when it is at least $\$75$. A customer's cart holds $\$28$ and the customer adds books at $\$9$ each. What is the fewest number of books that makes the order qualify?</p></div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $6$ books</p>
+          <p>
+            $28 + 9b \ge 75$, so $9b \ge 47$ and $b \ge 5.22\ldots$, and the least whole number is $6$. Check both
+            neighbors: $5$ books give $28 + 45 = 73 &lt; 75$, which is not enough, and $6$ books give
+            $28 + 54 = 82 \ge 75$ ✓.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" id="e21" data-section="ineq1" data-type="set" data-answer="-1,0,1,2,3,4" data-placeholder="e.g. 1,2,3"
+           data-hint="Solve the first inequality on its own, and watch the sign when you divide. Then keep only the numbers that meet both conditions."
+           data-hint2="What is the greatest integer the first condition allows, and what is the least integer the second allows?">
+        <div class="ex-q"><p>List all the integers $x$ that satisfy both $5 - x \ge 1$ and $x &gt; -2$, separated by commas.</p></div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $-1, 0, 1, 2, 3, 4$</p>
+          <p>
+            From $5 - x \ge 1$: $-x \ge -4$, and dividing by $-1$ turns the sign around, so $x \le 4$. Together with
+            $x &gt; -2$ the integers run from $-1$ to $4$. Check the ends in the original inequalities: $x = 4$ gives
+            $1 \ge 1$ and $4 &gt; -2$, both true; $x = 5$ gives $0 \ge 1$, false; $x = -2$ gives $-2 &gt; -2$, false ✓.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" id="e22" data-section="ineq2" data-answer="2"
+           data-hint="Compare $y$ with the value of $3x - 1$ at the same $x$. Then ask whether a point where they are equal counts for this sign."
+           data-hint2="Take $(0, -1)$ on the line. Put it, a point just above it and a point just below it into $y &gt; 3x - 1$.">
+        <div class="ex-q"><p>Which description matches the points $(x, y)$ with $y &gt; 3x - 1$?</p></div>
+        <ul class="choices">
+          <li>Above the line $y = 3x - 1$, and the line itself is included.</li>
+          <li>Above the line $y = 3x - 1$, and the line itself is not included.</li>
+          <li>Below the line $y = 3x - 1$, and the line itself is not included.</li>
+          <li>Below the line $y = 3x - 1$, and the line itself is included.</li>
+        </ul>
+        <div class="ex-solution">
+          <p class="answer">Answer: above the line, and the line itself is not included</p>
+          <p>
+            Straight up from a point of the line, $y$ grows while $3x - 1$ stays the same, so $y &gt; 3x - 1$ is true
+            above the line. The sign is strict, so a point on the line, where the two sides are equal, fails. Check:
+            $(0, 0)$ is above the line and $0 &gt; -1$, true, while $(0, -1)$ is on the line and $-1 &gt; -1$, false ✓.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" id="e23" data-section="ineq2" data-type="number" data-answer="3" data-placeholder="e.g. 2"
+           data-hint="For each point, put its $x$ and $y$ into the inequality and compare. A point on the boundary makes the two sides equal."
+           data-hint2="Which of the points, if any, lies exactly on the line $y = x + 3$?">
+        <div class="ex-q"><p>How many of the points $(1, 2)$, $(0, 5)$, $(2, 5)$ and $(-2, -3)$ satisfy $y \le x + 3$?</p></div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $3$ points</p>
+          <p>
+            $(1, 2)$: $2 \le 4$, true. $(0, 5)$: $5 \le 3$, false. $(2, 5)$: $5 \le 5$, true, because the sign is
+            $\le$ and the point is on the line. $(-2, -3)$: $-3 \le 1$, true. That is three points. Check by the
+            line: at $(1, 2)$ the line is at $4$, and $2$ is below it. At $(2, 5)$ the line is at $5$, and the point is on it.
+            At $(-2, -3)$ the line is at $1$, and $-3$ is below it. Only $(0, 5)$ sits above its line, which is at $3$ there ✓.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" id="e24" data-section="ineq2" data-type="number" data-answer="6" data-placeholder="e.g. 4"
+           data-hint="Fix $x$ so only $y$ is left. A non-strict sign allows the boundary, but is the boundary an integer here?"
+           data-hint2="What is the right side at $x = 3$?">
+        <div class="ex-q"><p>A region is described by $y \le 1.5x + 2$. For the points of the region with $x = 3$, what is the greatest integer $y$?</p></div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $6$</p>
+          <p>
+            At $x = 3$ the right side is $1.5 \cdot 3 + 2 = 6.5$, so $y \le 6.5$. The boundary $6.5$ is allowed but is
+            not an integer, so the greatest integer is $6$. Check: $6 \le 6.5$ is true and $7 \le 6.5$ is false ✓.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" id="e25" data-section="ineq2" data-type="number" data-answer="9" data-placeholder="e.g. 5"
+           data-hint="Put the number of wraps into the constraint, so only one unknown is left. Then ask how many whole smoothies fit."
+           data-hint2="How much of the budget remains after the wraps, and what does one smoothie cost?">
+        <div class="ex-q"><p>Wraps cost $\$7$ and smoothies cost $\$4$. With $\$80$ to spend, $7x + 4y \le 80$ where $x$ counts wraps and $y$ counts smoothies. If $6$ wraps are bought, what is the greatest number of smoothies that can also be bought?</p></div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $9$ smoothies</p>
+          <p>
+            With $x = 6$: $4y \le 80 - 42 = 38$, so $y \le 9.5$, and the greatest whole number is $9$. Check by cost:
+            $6$ wraps and $9$ smoothies cost $42 + 36 = 78 \le 80$, and $10$ smoothies would cost $82$, which is over ✓.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" id="e26" data-section="ineq2" data-type="number" data-answer="4" data-placeholder="e.g. 2"
+           data-hint="At the corner both equations are true at once. Solve the pair together to find it."
+           data-hint2="Look at the coefficient of $x$ in the two equations. What do they have in common?">
+        <div class="ex-q"><p>The boundary lines $x + 2y = 14$ and $x - y = 2$ of a system meet at a corner. What is its $y$-coordinate?</p></div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $4$</p>
+          <p>
+            Subtracting the second equation from the first removes $x$: $3y = 12$, so $y = 4$, and then $x = 2 + 4 = 6$.
+            Check in both equations: $6 + 2 \cdot 4 = 14$ and $6 - 4 = 2$ ✓.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" id="e27" data-section="ineq2" data-type="number" data-answer="16" data-placeholder="e.g. 10"
+           data-hint="List the points one column at a time. For each whole number $x$, ask which whole numbers $y$ are allowed."
+           data-hint2="What is the greatest $y$ that leaves room for any $x$ at all?">
+        <div class="ex-q"><p>How many points $(x, y)$ with whole-number coordinates satisfy $x \ge 0$, $y \ge 0$ and $x + 2y \le 6$?</p></div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $16$ points</p>
+          <p>
+            By $x$: $x = 0$ allows $y \le 3$ (4 points), $x = 1$ allows $y \le 2.5$ (3), $x = 2$ allows $y \le 2$ (3),
+            $x = 3$ allows $y \le 1.5$ (2), $x = 4$ allows $y \le 1$ (2), $x = 5$ allows $y \le 0.5$ (1) and $x = 6$
+            allows $y = 0$ (1): $4 + 3 + 3 + 2 + 2 + 1 + 1 = 16$. Check by $y$ instead: $y = 0$ allows $x \le 6$ (7 points),
+            $y = 1$ allows $x \le 4$ (5), $y = 2$ allows $x \le 2$ (3) and $y = 3$ allows $x = 0$ (1): $7 + 5 + 3 + 1 = 16$ ✓.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" id="e28" data-section="ineq2" data-answer="4"
+           data-hint="A point of the system must pass both inequalities. Test each point in both, and take care with points that land on a boundary."
+           data-hint2="Which of the points lie exactly on one of the two lines, and does that inequality allow its line?">
+        <div class="ex-q"><p>Which point satisfies both $y \ge x - 2$ and $y &lt; 4 - x$?</p></div>
+        <ul class="choices">
+          <li>$(3, 1)$</li>
+          <li>$(1, 3)$</li>
+          <li>$(0, -3)$</li>
+          <li>$(2, 0)$</li>
+        </ul>
+        <div class="ex-solution">
+          <p class="answer">Answer: $(2, 0)$</p>
+          <p>
+            $(2, 0)$: $0 \ge 0$ and $0 &lt; 2$, both true. $(3, 1)$: $1 \ge 1$ is true but $1 &lt; 1$ is false, since the
+            second sign is strict. $(1, 3)$: $3 \ge -1$ is true but $3 &lt; 3$ is false. $(0, -3)$: $-3 \ge -2$ is false.
+            Check: only $(2, 0)$ passes both ✓.
+          </p>
+        </div>
+      </div>
     </section>
 
     <div class="recap">
@@ -652,6 +1170,16 @@
         <li>Check a model at a point you did not use, predict by putting in a value, and find when by solving
           $mx + b = T$.</li>
         <li>A model makes sense for the counts that occur, and beyond the data it is a guess.</li>
+        <li>Add or subtract anything, or multiply or divide by a positive number, and an inequality keeps its
+          direction. Multiply or divide by a negative number and the sign turns around, since a reflection through
+          $0$ swaps left and right.</li>
+        <li>A constraint from a story, such as $px + qy \le T$ with $x \ge 0$ and $y \ge 0$, is an inequality in two
+          unknowns. A range joined by &ldquo;and&rdquo; is the overlap of two conditions, and its integers are listed.</li>
+        <li>Check a solution with a test number on each side of the boundary. The boundary itself is in the set for
+          $\le$ and $\ge$ and not for $&lt;$ and $&gt;$. A count asks for a whole number inside the solution set.</li>
+        <li>In the plane, $y &gt; mx + b$ is the region above the line and $y &lt; mx + b$ the region below it. A
+          test point such as $(0, 0)$ settles the side of any inequality. A system is the overlap, and its corner
+          comes from solving the two boundary equations.</li>
       </ul>
     </div>
 

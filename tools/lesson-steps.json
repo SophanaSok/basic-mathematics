@@ -366,6 +366,12 @@
     "h2#model to div#t4",
     "div#t5",
     "div.worked to div#t6",
+    "h2#ineq1 to div#t7",
+    "div.worked to div#t8",
+    "div#t9",
+    "h2#ineq2 to div#t10",
+    "div#t11",
+    "div.worked to div#t12",
     "section#practice",
     "div.recap to nav.chapter-nav"
   ],
