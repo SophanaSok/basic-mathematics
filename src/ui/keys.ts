@@ -11,6 +11,10 @@
      - A link or button the reader tabbed to counts as an item, so Enter and Space on it
        stay native.
      - "?" opens the cheat sheet, a modal <dialog> built once from keymap.ts's rows.
+     - "/" opens the go-to palette, another modal <dialog> built once: src/ui/palette.ts lists
+       and ranks the targets, read from the page on each open; Enter focuses a section or a
+       card (revealing a hidden lesson step through the hash) or opens a page. The cheat sheet
+       and the palette are never open at once.
      - The first Tab on a page whose run store has no keysTip shows one toast pointing at
        "?", once per device (bm.run.v1.keysTip).
      - Off when the settings say keys: false (BMGame.prefs().keys).
@@ -21,6 +25,7 @@ import {
   INITIAL, ITEMS, cheatSheet, cursorText, detectKind, step,
   type Action, type At, type Ctx, type Kind, type KeyState, type Mode
 } from "./keymap.ts";
+import { labelOfExercise, rank, targetsOf, type Target } from "./palette.ts";
 
 const ATTR = "data-keys-cursor";
 /* a box that takes typing or arrow keys; a checkbox, radio or button-type input takes neither,
@@ -33,6 +38,7 @@ let kind: Kind = "page";
 let state: KeyState = INITIAL;
 let cursor: HTMLElement | null = null;
 let sheet: HTMLDialogElement | null = null;
+let pal: HTMLDialogElement | null = null;
 let tipped = false;
 
 const win = () => window as any;
@@ -134,7 +140,8 @@ function moveTo(el: HTMLElement, opts?: { scroll?: boolean; quiet?: boolean }): 
   const list = items();
   let i = list.indexOf(el), n = list.length;
   if (i < 0 && /^H[1-6]$/.test(el.tagName)) {
-    const heads = headings();
+    let heads = headings();
+    if (heads.indexOf(el) < 0) heads = sectionHeads().map((s) => s.head);
     i = heads.indexOf(el);
     n = heads.length;
     G.announce(cursorText("page", i + 1, n, labelOf(el)), { key: "keys-cursor", priority: "low" });
@@ -204,12 +211,13 @@ function enter(ex: HTMLElement): void {
   if (el) focus(el);
 }
 
-function leave(wasInsert: boolean): void {
+function leave(): void {
   const a = active();
   if (a && !a.matches(".ex")) {
-    /* from a box or a clue, back to the card; from the card itself, to the page */
+    /* from anything inside a card (a box, a clue, the order card's move buttons), back to
+       the card; from the card itself, to the page */
     const ex = a.closest(".ex") as HTMLElement | null;
-    if (ex && (wasInsert || !a.matches(NATIVE))) { moveTo(ex, { scroll: false, quiet: true }); return; }
+    if (ex) { moveTo(ex, { scroll: false, quiet: true }); return; }
     /* a link or button the reader tabbed to keeps the focus: nothing to leave */
     if (!a.hasAttribute(ATTR) && a.matches(NATIVE)) return;
   }
@@ -217,7 +225,7 @@ function leave(wasInsert: boolean): void {
   if (a) a.blur();
 }
 
-function perform(action: Action, wasInsert: boolean): void {
+function perform(action: Action): void {
   const ex = card();
   switch (action.type) {
     case "move": {
@@ -253,7 +261,12 @@ function perform(action: Action, wasInsert: boolean): void {
     }
     case "continue": click(".lesson-next .btn"); return;
     case "section": section(action.delta); return;
-    case "chapter": click(action.delta > 0 ? "[data-chapter-nav] a.next" : "[data-chapter-nav] a.prev"); return;
+    case "chapter": {
+      /* the page's own link, followed even while it sits in a lesson step not shown yet */
+      const link = document.querySelector<HTMLAnchorElement>(action.delta > 0 ? "[data-chapter-nav] a.next" : "[data-chapter-nav] a.prev");
+      if (link && link.href) location.href = link.href;
+      return;
+    }
     case "goto": {
       const page = action.to === "home" ? "index.html" : action.to === "arena" ? "arena.html" : "progress.html";
       click('#hud-sheet .hud-links a[href$="' + page + '"]');
@@ -265,7 +278,8 @@ function perform(action: Action, wasInsert: boolean): void {
     case "settings": click(".hud-menu"); return;
     case "arenaStart": click('.arena-mode[data-mode="' + action.mode + '"]'); return;
     case "help": open(); return;
-    case "leave": leave(wasInsert); return;
+    case "palette": palOpen(); return;
+    case "leave": leave(); return;
   }
 }
 
@@ -281,6 +295,8 @@ function build(): HTMLDialogElement {
   d.setAttribute("aria-labelledby", "keys-sheet-title");
   const h = document.createElement("h2");
   h.id = "keys-sheet-title";
+  /* the focus starts on the title: showModal() alone would focus Close, at the bottom */
+  h.setAttribute("tabindex", "-1");
   h.textContent = "Keyboard shortcuts";
   d.appendChild(h);
   cheatSheet(kind).forEach((g) => {
@@ -310,28 +326,273 @@ function build(): HTMLDialogElement {
   close.textContent = "Close";
   close.addEventListener("click", () => d.close());
   d.appendChild(close);
-  d.addEventListener("close", () => {
-    const back = returnTo, wasCursor = returnCursor;
-    returnTo = null;
-    returnCursor = false;
-    if (!back || !back.isConnected) return;
-    if (wasCursor) moveTo(back, { scroll: false, quiet: true });
-    else focus(back);
-  });
+  d.addEventListener("close", restore);
   document.body.appendChild(d);
   return d;
+}
+
+/* the focus goes back where it was when the cheat sheet or the palette closes, unless the
+   other one has just opened in its place (it keeps the same place to go back to) */
+function restore(): void {
+  if ((sheet && sheet.open) || (pal && pal.open)) return;
+  const back = returnTo, wasCursor = returnCursor;
+  returnTo = null;
+  returnCursor = false;
+  if (!back || !back.isConnected) return;
+  if (wasCursor) moveTo(back, { scroll: false, quiet: true });
+  else focus(back);
+}
+
+/** before a keys dialog opens: remember the focus, unless the other dialog holds it */
+function remember(): void {
+  if (pal && pal.open) return;
+  if (sheet && sheet.open) return;
+  returnTo = active();
+  returnCursor = !!returnTo && returnTo === cursor;
 }
 
 function open(): void {
   if (!sheet) sheet = build();
   if (sheet.open) return;
-  returnTo = active();
-  returnCursor = !!returnTo && returnTo === cursor;
+  remember();
   sheet.showModal();
+  if (pal && pal.open) pal.close();
+  const title = sheet.querySelector<HTMLElement>("#keys-sheet-title");
+  if (title) focus(title);
+  sheet.scrollTop = 0;
 }
 
 function close(): void {
   if (sheet && sheet.open) sheet.close();
+}
+
+/* ----------------------------------------------------- the go-to palette --- */
+
+let palInput: HTMLInputElement | null = null;
+let palList: HTMLUListElement | null = null;
+let palEmpty: HTMLElement | null = null;
+let palShown: Target[] = [];
+let palAt = 0;
+let palTargets: Target[] = [];
+
+/* shown, or hidden only by a lesson step not shown yet (lesson.js hides main's children
+   one step at a time and shows the steps up to a hash target) */
+function reachable(el: HTMLElement): boolean {
+  if (visible(el)) return true;
+  const main = document.querySelector("main");
+  if (!main || document.body.getAttribute("data-lesson") !== "steps") return false;
+  const hid = el.closest("[hidden]");
+  return !!hid && hid.parentElement === main && !main.closest("[hidden]");
+}
+
+/* the chapter's sections: every reachable h2 in main with an id, or inside an element of
+   main with one (the Practice head sits in a section#practice) */
+function sectionHeads(): { id: string; head: HTMLElement }[] {
+  const main = document.querySelector("main");
+  if (!main) return [];
+  const out: { id: string; head: HTMLElement }[] = [];
+  Array.prototype.forEach.call(main.querySelectorAll("h2"), (h: HTMLElement) => {
+    if (!reachable(h)) return;
+    let id = h.id;
+    if (!id) {
+      const owner = h.parentElement ? h.parentElement.closest("[id]") : null;
+      if (owner && main.contains(owner) && owner !== main && owner.querySelector("h2") === h) id = owner.id;
+    }
+    if (id && !out.some((s) => s.id === id)) out.push({ id, head: h });
+  });
+  return out;
+}
+
+function palRead(): Target[] {
+  const exercises: { id: string; label: string }[] = [];
+  Array.prototype.forEach.call(document.querySelectorAll(".ex[id]"), (el: HTMLElement) => {
+    if (!reachable(el)) return;
+    const num = el.querySelector(".ex-num");
+    exercises.push({ id: el.id, label: labelOfExercise(num ? num.textContent || "" : "", el.getAttribute("data-key") || el.id) });
+  });
+  const S = win().BMSite;
+  let root = "";
+  try { root = S && typeof S.rootPrefix === "function" ? String(S.rootPrefix() || "") : ""; } catch { root = ""; }
+  return targetsOf({
+    kind,
+    curriculum: win().BM_CURRICULUM || null,
+    chapterId: document.body.getAttribute("data-chapter"),
+    sections: sectionHeads().map((s) => ({ id: s.id, title: (s.head.textContent || "").replace(/\s+/g, " ").trim() })),
+    exercises,
+    root
+  });
+}
+
+function palSelect(i: number): void {
+  if (!palList || !palInput) return;
+  const n = palShown.length;
+  palAt = n ? ((i % n) + n) % n : 0;
+  const opts = palList.children;
+  for (let k = 0; k < opts.length; k++) {
+    const li = opts[k] as HTMLElement;
+    const on = k === palAt;
+    li.setAttribute("aria-selected", on ? "true" : "false");
+    if (on) li.setAttribute("data-selected", "");
+    else li.removeAttribute("data-selected");
+  }
+  if (n) {
+    palInput.setAttribute("aria-activedescendant", "keys-palette-opt-" + palAt);
+    const li = opts[palAt] as HTMLElement;
+    try { li.scrollIntoView({ block: "nearest" }); } catch { /* no layout: nothing to scroll */ }
+  } else palInput.removeAttribute("aria-activedescendant");
+}
+
+function palRender(): void {
+  if (!palList || !palInput || !palEmpty) return;
+  palShown = rank(palInput.value, palTargets, 12);
+  while (palList.firstChild) palList.removeChild(palList.firstChild);
+  palShown.forEach((t, i) => {
+    const li = document.createElement("li");
+    li.id = "keys-palette-opt-" + i;
+    li.setAttribute("role", "option");
+    const label = document.createElement("span");
+    label.textContent = t.label;
+    li.appendChild(label);
+    if (t.hint) {
+      li.appendChild(document.createTextNode(" "));
+      const small = document.createElement("small");
+      small.textContent = t.hint;
+      li.appendChild(small);
+    }
+    palList!.appendChild(li);
+  });
+  palEmpty.hidden = palShown.length > 0;
+  palList.hidden = palShown.length === 0;
+  palSelect(0);
+}
+
+/* focus an element of this page the palette picked: a card, or a heading (a section's id
+   names its head) */
+function palLand(id: string): void {
+  let el = document.getElementById(id);
+  if (!el) return;
+  if (!el.matches(".ex") && !/^H[1-6]$/.test(el.tagName)) el = (el.querySelector("h2") as HTMLElement | null) || el;
+  if (visible(el)) moveTo(el);
+}
+
+function palGo(i: number): void {
+  const t = palShown[i];
+  if (!t || !pal) return;
+  if (t.id) {
+    const id = t.id;
+    returnTo = null;
+    returnCursor = false;
+    pal.close();
+    const el = document.getElementById(id);
+    if (!el) return;
+    if (visible(el)) { palLand(id); return; }
+    /* in a lesson step not shown yet: lesson.js reveals the steps up to a hash target */
+    let done = false;
+    const land = () => {
+      if (done) return;
+      done = true;
+      window.removeEventListener("hashchange", land);
+      palLand(id);
+    };
+    window.addEventListener("hashchange", land);
+    setTimeout(land, 300);
+    try {
+      if (location.hash === "#" + id) history.replaceState(history.state, "", location.pathname + location.search);
+    } catch { /* no history: the hash still changes below when it differs */ }
+    location.hash = "#" + id;
+    return;
+  }
+  if (t.href) {
+    returnTo = null;
+    returnCursor = false;
+    pal.close();
+    location.href = t.href;
+  }
+}
+
+function palKey(e: KeyboardEvent): void {
+  if (e.ctrlKey || e.metaKey || e.altKey || e.isComposing) return;
+  switch (e.key) {
+    case "ArrowDown": e.preventDefault(); palSelect(palAt + 1); return;
+    case "ArrowUp": e.preventDefault(); palSelect(palAt - 1); return;
+    case "Tab": e.preventDefault(); palSelect(palAt + (e.shiftKey ? -1 : 1)); return;
+    case "Home": e.preventDefault(); palSelect(0); return;
+    case "End": e.preventDefault(); palSelect(palShown.length - 1); return;
+    case "Enter": e.preventDefault(); palGo(palAt); return;
+    /* a search box spends its first Escape clearing itself; here Escape always closes */
+    case "Escape": e.preventDefault(); palClose(); return;
+    default: return;
+  }
+}
+
+function palBuild(): HTMLDialogElement {
+  const d = document.createElement("dialog");
+  d.id = "keys-palette";
+  d.className = "keys-sheet keys-palette";
+  d.setAttribute("aria-labelledby", "keys-palette-title");
+  const h = document.createElement("h2");
+  h.id = "keys-palette-title";
+  h.textContent = "Go to";
+  d.appendChild(h);
+  const input = document.createElement("input");
+  input.type = "search";
+  input.setAttribute("aria-label", "Go to");
+  input.setAttribute("autocomplete", "off");
+  input.setAttribute("spellcheck", "false");
+  input.setAttribute("role", "combobox");
+  input.setAttribute("aria-controls", "keys-palette-list");
+  input.setAttribute("aria-expanded", "true");
+  input.setAttribute("aria-autocomplete", "list");
+  input.addEventListener("input", palRender);
+  input.addEventListener("keydown", palKey);
+  d.appendChild(input);
+  const list = document.createElement("ul");
+  list.id = "keys-palette-list";
+  list.setAttribute("role", "listbox");
+  list.setAttribute("aria-label", "Places to go");
+  list.addEventListener("click", (e) => {
+    const li = e.target instanceof Element ? e.target.closest("li[role=option]") : null;
+    if (!li || !list.contains(li)) return;
+    palGo(Array.prototype.indexOf.call(list.children, li));
+  });
+  /* a press on an option keeps the focus in the box */
+  list.addEventListener("mousedown", (e) => e.preventDefault());
+  d.appendChild(list);
+  const empty = document.createElement("p");
+  empty.className = "keys-palette-empty";
+  empty.textContent = "Nothing matches";
+  empty.hidden = true;
+  d.appendChild(empty);
+  const close = document.createElement("button");
+  close.type = "button";
+  close.className = "btn ghost";
+  close.setAttribute("data-keys-close", "");
+  close.textContent = "Close";
+  close.addEventListener("click", () => d.close());
+  d.appendChild(close);
+  d.addEventListener("close", restore);
+  document.body.appendChild(d);
+  palInput = input;
+  palList = list;
+  palEmpty = empty;
+  return d;
+}
+
+function palOpen(): void {
+  if (!pal) pal = palBuild();
+  if (pal.open) return;
+  remember();
+  palTargets = palRead();
+  palInput!.value = "";
+  palRender();
+  pal.showModal();
+  if (sheet && sheet.open) sheet.close();
+  focus(palInput!);
+  pal.scrollTop = 0;
+}
+
+function palClose(): void {
+  if (pal && pal.open) pal.close();
 }
 
 /* ---------------------------------------------------------------- keys --- */
@@ -369,7 +630,7 @@ function onKey(e: KeyboardEvent): void {
   state = r.state;
   if (!r.handled) return;
   e.preventDefault();
-  if (r.action) perform(r.action, m === "insert");
+  if (r.action) perform(r.action);
 }
 
 export const api = {
@@ -378,6 +639,11 @@ export const api = {
   cursor: (): Element | null => cursor,
   items: (): Element[] => items(),
   open, close,
+  palette: {
+    open: palOpen,
+    close: palClose,
+    query: (q: string): Target[] => rank(q, palRead(), 12)
+  },
   pointerAt: 0,
   get sheet() { return cheatSheet(kind); }
 };

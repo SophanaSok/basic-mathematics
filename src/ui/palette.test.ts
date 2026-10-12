@@ -114,4 +114,18 @@ describe("labelOfExercise", () => {
     expect(labelOfExercise(" Your turn 2 ", "t2")).toBe("Your turn 2");
     expect(labelOfExercise("", "e3")).toBe("e3");
   });
+  it("adds the key when the label has no number, so Your turn cards can be told apart", () => {
+    expect(labelOfExercise("Your turn", "t3")).toBe("Your turn (t3)");
+    expect(labelOfExercise("Section check", "k1")).toBe("Section check (k1)");
+  });
+});
+
+describe("rank: the e-alias", () => {
+  it("e3 names Exercise 3, not a warm-up ending in 3", () => {
+    const targets: Target[] = [
+      { kind: "exercise", label: "Warm-up 3", hint: "Exercise", id: "w3" },
+      { kind: "exercise", label: "Exercise 3", hint: "Exercise", id: "e3" },
+    ];
+    expect(rank("e3", targets)[0].id).toBe("e3");
+  });
 });

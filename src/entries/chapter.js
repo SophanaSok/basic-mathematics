@@ -70,4 +70,5 @@ import "../ui/next.ts";
 /* the keyboard layer: the pure keymap, then the DOM half, last, once everything it
    drives is up */
 import "../ui/keymap.ts";
+import "../ui/palette.ts";
 import "../ui/keys.ts";

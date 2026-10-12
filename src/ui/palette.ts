@@ -82,7 +82,9 @@ export function targetsOf(input: TargetsInput): Target[] {
 /** "Exercise 3" from the card's .ex-num text, or the key when the text is empty */
 export function labelOfExercise(numText: string, key: string): string {
   const t = (numText || "").replace(/\s+/g, " ").trim();
-  return t || key;
+  if (!t) return key;
+  /* "Your turn" and "Section check" cards share a label, so the key tells them apart */
+  return /\d\s*$/.test(t) || !key ? t : t + " (" + key + ")";
 }
 
 /* scores: 5 an exact alias, 4 prefix, 3 word start, 2 substring, 1 subsequence */
@@ -100,7 +102,8 @@ function score(text: string, q: string): number {
 function aliases(t: Target): string[] {
   const out: string[] = [];
   if (t.kind === "exercise") {
-    const m = /(\d+)\s*$/.exec(t.label);
+    /* "e3" names Exercise 3, not Warm-up 3 */
+    const m = /^exercise\s+(\d+)\s*$/i.exec(t.label);
     if (m) out.push("e" + m[1]);
     const tail = (t.id || "").split(/[^a-z0-9]+/i).filter(Boolean).pop();
     if (tail) out.push(tail.toLowerCase());
