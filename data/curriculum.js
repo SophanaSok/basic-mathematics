@@ -369,6 +369,20 @@ window.BM_CURRICULUM = {
             { id: "area", title: "Area and volume units", summary: "A square foot holds 12 times 12 square inches, so the factor for an area is the length factor squared and for a volume cubed; a milliliter is a cubic centimeter, and a price per square foot times the area gives the cost." },
             { id: "scale", title: "Scale", summary: "A scale such as 1 inch = 50 miles is a conversion factor between the drawing and the world, a ratio such as 1 : 200 multiplies a drawn length by 200 in any unit, and a scale factor k multiplies lengths by k and areas by k squared." }
           ]
+        },
+        {
+          id: "pk-linear",
+          label: "E",
+          title: "Linear Models and Inequalities",
+          file: "pk-linear.html",
+          status: "full",
+          course: "algebra-1",
+          blurb:
+            "Slope as a rate of change, writing a linear model from a story, two points or a table, and (in later sections) inequalities in one and two unknowns and systems of inequalities: reading what the slope and the starting value mean, predicting, and answering when a quantity reaches a target.",
+          sections: [
+            { id: "slope", title: "Slope as a rate of change", summary: "The slope of a line is the change in y over the change in x and the same between any two points; it means how much y changes for one more x, with units, its sign says rising, falling or flat, and in y = mx + b the slope is the rate and b the starting value." },
+            { id: "model", title: "Writing a linear model", summary: "A starting value and a constant rate make y = mx + b; write it from a story, from two points (the slope first, then b from one point) or from a table, check it at a point not used, predict with it, solve mx + b = T for when, and say where the model stops making sense." }
+          ]
         }
       ]
     }

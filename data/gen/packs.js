@@ -5,6 +5,8 @@
    two-way tables and conditional probability; counting arrangements).
    Pack D, "Units and Measurement": sections 1-4 (converting units; rates with units; area and volume units;
    scale).
+   Pack E, "Linear Models and Inequalities": sections 1-2 so far (slope as a rate of change; writing a linear
+   model).
    The quartiles follow the median-of-halves rule of src/ui/chart.ts.
 
    A problem may carry a chart the Arena draws with the page widget (assets/widgets.js,
@@ -2550,6 +2552,333 @@
         hint: "Areas are multiplied by the scale factor squared. Divide the areas to find how many times larger the area is, then ask which number times itself gives that.",
         steps: ["The area is multiplied by $k^2$: $\\dfrac{" + num(big3) + "}{" + num(a3) + "} = " + num(k3 * k3) + "$.", "$k^2 = " + num(k3 * k3) + "$, and $" + num(k3) + " \\cdot " + num(k3) + " = " + num(k3 * k3) + "$, so $k = " + num(k3) + "$."],
         verify: function () { return Math.abs(Math.sqrt(big3 / a3) - k3) < 1e-9 && a3 * k3 * k3 === big3 && k3 > 1; }
+      };
+    }
+  });
+
+  /* --------------------------------------------- pack E: linear models -- */
+
+  /* The six settings the slope and model generators share. A model is y = b + m x with a start b and a
+     rate (the size of m); sign says whether the quantity rises (1) or falls (-1). lo/hi bound the rate
+     and ymin/ymax every value the line takes for x up to xmax, so a story stays plausible. */
+  var LIN = [
+    { id: "taxi", xp: "miles", xs: "mile", y: "dollars", ys: "dollar", money: true, sign: 1, L: "n", Y: "F", name: "fare",
+      per: "dollars per mile", yin: "in dollars", th: ["Distance (miles)", "Fare (dollars)"],
+      rates: [2, 2.5, 3, 3.5, 4], starts: [3, 4, 5, 6, 8], xmax: 14, lo: 2, hi: 4, ymin: 0, ymax: 80,
+      pts: "A taxi ride of {x1} costs {y1}, and a ride of {x2} costs {y2}. The fare follows a straight line in the distance.",
+      tell: "A taxi charges {b} to start and {m} for each mile.",
+      ask: "Write the fare in dollars for a ride of ${L}$ miles, in terms of ${L}$.",
+      model: "A taxi's fare $F$, in dollars, for a ride of $n$ miles is modeled by",
+      when: "How many miles can you ride?", whenWith: "The total is {T}.", tab: "A taxi company lists fares for rides of different lengths." },
+    { id: "plumber", xp: "hours", xs: "hour", y: "dollars", ys: "dollar", money: true, sign: 1, L: "h", Y: "B", name: "bill",
+      per: "dollars per hour", yin: "in dollars", th: ["Time (hours)", "Bill (dollars)"],
+      rates: [40, 45, 50, 60, 75, 80, 90, 100, 120], starts: [20, 25, 30, 40, 50, 60], xmax: 8, lo: 40, hi: 120, ymin: 0, ymax: 1100,
+      pts: "A plumber's bill is {y1} for {x1} of work and {y2} for {x2} of work. The bill follows a straight line in the time.",
+      tell: "A plumber charges a visit fee of {b} plus {m} for each hour of work.",
+      ask: "Write the bill in dollars for ${L}$ hours of work, in terms of ${L}$.",
+      model: "A plumber's bill $B$, in dollars, for $h$ hours of work is modeled by",
+      when: "For how many hours did the plumber work?", whenWith: "The bill is {T}.", tab: "A plumber's bill is recorded for jobs of different lengths." },
+    { id: "plant", xp: "weeks", xs: "week", y: "centimeters", ys: "centimeter", sign: 1, L: "n", Y: "H", name: "height",
+      per: "centimeters per week", yin: "in centimeters", th: ["Time (weeks)", "Height (centimeters)"],
+      rates: [1.5, 2, 2.5, 3, 3.5, 4, 4.5, 5], starts: [4, 5, 6, 8, 10, 12, 15, 20], xmax: 10, lo: 1, hi: 5, ymin: 0, ymax: 80,
+      pts: "A plant is {y1} tall after {x1} and {y2} tall after {x2}. Its height follows a straight line in the time.",
+      tell: "A plant is {b} tall and grows {m} each week.",
+      ask: "Write the height in centimeters after ${L}$ weeks, in terms of ${L}$.",
+      model: "A plant's height $H$, in centimeters, after $n$ weeks is modeled by",
+      when: "After how many weeks is the plant that tall?", whenWith: "The height is {T}.", tab: "A gardener measures a plant each week." },
+    { id: "tank", xp: "minutes", xs: "minute", y: "gallons", ys: "gallon", sign: -1, L: "t", Y: "G", name: "amount of water in the tank",
+      per: "gallons per minute", yin: "in gallons", th: ["Time (minutes)", "Water in the tank (gallons)"],
+      rates: [2, 3, 4, 5, 6, 8, 10, 12, 15, 20], starts: [100, 150, 200, 240, 300, 400], xmax: 20, lo: 2, hi: 20, ymin: 0, ymax: 400,
+      pts: "A tank holds {y1} after {x1} of draining and {y2} after {x2} of draining. The amount follows a straight line in the time.",
+      tell: "A tank holds {b} and drains {m} each minute.",
+      ask: "Write the number of gallons left after ${L}$ minutes, in terms of ${L}$.",
+      model: "The water $G$, in gallons, left in a draining tank after $t$ minutes is modeled by",
+      when: "After how many minutes is that much left?", whenWith: "The tank holds {T}.", tab: "A pump drains a tank, and the water is measured over time." },
+    { id: "warm", xp: "hours", xs: "hour", y: "degrees Fahrenheit", ys: "degree Fahrenheit", deg: true, sign: 1, L: "h", Y: "T", name: "temperature",
+      per: "degrees per hour", yin: "in degrees Fahrenheit", th: ["Time (hours)", "Temperature (°F)"],
+      rates: [1, 2, 3, 4, 5], starts: [-10, 0, 10, 20, 30, 40, 50], xmax: 8, lo: 1, hi: 5, ymin: -20, ymax: 110,
+      pts: "On a morning that warms steadily, it is {y1} after {x1} and {y2} after {x2}.",
+      tell: "At 6 a.m. the temperature is {b}, and it rises {m} each hour.",
+      ask: "Write the temperature in degrees Fahrenheit ${L}$ hours after 6 a.m., in terms of ${L}$.",
+      model: "The temperature $T$, in degrees Fahrenheit, $h$ hours after 6 a.m. is modeled by",
+      when: "After how many hours does it get there?", whenWith: "The temperature reaches {T}.", tab: "A weather station logs the temperature on a warming morning." },
+    { id: "cool", xp: "hours", xs: "hour", y: "degrees Fahrenheit", ys: "degree Fahrenheit", deg: true, sign: -1, L: "h", Y: "T", name: "temperature",
+      per: "degrees per hour", yin: "in degrees Fahrenheit", th: ["Time (hours)", "Temperature (°F)"],
+      rates: [1, 2, 3, 4, 5], starts: [30, 40, 50, 60, 70, 80, 90], xmax: 8, lo: 1, hi: 5, ymin: -20, ymax: 110,
+      pts: "On an evening that cools steadily, it is {y1} after {x1} and {y2} after {x2}.",
+      tell: "At 3 p.m. the temperature is {b}, and it falls {m} each hour.",
+      ask: "Write the temperature in degrees Fahrenheit ${L}$ hours after 3 p.m., in terms of ${L}$.",
+      model: "The temperature $T$, in degrees Fahrenheit, $h$ hours after 3 p.m. is modeled by",
+      when: "After how many hours does it get there?", whenWith: "The temperature reaches {T}.", tab: "A weather station logs the temperature on a cooling evening." }
+  ];
+
+  /* a value of the quantity as the page writes it: $\$12.50$, $18$ centimeters, $-5$°F */
+  function linY(c, v) {
+    if (c.money) return v === Math.floor(v) ? "$\\$" + v + "$" : usd(Math.round(v * 100));
+    if (c.deg) return "$" + clean(v) + "$°F";
+    return "$" + clean(v) + "$ " + (v === 1 ? c.ys : c.y);
+  }
+  /* a count of the x unit: $1$ mile, $5$ miles */
+  function linX(c, x) { return "$" + clean(x) + "$ " + (x === 1 ? c.xs : c.xp); }
+  function fill(s, map) { return s.replace(/\{(\w+)\}/g, function (all, k) { return map.hasOwnProperty(k) ? map[k] : all; }); }
+  /* the value of y = b + m x for the model's own numbers */
+  function linAt(b, m, x) { return Number((b + m * x).toFixed(6)); }
+  /* does the line stay in the setting's plausible values from 0 to xmax? */
+  function linInRange(c, b, m) {
+    var top = linAt(b, m, c.xmax);
+    return Math.min(b, top) >= c.ymin && Math.max(b, top) <= c.ymax;
+  }
+  /* a start and a rate for a setting; whole asks for whole numbers only. Returns { b, rate, m } with m signed */
+  function linPick(r, c, whole) {
+    /* whole also keeps a start above 0 and a rate above 1, so a key never reads "1h+0" */
+    var rs = c.rates.filter(function (v) { return !whole || (v === Math.floor(v) && v > 1); });
+    var bs = c.starts.filter(function (v) { return !whole || (v === Math.floor(v) && v > 0); });
+    var b, rate, guard = 0;
+    do { b = r.pick(bs); rate = r.pick(rs); } while (!linInRange(c, b, c.sign * rate) && guard++ < 80);
+    if (!linInRange(c, b, c.sign * rate)) { b = bs[0]; rate = rs[0]; }
+    return { b: b, rate: rate, m: c.sign * rate };
+  }
+  /* y = b + m x, written b first: "5 + 3n" or "300 - 12t" */
+  function linEq(c, b, m) { return clean(b) + (m < 0 ? " - " : " + ") + clean(Math.abs(m)) + c.L; }
+  /* the same line as the page's expr key: every spelling, in the order learners write them */
+  function linKey(c, b, m) {
+    var a = clean(Math.abs(m)) + c.L;
+    return m < 0 ? clean(b) + "-" + a + "|-" + a + "+" + clean(b) : a + "+" + clean(b) + "|" + clean(b) + "+" + a;
+  }
+  /* read a sum such as "5 + 3n" or "-12t+300" at a count, from its text alone */
+  function linEval(s, L, x) {
+    var re = new RegExp("([+-]?)(\\d+(?:\\.\\d+)?)(" + L + "?)", "g"), t = 0, m, text = s.replace(/\s+/g, "");
+    while ((m = re.exec(text))) t += (m[1] === "-" ? -1 : 1) * Number(m[2]) * (m[3] ? x : 1);
+    return Number(t.toFixed(6));
+  }
+  /* the units of a slope in words: "dollars per mile" is c.per */
+  function linSlopeHelp(c) { return c.sign < 0 ? " Use a negative number, because the quantity falls." : ""; }
+  var SLOPE_PLAIN_M = [-4, -3, -2, -1, 1, 2, 3, 4, 5, 6, -0.5, 0.5, 1.5, 2.5, -1.5];
+
+  G.add({
+    id: "pk-slope-points", section: "pk-linear#slope", par: 50, timed: true,
+    make: function (r) {
+      var kind = r.pick(["story", "story", "story", "plain", "plain", "frac"]);
+      if (kind === "story") {
+        var c = r.pick(LIN), p = linPick(r, c, false), x1 = r.int(1, Math.floor(c.xmax / 2)), x2 = x1 + r.int(2, Math.floor(c.xmax / 2));
+        x2 = Math.min(x2, c.xmax);
+        var y1 = linAt(p.b, p.m, x1), y2 = linAt(p.b, p.m, x2), swap = r.chance(0.4);
+        var A = swap ? [x2, y2] : [x1, y1], B = swap ? [x1, y1] : [x2, y2];
+        var ask = c.id === "taxi" || c.id === "plumber" ? "the rate of change of the " + c.name + "" : "the rate of change";
+        return {
+          q: fill(c.pts, { x1: linX(c, A[0]), y1: linY(c, A[1]), x2: linX(c, B[0]), y2: linY(c, B[1]) }) + " What is " + ask + ", in " + c.per + "?" + linSlopeHelp(c),
+          type: "number", answer: clean(p.m), placeholder: c.per,
+          hint: "The rate of change is the change in the quantity divided by the change in the count. Decide which difference goes on top, and subtract both in the same order.",
+          steps: [
+            "Rate of change $= \\dfrac{\\text{change in the " + c.name + "}}{\\text{change in the " + c.xp + "}}$.",
+            "$\\dfrac{" + clean(B[1]) + " - " + (A[1] < 0 ? "(" + clean(A[1]) + ")" : clean(A[1])) + "}{" + clean(B[0]) + " - " + clean(A[0]) + "} = \\dfrac{" + clean(B[1] - A[1]) + "}{" + clean(B[0] - A[0]) + "} = " + clean(p.m) + "$.",
+            "The rate is $" + clean(p.m) + "$ " + c.per + "."
+          ],
+          verify: function () {
+            /* subtract in the other order, then find the line through the first point and test the second */
+            var rev = (A[1] - B[1]) / (A[0] - B[0]), b1 = A[1] - rev * A[0];
+            return Math.abs(rev - p.m) < 1e-9 && Math.abs(rev * B[0] + b1 - B[1]) < 1e-9 && Math.abs(b1 - p.b) < 1e-9 &&
+              p.rate >= c.lo && p.rate <= c.hi && linInRange(c, p.b, p.m) && A[0] !== B[0];
+          }
+        };
+      }
+      var m, x1p, x2p, y1p, y2p, dy, dx, ans, type = "number", guard = 0;
+      if (kind === "frac") {
+        do { dx = r.int(2, 5); dy = r.nonzero(-7, 7); } while ((gcd(Math.abs(dy), dx) !== 1 || Math.abs(dy) === dx) && guard++ < 80);
+        if (gcd(Math.abs(dy), dx) !== 1) { dx = 3; dy = 2; }
+        type = "fraction"; ans = dy + "/" + dx; m = dy / dx;
+        x1p = r.int(-6, 4); y1p = r.int(-6, 6);
+      } else {
+        m = r.chance(0.1) ? 0 : r.pick(SLOPE_PLAIN_M);
+        dx = (m !== Math.floor(m)) ? r.pick([2, 4]) : r.int(1, 4);
+        dy = m * dx; ans = clean(m);
+        x1p = r.int(-5, 4); y1p = r.int(-6, 6);
+      }
+      x2p = x1p + dx; y2p = y1p + dy;
+      var flip = r.chance(0.4), P = flip ? [x2p, y2p] : [x1p, y1p], Q = flip ? [x1p, y1p] : [x2p, y2p];
+      var pt = function (v) { return "(" + clean(v[0]) + ", " + clean(v[1]) + ")"; };
+      return {
+        q: "Find the slope of the line through $" + pt(P) + "$ and $" + pt(Q) + "$." + (type === "fraction" ? " Give it as a fraction in lowest terms." : ""),
+        type: type, answer: ans, placeholder: type === "fraction" ? "e.g. 3/4" : "e.g. 2.5",
+        hint: "The slope is the change in $y$ divided by the change in $x$. Subtract the coordinates of the two points in the same order on the top and the bottom.",
+        steps: [
+          "Slope $= \\dfrac{y_2 - y_1}{x_2 - x_1}$, with the points taken in one fixed order.",
+          "$\\dfrac{" + clean(Q[1]) + " - " + (P[1] < 0 ? "(" + clean(P[1]) + ")" : clean(P[1])) + "}{" + clean(Q[0]) + " - " + (P[0] < 0 ? "(" + clean(P[0]) + ")" : clean(P[0])) + "} = \\dfrac{" + clean(Q[1] - P[1]) + "}{" + clean(Q[0] - P[0]) + "}" + (type === "fraction" ? "" : " = " + ans) + "$."
+        ],
+        verify: function () {
+          /* the points in the other order give the same quotient, and the line through P with that slope meets Q */
+          var rev = (P[1] - Q[1]) / (P[0] - Q[0]), b = P[1] - rev * P[0];
+          return Math.abs(rev - m) < 1e-9 && Math.abs(rev * Q[0] + b - Q[1]) < 1e-9 && P[0] !== Q[0] && (type !== "fraction" || gcd(Math.abs(dy), dx) === 1);
+        }
+      };
+    }
+  });
+
+  /* a table of values in a row layout, as math */
+  function linTable(head, xs, ys) {
+    return "$$\\begin{array}{c|" + xs.map(function () { return "c"; }).join("") + "} \\text{" + head[0] + "} & " + xs.map(clean).join(" & ") +
+      " \\\\ \\hline \\text{" + head[1] + "} & " + ys.map(clean).join(" & ") + " \\end{array}$$";
+  }
+
+  G.add({
+    id: "pk-slope-table", section: "pk-linear#slope", par: 60, timed: true,
+    make: function (r) {
+      var c = r.pick(LIN), p = linPick(r, c, false), unequal = r.chance(0.5), xs = [], guard = 0, x0, step, i;
+      if (!unequal) {
+        do {
+          x0 = r.pick([0, 1, 2, 3]); step = r.pick([1, 2, 3, 4, 5]);
+          xs = [x0, x0 + step, x0 + 2 * step, x0 + 3 * step];
+        } while (xs[3] > c.xmax && guard++ < 80);
+        if (xs[3] > c.xmax) xs = [0, 1, 2, 3];
+      } else {
+        do {
+          var pool = []; for (i = 0; i <= c.xmax; i++) pool.push(i);
+          xs = r.shuffle(pool).slice(0, 4).sort(function (a, b) { return a - b; });
+        } while ((xs[1] - xs[0] === xs[2] - xs[1] && xs[2] - xs[1] === xs[3] - xs[2]) && guard++ < 80);
+        if (xs[1] - xs[0] === xs[2] - xs[1] && xs[2] - xs[1] === xs[3] - xs[2]) xs = [0, 1, 3, 6];
+      }
+      var ys = xs.map(function (x) { return linAt(p.b, p.m, x); });
+      return {
+        q: c.tab + " " + linTable(c.th, xs, ys) + " What is the rate of change, in " + c.per + "?" + linSlopeHelp(c),
+        type: "number", answer: clean(p.m), placeholder: c.per,
+        hint: unequal ? "The columns are not evenly spaced, so the rate is not the gap between two neighboring values. Pick two columns and divide the change in the quantity by the change in the count." : "A table of a straight line has one rate everywhere. Pick two columns and divide the change in the quantity by the change in the count.",
+        steps: [
+          "Pick the first and the last columns: the count goes from $" + clean(xs[0]) + "$ to $" + clean(xs[3]) + "$, a change of $" + clean(xs[3] - xs[0]) + "$.",
+          "The " + c.name + " goes from $" + clean(ys[0]) + "$ to $" + clean(ys[3]) + "$, a change of $" + clean(ys[3] - ys[0]) + "$.",
+          "$\\dfrac{" + clean(ys[3] - ys[0]) + "}{" + clean(xs[3] - xs[0]) + "} = " + clean(p.m) + "$ " + c.per + "."
+        ],
+        verify: function () {
+          /* every neighboring pair gives the same rate, so the rate is a line's, and it matches the answer */
+          for (var k = 0; k < 3; k++) {
+            if (Math.abs((ys[k + 1] - ys[k]) / (xs[k + 1] - xs[k]) - p.m) > 1e-9) return false;
+          }
+          return xs[0] < xs[1] && xs[1] < xs[2] && xs[2] < xs[3] && p.rate >= c.lo && p.rate <= c.hi && linInRange(c, p.b, p.m);
+        }
+      };
+    }
+  });
+
+  G.add({
+    id: "pk-slope-read", section: "pk-linear#slope", par: 50, timed: true,
+    make: function (r) {
+      var c = r.pick(LIN), p = linPick(r, c, false), kind = r.pick(["rate", "start", "change"]), k = r.int(2, 6), ans, ask, hint, steps;
+      var rhs = linEq(c, p.b, p.m), fall = c.sign < 0;
+      if (kind === "rate") {
+        ans = p.m;
+        ask = "By how many " + c.y + " does the " + c.name + " change for each extra " + c.xs + "? Give the rate in " + c.per + "." + linSlopeHelp(c);
+        hint = "In " + "$y = b + mx$, one of the two numbers is the change for one more unit. Decide which one multiplies the count.";
+        steps = ["The number that multiplies $" + c.L + "$ is the change for each extra " + c.xs + ": $" + clean(p.m) + "$ " + c.per + "."];
+      } else if (kind === "start") {
+        ans = p.b;
+        ask = "What is the " + c.name + " at the start, when $" + c.L + " = 0$? Give it " + c.yin + ".";
+        hint = "At the start the count is zero, so the part that depends on the count has nothing in it. See what is left.";
+        steps = ["Put $" + c.L + " = 0$: the term with $" + c.L + "$ is $0$, so the value is $" + clean(p.b) + "$ " + c.y + "."];
+      } else {
+        ans = c.sign * p.rate * k;
+        ask = "By how much does the " + c.name + " change when $" + c.L + "$ grows by " + linX(c, k) + "? Give the change " + c.yin + "." + linSlopeHelp(c);
+        hint = "Each extra unit changes the quantity by the rate. Find the rate in the model first, then think about how many units were added.";
+        steps = ["The rate is $" + clean(p.m) + "$ " + c.per + ".", "Over $" + k + "$ more " + c.xp + ": $" + clean(p.m) + " \\cdot " + k + " = " + clean(ans) + "$ " + c.y + "."];
+      }
+      return {
+        q: c.model + " $" + c.Y + " = " + rhs + "$. " + ask,
+        type: "number", answer: clean(ans), placeholder: kind === "rate" ? c.per : c.y,
+        hint: hint, steps: steps,
+        verify: function () {
+          /* read the same numbers by evaluating the written sum at 0, 1 and k */
+          var at0 = linEval(rhs, c.L, 0), at1 = linEval(rhs, c.L, 1), atk = linEval(rhs, c.L, k);
+          var want = kind === "rate" ? at1 - at0 : kind === "start" ? at0 : atk - at0;
+          return Math.abs(want - ans) < 1e-9 && p.rate >= c.lo && p.rate <= c.hi && linInRange(c, p.b, p.m) && (kind !== "change" || (fall ? ans < 0 : ans > 0));
+        }
+      };
+    }
+  });
+
+  G.add({
+    id: "pk-model-write", section: "pk-linear#model", par: 50, timed: true,
+    make: function (r) {
+      var c0 = r.pick(LIN), p = linPick(r, c0, true);
+      /* the count is x here: tools/check-gen.js reads x in a key and no other letter */
+      var c = Object.assign({}, c0, { L: "x" }), key = linKey(c, p.b, p.m);
+      var story = fill(c.tell, { b: linY(c, p.b), m: linY(c, p.rate) });
+      return {
+        q: story + " " + fill(c.ask, { L: "x" }),
+        type: "expr", answer: key, placeholder: "e.g. " + (c.sign < 0 ? "50-4" : "4") + "x" + (c.sign < 0 ? "" : "+50"),
+        hint: "The start is what you have before any " + c.xs + " goes by, and the rate is what each " + c.xs + " adds or takes away. Decide which of the two multiplies the count.",
+        steps: [
+          "The value at the start is $" + clean(p.b) + "$ " + c.y + ".",
+          "Each " + c.xs + " " + (c.sign < 0 ? "removes" : "adds") + " $" + clean(p.rate) + "$, so " + (c.sign < 0 ? "$" + c.L + "$ of them remove $" + clean(p.rate) + c.L + "$" : "$" + c.L + "$ of them add $" + clean(p.rate) + c.L + "$") + ".",
+          "Together: $" + linEq(c, p.b, p.m) + "$."
+        ],
+        verify: function () {
+          /* the key at two counts against the story told one step at a time */
+          for (var n of [2, 5]) {
+            var run = p.b, j;
+            for (j = 0; j < n; j++) run += p.m;
+            if (key.split("|").some(function (alt) { return Math.abs(linEval(alt, c.L, n) - run) > 1e-9; })) return false;
+          }
+          return p.rate !== 1 && p.rate >= c.lo && p.rate <= c.hi && linInRange(c, p.b, p.m);
+        }
+      };
+    }
+  });
+
+  G.add({
+    id: "pk-model-two-points", section: "pk-linear#model", par: 70, timed: true,
+    make: function (r) {
+      var c = r.pick(LIN), p = linPick(r, c, false), kind = r.pick(["slope", "start", "predict", "predict"]);
+      var guard = 0, x1, x2, x3;
+      do {
+        x1 = r.int(1, 4); x2 = x1 + r.int(2, 5); x3 = x2 + r.int(1, 4);
+      } while ((x2 > c.xmax || x3 > c.xmax) && guard++ < 80);
+      if (x2 > c.xmax || x3 > c.xmax) { x1 = 1; x2 = 3; x3 = 4; }
+      var y1 = linAt(p.b, p.m, x1), y2 = linAt(p.b, p.m, x2), y3 = linAt(p.b, p.m, x3);
+      var intro = fill(c.pts, { x1: linX(c, x1), y1: linY(c, y1), x2: linX(c, x2), y2: linY(c, y2) }), ans, ask, hint, steps;
+      if (kind === "slope") {
+        ans = p.m; ask = "What is the rate of change, in " + c.per + "?" + linSlopeHelp(c);
+        hint = "Two points on a line give its rate: the change in the quantity over the change in the count.";
+        steps = ["$\\dfrac{" + clean(y2) + " - " + (y1 < 0 ? "(" + clean(y1) + ")" : clean(y1)) + "}{" + clean(x2) + " - " + clean(x1) + "} = " + clean(p.m) + "$ " + c.per + "."];
+      } else if (kind === "start") {
+        ans = p.b; ask = "What was the value at the start, when the count was $0$? Give it " + c.yin + ".";
+        hint = "Find the rate from the two points first. Then go back from one of the points to where the count is zero.";
+        steps = ["Rate: $\\dfrac{" + clean(y2 - y1) + "}{" + clean(x2 - x1) + "} = " + clean(p.m) + "$.", "Put one point into $y = b + mx$: $" + clean(y1) + " = b + " + (p.m < 0 ? "(" + clean(p.m) + ")" : clean(p.m)) + " \\cdot " + clean(x1) + "$, so $b = " + clean(p.b) + "$."];
+      } else {
+        ans = y3; ask = "Using the line, what is the value when the count is " + clean(x3) + "? Give it " + c.yin + ".";
+        hint = "Find the rate and the starting value of the line first. Then put the new count into the model.";
+        steps = ["Rate: $\\dfrac{" + clean(y2 - y1) + "}{" + clean(x2 - x1) + "} = " + clean(p.m) + "$; start: $b = " + clean(p.b) + "$.", "At $" + clean(x3) + "$: $" + clean(p.b) + (p.m < 0 ? " - " : " + ") + clean(Math.abs(p.m)) + " \\cdot " + clean(x3) + " = " + clean(y3) + "$."];
+      }
+      return {
+        q: intro + " " + ask, type: "number", answer: clean(ans), placeholder: kind === "slope" ? c.per : c.y,
+        hint: hint, steps: steps,
+        verify: function () {
+          /* the start from each point agrees, and the third value follows from point 2 by the rate alone */
+          var m = (y2 - y1) / (x2 - x1), b1 = y1 - m * x1, b2 = y2 - m * x2, want = kind === "slope" ? m : kind === "start" ? b1 : y2 + m * (x3 - x2);
+          return Math.abs(b1 - b2) < 1e-9 && Math.abs(want - ans) < 1e-9 && p.rate >= c.lo && p.rate <= c.hi && linInRange(c, p.b, p.m) && x1 < x2 && x2 < x3;
+        }
+      };
+    }
+  });
+
+  G.add({
+    id: "pk-model-when", section: "pk-linear#model", par: 70, timed: true,
+    make: function (r) {
+      var c = r.pick(LIN), p = linPick(r, c, false), x0 = r.int(2, Math.max(2, c.xmax - 1)), T = linAt(p.b, p.m, x0), guard = 0;
+      while (!(T >= c.ymin && T <= c.ymax) && guard++ < 60) { x0 = r.int(2, Math.max(2, c.xmax - 1)); T = linAt(p.b, p.m, x0); }
+      if (!(T >= c.ymin && T <= c.ymax)) { x0 = 2; T = linAt(p.b, p.m, x0); }
+      var story = fill(c.tell, { b: linY(c, p.b), m: linY(c, p.rate) }), eq = linEq(c, p.b, p.m);
+      return {
+        q: story + " " + fill(c.whenWith, { T: linY(c, T) }) + " " + c.when,
+        type: "number", answer: clean(x0), placeholder: c.xp,
+        hint: "Set the model equal to the value you are given and solve for the count. First take away the part that does not depend on the count, then split what is left by the rate.",
+        steps: [
+          "The model is $" + c.Y + " = " + eq + "$, and we want $" + c.Y + " = " + clean(T) + "$.",
+          "$" + clean(T) + " = " + eq + "$, so $" + clean(T - p.b) + " = " + clean(p.m) + c.L + "$.",
+          "$" + c.L + " = " + clean(T - p.b) + " \\div " + (p.m < 0 ? "(" + clean(p.m) + ")" : clean(p.m)) + " = " + clean(x0) + "$ " + c.xp + "."
+        ],
+        verify: function () {
+          /* put the answer back into the model, and solve the other way round */
+          return Math.abs(linAt(p.b, p.m, x0) - T) < 1e-9 && Math.abs((T - p.b) / p.m - x0) < 1e-9 && x0 === Math.floor(x0) && x0 >= 2 && x0 <= c.xmax &&
+            p.rate >= c.lo && p.rate <= c.hi && linInRange(c, p.b, p.m);
+        }
       };
     }
   });

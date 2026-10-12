@@ -307,6 +307,12 @@ export const SKILLS: Readonly<Record<SectionRef, Skill>> = {
     sat: ["sat.psda.ratio"], act: ["act.ies", "act.phm.nq"], accuplacer: ["qas.ratio"], aleks: [] },
   "pk-units#scale": { ccss: "7.G.A.1", also: ["7.RP.A.2", "HSG.SRT.A.2"], course: "pre-algebra",
     sat: ["sat.psda.ratio"], act: ["act.ies", "act.phm.nq"], accuplacer: ["qas.ratio"], aleks: [] },
+
+  /* pack E */
+  "pk-linear#slope": { ccss: "HSF.IF.B.6", also: ["8.F.B.4", "8.EE.B.5", "HSF.LE.B.5"], course: "algebra-1",
+    sat: ["sat.alg.lin1", "sat.alg.linf"], act: ["act.phm.alg", "act.mod"], accuplacer: ["qas.linapp", "aaf.linapp"], aleks: ["ppl.eqineq"] },
+  "pk-linear#model": { ccss: "HSA.CED.A.2", also: ["8.F.B.4", "HSF.LE.A.2", "HSF.BF.A.1.a"], course: "algebra-1",
+    sat: ["sat.alg.lin1", "sat.alg.linf"], act: ["act.phm.alg", "act.mod"], accuplacer: ["qas.linapp", "aaf.linapp"], aleks: ["ppl.eqineq"] },
 };
 
 /** Generators (data/gen/*.js, by id) whose test differs from their section's record. */

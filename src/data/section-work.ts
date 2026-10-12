@@ -96,5 +96,7 @@ export const SECTION_WORK: Readonly<Partial<Record<SectionRef, number>>> = {
   "pk-units#convert": 10,
   "pk-units#rates": 10,
   "pk-units#area": 10,
-  "pk-units#scale": 10
+  "pk-units#scale": 10,
+  "pk-linear#slope": 10,
+  "pk-linear#model": 10
 };
