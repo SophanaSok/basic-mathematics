@@ -473,6 +473,15 @@ async function run() {
         await e.page.keyboard.press("1");
         await wait(500);
         eq([await e.page.evaluate(() => document.body.getAttribute("data-arena-screen")), (await act(e.page)).body], ["lobby", true], pre + "arena: with no deck 1 starts nothing and the focus stays on the page");
+        /* with every section new, the deck lists pick boxes (inside details, opened here): the
+           cursor walks over them and does not get stuck in one */
+        await e.page.evaluate(() => { document.querySelectorAll("details.arena-part").forEach((d) => { d.open = true; }); });
+        await e.page.keyboard.press("G");
+        eq(await e.page.evaluate(() => document.activeElement.matches("input[data-pick]")), true, pre + "arena: G lands on the last deck checkbox");
+        await e.page.keyboard.press("k");
+        eq(await e.page.evaluate(() => [document.activeElement.matches("input[data-pick]"), document.activeElement.hasAttribute("data-keys-cursor")]), [true, true], pre + "arena: k moves on from a checkbox");
+        await e.page.keyboard.press("Escape");
+        eq((await act(e.page)).body, true, pre + "arena: Escape drops the cursor from a checkbox");
         eq(e.errors, [], pre + "no errors (arena, no deck)");
         await e.context.close();
       }

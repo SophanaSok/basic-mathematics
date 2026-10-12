@@ -23,7 +23,9 @@ import {
 } from "./keymap.ts";
 
 const ATTR = "data-keys-cursor";
-const INSERT = 'input, textarea, select, [contenteditable=""], [contenteditable="true"], [role=slider], [role=application], svg[tabindex], [data-scrolls]';
+/* a box that takes typing or arrow keys; a checkbox, radio or button-type input takes neither,
+   so the cursor keys keep moving over them (the Arena deck, the account page) */
+const INSERT = 'input:not([type=checkbox]):not([type=radio]):not([type=button]):not([type=submit]):not([type=reset]), textarea, select, [contenteditable=""], [contenteditable="true"], [role=slider], [role=application], svg[tabindex], [data-scrolls]';
 /* focus the reader put on a control of the page's own: Enter and Space stay native */
 const NATIVE = "a, button, summary, [role=button], label";
 
@@ -82,8 +84,9 @@ function items(): HTMLElement[] {
 }
 
 function reduced(): boolean {
+  const html = document.documentElement;
   return (!!window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches) ||
-    document.documentElement.getAttribute("data-motion") === "reduce";
+    html.getAttribute("data-motion") === "reduce" || html.hasAttribute("data-calm");
 }
 
 const LENT = "data-keys-tabindex";   /* the layer lent this element its tabindex="-1" */
