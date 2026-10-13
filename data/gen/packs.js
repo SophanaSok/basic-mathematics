@@ -3643,6 +3643,15 @@
   function wUsd(n) { return "$\\$" + wn(n) + "$"; }
   /* a speed, with the singular for one: $1$ mile per hour */
   function wSpeed1(v) { return v === 1 ? "$1$ mile per hour" : wSpeed(v); }
+  /* liters with the singular for one: $1$ liter, $8$ liters */
+  function wLiters(n) { return "$" + wn(n) + "$ " + (n === 1 ? "liter" : "liters"); }
+  /* "1 liters" to "1 liter" in a problem's text (a whole 1, not 0.1 or 11) */
+  function wSingular(p) {
+    var f = function (t) { return t.replace(/(^|[^\d.])1\$ liters/g, "$11$ liter"); };
+    p.q = f(p.q);
+    p.steps = p.steps.map(f);
+    return p;
+  }
   function wFrac(n, d) { var g = gcd(Math.abs(n), Math.abs(d)); n /= g; d /= g; return d === 1 ? "" + n : "\\dfrac{" + n + "}{" + d + "}"; }
   /* a placeholder is a word for the unit and never the key or one of its alternatives */
   function wPlace(ph, key) {
@@ -3679,15 +3688,15 @@
       var pair = r.pick(WPAIRS) || { a: 6, b: 18, N: 18 }, flip = r.chance(0.5), reverse = r.chance(0.4);
       var a = flip ? pair.b : pair.a, b = flip ? pair.a : pair.b, N = pair.N, t = N / 4, w = r.pick(WWORKERS), nm = r.pick(WNAMES);
       var ans = reverse ? b : t, key = clean(ans);
-      var fa = wFrac(N, 4 * a), fb = wFrac(N, 4 * b);
+      var fa = wFrac(N, 4 * a), fb = wFrac(N, 4 * b), tF = wFrac(N, 4), tx = N % 4 === 0 ? "\\dfrac{" + (N / 4) + "}{x}" : "\\dfrac{" + N + "}{" + "4x}";
       return {
         q: reverse ? w.reverse(nm[0], nm[1], a, t) : w.together(nm[0], nm[1], a, b),
         type: "number", answer: key, placeholder: wPlace("hours", key),
         hint: reverse ? "A worker who takes some hours alone does one over that many of the job each hour. In the pair's time the two shares add up to the whole job, which is $1$." :
           "A worker who takes some hours alone does one over that many of the job each hour. In the time they take together, the two shares of the job add up to the whole job, which is $1$.",
         steps: reverse ? [
-          "Let $x$ be the hours the second takes alone. In $" + wn(t) + "$ hours the first does $\\dfrac{" + wn(t) + "}{" + wn(a) + "}$ of the job, and the second does $\\dfrac{" + wn(t) + "}{x}$.",
-          "Together they do the whole job: $\\dfrac{" + wn(t) + "}{" + wn(a) + "} + \\dfrac{" + wn(t) + "}{x} = 1$. The first share is $" + fa + "$, so $\\dfrac{" + wn(t) + "}{x} = 1 - " + fa + "$, which is $" + wFrac(4 * a - N, 4 * a) + "$, and $x = " + wn(b) + "$ hours.",
+          "Let $x$ be the hours the second takes alone. In $" + wn(t) + "$ hours the first does $\\dfrac{" + wn(t) + "}{" + wn(a) + "} = " + fa + "$ of the job, and the second does $" + tx + "$.",
+          "Together they do the whole job: $" + fa + " + " + tx + " = 1$, so $" + tx + " = 1 - " + fa + " = " + wFrac(4 * a - N, 4 * a) + "$, and $x = " + tF + " \\div " + wFrac(4 * a - N, 4 * a) + " = " + wn(b) + "$ hours.",
           "Check: in $" + wn(t) + "$ hours the second does $" + fb + "$ of the job, and $" + fa + " + " + fb + " = 1$. The pair's time is under both times alone, as it must be."
         ] : [
           "A worker who takes $a$ hours alone does $\\dfrac{1}{a}$ of the job each hour. In $t$ hours the first does $\\dfrac{t}{" + wn(a) + "}$ of it and the second $\\dfrac{t}{" + wn(b) + "}$, and together they do the whole job: $\\dfrac{t}{" + wn(a) + "} + \\dfrac{t}{" + wn(b) + "} = 1$.",
@@ -3738,7 +3747,7 @@
           kind === "down" ? intro + "How many hours does the boat take to go " + wMiles(d) + " downstream?" :
           kind === "current" ? trip + "What is the speed of the current, in miles per hour?" : trip + "What is the boat's speed in still water, in miles per hour?",
         type: "number", answer: key, placeholder: wPlace(kind === "up" || kind === "down" ? "hours" : "miles per hour", key),
-        hint: kind === "up" || kind === "down" ? "The water carries the boat, so the current adds to the boat's own speed one way and takes away from it the other way. Find the speed in the direction asked, then use time as distance over speed." :
+        hint: kind === "up" || kind === "down" ? "The water carries the boat: its speed over the ground is its own speed changed by the current, one way up and the other way down." :
           "Each leg is a distance, a speed and a time. The speed downstream is the boat's speed plus the current and the speed upstream is the boat's speed minus the current. Find the two speeds from the two times.",
         steps: kind === "up" || kind === "down" ? [
           "Downstream the current adds: $" + wn(b) + " + " + wn(c) + " = " + wn(dn) + "$ miles per hour. Upstream it takes away: $" + wn(b) + " - " + wn(c) + " = " + wn(up) + "$ miles per hour.",
@@ -3780,7 +3789,7 @@
           for (x = 1; x <= 40; x++) {
             if (x === y) continue;
             num = p * y + q * x; den = x + y;
-            if (num % den !== 0 || (y === 12 && p === 20 && q === 60 && x === 4) || (y === 10 && p === 20 && q === 50 && x === 20)) continue;
+            if (num % den !== 0 || (y === 12 && p === 20 && q === 60 && x === 4) || (y === 1 && p === 20 && q === 60 && x === 3) || (y === 3 && p === 60 && q === 20 && x === 1) || (y === 10 && p === 20 && q === 50 && x === 20)) continue;
             pct.push([y, p, q, num / den, x]);
           }
         }
@@ -3796,15 +3805,15 @@
       var stuff = r.pick(["acid", "salt"]), ans = kind === "sol" ? x : R, key = clean(ans);
       var pc = function (v) { return "$" + v + "\\%$"; };
       var pureY = wc(p * y / 100), pureX = wc(q * x / 100), total = wc((p * y + q * x) / 100);
-      return {
+      return wSingular({
         q: kind === "sol" ?
-          "A chemist has $" + wn(y) + "$ liters of a " + pc(p) + " " + stuff + " solution. How many liters of a " + pc(q) + " " + stuff + " solution must be added to make a " + pc(R) + " " + stuff + " solution?" :
-          "A lab mixes $" + wn(y) + "$ liters of a " + pc(p) + " " + stuff + " solution with $" + wn(x) + "$ liters of a " + pc(q) + " " + stuff + " solution. What percent " + stuff + " is the mixture? Give the percent without the percent sign.",
+          "A chemist has " + wLiters(y) + " of a " + pc(p) + " " + stuff + " solution. How many liters of a " + pc(q) + " " + stuff + " solution must be added to make a " + pc(R) + " " + stuff + " solution?" :
+          "A lab mixes " + wLiters(y) + " of a " + pc(p) + " " + stuff + " solution with " + wLiters(x) + " of a " + pc(q) + " " + stuff + " solution. What percent " + stuff + " is the mixture? Give the percent without the percent sign.",
         type: "number", answer: key, placeholder: wPlace(kind === "sol" ? "liters" : "percent", key),
         hint: "Follow the pure " + stuff + " and not the percents: each solution holds its percent of its liters, and when they are poured together the liters add and the pure " + stuff + " adds.",
         steps: kind === "sol" ? [
           "The first solution holds $" + wn(wc(p / 100)) + " \\cdot " + wn(y) + " = " + wn(pureY) + "$ liters of " + stuff + ". Let $x$ be the liters of the second; it holds $" + wn(wc(q / 100)) + "x$.",
-          "The mixture has $" + wn(y) + " + x$ liters, and " + pc(R) + " of it is " + stuff + ": $" + wn(pureY) + " + " + wn(wc(q / 100)) + "x = " + wn(wc(R / 100)) + "(" + wn(y) + " + x)$. Multiply by $100$: $" + wn(p * y) + " + " + q + "x = " + wn(R * y) + " + " + R + "x$, so $" + Math.abs(q - R) + "x = " + wn(Math.abs(R - p) * y) + "$ and $x = " + wn(x) + "$ liters.",
+          "The mixture has $" + wn(y) + " + x$ liters, and " + pc(R) + " of it is " + stuff + ": $" + wn(pureY) + " + " + wn(wc(q / 100)) + "x = " + wn(wc(R / 100)) + "(" + wn(y) + " + x)$. Multiply by $100$: $" + wn(p * y) + " + " + q + "x = " + wn(R * y) + " + " + R + "x$, so $" + Math.abs(q - R) + "x = " + wn(Math.abs(R - p) * y) + "$ and $x = " + wn(x) + "$ " + (x === 1 ? "liter" : "liters") + ".",
           "Check: the pure " + stuff + " is $" + wn(pureY) + " + " + wn(pureX) + " = " + wn(total) + "$ liters, and " + pc(R) + " of $" + wn(x + y) + "$ liters is $" + wn(wc(R * (x + y) / 100)) + "$ liters ✓."
         ] : [
           "The first solution holds $" + wn(wc(p / 100)) + " \\cdot " + wn(y) + " = " + wn(pureY) + "$ liters of " + stuff + " and the second holds $" + wn(wc(q / 100)) + " \\cdot " + wn(x) + " = " + wn(pureX) + "$ liters.",
@@ -3818,30 +3827,30 @@
           if (p * y + q * xx !== RR * (xx + y) || !(RR > Math.min(p, q) && RR < Math.max(p, q))) return false;
           return kind === "sol" ? true : (xx !== y && RR !== (p + q) / 2);
         }
-      };
+      });
     }
   });
 
   /* checks: a linear story T = k x + m with a proposed answer that is off by 1 or 2 from the true one. The product
-     of the parameters is the table (k 2..12, x* 3..60, m 0..100, four slips, three stories); the page's (7, 25, 11) and
+     of the parameters is the table (k 2..12, x* 4..60, m 0..100, six slips of 1 to 3, three stories); the page's (7, 25, 11) and
      (14, 30, 12) are moved one step along x*, which the page does not print. */
   var WMISSES = [
     { unit: "months", unitOne: "month", cap: 36, story: function (k, m) { return m ? "A gym charges a joining fee of " + wUsd(m) + " plus " + wUsd(k) + " per month." : "A gym charges " + wUsd(k) + " per month and no joining fee."; } },
     { unit: "meters", unitOne: "meter", cap: 60, story: function (k, m) { return m ? "A fence costs " + wUsd(k) + " per meter, and a gate adds " + wUsd(m) + "." : "A fence costs " + wUsd(k) + " per meter."; } },
     { unit: "miles", unitOne: "mile", cap: 60, story: function (k, m) { return m ? "A taxi charges a flat " + wUsd(m) + " plus " + wUsd(k) + " per mile." : "A taxi charges " + wUsd(k) + " per mile."; } }
   ];
-  var WSLIPS = [-2, -1, 1, 2];
+  var WSLIPS = [-3, -2, 2, 3, -1, 1];
 
   G.add({
     id: "pk-check-miss", section: "pk-words#check", par: 70, timed: true,
     make: function (r) {
-      var st = r.pick(WMISSES), k = r.int(2, 12), m = r.pick([0, r.int(5, 100), r.int(5, 100)]), xs = r.int(3, st.cap), slip = r.pick(WSLIPS);
+      var st = r.pick(WMISSES), k = r.int(2, 12), m = r.pick([0, r.int(5, 100), r.int(5, 100)]), xs = r.int(4, st.cap), slip = r.pick(WSLIPS);
       if ((k === 7 && m === 25 && xs === 11) || (k === 14 && m === 30 && xs === 12)) xs += 1;
       var xp = xs + slip, xu = xp === 1 ? st.unitOne : st.unit, T = k * xs + m, miss = k * Math.abs(slip), key = clean(miss);
       return {
         q: st.story(k, m) + " The total was " + wUsd(T) + ". A student solves the equation and says the answer is $" + xp + "$ " + xu + ". By how many dollars does the cost of $" + xp + "$ " + xu + " miss " + wUsd(T) + "?",
         type: "number", answer: key, placeholder: wPlace("dollars", key),
-        hint: "Put the proposed answer into the story: work out what that many would cost, then compare it with the total the story gives. The miss is how far apart the two are.",
+        hint: "Pretend the student is right and see what the story would then have cost.",
         steps: [
           "Cost of $" + xp + "$ " + xu + (m ? ": $" + k + " \\cdot " + xp + " + " + m + " = " + wn(k * xp + m) + "$ dollars." : ": $" + k + " \\cdot " + xp + " = " + wn(k * xp) + "$ dollars."),
           "The story's total is $" + wn(T) + "$ dollars, so the miss is $" + wn(Math.abs(k * xp + m - T)) + "$ dollars.",
@@ -3859,20 +3868,23 @@
   /* checks: a count the arithmetic leaves fractional. Pairs (n, c) with n not a multiple of c; the page's (130, 12),
      (150, 8) and (200, 9) are left out. */
   var WWHOLE = (function () {
-    var out = [], n, c;
-    for (n = 20; n <= 400; n++) {
-      for (c = 4; c <= 30; c++) {
-        if (n % c === 0 || (n === 130 && c === 12) || (n === 150 && c === 8) || (n === 200 && c === 9)) continue;
-        out.push([n, c]);
+    /* one pool for each kind: seats per van 4..15, per table 4..12, muffins per box 4..30; n at least 2c, so the answer is at least 2 */
+    var out = { vans: [], tables: [], boxes: [] }, cap = { vans: 15, tables: 12, boxes: 30 }, n, c;
+    Object.keys(cap).forEach(function (kind) {
+      for (n = 20; n <= 400; n++) {
+        for (c = 4; c <= cap[kind]; c++) {
+          if (n % c === 0 || n < 2 * c || (n === 130 && c === 12) || (n === 150 && c === 8) || (n === 200 && c === 9)) continue;
+          out[kind].push([n, c]);
+        }
       }
-    }
+    });
     return out;
   })();
 
   G.add({
     id: "pk-check-whole", section: "pk-words#check", par: 60, timed: true,
     make: function (r) {
-      var pr = r.pick(WWHOLE) || [101, 6], n = pr[0], c = pr[1], kind = r.pick(["vans", "tables", "boxes"]);
+      var kind = r.pick(["vans", "tables", "boxes"]), pr = r.pick(WWHOLE[kind]) || [101, 6], n = pr[0], c = pr[1];
       var q = Math.floor(n / c), rem = n - q * c, up = kind !== "boxes", ans = up ? q + 1 : q, key = clean(ans);
       var item = kind === "vans" ? "van" : kind === "tables" ? "table" : "box";
       return {
@@ -3880,11 +3892,11 @@
           kind === "tables" ? "A hall has round tables that each seat $" + c + "$ guests. How many tables are needed to seat $" + wn(n) + "$ guests?" :
           "A baker has $" + wn(n) + "$ muffins and packs them in boxes that each hold $" + c + "$. How many full boxes can the baker fill?",
         type: "number", answer: key, placeholder: wPlace(kind === "boxes" ? "boxes" : item + "s", key),
-        hint: "Divide, and then ask what the story does with a part of " + (up ? "a " + item + ": can it be left out, or does it still have to be provided?" : "a " + item + ": does a part of one count?"),
+        hint: up ? "The arithmetic gives a part of a " + item + ". Ask whether the story can leave that part out or must still provide for it." : "The arithmetic gives a part of a " + item + ". Ask whether the story counts that part.",
         steps: [
-          "Divide: $" + wn(n) + " \\div " + c + " = " + q + "$ with $" + rem + "$ left over, about $" + wn(wc(n / c)) + "$.",
+          "Divide: $" + wn(n) + " \\div " + c + " = " + q + "$ with $" + rem + "$ left over.",
           up ? "The $" + rem + "$ left over still need " + (kind === "vans" ? "a van" : "a table") + ", so the count rounds up to $" + ans + "$." : "The $" + rem + "$ left over cannot fill another box, so only the full boxes count: $" + ans + "$.",
-          "Check: " + (up ? "$" + (ans - 1) + " \\cdot " + c + " = " + wn((ans - 1) * c) + "$ is not enough for $" + wn(n) + "$, and $" + ans + " \\cdot " + c + " = " + wn(ans * c) + "$ is enough." : "$" + ans + " \\cdot " + c + " = " + wn(ans * c) + "$ uses up to $" + wn(n) + "$, and $" + (ans + 1) + "$ boxes would need $" + wn((ans + 1) * c) + "$.")
+          "Check: " + (up ? "$" + (ans - 1) + " \\cdot " + c + " = " + wn((ans - 1) * c) + "$ is not enough for $" + wn(n) + "$, and $" + ans + " \\cdot " + c + " = " + wn(ans * c) + "$ is enough." : "$" + ans + "$ boxes hold $" + wn(ans * c) + "$ muffins, which is no more than $" + wn(n) + "$, and $" + (ans + 1) + "$ boxes would need $" + wn((ans + 1) * c) + "$.")
         ],
         verify: function () {
           /* the bracketing multiples of the capacity */
@@ -3901,7 +3913,7 @@
     var diff = [], times = [], L, k, m;
     for (L = 20; L <= 300; L++) {
       for (k = 2; k <= 60; k++) {
-        if ((L - k) % 2 === 0 && L - k >= 4 && !(L === 140 && k === 30) && !(L === 64 && k === 10)) diff.push([L, k]);
+        if ((L - k) % 2 === 0 && L - k >= 4 && !(L === 140 && k === 30) && !(L === 64 && k === 10) && !(L === 30 && k === 4)) diff.push([L, k]);
       }
       for (m = 2; m <= 5; m++) {
         if (L % (m + 1) === 0 && !(L === 85 && m === 4)) times.push([L, m]);
@@ -3922,7 +3934,7 @@
           kind === "times" ? "A board $" + wn(L) + "$ " + unit + " long is cut into two pieces, and the longer piece is " + times + " as long as the shorter. Let $s$ be the length of the shorter piece. How long is the longer piece, in " + unit + "?" :
           "Two numbers add to $" + wn(L) + "$, and the larger is $" + wn(k) + "$ more than the smaller. Let $s$ be the smaller number. What is the larger number?",
         type: "number", answer: key, placeholder: wPlace(kind === "numbers" ? "larger number" : unit, key),
-        hint: "Solve for the letter first, and then reread the question: the letter names one quantity and the question may ask for the other.",
+        hint: "The letter names one of the two quantities. Read the question again to see which one it asks for.",
         steps: kind === "times" ? [
           "The longer piece is $" + k + "s$, and the two pieces add to the whole board: $s + " + k + "s = " + wn(L) + "$, so $" + (k + 1) + "s = " + wn(L) + "$ and $s = " + wn(short) + "$.",
           "The letter is the shorter piece, and the question asks for the longer: $" + k + " \\cdot " + wn(short) + " = " + wn(longer) + "$ " + unit + ".",

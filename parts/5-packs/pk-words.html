@@ -417,7 +417,7 @@
       first has done $\frac{t}{a}$ of the job and the second $\frac{t}{b}$, and between them they have done the whole job, which is $1$:
       $$\frac{t}{a} + \frac{t}{b} = 1.$$
       Two answers tempt and both are wrong. Adding the times gives something longer than either painter alone, and averaging them gives something in
-      between, yet two painters together finish sooner than the quicker one alone. So $t$ is less than the smaller of $a$ and $b$, a bound to test any answer
+      between, yet the second painter's share adds to the first's, so in the time together the first does less than the whole job, which means $t < a$, and likewise $t < b$. So $t$ is less than the smaller of $a$ and $b$, a bound to test any answer
       against. A drain or a leak works against a fill, so its rate is subtracted: a hose that fills a pool in $a$ hours and a drain that empties it in $b$ hours
       leave $\frac{1}{a} - \frac{1}{b}$ of the pool per hour. The question can also run backward. If the pair takes $t$ hours and one worker alone takes $a$,
       the first has done $\frac{t}{a}$ of the job in that time, and the other has done the rest, $1 - \frac{t}{a}$.
@@ -468,7 +468,7 @@
     </p>
 
     <div class="ex" data-inline id="t8" data-type="number" data-answer="3" data-placeholder="hours"
-         data-hint="Going against the current, the water takes away from the boat's own speed. Find the speed that results, and then use distance over speed."
+         data-hint="Going against the current, the water takes away from the boat's own speed."
          data-hint2="What is the boat's speed over the ground going upstream?">
       <div class="ex-q">
         <p>
@@ -485,8 +485,8 @@
 
     <p>
       <b>Mixtures.</b> Track the pure stuff and not the percents. Then $x$ liters of a $20\%$ solution hold $0.2x$ liters of acid (<a href="pk-percent.html#percent">the percent of a quantity</a> is where this
-      began). When solutions are poured together the liters add and the acid adds, so the mixture's percent is the total acid over the total liters. It is never the mean of the two percents unless the amounts
-      are equal: $1$ liter of a $10\%$ solution and $3$ liters of a $50\%$ solution hold $0.1 + 1.5 = 1.6$ liters of acid in $4$ liters, which is $40\%$, and the mean of $10$ and $50$ is $30$. A table with a row
+      began). When solutions are poured together the liters add and the acid adds, so the mixture's percent is the total acid over the total liters. It lies between the two percents, because it is a weighted mean of them with the two amounts as weights, and it is the plain mean of the two percents only when the amounts
+      are equal: $1$ liter of a $20\%$ solution and $3$ liters of a $60\%$ solution hold $0.2 + 1.8 = 2$ liters of acid in $4$ liters, which is $50\%$, and the mean of $20$ and $60$ is $40$. A table with a row
       for each solution (liters, percent, pure liters) and a total row keeps the bookkeeping. The same table does a price mixture: pounds of nuts at a price per pound give dollars, the weights add and the
       dollars add, and the blend's price per pound is the total dollars over the total weight.
     </p>
@@ -547,7 +547,7 @@
         &ldquo;together $\$1.10$.&rdquo; So test the number against every fact of the story in the story's own words, including the fact that was used to name the other quantities.</li>
       <li><b>Against the units and the kind of thing.</b> A count of buses is a whole number, a length is positive, an age is under about $110$, and a cyclist does not ride at $60$ miles per hour.
         A fractional count means the story needs rounding by its own logic: vans needed round up, vans that can be filled round down. A negative length means the setup was wrong and not the arithmetic.
-        The answer of a work problem is less than each time alone, a mixture's percent lies between the two percents, and a meeting time is less than the gap over the slower speed.</li>
+        The answer of a work problem is less than each time alone, a mixture's percent lies between the two percents, and a meeting time is less than the gap over the slower speed, because both movers close the gap, so it closes faster than the slower one alone would close it.</li>
       <li><b>Against the question that was asked.</b> The letter often stands for the quantity that was easiest to name, and the question asks for the other one. The puzzle asked for the ball, and a story about
         a sum and a difference may ask for the larger piece. Reread the question after solving.</li>
       <li><b>An estimate first.</b> Round the numbers and solve in your head before the algebra. A result far from the estimate is a signal to look again.</li>
@@ -575,7 +575,7 @@
     </div>
 
     <div class="ex" data-inline id="t10" data-type="number" data-answer="7" data-placeholder="dollars"
-         data-hint="Put the proposed answer into the story: work out what that many months would cost, then compare it with the total."
+         data-hint="Pretend the student is right and see what the story would then have cost."
          data-hint2="Is the cost of the proposed number of months more or less than the total, and by how much?">
       <div class="ex-q">
         <p>
@@ -592,7 +592,7 @@
 
     <div class="ex" data-inline id="t11" data-answer="3"
          data-hint="Test each fact of the story on the student's two numbers, one fact at a time."
-         data-hint2="What do $32$ and $22$ add to, and what is their difference?">
+         data-hint2="Test the sum first.">
       <div class="ex-q">
         <p>
           Two numbers add to $64$ and differ by $10$. A student answers $32$ and $22$. Which statement about this answer is true?
@@ -600,14 +600,14 @@
       </div>
       <ul class="choices">
         <li>The numbers do not differ by $10$.</li>
-        <li>One of the numbers is not positive.</li>
+        <li>The numbers add to $64$ but do not differ by $10$.</li>
         <li>The numbers do not add to $64$.</li>
         <li>Both facts of the story hold.</li>
       </ul>
       <div class="ex-solution">
         <p class="answer">Answer: the numbers do not add to $64$</p>
         <p>
-          $32 + 22 = 54$, not $64$, so the fact about the sum is broken, though $32 - 22 = 10$ holds. The pair that fits both facts is $27$ and $37$: $27 + 37 = 64$ and $37 - 27 = 10$ ✓.
+          $32 + 22 = 54$, not $64$, so the fact about the sum is broken, though $32 - 22 = 10$ holds. The first option is false because the difference is $10$, the second because the numbers do not add to $64$, and the last because the sum fails. The pair that fits both facts is $27$ and $37$: $27 + 37 = 64$ and $37 - 27 = 10$ ✓.
         </p>
       </div>
     </div>
@@ -619,8 +619,8 @@
           A school takes $130$ students on a trip in vans that each seat $12$. How many vans does it need?
         </p>
         <ol class="steps">
-          <li>Estimate first. $130$ is a little over $120$, and $120 \div 12 = 10$, so the answer should be a little over $10$ vans.</li>
-          <li>With $v$ vans the seats are $12v$, and they must cover the students: $12v \ge 130$, so $v \ge 10.83$.</li>
+          <li>Estimate first. The $130$ students are a little over $120$, and $120 \div 12 = 10$, so the answer should be a little over $10$ vans.</li>
+          <li>With $v$ vans the seats are $12v$, and they must cover the students: $12v \ge 130$, so $v \ge \frac{130}{12}$, which is about $10.8$.</li>
           <li>A part of a van cannot be hired. Ten vans seat $120$ and leave $10$ students without a seat, so the count rounds <em>up</em> to $11$ vans.</li>
           <li>Check against the story: $11 \cdot 12 = 132$ seats, enough for $130$ ✓, and $10 \cdot 12 = 120$, not enough ✓. Another way: $130 = 12 \cdot 10 + 10$, so ten vans fill and the $10$ left over
             need one more ✓. The estimate agrees. $\blacksquare$</li>
@@ -885,7 +885,7 @@
       </div>
 
       <div class="ex" id="e17" data-section="work" data-type="number" data-answer="4.5" data-placeholder="hours"
-           data-hint="A wind works like a current: against the plane it takes away from the plane's own speed. Find the speed over the ground, then use distance over speed."
+           data-hint="A wind works like a current: against the plane it takes away from the plane's own speed over the ground."
            data-hint2="What is the plane's speed over the ground when it flies into the wind?">
         <div class="ex-q"><p>A plane cruises at $320$ miles per hour in still air. Flying into a headwind of $40$ miles per hour, how many hours does a trip of $1{,}260$ miles take?</p></div>
         <div class="ex-solution">
@@ -926,19 +926,19 @@
       <div class="ex" id="e20" data-section="work" data-type="number" data-answer="16" data-placeholder="pounds"
            data-hint="The weights add and the dollars add. Write the dollars for each kind of bean and the dollars of the whole blend."
            data-hint2="If $x$ pounds of the beans are the dearer kind, how much of the beans is the cheaper kind?">
-        <div class="ex-q"><p>A shop mixes coffee beans that cost $\$3$ per pound with beans that cost $\$9$ per pound to make $48$ pounds of a blend worth $\$5$ per pound. How many pounds of the $\$9$ beans are needed?</p></div>
+        <div class="ex-q"><p>A shop mixes coffee beans that cost $\$4$ per pound with beans that cost $\$10$ per pound to make $48$ pounds of a blend worth $\$6$ per pound. How many pounds of the $\$10$ beans are needed?</p></div>
         <div class="ex-solution">
-          <p class="answer">Answer: $16$ pounds of the $\$9$ beans</p>
+          <p class="answer">Answer: $16$ pounds of the $\$10$ beans</p>
           <p>
-            With $x$ pounds of the $\$9$ beans there are $48 - x$ pounds of the $\$3$ beans, and the dollars add: $3(48 - x) + 9x = 5 \cdot 48$, so $144 + 6x = 240$ and $x = 16$. Check: $32$ pounds of the cheaper beans at $\$3$ per pound cost $\$96$ and $16$ pounds of the dearer at $\$9$ per pound
-            cost $\$144$, in all $\$240$, and $48$ pounds of blend at $\$5$ per pound cost $\$240$ ✓.
+            With $x$ pounds of the $\$10$ beans there are $48 - x$ pounds of the $\$4$ beans, and the dollars add: $4(48 - x) + 10x = 6 \cdot 48$, so $192 + 6x = 288$ and $x = 16$. Check: $32$ pounds of the cheaper beans at $\$4$ per pound cost $\$128$ and $16$ pounds of the dearer at $\$10$ per pound
+            cost $\$160$, in all $\$288$, and $48$ pounds of blend at $\$6$ per pound cost $\$288$ ✓.
           </p>
         </div>
       </div>
 
       <div class="ex" id="e21" data-section="work" data-answer="2"
            data-hint="Each device does a fraction of the pool per hour, and the drain works against the hose. In the time asked for, what must the net fraction of the pool be?"
-           data-hint2="Does the drain's share add to the hose's share or take away from it?">
+           data-hint2="Which way does the drain move the water level?">
         <div class="ex-q"><p>A hose fills a pool alone in $6$ hours, and a drain empties the full pool alone in $10$ hours. With both open on an empty pool, let $t$ be the hours until the pool is full. Which equation fits the story?</p></div>
         <ul class="choices">
           <li>$\dfrac{t}{6} + \dfrac{t}{10} = 1$</li>
@@ -957,19 +957,19 @@
 
       <div class="ex" id="e22" data-section="check" data-answer="2"
            data-hint="A mixture is made of the two solutions, so what can be said about its percent before any arithmetic?"
-           data-hint2="Where does $45$ sit compared with $15$ and $35$?">
-        <div class="ex-q"><p>A student mixes $6$ liters of a $15\%$ acid solution with $10$ liters of a $35\%$ acid solution and reports that the mixture is $45\%$ acid. Which statement is a reason to reject the report?</p></div>
+           data-hint2="Could a mixture of two solutions be stronger than both of them?">
+        <div class="ex-q"><p>A student mixes $6$ liters of a $15\%$ acid solution with $10$ liters of a $35\%$ acid solution and reports that the mixture is $45\%$ acid. Which statement is true and shows the report is wrong?</p></div>
         <ul class="choices">
-          <li>A percent in a mixture must be a whole number.</li>
+          <li>Adding the two percents gives $50\%$, so the mixture is $50\%$.</li>
           <li>A mixture's percent lies between the two percents, and $45\%$ is above both.</li>
-          <li>The liters were added, and they should have been multiplied.</li>
-          <li>The mixture must have the same percent as the larger amount.</li>
+          <li>The mixture takes the percent of the stronger solution, $35\%$.</li>
+          <li>The report should be rounded to a whole number.</li>
         </ul>
         <div class="ex-solution">
           <p class="answer">Answer: a mixture's percent lies between the two percents, and $45\%$ is above both</p>
           <p>
-            The mixture is made only of $15\%$ and $35\%$ solutions, so it cannot be richer than the richer one. The first reason is false, since a mixture's percent may be a decimal. Liters do add, which rules out the third, and the fourth is false
-            too. Check: the true percent is $\frac{0.9 + 3.5}{16} = 0.275$, which is $27.5\%$, between $15\%$ and $35\%$ and closer to $35\%$, because there is more of that solution ✓.
+            The mixture is made only of $15\%$ and $35\%$ solutions, so it cannot be richer than the richer one. The first option is false because percents are never added, and the third because the mixture also holds the weaker solution. The fourth is not a reason,
+            since $45$ is already a whole number. Check: the true percent is $\frac{0.9 + 3.5}{16} = 0.275$, which is $27.5\%$, between $15\%$ and $35\%$ and closer to $35\%$, because there is more of that solution ✓.
           </p>
         </div>
       </div>
@@ -993,21 +993,21 @@
         </div>
       </div>
 
-      <div class="ex" id="e24" data-section="check" data-type="number" data-answer="14" data-placeholder="dollars"
-           data-hint="Put the proposed answer into the story: work out what that many months would cost, then compare it with the total."
-           data-hint2="Is the cost of the proposed number of months more or less than the total, and by how much?">
-        <div class="ex-q"><p>A gym charges a joining fee of $\$30$ plus $\$14$ per month, and a member paid $\$198$ in all. A friend solves the equation and says the answer is $11$ months. By how many dollars does the cost of $11$ months miss $\$198$?</p></div>
+      <div class="ex" id="e24" data-section="check" data-type="number" data-answer="28" data-placeholder="dollars"
+           data-hint="Put the friend's number back into the story and see what it costs."
+           data-hint2="Is the friend's cost above or below $\$198$?">
+        <div class="ex-q"><p>A gym charges a joining fee of $\$30$ plus $\$14$ per month, and a member paid $\$198$ in all. A friend solves the equation and says the answer is $10$ months. By how many dollars does the cost of $10$ months miss $\$198$?</p></div>
         <div class="ex-solution">
-          <p class="answer">Answer: $14$ dollars</p>
+          <p class="answer">Answer: $28$ dollars</p>
           <p>
-            The cost of $11$ months is $30 + 14 \cdot 11 = 184$ dollars, and $198 - 184 = 14$. Check: the true answer is $12$ months, since $30 + 14 \cdot 12 = 198$, so the friend is one month off, and one month is $\$14$ ✓.
+            The cost of $10$ months is $30 + 14 \cdot 10 = 170$ dollars, and $198 - 170 = 28$. Check: the true answer is $12$ months, since $30 + 14 \cdot 12 = 198$, so the friend is two months off, and two months are $2 \cdot 14 = \$28$ ✓.
           </p>
         </div>
       </div>
 
       <div class="ex" id="e25" data-section="check" data-type="number" data-answer="19" data-placeholder="tables"
-           data-hint="Divide, and then ask what the story does with the part of a table that is left over."
-           data-hint2="Would $18$ tables seat everyone?">
+           data-hint="The arithmetic gives a part of a table. Ask whether the story can leave that part out or must still provide for it."
+           data-hint2="How many guests do $18$ tables seat?">
         <div class="ex-q"><p>A hall has round tables that each seat $8$ guests. How many tables are needed for $150$ guests?</p></div>
         <div class="ex-solution">
           <p class="answer">Answer: $19$ tables</p>
@@ -1018,19 +1018,19 @@
       </div>
 
       <div class="ex" id="e26" data-section="check" data-type="number" data-answer="22" data-placeholder="boxes"
-           data-hint="Divide, and then ask whether the story counts a part of a box."
+           data-hint="The arithmetic gives a part of a box. Ask whether the story counts that part."
            data-hint2="How many muffins are left over once the full boxes are packed?">
         <div class="ex-q"><p>A baker has $200$ muffins and packs them in boxes that each hold $9$. How many full boxes can the baker fill?</p></div>
         <div class="ex-solution">
           <p class="answer">Answer: $22$ boxes</p>
           <p>
-            $200 \div 9 = 22.2$, and only whole boxes count, so the answer rounds down to $22$. Check: $22 \cdot 9 = 198$ muffins fill $22$ boxes, leaving $2$, and a $23$rd box would need $207$, more than the baker has ✓.
+            $200 \div 9$ is $22$ with $2$ left over, about $22.2$, and only whole boxes count, so the answer rounds down to $22$. Check: $22 \cdot 9 = 198$ muffins fill $22$ boxes, leaving $2$, and a $23$rd box would need $207$, more than the baker has ✓.
           </p>
         </div>
       </div>
 
       <div class="ex" id="e27" data-section="check" data-type="number" data-answer="68" data-placeholder="centimeters"
-           data-hint="Solve for the letter, and then reread the question: the letter names one piece and the question may ask for the other."
+           data-hint="The letter and the question may name different pieces."
            data-hint2="Which piece does the letter $s$ stand for, and which piece is asked for?">
         <div class="ex-q"><p>A board $85$ centimeters long is cut into two pieces, and the longer piece is $4$ times as long as the shorter. Let $s$ be the length of the shorter piece in centimeters. How long is the longer piece, in centimeters?</p></div>
         <div class="ex-solution">
@@ -1041,15 +1041,21 @@
         </div>
       </div>
 
-      <div class="ex" id="e28" data-section="check" data-type="number" data-answer="9" data-placeholder="hours"
-           data-hint="Two pipes open together do more than either alone. What does that say about the time they take together, compared with each time alone?"
-           data-hint2="Which of the two times alone is the smaller?">
-        <div class="ex-q"><p>One pipe fills a pool alone in $9$ hours, and another fills it alone in $15$ hours. Open together, the two pipes take $t$ hours. Before solving, the time $t$ must be under what number of hours?</p></div>
+      <div class="ex" id="e28" data-section="check" data-answer="3"
+           data-hint="Two pipes open together do more than either alone. What does that say about the time they take together?"
+           data-hint2="Compare $t$ with the quicker pipe's time alone.">
+        <div class="ex-q"><p>One pipe fills a pool alone in $9$ hours, and another fills it alone in $15$ hours. Open together, the two pipes take $t$ hours. Before solving, which of these must be true of $t$?</p></div>
+        <ul class="choices">
+          <li>$t = 12$</li>
+          <li>$t = 24$</li>
+          <li>$t &lt; 9$</li>
+          <li>$9 &lt; t &lt; 15$</li>
+        </ul>
         <div class="ex-solution">
-          <p class="answer">Answer: $9$ hours</p>
+          <p class="answer">Answer: $t &lt; 9$</p>
           <p>
-            Together the pipes fill faster than the quicker pipe alone, so $t$ is under the smaller time, $9$ hours. Neither the sum, $24$, nor the mean, $12$, can be the answer. Check by solving: the rates are $\frac{1}{9} + \frac{1}{15} = \frac{8}{45}$ of the
-            pool per hour, so $t = \frac{45}{8} = 5.625$, which is under $9$ ✓.
+            Together the pipes fill faster than the quicker pipe alone, so $t$ is under the smaller time, $9$ hours. The first option is the mean of the times and the second is their sum, and neither can be right because both are over $9$. The last puts the time between the two
+            times alone, which is where the mean sits, not a pair working together. Check by solving: the rates are $\frac{1}{9} + \frac{1}{15} = \frac{8}{45}$ of the pool per hour, so $t = \frac{45}{8} = 5.625$, which is under $9$ ✓.
           </p>
         </div>
       </div>
@@ -1080,7 +1086,7 @@
         <li>Rates add, and times and percents do not. A worker who takes $a$ hours does $\frac{1}{a}$ of the job per hour, together they finish when $\frac{t}{a} + \frac{t}{b} = 1$, and a drain subtracts. Together is faster than either alone.</li>
         <li>A current adds to the still-water speed going with it and subtracts going against it: $b + c$ and $b - c$. The current is half the difference of the two speeds, and the still-water speed is half their sum.</li>
         <li>In a mixture the liters add and the pure amounts add, so the percent is total pure over total liters. It lies between the two percents and is the mean only when the amounts are equal. A price blend is the same table with dollars.</li>
-        <li>Check an answer against the story, against its units and kind, against the question asked, and against an estimate made first.</li>
+        <li>Check an answer against the story, against its units and kind, against the question asked, against an estimate made first, and by working back from a proposed answer.</li>
         <li>A fractional count is resolved by the story: what must be provided rounds up, and what can be completely filled rounds down.</li>
       </ul>
     </div>
