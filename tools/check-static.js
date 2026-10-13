@@ -1394,7 +1394,9 @@ function exerciseRefs(chapterId, exercises, page) {
 
 /* every rule of the skills check (design §5) over
    tree = { SKILLS, CONTAINERS, GENERATOR_SKILLS, generators: { id: section },
-            sections: [{ ref, anchor: "h2" | "practice" }], exercises: [{ where, ref }], codes };
+            sections: [{ ref, anchor: "h2" | "practice" }], exercises: [{ where, ref }], codes,
+            TAGS: [every exam tag], SINGLE: { tag: reason } };
+   rule 7 runs only when TAGS is an array (a small tree without it skips the rule)
    tree.resolveOverride, when given, is the module's own (skillsTree passes it); a test's
    small tree leaves it out and gets the module's own too */
 function skillsProblems(tree) {
@@ -1457,7 +1459,10 @@ function skillsProblems(tree) {
     const tagSet = new Set(tree.TAGS);
     tree.TAGS.forEach(t => {
       const refs = skillsCarrying(SKILLS, t), n = refs.length, list = n + " section" + (n === 1 ? "" : "s") + " (" + (refs.join(", ") || "none") + ")";
-      if (has(single, t)) { if (n >= 2) out.push(t + ": in SINGLE_SECTION_TAGS but carried by " + list + "; drop it from the map"); }
+      if (has(single, t)) {
+        if (n >= 2) out.push(t + ": in SINGLE_SECTION_TAGS but carried by " + list + "; drop it from the map");
+        else if (n === 0) out.push(t + ": in SINGLE_SECTION_TAGS but carried by no section; tag the section that teaches it, or drop it from the map");
+      }
       else if (n < 2) out.push(t + ": carried by " + list + ", the rule is two; tag a section that teaches it, or name it in SINGLE_SECTION_TAGS with the reason");
     });
     Object.keys(single).forEach(t => { if (!tagSet.has(t)) out.push("SINGLE_SECTION_TAGS[" + t + "]: not an exam tag in SAT_TAGS, ACT_TAGS, ACCUPLACER_TAGS or ALEKS_TAGS"); });

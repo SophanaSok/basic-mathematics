@@ -848,6 +848,7 @@ function refusal(fn) { try { fn(); return null; } catch (e) { return e.message; 
   clean({ TAGS, SINGLE: { "qas.lineq": "why" }, SKILLS: two.SKILLS }, "skills 7b: the same tag named in SINGLE passes");
   hit({ TAGS, SINGLE: { "qas.lineq": "why" }, SKILLS: both.SKILLS }, /^qas\.lineq: in SINGLE_SECTION_TAGS but carried by 2 sections \(ch01#a, ch01#b\); drop it from the map/, "skills 7c: a SINGLE tag on two sections fails");
   hit({ TAGS, SINGLE: { "qas.lineq": "why", "zzz.none": "why" }, SKILLS: two.SKILLS }, /^SINGLE_SECTION_TAGS\[zzz\.none\]: not an exam tag/, "skills 7d: a SINGLE key that is no tag fails");
+  hit({ TAGS: TAGS.concat("qas.expr"), SINGLE: { "qas.expr": "why" }, SKILLS: both.SKILLS }, /^qas\.expr: in SINGLE_SECTION_TAGS but carried by no section; tag the section that teaches it, or drop it from the map/, "skills 7e: a SINGLE tag on no section fails");
   const { SINGLE_SECTION_TAGS } = require("../src/data/skills.ts");
   eq(Object.keys(SINGLE_SECTION_TAGS).sort(), ["sat.psda.claims", "sat.psda.infer"], "skills 7: the real tree's single-section exceptions are the two samples tags; a second samples section drops them");
   /* the real tree */
