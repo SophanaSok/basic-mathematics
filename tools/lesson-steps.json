@@ -357,6 +357,18 @@
     "section#practice",
     "div.recap to nav.chapter-nav"
   ],
+  "pk-growth": [
+    "header.region-banner to div#puzzle",
+    "div.goal to section#warmup",
+    "h2#sequences to div#t1",
+    "div#t2",
+    "div.worked to div#t3",
+    "h2#growth to div#t4",
+    "div.worked to div#t5",
+    "div#t6",
+    "section#practice",
+    "div.recap to nav.chapter-nav"
+  ],
   "pk-linear": [
     "header.region-banner to div#puzzle",
     "div.goal to section#warmup",

@@ -9,6 +9,8 @@
    model; inequalities in one unknown; inequalities in two unknowns and systems).
    Pack F, "Word Problems": sections 1-4 (naming the unknown; distance, rate and time; work, currents and
    mixtures; checking an answer against the story).
+   Pack G, "Growth, Decay and Sequences": sections 1-2 so far (arithmetic and geometric sequences; exponential
+   growth and decay).
    The quartiles follow the median-of-halves rule of src/ui/chart.ts.
 
    A problem may carry a chart the Arena draws with the page widget (assets/widgets.js,
@@ -3949,6 +3951,486 @@
           var a = Number(key), other = L - a;
           if (a !== Math.floor(a) || other < 2 || a <= other) return false;
           return kind === "times" ? a === k * other : a - other === k;
+        }
+      };
+    }
+  });
+
+  /* ------------------------- pack G: sequences, growth and decay -- */
+
+  /* Every generator below draws from a table built once at load, so no draw can land on a page item (the page's own
+     tuples are left out of the table) and none needs a retry loop. The fallback in each make() is a tuple the page does
+     not print, kept only for safety. Sequences are listed as $5,\ 11,\ 17$; a negative term is written with a hyphen as
+     on the pages. */
+  function gList(arr) { return arr.map(function (v) { return wn(v); }).join(",\\ "); }
+  /* $4$th, $12$th, $22$nd: an ordinal for a position, with the numeral alone in math */
+  function gOrd(n) {
+    var m = n % 100, d = n % 10;
+    return "$" + n + "$" + ((m >= 11 && m <= 13) ? "th" : d === 1 ? "st" : d === 2 ? "nd" : d === 3 ? "rd" : "th");
+  }
+  /* a number in brackets when it is negative: (-3) */
+  function gParen(v) { return v < 0 ? "(" + wn(v) + ")" : wn(v); }
+  /* the exact decimal of num^t / den^t, for den 1, 2, 4, 5 or 10 (a terminating decimal): 1.25^3 is 1.953125 */
+  function gPow(num, den, t) {
+    var N = Math.pow(num, t), D = Math.pow(den, t), m = 0, s, whole, frac;
+    while ((Math.pow(10, m) % D) !== 0) m++;
+    N = N * (Math.pow(10, m) / D);
+    s = String(N);
+    while (s.length <= m) s = "0" + s;
+    whole = s.slice(0, s.length - m); frac = s.slice(s.length - m).replace(/0+$/, "");
+    return frac === "" ? whole : whole + "." + frac;
+  }
+  /* the page's own arithmetic sequences (first term, difference), left out of every arithmetic table */
+  var GPAGE_AP = [[5, 6], [9, 4], [2, 5], [10, 6], [18, 2], [31, -3], [12, 3], [2, 3]];
+  function gOnPage(a1, d) {
+    var i;
+    for (i = 0; i < GPAGE_AP.length; i++) if (GPAGE_AP[i][0] === a1 && GPAGE_AP[i][1] === d) return true;
+    return false;
+  }
+  var GDIFFS = [-9, -8, -7, -6, -5, -4, -3, -2, 2, 3, 4, 5, 6, 7, 8, 9];
+
+  /* pk-seq-term: (a1, d, n) arithmetic with n 7..20, and (a1, r, n) geometric with n 5..8, r in 2, 3, -2, 1/2, whole terms */
+  var GSEQ = (function () {
+    var arith = [], geom = [], a1, di, n, ri, k, mi, ratios = [2, 3, -2], mults = [1, 2, 5], a, an;
+    for (a1 = -20; a1 <= 40; a1++) {
+      for (di = 0; di < GDIFFS.length; di++) {
+        if (gOnPage(a1, GDIFFS[di])) continue;
+        for (n = 7; n <= 20; n++) arith.push([a1, GDIFFS[di], n]);
+      }
+    }
+    for (n = 5; n <= 8; n++) {
+      for (k = 1; k <= 6; k++) {
+        for (mi = 0; mi < mults.length; mi++) {
+          for (ri = 0; ri < ratios.length; ri++) {
+            a = k * mults[mi]; an = a * Math.pow(ratios[ri], n - 1);
+            if (Math.abs(an) > 20000 || (a === 3 && ratios[ri] === 2) || (a === 5 && ratios[ri] === 3) || (a === 7 && ratios[ri] === 2)) continue;
+            geom.push([a, ratios[ri], n]);
+          }
+          if (mults[mi] !== 2) geom.push([k * mults[mi] * Math.pow(2, n - 1), 0.5, n]);
+        }
+      }
+    }
+    return { arith: arith, geom: geom };
+  })();
+
+  G.add({
+    id: "pk-seq-term", section: "pk-growth#sequences", par: 70, timed: true,
+    make: function (r) {
+      var geom = r.chance(0.4), t = r.pick(geom ? GSEQ.geom : GSEQ.arith) || (geom ? [4, 3, 6] : [-4, 5, 9]);
+      var a1 = t[0], q = t[1], n = t[2], terms = [a1], i, an, key;
+      for (i = 1; i < n; i++) terms.push(geom ? terms[i - 1] * q : terms[i - 1] + q);
+      an = terms[n - 1]; key = clean(an);
+      var first = gList(terms.slice(0, 4));
+      var ratioTxt = q === 0.5 ? "\\dfrac{1}{2}" : wn(q);
+      return {
+        q: geom ?
+          "The first four terms of a geometric sequence are $" + first + "$. What is the $" + n + "$th term?" :
+          "The first four terms of an arithmetic sequence are $" + first + "$. What is the $" + n + "$th term?",
+        type: "number", answer: key, placeholder: wPlace("the term", key),
+        hint: geom ? "Each step multiplies by the same ratio, and the term you want is a number of steps from the first, one fewer than its position. Find the ratio from two neighbors." :
+          "Each step adds the same difference, and the term you want is a number of steps from the first, one fewer than its position. Find the difference from two neighbors.",
+        steps: geom ? [
+          "The ratio is $" + wn(terms[1]) + " \\div " + gParen(terms[0]) + " = " + ratioTxt + "$, so $a_1 = " + wn(a1) + "$ and $r = " + ratioTxt + "$.",
+          "The $" + n + "$th term is $" + (n - 1) + "$ steps from the first: $a_{" + n + "} = " + wn(a1) + " \\cdot " + (q < 0 ? "(" + q + ")" : q === 0.5 ? "\\left(" + ratioTxt + "\\right)" : ratioTxt) + "^{" + (n - 1) + "} = " + wn(an) + "$.",
+          "Check by listing: $" + gList(terms) + "$ has $" + n + "$ terms and ends at $" + wn(an) + "$."
+        ] : [
+          "The difference is $" + wn(terms[1]) + " - " + gParen(terms[0]) + " = " + wn(q) + "$, so $a_1 = " + wn(a1) + "$ and $d = " + wn(q) + "$.",
+          "The $" + n + "$th term is $" + (n - 1) + "$ steps from the first: $a_{" + n + "} = " + wn(a1) + " + " + (n - 1) + " \\cdot " + gParen(q) + " = " + wn(an) + "$.",
+          "Check by listing: $" + gList(terms) + "$ has $" + n + "$ terms and ends at $" + wn(an) + "$."
+        ],
+        verify: function () {
+          /* build the sequence term by term from the first term */
+          var v = a1, j;
+          for (j = 1; j < n; j++) v = geom ? v * q : v + q;
+          var closed = geom ? a1 * Math.pow(q, n - 1) : a1 + (n - 1) * q;
+          return v === Number(key) && closed === v && (geom ? Math.abs(v) <= 20000 && v === Math.floor(v) : q !== 0 && n >= 7);
+        }
+      };
+    }
+  });
+
+  /* pk-seq-which: the position of a value ((a1, d, n), n 8..40, all terms within 500), or the difference from two terms
+     (a1, d, i, gap): the i-th and (i + gap)-th terms, gap 2..6 */
+  var GWHICH = (function () {
+    var pos = [], diff = [], a1, di, n, d, i, gap, an;
+    for (a1 = -20; a1 <= 40; a1++) {
+      for (di = 0; di < GDIFFS.length; di++) {
+        d = GDIFFS[di];
+        if (gOnPage(a1, d)) continue;
+        for (n = 8; n <= 40; n++) {
+          an = a1 + (n - 1) * d;
+          if (Math.abs(an) <= 500) pos.push([a1, d, n]);
+        }
+      }
+    }
+    for (a1 = -10; a1 <= 30; a1++) {
+      for (di = 0; di < GDIFFS.length; di++) {
+        d = GDIFFS[di];
+        for (i = 2; i <= 9; i++) {
+          for (gap = 2; gap <= 6; gap++) {
+            if (a1 + (i - 1) * d === 17 && a1 + (i + gap - 1) * d === 52) continue;
+            diff.push([a1, d, i, gap]);
+          }
+        }
+      }
+    }
+    return { pos: pos, diff: diff };
+  })();
+
+  G.add({
+    id: "pk-seq-which", section: "pk-growth#sequences", par: 80, timed: true,
+    make: function (r) {
+      var pos = r.chance(0.5), t = pos ? (r.pick(GWHICH.pos) || [3, 4, 12]) : (r.pick(GWHICH.diff) || [6, 5, 4, 3]);
+      var a1 = t[0], d = t[1], n = pos ? t[2] : 0, i = pos ? 0 : t[2], gap = pos ? 0 : t[3];
+      var terms = [], j, v, ai, aj, key;
+      for (j = 0; j < 4; j++) terms.push(a1 + j * d);
+      if (pos) { v = a1 + (n - 1) * d; key = clean(n); }
+      else { ai = a1 + (i - 1) * d; aj = a1 + (i + gap - 1) * d; key = clean(d); }
+      return {
+        q: pos ?
+          "The first four terms of an arithmetic sequence are $" + gList(terms) + "$. In which position does the value $" + wn(v) + "$ appear in the sequence?" :
+          "In an arithmetic sequence the " + gOrd(i) + " term is $" + wn(ai) + "$ and the " + gOrd(i + gap) + " term is $" + wn(aj) + "$. What is the common difference?",
+        type: "number", answer: key, placeholder: wPlace(pos ? "the position" : "the difference", key),
+        hint: pos ? "Say how far the value is from the first term, and how many steps of the common difference that is. The position is one more than the number of steps." :
+          "The two terms are some number of steps apart, and the gap between their values is that many common differences.",
+        steps: pos ? [
+          "The difference is $" + wn(terms[1]) + " - " + gParen(terms[0]) + " = " + wn(d) + "$ and $a_1 = " + wn(a1) + "$. Solve $" + wn(a1) + " + (n - 1) \\cdot " + gParen(d) + " = " + wn(v) + "$.",
+          "$(n - 1) \\cdot " + gParen(d) + " = " + wn(v - a1) + "$, so $n - 1 = " + (n - 1) + "$ and $n = " + n + "$.",
+          "Check by counting steps: from $" + wn(a1) + "$ to $" + wn(v) + "$ is $" + wn(v - a1) + "$, which is $" + (n - 1) + "$ steps of $" + wn(d) + "$, so the value is the term $" + (n - 1) + "$ steps after the first, in position $" + n + "$."
+        ] : [
+          "From the " + gOrd(i) + " term to the " + gOrd(i + gap) + " term is $" + gap + "$ steps, and the values differ by $" + wn(aj) + " - " + gParen(ai) + " = " + wn(aj - ai) + "$.",
+          "So $d = " + wn(aj - ai) + " \\div " + gap + " = " + wn(d) + "$.",
+          "Check by rebuilding the sequence from the " + gOrd(i) + " term: adding $" + wn(d) + "$ a total of $" + gap + "$ times from $" + wn(ai) + "$ reaches $" + wn(aj) + "$."
+        ],
+        verify: function () {
+          /* walk from the first term in steps of the common difference */
+          var p, cur = a1, a = Number(key);
+          if (pos) {
+            for (p = 1; p <= 40 && cur !== v; p++) cur += d;
+            return p === n && cur === v && a === n && Math.abs(v) <= 500 && n >= 8;
+          }
+          cur = a1;
+          for (p = 1; p < i; p++) cur += a;
+          if (cur !== ai) return false;
+          for (p = 0; p < gap; p++) cur += a;
+          return cur === aj && a !== 0 && gap >= 2 && gap <= 6;
+        }
+      };
+    }
+  });
+
+  /* pk-seq-missing: the middle of three terms, arithmetic (a, a + d, a + 2d) or positive geometric (k q^2, k p q, k p^2 with
+     p and q coprime); or the first term given the n-th, n and d. The page's (2, 10, 50) is left out. */
+  var GMISS = (function () {
+    var arith = [], geom = [], first = [], a, di, d, p, q, k, n, v;
+    for (a = -30; a <= 60; a++) {
+      for (d = -12; d <= 12; d++) if (d !== 0) arith.push([a, d]);
+    }
+    for (p = 1; p <= 6; p++) {
+      for (q = 1; q <= 6; q++) {
+        if (p === q || gcd(p, q) !== 1) continue;
+        for (k = 1; k <= 6; k++) if (!(k * q * q === 2 && k * p * p === 50)) geom.push([k * q * q, k * p * q, k * p * p]);
+      }
+    }
+    for (a = -30; a <= 60; a++) {
+      for (di = 0; di < GDIFFS.length; di++) {
+        d = GDIFFS[di];
+        if (gOnPage(a, d)) continue;
+        for (n = 6; n <= 20; n++) { v = a + (n - 1) * d; if (Math.abs(v) <= 300) first.push([a, d, n]); }
+      }
+    }
+    return { arith: arith, geom: geom, first: first };
+  })();
+
+  G.add({
+    id: "pk-seq-missing", section: "pk-growth#sequences", par: 70, timed: true,
+    make: function (r) {
+      var kind = r.pick(["arith", "geom", "first"]), key, qtext, hint, steps, check;
+      if (kind === "arith") {
+        var t = r.pick(GMISS.arith) || [7, 5], a = t[0], d = t[1], m = a + d, c = a + 2 * d;
+        key = clean(m);
+        qtext = "The numbers $" + wn(a) + "$, $x$, $" + wn(c) + "$ are three consecutive terms of an arithmetic sequence, in that order. What is $x$?";
+        hint = "In an arithmetic sequence the middle of three neighbors is the same distance from each of the other two.";
+        steps = [
+          "The middle term is the mean of its neighbors: $\\dfrac{" + wn(a) + " + " + gParen(c) + "}{2} = \\dfrac{" + wn(a + c) + "}{2} = " + wn(m) + "$.",
+          "Check the differences: $" + wn(m) + " - " + gParen(a) + " = " + wn(d) + "$ and $" + wn(c) + " - " + gParen(m) + " = " + wn(d) + "$, equal as they must be."
+        ];
+        check = function () { var x = Number(key); return x - a === c - x && x - a !== 0; };
+      } else if (kind === "geom") {
+        var g = r.pick(GMISS.geom) || [4, 12, 36], ga = g[0], gm = g[1], gc = g[2];
+        key = clean(gm);
+        qtext = "The positive numbers $" + wn(ga) + "$, $x$, $" + wn(gc) + "$ are three consecutive terms of a geometric sequence, in that order. What is $x$?";
+        hint = "In a geometric sequence the ratio from the first to the middle equals the ratio from the middle to the last. The middle term is positive.";
+        steps = [
+          "The two ratios are equal, so $x^2 = " + wn(ga) + " \\cdot " + wn(gc) + " = " + wn(ga * gc) + "$. The terms are positive, so $x = " + wn(gm) + "$.",
+          "Check the ratios: $" + wn(gm) + " \\div " + wn(ga) + " = " + wFrac(gm, ga) + "$ and $" + wn(gc) + " \\div " + wn(gm) + " = " + wFrac(gc, gm) + "$, equal as they must be."
+        ];
+        check = function () { var x = Number(key); return x > 0 && Math.abs(x / ga - gc / x) < 1e-9 && x * x === ga * gc; };
+      } else {
+        var f = r.pick(GMISS.first) || [-4, 5, 9], fa = f[0], fd = f[1], fn = f[2], fv = fa + (fn - 1) * fd, fl = [], fj;
+        for (fj = 0; fj < fn; fj++) fl.push(fa + fj * fd);
+        key = clean(fa);
+        qtext = "In an arithmetic sequence each term is $" + Math.abs(fd) + "$ " + (fd > 0 ? "more" : "less") + " than the one before it. The " + gOrd(fn) + " term is $" + wn(fv) + "$. What is the first term?";
+        hint = "The given term is some number of steps from the first. Undo those steps, keeping track of whether each step added or took away.";
+        steps = [
+          "The " + gOrd(fn) + " term is $" + (fn - 1) + "$ steps from the first, and each step " + (fd > 0 ? "adds" : "takes away") + " $" + Math.abs(fd) + "$: $a_1 + " + (fn - 1) + " \\cdot " + gParen(fd) + " = " + wn(fv) + "$.",
+          "So $a_1 = " + wn(fv) + " - " + gParen((fn - 1) * fd) + " = " + wn(fa) + "$.",
+          "Check by listing from $" + wn(fa) + "$: $" + gList(fl) + "$ has $" + fn + "$ terms and ends at $" + wn(fv) + "$."
+        ];
+        check = function () {
+          var v = Number(key), j;
+          for (j = 1; j < fn; j++) v += fd;
+          return v === fv && fn >= 6 && fd !== 0;
+        };
+      }
+      return { q: qtext, type: "number", answer: key, placeholder: wPlace("the term", key), hint: hint, steps: steps, verify: check };
+    }
+  });
+
+  /* growth and decay: the multipliers as fractions num/den, so the arithmetic is exact. Whole multipliers (2, 3) run to 6
+     periods and the others to 4. */
+  var GMUL = [
+    { num: 2, den: 1, up: true, tmax: 6, phrase: "doubles" },
+    { num: 3, den: 1, up: true, tmax: 6, phrase: "triples" },
+    { num: 3, den: 2, up: true, tmax: 4, pct: 50 },
+    { num: 11, den: 10, up: true, tmax: 4, pct: 10 },
+    { num: 6, den: 5, up: true, tmax: 4, pct: 20 },
+    { num: 5, den: 4, up: true, tmax: 4, pct: 25 },
+    { num: 1, den: 2, up: false, tmax: 4, phrase: "halves" },
+    { num: 3, den: 4, up: false, tmax: 4, pct: 25 },
+    { num: 4, den: 5, up: false, tmax: 4, pct: 20 },
+    { num: 9, den: 10, up: false, tmax: 4, pct: 10 }
+  ];
+  function gMulDecimal(m) { return gPow(m.num, m.den, 1); }
+  /* does start a stay whole through t periods of multiplier m? */
+  function gWhole(a, m, t) {
+    var j;
+    for (j = 1; j <= t; j++) if ((a * Math.pow(m.num, j)) % Math.pow(m.den, j) !== 0) return false;
+    return true;
+  }
+  /* the valid start values for a noun */
+  var GNOUN = [
+    { id: "cells", up: true, lo: 50, hi: 5000, step: 10, cap: 300000, unit: "bacteria", per: "hour", pers: "hours" },
+    { id: "views", up: true, lo: 100, hi: 20000, step: 100, cap: 500000, unit: "views", per: "day", pers: "days" },
+    { id: "trees", up: true, down: true, noWhole: true, lo: 500, hi: 20000, step: 500, cap: 500000, unit: "trees", per: "year", pers: "years" },
+    { id: "machine", down: true, lo: 2000, hi: 60000, step: 1000, cap: 60000, unit: "dollars", per: "year", pers: "years" },
+    { id: "dose", down: true, lo: 10, hi: 800, step: 10, cap: 800, unit: "milligrams", per: "hour", pers: "hours" }
+  ];
+  /* the page's own growth and decay tuples (start, num, den, t), left out of the tables */
+  function gOnPageGrow(a, m, t) {
+    return (a === 250 && m.num === 6 && t === 3) || (a === 48000 && m.num === 3 && m.den === 4 && t === 3) ||
+      (a === 200 && m.num === 3 && m.den === 1 && t === 3) || (a === 320 && m.num === 5 && m.den === 4 && t === 3) ||
+      (a === 640 && m.num === 1 && m.den === 2 && t === 4) || (a === 8 && m.num === 3 && m.den === 2) || (a === 1500 && m.num === 11 && m.den === 10 && t === 2);
+  }
+  /* one pool for each noun, so the noun is drawn first and the decay nouns (machine, dose, trees falling) come up in about two draws of five */
+  var GVAL = (function () {
+    var pools = [], out, ni, mi, a, t, nn, m;
+    for (ni = 0; ni < GNOUN.length; ni++) {
+      nn = GNOUN[ni]; out = []; pools.push(out);
+      for (mi = 0; mi < GMUL.length; mi++) {
+        m = GMUL[mi];
+        if (m.up ? !nn.up : !nn.down) continue;
+        if (nn.noWhole && m.up && m.den === 1) continue;
+        for (a = nn.lo; a <= nn.hi; a += nn.step) {
+          for (t = 2; t <= m.tmax; t++) {
+            if (!gWhole(a, m, t) || gOnPageGrow(a, m, t)) continue;
+            if (a * Math.pow(m.num, t) / Math.pow(m.den, t) > nn.cap) continue;
+            out.push([ni, mi, a, t]);
+          }
+        }
+      }
+    }
+    return pools;
+  })();
+
+  /* "doubles" or "grows by 20%", and the plural-subject forms "double" and "grow by 20%" */
+  function gChange(m, plural) {
+    var w = m.phrase ? m.phrase : (m.up ? "grows by" : "falls by");
+    if (plural) w = w.replace(/s( by)?$/, "$1");
+    return m.phrase ? w : w + " $" + m.pct + "\\%$";
+  }
+
+  G.add({
+    id: "pk-grow-value", section: "pk-growth#growth", par: 80, timed: true,
+    make: function (r) {
+      var pool = GVAL[r.pick([0, 1, 2, 0, 1, 2, 3, 4])], e = r.pick(pool) || [0, 4, 100, 3], nn = GNOUN[e[0]], m = GMUL[e[1]], a = e[2], t = e[3];
+      var vals = [a], j, V, key, b = gMulDecimal(m), mult = m.den === 1 ? wn(m.num) : b;
+      for (j = 1; j <= t; j++) vals.push(vals[j - 1] * m.num / m.den);
+      V = vals[t]; key = clean(V);
+      var shown = function (v) { return nn.id === "machine" ? "\\$" + wn(v) : wn(v); };
+      var chain = vals.map(shown).join(" \\to ");
+      var story = nn.id === "cells" ? "A culture starts with $" + wn(a) + "$ bacteria, and the number of bacteria " + gChange(m) + " each hour." :
+        nn.id === "views" ? "A video has $" + wn(a) + "$ views today, and its views " + gChange(m, true) + " each day." :
+        nn.id === "trees" ? "A forest has $" + wn(a) + "$ trees, and its number of trees " + gChange(m) + " each year." :
+        nn.id === "machine" ? "A machine is worth " + wUsd(a) + " new and " + (m.phrase ? "its value halves" : "it loses $" + m.pct + "\\%$ of its value") + " each year." :
+        "A dose in the blood is $" + wn(a) + "$ milligrams, and the amount " + gChange(m) + " each hour.";
+      var ask = nn.id === "cells" ? "How many bacteria are in the culture after $" + t + "$ " + nn.pers + "?" :
+        nn.id === "views" ? "How many views does it have after $" + t + "$ days?" :
+        nn.id === "trees" ? "How many trees does it have after $" + t + "$ years?" :
+        nn.id === "machine" ? "What is it worth, in dollars, after $" + t + "$ years?" :
+        "How many milligrams are left after $" + t + "$ hours?";
+      var mulTxt = m.phrase ? (m.num === 1 ? "halving gives the multiplier $\\frac12$" : "the multiplier is $" + m.num + "$") : (m.up ? "a rise of $" + m.pct + "\\%$ gives the multiplier $1 + " + wn(m.pct / 100) + " = " + b + "$" : "a fall of $" + m.pct + "\\%$ leaves the multiplier $1 - " + wn(m.pct / 100) + " = " + b + "$");
+      var mulUse = m.num === 1 ? "0.5" : mult;
+      return {
+        q: story + " " + ask,
+        type: "number", answer: key, placeholder: wPlace(nn.unit, key),
+        hint: "A change by a percent, a doubling or a halving is a multiplier applied once per period. Decide the multiplier, then apply it once for each period.",
+        steps: [
+          "Here " + mulTxt + ", and the start is $a = " + shown(a) + "$, so $y = " + shown(a) + " \\cdot " + mulUse + "^{" + t + "} = " + shown(a) + " \\cdot " + gPow(m.num, m.den, t) + " = " + shown(V) + "$.",
+          "Check period by period: $" + chain + "$.",
+          "Check the multiplier from the last two amounts: $" + shown(V) + " \\div " + shown(vals[t - 1]) + " = " + clean(V / vals[t - 1]) + "$, the multiplier used above."
+        ],
+        verify: function () {
+          /* multiply period by period, rounding away float noise, and check the direction */
+          var v = a, p, x = Number(key), bb = m.num / m.den;
+          for (p = 1; p <= t; p++) {
+            v = Math.round(v * bb * 1e6) / 1e6;
+            if (v !== Math.floor(v)) return false;
+          }
+          return v === x && x === a * Math.pow(m.num, t) / Math.pow(m.den, t) && (m.up ? x > a : x < a) && t >= 2 && a >= nn.lo;
+        }
+      };
+    }
+  });
+
+  /* pk-grow-rate: the percent per period from consecutive values (two or three of them), or the start from a later value.
+     The pct table is (p, direction, a) with a(1 +- p/100) whole; the page's 1200 -> 900 and 4000 -> 4400 are left out. */
+  var GRATE = (function () {
+    var two = [], three = [], p, dir, s, k, a, up, dn;
+    for (p = 2; p <= 50; p++) {
+      s = 100 / gcd(p, 100);
+      for (dir = -1; dir <= 1; dir += 2) {
+        for (k = 1; k <= 40; k++) {
+          a = s * k;
+          if (a < 20 || a > 5000) continue;
+          if ((a === 1200 && p === 25 && dir === -1) || (a === 4000 && p === 10 && dir === 1) || (a === 400 && p === 25 && dir === 1) || (a === 8 && p === 50 && dir === 1)) continue;
+          two.push([p, dir, a]);
+          if ((a * (100 + dir * p) * (100 + dir * p)) % 10000 === 0) three.push([p, dir, a]);
+        }
+      }
+    }
+    return { two: two, three: three };
+  })();
+  var GSTART = (function () {
+    var out = [], mi, m, t, a, den;
+    for (mi = 0; mi < GMUL.length; mi++) {
+      m = GMUL[mi];
+      if (!m.pct) continue;
+      for (t = 2; t <= 4; t++) {
+        den = Math.pow(m.den, t);
+        for (a = den; a <= 20000; a += den) {
+          if (a < 20 || (a === 500 && m.num === 6 && t === 2) || (a === 1500 && m.num === 11 && t === 2)) continue;
+          if (a * Math.pow(m.num, t) / den > 50000) continue;
+          out.push([mi, t, a]);
+        }
+      }
+    }
+    return out;
+  })();
+  var GSUBJ = [
+    { thing: "fish in a pond", unit: "fish", up: "rises", dn: "falls" },
+    { thing: "visitors to a museum", unit: "visitors", up: "rises", dn: "falls" },
+    { thing: "subscribers to a channel", unit: "subscribers", up: "rises", dn: "falls" }
+  ];
+
+  G.add({
+    id: "pk-grow-rate", section: "pk-growth#growth", par: 90, timed: true,
+    make: function (r) {
+      var start = r.chance(0.4), sj = r.pick(GSUBJ), key, qtext, hint, steps, check;
+      if (!start) {
+        var three = r.chance(0.4), t = r.pick(three ? GRATE.three : GRATE.two) || [20, 1, 500], p = t[0], dir = t[1], a = t[2];
+        var v2 = a * (100 + dir * p) / 100, v3 = v2 * (100 + dir * p) / 100, up = dir > 0;
+        key = clean(p);
+        qtext = "The number of " + sj.thing + " was $" + wn(a) + "$ in one year, $" + wn(v2) + "$ the year after" + (three ? ", and $" + wn(v3) + "$ the year after that" : "") +
+          ". If it keeps changing by the same percent each year, by what percent does it " + (up ? "grow" : "shrink") + " each year? Give the percent without the percent sign.";
+        hint = "The same share of each year's amount is added or taken away, so compare neighboring years as a ratio and read the share from how far the ratio is from one.";
+        steps = [
+          "The multiplier is $" + wn(v2) + " \\div " + wn(a) + " = " + clean(v2 / a) + "$, which is $1 " + (up ? "+" : "-") + " " + clean(p / 100) + "$: " + (up ? "a rise" : "a fall") + " of $" + p + "\\%$.",
+          three ? "Check with the next year: $" + wn(v3) + " \\div " + wn(v2) + " = " + clean(v3 / v2) + "$, the same multiplier." : "Check: $" + p + "\\%$ of $" + wn(a) + "$ is $" + wn(a * p / 100) + "$, and $" + wn(a) + (up ? " + " : " - ") + wn(a * p / 100) + " = " + wn(v2) + "$."
+        ];
+        check = function () {
+          var x = Number(key), f = 100 + dir * x;
+          return v2 * 100 === a * f && (!three || v3 * 100 === v2 * f) && x >= 2 && x <= 50 && x === Math.floor(x);
+        };
+      } else {
+        var g = r.pick(GSTART) || [4, 3, 125], m = GMUL[g[0]], tt = g[1], a0 = g[2], V = a0 * Math.pow(m.num, tt) / Math.pow(m.den, tt);
+        key = clean(a0);
+        qtext = "The number of " + sj.thing + " " + (m.up ? sj.up : sj.dn) + " by $" + m.pct + "\\%$ each year. After $" + tt + "$ years there are $" + wn(V) + "$ " + sj.unit + ". How many " + sj.unit + " were there at the start?";
+        hint = "Run the story backward: the amount at the end is the starting amount multiplied once for each year.";
+        steps = [
+          "The multiplier is $" + gMulDecimal(m) + "$ and it is used $" + tt + "$ times, so the end is $a \\cdot " + gMulDecimal(m) + "^{" + tt + "} = a \\cdot " + gPow(m.num, m.den, tt) + "$.",
+          "So $a = " + wn(V) + " \\div " + gPow(m.num, m.den, tt) + " = " + wn(a0) + "$.",
+          "Check forward, year by year: $" + (function () { var o = [a0], j; for (j = 1; j <= tt; j++) o.push(o[j - 1] * m.num / m.den); return o.map(function (v) { return wn(v); }).join(" \\to "); })() + "$."
+        ];
+        check = function () {
+          var v = Number(key), j;
+          for (j = 1; j <= tt; j++) v = Math.round(v * (m.num / m.den) * 1e6) / 1e6;
+          return v === V && tt >= 2 && tt <= 4 && Number(key) >= 20;
+        };
+      }
+      return { q: qtext, type: "number", answer: key, placeholder: wPlace(start ? sj.unit : "percent", key), hint: hint, steps: steps, verify: check };
+    }
+  });
+
+  /* pk-grow-when: the first period in which a quantity is over (or, for halving, under) a target. Tuples (multiplier, start,
+     target, answer 2..12) with the target never hit exactly and every amount through the answer written with at most two
+     decimals. The page's (3, doubling, 100) and (5, tripling, 1000) are left out. */
+  var GWHEN = (function () {
+    var out = [], mults = [0, 1, 2, 3, 4, 5, 6], ups = [5, 8, 10, 12, 16, 20, 24, 25, 32, 40, 50, 60, 64, 80, 100, 125, 150, 200, 250, 256, 400, 500, 512, 1000, 1024],
+      tops = [100, 150, 200, 250, 300, 400, 500, 600, 750, 800, 1000, 1200, 1500, 2000, 2500, 3000, 4000, 5000, 6000, 8000, 10000, 20000, 50000, 100000],
+      downs = [400, 500, 640, 800, 1000, 1200, 2000, 2400, 5000, 10000, 20000, 40000],
+      lows = [5, 10, 15, 20, 25, 30, 40, 50, 75, 100, 150, 200, 250, 300],
+      mi, m, ai, ti, starts, targets, a, T, j, N, D, ok, hit, k;
+    for (mi = 0; mi < mults.length; mi++) {
+      m = GMUL[mults[mi]];
+      starts = m.up ? ups : downs; targets = m.up ? tops : lows;
+      for (ai = 0; ai < starts.length; ai++) {
+        for (ti = 0; ti < targets.length; ti++) {
+          a = starts[ai]; T = targets[ti];
+          if (m.up ? T <= a : T >= a) continue;
+          k = 0; ok = true; hit = false;
+          for (j = 0; j <= 12; j++) {
+            N = a * Math.pow(m.num, j); D = Math.pow(m.den, j);
+            if (N > 9e13) { ok = false; break; }
+            if (m.up ? (N % D !== 0) : ((N * 100) % D !== 0)) { ok = false; break; }
+            if (N === T * D) { hit = true; break; }
+            if (m.up ? N > T * D : N < T * D) { k = j; break; }
+          }
+          if (!ok || hit || k < 2 || k > 12) continue;
+          if ((m.num === 2 && a === 3 && T === 100) || (m.num === 3 && a === 5 && T === 1000)) continue;
+          out.push([mults[mi], a, T, k]);
+        }
+      }
+    }
+    return out;
+  })();
+
+  G.add({
+    id: "pk-grow-when", section: "pk-growth#growth", par: 90, timed: true,
+    make: function (r) {
+      var e = r.pick(GWHEN) || [0, 5, 400, 7], m = GMUL[e[0]], a = e[1], T = e[2], k = e[3], j, vals = [], kind = r.pick(["cells", "views", "followers"]);
+      for (j = 0; j <= k; j++) vals.push(clean(a * Math.pow(m.num, j) / Math.pow(m.den, j)));
+      var key = clean(k), per = !m.up ? "day" : kind === "cells" ? "hour" : kind === "views" ? "day" : "week";
+      var pers = per + "s";
+      var shown = vals.map(function (v) { return wn(Number(v)); });
+      var story = !m.up ? "A sample has a mass of $" + wn(a) + "$ grams, and its mass halves each day. After how many whole days is the mass first less than $" + wn(T) + "$ grams?" :
+        kind === "cells" ? "A culture has $" + wn(a) + "$ cells, and the number of cells " + gChange(m) + " every hour. After how many whole hours does it first have more than $" + wn(T) + "$ cells?" :
+        kind === "views" ? "A video has $" + wn(a) + "$ views today, and its views " + gChange(m, true) + " each day. After how many whole days does it first have more than $" + wn(T) + "$ views?" :
+        "An account has $" + wn(a) + "$ followers, and its followers " + gChange(m, true) + " each week. After how many whole weeks does it first have more than $" + wn(T) + "$ followers?";
+      return {
+        q: story,
+        type: "number", answer: key, placeholder: wPlace(pers, key),
+        hint: "List the amount after each period in turn, from the start, until one passes the target. The number of periods when that first happens is the answer.",
+        steps: [
+          "The multiplier is $" + (m.num === 1 ? "\\frac12" : gMulDecimal(m)) + "$. The amounts after $0$ through $" + k + "$ " + pers + " are $" + shown.join(",\\ ") + "$.",
+          "The amount after $" + (k - 1) + "$ " + (k - 1 === 1 ? per : pers) + " is $" + shown[k - 1] + "$, " + (m.up ? "not over" : "not under") + " $" + wn(T) + "$, and after $" + k + "$ " + pers + " it is $" + shown[k] + "$, which " + (m.up ? "is over" : "is under") + " it. The answer is $" + k + "$.",
+          "Check by the power: $" + wn(a) + " \\cdot " + (m.num === 1 ? "0.5" : gMulDecimal(m)) + "^{" + (k - 1) + "}$ is $" + shown[k - 1] + "$ and $" + wn(a) + " \\cdot " + (m.num === 1 ? "0.5" : gMulDecimal(m)) + "^{" + k + "}$ is $" + shown[k] + "$."
+        ],
+        verify: function () {
+          /* iterate: the value at the key passes the target and the value one period earlier does not */
+          var v = a, p, prev = a, x = Number(key), bb = m.num / m.den;
+          for (p = 1; p <= x; p++) { prev = v; v = Math.round(v * bb * 1e6) / 1e6; }
+          return (m.up ? (v > T && prev <= T) : (v < T && prev >= T)) && v !== T && prev !== T && x >= 2 && x <= 12;
         }
       };
     }

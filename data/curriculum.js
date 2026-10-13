@@ -304,7 +304,7 @@ window.BM_CURRICULUM = {
       dir: "5-packs",
       beside: true,
       blurb:
-        "Short units on what the gate tests ask and Lang's book leaves out: percent, data, chance, units, linear models, word problems. Use any of them, in any order, alongside the course.",
+        "Short units on what the gate tests ask and Lang's book leaves out: percent, data, chance, units, linear models, word problems, growth. Use any of them, in any order, alongside the course.",
       chapters: [
         {
           id: "pk-percent",
@@ -400,6 +400,20 @@ window.BM_CURRICULUM = {
             { id: "drt", title: "Distance, rate and time", summary: "Distance is rate times time, so each mover gets a row of rate, time and distance and one sentence ties the rows: toward each other the distances add to the gap, in a catch-up they are equal, on a round trip they are equal and the times add; an average speed is total distance over total time." },
             { id: "work", title: "Work, currents and mixtures", summary: "Rates that combine: workers who finish a job in a and b hours do 1/a + 1/b of it each hour, a current adds to or subtracts from a boat's still-water speed, and in a mixture the liters add and the pure amounts add, so the percent is total pure over total liters and not the mean of the percents." },
             { id: "check", title: "Checking an answer against the story", summary: "A solution of the equation is not yet an answer: test it against every fact in the story, against the units and the kind of thing (a count is whole, a work time is below each time alone), against the question asked, and against an estimate made first." }
+          ]
+        },
+        {
+          id: "pk-growth",
+          label: "G",
+          title: "Growth, Decay and Sequences",
+          file: "pk-growth.html",
+          status: "full",
+          course: "algebra-1",
+          blurb:
+            "Lists with a rule and the two kinds of change they describe: arithmetic and geometric sequences, with the nth term from counting steps, and exponential growth and decay, where a percent change per period is a multiplier, set against the constant steps of linear change. Compound interest and solving with logarithms come in later sections.",
+          sections: [
+            { id: "sequences", title: "Arithmetic and geometric sequences", summary: "A sequence is a list with a rule: an arithmetic sequence adds the same difference each step, so the nth term is a1 + (n - 1)d, and a geometric sequence multiplies by the same ratio, so the nth term is a1 times r to the power n - 1; take differences, then ratios, to tell which, and use the formula to reach a far term, find which position holds a value, or fill a missing term." },
+            { id: "growth", title: "Exponential growth and decay", summary: "A constant difference per period is linear and a constant ratio per period is exponential, y = a times b to the t; a percent up or down is a multiplier of 1 plus or minus the rate, a half-life is the period of halving, and an exponential quantity passes any linear one in the end because its increases themselves grow." }
           ]
         }
       ]

@@ -1,0 +1,607 @@
+<!doctype html>
+<html lang="en">
+<head>
+<!--bm:head-->
+<title>Pack G. Growth, Decay and Sequences — Basic Mathematics</title>
+<meta name="description" content="Sequences and the two kinds of change they describe: arithmetic sequences that add the same difference each step and geometric sequences that multiply by the same ratio, the formulas for the nth term argued from counting steps, which position holds a value, a missing middle term and the sum of a short arithmetic list; then linear change against exponential growth and decay, a percent change as a multiplier, a half-life, why an exponential quantity passes a linear one, and how many periods until a value is reached: the algebra skills the gate exams ask for and the book leaves out. Compound interest and solving with logarithms come in later sections.">
+</head>
+<body data-depth="2" data-chapter="pk-growth" data-part="packs">
+<!--bm:topbar-->
+
+<div class="wrap">
+<div class="layout">
+  <aside class="sidebar" data-sidebar></aside>
+  <main id="main">
+
+    <header class="region-banner">
+      <p class="eyebrow">Skill packs · Pack G</p>
+      <h1>Growth, Decay and Sequences</h1>
+      <p class="lede">
+        A list of numbers with a rule behind it is a sequence, and two rules cover most of what the gate exams ask:
+        add the same amount each step, or multiply by the same amount each step. This pack starts with those two
+        sequences, how to say the rule step by step and how to say it from the position, and how to reach a far term,
+        find which position holds a value and fill in a missing term. Its second section turns the two sequences into
+        two kinds of change: a constant difference per period is linear, a constant ratio per period is exponential,
+        and a percent change is a multiplier. It reads and writes growth and decay models, explains why an exponential
+        quantity passes a linear one in the end, and counts the periods until a value is reached. Compound interest and
+        solving with logarithms come in later sections of the pack.
+      </p>
+
+      <div class="banner-meta" data-banner-meta></div>
+
+    </header>
+
+    <div class="puzzle" id="puzzle">
+      <span class="tag">A puzzle to carry through the pack</span>
+      <p>
+        A patch of lily pads on a pond doubles in size every day. On day $30$ it covers the whole pond. On which
+        day did it cover half the pond?
+      </p>
+      <ul class="guess">
+        <li>day $15$</li>
+        <li>day $29$</li>
+        <li>day $20$</li>
+      </ul>
+      <p class="puzzle-after">Half of the time feels like the right place for half of the pond, and that feeling is the one a steady, linear story would earn. A story that doubles is a different kind of story, and the two sections that follow say how it differs: the first builds the two sequences, adding and multiplying, and the second sets the multiplying one against the adding one. (Later sections of this pack turn to compound interest and to solving with logarithms.)</p>
+    </div>
+
+    <div class="goal">
+      <strong>By the end of this pack you can</strong>
+      tell an arithmetic sequence from a geometric one by taking differences and then ratios, write the rule both ways
+      (from step to step, and as a formula for the $n$th term), and use the formula to find a far term, to find which
+      position holds a value, to fill in a missing middle term and to add a short arithmetic list by pairing its ends.
+      You can tell linear change from exponential change, turn a percent increase or decrease into a multiplier, read
+      the starting value and the multiplier from a model or a table and the percent per period from the multiplier,
+      write a growth or decay model from a story, say why an exponential quantity overtakes a linear one however the
+      two begin, and count the periods until a value is reached by listing.
+    </div>
+
+    <section class="warmup" id="warmup">
+      <div class="callout aside">
+        <span class="tag">Before you start</span>
+        <p>
+          This pack leans on <a href="../1-algebra/03-real-numbers.html#powers">powers</a> (Chapter 3) and on
+          <a href="pk-percent.html#percent">percent change</a> from Pack A. You can read it at any point alongside the course.
+        </p>
+      </div>
+
+      <p>
+        Three quick ones to wake up what the pack stands on. They are not scored. If one doesn't
+        come to you, its solution says where to look.
+      </p>
+
+      <div class="ex" data-inline id="w1" data-label="Warm-up 1" data-type="number" data-answer="40"
+           data-placeholder="e.g. 12"
+           data-hint="An exponent applies to the base next to it and not to the whole product, so do the power first.">
+        <div class="ex-q">
+          <p>
+            Evaluate $5 \cdot 2^3$.
+          </p>
+        </div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $40$</p>
+          <p>
+            The power comes first: $2^3 = 2 \cdot 2 \cdot 2 = 8$, and $5 \cdot 8 = 40$. Check: $5 \cdot 2 = 10$, $10 \cdot 2 = 20$, $20 \cdot 2 = 40$ ✓.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" data-inline id="w2" data-label="Warm-up 2" data-type="number" data-answer="27"
+           data-placeholder="e.g. 10"
+           data-hint="Work out the bracket first, then multiply, then add.">
+        <div class="ex-q">
+          <p>
+            Evaluate $7 + 4(n - 1)$ when $n = 6$.
+          </p>
+        </div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $27$</p>
+          <p>
+            $n - 1 = 5$, then $4 \cdot 5 = 20$ and $7 + 20 = 27$. Check by spreading the $4$ first: $7 + 4 \cdot 6 - 4 \cdot 1 = 7 + 24 - 4 = 27$ ✓.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" data-inline id="w3" data-label="Warm-up 3" data-type="number" data-answer="100"
+           data-placeholder="e.g. 50"
+           data-hint="Find the increase first, and add it to the starting price.">
+        <div class="ex-q">
+          <p>
+            A price of $\$80$ goes up by $25\%$. What is the new price in dollars?
+          </p>
+        </div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $\$100$</p>
+          <p>
+            Of $80$, $25\%$ is $20$, and $80 + 20 = 100$. Check another way: a rise of $25\%$ leaves $125\%$ of the price, and $1.25 \cdot 80 = 100$ ✓.
+            That second way, one multiplication by $1.25$, is the idea of the second section.
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <h2 id="sequences">G.1 Arithmetic and geometric sequences</h2>
+    <p>
+      A <b>sequence</b> is a list of numbers with a rule behind it. Its entries are the <b>terms</b>, written $a_1, a_2, a_3, \dots$, where
+      $a_n$ is the term in position $n$. A sequence is a function whose inputs are the positions $1, 2, 3, \dots$, and the rule can be said
+      two ways. The step-to-step way (the <b>recursive</b> form) says how to get from one term to the next: &ldquo;add $3$ each time.&rdquo;
+      The straight-from-the-position way (the <b>explicit</b> form) says the term at once: &ldquo;the $n$th term is $3n + 2$.&rdquo;
+    </p>
+    <p>
+      An <b>arithmetic</b> sequence adds the same number, the <b>common difference</b> $d$, at every step. The $n$th term is $n - 1$
+      steps away from the first, since position $1$ is no steps away, position $2$ is one step and position $n$ is $n - 1$ steps. Each step adds $d$, so
+      $$a_n = a_1 + (n - 1)d.$$
+      Test it: $n = 1$ gives $a_1$, and $n = 2$ gives $a_1 + d$. A <b>geometric</b> sequence multiplies by the same number, the
+      <b>common ratio</b> $r$, at every step. Again the $n$th term is $n - 1$ steps from the first, and each step multiplies by $r$, so
+      $$a_n = a_1 \cdot r^{\,n-1}.$$
+      Test it the same way: $n = 1$ gives $a_1 \cdot r^0 = a_1$, and $n = 2$ gives $a_1 r$.
+    </p>
+    <p>
+      To tell which kind a list is, take <em>differences</em> first and then <em>ratios</em>. If the differences between neighbors are all the
+      same, the list is arithmetic. If the ratios are all the same, it is geometric. A list where neither is constant is neither, so
+      $1, 2, 4, 7, 11$ (differences $1, 2, 3, 4$) is not arithmetic and not geometric. These formulas do four jobs.
+    </p>
+    <ul>
+      <li><b>The next term, or a far one</b> without listing everything before it: put the position in the formula.</li>
+      <li><b>Which position holds a given value:</b> in an arithmetic sequence, solve $a_1 + (n - 1)d = v$ for $n$, and check that $n$ is a whole number,
+        since a value that gives $n = 7.4$ is not a term of the sequence at all.</li>
+      <li><b>A missing middle term</b> between two neighbors: in an arithmetic sequence it is the mean of its neighbors, since it sits the same
+        distance from each; in a geometric sequence it is the square root of their product, taking the sign the problem gives when it says the terms are positive (or negative), since the ratio from the
+        first to the middle equals the ratio from the middle to the last.</li>
+      <li><b>The common difference from two terms that are not neighbors:</b> from position $i$ to position $j$ is $j - i$ steps, so
+        $d = \dfrac{a_j - a_i}{j - i}$.</li>
+    </ul>
+    <p>
+      One more use is the sum of an arithmetic list, which pairing makes short. Take $2, 5, 8, 11, 14, 17$. The first and last add to $19$, the second
+      and second-to-last add to $5 + 14 = 19$, and the middle pair adds to $8 + 11 = 19$. Every pair has the same sum, there are $3$ pairs, and the
+      total is $3 \cdot 19 = 57$. In general the sum is the number of terms, halved, times the sum of the first and last. Check by adding in order:
+      $2 + 5 = 7$, then $15$, $26$, $40$, and $57$ ✓. The book argues the same idea for the numbers $1$ to $100$ in <a
+      href="../4-topics/15-induction-and-summations.html#summations">Chapter 15, summations</a>, and <a
+      href="../4-topics/15-induction-and-summations.html#geometric">its geometric series</a> add up a geometric list. This is where the topic continues, and nothing here depends on it.
+    </p>
+
+    <div class="worked">
+      <h3><span class="num">Example 1.</span> A far term, and which position</h3>
+      <div class="body">
+        <p>
+          The sequence $5, 11, 17, 23, \dots$ is arithmetic. Find its $12$th term, and say whether $107$ and $100$ are terms.
+        </p>
+        <ol class="steps">
+          <li>The differences are $11 - 5 = 6$, $17 - 11 = 6$ and $23 - 17 = 6$, so $a_1 = 5$ and $d = 6$.</li>
+          <li>The $12$th term is $11$ steps from the first: $a_{12} = 5 + 11 \cdot 6 = 5 + 66 = 71$.</li>
+          <li>For $107$, solve $5 + (n - 1) \cdot 6 = 107$: $(n - 1) \cdot 6 = 102$, so $n - 1 = 17$ and $n = 18$. The value $107$ is the $18$th term.</li>
+          <li>For $100$: $(n - 1) \cdot 6 = 95$ gives $n - 1 = \frac{95}{6}$, which is not a whole number. So $100$ is not a term.</li>
+          <li>Check against a list: $5, 11, 17, 23, 29, 35, 41, 47, 53, 59, 65, 71$ has $12$ terms and ends at $71$ ✓. Check the position by listing on from $71$: $77, 83, 89, 95, 101, 107$ are the $13$th through $18$th terms, so $107$ is the $18$th ✓, and $100$ falls between $95$ and $101$ ✓. $\blacksquare$</li>
+        </ol>
+        <p class="note">
+          A value is a term only when the number of steps comes out whole.
+        </p>
+      </div>
+    </div>
+
+    <div class="ex" data-inline id="t1" data-type="number" data-answer="65" data-placeholder="e.g. 40"
+         data-hint="Find the common difference from two neighbors, then count how many steps the term is from the first."
+         data-hint2="How many steps is the $15$th term from the first term?">
+      <div class="ex-q">
+        <p>
+          The sequence $9, 13, 17, 21, \dots$ is arithmetic. What is its $15$th term?
+        </p>
+      </div>
+      <div class="ex-solution">
+        <p class="answer">Answer: $65$</p>
+        <p>
+          The difference is $4$ and $a_1 = 9$, so $a_{15} = 9 + 14 \cdot 4 = 9 + 56 = 65$. Check by listing: $9, 13, 17, 21, 25, 29, 33, 37, 41, 45, 49, 53, 57, 61, 65$ has $15$ terms and ends at $65$ ✓.
+        </p>
+      </div>
+    </div>
+
+    <div class="ex" data-inline id="t2" data-type="expr" data-answer="5n-3|2+5(n-1)|2+5n-5" data-placeholder="e.g. 3n+1"
+         data-hint="Find the first term and the common difference, and put them into the formula for the $n$th term."
+         data-hint2="What is added at each step, and what is the value at $n = 1$?">
+      <div class="ex-q">
+        <p>
+          Write the $n$th term of the arithmetic sequence $2, 7, 12, 17, \dots$ as an expression in $n$.
+        </p>
+      </div>
+      <div class="ex-solution">
+        <p class="answer">Answer: $5n - 3$</p>
+        <p>
+          Here $a_1 = 2$ and $d = 5$, so $a_n = 2 + 5(n - 1) = 2 + 5n - 5 = 5n - 3$. Check against the list: $n = 1$ gives $2$, $n = 2$ gives $7$, and $n = 4$ gives $5 \cdot 4 - 3 = 17$ ✓.
+        </p>
+      </div>
+    </div>
+
+    <div class="worked">
+      <h3><span class="num">Example 2.</span> A geometric term, and a missing term</h3>
+      <div class="body">
+        <p>
+          The sequence $3, 6, 12, 24, \dots$ is geometric. Find its $8$th term. Then find the missing middle term in $2,\ \square,\ 50$, a geometric sequence of positive numbers.
+        </p>
+        <ol class="steps">
+          <li>The ratios are $6 \div 3 = 2$, $12 \div 6 = 2$ and $24 \div 12 = 2$, so $a_1 = 3$ and $r = 2$.</li>
+          <li>The $8$th term is $7$ steps from the first: $a_8 = 3 \cdot 2^7 = 3 \cdot 128 = 384$.</li>
+          <li>For the missing term, the ratio from the first to the middle equals the ratio from the middle to the last, so the middle term $m$ satisfies $m^2 = 2 \cdot 50 = 100$. It is positive, so $m = 10$.</li>
+          <li>Check the first by listing: $3, 6, 12, 24, 48, 96, 192, 384$ has $8$ terms and ends at $384$ ✓. Check the second by ratios: $10 \div 2 = 5$ and $50 \div 10 = 5$ ✓. $\blacksquare$</li>
+        </ol>
+        <p class="note">
+          Had the problem allowed negative terms, $2, -10, 50$ would also be geometric, with ratio $-5$. The problem says the terms are positive, and that decides which root to take. Two neighbors of opposite sign, such as $4$ and $-9$, have no real middle term at all, since their product is negative.
+        </p>
+      </div>
+    </div>
+
+    <div class="ex" data-inline id="t3" data-type="number" data-answer="1024" data-placeholder="e.g. 500"
+         data-hint="Find the ratio from two neighbors, then count the multiplications from the first term to the term asked for."
+         data-hint2="How many times is the ratio used to reach the $6$th term from the first?">
+      <div class="ex-q">
+        <p>
+          The sequence $1, 4, 16, 64, \dots$ is geometric. What is its $6$th term?
+        </p>
+      </div>
+      <div class="ex-solution">
+        <p class="answer">Answer: $1{,}024$</p>
+        <p>
+          The ratio is $4$ and $a_1 = 1$, so $a_6 = 1 \cdot 4^5 = 1{,}024$. Check by listing: $1, 4, 16, 64, 256, 1{,}024$ has $6$ terms and ends at $1{,}024$ ✓.
+        </p>
+      </div>
+    </div>
+
+    <h2 id="growth">G.2 Exponential growth and decay</h2>
+    <p>
+      The two kinds of sequence become the two kinds of change. When a quantity gains the same <em>amount</em> in every period, it changes
+      <b>linearly</b>: after $t$ periods it is $y = a + dt$, the arithmetic rule with the period count in place of the position. When it is
+      multiplied by the same <em>factor</em> in every period, it changes <b>exponentially</b>:
+      $$y = a \cdot b^{\,t}.$$
+      Here $a$ is the value at $t = 0$, and $b$ is the multiplier for one period. The multiplier has to be read from the story. A rise of
+      $r\%$ keeps the whole amount and adds $r\%$ of it, so the multiplier is $b = 1 + \frac{r}{100}$; a fall of $r\%$ leaves $b = 1 - \frac{r}{100}$.
+      (<a href="pk-percent.html#repeated">Pack A</a> is where this began, with repeated percent changes.) Doubling is $b = 2$, tripling is
+      $b = 3$, and halving is $b = \frac12$. <b>Decay</b> is the same formula with $b < 1$, and a <b>half-life</b> is the length of the period
+      in which a quantity halves.
+    </p>
+    <p>
+      The same facts read the other way. To read a model $y = a \cdot b^{\,t}$, take $a$ from the value at $t = 0$ and $b$ from the ratio of two values one
+      period apart. Then the percent per period comes from $b$: $1.08$ is a rise of $8\%$, and $0.85$ is a fall of $15\%$. To write a model from a story,
+      name the starting value, find the multiplier for one period, and say what $t$ counts.
+    </p>
+    <p>
+      Why does an exponential quantity pass a linear one, however large the linear gain and however small the multiplier above $1$? Each period's
+      increase of an exponential quantity is a fixed share of an amount that keeps growing, so the increases themselves keep growing, while a
+      linear quantity gains the same amount every time. A table shows it. Plan A starts at $100$ and gains $30$ each week; Plan B starts at only
+      $20$ and doubles.
+    </p>
+
+    <table>
+      <caption>A linear plan and an exponential plan, week by week</caption>
+      <thead><tr><th scope="col">Week $t$</th><th scope="col">Plan A: $100 + 30t$</th><th scope="col">Plan B: $20 \cdot 2^t$</th></tr></thead>
+      <tbody>
+        <tr><th scope="row">$0$</th><td>$100$</td><td>$20$</td></tr>
+        <tr><th scope="row">$1$</th><td>$130$</td><td>$40$</td></tr>
+        <tr><th scope="row">$2$</th><td>$160$</td><td>$80$</td></tr>
+        <tr><th scope="row">$3$</th><td>$190$</td><td>$160$</td></tr>
+        <tr><th scope="row">$4$</th><td>$220$</td><td>$320$</td></tr>
+      </tbody>
+    </table>
+
+    <p>
+      Plan B is far behind for three weeks and ahead in week $4$. Its gains are $20, 40, 80, 160$, each double the one before, while Plan A's gain is $30$ every time. With a
+      multiplier such as $1.1$ the pass takes far longer, but it comes, because a share of a growing amount outgrows any fixed gain.
+      To find how many periods a quantity needs to reach a value, list the amounts period by period until one passes it. Logarithms, in a later section, turn that search into one step.
+    </p>
+
+    <div class="worked">
+      <h3><span class="num">Example 3.</span> A growth story, and the percent read back</h3>
+      <div class="body">
+        <p>
+          A culture of $320$ yeast cells grows by $25\%$ every hour. How many cells are there after $3$ hours? Then, from the counts of $400$ and $500$ cells in the first two hours, read the percent back.
+        </p>
+        <ol class="steps">
+          <li>A rise of $25\%$ gives the multiplier $b = 1 + 0.25 = 1.25$, and the start is $a = 320$, so $y = 320 \cdot 1.25^t$.</li>
+          <li>After $3$ hours: $y = 320 \cdot 1.25^3 = 320 \cdot 1.953125 = 625$ cells.</li>
+          <li>The counts in the first two hours are $400$ and $500$. Their ratio is $500 \div 400 = 1.25$, which is $1 + 0.25$, a rise of $25\%$ per hour.</li>
+          <li>Check period by period: $320 \cdot 1.25 = 400$, $400 \cdot 1.25 = 500$ and $500 \cdot 1.25 = 625$ ✓. The percent read back from the multiplier $1.25$ is $25\%$, the story's ✓. $\blacksquare$</li>
+        </ol>
+        <p class="note">
+          Growing by $25\%$ three times is not growing by $75\%$ once: the second rise is $25\%$ of a larger amount, and $320 \cdot 1.75 = 560$ is short of $625$.
+        </p>
+      </div>
+    </div>
+
+    <div class="ex" data-inline id="t4" data-type="number" data-answer="5400" data-placeholder="e.g. 800"
+         data-hint="Tripling is a multiplier. Say what the multiplier is and how many times it is used."
+         data-hint2="After how many days is the count wanted, and how many times does the multiplier apply?">
+      <div class="ex-q">
+        <p>
+          A video has $200$ views today, and its views triple each day. How many views does it have after $3$ days?
+        </p>
+      </div>
+      <div class="ex-solution">
+        <p class="answer">Answer: $5{,}400$ views</p>
+        <p>
+          The multiplier is $3$, so $y = 200 \cdot 3^3 = 200 \cdot 27 = 5{,}400$. Check day by day: $200$, then $600$, then $1{,}800$, then $5{,}400$ ✓.
+        </p>
+      </div>
+    </div>
+
+    <div class="worked">
+      <h3><span class="num">Example 4.</span> Decay and a half-life</h3>
+      <div class="body">
+        <p>
+          A sample of $640$ grams of a tracer has a half-life of $3$ days. How much is left after $12$ days? The amount is measured at the end of each half-life. After how many days does a measurement first show less than $10$ grams?
+        </p>
+        <ol class="steps">
+          <li>The period is $3$ days and the multiplier per period is $\frac12$. Twelve days is $12 \div 3 = 4$ periods, so $y = 640 \cdot \left(\frac12\right)^4 = 640 \div 16 = 40$ grams.</li>
+          <li>For the second question, list the measurement after each period: $640, 320, 160, 80, 40, 20, 10, 5$. The measurement is $10$ after $6$ periods, which is not less than $10$, and $5$ after $7$ periods, which is.</li>
+          <li>Seven periods is $7 \cdot 3 = 21$ days.</li>
+          <li>Check the first answer by halving: $640 \to 320 \to 160 \to 80 \to 40$ is $4$ halvings ✓. Check the second by the power: $640 \div 2^7 = 640 \div 128 = 5 &lt; 10$, and $640 \div 2^6 = 10$, not less ✓. $\blacksquare$</li>
+        </ol>
+        <p class="note">
+          The unit of $t$ is the period, so the number of days must be changed into a number of half-lives before the power is taken.
+        </p>
+      </div>
+    </div>
+
+    <div class="ex" data-inline id="t5" data-type="number" data-answer="25" data-placeholder="e.g. 10"
+         data-hint="Compare the two counts as a ratio. That ratio is the multiplier, and the multiplier tells the percent."
+         data-hint2="Is the multiplier above $1$ or below it, and by how much?">
+      <div class="ex-q">
+        <p>
+          A herd shrank from $1{,}200$ animals to $900$ in one year. By what percent does it shrink each year? Give the percent without the percent sign.
+        </p>
+      </div>
+      <div class="ex-solution">
+        <p class="answer">Answer: $25$</p>
+        <p>
+          The multiplier is $900 \div 1{,}200 = 0.75$, which is $1 - 0.25$, a fall of $25\%$. Check: $25\%$ of $1{,}200$ is $300$, and $1{,}200 - 300 = 900$ ✓.
+        </p>
+      </div>
+    </div>
+
+    <div class="ex" data-inline id="t6" data-type="number" data-answer="6" data-placeholder="e.g. 4"
+         data-hint="List the amount at the end of each day until it passes the target. The day it does is the answer."
+         data-hint2="Does the list start from day $0$ or from day $1$?">
+      <div class="ex-q">
+        <p>
+          A savings jar holds $\$3$ today (day $0$) and the amount in it doubles each day. On which day is it first more than $\$100$?
+        </p>
+      </div>
+      <div class="ex-solution">
+        <p class="answer">Answer: day $6$</p>
+        <p>
+          The amounts are $3, 6, 12, 24, 48, 96, 192$ on days $0$ through $6$, and $96$ is under $100$ while $192$ is over. Check by the power: $3 \cdot 2^5 = 96 &lt; 100$ and $3 \cdot 2^6 = 192 &gt; 100$ ✓.
+        </p>
+      </div>
+    </div>
+
+    <!-- ====================================================== practice ==== -->
+    <section class="practice" id="practice">
+      <div class="practice-head">
+        <h2 style="margin-top:0">Practice</h2>
+        <span class="practice-score" data-practice-score></span>
+      </div>
+      <p>
+        Give each answer as a number in the unit the question names, without writing the unit and without a comma. Where a
+        question asks for an expression, use the letter it names. A question that asks which formula or which model fits is
+        answered by choosing one of the options shown, since a formula or an equation is never typed.
+      </p>
+
+      <div class="ex" id="e1" data-section="sequences" data-type="number" data-answer="68" data-placeholder="seats"
+           data-hint="The row you want is a certain number of steps from the first row. Each step adds the same number of seats."
+           data-hint2="How many rows are there between the first row and the $26$th, counting the steps and not the rows?">
+        <div class="ex-q"><p>A theater has $18$ seats in the first row, and each row behind it has $2$ more seats than the row in front. How many seats are in the $26$th row?</p></div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $68$ seats</p>
+          <p>
+            The $26$th row is $25$ steps from the first: $a_{26} = 18 + 25 \cdot 2 = 18 + 50 = 68$. Check through the middle: the $10$th row has $18 + 9 \cdot 2 = 36$ seats, and the $16$ rows after it add $16 \cdot 2 = 32$, which makes $68$ ✓.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" id="e2" data-section="sequences" data-type="number" data-answer="10" data-placeholder="layer"
+           data-hint="Set the formula for the $n$th term equal to the value, and solve for the position. The position must be a whole number."
+           data-hint2="Each layer up has the same number fewer logs, so the difference here is negative.">
+        <div class="ex-q"><p>A stack of logs has $31$ logs in the bottom layer, and each layer above it has $3$ fewer logs than the layer below. Which layer, counting the bottom layer as layer $1$, has $4$ logs?</p></div>
+        <div class="ex-solution">
+          <p class="answer">Answer: layer $10$</p>
+          <p>
+            Solve $31 - 3(n - 1) = 4$: $3(n - 1) = 27$, so $n - 1 = 9$ and $n = 10$. Check by listing: $31, 28, 25, 22, 19, 16, 13, 10, 7, 4$ has $4$ in the $10$th place ✓.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" id="e3" data-section="sequences" data-type="number" data-answer="24" data-placeholder="centimeters"
+           data-hint="A ball rebounds to the same share of its last height each time, so the heights form a geometric sequence. What does the middle term equal in terms of its neighbors?"
+           data-hint2="The ratio from the first height to the middle one equals the ratio from the middle one to the last.">
+        <div class="ex-q"><p>A ball rebounds to the same fraction of its previous height after every bounce. Two bounces reach $72$ centimeters and $8$ centimeters, with exactly one bounce between them. How high, in centimeters, is the bounce between them?</p></div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $24$ centimeters</p>
+          <p>
+            The middle height $m$ satisfies $m^2 = 72 \cdot 8 = 576$, and heights are positive, so $m = 24$. Check by ratios: $24 \div 72 = \frac13$ and $8 \div 24 = \frac13$ ✓. Check another way: two steps shrink $72$ to $8$, a ratio of $\frac{8}{72} = \frac19$ for the two steps, so one step is $\frac13$ and $72 \cdot \frac13 = 24$ ✓.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" id="e4" data-section="sequences" data-type="number" data-answer="7" data-placeholder="e.g. 4"
+           data-hint="The two terms are some number of steps apart, and the difference between them is that many common differences."
+           data-hint2="How many steps lie between position $3$ and position $8$?">
+        <div class="ex-q"><p>In an arithmetic sequence the $3$rd term is $17$ and the $8$th term is $52$. What is the common difference?</p></div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $7$</p>
+          <p>
+            From the $3$rd term to the $8$th is $5$ steps, and the terms differ by $52 - 17 = 35$, so $d = 35 \div 5 = 7$. Check by listing from the $3$rd term: $17, 24, 31, 38, 45, 52$ reaches the $8$th term after $5$ steps ✓.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" id="e5" data-section="sequences" data-type="expr" data-answer="6n+4|10+6(n-1)|10+6n-6" data-placeholder="e.g. 3n+1"
+           data-hint="The scores form an arithmetic sequence, so write the formula for the $n$th term from the first score and the step."
+           data-hint2="What is the score for level $1$, and how much is added for each level after it?">
+        <div class="ex-q"><p>A game gives $10$ points for level $1$, $16$ points for level $2$, $22$ points for level $3$, and so on, with the same increase each level. Write the points for level $n$ as an expression in $n$.</p></div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $6n + 4$</p>
+          <p>
+            Here $a_1 = 10$ and $d = 6$, so $a_n = 10 + 6(n - 1) = 10 + 6n - 6 = 6n + 4$. Check against the list: $n = 1$ gives $10$, $n = 2$ gives $16$ and $n = 3$ gives $22$ ✓.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" id="e6" data-section="sequences" data-type="number" data-answer="180" data-placeholder="cans"
+           data-hint="The rows form an arithmetic list, so the first and last rows pair up with the same sum as the second and second-to-last."
+           data-hint2="How many rows are there, and so how many pairs?">
+        <div class="ex-q"><p>A display of cans has $8$ rows. The top row holds $12$ cans, each row down holds $3$ more than the one above, and the bottom row holds $33$. How many cans are in the display?</p></div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $180$ cans</p>
+          <p>
+            The first and last rows hold $12 + 33 = 45$ cans between them, and so does every pair that is the same distance from each end. The $8$ rows make $4$ pairs, so the total is $4 \cdot 45 = 180$. Check by adding the rows in order: $12, 27, 45, 66, 90, 117, 147, 180$ ✓.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" id="e7" data-section="sequences" data-answer="3"
+           data-hint="Test each formula at $n = 1$ and $n = 3$ against the terms of the list."
+           data-hint2="Which options already fail at $n = 1$, and which of the others fails at $n = 3$?">
+        <div class="ex-q"><p>The geometric sequence $7, 14, 28, 56, \dots$ is described by a formula for its $n$th term. Which formula gives it?</p></div>
+        <ul class="choices">
+          <li>$7 \cdot 2^{n}$</li>
+          <li>$2 \cdot 7^{n-1}$</li>
+          <li>$7 \cdot 2^{n-1}$</li>
+          <li>$7 + 7(n - 1)$</li>
+        </ul>
+        <div class="ex-solution">
+          <p class="answer">Answer: $7 \cdot 2^{n-1}$</p>
+          <p>
+            The first term is $7$ and the ratio is $2$, which is the third option. The first option gives $14$ at $n = 1$, one multiplication too many. The second swaps the first term and the ratio, giving $2$ at $n = 1$. The last is the arithmetic formula for a list that adds $7$ each time: it gives $7$ and $14$ at $n = 1$ and $n = 2$, so only $n = 3$ separates it, where it gives $21$ and not $28$. Check the chosen formula: $n = 1$ gives $7$, $n = 3$ gives $7 \cdot 4 = 28$ and $n = 4$ gives $7 \cdot 8 = 56$ ✓.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" id="e8" data-section="growth" data-type="number" data-answer="432" data-placeholder="bacteria"
+           data-hint="A rise by a percent is a multiplier applied once per period. Decide the multiplier, then apply it for the number of periods."
+           data-hint2="What is the multiplier for a rise of $20\%$, and how many hours does it apply?">
+        <div class="ex-q"><p>A culture starts with $250$ bacteria and grows by $20\%$ every hour. How many bacteria are in it after $3$ hours?</p></div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $432$ bacteria</p>
+          <p>
+            The multiplier is $1.2$, so $y = 250 \cdot 1.2^3 = 250 \cdot 1.728 = 432$. Check hour by hour: $250 \to 300 \to 360 \to 432$ ✓.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" id="e9" data-section="growth" data-type="number" data-answer="20250" data-placeholder="dollars"
+           data-hint="Losing a share of the value leaves the rest of it, and that rest is the multiplier for one year."
+           data-hint2="What share of its value does the press keep after each year?">
+        <div class="ex-q"><p>A printing press is worth $\$48{,}000$ new and loses $25\%$ of its value each year. What is it worth, in dollars, after $3$ years?</p></div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $\$20{,}250$</p>
+          <p>
+            The multiplier is $1 - 0.25 = 0.75$, so $y = 48{,}000 \cdot 0.75^3 = 48{,}000 \cdot 0.421875 = 20{,}250$. Check year by year: $48{,}000 \to 36{,}000 \to 27{,}000 \to 20{,}250$ ✓. The value fell, as a decay should.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" id="e10" data-section="growth" data-type="number" data-answer="10" data-placeholder="e.g. 5"
+           data-hint="The same share is added each year, so compare the two counts as a ratio and read the share from it."
+           data-hint2="How far above $1$ is the ratio of the later count to the earlier one?">
+        <div class="ex-q"><p>A forest had $4{,}000$ trees one year and $4{,}400$ trees the next. If it keeps changing by the same percent each year, by what percent does it grow each year? Give the percent without the percent sign.</p></div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $10$</p>
+          <p>
+            The multiplier is $4{,}400 \div 4{,}000 = 1.1$, which is a rise of $10\%$. Check: $10\%$ of $4{,}000$ is $400$, and $4{,}000 + 400 = 4{,}400$ ✓.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" id="e11" data-section="growth" data-type="number" data-answer="1500" data-placeholder="birds"
+           data-hint="Run the story backward: the count at the end is the starting count multiplied once for each year."
+           data-hint2="What does the flock's count get multiplied by in each of the two years?">
+        <div class="ex-q"><p>A flock of birds grows by $10\%$ each year. After $2$ years it numbers $1{,}815$. How many birds were in it at the start?</p></div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $1{,}500$ birds</p>
+          <p>
+            Two years multiply the start by $1.1^2 = 1.21$, so the start is $1{,}815 \div 1.21 = 1{,}500$. Check forward: $1{,}500 \cdot 1.1 = 1{,}650$ and $1{,}650 \cdot 1.1 = 1{,}815$ ✓.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" id="e12" data-section="growth" data-type="number" data-answer="5" data-placeholder="hours"
+           data-hint="List the count after each hour until it is over the target. The hour in which that happens is the answer."
+           data-hint2="Is the first entry of the list hour $0$ or hour $1$?">
+        <div class="ex-q"><p>A culture of $5$ cells triples every hour. After how many hours is it first over $1{,}000$ cells?</p></div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $5$ hours</p>
+          <p>
+            The counts are $5, 15, 45, 135, 405, 1{,}215$ after $0$ through $5$ hours, and $405$ is under $1{,}000$ while $1{,}215$ is over. Check by the power: $5 \cdot 3^4 = 405 &lt; 1{,}000$ and $5 \cdot 3^5 = 1{,}215 &gt; 1{,}000$ ✓.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" id="e13" data-section="growth" data-answer="2"
+           data-hint="Look at what happens between neighboring rows: does the table add the same amount, or multiply by the same amount?"
+           data-hint2="Test each option at $t = 1$ and $t = 2$ against the table.">
+        <div class="ex-q">
+          <p>The table shows a quantity measured at the start of each hour. Which model fits it?</p>
+          <table>
+            <caption>The quantity $y$ at the start of hour $t$</caption>
+            <thead><tr><th scope="col">Hour $t$</th><th scope="col">Amount $y$</th></tr></thead>
+            <tbody>
+              <tr><th scope="row">$0$</th><td>$8$</td></tr>
+              <tr><th scope="row">$1$</th><td>$12$</td></tr>
+              <tr><th scope="row">$2$</th><td>$18$</td></tr>
+              <tr><th scope="row">$3$</th><td>$27$</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <ul class="choices">
+          <li>$y = 8 + 4t$</li>
+          <li>$y = 8 \cdot 1.5^t$</li>
+          <li>$y = 8 \cdot 2^t$</li>
+          <li>$y = 1.5 \cdot 8^t$</li>
+        </ul>
+        <div class="ex-solution">
+          <p class="answer">Answer: $y = 8 \cdot 1.5^t$</p>
+          <p>
+            The ratios $12 \div 8$, $18 \div 12$ and $27 \div 18$ are all $1.5$, while the differences $4, 6, 9$ are not constant, so the change is exponential with $a = 8$ and $b = 1.5$. The first option is the linear model that fits only the first two rows ($8 + 4 \cdot 2 = 16$, not $18$). The third uses the wrong multiplier ($8 \cdot 2^1 = 16$, not $12$), and the fourth swaps the start and the multiplier ($1.5 \cdot 8^0 = 1.5$, not $8$). Check the chosen one: $8 \cdot 1.5^2 = 18$ and $8 \cdot 1.5^3 = 27$ ✓.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" id="e14" data-section="growth" data-type="number" data-answer="7" data-placeholder="week"
+           data-hint="Write each channel's count week by week, and watch for the first week in which the doubling channel is ahead."
+           data-hint2="Does the doubling channel start behind, and what does it gain in each later week compared with the other?">
+        <div class="ex-q"><p>Channel A has $100$ subscribers today (week $0$) and gains $50$ each week. Channel B has $4$ subscribers today and doubles each week. In which week does Channel B first have more subscribers than Channel A?</p></div>
+        <div class="ex-solution">
+          <p class="answer">Answer: week $7$</p>
+          <p>
+            Channel A has $100 + 50t$ and Channel B has $4 \cdot 2^t$. In week $6$ they are $400$ and $256$, and in week $7$ they are $450$ and $512$, so B is first ahead in week $7$. Check the earlier weeks one at a time: A leads with $100, 150, 200, 250, 300, 350$ against B's $4, 8, 16, 32, 64, 128$ in weeks $0$ through $5$ ✓.
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <div class="recap">
+      <h2>Recap</h2>
+      <div class="puzzle-answer">
+        <span class="tag">Back to the puzzle</span>
+        <p data-your-guess></p>
+        <p>
+          The patch covered half the pond on day $29$. It doubles every day, so the day before it was full it was half as big: run the doubling backward one day, from the whole pond on day $30$ to half the pond on day $29$.
+          A second route: if half the pond is covered on day $29$, one doubling makes the whole pond on day $30$ ✓. The tempting day $15$ treats the story as linear, where half of the time gives half of the pond. In a doubling story, running the doubling back $15$ more days from day $29$, halving each time, leaves the patch at $\frac{1}{2^{15}}$ of the pond on day $15$. Each day the patch adds as much as the whole patch had the day before. Half the time is the linear answer to an exponential story.
+        </p>
+      </div>
+      <ul>
+        <li>A sequence is a list with a rule, which can be said step to step (recursive) or straight from the position (explicit); it is a function whose inputs are the positions $1, 2, 3, \dots$.</li>
+        <li>Arithmetic adds the common difference $d$ each step: $a_n = a_1 + (n - 1)d$, since the $n$th term is $n - 1$ steps from the first. Geometric multiplies by the common ratio $r$: $a_n = a_1 \cdot r^{\,n-1}$.</li>
+        <li>To tell them apart, take differences, then ratios; a list where neither is constant is neither.</li>
+        <li>A value is a term of an arithmetic sequence only when solving $a_1 + (n - 1)d = v$ gives a whole $n$.</li>
+        <li>A missing middle term is the mean of its neighbors in an arithmetic sequence, and the square root of their product (taking the sign the problem gives when it says the terms are positive or negative; two neighbors of opposite sign have no real middle term) in a geometric one.</li>
+        <li>Pairing the first and last, the second and second-to-last, and so on, sums an arithmetic list: half the number of terms times the sum of the first and last.</li>
+        <li>Linear change adds the same amount each period, $y = a + dt$. Exponential change multiplies by the same factor each period, $y = a \cdot b^{\,t}$, with $a$ the value at $t = 0$.</li>
+        <li>Up $r\%$ is the multiplier $1 + \frac{r}{100}$ and down $r\%$ is $1 - \frac{r}{100}$; read the percent back from $b$, so $1.08$ is up $8\%$ and $0.85$ is down $15\%$. Doubling is $b = 2$, halving is $b = \frac12$, and a half-life is the period of halving.</li>
+        <li>An exponential quantity passes a linear one however they start, when the multiplier is above $1$, because its increases are a share of a growing amount and so keep growing.</li>
+      </ul>
+    </div>
+
+    <nav class="chapter-nav" data-chapter-nav aria-label="Previous and next pack"></nav>
+  </main>
+</div>
+</div>
+</body>
+</html>

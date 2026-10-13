@@ -333,8 +333,10 @@ module.exports = {
        rest (4385 px) or a longer list would fail it. Pack A (K-4) adds a "Skill packs" line, which took
        it to 740 px on 2026-10-11; each pack listed adds a line, and the plan lists at most
        PLAN_PACK_ITEMS (3) of them. Pack C (K-9, 2026-10-12) is the third, 806 px, so the list has
-       reached its longest and the bound is 840. */
-    await kase("progress page at 360 px with a worst-case take: the panel is at most 840 px tall with the fold shut, and the fold hides more", { vw: 360 }, async (page) => {
+       reached its longest. Pack G, "Growth, Decay and Sequences" (K-14, 2026-10-12), measured 864 px at
+       360 px: 806 plus one wrapped title line plus the row's extra spacing. Pack H's title will wrap the
+       same way, so the bound is 900, one more wrapped title over 864. */
+    await kase("progress page at 360 px with a worst-case take: the panel is at most 900 px tall with the fold shut, and the fold hides more", { vw: 360 }, async (page) => {
       const p = [];
       await h.open(page, PAGE);
       await page.evaluate((take) => localStorage.setItem("bm.diag.v1", JSON.stringify({ takes: { worst1: take } })), WORST);
@@ -375,7 +377,7 @@ module.exports = {
       const openH = await size();
       check(p, m.shut, "the fold is not shut");
       check(p, m.note === "Your plan now starts in Algebra 2" && m.start === 3 && m.review5 === 5, "not the worst case: " + JSON.stringify(m));
-      check(p, shutH <= 840, "the worst-case panel with the fold shut is " + shutH + " px (bound 840)");
+      check(p, shutH <= 900, "the worst-case panel with the fold shut is " + shutH + " px (bound 900)");
       check(p, openH > shutH, "opening the fold does not make the panel taller: " + shutH + " then " + openH);
       return p;
     });
