@@ -77,6 +77,12 @@ export const ALEKS_TAGS = [
   "ppl.real", "ppl.eqineq", "ppl.linquad", "ppl.exppoly", "ppl.ratexpr", "ppl.rad",
   "ppl.explog", "ppl.geotrig"
 ] as const;
+/** Exam tags the course carries on one section only, each with the reason; the skills check
+    requires every other tag on at least two sections, and fails an entry here that reaches two */
+export const SINGLE_SECTION_TAGS: Readonly<Record<string, string>> = {
+  "sat.psda.infer": "pk-data#samples is the course's one section on samples and margins of error",
+  "sat.psda.claims": "pk-data#samples is the course's one section on evaluating a study's claim"
+};
 export type SatTag = (typeof SAT_TAGS)[number];
 export type ActTag = (typeof ACT_TAGS)[number];
 export type AccuplacerTag = (typeof ACCUPLACER_TAGS)[number];
@@ -141,7 +147,7 @@ export const SKILLS: Readonly<Record<SectionRef, Skill>> = {
     sat: ["sat.adv.equiv"], act: ["act.phm.nq"], accuplacer: ["qas.exp", "aaf.radrat"], aleks: ["ppl.rad", "ppl.exppoly"] },
 
   "ch04#square-roots": { ccss: "HSA.REI.B.4.b", also: ["8.EE.A.2", "HSA.SSE.B.3.a", "HSA.APR.B.3"], course: "algebra-1",
-    sat: ["sat.adv.nleq"], act: ["act.phm.alg"], accuplacer: ["aaf.quad", "aaf.fact"], aleks: ["ppl.eqineq", "ppl.exppoly"] },
+    sat: ["sat.adv.nleq"], act: ["act.phm.alg"], accuplacer: ["aaf.quad", "aaf.fact"], aleks: ["ppl.eqineq", "ppl.exppoly", "ppl.rad"] },
   "ch04#completing": { ccss: "HSA.SSE.B.3.b", also: ["HSA.REI.B.4.a", "HSF.IF.C.8.a"], course: "algebra-1",
     sat: ["sat.adv.equiv", "sat.adv.nleq"], act: ["act.phm.alg"], accuplacer: ["aaf.quad"], aleks: ["ppl.eqineq"] },
   "ch04#formula": { ccss: "HSA.REI.B.4.b", also: ["HSA.REI.B.4.a", "HSA.CED.A.1"], course: "algebra-1",
@@ -320,7 +326,7 @@ export const SKILLS: Readonly<Record<SectionRef, Skill>> = {
 
   /* pack F */
   "pk-words#name": { ccss: "HSA.CED.A.1", also: ["7.EE.B.4.a", "HSA.SSE.A.1.a", "HSA.REI.B.3"], course: "algebra-1",
-    sat: ["sat.alg.lin1"], act: ["act.phm.alg", "act.mod"], accuplacer: ["qas.linapp", "aaf.linapp"], aleks: ["ppl.eqineq"] },
+    sat: ["sat.alg.lin1"], act: ["act.phm.alg", "act.mod"], accuplacer: ["qas.expr", "qas.linapp", "aaf.linapp"], aleks: ["ppl.eqineq"] },
   "pk-words#drt": { ccss: "HSA.CED.A.1", also: ["7.EE.B.4.a", "HSN.Q.A.1", "HSN.Q.A.2"], course: "algebra-1",
     sat: ["sat.alg.lin1"], act: ["act.phm.alg", "act.mod"], accuplacer: ["qas.linapp", "aaf.linapp"], aleks: ["ppl.eqineq"] },
   "pk-words#work": { ccss: "HSA.CED.A.1", also: ["HSA.REI.B.3", "HSN.Q.A.1", "7.RP.A.3"], course: "algebra-1",

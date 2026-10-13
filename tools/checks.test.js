@@ -838,6 +838,19 @@ function refusal(fn) { try { fn(); return null; } catch (e) { return e.message; 
   hit({ SKILLS: withSkill("ch01#a", rec({ act: ["act.mod", "act.phm.alg"] })) }, /SKILLS\[ch01#a\]: act\.mod comes first/, "skills 6b: act.mod first fails");
   hit({ SKILLS: withSkill("ch01#a", rec({ act: ["act.mod"] })) }, /SKILLS\[ch01#a\]: act\.mod comes first/, "skills 6b: act.mod alone fails");
   clean({ SKILLS: withSkill("ch01#a", rec({ act: ["act.phm.alg", "act.mod"] })) }, "skills 6b: act.mod after a category passes");
+  /* 7 every exam tag on two sections, bar the named exceptions */
+  const TAGS = ["act.phm.alg", "qas.lineq"];
+  const two = { SKILLS: withSkill("ch01#b", rec({ ccss: "8.EE.C.8.b", course: "pre-algebra", accuplacer: ["qas.lineq"] })) };
+  const both = { SKILLS: Object.assign({}, two.SKILLS, { "ch01#a": rec({ accuplacer: ["qas.lineq"] }) }) };
+  clean({ TAGS, SINGLE: {} , SKILLS: both.SKILLS }, "skills 7: a tag on two sections passes");
+  hit({ TAGS, SINGLE: {}, SKILLS: two.SKILLS }, /^qas\.lineq: carried by 1 section \(ch01#b\), the rule is two/, "skills 7a: a tag on one section fails with the message");
+  hit({ TAGS: TAGS.concat("qas.expr"), SINGLE: {}, SKILLS: both.SKILLS }, /^qas\.expr: carried by 0 sections \(none\), the rule is two/, "skills 7a: a tag on no section fails");
+  clean({ TAGS, SINGLE: { "qas.lineq": "why" }, SKILLS: two.SKILLS }, "skills 7b: the same tag named in SINGLE passes");
+  hit({ TAGS, SINGLE: { "qas.lineq": "why" }, SKILLS: both.SKILLS }, /^qas\.lineq: in SINGLE_SECTION_TAGS but carried by 2 sections \(ch01#a, ch01#b\); drop it from the map/, "skills 7c: a SINGLE tag on two sections fails");
+  hit({ TAGS, SINGLE: { "qas.lineq": "why", "zzz.none": "why" }, SKILLS: two.SKILLS }, /^SINGLE_SECTION_TAGS\[zzz\.none\]: not an exam tag/, "skills 7d: a SINGLE key that is no tag fails");
+  hit({ TAGS: TAGS.concat("qas.expr"), SINGLE: { "qas.expr": "why" }, SKILLS: both.SKILLS }, /^qas\.expr: in SINGLE_SECTION_TAGS but carried by no section; tag the section that teaches it, or drop it from the map/, "skills 7e: a SINGLE tag on no section fails");
+  const { SINGLE_SECTION_TAGS } = require("../src/data/skills.ts");
+  eq(Object.keys(SINGLE_SECTION_TAGS).sort(), ["sat.psda.claims", "sat.psda.infer"], "skills 7: the real tree's single-section exceptions are the two samples tags; a second samples section drops them");
   /* the real tree */
   const real = require("child_process").spawnSync(process.execPath, [path.join(__dirname, "check-static.js"), "--only=skills"], { encoding: "utf8" });
   check(real.status === 0 && /^PASS  skills +108 /m.test(real.stdout), "skills: the real tree passes, counting its 108 curriculum sections — got " + real.stdout + real.stderr);

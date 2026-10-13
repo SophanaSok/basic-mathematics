@@ -1394,7 +1394,9 @@ function exerciseRefs(chapterId, exercises, page) {
 
 /* every rule of the skills check (design §5) over
    tree = { SKILLS, CONTAINERS, GENERATOR_SKILLS, generators: { id: section },
-            sections: [{ ref, anchor: "h2" | "practice" }], exercises: [{ where, ref }], codes };
+            sections: [{ ref, anchor: "h2" | "practice" }], exercises: [{ where, ref }], codes,
+            TAGS: [every exam tag], SINGLE: { tag: reason } };
+   rule 7 runs only when TAGS is an array (a small tree without it skips the rule)
    tree.resolveOverride, when given, is the module's own (skillsTree passes it); a test's
    small tree leaves it out and gets the module's own too */
 function skillsProblems(tree) {
@@ -1450,7 +1452,27 @@ function skillsProblems(tree) {
     else recordProblems("generator " + id + " (" + ref + ", resolved)", resolved);
   });
   Object.keys(GENERATOR_SKILLS).forEach(id => { if (!has(generators, id)) out.push("GENERATOR_SKILLS[" + id + "]: no generator has the id " + id); });
+
+  /* 7. every exam tag on at least two sections (SKILLS records only), bar the named exceptions */
+  if (Array.isArray(tree.TAGS)) {
+    const single = tree.SINGLE || {};
+    const tagSet = new Set(tree.TAGS);
+    tree.TAGS.forEach(t => {
+      const refs = skillsCarrying(SKILLS, t), n = refs.length, list = n + " section" + (n === 1 ? "" : "s") + " (" + (refs.join(", ") || "none") + ")";
+      if (has(single, t)) {
+        if (n >= 2) out.push(t + ": in SINGLE_SECTION_TAGS but carried by " + list + "; drop it from the map");
+        else if (n === 0) out.push(t + ": in SINGLE_SECTION_TAGS but carried by no section; tag the section that teaches it, or drop it from the map");
+      }
+      else if (n < 2) out.push(t + ": carried by " + list + ", the rule is two; tag a section that teaches it, or name it in SINGLE_SECTION_TAGS with the reason");
+    });
+    Object.keys(single).forEach(t => { if (!tagSet.has(t)) out.push("SINGLE_SECTION_TAGS[" + t + "]: not an exam tag in SAT_TAGS, ACT_TAGS, ACCUPLACER_TAGS or ALEKS_TAGS"); });
+  }
   return out;
+}
+
+/* the SKILLS refs whose sat/act/accuplacer/aleks lists contain tag */
+function skillsCarrying(SKILLS, tag) {
+  return Object.keys(SKILLS).filter(ref => ["sat", "act", "accuplacer", "aleks"].some(f => (SKILLS[ref][f] || []).indexOf(tag) > -1));
 }
 
 /* [{ ref, anchor }] for every curriculum section, its anchor "practice" exactly when
@@ -1483,7 +1505,8 @@ function skillsTree(ctx) {
   Object.keys(ctx.chapters).forEach(page => {
     exerciseRefs(ctx.chapters[page], exercisesOf(ctx.docs[page]), page).forEach(e => exercises.push(e));
   });
-  return { SKILLS: M.SKILLS, CONTAINERS: M.CONTAINERS, GENERATOR_SKILLS: M.GENERATOR_SKILLS, generators: generatorSections(), sections, exercises, codes, resolveOverride: M.resolveOverride };
+  const TAGS = [].concat(M.SAT_TAGS, M.ACT_TAGS, M.ACCUPLACER_TAGS, M.ALEKS_TAGS);
+  return { SKILLS: M.SKILLS, CONTAINERS: M.CONTAINERS, GENERATOR_SKILLS: M.GENERATOR_SKILLS, TAGS, SINGLE: M.SINGLE_SECTION_TAGS, generators: generatorSections(), sections, exercises, codes, resolveOverride: M.resolveOverride };
 }
 
 function checkSkills(ctx, r) {
@@ -1491,7 +1514,8 @@ function checkSkills(ctx, r) {
   r.count = new Set(tree.sections.map(s => s.ref)).size;
   skillsProblems(tree).forEach(m => r.fail(m));
   r.note(Object.keys(tree.SKILLS).length + " skills, " + tree.CONTAINERS.length + " containers, " + Object.keys(tree.generators).length + " generators (" +
-    Object.keys(tree.GENERATOR_SKILLS).length + " with an override), " + tree.exercises.length + " scored exercises, " + Object.keys(tree.codes).length + " codes known");
+    Object.keys(tree.GENERATOR_SKILLS).length + " with an override), " + tree.exercises.length + " scored exercises, " + Object.keys(tree.codes).length + " codes known, " +
+    tree.TAGS.filter(t => skillsCarrying(tree.SKILLS, t).length >= 2).length + " of " + tree.TAGS.length + " exam tags on two or more sections, " + Object.keys(tree.SINGLE).length + " single-section exceptions");
 }
 
 /* ------------------------------------------------------- section work -- */
@@ -1679,7 +1703,7 @@ const CHECKS = [
   { name: "links", run: checkLinks, what: "relative hrefs/srcs resolve to files, anchors to ids" },
   { name: "widgets", run: checkWidgets, what: "every data-widget / data-figure is a defined factory; a chart has a known kind, a numeric table of its shape and a caption" },
   { name: "sections", run: checkSections, what: "every data-section names a real section" },
-  { name: "skills", run: checkSkills, what: "src/data/skills.ts: a record per section but the mixed-review ones, every scored exercise names a section, never a container, official codes, courses by the code, every generator resolves" },
+  { name: "skills", run: checkSkills, what: "src/data/skills.ts: a record per section but the mixed-review ones, every scored exercise names a section, never a container, official codes, courses by the code, every generator resolves, every exam tag on two sections bar those named in SINGLE_SECTION_TAGS" },
   { name: "section-work", run: checkSectionWork, what: "src/data/section-work.ts: the scored plus inline exercises each section's page offers, as the app attributes them; absent means 0" },
   { name: "choices", run: checkChoices, what: "choice/multi answer indices are within the options" },
   { name: "order", run: checkOrder, what: "order lists have >= 2 items; blanks carry keys" },
