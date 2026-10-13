@@ -4893,8 +4893,8 @@
         ],
         verify: function () {
           /* read the two numbers out of the printed key, add and multiply them, and compare with b and c; then evaluate both forms at 10 */
-          var m = /^\(x([+-]\d+)\)\(x([+-]\d+)\)\|/.exec(this.answer);
-          if (!m) return false;
+          var m = /^\(x([+-]\d+)\)\(x([+-]\d+)\)\|/.exec(this.answer), sp = hSpans(this.q);
+          if (!m || sp.length !== 1 || !hStemMatchesKey(sp[0], this.answer)) return false;
           var kp = Number(m[1]), kq = Number(m[2]);
           return kp + kq === b && kp * kq === c && kp !== kq && kp !== 0 && kq !== 0 && (10 + kp) * (10 + kq) === 100 + 10 * b + c;
         }
@@ -4938,8 +4938,8 @@
         ],
         verify: function () {
           /* read a, p and q out of the printed key, expand the product coefficient by coefficient, compare with the trinomial's three, and evaluate at 10 */
-          var m = /^\((\d+)x([+-]\d+)\)\(x([+-]\d+)\)\|/.exec(this.answer);
-          if (!m) return false;
+          var m = /^\((\d+)x([+-]\d+)\)\(x([+-]\d+)\)\|/.exec(this.answer), sp = hSpans(this.q);
+          if (!m || sp.length !== 1 || !hStemMatchesKey(sp[0], this.answer)) return false;
           var ka = Number(m[1]), kp = Number(m[2]), kq = Number(m[3]);
           return ka === a && ka * kq + kp === b && kp * kq === c && gcd(ka, Math.abs(kp)) === 1 && (ka * 10 + kp) * (10 + kq) === a * 100 + b * 10 + c;
         }
@@ -5008,7 +5008,8 @@
         hint: hint, steps: steps,
         verify: function () {
           /* read the printed key's factors, multiply them out at four values of x and compare with the stem's polynomial; the common-factor kind must take out all of k */
-          var first = this.answer.split("|")[0], xs = [-3, 2, 5, 10], i, kk, a1, a2, mm;
+          var first = this.answer.split("|")[0], xs = [-3, 2, 5, 10], i, kk, a1, a2, mm, sp = hSpans(this.q);
+          if (sp.length !== 1 || !hStemMatchesKey(sp[0], this.answer)) return false;
           mm = /^(\d*)\(x-(\d+)\)\(x\+(\d+)\)$/.exec(first);
           if (mm) {
             kk = mm[1] === "" ? 1 : Number(mm[1]); a1 = Number(mm[2]); a2 = Number(mm[3]);
@@ -5058,13 +5059,19 @@
           "Check by putting each value into the bottom: $(" + r0 + ")^2 + (" + b + ")(" + r0 + ") + (" + c + ") = " + (r0 * r0) + " + (" + (b * r0) + ") + (" + c + ") = 0$ and $(" + s0 + ")^2 + (" + b + ")(" + s0 + ") + (" + c + ") = " + (s0 * s0) + " + (" + (b * s0) + ") + (" + c + ") = 0$ ✓."
         ],
         verify: function () {
-          var parts = this.answer.split(","), v1 = Number(parts[0]), v2 = Number(parts[1]), w, roots = 0, numOk = true;
-          if (parts.length !== 2 || v1 >= v2) return false;
+          /* the printed bottom (from the stem) is zero at exactly the two listed values in -10..10, and the printed top is not zero at either */
+          var parts = this.answer.split(","), v1 = Number(parts[0]), v2 = Number(parts[1]), w, roots = 0, numOk = true, sp = hSpans(this.q), mm, listed;
+          if (parts.length !== 2 || v1 >= v2 || sp.length !== 2 || sp[0] !== "x") return false;
+          mm = /^\\dfrac\{([^{}]+)\}\{([^{}]+)\}$/.exec(sp[1]);
+          if (!mm) return false;
           [v1, v2].forEach(function (v) {
-            if (v * v + b * v + c !== 0) numOk = false;
-            if (kind === "x" && v + nv === 0) numOk = false;
+            if (hTexEval(mm[2], v) !== 0 || hTexEval(mm[1], v) === 0) numOk = false;
           });
-          for (w = -10; w <= 10; w++) if (w * w + b * w + c === 0) roots++;
+          for (w = -10; w <= 10; w++) {
+            listed = w === v1 || w === v2;
+            if ((hTexEval(mm[2], w) === 0) !== listed) numOk = false;
+            if (listed) roots++;
+          }
           return numOk && roots === 2 && v1 !== v2;
         }
       };
@@ -5110,10 +5117,10 @@
           steps: steps,
           verify: function () {
             /* the original quotient and the printed key at three allowed values, and the key is a polynomial (no common root with the bottom to find) */
-            var mm = /^x([+-])(\d+)$/.exec(this.answer), xs = [10, 11, -12], i, kv;
-            if (!mm) return false;
+            var mm = /^x([+-])(\d+)$/.exec(this.answer), xs = [10, 11, -12], i, kv, sp = hSpans(this.q);
+            if (!mm || sp.length !== 1) return false;
             kv = (mm[1] === "-" ? -1 : 1) * Number(mm[2]);
-            for (i = 0; i < xs.length; i++) if (xs[i] + sg * m === 0 || Math.abs((xs[i] * xs[i] - m * m) / (xs[i] + sg * m) - (xs[i] + kv)) > 1e-9 || Math.abs(wEval(this.answer, xs[i]) - (xs[i] + kv)) > 1e-6) return false;
+            for (i = 0; i < xs.length; i++) if (!hClose(hTexEval(sp[0], xs[i]), wEval(this.answer, xs[i]))) return false;
             return kv === -sg * m && m >= 2;
           }
         };
@@ -5134,13 +5141,10 @@
         ],
         verify: function () {
           /* the original quotient (coefficients evaluated directly) against the printed key's value at three allowed x; the key's top and bottom share no root */
-          var mm = /^\(x([+-]\d+)\)\/\(x([+-]\d+)\)$/.exec(this.answer), xs = [10, 11, -12], i, num, den, kp, kk;
-          if (!mm) return false;
+          var mm = /^\(x([+-]\d+)\)\/\(x([+-]\d+)\)$/.exec(this.answer), xs = [10, 11, -12], i, kp, kk, sp = hSpans(this.q);
+          if (!mm || sp.length !== 1) return false;
           kp = Number(mm[1]); kk = Number(mm[2]);
-          for (i = 0; i < xs.length; i++) {
-            num = xs[i] * xs[i] + b * xs[i] + c; den = xs[i] * xs[i] + d * xs[i] + e;
-            if (den === 0 || Math.abs(num / den - wEval(this.answer, xs[i])) > 1e-5) return false;
-          }
+          for (i = 0; i < xs.length; i++) if (!hClose(hTexEval(sp[0], xs[i]), wEval(this.answer, xs[i]))) return false;
           return kp !== kk && Math.abs(kk) >= 3 && kp !== 0;
         }
       };
@@ -5183,9 +5187,13 @@
           "Check by evaluating the original directly: $\\dfrac{" + (n * n + b * n + c) + "}{" + (n * n + d * n + ee) + "} = " + key + "$ ✓."
         ],
         verify: function () {
-          /* the original numerator and denominator at n, directly, then divide */
-          var num = n * n + b * n + c, den = n * n + d * n + ee;
-          return den !== 0 && n + s0 !== 0 && Math.abs(num / den - Number(this.answer)) < 1e-9 && Math.abs(Number(this.answer) * 10 - Math.round(Number(this.answer) * 10)) < 1e-9;
+          /* the stem's fraction at the stem's own n, evaluated directly, against the number key (the factor x + s is not zero at n) */
+          var sp = hSpans(this.q), mn, nn, v;
+          if (sp.length !== 2) return false;
+          mn = /^x=(\d+)$/.exec(sp[1].replace(/\s+/g, ""));
+          if (!mn) return false;
+          nn = Number(mn[1]); v = hTexEval(sp[0], nn);
+          return nn === n && n + s0 !== 0 && hClose(v, Number(this.answer)) && Math.abs(Number(this.answer) * 10 - Math.round(Number(this.answer) * 10)) < 1e-9;
         }
       };
     }
@@ -5282,6 +5290,14 @@
   }
   var HXS = [10, 11, -12];
   function hClose(a, b) { return isFinite(a) && isFinite(b) && Math.abs(a - b) <= 1e-5 * Math.max(1, Math.abs(a), Math.abs(b)); }
+  /* the stem's formula against every spelling of the key at x values away from any excluded value: for pack H §1-2 (T-4), so a stem
+     printed wrongly with the right key fails. The key's spellings are split on "|". */
+  var HXS2 = [-3, 2, 5, 10, -7];
+  function hStemMatchesKey(src, key) {
+    var alts = key.split("|"), i, j;
+    for (i = 0; i < alts.length; i++) for (j = 0; j < HXS2.length; j++) if (!hClose(hTexEval(src, HXS2[j]), wEval(alts[i], HXS2[j]))) return false;
+    return true;
+  }
 
   /* ---- pk-op-mult: kind A (tri/lin) * (lin/tri) = (x+p)/(x+k); kind B (tri/lin) * (lin/lin) = x + p.
      The tri on top is (x+p)(x+s), the bottom tri is (x+s)(x+k) and the linear bottom is x+t; p, s, t, k nonzero, in size at most 7,
@@ -5406,10 +5422,12 @@
   /* ---- pk-op-add: a/(x+k1) + b/(x+k2), or a minus; ask for the numerator over (x+k1)(x+k2). a, b 1..6, k1 and k2 nonzero up to 9 in size,
      different, with a nonzero x coefficient and a nonzero constant. The page's 3/(x-4) - 2/(x+1) and 5/(x+5) + 3/(x-2) are left out. */
   var HADD_SKIP = [[3, -4, 2, 1, true], [5, 5, 3, -2, false]];
+  /* T-4: every (x + k1)(x + k2) the page prints, as a pair of k (either order); the common bottom of a sum is skipped when the page shows it */
+  var HADD_PAGE_BOTTOMS = [[-8, -3], [-8, 8], [-7, 4], [-7, 7], [-6, 2], [-6, 6], [-5, -2], [-5, 2], [-5, 5], [-4, -3], [-4, -1], [-4, 1], [-4, 2], [-4, 3], [-4, 4], [-4, 7], [-3, -2], [-3, -1], [-3, 1], [-3, 2], [-3, 3], [-3, 4], [-3, 5], [-3, 6], [-2, -1], [-2, 2], [-2, 3], [-2, 5], [-1, 1], [-1, 3], [-1, 4], [1, 2], [1, 4], [1, 8], [2, 3], [2, 4], [3, 4], [4, 5], [4, 7]];
   var HADD = (function () {
     var out = [], a, b, k1, k2, mi, c, d;
     for (a = 1; a <= 6; a++) for (b = 1; b <= 6; b++) for (k1 = -9; k1 <= 9; k1++) for (k2 = -9; k2 <= 9; k2++) for (mi = 0; mi < 2; mi++) {
-      if (!k1 || !k2 || k1 === k2) continue;
+      if (!k1 || !k2 || k1 === k2 || hHasPair(HADD_PAGE_BOTTOMS, k1, k2)) continue;
       c = mi ? a - b : a + b; d = mi ? a * k2 - b * k1 : a * k2 + b * k1;
       if (!c || !d) continue;
       if (HADD_SKIP.some(function (s) { return s[4] === !!mi && ((s[0] === a && s[1] === k1 && s[2] === b && s[3] === k2) || (s[0] === b && s[1] === k2 && s[2] === a && s[3] === k1 && !mi)); })) continue;
@@ -5584,10 +5602,21 @@
         verify: function () {
           /* the printed equation: the key makes both sides equal with every bottom nonzero, it is the only whole number in -60..60 that does,
              and the other candidate makes a bottom zero */
-          var sp = hSpans(this.q), sides, v0 = Number(this.answer), w, hits = 0, bad = [];
+          var sp = hSpans(this.q), sides, v0 = Number(this.answer), w, hits = 0, bad = [], bots = [], mb, reb = /\\dfrac\{[^{}]*\}\{([^{}]*)\}/g, ue, ve;
           if (sp.length !== 1) return false;
           sides = sp[0].split("=");
           if (sides.length !== 2) return false;
+          /* the kind and the excluded values as the stem prints them: the bottoms of its fractions, x + u and x + v */
+          while ((mb = reb.exec(sp[0]))) bots.push(mb[1]);
+          mb = /^x([+-])(\d+)$/.exec((bots[0] || "").replace(/\s+/g, ""));
+          if (!mb || (bots.length === 3 ? "T4" : "T5") !== f) return false;
+          ue = -(mb[1] === "-" ? -1 : 1) * Number(mb[2]);
+          if (f === "T4") {
+            mb = /^x([+-])(\d+)$/.exec(bots[1].replace(/\s+/g, ""));
+            if (!mb || bots[2] !== "(" + bots[0] + ")(" + bots[1] + ")") return false;
+            ve = -(mb[1] === "-" ? -1 : 1) * Number(mb[2]);
+          } else if (bots.length !== 2 || bots[1] !== bots[0]) return false;
+          if (ue !== -u || (f === "T4" && ve !== -v)) return false;
           if (!hClose(hTexEval(sides[0], v0), hTexEval(sides[1], v0))) return false;
           for (w = -60; w <= 60; w++) {
             if (hClose(hTexEval(sides[0], w), hTexEval(sides[1], w))) hits++;
@@ -5678,6 +5707,8 @@
           var hs = [], m, re = /\$([\d.]+)\$ hours?/g, K2 = Math.round(Number(this.answer) * 2), h0, h1;
           while ((m = re.exec(this.q))) hs.push(Number(m[1]));
           if (hs.length !== 2 || K2 !== Number(this.answer) * 2) return false;
+          /* the kind as the stem words it: the closing question of each template is its own */
+          if (/take to fill\?$/.test(this.q) ? kind !== "drain" : /alone take\?$/.test(this.q) ? kind !== "second" : !/how many hours (?:do they|does it|does the job) take\?$/.test(this.q) || kind !== "together") return false;
           h0 = Math.round(hs[0] * 2); h1 = Math.round(hs[1] * 2);
           if (h0 !== hs[0] * 2 || h1 !== hs[1] * 2) return false;
           if (kind === "together") return K2 * (hs[0] + hs[1]) === 2 * hs[0] * hs[1] && K2 < 2 * Math.min(hs[0], hs[1]);
