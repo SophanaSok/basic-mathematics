@@ -4003,7 +4003,7 @@
         for (mi = 0; mi < mults.length; mi++) {
           for (ri = 0; ri < ratios.length; ri++) {
             a = k * mults[mi]; an = a * Math.pow(ratios[ri], n - 1);
-            if (Math.abs(an) > 20000 || (a === 3 && ratios[ri] === 2) || (a === 5 && ratios[ri] === 3)) continue;
+            if (Math.abs(an) > 20000 || (a === 3 && ratios[ri] === 2) || (a === 5 && ratios[ri] === 3) || (a === 7 && ratios[ri] === 2)) continue;
             geom.push([a, ratios[ri], n]);
           }
           if (mults[mi] !== 2) geom.push([k * mults[mi] * Math.pow(2, n - 1), 0.5, n]);
@@ -4042,7 +4042,8 @@
           /* build the sequence term by term from the first term */
           var v = a1, j;
           for (j = 1; j < n; j++) v = geom ? v * q : v + q;
-          return v === Number(key) && (geom ? Math.abs(v) <= 20000 && v === Math.floor(v) : q !== 0 && n >= 7);
+          var closed = geom ? a1 * Math.pow(q, n - 1) : a1 + (n - 1) * q;
+          return v === Number(key) && closed === v && (geom ? Math.abs(v) <= 20000 && v === Math.floor(v) : q !== 0 && n >= 7);
         }
       };
     }
@@ -4166,14 +4167,15 @@
         ];
         check = function () { var x = Number(key); return x > 0 && Math.abs(x / ga - gc / x) < 1e-9 && x * x === ga * gc; };
       } else {
-        var f = r.pick(GMISS.first) || [-4, 5, 9], fa = f[0], fd = f[1], fn = f[2], fv = fa + (fn - 1) * fd;
+        var f = r.pick(GMISS.first) || [-4, 5, 9], fa = f[0], fd = f[1], fn = f[2], fv = fa + (fn - 1) * fd, fl = [], fj;
+        for (fj = 0; fj < fn; fj++) fl.push(fa + fj * fd);
         key = clean(fa);
         qtext = "In an arithmetic sequence each term is $" + Math.abs(fd) + "$ " + (fd > 0 ? "more" : "less") + " than the one before it. The " + gOrd(fn) + " term is $" + wn(fv) + "$. What is the first term?";
         hint = "The given term is some number of steps from the first. Undo those steps, keeping track of whether each step added or took away.";
         steps = [
           "The " + gOrd(fn) + " term is $" + (fn - 1) + "$ steps from the first, and each step " + (fd > 0 ? "adds" : "takes away") + " $" + Math.abs(fd) + "$: $a_1 + " + (fn - 1) + " \\cdot " + gParen(fd) + " = " + wn(fv) + "$.",
           "So $a_1 = " + wn(fv) + " - " + gParen((fn - 1) * fd) + " = " + wn(fa) + "$.",
-          "Check by stepping forward from $" + wn(fa) + "$: " + (fn - 1) + " steps of $" + wn(fd) + "$ make a total change of $" + wn((fn - 1) * fd) + "$, which reaches $" + wn(fv) + "$."
+          "Check by listing from $" + wn(fa) + "$: $" + gList(fl) + "$ has $" + fn + "$ terms and ends at $" + wn(fv) + "$."
         ];
         check = function () {
           var v = Number(key), j;
@@ -4210,22 +4212,25 @@
   var GNOUN = [
     { id: "cells", up: true, lo: 50, hi: 5000, step: 10, cap: 300000, unit: "bacteria", per: "hour", pers: "hours" },
     { id: "views", up: true, lo: 100, hi: 20000, step: 100, cap: 500000, unit: "views", per: "day", pers: "days" },
-    { id: "trees", up: true, down: true, lo: 500, hi: 20000, step: 500, cap: 500000, unit: "trees", per: "year", pers: "years" },
+    { id: "trees", up: true, down: true, noWhole: true, lo: 500, hi: 20000, step: 500, cap: 500000, unit: "trees", per: "year", pers: "years" },
     { id: "machine", down: true, lo: 2000, hi: 60000, step: 1000, cap: 60000, unit: "dollars", per: "year", pers: "years" },
     { id: "dose", down: true, lo: 10, hi: 800, step: 10, cap: 800, unit: "milligrams", per: "hour", pers: "hours" }
   ];
   /* the page's own growth and decay tuples (start, num, den, t), left out of the tables */
   function gOnPageGrow(a, m, t) {
     return (a === 250 && m.num === 6 && t === 3) || (a === 48000 && m.num === 3 && m.den === 4 && t === 3) ||
-      (a === 200 && m.num === 3 && m.den === 1 && t === 3) || (a === 320 && m.num === 5 && m.den === 4 && t === 3);
+      (a === 200 && m.num === 3 && m.den === 1 && t === 3) || (a === 320 && m.num === 5 && m.den === 4 && t === 3) ||
+      (a === 640 && m.num === 1 && m.den === 2 && t === 4) || (a === 8 && m.num === 3 && m.den === 2) || (a === 1500 && m.num === 11 && m.den === 10 && t === 2);
   }
+  /* one pool for each noun, so the noun is drawn first and the decay nouns (machine, dose, trees falling) come up in about two draws of five */
   var GVAL = (function () {
-    var out = [], ni, mi, a, t, nn, m;
+    var pools = [], out, ni, mi, a, t, nn, m;
     for (ni = 0; ni < GNOUN.length; ni++) {
-      nn = GNOUN[ni];
+      nn = GNOUN[ni]; out = []; pools.push(out);
       for (mi = 0; mi < GMUL.length; mi++) {
         m = GMUL[mi];
         if (m.up ? !nn.up : !nn.down) continue;
+        if (nn.noWhole && m.up && m.den === 1) continue;
         for (a = nn.lo; a <= nn.hi; a += nn.step) {
           for (t = 2; t <= m.tmax; t++) {
             if (!gWhole(a, m, t) || gOnPageGrow(a, m, t)) continue;
@@ -4235,7 +4240,7 @@
         }
       }
     }
-    return out;
+    return pools;
   })();
 
   /* "doubles" or "grows by 20%", and the plural-subject forms "double" and "grow by 20%" */
@@ -4248,7 +4253,7 @@
   G.add({
     id: "pk-grow-value", section: "pk-growth#growth", par: 80, timed: true,
     make: function (r) {
-      var e = r.pick(GVAL) || [0, 4, 100, 3], nn = GNOUN[e[0]], m = GMUL[e[1]], a = e[2], t = e[3];
+      var pool = GVAL[r.pick([0, 1, 2, 0, 1, 2, 3, 4])], e = r.pick(pool) || [0, 4, 100, 3], nn = GNOUN[e[0]], m = GMUL[e[1]], a = e[2], t = e[3];
       var vals = [a], j, V, key, b = gMulDecimal(m), mult = m.den === 1 ? wn(m.num) : b;
       for (j = 1; j <= t; j++) vals.push(vals[j - 1] * m.num / m.den);
       V = vals[t]; key = clean(V);
@@ -4273,7 +4278,7 @@
         steps: [
           "Here " + mulTxt + ", and the start is $a = " + shown(a) + "$, so $y = " + shown(a) + " \\cdot " + mulUse + "^{" + t + "} = " + shown(a) + " \\cdot " + gPow(m.num, m.den, t) + " = " + shown(V) + "$.",
           "Check period by period: $" + chain + "$.",
-          "The answer is " + (m.up ? "above" : "below") + " the start, as " + (m.up ? "growth" : "decay") + " should give."
+          "Check the multiplier from the last two amounts: $" + shown(V) + " \\div " + shown(vals[t - 1]) + " = " + clean(V / vals[t - 1]) + "$, the multiplier used above."
         ],
         verify: function () {
           /* multiply period by period, rounding away float noise, and check the direction */
@@ -4282,7 +4287,7 @@
             v = Math.round(v * bb * 1e6) / 1e6;
             if (v !== Math.floor(v)) return false;
           }
-          return v === x && (m.up ? x > a : x < a) && t >= 2 && a >= nn.lo;
+          return v === x && x === a * Math.pow(m.num, t) / Math.pow(m.den, t) && (m.up ? x > a : x < a) && t >= 2 && a >= nn.lo;
         }
       };
     }
@@ -4298,7 +4303,7 @@
         for (k = 1; k <= 40; k++) {
           a = s * k;
           if (a < 20 || a > 5000) continue;
-          if ((a === 1200 && p === 25 && dir === -1) || (a === 4000 && p === 10 && dir === 1)) continue;
+          if ((a === 1200 && p === 25 && dir === -1) || (a === 4000 && p === 10 && dir === 1) || (a === 400 && p === 25 && dir === 1) || (a === 8 && p === 50 && dir === 1)) continue;
           two.push([p, dir, a]);
           if ((a * (100 + dir * p) * (100 + dir * p)) % 10000 === 0) three.push([p, dir, a]);
         }
@@ -4314,7 +4319,8 @@
       for (t = 2; t <= 4; t++) {
         den = Math.pow(m.den, t);
         for (a = den; a <= 20000; a += den) {
-          if (a < 20 || (a === 500 && m.num === 6 && t === 2)) continue;
+          if (a < 20 || (a === 500 && m.num === 6 && t === 2) || (a === 1500 && m.num === 11 && t === 2)) continue;
+          if (a * Math.pow(m.num, t) / den > 50000) continue;
           out.push([mi, t, a]);
         }
       }
@@ -4386,7 +4392,7 @@
           for (j = 0; j <= 12; j++) {
             N = a * Math.pow(m.num, j); D = Math.pow(m.den, j);
             if (N > 9e13) { ok = false; break; }
-            if ((N * 100) % D !== 0) { ok = false; break; }
+            if (m.up ? (N % D !== 0) : ((N * 100) % D !== 0)) { ok = false; break; }
             if (N === T * D) { hit = true; break; }
             if (m.up ? N > T * D : N < T * D) { k = j; break; }
           }

@@ -333,9 +333,9 @@ module.exports = {
        rest (4385 px) or a longer list would fail it. Pack A (K-4) adds a "Skill packs" line, which took
        it to 740 px on 2026-10-11; each pack listed adds a line, and the plan lists at most
        PLAN_PACK_ITEMS (3) of them. Pack C (K-9, 2026-10-12) is the third, 806 px, so the list has
-       reached its longest. A pack whose title wraps at 360 px adds one more line: pack G, "Growth,
-       Decay and Sequences" (K-14, 2026-10-12), took the algebra-2 start's list to 864 px, and pack H's
-       title will wrap too, so the bound is 900, three wrapped titles over the 806 px list. */
+       reached its longest. Pack G, "Growth, Decay and Sequences" (K-14, 2026-10-12), measured 864 px at
+       360 px: 806 plus one wrapped title line plus the row's extra spacing. Pack H's title will wrap the
+       same way, so the bound is 900, one more wrapped title over 864. */
     await kase("progress page at 360 px with a worst-case take: the panel is at most 900 px tall with the fold shut, and the fold hides more", { vw: 360 }, async (page) => {
       const p = [];
       await h.open(page, PAGE);

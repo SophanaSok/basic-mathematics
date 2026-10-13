@@ -113,7 +113,7 @@
         <div class="ex-solution">
           <p class="answer">Answer: $\$100$</p>
           <p>
-            $25\%$ of $80$ is $20$, and $80 + 20 = 100$. Check another way: a rise of $25\%$ leaves $125\%$ of the price, and $1.25 \cdot 80 = 100$ ✓.
+            Of $80$, $25\%$ is $20$, and $80 + 20 = 100$. Check another way: a rise of $25\%$ leaves $125\%$ of the price, and $1.25 \cdot 80 = 100$ ✓.
             That second way, one multiplication by $1.25$, is the idea of the second section.
           </p>
         </div>
@@ -144,9 +144,9 @@
     <ul>
       <li><b>The next term, or a far one</b> without listing everything before it: put the position in the formula.</li>
       <li><b>Which position holds a given value:</b> in an arithmetic sequence, solve $a_1 + (n - 1)d = v$ for $n$, and check that $n$ is a whole number,
-        since a value that gives $n = 15.83$ is not a term of the sequence at all.</li>
+        since a value that gives $n = 7.4$ is not a term of the sequence at all.</li>
       <li><b>A missing middle term</b> between two neighbors: in an arithmetic sequence it is the mean of its neighbors, since it sits the same
-        distance from each; in a geometric sequence it is the square root of their product, with the sign the sequence shows, since the ratio from the
+        distance from each; in a geometric sequence it is the square root of their product, taking the sign the problem gives when it says the terms are positive (or negative), since the ratio from the
         first to the middle equals the ratio from the middle to the last.</li>
       <li><b>The common difference from two terms that are not neighbors:</b> from position $i$ to position $j$ is $j - i$ steps, so
         $d = \dfrac{a_j - a_i}{j - i}$.</li>
@@ -171,8 +171,7 @@
           <li>The $12$th term is $11$ steps from the first: $a_{12} = 5 + 11 \cdot 6 = 5 + 66 = 71$.</li>
           <li>For $107$, solve $5 + (n - 1) \cdot 6 = 107$: $(n - 1) \cdot 6 = 102$, so $n - 1 = 17$ and $n = 18$. The value $107$ is the $18$th term.</li>
           <li>For $100$: $(n - 1) \cdot 6 = 95$ gives $n - 1 = \frac{95}{6}$, which is not a whole number. So $100$ is not a term.</li>
-          <li>Check against a list: $5, 11, 17, 23, 29, 35, 41, 47, 53, 59, 65, 71$ has $12$ terms and ends at $71$ ✓. Check the position by counting steps:
-            from $5$ up to $107$ is $102$, which is exactly $17$ steps of $6$, so $107$ is the term $17$ steps after the first, the $18$th ✓. $\blacksquare$</li>
+          <li>Check against a list: $5, 11, 17, 23, 29, 35, 41, 47, 53, 59, 65, 71$ has $12$ terms and ends at $71$ ✓. Check the position by listing on from $71$: $77, 83, 89, 95, 101, 107$ are the $13$th through $18$th terms, so $107$ is the $18$th ✓, and $100$ falls between $95$ and $101$ ✓. $\blacksquare$</li>
         </ol>
         <p class="note">
           A value is a term only when the number of steps comes out whole.
@@ -225,7 +224,7 @@
           <li>Check the first by listing: $3, 6, 12, 24, 48, 96, 192, 384$ has $8$ terms and ends at $384$ ✓. Check the second by ratios: $10 \div 2 = 5$ and $50 \div 10 = 5$ ✓. $\blacksquare$</li>
         </ol>
         <p class="note">
-          Had the problem allowed negative terms, $2, -10, 50$ would also be geometric, with ratio $-5$. The sign the sequence shows decides which root to take.
+          Had the problem allowed negative terms, $2, -10, 50$ would also be geometric, with ratio $-5$. The problem says the terms are positive, and that decides which root to take. Two neighbors of opposite sign, such as $4$ and $-9$, have no real middle term at all, since their product is negative.
         </p>
       </div>
     </div>
@@ -239,9 +238,9 @@
         </p>
       </div>
       <div class="ex-solution">
-        <p class="answer">Answer: $1024$</p>
+        <p class="answer">Answer: $1{,}024$</p>
         <p>
-          The ratio is $4$ and $a_1 = 1$, so $a_6 = 1 \cdot 4^5 = 1024$. Check by listing: $1, 4, 16, 64, 256, 1024$ has $6$ terms and ends at $1024$ ✓.
+          The ratio is $4$ and $a_1 = 1$, so $a_6 = 1 \cdot 4^5 = 1{,}024$. Check by listing: $1, 4, 16, 64, 256, 1{,}024$ has $6$ terms and ends at $1{,}024$ ✓.
         </p>
       </div>
     </div>
@@ -326,11 +325,11 @@
       <h3><span class="num">Example 4.</span> Decay and a half-life</h3>
       <div class="body">
         <p>
-          A sample of $640$ grams of a tracer has a half-life of $3$ days. How much is left after $12$ days? After how many days is less than $10$ grams left?
+          A sample of $640$ grams of a tracer has a half-life of $3$ days. How much is left after $12$ days? The amount is measured at the end of each half-life. After how many days does a measurement first show less than $10$ grams?
         </p>
         <ol class="steps">
           <li>The period is $3$ days and the multiplier per period is $\frac12$. Twelve days is $12 \div 3 = 4$ periods, so $y = 640 \cdot \left(\frac12\right)^4 = 640 \div 16 = 40$ grams.</li>
-          <li>For the second question, list the amount after each period: $640, 320, 160, 80, 40, 20, 10, 5$. The amount is $10$ after $6$ periods, which is not less than $10$, and $5$ after $7$ periods, which is.</li>
+          <li>For the second question, list the measurement after each period: $640, 320, 160, 80, 40, 20, 10, 5$. The measurement is $10$ after $6$ periods, which is not less than $10$, and $5$ after $7$ periods, which is.</li>
           <li>Seven periods is $7 \cdot 3 = 21$ days.</li>
           <li>Check the first answer by halving: $640 \to 320 \to 160 \to 80 \to 40$ is $4$ halvings ✓. Check the second by the power: $640 \div 2^7 = 640 \div 128 = 5 &lt; 10$, and $640 \div 2^6 = 10$, not less ✓. $\blacksquare$</li>
         </ol>
@@ -384,14 +383,14 @@
         answered by choosing one of the options shown, since a formula or an equation is never typed.
       </p>
 
-      <div class="ex" id="e1" data-section="sequences" data-type="number" data-answer="66" data-placeholder="seats"
+      <div class="ex" id="e1" data-section="sequences" data-type="number" data-answer="68" data-placeholder="seats"
            data-hint="The row you want is a certain number of steps from the first row. Each step adds the same number of seats."
-           data-hint2="How many rows are there between the first row and the $25$th, counting the steps and not the rows?">
-        <div class="ex-q"><p>A theater has $18$ seats in the first row, and each row behind it has $2$ more seats than the row in front. How many seats are in the $25$th row?</p></div>
+           data-hint2="How many rows are there between the first row and the $26$th, counting the steps and not the rows?">
+        <div class="ex-q"><p>A theater has $18$ seats in the first row, and each row behind it has $2$ more seats than the row in front. How many seats are in the $26$th row?</p></div>
         <div class="ex-solution">
-          <p class="answer">Answer: $66$ seats</p>
+          <p class="answer">Answer: $68$ seats</p>
           <p>
-            The $25$th row is $24$ steps from the first: $a_{25} = 18 + 24 \cdot 2 = 18 + 48 = 66$. Check through the middle: the $10$th row has $18 + 9 \cdot 2 = 36$ seats, and the $15$ rows after it add $15 \cdot 2 = 30$, which makes $66$ ✓.
+            The $26$th row is $25$ steps from the first: $a_{26} = 18 + 25 \cdot 2 = 18 + 50 = 68$. Check through the middle: the $10$th row has $18 + 9 \cdot 2 = 36$ seats, and the $16$ rows after it add $16 \cdot 2 = 32$, which makes $68$ ✓.
           </p>
         </div>
       </div>
@@ -457,19 +456,19 @@
       </div>
 
       <div class="ex" id="e7" data-section="sequences" data-answer="3"
-           data-hint="Test each formula at $n = 1$ and $n = 2$ against the first two terms."
-           data-hint2="Which options already fail at $n = 1$?">
-        <div class="ex-q"><p>The geometric sequence $3, 6, 12, 24, \dots$ is described by a formula for its $n$th term. Which formula gives it?</p></div>
+           data-hint="Test each formula at $n = 1$ and $n = 3$ against the terms of the list."
+           data-hint2="Which options already fail at $n = 1$, and which of the others fails at $n = 3$?">
+        <div class="ex-q"><p>The geometric sequence $7, 14, 28, 56, \dots$ is described by a formula for its $n$th term. Which formula gives it?</p></div>
         <ul class="choices">
-          <li>$3 \cdot 2^{n}$</li>
-          <li>$2 \cdot 3^{n-1}$</li>
-          <li>$3 \cdot 2^{n-1}$</li>
-          <li>$3 + 3(n - 1)$</li>
+          <li>$7 \cdot 2^{n}$</li>
+          <li>$2 \cdot 7^{n-1}$</li>
+          <li>$7 \cdot 2^{n-1}$</li>
+          <li>$7 + 7(n - 1)$</li>
         </ul>
         <div class="ex-solution">
-          <p class="answer">Answer: $3 \cdot 2^{n-1}$</p>
+          <p class="answer">Answer: $7 \cdot 2^{n-1}$</p>
           <p>
-            The first term is $3$ and the ratio is $2$, which is the third option. The first option gives $6$ at $n = 1$, one multiplication too many. The second swaps the first term and the ratio, giving $2$ at $n = 1$. The last is the arithmetic formula for a list that adds $3$ each time. Check the chosen formula: $n = 1$ gives $3$, $n = 3$ gives $3 \cdot 4 = 12$ and $n = 4$ gives $3 \cdot 8 = 24$ ✓.
+            The first term is $7$ and the ratio is $2$, which is the third option. The first option gives $14$ at $n = 1$, one multiplication too many. The second swaps the first term and the ratio, giving $2$ at $n = 1$. The last is the arithmetic formula for a list that adds $7$ each time: it gives $7$ and $14$ at $n = 1$ and $n = 2$, so only $n = 3$ separates it, where it gives $21$ and not $28$. Check the chosen formula: $n = 1$ gives $7$, $n = 3$ gives $7 \cdot 4 = 28$ and $n = 4$ gives $7 \cdot 8 = 56$ ✓.
           </p>
         </div>
       </div>
@@ -510,14 +509,14 @@
         </div>
       </div>
 
-      <div class="ex" id="e11" data-section="growth" data-type="number" data-answer="500" data-placeholder="birds"
+      <div class="ex" id="e11" data-section="growth" data-type="number" data-answer="1500" data-placeholder="birds"
            data-hint="Run the story backward: the count at the end is the starting count multiplied once for each year."
            data-hint2="What does the flock's count get multiplied by in each of the two years?">
-        <div class="ex-q"><p>A flock of birds grows by $20\%$ each year. After $2$ years it numbers $720$. How many birds were in it at the start?</p></div>
+        <div class="ex-q"><p>A flock of birds grows by $10\%$ each year. After $2$ years it numbers $1{,}815$. How many birds were in it at the start?</p></div>
         <div class="ex-solution">
-          <p class="answer">Answer: $500$ birds</p>
+          <p class="answer">Answer: $1{,}500$ birds</p>
           <p>
-            Two years multiply the start by $1.2^2 = 1.44$, so the start is $720 \div 1.44 = 500$. Check forward: $500 \cdot 1.2 = 600$ and $600 \cdot 1.2 = 720$ ✓.
+            Two years multiply the start by $1.1^2 = 1.21$, so the start is $1{,}815 \div 1.21 = 1{,}500$. Check forward: $1{,}500 \cdot 1.1 = 1{,}650$ and $1{,}650 \cdot 1.1 = 1{,}815$ ✓.
           </p>
         </div>
       </div>
@@ -543,23 +542,23 @@
             <caption>The quantity $y$ at the start of hour $t$</caption>
             <thead><tr><th scope="col">Hour $t$</th><th scope="col">Amount $y$</th></tr></thead>
             <tbody>
-              <tr><th scope="row">$0$</th><td>$5$</td></tr>
-              <tr><th scope="row">$1$</th><td>$15$</td></tr>
-              <tr><th scope="row">$2$</th><td>$45$</td></tr>
-              <tr><th scope="row">$3$</th><td>$135$</td></tr>
+              <tr><th scope="row">$0$</th><td>$8$</td></tr>
+              <tr><th scope="row">$1$</th><td>$12$</td></tr>
+              <tr><th scope="row">$2$</th><td>$18$</td></tr>
+              <tr><th scope="row">$3$</th><td>$27$</td></tr>
             </tbody>
           </table>
         </div>
         <ul class="choices">
-          <li>$y = 5 + 10t$</li>
-          <li>$y = 5 \cdot 3^t$</li>
-          <li>$y = 5 \cdot 2^t$</li>
-          <li>$y = 3 \cdot 5^t$</li>
+          <li>$y = 8 + 4t$</li>
+          <li>$y = 8 \cdot 1.5^t$</li>
+          <li>$y = 8 \cdot 2^t$</li>
+          <li>$y = 1.5 \cdot 8^t$</li>
         </ul>
         <div class="ex-solution">
-          <p class="answer">Answer: $y = 5 \cdot 3^t$</p>
+          <p class="answer">Answer: $y = 8 \cdot 1.5^t$</p>
           <p>
-            The ratios $15 \div 5$, $45 \div 15$ and $135 \div 45$ are all $3$, while the differences $10, 30, 90$ are not constant, so the change is exponential with $a = 5$ and $b = 3$. The first option is the linear model that fits only the first two rows ($5 + 10 \cdot 2 = 25$, not $45$). The third uses the wrong multiplier ($5 \cdot 2^1 = 10$, not $15$), and the fourth swaps the start and the multiplier ($3 \cdot 5^0 = 3$, not $5$). Check the chosen one: $5 \cdot 3^2 = 45$ and $5 \cdot 3^3 = 135$ ✓.
+            The ratios $12 \div 8$, $18 \div 12$ and $27 \div 18$ are all $1.5$, while the differences $4, 6, 9$ are not constant, so the change is exponential with $a = 8$ and $b = 1.5$. The first option is the linear model that fits only the first two rows ($8 + 4 \cdot 2 = 16$, not $18$). The third uses the wrong multiplier ($8 \cdot 2^1 = 16$, not $12$), and the fourth swaps the start and the multiplier ($1.5 \cdot 8^0 = 1.5$, not $8$). Check the chosen one: $8 \cdot 1.5^2 = 18$ and $8 \cdot 1.5^3 = 27$ ✓.
           </p>
         </div>
       </div>
@@ -584,7 +583,7 @@
         <p data-your-guess></p>
         <p>
           The patch covered half the pond on day $29$. It doubles every day, so the day before it was full it was half as big: run the doubling backward one day, from the whole pond on day $30$ to half the pond on day $29$.
-          A second route: if half the pond is covered on day $29$, one doubling makes the whole pond on day $30$ ✓. The tempting day $15$ treats the story as linear, where half of the time gives half of the pond. In a doubling story the pond is only $\frac{1}{2^{15}}$ of its final size on day $15$, because the last day alone adds as much as all the days before it put together. Half the time is the linear answer to an exponential story.
+          A second route: if half the pond is covered on day $29$, one doubling makes the whole pond on day $30$ ✓. The tempting day $15$ treats the story as linear, where half of the time gives half of the pond. In a doubling story, running the doubling back $15$ more days from day $29$, halving each time, leaves the patch at $\frac{1}{2^{15}}$ of the pond on day $15$. Each day the patch adds as much as the whole patch had the day before. Half the time is the linear answer to an exponential story.
         </p>
       </div>
       <ul>
@@ -592,11 +591,11 @@
         <li>Arithmetic adds the common difference $d$ each step: $a_n = a_1 + (n - 1)d$, since the $n$th term is $n - 1$ steps from the first. Geometric multiplies by the common ratio $r$: $a_n = a_1 \cdot r^{\,n-1}$.</li>
         <li>To tell them apart, take differences, then ratios; a list where neither is constant is neither.</li>
         <li>A value is a term of an arithmetic sequence only when solving $a_1 + (n - 1)d = v$ gives a whole $n$.</li>
-        <li>A missing middle term is the mean of its neighbors in an arithmetic sequence, and the square root of their product (with the sign the sequence shows) in a geometric one.</li>
+        <li>A missing middle term is the mean of its neighbors in an arithmetic sequence, and the square root of their product (taking the sign the problem gives when it says the terms are positive or negative; two neighbors of opposite sign have no real middle term) in a geometric one.</li>
         <li>Pairing the first and last, the second and second-to-last, and so on, sums an arithmetic list: half the number of terms times the sum of the first and last.</li>
         <li>Linear change adds the same amount each period, $y = a + dt$. Exponential change multiplies by the same factor each period, $y = a \cdot b^{\,t}$, with $a$ the value at $t = 0$.</li>
         <li>Up $r\%$ is the multiplier $1 + \frac{r}{100}$ and down $r\%$ is $1 - \frac{r}{100}$; read the percent back from $b$, so $1.08$ is up $8\%$ and $0.85$ is down $15\%$. Doubling is $b = 2$, halving is $b = \frac12$, and a half-life is the period of halving.</li>
-        <li>An exponential quantity passes a linear one however they start, because its increases are a share of a growing amount and so keep growing.</li>
+        <li>An exponential quantity passes a linear one however they start, when the multiplier is above $1$, because its increases are a share of a growing amount and so keep growing.</li>
       </ul>
     </div>
 
