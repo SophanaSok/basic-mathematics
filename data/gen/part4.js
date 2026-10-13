@@ -5,7 +5,7 @@
   "use strict";
   var G = window.BMGen;
   if (!G) return;
-  var u = G.u, par = u.par, poly = u.poly, shift = u.shift;
+  var u = G.u, holder = u.holder, par = u.par, poly = u.poly, shift = u.shift;
 
   function signed(n) { return n < 0 ? "- " + -n : "+ " + n; }
 
@@ -139,7 +139,7 @@
         q: "On $\\{" + list.join(",") + "\\}$, let $\\sigma$ send $" + arrows(s) + "$ and let $\\tau$ send $" + arrows(t) + "$. Write $" + name +
           "$ (apply $" + f1 + "$ first) as the images of $" + list.join(", ") + "$ in order, separated by commas.",
         type: "exact", answer: out.join(",") + "|(" + out.join(",") + ")",
-        placeholder: n === 3 ? "e.g. 2,3,1" : "e.g. 2,1,4,3",
+        placeholder: holder(n === 3 ? "e.g. 2,3,1" : "e.g. 2,1,4,3", out.join(","), n === 3 ? "e.g. 3,1,2" : "e.g. 3,4,1,2"),
         hint: "Track one element at a time: through the permutation applied first, then through the other.",
         steps: list.map(function (i) {
           return "$" + i + " \\xrightarrow{" + f1 + "} " + first[i - 1] + " \\xrightarrow{" + f2 + "} " + out[i - 1] + "$.";
@@ -193,7 +193,7 @@
       return {
         q: "Compute $(" + u.cxTex(a, b) + ")(" + u.cxTex(c, d) + ")$.",
         type: "expr", answer: u.cxAns(re, im),
-        placeholder: "e.g. 3+4i",
+        placeholder: holder("e.g. 3+4i", u.cxAns(re, im), "e.g. 2+5i"),
         hint: "Multiply out as with any two sets of parentheses, then replace i² by −1.",
         steps: [
           "Expand: $" + par(a) + " \\cdot " + par(c) + " + " + par(a) + " \\cdot " + par(d) + "i + " + par(b) + " \\cdot " + par(c) + "i + " + par(b) + " \\cdot " + par(d) + "i^2$.",
@@ -218,7 +218,7 @@
       return {
         q: "Compute $\\dfrac{" + u.cxTex(nr, ni) + "}{" + u.cxTex(c, d) + "}$.",
         type: "expr", answer: u.cxAns(p, q),
-        placeholder: "e.g. 3-2i",
+        placeholder: holder("e.g. 3-2i", u.cxAns(p, q), "e.g. 2-5i"),
         hint: "Multiply the top and the bottom by the conjugate of the bottom.",
         steps: [
           "The conjugate of $" + u.cxTex(c, d) + "$ is $" + u.cxTex(c, -d) + "$; the bottom becomes $" + par(c) + "^2 + " + par(d) + "^2 = " + den + "$.",
@@ -241,7 +241,7 @@
       return {
         q: "What is $i^{" + n + "}$?",
         type: "exact", answer: keys[m],
-        placeholder: "e.g. -1",
+        placeholder: "e.g. 2i",
         hint: "Powers of i repeat in a cycle; find where this exponent falls in it.",
         steps: [
           "$i^1 = i$, $i^2 = -1$, $i^3 = -i$, $i^4 = 1$, and then the cycle repeats every $4$.",
@@ -383,7 +383,7 @@
       return {
         q: "What is $" + terms.join(" ") + " + \\dots$?",
         type: "fraction", answer: u.fracAns(num, den),
-        placeholder: "e.g. 3/2",
+        placeholder: holder("e.g. 3/2", u.fracAns(num, den), "e.g. 5/3"),
         hint: "Find the ratio between consecutive terms, check that it is less than 1 in size, and use the infinite geometric sum.",
         steps: [
           "Each term is the previous one times $r = " + (neg ? "-" : "") + "\\frac{1}{" + m + "}$, and $|r| < 1$.",
@@ -491,7 +491,7 @@
       return {
         q: "Solve $" + poly([[a, "x"], [b, "y"]]) + " = " + e + "$, $\\;" + poly([[c, "x"], [d, "y"]]) + " = " + f + "$. Give the point $(x, y)$.",
         type: "exact", answer: u.ptAns(x, y),
-        placeholder: "e.g. (2,1)",
+        placeholder: holder("e.g. (2,1)", u.ptAns(x, y), "e.g. (1,3)"),
         hint: "Find the determinant of the coefficients, then replace one column at a time by the right-hand sides (Cramer's rule).",
         steps: [
           "$\\det A = " + vm2(a, b, c, d) + " = " + par(a) + " \\cdot " + par(d) + " - " + par(b) + " \\cdot " + par(c) + " = " + det + "$, which is not zero.",

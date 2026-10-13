@@ -45,6 +45,11 @@
 const site = require("../lib/site");
 const target = require("../lib/target");
 const { chromium } = require("../lib/pw").playwright();
+/* the same strict list as tools/suites/axe.js, imported so the two stay in sync */
+const { STRICT_RULES } = require("../suites/axe");
+const axeSource = require("../lib/pw").resolvePlaywright().axeSource;
+/* as injectAxe in tools/lib/browser.js: evaluate the source in the page (an inline <script> would meet the CSP) */
+const injectAxe = (page, source) => page.evaluate(source);
 
 const CH05 = "parts/2-geometry/05-distance-and-angles.html";
 let server;
@@ -203,6 +208,22 @@ async function run() {
         kinds.push(card.kind);
         eq([card.n, card.svg, card.tables, card.mounted], [1, true, 1, true], "question " + (k + 1) + " of the displays section holds one drawn chart with its table");
         eq([card.th, card.rows], [COLS[card.kind], card.want.rows.length], "question " + (k + 1) + "'s table has the " + card.kind + " header and a row per value");
+        if (k === 0) {
+          /* the drawn chart: the svg is hidden from assistive tech, "Show the data" comes before the answer box, no strict axe rule fails in the question */
+          const order = await p.evaluate(() => {
+            const fig = document.querySelector(".arena-q figure[data-widget='chart']"), btn = Array.from(fig.querySelectorAll("button")).find((b) => b.textContent.trim() === "Show the data");
+            const input = document.getElementById("arena-answer");
+            return { svg: fig.querySelector("svg").getAttribute("aria-hidden"), btn: !!btn, before: !!(btn && input && (btn.compareDocumentPosition(input) & Node.DOCUMENT_POSITION_FOLLOWING)) };
+          });
+          eq(order, { svg: "true", btn: true, before: true }, "a chart question hides its svg from assistive tech and puts Show the data before the answer box");
+          if (!axeSource) console.log("SKIP axe on a chart question: axe-core is not resolvable — run `npm ci`");
+          else {
+            await injectAxe(p, axeSource);
+            const bad = await p.evaluate(async () => (await window.axe.run(".arena-q", { resultTypes: ["violations"] }))
+              .violations.map((v) => ({ id: v.id, nodes: v.nodes.map((n) => n.target.join(" ")).slice(0, 3) })));
+            eq(bad.filter((v) => STRICT_RULES.includes(v.id)), [], "axe finds no strict violation in a chart question");
+          }
+        }
         await answer(p, true);
         await next(p).catch(() => {});
         if (await p.$(".arena-result")) break;

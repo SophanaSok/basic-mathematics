@@ -183,19 +183,22 @@ async function main() {
       const { page, requests } = await open(CHAPTER, seeds(50, { "bm.run.v1": JSON.stringify({ seen: { form: 1, evolved: 1 } }) }));
       await wait(500);
       await page.evaluate(() => window.BMActivity.add(20, "test"));
-      await page.waitForSelector(".toast.form", { timeout: 3000 }).catch(() => {});
+      let timedOut = false;
+      await page.waitForSelector(".toast.form", { timeout: 3000 }).catch(() => { timedOut = true; });
       const t = await page.evaluate(() => Array.from(document.querySelectorAll(".toast.form")).map((e) => e.textContent));
-      check(t.length === 1 && /Sprig/.test(t[0]), "7: one toast naming Sprig", t);
+      check(t.length === 1 && /Sprig/.test(t[0]), "7: one toast naming Sprig", timedOut ? "toast did not appear within 3000 ms; " + JSON.stringify(t) : t);
       const game = await store(page, "bm.game.v1");
       check(game.form && game.form.got["2"] > 0, "7: got[2] is recorded", game.form);
       const run = await store(page, "bm.run.v1");
       check(run.seen.form === 2, "7: seen.form is 2", run.seen);
       check(requests.length === 0, "7: no Three.js on a chapter page", requests);
       await page.evaluate(() => window.BMActivity.add(5, "test"));
+      /* fixed wait on purpose: it asserts the absence of a second toast, which needs time to pass */
       await wait(600);
       const n2 = await page.evaluate(() => document.querySelectorAll(".toast.form").length);
       check(n2 === 1, "7: no second toast", n2);
       await page.reload({ waitUntil: "load" });
+      /* fixed wait on purpose: it asserts the absence of a toast after the reload */
       await wait(1000);
       const n3 = await page.evaluate(() => document.querySelectorAll(".toast.form").length);
       check(n3 === 0, "7: no toast after a reload", n3);
@@ -205,10 +208,12 @@ async function main() {
       const { page } = await open(CHAPTER, seeds(50, { "bm.run.v1": JSON.stringify({ seen: { form: 1, evolved: 1 } }) }));
       await wait(500);
       await page.evaluate(() => window.BMActivity.add(600, "test"));
-      await page.waitForSelector(".toast.form", { timeout: 3000 }).catch(() => {});
+      let timedOut = false;
+      await page.waitForSelector(".toast.form", { timeout: 3000 }).catch(() => { timedOut = true; });
+      /* fixed wait on purpose: it gives a second toast time to appear, since the check is for exactly one */
       await wait(300);
       const t = await page.evaluate(() => Array.from(document.querySelectorAll(".toast.form")).map((e) => e.textContent));
-      check(t.length === 1 && /Surveyor/.test(t[0]), "8: one toast naming Surveyor", t);
+      check(t.length === 1 && /Surveyor/.test(t[0]), "8: one toast naming Surveyor", timedOut ? "toast did not appear within 3000 ms; " + JSON.stringify(t) : t);
       const game = await store(page, "bm.game.v1");
       const got = (game.form && game.form.got) || {};
       check(["2", "3", "4"].every((k) => got[k] > 0), "8: stages 2, 3 and 4 recorded", got);

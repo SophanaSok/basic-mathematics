@@ -328,15 +328,11 @@ module.exports = {
         { course: "geometry", pass: true, items: GEO.map((f, i) => ({ g: f[0], s: 101 + i, sec: f[1], k: "right" })) }
       ]
     };
-    /* 700 px guards the compact form: the worst case the plan allows (the moved note, 3 Start here,
-       5 Review first) measured 668 px at 360 px on 2026-10-10, about one phone screen. Unfolding the
-       rest (4385 px) or a longer list would fail it. Pack A (K-4) adds a "Skill packs" line, which took
-       it to 740 px on 2026-10-11; each pack listed adds a line, and the plan lists at most
-       PLAN_PACK_ITEMS (3) of them. Pack C (K-9, 2026-10-12) is the third, 806 px, so the list has
-       reached its longest. Pack G, "Growth, Decay and Sequences" (K-14, 2026-10-12), measured 864 px at
-       360 px: 806 plus one wrapped title line plus the row's extra spacing. Pack H's title will wrap the
-       same way, so the bound is 900, one more wrapped title over 864. */
-    await kase("progress page at 360 px with a worst-case take: the panel is at most 900 px tall with the fold shut, and the fold hides more", { vw: 360 }, async (page) => {
+    /* The old pixel bound on the shut panel was retired because it rose with every pack (700, 780,
+       840, 900). The bound is now rows (the packs list holds at most PLAN_PACK_ITEMS) and row height
+       (no pack row is taller than two text lines). */
+    const PACK_ROWS = 3; // PLAN_PACK_ITEMS in src/learn/plan.ts
+    await kase("progress page at 360 px with a worst-case take: the shut panel lists at most PLAN_PACK_ITEMS packs, no pack row is taller than two text lines, and the fold hides more", { vw: 360 }, async (page) => {
       const p = [];
       await h.open(page, PAGE);
       await page.evaluate((take) => localStorage.setItem("bm.diag.v1", JSON.stringify({ takes: { worst1: take } })), WORST);
@@ -368,6 +364,12 @@ module.exports = {
           shut: !!d && !d.open,
           top: tile ? Math.round(tile.getBoundingClientRect().top + window.scrollY) : null,
           note: slot ? (slot.querySelector(":scope > p") || {}).textContent || null : null,
+          packRows: slot ? Array.from(slot.querySelectorAll(":scope > h4")).filter((x) => x.textContent === "Skill packs").map((x) => x.nextElementSibling.children.length) : [],
+          rows: slot ? Array.from(slot.querySelectorAll(":scope > h4")).filter((x) => x.textContent === "Skill packs").flatMap((x) => Array.from(x.nextElementSibling.children)).filter((li) => li.getClientRects().length).map((li) => {
+            const cs = getComputedStyle(li), fs = parseFloat(cs.fontSize);
+            const lh = cs.lineHeight === "normal" ? 1.4 * fs : parseFloat(cs.lineHeight);
+            return { text: li.textContent.slice(0, 40), h: li.getBoundingClientRect().height, max: 2 * lh + parseFloat(cs.paddingTop) + parseFloat(cs.paddingBottom) };
+          }) : [],
           review5: slot ? (slot.querySelectorAll(":scope > h4")[1] ? slot.querySelectorAll(":scope > ul")[1].children.length : 0) : -1
         };
       });
@@ -377,7 +379,9 @@ module.exports = {
       const openH = await size();
       check(p, m.shut, "the fold is not shut");
       check(p, m.note === "Your plan now starts in Algebra 2" && m.start === 3 && m.review5 === 5, "not the worst case: " + JSON.stringify(m));
-      check(p, shutH <= 900, "the worst-case panel with the fold shut is " + shutH + " px (bound 900)");
+      check(p, m.packRows.length === 1 && m.packRows[0] >= 1 && m.packRows[0] <= PACK_ROWS, "the Skill packs list has " + JSON.stringify(m.packRows) + " rows (at most " + PACK_ROWS + ")");
+      const tall = m.rows.filter((r) => r.h > r.max + 0.5);
+      check(p, m.rows.length > 0 && tall.length === 0, "pack rows taller than two text lines: " + JSON.stringify(tall) + " of " + m.rows.length);
       check(p, openH > shutH, "opening the fold does not make the panel taller: " + shutH + " then " + openH);
       return p;
     });
