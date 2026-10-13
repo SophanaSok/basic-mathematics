@@ -18,9 +18,9 @@
                names); --only and --skip then narrow that. CI runs the gate as one job
                per part, side by side
    --parts     check PARTS against tools/suites/ and print, as JSON, the part names (the
-               browser job's matrix in ci.yml) and CORE, the part whose job also runs
-               test:browser:core: {"parts":[...],"core":"rest"}; exit 2 when a part names
-               no suite
+               browser job's matrix in ci.yml) and CORE, the part whose job runs
+               test:browser:core alone: {"parts":[...],"core":"core"}; exit 2 when a part
+               names a missing suite
    --theme     one theme instead of both;  --vw one viewport instead of both
    --base      git ref whose exercise keys the restore suite seeds (default lib/site.js)
    --headed    show the browser
@@ -148,21 +148,28 @@ details{margin:.2rem 0}summary{cursor:pointer}pre{white-space:pre-wrap;font-size
    part, each with the same flags (--skip=webgl) as the single run it replaced. "rest" is
    every suite no part names, so a suite dropped into tools/suites/ runs in CI without
    being assigned anywhere; the browser job's matrix is `--parts`, so a part added here
-   gets its job. Balanced by each suite's seconds on a runner (CI run 37414123700,
-   2026-10-06), with the rest job also running `npm run test:browser:core` first (162 s
-   then, with the carry test since removed among its scripts).
+   gets its job. Balanced by each suite's seconds on a runner (CI run 38365157305,
+   2026-10-13, with packs A to G on the site); the tools/game scripts of `npm run
+   test:browser:core` have the part CORE to themselves. A job is its suites plus about
+   45 s of setup, and the run is build (about 1 minute) plus its longest job: axe, one
+   suite that cannot be split, sets the floor.
    Move a suite between parts when a job grows past the others. */
 const PARTS = {
-  axe: ["axe"],                                  // 289
-  pages: ["pages", "hud"],                       // 204 + 93
-  exercises: ["exercises", "widgets", "frame"]   // 179 + 87 + 31
-};                                               // rest: transitions 54, motion 28, missions 23,
-                                                 //   restore 20, thirdparty 11, upgrade 3
+  axe: ["axe"],                                  // 351
+  pages: ["pages"],                              // 305
+  exercises: ["exercises"],                      // 272
+  widgets: ["widgets", "hud", "frame"],          // 109 + 103 + 32
+  core: []                                       // no suite: the job runs test:browser:core alone (191)
+};                                               // rest: diagnostic 82, transitions 52, motion 35,
+                                                 //   missions 29, restore 22, plan 21, thirdparty 11,
+                                                 //   upgrade 3
 const REST = "rest";
-/* the part whose job also runs `npm run test:browser:core` (the tools/game scripts of the
-   gate), first. ci.yml reads it from --parts rather than naming a part itself, so renaming
-   a part cannot leave the scripts in no job */
-const CORE = REST;
+/* the part whose job runs `npm run test:browser:core` (the tools/game scripts of the gate)
+   and, as it names no suite, nothing else: until 2026-10-13 it was REST, and that job ran
+   8 minutes while the others ran 4 to 5, so it set every run's length. ci.yml reads it
+   from --parts rather than naming a part itself, so renaming a part cannot leave the
+   scripts in no job */
+const CORE = "core";
 
 /* every name a suite's, no suite in two parts, no part called "rest", and CORE one of the
    parts; returns the part of each suite, or throws saying what is wrong */
@@ -205,6 +212,9 @@ async function main() {
   const part = opts.part === undefined ? null : String(opts.part);
   if (part !== null && part !== REST && !PARTS[part]) { console.error("--part names no part: " + part + " (the parts: " + Object.keys(PARTS).concat(REST).join(", ") + ")"); return 2; }
   const pool = part === null ? allSuites : allSuites.filter(s => parts[s.name] === part);
+  /* a part that names no suite (CORE) has nothing to run here: its job runs the tools/game
+     scripts instead, so there is no server or browser to start */
+  if (part !== null && !pool.length) { console.log("part " + part + ": no suite; its job runs npm run test:browser:core alone"); return 0; }
 
   let pwInfo;
   try { pwInfo = require("./lib/pw").resolvePlaywright(); }

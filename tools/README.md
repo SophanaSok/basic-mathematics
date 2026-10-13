@@ -358,8 +358,8 @@ or both; `--skip` takes suite names to leave out. `--part=<part>` runs one part 
 names, and `--only` and `--skip` narrow a part like the whole. `--list` prints each suite with its
 part; `--parts` checks `PARTS` against the files in `suites/` (a name that is no suite, or a suite
 in two parts, exits 2) and prints, as JSON, the part names, which are the browser job's matrix, and
-`CORE`, the part whose job also runs `npm run test:browser:core` (`{"parts":[...],"core":"rest"}`;
-a `CORE` that is no part exits 2). The theme is forced the way the site reads it —
+`CORE`, the part whose job runs `npm run test:browser:core` alone (`{"parts":[...],"core":"core"}`;
+a `CORE` that is no part exits 2; `--part=core` has no suite and exits 0 at once). The theme is forced the way the site reads it —
 `localStorage["bm.theme"]` holds the JSON string `"dark"`/`"light"` (note the quotes: every store
 value is `JSON.stringify`ed) and the context's `colorScheme` matches — which is how the inline
 boot script reads it before paint.
@@ -458,11 +458,11 @@ runs under the same flags while the rest of it draws on the SVG painter) and the
 in a job of their own, retried, outside the gate a deploy waits for; `npm run test:browser:core`
 and `check-browser.js --skip=webgl` are the gate. The gate runs as one `browser` job per part of
 `PARTS` (`--parts` gives the build job the list), side by side, each `check-browser.js
---skip=webgl --part=<part>`, and the job of the part `CORE` (today `rest`) runs `npm run
-test:browser:core` first. ci.yml takes that part from `--parts` too, never naming one itself, and
-`check-ci.js` (`core`) fails if the step or its condition is changed, so renaming a part
-cannot leave the `tools/game` scripts in no job. Every suite runs once, under the flags the
-single job used, in about 6 minutes where it took 16 to 21. The
+--skip=webgl --part=<part>`, except the job of the part `CORE` (today `core`, which names no
+suite), which runs `npm run test:browser:core` alone. ci.yml takes that part from `--parts` too,
+never naming one itself, and `check-ci.js` (`core`) fails if either step or its condition is
+changed, so renaming a part cannot leave the `tools/game` scripts in no job. Every suite runs once, under the flags the
+single job used, in about 4 to 6 minutes each where it took 16 to 21. The
 parts are balanced by the suites' times on a runner (the numbers are beside `PARTS`), and each
 job uploads its own report, `check-browser-report-<part>`. The gate is not retried, and nothing in it
 depends on another server (see the paragraph on third-party requests above) or on the WebGL a
@@ -569,7 +569,7 @@ runs only on GitHub), held by reading the file:
 | `rerun` | the `cloudflare` job stops a re-run of an older commit of `main` before wrangler deploys (as `deploy` does for GitHub Pages) |
 | `pr` | a pull request deploys under `pr-<number>`, and nothing in the job reads the head branch, so a pull request whose head is `main` cannot reach production |
 | `prod` | a deploy of `main` that Cloudflare did not make production fails, after wrangler ran |
-| `core` | the `browser` job runs `npm run test:browser:core` in the job of the part `--parts` names as core |
+| `core` | the `browser` job runs `npm run test:browser:core` in the job of the part `--parts` names as core, and `check-browser.js --part` in every job but that one, both conditions read from `--parts` |
 | `pages` | the build job builds, checks and keeps `dist-redirects/`, and the `deploy` job downloads that artifact alone and reads no repository variable: the course is never published to GitHub Pages. Taking the old address down removes this check with the jobs ([`OPERATIONS.md`](../OPERATIONS.md), 8.6) |
 | `install` | every job that runs the browser tests (`test:browser*` or `check:browser`: today `browser` and `webgl`) has its own step that runs `playwright install`, and every such step has a step-level `timeout-minutes` (a step key, 8 spaces in) and wraps each line that runs the install in `timeout -k <seconds> <seconds>` (or `--kill-after=`), so a stuck download costs one try of three, not the job's timeout, and a wedged apt that ignores the TERM is killed before it can hold the dpkg lock against the next try (the loop also runs `sudo dpkg --configure -a` after a failed try). A step name or an `echo` that names the install is not one |
 | `skip` | `pull_request` and `push` (to `main`) each carry `paths-ignore: ["**/*.md", "docs/**"]` and nothing else, so a change to only prose starts no run and the list cannot grow to cover code; and the build reads none of what it covers: no Markdown in `public/` (copied into `dist/` as it is), `src/`, `assets/`, `data/` or `parts/`, and nothing but Markdown in `docs/` ([`OPERATIONS.md`](../OPERATIONS.md), "When CI runs") |
