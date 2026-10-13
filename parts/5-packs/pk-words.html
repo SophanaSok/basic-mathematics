@@ -1,0 +1,650 @@
+<!doctype html>
+<html lang="en">
+<head>
+<!--bm:head-->
+<title>Pack F. Word Problems — Basic Mathematics</title>
+<meta name="description" content="Turning a story into an equation: naming one unknown with its unit, writing every other quantity in terms of it, translating phrases such as 5 less than twice a number, ages and consecutive integers, and then distance, rate and time with one row per mover, for movers toward each other, a catch-up after a head start and a round trip, with average speed as total distance over total time: the algebra skills the gate exams ask for and the book leaves out.">
+</head>
+<body data-depth="2" data-chapter="pk-words" data-part="packs">
+<!--bm:topbar-->
+
+<div class="wrap">
+<div class="layout">
+  <aside class="sidebar" data-sidebar></aside>
+  <main id="main">
+
+    <header class="region-banner">
+      <p class="eyebrow">Skill packs · Pack F</p>
+      <h1>Word Problems</h1>
+      <p class="lede">
+        Most of the algebra on a test is not an equation handed to you but a story that has to become one.
+        This pack is about that step. It first says how to name the unknown, write the other quantities in terms
+        of it and turn each fact of the story into an equation, with the phrases, ages and consecutive numbers
+        that stories are built from. Then it takes the most common story of all, distance, rate and time, where
+        one fact, $d = rt$, gives a row for each mover and one sentence ties the rows together: movers toward each
+        other, a catch-up after a head start, and a round trip.
+      </p>
+
+      <div class="banner-meta" data-banner-meta></div>
+
+    </header>
+
+    <div class="puzzle" id="puzzle">
+      <span class="tag">A puzzle to carry through the pack</span>
+      <p>
+        A bat and a ball cost $\$1.10$ together. The bat costs $\$1$ more than the ball. What does the
+        ball cost?
+      </p>
+      <ul class="guess">
+        <li>$10$ cents</li>
+        <li>$5$ cents</li>
+        <li>$15$ cents</li>
+      </ul>
+      <p class="puzzle-after">The answer that comes first is the one most people give, and it can be tested against the story in a few seconds. It fails, and the reason is that two prices were never told apart. Giving one of them a letter forces that. The first section names the unknown and builds the equation. (The second section turns to movers and the one fact that ties distance, rate and time. Later sections take up work, mixtures and checking.)</p>
+    </div>
+
+    <div class="goal">
+      <strong>By the end of this pack you can</strong>
+      name an unknown with its unit, write every other quantity in terms of it, write one equation for each fact
+      of a story, solve it and answer the question that was asked, with units, checking against the story and not
+      only against the equation. You can turn phrases such as &ldquo;5 less than twice a number&rdquo; into
+      expressions, write consecutive integers and consecutive even or odd integers, and solve age and perimeter
+      problems. For motion you can fill a row of rate, time and distance for each mover, tie the rows
+      with the right sentence (the distances add to the gap, are equal, or the times add), change minutes to hours before
+      multiplying, and find an average speed as total distance over total time.
+    </div>
+
+    <section class="warmup" id="warmup">
+      <div class="callout aside">
+        <span class="tag">Before you start</span>
+        <p>
+          This pack leans on <a href="../1-algebra/01-numbers.html#rationals">fractions and decimals as
+          numbers</a> (Chapter 1) and on <a href="../1-algebra/02-linear-equations.html#one-unknown">solving
+          an equation in one unknown</a> (Chapter 2). Chapter 2 also has a section on <a
+          href="../1-algebra/02-linear-equations.html#word-problems">turning words into equations</a>, with
+          ticket and drink-mix problems. This pack takes up other stories, and you can read it at any point
+          alongside the course.
+        </p>
+      </div>
+
+      <p>
+        Three quick ones to wake up what the pack stands on. They are not scored. If one doesn't
+        come to you, its solution says where to look.
+      </p>
+
+      <div class="ex" data-inline id="w1" data-label="Warm-up 1" data-type="number" data-answer="14"
+           data-placeholder="e.g. 8"
+           data-hint="Work out the bracket first, then multiply."
+           data-hint2="What is $n + 3$ when $n = 4$?">
+        <div class="ex-q">
+          <p>
+            Evaluate $2(n + 3)$ when $n = 4$.
+          </p>
+        </div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $14$</p>
+          <p>
+            $4 + 3 = 7$, and $2 \cdot 7 = 14$. Check by spreading the $2$ first: $2 \cdot 4 + 2 \cdot 3 = 8 + 6 = 14$ ✓.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" data-inline id="w2" data-label="Warm-up 2" data-type="number" data-answer="5"
+           data-placeholder="e.g. 2"
+           data-hint="Undo the subtraction first, then undo the multiplication."
+           data-hint2="What must $5x$ equal for $5x - 7$ to be $18$?">
+        <div class="ex-q">
+          <p>
+            Solve $5x - 7 = 18$.
+          </p>
+        </div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $x = 5$</p>
+          <p>
+            Add $7$ to both sides to get $5x = 25$, then divide both sides by $5$. See <a
+            href="../1-algebra/02-linear-equations.html#one-unknown">§2.1</a>. Check: $5 \cdot 5 - 7 = 18$ ✓.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" data-inline id="w3" data-label="Warm-up 3" data-type="number" data-answer="0.75"
+           data-placeholder="e.g. 0.5"
+           data-hint="An hour has $60$ minutes. What fraction of an hour is the given number of minutes?"
+           data-hint2="Write the fraction in lowest terms first, then as a decimal.">
+        <div class="ex-q">
+          <p>
+            How many hours is $45$ minutes? Give it as a decimal.
+          </p>
+        </div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $0.75$ hours</p>
+          <p>
+            $\dfrac{45}{60} = \dfrac{3}{4} = 0.75$. Check: $0.75 \cdot 60 = 45$ ✓. Rates in miles per hour need
+            times in hours, so this change comes up in the second section.
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <h2 id="name">F.1 Naming the unknown</h2>
+    <p>
+      Look at the answer the puzzle invites: the total is $\$1.10$, the bat is $\$1$ more, so the ball
+      is the $10$ cents left over. Test it against the story. A ball of $10$ cents and a bat that costs a dollar
+      more is a bat of $\$1.10$, and together they cost $\$1.20$. The quick answer subtracted the dollar from the total, but
+      the dollar is the <em>difference</em> between the two prices and not one of the two parts of the total. A
+      letter prevents the slip, because writing down what the letter stands for forces you to say which price is
+      which.
+    </p>
+    <p>
+      The same four moves turn most stories into algebra.
+    </p>
+    <ol>
+      <li><b>Name one unknown, with its unit.</b> &ldquo;Let $b$ be the price of the ball in dollars.&rdquo; Choose the
+        quantity that the others are built from, so that one letter does most of the work.</li>
+      <li><b>Write every other quantity in terms of it.</b> If the bat costs a dollar more, the bat is $b + 1$
+        dollars. Nothing new is unknown here, only a different way to say what you already named.</li>
+      <li><b>Write one equation for each fact that is left.</b> Each fact says two ways of writing the same amount are equal.
+        The fact &ldquo;the bat is a dollar more&rdquo; was spent in the second move, and it cannot be used again;
+        the fact &ldquo;together they cost $\$1.10$&rdquo; is still unused, and it is the equation.</li>
+      <li><b>Solve, then answer the question that was asked.</b> The letter may be a quantity the question does not ask
+        for. Give the answer with its unit, and check it against the <em>story</em>. An equation written wrongly can
+        be satisfied by a wrong answer, and only the story catches that.</li>
+    </ol>
+    <p>
+      Much of the work is translating phrases, and the order in which a phrase is said is not always the
+      order in which it is written. &ldquo;$5$ less than twice a number&rdquo; starts from twice the number and takes $5$ away,
+      so it is $2n - 5$, and the tempting $5 - 2n$ has the pieces backwards. Test a phrase with a number: for $n = 10$,
+      twice the number is $20$ and $5$ less than that is $15$, and $2n - 5 = 15$ where $5 - 2n = -15$.
+    </p>
+
+    <table>
+      <caption>Phrases and the expressions they stand for ($n$ is the number)</caption>
+      <thead><tr><th scope="col">Phrase</th><th scope="col">Expression</th><th scope="col">Why</th></tr></thead>
+      <tbody>
+        <tr><th scope="row">$3$ more than a number</th><td>$n + 3$</td><td>start from the number and add</td></tr>
+        <tr><th scope="row">$5$ less than twice a number</th><td>$2n - 5$</td><td>&ldquo;less than&rdquo; takes away from the thing named after it, so the order flips</td></tr>
+        <tr><th scope="row">half of a number</th><td>$\dfrac{n}{2}$</td><td>&ldquo;of&rdquo; with a fraction multiplies</td></tr>
+        <tr><th scope="row">the sum of a number and $8$</th><td>$n + 8$</td><td>a sum adds the two things named</td></tr>
+        <tr><th scope="row">$a$ exceeds $b$ by $4$</th><td>$a = b + 4$</td><td>the larger is the smaller plus the excess</td></tr>
+        <tr><th scope="row">three consecutive integers</th><td>$n,\ n + 1,\ n + 2$</td><td>each is one more than the one before</td></tr>
+        <tr><th scope="row">two consecutive even integers</th><td>$n,\ n + 2$ ($n$ even)</td><td>even integers are two apart</td></tr>
+      </tbody>
+    </table>
+
+    <div class="worked">
+      <h3><span class="num">Example 1.</span> An age problem</h3>
+      <div class="body">
+        <p>
+          Maya is $12$ years older than her cousin Theo. In $6$ years she will be twice as old as he will be then.
+          How old is Theo now?
+        </p>
+        <ol class="steps">
+          <li>Let $T$ be Theo's age now, in years. Maya is $T + 12$.</li>
+          <li>In $6$ years both ages grow by $6$: Theo is $T + 6$ and Maya is $T + 18$.</li>
+          <li>The fact still unused is &ldquo;then, Maya is twice Theo&rdquo;: $T + 18 = 2(T + 6)$.</li>
+          <li>$T + 18 = 2T + 12$, so $T = 6$. Theo is $6$ now, and Maya is $18$.</li>
+          <li>Check against the story: in $6$ years they are $12$ and $24$, and $24 = 2 \cdot 12$ ✓. Check another way: the gap between
+            their ages never changes, and it is $12$. When Maya is twice as old, the gap is equal to Theo's age, so Theo is then
+            $12$, which is $6$ years from now, and so he is $6$ now ✓. $\blacksquare$</li>
+        </ol>
+        <p class="note">
+          Every age moves by the same number of years, which is why the second move adds the same $6$ to both.
+        </p>
+      </div>
+    </div>
+
+    <div class="ex" data-inline id="t1" data-type="expr" data-answer="3n-7|-7+3n" data-placeholder="e.g. 2n+5"
+         data-hint="Decide which quantity the phrase takes away from, and write that quantity first."
+         data-hint2="Which quantity is the $7$ taken away from?">
+      <div class="ex-q">
+        <p>
+          Write &ldquo;$7$ less than three times a number $n$&rdquo; as an expression in $n$.
+        </p>
+      </div>
+      <div class="ex-solution">
+        <p class="answer">Answer: $3n - 7$</p>
+        <p>
+          Three times the number is $3n$, and $7$ less than that is $3n - 7$. Check with $n = 4$: three times $4$ is
+          $12$, and $7$ less than $12$ is $5$; the expression gives $3 \cdot 4 - 7 = 5$ ✓.
+        </p>
+      </div>
+    </div>
+
+    <div class="ex" data-inline id="t2" data-type="number" data-answer="27" data-placeholder="e.g. 20"
+         data-hint="Call the smallest one $n$ and write the other two in terms of $n$. Add the three and set the sum equal to the total."
+         data-hint2="What is the sum of the three, written with $n$?">
+      <div class="ex-q">
+        <p>
+          Three consecutive integers add up to $78$. What is the largest of them?
+        </p>
+      </div>
+      <div class="ex-solution">
+        <p class="answer">Answer: $27$</p>
+        <p>
+          $n + (n + 1) + (n + 2) = 3n + 3 = 78$, so $3n = 75$ and $n = 25$. The integers are $25, 26, 27$, and the largest is $27$.
+          Check: $25 + 26 + 27 = 78$ ✓.
+        </p>
+      </div>
+    </div>
+
+    <div class="worked">
+      <h3><span class="num">Example 2.</span> A perimeter, and the question that was asked</h3>
+      <div class="body">
+        <p>
+          The length of a rectangular garden is $5$ meters less than three times its width, and its perimeter is
+          $70$ meters. How long is the garden?
+        </p>
+        <ol class="steps">
+          <li>Let $w$ be the width in meters. The length is &ldquo;$5$ less than three times the width&rdquo;: $3w - 5$.</li>
+          <li>The perimeter is two widths and two lengths: $2w + 2(3w - 5) = 70$.</li>
+          <li>$2w + 6w - 10 = 70$, so $8w = 80$ and $w = 10$.</li>
+          <li>The question asks for the <em>length</em>, not the width: $3 \cdot 10 - 5 = 25$ meters.</li>
+          <li>Check against the story: $25$ is $5$ less than $30$, which is three times $10$ ✓. Check another way: half the perimeter is
+            $35$, and a width and a length are $10 + 25 = 35$ ✓. $\blacksquare$</li>
+        </ol>
+        <p class="note">
+          The letter names the quantity that makes the other easy to write, and the last step converts back to the quantity asked about.
+        </p>
+      </div>
+    </div>
+
+    <div class="ex" data-inline id="t3" data-type="number" data-answer="8" data-placeholder="years"
+         data-hint="Name the daughter's age now. The father's age now is her age plus the gap. Add the same years to both."
+         data-hint2="What are the two ages in $4$ years, in terms of the daughter's age now?">
+      <div class="ex-q">
+        <p>
+          A father is $24$ years older than his daughter. In $4$ years he will be three times as old as she will be.
+          How old is the daughter now?
+        </p>
+      </div>
+      <div class="ex-solution">
+        <p class="answer">Answer: $8$ years</p>
+        <p>
+          Let $d$ be her age now, so he is $d + 24$. In $4$ years: $d + 28 = 3(d + 4)$, which is $d + 28 = 3d + 12$, so $2d = 16$ and
+          $d = 8$. Check: in $4$ years they are $12$ and $36$, and $36 = 3 \cdot 12$ ✓. Check another way: the gap $24$ is
+          fixed, and when he is three times her age the gap is twice her age, so she is then $12$ and is $8$ now ✓.
+        </p>
+      </div>
+    </div>
+
+    <h2 id="drt">F.2 Distance, rate and time</h2>
+    <p>
+      Distance, rate and time are one fact seen three ways. A rate says how much distance is covered in each unit of
+      time (<a href="pk-units.html#rates">Pack D</a> treats rates with their units), so a mover at rate $r$ covers $r$ in
+      the first hour, another $r$ in the second, and after $t$ hours has covered $t$ copies of $r$:
+      $$d = rt.$$
+      Everything in this section is that equation, written once for each mover. So draw one row for each mover with its rate,
+      its time and its distance. Two of the three come from the story and the third is their product. What turns the rows
+      into an equation is one more sentence from the story, and three sentences cover most problems.
+    </p>
+    <ul>
+      <li><b>Toward each other</b> from the two ends of a gap $D$: both have been moving for the same time when they meet,
+        and between them they have covered the whole gap, so $d_1 + d_2 = D$.</li>
+      <li><b>A catch-up</b> after a head start: when the second mover catches the first, both are at the same place, so
+        $d_1 = d_2$. The times differ, because the first has been moving longer by the head start.</li>
+      <li><b>A round trip</b> by the same road: out and back cover the same distance, so $d_{\text{out}} = d_{\text{back}}$,
+        and the two times add up to the whole time.</li>
+    </ul>
+    <p>
+      The units must agree before you multiply. A rate in miles per hour wants a time in hours, so $45$ minutes is $\frac{45}{60} = 0.75$ hour.
+      And an <b>average speed</b> is total distance over total time, because that is what &ldquo;per&rdquo; means. It is
+      not the mean of the two speeds. Drive $60$ miles out at $30$ miles per hour and $60$ miles back at $60$: the
+      legs take $2$ hours and $1$ hour, and the trip is $120$ miles in $3$ hours, an average of $40$ miles per hour. The mean
+      of the speeds is $45$, and $120$ miles at $45$ miles per hour would take only $2\frac{2}{3}$ hours. The average is lower because
+      more of the trip is spent at the slower speed.
+    </p>
+
+    <div class="worked">
+      <h3><span class="num">Example 3.</span> Two trains toward each other</h3>
+      <div class="body">
+        <p>
+          Two stations are $420$ miles apart. A train leaves each at the same moment, running toward the other,
+          one at $55$ miles per hour and the other at $65$ miles per hour. When do they meet, and how far from the
+          first station?
+        </p>
+        <table>
+          <caption>One row for each train, with $t$ the hours until they meet</caption>
+          <thead><tr><th scope="col">Train</th><th scope="col">Rate (mph)</th><th scope="col">Time (h)</th><th scope="col">Distance (mi)</th></tr></thead>
+          <tbody>
+            <tr><th scope="row">First</th><td>$55$</td><td>$t$</td><td>$55t$</td></tr>
+            <tr><th scope="row">Second</th><td>$65$</td><td>$t$</td><td>$65t$</td></tr>
+          </tbody>
+        </table>
+        <ol class="steps">
+          <li>Toward each other, the distances add to the gap: $55t + 65t = 420$.</li>
+          <li>$120t = 420$, so $t = 3.5$ hours.</li>
+          <li>From the first station: $55 \cdot 3.5 = 192.5$ miles.</li>
+          <li>Check against the story: the second train goes $65 \cdot 3.5 = 227.5$ miles, and $192.5 + 227.5 = 420$ ✓. Check another way:
+            the trains close the gap at $55 + 65 = 120$ miles per hour, and $420 \div 120 = 3.5$ ✓. $\blacksquare$</li>
+        </ol>
+        <p class="note">
+          Both trains travel for the same time $t$, so one letter serves both rows.
+        </p>
+      </div>
+    </div>
+
+    <div class="ex" data-inline id="t4" data-type="number" data-answer="3" data-placeholder="hours"
+         data-hint="Both hikers walk for the same time. Write each one's distance as speed times that time, and add them to make the length of the trail."
+         data-hint2="How many miles do the two hikers cover together in one hour?">
+      <div class="ex-q">
+        <p>
+          Two hikers start at opposite ends of an $18$-mile trail and walk toward each other, one at $2$ miles per hour
+          and the other at $4$ miles per hour. How many hours pass before they meet?
+        </p>
+      </div>
+      <div class="ex-solution">
+        <p class="answer">Answer: $3$ hours</p>
+        <p>
+          $2t + 4t = 18$, so $6t = 18$ and $t = 3$. Check: in $3$ hours they walk $6$ and $12$ miles, and $6 + 12 = 18$ ✓.
+        </p>
+      </div>
+    </div>
+
+    <div class="worked">
+      <h3><span class="num">Example 4.</span> A catch-up after a head start</h3>
+      <div class="body">
+        <p>
+          A plane leaves an airport at $320$ miles per hour. Forty-five minutes later a second plane leaves the same airport on the same
+          route at $480$ miles per hour. How long after it leaves does the second plane catch the first, and how far from the airport?
+        </p>
+        <table>
+          <caption>One row for each plane, with $t$ the hours the second plane flies</caption>
+          <thead><tr><th scope="col">Plane</th><th scope="col">Rate (mph)</th><th scope="col">Time (h)</th><th scope="col">Distance (mi)</th></tr></thead>
+          <tbody>
+            <tr><th scope="row">First</th><td>$320$</td><td>$t + 0.75$</td><td>$320(t + 0.75)$</td></tr>
+            <tr><th scope="row">Second</th><td>$480$</td><td>$t$</td><td>$480t$</td></tr>
+          </tbody>
+        </table>
+        <ol class="steps">
+          <li>The head start in hours: $45$ minutes is $\frac{45}{60} = 0.75$ hour, so the first plane has flown $t + 0.75$ hours.</li>
+          <li>At the catch-up the distances are equal: $320(t + 0.75) = 480t$.</li>
+          <li>$320t + 240 = 480t$, so $240 = 160t$ and $t = 1.5$ hours.</li>
+          <li>The distance is $480 \cdot 1.5 = 720$ miles.</li>
+          <li>Check against the story: the first plane has flown $2.25$ hours, and $320 \cdot 2.25 = 720$ ✓. Check another way: in its head start the
+            first plane gets $320 \cdot 0.75 = 240$ miles ahead, and the second gains $480 - 320 = 160$ miles each hour, so it needs $240 \div 160 = 1.5$ hours ✓. $\blacksquare$</li>
+        </ol>
+        <p class="note">
+          The two times differ by the head start, and the two distances are equal. Those two facts make the equation.
+        </p>
+      </div>
+    </div>
+
+    <div class="ex" data-inline id="t5" data-type="number" data-answer="1.5" data-placeholder="hours"
+         data-hint="The speeds are per hour, so change the head start to hours before you multiply. At the catch-up the two cars have gone the same distance."
+         data-hint2="How many miles ahead is the first car at the moment the second one leaves?">
+      <div class="ex-q">
+        <p>
+          A car leaves a town at $30$ miles per hour. Thirty minutes later a second car leaves the same town on the same road at
+          $40$ miles per hour. How many hours after the second car leaves does it catch the first?
+        </p>
+      </div>
+      <div class="ex-solution">
+        <p class="answer">Answer: $1.5$ hours</p>
+        <p>
+          With $t$ the hours the second car drives, $30(t + 0.5) = 40t$, so $15 = 10t$ and $t = 1.5$. Check: the first car has driven
+          $2$ hours and gone $60$ miles, and the second has gone $40 \cdot 1.5 = 60$ miles ✓.
+        </p>
+      </div>
+    </div>
+
+    <div class="ex" data-inline id="t6" data-type="number" data-answer="100" data-placeholder="miles"
+         data-hint="The two legs cover the same distance. Call it $d$ and write each time as distance over speed; the two times add up to the total."
+         data-hint2="How long does each leg take, in terms of the distance?">
+      <div class="ex-q">
+        <p>
+          A bus drives from a depot to a town at $40$ miles per hour and returns by the same road at $50$ miles per hour.
+          The driving takes $4.5$ hours in all. How many miles is it from the depot to the town?
+        </p>
+      </div>
+      <div class="ex-solution">
+        <p class="answer">Answer: $100$ miles</p>
+        <p>
+          $\dfrac{d}{40} + \dfrac{d}{50} = 4.5$. Multiply by $200$: $5d + 4d = 900$, so $9d = 900$ and $d = 100$. Check: $100 \div 40 = 2.5$ hours out and
+          $100 \div 50 = 2$ hours back, and $2.5 + 2 = 4.5$ ✓.
+        </p>
+      </div>
+    </div>
+
+    <!-- ====================================================== practice ==== -->
+    <section class="practice" id="practice">
+      <div class="practice-head">
+        <h2 style="margin-top:0">Practice</h2>
+        <span class="practice-score" data-practice-score></span>
+      </div>
+      <p>
+        Give each answer as a number in the unit the question names, without writing the unit. Use a
+        decimal, such as $4.5$, where the answer is not whole. Where a question asks for an expression, use the
+        letter it names. Money is in dollars and times are in hours unless the question says minutes. An equation is never typed
+        as an answer: a question about one asks for one choice among the options shown.
+      </p>
+
+      <div class="ex" id="e1" data-section="name" data-answer="2"
+           data-hint="Write the bicycle's price in terms of $c$ first. Then say which prices the $\$355$ is the total of."
+           data-hint2="Which two prices add up to $\$355$, and which option has both of them on the left?">
+        <div class="ex-q"><p>A bicycle costs $\$40$ more than twice the price of a helmet. Together they cost $\$355$. With $c$ the price of the helmet in dollars, which equation fits the story?</p></div>
+        <ul class="choices">
+          <li>$2c + 40 = 355$</li>
+          <li>$c + 2c + 40 = 355$</li>
+          <li>$c + 2(c + 40) = 355$</li>
+          <li>$c + 2c = 355 + 40$</li>
+        </ul>
+        <div class="ex-solution">
+          <p class="answer">Answer: $c + 2c + 40 = 355$</p>
+          <p>
+            The bicycle is $2c + 40$ dollars, and the total of helmet and bicycle is $c + (2c + 40)$. The first option leaves out the
+            helmet. The third doubles the sum $c + 40$, which would make the bicycle $2c + 80$. The fourth moves the $40$ to the wrong side. Check: the
+            chosen equation gives $3c = 315$, so $c = 105$ and the bicycle is $250$; then $105 + 250 = 355$ and $250 = 2 \cdot 105 + 40$ ✓.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" id="e2" data-section="name" data-type="expr" data-answer="2(n+9)|2(9+n)|2n+18|18+2n" data-placeholder="e.g. 3n+4"
+           data-hint="The doubling applies to the result of the increase, not to the number alone."
+           data-hint2="What quantity is doubled: $n$, or something already built from $n$?">
+        <div class="ex-q"><p>A number $n$ is increased by $9$, and the result is doubled. Write that as an expression in $n$.</p></div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $2(n + 9)$</p>
+          <p>
+            The increased number is $n + 9$, and the doubled result is $2(n + 9)$, which is also $2n + 18$. Check with $n = 1$: $1 + 9 = 10$ and $10$
+            doubled is $20$; both forms give $20$ ✓.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" id="e3" data-section="name" data-type="expr" data-answer="2s+5|5+2s|s+s+5|s+(s+5)|(s+5)+s" data-placeholder="e.g. 4s+1"
+           data-hint="Write Pat's age in terms of $s$, then add the two ages."
+           data-hint2="Which quantity is Pat's age, and how is it built from Sam's?">
+        <div class="ex-q"><p>Pat is $5$ years older than Sam, and Sam is $s$ years old now. Write the sum of their ages in terms of $s$.</p></div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $2s + 5$</p>
+          <p>
+            Pat is $s + 5$, so the sum is $s + (s + 5) = 2s + 5$. Check with $s = 10$: the ages are $10$ and $15$, which add to $25$, and
+            $2 \cdot 10 + 5 = 25$ ✓.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" id="e4" data-section="name" data-type="number" data-answer="36" data-placeholder="e.g. 20"
+           data-hint="Call the smallest $n$. Each next even integer is the same number more than the one before it."
+           data-hint2="What is the sum of the three, written with $n$?">
+        <div class="ex-q"><p>Three consecutive even integers add up to $114$. What is the smallest of them?</p></div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $36$</p>
+          <p>
+            $n + (n + 2) + (n + 4) = 3n + 6 = 114$, so $3n = 108$ and $n = 36$. The integers are $36, 38, 40$. Check: $36 + 38 + 40 = 114$ ✓, and the
+            middle one is the average, $114 \div 3 = 38$ ✓.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" id="e5" data-section="name" data-type="number" data-answer="10" data-placeholder="years"
+           data-hint="Name the son's age now, write the father's age in terms of it, and add the same years to both."
+           data-hint2="What are the two ages in $5$ years, in terms of the son's age now?">
+        <div class="ex-q"><p>A father is $4$ times as old as his son. In $5$ years he will be $3$ times as old as his son will be then. How old is the son now?</p></div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $10$ years</p>
+          <p>
+            With $s$ the son's age, the father is $4s$. In $5$ years: $4s + 5 = 3(s + 5)$, which is $4s + 5 = 3s + 15$, so $s = 10$. Check: the ages now are
+            $10$ and $40$, in $5$ years $15$ and $45$, and $45 = 3 \cdot 15$ ✓. Check another way: the gap is $30$, and when the father is $3$ times the
+            son the gap is twice the son's age, so the son is then $15$ and is $10$ now ✓.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" id="e6" data-section="name" data-type="number" data-answer="22" data-placeholder="centimeters"
+           data-hint="Name the first side, write the other two in terms of it, and add the three to make the perimeter. Then ask which side the question wants."
+           data-hint2="Which side is the one the question asks for, and how is it built from the first?">
+        <div class="ex-q"><p>A triangle has a first side, a second side that is $3$ centimeters longer than the first, and a third side that is twice as long as the first. Its perimeter is $47$ centimeters. How long is the third side?</p></div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $22$ centimeters</p>
+          <p>
+            With $s$ the first side, $s + (s + 3) + 2s = 4s + 3 = 47$, so $4s = 44$ and $s = 11$. The third side is $2 \cdot 11 = 22$. Check: the sides are
+            $11, 14, 22$ and $11 + 14 + 22 = 47$ ✓. They also form a triangle, since $11 + 14 = 25$ is more than $22$ ✓.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" id="e7" data-section="name" data-type="number" data-answer="42" data-placeholder="dollars"
+           data-hint="Name the payment that the other two are built from, write them in terms of it, and make the three add up to the bill."
+           data-hint2="Whose payment is the base for the other two?">
+        <div class="ex-q"><p>Ana, Ben and Cal share a $\$87$ bill. Ana pays $\$12$ more than Ben, and Cal pays half of what Ben pays. How many dollars does Ana pay?</p></div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $42$ dollars</p>
+          <p>
+            With $b$ what Ben pays, $b + (b + 12) + \frac{b}{2} = 87$, so $2.5b + 12 = 87$ and $2.5b = 75$, which gives $b = 30$. Ana pays $30 + 12 = 42$. Check: Cal pays $15$,
+            and $42 + 30 + 15 = 87$ ✓.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" id="e8" data-section="drt" data-answer="2"
+           data-hint="Each truck's distance is its speed times the same time. What do the two distances make together?"
+           data-hint2="Which quantity equals $400$: one truck's distance, the difference of the distances, or the total of both?">
+        <div class="ex-q"><p>Two trucks start $400$ miles apart and drive toward each other, one at $45$ miles per hour and the other at $35$ miles per hour. With $t$ the hours until they meet, which equation fits the story?</p></div>
+        <ul class="choices">
+          <li>$45t - 35t = 400$</li>
+          <li>$45t + 35t = 400$</li>
+          <li>$45 + 35 = 400t$</li>
+          <li>$45t = 400$</li>
+        </ul>
+        <div class="ex-solution">
+          <p class="answer">Answer: $45t + 35t = 400$</p>
+          <p>
+            The trucks drive for the same $t$ hours, so their distances are $45t$ and $35t$, and together they cover the gap of $400$ miles. The
+            first option would be the gap for trucks moving in the same direction, and the last uses one truck alone. Check: the chosen equation gives
+            $80t = 400$, $t = 5$, and $225 + 175 = 400$ ✓.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" id="e9" data-section="drt" data-type="number" data-answer="1.75" data-placeholder="hours"
+           data-hint="Both planes fly for the same time. Add the two distances and set the total equal to the gap."
+           data-hint2="By how many miles per hour do the two planes together shrink the gap?">
+        <div class="ex-q"><p>Two airports are $1{,}400$ miles apart. A plane leaves each at the same moment, flying toward the other, one at $350$ miles per hour and the other at $450$ miles per hour. How many hours pass before the planes meet?</p></div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $1.75$ hours</p>
+          <p>
+            $350t + 450t = 1400$, so $800t = 1400$ and $t = 1.75$. Check: in $1.75$ hours the planes fly $350 \cdot 1.75 = 612.5$ and $450 \cdot 1.75 = 787.5$ miles, and
+            $612.5 + 787.5 = 1400$ ✓.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" id="e10" data-section="drt" data-type="number" data-answer="180" data-placeholder="miles"
+           data-hint="Find when the trains meet first, then use the speed of the train whose distance you want."
+           data-hint2="How many hours does each train travel before they meet?">
+        <div class="ex-q"><p>Two stations are $480$ miles apart. A train leaves each at the same moment, running toward the other, one at $45$ miles per hour and the other at $75$ miles per hour. How many miles from the slower train's station do they meet?</p></div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $180$ miles</p>
+          <p>
+            $45t + 75t = 480$, so $120t = 480$ and $t = 4$ hours. The slower train has gone $45 \cdot 4 = 180$ miles. Check: the faster train has gone
+            $75 \cdot 4 = 300$ miles, and $180 + 300 = 480$ ✓.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" id="e11" data-section="drt" data-type="number" data-answer="280" data-placeholder="miles"
+           data-hint="At the catch-up both trains are at the same place, so they have gone the same distance from the yard. Their travel times differ by the head start."
+           data-hint2="How far ahead is the freight train at the moment the express leaves?">
+        <div class="ex-q"><p>A freight train leaves a yard at $40$ miles per hour. Two hours later an express leaves the same yard on the same track at $56$ miles per hour. How many miles from the yard does the express catch the freight train?</p></div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $280$ miles</p>
+          <p>
+            With $t$ the hours the express runs, $40(t + 2) = 56t$, so $80 = 16t$ and $t = 5$. The express has gone $56 \cdot 5 = 280$ miles. Check: the freight train
+            has run $7$ hours and gone $40 \cdot 7 = 280$ miles ✓.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" id="e12" data-section="drt" data-type="number" data-answer="45" data-placeholder="minutes"
+           data-hint="The speeds are per hour, so change the head start to hours before you multiply. Change the answer back to minutes at the end."
+           data-hint2="How many miles ahead is the first boat at the moment the second one leaves?">
+        <div class="ex-q"><p>A boat leaves a dock at $12$ miles per hour. Fifteen minutes later a second boat leaves the same dock by the same route at $16$ miles per hour. After how many minutes, counted from the second boat's departure, does the second boat catch the first?</p></div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $45$ minutes</p>
+          <p>
+            Fifteen minutes is $0.25$ hour. With $t$ the hours the second boat travels, $12(t + 0.25) = 16t$, so $3 = 4t$ and $t = 0.75$ hour, which is $0.75 \cdot 60 = 45$ minutes.
+            Check: the first boat has traveled $1$ hour and gone $12$ miles, and the second has gone $16 \cdot 0.75 = 12$ miles ✓.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" id="e13" data-section="drt" data-type="number" data-answer="90" data-placeholder="miles"
+           data-hint="The two trips cover the same distance. Write each trip's time using that distance."
+           data-hint2="Which quantity do the two times add up to?">
+        <div class="ex-q"><p>A car drives from a town to a lake at $30$ miles per hour and returns by the same road at $45$ miles per hour. The round trip takes $5$ hours of driving. How many miles is it from the town to the lake?</p></div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $90$ miles</p>
+          <p>
+            $\dfrac{d}{30} + \dfrac{d}{45} = 5$. Multiply by $90$: $3d + 2d = 450$, so $5d = 450$ and $d = 90$. Check: $90 \div 30 = 3$ hours out and
+            $90 \div 45 = 2$ hours back, and $3 + 2 = 5$ ✓.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" id="e14" data-section="drt" data-type="number" data-answer="360" data-placeholder="miles per hour"
+           data-hint="Average speed is total distance over total time. The one-way distance is not given, so use any distance that is easy to divide by both speeds."
+           data-hint2="How long does each leg take if the one-way distance is $900$ miles?">
+        <div class="ex-q"><p>A plane flies from city A to city B at $300$ miles per hour and returns at $450$ miles per hour. What is its average speed for the whole round trip, in miles per hour?</p></div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $360$ miles per hour</p>
+          <p>
+            Take a one-way distance of $900$ miles (any distance gives the same average). Out: $900 \div 300 = 3$ hours. Back: $900 \div 450 = 2$ hours. The trip is
+            $1800$ miles in $5$ hours, so the average is $\frac{1800}{5} = 360$. Check with another distance, $450$ miles: $1.5 + 1 = 2.5$ hours for $900$ miles, and
+            $900 \div 2.5 = 360$ ✓. It is not the mean of the speeds, $375$.
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <div class="recap">
+      <h2>Recap</h2>
+      <div class="puzzle-answer">
+        <span class="tag">Back to the puzzle</span>
+        <p data-your-guess></p>
+        <p>
+          The ball costs $5$ cents. Let $b$ be the ball's price in dollars; the bat is $b + 1$, and together $b + (b + 1) = 1.10$, so $2b = 0.10$ and $b = 0.05$.
+          A second route: with the ball at $5$ cents the bat is $\$1.05$, which is a dollar more, and the two add to $\$1.10$. The tempting $10$ cents makes the bat
+          $\$1.10$ and the total $\$1.20$. Taking the dollar off the total left $10$ cents, but that was two balls, since the two prices were equal once the extra
+          dollar was set aside.
+        </p>
+      </div>
+      <ul>
+        <li>Name one unknown with its unit, write every other quantity in terms of it, write one equation for each fact that is left, and answer the question that was asked.</li>
+        <li>A fact used to define a quantity is spent; a second equation comes only from a fact not yet used.</li>
+        <li>Check against the story, not only the equation, since an equation written wrongly can be satisfied by a wrong answer.</li>
+        <li>&ldquo;$5$ less than twice a number&rdquo; is $2n - 5$: the order of a phrase can differ from the order in the symbols. Test a phrase with a number.</li>
+        <li>Consecutive integers are $n, n + 1, n + 2$; consecutive even or odd integers are $n, n + 2, n + 4$. Ages all grow by the same number of years.</li>
+        <li>$d = rt$ is the one fact; draw a row of rate, time and distance for each mover, and tie the rows with a sentence.</li>
+        <li>Toward each other, the distances add to the gap. In a catch-up the distances are equal and the first mover's time is longer by the head start. On a round trip the distances are equal and the times add.</li>
+        <li>Make the units agree before multiplying: minutes become hours for a rate per hour.</li>
+        <li>Average speed is total distance over total time, and it is not the mean of the speeds, because more time is spent at the slower speed.</li>
+      </ul>
+    </div>
+
+    <nav class="chapter-nav" data-chapter-nav aria-label="Previous and next pack"></nav>
+  </main>
+</div>
+</div>
+</body>
+</html>

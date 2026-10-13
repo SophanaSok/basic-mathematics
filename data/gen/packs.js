@@ -7,6 +7,7 @@
    scale).
    Pack E, "Linear Models and Inequalities": sections 1-4 (slope as a rate of change; writing a linear
    model; inequalities in one unknown; inequalities in two unknowns and systems).
+   Pack F, "Word Problems": sections 1-2 so far (naming the unknown; distance, rate and time).
    The quartiles follow the median-of-halves rule of src/ui/chart.ts.
 
    A problem may carry a chart the Arena draws with the page widget (assets/widgets.js,
@@ -3319,6 +3320,275 @@
             if (ineqHolds(rel1, a1 * x2 + b1 * y, c1) && ineqHolds(rel2, a2 * x2 + b2 * y, c2)) { n++; pts.push([x2, y]); }
           }
           return String(n) === key && n === pts.length && n >= 6 && n <= 30;
+        }
+      };
+    }
+  });
+
+  /* ------------------------------------------- pack F: word problems -- */
+
+  /* The movers the distance generators share. rates are the plausible speeds in miles per hour; times
+     are the hours a meeting may take (integers or halves); gapLo/gapHi bound the gap between starts,
+     or the distance a catch-up happens at or a route's length, in miles. */
+  function wRange(lo, hi, step) { var a = [], v; for (v = lo; v <= hi + 1e-9; v += step) a.push(Number(v.toFixed(6))); return a; }
+  var WMOVE = {
+    car: { noun: "car", lo: 30, hi: 70, rates: wRange(30, 70, 5), times: wRange(1, 6, 0.5), gapLo: 60, gapHi: 400,
+      meet: "Two cars start {D} miles apart on one road and drive toward each other" },
+    train: { noun: "train", lo: 40, hi: 90, rates: wRange(40, 90, 5), times: wRange(1.5, 6, 0.5), gapLo: 120, gapHi: 600,
+      meet: "Two trains leave stations {D} miles apart and run toward each other on one track" },
+    plane: { noun: "plane", lo: 300, hi: 550, rates: wRange(300, 550, 10), times: wRange(1, 3, 0.5), gapLo: 600, gapHi: 2400,
+      meet: "Two planes take off from airports {D} miles apart and fly toward each other on one route" },
+    hiker: { noun: "hiker", lo: 2, hi: 4, rates: wRange(2, 4, 0.5), times: [1, 2, 3, 4, 5], gapLo: 4, gapHi: 20,
+      meet: "Two hikers start at the two ends of a trail {D} miles long and walk toward each other" },
+    boat: { noun: "boat", lo: 8, hi: 20, rates: wRange(8, 20, 1), times: wRange(1, 5, 0.5), gapLo: 12, gapHi: 80,
+      meet: "Two boats leave docks {D} miles apart on a still lake and head toward each other" }
+  };
+  var WKEYS = ["car", "train", "plane", "hiker", "boat"], WROUND = ["car", "train", "plane"];
+  function wc(x) { return Number(x.toFixed(6)); }
+  /* a number for the page, with {,} after the thousands: 2145 is 2{,}145 */
+  function wn(x) { return clean(x).replace(/^(-?\d+)(\d{3})(?=\.|$)/, "$1{,}$2"); }
+  /* a count of hours as the page writes it: $1$ hour, $3.5$ hours */
+  function wHours(h) { return "$" + wn(h) + "$ " + (h === 1 ? "hour" : "hours"); }
+  /* a speed: $45$ miles per hour */
+  function wSpeed(v) { return "$" + wn(v) + "$ miles per hour"; }
+  function wMiles(d) { return "$" + wn(d) + "$ miles"; }
+  /* the hours of a head start as the question says them: 45 minutes, 90 minutes, 1 hour, 2 hours */
+  function wHead(h) {
+    var mins = wc(h * 60);
+    return h < 1 || mins === 90 ? "$" + wn(mins) + "$ minutes" : wHours(h);
+  }
+
+  /* an algebra string such as "3(x+4)", "x/2-5" or "-8+3x" at a value of x, from its text alone: sums, products
+     (a number or bracket next to a bracket or x multiplies), division by a number */
+  function wEval(s, xv) {
+    var t = s.replace(/\s+/g, ""), k = 0;
+    function atom() {
+      var c = t.charAt(k), m;
+      if (c === "(") { k++; var v = sum(); if (t.charAt(k) !== ")") throw new Error("wEval: missing )"); k++; return v; }
+      if (c === "x") { k++; return xv; }
+      m = /^\d+(?:\.\d+)?/.exec(t.slice(k));
+      if (!m) throw new Error("wEval: cannot read " + s);
+      k += m[0].length; return Number(m[0]);
+    }
+    function unary() { if (t.charAt(k) === "-") { k++; return -unary(); } return atom(); }
+    function term() {
+      var v = unary();
+      for (;;) {
+        var c = t.charAt(k);
+        if (c === "/") { k++; v = v / unary(); }
+        else if (c === "(" || c === "x" || /\d/.test(c)) v = v * atom();
+        else return v;
+      }
+    }
+    function sum() {
+      var v = term();
+      while (t.charAt(k) === "+" || t.charAt(k) === "-") { var op = t.charAt(k++); var w = term(); v = op === "+" ? v + w : v - w; }
+      return v;
+    }
+    var out = sum();
+    if (k !== t.length) throw new Error("wEval: leftover in " + s);
+    return Number(out.toFixed(6));
+  }
+
+  /* each phrase: the words, the sum written in each spelling, and the phrase's own arithmetic (fn) */
+  var PHRASES = [
+    function (r) { var k = r.int(2, 6), a = r.int(2, 12); return { w: a + " less than " + k + " times a number", keys: [k + "x-" + a, "-" + a + "+" + k + "x"], tex: k + "x - " + a, fn: function (x) { return k * x - a; } }; },
+    function (r) { var k = r.int(2, 6), a = r.int(2, 12); return { w: a + " more than " + k + " times a number", keys: [k + "x+" + a, a + "+" + k + "x"], tex: k + "x + " + a, fn: function (x) { return k * x + a; } }; },
+    function (r) { var k = r.int(2, 5), a = r.int(2, 9); return { w: k + " times the sum of a number and " + a, keys: [k + "(x+" + a + ")", k + "(" + a + "+x)", k + "x+" + (k * a), (k * a) + "+" + k + "x"], tex: k + "(x + " + a + ")", fn: function (x) { return k * (x + a); } }; },
+    function (r) { var k = r.int(2, 5), a = r.int(2, 9); return { w: k + " times the difference of a number and " + a, keys: [k + "(x-" + a + ")", k + "x-" + (k * a), "-" + (k * a) + "+" + k + "x"], tex: k + "(x - " + a + ")", fn: function (x) { return k * (x - a); } }; },
+    function (r) { var k = r.int(2, 6), a = r.int(12, 30); return { w: a + " decreased by " + k + " times a number", keys: [a + "-" + k + "x", "-" + k + "x+" + a], tex: a + " - " + k + "x", fn: function (x) { return a - k * x; } }; },
+    function (r) { var h = r.int(1, 6), a = 2 * h; return { w: "half the sum of a number and " + a, keys: ["(x+" + a + ")/2", "(" + a + "+x)/2", "x/2+" + h, h + "+x/2"], tex: "\\dfrac{x + " + a + "}{2}", fn: function (x) { return (x + a) / 2; } }; },
+    function (r) { var a = r.int(2, 9); return { w: a + " less than half of a number", keys: ["x/2-" + a, "-" + a + "+x/2"], tex: "\\dfrac{x}{2} - " + a, fn: function (x) { return x / 2 - a; } }; }
+  ];
+
+  G.add({
+    id: "pk-name-phrase", section: "pk-words#name", par: 50, timed: true,
+    make: function (r) {
+      var ph = r.pick(PHRASES)(r), key = ph.keys.join("|"), pl = r.pick(["2x+7", "x+4", "3x-1"]);
+      if (ph.keys.indexOf(pl) >= 0) pl = "5x+2";
+      if (ph.keys.indexOf(pl) >= 0) throw new Error("pk-name-phrase: the placeholder is an alternative of the key");
+      return {
+        q: "Write the expression for \"" + ph.w + ",\" using $x$ for the number.",
+        type: "expr", answer: key, placeholder: "e.g. " + pl,
+        hint: "Build it in the order the words are said. Start with the number $x$, then do to it what each part of the phrase says. Watch which quantity \"less than\" or \"decreased by\" takes away from.",
+        steps: [
+          "Say the phrase one operation at a time, starting from $x$.",
+          "In symbols: $" + ph.tex + "$.",
+          "Check with $x = 4$: the words give $" + wn(ph.fn(4)) + "$, and so does $" + ph.tex + "$."
+        ],
+        verify: function () {
+          /* every spelling, at two values of x, against the phrase's own arithmetic */
+          var xs = [3, 5], i;
+          for (i = 0; i < xs.length; i++) {
+            if (ph.keys.some(function (alt) { return Math.abs(wEval(alt, xs[i]) - ph.fn(xs[i])) > 1e-9; })) return false;
+          }
+          return ph.keys.length >= 2 && ph.keys.indexOf(pl) < 0;
+        }
+      };
+    }
+  });
+
+  G.add({
+    id: "pk-name-consecutive", section: "pk-words#name", par: 60, timed: true,
+    make: function (r) {
+      var kind = r.pick(["integers", "integers", "even", "odd"]), cnt = r.pick([3, 3, 4]), step = kind === "integers" ? 1 : 2;
+      var first = kind === "integers" ? r.int(4, 60) : kind === "even" ? 2 * r.int(2, 30) : 2 * r.int(2, 30) + 1;
+      var sum = cnt * first + step * cnt * (cnt - 1) / 2, guard = 0;
+      while ((sum === 78 || sum === 114) && guard++ < 20) { first += step; sum = cnt * first + step * cnt * (cnt - 1) / 2; }
+      var ask = r.pick(["smallest", "largest"]), ans = ask === "smallest" ? first : first + step * (cnt - 1);
+      var word = cnt === 3 ? "Three" : "Four", what = kind === "integers" ? "integers" : kind + " integers";
+      var run = [], i;
+      for (i = 0; i < cnt; i++) run.push(first + step * i);
+      return {
+        q: word + " consecutive " + what + " add up to $" + sum + "$. What is the " + ask + " of them?",
+        type: "number", answer: String(ans), placeholder: "e.g. " + (ans === 17 ? 19 : 17),
+        hint: "Call the smallest one $n$ and write the others in terms of $n$: each next one is " + (step === 1 ? "one more" : "two more") + " than the one before. Add them and set the sum equal to the total.",
+        steps: [
+          "Let $n$ be the smallest. The numbers are " + run.map(function (v, j) { return j === 0 ? "$n$" : "$n + " + step * j + "$"; }).join(", ") + ".",
+          "Their sum is $" + cnt + "n + " + (sum - cnt * first) + " = " + sum + "$, so $" + cnt + "n = " + (cnt * first) + "$ and $n = " + first + "$.",
+          "The numbers are $" + run.join(", ") + "$, and the " + ask + " is $" + ans + "$. Check: $" + run.join(" + ") + " = " + sum + "$."
+        ],
+        verify: function () {
+          /* rebuild the run from the answer alone and add it up */
+          var built = [], j, total = 0, start = ask === "smallest" ? ans : ans - step * (cnt - 1);
+          for (j = 0; j < cnt; j++) { built.push(start + step * j); total += built[j]; }
+          var parityOk = kind === "integers" || (kind === "even" ? start % 2 === 0 : Math.abs(start % 2) === 1);
+          return total === sum && parityOk && built[ask === "smallest" ? 0 : cnt - 1] === ans && start >= 4;
+        }
+      };
+    }
+  });
+
+  G.add({
+    id: "pk-name-ages", section: "pk-words#name", par: 70, timed: true,
+    make: function (r) {
+      var f = r.pick([2, 2, 3]), m, k, B, A, guard = 0, ok = false;
+      /* A is k years older; in m years A is f times as old as B: (f-1) B = k - (f-1) m */
+      do {
+        m = r.int(2, 10); k = r.int(8, 36); B = k / (f - 1) - m; A = B + k;
+        ok = B === Math.floor(B) && B >= 4 && A + m <= 70;
+      } while (!ok && guard++ < 80);
+      if (!ok) { f = 2; m = 5; k = 20; B = 15; A = 35; }
+      var names = r.pick([["Mara", "Ben"], ["Priya", "Leo"], ["Omar", "Nia"], ["Jonas", "Tess"], ["Ines", "Cal"]]);
+      var askOlder = r.chance(0.3), ans = askOlder ? A : B;
+      var times = f === 2 ? "twice" : "three times";
+      return {
+        q: names[0] + " is $" + k + "$ years older than " + names[1] + ". In $" + m + "$ years, " + names[0] + " will be " + times + " as old as " + names[1] + " will be. How old is " + (askOlder ? names[0] : names[1]) + " now?",
+        type: "number", answer: String(ans), placeholder: "years",
+        hint: "Name one age now, write the other in terms of it, and then add the same number of years to both. The statement about the later time is the equation.",
+        steps: [
+          "Let " + names[1] + " be $b$ years old now. Then " + names[0] + " is $b + " + k + "$.",
+          "In $" + m + "$ years: " + names[1] + " is $b + " + m + "$ and " + names[0] + " is $b + " + (k + m) + "$. The statement says $b + " + (k + m) + " = " + f + "(b + " + m + ")$.",
+          "$b + " + (k + m) + " = " + f + "b + " + (f * m) + "$, so $" + (f === 2 ? "" : (f - 1)) + "b = " + (k + m - f * m) + "$ and $b = " + B + "$. " + names[0] + " is $" + A + "$.",
+          "Check: in $" + m + "$ years the ages are $" + (A + m) + "$ and $" + (B + m) + "$, and $" + f + " \\cdot " + (B + m) + " = " + (f * (B + m)) + "$."
+        ],
+        verify: function () {
+          /* plug both ages, now and then, back into the story */
+          var b = askOlder ? ans - k : ans, a = b + k, later = [a + m, b + m];
+          return a - b === k && later[0] === f * later[1] && [a, b, later[0], later[1]].every(function (v) { return v >= 4 && v <= 70; }) && ans === (askOlder ? a : b);
+        }
+      };
+    }
+  });
+
+  G.add({
+    id: "pk-drt-meet", section: "pk-words#drt", par: 60, timed: true,
+    make: function (r) {
+      var key = r.pick(WKEYS), m = WMOVE[key], r1, r2, t, D, ok = false, guard = 0;
+      do {
+        r1 = r.pick(m.rates); r2 = r.pick(m.rates); t = r.pick(m.times); D = wc((r1 + r2) * t);
+        ok = r1 !== r2 && D === Math.floor(D) && D >= m.gapLo && D <= m.gapHi;
+      } while (!ok && guard++ < 80);
+      if (!ok) { m = WMOVE.car; r1 = 40; r2 = 50; t = 3; D = 270; }
+      var kind = r.pick(["time", "time", "dist"]), fast = r.chance(0.5), rf = Math.max(r1, r2), rs = Math.min(r1, r2);
+      var rr = fast ? rf : rs, other = r1 + r2 - rr, ans = kind === "time" ? t : wc(rr * t);
+      var base = m.meet.replace("{D}", "$" + wn(D) + "$") + ", one at " + wSpeed(r1) + " and the other at " + wSpeed(r2) + ". ";
+      var ask = kind === "time" ? "How many hours pass before they meet?" : "How many miles has the " + (fast ? "faster" : "slower") + " one traveled when they meet?";
+      return {
+        q: base + ask, type: "number", answer: clean(ans), placeholder: kind === "time" ? "hours" : "miles",
+        hint: "Both move for the same time before they meet. Write each one's distance as its speed times that time, and say how the two distances are tied to the gap.",
+        steps: [
+          "Let $t$ be the hours until they meet. The distances are $" + wn(r1) + "t$ and $" + wn(r2) + "t$, and together they make the gap: $" + wn(r1) + "t + " + wn(r2) + "t = " + wn(D) + "$.",
+          "$" + wn(r1 + r2) + "t = " + wn(D) + "$, so $t = " + wn(t) + "$ hours.",
+          kind === "time" ? "Check: $" + wn(wc(r1 * t)) + " + " + wn(wc(r2 * t)) + " = " + wn(D) + "$." : "The " + (fast ? "faster" : "slower") + " one goes $" + wn(rr) + " \\cdot " + wn(t) + " = " + wn(ans) + "$ miles. Check: the other goes $" + wn(wc(other * t)) + "$ miles, and $" + wn(ans) + " + " + wn(wc(other * t)) + " = " + wn(D) + "$."
+        ],
+        verify: function () {
+          /* the two distances add to the gap, and the answer asked for comes out of that sum */
+          var d1 = wc(r1 * t), d2 = wc(r2 * t), want = kind === "time" ? t : (fast ? Math.max(d1, d2) : Math.min(d1, d2));
+          return Math.abs(d1 + d2 - D) < 1e-9 && Math.abs(want - ans) < 1e-9 && Math.abs(D / (r1 + r2) - t) < 1e-9 &&
+            r1 !== r2 && r1 >= m.lo && r1 <= m.hi && r2 >= m.lo && r2 <= m.hi && D >= m.gapLo && D <= m.gapHi && t >= 1;
+        }
+      };
+    }
+  });
+
+  var WHEADS = [0.5, 0.75, 1, 1.5, 2];
+  G.add({
+    id: "pk-drt-catch", section: "pk-words#drt", par: 70, timed: true,
+    make: function (r) {
+      var key = r.pick(WKEYS), m = WMOVE[key], r1, r2, h, t, ok = false, guard = 0;
+      do {
+        r1 = r.pick(m.rates); r2 = r.pick(m.rates); h = r.pick(WHEADS);
+        t = r2 > r1 ? wc(r1 * h / (r2 - r1)) : 0;
+        ok = r2 > r1 && t >= 1 && t <= 8 && wc(t * 2) === Math.floor(t * 2) && r2 * t >= m.gapLo && r2 * t <= m.gapHi;
+      } while (!ok && guard++ < 80);
+      if (!ok) { m = WMOVE.car; r1 = 40; r2 = 50; h = 0.75; t = 3; }
+      var kind = r.pick(["time", "dist"]), dist = wc(r2 * t), ans = kind === "time" ? t : dist;
+      return {
+        q: "A " + m.noun + " starts from a point at " + wSpeed(r1) + ". " + wHead(h) + " later, a second " + m.noun + " starts from the same point and follows the same route at " + wSpeed(r2) + ". " +
+          (kind === "time" ? "How many hours after the second one starts does it catch up with the first?" : "How many miles from the starting point does the second one catch up with the first?"),
+        type: "number", answer: clean(ans), placeholder: kind === "time" ? "hours" : "miles",
+        hint: "At the moment of the catch-up the two have gone the same distance from the start. Write each distance as speed times its own travel time, and remember the first one has been moving longer.",
+        steps: [
+          "Let $t$ be the hours the second one travels. The first has traveled $t + " + wn(h) + "$ hours.",
+          "Equal distances: $" + wn(r1) + "(t + " + wn(h) + ") = " + wn(r2) + "t$, so $" + wn(r1) + "t + " + wn(wc(r1 * h)) + " = " + wn(r2) + "t$ and $" + wn(wc(r1 * h)) + " = " + wn(r2 - r1) + "t$.",
+          "$t = " + wn(t) + "$ hours" + (kind === "time" ? "." : ", and the distance is $" + wn(r2) + " \\cdot " + wn(t) + " = " + wn(dist) + "$ miles.") + " Check: the first goes $" + wn(r1) + " \\cdot " + wn(wc(t + h)) + " = " + wn(wc(r1 * (t + h))) + "$ miles."
+        ],
+        verify: function () {
+          /* equal distances, and the head start closed at the difference of the speeds */
+          var d1 = r1 * (t + h), d2 = r2 * t;
+          return Math.abs(d1 - d2) < 1e-9 && Math.abs(r1 * h / (r2 - r1) - t) < 1e-9 && Math.abs((kind === "time" ? t : d2) - ans) < 1e-9 &&
+            r2 > r1 && r1 >= m.lo && r1 <= m.hi && r2 >= m.lo && r2 <= m.hi && d2 >= m.gapLo && d2 <= m.gapHi && t >= 1 && t <= 8;
+        }
+      };
+    }
+  });
+
+  G.add({
+    id: "pk-drt-roundtrip", section: "pk-words#drt", par: 80, timed: true,
+    make: function (r) {
+      var key = r.pick(WROUND), m = WMOVE[key], r1, r2, d, T, q, u, ok = false, guard = 0;
+      do {
+        r1 = r.pick(m.rates); r2 = r.pick(m.rates);
+        u = lcm(r1, r2) / 2; if (u !== Math.floor(u)) u = lcm(r1, r2);
+        q = r.int(1, 8); d = u * q; T = wc(d / r1 + d / r2);
+        ok = r1 !== r2 && wc(4 * r1 * r2 / (r1 + r2)) === Math.floor(4 * r1 * r2 / (r1 + r2)) && d >= m.gapLo && d <= m.gapHi &&
+          wc(d / r1 * 2) === Math.floor(d / r1 * 2) && wc(d / r2 * 2) === Math.floor(d / r2 * 2) && T >= 2 && T <= 12;
+      } while (!ok && guard++ < 80);
+      if (!ok) { m = WMOVE.car; r1 = 30; r2 = 45; d = 90; T = 5; }
+      var kind = r.pick(["dist", "avg"]), avg = wc(2 * d / T);
+      var out = "A " + m.noun + " goes out along a route at " + wSpeed(r1) + " and comes back the same way at " + wSpeed(r2) + ". ";
+      return {
+        q: kind === "dist" ? out + "The round trip takes " + wHours(T) + " in all. How many miles long is the route one way?" :
+          out + "The route is " + wMiles(d) + " long one way. What is the average speed for the whole round trip, in miles per hour?",
+        type: "number", answer: clean(kind === "dist" ? d : avg), placeholder: kind === "dist" ? "miles" : "miles per hour",
+        hint: kind === "dist" ? "The distance out and the distance back are the same. Write each time as distance over speed, and let the two times add to the total." :
+          "Average speed is the total distance over the total time. Find how long each leg takes first, and do not average the two speeds.",
+        steps: kind === "dist" ? [
+          "Let $d$ be the one-way distance in miles. The time out is $\\dfrac{d}{" + wn(r1) + "}$ and the time back is $\\dfrac{d}{" + wn(r2) + "}$, and they add to $" + wn(T) + "$.",
+          "$\\dfrac{d}{" + wn(r1) + "} + \\dfrac{d}{" + wn(r2) + "} = " + wn(T) + "$. Multiply by $" + wn(r1 * r2) + "$: $" + wn(r2) + "d + " + wn(r1) + "d = " + wn(wc(T * r1 * r2)) + "$, so $" + wn(r1 + r2) + "d = " + wn(wc(T * r1 * r2)) + "$ and $d = " + wn(d) + "$.",
+          "Check: $" + wn(d) + " \\div " + wn(r1) + " = " + wn(wc(d / r1)) + "$ and $" + wn(d) + " \\div " + wn(r2) + " = " + wn(wc(d / r2)) + "$ hours, and they add to $" + wn(T) + "$."
+        ] : [
+          "Out: $" + wn(d) + " \\div " + wn(r1) + " = " + wn(wc(d / r1)) + "$ hours. Back: $" + wn(d) + " \\div " + wn(r2) + " = " + wn(wc(d / r2)) + "$ hours. Total time $" + wn(T) + "$ hours.",
+          "Total distance $2 \\cdot " + wn(d) + " = " + wn(2 * d) + "$ miles, so the average speed is $\\dfrac{" + wn(2 * d) + "}{" + wn(T) + "} = " + wn(avg) + "$ miles per hour.",
+          "That is not the mean of the two speeds, $" + wn((r1 + r2) / 2) + "$, because more time is spent at the slower speed."
+        ],
+        verify: function () {
+          /* the two legs add to the total time; the average comes from the totals and is not the mean of the speeds */
+          var t1 = d / r1, t2 = d / r2, total = t1 + t2;
+          if (kind === "dist") return Math.abs(total - T) < 1e-9 && r1 !== r2 && r1 >= m.lo && r1 <= m.hi && r2 >= m.lo && r2 <= m.hi && d >= m.gapLo && d <= m.gapHi;
+          return Math.abs(2 * d / total - avg) < 1e-9 && Math.abs(avg - (r1 + r2) / 2) > 1e-9 && avg > Math.min(r1, r2) && avg < Math.max(r1, r2) &&
+            Math.abs(2 * r1 * r2 / (r1 + r2) - avg) < 1e-9 && r1 >= m.lo && r1 <= m.hi && r2 >= m.lo && r2 <= m.hi;
         }
       };
     }
