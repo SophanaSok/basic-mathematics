@@ -6,7 +6,8 @@
    the same problem; every alternative of the answer key is accepted by the
    site's own grader (BMSite.grade, loaded from assets/site.js) with the
    problem's type; verify() returns true; the hint does not give the answer away
-   (π and √ answers included); no formula in the question, hint or steps holds
+   (π and √ answers included); the placeholder (or its "e.g." tail) is neither
+   graded right nor equal to a key alternative; no formula in the question, hint or steps holds
    prose, and no "$" is left unpaired (a bare "$9" where $\$9$ was meant).
    For spelled-out keys (expr, exact) a small evaluator reads what each spelling
    means: every alternative must mean the same; near-misses (a number off by one,
@@ -476,6 +477,16 @@ list.forEach(function (spec) {
     try { ok = typeof p.verify === "function" && p.verify() === true; } catch (e3) { ok = false; }
     if (!ok) fail(spec.id, seed, "verify() is not true for " + p.q + " = " + first);
     if (/\d/.test(first) && first.length >= 2 && p.hint.indexOf(first) > -1) fail(spec.id, seed, "hint contains the answer " + first);
+    /* the placeholder (and the tail after "e.g.") is never the key or graded right */
+    if (typeof p.placeholder === "string") {
+      var cands = [p.placeholder.trim()];
+      var eg = /e\.g\.\s*(.+)$/i.exec(p.placeholder);
+      if (eg) cands.push(eg[1].trim());
+      cands.forEach(function (cand) {
+        if (!cand) return;
+        if (Site.grade(cand, p.answer, p.type, p.tol) || alts.indexOf(cand) > -1) fail(spec.id, seed, "placeholder shows the key: " + cand);
+      });
+    }
     if (seed === 1) firstQ = p.q; else if (p.q === firstQ) sameQ++;
   }
   if (sameQ > SEEDS / 2) fail(spec.id, null, "most seeds give the same question");

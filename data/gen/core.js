@@ -249,6 +249,17 @@
     return p;
   }
 
+  /* a placeholder example that is never the key: ph, or alt when ph (its text after "e.g.")
+     is one of the key's alternatives. With set true a comma list such as 3,-3 is compared as
+     a set, since the grader reads a set key in any order; an ordered list (a permutation) or a
+     point (3,-2) is compared as written. check-gen fails a placeholder that is the key, so every
+     generator whose example can coincide with a key uses this. */
+  function holder(ph, ans, alt, set) {
+    var tail = ph.replace(/^e\.g\.\s*/i, "").trim();
+    function norm(x) { return set ? x.split(",").map(function (y) { return y.trim(); }).sort().join(",") : x.trim(); }
+    return String(ans).split("|").some(function (a) { return norm(a) === norm(tail); }) ? alt : ph;
+  }
+
   window.BMGen = {
     add: add,
     make: make,
@@ -265,7 +276,8 @@
     u: {
       gcd: gcd, lcm: lcm, reduce: reduce, fracAns: fracAns, fracTex: fracTex, par: par,
       poly: poly, shift: shift, ptAns: ptAns, ptTex: ptTex, piAns: piAns, piTex: piTex,
-      cxAns: cxAns, cxTex: cxTex, halfRootAns: halfRootAns, lineAns: lineAns, relAns: relAns
+      cxAns: cxAns, cxTex: cxTex, halfRootAns: halfRootAns, lineAns: lineAns, relAns: relAns,
+      holder: holder
     }
   };
 })();

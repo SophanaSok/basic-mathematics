@@ -43,6 +43,8 @@
   function clean(x) { return String(Number(x.toFixed(6))); }
   /* "a:b" for a pair of terms */
   function ratioAns(parts) { return parts.join(":"); }
+  /* a placeholder example that is never the key: 3:4, or 2:5 when the key is 3:4 */
+  function exampleHolder(key, a, b) { return u.holder("e.g. " + a, key, "e.g. " + b); }
   /* "3 : 4" for the page text */
   function ratioTex(parts) { return "$" + parts.join(" : ") + "$"; }
   /* two positive integers with no common factor, different from each other */
@@ -77,7 +79,7 @@
       var left = kind === "second-first" ? b : a, right = kind === "first-whole" ? whole : (kind === "second-first" ? a : b);
       return {
         q: g[2] + " $" + a + "$ " + g[0] + " and $" + b + "$ " + g[1] + ". What is the ratio of " + ask + ", in lowest terms?",
-        type: "ratio", answer: ratioAns(terms), placeholder: "e.g. 3:4",
+        type: "ratio", answer: ratioAns(terms), placeholder: exampleHolder(ratioAns(terms), "3:4", "2:5"),
         hint: kind === "first-whole"
           ? "The second quantity is all of them together, not just the other kind. Add first, then simplify."
           : "Write the two numbers in the order the question names them, then divide both by the largest number that goes into each.",
@@ -291,7 +293,7 @@
       return {
         q: "The ratio of " + t[0] + " to " + t[1] + " is " + ratioTex([p, q]) + ", and the ratio of " + t[1] + " to " + t[2] + " is " + ratioTex([rr, s]) +
           ". What is the ratio of " + t[0] + " to " + t[2] + ", in lowest terms?",
-        type: "ratio", answer: ratioAns(key), placeholder: "e.g. 3:4",
+        type: "ratio", answer: ratioAns(key), placeholder: exampleHolder(ratioAns(key), "3:4", "2:5"),
         hint: "The two ratios share a middle quantity but write it with different numbers. Rewrite them so the middle number is the same, then compare the outer two.",
         steps: [
           "The middle quantity is the " + t[1] + ": it is $" + q + "$ in the first ratio and $" + rr + "$ in the second. Make both $" + L + "$ (their least common multiple).",
@@ -1416,7 +1418,7 @@
       }
       var ans = fracAns(fav, total);
       return {
-        q: q, type: "fraction", answer: ans, placeholder: "e.g. 1/2",
+        q: q, type: "fraction", answer: ans, placeholder: exampleHolder(ans, "1/2", "1/3"),
         hint: "Probability is the number of favorable outcomes over the number of equally likely outcomes. Count each of the two before you divide.",
         steps: why.concat(["The probability is $" + fr(fav, total) + "$" + (u.gcd(fav, total) > 1 ? ", which is $" + fracTex(fav, total) + "$ in lowest terms." : ".")]),
         verify: function () {
@@ -1440,7 +1442,7 @@
         var N = r.int(8, 24), K = r.int(2, N - 3), ans = fracAns(N - K, N);
         return {
           q: c.lead.replace("$N$", "$" + N + "$").replace("$K$", "$" + K + "$") + " What is the probability " + c.ask + "?",
-          type: "fraction", answer: ans, placeholder: "e.g. 1/2",
+          type: "fraction", answer: ans, placeholder: exampleHolder(ans, "1/2", "1/3"),
           hint: "Either the event happens or it does not, and the two chances add to a whole. Find the chance of the event itself, or count what is left over.",
           steps: ["Of the $" + N + "$, the event has $" + K + "$, so the rest, $" + N + " - " + K + " = " + (N - K) + "$, are not in it.",
             "The probability is $" + fr(N - K, N) + "$" + (u.gcd(N - K, N) > 1 ? ", which is $" + fracTex(N - K, N) + "$ in lowest terms." : ".")],
@@ -1472,7 +1474,7 @@
       var b = r.pick([5, 6, 7, 8, 9, 10, 12]), a0 = r.int(1, b - 1), ansF = fracAns(b - a0, b);
       return {
         q: "The probability that Maya wins a game is $" + fr(a0, b) + "$. What is the probability that she does not win?",
-        type: "fraction", answer: ansF, placeholder: "e.g. 1/2",
+        type: "fraction", answer: ansF, placeholder: exampleHolder(ansF, "1/2", "1/3"),
         hint: "Winning and not winning together cover every outcome, so their probabilities add to a whole. Write the whole as a fraction with the same bottom.",
         steps: ["The whole is $" + fr(b, b) + "$.", "Not winning is $" + fr(b, b) + " - " + fr(a0, b) + " = " + fr(b - a0, b) + "$" + (u.gcd(b - a0, b) > 1 ? ", which is $" + fracTex(b - a0, b) + "$ in lowest terms." : ".")],
         verify: function () {
@@ -1567,7 +1569,7 @@
       var fa = countIf(a.outcomes, a.test), fb = countIf(b.outcomes, b.test), ta = a.outcomes.length, tb = b.outcomes.length, ans = fracAns(fa * fb, ta * tb);
       return {
         q: "In a game, " + a.act + " and " + b.act + ". The two steps do not affect each other. What is the probability that " + a.text + " and " + b.text + "?",
-        type: "fraction", answer: ans, placeholder: "e.g. 1/2",
+        type: "fraction", answer: ans, placeholder: exampleHolder(ans, "1/2", "1/3"),
         hint: "Find the probability of each step on its own. Because the steps do not affect each other, the chance of both is found by the rule for and.",
         steps: ["The first step: $" + fr(fa, ta) + "$" + (u.gcd(fa, ta) > 1 ? " $= " + fracTex(fa, ta) + "$" : "") + ". The second step: $" + fr(fb, tb) + "$" + (u.gcd(fb, tb) > 1 ? " $= " + fracTex(fb, tb) + "$" : "") + ".",
           "Multiply: $" + fr(fa, ta) + " \\cdot " + fr(fb, tb) + " = " + fr(fa * fb, ta * tb) + "$" + (u.gcd(fa * fb, ta * tb) > 1 ? ", which is $" + fracTex(fa * fb, ta * tb) + "$ in lowest terms." : ".")],
@@ -1592,7 +1594,7 @@
         var fa = Math.floor(n / a), fb = Math.floor(n / b), fab = Math.floor(n / lcm(a, b)), fav = fa + fb - fab, ans = fracAns(fav, n);
         return {
           q: "Cards numbered $1$ to $" + n + "$ are shuffled and one is drawn. What is the probability that the number is a multiple of $" + a + "$ or a multiple of $" + b + "$?",
-          type: "fraction", answer: ans, placeholder: "e.g. 1/2",
+          type: "fraction", answer: ans, placeholder: exampleHolder(ans, "1/2", "1/3"),
           hint: "Adding the two counts counts some cards twice. Find which cards are in both groups, and take them away once.",
           steps: ["Multiples of $" + a + "$: $" + fa + "$ cards. Multiples of $" + b + "$: $" + fb + "$ cards. Multiples of both, that is of $" + lcm(a, b) + "$: $" + fab + "$ cards.",
             "Cards in either group: $" + fa + " + " + fb + " - " + fab + " = " + fav + "$.", "The probability is $" + fr(fav, n) + "$" + (u.gcd(fav, n) > 1 ? ", which is $" + fracTex(fav, n) + "$ in lowest terms." : ".")],
@@ -1606,7 +1608,7 @@
         var N2 = r.pick([8, 10, 12, 20]), k = r.int(2, N2 - 4), evens = N2 / 2, big = N2 - k, both = evens - Math.floor(k / 2), fav2 = evens + big - both, ans2 = fracAns(fav2, N2);
         return {
           q: "A spinner has $" + N2 + "$ equal sections numbered $1$ to $" + N2 + "$. What is the probability that it stops on an even number or on a number greater than $" + k + "$?",
-          type: "fraction", answer: ans2, placeholder: "e.g. 1/2",
+          type: "fraction", answer: ans2, placeholder: exampleHolder(ans2, "1/2", "1/3"),
           hint: "Count the outcomes that are even and the outcomes that are greater, then correct for any outcome in both groups before dividing.",
           steps: ["Even numbers: $" + evens + "$. Numbers greater than $" + k + "$: $" + big + "$. Even and greater than $" + k + "$: $" + both + "$.",
             "Outcomes in either group: $" + evens + " + " + big + " - " + both + " = " + fav2 + "$.", "The probability is $" + fr(fav2, N2) + "$" + (u.gcd(fav2, N2) > 1 ? ", which is $" + fracTex(fav2, N2) + "$ in lowest terms." : ".")],
@@ -1619,7 +1621,7 @@
       var onlyA = r.int(2, 10), onlyB = r.int(2, 10), both2 = r.int(2, 8), none = r.int(1, 8), N3 = onlyA + onlyB + both2 + none, S = onlyA + both2, B = onlyB + both2, fav3 = S + B - both2, ans3 = fracAns(fav3, N3);
       return {
         q: "In a group of $" + N3 + "$ students, $" + S + "$ " + c[0] + ", $" + B + "$ " + c[1] + ", and $" + both2 + "$ do both. One student is chosen at random. What is the probability that the student " + c[2] + " or " + c[3] + "?",
-        type: "fraction", answer: ans3, placeholder: "e.g. 1/2",
+        type: "fraction", answer: ans3, placeholder: exampleHolder(ans3, "1/2", "1/3"),
         hint: "The students who do both are inside each of the two counts. Add the counts, then take away the ones counted twice.",
         steps: ["Add the two counts: $" + S + " + " + B + " = " + (S + B) + "$. The $" + both2 + "$ who do both were counted twice.", "Students in either group: $" + (S + B) + " - " + both2 + " = " + fav3 + "$.",
           "The probability is $" + fr(fav3, N3) + "$" + (u.gcd(fav3, N3) > 1 ? ", which is $" + fracTex(fav3, N3) + "$ in lowest terms." : ".")],
@@ -1645,7 +1647,7 @@
       for (i = 0; i < B; i++) items.push(c[3]);
       return {
         q: "A bag holds $" + R + "$ " + c[2] + " and $" + B + "$ " + c[3] + " " + c[0] + ". Two " + c[0] + " are drawn one after the other without putting the first back. What is the probability that " + text + "?",
-        type: "fraction", answer: ans, placeholder: "e.g. 1/2",
+        type: "fraction", answer: ans, placeholder: exampleHolder(ans, "1/2", "1/3"),
         hint: kind === "mixed"
           ? "There are two orders that give one of each, so work out each order and add. In each order, the second fraction is taken from a bag with one fewer."
           : "After the first draw the bag has one fewer, and the second fraction changes with it. Multiply the chance of the first draw by the chance of the second.",
@@ -1710,7 +1712,7 @@
       var ans = fracAns(fav, t.N);
       q = t.text + " One " + c.one + " is chosen at random. What is the probability that " + say + "?";
       return {
-        q: q, type: "fraction", answer: ans, placeholder: "e.g. 1/2",
+        q: q, type: "fraction", answer: ans, placeholder: exampleHolder(ans, "1/2", "1/3"),
         hint: "Fill in the four cells of a table first. Then count the cells the question asks about, and divide by the number of " + c.noun + " in the whole survey.",
         steps: [t.fill, kind === "cell" ? "The event is one cell: $" + fav + "$ of the $" + t.N + "$ " + c.noun + "." : "The event is a whole " + (kind === "row" ? "row" : "column") + ", its total: $" + fav + "$ of the $" + t.N + "$ " + c.noun + ".",
           "The probability is $" + fr(fav, t.N) + "$" + lowest(fav, t.N)],
@@ -1736,7 +1738,7 @@
       }
       ans = fracAns(fav, group);
       return {
-        q: q, type: "fraction", answer: ans, placeholder: "e.g. 1/2",
+        q: q, type: "fraction", answer: ans, placeholder: exampleHolder(ans, "1/2", "1/3"),
         hint: "The words after “from those who” name the group, and only that group counts. Fill in the table, find the group's total, and see how many of the group are in the event.",
         steps: [t.fill, "The group is " + (byRow ? "the row" : "the column") + " of those who " + (byRow ? c.A[i].pl : c.B[j].pl) + ": $" + group + "$ " + c.noun + ". Of them, $" + fav + "$ " + (byRow ? c.B[j].pl : c.A[i].pl) + ".",
           "The probability is $" + fr(fav, group) + "$" + lowest(fav, group)],
@@ -1915,7 +1917,7 @@
         var n = r.int(3, 5), titles = ["Atlas", "Birds", "Cacti", "Drums", "Eagles"].slice(0, n), total = factorial(n), ans = fracAns(1, total);
         return {
           q: "The books " + titles.join(", ") + " are put on a shelf in a random order, every order equally likely. What is the probability that they stand in alphabetical order?",
-          type: "fraction", answer: ans, placeholder: "e.g. 1/2",
+          type: "fraction", answer: ans, placeholder: exampleHolder(ans, "1/2", "1/3"),
           hint: "Only one order is alphabetical. Count all the equally likely orders, and put one over that count.",
           steps: ["The number of orders is $" + falling(n, n) + " = " + total + "$, all equally likely.", "Exactly one of them is alphabetical, so the probability is $\\frac{1}{" + total + "}$."],
           verify: function () {
@@ -1930,7 +1932,7 @@
         var range = D === 10 ? "$0$ to $9$" : "$1$ to $" + D + "$";
         return {
           q: "A lock code is $" + K + "$ digits, each digit from " + range + ", " + (rep ? "and a digit may be used again" : "and no digit is used twice") + ". Every code is equally likely. A person guesses one code at random. What is the probability that the guess is right?",
-          type: "fraction", answer: ans2, placeholder: "e.g. 1/2",
+          type: "fraction", answer: ans2, placeholder: exampleHolder(ans2, "1/2", "1/3"),
           hint: "Only one code opens the lock. Count the equally likely codes with the counting principle, remembering whether a digit may be used again.",
           steps: ["The number of codes is $" + (rep ? new Array(K + 1).join(D + " \\cdot ").replace(/ \\cdot $/, "") : falling(D, K)) + " = " + tot + "$.", "One of them is right, so the probability is $\\frac{1}{" + tot + "}$."],
           verify: function () { return seqCount(D, K, rep) === tot && keyIs(ans2, 1, tot) && tot <= 10000; }
@@ -1939,7 +1941,7 @@
       var m = r.int(4, 7), ans3 = fracAns(1, m * (m - 1)), who = r.pick([["Ana", "Ben"], ["Cleo", "Dev"], ["Eli", "Fay"]]);
       return {
         q: "$" + m + "$ friends, including " + who[0] + " and " + who[1] + ", line up in a random order, every order equally likely. What is the probability that " + who[0] + " is first and " + who[1] + " is second?",
-        type: "fraction", answer: ans3, placeholder: "e.g. 1/2",
+        type: "fraction", answer: ans3, placeholder: exampleHolder(ans3, "1/2", "1/3"),
         hint: "Count the equally likely orders of all the friends. Then count the orders that begin with the two named friends in the right places.",
         steps: ["All orders: $" + falling(m, m) + " = " + factorial(m) + "$.", "With the first two places fixed, the other " + (m - 2) + " friends can stand in $" + (m - 2 > 1 ? falling(m - 2, m - 2) : "1") + " = " + factorial(m - 2) + "$ orders.", "The probability is $" + fr(factorial(m - 2), factorial(m)) + "$" + lowest(factorial(m - 2), factorial(m))],
         verify: function () {
@@ -2718,7 +2720,7 @@
       var pt = function (v) { return "(" + clean(v[0]) + ", " + clean(v[1]) + ")"; };
       return {
         q: "Find the slope of the line through $" + pt(P) + "$ and $" + pt(Q) + "$." + (type === "fraction" ? " Give it as a fraction in lowest terms." : ""),
-        type: type, answer: ans, placeholder: type === "fraction" ? "e.g. 3/4" : "e.g. 2.5",
+        type: type, answer: ans, placeholder: type === "fraction" ? exampleHolder(ans, "3/4", "2/3") : exampleHolder(ans, "2.5", "1.5"),
         hint: "The slope is the change in $y$ divided by the change in $x$. Subtract the coordinates of the two points in the same order on the top and the bottom.",
         steps: [
           "Slope $= \\dfrac{y_2 - y_1}{x_2 - x_1}$, with the points taken in one fixed order.",

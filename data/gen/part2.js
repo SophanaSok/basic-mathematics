@@ -5,7 +5,7 @@
   "use strict";
   var G = window.BMGen;
   if (!G) return;
-  var u = G.u, fracAns = u.fracAns, fracTex = u.fracTex;
+  var u = G.u, holder = u.holder, fracAns = u.fracAns, fracTex = u.fracTex;
 
   /* primitive Pythagorean triples, legs first */
   var TRIPLES = [[3, 4, 5], [5, 12, 13], [8, 15, 17], [7, 24, 25], [20, 21, 29], [9, 40, 41]];
@@ -184,7 +184,7 @@
       return {
         q: "Where does " + m.name + " send the point $" + u.ptTex(p[0], p[1]) + "$?",
         type: "exact", answer: u.ptAns(q[0], q[1]),
-        placeholder: "e.g. (3,-2)",
+        placeholder: holder("e.g. (3,-2)", u.ptAns(q[0], q[1]), "e.g. (4,-1)"),
         hint: "Write down the mapping's formula, then put the point's coordinates into it.",
         steps: [
           "In coordinates this mapping is $(x,y) \\mapsto " + m.rule + "$.",
@@ -210,7 +210,7 @@
       return {
         q: "Let $F(x,y) = " + F.rule + "$ and $G(x,y) = " + Gm.rule + "$. Compute $(G \\circ F)" + u.ptTex(p[0], p[1]) + "$, that is, apply $F$ first and then $G$.",
         type: "exact", answer: u.ptAns(end[0], end[1]),
-        placeholder: "e.g. (3,-2)",
+        placeholder: holder("e.g. (3,-2)", u.ptAns(end[0], end[1]), "e.g. (4,-1)"),
         hint: "Do the motions one at a time, in the order given, keeping both coordinates.",
         steps: [
           "$G \\circ F$ means: do $F$, then $G$.",
@@ -319,7 +319,7 @@
         return {
           q: "A ring lies between two circles with the same center, of radii $" + r1 + "$ and $" + r2 + "$. What is its area? Give the exact value in terms of $\\pi$.",
           type: "expr", answer: u.piAns(k, 1),
-          placeholder: "e.g. 9pi",
+          placeholder: holder("e.g. 9pi", u.piAns(k, 1), "e.g. 4pi"),
           hint: "The ring is the larger disk with the smaller disk taken out.",
           steps: ["Area $= \\pi \\cdot " + r2 + "^2 - \\pi \\cdot " + r1 + "^2 = \\pi(" + r2 * r2 + " - " + r1 * r1 + ")$.", "$= " + u.piTex(k, 1) + "$."],
           verify: function () { return Math.abs(Math.PI * r2 * r2 - Math.PI * r1 * r1 - k * Math.PI) < 1e-9; }
@@ -329,7 +329,7 @@
       return {
         q: "A circle has " + (dia ? "diameter $" + 2 * rad : "radius $" + rad) + "$. What is the area of the disk it bounds? Give the exact value in terms of $\\pi$.",
         type: "expr", answer: u.piAns(rad * rad, 1),
-        placeholder: "e.g. 9pi",
+        placeholder: holder("e.g. 9pi", u.piAns(rad * rad, 1), "e.g. 4pi"),
         hint: dia ? "The area formula uses the radius, which is half the diameter." : "Area of a disk is π times the square of the radius.",
         steps: (dia ? ["The radius is half the diameter: $" + rad + "$."] : []).concat([
           "Area $= \\pi r^2 = \\pi \\cdot " + rad + "^2 = " + u.piTex(rad * rad, 1) + "$."
@@ -360,7 +360,7 @@
       return {
         q: "A circle has " + (dia ? "diameter $" + k : "radius $" + rad) + "$. What is its circumference? Give the exact value in terms of $\\pi$.",
         type: "expr", answer: u.piAns(k, 1),
-        placeholder: "e.g. 6pi",
+        placeholder: holder("e.g. 6pi", u.piAns(k, 1), "e.g. 4pi"),
         hint: "π is the ratio of circumference to diameter.",
         steps: dia
           ? ["$C = \\pi d = \\pi \\cdot " + k + " = " + u.piTex(k, 1) + "$."]

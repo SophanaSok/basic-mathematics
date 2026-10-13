@@ -6,7 +6,7 @@
   "use strict";
   var G = window.BMGen;
   if (!G) return;
-  var u = G.u, par = u.par, poly = u.poly, shift = u.shift, fracAns = u.fracAns, fracTex = u.fracTex;
+  var u = G.u, holder = u.holder, par = u.par, poly = u.poly, shift = u.shift, fracAns = u.fracAns, fracTex = u.fracTex;
 
   /* ------------------------------------------------------- Chapter 1 ---- */
 
@@ -70,7 +70,7 @@
       return {
         q: "Compute $\\dfrac{" + a + "}{" + b + "} " + (plus ? "+" : "-") + " \\dfrac{" + c + "}{" + d + "}$.",
         type: "fraction", answer: fracAns(top, L),
-        placeholder: "e.g. 7/12",
+        placeholder: holder("e.g. 7/12", fracAns(top, L), "e.g. 5/8"),
         hint: "Rewrite both fractions over a common denominator before adding or subtracting anything.",
         steps: [
           "The smallest common denominator of $" + b + "$ and $" + d + "$ is $" + L + "$.",
@@ -98,7 +98,7 @@
       return {
         q: "Compute $" + (neg < 0 ? "-" : "") + "\\dfrac{" + a + "}{" + b + "} \\div \\dfrac{" + c + "}{" + d + "}$.",
         type: "fraction", answer: fracAns(top, bottom),
-        placeholder: "e.g. 5/6",
+        placeholder: holder("e.g. 5/6", fracAns(top, bottom), "e.g. 3/7"),
         hint: "Dividing by a number is multiplying by its inverse.",
         steps: [
           "The inverse of $\\dfrac{" + c + "}{" + d + "}$ is $\\dfrac{" + d + "}{" + c + "}$, so the quotient is $" + (neg < 0 ? "-" : "") + "\\dfrac{" + a + "}{" + b + "} \\cdot \\dfrac{" + d + "}{" + c + "}$.",
@@ -268,7 +268,7 @@
       return {
         q: "Solve $" + poly([[a, "x"], [b, ""]]) + " " + REL[rel].tex + " " + c + "$.",
         type: "exact", answer: relAns(out, x0),
-        placeholder: "e.g. x<5",
+        placeholder: holder("e.g. x<5", relAns(out, x0), "e.g. x>2"),
         hint: "Isolate the x term, and watch the direction of the inequality when you divide.",
         steps: [
           move(b, "") + ": $" + poly([[a, "x"]]) + " " + REL[rel].tex + " " + (c - b) + "$.",
@@ -293,7 +293,7 @@
       return {
         q: "Solve $|" + shift("x", -a) + "| = " + d + "$. List all solutions, separated by a comma.",
         type: "set", answer: lo + "," + hi,
-        placeholder: "e.g. -1,7",
+        placeholder: holder("e.g. -1,7", lo + "," + hi, "e.g. -2,6", true),
         hint: "Read the left side as a distance on the number line: distance from x to which number?",
         steps: [
           a === 0 ? "$|x|$ is the distance from $x$ to $0$." : "$|" + shift("x", -a) + "|$ is the distance from $x$ to $" + a + "$.",
@@ -367,7 +367,7 @@
       return {
         q: "Solve $" + left + " = " + s * s + "$. List both solutions, separated by a comma.",
         type: "set", answer: lo + "," + hi,
-        placeholder: "e.g. 3,-3",
+        placeholder: holder("e.g. 3,-3", lo + "," + hi, "e.g. 2,-2", true),
         hint: "Two different numbers have this square, one positive and one negative.",
         steps: steps.concat([
           h === 0
@@ -398,7 +398,7 @@
       return {
         q: "Solve $" + eq + "$. List both solutions, separated by a comma.",
         type: "set", answer: r1 + "," + r2,
-        placeholder: "e.g. 2,-7",
+        placeholder: holder("e.g. 2,-7", r1 + "," + r2, "e.g. 1,-5", true),
         hint: "Get zero on one side, then factor (or use the formula) and apply the zero-product property.",
         steps: steps,
         verify: function () {
@@ -519,7 +519,7 @@
       return {
         q: "Let $A = " + show(A) + "$ and $B = " + show(B) + "$. List the elements of $A \\" + op + " B$, separated by commas.",
         type: "set", answer: out.join(","),
-        placeholder: "e.g. 1,4,6",
+        placeholder: holder("e.g. 1,4,6", out.join(","), "e.g. 2,5,6", true),
         hint: words[0],
         steps: [words[1], "So $A \\" + op + " B = " + show(out) + "$."],
         verify: function () {

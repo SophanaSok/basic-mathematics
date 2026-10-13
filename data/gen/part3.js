@@ -5,7 +5,7 @@
   "use strict";
   var G = window.BMGen;
   if (!G) return;
-  var u = G.u, par = u.par, poly = u.poly, shift = u.shift, pt = u.ptTex, ptAns = u.ptAns;
+  var u = G.u, holder = u.holder, par = u.par, poly = u.poly, shift = u.shift, pt = u.ptTex, ptAns = u.ptAns;
 
   var TRIPLES = [[3, 4, 5], [5, 12, 13], [8, 15, 17], [7, 24, 25]];
 
@@ -47,7 +47,7 @@
       return {
         q: "The equation $" + eq + "$ describes a circle. What is its " + (askR ? "radius" : "center") + "?",
         type: askR ? "number" : "exact", answer: askR ? String(rad) : ptAns(h, k),
-        placeholder: askR ? "" : "e.g. (3,-2)",
+        placeholder: askR ? "" : holder("e.g. (3,-2)", ptAns(h, k), "e.g. (4,-1)"),
         hint: "Complete the square in x and in y separately, then compare with the center–radius form.",
         steps: steps,
         verify: function () {
@@ -95,7 +95,7 @@
       return {
         q: "With $P = " + pt(P[0], P[1]) + "$, compute $" + name + "$.",
         type: "exact", answer: ptAns(Q[0], Q[1]),
-        placeholder: "e.g. (3,-2)",
+        placeholder: holder("e.g. (3,-2)", ptAns(Q[0], Q[1]), "e.g. (4,-1)"),
         hint: "Multiplying a point by a number multiplies each coordinate.",
         steps: [
           "$" + name + " = (" + c + " \\cdot " + par(P[0]) + ",\\; " + c + " \\cdot " + par(P[1]) + ")$.",
@@ -116,7 +116,7 @@
         return {
           q: "Compute $" + pt(P[0], P[1]) + " + " + pt(Q[0], Q[1]) + "$.",
           type: "exact", answer: ptAns(S[0], S[1]),
-          placeholder: "e.g. (3,-2)",
+          placeholder: holder("e.g. (3,-2)", ptAns(S[0], S[1]), "e.g. (4,-1)"),
           hint: "Points add coordinate by coordinate.",
           steps: ["Add the first coordinates and the second coordinates: $(" + P[0] + " + " + par(Q[0]) + ",\\; " + P[1] + " + " + par(Q[1]) + ")$.", "$= " + pt(S[0], S[1]) + "$."],
           verify: function () { return S[0] - Q[0] === P[0] && S[1] - Q[1] === P[1]; }
@@ -132,7 +132,7 @@
         return {
           q: "What is the midpoint of the segment from $" + pt(P[0], P[1]) + "$ to $" + pt(Q[0], Q[1]) + "$?",
           type: "exact", answer: ptAns(M[0], M[1]),
-          placeholder: "e.g. (3,-2)",
+          placeholder: holder("e.g. (3,-2)", ptAns(M[0], M[1]), "e.g. (4,-1)"),
           hint: "The midpoint is half of the sum of the two endpoints.",
           steps: ["$M = \\tfrac12 (P + Q) = \\tfrac12 " + pt(P[0] + Q[0], P[1] + Q[1]) + "$.", "$= " + pt(M[0], M[1]) + "$."],
           verify: function () { return 2 * M[0] - P[0] === Q[0] && 2 * M[1] - P[1] === Q[1]; }
@@ -141,7 +141,7 @@
       return {
         q: "The midpoint of the segment from $P = " + pt(P[0], P[1]) + "$ to $Q$ is $" + pt(M[0], M[1]) + "$. What is $Q$?",
         type: "exact", answer: ptAns(Q[0], Q[1]),
-        placeholder: "e.g. (3,-2)",
+        placeholder: holder("e.g. (3,-2)", ptAns(Q[0], Q[1]), "e.g. (4,-1)"),
         hint: "Write the midpoint as half of P + Q, then solve for Q.",
         steps: [
           "$M = \\tfrac12 (P + Q)$, so $Q = 2M - P$.",
@@ -162,7 +162,7 @@
         return {
           q: "With $P = " + pt(P[0], P[1]) + "$ and $Q = " + pt(Q[0], Q[1]) + "$, compute $Q - P$.",
           type: "exact", answer: ptAns(V[0], V[1]),
-          placeholder: "e.g. (3,-2)",
+          placeholder: holder("e.g. (3,-2)", ptAns(V[0], V[1]), "e.g. (4,-1)"),
           hint: "Subtract P's coordinates from Q's, one coordinate at a time.",
           steps: ["$Q - P = (" + Q[0] + " - " + par(P[0]) + ",\\; " + Q[1] + " - " + par(P[1]) + ")$.", "$= " + pt(V[0], V[1]) + "$."],
           verify: function () { return P[0] + V[0] === Q[0] && P[1] + V[1] === Q[1]; }
@@ -172,7 +172,7 @@
       return {
         q: "The located vector from $P = " + pt(P[0], P[1]) + "$ to $Q = " + pt(Q[0], Q[1]) + "$ is moved, without turning, so that it starts at $" + pt(R[0], R[1]) + "$. Where does it end?",
         type: "exact", answer: ptAns(E[0], E[1]),
-        placeholder: "e.g. (3,-2)",
+        placeholder: holder("e.g. (3,-2)", ptAns(E[0], E[1]), "e.g. (4,-1)"),
         hint: "An equivalent located vector has the same displacement Q − P.",
         steps: [
           "The displacement is $Q - P = " + pt(V[0], V[1]) + "$.",
@@ -193,7 +193,7 @@
       return {
         q: "What is the slope of the line through $" + pt(P[0], P[1]) + "$ and $" + pt(Q[0], Q[1]) + "$?",
         type: "fraction", answer: u.fracAns(dy, dx),
-        placeholder: "e.g. 3/2",
+        placeholder: holder("e.g. 3/2", u.fracAns(dy, dx), "e.g. 5/3"),
         hint: "Slope is the change in y divided by the change in x, taken in the same order.",
         steps: [
           "$m = \\dfrac{y_2 - y_1}{x_2 - x_1} = \\dfrac{" + Q[1] + " - " + par(P[1]) + "}{" + Q[0] + " - " + par(P[0]) + "} = \\dfrac{" + dy + "}{" + dx + "}$.",
@@ -212,7 +212,7 @@
       return {
         q: "A line has slope $" + u.fracTex(mn, md) + "$. What is the slope of every line perpendicular to it?",
         type: "fraction", answer: u.fracAns(-md, mn),
-        placeholder: "e.g. -1/2",
+        placeholder: holder("e.g. -1/2", u.fracAns(-md, mn), "e.g. -2/3"),
         hint: "Perpendicular slopes multiply to −1.",
         steps: [
           "If $m m' = -1$ then $m' = -\\dfrac{1}{m}$.",
@@ -235,7 +235,7 @@
       return {
         q: "Find the equation of the line through $" + pt(x1, y1) + "$ and $" + pt(x2, y2) + "$, in the form $y = mx + b$.",
         type: "exact", answer: lineAns(m, b),
-        placeholder: "e.g. y=2x+1",
+        placeholder: holder("e.g. y=2x+1", lineAns(m, b), "e.g. y=3x-2"),
         hint: "Find the slope first; then make the line pass through one of the points.",
         steps: [
           "$m = \\dfrac{" + y2 + " - " + par(y1) + "}{" + x2 + " - " + par(x1) + "} = \\dfrac{" + (y2 - y1) + "}{" + (x2 - x1) + "} = " + m + "$.",
@@ -258,7 +258,7 @@
       return {
         q: "Which point is " + word + " from $P = " + pt(P[0], P[1]) + "$ to $Q = " + pt(Q[0], Q[1]) + "$?",
         type: "exact", answer: ptAns(X[0], X[1]),
-        placeholder: "e.g. (3,-2)",
+        placeholder: holder("e.g. (3,-2)", ptAns(X[0], X[1]), "e.g. (4,-1)"),
         hint: "Turn the fraction of the way into a value of t in P + t(Q − P).",
         steps: [
           "The point is $P + t(Q - P)$ with $t = \\tfrac{" + n + "}{" + d + "}$.",
@@ -285,7 +285,7 @@
         return {
           q: "Convert $" + deg + "°$ to radians. Give the exact value as a multiple of $\\pi$.",
           type: "expr", answer: u.piAns(deg, 180),
-          placeholder: "e.g. pi/6",
+          placeholder: holder("e.g. pi/6", u.piAns(deg, 180), "e.g. pi/5"),
           hint: "A half turn is 180° and also π radians; scale from there.",
           steps: ["Multiply by $\\dfrac{\\pi}{180}$: $" + deg + " \\cdot \\dfrac{\\pi}{180} = \\dfrac{" + deg + "}{180}\\pi$.", "In lowest terms: $" + u.piTex(deg, 180) + "$."],
           verify: function () { var f = u.reduce(deg, 180); return Math.abs(deg * Math.PI / 180 - f.n * Math.PI / f.d) < 1e-12; }
@@ -347,7 +347,7 @@
       return {
         q: "Rotate the point $" + pt(P[0], P[1]) + "$ counterclockwise by $" + deg + "°$ about the origin. Where does it land?",
         type: "exact", answer: ptAns(X[0], X[1]),
-        placeholder: "e.g. (3,-2)",
+        placeholder: holder("e.g. (3,-2)", ptAns(X[0], X[1]), "e.g. (4,-1)"),
         hint: "Use the rotation formula with the cosine and sine of the angle.",
         steps: [
           "The rotation by $\\theta$ sends $(x, y)$ to $(x\\cos\\theta - y\\sin\\theta,\\; x\\sin\\theta + y\\cos\\theta)$; here $\\cos " + deg + "° = " + c + "$ and $\\sin " + deg + "° = " + s + "$.",
