@@ -304,7 +304,7 @@ window.BM_CURRICULUM = {
       dir: "5-packs",
       beside: true,
       blurb:
-        "Short units on what the gate tests ask and Lang's book leaves out: percent, data, chance, units, linear models, word problems, growth. Use any of them, in any order, alongside the course.",
+        "Short units on what the gate tests ask and Lang's book leaves out: percent, data, chance, units, linear models, word problems, growth, factoring and rational expressions. Use any of them, in any order, alongside the course.",
       chapters: [
         {
           id: "pk-percent",
@@ -416,6 +416,20 @@ window.BM_CURRICULUM = {
             { id: "growth", title: "Exponential growth and decay", summary: "A constant difference per period is linear and a constant ratio per period is exponential, y = a times b to the t; a percent up or down is a multiplier of 1 plus or minus the rate, a half-life is the period of halving, and an exponential quantity passes any linear one in the end because its increases themselves grow." },
             { id: "interest", title: "Compound interest", summary: "A balance P at r percent a year, compounded yearly, is P times (1 + r/100) to the power t, because each year's interest is a share of a growing balance, while simple interest adds the same Pr/100 each year; a yearly rate compounded n times a year is P times (1 + r/(100n)) to the power nt, a formula can be read for its principal and rate, and the rule of 72 only estimates the years to double." },
             { id: "logs", title: "Solving with logarithms", summary: "The logarithm of y to the base b is the exponent t with b to the t equal to y; the product rule and the power rule come from the exponent laws, a times b to the t equal to c is solved by dividing by a and then reading a power of b or taking logs, t = log(c/a) divided by log b on a calculator (about, not exact), and a logarithm that is not whole lies between two whole numbers." }
+          ]
+        },
+        {
+          id: "pk-rational",
+          label: "H",
+          title: "Factoring and Rational Expressions",
+          file: "pk-rational.html",
+          status: "full",
+          course: "algebra-2",
+          blurb:
+            "Factoring read as multiplication backward: trinomials with a leading coefficient of one or more, a common factor taken out first, the difference of squares and the perfect square, each checked by expanding; then rational expressions, where the values that make the bottom zero are excluded before anything cancels, only factors (never terms) divide out, and the simplified form agrees with the original at every allowed value.",
+          sections: [
+            { id: "factor", title: "Factoring trinomials and special forms", summary: "Factoring undoes multiplication: x^2 + bx + c needs two numbers with product c and sum b, a common factor comes out first, ax^2 + bx + c splits the middle term using two numbers with product ac and sum b, a difference of squares is (a - b)(a + b), a perfect square is (a + b)^2, and expanding back is the check." },
+            { id: "simplify", title: "Simplifying rational expressions", summary: "A rational expression is a fraction of polynomials: the values that make the bottom zero are excluded, found before canceling; factor top and bottom completely and divide out common factors, never common terms; a - b is the opposite of b - a; and the simplified form must agree with the original at every allowed value." }
           ]
         }
       ]

@@ -411,6 +411,18 @@
     "section#practice",
     "div.recap to nav.chapter-nav"
   ],
+  "pk-rational": [
+    "header.region-banner to div#puzzle",
+    "div.goal to section#warmup",
+    "h2#factor to div#t1",
+    "div#t2",
+    "div.worked to div#t3",
+    "h2#simplify to div#t4",
+    "div#t5",
+    "div.worked to div#t6",
+    "section#practice",
+    "div.recap to nav.chapter-nav"
+  ],
   "pk-units": [
     "header.region-banner to div#puzzle",
     "div.goal to section#warmup",
