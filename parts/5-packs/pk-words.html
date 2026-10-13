@@ -74,8 +74,7 @@
 
       <div class="ex" data-inline id="w1" data-label="Warm-up 1" data-type="number" data-answer="14"
            data-placeholder="e.g. 8"
-           data-hint="Work out the bracket first, then multiply."
-           data-hint2="What is $n + 3$ when $n = 4$?">
+           data-hint="Work out the bracket first, then multiply.">
         <div class="ex-q">
           <p>
             Evaluate $2(n + 3)$ when $n = 4$.
@@ -91,8 +90,7 @@
 
       <div class="ex" data-inline id="w2" data-label="Warm-up 2" data-type="number" data-answer="5"
            data-placeholder="e.g. 2"
-           data-hint="Undo the subtraction first, then undo the multiplication."
-           data-hint2="What must $5x$ equal for $5x - 7$ to be $18$?">
+           data-hint="Undo the subtraction first, then undo the multiplication.">
         <div class="ex-q">
           <p>
             Solve $5x - 7 = 18$.
@@ -109,8 +107,7 @@
 
       <div class="ex" data-inline id="w3" data-label="Warm-up 3" data-type="number" data-answer="0.75"
            data-placeholder="e.g. 0.5"
-           data-hint="An hour has $60$ minutes. What fraction of an hour is the given number of minutes?"
-           data-hint2="Write the fraction in lowest terms first, then as a decimal.">
+           data-hint="An hour has $60$ minutes. What fraction of an hour is the given number of minutes?">
         <div class="ex-q">
           <p>
             How many hours is $45$ minutes? Give it as a decimal.
@@ -159,7 +156,7 @@
 
     <table>
       <caption>Phrases and the expressions they stand for ($n$ is the number)</caption>
-      <thead><tr><th scope="col">Phrase</th><th scope="col">Expression</th><th scope="col">Why</th></tr></thead>
+      <thead><tr><th scope="col">Phrase</th><th scope="col">In symbols</th><th scope="col">Why</th></tr></thead>
       <tbody>
         <tr><th scope="row">$3$ more than a number</th><td>$n + 3$</td><td>start from the number and add</td></tr>
         <tr><th scope="row">$5$ less than twice a number</th><td>$2n - 5$</td><td>&ldquo;less than&rdquo; takes away from the thing named after it, so the order flips</td></tr>
@@ -274,7 +271,7 @@
       the first hour, another $r$ in the second, and after $t$ hours has covered $t$ copies of $r$:
       $$d = rt.$$
       Everything in this section is that equation, written once for each mover. So draw one row for each mover with its rate,
-      its time and its distance. Two of the three come from the story and the third is their product. What turns the rows
+      its time and its distance. Each row holds rate, time and distance; the story gives two of them, directly or in terms of one letter, and $d = rt$ fills the third. What turns the rows
       into an equation is one more sentence from the story, and three sentences cover most problems.
     </p>
     <ul>
@@ -369,20 +366,20 @@
       </div>
     </div>
 
-    <div class="ex" data-inline id="t5" data-type="number" data-answer="1.5" data-placeholder="hours"
+    <div class="ex" data-inline id="t5" data-type="number" data-answer="1" data-placeholder="hours"
          data-hint="The speeds are per hour, so change the head start to hours before you multiply. At the catch-up the two cars have gone the same distance."
          data-hint2="How many miles ahead is the first car at the moment the second one leaves?">
       <div class="ex-q">
         <p>
-          A car leaves a town at $30$ miles per hour. Thirty minutes later a second car leaves the same town on the same road at
-          $40$ miles per hour. How many hours after the second car leaves does it catch the first?
+          A car leaves a town at $40$ miles per hour. Thirty minutes later a second car leaves the same town on the same road at
+          $60$ miles per hour. How many hours after the second car leaves does it catch the first?
         </p>
       </div>
       <div class="ex-solution">
-        <p class="answer">Answer: $1.5$ hours</p>
+        <p class="answer">Answer: $1$ hour</p>
         <p>
-          With $t$ the hours the second car drives, $30(t + 0.5) = 40t$, so $15 = 10t$ and $t = 1.5$. Check: the first car has driven
-          $2$ hours and gone $60$ miles, and the second has gone $40 \cdot 1.5 = 60$ miles ✓.
+          With $t$ the hours the second car drives, $40(t + 0.5) = 60t$, so $20 = 20t$ and $t = 1$. Check: the first car has driven
+          $1.5$ hours and gone $40 \cdot 1.5 = 60$ miles, and the second has gone $60 \cdot 1 = 60$ miles ✓.
         </p>
       </div>
     </div>
@@ -576,15 +573,15 @@
         </div>
       </div>
 
-      <div class="ex" id="e12" data-section="drt" data-type="number" data-answer="45" data-placeholder="minutes"
-           data-hint="The speeds are per hour, so change the head start to hours before you multiply. Change the answer back to minutes at the end."
+      <div class="ex" id="e12" data-section="drt" data-type="number" data-answer="40" data-placeholder="minutes"
+           data-hint="The speeds are per hour, so change the head start to hours before you multiply."
            data-hint2="How many miles ahead is the first boat at the moment the second one leaves?">
-        <div class="ex-q"><p>A boat leaves a dock at $12$ miles per hour. Fifteen minutes later a second boat leaves the same dock by the same route at $16$ miles per hour. After how many minutes, counted from the second boat's departure, does the second boat catch the first?</p></div>
+        <div class="ex-q"><p>A boat leaves a dock at $12$ miles per hour. Twenty minutes later a second boat leaves the same dock by the same route at $18$ miles per hour. After how many minutes, counted from the second boat's departure, does the second boat catch the first?</p></div>
         <div class="ex-solution">
-          <p class="answer">Answer: $45$ minutes</p>
+          <p class="answer">Answer: $40$ minutes</p>
           <p>
-            Fifteen minutes is $0.25$ hour. With $t$ the hours the second boat travels, $12(t + 0.25) = 16t$, so $3 = 4t$ and $t = 0.75$ hour, which is $0.75 \cdot 60 = 45$ minutes.
-            Check: the first boat has traveled $1$ hour and gone $12$ miles, and the second has gone $16 \cdot 0.75 = 12$ miles ✓.
+            Twenty minutes is $\frac{1}{3}$ hour. With $t$ the hours the second boat travels, $12\left(t + \frac{1}{3}\right) = 18t$, so $12t + 4 = 18t$, $4 = 6t$ and $t = \frac{2}{3}$ hour, which is $\frac{2}{3} \cdot 60 = 40$ minutes.
+            Check: the first boat has traveled $\frac{1}{3} + \frac{2}{3} = 1$ hour and gone $12$ miles, and the second has gone $18 \cdot \frac{2}{3} = 12$ miles ✓.
           </p>
         </div>
       </div>

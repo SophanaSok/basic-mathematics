@@ -3390,6 +3390,13 @@
     return Number(out.toFixed(6));
   }
 
+  /* the spellings of "half of S" for each bracket text S: (S)/2, 0.5(S), 1/2(S), (1/2)(S) */
+  function wHalf(inner) {
+    var out = [];
+    inner.forEach(function (b) { out.push("(" + b + ")/2", "0.5(" + b + ")", "1/2(" + b + ")", "(1/2)(" + b + ")"); });
+    return out;
+  }
+
   /* each phrase: the words, the sum written in each spelling, and the phrase's own arithmetic (fn) */
   var PHRASES = [
     function (r) { var k = r.int(2, 6), a = r.int(2, 12); return { w: a + " less than " + k + " times a number", keys: [k + "x-" + a, "-" + a + "+" + k + "x"], tex: k + "x - " + a, fn: function (x) { return k * x - a; } }; },
@@ -3397,8 +3404,8 @@
     function (r) { var k = r.int(2, 5), a = r.int(2, 9); return { w: k + " times the sum of a number and " + a, keys: [k + "(x+" + a + ")", k + "(" + a + "+x)", k + "x+" + (k * a), (k * a) + "+" + k + "x"], tex: k + "(x + " + a + ")", fn: function (x) { return k * (x + a); } }; },
     function (r) { var k = r.int(2, 5), a = r.int(2, 9); return { w: k + " times the difference of a number and " + a, keys: [k + "(x-" + a + ")", k + "x-" + (k * a), "-" + (k * a) + "+" + k + "x"], tex: k + "(x - " + a + ")", fn: function (x) { return k * (x - a); } }; },
     function (r) { var k = r.int(2, 6), a = r.int(12, 30); return { w: a + " decreased by " + k + " times a number", keys: [a + "-" + k + "x", "-" + k + "x+" + a], tex: a + " - " + k + "x", fn: function (x) { return a - k * x; } }; },
-    function (r) { var h = r.int(1, 6), a = 2 * h; return { w: "half the sum of a number and " + a, keys: ["(x+" + a + ")/2", "(" + a + "+x)/2", "x/2+" + h, h + "+x/2"], tex: "\\dfrac{x + " + a + "}{2}", fn: function (x) { return (x + a) / 2; } }; },
-    function (r) { var a = r.int(2, 9); return { w: a + " less than half of a number", keys: ["x/2-" + a, "-" + a + "+x/2"], tex: "\\dfrac{x}{2} - " + a, fn: function (x) { return x / 2 - a; } }; }
+    function (r) { var h = r.int(1, 6), a = 2 * h; return { w: "half the sum of a number and " + a, keys: wHalf(["x+" + a, a + "+x"]).concat(["x/2+" + h, "0.5x+" + h, "1/2x+" + h, "(1/2)x+" + h, h + "+x/2", h + "+0.5x", h + "+1/2x", h + "+(1/2)x"]), tex: "\\dfrac{x + " + a + "}{2}", fn: function (x) { return (x + a) / 2; } }; },
+    function (r) { var a = r.int(2, 9); return { w: a + " less than half of a number", keys: ["x/2-" + a, "0.5x-" + a, "1/2x-" + a, "(1/2)x-" + a, "-" + a + "+x/2", "-" + a + "+0.5x", "-" + a + "+1/2x", "-" + a + "+(1/2)x"], tex: "\\dfrac{x}{2} - " + a, fn: function (x) { return x / 2 - a; } }; }
   ];
 
   G.add({
@@ -3410,7 +3417,7 @@
       return {
         q: "Write the expression for \"" + ph.w + ",\" using $x$ for the number.",
         type: "expr", answer: key, placeholder: "e.g. " + pl,
-        hint: "Build it in the order the words are said. Start with the number $x$, then do to it what each part of the phrase says. Watch which quantity \"less than\" or \"decreased by\" takes away from.",
+        hint: "Build it from the number outward: start with $x$ and do what each part of the phrase says. Watch which quantity \"less than\" takes away from.",
         steps: [
           "Say the phrase one operation at a time, starting from $x$.",
           "In symbols: $" + ph.tex + "$.",
@@ -3418,9 +3425,10 @@
         ],
         verify: function () {
           /* every spelling, at two values of x, against the phrase's own arithmetic */
-          var xs = [3, 5], i;
+          var xs = [3, 5], i, plain = ph.tex.replace(/\\dfrac\{([^}]*)\}\{([^}]*)\}/g, "($1)/($2)");
           for (i = 0; i < xs.length; i++) {
             if (ph.keys.some(function (alt) { return Math.abs(wEval(alt, xs[i]) - ph.fn(xs[i])) > 1e-9; })) return false;
+            if (Math.abs(wEval(plain, xs[i]) - ph.fn(xs[i])) > 1e-9) return false;
           }
           return ph.keys.length >= 2 && ph.keys.indexOf(pl) < 0;
         }
@@ -3466,8 +3474,8 @@
       /* A is k years older; in m years A is f times as old as B: (f-1) B = k - (f-1) m */
       do {
         m = r.int(2, 10); k = r.int(8, 36); B = k / (f - 1) - m; A = B + k;
-        ok = B === Math.floor(B) && B >= 4 && A + m <= 70;
-      } while (!ok && guard++ < 80);
+        ok = B === Math.floor(B) && B >= 4 && A + m <= 70 && !(k === 12 && m === 6 && f === 2) && !(k === 24 && m === 4 && f === 3) && !(k === 30 && m === 5 && f === 3);
+      } while (!ok && guard++ < 200);
       if (!ok) { f = 2; m = 5; k = 20; B = 15; A = 35; }
       var names = r.pick([["Mara", "Ben"], ["Priya", "Leo"], ["Omar", "Nia"], ["Jonas", "Tess"], ["Ines", "Cal"]]);
       var askOlder = r.chance(0.3), ans = askOlder ? A : B;
@@ -3491,14 +3499,21 @@
     }
   });
 
+  /* the (gap, rate, rate) triples the page prints, in either order of the rates */
+  function wMeetPage(D, a, b) {
+    return [[420, 55, 65], [18, 2, 4], [400, 45, 35], [1400, 350, 450], [480, 45, 75]].some(function (p) {
+      return p[0] === D && ((p[1] === a && p[2] === b) || (p[1] === b && p[2] === a));
+    });
+  }
+
   G.add({
     id: "pk-drt-meet", section: "pk-words#drt", par: 60, timed: true,
     make: function (r) {
       var key = r.pick(WKEYS), m = WMOVE[key], r1, r2, t, D, ok = false, guard = 0;
       do {
         r1 = r.pick(m.rates); r2 = r.pick(m.rates); t = r.pick(m.times); D = wc((r1 + r2) * t);
-        ok = r1 !== r2 && D === Math.floor(D) && D >= m.gapLo && D <= m.gapHi;
-      } while (!ok && guard++ < 80);
+        ok = r1 !== r2 && D === Math.floor(D) && D >= m.gapLo && D <= m.gapHi && !wMeetPage(D, r1, r2);
+      } while (!ok && guard++ < 200);
       if (!ok) { m = WMOVE.car; r1 = 40; r2 = 50; t = 3; D = 270; }
       var kind = r.pick(["time", "time", "dist"]), fast = r.chance(0.5), rf = Math.max(r1, r2), rs = Math.min(r1, r2);
       var rr = fast ? rf : rs, other = r1 + r2 - rr, ans = kind === "time" ? t : wc(rr * t);
@@ -3530,17 +3545,18 @@
       do {
         r1 = r.pick(m.rates); r2 = r.pick(m.rates); h = r.pick(WHEADS);
         t = r2 > r1 ? wc(r1 * h / (r2 - r1)) : 0;
-        ok = r2 > r1 && t >= 1 && t <= 8 && wc(t * 2) === Math.floor(t * 2) && r2 * t >= m.gapLo && r2 * t <= m.gapHi;
-      } while (!ok && guard++ < 80);
+        ok = r2 > r1 && t >= 1 && t <= 8 && wc(t * 2) === Math.floor(t * 2) && r2 * t >= m.gapLo && r2 * t <= m.gapHi &&
+          !(key === "car" && r1 === 40 && r2 === 60 && h === 0.5) && !(key === "plane" && r1 === 320 && r2 === 480 && h === 0.75);
+      } while (!ok && guard++ < 200);
       if (!ok) { m = WMOVE.car; r1 = 40; r2 = 50; h = 0.75; t = 3; }
       var kind = r.pick(["time", "dist"]), dist = wc(r2 * t), ans = kind === "time" ? t : dist;
       return {
-        q: "A " + m.noun + " starts from a point at " + wSpeed(r1) + ". " + wHead(h) + " later, a second " + m.noun + " starts from the same point and follows the same route at " + wSpeed(r2) + ". " +
+        q: "A " + m.noun + " starts from a point at " + wSpeed(r1) + ". After " + wHead(h) + ", a second " + m.noun + " starts from the same point and follows the same route at " + wSpeed(r2) + ". " +
           (kind === "time" ? "How many hours after the second one starts does it catch up with the first?" : "How many miles from the starting point does the second one catch up with the first?"),
         type: "number", answer: clean(ans), placeholder: kind === "time" ? "hours" : "miles",
         hint: "At the moment of the catch-up the two have gone the same distance from the start. Write each distance as speed times its own travel time, and remember the first one has been moving longer.",
         steps: [
-          "Let $t$ be the hours the second one travels. The first has traveled $t + " + wn(h) + "$ hours.",
+          (h < 1 || wc(h * 60) === 90 ? "The head start of " + wn(wc(h * 60)) + " minutes is $" + wn(h) + "$ " + (h === 1 ? "hour" : "hours") + ". " : "") + "Let $t$ be the hours the second one travels. The first has traveled $t + " + wn(h) + "$ hours.",
           "Equal distances: $" + wn(r1) + "(t + " + wn(h) + ") = " + wn(r2) + "t$, so $" + wn(r1) + "t + " + wn(wc(r1 * h)) + " = " + wn(r2) + "t$ and $" + wn(wc(r1 * h)) + " = " + wn(r2 - r1) + "t$.",
           "$t = " + wn(t) + "$ hours" + (kind === "time" ? "." : ", and the distance is $" + wn(r2) + " \\cdot " + wn(t) + " = " + wn(dist) + "$ miles.") + " Check: the first goes $" + wn(r1) + " \\cdot " + wn(wc(t + h)) + " = " + wn(wc(r1 * (t + h))) + "$ miles."
         ],
@@ -3554,19 +3570,42 @@
     }
   });
 
+  /* every round trip the generator may draw, built once: for each mover and each ordered pair of rates, the one-way
+     distances (whole miles within the mover's bounds) at which each leg takes a whole or half number of hours and the
+     total is 2..8 hours (2..12 for a plane). The "avg" list also needs 2d/T to be a whole or half number. The page's own
+     trips (30/45 mph with d = 90, 40/50 mph with d = 100, 300/450 mph) are left out. */
+  function wIsHalf(x) { return Math.abs(x * 2 - Math.round(x * 2)) < 1e-9; }
+  var WTRIPS = (function () {
+    var out = { dist: [], avg: [] };
+    WROUND.forEach(function (key) {
+      var m = WMOVE[key], tmax = key === "plane" ? 12 : 8;
+      m.rates.forEach(function (a) {
+        m.rates.forEach(function (b) {
+          if (a === b || (key === "plane" && ((a === 300 && b === 450) || (a === 450 && b === 300)))) return;
+          var ds = [], dsAvg = [], dd;
+          for (dd = m.gapLo; dd <= m.gapHi; dd++) {
+            if ((key === "car" && ((a === 30 && b === 45) || (a === 45 && b === 30)) && dd === 90) || (key === "car" && ((a === 40 && b === 50) || (a === 50 && b === 40)) && dd === 100)) continue;
+            var tt = dd / a + dd / b;
+            if (!wIsHalf(dd / a) || !wIsHalf(dd / b) || tt < 2 || tt > tmax + 1e-9) continue;
+            ds.push(dd);
+            if (wIsHalf(2 * dd / tt)) dsAvg.push(dd);
+          }
+          if (ds.length) out.dist.push({ key: key, r1: a, r2: b, ds: ds });
+          if (dsAvg.length) out.avg.push({ key: key, r1: a, r2: b, ds: dsAvg });
+        });
+      });
+    });
+    return out;
+  })();
+
   G.add({
     id: "pk-drt-roundtrip", section: "pk-words#drt", par: 80, timed: true,
     make: function (r) {
-      var key = r.pick(WROUND), m = WMOVE[key], r1, r2, d, T, q, u, ok = false, guard = 0;
-      do {
-        r1 = r.pick(m.rates); r2 = r.pick(m.rates);
-        u = lcm(r1, r2) / 2; if (u !== Math.floor(u)) u = lcm(r1, r2);
-        q = r.int(1, 8); d = u * q; T = wc(d / r1 + d / r2);
-        ok = r1 !== r2 && wc(4 * r1 * r2 / (r1 + r2)) === Math.floor(4 * r1 * r2 / (r1 + r2)) && d >= m.gapLo && d <= m.gapHi &&
-          wc(d / r1 * 2) === Math.floor(d / r1 * 2) && wc(d / r2 * 2) === Math.floor(d / r2 * 2) && T >= 2 && T <= 12;
-      } while (!ok && guard++ < 80);
-      if (!ok) { m = WMOVE.car; r1 = 30; r2 = 45; d = 90; T = 5; }
-      var kind = r.pick(["dist", "avg"]), avg = wc(2 * d / T);
+      var kind = r.pick(["dist", "avg"]), pool = WTRIPS[kind], trip = pool.length ? r.pick(pool) : null, m, r1, r2, d, T;
+      if (trip) { m = WMOVE[trip.key]; r1 = trip.r1; r2 = trip.r2; d = r.pick(trip.ds); }
+      else { m = WMOVE.car; r1 = 40; r2 = 60; d = 120; }
+      T = wc(d / r1 + d / r2);
+      var avg = wc(2 * d / T);
       var out = "A " + m.noun + " goes out along a route at " + wSpeed(r1) + " and comes back the same way at " + wSpeed(r2) + ". ";
       return {
         q: kind === "dist" ? out + "The round trip takes " + wHours(T) + " in all. How many miles long is the route one way?" :
