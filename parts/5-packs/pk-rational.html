@@ -400,7 +400,7 @@
       </div>
     </div>
 
-    <div class="ex" data-inline id="t7" data-type="expr" data-answer="6/(x+8)" data-placeholder="e.g. 3/(x+1)"
+    <div class="ex" data-inline id="t7" data-type="expr" data-answer="6/(x+8)|(6)/(x+8)" data-placeholder="e.g. 3/(x+1)"
          data-hint="Multiply the tops and multiply the bottoms, and divide out any factor that stands on a top and on a bottom."
          data-hint2="Which factor stands on the top of one fraction and on the bottom of the other?">
       <div class="ex-q">
@@ -451,7 +451,7 @@
       </div>
     </div>
 
-    <div class="ex" data-inline id="t9" data-type="expr" data-answer="2x+10" data-placeholder="e.g. 3x+4"
+    <div class="ex" data-inline id="t9" data-type="expr" data-answer="2x+10|2(x+5)" data-placeholder="e.g. 3x+4"
          data-hint="Build each fraction up to the common bottom by the factor it is missing, then subtract the whole second top."
          data-hint2="What is the common bottom, and what is each fraction missing?">
       <div class="ex-q">
@@ -560,7 +560,7 @@
 
     <div class="ex" data-inline id="t12" data-type="set" data-answer="2,3" data-placeholder="e.g. 1,6"
          data-hint="Multiply every term by the bottom, move everything to one side, and factor."
-         data-hint2="Which two numbers have product $6$ and sum $5$?">
+         data-hint2="Which value of $x$ is excluded, and what quadratic equation is left once the bottom is cleared?">
       <div class="ex-q">
         <p>
           Solve $x + \dfrac{6}{x} = 5$. Give the two values of $x$, separated by a comma.
@@ -583,7 +583,7 @@
       <p>
         Type a product of factors as <code>(x+2)(x+3)</code>, in any order of the factors, with a number in front if there is one. Type a power as
         <code>(x+3)^2</code>. Type a fraction with its top and bottom in brackets, as in <code>(x-3)/(x+2)</code>. Type a list of values as a set, as in <code>2, 5</code>. When the bottom is a product of brackets, put the whole bottom in brackets, as in <code>(2x-1)/((x+3)(x-4))</code>,
-        and type a number in front of a letter as in <code>3x/(x-2)</code>. A single value is typed as a number.
+        and type a number in front of a letter as in <code>5x/(x+4)</code>. A numerator asked for on its own is typed as a plain expression, as in <code>3x+4</code>. A single value is typed as a number.
         A question that asks which option is right is answered by choosing one of the options shown.
       </p>
 
@@ -819,7 +819,7 @@
         </div>
       </div>
 
-      <div class="ex" id="e19" data-section="operations" data-type="expr" data-answer="(15x+25)/((x-1)(x+4))|(15x+25)/((x+4)(x-1))|(15x+25)/(x^2+3x-4)|(5(3x+5))/((x-1)(x+4))|(5(3x+5))/((x+4)(x-1))|(5(3x+5))/(x^2+3x-4)" data-placeholder="e.g. (4x+1)/((x+2)(x-3))"
+      <div class="ex" id="e19" data-section="operations" data-type="expr" data-answer="(15x+25)/((x-1)(x+4))|(15x+25)/((x+4)(x-1))|(15x+25)/(x^2+3x-4)|(5(3x+5))/((x-1)(x+4))|(5(3x+5))/((x+4)(x-1))|(5(3x+5))/(x^2+3x-4)|5(3x+5)/((x-1)(x+4))|5(3x+5)/((x+4)(x-1))|5(3x+5)/(x^2+3x-4)" data-placeholder="e.g. (4x+1)/((x+2)(x-3))"
            data-hint="Build each fraction up to the common bottom, then subtract the whole second top, changing both of its signs."
            data-hint2="What does each fraction lack to reach the least common denominator?">
         <div class="ex-q"><p>Write $\dfrac{x + 7}{x - 1} - \dfrac{x - 3}{x + 4}$ as a single fraction.</p></div>
@@ -832,7 +832,7 @@
         </div>
       </div>
 
-      <div class="ex" id="e20" data-section="operations" data-type="expr" data-answer="11/(24x)" data-placeholder="e.g. 5/(12x)"
+      <div class="ex" id="e20" data-section="operations" data-type="expr" data-answer="11/(24x)|(11)/(24x)" data-placeholder="e.g. 5/(12x)"
            data-hint="Both bottoms have the letter $x$ in common. Take the least common multiple of the numbers, with one $x$."
            data-hint2="What is the least common multiple of the two numbers in the bottoms?">
         <div class="ex-q"><p>Write $\dfrac{7}{12x} - \dfrac{1}{8x}$ as a single fraction.</p></div>
@@ -891,7 +891,7 @@
 
       <div class="ex" id="e24" data-section="equations" data-type="set" data-answer="-2,6" data-placeholder="e.g. 1,7"
            data-hint="Multiply both sides by the bottom, move everything to one side, and factor the quadratic that is left."
-           data-hint2="Which two numbers have product $-12$ and sum $-4$?">
+           data-hint2="Which value of $x$ is excluded, and what quadratic equation is left once the bottom is cleared?">
         <div class="ex-q"><p>Solve $\dfrac{12}{x} = x - 4$. Give the two values of $x$, separated by a comma.</p></div>
         <div class="ex-solution">
           <p class="answer">Answer: $x = -2$ and $x = 6$</p>
@@ -929,18 +929,18 @@
       <div class="ex" id="e27" data-section="equations" data-answer="4"
            data-hint="Clear the fractions, solve what is left, and then ask whether the candidate is allowed in the original equation."
            data-hint2="Which value of $x$ makes a bottom of the original equation zero?">
-        <div class="ex-q"><p>What is the solution set of $\dfrac{x}{x - 3} = \dfrac{3}{x - 3} + 2$?</p></div>
+        <div class="ex-q"><p>What is the solution set of $\dfrac{x}{x - 5} = \dfrac{5}{x - 5} + 2$?</p></div>
         <ul class="choices">
-          <li>$x = 3$</li>
           <li>$x = 5$</li>
-          <li>$x = -3$</li>
+          <li>$x = 7$</li>
+          <li>$x = -5$</li>
           <li>There is no solution.</li>
         </ul>
         <div class="ex-solution">
           <p class="answer">Answer: There is no solution.</p>
           <p>
-            With $x \ne 3$, multiply every term by $x - 3$: $x = 3 + 2(x - 3)$, so $x = 2x - 3$ and $x = 3$. But $x = 3$ is the excluded value, so it is extraneous, and no other candidate is left. The option $x = 5$ comes from multiplying the $2$ by nothing: $x = 3 + 2$.
-            The option $x = -3$ comes from reading $-x = -3$ as $x = -3$. Check $x = 3$ in the original: the bottom $3 - 3$ is $0$, so both fractions are undefined.
+            With $x \ne 5$, multiply every term by $x - 5$: $x = 5 + 2(x - 5)$, so $x = 2x - 5$ and $x = 5$. But $x = 5$ is the excluded value, so it is extraneous, and no other candidate is left. The option $x = 7$ comes from multiplying the $2$ by nothing: $x = 5 + 2$.
+            The option $x = -5$ comes from reading $-x = -5$ as $x = -5$. Check $x = 5$ in the original: the bottom $5 - 5$ is $0$, so both fractions are undefined.
           </p>
         </div>
       </div>
