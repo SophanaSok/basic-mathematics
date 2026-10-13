@@ -288,7 +288,13 @@
           placeholder: holder("e.g. pi/6", u.piAns(deg, 180), "e.g. pi/5"),
           hint: "A half turn is 180° and also π radians; scale from there.",
           steps: ["Multiply by $\\dfrac{\\pi}{180}$: $" + deg + " \\cdot \\dfrac{\\pi}{180} = \\dfrac{" + deg + "}{180}\\pi$.", "In lowest terms: $" + u.piTex(deg, 180) + "$."],
-          verify: function () { var f = u.reduce(deg, 180); return Math.abs(deg * Math.PI / 180 - f.n * Math.PI / f.d) < 1e-12; }
+          verify: function () {
+            /* read the printed multiple of pi and compare its value with deg * pi / 180 */
+            var m = /^(-?)(\d*)pi(?:\/(\d+))?$/.exec(String(this.answer).split("|")[0]);
+            if (!m) return false;
+            var n = (m[1] ? -1 : 1) * (m[2] === "" ? 1 : parseInt(m[2], 10)), d = m[3] ? parseInt(m[3], 10) : 1;
+            return Math.abs(n * Math.PI / d - deg * Math.PI / 180) < 1e-12;
+          }
         };
       }
       return {

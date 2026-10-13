@@ -32,7 +32,7 @@
   "use strict";
   var G = window.BMGen;
   if (!G) return;
-  var u = G.u, gcd = u.gcd, lcm = u.lcm;
+  var u = G.u, gcd = u.gcd, lcm = u.lcm, holder = u.holder;
 
   /* dollars from cents, as math: 460 gives $\$4.60$ */
   function usd(cents) {
@@ -495,9 +495,9 @@
             "The tax is charged on that: $" + clean(1 + t2 / 100) + " \\cdot " + clean(sale) + " = " + clean(tot) + "$ dollars."
           ],
           verify: function () {
-            /* in cents, step by step: price, minus the discount, plus the tax on what is left */
-            var cents = P2 * 100, afterCents = cents - cents * d / 100, totCents = afterCents + afterCents * t2 / 100;
-            return Math.abs(totCents - tot * 100) < 1e-6 && Math.abs(afterCents - sale * 100) < 1e-6;
+            /* one integer product: P (100 - d)(100 + t) is the total in hundredths of a cent */
+            var product = P2 * (100 - d) * (100 + t2);
+            return product === Math.round(Number(String(this.answer).split("|")[0]) * 10000) && product % 100 === 0;
           }
         };
       }
@@ -707,8 +707,9 @@
             "The second percent is of that group: $" + clean(a2 / 100) + " \\cdot " + fmt(N * a1 / 100) + " = " + fmt(total) + "$."
           ],
           verify: function () {
-            /* one multiplier for both: a1 percent of a2 percent is a1*a2/100 percent of the whole */
-            return N * (a1 * a2 / 100) / 100 === total && total < N * a1 / 100;
+            /* a whole of 10,000: the first group, the second out of it, then scale back to N */
+            var first = 10000 * a1 / 100, second = first * a2 / 100;
+            return second * N / 10000 === Number(String(this.answer).split("|")[0]) && total < N * a1 / 100;
           }
         };
       }
@@ -858,6 +859,16 @@
     }
   });
 
+  /* Q1 and Q3 of vals by counting alone, no slicing: with h = floor(n/2), fewer than half of the lower
+     half lies below Q1 and at least half of it at or below, and the mirror image for Q3. */
+  function quartilesByCount(vals, q1, q3) {
+    var h = vals.length >> 1;
+    function cnt(test) { return vals.filter(test).length; }
+    return cnt(function (x) { return x < q1; }) <= h / 2 && cnt(function (x) { return x <= q1; }) >= h / 2 &&
+      cnt(function (x) { return x > q3; }) <= h / 2 && cnt(function (x) { return x >= q3; }) >= h / 2 &&
+      cnt(function (x) { return x <= q3; }) >= vals.length - Math.floor(h / 2) && cnt(function (x) { return x >= q1; }) >= vals.length - Math.floor(h / 2);
+  }
+
   G.add({
     id: "pk-iqr", section: "pk-data#center", par: 90, timed: true,
     make: function (r) {
@@ -887,7 +898,7 @@
               half.filter(function (x) { return x < med; }).length <= half.length / 2 && half.filter(function (x) { return x > med; }).length <= half.length / 2;
           }
           return trim(up) - trim(lo) === iqr && iqr >= 0 && lo.length === up.length && splits(lo, q1) && splits(up, q3) &&
-            vals.filter(function (x) { return x < q1; }).length <= Math.floor(n / 2) / 2 && vals.filter(function (x) { return x > q3; }).length <= Math.floor(n / 2) / 2;
+            quartilesByCount(vals, q1, q3) && Number(String(this.answer).split("|")[0]) === q3 - q1;
         }
       };
     }
@@ -1099,9 +1110,9 @@
           var half = Math.floor(m / 2), a1 = trim(f.slice(0, half)), a3 = trim(f.slice(m - half)), am = m % 2 ? f[(m - 1) / 2] : (f[m / 2 - 1] + f[m / 2]) / 2;
           if (m !== n) return false;
           if (kind === "median") return am === ans;
-          if (kind === "q1") return a1 === ans;
-          if (kind === "q3") return a3 === ans;
-          if (kind === "iqr") return a3 - a1 === ans && ans >= 0;
+          if (kind === "q1") return a1 === ans && quartilesByCount(rows, ans, q3);
+          if (kind === "q3") return a3 === ans && quartilesByCount(rows, q1, ans);
+          if (kind === "iqr") return a3 - a1 === ans && ans >= 0 && quartilesByCount(rows, q1, q3);
           return f[m - 1] - f[0] === ans;
         }
       };
@@ -1327,7 +1338,7 @@
         var n2 = r.pick([40, 50, 80, 100, 200]), f2 = r.int(Math.ceil(1000 / n2), Math.ceil(1000 / n2) + 30), N2 = n2 * f2, k1 = r.int(3, n2 - 8), k2 = k1 + r.int(2, 6);
         return {
           q: c.pop + " $" + fmt(N2) + "$ " + c.noun + ". One random sample of $" + n2 + "$ finds $" + k1 + "$ who " + c.does + ", and another random sample of $" + n2 + "$ finds $" + k2 + "$. Give the two estimates of how many of all the " + c.all + ", separated by a comma, smaller first.",
-          type: "set", answer: (k1 * f2) + "," + (k2 * f2), placeholder: "e.g. 400,900",
+          type: "set", answer: (k1 * f2) + "," + (k2 * f2), placeholder: holder("e.g. 400,900", (k1 * f2) + "," + (k2 * f2), "e.g. 300,800", true),
           hint: "For each sample, find its proportion and take that proportion of the whole group.",
           steps: ["The first sample gives $\\frac{" + k1 + "}{" + n2 + "} \\cdot " + fmt(N2) + " = " + fmt(k1 * f2) + "$.", "The second gives $\\frac{" + k2 + "}{" + n2 + "} \\cdot " + fmt(N2) + " = " + fmt(k2 * f2) + "$."],
           verify: function () {
@@ -1361,8 +1372,9 @@
         hint: "Find each sample's percent on its own, then subtract the smaller from the larger.",
         steps: ["The first sample is $\\frac{" + k1 + "}{" + n + "} = " + clean(p1) + "\\%$ and the second is $\\frac{" + k2 + "}{" + n + "} = " + clean(p2) + "\\%$.", "The difference is $" + clean(p2) + " - " + clean(p1) + " = " + clean(ans) + "$ percentage points."],
         verify: function () {
-          /* both samples have the same size, so the gap in counts, per hundred of the sample */
-          return Math.abs((k2 - k1) * 100 / n - ans) < 1e-9 && k2 > k1 && ans > 0;
+          /* rebuild each percent as a count (p * n / 100 = k), then take the gap of the printed answer */
+          var gap = Number(String(this.answer).split("|")[0]), pa = 100 * k1 / n, pb = pa + gap;
+          return Math.abs(pa * n / 100 - k1) < 1e-9 && Math.abs(pb * n / 100 - k2) < 1e-9 && gap > 0;
         }
       };
     }
@@ -2179,7 +2191,7 @@
         q = m.who + " goes at $" + S + "$ miles per hour for $" + t + "$ minutes. How many miles does it go?";
         hint = "Distance is rate times time, but the time must be in the unit the rate uses on the bottom. Change the minutes first, then multiply.";
         steps = ["The rate has hours on the bottom, so write the time in hours: $" + t + "$ minutes $= \\frac{" + t + "}{60}$ hour.", "$d = rt = " + S + " \\cdot \\frac{" + t + "}{60} = " + num(ans) + "$ miles."];
-        ver = function () { return Math.abs((S / 60) * t - ans) < 1e-6; };
+        ver = function () { return Math.abs(S * t - ans * 60) < 1e-6; };
       } else if (kind === "time") {
         var th, tg = 0, inMin = r.chance(0.5), D;
         do { th = r.pick([0.5, 0.75, 1.25, 1.5, 2, 2.5, 3, 3.5, 4.5]); D = S * th; } while (D > m.maxD && tg++ < 80);
@@ -2203,7 +2215,7 @@
         q = "A printer prints $" + ppm + "$ pages per minute. How many pages does it print in $" + num(hrs) + "$ hours?";
         hint = "The rate is per minute and the time is in hours, so line the units up before you multiply.";
         steps = ["$" + num(hrs) + "$ hours $= " + num(hrs * 60) + "$ minutes.", "$" + ppm + " \\cdot " + num(hrs * 60) + " = " + num(ans) + "$ pages."];
-        ver = function () { return Math.abs((ppm * 60) * hrs - ans) < 1e-6; };
+        ver = function () { return Math.abs(ppm * (hrs * 60) - ans) < 1e-6; };
       }
       return {
         q: q, type: "number", answer: num(ans), placeholder: holder, hint: hint, steps: steps,
@@ -2414,7 +2426,12 @@
         type: "number", answer: num(perYard / 100), placeholder: "dollars per square yard",
         hint: "A square yard holds many square feet, and the price per square yard is for all of them. Find how many square feet make one square yard, then multiply the price per square foot by it.",
         steps: ["A square yard is a square $3$ feet on a side, so it holds $3 \\cdot 3 = 9$ square feet.", "$\\$" + num(cents / 100) + "\\text{ per ft}^2\\cdot 9\\text{ ft}^2\\text{ per yd}^2 = \\$" + num(perYard / 100) + "$ per square yard.", "Check: a square yard is the larger unit, so its price is the larger number."],
-        verify: function () { return Math.round(cents * 3 * 3) === perYard && perYard > cents && cents >= 200 && cents <= 800; }
+        verify: function () {
+          /* count the square feet in a square yard cell by cell, and add their prices */
+          var feet = 0, i, j, sum = 0;
+          for (i = 0; i < 3; i++) for (j = 0; j < 3; j++) { feet++; sum += cents; }
+          return feet === 9 && Math.round(Number(String(this.answer).split("|")[0]) * 100) === sum && perYard > cents && cents >= 200 && cents <= 800;
+        }
       };
     }
   });
@@ -3178,6 +3195,14 @@
           /* try every integer from -40 to 40 in the original statement; the list is in increasing order and has 2 to 7 elements */
           var scan = iScan(tests), j;
           for (j = 1; j < scan.length; j++) if (scan[j] <= scan[j - 1]) return false;
+          if (kind === "solved") {
+            /* the solved bounds, by ceil and floor: x (solRel) (c - b) / a and x (other) L */
+            var kk = (c - b) / a, strictK = solRel === "<" || solRel === ">", strictL = other === "<" || other === ">";
+            var lowB = below ? L : kk, highB = below ? kk : L, lowStrict = below ? strictL : strictK, highStrict = below ? strictK : strictL;
+            var from = lowStrict ? Math.floor(lowB) + 1 : Math.ceil(lowB), to = highStrict ? Math.ceil(highB) - 1 : Math.floor(highB), list = [];
+            for (j = from; j <= to; j++) list.push(j);
+            if (list.join(",") !== String(this.answer).split("|")[0]) return false;
+          }
           return scan.join(",") === key && scan.length >= 2 && scan.length <= 7 && Math.abs(scan[0]) < 40 && Math.abs(scan[scan.length - 1]) < 40;
         }
       };
@@ -3319,12 +3344,21 @@
           "Add them: $" + cols.join(" + ") + " = " + key + "$."
         ],
         verify: function () {
-          /* list the points row by row (y first) and test each one in the original two inequalities */
-          var y, x2, n = 0, pts = [];
-          for (y = 0; y <= Y; y++) for (x2 = 0; x2 <= X; x2++) {
-            if (ineqHolds(rel1, a1 * x2 + b1 * y, c1) && ineqHolds(rel2, a2 * x2 + b2 * y, c2)) { n++; pts.push([x2, y]); }
+          /* for each x, solve both inequalities for y with ceil and floor, clip to the box, and add up the widths */
+          var n = 0, xv, lo, hi, ineqs = [[a1, b1, rel1, c1], [a2, b2, rel2, c2]], w;
+          for (xv = 0; xv <= X; xv++) {
+            lo = 0; hi = Y;
+            for (w = 0; w < 2; w++) {
+              var q2 = (ineqs[w][3] - ineqs[w][0] * xv) / ineqs[w][1], dir = ineqs[w][2];
+              if (ineqs[w][1] < 0) dir = dir === "<" ? ">" : dir === "<=" ? ">=" : dir === ">" ? "<" : "<=";
+              if (dir === "<") hi = Math.min(hi, Math.ceil(q2) - 1);
+              else if (dir === "<=") hi = Math.min(hi, Math.floor(q2));
+              else if (dir === ">") lo = Math.max(lo, Math.floor(q2) + 1);
+              else lo = Math.max(lo, Math.ceil(q2));
+            }
+            if (hi >= lo) n += hi - lo + 1;
           }
-          return String(n) === key && n === pts.length && n >= 6 && n <= 30;
+          return String(n) === String(this.answer).split("|")[0] && n >= 6 && n <= 30;
         }
       };
     }
@@ -4554,8 +4588,10 @@
         ],
         verify: function () {
           /* simple as the principal plus t yearly amounts, compound by the integer power route, and the compound one is ahead */
-          var s = P * 100 + t * P * rate, c = gPeriodCents(P, rate, t), x = Math.round(Number(key) * 100);
-          return c > 0 && Math.abs(Number(key) * 100 - x) < 1e-6 && c > s && x === (diff ? c - s : s) && t >= 2 && t <= 3;
+          var s = P * 100, c = gPeriodCents(P, rate, t), x = Math.round(Number(String(this.answer).split("|")[0]) * 100), yr2, paid = [];
+          for (yr2 = 1; yr2 <= t; yr2++) paid.push(Math.round(P * 100 * rate / 100));   /* one list entry per year of interest */
+          s += paid.reduce(function (a, b) { return a + b; }, 0);
+          return c > 0 && paid.length === t && c > s && x === (diff ? c - s : s) && t >= 2 && t <= 3;
         }
       };
     }
@@ -4602,9 +4638,8 @@
         ],
         verify: function () {
           /* multiply the per-period rate n times in whole cents; the principal kind multiplies the key forward */
-          var v = principal ? Math.round(Number(key) * 100) : P * 100, y, x = Math.round(Number(key) * 100);
-          for (y = 1; y <= n; y++) { if ((v * (100 + pct)) % 100 !== 0) return false; v = v * (100 + pct) / 100; }
-          return Math.abs(Number(key) * 100 - x) < 1e-6 && v === B && (principal ? x === P * 100 : x === B) && (n === 2 || n === 4) && B > P * 100 + P * rate;
+          var x = Math.round(Number(String(this.answer).split("|")[0]) * 100), bal = gPeriodCents(principal ? x / 100 : P, pct, n);
+          return bal > 0 && bal === B && (principal ? x === P * 100 : x === bal) && (n === 2 || n === 4) && B > P * 100 + P * rate;
         }
       };
     }
