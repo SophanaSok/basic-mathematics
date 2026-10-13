@@ -1090,6 +1090,66 @@ function refusal(fn) { try { fn(); return null; } catch (e) { return e.message; 
   check(CHECKS.some(c => c.name === "us-english"), "us-english: check-static runs it");
 }
 
+/* ------------------------------------------------------------------ scope -- */
+{
+  const gen = require("./gen-scope");
+  const { checkScope } = require("./check-static");
+  const real = gen.load();
+  eq(gen.render(real) === gen.render(real), true, "scope: render() is deterministic");
+  const ctxOf = () => ({ curriculum: real.curriculum });
+  let r = result();
+  checkScope(ctxOf(), r);
+  eq(r.fails, [], "scope: the real tree's scope.html is the generator's output");
+
+  const onDisk = fs.readFileSync(gen.FILE, "utf8");
+  const i = onDisk.indexOf("What the course covers</h1>");
+  r = result();
+  checkScope(ctxOf(), r, onDisk.slice(0, i) + "X" + onDisk.slice(i + 1));
+  eq([r.fails.length, /^scope\.html is stale: run node tools\/gen-scope\.js \(first difference at line \d+\)$/.test(r.fails[0] || "")], [1, true], "scope: a copy with one byte changed fails, naming the line");
+
+  /* a fixture: one chapter with two sections and one pack section */
+  const part = { dir: "1-a" }, pack = { dir: "5-packs", beside: true };
+  const chA = { id: "ch01", label: "1", title: "Numbers", file: "01.html", part, sections: [
+    { id: "one", title: "One & <two>", summary: "It's the \"first\"." }, { id: "two", title: "Two", summary: "The second." }] };
+  const chP = { id: "pk-x", label: "A", title: "Ratios", file: "pk-x.html", part: pack, sections: [{ id: "rat", title: "Rates", summary: "Rates." }] };
+  const cur = { chapters: [chA, chP], courseChapters: [chA] };
+  const real2 = real.skills;
+  const rec = (course, ccss, tags) => Object.assign({ ccss, also: [], course, sat: [], act: [], accuplacer: [], aleks: [] }, tags);
+  const sk = Object.assign({}, real2, {
+    SKILLS: {
+      "ch01#one": rec("pre-algebra", "7.NS.A.1.c", { sat: ["sat.psda.pct"], aleks: ["ppl.real"] }),
+      "ch01#two": rec("algebra-1", null, {}),
+      "pk-x#rat": rec("pre-algebra", "6.RP.A.3", { approx: true, also: ["7.RP.A.3"], accuplacer: ["qas.ratio", "aaf.fn"] })
+    },
+    CONTAINERS: [], SINGLE_SECTION_TAGS: { "sat.psda.pct": "only here" }
+  });
+  const html = gen.render({ curriculum: cur, skills: sk });
+  const has = (needle, what) => check(html.indexOf(needle) > -1, "scope: " + what + " — missing " + needle);
+  has("<h2>Pre-algebra</h2>", "a band heading");
+  has("<h2>Algebra 1</h2>", "the next band heading");
+  has("<caption>Sections taught in Pre-algebra</caption>", "a caption");
+  has('<a href="parts/1-a/01.html#one">One &amp; &lt;two&gt;</a>', "a section link, escaped");
+  has('<a href="parts/5-packs/pk-x.html#rat">Rates</a>', "a pack section link");
+  has("Pack A · Ratios", "the pack's chapter cell");
+  has("Chapter 1 · Numbers", "the chapter cell");
+  has("It's the &quot;first&quot;.", "the summary, escaped");
+  has('<a href="https://www.thecorestandards.org/Math/Content/7/NS/">7.NS.A.1.c</a>', "the code link");
+  has('≈ <a href="https://www.thecorestandards.org/Math/Content/6/RP/">6.RP.A.3</a> <span class="fine">also 7.RP.A.3</span>', "an approximate code with its also");
+  has("Reasoning (no content standard)", "a null code");
+  has('data-th="SAT">Percentages<', "a SAT tag label");
+  has('data-th="Accuplacer QAS">Ratio and proportional relationships<', "a QAS tag label");
+  has('data-th="Accuplacer AAF">Functions<', "an AAF tag label");
+  has('data-th="ACT">—<', "an empty family reads as a dash");
+  has("One SAT topic is taught in one section: Percentages (only here).", "the single-section sentence");
+  check(html.indexOf("<h2>Mixed review</h2>") < 0, "scope: no mixed-review heading without containers");
+  let threw = null;
+  try { gen.render({ curriculum: cur, skills: Object.assign({}, sk, { SAT_TAGS: sk.SAT_TAGS.concat(["sat.new.tag"]) }) }); } catch (e) { threw = e.message; }
+  check(/sat\.new\.tag has no label/.test(threw || ""), "scope: a tag in a list with no label throws — got " + threw);
+  threw = null;
+  try { gen.render({ curriculum: cur, skills: Object.assign({}, sk, { SAT_TAGS: sk.SAT_TAGS.slice(1) }) }); } catch (e) { threw = e.message; }
+  check(/label for sat\.alg\.lin1/.test(threw || ""), "scope: a label for a tag in no list throws — got " + threw);
+}
+
 /* ------------------------------------------------------------------ serve -- */
 /* what lib/serve.js hands out from a tree written here: a build is served as it is,
    and a page that still carries a shell marker (a source page put where a build should
