@@ -11,6 +11,8 @@
    mixtures; checking an answer against the story).
    Pack G, "Growth, Decay and Sequences": sections 1-4 (arithmetic and geometric sequences; exponential
    growth and decay; compound interest; solving with logarithms).
+   Pack H, "Factoring and Rational Expressions": sections 1-2 (factoring trinomials and special forms;
+   simplifying rational expressions).
    The quartiles follow the median-of-halves rule of src/ui/chart.ts.
 
    A problem may carry a chart the Arena draws with the page widget (assets/widgets.js,
@@ -4823,6 +4825,367 @@
           var next = v * b, w = 1;
           for (i = 0; i < 40 && w <= y; i++) { if (w === y) isPow = true; w *= b; }
           return v < y && next > y && !isPow && x >= 1 && x <= 6 && y <= 100000;
+        }
+      };
+    }
+  });
+
+  /* ============================================ pack H §1-2: factoring and rational expressions ==
+     Tables are enumerated once at load, and every key is written with the sign absorbed, as the
+     page types it: (x-3)(x+6). An expr key has no caret (check-gen's reader has none), so no perfect
+     square is asked here, and a denominator of a key is x - k or x + k with k at least 3 so that it is
+     never zero on -2..2 where check-gen evaluates the key. */
+
+  /* "x + 3" and "x - 3" as math; "x+3" and "x-3" as a key */
+  function hxT(k) { return k < 0 ? "x - " + (-k) : "x + " + k; }
+  function hxK(k) { return k < 0 ? "x-" + (-k) : "x+" + k; }
+  /* "ax + p" as math and as a key */
+  function haxT(a, p) { return a + "x" + (p < 0 ? " - " + (-p) : " + " + p); }
+  function haxK(a, p) { return a + "x" + (p < 0 ? "-" + (-p) : "+" + p); }
+  /* a x^2 + b x + c as math, with no unit coefficient and no zero term */
+  function hTri(a, b, c) {
+    var s = (a === 1 ? "" : a) + "x^2";
+    if (b) s += (b < 0 ? " - " : " + ") + (Math.abs(b) === 1 ? "" : Math.abs(b)) + "x";
+    if (c) s += (c < 0 ? " - " : " + ") + Math.abs(c);
+    return s;
+  }
+  /* a signed multiple of a bracket, as a later term of a sum: " + 3(x + 4)", " - (x - 2)" */
+  function hMulT(k, body) {
+    return (k < 0 ? " - " : " + ") + (Math.abs(k) === 1 ? "" : Math.abs(k)) + "(" + body + ")";
+  }
+  /* the pair {p, q} (either order) is in the list of [p, q] pairs */
+  function hHasPair(list, p, q) {
+    return list.some(function (e) { return (e[0] === p && e[1] === q) || (e[0] === q && e[1] === p); });
+  }
+
+  /* pk-fact-pair: x^2 + bx + c = (x + p)(x + q), p < q, |p|, |q| up to 9, neither 0, p + q not 0.
+     The page's x^2 - 3x - 28, x^2 - 7x + 10, x^2 + 2x - 15, x^2 + 9x + 20, x^2 + 5x + 6, x^2 + x - 6, x^2 - x - 6,
+     x^2 - 7x + 12, x^2 + x - 12, x^2 - x - 12, x^2 - 3x - 10, x^2 + 3x - 18, x^2 - 11x + 24, x^2 + 7x + 12 and
+     x^2 - 5x + 4 are left out. */
+  var HPAIR_SKIP = [[-7, 4], [-2, -5], [-3, 5], [4, 5], [2, 3], [-2, 3], [-3, 2], [-3, -4], [-4, 3], [-5, 2], [-3, 6], [-3, -8], [3, 4], [-1, -4]];
+  var HPAIR = (function () {
+    var out = [], p, q;
+    for (p = -9; p <= 9; p++) {
+      for (q = p + 1; q <= 9; q++) {
+        if (p === 0 || q === 0 || p + q === 0 || hHasPair(HPAIR_SKIP, p, q)) continue;
+        out.push([p, q]);
+      }
+    }
+    return out;
+  })();
+
+  G.add({
+    id: "pk-fact-pair", section: "pk-rational#factor", par: 60, timed: true,
+    make: function (r) {
+      var e = r.pick(HPAIR) || [3, 4], p = e[0], q = e[1], b = p + q, c = p * q;
+      var key = "(" + hxK(p) + ")(" + hxK(q) + ")|(" + hxK(q) + ")(" + hxK(p) + ")";
+      var tri = hTri(1, b, c);
+      return {
+        q: "Factor $" + tri + "$.",
+        type: "expr", answer: key, placeholder: holder("e.g. (x+1)(x+4)", key, "e.g. (x+2)(x+7)"),
+        hint: "Look for two numbers whose product is the last term and whose sum is the middle coefficient. The sign of the last term says whether the two numbers share a sign.",
+        steps: [
+          "There is no common factor. Look for two numbers with product $" + c + "$ and sum $" + b + "$.",
+          c > 0 ? "The product is positive, so the two numbers have the same sign, and it is the sign of the sum $" + b + "$."
+            : "The product is negative, so the two numbers have opposite signs, and the one with the larger absolute value takes the sign of the sum $" + b + "$.",
+          "The numbers are $" + p + "$ and $" + q + "$, since $" + p + " \\cdot " + (q < 0 ? "(" + q + ")" : q) + " = " + c + "$ and $" + p + " + " + (q < 0 ? "(" + q + ")" : q) + " = " + b + "$, so $" + tri + " = (" + hxT(p) + ")(" + hxT(q) + ")$.",
+          "Check by expanding: $(" + hxT(p) + ")(" + hxT(q) + ") = x^2 " + (q < 0 ? "- " + (-q) : "+ " + q) + "x " + (p < 0 ? "- " + (-p) : "+ " + p) + "x " + (c < 0 ? "- " + (-c) : "+ " + c) + " = " + tri + "$ ✓."
+        ],
+        verify: function () {
+          /* read the two numbers out of the printed key, add and multiply them, and compare with b and c; then evaluate both forms at 10 */
+          var m = /^\(x([+-]\d+)\)\(x([+-]\d+)\)\|/.exec(this.answer);
+          if (!m) return false;
+          var kp = Number(m[1]), kq = Number(m[2]);
+          return kp + kq === b && kp * kq === c && kp !== kq && kp !== 0 && kq !== 0 && (10 + kp) * (10 + kq) === 100 + 10 * b + c;
+        }
+      };
+    }
+  });
+
+  /* pk-fact-lead: ax^2 + bx + c = (ax + p)(x + q), a in 2, 3, 5, gcd(a, |p|) = 1, p and q up to 7 and not 0.
+     The page's 3x^2 + 10x + 8, 5x^2 + 17x + 6 and 2x^2 - 5x - 12 are left out. */
+  var HLEAD = (function () {
+    var out = [], as = [2, 3, 5], ai, a, p, q;
+    for (ai = 0; ai < as.length; ai++) {
+      a = as[ai];
+      for (p = -7; p <= 7; p++) {
+        for (q = -7; q <= 7; q++) {
+          if (p === 0 || q === 0 || gcd(a, Math.abs(p)) !== 1) continue;
+          if ((a === 3 && p === 4 && q === 2) || (a === 5 && p === 2 && q === 3) || (a === 2 && p === 3 && q === -4)) continue;
+          if (a * q + p === 0) continue;
+          out.push([a, p, q]);
+        }
+      }
+    }
+    return out;
+  })();
+
+  G.add({
+    id: "pk-fact-lead", section: "pk-rational#factor", par: 80, timed: true,
+    make: function (r) {
+      var e = r.pick(HLEAD) || [2, 1, 3], a = e[0], p = e[1], q = e[2], b = a * q + p, c = p * q, ac = a * c;
+      var key = "(" + haxK(a, p) + ")(" + hxK(q) + ")|(" + hxK(q) + ")(" + haxK(a, p) + ")";
+      var tri = hTri(a, b, c), n1 = a * q, n2 = p;
+      return {
+        q: "Factor $" + tri + "$.",
+        type: "expr", answer: key, placeholder: holder("e.g. (2x+1)(x+4)", key, "e.g. (3x+2)(x+5)"),
+        hint: "Multiply the leading coefficient by the last term, and find two numbers with that product that add to the middle coefficient. Split the middle term into those two pieces and group.",
+        steps: [
+          "There is no common factor. The leading coefficient times the last term is $" + a + " \\cdot " + (c < 0 ? "(" + c + ")" : c) + " = " + ac + "$, so look for two numbers with product $" + ac + "$ and sum $" + b + "$.",
+          "They are $" + n1 + "$ and $" + n2 + "$. Split the middle term: $" + tri + " = " + hTri(a, 0, 0) + (n1 < 0 ? " - " : " + ") + (Math.abs(n1) === 1 ? "" : Math.abs(n1)) + "x" + (n2 < 0 ? " - " : " + ") + (Math.abs(n2) === 1 ? "" : Math.abs(n2)) + "x" + (c < 0 ? " - " : " + ") + Math.abs(c) + "$.",
+          "Group: $" + a + "x(" + hxT(q) + ")" + hMulT(p, hxT(q)) + " = (" + haxT(a, p) + ")(" + hxT(q) + ")$, since both groups leave the bracket $" + hxT(q) + "$.",
+          "Check by expanding: $(" + haxT(a, p) + ")(" + hxT(q) + ")$ has $x^2$ coefficient $" + a + "$, $x$ coefficient $" + n1 + " + (" + n2 + ") = " + b + "$ and last term $" + p + " \\cdot (" + q + ") = " + c + "$ ✓."
+        ],
+        verify: function () {
+          /* read a, p and q out of the printed key, expand the product coefficient by coefficient, compare with the trinomial's three, and evaluate at 10 */
+          var m = /^\((\d+)x([+-]\d+)\)\(x([+-]\d+)\)\|/.exec(this.answer);
+          if (!m) return false;
+          var ka = Number(m[1]), kp = Number(m[2]), kq = Number(m[3]);
+          return ka === a && ka * kq + kp === b && kp * kq === c && gcd(ka, Math.abs(kp)) === 1 && (ka * 10 + kp) * (10 + kq) === a * 100 + b * 10 + c;
+        }
+      };
+    }
+  });
+
+  /* pk-fact-special: a difference of squares with a numeric factor, k x^2 - k m^2 (k in 1, 2, 3, 5, m 2..9), or a monomial common
+     factor, k x^2 +- k m x (k in 2..7, m 2..9). The page's x^2 - 49, x^2 - 64, x^2 - 36, x^2 - 16, 5x^2 - 80 and 3x^2 + 12x are left out. */
+  var HSQ = (function () {
+    var out = [], ks = [1, 2, 3, 5], ki, k, m;
+    for (ki = 0; ki < ks.length; ki++) {
+      k = ks[ki];
+      for (m = 2; m <= 9; m++) {
+        if (k === 1 && (m === 7 || m === 8 || m === 6 || m === 4)) continue;
+        if (k === 5 && m === 4) continue;
+        out.push([k, m]);
+      }
+    }
+    return out;
+  })();
+  var HGCF = (function () {
+    var out = [], k, m, sg;
+    for (k = 2; k <= 7; k++) {
+      for (m = 2; m <= 9; m++) {
+        for (sg = -1; sg <= 1; sg += 2) {
+          if (k === 3 && m === 4 && sg === 1) continue;
+          out.push([k, sg * m]);
+        }
+      }
+    }
+    return out;
+  })();
+
+  G.add({
+    id: "pk-fact-special", section: "pk-rational#factor", par: 60, timed: true,
+    make: function (r) {
+      var sq = r.chance(0.5), e, k, m, key, tri, steps, hint, coef;
+      if (sq) {
+        e = r.pick(HSQ) || [2, 3]; k = e[0]; m = e[1];
+        tri = (k === 1 ? "" : k) + "x^2 - " + (k * m * m); coef = [k, 0, -k * m * m];
+        key = k === 1 ? "(x-" + m + ")(x+" + m + ")|(x+" + m + ")(x-" + m + ")" : k + "(x-" + m + ")(x+" + m + ")|" + k + "(x+" + m + ")(x-" + m + ")";
+        hint = k === 1 ? "Both terms are perfect squares and the sign between them is minus. Ask which number times itself is the last term."
+          : "Take the common factor out first, then look at what is left. Is it a difference of squares?";
+        steps = (k === 1 ? [] : [
+          "Both terms are multiples of $" + k + "$, so $" + tri + " = " + k + "(x^2 - " + (m * m) + ")$."
+        ]).concat([
+          "In $x^2 - " + (m * m) + "$ the last term is $" + m + "^2$, so it is a difference of squares: $x^2 - " + (m * m) + " = (x - " + m + ")(x + " + m + ")$.",
+          "So $" + tri + " = " + (k === 1 ? "" : k) + "(x - " + m + ")(x + " + m + ")$.",
+          "Check by expanding: $(x - " + m + ")(x + " + m + ") = x^2 - " + (m * m) + "$" + (k === 1 ? "" : ", and $" + k + "$ times that is $" + tri + "$") + " ✓."
+        ]);
+      } else {
+        e = r.pick(HGCF) || [2, 3]; k = e[0]; m = e[1];
+        tri = k + "x^2 " + (m < 0 ? "- " + (k * -m) : "+ " + (k * m)) + "x"; coef = [k, k * m, 0];
+        key = k + "x(" + hxK(m) + ")";
+        hint = "Look for the largest factor that divides both terms, with the letter included, take it out, and write what is left in a bracket.";
+        steps = [
+          "Both terms are multiples of $" + k + "x$: $" + k + "x^2 = " + k + "x \\cdot x$ and $" + (k * m) + "x = " + k + "x \\cdot " + (m < 0 ? "(" + m + ")" : m) + "$.",
+          "So $" + tri + " = " + k + "x(" + hxT(m) + ")$. The bracket $" + hxT(m) + "$ has no common factor left, so this is complete.",
+          "Check by expanding: $" + k + "x \\cdot x = " + k + "x^2$ and $" + k + "x \\cdot " + (m < 0 ? "(" + m + ")" : m) + " = " + (k * m) + "x$ ✓."
+        ];
+      }
+      return {
+        q: "Factor $" + tri + "$ completely.",
+        type: "expr", answer: key, placeholder: holder(sq ? "e.g. 3(x-1)(x+1)" : "e.g. 4x(x+1)", key, sq ? "e.g. 2(x-2)(x+2)" : "e.g. 6x(x-2)"),
+        hint: hint, steps: steps,
+        verify: function () {
+          /* read the printed key's factors, multiply them out at four values of x and compare with the stem's polynomial; the common-factor kind must take out all of k */
+          var first = this.answer.split("|")[0], xs = [-3, 2, 5, 10], i, kk, a1, a2, mm;
+          mm = /^(\d*)\(x-(\d+)\)\(x\+(\d+)\)$/.exec(first);
+          if (mm) {
+            kk = mm[1] === "" ? 1 : Number(mm[1]); a1 = Number(mm[2]); a2 = Number(mm[3]);
+            if (a1 !== a2 || a1 < 2) return false;
+            for (i = 0; i < xs.length; i++) if (kk * (xs[i] - a1) * (xs[i] + a2) !== coef[0] * xs[i] * xs[i] + coef[1] * xs[i] + coef[2]) return false;
+            return coef[1] === 0 && coef[2] === -kk * a1 * a1;
+          }
+          mm = /^(\d+)x\(x([+-])(\d+)\)$/.exec(first);
+          if (!mm) return false;
+          kk = Number(mm[1]); a1 = (mm[2] === "-" ? -1 : 1) * Number(mm[3]);
+          for (i = 0; i < xs.length; i++) if (kk * xs[i] * (xs[i] + a1) !== coef[0] * xs[i] * xs[i] + coef[1] * xs[i] + coef[2]) return false;
+          return gcd(coef[0], Math.abs(coef[1])) === kk && coef[2] === 0;
+        }
+      };
+    }
+  });
+
+  /* pk-rat-excluded: where N / (x^2 + bx + c) is undefined, (x - r)(x - s) with r < s, both nonzero, r + s not 0, up to 9.
+     The numerator is a constant 1..9 or x + a / x - a with a root different from r and s. The page's bottoms
+     x^2 - 3x - 10, x^2 - x - 12, x^2 + x - 6, x^2 - 3x + 2 and x^2 + x - 12 are left out. */
+  var HEXC_SKIP = [[-2, 5], [-3, 4], [-3, 2], [1, 2], [-4, 3]];
+  var HEXC = (function () {
+    var out = [], r0, s0, n, a;
+    for (r0 = -9; r0 <= 9; r0++) {
+      for (s0 = r0 + 1; s0 <= 9; s0++) {
+        if (r0 === 0 || s0 === 0 || r0 + s0 === 0 || hHasPair(HEXC_SKIP, r0, s0)) continue;
+        for (n = 1; n <= 9; n++) out.push([r0, s0, "c", n]);
+        for (a = -9; a <= 9; a++) if (a !== 0 && -a !== r0 && -a !== s0) out.push([r0, s0, "x", a]);
+      }
+    }
+    return out;
+  })();
+
+  G.add({
+    id: "pk-rat-excluded", section: "pk-rational#simplify", par: 50, timed: true,
+    make: function (r) {
+      var e = r.pick(HEXC) || [-3, 5, "c", 2], r0 = e[0], s0 = e[1], kind = e[2], nv = e[3], b = -(r0 + s0), c = r0 * s0;
+      var top = kind === "c" ? String(nv) : hxT(nv), bot = hTri(1, b, c), key = r0 + "," + s0;
+      return {
+        q: "For which values of $x$ is $\\dfrac{" + top + "}{" + bot + "}$ not defined? Give the values, separated by a comma.",
+        type: "set", answer: key, placeholder: holder("e.g. 1,6", key, "e.g. 2,3", true),
+        hint: "A fraction is not defined where its bottom is zero. Factor the bottom, and find the values that make a factor zero.",
+        steps: [
+          "The fraction is not defined where the bottom is zero, so factor the bottom: look for two numbers with product $" + c + "$ and sum $" + b + "$.",
+          "They are $" + (-r0) + "$ and $" + (-s0) + "$, so $" + bot + " = (" + hxT(-r0) + ")(" + hxT(-s0) + ")$.",
+          "A factor is zero at $x = " + r0 + "$ and at $x = " + s0 + "$, so the fraction is not defined at " + "$x = " + r0 + "$ and $x = " + s0 + "$.",
+          "Check by putting each value into the bottom: $(" + r0 + ")^2 + (" + b + ")(" + r0 + ") + (" + c + ") = " + (r0 * r0) + " + (" + (b * r0) + ") + (" + c + ") = 0$ and $(" + s0 + ")^2 + (" + b + ")(" + s0 + ") + (" + c + ") = " + (s0 * s0) + " + (" + (b * s0) + ") + (" + c + ") = 0$ ✓."
+        ],
+        verify: function () {
+          var parts = this.answer.split(","), v1 = Number(parts[0]), v2 = Number(parts[1]), w, roots = 0, numOk = true;
+          if (parts.length !== 2 || v1 >= v2) return false;
+          [v1, v2].forEach(function (v) {
+            if (v * v + b * v + c !== 0) numOk = false;
+            if (kind === "x" && v + nv === 0) numOk = false;
+          });
+          for (w = -10; w <= 10; w++) if (w * w + b * w + c === 0) roots++;
+          return numOk && roots === 2 && v1 !== v2;
+        }
+      };
+    }
+  });
+
+  /* pk-rat-simplify: (x^2 + bx + c) / (x^2 + dx + e) = (x + s)(x + p) / ((x + s)(x + k)), p, s, k nonzero up to 9 in size, all three different,
+     and |k| at least 3 so the key's bottom is never zero on -2..2 (the canceled root -s is free). Or (x^2 - m^2) / (x + m) = x - m, or over
+     x - m = x + m, m 2..9. The page's (-3, 2, 4) and (-3, -4, 3) are left out. */
+  var HSIMP = (function () {
+    var out = [], s0, p, k;
+    for (s0 = -9; s0 <= 9; s0++) {
+      for (p = -9; p <= 9; p++) {
+        for (k = -9; k <= 9; k++) {
+          if (s0 === 0 || p === 0 || Math.abs(k) < 3 || s0 === p || s0 === k || p === k) continue;
+          if ((s0 === -3 && p === 2 && k === 4) || (s0 === -3 && p === -4 && k === 3)) continue;
+          out.push([s0, p, k]);
+        }
+      }
+    }
+    return out;
+  })();
+
+  G.add({
+    id: "pk-rat-simplify", section: "pk-rational#simplify", par: 80, timed: true,
+    make: function (r) {
+      var b, c, d, e, key, steps, q, m, sg, e3, s0, p, k, T, B, g;
+      if (r.chance(0.25)) {
+        m = r.int(2, 9); sg = r.chance(0.5) ? 1 : -1;
+        /* (x^2 - m^2) / (x + m) = x - m  when sg = 1;  / (x - m) = x + m  when sg = -1 */
+        key = sg === 1 ? "x-" + m : "x+" + m;
+        q = "Simplify $\\dfrac{x^2 - " + (m * m) + "}{" + (sg === 1 ? "x + " : "x - ") + m + "}$.";
+        T = 100 - m * m; B = 10 + sg * m;
+        steps = [
+          "The top is a difference of squares: $x^2 - " + (m * m) + " = (x - " + m + ")(x + " + m + ")$. The bottom is already a factor.",
+          "The bottom is zero at $x = " + (-sg * m) + "$, so that value is excluded.",
+          "Dividing out $" + (sg === 1 ? "x + " : "x - ") + m + "$ leaves $" + (sg === 1 ? "x - " : "x + ") + m + "$, for $x \\ne " + (-sg * m) + "$.",
+          "Check at $x = 10$: the original gives $\\frac{" + T + "}{" + B + "} = " + (T / B) + "$ and the simplified form gives $" + (10 - sg * m) + "$ ✓."
+        ];
+        return {
+          q: q, type: "expr", answer: key, placeholder: holder("e.g. x+1", key, "e.g. x-4"),
+          hint: "The top is a difference of squares. Factor it, and see which factor the bottom already is.",
+          steps: steps,
+          verify: function () {
+            /* the original quotient and the printed key at three allowed values, and the key is a polynomial (no common root with the bottom to find) */
+            var mm = /^x([+-])(\d+)$/.exec(this.answer), xs = [10, 11, -12], i, kv;
+            if (!mm) return false;
+            kv = (mm[1] === "-" ? -1 : 1) * Number(mm[2]);
+            for (i = 0; i < xs.length; i++) if (xs[i] + sg * m === 0 || Math.abs((xs[i] * xs[i] - m * m) / (xs[i] + sg * m) - (xs[i] + kv)) > 1e-9 || Math.abs(wEval(this.answer, xs[i]) - (xs[i] + kv)) > 1e-6) return false;
+            return kv === -sg * m && m >= 2;
+          }
+        };
+      }
+      e3 = r.pick(HSIMP) || [-3, 2, 5]; s0 = e3[0]; p = e3[1]; k = e3[2];
+      b = s0 + p; c = s0 * p; d = s0 + k; e = s0 * k;
+      key = "(" + hxK(p) + ")/(" + hxK(k) + ")";
+      T = (10 + s0) * (10 + p); B = (10 + s0) * (10 + k); g = gcd(T, B);
+      return {
+        q: "Simplify $\\dfrac{" + hTri(1, b, c) + "}{" + hTri(1, d, e) + "}$.",
+        type: "expr", answer: key, placeholder: holder("e.g. (x+1)/(x-4)", key, "e.g. (x+2)/(x-5)"),
+        hint: "Factor the top and the bottom completely, then divide out the factor they share. Only a factor can be divided out, not a term.",
+        steps: [
+          "Factor the top: look for two numbers with product $" + c + "$ and sum $" + b + "$. They are $" + s0 + "$ and $" + p + "$, so the top is $(" + hxT(s0) + ")(" + hxT(p) + ")$.",
+          "Factor the bottom: look for two numbers with product $" + e + "$ and sum $" + d + "$. They are $" + s0 + "$ and $" + k + "$, so the bottom is $(" + hxT(s0) + ")(" + hxT(k) + ")$.",
+          "The bottom is zero at $x = " + (-s0) + "$ and $x = " + (-k) + "$, so those values are excluded. The common factor is $" + hxT(s0) + "$; dividing it out leaves $\\dfrac{" + hxT(p) + "}{" + hxT(k) + "}$.",
+          "Check at $x = 10$, which is allowed: the original gives $\\frac{" + T + "}{" + B + "}$ and the simplified form gives $\\frac{" + (10 + p) + "}{" + (10 + k) + "}$, and both are $\\frac{" + (T / g) + "}{" + (B / g) + "}$ in lowest terms ✓."
+        ],
+        verify: function () {
+          /* the original quotient (coefficients evaluated directly) against the printed key's value at three allowed x; the key's top and bottom share no root */
+          var mm = /^\(x([+-]\d+)\)\/\(x([+-]\d+)\)$/.exec(this.answer), xs = [10, 11, -12], i, num, den, kp, kk;
+          if (!mm) return false;
+          kp = Number(mm[1]); kk = Number(mm[2]);
+          for (i = 0; i < xs.length; i++) {
+            num = xs[i] * xs[i] + b * xs[i] + c; den = xs[i] * xs[i] + d * xs[i] + e;
+            if (den === 0 || Math.abs(num / den - wEval(this.answer, xs[i])) > 1e-5) return false;
+          }
+          return kp !== kk && Math.abs(kk) >= 3 && kp !== 0;
+        }
+      };
+    }
+  });
+
+  /* pk-rat-value: simplify, then evaluate at x = n. Triples (s, p, k) of nonzero numbers up to 9 in size, all different, with n 1..10 so that
+     n + k and n + p are not zero and (n + p) / (n + k) has at most one decimal. The page's (-2, 5, 2) is left out. */
+  var HVAL = (function () {
+    var out = [], s0, p, k, n, num, den;
+    for (s0 = -9; s0 <= 9; s0++) {
+      for (p = -9; p <= 9; p++) {
+        for (k = -9; k <= 9; k++) {
+          if (s0 === 0 || p === 0 || k === 0 || s0 === p || s0 === k || p === k) continue;
+          if (s0 === -2 && p === 5 && k === 2) continue;
+          for (n = 1; n <= 10; n++) {
+            num = n + p; den = n + k;
+            if (n + s0 === 0 || den === 0 || num === 0 || (num * 10) % den !== 0 || Math.abs(num / den) > 20) continue;
+            out.push([s0, p, k, n]);
+          }
+        }
+      }
+    }
+    return out;
+  })();
+
+  G.add({
+    id: "pk-rat-value", section: "pk-rational#simplify", par: 60, timed: true,
+    make: function (r) {
+      var e = r.pick(HVAL) || [-3, 2, 5, 4], s0 = e[0], p = e[1], k = e[2], n = e[3];
+      var b = s0 + p, c = s0 * p, d = s0 + k, ee = s0 * k, val = (n + p) / (n + k), key = clean(val);
+      return {
+        q: "Simplify $\\dfrac{" + hTri(1, b, c) + "}{" + hTri(1, d, ee) + "}$, and then evaluate the result at $x = " + n + "$. Give the value as a number.",
+        type: "number", answer: key, placeholder: holder("e.g. 2", key, "e.g. 3"),
+        hint: "Factor the top and the bottom, divide out the shared factor, and put the number into what is left.",
+        steps: [
+          "Factor the top with two numbers of product $" + c + "$ and sum $" + b + "$, and the bottom with two numbers of product $" + ee + "$ and sum $" + d + "$: the top is $(" + hxT(s0) + ")(" + hxT(p) + ")$ and the bottom is $(" + hxT(s0) + ")(" + hxT(k) + ")$.",
+          "Dividing out $" + hxT(s0) + "$ leaves $\\dfrac{" + hxT(p) + "}{" + hxT(k) + "}$, and $x = " + n + "$ is allowed.",
+          "At $x = " + n + "$ that is $\\dfrac{" + (n + p) + "}{" + (n + k) + "} = " + key + "$.",
+          "Check by evaluating the original directly: $\\dfrac{" + (n * n + b * n + c) + "}{" + (n * n + d * n + ee) + "} = " + key + "$ ✓."
+        ],
+        verify: function () {
+          /* the original numerator and denominator at n, directly, then divide */
+          var num = n * n + b * n + c, den = n * n + d * n + ee;
+          return den !== 0 && n + s0 !== 0 && Math.abs(num / den - Number(this.answer)) < 1e-9 && Math.abs(Number(this.answer) * 10 - Math.round(Number(this.answer) * 10)) < 1e-9;
         }
       };
     }

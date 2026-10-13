@@ -76,8 +76,8 @@ function fixtureSource() {
   const C = sb.window.BM_CURRICULUM;
   const part = C.parts[C.parts.length - 1];
   eq([part.id, part.num, part.dir, part.beside], ["packs", "V", "5-packs", true], "the last Part of data/curriculum.js is Part V, the skill packs, beside");
-  eq(part.chapters.map((c) => c.id + ":" + c.label + ":" + c.course), ["pk-percent:A:pre-algebra", "pk-data:B:pre-algebra", "pk-chance:C:pre-algebra", "pk-units:D:pre-algebra", "pk-linear:E:algebra-1", "pk-words:F:algebra-1", "pk-growth:G:algebra-1"], "packs A to G are the packs so far");
-  eq([C.chapters.length, C.courseChapters.length], [24, 17], "the real tree: 24 chapters, 17 in the course");
+  eq(part.chapters.map((c) => c.id + ":" + c.label + ":" + c.course), ["pk-percent:A:pre-algebra", "pk-data:B:pre-algebra", "pk-chance:C:pre-algebra", "pk-units:D:pre-algebra", "pk-linear:E:algebra-1", "pk-words:F:algebra-1", "pk-growth:G:algebra-1", "pk-rational:H:algebra-2"], "packs A to H are the packs so far");
+  eq([C.chapters.length, C.courseChapters.length], [25, 17], "the real tree: 25 chapters, 17 in the course");
 }
 
 /* ------------------------------------------------------ assets/site.js pages */

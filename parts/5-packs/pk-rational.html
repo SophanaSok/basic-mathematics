@@ -1,0 +1,575 @@
+<!doctype html>
+<html lang="en">
+<head>
+<!--bm:head-->
+<title>Pack H. Factoring and Rational Expressions — Basic Mathematics</title>
+<meta name="description" content="Factoring read as multiplication backward: a trinomial with a leading coefficient of one needs two numbers with a given product and sum, a common factor comes out first, a trinomial with a larger leading coefficient splits its middle term, the difference of squares and the perfect square come from expanding, and expanding back is the check; then rational expressions, where the values that make the bottom zero are excluded before anything cancels, only factors and never terms divide out, an opposite factor gives minus one, and the simplified form agrees with the original at every allowed value: the algebra skills the gate exams ask for and the book leaves out.">
+</head>
+<body data-depth="2" data-chapter="pk-rational" data-part="packs">
+<!--bm:topbar-->
+
+<div class="wrap">
+<div class="layout">
+  <aside class="sidebar" data-sidebar></aside>
+  <main id="main">
+
+    <header class="region-banner">
+      <p class="eyebrow">Skill packs · Pack H</p>
+      <h1>Factoring and Rational Expressions</h1>
+      <p class="lede">
+        Multiplying two brackets is a routine you know, and factoring is the same routine run backward: given the product, find the brackets.
+        This pack starts there. It reads a trinomial with a leading coefficient of one as two numbers with a product and a sum, takes a common
+        factor out first, splits the middle term of a trinomial with a larger leading coefficient, and meets the two special forms, the
+        difference of squares and the perfect square, each argued from expanding and each checked by expanding back. Its second section
+        puts factoring to work on fractions whose top and bottom are polynomials. Such a fraction is undefined where its bottom is zero,
+        it simplifies by dividing out common <em>factors</em> and never common terms, and a factor that is the opposite of another gives
+        minus one.
+      </p>
+
+      <div class="banner-meta" data-banner-meta></div>
+
+    </header>
+
+    <div class="puzzle" id="puzzle">
+      <span class="tag">A puzzle to carry through the pack</span>
+      <p>
+        Try $x = 3$ in $\dfrac{x^2 - 1}{x - 1}$ and you get $\frac{8}{2} = 4$, which is the same as $x + 1 = 4$. Is the fraction
+        $\dfrac{x^2 - 1}{x - 1}$ equal to $x + 1$?
+      </p>
+      <ul class="guess">
+        <li>Yes, for every value of $x$</li>
+        <li>Yes, except at one value of $x$</li>
+        <li>No, they only agree at some values</li>
+      </ul>
+      <p class="puzzle-after">One test value agreeing does not settle it, and the question hides a trap in the single value of $x$ that makes the bottom of the fraction zero. The first section learns to write $x^2 - 1$ as a product of brackets, and the second uses that product to cancel, and to say exactly where the canceled fraction and the original stop agreeing.</p>
+    </div>
+
+    <div class="goal">
+      <strong>By the end of this pack you can</strong>
+      factor a trinomial $x^2 + bx + c$ by finding two numbers with product $c$ and sum $b$, take a common factor out first, factor
+      $ax^2 + bx + c$ by splitting the middle term, factor a difference of squares and a perfect square, and check any factoring
+      by expanding back. You can name the values of $x$ that a rational expression excludes, simplify it by factoring top and bottom
+      completely and dividing out common factors, handle an opposite factor, and check a simplified form by evaluating both forms at an allowed value.
+    </div>
+
+    <section class="warmup" id="warmup">
+      <div class="callout aside">
+        <span class="tag">Before you start</span>
+        <p>
+          This pack leans on <a href="../1-algebra/04-quadratic-equations.html#square-roots">solving factored equations</a> (Chapter 4, where a product
+          equal to zero has a zero factor) and on <a href="../1-algebra/01-numbers.html#rationals">reducing fractions</a> by a common factor (Chapter 1).
+          Its polynomials are the ones of <a href="../4-topics/12-functions.html#polynomials">Chapter 12</a>. You can read it at any point alongside the course.
+        </p>
+      </div>
+
+      <p>
+        Three quick ones to wake up what the pack stands on. They are not scored. If one doesn't
+        come to you, its solution says where to look.
+      </p>
+
+      <div class="ex" data-inline id="w1" data-label="Warm-up 1" data-type="number" data-answer="24"
+           data-placeholder="e.g. 10"
+           data-hint="Put the number in for $x$ in each bracket first, and multiply the two results."
+           data-hint2="What are the values of the two brackets when $x = 5$?">
+        <div class="ex-q">
+          <p>
+            Evaluate $(x + 3)(x - 2)$ when $x = 5$.
+          </p>
+        </div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $24$</p>
+          <p>
+            $x + 3 = 8$ and $x - 2 = 3$, so the product is $8 \cdot 3 = 24$. Check by expanding first: $x^2 + x - 6$ at $x = 5$ is $25 + 5 - 6 = 24$ ✓.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" data-inline id="w2" data-label="Warm-up 2" data-type="fraction" data-answer="3/5"
+           data-placeholder="e.g. 1/2"
+           data-hint="Find a number that divides both the top and the bottom, and divide it out."
+           data-hint2="What is the largest number that divides both $18$ and $30$?">
+        <div class="ex-q">
+          <p>
+            Write $\dfrac{18}{30}$ in lowest terms.
+          </p>
+        </div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $\frac{3}{5}$</p>
+          <p>
+            Both $18$ and $30$ are multiples of $6$: $\frac{18}{30} = \frac{3 \cdot 6}{5 \cdot 6} = \frac{3}{5}$, because $\frac{6}{6} = 1$. Check as decimals: $18 \div 30 = 0.6$ and $3 \div 5 = 0.6$ ✓.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" data-inline id="w3" data-label="Warm-up 3" data-type="set" data-answer="-1,4"
+           data-placeholder="e.g. 2,3"
+           data-hint="A product is zero only when one of its factors is zero, so set each bracket equal to zero."
+           data-hint2="Which value of $x$ makes $x - 4$ equal to zero, and which makes $x + 1$ equal to zero?">
+        <div class="ex-q">
+          <p>
+            Solve $(x - 4)(x + 1) = 0$. Give the two values of $x$, separated by a comma.
+          </p>
+        </div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $x = -1$ and $x = 4$</p>
+          <p>
+            The product is zero when a factor is zero: $x - 4 = 0$ gives $x = 4$ and $x + 1 = 0$ gives $x = -1$. Check: at $x = 4$ the first bracket is $0$, and at $x = -1$ the second is $0$, so the product is $0$ both times ✓.
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <h2 id="factor">H.1 Factoring trinomials and special forms</h2>
+    <p>
+      To <b>factor</b> a polynomial is to write it as a product of simpler polynomials, and the way to learn it is to look at the multiplication it undoes.
+      Expand $(x + p)(x + q)$ by giving each term of the first bracket to the second:
+      $$(x + p)(x + q) = x^2 + qx + px + pq = x^2 + (p + q)x + pq.$$
+      Read from right to left, that is the whole method for $x^2 + bx + c$: it factors as $(x + p)(x + q)$ when two numbers $p$ and $q$ have
+      <b>product</b> $c$ and <b>sum</b> $b$. List the pairs of whole numbers whose product is $c$ and pick the pair whose sum is $b$. The signs tell you where to look.
+      If $c > 0$, then $p$ and $q$ have the same sign, and so does their sum, so both take the sign of $b$: for $x^2 - 7x + 10$ both are negative, and
+      $-2$ and $-5$ have product $10$ and sum $-7$, giving $(x - 2)(x - 5)$. If $c < 0$, the signs are opposite, and the number with the larger absolute value
+      carries the sign of $b$: for $x^2 + 2x - 15$ the pairs with product $15$ are $1, 15$ and $3, 5$, and only $3$ and $5$ differ by $2$, so the larger one, $5$, is
+      positive: $(x - 3)(x + 5)$.
+    </p>
+    <p>
+      A <b>common factor</b> comes out first, always. In $3x^2 + 12x$ both terms are multiples of $3x$, so $3x^2 + 12x = 3x(x + 4)$. To factor
+      <em>completely</em> means to keep going until no factor can be factored again. Taking the common factor out first also shrinks the numbers you then have to search.
+    </p>
+    <p>
+      When the leading coefficient is more than $1$, expand $(ax + p)(x + q)$ the same way: $ax^2 + aqx + px + pq$. The middle term is two pieces, $aqx$ and $px$.
+      Their coefficients add to $b$, and multiply to $aq \cdot p = a \cdot pq = ac$. So for $ax^2 + bx + c$ look for two numbers with <b>product $ac$ and sum $b$</b>, split
+      the middle term into those two pieces, and <b>group</b>. For $3x^2 + 10x + 8$ the product is $ac = 24$ and the sum is $10$, which are $4$ and $6$:
+      $3x^2 + 4x + 6x + 8 = x(3x + 4) + 2(3x + 4) = (3x + 4)(x + 2)$. The grouping works because both groups leave the same bracket; if they leave different ones, the pair was wrong.
+    </p>
+    <p>
+      Two forms are worth knowing on sight, and both come from expanding. In $(a - b)(a + b) = a^2 + ab - ab - b^2$ the middle terms cancel, so
+      $$a^2 - b^2 = (a - b)(a + b),$$
+      a <b>difference of squares</b>: $x^2 - 49 = (x - 7)(x + 7)$. And $(a + b)^2 = (a + b)(a + b) = a^2 + 2ab + b^2$, so a <b>perfect square</b> trinomial has its
+      first and last terms as squares and its middle term as twice their product: $x^2 + 10x + 25 = (x + 5)^2$, since $25 = 5^2$ and $10 = 2 \cdot 5$. A <em>sum</em> of squares is
+      different. $x^2 + 9$ would need two numbers with product $9$ and sum $0$; two numbers with sum $0$ are $p$ and $-p$, whose product $-p^2$ is never positive, so it can never be $9$. So $x^2 + 9$ does not factor over the real numbers.
+    </p>
+    <p>
+      Always check by expanding back. A factoring with the wrong signs still looks right: $(x + 2)(x - 3)$ and $(x - 2)(x + 3)$ use the same numbers, but the first
+      expands to $x^2 - x - 6$ and the second to $x^2 + x - 6$, and only the middle term tells them apart.
+    </p>
+
+    <div class="worked">
+      <h3><span class="num">Example 1.</span> A trinomial with a negative last term</h3>
+      <div class="body">
+        <p>
+          Factor $x^2 - 3x - 28$.
+        </p>
+        <ol class="steps">
+          <li>There is no common factor. We need two numbers with product $-28$ and sum $-3$.</li>
+          <li>The product is negative, so the signs are opposite, and the larger absolute value carries the sign of $b$, which is negative. The pairs with product $28$ are $1, 28$ and $2, 14$ and $4, 7$, and only $4$ and $7$ differ by $3$.</li>
+          <li>So the numbers are $-7$ and $4$, and $x^2 - 3x - 28 = (x - 7)(x + 4)$.</li>
+          <li>Check by expanding: $(x - 7)(x + 4) = x^2 + 4x - 7x - 28 = x^2 - 3x - 28$ ✓. A second check at $x = 1$: the trinomial gives $1 - 3 - 28 = -30$, and the factors give $(-6)(5) = -30$ ✓. $\blacksquare$</li>
+        </ol>
+        <p class="note">
+          Had the signs been swapped, $(x + 7)(x - 4)$, the middle term would be $+3x$. The sign of $b$ decides which number is negative.
+        </p>
+      </div>
+    </div>
+
+    <div class="ex" data-inline id="t1" data-type="expr" data-answer="(x+4)(x+5)|(x+5)(x+4)" data-placeholder="e.g. (x+1)(x+8)"
+         data-hint="Look for two numbers whose product is the last term and whose sum is the middle coefficient. Both have the sign of the middle coefficient."
+         data-hint2="Which pair of whole numbers has product $20$, and which of those pairs adds to $9$?">
+      <div class="ex-q">
+        <p>
+          Factor $x^2 + 9x + 20$.
+        </p>
+      </div>
+      <div class="ex-solution">
+        <p class="answer">Answer: $(x + 4)(x + 5)$</p>
+        <p>
+          The pairs with product $20$ are $1, 20$ and $2, 10$ and $4, 5$, and only $4 + 5 = 9$. Check by expanding: $(x + 4)(x + 5) = x^2 + 5x + 4x + 20 = x^2 + 9x + 20$ ✓.
+        </p>
+      </div>
+    </div>
+
+    <div class="ex" data-inline id="t2" data-type="expr" data-answer="(5x+2)(x+3)|(x+3)(5x+2)" data-placeholder="e.g. (2x+1)(x+4)"
+         data-hint="Multiply the leading coefficient by the last term, find two numbers with that product and the middle coefficient as their sum, split the middle term and group."
+         data-hint2="Which two numbers have product $30$ and sum $17$?">
+      <div class="ex-q">
+        <p>
+          Factor $5x^2 + 17x + 6$.
+        </p>
+      </div>
+      <div class="ex-solution">
+        <p class="answer">Answer: $(5x + 2)(x + 3)$</p>
+        <p>
+          Here $ac = 30$ and $b = 17$, and the numbers are $2$ and $15$. Then $5x^2 + 15x + 2x + 6 = 5x(x + 3) + 2(x + 3) = (5x + 2)(x + 3)$. Check by expanding: $5x^2 + 15x + 2x + 6 = 5x^2 + 17x + 6$ ✓.
+        </p>
+      </div>
+    </div>
+
+    <div class="worked">
+      <h3><span class="num">Example 2.</span> A common factor, then a difference of squares</h3>
+      <div class="body">
+        <p>
+          Factor $12x^2 - 75$ completely.
+        </p>
+        <ol class="steps">
+          <li>Both terms are multiples of $3$, so take it out first: $12x^2 - 75 = 3(4x^2 - 25)$.</li>
+          <li>Inside the bracket, $4x^2 = (2x)^2$ and $25 = 5^2$, so it is a difference of squares with $a = 2x$ and $b = 5$: $4x^2 - 25 = (2x - 5)(2x + 5)$.</li>
+          <li>So $12x^2 - 75 = 3(2x - 5)(2x + 5)$. No factor factors again ($2x - 5$ and $2x + 5$ have no common factor), so this is complete.</li>
+          <li>Check by expanding: $(2x - 5)(2x + 5) = 4x^2 - 25$, and $3(4x^2 - 25) = 12x^2 - 75$ ✓. A second check at $x = 1$: $12 - 75 = -63$, and $3(-3)(7) = -63$ ✓. $\blacksquare$</li>
+        </ol>
+        <p class="note">
+          Stopping at $3(4x^2 - 25)$ is correct as far as it goes but not complete, since the bracket still factors.
+        </p>
+      </div>
+    </div>
+
+    <div class="ex" data-inline id="t3" data-type="expr" data-answer="(x-8)(x+8)|(x+8)(x-8)" data-placeholder="e.g. (x-1)(x+1)"
+         data-hint="Both terms are perfect squares and the sign between them is minus."
+         data-hint2="What number times itself is $64$?">
+      <div class="ex-q">
+        <p>
+          Factor $x^2 - 64$.
+        </p>
+      </div>
+      <div class="ex-solution">
+        <p class="answer">Answer: $(x - 8)(x + 8)$</p>
+        <p>
+          With $a = x$ and $b = 8$, $x^2 - 64 = (x - 8)(x + 8)$. Check by expanding: $x^2 + 8x - 8x - 64 = x^2 - 64$ ✓.
+        </p>
+      </div>
+    </div>
+
+    <h2 id="simplify">H.2 Simplifying rational expressions</h2>
+    <p>
+      A <b>rational expression</b> is a fraction whose top and bottom are polynomials, and it behaves like a numeric fraction. The number fraction $\frac{6}{8}$ equals
+      $\frac{3}{4}$ because $\frac{6}{8} = \frac{3 \cdot 2}{4 \cdot 2} = \frac{3}{4} \cdot \frac{2}{2}$ and $\frac{2}{2} = 1$: a common <b>factor</b> divides out. The same works for polynomials,
+      once they are factored.
+    </p>
+    <p>
+      One thing comes before canceling. Division by zero is undefined, so any value of $x$ that makes the bottom zero is <b>excluded</b>. Find the excluded values from the
+      factored bottom, <em>before</em> canceling, and they stay excluded after: simplifying never makes an excluded value allowed. This is what the puzzle turns on.
+      Factor the top and the bottom completely:
+      $$\frac{x^2 - 1}{x - 1} = \frac{(x - 1)(x + 1)}{x - 1}.$$
+      The bottom is zero at $x = 1$, so $x = 1$ is excluded. For every other $x$ the factor $x - 1$ is not zero, and $\frac{x - 1}{x - 1} = 1$, so the fraction equals
+      $x + 1$. The two are equal at every allowed $x$, but not at $x = 1$, where the fraction is undefined.
+    </p>
+    <p>
+      To <b>simplify</b>, then: factor top and bottom completely, name the excluded values, and divide out the common factors. Only <em>factors</em> cancel, never terms. It is tempting to
+      cancel the $x$ in $\dfrac{x + 3}{x}$ and write $3$, but at $x = 1$ the fraction is $\frac{4}{1} = 4$ and not $3$. In $x + 3$ the $x$ is one term of a sum, not a factor of the whole top; the top
+      has no common factor with $x$, so nothing cancels and the fraction is already simplified.
+    </p>
+    <p>
+      A subtraction can hide a common factor: $a - b = -(b - a)$, since reversing a subtraction flips the sign. So two factors that are <b>opposites</b> cancel to $-1$:
+      $\dfrac{3 - x}{x - 3} = \dfrac{-(x - 3)}{x - 3} = -1$ for $x \ne 3$.
+    </p>
+    <p>
+      The check is to evaluate. The simplified form must give the same value as the original at every allowed $x$, so evaluate both at a number that is not excluded and compare.
+      A different value means a slip. Equal values are good evidence, but the factoring check from H.1, expanding back, is what shows the factoring itself is right.
+    </p>
+
+    <div class="worked">
+      <h3><span class="num">Example 3.</span> Two trinomials that share a factor</h3>
+      <div class="body">
+        <p>
+          Simplify $\dfrac{x^2 + 5x + 6}{x^2 + x - 6}$ and name the excluded values.
+        </p>
+        <ol class="steps">
+          <li>Factor the top: product $6$, sum $5$, so $x^2 + 5x + 6 = (x + 2)(x + 3)$.</li>
+          <li>Factor the bottom: product $-6$, sum $1$, so the numbers are $3$ and $-2$ and $x^2 + x - 6 = (x + 3)(x - 2)$.</li>
+          <li>The bottom is zero when $x = -3$ or $x = 2$, so those two values are excluded.</li>
+          <li>The common factor is $x + 3$. Dividing it out leaves $\dfrac{x + 2}{x - 2}$, for $x \ne -3$ and $x \ne 2$.</li>
+          <li>Check at $x = 4$, which is allowed: the original gives $\frac{16 + 20 + 6}{16 + 4 - 6} = \frac{42}{14} = 3$ and the simplified form gives $\frac{6}{2} = 3$ ✓. $\blacksquare$</li>
+        </ol>
+        <p class="note">
+          The value $x = -3$ is excluded even though $x + 3$ is gone from the simplified form. The original is still undefined there.
+        </p>
+      </div>
+    </div>
+
+    <div class="ex" data-inline id="t4" data-type="set" data-answer="-2,5" data-placeholder="e.g. 1,6"
+         data-hint="The fraction is undefined where the bottom is zero, so factor the bottom and find the values that make a factor zero."
+         data-hint2="Which two numbers have product $-10$ and sum $-3$?">
+      <div class="ex-q">
+        <p>
+          For which values of $x$ is $\dfrac{x + 1}{x^2 - 3x - 10}$ undefined? Give the values, separated by a comma.
+        </p>
+      </div>
+      <div class="ex-solution">
+        <p class="answer">Answer: $x = -2$ and $x = 5$</p>
+        <p>
+          The bottom factors as $(x - 5)(x + 2)$, which is zero at $x = 5$ and $x = -2$. Check by putting each value into the bottom: $25 - 15 - 10 = 0$ and $4 + 6 - 10 = 0$ ✓.
+        </p>
+      </div>
+    </div>
+
+    <div class="ex" data-inline id="t5" data-type="expr" data-answer="(x-4)/(x+3)" data-placeholder="e.g. (x+1)/(x-4)"
+         data-hint="Factor the top and the bottom completely, then divide out the factor they share."
+         data-hint2="What are the two excluded values, and which factor of the bottom does the top also contain?">
+      <div class="ex-q">
+        <p>
+          Simplify $\dfrac{x^2 - 7x + 12}{x^2 - 9}$.
+        </p>
+      </div>
+      <div class="ex-solution">
+        <p class="answer">Answer: $\dfrac{x - 4}{x + 3}$</p>
+        <p>
+          The top is $(x - 3)(x - 4)$ and the bottom is $(x - 3)(x + 3)$, so dividing out $x - 3$ leaves $\frac{x - 4}{x + 3}$, for $x \ne 3$ and $x \ne -3$. Check at $x = 1$: the original gives $\frac{1 - 7 + 12}{1 - 9} = \frac{6}{-8} = -\frac{3}{4}$, and the simplified form gives $\frac{-3}{4} = -\frac{3}{4}$ ✓.
+        </p>
+      </div>
+    </div>
+
+    <div class="worked">
+      <h3><span class="num">Example 4.</span> A common factor and an opposite factor</h3>
+      <div class="body">
+        <p>
+          Simplify $\dfrac{x^2 - 25}{10 - 2x}$ and name the excluded value.
+        </p>
+        <ol class="steps">
+          <li>The top is a difference of squares: $x^2 - 25 = (x - 5)(x + 5)$.</li>
+          <li>The bottom has the common factor $2$: $10 - 2x = 2(5 - x)$. The factor $5 - x$ is the opposite of $x - 5$, so $5 - x = -(x - 5)$ and the bottom is $-2(x - 5)$.</li>
+          <li>The bottom is zero at $x = 5$, so $x = 5$ is excluded.</li>
+          <li>Divide out $x - 5$: $\dfrac{(x - 5)(x + 5)}{-2(x - 5)} = \dfrac{x + 5}{-2} = -\dfrac{x + 5}{2}$, for $x \ne 5$.</li>
+          <li>Check at $x = 1$: the original gives $\frac{1 - 25}{10 - 2} = \frac{-24}{8} = -3$, and the simplified form gives $-\frac{6}{2} = -3$ ✓. $\blacksquare$</li>
+        </ol>
+        <p class="note">
+          Writing the bottom with the factor $x - 5$ showing, rather than $5 - x$, is what lets the two factors be seen as the same.
+        </p>
+      </div>
+    </div>
+
+    <div class="ex" data-inline id="t6" data-type="expr" data-answer="-1/(x+7)|(-1)/(x+7)|-(1)/(x+7)" data-placeholder="e.g. 1/(x-2)"
+         data-hint="The top is the opposite of a factor of the bottom, so factor the bottom and rewrite the top with that factor showing."
+         data-hint2="Which value of $x$ makes the top zero, and which factor of the bottom is zero there too?">
+      <div class="ex-q">
+        <p>
+          Simplify $\dfrac{7 - x}{x^2 - 49}$.
+        </p>
+      </div>
+      <div class="ex-solution">
+        <p class="answer">Answer: $-\dfrac{1}{x + 7}$</p>
+        <p>
+          The bottom is $(x - 7)(x + 7)$ and the top is $7 - x = -(x - 7)$, so dividing out $x - 7$ leaves $\frac{-1}{x + 7}$, for $x \ne 7$ and $x \ne -7$. Check at $x = 1$: the original gives $\frac{6}{-48} = -\frac{1}{8}$, and the simplified form gives $\frac{-1}{8}$ ✓.
+        </p>
+      </div>
+    </div>
+
+    <!-- ====================================================== practice ==== -->
+    <section class="practice" id="practice">
+      <div class="practice-head">
+        <h2 style="margin-top:0">Practice</h2>
+        <span class="practice-score" data-practice-score></span>
+      </div>
+      <p>
+        Type a product of factors as <code>(x+2)(x+3)</code>, in any order of the factors, with a number in front if there is one. Type a power as
+        <code>(x+3)^2</code>. Type a fraction with its top and bottom in brackets, as in <code>(x-3)/(x+2)</code>. Type a list of values as a set, as in <code>2, 5</code>.
+        A question that asks which option is right is answered by choosing one of the options shown.
+      </p>
+
+      <div class="ex" id="e1" data-section="factor" data-type="expr" data-answer="(x-3)(x+6)|(x+6)(x-3)" data-placeholder="e.g. (x+1)(x+4)"
+           data-hint="Find two numbers whose product is the last term and whose sum is the middle coefficient. The last term is negative, so the numbers have opposite signs."
+           data-hint2="Which pair of whole numbers with product $18$ differs by $3$?">
+        <div class="ex-q"><p>Factor $x^2 + 3x - 18$.</p></div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $(x - 3)(x + 6)$</p>
+          <p>
+            The pairs with product $18$ are $1, 18$ and $2, 9$ and $3, 6$, and only $3$ and $6$ differ by $3$. The larger one carries the sign of $+3$, so the numbers are $6$ and $-3$. Check at $x = 1$: the trinomial gives $1 + 3 - 18 = -14$, and the factors give $(-2)(7) = -14$ ✓.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" id="e2" data-section="factor" data-type="expr" data-answer="(x-3)(x-8)|(x-8)(x-3)" data-placeholder="e.g. (x+1)(x+4)"
+           data-hint="The last term is positive, so the two numbers have the same sign, and that sign is the sign of the middle coefficient."
+           data-hint2="Which pair of whole numbers with product $24$ adds to $11$?">
+        <div class="ex-q"><p>Factor $x^2 - 11x + 24$.</p></div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $(x - 3)(x - 8)$</p>
+          <p>
+            The pairs with product $24$ are $1, 24$ and $2, 12$ and $3, 8$ and $4, 6$, and only $3 + 8 = 11$. Both numbers are negative, since the sum is. Check at $x = 1$: the trinomial gives $1 - 11 + 24 = 14$, and the factors give $(-2)(-7) = 14$ ✓.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" id="e3" data-section="factor" data-type="expr" data-answer="2(x+3)(x+4)|2(x+4)(x+3)" data-placeholder="e.g. 5(x+1)(x+2)"
+           data-hint="Look for a number that divides every term, take it out, and then factor what is left."
+           data-hint2="After the common factor is out, which two numbers have product $12$ and sum $7$?">
+        <div class="ex-q"><p>Factor $2x^2 + 14x + 24$ completely.</p></div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $2(x + 3)(x + 4)$</p>
+          <p>
+            Every term is a multiple of $2$, so $2x^2 + 14x + 24 = 2(x^2 + 7x + 12)$. In the bracket, $3 \cdot 4 = 12$ and $3 + 4 = 7$, so it is $(x + 3)(x + 4)$. Check at $x = 1$: the trinomial gives $2 + 14 + 24 = 40$, and the factors give $2 \cdot 4 \cdot 5 = 40$ ✓.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" id="e4" data-section="factor" data-type="expr" data-answer="(2x+3)(x-4)|(x-4)(2x+3)" data-placeholder="e.g. (3x+1)(x+2)"
+           data-hint="Multiply the leading coefficient by the last term, then find two numbers with that product that add to the middle coefficient. Split the middle term and group."
+           data-hint2="Which two numbers have product $-24$ and sum $-5$?">
+        <div class="ex-q"><p>Factor $2x^2 - 5x - 12$.</p></div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $(2x + 3)(x - 4)$</p>
+          <p>
+            Here $ac = -24$ and $b = -5$, and the numbers are $-8$ and $3$. Then $2x^2 - 8x + 3x - 12 = 2x(x - 4) + 3(x - 4) = (2x + 3)(x - 4)$. Check at $x = 1$: the trinomial gives $2 - 5 - 12 = -15$, and the factors give $(5)(-3) = -15$ ✓.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" id="e5" data-section="factor" data-type="expr" data-answer="5(x-4)(x+4)|5(x+4)(x-4)" data-placeholder="e.g. 3(x-1)(x+1)"
+           data-hint="Take the common factor out first, and then look at what is left. Is it a difference of squares?"
+           data-hint2="After the common factor is out, which number times itself is the last term?">
+        <div class="ex-q"><p>Factor $5x^2 - 80$ completely.</p></div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $5(x - 4)(x + 4)$</p>
+          <p>
+            Both terms are multiples of $5$: $5x^2 - 80 = 5(x^2 - 16)$, and $x^2 - 16 = (x - 4)(x + 4)$. Check at $x = 1$: the original gives $5 - 80 = -75$, and the factors give $5(-3)(5) = -75$ ✓.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" id="e6" data-section="factor" data-type="expr" data-answer="(x-7)^2|(x-7)(x-7)|(7-x)^2|(7-x)(7-x)" data-placeholder="e.g. (x+2)^2"
+           data-hint="The first and last terms are squares. Test whether the middle term is twice the product of their square roots."
+           data-hint2="What is the square root of $49$, and what is twice that number?">
+        <div class="ex-q"><p>Factor $x^2 - 14x + 49$.</p></div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $(x - 7)^2$</p>
+          <p>
+            Here $x^2$ and $49 = 7^2$ are squares and $14 = 2 \cdot 7$, with a minus sign, so it is $(x - 7)^2$. The pair method agrees: $-7 \cdot -7 = 49$ and $-7 + (-7) = -14$. Check at $x = 1$: the trinomial gives $1 - 14 + 49 = 36$, and $(-6)^2 = 36$ ✓.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" id="e7" data-section="factor" data-answer="4"
+           data-hint="Complete means no factor can be factored again. Take out the largest common factor, and then ask whether what is left still factors."
+           data-hint2="What is the largest number that divides all three terms, and does the bracket it leaves still factor?">
+        <div class="ex-q"><p>Which is the complete factoring of $6x^2 + 12x - 18$?</p></div>
+        <ul class="choices">
+          <li>$6(x^2 + 2x - 3)$</li>
+          <li>$(6x - 6)(x + 3)$</li>
+          <li>$6(x - 3)(x + 1)$</li>
+          <li>$6(x + 3)(x - 1)$</li>
+        </ul>
+        <div class="ex-solution">
+          <p class="answer">Answer: $6(x + 3)(x - 1)$</p>
+          <p>
+            Taking out $6$ gives $6(x^2 + 2x - 3)$, and the bracket has product $-3$ and sum $2$, so it is $(x + 3)(x - 1)$. The first option stops one step early, with a trinomial that still factors. The second is equal to the original, but its first bracket $6x - 6$ still has the factor $6$, so it is not complete. The third has the right numbers with the wrong signs, which expands to $6x^2 - 12x - 18$. Check the chosen one at $x = 1$: the original gives $6 + 12 - 18 = 0$, and the factors give $6 \cdot 4 \cdot 0 = 0$ ✓, while the third option gives $6(-2)(2) = -24$.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" id="e8" data-section="simplify" data-type="set" data-answer="-3,4" data-placeholder="e.g. 1,6"
+           data-hint="The fraction is undefined where the bottom is zero. Factor the bottom and find the values that make a factor zero."
+           data-hint2="Which two numbers have product $-12$ and sum $-1$?">
+        <div class="ex-q"><p>For which values of $x$ is $\dfrac{x + 4}{x^2 - x - 12}$ undefined? Give the values, separated by a comma.</p></div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $x = -3$ and $x = 4$</p>
+          <p>
+            The bottom factors as $(x - 4)(x + 3)$, which is zero at $x = 4$ and $x = -3$. Check by putting each value into the bottom: $16 - 4 - 12 = 0$ and $9 + 3 - 12 = 0$ ✓. The top plays no part in this, since the excluded values come from the bottom alone.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" id="e9" data-section="simplify" data-type="expr" data-answer="(x+2)/(x+4)" data-placeholder="e.g. (x+1)/(x-4)"
+           data-hint="Factor the top and the bottom completely, then divide out the factor they share."
+           data-hint2="Which two numbers have product $-6$ and sum $-1$, and which have product $-12$ and sum $1$?">
+        <div class="ex-q"><p>Simplify $\dfrac{x^2 - x - 6}{x^2 + x - 12}$.</p></div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $\dfrac{x + 2}{x + 4}$</p>
+          <p>
+            The top is $(x - 3)(x + 2)$ and the bottom is $(x + 4)(x - 3)$, so dividing out $x - 3$ leaves $\frac{x + 2}{x + 4}$, for $x \ne 3$ and $x \ne -4$. Check at $x = 1$: the original gives $\frac{1 - 1 - 6}{1 + 1 - 12} = \frac{-6}{-10} = \frac{3}{5}$, and the simplified form gives $\frac{3}{5}$ ✓.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" id="e10" data-section="simplify" data-type="expr" data-answer="(x-6)/(x+6)" data-placeholder="e.g. (x+1)/(x-4)"
+           data-hint="The top is a difference of squares and the bottom is a perfect square. Factor each completely."
+           data-hint2="What is the excluded value, and which factor appears in both the top and the bottom?">
+        <div class="ex-q"><p>Simplify $\dfrac{x^2 - 36}{x^2 + 12x + 36}$.</p></div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $\dfrac{x - 6}{x + 6}$</p>
+          <p>
+            The top is $(x - 6)(x + 6)$ and the bottom is $(x + 6)^2 = (x + 6)(x + 6)$, so dividing out one $x + 6$ leaves $\frac{x - 6}{x + 6}$, for $x \ne -6$. Check at $x = 2$: the original gives $\frac{4 - 36}{4 + 24 + 36} = \frac{-32}{64} = -\frac{1}{2}$, and the simplified form gives $\frac{-4}{8} = -\frac{1}{2}$ ✓.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" id="e11" data-section="simplify" data-type="expr" data-answer="-1/(x-1)|(-1)/(x-1)|1/(1-x)|-(1)/(x-1)" data-placeholder="e.g. 1/(x-4)"
+           data-hint="The top is the opposite of one of the factors of the bottom. Factor the bottom, and rewrite the top with that factor showing."
+           data-hint2="Which value of $x$ makes the top zero, and which factor of the bottom is zero there too?">
+        <div class="ex-q"><p>Simplify $\dfrac{2 - x}{x^2 - 3x + 2}$.</p></div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $-\dfrac{1}{x - 1}$</p>
+          <p>
+            The bottom is $(x - 1)(x - 2)$, and the top is $2 - x = -(x - 2)$, so dividing out $x - 2$ leaves $\frac{-1}{x - 1}$, for $x \ne 1$ and $x \ne 2$. Check at $x = 3$: the original gives $\frac{2 - 3}{9 - 9 + 2} = -\frac{1}{2}$, and the simplified form gives $\frac{-1}{2}$ ✓.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" id="e12" data-section="simplify" data-type="expr" data-answer="(2x-3)/x|(2x-3)/(x)" data-placeholder="e.g. (x+1)/x"
+           data-hint="Both the top and the bottom have a common factor with a letter in it. Take out the largest one from each."
+           data-hint2="What is the greatest common factor of $10x^2$ and $15x$, and is it also a factor of the bottom?">
+        <div class="ex-q"><p>Simplify $\dfrac{10x^2 - 15x}{5x^2}$.</p></div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $\dfrac{2x - 3}{x}$</p>
+          <p>
+            The top is $5x(2x - 3)$ and the bottom is $5x \cdot x$, so dividing out $5x$ leaves $\frac{2x - 3}{x}$, for $x \ne 0$. Check at $x = 2$: the original gives $\frac{40 - 30}{20} = \frac{1}{2}$, and the simplified form gives $\frac{4 - 3}{2} = \frac{1}{2}$ ✓.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" id="e13" data-section="simplify" data-type="number" data-answer="1.5" data-placeholder="e.g. 2"
+           data-hint="Factor the top and the bottom, divide out the shared factor, and put the number into what is left."
+           data-hint2="Which factor do the top and the bottom share, and what is the simplified fraction at $x = 4$?">
+        <div class="ex-q"><p>Simplify $\dfrac{x^2 + 3x - 10}{x^2 - 4}$, and then evaluate the result at $x = 4$. Give the value as a decimal.</p></div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $1.5$</p>
+          <p>
+            The top is $(x + 5)(x - 2)$ and the bottom is $(x - 2)(x + 2)$, so the fraction simplifies to $\frac{x + 5}{x + 2}$. At $x = 4$ that is $\frac{9}{6} = 1.5$. Check by evaluating the original directly: $\frac{16 + 12 - 10}{16 - 4} = \frac{18}{12} = 1.5$ ✓.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" id="e14" data-section="simplify" data-answer="4"
+           data-hint="Check each line of the work in turn. Which line says something the fraction before simplifying does not support?"
+           data-hint2="Which values of $x$ make the bottom of the first fraction zero?">
+        <div class="ex-q"><p>A student works on $\dfrac{x^2 - 5x + 4}{x^2 - 16}$. Line 1: $\dfrac{x^2 - 5x + 4}{x^2 - 16} = \dfrac{(x - 1)(x - 4)}{(x - 4)(x + 4)}$. Line 2: $= \dfrac{x - 1}{x + 4}$. Line 3: &ldquo;The original is undefined only at $x = -4$.&rdquo; Which statement about the work is correct?</p></div>
+        <ul class="choices">
+          <li>Line 1 is wrong, because the top factors as $(x + 1)(x + 4)$.</li>
+          <li>Line 1 is wrong, because the bottom factors as $(x - 4)^2$.</li>
+          <li>Line 2 is wrong, because a factor cannot be divided out of both the top and the bottom.</li>
+          <li>Line 3 is wrong, because the original is also undefined at $x = 4$.</li>
+        </ul>
+        <div class="ex-solution">
+          <p class="answer">Answer: Line 3 is wrong, because the original is also undefined at $x = 4$.</p>
+          <p>
+            Line 1 is right: $(x - 1)(x - 4) = x^2 - 5x + 4$ and $(x - 4)(x + 4) = x^2 - 16$, while $(x + 1)(x + 4)$ expands to $x^2 + 5x + 4$, the wrong middle sign, and $(x - 4)^2 = x^2 - 8x + 16$ is a perfect square, not a difference of squares. Line 2 is right too, since the shared factor $x - 4$ divides out. Line 3 forgets that the excluded values are read from the factored bottom before canceling: the bottom is zero at $x = 4$ as well as $x = -4$. Check by putting $x = 4$ into the original: the bottom is $16 - 16 = 0$, so the original is undefined there, though the simplified form $\frac{x - 1}{x + 4}$ is defined and equals $\frac{3}{8}$.
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <div class="recap">
+      <h2>Recap</h2>
+      <div class="puzzle-answer">
+        <span class="tag">Back to the puzzle</span>
+        <p data-your-guess></p>
+        <p>
+          The fraction equals $x + 1$ at every value of $x$ except $x = 1$. Factoring the top gives $\dfrac{(x - 1)(x + 1)}{x - 1}$, and for every $x \ne 1$ the factor $x - 1$ is not zero and divides out, leaving $x + 1$. At $x = 1$ the bottom is $0$, so the fraction is undefined, while $x + 1$ is $2$.
+          A second route: at $x = 0$ the fraction is $\frac{-1}{-1} = 1$ and $x + 1 = 1$ ✓, and at $x = 1$ the fraction is $\frac{0}{0}$, which is not a number. The tempting answer &ldquo;yes, for every value&rdquo; trusts the values that agree and ignores the one that does not; simplifying does not make an excluded value allowed.
+        </p>
+      </div>
+      <ul>
+        <li>Factoring is multiplication run backward. Since $(x + p)(x + q) = x^2 + (p + q)x + pq$, the trinomial $x^2 + bx + c$ factors when two numbers have product $c$ and sum $b$; with $c &gt; 0$ both take the sign of $b$, and with $c &lt; 0$ the signs are opposite and the larger absolute value carries the sign of $b$.</li>
+        <li>Take a common factor out first, and factor completely: no factor may factor again.</li>
+        <li>For $ax^2 + bx + c$, find two numbers with product $ac$ and sum $b$, split the middle term into them and group; both groups must leave the same bracket.</li>
+        <li>$a^2 - b^2 = (a - b)(a + b)$ because the middle terms cancel, and $a^2 + 2ab + b^2 = (a + b)^2$; a sum of squares such as $x^2 + 9$ does not factor over the real numbers.</li>
+        <li>Check a factoring by expanding back. Wrong signs still look right until the middle term is expanded.</li>
+        <li>A rational expression is a fraction of polynomials. Values that make the bottom zero are excluded, found from the factored bottom before canceling, and they stay excluded after.</li>
+        <li>Simplify by factoring top and bottom completely and dividing out common factors. Only factors cancel; $\dfrac{x + 3}{x}$ is not $3$.</li>
+        <li>$a - b = -(b - a)$, so opposite factors cancel to $-1$, as in $\dfrac{3 - x}{x - 3} = -1$ for $x \ne 3$.</li>
+        <li>Check a simplified form by evaluating both forms at an allowed value; they must agree.</li>
+      </ul>
+    </div>
+
+    <nav class="chapter-nav" data-chapter-nav aria-label="Previous and next pack"></nav>
+  </main>
+</div>
+</div>
+</body>
+</html>
