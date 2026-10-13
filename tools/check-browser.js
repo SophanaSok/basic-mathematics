@@ -18,9 +18,9 @@
                names); --only and --skip then narrow that. CI runs the gate as one job
                per part, side by side
    --parts     check PARTS against tools/suites/ and print, as JSON, the part names (the
-               browser job's matrix in ci.yml) and CORE, the part whose job also runs
-               test:browser:core: {"parts":[...],"core":"rest"}; exit 2 when a part names
-               no suite
+               browser job's matrix in ci.yml) and CORE, the part whose job runs
+               test:browser:core alone: {"parts":[...],"core":"core"}; exit 2 when a part
+               names a missing suite
    --theme     one theme instead of both;  --vw one viewport instead of both
    --base      git ref whose exercise keys the restore suite seeds (default lib/site.js)
    --headed    show the browser
@@ -159,7 +159,7 @@ const PARTS = {
   core: []                                       // no suite: the job runs test:browser:core alone (about 240)
 };                                               // rest: transitions 54, motion 28, missions 23,
                                                  //   restore 20, thirdparty 11, upgrade 3, plus
-                                                 //   diagnostic and plan (added since, about 60 together)
+                                                 //   diagnostic and plan (added since, roughly a minute together)
 const REST = "rest";
 /* the part whose job runs `npm run test:browser:core` (the tools/game scripts of the gate)
    and, as it names no suite, nothing else: until 2026-10-13 it was REST, and that job ran
@@ -209,6 +209,9 @@ async function main() {
   const part = opts.part === undefined ? null : String(opts.part);
   if (part !== null && part !== REST && !PARTS[part]) { console.error("--part names no part: " + part + " (the parts: " + Object.keys(PARTS).concat(REST).join(", ") + ")"); return 2; }
   const pool = part === null ? allSuites : allSuites.filter(s => parts[s.name] === part);
+  /* a part that names no suite (CORE) has nothing to run here: its job runs the tools/game
+     scripts instead, so there is no server or browser to start */
+  if (part !== null && !pool.length) { console.log("part " + part + ": no suite; its job runs npm run test:browser:core alone"); return 0; }
 
   let pwInfo;
   try { pwInfo = require("./lib/pw").resolvePlaywright(); }

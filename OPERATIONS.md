@@ -456,7 +456,8 @@ production already matches it.
 A run that does start takes about 6 minutes of wall time (2026-10-13: `build` about 1, then the
 `browser` parts and `webgl` side by side, the longest about 5). The `browser` and `webgl` jobs
 take Chromium from an Actions cache keyed `playwright-<os>-<version>` on the Playwright version
-in `package-lock.json`, so only the first run after a Playwright upgrade downloads it; the apt
+in `package-lock.json` and the runner image, so only the first successful run after a Playwright
+upgrade or an image change downloads it; the apt
 packages (`playwright install-deps`) are installed every time.
 
 - **What still runs CI:** any change with at least one other file in it. For a pull request

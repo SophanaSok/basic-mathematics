@@ -94,7 +94,7 @@ jobs:
     timeout-minutes: 15
     outputs:
       # the browser job's matrix, the parts of check-browser.js, and the one of them whose
-      # job also runs test:browser:core: {"parts":[...],"core":"rest"}
+      # job runs test:browser:core alone: {"parts":[...],"core":"core"}
       browser-parts: ${{ steps.parts.outputs.parts }}
     steps:
       - uses: actions/checkout@v7
@@ -173,20 +173,24 @@ jobs:
         with:
           name: dist
           path: dist
-      # Chromium is cached under the Playwright version package-lock.json installed, so a
-      # hit skips the download and a miss (a new Playwright) downloads it once per job of
-      # that run; the apt packages of --with-deps cannot be cached, so install-deps runs
-      # every time. A stuck download once held a job here until its job timeout, so each
+      # Chromium is cached under the runner image and the Playwright version
+      # package-lock.json installed, so a hit skips the download and a miss (a new
+      # Playwright or image) downloads it once per job of that run; the apt packages of
+      # --with-deps cannot be cached, so install-deps runs every time. A stuck download once held a job here until its job timeout, so each
       # try gets its own limit (killed 20 s after the TERM, so a wedged apt cannot outlive
       # it and hold the dpkg lock against the next try) and the step has a backstop;
       # tools/check-ci.js (`install`) fails when either is missing
       - id: pw
-        run: echo "version=$(node -p "require('playwright/package.json').version")" >> "$GITHUB_OUTPUT"
+        run: |
+          echo "version=$(node -p "require('playwright/package.json').version")" >> "$GITHUB_OUTPUT"
+          echo "image=${ImageOS:-unknown}" >> "$GITHUB_OUTPUT"
       - uses: actions/cache@v6
         id: pw-cache
         with:
           path: ~/.cache/ms-playwright
-          key: playwright-${{ runner.os }}-${{ steps.pw.outputs.version }}
+          key: playwright-${{ runner.os }}-${{ steps.pw.outputs.image }}-${{ steps.pw.outputs.version }}
+      # a restored browser that fails to launch its deps step is treated as stale: the next
+      # try installs in full
       - name: npx playwright install (up to three tries)
         timeout-minutes: 15
         env:
@@ -195,6 +199,7 @@ jobs:
           for try in 1 2 3; do
             if [ "$CACHED" = "true" ]; then
               if timeout -k 20 240 npx playwright install-deps chromium; then exit 0; fi
+              CACHED=""
             else
               if timeout -k 20 240 npx playwright install --with-deps chromium; then exit 0; fi
             fi
@@ -239,20 +244,24 @@ jobs:
         with:
           name: dist
           path: dist
-      # Chromium is cached under the Playwright version package-lock.json installed, so a
-      # hit skips the download and a miss (a new Playwright) downloads it once per job of
-      # that run; the apt packages of --with-deps cannot be cached, so install-deps runs
-      # every time. A stuck download once held a job here until its job timeout, so each
+      # Chromium is cached under the runner image and the Playwright version
+      # package-lock.json installed, so a hit skips the download and a miss (a new
+      # Playwright or image) downloads it once per job of that run; the apt packages of
+      # --with-deps cannot be cached, so install-deps runs every time. A stuck download once held a job here until its job timeout, so each
       # try gets its own limit (killed 20 s after the TERM, so a wedged apt cannot outlive
       # it and hold the dpkg lock against the next try) and the step has a backstop;
       # tools/check-ci.js (`install`) fails when either is missing
       - id: pw
-        run: echo "version=$(node -p "require('playwright/package.json').version")" >> "$GITHUB_OUTPUT"
+        run: |
+          echo "version=$(node -p "require('playwright/package.json').version")" >> "$GITHUB_OUTPUT"
+          echo "image=${ImageOS:-unknown}" >> "$GITHUB_OUTPUT"
       - uses: actions/cache@v6
         id: pw-cache
         with:
           path: ~/.cache/ms-playwright
-          key: playwright-${{ runner.os }}-${{ steps.pw.outputs.version }}
+          key: playwright-${{ runner.os }}-${{ steps.pw.outputs.image }}-${{ steps.pw.outputs.version }}
+      # a restored browser that fails to launch its deps step is treated as stale: the next
+      # try installs in full
       - name: npx playwright install (up to three tries)
         timeout-minutes: 15
         env:
@@ -261,6 +270,7 @@ jobs:
           for try in 1 2 3; do
             if [ "$CACHED" = "true" ]; then
               if timeout -k 20 240 npx playwright install-deps chromium; then exit 0; fi
+              CACHED=""
             else
               if timeout -k 20 240 npx playwright install --with-deps chromium; then exit 0; fi
             fi
