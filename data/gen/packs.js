@@ -11,8 +11,8 @@
    mixtures; checking an answer against the story).
    Pack G, "Growth, Decay and Sequences": sections 1-4 (arithmetic and geometric sequences; exponential
    growth and decay; compound interest; solving with logarithms).
-   Pack H, "Factoring and Rational Expressions": sections 1-2 (factoring trinomials and special forms;
-   simplifying rational expressions).
+   Pack H, "Factoring and Rational Expressions": sections 1-4 (factoring trinomials and special forms;
+   simplifying rational expressions; multiplying, dividing, adding and subtracting them; rational equations).
    The quartiles follow the median-of-halves rule of src/ui/chart.ts.
 
    A problem may carry a chart the Arena draws with the page widget (assets/widgets.js,
@@ -5186,6 +5186,504 @@
           /* the original numerator and denominator at n, directly, then divide */
           var num = n * n + b * n + c, den = n * n + d * n + ee;
           return den !== 0 && n + s0 !== 0 && Math.abs(num / den - Number(this.answer)) < 1e-9 && Math.abs(Number(this.answer) * 10 - Math.round(Number(this.answer) * 10)) < 1e-9;
+        }
+      };
+    }
+  });
+
+  /* ============================================ pack H §3-4: the four operations; rational equations ==
+     Same frame as §1-2: tables are enumerated at load with the page's own expressions left out, an expr key has no caret and
+     no denominator of a key is zero on -2..2 (every bottom factor is x + k with k at least 3), and a sum or a difference asks
+     for its numerator (a caret-free line), never the whole expanded fraction. Every verify() reads this.q as well as
+     this.answer: hTexEval below reads the stem's own formulas (\dfrac, \cdot, \div and ^), never the key, and the stem's value
+     is compared with the key's at three allowed values (or, for an equation, the key is substituted into both sides of the
+     printed equation). */
+
+  /* a fraction in lowest terms with the sign in front, as math: 6/-8 gives -\frac{3}{4}, 4/2 gives 2 */
+  function hF(n, d) {
+    var g = gcd(Math.abs(n), Math.abs(d)) || 1, neg = (n < 0) !== (d < 0);
+    n = Math.abs(n) / g; d = Math.abs(d) / g;
+    return d === 1 ? String((neg ? -1 : 1) * n) : (neg ? "-" : "") + "\\frac{" + n + "}{" + d + "}";
+  }
+  /* "A + B" or "A - B" when B is printed with its own sign */
+  function hJoin(a, b) { return b.charAt(0) === "-" ? a + " - " + b.slice(1) : a + " + " + b; }
+  /* cx + d as math and as a key, with no unit coefficient and no zero term */
+  function hLinT(c, d) {
+    var s = (c === 1 ? "" : c === -1 ? "-" : c) + "x";
+    return d ? s + (d < 0 ? " - " + (-d) : " + " + d) : s;
+  }
+  function hLinK(c, d) {
+    var s = (c === 1 ? "" : c === -1 ? "-" : c) + "x";
+    return d ? s + (d < 0 ? "-" + (-d) : "+" + d) : s;
+  }
+  /* a number inside brackets when it is negative: 4 and (-4) */
+  function hPar(n) { return n < 0 ? "(" + n + ")" : String(n); }
+  /* "a/b" over "x + k" as a fraction of math */
+  function hOver(top, bottom) { return "\\dfrac{" + top + "}{" + bottom + "}"; }
+
+  /* The formulas of a stem, in order: "Multiply $A$ by $B$." gives [A, B]. */
+  function hSpans(q) {
+    var out = [];
+    q.replace(/\$([^$]+)\$/g, function (m, s) { out.push(s); return m; });
+    return out;
+  }
+  /* The value of a formula in x as the stem prints it: numbers, x, + - , \cdot, \div, /, a power with a whole exponent, brackets,
+     implicit products (2x, 3(x+1), (x+1)(x-2)) and \dfrac{top}{bottom}. A zero bottom gives Infinity or NaN, so the caller
+     tests isFinite. It reads the stem only and never a key. */
+  function hTexEval(src, xv) {
+    var t = src.replace(/\\dfrac|\\frac/g, "\\f").replace(/\s+/g, ""), k = 0;
+    function at(s) { return t.substr(k, s.length) === s; }
+    function braced() {
+      var v;
+      if (t.charAt(k) !== "{") throw new Error("hTexEval: missing { in " + src);
+      k++; v = sum();
+      if (t.charAt(k) !== "}") throw new Error("hTexEval: missing } in " + src);
+      k++; return v;
+    }
+    function atom() {
+      var m, v;
+      if (t.charAt(k) === "(") { k++; v = sum(); if (t.charAt(k) !== ")") throw new Error("hTexEval: missing ) in " + src); k++; return v; }
+      if (at("\\f")) { k += 2; var top = braced(), bot = braced(); return top / bot; }
+      if (t.charAt(k) === "x") { k++; return xv; }
+      m = /^\d+(?:\.\d+)?/.exec(t.slice(k));
+      if (!m) throw new Error("hTexEval: cannot read " + src + " at " + k);
+      k += m[0].length; return Number(m[0]);
+    }
+    function power() {
+      var v = atom(), m;
+      if (t.charAt(k) === "^") {
+        k++;
+        m = /^(?:\{(\d+)\}|(\d+))/.exec(t.slice(k));
+        if (!m) throw new Error("hTexEval: bad power in " + src);
+        k += m[0].length; return Math.pow(v, Number(m[1] || m[2]));
+      }
+      return v;
+    }
+    function unary() { if (t.charAt(k) === "-") { k++; return -unary(); } return power(); }
+    function term() {
+      var v = unary(), c;
+      for (;;) {
+        c = t.charAt(k);
+        if (at("\\cdot")) { k += 5; v = v * unary(); }
+        else if (at("\\div")) { k += 4; v = v / unary(); }
+        else if (c === "/") { k++; v = v / unary(); }
+        else if (c === "(" || c === "x" || /\d/.test(c) || at("\\f")) v = v * power();
+        else return v;
+      }
+    }
+    function sum() {
+      var v = term(), op, w;
+      while (t.charAt(k) === "+" || t.charAt(k) === "-") { op = t.charAt(k++); w = term(); v = op === "+" ? v + w : v - w; }
+      return v;
+    }
+    var out = sum();
+    if (k !== t.length) throw new Error("hTexEval: leftover in " + src + " at " + k);
+    return out;
+  }
+  var HXS = [10, 11, -12];
+  function hClose(a, b) { return isFinite(a) && isFinite(b) && Math.abs(a - b) <= 1e-5 * Math.max(1, Math.abs(a), Math.abs(b)); }
+
+  /* ---- pk-op-mult: kind A (tri/lin) * (lin/tri) = (x+p)/(x+k); kind B (tri/lin) * (lin/lin) = x + p.
+     The tri on top is (x+p)(x+s), the bottom tri is (x+s)(x+k) and the linear bottom is x+t; p, s, t, k nonzero, in size at most 7,
+     all different, |k| at least 3. The page prints none of these shapes (its product has two linear factors on one side). */
+  var HMUL_A = (function () {
+    var out = [], p, s0, t, k;
+    for (p = -7; p <= 7; p++) for (s0 = -7; s0 <= 7; s0++) for (t = -7; t <= 7; t++) for (k = -7; k <= 7; k++) {
+      if (!p || !s0 || !t || !k || Math.abs(k) < 3 || p === s0 || p === t || p === k || s0 === t || s0 === k || t === k) continue;
+      out.push([p, s0, t, k]);
+    }
+    return out;
+  })();
+  var HMUL_B = (function () {
+    var out = [], p, s0, t;
+    for (p = -9; p <= 9; p++) for (s0 = -9; s0 <= 9; s0++) for (t = -9; t <= 9; t++) {
+      if (!p || !s0 || !t || p === s0 || p === t || s0 === t) continue;
+      out.push([p, s0, t]);
+    }
+    return out;
+  })();
+
+  G.add({
+    id: "pk-op-mult", section: "pk-rational#operations", par: 80, timed: true,
+    make: function (r) {
+      var kindB = r.chance(0.2), flip = r.chance(0.5), e, p, s0, t, k, key, f1, f2, q, steps, T, D, top1, bot1, top2, bot2;
+      if (kindB) {
+        e = r.pick(HMUL_B) || [3, 4, 5]; p = e[0]; s0 = e[1]; t = e[2]; k = null;
+        top1 = hTri(1, p + s0, p * s0); bot1 = hxT(t); top2 = hxT(t); bot2 = hxT(s0);
+        key = hxK(p);
+        T = (10 + p) * (10 + s0) * (10 + t); D = (10 + t) * (10 + s0);
+      } else {
+        e = r.pick(HMUL_A) || [2, 3, -4, 5]; p = e[0]; s0 = e[1]; t = e[2]; k = e[3];
+        top1 = hTri(1, p + s0, p * s0); bot1 = hxT(t); top2 = hxT(t); bot2 = hTri(1, s0 + k, s0 * k);
+        key = "(" + hxK(p) + ")/(" + hxK(k) + ")";
+        T = (10 + p) * (10 + s0) * (10 + t); D = (10 + t) * (10 + s0) * (10 + k);
+      }
+      f1 = hOver(top1, bot1); f2 = hOver(top2, bot2);
+      q = "Multiply and simplify $" + (flip ? f2 + " \\cdot " + f1 : f1 + " \\cdot " + f2) + "$.";
+      steps = [
+        "Factor every trinomial: the top $" + top1 + "$ needs two numbers with product $" + (p * s0) + "$ and sum $" + (p + s0) + "$, which are $" + p + "$ and $" + s0 + "$, so it is $(" + hxT(p) + ")(" + hxT(s0) + ")$." +
+          (kindB ? "" : " The bottom $" + bot2 + "$ needs product $" + (s0 * k) + "$ and sum $" + (s0 + k) + "$, which are $" + s0 + "$ and $" + k + "$, so it is $(" + hxT(s0) + ")(" + hxT(k) + ")$."),
+        "Every bottom that appears is excluded, before anything cancels: " + (kindB ? "$x \\ne " + (-t) + "$ and $x \\ne " + (-s0) + "$." : "$x \\ne " + (-t) + "$, $x \\ne " + (-s0) + "$ and $x \\ne " + (-k) + "$."),
+        kindB ? "Write the product as one fraction and divide out the common factors $" + hxT(t) + "$ and $" + hxT(s0) + "$: $\\dfrac{(" + hxT(p) + ")(" + hxT(s0) + ")(" + hxT(t) + ")}{(" + hxT(t) + ")(" + hxT(s0) + ")} = " + hxT(p) + "$." :
+          "Write the product as one fraction and divide out the common factors $" + hxT(t) + "$ and $" + hxT(s0) + "$: $\\dfrac{(" + hxT(p) + ")(" + hxT(s0) + ")(" + hxT(t) + ")}{(" + hxT(t) + ")(" + hxT(s0) + ")(" + hxT(k) + ")} = \\dfrac{" + hxT(p) + "}{" + hxT(k) + "}$.",
+        "Check at $x = 10$, which is allowed: the two pieces multiply to $" + hF(T, D) + "$ and the result is " + (kindB ? "$" + (10 + p) + "$" : "$" + hF(10 + p, 10 + k) + "$") + " ✓."
+      ];
+      return {
+        q: q, type: "expr", answer: key,
+        placeholder: kindB ? holder("e.g. x+1", key, "e.g. x-4") : holder("e.g. (x+1)/(x-4)", key, "e.g. (x+2)/(x-5)"),
+        hint: "Factor each trinomial, write the product as one fraction, and divide out the factors that appear on both the top and the bottom. Name the excluded values from every bottom first.",
+        steps: steps,
+        verify: function () {
+          /* the stem's product at three allowed values, each fraction evaluated directly, against the key */
+          var sp = hSpans(this.q), i, v, w, mm, kk;
+          if (sp.length !== 1) return false;
+          for (i = 0; i < HXS.length; i++) {
+            v = hTexEval(sp[0], HXS[i]); w = wEval(this.answer, HXS[i]);
+            if (!hClose(v, w)) return false;
+          }
+          mm = /^\(x([+-]\d+)\)\/\(x([+-]\d+)\)$/.exec(this.answer);
+          if (mm) return mm[1] !== mm[2] && Math.abs(Number(mm[2])) >= 3;
+          return /^x[+-]\d+$/.test(this.answer);
+        }
+      };
+    }
+  });
+
+  /* ---- pk-op-div: kind A (tri/tri) / ((x+s)/(x+t)) = (x+p)/(x+k); kind B (tri/lin) / ((x+s)/(x+t)) = x + p; kind C (tri/lin) / (x+s) = (x+p)/(x+k). */
+  var HDIV_A = HMUL_A, HDIV_B = HMUL_B;
+
+  G.add({
+    id: "pk-op-div", section: "pk-rational#operations", par: 80, timed: true,
+    make: function (r) {
+      var kind = r.pick(["A", "A", "B", "C", "C"]), e, p, s0, t, k, key, q, steps, T, D;
+      if (kind === "B") {
+        e = r.pick(HDIV_B) || [3, 4, 5]; p = e[0]; s0 = e[1]; t = e[2]; k = null;
+        q = "Divide and simplify $" + hOver(hTri(1, p + s0, p * s0), hxT(t)) + " \\div " + hOver(hxT(s0), hxT(t)) + "$.";
+        key = hxK(p);
+      } else if (kind === "A") {
+        e = r.pick(HDIV_A) || [2, 3, -4, 5]; p = e[0]; s0 = e[1]; t = e[2]; k = e[3];
+        q = "Divide and simplify $" + hOver(hTri(1, p + s0, p * s0), hTri(1, t + k, t * k)) + " \\div " + hOver(hxT(s0), hxT(t)) + "$.";
+        key = "(" + hxK(p) + ")/(" + hxK(k) + ")";
+      } else {
+        e = r.pick(HDIV_A) || [2, 3, -4, 5]; p = e[0]; s0 = e[1]; t = e[2]; k = e[3];
+        q = "Divide and simplify $" + hOver(hTri(1, p + s0, p * s0), hxT(k)) + " \\div (" + hxT(s0) + ")$.";
+        key = "(" + hxK(p) + ")/(" + hxK(k) + ")";
+      }
+      if (kind === "B") { T = (10 + p) * (10 + s0) * (10 + t); D = (10 + t) * (10 + s0); }
+      else if (kind === "A") { T = (10 + p) * (10 + s0) * (10 + t); D = (10 + t) * (10 + k) * (10 + s0); }
+      else { T = (10 + p) * (10 + s0); D = (10 + k) * (10 + s0); }
+      steps = [
+        "Dividing by a fraction is multiplying by its reciprocal, since $\\dfrac{" + hxT(s0) + "}{" + hxT(t) + "} \\cdot \\dfrac{" + hxT(t) + "}{" + hxT(s0) + "} = 1$ and the quotient is the number that times the divisor gives the first fraction." +
+          (kind === "C" ? " Here the divisor is $" + hxT(s0) + "$, which is $\\dfrac{" + hxT(s0) + "}{1}$, so its reciprocal is $\\dfrac{1}{" + hxT(s0) + "}$." : ""),
+        "Factor the trinomial" + (kind === "A" ? "s" : "") + ": " + "$" + hTri(1, p + s0, p * s0) + " = (" + hxT(p) + ")(" + hxT(s0) + ")$" +
+          (kind === "A" ? " and $" + hTri(1, t + k, t * k) + " = (" + hxT(t) + ")(" + hxT(k) + ")$" : "") + ", from numbers with product $" + (p * s0) + "$ and sum $" + (p + s0) + "$" + (kind === "A" ? " and with product $" + (t * k) + "$ and sum $" + (t + k) + "$" : "") + ".",
+        kind === "B" ? "Excluded values: the bottoms $" + hxT(t) + "$ and $" + hxT(s0) + "$ give $x \\ne " + (-t) + "$ and $x \\ne " + (-s0) + "$, and the top of the divisor may not be zero either, which is the same value." :
+          kind === "A" ? "Excluded values: $x \\ne " + (-t) + "$ and $x \\ne " + (-k) + "$ from the first bottom, and $x \\ne " + (-s0) + "$ because the divisor $\\dfrac{" + hxT(s0) + "}{" + hxT(t) + "}$ may not be zero." :
+          "Excluded values: $x \\ne " + (-k) + "$ from the bottom, and $x \\ne " + (-s0) + "$ because the divisor $" + hxT(s0) + "$ may not be zero.",
+        kind === "B" ? "Multiply by the reciprocal and divide out $" + hxT(t) + "$ and $" + hxT(s0) + "$: $\\dfrac{(" + hxT(p) + ")(" + hxT(s0) + ")}{" + hxT(t) + "} \\cdot \\dfrac{" + hxT(t) + "}{" + hxT(s0) + "} = " + hxT(p) + "$." :
+          kind === "A" ? "Multiply by the reciprocal and divide out $" + hxT(t) + "$ and $" + hxT(s0) + "$: $\\dfrac{(" + hxT(p) + ")(" + hxT(s0) + ")}{(" + hxT(t) + ")(" + hxT(k) + ")} \\cdot \\dfrac{" + hxT(t) + "}{" + hxT(s0) + "} = \\dfrac{" + hxT(p) + "}{" + hxT(k) + "}$." :
+          "Multiply by the reciprocal and divide out $" + hxT(s0) + "$: $\\dfrac{(" + hxT(p) + ")(" + hxT(s0) + ")}{" + hxT(k) + "} \\cdot \\dfrac{1}{" + hxT(s0) + "} = \\dfrac{" + hxT(p) + "}{" + hxT(k) + "}$.",
+        "Check at $x = 10$, which is allowed: dividing the two values gives $" + hF(T, D) + "$, and the result gives " + (kind === "B" ? "$" + (10 + p) + "$" : "$" + hF(10 + p, 10 + k) + "$") + " ✓."
+      ];
+      return {
+        q: q, type: "expr", answer: key,
+        placeholder: kind === "B" ? holder("e.g. x+1", key, "e.g. x-4") : holder("e.g. (x+1)/(x-4)", key, "e.g. (x+2)/(x-5)"),
+        hint: "Multiply by the reciprocal of the divisor, factor what you can, and divide out the common factors. The divisor may not be zero, so its top adds an excluded value.",
+        steps: steps,
+        verify: function () {
+          /* the stem's quotient with its own \div, evaluated piece by piece, against the key at three allowed values */
+          var sp = hSpans(this.q), i, mm;
+          if (sp.length !== 1 || !/\\div/.test(sp[0])) return false;
+          for (i = 0; i < HXS.length; i++) if (!hClose(hTexEval(sp[0], HXS[i]), wEval(this.answer, HXS[i]))) return false;
+          mm = /^\(x([+-]\d+)\)\/\(x([+-]\d+)\)$/.exec(this.answer);
+          if (mm) return mm[1] !== mm[2] && Math.abs(Number(mm[2])) >= 3;
+          return /^x[+-]\d+$/.test(this.answer);
+        }
+      };
+    }
+  });
+
+  /* ---- pk-op-add: a/(x+k1) + b/(x+k2), or a minus; ask for the numerator over (x+k1)(x+k2). a, b 1..6, k1 and k2 nonzero up to 9 in size,
+     different, with a nonzero x coefficient and a nonzero constant. The page's 3/(x-4) - 2/(x+1) and 5/(x+5) + 3/(x-2) are left out. */
+  var HADD_SKIP = [[3, -4, 2, 1, true], [5, 5, 3, -2, false]];
+  var HADD = (function () {
+    var out = [], a, b, k1, k2, mi, c, d;
+    for (a = 1; a <= 6; a++) for (b = 1; b <= 6; b++) for (k1 = -9; k1 <= 9; k1++) for (k2 = -9; k2 <= 9; k2++) for (mi = 0; mi < 2; mi++) {
+      if (!k1 || !k2 || k1 === k2) continue;
+      c = mi ? a - b : a + b; d = mi ? a * k2 - b * k1 : a * k2 + b * k1;
+      if (!c || !d) continue;
+      if (HADD_SKIP.some(function (s) { return s[4] === !!mi && ((s[0] === a && s[1] === k1 && s[2] === b && s[3] === k2) || (s[0] === b && s[1] === k2 && s[2] === a && s[3] === k1 && !mi)); })) continue;
+      out.push([a, k1, b, k2, mi]);
+    }
+    return out;
+  })();
+
+  G.add({
+    id: "pk-op-add", section: "pk-rational#operations", par: 90, timed: true,
+    make: function (r) {
+      var e = r.pick(HADD) || [2, 3, 5, -4, 0], a = e[0], k1 = e[1], b = e[2], k2 = e[3], mi = e[4];
+      var c = mi ? a - b : a + b, d = mi ? a * k2 - b * k1 : a * k2 + b * k1, key = hLinK(c, d);
+      var d1 = 10 + k1, d2 = 10 + k2, L = lcm(d1, d2), n1 = a * (L / d1) + (mi ? -1 : 1) * b * (L / d2);
+      var first = hLinT(a, a * k2), second = hLinT(b, b * k1);
+      return {
+        q: "Write $" + hOver(a, hxT(k1)) + (mi ? " - " : " + ") + hOver(b, hxT(k2)) + "$ as a single fraction over $(" + hxT(k1) + ")(" + hxT(k2) + ")$. What is the numerator?",
+        type: "expr", answer: key, placeholder: holder("e.g. 2x+3", key, "e.g. 4x-1"),
+        hint: "The bottoms are different, so build each fraction up by the factor it is missing, then " + (mi ? "subtract the whole top of the second" : "add the tops") + ". The bottom stays the common one.",
+        steps: [
+          "The common bottom is $(" + hxT(k1) + ")(" + hxT(k2) + ")$. The first fraction is missing $" + hxT(k2) + "$ and the second is missing $" + hxT(k1) + "$, so multiply the top and bottom of each by what it is missing.",
+          "The first top becomes $" + a + "(" + hxT(k2) + ") = " + first + "$ and the second top becomes $" + b + "(" + hxT(k1) + ") = " + second + "$.",
+          mi ? "Subtract the whole second top, which changes both of its signs: $(" + first + ") - (" + second + ") = " + hLinT(c, d) + "$." :
+            "Add the tops and keep the bottom, because the pieces are now the same size and only the number of pieces adds: $(" + first + ") + (" + second + ") = " + hLinT(c, d) + "$.",
+          "So the numerator is $" + hLinT(c, d) + "$ over $(" + hxT(k1) + ")(" + hxT(k2) + ")$. The values $x = " + (-k1) + "$ and $x = " + (-k2) + "$ stay excluded.",
+          "Check at $x = 10$: the two pieces give $\\frac{" + a + "}{" + d1 + "}" + (mi ? " - " : " + ") + "\\frac{" + b + "}{" + d2 + "} = " + hF(n1, L) + "$, found over the denominator $" + L + "$, and the single fraction gives $\\frac{" + (10 * c + d) + "}{" + (d1 * d2) + "}$, which is also $" + hF(10 * c + d, d1 * d2) + "$ in lowest terms ✓."
+        ],
+        verify: function () {
+          /* the stem's sum times the stem's common bottom, at three allowed values, against the key; no caret, nonzero x coefficient */
+          var sp = hSpans(this.q), i, v;
+          if (sp.length !== 2 || /\^/.test(this.answer)) return false;
+          for (i = 0; i < HXS.length; i++) {
+            v = hTexEval(sp[0], HXS[i]) * hTexEval(sp[1], HXS[i]);
+            if (!hClose(v, wEval(this.answer, HXS[i]))) return false;
+          }
+          return wEval(this.answer, 1) !== wEval(this.answer, 0);
+        }
+      };
+    }
+  });
+
+  /* ---- pk-eq-linear: a/(x+k) = b/(x+m); a/x + b = c/x; (x+a)/(x+k) = b. One whole solution that is not excluded and not zero.
+     The page's 5/(x-1) = 3/(x+3) is left out (4/(x+3) = 1/x has the bottom x, which no tuple here uses). */
+  var HLIN = (function () {
+    var out = [], a, b, c, k, m, x0, nu;
+    for (a = 1; a <= 8; a++) for (b = 1; b <= 8; b++) for (k = -9; k <= 9; k++) for (m = -9; m <= 9; m++) {
+      if (!k || !m || k === m || a === b) continue;
+      nu = b * k - a * m;
+      if (nu % (a - b) !== 0) continue;
+      x0 = nu / (a - b);
+      if (!x0 || Math.abs(x0) > 15 || x0 === -k || x0 === -m) continue;
+      if (a === 5 && b === 3 && k === -1 && m === 3) continue;
+      out.push(["F1", a, b, k, m, x0]);
+    }
+    for (a = 1; a <= 12; a++) for (b = 2; b <= 6; b++) for (c = 1; c <= 12; c++) {
+      if (a === c || (c - a) % b !== 0) continue;
+      x0 = (c - a) / b;
+      if (!x0 || Math.abs(x0) > 12) continue;
+      out.push(["F2", a, b, c, 0, x0]);
+    }
+    for (a = -9; a <= 9; a++) for (b = 2; b <= 6; b++) for (k = -9; k <= 9; k++) {
+      if (!a || !k) continue;
+      nu = a - b * k;
+      if (nu % (b - 1) !== 0) continue;
+      x0 = nu / (b - 1);
+      if (!x0 || Math.abs(x0) > 15 || x0 === -k) continue;
+      out.push(["F3", a, b, k, 0, x0]);
+    }
+    return out;
+  })();
+
+  G.add({
+    id: "pk-eq-linear", section: "pk-rational#equations", par: 80, timed: true,
+    make: function (r) {
+      var e = r.pick(HLIN) || ["F1", 2, 3, 1, 4, 10], f = e[0], a = e[1], b = e[2], k = e[3], m = e[4], x0 = e[5], key = String(x0), eq, steps, lcd, cleared;
+      if (f === "F1") {
+        eq = hOver(a, hxT(k)) + " = " + hOver(b, hxT(m));
+        lcd = "(" + hxT(k) + ")(" + hxT(m) + ")";
+        cleared = a + "(" + hxT(m) + ") = " + b + "(" + hxT(k) + ")";
+        steps = [
+          "The bottoms are $" + hxT(k) + "$ and $" + hxT(m) + "$, so $x \\ne " + (-k) + "$ and $x \\ne " + (-m) + "$. Multiply both sides by the common bottom $" + lcd + "$, which is not zero for an allowed $x$, and each fraction loses its own bottom.",
+          "That leaves $" + cleared + "$, so $" + hLinT(a, a * m) + " = " + hLinT(b, b * k) + "$.",
+          "Collect the $x$ terms: $" + hLinT(a - b, 0) + " = " + (b * k - a * m) + "$, so $x = " + x0 + "$. This is neither " + (-k) + " nor " + (-m) + ", so it is allowed.",
+          "Check in the original: the left side is $\\frac{" + a + "}{" + hPar(x0 + k) + "} = " + hF(a, x0 + k) + "$ and the right side is $\\frac{" + b + "}{" + hPar(x0 + m) + "} = " + hF(b, x0 + m) + "$ ✓."
+        ];
+      } else if (f === "F2") {
+        eq = hOver(a, "x") + " + " + b + " = " + hOver(e[3], "x");
+        lcd = "x";
+        steps = [
+          "The only bottom is $x$, so $x \\ne 0$. Multiply every term by $x$: $" + a + " + " + b + "x = " + e[3] + "$.",
+          "Subtract $" + a + "$ from both sides: $" + b + "x = " + (e[3] - a) + "$, so $x = " + x0 + "$, which is allowed.",
+          "Check in the original: $" + hF(a, x0) + " + " + b + " = " + hF(a + b * x0, x0) + "$ and the right side is $" + hF(e[3], x0) + "$ ✓."
+        ];
+      } else {
+        eq = hOver(hLinT(1, a), hxT(k)) + " = " + b;
+        lcd = hxT(k);
+        steps = [
+          "The bottom is $" + hxT(k) + "$, so $x \\ne " + (-k) + "$. Multiply both sides by $" + hxT(k) + "$: $" + hLinT(1, a) + " = " + b + "(" + hxT(k) + ")$.",
+          "Expand: $" + hLinT(1, a) + " = " + hLinT(b, b * k) + "$. Collect the $x$ terms: $" + hLinT(1 - b, 0) + " = " + (b * k - a) + "$, so $x = " + x0 + "$, which is allowed.",
+          "Check in the original: the left side is $\\frac{" + hPar(x0 + a) + "}{" + hPar(x0 + k) + "} = " + hF(x0 + a, x0 + k) + "$ and the right side is $" + b + "$ ✓."
+        ];
+      }
+      return {
+        q: "Solve $" + eq + "$.",
+        type: "number", answer: key, placeholder: holder("e.g. 3", key, "e.g. 5"),
+        hint: "Multiply both sides by the common bottom so the fractions disappear, solve the equation that is left, and check that the answer is not an excluded value.",
+        steps: steps,
+        verify: function () {
+          /* the printed equation: the key makes both sides equal with no bottom zero, and no other whole number in -60..60 does */
+          var sp = hSpans(this.q), sides, v = Number(this.answer), w, hits = 0;
+          if (sp.length !== 1) return false;
+          sides = sp[0].split("=");
+          if (sides.length !== 2) return false;
+          if (!hClose(hTexEval(sides[0], v), hTexEval(sides[1], v))) return false;
+          for (w = -60; w <= 60; w++) if (hClose(hTexEval(sides[0], w), hTexEval(sides[1], w))) hits++;
+          return hits === 1 && v === Math.round(v);
+        }
+      };
+    }
+  });
+
+  /* ---- pk-eq-extraneous: clearing leaves a quadratic with two whole roots, one of which is an excluded value; ask for the other.
+     T4: x/(x+u) + c/(x+v) = d/((x+u)(x+v)) with c = u - v - r and d = u(u - v), roots -u and r.
+     T5: x^2/(x+u) = u^2/(x+u) + d with d = r - u, roots -u and r.
+     The page's T5 (u = -3, r = -1), T5 (u = -2, r = 3) and T4 (u = -4, v = 2, r = 3) are left out. */
+  var HEXT = (function () {
+    var out = [], u, v, r, c;
+    for (u = -8; u <= 8; u++) for (v = -8; v <= 8; v++) for (r = -12; r <= 12; r++) {
+      if (!u || !v || !r || u === v || r === -u || r === -v) continue;
+      c = u - v - r;
+      if (!c || (u === -4 && v === 2 && r === 3)) continue;
+      out.push(["T4", u, v, r]);
+    }
+    for (u = -8; u <= 8; u++) for (r = -12; r <= 12; r++) {
+      if (!u || !r || r === -u || r === u) continue;
+      if ((u === -3 && r === -1) || (u === -2 && r === 3)) continue;
+      out.push(["T5", u, 0, r]);
+    }
+    return out;
+  })();
+
+  G.add({
+    id: "pk-eq-extraneous", section: "pk-rational#equations", par: 90, timed: true,
+    make: function (r) {
+      var e = r.pick(HEXT) || ["T5", 2, 0, 5], f = e[0], u = e[1], v = e[2], rt = e[3], key = String(rt), eq, steps, c, d, B, C, lhs, rhs, den;
+      if (f === "T4") {
+        c = u - v - rt; d = u * (u - v); B = v + c; C = c * u - d;
+        eq = hOver("x", hxT(u)) + (c < 0 ? " - " : " + ") + hOver(Math.abs(c), hxT(v)) + " = " + (d < 0 ? "-" : "") + hOver(Math.abs(d), "(" + hxT(u) + ")(" + hxT(v) + ")");
+        den = (rt + u) * (rt + v);
+        steps = [
+          "The bottoms are $" + hxT(u) + "$ and $" + hxT(v) + "$, so $x \\ne " + (-u) + "$ and $x \\ne " + (-v) + "$. Multiply every term by $(" + hxT(u) + ")(" + hxT(v) + ")$: $x(" + hxT(v) + ")" + (c < 0 ? " - " : " + ") + Math.abs(c) + "(" + hxT(u) + ") = " + d + "$.",
+          "Expand and collect: $" + hTri(1, B, C) + " = 0$, which factors as $(" + hxT(u) + ")(" + hxT(-rt) + ") = 0$, since the numbers $" + u + "$ and $" + (-rt) + "$ have product $" + (-u * rt) + "$ and sum $" + B + "$.",
+          "The candidates are $x = " + (-u) + "$ and $x = " + rt + "$. The first makes the bottom $" + hxT(u) + "$ equal to zero, so it is extraneous and is not a solution.",
+          "Check $x = " + rt + "$ in the original: the left side is $" + hJoin(hF(rt, rt + u), hF(c, rt + v)) + " = " + hF(rt * (rt + v) + c * (rt + u), den) + "$ and the right side is $" + hF(d, den) + "$ ✓."
+        ];
+      } else {
+        d = rt - u;
+        eq = hOver("x^2", hxT(u)) + " = " + hOver(u * u, hxT(u)) + (d < 0 ? " - " : " + ") + Math.abs(d);
+        den = rt + u;
+        steps = [
+          "The only bottom is $" + hxT(u) + "$, so $x \\ne " + (-u) + "$. Multiply every term by it: $x^2 = " + (u * u) + (d < 0 ? " - " : " + ") + Math.abs(d) + "(" + hxT(u) + ")$.",
+          "Expand and collect: $" + hTri(1, -d, -(u * u + d * u)) + " = 0$, which factors as $(" + hxT(u) + ")(" + hxT(-rt) + ") = 0$, since the numbers $" + u + "$ and $" + (-rt) + "$ have product $" + (-u * rt) + "$ and sum $" + (-d) + "$.",
+          "The candidates are $x = " + (-u) + "$ and $x = " + rt + "$. The first makes the bottom zero, so it is extraneous and is not a solution.",
+          "Check $x = " + rt + "$ in the original: the left side is $\\frac{" + (rt * rt) + "}{" + den + "} = " + hF(rt * rt, den) + "$ and the right side is $" + hJoin(hF(u * u, den), String(d)) + " = " + hF(u * u + d * den, den) + "$ ✓."
+        ];
+      }
+      return {
+        q: "Solve $" + eq + "$. Clearing the fractions leaves two candidates, and one of them does not work in the original equation. Give the one solution.",
+        type: "number", answer: key, placeholder: holder("e.g. 2", key, "e.g. 6"),
+        hint: "Multiply every term by the common bottom, solve the equation that is left by factoring, and then try each candidate in the original. A candidate that makes a bottom zero is not a solution.",
+        steps: steps,
+        verify: function () {
+          /* the printed equation: the key makes both sides equal with every bottom nonzero, it is the only whole number in -60..60 that does,
+             and the other candidate makes a bottom zero */
+          var sp = hSpans(this.q), sides, v0 = Number(this.answer), w, hits = 0, bad = [];
+          if (sp.length !== 1) return false;
+          sides = sp[0].split("=");
+          if (sides.length !== 2) return false;
+          if (!hClose(hTexEval(sides[0], v0), hTexEval(sides[1], v0))) return false;
+          for (w = -60; w <= 60; w++) {
+            if (hClose(hTexEval(sides[0], w), hTexEval(sides[1], w))) hits++;
+            else if (!isFinite(hTexEval(sides[0], w)) || !isFinite(hTexEval(sides[1], w))) bad.push(w);
+          }
+          return hits === 1 && bad.indexOf(-u) >= 0 && bad.indexOf(v0) < 0 && bad.length <= 2;
+        }
+      };
+    }
+  });
+
+  /* ---- pk-eq-work: 1/a + 1/b = 1/t. "together": a, b given, ask t; "second": a and t given, ask b; "drain": a fills, b empties, ask t.
+     Pairs a < b up to 24 whose time together t is a whole or half number of hours. The page's (6, 12), (9, 18) and pack F's (10, 15), (4, 12) are left out. */
+  var HWPAIRS = (function () {
+    var out = [], a, b;
+    for (a = 2; a <= 24; a++) for (b = a + 1; b <= 24; b++) {
+      if ((2 * a * b) % (a + b) !== 0) continue;
+      if ((a === 6 && b === 12) || (a === 9 && b === 18) || (a === 10 && b === 15) || (a === 4 && b === 12)) continue;
+      out.push([a, b]);
+    }
+    return out;
+  })();
+  var HWDRAIN = (function () {
+    var out = [], a, b;
+    for (a = 2; a <= 20; a++) for (b = a + 1; b <= 24; b++) {
+      if ((2 * a * b) % (b - a) !== 0 || a * b / (b - a) > 24) continue;
+      out.push([a, b]);
+    }
+    return out;
+  })();
+  var HWJOBS = [
+    { together: function (a, b) { return "One printer finishes a job alone in " + wHours(a) + ", and a second printer finishes the same job alone in " + wHours(b) + ". With both printers running, how many hours does the job take?"; },
+      second: function (a, t) { return "Two printers running together finish a job in " + wHours(t) + ". The first printer alone takes " + wHours(a) + ". How many hours does the second printer alone take?"; } },
+    { together: function (a, b) { return "Tara can weed a garden alone in " + wHours(a) + ", and her cousin can weed it alone in " + wHours(b) + ". Working together, how many hours do they take?"; },
+      second: function (a, t) { return "Tara and her cousin weed a garden together in " + wHours(t) + ". Tara alone takes " + wHours(a) + ". How many hours would her cousin alone take?"; } },
+    { together: function (a, b) { return "A crew of two can stack a pile of lumber: one stacker alone takes " + wHours(a) + " and the other alone takes " + wHours(b) + ". Stacking together, how many hours do they take?"; },
+      second: function (a, t) { return "Two stackers together clear a pile of lumber in " + wHours(t) + ". The first alone takes " + wHours(a) + ". How many hours does the second stacker alone take?"; } },
+    { together: function (a, b) { return "Pump A empties a flooded cellar alone in " + wHours(a) + ", and pump B empties it alone in " + wHours(b) + ". With both pumps on, how many hours does it take?"; },
+      second: function (a, t) { return "Two pumps on together empty a flooded cellar in " + wHours(t) + ". Pump A alone takes " + wHours(a) + ". How many hours does pump B alone take?"; } },
+    { together: function (a, b) { return "Hal can mow a field alone in " + wHours(a) + ", and Iris can mow it alone in " + wHours(b) + ". Mowing together, how many hours do they take?"; },
+      second: function (a, t) { return "Hal and Iris mow a field together in " + wHours(t) + ". Hal alone takes " + wHours(a) + ". How many hours would Iris alone take?"; } }
+  ];
+  var HWTANKS = [
+    function (a, b) { return "A tap fills a tank alone in " + wHours(a) + ", and a drain at the bottom empties a full tank in " + wHours(b) + ". With the tap and the drain both open on an empty tank, how many hours does it take to fill?"; },
+    function (a, b) { return "A fountain basin fills from one pipe alone in " + wHours(a) + " and drains through an open outlet alone in " + wHours(b) + ". With the pipe and the outlet both open, how many hours does an empty basin take to fill?"; },
+    function (a, b) { return "A hose fills a pool alone in " + wHours(a) + ", and a leak would empty it alone in " + wHours(b) + ". With the hose on and the leak running, how many hours does the empty pool take to fill?"; },
+    function (a, b) { return "A tub fills from the faucet alone in " + wHours(a) + " and drains alone in " + wHours(b) + " with the plug out. With both going, how many hours does an empty tub take to fill?"; }
+  ];
+
+  G.add({
+    id: "pk-eq-work", section: "pk-rational#equations", par: 90, timed: true,
+    make: function (r) {
+      var kind = r.pick(["together", "second", "together", "second", "drain"]), job = r.pick(HWJOBS), a, b, t, key, q, steps, T2, pr;
+      if (kind === "drain") {
+        pr = r.pick(HWDRAIN) || [3, 6]; a = pr[0]; b = pr[1]; t = a * b / (b - a); T2 = 2 * a * b / (b - a);
+        key = clean(t); q = r.pick(HWTANKS)(a, b);
+        steps = [
+          "Let $t$ be the hours to fill with both open. The tap adds $\\dfrac{1}{" + a + "}$ of the tank each hour and the drain takes away $\\dfrac{1}{" + b + "}$, so $\\dfrac{1}{" + a + "} - \\dfrac{1}{" + b + "} = \\dfrac{1}{t}$, with $t \\ne 0$.",
+          "Multiply every term by $" + (a * b) + "t$, the common bottom: $" + b + "t - " + a + "t = " + (a * b) + "$, so $" + (b - a) + "t = " + (a * b) + "$ and $t = " + key + "$ hours.",
+          "Check: in one hour the tap adds $\\frac{1}{" + a + "}$ and the drain removes $\\frac{1}{" + b + "}$, which leaves $" + hF(b - a, a * b) + "$ of the tank, and one over " + key + " is $" + hF(2, T2) + "$ ✓. The answer is more than " + a + ", the tap's time alone, as it must be, since the drain slows the filling."
+        ];
+      } else {
+        pr = r.pick(HWPAIRS) || [3, 6]; a = pr[0]; b = pr[1];
+        if (r.chance(0.5)) { var sw = a; a = b; b = sw; }
+        t = a * b / (a + b); T2 = 2 * a * b / (a + b);
+        if (kind === "together") {
+          key = clean(t); q = job.together(a, b);
+          steps = [
+            "Each worker's rate is one over the hours alone, and the rates add to one over the hours together: $\\dfrac{1}{" + a + "} + \\dfrac{1}{" + b + "} = \\dfrac{1}{t}$, with $t \\ne 0$.",
+            "Multiply every term by $" + (a * b) + "t$, the common bottom: $" + b + "t + " + a + "t = " + (a * b) + "$, so $" + (a + b) + "t = " + (a * b) + "$ and $t = " + key + "$ hours.",
+            "Check: $\\frac{1}{" + a + "} + \\frac{1}{" + b + "} = " + hF(a + b, a * b) + "$ and one over " + key + " is $" + hF(2, T2) + "$ ✓. The answer is less than " + Math.min(a, b) + ", the quicker time alone, as it must be."
+          ];
+        } else {
+          key = String(b); q = job.second(a, t);
+          steps = [
+            "Let $x$ be the hours the second takes alone. The rates add to one over the hours together: $\\dfrac{1}{" + a + "} + \\dfrac{1}{x} = \\dfrac{1}{" + clean(t) + "}$, with $x \\ne 0$.",
+            "Multiply every term by $" + clean(a * t) + "x$, the common bottom: $" + clean(t) + "x + " + clean(a * t) + " = " + a + "x$, so $" + clean(a * t) + " = " + clean(a - t) + "x$ and $x = " + key + "$ hours.",
+            "Check: $\\frac{1}{" + a + "} + \\frac{1}{" + b + "} = " + hF(a + b, a * b) + "$ and one over " + clean(t) + " is $" + hF(2, T2) + "$ ✓."
+          ];
+        }
+      }
+      return {
+        q: q, type: "number", answer: key, placeholder: holder("e.g. 6", key, "e.g. 9"),
+        hint: "A worker who takes some hours alone does one over that many of the job each hour. Write the rates as fractions that add or subtract to one over the time asked, clear the fractions with the common bottom, and solve.",
+        steps: steps,
+        verify: function () {
+          /* the hours as the stem prints them, and the rate equation by whole-number arithmetic (the key and the time are halves, so doubled) */
+          var hs = [], m, re = /\$([\d.]+)\$ hours?/g, K2 = Math.round(Number(this.answer) * 2), h0, h1;
+          while ((m = re.exec(this.q))) hs.push(Number(m[1]));
+          if (hs.length !== 2 || K2 !== Number(this.answer) * 2) return false;
+          h0 = Math.round(hs[0] * 2); h1 = Math.round(hs[1] * 2);
+          if (h0 !== hs[0] * 2 || h1 !== hs[1] * 2) return false;
+          if (kind === "together") return K2 * (hs[0] + hs[1]) === 2 * hs[0] * hs[1] && K2 < 2 * Math.min(hs[0], hs[1]);
+          if (kind === "drain") return K2 * (hs[1] - hs[0]) === 2 * hs[0] * hs[1] && hs[1] > hs[0] && K2 > 2 * hs[0];
+          /* second: the stem names the time together first, then the first worker alone; 1/a + 1/x = 1/t with t = hs[0], a = hs[1], x = key */
+          return hs[0] < hs[1] && K2 / 2 > hs[0] && (K2 / 2 + hs[1]) * hs[0] === hs[1] * (K2 / 2);
         }
       };
     }

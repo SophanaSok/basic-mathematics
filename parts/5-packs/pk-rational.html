@@ -3,7 +3,7 @@
 <head>
 <!--bm:head-->
 <title>Pack H. Factoring and Rational Expressions — Basic Mathematics</title>
-<meta name="description" content="Factoring read as multiplication backward: a trinomial with a leading coefficient of one needs two numbers with a given product and sum, a common factor comes out first, a trinomial with a larger leading coefficient splits its middle term, the difference of squares and the perfect square come from expanding, and expanding back is the check; then rational expressions, where the values that make the bottom zero are excluded before anything cancels, only factors and never terms divide out, an opposite factor gives minus one, and the simplified form agrees with the original at every allowed value: the algebra skills the gate exams ask for and the book leaves out.">
+<meta name="description" content="Factoring read as multiplication backward: a trinomial with a leading coefficient of one needs two numbers with a given product and sum, a common factor comes out first, a trinomial with a larger leading coefficient splits its middle term, the difference of squares and the perfect square come from expanding, and expanding back is the check; then rational expressions, where the values that make the bottom zero are excluded before anything cancels, only factors and never terms divide out, an opposite factor gives minus one, and the simplified form agrees with the original at every allowed value; then the four operations on them, where factors divide out before multiplying, division multiplies by the reciprocal, and sums and differences go over a least common denominator, and rational equations, which are cleared with that denominator and checked for extraneous solutions: the algebra skills the gate exams ask for and the book leaves out.">
 </head>
 <body data-depth="2" data-chapter="pk-rational" data-part="packs">
 <!--bm:topbar-->
@@ -23,7 +23,9 @@
         difference of squares and the perfect square, each argued from expanding and each checked by expanding back. Its second section
         puts factoring to work on fractions whose top and bottom are polynomials. Such a fraction is undefined where its bottom is zero,
         it simplifies by dividing out common <em>factors</em> and never common terms, and a factor that is the opposite of another gives
-        minus one.
+        minus one. The third section multiplies, divides, adds and subtracts such fractions, factoring first and dividing out before multiplying,
+        multiplying by the reciprocal to divide, and using a least common denominator to add. The fourth uses that denominator to clear the fractions
+        of an equation, and checks every candidate, since a solution that is an excluded value is extraneous.
       </p>
 
       <div class="banner-meta" data-banner-meta></div>
@@ -41,7 +43,7 @@
         <li>Yes, except at one value of $x$</li>
         <li>No, they only agree at some values</li>
       </ul>
-      <p class="puzzle-after">One test value agreeing does not settle it, and the question hides a trap in the single value of $x$ that makes the bottom of the fraction zero. The first section learns to write $x^2 - 1$ as a product of brackets, and the second uses that product to cancel, and to say exactly where the canceled fraction and the original stop agreeing.</p>
+      <p class="puzzle-after">One test value agreeing does not settle it, and the question hides a trap in the single value of $x$ that makes the bottom of the fraction zero. The first section learns to write $x^2 - 1$ as a product of brackets, and the second uses that product to cancel, and to say exactly where the canceled fraction and the original stop agreeing. The last two sections add, multiply, divide and solve with such fractions, and the excluded value follows every step.</p>
     </div>
 
     <div class="goal">
@@ -49,7 +51,8 @@
       factor a trinomial $x^2 + bx + c$ by finding two numbers with product $c$ and sum $b$, take a common factor out first, factor
       $ax^2 + bx + c$ by splitting the middle term, factor a difference of squares and a perfect square, and check any factoring
       by expanding back. You can name the values of $x$ that a rational expression excludes, simplify it by factoring top and bottom
-      completely and dividing out common factors, handle an opposite factor, and check a simplified form by evaluating both forms at an allowed value.
+      completely and dividing out common factors, handle an opposite factor, and check a simplified form by evaluating both forms at an allowed value. You can multiply and divide rational expressions
+      by factoring first, add and subtract them over a least common denominator, and solve a rational equation by clearing the fractions, rejecting any extraneous solution.
     </div>
 
     <section class="warmup" id="warmup">
@@ -351,6 +354,226 @@
       </div>
     </div>
 
+    <h2 id="operations">H.3 Multiplying, dividing, adding and subtracting</h2>
+    <p>
+      Rational expressions follow the rules of numeric fractions, so each rule is argued first with numbers. To <b>multiply</b>, multiply tops and multiply bottoms:
+      $$\frac{a}{b} \cdot \frac{c}{d} = \frac{ac}{bd},$$
+      because a piece of size $\frac{1}{b}$ cut into $d$ equal pieces gives pieces of size $\frac{1}{bd}$, and $ac$ of them are taken. The better habit is to <em>factor first and divide out before multiplying</em>,
+      since the factors of a product are the factors of the pieces. Multiplied straight, $\frac{6}{35} \cdot \frac{14}{9} = \frac{84}{315}$, and the common factor $21$ must then be found.
+      Factored first, $\frac{2 \cdot 3}{5 \cdot 7} \cdot \frac{2 \cdot 7}{3 \cdot 3} = \frac{2 \cdot 2}{5 \cdot 3} = \frac{4}{15}$, and each canceled pair is seen at once. For polynomials, factor every top and bottom completely,
+      divide out any factor that stands on a top and on a bottom, in either fraction, and multiply what is left. The excluded values come from every bottom that appears, including a bottom whose factor later cancels.
+    </p>
+    <p>
+      To <b>divide</b>, remember what division asks: $a \div b$ is the number that, times $b$, gives $a$. So $\frac{3}{4} \div \frac{2}{5}$ is the number $q$ with $q \cdot \frac{2}{5} = \frac{3}{4}$.
+      Multiply both sides by $\frac{5}{2}$, and since $\frac{5}{2} \cdot \frac{2}{5} = 1$, $q = \frac{3}{4} \cdot \frac{5}{2} = \frac{15}{8}$. Dividing by a fraction multiplies by its reciprocal, and for expressions
+      $\frac{A}{B} \div \frac{C}{D} = \frac{A}{B} \cdot \frac{D}{C}$. The reciprocal has $C$ as a bottom, and a bottom cannot be zero, so the top of the divisor adds excluded values that neither original bottom shows.
+    </p>
+    <p>
+      To <b>add</b>, the pieces must be the same size, which means a common denominator. Any common multiple of the bottoms works, but the least one keeps the numbers small. For $\frac{1}{6} + \frac{1}{4}$ the product of the
+      bottoms, $24$, gives $\frac{4}{24} + \frac{6}{24} = \frac{10}{24}$, which still reduces, while $12$ gives $\frac{2}{12} + \frac{3}{12} = \frac{5}{12}$ at once. The <b>least common denominator</b> (LCD) is the product of every distinct
+      factor at its highest power: $6 = 2 \cdot 3$ and $4 = 2^2$, so the LCD is $2^2 \cdot 3 = 12$. For expressions, factor each bottom and do the same. Build each fraction up by multiplying its top and bottom by the factors it is missing,
+      which multiplies by $1$; then add the tops and keep the bottom, because the bottom only names the size of the piece: two twelfths plus three twelfths is five twelfths. The bottoms do not add. Adding them gives
+      $\frac{1 + 1}{6 + 4} = \frac{1}{5}$, which is less than $\frac{1}{4}$ alone, so it cannot be the sum. Then simplify if the top and bottom share a factor.
+      For example, $\frac{2}{x + 1} + \frac{3}{x}$ has the LCD $x(x + 1)$, so it is $\frac{2x}{x(x + 1)} + \frac{3(x + 1)}{x(x + 1)} = \frac{5x + 3}{x(x + 1)}$, and at $x = 2$ the pieces give $\frac{2}{3} + \frac{3}{2} = \frac{13}{6}$ and the result gives $\frac{13}{6}$.
+    </p>
+    <p>
+      To <b>subtract</b>, subtract the whole top. A minus sign in front of a fraction applies to every term of its top, so in $\dfrac{4x}{x + 3} - \dfrac{x - 5}{x + 3}$ the work is $\dfrac{4x - (x - 5)}{x + 3} = \dfrac{4x - x + 5}{x + 3} = \dfrac{3x + 5}{x + 3}$.
+      The slip is to write $4x - x - 5$, which changes only the first sign of the bracket. Evaluating catches it: at $x = 2$ the pieces give $\frac{8}{5} - \frac{-3}{5} = \frac{11}{5}$, the correct result gives $\frac{11}{5}$, and the slip gives $\frac{1}{5}$.
+      That is the check for every operation here: evaluate the pieces and the result at an allowed value, and the two must agree.
+    </p>
+
+    <div class="worked">
+      <h3><span class="num">Example 5.</span> A product that cancels</h3>
+      <div class="body">
+        <p>
+          Multiply and simplify $\dfrac{x^2 - 9}{x^2 + 3x - 10} \cdot \dfrac{x + 5}{x + 3}$, and name the excluded values.
+        </p>
+        <ol class="steps">
+          <li>Factor the top of the first fraction, a difference of squares: $x^2 - 9 = (x - 3)(x + 3)$. Factor its bottom with numbers of product $-10$ and sum $3$, which are $5$ and $-2$: $x^2 + 3x - 10 = (x + 5)(x - 2)$.</li>
+          <li>The bottoms are zero at $x = -5$, $x = 2$ and $x = -3$, so those three values are excluded.</li>
+          <li>Write the product as one fraction: $\dfrac{(x - 3)(x + 3)(x + 5)}{(x + 5)(x - 2)(x + 3)}$. The factors $x + 3$ and $x + 5$ stand on the top and on the bottom, so they divide out and $\dfrac{x - 3}{x - 2}$ is left.</li>
+          <li>Check at $x = 4$, which is allowed: the first fraction is $\frac{16 - 9}{16 + 12 - 10} = \frac{7}{18}$, the second is $\frac{9}{7}$, and their product is $\frac{63}{126} = \frac{1}{2}$. The result gives $\frac{4 - 3}{4 - 2} = \frac{1}{2}$ ✓. $\blacksquare$</li>
+        </ol>
+        <p class="note">
+          The value $x = -3$ is excluded although only $x - 3$ and $x - 2$ remain: the second fraction was undefined there before anything canceled.
+        </p>
+      </div>
+    </div>
+
+    <div class="ex" data-inline id="t7" data-type="expr" data-answer="6/(x+8)|(6)/(x+8)" data-placeholder="e.g. 3/(x+1)"
+         data-hint="Multiply the tops and multiply the bottoms, and divide out any factor that stands on a top and on a bottom."
+         data-hint2="Which factor stands on the top of one fraction and on the bottom of the other?">
+      <div class="ex-q">
+        <p>
+          Multiply and simplify $\dfrac{6}{x - 7} \cdot \dfrac{x - 7}{x + 8}$.
+        </p>
+      </div>
+      <div class="ex-solution">
+        <p class="answer">Answer: $\dfrac{6}{x + 8}$</p>
+        <p>
+          The factor $x - 7$ is on a bottom and on a top, so it divides out and $\frac{6}{x + 8}$ is left, for $x \ne 7$ and $x \ne -8$. Check at $x = 1$: the pieces give $\frac{6}{-6} \cdot \frac{-6}{9} = (-1)\left(-\frac{2}{3}\right) = \frac{2}{3}$, and the result gives $\frac{6}{9} = \frac{2}{3}$ ✓.
+        </p>
+      </div>
+    </div>
+
+    <div class="ex" data-inline id="t8" data-type="expr" data-answer="(x-1)/(x+6)" data-placeholder="e.g. (x+2)/(x-3)"
+         data-hint="Multiply by the reciprocal of the divisor, then divide out the common factor."
+         data-hint2="Which values of $x$ are excluded, counting the top of the fraction you divide by?">
+      <div class="ex-q">
+        <p>
+          Divide and simplify $\dfrac{x}{x + 6} \div \dfrac{x}{x - 1}$.
+        </p>
+      </div>
+      <div class="ex-solution">
+        <p class="answer">Answer: $\dfrac{x - 1}{x + 6}$</p>
+        <p>
+          The quotient is $\frac{x}{x + 6} \cdot \frac{x - 1}{x}$, and the $x$ divides out, leaving $\frac{x - 1}{x + 6}$. The excluded values are $x = -6$, $x = 1$ and $x = 0$, the last because it makes the divisor's top zero. Check at $x = 2$: the pieces give $\frac{2}{8} \div \frac{2}{1} = \frac{1}{4} \cdot \frac{1}{2} = \frac{1}{8}$, and the result gives $\frac{1}{8}$ ✓.
+        </p>
+      </div>
+    </div>
+
+    <div class="worked">
+      <h3><span class="num">Example 6.</span> A difference with unlike binomial bottoms</h3>
+      <div class="body">
+        <p>
+          Write $\dfrac{3}{x - 4} - \dfrac{2}{x + 1}$ as a single fraction and simplify.
+        </p>
+        <ol class="steps">
+          <li>The bottoms $x - 4$ and $x + 1$ share no factor, so the LCD is their product $(x - 4)(x + 1)$, and $x = 4$ and $x = -1$ are excluded.</li>
+          <li>Build each fraction up by the factor it is missing: $\dfrac{3(x + 1)}{(x - 4)(x + 1)} - \dfrac{2(x - 4)}{(x - 4)(x + 1)}$.</li>
+          <li>Subtract the whole second top, which changes both of its signs: $3(x + 1) - 2(x - 4) = 3x + 3 - 2x + 8 = x + 11$.</li>
+          <li>The result is $\dfrac{x + 11}{(x - 4)(x + 1)}$. The top is zero only at $x = -11$, which is not a zero of the bottom, so nothing cancels and this is simplified.</li>
+          <li>Check at $x = 2$: the pieces give $\frac{3}{-2} - \frac{2}{3} = -\frac{9}{6} - \frac{4}{6} = -\frac{13}{6}$, and the result gives $\frac{13}{(-2)(3)} = -\frac{13}{6}$ ✓. $\blacksquare$</li>
+        </ol>
+        <p class="note">
+          Had the bracket been dropped, $3x + 3 - 2x - 8$ would give $x - 5$, and the check would give $\frac{-3}{-6} = \frac{1}{2}$, not $-\frac{13}{6}$.
+        </p>
+      </div>
+    </div>
+
+    <div class="ex" data-inline id="t9" data-type="expr" data-answer="2x+10|2(x+5)" data-placeholder="e.g. 3x+4"
+         data-hint="Build each fraction up to the common bottom by the factor it is missing, then subtract the whole second top."
+         data-hint2="What is the common bottom, and what is each fraction missing?">
+      <div class="ex-q">
+        <p>
+          Write $\dfrac{5}{x} - \dfrac{3}{x + 2}$ as a single fraction over $x(x + 2)$. What is its numerator?
+        </p>
+      </div>
+      <div class="ex-solution">
+        <p class="answer">Answer: $2x + 10$</p>
+        <p>
+          The numerator is $5(x + 2) - 3x = 5x + 10 - 3x = 2x + 10$. Check at $x = 1$: the pieces give $5 - 1 = 4$, and the single fraction gives $\frac{2 + 10}{1 \cdot 3} = 4$ ✓.
+        </p>
+      </div>
+    </div>
+
+    <h2 id="equations">H.4 Rational equations</h2>
+    <p>
+      An equation can be cleared of fractions by multiplying both sides by the same nonzero number, which keeps the two sides equal. With numbers, $\frac{x}{3} + \frac{x}{4} = 7$ is cleared by $12$, the LCD:
+      $4x + 3x = 84$, so $x = 12$, and $\frac{12}{3} + \frac{12}{4} = 4 + 3 = 7$ ✓. A <b>rational equation</b> has the unknown in a bottom, so the multiplier has $x$ in it, and that is where the care goes.
+      Multiplying both sides by zero would make any equation true. The LCD is zero only at the excluded values, so for every allowed $x$ the multiplication is safe.
+      The method is then: factor the bottoms, name the excluded values, multiply <em>every</em> term by the LCD so each term loses its bottom, solve the polynomial equation that is left, which is linear or a quadratic that factors
+      (H.1 built that), and check each answer in the original equation. For $\frac{2}{x} + \frac{1}{3} = \frac{1}{2}$ the LCD is $6x$ and $x \ne 0$, so $12 + 2x = 3x$ and $x = 12$; the check is $\frac{2}{12} + \frac{1}{3} = \frac{1}{6} + \frac{2}{6} = \frac{1}{2}$ ✓.
+    </p>
+    <p>
+      The cleared equation is true wherever the original is, but it can be true in more places. If one of its solutions is an excluded value, the original has a zero bottom there and says nothing about numbers, so that candidate is
+      <b>extraneous</b> and is not a solution. This is why every candidate is substituted into the <em>original</em> equation, not the cleared one. The check also catches arithmetic slips.
+    </p>
+    <p>
+      A <b>proportion</b> $\frac{a}{b} = \frac{c}{d}$ is the simplest rational equation, with one fraction on each side. The LCD is $bd$, and multiplying both sides by it leaves $ad = cb$. So cross-multiplying is the LCD step in disguise,
+      with $b \ne 0$ and $d \ne 0$ excluded, and nothing new.
+    </p>
+    <p>
+      Rate stories lead here. If one person finishes a job alone in $a$ hours and another in $b$ hours, together they do $\frac{1}{a} + \frac{1}{b}$ of the job each hour, and in $t$ hours together they do the whole job, so
+      $$\frac{1}{a} + \frac{1}{b} = \frac{1}{t}.$$
+      This is the set-up of <a href="pk-words.html#work">F.3</a>. When one of the times is the unknown it stands in a bottom, and clearing the fractions with the LCD solves it. The answer must be positive and, with both working, less than each time alone.
+    </p>
+
+    <div class="worked">
+      <h3><span class="num">Example 7.</span> A candidate that fails the check</h3>
+      <div class="body">
+        <p>
+          Solve $\dfrac{x^2}{x - 3} = \dfrac{9}{x - 3} + 2$.
+        </p>
+        <ol class="steps">
+          <li>The only bottom is $x - 3$, so $x = 3$ is excluded.</li>
+          <li>Multiply every term by $x - 3$: $x^2 = 9 + 2(x - 3)$, which is $x^2 = 2x + 3$.</li>
+          <li>Move everything to one side: $x^2 - 2x - 3 = 0$. Numbers with product $-3$ and sum $-2$ are $-3$ and $1$, so $(x - 3)(x + 1) = 0$ and the candidates are $x = 3$ and $x = -1$.</li>
+          <li>The candidate $x = 3$ is the excluded value: it makes the bottom $x - 3$ zero, so it is extraneous and is dropped.</li>
+          <li>Check $x = -1$ in the original: the left side is $\frac{1}{-4} = -\frac{1}{4}$ and the right side is $\frac{9}{-4} + 2 = -\frac{9}{4} + \frac{8}{4} = -\frac{1}{4}$ ✓. The solution is $x = -1$. $\blacksquare$</li>
+        </ol>
+        <p class="note">
+          The cleared equation $x^2 = 2x + 3$ does have $3$ as a solution ($9 = 9$). It is the original that has no value at $3$.
+        </p>
+      </div>
+    </div>
+
+    <div class="ex" data-inline id="t10" data-type="number" data-answer="5" data-placeholder="e.g. 2"
+         data-hint="Multiply both sides by the common bottom so the fractions disappear, then solve the equation that is left."
+         data-hint2="Which values of $x$ make a bottom zero, and is your answer one of them?">
+      <div class="ex-q">
+        <p>
+          Solve $\dfrac{10}{x} = \dfrac{4}{x - 3}$.
+        </p>
+      </div>
+      <div class="ex-solution">
+        <p class="answer">Answer: $x = 5$</p>
+        <p>
+          With $x \ne 0$ and $x \ne 3$, multiply both sides by $x(x - 3)$: $10(x - 3) = 4x$, so $10x - 30 = 4x$, $6x = 30$ and $x = 5$. Check: the left side is $\frac{10}{5} = 2$ and the right side is $\frac{4}{2} = 2$ ✓.
+        </p>
+      </div>
+    </div>
+
+    <div class="ex" data-inline id="t11" data-type="number" data-answer="3" data-placeholder="e.g. 4"
+         data-hint="Multiply every term by the bottom, solve what is left by factoring, and try each candidate in the original."
+         data-hint2="Which candidate makes the bottom zero?">
+      <div class="ex-q">
+        <p>
+          Solve $\dfrac{x^2}{x - 2} = \dfrac{4}{x - 2} + 5$. Give the one solution.
+        </p>
+      </div>
+      <div class="ex-solution">
+        <p class="answer">Answer: $x = 3$</p>
+        <p>
+          Multiply by $x - 2$: $x^2 = 4 + 5(x - 2)$, so $x^2 - 5x + 6 = 0$ and $(x - 2)(x - 3) = 0$. The candidate $x = 2$ makes the bottom zero, so it is extraneous. Check $x = 3$: the left side is $\frac{9}{1} = 9$ and the right side is $\frac{4}{1} + 5 = 9$ ✓.
+        </p>
+      </div>
+    </div>
+
+    <div class="worked">
+      <h3><span class="num">Example 8.</span> A work problem</h3>
+      <div class="body">
+        <p>
+          Quinn can mow a lawn alone in $6$ hours. Working with Ravi, the lawn takes $4$ hours. How many hours would Ravi take alone?
+        </p>
+        <ol class="steps">
+          <li>Let $x$ be Ravi's hours alone. Quinn does $\frac{1}{6}$ of the lawn each hour, Ravi does $\frac{1}{x}$, and together they do $\frac{1}{4}$: $\dfrac{1}{6} + \dfrac{1}{x} = \dfrac{1}{4}$, with $x \ne 0$.</li>
+          <li>The LCD is $12x$. Multiply every term by it: $2x + 12 = 3x$.</li>
+          <li>Subtract $2x$ from both sides: $x = 12$, which is allowed.</li>
+          <li>Check in the story: Ravi does $\frac{1}{12}$ of the lawn per hour, and $\frac{1}{6} + \frac{1}{12} = \frac{2}{12} + \frac{1}{12} = \frac{3}{12} = \frac{1}{4}$ ✓. It also makes sense that $12$ hours alone is longer than the $4$ hours together. Ravi takes $12$ hours. $\blacksquare$</li>
+        </ol>
+        <p class="note">
+          The times $6$ and $12$ are not added or averaged. The rates, which are fractions of the same whole lawn, are.
+        </p>
+      </div>
+    </div>
+
+    <div class="ex" data-inline id="t12" data-type="set" data-answer="2,3" data-placeholder="e.g. 1,6"
+         data-hint="Multiply every term by the bottom, move everything to one side, and factor."
+         data-hint2="Which value of $x$ is excluded, and what quadratic equation is left once the bottom is cleared?">
+      <div class="ex-q">
+        <p>
+          Solve $x + \dfrac{6}{x} = 5$. Give the two values of $x$, separated by a comma.
+        </p>
+      </div>
+      <div class="ex-solution">
+        <p class="answer">Answer: $x = 2$ and $x = 3$</p>
+        <p>
+          With $x \ne 0$, multiply every term by $x$: $x^2 + 6 = 5x$, so $x^2 - 5x + 6 = 0$ and $(x - 2)(x - 3) = 0$. Check: $2 + \frac{6}{2} = 5$ and $3 + \frac{6}{3} = 5$ ✓, and neither value is $0$.
+        </p>
+      </div>
+    </div>
+
     <!-- ====================================================== practice ==== -->
     <section class="practice" id="practice">
       <div class="practice-head">
@@ -359,7 +582,8 @@
       </div>
       <p>
         Type a product of factors as <code>(x+2)(x+3)</code>, in any order of the factors, with a number in front if there is one. Type a power as
-        <code>(x+3)^2</code>. Type a fraction with its top and bottom in brackets, as in <code>(x-3)/(x+2)</code>. Type a list of values as a set, as in <code>2, 5</code>.
+        <code>(x+3)^2</code>. Type a fraction with its top and bottom in brackets, as in <code>(x-3)/(x+2)</code>. Type a list of values as a set, as in <code>2, 5</code>. When the bottom is a product of brackets, put the whole bottom in brackets, as in <code>(2x-1)/((x+3)(x-4))</code>,
+        and type a number in front of a letter as in <code>5x/(x+4)</code>. A numerator asked for on its own is typed as a plain expression, as in <code>3x+4</code>. A single value is typed as a number.
         A question that asks which option is right is answered by choosing one of the options shown.
       </p>
 
@@ -542,6 +766,203 @@
           </p>
         </div>
       </div>
+
+      <div class="ex" id="e15" data-section="operations" data-type="expr" data-answer="(2x-1)/((x+3)(x-3))|(2x-1)/((x-3)(x+3))|(2x-1)/(x^2-9)" data-placeholder="e.g. (x+1)/((x+2)(x-5))"
+           data-hint="Factor every top and bottom completely, write the product as one fraction, and divide out the factors that stand on a top and on a bottom."
+           data-hint2="Which values of $x$ make a bottom zero, before anything is canceled?">
+        <div class="ex-q"><p>Multiply and simplify $\dfrac{2x^2 + 5x - 3}{x^2 - x - 12} \cdot \dfrac{x - 4}{x^2 - 9}$.</p></div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $\dfrac{2x - 1}{(x + 3)(x - 3)}$</p>
+          <p>
+            The top $2x^2 + 5x - 3$ has $ac = -6$ and $b = 5$, so the numbers are $6$ and $-1$ and it is $(2x - 1)(x + 3)$. The bottoms are $x^2 - x - 12 = (x - 4)(x + 3)$ and $x^2 - 9 = (x - 3)(x + 3)$, so $x = 4$, $x = -3$ and $x = 3$ are excluded.
+            Dividing out $x - 4$ and one $x + 3$ leaves $\frac{2x - 1}{(x + 3)(x - 3)}$. Check at $x = 2$: the pieces give $\frac{15}{-10} \cdot \frac{-2}{-5} = -\frac{3}{2} \cdot \frac{2}{5} = -\frac{3}{5}$, and the result gives $\frac{3}{(5)(-1)} = -\frac{3}{5}$ ✓.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" id="e16" data-section="operations" data-type="expr" data-answer="3x/(x-2)|(3x)/(x-2)" data-placeholder="e.g. 2x/(x+4)"
+           data-hint="Multiply by the reciprocal of the divisor, then factor everything and divide out the common factors."
+           data-hint2="Which values of $x$ are excluded, counting the top of the fraction you divide by?">
+        <div class="ex-q"><p>Divide and simplify $\dfrac{3x + 6}{x - 1} \div \dfrac{x^2 - 4}{x^2 - x}$.</p></div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $\dfrac{3x}{x - 2}$</p>
+          <p>
+            The quotient is $\frac{3(x + 2)}{x - 1} \cdot \frac{x(x - 1)}{(x - 2)(x + 2)}$, and dividing out $x - 1$ and $x + 2$ leaves $\frac{3x}{x - 2}$. The excluded values are $x = 1$ and $x = 0$ from the bottoms, and $x = 2$ and $x = -2$ because the top of the divisor may not be zero.
+            Check at $x = 3$: the pieces give $\frac{15}{2} \div \frac{5}{6} = \frac{15}{2} \cdot \frac{6}{5} = 9$, and the result gives $\frac{9}{1} = 9$ ✓.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" id="e17" data-section="operations" data-type="expr" data-answer="x+4" data-placeholder="e.g. x-1"
+           data-hint="Factor all four polynomials, write the product as one fraction, and see what is left after the common factors divide out."
+           data-hint2="Which factor of the first bottom also stands on the top of the second fraction?">
+        <div class="ex-q"><p>Multiply and simplify $\dfrac{x^2 + 6x + 8}{x - 3} \cdot \dfrac{x^2 - 9}{x^2 + 5x + 6}$.</p></div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $x + 4$</p>
+          <p>
+            The factors are $x^2 + 6x + 8 = (x + 2)(x + 4)$, $x^2 - 9 = (x - 3)(x + 3)$ and $x^2 + 5x + 6 = (x + 2)(x + 3)$. Then $x - 3$, $x + 2$ and $x + 3$ each stand on the top and on the bottom, so only $x + 4$ is left, for $x \ne 3$, $x \ne -2$ and $x \ne -3$.
+            Check at $x = 4$: the pieces give $\frac{48}{1} \cdot \frac{7}{42} = 48 \cdot \frac{1}{6} = 8$, and the result gives $8$ ✓.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" id="e18" data-section="operations" data-type="expr" data-answer="(8x+5)/((x+5)(x-2))|(8x+5)/((x-2)(x+5))|(8x+5)/(x^2+3x-10)" data-placeholder="e.g. (3x+1)/((x+2)(x-4))"
+           data-hint="The bottoms are different, so build each fraction up by the factor it is missing, then add the tops and keep the common bottom."
+           data-hint2="What is the least common denominator?">
+        <div class="ex-q"><p>Write $\dfrac{5}{x + 5} + \dfrac{3}{x - 2}$ as a single fraction.</p></div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $\dfrac{8x + 5}{(x + 5)(x - 2)}$</p>
+          <p>
+            The LCD is $(x + 5)(x - 2)$. The tops become $5(x - 2) = 5x - 10$ and $3(x + 5) = 3x + 15$, which add to $8x + 5$, and the bottom stays. The top shares no factor with the bottom, so this is simplified. The values $x = -5$ and $x = 2$ are excluded.
+            Check at $x = 1$: the pieces give $\frac{5}{6} + \frac{3}{-1} = \frac{5}{6} - 3 = -\frac{13}{6}$, and the result gives $\frac{13}{(6)(-1)} = -\frac{13}{6}$ ✓.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" id="e19" data-section="operations" data-type="expr" data-answer="(15x+25)/((x-1)(x+4))|(15x+25)/((x+4)(x-1))|(15x+25)/(x^2+3x-4)|(5(3x+5))/((x-1)(x+4))|(5(3x+5))/((x+4)(x-1))|(5(3x+5))/(x^2+3x-4)|5(3x+5)/((x-1)(x+4))|5(3x+5)/((x+4)(x-1))|5(3x+5)/(x^2+3x-4)" data-placeholder="e.g. (4x+1)/((x+2)(x-3))"
+           data-hint="Build each fraction up to the common bottom, then subtract the whole second top, changing both of its signs."
+           data-hint2="What does each fraction lack to reach the least common denominator?">
+        <div class="ex-q"><p>Write $\dfrac{x + 7}{x - 1} - \dfrac{x - 3}{x + 4}$ as a single fraction.</p></div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $\dfrac{15x + 25}{(x - 1)(x + 4)}$</p>
+          <p>
+            The LCD is $(x - 1)(x + 4)$. The tops are $(x + 7)(x + 4) = x^2 + 11x + 28$ and $(x - 3)(x - 1) = x^2 - 4x + 3$, and the second is subtracted whole: $x^2 + 11x + 28 - x^2 + 4x - 3 = 15x + 25$, which is also $5(3x + 5)$.
+            Check at $x = 2$: the pieces give $\frac{9}{1} - \frac{-1}{6} = \frac{55}{6}$, and the result gives $\frac{30 + 25}{(1)(6)} = \frac{55}{6}$ ✓.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" id="e20" data-section="operations" data-type="expr" data-answer="11/(24x)|(11)/(24x)" data-placeholder="e.g. 5/(12x)"
+           data-hint="Both bottoms have the letter $x$ in common. Take the least common multiple of the numbers, with one $x$."
+           data-hint2="What is the least common multiple of the two numbers in the bottoms?">
+        <div class="ex-q"><p>Write $\dfrac{7}{12x} - \dfrac{1}{8x}$ as a single fraction.</p></div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $\dfrac{11}{24x}$</p>
+          <p>
+            Since $12 = 2^2 \cdot 3$ and $8 = 2^3$, the LCD is $2^3 \cdot 3 \cdot x = 24x$, with a single $x$. Build up: $\frac{7 \cdot 2}{24x} - \frac{1 \cdot 3}{24x} = \frac{14 - 3}{24x} = \frac{11}{24x}$, for $x \ne 0$.
+            Check at $x = 1$: the pieces give $\frac{7}{12} - \frac{1}{8} = \frac{14}{24} - \frac{3}{24} = \frac{11}{24}$, and the result gives $\frac{11}{24}$ ✓.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" id="e21" data-section="operations" data-answer="3"
+           data-hint="Factor each bottom. The least common denominator has every distinct factor, each at its highest power, and nothing else."
+           data-hint2="Which factors does each bottom contain, and which of them are shared?">
+        <div class="ex-q"><p>Which is the least common denominator of $\dfrac{3}{x^2 - x - 6}$ and $\dfrac{2}{x^2 - 9}$?</p></div>
+        <ul class="choices">
+          <li>$(x - 3)(x + 2)$</li>
+          <li>$2x^2 - x - 15$</li>
+          <li>$(x - 3)(x + 2)(x + 3)$</li>
+          <li>$(x^2 - x - 6)(x^2 - 9)$</li>
+        </ul>
+        <div class="ex-solution">
+          <p class="answer">Answer: $(x - 3)(x + 2)(x + 3)$</p>
+          <p>
+            The bottoms are $x^2 - x - 6 = (x - 3)(x + 2)$ and $x^2 - 9 = (x - 3)(x + 3)$. The distinct factors are $x - 3$, $x + 2$ and $x + 3$, each to the first power, and the shared $x - 3$ appears once. The first option is the first bottom alone, which the second bottom does not divide.
+            The second adds the bottoms, which does not give a common denominator. The fourth is a common denominator, but not the least: it repeats $x - 3$.
+            Check at $x = 1$: the chosen option is $(-2)(3)(4) = -24$, which the bottoms $-6$ and $-8$ both divide, while the first option is $-6$, which $-8$ does not divide evenly.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" id="e22" data-section="equations" data-type="number" data-answer="12" data-placeholder="e.g. 8"
+           data-hint="Multiply every term by the least common denominator so the fractions disappear, and solve the equation that is left."
+           data-hint2="What is the least common denominator of $x$, $5$ and $20$?">
+        <div class="ex-q"><p>Solve $\dfrac{3}{x} + \dfrac{2}{5} = \dfrac{13}{20}$.</p></div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $x = 12$</p>
+          <p>
+            With $x \ne 0$, multiply every term by the LCD $20x$: $60 + 8x = 13x$, so $60 = 5x$ and $x = 12$, which is allowed. Check: $\frac{3}{12} + \frac{2}{5} = \frac{1}{4} + \frac{2}{5} = \frac{5}{20} + \frac{8}{20} = \frac{13}{20}$ ✓.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" id="e23" data-section="equations" data-type="number" data-answer="-9" data-placeholder="e.g. 4"
+           data-hint="A proportion is cleared by multiplying both sides by the product of the bottoms, which is cross-multiplying."
+           data-hint2="Which two values of $x$ are excluded, and is your answer one of them?">
+        <div class="ex-q"><p>Solve $\dfrac{5}{x - 1} = \dfrac{3}{x + 3}$.</p></div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $x = -9$</p>
+          <p>
+            With $x \ne 1$ and $x \ne -3$, multiply both sides by $(x - 1)(x + 3)$: $5(x + 3) = 3(x - 1)$, so $5x + 15 = 3x - 3$, $2x = -18$ and $x = -9$, which is allowed. Check: the left side is $\frac{5}{-10} = -\frac{1}{2}$ and the right side is $\frac{3}{-6} = -\frac{1}{2}$ ✓.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" id="e24" data-section="equations" data-type="set" data-answer="-2,6" data-placeholder="e.g. 1,7"
+           data-hint="Multiply both sides by the bottom, move everything to one side, and factor the quadratic that is left."
+           data-hint2="Which value of $x$ is excluded, and what quadratic equation is left once the bottom is cleared?">
+        <div class="ex-q"><p>Solve $\dfrac{12}{x} = x - 4$. Give the two values of $x$, separated by a comma.</p></div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $x = -2$ and $x = 6$</p>
+          <p>
+            With $x \ne 0$, multiply both sides by $x$: $12 = x^2 - 4x$, so $x^2 - 4x - 12 = 0$ and $(x - 6)(x + 2) = 0$. Neither value is $0$. Check: $\frac{12}{6} = 2 = 6 - 4$ and $\frac{12}{-2} = -6 = -2 - 4$ ✓.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" id="e25" data-section="equations" data-type="number" data-answer="3" data-placeholder="e.g. 5"
+           data-hint="Multiply every term by the common bottom, solve the quadratic that is left, and test each candidate in the original."
+           data-hint2="Which candidate makes a bottom zero?">
+        <div class="ex-q"><p>Solve $\dfrac{x}{x - 4} - \dfrac{9}{x + 2} = \dfrac{24}{(x - 4)(x + 2)}$. One of the two candidates does not work in the original equation. Give the one solution.</p></div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $x = 3$</p>
+          <p>
+            Here $x \ne 4$ and $x \ne -2$. Multiply every term by $(x - 4)(x + 2)$: $x(x + 2) - 9(x - 4) = 24$, so $x^2 - 7x + 12 = 0$ and $(x - 3)(x - 4) = 0$. The candidate $x = 4$ makes the bottom $x - 4$ zero, so it is extraneous.
+            Check $x = 3$ in the original: the left side is $\frac{3}{-1} - \frac{9}{5} = -\frac{24}{5}$ and the right side is $\frac{24}{(-1)(5)} = -\frac{24}{5}$ ✓.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" id="e26" data-section="equations" data-type="number" data-answer="18" data-placeholder="hours"
+           data-hint="Each worker does one over the hours alone of the job each hour. Together the two rates equal one over the hours together."
+           data-hint2="What is the least common denominator of the three fractions, with the unknown in one bottom?">
+        <div class="ex-q"><p>Tess can lay a path alone in $9$ hours. Working with Ula, the path takes $6$ hours. How many hours would Ula take working alone?</p></div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $18$ hours</p>
+          <p>
+            Let $x$ be Ula's hours alone, so $\frac{1}{9} + \frac{1}{x} = \frac{1}{6}$, with $x \ne 0$. Multiply every term by the LCD $18x$: $2x + 18 = 3x$, so $x = 18$. Check: $\frac{1}{9} + \frac{1}{18} = \frac{2}{18} + \frac{1}{18} = \frac{3}{18} = \frac{1}{6}$ ✓. Ula alone takes longer than the $6$ hours together, as it must.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" id="e27" data-section="equations" data-answer="4"
+           data-hint="Clear the fractions, solve what is left, and then ask whether the candidate is allowed in the original equation."
+           data-hint2="Which value of $x$ makes a bottom of the original equation zero?">
+        <div class="ex-q"><p>What is the solution set of $\dfrac{x}{x - 5} = \dfrac{5}{x - 5} + 2$?</p></div>
+        <ul class="choices">
+          <li>$x = 5$</li>
+          <li>$x = 7$</li>
+          <li>$x = -5$</li>
+          <li>There is no solution.</li>
+        </ul>
+        <div class="ex-solution">
+          <p class="answer">Answer: There is no solution.</p>
+          <p>
+            With $x \ne 5$, multiply every term by $x - 5$: $x = 5 + 2(x - 5)$, so $x = 2x - 5$ and $x = 5$. But $x = 5$ is the excluded value, so it is extraneous, and no other candidate is left. The option $x = 7$ comes from multiplying the $2$ by nothing: $x = 5 + 2$.
+            The option $x = -5$ comes from reading $-x = -5$ as $x = -5$. Check $x = 5$ in the original: the bottom $5 - 5$ is $0$, so both fractions are undefined.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" id="e28" data-section="equations" data-answer="3"
+           data-hint="Every term gets multiplied by the whole common bottom, including the term on the right side."
+           data-hint2="What does each term lack to be multiplied by $3(x + 2)$?">
+        <div class="ex-q"><p>Which equation results from multiplying every term of $\dfrac{x}{x + 2} + \dfrac{1}{3} = \dfrac{4}{x + 2}$ by the common bottom $3(x + 2)$?</p></div>
+        <ul class="choices">
+          <li>$3x + 1 = 12$</li>
+          <li>$3x + (x + 2) = 4$</li>
+          <li>$3x + (x + 2) = 12$</li>
+          <li>$x + (x + 2) = 12$</li>
+        </ul>
+        <div class="ex-solution">
+          <p class="answer">Answer: $3x + (x + 2) = 12$</p>
+          <p>
+            The terms become $\frac{x}{x + 2} \cdot 3(x + 2) = 3x$, $\frac{1}{3} \cdot 3(x + 2) = x + 2$ and $\frac{4}{x + 2} \cdot 3(x + 2) = 12$. The first option multiplies the $\frac{1}{3}$ by $3$ but not by $x + 2$. The second leaves the right side unmultiplied.
+            The fourth leaves the first term unmultiplied by $3$. Check at $x = 1$: the original gives $\frac{1}{3} + \frac{1}{3} = \frac{2}{3}$ on the left and $\frac{4}{3}$ on the right; times $9$ these are $6$ and $12$, and the chosen equation gives $3 + 3 = 6$ and $12$ ✓.
+          </p>
+        </div>
+      </div>
     </section>
 
     <div class="recap">
@@ -564,6 +985,10 @@
         <li>Simplify by factoring top and bottom completely and dividing out common factors. Only factors cancel; $\dfrac{x + 3}{x}$ is not $3$.</li>
         <li>$a - b = -(b - a)$, so opposite factors cancel to $-1$, as in $\dfrac{3 - x}{x - 3} = -1$ for $x \ne 3$.</li>
         <li>Check a simplified form by evaluating both forms at an allowed value; they must agree.</li>
+        <li>To multiply, factor first, divide out any factor on a top and a bottom, and multiply what is left; the excluded values come from every bottom that appears, before canceling.</li>
+        <li>To divide, multiply by the reciprocal, since $a \div b$ is the number that times $b$ gives $a$; the top of the divisor is excluded too.</li>
+        <li>To add or subtract, use the least common denominator, the product of every distinct factor at its highest power; build each fraction up, add the tops (or subtract the whole top, changing every sign) and keep the bottom. Bottoms never add.</li>
+        <li>To solve a rational equation, multiply every term by the LCD, solve what is left, and check each candidate in the original: a candidate equal to an excluded value is extraneous. Cross-multiplying a proportion is this step, and $\frac{1}{a} + \frac{1}{b} = \frac{1}{t}$ is the work equation.</li>
       </ul>
     </div>
 

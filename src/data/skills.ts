@@ -343,6 +343,10 @@ export const SKILLS: Readonly<Record<SectionRef, Skill>> = {
     sat: ["sat.adv.equiv"], act: ["act.phm.alg"], accuplacer: ["aaf.fact", "aaf.quad"], aleks: ["ppl.exppoly", "ppl.ratexpr"] },
   "pk-rational#simplify": { ccss: "HSA.APR.D.6", also: ["HSA.SSE.A.2", "HSA.APR.D.7", "HSF.IF.B.5"], course: "algebra-2",
     sat: ["sat.adv.equiv"], act: ["act.phm.alg"], accuplacer: ["aaf.radrat", "aaf.fact"], aleks: ["ppl.ratexpr"] },
+  "pk-rational#operations": { ccss: "HSA.APR.D.6", also: ["HSA.APR.D.7", "HSA.SSE.A.2", "HSA.SSE.B.3"], course: "algebra-2",
+    sat: ["sat.adv.equiv"], act: ["act.phm.alg"], accuplacer: ["aaf.radrat", "aaf.poly"], aleks: ["ppl.ratexpr"] },
+  "pk-rational#equations": { ccss: "HSA.REI.A.2", also: ["HSA.REI.A.1", "HSA.CED.A.1", "HSA.APR.D.7"], course: "algebra-2",
+    sat: ["sat.adv.nleq", "sat.adv.equiv"], act: ["act.phm.alg", "act.mod"], accuplacer: ["aaf.radrat", "aaf.quad"], aleks: ["ppl.ratexpr", "ppl.eqineq"] },
 };
 
 /** Generators (data/gen/*.js, by id) whose test differs from their section's record. */

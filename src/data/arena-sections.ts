@@ -33,5 +33,5 @@ export const ARENA_SECTIONS: readonly string[] = [
   "pk-words#name", "pk-words#drt", "pk-words#work", "pk-words#check",
   "pk-growth#sequences", "pk-growth#growth",
   "pk-growth#interest", "pk-growth#logs",
-  "pk-rational#factor", "pk-rational#simplify"
+  "pk-rational#factor", "pk-rational#simplify", "pk-rational#operations", "pk-rational#equations"
 ];

@@ -420,6 +420,12 @@
     "h2#simplify to div#t4",
     "div#t5",
     "div.worked to div#t6",
+    "h2#operations to div#t7",
+    "div#t8",
+    "div.worked to div#t9",
+    "h2#equations to div#t10",
+    "div#t11",
+    "div.worked to div#t12",
     "section#practice",
     "div.recap to nav.chapter-nav"
   ],
