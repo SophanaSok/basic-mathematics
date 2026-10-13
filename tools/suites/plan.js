@@ -84,7 +84,7 @@ module.exports = {
           sub: Array.from(slot.querySelectorAll("h5")).length,
           visible: ["Coming up", "Going further"].map((t) => { const e = Array.from(slot.querySelectorAll("h4")).find((x) => x.textContent === t); return !!e && e.offsetParent !== null && !e.closest("details"); }),
           skim: (slot.querySelector("details.diag-plan-hand > summary") || {}).textContent,
-          handHead: (() => { const hd = Array.from(slot.querySelectorAll(":scope > h4")).find((x) => x.textContent === "Already in hand"); for (let e = hd && hd.nextElementSibling; e && e.tagName !== "H4"; e = e.nextElementSibling) if (e.matches("details.diag-plan-hand")) return true; return false; })(),
+          handHead: (() => { const hd = Array.from(slot.querySelectorAll(":scope > h4")).find((x) => x.textContent === "Already in hand"); const e = hd && hd.nextElementSibling; return !!(e && e.matches("details.diag-plan-hand")); })(),
           fold: Array.from(slot.querySelectorAll("summary")).filter((x) => x.textContent === "See the whole plan").length
         };
       });
