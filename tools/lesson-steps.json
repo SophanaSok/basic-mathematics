@@ -420,6 +420,12 @@
     "h2#drt to div#t4",
     "div.worked to div#t5",
     "div#t6",
+    "h2#work to div#t7",
+    "p to div#t8",
+    "p to div#t9",
+    "h2#check to div#t10",
+    "div#t11",
+    "div.worked to div#t12",
     "section#practice",
     "div.recap to nav.chapter-nav"
   ]
