@@ -394,10 +394,12 @@ window.BM_CURRICULUM = {
           status: "full",
           course: "algebra-1",
           blurb:
-            "Turning a story into an equation: naming the unknown, writing every other quantity in terms of it, one equation for each fact, and then distance, rate and time, where d = rt gives one row per mover. Later sections take up work, mixtures and checking.",
+            "Turning a story into an equation: naming the unknown, writing every other quantity in terms of it, one equation for each fact, and then distance, rate and time, where d = rt gives one row per mover; then rates that combine in work, currents and mixtures, and checking an answer against the story.",
           sections: [
             { id: "name", title: "Naming the unknown", summary: "Name one unknown with its unit, write every other quantity in terms of it, write one equation for each fact, solve, and answer the question asked with its units; phrases such as 5 less than twice a number, ages and consecutive integers become expressions." },
-            { id: "drt", title: "Distance, rate and time", summary: "Distance is rate times time, so each mover gets a row of rate, time and distance and one sentence ties the rows: toward each other the distances add to the gap, in a catch-up they are equal, on a round trip they are equal and the times add; an average speed is total distance over total time." }
+            { id: "drt", title: "Distance, rate and time", summary: "Distance is rate times time, so each mover gets a row of rate, time and distance and one sentence ties the rows: toward each other the distances add to the gap, in a catch-up they are equal, on a round trip they are equal and the times add; an average speed is total distance over total time." },
+            { id: "work", title: "Work, currents and mixtures", summary: "Rates that combine: workers who finish a job in a and b hours do 1/a + 1/b of it each hour, a current adds to or subtracts from a boat's still-water speed, and in a mixture the liters add and the pure amounts add, so the percent is total pure over total liters and not the mean of the percents." },
+            { id: "check", title: "Checking an answer against the story", summary: "A solution of the equation is not yet an answer: test it against every fact in the story, against the units and the kind of thing (a count is whole, a work time is below each time alone), against the question asked, and against an estimate made first." }
           ]
         }
       ]

@@ -3,7 +3,7 @@
 <head>
 <!--bm:head-->
 <title>Pack F. Word Problems — Basic Mathematics</title>
-<meta name="description" content="Turning a story into an equation: naming one unknown with its unit, writing every other quantity in terms of it, translating phrases such as 5 less than twice a number, ages and consecutive integers, and then distance, rate and time with one row per mover, for movers toward each other, a catch-up after a head start and a round trip, with average speed as total distance over total time: the algebra skills the gate exams ask for and the book leaves out.">
+<meta name="description" content="Turning a story into an equation: naming one unknown with its unit, writing every other quantity in terms of it, translating phrases such as 5 less than twice a number, ages and consecutive integers, and then distance, rate and time with one row per mover, for movers toward each other, a catch-up after a head start and a round trip, with average speed as total distance over total time: then rates that combine (workers together, a boat in a current, solutions and blends mixed), and checking an answer against the story, its units, the question asked and an estimate: the algebra skills the gate exams ask for and the book leaves out.">
 </head>
 <body data-depth="2" data-chapter="pk-words" data-part="packs">
 <!--bm:topbar-->
@@ -22,7 +22,9 @@
         of it and turn each fact of the story into an equation, with the phrases, ages and consecutive numbers
         that stories are built from. Then it takes the most common story of all, distance, rate and time, where
         one fact, $d = rt$, gives a row for each mover and one sentence ties the rows together: movers toward each
-        other, a catch-up after a head start, and a round trip.
+        other, a catch-up after a head start, and a round trip. The third section is about rates that combine, in work shared
+        by two workers, a boat in a current and solutions or blends mixed together. The fourth is about checking an answer against the
+        story, since an answer to the equation is not yet an answer to the question.
       </p>
 
       <div class="banner-meta" data-banner-meta></div>
@@ -40,7 +42,7 @@
         <li>$5$ cents</li>
         <li>$15$ cents</li>
       </ul>
-      <p class="puzzle-after">The answer that comes first is the one most people give, and it can be tested against the story in a few seconds. It fails, and the reason is that two prices were never told apart. Giving one of them a letter forces that. The first section names the unknown and builds the equation. (The second section turns to movers and the one fact that ties distance, rate and time. Later sections take up work, mixtures and checking.)</p>
+      <p class="puzzle-after">The answer that comes first is the one most people give, and it can be tested against the story in a few seconds. It fails, and the reason is that two prices were never told apart. Giving one of them a letter forces that. The first section names the unknown and builds the equation. (The second section turns to movers and the one fact that ties distance, rate and time. The third takes up rates that combine, in work, currents and mixtures, and the fourth the checks that would have caught the quick answer.)</p>
     </div>
 
     <div class="goal">
@@ -51,7 +53,8 @@
       expressions, write consecutive integers and consecutive even or odd integers, and solve age and perimeter
       problems. For motion you can fill a row of rate, time and distance for each mover, tie the rows
       with the right sentence (the distances add to the gap, are equal, or the times add), change minutes to hours before
-      multiplying, and find an average speed as total distance over total time.
+      multiplying, and find an average speed as total distance over total time. You can add the rates of two workers (and subtract a drain), add or take away a current from a
+      boat's still-water speed, follow the pure amount through a mixture, and check an answer against every fact of the story, its units and kind, the question asked and an estimate.
     </div>
 
     <section class="warmup" id="warmup">
@@ -402,6 +405,248 @@
       </div>
     </div>
 
+    <h2 id="work">F.3 Work, currents and mixtures</h2>
+    <p>
+      Three kinds of story, one idea: <b>rates that combine</b>. When two things act together, the quantity that adds is the
+      rate, the amount done in one unit of time or carried in one unit of volume, and not the time or the percent.
+    </p>
+    <p>
+      <b>Work.</b> A painter who finishes a room alone in $a$ hours paints $\frac{1}{a}$ of it each hour. That fraction is the worker's
+      rate. A second painter who takes $b$ hours alone paints $\frac{1}{b}$ of the room each hour, so the two together paint
+      $\frac{1}{a} + \frac{1}{b}$ of it per hour. To find the time $t$ they take together, say what each has done when the work stops: in $t$ hours the
+      first has done $\frac{t}{a}$ of the job and the second $\frac{t}{b}$, and between them they have done the whole job, which is $1$:
+      $$\frac{t}{a} + \frac{t}{b} = 1.$$
+      Two answers tempt and both are wrong. Adding the times gives something longer than either painter alone, and averaging them gives something in
+      between, yet the second painter's share adds to the first's, so in the time together the first does less than the whole job, which means $t < a$, and likewise $t < b$. So $t$ is less than the smaller of $a$ and $b$, a bound to test any answer
+      against. A drain or a leak works against a fill, so its rate is subtracted: a hose that fills a pool in $a$ hours and a drain that empties it in $b$ hours
+      leave $\frac{1}{a} - \frac{1}{b}$ of the pool per hour. The question can also run backward. If the pair takes $t$ hours and one worker alone takes $a$,
+      the first has done $\frac{t}{a}$ of the job in that time, and the other has done the rest, $1 - \frac{t}{a}$.
+    </p>
+
+    <div class="worked">
+      <h3><span class="num">Example 5.</span> Two workers together</h3>
+      <div class="body">
+        <p>
+          Kay can paint a room alone in $10$ hours, and Lou can paint it alone in $15$ hours. How long do they take working together?
+        </p>
+        <ol class="steps">
+          <li>Let $t$ be the hours together. In $t$ hours Kay does $\frac{t}{10}$ of the room and Lou does $\frac{t}{15}$.</li>
+          <li>Between them they do the whole room: $\frac{t}{10} + \frac{t}{15} = 1$. Multiply by $30$: $3t + 2t = 30$, so $t = 6$ hours.</li>
+          <li>Against the bound: $6$ is less than $10$, the quicker painter's time alone, as it must be.</li>
+          <li>Check against the story: in $6$ hours Kay does $\frac{6}{10} = \frac{3}{5}$ of the room and Lou does $\frac{6}{15} = \frac{2}{5}$, and $\frac{3}{5} + \frac{2}{5} = 1$ ✓. Check another
+            way: the rates are $\frac{1}{10} + \frac{1}{15} = \frac{3}{30} + \frac{2}{30} = \frac{1}{6}$ of the room per hour, and a rate of $\frac{1}{6}$ finishes in $6$ hours ✓. $\blacksquare$</li>
+        </ol>
+        <p class="note">
+          The times $10$ and $15$ are not added or averaged. The shares of the job are, because they are fractions of the same whole.
+        </p>
+      </div>
+    </div>
+
+    <div class="ex" data-inline id="t7" data-type="number" data-answer="3" data-placeholder="hours"
+         data-hint="Each copier does a fraction of the run in $t$ hours. Together the fractions make one whole run."
+         data-hint2="What fraction of the run does each copier do in one hour?">
+      <div class="ex-q">
+        <p>
+          A newer copier finishes a print run alone in $4$ hours, and an older copier finishes the same run alone in $12$ hours. Run together, how many hours do they take?
+        </p>
+      </div>
+      <div class="ex-solution">
+        <p class="answer">Answer: $3$ hours</p>
+        <p>
+          $\frac{t}{4} + \frac{t}{12} = 1$. Multiply by $12$: $3t + t = 12$, so $t = 3$. Check: in $3$ hours the newer copier does $\frac{3}{4}$ of the run and the older does $\frac{3}{12} = \frac{1}{4}$, and
+          they add to $1$ ✓. The answer is under $4$, the quicker copier's time alone ✓.
+        </p>
+      </div>
+    </div>
+
+    <p>
+      <b>Currents.</b> A river carries a boat along with it. A boat that makes $b$ miles per hour in still water, on a river that flows at $c$ miles per hour, goes
+      $b + c$ miles per hour downstream and $b - c$ miles per hour upstream, because the water carries it. A plane in a wind is the same. So a current story is two
+      rows of <a href="#drt">the distance, rate and time table</a>, one for each direction, with the rates built from $b$ and $c$. A boat that makes $14$ miles per hour in a current of $2$ goes $16$ downstream
+      and $12$ upstream, so $48$ miles takes $3$ hours with the current and $4$ hours against it. Run the other way, the two one-way speeds give the numbers
+      behind them: they differ by $2c$ and add to $2b$, so the current is half their difference and the boat's still-water speed is half their sum. The upstream speed must be positive, so the current has to be less than $b$.
+    </p>
+
+    <div class="ex" data-inline id="t8" data-type="number" data-answer="3" data-placeholder="hours"
+         data-hint="Going against the current, the water takes away from the boat's own speed."
+         data-hint2="What is the boat's speed over the ground going upstream?">
+      <div class="ex-q">
+        <p>
+          A boat makes $10$ miles per hour in still water on a river that flows at $2$ miles per hour. How many hours does the boat take to go $24$ miles upstream?
+        </p>
+      </div>
+      <div class="ex-solution">
+        <p class="answer">Answer: $3$ hours</p>
+        <p>
+          Upstream the speed is $10 - 2 = 8$ miles per hour, and $24 \div 8 = 3$. Check: $8 \cdot 3 = 24$ ✓. Downstream the speed is $12$ and the trip takes $24 \div 12 = 2$ hours, less than upstream, as it should be with the current helping.
+        </p>
+      </div>
+    </div>
+
+    <p>
+      <b>Mixtures.</b> Track the pure stuff and not the percents. Then $x$ liters of a $20\%$ solution hold $0.2x$ liters of acid (<a href="pk-percent.html#percent">the percent of a quantity</a> is where this
+      began). When solutions are poured together the liters add and the acid adds, so the mixture's percent is the total acid over the total liters. It lies between the two percents, because it is a weighted mean of them with the two amounts as weights, and it is the plain mean of the two percents only when the amounts
+      are equal: $1$ liter of a $20\%$ solution and $3$ liters of a $60\%$ solution hold $0.2 + 1.8 = 2$ liters of acid in $4$ liters, which is $50\%$, and the mean of $20$ and $60$ is $40$. A table with a row
+      for each solution (liters, percent, pure liters) and a total row keeps the bookkeeping. The same table does a price mixture: pounds of nuts at a price per pound give dollars, the weights add and the
+      dollars add, and the blend's price per pound is the total dollars over the total weight.
+    </p>
+
+    <div class="worked">
+      <h3><span class="num">Example 6.</span> A mixture by the table</h3>
+      <div class="body">
+        <p>
+          How many liters of a $50\%$ acid solution must be added to $10$ liters of a $20\%$ acid solution to make a $40\%$ acid solution?
+        </p>
+        <table>
+          <caption>One row for each solution and one for the mixture, with $x$ the liters of the strong solution</caption>
+          <thead><tr><th scope="col">Solution</th><th scope="col">Liters</th><th scope="col">Percent acid</th><th scope="col">Pure acid (liters)</th></tr></thead>
+          <tbody>
+            <tr><th scope="row">Weak</th><td>$10$</td><td>$20\%$</td><td>$0.2 \cdot 10 = 2$</td></tr>
+            <tr><th scope="row">Strong</th><td>$x$</td><td>$50\%$</td><td>$0.5x$</td></tr>
+            <tr><th scope="row">Mixture</th><td>$10 + x$</td><td>$40\%$</td><td>$0.4(10 + x)$</td></tr>
+          </tbody>
+        </table>
+        <ol class="steps">
+          <li>The liters add and the acid adds, so the last column adds: $2 + 0.5x = 0.4(10 + x)$.</li>
+          <li>$2 + 0.5x = 4 + 0.4x$, so $0.1x = 2$ and $x = 20$ liters.</li>
+          <li>Against the bound: the mixture is $40\%$, between $20\%$ and $50\%$, as it must be.</li>
+          <li>Check against the story: the mixture has $10 + 20 = 30$ liters, and its acid is $2 + 0.5 \cdot 20 = 12$ liters, while $0.4 \cdot 30 = 12$ ✓. Check another way: $40$ is $20$ points above the weak
+            solution and $10$ points below the strong one, so the mixture is twice as close to the strong, which means twice as many liters of it: $2 \cdot 10 = 20$ ✓. $\blacksquare$</li>
+        </ol>
+        <p class="note">
+          The percents are never added or averaged. The pure amounts are, because they are in the same unit.
+        </p>
+      </div>
+    </div>
+
+    <div class="ex" data-inline id="t9" data-type="number" data-answer="30" data-placeholder="percent"
+         data-hint="Find the pure salt in each solution, add them, and divide by the total liters."
+         data-hint2="How many liters of salt are in each of the two solutions?">
+      <div class="ex-q">
+        <p>
+          A lab mixes $12$ liters of a $20\%$ salt solution with $4$ liters of a $60\%$ salt solution. What percent salt is the mixture? Give the percent without the percent sign.
+        </p>
+      </div>
+      <div class="ex-solution">
+        <p class="answer">Answer: $30\%$</p>
+        <p>
+          The salt is $0.2 \cdot 12 = 2.4$ and $0.6 \cdot 4 = 2.4$ liters, in all $4.8$ liters, in $12 + 4 = 16$ liters of mixture, and $\frac{4.8}{16} = 0.3$. Check: the mean of the percents is $40$, which is too high because
+          there is more of the weak solution. Another way: the weak solution is $\frac{12}{16}$ of the mixture, so the percent is $20 + \frac{4}{16} \cdot 40 = 30$ ✓.
+        </p>
+      </div>
+    </div>
+
+    <h2 id="check">F.4 Checking an answer against the story</h2>
+    <p>
+      A solution of the equation is not yet an answer. The equation may have been written wrongly, the letter may stand for a different quantity than the one asked about, or the arithmetic may have produced a
+      number the story cannot use. Five checks catch these, and each is argued from a failure it catches. The naming procedure of <a href="../1-algebra/02-linear-equations.html#word-problems">turning words into equations</a> is where this began, and the
+      checks come after the solving.
+    </p>
+    <ul>
+      <li><b>Against the story, not the equation.</b> An equation can be written wrongly and still be solved rightly. The bat-and-ball guess of $10$ cents satisfied &ldquo;a dollar more&rdquo; and failed
+        &ldquo;together $\$1.10$.&rdquo; So test the number against every fact of the story in the story's own words, including the fact that was used to name the other quantities.</li>
+      <li><b>Against the units and the kind of thing.</b> A count of buses is a whole number, a length is positive, an age is under about $110$, and a cyclist does not ride at $60$ miles per hour.
+        A fractional count means the story needs rounding by its own logic: vans needed round up, vans that can be filled round down. A negative length means the setup was wrong and not the arithmetic.
+        The answer of a work problem is less than each time alone, a mixture's percent lies between the two percents, and a meeting time is less than the gap over the slower speed, because both movers close the gap, so it closes faster than the slower one alone would close it.</li>
+      <li><b>Against the question that was asked.</b> The letter often stands for the quantity that was easiest to name, and the question asks for the other one. The puzzle asked for the ball, and a story about
+        a sum and a difference may ask for the larger piece. Reread the question after solving.</li>
+      <li><b>An estimate first.</b> Round the numbers and solve in your head before the algebra. A result far from the estimate is a signal to look again.</li>
+      <li><b>Working back from a proposed answer</b> is a legitimate check, and a legitimate way to find the equation: a guess row (the guess, each quantity computed from it, and the total it gives) shows the
+        structure of the equation. The amount by which the total misses is what a better guess must remove.</li>
+    </ul>
+
+    <div class="worked">
+      <h3><span class="num">Example 7.</span> The wrong quantity, caught by the question</h3>
+      <div class="body">
+        <p>
+          A board $140$ inches long is cut into two pieces, and one piece is $30$ inches longer than the other. How long is the longer piece?
+        </p>
+        <ol class="steps">
+          <li>Let $s$ be the length of the shorter piece, in inches. The longer piece is $s + 30$.</li>
+          <li>The two pieces make the board: $s + (s + 30) = 140$, so $2s = 110$ and $s = 55$. The first &ldquo;answer&rdquo; is $55$ inches.</li>
+          <li>Reread the question. It asks for the <em>longer</em> piece, and $55$ is the shorter one, which is what the letter stands for. The longer piece is $55 + 30 = 85$ inches.</li>
+          <li>Check against each fact: $55 + 85 = 140$, so the pieces make the board ✓, and $85 - 55 = 30$, so one is $30$ longer ✓. Check another way: the longer piece is half the board plus half the
+            difference, $70 + 15 = 85$ ✓. $\blacksquare$</li>
+        </ol>
+        <p class="note">
+          The equation was written and solved correctly, and its solution was still not the answer. Only rereading the question showed it.
+        </p>
+      </div>
+    </div>
+
+    <div class="ex" data-inline id="t10" data-type="number" data-answer="7" data-placeholder="dollars"
+         data-hint="Pretend the student is right and see what the story would then have cost."
+         data-hint2="Is the cost of the proposed number of months more or less than the total, and by how much?">
+      <div class="ex-q">
+        <p>
+          A plan charges a set-up fee of $\$25$ plus $\$7$ per month, and the total paid was $\$102$. A student solves the equation and says the answer is $10$ months. By how many dollars does the cost of $10$ months miss $\$102$?
+        </p>
+      </div>
+      <div class="ex-solution">
+        <p class="answer">Answer: $7$ dollars</p>
+        <p>
+          The cost of $10$ months is $25 + 7 \cdot 10 = 95$ dollars, and $102 - 95 = 7$. Check: the true answer is $11$ months, since $25 + 7 \cdot 11 = 102$, so the student is one month off, and one month is $7$ dollars ✓.
+        </p>
+      </div>
+    </div>
+
+    <div class="ex" data-inline id="t11" data-answer="3"
+         data-hint="Test each fact of the story on the student's two numbers, one fact at a time."
+         data-hint2="Test the sum first.">
+      <div class="ex-q">
+        <p>
+          Two numbers add to $64$ and differ by $10$. A student answers $32$ and $22$. Which statement about this answer is true?
+        </p>
+      </div>
+      <ul class="choices">
+        <li>The numbers do not differ by $10$.</li>
+        <li>The numbers add to $64$ but do not differ by $10$.</li>
+        <li>The numbers do not add to $64$.</li>
+        <li>Both facts of the story hold.</li>
+      </ul>
+      <div class="ex-solution">
+        <p class="answer">Answer: the numbers do not add to $64$</p>
+        <p>
+          $32 + 22 = 54$, not $64$, so the fact about the sum is broken, though $32 - 22 = 10$ holds. The first option is false because the difference is $10$, the second because the numbers do not add to $64$, and the last because the sum fails. The pair that fits both facts is $27$ and $37$: $27 + 37 = 64$ and $37 - 27 = 10$ ✓.
+        </p>
+      </div>
+    </div>
+
+    <div class="worked">
+      <h3><span class="num">Example 8.</span> A fraction resolved by the story's logic</h3>
+      <div class="body">
+        <p>
+          A school takes $130$ students on a trip in vans that each seat $12$. How many vans does it need?
+        </p>
+        <ol class="steps">
+          <li>Estimate first. The $130$ students are a little over $120$, and $120 \div 12 = 10$, so the answer should be a little over $10$ vans.</li>
+          <li>With $v$ vans the seats are $12v$, and they must cover the students: $12v \ge 130$, so $v \ge \frac{130}{12}$, which is about $10.8$.</li>
+          <li>A part of a van cannot be hired. Ten vans seat $120$ and leave $10$ students without a seat, so the count rounds <em>up</em> to $11$ vans.</li>
+          <li>Check against the story: $11 \cdot 12 = 132$ seats, enough for $130$ ✓, and $10 \cdot 12 = 120$, not enough ✓. Another way: $130 = 12 \cdot 10 + 10$, so ten vans fill and the $10$ left over
+            need one more ✓. The estimate agrees. $\blacksquare$</li>
+        </ol>
+        <p class="note">
+          Had the question asked how many vans can be completely filled, the same division would round down, to $10$. The story decides which way.
+        </p>
+      </div>
+    </div>
+
+    <div class="ex" data-inline id="t12" data-type="number" data-answer="17" data-placeholder="girls"
+         data-hint="Solve for the letter, and then reread the question to see which number it asks for."
+         data-hint2="Does the letter $b$ stand for the quantity the question asks about?">
+      <div class="ex-q">
+        <p>
+          A class of $30$ students has $4$ more girls than boys. Let $b$ be the number of boys. How many girls are in the class?
+        </p>
+      </div>
+      <div class="ex-solution">
+        <p class="answer">Answer: $17$ girls</p>
+        <p>
+          The girls number $b + 4$, and $b + (b + 4) = 30$ gives $2b = 26$ and $b = 13$. The question asks for the girls, not the boys: $13 + 4 = 17$. Check: $13 + 17 = 30$ and $17 - 13 = 4$ ✓.
+        </p>
+      </div>
+    </div>
+
     <!-- ====================================================== practice ==== -->
     <section class="practice" id="practice">
       <div class="practice-head">
@@ -412,7 +657,7 @@
         Give each answer as a number in the unit the question names, without writing the unit. Use a
         decimal, such as $4.5$, where the answer is not whole. Where a question asks for an expression, use the
         letter it names. Money is in dollars and times are in hours unless the question says minutes. An equation is never typed
-        as an answer: a question about one asks for one choice among the options shown.
+        as an answer: a question about one asks for one choice among the options shown, and so does a question about which fact is broken or which quantity was asked for.
       </p>
 
       <div class="ex" id="e1" data-section="name" data-answer="2"
@@ -612,6 +857,208 @@
           </p>
         </div>
       </div>
+
+      <div class="ex" id="e15" data-section="work" data-type="number" data-answer="12" data-placeholder="hours"
+           data-hint="Each painter does a fraction of the fence per hour. In the time they take together, the two fractions of the fence add up to one whole fence."
+           data-hint2="What fraction of the fence does each painter do in $t$ hours?">
+        <div class="ex-q"><p>Jo can paint a fence alone in $18$ hours, and Kim can paint it alone in $36$ hours. Working together, how many hours do they take?</p></div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $12$ hours</p>
+          <p>
+            $\frac{t}{18} + \frac{t}{36} = 1$. Multiply by $36$: $2t + t = 36$, so $3t = 36$ and $t = 12$. Check: in $12$ hours Jo does $\frac{12}{18} = \frac{2}{3}$ of the fence and Kim does $\frac{12}{36} = \frac{1}{3}$, and
+            $\frac{2}{3} + \frac{1}{3} = 1$ ✓. The answer is under $18$, the quicker painter's time alone ✓.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" id="e16" data-section="work" data-type="number" data-answer="30" data-placeholder="hours"
+           data-hint="In the pair's time, the shares of the pool filled by the two pipes add up to one whole pool. One of the shares is known."
+           data-hint2="What fraction of the pool does the larger pipe fill in the pair's time?">
+        <div class="ex-q"><p>Two pipes open together fill a pool in $12$ hours. The larger pipe alone fills it in $20$ hours. How many hours does the smaller pipe take alone?</p></div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $30$ hours</p>
+          <p>
+            Let $x$ be the hours the smaller pipe takes alone. In $12$ hours the larger pipe fills $\frac{12}{20} = \frac{3}{5}$ of the pool, so $\frac{12}{x} = 1 - \frac{3}{5} = \frac{2}{5}$ and $x = 30$.
+            Check: in $12$ hours the smaller pipe fills $\frac{12}{30} = \frac{2}{5}$, and $\frac{3}{5} + \frac{2}{5} = 1$ ✓. The pair's $12$ hours is under both times alone ✓.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" id="e17" data-section="work" data-type="number" data-answer="4.5" data-placeholder="hours"
+           data-hint="A wind works like a current: against the plane it takes away from the plane's own speed over the ground."
+           data-hint2="What is the plane's speed over the ground when it flies into the wind?">
+        <div class="ex-q"><p>A plane cruises at $320$ miles per hour in still air. Flying into a headwind of $40$ miles per hour, how many hours does a trip of $1{,}260$ miles take?</p></div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $4.5$ hours</p>
+          <p>
+            Into the wind the speed over the ground is $320 - 40 = 280$ miles per hour, and $1260 \div 280 = 4.5$. Check: $280 \cdot 4.5 = 1260$ ✓. With a tailwind the speed would be $360$ and the trip $1260 \div 360 = 3.5$ hours, less than the
+            headwind's, as it should be.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" id="e18" data-section="work" data-type="number" data-answer="2.5" data-placeholder="miles per hour"
+           data-hint="Each leg is a distance and a time, which gives a speed. One speed is the boat's plus the current and the other is the boat's minus the current."
+           data-hint2="By how much do the two speeds differ, and how many currents is that?">
+        <div class="ex-q"><p>A boat goes $60$ miles downstream in $4$ hours and returns the same $60$ miles upstream in $6$ hours. What is the speed of the current, in miles per hour?</p></div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $2.5$ miles per hour</p>
+          <p>
+            Downstream the speed is $60 \div 4 = 15$ and upstream it is $60 \div 6 = 10$. They differ by two currents: $15 - 10 = 5$, so the current is $2.5$ miles per hour. Check: the boat's speed in still water is $\frac{15 + 10}{2} = 12.5$,
+            and $12.5 + 2.5 = 15$, $12.5 - 2.5 = 10$, with $15 \cdot 4 = 60$ and $10 \cdot 6 = 60$ ✓.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" id="e19" data-section="work" data-type="number" data-answer="8" data-placeholder="liters"
+           data-hint="Follow the pure salt and not the percents: the salt in the two solutions adds up to the salt in the mixture, and the liters add too."
+           data-hint2="How much pure salt is in the first solution, and how many liters does the mixture have in terms of the unknown?">
+        <div class="ex-q"><p>A chemist has $24$ liters of a $15\%$ salt solution. How many liters of a $55\%$ salt solution must be added to make a $25\%$ salt solution?</p></div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $8$ liters</p>
+          <p>
+            The first solution holds $0.15 \cdot 24 = 3.6$ liters of salt. With $x$ liters added, $3.6 + 0.55x = 0.25(24 + x) = 6 + 0.25x$, so $0.3x = 2.4$ and $x = 8$. Check: the salt is $3.6 + 0.55 \cdot 8 = 3.6 + 4.4 = 8$ liters, and the mixture is
+            $32$ liters, with $0.25 \cdot 32 = 8$ ✓. And $25$ lies between $15$ and $55$ ✓.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" id="e20" data-section="work" data-type="number" data-answer="16" data-placeholder="pounds"
+           data-hint="The weights add and the dollars add. Write the dollars for each kind of bean and the dollars of the whole blend."
+           data-hint2="If $x$ pounds of the beans are the dearer kind, how much of the beans is the cheaper kind?">
+        <div class="ex-q"><p>A shop mixes coffee beans that cost $\$4$ per pound with beans that cost $\$10$ per pound to make $48$ pounds of a blend worth $\$6$ per pound. How many pounds of the $\$10$ beans are needed?</p></div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $16$ pounds of the $\$10$ beans</p>
+          <p>
+            With $x$ pounds of the $\$10$ beans there are $48 - x$ pounds of the $\$4$ beans, and the dollars add: $4(48 - x) + 10x = 6 \cdot 48$, so $192 + 6x = 288$ and $x = 16$. Check: $32$ pounds of the cheaper beans at $\$4$ per pound cost $\$128$ and $16$ pounds of the dearer at $\$10$ per pound
+            cost $\$160$, in all $\$288$, and $48$ pounds of blend at $\$6$ per pound cost $\$288$ ✓.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" id="e21" data-section="work" data-answer="2"
+           data-hint="Each device does a fraction of the pool per hour, and the drain works against the hose. In the time asked for, what must the net fraction of the pool be?"
+           data-hint2="Which way does the drain move the water level?">
+        <div class="ex-q"><p>A hose fills a pool alone in $6$ hours, and a drain empties the full pool alone in $10$ hours. With both open on an empty pool, let $t$ be the hours until the pool is full. Which equation fits the story?</p></div>
+        <ul class="choices">
+          <li>$\dfrac{t}{6} + \dfrac{t}{10} = 1$</li>
+          <li>$\dfrac{t}{6} - \dfrac{t}{10} = 1$</li>
+          <li>$6t - 10t = 1$</li>
+          <li>$\dfrac{t}{6} - \dfrac{t}{10} = 0$</li>
+        </ul>
+        <div class="ex-solution">
+          <p class="answer">Answer: $\dfrac{t}{6} - \dfrac{t}{10} = 1$</p>
+          <p>
+            In $t$ hours the hose adds $\frac{t}{6}$ of the pool and the drain removes $\frac{t}{10}$, and the net must be one whole pool. The first option lets the drain add water. The third has the times in place of the rates, and the fourth ends with an
+            empty pool. Check: the chosen equation gives $\frac{t}{15} = 1$, so $t = 15$; in $15$ hours the hose adds $2.5$ pools and the drain removes $1.5$, and $2.5 - 1.5 = 1$ ✓.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" id="e22" data-section="check" data-answer="2"
+           data-hint="A mixture is made of the two solutions, so what can be said about its percent before any arithmetic?"
+           data-hint2="Could a mixture of two solutions be stronger than both of them?">
+        <div class="ex-q"><p>A student mixes $6$ liters of a $15\%$ acid solution with $10$ liters of a $35\%$ acid solution and reports that the mixture is $45\%$ acid. Which statement is true and shows the report is wrong?</p></div>
+        <ul class="choices">
+          <li>Adding the two percents gives $50\%$, so the mixture is $50\%$.</li>
+          <li>A mixture's percent lies between the two percents, and $45\%$ is above both.</li>
+          <li>The mixture takes the percent of the stronger solution, $35\%$.</li>
+          <li>The report should be rounded to a whole number.</li>
+        </ul>
+        <div class="ex-solution">
+          <p class="answer">Answer: a mixture's percent lies between the two percents, and $45\%$ is above both</p>
+          <p>
+            The mixture is made only of $15\%$ and $35\%$ solutions, so it cannot be richer than the richer one. The first option is false because percents are never added, and the third because the mixture also holds the weaker solution. The fourth is not a reason,
+            since $45$ is already a whole number. Check: the true percent is $\frac{0.9 + 3.5}{16} = 0.275$, which is $27.5\%$, between $15\%$ and $35\%$ and closer to $35\%$, because there is more of that solution ✓.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" id="e23" data-section="check" data-answer="3"
+           data-hint="Write the age the question asks about in words first, then say how it is built from Ben's age."
+           data-hint2="How old is Ana now, in terms of $b$, and what happens to her age in $4$ years?">
+        <div class="ex-q"><p>Ana is $6$ years older than Ben, and Ben is $b$ years old now. The question asks how old Ana will be in $4$ years. Which expression gives it?</p></div>
+        <ul class="choices">
+          <li>$b + 4$</li>
+          <li>$b + 6$</li>
+          <li>$b + 10$</li>
+          <li>$b + 2$</li>
+        </ul>
+        <div class="ex-solution">
+          <p class="answer">Answer: $b + 10$</p>
+          <p>
+            Ana is $b + 6$ now, and in $4$ years she is $b + 6 + 4 = b + 10$. The first option is Ben's age in $4$ years, the second is Ana's age now, and the fourth takes the $4$ years away. Check with $b = 10$: Ana is $16$ now and $20$ in $4$ years,
+            and $b + 10 = 20$ ✓.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" id="e24" data-section="check" data-type="number" data-answer="28" data-placeholder="dollars"
+           data-hint="Put the friend's number back into the story and see what it costs."
+           data-hint2="Is the friend's cost above or below $\$198$?">
+        <div class="ex-q"><p>A gym charges a joining fee of $\$30$ plus $\$14$ per month, and a member paid $\$198$ in all. A friend solves the equation and says the answer is $10$ months. By how many dollars does the cost of $10$ months miss $\$198$?</p></div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $28$ dollars</p>
+          <p>
+            The cost of $10$ months is $30 + 14 \cdot 10 = 170$ dollars, and $198 - 170 = 28$. Check: the true answer is $12$ months, since $30 + 14 \cdot 12 = 198$, so the friend is two months off, and two months are $2 \cdot 14 = \$28$ ✓.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" id="e25" data-section="check" data-type="number" data-answer="19" data-placeholder="tables"
+           data-hint="The arithmetic gives a part of a table. Ask whether the story can leave that part out or must still provide for it."
+           data-hint2="How many guests do $18$ tables seat?">
+        <div class="ex-q"><p>A hall has round tables that each seat $8$ guests. How many tables are needed for $150$ guests?</p></div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $19$ tables</p>
+          <p>
+            $150 \div 8 = 18.75$. Eighteen tables seat $144$ and leave $6$ guests standing, so the count rounds up to $19$. Check: $19 \cdot 8 = 152$ seats are enough, and $18 \cdot 8 = 144$ are not ✓. The estimate agrees: $150 \div 8$ is about $19$.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" id="e26" data-section="check" data-type="number" data-answer="22" data-placeholder="boxes"
+           data-hint="The arithmetic gives a part of a box. Ask whether the story counts that part."
+           data-hint2="How many muffins are left over once the full boxes are packed?">
+        <div class="ex-q"><p>A baker has $200$ muffins and packs them in boxes that each hold $9$. How many full boxes can the baker fill?</p></div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $22$ boxes</p>
+          <p>
+            $200 \div 9$ is $22$ with $2$ left over, about $22.2$, and only whole boxes count, so the answer rounds down to $22$. Check: $22 \cdot 9 = 198$ muffins fill $22$ boxes, leaving $2$, and a $23$rd box would need $207$, more than the baker has ✓.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" id="e27" data-section="check" data-type="number" data-answer="68" data-placeholder="centimeters"
+           data-hint="The letter and the question may name different pieces."
+           data-hint2="Which piece does the letter $s$ stand for, and which piece is asked for?">
+        <div class="ex-q"><p>A board $85$ centimeters long is cut into two pieces, and the longer piece is $4$ times as long as the shorter. Let $s$ be the length of the shorter piece in centimeters. How long is the longer piece, in centimeters?</p></div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $68$ centimeters</p>
+          <p>
+            The longer piece is $4s$, and $s + 4s = 85$ gives $5s = 85$ and $s = 17$. The letter is the shorter piece; the longer is $4 \cdot 17 = 68$. Check: $17 + 68 = 85$ and $68 \div 17 = 4$ ✓.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" id="e28" data-section="check" data-answer="3"
+           data-hint="Two pipes open together do more than either alone. What does that say about the time they take together?"
+           data-hint2="Compare $t$ with the quicker pipe's time alone.">
+        <div class="ex-q"><p>One pipe fills a pool alone in $9$ hours, and another fills it alone in $15$ hours. Open together, the two pipes take $t$ hours. Before solving, which of these must be true of $t$?</p></div>
+        <ul class="choices">
+          <li>$t = 12$</li>
+          <li>$t = 24$</li>
+          <li>$t &lt; 9$</li>
+          <li>$9 &lt; t &lt; 15$</li>
+        </ul>
+        <div class="ex-solution">
+          <p class="answer">Answer: $t &lt; 9$</p>
+          <p>
+            Together the pipes fill faster than the quicker pipe alone, so $t$ is under the smaller time, $9$ hours. The first option is the mean of the times and the second is their sum, and neither can be right because both are over $9$. The last puts the time between the two
+            times alone, which is where the mean sits, not a pair working together. Check by solving: the rates are $\frac{1}{9} + \frac{1}{15} = \frac{8}{45}$ of the pool per hour, so $t = \frac{45}{8} = 5.625$, which is under $9$ ✓.
+          </p>
+        </div>
+      </div>
     </section>
 
     <div class="recap">
@@ -636,6 +1083,11 @@
         <li>Toward each other, the distances add to the gap. In a catch-up the distances are equal and the first mover's time is longer by the head start. On a round trip the distances are equal and the times add.</li>
         <li>Make the units agree before multiplying: minutes become hours for a rate per hour.</li>
         <li>Average speed is total distance over total time, and it is not the mean of the speeds, because more time is spent at the slower speed.</li>
+        <li>Rates add, and times and percents do not. A worker who takes $a$ hours does $\frac{1}{a}$ of the job per hour, together they finish when $\frac{t}{a} + \frac{t}{b} = 1$, and a drain subtracts. Together is faster than either alone.</li>
+        <li>A current adds to the still-water speed going with it and subtracts going against it: $b + c$ and $b - c$. The current is half the difference of the two speeds, and the still-water speed is half their sum.</li>
+        <li>In a mixture the liters add and the pure amounts add, so the percent is total pure over total liters. It lies between the two percents and is the mean only when the amounts are equal. A price blend is the same table with dollars.</li>
+        <li>Check an answer against the story, against its units and kind, against the question asked, against an estimate made first, and by working back from a proposed answer.</li>
+        <li>A fractional count is resolved by the story: what must be provided rounds up, and what can be completely filled rounds down.</li>
       </ul>
     </div>
 
