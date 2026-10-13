@@ -462,7 +462,7 @@ and `check-browser.js --skip=webgl` are the gate. The gate runs as one `browser`
 suite), which runs `npm run test:browser:core` alone. ci.yml takes that part from `--parts` too,
 never naming one itself, and `check-ci.js` (`core`) fails if either step or its condition is
 changed, so renaming a part cannot leave the `tools/game` scripts in no job. Every suite runs once, under the flags the
-single job used, in 4 to 5 minutes each where it took 16 to 21. The
+single job used, in about 4 to 6 minutes each where it took 16 to 21. The
 parts are balanced by the suites' times on a runner (the numbers are beside `PARTS`), and each
 job uploads its own report, `check-browser-report-<part>`. The gate is not retried, and nothing in it
 depends on another server (see the paragraph on third-party requests above) or on the WebGL a

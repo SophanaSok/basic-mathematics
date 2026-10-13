@@ -148,18 +148,21 @@ details{margin:.2rem 0}summary{cursor:pointer}pre{white-space:pre-wrap;font-size
    part, each with the same flags (--skip=webgl) as the single run it replaced. "rest" is
    every suite no part names, so a suite dropped into tools/suites/ runs in CI without
    being assigned anywhere; the browser job's matrix is `--parts`, so a part added here
-   gets its job. Balanced by each suite's seconds on a runner (CI run 37414123700,
-   2026-10-06); the tools/game scripts of `npm run test:browser:core` have the part CORE
-   to themselves (about 240 s in run 38360091721, 2026-10-13).
+   gets its job. Balanced by each suite's seconds on a runner (CI run 38365157305,
+   2026-10-13, with packs A to G on the site); the tools/game scripts of `npm run
+   test:browser:core` have the part CORE to themselves. A job is its suites plus about
+   45 s of setup, and the run is build (about 1 minute) plus its longest job: axe, one
+   suite that cannot be split, sets the floor.
    Move a suite between parts when a job grows past the others. */
 const PARTS = {
-  axe: ["axe"],                                  // 289
-  pages: ["pages", "hud"],                       // 204 + 93
-  exercises: ["exercises", "widgets", "frame"],  // 179 + 87 + 31
-  core: []                                       // no suite: the job runs test:browser:core alone (about 240)
-};                                               // rest: transitions 54, motion 28, missions 23,
-                                                 //   restore 20, thirdparty 11, upgrade 3, plus
-                                                 //   diagnostic and plan (added since, roughly a minute together)
+  axe: ["axe"],                                  // 351
+  pages: ["pages"],                              // 305
+  exercises: ["exercises"],                      // 272
+  widgets: ["widgets", "hud", "frame"],          // 109 + 103 + 32
+  core: []                                       // no suite: the job runs test:browser:core alone (191)
+};                                               // rest: diagnostic 82, transitions 52, motion 35,
+                                                 //   missions 29, restore 22, plan 21, thirdparty 11,
+                                                 //   upgrade 3
 const REST = "rest";
 /* the part whose job runs `npm run test:browser:core` (the tools/game scripts of the gate)
    and, as it names no suite, nothing else: until 2026-10-13 it was REST, and that job ran

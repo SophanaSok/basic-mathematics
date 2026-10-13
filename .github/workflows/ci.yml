@@ -12,8 +12,7 @@
 #               of check-browser.js --skip=webgl, except the part CORE (today "core",
 #               which names no suite), whose job runs the tools/game scripts of
 #               test:browser:core instead. With build, all of these jobs are the gate a
-#               deploy waits for. Chromium comes from a cache keyed on the Playwright
-#               version; a miss downloads it once for every job of the run.
+#               deploy waits for.
 #   webgl       the 3D checks (the scene stages, the course map) and the WebGL suite.
 #               WebGL on a runner is software rendering, slow and now and then losing its
 #               context, so these are retried and are not part of the gate
@@ -140,8 +139,8 @@ jobs:
           if-no-files-found: error
           retention-days: 7
 
-  # One job per part, side by side (4 to 5 minutes each, where the one job took 16 to
-  # 21 and "rest" with the tools/game scripts took 8): the parts come from the build job,
+  # One job per part, side by side (about 4 to 6 minutes each, where the one job took 16
+  # to 21 and "rest" with the tools/game scripts took 8): the parts come from the build job,
   # so a part added to PARTS gets its job, and a suite added to tools/suites/ runs in
   # "rest" until it is given a part. Every suite of --skip=webgl runs in exactly one of
   # them, under the same flags as before, and as before nothing here is retried. deploy
@@ -173,36 +172,17 @@ jobs:
         with:
           name: dist
           path: dist
-      # Chromium is cached under the runner image and the Playwright version
-      # package-lock.json installed, so a hit skips the download and a miss (a new
-      # Playwright or image) downloads it once per job of that run; the apt packages of
-      # --with-deps cannot be cached, so install-deps runs every time. A stuck download once held a job here until its job timeout, so each
-      # try gets its own limit (killed 20 s after the TERM, so a wedged apt cannot outlive
-      # it and hold the dpkg lock against the next try) and the step has a backstop;
-      # tools/check-ci.js (`install`) fails when either is missing
-      - id: pw
-        run: |
-          echo "version=$(node -p "require('playwright/package.json').version")" >> "$GITHUB_OUTPUT"
-          echo "image=${ImageOS:-unknown}" >> "$GITHUB_OUTPUT"
-      - uses: actions/cache@v6
-        id: pw-cache
-        with:
-          path: ~/.cache/ms-playwright
-          key: playwright-${{ runner.os }}-${{ steps.pw.outputs.image }}-${{ steps.pw.outputs.version }}
-      # a restored browser that fails to launch its deps step is treated as stale: the next
-      # try installs in full
+      # a stuck download once held a job here until its job timeout, so each try gets its
+      # own limit (killed 20 s after the TERM, so a wedged apt cannot outlive it and hold
+      # the dpkg lock against the next try) and the step has a backstop;
+      # tools/check-ci.js (`install`) fails when either is missing. The download itself is
+      # about 20 s on a runner (run 38365157305), so a cache of ~/.cache/ms-playwright
+      # (tried 2026-10-13) saved nothing and is not kept
       - name: npx playwright install (up to three tries)
         timeout-minutes: 15
-        env:
-          CACHED: ${{ steps.pw-cache.outputs.cache-hit }}
         run: |
           for try in 1 2 3; do
-            if [ "$CACHED" = "true" ]; then
-              if timeout -k 20 240 npx playwright install-deps chromium; then exit 0; fi
-              CACHED=""
-            else
-              if timeout -k 20 240 npx playwright install --with-deps chromium; then exit 0; fi
-            fi
+            if timeout -k 20 240 npx playwright install --with-deps chromium; then exit 0; fi
             echo "::warning::playwright install failed on try $try"
             sudo dpkg --configure -a || true
           done
@@ -244,36 +224,17 @@ jobs:
         with:
           name: dist
           path: dist
-      # Chromium is cached under the runner image and the Playwright version
-      # package-lock.json installed, so a hit skips the download and a miss (a new
-      # Playwright or image) downloads it once per job of that run; the apt packages of
-      # --with-deps cannot be cached, so install-deps runs every time. A stuck download once held a job here until its job timeout, so each
-      # try gets its own limit (killed 20 s after the TERM, so a wedged apt cannot outlive
-      # it and hold the dpkg lock against the next try) and the step has a backstop;
-      # tools/check-ci.js (`install`) fails when either is missing
-      - id: pw
-        run: |
-          echo "version=$(node -p "require('playwright/package.json').version")" >> "$GITHUB_OUTPUT"
-          echo "image=${ImageOS:-unknown}" >> "$GITHUB_OUTPUT"
-      - uses: actions/cache@v6
-        id: pw-cache
-        with:
-          path: ~/.cache/ms-playwright
-          key: playwright-${{ runner.os }}-${{ steps.pw.outputs.image }}-${{ steps.pw.outputs.version }}
-      # a restored browser that fails to launch its deps step is treated as stale: the next
-      # try installs in full
+      # a stuck download once held a job here until its job timeout, so each try gets its
+      # own limit (killed 20 s after the TERM, so a wedged apt cannot outlive it and hold
+      # the dpkg lock against the next try) and the step has a backstop;
+      # tools/check-ci.js (`install`) fails when either is missing. The download itself is
+      # about 20 s on a runner (run 38365157305), so a cache of ~/.cache/ms-playwright
+      # (tried 2026-10-13) saved nothing and is not kept
       - name: npx playwright install (up to three tries)
         timeout-minutes: 15
-        env:
-          CACHED: ${{ steps.pw-cache.outputs.cache-hit }}
         run: |
           for try in 1 2 3; do
-            if [ "$CACHED" = "true" ]; then
-              if timeout -k 20 240 npx playwright install-deps chromium; then exit 0; fi
-              CACHED=""
-            else
-              if timeout -k 20 240 npx playwright install --with-deps chromium; then exit 0; fi
-            fi
+            if timeout -k 20 240 npx playwright install --with-deps chromium; then exit 0; fi
             echo "::warning::playwright install failed on try $try"
             sudo dpkg --configure -a || true
           done

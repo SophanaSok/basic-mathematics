@@ -204,8 +204,9 @@ at the new address, and nothing of the course.
 that. A push to `main` (merging a pull request) triggers it, unless it changes only Markdown
 and `docs/` ([When CI runs](#when-ci-runs)), and so does **Run workflow** on `main`. Its jobs
 are `build` (the Node checks, the build, the checks on `dist/`, the redirect site and its checks), `browser` (the Chromium checks that need no WebGL, as one job per part, side by
-side, today `browser (axe)`, `browser (pages)`, `browser (exercises)`, `browser (core)`, which
-runs the `tools/game` scripts of `test:browser:core` alone, and `browser (rest)`; the
+side, today `browser (axe)`, `browser (pages)`, `browser (exercises)`, `browser (widgets)`,
+`browser (core)`, which runs the `tools/game` scripts of `test:browser:core` alone, and
+`browser (rest)`; the
 parts are `PARTS` in `tools/check-browser.js`, [`tools/README.md`](tools/README.md)), `webgl`
 (the 3D checks, retried, outside the gate), `cloudflare`, which publishes that run's `dist/` to
 Cloudflare Pages once `build` and every `browser` job have passed (production from `main`, a
@@ -453,12 +454,11 @@ costs no Actions minutes (a full run is about 30), gets no Cloudflare preview, a
 nothing, which is right: `dist/` and `dist-redirects/` are built from none of those files, so
 production already matches it.
 
-A run that does start takes about 6 minutes of wall time (2026-10-13: `build` about 1, then the
-`browser` parts and `webgl` side by side, the longest about 5). The `browser` and `webgl` jobs
-take Chromium from an Actions cache keyed `playwright-<os>-<version>` on the Playwright version
-in `package-lock.json` and the runner image, so only the first successful run after a Playwright
-upgrade or an image change downloads it; the apt
-packages (`playwright install-deps`) are installed every time.
+A run that does start takes about 8 minutes of wall time (2026-10-13: `build` about 1, then the
+`browser` parts and `webgl` side by side, the longest about 6.5: `axe`, one suite that cannot be
+split, plus the Chromium install and setup, about a minute). The parts are balanced by the
+suites' seconds, written beside `PARTS` in `tools/check-browser.js`; move a suite when a job
+grows past the others. Chromium's download is about 20 seconds, so it is not cached.
 
 - **What still runs CI:** any change with at least one other file in it. For a pull request
   GitHub compares the whole pull request with its base, so a Markdown-only push to a pull request
