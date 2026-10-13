@@ -4997,9 +4997,9 @@
         key = k + "x(" + hxK(m) + ")";
         hint = "Look for the largest factor that divides both terms, with the letter included, take it out, and write what is left in a bracket.";
         steps = [
-          "Both terms are multiples of $" + k + "x$: $" + k + "x^2 = " + k + "x \\cdot x$ and $" + (k * Math.abs(m)) + "x = " + k + "x \\cdot " + Math.abs(m) + "$.",
+          "Both terms are multiples of $" + k + "x$: $" + k + "x^2 = " + k + "x \\cdot x$ and $" + (k * m) + "x = " + k + "x \\cdot " + (m < 0 ? "(" + m + ")" : m) + "$.",
           "So $" + tri + " = " + k + "x(" + hxT(m) + ")$. The bracket $" + hxT(m) + "$ has no common factor left, so this is complete.",
-          "Check by spreading: $" + k + "x \\cdot x = " + k + "x^2$ and $" + k + "x \\cdot " + (m < 0 ? "(" + m + ")" : m) + " = " + (k * m) + "x$ ✓."
+          "Check by expanding: $" + k + "x \\cdot x = " + k + "x^2$ and $" + k + "x \\cdot " + (m < 0 ? "(" + m + ")" : m) + " = " + (k * m) + "x$ ✓."
         ];
       }
       return {

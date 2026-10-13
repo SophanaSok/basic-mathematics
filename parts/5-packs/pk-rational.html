@@ -146,7 +146,7 @@
       $$a^2 - b^2 = (a - b)(a + b),$$
       a <b>difference of squares</b>: $x^2 - 49 = (x - 7)(x + 7)$. And $(a + b)^2 = (a + b)(a + b) = a^2 + 2ab + b^2$, so a <b>perfect square</b> trinomial has its
       first and last terms as squares and its middle term as twice their product: $x^2 + 10x + 25 = (x + 5)^2$, since $25 = 5^2$ and $10 = 2 \cdot 5$. A <em>sum</em> of squares is
-      different. $x^2 + 9$ would need two numbers with product $9$ and sum $0$; the only pair with sum $0$ is $3$ and $-3$, whose product is $-9$. So $x^2 + 9$ does not factor over the real numbers.
+      different. $x^2 + 9$ would need two numbers with product $9$ and sum $0$; two numbers with sum $0$ are $p$ and $-p$, whose product $-p^2$ is never positive, so it can never be $9$. So $x^2 + 9$ does not factor over the real numbers.
     </p>
     <p>
       Always check by expanding back. A factoring with the wrong signs still looks right: $(x + 2)(x - 3)$ and $(x - 2)(x + 3)$ use the same numbers, but the first
@@ -302,7 +302,7 @@
 
     <div class="ex" data-inline id="t5" data-type="expr" data-answer="(x-4)/(x+3)" data-placeholder="e.g. (x+1)/(x-4)"
          data-hint="Factor the top and the bottom completely, then divide out the factor they share."
-         data-hint2="The bottom is a difference of squares. What is the top's second factor besides the one it shares?">
+         data-hint2="What are the two excluded values, and which factor of the bottom does the top also contain?">
       <div class="ex-q">
         <p>
           Simplify $\dfrac{x^2 - 7x + 12}{x^2 - 9}$.
@@ -335,9 +335,9 @@
       </div>
     </div>
 
-    <div class="ex" data-inline id="t6" data-type="expr" data-answer="-1/(x+7)|(-1)/(x+7)" data-placeholder="e.g. 1/(x-2)"
+    <div class="ex" data-inline id="t6" data-type="expr" data-answer="-1/(x+7)|(-1)/(x+7)|-(1)/(x+7)" data-placeholder="e.g. 1/(x-2)"
          data-hint="The top is the opposite of a factor of the bottom, so factor the bottom and rewrite the top with that factor showing."
-         data-hint2="What is $7 - x$ in terms of $x - 7$?">
+         data-hint2="Which value of $x$ makes the top zero, and which factor of the bottom is zero there too?">
       <div class="ex-q">
         <p>
           Simplify $\dfrac{7 - x}{x^2 - 49}$.
@@ -423,7 +423,7 @@
         </div>
       </div>
 
-      <div class="ex" id="e6" data-section="factor" data-type="expr" data-answer="(x-7)^2|(x-7)(x-7)" data-placeholder="e.g. (x+2)^2"
+      <div class="ex" id="e6" data-section="factor" data-type="expr" data-answer="(x-7)^2|(x-7)(x-7)|(7-x)^2|(7-x)(7-x)" data-placeholder="e.g. (x+2)^2"
            data-hint="The first and last terms are squares. Test whether the middle term is twice the product of their square roots."
            data-hint2="What is the square root of $49$, and what is twice that number?">
         <div class="ex-q"><p>Factor $x^2 - 14x + 49$.</p></div>
@@ -437,7 +437,7 @@
 
       <div class="ex" id="e7" data-section="factor" data-answer="4"
            data-hint="Complete means no factor can be factored again. Take out the largest common factor, and then ask whether what is left still factors."
-           data-hint2="Which options leave a common factor in a bracket or a trinomial that still factors, and which one has the wrong signs?">
+           data-hint2="What is the largest number that divides all three terms, and does the bracket it leaves still factor?">
         <div class="ex-q"><p>Which is the complete factoring of $6x^2 + 12x - 18$?</p></div>
         <ul class="choices">
           <li>$6(x^2 + 2x - 3)$</li>
@@ -479,7 +479,7 @@
 
       <div class="ex" id="e10" data-section="simplify" data-type="expr" data-answer="(x-6)/(x+6)" data-placeholder="e.g. (x+1)/(x-4)"
            data-hint="The top is a difference of squares and the bottom is a perfect square. Factor each completely."
-           data-hint2="What is the bottom as a square of a binomial?">
+           data-hint2="What is the excluded value, and which factor appears in both the top and the bottom?">
         <div class="ex-q"><p>Simplify $\dfrac{x^2 - 36}{x^2 + 12x + 36}$.</p></div>
         <div class="ex-solution">
           <p class="answer">Answer: $\dfrac{x - 6}{x + 6}$</p>
@@ -489,9 +489,9 @@
         </div>
       </div>
 
-      <div class="ex" id="e11" data-section="simplify" data-type="expr" data-answer="-1/(x-1)|(-1)/(x-1)|1/(1-x)" data-placeholder="e.g. 1/(x-4)"
+      <div class="ex" id="e11" data-section="simplify" data-type="expr" data-answer="-1/(x-1)|(-1)/(x-1)|1/(1-x)|-(1)/(x-1)" data-placeholder="e.g. 1/(x-4)"
            data-hint="The top is the opposite of one of the factors of the bottom. Factor the bottom, and rewrite the top with that factor showing."
-           data-hint2="What is $2 - x$ in terms of $x - 2$?">
+           data-hint2="Which value of $x$ makes the top zero, and which factor of the bottom is zero there too?">
         <div class="ex-q"><p>Simplify $\dfrac{2 - x}{x^2 - 3x + 2}$.</p></div>
         <div class="ex-solution">
           <p class="answer">Answer: $-\dfrac{1}{x - 1}$</p>
@@ -501,9 +501,9 @@
         </div>
       </div>
 
-      <div class="ex" id="e12" data-section="simplify" data-type="expr" data-answer="(2x-3)/x" data-placeholder="e.g. (x+1)/x"
+      <div class="ex" id="e12" data-section="simplify" data-type="expr" data-answer="(2x-3)/x|(2x-3)/(x)" data-placeholder="e.g. (x+1)/x"
            data-hint="Both the top and the bottom have a common factor with a letter in it. Take out the largest one from each."
-           data-hint2="What is the greatest common factor of $10x^2$ and $15x$, and what is the bottom with a factor of $5x$ taken out?">
+           data-hint2="What is the greatest common factor of $10x^2$ and $15x$, and is it also a factor of the bottom?">
         <div class="ex-q"><p>Simplify $\dfrac{10x^2 - 15x}{5x^2}$.</p></div>
         <div class="ex-solution">
           <p class="answer">Answer: $\dfrac{2x - 3}{x}$</p>
@@ -530,15 +530,15 @@
            data-hint2="Which values of $x$ make the bottom of the first fraction zero?">
         <div class="ex-q"><p>A student works on $\dfrac{x^2 - 5x + 4}{x^2 - 16}$. Line 1: $\dfrac{x^2 - 5x + 4}{x^2 - 16} = \dfrac{(x - 1)(x - 4)}{(x - 4)(x + 4)}$. Line 2: $= \dfrac{x - 1}{x + 4}$. Line 3: &ldquo;The original is undefined only at $x = -4$.&rdquo; Which statement about the work is correct?</p></div>
         <ul class="choices">
-          <li>Line 1 is wrong, because the top is factored incorrectly.</li>
-          <li>Line 1 is wrong, because the bottom is factored incorrectly.</li>
+          <li>Line 1 is wrong, because the top factors as $(x + 1)(x + 4)$.</li>
+          <li>Line 1 is wrong, because the bottom factors as $(x - 4)^2$.</li>
           <li>Line 2 is wrong, because a factor cannot be divided out of both the top and the bottom.</li>
           <li>Line 3 is wrong, because the original is also undefined at $x = 4$.</li>
         </ul>
         <div class="ex-solution">
           <p class="answer">Answer: Line 3 is wrong, because the original is also undefined at $x = 4$.</p>
           <p>
-            Line 1 is right: $(x - 1)(x - 4) = x^2 - 5x + 4$ and $(x - 4)(x + 4) = x^2 - 16$. Line 2 is right too, since the shared factor $x - 4$ divides out. Line 3 forgets that the excluded values are read from the factored bottom before canceling: the bottom is zero at $x = 4$ as well as $x = -4$. Check by putting $x = 4$ into the original: the bottom is $16 - 16 = 0$, so the original is undefined there, though the simplified form $\frac{x - 1}{x + 4}$ is defined and equals $\frac{3}{8}$.
+            Line 1 is right: $(x - 1)(x - 4) = x^2 - 5x + 4$ and $(x - 4)(x + 4) = x^2 - 16$, while $(x + 1)(x + 4)$ expands to $x^2 + 5x + 4$, the wrong middle sign, and $(x - 4)^2 = x^2 - 8x + 16$ is a perfect square, not a difference of squares. Line 2 is right too, since the shared factor $x - 4$ divides out. Line 3 forgets that the excluded values are read from the factored bottom before canceling: the bottom is zero at $x = 4$ as well as $x = -4$. Check by putting $x = 4$ into the original: the bottom is $16 - 16 = 0$, so the original is undefined there, though the simplified form $\frac{x - 1}{x + 4}$ is defined and equals $\frac{3}{8}$.
           </p>
         </div>
       </div>
