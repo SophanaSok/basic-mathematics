@@ -429,6 +429,21 @@ var CONTENT = {
   "tri-angle": function (p) {
     return /isosceles|equal sides|equal legs|opposite the equal/i.test(p.q + " " + p.hint + " " + p.steps.join(" ")) ? "relies on equal sides facing equal angles, which the course never proves" : "";
   },
+  /* the common bottom a sum is written over is never a product the pack H page prints (the
+     page's own pairs are a learner's worked examples); read from parts/5-packs/pk-rational.html
+     here, so the generator's hand-typed skip list (HADD_PAGE_BOTTOMS in data/gen/packs.js) is
+     held to the page */
+  "pk-op-add": (function () {
+    var page = fs.readFileSync(path.join(ROOT, "parts/5-packs/pk-rational.html"), "utf8"), seen = {}, re = /\(x ([+-]) (\d+)\)\(x ([+-]) (\d+)\)/g, m;
+    function key(a, b) { return a < b ? a + "," + b : b + "," + a; }
+    while ((m = re.exec(page))) seen[key((m[1] === "-" ? -1 : 1) * +m[2], (m[3] === "-" ? -1 : 1) * +m[4])] = 1;
+    return function (p) {
+      var mm = /over \$\(x ([+-]) (\d+)\)\(x ([+-]) (\d+)\)\$/.exec(p.q);
+      if (!mm) return "cannot read the common bottom";
+      var k = key((mm[1] === "-" ? -1 : 1) * +mm[2], (mm[3] === "-" ? -1 : 1) * +mm[4]);
+      return seen[k] ? "the common bottom is a product the pack H page prints (pair " + k + ")" : "";
+    };
+  })(),
   /* a segment has two distinct endpoints (§10.1) */
   "point-sum": function (p) {
     var pts = [], re = /\((-?\d+), (-?\d+)\)/g, m;
