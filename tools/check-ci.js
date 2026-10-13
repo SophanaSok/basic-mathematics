@@ -67,11 +67,14 @@ function checkProduction(ci, r) {
 /* (e) the deploy gate's tools/game scripts run in the browser job of the part CORE of
    check-browser.js, which ci.yml reads from --parts: a part named in ci.yml instead
    would leave them in no job once the part was renamed, and the gate would pass without
-   them */
+   them. The check:browser step of that job is skipped by the same output (the part names
+   no suite), and every other part's job runs it */
 function checkCore(ci, r) {
   r.count++;
   const browser = jobOf(ci, "browser");
   if (!/part: \$\{\{ fromJSON\(needs\.build\.outputs\.browser-parts\)\.parts \}\}/.test(browser) || !/- if: matrix\.part == fromJSON\(needs\.build\.outputs\.browser-parts\)\.core\n\s+run: npm run test:browser:core\n/.test(browser)) r.fail(FILE + ": the browser job does not run npm run test:browser:core in the job of the part --parts names as core, so the gate could pass without the tools/game scripts");
+  r.count++;
+  if (!/\n\s+if: matrix\.part != fromJSON\(needs\.build\.outputs\.browser-parts\)\.core\n\s+run: npm run check:browser -- --skip=webgl --part="\$PART"\n/.test(browser)) r.fail(FILE + ": the browser job does not run check:browser --part in every job but the core part's, read from --parts");
 }
 
 /* (f) GitHub Pages serves only the redirect site: the build job builds and checks

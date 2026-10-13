@@ -204,7 +204,8 @@ at the new address, and nothing of the course.
 that. A push to `main` (merging a pull request) triggers it, unless it changes only Markdown
 and `docs/` ([When CI runs](#when-ci-runs)), and so does **Run workflow** on `main`. Its jobs
 are `build` (the Node checks, the build, the checks on `dist/`, the redirect site and its checks), `browser` (the Chromium checks that need no WebGL, as one job per part, side by
-side, today `browser (axe)`, `browser (pages)`, `browser (exercises)` and `browser (rest)`; the
+side, today `browser (axe)`, `browser (pages)`, `browser (exercises)`, `browser (core)`, which
+runs the `tools/game` scripts of `test:browser:core` alone, and `browser (rest)`; the
 parts are `PARTS` in `tools/check-browser.js`, [`tools/README.md`](tools/README.md)), `webgl`
 (the 3D checks, retried, outside the gate), `cloudflare`, which publishes that run's `dist/` to
 Cloudflare Pages once `build` and every `browser` job have passed (production from `main`, a
@@ -452,6 +453,12 @@ costs no Actions minutes (a full run is about 30), gets no Cloudflare preview, a
 nothing, which is right: `dist/` and `dist-redirects/` are built from none of those files, so
 production already matches it.
 
+A run that does start takes about 6 minutes of wall time (2026-10-13: `build` about 1, then the
+`browser` parts and `webgl` side by side, the longest about 5). The `browser` and `webgl` jobs
+take Chromium from an Actions cache keyed `playwright-<os>-<version>` on the Playwright version
+in `package-lock.json`, so only the first run after a Playwright upgrade downloads it; the apt
+packages (`playwright install-deps`) are installed every time.
+
 - **What still runs CI:** any change with at least one other file in it. For a pull request
   GitHub compares the whole pull request with its base, so a Markdown-only push to a pull request
   that also changes code still gets a full run.
@@ -630,7 +637,7 @@ check it when the first function exists.
 | Apply migrations | R0 (now) | every change to `schema.sql` | [Section 1](#1-releasing-a-change-that-needs-sql). The first real one is the `events` table in R2 |
 | Watch Supabase usage and pausing | now | usage monthly, pausing weekly | [Section 3](#what-to-watch) |
 | Keep `groundupmath.org` renewed | from the purchase | yearly; auto-renew on | Porkbun → Domain Management → the domain → Auto Renew on, with a card that will still be valid. A lapsed domain takes the site and every reader's saved progress with it, and lets someone else take the name. The bare domain and `www` forward to `learn` (Porkbun URL Forwarding, [8.3](#83-the-custom-domain-and-the-bare-domain)); after any DNS change there, rerun 8.3's check |
-| Watch GitHub Actions minutes | once the repository is private | a week after, then monthly | GitHub → Settings → Billing → Usage. A private repository's runs use the account's included minutes; one full run of CI is about 30 billed minutes, and a change to only Markdown and `docs/` starts none ([When CI runs](#when-ci-runs)). Without a payment method GitHub blocks runs past the quota rather than billing them. If it is tight, run the `webgl` job only when 3D files change |
+| Watch GitHub Actions minutes | once the repository is private | a week after, then monthly | GitHub → Settings → Billing → Usage. A private repository's runs use the account's included minutes; one full run of CI is about 30 billed minutes, and a change to only Markdown and `docs/` starts none ([When CI runs](#when-ci-runs)). Without a payment method GitHub blocks runs past the quota rather than billing them. On 2026-10-12 the public repository was blocked anyway: the account's Actions budget was $0 with "Stop usage" on, so the included-minutes bar filling stopped every run (public usage is free, but the stop still fires). The fix is GitHub → Settings → Billing → Budgets and alerts → the Actions budget: raise it above $0 or set "Stop usage" to No. If it is tight, run the `webgl` job only when 3D files change |
 | Renew expiring provider secrets | now, if Microsoft is enabled | before the expiry date | [Section 4](#rotation-in-outline) |
 | The hint review queue | **[not yet: R2]** | each content wave | Generated hints wait in a review queue; nothing ships unapproved. Approving or rejecting them is the owner's job |
 | League abuse handling | **[not yet: R4]** | weekly, and on a report | Offensive or impersonating behaviour, and scores that look farmed. The tools for removing someone from a cohort come with R4 |
