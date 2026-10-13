@@ -3,7 +3,7 @@
 <head>
 <!--bm:head-->
 <title>Pack G. Growth, Decay and Sequences — Basic Mathematics</title>
-<meta name="description" content="Sequences and the two kinds of change they describe: arithmetic sequences that add the same difference each step and geometric sequences that multiply by the same ratio, the formulas for the nth term argued from counting steps, which position holds a value, a missing middle term and the sum of a short arithmetic list; then linear change against exponential growth and decay, a percent change as a multiplier, a half-life, why an exponential quantity passes a linear one, and how many periods until a value is reached: the algebra skills the gate exams ask for and the book leaves out. Compound interest and solving with logarithms come in later sections.">
+<meta name="description" content="Sequences and the two kinds of change they describe: arithmetic sequences that add the same difference each step and geometric sequences that multiply by the same ratio, the formulas for the nth term argued from counting steps, which position holds a value, a missing middle term and the sum of a short arithmetic list; then linear change against exponential growth and decay, a percent change as a multiplier, a half-life, why an exponential quantity passes a linear one, and how many periods until a value is reached: the algebra skills the gate exams ask for and the book leaves out. Then compound interest, with the balance after t years, simple interest against compound, interest added more often than yearly, a balance read from a formula and the rule of 72 as an estimate, and solving a growth question with logarithms: what a logarithm is, the product and power rules, an exact solve and a calculator solve, and which expression gives the answer.">
 </head>
 <body data-depth="2" data-chapter="pk-growth" data-part="packs">
 <!--bm:topbar-->
@@ -23,8 +23,11 @@
         find which position holds a value and fill in a missing term. Its second section turns the two sequences into
         two kinds of change: a constant difference per period is linear, a constant ratio per period is exponential,
         and a percent change is a multiplier. It reads and writes growth and decay models, explains why an exponential
-        quantity passes a linear one in the end, and counts the periods until a value is reached. Compound interest and
-        solving with logarithms come in later sections of the pack.
+        quantity passes a linear one in the end, and counts the periods until a value is reached. Its third section puts
+        money in the story: compound interest is growth with a balance, set against simple interest, and a rate compounded
+        more often than yearly applies a smaller rate more times. Its fourth names the answer to "how many periods": a
+        logarithm is an exponent, two rules from the exponent laws solve $a \cdot b^t = c$, and a calculator reads the
+        answer when it is not whole.
       </p>
 
       <div class="banner-meta" data-banner-meta></div>
@@ -42,7 +45,7 @@
         <li>day $29$</li>
         <li>day $20$</li>
       </ul>
-      <p class="puzzle-after">Half of the time feels like the right place for half of the pond, and that feeling is the one a steady, linear story would earn. A story that doubles is a different kind of story, and the two sections that follow say how it differs: the first builds the two sequences, adding and multiplying, and the second sets the multiplying one against the adding one. (Later sections of this pack turn to compound interest and to solving with logarithms.)</p>
+      <p class="puzzle-after">Half of the time feels like the right place for half of the pond, and that feeling is the one a steady, linear story would earn. A story that doubles is a different kind of story, and the two sections that follow say how it differs: the first builds the two sequences, adding and multiplying, and the second sets the multiplying one against the adding one. The third puts money in the story, as compound interest, and the fourth turns the question &ldquo;how many periods?&rdquo; into one step with logarithms.</p>
     </div>
 
     <div class="goal">
@@ -53,7 +56,10 @@
       You can tell linear change from exponential change, turn a percent increase or decrease into a multiplier, read
       the starting value and the multiplier from a model or a table and the percent per period from the multiplier,
       write a growth or decay model from a story, say why an exponential quantity overtakes a linear one however the
-      two begin, and count the periods until a value is reached by listing.
+      two begin, and count the periods until a value is reached by listing. You can find a balance under compound interest
+      and set it against simple interest, apply a yearly rate compounded more often than yearly, read the principal and the
+      rate from a formula, estimate a doubling time, evaluate a logarithm as an exponent, and solve $a \cdot b^t = c$ exactly
+      or with a calculator, choosing the expression that gives $t$.
     </div>
 
     <section class="warmup" id="warmup">
@@ -284,7 +290,7 @@
     <p>
       Plan B is far behind for three weeks and ahead in week $4$. Its gains are $20, 40, 80, 160$, each double the one before, while Plan A's gain is $30$ every time. With a
       multiplier such as $1.1$ the pass takes far longer, but it comes, because a share of a growing amount outgrows any fixed gain.
-      To find how many periods a quantity needs to reach a value, list the amounts period by period until one passes it. Logarithms, in a later section, turn that search into one step.
+      To find how many periods a quantity needs to reach a value, list the amounts period by period until one passes it. Logarithms, in <a href="#logs">G.4</a>, turn that search into one step.
     </p>
 
     <div class="worked">
@@ -371,6 +377,245 @@
       </div>
     </div>
 
+    <h2 id="interest">G.3 Compound interest</h2>
+    <p>
+      Interest is G.2's growth with money. A deposit (or a loan) of a <b>principal</b> $P$ dollars earns interest at a yearly <b>rate</b> of $r\%$. When each year's interest is added to the balance, and the next
+      year's interest is figured on the new balance, the interest is <b>compounded</b> yearly. A rise of $r\%$ is the multiplier $1 + \frac{r}{100}$, so one year turns $P$ into $P\left(1 + \frac{r}{100}\right)$, and the next year
+      multiplies that by the same number again. After $t$ years
+      $$A = P\left(1 + \frac{r}{100}\right)^{t}.$$
+      This is G.2's argument over again: each year's interest is a fixed share of a balance that keeps growing, so the interest itself grows. (<a href="pk-percent.html#repeated">Pack A</a> is where
+      the multiplier idea began, and <a href="#growth">G.2</a> is where it became $y = a \cdot b^{\,t}$.)
+    </p>
+    <p>
+      <b>Simple</b> interest is different: it is always $\frac{Pr}{100}$, a share of the original principal, so the balance is $A = P + t \cdot \frac{Pr}{100}$. That adds the same amount each year, a linear model, the
+      arithmetic rule of G.1. The table sets the two side by side for $\$2{,}500$ at $6\%$, where one year's interest on the principal is $\$150$.
+    </p>
+
+    <table>
+      <caption>$\$2{,}500$ at $6\%$ a year, simple against compound interest, in dollars</caption>
+      <thead><tr><th scope="col">Year $t$</th><th scope="col">Simple: $2{,}500 + 150t$</th><th scope="col">Compound: $2{,}500 \cdot 1.06^t$</th></tr></thead>
+      <tbody>
+        <tr><th scope="row">$0$</th><td>$2{,}500$</td><td>$2{,}500$</td></tr>
+        <tr><th scope="row">$1$</th><td>$2{,}650$</td><td>$2{,}650$</td></tr>
+        <tr><th scope="row">$2$</th><td>$2{,}800$</td><td>$2{,}809$</td></tr>
+        <tr><th scope="row">$3$</th><td>$2{,}950$</td><td>$2{,}977.54$</td></tr>
+      </tbody>
+    </table>
+
+    <p>
+      The two agree after one year. In year $2$ the compound account earns $6\%$ of $\$2{,}650$, which is $\$159$, against $\$150$ for the simple one. The extra $\$9$ is $6\%$ of the first year's $\$150$ of interest: it is
+      interest on interest, and that is the whole gap. By year $3$ the compound account is ahead by $\$27.54$, and the lead keeps growing, since it is a share of a growing balance.
+    </p>
+    <p>
+      A bank may add interest more often than once a year. A yearly rate of $r\%$ <b>compounded $n$ times a year</b> applies $\frac{r}{n}\%$ in each of $n$ periods, so the multiplier for one period is $1 + \frac{r}{100n}$ and
+      it is used $nt$ times in $t$ years:
+      $$A = P\left(1 + \frac{r}{100n}\right)^{nt}.$$
+      That is G.2's multiplier applied $nt$ times. Take $\$1{,}000$ at $12\%$ compounded twice a year. Each half-year applies $6\%$, the multiplier $1.06$, twice in one year: $1{,}000 \cdot 1.06^2 = 1{,}000 \cdot 1.1236 = \$1{,}123.60$.
+      Compounded once a year the same deposit gives $1{,}000 \cdot 1.12 = \$1{,}120$. Compounding more often does help, but by a little: $\$3.60$ on $\$1{,}000$.
+    </p>
+    <p>
+      A balance can also be given as a formula. In $A = 3{,}000 \cdot 1.04^{t}$ the form is $a \cdot b^{\,t}$, so the principal is $a = \$3{,}000$ and the multiplier is $b = 1.04 = 1 + \frac{4}{100}$, a rate of $4\%$ a year. Since $b > 1$ the balance
+      grows. To see how long a balance takes to double, list the powers of the multiplier until one passes $2$. At $6\%$, $1.06^{11} \approx 1.898$ is not enough and $1.06^{12} \approx 2.012$ is over, so it doubles in $12$ years. The
+      <b>rule of $72$</b> is a shortcut for the same question: the years to double are about $72 \div r$. At $6\%$ it gives $72 \div 6 = 12$, which agrees. It is an estimate and no more: at $9\%$ it gives $8$, but $1.09^{8} \approx 1.993$ is still under $2$, and
+      $1.09^{9} \approx 2.172$ is over, so the true count is $9$ years.
+    </p>
+
+    <div class="worked">
+      <h3><span class="num">Example 5.</span> Compound against simple on one principal</h3>
+      <div class="body">
+        <p>
+          A deposit of $\$10{,}000$ earns $7\%$ a year for $3$ years. Find the balance with yearly compounding, the balance with simple interest, and how much more the compound account holds.
+        </p>
+        <ol class="steps">
+          <li>A rise of $7\%$ is the multiplier $1.07$, so the compound balance is $10{,}000 \cdot 1.07^3 = 10{,}000 \cdot 1.225043 = \$12{,}250.43$.</li>
+          <li>Simple interest is $7\%$ of $10{,}000$, which is $\$700$ each year. In $3$ years that is $\$2{,}100$, so the simple balance is $\$12{,}100$.</li>
+          <li>The compound account holds $12{,}250.43 - 12{,}100 = \$150.43$ more.</li>
+          <li>Check the compound balance year by year: $10{,}000 \to 10{,}700 \to 11{,}449 \to 12{,}250.43$ ✓. Check the gap another way: the three years of compound interest are $\$700$, $\$749$ and $\$801.43$, and their excess over the simple $\$700$ is $0 + 49 + 101.43 = \$150.43$ ✓. $\blacksquare$</li>
+        </ol>
+        <p class="note">
+          The gap is interest on interest, so it grows every year, while the simple account's interest stays at $\$700$.
+        </p>
+      </div>
+    </div>
+
+    <div class="ex" data-inline id="t7" data-type="number" data-answer="1323" data-placeholder="dollars"
+         data-hint="Each year multiplies the balance by one plus the rate as a decimal. Say what the multiplier is and how many times it is used."
+         data-hint2="A rise of $5\%$ is which multiplier, and how many years does it apply?">
+      <div class="ex-q">
+        <p>
+          A balance of $\$1{,}200$ earns $5\%$ a year, compounded yearly. What is the balance, in dollars, after $2$ years?
+        </p>
+      </div>
+      <div class="ex-solution">
+        <p class="answer">Answer: $\$1{,}323$</p>
+        <p>
+          The multiplier is $1.05$, so $A = 1{,}200 \cdot 1.05^2 = 1{,}200 \cdot 1.1025 = 1{,}323$. Check year by year: $1{,}200 \to 1{,}260 \to 1{,}323$ ✓.
+        </p>
+      </div>
+    </div>
+
+    <div class="worked">
+      <h3><span class="num">Example 6.</span> Reading a formula, with half-yearly compounding</h3>
+      <div class="body">
+        <p>
+          An account follows $A = 3{,}500 \cdot 1.04^{2t}$ dollars after $t$ years. Name the principal, the yearly rate and how often the interest is added, and find the balance after $1$ year.
+        </p>
+        <ol class="steps">
+          <li>Match the form $P\left(1 + \frac{r}{100n}\right)^{nt}$. The principal is $P = \$3{,}500$.</li>
+          <li>The exponent is $2t$, so $n = 2$: the interest is added twice a year. The multiplier $1.04 = 1 + \frac{4}{100}$ is a rise of $4\%$ per half-year, so the yearly rate is $r = 2 \cdot 4 = 8\%$. The multiplier is above $1$, so the balance grows.</li>
+          <li>For $t = 1$ the exponent is $2$: $A = 3{,}500 \cdot 1.04^2 = 3{,}500 \cdot 1.0816 = \$3{,}785.60$.</li>
+          <li>Check half-year by half-year: $3{,}500 \to 3{,}640 \to 3{,}785.60$ ✓. Check against yearly compounding at $8\%$, which gives $3{,}500 \cdot 1.08 = \$3{,}780$: the twice-a-year account holds $\$5.60$ more, a small gain, as the rate of $8\%$ spread over two periods promises ✓. $\blacksquare$</li>
+        </ol>
+        <p class="note">
+          The yearly rate is not the number in the multiplier: $1.04$ is the rate per period, and the exponent says how many periods there are.
+        </p>
+      </div>
+    </div>
+
+    <div class="ex" data-inline id="t8" data-type="number" data-answer="9" data-placeholder="e.g. 12"
+         data-hint="The rule of $72$ divides $72$ by the yearly rate as a percent. It is an estimate of the years to double."
+         data-hint2="What is $72 \div 8$?">
+      <div class="ex-q">
+        <p>
+          By the rule of $72$, about how many years does money take to double at $8\%$ a year?
+        </p>
+      </div>
+      <div class="ex-solution">
+        <p class="answer">Answer: $9$ years</p>
+        <p>
+          The rule gives $72 \div 8 = 9$ years. Check the division: $8 \cdot 9 = 72$ ✓. It is only an estimate: listing the powers of $1.08$ gives about $1.999$ after $9$ years, a hair under $2$, so the true count is $10$.
+        </p>
+      </div>
+    </div>
+
+    <div class="ex" data-inline id="t9" data-type="number" data-answer="4243.6" data-placeholder="dollars"
+         data-hint="A yearly rate compounded twice a year applies half the rate in each of two periods. Say the multiplier for one period."
+         data-hint2="What is half of $6\%$, and which multiplier is that?">
+      <div class="ex-q">
+        <p>
+          A bank pays $6\%$ a year, compounded twice a year. A deposit of $\$4{,}000$ is worth how many dollars after $1$ year?
+        </p>
+      </div>
+      <div class="ex-solution">
+        <p class="answer">Answer: $\$4{,}243.60$</p>
+        <p>
+          Each half-year applies $3\%$, the multiplier $1.03$, and it is used twice: $4{,}000 \cdot 1.03^2 = 4{,}000 \cdot 1.0609 = 4{,}243.60$. Check half-year by half-year: $4{,}000 \to 4{,}120 \to 4{,}243.60$ ✓.
+        </p>
+      </div>
+    </div>
+
+    <h2 id="logs">G.4 Solving with logarithms</h2>
+    <p>
+      G.2 and G.3 found how many periods a quantity needs by listing powers. A <b>logarithm</b> is the name for that answer. The number $\log_b y$ is the exponent $t$ with $b^t = y$, and it is nothing more than that. So
+      $\log_2 32 = 5$ because $2^5 = 32$, $\log_{10} 1{,}000 = 3$ because $10^3 = 1{,}000$, $\log_5 1 = 0$ because $5^0 = 1$, and $\log_9 3 = \frac12$ because $9^{1/2} = 3$. With a base above $1$, a number less than $1$ has a negative
+      logarithm, since a negative exponent makes a fraction: $\log_{10} \frac{1}{100} = -2$. Chapter 12's <a href="../4-topics/12-functions.html#log">logarithms</a> section is where this began, with the logarithm as the inverse of a power.
+    </p>
+    <p>
+      Two rules do the solving, and both come from the exponent laws. Let $x = \log_b u$ and $y = \log_b v$, so that $u = b^x$ and $v = b^y$. Then $uv = b^x b^y = b^{x+y}$, which says
+      $$\log_b(uv) = \log_b u + \log_b v.$$
+      Test it: $\log_2 4 + \log_2 8 = 2 + 3 = 5 = \log_2 32$, and $4 \cdot 8 = 32$. For a power, $u^k = (b^x)^k = b^{xk}$, which says
+      $$\log_b(u^k) = k \log_b u.$$
+      Test it: $\log_3 81 = 4$, and $81 = 9^2$, so $2 \log_3 9 = 2 \cdot 2 = 4$.
+    </p>
+    <p>
+      To solve $a \cdot b^t = c$, divide by $a$ first, which leaves $b^t = \dfrac{c}{a}$. If $\dfrac{c}{a}$ is a power of $b$ you can see $t$ at once. For $6 \cdot 5^t = 750$, dividing gives $5^t = 125 = 5^3$, so $t = 3$ exactly.
+      If it is not, take the logarithm of both sides. The power rule turns $\log(b^t)$ into $t \log b$, so
+      $$t = \frac{\log(c/a)}{\log b}.$$
+      Here $\log$ is the key on a calculator, which the gate exams allow. For $4 \cdot 3^t = 100$, dividing gives $3^t = 25$, and $t = \dfrac{\log 25}{\log 3} \approx 2.93$. The answer is about $2.93$, not exactly, and it is
+      sensible: $3^2 = 9$ is under $25$ and $3^3 = 27$ is just over, so $t$ is a little under $3$. That quotient is the change of base: $\log_b y = \dfrac{\log y}{\log b}$ is the same fact (take $t = \log_b y$, so $b^t = y$), and it lets a calculator find a logarithm in any base.
+      When the exam asks for an exact answer that is not whole, it asks for the expression, or for the two whole numbers the logarithm lies between.
+    </p>
+
+    <div class="worked">
+      <h3><span class="num">Example 7.</span> An exact solve from a growth story</h3>
+      <div class="body">
+        <p>
+          A lab culture starts with $25$ bacteria and the number triples every hour. After how many hours are there exactly $2{,}025$ bacteria?
+        </p>
+        <ol class="steps">
+          <li>The multiplier is $3$ and the start is $25$, so the count after $t$ hours is $25 \cdot 3^t$. Set it equal to the target: $25 \cdot 3^t = 2{,}025$.</li>
+          <li>Divide by $25$: $3^t = 81$.</li>
+          <li>Since $81 = 3^4$, $t = \log_3 81 = 4$ hours.</li>
+          <li>Check by listing: $25 \to 75 \to 225 \to 675 \to 2{,}025$ is $4$ triplings ✓. Check with the power: $25 \cdot 3^4 = 25 \cdot 81 = 2{,}025$ ✓. $\blacksquare$</li>
+        </ol>
+        <p class="note">
+          Dividing by the start comes first. Taking a logarithm of $25 \cdot 3^t$ before dividing would leave a sum of logarithms to untangle.
+        </p>
+      </div>
+    </div>
+
+    <div class="ex" data-inline id="t10" data-type="number" data-answer="3" data-placeholder="e.g. 5"
+         data-hint="A logarithm is an exponent. Ask which power of the base gives the number."
+         data-hint2="Multiply $4$ by itself and watch for $64$.">
+      <div class="ex-q">
+        <p>
+          Evaluate $\log_4 64$.
+        </p>
+      </div>
+      <div class="ex-solution">
+        <p class="answer">Answer: $3$</p>
+        <p>
+          The question is which exponent $t$ has $4^t = 64$. Listing powers, $4, 16, 64$ reaches $64$ on the third, so $t = 3$. Check: $4 \cdot 4 \cdot 4 = 64$ ✓.
+        </p>
+      </div>
+    </div>
+
+    <div class="worked">
+      <h3><span class="num">Example 8.</span> A doubling time, set up for the calculator</h3>
+      <div class="body">
+        <p>
+          A town of $9{,}000$ people grows by $4\%$ a year. After how many years does it reach $18{,}000$? Give the exact answer as an expression, estimate it, and check the estimate.
+        </p>
+        <ol class="steps">
+          <li>The multiplier is $1.04$, so $9{,}000 \cdot 1.04^t = 18{,}000$. Divide by $9{,}000$: $1.04^t = 2$.</li>
+          <li>The number $2$ is not a whole power of $1.04$, so take the logarithm of both sides: $t \log 1.04 = \log 2$. The exact answer is $t = \dfrac{\log 2}{\log 1.04}$ years.</li>
+          <li>On a calculator, $\log 2 \approx 0.3010$ and $\log 1.04 \approx 0.01703$, so $t \approx 17.7$ years.</li>
+          <li>Check the estimate with two powers: $1.04^{17} \approx 1.948$ is under $2$ and $1.04^{18} \approx 2.026$ is over, so $t$ lies between $17$ and $18$ ✓. The rule of $72$ gives $72 \div 4 = 18$, close to it ✓. $\blacksquare$</li>
+        </ol>
+        <p class="note">
+          The starting size drops out: any population that grows by $4\%$ a year takes the same time to double.
+        </p>
+      </div>
+    </div>
+
+    <div class="ex" data-inline id="t11" data-type="number" data-answer="7" data-placeholder="e.g. 4"
+         data-hint="Divide by the number in front first, and then ask which power of $2$ the result is."
+         data-hint2="What is $1{,}408 \div 11$?">
+      <div class="ex-q">
+        <p>
+          Solve $11 \cdot 2^t = 1{,}408$ for $t$.
+        </p>
+      </div>
+      <div class="ex-solution">
+        <p class="answer">Answer: $t = 7$</p>
+        <p>
+          Dividing by $11$ gives $2^t = 128$, and $128 = 2^7$, so $t = 7$. Check: $2^7 = 128$ by doubling $2, 4, 8, 16, 32, 64, 128$, and $11 \cdot 128 = 1{,}408$ ✓.
+        </p>
+      </div>
+    </div>
+
+    <div class="ex" data-inline id="t12" data-answer="2"
+         data-hint="Divide by the number in front first, then take the logarithm of both sides and use the power rule."
+         data-hint2="After dividing, is $t$ the product of two logarithms, or their quotient, and which one is on top?">
+      <div class="ex-q">
+        <p>
+          The equation is $3 \cdot 5^t = 40$. Which expression gives $t$?
+        </p>
+      </div>
+      <ul class="choices">
+        <li>$t = \log 40 - \log 3 \cdot \log 5$</li>
+        <li>$t = \dfrac{\log(40/3)}{\log 5}$</li>
+        <li>$t = \log(40/3) \cdot \log 5$</li>
+        <li>$t = \dfrac{\log 5}{\log(40/3)}$</li>
+      </ul>
+      <div class="ex-solution">
+        <p class="answer">Answer: $t = \dfrac{\log(40/3)}{\log 5}$</p>
+        <p>
+          Dividing by $3$ gives $5^t = \frac{40}{3}$, and the logarithm of both sides gives $t \log 5 = \log(40/3)$, so $t$ is the quotient with $\log 5$ below. The first option divides nothing: it multiplies $\log 3$ by $\log 5$ and subtracts that product, when $\log 5$ has to divide the whole difference. The third multiplies where it should divide, and the fourth turns the quotient upside down. Check the chosen one: $5^1 = 5$ and $5^2 = 25$, and $\frac{40}{3} \approx 13.3$ lies between them, so $t$ should lie between $1$ and $2$; the quotient is $\log 13.3 \div \log 5 \approx 1.12 \div 0.699 \approx 1.61$ ✓, while the fourth option gives its reciprocal, about $0.62$, which is under $1$.
+        </p>
+      </div>
+    </div>
+
     <!-- ====================================================== practice ==== -->
     <section class="practice" id="practice">
       <div class="practice-head">
@@ -379,8 +624,9 @@
       </div>
       <p>
         Give each answer as a number in the unit the question names, without writing the unit and without a comma. Where a
-        question asks for an expression, use the letter it names. A question that asks which formula or which model fits is
-        answered by choosing one of the options shown, since a formula or an equation is never typed.
+        question asks for an expression, use the letter it names. A question that asks which formula, which model or which expression fits is
+        answered by choosing one of the options shown, since a formula or an equation is never typed. A dollar answer is a
+        number with up to two decimals, and a trailing zero may be dropped, so $250.5$ and $250.50$ are the same amount.
       </p>
 
       <div class="ex" id="e1" data-section="sequences" data-type="number" data-answer="68" data-placeholder="seats"
@@ -574,6 +820,186 @@
           </p>
         </div>
       </div>
+
+      <div class="ex" id="e15" data-section="interest" data-type="number" data-answer="1036.8" data-placeholder="dollars"
+           data-hint="Interest compounded yearly multiplies the balance by one plus the rate as a decimal, once for each year."
+           data-hint2="What is the multiplier for a rise of $20\%$, and how many years does it apply?">
+        <div class="ex-q"><p>A credit-card balance of $\$600$ is charged $20\%$ interest a year, compounded yearly, and nothing is paid. What is the balance, in dollars, after $3$ years?</p></div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $\$1{,}036.80$</p>
+          <p>
+            The multiplier is $1.2$, so $A = 600 \cdot 1.2^3 = 600 \cdot 1.728 = 1{,}036.80$. Check year by year: $600 \to 720 \to 864 \to 1{,}036.80$ ✓.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" id="e16" data-section="interest" data-type="number" data-answer="328" data-placeholder="dollars"
+           data-hint="The interest earned is the balance at the end minus the principal you started with."
+           data-hint2="Find the balance after $2$ years first. Then take away the deposit.">
+        <div class="ex-q"><p>A deposit of $\$3{,}200$ earns $5\%$ a year, compounded yearly. How many dollars of interest has it earned after $2$ years?</p></div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $\$328$</p>
+          <p>
+            The balance is $3{,}200 \cdot 1.05^2 = 3{,}200 \cdot 1.1025 = 3{,}528$, so the interest is $3{,}528 - 3{,}200 = 328$. Check year by year: $5\%$ of $3{,}200$ is $160$, the balance is then $3{,}360$, and $5\%$ of that is $168$; $160 + 168 = 328$ ✓.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" id="e17" data-section="interest" data-type="number" data-answer="32.4" data-placeholder="dollars"
+           data-hint="Find the balance each account holds. Simple interest adds the same amount each year, and compounding multiplies."
+           data-hint2="The difference is the second year's extra interest. Which amount is it a share of?">
+        <div class="ex-q"><p>Two accounts each start with $\$9{,}000$ at $6\%$ a year for $2$ years. One pays simple interest and the other compounds yearly. How many more dollars does the compounding account hold at the end?</p></div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $\$32.40$</p>
+          <p>
+            The simple account adds $6\%$ of $9{,}000$, which is $540$, each year: $9{,}000 + 2 \cdot 540 = 10{,}080$. The compound account holds $9{,}000 \cdot 1.06^2 = 9{,}000 \cdot 1.1236 = 10{,}112.40$. The difference is $10{,}112.40 - 10{,}080 = 32.40$. Check by the idea of interest on interest: the first year's interest of $540$ itself earns $6\%$ in year $2$, and $6\%$ of $540$ is $32.40$ ✓.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" id="e18" data-section="interest" data-type="number" data-answer="7803" data-placeholder="dollars"
+           data-hint="Compounding twice a year applies half the yearly rate in each of two periods. Decide the multiplier for one period."
+           data-hint2="How many half-years are there in $1$ year, and how many times does the multiplier apply?">
+        <div class="ex-q"><p>A bank pays $4\%$ a year compounded twice a year, which is $2\%$ in each half-year. A deposit of $\$7{,}500$ is worth how many dollars after $1$ year?</p></div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $\$7{,}803$</p>
+          <p>
+            The multiplier for a half-year is $1.02$ and it is used twice: $7{,}500 \cdot 1.02^2 = 7{,}500 \cdot 1.0404 = 7{,}803$. Check half-year by half-year: $7{,}500 \to 7{,}650 \to 7{,}803$ ✓.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" id="e19" data-section="interest" data-type="number" data-answer="4500" data-placeholder="dollars"
+           data-hint="Run the story backward: the balance at the end is the principal multiplied once for each year."
+           data-hint2="By what number is the principal multiplied in $2$ years at $8\%$?">
+        <div class="ex-q"><p>A deposit earns $8\%$ a year, compounded yearly, and is worth $\$5{,}248.80$ after $2$ years. How many dollars was the deposit?</p></div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $\$4{,}500$</p>
+          <p>
+            Two years multiply the principal by $1.08^2 = 1.1664$, so the principal is $5{,}248.80 \div 1.1664 = 4{,}500$. Check forward: $4{,}500 \cdot 1.08 = 4{,}860$ and $4{,}860 \cdot 1.08 = 5{,}248.80$ ✓.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" id="e20" data-section="interest" data-type="number" data-answer="3.5" data-placeholder="percent"
+           data-hint="Match the formula to the form for a balance: the number raised to the power is the multiplier. Read the rate from how far it is above $1$."
+           data-hint2="Write the multiplier as one plus a decimal. What does that decimal become as a percent?">
+        <div class="ex-q"><p>The balance of an account after $t$ years is $A = 1{,}800 \cdot 1.035^{t}$ dollars. What is the yearly interest rate, as a percent? Give the percent without the percent sign.</p></div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $3.5$</p>
+          <p>
+            The multiplier is $1.035 = 1 + 0.035$, and $0.035$ is $3.5\%$. Check: $3.5\%$ of $1{,}800$ is $0.035 \cdot 1{,}800 = 63$, and $1{,}800 \cdot 1.035 = 1{,}863 = 1{,}800 + 63$ ✓.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" id="e21" data-section="interest" data-answer="4"
+           data-hint="Say the multiplier for one period and the number of periods in $t$ years, and then test each option at $t = 1$."
+           data-hint2="Which options fail the test at $t = 1$, where the balance should be about $3{,}819$?">
+        <div class="ex-q"><p>A deposit of $\$3{,}600$ earns $6\%$ a year, compounded twice a year. Which formula gives the balance $A$ after $t$ years?</p></div>
+        <ul class="choices">
+          <li>$A = 3{,}600 \cdot 1.03^{t}$</li>
+          <li>$A = 3{,}600 + 216t$</li>
+          <li>$A = 3{,}600 \cdot 4^{2t}$</li>
+          <li>$A = 3{,}600 \cdot 1.03^{2t}$</li>
+        </ul>
+        <div class="ex-solution">
+          <p class="answer">Answer: $A = 3{,}600 \cdot 1.03^{2t}$</p>
+          <p>
+            Each half-year applies $3\%$, the multiplier $1.03$, and there are $2t$ half-years in $t$ years, which is the last option. The first has the right multiplier but uses it once a year, as if the rate were halved and nothing else changed. The second is simple interest: $6\%$ of $3{,}600$ is $216$ added each year. The third writes the rate as $1 + 3$ and forgets to divide by $100$. Check the chosen one at $t = 1$: $3{,}600 \cdot 1.03^2 = 3{,}600 \cdot 1.0609 = 3{,}819.24$, and half-year by half-year $3{,}600 \to 3{,}708 \to 3{,}819.24$ ✓.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" id="e22" data-section="logs" data-type="number" data-answer="5" data-placeholder="e.g. 2"
+           data-hint="A logarithm is an exponent. Ask which power of the base gives the number."
+           data-hint2="List the powers of $3$ in order: $3, 9, 27, \dots$ Which one is $243$?">
+        <div class="ex-q"><p>Evaluate $\log_3 243$.</p></div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $5$</p>
+          <p>
+            The powers of $3$ are $3, 9, 27, 81, 243$, and $243$ is the fifth, so $\log_3 243 = 5$. Check with the product rule: $243 = 9 \cdot 27$, so $\log_3 243 = \log_3 9 + \log_3 27 = 2 + 3 = 5$ ✓.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" id="e23" data-section="logs" data-type="number" data-answer="-4" data-placeholder="e.g. 3"
+           data-hint="A number less than $1$ is a negative power of a base above $1$. Ask which exponent of $2$ gives the fraction."
+           data-hint2="A negative exponent turns a power into one over that power. What is $2^4$?">
+        <div class="ex-q"><p>Evaluate $\log_2 \dfrac{1}{16}$.</p></div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $-4$</p>
+          <p>
+            Since $2^4 = 16$, we have $2^{-4} = \dfrac{1}{2^4} = \dfrac{1}{16}$, so the logarithm is $-4$. Check: $2^{-4} \cdot 16 = \dfrac{16}{16} = 1$, and $\log_2 1 = 0 = -4 + 4$, the product rule with $\log_2 16 = 4$ ✓.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" id="e24" data-section="logs" data-type="number" data-answer="0.5|1/2" data-placeholder="e.g. 3"
+           data-hint="A logarithm is an exponent, and here the number is smaller than the base. What exponent turns $49$ into $7$?"
+           data-hint2="Which exponent of a base is its square root? Give the answer as a decimal or a fraction.">
+        <div class="ex-q"><p>Evaluate $\log_{49} 7$. Give the answer as a decimal or a fraction.</p></div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $\frac12$</p>
+          <p>
+            A power of $\frac12$ is a square root, and $49^{1/2} = \sqrt{49} = 7$, so $\log_{49} 7 = \frac12$. Check by squaring: $\left(49^{1/2}\right)^2 = 49^1 = 49$, and $7^2 = 49$ ✓.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" id="e25" data-section="logs" data-type="number" data-answer="8" data-placeholder="e.g. 5"
+           data-hint="Divide by the number in front first, and then ask which power of $2$ the result is."
+           data-hint2="What is $3{,}072 \div 12$, and how many times is $2$ multiplied to reach it?">
+        <div class="ex-q"><p>Solve $12 \cdot 2^t = 3{,}072$ for $t$.</p></div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $t = 8$</p>
+          <p>
+            Dividing by $12$ gives $2^t = 256$, and $256 = 2^8$, so $t = 8$. Check by doubling $12$ eight times: $24, 48, 96, 192, 384, 768, 1{,}536, 3{,}072$ ✓.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" id="e26" data-section="logs" data-type="number" data-answer="6" data-placeholder="weeks"
+           data-hint="Write the count after $t$ weeks as the start times a power of the multiplier, set it equal to the target and divide by the start."
+           data-hint2="After dividing by the start, which power of $2$ is the result?">
+        <div class="ex-q"><p>An account has $120$ followers, and its number of followers doubles each week. After how many weeks does it have exactly $7{,}680$ followers?</p></div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $6$ weeks</p>
+          <p>
+            The count is $120 \cdot 2^t$, so $120 \cdot 2^t = 7{,}680$ and $2^t = 64 = 2^6$, which gives $t = 6$. Check week by week: $120 \to 240 \to 480 \to 960 \to 1{,}920 \to 3{,}840 \to 7{,}680$ is $6$ doublings ✓.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" id="e27" data-section="logs" data-type="number" data-answer="13" data-placeholder="e.g. 8"
+           data-hint="The logarithm is the exponent that makes a power of $2$ equal to the number. Find two neighboring powers of $2$ with the number between them."
+           data-hint2="Double from $1$ and stop when the power first passes $10{,}000$. The exponent just before that is the answer.">
+        <div class="ex-q"><p>The number $\log_2 10{,}000$ lies between two consecutive whole numbers. What is the lower one, the whole number just below it?</p></div>
+        <div class="ex-solution">
+          <p class="answer">Answer: $13$</p>
+          <p>
+            Doubling from $1$ gives $2^{13} = 8{,}192$, which is under $10{,}000$, and $2^{14} = 16{,}384$, which is over. So $13 &lt; \log_2 10{,}000 &lt; 14$ and the lower whole number is $13$. Check from the other end: $2^{10} = 1{,}024$, and $1{,}024 \cdot 8 = 8{,}192$ is $2^{13}$ ✓.
+          </p>
+        </div>
+      </div>
+
+      <div class="ex" id="e28" data-section="logs" data-answer="3"
+           data-hint="Divide by the starting amount first, then take the logarithm of both sides and use the power rule."
+           data-hint2="After the power rule, is $t$ a product or a quotient of the two logarithms, and which one is on top?">
+        <div class="ex-q"><p>A balance of $\$12{,}000$ grows by $3\%$ a year, compounded yearly. The number of years $t$ until it reaches $\$20{,}000$ satisfies $12{,}000 \cdot 1.03^{t} = 20{,}000$. Which expression gives $t$?</p></div>
+        <ul class="choices">
+          <li>$t = \dfrac{\log 1.03}{\log(20{,}000/12{,}000)}$</li>
+          <li>$t = \log(20{,}000/12{,}000) \cdot \log 1.03$</li>
+          <li>$t = \dfrac{\log(20{,}000/12{,}000)}{\log 1.03}$</li>
+          <li>$t = \dfrac{\log(20{,}000 - 12{,}000)}{\log 1.03}$</li>
+        </ul>
+        <div class="ex-solution">
+          <p class="answer">Answer: $t = \dfrac{\log(20{,}000/12{,}000)}{\log 1.03}$</p>
+          <p>
+            Dividing by $12{,}000$ gives $1.03^t = \frac{20{,}000}{12{,}000}$, and the logarithm of both sides gives $t \log 1.03 = \log(20{,}000/12{,}000)$, so $t$ is the quotient with $\log 1.03$ below. The first option has the quotient upside down. The second multiplies where it should divide. The fourth subtracts the amounts where it should divide them. Check the chosen one with powers: $1.03^{17} \approx 1.653$ is under $\frac{20{,}000}{12{,}000} \approx 1.667$ and $1.03^{18} \approx 1.702$ is over, so $t$ lies between $17$ and $18$; the quotient is $\log 1.667 \div \log 1.03 \approx 0.2218 \div 0.01284 \approx 17.3$ ✓.
+          </p>
+        </div>
+      </div>
     </section>
 
     <div class="recap">
@@ -596,6 +1022,12 @@
         <li>Linear change adds the same amount each period, $y = a + dt$. Exponential change multiplies by the same factor each period, $y = a \cdot b^{\,t}$, with $a$ the value at $t = 0$.</li>
         <li>Up $r\%$ is the multiplier $1 + \frac{r}{100}$ and down $r\%$ is $1 - \frac{r}{100}$; read the percent back from $b$, so $1.08$ is up $8\%$ and $0.85$ is down $15\%$. Doubling is $b = 2$, halving is $b = \frac12$, and a half-life is the period of halving.</li>
         <li>An exponential quantity passes a linear one however they start, when the multiplier is above $1$, because its increases are a share of a growing amount and so keep growing.</li>
+        <li>Compound interest is growth with money: $A = P\left(1 + \frac{r}{100}\right)^{t}$, since each year's interest is a share of a growing balance. Simple interest adds $\frac{Pr}{100}$ each year, a linear model, and the gap between the two is interest on interest.</li>
+        <li>A yearly rate of $r\%$ compounded $n$ times a year is $P\left(1 + \frac{r}{100n}\right)^{nt}$: the rate per period times the number of periods. More often is a little more, not a lot more. In a formula $a \cdot b^{\,t}$, the principal is $a$ and the rate is $b - 1$ as a percent.</li>
+        <li>The years to double are found by listing powers of the multiplier until one passes $2$. The rule of $72$ ($72 \div r$ years) is an estimate only.</li>
+        <li>$\log_b y$ is the exponent $t$ with $b^t = y$, so $\log_2 32 = 5$, $\log_5 1 = 0$, $\log_9 3 = \frac12$, and a number below $1$ has a negative logarithm when $b > 1$.</li>
+        <li>The product rule $\log_b(uv) = \log_b u + \log_b v$ comes from $b^x b^y = b^{x+y}$, and the power rule $\log_b(u^k) = k \log_b u$ from $(b^x)^k = b^{xk}$.</li>
+        <li>To solve $a \cdot b^t = c$, divide by $a$, then read a power of $b$ for an exact answer or take logs of both sides: $t = \dfrac{\log(c/a)}{\log b}$, which is the change of base, $\log_b y = \dfrac{\log y}{\log b}$. A calculator answer is &ldquo;about&rdquo;; two bracketing powers check it.</li>
       </ul>
     </div>
 

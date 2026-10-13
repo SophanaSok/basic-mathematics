@@ -31,5 +31,6 @@ export const ARENA_SECTIONS: readonly string[] = [
   "pk-units#convert", "pk-units#rates", "pk-units#area", "pk-units#scale",
   "pk-linear#slope", "pk-linear#model", "pk-linear#ineq1", "pk-linear#ineq2",
   "pk-words#name", "pk-words#drt", "pk-words#work", "pk-words#check",
-  "pk-growth#sequences", "pk-growth#growth"
+  "pk-growth#sequences", "pk-growth#growth",
+  "pk-growth#interest", "pk-growth#logs"
 ];
