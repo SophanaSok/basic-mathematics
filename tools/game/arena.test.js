@@ -203,17 +203,18 @@ async function run() {
           return { n: figs.length, kind: fig && fig.getAttribute("data-kind"), svg: !!(fig && fig.querySelector("svg")),
             tables: fig ? fig.querySelectorAll("table").length : 0, th: fig ? fig.querySelectorAll("table th").length : 0,
             rows: fig ? fig.querySelectorAll("table tr").length - 1 : 0, mounted: !!(fig && fig.hasAttribute("data-chart-mounted")),
-            want: window.BMGen.make(window.BMArena.state().qs[window.BMArena.state().i].g, window.BMArena.state().qs[window.BMArena.state().i].s).chart };
+            wantRows: (function () { var st = window.BMArena.state(), c = window.BMGen.make(st.qs[st.i].g, st.qs[st.i].s).chart; return c && c.rows ? c.rows.length : null; })() };
         });
         kinds.push(card.kind);
         eq([card.n, card.svg, card.tables, card.mounted], [1, true, 1, true], "question " + (k + 1) + " of the displays section holds one drawn chart with its table");
-        eq([card.th, card.rows], [COLS[card.kind], card.want.rows.length], "question " + (k + 1) + "'s table has the " + card.kind + " header and a row per value");
+        eq([card.th, card.rows], [COLS[card.kind] === undefined ? null : COLS[card.kind], card.wantRows], "question " + (k + 1) + "'s table has the " + card.kind + " header and a row per value");
         if (k === 0) {
           /* the drawn chart: the svg is hidden from assistive tech, "Show the data" comes before the answer box, no strict axe rule fails in the question */
           const order = await p.evaluate(() => {
-            const fig = document.querySelector(".arena-q figure[data-widget='chart']"), btn = Array.from(fig.querySelectorAll("button")).find((b) => b.textContent.trim() === "Show the data");
+            const fig = document.querySelector(".arena-q figure[data-widget='chart']"), btn = fig && Array.from(fig.querySelectorAll("button")).find((b) => b.textContent.trim() === "Show the data");
             const input = document.getElementById("arena-answer");
-            return { svg: fig.querySelector("svg").getAttribute("aria-hidden"), btn: !!btn, before: !!(btn && input && (btn.compareDocumentPosition(input) & Node.DOCUMENT_POSITION_FOLLOWING)) };
+            const svg = fig && fig.querySelector("svg");
+            return { svg: svg ? svg.getAttribute("aria-hidden") : null, btn: !!btn, before: !!(btn && input && (btn.compareDocumentPosition(input) & Node.DOCUMENT_POSITION_FOLLOWING)) };
           });
           eq(order, { svg: "true", btn: true, before: true }, "a chart question hides its svg from assistive tech and puts Show the data before the answer box");
           if (!axeSource) console.log("SKIP axe on a chart question: axe-core is not resolvable — run `npm ci`");
@@ -242,9 +243,10 @@ async function run() {
       const card = await p.evaluate(() => {
         var fig = document.querySelector(".arena-q figure[data-widget='chart']"), st = window.BMArena.state();
         return { kind: fig && fig.getAttribute("data-kind"), svg: !!(fig && fig.querySelector("svg")), th: fig ? fig.querySelectorAll("table th").length : 0,
-          rows: fig ? fig.querySelectorAll("table tr").length - 1 : 0, want: window.BMGen.make(st.qs[st.i].g, st.qs[st.i].s).chart };
+          rows: fig ? fig.querySelectorAll("table tr").length - 1 : 0,
+          wantRows: (function () { var c = window.BMGen.make(st.qs[st.i].g, st.qs[st.i].s).chart; return c && c.rows ? c.rows.length : null; })() };
       });
-      eq([card.kind, card.svg, card.th, card.rows], ["scatter", true, 2, card.want.rows.length], "a scatter question draws a scatter figure with two header cells and a row per point");
+      eq([card.kind, card.svg, card.th, card.rows], ["scatter", true, 2, card.wantRows], "a scatter question draws a scatter figure with two header cells and a row per point");
       await context.close();
     }
 

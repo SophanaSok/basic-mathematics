@@ -84,7 +84,7 @@ module.exports = {
           sub: Array.from(slot.querySelectorAll("h5")).length,
           visible: ["Coming up", "Going further"].map((t) => { const e = Array.from(slot.querySelectorAll("h4")).find((x) => x.textContent === t); return !!e && e.offsetParent !== null && !e.closest("details"); }),
           skim: (slot.querySelector("details.diag-plan-hand > summary") || {}).textContent,
-          handHead: !!slot.querySelector("h4 + details.diag-plan-hand"),
+          handHead: (() => { const hd = Array.from(slot.querySelectorAll(":scope > h4")).find((x) => x.textContent === "Already in hand"); for (let e = hd && hd.nextElementSibling; e && e.tagName !== "H4"; e = e.nextElementSibling) if (e.matches("details.diag-plan-hand")) return true; return false; })(),
           fold: Array.from(slot.querySelectorAll("summary")).filter((x) => x.textContent === "See the whole plan").length
         };
       });
@@ -358,19 +358,23 @@ module.exports = {
       const m = await page.evaluate(() => {
         const slot = document.querySelector("#plan .diag-plan");
         const d = slot && slot.querySelector("details.diag-plan-hand");
+        /* a line's list: the first ul after its h4 and before the next h4 (not "the next sibling"), or null when the line holds none directly */
+        const listOf = (hd) => { for (let e = hd.nextElementSibling; e && e.tagName !== "H4"; e = e.nextElementSibling) if (e.tagName === "UL") return e; return null; };
+        const heads = (t) => (slot ? Array.from(slot.querySelectorAll(":scope > h4")).filter((x) => x.textContent === t) : []);
+        const count = (hd) => { const l = listOf(hd); return l ? l.children.length : -1; };
         const tile = document.querySelector(".stats > *");
         return {
-          start: slot ? slot.querySelector(":scope > ul").children.length : -1,
+          start: heads("Start here").length ? count(heads("Start here")[0]) : -1,
           shut: !!d && !d.open,
           top: tile ? Math.round(tile.getBoundingClientRect().top + window.scrollY) : null,
           note: slot ? (slot.querySelector(":scope > p") || {}).textContent || null : null,
-          packRows: slot ? Array.from(slot.querySelectorAll(":scope > h4")).filter((x) => x.textContent === "Skill packs").map((x) => x.nextElementSibling.children.length) : [],
-          rows: slot ? Array.from(slot.querySelectorAll(":scope > h4")).filter((x) => x.textContent === "Skill packs").flatMap((x) => Array.from(x.nextElementSibling.children)).filter((li) => li.getClientRects().length).map((li) => {
+          packRows: heads("Skill packs").map(count),
+          rows: slot ? heads("Skill packs").flatMap((x) => Array.from((listOf(x) || { children: [] }).children)).filter((li) => li.getClientRects().length).map((li) => {
             const cs = getComputedStyle(li), fs = parseFloat(cs.fontSize);
             const lh = cs.lineHeight === "normal" ? 1.4 * fs : parseFloat(cs.lineHeight);
             return { text: li.textContent.slice(0, 40), h: li.getBoundingClientRect().height, max: 2 * lh + parseFloat(cs.paddingTop) + parseFloat(cs.paddingBottom) };
           }) : [],
-          review5: slot ? (slot.querySelectorAll(":scope > h4")[1] ? slot.querySelectorAll(":scope > ul")[1].children.length : 0) : -1
+          review5: slot ? (heads("Review first").length ? count(heads("Review first")[0]) : 0) : -1
         };
       });
       const shutH = await size();
