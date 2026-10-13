@@ -7,7 +7,7 @@
    site's own grader (BMSite.grade, loaded from assets/site.js) with the
    problem's type; verify() returns true; the hint does not give the answer away
    (π and √ answers included); the placeholder (or its "e.g." tail) is neither
-   graded right nor equal to a key alternative; no formula in the question, hint or steps holds
+   graded right nor equal to a key alternative (spacing and case aside); no formula in the question, hint or steps holds
    prose, and no "$" is left unpaired (a bare "$9" where $\$9$ was meant).
    For spelled-out keys (expr, exact) a small evaluator reads what each spelling
    means: every alternative must mean the same; near-misses (a number off by one,
@@ -386,6 +386,30 @@ FIXED.forEach(function (f) {
   f[0].split("|").forEach(function (a) { if (meaning(a) !== meaning(f[0].split("|")[0])) fail("answer forms", null, a + " does not mean the same as the rest of " + f[0]); });
 });
 
+/* the placeholder, or the tail after its "e.g.", that the grader accepts or that is a key
+   alternative as cleanAns() reads it (so "e.g. 3 : 4" against the key 3:4 is caught however it
+   is spaced); "" when it shows nothing. `grade` is passed in so the self-test can pin the
+   alternative comparison alone. */
+function placeholderShows(placeholder, answer, type, tol, alts, grade) {
+  if (typeof placeholder !== "string") return "";
+  var cands = [placeholder.trim()];
+  var eg = /e\.g\.\s*(.+)$/i.exec(placeholder);
+  if (eg) cands.push(eg[1].trim());
+  var keys = alts.map(cleanAns);
+  for (var i = 0; i < cands.length; i++) {
+    var cand = cands[i];
+    if (cand && (grade(cand, answer, type, tol) || keys.indexOf(cleanAns(cand)) > -1)) return cand;
+  }
+  return "";
+}
+/* self-test: a placeholder that differs from a key only in spacing or case must be caught by the
+   alternative comparison alone (grade stubbed to "wrong"), an unrelated example must not */
+[["e.g. 3 : 4", "3:4", true], ["e.g. (x + 1)(x + 4)", "(x+1)(x+4)", true], ["E.G. X >= 7", "x>=7", true],
+  ["e.g. 5 : 6", "3:4", false], ["a ratio such as a : b", "3:4", false], ["", "3:4", false]].forEach(function (c) {
+  var got = !!placeholderShows(c[0], c[1], "exact", 0, [c[1]], function () { return false; });
+  if (got !== c[2]) fail("placeholder rule", null, "placeholder " + JSON.stringify(c[0]) + " against the key " + c[1] + (c[2] ? " should be caught and is not" : " should pass and is flagged"));
+});
+
 /* content a generator must get right beyond its answer key */
 var CONTENT = {
   /* the worked subtraction is the real one: when the y coefficients already match,
@@ -478,15 +502,8 @@ list.forEach(function (spec) {
     if (!ok) fail(spec.id, seed, "verify() is not true for " + p.q + " = " + first);
     if (/\d/.test(first) && first.length >= 2 && p.hint.indexOf(first) > -1) fail(spec.id, seed, "hint contains the answer " + first);
     /* the placeholder (and the tail after "e.g.") is never the key or graded right */
-    if (typeof p.placeholder === "string") {
-      var cands = [p.placeholder.trim()];
-      var eg = /e\.g\.\s*(.+)$/i.exec(p.placeholder);
-      if (eg) cands.push(eg[1].trim());
-      cands.forEach(function (cand) {
-        if (!cand) return;
-        if (Site.grade(cand, p.answer, p.type, p.tol) || alts.indexOf(cand) > -1) fail(spec.id, seed, "placeholder shows the key: " + cand);
-      });
-    }
+    var shown = placeholderShows(p.placeholder, p.answer, p.type, p.tol, alts, Site.grade);
+    if (shown) fail(spec.id, seed, "placeholder shows the key: " + shown);
     if (seed === 1) firstQ = p.q; else if (p.q === firstQ) sameQ++;
   }
   if (sameQ > SEEDS / 2) fail(spec.id, null, "most seeds give the same question");
