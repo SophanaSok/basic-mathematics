@@ -25,7 +25,11 @@
           "Add from left to right: $" + a + " + " + par(t2) + " = " + mid + "$, then $" + mid + " + " + par(t3) + " = " + value + "$.",
           "So the value is $" + value + "$."
         ],
-        verify: function () { return a - b + (plus ? c : -c) === value; }
+        verify: function () {
+          /* undo the chain from the printed answer: take back the last term, then the first, and a must remain */
+          var got = Number(String(this.answer).split("|")[0]);
+          return got - t3 - t2 === a && got - (plus ? c : -c) + b === a;
+        }
       };
     }
   });
@@ -420,7 +424,11 @@
           "Here $a = " + a + "$, $b = " + b + "$, $c = " + c + "$.",
           "$\\Delta = b^2 - 4ac = " + par(b) + "^2 - 4 \\cdot " + par(a) + " \\cdot " + par(c) + " = " + b * b + " - " + par(4 * a * c) + " = " + D + "$."
         ],
-        verify: function () { return D === Math.pow(b, 2) - 4 * a * c; }
+        verify: function () {
+          var got = Number(String(this.answer).split("|")[0]);
+          for (var x = 0; x < 3; x++) { if (Math.pow(2 * a * x + b, 2) - got !== 4 * a * (a * x * x + b * x + c)) return false; }
+          return true;
+        }
       };
     }
   });

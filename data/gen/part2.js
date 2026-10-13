@@ -29,7 +29,7 @@
           type: "number", answer: String(180 - t),
           hint: "Supplementary angles together make a straight line.",
           steps: ["Supplementary angles add to $180°$.", "$180° - " + t + "° = " + (180 - t) + "°$."],
-          verify: function () { return t + (180 - t) === 180; }
+          verify: function () { var k = Number(String(this.answer).split("|")[0]); return k > 0 && t + k === 180 && 180 - k === t; }
         };
       }
       if (kind === "next") {
@@ -41,7 +41,7 @@
             "The angle next to it shares a side with it, and together they make a straight line.",
             "So it measures $180° - " + t + "° = " + (180 - t) + "°$."
           ],
-          verify: function () { return 2 * t + 2 * (180 - t) === 360; }
+          verify: function () { var k = Number(String(this.answer).split("|")[0]); return k > 0 && t + k === 180 && 2 * t + 2 * k === 360; }
         };
       }
       return {
@@ -52,7 +52,7 @@
           "The two neighbors each measure $180° - " + t + "° = " + (180 - t) + "°$, and the opposite angle is vertical to it, so it is $" + t + "°$.",
           "The sum is $" + (180 - t) + "° + " + (180 - t) + "° + " + t + "° = " + (360 - t) + "°$."
         ],
-        verify: function () { return 2 * (180 - t) + t === 360 - t; }
+        verify: function () { var k = Number(String(this.answer).split("|")[0]); return k + t === 360 && k === t + 2 * (180 - t); }
       };
     }
   });
@@ -191,11 +191,14 @@
           "With $x = " + p[0] + "$ and $y = " + p[1] + "$ the image is $" + u.ptTex(q[0], q[1]) + "$."
         ],
         verify: function () {
-          /* straight from the formulas of §6.1 */
-          var x = p[0], y = p[1], want = {
-            trans: [x + m.a, y + m.b], xaxis: [x, -y], yaxis: [-x, y], diag: [y, x], half: [-x, -y]
-          }[m.kind];
-          return want[0] === q[0] && want[1] === q[1];
+          /* read the key back and test each kind by its own property */
+          var k = String(this.answer).split("|")[0].match(/-?\d+/g).map(Number), x = p[0], y = p[1];
+          if (k.length !== 2) return false;
+          if (m.kind === "trans") return k[0] - x === m.a && k[1] - y === m.b;
+          if (m.kind === "diag") return x + k[0] === y + k[1] && (k[0] - x) + (k[1] - y) === 0;
+          if (m.kind === "half") return k[0] + x === 0 && k[1] + y === 0;
+          if (m.kind === "xaxis") return k[0] === x && k[1] + y === 0;
+          return k[0] + x === 0 && k[1] === y;
         }
       };
     }
@@ -219,9 +222,16 @@
         ],
         verify: function () {
           /* the composite is an isometry: distances from the image of the origin agree */
-          var o = Gm.f(F.f([0, 0]));
-          var d1 = p[0] * p[0] + p[1] * p[1], d2 = Math.pow(end[0] - o[0], 2) + Math.pow(end[1] - o[1], 2);
-          return d1 === d2 && end[0] === Gm.f(F.f(p))[0] && end[1] === Gm.f(F.f(p))[1];
+          var k = String(this.answer).split("|")[0].match(/-?\d+/g).map(Number), x = p[0], y = p[1];
+          var T = function (m) { return m.kind === "trans"; };
+          var lin = { xaxis: [[1, 0], [0, -1]], yaxis: [[-1, 0], [0, 1]], diag: [[0, 1], [1, 0]], half: [[-1, 0], [0, -1]] };
+          var sh = function (m) { return T(m) ? [m.a, m.b] : [0, 0]; };
+          var A = T(F) ? [[1, 0], [0, 1]] : lin[F.kind], B = T(Gm) ? [[1, 0], [0, 1]] : lin[Gm.kind];
+          /* G(F(p)) = B(A p + fa) + gb, with the matrices written out per kind */
+          var fa = sh(F), gb = sh(Gm);
+          var ax = A[0][0] * x + A[0][1] * y + fa[0], ay = A[1][0] * x + A[1][1] * y + fa[1];
+          var ex = B[0][0] * ax + B[0][1] * ay + gb[0], ey = B[1][0] * ax + B[1][1] * ay + gb[1];
+          return k.length === 2 && k[0] === ex && k[1] === ey;
         }
       };
     }
@@ -240,7 +250,11 @@
           type: "fraction", answer: fracAns(f[0] * f[0], f[1] * f[1]),
           hint: "Area scales by the square of the length factor.",
           steps: ["Scaling lengths by $r$ scales areas by $r^2$.", "$\\left(" + fracTex(f[0], f[1]) + "\\right)^2 = " + fracTex(f[0] * f[0], f[1] * f[1]) + "$."],
-          verify: function () { return Math.abs(Math.pow(f[0] / f[1], 2) - (f[0] * f[0]) / (f[1] * f[1])) < 1e-12; }
+          verify: function () {
+            /* a square of side f[1] becomes a square of side f[0]: compare the two areas */
+            var m = String(this.answer).split("|")[0].split("/"), num = Number(m[0]), den = m.length > 1 ? Number(m[1]) : 1;
+            return (f[0] * f[0]) * den === num * (f[1] * f[1]);
+          }
         };
       }
       if (kind === "new") {
@@ -250,7 +264,11 @@
           type: "number", answer: String(A * k * k),
           hint: "Lengths and areas do not scale by the same factor.",
           steps: ["Lengths times $" + k + "$ means area times $" + k + "^2 = " + k * k + "$.", "$" + A + " \\cdot " + k * k + " = " + A * k * k + "$."],
-          verify: function () { return A * k * k / A === k * k; }
+          verify: function () {
+            /* a concrete square of side 7, with every side multiplied by k, shows the area factor */
+            var side = 7, factor = ((side * k) * (side * k)) / (side * side);
+            return A * factor === Number(String(this.answer).split("|")[0]);
+          }
         };
       }
       var A0 = r.int(2, 12), m = r.int(2, 7);
@@ -262,7 +280,10 @@
           "The area grew by the factor $\\frac{" + A0 * m * m + "}{" + A0 + "} = " + m * m + "$.",
           "Area scales by $r^2$, so $r^2 = " + m * m + "$ and $r = " + m + "$."
         ],
-        verify: function () { return m * m * A0 === A0 * m * m && m > 0; }
+        verify: function () {
+            var got = Number(String(this.answer).split("|")[0]);
+            return got > 0 && Math.abs(Math.sqrt((A0 * m * m) / A0) - got) < 1e-9;
+          }
       };
     }
   });
@@ -305,7 +326,11 @@
           "$" + legs[0] + "^2 + " + legs[1] + "^2 = " + legs[2] + "^2$, so the right angle is between the sides $" + legs[0] + "$ and $" + legs[1] + "$.",
           "Area $= \\tfrac12 \\cdot " + legs[0] + " \\cdot " + legs[1] + " = " + legs[0] * legs[1] / 2 + "$."
         ],
-        verify: function () { return legs[0] * legs[0] + legs[1] * legs[1] === legs[2] * legs[2] && (legs[0] * legs[1]) % 2 === 0; }
+        verify: function () {
+          /* Heron: 16 area^2 = (a+b+c)(-a+b+c)(a-b+c)(a+b-c) */
+          var a = legs[0], b = legs[1], c = legs[2], got = Number(String(this.answer).split("|")[0]);
+          return 16 * got * got === (a + b + c) * (-a + b + c) * (a - b + c) * (a + b - c);
+        }
       };
     }
   });
@@ -334,7 +359,11 @@
         steps: (dia ? ["The radius is half the diameter: $" + rad + "$."] : []).concat([
           "Area $= \\pi r^2 = \\pi \\cdot " + rad + "^2 = " + u.piTex(rad * rad, 1) + "$."
         ]),
-        verify: function () { return Math.abs(Math.PI * Math.pow((dia ? 2 * rad : rad) / (dia ? 2 : 1), 2) - rad * rad * Math.PI) < 1e-9; }
+        verify: function () {
+          /* recover r from the area A = k*pi: r = sqrt(A / pi), and compare with the given length */
+          var k = parseInt(String(this.answer).split("|")[0], 10), given = dia ? 2 * rad : rad;
+          return Math.abs(Math.sqrt((k * Math.PI) / Math.PI) * (dia ? 2 : 1) - given) < 1e-9;
+        }
       };
     }
   });
@@ -353,7 +382,10 @@
             "$C = \\pi d$, so $" + u.piTex(2 * rr, 1) + " = \\pi d$ and $d = " + 2 * rr + "$.",
             askD ? "The diameter is $" + 2 * rr + "$." : "The radius is half of that: $" + rr + "$."
           ],
-          verify: function () { return Math.abs(2 * Math.PI * rr - Math.PI * 2 * rr) < 1e-9; }
+          verify: function () {
+            var got = Number(String(this.answer).split("|")[0]), C = 2 * rr * Math.PI;
+            return Math.abs(C / (askD ? Math.PI : 2 * Math.PI) - got) < 1e-9;
+          }
         };
       }
       var rad = r.int(2, 15), dia = kind === "diameter", k = 2 * rad;
@@ -365,7 +397,10 @@
         steps: dia
           ? ["$C = \\pi d = \\pi \\cdot " + k + " = " + u.piTex(k, 1) + "$."]
           : ["The diameter is $2 \\cdot " + rad + " = " + k + "$.", "$C = \\pi d = " + u.piTex(k, 1) + "$."],
-        verify: function () { return Math.abs(2 * Math.PI * rad - k * Math.PI) < 1e-9; }
+        verify: function () {
+          var c = parseInt(String(this.answer).split("|")[0], 10) * Math.PI;
+          return Math.abs(c / (2 * Math.PI) - rad) < 1e-9 && Math.abs(c / Math.PI - 2 * rad) < 1e-9;
+        }
       };
     }
   });

@@ -176,8 +176,10 @@
         ],
         verify: function () {
           /* expand the composite as one formula and evaluate that instead */
-          var direct = gFirst ? a * (x * x + c) + b : (a * x + b) * (a * x + b) + c;
-          return direct === out;
+          var sym = gFirst ? function (v) { return a * v * v + a * c + b; } : function (v) { return a * a * v * v + 2 * a * b * v + b * b + c; };
+          var nested = gFirst ? function (v) { return f(g(v)); } : function (v) { return g(f(v)); };
+          for (var v = -2; v <= 2; v++) { if (sym(v) !== nested(v)) return false; }
+          return sym(x) === Number(String(this.answer).split("|")[0]);
         }
       };
     }
@@ -201,8 +203,9 @@
           "Collect: $(" + a * c + " - " + par(b * d) + ") + (" + a * d + " + " + par(b * c) + ")i = " + u.cxTex(re, im) + "$."
         ],
         verify: function () {
-          /* |zw|² = |z|²|w|², and the real part is ac − bd */
-          return (a * a + b * b) * (c * c + d * d) === re * re + im * im && re === a * c - b * d;
+          /* |zw|² = |z|²|w|², and the conjugate product (a − bi)(c − di) is re − im·i */
+          var cre = a * c - (-b) * (-d), cim = a * (-d) + (-b) * c;
+          return (a * a + b * b) * (c * c + d * d) === re * re + im * im && cre === re && cim === -im;
         }
       };
     }
@@ -241,7 +244,7 @@
       return {
         q: "What is $i^{" + n + "}$?",
         type: "exact", answer: keys[m],
-        placeholder: "e.g. 2i",
+        placeholder: "a power of i",
         hint: "Powers of i repeat in a cycle; find where this exponent falls in it.",
         steps: [
           "$i^1 = i$, $i^2 = -1$, $i^3 = -i$, $i^4 = 1$, and then the cycle repeats every $4$.",
@@ -411,7 +414,11 @@
         type: "number", answer: String(v),
         hint: "Main diagonal product minus the other diagonal product.",
         steps: ["$ad - bc = " + par(a) + " \\cdot " + par(d) + " - " + par(b) + " \\cdot " + par(c) + "$.", "$= " + a * d + " - " + par(b * c) + " = " + v + "$."],
-        verify: function () { return -(c * b - d * a) === v; }
+        verify: function () {
+          /* subtract row 1 from row 2 (the value is unchanged), then expand */
+          var got = Number(String(this.answer).split("|")[0]);
+          return a * (d - b) - b * (c - a) === got;
+        }
       };
     }
   });
@@ -473,7 +480,12 @@
           else if (kind === "scale") alt = 2 * (3 * k) - 1 * (1 * k);
           else if (kind === "add") alt = 2 * (3 + k * 1) - 1 * (1 + k * 2);
           else if (kind === "transpose") alt = 2 * 3 - 1 * 1;
-          else return out === d * e;
+          else {
+            /* multiply the concrete 2x2 matrices [[d,1],[0,1]] (det d) and [[1,0],[1,e]] (det e) */
+            var A = [[d, 1], [0, 1]], B = [[1, 0], [1, e]];
+            var AB = [[A[0][0] * B[0][0] + A[0][1] * B[1][0], A[0][0] * B[0][1] + A[0][1] * B[1][1]], [A[1][0] * B[0][0] + A[1][1] * B[1][0], A[1][0] * B[0][1] + A[1][1] * B[1][1]]];
+            return out === AB[0][0] * AB[1][1] - AB[0][1] * AB[1][0];
+          }
           return out * base === d * alt;
         }
       };
