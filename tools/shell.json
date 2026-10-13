@@ -1008,6 +1008,44 @@
       "<script>#f817ee57</script>"
     ]
   },
+  "parts/5-packs/pk-growth.html": {
+    "head": [
+      "<meta charset='utf-8'>",
+      "<meta name='viewport' content='width=device-width, initial-scale=1'>",
+      "<title>Pack G. Growth, Decay and Sequences — Basic Mathematics</title>",
+      "<meta name='description' content='Sequences and the two kinds of change they describe: arithmetic sequences that add the same difference each step and geometric sequences that multiply by the same ratio, the formulas for the nth term argued from counting steps, which position holds a value, a missing middle term and the sum of a short arithmetic list; then linear change against exponential growth and decay, a percent change as a multiplier, a half-life, why an exponential quantity passes a linear one, and how many periods until a value is reached: the algebra skills the gate exams ask for and the book leaves out. Compound interest and solving with logarithms come in later sections.'>",
+      "<script>#ec845843</script>",
+      "<style>#2b16b645</style>",
+      "<link rel='icon' href='../../assets/favicon.svg' type='image/svg+xml'>",
+      "<link rel='stylesheet' href='../../src/vendor/fonts.css'>",
+      "<link rel='stylesheet' href='../../src/vendor/katex.css'>",
+      "<link rel='stylesheet' href='../../src/styles/tokens.css'>",
+      "<link rel='stylesheet' href='../../assets/site.css'>",
+      "<link rel='stylesheet' href='../../assets/game.css'>",
+      "<link rel='stylesheet' href='../../assets/scenes3d.css'>",
+      "<link rel='stylesheet' href='../../assets/ladder.css'>",
+      "<link rel='stylesheet' href='../../assets/review.css'>",
+      "<script type='module' src='../../src/entries/chapter.js'>"
+    ],
+    "body": "<body data-depth='2' data-chapter='pk-growth' data-part='packs'>",
+    "topbar": [
+      "Skip to content -> #main",
+      "∑ Basic Mathematics -> ../../index.html",
+      "Contents -> ../../index.html",
+      "How to use this -> ../../about.html",
+      "Level 1, Counter. Open your progress. -> ../../progress.html",
+      "Sign in -> ../../account.html",
+      "button: Sound",
+      "button: Menu and settings",
+      "button: Close menu and settings",
+      "Contents -> ../../index.html",
+      "How to use this -> ../../about.html",
+      "Your progress -> ../../progress.html",
+      "Arena -> ../../arena.html",
+      "Your account -> ../../account.html",
+      "<script>#f817ee57</script>"
+    ]
+  },
   "parts/5-packs/pk-linear.html": {
     "head": [
       "<meta charset='utf-8'>",

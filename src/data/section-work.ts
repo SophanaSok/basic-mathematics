@@ -104,5 +104,7 @@ export const SECTION_WORK: Readonly<Partial<Record<SectionRef, number>>> = {
   "pk-words#name": 10,
   "pk-words#drt": 10,
   "pk-words#work": 10,
-  "pk-words#check": 10
+  "pk-words#check": 10,
+  "pk-growth#sequences": 10,
+  "pk-growth#growth": 10
 };
