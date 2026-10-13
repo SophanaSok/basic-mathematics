@@ -9,8 +9,8 @@
    model; inequalities in one unknown; inequalities in two unknowns and systems).
    Pack F, "Word Problems": sections 1-4 (naming the unknown; distance, rate and time; work, currents and
    mixtures; checking an answer against the story).
-   Pack G, "Growth, Decay and Sequences": sections 1-2 so far (arithmetic and geometric sequences; exponential
-   growth and decay).
+   Pack G, "Growth, Decay and Sequences": sections 1-4 (arithmetic and geometric sequences; exponential
+   growth and decay; compound interest; solving with logarithms).
    The quartiles follow the median-of-halves rule of src/ui/chart.ts.
 
    A problem may carry a chart the Arena draws with the page widget (assets/widgets.js,
@@ -3657,7 +3657,10 @@
   function wFrac(n, d) { var g = gcd(Math.abs(n), Math.abs(d)); n /= g; d /= g; return d === 1 ? "" + n : "\\dfrac{" + n + "}{" + d + "}"; }
   /* a placeholder is a word for the unit and never the key or one of its alternatives */
   function wPlace(ph, key) {
-    if (key.split("|").indexOf(ph) >= 0) throw new Error("the placeholder " + ph + " is the key");
+    var alts = key.split("|"), eg = /^e\.g\. (.+)$/.exec(ph), num = function (x) { var f = /^(-?\d+)\/(\d+)$/.exec(x); return f ? Number(f[1]) / Number(f[2]) : Number(x); }, i;
+    if (alts.indexOf(ph) >= 0) throw new Error("the placeholder " + ph + " is the key");
+    /* "e.g. 4" is the key 4 (or 1/2 is 0.5) too, whatever its spelling */
+    if (eg && !isNaN(num(eg[1]))) for (i = 0; i < alts.length; i++) if (num(alts[i]) === num(eg[1])) throw new Error("the placeholder " + ph + " is the key " + alts[i]);
     return ph;
   }
 
@@ -4431,6 +4434,358 @@
           var v = a, p, prev = a, x = Number(key), bb = m.num / m.den;
           for (p = 1; p <= x; p++) { prev = v; v = Math.round(v * bb * 1e6) / 1e6; }
           return (m.up ? (v > T && prev <= T) : (v < T && prev >= T)) && v !== T && prev !== T && x >= 2 && x <= 12;
+        }
+      };
+    }
+  });
+
+  /* ------------------------- pack G, sections 3-4: compound interest and logarithms -- */
+
+  /* Money is held in whole cents so that every balance is exact: a tuple is in a table only when its balance is a whole
+     number of cents (and so is every year's balance before it). */
+  /* 103680 cents is 1{,}036.8 in a key and "1{,}036.80" in a step; whole dollars carry no decimals */
+  function gMoney(cents) {
+    var d = Math.floor(cents / 100), c = cents % 100;
+    return wn(d) + (c ? "." + (c < 10 ? "0" : "") + c : "");
+  }
+  function gUsd(cents) { return "$\\$" + gMoney(cents) + "$"; }
+  /* the balance in cents of p dollars after t periods at pct percent per period, or -1 when it is not a whole number of cents */
+  function gPeriodCents(p, pct, t) {
+    var g = gcd(100 + pct, 100), num = (100 + pct) / g, den = 100 / g, N = p * 100 * Math.pow(num, t), D = Math.pow(den, t);
+    return N % D === 0 ? N / D : -1;
+  }
+  /* the cents at the end of each period, 0 through t */
+  function gChainCents(p, pct, t) {
+    var out = [p * 100], j;
+    for (j = 1; j <= t; j++) out.push(out[j - 1] * (100 + pct) / 100);
+    return out;
+  }
+  function gChainTex(cents) { return "$" + cents.map(gMoney).join(" \\to ") + "$"; }
+  /* the multiplier 1 + pct/100 as a decimal: 1.06 */
+  function gMult(pct) { return gPow(100 + pct, 100, 1); }
+  /* the page's own (principal, rate, years) and (principal, yearly rate, periods per year), left out of the tables */
+  var GPAGE_INT = [[1200, 5, 2], [600, 20, 3], [3200, 5, 2], [9000, 6, 2], [4500, 8, 2], [10000, 7, 3], [2500, 6, 2], [2500, 6, 3]];
+  var GPAGE_PER = [[7500, 4, 2], [3500, 8, 2], [3600, 6, 2], [4000, 6, 2], [1000, 12, 2]];
+  function gInList(list, a, b, c) {
+    var i;
+    for (i = 0; i < list.length; i++) if (list[i][0] === a && list[i][1] === b && list[i][2] === c) return true;
+    return false;
+  }
+  /* (principal, rate, years): P in whole hundreds from 500 to 20000, the rates 2 to 25, 2 to 4 years (2 to 3 unless the rate is
+     10, 20 or 25), the balance exact to the cent */
+  var GINT = (function () {
+    var out = [], rates = [2, 4, 5, 6, 8, 10, 12, 20, 25], ri, r, t, tmax, p;
+    for (ri = 0; ri < rates.length; ri++) {
+      r = rates[ri]; tmax = (r === 10 || r === 20 || r === 25) ? 4 : 3;
+      for (t = 2; t <= tmax; t++) {
+        for (p = 500; p <= 20000; p += 100) {
+          if (gInList(GPAGE_INT, p, r, t) || gPeriodCents(p, r, t) < 0) continue;
+          out.push([p, r, t]);
+        }
+      }
+    }
+    return out;
+  })();
+  var GINT_SIMPLE = GINT.filter(function (e) { return e[2] <= 3; });
+
+  G.add({
+    id: "pk-int-balance", section: "pk-growth#interest", par: 80, timed: true,
+    make: function (r) {
+      var e = r.pick(GINT) || [1300, 4, 2], P = e[0], rate = e[1], t = e[2], interest = r.chance(0.4), loan = rate >= 20;
+      var chain = gChainCents(P, rate, t), A = chain[t], I = A - P * 100, key = clean((interest ? I : A) / 100);
+      var m = gMult(rate), mt = gPow(100 + rate, 100, t);
+      var open = loan ? "A loan of " + gUsd(P * 100) + " is charged $" + rate + "\\%$ interest a year, compounded yearly, and nothing is repaid."
+        : r.chance(0.5) ? "A savings account holds " + gUsd(P * 100) + " and earns $" + rate + "\\%$ interest a year, compounded yearly."
+        : "A deposit of " + gUsd(P * 100) + " earns $" + rate + "\\%$ a year, compounded yearly.";
+      var ask = interest ? (loan ? "How many dollars of interest have been charged after $" + t + "$ years?" : "How many dollars of interest has it earned after $" + t + "$ years?")
+        : (loan ? "How many dollars are owed after $" + t + "$ years?" : "What is the balance, in dollars, after $" + t + "$ years?");
+      var yearly = [], j;
+      for (j = 1; j <= t; j++) yearly.push(chain[j] - chain[j - 1]);
+      return {
+        q: open + " " + ask,
+        type: "number", answer: key, placeholder: wPlace("dollars", key),
+        hint: interest ? "Compounding yearly multiplies the balance by one plus the rate as a decimal, once for each year. The interest is what the balance gains over the amount you started with."
+          : "Compounding yearly multiplies the balance by one plus the rate as a decimal, once for each year. Decide the multiplier, then use it once for each year.",
+        steps: [
+          "The multiplier is $1 + " + clean(rate / 100) + " = " + m + "$, used once a year for $" + t + "$ years: $A = " + wn(P) + " \\cdot " + m + "^{" + t + "} = " + wn(P) + " \\cdot " + mt + " = " + gMoney(A) + "$.",
+          interest ? "The interest is the balance minus the principal: $" + gMoney(A) + " - " + wn(P) + " = " + gMoney(I) + "$." : "Check year by year: " + gChainTex(chain) + ".",
+          interest ? "Check year by year: the yearly interests are $" + yearly.map(gMoney).join(",\\ ") + "$, and they add to $" + gMoney(I) + "$." : "The balance is " + gUsd(A) + "."
+        ],
+        verify: function () {
+          /* the integer power route (P times the multiplier's fraction to the t, in whole cents), not the year-by-year chain the key used; the interest kind adds the principal back */
+          var v = gPeriodCents(P, rate, t), x = Math.round(Number(key) * 100);
+          return v > 0 && Math.abs(Number(key) * 100 - x) < 1e-6 && (interest ? x + P * 100 === v && x > 0 : x === v) && t >= 2 && P >= 500;
+        }
+      };
+    }
+  });
+
+  /* pk-int-simple: the same story with simple interest set against compound (the difference), or the simple balance */
+  G.add({
+    id: "pk-int-simple", section: "pk-growth#interest", par: 90, timed: true,
+    make: function (r) {
+      var e = r.pick(GINT_SIMPLE) || [1300, 4, 2], P = e[0], rate = e[1], t = e[2], diff = r.chance(0.7);
+      var chain = gChainCents(P, rate, t), C = chain[t], yr = P * rate, S = P * 100 + t * yr, key = clean((diff ? C - S : S) / 100);
+      var yearly = [], j, loan = rate >= 20;
+      for (j = 1; j <= t; j++) yearly.push(chain[j] - chain[j - 1]);
+      var extra = yearly.slice(1).map(function (v) { return "(" + gMoney(v) + " - " + gMoney(yr) + ")"; }).join(" + ");
+      var q = diff ? (loan ? (r.chance(0.5) ? "Two loans each start at " + gUsd(P * 100) + " with $" + rate + "\\%$ interest a year, and nothing is repaid for $" + t + "$ years. One loan charges simple interest and the other compounds yearly. How many more dollars does the compounding loan owe at the end?"
+          : "One lender charges simple interest of $" + rate + "\\%$ a year on a loan of " + gUsd(P * 100) + ". A second lender charges the same rate compounded yearly. After $" + t + "$ years, with nothing repaid, how many more dollars does the second loan owe than the first?")
+        : r.chance(0.5) ? "Two accounts each start with " + gUsd(P * 100) + " at $" + rate + "\\%$ a year for $" + t + "$ years. One pays simple interest and the other compounds yearly. How many more dollars does the compounding account hold at the end?"
+        : "One bank pays simple interest of $" + rate + "\\%$ a year on a deposit of " + gUsd(P * 100) + ". A second bank pays the same rate compounded yearly. After $" + t + "$ years, how many more dollars does the second deposit hold than the first?")
+        : loan ? "A loan of " + gUsd(P * 100) + " is charged simple interest of $" + rate + "\\%$ a year, so each year's interest is $" + rate + "\\%$ of the original loan, and nothing is repaid. How many dollars are owed after $" + t + "$ years?"
+        : "A deposit of " + gUsd(P * 100) + " earns $" + rate + "\\%$ a year in simple interest, so each year's interest is $" + rate + "\\%$ of the original deposit. What is the balance, in dollars, after $" + t + "$ years?";
+      return {
+        q: q,
+        type: "number", answer: key, placeholder: wPlace("dollars", key),
+        hint: diff ? "Simple interest adds the same amount every year, and compounding multiplies the balance by one plus the rate as a decimal. Find each balance, then compare."
+          : "Simple interest is the same share of the original amount every year, so the balance rises by the same amount each year.",
+        steps: diff ? [
+          "Simple: each year adds $" + rate + "\\%$ of $" + wn(P) + "$, which is $" + gMoney(yr) + "$, so the balance is $" + wn(P) + " + " + t + " \\cdot " + gMoney(yr) + " = " + gMoney(S) + "$.",
+          "Compound: $" + wn(P) + " \\cdot " + gMult(rate) + "^{" + t + "} = " + wn(P) + " \\cdot " + gPow(100 + rate, 100, t) + " = " + gMoney(C) + "$.",
+          "The difference is $" + gMoney(C) + " - " + gMoney(S) + " = " + gMoney(C - S) + "$.",
+          "Check by interest on interest: the compound interests are $" + yearly.map(gMoney).join(",\\ ") + "$, and each year after the first beats the simple $" + gMoney(yr) + "$ by the extra, so $" + extra + " = " + gMoney(C - S) + "$."
+        ] : [
+          "Each year adds $" + rate + "\\%$ of $" + wn(P) + "$, which is $" + gMoney(yr) + "$.",
+          "After $" + t + "$ years the balance is $" + wn(P) + " + " + t + " \\cdot " + gMoney(yr) + " = " + gMoney(S) + "$.",
+          "Check by adding year by year: $" + (function () { var o = [P * 100], k; for (k = 1; k <= t; k++) o.push(o[k - 1] + yr); return o.map(gMoney).join(" \\to "); })() + "$."
+        ],
+        verify: function () {
+          /* simple as the principal plus t yearly amounts, compound by the integer power route, and the compound one is ahead */
+          var s = P * 100 + t * P * rate, c = gPeriodCents(P, rate, t), x = Math.round(Number(key) * 100);
+          return c > 0 && Math.abs(Number(key) * 100 - x) < 1e-6 && c > s && x === (diff ? c - s : s) && t >= 2 && t <= 3;
+        }
+      };
+    }
+  });
+
+  /* pk-int-period: a yearly rate compounded n times a year, for one year. The tuples are (principal, yearly rate, n) whose
+     balance is a whole number of cents (so 20% four times a year works only for some principals, and 12% four times does not). */
+  var GPER = (function () {
+    var out = [], rates = [4, 8, 10, 12, 20], ns = [2, 4], ri, ni, p, r, n;
+    for (ri = 0; ri < rates.length; ri++) {
+      for (ni = 0; ni < ns.length; ni++) {
+        r = rates[ri]; n = ns[ni];
+        for (p = 500; p <= 20000; p += 100) {
+          if (gInList(GPAGE_PER, p, r, n) || gPeriodCents(p, r / n, n) < 0) continue;
+          out.push([p, r, n]);
+        }
+      }
+    }
+    return out;
+  })();
+
+  G.add({
+    id: "pk-int-period", section: "pk-growth#interest", par: 90, timed: true,
+    make: function (r) {
+      var e = r.pick(GPER) || [2400, 10, 2], P = e[0], rate = e[1], n = e[2], pct = rate / n, principal = r.chance(0.4), tell = r.chance(0.5);
+      var chain = gChainCents(P, pct, n), B = chain[n], key = clean((principal ? P * 100 : B) / 100);
+      var often = n === 2 ? "twice a year" : "four times a year", per = n === 2 ? "half-year" : "quarter";
+      var m = gMult(pct), mn = gPow(100 + pct, 100, n);
+      var rule = "$" + rate + "\\%$ a year, compounded " + often + (tell ? ", which is $" + pct + "\\%$ in each " + per : "");
+      return {
+        q: principal ? "A savings account pays " + rule + ". After $1$ year it holds " + gUsd(B) + ". How many dollars were deposited at the start?"
+          : "A bank pays " + rule + ". A deposit of " + gUsd(P * 100) + " is worth how many dollars after $1$ year?",
+        type: "number", answer: key, placeholder: wPlace("dollars", key),
+        hint: principal ? "A yearly rate compounded several times a year applies the rate divided by the number of periods in each period. Run the story backward from the balance."
+          : "A yearly rate compounded several times a year applies the rate divided by the number of periods in each period. Decide the multiplier for one period and how many periods fit in a year.",
+        steps: principal ? [
+          "Each " + per + " applies $" + rate + " \\div " + n + " = " + pct + "\\%$, the multiplier $" + m + "$, used $" + n + "$ times in a year: the balance is the deposit times $" + m + "^{" + n + "} = " + mn + "$.",
+          "So the deposit is $" + gMoney(B) + " \\div " + mn + " = " + wn(P) + "$.",
+          "Check forward, " + per + " by " + per + ": " + gChainTex(chain) + "."
+        ] : [
+          "Each " + per + " applies $" + rate + " \\div " + n + " = " + pct + "\\%$, the multiplier $" + m + "$, and a year holds $" + n + "$ of them: $A = " + wn(P) + " \\cdot " + m + "^{" + n + "} = " + wn(P) + " \\cdot " + mn + " = " + gMoney(B) + "$.",
+          "Check " + per + " by " + per + ": " + gChainTex(chain) + ".",
+          "Compounded once a year at $" + rate + "\\%$ the same deposit would hold " + gUsd(P * 100 + P * rate) + ", a little less."
+        ],
+        verify: function () {
+          /* multiply the per-period rate n times in whole cents; the principal kind multiplies the key forward */
+          var v = principal ? Math.round(Number(key) * 100) : P * 100, y, x = Math.round(Number(key) * 100);
+          for (y = 1; y <= n; y++) { if ((v * (100 + pct)) % 100 !== 0) return false; v = v * (100 + pct) / 100; }
+          return Math.abs(Number(key) * 100 - x) < 1e-6 && v === B && (principal ? x === P * 100 : x === B) && (n === 2 || n === 4) && B > P * 100 + P * rate;
+        }
+      };
+    }
+  });
+
+  /* pk-log-exact: log_b y with y a whole power, a unit fraction, or the square or cube root of the base. Tuples (b, num, den)
+     with the exponent num/den: whole exponents (den 1) from -4 up to as far as y stays under 100000, for the bases 2 to 10
+     (fewer negatives for the larger bases); halves for the bases 4, 16, 25, 36, 100 and thirds for 8, 27, 64. The exponents 0 and 1
+     (the trivial stems) have one entry each. The page's own logarithms (and chapter 12's), and e24's log base 49 of 7, are left out. */
+  var GLOGX = (function () {
+    var out = [], spec = [[2, -4, 10], [3, -4, 8], [4, -3, 6], [5, -4, 6], [10, -3, 5], [6, -2, 5], [7, -2, 5], [8, -2, 5], [9, -2, 5], [100, -1, 2]], si, b, k, y;
+    var skip = { "2,5": 1, "10,3": 1, "4,3": 1, "3,5": 1, "2,-4": 1, "2,3": 1, "3,-2": 1, "2,2": 1, "3,2": 1, "3,4": 1, "10,-2": 1 };
+    for (si = 0; si < spec.length; si++) {
+      b = spec[si][0];
+      for (k = spec[si][1]; k <= spec[si][2]; k++) {
+        if (k === 0 || k === 1) continue;
+        y = k >= 0 ? Math.pow(b, k) : 1 / Math.pow(b, -k);
+        if (y > 100000 || skip[b + "," + k]) continue;
+        out.push([b, k, 1]);
+      }
+    }
+    out.push([3, 0, 1], [7, 1, 1], [4, 1, 2], [16, 1, 2], [25, 1, 2], [36, 1, 2], [100, 1, 2], [8, 1, 3], [27, 1, 3], [64, 1, 3]);
+    return out;
+  })();
+  function gLogTex(b, y, den) { return "\\log_{" + b + "} " + (den ? "\\dfrac{1}{" + wn(den) + "}" : wn(y)); }
+
+  G.add({
+    id: "pk-log-exact", section: "pk-growth#logs", par: 50, timed: true,
+    make: function (r) {
+      var e = r.pick(GLOGX) || [6, 4, 1], b = e[0], k = e[1], dd = e[2], root = dd > 1, y, den = 0, key, steps, q, hint, powers = [], j;
+      if (root) { y = dd === 2 ? Math.sqrt(b) : Math.round(Math.pow(b, 1 / 3)); key = dd === 2 ? "0.5|1/2" : "1/3"; }
+      else { key = clean(k); if (k >= 0) y = Math.pow(b, k); else { den = Math.pow(b, -k); y = 1 / den; } }
+      if (root) {
+        q = "Evaluate $" + gLogTex(b, y) + "$. Give the answer as " + (dd === 2 ? "a decimal or a fraction." : "a fraction.");
+        hint = "A logarithm is an exponent. The number is smaller than the base, so ask which exponent turns the base into it; a " + (dd === 2 ? "square" : "cube") + " root is a power with a special exponent.";
+        steps = [
+          "A power of $\\frac1" + dd + "$ is a " + (dd === 2 ? "square" : "cube") + " root, and $" + b + "^{1/" + dd + "} = " + (dd === 2 ? "\\sqrt{" : "\\sqrt[3]{") + b + "} = " + y + "$, so $" + gLogTex(b, y) + " = \\frac1" + dd + "$.",
+          "Check by " + (dd === 2 ? "squaring" : "cubing") + ": $\\left(" + b + "^{1/" + dd + "}\\right)^" + dd + " = " + b + "$, and $" + y + "^" + dd + " = " + Math.pow(y, dd) + "$ ✓."
+        ];
+      } else if (k > 1) {
+        for (j = 1; j <= k; j++) powers.push(Math.pow(b, j));
+        q = "Evaluate $" + gLogTex(b, y) + "$.";
+        hint = "A logarithm is an exponent. Ask which power of the base gives the number.";
+        steps = [
+          "The powers of $" + b + "$ are $" + powers.map(wn).join(",\\ ") + "$, and $" + wn(y) + "$ is the one with exponent $" + k + "$, so $" + gLogTex(b, y) + " = " + k + "$.",
+          "Check by multiplying: $" + (function () { var o = [], i; for (i = 0; i < k; i++) o.push(b); return o.join(" \\cdot "); })() + " = " + wn(y) + "$ ✓."
+        ];
+      } else if (k === 1) {
+        q = "Evaluate $" + gLogTex(b, y) + "$.";
+        hint = "A logarithm is an exponent. Ask which power of the base gives the number, and what an exponent of one does.";
+        steps = [
+          "Any base to the power $1$ is itself, so $" + b + "^1 = " + b + "$ and $" + gLogTex(b, y) + " = 1$.",
+          "Check: $" + b + "^1 = " + b + "$ ✓."
+        ];
+      } else if (k === 0) {
+        q = "Evaluate $" + gLogTex(b, 1) + "$.";
+        hint = "A logarithm is an exponent. Ask which power of the base gives the number, and recall what an exponent of zero does.";
+        steps = [
+          "Any base to the power $0$ is $1$, so $" + b + "^0 = 1$ and $" + gLogTex(b, 1) + " = 0$.",
+          "Check: $" + b + "^0 = 1$ ✓."
+        ];
+      } else {
+        q = "Evaluate $" + gLogTex(b, y, den) + "$.";
+        hint = "A logarithm is an exponent. A number less than $1$ is a negative power of a base above $1$, so ask which negative exponent gives the fraction.";
+        steps = [
+          "Since $" + b + "^{" + (-k) + "} = " + wn(den) + "$, a negative exponent gives one over that: $" + b + "^{" + k + "} = \\dfrac{1}{" + wn(den) + "}$, so $" + gLogTex(b, y, den) + " = " + k + "$.",
+          "Check: $" + b + "^{" + k + "} \\cdot " + wn(den) + " = \\dfrac{" + wn(den) + "}{" + wn(den) + "} = 1$ ✓."
+        ];
+      }
+      return {
+        q: q, type: "number", answer: key, placeholder: wPlace("the exponent", key), hint: hint, steps: steps,
+        verify: function () {
+          /* raise b to the key by repeated multiplication (division for a negative key, squaring or cubing for a root) and compare with y */
+          var x = Number(key.split("|")[0]), v = 1, i;
+          if (root) return dd === 2 ? (x === 0.5 && y * y === b) : (key === "1/3" && y * y * y === b);
+          if (x >= 0) { for (i = 0; i < x; i++) v *= b; return v === y && x === k; }
+          for (i = 0; i < -x; i++) v *= b;
+          return v === den && 1 / v === y && x === k;
+        }
+      };
+    }
+  });
+
+  /* pk-log-solve: a * b^t = c with c = a * b^t exact. Tuples (a, b, t, story): a in 2..9 (bare) or 2..9 or a round hundred
+     (story, b in 2, 3, 4), t 2..6, c up to 200000. The page's (6, 5, 3), (9, 4, 3), (5, 2, 4), (3, 2, 5) and (4, 3, 3) are left out. */
+  var GSOLVE = (function () {
+    var out = [], bs = [2, 3, 4, 5, 10], a, bi, b, t, c, as;
+    function skip(a0, b0, t0) { return a0 === b0 || (a0 === 6 && b0 === 5 && t0 === 3) || (a0 === 9 && b0 === 4 && t0 === 3) || (a0 === 5 && b0 === 2 && t0 === 4) || (a0 === 3 && b0 === 2 && t0 === 5) || (a0 === 4 && b0 === 3 && t0 === 3); }
+    for (bi = 0; bi < bs.length; bi++) {
+      b = bs[bi];
+      for (t = 2; t <= 6; t++) {
+        for (a = 2; a <= 9; a++) {
+          c = a * Math.pow(b, t);
+          if (c > 200000 || skip(a, b, t)) continue;
+          out.push([a, b, t, false]);
+          if (b <= 4) out.push([a, b, t, true]);
+        }
+        if (b <= 4) {
+          for (a = 100; a <= 900; a += 100) {
+            c = a * Math.pow(b, t);
+            if (c > 200000) continue;
+            out.push([a, b, t, true]);
+          }
+        }
+      }
+    }
+    return out;
+  })();
+  var GSOLVE_NOUN = [
+    { start: "A lab culture starts with {a} bacteria, and the number of bacteria {grow} every hour. After how many hours are there exactly {c} bacteria?", per: "hours", what: "count" },
+    { start: "A rumor is known to {a} students, and the number of students who know it {grow} every hour. After how many hours do exactly {c} students know it?", per: "hours", what: "count" },
+    { start: "A jar holds {a} today, and the amount in it {grow} each day. After how many days does the jar hold exactly {c}?", per: "days", what: "amount", money: true }
+  ];
+  var GSOLVE_WORD = { 2: "doubles", 3: "triples", 4: "quadruples" };
+
+  G.add({
+    id: "pk-log-solve", section: "pk-growth#logs", par: 70, timed: true,
+    make: function (r) {
+      var e = r.pick(GSOLVE) || [7, 2, 6, false], a = e[0], b = e[1], t = e[2], story = e[3], c = a * Math.pow(b, t), N = Math.pow(b, t), key = clean(t);
+      var vals = [a], j, noun = story ? r.pick(GSOLVE_NOUN) : null;
+      for (j = 1; j <= t; j++) vals.push(vals[j - 1] * b);
+      return {
+        q: story ? noun.start.replace("{a}", noun.money ? wUsd(a) : "$" + wn(a) + "$").replace("{grow}", GSOLVE_WORD[b]).replace("{c}", noun.money ? wUsd(c) : "$" + wn(c) + "$")
+          : "Solve $" + a + " \\cdot " + b + "^t = " + wn(c) + "$ for $t$.",
+        type: "number", answer: key, placeholder: wPlace(story ? noun.per : "the exponent", key),
+        hint: story ? "Write the amount after some periods as the start times a power of the multiplier, set it equal to the target, and divide by the start. Then ask which power of the multiplier is left."
+          : "Divide by the number in front first, and then ask which power of the base the result is.",
+        steps: [
+          (story ? "The " + noun.what + " after $t$ " + noun.per + " is $" + wn(a) + " \\cdot " + b + "^t$, so dividing $" : "Dividing $") + wn(a) + " \\cdot " + b + "^t = " + wn(c) + "$ by $" + wn(a) + "$ gives $" + b + "^t = " + wn(N) + "$.",
+          "Since $" + wn(N) + " = " + b + "^{" + t + "}$, $t = \\log_{" + b + "} " + wn(N) + " = " + t + "$.",
+          "Check by multiplying from $" + wn(a) + "$: " + "$" + vals.map(wn).join(" \\to ") + "$" + " reaches $" + wn(c) + "$ after $" + t + "$ multiplications by $" + b + "$."
+        ],
+        verify: function () {
+          /* multiply from a until c, counting the steps, and compare with the key */
+          var v = a, k = 0;
+          while (v < c && k < 20) { v *= b; k++; }
+          return v === c && k === Number(key) && k >= 2 && k <= 6 && c <= 200000;
+        }
+      };
+    }
+  });
+
+  /* pk-log-between: the lower of the two consecutive whole numbers around log_b y. Tuples (b, y) with b^k < y < b^(k+1),
+     k 1..6, y not a power of b and up to 100000. The page's log_2 10000 and log_3 25 are left out. */
+  var GBETWEEN = (function () {
+    var out = [], bs = [2, 3, 4, 5, 10], ys = [], y, bi, b, k, lo;
+    for (y = 3; y <= 49; y++) ys.push(y);
+    [50, 60, 75, 100, 150, 200, 250, 300, 400, 500, 600, 700, 800, 900, 1000, 1200, 1500, 2000, 2500, 3000, 4000, 5000, 6000, 7000, 8000, 9000, 10000, 12000, 15000, 20000, 25000, 30000, 40000, 50000, 60000, 70000, 80000, 90000, 100000].forEach(function (v) { ys.push(v); });
+    for (bi = 0; bi < bs.length; bi++) {
+      b = bs[bi];
+      ys.forEach(function (yy) {
+        lo = 0; while (Math.pow(b, lo + 1) < yy) lo++;
+        /* lo is the largest k with b^k < yy (or 0 when yy is at most b) */
+        if (lo < 1 || lo > 6 || Math.pow(b, lo) >= yy || Math.pow(b, lo + 1) <= yy) return;
+        if ((b === 2 && yy === 10000) || (b === 3 && yy === 25)) return;
+        out.push([b, yy, lo]);
+      });
+    }
+    return out;
+  })();
+
+  G.add({
+    id: "pk-log-between", section: "pk-growth#logs", par: 80, timed: true,
+    make: function (r) {
+      var e = r.pick(GBETWEEN) || [3, 1000, 6], b = e[0], y = e[1], k = e[2], key = clean(k), pw = [], j;
+      for (j = 1; j <= k + 1; j++) pw.push(Math.pow(b, j));
+      return {
+        q: r.chance(0.5) ? "The number $\\log_{" + b + "} " + wn(y) + "$ lies between two consecutive whole numbers. What is the lower one, the whole number just below it?"
+          : "Between which two consecutive whole numbers does $\\log_{" + b + "} " + wn(y) + "$ lie? Give the lower of the two.",
+        type: "number", answer: key, placeholder: wPlace("the exponent", key),
+        hint: "The logarithm is the exponent that makes a power of the base equal to the number. Find two neighboring powers of the base with the number between them.",
+        steps: [
+          "List the powers of $" + b + "$: $" + pw.map(wn).join(",\\ ") + "$. Here $" + wn(pw[k - 1]) + " = " + b + "^{" + k + "}$ is under $" + wn(y) + "$ and $" + wn(pw[k]) + " = " + b + "^{" + (k + 1) + "}$ is over it.",
+          "So $" + k + " < \\log_{" + b + "} " + wn(y) + " < " + (k + 1) + "$, and the lower whole number is $" + k + "$.",
+          "Check: $" + wn(y) + " \\div " + wn(pw[k - 1]) + "$ is about $" + (y / pw[k - 1]).toFixed(2) + "$, between $1$ and $" + b + "$, so $" + wn(y) + "$ is $" + b + "^{" + k + "}$ times a number between $1$ and $" + b + "$, and the exponent is $" + k + "$ plus a fraction."
+        ],
+        verify: function () {
+          /* the power with the key as exponent is below y, the next one is above, and y is not a power of b (repeated multiplication) */
+          var x = Number(key), v = 1, i, isPow = false;
+          for (i = 0; i < x; i++) v *= b;
+          var next = v * b, w = 1;
+          for (i = 0; i < 40 && w <= y; i++) { if (w === y) isPow = true; w *= b; }
+          return v < y && next > y && !isPow && x >= 1 && x <= 6 && y <= 100000;
         }
       };
     }

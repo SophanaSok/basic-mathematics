@@ -333,6 +333,10 @@ export const SKILLS: Readonly<Record<SectionRef, Skill>> = {
     sat: ["sat.adv.nlf"], act: ["act.phm.fn", "act.phm.alg"], accuplacer: ["aaf.explog"], aleks: ["ppl.explog"] },
   "pk-growth#growth": { ccss: "HSF.LE.A.1", also: ["HSF.LE.A.2", "HSF.LE.B.5", "HSF.IF.C.8", "8.EE.A.1"], course: "algebra-1",
     sat: ["sat.adv.nlf"], act: ["act.phm.fn", "act.phm.alg"], accuplacer: ["aaf.explog"], aleks: ["ppl.explog"] },
+  "pk-growth#interest": { ccss: "HSF.LE.A.1", also: ["HSF.LE.B.5", "HSF.IF.C.8", "HSA.SSE.B.3", "7.RP.A.3"], course: "algebra-1",
+    sat: ["sat.adv.nlf"], act: ["act.phm.fn", "act.phm.alg"], accuplacer: ["aaf.explog"], aleks: ["ppl.explog"] },
+  "pk-growth#logs": { ccss: "HSF.LE.A.4", also: ["HSF.BF.B.5", "HSF.LE.A.2", "HSA.REI.D.11"], course: "algebra-2",
+    sat: ["sat.adv.nlf"], act: ["act.phm.fn", "act.phm.alg"], accuplacer: ["aaf.explog"], aleks: ["ppl.explog"] },
 };
 
 /** Generators (data/gen/*.js, by id) whose test differs from their section's record. */
