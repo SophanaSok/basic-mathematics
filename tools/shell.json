@@ -1121,5 +1121,43 @@
       "Your account -> ../../account.html",
       "<script>#f817ee57</script>"
     ]
+  },
+  "parts/5-packs/pk-words.html": {
+    "head": [
+      "<meta charset='utf-8'>",
+      "<meta name='viewport' content='width=device-width, initial-scale=1'>",
+      "<title>Pack F. Word Problems — Basic Mathematics</title>",
+      "<meta name='description' content='Turning a story into an equation: naming one unknown with its unit, writing every other quantity in terms of it, translating phrases such as 5 less than twice a number, ages and consecutive integers, and then distance, rate and time with one row per mover, for movers toward each other, a catch-up after a head start and a round trip, with average speed as total distance over total time: the algebra skills the gate exams ask for and the book leaves out.'>",
+      "<script>#ec845843</script>",
+      "<style>#2b16b645</style>",
+      "<link rel='icon' href='../../assets/favicon.svg' type='image/svg+xml'>",
+      "<link rel='stylesheet' href='../../src/vendor/fonts.css'>",
+      "<link rel='stylesheet' href='../../src/vendor/katex.css'>",
+      "<link rel='stylesheet' href='../../src/styles/tokens.css'>",
+      "<link rel='stylesheet' href='../../assets/site.css'>",
+      "<link rel='stylesheet' href='../../assets/game.css'>",
+      "<link rel='stylesheet' href='../../assets/scenes3d.css'>",
+      "<link rel='stylesheet' href='../../assets/ladder.css'>",
+      "<link rel='stylesheet' href='../../assets/review.css'>",
+      "<script type='module' src='../../src/entries/chapter.js'>"
+    ],
+    "body": "<body data-depth='2' data-chapter='pk-words' data-part='packs'>",
+    "topbar": [
+      "Skip to content -> #main",
+      "∑ Basic Mathematics -> ../../index.html",
+      "Contents -> ../../index.html",
+      "How to use this -> ../../about.html",
+      "Level 1, Counter. Open your progress. -> ../../progress.html",
+      "Sign in -> ../../account.html",
+      "button: Sound",
+      "button: Menu and settings",
+      "button: Close menu and settings",
+      "Contents -> ../../index.html",
+      "How to use this -> ../../about.html",
+      "Your progress -> ../../progress.html",
+      "Arena -> ../../arena.html",
+      "Your account -> ../../account.html",
+      "<script>#f817ee57</script>"
+    ]
   }
 }

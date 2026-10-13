@@ -304,7 +304,7 @@ window.BM_CURRICULUM = {
       dir: "5-packs",
       beside: true,
       blurb:
-        "Short units on what the gate tests ask and Lang's book leaves out: percent, data, chance, units. Use any of them, in any order, alongside the course.",
+        "Short units on what the gate tests ask and Lang's book leaves out: percent, data, chance, units, linear models, word problems. Use any of them, in any order, alongside the course.",
       chapters: [
         {
           id: "pk-percent",
@@ -384,6 +384,20 @@ window.BM_CURRICULUM = {
             { id: "model", title: "Writing a linear model", summary: "A starting value and a constant rate make y = mx + b; write it from a story, from two points (the slope first, then b from one point) or from a table, check it at a point not used, predict with it, solve mx + b = T for when, and say where the model stops making sense." },
             { id: "ineq1", title: "Inequalities in one unknown", summary: "An inequality describes a set of numbers, and dividing by a negative number turns the sign around, so solve ax + b ≤ c, write the solution as x ≥ k, and find the least or greatest whole number that works." },
             { id: "ineq2", title: "Inequalities in two unknowns and systems", summary: "The line y = mx + b is the boundary and one side of it is the solution set of y > mx + b; a test point such as (0, 0) settles the side, the boundary belongs to the set for ≤ and ≥ and not for < and >, and a system is the overlap, with its corner found by solving the two boundary equations." }
+          ]
+        },
+        {
+          id: "pk-words",
+          label: "F",
+          title: "Word Problems",
+          file: "pk-words.html",
+          status: "full",
+          course: "algebra-1",
+          blurb:
+            "Turning a story into an equation: naming the unknown, writing every other quantity in terms of it, one equation for each fact, and then distance, rate and time, where d = rt gives one row per mover. Later sections take up work, mixtures and checking.",
+          sections: [
+            { id: "name", title: "Naming the unknown", summary: "Name one unknown with its unit, write every other quantity in terms of it, write one equation for each fact, solve, and answer the question asked with its units; phrases such as 5 less than twice a number, ages and consecutive integers become expressions." },
+            { id: "drt", title: "Distance, rate and time", summary: "Distance is rate times time, so each mover gets a row of rate, time and distance and one sentence ties the rows: toward each other the distances add to the gap, in a catch-up they are equal, on a round trip they are equal and the times add; an average speed is total distance over total time." }
           ]
         }
       ]

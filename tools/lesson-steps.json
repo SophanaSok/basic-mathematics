@@ -410,5 +410,17 @@
     "div.worked to div#t12",
     "section#practice",
     "div.recap to nav.chapter-nav"
+  ],
+  "pk-words": [
+    "header.region-banner to div#puzzle",
+    "div.goal to section#warmup",
+    "h2#name to div#t1",
+    "div#t2",
+    "div.worked to div#t3",
+    "h2#drt to div#t4",
+    "div.worked to div#t5",
+    "div#t6",
+    "section#practice",
+    "div.recap to nav.chapter-nav"
   ]
 }
