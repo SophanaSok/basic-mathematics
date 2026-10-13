@@ -29,6 +29,10 @@ function check(cond, what, detail) {
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 const THREE = /\/bundle\/three\.js(?:[?#]|$)/;
 const CHAPTER = "parts/1-algebra/01-numbers.html";
+/* assets/game.js shows cards one at a time, each up for 2600 ms and 400 ms leaving, and
+   a form toast queues behind the level card the same XP raised, so it enters the DOM at
+   3000 ms; the wait covers that card and a second one */
+const CARD_MS = 2600 + 400, TOAST_WAIT = 2 * CARD_MS + 500;
 
 let server, browser;
 const contexts = [];
@@ -184,9 +188,9 @@ async function main() {
       await wait(500);
       await page.evaluate(() => window.BMActivity.add(20, "test"));
       let timedOut = false;
-      await page.waitForSelector(".toast.form", { timeout: 3000 }).catch(() => { timedOut = true; });
+      await page.waitForSelector(".toast.form", { timeout: TOAST_WAIT }).catch(() => { timedOut = true; });
       const t = await page.evaluate(() => Array.from(document.querySelectorAll(".toast.form")).map((e) => e.textContent));
-      check(t.length === 1 && /Sprig/.test(t[0]), "7: one toast naming Sprig", timedOut ? "toast did not appear within 3000 ms; " + JSON.stringify(t) : t);
+      check(t.length === 1 && /Sprig/.test(t[0]), "7: one toast naming Sprig", timedOut ? "toast did not appear within " + TOAST_WAIT + " ms; " + JSON.stringify(t) : t);
       const game = await store(page, "bm.game.v1");
       check(game.form && game.form.got["2"] > 0, "7: got[2] is recorded", game.form);
       const run = await store(page, "bm.run.v1");
@@ -209,11 +213,11 @@ async function main() {
       await wait(500);
       await page.evaluate(() => window.BMActivity.add(600, "test"));
       let timedOut = false;
-      await page.waitForSelector(".toast.form", { timeout: 3000 }).catch(() => { timedOut = true; });
+      await page.waitForSelector(".toast.form", { timeout: TOAST_WAIT }).catch(() => { timedOut = true; });
       /* fixed wait on purpose: it gives a second toast time to appear, since the check is for exactly one */
       await wait(300);
       const t = await page.evaluate(() => Array.from(document.querySelectorAll(".toast.form")).map((e) => e.textContent));
-      check(t.length === 1 && /Surveyor/.test(t[0]), "8: one toast naming Surveyor", timedOut ? "toast did not appear within 3000 ms; " + JSON.stringify(t) : t);
+      check(t.length === 1 && /Surveyor/.test(t[0]), "8: one toast naming Surveyor", timedOut ? "toast did not appear within " + TOAST_WAIT + " ms; " + JSON.stringify(t) : t);
       const game = await store(page, "bm.game.v1");
       const got = (game.form && game.form.got) || {};
       check(["2", "3", "4"].every((k) => got[k] > 0), "8: stages 2, 3 and 4 recorded", got);
