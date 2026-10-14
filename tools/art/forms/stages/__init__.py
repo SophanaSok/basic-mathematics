@@ -5,10 +5,11 @@ skinned to the shared armature (rig.py) and painted with the five materials
 (materials.py). build.py looks a stage up here; a stage without a builder yet gets the
 gray mannequin. The `Fig` helper in common.py is what the builders write with.
 """
-from . import pip, sprig, wayfinder
+from . import pip, sprig, surveyor, wayfinder
 
 STAGES = {
     1: pip.build,
     2: sprig.build,
     3: wayfinder.build,
+    4: surveyor.build,
 }
