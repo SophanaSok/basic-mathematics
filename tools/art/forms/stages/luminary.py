@@ -41,11 +41,14 @@ def build(armature, props, mats):
               "chest", "trim", bevel=0)
     f.add(f.plate("backplate", size=(cw * 0.9, cd * 0.5, L * 0.92), at=c + Vector((0, cd * 0.3, 0)), rot=rot,
                   inset=0.014, depth=0.004, panel=(0, 1, 0), taper=1.1), "chest", "armor", bevel=0.006)
-    # the back-cape: a rigid plate of the learner's hue hanging from the shoulders
-    f.add(f.plate("cape", size=(cw * 0.95, 0.016, L * 2.6), at=c + Vector((0, cd * 0.62, -L * 0.85)), rot=f.euler(-6, 0, 0),
+    # the back-cape: a rigid plate of the learner's hue hanging from the shoulders, its
+    # hem swung a little backward so it clears the kusazuri and the legs at rest
+    cape_rot = f.euler(8, 0, 0)
+    cape_c = c + Vector((0, cd * 0.66, -L * 0.85))
+    f.add(f.plate("cape", size=(cw * 0.78, 0.016, L * 2.6), at=cape_c, rot=cape_rot,
                   inset=0.012, depth=0.003, panel=(0, 1, 0), taper=1.25), "chest", "accent", bevel=0.004)
-    f.add(f.plate("cape_edge", size=(cw * 1.18, 0.02, 0.02), at=c + Vector((0, cd * 0.62 + L * 2.15 * math.sin(math.radians(6)), -L * 2.15)), rot=f.euler(-6, 0, 0), inset=0),
-          "chest", "trim", bevel=0.003)
+    hem = cape_c + cape_rot.to_quaternion() @ Vector((0, 0, -L * 1.3))
+    f.add(f.plate("cape_edge", size=(cw * 0.8, 0.02, 0.02), at=hem, rot=cape_rot, inset=0), "chest", "trim", bevel=0.003)
     f.add(kit.cyl("collar", r=p.neck * 2.4, length=0.024, segments=16, at=tail + Vector((0, 0, 0.004))), "chest", "trim", bevel=0.003)
 
     c, L, rot, head, tail = f.along("spine")
@@ -87,16 +90,16 @@ def build(armature, props, mats):
     f.add(kit.plate("visor_slit", size=(hr * 1.55, 0.012, 0.026), at=c + Vector((0, -hr * 0.88, L * 0.04)), inset=0), "head", "glow", bevel=0)
     # the crest: a swept V of two tall gold fins, five glow beads along their tips
     for sx in (1.0, -1.0):
-        fin = kit.wedge(f"crest_{'L' if sx > 0 else 'R'}", size=(0.016, 0.07, hr * 2.4), at=c + Vector((sx * 0.016, -hr * 0.45, L * 0.7)),
-                        rot=f.euler(-26, sx * 26, 0), front=0.2)
+        fin = kit.wedge(f"crest_{'L' if sx > 0 else 'R'}", size=(0.016, 0.07, hr * 2.4), at=c + Vector((sx * 0.045, -hr * 0.45, L * 0.7)),
+                        rot=f.euler(-26, sx * 14, 0), front=0.2)
         f.add(fin, "head", "trim", bevel=0.002)
     f.add(kit.cyl("crest_base", r=0.022, length=0.024, segments=8, at=c + Vector((0, -hr * 0.52, L * 0.42))), "head", "trim", bevel=0.002)
     # five glow beads riding the fins: one on the base, two up each fin to its tip
     fin_len = hr * 2.4
     f.add(kit.sphere("crest_bead_0", r=0.015, at=c + Vector((0, -hr * 0.52, L * 0.42 + 0.02)), segments=10, rings=6), "head", "glow", bevel=0)
     for sx in (1.0, -1.0):
-        base = c + Vector((sx * 0.016, -hr * 0.45, L * 0.7))
-        tip_dir = f.euler(-26, sx * 26, 0).to_quaternion() @ Vector((0, 0, 1))
+        base = c + Vector((sx * 0.045, -hr * 0.45, L * 0.7))
+        tip_dir = f.euler(-26, sx * 14, 0).to_quaternion() @ Vector((0, 0, 1))
         for k, t in enumerate((0.22, 0.5)):
             at = base + tip_dir * (fin_len * t)
             f.add(kit.sphere(f"crest_bead_{'L' if sx > 0 else 'R'}{k}", r=0.013, at=at, segments=10, rings=6), "head", "glow", bevel=0)
@@ -186,9 +189,13 @@ def build(armature, props, mats):
     c, L, rot, head, tail = f.along("halo")
     hc = Vector((0, head.y, head.z))
     hr2 = h * 0.2
-    f.add(kit.ring("halo_a", r=hr2, thickness=0.012, depth=0.012, segments=32, at=hc, rot=f.euler(90, 0, 0)), "halo", "trim", bevel=0.002)
-    f.add(kit.ring("halo_b", r=hr2 * 0.92, thickness=0.012, depth=0.012, segments=32, at=hc, rot=f.euler(90, 0, 90)), "halo", "trim", bevel=0.002)
-    f.add(kit.sphere("halo_core", r=0.024, at=hc, segments=12, rings=6), "halo", "glow", bevel=0)
+    # the great ring stands behind the back in the figure's plane; the small ring crosses it
+    # at a slant and stays behind the head; an emote may bob or spin the halo about its
+    # front-to-back axis, never about the vertical one, which would sweep the rings
+    # through the body
+    f.add(kit.ring("halo_a", r=hr2, thickness=0.022, depth=0.018, segments=32, at=hc, rot=f.euler(90, 0, 0)), "halo", "trim", bevel=0.003)
+    f.add(kit.ring("halo_b", r=hr2 * 0.45, thickness=0.016, depth=0.014, segments=24, at=hc, rot=f.euler(90, 0, 90)), "halo", "trim", bevel=0.002)
+    f.add(kit.sphere("halo_core", r=0.036, at=hc, segments=14, rings=8), "halo", "glow", bevel=0)
     f.add(kit.cyl("halo_mount", r=0.014, length=h * 0.1, segments=8, at=Vector((0, head.y - h * 0.05, head.z)), rot=f.euler(90, 0, 0)), "chest", "metal", bevel=0)
 
     # ---- the orbit drones -------------------------------------------------------------------
