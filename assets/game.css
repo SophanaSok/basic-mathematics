@@ -943,7 +943,7 @@ html[data-motion="reduce"] *, html[data-motion="reduce"] *::before, html[data-mo
 .form-body { display: grid; grid-template-columns: minmax(0, 300px) minmax(0, 1fr); gap: 1.2rem 1.6rem; align-items: start; }
 .form-view, .form-dialog-box {
   position: relative; box-sizing: border-box; width: 100%; max-width: 100%; aspect-ratio: 4 / 5;
-  background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden;
+  background: radial-gradient(ellipse 72% 62% at 50% 44%, var(--surface-2), var(--border-strong)); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden;
 }
 .form-view .form-canvas, .form-dialog-box .form-canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
 .form-fallback {
