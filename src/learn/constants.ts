@@ -110,3 +110,25 @@ export const DIAG_SYNC_WAIT_MS = 8000;
 /** How many sections the study plan's "Start here" lists, and how many "Review first" lists at most. */
 export const PLAN_START_ITEMS = 3;
 export const PLAN_REVIEW_ITEMS = 5;
+
+/* ------------------------------------------------------------------ events --
+   The schedule folded from the event log (schedule.ts, checkpoint.ts) and the mastery that
+   will read the same log (mastery.ts, the next card). Engineering judgement, untuned: the
+   mastery numbers are the one place to tune once real learners' logs exist. */
+/** Distinct Arena days of a section a checkpoint leaves in the log behind it; a checkpoint
+    is written once a section has 2 × SCHED_KEEP such days. */
+export const SCHED_KEEP = 12;
+/** Arena entries dated this many days past today still count in the schedule (a clock a
+    day ahead on another device). */
+export const SCHED_FUTURE_SLACK_DAYS = 1;
+/* mastery (src/learn/mastery.ts, the next card): the one place to tune */
+export const MASTERY_PRIOR = 0.5;
+export const MASTERY_ALPHA = 0.3;
+export const MASTERY_MIN_EVIDENCE = 3;
+export const MASTERY_WEAK = 0.45;
+export const MASTERY_STRONG = 0.85;
+export const TRY_CREDIT: readonly number[] = [1, 0.6, 0.4, 0.3];
+export const RUNG_CREDIT: readonly number[] = [1, 1, 0.8, 0.6];
+export const OPENED_CREDIT = 0.1;
+export const RETRY_CREDIT = 0.5;
+export const SEED_WEIGHT = 2;
