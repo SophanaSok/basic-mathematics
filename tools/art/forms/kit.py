@@ -5,8 +5,9 @@ spheres and bolts. This is the kit those builders share: panelled plates, groove
 joints, bolts, domes, and the bevel, mirror, boolean and array modifiers that give
 hard-surface parts their edges. Every helper returns a mesh object already linked to
 the `forms` collection, placed at `at` and turned by `rot` (a quaternion, or an XYZ
-Euler as three radians). `bone_frame` gives a bone's centre, length and the rotation
-that lays a part's local Z along it, with local -Y facing the figure's front (-Y).
+Euler as three radians). `bone_frame` gives a bone's center, length and the rotation
+that lays a part's local Z along it with local -Y facing the figure's front (-Y), or,
+for a bone that runs front to back (a foot), with local +Y up.
 Nothing here is applied by hand: the glTF exporter applies the modifier stack, and the
 `add_*` helpers keep an Armature modifier last in it, so a part may be skinned before
 or after it is shaped.
@@ -15,7 +16,7 @@ import math
 
 import bmesh
 import bpy
-from mathutils import Quaternion, Vector
+from mathutils import Matrix, Quaternion, Vector
 
 
 def new_collection(name, exclude=False):
@@ -47,13 +48,25 @@ def _finish(name, bm, at, rot=None, collection="forms"):
     return obj
 
 
+def frame_along(d):
+    """The rotation that lays local Z along `d` with local +Y as near world +Y as the
+    direction allows (so local -Y faces the figure's front, -Y), or, when `d` runs
+    along Y itself, with local +Y as near world +Z (up). Local X follows from the
+    right-hand rule: for a bone pointing down it is world -X."""
+    z = Vector(d).normalized()
+    ref = Vector((0, 1, 0)) if abs(z.dot(Vector((0, 1, 0)))) < 0.9 else Vector((0, 0, 1))
+    y = (ref - z * ref.dot(z)).normalized()
+    x = y.cross(z)
+    return Matrix((x, y, z)).transposed().to_quaternion()
+
+
 def bone_frame(armature, name):
-    """(centre, length, rotation, head, tail) of a bone in the armature's rest pose: the
-    rotation lays local Z along the bone, local -Y toward the front."""
+    """(center, length, rotation, head, tail) of a bone in the armature's rest pose: the
+    rotation is frame_along(tail - head)."""
     b = armature.data.bones[name]
     head, tail = Vector(b.head_local), Vector(b.tail_local)
     d = tail - head
-    return (head + tail) / 2, max(d.length, 1e-4), d.to_track_quat("Z", "Y"), head, tail
+    return (head + tail) / 2, max(d.length, 1e-4), frame_along(d), head, tail
 
 
 def _armature_last(obj):

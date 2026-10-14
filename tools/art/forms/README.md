@@ -20,14 +20,14 @@ scratch and gitignored.
 ## The files
 
 - `build.py`: the entry. Clears the scene, makes the materials and the armature, builds
-  the stage through its builder in `stages/` (the grey mannequin for a stage without
+  the stage through its builder in `stages/` (the gray mannequin for a stage without
   one yet), exports.
 - `kit.py`: the parts kit. Plates with inset panel lines, cylinders, grooved joints,
   bolts, domes, wedges; the Bevel (hardened normals) and Weighted Normal, Mirror, Boolean
   and Array modifiers; `bone_frame` for laying a part along a bone. Every helper takes
   `at` and `rot` and links the part to the `forms` collection.
 - `materials.py`: the five materials the site swaps by name: `armor` (white lacquer),
-  `accent` (a neutral grey the site tints to the learner's Part hue), `trim` (gold),
+  `accent` (a neutral gray the site tints to the learner's Part hue), `trim` (gold),
   `metal` (gunmetal joints and frame) and `glow` (emissive, the lantern and the visor).
 - `rig.py`: `Proportions` and `proportions_for(stage)` (a mecha build scaled to the
   stage's height: 0.6, 0.8, 1.1, 1.35, 1.75), the armature with its fixed bone names
@@ -37,13 +37,13 @@ scratch and gitignored.
   the exporter, Y up, actions as named clips) and the sidecar.
 - `stages/`: one builder per stage, written with `Fig` from `stages/common.py`: a list of
   parts, each a shape of a size at a place on a bone in a material. The figure is
-  modelled Z up, facing -Y, feet at z = 0, in metres; the export turns that into Three's
+  modeled Z up, facing -Y, feet at z = 0, in meters; the export turns that into Three's
   Y up facing +Z.
 
 ## Building a stage
 
 Build one side of a limb at a time (`Fig.sides()`), since a part follows exactly one
-bone; the Mirror modifier is for centreline parts. Keep the five material names; the
+bone; the Mirror modifier is for centerline parts. Keep the five material names; the
 site does not know any other. Keep the figure's rest pose presentable: idle frame 0 is
 what the viewer shows under reduced motion. Look at the result before committing it:
 render a turntable (a contact sheet of eight views at the viewer's framing) and judge the
@@ -55,7 +55,7 @@ edges and bolts, not from polygon count: the Wayfinder is under 9,000 triangles.
 An original samurai-mecha, not a likeness of any franchise, carrying a beacon staff
 rather than a blade (children use the site). White lacquer plates over a dark frame,
 gold edges, the learner's hue on a sash, a glow for what shines. The stages are one
-figure growing: a floating core (Pip), a slim runner frame (Sprig), light armour and the
-staff (Wayfinder), heavy armour with sode and orbit drones (Surveyor), the full commander
+figure growing: a floating core (Pip), a slim runner frame (Sprig), light armor and the
+staff (Wayfinder), heavy armor with sode and orbit drones (Surveyor), the full commander
 with crest, halo frame and a long beacon (Luminary). The plan and the decision record
-(`docs/decisions/0008-form-models.md`, once written) say why.
+(`docs/decisions/0008-form-models.md`, planned) say why.

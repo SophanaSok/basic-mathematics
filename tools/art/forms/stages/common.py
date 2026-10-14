@@ -1,12 +1,15 @@
 """What every stage builder writes with: a figure under construction.
 
 `Fig` wraps the armature, its proportions and the materials, and keeps the list of
-parts a builder makes. Each `add` paints a part, bevels it (unless told not to) and
-skins it rigidly to one bone, so a builder reads as a list of parts: which shape,
-how big, where, on which bone, in which material. Positions are in the armature's
-rest pose (metres, Z up, the figure facing -Y, feet at z = 0); `along` gives a bone's
-frame so a limb part lies on it. Mirrored limbs are built twice, once per side, with
-`sides()`: a part follows one bone, so the Mirror modifier is for centreline parts only.
+parts a builder makes. Each `add` paints a part, bevels it (unless told not to), names
+it `part_<name>` (a mesh node named like a bone would catch the bone's animation in
+Three.js) and skins it rigidly to one bone, so a builder reads as a list of parts:
+which shape, how big, where, on which bone, in which material. Positions are in the
+armature's rest pose (meters, Z up, the figure facing -Y, feet at z = 0); `along` gives
+a bone's frame so a limb part lies on it, and `plate` takes its panel direction in
+world space whatever the part's rotation. Mirrored limbs are built twice, once per
+side, with `sides()`: a part follows one bone, so the Mirror modifier is for
+centerline parts only.
 """
 import math
 
@@ -24,6 +27,8 @@ class Fig:
         self.parts = []
 
     def add(self, obj, bone, mat, bevel=0.004, segments=2):
+        obj.name = "part_" + obj.name
+        obj.data.name = obj.name
         obj.data.materials.append(self.mats[mat])
         if bevel:
             kit.add_bevel(obj, width=bevel, segments=segments)
@@ -32,8 +37,17 @@ class Fig:
         return obj
 
     def along(self, bone):
-        """(centre, length, rotation, head, tail) of a bone, local Z along it."""
+        """(center, length, rotation, head, tail) of a bone, local Z along it."""
         return kit.bone_frame(self.arm, bone)
+
+    @staticmethod
+    def plate(name, size, at, rot=None, panel=(0, -1, 0), **kw):
+        """kit.plate with `panel` given in world space (the default faces the front)."""
+        local = Vector(panel)
+        if rot is not None:
+            q = rot if isinstance(rot, Quaternion) else rot.to_quaternion()
+            local = q.conjugated() @ local
+        return kit.plate(name, size=size, at=at, rot=rot, panel=tuple(local), **kw)
 
     @staticmethod
     def sides():

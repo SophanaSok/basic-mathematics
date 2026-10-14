@@ -2,8 +2,8 @@
 
 Run as `blender -b --factory-startup --python tools/art/forms/build.py -- --stage 3
 --out .cache/forms/raw`. It clears the scene, makes the five materials and the shared
-armature for the stage, then builds the stage through its builder in `stages/` or, for a stage without one
-yet, the grey mannequin,
+armature for the stage, then builds the stage through its builder in `stages/` (the gray mannequin for a
+stage without one yet),
 and exports `form-<n>.glb` plus its sidecar JSON. Any failure prints a message and exits
 non-zero so a script or CI step can tell.
 """

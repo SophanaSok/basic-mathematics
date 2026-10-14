@@ -1,4 +1,4 @@
-"""The shared skeleton, its proportions and the grey mannequin.
+"""The shared skeleton, its proportions and the gray mannequin.
 
 The form pipeline (tools/art/forms/) gives all five avatar stages one skeleton so one
 set of emotes plays on every stage. This file holds the `Proportions` a stage is built
@@ -135,10 +135,13 @@ def mannequin(armature, props, materials):
         t = _thickness(b.name, props)
         base = b.name.split(".")[0]
         # Box local Z runs along the bone; rotate Z to the bone direction.
-        obj = kit.plate(f"m_{b.name}", size=(t, t * 0.8, length * 0.92), at=(head + tail) / 2,
-                        inset=t * 0.15, depth=0.004)
-        obj.rotation_mode = "QUATERNION"
-        obj.rotation_quaternion = d.to_track_quat("Z", "Y")
+        if base == "foot":
+            # level on the floor, from the ankle forward to the toe
+            obj = kit.plate(f"m_{b.name}", size=(t, length, t * 0.6), at=Vector((head.x, (head.y + tail.y) / 2, t * 0.3 + 0.001)),
+                            inset=t * 0.15, depth=0.004)
+        else:
+            obj = kit.plate(f"m_{b.name}", size=(t, t * 0.8, length * 0.92), at=(head + tail) / 2,
+                            inset=t * 0.15, depth=0.004, rot=kit.frame_along(d))
         obj.data.materials.append(materials[mat_for.get(base, "metal")])
         kit.add_bevel(obj, width=min(0.004, t * 0.1))
         skin_rigid(obj, armature, b.name)
