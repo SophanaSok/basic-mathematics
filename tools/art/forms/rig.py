@@ -51,8 +51,8 @@ def proportions_for(stage):
 
 def build_armature(props, name="form", extras=()):
     """The shared skeleton. `extras` adds a stage's optional bones, each
-    (name, parent, head, tail): "drone.1".."drone.3" and "halo" under chest (EXTRAS);
-    the emotes test for them by name."""
+    (name, parent, head, tail): "orbit" with "drone.1".."drone.3" under it, and "halo",
+    under chest (EXTRAS); the emotes test for them by name."""
     arm = bpy.data.armatures.new(name)
     obj = bpy.data.objects.new(name, arm)
     kit.new_collection("forms").objects.link(obj)
@@ -139,16 +139,16 @@ def reduced_armature(props, name="form"):
 
 
 def drone_bones(props, count=3):
-    """the orbit drones' bones under chest, spaced around the figure at hip height; an
-    orbit is keyed as each bone's translation around the chest axis (a bone's own
-    rotation only spins its drone in place)"""
+    """the orbit drones' bones, spaced around the figure at hip height under `orbit`, a
+    pivot on the figure's axis under chest: a turn of `orbit` about its own axis carries
+    the drones around the figure (a drone bone's own rotation only spins it in place)"""
     h = props.height
-    out = []
+    out = [("orbit", "chest", (0, 0, h * 0.52), (0, 0, h * 0.58))]
     for i in range(count):
         a = math.radians(90 + 360 * i / count)
         r = h * 0.3
         at = (r * math.sin(a), -r * math.cos(a), h * 0.52)
-        out.append((f"drone.{i + 1}", "chest", at, (at[0], at[1], at[2] + h * 0.05)))
+        out.append((f"drone.{i + 1}", "orbit", at, (at[0], at[1], at[2] + h * 0.05)))
     return out
 
 
