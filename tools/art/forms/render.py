@@ -230,6 +230,56 @@ def thumbnail(objects, height, path, engine, cpu=False):
     return path, used
 
 
+def emotes_sheet(objects, height, out_dir, stage, engine, cpu=False):
+    """one still per clip at its middle frame (and two more of the idle, at a third and
+    two thirds), from the front-left, tiled into one sheet for judging the poses"""
+    scene = bpy.context.scene
+    os.makedirs(out_dir, exist_ok=True)
+    arm = next((o for o in bpy.data.objects if o.type == "ARMATURE"), None)
+    acts = list(bpy.data.actions)
+    if arm is None or not acts or arm.animation_data is None:
+        raise RuntimeError("no clips to render: build without --no-clips")
+    w, h = TILE
+    centre, hgt, width = _bounds(objects)
+    cam = _setup(scene, w, h, False)
+    _tint_accent()
+    shots = []
+    for act in acts:
+        n = int(act.frame_end)
+        frames = (n // 3, (2 * n) // 3) if act.name == "idle" else (n // 2,)
+        for fr in frames:
+            shots.append((act, fr))
+    tiles, used = [], engine
+    ad = arm.animation_data
+    for i, (act, fr) in enumerate(shots):
+        for pb in arm.pose.bones:   # a bone the clip does not key keeps the last pose otherwise
+            pb.rotation_euler = (0.0, 0.0, 0.0)
+            pb.location = (0.0, 0.0, 0.0)
+            pb.scale = (1.0, 1.0, 1.0)
+        ad.action = act
+        if hasattr(act, "slots") and len(act.slots):
+            ad.action_slot = act.slots[0]
+        scene.frame_set(fr)
+        _aim(cam, centre, hgt * 1.15, width * 1.4, w, h, 30)
+        tile = os.path.join(out_dir, f"form-{stage}-{act.name}-{fr}.png")
+        used = _render_still(scene, tile, engine if engine != "auto" or i == 0 else used, cpu)
+        tiles.append(_pixels(tile, w, h))
+    ad.action = None
+    scene.frame_set(0)
+    while len(tiles) % 3:
+        tiles.append(np.zeros_like(tiles[0]))
+    rows = [np.concatenate(tiles[r:r + 3], axis=1) for r in range(0, len(tiles), 3)]
+    sheet = np.concatenate(rows, axis=0)
+    path = os.path.join(out_dir, f"form-{stage}-emotes.png")
+    img = bpy.data.images.new("emotes", sheet.shape[1], sheet.shape[0], alpha=True)
+    img.colorspace_settings.name = "Non-Color"
+    img.pixels.foreach_set(np.ascontiguousarray(sheet[::-1]).ravel())
+    img.filepath_raw = path
+    img.file_format = "PNG"
+    img.save()
+    return path, used
+
+
 def renders(kinds, objects, height, stage, raw_dir, engine="auto", cpu=False):
     for kind in kinds:
         if kind not in KINDS:
@@ -243,6 +293,6 @@ def renders(kinds, objects, height, stage, raw_dir, engine="auto", cpu=False):
         elif kind == "thumb":
             path, used = thumbnail(objects, height, os.path.join(raw_dir, f"form-{stage}.png"), engine, cpu)
         else:
-            print(f"render: {kind} is not made yet; skipped")
-            continue
+            out = os.path.join(os.path.dirname(os.path.abspath(raw_dir)), "turntable")
+            path, used = emotes_sheet(objects, height, out, stage, engine, cpu)
         print(f"render {kind}: {path} ({used}, {time.time() - t0:.1f} s, {os.path.getsize(path):,} bytes)")
