@@ -48,7 +48,10 @@ def proportions_for(stage):
     )
 
 
-def build_armature(props, name="form"):
+def build_armature(props, name="form", extras=()):
+    """The shared skeleton. `extras` adds a stage's optional bones, each
+    (name, parent, head, tail): "staff" under hand.R, "drone.1".."drone.3" and "halo"
+    under chest, "cape" under hips; the emotes test for them by name."""
     arm = bpy.data.armatures.new(name)
     obj = bpy.data.objects.new(name, arm)
     kit.new_collection("forms").objects.link(obj)
@@ -94,6 +97,8 @@ def build_armature(props, name="form"):
         bone(f"thigh.{side}", (hx, 0, hip_z), (hx, 0, knee_z), "hips")
         bone(f"shin.{side}", (hx, 0, knee_z), (hx, 0, ankle_z), f"thigh.{side}")
         bone(f"foot.{side}", (hx, 0, ankle_z), (hx, -p.foot, 0.0), f"shin.{side}")
+    for n, parent, head, tail in extras:
+        bone(n, head, tail, parent)
     bpy.ops.object.mode_set(mode="OBJECT")
     return obj
 
@@ -132,9 +137,37 @@ def reduced_armature(props, name="form"):
     return obj
 
 
+def drone_bones(props, count=3):
+    """the orbit drones' bones under chest, spaced around the figure at hip height"""
+    import math
+    h = props.height
+    out = []
+    for i in range(count):
+        a = math.radians(90 + 360 * i / count)
+        r = h * 0.3
+        at = (r * math.sin(a), -r * math.cos(a), h * 0.52)
+        out.append((f"drone.{i + 1}", "chest", at, (at[0], at[1], at[2] + h * 0.05)))
+    return out
+
+
+def halo_bone(props):
+    """the halo frame's bone, behind the shoulders"""
+    h = props.height
+    return ("halo", "chest", (0, h * 0.1, h * 0.78), (0, h * 0.1, h * 0.9))
+
+
+EXTRAS = {
+    4: lambda p: drone_bones(p),
+    5: lambda p: drone_bones(p, 3) + [halo_bone(p)],
+}
+
+
 def armature_for(stage, props, name="form"):
-    """the skeleton a stage is built on: the reduced one for stage 1, the shared one else"""
-    return reduced_armature(props, name) if stage == 1 else build_armature(props, name)
+    """the skeleton a stage is built on: the reduced one for stage 1, the shared one else,
+    with the stage's extra bones (EXTRAS)"""
+    if stage == 1:
+        return reduced_armature(props, name)
+    return build_armature(props, name, extras=EXTRAS.get(stage, lambda p: [])(props))
 
 
 def skin_rigid(obj, armature, bone):
@@ -144,6 +177,9 @@ def skin_rigid(obj, armature, bone):
     mod.object = armature
     obj.parent = armature
     return obj
+
+
+MANNEQUIN_BONES = ("hips", "spine", "chest", "neck", "head", "shoulder", "upper_arm", "forearm", "hand", "thigh", "shin", "foot")
 
 
 def _thickness(bone, p):
@@ -161,8 +197,8 @@ def mannequin(armature, props, materials):
     out = []
     mat_for = {"chest": "armor", "hips": "accent", "head": "trim"}
     for b in armature.data.bones:
-        if b.name == "root":
-            continue
+        if b.name.split(".")[0] not in MANNEQUIN_BONES:
+            continue   # root, and a stage's extra bones (drones, halo) have no box
         head, tail = Vector(b.head_local), Vector(b.tail_local)
         d = tail - head
         length = max(d.length, 0.02)

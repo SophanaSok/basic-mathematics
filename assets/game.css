@@ -1010,12 +1010,6 @@ html[data-motion="reduce"] *, html[data-motion="reduce"] *::before, html[data-mo
 .form-dialog h2 { margin: 0 0 .7rem; font-size: 1.25rem; }
 .form-dialog [data-form-close] { margin-top: 1rem; }
 
-/* the turnable stage over the canvas (src/ui/form-orbit.ts): a vertical swipe still scrolls
-   the page in the panel, and belongs to the form in the dialog */
-.form-stage { position: absolute; inset: 0; touch-action: pan-y; cursor: grab; user-select: none; outline: none; }
-.form-stage:focus-visible { box-shadow: inset 0 0 0 var(--focus-width) var(--focus); }
-.form-stage[data-drag] { cursor: grabbing; }
-.form-dialog-box .form-stage { touch-action: none; }
 /* The emote buttons under the form's view (src/ui/form-emotes.ts): a row of ghost buttons;
    the one whose clip is playing shows as pressed. No motion of their own. */
 .form-emotes { display: flex; flex-wrap: wrap; gap: .4rem; margin: .6rem 0 0; }
