@@ -60,6 +60,10 @@ export interface ViewInfo {
   model: string | undefined;
   stage: number | null;
   yaw: number;
+  pitch: number;
+  zoom: number;
+  /** true once dispose() has run */
+  disposed: boolean;
   frames: number;
   memory: { geometries: number; textures: number } | null;
   /** a model's clip weights now (empty for the drawn form) */
@@ -546,7 +550,7 @@ export function createFormView(box: HTMLElement, probe: Element, onState?: (s: "
     info() {
       const m = renderer ? renderer.info.memory : null;
       return {
-        state, model: box.dataset.model, stage: shown ? shown.stage : null, yaw: orbit.pose().yaw, frames,
+        state, model: box.dataset.model, stage: shown ? shown.stage : null, yaw: orbit.pose().yaw, pitch: orbit.pose().pitch, zoom: orbit.pose().zoom, disposed: dead, frames,
         memory: m ? { geometries: m.geometries, textures: m.textures } : null,
         clips: scene && scene.look && "weights" in scene.look ? scene.look.weights() : {}
       };

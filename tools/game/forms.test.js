@@ -65,13 +65,34 @@ async function open(path, seed, opts) {
     sessionStorage.setItem("__seeded", "1");
     Object.keys(s).forEach((k) => localStorage.setItem(k, s[k]));
   }, seed);
+  /* a case's own routes, added after the catch-all so they run first (route.fallback() passes on) */
+  if (opts.setup) await opts.setup(context);
   const page = await context.newPage();
-  page.on("pageerror", (e) => check(false, "page error: " + e.message));
+  page.on("pageerror", (e) => { if (opts.errors) opts.errors.push(e.message); else check(false, "page error: " + e.message); });
   await page.goto(server.url + path, { waitUntil: "load" });
   return { context, page, requests };
 }
 const store = (page, key) => page.evaluate((k) => JSON.parse(localStorage.getItem(k) || "null"), key);
 const seqAttr = (page) => page.evaluate(() => { const p = document.querySelector("#form"); return p ? p.getAttribute("data-form-seq") : null; });
+const SEED3 = { "bm.run.v1": JSON.stringify({ seen: { form: 3, evolved: 3 } }) };
+const GLB = "**/models/forms/form-*.glb";
+const PNG = "**/models/forms/form-*.png";
+const info = (page) => page.evaluate(() => window.BMForms.info());
+/* polls a condition in the page every 100 ms up to ms; true when it held */
+const until = (page, fn, arg, ms) => page.waitForFunction(fn, arg, { timeout: ms || 20000, polling: 100 }).then(() => true, () => false);
+const modelIn = (page) => until(page, () => window.BMForms.info() && window.BMForms.info().model === "model" && window.BMForms.info().state === "3d");
+/* true once the frame counter has not moved for `still` ms */
+async function frozen(page, still, ceiling) {
+  let f = -1, n = 0;
+  for (let t = 0; t < (ceiling || 5000) && n * 100 < still; t += 100) {
+    await wait(100);
+    const g = (await info(page)).frames;
+    n = g === f ? n + 1 : 0;
+    f = g;
+  }
+  return n * 100 >= still;
+}
+const SEED4 = { "bm.run.v1": JSON.stringify({ seen: { form: 4, evolved: 1 } }) };
 const PENDING = { "bm.run.v1": JSON.stringify({ seen: { form: 3, evolved: 1 } }) };
 
 async function main() {
@@ -323,6 +344,143 @@ async function main() {
       await wait(1200);
       const game = await store(page, "bm.game.v1");
       check(game === null || !game.form, "11: a first visit records no form", game && game.form);
+    }
+    /* 12: Spin plays and returns */
+    {
+      const { page } = await open("progress.html", seeds(300, SEED3));
+      check(await modelIn(page), "12: the model arrives");
+      await frozen(page, 1000, 8000);
+      await page.evaluate(() => document.querySelector('[data-emote="spin"]').click());
+      check(await until(page, () => !!document.querySelector('[data-emote="spin"][data-playing]'), null, 3000), "12: Spin is marked playing");
+      const said = await page.evaluate(() => (document.querySelector(".form-emotes [aria-live]") || {}).textContent);
+      check(said === "Playing: Spin", "12: the live region names it", said);
+      check(await until(page, () => !document.querySelector("[data-emote][data-playing]"), null, 3000 + 1000), "12: data-playing clears within 3 s");
+      const left = await page.evaluate(() => (document.querySelector(".form-emotes [aria-live]") || {}).textContent);
+      check(left === "", "12: the live region is empty again", left);
+      check(await frozen(page, 500, 5000), "12: frames stop after the emote");
+    }
+    /* 13: an emote under reduced motion */
+    {
+      const { page } = await open("progress.html", seeds(300, Object.assign({ "bm.prefs.v1": JSON.stringify({ motion: "reduce" }) }, SEED3)), { reduced: true });
+      check(await modelIn(page), "13: the model arrives");
+      check(await frozen(page, 1500, 8000), "13: no frames with no input");
+      const f0 = (await info(page)).frames;
+      await page.evaluate(() => document.querySelector('[data-emote="wave"]').click());
+      check(await until(page, () => !!document.querySelector('[data-emote="wave"][data-playing]'), null, 3000), "13: Wave is marked playing");
+      check(await until(page, (n) => window.BMForms.info().frames > n, f0, 3000), "13: frames rise while it plays");
+      check(await until(page, () => !document.querySelector("[data-emote][data-playing]"), null, 5000), "13: the emote ends");
+      check(await frozen(page, 1000, 6000), "13: frames stop again");
+    }
+    /* 14: the GLB is missing: the drawn form stays */
+    {
+      const errors = [];
+      const { page } = await open("progress.html", seeds(300, SEED3), { errors, setup: (c) => c.route(GLB, (r) => r.abort()) });
+      check(await until(page, () => document.querySelector("[data-form-view]").getAttribute("data-model") === "fallback"), "14: data-model is fallback");
+      const st = await page.evaluate(() => ({
+        state: document.querySelector("[data-form-view]").getAttribute("data-state"),
+        row: !!document.querySelector(".form-emotes") && document.querySelector(".form-emotes").hidden
+      }));
+      check(st.state === "3d", "14: the toon figure stays in the 3d box", st);
+      check(st.row === true, "14: the emote row is hidden", st);
+      check(errors.length === 0, "14: no uncaught page error", errors);
+    }
+    /* 15: a slow GLB: the drawn form first, the model swaps in later */
+    {
+      const fs = require("fs"), path = require("path");
+      const t0 = Date.now();
+      const { page } = await open("progress.html", seeds(300, SEED3), {
+        setup: (c) => c.route(GLB, async (r) => {
+          const file = path.join(site.ROOT, "dist", "models", "forms", path.basename(new URL(r.request().url()).pathname));
+          await wait(11000);
+          await r.fulfill({ status: 200, contentType: "model/gltf-binary", body: fs.readFileSync(file) }).catch(() => {});
+        })
+      });
+      const fb = await until(page, () => document.querySelector("[data-form-view]").getAttribute("data-model") === "fallback", null, 14000);
+      const tFb = Date.now() - t0;
+      check(fb, "15: the view shows the drawn form after the timeout", tFb);
+      const mid = await page.evaluate(() => ({ st: document.querySelector("[data-form-view]").getAttribute("data-state"), row: document.querySelector(".form-emotes").hidden }));
+      check(mid.st === "3d" && mid.row === true, "15: the toon figure shows and the row is hidden", mid);
+      check(await modelIn(page), "15: the model swaps in later");
+      const row = await page.evaluate(() => ({ hidden: document.querySelector(".form-emotes").hidden, dis: [...document.querySelectorAll("[data-emote]")].map((b) => b.getAttribute("aria-disabled")) }));
+      check(row.hidden === false && row.dis.every((d) => d === "false"), "15: the row is back and the buttons enabled", row);
+    }
+    /* 16: a lost WebGL context leaves the box flat */
+    {
+      const { page } = await open("progress.html", seeds(300, SEED3));
+      check(await modelIn(page), "16: the model arrives");
+      await page.evaluate(() => { document.querySelector("canvas.form-canvas").getContext("webgl2").getExtension("WEBGL_lose_context").loseContext(); });
+      check(await until(page, () => document.querySelector("[data-form-view]").getAttribute("data-state") === "flat", null, 10000), "16: the box goes flat");
+      const st = await page.evaluate(() => ({ canvas: !!document.querySelector("canvas.form-canvas"), row: document.querySelector(".form-emotes").hidden }));
+      check(!st.canvas && st.row === true, "16: the canvas is gone and the row hidden", st);
+    }
+    /* 17: the dialog takes the canvas and the row, and gives them back */
+    {
+      const { page } = await open("progress.html", seeds(300, SEED3));
+      check(await modelIn(page), "17: the model arrives");
+      await page.click("[data-form-large]");
+      check(await until(page, () => { const d = document.querySelector("dialog.form-dialog"); return !!d && d.open && !!d.querySelector("canvas.form-canvas") && !!d.querySelector(".form-emotes"); }, null, 5000), "17: the dialog holds the canvas and the row");
+      check((await page.evaluate(() => document.querySelectorAll(".form-emotes").length)) === 1, "17: one row in the document");
+      const y0 = (await info(page)).yaw;
+      await page.focus("dialog .form-stage");
+      await page.keyboard.press("ArrowRight");
+      check(await until(page, (y) => window.BMForms.info().yaw !== y, y0, 3000), "17: ArrowRight turns the form", y0);
+      const bb = await page.locator("dialog .form-stage").boundingBox();
+      await page.mouse.move(bb.x + bb.width / 2, bb.y + bb.height / 2);
+      await page.mouse.wheel(0, -300);
+      check(await until(page, () => window.BMForms.info().zoom !== 1, null, 3000), "17: the wheel zooms", (await info(page)).zoom);
+      await page.keyboard.press("Escape");
+      check(await until(page, () => !document.querySelector("dialog.form-dialog").open, null, 3000), "17: Escape closes the dialog");
+      /* the close event runs after the dialog's open flag clears: wait for the canvas to be home */
+      await until(page, () => !!document.querySelector("#form .form-view canvas.form-canvas"), null, 3000);
+      const back = await page.evaluate(() => ({
+        focus: document.activeElement && document.activeElement.hasAttribute("data-form-large"),
+        canvas: !!document.querySelector("#form .form-view canvas.form-canvas"),
+        row: !!document.querySelector("#form [data-form-emotes] .form-emotes"),
+        rows: document.querySelectorAll(".form-emotes").length,
+        zoom: window.BMForms.info().zoom
+      }));
+      check(back.focus, "17: focus returns to View larger", back);
+      check(back.canvas && back.row && back.rows === 1, "17: the canvas and the row are home", back);
+      check(back.zoom === 1, "17: zoom is 1 again", back);
+    }
+    /* 18: one thumbnail is missing */
+    {
+      const { page } = await open("progress.html", seeds(300, SEED3), { setup: (c) => c.route(/form-2\.png/, (r) => r.abort()) });
+      check(await until(page, () => { const t = document.querySelector('.form-tile[data-stage="2"]'); return !!t && t.querySelector("img").hidden && !t.querySelector(".form-pip").hidden; }), "18: the tile shows its pip and hides the picture");
+      check(await until(page, () => [1, 3, 4, 5].every((n) => { const i = document.querySelector('.form-tile[data-stage="' + n + '"] img'); return !i.hidden && i.complete && i.naturalWidth > 0; })), "18: the other four load");
+    }
+    /* 19: pagehide frees the view */
+    {
+      const { page } = await open("progress.html", seeds(300, SEED3));
+      check(await modelIn(page), "19: the model arrives");
+      const before = await info(page);
+      check(before.memory && before.memory.geometries > 0 && before.disposed === false, "19: memory is held while shown", before);
+      await page.evaluate(() => window.dispatchEvent(new PageTransitionEvent("pagehide", { persisted: false })));
+      const gone = await until(page, () => window.BMForms.info().disposed === true, null, 3000);
+      const after = await info(page);
+      check(gone && after.memory === null && !(await page.evaluate(() => !!document.querySelector("canvas.form-canvas"))), "19: disposed, no renderer, no canvas", after);
+    }
+    /* 20: the progress page fetches the model chunks and one Three.js */
+    {
+      const { page, requests } = await open("progress.html", seeds(300, SEED3));
+      check(await modelIn(page), "20: the model arrives");
+      const n = (re) => requests.filter((u) => re.test(u)).length;
+      check(n(/\/bundle\/form-model\.js/) === 1 && n(/\/bundle\/three-model\.js/) === 1 && n(THREE) === 1, "20: form-model, three-model and exactly one three.js", requests);
+    }
+    /* 21: several stages at once end on the highest, and eviction keeps memory down */
+    {
+      const { page } = await open("progress.html", seeds(700, SEED4));
+      check(await until(page, () => document.querySelector("#form").getAttribute("data-form-seq") === "done" || !!document.querySelector("#form .form-caption"), null, 10000), "21: the sequence finishes");
+      check(await modelIn(page), "21: the model arrives");
+      check(await until(page, () => window.BMForms.info().stage === 4), "21: the model is stage 4", (await info(page)).stage);
+      await frozen(page, 500, 8000);
+      const multi = (await info(page)).memory;
+      const { page: p2 } = await open("progress.html", seeds(700, { "bm.run.v1": JSON.stringify({ seen: { form: 4, evolved: 4 } }) }));
+      check(await modelIn(p2), "21: the single-stage page's model arrives");
+      check(await until(p2, () => window.BMForms.info().stage === 4), "21: it shows stage 4");
+      await frozen(p2, 500, 8000);
+      const single = (await info(p2)).memory;
+      check(multi && single && multi.geometries <= single.geometries && multi.textures <= single.textures, "21: memory is no higher than after one stage", [multi, single]);
     }
   } finally {
     for (const c of contexts) { try { await c.close(); } catch (e) { /* closed already */ } }
