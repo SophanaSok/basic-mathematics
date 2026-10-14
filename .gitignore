@@ -25,3 +25,6 @@ dist-redirects/
 !.env.example
 supabase/.temp/
 supabase/functions/.env
+
+# Python bytecode from the Blender art pipeline (tools/art/)
+__pycache__/
