@@ -16,6 +16,7 @@ import { formMessage, lowestMessage, readMessage, unreadMessage } from "../core/
 import { CLUE_FREE, FADED_RUNG, Road, STRONG, WEAK, XP, fadedOf, isMiss, medalMark, paysFirst, setStats, struggle, xpFor } from "../core/rules.ts";
 import { chapterById, exerciseRef, generatorRef, sectionRef } from "../core/curriculum.ts";
 import { readConfig } from "../core/config.ts";
+import { mergeEvents } from "../sync/events.ts";
 import { SCHEMA, canon, merge as mergeStates, mergeGame, obj, str, versionOf } from "../sync/merge.ts";
 
 /* grade() is true exactly where judge() says right (src/core/grade.test.ts holds them
@@ -32,10 +33,10 @@ export const core = {
 };
 
 /* what assets/account.js takes from the merge: the merge and the game record's own (also
-   BMAccount.merge and .mergeGame), the newest shape of the data this version may write
-   and how to read a state's, the canonical JSON it compares a saved row by, and the two
-   readers it shares with the merge */
-export const merge = { merge: mergeStates, mergeGame, SCHEMA, versionOf, canon, obj, str };
+   BMAccount.merge and .mergeGame), the event log's merge (mergeEvents), the newest shape
+   of the data this version may write and how to read a state's, the canonical JSON it
+   compares a saved row by, and the two readers it shares with the merge */
+export const merge = { merge: mergeStates, mergeGame, mergeEvents, SCHEMA, versionOf, canon, obj, str };
 
 if (typeof window !== "undefined") {
   window.BMCore = core;

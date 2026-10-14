@@ -11,52 +11,12 @@
    tools/game/merge.test.js and src/sync/merge.test.ts hold it to the laws. Pure: no
    `window`, no DOM, no storage. */
 
-export function obj(x: any): any { return x && typeof x === "object" && !Array.isArray(x) ? x : {}; }
-/* The keys of both, each once. A key is data, whatever it is called: one named like
-   something every object inherits ("constructor", "toString") is listed like any other,
-   and at() reads only what the object itself holds, so the inherited thing is never
-   mistaken for a value. The one exception is "__proto__", which cannot be written back
-   as an ordinary field and is left out of every record built here. */
-export function keysOf(a: any, b: any) {
-  var seen = Object.create(null), out: string[] = [];
-  Object.keys(obj(a)).concat(Object.keys(obj(b))).forEach(function (k) {
-    if (k !== "__proto__" && !seen[k]) { seen[k] = true; out.push(k); }
-  });
-  return out.sort();
-}
-export function at(o: any, k: any) { return Object.prototype.hasOwnProperty.call(o, k) ? o[k] : undefined; }
-export function plain(x: any) { return !!x && typeof x === "object" && !Array.isArray(x); }
-
-/* JSON with object keys sorted at every level: jsonb hands keys back in its own order */
-export function canon(x: any): string {
-  if (Array.isArray(x)) return "[" + x.map(canon).join(",") + "]";
-  if (x && typeof x === "object") {
-    return "{" + Object.keys(x).sort().filter(function (k) { return x[k] !== undefined; })
-      .map(function (k) { return JSON.stringify(k) + ":" + canon(x[k]); }).join(",") + "}";
-  }
-  return JSON.stringify(x === undefined ? null : x);
-}
+import { at, canon, carryOver, keysOf, later, num, obj, plain, str } from "./json.ts";
+import { mergeEvents } from "./events.ts";
+export { obj, keysOf, at, plain, canon, later, carryOver, num, str } from "./json.ts";
 
 /* ------------------------------------------------------------- merging -- */
 
-/* What this version has no rule for is not its to drop: a later version of the site may
-   have put it there. One rule covers every such value. Held by one side only, it is
-   kept; held by both, the one whose canonical JSON (canon) is the later string is kept.
-   That is a maximum, so order, grouping and repetition matter no more than they do for
-   the fields with rules of their own. Each such field is merged by itself, not along
-   with whichever record wins on the known fields. */
-export function later(p: any, q: any) {
-  if (p === undefined) return q;
-  if (q === undefined) return p;
-  return canon(p) >= canon(q) ? p : q;
-}
-/* adds to a freshly built record every field of x and y that is not in `known` */
-export function carryOver(out: any, x: any, y: any, known: any) {
-  keysOf(x, y).forEach(function (k) {
-    if (known.indexOf(k) < 0) out[k] = later(at(x, k), at(y, k));
-  });
-  return out;
-}
 /* Where a store is keyed by chapter, exercise, section or the like, every key is merged
    as a record of that kind, whether this version knows the key or not: a chapter added
    next year must still merge as a chapter. So an object under a key this version does
@@ -213,8 +173,6 @@ export function mergeLesson(a: any, b: any) {
             version of the site sets it
    Anything else in the record, or in one of its sec, best or enc entries, is carried
    (later). */
-export function num(x: any) { x = Number(x); return isFinite(x) ? x : 0; }
-export function str(x: any) { return typeof x === "string" ? x : ""; }
 export const GAME = ["ach", "cmp", "sec", "best", "enc", "daily", "maxed", "form", "v"];
 /* A best entry's fastest clean run, { ms, day }: of the two that are records whose ms is a
    number above 0 (a string, 0, an array or null is no clean run and is ignored),
@@ -348,7 +306,7 @@ export function mergeDiag(a: any, b: any) {
    the place to continue from), this device keeps its own */
 export function merge(local: any, remote: any) {
   local = obj(local); remote = obj(remote);
-  return {
+  var out: any = {
     progress: mergeProgress(local.progress, remote.progress),
     play: mergePlay(local.play, remote.play),
     attempts: mergeAttempts(local.attempts, remote.attempts),
@@ -358,6 +316,9 @@ export function merge(local: any, remote: any) {
     game: mergeGame(local.game, remote.game),
     diag: mergeDiag(local.diag, remote.diag)
   };
+  /* the event log (bm.events.v1), only when a side has one: the merge never invents it */
+  if (at(local, "events") !== undefined || at(remote, "events") !== undefined) out.events = mergeEvents(local.events, remote.events);
+  return out;
 }
 
 /* The newest shape of the synced data this version understands. A later version of the

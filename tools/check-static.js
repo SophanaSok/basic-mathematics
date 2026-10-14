@@ -803,12 +803,14 @@ function loadMerge() {
    is not looked into. A placement-check take (diag.takes.<id>) is opaque: it is written
    once and merged whole (mergeDiag), so an unknown field inside one travels with whichever
    copy wins instead of being merged on its own, and the walk stops at the take. A take id
-   that is one of UNKNOWN_KEYS is still listed, as the take itself. */
+   that is one of UNKNOWN_KEYS is still listed, as the take itself. The event log's entries
+   (events.ev.<id>) are pruned, not merged field by field, so the walk does not go in. */
 function unknownPaths(x, at, out) {
   if (!x || typeof x !== "object" || Array.isArray(x)) return out;
   Object.keys(x).forEach(k => {
     if (UNKNOWN_KEYS.indexOf(k) > -1) out.push(at.concat(k));
     else if (at.length === 2 && at[0] === "diag" && at[1] === "takes") return;
+    else if (at.length === 1 && at[0] === "events" && k === "ev") return;
     else unknownPaths(x[k], at.concat(k), out);
   });
   return out;
@@ -832,6 +834,9 @@ function canon(x) {
   if (Array.isArray(x)) return "[" + x.map(canon).join(",") + "]";
   return "{" + Object.keys(x).sort().filter(k => x[k] !== undefined).map(k => JSON.stringify(k) + ":" + canon(x[k])).join(",") + "}";
 }
+
+const EVENTS = require(path.join(ROOT, "src/sync/events.ts"));
+const { EVENT_COLLISION } = require(path.join(ROOT, "tools/lib/random-state.js"));
 
 /* the bound on a wear's `at`, read off src/sync/merge.ts so this check and the merge agree */
 const WEAR_AT_MAX = Number((/export const WEAR_AT_MAX = (\d+);/.exec(read("src/sync/merge.ts")) || [])[1]);
@@ -865,6 +870,7 @@ function checkMerge(ctx, r) {
   const R = rng(20261004);
   let gameSeen = false, gameChecked = false;
   const seen = {};
+  let collided = 0;
   for (let i = 0; i < N; i++) {
     const seed = R.int(2 ** 31);
     const S = rng(seed);
@@ -906,6 +912,30 @@ function checkMerge(ctx, r) {
         }
       });
       Object.keys(got).forEach(id => { if (ids.indexOf(id) < 0 && !seen.diagExtra) { r.fail("seed " + seed + ": diag.takes." + id + " was made up"); seen.diagExtra = 1; } });
+    }
+    /* the event log (bm.events.v1): present exactly when a side has one; every entry in it
+       valid and held by a side; v the larger number, at least 1; an id both sides hold with
+       two payloads has the greater canonical one; the log is pruned, so an entry a side held
+       may be missing, but never one neither held */
+    if ((ab.events !== undefined) !== (a.events !== undefined || b.events !== undefined) && !seen.evPresent) { r.fail("seed " + seed + ": events should be present exactly when a side has it"); seen.evPresent = 1; }
+    if (ab.events !== undefined) {
+      const isObj = o => !!o && typeof o === "object" && !Array.isArray(o);
+      const own = (o, k) => isObj(o) && Object.prototype.hasOwnProperty.call(o, k) ? o[k] : undefined;
+      const ea = own(a.events, "ev"), eb = own(b.events, "ev"), got = isObj(ab.events.ev) ? ab.events.ev : {};
+      Object.keys(got).forEach(id => {
+        if (!EVENTS.isValid(id, got[id]) && !seen.evInvalid) { r.fail("seed " + seed + ": events.ev." + id + " is not a valid entry"); seen.evInvalid = 1; }
+        const mine = [own(ea, id), own(eb, id)].filter(v => v !== undefined).map(canon);
+        if (mine.indexOf(canon(got[id])) < 0 && !seen.evInvented) { r.fail("seed " + seed + ": events.ev." + id + " was made up: neither side held " + canon(got[id])); seen.evInvented = 1; }
+      });
+      const counted = (x) => (Number.isInteger(x) && x >= 1 && x <= EVENTS.V_MAX ? x : 1);   /* junk never counts as a version */
+      const vWant = Math.max(1, counted(own(a.events, "v")), counted(own(b.events, "v")));
+      if (ab.events.v !== vWant && !seen.evV) { r.fail("seed " + seed + ": events.v should be " + vWant + ", got " + canon(ab.events.v)); seen.evV = 1; }
+      const ca = own(ea, EVENT_COLLISION.id), cb = own(eb, EVENT_COLLISION.id);
+      if (ca !== undefined && cb !== undefined && canon(ca) !== canon(cb)) {
+        collided++;
+        const want = canon(ca) >= canon(cb) ? canon(ca) : canon(cb);
+        if (EVENT_COLLISION.id in got && canon(got[EVENT_COLLISION.id]) !== want && !seen.evCollision) { r.fail("seed " + seed + ": an id both sides hold with two payloads should have the greater, " + want + ", got " + canon(got[EVENT_COLLISION.id])); seen.evCollision = 1; }
+      }
     }
     if (ab.game !== undefined) {
       gameSeen = true;
@@ -964,6 +994,7 @@ function checkMerge(ctx, r) {
     });
   }
   Object.keys(seen).forEach(k => { if (seen[k] > 1) r.fail("  … " + k + " failed in " + seen[k] + " of " + N + " cases"); });
+  if (collided < 20) r.fail("the event-log collision rule was exercised in only " + collided + " of " + N + " cases (the states should hold one id with two payloads in at least 20)");
   if (!gameSeen) r.warn("merged output has no `game` key yet — the game-store assertions were skipped (they switch on when mergeGame lands)");
   /* and the laws must be observable at all: a hand case */
   const x = merge({ progress: { ch01: { solved: { e1: true }, total: 3 } } }, { progress: { ch01: { solved: { e2: true } } } });
@@ -984,6 +1015,19 @@ function checkMerge(ctx, r) {
   const z = merge({ attempts: { ch01: { e1: { tries: 1, rung: 10 } } } }, { attempts: { ch01: { e1: { rung: 9 } } } });
   const z2 = merge({ attempts: { ch01: { e1: { rung: "x" } } } }, { attempts: { ch01: { e1: { rung: 2 } } } });
   if (z.attempts.ch01.e1.rung !== 10 || z2.attempts.ch01.e1.rung !== 2) r.fail("hand case: attempt rung is not the larger number: " + JSON.stringify([z.attempts, z2.attempts]));
+  /* and the event log: kept from one side, none made up, an invalid entry left out, a
+     valid one from each side both kept */
+  const evOk = (id, P) => EVENTS.isValid(id, P);
+  const e1 = [29873695, 20745, "ex", "", "ch09/coll", "c", 0, 2, 1, 2], e2 = [29907208, 20768, "ex", "ch05#angles", "ch05/k1", "c", 0, 2, 0, 2];
+  const e1id = EVENTS.eventId("devaaaaa", e1, "aaaaaaaa"), e2id = EVENTS.eventId("devbbbbb", e2, "bbbbbbbb");
+  if (!evOk(e1id, e1) || !evOk(e2id, e2)) r.fail("hand case: the two event entries are not valid");
+  if (canon(merge({ events: { v: 1, ev: {} } }, {}).events) !== canon({ v: 1, ev: {} })) r.fail("hand case: an empty event log held by one side was not kept");
+  if (Object.prototype.hasOwnProperty.call(merge({}, {}), "events")) r.fail("hand case: merge made up an event log when neither side had one");
+  const em = merge({ events: { v: 1, ev: { [e1id]: e1 } } }, { events: { v: 1, ev: { [e2id]: e2 } } });
+  if (canon(em.events.ev) !== canon({ [e1id]: e1, [e2id]: e2 })) r.fail("hand case: the event logs were not a union: " + JSON.stringify(em.events));
+  const bad = e1id.slice(0, -7) + EVENTS.hashOf(e2);
+  const eb = merge({ events: { v: 1, ev: { [bad]: e1 } } }, { events: { v: 1, ev: { [e2id]: e2 } } });
+  if (canon(eb.events.ev) !== canon({ [e2id]: e2 })) r.fail("hand case: an event with a wrong hash got through: " + JSON.stringify(eb.events));
 }
 /* the rule assets/account.js keeps for an attempt's `rung`, written out again to hold it to */
 function rungMax(p, q) {
@@ -1743,7 +1787,7 @@ const CHECKS = [
   { name: "placeholders", run: checkPlaceholders, what: "no answer box shows an example its own key judges right or form" },
   { name: "answer-spec", run: checkAnswerSpec, what: "data-tol finite, >= 0, never on exact or expr keys; every alternative of a key judged right against it; no barred expr key splits a |e|; site.js judge() grades through BMCore.judge" },
   { name: "pure-core", run: checkPureCore, what: "no module under src/core/, src/sync/, src/learn/, src/data/ names window, document, localStorage or sessionStorage (comments aside)" },
-  { name: "merge", run: checkMerge, what: "BMAccount.merge (src/sync/merge.ts, through BMMerge) is commutative, associative, idempotent (2000 seeded cases); account.js has no mergeGame of its own" },
+  { name: "merge", run: checkMerge, what: "BMAccount.merge (src/sync/merge.ts, through BMMerge) is commutative, associative, idempotent (2000 seeded cases); the merged event log holds only valid entries either side held, the larger v and the greater payload for a colliding id; account.js has no mergeGame of its own" },
   { name: "animations", run: checkAnimations, what: "no CSS animation loops forever, repeats more than 3 times, or more than 3 times a second" },
   { name: "colours", run: checkColours, what: "colour literals only in src/styles/tokens.css; answer marks carry their tokens; WebGL tokens plain hex" },
   { name: "reading-column", run: checkReadingColumn, what: "no animation, moving transition or decoration in the reading column but tools/reading-column-allow.json's" },
