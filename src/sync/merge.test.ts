@@ -5,11 +5,12 @@ import path from "node:path";
 import vm from "node:vm";
 import { describe, expect, it } from "vitest";
 import { merge as installed } from "../ui/core.ts";
+import { isValid, mergeEvents, prune } from "./events.ts";
 import { maxSection, merge, mergeAttempt, mergeDiag, mergeGame, WEAR_AT_MAX } from "./merge.ts";
 
 const ROOT = path.resolve(import.meta.dirname, "../..");
 /* the random states of tools/check-static.js's `merge` check, shared with it */
-const { rng, randomState } = createRequire(import.meta.url)("../../tools/lib/random-state.js");
+const { rng, randomState, EVENT_COLLISION } = createRequire(import.meta.url)("../../tools/lib/random-state.js");
 
 /* The commit the merge was moved from: assets/account.js as it was there is the merge as
    it was before it moved. Pinned, so the comparison below keeps holding the moved merge
@@ -124,7 +125,7 @@ describe("the merge moved from assets/account.js", () => {
       const seed = R.int(2 ** 31), S = rng(seed);
       /* the states the old merge's laws were held to: two devices never disagree about a
          section, which the old merge took from either side */
-      const [a, b, c] = [0, 1, 2].map(() => randomState(S, { sectionConflicts: false, diag: false }));
+      const [a, b, c] = [0, 1, 2].map(() => randomState(S, { sectionConflicts: false, diag: false, events: false }));
       const pairs: [string, (m: any) => unknown][] = [
         ["merge(a, b)", (m) => m.merge(a, b)],
         ["merge(b, a)", (m) => m.merge(b, a)],
@@ -185,6 +186,78 @@ describe("the merge laws", () => {
     expect(disagree).toBeGreaterThan(200);
     expect(damaged).toBeGreaterThan(100);
   }, LONG);
+});
+
+describe("the event log in merge", () => {
+  const own = (o: any, k: string) => (o && typeof o === "object" && !Array.isArray(o) && Object.hasOwn(o, k) ? o[k] : undefined);
+  const num = (x: unknown) => { const n = Number(x); return Number.isFinite(n) ? n : 0; };
+  const UNKNOWN = ["zz", "~later", "faded", "constructor"];
+
+  it("holds, over 2,000 seeded triples: only valid entries either side held, the larger v, the later unknown keys, the greater payload for a colliding id", () => {
+    const R = rng(20261015);
+    let collided = 0, collidedKept = 0, unknownKeys = 0, bothHeld = 0, invalidSeen = 0;
+    for (let i = 0; i < 2000; i++) {
+      const seed = R.int(2 ** 31), S = rng(seed);
+      const [a, b] = [0, 1].map(() => randomState(S));
+      const ab = merge(a, b), why = (s: string) => "seed " + seed + ": " + s;
+      expect(ab.events !== undefined, why("events present when a side has it")).toBe(a.events !== undefined || b.events !== undefined);
+      if (ab.events === undefined) continue;
+      const ea = own(a.events, "ev"), eb = own(b.events, "ev");
+      const held = (e: any, id: string) => (e && typeof e === "object" && !Array.isArray(e) ? own(e, id) : undefined);
+      const got = ab.events.ev;
+      for (const id of Object.keys(got)) {
+        expect(isValid(id, got[id]), why("valid " + id)).toBe(true);
+        const mine = [held(ea, id), held(eb, id)].filter((v) => v !== undefined).map(canon);
+        if (!mine.includes(canon(got[id]))) expect(canon(got[id]), why("invented " + id)).toBe(mine.join(" or "));
+      }
+      /* the entries both sides hold alike and the prune of the union keeps are present */
+      const union: Record<string, any> = {};
+      for (const e of [ea, eb]) if (e && typeof e === "object" && !Array.isArray(e)) for (const id of Object.keys(e)) {
+        if (isValid(id, e[id])) union[id] = e[id]; else invalidSeen++;
+      }
+      const kept = prune(union);
+      for (const id of Object.keys(kept)) {
+        const x = held(ea, id), y = held(eb, id);
+        if (x !== undefined && y !== undefined && canon(x) === canon(y)) {
+          bothHeld++;
+          if (!(id in got)) expect(id, why("kept entry both sides hold is missing")).toBe(undefined);
+        }
+      }
+      const v = Math.max(1, num(own(a.events, "v")), num(own(b.events, "v")));
+      if (ab.events.v !== v) expect(ab.events.v, why("v")).toBe(v);
+      for (const k of UNKNOWN) {
+        const vals = [own(a.events, k), own(b.events, k)].filter((x) => x !== undefined).map(canon).sort();
+        if (!vals.length) { expect(Object.hasOwn(ab.events, k), why("invented " + k)).toBe(false); continue; }
+        unknownKeys++;
+        if (canon(ab.events[k]) !== vals[vals.length - 1]) expect(canon(ab.events[k]), why("events." + k)).toBe(vals[vals.length - 1]);
+      }
+      const ca = held(ea, EVENT_COLLISION.id), cb = held(eb, EVENT_COLLISION.id);
+      if (ca !== undefined && cb !== undefined && canon(ca) !== canon(cb)) {
+        collided++;
+        if (EVENT_COLLISION.id in got) {
+          collidedKept++;
+          const want = canon(ca) >= canon(cb) ? canon(ca) : canon(cb);
+          if (canon(got[EVENT_COLLISION.id]) !== want) expect(canon(got[EVENT_COLLISION.id]), why("collision")).toBe(want);
+        }
+      }
+    }
+    expect(collided).toBeGreaterThanOrEqual(50);
+    expect(collidedKept).toBeGreaterThan(0);
+    expect(unknownKeys).toBeGreaterThan(300);
+    expect(bothHeld).toBeGreaterThan(1000);
+    expect(invalidSeen).toBeGreaterThan(1000);
+  }, LONG);
+
+  it("is absent when neither side has a log, and is mergeEvents(side, undefined) when one has", () => {
+    const R = rng(20261016);
+    for (let i = 0; i < 300; i++) {
+      const S = rng(R.int(2 ** 31));
+      const x = randomState(S), y = randomState(S, { events: false }), z = randomState(S, { events: false });
+      expect(Object.hasOwn(merge(y, z), "events")).toBe(false);
+      expect(canon(merge(x, y).events)).toBe(canon(mergeEvents(x.events, undefined)));
+      expect(canon(merge(y, x).events)).toBe(canon(mergeEvents(x.events, undefined)));
+    }
+  });
 });
 
 describe("the placement check's record (diag)", () => {
