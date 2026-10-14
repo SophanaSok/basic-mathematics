@@ -10,7 +10,7 @@
    extras), which needs only KHR_mesh_quantization and so no decoder and no change to the
    page's CSP. --meshopt adds -cc (EXT_meshopt_compression) for a stage that cannot meet
    its size otherwise; the manifest's `compression` says which. gltfpack 1.3.0 has every
-   flag used here. The thumbnail form-<n>.png, once a later card makes it, is copied
+   flag used here. The thumbnail form-<n>.png (Blender's --renders thumb, skipped by --no-thumbs) is copied
    beside the model. Files in public/models/forms/ the manifest does not name are deleted.
 
    src/data/form-models.ts is then written from what the packed files hold (read with
@@ -23,7 +23,7 @@
    A --stage run keeps the manifest's generator hash as it was, so after an edit to the
    scripts --check stays red until every stage is rebuilt.
 
-   Usage: node tools/gen-forms.js [--stage N] [--cpu] [--meshopt] [--no-meshopt]
+   Usage: node tools/gen-forms.js [--stage N] [--cpu] [--no-thumbs] [--meshopt] [--no-meshopt]
           node tools/gen-forms.js --check    no Blender, no gltfpack: hold the manifest
                                              to the files; exit 1 on any difference
    BM_BLENDER names the Blender binary (default ~/.local/bin/blender). When llama-server,
@@ -159,6 +159,7 @@ async function main() {
   if (!fs.existsSync(blender)) fail("Blender is not at " + blender + " (set BM_BLENDER)");
   if (!fs.existsSync(abs(BUILD))) fail(BUILD + " is missing");
 
+  const noThumbs = argv.includes("--no-thumbs");
   let cpu = argv.includes("--cpu");
   const sw = cp.spawnSync("llm-switch", ["status"], { encoding: "utf8" });
   if (!sw.error && /(llama-server|ollama|comfyui)[^\n]*\bup\b/i.test(sw.stdout || "")) cpu = true;
@@ -177,7 +178,7 @@ async function main() {
     const log = abs(".cache/forms/form-" + n + ".log");
     for (const ext of [".glb", ".json", ".png"]) fs.rmSync(abs(RAW + "/form-" + n + ext), { force: true });   /* never pack a stale raw file */
     const fd = fs.openSync(log, "w");
-    const args = ["-b", "--factory-startup", "--python", BUILD, "--", "--stage", String(n), "--out", RAW].concat(cpu ? ["--cpu"] : []);
+    const args = ["-b", "--factory-startup", "--python", BUILD, "--", "--stage", String(n), "--out", RAW].concat(noThumbs ? [] : ["--renders", "thumb"]).concat(cpu ? ["--cpu"] : []);
     const r = cp.spawnSync(blender, args, { cwd: ROOT, stdio: ["ignore", fd, fd] });
     fs.closeSync(fd);
     const text = fs.readFileSync(log, "utf8");
