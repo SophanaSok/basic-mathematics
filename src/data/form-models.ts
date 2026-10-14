@@ -27,7 +27,7 @@ export const FORM_MODELS: readonly FormModel[] = [
   { n: 5, file: "models/forms/form-5.glb", thumb: "models/forms/form-5.png", bytes: 64596, triangles: 2604, height: 1.75, clips: [], slots: ["armor", "glow", "metal", "trim", "accent"], compression: "none" }
 ];
 
-export const FORM_MODEL_GENERATOR = "d4547f09a0ca3786cf493fb5a75137632c2c09d35aaf4b502a72a77a9bb14cd3";
+export const FORM_MODEL_GENERATOR = "9eda5a1fee9a8ec4163193f29db010d17f8a8d24b15a535be18307622451de14";
 
 export function modelFor(stage: number): FormModel | null {
   return FORM_MODELS.find(m => m.n === stage) || null;
