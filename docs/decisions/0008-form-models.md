@@ -15,7 +15,8 @@ Decided by the owner on 2026-10-14. It supersedes in part 0007, which said "Proc
 - Five material slots, by name: `armor`, `accent`, `trim`, `metal`, `glow`. The site tints `accent` to the learner's Part hue.
 - Five clips: `idle`, `wave`, `bow`, `flex`, `spin`. The idle is 3.0 s and its frame 0 is the rest pose (the viewer shows it under reduced motion).
 - Feet at y = 0, facing +z, in meters, Y up.
-- A shared skeleton; a stage lacking a bone has that bone's motion skipped.
+- A shared skeleton (`root, hips, spine, chest, neck, head`, the limbs `.L`/`.R`, and per stage the `orbit` pivot with its drones and `halo`); a stage lacking a bone has that bone's motion skipped. Pip's rig is `root, hips, chest, head`.
+- The manifest (`src/data/form-models.ts`, generated) carries per stage `n`, `file`, `thumb`, `bytes`, `triangles`, `height`, `clips`, `slots` and `compression` ("none" today), plus the generator hash. No GLB carries a texture today: the materials are factors, and phase 2 (below) bakes textures.
 
 ## Why
 
@@ -55,4 +56,4 @@ The owner asked for the forms to be far higher fidelity, like a hard-surface mec
 
 ## Status
 
-Decided by the owner, 2026-10-14. Built the same day: the pipeline and all five stages (A-1 to A-5), the clips (A-8), the rule (A-7), the renders (A-9) and the viewer through the model on the progress page (V-1 to V-8). The list above says what waits.
+Decided by the owner, 2026-10-14. Built the same day: the pipeline and all five stages (A-1 to A-5), the generator (A-6), the rule (A-7), the clips (A-8), the renders (A-9) and the viewer through the model on the progress page (V-1 to V-8). The list above says what waits.
