@@ -3,15 +3,16 @@
    page, and the evolution moment on the progress page (src/ui/form-unlock.ts,
    src/ui/forms.ts), with SwiftShader WebGL on the built site (dist/, which must be current):
      node tools/game/forms.test.js
-   1. progress page at 300 XP (stage 3): the 3D view, "Stage 3 of 5", tiles 1-3 with
-      pictures, 4-5 locked, the meter, the "Highest" caption
+   1. progress page at 300 XP (stage 3): the 3D view, "Stage 3 of 5", all five tiles with
+      their rendered PNG (loaded), 4-5 locked and dimmed, the meter, the "Highest" caption
    2. Equip 2: form.wear.n is 2, got unchanged, the tile says Equipped, a reload shows
       Sprig; equipping it again writes nothing
-   3. a pending evolution plays anticipate, flash, reveal, done; the caption; seen.evolved
-      is 3; a reload plays nothing
+   3. a pending evolution plays anticipate, flash, reveal, done; the new stage's GLB is
+      requested before the flash and the model is in after the reveal; the caption;
+      seen.evolved is 3; a reload plays nothing
    4. the same under reduced motion: a cut, no animation, the caption at once
    5. Skip jumps to the caption; Escape with no dialog open does the same and counts it played
-   6. progress.html?3d=off: the flat card, pips on the tiles, no Three.js request
+   6. progress.html?3d=off: the flat card, the PNG strip still showing, no Three.js or GLB request
    7. a chapter page: crossing a stage gives one toast, records got, no Three.js; no
       second toast; none after a reload
    8. several stages at once: one toast naming the highest, all recorded */
@@ -29,7 +30,7 @@ function check(cond, what, detail) {
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 const THREE = /\/bundle\/three\.js(?:[?#]|$)/;
 /* the model viewer's files: the GLBs and the model chunks (src/model/index.ts, the three-model vendor chunk) */
-const MODEL = /\/models\/forms\/|\/bundle\/(?:form-model|three-model)\.js(?:[?#]|$)/;
+const MODEL = /\/models\/forms\/[^?#]*\.glb(?:[?#]|$)|\/bundle\/(?:form-model|three-model)\.js(?:[?#]|$)/;
 const CHAPTER = "parts/1-algebra/01-numbers.html";
 /* assets/game.js shows cards one at a time, each up for 2600 ms and 400 ms leaving, and
    a form toast queues behind the level card the same XP raised, so it enters the DOM at
@@ -87,15 +88,26 @@ async function main() {
         tiles: [1, 2, 3, 4, 5].map((n) => {
           const li = document.querySelector('.form-tile[data-stage="' + n + '"]');
           const img = li.querySelector("img");
-          return { state: li.getAttribute("data-state"), pic: !img.hidden && !!img.getAttribute("src"), tag: li.querySelector(".form-tile-tag").textContent };
+          return {
+            state: li.getAttribute("data-state"), locked: li.hasAttribute("data-locked"), tag: li.querySelector(".form-tile-tag").textContent,
+            src: img.getAttribute("src") || "", shown: !img.hidden, loaded: img.complete && img.naturalWidth > 0,
+            opacity: Number(getComputedStyle(img).opacity)
+          };
         }),
+        strip: window.BMForms.info().strip,
         now: Number(document.querySelector('[role="progressbar"]').getAttribute("aria-valuenow")),
         seq: document.querySelector("#form").getAttribute("data-form-seq")
       }));
       check(st.view === "3d", "1: the view reaches 3d", st.view);
       check(st.stage === "Stage 3 of 5", "1: stage text", st.stage);
-      check(st.tiles.slice(0, 3).every((t) => t.state !== "locked" && t.pic), "1: tiles 1-3 unlocked with pictures", st.tiles);
-      check(st.tiles.slice(3).every((t) => t.state === "locked" && !t.pic), "1: tiles 4-5 locked", st.tiles);
+      check(st.tiles.every((t, i) => t.shown && new RegExp("models/forms/form-" + (i + 1) + "\\.png$").test(t.src)), "1: all five tiles carry their PNG", st.tiles);
+      /* the file loads lazily: give a slow runner a moment before reading naturalWidth */
+      await page.waitForFunction(() => [...document.querySelectorAll(".form-pic img")].every((i) => i.complete && i.naturalWidth > 0), null, { timeout: 10000 }).catch(() => {});
+      const loaded = await page.evaluate(() => [...document.querySelectorAll(".form-pic img")].map((i) => i.naturalWidth));
+      check(loaded.length === 5 && loaded.every((w) => w > 0), "1: every picture has loaded", loaded);
+      check(st.tiles.slice(0, 3).every((t) => t.state !== "locked" && !t.locked && t.opacity === 1), "1: tiles 1-3 unlocked at full strength", st.tiles);
+      check(st.tiles.slice(3).every((t) => t.state === "locked" && t.locked && t.opacity < 0.5), "1: tiles 4-5 locked and dimmed", st.tiles);
+      check(st.strip.length === 5 && st.strip.map((t) => t.locked).join() === "false,false,false,true,true", "1: info().strip reports the locks", st.strip);
       check(st.now > 0 && st.now < 100, "1: meter between 0 and 100", st.now);
       check(/Highest/.test(st.tiles[2].tag), "1: the Highest caption on tile 3", st.tiles[2].tag);
       check(st.seq === null, "1: no sequence when nothing is pending", st.seq);
@@ -171,10 +183,15 @@ async function main() {
     }
     /* 3 */
     {
-      const { page } = await open("progress.html", seeds(300, PENDING));
+      const { page, requests } = await open("progress.html", seeds(300, PENDING));
+      /* the next stage's GLB is asked for at the anticipation, so it is in before the white-out */
+      await page.waitForSelector('#form[data-form-seq="flash"]', { timeout: 6000 }).catch(() => {});
+      check(requests.some((u) => /models\/forms\/form-3\.glb/.test(u)), "3: form-3.glb requested by the flash", requests);
       /* the panel logs every step it passes (data-form-seq-log), so the path is read whole rather than sampled */
       await page.waitForSelector('#form[data-form-seq="done"]', { timeout: 6000 }).catch(() => {});
       const log = (await page.evaluate(() => (document.querySelector("#form") || { getAttribute: () => "" }).getAttribute("data-form-seq-log"))) || "";
+      await page.waitForSelector('[data-form-view][data-model="model"]', { timeout: 20000 }).catch(() => {});
+      check((await page.getAttribute("[data-form-view]", "data-model")) === "model", "3: the model is in after the reveal");
       check(log === "anticipate flash reveal done", "3: the sequence passes through every step", log);
       const cap = await page.textContent("#form .form-caption").catch(() => "");
       check(cap === "Evolved: Wayfinder. Stages 2 and 3 unlocked.", "3: the caption names both stages since the last played", cap);
@@ -226,11 +243,11 @@ async function main() {
       const st = await page.evaluate(() => ({
         view: document.querySelector("[data-form-view]").getAttribute("data-state"),
         pip: document.querySelector(".form-view .form-fallback [data-f=pip]").textContent,
-        pips: [1, 2, 3].every((n) => !document.querySelector('.form-tile[data-stage="' + n + '"] .form-pip').hidden)
+        pics: [1, 2, 3, 4, 5].map((n) => { const i = document.querySelector('.form-tile[data-stage="' + n + '"] img'); return !i.hidden && i.complete && i.naturalWidth > 0; })
       }));
       check(st.view === "flat", "6: the view is flat", st.view);
       check(st.pip === "3", "6: the card shows 3", st.pip);
-      check(st.pips, "6: the tiles show pips");
+      check(st.pics.every(Boolean), "6: the tiles show the PNG strip", st.pics);
       check(requests.length === 0, "6: no Three.js or model request", requests);
     }
     /* 7 */
