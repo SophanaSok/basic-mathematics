@@ -2,7 +2,7 @@
 
 The form pipeline (tools/art/forms/) builds each avatar stage in Blender and exports
 it as a glTF. This file makes the materials those exports carry, and only those five,
-so the site can swap them by name: `armor` (the white shell), `accent` (a neutral grey
+so the site can swap them by name: `armor` (the white shell), `accent` (a neutral gray
 the site tints to the learner's colour), `trim` (gold edging), `metal` (dark joints and
 limbs) and `glow` (the emissive core). Strength above 1 on `glow` exports as
 KHR_materials_emissive_strength.
