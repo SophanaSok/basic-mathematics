@@ -424,7 +424,7 @@ case to watch: a contents page left open from before it, whose `home.js` then fe
 
 The deploy that turned the progress page's forms into models (README, "The game layer")
 renamed no file. It added two chunks, `bundle/three-model.js` and `bundle/form-model.js`, and
-the files under `/models/*` (`public/models/forms/`: five GLBs and five PNGs; the manifest they are listed in is `src/data/form-models.ts`, part of the bundle), all
+the files under `/models/*` (`public/models/forms/`: five GLBs, ten WebP textures and five PNGs; the manifest they are listed in is `src/data/form-models.ts`, part of the bundle), all
 revalidated like everything else (`tools/lib/headers.js`). Only the new `src/ui/form-view.ts`
 asks for the two chunks, and only on the progress page, so no other page can. For the ten
 minutes:
@@ -443,11 +443,16 @@ Nothing is done by hand. If the model does not show after a reload: the view's b
 (`.form-view`) carries `data-state` (`3d` or `flat`) and `data-model` (`loading`, `model` or
 `fallback`); `fallback` with `3d` means the GLB failed or took over ten seconds, and the drawn
 figure stands in, so look in the network tab for `bundle/form-model.js`,
-`bundle/three-model.js` and `/models/forms/form-N.glb` (a 404 means the deploy did not carry
+`bundle/three-model.js`, `/models/forms/form-N.glb` and its two `form-N-color.webp` and `form-N-surface.webp` (a 404 on the GLB means the deploy did not carry
 `public/models/forms/`; the `form-models` rule in `npm run check` would have failed first) and
 in the console for the loader's message; `flat` means WebGL itself is off (`?3d=off`, the list
 tier, a lost context), which is not the deploy's doing. `BMForms.info()` in the console says
 the same in one object.
+
+A model that loads but looks flat white or black has lost a texture: one of its WebP files
+answered 404 (the network tab shows which `form-N-color.webp` or `form-N-surface.webp`), or
+a stage was rebuilt with `--no-bake`, which ships no images. `BMForms.info()` in the console
+says the same in one object; the `form-models` rule would have failed first on a missing file.
 
 ### Regenerating the form models
 
@@ -457,13 +462,19 @@ gen:forms`, and CI never runs Blender. The `form-models` rule (`check:static`) h
 committed outputs to the scripts' hash, so an edit under `tools/art/forms/` stays red until
 every stage is rebuilt and committed. A full run changes a few bytes in every GLB and PNG
 whether or not the art did; restore the stages that did not change from main
-(`git checkout main -- public/models/forms/form-N.glb public/models/forms/form-N.png`) and
+(`git checkout main -- public/models/forms/form-N.glb public/models/forms/form-N.png public/models/forms/form-N-color.webp public/models/forms/form-N-surface.webp`) and
 commit only the changed stages and the manifest, `src/data/form-models.ts` (the README's "The checks" has the details).
 A `--stage N` run keeps the manifest's old hash, so only a full run clears the rule; the
 Blender path can be overridden with `BM_BLENDER`, and gltfpack must be installed (`npm ci`).
 Check `llm-switch status` first: the render uses the one GPU, and the generator passes
 `--cpu` to Blender by itself when a claimant (ollama, llama-server or ComfyUI) is up; pass
 `--cpu` to force it.
+
+A full run takes about 15 minutes, because each stage bakes two textures (two to three
+minutes a stage). For a quick check of a shape change, run Blender on
+`tools/art/forms/build.py` with `--no-bake`: it builds a flat model with no images, which is
+not committable. The WebP textures sit beside the GLB in `public/models/forms/` under the
+same `/models/*` revalidate header rule, so a deploy carries them like any other file.
 
 ### The Pages source: GitHub Actions
 

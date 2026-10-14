@@ -1,10 +1,14 @@
 /* The form models' manifest: five stages in order, the clips and slots the viewer binds
    to, the caps of form-limits.ts, and modelFor answering only for a real stage. The files
    themselves are held by tools/check-static.js (`form-models`). */
+import { existsSync } from "node:fs";
+import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 import { CLIPS, EMOTES, FORM_MODELS, SLOTS, modelFor } from "./form-models";
 import { MODEL_BYTES_MAX, MODEL_TRIANGLES_MAX } from "./form-limits";
 
+/* the manifest from before the bake has no images; it reads as none */
+const imagesOf = (m: object): readonly string[] => (m as { images?: readonly string[] }).images ?? [];
 const sorted = (a: readonly string[]) => [...a].sort();
 
 describe("FORM_MODELS", () => {
@@ -32,6 +36,18 @@ describe("FORM_MODELS", () => {
     const paths = FORM_MODELS.flatMap(m => [m.file, m.thumb]);
     for (const p of paths) expect(p.startsWith("/") || /^[a-z]+:/.test(p)).toBe(false);
     expect(new Set(paths).size).toBe(paths.length);
+  });
+
+  it("lists at most four textures, each named for its own stage", () => {
+    for (const m of FORM_MODELS) {
+      const images = imagesOf(m);
+      expect(images.length).toBeLessThanOrEqual(4);
+      for (const p of images) expect(p).toMatch(new RegExp("^models/forms/form-" + m.n + "-[a-z]+\\.webp$"));
+    }
+  });
+
+  it("has the files for the textures it lists", () => {
+    for (const m of FORM_MODELS) for (const p of imagesOf(m)) expect(existsSync(resolve(__dirname, "../../public", p))).toBe(true);
   });
 
   it("offers only emotes that are clips", () => {

@@ -5,12 +5,16 @@
    buffer the document's accessors and images point into). readGlb splits those;
    describeGlb counts what a reader of the manifest would otherwise have to open the
    file in a viewer to learn: triangles, material names, animation lengths, the size of
-   each embedded image, the extensions the file needs.
+   each image, the extensions the file needs. writeGlb is the other way: a glTF document
+   and its one buffer made into a GLB, with the document's images left as the external
+   files they are (gltfpack embeds external images when it writes a .glb, so gen-forms.js
+   packs to .gltf and assembles the GLB here).
 
    A file that is cut short, has the wrong magic or version, or whose chunks do not add
    up to its length is refused with a reason, never half read. The image sizes are read
    from the first bytes of each image (PNG IHDR, JPEG start-of-frame, WebP VP8, VP8L and
-   VP8X), so a texture is not decoded to be measured.
+   VP8X), so a texture is not decoded to be measured. An image the document names by uri
+   is measured only when describeGlb is given a resolve(uri) that returns its bytes.
 
    Used by tools/gen-forms.js, which writes src/data/form-models.ts from what it finds,
    and by its --check, which holds the manifest to the files. */
@@ -43,6 +47,22 @@ function readGlb(buffer) {
   return { json, bin };
 }
 
+/* json, bin -> a GLB buffer. The JSON chunk is padded with spaces and the BIN chunk with
+   zeros to 4 bytes; buffers[0] loses its uri and takes the length of bin. */
+function writeGlb(json, bin) {
+  bin = bin || Buffer.alloc(0);
+  const doc = JSON.parse(JSON.stringify(json));
+  if (!Array.isArray(doc.buffers) || !doc.buffers.length) doc.buffers = [{}];
+  delete doc.buffers[0].uri;
+  doc.buffers[0].byteLength = bin.length;
+  const pad = (b, fill) => Buffer.concat([b, Buffer.alloc((4 - (b.length % 4)) % 4, fill)]);
+  const j = pad(Buffer.from(JSON.stringify(doc), "utf8"), 0x20), b = pad(Buffer.from(bin), 0);
+  const head = Buffer.alloc(12);
+  head.write("glTF", 0, "latin1"); head.writeUInt32LE(2, 4); head.writeUInt32LE(12 + 8 + j.length + 8 + b.length, 8);
+  const chunk = (type, body) => { const h = Buffer.alloc(8); h.writeUInt32LE(body.length, 0); h.writeUInt32LE(type, 4); return Buffer.concat([h, body]); };
+  return Buffer.concat([head, chunk(JSON_CHUNK, j), chunk(BIN_CHUNK, b)]);
+}
+
 /* the width and height of an image from its first bytes, or null when the format is not
    one of PNG, JPEG and WebP or the header is cut short */
 function imageSize(b) {
@@ -67,8 +87,8 @@ function imageSize(b) {
 }
 
 /* buffer -> { triangles, materials, animations: [{ name, seconds }], images: [{ width,
-   height, mime }], extensionsRequired, extensionsUsed, meshes, nodes } */
-function describeGlb(buffer) {
+   height, mime, uri?, bytes }], extensionsRequired, extensionsUsed, meshes, nodes } */
+function describeGlb(buffer, resolve) {
   const { json, bin } = readGlb(buffer);
   const accessors = json.accessors || [], views = json.bufferViews || [];
   const accessor = (i) => { if (!accessors[i]) throw new Error("GLB names accessor " + i + ", which it does not have"); return accessors[i]; };
@@ -84,10 +104,16 @@ function describeGlb(buffer) {
     return { name: a.name === undefined ? "animation" + i : a.name, seconds };
   });
   const images = (json.images || []).map(img => {
+    const mime = img.mimeType || "";
+    if (img.bufferView === undefined && typeof img.uri === "string") {
+      const file = resolve ? resolve(img.uri) : null;
+      const size = (file && imageSize(file)) || { width: 0, height: 0 };
+      return { width: size.width, height: size.height, mime, uri: img.uri, bytes: file ? file.length : 0 };
+    }
     const view = img.bufferView !== undefined ? views[img.bufferView] : null;
-    if (!view || !bin) return { width: 0, height: 0, mime: img.mimeType || "" };
+    if (!view || !bin) return { width: 0, height: 0, mime, bytes: 0 };
     const size = imageSize(bin.subarray(view.byteOffset || 0, (view.byteOffset || 0) + view.byteLength)) || { width: 0, height: 0 };
-    return { width: size.width, height: size.height, mime: img.mimeType || "" };
+    return { width: size.width, height: size.height, mime, bytes: view.byteLength };
   });
   return {
     triangles,
@@ -101,4 +127,4 @@ function describeGlb(buffer) {
   };
 }
 
-module.exports = { readGlb, describeGlb, imageSize, sha256 };
+module.exports = { readGlb, writeGlb, describeGlb, imageSize, sha256 };

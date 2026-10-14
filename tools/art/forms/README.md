@@ -40,6 +40,7 @@ packs the GLBs and writes the manifest the site reads; `.cache/` is scratch and 
   `thigh/shin/foot .L/.R`), rigid skinning (one vertex group at 1.0 per part), the mannequin.
 - `export.py`: the triangle cap (30,000 per stage), the glTF export (modifiers applied by
   the exporter, Y up, actions as named clips) and the sidecar.
+- `bake.py`: the texture bake (see "The bake").
 - `stages/`: one builder per stage, written with `Fig` from `stages/common.py`: a list of
   parts, each a shape of a size at a place on a bone in a material. The figure is
   modeled Z up, facing -Y, feet at z = 0, in meters; the export turns that into Three's
@@ -57,9 +58,9 @@ edges and bolts, not from polygon count: the Wayfinder is under 9,000 triangles.
 
 ## The checks
 
-- The caps live in `src/data/form-limits.ts` (1.5 MB a model, 30,000 triangles, 120 KB a
-  thumbnail). The other constants (the idle at 3 s, the thumbnail at 512x640 RGBA, the
-  allowed extensions, at most four textures, each square at 1024 or 2048) live in
+- The caps live in `src/data/form-limits.ts` (1.5 MB a model, 30,000 triangles, 160 KB a
+  thumbnail, 400 KB a texture). The other constants (the idle at 3 s, the thumbnail at 512x640 RGBA, the
+  allowed extensions, at most four textures, each a WebP file square at 1024 or 2048) live in
   `tools/lib/form-models.js`.
 - The rule runs in `check:static` as `form-models`:
   `node tools/check-static.js --only=form-models`.
@@ -68,7 +69,8 @@ edges and bolts, not from polygon count: the Wayfinder is under 9,000 triangles.
   A full run rewrites every GLB, PNG and the manifest, and Blender's export and Eevee's
   render differ by a few bytes between runs, so restore the stages whose art did not
   change from main before committing (`git checkout main -- public/models/forms/form-N.glb
-  public/models/forms/form-N.png`; the manifest's numbers for them are unchanged, so the
+  public/models/forms/form-N.png public/models/forms/form-N-color.webp
+  public/models/forms/form-N-surface.webp`; the manifest's numbers for them are unchanged, so the
   check still passes) and commit only the stages that changed plus the manifest. A
   `--stage N` run keeps the manifest's old hash, so the check stays red until every stage
   is rebuilt; an edit to a shared file (kit, rig, materials, emotes, export) changes every
@@ -77,6 +79,38 @@ edges and bolts, not from polygon count: the Wayfinder is under 9,000 triangles.
   meters); the `us-english` check scans prose, not these files, so hold to it by hand.
 - A new extension or texture format means editing `EXTENSIONS_OK` and the image checks in
   `tools/lib/form-models.js`, and the CSP question that comes with it (see the decision).
+  Textures are files precisely so that the CSP stays as it is.
+
+## The bake
+
+`bake.py` gives each stage two 1024-square textures, so the white lacquer shows chipped
+edges and grime instead of flat factors. It runs inside `build.py`, after the parts are
+built and before the clips.
+
+- It applies every modifier but the Armature, Smart-UV-projects all parts and packs them
+  into one atlas per stage, then bakes in Cycles (the GPU, or the CPU with `--cpu`).
+- Two atlases come out. `form-<n>-color.webp` is the sRGB base color: chips from a Bevel
+  node's edge mask broken up by noise, grime in the crevices from ambient occlusion, and a
+  slow brightness mottle. The `accent` region is baked at its neutral gray, so the site's
+  multiply tint still gives the learner's hue. `form-<n>-surface.webp` holds occlusion in
+  R, roughness in G and metallic in B.
+- Both passes are EMIT passes. A diffuse color pass is black on a metallic surface, so the
+  color chain and then the packed channels each go through an Emission shader and bake as
+  emission.
+- It then rebuilds the five materials in the shape the glTF exporter reads: the color
+  texture into Base Color, the surface texture through a Separate Color node into
+  Roughness and Metallic, and its R into a "glTF Material Output" group's Occlusion.
+- The knobs sit at the top of `bake.py`: `ATLAS` (the size), `COLOR_QUALITY` and
+  `SURFACE_QUALITY` (WebP quality, 85), `WEAR` (per slot: the edge color, the roughness
+  change at the chips, the grime and the mottle), `EDGE_RADIUS`, `EDGE_GAIN`,
+  `AO_DISTANCE` and `TONE`. A texture over 400 KB fails the rule, so lower the quality
+  before the size.
+- A bake takes about two to three minutes a stage, so a full `npm run gen:forms` takes
+  about 15 minutes. `build.py --no-bake` skips it for a quick flat build with no images.
+- The export is a separate glTF with the WebP files beside it (never embedded).
+  `tools/gen-forms.js` packs it and assembles the GLB with `writeGlb` (`tools/lib/glb.js`),
+  because gltfpack would embed the images. The uris stay relative, and the manifest lists
+  them in `images`.
 
 ## The emotes
 

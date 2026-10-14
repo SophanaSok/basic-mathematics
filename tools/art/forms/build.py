@@ -4,7 +4,9 @@ Run as `blender -b --factory-startup --python tools/art/forms/build.py -- --stag
 --out .cache/forms/raw`. It clears the scene, makes the five materials and the shared
 armature for the stage, then builds the stage through its builder in `stages/` (the gray mannequin for a
 stage without one yet),
-and exports `form-<n>.glb` plus its sidecar JSON. `--renders turntable,thumb` then draws
+bakes its two textures (bake.py; `--no-bake` skips them for a quick flat build), adds
+the clips and exports `form-<n>.gltf` with its `.bin`, the WebP textures and the
+sidecar JSON. `--renders turntable,thumb` then draws
 the live scene (render.py); `--engine` and `--cpu` pick how. Any failure prints a message and exits
 non-zero so a script or CI step can tell.
 """
@@ -16,6 +18,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 import bpy  # noqa: E402
 
+import bake  # noqa: E402
 import emotes  # noqa: E402
 import export  # noqa: E402
 import kit  # noqa: E402
@@ -33,6 +36,7 @@ def main():
     ap.add_argument("--stage", type=int, required=True, choices=sorted(rig.STAGE_HEIGHTS))
     ap.add_argument("--out", default=os.path.join(ROOT, ".cache", "forms", "raw"))
     ap.add_argument("--no-clips", action="store_true", help="skip the emote clips (a bare rest-pose model)")
+    ap.add_argument("--no-bake", action="store_true", help="skip the texture bake (flat materials, no images)")
     ap.add_argument("--renders", default="", help="comma list: turntable, thumb, emotes")
     ap.add_argument("--engine", default="auto", choices=["auto", "eevee", "cycles", "workbench"])
     ap.add_argument("--cpu", action="store_true", help="Cycles on the CPU, fewer samples")
@@ -45,12 +49,14 @@ def main():
     arm = rig.armature_for(a.stage, props)
     builder = STAGE_BUILDERS.get(a.stage, rig.mannequin)
     objs = builder(arm, props, mats)
+    images = None if a.no_bake else bake.bake(objs, mats, a.stage, a.out, a.cpu)
     if not a.no_clips:
         emotes.make_clips(arm, a.stage, props)
-    path = os.path.join(a.out, f"form-{a.stage}.glb")
-    side = export.export_glb(path, arm, objs, a.stage, props.height)
+    path = os.path.join(a.out, f"form-{a.stage}.gltf")
+    side = export.export_glb(path, arm, objs, a.stage, props.height, images)
     print(f"form-{a.stage}: {side['triangles']} triangles, {len(side['bones'])} bones, "
-          f"{len(side['materials'])} materials, {len(side['clips'])} clips -> {path}")
+          f"{len(side['materials'])} materials, {len(side['clips'])} clips, "
+          f"{len(side['images'])} textures -> {path}")
     kinds = [k for k in a.renders.split(",") if k]
     if kinds:
         render.renders(kinds, objs, props.height, a.stage, a.out, a.engine, a.cpu)
