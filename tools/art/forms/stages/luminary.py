@@ -2,9 +2,10 @@
 
 The tallest figure (1.75): a two-tier chest over the frame, sode of five lamellar bands
 with gold edges, an eight-plate kusazuri, a full kabuto with a swept V crest carrying
-five glow beads and wide fukigaeshi, a halo frame of two crossed gold rings turning on
-the `halo` bone behind the shoulders, a rigid back-cape plate in the learner's hue, and
-a long beacon staff with a large lantern. Three drones orbit it as the Surveyor's do.
+five glow beads and wide fukigaeshi, a halo frame of two crossed gold rings ringing the
+head on a post up from the `halo` bone, a rigid back-cape plate in the learner's hue, and
+a long beacon staff with a large lantern. The hue also takes the upper chest tier, the
+fukigaeshi and the middle sode band, so the Part reads from the front and in the strip. Three drones orbit it as the Surveyor's do.
 Every part follows one bone of the shared rig (rig.py adds `halo` and the drones for
 this stage).
 """
@@ -28,7 +29,7 @@ def build(armature, props, mats):
     f.add(f.plate("breastplate", size=(cw * 0.96, cd * 0.72, L * 0.98), at=c + Vector((0, -cd * 0.28, 0)), rot=rot,
                   inset=0.016, depth=0.005, panel=(0, -1, 0), taper=1.2), "chest", "armor", bevel=0.008)
     f.add(f.plate("breast_tier", size=(cw * 0.76, cd * 0.32, L * 0.46), at=c + Vector((0, -cd * 0.64, L * 0.2)), rot=rot,
-                  inset=0.012, depth=0.004, panel=(0, -1, 0), taper=1.14), "chest", "armor", bevel=0.006)
+                  inset=0.012, depth=0.004, panel=(0, -1, 0), taper=1.14), "chest", "accent", bevel=0.006)
     f.add(f.plate("breast_tier_edge", size=(cw * 0.74, cd * 0.34, 0.016), at=c + Vector((0, -cd * 0.64, -L * 0.03)), rot=rot, inset=0),
           "chest", "trim", bevel=0.003)
     f.add(f.plate("breastplate_edge", size=(cw * 0.94, cd * 0.74, 0.018), at=c + Vector((0, -cd * 0.28, -L * 0.5)), rot=rot, inset=0),
@@ -75,6 +76,7 @@ def build(armature, props, mats):
     # ---- head: the full kabuto, a swept crest with five beads, fukigaeshi ----------
     c, L, rot, head, tail = f.along("head")
     hr = p.head * 0.42
+    head_c = c.copy()
     f.add(kit.cyl("neck", r=p.neck * 1.8, length=p.neck * 1.6, segments=12, at=head - Vector((0, 0, p.neck * 0.5))), "neck", "metal", bevel=0)
     f.add(kit.plate("face", size=(hr * 1.7, hr * 1.5, L * 0.62), at=c - Vector((0, 0, L * 0.12)), inset=0), "head", "metal", bevel=0.006)
     f.add(kit.sphere("kabuto", r=hr, at=c + Vector((0, 0.01, L * 0.22)), segments=24, rings=12, scale=(1.32, 1.28, 0.95), dome=True), "head", "armor", bevel=0)
@@ -82,7 +84,7 @@ def build(armature, props, mats):
     f.add(kit.plate("kabuto_ridge", size=(0.016, hr * 2.2, 0.03), at=c + Vector((0, 0.0, L * 0.64)), inset=0), "head", "trim", bevel=0.003)
     for sx in (1.0, -1.0):
         f.add(f.plate(f"fukigaeshi_{'L' if sx > 0 else 'R'}", size=(0.016, hr * 1.3, L * 0.5), at=c + Vector((sx * hr * 1.38, -hr * 0.25, L * 0.2)),
-                      rot=f.euler(0, sx * -22, 0), inset=0.008, depth=0.003, panel=(sx, 0, 0)), "head", "armor", bevel=0.003)
+                      rot=f.euler(0, sx * -22, 0), inset=0.008, depth=0.003, panel=(sx, 0, 0)), "head", "accent", bevel=0.003)
         f.add(f.plate(f"fukigaeshi_edge_{'L' if sx > 0 else 'R'}", size=(0.018, hr * 1.3, 0.016), at=c + Vector((sx * hr * 1.46, -hr * 0.25, L * 0.45)),
                       rot=f.euler(0, sx * -22, 0), inset=0), "head", "trim", bevel=0.002)
     f.add(f.plate("visor", size=(hr * 1.85, 0.018, L * 0.3), at=c + Vector((0, -hr * 0.78, L * 0.02)), inset=0.007, depth=0.002, panel=(0, -1, 0)),
@@ -112,7 +114,7 @@ def build(armature, props, mats):
         for i in range(5):
             band = kit.plate(f"sode_{i}.{s}", size=(sw * (0.78 + 0.07 * i), sw * 0.78, 0.03), at=tail + Vector((sx * 0.024, 0, 0.04 - i * 0.042)),
                              rot=f.euler(0, sx * 24, 0), inset=0.01, depth=0.003, panel=(0, 0, 1))
-            f.add(band, f"shoulder.{s}", "armor", bevel=0.005)
+            f.add(band, f"shoulder.{s}", "accent" if i == 2 else "armor", bevel=0.005)
             f.add(kit.plate(f"sode_edge_{i}.{s}", size=(sw * (0.78 + 0.07 * i), sw * 0.8, 0.012), at=tail + Vector((sx * 0.024, 0, 0.022 - i * 0.042)),
                             rot=f.euler(0, sx * 24, 0), inset=0), f"shoulder.{s}", "trim", bevel=0.002)
         f.add(kit.sphere(f"cap.{s}", r=p.upper_arm * 0.44, at=tail + Vector((sx * 0.012, 0, 0.06)), segments=16, rings=8, scale=(1, 1, 0.8), dome=True),
@@ -187,16 +189,22 @@ def build(armature, props, mats):
 
     # ---- the halo frame: two crossed gold rings behind the shoulders ----------------------
     c, L, rot, head, tail = f.along("halo")
-    hc = Vector((0, head.y, head.z))
+    # the rings are centred at the height of the head, behind it, on a post up from the
+    # halo bone, so the great ring shows around the kabuto from the front and the small
+    # one from the side; at shoulder height the sode and the head hid them both
+    hc = Vector((0, head.y + h * 0.06, head_c.z))
     hr2 = h * 0.2
+    f.add(kit.cyl("halo_post", r=0.012, length=hc.z - head.z, segments=8, at=Vector((0, hc.y, (hc.z + head.z) * 0.5))), "halo", "metal", bevel=0)
     # the great ring stands behind the back in the figure's plane; the small ring crosses it
     # at a slant and stays behind the head; an emote may bob or spin the halo about its
     # front-to-back axis, never about the vertical one, which would sweep the rings
     # through the body
     f.add(kit.ring("halo_a", r=hr2, thickness=0.022, depth=0.018, segments=32, at=hc, rot=f.euler(90, 0, 0)), "halo", "trim", bevel=0.003)
-    f.add(kit.ring("halo_b", r=hr2 * 0.45, thickness=0.016, depth=0.014, segments=24, at=hc, rot=f.euler(90, 0, 90)), "halo", "trim", bevel=0.002)
+    # the small ring's front edge must clear the back of the kabuto (0.17 behind the head's
+    # center for this stage): the center sits 0.28 back and the ring's radius is 0.09
+    f.add(kit.ring("halo_b", r=hr2 * 0.25, thickness=0.016, depth=0.014, segments=24, at=hc, rot=f.euler(90, 0, 90)), "halo", "trim", bevel=0.002)
     f.add(kit.sphere("halo_core", r=0.036, at=hc, segments=14, rings=8), "halo", "glow", bevel=0)
-    f.add(kit.cyl("halo_mount", r=0.014, length=h * 0.1, segments=8, at=Vector((0, head.y - h * 0.05, head.z)), rot=f.euler(90, 0, 0)), "chest", "metal", bevel=0)
+    f.add(kit.cyl("halo_mount", r=0.014, length=h * 0.17, segments=8, at=Vector((0, head.y + h * 0.025, head.z)), rot=f.euler(90, 0, 0)), "chest", "metal", bevel=0)
 
     # ---- the orbit drones -------------------------------------------------------------------
     for i in range(1, 4):
