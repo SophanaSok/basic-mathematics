@@ -411,6 +411,36 @@ function refusal(fn) { try { fn(); return null; } catch (e) { return e.message; 
     eq([Array.from(back.bin.subarray(0, 5)), back.bin.length, back.bin.subarray(5).every(x => x === 0)], [[1, 2, 3, 4, 5], 8, true], "glb: the BIN chunk is padded with zeros and readGlb gets the bytes back");
     check(made.subarray(20, 20 + made.readUInt32LE(12)).toString("utf8").endsWith("}") || /^ +$/.test(made.subarray(20, 20 + made.readUInt32LE(12)).toString("utf8").replace(/^.*\}/, "")), "glb: the JSON chunk is padded with spaces");
     eq(glb.readGlb(glb.writeGlb({ asset: { version: "2.0" } }, null)).json.buffers, [{ byteLength: 0 }], "glb: a GLB without a bin still gets buffers[0]");
+    check(/2 buffers; a GLB holds one/.test(refusal(() => glb.writeGlb({ asset: { version: "2.0" }, buffers: [{}, {}] }, null)) || ""), "glb: writeGlb refuses a document with two buffers");
+    /* the texture problems, on crafted roots under the scratchpad */
+    {
+      const fm2 = require("./lib/form-models");
+      const base = "/tmp/claude-1000/-home-ssok-Projects-basic-mathematics/acee4fd1-96be-478d-8a42-00cd0cbd779d/scratchpad/a14-roots";
+      fs.rmSync(base, { recursive: true, force: true });
+      const vp8x = (w, h, total) => { const b = Buffer.alloc(Math.max(total || 30, 30)); b.write("RIFF", 0, "latin1"); b.writeUInt32LE(b.length - 8, 4); b.write("WEBP", 8, "latin1"); b.write("VP8X", 12, "latin1"); b.writeUIntLE(w - 1, 24, 3); b.writeUIntLE(h - 1, 27, 3); return b; };
+      /* a root holding one GLB whose images are `files` ({ name: bytes }) by uri, or the bin's WebP embedded */
+      const room = (name, files, embedded) => {
+        const dir = path.join(base, name, "public/models/forms");
+        fs.mkdirSync(dir, { recursive: true });
+        const names = Object.keys(files || {});
+        names.forEach(n => fs.writeFileSync(path.join(dir, n), files[n]));
+        const doc = { asset: { version: "2.0" }, extensionsUsed: ["EXT_texture_webp"], materials: [{ name: "armor" }],
+          images: embedded ? [{ bufferView: 0, mimeType: "image/webp" }] : names.map(n => ({ uri: n })),
+          textures: (embedded ? [0] : names.map((n, i) => i)).map(i => ({ extensions: { EXT_texture_webp: { source: i } } })) };
+        if (embedded) doc.bufferViews = [{ buffer: 0, byteOffset: 0, byteLength: embedded.length }];
+        fs.writeFileSync(path.join(dir, "form-1.glb"), glb.writeGlb(doc, embedded || null));
+        return { n: 1, file: "models/forms/form-1.glb", thumb: "models/forms/form-1.png", bytes: 1, triangles: 1, slots: fm2.SLOTS, clips: fm2.CLIPS, compression: "none", images: names.map(n => "models/forms/" + n) };
+      };
+      const probs = (name, files, embedded) => fm2.entryProblems(room(name, files, embedded), path.join(base, name)).join("\n");
+      check(/form 1: texture 0 is embedded/.test(probs("embedded", null, vp8x(1024, 1024))), "form-models: an embedded texture fails");
+      const pngNamed = Buffer.concat([Buffer.from("89504e470d0a1a0a", "hex"), Buffer.alloc(40)]);
+      check(/form 1: texture 0 form-1-color.webp is not a WebP/.test(probs("notwebp", { "form-1-color.webp": pngNamed })), "form-models: a PNG named .webp fails");
+      check(/form 1: texture 0 form-1-color.webp is 400001 bytes, over 400000/.test(probs("bigimage", { "form-1-color.webp": vp8x(1024, 1024, 400001) })), "form-models: a texture over the byte cap fails");
+      check(/form 1: texture 0 is 512x1024, not square/.test(probs("notsquare", { "form-1-color.webp": vp8x(512, 1024) })), "form-models: a texture that is not square fails");
+      const four = {}; ["a", "b", "c", "d"].forEach(k => { four["form-1-" + k + ".webp"] = vp8x(1024, 1024, 400000); });
+      check(/form 1: the model and its textures are \d+ bytes, over 1500000/.test(probs("stage", four)), "form-models: a stage whose model and textures pass the whole-download cap fails");
+      check(!/the model and its textures/.test(probs("stageok", { "form-1-a.webp": vp8x(1024, 1024, 400000) })), "form-models: a stage within the whole-download cap passes");
+    }
     /* a baked stage: the glTF, its bin and an external WebP, assembled */
     const baked = path.join(site.ROOT, "tools/fixtures/forms/baked");
     const bakedDoc = JSON.parse(fs.readFileSync(path.join(baked, "form-9.gltf"), "utf8"));

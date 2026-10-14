@@ -37,8 +37,8 @@ function entryProblems(e, root) {
   if (e.triangles > limits.MODEL_TRIANGLES_MAX) out.push(w + e.triangles + " triangles is over " + limits.MODEL_TRIANGLES_MAX);
   if (!same(e.slots, SLOTS)) out.push(w + "slots " + e.slots.join(",") + " are not " + SLOTS.join(","));
   if (!same(e.clips, CLIPS)) out.push(w + "clips " + e.clips.join(",") + " are not " + CLIPS.join(","));
-  let d = null;
-  try { d = glb.describeGlb(fs.readFileSync(path.join(root, "public", e.file)), uri => {
+  let d = null, glbBytes = 0;
+  try { const raw = fs.readFileSync(path.join(root, "public", e.file)); glbBytes = raw.length; d = glb.describeGlb(raw, uri => {
       const f = path.join(root, "public", "models/forms", uri);
       /* a uri is a bare file name beside the GLB; anything with a path is not resolved */
       return path.basename(uri) === uri && fs.existsSync(f) ? fs.readFileSync(f) : null;
@@ -52,6 +52,8 @@ function entryProblems(e, root) {
     d.extensionsRequired.forEach(x => { if (!EXTENSIONS_OK.includes(x)) out.push(w + "requires " + x + ", which the page cannot decode"); });
     const meshopt = d.extensionsRequired.includes("EXT_meshopt_compression");
     if ((e.compression === "meshopt") !== meshopt) out.push(w + 'compression "' + e.compression + '" but the file ' + (meshopt ? "requires" : "does not require") + " EXT_meshopt_compression");
+    const whole = glbBytes + d.images.reduce((n, im) => n + (im.uri === undefined ? 0 : im.bytes), 0);
+    if (whole > limits.STAGE_BYTES_MAX) out.push(w + "the model and its textures are " + whole + " bytes, over " + limits.STAGE_BYTES_MAX);
     if (d.images.length > IMAGES_MAX) out.push(w + d.images.length + " textures, at most " + IMAGES_MAX);
     const listed = e.images || [];
     d.images.forEach((im, i) => {
