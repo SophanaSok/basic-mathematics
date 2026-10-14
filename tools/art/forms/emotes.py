@@ -8,7 +8,8 @@ limbs, does the emotes as body motions on `hips`, `chest` and `head`.
 
 Every value is keyed on every frame it moves (no reliance on Blender's interpolation,
 which the exporter samples anyway). The idle is a loop: every value is a sine of the
-frame, so frame 90 equals frame 0 and the velocity is continuous; the orbit pivot and the halo go
+frame with no phase offset, so frame 0 is the rest pose, frame 90 equals frame 0 and
+the velocity is continuous; the orbit pivot and the halo go
 through exactly one turn or one bob per loop. Every other clip starts and ends on the
 rest pose, which is idle frame 0, so the viewer cross-fades back to the idle without a
 pop, and the rest pose is what the viewer shows under reduced motion.
@@ -75,7 +76,7 @@ class Keys:
         self.touched.add(bone)
 
     def rest(self, frame, bones=None):
-        """every touched bone (or the given ones) back at rest on this frame"""
+        """the given bones (or every touched one) at rest on this frame"""
         for b in sorted(bones or self.touched):
             pb = self.arm.pose.bones.get(b)
             if pb is None:
@@ -119,16 +120,16 @@ def idle(k, h, pip):
         s1, s2 = math.sin(ph), math.sin(2 * ph)
         if pip:
             k.loc("hips", f, y=h * 0.03 * s1)            # hover bob (local Y is up)
-            k.rot("hips", f, y=6 * math.sin(ph + 0.4), x=1.5 * s2)
+            k.rot("hips", f, y=6 * s1, x=1.5 * s2)
             k.rot("chest", f, z=3 * s2)                   # the vanes flutter
             k.rot("head", f, z=2 * s1)                    # the eye drifts
         else:
             k.rot("chest", f, x=1.5 * s1)                 # breath
-            k.loc("hips", f, y=-0.004 * (1 - math.cos(ph)) / 2, x=0.0)
+            k.loc("hips", f, y=-0.004 * (1 - math.cos(ph)) / 2)
             k.rot("hips", f, z=1.0 * s1)                  # weight shift
-            k.rot("head", f, y=3 * math.sin(ph + 1.0), x=1.0 * s2)
+            k.rot("head", f, y=3 * s2, x=1.0 * s1)
             k.rot("upper_arm.R", f, z=-1.5 * s1)          # the staff sways
-            k.rot("upper_arm.L", f, z=1.5 * math.sin(ph + 0.5))
+            k.rot("upper_arm.L", f, z=1.5 * s2)
         k.rot("orbit", f, y=360.0 * f / n)                # the drones go round once
         k.loc("halo", f, y=h * 0.012 * s1)                # the halo bobs
         k.rot("halo", f, y=10 * s1)
@@ -142,7 +143,6 @@ def wave(k, h, pip):
             k.rot("hips", f, z=15)
             k.rot("chest", f, z=18 * math.sin(TAU * (f - 12) / 12))   # the vanes flick thrice
         _ramp(k, "hips", range(48, n + 1), 15, 0, rot=2)
-        _ramp(k, "chest", range(48, n + 1), 0, 0, rot=2)
         return
     _ramp(k, "upper_arm.L", range(0, 13), 0, -125, rot=2)
     _ramp(k, "head", range(0, 13), 0, -8, rot=2)
@@ -151,7 +151,6 @@ def wave(k, h, pip):
         k.rot("forearm.L", f, z=-25 * math.sin(TAU * (f - 12) / 12))   # three wags
         k.rot("head", f, z=-8)
     _ramp(k, "upper_arm.L", range(48, n + 1), -125, 0, rot=2)
-    _ramp(k, "forearm.L", range(48, n + 1), 0, 0, rot=2)
     _ramp(k, "head", range(48, n + 1), -8, 0, rot=2)
 
 
@@ -180,7 +179,6 @@ def bow(k, h, pip):
 def flex(k, h, pip):
     n = CLIPS["flex"]
     if pip:
-        _ramp(k, "hips", range(0, 13), 0, 0, rot=0)
         for f in range(0, n + 1):
             k.scale("hips", f, 1 + 0.08 * math.sin(math.pi * min(1.0, f / 40)) if f <= 40 else 1.0)
             k.loc("chest", f, y=h * 0.04 * math.sin(math.pi * min(1.0, f / 40)) if f <= 40 else 0.0)   # the bead rises
@@ -249,7 +247,7 @@ def make_clips(arm, stage, props):
             slot = act.slots.new(id_type="OBJECT", name=arm.name)
             ad.action_slot = slot
         k = Keys(arm)
-        k.rest(0)                                    # every clip leaves from the rest pose
+        k.rest(0, bones=[pb.name for pb in arm.pose.bones])   # every clip leaves from the rest pose
         BUILDERS[name](k, props.height, pip)
         if name != "idle":
             k.rest(n)                                # and comes back to it
