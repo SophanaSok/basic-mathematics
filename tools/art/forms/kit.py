@@ -154,6 +154,23 @@ def sphere(name, r, at=(0, 0, 0), rot=None, segments=16, rings=8, scale=(1, 1, 1
     return _finish(name, bm, at, rot)
 
 
+def ring(name, r, thickness, depth, segments=24, at=(0, 0, 0), rot=None):
+    """A flat ring (a washer) of outer radius `r`, `thickness` wide, `depth` thick, in
+    the XY plane: the two caps of a cylinder are inset by the thickness, the inner discs
+    removed and their rims bridged."""
+    bm = bmesh.new()
+    bmesh.ops.create_cone(bm, cap_ends=True, segments=segments, radius1=r, radius2=r, depth=depth)
+    caps = [f for f in bm.faces if len(f.verts) == segments]
+    bmesh.ops.inset_region(bm, faces=caps, thickness=thickness, depth=0.0, use_even_offset=True)
+    inner = [f for f in bm.faces if len(f.verts) == segments]
+    rims = list({e for f in inner for e in f.edges})
+    bmesh.ops.delete(bm, geom=inner, context="FACES_ONLY")
+    bmesh.ops.bridge_loops(bm, edges=rims)
+    bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
+    _mark_sharp(bm)
+    return _finish(name, bm, at, rot)
+
+
 def wedge(name, size=(0.1, 0.1, 0.1), at=(0, 0, 0), rot=None, front=0.3):
     """A box whose +Z end narrows in y to `front` of its depth: a fin, a toe, a crest."""
     bm = bmesh.new()
