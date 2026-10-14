@@ -25,9 +25,9 @@ import { highest, nextInfo, stageOf, worn } from "../core/forms.ts";
 import { XP } from "../core/rules.ts";
 import { createFormView, type FormView } from "./form-view.ts";
 import { mountEmotes } from "./form-emotes.ts";
+import { modelFor } from "../data/form-models.ts";
 
 const WATCH = ["sync", "reset", "level", "xp", "form", "theme", "prefs"];
-const SNAP_PX = 120;
 /* 2100-01-01 in ms: the latest `at` of a stored wear that is believed */
 const MAX_AT = 4102444800000;
 
@@ -45,8 +45,6 @@ let view: FormView | null = null;
 let emoteRow: HTMLElement | null = null;
 let dialog: HTMLDialogElement | null = null;
 let opener: HTMLElement | null = null;
-const snaps: Record<number, string> = {};
-let snapKey = "";
 let themeKey = "";
 let timer = 0;
 
@@ -98,12 +96,21 @@ const LOCK = '<svg class="form-lock" viewBox="0 0 16 16" width="14" height="14" 
   '<rect x="3" y="7" width="10" height="7" rx="1.5" fill="currentColor"/>' +
   '<path d="M5.5 7V5a2.5 2.5 0 0 1 5 0v2" fill="none" stroke="currentColor" stroke-width="1.6"/></svg>';
 
+/* the strip's picture of a stage: the rendered thumbnail the manifest names, under the site's root */
+function thumbSrc(n: number): string {
+  const m = modelFor(n);
+  let root = "";
+  try { root = String(window.BMSite.rootPrefix()); } catch { /* a page without the site helper */ }
+  return root + (m ? m.thumb : "models/forms/form-" + n + ".png");
+}
+
 function build(): HTMLElement {
   const C = window.BM_CURRICULUM;
   const probes = ((C && C.parts) || []).map((p: any) => '<i data-part="' + esc(String(p.id)) + '"></i>').join("");
   const tiles = FORMS.map((f) =>
     '<li class="form-tile" data-stage="' + f.n + '" data-state="locked">' +
-      '<span class="form-pic"><img alt="" hidden><b class="form-pip" aria-hidden="true">' + f.n + "</b></span>" +
+      '<span class="form-pic"><img alt="" src="' + esc(thumbSrc(f.n)) + '" width="120" height="150" loading="lazy" decoding="async">' +
+        '<b class="form-pip" aria-hidden="true" hidden>' + f.n + "</b></span>" +
       '<b class="form-tile-name">' + esc(f.name) + "</b>" +
       '<span class="form-tile-level"></span>' +
       '<span class="form-tile-tag"></span>' +
@@ -131,6 +138,14 @@ function build(): HTMLElement {
     "</div>" +
     '<ol class="form-path" aria-label="The path of five forms">' + tiles + "</ol>" +
     '<span class="form-probe" aria-hidden="true">' + probes + "</span>";
+  /* an image that fails (a missing file) gives its tile back the numbered pip; error does not bubble, so capture */
+  el.addEventListener("error", (e) => {
+    const img = e.target;
+    if (!(img instanceof HTMLImageElement) || !img.closest(".form-pic")) return;
+    const pip = img.parentElement && img.parentElement.querySelector<HTMLElement>(".form-pip");
+    img.hidden = true;
+    if (pip) pip.hidden = false;
+  }, true);
   return el;
 }
 
@@ -191,6 +206,7 @@ export function refresh(): void {
     const open = f.n <= hi;
     const state = f.n === wo ? "equipped" : open ? "unlocked" : "locked";
     li.setAttribute("data-state", state);
+    if (open) li.removeAttribute("data-locked"); else li.setAttribute("data-locked", "");
     if (f.n === hi) li.setAttribute("data-highest", ""); else li.removeAttribute("data-highest");
     li.setAttribute("aria-label", f.name + ", level " + f.level + ", " + (state === "equipped" ? "equipped" : open ? "unlocked" : "locked"));
     const lv = li.querySelector(".form-tile-level") as HTMLElement;
@@ -213,7 +229,6 @@ export function refresh(): void {
     const tk = [document.documentElement.getAttribute("data-theme"), document.documentElement.getAttribute("data-panel"),
       window.getComputedStyle(panel).getPropertyValue("--accent")].join("|");
     if (tk !== themeKey) { themeKey = tk; view.repaint(); }
-    takeSnapshots(hi, part, tk);
   }
 }
 
@@ -252,7 +267,7 @@ function maybeEvolve(hi: number, wo: number): void {
   setStep("anticipate");
   const b = box();
   if (b) b.classList.add("is-anticipating");
-  if (view) view.wake();
+  if (view) { view.wake(); view.preload(seq.hi); }
   const host = seqHost();
   if (host) host.innerHTML = '<button type="button" class="btn ghost small" data-form-skip>Skip</button>';
   document.addEventListener("keydown", onKey);
@@ -358,30 +373,6 @@ function onKey(e: KeyboardEvent): void {
   /* an open dialog (the larger view, the palette, the settings sheet) owns Escape */
   if (e.defaultPrevented || document.querySelector("dialog[open]")) return;
   caption();
-}
-
-/* the path's pictures: each stage reached, drawn once, again when the Part or the theme changes */
-function takeSnapshots(hi: number, part: string, tk: string): void {
-  if (!view || view.state !== "3d") return;
-  /* a hidden tab draws nothing: the visibilitychange listener comes back here */
-  if (document.hidden) return;
-  const key = part + "|" + hi + "|" + tk;
-  if (key === snapKey) return;
-  let all = true;
-  for (let n = 1; n <= LAST_FORM; n++) {
-    const li = q('.form-tile[data-stage="' + n + '"]');
-    const img = li && (li.querySelector("img") as HTMLImageElement | null);
-    const pip = li && (li.querySelector(".form-pip") as HTMLElement | null);
-    if (!img || !pip) continue;
-    const url = n <= hi ? view.snapshot(n, part, SNAP_PX) : null;
-    if (url) { snaps[n] = url; img.src = url; img.hidden = false; pip.hidden = true; }
-    else {
-      delete snaps[n]; img.removeAttribute("src"); img.hidden = true; pip.hidden = false;
-      if (n <= hi) all = false;
-    }
-  }
-  /* the key is kept only when every reached stage got its picture, so a null retries */
-  if (all) snapKey = key;
 }
 
 function later(): void {
@@ -512,7 +503,15 @@ function mount(): void {
 }
 
 /** what the view reports, for tests and the console (null without a view) */
-export function info(): ReturnType<FormView["info"]> | null { return view ? view.info() : null; }
+export function info(): (ReturnType<FormView["info"]> & { strip: Array<{ n: number; src: string; locked: boolean }> }) | null {
+  if (!view) return null;
+  const strip = FORMS.map((f) => {
+    const li = q('.form-tile[data-stage="' + f.n + '"]');
+    const img = li && (li.querySelector("img") as HTMLImageElement | null);
+    return { n: f.n, src: img ? img.getAttribute("src") || "" : "", locked: !!li && li.hasAttribute("data-locked") };
+  });
+  return Object.assign({}, view.info(), { strip });
+}
 
 export const api = { refresh, equip, view: openView, info };
 

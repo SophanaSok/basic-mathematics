@@ -28,7 +28,7 @@ import type { FormScene } from "../world/form-scene.ts";
 import type { WebGLRenderer } from "three";
 import type { ModelKit, ModelEnv, ModelAsset, LoadState } from "../model/index.ts";
 import { modelFor, type Emote } from "../data/form-models.ts";
-import { Orbit, bindOrbit, DEFAULT_PITCH } from "./form-orbit.ts";
+import { Orbit, bindOrbit } from "./form-orbit.ts";
 import { press, finished, REST, FADE_MS, type Cmd, type EmoteState } from "./form-emotes.ts";
 
 export interface FormView {
@@ -37,8 +37,6 @@ export interface FormView {
   readonly state: "loading" | "3d" | "flat";
   /** show a stage in the hue of a Part (remembered until the scene is up) */
   show(stage: number, part: string): void;
-  /** a stage drawn once at px × px into the same renderer: a data URL, or null when 3D is off */
-  snapshot(stage: number, part: string, px: number): string | null;
   /** frames for AMBIENT_MS (the idle motion), then one at rest */
   wake(): void;
   /** the palette read again (a theme or panel change) and a frame drawn */
@@ -461,33 +459,6 @@ export function createFormView(box: HTMLElement, probe: Element, onState?: (s: "
     }
   }
 
-  function snapshot(stage: number, part: string, px: number): string | null {
-    if (state !== "3d" || !renderer || !scene || !canvas || document.hidden) return null;
-    try {
-      const r = renderer, s = scene;
-      const ratio = r.getPixelRatio();
-      /* the strip's pictures are the drawn form in the default pose (card V-9 changes this) */
-      showToon({ stage, part });
-      s.idle(0, false);
-      s.pose({ yaw: 0, pitch: DEFAULT_PITCH, zoom: 1 });
-      r.setPixelRatio(1);
-      r.setSize(px, px, false);
-      s.frame(px, px);
-      r.render(s.scene, s.camera);
-      const url = canvas.toDataURL();
-      /* back to what was shown, at the box's size */
-      r.setPixelRatio(ratio);
-      shown = null;
-      poseVer = -1;
-      apply();
-      size();
-      draw();
-      return url;
-    } catch {
-      return null;
-    }
-  }
-
   function moveTo(parent: HTMLElement, opts?: { zoom: boolean }): void {
     if (ro) ro.unobserve(host);
     if (host !== box) host.removeEventListener("pointerenter", onEnter);
@@ -560,7 +531,7 @@ export function createFormView(box: HTMLElement, probe: Element, onState?: (s: "
     ready,
     get state() { return state; },
     show(stage, part) { want = { stage, part }; apply(); },
-    snapshot, wake,
+    wake,
     repaint() { if (scene) { scene.repaint(); request(); } },
     moveTo,
     label(text) {
