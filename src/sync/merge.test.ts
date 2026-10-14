@@ -74,7 +74,7 @@ describe("the modules under src/sync/", () => {
   /* in a Node of its own, as tools/ loads them (type stripping) */
   it("add no global when Node imports them", () => {
     const files = fs.readdirSync(path.join(ROOT, "src/sync")).filter((f) => /\.ts$/.test(f) && !/\.(test|d)\.ts$/.test(f)).sort();
-    expect(files).toEqual(["merge.ts"]);
+    expect(files).toEqual(["events.ts", "json.ts", "merge.ts"]);
     const urls = files.map((f) => new URL("file://" + path.join(ROOT, "src/sync", f)).href);
     const script = "const before = Reflect.ownKeys(globalThis).map(String);" +
       "for (const u of " + JSON.stringify(urls) + ") await import(u);" +
@@ -87,7 +87,7 @@ describe("the modules under src/sync/", () => {
 
 describe("window.BMMerge", () => {
   it("is the merge and what account.js takes with it", () => {
-    expect(Object.keys(installed)).toEqual(["merge", "mergeGame", "SCHEMA", "versionOf", "canon", "obj", "str"]);
+    expect(Object.keys(installed)).toEqual(["merge", "mergeGame", "mergeEvents", "SCHEMA", "versionOf", "canon", "obj", "str"]);
     expect([installed.merge, installed.mergeGame, installed.SCHEMA]).toEqual([merge, mergeGame, 1]);
   });
 
