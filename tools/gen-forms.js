@@ -20,6 +20,9 @@
    the sha256 of the .py files under tools/art/forms/, so an edit to the art scripts without a re-run
    fails the check below.
 
+   A --stage run keeps the manifest's generator hash as it was, so after an edit to the
+   scripts --check stays red until every stage is rebuilt.
+
    Usage: node tools/gen-forms.js [--stage N] [--cpu] [--meshopt] [--no-meshopt]
           node tools/gen-forms.js --check    no Blender, no gltfpack: hold the manifest
                                              to the files; exit 1 on any difference
@@ -172,6 +175,7 @@ async function main() {
 
   for (const n of stages) {
     const log = abs(".cache/forms/form-" + n + ".log");
+    for (const ext of [".glb", ".json", ".png"]) fs.rmSync(abs(RAW + "/form-" + n + ext), { force: true });   /* never pack a stale raw file */
     const fd = fs.openSync(log, "w");
     const args = ["-b", "--factory-startup", "--python", BUILD, "--", "--stage", String(n), "--out", RAW].concat(cpu ? ["--cpu"] : []);
     const r = cp.spawnSync(blender, args, { cwd: ROOT, stdio: ["ignore", fd, fd] });
@@ -203,13 +207,10 @@ async function main() {
   const entries = Array.from(byN.values()).filter(e => STAGES.includes(e.n)).sort((a, b) => a.n - b.n);
   if (!only && entries.length !== STAGES.length) fail("the manifest does not hold all five stages");
 
-  let commit = "unknown";
-  const head = cp.spawnSync("git", ["rev-parse", "--short", "HEAD"], { cwd: ROOT, encoding: "utf8" });
-  if (head.status === 0) commit = head.stdout.trim();
-  const dirty = cp.spawnSync("git", ["status", "--porcelain", "--", "tools/art/forms"], { cwd: ROOT, encoding: "utf8" });
-  if (dirty.status === 0 && dirty.stdout.trim()) commit += " +dirty";
-  const hash = generatorHash();
-  fs.writeFileSync(abs(FILE), render(entries, "Blender " + blenderVersion + "; gltfpack " + gltfpackVersion + "; art scripts at " + commit + ".", hash));
+  /* the generator hash is written by a full run only: after a --stage run with changed
+     scripts the other stages are stale, and --check says so until every stage is rebuilt */
+  const hash = only && prev ? prev.hash : generatorHash();
+  fs.writeFileSync(abs(FILE), render(entries, "Blender " + blenderVersion + "; gltfpack " + gltfpackVersion + ".", hash));
 
   const named = new Set();
   entries.forEach(e => { named.add(path.basename(e.file)); named.add(path.basename(e.thumb)); });
