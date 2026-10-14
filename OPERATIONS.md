@@ -420,6 +420,37 @@ case to watch: a contents page left open from before it, whose `home.js` then fe
 `world.js`, would find the two disagreeing, and fall back to the list (`BMMap3D.why()` says
 `error`) until it is reloaded; keep the exports' names when changing the world, or accept that.
 
+### Cached HTML after the form-models deploy
+
+The deploy that turned the progress page's forms into models (README, "The game layer")
+renamed no file. It added two chunks, `bundle/three-model.js` and `bundle/form-model.js`, and
+the files under `/models/*` (`public/models/forms/`: five GLBs, five PNGs and a manifest), all
+revalidated like everything else (`tools/lib/headers.js`). Only the new `src/ui/form-view.ts`
+asks for the two chunks, and only on the progress page, so no other page can. For the ten
+minutes:
+
+- A progress page from before the deploy runs its cached `form-view.ts`, which never asks for
+  the new chunks or models; it keeps the drawn figure, which is still the fallback, until it is
+  reloaded.
+- A page open across the deploy keeps working with the figure it has (the drawn one) until it
+  is reloaded; the old HTML names the same chunk names, so nothing it needs is gone.
+
+Nothing is done by hand.
+
+### Regenerating the form models
+
+The models are generated output (decision 0008, `tools/art/forms/README.md`). Regenerating them
+happens on this box only: it needs Blender 5.2 at `~/.local/bin/blender` and `npm run
+gen:forms`, and CI never runs Blender. The `form-models` rule (`check:static`) holds the
+committed outputs to the scripts' hash, so an edit under `tools/art/forms/` stays red until
+every stage is rebuilt and committed. A full run changes a few bytes in every GLB and PNG
+whether or not the art did; restore the stages that did not change from main
+(`git checkout main -- public/models/forms/form-N.glb public/models/forms/form-N.png`) and
+commit only the changed stages and the manifest (the README's "The checks" has the details).
+Check `llm-switch status` first: the render uses the one GPU, and the generator passes
+`--cpu` to Blender by itself when a claimant (ollama, llama-server or ComfyUI) is up; pass
+`--cpu` to force it.
+
 ### The Pages source: GitHub Actions
 
 The GitHub Pages source is a repository setting and not a file: Settings → Pages → Build and

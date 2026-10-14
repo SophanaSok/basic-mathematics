@@ -325,7 +325,14 @@ library is shaken out; `assets/three-loader.js` imports that file on demand, onl
 course world nears the screen, so it is a chunk of its own, `bundle/three.js`, that a page with
 neither never downloads, and the namespace it loads is `BM3D.THREE`; if the chunk cannot be
 fetched, or the browser has no WebGL 2, which the library requires, every 3D picture is drawn
-flat with the same controls). So no stylesheet, script or font of a page comes from another
+flat with the same controls). The progress page's form models add two more on-demand chunks,
+fetched on that page only and only once its form view nears the screen: `bundle/three-model.js`
+(`src/vendor/three-model.js`: Three's GLTF loader and room environment) and
+`bundle/form-model.js` (`src/model/`: the loader, the look and the clips of a model). Built
+here, `bundle/three.js` is 600,676 bytes, `bundle/world.js` 31,092, `bundle/three-model.js`
+48,828 and `bundle/form-model.js` 5,559 (raw, from `npm run build`; the README quotes no
+compressed sizes). The costs are in
+[`docs/decisions/0008-form-models.md`](docs/decisions/0008-form-models.md). So no stylesheet, script or font of a page comes from another
 server (`npm run check:dist`, `offline`), and the browser checks fail any page that asks one for
 anything.
 
@@ -374,6 +381,10 @@ src/vendor/fonts.css    Inter, Newsreader and Bricolage Grotesque from the fonts
                         every page before katex.css
 src/vendor/supabase.js  supabase-js from npm, imported on demand by assets/account.js: bundle/supabase.js
 src/vendor/three.js     Three.js from npm, the names the site uses, imported on demand by assets/three-loader.js: bundle/three.js
+src/vendor/three-model.js  Three's GLTF loader and room environment, imported on demand by src/model/: bundle/three-model.js
+src/model/              the form models' loader, look and clips, imported on demand by src/ui/form-view.ts: bundle/form-model.js
+public/models/forms/    the five GLB models, their PNG thumbnails and the manifest, written by tools/gen-forms.js;
+                        served under /models/* with the revalidate rule
 src/styles/tokens.css   every colour, duration and shape token: the paper (light, and the dark panel a
                         reader can choose), the frame (each theme), the four Parts and their 3D
                         regions, motion, magnitude, focus, glass; the one file that defines a colour
@@ -449,6 +460,7 @@ tools/lib/vendor.js     which src/vendor/ module brings in each npm package (and
                         how the build names node_modules files and check-dist holds them; and the
                         licence notice the build writes into dist/bundle/LICENSES.txt from them
 tools/gen-fonts.js      writes src/vendor/fonts.css from the fontsource packages (npm run gen:fonts)
+tools/gen-forms.js      writes public/models/forms/ from the Blender scripts in tools/art/forms/ (npm run gen:forms; needs this box's Blender, never run by CI)
 tools/shell.json        what that comes to on each page, as readers have it (the `shell` check)
 parts/<part>/<nn>-<slug>.html
 package.json            the npm scripts, the dev dependencies (Vite, TypeScript, Vitest, Playwright,
@@ -828,10 +840,26 @@ The files:
 - The form is the learner's avatar, five stages (Pip, Sprig, Wayfinder, Surveyor, Luminary) unlocked
   by the level at 1, 3, 6, 10 and 15 (`src/data/forms.ts`; the stage logic is `src/core/forms.ts`).
   A reached stage is recorded in `bm.game.v1.form.got` and the stage worn in `form.wear`; the merge
-  is `mergeForm` in `src/sync/merge.ts`. `src/world/forms.ts` builds it (`buildForm`, procedural, the
-  one seam a model could replace), `setForm` in `src/world/index.ts` stands it on the current island
+  is `mergeForm` in `src/sync/merge.ts`. `src/world/forms.ts` builds it (`buildForm`, procedural; the marker and the fallback), `setForm` in `src/world/index.ts` stands it on the current island
   in place of the marker, and `src/ui/forms.ts`, `src/ui/form-view.ts` and `src/world/form-scene.ts`
   show it on the progress page, and `src/ui/form-unlock.ts` (every page) records a stage reached in `form.got` and announces it once. Decision: [`docs/decisions/0007-evolving-forms.md`](docs/decisions/0007-evolving-forms.md).
+- The progress page shows each form as a model (a GLB in `public/models/forms/`), not the drawn
+  figure. `src/ui/form-view.ts` (its header has the states) shows the drawn form first, in the
+  scene of `src/world/form-scene.ts`, and swaps the stage's model in when `bundle/form-model.js`
+  and the GLB arrive. Drag, or the arrow keys with the view focused, turns the form, and the
+  "View larger" dialog adds the wheel and a two-finger pinch for zoom (`src/ui/form-orbit.ts`; a
+  touch drag turns sideways only, so the page still scrolls). A row of four buttons under the
+  view plays the emotes wave, bow, flex and spin (`src/ui/form-emotes.ts`; every stage has the
+  clips, keyed in `tools/art/forms/emotes.py`), disabled until a model is up. With no WebGL, the
+  list tier, a lost context or a failed fetch the drawn form (or the card with the stage number)
+  stays and the page is whole; a slow load shows the drawn form and the model swaps in later.
+  Frames are drawn only while something moves. Under reduced motion or Study mode the idle
+  motion and a flick's coast are off, but a pressed emote is the reader's own act and plays
+  once. The strip of five forms still shows snapshots the viewer draws into its renderer
+  (`view.snapshot`), not the rendered thumbnails beside the GLBs; card V-9 changes that.
+  Contract, costs and threat model:
+  [`docs/decisions/0008-form-models.md`](docs/decisions/0008-form-models.md); regenerating the
+  models: `tools/art/forms/README.md` and OPERATIONS.md.
 - The recall model is the Arena's boxes in `bm.game.v1.sec`: box 0 to 4, due again 1, 3, 7, 14
   and 30 days after the section was last placed, due at once when it never was; a miss sends it
   to box 0, a clean showing moves it up one only once it is due. That rule is
@@ -926,6 +954,11 @@ fetches Three.js
 (`import()` of `src/world/index.ts`), side by side. If either fails the box goes and the list
 stands alone; `BMMap3D.why()` says why. No other page asks for either chunk (the pages suite
 watches the requests).
+
+The learner's marker on the map stays the drawn form (`src/world/forms.ts`); the models never
+go on the map, whose triangle and draw-call budgets above have no room for them.
+`src/world/form-scene.ts` is in the same chunk, `bundle/world.js`, and holds either figure (the
+drawn form or a loaded model) for the progress page's view.
 
 What is drawn (`src/world/`): four **terraces**, one per Part, stepping up and back from the
 Foundry to the Observatory, each with its own props made only of Three.js primitives (`props.ts`
