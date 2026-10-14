@@ -8,6 +8,8 @@ import { arenaDays, dayKeyOf, scheduleOf, type Schedule } from "./schedule.ts";
 const D0 = dayNumber("2026-10-01")!;
 const SEC = "ch04#one";
 const LONG = 60_000;
+/* a day after every fixture day below */
+const TODAY = dayKeyOf(D0 + 400);
 
 let counter = 0;
 function arena(sec: string, d: number, ok: 0 | 1): [string, Payload] {
@@ -46,40 +48,40 @@ function fold(start: Schedule, days: number[], miss: number[]): Schedule {
 describe("when a checkpoint is due", () => {
   it("needs 2 x SCHED_KEEP distinct days, and C is the 13th newest", () => {
     const need = 2 * SCHED_KEEP;
-    expect(checkpoint({}, SEC)).toBeNull();
-    expect(checkpoint(build(onDays(gappy(need - 1))), SEC)).toBeNull();
+    expect(checkpoint({}, SEC, TODAY)).toBeNull();
+    expect(checkpoint(build(onDays(gappy(need - 1))), SEC, TODAY)).toBeNull();
     const days = gappy(need);
-    const cp = checkpoint(build(onDays(days)), SEC);
+    const cp = checkpoint(build(onDays(days)), SEC, TODAY);
     expect(cp).not.toBeNull();
     expect(cp!.P[1]).toBe(days[days.length - 1 - SCHED_KEEP]);
     const more = gappy(30);
-    expect(checkpoint(build(onDays(more)), SEC)!.P[1]).toBe(more[more.length - 13]);
+    expect(checkpoint(build(onDays(more)), SEC, TODAY)!.P[1]).toBe(more[more.length - 13]);
   });
 
   it("counts several entries on one day as one day", () => {
     const days = gappy(2 * SCHED_KEEP - 1);
     const V = build([...onDays(days), ...onDays(days), ...onDays(days)]);
-    expect(checkpoint(V, SEC)).toBeNull();
+    expect(checkpoint(V, SEC, TODAY)).toBeNull();
     const W = build([...onDays(days), ...onDays(days), ...onDays([days[days.length - 1] + 1])]);
-    expect(checkpoint(W, SEC)).not.toBeNull();
+    expect(checkpoint(W, SEC, TODAY)).not.toBeNull();
   });
 
   it("is for one section only", () => {
     const V = build([...onDays(gappy(30)), ...onDays(gappy(5), [], "ch04#two")]);
-    expect(checkpoint(V, "ch04#two")).toBeNull();
-    expect(checkpoint(V, "ch04#none")).toBeNull();
+    expect(checkpoint(V, "ch04#two", TODAY)).toBeNull();
+    expect(checkpoint(V, "ch04#none", TODAY)).toBeNull();
   });
 });
 
 describe("the entry", () => {
   it("is valid, content-addressed, and the same whatever the key order", () => {
     const V = build(onDays(gappy(30), [gappy(30)[4]]));
-    const cp = checkpoint(V, SEC)!;
+    const cp = checkpoint(V, SEC, TODAY)!;
     expect(isValid(cp.id, cp.P)).toBe(true);
     expect(cp.id).toBe(checkpointId(cp.P));
     const reversed: EventSet = {};
     Object.keys(V).reverse().forEach((id) => { reversed[id] = V[id]; });
-    const again = checkpoint(reversed, SEC)!;
+    const again = checkpoint(reversed, SEC, TODAY)!;
     expect(again.id).toBe(cp.id);
     expect(again.P).toEqual(cp.P);
   });
@@ -87,7 +89,7 @@ describe("the entry", () => {
   it("holds the fold through C, the next day as s, and the counts", () => {
     const days = gappy(30), miss = [days[3], days[20]];
     const V = build(onDays(days, miss));
-    const cp = checkpoint(V, SEC)!, C = days[days.length - 13], upTo = days.filter((d) => d <= C);
+    const cp = checkpoint(V, SEC, TODAY)!, C = days[days.length - 13], upTo = days.filter((d) => d <= C);
     const want = fold({ box: 0, last: undefined }, upTo, miss);
     const x = cp.P[10] as any;
     expect(x.b).toBe(want.box);
@@ -104,7 +106,7 @@ describe("the entry", () => {
     const days = Array.from({ length: 30 }, (_, i) => S + i);
     const before = onDays([S - 10, S - 9, S - 8], [S - 9]);
     const V = build([earlier, ...before, ...onDays(days, [days[2]])]);
-    const cp = checkpoint(V, SEC)!, C = days[days.length - 13];
+    const cp = checkpoint(V, SEC, TODAY)!, C = days[days.length - 13];
     const upTo = days.filter((d) => d <= C);
     const x = cp.P[10] as any;
     expect(x.n).toBe(50 + upTo.length);
@@ -119,26 +121,47 @@ describe("the entry", () => {
     const S = D0 + 100;
     const big = cpOf(SEC, S, 1, S - 2, 999_999, 999_999);
     const days = Array.from({ length: 30 }, (_, i) => S + i);
-    const cp = checkpoint(build([big, ...onDays(days)]), SEC)!;
+    const cp = checkpoint(build([big, ...onDays(days)]), SEC, TODAY)!;
     expect((cp.P[10] as any).n).toBe(1_000_000);
     expect((cp.P[10] as any).o).toBe(1_000_000);
     expect(isValid(cp.id, cp.P)).toBe(true);
   });
 });
 
-describe("independence from the clock", () => {
-  it("has no today: only the entries that exist move C", () => {
+describe("the clock", () => {
+  it("leaves out days past today + 1, and refuses a today that is not a day", () => {
     const days = gappy(30), V = build(onDays(days));
-    const base = checkpoint(V, SEC)!;
-    /* more answers on the newest day add no day, so C stays: a wrong clock cannot widen C
-       beyond the entries that exist */
-    const same = checkpoint({ ...V, ...build([arena(SEC, days[days.length - 1], 1)]) }, SEC)!;
+    const at = dayKeyOf(days[days.length - 1]);
+    const base = checkpoint(V, SEC, at)!;
+    /* more answers on the newest day add no day, so C stays */
+    const same = checkpoint({ ...V, ...build([arena(SEC, days[days.length - 1], 1)]) }, SEC, at)!;
     expect(same.id).toBe(base.id);
-    /* a new day far in the future is a day that exists and moves C to the 13th newest of the new list */
-    const far = [...days, D0 + 5000];
-    const moved = checkpoint({ ...V, ...build(onDays([D0 + 5000])) }, SEC)!;
-    expect(moved.P[1]).toBe(far[far.length - 13]);
-    expect(moved.id).not.toBe(base.id);
+    /* days a year ahead are not counted: a wrong clock cannot move C into the future */
+    const ahead = Array.from({ length: 13 }, (_, i) => D0 + 365 + i);
+    const W = { ...V, ...build(onDays(ahead)) };
+    const cp = checkpoint(W, SEC, at)!;
+    expect(cp.id).toBe(base.id);
+    expect(cp.P[1]).toBeLessThanOrEqual(days[days.length - 1] + 1);
+    const today = at;
+    const want = scheduleOf(V, SEC, today);
+    expect(scheduleOf({ ...W, [cp.id]: cp.P }, SEC, today)).toEqual(want);
+    expect(scheduleOf(prune({ ...W, [cp.id]: cp.P }), SEC, today)).toEqual(want);
+    /* a miss played today still gives box 0 */
+    const miss = build([arena(SEC, days[days.length - 1] + 1, 0)]);
+    expect(scheduleOf(prune({ ...W, [cp.id]: cp.P, ...miss }), SEC, dayKeyOf(days[days.length - 1] + 1)))
+      .toEqual({ box: 0, last: dayKeyOf(days[days.length - 1] + 1) });
+    expect(checkpoint(V, SEC, "not a day")).toBeNull();
+  });
+
+  it("is null for the section \"\" and never an invalid entry", () => {
+    const empty = build(onDays(gappy(30), [], ""));
+    expect(checkpoint(empty, "", TODAY)).toBeNull();
+    /* an edge date: C below d = 18750 would put t below T_MIN (the fixtures are not valid
+       entries either), and the checkpoint is not built */
+    const edge = Array.from({ length: 30 }, (_, i) => 18_000 + i);
+    const E = build(edge.map((d) => arena(SEC, d, 1)));
+    const cp = checkpoint(E, SEC, dayKeyOf(18_100));
+    expect(cp).toBeNull();
   });
 });
 
@@ -152,7 +175,7 @@ describe("300 days of one section", () => {
       const adds = [arena(SEC, d, miss(i) ? 0 : 1)];
       if (i % 4 === 0) adds.push(arena(SEC, d, 1));
       adds.forEach(([id, P]) => { V[id] = P; H[id] = P; });
-      const cp = checkpoint(V, SEC);
+      const cp = checkpoint(V, SEC, dayKeyOf(d));
       if (cp) V[cp.id] = cp.P;
       V = prune(V);
       expect(scheduleOf(V, SEC, dayKeyOf(d))).toEqual(scheduleOf(H, SEC, dayKeyOf(d)));
@@ -175,7 +198,7 @@ describe("competing checkpoints", () => {
     const V = build([low, high, ...onDays(days)]);
     expect(winners(V)[SEC].id).toBe(high[0]);
     expect(scheduleOf(build([low, high]), SEC, dayKeyOf(S2 + 5))).toEqual({ box: 1, last: dayKeyOf(S2 - 3) });
-    const cp = checkpoint(V, SEC)!, C = days[days.length - 13];
+    const cp = checkpoint(V, SEC, TODAY)!, C = days[days.length - 13];
     const x = cp.P[10] as any;
     expect(x.n).toBe(70 + days.filter((d) => d <= C).length);
     expect(x.o).toBe(60 + days.filter((d) => d <= C).length);

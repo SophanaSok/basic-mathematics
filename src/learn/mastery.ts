@@ -4,7 +4,8 @@
    agree. It steers only the learner's own view (which sections look weak, deck order, the
    support level later); no reward reads it (r2-design.md section 3.12). Page evidence
    survives prune (prune keeps a ref's earliest check that was right and its earliest
-   solution opened); Arena evidence is read from what the pruned set holds, by design.
+   solution opened, which holds because a ref belongs to one section: a ref carrying two
+   sections is grouped by ref alone in prune and one section's item may go); Arena evidence is read from what the pruned set holds, by design.
 
    Pure: no window, no document, no storage of any kind (tools/check-static.js `pure-core`). */
 
@@ -13,7 +14,7 @@ import {
   MASTERY_ALPHA, MASTERY_MIN_EVIDENCE, MASTERY_PRIOR, OPENED_CREDIT, RETRY_CREDIT,
   RUNG_CREDIT, SEED_WEIGHT, TRY_CREDIT
 } from "./constants.ts";
-import { startOf } from "./schedule.ts";
+import { startOf, type Pre } from "./schedule.ts";
 
 export interface Mastery { m: number; c: number }
 export interface Evidence { id: string; P: Payload; credit: number }
@@ -35,11 +36,11 @@ export function creditOf(P: Payload): number {
     (a) for each non-empty `ref` among the p-class entries of `sec`, the earliest entry with
         (k === "c" && ok === 1) or k === "o"; one item per ref;
     (b) every s-class entry of `sec` with d >= S0 (startOf's s0). */
-export function evidenceOf(V: EventSet, sec: string): Evidence[] {
-  const { s0 } = startOf(V, sec);
+export function evidenceOf(V: EventSet, sec: string, pre?: Pre): Evidence[] {
+  const { s0 } = startOf(V, sec, pre);
   const seen: Record<string, boolean> = Object.create(null);
   const out: Evidence[] = [];
-  ordered(V).forEach(({ id, P }) => {
+  (pre ? pre.list : ordered(V)).forEach(({ id, P }) => {
     if (P[3] !== sec) return;
     const cls = classOf(P);
     if (cls === "s") {
@@ -57,15 +58,15 @@ export function evidenceOf(V: EventSet, sec: string): Evidence[] {
 }
 
 /** Prior, then the fold over the evidence in order. */
-export function masteryOf(V: EventSet, sec: string): Mastery {
-  const { W } = startOf(V, sec);
+export function masteryOf(V: EventSet, sec: string, pre?: Pre): Mastery {
+  const { W } = startOf(V, sec, pre);
   let m = MASTERY_PRIOR, c = 0;
   if (W) {
     const x: any = W.P[10];
     m = (MASTERY_PRIOR * SEED_WEIGHT + x.o) / (SEED_WEIGHT + x.n);
     c = Math.min(x.n, MASTERY_MIN_EVIDENCE);
   }
-  evidenceOf(V, sec).forEach((e) => {
+  evidenceOf(V, sec, pre).forEach((e) => {
     m = m + MASTERY_ALPHA * (e.credit - m);
     c = c + 1;
   });

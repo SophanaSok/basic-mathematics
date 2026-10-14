@@ -48,6 +48,7 @@ describe("bandsAll", () => {
     const hint: Payload = [D0 * 1440 + 5, D0, "ex", "ch04#d", "ch04/e1", "h", 0, 1, 0, 0];
     const V = build([
       arena("ch01#a", D0, 1),
+      arena("", D0, 1),
       [checkpointId(cp), cp],
       [eventId("dev00001", hint, freshRand()), hint]
     ]);

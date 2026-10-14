@@ -51,6 +51,7 @@ function build(entries: [string, Payload][]): EventSet {
 function same(a: unknown, b: unknown) {
   if (JSON.stringify(a) !== JSON.stringify(b)) expect(a).toEqual(b);
 }
+const arenaMax = (V: EventSet, sec: string) => Math.max(...Array.from(arenaDays(V, sec).keys()));
 const norm = (s: Schedule): Schedule => ({ box: s.box, last: s.last });
 
 describe("dayKeyOf", () => {
@@ -141,7 +142,7 @@ describe("proof obligation 3: a checkpoint changes no schedule", () => {
     for (let i = 0; i < 500; i++) {
       const sec = "ch03#x";
       const { V } = randomSet(r, { sections: [sec], minDays: 30, maxDays: 50, maxEntries: 120, cps: 1 });
-      const cp = checkpoint(V, sec);
+      const cp = checkpoint(V, sec, dayKeyOf(arenaMax(V, sec)));
       if (!cp) continue;
       tested++;
       const D = Array.from(arenaDays(V, sec).keys()), C = cp.P[1];
@@ -175,12 +176,16 @@ describe("scheduleAll", () => {
     const V = build([
       arena("ch01#a", D0, 1), arena("ch01#b", D0, 0),
       cpOf("ch01#c", D0, 2, D0 - 2),
-      page("ch01#d", "ch01/e1", "c", D0 * 1440)
+      page("ch01#d", "ch01/e1", "c", D0 * 1440),
+      arena("", D0, 1)
     ]);
     const all = scheduleAll(V, dayKeyOf(D0 + 5));
     expect(Object.keys(all).sort()).toEqual(["ch01#a", "ch01#b", "ch01#c"]);
     expect(all["ch01#c"]).toEqual({ box: 2, last: dayKeyOf(D0 - 2) });
     expect(Object.isFrozen(all)).toBe(true);
+    expect(Object.isFrozen(all["ch01#a"])).toBe(true);
+    expect(() => { "use strict"; (all["ch01#a"] as any).box = 4; }).toThrow();
+    expect(scheduleAll(V, dayKeyOf(D0 + 5))["ch01#a"].box).toBe(1);
     expect(scheduleAll(V, dayKeyOf(D0 + 5))).toBe(all);
     const other = scheduleAll(V, dayKeyOf(D0 + 6));
     expect(other).not.toBe(all);
@@ -305,9 +310,9 @@ describe("the fold test: events fold to what recordRun would have placed", () =>
 
       /* with checkpoints written every 20 days as the history goes */
       let V: EventSet = {};
-      const writeCheckpoints = () => {
+      const writeCheckpoints = (today: number) => {
         sections.forEach((sec) => {
-          const cp = checkpoint(V, sec);
+          const cp = checkpoint(V, sec, dayKeyOf(today));
           if (cp) { expect(isValid(cp.id, cp.P)).toBe(true); V[cp.id] = cp.P; }
         });
         V = prune(V);
@@ -324,11 +329,11 @@ describe("the fold test: events fold to what recordRun would have placed", () =>
         });
         noise.filter(([, P]) => P[1] === day).forEach(([id, P]) => { V[id] = P; });
         if ((day - first) % 20 === 19) {
-          writeCheckpoints();
+          writeCheckpoints(day);
           agree(V, day, upTo(day), from());
         }
       }
-      writeCheckpoints();
+      writeCheckpoints(last);
       const f = from();
       sampled.forEach((X) => agree(V, X, upTo(X + SCHED_FUTURE_SLACK_DAYS), f));
       sections.forEach((sec) => {
