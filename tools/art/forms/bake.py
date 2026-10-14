@@ -288,7 +288,9 @@ def bake(objs, mats, stage, out_dir, cpu=False):
     channels = wear_trees(mats)
     _bake_target(mats, color)
     _select(objs)
-    _bake_setup(scene, cpu, 6 if cpu else 12)
+    # the same sample counts on the CPU as on the GPU, so the committed textures do not
+    # depend on which device baked them (gen-forms adds --cpu when an LLM service is up)
+    _bake_setup(scene, cpu, 12)
     bpy.ops.object.bake(type="EMIT")
     color_path = os.path.join(out_dir, f"form-{stage}-color.webp")
     _save(color, color_path, COLOR_QUALITY)
@@ -304,7 +306,7 @@ def bake(objs, mats, stage, out_dir, cpu=False):
         nt.links.new(em.outputs[0], out.inputs["Surface"])
     _bake_target(mats, surface)
     _select(objs)
-    scene.cycles.samples = 4 if cpu else 8
+    scene.cycles.samples = 8
     bpy.ops.object.bake(type="EMIT")
     surface_path = os.path.join(out_dir, f"form-{stage}-surface.webp")
     _save(surface, surface_path, SURFACE_QUALITY)
