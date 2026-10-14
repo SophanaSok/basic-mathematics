@@ -15,8 +15,10 @@
    A package may be brought in by two script modules when one of them names only
    subpaths of it (src/vendor/three-model.js imports three/examples/jsm/… addons,
    src/vendor/three.js imports "three" bare). The one that names subpaths owns every file
-   under the first path segment of each (examples/**); the bare one owns the rest (build/**).
-   A dependency two modules bring in, with neither naming it, is still placed by hand.
+   under the first path segment of each (examples/**); the one that imports it bare and
+   names no subpath owns the rest (build/**): a module naming subpaths never counts as
+   the bare one, even when it imports the package bare too. A dependency two modules
+   bring in, with neither naming it, is still placed by hand.
 
    And the licences: everything in dist/bundle/ that is not the site's own comes from
    one of those packages, so the build writes bundle/LICENSES.txt (NOTICE) from their
