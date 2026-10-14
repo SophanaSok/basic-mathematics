@@ -31,6 +31,9 @@ BACKDROP = (0.32, 0.33, 0.35, 1.0)
 KINDS = ("turntable", "thumb", "emotes")
 
 
+THUMB_MAX_BYTES = 120000
+
+
 def _bounds(objects):
     dg = bpy.context.evaluated_depsgraph_get()
     pts = []
@@ -217,10 +220,13 @@ def thumbnail(objects, height, path, engine, cpu=False):
     w, h = THUMB
     centre, hgt, width = _bounds(objects)
     cam = _setup(scene, w, h, True)
-    _tint_accent()
+    # no judging tint here: the site tints the accent itself, and the strip shows this file
     scene.frame_set(0)   # the rest pose; frame 0 of idle once clips exist
     _aim(cam, centre, hgt, width, w, h, 30)
     used = _render_still(scene, path, engine, cpu)
+    size = os.path.getsize(path)
+    if size > THUMB_MAX_BYTES:
+        raise RuntimeError(f"{path} is {size} bytes, over the {THUMB_MAX_BYTES} the strip allows")
     return path, used
 
 

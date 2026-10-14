@@ -21,7 +21,11 @@
    fails the check below.
 
    A --stage run keeps the manifest's generator hash as it was, so after an edit to the
-   scripts --check stays red until every stage is rebuilt.
+   scripts --check stays red until every stage is rebuilt. The outputs are reproducible
+   in substance, not in bytes: Blender's export and Eevee's render differ by a few bytes
+   from run to run, so a regeneration is committed when the art changed, not after
+   every run, and --check holds numbers (bytes, triangles, slots, clips, the scripts'
+   hash) rather than the files' hashes.
 
    Usage: node tools/gen-forms.js [--stage N] [--cpu] [--no-thumbs] [--meshopt] [--no-meshopt]
           node tools/gen-forms.js --check    no Blender, no gltfpack: hold the manifest
@@ -91,6 +95,7 @@ function problems() {
     named.add(path.basename(e.thumb));
     const f = abs("public/" + e.file);
     if (!fs.existsSync(f)) { out.push("form " + e.n + ": " + e.file + " does not exist"); continue; }
+    if (!fs.existsSync(abs("public/" + e.thumb))) out.push("form " + e.n + ": " + e.thumb + " does not exist (run `npm run gen:forms` without --no-thumbs)");
     let r;
     try { r = read(e.n); } catch (err) { out.push("form " + e.n + ": " + err.message); continue; }
     if (r.bytes !== e.bytes) out.push("form " + e.n + ": " + r.bytes + " bytes, manifest says " + e.bytes);
