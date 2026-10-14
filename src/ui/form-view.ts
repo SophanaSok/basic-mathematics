@@ -18,6 +18,7 @@
 import { detectTier, readProbe, pixelRatio, TIERS, AMBIENT_MS, type Quality } from "../world/tiers.ts";
 import type { FormScene } from "../world/form-scene.ts";
 import type { WebGLRenderer } from "three";
+import type { ModelKit } from "../model/index.ts";
 
 export interface FormView {
   /** resolves true once the canvas is up, false when the view is flat for good; never rejects */
@@ -62,6 +63,7 @@ export function createFormView(box: HTMLElement, probe: Element, onState?: (s: "
   let renderer: WebGLRenderer | null = null;
   let canvas: HTMLCanvasElement | null = null;
   let scene: FormScene | null = null;
+  let modelKit: ModelKit | null = null;
   let tier: Quality = "medium";
   let want: { stage: number; part: string } | null = null;
   let shown: { stage: number; part: string } | null = null;
@@ -194,6 +196,8 @@ export function createFormView(box: HTMLElement, probe: Element, onState?: (s: "
       if (onState) onState("3d");
       settle(true);
       wake();
+      /* the model chunk, on this page only; nothing uses the kit yet */
+      void import("../model/index.ts").then(m => m.createModelKit()).then(kit => { if (dead) kit.dispose(); else modelKit = kit; }).catch(() => {});
     } catch {
       flat();
     }
@@ -253,6 +257,7 @@ export function createFormView(box: HTMLElement, probe: Element, onState?: (s: "
     window.removeEventListener("pagehide", onHide);
     box.removeEventListener("pointerenter", onEnter);
     if (canvas && canvas.parentNode) canvas.parentNode.removeChild(canvas);
+    if (modelKit) { try { modelKit.dispose(); } catch { /* gone */ } modelKit = null; }
     teardown();
     settle(false);
   }

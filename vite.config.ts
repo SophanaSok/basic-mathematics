@@ -72,7 +72,10 @@ function htmlPages(): Record<string, string> {
    bundle/scenes3d-gl.js, supabase-js (account.js's, through src/vendor/supabase.js) is
    bundle/supabase.js, Three.js (three-loader.js's, through src/vendor/three.js) is
    bundle/three.js, and the course world (map3d.js's and src/ui/form-view.ts's import of src/world/index.ts, with
-   the modules of src/world/ it imports that no entry does) is bundle/world.js. The typed
+   the modules of src/world/ it imports that no entry does) is bundle/world.js, and the model
+   viewer (src/ui/form-view.ts's import of src/model/index.ts, with the modules of src/model/
+   it imports) is bundle/form-model.js, with its Three.js (src/vendor/three-model.js: the GLTF
+   loader, the room environment and more of three's core) as bundle/three-model.js. The typed
    grader's modules (src/core/answer/, which src/ui/core.ts imports) are named by no
    entry: each goes where src/core/grade.ts goes, which every entry imports, so all.js,
    and a module of it that comes into use later needs no entry's edit. A file
@@ -80,7 +83,7 @@ function htmlPages(): Record<string, string> {
    brings it in goes (tools/lib/vendor.js: KaTeX's scripts with src/vendor/katex.js,
    which every entry imports, so all.js; supabase-js and its dependencies into
    bundle/supabase.js; three's two build files into bundle/three.js, shaken down to
-   the names src/vendor/three.js exports). The vendor stylesheets every page links (src/vendor/fonts.css and
+   the names src/vendor/three.js exports, and its examples/ files into bundle/three-model.js). The vendor stylesheets every page links (src/vendor/fonts.css and
    katex.css, VENDOR_STYLES) are every kind's, so they open all.css, before the site's own
    (src/styles/tokens.css, then site.css); the
    packages' CSS they import is inlined into them before rolldown sees a module, and the
@@ -91,7 +94,7 @@ function htmlPages(): Record<string, string> {
    This is the split rolldown makes on its own; what it adds is the names.
    tools/check-dist.js reads the same sources and holds every chunk and stylesheet in
    dist to the name its contents call for. */
-const WORLD_DIR = "src/world/";
+const WORLD_DIR = "src/world/", MODEL_DIR = "src/model/";
 const GRADER = "src/core/grade.ts", GRADER_DIR = "src/core/answer/";
 function bundleNames(): (id: string) => string | null {
   const kinds = Object.keys(PAGE_KINDS) as (keyof typeof PAGE_KINDS)[];
@@ -112,6 +115,7 @@ function bundleNames(): (id: string) => string | null {
     if (by) return by.length === kinds.length ? "all" : by.join("-");
     if (/^assets\/[^/]+\.js$/.test(rel)) return path.posix.basename(rel, ".js");   /* a dynamic import of a script's own */
     if (rel.startsWith(WORLD_DIR)) return "world";                                  /* the course world, map3d.js's import() */
+    if (rel.startsWith(MODEL_DIR)) return "form-model";                             /* the model viewer, form-view.ts's import() */
     /* the grader's modules, with grade.ts: after `by`, so one an entry named itself would
        go by that entry (tools/check-dist.js kindsLoading reads them in the same order) */
     if (rel.startsWith(GRADER_DIR)) return nameOf(GRADER, id);
@@ -283,10 +287,12 @@ export default defineConfig({
        check-dist.js `links` resolves each url() in the built CSS to a file. */
     assetsInlineLimit: 0,
     /* bundle/three.js is over Vite's 500 kB line (the renderer is most of the library,
-       and it is minified, 570 kB, 144 kB over the wire) and is fetched only when a 3D
-       scene or the course map nears the screen, which is what the warning would ask
-       for; the line is raised past it so a build prints nothing it does not mean */
-    chunkSizeWarningLimit: 600,
+       and it is minified, 601 kB, 151 kB over the wire, since three-model.js re-exports
+       core names from the same module) and is fetched only when a 3D scene or the
+       course map nears the screen, which is what the warning would ask for; the line is
+       raised past it so a build prints nothing it does not mean. Past 700 kB, trim the
+       names src/vendor/three.js and three-model.js export. */
+    chunkSizeWarningLimit: 700,
     rolldownOptions: {
       input: htmlPages(),
       output: {
