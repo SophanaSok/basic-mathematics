@@ -40,7 +40,8 @@ function entryProblems(e, root) {
   let d = null;
   try { d = glb.describeGlb(fs.readFileSync(path.join(root, "public", e.file)), uri => {
       const f = path.join(root, "public", "models/forms", uri);
-      return fs.existsSync(f) ? fs.readFileSync(f) : null;
+      /* a uri is a bare file name beside the GLB; anything with a path is not resolved */
+      return path.basename(uri) === uri && fs.existsSync(f) ? fs.readFileSync(f) : null;
     }); } catch (err) { out.push(w + e.file + ": " + err.message); }
   if (d) {
     if (d.triangles > limits.MODEL_TRIANGLES_MAX) out.push(w + "the file holds " + d.triangles + " triangles, over " + limits.MODEL_TRIANGLES_MAX);
@@ -55,6 +56,7 @@ function entryProblems(e, root) {
     const listed = e.images || [];
     d.images.forEach((im, i) => {
       if (im.uri === undefined) { out.push(w + "texture " + i + " is embedded; the models keep textures as files beside the GLB"); return; }
+      if (path.basename(im.uri) !== im.uri) { out.push(w + "texture " + i + " " + im.uri + " is not a bare file name beside the GLB"); return; }
       const f = path.join(root, "public", "models/forms", im.uri);
       if (!fs.existsSync(f)) { out.push(w + "texture " + i + " " + im.uri + " does not exist"); return; }
       const head = fs.readFileSync(f).subarray(0, 12);
