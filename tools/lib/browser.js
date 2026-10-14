@@ -229,9 +229,11 @@ function makeHelpers(ctx) {
     await page.evaluate(source);
   }
 
-  /* a page taller than SHOT_MAX px (scope.html is 51,000 px at 360 px) is shot to that
-     height only: the contact sheet shows its top, and the capture stays inside the 15 s the
-     CI runner's software renderer allows a full-page shot (it timed out on PR #133) */
+  /* a page taller than SHOT_MAX px (scope.html is 51,000 px at 360 px and 23,000 at 1280)
+     gets a viewport shot, not a full-page one: the contact sheet shows its top, and the
+     capture stays inside the 15 s the CI runner's software renderer allows (a full-page
+     shot timed out on PR #133, and a full-page shot clipped to 16,000 px still did on
+     main's run for #134, so the clip does not spare the renderer) */
   const SHOT_MAX = 16000;
   async function screenshot(page, name, o) {
     const rel = name.replace(/[^a-zA-Z0-9/_.-]+/g, "-") + ".png";
@@ -240,7 +242,7 @@ function makeHelpers(ctx) {
     const opts = Object.assign({ path: abs, fullPage: true, animations: "disabled", caret: "hide" }, o || {});
     if (opts.fullPage && !opts.clip) {
       const size = await page.evaluate(() => ({ w: document.documentElement.scrollWidth, h: document.documentElement.scrollHeight }));
-      if (size.h > SHOT_MAX) opts.clip = { x: 0, y: 0, width: size.w, height: SHOT_MAX };
+      if (size.h > SHOT_MAX) opts.fullPage = false;
     }
     await page.screenshot(opts);
     return rel;
