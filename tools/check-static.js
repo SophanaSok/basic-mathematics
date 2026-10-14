@@ -1691,6 +1691,20 @@ function checkUsEnglish(ctx, r) {
   r.note(left + " British spellings and money forms still allowed, in " + files.length + " files (" + path.relative(ROOT, us.ALLOW_FILE) + ")");
 }
 
+/* scope.html is tools/gen-scope.js's output for the current curriculum and skills records.
+   `text` is the file's content (the working tree's when absent), so a test can hand in a copy */
+function checkScope(ctx, r, text) {
+  const gen = require("./gen-scope");
+  const want = gen.render({ curriculum: ctx.curriculum, skills: loadSkills() });
+  const have = text === undefined ? (fs.existsSync(gen.FILE) ? fs.readFileSync(gen.FILE, "utf8") : "") : text;
+  r.count = want.split("\n").length;
+  if (have === want) return;
+  const a = have.split("\n"), b = want.split("\n");
+  let i = 0;
+  while (i < a.length && i < b.length && a[i] === b[i]) i++;
+  r.fail(gen.STALE + " (first difference at line " + (i + 1) + ")");
+}
+
 /* ------------------------------------------------------------- runner ---- */
 
 const CHECKS = [
@@ -1699,6 +1713,7 @@ const CHECKS = [
   { name: "ids", run: checkIds, what: "no id is on more than one element of a page" },
   { name: "lesson-steps", run: checkLessonSteps, what: "each chapter is cut into the lesson steps recorded in tools/lesson-steps.json (WARN)" },
   { name: "shell", run: checkShell, what: "each page's head, body tag and top bar, as lib/shell.js writes them, are the ones in tools/shell.json; one module entry per page, its kind's" },
+  { name: "scope", run: checkScope, what: "scope.html is tools/gen-scope.js's output for the current curriculum and skills records" },
   { name: "curriculum", run: checkCurriculum, what: "every chapter file exists; every section id is an <h2 id> in it" },
   { name: "links", run: checkLinks, what: "relative hrefs/srcs resolve to files, anchors to ids" },
   { name: "widgets", run: checkWidgets, what: "every data-widget / data-figure is a defined factory; a chart has a known kind, a numeric table of its shape and a caption" },
@@ -1745,5 +1760,5 @@ function main() {
 
 if (require.main === module) main();
 module.exports = {
-  chartProblems, CHECKS, result, loadCore, barProblem, siteJudgeProblem, pureProblems, isPureFile, codeProblems, courseProblems, exerciseRefs, sectionAnchors, skillsProblems, sectionWorkCounts, sectionWorkProblems, pageKeys, lessonSteps, stepsDiff, shellOf, shellDiff, scriptsProblems, randomState, stripLocalFirst, canon,
+  chartProblems, checkScope, CHECKS, result, loadCore, barProblem, siteJudgeProblem, pureProblems, isPureFile, codeProblems, courseProblems, exerciseRefs, sectionAnchors, skillsProblems, sectionWorkCounts, sectionWorkProblems, pageKeys, lessonSteps, stepsDiff, shellOf, shellDiff, scriptsProblems, randomState, stripLocalFirst, canon,
   animationFaults, colourLiterals, columnPatterns, inColumn, quietKinds, printGaps };

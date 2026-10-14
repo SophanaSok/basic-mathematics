@@ -102,6 +102,22 @@ canvas:focus-visible { outline-offset: -3px; }
 .muted { color: var(--muted); }
 .fine { font-family: var(--sans); font-size: .82rem; color: var(--muted); }
 
+/* scope.html (tools/gen-scope.js): one table per course band; stacked cards on a narrow screen */
+.scope { width: 100%; border-collapse: collapse; margin: .6rem 0 1.6rem; font-family: var(--sans); font-size: .82rem; line-height: 1.4; }
+.scope caption { text-align: left; font-weight: 600; color: var(--muted); padding-bottom: .3rem; }
+.scope th, .scope td { border: 1px solid var(--border); padding: .4em .55em; text-align: left; vertical-align: top; }
+.scope thead th { background: var(--surface-2); }
+.scope tbody tr:nth-child(odd) { background: var(--surface); }
+.scope tbody tr:nth-child(even) { background: var(--bg); }
+@media (max-width: 900px) {
+  .scope thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap; }
+  .scope, .scope tbody, .scope tr, .scope td { display: block; }
+  .scope tr { border: 1px solid var(--border); border-radius: 6px; margin-bottom: .7rem; }
+  .scope td { border: 0; border-bottom: 1px solid var(--border); overflow-wrap: anywhere; }
+  .scope td:last-child { border-bottom: 0; }
+  .scope td::before { content: attr(data-th); display: block; font-size: .72rem; font-variant: small-caps; letter-spacing: .04em; color: var(--muted); }
+}
+
 /* a display-face label: eyebrows, block tags, counters */
 .eyebrow, .callout .tag, .rule .tag, .puzzle .tag, .puzzle-answer .tag, .warmup .tag,
 .chapter-feedback .tag, .goal strong, .recap > h2, .missions-head, .ex-num {
