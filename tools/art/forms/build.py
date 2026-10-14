@@ -40,7 +40,7 @@ def main():
     bpy.context.scene.render.fps = 30
     mats = materials.make_materials()
     props = rig.proportions_for(a.stage)
-    arm = rig.build_armature(props)
+    arm = rig.armature_for(a.stage, props)
     builder = STAGE_BUILDERS.get(a.stage, rig.mannequin)
     objs = builder(arm, props, mats)
     path = os.path.join(a.out, f"form-{a.stage}.glb")
