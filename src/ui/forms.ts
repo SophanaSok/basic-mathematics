@@ -484,7 +484,7 @@ function mount(): void {
         const dbox = dialog && dialog.querySelector(".form-dialog-box");
         if (dbox) dbox.setAttribute("data-state", "flat");
       }
-    }, row);
+    }, { set: row.set, enable: row.enable, show: (on) => { if (emoteRow) emoteRow.hidden = !on; } });
   } catch { view = null; box.setAttribute("data-state", "flat"); }
   panel.addEventListener("click", (e) => {
     const t = e.target as Element | null;

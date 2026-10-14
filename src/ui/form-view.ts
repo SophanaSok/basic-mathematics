@@ -64,10 +64,12 @@ export interface ViewInfo {
   yaw: number;
   frames: number;
   memory: { geometries: number; textures: number } | null;
+  /** a model's clip weights now (empty for the drawn form) */
+  clips: Record<string, number>;
 }
 
 /** the row of emote buttons forms.ts mounts: what the view tells it */
-export interface EmoteRow { set(playing: Emote | null): void; enable(on: boolean): void }
+export interface EmoteRow { set(playing: Emote | null): void; enable(on: boolean): void; show(on: boolean): void }
 
 /* three's SRGBColorSpace is the string "srgb"; spelled here so the world's Three.js
    needs no new name for it */
@@ -113,6 +115,7 @@ export function createFormView(box: HTMLElement, probe: Element, onState?: (s: "
   const assets = new Map<number, ModelAsset>();
   const failed = new Set<number>();
   const loading = new Set<number>();
+  const fired = new Set<number>();   /* loads whose timeout has passed */
   let preloaded: number | null = null;
   let modelAttr: "loading" | "model" | "fallback" = "loading";
   let lookStill = false;
@@ -150,6 +153,8 @@ export function createFormView(box: HTMLElement, probe: Element, onState?: (s: "
     box.setAttribute("data-model", m);
     host.setAttribute("data-model", m);
     if (loadEl && m !== "loading") loadEl.hidden = true;
+    /* the buttons have nothing to do when the drawn form stays */
+    if (emotes) emotes.show(m !== "fallback");
   };
   setState("loading");
   setModel("loading");
@@ -172,6 +177,7 @@ export function createFormView(box: HTMLElement, probe: Element, onState?: (s: "
     stageEl = loadEl = loadBar = null;
     if (scene) { try { scene.dispose(); } catch { /* gone */ } scene = null; }
     if (env) { try { env.dispose(); } catch { /* gone */ } env = null; }
+    /* the renderer is disposed just below, so this puts back settings nothing will read; kept for a renderer that outlives the view */
     if (restore) { try { restore(); } catch { /* gone */ } restore = null; }
     if (kit) { try { kit.dispose(); } catch { /* gone */ } kit = null; }
     if (renderer) { try { renderer.dispose(); } catch { /* gone */ } renderer = null; }
@@ -269,10 +275,18 @@ export function createFormView(box: HTMLElement, probe: Element, onState?: (s: "
 
   function runCmds(cmds: Cmd[]): void {
     const look = scene && scene.look;
+    const missing: string[] = [];
     for (const c of cmds) {
       if (c.type === "play") {
-        if (look && "run" in look) look.run({ type: "play", clip: c.clip, from: c.from, ms: c.ms });
+        const ok = !!look && "run" in look && look.run({ type: "play", clip: c.clip, from: c.from, ms: c.ms });
+        if (!ok) missing.push(c.clip);
       } else if (emotes) emotes.set(c.emote);
+    }
+    /* a clip the file lacks never finishes: the machine hears that it did, so it rests */
+    for (const clip of missing) {
+      const [next, more] = finished(es, clip);
+      es = next;
+      if (more.length) runCmds(more);
     }
   }
 
@@ -314,14 +328,18 @@ export function createFormView(box: HTMLElement, probe: Element, onState?: (s: "
   /* fetch a stage's model; whenever it arrives, and the stage is still the one wanted,
      it replaces the drawn form */
   function fetchModel(stage: number): void {
-    if (!kit || loading.has(stage)) return;
+    if (!kit) return;
+    /* shown again while its load is pending and its timer already fired: no new timer */
+    if (loading.has(stage)) { if (fired.has(stage)) setModel("fallback"); return; }
     loading.add(stage);
     const timer = window.setTimeout(() => {
+      fired.add(stage);
       if (!dead && want && want.stage === stage && shown && !shown.model) setModel("fallback");
     }, timeoutMs);
     kit.load(stage, root(), onProgress).then((asset) => {
       window.clearTimeout(timer);
       loading.delete(stage);
+      fired.delete(stage);
       assets.set(stage, asset);
       if (dead || !scene || !want || want.stage !== stage) return;
       if (shown && shown.model && shown.stage === stage && shown.part === want.part) return;
@@ -329,6 +347,7 @@ export function createFormView(box: HTMLElement, probe: Element, onState?: (s: "
     }, () => {
       window.clearTimeout(timer);
       loading.delete(stage);
+      fired.delete(stage);
       failed.add(stage);
       if (want && want.stage === stage) setModel("fallback");
     });
@@ -378,7 +397,8 @@ export function createFormView(box: HTMLElement, probe: Element, onState?: (s: "
     const el = document.createElement("div");
     el.className = "form-stage";
     el.tabIndex = 0;
-    el.setAttribute("role", "img");
+    el.setAttribute("role", "group");   /* a role that takes a name and a role description */
+    el.setAttribute("aria-roledescription", "3D viewer");
     if (labelText) el.setAttribute("aria-label", labelText);
     loadEl = document.createElement("span");
     loadEl.className = "form-load";
@@ -491,6 +511,11 @@ export function createFormView(box: HTMLElement, probe: Element, onState?: (s: "
     es = next;
     parkAt = 0;
     parking = false;
+    /* the wake first, and the idle running before the cross-fade starts from it: an idle
+       that the next frame had to start would cut the fade and play over the emote */
+    if (TIERS[tier].ambient && !still()) until = now() + AMBIENT_MS;
+    idleFlag = ambient();
+    scene.idle(tm, idleFlag);
     runCmds(cmds);
     wake();
   }
@@ -551,7 +576,8 @@ export function createFormView(box: HTMLElement, probe: Element, onState?: (s: "
       const m = renderer ? renderer.info.memory : null;
       return {
         state, model: box.dataset.model, stage: shown ? shown.stage : null, yaw: orbit.pose().yaw, frames,
-        memory: m ? { geometries: m.geometries, textures: m.textures } : null
+        memory: m ? { geometries: m.geometries, textures: m.textures } : null,
+        clips: scene && scene.look && "weights" in scene.look ? scene.look.weights() : {}
       };
     },
     dispose

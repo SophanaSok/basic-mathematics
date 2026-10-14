@@ -73,23 +73,23 @@ export function createFormScene(T: Three, probe: Element): FormScene {
   const size = new T.Vector3();
 
   /* the distance at which the figure's height (and its width, in a narrow view) fits */
-  let fh = 1, fw = 1, fz = 0, cx = 0, cz = 0;
+  let fh = 1, fw = 1, fz = 0, cy = 0.5;
   function measure(fallback: number): void {
     if (!look) return;
     box.setFromObject(look.group as Group);
     if (box.isEmpty()) {
       fh = Math.max(fallback, 0.1);
       fw = fh * 0.5;
-      fz = 0; cx = 0; cz = 0;
+      fz = 0; cy = fh * 0.5;
       return;
     }
     box.getSize(size);
     fh = Math.max(look.height, size.y, 0.1);
     fw = Math.max(size.x, size.z, 0.1);
     fz = size.z;
-    /* a model stands where its file put it; the drawn form is built round the axis */
-    if (isModel(look)) { cx = (box.min.x + box.max.x) / 2; cz = (box.min.z + box.max.z) / 2; }
-    else { cx = 0; cz = 0; }
+    /* both stand on the origin and the camera turns round its vertical axis there; a
+       model's height centre is the box's (a staff must not swing the body off the axis) */
+    cy = isModel(look) ? (box.min.y + box.max.y) / 2 : fh * 0.5;
   }
   /* the toon materials of a loaded group are the file's; the drawn form's (the halo's
      included) are made here or in forms.ts, and none is tone mapped */
@@ -113,10 +113,9 @@ export function createFormScene(T: Three, probe: Element): FormScene {
     const fitH = (h * MARGIN) / 2 / Math.tan(half);
     const fitW = (w * MARGIN) / 2 / (Math.tan(half) * aspect);
     const dist = (Math.max(fitH, fitW) + fz / 2) / view.zoom;
-    const cy = h * 0.5;
     const flat = Math.cos(view.pitch) * dist;
-    camera.position.set(cx + Math.sin(view.yaw) * flat, cy + Math.sin(view.pitch) * dist, cz + Math.cos(view.yaw) * flat);
-    camera.lookAt(cx, cy, 0 + cz);
+    camera.position.set(Math.sin(view.yaw) * flat, cy + Math.sin(view.pitch) * dist, Math.cos(view.yaw) * flat);
+    camera.lookAt(0, cy, 0);
     camera.updateProjectionMatrix();
   }
 

@@ -123,12 +123,28 @@ async function main() {
       const after = await page.evaluate(() => window.BMForms.info());
       check(after && Math.abs(after.yaw - yaw0) > 0.5, "1: a drag turns the form", [yaw0, after && after.yaw]);
       /* at rest the loop stops: no frames while nothing moves */
-      await wait(6500);
-      const f1 = (await page.evaluate(() => window.BMForms.info())).frames;
-      await wait(1000);
-      const f2 = (await page.evaluate(() => window.BMForms.info())).frames;
-      console.log("frames at rest: " + f1 + " then " + f2 + "; info " + JSON.stringify(after));
-      check(f2 === f1, "1: no frames at rest", [f1, f2]);
+      /* the frame counter stops: poll until it has not changed for 1 s */
+      let f1 = -1, f2 = -2, still1 = 0;
+      for (let i = 0; i < 40 && still1 < 4; i++) {
+        await wait(250);
+        f2 = (await page.evaluate(() => window.BMForms.info())).frames;
+        still1 = f2 === f1 ? still1 + 1 : 0;
+        f1 = f2;
+      }
+      console.log("frames at rest: " + f1 + " (steady for " + still1 * 250 + " ms); info " + JSON.stringify(after));
+      check(still1 >= 4, "1: no frames at rest", [f1, f2]);
+    }
+    /* 1b: on the mid tier, an emote pressed long after the last wake plays at full strength (the idle does not run over it) */
+    {
+      const { page } = await open("progress.html", seeds(300, { "bm.run.v1": JSON.stringify({ seen: { form: 3, evolved: 3 } }), "bm.prefs.v1": JSON.stringify({ gfx: "mid" }) }));
+      await page.waitForFunction(() => window.BMForms.info() && window.BMForms.info().model === "model", null, { timeout: 20000 }).catch(() => {});
+      await wait(6500);   /* past AMBIENT_MS with no input */
+      const before = await page.evaluate(() => window.BMForms.info());
+      check(before && before.model === "model" && Object.keys(before.clips).length > 0, "1b: the model has clips", before);
+      await page.evaluate(() => document.querySelector('[data-emote="wave"]').click());
+      await wait(500);
+      const mid = await page.evaluate(() => window.BMForms.info());
+      check(mid.clips.wave === 1 && mid.clips.idle === 0, "1b: the wave runs at weight 1 and the idle at 0", mid.clips);
     }
     /* 2 */
     {
