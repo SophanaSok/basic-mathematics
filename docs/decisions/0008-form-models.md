@@ -23,7 +23,7 @@ The owner asked for the forms to be far higher fidelity, like a hard-surface mec
 
 ## What this costs (accepted by the owner)
 
-- `bundle/three.js` grew from 551,790 to about 600,600 bytes raw: Three's core cannot be split between chunks, so the loader and the PBR path come with it.
+- `bundle/three.js` grew from 551,790 to about 600,700 bytes raw: Three's core cannot be split between chunks, so the animation, skinning and PBR code the viewer needs sits in the chunk the map pages load too. The viewer's own code is two chunks fetched only on the progress page: `bundle/three-model.js` (the GLTF loader and the room environment, about 49 KB) and `bundle/form-model.js` (the kit, about 5 KB).
 - `bundle/world.js` grew from 30,346 to about 31,100 bytes (`src/world/form-scene.ts` now holds either figure).
 - Committed binaries: five GLBs (73 KB to 486 KB) and five PNG thumbnails in `public/models/forms/`.
 - Quantized plain GLBs, so no CSP change. Meshopt compression would need `'wasm-unsafe-eval'` and embedded textures would need `blob:`; neither is allowed. `--meshopt` exists in `tools/gen-forms.js` for a stage that cannot meet its size otherwise, and using it is a separate decision.
@@ -55,4 +55,4 @@ The owner asked for the forms to be far higher fidelity, like a hard-surface mec
 
 ## Status
 
-Decided by the owner, 2026-10-14. Built: the pipeline and all five stages (A-1 to A-5), the clips (A-8), the rule (A-7) and the viewer (V-1 to V-7; V-8, the model on the progress page, was in review when this was written).
+Decided by the owner, 2026-10-14. Built the same day: the pipeline and all five stages (A-1 to A-5), the clips (A-8), the rule (A-7), the renders (A-9) and the viewer through the model on the progress page (V-1 to V-8). The list above says what waits.
