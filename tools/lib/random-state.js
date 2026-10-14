@@ -12,7 +12,15 @@
    drawn, so every other field of a state is the same as before it existed; but each state
    after the first in one stream (a, b, c from one generator) now follows a longer draw,
    so false gives exactly the earlier stream, and the differential test against the old
-   merge, which has no diag, passes it. */
+   merge, which has no diag, passes it.
+   events (default true) adds one device's event log (bm.events.v1, src/sync/events.ts) as
+   the very last thing drawn, after diag, the same way: every other field of a state is
+   unchanged and false gives exactly the stream before. The entries come from a module-level
+   pool (built once from a seed, so two devices often hold the same entry) plus a few fresh
+   ones that are this device's own, and now and then an invalid one (a wrong hash, a time
+   out of range, a count past its bound, a checkpoint from a device, a payload that is not
+   an array, an id of the wrong shape), a damaged store or `ev`, a `v` of 2 or junk, and one
+   id (EVENT_COLLISION) that may hold either of two valid payloads. */
 
 /* a small seeded PRNG so a failing case can be reproduced by seed */
 function rng(seed) {
@@ -82,6 +90,90 @@ function randomDiag(R) {
     }
   }
   return unknown(d);
+}
+const ev = require("../../src/sync/events.ts");
+const D0 = Math.round(Date.UTC(2026, 9, 1) / 86400000) * 1440;
+const EVENT_SECTIONS = ["ch02#one-unknown", "ch05#angles", "pk-percent#find", ""];
+const EVENT_REFS = ["ch02/e3", "ch02/e4", "ch05/k1", "g:pk-pct-find", ""];
+const ALNUM = "0123456789abcdefghijklmnopqrstuvwxyz";
+const chars = (X, n) => { let o = ""; for (let i = 0; i < n; i++) o += ALNUM[X.int(36)]; return o; };
+const clone = (x) => JSON.parse(JSON.stringify(x));
+const pageEntry = (X) => {
+  const t = D0 + X.int(60 * 1440), P = [t, Math.floor(t / 1440), X.pick(["ex", "in", "tw"]), X.pick(EVENT_SECTIONS), X.pick(EVENT_REFS),
+    X.pick(["c", "o", "h", "s", "q"]), X.int(2), 1 + X.int(4), X.int(5), X.pick([0, 1, 2, 16])];
+  if (X.maybe(0.2)) P.push(clone(X.pick(UNKNOWN_VALUES.filter(v => v && typeof v === "object" && !Array.isArray(v)).concat([{}, { zz: [1, 2] }]))));
+  return P;
+};
+const arenaEntry = (X) => {
+  const d = D0 / 1440 + X.int(40), ok = X.int(2);
+  return [d * 1440, d, "ar", X.pick(EVENT_SECTIONS.slice(0, 3)), X.pick(["g:pk-pct-find", ""]), "a", ok, ok ? 1 : X.pick([0, 2]), 0, X.pick([0, 16]), ];
+};
+const POOL_P = [], POOL_S = [], POOL_Z = [];
+/* two valid page payloads under one id: equal hashOf, so one id, found once by seeded
+   brute force (variations of ok, n, r, t, f). The ref is one no other entry uses, so the pair
+   is alone in its page group and never changes what prune drops: two payloads under one
+   id resolve by the greater canon, which is lawful, but a lesser one that one side's prune
+   counted and another's did not would break associativity (events.ts header), and the laws
+   are held to on every state. */
+const EVENT_COLLISION = (() => {
+  const a = [29873695, 20745, "ex", "", "ch09/coll", "c", 0, 2, 1, 2];
+  const b = [29923690, 20780, "ex", "", "ch09/coll", "c", 1, 2, 0, 0];
+  const id = ev.eventId("devcoll1", a, "coll0001");
+  if (ev.hashOf(a) !== ev.hashOf(b) || JSON.stringify(a) === JSON.stringify(b) || !ev.isValid(id, a) || !ev.isValid(id, b)) throw new Error("tools/lib/random-state.js: EVENT_COLLISION is not a pair of valid payloads under one id");
+  return { id, a, b };
+})();
+(() => {
+  const X = rng(20261014), mk = (P) => ({ id: ev.eventId("dev" + chars(X, 5), P, chars(X, 8)), P });
+  for (let i = 0; i < 60; i++) POOL_P.push(mk(pageEntry(X)));
+  for (let i = 0; i < 60; i++) POOL_S.push(mk(arenaEntry(X)));
+  /* dense days: 8 more answers on each of two days of one section, so the head, tail and earliest-wrong keep rules bite */
+  [D0 / 1440 + 3, D0 / 1440 + 4].forEach(d => { for (let i = 0; i < 8; i++) { const ok = X.int(4) ? 1 : 0; POOL_S.push(mk([d * 1440 + X.int(1440), d, "ar", EVENT_SECTIONS[0], "g:pk-pct-find", "a", ok, ok ? 1 : 2, 0, 0])); } });
+  const sections = EVENT_SECTIONS.filter(s => s), per = [3, 3, 2], seenZ = {};
+  sections.forEach((sec, si) => {
+    const s0 = D0 / 1440 + 10 + si;
+    for (let j = 0; j < per[si]; j++) {
+      /* the first two share an s and differ in l, b, n, o when j is 1 */
+      const s = j === 1 && X.maybe(0.6) ? s0 : s0 + j * 3, l = s - 2 - X.int(5), n = 1 + X.int(40), o = X.int(n + 1), b = X.int(5);
+      const d = s - 1, P = [d * 1440, d, "cp", sec, "", "z", 0, 0, 0, 0, { b, l, s, n, o }];
+      if (seenZ[ev.hashOf(P)]) { j--; continue; }
+      seenZ[ev.hashOf(P)] = true;
+      POOL_Z.push({ id: ev.checkpointId(P), P });
+    }
+  });
+  POOL_P.concat(POOL_S, POOL_Z).forEach(e => { if (!ev.isValid(e.id, e.P)) throw new Error("tools/lib/random-state.js: a pool entry is not valid: " + e.id + " " + JSON.stringify(e.P)); });
+})();
+/* one device's bm.events.v1 */
+function randomEvents(R) {
+  const unknown = (into) => {
+    pickSomeOf(UNKNOWN_KEYS, 0.2, R).forEach(k => { into[k] = clone(R.pick(UNKNOWN_VALUES)); });
+    return into;
+  };
+  if (R.maybe(1 / 30)) return clone(R.pick(TAKE_DAMAGED));
+  const st = { v: 1 };
+  if (R.maybe(1 / 15)) st.v = 2;
+  if (R.maybe(1 / 40)) st.v = R.pick(["x", null, 1.5, "2", [3], true, 1e308, 100, 0, -2]);   /* junk never counts as a version */
+  if (R.maybe(1 / 20)) st.ev = clone(R.pick(TAKE_DAMAGED));
+  else {
+    const e = st.ev = {}, put = (id, P) => { e[id] = clone(P); };
+    POOL_P.concat(POOL_S, POOL_Z).forEach(p => { if (R.maybe(0.3)) put(p.id, p.P); });
+    const live = (P) => put(ev.eventId("dev" + chars(R, 5), P, chars(R, 8)), P);
+    for (let i = R.int(5); i > 0; i--) live(pageEntry(R));
+    for (let i = R.int(4); i > 0; i--) live(arenaEntry(R));
+    if (R.maybe(1 / 3)) {   /* 5 to 15 answers on 1 to 3 days of one section */
+      const sec = R.pick(EVENT_SECTIONS.slice(0, 3)), days = 1 + R.int(3), base = D0 / 1440 + R.int(30);
+      for (let i = 5 + R.int(11); i > 0; i--) { const P = arenaEntry(R), d = base + R.int(days); P[0] = d * 1440 + R.int(1440); P[1] = d; P[3] = sec; live(P); }
+    }
+    /* the invalid ones, each now and then */
+    if (R.maybe()) { const p = R.pick(POOL_P), q = R.pick(POOL_P.filter(x => ev.hashOf(x.P) !== ev.hashOf(p.P))); put(p.id.slice(0, -7) + ev.hashOf(q.P), p.P); }
+    if (R.maybe()) { const P = pageEntry(R); P[0] = 1e12; P[1] = Math.floor(P[0] / 1440); live(P); }
+    if (R.maybe()) { const P = pageEntry(R); P[7] = 1000; live(P); }
+    if (R.maybe()) { const P = pageEntry(R); P[5] = "c"; put(ev.eventId(ev.CHECKPOINT_DEV, P, chars(R, 8)), P); }
+    if (R.maybe()) { const z = R.pick(POOL_Z); put("dev00001" + z.id.slice(8), z.P); }
+    if (R.maybe()) { const P = pageEntry(R); e[ev.eventId("dev" + chars(R, 5), P, chars(R, 8))] = clone(R.pick(["x", null, [1, 2, 3, 4, 5, 6, 7, 8, 9]])); }
+    if (R.maybe()) put("short", pageEntry(R));
+    if (R.maybe(0.3)) put(EVENT_COLLISION.id, R.maybe() ? EVENT_COLLISION.a : EVENT_COLLISION.b);
+  }
+  return unknown(st);
 }
 const pickSomeOf = (arr, p, R) => arr.filter(() => R.maybe(p));
 function randomState(R, opts) {
@@ -166,7 +258,9 @@ function randomState(R, opts) {
   if (R.maybe(0.3)) st.game.v = R.pick([1, 2, 9, 10]);   /* 9 and 10: the larger number is not the later string */
   /* last, so that every draw above is the same with or without it */
   if (!opts || opts.diag !== false) st.diag = randomDiag(R);
+  /* and after that, so the same holds for diag */
+  if (!opts || opts.events !== false) st.events = randomEvents(R);
   return st;
 }
 
-module.exports = { rng, randomState, randomDiag, TAKE_IDS, TAKE_BODIES, TAKE_DAMAGED, CHAPTERS, KEYS, DAYS, UNKNOWN_KEYS, UNKNOWN_VALUES, RUNG_VALUES, SECTIONS, OTHER_SECTIONS, SECTION_DAMAGED };
+module.exports = { rng, randomState, randomDiag, randomEvents, EVENT_SECTIONS, EVENT_REFS, EVENT_COLLISION, POOL_P, POOL_S, POOL_Z, TAKE_IDS, TAKE_BODIES, TAKE_DAMAGED, CHAPTERS, KEYS, DAYS, UNKNOWN_KEYS, UNKNOWN_VALUES, RUNG_VALUES, SECTIONS, OTHER_SECTIONS, SECTION_DAMAGED };

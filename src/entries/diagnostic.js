@@ -28,6 +28,8 @@ import "../core/grade.ts";
 import "../core/rules.ts";
 import "../core/curriculum.ts";
 import "../core/config.ts";
+import "../sync/json.ts";
+import "../sync/events.ts";
 import "../sync/merge.ts";
 import "../ui/core.ts";
 import "../../assets/site.js";
