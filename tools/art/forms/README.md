@@ -13,9 +13,14 @@ generated output: change the Python here and re-run; never hand-edit a GLB.
 
 One Blender process per stage (Blender 5.2 LTS; `--factory-startup` keeps add-ons out).
 It writes `form-<n>.glb` and a sidecar `form-<n>.json` (stage, height, triangles, bones,
-materials, clips, the Blender version) into `--out`. `npm run gen:forms` (tools/gen-forms.js)
-runs every stage, packs the GLBs and writes the manifest the site reads; `.cache/` is
-scratch and gitignored.
+materials, clips, the Blender version) into `--out`. The other arguments: `--renders
+turntable,thumb,emotes` draws a contact sheet of eight views, the strip's thumbnail and
+one still per clip (render.py; the sheets go under `.cache/forms/turntable/`, the
+thumbnail beside the GLB); `--engine auto|eevee|cycles|workbench` (auto is Eevee here,
+Cycles on the GPU or CPU otherwise); `--cpu` keeps Cycles off the GPU (gen-forms passes
+it when `llm-switch status` shows a claimant up); `--no-clips` builds a bare rest-pose
+model. `npm run gen:forms` (tools/gen-forms.js) runs every stage with `--renders thumb`,
+packs the GLBs and writes the manifest the site reads; `.cache/` is scratch and gitignored.
 
 ## The files
 
@@ -50,6 +55,41 @@ render a turntable (a contact sheet of eight views at the viewer's framing) and 
 silhouette first, the detail second. Richness comes from bevels, panel insets, trim
 edges and bolts, not from polygon count: the Wayfinder is under 9,000 triangles.
 
+## The checks
+
+- The caps live in `src/data/form-limits.ts` (1.5 MB a model, 30,000 triangles, 120 KB a
+  thumbnail). The other constants (the idle at 3 s, the thumbnail at 512x640 RGBA, the
+  allowed extensions, at most four textures, each square at 1024 or 2048) live in
+  `tools/lib/form-models.js`.
+- The rule runs in `check:static` as `form-models`:
+  `node tools/check-static.js --only=form-models`.
+- After any edit under `tools/art/forms/`, run `npm run gen:forms` and commit its
+  outputs. The manifest holds a hash of the scripts, and the check fails until it matches.
+  A full run rewrites every GLB, PNG and the manifest, and Blender's export and Eevee's
+  render differ by a few bytes between runs, so restore the stages whose art did not
+  change from main before committing (`git checkout main -- public/models/forms/form-N.glb
+  public/models/forms/form-N.png`; the manifest's numbers for them are unchanged, so the
+  check still passes) and commit only the stages that changed plus the manifest. A
+  `--stage N` run keeps the manifest's old hash, so the check stays red until every stage
+  is rebuilt; an edit to a shared file (kit, rig, materials, emotes, export) changes every
+  stage and wants a full run.
+- Comments and docstrings follow the site's US English lock (armor, gray, color, center,
+  meters); the `us-english` check scans prose, not these files, so hold to it by hand.
+- A new extension or texture format means editing `EXTENSIONS_OK` and the image checks in
+  `tools/lib/form-models.js`, and the CSP question that comes with it (see the decision).
+
+## The emotes
+
+`emotes.py` keys five clips on every stage: `idle` (3 s, looping), `wave`, `bow`, `flex`
+and `spin`. Every clip starts and ends on the rest pose, every bone is keyed at rest on
+frame 0 (so the idle's frame 0 is the pose the viewer shows under reduced motion), and
+the idle loops. The clips drive `root` (the spin's turn, the flex's hop), `hips`,
+`spine`, `chest`, `head`, the limbs, the `orbit` pivot and `halo` by name; bones a stage
+lacks are skipped (Pip has `root, hips, chest, head` and does body motions). Pose-bone
+rotations are Euler XYZ in the bone's own axes; the header of `emotes.py` says which
+axis does what. To look at them: `--renders emotes` draws a contact sheet,
+`form-<n>-emotes.png`, under `.cache/forms/turntable/`.
+
 ## The design
 
 An original samurai-mecha, not a likeness of any franchise, carrying a beacon staff
@@ -58,4 +98,4 @@ gold edges, the learner's hue on a sash, a glow for what shines. The stages are 
 figure growing: a floating core (Pip), a slim runner frame (Sprig), light armor and the
 staff (Wayfinder), heavy armor with sode and orbit drones (Surveyor), the full commander
 with crest, halo frame and a long beacon (Luminary). The plan and the decision record
-(`docs/decisions/0008-form-models.md`, planned) say why.
+(`docs/decisions/0008-form-models.md`) say why.
