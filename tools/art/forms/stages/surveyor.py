@@ -167,10 +167,10 @@ def build(armature, props, mats):
 
     # ---- the orbit drones ---------------------------------------------------------------
     for i in range(1, 4):
-        c, L, rot, head, tail = f.along(f"drone.{i}")
-        dr = h * 0.03
-        f.add(kit.sphere(f"drone_core_{i}", r=dr * 0.6, at=c, segments=10, rings=6), f"drone.{i}", "glow", bevel=0)
-        f.add(kit.cyl(f"drone_ring_{i}", r=dr, length=dr * 0.3, segments=12, at=c, rot=f.euler(90, 0, 0)), f"drone.{i}", "metal", bevel=0.002)
-        f.add(kit.cyl(f"drone_ring2_{i}", r=dr * 0.95, length=dr * 0.3, segments=12, at=c, rot=f.euler(0, 90, 0)), f"drone.{i}", "trim", bevel=0.002)
+        _, _, _, head, _ = f.along(f"drone.{i}")
+        dr = h * 0.045
+        f.add(kit.sphere(f"drone_core_{i}", r=dr * 0.55, at=head, segments=10, rings=6), f"drone.{i}", "glow", bevel=0)
+        f.add(kit.cyl(f"drone_ring_{i}", r=dr, length=dr * 0.28, segments=12, at=head, rot=f.euler(90, 0, 0)), f"drone.{i}", "metal", bevel=0.002)
+        f.add(kit.cyl(f"drone_ring2_{i}", r=dr * 0.94, length=dr * 0.28, segments=12, at=head, rot=f.euler(0, 90, 0)), f"drone.{i}", "trim", bevel=0.002)
 
     return f.parts

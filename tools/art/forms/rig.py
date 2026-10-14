@@ -7,6 +7,7 @@ its fixed bone names and parenting (an upright A-stance at rest), rigid skinning
 the mannequin: one beveled box per bone, which stands in for a stage until its own
 builder exists and proves the pipeline end to end.
 """
+import math
 from dataclasses import dataclass
 
 import bpy
@@ -50,8 +51,8 @@ def proportions_for(stage):
 
 def build_armature(props, name="form", extras=()):
     """The shared skeleton. `extras` adds a stage's optional bones, each
-    (name, parent, head, tail): "staff" under hand.R, "drone.1".."drone.3" and "halo"
-    under chest, "cape" under hips; the emotes test for them by name."""
+    (name, parent, head, tail): "drone.1".."drone.3" and "halo" under chest (EXTRAS);
+    the emotes test for them by name."""
     arm = bpy.data.armatures.new(name)
     obj = bpy.data.objects.new(name, arm)
     kit.new_collection("forms").objects.link(obj)
@@ -138,8 +139,9 @@ def reduced_armature(props, name="form"):
 
 
 def drone_bones(props, count=3):
-    """the orbit drones' bones under chest, spaced around the figure at hip height"""
-    import math
+    """the orbit drones' bones under chest, spaced around the figure at hip height; an
+    orbit is keyed as each bone's translation around the chest axis (a bone's own
+    rotation only spins its drone in place)"""
     h = props.height
     out = []
     for i in range(count):
