@@ -412,11 +412,10 @@ function refusal(fn) { try { fn(); return null; } catch (e) { return e.message; 
     check(made.subarray(20, 20 + made.readUInt32LE(12)).toString("utf8").endsWith("}") || /^ +$/.test(made.subarray(20, 20 + made.readUInt32LE(12)).toString("utf8").replace(/^.*\}/, "")), "glb: the JSON chunk is padded with spaces");
     eq(glb.readGlb(glb.writeGlb({ asset: { version: "2.0" } }, null)).json.buffers, [{ byteLength: 0 }], "glb: a GLB without a bin still gets buffers[0]");
     check(/2 buffers; a GLB holds one/.test(refusal(() => glb.writeGlb({ asset: { version: "2.0" }, buffers: [{}, {}] }, null)) || ""), "glb: writeGlb refuses a document with two buffers");
-    /* the texture problems, on crafted roots under the scratchpad */
-    {
+    /* the texture problems, on crafted roots in a temporary directory, removed after */
+    const base = fs.mkdtempSync(path.join(os.tmpdir(), "bm-form-roots-"));
+    try {
       const fm2 = require("./lib/form-models");
-      const base = "/tmp/claude-1000/-home-ssok-Projects-basic-mathematics/acee4fd1-96be-478d-8a42-00cd0cbd779d/scratchpad/a14-roots";
-      fs.rmSync(base, { recursive: true, force: true });
       const vp8x = (w, h, total) => { const b = Buffer.alloc(Math.max(total || 30, 30)); b.write("RIFF", 0, "latin1"); b.writeUInt32LE(b.length - 8, 4); b.write("WEBP", 8, "latin1"); b.write("VP8X", 12, "latin1"); b.writeUIntLE(w - 1, 24, 3); b.writeUIntLE(h - 1, 27, 3); return b; };
       /* a root holding one GLB whose images are `files` ({ name: bytes }) by uri, or the bin's WebP embedded */
       const room = (name, files, embedded) => {
@@ -440,6 +439,8 @@ function refusal(fn) { try { fn(); return null; } catch (e) { return e.message; 
       const four = {}; ["a", "b", "c", "d"].forEach(k => { four["form-1-" + k + ".webp"] = vp8x(1024, 1024, 400000); });
       check(/form 1: the model and its textures are \d+ bytes, over 1500000/.test(probs("stage", four)), "form-models: a stage whose model and textures pass the whole-download cap fails");
       check(!/the model and its textures/.test(probs("stageok", { "form-1-a.webp": vp8x(1024, 1024, 400000) })), "form-models: a stage within the whole-download cap passes");
+    } finally {
+      fs.rmSync(base, { recursive: true, force: true });
     }
     /* a baked stage: the glTF, its bin and an external WebP, assembled */
     const baked = path.join(site.ROOT, "tools/fixtures/forms/baked");
