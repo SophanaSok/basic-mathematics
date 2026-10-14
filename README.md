@@ -328,13 +328,11 @@ fetched, or the browser has no WebGL 2, which the library requires, every 3D pic
 flat with the same controls). The progress page's form models add two more on-demand chunks,
 fetched on that page only and only once its form view nears the screen: `bundle/three-model.js`
 (`src/vendor/three-model.js`: Three's GLTF loader and room environment) and
-`bundle/form-model.js` (`src/model/`: the loader, the look and the clips of a model). Built
-here, `bundle/three.js` is 600,676 bytes, `bundle/world.js` 31,092, `bundle/three-model.js`
-48,828 and `bundle/form-model.js` 5,559 (raw, from `npm run build`; the README quotes no
-compressed sizes). The costs are in
-[`docs/decisions/0008-form-models.md`](docs/decisions/0008-form-models.md). So no stylesheet, script or font of a page comes from another
-server (`npm run check:dist`, `offline`), and the browser checks fail any page that asks one for
-anything.
+`bundle/form-model.js` (`src/model/`: the loader, the look and the clips of a model); what
+they cost, with the sizes measured when they landed, is in
+[`docs/decisions/0008-form-models.md`](docs/decisions/0008-form-models.md). So no
+stylesheet, script or font of a page comes from another server (`npm run check:dist`,
+`offline`), and the browser checks fail any page that asks one for anything.
 
 **Third-party licences.** What the bundle holds that is not the site's own is published under its
 package's licence: KaTeX, supabase-js (and what supabase-js depends on) and Three.js under MIT,
@@ -840,7 +838,8 @@ The files:
 - The form is the learner's avatar, five stages (Pip, Sprig, Wayfinder, Surveyor, Luminary) unlocked
   by the level at 1, 3, 6, 10 and 15 (`src/data/forms.ts`; the stage logic is `src/core/forms.ts`).
   A reached stage is recorded in `bm.game.v1.form.got` and the stage worn in `form.wear`; the merge
-  is `mergeForm` in `src/sync/merge.ts`. `src/world/forms.ts` builds it (`buildForm`, procedural; the marker and the fallback), `setForm` in `src/world/index.ts` stands it on the current island
+  is `mergeForm` in `src/sync/merge.ts`. `src/world/forms.ts` builds it (`buildForm`, procedural; the
+  marker and the fallback), `setForm` in `src/world/index.ts` stands it on the current island
   in place of the marker, and `src/ui/forms.ts`, `src/ui/form-view.ts` and `src/world/form-scene.ts`
   show it on the progress page, and `src/ui/form-unlock.ts` (every page) records a stage reached in `form.got` and announces it once. Decision: [`docs/decisions/0007-evolving-forms.md`](docs/decisions/0007-evolving-forms.md).
 - The progress page shows each form as a model (a GLB in `public/models/forms/`), not the drawn

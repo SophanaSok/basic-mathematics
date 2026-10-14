@@ -429,13 +429,22 @@ revalidated like everything else (`tools/lib/headers.js`). Only the new `src/ui/
 asks for the two chunks, and only on the progress page, so no other page can. For the ten
 minutes:
 
-- A progress page from before the deploy runs its cached `form-view.ts`, which never asks for
-  the new chunks or models; it keeps the drawn figure, which is still the fallback, until it is
-  reloaded.
-- A page open across the deploy keeps working with the figure it has (the drawn one) until it
-  is reloaded; the old HTML names the same chunk names, so nothing it needs is gone.
+- A progress page from before the deploy, open across it or served from a cache, runs the
+  `form-view.ts` it has, which never asks for the new chunks or models: it keeps the drawn
+  figure until it is reloaded. No file was renamed or removed, so nothing it holds is gone.
+- A page that got the new `form-view.ts` fetches the chunks through `import()` and the model
+  through the loader, each revalidated on request, so a stale cached copy cannot survive the
+  deploy either.
 
-Nothing is done by hand.
+Nothing is done by hand. If the model does not show after a reload: the view's box
+(`.form-view`) carries `data-state` (`3d` or `flat`) and `data-model` (`loading`, `model` or
+`fallback`); `fallback` with `3d` means the GLB failed or took over ten seconds, and the drawn
+figure stands in, so look in the network tab for `bundle/form-model.js`,
+`bundle/three-model.js` and `/models/forms/form-N.glb` (a 404 means the deploy did not carry
+`public/models/forms/`; the `form-models` rule in `npm run check` would have failed first) and
+in the console for the loader's message; `flat` means WebGL itself is off (`?3d=off`, the list
+tier, a lost context), which is not the deploy's doing. `BMForms.info()` in the console says
+the same in one object.
 
 ### Regenerating the form models
 
@@ -447,6 +456,8 @@ every stage is rebuilt and committed. A full run changes a few bytes in every GL
 whether or not the art did; restore the stages that did not change from main
 (`git checkout main -- public/models/forms/form-N.glb public/models/forms/form-N.png`) and
 commit only the changed stages and the manifest (the README's "The checks" has the details).
+A `--stage N` run keeps the manifest's old hash, so only a full run clears the rule; the
+Blender path can be overridden with `BM_BLENDER`, and gltfpack must be installed (`npm ci`).
 Check `llm-switch status` first: the render uses the one GPU, and the generator passes
 `--cpu` to Blender by itself when a claimant (ollama, llama-server or ComfyUI) is up; pass
 `--cpu` to force it.
