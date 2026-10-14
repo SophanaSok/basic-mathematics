@@ -19,3 +19,4 @@ export { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 export { RoomEnvironment } from "three/examples/jsm/environments/RoomEnvironment.js";
 export { PMREMGenerator, DirectionalLight, PlaneGeometry, ShadowMaterial, Mesh, Box3 } from "three";
 export { AnimationMixer, LoopOnce, LoopRepeat } from "three";
+export { SRGBColorSpace, ACESFilmicToneMapping, PCFSoftShadowMap } from "three";

@@ -2,7 +2,7 @@
    prefiltered once) for the figure's materials to reflect, one directional light that casts
    a shadow, and a ground that shows nothing but that shadow. Kept small on purpose: the
    shadow map is 512 on the low tier and 1024 above, and its camera is boxed around a
-   figure 2 m tall and no wider.
+   figure a little over 2 m tall and no wider.
 
    The renderer's own settings (sRGB output, ACES tone mapping, the shadow map type) are the
    view's. attach() puts the environment, light and ground into a scene, detach() takes them
@@ -25,6 +25,7 @@ export function makeEnv(M: ThreeModel, renderer: WebGLRenderer, tier: Quality): 
   const rt = pmrem.fromScene(room, 0.04);
   const env: Texture = rt.texture;
   room.dispose();
+  pmrem.dispose();   /* the generator's own shaders and buffers; the texture it made stays valid */
 
   const light = new M.DirectionalLight(0xffffff, 2.5);
   light.position.set(2, 4, 3);
@@ -32,7 +33,7 @@ export function makeEnv(M: ThreeModel, renderer: WebGLRenderer, tier: Quality): 
   const size = tier === "low" ? 512 : 1024;
   light.shadow.mapSize.set(size, size);
   const cam = light.shadow.camera;
-  cam.left = -1.2; cam.right = 1.2; cam.top = 1.2; cam.bottom = -1.2;
+  cam.left = -1.2; cam.right = 1.2; cam.top = 1.6; cam.bottom = -0.8;   /* covers a figure up to 2.05 m tall, feet at y = 0 */
   cam.near = 0.5; cam.far = 10;
   cam.updateProjectionMatrix();
   light.shadow.bias = -0.0005;
@@ -63,10 +64,10 @@ export function makeEnv(M: ThreeModel, renderer: WebGLRenderer, tier: Quality): 
     },
     dispose() {
       this.detach();
-      pmrem.dispose();
       rt.dispose();
       env.dispose();
-      light.shadow.map?.dispose();
+      light.shadow.dispose();
+      light.shadow.map = null;
       light.dispose();
       geometry.dispose();
       material.dispose();

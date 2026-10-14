@@ -8,9 +8,15 @@
    has not got returns false and changes nothing. With `still` on (reduced motion) the idle
    loop never starts, though an emote that is asked for still plays. active() says whether
    a frame needs drawing (a clip running, a fade pending, or the idle loop on), so a page
-   at rest can stop. dispose() frees everything the figure held. */
-import type { Group, AnimationAction, AnimationMixer, Color, Material, Mesh, MeshStandardMaterial } from "three";
-import { disposeTree } from "./loader.ts";
+   at rest can stop.
+
+   Who owns what: the asset (the scene and its geometries) belongs to the loader's cache, and
+   the look borrows it. look.dispose() removes the group from its parent, stops the mixer
+   and frees the mixer's caches, the materials and their maps; the geometry and the
+   skeleton stay for kit.evict() to free. The look only reports: when an emote finishes it
+   calls onFinished, and the caller runs idle again if it wants the loop back. */
+import type { Group, AnimationAction, AnimationMixer, Color, Material, Mesh, MeshStandardMaterial, Texture } from "three";
+
 import type { ModelAsset } from "./index.ts";
 import type { ThreeModel } from "./three.ts";
 
@@ -33,7 +39,7 @@ export interface ModelLook {
 
 export function makeLook(M: ThreeModel, asset: ModelAsset, still: boolean): ModelLook {
   const group = asset.scene;
-  const accents: { mat: MeshStandardMaterial; color: Color }[] = [];
+  const accents: { mat: MeshStandardMaterial; base: Color }[] = [];
   const seen = new Set<Material>();
   group.traverse((o) => {
     const m = o as Mesh;
@@ -44,7 +50,11 @@ export function makeLook(M: ThreeModel, asset: ModelAsset, still: boolean): Mode
       if (!mat || seen.has(mat)) return;
       seen.add(mat);
       const s = mat as MeshStandardMaterial;
-      if (s.name === "accent" && s.color) accents.push({ mat: s, color: s.color.clone() });
+      if (s.name !== "accent" || !s.color) return;
+      /* the file's own colour, kept once on the material, so a second look on the same
+         asset tints from it and not from the first look's tint */
+      if (!s.userData.baseColor) s.userData.baseColor = s.color.clone();
+      accents.push({ mat: s, base: s.userData.baseColor as Color });
     });
   });
 
@@ -73,13 +83,23 @@ export function makeLook(M: ThreeModel, asset: ModelAsset, still: boolean): Mode
   };
   mixer.addEventListener("finished", onDone as never);
 
+  /* what is really running: an emote the mixer still runs (one a second emote faded out is
+     disabled without a "finished"), a fade pending by time, or the idle loop */
+  function active(): boolean {
+    for (const name of playing) {
+      const a = actions.get(name);
+      if (a && a.isRunning() && a.enabled && !a.paused) return true;
+    }
+    return clock < fadeUntil || (idleOn && !still && actions.has("idle"));
+  }
+
   return {
     kind: "model",
     group,
     stage: asset.stage,
     height,
     triangles: asset.triangles,
-    tint(color) { accents.forEach((a) => a.mat.color.copy(a.color).multiply(color)); },
+    tint(color) { accents.forEach((a) => a.mat.color.copy(a.base).multiply(color)); },
     run(cmd) {
       const to = actions.get(cmd.clip);
       if (!to) return false;
@@ -89,27 +109,37 @@ export function makeLook(M: ThreeModel, asset: ModelAsset, still: boolean): Mode
       if (cmd.clip !== "idle") playing.add(cmd.clip);
       if (cmd.from) {
         const f = actions.get(cmd.from);
-        if (f && f !== to) { to.crossFadeFrom(f, cmd.ms / 1000, true); fadeUntil = Math.max(fadeUntil, clock + cmd.ms); }
+        if (f && f !== to) {
+          to.crossFadeFrom(f, cmd.ms / 1000, true);
+          fadeUntil = Math.max(fadeUntil, clock + cmd.ms);
+          if (cmd.from !== "idle") playing.delete(cmd.from);
+        }
       }
       return true;
     },
     setIdle(on) {
-      const a = actions.get("idle");
       if (on && still) return;
       if (on === idleOn) return;
       idleOn = on;
-      if (!a) return;
-      if (on) { a.paused = false; a.reset(); a.play(); }
-      else { a.reset(); a.play(); mixer.setTime(0); a.paused = true; }
+      const a = actions.get("idle");
+      if (on) {
+        if (a) { a.paused = false; a.reset(); a.play(); }
+        return;
+      }
+      /* park on idle frame 0: no emote left enabled to blend into the pose */
+      mixer.stopAllAction();
+      playing.clear();
+      fadeUntil = 0;
+      if (a) { a.reset(); a.play(); }
+      mixer.setTime(0);
+      if (a) a.paused = true;
     },
     tick(dtMs) {
-      if (!this.active()) return;
+      if (!active()) return;
       clock += dtMs;
       mixer.update(dtMs / 1000);
     },
-    active() {
-      return playing.size > 0 || clock < fadeUntil || (idleOn && !still && actions.has("idle"));
-    },
+    active,
     onFinished(fn) { listeners.add(fn); return () => { listeners.delete(fn); }; },
     dispose() {
       mixer.removeEventListener("finished", onDone as never);
@@ -118,7 +148,18 @@ export function makeLook(M: ThreeModel, asset: ModelAsset, still: boolean): Mode
       listeners.clear();
       playing.clear();
       group.removeFromParent();
-      disposeTree(group);
+      /* the materials and their maps; the geometries and the skeleton are the asset's */
+      const seenMats = new Set<Material>();
+      group.traverse((o) => {
+        const m = o as Mesh;
+        if (!(m as { isMesh?: boolean }).isMesh) return;
+        (Array.isArray(m.material) ? m.material : [m.material]).forEach((mat) => {
+          if (!mat || seenMats.has(mat)) return;
+          seenMats.add(mat);
+          Object.values(mat).forEach((v) => { if (v && (v as Texture).isTexture) (v as Texture).dispose(); });
+          mat.dispose();
+        });
+      });
     },
   };
 }

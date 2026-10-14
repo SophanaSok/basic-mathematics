@@ -2,11 +2,12 @@
    (a skinned box with an accent material and a map, a glowing plain mesh, five clips named
    as the forms' are): tinting never compounds, a clip plays and finishes and says so, a
    missing clip is refused, the idle loop starts and parks, `still` keeps it off, and
-   dispose frees geometry, material, map and bone texture. */
+   dispose frees material and map (the geometry and bone texture are the loader's evict). */
 import { describe, expect, it } from "vitest";
 import * as THREE from "three";
 import { CLIPS } from "../data/form-models.ts";
 import { makeLook } from "./look.ts";
+import { disposeTree } from "./loader.ts";
 import type { ModelAsset } from "./index.ts";
 import type { ThreeModel } from "./three.ts";
 
@@ -140,7 +141,46 @@ describe("a model look", () => {
     look.dispose();
   });
 
-  it("dispose frees the geometry, the material, the map and the bone texture, and leaves the parent", () => {
+  it("an emote cut off by a second one does not keep the page awake, and only the second reports", () => {
+    const { asset } = figure();
+    const look = makeLook(M, asset, false);
+    const done: string[] = [];
+    look.onFinished((c) => done.push(c));
+    look.run({ type: "play", clip: "wave", from: null, ms: 0 });
+    look.tick(300);
+    look.run({ type: "play", clip: "bow", from: "wave", ms: 200 });
+    for (let i = 0; i < 30; i++) look.tick(100);
+    expect(look.active()).toBe(false);
+    expect(done).toEqual(["bow"]);
+    look.dispose();
+  });
+
+  it("two looks on one asset tint from the file's colour, not from each other's", () => {
+    const { asset, accent } = figure();
+    const a = makeLook(M, asset, false);
+    a.tint(new THREE.Color(0.5, 1, 0.25));
+    const b = makeLook(M, asset, false);
+    b.tint(new THREE.Color(0.5, 0.5, 0.5));
+    b.tint(new THREE.Color(0.5, 0.5, 0.5));
+    expect(accent.color.r).toBeCloseTo(0.41, 5);
+    expect(accent.color.g).toBeCloseTo(0.41, 5);
+    a.dispose();
+    b.dispose();
+  });
+
+  it("tick works taken off the look, and parking drops a finished emote from the pose", () => {
+    const { asset } = figure();
+    const look = makeLook(M, asset, false);
+    const { tick } = look;
+    look.run({ type: "play", clip: "wave", from: null, ms: 0 });
+    for (let i = 0; i < 13; i++) tick(100);
+    look.setIdle(true);
+    look.setIdle(false);
+    expect(look.active()).toBe(false);
+    look.dispose();
+  });
+
+  it("dispose frees the material, the map and leaves the geometry to the loader's evict", () => {
     const { asset, geometry, accent, map, skinned } = figure();
     const parent = new THREE.Scene();
     parent.add(asset.scene);
@@ -150,8 +190,10 @@ describe("a model look", () => {
     const b = bone ? events(bone) : () => 0;
     const look = makeLook(M, asset, false);
     look.dispose();
-    expect([g(), m(), t()]).toEqual([1, 1, 1]);
-    if (bone) expect(b()).toBeGreaterThan(0);
+    expect([g(), m(), t()]).toEqual([0, 1, 1]);
     expect(asset.scene.parent).toBeNull();
+    disposeTree(asset.scene);
+    expect(g()).toBe(1);
+    if (bone) expect(b()).toBeGreaterThan(0);
   });
 });

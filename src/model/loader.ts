@@ -53,10 +53,15 @@ export function createLoader(M: ThreeModel): Loader {
   const gltf = new M.GLTFLoader();
   const cache = new Map<number, Promise<ModelAsset>>();
   const done = new Map<number, ModelAsset>();
+  const sizes = new Map<number, number>();
 
   function load(stage: number, root: string, onProgress?: (s: LoadState) => void): Promise<ModelAsset> {
+    /* a cache hit ignores `root` (one page, one root) and tells a new caller the final state */
     const have = cache.get(stage);
-    if (have) return have;
+    if (have) {
+      if (onProgress) have.then((a) => { const t = sizes.get(stage) || 0; onProgress({ stage: a.stage, loaded: t, total: t }); }, () => { /* the caller's own load() promise reports it */ });
+      return have;
+    }
     let p: Promise<ModelAsset>;
     if (!Number.isInteger(stage) || stage < 1 || stage > 5) p = Promise.reject(new Error("no model for stage " + stage));
     else {
@@ -68,7 +73,7 @@ export function createLoader(M: ThreeModel): Loader {
             done.set(stage, asset);
             resolve(asset);
           },
-          (e) => { if (onProgress) onProgress({ stage, loaded: e.loaded || 0, total: e.total || 0 }); },
+          (e) => { sizes.set(stage, e.loaded || 0); if (onProgress) onProgress({ stage, loaded: e.loaded || 0, total: e.total || 0 }); },
           (err) => {
             const why = err instanceof Error ? err.message : "";
             reject(/meshopt/i.test(why) ? new Error("the model for stage " + stage + " is meshopt-compressed, which this page cannot decode (the content security policy has no room for the decoder)") : err instanceof Error ? err : new Error("the model for stage " + stage + " did not load"));
@@ -85,6 +90,7 @@ export function createLoader(M: ThreeModel): Loader {
       if (keep.includes(stage)) return;
       disposeTree(asset.scene);
       done.delete(stage);
+      sizes.delete(stage);
       cache.delete(stage);
     });
   }

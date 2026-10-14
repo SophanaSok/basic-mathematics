@@ -28,6 +28,8 @@ export interface ModelKit {
   evict(keep: number[]): void;
   makeLook(asset: ModelAsset, still: boolean): ModelLook;
   makeEnv(renderer: WebGLRenderer, tier: Quality): ModelEnv;
+  /** Sets the renderer up for the models (sRGB, ACES, soft shadows); returns a function that puts the previous settings back. */
+  setupRenderer(renderer: WebGLRenderer): () => void;
   dispose(): void;
 }
 
@@ -36,6 +38,7 @@ export const LOAD_TIMEOUT_MS = 10000;
 
 export async function createModelKit(): Promise<ModelKit> {
   const three = await import("../vendor/three-model.js");
+  const M = three;
   const loader = createLoader(three);
   return {
     three,
@@ -44,6 +47,24 @@ export async function createModelKit(): Promise<ModelKit> {
     evict: loader.evict,
     makeLook: (asset, still) => makeLook(three, asset, still),
     makeEnv: (renderer, tier) => makeEnv(three, renderer, tier),
+    setupRenderer(renderer) {
+      const was = {
+        out: renderer.outputColorSpace, tone: renderer.toneMapping, exposure: renderer.toneMappingExposure,
+        shadows: renderer.shadowMap.enabled, type: renderer.shadowMap.type,
+      };
+      renderer.outputColorSpace = M.SRGBColorSpace;
+      renderer.toneMapping = M.ACESFilmicToneMapping;
+      renderer.toneMappingExposure = 1;
+      renderer.shadowMap.enabled = true;
+      renderer.shadowMap.type = M.PCFSoftShadowMap;
+      return () => {
+        renderer.outputColorSpace = was.out;
+        renderer.toneMapping = was.tone;
+        renderer.toneMappingExposure = was.exposure;
+        renderer.shadowMap.enabled = was.shadows;
+        renderer.shadowMap.type = was.type;
+      };
+    },
     dispose() { loader.evict([]); },
   };
 }
