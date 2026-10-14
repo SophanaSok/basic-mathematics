@@ -3,7 +3,7 @@
 Pip's core becomes a chest unit (its eye now the chest light, its band the sash) on a
 dark endoskeleton of thin limbs with bare joints: flat shin and forearm plates, boots,
 a small head with a visor slit and a two-fin crest stub, no skirt (0.8 tall). The
-stance is wide and the frame shows: this is the figure before its armour. Every part
+stance is wide and the frame shows: this is the figure before its armor. Every part
 follows one bone of the shared rig (rig.py), so the emotes move it.
 """
 from mathutils import Vector
@@ -21,7 +21,7 @@ def build(armature, props, mats):
     c, L, rot, head, tail = f.along("chest")
     cr = L * 0.5
     f.add(kit.sphere("core", r=cr, at=c + Vector((0, -cr * 0.1, 0)), segments=14, rings=9, scale=(1.15, 0.95, 1.1)), "chest", "armor", bevel=0)
-    f.add(kit.cyl("band", r=cr * 1.16, length=cr * 0.24, segments=14, at=c + Vector((0, -cr * 0.1, -cr * 0.15)), rot=None), "chest", "accent", bevel=0.003)
+    f.add(kit.cyl("band", r=cr * 1.16, length=cr * 0.24, segments=14, at=c + Vector((0, -cr * 0.1, -cr * 0.15))), "chest", "accent", bevel=0.003)
     f.add(kit.cyl("chest_light_bezel", r=cr * 0.3, length=cr * 0.3, segments=14, at=c + Vector((0, -cr * 0.95, cr * 0.2)), rot=f.euler(90, 0, 0)),
           "chest", "metal", bevel=0.003)
     f.add(kit.sphere("chest_light", r=cr * 0.2, at=c + Vector((0, -cr * 1.02, cr * 0.2)), segments=12, rings=6), "chest", "glow", bevel=0)
@@ -75,7 +75,7 @@ def build(armature, props, mats):
         fl = p.foot * 1.5
         f.add(kit.plate(f"boot.{s}", size=(p.foot * 0.8, fl, p.foot * 0.55), at=Vector((head.x, head.y - fl * 0.3, p.foot * 0.275)), inset=0.005, depth=0.002,
                         panel=(0, 0, 1)), f"foot.{s}", "armor", bevel=0.004)
-        f.add(kit.wedge(f"toe.{s}", size=(p.foot * 0.75, p.foot * 0.5, p.foot * 0.4), at=Vector((head.x, head.y - fl * 0.72, p.foot * 0.2)), rot=f.euler(90, 0, 0), front=0.5),
+        f.add(kit.wedge(f"toe.{s}", size=(p.foot * 0.75, p.foot * 0.5, p.foot * 0.4), at=Vector((head.x, head.y - fl * 0.72, p.foot * 0.285)), rot=f.euler(90, 0, 0), front=0.5),
               f"foot.{s}", "metal", bevel=0.003)
 
     return f.parts

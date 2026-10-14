@@ -22,18 +22,18 @@ def build(armature, props, mats):
 
     c, L, rot, head, tail = f.along("hips")
     cr = h * 0.2
-    core_c = Vector((0, 0, (head.z + tail.z) / 2))
+    core_c = Vector((0, 0, head.z))   # the bones pivot at the core's center
     # the core: a faceted egg, taller than wide, with a low-poly look (few segments)
     f.add(kit.sphere("core", r=cr, at=core_c, segments=14, rings=9, scale=(1.0, 0.92, 1.3)), "hips", "armor", bevel=0)
     # the band of the learner's hue around its waist
     f.add(kit.cyl("band", r=cr * 1.015, length=cr * 0.26, segments=14, at=core_c - Vector((0, 0, cr * 0.1))), "hips", "accent", bevel=0.003)
-    # the dark under-shell, where the fins hang from
-    f.add(kit.sphere("under_shell", r=cr * 0.98, at=core_c - Vector((0, 0, cr * 0.02)), segments=14, rings=9, scale=(1.0, 0.92, 1.3)),
-          "hips", "metal", bevel=0)
+    # the dark under-cap the fins hang from, and three fins
+    f.add(kit.sphere("under_cap", r=cr * 1.01, at=core_c + Vector((0, 0, cr * 0.02)), segments=14, rings=9, scale=(1.0, 0.92, 1.3), dome=True,
+                     rot=f.euler(180, 0, 0)), "hips", "metal", bevel=0)
     for i in range(3):
         a = math.radians(90 + 120 * i)
-        at = core_c + Vector((cr * 0.62 * math.sin(a), -cr * 0.58 * math.cos(a), -cr * 1.25))
-        fin = kit.wedge(f"fin_{i}", size=(cr * 0.22, cr * 0.4, cr * 0.55), at=at, rot=f.euler(180 + 14, 0, math.degrees(a)), front=0.3)
+        at = core_c + Vector((cr * 0.42 * math.sin(a), -cr * 0.39 * math.cos(a), -cr * 1.5))
+        fin = kit.wedge(f"fin_{i}", size=(cr * 0.22, cr * 0.36, cr * 0.6), at=at, rot=f.euler(180 + 14, 0, math.degrees(a)), front=0.3)
         f.add(fin, "hips", "metal", bevel=0.002)
     # three bolts around the band's seam
     for i in range(3):
@@ -42,15 +42,13 @@ def build(armature, props, mats):
         f.add(kit.bolt(f"bolt_{i}", r=cr * 0.06, at=at, rot=f.euler(-90, 0, math.degrees(a))), "hips", "trim", bevel=0)
 
     # the eye: a dark bezel sunk into the front, a glow lens inside it
-    c, L, rot, head, tail = f.along("head")
-    eye_c = Vector((0, -cr * 0.8, head.z))
+    eye_c = core_c + Vector((0, -cr * 0.8, cr * 0.12))
     f.add(kit.cyl("eye_bezel", r=cr * 0.34, length=cr * 0.3, segments=16, at=eye_c, rot=f.euler(90, 0, 0)), "head", "metal", bevel=0.003)
     f.add(kit.sphere("eye", r=cr * 0.24, at=eye_c - Vector((0, cr * 0.1, 0)), segments=16, rings=8), "head", "glow", bevel=0)
     f.add(kit.cyl("eye_ring", r=cr * 0.36, length=cr * 0.06, segments=16, at=eye_c - Vector((0, cr * 0.14, 0)), rot=f.euler(90, 0, 0)),
           "head", "trim", bevel=0.002)
 
     # the vanes: two gold fins swept back from the shoulders, and the antenna
-    c, L, rot, head, tail = f.along("chest")
     for s, sx in f.sides():
         at = core_c + Vector((sx * cr * 0.95, cr * 0.2, cr * 0.55))
         vane = kit.wedge(f"vane.{s}", size=(cr * 0.12, cr * 0.5, cr * 0.9), at=at, rot=f.euler(-35, sx * 38, sx * 10), front=0.2)
