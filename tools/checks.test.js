@@ -403,6 +403,26 @@ function refusal(fn) { try { fn(); return null; } catch (e) { return e.message; 
     check(/magic/.test(refusal(() => glb.readGlb(Buffer.concat([Buffer.from("nope"), tiny.subarray(4)]))) || ""), "glb: a buffer without the glTF magic is refused");
     const png = Buffer.alloc(24); png.writeUInt32BE(0x89504e47, 0); png.write("IHDR", 12, "latin1"); png.writeUInt32BE(1024, 16); png.writeUInt32BE(2048, 20);
     eq(glb.imageSize(png), { width: 1024, height: 2048 }, "glb: a PNG's size is read from its IHDR");
+    /* writeGlb: the header's length, the 4-byte padding, buffers[0] with no uri and the bin's length */
+    const bin5 = Buffer.from([1, 2, 3, 4, 5]);
+    const made = glb.writeGlb({ asset: { version: "2.0" }, buffers: [{ uri: "x.bin", byteLength: 99 }], note: "ab" }, bin5);
+    const back = glb.readGlb(made);
+    eq([made.readUInt32LE(8) === made.length, made.length % 4, back.json.buffers, back.json.note], [true, 0, [{ byteLength: 5 }], "ab"], "glb: writeGlb writes the header's length, pads to 4 bytes, and sets buffers[0] to the bin's length with no uri");
+    eq([Array.from(back.bin.subarray(0, 5)), back.bin.length, back.bin.subarray(5).every(x => x === 0)], [[1, 2, 3, 4, 5], 8, true], "glb: the BIN chunk is padded with zeros and readGlb gets the bytes back");
+    check(made.subarray(20, 20 + made.readUInt32LE(12)).toString("utf8").endsWith("}") || /^ +$/.test(made.subarray(20, 20 + made.readUInt32LE(12)).toString("utf8").replace(/^.*\}/, "")), "glb: the JSON chunk is padded with spaces");
+    eq(glb.readGlb(glb.writeGlb({ asset: { version: "2.0" } }, null)).json.buffers, [{ byteLength: 0 }], "glb: a GLB without a bin still gets buffers[0]");
+    /* a baked stage: the glTF, its bin and an external WebP, assembled */
+    const baked = path.join(site.ROOT, "tools/fixtures/forms/baked");
+    const bakedDoc = JSON.parse(fs.readFileSync(path.join(baked, "form-9.gltf"), "utf8"));
+    const bakedGlb = glb.writeGlb(bakedDoc, fs.readFileSync(path.join(baked, "form-9.bin")));
+    const webp = fs.readFileSync(path.join(baked, "form-9-color.webp"));
+    const bare = glb.describeGlb(bakedGlb);
+    eq(bare.images, [{ width: 0, height: 0, mime: "image/webp", uri: "form-9-color.webp", bytes: 0 }], "glb: an image named by uri reads 0x0 without a resolve");
+    const seen = [];
+    const withIt = glb.describeGlb(bakedGlb, (u) => { seen.push(u); return u === "form-9-color.webp" ? webp : null; });
+    eq([withIt.images, seen], [[{ width: 256, height: 256, mime: "image/webp", uri: "form-9-color.webp", bytes: webp.length }], ["form-9-color.webp"]], "glb: an assembled baked stage describes with one 256x256 external WebP");
+    eq(glb.describeGlb(bakedGlb, () => null).images[0].width, 0, "glb: a uri the resolve cannot find reads 0x0");
+    eq([withIt.triangles, withIt.extensionsRequired], [12, ["EXT_texture_webp"]], "glb: the assembled stage keeps its triangles and extensions");
     const genForms = require("./gen-forms");
     eq(genForms.problems(), [], "src/data/form-models.ts and public/models/forms/ are what tools/gen-forms.js wrote from tools/art/forms/ (run `npm run gen:forms` after editing the art scripts)");
     /* the form-models rule's caps, on the committed manifest and on tampered copies of it */
@@ -418,6 +438,9 @@ function refusal(fn) { try { fn(); return null; } catch (e) { return e.message; 
     check(/form 5: compression "meshopt" but the file does not require/.test(tamper(c => { c.entries[4].compression = "meshopt"; })), "form-models: compression that the file does not use fails");
     check(/form 1: models\/forms\/nope.png does not exist/.test(tamper(c => { c.entries[0].thumb = "models/forms/nope.png"; })), "form-models: a missing thumbnail fails");
     check(/form 1: models\/forms\/form-1.glb is not a PNG/.test(tamper(c => { c.entries[0].thumb = c.entries[0].file; })), "form-models: a thumbnail that is not a PNG fails");
+    check(/form 2: models\/forms\/form-2-nope.webp does not exist/.test(tamper(c => { c.entries[1].images = c.entries[1].images.concat(["models/forms/form-2-nope.webp"]); })), "form-models: a listed texture that does not exist fails");
+    check(/form 3: the file's textures are form-3-surface.webp,form-3-color.webp, the manifest lists form-3-color.webp/.test(tamper(c => { c.entries[2].images = c.entries[2].images.slice(1); })), "form-models: a texture the manifest does not list fails");
+    check(/form 1: the file's textures are form-1-surface.webp,form-1-color.webp, the manifest lists none/.test(tamper(c => { c.entries[0].images = []; })), "form-models: textures the manifest lists as none fail");
   }
   const faces = Array.from(fs.readFileSync(path.join(site.ROOT, genFonts.FILE), "utf8").matchAll(/@font-face\s*\{([^}]*)\}/g)).map(m => m[1]);
   const decl = (block, name) => (new RegExp(name + ":\\s*([^;]+)").exec(block) || [])[1];

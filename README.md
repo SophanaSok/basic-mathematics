@@ -381,7 +381,7 @@ src/vendor/supabase.js  supabase-js from npm, imported on demand by assets/accou
 src/vendor/three.js     Three.js from npm, the names the site uses, imported on demand by assets/three-loader.js: bundle/three.js
 src/vendor/three-model.js  Three's GLTF loader and room environment, imported on demand by src/model/: bundle/three-model.js
 src/model/              the form models' loader, look and clips, imported on demand by src/ui/form-view.ts: bundle/form-model.js
-public/models/forms/    the five GLB models and their PNG thumbnails, written (with the manifest `src/data/form-models.ts`) by tools/gen-forms.js;
+public/models/forms/    the five GLB models, their two baked WebP textures each and their PNG thumbnails, written (with the manifest `src/data/form-models.ts`) by tools/gen-forms.js;
                         served under /models/* with the revalidate rule
 src/styles/tokens.css   every colour, duration and shape token: the paper (light, and the dark panel a
                         reader can choose), the frame (each theme), the four Parts and their 3D
@@ -845,7 +845,9 @@ The files:
 - The progress page shows each form as a model (a GLB in `public/models/forms/`), not the drawn
   figure. `src/ui/form-view.ts` (its header has the states) shows the drawn form first, in the
   scene of `src/world/form-scene.ts`, and swaps the stage's model in when `bundle/form-model.js`
-  and the GLB arrive. Drag, or the arrow keys with the view focused, turns the form, and the
+  and the GLB arrive. Each stage is a GLB plus two baked WebP textures (color, and occlusion,
+  roughness and metallic packed in one) that sit beside it as plain files, so the CSP is unchanged;
+  the GLB's uris point at them. Drag, or the arrow keys with the view focused, turns the form, and the
   "View larger" dialog adds the wheel and a two-finger pinch for zoom (`src/ui/form-orbit.ts`; a
   touch drag turns sideways only, so the page still scrolls). A row of four buttons under the
   view plays the emotes wave, bow, flex and spin (`src/ui/form-emotes.ts`; every stage has the
@@ -854,7 +856,7 @@ The files:
   stays and the page is whole; a slow load shows the drawn form and the model swaps in later.
   Frames are drawn only while something moves. Under reduced motion or Study mode the idle
   motion and a flick's coast are off, but a pressed emote is the reader's own act and plays
-  once. The strip of five forms shows the rendered thumbnails beside the GLBs
+  once. The strip of five forms shows the rendered thumbnails beside the models
   (`public/models/forms/form-<n>.png`, drawn by the art pipeline at the rest pose), the
   locked stages dimmed and gray, so the page never draws or loads a model for the strip
   and the strip stands without WebGL.

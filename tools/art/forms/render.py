@@ -31,7 +31,7 @@ BACKDROP = (0.32, 0.33, 0.35, 1.0)
 KINDS = ("turntable", "thumb", "emotes")
 
 
-THUMB_MAX_BYTES = 120000
+THUMB_MAX_BYTES = 160000
 
 
 def _bounds(objects):
@@ -176,7 +176,20 @@ def _tint_accent():
     acc = bpy.data.materials.get("accent")
     if acc and acc.use_nodes:
         n = acc.node_tree.nodes.get("Principled BSDF")
-        if n:
+        if n and n.inputs["Base Color"].is_linked:
+            # baked: multiply the colour texture by the red on its way in
+            nt = acc.node_tree
+            link = n.inputs["Base Color"].links[0]
+            mix = nt.nodes.new("ShaderNodeMix")
+            mix.data_type = "RGBA"
+            mix.blend_type = "MULTIPLY"
+            mix.inputs["Factor"].default_value = 1.0
+            a = [s for s in mix.inputs if s.name == "A" and s.type == "RGBA"][0]
+            b = [s for s in mix.inputs if s.name == "B" and s.type == "RGBA"][0]
+            nt.links.new(link.from_socket, a)
+            b.default_value = (0.62, 0.06, 0.05, 1.0)
+            nt.links.new(mix.outputs["Result"], n.inputs["Base Color"])
+        elif n:
             n.inputs["Base Color"].default_value = (0.62, 0.06, 0.05, 1.0)
 
 

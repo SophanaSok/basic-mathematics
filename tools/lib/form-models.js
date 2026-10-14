@@ -19,9 +19,10 @@ const CLIPS = ["idle", "wave", "bow", "flex", "spin"];
 const SLOTS = ["armor", "accent", "trim", "metal", "glow"];
 const IDLE_SECONDS = 3;
 const IDLE_TOLERANCE = 1 / 60;
-const EXTENSIONS_OK = ["KHR_mesh_quantization", "EXT_meshopt_compression"];
+const EXTENSIONS_OK = ["KHR_mesh_quantization", "EXT_meshopt_compression", "EXT_texture_webp"];
 const IMAGES_MAX = 4;
 const IMAGE_EDGES = [1024, 2048];
+const WEBP_MIME = "image/webp";
 const THUMB_SIZE = [512, 640];
 const PNG_RGBA = 6;
 const PNG_MAGIC = "89504e470d0a1a0a";
@@ -37,7 +38,11 @@ function entryProblems(e, root) {
   if (!same(e.slots, SLOTS)) out.push(w + "slots " + e.slots.join(",") + " are not " + SLOTS.join(","));
   if (!same(e.clips, CLIPS)) out.push(w + "clips " + e.clips.join(",") + " are not " + CLIPS.join(","));
   let d = null;
-  try { d = glb.describeGlb(fs.readFileSync(path.join(root, "public", e.file))); } catch (err) { out.push(w + e.file + ": " + err.message); }
+  try { d = glb.describeGlb(fs.readFileSync(path.join(root, "public", e.file)), uri => {
+      const f = path.join(root, "public", "models/forms", uri);
+      /* a uri is a bare file name beside the GLB; anything with a path is not resolved */
+      return path.basename(uri) === uri && fs.existsSync(f) ? fs.readFileSync(f) : null;
+    }); } catch (err) { out.push(w + e.file + ": " + err.message); }
   if (d) {
     if (d.triangles > limits.MODEL_TRIANGLES_MAX) out.push(w + "the file holds " + d.triangles + " triangles, over " + limits.MODEL_TRIANGLES_MAX);
     const idle = d.animations.find(a => a.name === "idle");
@@ -48,10 +53,22 @@ function entryProblems(e, root) {
     const meshopt = d.extensionsRequired.includes("EXT_meshopt_compression");
     if ((e.compression === "meshopt") !== meshopt) out.push(w + 'compression "' + e.compression + '" but the file ' + (meshopt ? "requires" : "does not require") + " EXT_meshopt_compression");
     if (d.images.length > IMAGES_MAX) out.push(w + d.images.length + " textures, at most " + IMAGES_MAX);
+    const listed = e.images || [];
     d.images.forEach((im, i) => {
+      if (im.uri === undefined) { out.push(w + "texture " + i + " is embedded; the models keep textures as files beside the GLB"); return; }
+      if (path.basename(im.uri) !== im.uri) { out.push(w + "texture " + i + " " + im.uri + " is not a bare file name beside the GLB"); return; }
+      const f = path.join(root, "public", "models/forms", im.uri);
+      if (!fs.existsSync(f)) { out.push(w + "texture " + i + " " + im.uri + " does not exist"); return; }
+      const head = fs.readFileSync(f).subarray(0, 12);
+      /* gltfpack drops mimeType from a uri image; the file's own magic is the test */
+      if ((im.mime && im.mime !== WEBP_MIME) || head.length < 12 || head.toString("latin1", 0, 4) !== "RIFF" || head.toString("latin1", 8, 12) !== "WEBP") out.push(w + "texture " + i + " " + im.uri + " is not a WebP");
+      if (im.bytes > limits.IMAGE_BYTES_MAX) out.push(w + "texture " + i + " " + im.uri + " is " + im.bytes + " bytes, over " + limits.IMAGE_BYTES_MAX);
       if (im.width !== im.height || !IMAGE_EDGES.includes(im.width)) out.push(w + "texture " + i + " is " + im.width + "x" + im.height + ", not square at " + IMAGE_EDGES.join(" or "));
     });
+    const uris = d.images.map(im => im.uri === undefined ? "(embedded)" : im.uri);
+    if (uris.join(",") !== listed.map(x => path.basename(x)).join(",")) out.push(w + "the file's textures are " + (uris.join(",") || "none") + ", the manifest lists " + (listed.map(x => path.basename(x)).join(",") || "none"));
   }
+  (e.images || []).forEach(x => { if (!fs.existsSync(path.join(root, "public", x))) out.push(w + x + " does not exist"); });
   const t = path.join(root, "public", e.thumb);
   if (!fs.existsSync(t)) out.push(w + e.thumb + " does not exist");
   else {

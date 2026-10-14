@@ -3,8 +3,11 @@
 The form pipeline (tools/art/forms/) ends here: this file counts triangles over the
 evaluated scene (and stops if a stage is over the cap), exports the selected armature
 and its meshes as a GLB that the site's loader reads, and writes `form-<n>.json` beside
-it with the numbers the later optimize and manifest steps check. The exporter applies
-the modifier stacks itself, so nothing is applied by hand.
+it with the numbers the later optimize and manifest steps check. The export is a
+separate glTF (`form-<n>.gltf` + `form-<n>.bin`) with the baked WebP textures kept as
+the files bake.py saved beside it, never embedded: tools/gen-forms.js packs the glTF
+and assembles the GLB, and the textures ship as files next to it. The exporter applies
+what is left of the modifier stacks (the Armature, after bake.py applied the rest).
 """
 import json
 import os
@@ -30,7 +33,7 @@ def _bone_order(armature):
     return out
 
 
-def export_glb(path, armature, objects, stage, height):
+def export_glb(path, armature, objects, stage, height, images=None):
     os.makedirs(os.path.dirname(os.path.abspath(path)), exist_ok=True)
     dg = bpy.context.evaluated_depsgraph_get()
     counts = sorted(((kit.triangles_of(o, dg), o.name) for o in objects), reverse=True)
@@ -49,9 +52,10 @@ def export_glb(path, armature, objects, stage, height):
     bpy.context.view_layer.objects.active = armature
 
     bpy.ops.export_scene.gltf(
-        filepath=path, export_format="GLB", check_existing=False, use_selection=True,
+        filepath=path, export_format="GLTF_SEPARATE", check_existing=False, use_selection=True,
         export_apply=True, export_yup=True, export_normals=True, export_tangents=False,
-        export_materials="EXPORT", export_image_format="NONE", export_cameras=False,
+        export_materials="EXPORT", export_image_format="WEBP", export_keep_originals=True,
+        export_texture_dir="", export_cameras=False,
         export_lights=False, export_extras=True, export_skins=True, export_def_bones=True,
         export_rest_position_armature=True, export_animations=True,
         export_animation_mode="ACTIONS", export_nla_strips=True, export_force_sampling=True,
@@ -64,6 +68,7 @@ def export_glb(path, armature, objects, stage, height):
         "stage": stage, "height": height, "triangles": total,
         "bones": _bone_order(armature), "materials": mats,
         "clips": [a.name for a in bpy.data.actions], "blender": bpy.app.version_string,
+        "images": [os.path.basename(p) for p in (images or {}).values()],
     }
     with open(os.path.splitext(path)[0] + ".json", "w") as f:
         json.dump(side, f, indent=2)
