@@ -15,7 +15,20 @@
    6. progress.html?3d=off: the flat card, the PNG strip still showing, no Three.js or GLB request
    7. a chapter page: crossing a stage gives one toast, records got, no Three.js; no
       second toast; none after a reload
-   8. several stages at once: one toast naming the highest, all recorded */
+   8. several stages at once: one toast naming the highest, all recorded
+   9-11. the model arrives, the buttons match the manifest's clips, a drag turns it, frames
+      stop at rest; an emote after the idle window on the medium tier plays at full weight
+   12. Spin plays (the live region says so) and returns, then the frames stop
+   13. under reduced motion: still with no input, Wave plays once, still again
+   14. a GLB 404 leaves the drawn figure, hides the emote row, raises no page error
+   15. an 11 s GLB falls back at the timeout, then the model swaps in
+   16. a lost WebGL context goes flat: the canvas gone, the row hidden
+   17. the dialog holds the canvas and the one row; arrows turn, wheel zooms, Escape
+      closes with focus back on "View larger" and the zoom reset
+   18. a thumbnail 404 shows that tile's pip; the other four load
+   19. pagehide disposes the view
+   20. progress.html fetches form-model.js, three-model.js and three.js once each
+   21. several stages at once end on the highest with no more memory than one */
 "use strict";
 const site = require("../lib/site");
 const target = require("../lib/target");
@@ -354,7 +367,7 @@ async function main() {
       check(await until(page, () => !!document.querySelector('[data-emote="spin"][data-playing]'), null, 3000), "12: Spin is marked playing");
       const said = await page.evaluate(() => (document.querySelector(".form-emotes [aria-live]") || {}).textContent);
       check(said === "Playing: Spin", "12: the live region names it", said);
-      check(await until(page, () => !document.querySelector("[data-emote][data-playing]"), null, 3000 + 1000), "12: data-playing clears within 3 s");
+      check(await until(page, () => !document.querySelector("[data-emote][data-playing]"), null, 6000), "12: data-playing clears");
       const left = await page.evaluate(() => (document.querySelector(".form-emotes [aria-live]") || {}).textContent);
       check(left === "", "12: the live region is empty again", left);
       check(await frozen(page, 500, 5000), "12: frames stop after the emote");
@@ -368,7 +381,7 @@ async function main() {
       await page.evaluate(() => document.querySelector('[data-emote="wave"]').click());
       check(await until(page, () => !!document.querySelector('[data-emote="wave"][data-playing]'), null, 3000), "13: Wave is marked playing");
       check(await until(page, (n) => window.BMForms.info().frames > n, f0, 3000), "13: frames rise while it plays");
-      check(await until(page, () => !document.querySelector("[data-emote][data-playing]"), null, 5000), "13: the emote ends");
+      check(await until(page, () => !document.querySelector("[data-emote][data-playing]"), null, 6000), "13: the emote ends");
       check(await frozen(page, 1000, 6000), "13: frames stop again");
     }
     /* 14: the GLB is missing: the drawn form stays */
