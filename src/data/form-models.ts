@@ -24,10 +24,10 @@ export const FORM_MODELS: readonly FormModel[] = [
   { n: 2, file: "models/forms/form-2.glb", thumb: "models/forms/form-2.png", bytes: 139360, triangles: 4674, height: 0.8, clips: ["bow", "flex", "idle", "spin", "wave"], slots: ["metal", "accent", "armor", "glow", "trim"], compression: "none" },
   { n: 3, file: "models/forms/form-3.glb", thumb: "models/forms/form-3.png", bytes: 229452, triangles: 8812, height: 1.1, clips: ["bow", "flex", "idle", "spin", "wave"], slots: ["armor", "metal", "trim", "glow", "accent"], compression: "none" },
   { n: 4, file: "models/forms/form-4.glb", thumb: "models/forms/form-4.png", bytes: 350776, triangles: 14399, height: 1.35, clips: ["bow", "flex", "idle", "spin", "wave"], slots: ["armor", "metal", "trim", "glow", "accent"], compression: "none" },
-  { n: 5, file: "models/forms/form-5.glb", thumb: "models/forms/form-5.png", bytes: 485776, triangles: 20572, height: 1.75, clips: ["bow", "flex", "idle", "spin", "wave"], slots: ["armor", "metal", "trim", "glow", "accent"], compression: "none" }
+  { n: 5, file: "models/forms/form-5.glb", thumb: "models/forms/form-5.png", bytes: 486912, triangles: 20600, height: 1.75, clips: ["bow", "flex", "idle", "spin", "wave"], slots: ["armor", "metal", "trim", "accent", "glow"], compression: "none" }
 ];
 
-export const FORM_MODEL_GENERATOR = "5942d49c18ebdc840fafc123f663156044dca9ac862be3e3d34f5107456fa4b0";
+export const FORM_MODEL_GENERATOR = "0669eb95812e6230b48d50e46fc40c9d20c8ad8df3be446e0eb92b6576a9cedb";
 
 export function modelFor(stage: number): FormModel | null {
   return FORM_MODELS.find(m => m.n === stage) || null;
