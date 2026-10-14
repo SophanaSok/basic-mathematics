@@ -99,8 +99,39 @@ def build_armature(props, name="form"):
 
 
 def reduced_armature(props, name="form"):
-    """Stage 1 skeleton (root, hips, chest, head). A stub until stage 1 has a builder."""
-    raise NotImplementedError("stage 1 reduced armature arrives with its stage card")
+    """Stage 1's skeleton, a floating core with no limbs: `root` on the ground, `hips`
+    the core (it hovers and bobs), `chest` the vanes' bone on top of it, `head` the eye
+    bezel at the front. The emotes drive these four by name and skip the rest."""
+    arm = bpy.data.armatures.new(name)
+    obj = bpy.data.objects.new(name, arm)
+    kit.new_collection("forms").objects.link(obj)
+    bpy.context.view_layer.objects.active = obj
+    obj.select_set(True)
+    bpy.ops.object.mode_set(mode="EDIT")
+    eb = arm.edit_bones
+
+    def bone(n, head, tail, parent=None):
+        b = eb.new(n)
+        b.head, b.tail = Vector(head), Vector(tail)
+        b.use_deform = True
+        if parent:
+            b.parent = eb[parent]
+        return b
+
+    h = props.height
+    hover = h * 0.2
+    core_top = h * 0.8
+    bone("root", (0, 0, 0), (0, 0, h * 0.08))
+    bone("hips", (0, 0, hover), (0, 0, core_top), "root")
+    bone("chest", (0, 0, core_top), (0, 0, h), "hips")
+    bone("head", (0, -h * 0.1, h * 0.55), (0, -h * 0.22, h * 0.55), "chest")
+    bpy.ops.object.mode_set(mode="OBJECT")
+    return obj
+
+
+def armature_for(stage, props, name="form"):
+    """the skeleton a stage is built on: the reduced one for stage 1, the shared one else"""
+    return reduced_armature(props, name) if stage == 1 else build_armature(props, name)
 
 
 def skin_rigid(obj, armature, bone):
