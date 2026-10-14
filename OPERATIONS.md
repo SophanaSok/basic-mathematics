@@ -424,7 +424,7 @@ case to watch: a contents page left open from before it, whose `home.js` then fe
 
 The deploy that turned the progress page's forms into models (README, "The game layer")
 renamed no file. It added two chunks, `bundle/three-model.js` and `bundle/form-model.js`, and
-the files under `/models/*` (`public/models/forms/`: five GLBs, five PNGs and a manifest), all
+the files under `/models/*` (`public/models/forms/`: five GLBs and five PNGs; the manifest they are listed in is `src/data/form-models.ts`, part of the bundle), all
 revalidated like everything else (`tools/lib/headers.js`). Only the new `src/ui/form-view.ts`
 asks for the two chunks, and only on the progress page, so no other page can. For the ten
 minutes:
@@ -434,7 +434,10 @@ minutes:
   figure until it is reloaded. No file was renamed or removed, so nothing it holds is gone.
 - A page that got the new `form-view.ts` fetches the chunks through `import()` and the model
   through the loader, each revalidated on request, so a stale cached copy cannot survive the
-  deploy either.
+  deploy either. The one mix a tab can hold is a new `form-view.ts` with the old
+  `bundle/world.js` (or the reverse), since `form-scene.ts` lives there: the names each side
+  imports from the other were kept, so the old pair draws the drawn figure and the new pair
+  the model, and neither throws.
 
 Nothing is done by hand. If the model does not show after a reload: the view's box
 (`.form-view`) carries `data-state` (`3d` or `flat`) and `data-model` (`loading`, `model` or
@@ -455,7 +458,7 @@ committed outputs to the scripts' hash, so an edit under `tools/art/forms/` stay
 every stage is rebuilt and committed. A full run changes a few bytes in every GLB and PNG
 whether or not the art did; restore the stages that did not change from main
 (`git checkout main -- public/models/forms/form-N.glb public/models/forms/form-N.png`) and
-commit only the changed stages and the manifest (the README's "The checks" has the details).
+commit only the changed stages and the manifest, `src/data/form-models.ts` (the README's "The checks" has the details).
 A `--stage N` run keeps the manifest's old hash, so only a full run clears the rule; the
 Blender path can be overridden with `BM_BLENDER`, and gltfpack must be installed (`npm ci`).
 Check `llm-switch status` first: the render uses the one GPU, and the generator passes

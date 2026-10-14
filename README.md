@@ -381,7 +381,7 @@ src/vendor/supabase.js  supabase-js from npm, imported on demand by assets/accou
 src/vendor/three.js     Three.js from npm, the names the site uses, imported on demand by assets/three-loader.js: bundle/three.js
 src/vendor/three-model.js  Three's GLTF loader and room environment, imported on demand by src/model/: bundle/three-model.js
 src/model/              the form models' loader, look and clips, imported on demand by src/ui/form-view.ts: bundle/form-model.js
-public/models/forms/    the five GLB models, their PNG thumbnails and the manifest, written by tools/gen-forms.js;
+public/models/forms/    the five GLB models and their PNG thumbnails, written (with the manifest `src/data/form-models.ts`) by tools/gen-forms.js;
                         served under /models/* with the revalidate rule
 src/styles/tokens.css   every colour, duration and shape token: the paper (light, and the dark panel a
                         reader can choose), the frame (each theme), the four Parts and their 3D
