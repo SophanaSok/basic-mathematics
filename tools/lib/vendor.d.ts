@@ -7,6 +7,9 @@ export interface VendorModule {
   file: string;
   /** the packages its import and export statements name */
   packages: string[];
+  /** per package, the paths inside it its statements name ("" for the package itself,
+   *  "examples/jsm/loaders/GLTFLoader.js" for three/examples/jsm/loaders/GLTFLoader.js) */
+  subpaths: Record<string, string[]>;
   /** those packages and every package they depend on, by the installed package.json files */
   all: string[];
 }
