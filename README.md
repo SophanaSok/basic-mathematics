@@ -855,8 +855,10 @@ The files:
   stays and the page is whole; a slow load shows the drawn form and the model swaps in later.
   Frames are drawn only while something moves. Under reduced motion or Study mode the idle
   motion and a flick's coast are off, but a pressed emote is the reader's own act and plays
-  once. The strip of five forms still shows snapshots the viewer draws into its renderer
-  (`view.snapshot`), not the rendered thumbnails beside the GLBs; card V-9 changes that.
+  once. The strip of five forms shows the rendered thumbnails beside the GLBs
+  (`public/models/forms/form-<n>.png`, drawn by the art pipeline at the rest pose), the
+  locked stages dimmed and gray, so the page never draws or loads a model for the strip
+  and the strip stands without WebGL.
   Contract, costs and threat model:
   [`docs/decisions/0008-form-models.md`](docs/decisions/0008-form-models.md); regenerating the
   models: `tools/art/forms/README.md` and OPERATIONS.md.
