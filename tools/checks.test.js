@@ -1139,8 +1139,9 @@ function refusal(fn) { try { fn(); return null; } catch (e) { return e.message; 
   has('data-th="SAT">Percentages<', "a SAT tag label");
   has('data-th="Accuplacer QAS">Ratio and proportional relationships<', "a QAS tag label");
   has('data-th="Accuplacer AAF">Functions<', "an AAF tag label");
-  has('data-th="ACT">—<', "an empty family reads as a dash");
-  has("One SAT topic is taught in one section: Percentages (only here).", "the single-section sentence");
+  has('data-th="ACT"><span class="muted">Not tested</span><', "an empty family reads as not tested");
+  has('One SAT topic is taught in one section only, <a href="parts/1-a/01.html#one">One &amp; &lt;two&gt;</a> in Chapter 1, Numbers: percentages.', "the single-section sentence links the section and never prints the reason");
+  check(html.indexOf("only here") < 0, "scope: the SINGLE_SECTION_TAGS reason is not printed");
   check(html.indexOf("<h2>Mixed review</h2>") < 0, "scope: no mixed-review heading without containers");
   let threw = null;
   try { gen.render({ curriculum: cur, skills: Object.assign({}, sk, { SAT_TAGS: sk.SAT_TAGS.concat(["sat.new.tag"]) }) }); } catch (e) { threw = e.message; }

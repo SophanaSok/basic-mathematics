@@ -48,7 +48,7 @@ const TAG_LABELS = {
   "qas.expr": "Algebraic expressions",
   "qas.lineq": "Linear equations",
   "qas.linapp": "Linear applications and graphs",
-  "qas.prob": "Probability sets",
+  "qas.prob": "Probability and sets",
   "qas.stats": "Descriptive statistics",
   "qas.geo.pa": "Geometry concepts for pre-algebra",
   "qas.geo.a1": "Geometry concepts for algebra 1",
@@ -118,19 +118,30 @@ function coverage(ctx, rows) {
   out.push("The course has " + rows.length + " sections with exercises: " + (rows.length - inPacks) + " in its " + nChapters + " chapters and " + inPacks + " in its " + nPacks +
     " skill packs. Of the " + tags.length + " exam topics the page tracks, " + many + " are taught in two or more sections.");
   const single = Object.keys(sk.SINGLE_SECTION_TAGS);
+  let singleHtml = "";
   if (single.length) {
     const fams = Array.from(new Set(single.map(t => FAMILY_OF_PREFIX[t.split(".")[0]])));
     const what = fams.length === 1 ? fams[0] + " topic" + (single.length === 1 ? " is" : "s are") : "exam topic" + (single.length === 1 ? " is" : "s are");
     const word = single.length < NUMBER_WORDS.length ? NUMBER_WORDS[single.length] : String(single.length);
-    out[0] += " " + word + " " + what + " taught in one section" + (single.length === 1 ? "" : " each") + ": " +
-      single.map(t => label(t) + " (" + sk.SINGLE_SECTION_TAGS[t] + ")").join("; ") + ".";
+    /* the section that carries each single tag, linked by title; the reasons stay in skills.ts for its check */
+    const holder = t => refs.find(ref => [].concat(sk.SKILLS[ref].sat, sk.SKILLS[ref].act, sk.SKILLS[ref].accuplacer, sk.SKILLS[ref].aleks).indexOf(t) >= 0);
+    const link = ref => { const r = rows.find(x => x.ref === ref); return r ? '<a href="' + esc(chapterHref(r.ch, r.s.id)) + '">' + esc(r.s.title) + "</a> in " + esc(chapterCell(r.ch).replace(" · ", ", ")) : esc(ref); };
+    const holders = Array.from(new Set(single.map(holder)));
+    const names = single.map(t => label(t).charAt(0).toLowerCase() + label(t).slice(1));
+    if (holders.length === 1) {
+      out[0] += " " + word + " " + what + " taught in one section only, ";
+      singleHtml = link(holders[0]) + ": " + esc(names.length === 1 ? names[0] : names.slice(0, -1).join(", ") + ", and " + names[names.length - 1]) + ".";
+    } else {
+      out[0] += " " + word + " " + what + " taught in one section each: ";
+      singleHtml = single.map(t => esc(names[single.indexOf(t)]) + " in " + link(holder(t))).join("; ") + ".";
+    }
   }
   const missing = [];
   FAMILIES.forEach(f => {
     const list = tags.filter((t, i) => counts[i] === 0 && (f.key === "aleks" ? t.startsWith("ppl.") : t.startsWith(f.key + ".")));
     if (list.length) missing.push("The course does not carry these " + f.name + " topics: " + list.map(label).join("; ") + ".");
   });
-  return { text: esc(out[0]), extra: missing.map(esc) };
+  return { text: esc(out[0]) + singleHtml, extra: missing.map(esc) };
 }
 
 function render(ctx) {
@@ -152,7 +163,7 @@ function render(ctx) {
     '<meta name="description" content="Every section of the course and its skill packs by course, with the Common Core standard and the SAT, ACT, Accuplacer and ALEKS topics each one covers.">',
     "</head>", '<body data-depth="0" data-page="page" data-nav="about">', "<!--bm:topbar-->", "",
     '<div class="wrap">', '  <main id="main">', "    <h1>What the course covers</h1>",
-    "    <p>This page lists every section of the course and of its skill packs, grouped by the course each is taught in, with what the section teaches, the Common Core standard that describes its work, and the parts of the SAT, the ACT, the Accuplacer and the ALEKS placement test that test it. The course follows Serge Lang's <cite>Basic Mathematics</cite> and assumes a learner ready to start algebra; the skill packs add the pre-algebra skills the gate exams ask for that the book leaves out. It is generated from the course's own records, so it is as current as the course.</p>",
+    "    <p>This page lists every section of the course and of its skill packs, grouped by the course each is taught in, with what the section teaches, the Common Core standard that describes its work, and the parts of the SAT, the ACT, the Accuplacer and the ALEKS placement test that test it. The course follows Serge Lang's <cite>Basic Mathematics</cite> and assumes a learner ready to start algebra; the skill packs add the pre-algebra skills the gate exams ask for that the book leaves out.</p>",
     "    <p>" + cov.text + "</p>");
   cov.extra.forEach(t => L.push("    <p>" + t + "</p>"));
   const cols = ["Section", "Chapter", "What it teaches", "Common Core"].concat(FAMILIES.map(f => f.th));
@@ -177,7 +188,7 @@ function render(ctx) {
         ["Common Core", cc]
       ].concat(FAMILIES.map(f => {
         const t = sk.tagsIn(k, f.key);
-        return [f.th, t.length ? esc(t.map(label).join("; ")) : "—"];
+        return [f.th, t.length ? esc(t.map(label).join("; ")) : '<span class="muted">Not tested</span>'];
       }));
       L.push("        <tr>" + cells.map(c => '<td data-th="' + esc(c[0]) + '">' + c[1] + "</td>").join("") + "</tr>");
     });
@@ -190,7 +201,7 @@ function render(ctx) {
     reviews.forEach(ref => L.push('      <li><a href="' + esc(chapterHref(where[ref].ch, where[ref].s.id)) + '">' + esc(chapterCell(where[ref].ch)) + "</a></li>"));
     L.push("    </ul>");
   }
-  L.push("", '    <p class="fine">Common Core codes link to the standard\'s domain page at thecorestandards.org. Exam topics follow the published test specifications: the SAT Suite domains and testing points, the ACT reporting categories, the Accuplacer QAS and AAF content areas, and the ALEKS PPL topic areas.</p>',
+  L.push("", '    <p class="fine">Common Core codes link to the standard\'s domain page at thecorestandards.org. Exam topics follow the published test specifications: the SAT Suite domains and testing points, the ACT reporting categories, the Accuplacer QAS and AAF content areas, and the ALEKS PPL topic areas. A leading ≈ marks the nearest standard rather than an exact match. QAS is the Accuplacer Quantitative Reasoning, Algebra, and Statistics test, AAF its Advanced Algebra and Functions test, and PPL the ALEKS Placement, Preparation, and Learning assessment.</p>',
     "  </main>", "</div>", "");
   return L.join("\n");
 }
@@ -203,7 +214,11 @@ function main() {
   const html = render(load());
   if (process.argv.includes("--check")) {
     const have = fs.existsSync(FILE) ? fs.readFileSync(FILE, "utf8") : null;
-    if (have !== html) { console.error(STALE); process.exit(1); }
+    if (have !== html) {
+      const a = (have || "").split("\n"), b = html.split("\n");
+      let i = 0; while (i < a.length && i < b.length && a[i] === b[i]) i++;
+      console.error(STALE + " (first difference at line " + (i + 1) + ")"); process.exit(1);
+    }
     console.log("scope.html is current");
     return;
   }
