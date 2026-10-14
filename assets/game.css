@@ -1010,6 +1010,12 @@ html[data-motion="reduce"] *, html[data-motion="reduce"] *::before, html[data-mo
 .form-dialog h2 { margin: 0 0 .7rem; font-size: 1.25rem; }
 .form-dialog [data-form-close] { margin-top: 1rem; }
 
+/* The emote buttons under the form's view (src/ui/form-emotes.ts): a row of ghost buttons;
+   the one whose clip is playing shows as pressed. No motion of their own. */
+.form-emotes { display: flex; flex-wrap: wrap; gap: .4rem; margin: .6rem 0 0; }
+.form-emotes [data-playing] { border-color: var(--accent); color: var(--accent); background: var(--surface-2); }
+.form-emotes [aria-disabled="true"] { opacity: .55; cursor: default; }
+
 @media (max-width: 600px) {
   .form-body { grid-template-columns: minmax(0, 1fr); }
   .form-view { max-width: min(300px, 100%); margin: 0 auto; }
