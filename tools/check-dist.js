@@ -73,7 +73,9 @@ const RUNTIME = BUNDLE + "rolldown-runtime.js";
    src/vendor/supabase.js; and the course world, which map3d.js imports once the
    contents page is to draw it in 3D, and src/ui/form-view.ts imports on the progress page: src/world/index.ts with the modules of src/world/
    it imports (`dir`: those may be in the chunk too, all but one an entry imports, which
-   goes with that entry's chunks). `by` is the importer (or a list of them): a page whose entry imports one
+   goes with that entry's chunks); the model viewer, which only src/ui/form-view.ts imports
+   (src/model/index.ts, and the Three.js beside it, src/vendor/three-model.js, which only
+   that index imports). `by` is the importer (or a list of them): a page whose entry imports one
    must reach the chunk through the import(), and no page's HTML may name the chunk,
    since only that import() is to fetch it (a signed-out reader on an ordinary page
    never downloads supabase-js, and a page with no 3D never downloads Three.js or the
@@ -83,7 +85,9 @@ const ON_DEMAND = [
   { chunk: BUNDLE + "scenes3d-gl.js", module: "assets/scenes3d-gl.js", by: "assets/scenes3d.js" },
   { chunk: BUNDLE + "three.js", module: vendor.DIR + "/three.js", by: "assets/three-loader.js" },
   { chunk: BUNDLE + "supabase.js", module: vendor.DIR + "/supabase.js", by: "assets/account.js" },
-  { chunk: BUNDLE + "world.js", module: "src/world/index.ts", by: ["assets/map3d.js", "src/ui/form-view.ts"], dir: "src/world/" }
+  { chunk: BUNDLE + "world.js", module: "src/world/index.ts", by: ["assets/map3d.js", "src/ui/form-view.ts"], dir: "src/world/" },
+  { chunk: BUNDLE + "three-model.js", module: vendor.DIR + "/three-model.js", by: "src/model/index.ts" },
+  { chunk: BUNDLE + "form-model.js", module: "src/model/index.ts", by: "src/ui/form-view.ts", dir: "src/model/" }
 ];
 /* `by` is one importer or a list of them (the course world has two: the map and the
    "Your form" view), as a list and as words */

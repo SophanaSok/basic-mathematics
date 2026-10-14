@@ -9,7 +9,8 @@
    map and no form view (bundle/three.js is loaded on demand, by assets/three-loader.js,
    only when one of those nears the screen), the course world's chunk (bundle/world.js,
    imported by assets/map3d.js and by src/ui/form-view.ts) not fetched by a page with
-   neither the map nor the form view, no horizontal overflow at phone width, lesson mode
+   neither the map nor the form view, the model viewer's chunks (bundle/form-model.js,
+   bundle/three-model.js) and /models/forms/ not fetched by a page with no form view, no horizontal overflow at phone width, lesson mode
    initialised on chapter pages, and a full-page screenshot of each cell for the contact
    sheet. Chapter pages are shot in whole-page mode (after the mode switch has been
    clicked, which also exercises it) so the sheet shows the content, not just the first
@@ -18,6 +19,7 @@ const { slug } = require("../lib/browser");
 
 const THREE_CHUNK = /\/bundle\/three\.js(?:[?#]|$)/;
 const WORLD_CHUNK = /\/bundle\/world\.js(?:[?#]|$)/;
+const MODEL_CHUNK = /\/bundle\/(?:three-model|form-model)\.js(?:[?#]|$)|\/models\/forms\//;
 
 /* runs before any script of the page: the theme as it stands at the first animation
    frame, which comes before the first paint */
@@ -96,6 +98,12 @@ module.exports = {
             const world = errors.own.filter(u => WORLD_CHUNK.test(u));
             const hasMap = await page.evaluate(() => !!document.querySelector("[data-map3d], [data-form-view]"));
             if (!hasMap && world.length) problems.push("fetched bundle/world.js with no course map or form view on the page; only assets/map3d.js and src/ui/form-view.ts are to import it");
+            /* and the model viewer's chunks (bundle/form-model.js, bundle/three-model.js) and
+               its files (/models/forms/) only where the form view is: index.html has the
+               map but no form view, and must not fetch them */
+            const model = errors.own.filter(u => MODEL_CHUNK.test(u));
+            const hasForm = await page.evaluate(() => !!document.querySelector("[data-form-view]"));
+            if (!hasForm && model.length) problems.push("fetched " + model[0].replace(/^.*?\/(bundle|models)\//, "$1/") + " with no form view on the page; only src/ui/form-view.ts is to import the model viewer");
           } catch (e) {
             problems.push("driver error: " + (e && e.message || e));
           }
