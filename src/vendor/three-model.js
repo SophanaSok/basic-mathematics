@@ -17,7 +17,6 @@
    module brings in. */
 export { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 export { RoomEnvironment } from "three/examples/jsm/environments/RoomEnvironment.js";
-export { PMREMGenerator, SRGBColorSpace, ACESFilmicToneMapping, NoToneMapping, PCFSoftShadowMap } from "three";
-export { AnimationMixer, LoopOnce, LoopRepeat, Clock, MathUtils, Quaternion } from "three";
-export { Scene, Group, Mesh, SkinnedMesh, Skeleton, Box3, Vector3, Color, PerspectiveCamera } from "three";
-export { MeshStandardMaterial, ShadowMaterial, PlaneGeometry, DirectionalLight, Texture } from "three";
+export { PMREMGenerator, DirectionalLight, PlaneGeometry, ShadowMaterial, Mesh, Box3 } from "three";
+export { AnimationMixer, LoopOnce, LoopRepeat } from "three";
+export { SRGBColorSpace, ACESFilmicToneMapping, PCFSoftShadowMap } from "three";

@@ -377,6 +377,14 @@ function refusal(fn) { try { fn(); return null; } catch (e) { return e.message; 
     m[1].split(",").map(x => x.trim()).filter(Boolean).forEach(n => { if (!have.has(n)) missingModel.push(m[2] + ":" + n); });
   });
   eq(missingModel, [], "every name src/vendor/three-model.js exports is exported by the installed three (or the addon file it names), by a scan of their export statements");
+  /* … and the names are exactly what src/model/*.ts uses: every M.<Name> there */
+  const modelUsed = new Set();
+  const modelFiles = fs.readdirSync(path.join(site.ROOT, "src/model")).filter(f => /\.ts$/.test(f) && !/\.(test|test-helper|d)\.ts$/.test(f)).map(f => "src/model/" + f);
+  check(modelFiles.length > 0, "src/model/ holds the model kit's modules");
+  modelFiles.forEach(f => {
+    for (const m of fs.readFileSync(path.join(site.ROOT, f), "utf8").replace(/\/\*[\s\S]*?\*\//g, "").matchAll(/\bM\.([A-Z]\w*)/g)) modelUsed.add(m[1]);
+  });
+  eq(modelNames.slice().sort(), Array.from(modelUsed).sort(), "src/vendor/three-model.js exports, by name, exactly the Three.js names src/model/*.ts uses (as M.<Name>)");
   check(!["assets/map3d.js", "assets/scenes3d.js", "assets/scenes3d-gl.js", "assets/three-loader.js"].some(f => /window\.THREE\b/.test(fs.readFileSync(path.join(site.ROOT, f), "utf8").replace(/\/\*[\s\S]*?\*\//g, ""))), "nothing reads or writes window.THREE: the namespace is BM3D.THREE");
 
   /* the fonts: src/vendor/fonts.css is what gen-fonts.js writes, and what it writes
