@@ -52,10 +52,65 @@ describe("inertia", () => {
     a.release(16);
     expect(a.step(32)).toBe(false);
   });
-  it("steps true while dragging", () => {
+  it("steps false while dragging: a move bumps the version instead, a still press costs nothing", () => {
     const a = mk();
     a.press(0, 0, 0);
-    expect(a.step(16)).toBe(true);
+    const v0 = a.version;
+    expect(a.step(16)).toBe(false);
+    expect(a.version).toBe(v0);
+    a.move(10, 0, 16, false);
+    expect(a.version).toBe(v0 + 1);
+    a.move(10, 0, 32, false);
+    expect(a.version).toBe(v0 + 1);
+  });
+
+  it("a cancelled pointer never coasts", () => {
+    const a = mk();
+    a.press(0, 0, 0);
+    a.move(30, 0, 16, false);
+    a.cancel();
+    expect(a.step(32)).toBe(false);
+    const y = a.pose().yaw;
+    a.step(48);
+    expect(a.pose().yaw).toBe(y);
+  });
+
+  it("inertia can be switched off at run time, which stops a coast at once", () => {
+    const a = mk();
+    a.press(0, 0, 0);
+    a.move(30, 0, 16, false);
+    a.release(16);
+    expect(a.step(32)).toBe(true);
+    a.setInertia(false);
+    expect(a.step(48)).toBe(false);
+    a.setInertia(true);
+    a.press(0, 0, 100);
+    a.move(30, 0, 116, false);
+    a.release(116);
+    expect(a.step(132)).toBe(true);
+  });
+
+  it("a long gap between steps is capped, so a stalled frame does not fling the figure", () => {
+    const a = mk();
+    a.press(0, 0, 0);
+    a.move(30, 0, 16, false);
+    a.release(16);
+    a.step(17);
+    const before = a.pose().yaw;
+    a.step(5000);
+    expect(a.pose().yaw - before).toBeLessThan(0.019 * 64 + 1e-9);
+  });
+
+  it("the version counts keys, pinches and resets", () => {
+    const a = new Orbit({ pitch: [0, 1], inertia: true, zoom: true, zoomRange: [0.5, 2] });
+    const v0 = a.version;
+    a.key("ArrowLeft");
+    a.pinch(1.5);
+    a.reset();
+    expect(a.version).toBe(v0 + 3);
+    a.key("Enter");
+    a.pinch(NaN);
+    expect(a.version).toBe(v0 + 3);
   });
 });
 
