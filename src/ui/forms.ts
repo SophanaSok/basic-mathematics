@@ -24,6 +24,7 @@ import { FORMS, LAST_FORM } from "../data/forms.ts";
 import { highest, nextInfo, stageOf, worn } from "../core/forms.ts";
 import { XP } from "../core/rules.ts";
 import { createFormView, type FormView } from "./form-view.ts";
+import { mountEmotes } from "./form-emotes.ts";
 
 const WATCH = ["sync", "reset", "level", "xp", "form", "theme", "prefs"];
 const SNAP_PX = 120;
@@ -41,6 +42,7 @@ const fmt = (n: number): string => Math.round(n).toLocaleString("en-US");
 let slot: HTMLElement | null = null;
 let panel: HTMLElement | null = null;
 let view: FormView | null = null;
+let emoteRow: HTMLElement | null = null;
 let dialog: HTMLDialogElement | null = null;
 let opener: HTMLElement | null = null;
 const snaps: Record<number, string> = {};
@@ -114,7 +116,8 @@ function build(): HTMLElement {
   el.innerHTML =
     '<div class="panel-head"><h2 id="form-h">Your form</h2><span class="muted" data-f="stage"></span></div>' +
     '<div class="form-body">' +
-      '<div class="form-view" data-form-view>' + fallbackHtml() + "</div>" +
+      '<div class="form-left"><div class="form-view" data-form-view>' + fallbackHtml() + "</div>" +
+        '<div data-form-emotes></div></div>' +
       '<div class="form-info">' +
         '<p class="form-name"><b data-f="name"></b> <span class="muted" data-f="tag"></span></p>' +
         '<p data-f="blurb"></p>' +
@@ -205,6 +208,7 @@ export function refresh(): void {
     if (btn.getAttribute("aria-label") !== aria) btn.setAttribute("aria-label", aria);
   });
   if (view) {
+    view.label(cur.name + ", your form, stage " + wo + " of " + LAST_FORM + ". Use the arrow keys to turn it.");
     view.show(shownN, part);
     const tk = [document.documentElement.getAttribute("data-theme"), document.documentElement.getAttribute("data-panel"),
       window.getComputedStyle(panel).getPropertyValue("--accent")].join("|");
@@ -429,7 +433,10 @@ function buildDialog(): HTMLDialogElement {
   d.addEventListener("close", () => {
     if (view && panel) {
       const box = q(".form-view");
-      if (box) view.moveTo(box as HTMLElement);
+      if (box) view.moveTo(box as HTMLElement, { zoom: false });
+      /* the one row of emote buttons goes home with the view */
+      const home = q("[data-form-emotes]");
+      if (home && emoteRow) home.appendChild(emoteRow);
     }
     const back = opener;
     opener = null;
@@ -447,7 +454,11 @@ export function openView(): void {
   refresh();
   dialog.showModal();
   const box = dialog.querySelector(".form-dialog-box") as HTMLElement;
-  if (view) { view.moveTo(box); view.wake(); }
+  if (view) {
+    view.moveTo(box, { zoom: true });
+    if (emoteRow) box.insertAdjacentElement("afterend", emoteRow);
+    view.wake();
+  }
   const h = dialog.querySelector(".form-dialog-title") as HTMLElement;
   if (h) h.focus({ preventScroll: true });
 }
@@ -463,6 +474,9 @@ function mount(): void {
   panel = build();
   slot.appendChild(panel);
   const box = q(".form-view") as HTMLElement, probe = q(".form-probe") as HTMLElement;
+  const host = q("[data-form-emotes]") as HTMLElement;
+  const row = mountEmotes(host, (e) => { if (view) view.play(e); });
+  emoteRow = host.querySelector<HTMLElement>(".form-emotes");
   try {
     view = createFormView(box, probe, (s) => {
       if (s === "3d") later();
@@ -470,7 +484,7 @@ function mount(): void {
         const dbox = dialog && dialog.querySelector(".form-dialog-box");
         if (dbox) dbox.setAttribute("data-state", "flat");
       }
-    });
+    }, { set: row.set, enable: row.enable, show: (on) => { if (emoteRow) emoteRow.hidden = !on; } });
   } catch { view = null; box.setAttribute("data-state", "flat"); }
   panel.addEventListener("click", (e) => {
     const t = e.target as Element | null;
@@ -497,7 +511,10 @@ function mount(): void {
   refresh();
 }
 
-export const api = { refresh, equip, view: openView };
+/** what the view reports, for tests and the console (null without a view) */
+export function info(): ReturnType<FormView["info"]> | null { return view ? view.info() : null; }
+
+export const api = { refresh, equip, view: openView, info };
 
 if (typeof window !== "undefined" && typeof document !== "undefined") {
   window.BMForms = api;

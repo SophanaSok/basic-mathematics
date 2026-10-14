@@ -13,6 +13,7 @@ import "../../assets/widgets.js";
 import "../../assets/three-loader.js";
 import "../world/tiers.ts";
 import "../data/forms.ts";
+import "../data/form-models.ts";
 import "../core/forms.ts";
 /* the spaced-review schedule and the Arena's XP rules, which game.js (and the Arena)
    find on window.BMReview: the pure modules first, then the one that puts them up */
@@ -53,7 +54,10 @@ import "../learn/diag-seed.ts";
 import "../learn/plan.ts";
 import "../ui/plan.ts";
 import "../../assets/insights.js";
-/* the "Your form" panel insights.js leaves a place for: the 3D view, then the panel */
+/* the "Your form" panel insights.js leaves a place for: the turning and the emotes of the
+   view (pure logic), the 3D view, then the panel */
+import "../ui/form-orbit.ts";
+import "../ui/form-emotes.ts";
 import "../ui/form-view.ts";
 import "../ui/forms.ts";
 import "../ui/form-unlock.ts";

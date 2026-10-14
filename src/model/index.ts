@@ -54,9 +54,9 @@ export async function createModelKit(): Promise<ModelKit> {
       };
       renderer.outputColorSpace = M.SRGBColorSpace;
       renderer.toneMapping = M.ACESFilmicToneMapping;
-      renderer.toneMappingExposure = 1;
+      renderer.toneMappingExposure = 0.85;
       renderer.shadowMap.enabled = true;
-      renderer.shadowMap.type = M.PCFSoftShadowMap;
+      renderer.shadowMap.type = M.PCFShadowMap;
       return () => {
         renderer.outputColorSpace = was.out;
         renderer.toneMapping = was.tone;

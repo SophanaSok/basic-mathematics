@@ -28,7 +28,8 @@ export function makeEnv(M: ThreeModel, renderer: WebGLRenderer, tier: Quality): 
   pmrem.dispose();   /* the generator's own shaders and buffers; the texture it made stays valid */
 
   const light = new M.DirectionalLight(0xffffff, 2.5);
-  light.position.set(2, 4, 3);
+  light.position.set(1, 5, 2.5);
+  light.target.position.set(0, 1, 0);   /* the shadow falls short, behind and to the right */
   light.castShadow = true;
   const size = tier === "low" ? 512 : 1024;
   light.shadow.mapSize.set(size, size);
@@ -39,7 +40,7 @@ export function makeEnv(M: ThreeModel, renderer: WebGLRenderer, tier: Quality): 
   light.shadow.bias = -0.0005;
 
   const geometry: PlaneGeometry = new M.PlaneGeometry(4, 4);
-  const material: ShadowMaterial = new M.ShadowMaterial({ opacity: 0.25 });
+  const material: ShadowMaterial = new M.ShadowMaterial({ opacity: 0.35 });
   const ground: Mesh = new M.Mesh(geometry, material);
   ground.rotation.x = -Math.PI / 2;
   ground.position.y = 0;
@@ -53,12 +54,14 @@ export function makeEnv(M: ThreeModel, renderer: WebGLRenderer, tier: Quality): 
       scene = s;
       s.environment = env;
       s.add(light);
+      s.add(light.target);
       s.add(ground);
     },
     detach() {
       if (!scene) return;
       if (scene.environment === env) scene.environment = null;
       scene.remove(light);
+      scene.remove(light.target);
       scene.remove(ground);
       scene = null;
     },

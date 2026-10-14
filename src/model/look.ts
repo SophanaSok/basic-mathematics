@@ -29,6 +29,8 @@ export interface ModelLook {
   height: number;
   triangles: number;
   tint(color: Color): void;
+  /** each clip's effective weight now (a test handle: an emote at full strength shows 1, the idle under it 0) */
+  weights(): Record<string, number>;
   run(cmd: PlayCommand): boolean;
   setIdle(on: boolean): void;
   tick(dtMs: number): void;
@@ -99,6 +101,11 @@ export function makeLook(M: ThreeModel, asset: ModelAsset, still: boolean): Mode
     stage: asset.stage,
     height,
     triangles: asset.triangles,
+    weights() {
+      const w: Record<string, number> = {};
+      actions.forEach((a, name) => { w[name] = a.isRunning() ? a.getEffectiveWeight() : 0; });
+      return w;
+    },
     tint(color) { accents.forEach((a) => a.mat.color.copy(a.base).multiply(color)); },
     run(cmd) {
       const to = actions.get(cmd.clip);
@@ -118,8 +125,8 @@ export function makeLook(M: ThreeModel, asset: ModelAsset, still: boolean): Mode
       return true;
     },
     setIdle(on) {
-      if (on && still) return;
-      if (on === idleOn) return;
+      /* on never restarts an idle already running (that would cut a fade); off always parks */
+      if (on && (still || idleOn)) return;
       idleOn = on;
       const a = actions.get("idle");
       if (on) {
