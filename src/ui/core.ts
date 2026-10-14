@@ -33,9 +33,9 @@ export const core = {
 };
 
 /* what assets/account.js takes from the merge: the merge and the game record's own (also
-   BMAccount.merge and .mergeGame), the event log's merge (mergeEvents), the newest shape of the data this version may write
-   and how to read a state's, the canonical JSON it compares a saved row by, and the two
-   readers it shares with the merge */
+   BMAccount.merge and .mergeGame), the event log's merge (mergeEvents), the newest shape
+   of the data this version may write and how to read a state's, the canonical JSON it
+   compares a saved row by, and the two readers it shares with the merge */
 export const merge = { merge: mergeStates, mergeGame, mergeEvents, SCHEMA, versionOf, canon, obj, str };
 
 if (typeof window !== "undefined") {

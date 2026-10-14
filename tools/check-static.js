@@ -927,7 +927,8 @@ function checkMerge(ctx, r) {
         const mine = [own(ea, id), own(eb, id)].filter(v => v !== undefined).map(canon);
         if (mine.indexOf(canon(got[id])) < 0 && !seen.evInvented) { r.fail("seed " + seed + ": events.ev." + id + " was made up: neither side held " + canon(got[id])); seen.evInvented = 1; }
       });
-      const vWant = Math.max(1, Number(own(a.events, "v")) || 0, Number(own(b.events, "v")) || 0);
+      const counted = (x) => (Number.isInteger(x) && x >= 1 && x <= EVENTS.V_MAX ? x : 1);   /* junk never counts as a version */
+      const vWant = Math.max(1, counted(own(a.events, "v")), counted(own(b.events, "v")));
       if (ab.events.v !== vWant && !seen.evV) { r.fail("seed " + seed + ": events.v should be " + vWant + ", got " + canon(ab.events.v)); seen.evV = 1; }
       const ca = own(ea, EVENT_COLLISION.id), cb = own(eb, EVENT_COLLISION.id);
       if (ca !== undefined && cb !== undefined && canon(ca) !== canon(cb)) {

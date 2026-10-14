@@ -17,24 +17,35 @@
    associative and idempotent. Two valid payloads under one id are resolved by the greater
    canon before the prune; that is the user's own data and is not claimed to be lawful.
 
+   The x of an entry has a grammar a server can mirror (xValid), so the server-side CHECK
+   can be derived from it: depth at most X_DEPTH_MAX, values that are strings, integers
+   (|n| <= X_NUM_MAX), booleans, null, objects or arrays, every string and key printable
+   ASCII without a quote or a backslash. Then canon(x) has no escapes and no exponents,
+   and prints the same in JavaScript and in Postgres jsonb.
+
+   The version v of a log counts only as an integer from 1 to V_MAX: a larger v locks
+   every device of the account read-only, so junk must not be able to set it.
+
    Pure: no window, no document, no storage of any kind (tools/check-static.js
    `pure-core` enforces it). */
 
-import { at, canon, carryOver, keysOf, later, num, obj, plain } from "./json.ts";
+import { at, canon, carryOver, keysOf, later, obj, plain } from "./json.ts";
 
 export const FORMAT = 1;
 export const EV_PAGE_HEAD = 8, EV_DAY_HEAD = 2, EV_DAY_TAIL = 2;
 export const T_MIN = 27_000_000, T_MAX = 60_000_000;
 export const D_MIN = 18_000, D_MAX = 42_000;
 export const N_MAX = 999, R_MAX = 9, F_MAX = 65_535, X_CANON_MAX = 256, CP_COUNT_MAX = 1_000_000, BOX_MAX = 4;
+export const X_DEPTH_MAX = 4, X_NUM_MAX = 1e12, V_MAX = 99;
 export const CHECKPOINT_DEV = "00000000";
 export const ID_RE = /^[0-9a-z]{8}-[0-9a-z]{8}-[0-9a-z]{7}$/;
 export const SRC_RE = /^[a-z]{1,3}$/, KIND_RE = /^[a-z]$/, REF_RE = /^[a-z0-9:#\/-]{0,90}$/;
+export const X_TEXT_RE = /^[\x20-\x7e]*$/;
 /* every constant above, so a test can hash it */
 export const FORMAT_TABLE = {
   FORMAT, EV_PAGE_HEAD, EV_DAY_HEAD, EV_DAY_TAIL, T_MIN, T_MAX, D_MIN, D_MAX,
-  N_MAX, R_MAX, F_MAX, X_CANON_MAX, CP_COUNT_MAX, BOX_MAX, CHECKPOINT_DEV,
-  ID_RE: ID_RE.source, SRC_RE: SRC_RE.source, KIND_RE: KIND_RE.source, REF_RE: REF_RE.source
+  N_MAX, R_MAX, F_MAX, X_CANON_MAX, CP_COUNT_MAX, BOX_MAX, X_DEPTH_MAX, X_NUM_MAX, V_MAX, CHECKPOINT_DEV,
+  ID_RE: ID_RE.source, SRC_RE: SRC_RE.source, KIND_RE: KIND_RE.source, REF_RE: REF_RE.source, X_TEXT_RE: X_TEXT_RE.source
 };
 
 /* t whole UTC minute, d day number, src (ex page exercise, in inline check, ar Arena
@@ -85,6 +96,22 @@ export function checkpointId(P: Payload): string { return CHECKPOINT_DEV + "-" +
 function int(x: unknown): x is number { return Number.isInteger(x); }
 function text(x: unknown, re: RegExp): boolean { return typeof x === "string" && re.test(x); }
 
+function xText(t: string): boolean { return X_TEXT_RE.test(t) && t.indexOf('"') < 0 && t.indexOf("\\") < 0; }
+/* x's grammar (see the header): the walk starts at depth 1 for x itself */
+export function xValid(x: unknown, depth = 1): boolean {
+  try {
+    if (depth > X_DEPTH_MAX) return false;
+    if (x === null || typeof x === "boolean") return true;
+    if (typeof x === "string") return xText(x);
+    if (typeof x === "number") return Number.isInteger(x) && Math.abs(x) <= X_NUM_MAX;
+    if (Array.isArray(x)) return x.every((v) => xValid(v, depth + 1));
+    if (plain(x)) return Object.keys(x as object).every((k) => xText(k) && xValid((x as any)[k], depth + 1));
+    return false;
+  } catch (e) {
+    return false;
+  }
+}
+
 /* One entry alone. Unknown src and k values are valid, so a later version's entries pass
    through. Never throws on data that came out of JSON. */
 export function isValid(id: unknown, P: unknown): P is Payload {
@@ -98,7 +125,7 @@ export function isValid(id: unknown, P: unknown): P is Payload {
     if (n < 0 || n > N_MAX || r < 0 || r > R_MAX || f < 0 || f > F_MAX) return false;
     if (!text(src, SRC_RE) || !text(sec, REF_RE) || !text(ref, REF_RE) || !text(k, KIND_RE)) return false;
     const x = P[10];
-    if (P.length === 11 && (!plain(x) || canon(x).length > X_CANON_MAX)) return false;
+    if (P.length === 11 && (!plain(x) || canon(x).length > X_CANON_MAX || !xValid(x))) return false;
     const parts = id.split("-");
     if (parts[2] !== hashOf(P as Payload)) return false;
     if ((parts[0] === CHECKPOINT_DEV) !== (k === "z")) return false;
@@ -184,8 +211,8 @@ export function prune(V: EventSet): EventSet {
 /* --------------------------------------------------------------- merge -- */
 
 /* Union of the valid entries of both stores (an invalid one is left out; an id both
-   hold with two valid payloads takes the greater canon), pruned; v is the larger number,
-   at least 1; unknown top-level keys are carried (later). */
+   hold with two valid payloads takes the greater canon), pruned; v is the larger of the
+   counted ones (an integer from 1 to V_MAX), at least 1; unknown top-level keys are carried (later). */
 export function mergeEvents(a: unknown, b: unknown): EventsStore {
   const A = obj(a), B = obj(b), EA = obj(at(A, "ev")), EB = obj(at(B, "ev"));
   const union: EventSet = {};
@@ -195,6 +222,7 @@ export function mergeEvents(a: unknown, b: unknown): EventsStore {
     else if (va) union[id] = pa as Payload;
     else if (vb) union[id] = pb as Payload;
   });
-  const result: EventsStore = { v: Math.max(1, num(at(A, "v")), num(at(B, "v"))), ev: prune(union) };
+  const counted = (v: unknown) => (Number.isInteger(v) && (v as number) >= 1 && (v as number) <= V_MAX ? (v as number) : 1);
+  const result: EventsStore = { v: Math.max(1, counted(at(A, "v")), counted(at(B, "v"))), ev: prune(union) };
   return carryOver(result, A, B, ["v", "ev"]);
 }

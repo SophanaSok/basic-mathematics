@@ -126,6 +126,8 @@ const EVENT_COLLISION = (() => {
   const X = rng(20261014), mk = (P) => ({ id: ev.eventId("dev" + chars(X, 5), P, chars(X, 8)), P });
   for (let i = 0; i < 60; i++) POOL_P.push(mk(pageEntry(X)));
   for (let i = 0; i < 60; i++) POOL_S.push(mk(arenaEntry(X)));
+  /* dense days: 8 more answers on each of two days of one section, so the head, tail and earliest-wrong keep rules bite */
+  [D0 / 1440 + 3, D0 / 1440 + 4].forEach(d => { for (let i = 0; i < 8; i++) { const ok = X.int(4) ? 1 : 0; POOL_S.push(mk([d * 1440 + X.int(1440), d, "ar", EVENT_SECTIONS[0], "g:pk-pct-find", "a", ok, ok ? 1 : 2, 0, 0])); } });
   const sections = EVENT_SECTIONS.filter(s => s), per = [3, 3, 2], seenZ = {};
   sections.forEach((sec, si) => {
     const s0 = D0 / 1440 + 10 + si;
@@ -149,7 +151,7 @@ function randomEvents(R) {
   if (R.maybe(1 / 30)) return clone(R.pick(TAKE_DAMAGED));
   const st = { v: 1 };
   if (R.maybe(1 / 15)) st.v = 2;
-  if (R.maybe(1 / 40)) st.v = R.pick(["x", null, 1.5]);
+  if (R.maybe(1 / 40)) st.v = R.pick(["x", null, 1.5, "2", [3], true, 1e308, 100, 0, -2]);   /* junk never counts as a version */
   if (R.maybe(1 / 20)) st.ev = clone(R.pick(TAKE_DAMAGED));
   else {
     const e = st.ev = {}, put = (id, P) => { e[id] = clone(P); };
@@ -157,6 +159,10 @@ function randomEvents(R) {
     const live = (P) => put(ev.eventId("dev" + chars(R, 5), P, chars(R, 8)), P);
     for (let i = R.int(5); i > 0; i--) live(pageEntry(R));
     for (let i = R.int(4); i > 0; i--) live(arenaEntry(R));
+    if (R.maybe(1 / 3)) {   /* 5 to 15 answers on 1 to 3 days of one section */
+      const sec = R.pick(EVENT_SECTIONS.slice(0, 3)), days = 1 + R.int(3), base = D0 / 1440 + R.int(30);
+      for (let i = 5 + R.int(11); i > 0; i--) { const P = arenaEntry(R), d = base + R.int(days); P[0] = d * 1440 + R.int(1440); P[1] = d; P[3] = sec; live(P); }
+    }
     /* the invalid ones, each now and then */
     if (R.maybe()) { const p = R.pick(POOL_P), q = R.pick(POOL_P.filter(x => ev.hashOf(x.P) !== ev.hashOf(p.P))); put(p.id.slice(0, -7) + ev.hashOf(q.P), p.P); }
     if (R.maybe()) { const P = pageEntry(R); P[0] = 1e12; P[1] = Math.floor(P[0] / 1440); live(P); }

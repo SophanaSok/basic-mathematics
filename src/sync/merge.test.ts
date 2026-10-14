@@ -223,7 +223,8 @@ describe("the event log in merge", () => {
           if (!(id in got)) expect(id, why("kept entry both sides hold is missing")).toBe(undefined);
         }
       }
-      const v = Math.max(1, num(own(a.events, "v")), num(own(b.events, "v")));
+      const counted = (x: unknown) => (Number.isInteger(x) && (x as number) >= 1 && (x as number) <= 99 ? (x as number) : 1);
+      const v = Math.max(1, counted(own(a.events, "v")), counted(own(b.events, "v")));
       if (ab.events.v !== v) expect(ab.events.v, why("v")).toBe(v);
       for (const k of UNKNOWN) {
         const vals = [own(a.events, k), own(b.events, k)].filter((x) => x !== undefined).map(canon).sort();

@@ -5,7 +5,7 @@ import { merge as installed } from "../ui/core.ts";
 import {
   BOX_MAX, CHECKPOINT_DEV, D_MAX, D_MIN, F_MAX, FORMAT, FORMAT_TABLE, N_MAX, R_MAX, T_MAX, T_MIN, X_CANON_MAX,
   base36, checkpointId, checkpointRand, classOf, eventId, fnv1a32, hashOf, isValid, mergeEvents, ordered, prune, randomRand,
-  winners, type EventSet, type Payload
+  winners, xValid, V_MAX, type EventSet, type Payload
 } from "./events.ts";
 import { later } from "./json.ts";
 import { merge } from "./merge.ts";
@@ -82,6 +82,10 @@ function genPool(R: R): EventSet {
       add(checkpoint({ sec, b: R.int(BOX_MAX + 1), l: DAY0 + R.int(5), s: DAY0 + 5 + R.int(8), n, o: R.int(n + 1) }));
     }
   });
+  if (R.maybe(1 / 3)) {   /* 5 to 15 answers on 1 to 3 days of one section, so the head, tail and earliest-wrong rules bite */
+    const sec = R.pick(secs), days = 1 + R.int(3), base = DAY0 + R.int(28);
+    for (let c = 5 + R.int(11); c > 0; c--) add(arenaEntry(R, { sec, d: base + R.int(days), ok: R.maybe(0.8) ? 1 : 0, n: R.int(50) }));
+  }
   for (let c = R.int(41); c > 0; c--) add(arenaEntry(R, { sec: R.pick(secs), d: DAY0 + R.int(31), ok: R.int(2), n: R.int(50) }));
   for (let c = R.int(61); c > 0; c--) {
     add(pageEntry(R, {
@@ -234,6 +238,22 @@ describe("isValid", () => {
     [[], [1], "x", null, 5, undefined].forEach((x) => expect(valid(withX(x))).toBe(false));
     expect(valid(withX({ a: 1 }))).toBe(true);
     expect(valid(withX({}))).toBe(true);
+  });
+
+  it("holds x to a grammar a server can mirror", () => {
+    const withX = (x: unknown) => mutate((P) => { P[10] = x; });
+    const deep = (n: number): unknown => (n <= 1 ? 1 : { a: deep(n - 1) });
+    expect(xValid({ a: 1, b: "ok", c: [1, true, null], d: { e: {} } })).toBe(true);
+    expect(valid(withX({ a: 1, b: "ok", c: [1, true, null], d: { e: {} } }))).toBe(true);
+    expect(valid(withX(deep(4)))).toBe(true);
+    expect(valid(withX(deep(5)))).toBe(false);
+    expect(valid(withX({ a: [[[1]]] }))).toBe(false);
+    [{ q: "\u0000" }, { "\ud800": 1 }, { a: 1e300 }, { a: 1.5 }, { a: 1e13 }, { a: -1e13 }, { a: '"' }, { a: "\\" }, { a: "é" }, { a: "\n" }, { a: undefined, b: () => 1 }, { "a\"": 1 }]
+      .forEach((x) => expect(valid(withX(x)), JSON.stringify(x)).toBe(false));
+    expect(valid(withX({ a: 1e12, b: -1e12, c: " ~" }))).toBe(true);
+    expect(valid(withX({ a: NaN }))).toBe(false);
+    const [id, CP] = checkpoint({ sec: "ch01#a", b: 1, l: 20001, s: 20010, n: 5, o: 2 });
+    expect(isValid(id, CP)).toBe(true);
   });
 
   it("couples the first part of the id to k = z", () => {
@@ -408,7 +428,7 @@ describe("mergeEvents", () => {
   const genStore = (R: R, pool: EventSet): any => {
     if (R.maybe(0.03)) return R.pick<unknown>(["junk", [], null, 7]);
     const s: any = {};
-    if (R.maybe(0.8)) s.v = R.pick<unknown>([1, 2, 3, "2", "x", null]);
+    if (R.maybe(0.8)) s.v = R.pick<unknown>([1, 2, 3, 99, 100, "2", "x", null, 1.5, [3], true, 1e308]);
     s.ev = R.maybe(0.05) ? R.pick<unknown>(["str", [], null, 4]) : { ...subset(R, pool, 0.6), ...junkFor(R) };
     if (R.maybe(0.3)) s.zz = R.pick<unknown>(["a", 5, { k: 1 }, [1, 2], null, { k: 2 }]);
     return s;
@@ -430,6 +450,8 @@ describe("mergeEvents", () => {
       const plainSides = [a, b].every((s) => s && typeof s === "object" && !Array.isArray(s));
       if (plainSides) {
         const own = (s: any) => (Object.prototype.hasOwnProperty.call(s, "zz") ? s.zz : undefined);
+        const cnt = (x: any) => (Number.isInteger(x?.v) && x.v >= 1 && x.v <= 99 ? x.v : 1);
+        if (ab.v !== Math.max(1, cnt(a), cnt(b))) throw new Error("v raised by junk at seed " + seed);
         const want = later(own(a), own(b));
         if (canon((ab as any).zz) !== canon(want)) throw new Error("unknown key not later() at seed " + seed);
       }
@@ -443,6 +465,11 @@ describe("mergeEvents", () => {
     expect(mergeEvents(undefined, null).v).toBe(1);
     expect(mergeEvents({ v: 0 }, { v: -4 }).v).toBe(1);
     expect(mergeEvents({ v: "x" }, { v: 2 }).v).toBe(2);
+    expect(V_MAX).toBe(99);
+    expect(mergeEvents({ v: 99 }, {}).v).toBe(99);
+    /* junk never counts as a version: it gives 1 beside a 1 */
+    [{ v: "2" }, { v: 1.0000001 }, { v: [3] }, { v: true }, { v: 1e308 }, { v: 100 }, { v: 0 }, { v: null }, { v: 2.5 }]
+      .forEach((junk) => expect(mergeEvents(junk, { v: 1 }).v, JSON.stringify(junk)).toBe(1));
     expect(mergeEvents({}, {}).ev).toEqual({});
   });
 
@@ -470,7 +497,7 @@ describe("format 1", () => {
   it("is pinned", () => {
     expect(FORMAT).toBe(1);
     /* a change here is a format bump: bump FORMAT and move this number in the same change */
-    expect(fnv1a32(canon(FORMAT_TABLE))).toBe(1161217912);
+    expect(fnv1a32(canon(FORMAT_TABLE))).toBe(1465348416);
   });
 });
 
