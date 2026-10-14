@@ -2,8 +2,8 @@
 
 Run as `blender -b --factory-startup --python tools/art/forms/build.py -- --stage 3
 --out .cache/forms/raw`. It clears the scene, makes the five materials and the shared
-armature for the stage, then builds the stage through a builder registered in
-STAGE_BUILDERS (a later `stages/` package fills it) or, with none, the grey mannequin,
+armature for the stage, then builds the stage through its builder in `stages/` or, for a stage without one
+yet, the grey mannequin,
 and exports `form-<n>.glb` plus its sidecar JSON. Any failure prints a message and exits
 non-zero so a script or CI step can tell.
 """
@@ -19,9 +19,7 @@ import export  # noqa: E402
 import kit  # noqa: E402
 import materials  # noqa: E402
 import rig  # noqa: E402
-
-# stage number -> builder(armature, props, mats) -> list of objects. Filled by stages/.
-STAGE_BUILDERS = {}
+from stages import STAGES as STAGE_BUILDERS  # noqa: E402  stage number -> builder(armature, props, mats)
 
 ROOT = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", ".."))
 

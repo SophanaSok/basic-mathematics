@@ -36,21 +36,22 @@ class Proportions:
 
 
 def proportions_for(stage):
+    """A mecha build: legs just under half the height, shoulders a third of it, a head
+    that still reads at the viewer's size (the figure is about 300 px tall there)."""
     h = STAGE_HEIGHTS[stage]
-    leg = 0.48 * h
+    leg = 0.47 * h
     return Proportions(
         height=h, leg=leg, shin=leg * 0.5, thigh=leg * 0.5,
-        torso=0.14 * h, chest=0.17 * h, neck=0.03 * h, head=0.18 * h,
-        shoulder_w=0.20 * h, upper_arm=0.15 * h, forearm=0.14 * h, hand=0.06 * h,
-        hip_w=0.09 * h, foot=0.08 * h,
+        torso=0.14 * h, chest=0.19 * h, neck=0.03 * h, head=0.17 * h,
+        shoulder_w=0.32 * h, upper_arm=0.16 * h, forearm=0.15 * h, hand=0.06 * h,
+        hip_w=0.11 * h, foot=0.09 * h,
     )
 
 
 def build_armature(props, name="form"):
-    from kit import new_collection
     arm = bpy.data.armatures.new(name)
     obj = bpy.data.objects.new(name, arm)
-    new_collection("forms").objects.link(obj)
+    kit.new_collection("forms").objects.link(obj)
     bpy.context.view_layer.objects.active = obj
     obj.select_set(True)
     bpy.ops.object.mode_set(mode="EDIT")
@@ -88,9 +89,11 @@ def build_armature(props, name="form"):
         bone(f"forearm.{side}", e2, e3, f"upper_arm.{side}")
         bone(f"hand.{side}", e3, e4, f"forearm.{side}")
         hx = sx * p.hip_w
-        bone(f"thigh.{side}", (hx, 0, hip_z), (hx, 0, p.shin), f"hips")
-        bone(f"shin.{side}", (hx, 0, p.shin), (hx, 0, p.foot * 0.3), f"thigh.{side}")
-        bone(f"foot.{side}", (hx, 0, p.foot * 0.3), (hx, -p.foot, 0.0), f"shin.{side}")
+        knee_z = hip_z - p.thigh
+        ankle_z = p.foot * 0.3
+        bone(f"thigh.{side}", (hx, 0, hip_z), (hx, 0, knee_z), "hips")
+        bone(f"shin.{side}", (hx, 0, knee_z), (hx, 0, ankle_z), f"thigh.{side}")
+        bone(f"foot.{side}", (hx, 0, ankle_z), (hx, -p.foot, 0.0), f"shin.{side}")
     bpy.ops.object.mode_set(mode="OBJECT")
     return obj
 
