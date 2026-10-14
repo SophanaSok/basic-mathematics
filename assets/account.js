@@ -32,6 +32,9 @@
   if (!M) { if (window.console) console.error("[BM] BMMerge missing"); return; }
   var obj = M.obj, str = M.str, canon = M.canon, merge = M.merge, SCHEMA = M.SCHEMA, versionOf = M.versionOf;
 
+  /* the learning log (src/ui/events.ts) may be absent on a page; never let it break sync */
+  function events(fn, arg) { var E = window.BMEvents; if (E && typeof E[fn] === "function") { try { E[fn](arg); } catch (e) { if (window.console) console.warn("[BM] events", e); } } }
+
   var cfg = window.BM_CONFIG || {};
   var configured = !!(cfg.supabaseUrl && cfg.supabaseAnonKey);
   /* Sign-in services this site can offer. Which of them are shown is the `providers` list
@@ -100,6 +103,7 @@
     var empty = {};
     FIELDS.forEach(function (f) { empty[f] = f === "last" ? null : {}; });
     writeLocal(empty, true);
+    events("clear");
   }
   function meta() { return obj(Store.read(META_KEY, {})); }
   function setMeta(fn) {
@@ -302,12 +306,12 @@
       var asideReset = hasAside ? Number(aside.resetAt) || 0 : 0;
       /* progress left by a different account on this browser is not this reader's, and
          neither are its placement-check takes (decision 0003) */
-      if (m.user && m.user !== u.id) { local = {}; dropped = true; }
+      if (m.user && m.user !== u.id) { local = {}; dropped = true; events("clear"); }
       /* a reset made on another device wins over what this browser still remembers of the
          same account; progress made before ever signing in is kept and merged */
       /* a reset keeps the placement-check takes (decision 0003): without this a
          take finished elsewhere would be emptied here too */
-      if (m.user === u.id && remoteReset > mine) { local = { diag: local.diag }; dropped = true; }
+      if (m.user === u.id && remoteReset > mine) { local = { diag: local.diag }; dropped = true; events("clear"); }
       /* the same for what was set aside: a newer reset drops its progress, not its takes */
       var kept = hasAside && !(remoteReset > asideReset) ? aside.state : { diag: obj(aside.state).diag };
       /* A reset made on this browser that the row has not heard of. If nothing has been
@@ -477,7 +481,7 @@
     if (!user) setStatus("off");
     drawButton();
     notify();
-    if (user && changed) pull();
+    if (user && changed) { events("stamp", user.id); pull(); }
   }
 
   function start() {

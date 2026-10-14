@@ -1217,7 +1217,7 @@
           var rec = Attempts.update(chapterId, key, function (a) { Road.check(a, ok, level, inline, section); });
           Store.emit({
             type: "attempt", chapter: chapterId, key: key, section: section, inline: inline,
-            correct: ok, tryNo: rec.tries, hintLevel: rec.hints || 0, solutionOpen: !!rec.opened
+            correct: ok, tryNo: rec.tries, hintLevel: rec.hints || 0, solutionOpen: !!rec.opened, rung: rec.rung || 0
           });
           if (ok) {
             /* the game layer adds the combo's share on top of the ordinary award */

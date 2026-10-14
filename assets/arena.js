@@ -560,6 +560,7 @@
     /* the clock was stopped (a pause, the tab hidden) after the question was read */
     if (run.cur.stopped) entry.stopped = 1;
     entry.section = cur.sec;
+    entry.g = cur.g;
     entry.due = cur.due;
     entry.timed = cur.timed;
     entry.hf = heartFree();
@@ -706,7 +707,7 @@
 
   function buildResult(r, reason) {
     var answers = r.ans.filter(Boolean).map(function (a) {
-      return { section: a.section, first: !!a.first, retry: !!a.retry, pass: !!a.pass, timeout: !!a.timeout, late: !!a.late, due: !!a.due, hf: !!a.hf,
+      return { section: a.section, g: a.g, first: !!a.first, retry: !!a.retry, pass: !!a.pass, timeout: !!a.timeout, late: !!a.late, due: !!a.due, hf: !!a.hf,
         el: Math.max(0, Math.round(Number(a.el) || 0)), timed: !!a.timed };
     });
     var finished = reason === "complete";
@@ -788,7 +789,10 @@
       /* a ranked rematch that kept a heart and still won nothing: the set is not cleared */
       if (payload.boss && back && back.cleared === false) result.uncleared = true;
       if (result.mode === "repair") result.repaired = fixOf(result.section) > fixBefore;
-    } else fallbackRecord(result);
+    } else {
+      fallbackRecord(result);
+      try { if (window.BMEvents) window.BMEvents.fromRun(result); } catch (e) { if (window.console) console.warn("[BM] events", e); }
+    }
     /* the game layer may have written the run store meanwhile: read it again */
     all = runStore();
     if (reason !== "banked") all.arena = r;

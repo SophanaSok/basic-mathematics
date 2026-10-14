@@ -797,6 +797,7 @@
         days.slice(60).forEach(function (d) { delete g.daily[d]; });
       }
     });
+    if (window.BMEvents && typeof window.BMEvents.fromRun === "function") { try { window.BMEvents.fromRun(result); } catch (e) { if (window.console) console.warn("[BM] events", e); } }
     if (dailyBonus) xp += 10;
     var timed = result.timed !== false && mode !== "repair";
     var firsts = answers.filter(function (a) { return a && a.first; });
