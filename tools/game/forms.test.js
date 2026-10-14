@@ -28,6 +28,8 @@ function check(cond, what, detail) {
 }
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 const THREE = /\/bundle\/three\.js(?:[?#]|$)/;
+/* the model viewer's files: the GLBs and the model chunks (src/model/index.ts, the three-model vendor chunk) */
+const MODEL = /\/models\/forms\/|\/bundle\/(?:form-model|three-model)\.js(?:[?#]|$)/;
 const CHAPTER = "parts/1-algebra/01-numbers.html";
 /* assets/game.js shows cards one at a time, each up for 2600 ms and 400 ms leaving, and
    a form toast queues behind the level card the same XP raised, so it enters the DOM at
@@ -44,13 +46,16 @@ function seeds(xp, extra) {
 
 async function open(path, seed, opts) {
   opts = opts || {};
+  /* the cases run one after another: a page left over from the last one would keep its
+     WebGL context and slow this one's timers (SwiftShader draws on the CPU) */
+  while (contexts.length) await contexts.pop().close().catch(() => {});
   const context = await browser.newContext({ viewport: { width: 1280, height: 900 }, reducedMotion: opts.reduced ? "reduce" : "no-preference" });
   contexts.push(context);
   const requests = [];
   await context.route(/^(https?|wss?):/, (r) => {
     const u = r.request().url();
     if (!server.owns(u)) return r.abort();
-    if (THREE.test(u)) requests.push(u);
+    if (THREE.test(u) || MODEL.test(u)) requests.push(u);
     return r.continue();
   });
   /* seeded once per context, on the first load only, so a reload keeps what the page wrote */
@@ -94,6 +99,36 @@ async function main() {
       check(st.now > 0 && st.now < 100, "1: meter between 0 and 100", st.now);
       check(/Highest/.test(st.tiles[2].tag), "1: the Highest caption on tile 3", st.tiles[2].tag);
       check(st.seq === null, "1: no sequence when nothing is pending", st.seq);
+      /* the real GLB, from dist/: the model replaces the drawn form */
+      await page.waitForFunction(() => window.BMForms.info() && window.BMForms.info().model === "model", null, { timeout: 20000 }).catch(() => {});
+      const info = await page.evaluate(() => window.BMForms.info());
+      check(info && info.model === "model", "1: the model is shown", info);
+      const emo = await page.evaluate(() => Array.from(document.querySelectorAll(".form-emotes [data-emote]")).map((b) => ({ e: b.getAttribute("data-emote"), dis: b.getAttribute("aria-disabled") })));
+      /* the generated manifest (src/data/form-models.ts) says whether stage 3's file has clips */
+      const man = require("fs").readFileSync(require("path").join(site.ROOT, "src/data/form-models.ts"), "utf8");
+      const m3 = /n: 3,[^\n]*?clips: \[([^\]]*)\]/.exec(man);
+      const clips = m3 ? m3[1].split(",").filter((c) => c.trim()).length : -1;
+      check(emo.length === 4 && emo.map((b) => b.e).join() === "wave,bow,flex,spin", "1: four emote buttons", emo);
+      if (clips >= 0) check(emo.every((b) => b.dis === (clips > 0 ? "false" : "true")), "1: the emotes are enabled as the manifest lists clips", [clips, emo]);
+      const label = await page.getAttribute(".form-stage", "aria-label");
+      check(/^Wayfinder, your form, stage 3 of 5\./.test(label || ""), "1: the stage is named", label);
+      const yaw0 = info ? info.yaw : 0;
+      const bb = await page.locator(".form-stage").boundingBox();
+      const x = bb.x + bb.width / 2, y = bb.y + bb.height / 2;
+      await page.mouse.move(x, y);
+      await page.mouse.down();
+      await page.mouse.move(x + 120, y, { steps: 6 });
+      await page.mouse.up();
+      await wait(300);
+      const after = await page.evaluate(() => window.BMForms.info());
+      check(after && Math.abs(after.yaw - yaw0) > 0.5, "1: a drag turns the form", [yaw0, after && after.yaw]);
+      /* at rest the loop stops: no frames while nothing moves */
+      await wait(6500);
+      const f1 = (await page.evaluate(() => window.BMForms.info())).frames;
+      await wait(1000);
+      const f2 = (await page.evaluate(() => window.BMForms.info())).frames;
+      console.log("frames at rest: " + f1 + " then " + f2 + "; info " + JSON.stringify(after));
+      check(f2 === f1, "1: no frames at rest", [f1, f2]);
     }
     /* 2 */
     {
@@ -180,7 +215,7 @@ async function main() {
       check(st.view === "flat", "6: the view is flat", st.view);
       check(st.pip === "3", "6: the card shows 3", st.pip);
       check(st.pips, "6: the tiles show pips");
-      check(requests.length === 0, "6: no Three.js request", requests);
+      check(requests.length === 0, "6: no Three.js or model request", requests);
     }
     /* 7 */
     {

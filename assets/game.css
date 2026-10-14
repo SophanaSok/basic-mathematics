@@ -1015,6 +1015,12 @@ html[data-motion="reduce"] *, html[data-motion="reduce"] *::before, html[data-mo
 .form-stage { position: absolute; inset: 0; touch-action: pan-y; cursor: grab; user-select: none; outline: none; }
 .form-stage:focus-visible { box-shadow: inset 0 0 0 var(--focus-width) var(--focus); }
 .form-stage[data-drag] { cursor: grabbing; }
+/* the thin bar of the model's download (src/ui/form-view.ts sets the inner width), shown only
+   while the model loads; no animation */
+.form-left { min-width: 0; }
+.form-load { position: absolute; left: 14%; right: 14%; bottom: 8%; height: 4px; background: var(--border); border-radius: 2px; }
+.form-load > span { display: block; height: 100%; width: 0; background: var(--accent); border-radius: 2px; }
+.form-view:not([data-model="loading"]) .form-load, .form-dialog-box:not([data-model="loading"]) .form-load { display: none; }
 .form-dialog-box .form-stage { touch-action: none; }
 /* The emote buttons under the form's view (src/ui/form-emotes.ts): a row of ghost buttons;
    the one whose clip is playing shows as pressed. No motion of their own. */
