@@ -109,7 +109,7 @@ function build(): HTMLElement {
   const probes = ((C && C.parts) || []).map((p: any) => '<i data-part="' + esc(String(p.id)) + '"></i>').join("");
   const tiles = FORMS.map((f) =>
     '<li class="form-tile" data-stage="' + f.n + '" data-state="locked">' +
-      '<span class="form-pic"><img alt="" src="' + esc(thumbSrc(f.n)) + '" width="120" height="150" loading="lazy" decoding="async">' +
+      '<span class="form-pic"><img alt="" src="' + esc(thumbSrc(f.n)) + '" width="120" height="150" decoding="async">' +
         '<b class="form-pip" aria-hidden="true" hidden>' + f.n + "</b></span>" +
       '<b class="form-tile-name">' + esc(f.name) + "</b>" +
       '<span class="form-tile-level"></span>' +
@@ -263,11 +263,12 @@ function maybeEvolve(hi: number, wo: number): void {
   const multi: number[] = [];
   for (let n = ev + 1; n <= hi; n++) multi.push(n);
   seq = { from, hi, swapped: false, step: "anticipate", timers: [], multi };
+  if (view) view.preload(seq.hi);   /* the next model on its way before any cut or white-out */
   if (stillNow()) { caption(); return; }
   setStep("anticipate");
   const b = box();
   if (b) b.classList.add("is-anticipating");
-  if (view) { view.wake(); view.preload(seq.hi); }
+  if (view) view.wake();
   const host = seqHost();
   if (host) host.innerHTML = '<button type="button" class="btn ghost small" data-form-skip>Skip</button>';
   document.addEventListener("keydown", onKey);
