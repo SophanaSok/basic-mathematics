@@ -93,7 +93,10 @@ built and before the clips.
   node's edge mask broken up by noise, grime in the crevices from ambient occlusion, and a
   slow brightness mottle. The `accent` region is baked at its neutral gray, so the site's
   multiply tint still gives the learner's hue. `form-<n>-surface.webp` holds occlusion in
-  R, roughness in G and metallic in B.
+  R, roughness in G and metallic in B. The chips are scaled by each part's `wear` object
+  property: `kit.ring`, `kit.bolt` and a thin `kit.cyl` set it to `WEAR_THIN` (0.15), since
+  a part that is all edge would otherwise read as dashes (the halo rings did); every other
+  part counts as 1.
 - Both passes are EMIT passes. A diffuse color pass is black on a metallic surface, so the
   color chain and then the packed channels each go through an Emission shader and bake as
   emission.

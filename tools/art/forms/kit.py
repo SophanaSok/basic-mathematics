@@ -31,6 +31,11 @@ def new_collection(name, exclude=False):
     return col
 
 
+# the bake's edge-wear factor for a part that is all edge: a thin ring, a bolt, a rod.
+# bake.py reads it as the object attribute "wear" (1.0 for every other part).
+WEAR_THIN = 0.15
+
+
 def _finish(name, bm, at, rot=None, collection="forms"):
     me = bpy.data.meshes.new(name)
     bm.to_mesh(me)
@@ -115,7 +120,10 @@ def cyl(name, r, length, segments=24, at=(0, 0, 0), rot=None, r2=None):
     bmesh.ops.create_cone(bm, cap_ends=True, segments=segments, radius1=r, radius2=r if r2 is None else r2, depth=length)
     bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
     _mark_sharp(bm)
-    return _finish(name, bm, at, rot)
+    obj = _finish(name, bm, at, rot)
+    if r < 0.012:
+        obj["wear"] = WEAR_THIN
+    return obj
 
 
 def cyl_joint(name, r, length, segments=24, at=(0, 0, 0), rot=None):
@@ -132,12 +140,15 @@ def cyl_joint(name, r, length, segments=24, at=(0, 0, 0), rot=None):
 
 
 def bolt(name, r=0.008, at=(0, 0, 0), rot=None):
+    """A short hex stud; thin for the bake's wear."""
     bm = bmesh.new()
     bmesh.ops.create_cone(bm, cap_ends=True, segments=6, radius1=r, radius2=r, depth=r)
     dome = bmesh.ops.create_uvsphere(bm, u_segments=6, v_segments=3, radius=r * 0.9)
     bmesh.ops.translate(bm, verts=dome["verts"], vec=(0, 0, r * 0.5))
     bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
-    return _finish(name, bm, at, rot)
+    obj = _finish(name, bm, at, rot)
+    obj["wear"] = WEAR_THIN
+    return obj
 
 
 def sphere(name, r, at=(0, 0, 0), rot=None, segments=16, rings=8, scale=(1, 1, 1), dome=False):
@@ -168,7 +179,9 @@ def ring(name, r, thickness, depth, segments=24, at=(0, 0, 0), rot=None):
     bmesh.ops.bridge_loops(bm, edges=rims)
     bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
     _mark_sharp(bm)
-    return _finish(name, bm, at, rot)
+    obj = _finish(name, bm, at, rot)
+    obj["wear"] = WEAR_THIN
+    return obj
 
 
 def wedge(name, size=(0.1, 0.1, 0.1), at=(0, 0, 0), rot=None, front=0.3):

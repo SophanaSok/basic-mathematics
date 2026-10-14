@@ -5,7 +5,9 @@ Phase 1 painted each form with five flat PBR materials. This step gives every st
 shaders, so nothing is painted by hand and a rebuild reproduces them:
 
 - `form-<n>-color.webp` (sRGB): the base colour with chipped edges (a Bevel-node edge
-  mask broken up by noise) and grime in the crevices (ambient occlusion times noise).
+  mask broken up by noise, scaled by each part's "wear" attribute: kit.py sets it low on
+  rings, bolts and rods, which are all edge and would read as dashes) and grime in the
+  crevices (ambient occlusion times noise).
   The `accent` region is baked at its neutral gray, so the site's multiply tint still
   gives the learner's hue.
 - `form-<n>-surface.webp` (non-colour): occlusion in R, roughness in G and metallic in
@@ -133,11 +135,20 @@ def _wear_nodes(nt, slot):
     chips.inputs["From Min"].default_value = 0.32
     chips.inputs["From Max"].default_value = 0.62
     links.new(chip_noise.outputs["Fac"], chips.inputs["Value"])
+    chipped = nodes.new("ShaderNodeMath")
+    chipped.operation = "MULTIPLY"
+    chipped.use_clamp = True
+    links.new(gain.outputs[0], chipped.inputs[0])
+    links.new(chips.outputs["Result"], chipped.inputs[1])
+    # scaled by the part's own wear factor (an object property; thin parts carry a low one)
+    attr = nodes.new("ShaderNodeAttribute")
+    attr.attribute_type = "OBJECT"
+    attr.attribute_name = "wear"
     wear = nodes.new("ShaderNodeMath")
     wear.operation = "MULTIPLY"
     wear.use_clamp = True
-    links.new(gain.outputs[0], wear.inputs[0])
-    links.new(chips.outputs["Result"], wear.inputs[1])
+    links.new(chipped.outputs[0], wear.inputs[0])
+    links.new(attr.outputs["Fac"], wear.inputs[1])
     # grime: where occlusion is high, modulated by a coarser noise
     ao = nodes.new("ShaderNodeAmbientOcclusion")
     ao.inputs["Distance"].default_value = AO_DISTANCE
@@ -264,6 +275,9 @@ def bake(objs, mats, stage, out_dir, cpu=False):
     """Apply, unwrap, bake both atlases, save them as WebP beside the export and rebuild
     the materials around them. Returns {"color": path, "surface": path}."""
     os.makedirs(out_dir, exist_ok=True)
+    for o in objs:
+        if "wear" not in o:
+            o["wear"] = 1.0   # the Attribute node reads a missing property as 0
     apply_modifiers(objs)
     unwrap(objs)
     scene = bpy.context.scene
