@@ -177,10 +177,14 @@ def _tint_accent():
     if acc and acc.use_nodes:
         n = acc.node_tree.nodes.get("Principled BSDF")
         if n and n.inputs["Base Color"].is_linked:
-            # baked: multiply the colour texture by the red on its way in
+            # baked: multiply the colour texture by the red on its way in, once (the
+            # turntable and the emotes sheet both ask; a second multiply would square it)
             nt = acc.node_tree
             link = n.inputs["Base Color"].links[0]
+            if link.from_node.name == "accent_tint":
+                return
             mix = nt.nodes.new("ShaderNodeMix")
+            mix.name = "accent_tint"
             mix.data_type = "RGBA"
             mix.blend_type = "MULTIPLY"
             mix.inputs["Factor"].default_value = 1.0
