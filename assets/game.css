@@ -1016,6 +1016,11 @@ html[data-motion="reduce"] *, html[data-motion="reduce"] *::before, html[data-mo
 .form-stage:focus-visible { box-shadow: inset 0 0 0 var(--focus-width) var(--focus); }
 .form-stage[data-drag] { cursor: grabbing; }
 .form-dialog-box .form-stage { touch-action: none; }
+/* The emote buttons under the form's view (src/ui/form-emotes.ts): a row of ghost buttons;
+   the one whose clip is playing shows as pressed. No motion of their own. */
+.form-emotes { display: flex; flex-wrap: wrap; gap: .4rem; margin: .6rem 0 0; }
+.form-emotes [data-playing] { border-color: var(--accent); color: var(--accent); background: var(--surface-2); }
+.form-emotes [aria-disabled="true"] { opacity: .55; cursor: default; }
 
 @media (max-width: 600px) {
   .form-body { grid-template-columns: minmax(0, 1fr); }

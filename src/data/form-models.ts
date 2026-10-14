@@ -20,14 +20,14 @@ export interface FormModel {
 }
 
 export const FORM_MODELS: readonly FormModel[] = [
-  { n: 1, file: "models/forms/form-1.glb", thumb: "models/forms/form-1.png", bytes: 77252, triangles: 3256, height: 0.6, clips: [], slots: ["armor", "glow", "metal", "trim", "accent"], compression: "none" },
-  { n: 2, file: "models/forms/form-2.glb", thumb: "models/forms/form-2.png", bytes: 74288, triangles: 3148, height: 0.8, clips: [], slots: ["armor", "glow", "metal", "trim", "accent"], compression: "none" },
+  { n: 1, file: "models/forms/form-1.glb", thumb: "models/forms/form-1.png", bytes: 57220, triangles: 2474, height: 0.6, clips: [], slots: ["metal", "trim", "glow", "accent", "armor"], compression: "none" },
+  { n: 2, file: "models/forms/form-2.glb", thumb: "models/forms/form-2.png", bytes: 111976, triangles: 4674, height: 0.8, clips: [], slots: ["metal", "accent", "armor", "glow", "trim"], compression: "none" },
   { n: 3, file: "models/forms/form-3.glb", thumb: "models/forms/form-3.png", bytes: 202068, triangles: 8812, height: 1.1, clips: [], slots: ["armor", "metal", "trim", "glow", "accent"], compression: "none" },
   { n: 4, file: "models/forms/form-4.glb", thumb: "models/forms/form-4.png", bytes: 72948, triangles: 3018, height: 1.35, clips: [], slots: ["armor", "glow", "metal", "trim", "accent"], compression: "none" },
   { n: 5, file: "models/forms/form-5.glb", thumb: "models/forms/form-5.png", bytes: 64596, triangles: 2604, height: 1.75, clips: [], slots: ["armor", "glow", "metal", "trim", "accent"], compression: "none" }
 ];
 
-export const FORM_MODEL_GENERATOR = "d4547f09a0ca3786cf493fb5a75137632c2c09d35aaf4b502a72a77a9bb14cd3";
+export const FORM_MODEL_GENERATOR = "5805b357537f2489460058232e123d678e04a3376943b5b836f2b8f43a4c9a40";
 
 export function modelFor(stage: number): FormModel | null {
   return FORM_MODELS.find(m => m.n === stage) || null;

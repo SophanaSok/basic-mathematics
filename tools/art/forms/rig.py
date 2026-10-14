@@ -4,7 +4,7 @@ The form pipeline (tools/art/forms/) gives all five avatar stages one skeleton s
 set of emotes plays on every stage. This file holds the `Proportions` a stage is built
 to (a samurai-mecha build: legs near half the height, wide shoulders), the armature with
 its fixed bone names and parenting (an upright A-stance at rest), rigid skinning, and
-the mannequin: one bevelled box per bone, which stands in for a stage until its own
+the mannequin: one beveled box per bone, which stands in for a stage until its own
 builder exists and proves the pipeline end to end.
 """
 from dataclasses import dataclass
@@ -99,8 +99,42 @@ def build_armature(props, name="form"):
 
 
 def reduced_armature(props, name="form"):
-    """Stage 1 skeleton (root, hips, chest, head). A stub until stage 1 has a builder."""
-    raise NotImplementedError("stage 1 reduced armature arrives with its stage card")
+    """Stage 1's skeleton, a floating core with no limbs: `root` on the ground, `hips`
+    the core, `chest` the vanes and antenna, `head` the eye. All three pivot at the
+    core's center (hips and chest point up from it, head points to the front), so a
+    bob, a tilt or a turn of any of them moves its parts around the core, not off it.
+    The emotes drive these four by name and skip the rest."""
+    arm = bpy.data.armatures.new(name)
+    obj = bpy.data.objects.new(name, arm)
+    kit.new_collection("forms").objects.link(obj)
+    bpy.context.view_layer.objects.active = obj
+    obj.select_set(True)
+    bpy.ops.object.mode_set(mode="EDIT")
+    eb = arm.edit_bones
+
+    def bone(n, head, tail, parent=None):
+        b = eb.new(n)
+        b.head, b.tail = Vector(head), Vector(tail)
+        b.use_deform = True
+        if parent:
+            b.parent = eb[parent]
+        return b
+
+    h = props.height
+    hover = h * 0.2
+    core_top = h * 0.8
+    center = (hover + core_top) / 2
+    bone("root", (0, 0, 0), (0, 0, h * 0.08))
+    bone("hips", (0, 0, center), (0, 0, core_top), "root")
+    bone("chest", (0, 0, center), (0, 0, h), "hips")
+    bone("head", (0, 0, center), (0, -h * 0.25, center), "hips")
+    bpy.ops.object.mode_set(mode="OBJECT")
+    return obj
+
+
+def armature_for(stage, props, name="form"):
+    """the skeleton a stage is built on: the reduced one for stage 1, the shared one else"""
+    return reduced_armature(props, name) if stage == 1 else build_armature(props, name)
 
 
 def skin_rigid(obj, armature, bone):
