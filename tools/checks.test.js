@@ -384,6 +384,20 @@ function refusal(fn) { try { fn(); return null; } catch (e) { return e.message; 
   const genFonts = require("./gen-fonts");
   eq(genFonts.FACES.map(f => f.family + " " + f.style + " " + f.weights.join(",")), ["Bricolage Grotesque normal 700,800", "Inter normal 400,500,600,700", "Newsreader italic 400", "Newsreader normal 400,600"], "gen-fonts.js declares the faces the Google Fonts link asked for, and no other");
   eq(genFonts.problem(), "", "src/vendor/fonts.css is what tools/gen-fonts.js writes (run it after a fontsource update)");
+  /* the form models: lib/glb.js reads a GLB, gen-forms.js writes the manifest from the files */
+  {
+    const glb = require("./lib/glb");
+    const tiny = fs.readFileSync(path.join(site.ROOT, "tools/fixtures/forms/tiny.glb"));
+    const d = glb.describeGlb(tiny);
+    eq([d.triangles, d.materials, d.animations, d.images, d.extensionsRequired, d.meshes, d.nodes], [1, ["armor"], [{ name: "idle", seconds: 3 }], [], [], 1, 1], "glb: the fixture is one triangle, the material armor, the clip idle of 3 s, no images");
+    check(/shorter than a header/.test(refusal(() => glb.readGlb(tiny.subarray(0, 10))) || ""), "glb: a buffer cut inside the header is refused with a reason");
+    check(/truncated or padded/.test(refusal(() => glb.readGlb(tiny.subarray(0, tiny.length - 8))) || ""), "glb: a file cut short is refused, naming the length it claims");
+    check(/magic/.test(refusal(() => glb.readGlb(Buffer.concat([Buffer.from("nope"), tiny.subarray(4)]))) || ""), "glb: a buffer without the glTF magic is refused");
+    const png = Buffer.alloc(24); png.writeUInt32BE(0x89504e47, 0); png.write("IHDR", 12, "latin1"); png.writeUInt32BE(1024, 16); png.writeUInt32BE(2048, 20);
+    eq(glb.imageSize(png), { width: 1024, height: 2048 }, "glb: a PNG's size is read from its IHDR");
+    const genForms = require("./gen-forms");
+    eq(genForms.problems(), [], "src/data/form-models.ts and public/models/forms/ are what tools/gen-forms.js wrote from tools/art/forms/ (run `npm run gen:forms` after editing the art scripts)");
+  }
   const faces = Array.from(fs.readFileSync(path.join(site.ROOT, genFonts.FILE), "utf8").matchAll(/@font-face\s*\{([^}]*)\}/g)).map(m => m[1]);
   const decl = (block, name) => (new RegExp(name + ":\\s*([^;]+)").exec(block) || [])[1];
   check(faces.length > 0 && faces.every(b => /^\d+$/.test(decl(b, "font-weight"))), "every @font-face names one weight, never a range, so the site's font-weight: 650 takes the 700 face as it did with Google's rules");
