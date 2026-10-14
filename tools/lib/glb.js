@@ -52,6 +52,7 @@ function readGlb(buffer) {
 function writeGlb(json, bin) {
   bin = bin || Buffer.alloc(0);
   const doc = JSON.parse(JSON.stringify(json));
+  if (Array.isArray(doc.buffers) && doc.buffers.length > 1) throw new Error("writeGlb: " + doc.buffers.length + " buffers; a GLB holds one, and a second would break its bufferViews");
   if (!Array.isArray(doc.buffers) || !doc.buffers.length) doc.buffers = [{}];
   delete doc.buffers[0].uri;
   doc.buffers[0].byteLength = bin.length;

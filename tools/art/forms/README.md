@@ -59,7 +59,7 @@ edges and bolts, not from polygon count: the Wayfinder is under 9,000 triangles.
 ## The checks
 
 - The caps live in `src/data/form-limits.ts` (1.5 MB a model, 30,000 triangles, 160 KB a
-  thumbnail, 400 KB a texture). The other constants (the idle at 3 s, the thumbnail at 512x640 RGBA, the
+  thumbnail, 400 KB a texture, 1.5 MB a stage with its textures). The other constants (the idle at 3 s, the thumbnail at 512x640 RGBA, the
   allowed extensions, at most four textures, each a WebP file square at 1024 or 2048) live in
   `tools/lib/form-models.js`.
 - The rule runs in `check:static` as `form-models`:

@@ -7,8 +7,6 @@ import { describe, expect, it } from "vitest";
 import { CLIPS, EMOTES, FORM_MODELS, SLOTS, modelFor } from "./form-models";
 import { MODEL_BYTES_MAX, MODEL_TRIANGLES_MAX } from "./form-limits";
 
-/* the manifest from before the bake has no images; it reads as none */
-const imagesOf = (m: object): readonly string[] => (m as { images?: readonly string[] }).images ?? [];
 const sorted = (a: readonly string[]) => [...a].sort();
 
 describe("FORM_MODELS", () => {
@@ -40,14 +38,19 @@ describe("FORM_MODELS", () => {
 
   it("lists at most four textures, each named for its own stage", () => {
     for (const m of FORM_MODELS) {
-      const images = imagesOf(m);
-      expect(images.length).toBeLessThanOrEqual(4);
-      for (const p of images) expect(p).toMatch(new RegExp("^models/forms/form-" + m.n + "-[a-z]+\\.webp$"));
+      expect(m.images.length).toBeLessThanOrEqual(4);
+      for (const p of m.images) expect(p).toMatch(new RegExp("^models/forms/form-" + m.n + "-[a-z]+\\.webp$"));
+    }
+  });
+
+  it("lists exactly the colour and surface textures of its stage", () => {
+    for (const m of FORM_MODELS) {
+      expect(sorted(m.images)).toEqual(["models/forms/form-" + m.n + "-color.webp", "models/forms/form-" + m.n + "-surface.webp"]);
     }
   });
 
   it("has the files for the textures it lists", () => {
-    for (const m of FORM_MODELS) for (const p of imagesOf(m)) expect(existsSync(resolve(__dirname, "../../public", p))).toBe(true);
+    for (const m of FORM_MODELS) for (const p of m.images) expect(existsSync(resolve(__dirname, "../../public", p))).toBe(true);
   });
 
   it("offers only emotes that are clips", () => {
