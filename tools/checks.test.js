@@ -329,10 +329,11 @@ function refusal(fn) { try { fn(); return null; } catch (e) { return e.message; 
   check(headOrder.indexOf("script") < headOrder.indexOf("linkstylesheet") && headOrder.indexOf("scriptmodule") === headOrder.length - 1, "the boot script comes before every stylesheet, and the module entry last: " + headOrder.join(","));
   shell.VENDOR_STYLES.forEach(f => check(fs.existsSync(path.join(site.ROOT, f)) && /^\s*@import\s+["'][^"'./]|url\(["']?@?[a-z]/m.test(fs.readFileSync(path.join(site.ROOT, f), "utf8")), "the vendor stylesheet " + f + " exists and imports a package's CSS or names a package's files"));
   const vendorModules = vendor.vendorModules();
-  eq(vendorModules.map(v => v.file), ["src/vendor/fonts.css", "src/vendor/katex.css", "src/vendor/katex.js", "src/vendor/supabase.js", "src/vendor/three.js"], "the vendor modules are the fonts' and KaTeX's stylesheets, KaTeX's script, supabase-js and Three.js");
-  eq(vendorModules.map(v => v.packages.join(",")), ["@fontsource-variable/bricolage-grotesque,@fontsource-variable/inter,@fontsource/newsreader,@fontsource-variable/newsreader", "katex", "katex", "@supabase/supabase-js", "three"], "… each bringing in the packages it is named for (fonts.css by the files its url()s name)");
+  eq(vendorModules.map(v => v.file), ["src/vendor/fonts.css", "src/vendor/katex.css", "src/vendor/katex.js", "src/vendor/supabase.js", "src/vendor/three-model.js", "src/vendor/three.js"], "the vendor modules are the fonts' and KaTeX's stylesheets, KaTeX's script, supabase-js, the model viewer's Three.js and the course world's");
+  eq(vendorModules.map(v => v.packages.join(",")), ["@fontsource-variable/bricolage-grotesque,@fontsource-variable/inter,@fontsource/newsreader,@fontsource-variable/newsreader", "katex", "katex", "@supabase/supabase-js", "three", "three"], "… each bringing in the packages it is named for (fonts.css by the files its url()s name)");
   check(vendorModules.find(v => v.file === "src/vendor/supabase.js").all.includes("@supabase/auth-js"), "a package's dependencies come with it (supabase.js brings in @supabase/auth-js)");
   eq([vendor.vendorOf("node_modules/katex/dist/katex.mjs").file, vendor.vendorOf("node_modules/katex/dist/katex.min.css").file, vendor.vendorOf("node_modules/tslib/tslib.es6.mjs").file, vendor.vendorOf("node_modules/three/build/three.core.js").file], ["src/vendor/katex.js", "src/vendor/katex.css", "src/vendor/supabase.js", "src/vendor/three.js"], "a node_modules file is placed by its kind and its package: katex's script with katex.js, its stylesheet with katex.css, a dependency of supabase-js with supabase.js, three's core with three.js");
+  eq(["examples/jsm/loaders/GLTFLoader.js", "examples/jsm/utils/BufferGeometryUtils.js", "build/three.module.js"].map(f => vendor.vendorOf("node_modules/three/" + f).file), ["src/vendor/three-model.js", "src/vendor/three-model.js", "src/vendor/three.js"], "three's addons go with three-model.js, which names them by subpath; its core stays with three.js, which imports it bare");
   check(/no script under src\/vendor\/ imports/.test(refusal(() => vendor.vendorOf("node_modules/left-pad/index.js")) || ""), "a package no vendor module imports is refused, with the reason");
   const deps = JSON.parse(fs.readFileSync(path.join(site.ROOT, "package.json"), "utf8"));
   eq(deps.dependencies.katex, "0.16.47", "package.json pins katex at exactly 0.16.47");
@@ -352,6 +353,30 @@ function refusal(fn) { try { fn(); return null; } catch (e) { return e.message; 
   });
   eq(exported.slice().sort(), Array.from(used).sort(), "src/vendor/three.js exports, by name, exactly the Three.js names assets/map3d.js, src/world/*.ts and assets/scenes3d-gl.js use");
   eq(exported.length, new Set(exported).size, "… each once");
+  /* three-model.js: every line an export from three or one of its addons, each name once,
+     each a name the installed files export (a regex over their export statements, so it
+     proves the name exists, not that it is the right one) */
+  const modelLines = fs.readFileSync(path.join(site.ROOT, "src/vendor/three-model.js"), "utf8").replace(/\/\*[\s\S]*?\*\//g, "").split("\n").map(l => l.trim()).filter(Boolean);
+  const modelRe = /^export \{([^}]*)\} from "(three(?:\/[^"]+)?)";$/;
+  check(modelLines.every(l => modelRe.test(l)), "every line of src/vendor/three-model.js is one export { … } from \"three…\"; statement");
+  const modelNames = modelLines.flatMap(l => (l.match(modelRe) || ["", "", ""])[1].split(",").map(x => x.trim()).filter(Boolean));
+  eq(modelNames.length, new Set(modelNames).size, "src/vendor/three-model.js exports each name once");
+  const installedNames = (file) => {
+    const t = fs.readFileSync(path.join(site.ROOT, "node_modules/three", file), "utf8");
+    const out = [];
+    for (const m of t.matchAll(/^export \{([^}]*)\}/gm)) m[1].split(",").forEach(x => out.push(x.trim().split(/\s+as\s+/).pop()));
+    for (const m of t.matchAll(/^export (?:class|function|const) (\w+)/gm)) out.push(m[1]);
+    return out;
+  };
+  const coreNames = new Set(installedNames("build/three.module.js").concat(installedNames("build/three.core.js")));
+  const missingModel = [];
+  modelLines.forEach(l => {
+    const m = l.match(modelRe);
+    if (!m) return;
+    const have = m[2] === "three" ? coreNames : new Set(installedNames(m[2].replace(/^three\//, "")));
+    m[1].split(",").map(x => x.trim()).filter(Boolean).forEach(n => { if (!have.has(n)) missingModel.push(m[2] + ":" + n); });
+  });
+  eq(missingModel, [], "every name src/vendor/three-model.js exports is exported by the installed three (or the addon file it names), by a scan of their export statements");
   check(!["assets/map3d.js", "assets/scenes3d.js", "assets/scenes3d-gl.js", "assets/three-loader.js"].some(f => /window\.THREE\b/.test(fs.readFileSync(path.join(site.ROOT, f), "utf8").replace(/\/\*[\s\S]*?\*\//g, ""))), "nothing reads or writes window.THREE: the namespace is BM3D.THREE");
 
   /* the fonts: src/vendor/fonts.css is what gen-fonts.js writes, and what it writes
@@ -372,6 +397,7 @@ function refusal(fn) { try { fn(); return null; } catch (e) { return e.message; 
   const pk = vendor.packages();
   eq(pk.map(p => p.name).sort(), Array.from(new Set(vendorModules.flatMap(v => v.all))).sort(), "packages() is every package of every vendor module, with their dependencies, each once");
   check(pk.every(p => p.text.length > 100 && p.file), "every package installed today ships a licence file, and packages() reads it: " + pk.filter(p => !p.text).map(p => p.name).join(", "));
+  eq(pk.find(p => p.name === "three").by, ["src/vendor/three-model.js", "src/vendor/three.js"], "three is listed once, brought in by both of its vendor modules");
   const notice = vendor.licenseNotice();
   check(pk.every(p => notice.includes("\n" + p.name + " " + p.version + " — " + p.license + " — ") && notice.includes(p.text)), "licenseNotice() has a section per package, naming it with its version and licence, and holding its licence file's text");
   check(/SIL OPEN FONT LICENSE Version 1\.1/.test(notice) && /Reserved Font Name KaTeX_/.test(notice), "the notice carries the Open Font License's text, and the KaTeX fonts' own notice");

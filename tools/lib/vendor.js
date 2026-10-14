@@ -12,6 +12,14 @@
    (@supabase/auth-js, tslib, …) is supabase.js's too. That is read off the installed
    package.json files, so it is the tree as npm laid it out, not a list kept by hand.
 
+   A package may be brought in by two script modules when one of them names only
+   subpaths of it (src/vendor/three-model.js imports three/examples/jsm/… addons,
+   src/vendor/three.js imports "three" bare). The one that names subpaths owns every file
+   under the first path segment of each (examples/**); the one that imports it bare and
+   names no subpath owns the rest (build/**): a module naming subpaths never counts as
+   the bare one, even when it imports the package bare too. A dependency two modules
+   bring in, with neither naming it, is still placed by hand.
+
    And the licences: everything in dist/bundle/ that is not the site's own comes from
    one of those packages, so the build writes bundle/LICENSES.txt (NOTICE) from their
    installed licence files, one section per package (licenseNotice below), and
@@ -27,6 +35,12 @@ const NOTICE = "bundle/LICENSES.txt";
 function packageName(specifier) {
   const parts = specifier.split("/");
   return parts[0].charAt(0) === "@" ? parts.slice(0, 2).join("/") : parts[0];
+}
+
+/* "three/examples/x.js" -> "examples/x.js"; "three" -> "" */
+function subpathOf(specifier) {
+  const parts = specifier.split("/");
+  return parts.slice(parts[0].charAt(0) === "@" ? 2 : 1).join("/");
 }
 
 /* the package a node_modules path is from (the innermost node_modules, for a nested
@@ -56,8 +70,9 @@ const BARE = /^(?!\.{0,2}\/|[a-z][a-z0-9+.-]*:|#)[^"')\s]+$/i;
 
 /* every src/vendor/*.js and *.css: { file, packages } with the packages its own import
    and export statements (a stylesheet's @import rules) and its url() references name,
-   bare specifiers only, in order of first mention, and `all`, those with their
-   dependencies */
+   bare specifiers only, in order of first mention, `subpaths`, per package the paths
+   inside it the statements name ("" for the package itself), and `all`, those packages
+   with their dependencies */
 let cache = null;
 function vendorModules() {
   if (cache) return cache;
@@ -65,12 +80,18 @@ function vendorModules() {
     const file = DIR + "/" + f;
     const text = fs.readFileSync(path.join(ROOT, file), "utf8").replace(/\/\*[\s\S]*?\*\//g, "");
     const packages = [];
-    const add = (spec) => { const pkg = packageName(spec); if (!packages.includes(pkg)) packages.push(pkg); };
+    const subpaths = {};
+    const add = (spec) => {
+      const pkg = packageName(spec), sub = subpathOf(spec);
+      if (!packages.includes(pkg)) packages.push(pkg);
+      const list = subpaths[pkg] || (subpaths[pkg] = []);
+      if (!list.includes(sub)) list.push(sub);
+    };
     for (const m of text.matchAll(/^\s*@?(?:import|export)\b[^"'\n]*["']([^"'./][^"']*)["']/gm)) add(m[1]);
     for (const m of text.matchAll(/url\(\s*["']?([^"')\s]+)["']?\s*\)/g)) if (BARE.test(m[1])) add(m[1]);
     const all = [];
     packages.forEach(p => closure(p, all));
-    return { file, packages, all };
+    return { file, packages, subpaths, all };
   });
   return cache;
 }
@@ -78,8 +99,10 @@ function vendorModules() {
 /* the vendor module a node_modules file belongs to: the one of its own kind (a script's
    is a .js, a stylesheet's a .css: katex.js and katex.css both bring in katex) whose
    packages, with their dependencies, hold the file's package. Throws for a file no
-   vendor module brings in, and for one two of them do (a package both depend on would
-   have to be placed by hand, and no such package exists yet). */
+   vendor module brings in. When two do, the one naming subpaths of the package owns the
+   files under their first segments and the one importing it bare owns the rest; a
+   package both depend on without naming it would have to be placed by hand, and none
+   exists yet. */
 function isStylesheet(rel) { return /\.css(\?.*)?$/.test(rel); }
 function vendorOf(rel) {
   const pkg = packageOf(rel);
@@ -87,6 +110,16 @@ function vendorOf(rel) {
   const css = isStylesheet(rel);
   const by = vendorModules().filter(v => isStylesheet(v.file) === css && v.all.includes(pkg));
   if (by.length === 1) return by[0];
+  if (by.length > 1) {
+    const inner = String(rel).split("node_modules/" + pkg + "/").pop();
+    const first = inner.split("/")[0];
+    const named = by.filter(v => (v.subpaths[pkg] || []).some(s => s && s.split("/")[0] === first));
+    if (named.length === 1) return named[0];
+    if (!named.length) {
+      const bare = by.filter(v => (v.subpaths[pkg] || []).includes("") && !(v.subpaths[pkg] || []).some(s => s));
+      if (bare.length === 1) return bare[0];
+    }
+  }
   if (!by.length) throw new Error(rel + " is from the package " + pkg + ", which no " + (css ? "stylesheet" : "script") + " under " + DIR + "/ imports (directly or as a dependency), so nothing says which pages load it");
   throw new Error(rel + " is from the package " + pkg + ", which " + by.map(v => v.file).join(" and ") + " both bring in, so it has no one place in the bundle");
 }
