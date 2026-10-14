@@ -405,6 +405,19 @@ function refusal(fn) { try { fn(); return null; } catch (e) { return e.message; 
     eq(glb.imageSize(png), { width: 1024, height: 2048 }, "glb: a PNG's size is read from its IHDR");
     const genForms = require("./gen-forms");
     eq(genForms.problems(), [], "src/data/form-models.ts and public/models/forms/ are what tools/gen-forms.js wrote from tools/art/forms/ (run `npm run gen:forms` after editing the art scripts)");
+    /* the form-models rule's caps, on the committed manifest and on tampered copies of it */
+    const fm = require("./lib/form-models");
+    const man = genForms.readManifest();
+    eq(fm.manifestProblems(man), [], "form-models: the committed manifest is within the caps");
+    const tamper = (f) => { const c = JSON.parse(JSON.stringify(man)); f(c); return fm.manifestProblems(c).join("\n"); };
+    check(/stages 1,2,3,4, not/.test(tamper(c => c.entries.pop())), "form-models: four stages fail, naming the stages held");
+    check(/form 2: 1500001 bytes is over 1500000/.test(tamper(c => { c.entries[1].bytes = 1500001; })), "form-models: a model over the byte cap fails");
+    check(/form 3: 30001 triangles is over 30000/.test(tamper(c => { c.entries[2].triangles = 30001; })), "form-models: a model over the triangle cap fails");
+    check(/form 1: slots .* are not armor/.test(tamper(c => { c.entries[0].slots = c.entries[0].slots.slice(1); })), "form-models: a missing slot fails");
+    check(/form 4: clips .* are not idle/.test(tamper(c => { c.entries[3].clips = c.entries[3].clips.slice(1); })), "form-models: a missing clip fails");
+    check(/form 5: compression "meshopt" but the file does not require/.test(tamper(c => { c.entries[4].compression = "meshopt"; })), "form-models: compression that the file does not use fails");
+    check(/form 1: models\/forms\/nope.png does not exist/.test(tamper(c => { c.entries[0].thumb = "models/forms/nope.png"; })), "form-models: a missing thumbnail fails");
+    check(/form 1: models\/forms\/form-1.glb is not a PNG/.test(tamper(c => { c.entries[0].thumb = c.entries[0].file; })), "form-models: a thumbnail that is not a PNG fails");
   }
   const faces = Array.from(fs.readFileSync(path.join(site.ROOT, genFonts.FILE), "utf8").matchAll(/@font-face\s*\{([^}]*)\}/g)).map(m => m[1]);
   const decl = (block, name) => (new RegExp(name + ":\\s*([^;]+)").exec(block) || [])[1];
