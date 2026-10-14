@@ -50,6 +50,28 @@ render a turntable (a contact sheet of eight views at the viewer's framing) and 
 silhouette first, the detail second. Richness comes from bevels, panel insets, trim
 edges and bolts, not from polygon count: the Wayfinder is under 9,000 triangles.
 
+## The checks
+
+- The caps live in `src/data/form-limits.ts` (1.5 MB a model, 30,000 triangles, 120 KB a
+  thumbnail). The other constants (the idle at 3 s, the thumbnail at 512x640 RGBA, the
+  allowed extensions, at most four textures, each square at 1024 or 2048) live in
+  `tools/lib/form-models.js`.
+- The rule runs in `check:static` as `form-models`:
+  `node tools/check-static.js --only=form-models`.
+- After any edit under `tools/art/forms/`, run `npm run gen:forms` and commit its
+  outputs. The manifest holds a hash of the scripts, and the check fails until it matches.
+- A new extension or texture format means editing `EXTENSIONS_OK` and the image checks in
+  `tools/lib/form-models.js`, and the CSP question that comes with it (see the decision).
+
+## The emotes
+
+`emotes.py` keys five clips on every stage: `idle` (3 s, looping), `wave`, `bow`, `flex`
+and `spin`. Every clip starts and ends on the rest pose, every bone is keyed at rest on
+frame 0 (so the idle's frame 0 is the pose the viewer shows under reduced motion), and
+the idle loops. The clips drive `hips`, `chest`, `head` and the limbs by name; bones a
+stage lacks are skipped. To look at them: `--renders emotes` draws a contact sheet,
+`form-<n>-emotes.png`, beside the raw output.
+
 ## The design
 
 An original samurai-mecha, not a likeness of any franchise, carrying a beacon staff
@@ -58,4 +80,4 @@ gold edges, the learner's hue on a sash, a glow for what shines. The stages are 
 figure growing: a floating core (Pip), a slim runner frame (Sprig), light armor and the
 staff (Wayfinder), heavy armor with sode and orbit drones (Surveyor), the full commander
 with crest, halo frame and a long beacon (Luminary). The plan and the decision record
-(`docs/decisions/0008-form-models.md`, planned) say why.
+(`docs/decisions/0008-form-models.md`) say why.
