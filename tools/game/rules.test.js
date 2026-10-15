@@ -288,7 +288,7 @@ function world(seedStores) {
             clues never count; for a cleared set it is the medal the old rule gave, so no
             medal a reader was shown changes, and a banked medal is never lowered */
 {
-  const ACTIONS = ["c1", "c2", "c3", "w", "s"];
+  const ACTIONS = ["c1", "c2", "c3", "f", "w", "s"];
   const roads = [];
   (function grow(path) {
     roads.push(path);
@@ -296,6 +296,8 @@ function world(seedStores) {
     ACTIONS.forEach((a) => {
       if (/^c/.test(a) && (path.includes(a) || (a !== "c1" && !path.includes("c" + (+a[1] - 1))))) return;
       if (a === "s" && path.includes("s")) return;
+      /* f: first (a merged record already holds rung 4) or right after c3 (the only way a page reaches it) */
+      if (a === "f" && (path.includes("f") || !(path.length === 0 || path[path.length - 1] === "c3"))) return;
       if (a === "w" && path.filter((x) => x === "w").length >= 2) return;
       grow(path.concat(a));
     });
@@ -306,7 +308,7 @@ function world(seedStores) {
   const w = world();
   const attempt = (key, rec, ok) => w.Store.emit({
     type: "attempt", chapter: "ch05", key, section: "angles", inline: false,
-    correct: ok, tryNo: rec.tries, hintLevel: rec.hints || 0, solutionOpen: !!rec.opened
+    correct: ok, tryNo: rec.tries, hintLevel: rec.hints || 0, solutionOpen: !!rec.opened, faded: CORE.rules.fadedOf(rec)
   });
   /* the right check, in the order check() makes it: the record, the event, the XP */
   const answer = (key, rec) => {
@@ -322,6 +324,7 @@ function world(seedStores) {
     let misses = 0;
     path.forEach((a) => {
       if (/^c/.test(a)) SITE.road.clue(rec, +a[1], false, "angles");
+      else if (a === "f") SITE.road.clue(rec, 4, false, "angles");
       else if (a === "s") {
         SITE.road.reveal(rec, false, "angles");
         w.Store.emit({ type: "opened", chapter: "ch05", key: "e4", section: "angles", inline: false, solved: false, tries: rec.tries || 0 });
@@ -361,19 +364,19 @@ function world(seedStores) {
   const unhelped = (p) => p.filter((a) => a === "w");
   const missInstead = (p) => p.map((a) => (a === "s" ? "w" : a));
   roads.forEach((p) => {
-    const o = get(p), wrong = p.includes("w"), sol = p.includes("s");
+    const o = get(p), wrong = p.includes("w"), sol = p.includes("s"), fad = p.includes("f");
     const clue = Math.max(0, ...p.filter((a) => /^c/.test(a)).map((a) => +a[1]));
     /* XP */
-    want(o.base === (sol ? 3 : wrong ? 6 : clue >= 2 ? 6 : 10), p, "base XP " + o.base);
-    if (clue >= 2 || sol) want(o.base + o.bonus <= missThenSolve.base + missThenSolve.bonus, p, "help pays more than miss-then-solve");
+    want(o.base === (sol ? 3 : fad ? 4 : (wrong || clue >= 2) ? 6 : 10), p, "base XP " + o.base);
+    if (clue >= 2 || sol || fad) want(o.base + o.bonus <= missThenSolve.base + missThenSolve.bonus, p, "help pays more than miss-then-solve");
     /* combo */
-    const firstPays = !sol && !wrong && clue < 2;
-    want(o.pips === (firstPays ? P0 + 1 : wrong || sol ? Math.max(0, P0 - 2) : P0), p, "pips " + o.pips);
+    const firstPays = !sol && !wrong && !fad && clue < 2;
+    want(o.pips === (firstPays ? P0 + 1 : wrong || sol || fad ? Math.max(0, P0 - 2) : P0), p, "pips " + o.pips);
     want(o.bonus === (firstPays ? Math.round(10 * 0.2 * P0) : 0), p, "combo bonus " + o.bonus);
     /* hearts */
     want(o.hearts === (wrong ? 2 : 3), p, "hearts " + o.hearts);
     /* medal */
-    want(o.medal === (wrong || sol ? 2 : 3), p, "medal " + o.medal);
+    want(o.medal === (wrong || sol || fad ? 2 : 3), p, "medal " + o.medal);
     if (sol) want(o.medal <= missThenSolve.medal, p, "the solution earned a better medal than miss-then-solve");
     want(o.medal === o.oldMedal, p, "medal " + o.medal + " differs from the old rule's " + o.oldMedal);
     /* taking one help action out of the road: never more XP, the same hearts; a clue
@@ -393,6 +396,13 @@ function world(seedStores) {
       const m = get(missInstead(p));
       want(o.pips === m.pips && o.medal === m.medal, p, "the solution left pips " + o.pips + " and medal " + o.medal + " where a miss in its place leaves " + m.pips + " and " + m.medal);
     }
+    /* the faded view with a miss in its place: the same meter and medal, never more XP, the
+       hearts as the road without it */
+    if (fad) {
+      const m = get(p.map((a) => (a === "f" ? "w" : a)));
+      want(o.pips === m.pips && o.medal === m.medal, p, "the faded view left pips " + o.pips + " and medal " + o.medal + " where a miss in its place leaves " + m.pips + " and " + m.medal);
+      want(o.hearts === get(p.filter((a) => a !== "f")).hearts, p, "the faded view changed the hearts");
+    }
     /* over the answers after it, from every meter: never more than effort */
     for (let pips0 = 0; pips0 <= 5; pips0++) {
       [false, true].forEach((shield0) => {
@@ -401,6 +411,11 @@ function world(seedStores) {
         if (clue || sol) {
           const e = run(unhelped(p), pips0, shield0);
           r.xp.forEach((x, k) => want(x <= e.xp[k], p, "help out-earned the road without it [" + unhelped(p).join(" ") + "] " + k + " answers later" + from + ": " + x + " > " + e.xp[k]));
+        }
+        if (fad) {
+          const m = run(p.map((a) => (a === "f" ? "w" : a)), pips0, shield0);
+          r.xp.forEach((x, k) => want(x <= m.xp[k], p, "the faded view out-earned a miss in its place " + k + " answers later" + from + ": " + x + " > " + m.xp[k]));
+          want(r.pips === m.pips && r.shield === m.shield, p, "the faded view left the meter unlike a miss" + from);
         }
         if (sol) {
           const m = run(missInstead(p), pips0, shield0);
@@ -412,6 +427,15 @@ function world(seedStores) {
   });
   eq(bad.slice(0, 8), [], "the reward invariant over " + roads.length + " roads and the " + TAIL + " answers after each (XP, combo, hearts, medal together)");
   check(roads.length > 100, "the roads cover the actions (" + roads.length + ")");
+  /* the faded rung in the record: not first time, pays 4 (2 inline), never the first-time rate */
+  {
+    const rec = { rung: 4 };
+    SITE.road.check(rec, true, 0, false, "angles");
+    eq(rec.first, 0, "a solve after the faded view is not right first time");
+    eq([SITE.xpFor({ rung: 4, tries: 1, solved: 1, first: 1 }, false), SITE.xpFor({ rung: 4, first: 1 }, true)], [4, 2], "the faded view pays 4, 2 inline");
+    check(!SITE.paysFirst({ rung: 4, first: 1 }), "paysFirst refuses the faded view");
+    check(CORE.rules.medalMark({ tries: 1, solved: 1, first: 1, rung: 4 }) && !CORE.rules.isMiss({ tries: 1, solved: 1, first: 1, rung: 4 }), "the faded view marks the medal, never a heart");
+  }
   /* a medal already banked is never lowered by the new count */
   const banked = world({
     "bm.progress.v1": { ch05: { solved: { e1: true, e2: true, e3: true, e4: true }, total: 4 } },

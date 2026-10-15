@@ -1311,12 +1311,20 @@ function refusal(fn) { try { fn(); return null; } catch (e) { return e.message; 
       "top-level-template.html": /top-level child of #main/,
       "final-twice.html": /2 data-final in one solution/,
       "faded-leaks.html": /data-final gives away "7"/,
-      "hint-attr-markup.html": /uses the tag <img>/
+      "hint-attr-markup.html": /uses the tag <img>/,
+      "miss-not-hidden.html": /ul\.ex-miss is not hidden/,
+      "miss-given-right.html": /graded right against the key/,
+      "miss-duplicate.html": /two notes answer the same slip/,
+      "miss-link.html": /uses the tag <a>/,
+      "final-on-order.html": /order exercise takes no data-final/
     };
     Object.keys(mustFail).forEach(name => {
       const res = run(name);
       check(res.fails.some(m => mustFail[name].test(m)), "help-markup: " + name + " fails with " + mustFail[name] + " — got " + JSON.stringify(res.fails));
     });
+    const after = run("final-after-step.html");
+    eq([after.fails, after.warns], [[], []], "help-markup: text after data-final is cut from the faded view, and the page passes");
+    check(after.faded.a1 === "Rewrite the subtraction as an addition," && !/quick sum/.test(after.faded.a1), "help-markup: the faded view is the solution minus p.answer, the data-final step and what follows — got " + JSON.stringify(after.faded));
     const leak = run("hint-leak.html");
     eq([leak.fails.length, leak.warns.length, leak.hints], [0, 1, 1], "help-markup: a rung-1 clue that states the answer is one WARN and counts as a hint");
     eq(run("hint-leak.html", { hintLeakFails: true }).fails.length, 1, "help-markup: with HINT_LEAK_FAILS on, the same clue fails");

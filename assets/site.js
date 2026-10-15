@@ -989,8 +989,23 @@
           var rec = Attempts.update(chapterId, key, function (a) { Road.clue(a, rung, inline, section); });
           Store.emit({ type: "ladder", chapter: chapterId, key: key, section: section, inline: inline, rung: rec.rung });
         },
-        render: renderMath, hasSolution: !!solution
+        render: renderMath, hasSolution: !!solution, solution: solution
       }) : null;
+
+      /* Authored notes for wrong answers (ul.ex-miss > li[data-given], hidden): read once; the
+         page check guarantees their markup. A matching note replaces the detector's question. */
+      var missNotes = [];
+      if (Learn && Learn.misses) {
+        var missEls = ex.querySelectorAll("ul.ex-miss > li"), missRaw = [];
+        for (var mj = 0; mj < missEls.length; mj++) {
+          missRaw.push({ given: missEls[mj].getAttribute("data-given"), blank: missEls[mj].getAttribute("data-blank"), html: missEls[mj].innerHTML });
+        }
+        missNotes = Learn.misses.parseMisses(missRaw);
+        /* parseMisses drops damaged items and keeps the first four; pair the notes back with their markup */
+        var kept = [];
+        missRaw.forEach(function (m) { if (kept.length < missNotes.length && m.given === missNotes[kept.length].given) kept.push(m); });
+        missNotes.forEach(function (n, k) { n.html = kept[k] ? kept[k].html : ""; });
+      }
 
       function reveal() {
         if (!solution) return;
@@ -1217,7 +1232,7 @@
           var rec = Attempts.update(chapterId, key, function (a) { Road.check(a, ok, level, inline, section); });
           Store.emit({
             type: "attempt", chapter: chapterId, key: key, section: section, inline: inline,
-            correct: ok, tryNo: rec.tries, hintLevel: rec.hints || 0, solutionOpen: !!rec.opened, rung: rec.rung || 0
+            correct: ok, tryNo: rec.tries, hintLevel: rec.hints || 0, solutionOpen: !!rec.opened, rung: rec.rung || 0, faded: Rules.fadedOf(rec)
           });
           if (ok) {
             /* the game layer adds the combo's share on top of the ordinary award */
@@ -1248,8 +1263,11 @@
           /* The verdict at once; then a question, when the answer looks like a known slip;
              then one line saying what help is there. No clue opens by itself: the next
              one is the learner's to ask for, with the button above. */
+          var mi = ladder && missNotes.length
+            ? Learn.misses.matchMiss({ given: r.given, kind: kind, type: type, blanks: blanks.map(function (b) { return { type: b.getAttribute("data-type") || "exact" }; }) }, missNotes, matches)
+            : null;
           var after = ladder
-            ? ladder.afterWrong(r.given, question(r.given))
+            ? ladder.afterWrong(r.given, mi === null ? question(r.given) : null, mi === null ? null : missNotes[mi].html)
             : '<p class="ex-next hint">Not yet. Work it through once more' + (solution ? ", or open the solution." : ".") + "</p>";
           /* every clue open (or none to open): the solution button is the suggestion */
           if (solution && !(ladder && Learn.ladder.canOpen(ladder.state))) showBtn.setAttribute("data-suggested", "true");

@@ -22,6 +22,14 @@
 .ex-clue:focus { outline: none; }
 .ex-clue:focus-visible { outline: var(--focus-width) solid var(--focus); outline-offset: var(--focus-offset); }
 
+/* the worked steps (the faded rung): a clue whose body is the solution's paragraphs */
+.ex-ladder .ex-faded .ex-faded-steps > * { margin: 0 0 .5rem; font-family: var(--sans); font-size: 1.0625rem; line-height: 1.55; color: var(--text); }
+.ex-ladder .ex-faded[data-prev] .ex-faded-steps > * { font-size: .9rem; color: var(--muted); }
+.ex-ladder .ex-faded .ex-hint-text { margin-top: .25rem; font-size: .98rem; color: var(--muted); }
+
+/* an authored note about a wrong answer, in the verdict's place of the detector's question */
+.ex-feedback .ex-miss-note { display: block; margin: .3rem 0 0; font-size: .88rem; color: var(--muted); }
+
 /* "Show a clue (1 of 2)": a ghost button, quieter than Check, never disabled */
 .ex-form .ex-clue-btn { font-size: .9rem; }
 .ex-clue-btn .ex-clue-of { font-family: var(--sans); font-weight: 500; color: var(--muted); }

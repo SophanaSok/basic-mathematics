@@ -31,6 +31,7 @@ import "../learn/constants.ts";
 import "../learn/ladder.ts";
 import "../learn/detectors.ts";
 import "../learn/stuck.ts";
+import "../learn/misses.ts";
 import "../ui/ladder.ts";
 /* the spaced-review schedule and the Arena's XP rules, which game.js (and the Arena)
    find on window.BMReview: the pure modules first (constants.ts is above), then the one

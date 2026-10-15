@@ -24,6 +24,8 @@ import { CLUE_RUNGS, STUCK_IDLE_MS, STUCK_MISSES_NO_CLUE, STUCK_RAPID_CHECKS, ST
 import { canOpen, cluesOf, nextLabel, offerAfterWrong, open, savedRung, start, toSave, type LadderState, type Offer } from "../learn/ladder.ts";
 import { candidates, detect, ORDER, QUESTIONS, type Detection, type DetectInput } from "../learn/detectors.ts";
 import { answerHash, StuckWatch, type StuckSignal } from "../learn/stuck.ts";
+import { matchMiss, parseMisses } from "../learn/misses.ts";
+import { FADED_RUNG } from "../core/rules.ts";
 
 export interface LadderOptions {
   /** the .ex card */
@@ -47,6 +49,8 @@ export interface LadderOptions {
   render: (el: HTMLElement) => void;
   /** the card has a worked solution */
   hasSolution: boolean;
+  /** the card's .ex-solution; one whose last step carries data-final adds the faded rung */
+  solution?: HTMLElement | null;
   /** milliseconds, for the stuck signals; Date.now by default */
   now?: () => number;
 }
@@ -55,7 +59,7 @@ export interface LadderController {
   readonly state: LadderState;
   readonly button: HTMLButtonElement | null;
   /** the lines to put under the verdict after a wrong check, as HTML */
-  afterWrong(given: string | readonly string[], detection: Detection | null): string;
+  afterWrong(given: string | readonly string[], detection: Detection | null, note?: string | null): string;
   /** a right answer: the idle watch stops */
   afterRight(): void;
   /** the learner asked for the next clue (the button's click) */
@@ -66,15 +70,16 @@ export interface LadderController {
 
 const OFFERS: Record<Offer, string> = {
   clue: "A clue is there if you want one.",
+  steps: "The worked steps are there, with the last one left for you.",
   solution: "Work it through once more, or open the solution.",
   retry: "Not yet. Work it through once more."
 };
 /* what a stuck signal says instead, by what comes next; "retry" keeps its own words */
-const STUCK_OFFERS: Record<StuckSignal, { clue: string; solution: string }> = {
-  rapid: { clue: "No hurry. A clue is there if you want one.", solution: "No hurry. The worked solution is there whenever you want it." },
-  repeat: { clue: "That is the answer you gave last time. A clue might show another way in.", solution: "That is the answer you gave last time. The worked solution shows another way in." },
-  misses: { clue: "Asking for a clue costs nothing, and it might be the nudge you need.", solution: "The worked solution is there whenever you want it; reading it closely is a good next step." },
-  idle: { clue: "Still on this one? A clue is there whenever you want it.", solution: "Still on this one? The worked solution is there whenever you want it." }
+const STUCK_OFFERS: Record<StuckSignal, { clue: string; steps: string; solution: string }> = {
+  rapid: { clue: "No hurry. A clue is there if you want one.", steps: "No hurry. The worked steps are there, with the last one left for you.", solution: "No hurry. The worked solution is there whenever you want it." },
+  repeat: { clue: "That is the answer you gave last time. A clue might show another way in.", steps: "That is the answer you gave last time. The worked steps show another way in.", solution: "That is the answer you gave last time. The worked solution shows another way in." },
+  misses: { clue: "Asking for a clue costs nothing, and it might be the nudge you need.", steps: "The worked steps cost nothing to open, and the last one is yours to finish.", solution: "The worked solution is there whenever you want it; reading it closely is a good next step." },
+  idle: { clue: "Still on this one? A clue is there whenever you want it.", steps: "Still on this one? The worked steps are there whenever you want them.", solution: "Still on this one? The worked solution is there whenever you want it." }
 };
 
 export function offerText(offer: Offer, signal: StuckSignal | null): string {
@@ -94,6 +99,7 @@ export function askHtml(d: Detection): string {
 export function buttonHtml(s: LadderState): string {
   const n = nextLabel(s);
   if (!n) return "";
+  if (n.rung > s.clues) return 'Show the worked steps <span class="ex-clue-of">(' + n.rung + " of " + n.of + ")</span>";
   return (s.open ? "Next clue" : "Show a clue") + ' <span class="ex-clue-of">(' + n.rung + " of " + n.of + ")</span>";
 }
 
@@ -106,7 +112,8 @@ function escapeHtml(s: string): string {
 export function mount(opts: LadderOptions): LadderController {
   const now = opts.now || (() => Date.now());
   const texts = cluesOf(opts.hints);
-  let state = start(texts.length, opts.saved);
+  const fadeable = !!opts.solution && !!opts.solution.querySelector("[data-final]");
+  let state = start(texts.length, opts.saved, fadeable);
   const watch = new StuckWatch();
   if (state.open > 0) watch.clueOpened();
 
@@ -115,7 +122,7 @@ export function mount(opts: LadderOptions): LadderController {
   let idleTimer: ReturnType<typeof setTimeout> | null = null;
   let awaitingFocus = false;
 
-  if (texts.length) {
+  if (texts.length || fadeable) {
     list = document.createElement("div");
     list.className = "ex-ladder";
     list.id = opts.id;
@@ -133,6 +140,7 @@ export function mount(opts: LadderOptions): LadderController {
     button.addEventListener("click", () => ctl.openNext());
 
     for (let r = 1; r <= state.open; r++) addClue(r, false);
+    if (state.faded) addFaded(false);
     paintButton();
   }
 
@@ -192,6 +200,52 @@ export function mount(opts: LadderOptions): LadderController {
     return box;
   }
 
+  /* The worked solution with its answer line and its last step taken out: a copy, so the
+     real solution is untouched. Everything from the data-final node on, in document order,
+     goes; no id survives (ids stay unique on the page). */
+  function fadedBox(): HTMLElement {
+    const box = document.createElement("div");
+    box.className = "ex-hint ex-clue ex-faded";
+    box.setAttribute("data-level", String(FADED_RUNG));
+    box.setAttribute("tabindex", "-1");
+    const label = document.createElement("span");
+    label.className = "ex-hint-label";
+    label.textContent = "Worked steps";
+    box.appendChild(label);
+    const copy = opts.solution!.cloneNode(true) as HTMLElement;
+    copy.querySelectorAll("p.answer").forEach((n) => n.remove());
+    const mark = copy.querySelector("[data-final]");
+    if (mark) {
+      let node: Node | null = mark;
+      while (node && node !== copy) {
+        const up: Node | null = node.parentNode;
+        while (node.nextSibling) node.parentNode!.removeChild(node.nextSibling);
+        if (node === mark) (node as Element).remove();
+        node = up;
+      }
+    }
+    copy.removeAttribute("id");
+    copy.querySelectorAll("[id]").forEach((n) => n.removeAttribute("id"));
+    copy.removeAttribute("data-show");
+    copy.className = "ex-faded-steps";
+    box.appendChild(copy);
+    const tail = document.createElement("p");
+    tail.className = "ex-hint-text hint";
+    tail.textContent = "Finish the last step, then check your answer above.";
+    box.appendChild(tail);
+    return box;
+  }
+
+  function addFaded(fresh: boolean): HTMLElement {
+    const box = fadedBox();
+    box.setAttribute(fresh ? "data-fresh" : "data-restored", "true");
+    list!.querySelectorAll(".ex-clue:not([data-prev])").forEach((c) => c.setAttribute("data-prev", "true"));
+    list!.appendChild(box);
+    list!.hidden = false;
+    opts.render(box);
+    return box;
+  }
+
   function paintButton(): void {
     if (!button) return;
     const html = buttonHtml(state);
@@ -209,16 +263,17 @@ export function mount(opts: LadderOptions): LadderController {
       if (!list || !canOpen(state)) return;
       state = open(state);
       watch.clueOpened();
-      const box = addClue(state.open, true);
+      const box = state.faded ? addFaded(true) : addClue(state.open, true);
       paintButton();
       const write = toSave(state, opts.solved(), undefined);
       if (write !== null) opts.persist(write);
       try { box.focus({ preventScroll: false }); } catch { box.focus(); }
     },
-    afterWrong(given, detection) {
+    afterWrong(given, detection, note) {
       const sig = watch.check(now(), false, given);
       arm();
       const offer = offerAfterWrong(state, opts.hasSolution);
+      if (note) return '<p class="ex-miss-note hint">' + note + "</p>" + offerHtml(offer, sig);
       return (detection ? askHtml(detection) : "") + offerHtml(offer, sig);
     },
     afterRight() {
@@ -238,6 +293,8 @@ export function mount(opts: LadderOptions): LadderController {
 export const api = {
   mount, detect, offerText,
   ladder: { start, open, canOpen, toSave, offerAfterWrong, nextLabel, savedRung, cluesOf },
+  misses: { parseMisses, matchMiss },
+  FADED_RUNG,
   detectors: { candidates, detect, QUESTIONS, ORDER },
   stuck: { StuckWatch, answerHash },
   constants: { CLUE_RUNGS, STUCK_IDLE_MS, STUCK_MISSES_NO_CLUE, STUCK_RAPID_CHECKS, STUCK_RAPID_WINDOW_MS, STUCK_REPEAT_WRONG }

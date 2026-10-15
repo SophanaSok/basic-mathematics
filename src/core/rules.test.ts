@@ -6,7 +6,7 @@ import { CLUE_FREE, FADED_RUNG, Road, STRONG, WEAK, XP, fadedOf, isMiss, medalMa
 
 describe("what a right answer pays", () => {
   it("keeps the rates the site has always paid", () => {
-    expect(XP).toEqual({ first: 10, solved: 6, opened: 3, inlineFirst: 5, inline: 3, inlineOpened: 1, mission: 5 });
+    expect(XP).toEqual({ first: 10, solved: 6, opened: 3, inlineFirst: 5, inline: 3, inlineOpened: 1, mission: 5, faded: 4, inlineFaded: 2 });
     expect(CLUE_FREE).toBe(1);
   });
 

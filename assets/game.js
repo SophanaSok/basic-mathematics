@@ -1378,7 +1378,7 @@
          second free, the pips it kept would pay on every answer after it, and reading the
          solution would out-earn trying and missing. Once per exercise, as tryNo is 1
          only once; opening the solution itself costs nothing. */
-      if (!c.inline && c.tryNo === 1 && (!c.correct || c.solutionOpen)) onMiss();
+      if (!c.inline && c.tryNo === 1 && (!c.correct || c.solutionOpen || c.faded)) onMiss();
       schedule();
     } else if (t === "xp") {
       if (pendingEx && (c.why === "exercise" || c.why === "check")) reward(pendingEx, c.xp);

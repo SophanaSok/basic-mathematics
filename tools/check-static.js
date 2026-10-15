@@ -1818,13 +1818,6 @@ function withoutHelp(node) {
   return c;
 }
 
-/* text of a node, without the subtrees in `skip` */
-function textWithout(n, skip) {
-  if (skip.includes(n)) return "";
-  if (n.type === "text") return n.text;
-  if (n.type !== "element" && n.type !== "document") return "";
-  return n.children.map(k => textWithout(k, skip)).join("");
-}
 const escapeText = s => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 const nearest = (el, pred) => { for (let p = el.parent; p; p = p.parent) if (p.type === "element" && pred(p)) return p; return null; };
 
@@ -1865,10 +1858,10 @@ function helpDeps() {
 
 /* One page's help problems. deps: { allow, hintLeakFails, leaks, matches, alternatives }
    (the last three default to the real ones).
-   @returns {{fails, warns, hints, counts, silenced, exercises}} hints = rung-1 clues giving the answer away */
+   @returns {{fails, warns, hints, counts, silenced, exercises, faded}} faded = key -> the faded view's text; hints = rung-1 clues giving the answer away */
 function helpMarkupProblems(doc, page, deps) {
   const d = Object.assign({}, helpDeps(), { allow: [], hintLeakFails: HINT_LEAK_FAILS }, deps || {});
-  const out = { fails: [], warns: [], hints: 0, counts: {}, silenced: 0, exercises: 0 };
+  const out = { fails: [], warns: [], hints: 0, counts: {}, silenced: 0, exercises: 0, faded: {} };
   const fail = (el, m) => out.fails.push(page + ":" + (el ? el.line : 0) + ": " + m);
   const exs = exercisesOf(doc);
   out.exercises = exs.length;
@@ -1897,16 +1890,20 @@ function helpMarkupProblems(doc, page, deps) {
     const q = e.el.query(".ex-q");
     const tol = parseFloat(e.el.getAttribute("data-tol"));
     let answers = d.alternatives(e.answer);
-    let options;
-    if (e.kind === "blank") answers = e.el.queryAll(".blank").map(s => s.getAttribute("data-answer") || "").filter(Boolean);
+    let options, picked = null, blankSpecs = null;
+    if (e.kind === "blank") {
+      const spans = e.el.queryAll(".blank");
+      answers = spans.map(s => s.getAttribute("data-answer") || "").filter(Boolean);
+      blankSpecs = spans.map(s => ({ type: s.getAttribute("data-type") || "exact", answers: d.alternatives(s.getAttribute("data-answer") || "") }));
+    }
     if (e.kind === "choice" || e.kind === "multi") {
       const list = e.el.query("ul.choices, ol.choices");
       const lis = list.children.filter(c => c.type === "element" && c.name === "li");
-      const picked = new Set();
+      picked = new Set();
       d.alternatives(e.answer).forEach(alt => alt.split(/[,;]/).forEach(s => { if (/^\d+$/.test(s.trim())) picked.add(+s.trim()); }));
       options = lis.filter((li, i) => picked.has(i + 1)).map(li => li.textContent.replace(/\s+/g, " ").trim());
     }
-    infoOf.set(e.el, { e, ex: { answers, type: e.type, kind: e.kind, tol: tol > 0 ? tol : null, options, question: q ? q.textContent.replace(/\s+/g, " ").trim() : "" } });
+    infoOf.set(e.el, { e, ex: { answers, type: e.type, kind: e.kind, tol: tol > 0 ? tol : null, options, question: q ? q.textContent.replace(/\s+/g, " ").trim() : "" }, picked, blankSpecs });
   });
   const seenFields = new Set();
   const used = new Set();
@@ -1931,21 +1928,54 @@ function helpMarkupProblems(doc, page, deps) {
   miss.forEach(ul => {
     const ex = nearest(ul, p => p.hasClass("ex")), info = ex && infoOf.get(ex);
     const key = info ? info.e.key : "?";
+    const kind = info ? info.e.kind : "text";
+    if (!ul.hasAttribute("hidden")) fail(ul, key + ": ul.ex-miss is not hidden; it needs the hidden attribute");
+    if (ul.classList.length !== 1) fail(ul, key + ": ul.ex-miss carries another class (" + JSON.stringify(ul.classList.join(" ")) + "); a ul.choices would turn the card into a choice exercise");
+    if (kind === "order" || kind === "figure") fail(ul, key + ": an " + kind + " exercise takes no ul.ex-miss");
     ul.children_elements.forEach(c => { if (c.name !== "li") fail(c, key + ": ul.ex-miss holds <" + c.name + ">; only li"); });
-    const lis = ul.children_elements.filter(c => c.name === "li"), seen = new Set();
+    const lis = ul.children_elements.filter(c => c.name === "li");
+    if (lis.length > 4) fail(ul, key + ": " + lis.length + " ex-miss notes; at most 4");
+    const seen = [];
     lis.forEach(li => {
-      const t = li.textContent.replace(/\s+/g, " ").trim();
-      if (!li.hasAttribute("hidden")) fail(li, key + ": an ex-miss item is not hidden");
-      if (seen.has(t)) fail(li, key + ": two ex-miss items say the same (" + JSON.stringify(t.slice(0, 40)) + ")");
-      seen.add(t);
+      Object.keys(li.attrs).filter(k => k !== "data-given" && k !== "data-blank").forEach(k => fail(li, key + ": an ex-miss item carries " + k + "; only data-given and data-blank"));
+      if (!li.hasAttribute("data-given") || !li.getAttribute("data-given").trim()) { fail(li, key + ": an ex-miss item has no data-given"); return; }
+      const given = li.getAttribute("data-given");
       const html = innerHtml(li);
       helpMarkupFaults(html, false).forEach(x => fail(li, key + ": an ex-miss item uses " + x));
-      if (info) {
-        const keyed = info.ex.answers.some(ans => d.matches(t.replace(/\$/g, ""), ans, info.ex.type, info.ex.tol));
-        if (keyed) fail(li, key + ": an ex-miss item is graded right against the key (" + JSON.stringify(t.slice(0, 40)) + ")");
-        seenFields.add(key + "\u0000ex-miss");
-        addLint(info, "ex-miss", li, html, html, "warn");
-      }
+      let blank = null;
+      if (li.hasAttribute("data-blank")) {
+        const k = li.getAttribute("data-blank");
+        if (kind !== "blank") fail(li, key + ": data-blank on an ex-miss item of a " + kind + " exercise");
+        else if (!/^[1-9]\d*$/.test(k) || (info && +k > info.blankSpecs.length)) fail(li, key + ": data-blank " + JSON.stringify(k) + " is not one of the " + (info ? info.blankSpecs.length : "?") + " blanks");
+        else blank = +k;
+      } else if (kind === "blank") fail(li, key + ": an ex-miss item of a blank exercise needs data-blank");
+      if (!info) return;
+      /* the exercise's own comparison: typed answers by type and tolerance, options by number */
+      let same, keyed;
+      const num = s => { const parts = s.split(",").map(x => x.trim()); return parts.some(x => !/^\d+$/.test(x)) ? null : Array.from(new Set(parts.map(Number))).sort((x, y) => x - y); };
+      if (kind === "choice" || kind === "multi") {
+        const g = num(given);
+        if (!g) { fail(li, key + ": data-given " + JSON.stringify(given) + " is not option numbers"); return; }
+        if (kind === "choice" && g.length !== 1) fail(li, key + ": data-given " + JSON.stringify(given) + " names several options on a one-answer exercise");
+        const nopt = info.e.el.query("ul.choices, ol.choices").children_elements.filter(c => c.name === "li").length;
+        if (g.some(n => n < 1 || n > nopt)) fail(li, key + ": data-given " + JSON.stringify(given) + " names an option that is not there");
+        const want = Array.from(info.picked).sort((x, y) => x - y);
+        keyed = g.join(",") === want.join(",");
+        same = o => { const h = num(o.given); return !!h && h.join(",") === g.join(","); };
+      } else if (kind === "blank" && blank) {
+        const spec = info.blankSpecs[blank - 1];
+        if (!spec) return;
+        keyed = spec.answers.some(ans => d.matches(given, ans, spec.type, info.ex.tol));
+        same = o => o.blank === blank && d.matches(o.given, given, spec.type, 0);
+      } else if (kind === "text") {
+        keyed = info.ex.answers.some(ans => d.matches(given, ans, info.ex.type, info.ex.tol));
+        same = o => d.matches(o.given, given, info.ex.type, 0);
+      } else return;
+      if (keyed) fail(li, key + ": an ex-miss item is graded right against the key (" + JSON.stringify(given.slice(0, 40)) + ")");
+      if (seen.some(o => same(o))) fail(li, key + ": two notes answer the same slip (" + JSON.stringify(given.slice(0, 40)) + ")");
+      seen.push({ given, blank });
+      seenFields.add(key + "\u0000ex-miss");
+      addLint(info, "ex-miss", li, html, html, "warn");
     });
   });
   twins.forEach(t => {
@@ -1982,13 +2012,34 @@ function helpMarkupProblems(doc, page, deps) {
     if (!fs_.length) return;
     const ex = nearest(sol, p => p.hasClass("ex")), info = ex && infoOf.get(ex);
     const key = info ? info.e.key : "?";
+    if (!(sol.parent && sol.parent === ex)) fail(sol, key + ": an .ex-solution with a data-final is not a direct child of its .ex");
+    if (info && (info.e.kind === "order" || info.e.kind === "figure")) fail(sol, key + ": an " + info.e.kind + " exercise takes no data-final");
     if (fs_.length > 1) fail(sol, key + ": " + fs_.length + " data-final in one solution; at most one");
-    const faded = textWithout(sol, fs_).replace(/\s+/g, " ").trim();
-    const hidden = fs_.map(f => f.textContent).join(" ").replace(/\s+/g, " ").trim();
+    /* the faded view as the page builds it: no p.answer, and nothing from the marked node on */
+    const f0 = fs_[0];
+    let reached = false;
+    const walkText = (n, fadedPart) => {
+      if (n === f0) reached = true;
+      if (n.type === "text") return reached === fadedPart ? "" : n.text;
+      if (n.type !== "element") return "";
+      if (fadedPart && n.name === "p" && n.hasClass("answer")) return "";
+      if (n.name === "template") return "";
+      return n.children.map(k => walkText(k, fadedPart)).join("");
+    };
+    reached = false;
+    const faded = walkText(sol, true).replace(/\s+/g, " ").trim();
+    reached = false;
+    const hidden = walkText(sol, false).replace(/\s+/g, " ").trim();
+    out.faded[key] = faded;
     if (!faded) fail(sol, key + ": the faded view of a solution is empty");
     if (info) {
-      const hiddenText = escapeText(hidden);
-      if (!d.leaks(hiddenText, Object.assign({}, info.ex, { question: "" }), d.matches).length) fail(sol, key + ": the part under data-final does not hold an accepted answer; hidden " + JSON.stringify(hidden.slice(0, 40)));
+      let holds;
+      if (info.e.kind === "choice" || info.e.kind === "multi") {
+        const norm = t => t.replace(/\s+/g, " ").trim().toLowerCase();
+        holds = (info.ex.options || []).some(o => o && norm(hidden).includes(norm(o))) ||
+          Array.from(info.picked || []).some(n => new RegExp("(^|\\D)" + n + "(\\D|$)").test(hidden));
+      } else holds = d.leaks(escapeText(hidden), Object.assign({}, info.ex, { question: "" }), d.matches).length > 0;
+      if (!holds) fail(sol, key + ": the part under data-final does not hold an accepted answer; hidden " + JSON.stringify(hidden.slice(0, 40)));
       seenFields.add(key + "\u0000data-final");
       addLint(info, "data-final", sol, escapeText(faded), faded, "fail");
     }

@@ -63,9 +63,9 @@ export interface AttemptRecord {
       server's hint_level read it. Merge: max */
   hints?: 1 | 2;
   /** the highest clue opened while the exercise was unsolved (the help ladder: 1 data-hint,
-      2 data-hint2, 3 data-hint3); never written once it is solved. Merge: the larger number,
+      2 data-hint2, 3 data-hint3, 4 the faded worked solution); never written once it is solved. Merge: the larger number,
       a number over anything that is not one */
-  rung?: 1 | 2 | 3;
+  rung?: 1 | 2 | 3 | 4;
   /** the solution was opened before solving. Merge: either */
   opened?: Flag;
   /** an inline check ("Your turn", warm-up): graded, never scored. Merge: either */
