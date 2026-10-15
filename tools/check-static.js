@@ -2040,7 +2040,8 @@ function helpMarkupProblems(doc, page, deps) {
     /* the faded view as the page builds it: no p.answer, and nothing from the marked node on */
     const f0 = fs_[0];
     /* the page strips p.answer first, so a mark inside it never cuts anything */
-    if (nearest(f0, p => p.name === "p" && p.hasClass("answer"))) { fail(f0, key + ": a data-final inside p.answer; mark the last step of the working, not the answer line"); return; }
+    const isAnswerLine = n => n.name === "p" && n.hasClass("answer");
+    if (isAnswerLine(f0) || nearest(f0, isAnswerLine)) { fail(f0, key + ": a data-final " + (isAnswerLine(f0) ? "on" : "inside") + " p.answer; mark the last step of the working, not the answer line"); return; }
     let reached = false;
     const walkText = (n, fadedPart) => {
       if (n === f0) reached = true;

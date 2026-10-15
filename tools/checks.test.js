@@ -1322,6 +1322,7 @@ function refusal(fn) { try { fn(); return null; } catch (e) { return e.message; 
       "miss-link.html": /uses the tag <a>/,
       "final-on-order.html": /order exercise takes no data-final/,
       "final-in-answer.html": /data-final inside p\.answer/,
+      "final-on-answer.html": /data-final on p\.answer/,
       "twin-twice.html": /two twins on one card/
     };
     /* a fixture with one fault fails once; these five trip more than one rule by their shape (a twin before

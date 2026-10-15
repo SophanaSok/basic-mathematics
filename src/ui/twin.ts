@@ -203,7 +203,8 @@ function mount(o: TwinOptions): void {
       box.focus();
     };
     /* cleared, then set a moment later, so a second identical verdict is announced again (the Arena's say()) */
-    const say = (text: string) => { verdict.textContent = ""; setTimeout(() => { verdict.textContent = text; }, 60); };
+    let sayTimer = 0;
+    const say = (text: string) => { verdict.textContent = ""; clearTimeout(sayTimer); sayTimer = window.setTimeout(() => { verdict.textContent = text; }, 60); };
     const run = () => {
       const given = input.value;
       let v: { kind: string };
