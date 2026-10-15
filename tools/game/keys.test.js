@@ -596,6 +596,14 @@ async function run() {
       /* ---------------------------------------------------------- 14: progress */
       {
         const { context, page, errors } = await open(browser, "progress.html", Object.assign({}, TH, WEAK), { kind: "progress" });
+        /* "Worth another look" lists the event log's weak band (src/learn/mastery.ts): three
+           solutions opened in the section yesterday put it there */
+        await page.evaluate(() => {
+          var t = Math.floor(Date.now() / 60000) - 1440;
+          for (var i = 1; i <= 3; i++) window.BMEvents.record([t + i, Math.floor((t + i) / 1440), "ex", "ch05#parallels", "ch05/x" + i, "o", 0, 0, 0, 0]);
+        });
+        await page.reload();
+        await page.waitForFunction(() => document.readyState === "complete");
         await page.keyboard.press("j");
         eq(await page.evaluate(() => [document.activeElement.matches("li.area a.area-title"), document.activeElement.hasAttribute("data-keys-cursor")]), [true, true], pre + "progress: j lands on an area title");
         await page.keyboard.press("?");
