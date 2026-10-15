@@ -273,7 +273,7 @@
     } else if (!weak.length) {
       html += '<p>No section stands out as shaky. Keep going — the next chapter is the best test of this one.</p>';
     } else {
-      html += '<p class="muted">Sections where answers took several tries, a hint, or a look at the solution. ' +
+      html += '<p class="muted">Sections where answers took several tries, a clue, or a look at the solution. ' +
         "The usual cure is to reread the section and redo its worked example on paper.</p>";
       html += '<ol class="areas">' + weak.slice(0, 8).map(function (r) { return sectionRow(r, true); }).join("") + "</ol>";
     }
@@ -341,7 +341,7 @@
     { key: "learners", name: "Readers" },
     { key: "firstRate", name: "First try", rate: true },
     { key: "solvedRate", name: "Solved", rate: true },
-    { key: "hintRate", name: "Hint", rate: true },
+    { key: "hintRate", name: "Clue", rate: true },
     { key: "openRate", name: "Solution opened", rate: true },
     { key: "avg_tries", name: "Avg tries" }
   ];
@@ -350,7 +350,12 @@
   function drawOwner() {
     var order = {};
     C.chapters.forEach(function (ch, i) { order[ch.id] = i; });
-    var rows = stats.slice().sort(function (a, b) {
+    var known = window.BMExerciseKeys, stale = 0;
+    var rows = stats.filter(function (r) {
+      if (!known || known.has(r.chapter + "/" + r.ex_key)) return true;
+      stale++;
+      return false;
+    }).sort(function (a, b) {
       var x = a[sortKey], y = b[sortKey];
       if (sortKey === "chapter") { x = order[x]; y = order[y]; }
       return (x < y ? -1 : x > y ? 1 : 0) * sortDir || b.learners - a.learners;
@@ -394,7 +399,9 @@
         '<td class="num">' + Number(r.avg_tries).toFixed(2) + "</td></tr>";
     });
     if (!rows.length) html += '<tr><td colspan="' + COLS.length + '" class="muted">No data yet.</td></tr>';
-    html += "</tbody></table></div></section>";
+    html += "</tbody></table></div>";
+    if (stale) html += '<p class="muted">' + plural(stale, "row") + (stale === 1 ? " is" : " are") + " for exercises that are no longer on the site.</p>";
+    html += "</section>";
     owner.innerHTML = html;
     Array.prototype.forEach.call(owner.querySelectorAll("[data-sort]"), function (b) {
       b.addEventListener("click", function () {

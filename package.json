@@ -11,6 +11,7 @@
     "build:redirects": "node tools/build-redirects.js",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit",
+    "gen:exercise-keys": "node tools/gen-exercise-keys.js",
     "gen:fonts": "node tools/gen-fonts.js",
     "gen:forms": "node tools/gen-forms.js",
     "check:static": "node tools/check-static.js",
