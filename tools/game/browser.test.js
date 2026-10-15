@@ -25,6 +25,9 @@
       a right first answer after clue 2 pays 6 and moves no pip; the finale says how many
       were solved with the solution open, beside the hearts kept; the keyboard path through
       clue, check and solution
+   8b. the change-approach card (src/learn/approach.ts): once every clue is open, the second miss shows one card
+      after the verdict (not the first, not a third), a Reread link into the curriculum, Keep going hides it;
+      the encounter's Regroup still names a section
    9. the next best step (src/ui/next.ts): the right first item for three states (a section
       due, a weak one, only a place to continue), outside <main>'s children, hidden for the
       day by its button (device-only, still hidden after a reload, back the next day), and
@@ -484,6 +487,48 @@ async function run() {
       eq((await ladder(keys.two)).offer, "solution", "with every clue open, a miss offers the solution");
       check(await page.$eval(sel2 + " .ex-show", (b) => b.getAttribute("data-suggested") === "true"), "and the solution button is the suggestion");
       eq(errors, [], "no errors around the ladder");
+      await context.close();
+    }
+
+    /* ------------- the change-approach card: every clue open, two more misses, one card */
+    {
+      const { context, page, errors } = await open(browser, CH05, { "bm.lesson.v1": '{"mode":"page"}' });
+      const keys = await page.evaluate(() => {
+        var typed = Array.prototype.filter.call(document.querySelectorAll("#practice .ex[data-hint]"), function (e) {
+          return e.getAttribute("data-kind") !== "choice" && e.getAttribute("data-kind") !== "multi" && e.querySelector(".ex-solution") &&
+            e.querySelector(".ex-form input:not([type=radio]):not([type=checkbox])");
+        }).map(function (e) { return e.getAttribute("data-key"); });
+        return typed;
+      });
+      check(keys.length >= 1, "ch05 has a typed practice exercise with clues and a solution");
+      const sel = '#practice .ex[data-key="' + keys[0] + '"]';
+      const cards = () => page.$$eval(sel + " .ex-approach", (c) => c.length);
+      for (let i = 0; i < 6 && await page.$eval(sel + " .ex-clue-btn", (b) => !b.hidden); i++) await page.click(sel + " .ex-clue-btn");
+      check(await page.$eval(sel + " .ex-clue-btn", (b) => b.hidden), "every clue (and the faded rung) is open");
+      await answer(page, sel, false);
+      eq(await cards(), 0, "the first miss after the ladder ran out shows no approach card");
+      await answer(page, sel, false);
+      eq(await cards(), 1, "the second shows one");
+      check(await page.$eval(sel, (ex) => {
+        var c = ex.querySelector(".ex-approach"), fb = ex.querySelector(".ex-feedback");
+        return fb.nextElementSibling === c && !c.contains(document.activeElement) && !c.contains(fb) && /Try a different way in/.test(c.textContent);
+      }), "it follows the verdict and takes no focus");
+      await answer(page, sel, false);
+      eq(await cards(), 1, "a third miss adds no second card");
+      const href = await page.$eval(sel + " .ex-approach a.btn", (a) => a.getAttribute("href"));
+      check(/\.html#[\w-]+$/.test(href || ""), "the Reread link points into the curriculum (" + href + ")");
+      await page.click(sel + " .ex-approach [data-keep-going]");
+      check(await page.$eval(sel + " .ex-approach", (c) => c.hidden), "Keep going hides it");
+
+      /* the encounter's Regroup still names a section: three more misses in the set */
+      const others = await page.evaluate((k) => Array.prototype.filter.call(document.querySelectorAll("#practice .ex[data-key]"), function (e) {
+        return e.getAttribute("data-key") !== k;
+      }).slice(0, 3).map(function (e) { return e.getAttribute("data-key"); }), keys[0]);
+      for (const k of others) await answer(page, '#practice .ex[data-key="' + k + '"]', false);
+      await wait(700);
+      const rg = await page.$eval("#practice .encounter-regroup", (r) => r.textContent).catch(() => null);
+      check(rg && /trace back to/.test(rg), "the encounter regroup still names a section (" + rg + ")");
+      eq(errors, [], "no errors around the approach card");
       await context.close();
     }
 

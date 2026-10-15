@@ -777,6 +777,23 @@
      Attempts.update, only while the exercise is unsolved. */
   var paysFirst = Rules.paysFirst, xpFor = Rules.xpFor, Road = Rules.Road;
 
+  /* a full section ref ("chapter#id") as the words and the link a card names it by, or null */
+  function sectionNames(ref) {
+    var cut = ref ? ref.indexOf("#") : -1;
+    var owner = cut > -1 && C.chapterById ? C.chapterById(ref.slice(0, cut)) : null;
+    if (!owner) return null;
+    var sid = ref.slice(cut + 1), idx = -1;
+    owner.sections.forEach(function (s, i) { if (s.id === sid) idx = i; });
+    if (idx < 0) return null;
+    var num = (owner.part && owner.part.beside ? "Pack " : "§") + owner.label + "." + (idx + 1);
+    var title = owner.sections[idx].title;
+    return {
+      label: owner.label === "Interlude" ? title : num,
+      full: (owner.label === "Interlude" ? "" : num + " ") + title,
+      href: rootPrefix() + owner.path + "#" + sid
+    };
+  }
+
   function initExercises(chapter) {
     var exs = document.querySelectorAll(".ex");
     if (!exs.length) return;
@@ -805,6 +822,8 @@
     /* Positional keys ("e3") are what older saved progress uses, so the position counts
        only exercises without an id: anything added later carries an id and shifts nothing. */
     var position = 0, shown = 0, inlineCount = 0;
+    /* each card's key and full section ref, for the change-approach card (src/learn/approach.ts) */
+    var cardSecs = [];
 
     Array.prototype.forEach.call(exs, function (ex) {
       var inline = ex.hasAttribute("data-inline");
@@ -1002,6 +1021,8 @@
          the clues it opens above the answer box. Without it (a page whose entry does not
          import it) the card works as before, minus the clues. */
       var Learn = window.BMLearn;
+      var fullSec = section ? (section.indexOf("#") > -1 ? section : chapterId + "#" + section) : "";
+      cardSecs.push({ key: key, sec: fullSec });
       var ladder = Learn && typeof Learn.mount === "function" ? Learn.mount({
         ex: ex, form: form, before: solution ? showBtn : null, hints: [hint, hint2, hint3],
         saved: Attempts.get(chapterId, key).rung, id: "bm-clues-" + chapterId + "-" + key, name: labelText,
@@ -1012,7 +1033,14 @@
           var rec = Attempts.update(chapterId, key, function (a) { Road.clue(a, rung, inline, section); });
           Store.emit({ type: "ladder", chapter: chapterId, key: key, section: section, inline: inline, rung: rec.rung });
         },
-        render: renderMath, hasSolution: !!solution, solution: solution
+        render: renderMath, hasSolution: !!solution, solution: solution,
+        /* the section behind most of this page's misses, else this card's own */
+        approach: function () {
+          var sec = Learn.mostMissed(cardSecs.map(function (c) {
+            return { sec: c.sec, miss: Rules.isMiss(Attempts.get(chapterId, c.key)) };
+          })) || fullSec;
+          return sectionNames(sec);
+        }
       }) : null;
 
       /* The near-transfer twin (src/ui/twin.ts, through window.BMTwin): "Try one like it" while the
