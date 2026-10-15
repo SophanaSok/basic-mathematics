@@ -93,7 +93,12 @@ function mount(o: TwinOptions): void {
 
   const helpOpen = () => solution.getAttribute("data-show") === "true" || !!ex.querySelector(".ex-faded");
   const sync = () => { if (!gone) btn.hidden = !helpOpen(); };
-  new MutationObserver(sync).observe(ex, { subtree: true, childList: true, attributes: true, attributeFilter: ["data-show"] });
+  /* hygiene: the card is solved, the button is out and no panel is open, so nothing is left to watch for */
+  const watch = new MutationObserver(() => {
+    sync();
+    if (ex.getAttribute("data-state") === "correct" && !btn.hidden && !(panel && !panel.hidden)) watch.disconnect();
+  });
+  watch.observe(ex, { subtree: true, childList: true, attributes: true, attributeFilter: ["data-show", "data-state"] });
   sync();
 
   function unavailable(): void {
@@ -101,6 +106,7 @@ function mount(o: TwinOptions): void {
     btn.textContent = UNAVAILABLE;
     btn.disabled = true;
     btn.hidden = false;
+    watch.disconnect();
   }
 
   function problem(): Shown | null {
@@ -196,19 +202,22 @@ function mount(o: TwinOptions): void {
       if (steps) steps.hidden = true;
       box.focus();
     };
+    /* cleared, then set a moment later, so a second identical verdict is announced again (the Arena's say()) */
+    let sayTimer = 0;
+    const say = (text: string) => { verdict.textContent = ""; clearTimeout(sayTimer); sayTimer = window.setTimeout(() => { verdict.textContent = text; }, 60); };
     const run = () => {
       const given = input.value;
       let v: { kind: string };
       try { v = o.judge(clean(given, cur.type), o.specOf({ answer: cur.answer, type: cur.type, tol: cur.tol })); } catch { v = { kind: "wrong" }; }
-      if (v.kind === "unread") { verdict.textContent = "Type your answer in the box, then check again."; return; }
+      if (v.kind === "unread") { say("Type your answer in the box, then check again."); return; }
       const correct = v.kind === "right";
       let xp = 0;
       if (correct) {
         xp = twinXp(o.record(), o.inline);
         if (xp > 0) { o.markPaid(); o.pay(xp); }   /* the flag first: a failed write then loses the XP, never repeats the payment */
-        verdict.textContent = xp > 0 ? "Right. +" + xp + " XP" : "Right.";
+        say(xp > 0 ? "Right. +" + xp + " XP" : "Right.");
       } else {
-        verdict.textContent = "Not quite.";
+        say("Not quite.");
         if (!steps && (cur.solution || cur.hint || (cur.steps && cur.steps.length))) {
           steps = document.createElement("button");
           steps.type = "button";

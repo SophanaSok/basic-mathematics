@@ -53,8 +53,9 @@ export function cluesOf(attrs: ReadonlyArray<string | null | undefined>): string
 /** The ladder as a page view starts it: the rungs saved for this exercise shown open. */
 export function start(clues: number, saved?: unknown, fadeable = false): LadderState {
   const c = Math.max(0, Math.min(CLUE_RUNGS, Math.floor(clues) || 0));
-  const n = typeof saved === "number" && isFinite(saved) ? saved : 0;
-  return { clues: c, open: savedRung(saved, c), fadeable, faded: fadeable && n >= FADED_RUNG };
+  /* the faded box reads the rung as rules.ts fadedOf does, so a saved "4" restores it too */
+  const n = Number(saved);
+  return { clues: c, open: savedRung(saved, c), fadeable, faded: fadeable && isFinite(n) && n >= FADED_RUNG };
 }
 
 export function canOpen(s: LadderState): boolean {

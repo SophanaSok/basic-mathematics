@@ -1282,7 +1282,7 @@
              then one line saying what help is there. No clue opens by itself: the next
              one is the learner's to ask for, with the button above. */
           var mi = ladder && missNotes.length
-            ? Learn.misses.matchMiss({ given: r.given, kind: kind, type: type, blanks: blanks.map(function (b) { return { type: b.getAttribute("data-type") || "exact" }; }) }, missNotes, matches)
+            ? Learn.misses.matchMiss({ given: r.given, kind: kind, type: type, blanks: blanks.map(function (b) { return { type: b.getAttribute("data-type") }; }) }, missNotes, matches)
             : null;
           var after = ladder
             ? ladder.afterWrong(r.given, mi === null ? question(r.given) : null, mi === null ? null : missNotes[mi].html)

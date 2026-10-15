@@ -1984,9 +1984,11 @@ function helpMarkupProblems(doc, page, deps) {
       addLint(info, "ex-miss", li, html, html, "warn");
     });
   });
+  const twinsOf = new Map();
   twins.forEach(t => {
     const ex = nearest(t, p => p.hasClass("ex")), info = ex && infoOf.get(ex);
     const key = info ? info.e.key : "?";
+    if (ex) { twinsOf.set(ex, (twinsOf.get(ex) || 0) + 1); if (twinsOf.get(ex) === 2) fail(t, key + ": two twins on one card; the panel uses the first"); }
     const inner = { queryAll: sel => { const r = []; for (const el of t.elements()) { if (sel === ".ex-q" ? el.hasClass("ex-q") : sel === ".ex" ? el.hasClass("ex") : false) r.push(el); } return r; } };
     if (inner.queryAll(".ex-q").length !== 1) fail(t, key + ": a twin holds " + inner.queryAll(".ex-q").length + " .ex-q, not one");
     const ty = t.getAttribute("data-type");
@@ -2033,10 +2035,13 @@ function helpMarkupProblems(doc, page, deps) {
     const ex = nearest(sol, p => p.hasClass("ex")), info = ex && infoOf.get(ex);
     const key = info ? info.e.key : "?";
     if (!(sol.parent && sol.parent === ex)) fail(sol, key + ": an .ex-solution with a data-final is not a direct child of its .ex");
-    if (info && (info.e.kind === "order" || info.e.kind === "figure")) fail(sol, key + ": an " + info.e.kind + " exercise takes no data-final");
+    if (info && (info.e.kind === "order" || info.e.kind === "figure")) { fail(sol, key + ": an " + info.e.kind + " exercise takes no data-final"); return; }
     if (fs_.length > 1) fail(sol, key + ": " + fs_.length + " data-final in one solution; at most one");
     /* the faded view as the page builds it: no p.answer, and nothing from the marked node on */
     const f0 = fs_[0];
+    /* the page strips p.answer first, so a mark inside it never cuts anything */
+    const isAnswerLine = n => n.name === "p" && n.hasClass("answer");
+    if (isAnswerLine(f0) || nearest(f0, isAnswerLine)) { fail(f0, key + ": a data-final " + (isAnswerLine(f0) ? "on" : "inside") + " p.answer; mark the last step of the working, not the answer line"); return; }
     let reached = false;
     const walkText = (n, fadedPart) => {
       if (n === f0) reached = true;

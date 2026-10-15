@@ -467,7 +467,8 @@ function checkScripts(ctx, r) {
      route a chapter page has to them (the per-page checks below prove the built graph; this
      holds the source, so a second route cannot hide behind a chunk that is already there) */
   {
-    const GEN_IMPORT = /\bimport\s*\(\s*[`"'][^`"']*data\/gen\//;
+    /* a block comment may sit between the paren and the quote: import(/* x *\/ "../data/gen/a.js") */
+    const GEN_IMPORT = /\bimport\s*\(\s*(?:\/\*[\s\S]*?\*\/\s*)*[`"'][^`"']*data\/gen\//;
     const strays = [];
     (function walk(dir) {
       fs.readdirSync(path.join(ROOT, dir), { withFileTypes: true }).forEach(e => {

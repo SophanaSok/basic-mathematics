@@ -33,7 +33,7 @@ export const WEAK = 0.34, STRONG = 0.12;
    the first was opened before it: clue 1 says where to look and gives nothing away.
    After clue 2 or 3 it pays what a solve after a miss pays, and the combo neither
    gains nor loses. The record's `first` keeps its meaning (right on the first check,
-   solution not open), since the struggle score and the achievements read it. */
+   solution not open; it is 0 on a rung-4 solve even on one try), since the struggle score and the achievements read it. */
 export const CLUE_FREE = 1;
 export function paysFirst(rec: any): boolean {
   var rung = Number(rec && rec.rung);

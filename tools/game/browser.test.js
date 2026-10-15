@@ -1599,14 +1599,14 @@ async function run() {
     {
       /* The chapter pages ship neither (the content is the owner's), so the response is
          rewritten: exercise e1 gets two more clues, a data-final on the last step of its
-         solution, and one hidden note for the answer 50 (the complement). */
+         solution, and one hidden note for the sign-flipped answer -140, which the sign detector asks about on the plain page. */
       const FINAL = "so the supplement is $180 - 40 = 140$.";
-      const NOTE = "Authored note: that is the complement.";
+      const NOTE = "Authored note: that is the answer with its sign flipped.";
       const rewrite = (html) => {
         const from = html.indexOf('<div class="ex" id="e1"'), to = html.indexOf('<div class="ex-solution">', from);
         let head = html.slice(from, to);
         head = head.replace('data-hint="Angles on a straight line add to 180°."', 'data-hint="Angles on a straight line add to 180°." data-hint2="A straight line is half a turn." data-hint3="Subtract the angle from 180°."');
-        const ul = '<ul class="ex-miss" hidden><li data-given="50">' + NOTE + '</li></ul>\n        ';
+        const ul = '<ul class="ex-miss" hidden><li data-given="-140">' + NOTE + '</li></ul>\n        ';
         let rest = html.slice(to).replace(FINAL, "<span data-final>" + FINAL + "</span>");
         return html.slice(0, from) + head + ul + rest;
       };
@@ -1645,7 +1645,7 @@ async function run() {
         const f = await faded(page);
         check(f && f.answer === 0 && f.final === 0 && f.ids === 0, "the worked steps hold no answer line, no data-final and no id " + JSON.stringify(f));
         check(f && f.focused && f.level === "4" && f.label === "Worked steps", "focus goes to the worked steps, level 4, labelled " + JSON.stringify(f && [f.focused, f.level, f.label]));
-        check(f && /Supplementary angles add to 180°/.test(f.text) && !/so the supplement is|140|complement/.test(f.text) && /Finish the last step/.test(f.text), "they keep the earlier steps and lose the final one and what follows: " + JSON.stringify(f && f.text));
+        check(f && /Supplementary angles add to 180°/.test(f.text) && !/so the supplement is|140|Authored note/.test(f.text) && /Finish the last step/.test(f.text), "they keep the earlier steps and lose the final one and what follows: " + JSON.stringify(f && f.text));
         check(await page.$eval(E1 + " .ex-solution", (s) => s.getAttribute("data-show") !== "true"), "the real solution stays closed");
         for (let i = 0; i < 40 && ((await rec(page)) || {}).rung !== 4; i++) await wait(50);   /* the store writes a moment later */
         eq([await btn(page), (await rec(page) || {}).rung], ["(hidden)", 4], "the button is gone and the record saves rung 4");
@@ -1669,7 +1669,7 @@ async function run() {
       const wrongRun = async (rw, p) => {
         const { context, page, errors } = await open(browser, CH05, prefs(p), rw ? { rewrite: rw } : {});
         const typeCheck = async (v) => { await page.fill(E1 + " .ex-form input", v); await page.click(E1 + " .ex-form .btn:not(.ghost)"); };
-        await typeCheck("50");
+        await typeCheck("-140");
         const one = await page.$eval(E1 + " .ex-feedback", (f) => ({ note: f.querySelector(".ex-miss-note") && f.querySelector(".ex-miss-note").textContent, ask: f.querySelectorAll(".ex-ask").length, offer: f.querySelectorAll(".ex-offer").length }));
         await typeCheck("987654");
         const two = await page.$eval(E1 + " .ex-feedback", (f) => ({ note: f.querySelector(".ex-miss-note") && f.querySelector(".ex-miss-note").textContent, offer: f.querySelectorAll(".ex-offer").length }));
@@ -1679,6 +1679,8 @@ async function run() {
         return { one, two, keys };
       };
       const plain = await wrongRun(null);
+      /* the sign detector fires on -140 without the note, so the note (not a quiet detector) is why the rewritten page asks nothing */
+      eq([plain.one.note, plain.one.ask > 0], [null, true], "on the plain page the wrong answer -140 gets the detectors' question and no note");
       for (const [name, p] of [["", {}], [" under Reduce motion", { motion: "reduce" }], [" in Study mode", { calm: true }]]) {
         const w = await wrongRun(rewrite, p);
         eq([w.one.note, w.one.ask, w.one.offer], [NOTE, 0, 1], "a wrong answer equal to the note's data-given shows the note, no question and the offer line" + name);
