@@ -2,7 +2,7 @@
 /* Every exercise the site has, as "chapter/key" refs: src/data/exercise-keys.ts. The author's
    table (assets/insights.js) leaves out statistics rows whose exercise is no longer on any
    page. Generators own their output: change this file and re-run it, never edit the .ts.
-   src/data/exercise-keys.test.ts fails when the file differs from render(build()).
+   src/data/exercise-keys.test.ts fails when the file differs from render(pageKeys()).
    Usage: node tools/gen-exercise-keys.js [--check]
    pageKeys() is the keys page by page, build() the same flattened, render(pageKeys()) the
    file's text. */
