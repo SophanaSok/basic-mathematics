@@ -9,6 +9,7 @@
    and a log whose version is ahead of this code's is never written. */
 
 import { eventId, FORMAT, ID_RE, isValid, mergeEvents, randomRand, V_MAX, type EventSet, type EventsStore, type Payload } from "../sync/events.ts";
+import { seedEntries } from "../learn/diag-seed.ts";
 import { checkpoint } from "../learn/checkpoint.ts";
 import { bandOf } from "../learn/bands.ts";
 import { masteryOf } from "../learn/mastery.ts";
@@ -183,6 +184,21 @@ export function install(win: any) {
       return 0;
     }
   }
+  /* a seed (the placement check's box and day for a section) is a checkpoint entry; returns the count stored */
+  function seed(patch: unknown): number {
+    if (!Store || ahead()) return 0;
+    try {
+      const mine = seedEntries(patch), n = Object.keys(mine).length;
+      if (!n) return 0;
+      put(mine);
+      if (queueing()) enqueue(Object.keys(mine));
+      announce();
+      return n;
+    } catch (e) {
+      warn(e);
+      return 0;
+    }
+  }
   function wipe(uid?: string): void {
     const ls = win && win.localStorage;
     [EVENTS_KEY, OUTBOX_KEY].forEach((k) => {
@@ -217,7 +233,7 @@ export function install(win: any) {
   }
 
   const api = {
-    all, version, ahead, device, record, fromRun, clear, stamp, outbox, enqueue, dequeue, payloads, absorb,
+    all, version, ahead, device, record, fromRun, seed, clear, stamp, outbox, enqueue, dequeue, payloads, absorb,
     scheduleAll: (today: string) => scheduleAll(all(), today),
     schedule: (sec: string, today: string) => scheduleOf(all(), sec, today),
     mastery: (sec: string) => masteryOf(all(), sec),

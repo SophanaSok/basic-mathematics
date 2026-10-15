@@ -23,6 +23,7 @@ import type { DiagItem, DiagStore, DiagTake, Placeable, SectionRef } from "../ty
 import { DIAG_MAX_BOX } from "./constants.ts";
 import { PRE, isPlaceable } from "./diagnostic.ts";
 import { addDays, dayNumber, isPlaced } from "./recall.ts";
+import { BOX_MAX, checkpointId, isValid, type EventSet, type Payload } from "../sync/events.ts";
 
 /** What a section's course is, by SKILLS: null for a container or an unknown ref. */
 export type SkillOf = (ref: SectionRef) => { course: string } | null;
@@ -165,4 +166,26 @@ export function priorOf(diag: unknown, ref: SectionRef, skillOf: SkillOf): Prior
     return { b: s.box, l: s.last, n: p.n, o: p.o };
   }
   return null;
+}
+
+/** A patch of seeds as checkpoint entries for the event log: each section with a box 0..BOX_MAX
+    and a day becomes one content-addressed "z" entry (no device, so two devices agree on its
+    id) that the schedule folds like any checkpoint. Anything damaged is skipped, never thrown. */
+export function seedEntries(patch: unknown): EventSet {
+  const out: EventSet = {};
+  if (!plain(patch)) return out;
+  Object.keys(patch).forEach((sec) => {
+    try {
+      const rec = own(patch, sec);
+      if (!plain(rec)) return;
+      const box = own(rec, "box"), last = own(rec, "last");
+      /* dayNumber rolls 2026-13-40 over to a later day, so the key must read back as itself */
+      const l = typeof last === "string" && addDays(last, 0) === last ? dayNumber(last) : null;
+      if (!Number.isInteger(box) || (box as number) < 0 || (box as number) > BOX_MAX || l === null) return;
+      const P: Payload = [l * 1440, l, "cp", sec, "", "z", 0, 0, 0, 0, { b: box as number, l, s: l + 1, n: 0, o: 0 }];
+      const id = checkpointId(P);
+      if (isValid(id, P)) out[id] = P;
+    } catch (e) { /* a damaged seed is skipped */ }
+  });
+  return out;
 }

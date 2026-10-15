@@ -44,7 +44,7 @@ const kinds = (api: { all(): EventSet }) => Object.values(api.all()).map((P) => 
 describe("install", () => {
   it("puts the api up and listens once", () => {
     const f = fake();
-    expect(Object.keys(f.api)).toEqual(["all", "version", "ahead", "device", "record", "fromRun", "clear", "stamp", "outbox", "enqueue", "dequeue", "payloads", "absorb", "scheduleAll", "schedule", "mastery", "bandOf"]);
+    expect(Object.keys(f.api)).toEqual(["all", "version", "ahead", "device", "record", "fromRun", "seed", "clear", "stamp", "outbox", "enqueue", "dequeue", "payloads", "absorb", "scheduleAll", "schedule", "mastery", "bandOf"]);
     expect(f.Store.on).toHaveBeenCalledTimes(1);
   });
   it("records an attempt, and no secret reaches storage", () => {
@@ -238,5 +238,39 @@ describe("install", () => {
     expect(f.api.record([D * 1440, D, "ex", "", "ch02/e3", "c", 1, 1, 0, 0])).toBeNull();
     expect(f.api.fromRun(run(2))).toBe(0);
     expect(f.api.all()).toEqual({});
+  });
+});
+
+describe("seed", () => {
+  const sec = "ch02#one-unknown";
+  const patch = { [sec]: { box: 1, last: "2026-10-05" } };
+  it("stores the entries, folds to the seed, and emits one event", () => {
+    const f = fake();
+    expect(f.api.seed(patch)).toBe(1);
+    expect(Object.values(f.get(EVENTS_KEY).ev).map((P: any) => P[5])).toEqual(["z"]);
+    expect(f.api.scheduleAll(TODAY)[sec]).toEqual({ box: 1, last: "2026-10-05" });
+    expect(f.emitted.filter((c) => c.type === "event")).toEqual([{ type: "event", n: 1 }]);
+    expect(f.mem.has(OUTBOX_KEY)).toBe(false);
+  });
+  it("queues only when the device has a uid, and a repeat adds nothing", () => {
+    const f = fake();
+    f.api.stamp("u1");
+    expect(f.api.seed(patch)).toBe(1);
+    const ids = Object.keys(f.api.all());
+    expect(f.get(OUTBOX_KEY).ids).toEqual(ids);
+    expect(f.api.seed(patch)).toBe(1);
+    expect(Object.keys(f.api.all())).toEqual(ids);
+    expect(f.get(OUTBOX_KEY).ids).toEqual(ids);
+  });
+  it("stores nothing when the log is ahead or the patch is damaged", () => {
+    const f = fake();
+    expect(f.api.seed({ [sec]: { box: 9, last: "2026-10-05" } })).toBe(0);
+    expect(f.api.seed(null)).toBe(0);
+    expect(f.mem.has(EVENTS_KEY)).toBe(false);
+    f.seed(EVENTS_KEY, { v: 2, ev: {} });
+    const before = f.mem.get(EVENTS_KEY);
+    expect(f.api.seed(patch)).toBe(0);
+    expect(f.mem.get(EVENTS_KEY)).toBe(before);
+    expect(f.emitted.filter((c) => c.type === "event")).toEqual([]);
   });
 });
