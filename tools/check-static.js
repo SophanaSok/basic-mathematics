@@ -1318,7 +1318,7 @@ function checkContrast(ctx, r) {
   const partIds = ctx.curriculum.parts.map(p => p.id);
   cssFiles().forEach(f => {
     const rel = site.rel(f);
-    if (rel === "src/styles/icons.css") return; /* the mask images tokens.css imports (tools/gen-icons.js): shapes, no colours */
+    if (rel === "src/styles/icons.css") return; /* the mask images the shell links ahead of tokens.css (tools/gen-icons.js): shapes, no colours */
     const T = cssLib.tokens(fs.readFileSync(f, "utf8"));
     if (!Object.keys(T.light).length) return; /* a stylesheet without tokens: nothing to check */
     if (rel !== TOKENS_CSS) r.fail(rel + ": defines tokens on :root or a Part; tokens live in " + TOKENS_CSS + " only");
