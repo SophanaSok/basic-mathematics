@@ -53,6 +53,11 @@
       o entry and the right answer after it a c entry with its flag; ids carry the device id;
       what was typed never reaches storage; a reload keeps the log; the Reset button empties
       it and redraws the device id; a page-only history has no schedule; no console errors
+  13. the finale's reveal (src/ui/results.ts): with motion on it plays (data-seq, Skip after the
+      title, the real numbers in the text throughout, one announcement), Skip, Escape and a
+      click each end it and leave the markup a reduced-motion render holds, focus goes to the
+      title when Skip had it, a reload does not replay it, and Reduce motion and Study mode
+      never start it
    and the settings sheet: a modal sheet at 360 that keeps the focus and gives it back on
    Escape, beside the rail at 1280, the theme chosen in it even with storage blocked (the
    `hud` suite of check-browser.js covers every setting and the HUD's layout) */
@@ -219,7 +224,7 @@ async function run() {
       /* 3: clear the set */
       await answer(page, '#practice .ex[data-key="e4"]', true);
       for (const k of ["e5", "e6", "e7", "e8", "e9", "e10"]) await answer(page, '#practice .ex[data-key="' + k + '"]', true);
-      await wait(1600);
+      await wait(2400);   /* the finale's reveal (src/ui/results.ts) ends by 2000ms; its overlays are in the text until then */
       const fin = await page.evaluate(() => {
         var r = document.querySelector("#practice .encounter-result");
         return r && {
@@ -559,7 +564,7 @@ async function run() {
         const sel = '#practice .ex[data-key="e' + k + '"]';
         if (await page.$eval(sel, (e) => e.getAttribute("data-state") !== "correct")) await answer(page, sel, true);
       }
-      await wait(1600);
+      await wait(2400);   /* the finale's reveal (src/ui/results.ts) ends by 2000ms; its overlays are in the text until then */
       const fin = await page.evaluate(() => {
         var r = document.querySelector("#practice .encounter-result");
         return r && { shown: !r.hidden, text: r.textContent.replace(/\s+/g, " "), medal: document.querySelector("#practice .encounter").getAttribute("data-medal") };
@@ -1464,6 +1469,115 @@ async function run() {
       eq((await skips()).filter((P) => P[4] === "ch05/" + waiting[0]).length, 1, "advancing again adds no second one for it");
       eq(errors, [], "no errors in step mode's log");
       await context.close();
+    }
+
+    /* ------------------------------------------- 13: the finale's reveal */
+    {
+      /* ch05 solved right first time, ten answers, through to the finale; seq/live record what the page did */
+      const finish = async (prefs) => {
+        const o = await open(browser, CH05, { "bm.lesson.v1": '{"mode":"page"}', "bm.prefs.v1": JSON.stringify(prefs || {}) });
+        await o.page.evaluate(() => {
+          window.__seqSeen = false; window.__live = [];
+          new MutationObserver(function (ms) { ms.forEach(function (m) { if (m.target.getAttribute && m.target.getAttribute("data-seq")) window.__seqSeen = true; }); })
+            .observe(document.documentElement, { attributes: true, attributeFilter: ["data-seq"], subtree: true });
+          new MutationObserver(function () { var t = document.getElementById("bm-live").textContent; if (t) window.__live.push(t); })
+            .observe(document.getElementById("bm-live"), { childList: true, characterData: true, subtree: true });
+        });
+        for (let i = 1; i <= 10; i++) await answer(o.page, '#practice .ex[data-key="e' + i + '"]', true);
+        await o.page.waitForSelector("#practice .encounter-result:not([hidden])");
+        return o;
+      };
+      const snap = (page) => page.evaluate(() => {
+        var r = document.querySelector("#practice .encounter-result"), t = r.querySelector(".encounter-result-title");
+        var bs = Array.prototype.map.call(r.querySelectorAll(".stat > b"), function (b) {
+          var c = b.cloneNode(true);
+          Array.prototype.forEach.call(c.querySelectorAll(".bm-count"), function (o) { o.remove(); });
+          return c.textContent;
+        });
+        return {
+          seq: r.getAttribute("data-seq"), skip: !!r.querySelector("[data-skip]"), overlays: r.querySelectorAll(".bm-count").length,
+          counting: r.querySelectorAll("[data-counting]").length, styled: r.querySelectorAll("[style]").length,
+          afterTitle: !!t && t.nextElementSibling === r.querySelector("[data-skip]"), stats: bs, html: r.innerHTML,
+          active: document.activeElement && document.activeElement.className
+        };
+      });
+      const clean = { seq: null, skip: false, overlays: 0, counting: 0, styled: 0 };
+      const cleanOf = (x) => ({ seq: x.seq, skip: x.skip, overlays: x.overlays, counting: x.counting, styled: x.styled });
+
+      /* (a) it plays, (b) Skip finalises to the reduced-motion markup, (g) one announcement, (e) once per key */
+      let skippedHtml, playStats;
+      {
+        const { context, page, errors } = await finish();
+        const p = await snap(page);
+        eq([p.seq, p.skip, p.afterTitle], ["play", true, true], "the finale plays with motion on, and Skip follows the title");
+        check(p.overlays > 0 && p.stats.length >= 2 && p.stats.every((t) => /^\d+ of \d+$/.test(t)), "while it plays every stat's text is already its final value " + JSON.stringify(p.stats));
+        playStats = p.stats;
+        await page.evaluate(() => document.querySelector("#practice .encounter-result [data-skip]").click());
+        const a = await snap(page);
+        eq(cleanOf(a), clean, "Skip leaves no data-seq, overlay, Skip button, counting mark or inline style");
+        eq(a.stats, playStats, "and the stats read the same as they did while it played");
+        skippedHtml = a.html;
+        await wait(5200);
+        const live = await page.evaluate(() => window.__live.filter((t) => /medal/.test(t)));
+        eq(live.length, 1, "the finale is announced once: " + JSON.stringify(live));
+        const run = await page.evaluate(() => JSON.parse(localStorage.getItem("bm.run.v1") || "{}"));
+        check(run.seen && run.seen.results && Object.keys(run.seen.results).some((k) => /^ch05\//.test(k)), "it is remembered as seen " + JSON.stringify(run.seen));
+        /* once per key: the same key asked again does not play */
+        const again = await page.evaluate(() => {
+          var sec = document.querySelector("#practice .encounter-result"), seen = window.BMStore.read(window.BMStore.keys.run, {}).seen.results || {};
+          var key = Object.keys(seen).filter((k) => /^ch05\//.test(k))[0];
+          return { key: key, played: window.BMResults.playResults(sec, { key: key }), seq: sec.hasAttribute("data-seq") };
+        });
+        check(/^ch05\//.test(again.key || ""), "the run store holds the finale's key " + JSON.stringify(again.key));
+        eq([again.played, again.seq], [false, false], "asked again with the same key, the reveal does not play");
+        eq(errors, [], "no errors playing and skipping the finale");
+        await context.close();
+      }
+
+      /* the reference: Reduce motion never starts it, and its markup is what Skip leaves */
+      {
+        const { context, page, errors } = await finish({ motion: "reduce" });
+        const r = await snap(page);
+        eq(cleanOf(r), clean, "under Reduce motion the finale has no sequence");
+        check(!(await page.evaluate(() => window.__seqSeen)), "and data-seq was never set");
+        check(r.html === skippedHtml, "a skipped finale is the markup a reduced-motion render holds");
+        eq(errors, [], "no errors under Reduce motion");
+        await context.close();
+      }
+      /* Study mode */
+      {
+        const { context, page } = await finish({ calm: true });
+        eq(cleanOf(await snap(page)), clean, "in Study mode the finale has no sequence");
+        check(!(await page.evaluate(() => window.__seqSeen)), "and data-seq was never set");
+        await context.close();
+      }
+      /* (c) Escape */
+      {
+        const { context, page } = await finish();
+        check((await snap(page)).seq === "play", "setup: the finale plays");
+        await page.keyboard.press("Escape");
+        eq(cleanOf(await snap(page)), clean, "Escape ends the sequence");
+        await context.close();
+      }
+      /* (c) a click inside the section */
+      {
+        const { context, page } = await finish();
+        check((await snap(page)).seq === "play", "setup: the finale plays");
+        await page.click("#practice .encounter-result .encounter-medal");
+        eq(cleanOf(await snap(page)), clean, "a click inside the section ends the sequence");
+        await context.close();
+      }
+      /* (d) Skip by keyboard: focus goes to the title */
+      {
+        const { context, page } = await finish();
+        await page.focus("#practice .encounter-result [data-skip]");
+        await page.keyboard.press("Enter");
+        const a = await snap(page);
+        eq(cleanOf(a), clean, "Skip by keyboard ends the sequence");
+        check(/encounter-result-title/.test(a.active || ""), "and focus moves to the title (" + a.active + ")");
+        check(a.html === skippedHtml, "and the markup is the reduced-motion render's");
+        await context.close();
+      }
     }
   } finally {
     await browser.close();

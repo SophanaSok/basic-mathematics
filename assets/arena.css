@@ -214,6 +214,7 @@ html[data-calm] .arena-hearts { display: none; }
 .arena-kicker { margin: 0; font-size: .74rem !important; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
 .arena-result h2 { font-size: 1.7rem; margin: 0; }
 .arena-result h2:focus { outline: none; }
+.arena-result [data-skip] { justify-self: start; margin: .2rem 0 .4rem; }
 .arena-bigscore { margin: 0 0 .6rem; color: var(--muted); }
 .arena-bigscore b { font-family: var(--display); font-weight: 800; font-size: 3rem; line-height: 1; color: var(--text); margin-right: .2rem; }
 .arena-medal { margin: 0 0 .6rem; padding: .5rem .8rem; border-radius: var(--radius-sm); font-weight: 700; background: var(--xp); color: var(--on-xp); border: 1.5px solid var(--xp-ink); justify-self: start; }

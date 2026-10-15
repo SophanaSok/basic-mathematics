@@ -1388,12 +1388,16 @@
       .sort(function (x, y) { return y.cost / y.n - x.cost / x.n || y.cost - x.cost; });
   }
 
-  function tile(label, value, sub) {
-    return '<div class="arena-stat"><span class="arena-stat-label">' + label + '</span><span class="arena-stat-value">' + value + "</span>" +
+  /* a whole number the results reveal may count up to (src/ui/results.ts); the text is the
+     number itself, so the markup is final without the script */
+  function cnt(n) { return n >= 0 && Math.floor(n) === n ? '<span data-count="' + n + '">' + n + "</span>" : String(n); }
+
+  function tile(label, value, sub, step) {
+    return '<div class="arena-stat"' + (step ? ' data-step="' + step + '"' : "") + '><span class="arena-stat-label">' + label + '</span><span class="arena-stat-value">' + value + "</span>" +
       (sub ? '<span class="arena-stat-sub">' + sub + "</span>" : "") + "</div>";
   }
 
-  function renderResult() {
+  function renderResult(restored) {
     setScreen("result");
     var res = run.result || buildResult(run, run.ended || "complete");
     var weak = weakest(res), out = res.ended === "hearts";
@@ -1402,17 +1406,17 @@
     html += '<p class="arena-kicker">' + esc(MODES[res.mode].label) + (res.mode === "boss" && res.boss ? " · " + esc(Site.chapterName(C.chapterById(res.boss))) : "") +
       " · " + esc(TEMPO_LABEL[res.tempo] || "") + " tempo</p>";
     html += '<h2 id="arena-result-h" tabindex="-1">' + title + "</h2>";
-    html += '<p class="arena-bigscore"><b>' + res.score + "</b> points</p>";
+    html += '<p class="arena-bigscore" data-step="1"><b>' + cnt(res.score) + "</b> points</p>";
     if (res.mode === "boss") {
       html += res.medal
-        ? '<p class="arena-medal" data-medal="' + res.medal + '">' + (res.medal === 3 ? "Gold medal: all three hearts kept." : res.medal === 2 ? "Silver medal: finished with a heart to spare." : "Bronze medal: you saw the rematch through.") + "</p>"
-        : '<p class="arena-fine">' + (!res.ranked ? "Untimed rematches are practice only and win no medal."
+        ? '<p class="arena-medal" data-step="2" data-medal="' + res.medal + '">' + (res.medal === 3 ? "Gold medal: all three hearts kept." : res.medal === 2 ? "Silver medal: finished with a heart to spare." : "Bronze medal: you saw the rematch through.") + "</p>"
+        : '<p class="arena-fine" data-step="2">' + (!res.ranked ? "Untimed rematches are practice only and win no medal."
           : res.ended === "banked" ? "A banked rematch wins no medal."
           : res.uncleared ? "No medal: a rematch can only raise the medal of a cleared set. Clear this chapter's practice set on its page, and a rematch like this one will count."
           : "No medal this time: finish with at least one heart to earn one.") + "</p>";
     }
     if (res.mode === "repair") {
-      html += "<p>" + res.firstTry + " of " + res.n + " right the first time. " +
+      html += '<p data-step="3">' + res.firstTry + " of " + res.n + " right the first time. " +
         (res.repaired ? "That is enough to mark " + esc(secName(res.section)) + " as repaired."
           : res.finished ? "Every answer right, four of them first time, marks it repaired; reread it and try again whenever you like."
           : "A repair counts once all " + res.planned + " questions are answered, every one right and four of them first time. Start it again whenever you like.") + "</p>";
@@ -1420,16 +1424,18 @@
     if (res.mode === "review" && res.n) {
       var checked = {};
       res.answers.forEach(function (a) { checked[a.section] = 1; });
-      html += "<p>" + plural(Object.keys(checked).length, "section") + " checked. A section answered right the first time each time goes further into its schedule; one with a miss comes back sooner.</p>";
+      html += '<p data-step="3">' + plural(Object.keys(checked).length, "section") + " checked. A section answered right the first time each time goes further into its schedule; one with a miss comes back sooner.</p>";
     }
-    if (res.replay) html += '<p class="arena-fine">That day\'s Daily had already been played, here or in another tab or on another device, so this one pays no XP and keeps no best.</p>';
+    if (res.replay) html += '<p class="arena-fine" data-step="3">That day\'s Daily had already been played, here or in another tab or on another device, so this one pays no XP and keeps no best.</p>';
     html += '<div class="arena-stats">';
-    if (res.hearts !== null) html += tile("Hearts left", res.hearts + " <small>of " + res.maxHearts + "</small>", heartsHtml(res.hearts, res.maxHearts));
+    /* the tiles take 4.., then the board, the review block and the actions take the next three numbers */
+    var ts = 4;
+    if (res.hearts !== null) html += tile("Hearts left", cnt(res.hearts) + " <small>of " + res.maxHearts + "</small>", heartsHtml(res.hearts, res.maxHearts), ts++);
     /* the first-try count and rate, as information: no target to hit */
     var rate = res.n ? Math.round((100 * res.firstTry) / res.n) + "% right the first time" : "";
-    html += tile("First try", res.firstTry + " <small>of " + res.n + "</small>", [rate, res.n < res.planned ? plural(res.planned - res.n, "question") + " not reached" : ""].filter(Boolean).join(" · "));
-    html += tile("XP earned", "+" + res.xp, xpNote(res));
-    html += tile("Best streak", String(res.bestStreak), "");
+    html += tile("First try", cnt(res.firstTry) + " <small>of " + res.n + "</small>", [rate, res.n < res.planned ? plural(res.planned - res.n, "question") + " not reached" : ""].filter(Boolean).join(" · "), ts++);
+    html += tile("XP earned", "+" + cnt(res.xp), xpNote(res), ts++);
+    html += tile("Best streak", cnt(res.bestStreak), "", ts++);
     if (res.ranked && res.finished) {
       /* the fastest clean run: this run's time, and what is on record for the mode */
       /* kept under the mode by game.js recordRun (a rematch under "boss", whatever the
@@ -1437,14 +1443,14 @@
       var cb = res.cleanBest, b = bests();
       var fastest = cb ? cb.best : cleanMs((b[res.mode] || {}).clean) || (res.mode === "boss" && res.boss ? cleanMs((b["boss:" + res.boss] || {}).clean) : 0);
       html += tile("Clean time", res.clean ? msText(res.clean.ms) : "—",
-        cb && cb.fresh ? "New fastest" : fastest ? "Fastest " + msText(fastest) : "Every answer right the first time, all on the clock, sets one.");
+        cb && cb.fresh ? "New fastest" : fastest ? "Fastest " + msText(fastest) : "Every answer right the first time, all on the clock, sets one.", ts++);
     }
     html += "</div>";
     /* filled after this script and account.js have both started (fillBoard) */
-    if (boardWanted(res)) html += "<div data-arena-board></div>";
+    if (boardWanted(res)) html += '<div data-arena-board data-step="' + ts + '"></div>';
     if (res.keys) html += '<p class="arena-fine">Played by keyboard alone.</p>';
     html += reducedHtml(res);
-    html += '<div class="arena-review">';
+    html += '<div class="arena-review" data-step="' + (ts + 1) + '">';
     if (weak.length) {
       var w = weak[0], info = secInfo(w.id);
       html += '<p class="arena-weakest"><span>Weakest this run: <b>' + esc(secName(w.id)) + "</b></span>" +
@@ -1461,13 +1467,16 @@
       html += "<p>Every answer was right the first time. Nothing to reread from this run.</p>";
     }
     html += "</div>";
-    html += '<div class="arena-actions"><button type="button" class="btn" data-act="again">' + (res.mode === "daily" ? "A Standard run" : res.mode === "review" ? "Review what is still due" : "Another run") + "</button>" +
+    html += '<div class="arena-actions" data-step="' + (ts + 2) + '"><button type="button" class="btn" data-act="again">' + (res.mode === "daily" ? "A Standard run" : res.mode === "review" ? "Review what is still due" : "Another run") + "</button>" +
       '<button type="button" class="btn ghost" data-act="lobby">Back to the lobby</button></div>';
     html += "</section>";
     screenEl().innerHTML = html;
     var h = screenEl().querySelector("#arena-result-h");
     if (h) { try { h.focus({ preventScroll: true }); } catch (e) { h.focus(); } }
     if (boardWanted(res)) setTimeout(function () { fillBoard(res); }, 0);
+    /* the short reveal: the rows above are already final, so this only dresses them; it plays
+       once per run, never on a result put back after a reload (src/ui/results.ts) */
+    if (window.BMResults) window.BMResults.playResults(screenEl().querySelector(".arena-result"), { key: runId(run), restored: !!restored, heading: h });
     say(title + ". " + res.score + " points, " + res.firstTry + " of " + res.n + " right the first time, " + res.xp + " XP." +
       (res.reduced && res.reduced.length ? " Less XP than usual for a section practiced a lot today; spaced practice tomorrow counts more." : "") +
       (weak.length ? " Worth rereading: " + secName(weak[0].id) + "." : ""));
@@ -1790,7 +1799,7 @@
   var saved0 = runStore().arena;
   if (validRun(saved0)) {
     if (saved0.done) {
-      if (wasReload() && saved0.result) { run = saved0; renderResult(); }
+      if (wasReload() && saved0.result) { run = saved0; renderResult(true); }
       else { clearRun(); renderLobby(); }
     } else if (!openRun(saved0)) {
       clearRun();

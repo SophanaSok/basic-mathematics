@@ -394,19 +394,23 @@
     return "#" + ans.id;
   }
 
+  /* a whole number the results reveal may count up to (src/ui/results.ts); the text is the
+     number itself, so the markup is final without the script */
+  function cnt(n) { return n >= 0 && Math.floor(n) === n ? '<span data-count="' + n + '">' + n + "</span>" : String(n); }
+
   function finale(set) {
     var st = Game.setStats(null, chapterId, set.keys);
     if (!st.won) return;
     var medal = Game.medal(chapterId, set.id), isCalm = calm(), el = set.result;
     el.removeAttribute("data-revisit");
-    var html = '<p class="encounter-result-title"><b>' + esc(set.name) + "</b> " + (set.review ? "cleared." : "is down.") + "</p>";
-    html += '<p class="encounter-medal" data-medal="' + medal + '">' + stars(medal) + " " + MEDALS[medal] + " medal</p>";
-    html += '<div class="stats"><div class="stat"><b>' + st.first + " of " + st.total + "</b><span>right the first time</span></div>";
-    if (!isCalm) html += '<div class="stat"><b>' + st.hearts + " of 3</b><span>hearts kept</span></div>";
+    var html = '<p class="encounter-result-title" tabindex="-1"><b>' + esc(set.name) + "</b> " + (set.review ? "cleared." : "is down.") + "</p>";
+    html += '<p class="encounter-medal" data-step="1" data-medal="' + medal + '">' + stars(medal) + " " + MEDALS[medal] + " medal</p>";
+    html += '<div class="stats" data-step="2"><div class="stat"><b>' + cnt(st.first) + " of " + st.total + "</b><span>right the first time</span></div>";
+    if (!isCalm) html += '<div class="stat"><b>' + cnt(st.hearts) + " of 3</b><span>hearts kept</span></div>";
     /* the medal counts what hearts do not: problems solved with the solution open first
        (setStats marks less misses), so a medal below the hearts can be read from here */
     var openFirst = st.marks - st.misses;
-    if (openFirst > 0) html += '<div class="stat"><b>' + openFirst + " of " + st.total + "</b><span>solved with the solution open</span></div>";
+    if (openFirst > 0) html += '<div class="stat"><b>' + cnt(openFirst) + " of " + st.total + "</b><span>solved with the solution open</span></div>";
     html += "</div>";
 
     var g = Play ? Play.chapter(chapterId).guess : null;
@@ -414,10 +418,10 @@
     var anchor = puzzleAnchor();
     if (!set.review && g !== null && chips[g] && anchor) {
       /* the guess is repeated, never graded: the recap is where it gets its answer */
-      html += '<p class="encounter-guess">You guessed: <a href="' + anchor + '">' + chips[g].innerHTML + "</a></p>";
+      html += '<p class="encounter-guess" data-step="3">You guessed: <a href="' + anchor + '">' + chips[g].innerHTML + "</a></p>";
     }
     var weak = weakRows(set);
-    html += '<p class="encounter-look">' + (weak.length
+    html += '<p class="encounter-look" data-step="4">' + (weak.length
       ? "Worth another look: " + weak.map(function (r) {
           var href = r.chapter.id === chapterId ? "#" + r.section.id : root + r.path;
           return '<a href="' + esc(href) + '">' + esc(r.label + " " + r.section.title) + "</a>";
@@ -425,10 +429,10 @@
       : "Nothing in this set stands out as shaky.") + "</p>";
     var got = Game.unlockedSince ? Game.unlockedSince(loadedAt) : [];
     if (got.length) {
-      html += '<p class="encounter-ach">Unlocked: ' + got.map(function (a) { return "<b>" + esc(a.title) + "</b>"; }).join(", ") + ".</p>";
+      html += '<p class="encounter-ach" data-step="5">Unlocked: ' + got.map(function (a) { return "<b>" + esc(a.title) + "</b>"; }).join(", ") + ".</p>";
     }
     var next = nextChapter();
-    html += '<p class="encounter-actions">' +
+    html += '<p class="encounter-actions" data-step="6">' +
       (next
         ? '<a class="btn" href="' + esc(root + next.path) + '">Next chapter</a>'
         : '<a class="btn" href="' + root + 'index.html">Course contents</a>') +
@@ -444,6 +448,9 @@
         if (sol && btn && sol.getAttribute("data-show") !== "true") btn.click();
       });
     });
+    /* the short reveal: the rows above are already final, so this only dresses them; it
+       plays once per set and medal, never under reduced motion or Study mode (BMResults) */
+    if (window.BMResults) window.BMResults.playResults(el, { key: chapterId + "/" + set.id + "/" + medal, heading: el.querySelector(".encounter-result-title") });
     announce(set.name + (set.review ? " cleared. " : " is down. ") + MEDALS[medal] + " medal, " + st.first + " of " +
       st.total + " right the first time.", { priority: "high" });
 
