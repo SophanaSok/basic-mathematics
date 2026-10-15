@@ -183,7 +183,7 @@ insert into hv values
   ('a checkpoint with s = today + 2', pg_temp.setp(pg_temp.setp(pg_temp.setx(pg_temp.setx(pg_temp.vz(), 's', '20802'), 'l', '20790'), 1, '20801'), 0, '29953440'), true),
   ('a checkpoint with s = today + 3', pg_temp.setp(pg_temp.setp(pg_temp.setx(pg_temp.setx(pg_temp.vz(), 's', '20803'), 'l', '20790'), 1, '20802'), 0, '29954880'), false);
 
--- 151 hand-counted tests below, plus one per row of the three tables
+-- 154 hand-counted tests below, plus one per row of the three tables
 select plan(154 + (select count(*)::integer from hv) + (select count(*)::integer from private.valid_cases)
   + (select count(*)::integer from private.prune_expected));
 
