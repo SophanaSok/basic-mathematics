@@ -28,6 +28,8 @@
    8b. the change-approach card (src/learn/approach.ts): once every clue is open, the second miss shows one card
       after the verdict (not the first, not a third), a Reread link into the curriculum, Keep going hides it;
       the encounter's Regroup still names a section
+   8c. the support line (src/ui/ladder.ts): a shaky prerequisite gives one line on a section's first card, naming it
+      with a link, and its button focuses the worked example; strong ones give a first wrong check no offer line
    9. the next best step (src/ui/next.ts): the right first item for three states (a section
       due, a weak one, only a place to continue), outside <main>'s children, hidden for the
       day by its button (device-only, still hidden after a reload, back the next day), and
@@ -1910,6 +1912,67 @@ async function run() {
         const ev = await page.evaluate(() => window.__ev);
         check(ev.includes("twin:") && !ev.some((e) => /^attempt:/.test(e)), "and fires a twin event, never an attempt: " + JSON.stringify(ev));
         eq(errors, [], "no errors on the wrong twin");
+        await context.close();
+      }
+    }
+    /* ------------- the support line (src/ui/ladder.ts): where the shaky ground is, nothing else changes */
+    {
+      const seedLog = (page, sec, kind, n, ok) => page.evaluate(([sec, kind, n, ok]) => {
+        var t = Math.floor(Date.now() / 60000) - 30;
+        for (var i = 1; i <= n; i++) window.BMEvents.record([t + i, Math.floor((t + i) / 1440), "ex", sec, "ch05/s" + kind + i, kind, ok, 1, 0, 0]);
+      }, [sec, kind, n, ok]);
+      /* the first card after the section's h2, in document order: the one that carries the line */
+      const FIRST = () => {
+        var h = document.getElementById("parallels"), stop = document.getElementById("pythagoras");
+        return Array.prototype.filter.call(document.querySelectorAll(".ex"), function (e) {
+          return (h.compareDocumentPosition(e) & 4) && (stop.compareDocumentPosition(e) & 2);
+        })[0];
+      };
+      const prefs = { "bm.lesson.v1": '{"mode":"page"}', "bm.prefs.v1": '{"calm":true,"sound":true}' };
+      {
+        const { context, page, errors } = await open(browser, CH05, prefs);
+        await seedLog(page, "ch05#angles", "o", 3, 0);
+        await page.reload();
+        await page.waitForSelector(".ex-support");
+        eq(await page.$$eval(".ex-support", (n) => n.length), 2, "the weak section itself and the section built on it each carry one line");
+        const got = await page.evaluate((src) => {
+          var first = (new Function("return " + src))()();
+          var h = document.getElementById("parallels"), stop = document.getElementById("pythagoras");
+          var all = Array.prototype.filter.call(document.querySelectorAll(".ex-support"), function (e) {
+            return (h.compareDocumentPosition(e) & 4) && (stop.compareDocumentPosition(e) & 2);
+          });
+          var sup = all[0];
+          return {
+            n: all.length, inFirst: !!first && first.contains(sup), before: !!first && sup.compareDocumentPosition(first.querySelector(".ex-form")) & 4,
+            live: !!sup.closest("[aria-live]"), text: sup.textContent, link: (sup.querySelector("a") || {}).textContent, href: (sup.querySelector("a") || {}).getAttribute && sup.querySelector("a").getAttribute("href"),
+            calm: document.documentElement.getAttribute("data-calm"), section: first && first.closest("main") !== null
+          };
+        }, FIRST.toString());
+        eq([got.n, got.inFirst, !!got.before, got.live, got.calm], [1, true, true, false, "true"], "one support line, on the section's first card, before the form, not live, calm mode on " + JSON.stringify(got));
+        check(/This section builds on .*Angles.*shaky/.test(got.text) && /\.html#angles$/.test(got.href || ""), "it names the weak prerequisite with a link " + JSON.stringify([got.text, got.href]));
+        await page.click(".ex-support [data-worked]");
+        await wait(300);
+        const f = await page.evaluate(() => ({ tag: document.activeElement.tagName, inWorked: !!document.activeElement.closest(".worked"), ph: document.getElementById("parallels").compareDocumentPosition(document.activeElement) & 4 }));
+        check(f.tag === "H3" && f.inWorked && f.ph, "See the worked example focuses the worked example heading " + JSON.stringify(f));
+        eq(errors, [], "no errors around the support line");
+        await context.close();
+      }
+      {
+        const { context, page, errors } = await open(browser, CH05, prefs);
+        await seedLog(page, "ch05#angles", "c", 5, 1);
+        await page.reload();
+        await page.waitForSelector(".ex");
+        eq(await page.$$eval(".ex-support", (n) => n.length), 0, "a strong prerequisite shows no support line");
+        const id = await page.evaluate((src) => (new Function("return " + src))()().id, FIRST.toString());
+        const sel = "#" + id;
+        await answer(page, sel, false);
+        await page.waitForSelector(sel + " .ex-feedback *");
+        eq(await page.$$eval(sel + " .ex-offer", (n) => n.length), 0, "light: the first wrong check has no offer line");
+        await page.click(sel + " .ex-clue-btn");
+        eq(await page.$$eval(sel + " .ex-clue", (n) => n.length), 1, "the clue button still opens clue 1");
+        await answer(page, sel, false);
+        eq(await page.$$eval(sel + " .ex-offer", (n) => n.length), 1, "the second wrong check has its offer line");
+        eq(errors, [], "no errors in the light case");
         await context.close();
       }
     }

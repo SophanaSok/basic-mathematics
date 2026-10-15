@@ -83,7 +83,7 @@ const shell = require("./lib/shell");
 const vendor = require("./lib/vendor");
 const { parse } = require("./lib/html");
 const { exercisesOf } = require("./lib/keys");
-const { CHECKS, result, loadCore, barProblem, siteJudgeProblem, pageKeys, lessonSteps, stepsDiff, helpMarkupProblems, shellOf, shellDiff, scriptsProblems } = require("./check-static");
+const { CHECKS, result, loadCore, barProblem, siteJudgeProblem, pageKeys, lessonSteps, stepsDiff, helpMarkupProblems, requiresProblems, shellOf, shellDiff, scriptsProblems } = require("./check-static");
 const assignIds = require("./assign-ids");
 const applyShell = require("./apply-shell");
 
@@ -1371,6 +1371,35 @@ function refusal(fn) { try { fn(); return null; } catch (e) { return e.message; 
     check(/textSha256 [0-9a-f]{64} for an allowance/.test(leak.warns[0]), "help-markup: the leak message carries the hash an allowance needs — got " + JSON.stringify(leak.warns[0]));
     const gone = run("hint-leak.html", { allow: [Object.assign({}, entry, { key: "zz" })] });
     check(gone.fails.some(m => /not there/.test(m)), "help-markup: an allowance naming a key that is not there fails — got " + JSON.stringify(gone.fails));
+  }
+
+  /* ------------------------------------------------------------ requires -- */
+  {
+    const mk = (a, b, extra) => ({ chapters: [
+      { id: "c1", part: { id: "algebra" }, sections: [{ id: "a", requires: [] }, Object.assign({ id: "b", requires: ["c1#a"] }, a || {})] },
+      { id: "c2", part: { id: "algebra" }, sections: [Object.assign({ id: "c", requires: ["c1#b"] }, b || {})] },
+    ].concat(extra || []) });
+    eq(requiresProblems(mk()), [], "requires: a sound table passes");
+    const bad = (what, C, ref, re) => {
+      const p = requiresProblems(C);
+      check(p.length >= 1 && p.every(m => m.indexOf(ref) === 0) && re.test(p.join("\n")), "requires: " + what + " — got " + JSON.stringify(p));
+    };
+    bad("unknown chapter", mk({ requires: ["zz#a"] }), "c1#b", /zz#a/);
+    bad("unknown section", mk({ requires: ["c1#zz"] }), "c1#b", /c1#zz/);
+    bad("self reference", mk({ requires: ["c1#b"] }), "c1#b", /itself/);
+    bad("forward in the same chapter", { chapters: [{ id: "c1", part: { id: "algebra" }, sections: [{ id: "a", requires: ["c1#b"] }, { id: "b", requires: [] }] }] }, "c1#a", /c1#b/);
+    bad("forward across chapters", mk({ requires: ["c2#c"] }), "c1#b", /c2#c/);
+    bad("duplicate entry", mk(null, { requires: ["c1#a", "c1#a"] }), "c2#c", /twice/);
+    bad("four entries", { chapters: [{ id: "c1", part: { id: "algebra" }, sections: ["a", "b", "c", "d"].map(id => ({ id, requires: [] })).concat([{ id: "e", requires: ["c1#a", "c1#b", "c1#c", "c1#d"] }]) }] }, "c1#e", /4 entries/);
+    bad("missing field on a course section", mk({ requires: undefined }), "c1#b", /without a requires/);
+    bad("bad shape", mk({ requires: ["c1-a"] }), "c1#b", /c1-a/);
+    bad("non-string entry", mk({ requires: [3] }), "c1#b", /3/);
+    bad("a string instead of an array", mk({ requires: "c1#a" }), "c1#b", /not an array/);
+    bad("an object instead of an array", mk({ requires: { 0: "c1#a" } }), "c1#b", /not an array/);
+    const pk = (sec) => mk(null, null, [{ id: "pk-x", part: { id: "packs" }, sections: [sec] }]);
+    eq(requiresProblems(pk({ id: "p" })), [], "requires: a pack section may omit the field");
+    bad("a pack section's requires follows the rules", pk({ id: "p", requires: ["pk-x#p"] }), "pk-x#p", /itself/);
+    eq(requiresProblems(require("./lib/site").curriculum()), [], "requires: the live curriculum passes");
   }
 
   console.log((fails ? "FAILED" : "ok") + " checks: " + passes + " checks passed" + (fails ? ", " + fails + " failed" : ""));

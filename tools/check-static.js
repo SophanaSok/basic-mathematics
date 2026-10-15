@@ -387,6 +387,33 @@ function checkShell(ctx, r) {
   if (r.fails.length && how) r.note("what every page loads, and in what order, is the site" + how);
 }
 
+/* The `requires` table: each course section names (0 to 3) earlier sections it builds on, as
+   "<chapterId>#<sectionId>". Pack sections may omit it; if one carries it, the rules apply too.
+   Returns the failures as strings, each naming the section ref. */
+function requiresProblems(C) {
+  const out = [];
+  const order = {};
+  let n = 0;
+  C.chapters.forEach(ch => ch.sections.forEach(s => { order[ch.id + "#" + s.id] = n++; }));
+  C.chapters.forEach(ch => ch.sections.forEach(s => {
+    const ref = ch.id + "#" + s.id;
+    const pack = ch.part && ch.part.id === "packs";
+    if (s.requires === undefined) { if (!pack) out.push(ref + ": a course section without a requires array"); return; }
+    if (!Array.isArray(s.requires)) { out.push(ref + ": requires is not an array"); return; }
+    if (s.requires.length > 3) out.push(ref + ": requires has " + s.requires.length + " entries, 3 at most");
+    const seen = new Set();
+    s.requires.forEach(q => {
+      if (typeof q !== "string" || !/^[^#\s]+#[^#\s]+$/.test(q)) { out.push(ref + ": requires entry " + JSON.stringify(q) + " is not <chapterId>#<sectionId>"); return; }
+      if (seen.has(q)) out.push(ref + ": requires lists " + q + " twice");
+      seen.add(q);
+      if (q === ref) { out.push(ref + ": requires itself"); return; }
+      if (!(q in order)) { out.push(ref + ": requires " + q + ", which is not a section"); return; }
+      if (order[q] >= order[ref]) out.push(ref + ": requires " + q + ", which does not come earlier");
+    });
+  }));
+  return out;
+}
+
 function checkCurriculum(ctx, r) {
   const C = ctx.curriculum;
   const seen = new Set();
@@ -421,6 +448,7 @@ function checkCurriculum(ctx, r) {
   Object.keys(ctx.chapters).forEach(p => {
     if (!C.chapterById(ctx.chapters[p])) r.fail(p + ": data-chapter " + ctx.chapters[p] + " is not in data/curriculum.js");
   });
+  requiresProblems(C).forEach(m => r.fail(m));
 }
 
 /* the walk itself lives in lib/links.js, which check-dist.js runs over the built tree */
@@ -2185,7 +2213,7 @@ const CHECKS = [
   { name: "help-markup", run: checkHelpMarkup, what: "help markup (clues, miss notes, twins, faded steps) never moves a progress key, a fingerprint or a lesson step; hint strings use only the allowed tags; no rung-1 clue or faded view gives the answer away beyond tools/leak-allow.json" },
   { name: "shell", run: checkShell, what: "each page's head, body tag and top bar, as lib/shell.js writes them, are the ones in tools/shell.json; one module entry per page, its kind's" },
   { name: "scope", run: checkScope, what: "scope.html is tools/gen-scope.js's output for the current curriculum and skills records" },
-  { name: "curriculum", run: checkCurriculum, what: "every chapter file exists; every section id is an <h2 id> in it" },
+  { name: "curriculum", run: checkCurriculum, what: "every chapter file exists; every section id is an <h2 id> in it; every course section has a requires list of at most 3 earlier sections" },
   { name: "links", run: checkLinks, what: "relative hrefs/srcs resolve to files, anchors to ids" },
   { name: "widgets", run: checkWidgets, what: "every data-widget / data-figure is a defined factory; a chart has a known kind, a numeric table of its shape and a caption" },
   { name: "sections", run: checkSections, what: "every data-section names a real section" },
@@ -2233,5 +2261,5 @@ function main() {
 
 if (require.main === module) main();
 module.exports = {
-  chartProblems, checkScope, CHECKS, result, loadCore, barProblem, siteJudgeProblem, pureProblems, scheduleProblems, isPureFile, codeProblems, courseProblems, exerciseRefs, sectionAnchors, skillsProblems, sectionWorkCounts, sectionWorkProblems, pageKeys, lessonSteps, stepsDiff, helpMarkupProblems, shellOf, shellDiff, scriptsProblems, randomState, stripLocalFirst, canon,
+  chartProblems, checkScope, CHECKS, result, loadCore, barProblem, siteJudgeProblem, pureProblems, scheduleProblems, isPureFile, codeProblems, courseProblems, exerciseRefs, sectionAnchors, skillsProblems, sectionWorkCounts, sectionWorkProblems, pageKeys, lessonSteps, stepsDiff, helpMarkupProblems, requiresProblems, shellOf, shellDiff, scriptsProblems, randomState, stripLocalFirst, canon,
   animationFaults, colourLiterals, columnPatterns, inColumn, quietKinds, printGaps };

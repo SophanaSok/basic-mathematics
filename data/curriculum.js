@@ -23,12 +23,12 @@ window.BM_CURRICULUM = {
           blurb:
             "Where the rules of arithmetic come from: counting numbers, negatives, why a negative times a negative is positive, even and odd, fractions, and inverses.",
           sections: [
-            { id: "integers", title: "The integers", summary: "Counting, zero, and negatives as a single number line." },
-            { id: "addition", title: "Rules for addition", summary: "Associativity, commutativity, zero, and opposites — and what they let you do." },
-            { id: "multiplication", title: "Rules for multiplication", summary: "The distributive law, and why it forces the rules of signs." },
-            { id: "even-odd", title: "Even and odd integers", summary: "A first taste of proof: statements about all integers at once." },
-            { id: "rationals", title: "Rational numbers", summary: "Fractions as a single number, equality, addition, multiplication." },
-            { id: "inverses", title: "Multiplicative inverses", summary: "Division as multiplication by an inverse, and why you cannot divide by zero." }
+            { id: "integers", requires: [], title: "The integers", summary: "Counting, zero, and negatives as a single number line." },
+            { id: "addition", requires: ["ch01#integers"], title: "Rules for addition", summary: "Associativity, commutativity, zero, and opposites — and what they let you do." },
+            { id: "multiplication", requires: ["ch01#addition"], title: "Rules for multiplication", summary: "The distributive law, and why it forces the rules of signs." },
+            { id: "even-odd", requires: ["ch01#multiplication"], title: "Even and odd integers", summary: "A first taste of proof: statements about all integers at once." },
+            { id: "rationals", requires: ["ch01#multiplication"], title: "Rational numbers", summary: "Fractions as a single number, equality, addition, multiplication." },
+            { id: "inverses", requires: ["ch01#rationals"], title: "Multiplicative inverses", summary: "Division as multiplication by an inverse, and why you cannot divide by zero." }
           ]
         },
         {
@@ -40,10 +40,10 @@ window.BM_CURRICULUM = {
           blurb:
             "Solving systems by elimination, and reading off from the arithmetic whether there is one solution, none, or infinitely many.",
           sections: [
-            { id: "one-unknown", title: "One unknown", summary: "What solving means, and the two moves that preserve a solution set." },
-            { id: "two-unknowns", title: "Equations in two unknowns", summary: "Elimination, and the three possible outcomes." },
-            { id: "three-unknowns", title: "Equations in three unknowns", summary: "The same method, organized so it cannot run away from you." },
-            { id: "word-problems", title: "Turning words into equations", summary: "Naming unknowns and extracting one equation per fact." }
+            { id: "one-unknown", requires: ["ch01#inverses"], title: "One unknown", summary: "What solving means, and the two moves that preserve a solution set." },
+            { id: "two-unknowns", requires: ["ch02#one-unknown"], title: "Equations in two unknowns", summary: "Elimination, and the three possible outcomes." },
+            { id: "three-unknowns", requires: ["ch02#two-unknowns"], title: "Equations in three unknowns", summary: "The same method, organized so it cannot run away from you." },
+            { id: "word-problems", requires: ["ch02#one-unknown", "ch02#two-unknowns"], title: "Turning words into equations", summary: "Naming unknowns and extracting one equation per fact." }
           ]
         },
         {
@@ -55,11 +55,11 @@ window.BM_CURRICULUM = {
           blurb:
             "Filling the gaps between fractions: positivity, ordering, absolute value, powers and roots, and how to work with inequalities.",
           sections: [
-            { id: "why-more", title: "Why the fractions are not enough", summary: "The square root of 2 is not a fraction — a proof you can hold in your head." },
-            { id: "axioms", title: "Addition, multiplication, and positivity", summary: "The short list of properties the whole real line runs on." },
-            { id: "order", title: "Order and inequalities", summary: "What you may do to both sides, and the one move that flips the sign." },
-            { id: "absolute", title: "Absolute value and distance", summary: "Reading |x − a| < r as a statement about distance." },
-            { id: "powers", title: "Powers and roots", summary: "Integer, negative, and fractional exponents, and the laws that survive." }
+            { id: "why-more", requires: ["ch01#rationals", "ch01#even-odd"], title: "Why the fractions are not enough", summary: "The square root of 2 is not a fraction — a proof you can hold in your head." },
+            { id: "axioms", requires: ["ch01#inverses"], title: "Addition, multiplication, and positivity", summary: "The short list of properties the whole real line runs on." },
+            { id: "order", requires: ["ch03#axioms", "ch02#one-unknown"], title: "Order and inequalities", summary: "What you may do to both sides, and the one move that flips the sign." },
+            { id: "absolute", requires: ["ch03#order"], title: "Absolute value and distance", summary: "Reading |x − a| < r as a statement about distance." },
+            { id: "powers", requires: ["ch03#axioms"], title: "Powers and roots", summary: "Integer, negative, and fractional exponents, and the laws that survive." }
           ]
         },
         {
@@ -71,11 +71,11 @@ window.BM_CURRICULUM = {
           blurb:
             "Completing the square once, in general — which is all the quadratic formula is — and what the discriminant tells you before you solve.",
           sections: [
-            { id: "square-roots", title: "Equations you can already solve", summary: "x² = c, and factored equations via the zero-product property." },
-            { id: "completing", title: "Completing the square", summary: "The one algebraic trick behind everything in this chapter." },
-            { id: "formula", title: "The quadratic formula", summary: "Completing the square on ax² + bx + c = 0 in general." },
-            { id: "discriminant", title: "The discriminant", summary: "Two roots, one, or none — decided by b² − 4ac." },
-            { id: "graph", title: "Vertex, symmetry, and the graph", summary: "Why every parabola is symmetric about x = −b/2a." }
+            { id: "square-roots", requires: ["ch03#powers", "ch02#one-unknown"], title: "Equations you can already solve", summary: "x² = c, and factored equations via the zero-product property." },
+            { id: "completing", requires: ["ch04#square-roots"], title: "Completing the square", summary: "The one algebraic trick behind everything in this chapter." },
+            { id: "formula", requires: ["ch04#completing"], title: "The quadratic formula", summary: "Completing the square on ax² + bx + c = 0 in general." },
+            { id: "discriminant", requires: ["ch04#formula"], title: "The discriminant", summary: "Two roots, one, or none — decided by b² − 4ac." },
+            { id: "graph", requires: ["ch04#completing"], title: "Vertex, symmetry, and the graph", summary: "Why every parabola is symmetric about x = −b/2a." }
           ]
         },
         {
@@ -87,12 +87,12 @@ window.BM_CURRICULUM = {
           blurb:
             "A pause to look at the language itself: how to read a mathematics book, implication and its converse, sets, and quantifiers.",
           sections: [
-            { id: "reading", title: "On reading mathematics", summary: "Why reading with a pencil is the only reading that works." },
-            { id: "logic", title: "Implication, converse, contrapositive", summary: "The single most common source of wrong proofs." },
-            { id: "quantifiers", title: "For all, there exists, and counterexamples", summary: "How to disprove a statement, and how not to." },
-            { id: "sets", title: "Sets and elements", summary: "Membership, subsets, union, intersection, complement." },
-            { id: "notation", title: "Notation as a tool", summary: "Choosing names and symbols that keep the argument readable." },
-            { id: "review", title: "Mixed review", summary: "Problems drawn back across Chapters 1–4, to test what stuck." }
+            { id: "reading", requires: [], title: "On reading mathematics", summary: "Why reading with a pencil is the only reading that works." },
+            { id: "logic", requires: ["interlude#reading"], title: "Implication, converse, contrapositive", summary: "The single most common source of wrong proofs." },
+            { id: "quantifiers", requires: ["interlude#logic"], title: "For all, there exists, and counterexamples", summary: "How to disprove a statement, and how not to." },
+            { id: "sets", requires: ["interlude#logic"], title: "Sets and elements", summary: "Membership, subsets, union, intersection, complement." },
+            { id: "notation", requires: ["interlude#quantifiers"], title: "Notation as a tool", summary: "Choosing names and symbols that keep the argument readable." },
+            { id: "review", requires: ["ch04#formula", "ch03#absolute", "ch02#word-problems"], title: "Mixed review", summary: "Problems drawn back across Chapters 1–4, to test what stuck." }
           ]
         }
       ]
@@ -113,10 +113,10 @@ window.BM_CURRICULUM = {
           status: "full",
           blurb: "Points, lines, distance, angle measure, parallels, and the Pythagorean theorem with a proof you can see.",
           sections: [
-            { id: "distance", title: "Distance", summary: "Distance as a number attached to a pair of points, and its basic properties." },
-            { id: "angles", title: "Angles", summary: "Measuring turn: degrees, right angles, supplementary and vertical angles." },
-            { id: "parallels", title: "Parallel lines and transversals", summary: "Corresponding and alternate angles, and the angle sum of a triangle." },
-            { id: "pythagoras", title: "The Pythagorean theorem", summary: "A dissection proof, then the converse and the distance it will later give us." }
+            { id: "distance", requires: ["ch03#absolute"], title: "Distance", summary: "Distance as a number attached to a pair of points, and its basic properties." },
+            { id: "angles", requires: [], title: "Angles", summary: "Measuring turn: degrees, right angles, supplementary and vertical angles." },
+            { id: "parallels", requires: ["ch05#angles"], title: "Parallel lines and transversals", summary: "Corresponding and alternate angles, and the angle sum of a triangle." },
+            { id: "pythagoras", requires: ["ch05#parallels", "ch03#powers"], title: "The Pythagorean theorem", summary: "A dissection proof, then the converse and the distance it will later give us." }
           ]
         },
         {
@@ -127,9 +127,9 @@ window.BM_CURRICULUM = {
           status: "full",
           blurb: "The motions that preserve distance — translations, rotations, reflections — and symmetry as invariance under them.",
           sections: [
-            { id: "mappings-plane", title: "Some standard mappings of the plane", summary: "Translation, rotation about a point, reflection across a line, dilation." },
-            { id: "isometries", title: "Isometries", summary: "Distance-preserving maps, composition, and why congruence is an isometry statement." },
-            { id: "symmetry", title: "Symmetry", summary: "The symmetries of a figure form a group under composition." }
+            { id: "mappings-plane", requires: ["ch05#distance", "ch05#angles"], title: "Some standard mappings of the plane", summary: "Translation, rotation about a point, reflection across a line, dilation." },
+            { id: "isometries", requires: ["ch06#mappings-plane", "ch05#pythagoras"], title: "Isometries", summary: "Distance-preserving maps, composition, and why congruence is an isometry statement." },
+            { id: "symmetry", requires: ["ch06#isometries"], title: "Symmetry", summary: "The symmetries of a figure form a group under composition." }
           ]
         },
         {
@@ -140,11 +140,11 @@ window.BM_CURRICULUM = {
           status: "full",
           blurb: "Area of rectangles, triangles, and disks; circumference; and the scaling law that ties them together.",
           sections: [
-            { id: "polygons", title: "Area of rectangles and triangles", summary: "From the rectangle to the triangle by cutting and rearranging." },
-            { id: "scaling", title: "Scaling", summary: "Scale lengths by r and area scales by r² — with the consequences." },
-            { id: "disc", title: "Area of a disk", summary: "Inscribed polygons approaching πr², and what π is." },
-            { id: "circumference", title: "Circumference of a circle", summary: "Why the same π appears in 2πr and πr²." },
-            { id: "review", title: "Mixed review", summary: "Problems drawn back across Chapters 5–7, to test what stuck." }
+            { id: "polygons", requires: ["ch05#pythagoras", "ch06#isometries"], title: "Area of rectangles and triangles", summary: "From the rectangle to the triangle by cutting and rearranging." },
+            { id: "scaling", requires: ["ch07#polygons", "ch06#mappings-plane"], title: "Scaling", summary: "Scale lengths by r and area scales by r² — with the consequences." },
+            { id: "disc", requires: ["ch07#scaling"], title: "Area of a disk", summary: "Inscribed polygons approaching πr², and what π is." },
+            { id: "circumference", requires: ["ch07#disc"], title: "Circumference of a circle", summary: "Why the same π appears in 2πr and πr²." },
+            { id: "review", requires: ["ch05#pythagoras", "ch05#parallels", "ch06#isometries"], title: "Mixed review", summary: "Problems drawn back across Chapters 5–7, to test what stuck." }
           ]
         }
       ]
@@ -165,10 +165,10 @@ window.BM_CURRICULUM = {
           status: "full",
           blurb: "The coordinate plane, the distance formula from the Pythagorean theorem, and the equation of a circle.",
           sections: [
-            { id: "coord-systems", title: "Coordinate systems", summary: "Axes, ordered pairs, quadrants." },
-            { id: "distance-formula", title: "Distance between points", summary: "The distance formula as the Pythagorean theorem in coordinates." },
-            { id: "circle", title: "Equation of a circle", summary: "Center and radius read off from the equation, and completing the square again." },
-            { id: "rational-points", title: "Rational points on a circle", summary: "Parametrizing the solutions of x² + y² = 1 in fractions." }
+            { id: "coord-systems", requires: ["ch03#order"], title: "Coordinate systems", summary: "Axes, ordered pairs, quadrants." },
+            { id: "distance-formula", requires: ["ch08#coord-systems", "ch05#pythagoras"], title: "Distance between points", summary: "The distance formula as the Pythagorean theorem in coordinates." },
+            { id: "circle", requires: ["ch08#distance-formula", "ch04#completing"], title: "Equation of a circle", summary: "Center and radius read off from the equation, and completing the square again." },
+            { id: "rational-points", requires: ["ch08#circle", "ch01#rationals"], title: "Rational points on a circle", summary: "Parametrizing the solutions of x² + y² = 1 in fractions." }
           ]
         },
         {
@@ -179,9 +179,9 @@ window.BM_CURRICULUM = {
           status: "full",
           blurb: "Adding points, scaling them, and reflecting them — geometry done by arithmetic on coordinates.",
           sections: [
-            { id: "dilations", title: "Dilations and reflections", summary: "Multiplying a point by a number; reflecting across the axes and through the origin." },
-            { id: "addition-points", title: "Addition and the parallelogram law", summary: "Coordinatewise addition and the picture that explains it." },
-            { id: "subtraction", title: "Subtraction and located vectors", summary: "Q − P as the arrow from P to Q." }
+            { id: "dilations", requires: ["ch08#coord-systems", "ch06#mappings-plane"], title: "Dilations and reflections", summary: "Multiplying a point by a number; reflecting across the axes and through the origin." },
+            { id: "addition-points", requires: ["ch08#coord-systems"], title: "Addition and the parallelogram law", summary: "Coordinatewise addition and the picture that explains it." },
+            { id: "subtraction", requires: ["ch09#addition-points"], title: "Subtraction and located vectors", summary: "Q − P as the arrow from P to Q." }
           ]
         },
         {
@@ -192,10 +192,10 @@ window.BM_CURRICULUM = {
           status: "full",
           blurb: "Parametric descriptions of segments, rays, and lines, and how they relate to y = mx + b.",
           sections: [
-            { id: "segments", title: "Segments", summary: "P + t(Q − P) for 0 ≤ t ≤ 1, and the midpoint." },
-            { id: "rays", title: "Rays", summary: "Letting t run to infinity, and direction vectors." },
-            { id: "lines", title: "Lines", summary: "Parametric form, slope, and parallel and perpendicular conditions." },
-            { id: "line-equation", title: "The ordinary equation of a line", summary: "From parameters to ax + by = c and back." }
+            { id: "segments", requires: ["ch09#subtraction", "ch09#dilations"], title: "Segments", summary: "P + t(Q − P) for 0 ≤ t ≤ 1, and the midpoint." },
+            { id: "rays", requires: ["ch10#segments"], title: "Rays", summary: "Letting t run to infinity, and direction vectors." },
+            { id: "lines", requires: ["ch10#rays"], title: "Lines", summary: "Parametric form, slope, and parallel and perpendicular conditions." },
+            { id: "line-equation", requires: ["ch10#lines", "ch02#two-unknowns"], title: "The ordinary equation of a line", summary: "From parameters to ax + by = c and back." }
           ]
         },
         {
@@ -206,13 +206,13 @@ window.BM_CURRICULUM = {
           status: "full",
           blurb: "Sine and cosine from the unit circle, radian measure, graphs, the tangent, addition formulas, and rotations.",
           sections: [
-            { id: "radians", title: "Radian measure", summary: "Angle as arc length on the unit circle." },
-            { id: "sine-cosine", title: "Sine and cosine", summary: "Coordinates of a point on the unit circle; the Pythagorean identity." },
-            { id: "graphs-trig", title: "The graphs", summary: "Period, amplitude, and shifts." },
-            { id: "tangent", title: "The tangent", summary: "Slope of a ray, and where it fails to exist." },
-            { id: "addition-formulas", title: "Addition formulas", summary: "cos(x + y) and sin(x + y), and the consequences." },
-            { id: "rotations", title: "Rotations", summary: "Rotating a point by an angle, written as a pair of formulas." },
-            { id: "review", title: "Mixed review", summary: "Problems drawn back across Chapters 8–11, to test what stuck." }
+            { id: "radians", requires: ["ch08#circle", "ch07#circumference"], title: "Radian measure", summary: "Angle as arc length on the unit circle." },
+            { id: "sine-cosine", requires: ["ch11#radians", "ch08#circle"], title: "Sine and cosine", summary: "Coordinates of a point on the unit circle; the Pythagorean identity." },
+            { id: "graphs-trig", requires: ["ch11#sine-cosine"], title: "The graphs", summary: "Period, amplitude, and shifts." },
+            { id: "tangent", requires: ["ch11#sine-cosine", "ch10#lines"], title: "The tangent", summary: "Slope of a ray, and where it fails to exist." },
+            { id: "addition-formulas", requires: ["ch11#sine-cosine"], title: "Addition formulas", summary: "cos(x + y) and sin(x + y), and the consequences." },
+            { id: "rotations", requires: ["ch11#addition-formulas", "ch06#mappings-plane"], title: "Rotations", summary: "Rotating a point by an angle, written as a pair of formulas." },
+            { id: "review", requires: ["ch08#distance-formula", "ch08#circle", "ch10#line-equation"], title: "Mixed review", summary: "Problems drawn back across Chapters 8–11, to test what stuck." }
           ]
         }
       ]
@@ -233,11 +233,11 @@ window.BM_CURRICULUM = {
           status: "full",
           blurb: "What a function is, how to read a graph, and the exponential and logarithm.",
           sections: [
-            { id: "definition-fn", title: "Definition of a function", summary: "A rule with a domain: one output per input." },
-            { id: "polynomials", title: "Polynomial functions", summary: "Degree, roots, and factoring." },
-            { id: "graphs-fn", title: "Graphs of functions", summary: "Reading and sketching; shifts, stretches, reflections." },
-            { id: "exponential", title: "The exponential function", summary: "Extending aˣ to all real x, and its growth." },
-            { id: "log", title: "Logarithms", summary: "The inverse of the exponential, and why it turns products into sums." }
+            { id: "definition-fn", requires: ["ch08#coord-systems"], title: "Definition of a function", summary: "A rule with a domain: one output per input." },
+            { id: "polynomials", requires: ["ch12#definition-fn", "ch04#formula"], title: "Polynomial functions", summary: "Degree, roots, and factoring." },
+            { id: "graphs-fn", requires: ["ch12#definition-fn", "ch04#graph"], title: "Graphs of functions", summary: "Reading and sketching; shifts, stretches, reflections." },
+            { id: "exponential", requires: ["ch03#powers", "ch12#graphs-fn"], title: "The exponential function", summary: "Extending aˣ to all real x, and its growth." },
+            { id: "log", requires: ["ch12#exponential"], title: "Logarithms", summary: "The inverse of the exponential, and why it turns products into sums." }
           ]
         },
         {
@@ -248,9 +248,9 @@ window.BM_CURRICULUM = {
           status: "full",
           blurb: "Functions between arbitrary sets: composition, injectivity, surjectivity, inverses, and permutations.",
           sections: [
-            { id: "definition-map", title: "Definition of a mapping", summary: "Domain, codomain, image." },
-            { id: "formalism", title: "Composition and inverses", summary: "When a mapping can be undone." },
-            { id: "permutations", title: "Permutations", summary: "Rearrangements of a finite set, composed and counted." }
+            { id: "definition-map", requires: ["ch12#definition-fn"], title: "Definition of a mapping", summary: "Domain, codomain, image." },
+            { id: "formalism", requires: ["ch13#definition-map"], title: "Composition and inverses", summary: "When a mapping can be undone." },
+            { id: "permutations", requires: ["ch13#formalism"], title: "Permutations", summary: "Rearrangements of a finite set, composed and counted." }
           ]
         },
         {
@@ -261,9 +261,9 @@ window.BM_CURRICULUM = {
           status: "full",
           blurb: "Arithmetic with i, the complex plane, absolute value, and polar form where multiplication becomes rotation.",
           sections: [
-            { id: "complex-arith", title: "Arithmetic of complex numbers", summary: "Adding and multiplying; the conjugate and the inverse." },
-            { id: "complex-plane", title: "The complex plane", summary: "Complex numbers as points; absolute value as distance." },
-            { id: "polar", title: "Polar form", summary: "r(cos θ + i sin θ), multiplication as rotate-and-scale, and roots of unity." }
+            { id: "complex-arith", requires: ["ch04#discriminant", "ch01#inverses"], title: "Arithmetic of complex numbers", summary: "Adding and multiplying; the conjugate and the inverse." },
+            { id: "complex-plane", requires: ["ch14#complex-arith", "ch08#distance-formula"], title: "The complex plane", summary: "Complex numbers as points; absolute value as distance." },
+            { id: "polar", requires: ["ch14#complex-plane", "ch11#rotations"], title: "Polar form", summary: "r(cos θ + i sin θ), multiplication as rotate-and-scale, and roots of unity." }
           ]
         },
         {
@@ -274,9 +274,9 @@ window.BM_CURRICULUM = {
           status: "full",
           blurb: "Proving infinitely many statements at once, sigma notation, and the geometric series.",
           sections: [
-            { id: "induction", title: "Induction", summary: "Base case, inductive step, and the honest use of the hypothesis." },
-            { id: "summations", title: "Summations", summary: "Sigma notation and the standard sums." },
-            { id: "geometric", title: "Geometric series", summary: "The closed form for finite sums and what happens as n grows." }
+            { id: "induction", requires: ["interlude#quantifiers", "ch01#even-odd"], title: "Induction", summary: "Base case, inductive step, and the honest use of the hypothesis." },
+            { id: "summations", requires: ["ch15#induction"], title: "Summations", summary: "Sigma notation and the standard sums." },
+            { id: "geometric", requires: ["ch15#summations", "ch03#powers"], title: "Geometric series", summary: "The closed form for finite sums and what happens as n grows." }
           ]
         },
         {
@@ -287,12 +287,12 @@ window.BM_CURRICULUM = {
           status: "full",
           blurb: "Matrices, determinants of order 2 and 3, their properties, and Cramer's rule for linear systems.",
           sections: [
-            { id: "matrices", title: "Matrices", summary: "Arrays of numbers, and the systems they encode." },
-            { id: "det2", title: "Determinants of order 2", summary: "ad − bc as a signed area, and when it vanishes." },
-            { id: "det3", title: "Determinants of order 3", summary: "Expansion along a row, with signs." },
-            { id: "det-props", title: "Properties of determinants", summary: "Row operations, transposes, products." },
-            { id: "cramer", title: "Cramer's rule", summary: "Solving a system by determinants, and the link back to Chapter 2." },
-            { id: "review", title: "Mixed review", summary: "Problems drawn back across Chapters 12–16, to test what stuck." }
+            { id: "matrices", requires: ["ch02#three-unknowns"], title: "Matrices", summary: "Arrays of numbers, and the systems they encode." },
+            { id: "det2", requires: ["ch16#matrices", "ch07#polygons"], title: "Determinants of order 2", summary: "ad − bc as a signed area, and when it vanishes." },
+            { id: "det3", requires: ["ch16#det2"], title: "Determinants of order 3", summary: "Expansion along a row, with signs." },
+            { id: "det-props", requires: ["ch16#det3"], title: "Properties of determinants", summary: "Row operations, transposes, products." },
+            { id: "cramer", requires: ["ch16#det-props", "ch02#two-unknowns"], title: "Cramer's rule", summary: "Solving a system by determinants, and the link back to Chapter 2." },
+            { id: "review", requires: ["ch12#log", "ch14#complex-arith", "ch15#geometric"], title: "Mixed review", summary: "Problems drawn back across Chapters 12–16, to test what stuck." }
           ]
         }
       ]

@@ -824,6 +824,46 @@
     var position = 0, shown = 0, inlineCount = 0;
     /* each card's key and full section ref, for the change-approach card (src/learn/approach.ts) */
     var cardSecs = [];
+    /* the support level (src/learn/support.ts): the bands are read once per page build; "guided" shows
+       on the first unsolved card of a section only, and only changes one offered line */
+    var supBands = null, supShown = {}, supCards = [];
+    function supportPass() {
+      supBands = window.BMEvents && typeof window.BMEvents.bands === "function" ? logRead("bands") : {};
+      supCards.forEach(function (c) {
+        var sup = supportOf(c.ref, c.solved());
+        if (sup) c.ctl.setSupport(sup);
+      });
+    }
+    function supportOf(ref, solved) {
+      var Lr = window.BMLearn;
+      if (!ref || ref === "warmup" || !Lr || typeof Lr.supportFor !== "function" || ref.indexOf("#") < 0) return undefined;
+      var cut = ref.indexOf("#"), owner = C.chapterById ? C.chapterById(ref.slice(0, cut)) : null;
+      var sec = null;
+      if (owner) owner.sections.forEach(function (x) { if (x.id === ref.slice(cut + 1)) sec = x; });
+      if (!sec) return undefined;
+      var r;
+      try { r = Lr.supportFor(ref, Array.isArray(sec.requires) ? sec.requires : [], function (q) { return has(supBands, q) ? supBands[q] : "none"; }); } catch (e) { return undefined; }
+      var level = r.level;
+      if (level === "guided") {
+        if (solved || supShown[ref]) level = "standard";
+        else supShown[ref] = true;
+      }
+      /* the section's first worked example on this page: after its h2 and before the next h2 */
+      var worked = null;
+      /* only a section of this page: another chapter's id here would be a different section */
+      if (level === "guided" && ref.slice(0, cut) === chapterId) {
+        var h = document.getElementById(ref.slice(cut + 1));
+        if (h && h.tagName === "H2") {
+          for (var n = h.nextElementSibling; n && n.tagName !== "H2"; n = n.nextElementSibling) {
+            worked = n.matches(".worked") ? n : n.querySelector(".worked");
+            if (worked) break;
+          }
+        }
+      }
+      var weak = (r.weak || []).map(function (q) { return sectionNames(q); }).filter(Boolean);
+      if (level === "guided" && r.from === "requires" && !weak.length) level = "standard";
+      return { level: level, from: r.from, worked: worked, weak: weak };
+    }
 
     Array.prototype.forEach.call(exs, function (ex) {
       var inline = ex.hasAttribute("data-inline");
@@ -1044,6 +1084,7 @@
           return info;
         }
       }) : null;
+      if (ladder && ladder.setSupport) supCards.push({ ctl: ladder, ref: fullSec, solved: function () { return solvedBefore() || ex.getAttribute("data-state") === "correct"; } });
 
       /* The near-transfer twin (src/ui/twin.ts, through window.BMTwin): "Try one like it" while the
          solution or the faded view is open. It pays once, through pay() and markPaid(), and
@@ -1360,6 +1401,11 @@
 
     updateScore();
     if (total && solvedCount() >= total) chapterDone(chapter, false);
+    /* the event log is put up by a module that runs after this file, so the bands are read once it has */
+    if (supCards.length) {
+      if (window.BMEvents || document.readyState === "complete") supportPass();
+      else document.addEventListener("DOMContentLoaded", supportPass, { once: true });
+    }
   }
 
   /* The moment a chapter's last exercise is solved. `fresh` plays the burst once;
