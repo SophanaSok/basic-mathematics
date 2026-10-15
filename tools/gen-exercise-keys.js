@@ -4,8 +4,8 @@
    page. Generators own their output: change this file and re-run it, never edit the .ts.
    src/data/exercise-keys.test.ts fails when the file differs from render(build()).
    Usage: node tools/gen-exercise-keys.js [--check]
-   build() is the list, in the pages' order and each page's document order; render(list) is
-   the file's text. */
+   pageKeys() is the keys page by page, build() the same flattened, render(pageKeys()) the
+   file's text. */
 "use strict";
 const fs = require("fs");
 const path = require("path");
@@ -37,18 +37,14 @@ const HEAD = `/* Every exercise on the site as "chapter/key", the shape of the c
 export const EXERCISE_KEYS: readonly string[] = [
 `;
 
-function render(list) {
-  // one page per line: rebuild the grouping from the page list when given the full list
-  const groups = pageKeys();
-  const flat = [].concat.apply([], groups);
-  const lines = flat.length === list.length && flat.every((k, i) => k === list[i])
-    ? groups.filter((g) => g.length).map((g) => "  " + g.map((k) => JSON.stringify(k)).join(", ") + ",")
-    : [list.map((k) => JSON.stringify(k)).join(", ")];
+/* one page per line; `groups` is what pageKeys() gives (build() is the same, flattened) */
+function render(groups) {
+  const lines = groups.filter((g) => g.length).map((g) => "  " + g.map((k) => JSON.stringify(k)).join(", ") + ",");
   return HEAD + lines.join("\n") + "\n];\n";
 }
 
 function main() {
-  const text = render(build());
+  const groups = pageKeys(), text = render(groups);
   if (process.argv.includes("--check")) {
     const have = fs.existsSync(FILE) ? fs.readFileSync(FILE, "utf8") : "";
     if (have !== text) {
@@ -61,8 +57,8 @@ function main() {
     return;
   }
   fs.writeFileSync(FILE, text);
-  console.log("wrote src/data/exercise-keys.ts (" + build().length + " keys)");
+  console.log("wrote src/data/exercise-keys.ts (" + [].concat.apply([], groups).length + " keys)");
 }
 
 if (require.main === module) main();
-module.exports = { build, render, FILE };
+module.exports = { pageKeys, build, render, FILE };

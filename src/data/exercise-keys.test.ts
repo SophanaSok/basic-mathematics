@@ -9,7 +9,7 @@ const gen = createRequire(import.meta.url)("../../tools/gen-exercise-keys.js");
 
 describe("the exercise keys", () => {
   it("are what the generator writes (run npm run gen:exercise-keys)", () => {
-    expect(gen.render(gen.build()), "src/data/exercise-keys.ts is stale: run npm run gen:exercise-keys").toBe(readFileSync(gen.FILE, "utf8"));
+    expect(gen.render(gen.pageKeys()), "src/data/exercise-keys.ts is stale: run npm run gen:exercise-keys").toBe(readFileSync(gen.FILE, "utf8"));
   });
   it("are well formed and not repeated", () => {
     expect(EXERCISE_KEYS.filter((k) => !/^[a-z0-9-]{1,40}\/[a-z0-9-]{1,40}$/.test(k))).toEqual([]);
