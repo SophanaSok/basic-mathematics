@@ -40,7 +40,12 @@
       run replaces it and counts toward Personal best, a slower one or an unranked one does
       not, a tie keeps the earlier day, a better score keeps it; one late answer, or untimed
       answers, keep Under par locked; Hands off the mouse counts exercises solved with no
-      pointer in the last ten seconds */
+      pointer in the last ten seconds
+  15. a run is logged (bm.events.v1): a 10-question standard run leaves its answers as k "a"
+      entries, kept by the prune (the first two, the last two and the earliest miss of a
+      section a day), each at the day's start, with a generator ref, its device's id, and no
+      time or score in it; a banked run records what was answered; a replayed Daily records
+      nothing; the same with no game layer; the schedule it reads equals the game record's */
 "use strict";
 const site = require("../lib/site");
 const target = require("../lib/target");
@@ -851,6 +856,104 @@ async function run() {
       await c3.close();
     }
 
+    /* ---------------- 15. a run is logged: bm.events.v1 */
+    {
+      const ID = /^[0-9a-z]{8}-[0-9a-z]{8}-[0-9a-z]{7}$/;
+      /* the answer entries of the log, [id, payload] pairs, and the device's id */
+      const logged = (p) => p.evaluate(() => {
+        var ev = (JSON.parse(localStorage.getItem("bm.events.v1") || "{}").ev) || {};
+        return Object.keys(ev).filter((id) => ev[id][5] === "a").map((id) => [id, ev[id]]);
+      });
+      const deviceOf = (p) => p.evaluate(() => (JSON.parse(localStorage.getItem("bm.device.v1") || "{}")).id);
+      const resultOf = (p) => p.evaluate(() => {
+        var r = window.BMArena.state().result;
+        return { score: r.score, answers: r.answers.map((a) => ({ sec: a.section, el: a.el, first: !!a.first })), replay: !!r.replay };
+      });
+      /* one finished run's entries against what the run was: the count rule, the fields, T17 */
+      const verify = async (p, label) => {
+        const res = await resultOf(p), got = await logged(p), dev = await deviceOf(p);
+        const secs = {};
+        res.answers.forEach((a) => { secs[a.sec] = (secs[a.sec] || 0) + 1; });
+        const distinct = Object.keys(secs).length;
+        check(got.length >= distinct && got.length <= 10 && res.answers.length === 10, label + ": " + got.length + " entries for 10 answers in " + distinct + " sections");
+        const per = {};
+        got.forEach((e) => { per[e[1][3]] = (per[e[1][3]] || 0) + 1; });
+        check(Object.keys(secs).every((sec) => secs[sec] > 4 || per[sec] === secs[sec]), label + ": a section answered at most four times keeps every answer " + JSON.stringify([secs, per]));
+        check(Object.keys(per).every((sec) => secs[sec]), label + ": every entry is a section the run answered");
+        check(got.every(([id, P]) => ID.test(id) && id.slice(0, 8) === dev && P[0] % 1440 === 0 && P[2] === "ar" && P[3] !== "" && P[4].indexOf("g:") === 0 && P[6] === 1),
+          label + ": each entry has a device-prefixed id, the day's start, src ar, a section, a g: ref and ok 1 " + JSON.stringify(got.slice(0, 2)));
+        /* T17: neither the time of an answer nor the score is in an entry. The small fields
+           (ok, n, r, f) are flags and counts, so they are held to their own bounds; the
+           rest is compared with the times and the score (those under 100 are the flags'
+           own numbers and would match by chance) */
+        const secret = new Set(res.answers.map((a) => a.el).concat([res.score]).filter((n) => n >= 100));
+        check(got.every(([, P]) => P[6] <= 1 && P[7] <= 2 && P[8] === 0 && P[9] < 64 && !secret.has(P[0]) && !secret.has(P[1]) && !secret.has(P[9])),
+          label + ": no entry holds an answer's time or the score " + JSON.stringify([Array.from(secret), got.slice(0, 2)]));
+        /* the schedule the log gives is the game record's */
+        const same = await p.evaluate((secs) => {
+          var day = window.BMSite.dayKey(), sch = window.BMEvents.scheduleAll(day), sec = (JSON.parse(localStorage.getItem("bm.game.v1") || "{}").sec) || {};
+          return secs.map((id) => [id, sch[id] && [sch[id].box, sch[id].last], sec[id] && [sec[id].box, sec[id].last]]);
+        }, Object.keys(secs));
+        check(same.every((r) => JSON.stringify(r[1]) === JSON.stringify(r[2]) && r[1]), label + ": the log's schedule equals the game record for every section run " + JSON.stringify(same));
+      };
+
+      /* a 10-question standard run */
+      {
+        const context = await ctx(browser);
+        const p = await open(context, errors, "arena.html", {}, true);
+        await p.click('[data-act="start"][data-mode="standard"]');
+        check(await p.evaluate(() => window.BMArena.state().qs.length) === 10, "a standard run is ten questions");
+        await playOut(p);
+        await verify(p, "standard run");
+        await context.close();
+      }
+
+      /* a banked run records what was answered */
+      {
+        const context = await ctx(browser);
+        const p = await open(context, errors, "arena.html", {}, true);
+        await p.click('[data-act="start"][data-mode="standard"]');
+        for (let k = 0; k < 3; k++) { await answer(p, true); await next(p); }
+        await p.goto(url("arena.html"));
+        await p.click('[data-act="bank"]');
+        await p.waitForSelector(".arena-result");
+        eq((await logged(p)).length, 3, "a banked run records its three answers");
+        await context.close();
+      }
+
+      /* a replayed Daily records nothing */
+      {
+        const context = await ctx(browser);
+        const p = await open(context, errors, "arena.html", {}, true);
+        await p.click('[data-act="start"][data-mode="daily"]');
+        await p.evaluate(() => {
+          var day = window.BMSite.dayKey(), all = JSON.parse(localStorage.getItem("bm.run.v1"));
+          all.daily = { day: day, score: 700, firstTry: 5, n: 5, ended: "complete" };
+          localStorage.setItem("bm.run.v1", JSON.stringify(all));
+          var g = JSON.parse(localStorage.getItem("bm.game.v1") || "{}");
+          g.daily = g.daily || {};
+          g.daily[day] = 1;
+          localStorage.setItem("bm.game.v1", JSON.stringify(g));
+        });
+        const before = (await logged(p)).length;
+        await playOut(p);
+        check((await resultOf(p)).replay, "setup: the Daily was a replay");
+        eq([before, (await logged(p)).length], [0, 0], "a replayed Daily records nothing");
+        await context.close();
+      }
+
+      /* the Arena's own fallback, with no game layer */
+      {
+        const context = await ctx(browser);
+        const p = await open(context, errors, "arena.html", {}, true);
+        await p.evaluate(() => { delete window.BMGame.recordRun; });
+        await p.click('[data-act="start"][data-mode="standard"]');
+        await playOut(p);
+        check(await p.evaluate(() => typeof window.BMGame.recordRun) === "undefined", "setup: the game layer's recordRun is gone");
+        await verify(p, "fallback run");
+        await context.close();
+      }
+    }
     eq(errors, [], "no page errors");
   } finally {
     await browser.close();

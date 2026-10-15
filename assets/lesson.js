@@ -175,12 +175,18 @@
     pending().forEach(function (ex) {
       var key = ex.getAttribute("data-key");
       if (!key || !Attempts) return;
+      var newly = false, held = "";
       Attempts.update(chapterId, key, function (r) {
         if (r.solved) return;
+        newly = !r.skipped;
         r.skipped = 1;
         r.inline = 1;
         if (!r.section && ex.getAttribute("data-section")) r.section = ex.getAttribute("data-section");
+        held = r.section || "";
       });
+      if (newly) {
+        Store.emit({ type: "skipped", chapter: chapterId, key: key, section: held, inline: 1 });
+      }
     });
     shown++;
     remember();

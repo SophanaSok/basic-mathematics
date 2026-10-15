@@ -48,6 +48,11 @@
       point key is form/notation with its reading; in the Arena, on frac-sum problems set into the run, the key with º or ˚
       is unread/units (a nudge, no heart, the clock runs on), with " deg" or ° it is still
       right after clean(), and its 3-place decimal is form/rounded, a miss with its reason
+  12. the learning log (src/ui/events.ts, bm.events.v1) on ch05: a wrong then a right check
+      are two entries, a clue 2 an h entry, the solution opened on an untouched exercise an
+      o entry and the right answer after it a c entry with its flag; ids carry the device id;
+      what was typed never reaches storage; a reload keeps the log; the Reset button empties
+      it and redraws the device id; a page-only history has no schedule; no console errors
    and the settings sheet: a modal sheet at 360 that keeps the focus and gives it back on
    Escape, beside the rail at 1280, the theme chosen in it even with storage blocked (the
    `hud` suite of check-browser.js covers every setting and the HUD's layout) */
@@ -1347,6 +1352,118 @@ async function run() {
         eq(await a.page.evaluate((a5) => window.BMGame.deck().filter((d) => d.id === a5).map((d) => d.last), A), [null], "(the unseeded section was never placed)");
         await a.context.close();
       }
+    }
+
+    /* ------------------------------------------------ 12: the learning log */
+    {
+      const { context, page, errors } = await open(browser, CH05, { "bm.lesson.v1": '{"mode":"page"}' });
+      const log = () => page.evaluate(() => JSON.parse(localStorage.getItem("bm.events.v1") || "{}"));
+      const pairs = async () => Object.entries((await log()).ev || {});
+      const entries = async () => pairs().then((l) => l.map((e) => e[1]));
+      /* an entry is [t, d, src, sec, ref, k, ok, n, r, f] (src/sync/events.ts Payload) */
+      const of = async (k) => (await entries()).filter((P) => P[5] === k);
+      const keys = await page.evaluate(() => {
+        var typed = Array.prototype.filter.call(document.querySelectorAll("#practice .ex"), function (e) {
+          return e.getAttribute("data-kind") !== "choice" && e.getAttribute("data-kind") !== "multi" && e.getAttribute("data-kind") !== "blank" &&
+            e.querySelector(".ex-form input:not([type=radio]):not([type=checkbox])");
+        }).map(function (e) { return { key: e.getAttribute("data-key"), two: e.hasAttribute("data-hint2") }; });
+        var two = typed.filter(function (x) { return x.two; })[0], rest = typed.filter(function (x) { return x !== two; });
+        return { wrong: rest[0] && rest[0].key, solution: rest[1] && rest[1].key, ladder: two && two.key };
+      });
+      check(keys.wrong && keys.solution && keys.ladder, "ch05 has three typed exercises for the log check " + JSON.stringify(keys));
+      const exSel = (k) => '#practice .ex[data-key="' + k + '"]';
+
+      /* what is typed never reaches the log: the grader reads SECRET-7Q as no answer at all (a
+         nudge, nothing marked), so it leaves no entry, and the wrong answer that follows is a
+         number (the helper's) */
+      await page.fill(exSel(keys.wrong) + " .ex-form input:not([type=radio]):not([type=checkbox])", "SECRET-7Q");
+      await page.click(exSel(keys.wrong) + " .ex-form .btn:not(.ghost)");
+      eq((await entries()).length, 0, "an unreadable answer leaves no entry");
+
+      /* a wrong then a right check on one exercise */
+      await answer(page, exSel(keys.wrong), false);
+      await answer(page, exSel(keys.wrong), true);
+      const nowMin = await page.evaluate(() => Math.floor(Date.now() / 60000));
+      const cs = (await of("c")).filter((P) => P[4] === "ch05/" + keys.wrong).sort((a, b) => a[7] - b[7]);
+      eq(cs.map((P) => [P[2], P[6], P[7]]), [["ex", 0, 1], ["ex", 1, 2]], "a wrong then a right check: two c entries, src ex, ok 0 then 1, n 1 then 2");
+      check(cs.every((P) => Math.abs(P[0] - nowMin) <= 2 && P[1] === Math.floor(P[0] / 1440)), "their t is the minute they were made and d is its day " + JSON.stringify(cs));
+
+      /* clue 2 */
+      await page.click(exSel(keys.ladder) + " .ex-clue-btn");
+      await page.click(exSel(keys.ladder) + " .ex-clue-btn");
+      check((await of("h")).some((P) => P[4] === "ch05/" + keys.ladder && P[8] === 2), "opening clue 2 writes an h entry with r 2 " + JSON.stringify(await of("h")));
+
+      /* the solution on an untouched exercise, then the right answer */
+      await page.click(exSel(keys.solution) + " .ex-form .ex-show");
+      check((await of("o")).some((P) => P[4] === "ch05/" + keys.solution), "the solution opened on an untouched exercise writes an o entry " + JSON.stringify(await of("o")));
+      await answer(page, exSel(keys.solution), true);
+      const after = (await of("c")).filter((P) => P[4] === "ch05/" + keys.solution);
+      check(after.length === 1 && after[0][6] === 1 && (after[0][9] & 1) === 1, "answering it right afterwards writes a c entry with f bit 1 set " + JSON.stringify(after));
+
+      /* ids carry the device id */
+      const dev = await page.evaluate(() => JSON.parse(localStorage.getItem("bm.device.v1") || "{}").id);
+      const all = await pairs();
+      /* checkpoints (k z) are written under the shared id 00000000 */
+      const own = all.filter((e) => e[1][5] !== "z");
+      check(own.length >= 5 && own.every((e) => /^[0-9a-z]{8}-[0-9a-z]{8}-[0-9a-z]{7}$/.test(e[0]) && e[0].slice(0, 8) === dev), "every entry id is device-rand-hash, its first 8 characters the device id " + JSON.stringify([dev, all.map((e) => e[0])]));
+      check(all.every((e) => /^[0-9a-z]{8}-[0-9a-z]{8}-[0-9a-z]{7}$/.test(e[0])), "(and checkpoint ids have the same shape)");
+
+      /* what was typed is nowhere in storage */
+      check(!(await page.evaluate(() => JSON.stringify(localStorage))).includes("SECRET"), "the typed answer is not in any storage key");
+
+      /* a page-only history schedules nothing */
+      eq(await page.evaluate(() => window.BMEvents.scheduleAll(window.BMSite.dayKey())), {}, "page work alone gives no schedule");
+
+      /* a reload keeps the log */
+      const ids = all.map((e) => e[0]).sort();
+      await page.reload();
+      await page.waitForFunction(() => document.readyState === "complete");
+      eq((await pairs()).map((e) => e[0]).sort(), ids, "a reload keeps every entry");
+
+      /* the outbox has something in it, so the reset below has something to empty */
+      await page.evaluate(() => localStorage.setItem("bm.events.out.v1", JSON.stringify({ ids: ["x"] })));
+
+      /* Reset progress (about.html) empties the log and the outbox and redraws the device id */
+      await page.goto(url("about.html"));
+      await page.waitForFunction(() => document.readyState === "complete");
+      await page.click('[data-action="reset-progress"]');
+      const gone = await page.evaluate(() => ({
+        ev: (JSON.parse(localStorage.getItem("bm.events.v1") || "{}").ev) || {}, out: localStorage.getItem("bm.events.out.v1"),
+        id: JSON.parse(localStorage.getItem("bm.device.v1") || "{}").id
+      }));
+      check(Object.keys(gone.ev).length === 0, "Reset progress empties the learning log " + JSON.stringify(gone.ev));
+      check(gone.out === null || Object.keys(JSON.parse(gone.out) || {}).length === 0, "and the outbox " + gone.out);
+      check(/^[0-9a-z]{8}$/.test(gone.id || "") && gone.id !== dev, "and the device id is redrawn " + JSON.stringify([dev, gone.id]));
+      eq(errors, [], "no errors around the learning log");
+      await context.close();
+    }
+    /* the lesson's step mode: passing an unanswered inline check writes one s entry, once */
+    {
+      const { context, page, errors } = await open(browser, CH05, { "bm.lesson.v1": '{"mode":"steps"}' });
+      for (let i = 0; i < 30; i++) {
+        const ready = await page.$eval(".lesson-next", (b) => b.getAttribute("data-ready"));
+        if (ready === "false") break;
+        await page.click(".lesson-next .btn");
+      }
+      const waiting = await page.evaluate(() => {
+        var shown = window.BMLesson.shown(), out = [];
+        window.BMLesson.steps[shown - 1].forEach(function (el) {
+          var list = el.matches(".ex[data-inline]") ? [el] : Array.prototype.slice.call(el.querySelectorAll(".ex[data-inline]"));
+          list.forEach(function (ex) { if (ex.getAttribute("data-state") !== "correct") out.push(ex.getAttribute("data-key")); });
+        });
+        return out;
+      });
+      check(waiting.length > 0, "found a step waiting on an inline check");
+      const skips = () => page.evaluate(() => Object.values(JSON.parse(localStorage.getItem("bm.events.v1") || "{}").ev || {}).filter((P) => P[5] === "s"));
+      eq((await skips()).length, 0, "no skip entry before advancing");
+      await page.click(".lesson-next .btn");
+      const first = (await skips()).filter((P) => P[4] === "ch05/" + waiting[0]);
+      eq(first.length, 1, "advancing past an unanswered inline check writes one s entry for it");
+      eq(first[0].slice(2, 3), ["in"], "its src is in");
+      await page.click(".lesson-next .btn");
+      eq((await skips()).filter((P) => P[4] === "ch05/" + waiting[0]).length, 1, "advancing again adds no second one for it");
+      eq(errors, [], "no errors in step mode's log");
+      await context.close();
     }
   } finally {
     await browser.close();

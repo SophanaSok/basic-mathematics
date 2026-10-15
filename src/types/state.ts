@@ -311,3 +311,10 @@ export interface SyncedState {
   game: GameStore;
   diag?: DiagStore;
 }
+
+/** bm.events.v1: the event log (src/sync/events.ts) */
+export type { EventsStore } from "../sync/events.ts";
+/** bm.events.out.v1: entries waiting to be sent */
+export type OutboxStore = Record<string, unknown>;
+/** bm.device.v1: this device's id for the log, and the account it was stamped for */
+export interface DeviceStore { id: string; uid?: string }

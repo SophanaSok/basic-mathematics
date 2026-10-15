@@ -34,6 +34,14 @@ import "../sync/events.ts";
 import "../sync/merge.ts";
 import "../ui/core.ts";
 import "../../assets/site.js";
+/* the event log's schedule, checkpoint, mastery and bands, and the recorder, which
+   src/ui/events.ts (window.BMEvents) puts up: the pure modules first */
+import "../learn/schedule.ts";
+import "../learn/checkpoint.ts";
+import "../learn/mastery.ts";
+import "../learn/bands.ts";
+import "../learn/recorder.ts";
+import "../ui/events.ts";
 import "../../assets/sfx.js";
 import "../../assets/game.js";
 import "../data/forms.ts";

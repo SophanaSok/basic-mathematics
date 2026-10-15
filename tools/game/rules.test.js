@@ -133,6 +133,8 @@ function world(seedStores) {
     BMCore: CORE
   };
   win.window = win;
+  /* the learning log, put up on this window as the pages put it up before game.js */
+  win.BMEvents = require("../../src/ui/events.ts").install(win);
   vm.createContext(win);
   /* window.BMHud first, as every page has it before the bundle: the level curve and the
      combo's multiplier are src/hud/'s, through the very text the shell inlines */
@@ -875,6 +877,62 @@ function world(seedStores) {
   const r = w.Game.recordRun({ mode: "boss", boss: "ch05", hearts: 3, ranked: true, finished: true, score: 900, day: dayKey(), answers: [{ section: "ch05#angles", first: true }] });
   g = w.read("bm.game.v1");
   eq([r.medal, g.enc["ch05/practice"], g.shop], [3, { medal: 3, day: dayKey(), gate: "open" }, ["hat"]], "a rematch medal keeps the unknown field of the record it replaces");
+}
+
+/* ----------------------------------------------------------- the learning log */
+{
+  const day = dayKey();
+  const w = world();
+  const answers = [];
+  for (let i = 0; i < 10; i++) answers.push({ section: "ch05#s" + i, g: "g" + i, first: i % 3 !== 0, retry: i % 3 === 0, hf: false });
+  w.Game.recordRun({ mode: "standard", hearts: 3, score: 100, day, answers });
+  const ev = obj0(w.read("bm.events.v1")).ev || {};
+  const rows = Object.keys(ev).map((id) => ev[id]);
+  eq(rows.length, 10, "recordRun with ten answers writes ten entries into bm.events.v1");
+  eq(rows.every((p) => p[5] === "a"), true, "every one is an answer entry (k = a)");
+}
+function obj0(x) { return x && typeof x === "object" ? x : {}; }
+
+/* both writers are alive until the log's schedule replaces the game record's: they agree */
+{
+  let seed = 20261014;
+  const rnd = () => { seed = (seed * 1664525 + 1013904223) >>> 0; return seed / 4294967296; };
+  const int = (a, b) => a + Math.floor(rnd() * (b - a + 1));
+  const secs = ["ch05#angles", "ch05#parallels", "ch05#distance", "ch05#pythagoras", "ch06#fractions"];
+  let bad = 0, first = "", checkpoints = 0;
+  for (let h = 0; h < 300; h++) {
+    const w = world();
+    /* one history in seven is long (150 to 300 days, 30 to 90 runs): checkpoints are written and the log pruned */
+    const long = h % 7 === 0;
+    const span = long ? int(150, 300) : 60;
+    let d = long ? 0 : int(0, 5);
+    const runs = long ? int(30, 90) : int(1, 4);
+    for (let r = 0; r < runs; r++) {
+      d += long ? int(0, Math.floor((2 * span) / runs)) : int(0, 6);
+      if (long) d = Math.min(d, span);
+      const day = daysAgo(span - d);
+      const pool = secs.slice().sort(() => rnd() - 0.5).slice(0, int(1, 3));
+      const answers = [];
+      const n = int(1, 10);
+      for (let i = 0; i < n; i++) {
+        const f = rnd() < 0.6;
+        answers.push({ section: pool[int(0, pool.length - 1)], g: "g" + int(0, 4), first: f, retry: !f && rnd() < 0.5, hf: false });
+      }
+      w.Game.recordRun({ mode: "standard", hearts: 3, score: 100, day, answers });
+      const sched = w.win.BMEvents.scheduleAll(day);
+      const sec = obj0(w.read("bm.game.v1")).sec || {};
+      Object.keys(sec).forEach((id) => {
+        const a = sched[id] || {}, b = sec[id];
+        if (a.box !== b.box || a.last !== b.last) {
+          bad++;
+          if (!first) first = "history " + h + " run " + r + " " + id + " log " + JSON.stringify(a) + " game " + JSON.stringify({ box: b.box, last: b.last });
+        }
+      });
+    }
+    checkpoints += Object.values(obj0(w.read("bm.events.v1")).ev || {}).filter((P) => P[5] === "z").length;
+  }
+  check(checkpoints > 0, "the long histories wrote checkpoints (" + checkpoints + ")");
+  check(bad === 0, "the log's schedule matches the game record's box and last over 300 histories (" + bad + " differ; first: " + first + ")");
 }
 
 console.log((fails ? "FAILED" : "ok") + " rules: " + passes + " checks passed" + (fails ? ", " + fails + " failed" : ""));
