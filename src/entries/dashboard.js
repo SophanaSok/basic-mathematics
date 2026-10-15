@@ -63,6 +63,9 @@ import "../learn/diagnostic.ts";
 import "../learn/diag-seed.ts";
 import "../learn/plan.ts";
 import "../ui/plan.ts";
+/* the exercises the site has, which insights.js uses to leave out stale statistics rows */
+import "../data/exercise-keys.ts";
+import "../ui/exercise-keys.ts";
 import "../../assets/insights.js";
 /* the "Your form" panel insights.js leaves a place for: the turning and the emotes of the
    view (pure logic), the 3D view, then the panel */

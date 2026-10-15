@@ -69,6 +69,8 @@ interface Window {
       rules (src/learn/recall.ts, review.ts, practice.ts), for assets/game.js and
       assets/arena.js, which cannot import them; typed */
   BMReview: typeof import("../ui/review.ts").api;
+  /** src/ui/exercise-keys.ts: the refs of the exercises the site has, for assets/insights.js; typed */
+  BMExerciseKeys: typeof import("../ui/exercise-keys.ts").api;
   /** src/ui/events.ts: the event log's recorder and the schedule, mastery and bands read from it (src/sync/events.ts, src/learn/), for assets/game.js and assets/account.js, which cannot import them; typed */
   BMEvents: import("../ui/events.ts").EventsApi;
   /** src/ui/core.ts: the grader and the exercise rules (src/core/grade.ts, rules.ts), the
