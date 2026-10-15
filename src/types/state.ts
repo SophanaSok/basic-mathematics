@@ -79,6 +79,9 @@ export interface AttemptRecord {
   first?: 0 | 1;
   /** an inline check passed over in lesson mode; removed when solved */
   skipped?: Flag;
+  /** the one field written after solving: presence means the near-transfer twin was paid
+      (src/learn/twin.ts), whatever it holds. No merge rule: it travels by `later`. */
+  twin?: 1;
 }
 
 /** bm.attempts.v1 */

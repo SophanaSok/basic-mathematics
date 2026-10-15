@@ -89,6 +89,15 @@ const ON_DEMAND = [
   { chunk: BUNDLE + "three-model.js", module: vendor.DIR + "/three-model.js", by: "src/model/index.ts" },
   { chunk: BUNDLE + "form-model.js", module: "src/model/index.ts", by: "src/ui/form-view.ts", dir: "src/model/" }
 ];
+/* The generator chunk is the one on-demand chunk that two kinds of page also load statically:
+   the Arena and the placement check import the generators (data/gen/*.js) themselves, and the
+   build puts them in one chunk, bundle/arena-diagnostic.js. A chapter page may reach it only
+   through src/ui/twin.ts's import(), on the first click of "Try one like it". So for every
+   other kind of page the chunk is on demand: out of its static graph and out of its HTML,
+   present behind the import() on the pages whose entry imports `by`, and named in that
+   import() by nothing else. The arena's and the placement check's own pages keep the checks
+   every static chunk gets. The ON_DEMAND checks above are not changed by it. */
+const GENERATORS = { chunk: BUNDLE + "arena-diagnostic.js", module: "data/gen/core.js", by: "src/ui/twin.ts", staticKinds: ["arena", "diagnostic"], twin: ["src/ui/twin.ts", "src/learn/twin.ts"] };
 /* `by` is one importer or a list of them (the course world has two: the map and the
    "Your form" view), as a list and as words */
 const importers = (d) => [].concat(d.by);
@@ -136,12 +145,19 @@ function kindsLoading() {
    chunk is what its source map says it was built from, as tree paths. */
 function moduleGraph(ctx) {
   const files = new Set(ctx.files);
-  const edges = {}, sources = {};
+  const edges = {}, sources = {}, staticEdges = {};
   const of = (f) => {
     if (edges[f]) return;
     const text = fs.readFileSync(path.join(DIST, f), "utf8");
     const dir = path.posix.dirname(f);
     edges[f] = [];
+    /* the edges a module makes by `import "x"`, `import … from "x"` or `export … from "x"`, which
+       run when the chunk does; an import() and the preload list Vite keeps for it are not these */
+    staticEdges[f] = [];
+    for (const m of text.matchAll(/(?:\bfrom|\bimport)\s*["'](\.\.?\/[^"'\s]+\.js)["']/g)) {
+      const t = path.posix.normalize(path.posix.join(dir, m[1]));
+      if (files.has(t) && !staticEdges[f].includes(t)) staticEdges[f].push(t);
+    }
     for (const m of text.matchAll(/["'](\.\.?\/[^"'\s]+\.js)["']/g)) {
       const t = path.posix.normalize(path.posix.join(dir, m[1]));
       if (files.has(t) && !edges[f].includes(t)) edges[f].push(t);
@@ -162,6 +178,17 @@ function moduleGraph(ctx) {
     }
     edges[f].forEach(of);
   };
+  const staticReach = (from) => {
+    const seen = new Set(), todo = [from];
+    while (todo.length) {
+      const f = todo.pop();
+      if (seen.has(f)) continue;
+      seen.add(f);
+      of(f);
+      staticEdges[f].forEach(t => todo.push(t));
+    }
+    return Array.from(seen);
+  };
   const reach = (from) => {
     const seen = new Set(), todo = [from];
     while (todo.length) {
@@ -173,7 +200,7 @@ function moduleGraph(ctx) {
     }
     return Array.from(seen);
   };
-  return { reach, sourcesOf: (f) => { of(f); return sources[f]; } };
+  return { reach, staticReach, sourcesOf: (f) => { of(f); return sources[f]; } };
 }
 
 function result() {
@@ -436,6 +463,29 @@ function checkScripts(ctx, r) {
   const ofTree = (s) => sources.has(s) || s.startsWith(vendor.DIR + "/");    /* what an entry can import */
   const boot = "<script>" + normText(shell.bootScript());
   const hudTag = "<script>" + normText(shell.hudScript());
+  /* no script of the tree but src/ui/twin.ts may import() the generators: that import is the one
+     route a chapter page has to them (the per-page checks below prove the built graph; this
+     holds the source, so a second route cannot hide behind a chunk that is already there) */
+  {
+    const GEN_IMPORT = /\bimport\s*\(\s*[`"'][^`"']*data\/gen\//;
+    const strays = [];
+    (function walk(dir) {
+      fs.readdirSync(path.join(ROOT, dir), { withFileTypes: true }).forEach(e => {
+        const rel = dir + "/" + e.name;
+        if (e.isDirectory()) { if (e.name !== "node_modules" && e.name !== "vendor") walk(rel); }
+        else if (/\.(js|ts)$/.test(e.name) && !/\.test\.(js|ts)$/.test(e.name) && rel !== GENERATORS.by && GEN_IMPORT.test(fs.readFileSync(path.join(ROOT, rel), "utf8"))) strays.push(rel);
+      });
+    })("src");
+    (function walk(dir) {
+      fs.readdirSync(path.join(ROOT, dir), { withFileTypes: true }).forEach(e => {
+        const rel = dir + "/" + e.name;
+        if (e.isDirectory()) walk(rel);
+        else if (/\.js$/.test(e.name) && GEN_IMPORT.test(fs.readFileSync(path.join(ROOT, rel), "utf8"))) strays.push(rel);
+      });
+    })("assets");
+    r.count++;
+    if (strays.length) r.fail(strays.join(", ") + (strays.length > 1 ? " import" : " imports") + " data/gen/ with import(); only " + GENERATORS.by + " may, so the chapter pages reach the generators by one route");
+  }
   const loadedBy = kindsLoading();
   const named = {};     /* chunk -> its name was checked, once */
   ctx.src.pages.forEach(p => {
@@ -454,7 +504,9 @@ function checkScripts(ctx, r) {
     if (mod.file !== ENTRY_OF(p)) r.fail(p + ": its module script is " + mod.file + ", not " + ENTRY_OF(p) + " (a page's entry chunk is named after the page, with no hash)");
     /* the bundle, and that it is the entry's */
     const chunks = ctx.graph.reach(mod.file);
-    const staticOnly = chunks.filter(f => !onDemand(f));
+    /* the generators are on demand for a page whose kind does not import them itself */
+    const lazyGen = (f) => f === GENERATORS.chunk && !GENERATORS.staticKinds.includes(info.kind);
+    const staticOnly = chunks.filter(f => !onDemand(f) && !lazyGen(f));
     const built = new Set(), foreign = [];
     staticOnly.forEach(f => ctx.graph.sourcesOf(f).forEach(s => { if (ofTree(s)) built.add(s); else if (IN_NODE_MODULES.test(s)) foreign.push(s); }));
     const wanted = entryImports(entry);
@@ -477,8 +529,25 @@ function checkScripts(ctx, r) {
       if (!where.length) r.fail(p + ": no chunk reached from " + mod.file + " is built from " + d.module + ", which " + importersOf(d) + " imports on demand");
       else if (where.join() !== d.chunk) r.fail(p + ": " + d.module + " is built into " + where.join(", ") + ", not " + d.chunk + " on its own");
     });
+    /* the generator chunk on a page that does not import the generators: not in the entry's
+       static graph, not in the page's HTML, and where the entry imports the twin, reached by
+       the import() of src/ui/twin.ts and by no other chunk's */
+    if (!GENERATORS.staticKinds.includes(info.kind)) {
+      const G = GENERATORS;
+      if (ctx.graph.staticReach(mod.file).includes(G.chunk)) r.fail(p + ": " + mod.file + " reaches " + G.chunk + " by a static import; only the import() of " + G.by + " is to fetch the generators on a " + info.kind + " page");
+      if (links.refsOf(ctx.dist.docs[p]).map(ref => links.targetOf(p, ref.v)).includes(G.chunk)) r.fail(p + " names " + G.chunk + ", which only the import() of " + G.by + " is to fetch");
+      const mine = wanted.includes(G.by);
+      if (mine) {
+        if (!chunks.includes(G.chunk)) r.fail(p + ": no import() reaches " + G.chunk + " from " + mod.file + ", though " + G.by + " imports the generators on demand");
+        else if (!ctx.graph.sourcesOf(G.chunk).includes(G.module)) r.fail(G.chunk + " is not built from " + G.module);
+        G.twin.forEach(s => { if (!built.has(s)) r.fail(p + ": " + s + " is not in the bundle behind " + mod.file + "; the twin's code rides with the page"); });
+        chunks.filter(f => f !== G.chunk && fs.readFileSync(path.join(DIST, f), "utf8").includes("./" + path.posix.basename(G.chunk))).forEach(f => {
+          if (!ctx.graph.sourcesOf(f).includes(G.by)) r.fail(p + ": " + f + " refers to " + G.chunk + " but does not hold " + G.by + "; the twin's import() is the only way to it");
+        });
+      } else if (chunks.includes(G.chunk)) r.fail(p + ": " + G.chunk + " is reached from " + mod.file + ", whose entry does not import " + G.by);
+    }
     /* the names, each chunk once: what is in it is loaded by the kinds it is named for */
-    chunks.filter(f => f !== mod.file && f !== RUNTIME && !onDemand(f) && !named[f]).forEach(f => {
+    chunks.filter(f => f !== mod.file && f !== RUNTIME && !onDemand(f) && !lazyGen(f) && !named[f]).forEach(f => {
       named[f] = true;
       r.count++;
       const kinds = kindsNamed(f);

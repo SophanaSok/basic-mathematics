@@ -54,3 +54,18 @@
   /* a clue that was open prints as it reads; the button is a control and goes with them */
   .ex-clue-btn { display: none !important; }
 }
+
+/* "Try one like it" (src/ui/twin.ts): a small panel under the solution, in the reading
+   column's tokens, with no motion of its own */
+.ex-twin-card { margin: .9rem 0 0; padding: .8rem 1rem; display: grid; gap: .6rem; background: var(--surface-2); border: 1px solid var(--border-strong); border-radius: var(--radius); }
+.ex-twin-card[hidden] { display: none; }
+.ex-twin-q { font-family: var(--sans); font-size: 1.0625rem; line-height: 1.55; color: var(--text); }
+.ex-twin-q > * { margin: 0; }
+.ex-twin-row { display: flex; flex-wrap: wrap; gap: .5rem; align-items: center; }
+.ex-twin-label { font-size: .9rem; color: var(--muted); }
+.ex-twin-row input[type="text"] { width: min(14rem, 100%); }
+.ex-twin-verdict { margin: 0; min-height: 1.2em; font-size: .98rem; color: var(--text); }
+.ex-twin-extras { display: grid; gap: .5rem; justify-items: start; }
+.ex-twin-steps p { margin: 0 0 .4rem; font-size: .95rem; color: var(--muted); }
+.ex-twin-card > .btn { justify-self: start; }
+@media print { .ex-twin-btn, .ex-twin-card { display: none !important; } }

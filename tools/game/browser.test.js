@@ -1695,6 +1695,161 @@ async function run() {
         await context.close();
       }
     }
+
+    /* ---------------------------------------- 15: "Try one like it", the near-transfer twin */
+    {
+      const EX = (k) => '#practice .ex[data-key="' + k + '"]';
+      const GEN_CHUNK = /arena-diagnostic\.js/;
+      const lm = (p) => ({ "bm.lesson.v1": '{"mode":"page"}', "bm.prefs.v1": JSON.stringify(p || {}) });
+      const recOf = (page, k) => page.evaluate((k) => {
+        var all = JSON.parse(localStorage.getItem("bm.attempts.v1") || "{}"), ch = document.body.getAttribute("data-chapter");
+        return all[ch] && all[ch][k] ? all[ch][k] : null;
+      }, k);
+      const fetched = (page) => page.evaluate(() => performance.getEntriesByType("resource").filter((e) => /arena-diagnostic\.js/.test(e.name)).length);
+      const hasBtn = (page, k) => page.$eval(EX(k) + " .ex-twin-btn", (b) => !b.hidden).catch(() => false);
+      /* the twin the page should offer, rebuilt with the generators it loaded (the seed is the rule's) */
+      const expectTwin = (page, k, sec, n) => page.evaluate(({ k, sec, n }) => {
+        var G = window.BMGen, ch = document.body.getAttribute("data-chapter");
+        var seed = G.hash("twin:" + ch + "/" + k + ":" + n), specs = G.forSection(ch + "#" + sec);
+        for (var i = 0; i < 5; i++) {
+          var p = G.make(specs[(seed % specs.length + i) % specs.length].id, seed);
+          if (!p.verify || p.verify()) return { answer: String(p.answer).split("|")[0], q: p.q, hint: p.hint || "", steps: p.steps || [] };
+        }
+        return null;
+      }, { k, sec, n });
+      const bus = (page) => page.evaluate(() => { window.__ev = []; window.BMStore.on((c) => window.__ev.push(c.type + ":" + (c.why || ""))); });
+      const snap = async (page, k) => ({
+        xp: await page.evaluate(() => window.BMActivity.total()), pips: await page.evaluate(() => window.BMGame.combo().pips),
+        rec: await recOf(page, k), medal: await page.evaluate((r) => window.BMGame.medalMark(r), await recOf(page, k)),
+        progress: await page.evaluate(() => localStorage.getItem("bm.progress.v1"))
+      });
+      const submit = async (page, k, v) => {
+        await page.fill(EX(k) + " .ex-twin-card input", v);
+        await page.click(EX(k) + " .ex-twin-card .btn:not(.ghost)");
+        await wait(250);
+      };
+      const without = (r) => { const c = Object.assign({}, r); delete c.twin; return c; };
+
+      for (const [name, prefs] of [["", {}], [" in Study mode", { calm: true }]]) {
+        const { context, page, errors } = await open(browser, CH05, lm(prefs));
+        await bus(page);
+        /* 1: absent until help is open; the generators are not fetched by loading the page */
+        eq([await hasBtn(page, "e1"), await fetched(page)], [false, 0], "no twin button on a card with no help open, and no generator chunk fetched" + name);
+        await page.click(EX("e1") + " .ex-show");
+        await page.waitForSelector(EX("e1") + " .ex-twin-btn:not([hidden])");
+        eq(await fetched(page), 0, "opening the solution shows the button without fetching the generators" + name);
+        /* 2: the first click loads them once, shows the question rendered, focuses the box */
+        await page.click(EX("e1") + " .ex-twin-btn");
+        await page.waitForSelector(EX("e1") + " .ex-twin-card input");
+        await wait(200);
+        const q0 = await page.$eval(EX("e1") + " .ex-twin-q", (q) => q.textContent);
+        const e0 = await expectTwin(page, "e1", "angles", 0);
+        eq([await fetched(page), await page.$(EX("e1") + " .ex-twin-q .katex") !== null, await page.evaluate(() => document.activeElement && document.activeElement.closest(".ex-twin-card") !== null)],
+          [1, true, true], "the first click fetches the generator chunk once; the question has math rendered and the box has focus" + name);
+        /* 3: a right answer pays 3, once, and only the twin flag changes */
+        const before = await snap(page, "e1");
+        await submit(page, "e1", e0.answer);
+        const after = await snap(page, "e1");
+        eq([after.xp - before.xp, after.rec.twin], [3, 1], "a right twin answer pays 3 XP and the record gains twin: 1" + name);
+        eq([without(after.rec), after.pips, after.medal, after.progress], [before.rec, before.pips, before.medal, before.progress], "nothing else moves: the record, the combo, the medal mark, progress" + name);
+        const ev = await page.evaluate(() => window.__ev);
+        check(ev.includes("xp:twin") && ev.includes("twin:") && !ev.some((e) => /^attempt:/.test(e)), "the bus saw xp (why twin) and twin, and no attempt: " + JSON.stringify(ev) + name);
+        /* 4: another one is a different question and pays nothing */
+        await page.click(EX("e1") + " .ex-twin-card > .btn.ghost");
+        await wait(200);
+        const e1x = await expectTwin(page, "e1", "angles", 1);
+        const q1 = await page.$eval(EX("e1") + " .ex-twin-q", (q) => q.textContent);
+        check(q1 !== q0 && e1x.q !== e0.q, "Another one shows a different question" + name);
+        const b2 = await snap(page, "e1");
+        await submit(page, "e1", e1x.answer);
+        const a2 = await snap(page, "e1");
+        eq([a2.xp - b2.xp, a2.rec], [0, b2.rec], "a second right twin pays 0 and changes no record" + name);
+        eq(await fetched(page), 1, "the chunk was fetched once in all" + name);
+        eq(errors, [], "no errors from the twin" + name);
+        /* 5: reload: the same first question, still paid, pays 0 */
+        await page.reload();
+        await page.waitForFunction(() => document.readyState === "complete");
+        await page.click(EX("e1") + " .ex-show");
+        await page.waitForSelector(EX("e1") + " .ex-twin-btn:not([hidden])");
+        await page.click(EX("e1") + " .ex-twin-btn");
+        await page.waitForSelector(EX("e1") + " .ex-twin-card input");
+        await wait(200);
+        eq(await page.$eval(EX("e1") + " .ex-twin-q", (q) => q.textContent), q0, "after a reload the first twin is the same question" + name);
+        const b3 = await snap(page, "e1");
+        await submit(page, "e1", e0.answer);
+        eq((await snap(page, "e1")).xp - b3.xp, 0, "and it pays 0, the twin was paid" + name);
+        await context.close();
+      }
+
+      /* the authored template path: the card's own twin, its solution shown as the steps (not hidden by the page's CSS) */
+      {
+        const TW = '<template class="ex-twin" data-type="number" data-answer="9"><div class="ex-q"><p>Compute $6 - (-3)$.</p></div><div class="ex-solution"><p>Subtracting a negative adds: $6 + 3 = 9$.</p></div></template>';
+        const rewrite = (html) => {
+          const from = html.indexOf('<div class="ex" id="e1"'), at = html.indexOf("</div>", html.indexOf('<div class="ex-solution">', from)) + "</div>".length;
+          return html.slice(0, at) + TW + html.slice(at);
+        };
+        const { context, page, errors } = await open(browser, CH05, lm(), { rewrite });
+        await page.click(EX("e1") + " .ex-show");
+        await page.waitForSelector(EX("e1") + " .ex-twin-btn:not([hidden])");
+        await page.click(EX("e1") + " .ex-twin-btn");
+        await page.waitForSelector(EX("e1") + " .ex-twin-card input");
+        eq([await fetched(page), /Compute/.test(await page.$eval(EX("e1") + " .ex-twin-q", (q) => q.textContent))], [0, true], "an authored twin shows its own question and fetches no generator");
+        await submit(page, "e1", "987654");
+        await page.click(EX("e1") + " .ex-twin-extras .btn");
+        await wait(200);
+        const st = await page.$eval(EX("e1") + " .ex-twin-steps", (b) => ({ text: b.textContent.trim(), shown: b.offsetParent !== null, solutions: b.querySelectorAll(".ex-solution").length, focused: document.activeElement === b }));
+        check(/Subtracting a negative adds/.test(st.text) && st.shown && st.solutions === 0 && st.focused, "Show steps on an authored twin shows its solution text, visible and focused: " + JSON.stringify(st));
+        const b = await snap(page, "e1");
+        await submit(page, "e1", "9");
+        const a = await snap(page, "e1");
+        eq([a.xp - b.xp, a.rec.twin], [3, 1], "the authored twin pays 3 and sets twin: 1 like a generated one");
+        eq(errors, [], "no errors on the authored twin");
+        await context.close();
+      }
+
+      /* 6: solved first time, solution opened after: the twin pays nothing and writes nothing */
+      {
+        const { context, page, errors } = await open(browser, CH05, lm());
+        await answer(page, EX("e2"), true);
+        await wait(500);
+        await page.click(EX("e2") + " .ex-show");
+        await page.waitForSelector(EX("e2") + " .ex-twin-btn:not([hidden])");
+        await page.click(EX("e2") + " .ex-twin-btn");
+        await page.waitForSelector(EX("e2") + " .ex-twin-card input");
+        const exp = await expectTwin(page, "e2", "angles", 0);
+        const b = await snap(page, "e2");
+        await submit(page, "e2", exp.answer);
+        const a = await snap(page, "e2");
+        eq([a.xp - b.xp, a.rec], [0, b.rec], "a twin on an exercise solved first time pays 0 and writes nothing");
+        eq(errors, [], "no errors on the unpaid twin");
+        await context.close();
+      }
+
+      /* 7: a wrong answer: the verdict, then the steps on request; the record is untouched */
+      {
+        const { context, page, errors } = await open(browser, CH05, lm());
+        await bus(page);
+        await page.click(EX("e3") + " .ex-show");
+        await page.waitForSelector(EX("e3") + " .ex-twin-btn:not([hidden])");
+        await page.click(EX("e3") + " .ex-twin-btn");
+        await page.waitForSelector(EX("e3") + " .ex-twin-card input");
+        const exp = await expectTwin(page, "e3", "parallels", 0);
+        const b = await snap(page, "e3");
+        await submit(page, "e3", "987654");
+        eq([await page.$eval(EX("e3") + " .ex-twin-verdict", (v) => [v.textContent, v.getAttribute("role")]), await page.$(EX("e3") + " .ex-twin-extras .btn") !== null],
+          [["Not quite.", "status"], true], "a wrong twin answer shows the verdict in a status line and Show steps");
+        await page.click(EX("e3") + " .ex-twin-extras .btn");
+        await wait(200);
+        const steps = await page.$$eval(EX("e3") + " .ex-twin-steps p", (ps) => ps.length);
+        eq(steps, [exp.hint].concat(exp.steps).filter(Boolean).length, "Show steps shows the generator's hint and steps");
+        const a = await snap(page, "e3");
+        eq([a.xp, a.rec, a.pips], [b.xp, b.rec, b.pips], "a wrong twin answer moves nothing");
+        const ev = await page.evaluate(() => window.__ev);
+        check(ev.includes("twin:") && !ev.some((e) => /^attempt:/.test(e)), "and fires a twin event, never an attempt: " + JSON.stringify(ev));
+        eq(errors, [], "no errors on the wrong twin");
+        await context.close();
+      }
+    }
   } finally {
     await browser.close();
     await server.close();

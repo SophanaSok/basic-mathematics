@@ -61,6 +61,8 @@ interface Window {
   BMMap3D: any;
   /** assets/account.js: sign-in and sync, and the merge it takes from BMMerge */
   BMAccount: any;
+  /** src/ui/twin.ts: "Try one like it", mounted by assets/site.js; typed */
+  BMTwin: typeof import("../ui/twin.ts").api;
   /** src/ui/ladder.ts: the help ladder (mount), the wrong-answer questions (detect) and the
       pure modules under src/learn/, for assets/site.js, which cannot import them, and the
       tests; typed, since it is written in TypeScript */

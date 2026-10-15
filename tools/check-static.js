@@ -1791,6 +1791,8 @@ const HELP_TAGS = new Set(["em", "strong", "b", "i", "code", "sub", "sup"]);
 const HELP_BLOCKS = new Set(["p", "div"]);
 const ANSWER_TYPES = new Set(["exact", "number", "fraction", "set", "expr", "percent", "ratio", "multi", "order", "blank", "figure"]);
 
+/* the types a near-transfer twin may take (src/learn/twin.ts); the card around it may take any */
+const TWIN_TYPES = new Set(["number", "fraction", "set", "expr", "exact"]);
 const isMiss = el => el.name === "ul" && el.hasClass("ex-miss");
 const isTwin = el => el.name === "template" && el.hasClass("ex-twin");
 const sha256 = s => crypto.createHash("sha256").update(s).digest("hex");
@@ -1880,6 +1882,10 @@ function helpMarkupProblems(doc, page, deps) {
   doc.queryAll("ul, template, div, [data-final]").forEach(el => {
     const art = isMiss(el) ? "ul.ex-miss" : isTwin(el) ? "template.ex-twin" : el.hasClass("ex-solution") ? ".ex-solution" : el.hasAttribute("data-final") ? "[data-final]" : null;
     if (!art) return;
+    /* a twin's own worked solution sits inside its template, where the twin rules below hold it */
+    let inTwin = false;
+    for (let q = el.parent; q && q.type === "element"; q = q.parent) if (isTwin(q)) inTwin = true;
+    if (art === ".ex-solution" && inTwin) return;
     if (art !== "[data-final]" && !(el.parent && el.parent.type === "element" && el.parent.hasClass("ex"))) fail(el, art + " is not a direct child of an .ex card");
     if (art !== ".ex-solution" && main && el.parent === main) fail(el, art + " is a top-level child of #main (it would be a lesson step)");
   });
@@ -1984,7 +1990,18 @@ function helpMarkupProblems(doc, page, deps) {
     const inner = { queryAll: sel => { const r = []; for (const el of t.elements()) { if (sel === ".ex-q" ? el.hasClass("ex-q") : sel === ".ex" ? el.hasClass("ex") : false) r.push(el); } return r; } };
     if (inner.queryAll(".ex-q").length !== 1) fail(t, key + ": a twin holds " + inner.queryAll(".ex-q").length + " .ex-q, not one");
     const ty = t.getAttribute("data-type");
-    if (ty !== null && !ANSWER_TYPES.has(ty)) fail(t, key + ": a twin's data-type " + JSON.stringify(ty) + " is not one the page knows");
+    if (ty === null || !TWIN_TYPES.has(ty)) fail(t, key + ": a twin's data-type " + JSON.stringify(ty) + " is not one of " + Array.from(TWIN_TYPES).join(", "));
+    const tans = t.getAttribute("data-answer");
+    if (tans === null || !tans.trim()) fail(t, key + ": a twin has no data-answer");
+    if (t.hasAttribute("data-tol") && ty !== "number") fail(t, key + ": a twin's data-tol belongs to the number type only");
+    if (Array.from(t.elements()).filter(el => el.hasClass("ex-solution")).length > 1) fail(t, key + ": a twin holds more than one .ex-solution");
+    if (ex) {
+      const kids = ex.children.filter(c => c.type === "element");
+      const sol = kids.findIndex(c => c.hasClass("ex-solution")), at = kids.indexOf(t);
+      if (at < 0) fail(t, key + ": a twin is not a direct child of its .ex");
+      else if (sol < 0) fail(t, key + ": a twin needs the card's .ex-solution before it, and the card has none");
+      else if (at < sol) fail(t, key + ": a twin sits before the card's .ex-solution; it goes after it");
+    }
     if (inner.queryAll(".ex").length) fail(t, key + ": a twin holds an .ex card; a progress key would move");
     if (t.hasAttribute("id")) fail(t, key + ": a twin has an id");
     for (const el of t.elements()) {
@@ -1998,7 +2015,10 @@ function helpMarkupProblems(doc, page, deps) {
     if (info) {
       if (t.hasAttribute("data-answer") && info.ex.answers.some(ans => d.matches(t.getAttribute("data-answer"), ans, info.ex.type, info.ex.tol))) out.warns.push(page + ":" + t.line + ": " + key + ": a twin has the same answer as its card (" + JSON.stringify(t.getAttribute("data-answer")) + ")");
       seenFields.add(key + "\u0000ex-twin");
-      addLint(info, "ex-twin", t, html, html, "warn");
+      /* the twin's question against the twin's own answer, not the card's */
+      const tq = Array.from(t.elements()).find(el => el.hasClass("ex-q"));
+      const twinInfo = { e: info.e, ex: { answers: tans ? d.alternatives(tans) : [], type: ty || "exact", kind: "exact", tol: Number(t.getAttribute("data-tol")) > 0 ? Number(t.getAttribute("data-tol")) : null, options: [], question: "" } };
+      if (tq) addLint(twinInfo, "ex-twin", t, innerHtml(tq), innerHtml(tq), "warn");
     }
   });
   const solutions = doc.queryAll(".ex-solution");

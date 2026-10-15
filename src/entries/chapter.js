@@ -33,6 +33,11 @@ import "../learn/detectors.ts";
 import "../learn/stuck.ts";
 import "../learn/misses.ts";
 import "../ui/ladder.ts";
+/* "Try one like it": the twin's rule, then the panel (window.BMTwin) that site.js mounts on
+   a card. The generators it offers are not here: its import() fetches them on the first
+   click, and tools/check-dist.js holds that no page names them */
+import "../learn/twin.ts";
+import "../ui/twin.ts";
 /* the spaced-review schedule and the Arena's XP rules, which game.js (and the Arena)
    find on window.BMReview: the pure modules first (constants.ts is above), then the one
    that puts them up */

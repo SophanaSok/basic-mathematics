@@ -395,6 +395,15 @@ describe("the placement check's record (diag)", () => {
   }, LONG);
 });
 
+describe("an attempt record's twin flag", () => {
+  it("survives a merge from either side, whatever it holds (the threat note's decision 1)", () => {
+    expect(Object.prototype.hasOwnProperty.call(mergeAttempt({ opened: 1, twin: null }, { opened: 1 }), "twin")).toBe(true);
+    expect(Object.prototype.hasOwnProperty.call(mergeAttempt({ opened: 1 }, { opened: 1, twin: null }), "twin")).toBe(true);
+    expect((mergeAttempt({ opened: 1 }, { opened: 1, twin: 1 }) as any).twin).toBe(1);
+    expect((mergeAttempt({ opened: 1, twin: 1 }, { opened: 1 }) as any).twin).toBe(1);
+  });
+});
+
 describe("an attempt record's section", () => {
   const sec = (x: unknown, y: unknown) => (mergeAttempt(x, y) as any).section;
   const both = (x: unknown, y: unknown) => [sec(x, y), sec(y, x)];

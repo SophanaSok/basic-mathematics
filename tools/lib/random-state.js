@@ -58,6 +58,9 @@ const OTHER_SECTIONS = SECTIONS.concat("Warmup", "practice", "ch05#angles", "\uf
    by the merge and dropped when that result is merged with itself, an older gap that
    moved over with the merge and is not this rule's */
 const SECTION_DAMAGED = [5, true, [1], { a: 1 }];
+/* what an attempt record's `twin` (the near-transfer twin, paid once) may hold: the 1 the
+   site writes, and what a damaged record might; presence is what counts (src/learn/twin.ts) */
+const TWIN_VALUES = [1, null, "1", true];
 const UNKNOWN_VALUES = [0, 7, -1, "x", "", true, null, [1, 2], [2, 1], { a: 1, b: [1] }, { b: [1], a: 1 }, { a: { c: 2 } }];
 /* The placement check's takes (src/types/state.ts DiagTake), few ids and few bodies so two
    devices often hold the same id: now identical, now different. An id may be one of
@@ -225,6 +228,7 @@ function randomState(R, opts) {
       if (R.maybe(0.35)) a.rung = R.maybe(0.8) ? 1 + R.int(3) : JSON.parse(JSON.stringify(R.pick(RUNG_VALUES)));
       if (R.maybe(0.3)) a.opened = 1;
       if (inlineKey) a.inline = 1;
+      if (R.maybe(0.2)) a.twin = R.pick(TWIN_VALUES);
       if (R.maybe(0.85)) {
         a.section = SECTIONS[(ch.length + k.charCodeAt(1)) % 3];
         if (conflicts && R.maybe(0.1)) a.section = R.pick(OTHER_SECTIONS.filter(s => s !== a.section));
