@@ -1721,6 +1721,59 @@ function checkPureCore(ctx, r) {
   });
 }
 
+/* --------------------------------------------- schedule readers (P7) -- */
+
+/* A section's box and last live in the event log (BMEvents.schedule / scheduleAll, src/learn/schedule.ts),
+   never in bm.game.v1.sec, which keeps n, ok and fix. */
+const SCHEDULE_READERS = ["assets/game.js", "assets/arena.js", "assets/insights.js", "assets/encounter.js", "assets/site.js"];
+
+/* [{ line, text }] for each place a module reads `box` or `last` off a section record
+   (`sec.box`, `secRec(id).last`, `g.sec[id].box`, `x.sec[id]["last"]`) or writes either into a record
+   assigned to `.sec[...]`. Comments never count: the AST has none. Throws when the module does not parse. */
+function scheduleProblems(src, file) {
+  const lang = (/\.[cm]?([jt]sx?)$/.exec(file || "") || [null, "js"])[1];
+  const out = [];
+  const lineAt = (at) => src.slice(0, at).split("\n").length;
+  const text = (n) => src.slice(n.start, n.end);
+  const keyName = (n, computed) => {
+    if (!n) return null;
+    if (!computed && n.type === "Identifier") return n.name;
+    if (n.type === "Literal" && typeof n.value === "string") return n.value;
+    return null;
+  };
+  const hot = (name) => name === "box" || name === "last";
+  const walk = (n, inBoxWrite) => {
+    if (Array.isArray(n)) return n.forEach(x => walk(x, inBoxWrite));
+    if (!n || typeof n !== "object") return;
+    if (n.type === "MemberExpression" && hot(keyName(n.property, n.computed)) && (/\bsec\b/i.test(text(n.object)) || /secRec\(/.test(text(n.object)))) {
+      out.push({ line: lineAt(n.start), text: text(n) });
+    }
+    let into = inBoxWrite;
+    if (n.type === "AssignmentExpression" && /\.sec\[/.test(text(n.left))) {
+      walk(n.left, inBoxWrite);
+      walk(n.right, true);
+      return;
+    }
+    if (n.type === "ObjectExpression" && inBoxWrite) {
+      n.properties.forEach(p => {
+        if (p.type === "Property" && hot(keyName(p.key, p.computed))) out.push({ line: lineAt(p.start), text: text(p) });
+      });
+    }
+    Object.keys(n).forEach(k => walk(n[k], into));
+  };
+  walk(parseAst(src, { lang }, file), false);
+  return out;
+}
+
+function checkScheduleReaders(ctx, r) {
+  SCHEDULE_READERS.forEach(rel => {
+    r.count++;
+    let found;
+    try { found = scheduleProblems(read(rel), rel); } catch (e) { r.fail(rel + ": does not parse, so its reads cannot be checked: " + e.message.split("\n").slice(0, 3).join(" ")); return; }
+    found.forEach(x => r.fail(rel + ":" + x.line + ": `" + x.text + "` reads or writes a section's box/last in bm.game.v1.sec; take them from the event log (BMEvents.schedule / scheduleAll)"));
+  });
+}
+
 /* --------------------------------------------------------- US English -- */
 
 /* Decision 0001: what a reader is shown is in US English, and money is in dollars. The
@@ -2143,6 +2196,7 @@ const CHECKS = [
   { name: "migrations", run: checkMigrations, what: "a supabase/schema.sql change since main ships a new, well-named migration; applied ones are untouched; supabase/tests/prune_cases.sql is what tools/gen-prune-sql-cases.js writes" },
   { name: "placeholders", run: checkPlaceholders, what: "no answer box shows an example its own key judges right or form" },
   { name: "answer-spec", run: checkAnswerSpec, what: "data-tol finite, >= 0, never on exact or expr keys; every alternative of a key judged right against it; no barred expr key splits a |e|; site.js judge() grades through BMCore.judge" },
+  { name: "schedule-readers", run: checkScheduleReaders, what: "assets/*.js read a section's box and last only from the event log (BMEvents.schedule/scheduleAll), never from bm.game.v1.sec, and never write them there" },
   { name: "pure-core", run: checkPureCore, what: "no module under src/core/, src/sync/, src/learn/, src/data/ names window, document, localStorage or sessionStorage (comments aside)" },
   { name: "merge", run: checkMerge, what: "BMAccount.merge (src/sync/merge.ts, through BMMerge) is commutative, associative, idempotent (2000 seeded cases); the merged event log holds only valid entries either side held, the larger v and the greater payload for a colliding id; account.js has no mergeGame of its own" },
   { name: "animations", run: checkAnimations, what: "no CSS animation loops forever, repeats more than 3 times, or more than 3 times a second" },
@@ -2179,5 +2233,5 @@ function main() {
 
 if (require.main === module) main();
 module.exports = {
-  chartProblems, checkScope, CHECKS, result, loadCore, barProblem, siteJudgeProblem, pureProblems, isPureFile, codeProblems, courseProblems, exerciseRefs, sectionAnchors, skillsProblems, sectionWorkCounts, sectionWorkProblems, pageKeys, lessonSteps, stepsDiff, helpMarkupProblems, shellOf, shellDiff, scriptsProblems, randomState, stripLocalFirst, canon,
+  chartProblems, checkScope, CHECKS, result, loadCore, barProblem, siteJudgeProblem, pureProblems, scheduleProblems, isPureFile, codeProblems, courseProblems, exerciseRefs, sectionAnchors, skillsProblems, sectionWorkCounts, sectionWorkProblems, pageKeys, lessonSteps, stepsDiff, helpMarkupProblems, shellOf, shellDiff, scriptsProblems, randomState, stripLocalFirst, canon,
   animationFaults, colourLiterals, columnPatterns, inColumn, quietKinds, printGaps };

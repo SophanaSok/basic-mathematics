@@ -578,9 +578,35 @@
   /* ------------------------------------------------- where it is going ---- */
 
   /* How hard one exercise was for this reader, from 0 (right first time) to 1, and the
-     scores that make a section weak or strong: src/core/rules.ts */
+     scores that once made a section weak or strong: src/core/rules.ts. They are display
+     only now; which sections are weak or strong is the event log's mastery band
+     (window.BMEvents.bandOf), read at call time because BMEvents is installed after this
+     file runs. A read that fails gives "none" (warned once). */
   var struggle = Rules.struggle;
   var WEAK = Rules.WEAK, STRONG = Rules.STRONG;
+  var bandWarned = false;
+  /* {section: band} and {section: {m, c}}, each read once per call; {} when the log is missing or throws */
+  function logRead(name) {
+    try {
+      var E = window.BMEvents, v = E && typeof E[name] === "function" ? E[name]() : null;
+      return v && typeof v === "object" ? v : {};
+    } catch (e) {
+      if (!bandWarned) { bandWarned = true; if (window.console) console.warn("[BM] " + name, e); }
+      return {};
+    }
+  }
+  function has(o, k) { return Object.prototype.hasOwnProperty.call(o, k); }
+  /* the rows in `list` whose band is `want`, from one read of the log */
+  function inBand(list, want) {
+    var bands = logRead("bands");
+    return list.filter(function (r) { return has(bands, r.id) && bands[r.id] === want; });
+  }
+  /* the weak rows, weakest mastery first (absent counts 0.5), then most evidence */
+  function weakFirst(list) {
+    var ms = logRead("masteries");
+    var m = function (r) { var v = has(ms, r.id) ? ms[r.id] : null; return v && typeof v.m === "number" && isFinite(v.m) ? v.m : 0.5; };
+    return inBand(list, "weak").sort(function (a, b) { return m(a) - m(b) || b.n - a.n; });
+  }
 
   var Insights = {
     WEAK: WEAK,
@@ -627,14 +653,10 @@
       return list;
     },
     weak: function () {
-      return this.sections()
-        .filter(function (r) { return r.score >= WEAK; })
-        .sort(function (a, b) { return b.score - a.score || b.n - a.n; });
+      return weakFirst(this.sections());
     },
     strong: function () {
-      return this.sections()
-        .filter(function (r) { return r.n >= 2 && r.score <= STRONG; })
-        .sort(function (a, b) { return b.n - a.n; });
+      return inBand(this.sections(), "strong").sort(function (a, b) { return b.n - a.n; });
     }
   };
   window.BMInsights = Insights;
@@ -656,8 +678,7 @@
     }
     var n = 0, first = 0;
     rows.forEach(function (r) { n += r.n; first += r.first; });
-    var weak = rows.filter(function (r) { return r.score >= WEAK; })
-      .sort(function (a, b) { return b.score - a.score; }).slice(0, 3);
+    var weak = weakFirst(rows).slice(0, 3);
     var html = '<span class="tag">How this chapter is going</span>' +
       "<p>Right the first time on <b>" + first + "</b> of the <b>" + n + "</b> questions you have tried here.</p>";
     html += weak.length

@@ -26,6 +26,8 @@
      - CSS (lib/css.js and the stylesheet checks): the token tables per theme × panel,
        color-mix and see-through backgrounds, the flash-and-loop rule, colour literals,
        and what counts as the reading column and as motion or decoration in it
+     - schedule-readers: box and last read off a section record, or written into one
+       assigned to .sec[...], are found; the same names off a schedule or a pick are not
      - pure-core: a page global named in a module's code is found, by line, and one in a
        string is told apart; one in a comment is not; a "//", "/*" or quote inside a string
        or a regex hides nothing; one in a template's text, in JSX text or spelled with an
@@ -818,6 +820,19 @@ function refusal(fn) { try { fn(); return null; } catch (e) { return e.message; 
   check(refusal(() => pureProblems("const = ;", "x.ts")) !== null, "… a module that does not parse is refused, not passed");
   eq(["a.ts", "a.js", "a.mts", "a.cts", "a.mjs", "a.cjs", "a.tsx", "a.jsx", "a.test.ts", "a.test.mts", "a.test-helper.ts", "a.d.ts", "a.d.mts", "a.json"].filter(isPureFile), ["a.ts", "a.js", "a.mts", "a.cts", "a.mjs", "a.cjs", "a.tsx", "a.jsx"],
     "… every script under the pure directories is read, whatever its extension, but tests, test helpers and declaration files");
+}
+
+/* -------------------------------------------------------- schedule-readers -- */
+/* a section's box and last come from the event log, never from bm.game.v1.sec */
+{
+  const { scheduleProblems } = require("./check-static");
+  const found = (src) => scheduleProblems(src, "x.js").map(x => x.line);
+  eq(found("var a = sec.box;\nvar b = secRec(id).last;\nvar c = g.sec[id].box;\nvar d = obj(S.game.sec[id]).box;\nvar e = sec[\"last\"];"), [1, 2, 3, 4, 5],
+    "schedule-readers: box and last read off sec, secRec(), g.sec[id] and obj(S.game.sec[id]), by dot or by string key, are found, by line");
+  eq(found("g.sec[id] = { n: 1, box: 2, ok: 1 };\nS.game.sec[id] = Object.assign({}, { \"last\": d });"), [1, 2], "… and a box or last written into a record assigned to .sec[...] is found");
+  eq(found("var a = d[id].box, b = sched[id].last, c = picks[id].box;\nvar o = { box: 1, last: 2 };\nsecs[id] = { box: 1 };"), [], "… box and last off a schedule, a deck row or a pick, and in an object not assigned to .sec[...], pass");
+  eq(found("// sec.box\n/* secRec(id).last */\nvar s = 'sec.box';"), [], "… a comment or a string never counts");
+  check(refusal(() => scheduleProblems("var = ;", "x.js")) !== null, "… a module that does not parse is refused, not passed");
 }
 
 /* ----------------------------------------------------------------- charts -- */
