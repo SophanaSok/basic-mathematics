@@ -53,6 +53,16 @@ describe("matchMiss on blanks", () => {
   });
 });
 
+describe("matchMiss on an untyped blank", () => {
+  it("compares it as exact, as the grader does", () => {
+    const seen: string[] = [];
+    const spy = (g: string, a: string, t: string) => { seen.push(t); return g === a; };
+    const items = parseMisses([{ given: "7", blank: 1 }]);
+    expect(matchMiss({ given: ["7"], kind: "blank", type: "exact", blanks: [{ type: null }] }, items, spy)).toBe(0);
+    expect(seen).toEqual(["exact"]);
+  });
+});
+
 describe("matchMiss on the rest", () => {
   it("never answers order or figure, and never throws", () => {
     const items = parseMisses([{ given: "1" }]);

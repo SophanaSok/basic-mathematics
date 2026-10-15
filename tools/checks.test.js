@@ -1320,11 +1320,22 @@ function refusal(fn) { try { fn(); return null; } catch (e) { return e.message; 
       "miss-given-right.html": /graded right against the key/,
       "miss-duplicate.html": /two notes answer the same slip/,
       "miss-link.html": /uses the tag <a>/,
-      "final-on-order.html": /order exercise takes no data-final/
+      "final-on-order.html": /order exercise takes no data-final/,
+      "final-in-answer.html": /data-final inside p\.answer/,
+      "twin-twice.html": /two twins on one card/
     };
+    /* a fixture with one fault fails once; these five trip more than one rule by their shape (a twin before
+       the question moves the fingerprint too, a note inside the question, a twin holding a card or an id,
+       a top-level twin), so they stay on the "some" rule */
+    const someOnly = new Set(["template-before-q.html", "miss-inside-q.html", "template-with-ex.html", "template-with-id.html", "top-level-template.html"]);
     Object.keys(mustFail).forEach(name => {
       const res = run(name);
       check(res.fails.some(m => mustFail[name].test(m)), "help-markup: " + name + " fails with " + mustFail[name] + " — got " + JSON.stringify(res.fails));
+      if (!someOnly.has(name)) check(res.fails.length === 1, "help-markup: " + name + " fails for one reason — got " + JSON.stringify(res.fails));
+    });
+    ["choice-final.html", "blank-miss.html"].forEach(name => {
+      const res = run(name);
+      eq(res.fails, [], "help-markup: " + name + " passes (a regression guard)");
     });
     const after = run("final-after-step.html");
     eq([after.fails, after.warns], [[], []], "help-markup: text after data-final is cut from the faded view, and the page passes");

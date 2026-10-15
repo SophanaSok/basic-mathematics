@@ -8,7 +8,7 @@ export interface MissInput {
   given: string | readonly string[];
   kind: string;
   type: string;
-  blanks?: readonly { type: string }[];
+  blanks?: readonly { type: string | null }[];
 }
 
 export const MAX_MISSES = 4;
@@ -47,7 +47,8 @@ export function matchMiss(input: MissInput, items: readonly MissItem[], matches:
         const k = Number(it.blank);
         if (!Array.isArray(input.given) || !Number.isInteger(k) || k < 1) continue;
         const got = input.given[k - 1];
-        const bt = input.blanks && input.blanks[k - 1] ? input.blanks[k - 1].type : input.type;
+        /* an untyped blank (null) is "exact", as check.ts judge() takes a spec with no type */
+        const bt = (input.blanks && input.blanks[k - 1] ? input.blanks[k - 1].type : input.type) || "exact";
         hit = typeof got === "string" && got.trim() !== "" && matches(got, it.given, String(bt), 0);
       } else if (kind === "choice") {
         hit = typeof input.given === "string" && input.given.trim() === it.given.trim();

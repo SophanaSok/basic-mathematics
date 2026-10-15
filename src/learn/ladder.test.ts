@@ -17,6 +17,8 @@ describe("the ladder's rungs", () => {
     expect(start(3, 2.7)).toEqual({ clues: 3, open: 2, fadeable: false, faded: false });
     for (const junk of [-1, "2", null, true, [1], { a: 1 }, NaN, Infinity]) expect(start(3, junk).open).toBe(0);
     expect(start(9, 0).clues).toBe(CLUE_RUNGS);
+    expect(start(3, "4", true).faded).toBe(true);
+    expect(start(3, "x", true).faded).toBe(false);
     expect(savedRung(5, 2)).toBe(2);
   });
 
