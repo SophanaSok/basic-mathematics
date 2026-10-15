@@ -1504,7 +1504,7 @@ async function run() {
       const clean = { seq: null, skip: false, overlays: 0, counting: 0, styled: 0 };
       const cleanOf = (x) => ({ seq: x.seq, skip: x.skip, overlays: x.overlays, counting: x.counting, styled: x.styled });
 
-      /* (a) it plays, (b) Skip finalises to the reduced-motion markup, (g) one announcement, (e) a reload */
+      /* (a) it plays, (b) Skip finalises to the reduced-motion markup, (g) one announcement, (e) once per key */
       let skippedHtml, playStats;
       {
         const { context, page, errors } = await finish();
@@ -1522,11 +1522,14 @@ async function run() {
         eq(live.length, 1, "the finale is announced once: " + JSON.stringify(live));
         const run = await page.evaluate(() => JSON.parse(localStorage.getItem("bm.run.v1") || "{}"));
         check(run.seen && run.seen.results && Object.keys(run.seen.results).some((k) => /^ch05\//.test(k)), "it is remembered as seen " + JSON.stringify(run.seen));
-        await page.reload();
-        await page.waitForFunction(() => document.readyState === "complete");
-        await wait(300);
-        const rl = cleanOf(await snap(page));
-        eq([rl.seq, rl.skip, rl.overlays, rl.counting], [null, false, 0, 0], "a reload shows the finale without the sequence");
+        /* once per key: the same key asked again does not play */
+        const again = await page.evaluate(() => {
+          var sec = document.querySelector("#practice .encounter-result"), seen = window.BMStore.read(window.BMStore.keys.run, {}).seen.results || {};
+          var key = Object.keys(seen).filter((k) => /^ch05\//.test(k))[0];
+          return { key: key, played: window.BMResults.playResults(sec, { key: key }), seq: sec.hasAttribute("data-seq") };
+        });
+        check(/^ch05\//.test(again.key || ""), "the run store holds the finale's key " + JSON.stringify(again.key));
+        eq([again.played, again.seq], [false, false], "asked again with the same key, the reveal does not play");
         eq(errors, [], "no errors playing and skipping the finale");
         await context.close();
       }
@@ -1572,6 +1575,7 @@ async function run() {
         const a = await snap(page);
         eq(cleanOf(a), clean, "Skip by keyboard ends the sequence");
         check(/encounter-result-title/.test(a.active || ""), "and focus moves to the title (" + a.active + ")");
+        check(a.html === skippedHtml, "and the markup is the reduced-motion render's");
         await context.close();
       }
     }

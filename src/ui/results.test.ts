@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { COUNT_MS, SEEN_MAX, SEQ_MAX_MS, STEP_MS, hasSeen, markSeen, seenKey, stepDelays } from "./results.ts";
+import { COUNT_MS, SEEN_MAX, SEQ_MAX_MS, STEP_MS, endAt, hasSeen, markSeen, seenKey, stepDelays } from "./results.ts";
 
 describe("stepDelays", () => {
   it("is empty for no steps and starts at 0", () => {
@@ -16,6 +16,14 @@ describe("stepDelays", () => {
       expect(d[n - 1] + COUNT_MS).toBeLessThanOrEqual(SEQ_MAX_MS);
       d.forEach((v, i) => { if (i) expect(v).toBeGreaterThanOrEqual(d[i - 1]); });
     }
+  });
+});
+
+describe("endAt", () => {
+  it("leaves the last row its whole reveal, and never passes the cap", () => {
+    const d = stepDelays(6);
+    expect(endAt(d)).toBeGreaterThanOrEqual(d[5] + STEP_MS);
+    for (let n = 0; n <= 40; n++) expect(endAt(stepDelays(n))).toBeLessThanOrEqual(SEQ_MAX_MS);
   });
 });
 

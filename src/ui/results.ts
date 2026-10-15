@@ -38,6 +38,13 @@ export function stepDelays(n: number): number[] {
   return out;
 }
 
+/** When the sequence ends: the last applied delay, the longer of a reveal and a count-up, a
+    little slack, never past SEQ_MAX_MS. */
+export function endAt(delays: number[]): number {
+  const last = delays.length ? Math.max(...delays) : 0;
+  return Math.min(SEQ_MAX_MS, last + Math.max(STEP_MS, COUNT_MS) + 60);
+}
+
 /** The key a result is remembered by. */
 export function seenKey(parts: readonly (string | number)[]): string {
   return parts.map(p => String(p)).join("/");
@@ -100,6 +107,7 @@ export function playResults(section: HTMLElement, opts: PlayOptions): boolean {
   skip.className = "btn ghost small";
   skip.setAttribute("data-skip", "");
   skip.textContent = "Skip";
+  skip.setAttribute("aria-label", "Skip the reveal");
 
   section.setAttribute("data-seq", "play");
   steps.forEach(el => el.style.setProperty("--seq-delay", delayOf(el) + "ms"));
@@ -111,14 +119,12 @@ export function playResults(section: HTMLElement, opts: PlayOptions): boolean {
   const hosts: HTMLElement[] = [];
   let ended = false;
   let endTimer = 0;
-  let last = 0;
 
   section.querySelectorAll<HTMLElement>("[data-count]").forEach(host => {
     const text = (host.textContent || "").trim();
     if (!/^\d+$/.test(text)) return;
     const target = Number(text);
     const start = delayOf(host);
-    last = Math.max(last, start);
     const ov = document.createElement("span");
     ov.className = "bm-count";
     ov.setAttribute("aria-hidden", "true");
@@ -157,8 +163,7 @@ export function playResults(section: HTMLElement, opts: PlayOptions): boolean {
     });
     skip.remove();
     if (hadFocus && heading) {
-      if (!heading.hasAttribute("tabindex")) heading.setAttribute("tabindex", "-1");
-      heading.focus();
+      heading.focus();   /* a heading that can take focus has tabindex="-1" in its markup already */
     }
     try {
       window.BMStore.write(window.BMStore.keys.run, markSeen(runStore(), opts.key), true);
@@ -168,11 +173,11 @@ export function playResults(section: HTMLElement, opts: PlayOptions): boolean {
 
   document.addEventListener("keydown", onKey, true);
   section.addEventListener("click", finish);
-  endTimer = window.setTimeout(finish, Math.min(SEQ_MAX_MS, last + COUNT_MS + 60) + 0);
+  endTimer = window.setTimeout(finish, endAt(delays));
   active = finish;
   return true;
 }
 
-export const api = { playResults, stepDelays, seenKey, hasSeen, markSeen, SEQ_MAX_MS };
+export const api = { playResults, stepDelays, endAt, seenKey, hasSeen, markSeen, SEQ_MAX_MS };
 
 if (typeof window !== "undefined") window.BMResults = api;

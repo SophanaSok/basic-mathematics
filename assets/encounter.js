@@ -403,7 +403,7 @@
     if (!st.won) return;
     var medal = Game.medal(chapterId, set.id), isCalm = calm(), el = set.result;
     el.removeAttribute("data-revisit");
-    var html = '<p class="encounter-result-title"><b>' + esc(set.name) + "</b> " + (set.review ? "cleared." : "is down.") + "</p>";
+    var html = '<p class="encounter-result-title" tabindex="-1"><b>' + esc(set.name) + "</b> " + (set.review ? "cleared." : "is down.") + "</p>";
     html += '<p class="encounter-medal" data-step="1" data-medal="' + medal + '">' + stars(medal) + " " + MEDALS[medal] + " medal</p>";
     html += '<div class="stats" data-step="2"><div class="stat"><b>' + cnt(st.first) + " of " + st.total + "</b><span>right the first time</span></div>";
     if (!isCalm) html += '<div class="stat"><b>' + cnt(st.hearts) + " of 3</b><span>hearts kept</span></div>";

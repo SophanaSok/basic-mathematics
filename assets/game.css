@@ -601,6 +601,7 @@ input.blank[data-ok="false"] { border-color: var(--bad); background-image: var(-
 .encounter-result p { margin: 0 0 .7rem; }
 .encounter-result ul { margin: 0 0 .9rem; padding-left: 1.2rem; }
 .encounter-result-title b { font-weight: 800; }
+.encounter-result-title:focus { outline: none; }
 .encounter-result [data-skip] { margin: 0 0 .8rem; }
 .encounter-medal { display: flex; flex-wrap: wrap; align-items: center; gap: .3rem .55rem; margin: 0 0 1rem; font-weight: 600; }
 .encounter-medal .encounter-stars {
@@ -748,6 +749,8 @@ html[data-motion="reduce"] *, html[data-motion="reduce"] *::before, html[data-mo
   .form-view, .form-dialog-box { background: var(--surface-2); }
 }
 @media (forced-colors: active) {
+  /* the count-up overlay cannot be drawn over transparent text here; the real number shows */
+  [data-seq="play"] .bm-count { display: none; }
   .ex[data-state="correct"], .ex[data-state="wrong"], .encounter, .encounter-result, .encounter-regroup,
   .ex-hint, .banner-stat, .encounter-wards li, .toast, .hud-sheet, .hud-badge, .hud-timer {
     border-color: CanvasText; border-style: solid;

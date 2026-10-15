@@ -990,6 +990,12 @@ async function run() {
       const skippedHtml = after.html;
       delete after.html;
       eq(after, { seq: false, skip: false, overlays: 0, counting: 0, style: 0 }, "Skip puts the result back to its still markup");
+      /* Skip marked the run seen; forget that, so the restored path is what keeps it from playing */
+      await p.evaluate(() => {
+        var run = window.BMStore.read(window.BMStore.keys.run, {});
+        if (run.seen) run.seen.results = {};
+        window.BMStore.write(window.BMStore.keys.run, run, true);
+      });
       await p.reload();
       await p.waitForFunction(() => document.readyState === "complete");
       await p.waitForSelector(".arena-result");

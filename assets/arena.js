@@ -1428,6 +1428,7 @@
     }
     if (res.replay) html += '<p class="arena-fine" data-step="3">That day\'s Daily had already been played, here or in another tab or on another device, so this one pays no XP and keeps no best.</p>';
     html += '<div class="arena-stats">';
+    /* the tiles take 4.., then the board, the review block and the actions take the next three numbers */
     var ts = 4;
     if (res.hearts !== null) html += tile("Hearts left", cnt(res.hearts) + " <small>of " + res.maxHearts + "</small>", heartsHtml(res.hearts, res.maxHearts), ts++);
     /* the first-try count and rate, as information: no target to hit */
