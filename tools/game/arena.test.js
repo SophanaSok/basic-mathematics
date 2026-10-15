@@ -45,7 +45,11 @@
       entries, kept by the prune (the first two, the last two and the earliest miss of a
       section a day), each at the day's start, with a generator ref, its device's id, and no
       time or score in it; a banked run records what was answered; a replayed Daily records
-      nothing; the same with no game layer; the schedule it reads equals the game record's */
+      nothing; the same with no game layer; the schedule it reads equals the game record's
+  16. the results reveal (src/ui/results.ts): a finished run's result plays (data-seq, a Skip
+      button, the real numbers in the text throughout), Skip puts the markup back to what
+      a still render holds; a reload at the result screen shows the final values with no
+      data-seq and no Skip */
 "use strict";
 const site = require("../lib/site");
 const target = require("../lib/target");
@@ -576,7 +580,8 @@ async function run() {
       eq([g["ch05#angles"].n, g["ch05#angles"].ok, g["ch02#one-unknown"].n, g["ch02#one-unknown"].ok], [3, 3, 3, 2], "and counts the answers");
       /* 3 a first try on a due section: Angles 3 + 3, One unknown 3 (its retry has no heart at stake, so pays none), Distance 3 + 3; no finishing bonus without hearts */
       eq([res.xp, res.firstTry, res.n], [15, 5, 6], "the review's XP and first-try count");
-      const text = await p.$eval(".arena-result", (e) => e.textContent);
+      /* the reveal's aria-hidden count-up overlays are in textContent while it plays; the real text is not */
+      const text = await p.$eval(".arena-result", (e) => { var c = e.cloneNode(true); c.querySelectorAll(".bm-count").forEach((o) => o.remove()); return c.textContent; });
       check(/5 of 6/.test(text) && /83% right the first time/.test(text), "the result shows the first-try count and rate");
       check(!/85\s*(%|percent)/i.test(text) && !/target|aim for/i.test(text), "with no target band and no 85 percent figure");
       check(/3 sections checked/.test(text), "and how many sections it checked");
@@ -953,6 +958,50 @@ async function run() {
         await verify(p, "fallback run");
         await context.close();
       }
+    }
+
+    /* 16: the results reveal */
+    {
+      const context = await ctx(browser);
+      const p = await open(context, errors, "arena.html", {}, true);
+      await p.click('[data-act="start"][data-mode="standard"]');
+      await playOut(p);
+      await p.waitForSelector(".arena-result");
+      const playing = await p.evaluate(() => {
+        var r = document.querySelector(".arena-result"), b = r.querySelector(".arena-bigscore b");
+        var real = b.cloneNode(true);
+        Array.prototype.forEach.call(real.querySelectorAll(".bm-count"), function (o) { o.remove(); });
+        return {
+          seq: r.getAttribute("data-seq"), skip: !!r.querySelector("[data-skip]"), overlays: r.querySelectorAll(".bm-count").length,
+          hidden: Array.prototype.every.call(r.querySelectorAll(".bm-count"), function (o) { return o.getAttribute("aria-hidden") === "true"; }),
+          real: real.textContent, want: b.querySelector("[data-count]").getAttribute("data-count"),
+          afterHeading: r.querySelector("#arena-result-h").nextElementSibling === r.querySelector("[data-skip]"),
+          focus: document.activeElement && document.activeElement.id
+        };
+      });
+      eq([playing.seq, playing.skip, playing.hidden, playing.afterHeading, playing.focus], ["play", true, true, true, "arena-result-h"], "a finished run's result plays, with Skip after the heading and focus still on the heading");
+      check(playing.overlays > 0 && playing.real === playing.want, "the real score is in the text while the overlay counts " + JSON.stringify(playing));
+      await p.evaluate(() => document.querySelector(".arena-result [data-skip]").click());
+      const after = await p.evaluate(() => {
+        var r = document.querySelector(".arena-result");
+        return { seq: r.hasAttribute("data-seq"), skip: !!r.querySelector("[data-skip]"), overlays: r.querySelectorAll(".bm-count").length,
+          counting: r.querySelectorAll("[data-counting]").length, style: r.querySelectorAll("[style]").length, html: r.innerHTML };
+      });
+      const skippedHtml = after.html;
+      delete after.html;
+      eq(after, { seq: false, skip: false, overlays: 0, counting: 0, style: 0 }, "Skip puts the result back to its still markup");
+      await p.reload();
+      await p.waitForFunction(() => document.readyState === "complete");
+      await p.waitForSelector(".arena-result");
+      const restored = await p.evaluate(() => {
+        var r = document.querySelector(".arena-result");
+        return { seq: r.hasAttribute("data-seq"), skip: !!r.querySelector("[data-skip]"), overlays: r.querySelectorAll(".bm-count").length,
+          score: r.querySelector(".arena-bigscore b").textContent, html: r.innerHTML };
+      });
+      eq([restored.seq, restored.skip, restored.overlays], [false, false, 0], "a reload at the result shows no sequence");
+      check(/^\d+$/.test(restored.score), "and the final score " + restored.score);
+      check(restored.html === skippedHtml, "and a skipped result is the same markup as the restored one");
+      await context.close();
     }
     eq(errors, [], "no page errors");
   } finally {

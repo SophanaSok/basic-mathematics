@@ -86,6 +86,8 @@ interface Window {
   BMPlan: typeof import("../ui/plan.ts").api;
   /** src/ui/next.ts: the "next best step" card (render, items, hide), a console and test handle */
   BMNext: typeof import("../ui/next.ts").api;
+  /** src/ui/results.ts: the skippable results reveal (playResults), a console and test handle */
+  BMResults: typeof import("../ui/results.ts").api;
   /** src/ui/forms.ts: the "Your form" panel (refresh, equip, view), a console and test handle */
   BMForms: typeof import("../ui/forms.ts").api;
   /** src/ui/form-unlock.ts: records and announces a form unlocked (settle), a test handle */

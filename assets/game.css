@@ -601,6 +601,7 @@ input.blank[data-ok="false"] { border-color: var(--bad); background-image: var(-
 .encounter-result p { margin: 0 0 .7rem; }
 .encounter-result ul { margin: 0 0 .9rem; padding-left: 1.2rem; }
 .encounter-result-title b { font-weight: 800; }
+.encounter-result [data-skip] { margin: 0 0 .8rem; }
 .encounter-medal { display: flex; flex-wrap: wrap; align-items: center; gap: .3rem .55rem; margin: 0 0 1rem; font-weight: 600; }
 .encounter-medal .encounter-stars {
   font-family: var(--display); font-size: 1.5rem; line-height: 1; letter-spacing: .08em; color: var(--xp-ink);
@@ -860,6 +861,19 @@ html[data-motion="reduce"] *, html[data-motion="reduce"] *::before, html[data-mo
   html:not([data-calm]):not([data-motion="reduce"]) .toast { animation: toast-in 280ms var(--ease-out) both; }
   html:not([data-calm]):not([data-motion="reduce"]) .toast[data-out] { animation: toast-out 280ms ease-in both; }
 
+  /* a result screen's reveal (src/ui/results.ts): rows fade in one after another, the
+     numbers count up under an aria-hidden overlay, the medal stamps once. The module sets
+     data-seq only when motion is allowed and takes it off when the sequence ends or is
+     skipped. The rows stay in the accessibility tree (opacity only) and the real numbers
+     keep their width: the host's own text is transparent while the overlay draws over it. */
+  [data-seq="play"] [data-step] { opacity: 0; animation: bm-seq-in var(--dur-reveal) var(--ease-out) var(--seq-delay, 0ms) both; }
+  [data-seq="play"] [data-step][data-medal] {
+    animation: bm-seq-in var(--dur-reveal) var(--ease-out) var(--seq-delay, 0ms) both, bm-seq-stamp 240ms ease-out 1;
+    animation-delay: var(--seq-delay, 0ms), calc(var(--seq-delay, 0ms) + var(--dur-reveal));
+  }
+  [data-seq="play"] [data-counting] { position: relative; color: transparent; }
+  [data-seq="play"] .bm-count { position: absolute; left: 0; top: 0; white-space: nowrap; font-variant-numeric: tabular-nums; }
+
   /* Between pages. Every navigation is a full page load; where the browser has
      cross-document view transitions (README, "Between pages"), every page opts in (the
      inline <style> tools/lib/shell.js writes after the boot script, under this same
@@ -901,6 +915,8 @@ html[data-motion="reduce"] *, html[data-motion="reduce"] *::before, html[data-mo
     0%, 100% { transform: translateX(0); } 25% { transform: translateX(-4px); }
     55% { transform: translateX(4px); } 80% { transform: translateX(-2px); }
   }
+  @keyframes bm-seq-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+  @keyframes bm-seq-stamp { 0%, 100% { transform: scale(1); } 50% { transform: scale(var(--mag-l)); } }
   @keyframes reveal { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
   @keyframes fade { from { opacity: 0; } to { opacity: 1; } }
   @keyframes fade-out { to { opacity: 0; } }

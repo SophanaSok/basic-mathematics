@@ -51,6 +51,8 @@ import "../data/forms.ts";
 import "../core/forms.ts";
 import "../ui/form-unlock.ts";
 import "../ui/settings.ts";
+/* the skippable reveal of the result screen (window.BMResults), found by arena.js */
+import "../ui/results.ts";
 import "../../data/gen/core.js";
 import "../../data/gen/part1.js";
 import "../../data/gen/part2.js";
