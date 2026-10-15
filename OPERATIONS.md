@@ -282,6 +282,17 @@ the `migrations` check refuses any edit to it; fix it with a newer migration.
    [6](#6-kill-switches). To empty the log, as a last resort, run
    `truncate public.events; update public.event_meta set seq = 0, epoch = epoch + 1;` in the SQL editor
    (the epoch moves too, or a device that holds the old one would keep writing and skip rows).
+5. P6 is the deploy that starts writing: before it merges, the privacy paragraph on about.html is
+   approved (O6, done 2026-10-15). The design also asked for CAPTCHA on sign-up (O3); it stays
+   **off**, decided 2026-10-15: Supabase's CAPTCHA rejects every email sign-up, password sign-in,
+   magic link and password reset that carries no token from an hCaptcha or Turnstile widget, and
+   the site has no widget (one would also need a third-party script, against the offline rule).
+   What limits mass accounts instead: Authentication → Rate Limits, sign-ups and sign-ins at 30
+   per 5 minutes per IP address; Confirm email on; OAuth sign-in through Google and GitHub; and
+   the per-reader caps in `events_put()` and the board functions, which bound what any one
+   account can cost. Revisit if sign-ups look farmed (`select count(*) from auth.users where
+   created_at > now() - interval '1 day';`); a widget card would then add Turnstile to
+   account.html and pass `captchaToken` on each of those four calls. After P6, "What to watch" applies.
 
 ## 2. Deploys
 
@@ -647,7 +658,7 @@ the two cannot drift apart.
 
 One fact from it matters for operations: `user_state` is a copy of what each reader's browser
 already holds, and sync is a merge, so a reader's browser can put their row back. The `attempts`
-log exists only on the server.
+table is no longer written (P6) and goes with P7; the event log (`events`) is a copy of the browser's `bm.events.v1`, pruned the same way on both sides, so a reader's browser can put it back too.
 
 Unlike every other `user_state` column, `diag` (the placement-check results) survives a reset;
 only Delete my account removes it (see `docs/decisions/0003-placement-check.md`).
@@ -794,7 +805,7 @@ check it when the first function exists.
 | Keep `groundupmath.org` renewed | from the purchase | yearly; auto-renew on | Porkbun → Domain Management → the domain → Auto Renew on, with a card that will still be valid. A lapsed domain takes the site and every reader's saved progress with it, and lets someone else take the name. The bare domain and `www` forward to `learn` (Porkbun URL Forwarding, [8.3](#83-the-custom-domain-and-the-bare-domain)); after any DNS change there, rerun 8.3's check |
 | Watch GitHub Actions minutes | once the repository is private | a week after, then monthly | GitHub → Settings → Billing → Usage. A private repository's runs use the account's included minutes; one full run of CI is about 30 billed minutes, and a change to only Markdown and `docs/` starts none ([When CI runs](#when-ci-runs)). Without a payment method GitHub blocks runs past the quota rather than billing them. On 2026-10-12 the public repository was blocked anyway: the account's Actions budget was $0 with "Stop usage" on, so the included-minutes bar filling stopped every run (public usage is free, but the stop still fires). The fix is GitHub → Settings → Billing → Budgets and alerts → the Actions budget: raise it above $0 or set "Stop usage" to No. If it is tight, run the `webgl` job only when 3D files change |
 | Renew expiring provider secrets | now, if Microsoft is enabled | before the expiry date | [Section 4](#rotation-in-outline) |
-| The hint review queue | **[not yet: R2]** | each content wave | Generated hints wait in a review queue; nothing ships unapproved. Approving or rejecting them is the owner's job |
+| The hint review queue | **[deferred past R2]** | each content wave | Generated hints wait in a review queue; nothing ships unapproved. Approving or rejecting them is the owner's job |
 | League abuse handling | **[not yet: R4]** | weekly, and on a report | Offensive or impersonating behaviour, and scores that look farmed. The tools for removing someone from a cohort come with R4 |
 | Deploy Edge Functions in step with content | **[not yet: R5]** | every merge that changes exercises, solutions or hints | The tutor function bundles its own index of questions, solutions and rungs, and requests carry a content hash. If the site changes and the function is not redeployed, the hashes differ and the tutor falls back to the authored rungs for those exercises |
 | Watch the Anthropic workspace spend limit | **[not yet: R5]** | weekly at first | Usage against the limit in the Anthropic Console. Once the limit is reached the tutor's calls fail; by the plan's design readers then get the authored rungs |
@@ -815,7 +826,7 @@ without removing its code.
 | an id removed from `providers` | That sign-in button disappears. Remove it here first, then disable the service in Supabase |
 | `emailDelivery: false` | No "Email me a sign-in link", no "Forgot password" |
 | `board: "off"` | No Daily board: nothing is submitted or fetched, the Arena shows no board and the account page hides the switch (from K-10g). This is the site's side only; a tab from before the deploy, or anything else holding a session, can still call the functions. For a full stop run `revoke execute on function public.submit_daily(text, integer, integer, integer, integer), public.daily_board(text) from authenticated;` in the SQL editor (leave `leave_board()` callable so readers can still leave), and `grant` them back to switch it on |
-| `learn.events: "off"` **[from P6]** | The page scripts record and send no events; the log stays as it is. This is the site's side only; a tab from before the deploy, or anything else holding a session, can still call `events_put()`. For a full stop run `revoke execute on function public.events_put(jsonb, integer) from authenticated;` in the SQL editor, and `grant execute on function public.events_put(jsonb, integer) to authenticated;` to switch it on |
+| `learn.events: "off"` | The site sends no events and pulls none; the browser's own log is still kept and read. This is the site's side only; a tab from before the deploy, or anything else holding a session, can still call `events_put()`. For a full stop run `revoke execute on function public.events_put(jsonb, integer) from authenticated;` in the SQL editor, and `grant execute on function public.events_put(jsonb, integer) to authenticated;` to switch it on |
 
 **Planned [not yet]:** the plan adds `tutor.enabled` (R5; the tutor is built with it `false`) and
 one flag each for leagues (R4), the shop (R3), gates (R3) and streak reminders (R3). Only
@@ -905,6 +916,22 @@ First decide which key it is.
      Rotation is the fix; rewriting history is optional tidying.
   4. If reader data may have been read (a leaked service-role key bypasses row-level security),
      say so to the readers affected. The privacy text on `about.html` describes what is held.
+
+### 7.4 A reader's answer log stopped syncing
+
+Symptoms: the account page shows "Your answer log is full; it will catch up", or nothing new
+reaches `events` for one account while progress still syncs. Causes, in order:
+
+1. The day's quota: 3,000 new rows or 2,000 calls, which resets at UTC midnight. Wait.
+2. The per-reader cap of 25,000 rows, or the 300 MB ceiling (`bm-full`): the page retries after
+   24 hours. Check `select * from public.events_usage();`.
+3. A row with a later format: `select max(v) from public.events where user_id = '<uid>';` above
+   1 means every device of that account stops sending. The reader's Reset progress recovers it,
+   since the reset trigger deletes the rows.
+4. A missing function (`events_put` not found): apply the migration, then run
+   `notify pgrst, 'reload schema';`.
+
+Nothing is lost while this lasts: the browser keeps its log and its outbox.
 
 ## 8. Hosting
 

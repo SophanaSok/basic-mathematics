@@ -155,7 +155,7 @@
   /* ----------------------------------------------------------------- sync -- */
 
   var user = null, status = { state: "off", at: null, error: null };
-  var pushTimer = null, queue = [], watchers = [];
+  var pushTimer = null, watchers = [];
   /* The account row as this page last read or wrote it: undefined until then, null
      when the account has no row yet, otherwise its updated_at exactly as the server
      sent it back. `owned` is set once this page has claimed this browser's progress
@@ -172,7 +172,7 @@
   function noop() {}
 
   function setStatus(state, error) {
-    status = { state: state, at: state === "synced" ? new Date() : status.at, error: error || null };
+    status = { state: state, at: state === "synced" ? new Date() : status.at, error: error || null, log: evFull ? "full" : "" };
     notify();
   }
   function notify() {
@@ -206,7 +206,7 @@
   /* Data marked newer than the shape this version understands (BMMerge.SCHEMA, the game
      record's `v`; src/sync/merge.ts) is still merged into this browser, so the reader
      keeps working with everything they have, but the page then writes nothing to the
-     account, neither the row nor the attempt log (`ahead`), and the account page asks for
+     account, neither the row nor the learning log's batches (`ahead`), and the account page asks for
      a reload, which fetches the newer site. */
 
   /* Columns of user_state the server turned out not to have. They are not sent, so a
@@ -230,6 +230,8 @@
   }
   /* PostgREST's PGRST205, or Postgres's own 42P01: there is no such table */
   function noTable(e) { return e.code === "PGRST205" || e.code === "42P01"; }
+  /* the same, and PGRST202 / 42883: there is no such function (events_put) */
+  function noFunction(e) { return noTable(e) || e.code === "PGRST202" || e.code === "42883"; }
 
   function row(u, state, resetAt) {
     var out = { user_id: u.id, reset_at: resetAt || 0, updated_at: nextStamp() };
@@ -298,7 +300,7 @@
       if (res.error) throw res.error;
       stillSignedIn(u);
       stillOwner(u);
-      var remote = res.data, m = meta(), local = readLocal(), dropped = false;
+      var remote = res.data, m = meta(), local = readLocal(), dropped = false, differentAccount = !!(m.user && m.user !== u.id);
       var aside = obj(pending()[u.id]), hasAside = !!aside.state;
       if (remote) learn(remote);
       var remoteReset = remote ? Number(remote.reset_at) || 0 : 0;
@@ -330,7 +332,8 @@
          read and merge again instead of writing this browser's copy over it */
       seen = remote ? remote.updated_at : null;
       ahead = versionOf(remote) > SCHEMA || versionOf(merged) > SCHEMA;
-      setMeta(function (x) { x.user = u.id; x.resetAt = resetAt; });
+      /* another account's cursors are not this reader's either: its log was cleared above */
+      setMeta(function (x) { x.user = u.id; x.resetAt = resetAt; if (differentAccount) x.ev = {}; });
       owned = true;
       writeLocal(merged, dropped);
       function done() {
@@ -340,32 +343,177 @@
       var same = remote && remoteReset === resetAt && FIELDS.every(function (f) {
         return lacks[f] || canon(merged[f] || null) === canon(remote[f] || null);
       });
-      if (same) return done();
+      if (same) { done(); return syncEvents(u).then(function () { return true; }); }
       /* a newer shape: merged into this browser above and not written, and what was set
          aside stays set aside */
       if (ahead) return false;
       return write(u, merged, resetAt).then(function (ok) {
-        if (ok) return done();
+        if (ok) { done(); return syncEvents(u).then(function () { return true; }); }
         if (tries >= 3) throw new Error("Another device kept saving at the same moment. Try Sync now.");
         return sync(u, tries + 1);
       });
     });
   }
 
-  /* The attempt log is an extra. Resolves true when the rows were taken and false, with
-     nothing thrown, when the project has no `attempts` table: that feature is off there,
-     and progress still syncs. The page then holds the log back (logAfter) instead of
-     sending all of it again with every save, tries once more every LOG_RETRY, and keeps
-     only the newest LOG_MAX checks meanwhile, so a long visit cannot pile them up. */
-  var LOG_RETRY = 5 * 60 * 1000, LOG_MAX = 500, logAfter = 0;
-  function logHeld() { return Date.now() < logAfter; }
-  function logAttempts(events) {
-    return client.from("attempts").insert(events).then(function (r) {
-      if (r.error && noTable(r.error)) { logAfter = Date.now() + LOG_RETRY; return false; }
-      if (r.error) throw r.error;
-      logAfter = 0;
-      return true;
+  /* ---------------------------------------------------- the learning log -- */
+
+  /* The learning log (src/ui/events.ts, entries in bm.events.v1) syncs through two calls of
+     its own, never through the account row: events_put, which takes a batch and answers
+     with what it did, and a select of the events table. It is an extra, as the attempt log
+     was: progress syncs whatever happens here, and every failure is held back, not thrown.
+     The page learns the log through window.BMEvents (this file cannot import its keys).
+
+     Three things are kept per reader in the sync meta (meta().ev[uid]): `seq`, the cursor
+     of the pull (the largest seq taken from the account); `epoch`, the last epoch the
+     account told us (it moves when the account's log is reset or truncated); and `init`,
+     true once this browser's whole log was queued for this reader. The outbox is the
+     recorder's list of ids not yet sent (BMEvents.outbox); it is the record of what is
+     owed, so a page that closes mid-send loses nothing.
+
+     The handshake (an empty batch) asks for the epoch and seq. A changed epoch never clears
+     local events: what moves the epoch is a reset (the row's reset_at, which sync() has
+     already acted on) or the operator's truncate, after which sending again is wanted. So
+     the page adopts the epoch, pulls everything again and queues everything it holds. */
+  var LOG_RETRY = 5 * 60 * 1000, evAfter = 0, evChunk = 500, evFull = false, evAhead = false, evResetting = false, evAbsorbing = false;
+  var EV_CHUNKS = 20, EV_PAGE = 1000, EV_DAY = 24 * 60 * 60 * 1000;
+  function evHeld() { return Date.now() < evAfter; }
+  /* learn.events "off" is the kill switch, read when it is used: no handshake, pull or send */
+  function evOn() {
+    var C = window.BMCore && window.BMCore.config;
+    return !C || C.readConfig(window.BM_CONFIG).learn.events !== "off";
+  }
+  function evUsable() { return evOn() && !evHeld(); }
+  function evCursor(id) {
+    var k = obj(obj(meta().ev)[id]);
+    return { seq: Number(k.seq) || 0, epoch: typeof k.epoch === "number" ? k.epoch : null, init: k.init === true };
+  }
+  function evSave(id, k) {
+    setMeta(function (m) {
+      var e = obj(m.ev);
+      e[id] = { seq: k.seq, epoch: k.epoch, init: k.init };
+      if (k.epoch === null) delete e[id].epoch;
+      m.ev = e;
     });
+  }
+  function nextMidnight() {
+    var d = new Date(Date.now());
+    return Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate() + 1) + 5000;
+  }
+  /* a hint the server gave instead of an answer holds the channel, as sendEvents does */
+  function evHold(hint) {
+    if (hint === "bm-quota" || hint === "bm-calls") evAfter = nextMidnight();
+    else if (hint === "bm-full") { evAfter = Date.now() + EV_DAY; evFull = true; notify(); }
+    else evAfter = Date.now() + LOG_RETRY;
+  }
+  function pullRow(r) {
+    var P = [r.t, r.d, r.src, r.sec, r.ref, r.k, r.ok, r.n, r.r, r.f];
+    if (r.x !== null && r.x !== undefined) P.push(r.x);
+    return P;
+  }
+  /* Handshake, pull, queue the log once, then send. Never changes the sync's result. */
+  function syncEvents(u) {
+    var E = window.BMEvents;
+    if (!E || !evUsable()) return Promise.resolve();
+    var k = evCursor(u.id);
+    return Promise.resolve().then(function () {
+      stillSignedIn(u);
+      return client.rpc("events_put", { batch: [], epoch: k.epoch === null ? 0 : k.epoch });
+    }).then(function (res) {
+      if (res.error) { if (noFunction(res.error)) evAfter = Date.now() + LOG_RETRY; else throw res.error; return false; }
+      var d = res.data;
+      if (d && d.hint) { evHold(d.hint); return false; }
+      if (!d || typeof d.epoch !== "number") { evAfter = Date.now() + LOG_RETRY; return false; }
+      /* a cursor above the server's (a hand-edited or restored note) starts over too */
+      if (d.epoch !== k.epoch || (typeof d.seq === "number" && d.seq < k.seq)) { k.epoch = d.epoch; k.seq = 0; k.init = false; evSave(u.id, k); }
+      return true;
+    }).then(function (ok) {
+      if (!ok) return false;
+      /* queue what this browser holds before the pull, so rows the pull brings in are not
+         sent straight back (the server would only answer that it already has them) */
+      stillSignedIn(u);
+      if (!k.init) { E.enqueue(Object.keys(E.all())); k.init = true; evSave(u.id, k); }
+      return pullEvents(u, k).then(function () { stillSignedIn(u); return true; });
+    }).then(function (ok) {
+      return ok ? sendEvents(u) : null;
+    }).then(noop, function (e) { if (window.console) console.warn("[BM] events", e); });
+  }
+  function pullEvents(u, k) {
+    var E = window.BMEvents;
+    /* at most 30 pages: 30,000 rows is above the account's 25,000 row cap, so a longer
+       answer is a server that is not behaving */
+    var pages = 0;
+    function page() {
+      stillSignedIn(u);
+      pages++;
+      return client.from("events").select("id,v,t,d,src,sec,ref,k,ok,n,r,f,x,seq").gt("seq", k.seq).order("seq").limit(EV_PAGE).then(function (res) {
+        if (res.error) throw res.error;
+        stillSignedIn(u);
+        var rows = Array.isArray(res.data) ? res.data : [], ev = {}, v = 1, top = k.seq;
+        rows.forEach(function (r) {
+          ev[r.id] = pullRow(r);
+          if (typeof r.v === "number" && r.v % 1 === 0 && r.v >= 1 && r.v <= 99 && r.v > v) v = r.v;
+          if (Number(r.seq) > top) top = Number(r.seq);
+        });
+        var stop = false;
+        if (rows.length) {
+          evAbsorbing = true;
+          var took;
+          try { took = E.absorb({ v: v, ev: ev }); } finally { evAbsorbing = false; }
+          evAhead = took === true;
+          /* a log in a later format (true): the rows after it are left on the server, and the
+             cursor stays behind them for the site that understands the format. A write that
+             failed (null): the same, for the next page load with room to store them */
+          if (took !== false) stop = true; else { k.seq = top; evSave(u.id, k); }
+        }
+        return stop || rows.length < EV_PAGE || pages >= 30 ? null : page();
+      });
+    }
+    return page().then(function () { evAhead = E.ahead(); });
+  }
+  /* Send the outbox in chunks. Resolves whatever happened; never rejects. */
+  function sendEvents(u) {
+    var E = window.BMEvents, k = evCursor(u.id), chunks = 0, reset = false, later = {};
+    function stop() { return null; }
+    function next() {
+      if (!E || !evUsable() || ahead || evAhead || !k.init || k.epoch === null) return null;
+      /* entries the server called future stay queued, but not for this call: sending them
+         again at once would only burn the day's calls */
+      var out = E.outbox().filter(function (id) { return !later[id]; });
+      if (!out.length || chunks >= EV_CHUNKS) return null;
+      chunks++;
+      stillSignedIn(u);
+      var ids = out.slice(0, evChunk), pay = E.payloads(ids), batch = [], gone = [];
+      ids.forEach(function (id) { if (pay[id]) batch.push({ id: id, p: pay[id] }); else gone.push(id); });
+      if (gone.length) E.dequeue(gone);
+      if (!batch.length) return next();
+      return client.rpc("events_put", { batch: batch, epoch: k.epoch }).then(function (res) {
+        if (user && user.id !== u.id) return stop();
+        if (res.error) {
+          if (noFunction(res.error)) evAfter = Date.now() + LOG_RETRY;
+          else if (window.console) console.warn("[BM] events", res.error);
+          return stop();
+        }
+        var d = res.data || {}, hint = d.hint;
+        if (hint === "bm-reset") {
+          if (reset || evResetting) return stop();
+          reset = true;
+          evResetting = true;
+          /* the account's epoch moved: re-handshake, re-pull and re-queue, which ends in a send */
+          return sync(u, 0).then(function () { evResetting = false; }, function (e) { evResetting = false; throw e; }).then(stop);
+        }
+        if (hint === "bm-quota" || hint === "bm-calls") { evAfter = nextMidnight(); return stop(); }
+        if (hint === "bm-full") { evAfter = Date.now() + EV_DAY; evFull = true; notify(); return stop(); }
+        if (hint === "bm-batch") { evChunk = Math.max(1, Math.floor(evChunk / 2)); return stop(); }
+        if (hint) { evAfter = Date.now() + LOG_RETRY; return stop(); }
+        if (!Array.isArray(d.refused)) { evAfter = Date.now() + LOG_RETRY; return stop(); }
+        var keep = {};
+        d.refused.forEach(function (r) { if (r && r.why === "future") keep[r.id] = later[r.id] = true; });
+        E.dequeue(batch.map(function (b) { return b.id; }).filter(function (id) { return !keep[id]; }));
+        if (evFull) { evFull = false; notify(); }
+        return next();
+      });
+    }
+    return Promise.resolve().then(next).then(noop, function (e) { if (window.console) console.warn("[BM] events", e); });
   }
 
   /* Both resolve true when this browser's progress is in the account, false when it is
@@ -388,8 +536,6 @@
     var u = user;
     return serial(function () {
       if (!user || user.id !== u.id) return false;
-      var events = queue, logged = false;
-      queue = [];
       setStatus("syncing");
       /* a page that has not read the row yet merges with it before writing anything */
       var save = seen === undefined ? sync(u, 0) : confirmSession(u).then(function () {
@@ -399,17 +545,15 @@
         stillOwner(u);
         return write(u, state, Number(meta().resetAt) || 0);
       }).then(function (ok) { return ok || sync(u, 0); });
-      /* the log waits for the save, which is what finds out whether this page may write */
+      /* the learning log waits for the save, which is what finds out whether this page may write */
       function log() {
-        if (!events.length || ahead || logHeld()) return null;
-        return logAttempts(events).then(function (ok) { logged = ok; });
+        if (seen === undefined || ahead) return null;
+        return sendEvents(u);
       }
       var sent = save.then(log, log);
       return sent.then(noop, noop).then(function () {
-        /* a log that did not go, whatever the reason, goes again with the next save */
-        if (!logged && user && user.id === u.id) queue = events.concat(queue);
-        return Promise.all([save, sent]);
-      }).then(function (r) { setStatus(ahead ? "reload" : "synced"); return r[0]; }, function (e) {
+        return save;
+      }).then(function (r) { setStatus(ahead ? "reload" : "synced"); return r; }, function (e) {
         setStatus("error", e);
         /* whether progress was saved is what the caller needs */
         return save.then(null, function () { return false; });
@@ -432,12 +576,8 @@
     var u = user, state = readLocal();
     if (meta().user !== u.id) return;
     write(u, state, Number(meta().resetAt) || 0).then(noop, noop);
-    if (ahead || !queue.length || logHeld()) return;
-    var events = queue;
-    queue = [];
-    logAttempts(events).then(function (ok) {
-      if (!ok && user && user.id === u.id) queue = events.concat(queue);
-    }, noop);
+    /* bounded, and whatever it cannot send stays in the outbox for the next page */
+    if (!ahead) sendEvents(u);
   }
 
   Store.on(function (c) {
@@ -445,18 +585,27 @@
     if (c.type === "state") {
       var synced = FIELDS.some(function (f) { return Store.keys[f] === c.key; });
       if (synced) schedule();
-    } else if (c.type === "attempt") {
-      queue.push({
-        user_id: user.id, chapter: c.chapter, ex_key: c.key, section: c.section || null,
-        correct: !!c.correct, try_no: c.tryNo || 1, hint_level: c.hintLevel || 0,
-        solution_open: !!c.solutionOpen, inline: !!c.inline
-      });
-      if (logAfter && queue.length > LOG_MAX) queue = queue.slice(-LOG_MAX);
-      schedule();
+    } else if (c.type === "event") {
+      /* the recorder stored an entry: it goes with the next save (what the log takes in from
+         the account, absorbed below, announces itself too and is not a reason to save) */
+      var E = window.BMEvents;
+      if (!evAbsorbing && E && typeof E.outbox === "function" && E.outbox().length) schedule();
     } else if (c.type === "reset") {
       /* stamp the reset so other devices drop their copies instead of merging them back;
          always later than the last reset this browser knows of, whatever its clock says */
       setMeta(function (m) { m.resetAt = Math.max(Date.now(), (Number(m.resetAt) || 0) + 1); });
+      /* the reset wipes the local log, so a log that was ahead of this code is gone: sending resumes */
+      evAhead = false;
+      /* the recorder has just emptied the local log, so there is nothing left to queue (init
+         stays true) and the cursor starts over: if this reset is later given up (sync(), when
+         another device saved after it) the account's entries must be pulled back */
+      setMeta(function (m) {
+        if (!user) return;
+        var e = obj(m.ev), cur = obj(e[user.id]);
+        e[user.id] = { seq: 0, init: true };
+        if (typeof cur.epoch === "number") e[user.id].epoch = cur.epoch;
+        m.ev = e;
+      });
       push();
     }
   });
@@ -474,7 +623,8 @@
       seen = undefined;
       owned = false;
       ahead = false;
-      queue = [];
+      evAhead = false;
+      evFull = false; evAfter = 0; evChunk = 500;
       clearTimeout(pushTimer);
       pushTimer = null;
     }
@@ -554,7 +704,7 @@
     methods: methodIds,
     urlError: urlError,
     user: function () { return user; },
-    status: function () { return status; },
+    status: function () { return { state: status.state, at: status.at, error: status.error, log: evFull ? "full" : "" }; },
     onChange: function (fn) { watchers.push(fn); },
     /* resolves once it is known whether anyone is signed in */
     ready: function () {
@@ -621,7 +771,7 @@
         });
       }).then(function () {
         if (!saved) setAside(u);
-        setMeta(function (m) { delete m.user; delete m.resetAt; });
+        setMeta(function (m) { delete m.user; delete m.resetAt; if (m.ev) delete m.ev[u.id]; });
         clearLocal();
         return { saved: saved, error: why };
       });
@@ -658,9 +808,10 @@
     },
     /* removes the account and every row belonging to it; this browser keeps its local copy */
     deleteAccount: function () {
+      var gone = user && user.id;
       return Account.ready().then(function (c) {
         return c.rpc("delete_my_account").then(unwrap).then(function () {
-          setMeta(function (m) { delete m.user; delete m.resetAt; });
+          setMeta(function (m) { delete m.user; delete m.resetAt; if (m.ev && gone) delete m.ev[gone]; });
           events("clear", true);
           /* the account's place on the Daily board went with it */
           forgetBoard(true);
@@ -674,6 +825,8 @@
     exportData: function () {
       var data = readLocal();
       data.exported = new Date().toISOString();
+      /* the learning log is not a FIELD (it syncs through events_put), so the explicit read */
+      data.events = Store.read("bm.events.v1", null);
       if (user) {
         var md = obj(user.user_metadata);
         data.account = user.email || null;
@@ -867,6 +1020,7 @@
         : status.state === "error" ? "Sync failed: " + (status.error && status.error.message ? status.error.message : "unknown error")
         : status.state === "reload" ? "A newer version of this site has saved to your account. Reload this page to finish syncing."
         : status.at ? "Synced at " + status.at.toLocaleTimeString() : "Signed in";
+      if (evFull) st += " Your answer log is full; it will catch up.";
       var who = label(user), ways = methodNames(user);
       html = '<div class="panel"><h2>Your account</h2>' +
         "<p>Signed in" + (who ? " as <b>" + esc(who) + "</b>" : "") + ".</p>" +
@@ -888,7 +1042,10 @@
         "<p>What is stored: the exercises you have solved, how many tries each took, whether a hint or the " +
         "solution was used, missions, XP per day, where you are in each chapter, and your game record " +
         "(achievements, which solutions you compared, medals and scores from the Arena, and when each " +
-        "section is next due for review). Play settings and the combo meter stay on this device. The account itself " +
+        "section is next due for review), and a short log of your answers: for each check, which exercise and section, " +
+        "right or wrong, which try, how many clues were open and whether the solution was, and the minute; for each " +
+        "Arena answer, the kind of question, the section, right or wrong and the day; never what you typed. Resetting " +
+        "your progress deletes the log. Play settings and the combo meter stay on this device. The account itself " +
         "holds your email address and, if you signed in through another service, the details that service passed on, " +
         "such as your name, username, picture address and your account id there. While you are signed in that way, this browser also keeps a key from " +
         "that service, which signing out removes; to cut the link completely, remove this site from the connected " +

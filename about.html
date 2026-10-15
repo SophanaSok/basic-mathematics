@@ -223,7 +223,7 @@
       log (<code>bm.events.v1</code>: for each exercise check, which one, when to the minute,
       whether it was right, the try number and the clue level; for each Arena answer, the
       section, the day and whether it was right the first time; never what you typed), the ids
-      of entries not yet sent (<code>bm.events.out.v1</code>; nothing is sent yet) and what
+      of entries not yet copied to your account (<code>bm.events.out.v1</code>) and what
       identifies this browser to the log (<code>bm.device.v1</code>: an id for this browser and,
       once you sign in, your account's id; the id is drawn afresh, and your account's id
       dropped, when you reset or sign out). Without
@@ -253,10 +253,20 @@
     </p>
     <p>
       An <a href="account.html">account</a> is optional. Signed in, the same records are copied
-      to the course's database so that they follow you between devices, and each answer check
-      (which question, right or wrong, which try — never what you typed) is logged so the author
-      can see which questions are too hard and fix them. You can download or delete all of it
-      from the account page.
+      to the course's database so that they follow you between devices. They include a short log
+      of your answers (<code>bm.events.v1</code>). For each check on a page: which exercise and
+      section, right or wrong, which try, how many clues were open and whether the solution was,
+      and the minute it happened, so the time between your steps can be seen to the minute. For
+      each Arena answer: which kind of question and section, right or wrong, and the day, with no
+      time of day. Never what you typed. Only what the course uses is kept: for each exercise its
+      first few checks and the one that solved it, and for each section's Arena practice its
+      recent days plus a summary of the rest. Each entry carries a random code for this browser,
+      which changes when you sign out or reset, so the database can tell how many browsers an
+      account used but cannot link two accounts. The database also notes the day each entry
+      reached it. The course's author can see the stored records, which is how questions that are
+      too hard get found and fixed; the course's statistics use only totals across readers.
+      Resetting your progress deletes the log; you can download or delete everything from the
+      account page.
     </p>
     <p>
       The account service and its database are run by Supabase, a hosting company, and the
