@@ -27,6 +27,7 @@ import { answerHash, StuckWatch, type StuckSignal } from "../learn/stuck.ts";
 import { matchMiss, parseMisses } from "../learn/misses.ts";
 import { approachDue, mostMissed } from "../learn/approach.ts";
 import { FADED_RUNG } from "../core/rules.ts";
+import { supportFor } from "../learn/support.ts";
 
 export interface LadderOptions {
   /** the .ex card */
@@ -54,11 +55,24 @@ export interface LadderOptions {
   solution?: HTMLElement | null;
   /** the section behind this page's misses, for the change-approach card; null names nothing */
   approach?: () => ApproachInfo | null;
+  /** how much help to offer (src/learn/support.ts): changes one line of words and one link, never a rung,
+   *  a check, a clue or a reward. Absent means "standard". */
+  support?: SupportOption;
   /** milliseconds, for the stuck signals; Date.now by default */
   now?: () => number;
 }
 
 export interface ApproachInfo { full: string; label: string; href: string; /** this card's own section, named because no miss on the page points elsewhere */ own?: boolean }
+
+export interface SupportLink { full: string; href: string }
+export interface SupportOption {
+  level: "guided" | "standard" | "light";
+  from: "own" | "requires" | "none";
+  /** the weak prerequisites, named and linked */
+  weak: SupportLink[];
+  /** the section's first worked example on this page, if any */
+  worked: HTMLElement | null;
+}
 
 export interface LadderController {
   readonly state: LadderState;
@@ -69,6 +83,8 @@ export interface LadderController {
   afterRight(): void;
   /** the learner asked for the next clue (the button's click) */
   openNext(): void;
+  /** the support level, when it is known only after the mount (once; a later call is ignored) */
+  setSupport(sup: SupportOption | undefined): void;
 }
 
 /* -------------------------------------------------------------- words --- */
@@ -126,6 +142,22 @@ export function approachSpoken(info: ApproachInfo | null): string {
   return "Try a different way in. " + (info ? "Worth rereading " + info.full + "." : "Worth rereading the section behind this exercise.");
 }
 
+function joinNames(parts: string[]): string {
+  if (parts.length < 2) return parts.join("");
+  return parts.slice(0, -1).join(", ") + " and " + parts[parts.length - 1];
+}
+
+/** the guided line (inside .ex-support) as HTML; every word from the curriculum is escaped, and the
+ *  button is there only when there is a worked example to scroll to */
+export function supportHtml(s: Pick<SupportOption, "from" | "weak">, hasWorked: boolean): string {
+  const tail = hasWorked ? " The worked example walks through one like it." : "";
+  const text = s.from === "requires" && s.weak.length
+    ? "This section builds on " + joinNames(s.weak.map((w) => '<a href="' + escapeHtml(w.href) + '">' + escapeHtml(w.full) + "</a>")) +
+      ", which your recent answers mark as shaky." + tail
+    : "Your recent answers in this section are shaky." + tail;
+  return text + (hasWorked ? ' <button type="button" class="btn ghost" data-worked>See the worked example</button>' : "");
+}
+
 function escapeHtml(s: string): string {
   return String(s).replace(/[&<>"']/g, (ch) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[ch] as string);
 }
@@ -147,6 +179,35 @@ export function mount(opts: LadderOptions): LadderController {
   let missesAfterLadder = 0;
   let approachShown = false;
   let approachCard: HTMLElement | null = null;
+
+  /* The support level (src/learn/support.ts) may arrive after the mount: the event log it is read
+     from is put up by a module that runs after site.js builds the cards. */
+  let supported = false;
+  /* light: the first wrong check on this card has no offer line (the clue button is unchanged) */
+  let quietFirst = false;
+  function applySupport(sup: SupportOption | undefined): void {
+    if (!sup || supported) return;
+    supported = true;
+    quietFirst = sup.level === "light";
+    /* guided: one line before the form on a card not yet solved; not a live region, no focus move */
+    if (sup.level !== "guided" || opts.solved()) return;
+    const p = document.createElement("p");
+    p.className = "ex-support hint";
+    p.innerHTML = supportHtml(sup, !!sup.worked);
+    opts.ex.insertBefore(p, opts.form);
+    const b = p.querySelector("[data-worked]");
+    if (b && sup.worked) {
+      const target = sup.worked;
+      b.addEventListener("click", () => {
+        const calm = typeof window !== "undefined" && window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+        const h = target.querySelector<HTMLElement>("h1, h2, h3, h4, h5, h6") || target;
+        if (!h.hasAttribute("tabindex")) h.setAttribute("tabindex", "-1");
+        try { target.scrollIntoView({ behavior: calm ? "auto" : "smooth", block: "start" }); } catch { /* no scroll */ }
+        try { h.focus({ preventScroll: true }); } catch { h.focus(); }
+      });
+    }
+  }
+  applySupport(opts.support);
 
   if (texts.length || fadeable) {
     list = document.createElement("div");
@@ -304,6 +365,7 @@ export function mount(opts: LadderOptions): LadderController {
   const ctl: LadderController = {
     get state() { return state; },
     get button() { return button; },
+    setSupport(sup) { applySupport(sup); },
     openNext() {
       if (!list || !canOpen(state)) return;
       state = open(state);
@@ -327,8 +389,10 @@ export function mount(opts: LadderOptions): LadderController {
           spoken = showApproach();
         }
       }
-      if (note) return '<p class="ex-miss-note hint">' + note + "</p>" + offerHtml(offer, sig) + spoken;
-      return (detection ? askHtml(detection) : "") + offerHtml(offer, sig) + spoken;
+      const line = quietFirst ? "" : offerHtml(offer, sig);
+      quietFirst = false;
+      if (note) return '<p class="ex-miss-note hint">' + note + "</p>" + line + spoken;
+      return (detection ? askHtml(detection) : "") + line + spoken;
     },
     afterRight() {
       watch.check(now(), true, "");
@@ -347,7 +411,7 @@ export function mount(opts: LadderOptions): LadderController {
    modules under src/learn/ write nothing to window; the files under src/ui/ are the
    places that do (this one, review.ts and next.ts). */
 export const api = {
-  mount, detect, offerText, mostMissed,
+  mount, detect, offerText, mostMissed, supportFor,
   ladder: { start, open, canOpen, toSave, offerAfterWrong, nextLabel, savedRung, cluesOf },
   misses: { parseMisses, matchMiss },
   FADED_RUNG,

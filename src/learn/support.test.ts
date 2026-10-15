@@ -38,6 +38,14 @@ describe("supportFor", () => {
     for (const k of Object.keys(calls)) expect(calls[k]).toBe(1);
     expect(Object.keys(calls).sort()).toEqual(["a", "b", "s"]);
   });
+  it("a section listed among its own prerequisites is read once, and not as a prerequisite", () => {
+    const calls: Record<string, number> = {};
+    const band = (s: string): Band => { calls[s] = (calls[s] ?? 0) + 1; return s === "s" ? "none" : "strong"; };
+    const r = supportFor("s", ["s", "a"], band);
+    expect(calls.s).toBe(1);
+    expect(r).toEqual({ level: "light", from: "requires", weak: [] });
+    expect(supportFor("s", ["s"], band)).toEqual({ level: "standard", from: "none", weak: [] });
+  });
   it("guided exactly when own is weak, or own is none and some prerequisite is weak", () => {
     for (let k = 0; k <= 3; k++) {
       const total = 4 ** (k + 1);

@@ -20,11 +20,11 @@ export interface SupportResult {
 
 /** Own evidence first (weak guided, building standard, strong light); otherwise the evidenced
  *  prerequisites: any weak guides, all of them evidenced and strong lightens, else standard.
- *  `band` is called at most once per ref; duplicate prerequisites count once. */
+ *  `band` is called at most once per ref; duplicate prerequisites count once, and the section itself is never its own prerequisite. */
 export function supportFor(sec: string, requires: readonly string[], band: (sec: string) => Band): SupportResult {
   const own = band(sec);
   if (own !== "none") return { level: own === "weak" ? "guided" : own === "strong" ? "light" : "standard", from: "own", weak: [] };
-  const refs = Array.from(new Set(requires));
+  const refs = Array.from(new Set(requires)).filter(r => r !== sec);
   const bands = refs.map(r => band(r));
   const evidenced = bands.filter(b => b !== "none");
   if (!evidenced.length) return { level: "standard", from: "none", weak: [] };

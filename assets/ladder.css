@@ -77,3 +77,9 @@
 .ex-approach > p { margin: 0; }
 .ex-approach-actions { display: flex; flex-wrap: wrap; gap: .5rem; align-items: center; }
 @media print { .ex-approach { display: none !important; } }
+
+/* The support line (src/ui/ladder.ts): a guided card says where the shaky ground is and offers the
+   worked example; one calm line before the form, the same in calm mode, nothing in print */
+.ex-support { margin: .2rem 0 .7rem; padding: .5rem .8rem; border-left: 3px solid var(--border-strong); background: var(--surface-2); border-radius: var(--radius); font-size: .95rem; color: var(--text); }
+.ex-support .btn { margin-left: .4rem; }
+@media print { .ex-support { display: none !important; } }

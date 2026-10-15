@@ -1394,6 +1394,8 @@ function refusal(fn) { try { fn(); return null; } catch (e) { return e.message; 
     bad("missing field on a course section", mk({ requires: undefined }), "c1#b", /without a requires/);
     bad("bad shape", mk({ requires: ["c1-a"] }), "c1#b", /c1-a/);
     bad("non-string entry", mk({ requires: [3] }), "c1#b", /3/);
+    bad("a string instead of an array", mk({ requires: "c1#a" }), "c1#b", /not an array/);
+    bad("an object instead of an array", mk({ requires: { 0: "c1#a" } }), "c1#b", /not an array/);
     const pk = (sec) => mk(null, null, [{ id: "pk-x", part: { id: "packs" }, sections: [sec] }]);
     eq(requiresProblems(pk({ id: "p" })), [], "requires: a pack section may omit the field");
     bad("a pack section's requires follows the rules", pk({ id: "p", requires: ["pk-x#p"] }), "pk-x#p", /itself/);
