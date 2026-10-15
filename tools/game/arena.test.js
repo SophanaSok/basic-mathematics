@@ -185,6 +185,15 @@ async function run() {
       const context = await ctx(browser);
       const seed = { "bm.attempts.v1": JSON.stringify({ ch05: { x1: { section: "parallels", solved: Date.now() - 864e5, first: false, tries: 3 } } }) };
       const p = await open(context, errors, "arena.html?repair=ch05%23parallels", seed);
+      /* weak by the event log's mastery band (src/learn/mastery.ts): five solutions opened
+         there yesterday; three items under 0.45 make the band, and five leave it weak after
+         the one right answer the banked repair below records (0.167 -> 0.417) */
+      await p.evaluate(() => {
+        var t = Math.floor(Date.now() / 60000) - 1440;
+        for (var i = 1; i <= 5; i++) window.BMEvents.record([t + i, Math.floor((t + i) / 1440), "ex", "ch05#parallels", "ch05/x" + i, "o", 0, 0, 0, 0]);
+      });
+      await p.reload();
+      await p.waitForFunction(() => document.readyState === "complete");
       const weak = () => p.evaluate(() => window.BMInsights.weak().map((r) => r.id));
       check((await weak()).includes("ch05#parallels"), "the seeded section starts weak");
       await p.click('[data-act="start"][data-mode="repair"]');

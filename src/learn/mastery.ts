@@ -35,7 +35,10 @@ export function creditOf(P: Payload): number {
 /** The evidence for `sec`, in (t asc, id asc) order:
     (a) for each non-empty `ref` among the p-class entries of `sec`, the earliest entry with
         (k === "c" && ok === 1) or k === "o"; one item per ref;
-    (b) every s-class entry of `sec` with d >= S0 (startOf's s0). */
+    (b) every s-class entry of `sec` with d >= S0 (startOf's s0).
+    In fold order: by day, and within a day the page items (which carry their minute) before
+    the Arena answers (stamped at the day's first minute, format 1), then (t, id). So a run
+    played after the day's page work, a Repair in particular, is the day's latest evidence. */
 export function evidenceOf(V: EventSet, sec: string, pre?: Pre): Evidence[] {
   const { s0 } = startOf(V, sec, pre);
   const seen: Record<string, boolean> = Object.create(null);
@@ -54,8 +57,9 @@ export function evidenceOf(V: EventSet, sec: string, pre?: Pre): Evidence[] {
       }
     }
   });
-  return out;
+  return out.sort((a, b) => (a.P[1] - b.P[1]) || (rank(a.P) - rank(b.P)) || (a.P[0] - b.P[0]) || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
 }
+const rank = (P: Payload): number => (classOf(P) === "s" ? 1 : 0);
 
 /** Prior, then the fold over the evidence in order. */
 export function masteryOf(V: EventSet, sec: string, pre?: Pre): Mastery {

@@ -134,16 +134,29 @@ describe("Arena evidence", () => {
 });
 
 describe("order", () => {
-  it("folds items in (t, id) order across both kinds", () => {
+  it("folds by day, a day's page items before its Arena answers, then (t, id)", () => {
     const sec = "ch01#a";
     const V = build([pageP(sec, "ch01/e1", "c", 1, 1, 0, T0 + 10), arena(sec, D0, 0, 1, T0 + 700)]);
     /* page 1 first: 0.5 -> 0.65; then a miss: 0.65 * 0.7 */
     near(masteryOf(V, sec).m, 0.65 * (1 - MASTERY_ALPHA));
     near(masteryOf(V, sec).m, 0.455);
+    /* the same day: the page item still folds first, whatever minute the Arena entry carries */
     const W = build([pageP(sec, "ch01/e1", "c", 1, 1, 0, T0 + 800), arena(sec, D0, 0, 1, T0 + 700)]);
-    /* the miss first: 0.5 -> 0.35; then 1: 0.35 + 0.3 * 0.65 */
-    near(masteryOf(W, sec).m, 0.545);
+    near(masteryOf(W, sec).m, 0.455);
     expect(masteryOf(W, sec).c).toBe(2);
+    /* the day before: the Arena miss folds first: 0.5 -> 0.35; then 1: 0.35 + 0.3 * 0.65 */
+    const X = build([pageP(sec, "ch01/e1", "c", 1, 1, 0, T0 + 800), arena(sec, D0 - 1, 0, 1)]);
+    near(masteryOf(X, sec).m, 0.545);
+  });
+  it("a Repair run on the day of the weak page work is that day's latest evidence", () => {
+    const sec = "ch02#one-unknown";
+    const opens = [1, 2, 3].map((i) => pageP(sec, "ch02/e" + i, "o", 0, 0, 0, T0 + 60 * i));
+    const weak = build(opens);
+    expect(masteryOf(weak, sec).m).toBeLessThan(0.45);
+    const repaired = build(opens.concat([1, 2, 3, 4].map(() => arena(sec, D0, 1, 1, D0 * 1440))));
+    /* four first-try answers after three opened solutions: 0.237 -> above the weak line */
+    expect(masteryOf(repaired, sec).m).toBeGreaterThan(0.45);
+    expect(masteryOf(repaired, sec).c).toBe(7);
   });
 });
 
