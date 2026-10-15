@@ -399,6 +399,12 @@
     var d = new Date(Date.now());
     return Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate() + 1) + 5000;
   }
+  /* a hint the server gave instead of an answer holds the channel, as sendEvents does */
+  function evHold(hint) {
+    if (hint === "bm-quota" || hint === "bm-calls") evAfter = nextMidnight();
+    else if (hint === "bm-full") { evAfter = Date.now() + EV_DAY; evFull = true; notify(); }
+    else evAfter = Date.now() + LOG_RETRY;
+  }
   function pullRow(r) {
     var P = [r.t, r.d, r.src, r.sec, r.ref, r.k, r.ok, r.n, r.r, r.f];
     if (r.x !== null && r.x !== undefined) P.push(r.x);
@@ -415,24 +421,30 @@
     }).then(function (res) {
       if (res.error) { if (noFunction(res.error)) evAfter = Date.now() + LOG_RETRY; else throw res.error; return false; }
       var d = res.data;
+      if (d && d.hint) { evHold(d.hint); return false; }
       if (!d || typeof d.epoch !== "number") { evAfter = Date.now() + LOG_RETRY; return false; }
-      if (d.epoch !== k.epoch) { k.epoch = d.epoch; k.seq = 0; k.init = false; evSave(u.id, k); }
+      /* a cursor above the server's (a hand-edited or restored note) starts over too */
+      if (d.epoch !== k.epoch || (typeof d.seq === "number" && d.seq < k.seq)) { k.epoch = d.epoch; k.seq = 0; k.init = false; evSave(u.id, k); }
       return true;
     }).then(function (ok) {
       if (!ok) return false;
-      return pullEvents(u, k).then(function () {
-        stillSignedIn(u);
-        if (!k.init) { E.enqueue(Object.keys(E.all())); k.init = true; evSave(u.id, k); }
-        return true;
-      });
+      /* queue what this browser holds before the pull, so rows the pull brings in are not
+         sent straight back (the server would only answer that it already has them) */
+      stillSignedIn(u);
+      if (!k.init) { E.enqueue(Object.keys(E.all())); k.init = true; evSave(u.id, k); }
+      return pullEvents(u, k).then(function () { stillSignedIn(u); return true; });
     }).then(function (ok) {
       return ok ? sendEvents(u) : null;
     }).then(noop, function (e) { if (window.console) console.warn("[BM] events", e); });
   }
   function pullEvents(u, k) {
     var E = window.BMEvents;
+    /* at most 30 pages: 30,000 rows is above the account's 25,000 row cap, so a longer
+       answer is a server that is not behaving */
+    var pages = 0;
     function page() {
       stillSignedIn(u);
+      pages++;
       return client.from("events").select("id,v,t,d,src,sec,ref,k,ok,n,r,f,x,seq").gt("seq", k.seq).order("seq").limit(EV_PAGE).then(function (res) {
         if (res.error) throw res.error;
         stillSignedIn(u);
@@ -442,9 +454,15 @@
           if (typeof r.v === "number" && r.v % 1 === 0 && r.v >= 1 && r.v <= 99 && r.v > v) v = r.v;
           if (Number(r.seq) > top) top = Number(r.seq);
         });
-        if (rows.length) { evAbsorbing = true;
-          try { evAhead = E.absorb({ v: v, ev: ev }); } finally { evAbsorbing = false; } k.seq = top; evSave(u.id, k); }
-        return rows.length < EV_PAGE ? null : page();
+        var stop = false;
+        if (rows.length) {
+          evAbsorbing = true;
+          try { evAhead = E.absorb({ v: v, ev: ev }); } finally { evAbsorbing = false; }
+          /* a log in a later format: the rows after it are left on the server, and the
+             cursor stays behind them for the site that understands the format */
+          if (evAhead) stop = true; else { k.seq = top; evSave(u.id, k); }
+        }
+        return stop || rows.length < EV_PAGE || pages >= 30 ? null : page();
       });
     }
     return page().then(function () { evAhead = E.ahead(); });
@@ -575,6 +593,16 @@
       setMeta(function (m) { m.resetAt = Math.max(Date.now(), (Number(m.resetAt) || 0) + 1); });
       /* the reset wipes the local log, so a log that was ahead of this code is gone: sending resumes */
       evAhead = false;
+      /* the recorder has just emptied the local log, so there is nothing left to queue (init
+         stays true) and the cursor starts over: if this reset is later given up (sync(), when
+         another device saved after it) the account's entries must be pulled back */
+      setMeta(function (m) {
+        if (!user) return;
+        var e = obj(m.ev), cur = obj(e[user.id]);
+        e[user.id] = { seq: 0, init: true };
+        if (typeof cur.epoch === "number") e[user.id].epoch = cur.epoch;
+        m.ev = e;
+      });
       push();
     }
   });
@@ -593,6 +621,7 @@
       owned = false;
       ahead = false;
       evAhead = false;
+      evFull = false; evAfter = 0; evChunk = 500;
       clearTimeout(pushTimer);
       pushTimer = null;
     }

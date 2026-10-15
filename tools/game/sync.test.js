@@ -1399,7 +1399,7 @@ scenario("the outbox survives a reload and pagehide", async () => {
   expect(noAttempts(server), "attempts touched");
 });
 
-scenario("a reset on one device clears the other's log and its stale send is refused", async () => {
+scenario("a reset on one device clears the other's log and the stale entry is never offered", async () => {
   const { server, laptop, phone } = await twoDevices();
   phone.page.check("ch01", "e1", true); await settle();
   expect((server.events.u1 || []).length === 1 && server.meta.u1.epoch === 0, "setup: the server does not hold e1 at epoch 0", { rows: server.events.u1, meta: server.meta.u1 });
@@ -1606,14 +1606,18 @@ scenario("a device whose clock is ahead keeps its future entries for later", asy
 });
 
 scenario("a long log is pulled in pages", async () => {
-  const { server, phone } = await twoDevices();
+  const { server } = await twoDevices();
+  const phone = new Device("new phone", server);
+  phone.remember("u1");
   const t0 = Math.floor(now / 60000) - 3000;
   for (let i = 0; i < 1200; i++) {
     const t = t0 + i, P = [t, Math.floor(t / 1440), "ex", "ch01#s", "ch01/k" + i, "c", 1, 1, 0, 0];
     server.seedEvent("u1", { id: eventId("zzzzzzzz", P), v: 1, t: P[0], d: P[1], src: P[2], sec: P[3], ref: P[4], k: P[5], ok: 1, n: 1, r: 0, f: 0, x: null });
   }
   server.log.length = 0;
+  const before = sent(server);
   phone.open(); await settle();
+  expect(sent(server) === before && !server.log.some((l) => /^rpc events_put [1-9]/.test(l)), "the phone re-uploaded rows it had just pulled", batchCalls(server));
   const pulls = server.log.filter((l) => l === "select events").length;
   expect(pulls === 2, "the log was not pulled in two pages", pulls);
   expect(Object.keys(evSet(phone.page)).length === 1200, "not every row arrived", Object.keys(evSet(phone.page)).length);
@@ -1666,6 +1670,96 @@ scenario("a sync whose events step fails is still a sync", async () => {
   expect(noAttempts(server), "attempts touched");
 });
 
+
+scenario("rows after a later-format row stay to be pulled and the cursor does not pass them", async () => {
+  const { server, laptop, phone } = await twoDevices();
+  now += 60000; phone.page.check("ch01", "e1", true); await settle();
+  expect((server.events.u1 || []).length === 1, "setup: e1 is not on the server", server.events.u1);
+  server.events.u1[0].v = 2;
+  laptop.open(); await settle();
+  expect(laptop.page.win.BMEvents.ahead() === true, "setup: the laptop is not ahead");
+  now += 60000; phone.page.check("ch01", "e2", true); await settle();
+  laptop.open(); await settle();
+  expect(evMeta(laptop).u1.seq < server.meta.u1.seq, "the cursor passed rows this device did not store", { cursor: evMeta(laptop).u1, seq: server.meta.u1.seq });
+  server.events.u1[0].v = 1;
+  const tab = new Device("tablet", server);
+  tab.remember("u1"); tab.open(); await settle();
+  expect(Object.keys(evSet(tab.page)).length === 2, "a device that understands the format did not get every row", evSet(tab.page));
+  expect(noAttempts(server), "attempts touched");
+});
+
+scenario("a cursor above the server's is started over", async () => {
+  const { server, laptop, phone } = await twoDevices();
+  now += 60000; laptop.page.check("ch01", "e1", true); await settle();
+  const m = phone.read("bm.sync.v1", {});
+  m.ev = { u1: { seq: 999999, epoch: 0, init: true } };
+  phone.storage.set("bm.sync.v1", JSON.stringify(m));
+  phone.open(); await settle();
+  expect(canon(evSet(phone.page)) === canon(serverSet(server, "u1")) && Object.keys(evSet(phone.page)).length === 1, "the phone did not pull everything", evSet(phone.page));
+  expect(evMeta(phone).u1.seq === server.meta.u1.seq, "the cursor is not the server's", { c: evMeta(phone).u1, seq: server.meta.u1.seq });
+  expect(noAttempts(server), "attempts touched");
+});
+
+scenario("a hint on the handshake holds the channel to UTC midnight", async () => {
+  const { server, laptop } = await twoDevices();
+  server.meta.u1.day_calls = server.calls;
+  laptop.open(); await settle();
+  now += 60000; laptop.page.check("ch01", "e1", true); await settle();
+  now += 3600 * 1000; laptop.page.check("ch01", "e2", true); await settle();
+  expect(batchCalls(server).length === 0 && outbox(laptop).length === 2, "a batch went out before midnight", { calls: batchCalls(server), out: outbox(laptop) });
+  now = Date.parse(pgDay() + "T00:00:00Z") + 24 * 3600 * 1000 + 10000;
+  laptop.page.check("ch01", "e3", true); await settle();
+  expect((server.events.u1 || []).length === 3 && outbox(laptop).length === 0, "the rows did not arrive after midnight", { rows: (server.events.u1 || []).length, out: outbox(laptop) });
+  expect(noAttempts(server), "attempts touched");
+});
+
+scenario("a reset that is given up brings the account's entries back", async () => {
+  const { server, laptop, phone } = await twoDevices();
+  now += 60000; laptop.page.check("ch01", "e1", true); await settle();
+  phone.open(); await settle();
+  expect(Object.keys(evSet(phone.page)).length === 1 && evMeta(phone).u1.seq === 1, "setup: the phone did not pull e1", { s: evSet(phone.page), m: evMeta(phone) });
+  now += 60000; server.offline = true;
+  phone.page.resetAll(); await settle();
+  phone.page.close();
+  server.offline = false;
+  now += 60000; laptop.page.check("ch01", "e2", true); laptop.page.solve("ch01", "e2"); await settle();
+  now += 60000; phone.open(); await settle();
+  expect(Object.keys(evSet(phone.page)).length === 2 && canon(evSet(phone.page)) === canon(serverSet(server, "u1")), "the phone's log did not come back", { phone: evSet(phone.page), server: serverSet(server, "u1") });
+  expect(phone.solved().length >= 1 && has(server.solved("u1"), "ch01/e2"), "progress was not restored", phone.solved());
+  expect(noAttempts(server), "attempts touched");
+});
+
+scenario("a second account on the page inherits neither the hold nor the full sentence", async () => {
+  const server = new Server();
+  const d = new Device("laptop", server);
+  d.remember("u1"); d.open({ account: true }); await settle();
+  server.full = true;
+  d.page.check("ch01", "e1", true); await settle();
+  expect(d.page.shown().indexOf("Your answer log is full") > -1, "setup: the page does not say full");
+  server.full = false;
+  d.storage.delete(SESSION_KEY);
+  d.page.switchTo("u2"); await settle();
+  expect(d.page.shown().indexOf("Your answer log is full") < 0, "u2 sees u1's full sentence", d.page.shown());
+  now += 60000; d.page.check("ch01", "e2", true); await settle();
+  expect((server.events.u2 || []).length === 1 && outbox(d).length === 0, "u2's first check was not sent", { rows: server.events.u2, out: outbox(d) });
+  expect(noAttempts(server), "attempts touched");
+});
+
+scenario("a stale send on pagehide gets bm-reset and the entry is dropped", async () => {
+  const { server, laptop, phone } = await twoDevices();
+  now += 60000; phone.page.check("ch01", "e1", true); await settle();
+  now += 60000; laptop.page.resetAll(); await settle();
+  expect(server.meta.u1.epoch === 1, "setup: the epoch did not move");
+  now += 60000; phone.page.check("ch01", "e2", true);
+  phone.page.close(); await settle();
+  phone.open(); await settle();
+  expect(server.hints.indexOf("bm-reset") > -1, "the stale epoch was not refused", server.hints);
+  expect(!(server.events.u1 || []).length, "the stale entry landed", server.events.u1);
+  expect(evMeta(phone).u1 && evMeta(phone).u1.epoch === 1, "the phone did not adopt epoch 1", evMeta(phone));
+  now += 60000; phone.page.check("ch01", "e3", true); await settle();
+  expect((server.events.u1 || []).length === 1 && outbox(phone).length === 0, "a further check did not land", { rows: server.events.u1, out: outbox(phone) });
+  expect(noAttempts(server), "attempts touched");
+});
 
 /* --------------------------------------------------------------- runner -- */
 
