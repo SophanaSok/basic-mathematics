@@ -282,9 +282,17 @@ the `migrations` check refuses any edit to it; fix it with a newer migration.
    [6](#6-kill-switches). To empty the log, as a last resort, run
    `truncate public.events; update public.event_meta set seq = 0, epoch = epoch + 1;` in the SQL editor
    (the epoch moves too, or a device that holds the old one would keep writing and skip rows).
-5. P6 is the deploy that starts writing: before it merges, CAPTCHA is on for sign-up (O3,
-   Authentication → Attack Protection) and the privacy paragraph on about.html is approved (O6).
-   After it, "What to watch" applies.
+5. P6 is the deploy that starts writing: before it merges, the privacy paragraph on about.html is
+   approved (O6, done 2026-10-15). The design also asked for CAPTCHA on sign-up (O3); it stays
+   **off**, decided 2026-10-15: Supabase's CAPTCHA rejects every email sign-up, password sign-in,
+   magic link and password reset that carries no token from an hCaptcha or Turnstile widget, and
+   the site has no widget (one would also need a third-party script, against the offline rule).
+   What limits mass accounts instead: Authentication → Rate Limits, sign-ups and sign-ins at 30
+   per 5 minutes per IP address; Confirm email on; OAuth sign-in through Google and GitHub; and
+   the per-reader caps in `events_put()` and the board functions, which bound what any one
+   account can cost. Revisit if sign-ups look farmed (`select count(*) from auth.users where
+   created_at > now() - interval '1 day';`); a widget card would then add Turnstile to
+   account.html and pass `captchaToken` on each of those four calls. After P6, "What to watch" applies.
 
 ## 2. Deploys
 
