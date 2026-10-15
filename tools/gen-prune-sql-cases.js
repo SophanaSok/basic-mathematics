@@ -59,6 +59,9 @@ function make(seed) {
         const s = R.maybe(0.4) ? first : base + 3 + R.int(8), l = s - 2 - (R.maybe(0.5) ? 0 : R.int(5));
         const P = checkpoint(sec, s, l);
         list.push({ id: ev.checkpointId(P), P });
+        /* a rival with the same (s, l, b, n, o) and an extra key in x: a different hash, so a different
+           id, and only the id decides which wins (the "C" tiebreak) */
+        if (R.maybe(0.35)) { const Q = clone(P); Q[10].q = 1 + R.int(999); list.push({ id: ev.checkpointId(Q), P: Q }); }
       }
     });
     for (let dense = R.int(3); dense > 0; dense--) {

@@ -123,7 +123,7 @@ create table if not exists public.events (
   f    integer not null check (f between 0 and 65535),
   x    jsonb check (x is null or (jsonb_typeof(x) = 'object' and length(x::text) <= 400)),
   seq  bigint not null,
-  rd   integer not null default (current_date - date '1970-01-01'),   -- the UTC day the row arrived; never from the client
+  rd   integer not null default (((pg_catalog.now() at time zone 'UTC')::date) - date '1970-01-01'),   -- the UTC day the row arrived; never from the client
   primary key (user_id, id)
 );
 create unique index if not exists events_seq_idx on public.events (user_id, seq);
@@ -136,7 +136,7 @@ create table if not exists public.event_meta (
   user_id   uuid primary key references auth.users (id) on delete cascade,
   seq       bigint  not null default 0,
   epoch     integer not null default 0,
-  day       date    not null default current_date,
+  day       date    not null default ((pg_catalog.now() at time zone 'UTC')::date),
   day_n     integer not null default 0,
   day_calls integer not null default 0
 );
@@ -530,8 +530,9 @@ as $$
 declare
   uid uuid := (select auth.uid());
   meta public.event_meta%rowtype;
-  today date := current_date;
-  rd integer := current_date - date '1970-01-01';
+  -- the UTC day, never current_date: that follows the session's TimeZone, which a request can set
+  today date := (pg_catalog.now() at time zone 'UTC')::date;
+  rd integer := ((pg_catalog.now() at time zone 'UTC')::date) - date '1970-01-01';
   now_min bigint := floor(extract(epoch from pg_catalog.now()) / 60);
   cl jsonb;
   refused jsonb;
@@ -553,7 +554,17 @@ begin
     return jsonb_build_object('hint', 'bm-calls');
   end if;
 
-  if batch is null or jsonb_typeof(batch) <> 'array' or jsonb_array_length(batch) > 500 or pg_catalog.pg_column_size(batch) > 262144 then
+  -- nested, not one `or`: the length is read only once batch is known to be an array
+  if batch is null then
+    return jsonb_build_object('hint', 'bm-batch');
+  end if;
+  if jsonb_typeof(batch) <> 'array' then
+    return jsonb_build_object('hint', 'bm-batch');
+  end if;
+  if jsonb_array_length(batch) > 500 then
+    return jsonb_build_object('hint', 'bm-batch');
+  end if;
+  if pg_catalog.pg_column_size(batch) > 262144 then
     return jsonb_build_object('hint', 'bm-batch');
   end if;
   if jsonb_array_length(batch) = 0 then
@@ -567,19 +578,29 @@ begin
   end if;
 
   begin
-    -- one element per id (the greater payload wins), each judged: invalid, future, already held, new
-    select coalesce(jsonb_agg(jsonb_build_object('c', c.c, 'i', pg_catalog.left(c.id, 64), 'e', c.e) order by c.ord), '[]'::jsonb)
+    -- Numbers are judged as numbers here, before anything is turned into text: 1e99999 is a
+    -- short numeral that prints as 100 KB, and the dedupe sorts and the checks print. An element
+    -- holding a number past 1e12 in size, or a nonzero one under 1e-12, is invalid at once and
+    -- takes no part in the rest. The others: one element per id (the greater payload wins, by
+    -- size then by jsonb order, neither of which prints), each judged: invalid, future, held, new.
+    select coalesce(jsonb_agg(jsonb_build_object('c', c.c, 'i', pg_catalog.left(c.id, 64), 'e', case when c.c = 'new' then c.e end) order by c.ord), '[]'::jsonb)
       into cl
     from (
       select s.e, s.id, s.ord,
-             case when not private.events_valid(s.e, rd) then 'invalid'
+             case when s.huge then 'invalid'
+                  when not private.events_valid(s.e, rd) then 'invalid'
                   when (s.e->'p'->>0)::bigint > now_min + 1440 then 'future'
                   when exists (select 1 from public.events v where v.user_id = uid and v.id = s.id) then 'held'
                   else 'new' end as c
       from (
-        select distinct on (a.id, case when a.id is null then a.ord end) a.e, a.id, a.ord
-        from (select b.e, b.e->>'id' as id, b.ord from jsonb_array_elements(batch) with ordinality as b(e, ord)) a
-        order by a.id, case when a.id is null then a.ord end, (a.e->'p')::text desc
+        (select distinct on (a.id, case when a.id is null then a.ord end) a.e, a.id, a.ord, false as huge
+         from (select z.e, z.e->>'id' as id, z.ord from jsonb_array_elements(batch) with ordinality as z(e, ord)
+               where not jsonb_path_exists(z.e, 'strict $.** ? (@.type() == "number" && (@ > 1000000000000 || @ < -1000000000000 || (@ != 0 && @ < 0.000000000001 && @ > -0.000000000001)))', '{}'::jsonb, true)) a
+         order by a.id, case when a.id is null then a.ord end, pg_catalog.pg_column_size(a.e->'p') desc, (a.e->'p') desc)
+        union all
+        (select null::jsonb, case when jsonb_typeof(h.e->'id') = 'string' then h.e->>'id' end, h.ord, true
+         from jsonb_array_elements(batch) with ordinality as h(e, ord)
+         where jsonb_path_exists(h.e, 'strict $.** ? (@.type() == "number" && (@ > 1000000000000 || @ < -1000000000000 || (@ != 0 && @ < 0.000000000001 && @ > -0.000000000001)))', '{}'::jsonb, true))
       ) s
     ) c;
     select coalesce(jsonb_agg(jsonb_build_object('id', j->'i', 'why', case j->>'c' when 'invalid' then 'invalid' else 'future' end) order by ord) filter (where j->>'c' <> 'new'), '[]'::jsonb),
@@ -631,9 +652,12 @@ returns trigger
 language plpgsql security definer set search_path = ''
 as $$
 begin
-  insert into public.event_meta (user_id) values (new.user_id) on conflict do nothing;
+  -- no event_meta row means events_put() never ran for this reader, so there is no server log to
+  -- start over (a first sync from a device that reset before the log existed is not a reset of it)
   update public.event_meta m set epoch = m.epoch + 1 where m.user_id = new.user_id;
-  delete from public.events e where e.user_id = new.user_id;
+  if found then
+    delete from public.events e where e.user_id = new.user_id;
+  end if;
   return new;
 end;
 $$;

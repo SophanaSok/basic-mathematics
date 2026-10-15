@@ -12,7 +12,9 @@ begin;
 insert into auth.users (id, email) values
   ('a0000000-0000-4000-8000-00000000000a', 'a@example.test'),
   ('b0000000-0000-4000-8000-00000000000b', 'b@example.test'),
-  ('c0000000-0000-4000-8000-00000000000c', 'c@example.test');
+  ('c0000000-0000-4000-8000-00000000000c', 'c@example.test'),
+  ('d0000000-0000-4000-8000-00000000000d', 'd@example.test'),
+  ('e0000000-0000-4000-8000-00000000000e', 'e@example.test');
 insert into public.admins (user_id) values ('a0000000-0000-4000-8000-00000000000a');
 
 create function pg_temp.as_user(uid uuid) returns void language plpgsql as $$
@@ -181,8 +183,8 @@ insert into hv values
   ('a checkpoint with s = today + 2', pg_temp.setp(pg_temp.setp(pg_temp.setx(pg_temp.setx(pg_temp.vz(), 's', '20802'), 'l', '20790'), 1, '20801'), 0, '29953440'), true),
   ('a checkpoint with s = today + 3', pg_temp.setp(pg_temp.setp(pg_temp.setx(pg_temp.setx(pg_temp.vz(), 's', '20803'), 'l', '20790'), 1, '20802'), 0, '29954880'), false);
 
--- 85 hand-counted tests below, plus one per row of the three tables
-select plan(85 + (select count(*)::integer from hv) + (select count(*)::integer from private.valid_cases)
+-- 105 hand-counted tests below, plus one per row of the three tables
+select plan(105 + (select count(*)::integer from hv) + (select count(*)::integer from private.valid_cases)
   + (select count(*)::integer from private.prune_expected));
 
 -- 1. tables, row-level security, policies, grants
@@ -308,7 +310,7 @@ select is((select rd from public.events where id = pg_temp.el('rd', 0)->>'id'), 
 select is(pg_temp.put('a0000000-0000-4000-8000-00000000000a',
   jsonb_build_array(null, 5, 'x', '[]'::jsonb, '{}'::jsonb, '{"id":"short"}'::jsonb, '{"id":5,"p":5}'::jsonb, '{"id":null}'::jsonb,
     jsonb_set(pg_temp.vb(), '{p,9}', '1e300'), jsonb_set(pg_temp.vb(), '{p,7}', '12345678901234567890123')), 0)->'refused',
-  '[{"id":null,"why":"invalid"},{"id":null,"why":"invalid"},{"id":null,"why":"invalid"},{"id":null,"why":"invalid"},{"id":null,"why":"invalid"},{"id":"short","why":"invalid"},{"id":"5","why":"invalid"},{"id":null,"why":"invalid"},{"id":"devabcde-12345678-abcdefg","why":"invalid"}]'::jsonb,
+  '[{"id":null,"why":"invalid"},{"id":null,"why":"invalid"},{"id":null,"why":"invalid"},{"id":null,"why":"invalid"},{"id":null,"why":"invalid"},{"id":"short","why":"invalid"},{"id":"5","why":"invalid"},{"id":null,"why":"invalid"},{"id":"devabcde-12345678-abcdefg","why":"invalid"},{"id":"devabcde-12345678-abcdefg","why":"invalid"}]'::jsonb,
   'A: junk elements are refused as invalid and none raises or reaches bm-error');
 select is(pg_temp.put('a0000000-0000-4000-8000-00000000000a', '[]', 0)->>'hint', null, 'A: still no hint after the junk');
 
@@ -327,6 +329,78 @@ select is((select count(*) from public.events where user_id = 'a0000000-0000-400
 select is(pg_temp.sqlstate_as('b0000000-0000-4000-8000-00000000000b', $$insert into public.user_state (user_id) values ('b0000000-0000-4000-8000-00000000000b')$$), 'ok', 'B: inserting user_state with reset_at 0 works');
 select is((select epoch from public.event_meta where user_id = 'b0000000-0000-4000-8000-00000000000b'), 0, 'reset_at 0 leaves B''s epoch');
 select is((select count(*) from pg_trigger where tgrelid = 'public.user_state'::regclass and tgname like 'events_on_reset%' and not tgisinternal), 2::bigint, 'user_state has the two reset triggers');
+
+
+-- 15. more of events_put, as reader E (D has no event_meta row)
+-- a reset of a reader whose log never existed on the server is not a reset of it
+insert into public.user_state (user_id, reset_at) values ('d0000000-0000-4000-8000-00000000000d', 5);
+select is((select count(*) from public.event_meta where user_id = 'd0000000-0000-4000-8000-00000000000d'), 0::bigint, 'a first user_state with reset_at > 0 leaves no event_meta row');
+
+-- v: 1 to 99 as a number is kept, anything else falls back to 1
+select is(pg_temp.put('e0000000-0000-4000-8000-00000000000e', jsonb_build_array(
+    pg_temp.el('v1', pg_temp.nowmin() - 700, 'v1') || '{"v":100}', pg_temp.el('v2', pg_temp.nowmin() - 699, 'v2') || '{"v":0}',
+    pg_temp.el('v3', pg_temp.nowmin() - 698, 'v3') || '{"v":"5"}', pg_temp.el('v4', pg_temp.nowmin() - 697, 'v4') || '{"v":5.5}',
+    pg_temp.el('v5', pg_temp.nowmin() - 696, 'v5') || '{"v":-3}', pg_temp.el('v6', pg_temp.nowmin() - 695, 'v6') || '{"v":1e2}',
+    pg_temp.el('v7', pg_temp.nowmin() - 694, 'v7') || '{"v":null}', pg_temp.el('v8', pg_temp.nowmin() - 693, 'v8') || '{"v":7}',
+    pg_temp.el('v9', pg_temp.nowmin() - 692, 'v9') || '{"v":99}'), 0)->>'added', '9', 'E: nine entries with a v of every kind are added');
+select is((select array_agg(v order by t) from public.events where user_id = 'e0000000-0000-4000-8000-00000000000e' and ref ~ '^v[0-9]$'), array[1, 1, 1, 1, 1, 1, 1, 7, 99]::smallint[], 'v outside 1..99 or not an integer number falls back to 1; 7 and 99 are kept');
+
+-- the day rolls over: a new UTC day starts the counters again
+update public.event_meta set day = ((now() at time zone 'UTC')::date) - 1, day_n = 5, day_calls = 7 where user_id = 'e0000000-0000-4000-8000-00000000000e';
+do $$ begin perform pg_temp.put('e0000000-0000-4000-8000-00000000000e', '[]', 0); end $$;
+select is((select row(m.day = (now() at time zone 'UTC')::date, m.day_n, m.day_calls)::text from public.event_meta m where m.user_id = 'e0000000-0000-4000-8000-00000000000e'), '(t,0,1)', 'a put on a new day resets day_n and day_calls, then counts the call');
+
+-- a refusal still counts as a call
+create temp table dc as select day_calls as n from public.event_meta where user_id = 'e0000000-0000-4000-8000-00000000000e';
+do $$ begin perform pg_temp.put('e0000000-0000-4000-8000-00000000000e', '{"a":1}', 0); end $$;
+select is((select day_calls from public.event_meta where user_id = 'e0000000-0000-4000-8000-00000000000e'), (select n + 1 from dc), 'a bm-batch refusal counts as a call');
+do $$ begin perform pg_temp.put('e0000000-0000-4000-8000-00000000000e', jsonb_build_array(pg_temp.el('rf', pg_temp.nowmin() - 5, 'rf')), 9); end $$;
+select is((select day_calls from public.event_meta where user_id = 'e0000000-0000-4000-8000-00000000000e'), (select n + 2 from dc), 'a bm-reset refusal counts as a call');
+
+-- held, future, invalid and new together: invalid is judged before future
+select is(pg_temp.put('e0000000-0000-4000-8000-00000000000e', jsonb_build_array(
+    pg_temp.el('v1', pg_temp.nowmin() - 700, 'v1'),
+    pg_temp.el('mf', pg_temp.nowmin() + 1441, 'mf'),
+    jsonb_set(pg_temp.el('mi', pg_temp.nowmin() + 5000, 'mi'), '{p,7}', '1000'),
+    pg_temp.el('mn', pg_temp.nowmin() - 4, 'mn')), 0),
+  jsonb_build_object('added', 1, 'refused', jsonb_build_array(
+      jsonb_build_object('id', pg_temp.el('mf', 0)->>'id', 'why', 'future'),
+      jsonb_build_object('id', pg_temp.el('mi', 0)->>'id', 'why', 'invalid')),
+    'seq', 10, 'epoch', 0),
+  'E: a held entry adds nothing, a future one is future, an invalid and future one is invalid, a new one is added');
+
+-- prune runs inside events_put: a ninth page entry for one ref is dropped
+select is(pg_temp.put('e0000000-0000-4000-8000-00000000000e', (select jsonb_agg(pg_temp.el('pp' || g, pg_temp.nowmin() - 600 + g, 'pp', 'h')) from generate_series(1, 9) g), 0)->>'added', '9', 'E: nine page entries for one ref are added');
+select is((select count(*) from public.events where user_id = 'e0000000-0000-4000-8000-00000000000e' and ref = 'pp'), 8::bigint, 'and only the first eight stay');
+
+-- the server's day is the UTC day whatever the session's time zone
+update public.event_meta set day = ((now() at time zone 'UTC')::date) - 1 where user_id = 'e0000000-0000-4000-8000-00000000000e';
+set local timezone = 'Etc/GMT+12';
+select is(pg_temp.put('e0000000-0000-4000-8000-00000000000e', jsonb_build_array(pg_temp.el('tz1', pg_temp.nowmin() - 3, 'tz1')), 0)->>'added', '1', 'E: a put under UTC-12 adds the entry');
+select is((select rd from public.events where id = pg_temp.el('tz1', 0)->>'id'), ((now() at time zone 'UTC')::date) - date '1970-01-01', 'under UTC-12 rd is the UTC day');
+select is((select day from public.event_meta where user_id = 'e0000000-0000-4000-8000-00000000000e'), (now() at time zone 'UTC')::date, 'under UTC-12 event_meta.day is the UTC day');
+update public.event_meta set day = ((now() at time zone 'UTC')::date) - 1 where user_id = 'e0000000-0000-4000-8000-00000000000e';
+set local timezone = 'Etc/GMT-12';
+select is(pg_temp.put('e0000000-0000-4000-8000-00000000000e', jsonb_build_array(pg_temp.el('tz2', pg_temp.nowmin() - 2, 'tz2')), 0)->>'added', '1', 'E: a put under UTC+12 adds the entry');
+select is((select rd from public.events where id = pg_temp.el('tz2', 0)->>'id'), ((now() at time zone 'UTC')::date) - date '1970-01-01', 'under UTC+12 rd is the UTC day');
+select is((select day from public.event_meta where user_id = 'e0000000-0000-4000-8000-00000000000e'), (now() at time zone 'UTC')::date, 'under UTC+12 event_meta.day is the UTC day');
+reset timezone;
+
+-- numerals that print as 100 KB: refused as invalid without being printed, and fast
+create temp table t0 as select clock_timestamp() as t;
+create temp table hugeres as select pg_temp.put('e0000000-0000-4000-8000-00000000000e', (
+  select jsonb_agg(jsonb_build_object('id', 'dev' || substr(md5(g::text), 1, 5) || '-' || substr(md5(g::text || 'r'), 1, 8) || '-' || substr(md5(g::text || 'h'), 1, 7),
+                                      'p', jsonb_build_array('1e99999'::jsonb, 20763, 'ex', '', '', 'c', 1, 1, 0, 0))) from generate_series(1, 500) g), 0) as r;
+create temp table t1 as select clock_timestamp() as t;
+select is(jsonb_array_length((select r->'refused' from hugeres)), 500, '500 elements of 1e99999 are all refused');
+select is((select count(*) from hugeres, jsonb_array_elements(r->'refused') e where e->>'why' = 'invalid'), 500::bigint, 'every one is invalid');
+select ok((select t from t1) - (select t from t0) < interval '1 second', '500 elements of 1e99999 take under a second');
+create temp table t2 as select clock_timestamp() as t;
+create temp table hugex as select pg_temp.put('e0000000-0000-4000-8000-00000000000e', jsonb_build_array(
+  pg_temp.el('hx', pg_temp.nowmin() - 9, 'hx', 'c', 1, (select jsonb_object_agg('k' || g, '1e99999'::jsonb) || '{"s":1e-9000}'::jsonb from generate_series(1, 15) g))), 0) as r;
+create temp table t3 as select clock_timestamp() as t;
+select is((select r->'refused'->0->>'why' from hugex), 'invalid', 'an x holding 15 numerals of 1e99999 makes the entry invalid');
+select ok((select t from t3) - (select t from t2) < interval '1 second', 'and it takes under a second');
 
 -- 12. prune parity with the browser's prune()
 select is(pg_temp.prune_case(case_no), ids, 'prune parity case ' || case_no) from private.prune_expected order by case_no;

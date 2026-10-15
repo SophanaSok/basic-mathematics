@@ -183,14 +183,17 @@ where n.nspname in ('public', 'private')
 order by n.nspname, p.proname;
 ```
 
-The locks: one row of four values, **all `false`**. The browser's role may not run the private
-helpers or enter their schema, and the private schema is not reachable from the API.
+The locks: one row of five values, the first four **`false`** and `auth_put` **`true`**. The
+browser's role may not run the private helpers or enter their schema, `anon` may not call
+`events_put`, and a signed-in reader must still be able to (a revoked kill switch shows as
+`false` here).
 
 ```sql
 select has_function_privilege('authenticated', 'private.events_valid(jsonb, integer)', 'execute') as valid_exec,
        has_function_privilege('authenticated', 'private.events_prune(uuid)', 'execute') as prune_exec,
        has_function_privilege('anon', 'public.events_put(jsonb, integer)', 'execute') as anon_put,
-       has_schema_privilege('authenticated', 'private', 'usage') as private_usage;
+       has_schema_privilege('authenticated', 'private', 'usage') as private_usage,
+       has_function_privilege('authenticated', 'public.events_put(jsonb, integer)', 'execute') as auth_put;
 ```
 
 The two reset triggers on `user_state`: **two rows**, `events_on_reset_insert` and
@@ -271,13 +274,14 @@ the `migrations` check refuses any edit to it; fix it with a newer migration.
    applying it early is safe.
 3. Threats and bounds: both tables have row-level security on, the browser may only read its own
    `events` rows, and every write goes through the definer function `events_put()`, which caps a
-   call at 500 entries and 256 KB, a reader at 2,000 calls a day and 25,000 rows, and the whole table
+   call at 500 entries and 256 KB, a reader at 2,000 calls a day, 3,000 new rows a day and 25,000 rows, and the whole table
    at 300 MB (`private.events_ceiling()`) for everyone. One consequence (T14): a checkpoint from a device
    whose clock is far ahead of the server's is refused as invalid, so a wrong clock costs that
    device its checkpoints, not the reader's other data.
 4. Rollback is the table above: leave the objects. To stop writes, use the kill switch row in
    [6](#6-kill-switches). To empty the log, as a last resort, run
-   `truncate public.events; update public.event_meta set seq = 0;` in the SQL editor.
+   `truncate public.events; update public.event_meta set seq = 0, epoch = epoch + 1;` in the SQL editor
+   (the epoch moves too, or a device that holds the old one would keep writing and skip rows).
 
 ## 2. Deploys
 

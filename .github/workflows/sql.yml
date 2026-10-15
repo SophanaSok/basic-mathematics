@@ -35,6 +35,7 @@ jobs:
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
         with:
           node-version-file: .nvmrc
+      - run: sudo apt-get update
       - run: sudo apt-get install -y --no-install-recommends postgresql-client
       - run: node tools/gen-prune-sql-cases.js --check
       - run: node tools/sql-test.js --db postgres://postgres:postgres@127.0.0.1:54322/postgres
