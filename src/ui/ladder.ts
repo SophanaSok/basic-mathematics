@@ -185,6 +185,7 @@ export function mount(opts: LadderOptions): LadderController {
   let supported = false;
   /* light: the first wrong check on this card has no offer line (the clue button is unchanged) */
   let quietFirst = false;
+  let supportLine: HTMLElement | null = null;
   function applySupport(sup: SupportOption | undefined): void {
     if (!sup || supported) return;
     supported = true;
@@ -195,6 +196,7 @@ export function mount(opts: LadderOptions): LadderController {
     p.className = "ex-support hint";
     p.innerHTML = supportHtml(sup, !!sup.worked);
     opts.ex.insertBefore(p, opts.form);
+    supportLine = p;
     const b = p.querySelector("[data-worked]");
     if (b && sup.worked) {
       const target = sup.worked;
@@ -259,6 +261,8 @@ export function mount(opts: LadderOptions): LadderController {
     }, wait);
   }
 
+  /* Idle is a stuck signal, so it offers even at the light level: light only keeps the first
+     wrong check's own line quiet, it never hides help from a learner who has stopped. */
   function showIdle(sig: StuckSignal): void {
     if (opts.solved() || opts.ex.getAttribute("data-state") !== "wrong") return;
     const fb = opts.ex.querySelector(".ex-feedback");
@@ -401,6 +405,7 @@ export function mount(opts: LadderOptions): LadderController {
       idleTimer = null;
       /* solved: "still not coming" is no longer true */
       if (approachCard) approachCard.hidden = true;
+      if (supportLine) supportLine.hidden = true;
     }
   };
   return ctl;

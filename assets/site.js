@@ -850,7 +850,8 @@
       }
       /* the section's first worked example on this page: after its h2 and before the next h2 */
       var worked = null;
-      if (level === "guided") {
+      /* only a section of this page: another chapter's id here would be a different section */
+      if (level === "guided" && ref.slice(0, cut) === chapterId) {
         var h = document.getElementById(ref.slice(cut + 1));
         if (h && h.tagName === "H2") {
           for (var n = h.nextElementSibling; n && n.tagName !== "H2"; n = n.nextElementSibling) {
