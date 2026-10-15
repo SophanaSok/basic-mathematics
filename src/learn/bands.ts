@@ -2,10 +2,10 @@
 
    Pure: no window, no document, no storage of any kind (tools/check-static.js `pure-core`). */
 
-import { classOf, type EventSet } from "../sync/events.ts";
+import type { EventSet } from "../sync/events.ts";
 import { MASTERY_MIN_EVIDENCE, MASTERY_STRONG, MASTERY_WEAK } from "./constants.ts";
-import { masteryOf, type Mastery } from "./mastery.ts";
-import { preOf, type Pre } from "./schedule.ts";
+import { masteriesAll, masteryOf, type Mastery } from "./mastery.ts";
+import type { Pre } from "./schedule.ts";
 
 export type Band = "none" | "weak" | "building" | "strong";
 
@@ -29,18 +29,9 @@ const cache = new WeakMap<EventSet, Record<string, Band>>();
 export function bandsAll(V: EventSet): Record<string, Band> {
   const hit = cache.get(V);
   if (hit) return hit;
-  const secs = new Set<string>();
-  Object.keys(V).forEach((id) => {
-    const P = V[id];
-    if (P[3] === "") return;
-    const c = classOf(P);
-    if (c === "p" && P[4] === "") return;
-    if (c === "p" && !((P[5] === "c" && P[6] === 1) || P[5] === "o")) return;
-    secs.add(P[3]);
-  });
-  const pre = preOf(V);
+  const ms = masteriesAll(V);
   const out: Record<string, Band> = {};
-  Array.from(secs).sort().forEach((sec) => { out[sec] = bandOf(V, sec, pre); });
+  Object.keys(ms).forEach((sec) => { out[sec] = bandFor(ms[sec]); });
   Object.freeze(out);
   cache.set(V, out);
   return out;

@@ -10,8 +10,8 @@
                         on its page can mark it checked (an exercise is solved once, and
                         no self-report counts), so as an item it could never be done. The
                         due review's own lobby still lists it, as "due, on the page".
-     2  a weak section  the one the struggle score marks weakest (game.js deck(): status
-                        "shaky"), linked to a Repair run, or to its page where the Arena has
+     2  a weak section  the one with the lowest mastery among those in the event
+                        log's "weak" band (game.js deck(): status "shaky"), linked to a Repair run, or to its page where the Arena has
                         no problems for it
      3  continue        where the reader left off (bm.last), as the contents page's
                         Continue button has it; on a chapter page, only a place in that chapter
@@ -28,8 +28,10 @@ export interface DeckRow {
   due: boolean;
   box?: unknown;
   last?: unknown;
-  /** the struggle score (BMInsights), higher is weaker */
+  /** the struggle score (BMInsights), higher is harder; display only, never sorted on */
   score?: number;
+  /** the event log's mastery, lower is weaker; absent counts as 0.5 */
+  mastery?: number;
   /** the day the section was last solved on its page (YYYY-MM-DD), or null */
   seen?: unknown;
 }
@@ -108,7 +110,7 @@ function dueItem(input: NextInput): NextItem | null {
 function weakItem(input: NextInput): NextItem | null {
   const weak = input.deck
     .filter((r) => r.status === "shaky" && !!input.sections[r.id])
-    .sort((a, b) => (b.score ?? 0) - (a.score ?? 0) || input.sections[a.id].index - input.sections[b.id].index);
+    .sort((a, b) => (a.mastery ?? 0.5) - (b.mastery ?? 0.5) || input.sections[a.id].index - input.sections[b.id].index);
   if (!weak.length) return null;
   const s = input.sections[weak[0].id];
   if (input.arena.indexOf(s.id) > -1) {

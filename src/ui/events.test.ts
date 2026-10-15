@@ -44,7 +44,7 @@ const kinds = (api: { all(): EventSet }) => Object.values(api.all()).map((P) => 
 describe("install", () => {
   it("puts the api up and listens once", () => {
     const f = fake();
-    expect(Object.keys(f.api)).toEqual(["all", "version", "ahead", "device", "record", "fromRun", "clear", "stamp", "outbox", "enqueue", "dequeue", "payloads", "absorb", "scheduleAll", "schedule", "mastery", "bandOf"]);
+    expect(Object.keys(f.api)).toEqual(["all", "version", "ahead", "device", "record", "fromRun", "seed", "clear", "stamp", "outbox", "enqueue", "dequeue", "payloads", "absorb", "scheduleAll", "schedule", "mastery", "bandOf", "bands", "masteries"]);
     expect(f.Store.on).toHaveBeenCalledTimes(1);
   });
   it("records an attempt, and no secret reaches storage", () => {
@@ -238,5 +238,66 @@ describe("install", () => {
     expect(f.api.record([D * 1440, D, "ex", "", "ch02/e3", "c", 1, 1, 0, 0])).toBeNull();
     expect(f.api.fromRun(run(2))).toBe(0);
     expect(f.api.all()).toEqual({});
+  });
+});
+
+describe("bands and masteries", () => {
+  it("are one frozen object on an unchanged log, and a write gives a new one", () => {
+    const f = fake();
+    f.api.seed({ "ch02#one-unknown": { box: 1, last: "2026-10-05" } });
+    const b = f.api.bands(), m = f.api.masteries();
+    expect(f.api.bands()).toBe(b);
+    expect(f.api.masteries()).toBe(m);
+    expect(Object.isFrozen(b) && Object.isFrozen(m)).toBe(true);
+    expect(Object.keys(m)).toEqual(["ch02#one-unknown"]);
+    expect(m["ch02#one-unknown"]).toEqual(f.api.mastery("ch02#one-unknown"));
+    expect(b["ch02#one-unknown"]).toBe(f.api.bandOf("ch02#one-unknown"));
+    f.api.fromRun(run(1));
+    expect(f.api.masteries()).not.toBe(m);
+    expect(f.api.bands()).not.toBe(b);
+  });
+});
+
+describe("seed", () => {
+  const sec = "ch02#one-unknown";
+  const patch = { [sec]: { box: 1, last: "2026-10-05" } };
+  it("stores the entries, folds to the seed, and emits one event", () => {
+    const f = fake();
+    expect(f.api.seed(patch)).toBe(1);
+    expect(Object.values(f.get(EVENTS_KEY).ev).map((P: any) => P[5])).toEqual(["z"]);
+    expect(f.api.scheduleAll(TODAY)[sec]).toEqual({ box: 1, last: "2026-10-05" });
+    expect(f.emitted.filter((c) => c.type === "event")).toEqual([{ type: "event", n: 1 }]);
+    expect(f.mem.has(OUTBOX_KEY)).toBe(false);
+  });
+  it("queues only when the device has a uid, and a repeat adds nothing (the section is known now)", () => {
+    const f = fake();
+    f.api.stamp("u1");
+    expect(f.api.seed(patch)).toBe(1);
+    const ids = Object.keys(f.api.all());
+    expect(f.get(OUTBOX_KEY).ids).toEqual(ids);
+    expect(f.api.seed(patch)).toBe(0);
+    expect(Object.keys(f.api.all())).toEqual(ids);
+    expect(f.get(OUTBOX_KEY).ids).toEqual(ids);
+  });
+  it("never touches a section the log knows, and never seeds today", () => {
+    const f = fake();
+    const d = D - 3, P: Payload = [d * 1440, d, "ar", sec, "", "a", 1, 1, 0, 0];
+    f.api.absorb({ v: 1, ev: { [eventId("bbbbbbbb", P)]: P } });
+    const before = f.mem.get(EVENTS_KEY);
+    expect(f.api.seed(patch)).toBe(0);
+    expect(f.mem.get(EVENTS_KEY)).toBe(before);
+    expect(f.api.seed({ "ch01#integers": { box: 1, last: TODAY } })).toBe(0);
+    expect(f.api.seed({ "ch01#integers": { box: 1, last: "2026-10-05" } })).toBe(1);
+  });
+  it("stores nothing when the log is ahead or the patch is damaged", () => {
+    const f = fake();
+    expect(f.api.seed({ [sec]: { box: 9, last: "2026-10-05" } })).toBe(0);
+    expect(f.api.seed(null)).toBe(0);
+    expect(f.mem.has(EVENTS_KEY)).toBe(false);
+    f.seed(EVENTS_KEY, { v: 2, ev: {} });
+    const before = f.mem.get(EVENTS_KEY);
+    expect(f.api.seed(patch)).toBe(0);
+    expect(f.mem.get(EVENTS_KEY)).toBe(before);
+    expect(f.emitted.filter((c) => c.type === "event")).toEqual([]);
   });
 });

@@ -166,3 +166,4 @@ export function priorOf(diag: unknown, ref: SectionRef, skillOf: SkillOf): Prior
   }
   return null;
 }
+

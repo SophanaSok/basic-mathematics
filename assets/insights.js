@@ -138,13 +138,18 @@
         "in the Arena at widening gaps (1, 3, 7, 14 and 30 days), which is what makes them stick.</p></section>";
     }
     var due = deck.filter(function (d) { return d.due; }), holding = 0, n = 0, ok = 0, last = "";
+    var sched = {};
+    try { sched = window.BMEvents ? window.BMEvents.scheduleAll(Site.dayKey()) || {} : {}; } catch (e) { sched = {}; }
+    Object.keys(sched).forEach(function (id) {
+      if ((sched[id].box || 0) >= 3) holding++;
+      /* only a section the Arena has asked about (n > 0): a placement-check seed sets last too */
+      var s = sec[id] || {};
+      if ((s.n || 0) > 0 && sched[id].last && sched[id].last > last) last = sched[id].last;
+    });
     ids.forEach(function (id) {
       var s = sec[id] || {};
-      if ((s.box || 0) >= 3) holding++;
       n += s.n || 0;
       ok += Math.min(s.ok || 0, s.n || 0);
-      /* only a section the Arena has asked about (n > 0): a placement-check seed sets last too */
-      if ((s.n || 0) > 0 && s.last && s.last > last) last = s.last;
     });
     html += '<div class="stats">';
     html += tile("Due now", due.length, plural(deck.length, "section") + " in play");

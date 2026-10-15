@@ -897,9 +897,16 @@ async function run() {
       /* 2. nothing due, one section weak: a Repair run first */
       const weakSeed = {
         "bm.attempts.v1": JSON.stringify({ ch05: { e1: { tries: 3, solved: 1, section: "parallels" }, e2: { tries: 1, solved: 2, first: 1, section: "angles" }, e3: { tries: 1, solved: 3, first: 1, section: "angles" } } }),
-        "bm.game.v1": JSON.stringify({ sec: { "ch05#parallels": { n: 1, ok: 1, box: 1, last: today }, "ch05#angles": { n: 1, ok: 1, box: 1, last: today } } })
+        "bm.game.v1": JSON.stringify({ sec: { "ch05#parallels": { n: 1, ok: 1 }, "ch05#angles": { n: 1, ok: 1 } } })
       };
       const b = await open(browser, "parts/1-algebra/03-real-numbers.html", weakSeed);
+      /* weak is the event log's band: three missed Arena answers on parallels (box 1, placed today) and a right one on angles */
+      await b.page.evaluate(([d]) => {
+        var miss = { section: "ch05#parallels", g: "g0", first: false, retry: false, hf: false };
+        window.BMEvents.fromRun({ day: d, mode: "standard", answers: [miss, miss, miss, { section: "ch05#angles", g: "g0", first: true, retry: false, hf: false }] });
+      }, [today]);
+      await b.page.reload();
+      await b.page.waitForFunction(() => document.readyState === "complete");
       const c2 = await card(b.page);
       eq([c2 && c2.kinds[0], c2 && c2.first, c2 && /arena\.html\?repair=ch05%23parallels$/.test(c2.href)], ["weak", "Repair §5.3 Parallel lines and transversals", true],
         "weak: on a chapter page, the first item is a Repair run on the weakest section");
@@ -1255,7 +1262,7 @@ async function run() {
         const a = await open(browser, "progress.html", { "bm.attempts.v1": JSON.stringify(two("ch05", "angles")) });   /* solid on its page, never placed */
         const wrote = await a.page.evaluate(([u, d]) => window.BMGame.seedRecall({ [u]: { box: 1, last: d } }), [U, yest]);
         eq(wrote, [U], "seedRecall returns the ids it wrote");
-        eq(await a.page.evaluate((u) => JSON.parse(localStorage.getItem("bm.game.v1")).sec[u], U), { box: 1, last: yest }, "and writes box and last only: no n, ok or fix");
+        eq(await a.page.evaluate(([u, d]) => [JSON.parse(localStorage.getItem("bm.game.v1")).sec[u], window.BMEvents.schedule(u, d)], [U, dayAgo(0)]).then((x) => [x[0], x[1].box, x[1].last]), [undefined, 1, yest], "and writes the seed to the event log (box and last), nothing into bm.game.v1.sec");
         eq(await a.page.evaluate(() => window.BMGame.deck().map((d) => d.id)), [A], "a seeded section stays out of deck()");
         eq(await a.page.evaluate((u) => window.BMGame.sectionStatus(u), U), "new", "its status is still new");
         await a.page.reload();
@@ -1270,8 +1277,11 @@ async function run() {
       {
         const a = await open(browser, "progress.html", {
           "bm.attempts.v1": JSON.stringify(two("ch05", "angles")),
-          "bm.game.v1": JSON.stringify({ sec: { [A]: { n: 2, ok: 2, box: 1, last: dayAgo(10) }, [U]: { box: 1, last: yest } } })
+          "bm.game.v1": JSON.stringify({ sec: { [A]: { n: 2, ok: 2 } } })
         });
+        await a.page.evaluate(([x, y, dx, dy]) => window.BMEvents.seed({ [x]: { box: 1, last: dx }, [y]: { box: 1, last: dy } }), [A, U, dayAgo(10), yest]);
+        await a.page.reload();
+        await a.page.waitForFunction(() => document.readyState === "complete");
         const want = await a.page.evaluate((d) => { var m = d.split("-"); return new Date(+m[0], +m[1] - 1, +m[2]).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" }); }, dayAgo(10));
         eq(await lastTile(a.page), [want, "in the Arena"], "a section with Arena answers sets \"Last practiced\" to its day, not the seed's");
         await a.context.close();
@@ -1281,8 +1291,9 @@ async function run() {
       {
         const a = await open(browser, "progress.html", {
           "bm.attempts.v1": JSON.stringify(two("ch05", "parallels")),
-          "bm.game.v1": JSON.stringify({ v: 2, sec: { [A]: { n: 1, ok: 1, box: 2, last: dayAgo(5) }, "ch01#addition": { box: 0, keep: "me", fix: 7 } } })
+          "bm.game.v1": JSON.stringify({ v: 2, sec: { [A]: { n: 1, ok: 1 }, "ch01#addition": { keep: "me", fix: 7 } } })
         });
+        await a.page.evaluate(([x, d]) => window.BMEvents.seed({ [x]: { box: 2, last: d } }), [A, dayAgo(5)]);
         const patch = {
           [A]: { n: 9, box: 0, last: yest }, [P]: { box: 1, last: yest }, [U]: { box: 1, last: yest, n: 5, ok: 5, extra: 1 },
           "ch01#addition": { box: 1, last: yest, keep: "me", fix: 7 }, "ch01#integers": { box: 2, last: yest },
@@ -1291,10 +1302,11 @@ async function run() {
         const wrote = await a.page.evaluate((p) => window.BMGame.seedRecall(p), patch);
         eq(wrote.slice().sort(), ["ch01#addition", U], "a placed section and a section with an attempt row are skipped; a box other than 0 or 1 and a bad day are dropped");
         const g = await a.page.evaluate(() => JSON.parse(localStorage.getItem("bm.game.v1")));
-        eq(g.sec[A], { n: 1, ok: 1, box: 2, last: dayAgo(5) }, "the placed section is untouched");
+        eq(g.sec[A], { n: 1, ok: 1 }, "the placed section is untouched");
         check(g.sec[P] === undefined, "the section with an attempt row is not seeded");
-        eq(g.sec[U], { box: 1, last: yest }, "n, ok and other fields in the patch are not written");
-        eq(JSON.stringify(g.sec["ch01#addition"], Object.keys(g.sec["ch01#addition"]).sort()), JSON.stringify({ box: 1, fix: 7, keep: "me", last: yest }), "an existing unplaced record keeps its fields");
+        const sch = (id) => a.page.evaluate(([i, d]) => { var s = window.BMEvents.schedule(i, d); return [s.box, s.last]; }, [id, dayAgo(0)]);
+        eq([g.sec[U], await sch(U)], [undefined, [1, yest]], "the seed is a log entry: n, ok and other fields in the patch are not written, and bm.game.v1.sec gets no record");
+        eq([JSON.stringify(g.sec["ch01#addition"], Object.keys(g.sec["ch01#addition"]).sort()), await sch("ch01#addition")], [JSON.stringify({ fix: 7, keep: "me" }), [1, yest]], "an existing unplaced record keeps its fields, and gets its box and day in the log");
         eq(g.v, 2, "and so does the rest of the game record");
         const bad = await a.page.evaluate(() => [null, "x", 3, [], undefined, JSON.parse('{"__proto__":{"box":1,"last":"2026-01-01"}}')].map((p) => window.BMGame.seedRecall(p)));
         eq(bad, [[], [], [], [], [], []], "a patch that is not an object, or only __proto__, writes nothing");
@@ -1302,12 +1314,10 @@ async function run() {
         eq(await a.page.evaluate((p) => window.BMGame.seedRecall(p), patch), [], "a second seed writes nothing: what the first wrote is placed");
         /* the guards read the state at the moment of writing, not when the patch was made */
         await a.page.evaluate(() => {
-          var g = JSON.parse(localStorage.getItem("bm.game.v1"));
-          g.sec["ch01#integers"] = { n: 1, ok: 1, box: 3, last: "2026-01-01" };
-          localStorage.setItem("bm.game.v1", JSON.stringify(g));
+          window.BMEvents.seed({ "ch01#integers": { box: 3, last: "2026-01-01" } });
         });
         eq(await a.page.evaluate(() => window.BMGame.seedRecall({ "ch01#integers": { box: 0, last: "2026-02-02" } })), [], "a section placed since the patch was made is skipped");
-        eq(await a.page.evaluate(() => JSON.parse(localStorage.getItem("bm.game.v1")).sec["ch01#integers"].box), 3, "and keeps its box");
+        eq((await sch("ch01#integers"))[0], 3, "and keeps its box");
         eq(a.errors, [], "no errors seeding");
         await a.context.close();
       }
@@ -1316,16 +1326,16 @@ async function run() {
          writes nothing emits nothing, and one that writes emits the change the account pushes */
       {
         const a = await open(browser, "progress.html", {});
-        await a.page.evaluate(() => { window.__ev = 0; window.BMStore.on((c) => { if (c.type === "state" && c.key === "bm.game.v1") window.__ev++; }); });
+        await a.page.evaluate(() => { window.__ev = 0; window.BMStore.on((c) => { if (c.type === "event") window.__ev++; }); });
         const ev = () => a.page.evaluate(() => window.__ev);
         const seed = (p) => a.page.evaluate((p) => window.BMGame.seedRecall(p), p);
         const today = dayAgo(0), future = (() => { const d = new Date(); d.setDate(d.getDate() + 3); const t = (x) => (x < 10 ? "0" : "") + x; return d.getFullYear() + "-" + t(d.getMonth() + 1) + "-" + t(d.getDate()); })();
         const none = { "ch01#addition": { box: 1, last: today }, "ch01#integers": { box: 1, last: future }, "ch02#one-unknown": { box: 1, last: "2026-13-45" },
           "ch05#angles": { box: 0, last: "yesterday" }, "x#1": { box: 1, last: yest }, constructor: { box: 1, last: yest }, "ch01#nope": { box: 1, last: yest }, "ch01": { box: 1, last: yest } };
         eq(await seed(none), [], "today, a future day, an impossible date, a non-date, an unknown ref and a bare name are not written");
-        eq([await ev(), await a.page.evaluate(() => localStorage.getItem("bm.game.v1"))], [0, null], "and nothing is stored or emitted for them");
+        eq([await ev(), await a.page.evaluate(() => localStorage.getItem("bm.events.v1"))], [0, null], "and nothing is stored or emitted for them");
         eq(await seed({ "ch01#addition": { box: 1, last: yest } }), ["ch01#addition"], "a real earlier day on a known ref is written");
-        eq(await ev(), 1, "and it emits the bm.game.v1 change that drives the account push");
+        eq(await ev(), 1, "and it announces the log change that drives the account push");
         eq(await seed({ "ch01#addition": { box: 1, last: yest } }), [], "the same seed again writes nothing");
         eq(await ev(), 1, "and emits nothing");
         await a.context.close();

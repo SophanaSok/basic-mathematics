@@ -53,6 +53,7 @@ import "../learn/checkpoint.ts";
 import "../learn/mastery.ts";
 import "../learn/bands.ts";
 import "../learn/recorder.ts";
+import "../learn/seed-entries.ts";
 import "../ui/events.ts";
 import "../../assets/sfx.js";
 import "../../assets/game.js";

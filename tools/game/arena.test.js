@@ -137,16 +137,30 @@ async function playOut(p) {
 }
 /* place every section the Arena can ask about in box 1 today (so none is due), then the
    records more(day, back) returns over that, `back(n)` being the day n days ago; add the
-   attempt records in `attempts` to what is stored; reload */
+   attempt records in `attempts` to what is stored; reload. The box and day are the learning
+   log's (window.BMEvents): a day before today is a seed (a checkpoint entry), and today is
+   a recorded answer (clean for box 1, a miss for box 0), since a seed cannot be dated today.
+   bm.game.v1.sec keeps n and ok, so metInArena still holds. */
 async function placeAll(p, more, attempts) {
   await p.evaluate(({ more, attempts }) => {
     var day = window.BMSite.dayKey(), back = function (n) { return window.BMReview.recall.addDays(day, -n); };
     var g = JSON.parse(localStorage.getItem("bm.game.v1") || "{}");
     g.sec = {};
-    window.BMReview.ARENA_SECTIONS.forEach(function (id) { g.sec[id] = { n: 1, ok: 1, box: 1, last: day }; });
+    var place = {};
+    window.BMReview.ARENA_SECTIONS.forEach(function (id) { g.sec[id] = { n: 1, ok: 1 }; place[id] = { box: 1, last: day }; });
     var extra = (0, eval)("(" + more + ")")(day, back);
-    Object.keys(extra).forEach(function (id) { g.sec[id] = extra[id]; });
+    Object.keys(extra).forEach(function (id) {
+      g.sec[id] = { n: extra[id].n, ok: extra[id].ok };
+      place[id] = { box: extra[id].box, last: extra[id].last };
+    });
     localStorage.setItem("bm.game.v1", JSON.stringify(g));
+    window.BMEvents.clear();
+    var seeds = {};
+    Object.keys(place).forEach(function (id) {
+      if (place[id].last < day) { seeds[id] = place[id]; return; }
+      window.BMEvents.fromRun({ day: day, mode: "standard", answers: [{ section: id, g: "g0", first: place[id].box === 1, retry: place[id].box !== 1, hf: false }] });
+    });
+    window.BMEvents.seed(seeds);
     if (attempts) {
       var all = JSON.parse(localStorage.getItem("bm.attempts.v1") || "{}");
       Object.keys(attempts).forEach(function (ch) { all[ch] = Object.assign(all[ch] || {}, attempts[ch]); });
@@ -171,6 +185,15 @@ async function run() {
       const context = await ctx(browser);
       const seed = { "bm.attempts.v1": JSON.stringify({ ch05: { x1: { section: "parallels", solved: Date.now() - 864e5, first: false, tries: 3 } } }) };
       const p = await open(context, errors, "arena.html?repair=ch05%23parallels", seed);
+      /* weak by the event log's mastery band (src/learn/mastery.ts): five solutions opened
+         there yesterday; three items under 0.45 make the band, and five leave it weak after
+         the one right answer the banked repair below records (0.167 -> 0.417) */
+      await p.evaluate(() => {
+        var t = Math.floor(Date.now() / 60000) - 1440;
+        for (var i = 1; i <= 5; i++) window.BMEvents.record([t + i, Math.floor((t + i) / 1440), "ex", "ch05#parallels", "ch05/x" + i, "o", 0, 0, 0, 0]);
+      });
+      await p.reload();
+      await p.waitForFunction(() => document.readyState === "complete");
       const weak = () => p.evaluate(() => window.BMInsights.weak().map((r) => r.id));
       check((await weak()).includes("ch05#parallels"), "the seeded section starts weak");
       await p.click('[data-act="start"][data-mode="repair"]');
@@ -575,7 +598,8 @@ async function run() {
       await p.waitForSelector(".arena-result");
       const res = await p.evaluate(() => window.BMArena.state().result);
       const g = (await game(p)).sec, today = await p.evaluate(() => window.BMSite.dayKey());
-      eq([g["ch05#angles"].box, g["ch05#angles"].last, g["ch05#distance"].box, g["ch05#distance"].last, g["ch02#one-unknown"].box, g["ch02#one-unknown"].last],
+      const sch = await p.evaluate(() => window.BMEvents.scheduleAll(window.BMSite.dayKey()));
+      eq([sch["ch05#angles"].box, sch["ch05#angles"].last, sch["ch05#distance"].box, sch["ch05#distance"].last, sch["ch02#one-unknown"].box, sch["ch02#one-unknown"].last],
         [3, today, 1, today, 0, today], "the review moves the boxes by the usual rule: a clean due showing up one, a miss back to box 0");
       eq([g["ch05#angles"].n, g["ch05#angles"].ok, g["ch02#one-unknown"].n, g["ch02#one-unknown"].ok], [3, 3, 3, 2], "and counts the answers");
       /* 3 a first try on a due section: Angles 3 + 3, One unknown 3 (its retry has no heart at stake, so pays none), Distance 3 + 3; no finishing bonus without hearts */
@@ -682,7 +706,7 @@ async function run() {
         await p.waitForSelector(".arena-result");
         return p.evaluate(() => Object.assign({ gone: typeof window.BMGame.recordRun }, window.BMArena.state().result));
       };
-      const rec = async (id) => { const r = (await game(p)).sec[id]; return [r.box, r.last]; };
+      const rec = async (id) => p.evaluate((id) => { var r = window.BMEvents.schedule(id, window.BMSite.dayKey()); return [r.box, r.last]; }, id);
       const f1 = await fallbackRepair("ch05#parallels", -1);
       eq([f1.gone, f1.xp, f1.reduced], ["undefined", 15, []], "the fallback pays a due section 3 an answer, in full on the day's first run");
       eq(await rec("ch05#parallels"), [2, today], "a clean, due showing moves the box up one, from 1 to 2, and restarts its clock");
@@ -894,12 +918,12 @@ async function run() {
         const secret = new Set(res.answers.map((a) => a.el).concat([res.score]).filter((n) => n >= 100));
         check(got.every(([, P]) => P[6] <= 1 && P[7] <= 2 && P[8] === 0 && P[9] < 64 && !secret.has(P[0]) && !secret.has(P[1]) && !secret.has(P[9])),
           label + ": no entry holds an answer's time or the score " + JSON.stringify([Array.from(secret), got.slice(0, 2)]));
-        /* the schedule the log gives is the game record's */
+        /* the schedule is the log's: every section run has one there, and the game record keeps none */
         const same = await p.evaluate((secs) => {
           var day = window.BMSite.dayKey(), sch = window.BMEvents.scheduleAll(day), sec = (JSON.parse(localStorage.getItem("bm.game.v1") || "{}").sec) || {};
-          return secs.map((id) => [id, sch[id] && [sch[id].box, sch[id].last], sec[id] && [sec[id].box, sec[id].last]]);
+          return secs.map((id) => [id, !!sch[id], !!(sec[id] && ("box" in sec[id] || "last" in sec[id]))]);
         }, Object.keys(secs));
-        check(same.every((r) => JSON.stringify(r[1]) === JSON.stringify(r[2]) && r[1]), label + ": the log's schedule equals the game record for every section run " + JSON.stringify(same));
+        check(same.every((r) => r[1] && !r[2]), label + ": every section run has a schedule in the log and none in the game record " + JSON.stringify(same));
       };
 
       /* a 10-question standard run */

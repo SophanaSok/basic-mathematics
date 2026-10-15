@@ -376,9 +376,18 @@
       var s = ex.getAttribute("data-section") || "";
       if (s) secs[s.indexOf("#") > -1 ? s : chapterId + "#" + s] = true;
     });
-    return Insights.sections().filter(function (r) {
-      return secs[r.id] && r.score >= Insights.WEAK;
-    }).sort(function (a, b) { return b.score - a.score; }).slice(0, 3);
+    /* the event log's mastery band, weakest mastery first; BMEvents is read at call time,
+       once per call, and a failed read gives no rows */
+    var E = window.BMEvents, bands = {}, ms = {};
+    try {
+      if (E && typeof E.bands === "function") bands = E.bands() || {};
+      if (E && typeof E.masteries === "function") ms = E.masteries() || {};
+    } catch (e) { if (window.console) console.warn("[BM] weak rows", e); return []; }
+    var own = function (o, k) { return Object.prototype.hasOwnProperty.call(o, k); };
+    var m = function (r) { var v = own(ms, r.id) ? ms[r.id] : null; return v && typeof v.m === "number" && isFinite(v.m) ? v.m : 0.5; };
+    var rows = Insights.sections().filter(function (r) { return secs[r.id] && own(bands, r.id) && bands[r.id] === "weak"; })
+      .sort(function (a, b) { return m(a) - m(b) || b.n - a.n; });
+    return rows.slice(0, 3);
   }
 
   function nextChapter() {

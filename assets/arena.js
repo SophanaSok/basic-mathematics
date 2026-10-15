@@ -62,7 +62,6 @@
   var RUN_KEY = Store.keys.run || "bm.run.v1";
   var PREFS_KEY = Store.keys.prefs || "bm.prefs.v1";
   var GAME_KEY = Store.keys.game || "bm.game.v1";
-  var WEAK = (window.BMInsights && window.BMInsights.WEAK) || 0.34;
 
   var MODES = {
     standard: { n: 10, label: "Standard run" },
@@ -211,8 +210,18 @@
 
   /* the game layer's schedule, the one copy (src/learn/recall.ts): due once the box's
      interval has passed since the section was last placed, and at once if it never was */
-  function secRec(id) { var rec = (gameStore().sec || {})[id]; return rec && typeof rec === "object" ? rec : {}; }
-  function isDue(id) { return Review.recall.dueOn(secRec(id), today()); }
+  var schedWarned = false;
+  function warnSched(e) {
+    if (schedWarned) return;
+    schedWarned = true;
+    if (window.console) console.warn("[BM] schedule", e);
+  }
+  /* what the event log (window.BMEvents, src/learn/schedule.ts, bands.ts) says, read once per
+     deck: every section's { box, last } and band; {} when the log is missing or throws, which
+     gives box 0, no day and a section that is not shaky */
+  function logRead(name, arg) {
+    try { return window.BMEvents ? window.BMEvents[name](arg) || {} : {}; } catch (e) { warnSched(e); return {}; }
+  }
   function metInArena(id) {
     var rec = (gameStore().sec || {})[id];
     return !!(rec && rec.n >= 1);
@@ -228,16 +237,14 @@
       });
       return out;
     }
-    var solved = solvedSections(), scores = {};
-    if (window.BMInsights) {
-      try { window.BMInsights.sections().forEach(function (row) { scores[row.id] = row.score; }); } catch (e) { /* no scores, all solid */ }
-    }
+    var solved = solvedSections(), sched = logRead("scheduleAll", today()), bands = logRead("bands");
     /* the game layer's rule: solid once two exercises are solved there, or a scored one
        first time, or one came right first time in the Arena; one Your turn check is not enough */
     Object.keys(solved).forEach(function (id) {
-      var shaky = scores[id] !== undefined && scores[id] >= WEAK, rec = (gameStore().sec || {})[id];
+      var shaky = bands[id] === "weak", rec = (gameStore().sec || {})[id];
+      var at = Object.prototype.hasOwnProperty.call(sched, id) ? sched[id] : { box: 0, last: undefined };
       if (!shaky && solved[id].n < 2 && !solved[id].first && !(rec && rec.ok > 0)) return;
-      out[id] = { id: id, status: shaky ? "shaky" : "solid", due: isDue(id), box: secRec(id).box, last: secRec(id).last || null,
+      out[id] = { id: id, status: shaky ? "shaky" : "solid", due: Review.recall.dueOn(at, today()), box: at.box, last: at.last || null,
         seen: solved[id].at > 0 ? Site.dayKey(new Date(solved[id].at)) : null };
     });
     return out;
@@ -843,12 +850,9 @@
       if (a.first) b.ok++;
     });
     Object.keys(bySec).forEach(function (id) {
-      var rec = g.sec[id] && typeof g.sec[id] === "object" ? g.sec[id] : { n: 0, ok: 0, box: 0 };
-      var at = Review.recall.place(rec, bySec[id].ok !== bySec[id].n, res.day);
+      var rec = g.sec[id] && typeof g.sec[id] === "object" ? g.sec[id] : { n: 0, ok: 0 };
       rec.n = (rec.n || 0) + bySec[id].n;
       rec.ok = (rec.ok || 0) + bySec[id].ok;
-      rec.box = at.box;
-      if (at.last !== undefined) rec.last = at.last;
       if (res.repaired && id === res.section) rec.fix = now();
       g.sec[id] = rec;
     });

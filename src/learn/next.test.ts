@@ -60,13 +60,13 @@ describe("the next best step", () => {
   });
 
   it("then the weakest section, to a Repair run, or to its page without a generator", () => {
-    const deck = [placed("ch01#addition", 1, 0, { status: "shaky", score: 0.4 }), placed("ch02#one", 1, 0, { status: "shaky", score: 0.6 })];
+    const deck = [placed("ch01#addition", 1, 0, { status: "shaky", mastery: 0.6 }), placed("ch02#one", 1, 0, { status: "shaky", mastery: 0.3 })];
     const items = nextSteps(state(deck));
     expect(items[0]).toMatchObject({ kind: "weak", text: "Repair §2.1 One unknown", href: "arena.html?repair=ch02%23one" });
     const page = nextSteps(state([placed("ch01#integers", 1, 0, { status: "shaky", score: 0.5 })]));
     expect(page[0]).toMatchObject({ kind: "weak", text: "Reread §1.1 The integers", href: "parts/1/01.html#integers" });
-    /* a tie goes to the section met first in the course; a row with no score counts as 0 */
-    const tie = nextSteps(state([placed("ch02#two", 1, 0, { status: "shaky", score: 0.5 }), placed("ch02#one", 1, 0, { status: "shaky", score: 0.5 }), placed("ch01#addition", 1, 0, { status: "shaky" })]));
+    /* a tie goes to the section met first in the course; a row with no mastery counts as 0.5 */
+    const tie = nextSteps(state([placed("ch02#two", 1, 0, { status: "shaky", mastery: 0.4 }), placed("ch02#one", 1, 0, { status: "shaky", mastery: 0.4 }), placed("ch01#addition", 1, 0, { status: "shaky", mastery: 0.5 })]));
     expect(tie[0].text).toBe("Repair §2.1 One unknown");
   });
 
@@ -95,7 +95,7 @@ describe("the next best step", () => {
   });
 
   it("shows at most three, one of each kind, in that order", () => {
-    const deck = [placed("ch01#addition", 0, 2), placed("ch02#one", 1, 0, { status: "shaky", score: 0.9 }), placed("ch02#two", 0, 4, { status: "shaky", score: 0.5 })];
+    const deck = [placed("ch01#addition", 0, 2), placed("ch02#one", 1, 0, { status: "shaky", mastery: 0.1 }), placed("ch02#two", 0, 4, { status: "shaky", mastery: 0.5 })];
     const items = nextSteps(state(deck, { last: { id: "ch01", section: "addition" } }));
     expect(items.map((i) => i.kind)).toEqual(["due", "weak", "continue"]);
     expect(items.length).toBeLessThanOrEqual(NEXT_MAX_ITEMS);

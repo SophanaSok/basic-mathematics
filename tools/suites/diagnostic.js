@@ -137,6 +137,15 @@ module.exports = {
     const secOf = (page) => page.evaluate((key) => {
       try { return JSON.stringify(JSON.parse(localStorage.getItem(key) || "{}").sec || null); } catch (e) { return "bad"; }
     }, GAME_KEY);
+    /* the seeds live in the event log as checkpoint entries (k = "z", src/learn/seed-entries.ts),
+       never in bm.game.v1.sec: the section and box of each, sorted */
+    const seedsOf = (page) => page.evaluate(() => {
+      try {
+        var ev = (JSON.parse(localStorage.getItem("bm.events.v1") || "{}").ev) || {};
+        return JSON.stringify(Object.keys(ev).map(function (id) { return ev[id]; }).filter(function (P) { return P && P[5] === "z"; })
+          .map(function (P) { return P[3] + ":" + P[10].b; }).sort());
+      } catch (e) { return "bad"; }
+    });
 
     /* write a run into bm.run.v1.diag (the rest of the key kept), as a visit would have */
     function plant(page, from, extra) {
@@ -274,7 +283,7 @@ module.exports = {
       const p = [];
       await begin(page, "a2", { clock: true });
       await page.evaluate(() => { window.__attempts = 0; window.BMStore.on((c) => { if (c && c.type === "attempt") window.__attempts++; }); });
-      const before = await secOf(page);
+      const before = await seedsOf(page), sec0 = await secOf(page);
       const asked = await walk(page, right, { fast: true });
       const list = await takes(page);
       check(p, list.length === 1, "expected 1 take, got " + list.length);
@@ -287,8 +296,9 @@ module.exports = {
       check(p, !/"secs"|"u":|"r":/.test(stored), "a timing, unread count or reason is in the take: " + stored.slice(0, 200));
       check(p, t.blocks.every((b) => b.items.every((i) => Object.keys(i).sort().join() === "g,k,s,sec")), "an item has more than g, s, sec and k");
       check(p, (await runNow(page)) === null, "bm.run.v1.diag was not cleared");
-      const after = await secOf(page);
-      check(p, after !== before && after !== "null", "the review boxes were not seeded: " + before + " -> " + after);
+      const after = await seedsOf(page);
+      check(p, after !== before && after !== "[]" && after !== "bad", "the review boxes were not seeded into the event log: " + before + " -> " + after);
+      check(p, (await secOf(page)) === sec0, "bm.game.v1.sec changed (the seeds live in the log): " + sec0 + " -> " + (await secOf(page)));
       check(p, (await page.evaluate(() => window.__attempts)) === 0, "attempt events were emitted");
       check(p, await shown(page, "diag-done"), "the done screen is not showing");
       /* the result's words: the headline, the `all` line, the implied rows, the plan */
@@ -333,13 +343,14 @@ module.exports = {
     await kase("walk: rushed (typed answers, clock not moved): rushed, not seeded, bm.game.v1.sec unchanged", {}, async (page) => {
       const p = [];
       await begin(page, "a2");
-      const before = await secOf(page);
+      const before = await secOf(page), seeds0 = await seedsOf(page);
       await walk(page, right);
       const t = (await takes(page))[0] || {};
       check(p, t.rushed === true && t.seeded === false, "rushed " + t.rushed + ", seeded " + t.seeded);
       check(p, t.band === "algebra-2", "band " + t.band);
       const after = await secOf(page);
       check(p, after === before, "bm.game.v1.sec changed: " + before + " -> " + after);
+      check(p, (await seedsOf(page)) === seeds0, "the event log gained a seed: " + seeds0 + " -> " + (await seedsOf(page)));
       check(p, (await paragraphs(page, "diag-result")).includes(RUSHED_LINE), "the rushed note is missing: " + JSON.stringify(await paragraphs(page, "diag-result")));
       return p;
     });

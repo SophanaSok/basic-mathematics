@@ -7,7 +7,7 @@ import type { DiagKind, DiagTake, Placeable, SectionRef } from "../types/state.t
 import { BLUEPRINT } from "./constants.ts";
 import { FORMS, L } from "./diagnostic.ts";
 import { isFirst, latestTake, perOf, priorOf, seedOf, seedPatch, takesOf } from "./diag-seed.ts";
-import { addDays } from "./recall.ts";
+import { addDays, dayNumber } from "./recall.ts";
 
 const LONG = 60_000;
 const D = "2026-10-06";
