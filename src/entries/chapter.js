@@ -32,6 +32,7 @@ import "../learn/ladder.ts";
 import "../learn/detectors.ts";
 import "../learn/stuck.ts";
 import "../learn/misses.ts";
+import "../learn/approach.ts";
 import "../ui/ladder.ts";
 /* "Try one like it": the twin's rule, then the panel (window.BMTwin) that site.js mounts on
    a card. The generators it offers are not here: its import() fetches them on the first

@@ -476,16 +476,11 @@
   /* the section behind most of this set's misses, so the advice can name it */
   function mostMissed(set) {
     var recs = window.BMAttempts ? window.BMAttempts.chapter(chapterId) : {};
-    var tally = {}, order = [];
-    set.exs.forEach(function (ex, i) {
-      if (!Game.isMiss(recs[set.keys[i]])) return;
-      var s = ex.getAttribute("data-section") || "";
-      if (!s) return;
-      if (!tally[s]) { tally[s] = 0; order.push(s); }
-      tally[s]++;
-    });
-    var best = null;
-    order.forEach(function (s) { if (!best || tally[s] > tally[best]) best = s; });
+    var L = window.BMLearn;
+    if (!L || typeof L.mostMissed !== "function") return null;
+    var best = L.mostMissed(set.exs.map(function (ex, i) {
+      return { sec: ex.getAttribute("data-section") || "", miss: !!Game.isMiss(recs[set.keys[i]]) };
+    }));
     return best ? sectionInfo(best) : null;
   }
 
