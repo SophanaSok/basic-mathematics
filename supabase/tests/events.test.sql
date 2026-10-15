@@ -183,8 +183,8 @@ insert into hv values
   ('a checkpoint with s = today + 2', pg_temp.setp(pg_temp.setp(pg_temp.setx(pg_temp.setx(pg_temp.vz(), 's', '20802'), 'l', '20790'), 1, '20801'), 0, '29953440'), true),
   ('a checkpoint with s = today + 3', pg_temp.setp(pg_temp.setp(pg_temp.setx(pg_temp.setx(pg_temp.vz(), 's', '20803'), 'l', '20790'), 1, '20802'), 0, '29954880'), false);
 
--- 142 hand-counted tests below, plus one per row of the three tables
-select plan(142 + (select count(*)::integer from hv) + (select count(*)::integer from private.valid_cases)
+-- 151 hand-counted tests below, plus one per row of the three tables
+select plan(154 + (select count(*)::integer from hv) + (select count(*)::integer from private.valid_cases)
   + (select count(*)::integer from private.prune_expected));
 
 -- 1. tables, row-level security, policies, grants
@@ -443,10 +443,32 @@ end $$;
 create function pg_temp.epoch_of(uid uuid) returns integer language sql as $$ select epoch from public.event_meta where user_id = uid $$;
 
 update public.user_state set progress = '{"a":1}', reset_at = 5 where user_id = 'b0000000-0000-4000-8000-00000000000b';
+update public.user_state set play = '{"p":1}', attempts = '{"p":1}', activity = '{"p":1}', lesson = '{"p":1}', last = '{"p":1}', game = '{"p":1}', diag = '{"d":1}'
+  where user_id in ('b0000000-0000-4000-8000-00000000000b', 'd0000000-0000-4000-8000-00000000000d');
+update public.user_state set progress = '{"a":1}', reset_at = 9223372036854775807 where user_id = 'd0000000-0000-4000-8000-00000000000d';
+create temp table fs_e as select (select epoch from public.event_meta where user_id = 'e0000000-0000-4000-8000-00000000000e') as epoch,
+  (select count(*) from public.events where user_id = 'e0000000-0000-4000-8000-00000000000e') as n;
+select ok((select n from fs_e) > 0, 'E (who has no user_state row) has events before the fresh start');
 select is(pg_temp.put('b0000000-0000-4000-8000-00000000000b', jsonb_build_array(
   pg_temp.pe('fs1', pg_temp.nowmin() - 20, 'ch02#one-unknown', 'ch02/zz', 'c', 1, 1, 0, 0)), pg_temp.epoch_of('b0000000-0000-4000-8000-00000000000b'))->>'added', '1', 'B has an event before the fresh start');
 create temp table fs1 as select pg_temp.epoch_of('b0000000-0000-4000-8000-00000000000b') as epoch;
+select is(pg_temp.put('d0000000-0000-4000-8000-00000000000d', jsonb_build_array(
+  pg_temp.pe('fsd', pg_temp.nowmin() - 20, 'ch02#one-unknown', 'ch02/zy', 'c', 1, 1, 0, 0)), coalesce(pg_temp.epoch_of('d0000000-0000-4000-8000-00000000000d'), 0))->>'added', '1', 'D (reset_at at the maximum) has an event before the fresh start');
+create temp table fsd as select pg_temp.epoch_of('d0000000-0000-4000-8000-00000000000d') as epoch;
 select is(private.fresh_start('test-fresh'), true, 'fresh_start with a new key returns true');
+select is((select count(*) from public.events where user_id = 'd0000000-0000-4000-8000-00000000000d'), 0::bigint, 'D: the trigger could not fire (reset_at cannot grow), the function emptied the log itself');
+select is(pg_temp.epoch_of('d0000000-0000-4000-8000-00000000000d'), (select epoch + 1 from fsd), 'D: and moved the epoch by one');
+select is((select count(*) from public.user_state where user_id in ('b0000000-0000-4000-8000-00000000000b', 'd0000000-0000-4000-8000-00000000000d')
+  and play = '{}' and attempts = '{}' and activity = '{}' and lesson = '{}' and game = '{}' and last is null and progress = '{}'), 2::bigint,
+  'B and D: progress, play, attempts, activity, lesson, game are {} and last is null');
+select is((select count(*) from public.user_state where user_id in ('b0000000-0000-4000-8000-00000000000b', 'd0000000-0000-4000-8000-00000000000d') and diag = '{"d":1}'), 2::bigint, 'B and D: diag is unchanged');
+select is((select reset_at from public.user_state where user_id = 'd0000000-0000-4000-8000-00000000000d'), 9223372036854775807::bigint, 'D: a reset_at at the bigint maximum does not overflow the fresh start');
+select is((select count(*) from public.events where user_id = 'e0000000-0000-4000-8000-00000000000e'), 0::bigint, 'E (no user_state row): events are gone');
+select is((select epoch from public.event_meta where user_id = 'e0000000-0000-4000-8000-00000000000e'), (select epoch + 1 from fs_e), 'E: epoch grew by one');
+select is((select relrowsecurity from pg_class where oid = 'private.once'::regclass), true, 'private.once has row-level security on');
+select is((select count(*) from pg_policies where schemaname = 'private' and tablename = 'once'), 0::bigint, 'private.once has no policy');
+select is((select count(*) from unnest(array['select', 'insert', 'update', 'delete']) priv, unnest(array['anon', 'authenticated']) r
+  where has_table_privilege(r, 'private.once', priv)), 0::bigint, 'anon and authenticated have no privilege on private.once');
 select is((select progress from public.user_state where user_id = 'b0000000-0000-4000-8000-00000000000b'), '{}'::jsonb, 'B''s progress is empty');
 select ok((select reset_at from public.user_state where user_id = 'b0000000-0000-4000-8000-00000000000b') > 5, 'B''s reset_at moved forward');
 select ok((select reset_at from public.user_state where user_id = 'b0000000-0000-4000-8000-00000000000b') > 1700000000000, 'reset_at is a millisecond clock reading');

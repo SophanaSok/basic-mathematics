@@ -672,7 +672,9 @@ create table if not exists private.once (
   at  timestamptz not null default now()
 );
 revoke all on private.once from public, anon, authenticated;
+alter table private.once enable row level security;   -- no policies: a second layer behind the revoke
 
+-- NOTE: a project set up from this file has no r2-fresh-start marker, so applying the P7 migration file to it later would reset its users. Never seed the marker here: pasting the schema before the migration would skip the reset.
 -- The R2 fresh start (design §2.7): every reader's synced state goes back to empty and their event
 -- log starts over (the reset_at trigger deletes the events and moves the epoch), so the old
 -- progress, which no event explains, cannot be mixed with the new log. diag is deliberately kept
@@ -686,10 +688,16 @@ begin
   if exists (select 1 from private.once o where o.key = fresh_start.key) then
     return false;
   end if;
+  -- the reset trigger fires only for a user_state row whose reset_at grows: start the others over
+  -- here, those with no row and those a hostile client parked at the bigint maximum (it cannot grow)
+  update public.event_meta m set epoch = m.epoch + 1
+   where not exists (select 1 from public.user_state s where s.user_id = m.user_id and s.reset_at < 9223372036854775807);
+  delete from public.events e
+   where not exists (select 1 from public.user_state s where s.user_id = e.user_id and s.reset_at < 9223372036854775807);
   update public.user_state
      set progress = '{}', play = '{}', attempts = '{}', activity = '{}', lesson = '{}', last = null, game = '{}',
          updated_at = now(),
-         reset_at = greatest(reset_at + 1, (extract(epoch from clock_timestamp()) * 1000)::bigint);
+         reset_at = greatest(least(reset_at, 9223372036854775806) + 1, (extract(epoch from clock_timestamp()) * 1000)::bigint);   -- least(): a reset_at at the bigint maximum must not overflow
   insert into private.once (key) values (fresh_start.key);
   return true;
 end;

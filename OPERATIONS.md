@@ -301,9 +301,14 @@ the `migrations` check refuses any edit to it; fix it with a newer migration.
 The owner's decision (O7, 2026-10-15): every reader starts over, so the old progress, which no
 event explains, is not mixed with the new log. **This cannot be undone**: there are no backups
 on the free plan. A reader's browser still holds its own copy and, if it syncs, would put the old
-progress back; that is why the Reset progress press in step 3 comes last.
+progress back; that is why the Reset progress press in step 3 comes last. A signed-out browser of
+some other learner that still holds old local progress will merge it back into the emptied account
+at its next sign-in; that is accepted (the owner's own browsers get Reset progress, and there are
+no other learners yet).
 
 1. Apply `supabase/migrations/20261015201142_drop_attempts.sql` in Dashboard → SQL → New query.
+   The dashboard may ask you to confirm a destructive operation for the `update` and the `drop`:
+   confirm.
    It adds `private.once` and `private.fresh_start()`, calls it once (`r2-fresh-start`: empties
    `progress`, `play`, `attempts`, `activity`, `lesson`, `last` and `game` in every `user_state`
    row, keeps `diag`, moves `reset_at` forward so the reset trigger deletes every reader's events
