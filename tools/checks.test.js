@@ -6,6 +6,8 @@
        an id that is also a property of every object (`constructor`) is only a name
      - ids: such an id used once passes and does not stop the pages after it; used twice it
        is reported like any other
+     - help-markup: the fixtures under tools/fixtures/help/, one fault each, fail as named; a clean
+       page passes; a clue that states the answer is one WARN; tools/leak-allow.json's hash pinning
      - lesson-steps: an added step and a cut that moves while the count stays the same both
        show; text added inside a step does not; tools/lesson-steps.json holds lists
      - assign-ids: "write" is printed for a page only when it was written, and one page
@@ -70,6 +72,7 @@
 "use strict";
 const fs = require("fs");
 const os = require("os");
+const crypto = require("crypto");
 const path = require("path");
 
 const site = require("./lib/site");
@@ -78,7 +81,7 @@ const shell = require("./lib/shell");
 const vendor = require("./lib/vendor");
 const { parse } = require("./lib/html");
 const { exercisesOf } = require("./lib/keys");
-const { CHECKS, result, loadCore, barProblem, siteJudgeProblem, pageKeys, lessonSteps, stepsDiff, shellOf, shellDiff, scriptsProblems } = require("./check-static");
+const { CHECKS, result, loadCore, barProblem, siteJudgeProblem, pageKeys, lessonSteps, stepsDiff, helpMarkupProblems, shellOf, shellDiff, scriptsProblems } = require("./check-static");
 const assignIds = require("./assign-ids");
 const applyShell = require("./apply-shell");
 
@@ -1293,6 +1296,43 @@ function refusal(fn) { try { fn(); return null; } catch (e) { return e.message; 
       eq((await get(dist, "missing.html")).status, 404, "serve: a file that is not there is a 404");
     } finally { await dist.close(); }
   } finally { fs.rmSync(tmp, { recursive: true, force: true }); }
+
+  /* ------------------------------------------------------------ help-markup -- */
+  {
+    const dir = path.join(__dirname, "fixtures", "help");
+    const run = (name, deps) => helpMarkupProblems(parse(fs.readFileSync(path.join(dir, name), "utf8")), name, deps || {});
+    const clean = run("clean.html");
+    eq([clean.fails, clean.warns, clean.hints], [[], [], 0], "help-markup: a page with every artefact, placed right and leak-free, passes clean");
+    const mustFail = {
+      "template-before-q.html": /fp/,
+      "miss-inside-q.html": /ul\.ex-miss is not a direct child/,
+      "template-with-ex.html": /twin holds an \.ex/,
+      "template-with-id.html": /holds an id/,
+      "top-level-template.html": /top-level child of #main/,
+      "final-twice.html": /2 data-final in one solution/,
+      "faded-leaks.html": /data-final gives away "7"/,
+      "hint-attr-markup.html": /uses the tag <img>/
+    };
+    Object.keys(mustFail).forEach(name => {
+      const res = run(name);
+      check(res.fails.some(m => mustFail[name].test(m)), "help-markup: " + name + " fails with " + mustFail[name] + " — got " + JSON.stringify(res.fails));
+    });
+    const leak = run("hint-leak.html");
+    eq([leak.fails.length, leak.warns.length, leak.hints], [0, 1, 1], "help-markup: a rung-1 clue that states the answer is one WARN and counts as a hint");
+    eq(run("hint-leak.html", { hintLeakFails: true }).fails.length, 1, "help-markup: with HINT_LEAK_FAILS on, the same clue fails");
+    /* the allowlist: the right hash silences one leak; a wrong hash is stale and fails */
+    const entry = { page: "hint-leak.html", key: "a1", field: "data-hint", token: "7", textSha256: crypto.createHash("sha256").update("The answer is $7$.").digest("hex"), reason: "test" };
+    const quiet = run("hint-leak.html", { allow: [entry] });
+    eq([quiet.fails, quiet.warns, quiet.hints, quiet.silenced], [[], [], 1, 1], "help-markup: an allowance with the text's hash silences that leak");
+    const stale = run("hint-leak.html", { allow: [Object.assign({}, entry, { textSha256: "0".repeat(64) })] });
+    check(stale.fails.some(m => /stale allowance/.test(m)) && stale.warns.length === 1, "help-markup: an allowance with the wrong hash is stale (FAIL) and silences nothing — got " + JSON.stringify(stale));
+    /* the hash is current but the token no longer leaks (the key or the grader changed): stale too */
+    const unused = run("hint-leak.html", { allow: [Object.assign({}, entry, { token: "8" })] });
+    check(unused.fails.some(m => /stale allowance.*no longer gives the answer away/.test(m)) && unused.warns.length === 1, "help-markup: an allowance nothing used is stale (FAIL) and silences nothing — got " + JSON.stringify(unused));
+    check(/textSha256 [0-9a-f]{64} for an allowance/.test(leak.warns[0]), "help-markup: the leak message carries the hash an allowance needs — got " + JSON.stringify(leak.warns[0]));
+    const gone = run("hint-leak.html", { allow: [Object.assign({}, entry, { key: "zz" })] });
+    check(gone.fails.some(m => /not there/.test(m)), "help-markup: an allowance naming a key that is not there fails — got " + JSON.stringify(gone.fails));
+  }
 
   console.log((fails ? "FAILED" : "ok") + " checks: " + passes + " checks passed" + (fails ? ", " + fails + " failed" : ""));
   process.exit(fails ? 1 : 0);
