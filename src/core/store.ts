@@ -41,7 +41,7 @@ export type StoreChange =
   /** a store was written (BMStore.write, unless silent) */
   | { type: "state"; key: string }
   /** a check, right or wrong (site.js check) */
-  | ({ type: "attempt"; correct: boolean; tryNo: number; hintLevel: number; solutionOpen: boolean } & ExerciseChange)
+  | ({ type: "attempt"; correct: boolean; tryNo: number; hintLevel: number; solutionOpen: boolean; faded?: boolean } & ExerciseChange)
   /** the solution was opened; `ex` is the exercise's element */
   | ({ type: "opened"; solved: boolean; tries: number; ex: unknown } & ExerciseChange)
   /** a clue of the help ladder was opened */

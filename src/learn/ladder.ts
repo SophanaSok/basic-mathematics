@@ -19,6 +19,7 @@
    keeps its old meaning (assets/site.js), because the struggle score, an achievement and
    the server's hint_level read it. */
 
+import { FADED_RUNG } from "../core/rules.ts";
 import { CLUE_RUNGS } from "./constants.ts";
 
 export interface LadderState {
@@ -26,11 +27,16 @@ export interface LadderState {
   readonly clues: number;
   /** highest rung shown open, 0 when none is */
   readonly open: number;
+  /** the exercise has a worked solution whose last step is marked (data-final), so a
+      faded rung follows the clues */
+  readonly fadeable: boolean;
+  /** the faded worked steps (rung FADED_RUNG) are shown open */
+  readonly faded: boolean;
 }
 
 /** What the card offers after a wrong check: the next clue, the solution once every clue
     is open, or only another try when there is no solution either. */
-export type Offer = "clue" | "solution" | "retry";
+export type Offer = "clue" | "steps" | "solution" | "retry";
 
 /** A saved rung as a whole number in 0..clues; anything else (missing, damaged, from a
     later version with more rungs) is read as the nearest thing this version can show. */
@@ -45,37 +51,44 @@ export function cluesOf(attrs: ReadonlyArray<string | null | undefined>): string
 }
 
 /** The ladder as a page view starts it: the rungs saved for this exercise shown open. */
-export function start(clues: number, saved?: unknown): LadderState {
+export function start(clues: number, saved?: unknown, fadeable = false): LadderState {
   const c = Math.max(0, Math.min(CLUE_RUNGS, Math.floor(clues) || 0));
-  return { clues: c, open: savedRung(saved, c) };
+  const n = typeof saved === "number" && isFinite(saved) ? saved : 0;
+  return { clues: c, open: savedRung(saved, c), fadeable, faded: fadeable && n >= FADED_RUNG };
 }
 
 export function canOpen(s: LadderState): boolean {
-  return s.open < s.clues;
+  return s.open < s.clues || (s.fadeable && !s.faded);
 }
 
 /** The learner asked for the next clue. The only transition that opens a rung. */
 export function open(s: LadderState): LadderState {
-  return canOpen(s) ? { clues: s.clues, open: s.open + 1 } : s;
+  if (!canOpen(s)) return s;
+  if (s.open < s.clues) return { ...s, open: s.open + 1 };
+  return { ...s, faded: true };
 }
 
 /** The rung to write into the attempt record after `s` was reached, or null when nothing
     should be written: the exercise is already solved, or the record already says as much. */
 export function toSave(s: LadderState, solved: boolean, recorded: unknown): number | null {
-  if (solved || s.open <= 0) return null;
+  if (solved) return null;
   const was = typeof recorded === "number" && isFinite(recorded) ? recorded : 0;
+  if (s.faded) return FADED_RUNG > was ? FADED_RUNG : null;
+  if (s.open <= 0) return null;
   return s.open > was ? s.open : null;
 }
 
 /** What a wrong check offers. Never a rung: an offer is a line of text, and the rung
     still opens only when the learner presses the button. */
 export function offerAfterWrong(s: LadderState, hasSolution: boolean): Offer {
-  if (canOpen(s)) return "clue";
+  if (s.open < s.clues) return "clue";
+  if (canOpen(s)) return "steps";
   return hasSolution ? "solution" : "retry";
 }
 
 /** The button's words for the next rung: "1 of 2". null once every clue is open (the
     button goes; the solution is the next step and has its own). */
 export function nextLabel(s: LadderState): { rung: number; of: number } | null {
-  return canOpen(s) ? { rung: s.open + 1, of: s.clues } : null;
+  if (!canOpen(s)) return null;
+  return { rung: s.open < s.clues ? s.open + 1 : s.clues + 1, of: s.clues + (s.fadeable ? 1 : 0) };
 }

@@ -12,7 +12,7 @@ import type { AttemptsStore, ChapterId, ExerciseKey, ProgressStore } from "../ty
 
 /* XP per day. The streak, the daily goal and the total are all derived from this one
    map, so two devices merge by taking the larger number for each day. */
-export const XP = { first: 10, solved: 6, opened: 3, inlineFirst: 5, inline: 3, inlineOpened: 1, mission: 5 };
+export const XP = { first: 10, solved: 6, opened: 3, inlineFirst: 5, inline: 3, inlineOpened: 1, faded: 4, inlineFaded: 2, mission: 5 };
 
 /* How hard one exercise was for this reader, from 0 (right first time) to 1.
    null when there is nothing to go on. */
@@ -41,12 +41,14 @@ export function paysFirst(rec: any): boolean {
 }
 export function xpFor(rec: any, inline?: unknown): number {
   if (rec.opened) return inline ? XP.inlineOpened : XP.opened;
+  if (fadedOf(rec)) return inline ? XP.inlineFaded : XP.faded;
   if (paysFirst(rec)) return inline ? XP.inlineFirst : XP.first;
   return inline ? XP.inline : XP.solved;
 }
 
 /* The faded worked solution, one rung past the three clues (the help ladder's rung 4).
-   No page writes it yet; an exercise solved after it is not right first time. */
+   assets/site.js writes it (Road.clue(a, FADED_RUNG, ...)) when the learner opens the faded
+   worked steps; an exercise solved after it is not right first time. */
 export const FADED_RUNG = 4;
 export function fadedOf(rec: any): boolean {
   var rung = Number(rec && rec.rung);
@@ -66,7 +68,7 @@ export const Road = {
     if (level > (a.hints || 0)) a.hints = level;
     if (ok) {
       a.solved = Date.now();
-      a.first = a.tries === 1 && !a.opened ? 1 : 0;
+      a.first = a.tries === 1 && !a.opened && !fadedOf(a) ? 1 : 0;
       delete a.skipped;
     }
     return a;
@@ -105,7 +107,7 @@ export function isMiss(rec: unknown): boolean {
    rule medals were always earned by, so no medal a cleared set showed before changes. */
 export function medalMark(rec: unknown): boolean {
   var r = obj(rec);
-  return isMiss(r) || !!(r.solved && (r.opened || !r.first));
+  return isMiss(r) || !!(r.solved && (r.opened || fadedOf(r) || !r.first));
 }
 
 /** The stores setStats reads: game.js's stores() has these and more. Each is read as

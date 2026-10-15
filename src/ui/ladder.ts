@@ -66,15 +66,16 @@ export interface LadderController {
 
 const OFFERS: Record<Offer, string> = {
   clue: "A clue is there if you want one.",
+  steps: "The worked steps are there, with the last one left for you.",
   solution: "Work it through once more, or open the solution.",
   retry: "Not yet. Work it through once more."
 };
 /* what a stuck signal says instead, by what comes next; "retry" keeps its own words */
-const STUCK_OFFERS: Record<StuckSignal, { clue: string; solution: string }> = {
-  rapid: { clue: "No hurry. A clue is there if you want one.", solution: "No hurry. The worked solution is there whenever you want it." },
-  repeat: { clue: "That is the answer you gave last time. A clue might show another way in.", solution: "That is the answer you gave last time. The worked solution shows another way in." },
-  misses: { clue: "Asking for a clue costs nothing, and it might be the nudge you need.", solution: "The worked solution is there whenever you want it; reading it closely is a good next step." },
-  idle: { clue: "Still on this one? A clue is there whenever you want it.", solution: "Still on this one? The worked solution is there whenever you want it." }
+const STUCK_OFFERS: Record<StuckSignal, { clue: string; steps: string; solution: string }> = {
+  rapid: { clue: "No hurry. A clue is there if you want one.", steps: "No hurry. The worked steps are there, with the last one left for you.", solution: "No hurry. The worked solution is there whenever you want it." },
+  repeat: { clue: "That is the answer you gave last time. A clue might show another way in.", steps: "That is the answer you gave last time. The worked steps show another way in.", solution: "That is the answer you gave last time. The worked solution shows another way in." },
+  misses: { clue: "Asking for a clue costs nothing, and it might be the nudge you need.", steps: "The worked steps cost nothing to open, and the last one is yours to finish.", solution: "The worked solution is there whenever you want it; reading it closely is a good next step." },
+  idle: { clue: "Still on this one? A clue is there whenever you want it.", steps: "Still on this one? The worked steps are there whenever you want them.", solution: "Still on this one? The worked solution is there whenever you want it." }
 };
 
 export function offerText(offer: Offer, signal: StuckSignal | null): string {
