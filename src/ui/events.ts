@@ -25,8 +25,12 @@ export function install(win: any) {
   let warned = false;
   const warn = (e: unknown) => { if (!warned) { warned = true; if (con && con.warn) con.warn("[BM] event log", e); } };
   let cache: EventSet | null = null;
-  /* a merged copy that could not be stored, kept so the next write still carries it */
-  let pending: EventsStore | null = null;
+  /* a merged copy that could not be stored, kept so the next write still carries it, and
+     the device id it was recorded under: another tab's wipe or a new owner drops it */
+  /* an id drawn while storage refused it, so the ids of one session agree */
+  let unsaved: string | null = null;
+  let pending: { dev: string; store: EventsStore } | null = null;
+  const pendingNow = (): EventsStore | null => (pending && pending.dev === deviceId() ? pending.store : null);
 
   const raw = (): unknown => (Store ? Store.read(EVENTS_KEY, null) : null);
   const validOf = (store: unknown): EventSet => {
@@ -44,7 +48,7 @@ export function install(win: any) {
   const nowMinute = (): number => { const D = (win && win.Date) || Date; return Math.floor(D.now() / 60000); };
 
   function all(): EventSet {
-    if (!cache) cache = Object.freeze(validOf(mergeEvents(raw(), pending))) as EventSet;
+    if (!cache) cache = Object.freeze(validOf(mergeEvents(raw(), pendingNow()))) as EventSet;
     return cache;
   }
   function version(): number {
@@ -54,20 +58,25 @@ export function install(win: any) {
   function ahead(): boolean { return version() > FORMAT; }
 
   function readDevice(): unknown { return Store ? Store.read(DEVICE_KEY, null) : null; }
+  /* the id stored now, without drawing one */
+  function deviceId(): string | null { const rec = readDevice(); return deviceOk(rec) ? rec.id : unsaved; }
   function device(): string {
     const rec = readDevice();
     if (deviceOk(rec)) return rec.id;
+    if (unsaved) return unsaved;
     const id = randomRand(), next: { id: string; uid?: string } = { id };
     if (isObj(rec) && typeof rec.uid === "string") next.uid = rec.uid;
-    if (Store) Store.write(DEVICE_KEY, next, true);
+    if (Store && Store.write(DEVICE_KEY, next, true) === false) unsaved = id;
     return id;
   }
 
   /* one merged write of `mine`; true when stored. Throws when the write throws. */
   function put(mine: EventSet): boolean {
-    const merged = mergeEvents(mergeEvents(raw(), pending), { v: FORMAT, ev: mine });
+    const dev = device(), held = pending && pending.dev === dev ? pending.store : null;
+    if (!held) pending = null;
+    const merged = mergeEvents(mergeEvents(raw(), held), { v: FORMAT, ev: mine });
     const ok = Store.write(EVENTS_KEY, merged, true);
-    if (ok === false) { pending = merged; warn("write failed"); cache = Object.freeze(validOf(merged)) as EventSet; }
+    if (ok === false) { pending = { dev, store: merged }; warn("write failed"); cache = Object.freeze(validOf(merged)) as EventSet; }
     else { pending = null; cache = null; }
     return ok !== false;
   }
@@ -124,15 +133,17 @@ export function install(win: any) {
     });
     cache = null;
     pending = null;
+    unsaved = null;
     const next: { id: string; uid?: string } = { id: randomRand() };
     if (uid) next.uid = uid;
     if (Store) Store.write(DEVICE_KEY, next, true);
   }
-  function clear(): void {
+  /* forget: also drop the account's id from the device record (sign-out, a deleted account) */
+  function clear(forget?: boolean): void {
     if (!Store) return;
     try {
       const rec = readDevice();
-      wipe(isObj(rec) && typeof rec.uid === "string" ? rec.uid : undefined);
+      wipe(!forget && isObj(rec) && typeof rec.uid === "string" ? rec.uid : undefined);
     } catch (e) { warn(e); }
   }
   function stamp(uid: string | null): void {
@@ -169,7 +180,11 @@ export function install(win: any) {
     } catch (e) { warn(e); }
   });
   if (win && typeof win.addEventListener === "function") {
-    win.addEventListener("storage", (e: any) => { if (e && (e.key === EVENTS_KEY || e.key === null)) cache = null; });
+    win.addEventListener("storage", (e: any) => {
+      if (!e) return;
+      if (e.key === EVENTS_KEY || e.key === null) cache = null;
+      if (e.key === null || e.key === DEVICE_KEY || (e.key === EVENTS_KEY && e.newValue == null)) pending = null;
+    });
   }
   return api;
 }

@@ -1420,6 +1420,9 @@ async function run() {
       await page.waitForFunction(() => document.readyState === "complete");
       eq((await pairs()).map((e) => e[0]).sort(), ids, "a reload keeps every entry");
 
+      /* the outbox has something in it, so the reset below has something to empty */
+      await page.evaluate(() => localStorage.setItem("bm.events.out.v1", JSON.stringify({ ids: ["x"] })));
+
       /* Reset progress (about.html) empties the log and the outbox and redraws the device id */
       await page.goto(url("about.html"));
       await page.waitForFunction(() => document.readyState === "complete");
@@ -1432,6 +1435,34 @@ async function run() {
       check(gone.out === null || Object.keys(JSON.parse(gone.out) || {}).length === 0, "and the outbox " + gone.out);
       check(/^[0-9a-z]{8}$/.test(gone.id || "") && gone.id !== dev, "and the device id is redrawn " + JSON.stringify([dev, gone.id]));
       eq(errors, [], "no errors around the learning log");
+      await context.close();
+    }
+    /* the lesson's step mode: passing an unanswered inline check writes one s entry, once */
+    {
+      const { context, page, errors } = await open(browser, CH05, { "bm.lesson.v1": '{"mode":"steps"}' });
+      for (let i = 0; i < 30; i++) {
+        const ready = await page.$eval(".lesson-next", (b) => b.getAttribute("data-ready"));
+        if (ready === "false") break;
+        await page.click(".lesson-next .btn");
+      }
+      const waiting = await page.evaluate(() => {
+        var shown = window.BMLesson.shown(), out = [];
+        window.BMLesson.steps[shown - 1].forEach(function (el) {
+          var list = el.matches(".ex[data-inline]") ? [el] : Array.prototype.slice.call(el.querySelectorAll(".ex[data-inline]"));
+          list.forEach(function (ex) { if (ex.getAttribute("data-state") !== "correct") out.push(ex.getAttribute("data-key")); });
+        });
+        return out;
+      });
+      check(waiting.length > 0, "found a step waiting on an inline check");
+      const skips = () => page.evaluate(() => Object.values(JSON.parse(localStorage.getItem("bm.events.v1") || "{}").ev || {}).filter((P) => P[5] === "s"));
+      eq((await skips()).length, 0, "no skip entry before advancing");
+      await page.click(".lesson-next .btn");
+      const first = (await skips()).filter((P) => P[4] === "ch05/" + waiting[0]);
+      eq(first.length, 1, "advancing past an unanswered inline check writes one s entry for it");
+      eq(first[0].slice(2, 3), ["in"], "its src is in");
+      await page.click(".lesson-next .btn");
+      eq((await skips()).filter((P) => P[4] === "ch05/" + waiting[0]).length, 1, "advancing again adds no second one for it");
+      eq(errors, [], "no errors in step mode's log");
       await context.close();
     }
   } finally {

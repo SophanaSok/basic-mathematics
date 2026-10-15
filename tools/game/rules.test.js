@@ -899,14 +899,18 @@ function obj0(x) { return x && typeof x === "object" ? x : {}; }
   const rnd = () => { seed = (seed * 1664525 + 1013904223) >>> 0; return seed / 4294967296; };
   const int = (a, b) => a + Math.floor(rnd() * (b - a + 1));
   const secs = ["ch05#angles", "ch05#parallels", "ch05#distance", "ch05#pythagoras", "ch06#fractions"];
-  let bad = 0, first = "";
+  let bad = 0, first = "", checkpoints = 0;
   for (let h = 0; h < 300; h++) {
     const w = world();
-    let d = int(0, 5);
-    const runs = int(1, 4);
+    /* one history in seven is long (150 to 300 days, 30 to 90 runs): checkpoints are written and the log pruned */
+    const long = h % 7 === 0;
+    const span = long ? int(150, 300) : 60;
+    let d = long ? 0 : int(0, 5);
+    const runs = long ? int(30, 90) : int(1, 4);
     for (let r = 0; r < runs; r++) {
-      d += int(0, 6);
-      const day = daysAgo(60 - d);
+      d += long ? int(0, Math.floor((2 * span) / runs)) : int(0, 6);
+      if (long) d = Math.min(d, span);
+      const day = daysAgo(span - d);
       const pool = secs.slice().sort(() => rnd() - 0.5).slice(0, int(1, 3));
       const answers = [];
       const n = int(1, 10);
@@ -925,7 +929,9 @@ function obj0(x) { return x && typeof x === "object" ? x : {}; }
         }
       });
     }
+    checkpoints += Object.values(obj0(w.read("bm.events.v1")).ev || {}).filter((P) => P[5] === "z").length;
   }
+  check(checkpoints > 0, "the long histories wrote checkpoints (" + checkpoints + ")");
   check(bad === 0, "the log's schedule matches the game record's box and last over 300 histories (" + bad + " differ; first: " + first + ")");
 }
 

@@ -8,8 +8,8 @@ import { install } from "./events.ts";
 const TODAY = "2026-10-14";
 const D = dayNumber(TODAY)!;
 
-function fake(opts: { writeResult?: boolean; writeThrows?: boolean; noStore?: boolean } = {}) {
-  const mem = new Map<string, string>();
+function fake(opts: { writeResult?: boolean; writeThrows?: boolean; noStore?: boolean; mem?: Map<string, string>; failWrites?: { n: number } } = {}) {
+  const mem = opts.mem || new Map<string, string>();
   const listeners: ((c: any) => void)[] = [];
   const emitted: any[] = [];
   const warn = vi.fn(), error = vi.fn();
@@ -18,6 +18,7 @@ function fake(opts: { writeResult?: boolean; writeThrows?: boolean; noStore?: bo
     write: vi.fn((k: string, v: unknown) => {
       if (opts.writeThrows) throw new Error("boom");
       if (opts.writeResult === false) return false;
+      if (opts.failWrites && k === EVENTS_KEY && opts.failWrites.n > 0) { opts.failWrites.n--; return false; }
       mem.set(k, JSON.stringify(v)); return true;
     }),
     on: vi.fn((fn: (c: any) => void) => { listeners.push(fn); }),
@@ -189,6 +190,46 @@ describe("install", () => {
     expect(Object.keys(f.api.all())).toHaveLength(1);
     f.storage.forEach((fn) => fn({ key: EVENTS_KEY }));
     expect(Object.keys(f.api.all())).toHaveLength(0);
+  });
+  it("clear(true) forgets the account, clear() keeps it", () => {
+    const f = fake();
+    f.api.stamp("u1");
+    f.Store.emit(att());
+    const id = f.api.device();
+    f.api.clear();
+    expect(f.get(DEVICE_KEY).uid).toBe("u1");
+    expect(f.api.device()).not.toBe(id);
+    f.Store.emit(att());
+    f.api.clear(true);
+    expect(Object.keys(f.get(DEVICE_KEY))).toEqual(["id"]);
+    expect(f.mem.has(EVENTS_KEY)).toBe(false);
+  });
+  for (const how of ["stamp", "clear"] as const) {
+    it("a failed write kept in one tab does not bring back a log another tab wiped (" + how + ")", () => {
+      const mem = new Map<string, string>();
+      const failWrites = { n: 1 };
+      const A = fake({ mem }), B = fake({ mem, failWrites });
+      A.api.stamp("u1");
+      B.Store.emit(att({ key: "e1" }));
+      expect(B.warn).toHaveBeenCalledTimes(1);
+      if (how === "stamp") A.api.stamp("u2"); else A.api.clear();
+      expect(mem.has(EVENTS_KEY)).toBe(false);
+      const newDev = A.api.device();
+      B.storage.forEach((fn) => fn({ key: DEVICE_KEY }));
+      B.Store.emit(att({ key: "e2" }));
+      const ids = Object.keys(A.get(EVENTS_KEY).ev);
+      expect(ids).toHaveLength(1);
+      expect(ids[0].slice(0, 8)).toBe(newDev);
+      expect(A.get(EVENTS_KEY).ev[ids[0]][4]).toBe("ch02/e2");
+    });
+  }
+  it("a held copy is dropped by device id even with no storage event", () => {
+    const mem = new Map<string, string>();
+    const A = fake({ mem }), B = fake({ mem, failWrites: { n: 1 } });
+    B.Store.emit(att({ key: "e1" }));
+    A.api.clear();
+    B.Store.emit(att({ key: "e2" }));
+    expect(Object.keys(A.get(EVENTS_KEY).ev)).toHaveLength(1);
   });
   it("with no BMStore logs once and does nothing", () => {
     const f = fake({ noStore: true });

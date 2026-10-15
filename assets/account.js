@@ -102,8 +102,8 @@
   function clearLocal() {
     var empty = {};
     FIELDS.forEach(function (f) { empty[f] = f === "last" ? null : {}; });
+    events("clear", true);
     writeLocal(empty, true);
-    events("clear");
   }
   function meta() { return obj(Store.read(META_KEY, {})); }
   function setMeta(fn) {
@@ -661,6 +661,7 @@
       return Account.ready().then(function (c) {
         return c.rpc("delete_my_account").then(unwrap).then(function () {
           setMeta(function (m) { delete m.user; delete m.resetAt; });
+          events("clear", true);
           /* the account's place on the Daily board went with it */
           forgetBoard(true);
           return c.auth.signOut();

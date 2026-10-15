@@ -1220,6 +1220,7 @@ scenario("sign-out clears the learning log and redraws the device id", async () 
   const before = deviceId(laptop);
   expect(logIds(laptop).length === 1, "setup: the solve did not write one entry", logIds(laptop));
   expect(typeof before === "string" && before.length === 8 && logIds(laptop)[0].slice(0, 8) === before, "setup: the entry does not carry the 8-character device id", { before, ids: logIds(laptop) });
+  laptop.storage.set(OUT_KEY, JSON.stringify({ ids: ["x"] }));
   const { error } = await laptop.page.signOut();
   expect(!error, "sign-out failed", error && error.message);
   expect(isEmpty((laptop.read(EV_KEY, null) || {}).ev), "the learning log survived the sign-out", laptop.read(EV_KEY, null));
@@ -1237,6 +1238,7 @@ scenario("another account's leftover log is cleared on sign-in", async () => {
   expect(logIds(d).length === 1 && (d.read(DEV_KEY, {}) || {}).uid === "u1", "setup: u1's solve is not one entry on a device stamped u1", { ids: logIds(d), dev: d.read(DEV_KEY, null) });
   /* the session ends without the sign-out path (it expired), then another reader signs in */
   d.storage.delete(SESSION_KEY);
+  d.storage.set(OUT_KEY, JSON.stringify({ ids: ["x"] }));
   d.remember("u2"); d.open(); await settle();
   expect(logIds(d).length === 0, "u1's learning log is still on the device for u2", logIds(d));
   expect(isEmpty(d.read(OUT_KEY, null)), "u1's outbox is still on the device for u2", d.read(OUT_KEY, null));
@@ -1254,6 +1256,7 @@ scenario("a reset made on another device clears this device's log", async () => 
   const before = deviceId(phone);
   expect(logIds(phone).length === 1, "setup: the phone's solve is not one entry", logIds(phone));
   now += 60000;
+  phone.storage.set(OUT_KEY, JSON.stringify({ ids: ["x"] }));
   laptop.page.resetAll(); await settle();
   expect(Number(server.rows.u1.reset_at) > 0, "setup: the reset did not reach the account", server.rows.u1);
   phone.open(); await settle();
@@ -1262,6 +1265,23 @@ scenario("a reset made on another device clears this device's log", async () => 
   expect(deviceId(phone) !== before && String(deviceId(phone)).length === 8, "the phone's device id did not change", { before, after: deviceId(phone) });
   expect(onDevice(phone) === "t1", "the phone lost its placement-check take", onDevice(phone));
   expect(noEventsColumn(server), "the account row gained an events field", server.rows.u1);
+});
+
+scenario("work done signed out is adopted by the next account, as the progress is", async () => {
+  const server = new Server();
+  const d = new Device("shared", server);
+  d.remember("u1"); d.open(); await settle();
+  d.page.check("ch01", "e1", true); await settle();
+  const { error } = await d.page.signOut();
+  expect(!error, "sign-out failed", error && error.message);
+  expect((d.read(DEV_KEY, {}) || {}).uid === undefined, "the device record kept u1's id after sign-out", d.read(DEV_KEY, null));
+  expect(logIds(d).length === 0, "setup: the log survived the sign-out", logIds(d));
+  d.page.check("ch01", "e2", true); await settle();
+  expect(logIds(d).length === 1, "setup: the signed-out solve is not one entry", logIds(d));
+  const id = deviceId(d);
+  d.remember("u2"); d.open(); await settle();
+  expect(logIds(d).length === 1 && deviceId(d) === id, "the signed-out work was wiped for u2", { ids: logIds(d), dev: d.read(DEV_KEY, null) });
+  expect((d.read(DEV_KEY, {}) || {}).uid === "u2", "the device record does not hold u2", d.read(DEV_KEY, null));
 });
 
 /* --------------------------------------------------------------- runner -- */
