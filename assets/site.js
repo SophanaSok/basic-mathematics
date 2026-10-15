@@ -1038,8 +1038,10 @@
         approach: function () {
           var sec = Learn.mostMissed(cardSecs.map(function (c) {
             return { sec: c.sec, miss: Rules.isMiss(Attempts.get(chapterId, c.key)) };
-          })) || fullSec;
-          return sectionNames(sec);
+          }));
+          var info = sectionNames(sec || fullSec);
+          if (info && !sec) info.own = true;
+          return info;
         }
       }) : null;
 

@@ -58,7 +58,7 @@ export interface LadderOptions {
   now?: () => number;
 }
 
-export interface ApproachInfo { full: string; label: string; href: string }
+export interface ApproachInfo { full: string; label: string; href: string; /** this card's own section, named because no miss on the page points elsewhere */ own?: boolean }
 
 export interface LadderController {
   readonly state: LadderState;
@@ -111,7 +111,9 @@ export function buttonHtml(s: LadderState): string {
 /** the change-approach card's inner markup; every word from `info` is escaped */
 export function approachHtml(info: ApproachInfo | null): string {
   return "<p><b>Try a different way in.</b> Every clue is open and it is still not coming. " +
-    (info
+    (info && info.own
+      ? "Rereading <b>" + escapeHtml(info.full) + "</b>, then coming back, usually helps more than another try."
+      : info
       ? "Most of the misses on this page trace back to <b>" + escapeHtml(info.full) + "</b>; rereading it, then coming back, usually helps more than another try."
       : "Rereading the section behind this exercise usually helps more than another try.") + "</p>" +
     '<p class="ex-approach-actions">' +
@@ -144,6 +146,7 @@ export function mount(opts: LadderOptions): LadderController {
   let awaitingFocus = false;
   let missesAfterLadder = 0;
   let approachShown = false;
+  let approachCard: HTMLElement | null = null;
 
   if (texts.length || fadeable) {
     list = document.createElement("div");
@@ -289,6 +292,7 @@ export function mount(opts: LadderOptions): LadderController {
     card.className = "ex-approach";
     card.innerHTML = approachHtml(info);
     fb.insertAdjacentElement("afterend", card);
+    approachCard = card;
     card.querySelector("[data-keep-going]")!.addEventListener("click", () => {
       card.hidden = true;
       const f = opts.ex.querySelector<HTMLElement>(".ex-form input:not([disabled]):not([type=hidden]), .ex-form button:not([disabled])");
@@ -315,7 +319,8 @@ export function mount(opts: LadderOptions): LadderController {
       arm();
       const offer = offerAfterWrong(state, opts.hasSolution);
       let spoken = "";
-      if (!canOpen(state)) {
+      /* only a card that had a ladder to run out of: a card with no clue keeps the plain offer */
+      if ((state.clues > 0 || state.fadeable) && !canOpen(state)) {
         missesAfterLadder++;
         if (opts.approach && !approachShown && !opts.solved() && approachDue(missesAfterLadder)) {
           approachShown = true;
@@ -330,6 +335,8 @@ export function mount(opts: LadderOptions): LadderController {
       watch.solved();
       if (idleTimer) clearTimeout(idleTimer);
       idleTimer = null;
+      /* solved: "still not coming" is no longer true */
+      if (approachCard) approachCard.hidden = true;
     }
   };
   return ctl;

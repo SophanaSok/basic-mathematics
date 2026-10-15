@@ -503,6 +503,9 @@ async function run() {
       check(keys.length >= 1, "ch05 has a typed practice exercise with clues and a solution");
       const sel = '#practice .ex[data-key="' + keys[0] + '"]';
       const cards = () => page.$$eval(sel + " .ex-approach", (c) => c.length);
+      await answer(page, sel, false);
+      await answer(page, sel, false);
+      eq(await cards(), 0, "two misses while a clue is still unopened show no approach card");
       for (let i = 0; i < 6 && await page.$eval(sel + " .ex-clue-btn", (b) => !b.hidden); i++) await page.click(sel + " .ex-clue-btn");
       check(await page.$eval(sel + " .ex-clue-btn", (b) => b.hidden), "every clue (and the faded rung) is open");
       await answer(page, sel, false);
@@ -517,6 +520,9 @@ async function run() {
       eq(await cards(), 1, "a third miss adds no second card");
       const href = await page.$eval(sel + " .ex-approach a.btn", (a) => a.getAttribute("href"));
       check(/\.html#[\w-]+$/.test(href || ""), "the Reread link points into the curriculum (" + href + ")");
+      /* every miss so far is on this card, so the most-missed section is its own */
+      const own = await page.$eval(sel, (ex) => ex.getAttribute("data-section") || "");
+      if (own) check((href || "").endsWith("#" + own.slice(own.indexOf("#") + 1)), "the Reread link names the section behind the misses (" + own + ")");
       await page.click(sel + " .ex-approach [data-keep-going]");
       check(await page.$eval(sel + " .ex-approach", (c) => c.hidden), "Keep going hides it");
 
