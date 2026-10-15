@@ -451,11 +451,13 @@
   }
   /* Send the outbox in chunks. Resolves whatever happened; never rejects. */
   function sendEvents(u) {
-    var E = window.BMEvents, k = evCursor(u.id), chunks = 0, reset = false;
+    var E = window.BMEvents, k = evCursor(u.id), chunks = 0, reset = false, later = {};
     function stop() { return null; }
     function next() {
       if (!E || !evUsable() || ahead || evAhead || !k.init || k.epoch === null) return null;
-      var out = E.outbox();
+      /* entries the server called future stay queued, but not for this call: sending them
+         again at once would only burn the day's calls */
+      var out = E.outbox().filter(function (id) { return !later[id]; });
       if (!out.length || chunks >= EV_CHUNKS) return null;
       chunks++;
       stillSignedIn(u);
@@ -484,7 +486,7 @@
         if (hint) { evAfter = Date.now() + LOG_RETRY; return stop(); }
         if (!Array.isArray(d.refused)) { evAfter = Date.now() + LOG_RETRY; return stop(); }
         var keep = {};
-        d.refused.forEach(function (r) { if (r && r.why === "future") keep[r.id] = true; });
+        d.refused.forEach(function (r) { if (r && r.why === "future") keep[r.id] = later[r.id] = true; });
         E.dequeue(batch.map(function (b) { return b.id; }).filter(function (id) { return !keep[id]; }));
         if (evFull) { evFull = false; notify(); }
         return next();
@@ -571,6 +573,8 @@
       /* stamp the reset so other devices drop their copies instead of merging them back;
          always later than the last reset this browser knows of, whatever its clock says */
       setMeta(function (m) { m.resetAt = Math.max(Date.now(), (Number(m.resetAt) || 0) + 1); });
+      /* the reset wipes the local log, so a log that was ahead of this code is gone: sending resumes */
+      evAhead = false;
       push();
     }
   });

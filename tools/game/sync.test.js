@@ -26,6 +26,12 @@
    and readers who have no email. The learning log has its own section: it leaves the
    device through events_put (the fake answers as supabase/migrations/20261015004752_events.sql
    does) and a select of the events table, and the attempts table is never touched.
+   Its second half covers what the server says back and the odd rows it holds: a row whose
+   hash is wrong is dropped on pull, a row in a later format stops sending, the day's quota
+   and call limits hold the outbox to UTC midnight, an oversized batch is halved, a clock
+   that is ahead keeps its entries for later, a long log is pulled in pages, a checkpoint
+   comes back unchanged, sign-out sends what is left first, and a failing events step
+   leaves the sync's result alone.
 
    Usage: node tools/game/sync.test.js [--only=<substring>] */
 "use strict";
@@ -38,7 +44,7 @@ const SRC = fs.readFileSync(path.join(ROOT, "assets/account.js"), "utf8");
 /* the merge every entry puts up ahead of account.js (src/ui/core.ts), read by Node itself */
 const MERGE = require("../../src/ui/core.ts").merge;
 /* what events_put runs on the server: the same validity and prune rules as the browser's */
-const { isValid, prune } = require("../../src/sync/events.ts");
+const { isValid, prune, eventId } = require("../../src/sync/events.ts");
 const ONLY = (process.argv.find((a) => a.startsWith("--only=")) || "").slice(7);
 const REF = "testref";
 const SESSION_KEY = "sb-" + REF + "-auth-token";
@@ -100,6 +106,7 @@ class Server {
     this.eventsDown = false; /* the rpc alone fails like a network error */
     this.full = false;       /* events_put answers bm-full */
     this.maxBatch = 500;
+    this.skewMin = 0;        /* the server's clock is floor(now / 60000) + skewMin minutes */
     this.quota = 3000;       /* new rows per day */
     this.calls = 2000;       /* calls per day */
     this.profiles = {};
@@ -167,7 +174,7 @@ class Server {
     const mine = (this.events[uid] = this.events[uid] || []);
     const byId = new Map();
     batch.forEach((e) => { byId.set(e && typeof e.id === "string" ? e.id : "\u0000" + byId.size, e); });
-    const limit = Math.floor(now / 60000) + 1440;
+    const limit = Math.floor(now / 60000) + (this.skewMin || 0) + 1440;
     const refused = [], fresh = [];
     byId.forEach((e, id) => {
       const p = e && e.p;
@@ -456,6 +463,10 @@ class Page {
     this.Store.emit({ type: "attempt", chapter: ch, key, section: "s", correct: !!correct, tryNo: 1, hintLevel: 0, solutionOpen: false, inline: false });
   }
   status() { return this.Account.status().state; }
+  /* an Arena run on today's date of the fake clock (src/learn/recorder.ts runPayloads) */
+  run(answers) {
+    return this.win.BMEvents.fromRun({ day: pgDay(), answers });
+  }
   /* what the "Reset all progress" button on about.html does (site.js initResetButtons) */
   resetAll() {
     ["progress", "play", "attempts", "activity", "lesson", "game", "run"].forEach((f) => this.Store.write(KEYS[f], {}));
@@ -1501,6 +1512,160 @@ scenario("a project without the function keeps the outbox and tries later", asyn
   expect((server.events.u1 || []).length === 4 && outbox(laptop).length === 0, "the rows did not all arrive", { rows: (server.events.u1 || []).length, out: outbox(laptop) });
   expect(noAttempts(server), "attempts touched");
 });
+
+/* ---------------------------------- what the server says back, odd rows -- */
+
+const pagePayloadAt = (ref) => { const t = Math.floor(now / 60000); return [t, Math.floor(t / 1440), "ex", "ch01#s", ref, "c", 1, 1, 0, 0]; };
+const batchCalls = (server) => server.log.filter((l) => /^rpc events_put [1-9]/.test(l));
+
+scenario("a wrong-hash row from the server is dropped on pull and two honest devices still converge", async () => {
+  const { server, laptop, phone } = await twoDevices();
+  const P = pagePayloadAt("ch01/e9"), bad = eventId("zzzzzzzz", P);
+  server.seedEvent("u1", { id: bad, v: 1, t: P[0], d: P[1], src: P[2], sec: P[3], ref: P[4], k: P[5], ok: 0, n: P[7], r: P[8], f: P[9], x: null });
+  now += 60000; laptop.page.check("ch01", "e1", true);
+  now += 60000; phone.page.check("ch01", "e2", true);
+  for (let i = 0; i < 2; i++) { laptop.open(); await settle(); phone.open(); await settle(); }
+  expect(!(bad in evSet(laptop.page)) && !(bad in evSet(phone.page)), "the wrong-hash row was taken in", { l: evSet(laptop.page), p: evSet(phone.page) });
+  expect(bad in serverSet(server, "u1"), "setup: the bad row is not on the server");
+  expect(canon(evSet(laptop.page)) === canon(evSet(phone.page)) && Object.keys(evSet(laptop.page)).length === 2, "the two devices differ", { l: evSet(laptop.page), p: evSet(phone.page) });
+  const rest = serverSet(server, "u1"); delete rest[bad];
+  expect(canon(rest) === canon(evSet(laptop.page)), "the server minus the bad row differs from the devices", { rest, l: evSet(laptop.page) });
+  expect(noAttempts(server), "attempts touched");
+});
+
+scenario("a row in a later format stops sending", async () => {
+  const { server, laptop } = await twoDevices();
+  const P = pagePayloadAt("ch01/e9");
+  server.seedEvent("u1", { id: eventId("zzzzzzzz", P), v: 2, t: P[0], d: P[1], src: P[2], sec: P[3], ref: P[4], k: P[5], ok: P[6], n: P[7], r: P[8], f: P[9], x: null });
+  laptop.open(); await settle();
+  expect((laptop.read(EV_KEY, {}) || {}).v === 2 && laptop.page.win.BMEvents.ahead() === true, "the log is not marked ahead", laptop.read(EV_KEY, null));
+  const n = sent(server), before = Object.keys(evSet(laptop.page)).length;
+  now += 60000; laptop.page.check("ch01", "e1", true); await settle();
+  expect(sent(server) === n, "an entry was sent to a later-format account", batchCalls(server));
+  expect(Object.keys(evSet(laptop.page)).length === before, "the recorder wrote while ahead", evSet(laptop.page));
+  expect(laptop.page.status() === "synced", "progress is not synced", laptop.page.Account.status());
+  laptop.page.resetAll(); await settle();
+  expect(!(server.events.u1 || []).length, "the server rows survived the reset", server.events.u1);
+  expect((laptop.read(EV_KEY, {}) || {}).v === 1 || laptop.read(EV_KEY, null) === null, "the local format is not back to 1", laptop.read(EV_KEY, null));
+  expect(laptop.page.win.BMEvents.ahead() === false, "still ahead after the reset");
+  now += 60000; laptop.page.check("ch01", "e2", true); await settle();
+  expect((server.events.u1 || []).length === 1 && sent(server) > n, "the check after the reset was not sent", { rows: server.events.u1, sent: sent(server) });
+  expect(noAttempts(server), "attempts touched");
+});
+
+scenario("the day's quota holds the outbox until UTC midnight", async () => {
+  const { server, laptop } = await twoDevices();
+  server.meta.u1.day_n = server.quota;
+  now += 60000; laptop.page.check("ch01", "e1", true); await settle();
+  expect(server.hints.indexOf("bm-quota") > -1 && outbox(laptop).length === 1, "the quota was not hit or the outbox lost the id", { hints: server.hints, out: outbox(laptop) });
+  const n = batchCalls(server).length;
+  now += 60000; laptop.page.check("ch01", "e2", true); await settle();
+  expect(batchCalls(server).length === n && outbox(laptop).length === 2, "a batch was sent before midnight", { n, now: batchCalls(server).length });
+  now = Date.parse(pgDay() + "T00:00:00Z") + 24 * 3600 * 1000 + 10000;
+  laptop.page.check("ch01", "e3", true); await settle();
+  expect((server.events.u1 || []).length === 3 && outbox(laptop).length === 0, "the three did not arrive after midnight", { rows: (server.events.u1 || []).length, out: outbox(laptop) });
+  expect(laptop.page.status() === "synced", "status", laptop.page.Account.status());
+  expect(noAttempts(server), "attempts touched");
+});
+
+scenario("the day's call limit holds the outbox until UTC midnight", async () => {
+  const { server, laptop } = await twoDevices();
+  server.meta.u1.day_calls = server.calls;
+  now += 60000; laptop.page.check("ch01", "e1", true); await settle();
+  expect(server.hints.indexOf("bm-calls") > -1 && outbox(laptop).length === 1 && !(server.events.u1 || []).length, "bm-calls did not hold the outbox", { hints: server.hints, out: outbox(laptop) });
+  expect(noAttempts(server), "attempts touched");
+});
+
+scenario("an oversized batch is halved until it fits", async () => {
+  const { server, laptop } = await twoDevices();
+  server.maxBatch = 3; server.eventsDown = true;
+  for (let i = 0; i < 8; i++) { now += 60000; laptop.page.check("ch01", "k" + i, true); }
+  await settle();
+  expect(outbox(laptop).length === 8, "setup: the outbox does not hold 8", outbox(laptop));
+  server.eventsDown = false;
+  server.log.length = 0;
+  for (let i = 0; i < 14 && outbox(laptop).length; i++) { laptop.page.Account.syncNow(); await settle(); }
+  expect(server.hints.indexOf("bm-batch") > -1, "bm-batch never came", server.hints);
+  expect((server.events.u1 || []).length === 8 && outbox(laptop).length === 0, "not every entry arrived", { rows: (server.events.u1 || []).length, out: outbox(laptop) });
+  const lens = server.log.filter((l) => /^rpc events_put [1-9]/.test(l)).map((l) => Number(l.split(" ")[2]));
+  const refused = server.hints.filter((h) => h === "bm-batch").length;
+  expect(lens.filter((n) => n > 3).length === refused, "a batch longer than 3 was accepted", { lens, hints: server.hints });
+  expect(noAttempts(server), "attempts touched");
+});
+
+scenario("a device whose clock is ahead keeps its future entries for later", async () => {
+  const { server, laptop } = await twoDevices();
+  server.skewMin = -2 * 1440;
+  now += 60000; laptop.page.check("ch01", "e1", true); await settle();
+  expect(outbox(laptop).length === 1 && !(server.events.u1 || []).length, "the future entry was not kept out", { out: outbox(laptop), rows: server.events.u1 });
+  expect(batchCalls(server).length === 1, "the entry was not offered", server.log);
+  server.skewMin = 0;
+  now += 60000; laptop.page.check("ch01", "e2", true); await settle();
+  expect((server.events.u1 || []).length === 2 && outbox(laptop).length === 0, "both rows are not on the server", { rows: server.events.u1, out: outbox(laptop) });
+  expect(noAttempts(server), "attempts touched");
+});
+
+scenario("a long log is pulled in pages", async () => {
+  const { server, phone } = await twoDevices();
+  const t0 = Math.floor(now / 60000) - 3000;
+  for (let i = 0; i < 1200; i++) {
+    const t = t0 + i, P = [t, Math.floor(t / 1440), "ex", "ch01#s", "ch01/k" + i, "c", 1, 1, 0, 0];
+    server.seedEvent("u1", { id: eventId("zzzzzzzz", P), v: 1, t: P[0], d: P[1], src: P[2], sec: P[3], ref: P[4], k: P[5], ok: 1, n: 1, r: 0, f: 0, x: null });
+  }
+  server.log.length = 0;
+  phone.open(); await settle();
+  const pulls = server.log.filter((l) => l === "select events").length;
+  expect(pulls === 2, "the log was not pulled in two pages", pulls);
+  expect(Object.keys(evSet(phone.page)).length === 1200, "not every row arrived", Object.keys(evSet(phone.page)).length);
+  expect(evMeta(phone).u1.seq === server.meta.u1.seq, "the cursor is not at the server's seq", { cursor: evMeta(phone).u1, seq: server.meta.u1.seq });
+  expect(noAttempts(server), "attempts touched");
+});
+
+scenario("a checkpoint's object comes back the same", async () => {
+  const { server, laptop, phone } = await twoDevices();
+  const answers = [0, 1, 2, 3, 4].map((i) => ({ section: "ch01#s", g: "add", first: i === 0, pass: false }));
+  for (let day = 0; day < 26; day++) {
+    laptop.page.run(answers); now += 86400000;
+    if (day % 5 === 4) await settle();
+  }
+  await settle();
+  expect(Object.values(evSet(laptop.page)).some((P) => P[5] === "z"), "no checkpoint was written", Object.keys(evSet(laptop.page)).length);
+  phone.open(); await settle();
+  expect(canon(evSet(phone.page)) === canon(evSet(laptop.page)), "the phone's log differs from the laptop's", { l: Object.keys(evSet(laptop.page)).length, p: Object.keys(evSet(phone.page)).length });
+  const cp = (server.events.u1 || []).filter((r) => r.k === "z");
+  const local = Object.values(evSet(laptop.page)).filter((P) => P[5] === "z");
+  expect(cp.length === local.length && cp.length > 0 && canon(cp.map((r) => r.x).sort()) === canon(local.map((P) => P[10]).sort()), "the checkpoint objects differ", { cp, local });
+  expect(noAttempts(server), "attempts touched");
+});
+
+scenario("sign-out sends what is left first", async () => {
+  const { server, laptop } = await twoDevices();
+  server.eventsDown = true;
+  now += 60000; laptop.page.check("ch01", "e1", true); await settle();
+  expect(outbox(laptop).length === 1, "setup: the outbox is empty", outbox(laptop));
+  server.eventsDown = false;
+  const { error } = await laptop.page.signOut();
+  expect(!error, "sign-out failed", error && error.message);
+  expect((server.events.u1 || []).length === 1, "the row did not reach the server", server.events.u1);
+  expect(outbox(laptop).length === 0 && logIds(laptop).length === 0, "the device kept its outbox or log", { out: outbox(laptop), log: logIds(laptop) });
+  expect(!("u1" in evMeta(laptop)), "u1's cursor is still in the meta", evMeta(laptop));
+  expect(noAttempts(server), "attempts touched");
+});
+
+scenario("a sync whose events step fails is still a sync", async () => {
+  const server = new Server();
+  const d = new Device("laptop", server);
+  server.eventsDown = true;
+  d.remember("u1"); d.open(); await settle();
+  expect(d.page.status() === "synced", "the failing events step changed the status", d.page.Account.status());
+  server.eventsDown = false;
+  server.log.length = 0;
+  d.page.Account.syncNow(); await settle();
+  expect(server.log.some((l) => l === "rpc events_put 0"), "the handshake did not happen", server.log);
+  expect(d.page.status() === "synced", "status", d.page.Account.status());
+  expect(noAttempts(server), "attempts touched");
+});
+
 
 /* --------------------------------------------------------------- runner -- */
 
