@@ -31,7 +31,8 @@ const { execFileSync } = require("child_process");
 const site = require("./lib/site");
 const git = require("./lib/git");
 const shell = require("./lib/shell");
-const { parse, normText, hash } = require("./lib/html");
+const { parse, normText, hash, Node, VOID } = require("./lib/html");
+const crypto = require("crypto");
 const { exercisesOf } = require("./lib/keys");
 const cssLib = require("./lib/css");
 const links = require("./lib/links");
@@ -1789,8 +1790,6 @@ const LEAK_ALLOW_FILE = path.join(__dirname, "leak-allow.json");
 const HELP_TAGS = new Set(["em", "strong", "b", "i", "code", "sub", "sup"]);
 const HELP_BLOCKS = new Set(["p", "div"]);
 const ANSWER_TYPES = new Set(["exact", "number", "fraction", "set", "expr", "percent", "ratio", "multi", "order", "blank", "figure"]);
-const { Node, VOID } = require("./lib/html");
-const crypto = require("crypto");
 
 const isMiss = el => el.name === "ul" && el.hasClass("ex-miss");
 const isTwin = el => el.name === "template" && el.hasClass("ex-twin");
@@ -1834,7 +1833,6 @@ function helpMarkupFaults(html, template) {
   const faults = [];
   const walk = (n) => {
     n.children.forEach(k => {
-      if (k.type === "text") { if ((k.text.replace(/\\\$/g, "").match(/\$/g) || []).length % 2) faults.push("an unbalanced $"); return; }
       if (k.type !== "element") return;
       const blockOk = template && HELP_BLOCKS.has(k.name);
       if (!HELP_TAGS.has(k.name) && !blockOk) faults.push("the tag <" + k.name + ">");
@@ -1845,7 +1843,9 @@ function helpMarkupFaults(html, template) {
       walk(k);
     });
   };
-  walk(parse("<x>" + html + "</x>").children[0]);
+  const root = parse("<x>" + html + "</x>").children[0];
+  if ((root.textContent.replace(/\\\$/g, "").match(/\$/g) || []).length % 2) faults.push("an unbalanced $");
+  walk(root);
   return Array.from(new Set(faults));
 }
 
@@ -2007,16 +2007,17 @@ function helpMarkupProblems(doc, page, deps) {
       const hit = mine.find(x => x.key === f.info.e.key && x.field === f.field && x.token === lk.token && x.textSha256 === hash);
       if (hit) { used.add(hit); out.silenced++; return; }
       const ans = f.info.ex.answers.find(x => d.matches(lk.token, x, f.info.ex.type, f.info.ex.tol)) || f.info.ex.answers[0] || "";
-      const msg = page + ":" + f.el.line + ": " + f.info.e.key + " " + f.field + " gives away " + JSON.stringify(lk.token) + " (answer " + JSON.stringify(ans) + ")";
+      const msg = page + ":" + f.el.line + ": " + f.info.e.key + " " + f.field + " gives away " + JSON.stringify(lk.token) + " (answer " + JSON.stringify(ans) + "; textSha256 " + hash + " for an allowance)";
       (f.sev === "fail" ? out.fails : out.warns).push(msg);
     });
   });
   mine.forEach(x => {
     const at = page + ": " + (x.key || "?") + " " + (x.field || "?");
     if (!seenFields.has(x.key + "\u0000" + x.field)) { out.fails.push("tools/leak-allow.json: " + at + " names a page, key or field that is not there; remove the allowance"); return; }
+    if (used.has(x)) return;
     const sameField = lintFields.filter(f => f.info.e.key === x.key && f.field === x.field);
     const fresh = sameField.some(f => sha256(/^data-hint/.test(f.field) ? f.html : f.text) === x.textSha256);
-    if (!fresh) out.fails.push("tools/leak-allow.json: stale allowance for " + at + " (" + JSON.stringify(x.token) + "): its text has changed since the hash was taken; edit or remove it");
+    out.fails.push("tools/leak-allow.json: stale allowance for " + at + " (" + JSON.stringify(x.token) + "): " + (fresh ? "that text no longer gives the answer away" : "its text has changed since the hash was taken") + "; remove it" + (fresh ? "" : " or take the new hash"));
   });
   return out;
 }
@@ -2102,5 +2103,5 @@ function main() {
 
 if (require.main === module) main();
 module.exports = {
-  chartProblems, checkScope, CHECKS, result, loadCore, barProblem, siteJudgeProblem, pureProblems, isPureFile, codeProblems, courseProblems, exerciseRefs, sectionAnchors, skillsProblems, sectionWorkCounts, sectionWorkProblems, pageKeys, lessonSteps, stepsDiff, helpMarkupProblems, withoutHelp, shellOf, shellDiff, scriptsProblems, randomState, stripLocalFirst, canon,
+  chartProblems, checkScope, CHECKS, result, loadCore, barProblem, siteJudgeProblem, pureProblems, isPureFile, codeProblems, courseProblems, exerciseRefs, sectionAnchors, skillsProblems, sectionWorkCounts, sectionWorkProblems, pageKeys, lessonSteps, stepsDiff, helpMarkupProblems, shellOf, shellDiff, scriptsProblems, randomState, stripLocalFirst, canon,
   animationFaults, colourLiterals, columnPatterns, inColumn, quietKinds, printGaps };

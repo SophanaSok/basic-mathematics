@@ -1326,6 +1326,10 @@ function refusal(fn) { try { fn(); return null; } catch (e) { return e.message; 
     eq([quiet.fails, quiet.warns, quiet.hints, quiet.silenced], [[], [], 1, 1], "help-markup: an allowance with the text's hash silences that leak");
     const stale = run("hint-leak.html", { allow: [Object.assign({}, entry, { textSha256: "0".repeat(64) })] });
     check(stale.fails.some(m => /stale allowance/.test(m)) && stale.warns.length === 1, "help-markup: an allowance with the wrong hash is stale (FAIL) and silences nothing — got " + JSON.stringify(stale));
+    /* the hash is current but the token no longer leaks (the key or the grader changed): stale too */
+    const unused = run("hint-leak.html", { allow: [Object.assign({}, entry, { token: "8" })] });
+    check(unused.fails.some(m => /stale allowance.*no longer gives the answer away/.test(m)) && unused.warns.length === 1, "help-markup: an allowance nothing used is stale (FAIL) and silences nothing — got " + JSON.stringify(unused));
+    check(/textSha256 [0-9a-f]{64} for an allowance/.test(leak.warns[0]), "help-markup: the leak message carries the hash an allowance needs — got " + JSON.stringify(leak.warns[0]));
     const gone = run("hint-leak.html", { allow: [Object.assign({}, entry, { key: "zz" })] });
     check(gone.fails.some(m => /not there/.test(m)), "help-markup: an allowance naming a key that is not there fails — got " + JSON.stringify(gone.fails));
   }

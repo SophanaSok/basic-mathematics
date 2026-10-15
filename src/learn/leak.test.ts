@@ -47,6 +47,9 @@ describe("leaks", () => {
     expect(leaks("Factor first, then set each factor to zero.", ex({ type: "set", answers: ["2,-3"] }), grader)).toEqual([]);
     expect(leaks("Add the opposite.", ex({ type: "exact", answers: ["4"] }), grader)).toEqual([]);
   });
+  it("a Unicode minus in prose reads as a minus", () => {
+    expect(leaks("so it is −3.", ex({ type: "number", answers: ["-3"] }), grader).map(l => l.token)).toEqual(["−3"]);
+  });
   it("a two-word exact answer leaks as a bigram and not as one word", () => {
     const e = ex({ type: "exact", answers: ["square root"] });
     expect(leaks("Take the square root of both sides.", e, same).map(l => l.token)).toContain("square root");

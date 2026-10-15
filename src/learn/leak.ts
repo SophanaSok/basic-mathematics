@@ -85,7 +85,8 @@ function standsIn(needle: string, hay: string): boolean {
   return new RegExp("(?<![\\w.])" + escapeRe(n) + "(?!\\w|\\.\\d)").test(h);
 }
 
-const NUMBER = "-?\\d+(?:\\.\\d+)?";
+/* a minus may be the Unicode one (−) in prose; norm() reads it as - */
+const NUMBER = "[-−–]?\\d+(?:\\.\\d+)?";
 const FRAC_LATEX = "\\\\[dt]?frac\\{[^{}]*\\}\\{[^{}]*\\}";
 
 function pushAll(out: { token: string; at: number }[], text: string, re: RegExp, base = 0): void {
