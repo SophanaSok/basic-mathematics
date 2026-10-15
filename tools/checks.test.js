@@ -1223,6 +1223,51 @@ function refusal(fn) { try { fn(); return null; } catch (e) { return e.message; 
   check(CHECKS.some(c => c.name === "us-english"), "us-english: check-static runs it");
 }
 
+/* ------------------------------------------------------------------ icons -- */
+{
+  const gen = require("./gen-icons");
+  const il = require("./lib/icons");
+  const { checkIcons } = require("./check-static");
+  const wrap = (inner, attrs) => '<svg xmlns="http://www.w3.org/2000/svg" viewBox="' + ((attrs && attrs.viewBox) || "0 0 256 256") + '" fill="currentColor">' + inner + "</svg>";
+  const rejects = (svg, re, what) => {
+    let msg = "";
+    try { il.parseSvg(svg, "x.svg"); } catch (e) { msg = e.message; }
+    check(re.test(msg), "icons whitelist rejects " + what + " — got " + JSON.stringify(msg));
+  };
+  rejects(wrap('<script>alert(1)</script>'), /script.*not allowed|not self-closed/, "a <script>");
+  rejects(wrap('<path onload="x" d="M0 0"/>'), /`onload` is not allowed/, "a <path onload>");
+  rejects(wrap('<path style="x" d="M0 0"/>'), /`style` is not allowed/, "a style attribute");
+  rejects(wrap('<g><path d="M0 0"/></g>'), /<g> is not allowed/, "a <g>");
+  rejects(wrap('<path d="url(#a)"/>'), /url\(/, "a d containing url(");
+  rejects(wrap('<path d="M0 0"/>', { viewBox: "0 0 24 24" }), /viewBox/, "a wrong viewBox");
+  rejects(wrap('hello<path d="M0 0"/>'), /text content/, "text content");
+  rejects(wrap('<path d="M0 0 <b>"/>'), /not allowed, or is not self-closed/, "markup in an attribute");
+  rejects(wrap('<path d="M0 0 q;x"/>'), /characters beyond/, "a d with other characters");
+  rejects(wrap('<path d="M0 0"/><!-- c -->'), /comment/, "a comment");
+  rejects(wrap('<path href="x" d="M0 0"/>'), /`href` is not allowed/, "an href");
+  rejects(wrap('<rect width="10" height="256" fill="none"/><path d="M0 0"/>'), /bounding rect/, "another rect");
+  eq(il.parseSvg(wrap('<rect width="256" height="256" fill="none"/><path d="M0,0L1.5e2-3Z"/><path fill="currentColor" d="M1 1h2z"/>')), ["M0,0L1.5e2-3Z", "M1 1h2z"], "icons whitelist accepts a two-path SVG and drops the bounding rect");
+
+  check(gen.render() === gen.render(), "icons: render() is deterministic");
+  const real = fs.readFileSync(gen.FILE, "utf8");
+  check(real === gen.render(), "icons: the live src/data/icons.json is the generator's output");
+  let r = result();
+  checkIcons({}, r);
+  eq(r.fails, [], "icons: the real tree passes");
+  const data = JSON.parse(real);
+  data.icons.tick.paths[0] += "<script>";
+  r = result();
+  checkIcons({}, r, JSON.stringify(data, null, 2) + "\n");
+  check(r.fails.some(m => /holds characters beyond path data/.test(m)), "icons: markup hand-edited into a path fails from the committed file alone");
+  delete data.icons.tick;
+  r = result();
+  checkIcons({}, r, JSON.stringify(data, null, 2) + "\n");
+  check(r.fails.some(m => /`tick` is in tools\/icons.json but not in src\/data\/icons.json/.test(m)), "icons: a mapped name missing from the output fails");
+  check(CHECKS.some(c => c.name === "icons"), "icons: check-static runs it");
+  const n = vendor.licenseNotice();
+  check(n.includes("\n@phosphor-icons/core 2.1.1 — MIT — brought in by tools/gen-icons.js\n") && /MIT License[\s\S]*Copyright \(c\) 2023 Phosphor Icons/.test(n), "licenseNotice() has the Phosphor section with its MIT text");
+}
+
 /* ------------------------------------------------------------------ scope -- */
 {
   const gen = require("./gen-scope");

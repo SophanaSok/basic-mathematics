@@ -1835,6 +1835,32 @@ function checkScope(ctx, r, text) {
   r.fail(gen.STALE + " (first difference at line " + (i + 1) + ")");
 }
 
+/* src/data/icons.json is tools/gen-icons.js's output for tools/icons.json and the pinned
+   Phosphor files; and the committed file alone meets the path-data whitelist (tools/lib/icons.js),
+   so markup hand-edited into a path fails without the generator run. Every name in the map is in
+   the output and the reverse. `text` is the file's content (the working tree's when absent). */
+function checkIcons(ctx, r, text) {
+  const gen = require("./gen-icons");
+  const iconLib = require("./lib/icons");
+  const map = gen.load();
+  const want = gen.render(map);
+  const have = text === undefined ? (fs.existsSync(gen.FILE) ? fs.readFileSync(gen.FILE, "utf8") : "") : text;
+  r.count = Object.keys(map.icons).length;
+  let data = null;
+  try { data = JSON.parse(have); } catch (e) { r.fail("src/data/icons.json is not JSON: " + e.message); }
+  if (data) {
+    iconLib.dataProblems(data).forEach(m => r.fail("src/data/icons.json: " + m));
+    const names = Object.keys(data.icons || {}).sort(), mapped = Object.keys(map.icons).sort();
+    mapped.filter(n => !names.includes(n)).forEach(n => r.fail("icon `" + n + "` is in tools/icons.json but not in src/data/icons.json"));
+    names.filter(n => !mapped.includes(n)).forEach(n => r.fail("icon `" + n + "` is in src/data/icons.json but not in tools/icons.json"));
+  }
+  if (have === want) return;
+  const a = have.split("\n"), b = want.split("\n");
+  let i = 0;
+  while (i < a.length && i < b.length && a[i] === b[i]) i++;
+  r.fail(gen.STALE + " (first difference at line " + (i + 1) + ")");
+}
+
 /* ---------------------------------------------------------- form models -- */
 
 /* The five form models are what tools/gen-forms.js wrote from tools/art/forms/ (its
@@ -2213,6 +2239,7 @@ const CHECKS = [
   { name: "help-markup", run: checkHelpMarkup, what: "help markup (clues, miss notes, twins, faded steps) never moves a progress key, a fingerprint or a lesson step; hint strings use only the allowed tags; no rung-1 clue or faded view gives the answer away beyond tools/leak-allow.json" },
   { name: "shell", run: checkShell, what: "each page's head, body tag and top bar, as lib/shell.js writes them, are the ones in tools/shell.json; one module entry per page, its kind's" },
   { name: "scope", run: checkScope, what: "scope.html is tools/gen-scope.js's output for the current curriculum and skills records" },
+  { name: "icons", run: checkIcons, what: "src/data/icons.json is tools/gen-icons.js's output for tools/icons.json and the pinned Phosphor files, and alone meets the path-data whitelist" },
   { name: "curriculum", run: checkCurriculum, what: "every chapter file exists; every section id is an <h2 id> in it; every course section has a requires list of at most 3 earlier sections" },
   { name: "links", run: checkLinks, what: "relative hrefs/srcs resolve to files, anchors to ids" },
   { name: "widgets", run: checkWidgets, what: "every data-widget / data-figure is a defined factory; a chart has a known kind, a numeric table of its shape and a caption" },
@@ -2261,5 +2288,5 @@ function main() {
 
 if (require.main === module) main();
 module.exports = {
-  chartProblems, checkScope, CHECKS, result, loadCore, barProblem, siteJudgeProblem, pureProblems, scheduleProblems, isPureFile, codeProblems, courseProblems, exerciseRefs, sectionAnchors, skillsProblems, sectionWorkCounts, sectionWorkProblems, pageKeys, lessonSteps, stepsDiff, helpMarkupProblems, requiresProblems, shellOf, shellDiff, scriptsProblems, randomState, stripLocalFirst, canon,
+  chartProblems, checkScope, checkIcons, CHECKS, result, loadCore, barProblem, siteJudgeProblem, pureProblems, scheduleProblems, isPureFile, codeProblems, courseProblems, exerciseRefs, sectionAnchors, skillsProblems, sectionWorkCounts, sectionWorkProblems, pageKeys, lessonSteps, stepsDiff, helpMarkupProblems, requiresProblems, shellOf, shellDiff, scriptsProblems, randomState, stripLocalFirst, canon,
   animationFaults, colourLiterals, columnPatterns, inColumn, quietKinds, printGaps };
