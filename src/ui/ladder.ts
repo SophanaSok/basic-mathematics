@@ -25,6 +25,7 @@ import { canOpen, cluesOf, nextLabel, offerAfterWrong, open, savedRung, start, t
 import { candidates, detect, ORDER, QUESTIONS, type Detection, type DetectInput } from "../learn/detectors.ts";
 import { answerHash, StuckWatch, type StuckSignal } from "../learn/stuck.ts";
 import { matchMiss, parseMisses } from "../learn/misses.ts";
+import { approachDue, mostMissed } from "../learn/approach.ts";
 import { FADED_RUNG } from "../core/rules.ts";
 
 export interface LadderOptions {
@@ -51,9 +52,13 @@ export interface LadderOptions {
   hasSolution: boolean;
   /** the card's .ex-solution; one whose last step carries data-final adds the faded rung */
   solution?: HTMLElement | null;
+  /** the section behind this page's misses, for the change-approach card; null names nothing */
+  approach?: () => ApproachInfo | null;
   /** milliseconds, for the stuck signals; Date.now by default */
   now?: () => number;
 }
+
+export interface ApproachInfo { full: string; label: string; href: string; /** this card's own section, named because no miss on the page points elsewhere */ own?: boolean }
 
 export interface LadderController {
   readonly state: LadderState;
@@ -103,6 +108,24 @@ export function buttonHtml(s: LadderState): string {
   return (s.open ? "Next clue" : "Show a clue") + ' <span class="ex-clue-of">(' + n.rung + " of " + n.of + ")</span>";
 }
 
+/** the change-approach card's inner markup; every word from `info` is escaped */
+export function approachHtml(info: ApproachInfo | null): string {
+  return "<p><b>Try a different way in.</b> Every clue is open and it is still not coming. " +
+    (info && info.own
+      ? "Rereading <b>" + escapeHtml(info.full) + "</b>, then coming back, usually helps more than another try."
+      : info
+      ? "Most of the misses on this page trace back to <b>" + escapeHtml(info.full) + "</b>; rereading it, then coming back, usually helps more than another try."
+      : "Rereading the section behind this exercise usually helps more than another try.") + "</p>" +
+    '<p class="ex-approach-actions">' +
+    (info ? '<a class="btn" href="' + escapeHtml(info.href) + '">Reread ' + escapeHtml(info.label) + "</a> " : "") +
+    '<button type="button" class="btn ghost" data-keep-going>Keep going</button></p>';
+}
+
+/** the line the live region reads when the card appears */
+export function approachSpoken(info: ApproachInfo | null): string {
+  return "Try a different way in. " + (info ? "Worth rereading " + info.full + "." : "Worth rereading the section behind this exercise.");
+}
+
 function escapeHtml(s: string): string {
   return String(s).replace(/[&<>"']/g, (ch) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[ch] as string);
 }
@@ -121,6 +144,9 @@ export function mount(opts: LadderOptions): LadderController {
   let button: HTMLButtonElement | null = null;
   let idleTimer: ReturnType<typeof setTimeout> | null = null;
   let awaitingFocus = false;
+  let missesAfterLadder = 0;
+  let approachShown = false;
+  let approachCard: HTMLElement | null = null;
 
   if (texts.length || fadeable) {
     list = document.createElement("div");
@@ -256,6 +282,25 @@ export function mount(opts: LadderOptions): LadderController {
     button.innerHTML = html;
   }
 
+  /* the card, once, after the verdict; focus stays where it is */
+  function showApproach(): string {
+    const fb = opts.ex.querySelector(".ex-feedback");
+    if (!fb) return "";
+    let info: ApproachInfo | null = null;
+    try { info = opts.approach ? opts.approach() : null; } catch { info = null; }
+    const card = document.createElement("div");
+    card.className = "ex-approach";
+    card.innerHTML = approachHtml(info);
+    fb.insertAdjacentElement("afterend", card);
+    approachCard = card;
+    card.querySelector("[data-keep-going]")!.addEventListener("click", () => {
+      card.hidden = true;
+      const f = opts.ex.querySelector<HTMLElement>(".ex-form input:not([disabled]):not([type=hidden]), .ex-form button:not([disabled])");
+      if (f) try { f.focus(); } catch { /* nothing to focus */ }
+    });
+    return '<p class="visually-hidden">' + escapeHtml(approachSpoken(info)) + "</p>";
+  }
+
   const ctl: LadderController = {
     get state() { return state; },
     get button() { return button; },
@@ -273,14 +318,25 @@ export function mount(opts: LadderOptions): LadderController {
       const sig = watch.check(now(), false, given);
       arm();
       const offer = offerAfterWrong(state, opts.hasSolution);
-      if (note) return '<p class="ex-miss-note hint">' + note + "</p>" + offerHtml(offer, sig);
-      return (detection ? askHtml(detection) : "") + offerHtml(offer, sig);
+      let spoken = "";
+      /* only a card that had a ladder to run out of: a card with no clue keeps the plain offer */
+      if ((state.clues > 0 || state.fadeable) && !canOpen(state)) {
+        missesAfterLadder++;
+        if (opts.approach && !approachShown && !opts.solved() && approachDue(missesAfterLadder)) {
+          approachShown = true;
+          spoken = showApproach();
+        }
+      }
+      if (note) return '<p class="ex-miss-note hint">' + note + "</p>" + offerHtml(offer, sig) + spoken;
+      return (detection ? askHtml(detection) : "") + offerHtml(offer, sig) + spoken;
     },
     afterRight() {
       watch.check(now(), true, "");
       watch.solved();
       if (idleTimer) clearTimeout(idleTimer);
       idleTimer = null;
+      /* solved: "still not coming" is no longer true */
+      if (approachCard) approachCard.hidden = true;
     }
   };
   return ctl;
@@ -291,7 +347,7 @@ export function mount(opts: LadderOptions): LadderController {
    modules under src/learn/ write nothing to window; the files under src/ui/ are the
    places that do (this one, review.ts and next.ts). */
 export const api = {
-  mount, detect, offerText,
+  mount, detect, offerText, mostMissed,
   ladder: { start, open, canOpen, toSave, offerAfterWrong, nextLabel, savedRung, cluesOf },
   misses: { parseMisses, matchMiss },
   FADED_RUNG,

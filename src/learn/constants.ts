@@ -132,3 +132,6 @@ export const RUNG_CREDIT: readonly number[] = [1, 1, 0.8, 0.6];
 export const OPENED_CREDIT = 0.1;
 export const RETRY_CREDIT = 0.5;
 export const SEED_WEIGHT = 2;
+
+/* Wrong checks after the whole help ladder is open before an exercise suggests a different way in. */
+export const APPROACH_MISSES_AFTER_LADDER = 2;

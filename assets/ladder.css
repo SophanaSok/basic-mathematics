@@ -69,3 +69,11 @@
 .ex-twin-steps p { margin: 0 0 .4rem; font-size: .95rem; color: var(--muted); }
 .ex-twin-card > .btn { justify-self: start; }
 @media print { .ex-twin-btn, .ex-twin-card { display: none !important; } }
+
+/* The change-approach card (src/ui/ladder.ts): after the verdict once the whole ladder is
+   open and the exercise is still missed; calm, no motion of its own */
+.ex-approach { margin: .8rem 0 0; padding: .8rem 1rem; display: grid; gap: .5rem; background: var(--surface-2); border: 1px solid var(--border-strong); border-radius: var(--radius); font-size: .98rem; color: var(--text); }
+.ex-approach[hidden] { display: none; }
+.ex-approach > p { margin: 0; }
+.ex-approach-actions { display: flex; flex-wrap: wrap; gap: .5rem; align-items: center; }
+@media print { .ex-approach { display: none !important; } }
