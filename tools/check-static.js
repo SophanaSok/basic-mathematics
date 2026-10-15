@@ -1770,6 +1770,281 @@ function checkFormModels(ctx, r) {
   r.note(m.entries.length + " models, " + sum("bytes") + " bytes, " + sum("triangles") + " triangles, clips " + fm.CLIPS.join(", "));
 }
 
+/* ---------------------------------------------------------- help-markup -- */
+
+/* Help that sits on an exercise card (a clue ladder in data-hint/-hint2/-hint3, a
+   ul.ex-miss of notes for a wrong answer, a template.ex-twin holding a practice twin, a
+   data-final on the last step of a solution that can be shown faded) is added to a card;
+   it never moves what the card is. Strip every artefact and the page must keep its
+   progress keys, its fingerprints and its lesson steps. The markup a help string may use
+   is small and checked here, and so is whether a string gives the answer away
+   (src/learn/leak.ts, the grader deciding what is the same answer).
+
+   HINT_LEAK_FAILS: a rung-1 clue that gives the answer away is a WARN until the owner has
+   cleared every hit (O9: the hits are listed in the PR body); then this turns to true and
+   the same hit fails. A hit that is meant (a clue that must say it) is listed in
+   tools/leak-allow.json against the hash of its text, and goes stale when the text moves. */
+const HINT_LEAK_FAILS = false;
+const LEAK_ALLOW_FILE = path.join(__dirname, "leak-allow.json");
+const HELP_TAGS = new Set(["em", "strong", "b", "i", "code", "sub", "sup"]);
+const HELP_BLOCKS = new Set(["p", "div"]);
+const ANSWER_TYPES = new Set(["exact", "number", "fraction", "set", "expr", "percent", "ratio", "multi", "order", "blank", "figure"]);
+const { Node, VOID } = require("./lib/html");
+const crypto = require("crypto");
+
+const isMiss = el => el.name === "ul" && el.hasClass("ex-miss");
+const isTwin = el => el.name === "template" && el.hasClass("ex-twin");
+const sha256 = s => crypto.createHash("sha256").update(s).digest("hex");
+
+function serializeNode(n) {
+  if (n.type === "text") return n.text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  if (n.type !== "element") return "";
+  const attrs = Object.keys(n.attrs).map(k => " " + k + "=\"" + n.attrs[k].replace(/&/g, "&amp;").replace(/"/g, "&quot;") + "\"").join("");
+  return "<" + n.name + attrs + ">" + (VOID.has(n.name) ? "" : n.children.map(serializeNode).join("") + "</" + n.name + ">");
+}
+const innerHtml = n => n.children.map(serializeNode).join("").trim();
+
+/* the document with every help artefact taken off: no miss list, no twin, no data-final */
+function withoutHelp(node) {
+  const c = new Node(node.type, node.name, node.line);
+  c.attrs = Object.assign({}, node.attrs);
+  delete c.attrs["data-final"];
+  c.text = node.text;
+  node.children.forEach(k => {
+    if (k.type === "element" && (isMiss(k) || isTwin(k))) return;
+    const kc = withoutHelp(k);
+    kc.parent = c;
+    c.children.push(kc);
+  });
+  return c;
+}
+
+/* text of a node, without the subtrees in `skip` */
+function textWithout(n, skip) {
+  if (skip.includes(n)) return "";
+  if (n.type === "text") return n.text;
+  if (n.type !== "element" && n.type !== "document") return "";
+  return n.children.map(k => textWithout(k, skip)).join("");
+}
+const escapeText = s => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+const nearest = (el, pred) => { for (let p = el.parent; p; p = p.parent) if (p.type === "element" && pred(p)) return p; return null; };
+
+/* what a help string's markup may be: text, balanced $...$, and a few bare tags */
+function helpMarkupFaults(html, template) {
+  const faults = [];
+  const walk = (n) => {
+    n.children.forEach(k => {
+      if (k.type === "text") { if ((k.text.replace(/\\\$/g, "").match(/\$/g) || []).length % 2) faults.push("an unbalanced $"); return; }
+      if (k.type !== "element") return;
+      const blockOk = template && HELP_BLOCKS.has(k.name);
+      if (!HELP_TAGS.has(k.name) && !blockOk) faults.push("the tag <" + k.name + ">");
+      else {
+        const names = Object.keys(k.attrs).filter(a => !(blockOk && a === "class"));
+        if (names.length) faults.push("the attribute " + names[0] + " on <" + k.name + ">");
+      }
+      walk(k);
+    });
+  };
+  walk(parse("<x>" + html + "</x>").children[0]);
+  return Array.from(new Set(faults));
+}
+
+let helpDepsCache = null;
+function helpDeps() {
+  if (!helpDepsCache) {
+    const leakLib = require(path.join(ROOT, "src/learn/leak.ts"));
+    const grade = require(path.join(ROOT, "src/core/grade.ts"));
+    helpDepsCache = {
+      leaks: leakLib.leaks,
+      matches: (g, a, t, tol) => grade.matches(g, a, t, tol || undefined),
+      alternatives: grade.alternatives
+    };
+  }
+  return helpDepsCache;
+}
+
+/* One page's help problems. deps: { allow, hintLeakFails, leaks, matches, alternatives }
+   (the last three default to the real ones).
+   @returns {{fails, warns, hints, counts, silenced, exercises}} hints = rung-1 clues giving the answer away */
+function helpMarkupProblems(doc, page, deps) {
+  const d = Object.assign({}, helpDeps(), { allow: [], hintLeakFails: HINT_LEAK_FAILS }, deps || {});
+  const out = { fails: [], warns: [], hints: 0, counts: {}, silenced: 0, exercises: 0 };
+  const fail = (el, m) => out.fails.push(page + ":" + (el ? el.line : 0) + ": " + m);
+  const exs = exercisesOf(doc);
+  out.exercises = exs.length;
+
+  /* 1. strip equality */
+  const bare = withoutHelp(doc);
+  const a = exs, b = exercisesOf(bare);
+  const cols = ["key", "id", "inline", "type", "kind", "answer", "fp"];
+  if (a.length !== b.length) out.fails.push(page + ": help markup changes the number of exercises (" + a.length + " with it, " + b.length + " without)");
+  else a.forEach((e, i) => cols.forEach(c => { if (e[c] !== b[i][c]) fail(e.el, e.key + ": help markup changes the exercise's " + c + " (" + JSON.stringify(e[c]) + " with it, " + JSON.stringify(b[i][c]) + " without)"); }));
+  const sa = lessonSteps(doc), sb = lessonSteps(bare), diff = stepsDiff(sa, sb);
+  if (diff) out.fails.push(page + ": help markup changes the lesson steps: " + diff);
+
+  /* 2. placement */
+  const main = doc.query("#main");
+  doc.queryAll("ul, template, div, [data-final]").forEach(el => {
+    const art = isMiss(el) ? "ul.ex-miss" : isTwin(el) ? "template.ex-twin" : el.hasClass("ex-solution") ? ".ex-solution" : el.hasAttribute("data-final") ? "[data-final]" : null;
+    if (!art) return;
+    if (art !== "[data-final]" && !(el.parent && el.parent.type === "element" && el.parent.hasClass("ex"))) fail(el, art + " is not a direct child of an .ex card");
+    if (art !== ".ex-solution" && main && el.parent === main) fail(el, art + " is a top-level child of #main (it would be a lesson step)");
+  });
+
+  /* what each card is, for the grader */
+  const infoOf = new Map();
+  exs.forEach(e => {
+    const q = e.el.query(".ex-q");
+    const tol = parseFloat(e.el.getAttribute("data-tol"));
+    let answers = d.alternatives(e.answer);
+    let options;
+    if (e.kind === "blank") answers = e.el.queryAll(".blank").map(s => s.getAttribute("data-answer") || "").filter(Boolean);
+    if (e.kind === "choice" || e.kind === "multi") {
+      const list = e.el.query("ul.choices, ol.choices");
+      const lis = list.children.filter(c => c.type === "element" && c.name === "li");
+      const picked = new Set();
+      d.alternatives(e.answer).forEach(alt => alt.split(/[,;]/).forEach(s => { if (/^\d+$/.test(s.trim())) picked.add(+s.trim()); }));
+      options = lis.filter((li, i) => picked.has(i + 1)).map(li => li.textContent.replace(/\s+/g, " ").trim());
+    }
+    infoOf.set(e.el, { e, ex: { answers, type: e.type, kind: e.kind, tol: tol > 0 ? tol : null, options, question: q ? q.textContent.replace(/\s+/g, " ").trim() : "" } });
+  });
+  const seenFields = new Set();
+  const used = new Set();
+  const lintFields = [];   /* { e, info, field, el, html, text, sev } */
+  const addLint = (info, field, el, html, text, sev) => lintFields.push({ info, field, el, html, text, sev });
+
+  /* 4 (hints). a clue ladder, the strings and the markup in them */
+  exs.forEach(e => {
+    const info = infoOf.get(e.el);
+    ["data-hint", "data-hint2", "data-hint3"].forEach((f, i) => {
+      if (!e.el.hasAttribute(f)) return;
+      seenFields.add(e.key + "\u0000" + f);
+      const v = e.el.getAttribute(f);
+      if (i > 0 && !e.el.hasAttribute(i === 1 ? "data-hint" : "data-hint2")) fail(e.el, e.key + ": " + f + " needs " + (i === 1 ? "data-hint" : "data-hint2") + " (rung " + (i + 1) + " without rung " + i + ")");
+      helpMarkupFaults(v, false).forEach(x => fail(e.el, e.key + ": " + f + " uses " + x + "; a clue is text, $math$ and em strong b i code sub sup with no attributes"));
+      addLint(info, f, e.el, v, v, i === 0 ? (d.hintLeakFails ? "fail" : "warn") : "warn");
+    });
+  });
+
+  /* 3. each artefact */
+  const miss = doc.queryAll("ul.ex-miss"), twins = doc.queryAll("template.ex-twin"), finals = doc.queryAll("[data-final]");
+  miss.forEach(ul => {
+    const ex = nearest(ul, p => p.hasClass("ex")), info = ex && infoOf.get(ex);
+    const key = info ? info.e.key : "?";
+    ul.children_elements.forEach(c => { if (c.name !== "li") fail(c, key + ": ul.ex-miss holds <" + c.name + ">; only li"); });
+    const lis = ul.children_elements.filter(c => c.name === "li"), seen = new Set();
+    lis.forEach(li => {
+      const t = li.textContent.replace(/\s+/g, " ").trim();
+      if (!li.hasAttribute("hidden")) fail(li, key + ": an ex-miss item is not hidden");
+      if (seen.has(t)) fail(li, key + ": two ex-miss items say the same (" + JSON.stringify(t.slice(0, 40)) + ")");
+      seen.add(t);
+      const html = innerHtml(li);
+      helpMarkupFaults(html, false).forEach(x => fail(li, key + ": an ex-miss item uses " + x));
+      if (info) {
+        const keyed = info.ex.answers.some(ans => d.matches(t.replace(/\$/g, ""), ans, info.ex.type, info.ex.tol));
+        if (keyed) fail(li, key + ": an ex-miss item is graded right against the key (" + JSON.stringify(t.slice(0, 40)) + ")");
+        seenFields.add(key + "\u0000ex-miss");
+        addLint(info, "ex-miss", li, html, html, "warn");
+      }
+    });
+  });
+  twins.forEach(t => {
+    const ex = nearest(t, p => p.hasClass("ex")), info = ex && infoOf.get(ex);
+    const key = info ? info.e.key : "?";
+    const inner = { queryAll: sel => { const r = []; for (const el of t.elements()) { if (sel === ".ex-q" ? el.hasClass("ex-q") : sel === ".ex" ? el.hasClass("ex") : false) r.push(el); } return r; } };
+    if (inner.queryAll(".ex-q").length !== 1) fail(t, key + ": a twin holds " + inner.queryAll(".ex-q").length + " .ex-q, not one");
+    const ty = t.getAttribute("data-type");
+    if (ty !== null && !ANSWER_TYPES.has(ty)) fail(t, key + ": a twin's data-type " + JSON.stringify(ty) + " is not one the page knows");
+    if (inner.queryAll(".ex").length) fail(t, key + ": a twin holds an .ex card; a progress key would move");
+    if (t.hasAttribute("id")) fail(t, key + ": a twin has an id");
+    for (const el of t.elements()) {
+      if (el.hasAttribute("id")) fail(el, key + ": a twin holds an id (" + el.id + "); ids stay unique on the page");
+      if (Object.keys(el.attrs).some(k => /^data-hint/.test(k))) fail(el, key + ": a twin carries a data-hint");
+      if (el.hasClass("choices") || el.hasClass("blank") || el.hasClass("order") || el.hasAttribute("data-blank")) fail(el, key + ": a twin holds choice, blank or order markup");
+      if (el.hasAttribute("data-final")) fail(el, key + ": a twin holds a data-final");
+    }
+    const html = innerHtml(t);
+    helpMarkupFaults(html, true).forEach(x => fail(t, key + ": a twin uses " + x));
+    if (info) {
+      if (t.hasAttribute("data-answer") && info.ex.answers.some(ans => d.matches(t.getAttribute("data-answer"), ans, info.ex.type, info.ex.tol))) out.warns.push(page + ":" + t.line + ": " + key + ": a twin has the same answer as its card (" + JSON.stringify(t.getAttribute("data-answer")) + ")");
+      seenFields.add(key + "\u0000ex-twin");
+      addLint(info, "ex-twin", t, html, html, "warn");
+    }
+  });
+  const solutions = doc.queryAll(".ex-solution");
+  finals.forEach(f => {
+    const sol = nearest(f, p => p.hasClass("ex-solution"));
+    if (nearest(f, p => p.name === "template")) fail(f, "a data-final inside a template");
+    else if (!sol) fail(f, "a data-final outside an .ex-solution");
+  });
+  solutions.forEach(sol => {
+    const fs_ = sol.queryAll("[data-final]").filter(f => !nearest(f, p => p.name === "template"));
+    if (!fs_.length) return;
+    const ex = nearest(sol, p => p.hasClass("ex")), info = ex && infoOf.get(ex);
+    const key = info ? info.e.key : "?";
+    if (fs_.length > 1) fail(sol, key + ": " + fs_.length + " data-final in one solution; at most one");
+    const faded = textWithout(sol, fs_).replace(/\s+/g, " ").trim();
+    const hidden = fs_.map(f => f.textContent).join(" ").replace(/\s+/g, " ").trim();
+    if (!faded) fail(sol, key + ": the faded view of a solution is empty");
+    if (info) {
+      const hiddenText = escapeText(hidden);
+      if (!d.leaks(hiddenText, Object.assign({}, info.ex, { question: "" }), d.matches).length) fail(sol, key + ": the part under data-final does not hold an accepted answer; hidden " + JSON.stringify(hidden.slice(0, 40)));
+      seenFields.add(key + "\u0000data-final");
+      addLint(info, "data-final", sol, escapeText(faded), faded, "fail");
+    }
+  });
+
+  /* 5, 6. the leak lint, and what the allowlist silences */
+  const mine = d.allow.filter(x => x.page === page);
+  lintFields.forEach(f => {
+    const hash = sha256(f.field === "data-hint" || f.field === "data-hint2" || f.field === "data-hint3" ? f.html : f.text);
+    const said = new Set();
+    d.leaks(f.html, f.info.ex, d.matches).forEach(lk => {
+      if (said.has(lk.token)) return;
+      said.add(lk.token);
+      out.counts[f.field] = (out.counts[f.field] || 0) + 1;
+      if (f.field === "data-hint") out.hints++;
+      const hit = mine.find(x => x.key === f.info.e.key && x.field === f.field && x.token === lk.token && x.textSha256 === hash);
+      if (hit) { used.add(hit); out.silenced++; return; }
+      const ans = f.info.ex.answers.find(x => d.matches(lk.token, x, f.info.ex.type, f.info.ex.tol)) || f.info.ex.answers[0] || "";
+      const msg = page + ":" + f.el.line + ": " + f.info.e.key + " " + f.field + " gives away " + JSON.stringify(lk.token) + " (answer " + JSON.stringify(ans) + ")";
+      (f.sev === "fail" ? out.fails : out.warns).push(msg);
+    });
+  });
+  mine.forEach(x => {
+    const at = page + ": " + (x.key || "?") + " " + (x.field || "?");
+    if (!seenFields.has(x.key + "\u0000" + x.field)) { out.fails.push("tools/leak-allow.json: " + at + " names a page, key or field that is not there; remove the allowance"); return; }
+    const sameField = lintFields.filter(f => f.info.e.key === x.key && f.field === x.field);
+    const fresh = sameField.some(f => sha256(/^data-hint/.test(f.field) ? f.html : f.text) === x.textSha256);
+    if (!fresh) out.fails.push("tools/leak-allow.json: stale allowance for " + at + " (" + JSON.stringify(x.token) + "): its text has changed since the hash was taken; edit or remove it");
+  });
+  return out;
+}
+
+function checkHelpMarkup(ctx, r) {
+  let allow = [];
+  try { allow = JSON.parse(fs.readFileSync(LEAK_ALLOW_FILE, "utf8")); } catch (e) { r.fail(path.relative(ROOT, LEAK_ALLOW_FILE) + ": " + e.message); return; }
+  if (!Array.isArray(allow) || allow.some(x => !x || ["page", "key", "field", "token", "textSha256", "reason"].some(k => typeof x[k] !== "string" || !x[k]))) {
+    r.fail(path.relative(ROOT, LEAK_ALLOW_FILE) + " is a list of { page, key, field, token, textSha256, reason }, each a non-empty string"); return;
+  }
+  const pages = Object.keys(ctx.chapters);
+  allow.filter(x => !pages.includes(x.page)).forEach(x => r.fail(path.relative(ROOT, LEAK_ALLOW_FILE) + ": " + x.page + " is not a chapter page; remove the allowance"));
+  let hints = 0, silenced = 0;
+  const counts = {};
+  pages.forEach(page => {
+    const res = helpMarkupProblems(ctx.docs[page], page, { allow });
+    r.count += res.exercises;
+    res.fails.forEach(m => r.fail(m));
+    res.warns.forEach(m => r.warn(m));
+    hints += res.hints; silenced += res.silenced;
+    Object.keys(res.counts).forEach(k => { counts[k] = (counts[k] || 0) + res.counts[k]; });
+  });
+  if (hints) r.note(hints + " rung-1 clue(s) give the answer away; " + (HINT_LEAK_FAILS ? "FAIL" : "WARN until O9 clears them (HINT_LEAK_FAILS)"));
+  const others = Object.keys(counts).filter(k => k !== "data-hint").map(k => counts[k] + " in " + k).join(", ");
+  if (others) r.note("also " + others);
+  if (silenced) r.note(silenced + " leak(s) silenced by " + path.relative(ROOT, LEAK_ALLOW_FILE));
+}
+
 /* ------------------------------------------------------------- runner ---- */
 
 const CHECKS = [
@@ -1777,6 +2052,7 @@ const CHECKS = [
   { name: "progress-keys", run: checkProgressKeys, what: "exercise keys and fingerprints unchanged since --base; every exercise has an id" },
   { name: "ids", run: checkIds, what: "no id is on more than one element of a page" },
   { name: "lesson-steps", run: checkLessonSteps, what: "each chapter is cut into the lesson steps recorded in tools/lesson-steps.json (WARN)" },
+  { name: "help-markup", run: checkHelpMarkup, what: "help markup (clues, miss notes, twins, faded steps) never moves a progress key, a fingerprint or a lesson step; hint strings use only the allowed tags; no rung-1 clue or faded view gives the answer away beyond tools/leak-allow.json" },
   { name: "shell", run: checkShell, what: "each page's head, body tag and top bar, as lib/shell.js writes them, are the ones in tools/shell.json; one module entry per page, its kind's" },
   { name: "scope", run: checkScope, what: "scope.html is tools/gen-scope.js's output for the current curriculum and skills records" },
   { name: "curriculum", run: checkCurriculum, what: "every chapter file exists; every section id is an <h2 id> in it" },
@@ -1826,5 +2102,5 @@ function main() {
 
 if (require.main === module) main();
 module.exports = {
-  chartProblems, checkScope, CHECKS, result, loadCore, barProblem, siteJudgeProblem, pureProblems, isPureFile, codeProblems, courseProblems, exerciseRefs, sectionAnchors, skillsProblems, sectionWorkCounts, sectionWorkProblems, pageKeys, lessonSteps, stepsDiff, shellOf, shellDiff, scriptsProblems, randomState, stripLocalFirst, canon,
+  chartProblems, checkScope, CHECKS, result, loadCore, barProblem, siteJudgeProblem, pureProblems, isPureFile, codeProblems, courseProblems, exerciseRefs, sectionAnchors, skillsProblems, sectionWorkCounts, sectionWorkProblems, pageKeys, lessonSteps, stepsDiff, helpMarkupProblems, withoutHelp, shellOf, shellDiff, scriptsProblems, randomState, stripLocalFirst, canon,
   animationFaults, colourLiterals, columnPatterns, inColumn, quietKinds, printGaps };
