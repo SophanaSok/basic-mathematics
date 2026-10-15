@@ -383,7 +383,6 @@ function world(seedStores) {
          and road + twin never out-earns miss-then-solve, on its exercise or by any answer after it */
       const q = get(p.filter((a) => a !== "t"));
       want(o.twinPay === (p.includes("s") ? 3 : 2), p, "the twin paid " + o.twinPay);
-      return; /* the rest of this loop holds for the road without the twin, which is a road of its own */
       want(o.pips === q.pips && o.shield === q.shield && o.hearts === q.hearts && o.medal === q.medal && o.base === q.base && o.bonus === q.bonus, p, "the twin moved the meter, hearts, medal or base XP");
       for (let pips0 = 0; pips0 <= 5; pips0++) {
         [false, true].forEach((shield0) => {
@@ -391,6 +390,7 @@ function world(seedStores) {
           r.xp.forEach((x, k) => want(x <= m.xp[k], p, "road + twin out-earned miss-then-solve " + k + " answers later from " + pips0 + " pips" + (shield0 ? " and a shield" : "") + ": " + x + " > " + m.xp[k]));
         });
       }
+      return; /* the rest of this loop holds for the road without the twin, which is a road of its own */
     }
     const wrong = p.includes("w"), sol = p.includes("s"), fad = p.includes("f");
     const clue = Math.max(0, ...p.filter((a) => /^c/.test(a)).map((a) => +a[1]));

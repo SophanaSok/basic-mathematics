@@ -463,6 +463,29 @@ function checkScripts(ctx, r) {
   const ofTree = (s) => sources.has(s) || s.startsWith(vendor.DIR + "/");    /* what an entry can import */
   const boot = "<script>" + normText(shell.bootScript());
   const hudTag = "<script>" + normText(shell.hudScript());
+  /* no script of the tree but src/ui/twin.ts may import() the generators: that import is the one
+     route a chapter page has to them (the per-page checks below prove the built graph; this
+     holds the source, so a second route cannot hide behind a chunk that is already there) */
+  {
+    const GEN_IMPORT = /\bimport\s*\(\s*[`"'][^`"']*data\/gen\//;
+    const strays = [];
+    (function walk(dir) {
+      fs.readdirSync(path.join(ROOT, dir), { withFileTypes: true }).forEach(e => {
+        const rel = dir + "/" + e.name;
+        if (e.isDirectory()) { if (e.name !== "node_modules" && e.name !== "vendor") walk(rel); }
+        else if (/\.(js|ts)$/.test(e.name) && !/\.test\.(js|ts)$/.test(e.name) && rel !== GENERATORS.by && GEN_IMPORT.test(fs.readFileSync(path.join(ROOT, rel), "utf8"))) strays.push(rel);
+      });
+    })("src");
+    (function walk(dir) {
+      fs.readdirSync(path.join(ROOT, dir), { withFileTypes: true }).forEach(e => {
+        const rel = dir + "/" + e.name;
+        if (e.isDirectory()) walk(rel);
+        else if (/\.js$/.test(e.name) && GEN_IMPORT.test(fs.readFileSync(path.join(ROOT, rel), "utf8"))) strays.push(rel);
+      });
+    })("assets");
+    r.count++;
+    if (strays.length) r.fail(strays.join(", ") + (strays.length > 1 ? " import" : " imports") + " data/gen/ with import(); only " + GENERATORS.by + " may, so the chapter pages reach the generators by one route");
+  }
   const loadedBy = kindsLoading();
   const named = {};     /* chunk -> its name was checked, once */
   ctx.src.pages.forEach(p => {

@@ -181,8 +181,12 @@ function mount(o: TwinOptions): void {
     const showSteps = () => {
       const box = document.createElement("div");
       box.className = "ex-twin-steps";
+      box.tabIndex = -1;
       if (cur.solution) {
-        box.appendChild(cur.solution.cloneNode(true));
+        /* the solution's children, not the .ex-solution itself, which the page's CSS keeps hidden */
+        const copy = cur.solution.cloneNode(true) as HTMLElement;
+        copy.querySelectorAll("[id]").forEach((el) => el.removeAttribute("id"));
+        while (copy.firstChild) box.appendChild(copy.firstChild);
       } else {
         const lines = [cur.hint].concat(cur.steps || []).filter((x): x is string => !!x);
         lines.forEach((t) => { const p = document.createElement("p"); p.textContent = t; box.appendChild(p); });
@@ -190,6 +194,7 @@ function mount(o: TwinOptions): void {
       o.render(box);
       extras.appendChild(box);
       if (steps) steps.hidden = true;
+      box.focus();
     };
     const run = () => {
       const given = input.value;
@@ -200,7 +205,7 @@ function mount(o: TwinOptions): void {
       let xp = 0;
       if (correct) {
         xp = twinXp(o.record(), o.inline);
-        if (xp > 0) { o.pay(xp); o.markPaid(); }
+        if (xp > 0) { o.markPaid(); o.pay(xp); }   /* the flag first: a failed write then loses the XP, never repeats the payment */
         verdict.textContent = xp > 0 ? "Right. +" + xp + " XP" : "Right.";
       } else {
         verdict.textContent = "Not quite.";

@@ -997,7 +997,7 @@
       /* The near-transfer twin (src/ui/twin.ts, through window.BMTwin): "Try one like it" while the
          solution or the faded view is open. It pays once, through pay() and markPaid(), and
          emits a `twin` event, never an `attempt`. Without it the card is as before. */
-      if (window.BMTwin && typeof window.BMTwin.mount === "function" && solution) {
+      if (window.BMTwin && typeof window.BMTwin.mount === "function" && solution && (kind === "text" || kind === "choice" || kind === "multi" || kind === "blank")) {
         window.BMTwin.mount({
           ex: ex, form: form, solution: solution, chapter: chapterId, key: key, inline: inline,
           section: section ? (section.indexOf("#") > -1 ? section : chapterId + "#" + section) : "",

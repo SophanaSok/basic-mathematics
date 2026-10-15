@@ -1781,6 +1781,32 @@ async function run() {
         await context.close();
       }
 
+      /* the authored template path: the card's own twin, its solution shown as the steps (not hidden by the page's CSS) */
+      {
+        const TW = '<template class="ex-twin" data-type="number" data-answer="9"><div class="ex-q"><p>Compute $6 - (-3)$.</p></div><div class="ex-solution"><p>Subtracting a negative adds: $6 + 3 = 9$.</p></div></template>';
+        const rewrite = (html) => {
+          const from = html.indexOf('<div class="ex" id="e1"'), at = html.indexOf("</div>", html.indexOf('<div class="ex-solution">', from)) + "</div>".length;
+          return html.slice(0, at) + TW + html.slice(at);
+        };
+        const { context, page, errors } = await open(browser, CH05, lm(), { rewrite });
+        await page.click(EX("e1") + " .ex-show");
+        await page.waitForSelector(EX("e1") + " .ex-twin-btn:not([hidden])");
+        await page.click(EX("e1") + " .ex-twin-btn");
+        await page.waitForSelector(EX("e1") + " .ex-twin-card input");
+        eq([await fetched(page), /Compute/.test(await page.$eval(EX("e1") + " .ex-twin-q", (q) => q.textContent))], [0, true], "an authored twin shows its own question and fetches no generator");
+        await submit(page, "e1", "987654");
+        await page.click(EX("e1") + " .ex-twin-extras .btn");
+        await wait(200);
+        const st = await page.$eval(EX("e1") + " .ex-twin-steps", (b) => ({ text: b.textContent.trim(), shown: b.offsetParent !== null, solutions: b.querySelectorAll(".ex-solution").length, focused: document.activeElement === b }));
+        check(/Subtracting a negative adds/.test(st.text) && st.shown && st.solutions === 0 && st.focused, "Show steps on an authored twin shows its solution text, visible and focused: " + JSON.stringify(st));
+        const b = await snap(page, "e1");
+        await submit(page, "e1", "9");
+        const a = await snap(page, "e1");
+        eq([a.xp - b.xp, a.rec.twin], [3, 1], "the authored twin pays 3 and sets twin: 1 like a generated one");
+        eq(errors, [], "no errors on the authored twin");
+        await context.close();
+      }
+
       /* 6: solved first time, solution opened after: the twin pays nothing and writes nothing */
       {
         const { context, page, errors } = await open(browser, CH05, lm());
