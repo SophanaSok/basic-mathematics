@@ -164,6 +164,8 @@
        rung    the highest clue opened while unsolved (1, 2, 3; the help ladder,
                src/ui/ladder.ts); never written once the exercise is solved
        opened  1 if the solution was opened before solving
+       twin    1 once the near-transfer twin (src/ui/twin.ts) has paid; the one field
+               written after solving, and presence is what counts
        skipped 1 if an inline check was passed over in lesson mode
        solved  time of the first correct answer
        section the section it tests ("one-unknown", or "ch02#one-unknown" in a mixed review)
@@ -991,6 +993,22 @@
         },
         render: renderMath, hasSolution: !!solution, solution: solution
       }) : null;
+
+      /* The near-transfer twin (src/ui/twin.ts, through window.BMTwin): "Try one like it" while the
+         solution or the faded view is open. It pays once, through pay() and markPaid(), and
+         emits a `twin` event, never an `attempt`. Without it the card is as before. */
+      if (window.BMTwin && typeof window.BMTwin.mount === "function" && solution) {
+        window.BMTwin.mount({
+          ex: ex, form: form, solution: solution, chapter: chapterId, key: key, inline: inline,
+          section: section ? (section.indexOf("#") > -1 ? section : chapterId + "#" + section) : "",
+          template: ex.querySelector(":scope > template.ex-twin"),
+          record: function () { return Attempts.get(chapterId, key); },
+          pay: function (xp) { Activity.add(xp, "twin"); },
+          markPaid: function () { Attempts.update(chapterId, key, function (a) { a.twin = 1; }); },
+          judge: Core.judge, specOf: Core.specOf, render: renderMath,
+          emit: function (c) { Store.emit(c); }
+        });
+      }
 
       /* Authored notes for wrong answers (ul.ex-miss > li[data-given], hidden): read once; the
          page check guarantees their markup. A matching note replaces the detector's question. */
