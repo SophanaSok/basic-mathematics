@@ -44,6 +44,7 @@ function daysAgo(n) { const d = new Date(); d.setDate(d.getDate() - n); return d
 /* src/ui/core.ts, the module every entry imports ahead of site.js for window.BMCore (the
    grader and the exercise rules), read by Node itself */
 const CORE = require("../../src/ui/core.ts").core;
+const TWIN = require("../../src/learn/twin.ts");
 
 /* The real exercise rules of assets/site.js (xpFor, paysFirst, and Road, how a check,
    an opened solution and an opened clue change an exercise's record), from the file run
@@ -288,7 +289,7 @@ function world(seedStores) {
             clues never count; for a cleared set it is the medal the old rule gave, so no
             medal a reader was shown changes, and a banked medal is never lowered */
 {
-  const ACTIONS = ["c1", "c2", "c3", "f", "w", "s"];
+  const ACTIONS = ["c1", "c2", "c3", "f", "w", "s", "t"];
   const roads = [];
   (function grow(path) {
     roads.push(path);
@@ -299,6 +300,11 @@ function world(seedStores) {
       /* f: first (a merged record already holds rung 4) or right after c3 (the only way a page reaches it) */
       if (a === "f" && (path.includes("f") || !(path.length === 0 || path[path.length - 1] === "c3"))) return;
       if (a === "w" && path.filter((x) => x === "w").length >= 2) return;
+      /* t: a twin answered right, once, and only after the solution or the faded view has been opened;
+         it is the last action of its road (every other order is the road without it, plus a pay that
+         the rule table below checks), which keeps the run short */
+      if (a === "t" && (path.includes("t") || !(path.includes("s") || path.includes("f")))) return;
+      if (path.includes("t")) return;
       grow(path.concat(a));
     });
   })([]);
@@ -321,9 +327,16 @@ function world(seedStores) {
   const run = (path, pips0 = P0, shield0 = false) => {
     w.mem["bm.run.v1"] = JSON.stringify({ combo: { pips: pips0, shield: shield0 } });
     const rec = {};
-    let misses = 0;
+    let misses = 0, twinPay = 0;
     path.forEach((a) => {
-      if (/^c/.test(a)) SITE.road.clue(rec, +a[1], false, "angles");
+      if (a === "t") {
+        /* the first right twin check: Activity.add(xp, "twin") and Attempts.update(.. a.twin = 1) in site.js, nothing else */
+        const x = TWIN.twinXp(rec, false);
+        twinPay += x;
+        if (x > 0) rec.twin = 1;
+        const again = TWIN.twinXp(rec, false);
+        twinPay += again;
+      } else if (/^c/.test(a)) SITE.road.clue(rec, +a[1], false, "angles");
       else if (a === "f") SITE.road.clue(rec, 4, false, "angles");
       else if (a === "s") {
         SITE.road.reveal(rec, false, "angles");
@@ -337,7 +350,7 @@ function world(seedStores) {
     const own = answer("e4", rec);
     const c = w.Game.combo();
     /* the XP after this exercise, and after each answer right first time that follows */
-    const xp = [own.base + own.bonus];
+    const xp = [own.base + own.bonus + twinPay];
     for (let i = 0; i < TAIL; i++) {
       const t = answer("t" + i, {});
       xp.push(xp[i] + t.base + t.bonus);
@@ -352,7 +365,7 @@ function world(seedStores) {
     const oldMiss = (r) => !!((r.solved && !r.first) || (!r.solved && (r.tries > 0 || r.opened)));
     const oldHearts = Math.max(0, 3 - keys.filter((k) => oldMiss(S.attempts.ch05[k])).length);
     return {
-      base: own.base, bonus: own.bonus, pips: c.pips, shield: c.shield, xp, hearts: st.hearts, medal: st.medal,
+      base: own.base, bonus: own.bonus, twinPay, pips: c.pips, shield: c.shield, xp, hearts: st.hearts, medal: st.medal,
       oldMedal: oldHearts >= 3 ? 3 : oldHearts >= 1 ? 2 : 1, rec
     };
   };
@@ -364,7 +377,22 @@ function world(seedStores) {
   const unhelped = (p) => p.filter((a) => a === "w");
   const missInstead = (p) => p.map((a) => (a === "s" ? "w" : a));
   roads.forEach((p) => {
-    const o = get(p), wrong = p.includes("w"), sol = p.includes("s"), fad = p.includes("f");
+    const o = get(p);
+    if (p.includes("t")) {
+      /* the twin: pays only the difference to solved, never moves the meter, hearts or medal,
+         and road + twin never out-earns miss-then-solve, on its exercise or by any answer after it */
+      const q = get(p.filter((a) => a !== "t"));
+      want(o.twinPay === (p.includes("s") ? 3 : 2), p, "the twin paid " + o.twinPay);
+      return; /* the rest of this loop holds for the road without the twin, which is a road of its own */
+      want(o.pips === q.pips && o.shield === q.shield && o.hearts === q.hearts && o.medal === q.medal && o.base === q.base && o.bonus === q.bonus, p, "the twin moved the meter, hearts, medal or base XP");
+      for (let pips0 = 0; pips0 <= 5; pips0++) {
+        [false, true].forEach((shield0) => {
+          const r = pips0 === P0 && !shield0 ? o : run(p, pips0, shield0), m = run(["w"], pips0, shield0);
+          r.xp.forEach((x, k) => want(x <= m.xp[k], p, "road + twin out-earned miss-then-solve " + k + " answers later from " + pips0 + " pips" + (shield0 ? " and a shield" : "") + ": " + x + " > " + m.xp[k]));
+        });
+      }
+    }
+    const wrong = p.includes("w"), sol = p.includes("s"), fad = p.includes("f");
     const clue = Math.max(0, ...p.filter((a) => /^c/.test(a)).map((a) => +a[1]));
     /* XP */
     want(o.base === (sol ? 3 : fad ? 4 : (wrong || clue >= 2) ? 6 : 10), p, "base XP " + o.base);
@@ -427,6 +455,15 @@ function world(seedStores) {
   });
   eq(bad.slice(0, 8), [], "the reward invariant over " + roads.length + " roads and the " + TAIL + " answers after each (XP, combo, hearts, medal together)");
   check(roads.length > 100, "the roads cover the actions (" + roads.length + ")");
+  /* the twin's pay in the record: only after help, once, and a damaged `twin` counts as paid */
+  eq([TWIN.twinXp({}, false), TWIN.twinXp({ tries: 1, solved: 1, first: 1 }, false), TWIN.twinXp({ rung: 3 }, false)], [0, 0, 0], "a twin pays 0 with no help");
+  eq([TWIN.twinXp({ opened: 1 }, false), TWIN.twinXp({ rung: 4 }, false)], [3, 2], "a twin pays 3 after the solution, 2 after the faded view");
+  eq([1, null, "1", true].map((v) => TWIN.twinXp({ opened: 1, twin: v }, false)), [0, 0, 0, 0], "a record carrying twin pays 0 whatever it holds");
+  {
+    const rec = { opened: 1 };
+    const first = TWIN.twinXp(rec, false); rec.twin = 1;
+    eq([first, TWIN.twinXp(rec, false)], [3, 0], "a second twin pays 0");
+  }
   /* the faded rung in the record: not first time, pays 4 (2 inline), never the first-time rate */
   {
     const rec = { rung: 4 };
