@@ -183,8 +183,8 @@ insert into hv values
   ('a checkpoint with s = today + 2', pg_temp.setp(pg_temp.setp(pg_temp.setx(pg_temp.setx(pg_temp.vz(), 's', '20802'), 'l', '20790'), 1, '20801'), 0, '29953440'), true),
   ('a checkpoint with s = today + 3', pg_temp.setp(pg_temp.setp(pg_temp.setx(pg_temp.setx(pg_temp.vz(), 's', '20803'), 'l', '20790'), 1, '20802'), 0, '29954880'), false);
 
--- 105 hand-counted tests below, plus one per row of the three tables
-select plan(105 + (select count(*)::integer from hv) + (select count(*)::integer from private.valid_cases)
+-- 154 hand-counted tests below, plus one per row of the three tables
+select plan(154 + (select count(*)::integer from hv) + (select count(*)::integer from private.valid_cases)
   + (select count(*)::integer from private.prune_expected));
 
 -- 1. tables, row-level security, policies, grants
@@ -410,9 +410,122 @@ select is(pg_temp.count_as('a0000000-0000-4000-8000-00000000000a', 'select count
 select is(pg_temp.count_as('b0000000-0000-4000-8000-00000000000b', 'select count(*) from public.events_usage()'), 0::bigint, 'a reader who is not an admin gets none');
 select is(pg_temp.count_as('a0000000-0000-4000-8000-00000000000a', 'select rows from public.events_usage()'), (select count(*) from public.events), 'events_usage counts every row');
 
--- 14. the migration is complete: four functions in private (it was applied twice by the runner)
-select is((select count(*) from pg_proc p join pg_namespace n on n.oid = p.pronamespace where n.nspname = 'private'), 4::bigint, 'schema private holds exactly four functions');
+-- 14. the migration is complete: five functions in private (it was applied twice by the runner)
+select is((select count(*) from pg_proc p join pg_namespace n on n.oid = p.pronamespace where n.nspname = 'private'), 5::bigint, 'schema private holds exactly five functions');
 select is((select count(*) from pg_class c join pg_namespace n on n.oid = c.relnamespace where n.nspname = 'public' and c.relname in ('events', 'event_meta') and c.relkind = 'r'), 2::bigint, 'both tables exist once');
+
+-- 15. the fresh start (P7): public.attempts is gone, private.fresh_start runs once per key
+select hasnt_table('public', 'attempts', 'public.attempts is dropped');
+select has_table('private', 'once', 'private.once exists');
+select is((select string_agg(key, ',' order by key) from private.once), 'r2-fresh-start', 'private.once holds r2-fresh-start (the migration ran it)');
+select has_function('private', 'fresh_start', array['text'], 'private.fresh_start exists');
+select is(has_function_privilege('authenticated', 'private.fresh_start(text)', 'execute'), false, 'authenticated cannot execute private.fresh_start');
+select is(has_function_privilege('anon', 'private.fresh_start(text)', 'execute'), false, 'anon cannot execute private.fresh_start');
+select is(has_table_privilege('authenticated', 'private.once', 'select'), false, 'authenticated cannot read private.once');
+select is(pg_temp.sqlstate_as('b0000000-0000-4000-8000-00000000000b', $$select private.fresh_start('x')$$), '42501', 'B cannot call fresh_start');
+
+/* an entry of any kind: seed, minute, section, ref, kind, ok, n, r, f, src */
+create function pg_temp.pe(seed text, t integer, sec text, ref text, k text, ok integer, n integer, r integer, f integer, src text default 'ex')
+returns jsonb language sql as $$
+  select jsonb_build_object(
+    'id', 'dev' || substr(md5(seed), 1, 5) || '-' || substr(md5(seed || 'r'), 1, 8) || '-' || substr(md5(seed || 'h'), 1, 7),
+    'p', jsonb_build_array(t, t / 1440, src, sec, ref, k, ok, n, r, f))
+$$;
+/* the rows of a query, as one text, run as a signed-in user */
+create function pg_temp.rows_as(uid uuid, stmt text) returns text language plpgsql as $$
+declare s text;
+begin
+  perform pg_temp.as_user(uid);
+  execute 'select coalesce(string_agg(e::text, '';'' order by e::text), '''') from (' || stmt || ') e' into s;
+  execute 'reset role';
+  return s;
+end $$;
+create function pg_temp.epoch_of(uid uuid) returns integer language sql as $$ select epoch from public.event_meta where user_id = uid $$;
+
+update public.user_state set progress = '{"a":1}', reset_at = 5 where user_id = 'b0000000-0000-4000-8000-00000000000b';
+update public.user_state set play = '{"p":1}', attempts = '{"p":1}', activity = '{"p":1}', lesson = '{"p":1}', last = '{"p":1}', game = '{"p":1}', diag = '{"d":1}'
+  where user_id in ('b0000000-0000-4000-8000-00000000000b', 'd0000000-0000-4000-8000-00000000000d');
+update public.user_state set progress = '{"a":1}', reset_at = 9223372036854775807 where user_id = 'd0000000-0000-4000-8000-00000000000d';
+create temp table fs_e as select (select epoch from public.event_meta where user_id = 'e0000000-0000-4000-8000-00000000000e') as epoch,
+  (select count(*) from public.events where user_id = 'e0000000-0000-4000-8000-00000000000e') as n;
+select ok((select n from fs_e) > 0, 'E (who has no user_state row) has events before the fresh start');
+select is(pg_temp.put('b0000000-0000-4000-8000-00000000000b', jsonb_build_array(
+  pg_temp.pe('fs1', pg_temp.nowmin() - 20, 'ch02#one-unknown', 'ch02/zz', 'c', 1, 1, 0, 0)), pg_temp.epoch_of('b0000000-0000-4000-8000-00000000000b'))->>'added', '1', 'B has an event before the fresh start');
+create temp table fs1 as select pg_temp.epoch_of('b0000000-0000-4000-8000-00000000000b') as epoch;
+select is(pg_temp.put('d0000000-0000-4000-8000-00000000000d', jsonb_build_array(
+  pg_temp.pe('fsd', pg_temp.nowmin() - 20, 'ch02#one-unknown', 'ch02/zy', 'c', 1, 1, 0, 0)), coalesce(pg_temp.epoch_of('d0000000-0000-4000-8000-00000000000d'), 0))->>'added', '1', 'D (reset_at at the maximum) has an event before the fresh start');
+create temp table fsd as select pg_temp.epoch_of('d0000000-0000-4000-8000-00000000000d') as epoch;
+select is(private.fresh_start('test-fresh'), true, 'fresh_start with a new key returns true');
+select is((select count(*) from public.events where user_id = 'd0000000-0000-4000-8000-00000000000d'), 0::bigint, 'D: the trigger could not fire (reset_at cannot grow), the function emptied the log itself');
+select is(pg_temp.epoch_of('d0000000-0000-4000-8000-00000000000d'), (select epoch + 1 from fsd), 'D: and moved the epoch by one');
+select is((select count(*) from public.user_state where user_id in ('b0000000-0000-4000-8000-00000000000b', 'd0000000-0000-4000-8000-00000000000d')
+  and play = '{}' and attempts = '{}' and activity = '{}' and lesson = '{}' and game = '{}' and last is null and progress = '{}'), 2::bigint,
+  'B and D: progress, play, attempts, activity, lesson, game are {} and last is null');
+select is((select count(*) from public.user_state where user_id in ('b0000000-0000-4000-8000-00000000000b', 'd0000000-0000-4000-8000-00000000000d') and diag = '{"d":1}'), 2::bigint, 'B and D: diag is unchanged');
+select is((select reset_at from public.user_state where user_id = 'd0000000-0000-4000-8000-00000000000d'), 9223372036854775807::bigint, 'D: a reset_at at the bigint maximum does not overflow the fresh start');
+select is((select count(*) from public.events where user_id = 'e0000000-0000-4000-8000-00000000000e'), 0::bigint, 'E (no user_state row): events are gone');
+select is((select epoch from public.event_meta where user_id = 'e0000000-0000-4000-8000-00000000000e'), (select epoch + 1 from fs_e), 'E: epoch grew by one');
+select is((select relrowsecurity from pg_class where oid = 'private.once'::regclass), true, 'private.once has row-level security on');
+select is((select count(*) from pg_policies where schemaname = 'private' and tablename = 'once'), 0::bigint, 'private.once has no policy');
+select is((select count(*) from unnest(array['select', 'insert', 'update', 'delete']) priv, unnest(array['anon', 'authenticated']) r
+  where has_table_privilege(r, 'private.once', priv)), 0::bigint, 'anon and authenticated have no privilege on private.once');
+select is((select progress from public.user_state where user_id = 'b0000000-0000-4000-8000-00000000000b'), '{}'::jsonb, 'B''s progress is empty');
+select ok((select reset_at from public.user_state where user_id = 'b0000000-0000-4000-8000-00000000000b') > 5, 'B''s reset_at moved forward');
+select ok((select reset_at from public.user_state where user_id = 'b0000000-0000-4000-8000-00000000000b') > 1700000000000, 'reset_at is a millisecond clock reading');
+select is((select count(*) from public.events where user_id = 'b0000000-0000-4000-8000-00000000000b'), 0::bigint, 'B''s events are gone');
+select is(pg_temp.epoch_of('b0000000-0000-4000-8000-00000000000b'), (select epoch + 1 from fs1), 'B''s epoch grew by one');
+select is((select count(*) from private.once where key = 'test-fresh'), 1::bigint, 'the key is recorded');
+create temp table fs2 as select updated_at, reset_at from public.user_state where user_id = 'b0000000-0000-4000-8000-00000000000b';
+select is(private.fresh_start('test-fresh'), false, 'a second fresh_start with the same key returns false');
+select is((select row(updated_at, reset_at)::text from public.user_state where user_id = 'b0000000-0000-4000-8000-00000000000b'), (select row(updated_at, reset_at)::text from fs2), 'and changes nothing');
+select is(private.fresh_start('r2-fresh-start'), false, 'the migration''s key is spent too');
+select is(pg_temp.epoch_of('b0000000-0000-4000-8000-00000000000b'), (select epoch + 1 from fs1), 'no epoch moved on the spent keys');
+
+-- 16. exercise_stats() and chapter_stats() read the event log (D is the second reader: C's log is full)
+delete from public.events;
+select is(pg_temp.put('b0000000-0000-4000-8000-00000000000b', jsonb_build_array(
+  pg_temp.pe('s1', pg_temp.nowmin() - 30, 'ch02#one-unknown', 'ch02/e3', 'c', 0, 1, 0, 0),
+  pg_temp.pe('s2', pg_temp.nowmin() - 29, 'ch02#one-unknown', 'ch02/e3', 'c', 1, 2, 1, 0),
+  pg_temp.pe('s3', pg_temp.nowmin() - 28, 'ch02#one-unknown', 'ch02/e3', 'o', 0, 0, 1, 0),
+  pg_temp.pe('s4', pg_temp.nowmin() - 27, 'ch02#one-unknown', 'ch02/e3', 'a', 0, 0, 0, 0),
+  pg_temp.pe('s5', pg_temp.nowmin() - 26, 'ch02#one-unknown', 'g:arena', 'c', 1, 1, 0, 0)),
+  pg_temp.epoch_of('b0000000-0000-4000-8000-00000000000b'))->>'added', '5', 'B: five entries, two of which the stats ignore');
+select is(pg_temp.rows_as('a0000000-0000-4000-8000-00000000000a', 'select * from public.exercise_stats()'),
+  '(ch02,e3,ch02#one-unknown,f,1,2,1,0,1,1,2.00)', 'exercise_stats: one row, the a entry and the g: ref ignored');
+select is(pg_temp.rows_as('a0000000-0000-4000-8000-00000000000a', 'select * from public.chapter_stats()'),
+  '(ch02,1,2,1)', 'chapter_stats: one reader, two checks, active in the last 7 days');
+select is(pg_temp.put('d0000000-0000-4000-8000-00000000000d', jsonb_build_array(
+  pg_temp.pe('s6', pg_temp.nowmin() - 25, 'ch02#one-unknown', 'ch02/e3', 'c', 1, 1, 0, 0)),
+  coalesce(pg_temp.epoch_of('d0000000-0000-4000-8000-00000000000d'), 0))->>'added', '1', 'D: one right first-try check on the same exercise');
+select is(pg_temp.rows_as('a0000000-0000-4000-8000-00000000000a', 'select * from public.exercise_stats()'),
+  '(ch02,e3,ch02#one-unknown,f,2,3,2,1,1,1,1.50)', 'exercise_stats with D: 2 learners, 3 checks, 1 first try, avg 1.50');
+select is(pg_temp.rows_as('a0000000-0000-4000-8000-00000000000a', 'select * from public.chapter_stats()'),
+  '(ch02,2,3,2)', 'chapter_stats with D: (ch02, 2, 3, 2)');
+select is(pg_temp.rows_as('b0000000-0000-4000-8000-00000000000b', 'select * from public.exercise_stats()'), '', 'B (not an admin) gets no exercise_stats');
+select is(pg_temp.rows_as('b0000000-0000-4000-8000-00000000000b', 'select * from public.chapter_stats()'), '', 'B (not an admin) gets no chapter_stats');
+select is(pg_temp.put('d0000000-0000-4000-8000-00000000000d', jsonb_build_array(
+  pg_temp.pe('s7', pg_temp.nowmin() - 24, 'interlude#a', 'interlude/e1', 'c', 1, 1, 0, 0, 'in'),
+  pg_temp.pe('s8', pg_temp.nowmin() - 23, 'pk-data#a', 'pk-data/t7', 'c', 0, 1, 0, 0)),
+  coalesce(pg_temp.epoch_of('d0000000-0000-4000-8000-00000000000d'), 0))->>'added', '2', 'D: an interlude and a pk-* exercise');
+select is(pg_temp.rows_as('a0000000-0000-4000-8000-00000000000a', 'select chapter, ex_key, inline, learners, checks, solved from public.exercise_stats()'),
+  '(ch02,e3,f,2,3,2);(interlude,e1,t,1,1,1);(pk-data,t7,f,1,1,0)', 'interlude and pk-* chapters are counted, the inline flag follows src in');
+select is(pg_temp.rows_as('a0000000-0000-4000-8000-00000000000a', 'select * from public.chapter_stats()'),
+  '(ch02,2,3,2);(interlude,1,1,1);(pk-data,1,1,1)', 'chapter_stats counts them under their own chapters');
+select is(pg_temp.rows_as('a0000000-0000-4000-8000-00000000000a', 'select * from public.exercise_stats() where false'), '', 'exercise_stats runs for the admin through a filter');
+-- an open without a check is not a learner; an old check is not active in 7 days
+select is(pg_temp.put('e0000000-0000-4000-8000-00000000000e', jsonb_build_array(
+  pg_temp.pe('s9', pg_temp.nowmin() - 20, 'ch05#a', 'ch05/e1', 'o', 0, 0, 1, 0),
+  pg_temp.pe('s10', pg_temp.nowmin() - 9 * 1440, 'ch06#a', 'ch06/e1', 'c', 1, 1, 0, 0)),
+  pg_temp.epoch_of('e0000000-0000-4000-8000-00000000000e'))->>'added', '2', 'E: an open without a check, and a check nine days old');
+select is(pg_temp.rows_as('a0000000-0000-4000-8000-00000000000a', 'select chapter from public.exercise_stats() where chapter in (''ch05'', ''ch06'')'), '(ch06)', 'an open without a check is not a learner');
+select is(pg_temp.rows_as('a0000000-0000-4000-8000-00000000000a', 'select * from public.chapter_stats() where chapter = ''ch06'''), '(ch06,1,1,0)', 'a check nine days old is not active in 7 days');
+-- the cap: 100 exercises per reader per chapter
+insert into public.events (user_id, id, t, d, src, sec, ref, k, ok, n, r, f, seq)
+  select 'e0000000-0000-4000-8000-00000000000e', 'cap' || lpad(g::text, 5, '0') || '-00000000-0000000',
+         pg_temp.nowmin() - 100, (pg_temp.nowmin() - 100) / 1440, 'ex', '', 'ch07/x' || lpad(g::text, 3, '0'), 'c', 1, 1, 0, 0, 1000 + g
+  from generate_series(1, 130) g;
+select is(pg_temp.rows_as('a0000000-0000-4000-8000-00000000000a', 'select count(*) from public.exercise_stats() where chapter = ''ch07'''), '(100)', 'exercise_stats counts at most 100 exercises per reader per chapter');
+select is(pg_temp.rows_as('a0000000-0000-4000-8000-00000000000a', 'select * from public.chapter_stats() where chapter = ''ch07'''), '(ch07,1,100,1)', 'chapter_stats applies the same cap');
 
 select * from finish();
 rollback;

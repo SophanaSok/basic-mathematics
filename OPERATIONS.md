@@ -225,6 +225,8 @@ If the site or the SQL editor reports `events_put` as not found right after the 
 | 3. Verified | Nothing to undo. |
 | 4. Merged | Revert the merge commit on `main` and let the revert deploy ([7.2](#72-a-bad-deploy)). Leave the database alone: the old site ran against the new schema before the merge and will again. |
 
+One step cannot be undone at all: the fresh start ([The fresh start (P7)](#the-fresh-start-p7)) empties every reader's synced state and drops `public.attempts`, and the free plan keeps no backups. Check the order below before you press Run.
+
 A migration is frozen from the moment it has been applied to the live project, not from the
 merge: after step 2, change it only by one of the two routes in the table. Once it is on `main`
 the `migrations` check refuses any edit to it; fix it with a newer migration.
@@ -293,6 +295,36 @@ the `migrations` check refuses any edit to it; fix it with a newer migration.
    account can cost. Revisit if sign-ups look farmed (`select count(*) from auth.users where
    created_at > now() - interval '1 day';`); a widget card would then add Turnstile to
    account.html and pass `captchaToken` on each of those four calls. After P6, "What to watch" applies.
+
+### The fresh start (P7)
+
+The owner's decision (O7, 2026-10-15): every reader starts over, so the old progress, which no
+event explains, is not mixed with the new log. **This cannot be undone**: there are no backups
+on the free plan. A reader's browser still holds its own copy and, if it syncs, would put the old
+progress back; that is why the Reset progress press in step 3 comes last. A signed-out browser of
+some other learner that still holds old local progress will merge it back into the emptied account
+at its next sign-in; that is accepted (the owner's own browsers get Reset progress, and there are
+no other learners yet).
+
+1. Apply `supabase/migrations/20261015201142_drop_attempts.sql` in Dashboard → SQL → New query.
+   The dashboard may ask you to confirm a destructive operation for the `update` and the `drop`:
+   confirm.
+   It adds `private.once` and `private.fresh_start()`, calls it once (`r2-fresh-start`: empties
+   `progress`, `play`, `attempts`, `activity`, `lesson`, `last` and `game` in every `user_state`
+   row, keeps `diag`, moves `reset_at` forward so the reset trigger deletes every reader's events
+   and moves their epoch on), drops `public.attempts`, and rewrites `exercise_stats()` and
+   `chapter_stats()` to read `events`. Running the file again does nothing to the data. It is
+   safe for the deployed site: nothing deployed reads or writes `attempts` any more.
+2. Verify, each in its own query:
+   - `select key, at from private.once;` returns one row, `r2-fresh-start`.
+   - `select count(*) from public.events;` returns 0 (until readers write again).
+   - `select to_regclass('public.attempts');` returns null.
+   - `select exercise_stats();` runs without an error when you are signed in as an admin
+     (in the SQL editor `is_admin()` is false, so it returns nothing; use the author's insights page).
+3. Press Reset progress once, signed out, in every browser the owner has used the site in, so a
+   browser's own copy does not sync the old progress back in.
+
+applied: ____ (date, filled in by the owner)
 
 ## 2. Deploys
 
@@ -658,7 +690,7 @@ the two cannot drift apart.
 
 One fact from it matters for operations: `user_state` is a copy of what each reader's browser
 already holds, and sync is a merge, so a reader's browser can put their row back. The `attempts`
-table is no longer written (P6) and goes with P7; the event log (`events`) is a copy of the browser's `bm.events.v1`, pruned the same way on both sides, so a reader's browser can put it back too.
+table was no longer written from P6 and was dropped in P7; the event log (`events`) is a copy of the browser's `bm.events.v1`, pruned the same way on both sides, so a reader's browser can put it back too.
 
 Unlike every other `user_state` column, `diag` (the placement-check results) survives a reset;
 only Delete my account removes it (see `docs/decisions/0003-placement-check.md`).
@@ -694,13 +726,13 @@ relying on a number.
 
 | Limit (Free plan) | Number | Why it matters here | Source |
 | --- | --- | --- | --- |
-| Database size | 500 MB per project. Above it the project goes read-only | Every save fails while read-only. `attempts` grows by one row per answer check, and the `events` table **[not yet: R2]** will grow faster | [pricing](https://supabase.com/pricing), [database size](https://supabase.com/docs/guides/platform/database-size) |
+| Database size | 500 MB per project. Above it the project goes read-only | Every save fails while read-only. `events` grows by one row per learner action (capped at 25,000 rows a reader and 300 MB in all, see the event log above) | [pricing](https://supabase.com/pricing), [database size](https://supabase.com/docs/guides/platform/database-size) |
 | Pausing | "Free projects are paused after 1 week of inactivity" (pricing); "low activity in a 7-day period" (production checklist) | A paused project answers nothing: no sign-in, no sync. It is restored from the dashboard; the page read gives a 1-year window for that | [pricing](https://supabase.com/pricing), [production checklist](https://supabase.com/docs/guides/platform/going-into-prod), [restore window](https://supabase.com/docs/guides/platform/upgrading) |
 | Edge Function invocations | 500,000 a month included | Nothing today: there are no functions. Billing and the tutor **[not yet: R5]** will each cost an invocation per call | [pricing](https://supabase.com/pricing), [billing](https://supabase.com/docs/guides/platform/billing-on-supabase) |
 | Edge Function run limits | 256 MB memory, 2 s CPU time, 150 s wall clock on Free, 100 functions per project | The tutor function **[not yet: R5]** waits on a model reply, so the wall-clock limit is the one it can reach | [function limits](https://supabase.com/docs/guides/functions/limits) |
 | Monthly active users | 50,000 | Far off | [pricing](https://supabase.com/pricing) |
 | Egress | 5 GB a month | Every sync reads the reader's whole row | [pricing](https://supabase.com/pricing) |
-| Backups | Automatic backups are not included | Nothing restores the `attempts` log if it is lost | [pricing](https://supabase.com/pricing) |
+| Backups | Automatic backups are not included | Nothing restores the `events` log if it is lost (and nothing can undo the fresh start) | [pricing](https://supabase.com/pricing) |
 | Log retention | 1 day for API and database logs | Look at the logs the day something breaks | [pricing](https://supabase.com/pricing) |
 | Free projects | 2 | | [pricing](https://supabase.com/pricing) |
 
