@@ -457,10 +457,13 @@
         var stop = false;
         if (rows.length) {
           evAbsorbing = true;
-          try { evAhead = E.absorb({ v: v, ev: ev }); } finally { evAbsorbing = false; }
-          /* a log in a later format: the rows after it are left on the server, and the
-             cursor stays behind them for the site that understands the format */
-          if (evAhead) stop = true; else { k.seq = top; evSave(u.id, k); }
+          var took;
+          try { took = E.absorb({ v: v, ev: ev }); } finally { evAbsorbing = false; }
+          evAhead = took === true;
+          /* a log in a later format (true): the rows after it are left on the server, and the
+             cursor stays behind them for the site that understands the format. A write that
+             failed (null): the same, for the next page load with room to store them */
+          if (took !== false) stop = true; else { k.seq = top; evSave(u.id, k); }
         }
         return stop || rows.length < EV_PAGE || pages >= 30 ? null : page();
       });

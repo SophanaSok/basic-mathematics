@@ -117,19 +117,23 @@ export function install(win: any) {
     return out;
   }
   /* what the account handed back: merged in as put does, with no device record touched and
-     nothing queued. Returns whether the log is now ahead of this code. */
-  function absorb(incoming: unknown): boolean {
-    if (!Store) return false;
+     nothing queued. Returns true when the log is now ahead of this code, false when the rows
+     are stored (or were already held), and null when the write failed, so the caller does
+     not move its cursor past rows this browser does not hold. */
+  function absorb(incoming: unknown): boolean | null {
+    if (!Store) return null;
     try {
-      if (ahead() || !isObj(incoming)) return ahead();
+      if (ahead() || !isObj(incoming)) return ahead() ? true : null;
       const V = validOf(incoming), have = all(), v = incoming.v;
       const newer = Number.isInteger(v) && (v as number) > version() && (v as number) <= V_MAX;
       const fresh = Object.keys(V).some((id) => !Object.prototype.hasOwnProperty.call(have, id));
       if (!fresh && !newer) return ahead();
-      store({ v: incoming.v, ev: V }, deviceId());
+      const ok = store({ v: incoming.v, ev: V }, deviceId());
       announce();
+      if (ahead()) return true;
+      return ok ? false : null;
     } catch (e) { warn(e); }
-    return ahead();
+    return ahead() ? true : null;
   }
 
   /* the checkpoints the touched sections are due to write */
