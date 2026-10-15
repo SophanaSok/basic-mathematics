@@ -94,12 +94,11 @@
   /* The placement check's seed (src/learn/diag-seed.ts seedPatch): `patch` is
      { [sectionRef]: record }, each the section's record with `box` (0 or 1) and `last` (a day
      key strictly before today, so a real miss on the day itself wins the merge) set. Only those
-     two fields are written, never n, ok or fix, and the rest of an existing record is kept.
-     Only refs the curriculum has are taken. Both guards are repeated here against the state at
-     the moment of writing: an id whose record is placed (real Arena history) or that has an
-     attempt row (it was worked on its page) is dropped. One synchronous read, decide, write;
-     nothing is written (and no event emitted) when every id is dropped. Returns the ids
-     written, or [] when none were or the write failed. */
+     two fields are taken, never n, ok or fix. They are written as checkpoint entries through
+     window.BMEvents.seed (the event log), not into bm.game.v1. Only refs the curriculum has
+     are taken. An id that already has a schedule (an Arena entry or a checkpoint) or an
+     attempt row (it was worked on its page) is dropped; nothing is written when every id is
+     dropped. Returns the ids written, or [] when none were or the write failed. */
   function knownRef(id) {
     var cut = id.indexOf("#");
     if (cut < 1) return false;
@@ -107,6 +106,27 @@
     var sid = id.slice(cut + 1);
     return !!ch && ch.sections.some(function (s) { return s.id === sid; });
   }
+  /* The schedule (box, last) lives in the event log, read through window.BMEvents
+     (src/learn/schedule.ts); bm.game.v1.sec keeps only n, ok and fix. A read that fails
+     gives box 0 and no day, so the page never breaks. */
+  var schedWarned = false;
+  function warnSched(e) {
+    if (schedWarned) return;
+    schedWarned = true;
+    if (window.console) console.warn("[BM] schedule", e);
+  }
+  /* every section with a schedule, read once per call; {} when the log is missing or throws */
+  function schedAll() {
+    try {
+      var E = window.BMEvents;
+      return E && typeof E.scheduleAll === "function" ? obj(E.scheduleAll(today())) : {};
+    } catch (e) { warnSched(e); return {}; }
+  }
+  function schedIn(all, id) {
+    var s = Object.prototype.hasOwnProperty.call(all, id) ? all[id] : null;
+    return s ? { box: num(s.box), last: s.last } : { box: 0, last: undefined };
+  }
+  function sched(id) { return schedIn(schedAll(), id); }
   function seedRecall(patch) {
     if (!patch || typeof patch !== "object" || Array.isArray(patch)) return [];
     var recall = Review.recall, now = recall.dayNumber(today()), picks = {};
@@ -120,19 +140,16 @@
       picks[id] = { box: r.box, last: r.last };
     });
     if (!Object.keys(picks).length) return [];
-    var g = readGame(), rows = sectionRows(), written = [];
+    var rows = sectionRows(), placed = schedAll(), written = {};
     Object.keys(picks).forEach(function (id) {
-      var cur = Object.prototype.hasOwnProperty.call(g.sec, id) ? g.sec[id] : undefined;
-      if (recall.isPlaced(cur) || Object.prototype.hasOwnProperty.call(rows, id)) return;
-      var rec = {};
-      Object.keys(obj(cur)).forEach(function (k) { rec[k] = cur[k]; });
-      rec.box = picks[id].box;
-      rec.last = picks[id].last;
-      g.sec[id] = rec;
-      written.push(id);
+      if (Object.prototype.hasOwnProperty.call(placed, id) || Object.prototype.hasOwnProperty.call(rows, id)) return;
+      written[id] = picks[id];
     });
-    if (!written.length) return [];
-    return writeGame(g) ? written : [];
+    var ids = Object.keys(written);
+    if (!ids.length) return [];
+    var E = window.BMEvents, n = 0;
+    try { n = E && typeof E.seed === "function" ? E.seed(written) : 0; } catch (e) { warnSched(e); }
+    return n > 0 ? ids : [];
   }
 
   /* the fields this file reads are normalised; any others (the Arena's picks, its ledger
@@ -491,8 +508,8 @@
       return [Math.min(1, n), 1];
     }),
     A("keeper", "Keeper", "Hold 10 sections in the Arena's fourth box or higher.", function (S) {
-      var n = 0;
-      Object.keys(obj(S.game.sec)).forEach(function (id) { if (num(obj(S.game.sec[id]).box) >= 3) n++; });
+      var n = 0, all = schedAll();
+      Object.keys(all).forEach(function (id) { if (num(all[id].box) >= 3) n++; });
       return [n, 10];
     }),
     A("regular", "Regular", "Play the Daily on seven days.", function (S) {
@@ -600,6 +617,8 @@
 
   /* ------------------------------------------------------ recall model --- */
 
+  /* the boxes and due dates here are the event log's (sched, above), not bm.game.v1.sec's */
+
   /* scored exercises (not the Your turn checks) solved first time, by section */
   function scoredFirsts() {
     var out = {}, all = Attempts ? Attempts.all() : {};
@@ -631,6 +650,9 @@
     Object.keys(out).forEach(function (id) { out[id] = Site.dayKey(new Date(out[id])); });
     return out;
   }
+  function masteryOf(id) {
+    try { var m = window.BMEvents && window.BMEvents.mastery(id); return m && typeof m.m === "number" ? m.m : null; } catch (e) { warnSched(e); return null; }
+  }
   function sectionRows() {
     var map = {}, firsts = scoredFirsts();
     if (Insights) Insights.sections().forEach(function (r) { r.scoredFirst = firsts[r.id] || 0; map[r.id] = r; });
@@ -640,33 +662,38 @@
      exercises solved there, scored or Your turn, or a scored one right first time, or a
      first-try answer in the Arena); new: otherwise, since one Your turn check is not enough.
      arena.js applies the same rule when the game layer is absent. */
-  function statusOf(row, sec) {
-    if (row && row.solved && row.score >= (Insights ? Insights.WEAK : 0.34)) return "shaky";
+  function shakyBand(id) {
+    try { return !!window.BMEvents && window.BMEvents.bandOf(id) === "weak"; } catch (e) { warnSched(e); return false; }
+  }
+  function statusOf(row, sec, id) {
+    if (shakyBand(id)) return "shaky";
     if (obj(sec).ok > 0) return "solid";
     return row && (row.solved >= 2 || row.scoredFirst > 0) ? "solid" : "new";
   }
   function sectionStatus(id) {
-    return statusOf(sectionRows()[id], readGame().sec[id]);
+    return statusOf(sectionRows()[id], readGame().sec[id], id);
   }
   /* due on `day`: at least the box's interval (1, 3, 7, 14, 30 days) since the section was
-     last placed, and at once when it never was (src/learn/recall.ts, the one copy) */
-  function dueOn(sec, day) { return Review.recall.dueOn(obj(sec), day); }
-  function isDue(sec) { return dueOn(sec, today()); }
+     last placed, and at once when it never was (src/learn/recall.ts, the one copy). The
+     placement itself is folded from the event log (src/learn/schedule.ts), read as sched(id). */
+  function dueOn(id, day) { return Review.recall.dueOn(sched(id), day); }
+  function isDue(id) { return dueOn(id, today()); }
   /* the sections the Arena may draw from: every one that is not new (statusOf), with the
      struggle score of each, for the "next best step" card (src/ui/next.ts), and the day it was
      last solved on its page (`seen`), for when it is due for a check */
   function deck(opts) {
     opts = obj(opts);
-    var rows = sectionRows(), g = readGame(), seen = seenDays(), out = [];
+    var rows = sectionRows(), g = readGame(), seen = seenDays(), out = [], all = schedAll(), day = today();
     Object.keys(rows).sort().forEach(function (id) {
-      var row = rows[id], sec = obj(g.sec[id]);
-      var status = statusOf(row, sec);
+      var row = rows[id], sec = obj(g.sec[id]), at = schedIn(all, id);
+      var status = statusOf(row, sec, id);
       if (status === "new") return;
       if (opts.section && opts.section !== id) return;
       if (opts.chapter && row.chapter.id !== opts.chapter) return;
       if (opts.status && opts.status !== status) return;
       out.push({
-        id: id, status: status, due: isDue(sec), box: num(sec.box), last: sec.last || null,
+        id: id, status: status, due: Review.recall.dueOn(at, day), box: at.box, last: at.last || null,
+        mastery: masteryOf(id),
         label: row.label, title: row.section.title, chapter: row.chapter.id, path: row.path,
         score: num(row.score), seen: seen[id] || null
       });
@@ -715,14 +742,14 @@
     var ranked = result.ranked !== false, finished = result.finished !== false;
     var xp = 0, dailyBonus = false, newMedal = 0, before = readGame();
     var cleanMs = Math.round(num(obj(result.clean).ms)), cleanOut = null, beaten = false;
-    var bySec = {}, paid = [];
+    var bySec = {}, paid = [], was = schedAll(), dayNow = today();
     var boss = result.boss ? String(result.boss) : "", S0 = stores();
     var bs = bossState(S0, boss, before), bossSet = bs.set, cleared = bs.cleared;
 
     answers.forEach(function (a) {
       a = obj(a);
       var sid = a.section ? String(a.section) : "";
-      var wasDue = sid ? isDue(before.sec[sid]) : false;
+      var wasDue = sid ? Review.recall.dueOn(schedIn(was, sid), dayNow) : false;
       if (a.first) paid.push({ section: sid, xp: wasDue ? 3 : 2 });
       else if (a.retry && !a.hf) paid.push({ section: sid, xp: 1 });
       if (!sid) return;
@@ -739,11 +766,12 @@
     var g = updateGame(function (g) {
       Object.keys(bySec).forEach(function (sid) {
         var s = bySec[sid], sec = obj(g.sec[sid]);
-        /* a miss sends the section back to the first box and restarts its clock; a clean
-           showing moves it up one only once it is due, and an early one leaves both box
-           and clock alone, so daily cramming does not fake spacing (src/learn/recall.ts) */
-        var at = Review.recall.place(sec, s.miss > 0, day);
-        var rec = { n: num(sec.n) + s.n, ok: num(sec.ok) + s.ok, box: at.box, last: at.last };
+        /* only the counts are kept here; the box and its clock are the event log's
+           (window.BMEvents.fromRun below): a miss sends the section back to the first box
+           and restarts its clock, a clean showing moves it up one only once it is due, and
+           an early one leaves both alone, so daily cramming does not fake spacing
+           (src/learn/recall.ts, src/learn/schedule.ts) */
+        var rec = { n: num(sec.n) + s.n, ok: num(sec.ok) + s.ok };
         if (num(sec.fix)) rec.fix = num(sec.fix);
         g.sec[sid] = over(sec, rec, SEC);
       });
@@ -757,8 +785,7 @@
         if (all && firsts / answers.length >= 0.8) {
           var sid = String(result.section), sec = obj(g.sec[sid]);
           sec.fix = Date.now();
-          sec.n = num(sec.n); sec.ok = Math.min(num(sec.ok), sec.n); sec.box = num(sec.box);
-          sec.last = sec.last || day;
+          sec.n = num(sec.n); sec.ok = Math.min(num(sec.ok), sec.n);
           g.sec[sid] = sec;
         }
       }

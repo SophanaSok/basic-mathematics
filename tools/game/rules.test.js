@@ -554,18 +554,24 @@ function world(seedStores) {
   const w = world();
   w.win.__rows = rows;
   const G = w.Game;
+  /* "shaky" is the log's band now (weak): this log has no evidence yet, so the band is stood in for pythagoras */
+  const bandOf = w.win.BMEvents.bandOf;
+  w.win.BMEvents.bandOf = (id) => (id === "ch05#pythagoras" ? "weak" : "none");
   eq(["ch05#angles", "ch05#pythagoras", "ch05#parallels"].map(G.sectionStatus), ["solid", "shaky", "new"], "section status");
   eq(G.deck().map((d) => [d.id, d.status, d.due]), [["ch05#angles", "solid", true], ["ch05#pythagoras", "shaky", true]], "deck: solved sections, all due at first");
+  w.win.BMEvents.bandOf = bandOf;
+  const sched = (id) => w.win.BMEvents.schedule(id, dayKey());
   const res = G.recordRun({
     mode: "standard", hearts: 2, score: 460, day: dayKey(),
     answers: [{ section: "ch05#angles", first: true }, { section: "ch05#angles", first: true }, { section: "ch05#pythagoras", retry: true }, { section: "ch05#pythagoras", pass: true }]
   });
   eq(res.xp, 3 + 3 + 1 + 5, "run XP: 3 per first try on a due section, 1 per retry, +5 for a heart left");
   const sec = G.game().sec;
-  eq([sec["ch05#angles"].box, sec["ch05#angles"].n, sec["ch05#angles"].ok], [1, 2, 2], "a clean section moves up one box");
-  eq(sec["ch05#pythagoras"].box, 0, "a missed section goes back to box 0");
+  eq([sched("ch05#angles").box, sec["ch05#angles"].n, sec["ch05#angles"].ok], [1, 2, 2], "a clean section moves up one box");
+  eq(sched("ch05#pythagoras").box, 0, "a missed section goes back to box 0");
+  check(!("box" in sec["ch05#angles"]) && !("last" in sec["ch05#angles"]), "the game record no longer keeps box or last");
   G.recordRun({ mode: "standard", hearts: 3, score: 100, day: dayKey(), answers: [{ section: "ch05#angles", first: true }] });
-  eq(G.game().sec["ch05#angles"].box, 1, "promotion at most once a day");
+  eq(sched("ch05#angles").box, 1, "promotion at most once a day");
   eq(G.deck().find((d) => d.id === "ch05#angles").due, false, "not due again the same day");
   eq(G.game().best.standard.score, 460, "best keeps the higher score");
   /* the day so far: angles has paid 3 answers (two in full, one at half), and two runs have
@@ -612,7 +618,7 @@ function world(seedStores) {
   let r = G.recordRun({ mode: "standard", hearts: 3, score: 400, day: dayKey(), answers: first("ch05#angles", 4) });
   eq([r.xp, r.parts, r.reduced, r.finishReduced], [12 + 5, { answers: 12, full: 12, finish: 5, daily: 0 }, [], false],
     "the day's first run pays in full, however many of its answers share a section");
-  eq(G.game().sec["ch05#angles"].box, 1, "the decay leaves the boxes to the usual rule: a clean, due showing moves up one");
+  eq(w.win.BMEvents.schedule("ch05#angles", dayKey()).box, 1, "the decay leaves the boxes to the usual rule: a clean, due showing moves up one");
   /* B: angles (placed today, not due: 2 each) had 4 answers paid earlier today, so this
      run's are paid as its 5th, a quarter each; a new section starts the table again; the
      second finish of the day is still in full */
@@ -710,9 +716,9 @@ function world(seedStores) {
   w = world();
   const boxes = [3, 2, 1, 0].map((n) => {
     w.Game.recordRun({ mode: "standard", hearts: 3, score: 1, day: daysAgo(n), answers: [{ section: "ch05#angles", first: true }] });
-    return w.Game.game().sec["ch05#angles"].box;
+    return w.win.BMEvents.schedule("ch05#angles", dayKey()).box;
   });
-  eq([boxes, w.Game.game().sec["ch05#angles"].last], [[1, 1, 1, 2], dayKey()], "promotion waits until the section is due");
+  eq([boxes, w.win.BMEvents.schedule("ch05#angles", dayKey()).last], [[1, 1, 1, 2], dayKey()], "promotion waits until the section is due");
 
   /* a streak from before the game layer is credited */
   const old = {};
@@ -919,7 +925,7 @@ function world(seedStores) {
   w.Game.recordRun({ mode: "standard", ranked: true, finished: true, hearts: 3, score: 50, day: dayKey(), answers: [{ section: "ch05#angles", first: true }] });
   let g = w.read("bm.game.v1");
   eq([g.v, g.wallet, g.sec["ch05#angles"], g.best.standard],
-    [2, { coins: 3 }, { n: 2, ok: 2, box: 1, last: dayKey(), ease: 2.5 }, { score: 50, hearts: 3, day: dayKey(), replay: [1] }],
+    [2, { coins: 3 }, { n: 2, ok: 2, ease: 2.5 }, { score: 50, hearts: 3, day: dayKey(), replay: [1] }],
     "a run keeps unknown fields of the game record, of a section and of a best");
 
   /* and a medal banked over an older one keeps the old one's unknown field */
@@ -954,15 +960,24 @@ function world(seedStores) {
 }
 function obj0(x) { return x && typeof x === "object" ? x : {}; }
 
-/* both writers are alive until the log's schedule replaces the game record's: they agree */
+/* the deck's due set and order are the old per-run placement's (src/learn/recall.ts place, one call
+   per section per run), on the run's day and the next five, over 300 random histories */
 {
+  const t0 = Date.now();
   let seed = 20261014;
   const rnd = () => { seed = (seed * 1664525 + 1013904223) >>> 0; return seed / 4294967296; };
   const int = (a, b) => a + Math.floor(rnd() * (b - a + 1));
   const secs = ["ch05#angles", "ch05#parallels", "ch05#distance", "ch05#pythagoras", "ch06#fractions"];
-  let bad = 0, first = "", checkpoints = 0;
+  const rows = secs.map((id) => ({ id, solved: 2, score: 0, label: id, section: { title: id }, chapter: { id: id.split("#")[0] }, path: id }));
+  const recall = REVIEW.recall;
+  let bad = 0, first = "", checkpoints = 0, checked = 0;
   for (let h = 0; h < 300; h++) {
     const w = world();
+    w.win.__rows = rows;
+    let now = dayKey();
+    w.win.BMSite.dayKey = (d) => (d ? dayKey(d) : now);
+    const sim = {};
+    secs.forEach((id) => { sim[id] = { box: 0, last: undefined }; });
     /* one history in seven is long (150 to 300 days, 30 to 90 runs): checkpoints are written and the log pruned */
     const long = h % 7 === 0;
     const span = long ? int(150, 300) : 60;
@@ -979,21 +994,33 @@ function obj0(x) { return x && typeof x === "object" ? x : {}; }
         const f = rnd() < 0.6;
         answers.push({ section: pool[int(0, pool.length - 1)], g: "g" + int(0, 4), first: f, retry: !f && rnd() < 0.5, hf: false });
       }
+      /* the clock is the run's day while it is recorded, as it was when the run was played */
+      now = day;
       w.Game.recordRun({ mode: "standard", hearts: 3, score: 100, day, answers });
-      const sched = w.win.BMEvents.scheduleAll(day);
-      const sec = obj0(w.read("bm.game.v1")).sec || {};
-      Object.keys(sec).forEach((id) => {
-        const a = sched[id] || {}, b = sec[id];
-        if (a.box !== b.box || a.last !== b.last) {
-          bad++;
-          if (!first) first = "history " + h + " run " + r + " " + id + " log " + JSON.stringify(a) + " game " + JSON.stringify({ box: b.box, last: b.last });
-        }
+      const missed = {};
+      answers.forEach((a) => { missed[a.section] = missed[a.section] || !a.first; });
+      Object.keys(missed).forEach((id) => {
+        const at = recall.place(sim[id], missed[id], day);
+        sim[id] = { box: at.box, last: at.last };
       });
+      for (let k = 0; k <= 5; k++) {
+        now = recall.addDays(day, k);
+        const want = secs.map((id) => ({ id, due: recall.dueOn(sim[id], now), box: sim[id].box }))
+          .sort((a, b) => (b.due - a.due) || (a.box - b.box) || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0)).map((x) => x.id + ":" + x.due);
+        const got = w.Game.deck().map((x) => x.id + ":" + x.due);
+        checked++;
+        if (JSON.stringify(want) !== JSON.stringify(got)) {
+          bad++;
+          if (!first) first = "history " + h + " run " + r + " +" + k + "d want " + want.join(",") + " got " + got.join(",");
+        }
+      }
+      now = day;
     }
     checkpoints += Object.values(obj0(w.read("bm.events.v1")).ev || {}).filter((P) => P[5] === "z").length;
   }
+  console.log("random-history test: " + (Date.now() - t0) + " ms");
   check(checkpoints > 0, "the long histories wrote checkpoints (" + checkpoints + ")");
-  check(bad === 0, "the log's schedule matches the game record's box and last over 300 histories (" + bad + " differ; first: " + first + ")");
+  check(bad === 0, "the deck's due set and order match a place()-per-run simulation over 300 histories, " + checked + " days (" + bad + " differ; first: " + first + ")");
 }
 
 console.log((fails ? "FAILED" : "ok") + " rules: " + passes + " checks passed" + (fails ? ", " + fails + " failed" : ""));
