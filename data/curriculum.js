@@ -92,7 +92,7 @@ window.BM_CURRICULUM = {
             { id: "quantifiers", requires: ["interlude#logic"], title: "For all, there exists, and counterexamples", summary: "How to disprove a statement, and how not to." },
             { id: "sets", requires: ["interlude#logic"], title: "Sets and elements", summary: "Membership, subsets, union, intersection, complement." },
             { id: "notation", requires: ["interlude#quantifiers"], title: "Notation as a tool", summary: "Choosing names and symbols that keep the argument readable." },
-            { id: "review", requires: ["ch04#formula", "interlude#quantifiers", "ch01#even-odd"], title: "Mixed review", summary: "Problems drawn back across Chapters 1–4, to test what stuck." }
+            { id: "review", requires: ["ch04#formula", "ch03#absolute", "ch02#word-problems"], title: "Mixed review", summary: "Problems drawn back across Chapters 1–4, to test what stuck." }
           ]
         }
       ]
@@ -128,7 +128,7 @@ window.BM_CURRICULUM = {
           blurb: "The motions that preserve distance — translations, rotations, reflections — and symmetry as invariance under them.",
           sections: [
             { id: "mappings-plane", requires: ["ch05#distance", "ch05#angles"], title: "Some standard mappings of the plane", summary: "Translation, rotation about a point, reflection across a line, dilation." },
-            { id: "isometries", requires: ["ch06#mappings-plane"], title: "Isometries", summary: "Distance-preserving maps, composition, and why congruence is an isometry statement." },
+            { id: "isometries", requires: ["ch06#mappings-plane", "ch05#pythagoras"], title: "Isometries", summary: "Distance-preserving maps, composition, and why congruence is an isometry statement." },
             { id: "symmetry", requires: ["ch06#isometries"], title: "Symmetry", summary: "The symmetries of a figure form a group under composition." }
           ]
         },
@@ -140,11 +140,11 @@ window.BM_CURRICULUM = {
           status: "full",
           blurb: "Area of rectangles, triangles, and disks; circumference; and the scaling law that ties them together.",
           sections: [
-            { id: "polygons", requires: ["ch05#angles"], title: "Area of rectangles and triangles", summary: "From the rectangle to the triangle by cutting and rearranging." },
+            { id: "polygons", requires: ["ch05#pythagoras", "ch06#isometries"], title: "Area of rectangles and triangles", summary: "From the rectangle to the triangle by cutting and rearranging." },
             { id: "scaling", requires: ["ch07#polygons", "ch06#mappings-plane"], title: "Scaling", summary: "Scale lengths by r and area scales by r² — with the consequences." },
             { id: "disc", requires: ["ch07#scaling"], title: "Area of a disk", summary: "Inscribed polygons approaching πr², and what π is." },
             { id: "circumference", requires: ["ch07#disc"], title: "Circumference of a circle", summary: "Why the same π appears in 2πr and πr²." },
-            { id: "review", requires: ["ch07#circumference", "ch05#pythagoras"], title: "Mixed review", summary: "Problems drawn back across Chapters 5–7, to test what stuck." }
+            { id: "review", requires: ["ch05#pythagoras", "ch05#parallels", "ch06#isometries"], title: "Mixed review", summary: "Problems drawn back across Chapters 5–7, to test what stuck." }
           ]
         }
       ]
@@ -207,12 +207,12 @@ window.BM_CURRICULUM = {
           blurb: "Sine and cosine from the unit circle, radian measure, graphs, the tangent, addition formulas, and rotations.",
           sections: [
             { id: "radians", requires: ["ch08#circle", "ch07#circumference"], title: "Radian measure", summary: "Angle as arc length on the unit circle." },
-            { id: "sine-cosine", requires: ["ch11#radians"], title: "Sine and cosine", summary: "Coordinates of a point on the unit circle; the Pythagorean identity." },
+            { id: "sine-cosine", requires: ["ch11#radians", "ch08#circle"], title: "Sine and cosine", summary: "Coordinates of a point on the unit circle; the Pythagorean identity." },
             { id: "graphs-trig", requires: ["ch11#sine-cosine"], title: "The graphs", summary: "Period, amplitude, and shifts." },
             { id: "tangent", requires: ["ch11#sine-cosine", "ch10#lines"], title: "The tangent", summary: "Slope of a ray, and where it fails to exist." },
             { id: "addition-formulas", requires: ["ch11#sine-cosine"], title: "Addition formulas", summary: "cos(x + y) and sin(x + y), and the consequences." },
             { id: "rotations", requires: ["ch11#addition-formulas", "ch06#mappings-plane"], title: "Rotations", summary: "Rotating a point by an angle, written as a pair of formulas." },
-            { id: "review", requires: ["ch11#rotations", "ch08#distance-formula"], title: "Mixed review", summary: "Problems drawn back across Chapters 8–11, to test what stuck." }
+            { id: "review", requires: ["ch08#distance-formula", "ch08#circle", "ch10#line-equation"], title: "Mixed review", summary: "Problems drawn back across Chapters 8–11, to test what stuck." }
           ]
         }
       ]
@@ -235,7 +235,7 @@ window.BM_CURRICULUM = {
           sections: [
             { id: "definition-fn", requires: ["ch08#coord-systems"], title: "Definition of a function", summary: "A rule with a domain: one output per input." },
             { id: "polynomials", requires: ["ch12#definition-fn", "ch04#formula"], title: "Polynomial functions", summary: "Degree, roots, and factoring." },
-            { id: "graphs-fn", requires: ["ch12#definition-fn"], title: "Graphs of functions", summary: "Reading and sketching; shifts, stretches, reflections." },
+            { id: "graphs-fn", requires: ["ch12#definition-fn", "ch04#graph"], title: "Graphs of functions", summary: "Reading and sketching; shifts, stretches, reflections." },
             { id: "exponential", requires: ["ch03#powers", "ch12#graphs-fn"], title: "The exponential function", summary: "Extending aˣ to all real x, and its growth." },
             { id: "log", requires: ["ch12#exponential"], title: "Logarithms", summary: "The inverse of the exponential, and why it turns products into sums." }
           ]
@@ -292,7 +292,7 @@ window.BM_CURRICULUM = {
             { id: "det3", requires: ["ch16#det2"], title: "Determinants of order 3", summary: "Expansion along a row, with signs." },
             { id: "det-props", requires: ["ch16#det3"], title: "Properties of determinants", summary: "Row operations, transposes, products." },
             { id: "cramer", requires: ["ch16#det-props", "ch02#two-unknowns"], title: "Cramer's rule", summary: "Solving a system by determinants, and the link back to Chapter 2." },
-            { id: "review", requires: ["ch16#cramer", "ch12#polynomials", "ch15#induction"], title: "Mixed review", summary: "Problems drawn back across Chapters 12–16, to test what stuck." }
+            { id: "review", requires: ["ch12#log", "ch14#complex-arith", "ch15#geometric"], title: "Mixed review", summary: "Problems drawn back across Chapters 12–16, to test what stuck." }
           ]
         }
       ]
