@@ -67,7 +67,7 @@ const OPT_IN = "@media (prefers-reduced-motion: no-preference) { @view-transitio
 const VENDOR_STYLES = ["src/vendor/fonts.css", "src/vendor/katex.css"];
 
 /* What each kind of page loads. `styles` are the site's own stylesheets, in cascade
-   order, after VENDOR_STYLES, src/styles/tokens.css (the one file that defines a colour)
+   order, after VENDOR_STYLES, src/styles/icons.css (generated mask shapes, no colours) and then src/styles/tokens.css (the one file that defines a colour)
    first; `entry` is the one module script, which imports the site's
    scripts in the order they run (src/entries/<kind>.js lists them). The entry's first
    import is src/vendor/katex.js, which brings in the typesetter from npm and sets
@@ -76,21 +76,21 @@ const VENDOR_STYLES = ["src/vendor/fonts.css", "src/vendor/katex.css"];
    up with, and check-static.js fails a change that was not accepted. */
 const PAGE_KINDS = {
   /* index.html: the contents page, with the course map; the next-step card's stylesheet last */
-  home: { styles: ["src/styles/tokens.css", "assets/site.css", "assets/game.css", "assets/scenes3d.css", "assets/map3d.css", "assets/review.css"], entry: "src/entries/home.js" },
+  home: { styles: ["src/styles/icons.css", "src/styles/tokens.css", "assets/site.css", "assets/game.css", "assets/scenes3d.css", "assets/map3d.css", "assets/review.css"], entry: "src/entries/home.js" },
   /* about.html, account.html: prose and a form */
-  page: { styles: ["src/styles/tokens.css", "assets/site.css", "assets/game.css"], entry: "src/entries/page.js" },
+  page: { styles: ["src/styles/icons.css", "src/styles/tokens.css", "assets/site.css", "assets/game.css"], entry: "src/entries/page.js" },
   /* progress.html, insights.html: a page, and assets/insights.js to fill it */
-  dashboard: { styles: ["src/styles/tokens.css", "assets/site.css", "assets/game.css"], entry: "src/entries/dashboard.js" },
+  dashboard: { styles: ["src/styles/icons.css", "src/styles/tokens.css", "assets/site.css", "assets/game.css"], entry: "src/entries/dashboard.js" },
   /* arena.html: no figures, the problem generators instead; the due review's stylesheet
      after arena.css, whose cards and chips it builds on */
-  arena: { styles: ["src/styles/tokens.css", "assets/site.css", "assets/game.css", "assets/arena.css", "assets/review.css"], entry: "src/entries/arena.js" },
+  arena: { styles: ["src/styles/icons.css", "src/styles/tokens.css", "assets/site.css", "assets/game.css", "assets/arena.css", "assets/review.css"], entry: "src/entries/arena.js" },
   /* diagnostic.html: the placement check; the Arena's problem generators, and a stylesheet
      of its own after the game's */
-  diagnostic: { styles: ["src/styles/tokens.css", "assets/site.css", "assets/game.css", "assets/diagnostic.css"], entry: "src/entries/diagnostic.js" },
+  diagnostic: { styles: ["src/styles/icons.css", "src/styles/tokens.css", "assets/site.css", "assets/game.css", "assets/diagnostic.css"], entry: "src/entries/diagnostic.js" },
   /* parts/<part>/<chapter>.html: the scene framework, every scene, then site.js, which
      mounts the figures as it runs; the help ladder's own stylesheet after the card rules of
      game.css it builds on, and the next-step card's last */
-  chapter: { styles: ["src/styles/tokens.css", "assets/site.css", "assets/game.css", "assets/scenes3d.css", "assets/ladder.css", "assets/review.css"], entry: "src/entries/chapter.js" }
+  chapter: { styles: ["src/styles/icons.css", "src/styles/tokens.css", "assets/site.css", "assets/game.css", "assets/scenes3d.css", "assets/ladder.css", "assets/review.css"], entry: "src/entries/chapter.js" }
 };
 
 /* how a source file of the tree is read: the file beside this one by default, and the
@@ -181,16 +181,15 @@ const NAVS = {
 const HEARTS_ON = ["chapter", "arena"];
 const TIMER_ON = ["arena"];
 
-/* the icons of the top bar and the sheet, drawn in currentColor on a 16-unit grid */
-const ICONS = {
-  flame: '<path d="M8.2 1c.3 2.4 3.6 4 3.6 7.6A3.8 3.8 0 0 1 8 12.5a3.8 3.8 0 0 1-3.8-3.9c0-1.4.6-2.5 1.5-3.3.1 1 .6 1.7 1.3 1.9C6.7 5.1 7.1 2.9 8.2 1z" fill="currentColor"/>',
-  "sound-on": '<path d="M2 6h2.6L8.4 3v10L4.6 10H2z" fill="currentColor"/><path d="M10.6 5.6a3.4 3.4 0 0 1 0 4.8M12.4 3.8a6 6 0 0 1 0 8.4" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>',
-  "sound-off": '<path d="M2 6h2.6L8.4 3v10L4.6 10H2z" fill="currentColor"/><path d="M10.5 6l4 4M14.5 6l-4 4" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>',
-  menu: '<path d="M2.5 4.5h11M2.5 8h11M2.5 11.5h11" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>',
-  close: '<path d="M4 4l8 8M12 4l-8 8" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>'
-};
+/* the icons of the top bar and the sheet: Phosphor paths from src/data/icons.json (tools/gen-icons.js
+   writes it), filled in currentColor on its 256-unit grid. The shell's name on the left, the set's on the right. */
+const ICON_DATA = require("../../src/data/icons.json");
+const ICON_OF = { flame: "flame", close: "close", "sound-on": "sound", "sound-off": "mute", menu: "menu" };
 function icon(name) {
-  return '<svg class="icon icon-' + name + '" viewBox="0 0 16 16" aria-hidden="true" focusable="false">' + ICONS[name] + "</svg>";
+  const from = ICON_OF[name], e = from && ICON_DATA.icons[from];
+  if (!e) throw new Error("shell icon `" + name + "` has no icon in src/data/icons.json");
+  return '<svg class="icon icon-' + name + '" viewBox="' + ICON_DATA.viewBox + '" aria-hidden="true" focusable="false">' +
+    e.paths.map(d => '<path d="' + d + '" fill="currentColor"/>').join("") + "</svg>";
 }
 /* one choice of a radio group in the sheet */
 function choice(group, pref, value, label) {
@@ -456,4 +455,4 @@ function renderShell(src, relPath) {
   return expand(src, relPath).html;
 }
 
-module.exports = { renderShell, expand, isMarked, pageInfo, useSource, bootScript, hudScript, hudLibrary, PAGE_KINDS, VENDOR_STYLES, NAVS, HUD_MODULES, BOOT, HEAD_MARK, TOPBAR_MARK, BODY_INPUTS };
+module.exports = { icon, ICON_OF, renderShell, expand, isMarked, pageInfo, useSource, bootScript, hudScript, hudLibrary, PAGE_KINDS, VENDOR_STYLES, NAVS, HUD_MODULES, BOOT, HEAD_MARK, TOPBAR_MARK, BODY_INPUTS };

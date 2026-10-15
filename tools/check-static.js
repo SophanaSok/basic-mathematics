@@ -1318,6 +1318,7 @@ function checkContrast(ctx, r) {
   const partIds = ctx.curriculum.parts.map(p => p.id);
   cssFiles().forEach(f => {
     const rel = site.rel(f);
+    if (rel === "src/styles/icons.css") return; /* the mask images tokens.css imports (tools/gen-icons.js): shapes, no colours */
     const T = cssLib.tokens(fs.readFileSync(f, "utf8"));
     if (!Object.keys(T.light).length) return; /* a stylesheet without tokens: nothing to check */
     if (rel !== TOKENS_CSS) r.fail(rel + ": defines tokens on :root or a Part; tokens live in " + TOKENS_CSS + " only");
@@ -1854,11 +1855,17 @@ function checkIcons(ctx, r, text) {
     mapped.filter(n => !names.includes(n)).forEach(n => r.fail("icon `" + n + "` is in tools/icons.json but not in src/data/icons.json"));
     names.filter(n => !mapped.includes(n)).forEach(n => r.fail("icon `" + n + "` is in src/data/icons.json but not in tools/icons.json"));
   }
-  if (have === want) return;
-  const a = have.split("\n"), b = want.split("\n");
-  let i = 0;
-  while (i < a.length && i < b.length && a[i] === b[i]) i++;
-  r.fail(gen.STALE + " (first difference at line " + (i + 1) + ")");
+  const diff = (h, w, msg) => {
+    if (h === w) return;
+    const a = h.split("\n"), b = w.split("\n");
+    let i = 0;
+    while (i < a.length && i < b.length && a[i] === b[i]) i++;
+    r.fail(msg + " (first difference at line " + (i + 1) + ")");
+  };
+  diff(have, want, gen.STALE);
+  /* src/styles/icons.css is the masks, rendered from the generator's own data */
+  const cssHave = fs.existsSync(gen.CSS_FILE) ? fs.readFileSync(gen.CSS_FILE, "utf8") : "";
+  diff(cssHave, gen.renderCss(want), gen.STALE_CSS);
 }
 
 /* ---------------------------------------------------------- form models -- */

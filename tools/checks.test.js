@@ -313,7 +313,7 @@ function refusal(fn) { try { fn(); return null; } catch (e) { return e.message; 
   check(out.endsWith(src.slice(src.indexOf("\n\n<div class=\"wrap\">"))), "everything after the top-bar marker is the source's, byte for byte");
   eq(parse(out).query("head").children_elements.slice(0, 4).map(el => el.name + ":" + (el.getAttribute("charset") || el.getAttribute("name") || el.textContent)),
     ["meta:utf-8", "meta:viewport", "title:A title", "meta:description"], "the head opens with charset, viewport, then the page's own title and description");
-  eq(sheets(out), ["src/vendor/fonts.css", "src/vendor/katex.css", "src/styles/tokens.css", "assets/site.css", "assets/game.css"], "a page links the fonts' and KaTeX's stylesheets, then the tokens, site.css and game.css");
+  eq(sheets(out), ["src/vendor/fonts.css", "src/vendor/katex.css", "src/styles/icons.css", "src/styles/tokens.css", "assets/site.css", "assets/game.css"], "a page links the fonts' and KaTeX's stylesheets, then the icon masks, the tokens, site.css and game.css");
   eq(scripts(out), ["src/entries/page.js"], "… and loads the one module entry of its kind, and no other script by URL");
   check(!/https?:\/\//.test(parse(out).query("head").children_elements.map(el => Object.values(el.attrs).join(" ")).join(" ")), "nothing in <head> names another server");
   const outDoc = parse(out), all = outDoc.queryAll("script");
@@ -601,7 +601,7 @@ function refusal(fn) { try { fn(); return null; } catch (e) { return e.message; 
   eq(shellDiff(base, base), [], "the same shell is no difference");
   const expanded = render('data-depth="2" data-chapter="ch99" data-part="algebra"', "parts/p/c.html");
   const fontsLink = '<link rel="stylesheet" href="../../src/vendor/fonts.css">', katexLink = '<link rel="stylesheet" href="../../src/vendor/katex.css">';
-  check(expanded.includes(fontsLink + "\n" + katexLink + '\n<link rel="stylesheet" href="../../src/styles/tokens.css">\n<link rel="stylesheet" href="../../assets/site.css">'), "the vendor stylesheets are linked in order, before the site's own, the tokens first of those");
+  check(expanded.includes(fontsLink + "\n" + katexLink + '\n<link rel="stylesheet" href="../../src/styles/icons.css">\n<link rel="stylesheet" href="../../src/styles/tokens.css">\n<link rel="stylesheet" href="../../assets/site.css">'), "the vendor stylesheets are linked in order, before the site's own, the icon masks and the tokens first of those");
   check(/^head entry \d+ is now `<link rel='stylesheet' href='..\/..\/src\/vendor\/fonts.css' media='print'>`, accepted `<link rel='stylesheet' href='..\/..\/src\/vendor\/fonts.css'>`/.test(shellDiff(facts(expanded.replace(fontsLink, fontsLink.replace(">", ' media="print">'))), base)[0] || ""), "an attribute added to a link shows");
   const swapped = expanded.replace(fontsLink + "\n" + katexLink, katexLink + "\n" + fontsLink);
   check(swapped !== expanded && /^head entry \d+ is now `<link rel='stylesheet' href='..\/..\/src\/vendor\/katex.css'>`/.test(shellDiff(facts(swapped), base)[0] || ""), "two stylesheets in the other order show");
@@ -1247,6 +1247,37 @@ function refusal(fn) { try { fn(); return null; } catch (e) { return e.message; 
   rejects(wrap('<path href="x" d="M0 0"/>'), /`href` is not allowed/, "an href");
   rejects(wrap('<rect width="10" height="256" fill="none"/><path d="M0 0"/>'), /bounding rect/, "another rect");
   eq(il.parseSvg(wrap('<rect width="256" height="256" fill="none"/><path d="M0,0L1.5e2-3Z"/><path fill="currentColor" d="M1 1h2z"/>')), ["M0,0L1.5e2-3Z", "M1 1h2z"], "icons whitelist accepts a two-path SVG and drops the bounding rect");
+
+  rejects(wrap('<path fill="none" d="M0 0"/>'), /fill must be currentColor/, "a path with fill none");
+  rejects(wrap('<path fill="red" d="M0 0"/>'), /fill must be currentColor/, "a path with another fill");
+  rejects(wrap('<path d="M0 0"/>' + " ".repeat(33 * 1024)), /larger than/, "an SVG over 32 KB");
+  {
+    const t0 = Date.now();
+    rejects(wrap("<path" + " ".repeat(50000) + "x"), /larger than|not allowed|malformed/, "a long whitespace run");
+    rejects("<svg" + " ".repeat(20000) + "x", /does not start|does not end/, "a long whitespace run in <svg>");
+    rejects(wrap("<path" + " ".repeat(20000) + 'x="1"/>'), /malformed|not allowed/, "a long whitespace run before an attribute");
+    check(Date.now() - t0 < 1000, "icons whitelist: whitespace runs are rejected in well under a second (took " + (Date.now() - t0) + " ms)");
+  }
+  {
+    const throws = (f, re, what) => { let m = ""; try { f(); } catch (e) { m = e.message; } check(re.test(m), what + " — got " + JSON.stringify(m)); };
+    throws(() => gen.fileOf({ package: "@phosphor-icons/core" }, "regular/check"), /weight bold or fill/, "icons: fileOf rejects a weight other than bold/fill");
+    throws(() => gen.fileOf({ package: "@phosphor-icons/core" }, "bold/../x"), /weight bold or fill/, "icons: fileOf rejects a name with a path in it");
+    throws(() => gen.render({ package: "@phosphor-icons/not-installed-here", version: "1.0.0", icons: {} }), /is not installed; run `npm ci`/, "icons: render() says to run npm ci when the package is missing");
+  }
+  {
+    const shell = require("./lib/shell");
+    const data = JSON.parse(fs.readFileSync(gen.FILE, "utf8"));
+    const src = fs.readFileSync(path.join(__dirname, "lib/shell.js"), "utf8");
+    const used = Array.from(new Set(Array.from(src.matchAll(/\bicon\("([a-z-]+)"\)/g)).map(m => m[1]))).sort();
+    check(used.length >= 5, "shell icons: found the icon() calls (" + used.join(", ") + ")");
+    used.forEach(n => {
+      const to = shell.ICON_OF[n];
+      check(to && data.icons[to], "shell icons: icon(\"" + n + "\") maps to a generated icon (" + to + ")");
+      check(shell.icon(n).includes('viewBox="0 0 256 256"') && shell.icon(n).includes('class="icon icon-' + n + '"') && !/stroke/.test(shell.icon(n)), "shell icons: icon(\"" + n + "\") is 256-grid, keeps its class, is all fills");
+    });
+    const css = fs.readFileSync(gen.CSS_FILE, "utf8");
+    Object.keys(data.icons).forEach(n => check(css.includes("--icon-" + n + ": url("), "icons.css has --icon-" + n));
+  }
 
   check(gen.render() === gen.render(), "icons: render() is deterministic");
   const real = fs.readFileSync(gen.FILE, "utf8");

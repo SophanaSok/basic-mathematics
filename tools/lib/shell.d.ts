@@ -17,6 +17,10 @@ export interface PageInfo {
   nav: string;
 }
 
+/** the shell's name for an icon in the top bar and sheet, and the name of the generated icon it draws (src/data/icons.json) */
+export const ICON_OF: Record<string, string>;
+/** the inline SVG of a shell icon: Phosphor paths filled in currentColor on a 256-unit grid */
+export function icon(name: string): string;
 export const HEAD_MARK: string;
 export const TOPBAR_MARK: string;
 export const BODY_INPUTS: string[];
