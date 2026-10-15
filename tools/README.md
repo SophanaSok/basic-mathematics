@@ -571,8 +571,9 @@ browser saved at the old address stays there.
 
 Usage: `node tools/check-ci.js` (`npm run check:ci`, part of `npm run check`)
 
-The guards of the deploys in `.github/workflows/ci.yml`, which nothing else tests (a workflow
-runs only on GitHub), held by reading the file:
+The guards of the deploys in `.github/workflows/ci.yml`, and the trigger and pins of
+`.github/workflows/sql.yml`, which nothing else tests (a workflow runs only on GitHub), held by
+reading the files:
 
 | check | what it guards |
 | --- | --- |
@@ -584,6 +585,8 @@ runs only on GitHub), held by reading the file:
 | `pages` | the build job builds, checks and keeps `dist-redirects/`, and the `deploy` job downloads that artifact alone and reads no repository variable: the course is never published to GitHub Pages. Taking the old address down removes this check with the jobs ([`OPERATIONS.md`](../OPERATIONS.md), 8.6) |
 | `install` | every job that runs the browser tests (`test:browser*` or `check:browser`: today `browser` and `webgl`) has its own step that runs `playwright install`, and every such step has a step-level `timeout-minutes` (a step key, 8 spaces in) and wraps each line that runs the install in `timeout -k <seconds> <seconds>` (or `--kill-after=`), so a stuck download costs one try of three, not the job's timeout, and a wedged apt that ignores the TERM is killed before it can hold the dpkg lock against the next try (the loop also runs `sudo dpkg --configure -a` after a failed try). A step name or an `echo` that names the install is not one |
 | `skip` | `pull_request` and `push` (to `main`) each carry `paths-ignore: ["**/*.md", "docs/**"]` and nothing else, so a change to only prose starts no run and the list cannot grow to cover code; and the build reads none of what it covers: no Markdown in `public/` (copied into `dist/` as it is), `src/`, `assets/`, `data/` or `parts/`, and nothing but Markdown in `docs/` ([`OPERATIONS.md`](../OPERATIONS.md), "When CI runs") |
+| `sql-trigger` | `sql.yml` runs on `pull_request` alone (no push, schedule or manual run), with a `paths:` list naming at least `supabase/**` and `src/sync/events.ts`; it is not part of `ci.yml`'s gate. Fails if the file is missing |
+| `sql-pins` | every `uses:` of `sql.yml` is `owner/repo@<40 hex>`, and its service image is `supabase/postgres@` plus the `IMAGE_DIGEST` of `tools/sql-test.js`, so the workflow and `npm run test:sql` test on the same server |
 
 ## apply-shell.js
 

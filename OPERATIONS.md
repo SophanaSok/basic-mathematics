@@ -142,6 +142,76 @@ If the SQL ran but the site still reports a column or table as not found, the AP
 holding an old picture of the schema. Run `notify pgrst, 'reload schema';` in the SQL editor and
 try again.
 
+**Q-events**: the event log's tables, functions, locks and triggers (P5). Each block says what it
+must return.
+
+The two tables, both with row-level security on: two rows, `rowsecurity` `true` on each.
+
+```sql
+select tablename, rowsecurity from pg_tables
+where schemaname = 'public' and tablename in ('events', 'event_meta') order by tablename;
+```
+
+One policy only, on `events`: **one row**, `events`, `read own events`, `SELECT`, `{authenticated}`.
+`event_meta` has none, so the browser cannot read it.
+
+```sql
+select tablename, policyname, cmd, roles from pg_policies
+where schemaname = 'public' and tablename in ('events', 'event_meta') order by tablename, policyname;
+```
+
+Table privileges for the browser's roles: exactly **one row**, `events`, `authenticated`,
+`SELECT`. Nothing on `event_meta`, nothing for `anon`, no write of any kind.
+
+```sql
+select table_name, grantee, privilege_type from information_schema.role_table_grants
+where table_schema = 'public' and table_name in ('events', 'event_meta')
+  and grantee in ('anon', 'authenticated')
+order by table_name, grantee, privilege_type;
+```
+
+The six functions: six rows. `events_put`, `events_usage`, `events_on_reset`, `events_prune` and
+`events_valid` have `prosecdef` `t` and `proconfig` `{"search_path=\"\""}`; `events_ceiling` has
+`prosecdef` `f` and `proconfig` null. `events_put` and `events_usage` are in `public`, the other
+four in `private`.
+
+```sql
+select n.nspname, p.proname, pg_get_function_identity_arguments(p.oid) as args, p.prosecdef, p.proconfig
+from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+where n.nspname in ('public', 'private')
+  and p.proname in ('events_put', 'events_usage', 'events_on_reset', 'events_prune', 'events_valid', 'events_ceiling')
+order by n.nspname, p.proname;
+```
+
+The locks: one row of four values, **all `false`**. The browser's role may not run the private
+helpers or enter their schema, and the private schema is not reachable from the API.
+
+```sql
+select has_function_privilege('authenticated', 'private.events_valid(jsonb, integer)', 'execute') as valid_exec,
+       has_function_privilege('authenticated', 'private.events_prune(uuid)', 'execute') as prune_exec,
+       has_function_privilege('anon', 'public.events_put(jsonb, integer)', 'execute') as anon_put,
+       has_schema_privilege('authenticated', 'private', 'usage') as private_usage;
+```
+
+The two reset triggers on `user_state`: **two rows**, `events_on_reset_insert` and
+`events_on_reset_update`, each `tgenabled` `O` (enabled).
+
+```sql
+select tgname, tgenabled from pg_trigger
+where tgrelid = 'public.user_state'::regclass and tgname in ('events_on_reset_insert', 'events_on_reset_update')
+order by tgname;
+```
+
+The usage function, run as the admin: before anyone has written, **one row** with `rows` `0` and
+`users` `0` (a non-admin gets no row).
+
+```sql
+select * from public.events_usage();
+```
+
+If the site or the SQL editor reports `events_put` as not found right after the migration, run
+`notify pgrst, 'reload schema';` and try again.
+
 ### Rolling back each step
 
 | Step | To undo it |
@@ -189,6 +259,25 @@ the `migrations` check refuses any edit to it; fix it with a newer migration.
 4. Rollback is the table above: leave the tables and functions. To empty the board, run
    `truncate public.daily_runs;` in the SQL editor; it holds nothing else. Leave
    `board_secret` alone: a new key renames everyone on today's board.
+
+### The event log (P5, then P6)
+
+1. The owner applies `supabase/migrations/20261015004752_events.sql` on the live project and
+   confirms with the Q-events queries above. Then check that the live account page still syncs.
+   Then press Reset progress once on the owner's own test account and read `select epoch from
+   public.event_meta where user_id = '<that user id>';`: it must now be `1`, which shows the
+   reset trigger ran on the live project. All of this comes before P6 merges.
+2. The migration only adds, and the deployed site never names the tables or the functions, so
+   applying it early is safe.
+3. Threats and bounds: both tables have row-level security on, the browser may only read its own
+   `events` rows, and every write goes through the definer function `events_put()`, which caps a
+   call at 500 entries and 256 KB, a reader at 2,000 calls a day and 25,000 rows, and the whole table
+   at 300 MB (`private.events_ceiling()`) for everyone. One consequence (T14): a checkpoint from a device
+   whose clock is far ahead of the server's is refused as invalid, so a wrong clock costs that
+   device its checkpoints, not the reader's other data.
+4. Rollback is the table above: leave the objects. To stop writes, use the kill switch row in
+   [6](#6-kill-switches). To empty the log, as a last resort, run
+   `truncate public.events; update public.event_meta set seq = 0;` in the SQL editor.
 
 ## 2. Deploys
 
@@ -630,6 +719,11 @@ The plan's go-live checklist moves the project to a paid plan before the tutor i
   no signed-in reader syncs is enough. Do not count on a warning: the pages read do not promise an
   email before a project is paused. Once a week, open the dashboard or sign in on the live site
   and read the sync line; a paused project shows as paused in the dashboard and is restored there.
+- **The event log.** As the admin, once a month, run `select * from public.events_usage();`. It
+  returns the rows, the readers, the median and 99th percentile of rows per reader, the largest
+  one, and the bytes of both tables. Worrying looks like `max` or `p99` near 25,000 rows for one
+  reader (the per-user cap, so someone is at the wall), or `events_bytes` near 300 MB, the ceiling
+  past which `events_put()` refuses everyone's writes.
 - **The account page.** Sign in on the live site now and then and read the sync line.
 
 ## 4. Secrets
@@ -717,6 +811,7 @@ without removing its code.
 | an id removed from `providers` | That sign-in button disappears. Remove it here first, then disable the service in Supabase |
 | `emailDelivery: false` | No "Email me a sign-in link", no "Forgot password" |
 | `board: "off"` | No Daily board: nothing is submitted or fetched, the Arena shows no board and the account page hides the switch (from K-10g). This is the site's side only; a tab from before the deploy, or anything else holding a session, can still call the functions. For a full stop run `revoke execute on function public.submit_daily(text, integer, integer, integer, integer), public.daily_board(text) from authenticated;` in the SQL editor (leave `leave_board()` callable so readers can still leave), and `grant` them back to switch it on |
+| `learn.events: "off"` **[from P6]** | The page scripts record and send no events; the log stays as it is. This is the site's side only; a tab from before the deploy, or anything else holding a session, can still call `events_put()`. For a full stop run `revoke execute on function public.events_put(jsonb, integer) from authenticated;` in the SQL editor, and `grant execute on function public.events_put(jsonb, integer) to authenticated;` to switch it on |
 
 **Planned [not yet]:** the plan adds `tutor.enabled` (R5; the tutor is built with it `false`) and
 one flag each for leagues (R4), the shop (R3), gates (R3) and streak reminders (R3). Only

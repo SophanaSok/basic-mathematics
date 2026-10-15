@@ -131,6 +131,8 @@ redirect list), add the id to `providers` locally, and open `account.html`.
 | `profiles` | An optional display name, and `board`: whether the reader joined the Daily board (off unless they turn it on). |
 | `board_secret` | One row: a random key made when the SQL is first run, which the Daily board's generated names are hashed with. Only `daily_board()` reads it. |
 | `daily_runs` | One row per reader per day they played the Arena's Daily while on the Daily board: `day` (their local date, `YYYY-MM-DD`), `score`, `n` (questions asked, at most 5), `firsts` (right first time), `ms` (the run's time in milliseconds, kept only when every answer was right first time, and between 250 ms and 10 minutes per question), and `submitted_at`. The first result for a day is the one kept. The numbers are reported by the page and only bounds-checked here (the score at most what its first-try answers and retries can pay, 700 for 5 right first time). |
+| `events` | One row per learner action: which exercise or Arena section, the UTC minute or the day, right or wrong, the try number, the clue level, flags, and for a checkpoint a small optional object; and `rd`, the UTC day the row reached the database. Never typed text. |
+| `event_meta` | Per reader: the write counter `seq`, the reset `epoch`, and the day's counters. |
 | `admins` | The user ids allowed to call the aggregate functions. |
 
 Row-level security restricts every row to its owner. `exercise_stats()` and `chapter_stats()`
@@ -146,6 +148,11 @@ the hash is keyed, even someone who learns a reader's user id cannot work out th
 cannot link that person's days on the board. `leave_board()` turns `board` off and deletes the
 caller's `daily_runs` rows. `delete_my_account()` removes the caller's auth user, and every table
 cascades from it.
+
+The browser cannot read or write `event_meta`, and can only read its own `events` rows; every
+write goes through `events_put()`. One known loss (T14): a device that stays offline across twelve
+or more practice days of a section, and holds an unsynced miss older than another device's
+checkpoint, loses that miss; the box stays one step high until the next miss.
 
 Signed-out visitors never contact Supabase: the SDK (supabase-js, an npm dependency bundled as
 `dist/bundle/supabase.js` and fetched from the site itself, never from a CDN) is not even

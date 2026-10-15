@@ -2,9 +2,11 @@
 "use strict";
 /* Runs the SQL of the event log against a throwaway Postgres in Docker.
 
-   Usage: node tools/sql-test.js [--keep] [--verbose]   (npm run test:sql)
+   Usage: node tools/sql-test.js [--keep] [--verbose] [--db <url>]   (npm run test:sql)
    --keep     leave the container running afterwards (its port is printed)
    --verbose  print every pgTAP line, not only the ones that are not "ok"
+   --db <url> skip Docker and run the same steps with the local psql against a database that is
+              already up (the SQL workflow's service container, .github/workflows/sql.yml)
 
    Needs Docker; it is not part of `npm run check` or `check:all` for that reason. It starts the
    supabase/postgres image (the roles anon, authenticated and service_role, the auth schema
@@ -33,6 +35,9 @@ const IMAGE = "supabase/postgres@" + IMAGE_DIGEST;
 const NAME = "bm-sql-test";
 const args = process.argv.slice(2);
 const KEEP = args.includes("--keep"), VERBOSE = args.includes("--verbose");
+const DB_AT = args.indexOf("--db");
+const DB_URL = DB_AT < 0 ? "" : (args[DB_AT + 1] || "");
+if (DB_AT >= 0 && !/^postgres(ql)?:\/\//.test(DB_URL)) { console.error("sql-test: --db needs a postgres:// URL"); process.exit(2); }
 
 function run(cmd, argv, input) {
   return new Promise((resolve) => {
@@ -49,11 +54,12 @@ function run(cmd, argv, input) {
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const docker = (...a) => run("docker", a);
 const PSQL = ["exec", "-i", NAME, "psql", "-U", "postgres", "-d", "postgres", "-X", "-q", "-t", "-A", "-v", "ON_ERROR_STOP=1"];
-const psql = (sql) => run("docker", PSQL, sql);
+const PSQL_URL = ["-X", "-q", "-t", "-A", "-v", "ON_ERROR_STOP=1", DB_URL];
+const psql = (sql) => DB_URL ? run("psql", PSQL_URL, sql) : run("docker", PSQL, sql);
 
 let cleaned = false;
 async function cleanup() {
-  if (cleaned || KEEP) return;
+  if (cleaned || KEEP || DB_URL) return;
   cleaned = true;
   await docker("rm", "-f", NAME);
 }
@@ -84,16 +90,18 @@ async function main() {
   const migrations = migrationsAfter();
   if (!migrations.length) { fail("no migration newer than " + base.ref + " to test"); return; }
 
-  if ((await docker("image", "inspect", IMAGE)).status !== 0) {
-    console.log("pulling supabase/postgres:" + IMAGE_TAG + " (" + IMAGE_DIGEST.slice(0, 19) + "...)");
-    const pull = await docker("pull", IMAGE);
-    if (pull.status !== 0) { fail("docker pull failed:\n" + pull.err); return; }
+  if (!DB_URL) {
+    if ((await docker("image", "inspect", IMAGE)).status !== 0) {
+      console.log("pulling supabase/postgres:" + IMAGE_TAG + " (" + IMAGE_DIGEST.slice(0, 19) + "...)");
+      const pull = await docker("pull", IMAGE);
+      if (pull.status !== 0) { fail("docker pull failed:\n" + pull.err); return; }
+    }
+    await docker("rm", "-f", NAME);
+    const started = await docker("run", "-d", "--rm", "--name", NAME, "-e", "POSTGRES_PASSWORD=postgres", "-p", "127.0.0.1:0:5432", IMAGE);
+    if (started.status !== 0) { fail("docker run failed:\n" + started.err); return; }
+    process.on("SIGINT", async () => { await cleanup(); process.exit(130); });
+    process.on("SIGTERM", async () => { await cleanup(); process.exit(143); });
   }
-  await docker("rm", "-f", NAME);
-  const started = await docker("run", "-d", "--rm", "--name", NAME, "-e", "POSTGRES_PASSWORD=postgres", "-p", "127.0.0.1:0:5432", IMAGE);
-  if (started.status !== 0) { fail("docker run failed:\n" + started.err); return; }
-  process.on("SIGINT", async () => { await cleanup(); process.exit(130); });
-  process.on("SIGTERM", async () => { await cleanup(); process.exit(143); });
 
   /* the image runs its init scripts, restarts, and only then holds the roles */
   let ready = false;
@@ -139,7 +147,7 @@ async function main() {
   if (bad.length) { fail(bad.length + " test(s) not ok"); return; }
   if (okCount !== Number(plan[1]) || lines.some((l) => /^# Looks like/.test(l))) { fail("plan mismatch: planned " + plan[1] + ", ran " + okCount); return; }
   console.log("pgTAP: " + okCount + " tests, all ok; the migration applied twice without error (" + ((Date.now() - t0) / 1000).toFixed(1) + " s, supabase/postgres:" + IMAGE_TAG + ")");
-  if (KEEP) {
+  if (KEEP && !DB_URL) {
     const port = (await docker("port", NAME, "5432")).out.trim();
     console.log("left running as " + NAME + " (" + port + ", user postgres, password postgres); stop it with: docker rm -f " + NAME);
   }
