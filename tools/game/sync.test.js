@@ -18,12 +18,14 @@
    wiping later work, a tab that missed a sign-out in another tab, a sync finishing
    after someone else signed in, and signing out while the last upload fails. Then the
    ways this version of the site could damage what a later one saved: fields it has
-   never heard of, a row marked as a newer shape, and a server whose tables are older
-   or newer than this file. Some of these run on account.html, where the second half of
+   never heard of, a row marked as a newer shape (it may handshake, never send), and a
+   server whose tables are older or newer than this file. Some of these run on account.html, where the second half of
    account.js (the account page) runs in the same scope as the sync, and where readers
    sign in and out. A last section covers signing in through another service
    (assets/config.js `providers`): which services are offered, what is asked of them,
-   and readers who have no email.
+   and readers who have no email. The learning log has its own section: it leaves the
+   device through events_put (the fake answers as supabase/migrations/20261015004752_events.sql
+   does) and a select of the events table, and the attempts table is never touched.
 
    Usage: node tools/game/sync.test.js [--only=<substring>] */
 "use strict";
@@ -35,6 +37,8 @@ const ROOT = path.resolve(__dirname, "../..");
 const SRC = fs.readFileSync(path.join(ROOT, "assets/account.js"), "utf8");
 /* the merge every entry puts up ahead of account.js (src/ui/core.ts), read by Node itself */
 const MERGE = require("../../src/ui/core.ts").merge;
+/* what events_put runs on the server: the same validity and prune rules as the browser's */
+const { isValid, prune } = require("../../src/sync/events.ts");
 const ONLY = (process.argv.find((a) => a.startsWith("--only=")) || "").slice(7);
 const REF = "testref";
 const SESSION_KEY = "sb-" + REF + "-auth-token";
@@ -77,6 +81,8 @@ async function settle() {
 /* ----------------------------------------------------------- the server -- */
 
 /* timestamptz as PostgREST prints it: +00:00, trailing zeros of the fraction dropped */
+/* the UTC date of the fake clock, as events_put reads it */
+const pgDay = () => new Date(now).toISOString().slice(0, 10);
 function pgTime(ms) {
   return new Date(ms).toISOString().replace(/\.?0*Z$/, "+00:00").replace(/(\.\d*?)0+\+/, "$1+");
 }
@@ -88,10 +94,17 @@ const DEFAULTS = { progress: {}, play: {}, attempts: {}, activity: {}, lesson: {
 class Server {
   constructor() {
     this.rows = {};          /* user_id -> row, updated_at kept as ms */
-    this.attempts = [];
+    this.events = {};        /* user_id -> rows of the events table, seq kept */
+    this.meta = {};          /* user_id -> event_meta: { seq, epoch, day, day_n, day_calls } */
+    this.hints = [];         /* every hint events_put returned, for assertions */
+    this.eventsDown = false; /* the rpc alone fails like a network error */
+    this.full = false;       /* events_put answers bm-full */
+    this.maxBatch = 500;
+    this.quota = 3000;       /* new rows per day */
+    this.calls = 2000;       /* calls per day */
     this.profiles = {};
     this.columns = ["user_id"].concat(Object.keys(DEFAULTS), "updated_at");   /* of user_state */
-    this.missing = {};       /* tables this project does not have: { attempts: true } */
+    this.missing = {};       /* tables and functions this project does not have: { events_put: true } */
     this.refused = 0;        /* saves turned away for naming a column that is not there */
     this.offline = false;    /* every request fails, database and auth alike */
     this.dbError = null;     /* database requests fail with this, auth still works */
@@ -122,7 +135,81 @@ class Server {
   matches(row, filters) {
     return filters.every(([c, v]) => (c === "updated_at" ? row.updated_at === Date.parse(v) : String(row[c]) === String(v)));
   }
+  /* a row as the events table holds it, from a payload */
+  rowOf(id, p, v, seq) {
+    return { id, v: v || 1, t: p[0], d: p[1], src: p[2], sec: p[3], ref: p[4], k: p[5], ok: p[6], n: p[7], r: p[8], f: p[9], x: p.length === 11 ? clone(p[10]) : null, seq };
+  }
+  payloadOf(r) {
+    const p = [r.t, r.d, r.src, r.sec, r.ref, r.k, r.ok, r.n, r.r, r.f];
+    if (r.x !== null && r.x !== undefined) p.push(clone(r.x));
+    return p;
+  }
+  /* a row as given, with the next seq (a wrong hash, a v of 2: what the client never sends) */
+  seedEvent(uid, row) {
+    const m = this.metaOf(uid);
+    m.seq += 1;
+    (this.events[uid] = this.events[uid] || []).push(Object.assign({ v: 1, x: null }, clone(row), { seq: m.seq }));
+  }
+  metaOf(uid) {
+    return this.meta[uid] || (this.meta[uid] = { seq: 0, epoch: 0, day: pgDay(), day_n: 0, day_calls: 0 });
+  }
+  /* public.events_put, answer for answer and in its order */
+  put(uid, batch, epoch) {
+    const m = this.metaOf(uid);
+    if (m.day < pgDay()) { m.day = pgDay(); m.day_n = 0; m.day_calls = 0; }
+    m.day_calls += 1;
+    const hint = (h) => { this.hints.push(h.hint); return h; };
+    if (m.day_calls > this.calls) return hint({ hint: "bm-calls" });
+    if (!Array.isArray(batch) || batch.length > this.maxBatch) return hint({ hint: "bm-batch" });
+    if (!batch.length) return { epoch: m.epoch, seq: m.seq };
+    if (epoch !== m.epoch) return hint({ hint: "bm-reset", epoch: m.epoch });
+    if (this.full) return hint({ hint: "bm-full" });
+    const mine = (this.events[uid] = this.events[uid] || []);
+    const byId = new Map();
+    batch.forEach((e) => { byId.set(e && typeof e.id === "string" ? e.id : "\u0000" + byId.size, e); });
+    const limit = Math.floor(now / 60000) + 1440;
+    const refused = [], fresh = [];
+    byId.forEach((e, id) => {
+      const p = e && e.p;
+      if (!isValid(id, p)) refused.push({ id: typeof id === "string" && id[0] !== "\u0000" ? id : null, why: "invalid" });
+      else if (p[0] > limit) refused.push({ id, why: "future" });
+      else if (!mine.some((r) => r.id === id)) fresh.push({ id, p, v: e.v });
+    });
+    if (m.day_n + fresh.length > this.quota) return hint({ hint: "bm-quota", refused });
+    if (mine.length + fresh.length > 25000) return hint({ hint: "bm-full" });
+    fresh.sort((a, b) => a.p[0] - b.p[0] || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
+    fresh.forEach((f, i) => mine.push(this.rowOf(f.id, f.p, f.v, m.seq + i + 1)));
+    /* prune over the reader's whole set; the survivors keep their seq */
+    const set = {};
+    mine.forEach((r) => { set[r.id] = this.payloadOf(r); });
+    const kept = prune(set);
+    const left = mine.filter((r) => kept[r.id]);
+    const added = fresh.filter((f) => kept[f.id]).length;
+    this.events[uid] = left;
+    m.seq += fresh.length;
+    m.day_n += added;
+    return { added, refused, seq: m.seq, epoch: m.epoch };
+  }
+  /* the user_state triggers: a reset moves the epoch on and deletes the reader's events */
+  resetTrigger(uid) {
+    if (!this.meta[uid]) return;
+    this.meta[uid].epoch += 1;
+    this.events[uid] = [];
+  }
+  rpc(name, args, uid) {
+    if (name !== "events_put") return Promise.resolve({ data: null, error: null });
+    return Promise.resolve(this.held).then(() => {
+      this.log.push("rpc events_put " + (Array.isArray(args.batch) ? args.batch.length : "?"));
+      if (this.offline || this.eventsDown) return { data: null, error: { message: "TypeError: Failed to fetch", code: "" }, status: 0 };
+      if (!uid) return { data: null, error: { message: "not signed in", code: "P0001" }, status: 400 };
+      if (this.missing.events_put) {
+        return { data: null, error: { message: "Could not find the function public.events_put(batch, epoch) in the schema cache", code: "PGRST202" }, status: 404 };
+      }
+      return { data: clone(this.put(uid, clone(args.batch), args.epoch)), error: null, status: 200 };
+    });
+  }
   exec(q, uid) {
+    if (q.table === "attempts") throw new Error("fake server: nothing may touch attempts (P6)");
     this.log.push(q.op + " " + q.table);
     if (this.offline) return { data: null, error: { message: "TypeError: Failed to fetch", code: "" }, status: 0 };
     if (this.dbError) return { data: null, error: clone(this.dbError), status: 403 };
@@ -130,10 +217,12 @@ class Server {
     if (this.missing[q.table]) {
       return { data: null, error: { message: "Could not find the table 'public." + q.table + "' in the schema cache", code: "PGRST205" }, status: 404 };
     }
-    if (q.table === "attempts") {
-      if (q.op !== "insert") throw new Error("fake server: attempts only takes inserts");
-      [].concat(q.payload).forEach((r) => this.attempts.push(clone(r)));
-      return { data: null, error: null, status: 201 };
+    if (q.table === "events") {
+      if (q.op !== "select") throw new Error("fake server: events is read with select only");
+      const cols = q.cols.split(",").map((c) => c.trim());
+      const rows = (this.events[uid] || []).filter((r) => q.filters.every(([c, v]) => String(r[c]) === String(v)) && q.after.every(([c, v]) => r[c] > v))
+        .sort((a, b) => a.seq - b.seq).slice(0, q.limit === null ? Infinity : q.limit);
+      return { data: rows.map((r) => { const o = {}; cols.forEach((c) => { o[c] = r[c] === undefined ? null : clone(r[c]); }); return o; }), error: null, status: 200 };
     }
     if (q.table === "profiles") {
       if (q.op === "select") return { data: this.profiles[uid] || null, error: null, status: 200 };
@@ -162,6 +251,7 @@ class Server {
       }
       p.updated_at = this.stamp(p.updated_at);
       this.rows[uid] = p;
+      if (Number(p.reset_at) > 0) this.resetTrigger(uid);
       return ret([p]);
     }
     if (q.op === "upsert") {
@@ -171,7 +261,11 @@ class Server {
     }
     if (q.op === "update") {
       const hit = Object.values(this.rows).filter((r) => mine(r) && this.matches(r, q.filters));
-      hit.forEach((r) => { Object.assign(r, p, { user_id: r.user_id, updated_at: this.stamp(p.updated_at) }); });
+      hit.forEach((r) => {
+        const was = Number(r.reset_at) || 0;
+        Object.assign(r, p, { user_id: r.user_id, updated_at: this.stamp(p.updated_at) });
+        if ((Number(r.reset_at) || 0) > was) this.resetTrigger(uid);
+      });
       return ret(hit);
     }
     throw new Error("fake server: unknown operation " + q.op);
@@ -201,13 +295,16 @@ function solvedIn(progress) {
 
 /* the query builder supabase-js hands back: chainable, and a thenable at the end */
 function query(server, table, uid) {
-  const q = { table, op: "select", cols: null, filters: [], payload: null, returning: null, single: false };
+  const q = { table, op: "select", cols: null, filters: [], after: [], limit: null, payload: null, returning: null, single: false };
   const api = {
     select(cols) { if (q.op === "select") q.cols = cols || "*"; else q.returning = cols || "*"; return api; },
     insert(p) { q.op = "insert"; q.payload = p; return api; },
     update(p) { q.op = "update"; q.payload = p; return api; },
     upsert(p) { q.op = "upsert"; q.payload = p; return api; },
     eq(c, v) { q.filters.push([c, v]); return api; },
+    gt(c, v) { q.after.push([c, v]); return api; },
+    order() { return api; },
+    limit(n) { q.limit = n; return api; },
     maybeSingle() { q.single = true; return api; },
     single() { q.single = true; return api; },
     /* the token goes with the request when it is sent, not when the answer comes back */
@@ -265,7 +362,7 @@ class Page {
     const authSubs = [];
     const client = {
       from: (table) => query(server, table, () => (session() ? session().user.id : null)),
-      rpc: () => Promise.resolve({ data: null, error: null }),
+      rpc: (name, args) => server.rpc(name, args, session() ? session().user.id : null),
       auth: {
         onAuthStateChange(cb) {
           authSubs.push(cb);
@@ -300,6 +397,7 @@ class Page {
     };
     const win = {
       console, URL, Blob: function () {}, Date: FakeDate,
+      BMCore: { config: require("../../src/core/config.ts") },
       BM_CONFIG: Object.assign({ supabaseUrl: "https://" + REF + ".supabase.co", supabaseAnonKey: "sb_publishable_test" }, opts.config || {}),
       supabase: { createClient: () => client },
       BMStore: Store,
@@ -813,7 +911,7 @@ scenario("an account saved in a newer shape is merged into this browser but neve
   expect(has(d.solved(), "ch01/e3") && has(d.solved(), "ch01/e4"), "work done meanwhile was lost from this browser", d.solved());
   expect(d.page.status() === "reload", "the reloaded page does not ask for a reload", d.page.Account.status());
   expect(server.writes() === 0 && canon(server.rows.u1) === was, "the account was written by a version that does not understand it", server.log.filter((l) => !/^select/.test(l)));
-  expect(server.attempts.length === 0 && server.log.indexOf("insert attempts") < 0, "the attempt log was written", server.log.filter((l) => /attempts/.test(l)));
+  expect(!server.log.some((l) => /^rpc events_put [1-9]/.test(l)), "a newer-shape browser sent events", server.log.filter((l) => /events_put/.test(l)));
   /* signing out cannot save either, so the work is set aside rather than cleared */
   const { result, error } = await d.page.signOut();
   expect(!error && result && result.saved === false, "sign-out claimed the progress was saved", { result, error: error && error.message });
@@ -910,44 +1008,6 @@ scenario("a server without the game column still syncs everything else", async (
   const before = server.writes();
   d.open(); phone.open(); await settle();
   expect(server.writes() === before, "a page load with nothing new rewrote the account", server.log.slice(-6));
-});
-
-scenario("a project without the attempts table still syncs, and keeps the log for when it has one", async () => {
-  const { server, laptop } = await twoDevices();
-  server.missing.attempts = true;
-  const asked = () => server.log.filter((l) => l === "insert attempts").length;
-  laptop.page.check("ch01", "e1", true); laptop.page.solve("ch01", "e1"); await settle();
-  expect(laptop.page.status() === "synced", "the sync failed", String((laptop.page.Account.status().error || {}).message));
-  expect(has(server.solved("u1"), "ch01/e1"), "progress did not reach the account", server.solved("u1"));
-  /* told once that the table is not there, the page holds the log back for a while */
-  for (const k of ["e2", "e3", "e4"]) { laptop.page.check("ch01", k, true); laptop.page.solve("ch01", k); await settle(); }
-  expect(asked() === 1, "the whole log was sent again with every save although the table is missing", asked());
-  expect(laptop.page.status() === "synced" && has(server.solved("u1"), "ch01/e4"), "progress stopped syncing while the log was held back", server.solved("u1"));
-  /* the owner runs schema.sql; a few minutes on, the checks made meanwhile go with the next save */
-  server.missing = {};
-  now += 5 * 60 * 1000;
-  laptop.page.check("ch01", "e5", false); await settle();
-  expect(server.attempts.map((a) => a.ex_key).join() === "e1,e2,e3,e4,e5", "the log kept while the table was missing did not arrive, once each, in order", server.attempts.map((a) => a.ex_key));
-  server.missing.attempts = true;
-  laptop.page.check("ch01", "e6", true); laptop.page.solve("ch01", "e6");
-  const { result, error } = await laptop.page.signOut();
-  expect(!error && result && result.saved === true && laptop.setAside("u1").length === 0, "signing out treated the missing table as unsaved progress", { result, error: error && error.message });
-});
-
-scenario("a long visit without the attempts table keeps only the newest checks", async () => {
-  const { server, laptop } = await twoDevices();
-  server.missing.attempts = true;
-  laptop.page.check("ch01", "first", true); await settle();
-  for (let i = 0; i < 700; i++) {
-    laptop.page.check("ch01", "k" + i, true);
-    if (i % 100 === 99) await settle();
-  }
-  server.missing = {};
-  now += 5 * 60 * 1000;
-  laptop.page.check("ch01", "last", true); await settle();
-  const keys = server.attempts.map((a) => a.ex_key);
-  expect(keys.length === 500 && keys[0] === "k201" && keys[499] === "last", "expected the newest 500 checks, oldest first", { n: keys.length, first: keys[0], last: keys[keys.length - 1] });
-  expect(laptop.page.status() === "synced", "the sync failed", String((laptop.page.Account.status().error || {}).message));
 });
 
 /* ------------------------------------- signing in with another service -- */
@@ -1282,6 +1342,164 @@ scenario("work done signed out is adopted by the next account, as the progress i
   d.remember("u2"); d.open(); await settle();
   expect(logIds(d).length === 1 && deviceId(d) === id, "the signed-out work was wiped for u2", { ids: logIds(d), dev: d.read(DEV_KEY, null) });
   expect((d.read(DEV_KEY, {}) || {}).uid === "u2", "the device record does not hold u2", d.read(DEV_KEY, null));
+});
+
+
+/* ------------------------------------------------- the learning log syncs -- */
+
+const evSet = (page) => page.win.BMEvents.all();
+const serverSet = (server, uid) => { const o = {}; (server.events[uid] || []).forEach((r) => { o[r.id] = server.payloadOf(r); }); return o; };
+const outbox = (dev) => (dev.read(OUT_KEY, {}) || {}).ids || [];
+const sent = (server) => server.log.filter((l) => /^rpc events_put [1-9]/.test(l)).length;
+const noAttempts = (server) => !server.log.some((l) => /attempts/.test(l));
+const evMeta = (dev) => (dev.read("bm.sync.v1", {}) || {}).ev || {};
+
+scenario("two devices converge on one log", async () => {
+  const server = new Server();
+  const laptop = new Device("laptop", server), phone = new Device("phone", server);
+  laptop.remember("u1"); phone.remember("u1");
+  laptop.open(); await settle();
+  laptop.page.check("ch01", "e1", false); now += 60000; laptop.page.check("ch01", "e1", true); now += 60000; laptop.page.check("ch01", "e2", true); await settle();
+  expect(canon(serverSet(server, "u1")) === canon(evSet(laptop.page)) && Object.keys(evSet(laptop.page)).length > 0, "the server does not hold the laptop's log", { server: serverSet(server, "u1"), laptop: evSet(laptop.page) });
+  phone.open(); await settle();
+  expect(canon(evSet(phone.page)) === canon(serverSet(server, "u1")), "the phone did not pull the log", { phone: evSet(phone.page), server: serverSet(server, "u1") });
+  now += 60000; phone.page.check("ch01", "e3", true); await settle();
+  laptop.open(); await settle();
+  const union = prune(Object.assign({}, evSet(phone.page), evSet(laptop.page)));
+  expect(canon(evSet(laptop.page)) === canon(evSet(phone.page)) && canon(evSet(phone.page)) === canon(serverSet(server, "u1")) && canon(union) === canon(serverSet(server, "u1")),
+    "the three logs differ", { laptop: evSet(laptop.page), phone: evSet(phone.page), server: serverSet(server, "u1") });
+  expect(outbox(laptop).length === 0 && outbox(phone).length === 0, "an outbox is not empty", { l: outbox(laptop), p: outbox(phone) });
+  expect(noAttempts(server) && noEventsColumn(server), "attempts or an events column was touched");
+});
+
+scenario("the outbox survives a reload and pagehide", async () => {
+  const { server, laptop } = await twoDevices();
+  server.eventsDown = true;
+  laptop.page.check("ch01", "e1", true); await settle();
+  expect(outbox(laptop).length === 1, "the id is not in the outbox", outbox(laptop));
+  expect(laptop.page.status() === "synced", "progress is not synced", laptop.page.Account.status());
+  expect(!(server.events.u1 || []).length, "the server has a row", server.events.u1);
+  laptop.page.close();
+  expect(outbox(laptop).length === 1, "pagehide lost the outbox", outbox(laptop));
+  server.eventsDown = false;
+  laptop.open(); await settle();
+  expect((server.events.u1 || []).length === 1, "the row did not arrive", server.events.u1);
+  expect(outbox(laptop).length === 0, "the outbox is not empty", outbox(laptop));
+  expect(noAttempts(server), "attempts touched");
+});
+
+scenario("a reset on one device clears the other's log and its stale send is refused", async () => {
+  const { server, laptop, phone } = await twoDevices();
+  phone.page.check("ch01", "e1", true); await settle();
+  expect((server.events.u1 || []).length === 1 && server.meta.u1.epoch === 0, "setup: the server does not hold e1 at epoch 0", { rows: server.events.u1, meta: server.meta.u1 });
+  now += 60000;
+  laptop.page.resetAll(); await settle();
+  expect(server.meta.u1.epoch === 1 && !(server.events.u1 || []).length, "the reset did not move the epoch and clear the rows", { meta: server.meta.u1, rows: server.events.u1 });
+  const before = deviceId(phone);
+  now += 60000;
+  phone.page.check("ch01", "e2", true); await settle();
+  /* the phone's save loses to the laptop's reset, so its sync reads the reset and clears the log
+     before any send: the stale e2 is never offered to the server at all (no bm-reset needed) */
+  expect(server.log.filter((l) => /^rpc events_put [1-9]/.test(l)).length === 1, "the stale entry was offered to the server", server.log.filter((l) => /events_put/.test(l)));
+  expect(logIds(phone).length === 0 && outbox(phone).length === 0, "the phone's log or outbox survived", { log: logIds(phone), out: outbox(phone) });
+  expect(deviceId(phone) !== before, "the phone's device id did not change");
+  expect(!(server.events.u1 || []).length, "the stale e2 landed", server.events.u1);
+  expect(evMeta(phone).u1 && evMeta(phone).u1.epoch === 1, "the phone did not adopt epoch 1", evMeta(phone));
+  now += 60000;
+  phone.page.check("ch01", "e3", true); await settle();
+  expect(canon(serverSet(server, "u1")) === canon(evSet(phone.page)) && logIds(phone).length === 1 && (server.events.u1 || []).length >= 1, "the server does not hold exactly e3's entry", { rows: server.events.u1, phone: evSet(phone.page) });
+  expect(noAttempts(server), "attempts touched");
+});
+
+scenario("signing in as a different account clears the log, the outbox and the cursor", async () => {
+  const server = new Server();
+  const d = new Device("shared", server);
+  d.remember("u1"); d.open(); await settle();
+  d.page.check("ch01", "e1", true); await settle();
+  const first = deviceId(d);
+  expect((server.events.u1 || []).length === 1, "setup: u1's row is not on the server", server.events.u1);
+  d.storage.delete(SESSION_KEY);
+  d.remember("u2"); d.open(); await settle();
+  expect(!Object.keys(evSet(d.page)).some((id) => id.slice(0, 8) === first), "u1's entry is still local", evSet(d.page));
+  expect(outbox(d).length === 0, "the outbox is not empty", outbox(d));
+  expect(!("u1" in evMeta(d)), "u1's cursor is still in the meta", evMeta(d));
+  now += 60000;
+  d.page.check("ch01", "e2", true); await settle();
+  expect((server.events.u2 || []).length === 1 && (server.events.u1 || []).length === 1, "the server rows are wrong", { u1: server.events.u1, u2: server.events.u2 });
+  expect(!Object.keys(evSet(d.page)).some((id) => id.slice(0, 8) === first), "u2's log holds u1's id", evSet(d.page));
+  expect(noAttempts(server), "attempts touched");
+});
+
+scenario("work done signed out goes with the first sync", async () => {
+  const server = new Server();
+  const d = new Device("laptop", server);
+  d.open(); await settle();
+  d.page.check("ch01", "e1", true); now += 60000; d.page.check("ch01", "e2", true); await settle();
+  expect(logIds(d).length === 2 && sent(server) === 0 && outbox(d).length === 0, "setup: signed-out work was sent or queued", { ids: logIds(d), sent: sent(server), out: outbox(d) });
+  d.remember("u1"); d.open(); await settle();
+  expect((server.events.u1 || []).length === 2, "the server does not hold both", server.events.u1);
+  expect(evMeta(d).u1 && evMeta(d).u1.init === true, "init is not set", evMeta(d));
+  const n = sent(server);
+  d.open(); await settle();
+  expect(sent(server) === n, "events were sent again", { before: n, after: sent(server) });
+  expect(noAttempts(server), "attempts touched");
+});
+
+scenario("a reset on this device keeps the work made after it", async () => {
+  const { server, laptop } = await twoDevices();
+  laptop.page.check("ch01", "e1", true); await settle();
+  expect((server.events.u1 || []).length === 1, "setup: e1 not on the server");
+  now += 60000;
+  laptop.page.resetAll(); await settle();
+  expect(server.meta.u1.epoch === 1 && !(server.events.u1 || []).length, "the reset did not clear the server", { meta: server.meta.u1, rows: server.events.u1 });
+  now += 60000;
+  laptop.page.check("ch01", "e2", true); await settle();
+  expect(server.hints.filter((h) => h === "bm-reset").length === 1, "expected one bm-reset", server.hints);
+  expect(canon(serverSet(server, "u1")) === canon(evSet(laptop.page)) && logIds(laptop).length === 1, "the server does not hold exactly e2's entry", { rows: server.events.u1, local: evSet(laptop.page) });
+  expect(noAttempts(server), "attempts touched");
+});
+
+scenario("the account page says when the log is full", async () => {
+  const server = new Server();
+  const d = new Device("laptop", server);
+  d.remember("u1"); d.open({ account: true }); await settle();
+  server.full = true;
+  d.page.check("ch01", "e1", true); await settle();
+  expect(d.page.shown().indexOf("Your answer log is full") > -1, "the page does not say the log is full", d.page.shown());
+  expect(d.page.status() === "synced" && outbox(d).length === 1, "status or outbox is wrong", { s: d.page.status(), out: outbox(d) });
+  server.full = false;
+  now += 25 * 3600 * 1000;
+  d.page.check("ch01", "e2", true); await settle();
+  expect((server.events.u1 || []).length === 2, "both rows are not on the server", server.events.u1);
+  expect(d.page.shown().indexOf("Your answer log is full") < 0 && outbox(d).length === 0, "the sentence stayed or the outbox is not empty", { out: outbox(d) });
+  expect(noAttempts(server), "attempts touched");
+});
+
+scenario("the kill switch sends and pulls nothing", async () => {
+  const server = new Server();
+  const d = new Device("laptop", server);
+  d.remember("u1"); d.open({ config: { learn: { events: "off" } } }); await settle();
+  d.page.check("ch01", "e1", true); await settle();
+  expect(!server.log.some((l) => /rpc events_put|select events/.test(l)), "the channel was used", server.log.filter((l) => /events/.test(l)));
+  expect(logIds(d).length === 1 && d.page.status() === "synced", "the entry or the sync is missing", { ids: logIds(d), s: d.page.status() });
+  expect(noAttempts(server), "attempts touched");
+});
+
+scenario("a project without the function keeps the outbox and tries later", async () => {
+  const { server, laptop } = await twoDevices();
+  server.log.length = 0;
+  server.missing.events_put = true;
+  laptop.page.check("ch01", "e1", true); now += 60000; laptop.page.check("ch01", "e2", true); await settle();
+  const calls = () => server.log.filter((l) => /^rpc events_put/.test(l)).length;
+  expect(laptop.page.status() === "synced" && calls() === 1 && outbox(laptop).length === 2, "setup is wrong", { s: laptop.page.status(), calls: calls(), out: outbox(laptop) });
+  now += 60000;
+  laptop.page.check("ch01", "e3", true); await settle();
+  expect(calls() === 1, "the page asked again while held", calls());
+  server.missing = {};
+  now += 5 * 60 * 1000 + 1;
+  laptop.page.check("ch01", "e4", true); await settle();
+  expect((server.events.u1 || []).length === 4 && outbox(laptop).length === 0, "the rows did not all arrive", { rows: (server.events.u1 || []).length, out: outbox(laptop) });
+  expect(noAttempts(server), "attempts touched");
 });
 
 /* --------------------------------------------------------------- runner -- */

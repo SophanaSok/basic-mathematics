@@ -44,7 +44,7 @@ const kinds = (api: { all(): EventSet }) => Object.values(api.all()).map((P) => 
 describe("install", () => {
   it("puts the api up and listens once", () => {
     const f = fake();
-    expect(Object.keys(f.api)).toEqual(["all", "version", "ahead", "device", "record", "fromRun", "clear", "stamp", "scheduleAll", "schedule", "mastery", "bandOf"]);
+    expect(Object.keys(f.api)).toEqual(["all", "version", "ahead", "device", "record", "fromRun", "clear", "stamp", "outbox", "enqueue", "dequeue", "payloads", "absorb", "scheduleAll", "schedule", "mastery", "bandOf"]);
     expect(f.Store.on).toHaveBeenCalledTimes(1);
   });
   it("records an attempt, and no secret reaches storage", () => {

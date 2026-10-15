@@ -8,7 +8,7 @@
    (the format, the merge). Every write is mergeEvents(stored, mine), so order never matters,
    and a log whose version is ahead of this code's is never written. */
 
-import { eventId, FORMAT, isValid, mergeEvents, randomRand, V_MAX, type EventSet, type EventsStore, type Payload } from "../sync/events.ts";
+import { eventId, FORMAT, ID_RE, isValid, mergeEvents, randomRand, V_MAX, type EventSet, type EventsStore, type Payload } from "../sync/events.ts";
 import { checkpoint } from "../learn/checkpoint.ts";
 import { bandOf } from "../learn/bands.ts";
 import { masteryOf } from "../learn/mastery.ts";
@@ -70,22 +70,74 @@ export function install(win: any) {
     return id;
   }
 
-  /* one merged write of `mine`; true when stored. Throws when the write throws. */
-  function put(mine: EventSet): boolean {
-    const dev = device(), held = pending && pending.dev === dev ? pending.store : null;
+  /* one merged write of `incoming` (an EventSet's store); true when stored. Throws when the
+     write throws. `dev` is the device the held copy must belong to. */
+  function store(incoming: EventsStore, dev: string | null): boolean {
+    const held = pending && pending.dev === dev ? pending.store : null;
     if (!held) pending = null;
-    const merged = mergeEvents(mergeEvents(raw(), held), { v: FORMAT, ev: mine });
+    const merged = mergeEvents(mergeEvents(raw(), held), incoming);
     const ok = Store.write(EVENTS_KEY, merged, true);
-    if (ok === false) { pending = { dev, store: merged }; warn("write failed"); cache = Object.freeze(validOf(merged)) as EventSet; }
+    if (ok === false) { pending = { dev: dev as string, store: merged }; warn("write failed"); cache = Object.freeze(validOf(merged)) as EventSet; }
     else { pending = null; cache = null; }
     return ok !== false;
   }
+  /* one merged write of `mine`; true when stored. Throws when the write throws. */
+  function put(mine: EventSet): boolean { return store({ v: FORMAT, ev: mine }, device()); }
+
+  /* The outbox (bm.events.out.v1): the ids of entries that have not reached the account. It
+     lives here because assets/account.js cannot import the keys, and the recorder is the one
+     that knows what it has just stored; account.js reads and settles it through the api.
+     Only a device with a signed-in owner queues (the first sync after sign-in queues the
+     whole log), and absorb, which takes in what the account holds, never does. */
+  const OUTBOX_MAX = 25_000;
+  const queueing = (): boolean => { const rec = readDevice(); return isObj(rec) && typeof rec.uid === "string" && rec.uid !== ""; };
+  function outbox(): string[] {
+    const r = Store ? Store.read(OUTBOX_KEY, null) : null;
+    const ids = isObj(r) && Array.isArray(r.ids) ? r.ids : [];
+    return ids.filter((id: unknown): id is string => typeof id === "string" && ID_RE.test(id));
+  }
+  function enqueue(ids: string[]): void {
+    if (!Store || !Array.isArray(ids) || !ids.length) return;
+    try {
+      const have = outbox(), seen = new Set(have);
+      ids.forEach((id) => { if (typeof id === "string" && ID_RE.test(id) && !seen.has(id)) { seen.add(id); have.push(id); } });
+      Store.write(OUTBOX_KEY, { ids: have.length > OUTBOX_MAX ? have.slice(have.length - OUTBOX_MAX) : have }, true);
+    } catch (e) { warn(e); }
+  }
+  function dequeue(ids: string[]): void {
+    if (!Store || !Array.isArray(ids) || !ids.length) return;
+    try {
+      const drop = new Set(ids), have = outbox(), keep = have.filter((id) => !drop.has(id));
+      if (keep.length !== have.length) Store.write(OUTBOX_KEY, { ids: keep }, true);
+    } catch (e) { warn(e); }
+  }
+  function payloads(ids: string[]): Record<string, Payload> {
+    const out: Record<string, Payload> = {}, V = all();
+    (Array.isArray(ids) ? ids : []).forEach((id) => { if (typeof id === "string" && Object.prototype.hasOwnProperty.call(V, id)) out[id] = V[id]; });
+    return out;
+  }
+  /* what the account handed back: merged in as put does, with no device record touched and
+     nothing queued. Returns whether the log is now ahead of this code. */
+  function absorb(incoming: unknown): boolean {
+    if (!Store) return false;
+    try {
+      if (ahead() || !isObj(incoming)) return ahead();
+      const V = validOf(incoming), have = all(), v = incoming.v;
+      const newer = Number.isInteger(v) && (v as number) > version() && (v as number) <= V_MAX;
+      const fresh = Object.keys(V).some((id) => !Object.prototype.hasOwnProperty.call(have, id));
+      if (!fresh && !newer) return ahead();
+      store({ v: incoming.v, ev: V }, deviceId());
+      announce();
+    } catch (e) { warn(e); }
+    return ahead();
+  }
+
   /* the checkpoints the touched sections are due to write */
   function checkpoints(secs: string[]): void {
     const today = todayKey();
     secs.forEach((sec) => {
       const cp = checkpoint(all(), sec, today);
-      if (cp) put({ [cp.id]: cp.P });
+      if (cp) { put({ [cp.id]: cp.P }); if (queueing()) enqueue([cp.id]); }
     });
   }
   const announce = () => Store.emit({ type: "event", n: Object.keys(all()).length });
@@ -96,6 +148,7 @@ export function install(win: any) {
       const id = eventId(device(), P);
       if (!isValid(id, P)) return null;
       put({ [id]: P });
+      if (queueing()) enqueue([id]);
       checkpoints([P[3]]);
       announce();
       return id;
@@ -117,6 +170,7 @@ export function install(win: any) {
       const n = Object.keys(mine).length;
       if (!n) return 0;
       put(mine);
+      if (queueing()) enqueue(Object.keys(mine));
       checkpoints(Array.from(secs));
       announce();
       return n;
@@ -159,7 +213,7 @@ export function install(win: any) {
   }
 
   const api = {
-    all, version, ahead, device, record, fromRun, clear, stamp,
+    all, version, ahead, device, record, fromRun, clear, stamp, outbox, enqueue, dequeue, payloads, absorb,
     scheduleAll: (today: string) => scheduleAll(all(), today),
     schedule: (sec: string, today: string) => scheduleOf(all(), sec, today),
     mastery: (sec: string) => masteryOf(all(), sec),
