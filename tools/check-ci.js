@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 "use strict";
-/* Checks on .github/workflows/ci.yml: the guards of its deploys, which nothing else
+/* Checks on .github/workflows/ci.yml (the guards of its deploys) and sql.yml (its trigger and pins), which nothing else
    tests (a workflow runs only on GitHub). Node built-ins only; part of `npm run check`,
    so the build job runs it on every pull request.
 
@@ -13,6 +13,7 @@ const path = require("path");
 const site = require("./lib/site");
 
 const FILE = ".github/workflows/ci.yml";
+const SQL_FILE = ".github/workflows/sql.yml";
 
 function result() {
   const r = { fails: [], notes: [], count: 0 };
@@ -153,6 +154,37 @@ function checkInstall(ci, r) {
   });
 }
 
+/* (i) the SQL workflow runs on a pull request alone, for the paths of the event log, and
+   starts nothing else: no push, schedule or manual run, and it is not in ci.yml's gate */
+function checkSqlTrigger(ci, r, sql) {
+  r.count++;
+  if (sql === null) { r.fail(SQL_FILE + " is missing"); return; }
+  const at = sql.search(/^on:\n/m);
+  const on = at < 0 ? "" : sql.slice(at).split(/\n(?=\S)/)[0];
+  const events = (on.match(/^  [a-z_]+:/gm) || []).map(s => s.trim());
+  if (events.join() !== "pull_request:") r.fail(SQL_FILE + ": on: is not pull_request alone (found " + JSON.stringify(events) + ")");
+  const paths = /^ +paths: \[([^\]]*)\]\s*$/m.exec(on);
+  const list = paths ? paths[1].split(",").map(x => x.trim().replace(/^"|"$/g, "")) : [];
+  r.count++;
+  ["supabase/**", "src/sync/events.ts"].forEach(p => { if (!list.includes(p)) r.fail(SQL_FILE + ": paths: does not name " + p + " (found " + JSON.stringify(list) + ")"); });
+}
+
+/* (j) every action of the SQL workflow is pinned by a full commit SHA, and its database
+   image is the digest tools/sql-test.js tests on */
+function checkSqlPins(ci, r, sql) {
+  r.count++;
+  if (sql === null) { r.fail(SQL_FILE + " is missing"); return; }
+  const uses = sql.split("\n").filter(l => !/^\s*#/.test(l)).map(l => /^\s*(?:- )?uses:\s*(\S+)/.exec(l)).filter(Boolean).map(m => m[1]);
+  if (!uses.length) r.fail(SQL_FILE + ": no step uses an action, so this check guards nothing");
+  uses.forEach(u => { if (!/^[\w.-]+\/[\w.-]+(\/[\w./-]+)?@[0-9a-f]{40}$/.test(u)) r.fail(SQL_FILE + ": " + JSON.stringify(u) + " is not owner/repo@<40 hex>"); });
+  r.count++;
+  const t = fs.readFileSync(path.join(site.ROOT, "tools", "sql-test.js"), "utf8");
+  const want = (/const IMAGE_DIGEST = "(sha256:[0-9a-f]{64})"/.exec(t) || [])[1];
+  const images = (sql.match(/^\s+image:\s*\S+/gm) || []).map(l => l.split("image:")[1].trim());
+  if (!want) r.fail("tools/sql-test.js: no IMAGE_DIGEST constant of the form sha256:<64 hex>");
+  else if (images.length !== 1 || images[0] !== "supabase/postgres@" + want) r.fail(SQL_FILE + ": the service image is " + JSON.stringify(images) + ", not supabase/postgres@" + want + " (the digest of tools/sql-test.js)");
+}
+
 const CHECKS = [
   { name: "project", run: checkProject, what: "the cloudflare job's default project is a Cloudflare Pages project name" },
   { name: "rerun", run: checkRerun, what: "a re-run of an older commit of main stops before wrangler deploys" },
@@ -161,7 +193,9 @@ const CHECKS = [
   { name: "core", run: checkCore, what: "test:browser:core runs in the browser job of the part --parts names as core" },
   { name: "pages", run: checkPages, what: "GitHub Pages gets dist-redirects/, built and checked in the build job, and never dist/" },
   { name: "skip", run: checkSkip, what: "only a change to Markdown or docs/ alone starts no run, and the build reads none of it" },
-  { name: "install", run: checkInstall, what: "every job that runs the browser tests has a playwright install step, with a timeout-minutes and a killing timeout wrapper per try" }
+  { name: "install", run: checkInstall, what: "every job that runs the browser tests has a playwright install step, with a timeout-minutes and a killing timeout wrapper per try" },
+  { name: "sql-trigger", run: checkSqlTrigger, what: "sql.yml runs on pull_request alone, for supabase/** and src/sync/events.ts" },
+  { name: "sql-pins", run: checkSqlPins, what: "sql.yml pins every action by SHA and its database image by the digest of tools/sql-test.js" }
 ];
 
 module.exports = { checkInstall };
@@ -169,12 +203,14 @@ module.exports = { checkInstall };
 if (require.main === module) (function main() {
   const t0 = Date.now();
   const ci = fs.readFileSync(path.join(site.ROOT, FILE), "utf8");
+  const sqlPath = path.join(site.ROOT, SQL_FILE);
+  const sql = fs.existsSync(sqlPath) ? fs.readFileSync(sqlPath, "utf8") : null;
   let anyFail = false;
   for (const c of CHECKS) {
     const r = result();
-    try { c.run(ci, r); } catch (e) { r.fail("check crashed: " + (e.stack || e.message)); }
+    try { c.run(ci, r, sql); } catch (e) { r.fail("check crashed: " + (e.stack || e.message)); }
     if (r.fails.length) anyFail = true;
-    console.log((r.fails.length ? "FAIL" : "PASS").padEnd(5) + " " + c.name.padEnd(8) + " " + String(r.count).padStart(5) + "  " + c.what);
+    console.log((r.fails.length ? "FAIL" : "PASS").padEnd(5) + " " + c.name.padEnd(11) + " " + String(r.count).padStart(5) + "  " + c.what);
     r.notes.forEach(n => console.log("        · " + n));
     r.fails.forEach(m => console.log("        ✗ " + m));
   }

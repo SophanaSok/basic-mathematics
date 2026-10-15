@@ -653,6 +653,10 @@ function checkMigrations(ctx, r) {
   const changed = now !== then;
   r.note("base " + ref + " (" + base.why + "); " + SCHEMA_FILE + " " + (changed ? "differs from it" : "is unchanged since") + "; " + names.length + " migration file(s), " + added.length + " new since base" + (added.length ? " (" + added.join(", ") + ")" : ""));
   if (changed && !added.length) r.fail(SCHEMA_FILE + " differs from base " + ref + " but no migration has been added since then. The rule: " + MIGRATIONS_RULE);
+  /* the SQL tests' cases are generated from src/sync/events.ts; a stale file tests yesterday's rules */
+  const gen = require("./gen-prune-sql-cases");
+  r.count++;
+  if (!fs.existsSync(gen.FILE) || fs.readFileSync(gen.FILE, "utf8") !== gen.whole()) r.fail("supabase/tests/prune_cases.sql is stale: run node tools/gen-prune-sql-cases.js");
 }
 
 /* ------------------------------------------------------- placeholders -- */
@@ -1783,7 +1787,7 @@ const CHECKS = [
   { name: "section-work", run: checkSectionWork, what: "src/data/section-work.ts: the scored plus inline exercises each section's page offers, as the app attributes them; absent means 0" },
   { name: "choices", run: checkChoices, what: "choice/multi answer indices are within the options" },
   { name: "order", run: checkOrder, what: "order lists have >= 2 items; blanks carry keys" },
-  { name: "migrations", run: checkMigrations, what: "a supabase/schema.sql change since main ships a new, well-named migration; applied ones are untouched" },
+  { name: "migrations", run: checkMigrations, what: "a supabase/schema.sql change since main ships a new, well-named migration; applied ones are untouched; supabase/tests/prune_cases.sql is what tools/gen-prune-sql-cases.js writes" },
   { name: "placeholders", run: checkPlaceholders, what: "no answer box shows an example its own key judges right or form" },
   { name: "answer-spec", run: checkAnswerSpec, what: "data-tol finite, >= 0, never on exact or expr keys; every alternative of a key judged right against it; no barred expr key splits a |e|; site.js judge() grades through BMCore.judge" },
   { name: "pure-core", run: checkPureCore, what: "no module under src/core/, src/sync/, src/learn/, src/data/ names window, document, localStorage or sessionStorage (comments aside)" },

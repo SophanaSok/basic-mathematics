@@ -1,0 +1,41 @@
+# The SQL of the event log (supabase/migrations/*_events.sql) against a throwaway Postgres:
+# the migration applied twice, then the pgTAP suite (supabase/tests/events.test.sql). The same
+# steps as `npm run test:sql`, which starts the image itself; here the image is a service
+# container and tools/sql-test.js --db runs the steps against it with the runner's psql.
+#
+# It runs on a pull request that changes one of the paths below, never on a push, a schedule
+# or by hand, and it is not part of ci.yml's deploy gate. tools/check-ci.js (sql-trigger,
+# sql-pins) holds the trigger and the pins: every action by full commit SHA, the image by the
+# same digest as tools/sql-test.js.
+name: SQL
+on:
+  pull_request:
+    paths: ["supabase/**", "src/sync/events.ts", "tools/gen-prune-sql-cases.js", "tools/sql-test.js", ".github/workflows/sql.yml"]
+permissions:
+  contents: read
+concurrency:
+  group: sql-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  pgtap:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      db:
+        image: supabase/postgres@sha256:6058a6759ab9268cff8ee70641d61f1bd75953316281b76427cf5a6b4db2eafc
+        env: { POSTGRES_PASSWORD: postgres }
+        ports: ["54322:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres" --health-interval 5s --health-timeout 5s --health-retries 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          # tools/sql-test.js reads supabase/schema.sql and the migration list of origin/main
+          fetch-depth: 0
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
+        with:
+          node-version-file: .nvmrc
+      - run: sudo apt-get update
+      - run: sudo apt-get install -y --no-install-recommends postgresql-client
+      - run: node tools/gen-prune-sql-cases.js --check
+      - run: node tools/sql-test.js --db postgres://postgres:postgres@127.0.0.1:54322/postgres

@@ -53,6 +53,10 @@ progress-keys base, older than every file here. Only in a checkout where `main` 
 does the check fall back to it, and it then prints a warning, because against that base it cannot
 catch a missing migration.
 
+`npm run test:sql` (Docker, `tools/sql-test.js`) applies each new migration twice and runs the
+pgTAP suite against it; `.github/workflows/sql.yml` runs the same steps on a pull request that
+changes `supabase/`.
+
 It cannot see whether a migration was applied to the live project, or whether its statements
 match the change to `schema.sql`. Those two are on you.
 
