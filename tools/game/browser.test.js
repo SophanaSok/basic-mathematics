@@ -58,6 +58,14 @@
       click each end it and leave the markup a reduced-motion render holds, focus goes to the
       title when Skip had it, a reload does not replay it, and Reduce motion and Study mode
       never start it
+  14. the faded rung and the authored notes (a response rewrite gives ch05's exercise e1 a
+      data-final step, two more clues and a ul.ex-miss; the pages ship without them): the
+      button counts the worked steps as the fourth rung, they open with focus and without
+      the answer line, the final step or any id, rung 4 is saved and comes back unfocused,
+      the right answer then pays 4 XP, costs no heart and counts as not first time for the
+      medal; a wrong answer equal to a note's data-given shows the note and no question,
+      another wrong answer shows no note, the attempt record gains no key; the same under
+      Reduce motion and Study mode
    and the settings sheet: a modal sheet at 360 that keeps the focus and gives it back on
    Escape, beside the rail at 1280, the theme chosen in it even with storage blocked (the
    `hud` suite of check-browser.js covers every setting and the HUD's layout) */
@@ -133,6 +141,13 @@ async function open(browser, page0, seed, opts) {
     if (/Failed to load resource|net::ERR_/.test(m.text())) return; /* a request the route aborted */
     errors.push("console: " + m.text());
   });
+  /* a page response rewritten in flight (case 14): the built page, plus the markup the pages do not ship yet */
+  if (opts.rewrite) {
+    await context.route(url(page0), async (r) => {
+      const res = await r.fetch();
+      await r.fulfill({ response: res, body: opts.rewrite(await res.text()) });
+    });
+  }
   await page.goto(url(page0));
   /* seed storage on the server's origin, then load the page again from that state */
   if (!opts.blockStorage) {
@@ -1576,6 +1591,107 @@ async function run() {
         eq(cleanOf(a), clean, "Skip by keyboard ends the sequence");
         check(/encounter-result-title/.test(a.active || ""), "and focus moves to the title (" + a.active + ")");
         check(a.html === skippedHtml, "and the markup is the reduced-motion render's");
+        await context.close();
+      }
+    }
+
+    /* -------------------------------- 14: the faded rung and the authored notes */
+    {
+      /* The chapter pages ship neither (the content is the owner's), so the response is
+         rewritten: exercise e1 gets two more clues, a data-final on the last step of its
+         solution, and one hidden note for the answer 50 (the complement). */
+      const FINAL = "so the supplement is $180 - 40 = 140$.";
+      const NOTE = "Authored note: that is the complement.";
+      const rewrite = (html) => {
+        const from = html.indexOf('<div class="ex" id="e1"'), to = html.indexOf('<div class="ex-solution">', from);
+        let head = html.slice(from, to);
+        head = head.replace('data-hint="Angles on a straight line add to 180°."', 'data-hint="Angles on a straight line add to 180°." data-hint2="A straight line is half a turn." data-hint3="Subtract the angle from 180°."');
+        const ul = '<ul class="ex-miss" hidden><li data-given="50">' + NOTE + '</li></ul>\n        ';
+        let rest = html.slice(to).replace(FINAL, "<span data-final>" + FINAL + "</span>");
+        return html.slice(0, from) + head + ul + rest;
+      };
+      const E1 = '#practice .ex[data-key="e1"]';
+      const prefs = (p) => ({ "bm.lesson.v1": '{"mode":"page"}', "bm.prefs.v1": JSON.stringify(p || {}) });
+      const btn = (page) => page.$eval(E1 + " .ex-clue-btn", (b) => (b.hidden ? "(hidden)" : b.textContent.replace(/\s+/g, " ").trim())).catch(() => "(none)");
+      const rec = (page) => page.evaluate(() => {
+        var all = JSON.parse(localStorage.getItem("bm.attempts.v1") || "{}"), found = null;
+        (function walk(o) { if (!o || typeof o !== "object" || found) return; if (o.e1 && typeof o.e1 === "object") { found = o.e1; return; } Object.keys(o).forEach(function (k) { walk(o[k]); }); })(all);
+        return found;
+      });
+      const faded = (page) => page.evaluate((sel) => {
+        var f = document.querySelector(sel + " .ex-faded");
+        if (!f) return null;
+        return {
+          answer: f.querySelectorAll(".answer").length, final: f.querySelectorAll("[data-final]").length,
+          ids: f.querySelectorAll("[id]").length + (f.id ? 1 : 0), text: f.textContent.replace(/\s+/g, " ").trim(),
+          focused: document.activeElement === f, restored: f.getAttribute("data-restored") === "true",
+          level: f.getAttribute("data-level"), label: f.querySelector(".ex-hint-label").textContent
+        };
+      }, E1);
+      const climb = async (page) => {
+        const labels = [await btn(page)];
+        for (let i = 0; i < 3; i++) { await page.click(E1 + " .ex-clue-btn"); if (i < 2) labels.push(await btn(page)); }
+        labels.push(await btn(page));
+        return labels;
+      };
+
+      /* 1, 2, 3: the climb, the reload, the right answer */
+      {
+        const { context, page, errors } = await open(browser, CH05, prefs(), { rewrite });
+        check(await page.$(E1 + " .ex-solution [data-final]") !== null && await page.$(E1 + " ul.ex-miss[hidden]") !== null, "setup: the rewritten page carries the data-final and the note");
+        const labels = await climb(page);
+        eq([labels[0], labels[3]], ["Show a clue (1 of 4)", "Show the worked steps (4 of 4)"], "the button counts the worked steps as the fourth rung " + JSON.stringify(labels));
+        await page.click(E1 + " .ex-clue-btn");
+        const f = await faded(page);
+        check(f && f.answer === 0 && f.final === 0 && f.ids === 0, "the worked steps hold no answer line, no data-final and no id " + JSON.stringify(f));
+        check(f && f.focused && f.level === "4" && f.label === "Worked steps", "focus goes to the worked steps, level 4, labelled " + JSON.stringify(f && [f.focused, f.level, f.label]));
+        check(f && /Supplementary angles add to 180°/.test(f.text) && !/so the supplement is|140|complement/.test(f.text) && /Finish the last step/.test(f.text), "they keep the earlier steps and lose the final one and what follows: " + JSON.stringify(f && f.text));
+        check(await page.$eval(E1 + " .ex-solution", (s) => s.getAttribute("data-show") !== "true"), "the real solution stays closed");
+        for (let i = 0; i < 40 && ((await rec(page)) || {}).rung !== 4; i++) await wait(50);   /* the store writes a moment later */
+        eq([await btn(page), (await rec(page) || {}).rung], ["(hidden)", 4], "the button is gone and the record saves rung 4");
+
+        await page.reload();
+        await page.waitForFunction(() => document.readyState === "complete");
+        const g = await faded(page);
+        eq([await page.$$eval(E1 + " .ex-ladder .ex-clue", (n) => n.length), g && g.restored, g && g.focused, await btn(page)], [4, true, false, "(hidden)"], "after a reload the three clues and the worked steps are back, none focused");
+
+        const s0 = await state(page);
+        await answer(page, E1, true);
+        const s1 = await state(page), r = await rec(page);
+        eq([s1.xp - s0.xp, s1.hearts], [4, s0.hearts], "the right answer after the worked steps pays 4 XP and costs no heart");
+        eq([r.rung, r.first], [4, 0], "and the record keeps rung 4 and no first-time credit " + JSON.stringify(r));
+        check(await page.evaluate((r) => window.BMGame.medalMark(r), r), "the medal counts it as not first time");
+        eq(errors, [], "no errors on the faded rung");
+        await context.close();
+      }
+
+      /* 4: the notes, and the record gains no key (compared with the same steps on the unmodified page) */
+      const wrongRun = async (rw, p) => {
+        const { context, page, errors } = await open(browser, CH05, prefs(p), rw ? { rewrite: rw } : {});
+        const typeCheck = async (v) => { await page.fill(E1 + " .ex-form input", v); await page.click(E1 + " .ex-form .btn:not(.ghost)"); };
+        await typeCheck("50");
+        const one = await page.$eval(E1 + " .ex-feedback", (f) => ({ note: f.querySelector(".ex-miss-note") && f.querySelector(".ex-miss-note").textContent, ask: f.querySelectorAll(".ex-ask").length, offer: f.querySelectorAll(".ex-offer").length }));
+        await typeCheck("987654");
+        const two = await page.$eval(E1 + " .ex-feedback", (f) => ({ note: f.querySelector(".ex-miss-note") && f.querySelector(".ex-miss-note").textContent, offer: f.querySelectorAll(".ex-offer").length }));
+        const keys = Object.keys(await rec(page)).sort();
+        eq(errors, [], "no errors on the notes");
+        await context.close();
+        return { one, two, keys };
+      };
+      const plain = await wrongRun(null);
+      for (const [name, p] of [["", {}], [" under Reduce motion", { motion: "reduce" }], [" in Study mode", { calm: true }]]) {
+        const w = await wrongRun(rewrite, p);
+        eq([w.one.note, w.one.ask, w.one.offer], [NOTE, 0, 1], "a wrong answer equal to the note's data-given shows the note, no question and the offer line" + name);
+        eq([w.two.note, w.two.offer], [null, 1], "another wrong answer shows no note" + name);
+        eq(w.keys, plain.keys, "the attempt record gains no key from the notes" + name);
+      }
+      /* 5: the climb under Reduce motion and in Study mode is the same */
+      for (const [name, p] of [["Reduce motion", { motion: "reduce" }], ["Study mode", { calm: true }]]) {
+        const { context, page } = await open(browser, CH05, prefs(p), { rewrite });
+        const labels = await climb(page);
+        await page.click(E1 + " .ex-clue-btn");
+        const f = await faded(page);
+        eq([labels[0], labels[3], f && f.focused, f && f.answer, f && f.final], ["Show a clue (1 of 4)", "Show the worked steps (4 of 4)", true, 0, 0], "the climb to the worked steps under " + name);
         await context.close();
       }
     }
