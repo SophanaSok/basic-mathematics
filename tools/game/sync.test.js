@@ -398,7 +398,9 @@ class Page {
     const Store = {
       keys: KEYS,
       read: (k, f) => { const raw = storage.get(k); return raw === undefined ? f : JSON.parse(raw); },
-      write: (k, v, silent) => { storage.set(k, JSON.stringify(v)); if (!silent) Store.emit({ type: "state", key: k }); return true; },
+      /* `page.refuse(key)` true: the browser's storage is full for that key (site.js's Store
+         answers false and keeps going) */
+      write: (k, v, silent) => { if (page.refuse && page.refuse(k)) return false; storage.set(k, JSON.stringify(v)); if (!silent) Store.emit({ type: "state", key: k }); return true; },
       on: (fn) => listeners.push(fn),
       emit: (c) => listeners.slice().forEach((fn) => fn(c))
     };
@@ -1602,6 +1604,24 @@ scenario("a device whose clock is ahead keeps its future entries for later", asy
   server.skewMin = 0;
   now += 60000; laptop.page.check("ch01", "e2", true); await settle();
   expect((server.events.u1 || []).length === 2 && outbox(laptop).length === 0, "both rows are not on the server", { rows: server.events.u1, out: outbox(laptop) });
+  expect(noAttempts(server), "attempts touched");
+});
+
+scenario("a pull that storage refuses leaves the cursor where it was", async () => {
+  const { server, laptop } = await twoDevices();
+  laptop.page.check("ch01", "e1", true); await settle();
+  expect(Object.keys(serverSet(server, "u1")).length === 1, "setup: the laptop's check did not reach the account", serverSet(server, "u1"));
+  const phone = new Device("new phone", server);
+  phone.remember("u1");
+  phone.open();
+  phone.page.refuse = (k) => k === EV_KEY;
+  await settle();
+  expect(phone.page.status() === "synced", "progress did not sync while the log's storage was full", phone.page.Account.status());
+  expect(Object.keys(phone.read(EV_KEY, { ev: {} }).ev || {}).length === 0, "setup: the refused write landed anyway", phone.read(EV_KEY, null));
+  expect(!(evMeta(phone).u1 || {}).seq, "the cursor moved past rows this browser could not store", evMeta(phone).u1);
+  phone.page.refuse = null;
+  phone.open(); await settle();
+  expect(Object.keys(evSet(phone.page)).length === 1 && evMeta(phone).u1.seq === server.meta.u1.seq, "the rows did not arrive once storage had room", { log: evSet(phone.page), cursor: evMeta(phone).u1 });
   expect(noAttempts(server), "attempts touched");
 });
 
