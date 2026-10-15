@@ -252,15 +252,25 @@ describe("seed", () => {
     expect(f.emitted.filter((c) => c.type === "event")).toEqual([{ type: "event", n: 1 }]);
     expect(f.mem.has(OUTBOX_KEY)).toBe(false);
   });
-  it("queues only when the device has a uid, and a repeat adds nothing", () => {
+  it("queues only when the device has a uid, and a repeat adds nothing (the section is known now)", () => {
     const f = fake();
     f.api.stamp("u1");
     expect(f.api.seed(patch)).toBe(1);
     const ids = Object.keys(f.api.all());
     expect(f.get(OUTBOX_KEY).ids).toEqual(ids);
-    expect(f.api.seed(patch)).toBe(1);
+    expect(f.api.seed(patch)).toBe(0);
     expect(Object.keys(f.api.all())).toEqual(ids);
     expect(f.get(OUTBOX_KEY).ids).toEqual(ids);
+  });
+  it("never touches a section the log knows, and never seeds today", () => {
+    const f = fake();
+    const d = D - 3, P: Payload = [d * 1440, d, "ar", sec, "", "a", 1, 1, 0, 0];
+    f.api.absorb({ v: 1, ev: { [eventId("bbbbbbbb", P)]: P } });
+    const before = f.mem.get(EVENTS_KEY);
+    expect(f.api.seed(patch)).toBe(0);
+    expect(f.mem.get(EVENTS_KEY)).toBe(before);
+    expect(f.api.seed({ "ch01#integers": { box: 1, last: TODAY } })).toBe(0);
+    expect(f.api.seed({ "ch01#integers": { box: 1, last: "2026-10-05" } })).toBe(1);
   });
   it("stores nothing when the log is ahead or the patch is damaged", () => {
     const f = fake();

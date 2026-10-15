@@ -9,7 +9,7 @@
    and a log whose version is ahead of this code's is never written. */
 
 import { eventId, FORMAT, ID_RE, isValid, mergeEvents, randomRand, V_MAX, type EventSet, type EventsStore, type Payload } from "../sync/events.ts";
-import { seedEntries } from "../learn/diag-seed.ts";
+import { seedEntries } from "../learn/seed-entries.ts";
 import { checkpoint } from "../learn/checkpoint.ts";
 import { bandOf } from "../learn/bands.ts";
 import { masteryOf } from "../learn/mastery.ts";
@@ -184,11 +184,14 @@ export function install(win: any) {
       return 0;
     }
   }
-  /* a seed (the placement check's box and day for a section) is a checkpoint entry; returns the count stored */
+  /* a seed (the placement check's box and day for a section) is a checkpoint entry, for a
+     section the log has nothing about and a day before today (seed-entries.ts); the count stored */
   function seed(patch: unknown): number {
     if (!Store || ahead()) return 0;
     try {
-      const mine = seedEntries(patch), n = Object.keys(mine).length;
+      const have = all(), taken = new Set<string>();
+      Object.keys(have).forEach((id) => { taken.add(have[id][3]); });
+      const mine = seedEntries(patch, todayKey(), taken), n = Object.keys(mine).length;
       if (!n) return 0;
       put(mine);
       if (queueing()) enqueue(Object.keys(mine));
