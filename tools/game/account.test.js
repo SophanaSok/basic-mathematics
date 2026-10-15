@@ -29,7 +29,8 @@
       local server and never the supabase chunk, and the list of what it does fetch is
       printed; the account page with no stand-in fetches bundle/supabase.js, the real
       library, and draws the form with it, with nothing sent to Supabase
-  12. the drawn page says accounts are for people 13 or older, signed out and signed in */
+  12. the drawn page says accounts are for people 13 or older, signed out and signed in
+  13. signed in, the data panel names the answer log, and the export carries it */
 "use strict";
 const site = require("../lib/site");
 const target = require("../lib/target");
@@ -281,6 +282,17 @@ const ALL = ["google", "github", "discord", "facebook", "azure"];
     check(seen.empty === 0, "5 no empty bold name is drawn", seen.empty);
     check(seen.avatar === "R" && seen.title === "Signed in as reader9", "5 the top bar uses the username", { avatar: seen.avatar, title: seen.title });
     await b.context.close();
+  }
+
+  /* 13. the data panel names the answer log; the export reads the key explicitly */
+  {
+    const s13 = { user: { id: "u1", email: "reader@example.com", app_metadata: { provider: "google", providers: ["google"] } } };
+    const a = await open({ providers: ["google"] }, { session: s13 });
+    const t13 = await text(a.page, "[data-account]");
+    check(/log of your answers/.test(t13) && /never what you typed/.test(t13), "13 the data panel names the answer log and says never what you typed", t13);
+    const exp = await a.page.evaluate(() => { localStorage.setItem("bm.events.v1", JSON.stringify({ v: 1, ev: {} })); return window.BMAccount.exportData(); });
+    check(exp && exp.events && exp.events.v === 1, "13 the export carries the events log", exp && exp.events);
+    await a.context.close();
   }
 
   /* 12. the age line shows on the drawn page, signed out and signed in */

@@ -23,4 +23,8 @@ window.BM_CONFIG = {
      (with a comma after emailDelivery's value): nothing is sent to or fetched from the
      board, the Arena shows no board and the account page shows no Daily board switch.
      Apply the board's part of supabase/schema.sql before leaving it on (supabase/README.md). */
+  /* The answer log's sync is on by default for signed-in readers. To switch it off, add
+     learn: { events: "off" }  as a setting here (with a comma after the previous setting's
+     value, as the board's comment says): nothing is sent to or pulled from events; the
+     browser's own log is still kept. */
 };

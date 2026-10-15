@@ -1039,7 +1039,10 @@
         "<p>What is stored: the exercises you have solved, how many tries each took, whether a hint or the " +
         "solution was used, missions, XP per day, where you are in each chapter, and your game record " +
         "(achievements, which solutions you compared, medals and scores from the Arena, and when each " +
-        "section is next due for review). Play settings and the combo meter stay on this device. The account itself " +
+        "section is next due for review), and a short log of your answers: for each check, which exercise and section, " +
+        "right or wrong, which try, how many clues were open and whether the solution was, and the minute; for each " +
+        "Arena answer, the kind of question, the section, right or wrong and the day; never what you typed. Resetting " +
+        "your progress deletes the log. Play settings and the combo meter stay on this device. The account itself " +
         "holds your email address and, if you signed in through another service, the details that service passed on, " +
         "such as your name, username, picture address and your account id there. While you are signed in that way, this browser also keeps a key from " +
         "that service, which signing out removes; to cut the link completely, remove this site from the connected " +
