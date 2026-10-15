@@ -1,9 +1,8 @@
--- Basic Mathematics — accounts, synced progress, and attempt analytics.
+-- Basic Mathematics — accounts, synced progress, and the event log behind the author's analytics.
 -- Run once in the Supabase SQL editor (Dashboard → SQL → New query). Safe to re-run.
 --
--- Seven things live here:
+-- Six things live here:
 --   user_state  one row per reader: the same JSON the site keeps in localStorage
---   attempts    append-only log of answer checks, for the author's "where is the course failing" view
 --   profiles    an optional display name, and whether the reader joined the Daily board
 --   daily_runs  one Arena Daily result per reader per day, for the opt-in Daily board
 --   board_secret  one random key the Daily board's generated names are hashed with
@@ -46,22 +45,6 @@ alter table public.user_state add column if not exists game jsonb not null defau
 -- columns, a reset (reset_at) does not clear it: only deleting the account does
 -- (docs/decisions/0003-placement-check.md, owner Q1(a)).
 alter table public.user_state add column if not exists diag jsonb not null default '{}'::jsonb;
-
-create table if not exists public.attempts (
-  id bigint generated always as identity primary key,
-  user_id uuid not null default auth.uid() references auth.users (id) on delete cascade,
-  chapter text not null check (char_length(chapter) <= 40),
-  ex_key text not null check (char_length(ex_key) <= 80),
-  section text check (char_length(section) <= 80),
-  correct boolean not null,
-  try_no integer not null default 1,
-  hint_level integer not null default 0,
-  solution_open boolean not null default false,
-  inline boolean not null default false,
-  created_at timestamptz not null default now()
-);
-create index if not exists attempts_exercise_idx on public.attempts (chapter, ex_key);
-create index if not exists attempts_user_idx on public.attempts (user_id);
 
 -- The Daily board: one row per reader per Arena Daily (the reader's local day, 5 questions).
 -- Scores are reported by the page and only bounds-checked here; nothing in the course hangs
@@ -145,7 +128,6 @@ create table if not exists public.event_meta (
 
 alter table public.profiles enable row level security;
 alter table public.user_state enable row level security;
-alter table public.attempts enable row level security;
 alter table public.admins enable row level security;   -- no policies: not readable from the browser at all
 alter table public.daily_runs enable row level security;   -- no policies: only the board functions touch it
 revoke all on table public.daily_runs from anon, authenticated;
@@ -161,16 +143,6 @@ drop policy if exists "own state" on public.user_state;
 create policy "own state" on public.user_state
   for all to authenticated
   using (user_id = (select auth.uid())) with check (user_id = (select auth.uid()));
-
-drop policy if exists "read own attempts" on public.attempts;
-create policy "read own attempts" on public.attempts
-  for select to authenticated
-  using (user_id = (select auth.uid()));
-
-drop policy if exists "log own attempts" on public.attempts;
-create policy "log own attempts" on public.attempts
-  for insert to authenticated
-  with check (user_id = (select auth.uid()));
 
 alter table public.events enable row level security;
 alter table public.event_meta enable row level security;   -- no policies: only the event functions touch it
@@ -191,7 +163,10 @@ as $$
   select exists (select 1 from public.admins where user_id = (select auth.uid()));
 $$;
 
--- One row per exercise, across all readers. Empty for anyone who is not an admin.
+-- One row per exercise, across all readers, from the event log. Empty for anyone who is not an admin.
+-- Only page entries with a ref of the form chapter/exercise count (chapter ids include interlude and
+-- pk-*); a learner of an exercise has checked it at least once, and one reader counts for at most
+-- 100 exercises in a chapter.
 create or replace function public.exercise_stats()
 returns table (
   chapter text, ex_key text, section text, inline boolean,
@@ -201,43 +176,65 @@ returns table (
 language sql stable security definer set search_path = ''
 as $$
   with per as (
-    select a.user_id, a.chapter, a.ex_key,
-           max(a.section) as section,
-           bool_or(a.inline) as inline,
-           count(*) as tries,
-           bool_or(a.correct) as solved,
-           bool_or(a.correct and a.try_no = 1 and not a.solution_open) as first_try,
-           max(a.hint_level) as hints,
-           bool_or(a.solution_open) as opened
-    from public.attempts a
+    select e.user_id, split_part(e.ref, '/', 1) as chapter, split_part(e.ref, '/', 2) as ex_key, e.ref,
+           max(e.sec) as section,
+           bool_or(e.src = 'in') as inline,
+           count(*) filter (where e.k = 'c') as tries,
+           bool_or(e.k = 'c' and e.ok = 1) as solved,
+           bool_or(e.k = 'c' and e.ok = 1 and e.n = 1 and (e.f & 1) = 0 and e.r < 4) as first_try,
+           max(e.r) as hints,
+           bool_or(e.k = 'o' or (e.f & 1) = 1) as opened
+    from public.events e
     where public.is_admin()
-    group by a.user_id, a.chapter, a.ex_key
+      and e.k not in ('a', 'z')
+      and e.ref ~ '^[a-z0-9-]{1,40}/[a-z0-9-]{1,40}$'
+    group by e.user_id, e.ref
+  ), capped as (
+    select p.*, row_number() over (partition by p.user_id, p.chapter order by p.ref) as rn
+    from per p
+    where p.tries >= 1
   )
-  select per.chapter, per.ex_key, max(per.section), bool_or(per.inline),
-         count(*), sum(per.tries)::bigint,
-         count(*) filter (where per.solved),
-         count(*) filter (where per.first_try),
-         count(*) filter (where per.hints >= 1),
-         count(*) filter (where per.opened),
-         round(avg(per.tries), 2)
-  from per
-  group by per.chapter, per.ex_key
-  order by per.chapter, per.ex_key;
+  select c.chapter, c.ex_key, max(c.section), bool_or(c.inline),
+         count(*), sum(c.tries)::bigint,
+         count(*) filter (where c.solved),
+         count(*) filter (where c.first_try),
+         count(*) filter (where c.hints >= 1),
+         count(*) filter (where c.opened),
+         round(avg(c.tries), 2)
+  from capped c
+  where c.rn <= 100
+  group by c.chapter, c.ex_key
+  order by c.chapter, c.ex_key;
 $$;
 
--- How many readers reached each chapter, and how recently. Empty for non-admins.
+-- How many readers reached each chapter, and how recently (a check or an open in the last 7 days).
+-- Empty for non-admins. The same rows and the same cap as exercise_stats().
 create or replace function public.chapter_stats()
 returns table (chapter text, learners bigint, checks bigint, active_7d bigint)
 language sql stable security definer set search_path = ''
 as $$
-  select a.chapter,
-         count(distinct a.user_id),
-         count(*),
-         count(distinct a.user_id) filter (where a.created_at > now() - interval '7 days')
-  from public.attempts a
-  where public.is_admin()
-  group by a.chapter
-  order by a.chapter;
+  with per as (
+    select e.user_id, split_part(e.ref, '/', 1) as chapter, e.ref,
+           count(*) filter (where e.k = 'c') as tries,
+           max(e.t) as last_t
+    from public.events e
+    where public.is_admin()
+      and e.k not in ('a', 'z')
+      and e.ref ~ '^[a-z0-9-]{1,40}/[a-z0-9-]{1,40}$'
+    group by e.user_id, e.ref
+  ), capped as (
+    select p.*, row_number() over (partition by p.user_id, p.chapter order by p.ref) as rn
+    from per p
+    where p.tries >= 1
+  )
+  select c.chapter,
+         count(distinct c.user_id),
+         sum(c.tries)::bigint,
+         count(distinct c.user_id) filter (where c.last_t > floor(extract(epoch from pg_catalog.now()) / 60)::integer - 7 * 1440)
+  from capped c
+  where c.rn <= 100
+  group by c.chapter
+  order by c.chapter;
 $$;
 
 -- Lets a reader remove their own account; every table above cascades from auth.users.
@@ -668,6 +665,36 @@ create trigger events_on_reset_insert after insert on public.user_state
 drop trigger if exists events_on_reset_update on public.user_state;
 create trigger events_on_reset_update after update of reset_at on public.user_state
   for each row when (new.reset_at > old.reset_at) execute function private.events_on_reset();
+
+-- Run-once markers for one-off data changes (the fresh start below). No role but the owner can use it.
+create table if not exists private.once (
+  key text primary key,
+  at  timestamptz not null default now()
+);
+revoke all on private.once from public, anon, authenticated;
+
+-- The R2 fresh start (design §2.7): every reader's synced state goes back to empty and their event
+-- log starts over (the reset_at trigger deletes the events and moves the epoch), so the old
+-- progress, which no event explains, cannot be mixed with the new log. diag is deliberately kept
+-- (see the comment on that column). Runs once per key: a second call returns false and changes
+-- nothing. A function rather than a bare statement so the test suite can prove the guard.
+create or replace function private.fresh_start(key text)
+returns boolean
+language plpgsql security definer set search_path = ''
+as $$
+begin
+  if exists (select 1 from private.once o where o.key = fresh_start.key) then
+    return false;
+  end if;
+  update public.user_state
+     set progress = '{}', play = '{}', attempts = '{}', activity = '{}', lesson = '{}', last = null, game = '{}',
+         updated_at = now(),
+         reset_at = greatest(reset_at + 1, (extract(epoch from clock_timestamp()) * 1000)::bigint);
+  insert into private.once (key) values (fresh_start.key);
+  return true;
+end;
+$$;
+revoke all on function private.fresh_start(text) from public, anon, authenticated;
 
 -- Size of the log, for the author. One row; empty for anyone who is not an admin.
 create or replace function public.events_usage()

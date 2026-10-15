@@ -62,15 +62,13 @@ the same instant. Running the SQL first is still the rule; these are what happen
   may be refused once (PostgREST `PGRST204`, "Could not find the '…' column of 'user_state' in the
   schema cache") and is then repeated without that column. Nothing fails; what the column would
   hold stays in the browser until the column exists.
-- **A missing `attempts` table switches the attempt log off.** The insert is refused (`PGRST205`),
-  the checks stay queued in the page, and the sync still succeeds. The page does not send the
-  log again with every save: it asks once every five minutes, keeps the newest 500 checks
-  meanwhile, and sends them when the table is there. The queue lives in the page, so it is lost
-  when the page is closed. The author's aggregate view then has nothing to read.
+- **The `attempts` table no longer exists.** The attempt log went to the event log in P6 (the
+  site writes `events` through `events_put()`), and the table was dropped in P7. The author's
+  aggregate view (`exercise_stats()`, `chapter_stats()`) reads `events`.
 - **The data carries a shape number.** `game.v` inside the `game` column; absent means 1, and no
   release writes it yet. A later release that changes what an existing field means saves a
   larger number. A copy of the site that reads a number above the one it understands merges the
-  row into the browser, writes nothing (neither `user_state` nor `attempts`), and asks the reader
+  row into the browser, writes nothing (neither `user_state` nor the event log), and asks the reader
   to reload. There is no column for it and no SQL to run. It needs the `game` column to travel.
 
 **Changing the schema later?** Every change to `schema.sql` ships with a new file in
@@ -127,7 +125,7 @@ redirect list), add the id to `providers` locally, and open `account.html`.
 | Table | Contents |
 | --- | --- |
 | `user_state` | One row per reader, holding the same JSON the site keeps in `localStorage`: solved exercises, missions, per-exercise attempt records, XP per day, lesson position, and the game record (achievements, compared solutions, Arena bests, rematch medals, review boxes), and the placement-check results (for each finished check: the day, the class the reader said they finished last, the items asked and whether each was right, wrong or skipped, the course band it placed them in, and whether many answers came very fast; never typed answers or timings), which survive Reset all progress. Play settings and the combo meter stay in the browser. |
-| `attempts` | One row per answer check by a signed-in reader: chapter, exercise key, section, right or wrong, try number, hint level, whether the solution was open. Typed answers are never stored. No longer written since P6 (the event log replaced it); the table is dropped in P7. |
+| `attempts` | One row per answer check by a signed-in reader: chapter, exercise key, section, right or wrong, try number, hint level, whether the solution was open. Typed answers are never stored. Gone: nothing has written it since P6 (the event log replaced it) and P7 dropped the table. |
 | `profiles` | An optional display name, and `board`: whether the reader joined the Daily board (off unless they turn it on). |
 | `board_secret` | One row: a random key made when the SQL is first run, which the Daily board's generated names are hashed with. Only `daily_board()` reads it. |
 | `daily_runs` | One row per reader per day they played the Arena's Daily while on the Daily board: `day` (their local date, `YYYY-MM-DD`), `score`, `n` (questions asked, at most 5), `firsts` (right first time), `ms` (the run's time in milliseconds, kept only when every answer was right first time, and between 250 ms and 10 minutes per question), and `submitted_at`. The first result for a day is the one kept. The numbers are reported by the page and only bounds-checked here (the score at most what its first-try answers and retries can pay, 700 for 5 right first time). |

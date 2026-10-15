@@ -1176,9 +1176,8 @@ that adds a synced field has to ship after it and can rely on them:
   as it is, **by a reset too**: a reset made in an older copy empties the columns it knows,
   with any unknown fields and `v` inside them, and cannot touch a column it cannot name. A
   release that adds a `user_state` column must clear it itself when it sees `reset_at` advance.
-  A missing `attempts` table means the attempt log is switched off: the queue is kept and the
-  sync still succeeds. The page then holds the log back, asks again every five minutes, and
-  keeps only the newest 500 checks meanwhile.
+  The `attempts` table (the old answer log) no longer exists: the log went to the event log in P6
+  and the table was dropped in P7.
 
 What the first rule gives a new field is survival, and agreement between devices. If the field
 needs a rule of its own (a larger number, a union), the release that first writes it must add
