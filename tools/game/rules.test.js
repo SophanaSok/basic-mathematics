@@ -512,7 +512,7 @@ function world(seedStores) {
     "bm.game.v1": {
       ach: {}, maxed: 1,
       cmp: { ch05: Object.fromEntries(keys.slice(0, 41).map((k) => [k, 1])) },
-      sec: { "ch05#angles": { n: 5, ok: 5, box: 3, last: daysAgo(0), fix: 9 } },
+      sec: { "ch05#angles": { n: 5, ok: 5, fix: 9 } },
       daily: Object.fromEntries([0, 1, 2, 3, 4, 5, 6].map((i) => [daysAgo(i), 1])),
       enc: {}, best: {}
     },
@@ -537,6 +537,20 @@ function world(seedStores) {
   check(w.Game.evaluate().length === 0, "a second evaluation unlocks nothing");
   check(w.Game.unlock("first-light") === false && w.Game.unlock("keeper") === true, "unlock() only once per id");
 
+  /* keeper counts the log's boxes (BMEvents.scheduleAll), not the game record's */
+  {
+    const k = world();
+    const ach = k.Game.ACHIEVEMENTS.find((x) => x.id === "keeper");
+    const ids = Array.from({ length: 12 }, (_, i) => "ch05#k" + i);
+    eq(ach.progress(k.Game.stores()), [0, 10], "keeper: nothing in the log, nothing held");
+    const patch = {};
+    ids.slice(0, 10).forEach((id) => { patch[id] = { box: 3, last: daysAgo(2) }; });
+    ids.slice(10).forEach((id) => { patch[id] = { box: 2, last: daysAgo(2) }; });
+    eq(k.win.BMEvents.seed(patch), 12, "twelve seeds stored");
+    eq(ach.progress(k.Game.stores()), [10, 10], "keeper: ten sections in box 4 or higher (index 3) in the log; index 2 does not count");
+    check(ach.test(k.Game.stores())[0] >= 10, "and the test passes");
+  }
+
   /* returning champion: a rematch Silver on a later day than the set was cleared */
   const rc = JSON.parse(JSON.stringify(fx));
   rc["bm.game.v1"].enc = { "ch05/practice": { medal: 2, day: daysAgo(-1) } };
@@ -556,10 +570,13 @@ function world(seedStores) {
   const G = w.Game;
   /* "shaky" is the log's band now (weak): this log has no evidence yet, so the band is stood in for pythagoras */
   const bandOf = w.win.BMEvents.bandOf;
+  const bands = w.win.BMEvents.bands;
   w.win.BMEvents.bandOf = (id) => (id === "ch05#pythagoras" ? "weak" : "none");
+  w.win.BMEvents.bands = () => ({ "ch05#pythagoras": "weak" });
   eq(["ch05#angles", "ch05#pythagoras", "ch05#parallels"].map(G.sectionStatus), ["solid", "shaky", "new"], "section status");
   eq(G.deck().map((d) => [d.id, d.status, d.due]), [["ch05#angles", "solid", true], ["ch05#pythagoras", "shaky", true]], "deck: solved sections, all due at first");
   w.win.BMEvents.bandOf = bandOf;
+  w.win.BMEvents.bands = bands;
   const sched = (id) => w.win.BMEvents.schedule(id, dayKey());
   const res = G.recordRun({
     mode: "standard", hearts: 2, score: 460, day: dayKey(),

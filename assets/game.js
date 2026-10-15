@@ -149,7 +149,10 @@
     if (!ids.length) return [];
     var E = window.BMEvents, n = 0;
     try { n = E && typeof E.seed === "function" ? E.seed(written) : 0; } catch (e) { warnSched(e); }
-    return n > 0 ? ids : [];
+    if (!(n > 0)) return [];
+    /* seed refuses more than the checks above (any entry for the section), so report what the log holds now */
+    var now = schedAll();
+    return ids.filter(function (id) { return Object.prototype.hasOwnProperty.call(now, id); });
   }
 
   /* the fields this file reads are normalised; any others (the Arena's picks, its ledger
@@ -650,8 +653,17 @@
     Object.keys(out).forEach(function (id) { out[id] = Site.dayKey(new Date(out[id])); });
     return out;
   }
-  function masteryOf(id) {
-    try { var m = window.BMEvents && window.BMEvents.mastery(id); return m && typeof m.m === "number" ? m.m : null; } catch (e) { warnSched(e); return null; }
+  /* every section's band and mastery, one read each per call (a deck sorts them in one pass);
+     {} when the log is missing or throws */
+  function logMap(name) {
+    try {
+      var E = window.BMEvents;
+      return E && typeof E[name] === "function" ? obj(E[name]()) : {};
+    } catch (e) { warnSched(e); return {}; }
+  }
+  function masteryIn(all, id) {
+    var m = Object.prototype.hasOwnProperty.call(all, id) ? all[id] : null;
+    return m && typeof m.m === "number" ? m.m : null;
   }
   function sectionRows() {
     var map = {}, firsts = scoredFirsts();
@@ -662,16 +674,15 @@
      exercises solved there, scored or Your turn, or a scored one right first time, or a
      first-try answer in the Arena); new: otherwise, since one Your turn check is not enough.
      arena.js applies the same rule when the game layer is absent. */
-  function shakyBand(id) {
-    try { return !!window.BMEvents && window.BMEvents.bandOf(id) === "weak"; } catch (e) { warnSched(e); return false; }
-  }
-  function statusOf(row, sec, id) {
-    if (shakyBand(id)) return "shaky";
+  function statusOf(row, sec, shaky) {
+    if (shaky) return "shaky";
     if (obj(sec).ok > 0) return "solid";
     return row && (row.solved >= 2 || row.scoredFirst > 0) ? "solid" : "new";
   }
   function sectionStatus(id) {
-    return statusOf(sectionRows()[id], readGame().sec[id], id);
+    var weak = false;
+    try { weak = !!window.BMEvents && window.BMEvents.bandOf(id) === "weak"; } catch (e) { warnSched(e); }
+    return statusOf(sectionRows()[id], readGame().sec[id], weak);
   }
   /* due on `day`: at least the box's interval (1, 3, 7, 14, 30 days) since the section was
      last placed, and at once when it never was (src/learn/recall.ts, the one copy). The
@@ -684,16 +695,17 @@
   function deck(opts) {
     opts = obj(opts);
     var rows = sectionRows(), g = readGame(), seen = seenDays(), out = [], all = schedAll(), day = today();
+    var bands = logMap("bands"), masteries = logMap("masteries");
     Object.keys(rows).sort().forEach(function (id) {
       var row = rows[id], sec = obj(g.sec[id]), at = schedIn(all, id);
-      var status = statusOf(row, sec, id);
+      var status = statusOf(row, sec, bands[id] === "weak");
       if (status === "new") return;
       if (opts.section && opts.section !== id) return;
       if (opts.chapter && row.chapter.id !== opts.chapter) return;
       if (opts.status && opts.status !== status) return;
       out.push({
         id: id, status: status, due: Review.recall.dueOn(at, day), box: at.box, last: at.last || null,
-        mastery: masteryOf(id),
+        mastery: masteryIn(masteries, id),
         label: row.label, title: row.section.title, chapter: row.chapter.id, path: row.path,
         score: num(row.score), seen: seen[id] || null
       });

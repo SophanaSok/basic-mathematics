@@ -4,7 +4,7 @@ import {
   MASTERY_ALPHA, MASTERY_MIN_EVIDENCE, MASTERY_PRIOR, OPENED_CREDIT, RETRY_CREDIT,
   RUNG_CREDIT, SEED_WEIGHT, TRY_CREDIT
 } from "./constants.ts";
-import { creditOf, evidenceOf, masteryOf } from "./mastery.ts";
+import { creditOf, evidenceOf, masteriesAll, masteryOf } from "./mastery.ts";
 import { dayNumber } from "./recall.ts";
 
 const D0 = dayNumber("2026-10-01")!;
@@ -231,5 +231,17 @@ describe("bounds", () => {
     near(0.5 - miss, MASTERY_ALPHA * 0.5);
     expect(Math.abs(hit - 0.5)).toBeLessThanOrEqual(MASTERY_ALPHA);
     expect(Math.abs(miss - 0.5)).toBeLessThanOrEqual(MASTERY_ALPHA);
+  });
+});
+
+describe("masteriesAll", () => {
+  it("holds masteryOf for every section with evidence, once per log, frozen", () => {
+    const V = build([pageP("ch01#a", "ch01/e1", "c", 1, 1, 0, T0 + 10), arena("ch01#b", D0, 0, 1, T0 + 700), arena("", D0, 1, 1, T0 + 800)]);
+    const all = masteriesAll(V);
+    expect(Object.keys(all)).toEqual(["ch01#a", "ch01#b"]);
+    expect(all["ch01#a"]).toEqual(masteryOf(V, "ch01#a"));
+    expect(all["ch01#b"]).toEqual(masteryOf(V, "ch01#b"));
+    expect(masteriesAll(V)).toBe(all);
+    expect(Object.isFrozen(all)).toBe(true);
   });
 });

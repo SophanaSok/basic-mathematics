@@ -44,7 +44,7 @@ const kinds = (api: { all(): EventSet }) => Object.values(api.all()).map((P) => 
 describe("install", () => {
   it("puts the api up and listens once", () => {
     const f = fake();
-    expect(Object.keys(f.api)).toEqual(["all", "version", "ahead", "device", "record", "fromRun", "seed", "clear", "stamp", "outbox", "enqueue", "dequeue", "payloads", "absorb", "scheduleAll", "schedule", "mastery", "bandOf"]);
+    expect(Object.keys(f.api)).toEqual(["all", "version", "ahead", "device", "record", "fromRun", "seed", "clear", "stamp", "outbox", "enqueue", "dequeue", "payloads", "absorb", "scheduleAll", "schedule", "mastery", "bandOf", "bands", "masteries"]);
     expect(f.Store.on).toHaveBeenCalledTimes(1);
   });
   it("records an attempt, and no secret reaches storage", () => {
@@ -238,6 +238,23 @@ describe("install", () => {
     expect(f.api.record([D * 1440, D, "ex", "", "ch02/e3", "c", 1, 1, 0, 0])).toBeNull();
     expect(f.api.fromRun(run(2))).toBe(0);
     expect(f.api.all()).toEqual({});
+  });
+});
+
+describe("bands and masteries", () => {
+  it("are one frozen object on an unchanged log, and a write gives a new one", () => {
+    const f = fake();
+    f.api.seed({ "ch02#one-unknown": { box: 1, last: "2026-10-05" } });
+    const b = f.api.bands(), m = f.api.masteries();
+    expect(f.api.bands()).toBe(b);
+    expect(f.api.masteries()).toBe(m);
+    expect(Object.isFrozen(b) && Object.isFrozen(m)).toBe(true);
+    expect(Object.keys(m)).toEqual(["ch02#one-unknown"]);
+    expect(m["ch02#one-unknown"]).toEqual(f.api.mastery("ch02#one-unknown"));
+    expect(b["ch02#one-unknown"]).toBe(f.api.bandOf("ch02#one-unknown"));
+    f.api.fromRun(run(1));
+    expect(f.api.masteries()).not.toBe(m);
+    expect(f.api.bands()).not.toBe(b);
   });
 });
 

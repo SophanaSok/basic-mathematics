@@ -216,18 +216,11 @@
     schedWarned = true;
     if (window.console) console.warn("[BM] schedule", e);
   }
-  /* a section's { box, last } from the event log (window.BMEvents, src/learn/schedule.ts);
-     box 0 and no day when the log is missing, has nothing for it or throws */
-  function schedOf(id) {
-    try {
-      var s = window.BMEvents ? window.BMEvents.schedule(id, today()) : null;
-      if (s) return { box: s.box, last: s.last };
-    } catch (e) { warnSched(e); }
-    return { box: 0, last: undefined };
-  }
-  function isDue(id) { return Review.recall.dueOn(schedOf(id), today()); }
-  function bandWeak(id) {
-    try { return !!window.BMEvents && window.BMEvents.bandOf(id) === "weak"; } catch (e) { warnSched(e); return false; }
+  /* what the event log (window.BMEvents, src/learn/schedule.ts, bands.ts) says, read once per
+     deck: every section's { box, last } and band; {} when the log is missing or throws, which
+     gives box 0, no day and a section that is not shaky */
+  function logRead(name, arg) {
+    try { return window.BMEvents ? window.BMEvents[name](arg) || {} : {}; } catch (e) { warnSched(e); return {}; }
   }
   function metInArena(id) {
     var rec = (gameStore().sec || {})[id];
@@ -244,11 +237,12 @@
       });
       return out;
     }
-    var solved = solvedSections();
+    var solved = solvedSections(), sched = logRead("scheduleAll", today()), bands = logRead("bands");
     /* the game layer's rule: solid once two exercises are solved there, or a scored one
        first time, or one came right first time in the Arena; one Your turn check is not enough */
     Object.keys(solved).forEach(function (id) {
-      var shaky = bandWeak(id), rec = (gameStore().sec || {})[id], at = schedOf(id);
+      var shaky = bands[id] === "weak", rec = (gameStore().sec || {})[id];
+      var at = Object.prototype.hasOwnProperty.call(sched, id) ? sched[id] : { box: 0, last: undefined };
       if (!shaky && solved[id].n < 2 && !solved[id].first && !(rec && rec.ok > 0)) return;
       out[id] = { id: id, status: shaky ? "shaky" : "solid", due: Review.recall.dueOn(at, today()), box: at.box, last: at.last || null,
         seen: solved[id].at > 0 ? Site.dayKey(new Date(solved[id].at)) : null };

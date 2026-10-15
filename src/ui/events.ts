@@ -11,8 +11,8 @@
 import { eventId, FORMAT, ID_RE, isValid, mergeEvents, randomRand, V_MAX, type EventSet, type EventsStore, type Payload } from "../sync/events.ts";
 import { seedEntries } from "../learn/seed-entries.ts";
 import { checkpoint } from "../learn/checkpoint.ts";
-import { bandOf } from "../learn/bands.ts";
-import { masteryOf } from "../learn/mastery.ts";
+import { bandOf, bandsAll } from "../learn/bands.ts";
+import { masteriesAll, masteryOf } from "../learn/mastery.ts";
 import { scheduleAll, scheduleOf } from "../learn/schedule.ts";
 import { DEVICE_KEY, deviceOk, EVENTS_KEY, OUTBOX_KEY, pagePayload, runPayloads, sameOwner } from "../learn/recorder.ts";
 
@@ -240,7 +240,9 @@ export function install(win: any) {
     scheduleAll: (today: string) => scheduleAll(all(), today),
     schedule: (sec: string, today: string) => scheduleOf(all(), sec, today),
     mastery: (sec: string) => masteryOf(all(), sec),
-    bandOf: (sec: string) => bandOf(all(), sec)
+    bandOf: (sec: string) => bandOf(all(), sec),
+    bands: () => bandsAll(all()),
+    masteries: () => masteriesAll(all())
   };
 
   if (!Store) {

@@ -14,7 +14,7 @@ import {
   MASTERY_ALPHA, MASTERY_MIN_EVIDENCE, MASTERY_PRIOR, OPENED_CREDIT, RETRY_CREDIT,
   RUNG_CREDIT, SEED_WEIGHT, TRY_CREDIT
 } from "./constants.ts";
-import { startOf, type Pre } from "./schedule.ts";
+import { preOf, startOf, type Pre } from "./schedule.ts";
 
 export interface Mastery { m: number; c: number }
 export interface Evidence { id: string; P: Payload; credit: number }
@@ -71,4 +71,30 @@ export function masteryOf(V: EventSet, sec: string, pre?: Pre): Mastery {
     c = c + 1;
   });
   return { m, c };
+}
+
+const cache = new WeakMap<EventSet, Record<string, Mastery>>();
+
+/** Every section with evidence or a checkpoint (never the section ""), one preOf for all,
+    memoised by V's identity and frozen. V must never be changed in place after a read: the
+    cache keys on V's identity (mergeEvents and prune build new sets; a writer copies V
+    before adding). */
+export function masteriesAll(V: EventSet): Record<string, Mastery> {
+  const hit = cache.get(V);
+  if (hit) return hit;
+  const secs = new Set<string>();
+  Object.keys(V).forEach((id) => {
+    const P = V[id];
+    if (P[3] === "") return;
+    const c = classOf(P);
+    if (c === "p" && P[4] === "") return;
+    if (c === "p" && !((P[5] === "c" && P[6] === 1) || P[5] === "o")) return;
+    secs.add(P[3]);
+  });
+  const pre = preOf(V);
+  const out: Record<string, Mastery> = {};
+  Array.from(secs).sort().forEach((sec) => { out[sec] = Object.freeze(masteryOf(V, sec, pre)); });
+  Object.freeze(out);
+  cache.set(V, out);
+  return out;
 }
