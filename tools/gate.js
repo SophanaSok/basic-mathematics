@@ -16,6 +16,7 @@
    Part logs and reports: .cache/gate/<part>.log and .cache/gate/<part>/.
    Receipt: <git common dir>/gate/<tree sha>.json, so every worktree shares one place and
    nothing lands in the tree. A receipt describes a commit, hence the clean-tree rule.
+   --part runs write no receipt: a receipt says the whole gate passed.
    Test hook: BM_GATE_FAKE_FAIL=<part> spawns that part as a process that exits 1.
    Exit: 0 ok, 1 a stage failed, 2 usage or precondition. */
 
@@ -40,10 +41,15 @@ const WEBGL_PATHS = [
   "tools/suites/webgl.js",       // the webgl suite
   "tools/game/scenes.test.js",   // 3D script
   "tools/game/map.test.js",      // 3D script
-  "tools/game/forms.test.js"     // 3D script
+  "tools/game/forms.test.js",    // 3D script
+  "src/model/",                  // the loader and look the forms script uses
+  "src/ui/form-view.ts",         // the view that draws a form in the page
+  "src/vendor/",                 // three.js, three-model.js and three-post.js are vendored here
+  "assets/three-loader.js",      // how the pages load three.js
+  "package-lock.json"            // a Three.js bump arrives through the lockfile
 ];
 /* sql.yml's path list: what the SQL test reads */
-const SQL_PATHS = ["supabase/", "src/sync/events.ts", "tools/gen-prune-sql-cases.js", "tools/sql-test.js"];
+const SQL_PATHS = [".github/workflows/sql.yml", "supabase/", "src/sync/events.ts", "tools/gen-prune-sql-cases.js", "tools/sql-test.js"];
 
 function usage() {
   const src = fs.readFileSync(__filename, "utf8");
@@ -64,6 +70,7 @@ function run(cmd, args, env) {
 function npm(args, env) { return run(NPM, args, env); }
 
 const receipt = { stages: {} };
+const nvmrc = (() => { try { return fs.readFileSync(path.join(ROOT, ".nvmrc"), "utf8").trim().replace(/^v/, ""); } catch (e) { return null; } })();
 const t0 = Date.now();
 const secs = (t) => Math.round((Date.now() - t) / 100) / 10;
 
@@ -83,6 +90,8 @@ function skipped(name, why) {
 /* up to two tries: software WebGL can lose its context (CI retries three) */
 const twice = (f) => f() || f();
 
+const PART_TIMEOUT_MS = 20 * 60 * 1000; // CI's timeout-minutes for a browser job
+
 /* the browser parts, side by side; each part's output goes to its own log */
 function runParts(names, jobs, env) {
   const dir = path.join(ROOT, ".cache", "gate");
@@ -98,18 +107,22 @@ function runParts(names, jobs, env) {
       while (queue.length && live < jobs) {
         const p = queue.shift();
         let cmd, args, penv = env;
-        if (env.BM_GATE_FAKE_FAIL === p) { cmd = process.execPath; args = ["-e", "process.exit(1)"]; }
+        if (env.BM_GATE_FAKE_FAIL === p) { console.log("  " + p + "  faked to fail (BM_GATE_FAKE_FAIL)"); cmd = process.execPath; args = ["-e", "process.exit(1)"]; }
         else if (p === core) { cmd = NPM; args = ["run", "test:browser:core"]; penv = Object.assign({}, env, { BM_ROOT: "dist" }); }
         else { cmd = process.execPath; args = ["tools/check-browser.js", "--root=dist", "--skip=webgl", "--part=" + p, "--out=.cache/gate/" + p]; }
         const log = fs.openSync(path.join(dir, p + ".log"), "w");
         const t = Date.now();
         live++;
         const c = cp.spawn(cmd, args, { cwd: ROOT, env: penv, stdio: ["ignore", log, log], shell: false });
+        let timedOut = false;
+        const timer = setTimeout(() => { timedOut = true; c.kill("SIGKILL"); }, PART_TIMEOUT_MS);
         const done = (ok) => {
           if (results[p]) return;
+          clearTimeout(timer);
+          if (timedOut) { ok = false; fs.writeSync(log, "\ntimed out after 20 min\n"); }
           fs.closeSync(log);
           results[p] = { ok, s: secs(t) };
-          console.log("  " + p.padEnd(11) + (ok ? "ok  " : "FAIL") + "  " + results[p].s + "s");
+          console.log("  " + p.padEnd(11) + (ok ? "ok  " : "FAIL") + "  " + results[p].s + "s" + (timedOut ? "  timed out after 20 min" : ""));
           live--;
           next();
         };
@@ -121,15 +134,27 @@ function runParts(names, jobs, env) {
   });
 }
 
-function writeReceipt(ok) {
-  if (opts["no-receipt"]) return;
+/* returns the ok the receipt carries: a tree that changed under the run was not the one
+   that was tested */
+function writeReceipt(ok, reason) {
+  if (opts["no-receipt"] || opts.part !== undefined) {
+    if (opts.part !== undefined) console.log("no receipt for a partial run");
+    return ok;
+  }
+  const now = out(["git", "status", "--porcelain", "--untracked-files=all"]).out === "" ? git("rev-parse", "HEAD^{tree}").out : null;
+  if (now !== receipt.tree) {
+    ok = false;
+    reason = "the tree changed during the run (edited files, or a different commit)";
+    console.error("gate: " + reason);
+  }
+  if (reason) receipt.reason = reason;
   const dir = path.join(path.resolve(ROOT, git("rev-parse", "--git-common-dir").out), "gate");
   fs.mkdirSync(dir, { recursive: true });
   const pw = (() => { try { return require(path.join(ROOT, "node_modules", "playwright", "package.json")).version; } catch (e) { return null; } })();
   Object.assign(receipt, {
     tree: receipt.tree, head: receipt.head, branch: receipt.branch, base: receipt.base, ok,
     started: new Date(t0).toISOString(), finished: new Date().toISOString(), seconds: secs(t0),
-    node: process.version, playwright: pw, host: os.hostname(), argv: process.argv.slice(2)
+    node: process.version, node_nvmrc: nvmrc, playwright: pw, host: os.hostname(), argv: process.argv.slice(2)
   });
   const file = path.join(dir, receipt.tree + ".json");
   fs.writeFileSync(file, JSON.stringify(receipt, null, 2) + "\n");
@@ -139,9 +164,19 @@ function writeReceipt(ok) {
     if (/\.json$/.test(f) && fs.statSync(q).mtimeMs < old) fs.rmSync(q);
   });
   console.log("receipt " + file);
+  return ok;
 }
 
 async function main() {
+  try { return await gate(); }
+  catch (e) {
+    console.error("gate: " + (e && e.stack || e));
+    if (receipt.tree) writeReceipt(false, String(e && e.message || e));
+    return 1;
+  }
+}
+
+async function gate() {
   if (opts.help) { usage(); return 0; }
   const known = ["with-webgl", "part", "jobs", "no-receipt", "help"];
   const bad = Object.keys(opts).filter((k) => k !== "_" && !known.includes(k));
@@ -152,22 +187,35 @@ async function main() {
   if (git("fetch", "-q", "origin", "main").code !== 0) { console.error("gate: git fetch origin main failed"); return 2; }
   if (git("merge-base", "--is-ancestor", "origin/main", "HEAD").code !== 0) { console.error("gate: merge or rebase origin/main into this branch first"); return 2; }
   receipt.tree = git("rev-parse", "HEAD^{tree}").out;
+  if (!/^[0-9a-f]{40}$/.test(receipt.tree)) { console.error("gate: cannot read the tree sha of HEAD"); return 2; }
   receipt.head = git("rev-parse", "HEAD").out;
   receipt.branch = git("rev-parse", "--abbrev-ref", "HEAD").out;
   receipt.base = git("rev-parse", "origin/main").out;
 
   let parts = JSON.parse(out(["node", "tools/check-browser.js", "--parts"]).out || "{}").parts;
-  if (!parts) { console.error("gate: check-browser.js --parts failed"); return 2; }
+  if (!parts || !parts.length) { console.error("gate: check-browser.js --parts failed"); return 2; }
   if (opts.part !== undefined) {
     if (!parts.includes(opts.part)) { console.error("gate: no such part: " + opts.part + " (" + parts.join(", ") + ")"); return 2; }
     parts = [opts.part];
   }
-  const jobs = opts.jobs === undefined ? parts.length : Math.max(1, parseInt(opts.jobs, 10) || 0);
-  if (!jobs) { console.error("gate: --jobs wants a number"); return 2; }
+  if (opts.jobs !== undefined && (!/^[0-9]+$/.test(String(opts.jobs)) || Number(opts.jobs) < 1)) { console.error("gate: --jobs wants a whole number of 1 or more"); return 2; }
+  const jobs = opts.jobs === undefined ? parts.length : Number(opts.jobs);
+  const full = JSON.parse(out(["node", "tools/check-browser.js", "--parts"]).out).parts;
   const changed = git("diff", "--name-only", "origin/main...HEAD").out.split("\n").filter(Boolean);
   const touches = (list) => changed.some((f) => list.some((p) => f === p || (p.endsWith("/") && f.startsWith(p))));
 
+  if (nvmrc && nvmrc.split(".")[0] !== process.versions.node.split(".")[0]) {
+    console.log("gate  node       " + process.version + " here, .nvmrc says " + nvmrc + ": the build on main uses " + nvmrc);
+  }
+  let reason;
   const ok = await (async () => {
+    const lock = touches(["package.json", "package-lock.json"]);
+    if (!stage("deps", () => {
+      if (lock) return npm(["ci"]);
+      if (npm(["ls", "--all"])) return true;
+      console.error("gate: node_modules does not match package.json: run npm ci");
+      return false;
+    })) return false;
     if (!stage("check", () => npm(["run", "check"]))) return false;
     if (!stage("migrations", () => npm(["run", "check:static", "--", "--only=migrations", "--migrations-base=origin/main"]))) return false;
     if (!stage("build", () => npm(["run", "build"]) && npm(["run", "check:dist"]) && npm(["run", "build:redirects"]) && npm(["run", "check:redirects"]))) return false;
@@ -182,6 +230,7 @@ async function main() {
     });
     console.log("gate  browser     " + (failed.length ? "FAIL" : "ok  ") + "  " + secs(t) + "s");
     if (failed.length) return false;
+    if (opts.part === undefined && Object.keys(results).sort().join() !== full.slice().sort().join()) { reason = "not every browser part ran"; console.error("gate: " + reason); return false; }
 
     if (opts["with-webgl"] || touches(WEBGL_PATHS)) {
       if (!stage("webgl", () => twice(() => npm(["run", "test:browser:3d"])) && twice(() => npm(["run", "check:browser", "--", "--only=webgl", "--out=.cache/gate/webgl"])))) return false;
@@ -196,9 +245,9 @@ async function main() {
     return true;
   })();
 
-  writeReceipt(ok);
-  console.log("gate  " + (ok ? "PASSED" : "FAILED") + "  " + secs(t0) + "s");
-  return ok ? 0 : 1;
+  const final = writeReceipt(ok, reason);
+  console.log("gate  " + (final ? "PASSED" : "FAILED") + "  " + secs(t0) + "s");
+  return final ? 0 : 1;
 }
 
 main().then((c) => process.exit(c), (e) => { console.error(e); process.exit(1); });

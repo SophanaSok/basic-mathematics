@@ -31,7 +31,7 @@
                need their own
    --list      print the suites and leave
 
-   Output: .cache/check/  — screenshots, report.json, index.html (a contact sheet).
+   Output: .cache/check/ (or --out)  — screenshots, report.json, index.html (a contact sheet).
    Exit code 1 on any failure.
 
    ---- Suite interface ------------------------------------------------------------
@@ -77,6 +77,12 @@ const ROOT = site.ROOT;
 const opts = site.parseArgs(process.argv.slice(2));
 const BASE = opts.base || site.DEFAULT_BASE;
 const OUT = path.resolve(ROOT, typeof opts.out === "string" && opts.out ? opts.out : path.join(".cache", "check"));
+/* OUT is emptied recursively, so it may only be a directory below .cache/ */
+const underCache = path.relative(path.join(ROOT, ".cache"), OUT);
+if (!underCache || underCache.startsWith("..") || path.isAbsolute(underCache)) {
+  console.error("--out must be a directory inside .cache/ (it is emptied first): " + OUT);
+  process.exit(2);
+}
 
 /* ------------------------------------------------------------ reporter --- */
 
@@ -206,7 +212,7 @@ function loadSuites() {
 
 async function main() {
   const t0 = Date.now();
-  if (opts.help) { console.log(fs.readFileSync(__filename, "utf8").split("\n").slice(2, 33).join("\n")); return 0; }
+  if (opts.help) { const src = fs.readFileSync(__filename, "utf8"); console.log(src.slice(src.indexOf("/*") + 3, src.indexOf("*/")).trimEnd()); return 0; }
   const allSuites = loadSuites();
   let parts;
   try { parts = partOf(allSuites); }
