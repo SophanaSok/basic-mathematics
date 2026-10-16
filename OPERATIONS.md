@@ -988,6 +988,7 @@ The values used below, in one place:
 | Previews | `https://pr-<number>.groundupmath.pages.dev` (one per pull request, whatever its branch) and `https://<hash>.groundupmath.pages.dev` |
 | Repository secrets | `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID` |
 | Repository variables | `CLOUDFLARE_PROJECT_NAME` (optional, default `groundupmath`) |
+| Pull request label | `ci`, created with `gh label create ci --color 0e8a16 --description "Run CI on this pull request"` (2026-10-16). `ci.yml` and `sql.yml` start a pull request run only on the `labeled` event for it; `tools/check-ci.js` cannot verify offline that the label exists |
 | Supabase project | `https://jfidvrzonyzfstnykzly.supabase.co` (`assets/config.js`) |
 
 Documentation read for this section on 2026-10-05: Cloudflare Pages

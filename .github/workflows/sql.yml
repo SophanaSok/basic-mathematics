@@ -3,13 +3,14 @@
 # steps as `npm run test:sql`, which starts the image itself; here the image is a service
 # container and tools/sql-test.js --db runs the steps against it with the runner's psql.
 #
-# It runs on a pull request that changes one of the paths below, never on a push, a schedule
-# or by hand, and it is not part of ci.yml's deploy gate. tools/check-ci.js (sql-trigger,
+# It runs on a pull request labeled `ci` that changes one of the paths below, never on a push,
+# a schedule or by hand, and it is not part of ci.yml's deploy gate. tools/check-ci.js (sql-trigger,
 # sql-pins) holds the trigger and the pins: every action by full commit SHA, the image by the
 # same digest as tools/sql-test.js.
 name: SQL
 on:
   pull_request:
+    types: [labeled]
     paths: ["supabase/**", "src/sync/events.ts", "tools/gen-prune-sql-cases.js", "tools/sql-test.js", ".github/workflows/sql.yml"]
 permissions:
   contents: read
@@ -18,6 +19,7 @@ concurrency:
   cancel-in-progress: true
 jobs:
   pgtap:
+    if: github.event.label.name == 'ci'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     services:
