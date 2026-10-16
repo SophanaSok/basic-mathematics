@@ -558,7 +558,8 @@ async function run() {
           var ch = id.split("#")[0];
           if (isles.indexOf(ch) < 0 || (!all && put[ch])) return;
           put[ch] = id; g.sec[id] = { n: 1, ok: 1 }; seeds[id] = { box: 1, last: old };
-          /* the deck lists a section the learner has attempted */
+          /* deck() lists only sections with a solved exercise in the attempt log (Insights.sections), so
+             the log seed alone is not enough: this row is what makes the section a deck row at all */
           att[ch] = att[ch] || {};
           att[ch]["x" + id] = { section: id.split("#")[1], solved: Date.now() - 40 * 864e5, first: false, tries: 3 };
         });

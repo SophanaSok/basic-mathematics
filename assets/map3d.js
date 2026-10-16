@@ -301,6 +301,8 @@ import { detectTier, readProbe, stepDown, lower, pixelRatio, TIERS, AMBIENT_MS, 
     var due = { arena: [], page: [] }, bands = {};
     try {
       var deck = G && typeof G.deck === "function" ? G.deck({}) || [] : [];
+      /* the sections with an Arena generator; the map cannot load the generators themselves, and
+         src/data/arena-sections.test.ts holds this list to them (assets/arena.js asks Gen.forSection) */
       var arena = (R && R.ARENA_SECTIONS) || [];
       var rows = deck.map(function (d) {
         return { id: d.id, due: !!d.due, box: d.box, last: d.last, seen: d.seen, arena: arena.indexOf(d.id) > -1, index: order[d.id] || 0 };
@@ -332,7 +334,11 @@ import { detectTier, readProbe, stepDown, lower, pixelRatio, TIERS, AMBIENT_MS, 
       ahead.push(!st.done && i !== M.cur && !input.counts[isle.id].solved);
     });
     var gates = M.world.layout.gates.map(function (g) { return !!M.done[ISLES[g.isle].id]; });
-    M.world.setProgress(states, ahead, gates);
+    /* hubState returns the same array for the same state: an event that changed nothing the hub
+       shows (most of them) rebuilds no marks */
+    var same = states === M.states && ahead.join() === M.ahead && gates.join() === M.gates;
+    M.states = states; M.ahead = ahead.join(); M.gates = gates.join();
+    if (!same) M.world.setProgress(states, ahead, gates);
 
     if (M.cur > -1) {
       /* the marker is the learner's form, in the hue of the Part they are in */
