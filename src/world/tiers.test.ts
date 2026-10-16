@@ -83,6 +83,7 @@ describe("the ladder", () => {
   });
 
   it("holds each tier to more than the one below it", () => {
+    expect(Object.entries(TIERS).map(([k, b]) => [k, b.bloom])).toEqual([["low", false], ["medium", false], ["high", true]]);
     expect(TIERS.low.calls).toBeLessThanOrEqual(TIERS.medium.calls);
     expect(TIERS.low.triangles).toBeLessThan(TIERS.medium.triangles);
     expect(TIERS.medium.triangles).toBeLessThan(TIERS.high.triangles);

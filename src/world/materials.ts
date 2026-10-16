@@ -90,14 +90,37 @@ function tokenColour(T: Three, el: Element, name: string): Color {
   return c;
 }
 
-/** every colour the world draws with, read from the probes in `probe` */
-export function readPalette(T: Three, probe: Element): PaletteMap {
+/* The bloom (src/world/post.ts) lights what its high pass finds brighter than 1.05, and the
+   high pass tests the colour's luminance (0.299 R + 0.587 G + 0.114 B, over a 0.01 smooth
+   width). A token is at most 1 in every channel, so while the bloom is on the glow colours
+   (glow:<part>, the beacons and the regions' glow props) are scaled until their luminance
+   is GLOW_LUMA, a little over the threshold. The factor is per colour: a mostly blue glow
+   has a low luminance and needs a far larger one than a red or a green. Nothing else is
+   scaled, so only glow-painted geometry blooms. The batches store colour in Float32
+   attributes (src/world/batch.ts), which carry values above 1; the toon shading then
+   multiplies by its band, and a face turned to the key light shows the full value. */
+export const GLOW_LUMA = 1.1;
+/** the most a glow colour is scaled (a near-black glow would otherwise need a huge factor) */
+export const GLOW_MAX = 12;
+
+export function luminance(c: Color): number { return 0.299 * c.r + 0.587 * c.g + 0.114 * c.b; }
+
+/** the factor that takes colour c to GLOW_LUMA (1 when it is already there; GLOW_MAX at most) */
+export function glowFactor(c: Color): number {
+  const l = luminance(c);
+  return l >= GLOW_LUMA ? 1 : Math.min(GLOW_MAX, GLOW_LUMA / Math.max(l, 1e-6));
+}
+
+/** every colour the world draws with, read from the probes in `probe`; with `bloom` the glow
+ *  colours are scaled past 1 so that they, and nothing else, glow */
+export function readPalette(T: Three, probe: Element, bloom = false): PaletteMap {
   const pal: PaletteMap = new Map();
   for (const k of Object.keys(PAPER)) pal.set(k, tokenColour(T, probe, PAPER[k]));
   probe.querySelectorAll("[data-part]").forEach((el) => {
     const id = el.getAttribute("data-part") || "";
     for (const k of Object.keys(PART)) pal.set(k + ":" + id, tokenColour(T, el, PART[k]));
     pal.set("ahead:" + id, pal.get("part:" + id)!.clone().lerp(pal.get("plotGround")!, 0.62));
+    if (bloom) { const g = pal.get("glow:" + id)!; g.multiplyScalar(glowFactor(g)); }
   });
   return pal;
 }

@@ -103,6 +103,9 @@ function vendorModules() {
    files under their first segments and the one importing it bare owns the rest; a
    package both depend on without naming it would have to be placed by hand, and none
    exists yet. */
+/* files of a package two modules name subpaths of, placed by hand: [path prefix inside
+   the package, the vendor module]. The shaders the post-processing passes import, and the utils the model viewer's loader does. */
+const PLACED = [["examples/jsm/shaders/", DIR + "/three-post.js"], ["examples/jsm/utils/", DIR + "/three-model.js"]];
 function isStylesheet(rel) { return /\.css(\?.*)?$/.test(rel); }
 function vendorOf(rel) {
   const pkg = packageOf(rel);
@@ -113,7 +116,23 @@ function vendorOf(rel) {
   if (by.length > 1) {
     const inner = String(rel).split("node_modules/" + pkg + "/").pop();
     const first = inner.split("/")[0];
-    const named = by.filter(v => (v.subpaths[pkg] || []).some(s => s && s.split("/")[0] === first));
+    let named = by.filter(v => (v.subpaths[pkg] || []).some(s => s && s.split("/")[0] === first));
+    if (named.length > 1) {
+      /* two modules name subpaths under the same first segment (three-model.js and
+         three-post.js both name examples/jsm/…): the shaders the passes import are placed
+         by hand, and any other file goes with the module that names the longest directory
+         prefix of it, when one does */
+      const hand = PLACED.find(([prefix]) => inner.startsWith(prefix));
+      const dirs = inner.split("/").slice(0, -1);
+      const depth = (v) => Math.max(0, ...(v.subpaths[pkg] || []).filter(Boolean).map(s => {
+        const sd = s.split("/").slice(0, -1);
+        let n = 0;
+        while (n < sd.length && n < dirs.length && sd[n] === dirs[n]) n++;
+        return n;
+      }));
+      const best = hand ? named.filter(v => v.file === hand[1]) : named.filter(v => depth(v) === Math.max(...named.map(depth)) && depth(v) > 0);
+      if (best.length === 1) return best[0];
+    }
     if (named.length === 1) return named[0];
     if (!named.length) {
       const bare = by.filter(v => (v.subpaths[pkg] || []).includes("") && !(v.subpaths[pkg] || []).some(s => s));

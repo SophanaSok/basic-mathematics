@@ -114,6 +114,7 @@ function bundleNames(): (id: string) => string | null {
     const by = loadedBy[rel];
     if (by) return by.length === kinds.length ? "all" : by.join("-");
     if (/^assets\/[^/]+\.js$/.test(rel)) return path.posix.basename(rel, ".js");   /* a dynamic import of a script's own */
+    if (rel === WORLD_DIR + "post.ts") return "post";                               /* the bloom, map3d.js's import(): a chunk of its own, apart from the world */
     if (rel.startsWith(WORLD_DIR)) return "world";                                  /* the course world, map3d.js's import() */
     if (rel.startsWith(MODEL_DIR)) return "form-model";                             /* the model viewer, form-view.ts's import() */
     /* the grader's modules, with grade.ts: after `by`, so one an entry named itself would

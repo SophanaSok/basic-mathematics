@@ -49,6 +49,8 @@ export interface WorldScene {
   kinds(): Record<string, string>;
   /** read the tokens again and repaint (theme or panel changed) */
   repaint(): void;
+  /** the bloom is on (or off): the glow colours go past 1 (or back) and the world repaints */
+  setBloom(on: boolean): void;
   /** sky and fog for a camera target at depth z, `dist` from the camera; `fog` false
       draws without the fog (only for the check that it shows) */
   atmosphere(z: number, dist: number, fog?: boolean): void;
@@ -75,7 +77,8 @@ export function createWorld(T: Three, opts: WorldOptions): WorldScene {
   const parts = worldParts(opts.course).map((p) => p.id);
   const scene = new T.Scene();
   const mats = makeMaterials(T);
-  let pal: PaletteMap = readPalette(T, opts.probe);
+  let bloom = false;
+  let pal: PaletteMap = readPalette(T, opts.probe, bloom);
   makeLights(T, scene);
 
   let still: StaticWorld = buildStatic(T, L, placeProps(L, opts.motifs, opts.detail), mats, pal);
@@ -158,8 +161,13 @@ export function createWorld(T: Three, opts: WorldOptions): WorldScene {
       capsAndGates();
     },
     kinds: () => (marks ? marks.kinds : {}),
+    setBloom(on) {
+      if (on === bloom) return;
+      bloom = on;
+      this.repaint();
+    },
     repaint() {
-      pal = readPalette(T, opts.probe);
+      pal = readPalette(T, opts.probe, bloom);
       paintOwn();
       if (form) form.paint(pal);
       still.paint(pal);

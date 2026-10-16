@@ -21,4 +21,5 @@ export { BufferGeometry, BufferAttribute, EdgesGeometry } from "three";
 export { BoxGeometry, ConeGeometry, CylinderGeometry, SphereGeometry, TorusGeometry, OctahedronGeometry, TetrahedronGeometry, IcosahedronGeometry, DodecahedronGeometry } from "three";
 export { MeshBasicMaterial, MeshToonMaterial, LineBasicMaterial } from "three";
 export { DataTexture, RedFormat, NearestFilter } from "three";
+export { WebGLRenderTarget, HalfFloatType } from "three";
 export { AmbientLight, DirectionalLight } from "three";
