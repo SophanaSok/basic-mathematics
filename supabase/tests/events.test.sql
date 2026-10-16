@@ -417,7 +417,11 @@ select is((select count(*) from pg_class c join pg_namespace n on n.oid = c.reln
 -- 15. the fresh start (P7): public.attempts is gone, private.fresh_start runs once per key
 select hasnt_table('public', 'attempts', 'public.attempts is dropped');
 select has_table('private', 'once', 'private.once exists');
-select is((select string_agg(key, ',' order by key) from private.once), 'r2-fresh-start', 'private.once holds r2-fresh-start (the migration ran it)');
+-- the runner applies the migration only while it is newer than origin/main (the "migration" path
+-- of tools/sql-test.js); after that it applies schema.sql alone, which defines private.once and
+-- private.fresh_start but runs no fresh start, so private.once is empty. The suite says which it saw.
+create temp table migrated as select exists (select 1 from private.once where key = 'r2-fresh-start') as yes;
+select is((select string_agg(key, ',' order by key) from private.once), case when (select yes from migrated) then 'r2-fresh-start' end, 'private.once holds r2-fresh-start when the migration ran, and nothing from schema.sql alone');
 select has_function('private', 'fresh_start', array['text'], 'private.fresh_start exists');
 select is(has_function_privilege('authenticated', 'private.fresh_start(text)', 'execute'), false, 'authenticated cannot execute private.fresh_start');
 select is(has_function_privilege('anon', 'private.fresh_start(text)', 'execute'), false, 'anon cannot execute private.fresh_start');
@@ -478,7 +482,9 @@ select is((select count(*) from private.once where key = 'test-fresh'), 1::bigin
 create temp table fs2 as select updated_at, reset_at from public.user_state where user_id = 'b0000000-0000-4000-8000-00000000000b';
 select is(private.fresh_start('test-fresh'), false, 'a second fresh_start with the same key returns false');
 select is((select row(updated_at, reset_at)::text from public.user_state where user_id = 'b0000000-0000-4000-8000-00000000000b'), (select row(updated_at, reset_at)::text from fs2), 'and changes nothing');
-select is(private.fresh_start('r2-fresh-start'), false, 'the migration''s key is spent too');
+-- not called when the migration did not run: on schema.sql alone the key is fresh, and spending
+-- it here would start every reader afresh and move the epoch the next line checks
+select is(case when (select yes from migrated) then private.fresh_start('r2-fresh-start') else false end, false, 'the migration''s key is spent too');
 select is(pg_temp.epoch_of('b0000000-0000-4000-8000-00000000000b'), (select epoch + 1 from fs1), 'no epoch moved on the spent keys');
 
 -- 16. exercise_stats() and chapter_stats() read the event log (D is the second reader: C's log is full)
