@@ -118,6 +118,7 @@ html[data-world] .map3d:empty::after {
 [data-map="3d"] .stop-card h3 { font-size: 1rem; }
 [data-map="3d"] .stop-card .label { font-size: .64rem; }
 [data-map="3d"] .stop-card .meta { margin-top: 0; font-size: .74rem; }
+[data-map="3d"] .stop:nth-child(n) .stop-hub { margin: .2rem 0 0 calc(36px + .7rem); width: auto; padding: 0 .8rem; font-size: .8rem; }
 [data-map="3d"] .stop-link:hover .stop-card { transform: none; }
 [data-map="3d"] .stop-link:active .stop-card { transform: translateY(2px); box-shadow: 0 0 0 var(--tile-edge); }
 [data-map="3d"] .stop-link:hover .stop-node { transform: none; }

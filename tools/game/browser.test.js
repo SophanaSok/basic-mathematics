@@ -821,6 +821,7 @@ async function run() {
       });
       eq([st.medal, st.chip], [["1 of 3 stars", 1, 3], "1 of 3 stars"], "the finale and the banner draw the medal's stars, with words");
       check(!/★/.test(st.text), "no star characters left for the medal or the missions");
+      check(await page.$(".banner-meta svg.icon-star") !== null, "the banner's missions stat draws the star icon");
       eq(errors, [], "no errors in the toast and hearts run");
       await context.close();
     }
@@ -1019,6 +1020,38 @@ async function run() {
       await f.context.close();
     }
 
+    /* ------------- the hub's list (P14c): each chapter on the contents page shows what is due and its mastery */
+    {
+      const ev = (sec, n, right, day) => ({ day, mode: "standard", answers: Array.from({ length: n }, () => ({ section: sec, g: "g0", first: right, retry: false, hf: false })) });
+      const seedEvents = (page, runs) => page.evaluate((runs) => { runs.forEach((r) => window.BMEvents.fromRun(r)); }, runs);
+      const hubOf = (page, id) => page.evaluate((id) => {
+        var p = document.querySelectorAll('li.stop[data-chapter="' + id + '"] p.stop-hub');
+        return { n: p.length, text: p[0] ? p[0].textContent.replace(/\s+/g, " ").trim() : "",
+          links: p[0] ? Array.from(p[0].querySelectorAll("a")).map((a) => [a.textContent, a.getAttribute("href"), !a.closest("a.stop-link")]) : [] };
+      }, id);
+      const hubs = await open(browser, "index.html", {});
+      eq([await hubOf(hubs.page, "ch05")].map((h) => [h.n, h.text]), [[1, "Mastery: not enough answers yet"]], "hub list: with no evidence a chapter reads 'not enough answers yet'");
+      /* a section placed in the Arena four days ago and solved on its page is due; one weak, one strong */
+      await hubs.page.evaluate((a) => localStorage.setItem("bm.attempts.v1", a), JSON.stringify({ ch02: {
+        e1: { tries: 1, solved: 1, first: 1, section: "one-unknown" }, e2: { tries: 1, solved: 2, first: 1, section: "one-unknown" } } }));
+      await seedEvents(hubs.page, [ev("ch02#one-unknown", 1, true, dayAgo(4)), ev("ch05#parallels", 3, false, dayAgo(0)), ev("ch05#angles", 8, true, dayAgo(0))]);
+      await hubs.page.waitForFunction(() => /weak/.test((document.querySelector('li.stop[data-chapter="ch05"] p.stop-hub') || {}).textContent || ""));
+      const h5 = await hubOf(hubs.page, "ch05"), h2 = await hubOf(hubs.page, "ch02");
+      check(/^Mastery: (\d+ strong · )?(\d+ building · )?1 weak$/.test(h5.text) && /1 strong/.test(h5.text), "hub list: ch05 reads its mastery counts: " + h5.text);
+      check(/^Due for a check: §2\.\d+ One unknown, ?.*Review in the Arena/.test(h2.text) || /^Due for a check: §2\.\d+ One unknown · Review in the Arena/.test(h2.text), "hub list: ch02 names its due section: " + h2.text);
+      const due2 = h2.links.find((l) => /One unknown/.test(l[0]));
+      eq(due2 && due2[1], "parts/1-algebra/02-linear-equations.html#one-unknown", "and the due section's link goes to the section");
+      eq(h2.links.some((l) => l[1] === "arena.html?mode=review"), true, "with one Review in the Arena link");
+      check(h2.links.length > 0 && h2.links.every((l) => l[2]), "no hub link is inside a.stop-link");
+      await hubs.page.evaluate(() => { window.BMHubList.redraw(document); window.BMHubList.redraw(document); });
+      eq(await hubs.page.evaluate(() => Array.from(document.querySelectorAll("li.stop")).every((li) => li.querySelectorAll("p.stop-hub").length === 1)), true,
+        "hub list: redecorating twice leaves one p.stop-hub per chapter");
+      await hubs.page.click('li.stop[data-chapter="ch02"] p.stop-hub a[href$="#one-unknown"]');
+      await hubs.page.waitForFunction(() => /02-linear-equations/.test(location.pathname));
+      eq(hubs.errors, [], "no errors with the hub list");
+      await hubs.context.close();
+    }
+
     /* ------------- 10. verdicts: injected form and unread on a page and in the Arena; parity */
     {
       const FORM = { kind: "form", alt: 0, read: "(6, -2)", reason: "notation" };
@@ -1061,6 +1094,7 @@ async function run() {
       await typed(E1, "6/4");
       c = await card(E1);
       check(c.state === "correct" && /Correct\.\s*6\/4 is 3\/2 in lowest terms\./.test(c.text), "a right unreduced fraction is correct, with the lowest-terms note: " + c.text);
+      check(await page.$(E1 + " .ex-feedback svg.icon-tick") !== null, "a correct verdict carries the tick icon, not a fallback glyph");
       eq((await attempts()).e1.tries, 2, "the right answer is the second try");
 
       /* blanks: k1 is [35, 145], k2 is [289, 17] */

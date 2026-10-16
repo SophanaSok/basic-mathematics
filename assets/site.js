@@ -503,7 +503,22 @@
       html += "</ol></section>";
     });
     host.innerHTML = html;
+    decorateHub();
     Store.emit({ type: "home", current: currentId });
+  }
+
+  /* what the hub shows of each chapter, under its card (src/ui/hub-list.ts). The game layer and the
+     event log load after this script, so the first draw can find them missing: the list is drawn
+     again once the page has loaded and whenever the event log changes. */
+  var hubWatching = false;
+  function decorateHub() {
+    var host = document.querySelector("[data-course-index]");
+    if (!host) return;
+    try { if (window.BMHubList) window.BMHubList.redraw(host); } catch (e) { /* the list stays as it was */ }
+    if (hubWatching) return;
+    hubWatching = true;
+    Store.on(function (c) { if (c.type === "event") decorateHub(); });
+    window.addEventListener("load", decorateHub);
   }
 
   /* turn the "Start" button into "Continue" once there is somewhere to continue to */
