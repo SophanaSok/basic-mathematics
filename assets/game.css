@@ -1007,7 +1007,7 @@ html[data-motion="reduce"] *, html[data-motion="reduce"] *::before, html[data-mo
 }
 .form-tile-name { font-size: 1rem; }
 .form-tile-level { display: inline-flex; align-items: center; gap: .3rem; font-size: .85rem; color: var(--muted); }
-.form-lock { flex: none; }
+.form-lock, svg.icon.form-lock { flex: none; width: 14px; height: 14px; }
 .form-tile-tag { font-size: .75rem; font-weight: 600; color: var(--muted); min-height: 1em; }
 .form-tile-tag:empty { display: none; }
 .form-view.is-anticipating::after {

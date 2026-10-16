@@ -890,11 +890,16 @@
 
   /* ----------------------------------------------------------- markup ---- */
 
-  var HEART = '<svg viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path d="M8 14.2S1.6 10.3 1.6 5.9A3.3 3.3 0 0 1 8 4.3a3.3 3.3 0 0 1 6.4 1.6C14.4 10.3 8 14.2 8 14.2z"/></svg>';
+  /* An icon from src/ui/icon.ts (window.BMIcon), as markup; a page whose entry does not load it
+     gets the old glyph, never a blank. */
+  function ico(name, glyph, cls) {
+    var svg = window.BMIcon && window.BMIcon.svg(name, cls);
+    return svg || glyph;
+  }
 
   function heartsHtml(n, max) {
     var html = '<span class="arena-hearts" role="img" aria-label="' + n + " of " + max + ' hearts">';
-    for (var i = 0; i < max; i++) html += "<i" + (i < n ? " data-full" : "") + ">" + HEART + "</i>";
+    for (var i = 0; i < max; i++) html += "<i" + (i < n ? " data-full" : "") + ">" + (i < n ? ico("heart", "♥") : ico("heart-o", "♡")) + "</i>";
     return html + "</span>";
   }
 
@@ -1321,20 +1326,20 @@
       html = (a && a.pass
         ? '<p class="arena-verdict" data-kind="pass">No heart at stake here, so first a hint.</p>'
         : run.cur.form
-          ? '<p class="arena-verdict" data-kind="no" data-verdict="form">✗ ' + esc(run.cur.form) + (a && a.lost ? " That cost a heart." : "") + "</p>"
-          : '<p class="arena-verdict" data-kind="no">✗ Not right' + (a && a.lost ? ", and that cost a heart." : ".") + "</p>") +
+          ? '<p class="arena-verdict" data-kind="no" data-verdict="form">' + ico("cross", "✗") + " " + esc(run.cur.form) + (a && a.lost ? " That cost a heart." : "") + "</p>"
+          : '<p class="arena-verdict" data-kind="no">' + ico("cross", "✗") + ' Not right' + (a && a.lost ? ", and that cost a heart." : ".") + "</p>") +
         '<div class="arena-hint"><span class="arena-hint-label">Hint</span><p class="arena-hint-text"></p></div>' +
         '<p class="arena-next">' + (cur.timed ? "The clock has stopped. " : "") + "Try once more, or open the solution." +
         (a && a.hf ? " Without a heart at stake, the second try scores no points." : "") + "</p>";
       view.feedback.setAttribute("data-kind", "retry");
     } else if (a) {
       if (a.first) {
-        html = '<p class="arena-verdict" data-kind="ok">✓ Correct. <b>+' + a.pts + "</b></p>" +
+        html = '<p class="arena-verdict" data-kind="ok">' + ico("tick", "✓") + ' Correct. <b>+' + a.pts + "</b></p>" +
           (a.late ? '<p class="arena-next">After par, so 60 points and the streak holds. Inside par it would have counted toward the streak.</p>' : "") +
           stepsHtml(false) + nextBtn;
         view.feedback.setAttribute("data-kind", "ok");
       } else if (a.retry) {
-        html = '<p class="arena-verdict" data-kind="ok">✓ Correct on the second try.' + (a.pts ? " <b>+" + a.pts + "</b>" : "") + "</p>" + stepsHtml(false) + nextBtn;
+        html = '<p class="arena-verdict" data-kind="ok">' + ico("tick", "✓") + ' Correct on the second try.' + (a.pts ? " <b>+" + a.pts + "</b>" : "") + "</p>" + stepsHtml(false) + nextBtn;
         view.feedback.setAttribute("data-kind", "ok");
       } else if (a.timeout) {
         html = '<p class="arena-verdict" data-kind="time">Time ran out. No heart lost.</p>' + stepsHtml(true) + nextBtn;
@@ -1344,7 +1349,7 @@
         view.feedback.setAttribute("data-kind", "solution");
       } else {
         html = '<p class="arena-verdict" data-kind="' + (a.gaveUp ? "pass" : "no") + '"' + (!a.gaveUp && run.cur.form ? ' data-verdict="form"' : "") + ">" +
-          (a.gaveUp ? "Here is how it goes." : run.cur.form ? "✗ " + esc(run.cur.form) + " Here is how it goes." : "✗ Still not right. Here is how it goes.") + "</p>" + stepsHtml(true) + nextBtn;
+          (a.gaveUp ? "Here is how it goes." : run.cur.form ? ico("cross", "✗") + " " + esc(run.cur.form) + " Here is how it goes." : ico("cross", "✗") + " Still not right. Here is how it goes.") + "</p>" + stepsHtml(true) + nextBtn;
         view.feedback.setAttribute("data-kind", "solution");
       }
       if (run.hearts === 0) html = '<p class="arena-out">That was your last heart. The run ends here; the results name the section to reread.</p>' + html;

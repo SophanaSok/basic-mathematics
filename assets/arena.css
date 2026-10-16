@@ -125,9 +125,9 @@ body[data-arena-screen="run"] .arena-intro h1 { font-size: clamp(1.5rem, 1.2rem 
 .arena-pause { flex: none; }
 
 .arena-hearts { display: inline-flex; gap: .2rem; vertical-align: middle; }
-.arena-hearts i { display: block; width: 1.35rem; height: 1.35rem; }
-.arena-hearts svg { display: block; width: 100%; height: 100%; fill: transparent; stroke: var(--border-strong); stroke-width: 1.4; }
-.arena-hearts i[data-full] svg { fill: var(--heart); stroke: var(--heart); }
+.arena-hearts i { display: block; width: 1.35rem; height: 1.35rem; color: var(--border-strong); }
+.arena-hearts svg { display: block; width: 100%; height: 100%; }
+.arena-hearts i[data-full] { color: var(--heart); }
 html[data-calm] .arena-hearts { display: none; }
 
 /* the par bar drains to empty at par; colour and a static hatch change at 30% and 10% */

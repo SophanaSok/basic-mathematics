@@ -31,12 +31,19 @@
   var loadedAt = Date.now();
   var MEDALS = Game.MEDALS || ["", "Bronze", "Silver", "Gold"];
 
+  /* An icon from src/ui/icon.ts (window.BMIcon), as markup; a page whose entry does not load it
+     gets the old glyph, never a blank. */
+  function ico(name, glyph, cls) {
+    var svg = window.BMIcon && window.BMIcon.svg(name, cls);
+    return svg || glyph;
+  }
+
   function slice(list) { return Array.prototype.slice.call(list); }
   function calm() { return Game.prefs().calm; }
   /* drawn stars from game.js, with the count in words; ★ text only if it is older */
   function stars(n, compact) {
     if (Game.stars) return Game.stars(n, compact);
-    return '<span aria-hidden="true">' + new Array(n + 1).join("★") + "</span>";
+    return '<span aria-hidden="true">' + new Array(n + 1).join(ico("star", "★")) + "</span>";
   }
   function announce(text, opts) { if (Game.announce) Game.announce(text, opts); }
 
