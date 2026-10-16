@@ -204,7 +204,8 @@ returns boolean
 language sql stable security definer set search_path = ''
 as $$
   select coalesce((
-    select max((a.value->>'timestamp')::numeric) >= extract(epoch from pg_catalog.now()) - 600
+    select max((a.value->>'timestamp')::numeric) between extract(epoch from pg_catalog.now()) - 600
+                                                     and extract(epoch from pg_catalog.now()) + 60
     from jsonb_array_elements(case when jsonb_typeof(j.amr) = 'array' then j.amr else '[]'::jsonb end) a
     where jsonb_typeof(a.value) = 'object' and jsonb_typeof(a.value->'timestamp') = 'number'
   ), false)
@@ -212,22 +213,9 @@ as $$
 $$;
 revoke all on function private.fresh_auth() from public, anon, authenticated;
 
--- Lets a reader remove their own account; every table above cascades from auth.users (the
--- learners through learners.guardian). Needs a sign-in within the last 10 minutes.
-create or replace function public.delete_my_account()
-returns void
-language plpgsql security definer set search_path = ''
-as $$
-begin
-  if not private.fresh_auth() then
-    raise exception 'stale sign-in';
-  end if;
-  delete from auth.users where id = (select auth.uid());
-end;
-$$;
 
--- Managed learners: the only way to read-write public.learners. LEARNERS_MAX and CONSENT_V are
--- constants inside the functions; bump CONSENT_V when the consent wording changes.
+-- Managed learners: the only way to read-write public.learners. LEARNERS_MAX and consent_current (the
+-- consent version, CONSENT_V) are constants inside the functions; bump it when the consent wording changes.
 create or replace function public.learner_list()
 returns table (id uuid, self boolean, name text, under13 boolean, consent_v smallint, created_at timestamptz)
 language plpgsql security definer set search_path = ''
@@ -252,7 +240,7 @@ language plpgsql security definer set search_path = ''
 as $$
 declare
   LEARNERS_MAX constant integer := 8;
-  CONSENT_V constant smallint := 1;
+  consent_current constant smallint := 1;   -- the current consent version (CONSENT_V)
   uid uuid := (select auth.uid());
   nm text := btrim(learner_add.name);
   u13 boolean := coalesce(learner_add.under13, false);
@@ -264,17 +252,17 @@ begin
   if nm is null or char_length(nm) not between 1 and 40 then
     raise exception 'bad name';
   end if;
-  if u13 and learner_add.consent_v is distinct from CONSENT_V then
+  if u13 and learner_add.consent_v is distinct from consent_current then
     raise exception 'consent required';
   end if;
   -- one add at a time per guardian: lock the self learner row
   insert into public.learners (id, guardian, self) values (uid, uid, true) on conflict do nothing;
-  perform 1 from public.learners l where l.id = uid for update;
+  perform 1 from public.learners l where l.id = uid for no key update;
   if (select count(*) from public.learners l where l.guardian = uid and not l.self) >= LEARNERS_MAX then
     raise exception 'too many learners';
   end if;
   insert into public.learners (guardian, self, name, under13, consent_v, consent_at)
-    values (uid, false, nm, u13, case when u13 then CONSENT_V end, case when u13 then pg_catalog.now() end)
+    values (uid, false, nm, u13, case when u13 then consent_current end, case when u13 then pg_catalog.now() end)
     returning learners.id into new_id;
   return new_id;
 end;
@@ -307,13 +295,13 @@ returns void
 language plpgsql security definer set search_path = ''
 as $$
 declare
-  CONSENT_V constant smallint := 1;
+  consent_current constant smallint := 1;   -- the current consent version (CONSENT_V)
   uid uuid := (select auth.uid());
 begin
   if uid is null then
     raise exception 'not signed in';
   end if;
-  if learner_mark_under13.consent_v is distinct from CONSENT_V then
+  if learner_mark_under13.consent_v is distinct from consent_current then
     raise exception 'consent required';
   end if;
   update public.learners l set under13 = true, consent_v = learner_mark_under13.consent_v, consent_at = pg_catalog.now()

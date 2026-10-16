@@ -185,8 +185,8 @@ insert into hv values
   ('a checkpoint with s = today + 2', pg_temp.setp(pg_temp.setp(pg_temp.setx(pg_temp.setx(pg_temp.vz(), 's', '20802'), 'l', '20790'), 1, '20801'), 0, '29953440'), true),
   ('a checkpoint with s = today + 3', pg_temp.setp(pg_temp.setp(pg_temp.setx(pg_temp.setx(pg_temp.vz(), 's', '20803'), 'l', '20790'), 1, '20802'), 0, '29954880'), false);
 
--- 224 hand-counted tests below, plus one per row of the three tables
-select plan(225 + (select count(*)::integer from hv) + (select count(*)::integer from private.valid_cases)
+-- 237 hand-counted tests below, plus one per row of the three tables
+select plan(237 + (select count(*)::integer from hv) + (select count(*)::integer from private.valid_cases)
   + (select count(*)::integer from private.prune_expected));
 
 -- 1. tables, row-level security, policies, grants
@@ -680,6 +680,12 @@ do $x$ begin perform set_config('request.jwt.claims', '{"sub":"x","amr":[{"metho
 select is(private.fresh_auth(), false, 'an amr without a numeric timestamp is not fresh');
 do $x$ begin perform set_config('request.jwt.claims', '{"sub":"x"}', true); end $x$;
 select is(private.fresh_auth(), false, 'no amr claim is not fresh');
+do $x$ begin perform set_config('request.jwt.claims', json_build_object('sub', 'x', 'amr', json_build_array(json_build_object('timestamp', floor(extract(epoch from now())) + 31536000)))::text, true); end $x$;
+select is(private.fresh_auth(), false, 'a timestamp one year ahead is not fresh');
+do $x$ begin perform set_config('request.jwt.claims', '{"sub":"x","amr":[{"method":"password","timestamp":1e300}]}', true); end $x$;
+select is(private.fresh_auth(), false, 'a timestamp of 1e300 is not fresh');
+do $x$ begin perform set_config('request.jwt.claims', json_build_object('sub', 'x', 'amr', json_build_array(json_build_object('timestamp', floor(extract(epoch from now())) - 599)))::text, true); end $x$;
+select is(private.fresh_auth(), true, 'a timestamp 599 seconds ago is fresh');
 
 -- reset isolation (T5): resetting one learner leaves the other's events
 insert into public.learners (guardian, name) values ('b0000000-0000-4000-8000-00000000000b', 'iso1'), ('b0000000-0000-4000-8000-00000000000b', 'iso2');
@@ -690,11 +696,35 @@ update public.user_state set reset_at = 5 where user_id = (select id from public
 select is((select string_agg(l.name, ',') from public.events e join public.learners l on l.id = e.user_id where l.name in ('iso1', 'iso2')), 'iso2', 'resetting one learner removes only its events');
 select is((select epoch from public.event_meta where user_id = (select id from public.learners where name = 'iso2')), 0, 'and leaves the other''s epoch');
 
--- delete_my_account (E): step-up, then the learners go with the account
-select is(pg_temp.msg_as('e0000000-0000-4000-8000-00000000000e', null, 'select public.delete_my_account()'), 'stale sign-in', 'delete_my_account with no amr raises stale sign-in');
-select is(pg_temp.msg_as('e0000000-0000-4000-8000-00000000000e', pg_temp.now_s() - 660, 'select public.delete_my_account()'), 'stale sign-in', 'delete_my_account with a sign-in 11 minutes old raises stale sign-in');
-select is((select count(*) from auth.users where id = 'e0000000-0000-4000-8000-00000000000e'), 1::bigint, 'E still exists after the refusals');
-select is(pg_temp.msg_as('e0000000-0000-4000-8000-00000000000e', pg_temp.now_s() - 60, 'select public.delete_my_account()'), 'ok', 'delete_my_account with a sign-in 1 minute old succeeds');
+-- cross-family, the rest (T1): C against B's managed learner (b18 holds a state row and two events)
+select is(pg_temp.count_as('c0000000-0000-4000-8000-00000000000c', format('select count(*) from public.events where user_id = %L', (select id from lk where k = 'b18'))), 0::bigint, 'C cannot see the events of B''s learner');
+select is((select count(*) from public.events where user_id = (select id from lk where k = 'b18')), 2::bigint, 'while B''s learner does have events');
+create function pg_temp.rows_changed_as(uid uuid, stmt text) returns bigint language plpgsql as $$
+declare n bigint;
+begin
+  perform pg_temp.as_user(uid);
+  execute stmt;
+  get diagnostics n = row_count;
+  execute 'reset role';
+  return n;
+end $$;
+select is(pg_temp.rows_changed_as('c0000000-0000-4000-8000-00000000000c', format('update public.user_state set reset_at = 1 where user_id = %L', (select id from lk where k = 'b18'))), 0::bigint, 'C: updating the state of B''s learner affects no row');
+select is(pg_temp.rows_changed_as('c0000000-0000-4000-8000-00000000000c', format('delete from public.user_state where user_id = %L', (select id from lk where k = 'b18'))), 0::bigint, 'C: deleting the state of B''s learner affects no row');
+select is(pg_temp.sqlstate_as('b0000000-0000-4000-8000-00000000000b', format('update public.user_state set user_id = %L where user_id = %L', 'c0000000-0000-4000-8000-00000000000c', (select id from lk where k = 'b18'))), '42501', 'B cannot move the state of their learner onto C');
+
+-- the check constraints on learners (superuser, so only the constraints can refuse)
+select throws_ok($$insert into public.learners (id, guardian, self) values (gen_random_uuid(), 'b0000000-0000-4000-8000-00000000000b', true)$$, '23514', null, 'a self learner whose id is not its guardian is refused');
+select throws_ok($$insert into public.learners (id, guardian, self, under13, consent_v) values ('b0000000-0000-4000-8000-00000000000b', 'b0000000-0000-4000-8000-00000000000b', true, true, 1)$$, '23514', null, 'a self learner cannot be under 13');
+select throws_ok($$insert into public.learners (guardian, name, under13) values ('b0000000-0000-4000-8000-00000000000b', 'u', true)$$, '23514', null, 'an under-13 learner needs a consent version');
+
+-- names: 40 characters pass, 41 and blank are refused, in learner_rename too
+select is(pg_temp.msg_as('b0000000-0000-4000-8000-00000000000b', null, format('select public.learner_rename(%L, repeat(''a'', 41))', (select id from lk where k = 'b18'))), 'bad name', 'learner_rename with 41 characters raises bad name');
+select is(pg_temp.msg_as('b0000000-0000-4000-8000-00000000000b', null, format('select public.learner_rename(%L, ''   '')', (select id from lk where k = 'b18'))), 'bad name', 'learner_rename with a blank name raises bad name');
+select is(pg_temp.msg_as('b0000000-0000-4000-8000-00000000000b', null, format('select public.learner_rename(%L, repeat(''a'', 40))', (select id from lk where k = 'b18'))), 'ok', 'learner_rename with 40 characters passes');
+select is(pg_temp.msg_as('c0000000-0000-4000-8000-00000000000c', null, 'select public.learner_add(repeat(''b'', 40), false, null)'), 'ok', 'learner_add with 40 characters passes');
+
+-- delete_my_account is unchanged (no step-up yet): deleting E removes E's learners and data
+select is(pg_temp.msg_as('e0000000-0000-4000-8000-00000000000e', null, 'select public.delete_my_account()'), 'ok', 'E deletes their account');
 select is((select count(*) from auth.users where id = 'e0000000-0000-4000-8000-00000000000e') + (select count(*) from public.learners where guardian = 'e0000000-0000-4000-8000-00000000000e') + (select count(*) from public.events where user_id = 'e0000000-0000-4000-8000-00000000000e'), 0::bigint, 'E, their learners and their events are gone');
 
 select * from finish();
