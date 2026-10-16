@@ -1895,11 +1895,10 @@ function checkFormModels(ctx, r) {
    is small and checked here, and so is whether a string gives the answer away
    (src/learn/leak.ts, the grader deciding what is the same answer).
 
-   HINT_LEAK_FAILS: a rung-1 clue that gives the answer away is a WARN until the owner has
-   cleared every hit (O9: the hits are listed in the PR body); then this turns to true and
-   the same hit fails. A hit that is meant (a clue that must say it) is listed in
+   HINT_LEAK_FAILS: a rung-1 clue that gives the answer away fails. It was a WARN until the
+   owner cleared every hit (O9, 2026-10-16: five clues reworded, four allowed with reasons). A hit that is meant (a clue that must say it) is listed in
    tools/leak-allow.json against the hash of its text, and goes stale when the text moves. */
-const HINT_LEAK_FAILS = false;
+const HINT_LEAK_FAILS = true;
 const LEAK_ALLOW_FILE = path.join(__dirname, "leak-allow.json");
 const HELP_TAGS = new Set(["em", "strong", "b", "i", "code", "sub", "sup"]);
 const HELP_BLOCKS = new Set(["p", "div"]);

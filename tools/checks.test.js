@@ -1445,17 +1445,17 @@ function refusal(fn) { try { fn(); return null; } catch (e) { return e.message; 
     const after = run("final-after-step.html");
     eq([after.fails, after.warns], [[], []], "help-markup: text after data-final is cut from the faded view, and the page passes");
     check(after.faded.a1 === "Rewrite the subtraction as an addition," && !/quick sum/.test(after.faded.a1), "help-markup: the faded view is the solution minus p.answer, the data-final step and what follows — got " + JSON.stringify(after.faded));
-    const leak = run("hint-leak.html");
+    const leak = run("hint-leak.html", { hintLeakFails: false }); /* the WARN mode, held explicitly now that the site runs with HINT_LEAK_FAILS on */
     eq([leak.fails.length, leak.warns.length, leak.hints], [0, 1, 1], "help-markup: a rung-1 clue that states the answer is one WARN and counts as a hint");
     eq(run("hint-leak.html", { hintLeakFails: true }).fails.length, 1, "help-markup: with HINT_LEAK_FAILS on, the same clue fails");
     /* the allowlist: the right hash silences one leak; a wrong hash is stale and fails */
     const entry = { page: "hint-leak.html", key: "a1", field: "data-hint", token: "7", textSha256: crypto.createHash("sha256").update("The answer is $7$.").digest("hex"), reason: "test" };
     const quiet = run("hint-leak.html", { allow: [entry] });
     eq([quiet.fails, quiet.warns, quiet.hints, quiet.silenced], [[], [], 1, 1], "help-markup: an allowance with the text's hash silences that leak");
-    const stale = run("hint-leak.html", { allow: [Object.assign({}, entry, { textSha256: "0".repeat(64) })] });
+    const stale = run("hint-leak.html", { hintLeakFails: false, allow: [Object.assign({}, entry, { textSha256: "0".repeat(64) })] });
     check(stale.fails.some(m => /stale allowance/.test(m)) && stale.warns.length === 1, "help-markup: an allowance with the wrong hash is stale (FAIL) and silences nothing — got " + JSON.stringify(stale));
     /* the hash is current but the token no longer leaks (the key or the grader changed): stale too */
-    const unused = run("hint-leak.html", { allow: [Object.assign({}, entry, { token: "8" })] });
+    const unused = run("hint-leak.html", { hintLeakFails: false, allow: [Object.assign({}, entry, { token: "8" })] });
     check(unused.fails.some(m => /stale allowance.*no longer gives the answer away/.test(m)) && unused.warns.length === 1, "help-markup: an allowance nothing used is stale (FAIL) and silences nothing — got " + JSON.stringify(unused));
     check(/textSha256 [0-9a-f]{64} for an allowance/.test(leak.warns[0]), "help-markup: the leak message carries the hash an allowance needs — got " + JSON.stringify(leak.warns[0]));
     const gone = run("hint-leak.html", { allow: [Object.assign({}, entry, { key: "zz" })] });
