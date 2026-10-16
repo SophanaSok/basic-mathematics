@@ -96,6 +96,8 @@ interface Window {
   BMFormUnlock: { settle: (quiet?: boolean, first?: boolean) => void };
   /** src/ui/icon.ts: the inline SVG of an icon in src/data/icons.json, for assets/site.js */
   BMIcon: typeof import("../ui/icon.ts").api;
+  /** src/ui/hub-list.ts: the hub's due sections and mastery line on the contents list (decorate, hubInput), for assets/site.js */
+  BMHubList: typeof import("../ui/hub-list.ts").api;
   /** src/ui/math-names.ts: names the buttons, labels, table headers and headings whose
       content is a formula (name), for assets/site.js's renderMath; typed */
   BMMathNames: typeof import("../ui/math-names.ts").api;

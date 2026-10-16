@@ -678,6 +678,10 @@ input.blank { width: auto; min-height: 0; padding: .2rem .45rem; margin: 0 .15em
 }
 .stop-card h3 { font-size: 1.2rem; margin: 0; }
 .stop-card p { font-size: 1rem; line-height: 1.5; color: var(--muted); margin: 0; }
+/* the hub's line sits after the card's link, in the card's column */
+.stop-hub { position: relative; z-index: 2; margin: .45rem 0 0 calc(56px + 1rem); padding: 0 1.3rem; font-family: var(--sans); font-size: .85rem; line-height: 1.5; color: var(--text); display: grid; gap: .15rem; }
+.stop-hub .stop-mastery { color: var(--muted); font-size: .78rem; }
+.stop-hub a { text-decoration: underline; }
 .stop-card .meta { margin-top: .35rem; font-family: var(--sans); font-size: .78rem; color: var(--muted); display: flex; flex-wrap: wrap; align-items: center; gap: .5rem; }
 @media (min-width: 900px) {
   .path { gap: 0; }
@@ -687,6 +691,8 @@ input.blank { width: auto; min-height: 0; padding: .2rem .45rem; margin: 0 .15em
   .stop-card { grid-row: 1; }
   .stop:nth-child(odd) .stop-card { grid-column: 1; }
   .stop:nth-child(even) .stop-card { grid-column: 3; }
+  .stop:nth-child(odd) .stop-hub { margin-left: 0; width: calc((100% - 56px - 3.2rem) / 2); box-sizing: border-box; }
+  .stop:nth-child(even) .stop-hub { margin-left: calc((100% - 56px - 3.2rem) / 2 + 56px + 3.2rem); }
   .stop + .stop { margin-top: -3rem; }
 }
 
