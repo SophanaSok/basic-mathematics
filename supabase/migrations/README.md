@@ -44,7 +44,9 @@ branch left `main` at. It fails when:
 - a migration that was already there has been edited, renamed or deleted (what is on `main` has
   been applied, by rule 4);
 - a new file's timestamp is not later than every one already there, or the file holds no SQL;
-- a file name does not match the format, or two files share a timestamp.
+- a file name does not match the format, or two files share a timestamp;
+- `schema.sql` calls `private.fresh_start` or inserts into `private.once` (the gate runs `schema.sql` as it is on `main`, so its own edit is never executed);
+- a new migration inserts into `private.once` directly; it may call `private.fresh_start('key')`, which seeds the marker itself.
 
 On `main` itself the comparison is with the last commit, so it judges only what is not yet
 committed. `--migrations-base=<ref>` names another commit to compare against; continuous
