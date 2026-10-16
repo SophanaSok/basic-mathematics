@@ -18,10 +18,11 @@ const BLOOM_RADIUS = 0.4;
 
 export type PostTheme = "light" | "dark";
 
-/** the glow's strength: gentle on the light theme (owner default O16), fuller on dark,
- *  where a glow reads better against the sky; never above 1 */
+/** the glow's strength: 0.55 on the dark theme, where a glow reads against the sky; 0 on the
+ *  light theme, which has no bloom (owner O16: its glow tokens are dark, so lifting them past
+ *  white would turn the glow props neon; assets/map3d.js never builds the bloom there). Never above 1 */
 export function bloomStrength(theme: PostTheme): number {
-  return theme === "light" ? 0.3 : 0.55;
+  return theme === "dark" ? 0.55 : 0;
 }
 
 /** the render-target size in pixels for a canvas of width x height CSS pixels at device
@@ -70,15 +71,32 @@ export function makeBloom(T: any, P: any, renderer: any, scene: any, camera: any
   const size = postSize(opts.width, opts.height, opts.dpr);
   /* the composer's own targets are half float but not multisampled, so with antialias on the
      renderer a target of ours stands in: half float explicitly (the composer clones it), 4 samples */
-  const target = opts.antialias
-    ? new T.WebGLRenderTarget(size.width, size.height, { type: T.HalfFloatType, samples: 4 })
-    : undefined;
-  const composer = new P.EffectComposer(renderer, target);
-  composer.setPixelRatio(1);
-  composer.setSize(size.width, size.height);
-  const bloom = new P.UnrealBloomPass(new T.Vector2(size.width, size.height), bloomStrength(opts.theme), BLOOM_RADIUS, BLOOM_THRESHOLD);
-  const passes = [new P.RenderPass(scene, camera), bloom, new P.OutputPass()];
-  passes.forEach(p => composer.addPass(p));
+  let target: any;
+  let composer: any;
+  const passes: any[] = [];
+  /* whatever a failed step already built is disposed, then the error goes on to the caller */
+  const undo = () => {
+    passes.forEach((p: any) => { try { if (p.dispose) p.dispose(); } catch { /* already gone */ } });
+    try { if (target && target.dispose) target.dispose(); } catch { /* already gone */ }
+    try { if (composer && composer.dispose) composer.dispose(); } catch { /* already gone */ }
+  };
+  let bloom: any;
+  try {
+    target = opts.antialias
+      ? new T.WebGLRenderTarget(size.width, size.height, { type: T.HalfFloatType, samples: 4 })
+      : undefined;
+    composer = new P.EffectComposer(renderer, target);
+    composer.setPixelRatio(1);
+    composer.setSize(size.width, size.height);
+    bloom = new P.UnrealBloomPass(new T.Vector2(size.width, size.height), bloomStrength(opts.theme), BLOOM_RADIUS, BLOOM_THRESHOLD);
+    passes.push(new P.RenderPass(scene, camera));
+    passes.push(bloom);
+    passes.push(new P.OutputPass());
+    passes.forEach(p => composer.addPass(p));
+  } catch (e) {
+    undo();
+    throw e;
+  }
   let now = size;
   return {
     render() { composer.render(); },
@@ -89,11 +107,7 @@ export function makeBloom(T: any, P: any, renderer: any, scene: any, camera: any
     setTheme(theme: PostTheme) { bloom.strength = bloomStrength(theme); },
     size: () => now,
     strength: () => bloom.strength,
-    dispose() {
-      passes.forEach((p: any) => { if (p.dispose) p.dispose(); });
-      if (target && target.dispose) target.dispose();
-      if (composer.dispose) composer.dispose();
-    },
+    dispose: undo,
     passes
   };
 }

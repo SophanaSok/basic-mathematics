@@ -65,7 +65,7 @@
    10. the picture: the fog shows (drawn without it, the frame changes, but not the
       islands of the row in view), and the last Part's view is not half empty sky
    11. the bloom: on the high tier alone, through three passes inside POST_PIXELS (even
-      on a dense screen), with the strength 0.3 on the light theme and 0.55 on the dark,
+      on a dense screen), on the dark theme at strength 0.55 (the light theme has none and fetches nothing, owner O16; a live flip builds or drops it),
       the scene's own calls and triangles inside the high caps, its two chunks fetched
       once; medium and low never request them; the watchdog turns it off before it
       steps the tier down */
@@ -694,25 +694,75 @@ async function run() {
     /* -------------------------------------------- 11: the bloom (high tier only) */
     {
       /* the glow is the high tier's: the scene stays inside the high caps, the passes hold to POST_PIXELS (even on
-         a dense screen), the chunks come only then, and the light theme is the gentler (O16) */
+         a dense screen), the chunks come only then, and the light theme has none (O16) */
       const POST_PIXELS = +read("src/world/post.ts").match(/export const POST_PIXELS = ([\d.e+]+);/)[1];
       const bloomed = (page) => page.waitForFunction(() => { var i = window.BMMap3D.info(); return i && i.post.on && i.frames > 1 && i.calls !== null; }, null, { timeout: 30000 }).catch(() => {});
-      for (const [theme, strength] of [["light", 0.3], ["dark", 0.55]]) {
+      /* the dark theme: bloomed at 0.55 */
+      {
+        const theme = "dark", strength = 0.55;
         const { context, page, post } = await openMap(browser, { "bm.prefs.v1": '{"gfx":"high"}', "bm.theme": JSON.stringify(theme) }, { scale: 3 });
         await bloomed(page);
         const i = await info(page);
-        check(!i.gone && i.tier === "high" && i.post.on && i.post.passes === 3, theme + ": on the high tier the map draws through the bloom (" + JSON.stringify(i.post || i) + ")");
+        check(!i.gone && i.tier === "high" && i.post.on && i.post.passes === 3 && i.post.why === "", theme + ": on the high tier the map draws through the bloom (" + JSON.stringify(i.post || i) + ")");
         check(!i.gone && i.post.pixels > 0 && i.post.pixels <= POST_PIXELS, theme + ": its render targets hold " + (i.post && i.post.pixels) + " pixels, at most " + POST_PIXELS + " (the canvas is " + (i.pixelRatio) + " device pixels per CSS pixel)");
         check(!i.gone && i.post.strength === strength, theme + ": the glow's strength is " + strength + " (" + (i.post && i.post.strength) + ")");
         check(!i.gone && i.calls <= i.budget.calls && i.triangles <= i.budget.triangles, theme + ": the scene's own draw calls and triangles stay within the high caps (" + i.calls + " of " + (i.budget && i.budget.calls) + ", " + i.triangles + " of " + (i.budget && i.budget.triangles) + ")");
         check(post.length === 2, theme + ": the bloom's two chunks were fetched, once each (" + post.length + ")");
-        if (theme === "light") {
-          await page.evaluate(() => { document.documentElement.setAttribute("data-theme", "dark"); });
-          await wait(300);
-          const d = await info(page);
-          check(!d.gone && d.post.on && d.post.strength === 0.55, "a theme change moves the strength to the dark theme's (" + (d.post && d.post.strength) + ")");
-        }
+        /* the bloom leaves what is not glowing alone: the same view drawn through it and straight to the canvas
+           agrees within one level a channel at the island decks (their centres) */
+        const px = await page.evaluate(() => {
+          var cv = document.querySelector("[data-map3d] canvas"), r = cv.getBoundingClientRect();
+          window.BMMap3D.draw(true);
+          var a = window.__pixels();
+          window.BMMap3D.draw(false);
+          var b = window.__pixels();
+          var ids = window.BM_CURRICULUM.parts[0].chapters.map(function (ch) { return ch.id; }), worst = 0, n = 0;
+          ids.forEach(function (id) {
+            var w = window.BMMap3D.where(id);
+            if (!w || w.x < r.left + 4 || w.x > r.right - 4 || w.y < r.top + 4 || w.y > r.bottom - 4) return;
+            var x = Math.round((w.x - r.left) * a.w / r.width), y = Math.round((w.y - r.top) * a.h / r.height);
+            /* a 5 x 5 patch of the deck around the island's centre */
+            for (var dy = -2; dy <= 2; dy++) for (var dx = -2; dx <= 2; dx++) {
+              var k = ((y + dy) * a.w + x + dx) * 4;
+              for (var c = 0; c < 3; c++) worst = Math.max(worst, Math.abs(a.d[k + c] - b.d[k + c]));
+              n++;
+            }
+          });
+          window.BMMap3D.draw(true);
+          return { worst: worst, n: n };
+        });
+        check(px.n > 0 && px.worst <= 1, theme + ": with the bloom on and forced off the island decks agree within one level a channel (" + JSON.stringify(px) + ")");
+        /* a live flip to the light theme drops the bloom, and glow colours return to the tokens */
+        await page.evaluate(() => { document.documentElement.setAttribute("data-theme", "light"); });
+        await wait(500);
+        const l = await info(page);
+        check(!l.gone && !l.post.on && l.post.passes === 0 && l.post.pixels === 0 && l.post.strength === 0 && l.post.why === "light", "dark to light turns the bloom off (" + JSON.stringify(l.post || l) + ")");
+        await page.waitForFunction(() => { var i = window.BMMap3D.info(); return i && i.frames > 1; }, null, { timeout: 10000 }).catch(() => {});
+        await wait(300);
+        const flipped = await page.evaluate(() => window.__pixels());
         await context.close();
+        /* a page that opened on the light theme never had a bloom: its frame is what the flipped page now draws */
+        {
+          const c2 = await openMap(browser, { "bm.prefs.v1": '{"gfx":"high"}', "bm.theme": '"light"' }, { scale: 3 });
+          await wait(1500);
+          const j = await info(c2.page);
+          check(!j.gone && j.tier === "high" && !j.post.on && j.post.passes === 0 && j.post.pixels === 0 && j.post.why === "light", "light: on the high tier the map is drawn without the bloom (" + JSON.stringify(j.post || j) + ")");
+          check(c2.post.length === 0, "light: the bloom's chunks were never requested (" + c2.post.length + ")");
+          const direct = await c2.page.evaluate(() => window.__pixels());
+          let differ = 0;
+          if (direct.w === flipped.w && direct.h === flipped.h) {
+            for (let k = 0; k < direct.d.length; k += 4) {
+              if (Math.abs(direct.d[k] - flipped.d[k]) + Math.abs(direct.d[k + 1] - flipped.d[k + 1]) + Math.abs(direct.d[k + 2] - flipped.d[k + 2]) > 6) differ++;
+            }
+          } else differ = -1;
+          check(differ >= 0 && differ / (direct.w * direct.h) <= 0.005, "dark to light puts the glow colours back: the flipped frame matches a light page's (" + differ + " of " + direct.w * direct.h + " pixels differ)");
+          /* and the live flip the other way builds it, fetching the chunks then */
+          await c2.page.evaluate(() => { document.documentElement.setAttribute("data-theme", "dark"); });
+          await bloomed(c2.page);
+          const k = await info(c2.page);
+          check(!k.gone && k.post.on && k.post.passes === 3 && k.post.strength === 0.55 && k.post.why === "" && c2.post.length === 2, "light to dark builds the bloom, fetching its two chunks then (" + JSON.stringify({ post: k.post || k, chunks: c2.post.length }) + ")");
+          await c2.context.close();
+        }
       }
       for (const [gfx, tier] of [["low", "low"], ["mid", "medium"]]) {
         const { context, page, post } = await openMap(browser, { "bm.prefs.v1": JSON.stringify({ gfx }) });
@@ -722,8 +772,8 @@ async function run() {
         await context.close();
       }
       {
-        /* the watchdog takes the bloom off first, and only then the tier */
-        const { context, page } = await openMap(browser, { "bm.prefs.v1": '{"gfx":"high"}' }, { hardware: true });
+        /* the watchdog takes the bloom off first, and only then the tier (on the dark theme: the light one has no bloom to take) */
+        const { context, page } = await openMap(browser, { "bm.prefs.v1": '{"gfx":"high"}', "bm.theme": '"dark"' }, { hardware: true });
         await bloomed(page);
         const seen = [];
         await page.evaluate(() => { window.__slow = true; });

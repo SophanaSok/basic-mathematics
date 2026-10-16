@@ -25,9 +25,11 @@
    the Observatory's telescope), never under reduced motion or Study mode; offscreen or
    in a hidden tab nothing is drawn, and an idle page asks for no frames at all.
 
-   On the high tier, and only there, the map is drawn through the bloom (src/world/post.ts,
-   fetched as two chunks once the world is up): the due beacons and the regions' glow props
-   glow softly. The watchdog turns it off before it steps the tier down.
+   On the high tier and the dark theme, and only there, the map is drawn through the bloom
+   (src/world/post.ts, fetched as two chunks once the world is up): the due beacons and the
+   regions' glow props glow softly. The light theme has none (owner O16: its glow tokens are
+   dark, so the boost would turn them neon) and never fetches the chunks; a live theme flip
+   builds or drops it. The watchdog turns it off before it steps the tier down.
 
    The box stays hidden, and the list looks exactly as it did, when the tier is the
    list (the 3D map switch off, no WebGL 2, Save-Data, or a watchdog that gave up),
@@ -64,6 +66,7 @@ import { detectTier, readProbe, stepDown, lower, pixelRatio, TIERS, AMBIENT_MS, 
   var ISLES = [];           /* one per chapter, in reading order (the world's layout, with the chapter and Part) */
   var failed = "";          /* why 3D gave up for this visit (lost context, an error); sticky */
   var slowCap = null;       /* the tier the watchdog stepped down to on this visit, if it did */
+  var bloomWhy = "";       /* why it is off when bloomOff is: "watchdog" or "unsupported" */
   var bloomOff = false;     /* the watchdog (or a renderer that cannot) turned the bloom off for this visit */
   var starting = false;
   var choice = null;        /* the last detectTier() answer */
@@ -289,8 +292,17 @@ import { detectTier, readProbe, stepDown, lower, pixelRatio, TIERS, AMBIENT_MS, 
   /* ------------------------------------------------------------- the bloom -- */
 
   function themeNow() { return document.documentElement.getAttribute("data-theme") === "dark" ? "dark" : "light"; }
-  /* the high tier's, until the watchdog turns it off; Study mode keeps it (it is light, not motion) */
-  function wantBloom() { return !!(M && M.budget.bloom && !bloomOff); }
+  /* the high tier's on the dark theme alone (owner O16: in the light theme the glow tokens are dark, so the
+     boost would turn the glow props neon), until the watchdog turns it off; Study mode keeps it (it is light,
+     not motion). The light theme never fetches the chunks. */
+  function wantBloom() { return !!(M && M.budget.bloom && !bloomOff && themeNow() === "dark"); }
+  /* why the bloom is not on: "tier", "light", "watchdog", "unsupported", or "" when it is wanted */
+  function bloomReason() {
+    if (!M) return "";
+    if (!M.budget.bloom) return "tier";
+    if (themeNow() !== "dark") return "light";
+    return bloomOff ? (bloomWhy || "unsupported") : "";
+  }
 
   /* bring the bloom in line with the tier: its two chunks are fetched only when it is wanted, and
      it is built once they are here and the world is up (a tier that does not want it never asks) */
@@ -311,14 +323,14 @@ import { detectTier, readProbe, stepDown, lower, pixelRatio, TIERS, AMBIENT_MS, 
           width: m.stage.clientWidth, height: m.stage.clientHeight, dpr: m.renderer.getPixelRatio()
         });
       } catch (e) { b = null; }
-      if (!b) { bloomOff = true; return; }
+      if (!b) { bloomOff = true; bloomWhy = "unsupported"; return; }
       m.bloom = b;
       /* the scene's own draw calls, counted as its pass finishes (the later passes reset the renderer's count) */
       m.scene.onAfterRender = function (renderer) { m.sceneCalls = renderer.info.render.calls; };
       m.world.setBloom(true);
       size();
       request();
-    }, function () { m.bloomLoading = false; bloomOff = true; });
+    }, function () { m.bloomLoading = false; bloomOff = true; bloomWhy = "unsupported"; });
   }
   function dropBloom() {
     if (!M) return;
@@ -601,6 +613,7 @@ import { detectTier, readProbe, stepDown, lower, pixelRatio, TIERS, AMBIENT_MS, 
     /* the bloom goes first: one step is the bloom off, the next the tier down */
     if (M.bloom || (wantBloom() && M.bloomLoading)) {
       bloomOff = true;
+      bloomWhy = "watchdog";
       dropBloom();
       M.watch.reset();
       request();
@@ -930,8 +943,9 @@ import { detectTier, readProbe, stepDown, lower, pixelRatio, TIERS, AMBIENT_MS, 
   }
 
   /* The bloom's two chunks (src/world/post.ts, src/vendor/three-post.js), imported only when
-     the bloom is wanted (syncBloom: the high tier), once; check-dist holds them to 15 KB
-     gzipped together. A failed import is tried again the next time it is wanted. */
+     the bloom is wanted (syncBloom: the high tier, dark theme), once; check-dist holds them to
+     15 KB gzipped together. A failed import sets bloomOff, so it is not tried again until the
+     quality preference changes (which clears it). */
   var bloomImports = null;
   function loadBloom() {
     if (!bloomImports) {
@@ -983,7 +997,7 @@ import { detectTier, readProbe, stepDown, lower, pixelRatio, TIERS, AMBIENT_MS, 
       if (!c) return;
       if (c.type === "prefs") {
         var seen = asked();
-        if (seen !== lastAsked) { slowCap = null; bloomOff = false; }
+        if (seen !== lastAsked) { slowCap = null; bloomOff = false; bloomWhy = ""; }
         lastAsked = seen;
         var next = decide();
         if (next.tier === "list") { if (M || starting) teardown(); return; }
@@ -1006,7 +1020,7 @@ import { detectTier, readProbe, stepDown, lower, pixelRatio, TIERS, AMBIENT_MS, 
     new MutationObserver(function (list) {
       if (!M) return;
       var theme = list.some(function (m) { return m.attributeName === "data-theme" || m.attributeName === "data-panel"; });
-      if (theme) { M.world.repaint(); place(); if (M.bloom) M.bloom.setTheme(themeNow()); }
+      if (theme) { M.world.repaint(); place(); if (M.bloom) M.bloom.setTheme(themeNow()); syncBloom(); }
       /* Study mode hides the bosses: the marks are built again */
       if (list.some(function (m) { return m.attributeName === "data-calm"; })) later();
       if (still()) rest();
@@ -1054,7 +1068,7 @@ import { detectTier, readProbe, stepDown, lower, pixelRatio, TIERS, AMBIENT_MS, 
       return { triangles: Math.round(tris), stones: M.world.stones(), current: M.cur > -1 ? ISLES[M.cur].id : null,
         hot: M.hot > -1 ? ISLES[M.hot].id : null, flying: !!M.flight, bobbing: !!M.bobbing,
         pixelRatio: M.renderer.getPixelRatio(), calls: M.bloom ? M.sceneCalls : ri ? ri.calls : null,
-        post: { on: !!M.bloom, passes: M.bloom ? M.bloom.passes.length : 0, pixels: pz ? pz.width * pz.height : 0, strength: M.bloom ? +M.bloom.strength().toFixed(3) : 0, off: bloomOff }, isles: M.world.kinds(),
+        post: { on: !!M.bloom, passes: M.bloom ? M.bloom.passes.length : 0, pixels: pz ? pz.width * pz.height : 0, strength: M.bloom ? +M.bloom.strength().toFixed(3) : 0, off: bloomOff, why: M.bloom ? "" : bloomReason() }, isles: M.world.kinds(),
         tier: M.tier, reason: choice ? choice.why : "", ambient: !!M.budget.ambient, budget: M.budget, frames: M.frames,
         ring: "#" + M.world.select.material.color.getHexString(),
         fog: M.scene.fog ? [+M.scene.fog.near.toFixed(2), +M.scene.fog.far.toFixed(2)] : null };
@@ -1067,6 +1081,14 @@ import { detectTier, readProbe, stepDown, lower, pixelRatio, TIERS, AMBIENT_MS, 
       M.noFog = !on;
       place();
       render();
+      return true;
+    },
+    /* for the check that the bloom leaves the non-glow pixels alone (tools/game/map.test.js): the same
+       view drawn once through the bloom (true) or straight to the canvas (false), so it can be read in
+       the same task; false when there is no bloom to compare */
+    draw: function (viaBloom) {
+      if (!M || !M.bloom) return false;
+      if (viaBloom) M.bloom.render(); else M.renderer.render(M.scene, M.camera);
       return true;
     },
     /* where an island sits on screen, in client pixels */

@@ -5,7 +5,7 @@ describe("the bloom's numbers", () => {
   it("pins the design's budget, threshold and strengths", () => {
     expect(POST_PIXELS).toBe(2.1e6);
     expect(BLOOM_THRESHOLD).toBe(1.05);
-    expect(bloomStrength("light")).toBe(0.3);
+    expect(bloomStrength("light")).toBe(0); /* no bloom in the light theme (owner O16) */
     expect(bloomStrength("dark")).toBe(0.55);
   });
 
@@ -72,14 +72,16 @@ describe("the bloom's numbers", () => {
 
   it("makeBloom builds the passes and sizes them within the budget", () => {
     const f = fakes();
-    const b = makeBloom(f.T, f.P, f.renderer, {}, {}, { theme: "light", width: 3840, height: 2160, dpr: 1 })!;
+    const b = makeBloom(f.T, f.P, f.renderer, {}, {}, { theme: "dark", width: 3840, height: 2160, dpr: 1 })!;
     expect(b.passes).toHaveLength(3);
     const bloom = b.passes[1] as { strength: number; threshold: number };
-    expect(bloom.strength).toBe(0.3);
+    expect(bloom.strength).toBe(0.55);
     expect(bloom.threshold).toBe(1.05);
     b.setSize(1920, 1080, 1);
     for (const [w, h] of f.sizes) expect(w * h).toBeLessThanOrEqual(POST_PIXELS);
     expect(b.size()).toEqual({ width: 1920, height: 1080 });
+    b.setTheme("light");
+    expect(b.strength()).toBe(0);
     b.setTheme("dark");
     expect(b.strength()).toBe(0.55);
     b.dispose();
@@ -108,5 +110,13 @@ describe("the bloom's numbers", () => {
     const b = makeBloom(f.T, f.P, f.renderer, {}, {}, { theme: "dark", antialias: true, width: 800, height: 600, dpr: 1 })!;
     b.dispose();
     expect(f.disposed.sort()).toEqual(["bloom", "composer", "output", "render", "target"]);
+  });
+
+  it("disposes what it built, and rethrows, when a step throws", () => {
+    const f = fakes();
+    const Base = f.P.UnrealBloomPass;
+    f.P.OutputPass = class { constructor() { throw new Error("no output pass"); } } as never;
+    expect(() => makeBloom(f.T, f.P, f.renderer, {}, {}, { theme: "dark", antialias: true, width: 800, height: 600, dpr: 1 })).toThrow("no output pass");
+    expect(f.disposed.sort()).toEqual(["bloom", "composer", "render", "target"]);
   });
 });
