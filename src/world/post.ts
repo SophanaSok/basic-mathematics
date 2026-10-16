@@ -37,6 +37,9 @@ export function postSize(width: number, height: number, dpr: number): { width: n
 
 export interface BloomOptions {
   theme: PostTheme;
+  /** the renderer was made with antialias (the high tier): the composer's targets then take 4 samples,
+      as the canvas's own would, so the edges stay as crisp with the bloom as without it */
+  antialias?: boolean;
   /** the canvas's CSS size and the device pixel ratio it is drawn at */
   width: number;
   height: number;
@@ -47,7 +50,13 @@ export interface Bloom {
   /** draw the scene through the passes, to the canvas */
   render(): void;
   setSize(width: number, height: number, dpr: number): void;
+  /** the glow's strength follows the theme */
+  setTheme(theme: PostTheme): void;
   dispose(): void;
+  /** the render targets' size now, in pixels (never over POST_PIXELS) */
+  size(): { width: number; height: number };
+  /** the glow's strength now */
+  strength(): number;
   /** the passes, and the pixels each draws (for BMMap3D.info().post) */
   passes: unknown[];
 }
@@ -59,20 +68,30 @@ export function makeBloom(T: any, P: any, renderer: any, scene: any, camera: any
   const ext = renderer && renderer.extensions;
   if (!ext || !(ext.has("EXT_color_buffer_half_float") || ext.has("EXT_color_buffer_float"))) return null;
   const size = postSize(opts.width, opts.height, opts.dpr);
-  const composer = new P.EffectComposer(renderer);   /* its targets are half float */
+  /* the composer's own targets are half float but not multisampled, so with antialias on the
+     renderer a target of ours stands in: half float explicitly (the composer clones it), 4 samples */
+  const target = opts.antialias
+    ? new T.WebGLRenderTarget(size.width, size.height, { type: T.HalfFloatType, samples: 4 })
+    : undefined;
+  const composer = new P.EffectComposer(renderer, target);
   composer.setPixelRatio(1);
   composer.setSize(size.width, size.height);
   const bloom = new P.UnrealBloomPass(new T.Vector2(size.width, size.height), bloomStrength(opts.theme), BLOOM_RADIUS, BLOOM_THRESHOLD);
   const passes = [new P.RenderPass(scene, camera), bloom, new P.OutputPass()];
   passes.forEach(p => composer.addPass(p));
+  let now = size;
   return {
     render() { composer.render(); },
     setSize(width: number, height: number, dpr: number) {
-      const s = postSize(width, height, dpr);
-      composer.setSize(s.width, s.height);
+      now = postSize(width, height, dpr);
+      composer.setSize(now.width, now.height);
     },
+    setTheme(theme: PostTheme) { bloom.strength = bloomStrength(theme); },
+    size: () => now,
+    strength: () => bloom.strength,
     dispose() {
       passes.forEach((p: any) => { if (p.dispose) p.dispose(); });
+      if (target && target.dispose) target.dispose();
       if (composer.dispose) composer.dispose();
     },
     passes

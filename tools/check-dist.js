@@ -594,10 +594,20 @@ function checkScripts(ctx, r) {
   /* the bloom's size budget */
   {
     r.count++;
-    const sizes = BLOOM_CHUNKS.filter(f => ctx.files.includes(f)).map(f => ({ f, bytes: zlib.gzipSync(fs.readFileSync(path.join(DIST, f)), { level: 9 }).length }));
-    const total = sizes.reduce((n, s) => n + s.bytes, 0);
-    if (total > BLOOM_GZIP_MAX) r.fail("the bloom's chunks are " + total + " bytes gzipped (" + sizes.map(s => s.f + " " + s.bytes).join(", ") + "), over the " + BLOOM_GZIP_MAX + " the design allows; every byte the bloom adds counts");
-    else r.note("the bloom's chunks: " + total + " of " + BLOOM_GZIP_MAX + " bytes gzipped (" + sizes.map(s => s.f + " " + s.bytes).join(", ") + ")");
+    const missing = BLOOM_CHUNKS.filter(f => !ctx.files.includes(f));
+    if (missing.length) r.fail("the bloom's chunk" + (missing.length > 1 ? "s " : " ") + missing.join(", ") + (missing.length > 1 ? " are" : " is") + " not in dist; assets/map3d.js imports src/world/post.ts and src/vendor/three-post.js on demand, so the build makes both, and the size budget cannot be read without them");
+    else {
+      const read = f => fs.readFileSync(path.join(DIST, f));
+      const sizes = BLOOM_CHUNKS.map(f => ({ f, bytes: zlib.gzipSync(read(f), { level: 9 }).length }));
+      const total = sizes.reduce((n, s) => n + s.bytes, 0);
+      /* the core names the addons pull from the shared bundle/three.js: that chunk holds the whole
+         library already, so they cost it little, but it is said here rather than left out of the count */
+      const core = new Set();
+      BLOOM_CHUNKS.forEach(f => { for (const m of read(f).toString("utf8").matchAll(/import\{([^}]*)\}from"\.\/three\.js"/g)) m[1].split(",").forEach(n => { const name = n.trim().split(/\s+as\s+/)[0]; if (name && !/^init_/.test(name)) core.add(name); }); });
+      const shared = " (and it draws on " + core.size + " core names of the shared bundle/three.js: " + Array.from(core).sort().join(", ") + ")";
+      if (total > BLOOM_GZIP_MAX) r.fail("the bloom's chunks are " + total + " bytes gzipped (" + sizes.map(s => s.f + " " + s.bytes).join(", ") + "), over the " + BLOOM_GZIP_MAX + " the design allows; every byte the bloom adds counts" + shared);
+      else r.note("the bloom's chunks: " + total + " of " + BLOOM_GZIP_MAX + " bytes gzipped (" + sizes.map(s => s.f + " " + s.bytes).join(", ") + ")" + shared);
+    }
   }
   /* the copies are gone */
   formerCopies().forEach(f => {

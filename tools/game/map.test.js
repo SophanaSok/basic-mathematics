@@ -63,7 +63,12 @@
       first paint), at 1280 and 360 wide; and the world starts at main's own padding, as
       the hero did
    10. the picture: the fog shows (drawn without it, the frame changes, but not the
-      islands of the row in view), and the last Part's view is not half empty sky */
+      islands of the row in view), and the last Part's view is not half empty sky
+   11. the bloom: on the high tier alone, through three passes inside POST_PIXELS (even
+      on a dense screen), with the strength 0.3 on the light theme and 0.55 on the dark,
+      the scene's own calls and triangles inside the high caps, its two chunks fetched
+      once; medium and low never request them; the watchdog turns it off before it
+      steps the tier down */
 "use strict";
 const fs = require("fs");
 const path = require("path");
@@ -74,6 +79,8 @@ const gl = require("../lib/gl");
 
 const THREE_CHUNK = /\/bundle\/three\.js(?:[?#]|$)/;
 const WORLD_CHUNK = /\/bundle\/world\.js(?:[?#]|$)/;
+/* the bloom's two chunks (src/world/post.ts, src/vendor/three-post.js) */
+const POST_CHUNK = /\/bundle\/(?:three-)?post\.js(?:[?#]|$)/;
 /* the constants these checks wait on, read from their files, so a changed value shows here */
 const read = (f) => fs.readFileSync(path.join(site.ROOT, f), "utf8");
 const TIMEOUT = +read("assets/three-loader.js").match(/var TIMEOUT = (\d+);/)[1];
@@ -185,11 +192,12 @@ const HARDWARE = "ANGLE (Test, Test GPU Direct3D11)";
 async function newContext(browser, opts) {
   opts = opts || {};
   const context = await browser.newContext(Object.assign({ viewport: { width: 1280, height: 900 }, deviceScaleFactor: opts.scale || 1, reducedMotion: opts.reducedMotion || "no-preference" }, opts.context || {}));
-  const asked = [], world = [];
+  const asked = [], world = [], post = [];
   await context.route(/^(https?|wss?):/, (r) => {
     const u = r.request().url();
     if (!server.owns(u)) return r.abort();
     if (WORLD_CHUNK.test(u)) world.push(u);
+    if (POST_CHUNK.test(u)) post.push(u);
     if (THREE_CHUNK.test(u)) {
       asked.push(u);
       if (opts.three === "abort") return r.abort("failed");
@@ -204,18 +212,18 @@ async function newContext(browser, opts) {
   await context.addInitScript((seed) => {
     try { if (!sessionStorage.getItem("__seeded")) { Object.keys(seed).forEach(function (k) { localStorage.setItem(k, seed[k]); }); sessionStorage.setItem("__seeded", "1"); } } catch (e) { /* fine */ }
   }, opts.seed || {});
-  return { context, asked, world };
+  return { context, asked, world, post };
 }
 
 async function openMap(browser, seed, opts) {
   opts = opts || {};
-  const { context, asked, world } = await newContext(browser, Object.assign({ seed }, opts));
+  const { context, asked, world, post } = await newContext(browser, Object.assign({ seed }, opts));
   const page = await context.newPage();
   const errors = [];
   page.on("pageerror", (e) => errors.push("pageerror: " + e.message));
   await page.goto(url("index.html"));
   await ready(page);
-  return { context, page, errors, asked, world };
+  return { context, page, errors, asked, world, post };
 }
 async function ready(page) {
   await page.waitForFunction(() => window.BMMap3D && window.BMMap3D.on() &&
@@ -677,10 +685,60 @@ async function run() {
       const { context, page } = await openMap(browser, { "bm.prefs.v1": '{"gfx":"high"}' }, { hardware: true });
       await page.evaluate(() => { window.__slow = true; });
       let i = await info(page);
-      for (let t = 0; t < 8000 && i && i.tier === "high"; t += 200) { await page.mouse.move(400 + (t % 400), 500); await wait(200); i = await info(page); }
+      for (let t = 0; t < 14000 && i && i.tier === "high"; t += 200) { await page.mouse.move(400 + (t % 400), 500); await wait(200); i = await info(page); }
       const p = await prefsOf(page);
       check(i && i.tier === "medium" && p.gfx === "high" && !("gfxAuto" in p), "on High chosen by the learner, slow frames step down to medium for the visit and keep nothing (" + JSON.stringify({ tier: i && i.tier, prefs: p }) + ")");
       await context.close();
+    }
+
+    /* -------------------------------------------- 11: the bloom (high tier only) */
+    {
+      /* the glow is the high tier's: the scene stays inside the high caps, the passes hold to POST_PIXELS (even on
+         a dense screen), the chunks come only then, and the light theme is the gentler (O16) */
+      const POST_PIXELS = +read("src/world/post.ts").match(/export const POST_PIXELS = ([\d.e+]+);/)[1];
+      const bloomed = (page) => page.waitForFunction(() => { var i = window.BMMap3D.info(); return i && i.post.on && i.frames > 1 && i.calls !== null; }, null, { timeout: 30000 }).catch(() => {});
+      for (const [theme, strength] of [["light", 0.3], ["dark", 0.55]]) {
+        const { context, page, post } = await openMap(browser, { "bm.prefs.v1": '{"gfx":"high"}', "bm.theme": JSON.stringify(theme) }, { scale: 3 });
+        await bloomed(page);
+        const i = await info(page);
+        check(!i.gone && i.tier === "high" && i.post.on && i.post.passes === 3, theme + ": on the high tier the map draws through the bloom (" + JSON.stringify(i.post || i) + ")");
+        check(!i.gone && i.post.pixels > 0 && i.post.pixels <= POST_PIXELS, theme + ": its render targets hold " + (i.post && i.post.pixels) + " pixels, at most " + POST_PIXELS + " (the canvas is " + (i.pixelRatio) + " device pixels per CSS pixel)");
+        check(!i.gone && i.post.strength === strength, theme + ": the glow's strength is " + strength + " (" + (i.post && i.post.strength) + ")");
+        check(!i.gone && i.calls <= i.budget.calls && i.triangles <= i.budget.triangles, theme + ": the scene's own draw calls and triangles stay within the high caps (" + i.calls + " of " + (i.budget && i.budget.calls) + ", " + i.triangles + " of " + (i.budget && i.budget.triangles) + ")");
+        check(post.length === 2, theme + ": the bloom's two chunks were fetched, once each (" + post.length + ")");
+        if (theme === "light") {
+          await page.evaluate(() => { document.documentElement.setAttribute("data-theme", "dark"); });
+          await wait(300);
+          const d = await info(page);
+          check(!d.gone && d.post.on && d.post.strength === 0.55, "a theme change moves the strength to the dark theme's (" + (d.post && d.post.strength) + ")");
+        }
+        await context.close();
+      }
+      for (const [gfx, tier] of [["low", "low"], ["mid", "medium"]]) {
+        const { context, page, post } = await openMap(browser, { "bm.prefs.v1": JSON.stringify({ gfx }) });
+        await wait(1500);
+        const i = await info(page);
+        check(!i.gone && i.tier === tier && !i.post.on && i.post.passes === 0 && i.post.pixels === 0 && post.length === 0, tier + ": no bloom, and its chunks were never requested (" + JSON.stringify({ post: i.post, requested: post.length }) + ")");
+        await context.close();
+      }
+      {
+        /* the watchdog takes the bloom off first, and only then the tier */
+        const { context, page } = await openMap(browser, { "bm.prefs.v1": '{"gfx":"high"}' }, { hardware: true });
+        await bloomed(page);
+        const seen = [];
+        await page.evaluate(() => { window.__slow = true; });
+        for (let t = 0; t < 14000; t += 200) {
+          await page.mouse.move(400 + (t % 400), 500);
+          await wait(200);
+          const j = await info(page);
+          if (j.gone) break;
+          seen.push(j.tier + (j.post.on ? "+bloom" : ""));
+          if (j.tier === "medium") break;
+        }
+        const order = seen.filter((v, k) => k === 0 || v !== seen[k - 1]);
+        check(order.join(" > ") === "high+bloom > high > medium", "slow frames turn the bloom off first (high, bloom on), then the tier down (" + order.join(" > ") + ")");
+        await context.close();
+      }
     }
 
     /* -------------------------------------------- 7: the keyboard */

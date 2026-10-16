@@ -9,7 +9,7 @@ import { createWorld, MARKER_SCALE } from "./index.ts";
 import { buildForm } from "./forms.ts";
 import { layout } from "./layout.ts";
 import { placeProps } from "./props.ts";
-import { makeMaterials, type PaletteMap } from "./materials.ts";
+import { GLOW_LUMA, GLOW_MAX, glowFactor, luminance, makeMaterials, readPalette, type PaletteMap } from "./materials.ts";
 import { buildStatic, puffAt, PUFFS, PUFF_MS } from "./regions.ts";
 import { buildMarks, type IsleState } from "./marks.ts";
 import { hollowCount, TRIS } from "./solids.ts";
@@ -260,5 +260,40 @@ describe("the idle motion", () => {
       marks.dispose();
     }
     mats.dispose();
+  });
+});
+
+describe("the glow colours under the bloom", () => {
+  const tokens: Record<string, string> = { "--region-glow": "#2255ee", "--part": "#336699", "--surface": "#ffffff", "--plot-ground": "#cccccc" };
+  const part = { getAttribute: () => "algebra" };
+  const probe = { querySelectorAll: () => [part] } as unknown as Element;
+  const read = (bloom: boolean) => {
+    vi.stubGlobal("window", { getComputedStyle: () => ({ getPropertyValue: (n: string) => tokens[n] || "" }) });
+    try { return readPalette(T, probe, bloom); } finally { vi.unstubAllGlobals(); }
+  };
+
+  it("scale to a luminance of GLOW_LUMA per colour, so a blue needs more than a red, and nothing else changes", () => {
+    const off = read(false), on = read(true);
+    const g0 = off.get("glow:algebra")!, g1 = on.get("glow:algebra")!;
+    expect(luminance(g0)).toBeLessThan(1.05);
+    expect(luminance(g1)).toBeCloseTo(GLOW_LUMA, 5);
+    expect(g1.b).toBeGreaterThan(1);
+    expect(glowFactor(new THREE.Color(0, 0, 1))).toBeGreaterThan(glowFactor(new THREE.Color(1, 0, 0)));
+    expect(glowFactor(new THREE.Color(0, 0, 0))).toBe(GLOW_MAX);
+    expect(glowFactor(new THREE.Color(2, 2, 2))).toBe(1);
+    for (const k of ["part:algebra", "deep:algebra", "ground:algebra", "paper", "hot", "ahead:algebra"]) expect(on.get(k)!.equals(off.get(k)!)).toBe(true);
+  });
+
+  it("repaint a glow range past 1 in the batch's Float32 colour, and back when the bloom goes", () => {
+    const geo = new THREE.BoxGeometry(1, 1, 1);
+    const b = new Batch();
+    const ranges = b.add(geo, null, "glow:algebra");
+    const off = read(false), on = read(true);
+    const g = b.build(T, (k) => off.get(k)!).geometry;
+    const at = () => (g.getAttribute("color").array as Float32Array)[2];
+    repaint(g, ranges[0], (k) => on.get(k)!);
+    expect(at()).toBeGreaterThan(1);
+    repaint(g, ranges[0], (k) => off.get(k)!);
+    expect(at()).toBeLessThanOrEqual(1);
   });
 });

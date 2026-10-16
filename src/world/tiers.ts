@@ -6,7 +6,8 @@
              idle motion
      medium  the default: more props, antialiased, up to 1.5 device pixels, a few
              seconds of idle motion after each input
-     high    only when the learner chooses it: the most props, up to 2 device pixels
+     high    only when the learner chooses it: the most props, up to 2 device pixels, and
+             the bloom (a soft glow on the beacons and the regions' glow props)
 
    Chosen automatically (detectTier), unless the learner chose otherwise in the settings
    sheet (bm.prefs.v1 gfx: "low" | "mid" | "high"; the 3D course map switch, map:
@@ -39,6 +40,9 @@ export interface Budget {
   ambient: boolean;
   /** asked for when the renderer is made; a step down keeps what it was made with */
   antialias: boolean;
+  /** the glow (src/world/post.ts) behind the map: the high tier's alone, and the first thing
+      the watchdog drops (bloom off, then the tier down) */
+  bloom: boolean;
 }
 
 /* The caps are what the world measured at each tier (BMMap3D.info() in headless
@@ -47,9 +51,9 @@ export interface Budget {
    untouched course draws one boss, and the marker is the learner's form (src/world/
    forms.ts), up to 832 triangles at its last stage. */
 export const TIERS: Readonly<Record<Quality, Readonly<Budget>>> = {
-  low: { dpr: 1, pixels: 1.2e6, calls: 10, triangles: 9500, detail: 0, ambient: false, antialias: false },
-  medium: { dpr: 1.5, pixels: 2.1e6, calls: 12, triangles: 11000, detail: 1, ambient: true, antialias: true },
-  high: { dpr: 2, pixels: 4.2e6, calls: 12, triangles: 14000, detail: 2, ambient: true, antialias: true }
+  low: { dpr: 1, pixels: 1.2e6, calls: 10, triangles: 9500, detail: 0, ambient: false, antialias: false, bloom: false },
+  medium: { dpr: 1.5, pixels: 2.1e6, calls: 12, triangles: 11000, detail: 1, ambient: true, antialias: true, bloom: false },
+  high: { dpr: 2, pixels: 4.2e6, calls: 12, triangles: 14000, detail: 2, ambient: true, antialias: true, bloom: true }
 };
 
 /** how long idle motion runs after the last input, in ms; then the page asks for no frames */

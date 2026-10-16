@@ -25,6 +25,10 @@
    the Observatory's telescope), never under reduced motion or Study mode; offscreen or
    in a hidden tab nothing is drawn, and an idle page asks for no frames at all.
 
+   On the high tier, and only there, the map is drawn through the bloom (src/world/post.ts,
+   fetched as two chunks once the world is up): the due beacons and the regions' glow props
+   glow softly. The watchdog turns it off before it steps the tier down.
+
    The box stays hidden, and the list looks exactly as it did, when the tier is the
    list (the 3D map switch off, no WebGL 2, Save-Data, or a watchdog that gave up),
    Three.js (bundle/three.js, fetched by assets/three-loader.js) or the world chunk
@@ -60,6 +64,7 @@ import { detectTier, readProbe, stepDown, lower, pixelRatio, TIERS, AMBIENT_MS, 
   var ISLES = [];           /* one per chapter, in reading order (the world's layout, with the chapter and Part) */
   var failed = "";          /* why 3D gave up for this visit (lost context, an error); sticky */
   var slowCap = null;       /* the tier the watchdog stepped down to on this visit, if it did */
+  var bloomOff = false;     /* the watchdog (or a renderer that cannot) turned the bloom off for this visit */
   var starting = false;
   var choice = null;        /* the last detectTier() answer */
   var probe = null;
@@ -218,7 +223,8 @@ import { detectTier, readProbe, stepDown, lower, pixelRatio, TIERS, AMBIENT_MS, 
       flight: null, raf: 0, dirty: true, watch: new FrameWatch(),
       ambientUntil: 0, amb: { t: 0, last: 0, end: 0 }, bobbing: false, frames: 0,
       onscreen: true, hot: -1, hotHow: "", hover: -1, cur: -1, press: null, aux: null, drag: false,
-      observers: [], firstRender: false, done: {}, noFog: false
+      observers: [], firstRender: false, done: {}, noFog: false,
+      bloom: null, bloomLoading: false, sceneCalls: null
     };
     world.showIdle(budget.ambient);
     refresh(true);
@@ -262,6 +268,7 @@ import { detectTier, readProbe, stepDown, lower, pixelRatio, TIERS, AMBIENT_MS, 
     }
     render();
     stir();
+    syncBloom();
   }
 
   /* another tier on a live world: the props rebuilt for its detail, its pixel ratio, its idle motion */
@@ -274,8 +281,53 @@ import { detectTier, readProbe, stepDown, lower, pixelRatio, TIERS, AMBIENT_MS, 
     M.world.showIdle(M.budget.ambient);
     if (!M.budget.ambient) rest();
     M.watch.reset();
+    syncBloom();
     size();
     request();
+  }
+
+  /* ------------------------------------------------------------- the bloom -- */
+
+  function themeNow() { return document.documentElement.getAttribute("data-theme") === "dark" ? "dark" : "light"; }
+  /* the high tier's, until the watchdog turns it off; Study mode keeps it (it is light, not motion) */
+  function wantBloom() { return !!(M && M.budget.bloom && !bloomOff); }
+
+  /* bring the bloom in line with the tier: its two chunks are fetched only when it is wanted, and
+     it is built once they are here and the world is up (a tier that does not want it never asks) */
+  function syncBloom() {
+    if (!M) return;
+    if (!wantBloom()) { dropBloom(); return; }
+    if (M.bloom || M.bloomLoading) return;
+    var m = M;
+    m.bloomLoading = true;
+    loadBloom().then(function (r) {
+      m.bloomLoading = false;
+      if (M !== m || !wantBloom() || m.bloom) return;
+      var b = null;
+      try {
+        var attrs = m.renderer.getContext().getContextAttributes();
+        b = r[0].makeBloom(m.T, r[1], m.renderer, m.scene, m.camera, {
+          theme: themeNow(), antialias: !!(attrs && attrs.antialias),
+          width: m.stage.clientWidth, height: m.stage.clientHeight, dpr: m.renderer.getPixelRatio()
+        });
+      } catch (e) { b = null; }
+      if (!b) { bloomOff = true; return; }
+      m.bloom = b;
+      /* the scene's own draw calls, counted as its pass finishes (the later passes reset the renderer's count) */
+      m.scene.onAfterRender = function (renderer) { m.sceneCalls = renderer.info.render.calls; };
+      m.world.setBloom(true);
+      size();
+      request();
+    }, function () { m.bloomLoading = false; bloomOff = true; });
+  }
+  function dropBloom() {
+    if (!M) return;
+    var had = !!M.bloom;
+    if (M.bloom) { try { M.bloom.dispose(); } catch (e) { /* already gone */ } M.bloom = null; }
+    M.scene.onAfterRender = function () {};
+    M.sceneCalls = null;
+    M.world.setBloom(false);
+    if (had) request();
   }
 
   /* ---------------------------------------------- progress (the dynamic bits) -- */
@@ -436,6 +488,7 @@ import { detectTier, readProbe, stepDown, lower, pixelRatio, TIERS, AMBIENT_MS, 
     if (!w || !h) return;
     M.renderer.setPixelRatio(pixelRatio(M.budget, window.devicePixelRatio || 1, w, h));
     M.renderer.setSize(w, h, false);
+    if (M.bloom) M.bloom.setSize(w, h, M.renderer.getPixelRatio());
     M.camera.aspect = w / h;
     M.camera.updateProjectionMatrix();
     M.dirty = true;
@@ -445,7 +498,8 @@ import { detectTier, readProbe, stepDown, lower, pixelRatio, TIERS, AMBIENT_MS, 
   function render() {
     if (!M) return;
     M.dirty = false;
-    M.renderer.render(M.scene, M.camera);
+    if (M.bloom) M.bloom.render();
+    else M.renderer.render(M.scene, M.camera);
     M.frames++;
     placeLabels();
     if (!M.firstRender) {
@@ -544,6 +598,14 @@ import { detectTier, readProbe, stepDown, lower, pixelRatio, TIERS, AMBIENT_MS, 
      choice: a device too slow for the low tier would otherwise fetch Three.js and the
      world's chunk again on every visit, to give them up again (a new choice clears it). */
   function degrade() {
+    /* the bloom goes first: one step is the bloom off, the next the tier down */
+    if (M.bloom || (wantBloom() && M.bloomLoading)) {
+      bloomOff = true;
+      dropBloom();
+      M.watch.reset();
+      request();
+      return;
+    }
     var next = stepDown(M.tier);
     slowCap = next;
     if ((!M.chosen || next === "list") && window.BMGame && typeof window.BMGame.setPref === "function") {
@@ -837,6 +899,7 @@ import { detectTier, readProbe, stepDown, lower, pixelRatio, TIERS, AMBIENT_MS, 
       m.observers.forEach(function (o) { o.disconnect(); });
       window.removeEventListener("resize", onWindowResize);
       m.canvas.removeEventListener("webglcontextlost", onLost, false);
+      if (m.bloom) { try { m.bloom.dispose(); } catch (e) { /* already gone */ } m.bloom = null; }
       try { m.world.dispose(); } catch (e) { /* already gone */ }
       try { m.renderer.dispose(); } catch (e) { /* already gone */ }
       Array.prototype.forEach.call(host.querySelectorAll("li.stop[data-map-hot]"), function (li) {
@@ -867,15 +930,16 @@ import { detectTier, readProbe, stepDown, lower, pixelRatio, TIERS, AMBIENT_MS, 
   }
 
   /* The bloom's two chunks (src/world/post.ts, src/vendor/three-post.js), imported only when
-     the bloom is on, which a later card turns on (the high tier). Until then nothing calls
-     this: the guard is a value the bundler cannot fold, so the build still makes the chunks,
-     and check-dist holds them to 15 KB gzipped together. */
+     the bloom is wanted (syncBloom: the high tier), once; check-dist holds them to 15 KB
+     gzipped together. A failed import is tried again the next time it is wanted. */
   var bloomImports = null;
   function loadBloom() {
-    if (!bloomImports) bloomImports = Promise.all([import("../src/world/post.ts"), import("../src/vendor/three-post.js")]);
+    if (!bloomImports) {
+      bloomImports = Promise.all([import("../src/world/post.ts"), import("../src/vendor/three-post.js")]);
+      bloomImports.catch(function () { bloomImports = null; });
+    }
     return bloomImports;
   }
-  if (window.BM_BLOOM_PROBE === "never") loadBloom();
 
   function boot() {
     if (M || starting) return;
@@ -919,7 +983,7 @@ import { detectTier, readProbe, stepDown, lower, pixelRatio, TIERS, AMBIENT_MS, 
       if (!c) return;
       if (c.type === "prefs") {
         var seen = asked();
-        if (seen !== lastAsked) slowCap = null;
+        if (seen !== lastAsked) { slowCap = null; bloomOff = false; }
         lastAsked = seen;
         var next = decide();
         if (next.tier === "list") { if (M || starting) teardown(); return; }
@@ -942,7 +1006,7 @@ import { detectTier, readProbe, stepDown, lower, pixelRatio, TIERS, AMBIENT_MS, 
     new MutationObserver(function (list) {
       if (!M) return;
       var theme = list.some(function (m) { return m.attributeName === "data-theme" || m.attributeName === "data-panel"; });
-      if (theme) { M.world.repaint(); place(); }
+      if (theme) { M.world.repaint(); place(); if (M.bloom) M.bloom.setTheme(themeNow()); }
       /* Study mode hides the bosses: the marks are built again */
       if (list.some(function (m) { return m.attributeName === "data-calm"; })) later();
       if (still()) rest();
@@ -986,9 +1050,11 @@ import { detectTier, readProbe, stepDown, lower, pixelRatio, TIERS, AMBIENT_MS, 
       });
       /* calls: the draw calls of the last frame, as the renderer counted them; frames: frames drawn since the world was built */
       var ri = M.renderer.info && M.renderer.info.render;
+      var pz = M.bloom ? M.bloom.size() : null;
       return { triangles: Math.round(tris), stones: M.world.stones(), current: M.cur > -1 ? ISLES[M.cur].id : null,
         hot: M.hot > -1 ? ISLES[M.hot].id : null, flying: !!M.flight, bobbing: !!M.bobbing,
-        pixelRatio: M.renderer.getPixelRatio(), calls: ri ? ri.calls : null, isles: M.world.kinds(),
+        pixelRatio: M.renderer.getPixelRatio(), calls: M.bloom ? M.sceneCalls : ri ? ri.calls : null,
+        post: { on: !!M.bloom, passes: M.bloom ? M.bloom.passes.length : 0, pixels: pz ? pz.width * pz.height : 0, strength: M.bloom ? +M.bloom.strength().toFixed(3) : 0, off: bloomOff }, isles: M.world.kinds(),
         tier: M.tier, reason: choice ? choice.why : "", ambient: !!M.budget.ambient, budget: M.budget, frames: M.frames,
         ring: "#" + M.world.select.material.color.getHexString(),
         fog: M.scene.fog ? [+M.scene.fog.near.toFixed(2), +M.scene.fog.far.toFixed(2)] : null };
