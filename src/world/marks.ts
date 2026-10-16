@@ -12,14 +12,10 @@ import { DECK, type WorldLayout } from "./layout.ts";
 import { lookup, type PaletteMap, type WorldMaterials } from "./materials.ts";
 import { paint } from "./batch.ts";
 import { prism } from "./shapes.ts";
+import type { IsleMark } from "./state.ts";
 
-export interface IsleState {
-  /** solved fraction of the chapter's practice, 0..1 */
-  pct: number;
-  done: boolean;
-  /** stars for a finished chapter, 1..3 */
-  stars: number;
-}
+/* the type lives in state.ts (as IsleMark, the part marks draw); re-exported so nothing else changes */
+export type IsleState = IsleMark;
 
 export interface Marks {
   mesh: Mesh;
