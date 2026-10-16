@@ -29,7 +29,8 @@
    The path that ran is printed, and handed to the suite (same psql session, set before its text)
    as two settings it reads with current_setting(name, true): bm.sql_path ('schema' or
    'migration') and bm.migrations (the applied migration file names joined by ',', '' on the
-   schema path). The suite asserts them instead of reading the path from the tables under test.
+   schema path). The suite asserts that the path is set and agrees with the list, and reads the
+   list for what ran, instead of reading the path from the tables under test.
    Exits 1 on a failed statement, a "not ok", or a plan that is not what ran. The container is
    always removed, also on Ctrl-C. */
 

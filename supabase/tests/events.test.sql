@@ -186,7 +186,7 @@ insert into hv values
   ('a checkpoint with s = today + 3', pg_temp.setp(pg_temp.setp(pg_temp.setx(pg_temp.setx(pg_temp.vz(), 's', '20803'), 'l', '20790'), 1, '20802'), 0, '29954880'), false);
 
 -- 155 hand-counted tests below, plus one per row of the three tables
-select plan(155 + (select count(*)::integer from hv) + (select count(*)::integer from private.valid_cases)
+select plan(156 + (select count(*)::integer from hv) + (select count(*)::integer from private.valid_cases)
   + (select count(*)::integer from private.prune_expected));
 
 -- 1. tables, row-level security, policies, grants
@@ -423,9 +423,11 @@ select has_table('private', 'once', 'private.once exists');
 -- so this does not read the answer from private.once, the table under test. The migration writes
 -- the key 'r2-fresh-start'; schema.sql alone defines private.once and private.fresh_start but runs
 -- no fresh start, so on the schema path (and on a migration path without that migration) the table
--- must be empty. The next assertion checks that both ways.
+-- must be empty. The next assertion checks that both ways. The key is expected only on a run whose
+-- base ref is older than that migration (P7, 2026-10-15): with origin/main current, never.
 select ok(current_setting('bm.sql_path', true) in ('schema', 'migration'), 'the runner said which path it ran (bm.sql_path)');
-create temp table migrated as select coalesce(',' || current_setting('bm.migrations', true) || ',' like '%,20261015201142_drop_attempts.sql,%', false) as yes;
+select ok((current_setting('bm.sql_path', true) = 'schema') = (coalesce(current_setting('bm.migrations', true), '') = ''), 'the schema path applied no migration and the migration path at least one (bm.migrations)');
+create temp table migrated as select '20261015201142_drop_attempts.sql' = any(string_to_array(coalesce(current_setting('bm.migrations', true), ''), ',')) as yes;
 select is((select string_agg(key, ',' order by key) from private.once), case when (select yes from migrated) then 'r2-fresh-start' end, 'private.once holds r2-fresh-start when the migration ran, and nothing from schema.sql alone');
 select has_function('private', 'fresh_start', array['text'], 'private.fresh_start exists');
 select is(has_function_privilege('authenticated', 'private.fresh_start(text)', 'execute'), false, 'authenticated cannot execute private.fresh_start');
