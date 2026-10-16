@@ -23,6 +23,7 @@ npm run build:redirects && npm run check:redirects  # dist-redirects/, what the 
 npm run test:browser                       # the tools/game Chromium scripts, ~2 min
 npm run check:browser                      # check-browser.js on dist/, ~8 min
 npm run check:all                          # all of it, in that order
+npm run gate                               # the deploy gate on this machine, parts side by side, with a receipt
 ```
 
 `node tools/<script>.js` works just as well, and `npm run <name> -- --flag` passes a flag through.
@@ -259,7 +260,7 @@ Write `function checkThing(ctx, r)` in `check-static.js` — `ctx` has every pag
 
 ## check-browser.js
 
-Usage: `node tools/check-browser.js [--root=<dir>] [--only=<substring>] [--skip=<suite,suite>] [--theme=light|dark] [--vw=1280|360] [--base=<ref>] [--headed] [--strict-axe] [--part=<part>] [--list] [--parts]`
+Usage: `node tools/check-browser.js [--root=<dir>] [--only=<substring>] [--skip=<suite,suite>] [--theme=light|dark] [--vw=1280|360] [--base=<ref>] [--headed] [--strict-axe] [--part=<part>] [--out=<dir>] [--list] [--parts]`
 
 Playwright and axe-core are dev dependencies (`package.json`, pinned by `package-lock.json`):
 `npm ci` installs them and `npx playwright install chromium` downloads the browser, once per
@@ -297,7 +298,7 @@ It also fails a page with no 3D scene and no course map that fetched `bundle/thr
 `assets/three-loader.js` imports on demand for those. `tools/game/account.test.js` watches the
 requests to the local server too, for the one chunk a signed-out page must never ask for.
 
-Output goes to `.cache/check/` (git-ignored): `report.json`, `index.html` (a contact sheet with
+Output goes to `.cache/check/` (git-ignored; `--out=<dir>` puts it in another directory below `.cache/`): `report.json`, `index.html` (a contact sheet with
 every screenshot and all results — open it in a browser), and `pages/*.png`.
 
 | suite | what it does |
@@ -484,6 +485,32 @@ suites of the gate do draw on the GL painter where the runner's SwiftShader give
 they did before; the one thing held to it, the `widgets` suite's painter result, is a warning
 there and a failure everywhere else.
 Nothing here needs a GPU or a display.
+
+## gate.js
+
+Usage: `npm run gate -- [--with-webgl] [--part=<part>] [--jobs=N] [--no-receipt]`
+
+CI's gate (the `build` and `browser` jobs of ci.yml) runs locally. It needs a clean tree that
+contains `origin/main` (a receipt describes a commit), then runs, stopping at the first
+failure and printing one line per stage with its seconds: `deps` (`npm ci` when the branch changes
+`package.json` or the lockfile, otherwise `npm ls --all` must be clean); `npm run check`; the migrations
+check against `origin/main`; build, `check:dist`, redirects; every browser part from
+`check-browser.js --parts` at once (`--jobs=N` caps it), each part's output in
+`.cache/gate/<part>.log` and its report in `.cache/gate/<part>/` (`check-browser.js
+--out=<dir>` keeps parallel parts from sharing `.cache/check`); the webgl stage (the
+`test:browser:3d` scripts and the `webgl` suite, two tries each) when the branch touches
+`WEBGL_PATHS` or with `--with-webgl`; the SQL test (needs Docker) when it touches sql.yml's
+paths. The receipt is `<git common dir>/gate/<tree sha>.json`: tree, head, branch, base, `ok`,
+per-stage seconds, versions and host, written on failure too, shared by every worktree, and
+pruned after 30 days. A run with `--part` writes no receipt. The gate prints a line when
+this machine's Node major is not the one in `.nvmrc` (the build on main uses that one) and
+records `node_nvmrc` in the receipt; it does not block. `BM_GATE_FAKE_FAIL=<part>` makes that part fail at once (a test hook).
+
+First full run (2026-10-16, Ryzen 5 5600X, 12 threads, all six parts at once, no webgl or sql
+stage): `check` 109 s, migrations 0.3 s, build with `check:dist` and redirects 3 s, then the parts
+`pages` 232 s, `exercises` 261 s, `widgets` 276 s, `rest` 343 s, `core` 348 s, `axe` 415 s;
+total 527 s. Beside CI's 4 to 6 minutes a job, the parts here run slower for sharing the cores,
+and `axe` sets the floor in both.
 
 ## check-dist.js
 

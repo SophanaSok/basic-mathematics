@@ -4,7 +4,7 @@
 
    Usage: node tools/check-browser.js [--root=<dir>] [--only=<substring>] [--skip=<suite,suite>]
                                       [--theme=light|dark] [--vw=1280|360] [--base=<ref>]
-                                      [--headed] [--strict-axe] [--part=<part>] [--list] [--parts]
+                                      [--headed] [--strict-axe] [--part=<part>] [--out=<dir>] [--list] [--parts]
 
    --root      the build the server serves (default dist/; CI sets BM_ROOT). It must be
                there and newer than everything it is built from, or lib/target.js
@@ -26,9 +26,12 @@
    --headed    show the browser
    --strict-axe   every axe violation fails the run; without it only those of the rules in
                   STRICT_RULES (suites/axe.js) fail, and the rest are warnings
+   --out       where the report goes, relative to the repo root (default .cache/check); the
+               directory is emptied first, so parts run side by side (npm run gate) each
+               need their own
    --list      print the suites and leave
 
-   Output: .cache/check/  — screenshots, report.json, index.html (a contact sheet).
+   Output: .cache/check/ (or --out)  — screenshots, report.json, index.html (a contact sheet).
    Exit code 1 on any failure.
 
    ---- Suite interface ------------------------------------------------------------
@@ -73,7 +76,13 @@ const gl = require("./lib/gl");
 const ROOT = site.ROOT;
 const opts = site.parseArgs(process.argv.slice(2));
 const BASE = opts.base || site.DEFAULT_BASE;
-const OUT = path.join(ROOT, ".cache", "check");
+const OUT = path.resolve(ROOT, typeof opts.out === "string" && opts.out ? opts.out : path.join(".cache", "check"));
+/* OUT is emptied recursively, so it may only be a directory below .cache/ */
+const underCache = path.relative(path.join(ROOT, ".cache"), OUT);
+if (!underCache || underCache.startsWith("..") || path.isAbsolute(underCache)) {
+  console.error("--out must be a directory inside .cache/ (it is emptied first): " + OUT);
+  process.exit(2);
+}
 
 /* ------------------------------------------------------------ reporter --- */
 
@@ -203,6 +212,7 @@ function loadSuites() {
 
 async function main() {
   const t0 = Date.now();
+  if (opts.help) { const src = fs.readFileSync(__filename, "utf8"); console.log(src.slice(src.indexOf("/*") + 3, src.indexOf("*/")).trimEnd()); return 0; }
   const allSuites = loadSuites();
   let parts;
   try { parts = partOf(allSuites); }
