@@ -468,12 +468,16 @@ Software WebGL is slow and can lose its context under load, which is why CI runs
 (`npm run test:browser:3d`: `game/map.test.js`, and `game/scenes.test.js`, whose painter check
 runs under the same flags while the rest of it draws on the SVG painter) and the `webgl` suite
 in a job of their own, retried, outside the gate a deploy waits for; `npm run test:browser:core`
-and `check-browser.js --skip=webgl` are the gate. The gate runs as one `browser` job per part of
+and `check-browser.js --skip=webgl` are the gate. In a full run (a pull request given the label
+`ci`, or Run workflow) the gate runs as one `browser` job per part of
 `PARTS` (`--parts` gives the build job the list), side by side, each `check-browser.js
 --skip=webgl --part=<part>`, except the job of the part `CORE` (today `core`, which names no
 suite), which runs `npm run test:browser:core` alone. ci.yml takes that part from `--parts` too,
 never naming one itself, and `check-ci.js` (`core`) fails if either step or its condition is
-changed, so renaming a part cannot leave the `tools/game` scripts in no job. Every suite runs once, under the flags the
+changed, so renaming a part cannot leave the `tools/game` scripts in no job. On a push to `main`
+only `build`, `pages-source` and the deploys run: when the pull request is merged through the merge
+guard (a local hook; a merge made another way deploys after `build` alone), `npm run gate` ran the
+same parts on the dev box and the guard required its receipt. Every suite runs once, under the flags the
 single job used, in about 4 to 6 minutes each where it took 16 to 21. The
 parts are balanced by the suites' times on a runner (the numbers are beside `PARTS`), and each
 job uploads its own report, `check-browser-report-<part>`. The gate is not retried, and nothing in it
@@ -611,8 +615,10 @@ reading the files:
 | `core` | the `browser` job runs `npm run test:browser:core` in the job of the part `--parts` names as core, and `check-browser.js --part` in every job but that one, both conditions read from `--parts` |
 | `pages` | the build job builds, checks and keeps `dist-redirects/`, and the `deploy` job downloads that artifact alone and reads no repository variable: the course is never published to GitHub Pages. Taking the old address down removes this check with the jobs ([`OPERATIONS.md`](../OPERATIONS.md), 8.6) |
 | `install` | every job that runs the browser tests (`test:browser*` or `check:browser`: today `browser` and `webgl`) has its own step that runs `playwright install`, and every such step has a step-level `timeout-minutes` (a step key, 8 spaces in) and wraps each line that runs the install in `timeout -k <seconds> <seconds>` (or `--kill-after=`), so a stuck download costs one try of three, not the job's timeout, and a wedged apt that ignores the TERM is killed before it can hold the dpkg lock against the next try (the loop also runs `sudo dpkg --configure -a` after a failed try). A step name or an `echo` that names the install is not one |
-| `skip` | `pull_request` and `push` (to `main`) each carry `paths-ignore: ["**/*.md", "docs/**"]` and nothing else, so a change to only prose starts no run and the list cannot grow to cover code; and the build reads none of what it covers: no Markdown in `public/` (copied into `dist/` as it is), `src/`, `assets/`, `data/` or `parts/`, and nothing but Markdown in `docs/` ([`OPERATIONS.md`](../OPERATIONS.md), "When CI runs") |
-| `sql-trigger` | `sql.yml` runs on `pull_request` alone (no push, schedule or manual run), with a `paths:` list naming at least `supabase/**` and `src/sync/events.ts`; it is not part of `ci.yml`'s gate. Fails if the file is missing |
+| `skip` | `pull_request` (with `types: [labeled]` above its list) and `push` (to `main`) each carry `paths-ignore: ["**/*.md", "docs/**"]` and nothing else, so a change to only prose starts no run (the `labeled` event too) and the list cannot grow to cover code; and the build reads none of what it covers: no Markdown in `public/` (copied into `dist/` as it is), `src/`, `assets/`, `data/` or `parts/`, and nothing but Markdown in `docs/` ([`OPERATIONS.md`](../OPERATIONS.md), "When CI runs") |
+| `sql-trigger` | `sql.yml` runs on `pull_request` alone (no push, schedule or manual run), with `types: [labeled]` and the `pgtap` job's `if: github.event.label.name == 'ci'`, and a `paths:` list naming at least `supabase/**` and `src/sync/events.ts`; it is not part of `ci.yml`'s gate. Fails if the file is missing |
+| `label` | the concurrency `group:` of `ci.yml` and `sql.yml` holds the label name on a pull request (another label cancels nothing); `build` has the job-level `if: github.event_name != 'pull_request' \|\| github.event.label.name == 'ci'` (the label is `LABEL` in `check-ci.js`), so a pull request runs only when it is labeled; `browser` and `webgl` have `needs: build` and `if: github.event_name != 'push'`, so a push to `main` runs neither |
+| `gate` | `deploy` and `cloudflare` each have exactly one job-level `if:` line, compared whole: `${{ GATE }}` (`GATE` in `check-ci.js`), and `deploy`'s with `&& needs.pages-source.outputs.build_type == 'workflow'` after it: `!cancelled()`, `build` succeeded, and `browser` succeeded or, on a push, was skipped; `deploy`'s also waits for the Pages source `workflow`; both `needs` name `build` and `browser`; no job-level `if:` in the file uses `always()` (a step-level one is allowed); `build` still runs `npm run check`, `npm run build` and `npm run check:dist` as plain steps (it is the only check on a push to `main`); no job has a job-level `continue-on-error:` |
 | `sql-pins` | every `uses:` of `sql.yml` is `owner/repo@<40 hex>`, and its service image is `supabase/postgres@` plus the `IMAGE_DIGEST` of `tools/sql-test.js`, so the workflow and `npm run test:sql` test on the same server |
 
 ## apply-shell.js

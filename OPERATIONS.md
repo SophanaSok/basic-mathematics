@@ -338,17 +338,22 @@ at the new address, and nothing of the course.
 
 [`.github/workflows/ci.yml`](.github/workflows/ci.yml) builds the site into `dist/` and deploys
 that. A push to `main` (merging a pull request) triggers it, unless it changes only Markdown
-and `docs/` ([When CI runs](#when-ci-runs)), and so does **Run workflow** on `main`. Its jobs
+and `docs/` ([When CI runs](#when-ci-runs)), and so does **Run workflow** on `main`. A pull
+request starts a run only when it is given the label `ci`. Its jobs
 are `build` (the Node checks, the build, the checks on `dist/`, the redirect site and its checks), `browser` (the Chromium checks that need no WebGL, as one job per part, side by
 side, today `browser (axe)`, `browser (pages)`, `browser (exercises)`, `browser (widgets)`,
 `browser (core)`, which runs the `tools/game` scripts of `test:browser:core` alone, and
 `browser (rest)`; the
 parts are `PARTS` in `tools/check-browser.js`, [`tools/README.md`](tools/README.md)), `webgl`
 (the 3D checks, retried, outside the gate), `cloudflare`, which publishes that run's `dist/` to
-Cloudflare Pages once `build` and every `browser` job have passed (production from `main`, a
-preview under `pr-<number>` from a pull request), `pages-source` (asks GitHub which Pages source
-is set) and `deploy`, which publishes `dist-redirects/` to GitHub Pages after the same jobs. A
-failed `browser` job is re-run like any other (**Re-run failed jobs** re-runs only that part).
+Cloudflare Pages (production from `main` once `build` has passed, and in a full run, a labeled
+pull request or Run workflow, also after every `browser` job; a preview under `pr-<number>` from
+a pull request), `pages-source` (asks GitHub which Pages source is set) and `deploy`, which
+publishes `dist-redirects/` to GitHub Pages on the same terms. `browser` and `webgl` do not run
+on a push to `main`: the browser parts ran on the dev box through `npm run gate` before the
+merge, and the merge guard (a local hook; a merge made another way deploys after `build` alone)
+requires its receipt. A failed `browser` job is re-run like any other (**Re-run failed jobs**
+re-runs only that part).
 
 **The files in the repository are not the site.** Since the page-shell change (R0, item 5) a
 page in the repository holds its content and two markers. Its `<head>` (every stylesheet and
@@ -640,13 +645,18 @@ GitHub's pages on this, read 2026-10-04:
 
 ### When CI runs
 
-`ci.yml` runs for every pull request and every push to `main` **except one that changes only
-Markdown and `docs/`** (`paths-ignore: ["**/*.md", "docs/**"]` on both events). Such a change
-costs no Actions minutes (a full run is about 30), gets no Cloudflare preview, and deploys
-nothing, which is right: `dist/` and `dist-redirects/` are built from none of those files, so
-production already matches it.
+A push to `main` runs `build`, `pages-source` and the deploys (`cloudflare`, `deploy`): about 4
+minutes. A pull request runs **nothing** until it is given the label `ci`
+(`gh pr edit <n> --add-label ci`); that starts everything, with a Cloudflare preview. To run
+again, remove the label and add it again: a push to the pull request starts no run, and adding
+another label cancels nothing. **Run workflow** on `main` runs everything too. All of it
+**except a change that only touches Markdown and `docs/`** (`paths-ignore: ["**/*.md",
+"docs/**"]` on both events, the `labeled` event included). Such a change costs no Actions minutes
+(a full run is about 30), gets no Cloudflare preview, and deploys nothing, which is right:
+`dist/` and `dist-redirects/` are built from none of those files, so production already matches
+it.
 
-A run that does start takes about 8 minutes of wall time (2026-10-13: `build` about 1, then the
+A full run takes about 8 minutes of wall time (2026-10-13: `build` about 1, then the
 `browser` parts and `webgl` side by side, the longest about 6.5: `axe`, one suite that cannot be
 split, plus the Chromium install and setup, about a minute). The parts are balanced by the
 suites' seconds, written beside `PARTS` in `tools/check-browser.js`; move a suite when a job
@@ -654,7 +664,7 @@ grows past the others. Chromium's download is about 20 seconds, so it is not cac
 
 - **What still runs CI:** any change with at least one other file in it. For a pull request
   GitHub compares the whole pull request with its base, so a Markdown-only push to a pull request
-  that also changes code still gets a full run.
+  that also changes code still gets a full run once it is labeled.
 - **Why these files are safe to skip:** no check reads `README.md`, `OPERATIONS.md` or anything
   in `docs/` (they are named only in comments and messages), and the migrations check passes over
   `supabase/migrations/README.md`. `npm run check:ci` (`skip`) keeps it so: it fails if either
@@ -662,8 +672,9 @@ grows past the others. Chromium's download is about 20 seconds, so it is not cac
   would be published), `src/`, `assets/`, `data/` or `parts/`, and if `docs/` holds anything
   but Markdown, or if `supabase/migrations/` holds Markdown other than its `README.md` (the
   migrations check would read it as a migration).
-- **A docs-only pull request has no checks.** It is merged on review alone; "merge only with CI
-  green" means "no CI run is expected" for it.
+- **A pull request without the label `ci` has no checks**, and neither has a docs-only one. It
+  is merged on the gate receipt (`npm run gate`) and review; "merge only with CI green" means
+  "no CI run is expected" for it.
 - **A failed deploy under a docs-only commit:** once a docs-only commit sits on top of `main`,
   re-running the older code commit's failed jobs is refused by the re-run guard (`main` has
   moved). Use **Run workflow** on `main` instead; it builds and deploys the newest commit.
@@ -671,7 +682,8 @@ grows past the others. Chromium's download is about 20 seconds, so it is not cac
   request over 300 files that is mostly Markdown may skip a code change; check it with **Run
   workflow**.
 - **Required checks:** `main` has no branch protection and no ruleset (checked 2026-10-06). If a
-  CI job is ever made a required check, a Markdown-only pull request never gets it and waits on
+  CI job is ever made a required check, every pull request without the label `ci` and every
+  Markdown-only pull request never gets it and waits on
   "Expected" forever (GitHub: a workflow skipped by path filtering leaves its checks pending);
   then replace `paths-ignore` with GitHub's documented alternative, a job that always runs and
   reports, with the expensive jobs skipped by a job-level `if:`.
@@ -988,6 +1000,7 @@ The values used below, in one place:
 | Previews | `https://pr-<number>.groundupmath.pages.dev` (one per pull request, whatever its branch) and `https://<hash>.groundupmath.pages.dev` |
 | Repository secrets | `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID` |
 | Repository variables | `CLOUDFLARE_PROJECT_NAME` (optional, default `groundupmath`) |
+| Pull request label | `ci`, created with `gh label create ci --color 0e8a16 --description "Run CI on this pull request"` (2026-10-16). `ci.yml` and `sql.yml` start a pull request run only on the `labeled` event for it; `tools/check-ci.js` cannot verify offline that the label exists |
 | Supabase project | `https://jfidvrzonyzfstnykzly.supabase.co` (`assets/config.js`) |
 
 Documentation read for this section on 2026-10-05: Cloudflare Pages

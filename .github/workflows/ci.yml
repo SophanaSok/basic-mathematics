@@ -1,21 +1,26 @@
-# Checks every pull request and every push to main that changes more than Markdown and
-# docs/ (the `on:` block says which paths count), deploys the course to Cloudflare
-# Pages (main to production, a pull request to a preview), and deploys main's redirect
-# site to GitHub Pages, the old address.
+# Runs nothing on a pull request unless the pull request carries the label `ci`. A push
+# to main runs `build`, `pages-source` and the deploys only. "Run workflow"
+# (workflow_dispatch) runs everything. When a pull request is merged through the merge
+# guard (a local hook; a merge made another way deploys after build alone), the browser
+# parts of the push to main ran on the dev box through `npm run gate` (tools/gate.js) and
+# the guard required its receipt, so the runners do not repeat them. A change to only Markdown and docs/ starts no run (the
+# `on:` block says which paths count).
 #
 #   build       the Node checks (npm run check, the Vitest unit tests and
 #               tools/check-ci.js, which holds this file's deploy guards, among them), the
 #               build, the checks on dist/, the redirect site and its checks; dist/ and
-#               dist-redirects/ are kept as artifacts
+#               dist-redirects/ are kept as artifacts. Runs on a push to main, on Run
+#               workflow, and on a pull request when the label `ci` is added
 #   browser     the Chromium checks that do not need WebGL, against that dist/, as one job
 #               per part of tools/check-browser.js PARTS, side by side: each runs its part
 #               of check-browser.js --skip=webgl, except the part CORE (today "core",
 #               which names no suite), whose job runs the tools/game scripts of
-#               test:browser:core instead. With build, all of these jobs are the gate a
-#               deploy waits for.
+#               test:browser:core instead. Not on a push to main (see above). Where it
+#               runs, with build, all of these jobs are the gate a deploy waits for.
 #   webgl       the 3D checks (the scene stages, the course map) and the WebGL suite.
 #               WebGL on a runner is software rendering, slow and now and then losing its
-#               context, so these are retried and are not part of the gate
+#               context, so these are retried and are not part of the gate. Not on a push
+#               to main
 #   deploy      main only: publishes dist-redirects/ to GitHub Pages
 #               (tools/build-redirects.js): each old address only sends its reader to the
 #               same page at learn.groundupmath.org. The course itself is never published
@@ -34,7 +39,7 @@
 #               the job (groundupmath) when that is not set.
 #
 # OPERATIONS.md section 8, "Hosting", is the owner's runbook for the variable and both
-# secrets.
+# secrets, and for the label `ci`.
 #
 # deploy runs only while the repository's Pages source is "GitHub Actions" (Settings,
 # Pages, Build and deployment, Source); pages-source asks. No other source works:
@@ -53,22 +58,26 @@
 
 name: CI
 
-# A pull request or a push to main that changes only Markdown (`**/*.md`) and docs/
-# (`docs/**`) starts no run (paths-ignore: a run starts when any changed file is outside
-# both). Nothing the build or a check reads is among them: no tool opens README.md,
+# A run starts on a pull request only on the `labeled` event, and `build` goes on only when
+# the label is `ci`: `gh pr edit <n> --add-label ci`. To run again, remove the label and add
+# it again. A push to a pull request starts no run. A pull request or a push to main that
+# changes only Markdown (`**/*.md`) and docs/ (`docs/**`) starts no run (paths-ignore: a run
+# starts when any changed file is outside both; it applies to the labeled event too).
+# Nothing the build or a check reads is among them: no tool opens README.md,
 # OPERATIONS.md or a file of docs/, and the migrations check skips
 # supabase/migrations/README.md. The one place a Markdown file would be published is
 # public/, which the build copies into dist/ as it is, so tools/check-ci.js (`skip`) fails
 # when public/ holds one, when docs/ holds anything but Markdown, and when either list
 # below is anything but these two patterns. For a pull request GitHub compares the whole
 # pull request with its base, so a prose-only push to a pull request that changes code
-# still runs everything. No check is required on main (no branch protection, no ruleset);
-# one made required would leave a prose-only pull request waiting for it. A prose-only
-# push to main deploys nothing and needs nothing deployed: dist/ and dist-redirects/ are
-# built from none of these files. Run workflow still runs everything. OPERATIONS.md,
-# section 2, "When CI runs".
+# still runs everything once it is labeled. No check is required on main (no branch
+# protection, no ruleset); one made required would leave a pull request without the label
+# waiting for it. A prose-only push to main deploys nothing and needs nothing deployed:
+# dist/ and dist-redirects/ are built from none of these files. Run workflow still runs
+# everything. OPERATIONS.md, section 2, "When CI runs".
 on:
   pull_request:
+    types: [labeled]
     paths-ignore: ["**/*.md", "docs/**"]
   push:
     branches: [main]
@@ -78,17 +87,19 @@ on:
 permissions:
   contents: read
 
-# One run at a time for a branch or a pull request. A new push to a pull request replaces
-# the run in progress (in a private repository every minute of a run counts against the
+# One run at a time for a branch or a pull request. A second `ci` labeling of a pull request
+# replaces the run in progress; another label (any `labeled` event starts a run, and the
+# label's name is part of the group on a pull request) touches nothing. (In a private repository every minute of a run counts against the
 # account's Actions minutes, so a superseded run is not left to finish). On main nothing in
 # progress is cancelled: runs go one after another in the order of the pushes (of several
 # waiting, only the newest is kept), so an older commit is never deployed after a newer one.
 concurrency:
-  group: ci-${{ github.ref }}
+  group: ci-${{ github.ref }}${{ github.event_name == 'pull_request' && format('-{0}', github.event.label.name) || '' }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   build:
+    if: github.event_name != 'pull_request' || github.event.label.name == 'ci'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     outputs:
@@ -113,7 +124,7 @@ jobs:
         run: |
           parts=$(node tools/check-browser.js --parts)
           echo "parts=$parts" >> "$GITHUB_OUTPUT"
-      # a pull request is judged against the branch it merges into, which need not be main
+      # a pull request (labeled `ci`) is judged against the branch it merges into, which need not be main
       - name: migrations against the merge target
         if: github.event_name == 'pull_request'
         env:
@@ -143,10 +154,12 @@ jobs:
   # to 21 and "rest" with the tools/game scripts took 8): the parts come from the build job,
   # so a part added to PARTS gets its job, and a suite added to tools/suites/ runs in
   # "rest" until it is given a part. Every suite of --skip=webgl runs in exactly one of
-  # them, under the same flags as before, and as before nothing here is retried. deploy
-  # and cloudflare need `browser`, which is every one of these jobs.
+  # them, under the same flags as before, and as before nothing here is retried. Not on a
+  # push to main: `npm run gate` ran the same parts on the dev box. deploy and cloudflare
+  # need `browser`, which is every one of these jobs, and accept it skipped on a push.
   browser:
     needs: build
+    if: github.event_name != 'push'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     strategy:
@@ -207,6 +220,7 @@ jobs:
 
   webgl:
     needs: build
+    if: github.event_name != 'push'
     runs-on: ubuntu-latest
     timeout-minutes: 30
     env:
@@ -291,8 +305,9 @@ jobs:
           fi
 
   deploy:
-    # after the gate (every part of browser); webgl is deliberately not in `needs`
-    if: needs.pages-source.outputs.build_type == 'workflow'
+    # after the gate: every part of browser where it ran, or a push to main, where `npm run
+    # gate` ran them on the dev box; webgl is deliberately not in `needs`
+    if: ${{ !cancelled() && needs.build.result == 'success' && (needs.browser.result == 'success' || (github.event_name == 'push' && needs.browser.result == 'skipped')) && needs.pages-source.outputs.build_type == 'workflow' }}
     needs: [build, browser, pages-source]
     runs-on: ubuntu-latest
     timeout-minutes: 15
@@ -349,6 +364,7 @@ jobs:
   # dashboard; OPERATIONS.md 8.2 says how to check its production branch). No checkout: what is uploaded is the gate's dist/, and the branch and
   # commit are passed to wrangler, which would otherwise read them from git.
   cloudflare:
+    if: ${{ !cancelled() && needs.build.result == 'success' && (needs.browser.result == 'success' || (github.event_name == 'push' && needs.browser.result == 'skipped')) }}
     needs: [build, browser]
     runs-on: ubuntu-latest
     timeout-minutes: 15

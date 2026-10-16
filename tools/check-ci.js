@@ -2,7 +2,7 @@
 "use strict";
 /* Checks on .github/workflows/ci.yml (the guards of its deploys) and sql.yml (its trigger and pins), which nothing else
    tests (a workflow runs only on GitHub). Node built-ins only; part of `npm run check`,
-   so the build job runs it on every pull request.
+   so the build job runs it on every push to main and on a pull request labeled `ci`.
 
    Usage: node tools/check-ci.js
 
@@ -14,6 +14,13 @@ const site = require("./lib/site");
 
 const FILE = ".github/workflows/ci.yml";
 const SQL_FILE = ".github/workflows/sql.yml";
+/* the pull request label that starts a run: the one place its name is written in tools/ */
+const LABEL = "ci";
+/* what deploy and cloudflare wait for: the build, and the browser parts where they ran (a
+   push to main skips them: `npm run gate` ran them on the dev box), never after a cancellation */
+const CI_GROUP = "ci-${{ github.ref }}${{ github.event_name == 'pull_request' && format('-{0}', github.event.label.name) || '' }}";
+const SQL_GROUP = "sql-${{ github.ref }}-${{ github.event.label.name }}";
+const GATE = "!cancelled() && needs.build.result == 'success' && (needs.browser.result == 'success' || (github.event_name == 'push' && needs.browser.result == 'skipped'))";
 
 function result() {
   const r = { fails: [], notes: [], count: 0 };
@@ -103,8 +110,8 @@ function checkSkip(ci, r) {
   const at = ci.search(/^on:\n/m);
   const on = at < 0 ? "" : ci.slice(at).split(/\n(?=\S)/)[0];
   const lists = on.match(/^ +paths(-ignore)?:.*$/gm) || [];
-  const want = /^on:\n  pull_request:\n    paths-ignore: (.*)\n  push:\n    branches: \[main\]\n    paths-ignore: (.*)\n  workflow_dispatch:\s*$/.exec(on);
-  if (!want || want[1] !== SKIP || want[2] !== SKIP || lists.length !== 2) r.fail(FILE + ": the triggers are not pull_request and push to main, each with paths-ignore: " + SKIP + ", and workflow_dispatch (found " + JSON.stringify(lists.map(s => s.trim())) + ")");
+  const want = /^on:\n  pull_request:\n    types: \[labeled\]\n    paths-ignore: (.*)\n  push:\n    branches: \[main\]\n    paths-ignore: (.*)\n  workflow_dispatch:\s*$/.exec(on);
+  if (!want || want[1] !== SKIP || want[2] !== SKIP || lists.length !== 2) r.fail(FILE + ": the triggers are not pull_request (types: [labeled]) and push to main, each with paths-ignore: " + SKIP + ", and workflow_dispatch (found " + JSON.stringify(lists.map(s => s.trim())) + ")");
   else r.note("no run for a change to only " + SKIP);
   BUILD_DIRS.forEach(d => {
     r.count++;
@@ -163,6 +170,9 @@ function checkSqlTrigger(ci, r, sql) {
   const on = at < 0 ? "" : sql.slice(at).split(/\n(?=\S)/)[0];
   const events = (on.match(/^  [a-z_]+:/gm) || []).map(s => s.trim());
   if (events.join() !== "pull_request:") r.fail(SQL_FILE + ": on: is not pull_request alone (found " + JSON.stringify(events) + ")");
+  if (!/^    types: \[labeled\]\s*$/m.test(on)) r.fail(SQL_FILE + ": pull_request has no `types: [labeled]`, so a push to a pull request would start a run");
+  r.count++;
+  if (!new RegExp("^    if: github\\.event\\.label\\.name == '" + LABEL + "'\\s*$", "m").test(jobOf(sql, "pgtap"))) r.fail(SQL_FILE + ": the pgtap job has no `if: github.event.label.name == '" + LABEL + "'`, so it would run for any label");
   const paths = /^ +paths: \[([^\]]*)\]\s*$/m.exec(on);
   const list = paths ? paths[1].split(",").map(x => x.trim().replace(/^"|"$/g, "")) : [];
   r.count++;
@@ -185,6 +195,48 @@ function checkSqlPins(ci, r, sql) {
   else if (images.length !== 1 || images[0] !== "supabase/postgres@" + want) r.fail(SQL_FILE + ": the service image is " + JSON.stringify(images) + ", not supabase/postgres@" + want + " (the digest of tools/sql-test.js)");
 }
 
+/* (k) a pull request runs only when the label is added (the `labeled` event, and build
+   goes on only for the label), and a push to main never runs the browser or webgl jobs:
+   the dev box's `npm run gate` did, and the merge guard requires its receipt */
+function checkLabel(ci, r, sql) {
+  r.count++;
+  const group = (s) => ((s || "").match(/^concurrency:\n  group: (.*)$/m) || [])[1];
+  if (group(ci) !== CI_GROUP) r.fail(FILE + ": concurrency group is " + JSON.stringify(group(ci)) + ", not " + CI_GROUP + " (another label would cancel a run)");
+  if (sql !== null && group(sql) !== SQL_GROUP) r.fail(SQL_FILE + ": concurrency group is " + JSON.stringify(group(sql)) + ", not " + SQL_GROUP);
+  r.count++;
+  const buildIf = "if: github.event_name != 'pull_request' || github.event.label.name == '" + LABEL + "'";
+  if (!jobOf(ci, "build").split("\n").includes("    " + buildIf)) r.fail(FILE + ": the build job has no job-level `" + buildIf + "`, so a pull request would run without the label");
+  ["browser", "webgl"].forEach(name => {
+    r.count++;
+    const lines = jobOf(ci, name).split("\n");
+    if (!lines.includes("    needs: build")) r.fail(FILE + ": the " + name + " job does not have `needs: build`");
+    if (!lines.includes("    if: github.event_name != 'push'")) r.fail(FILE + ": the " + name + " job has no job-level `if: github.event_name != 'push'`, so a push to main would run it");
+  });
+}
+
+/* (l) the deploys wait for build and for every browser part where browser ran (a push to
+   main skips it), and never run after a cancellation: `always()` at job level would run
+   them over a failed gate (a step-level `if: always()` is a different thing and stays) */
+function checkGate(ci, r) {
+  ["deploy", "cloudflare"].forEach(name => {
+    r.count++;
+    const job = jobOf(ci, name);
+    const ifs = job.split("\n").filter(l => /^ {4}if:/.test(l));
+    const want = "    if: ${{ " + GATE + (name === "deploy" ? " && needs.pages-source.outputs.build_type == 'workflow'" : "") + " }}";
+    if (ifs.length !== 1 || ifs[0] !== want) r.fail(FILE + ": the " + name + " job does not have exactly one job-level line `" + want.trim() + "` (found " + JSON.stringify(ifs.map(s => s.trim())) + ")");
+    const needs = /^ {4}needs: \[([^\]]*)\]\s*$/m.exec(job);
+    const list = needs ? needs[1].split(",").map(x => x.trim()) : [];
+    if (!list.includes("build") || !list.includes("browser")) r.fail(FILE + ": the " + name + " job's needs: does not name build and browser (found " + JSON.stringify(list) + ")");
+  });
+  r.count++;
+  const buildLines = jobOf(ci, "build").split("\n");
+  ["      - run: npm run check", "      - run: npm run build", "      - run: npm run check:dist"].forEach(l => { if (!buildLines.includes(l)) r.fail(FILE + ": the build job lacks the line `" + l.trim() + "`: it is the only check on a push to main before production"); });
+  r.count++;
+  jobs(ci).forEach(j => j.code.split("\n").filter(l => /^ {4}continue-on-error:/.test(l)).forEach(l => r.fail(FILE + ": the " + j.name + " job has a job-level `" + l.trim() + "`: a failed job would not hold the deploys back")));
+  r.count++;
+  jobs(ci).forEach(j => j.code.split("\n").filter(l => /^ {4}if:/.test(l) && /always\(\)/.test(l)).forEach(l => r.fail(FILE + ": the " + j.name + " job has a job-level `" + l.trim() + "`: always() would run it over a failed gate")));
+}
+
 const CHECKS = [
   { name: "project", run: checkProject, what: "the cloudflare job's default project is a Cloudflare Pages project name" },
   { name: "rerun", run: checkRerun, what: "a re-run of an older commit of main stops before wrangler deploys" },
@@ -192,10 +244,12 @@ const CHECKS = [
   { name: "prod", run: checkProduction, what: "a deploy of main that Cloudflare did not make production fails" },
   { name: "core", run: checkCore, what: "test:browser:core runs in the browser job of the part --parts names as core" },
   { name: "pages", run: checkPages, what: "GitHub Pages gets dist-redirects/, built and checked in the build job, and never dist/" },
-  { name: "skip", run: checkSkip, what: "only a change to Markdown or docs/ alone starts no run, and the build reads none of it" },
+  { name: "skip", run: checkSkip, what: "a pull request starts on the labeled event only; a change to Markdown or docs/ alone starts no run, and the build reads none of it" },
   { name: "install", run: checkInstall, what: "every job that runs the browser tests has a playwright install step, with a timeout-minutes and a killing timeout wrapper per try" },
-  { name: "sql-trigger", run: checkSqlTrigger, what: "sql.yml runs on pull_request alone, for supabase/** and src/sync/events.ts" },
-  { name: "sql-pins", run: checkSqlPins, what: "sql.yml pins every action by SHA and its database image by the digest of tools/sql-test.js" }
+  { name: "sql-trigger", run: checkSqlTrigger, what: "sql.yml runs on a labeled pull_request alone, only for the label ci, for supabase/** and src/sync/events.ts" },
+  { name: "sql-pins", run: checkSqlPins, what: "sql.yml pins every action by SHA and its database image by the digest of tools/sql-test.js" },
+  { name: "label", run: checkLabel, what: "a pull request runs only when the label " + LABEL + " is added, and a push to main never runs the browser or webgl jobs" },
+  { name: "gate", run: checkGate, what: "deploy and cloudflare wait for build, and for every browser part where browser ran, and never run after a cancellation; build keeps its checks and no job continues on error" }
 ];
 
 module.exports = { checkInstall };
