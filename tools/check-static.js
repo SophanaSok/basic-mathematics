@@ -641,6 +641,21 @@ function sqlIsEmpty(src) {
   return !src.replace(/\/\*[\s\S]*?\*\//g, "").replace(/--.*$/gm, "").trim();
 }
 
+/* private.fresh_start(key) is the one way a migration resets users once: it seeds private.once
+   itself. The gate applies supabase/schema.sql as it is on main, so a call or a seed in the
+   branch's own schema.sql never runs there, and a project set up from it later would reset its
+   users or skip a reset. Calls are fine in a new migration; a direct seed never is. */
+function onceProblems(src, opts) {
+  const calls = !!(opts && opts.calls);
+  let t = src.replace(/\/\*[\s\S]*?\*\//g, " ").replace(/--.*$/gm, " ");
+  const def = /create\s+(?:or\s+replace\s+)?function\s+private\s*\.\s*fresh_start\s*\([^)]*\)[\s\S]*?(\$[A-Za-z_]*\$)[\s\S]*?\1/gi;
+  t = t.replace(def, " ");
+  const out = [];
+  if (/insert\s+into\s+private\s*\.\s*once\b/i.test(t)) out.push("inserts into private.once directly; seed it by calling private.fresh_start('key') in a new migration");
+  if (calls && /(?<!function\s+)private\s*\.\s*fresh_start\s*\(/i.test(t)) out.push("calls private.fresh_start; the gate never runs this file's edit, so a call belongs in a new migration");
+  return out;
+}
+
 /* The site deploys on merge, the database does not: a schema change that reaches readers
    before its SQL has been run breaks every signed-in sync. The check can only see that the
    migration file was written; applying it is a step in OPERATIONS.md. */
@@ -675,8 +690,13 @@ function checkMigrations(ctx, r) {
     if (atBaseSet.has(rel)) return;
     if (lastAtBase && m[1] <= lastAtBase) r.fail(rel + ": its timestamp is not later than " + lastAtBase + ", the newest migration at base " + ref + "; a new migration sorts after every one already applied");
     if (sqlIsEmpty(read(rel))) r.fail(rel + ": holds no SQL statement");
+    onceProblems(read(rel), { calls: false }).forEach(pr => r.fail(rel + ": " + pr));
     added.push(f);
   });
+  if (exists(SCHEMA_FILE)) {
+    r.count++;
+    onceProblems(read(SCHEMA_FILE), { calls: true }).forEach(pr => r.fail(SCHEMA_FILE + ": " + pr));
+  }
   const now = exists(SCHEMA_FILE) ? read(SCHEMA_FILE) : null;
   const then = git.showText(ROOT, ref, SCHEMA_FILE);
   const changed = now !== then;
@@ -2254,7 +2274,7 @@ const CHECKS = [
   { name: "section-work", run: checkSectionWork, what: "src/data/section-work.ts: the scored plus inline exercises each section's page offers, as the app attributes them; absent means 0" },
   { name: "choices", run: checkChoices, what: "choice/multi answer indices are within the options" },
   { name: "order", run: checkOrder, what: "order lists have >= 2 items; blanks carry keys" },
-  { name: "migrations", run: checkMigrations, what: "a supabase/schema.sql change since main ships a new, well-named migration; applied ones are untouched; supabase/tests/prune_cases.sql is what tools/gen-prune-sql-cases.js writes" },
+  { name: "migrations", run: checkMigrations, what: "a supabase/schema.sql change since main ships a new, well-named migration; applied ones are untouched; schema.sql never calls private.fresh_start or inserts into private.once, a new migration never inserts into private.once; supabase/tests/prune_cases.sql is what tools/gen-prune-sql-cases.js writes" },
   { name: "placeholders", run: checkPlaceholders, what: "no answer box shows an example its own key judges right or form" },
   { name: "answer-spec", run: checkAnswerSpec, what: "data-tol finite, >= 0, never on exact or expr keys; every alternative of a key judged right against it; no barred expr key splits a |e|; site.js judge() grades through BMCore.judge" },
   { name: "schedule-readers", run: checkScheduleReaders, what: "assets/*.js read a section's box and last only from the event log (BMEvents.schedule/scheduleAll), never from bm.game.v1.sec, and never write them there" },
@@ -2294,5 +2314,5 @@ function main() {
 
 if (require.main === module) main();
 module.exports = {
-  chartProblems, checkScope, checkIcons, CHECKS, result, loadCore, barProblem, siteJudgeProblem, pureProblems, scheduleProblems, isPureFile, codeProblems, courseProblems, exerciseRefs, sectionAnchors, skillsProblems, sectionWorkCounts, sectionWorkProblems, pageKeys, lessonSteps, stepsDiff, helpMarkupProblems, requiresProblems, shellOf, shellDiff, scriptsProblems, randomState, stripLocalFirst, canon,
+  onceProblems, chartProblems, checkScope, checkIcons, CHECKS, result, loadCore, barProblem, siteJudgeProblem, pureProblems, scheduleProblems, isPureFile, codeProblems, courseProblems, exerciseRefs, sectionAnchors, skillsProblems, sectionWorkCounts, sectionWorkProblems, pageKeys, lessonSteps, stepsDiff, helpMarkupProblems, requiresProblems, shellOf, shellDiff, scriptsProblems, randomState, stripLocalFirst, canon,
   animationFaults, colourLiterals, columnPatterns, inColumn, quietKinds, printGaps };

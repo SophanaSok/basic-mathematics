@@ -1236,6 +1236,22 @@ function refusal(fn) { try { fn(); return null; } catch (e) { return e.message; 
   check(CHECKS.some(c => c.name === "us-english"), "us-english: check-static runs it");
 }
 
+/* ------------------------------------------------------------ private.once -- */
+{
+  const { onceProblems, CHECKS } = require("./check-static");
+  const schema = fs.readFileSync(path.join(__dirname, "..", "supabase/schema.sql"), "utf8");
+  const p7 = fs.readFileSync(path.join(__dirname, "..", "supabase/migrations/20261015201142_drop_attempts.sql"), "utf8");
+  eq(onceProblems(schema, { calls: true }), [], "once-guard: the real supabase/schema.sql passes");
+  check(onceProblems(schema + "\nselect private.fresh_start('x');\n", { calls: true }).length > 0, "… an appended select private.fresh_start fails");
+  check(onceProblems(schema + "\ndo $$ begin perform private.fresh_start('x'); end $$ language plpgsql;\n", { calls: true }).length > 0, "… a perform inside a do block fails");
+  check(onceProblems(schema + "\ninsert into private.once (key) values ('x');\n", { calls: true }).length > 0, "… an appended insert into private.once fails");
+  eq(onceProblems(schema + "\n-- select private.fresh_start('x');\n/* select private.fresh_start('y');\ninsert into private.once (key) values ('z'); */\n", { calls: true }), [], "… commented-out calls pass");
+  eq(onceProblems("select private.fresh_start('x');", { calls: false }), [], "… with calls: false a bare call passes");
+  check(onceProblems("insert into private.once (key) values ('x');", { calls: false }).length > 0, "… with calls: false a direct insert fails");
+  eq(onceProblems(p7, { calls: false }), [], "… the P7 migration passes with calls: false");
+  check(/private\.once/.test(CHECKS.find(c => c.name === "migrations").what), "… the migrations entry names the rule");
+}
+
 /* ------------------------------------------------------------------ icons -- */
 {
   const gen = require("./gen-icons");
