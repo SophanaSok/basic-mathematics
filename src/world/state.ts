@@ -40,7 +40,8 @@ export interface IsleState extends IsleMark {
 const clamp = (n: number, lo: number, hi: number): number => Math.min(hi, Math.max(lo, n));
 const chapterOf = (ref: string): string => ref.split("#")[0];
 
-/* The one-entry memo's key: every field the result depends on, in a fixed order, as JSON
+/* The memo keeps one entry per island set (the map's islands and the list's chapters are two sets),
+   so the two callers on one page never evict each other. Its key: every field the result depends on, in a fixed order, as JSON
    (isles: id, part, sections; counts, medals and bands and solids: only the isles' own
    entries; due: the ids in order; calm). Equal key, same array back. */
 function keyOf(inp: HubInput): string {
@@ -54,12 +55,13 @@ function keyOf(inp: HubInput): string {
   ]);
 }
 
-let lastKey = "";
-let lastOut: IsleState[] | null = null;
+const memo = new Map<string, { key: string; out: IsleState[] }>();
 
 export function hubState(input: HubInput): IsleState[] {
   const key = keyOf(input);
-  if (lastOut && key === lastKey) return lastOut;
+  const setKey = input.isles.map((s) => s.id).join();
+  const hit = memo.get(setKey);
+  if (hit && hit.key === key) return hit.out;
   const out = input.isles.map((isle) => {
     /* these three rules moved here from assets/map3d.js refresh() */
     const c = input.counts[isle.id] || { solved: 0, total: 0 };
@@ -81,6 +83,7 @@ export function hubState(input: HubInput): IsleState[] {
     });
   });
   Object.freeze(out);
-  lastKey = key; lastOut = out;
+  if (!hit && memo.size >= 8) memo.clear();
+  memo.set(setKey, { key, out });
   return out;
 }

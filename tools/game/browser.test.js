@@ -1030,7 +1030,7 @@ async function run() {
           links: p[0] ? Array.from(p[0].querySelectorAll("a")).map((a) => [a.textContent, a.getAttribute("href"), !a.closest("a.stop-link")]) : [] };
       }, id);
       const hubs = await open(browser, "index.html", {});
-      eq([await hubOf(hubs.page, "ch05")].map((h) => [h.n, h.text]), [[1, "Mastery: not enough answers yet"]], "hub list: with no evidence a chapter reads 'not enough answers yet'");
+      eq([await hubOf(hubs.page, "ch05")].map((h) => [h.n, h.text]), [[0, ""]], "hub list: with no evidence a chapter has no hub line at all");
       /* a section placed in the Arena four days ago and solved on its page is due; one weak, one strong */
       await hubs.page.evaluate((a) => localStorage.setItem("bm.attempts.v1", a), JSON.stringify({ ch02: {
         e1: { tries: 1, solved: 1, first: 1, section: "one-unknown" }, e2: { tries: 1, solved: 2, first: 1, section: "one-unknown" } } }));
@@ -1043,9 +1043,15 @@ async function run() {
       eq(due2 && due2[1], "parts/1-algebra/02-linear-equations.html#one-unknown", "and the due section's link goes to the section");
       eq(h2.links.some((l) => l[1] === "arena.html?mode=review"), true, "with one Review in the Arena link");
       check(h2.links.length > 0 && h2.links.every((l) => l[2]), "no hub link is inside a.stop-link");
+      /* a burst of events ends in a redraw that reads the final state (the redraw is debounced) */
+      await seedEvents(hubs.page, [1, 2, 3, 4].map(() => ev("ch06#isometries", 8, true, dayAgo(0))));
+      await hubs.page.waitForTimeout(300);
+      const band6 = await hubs.page.evaluate(() => window.BMEvents.bands()["ch06#isometries"]);
+      eq([band6 === "strong" || band6 === "building", (await hubOf(hubs.page, "ch06")).text], [true, "Mastery: 1 " + band6],
+        "hub list: after a burst of four runs the line reads the final state");
       await hubs.page.evaluate(() => { window.BMHubList.redraw(document); window.BMHubList.redraw(document); });
-      eq(await hubs.page.evaluate(() => Array.from(document.querySelectorAll("li.stop")).every((li) => li.querySelectorAll("p.stop-hub").length === 1)), true,
-        "hub list: redecorating twice leaves one p.stop-hub per chapter");
+      eq(await hubs.page.evaluate(() => Array.from(document.querySelectorAll("li.stop")).every((li) => li.querySelectorAll("p.stop-hub").length <= 1)), true,
+        "hub list: redecorating twice leaves at most one p.stop-hub per chapter");
       await hubs.page.click('li.stop[data-chapter="ch02"] p.stop-hub a[href$="#one-unknown"]');
       await hubs.page.waitForFunction(() => /02-linear-equations/.test(location.pathname));
       eq(hubs.errors, [], "no errors with the hub list");

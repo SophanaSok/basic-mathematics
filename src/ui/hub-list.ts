@@ -6,8 +6,8 @@
      - "Due for a check: " and the due sections as links (the Arena's first), then one
        "Review in the Arena" link when the Arena can ask about any of them. A section only its
        page can check is listed too, linked to that section.
-     - "Mastery: 2 strong · 1 building · 1 weak" (a zero part is left out), or "Mastery: not
-       enough answers yet" when no section has a band.
+     - "Mastery: 2 strong · 1 building · 1 weak" (a zero part is left out); no line at all when
+       no section of the chapter has a band.
 
    hubInput() builds the HubInput from the live stores (the map builds the same one); decorate
    draws it and is safe to call again (it replaces its paragraph, never adds a second).
@@ -31,35 +31,40 @@ export function hubIds(): string[] {
   return chapters(typeof window === "undefined" ? null : window.BM_CURRICULUM).map((x) => x.ch.id);
 }
 
-/** The hub's input from the live stores; null when the game layer or the event log is not
-    on the page yet (the list then waits for the next change). */
-export function hubInput(): HubInput | null {
+/** The hub's input from the live stores, for the list (every chapter, the packs too) or, with
+    `beside: false`, for the map (only the Parts that are not beside the course: its islands).
+    It never returns null: a store that is not on the page yet reads as no data (no beacons, no
+    mastery, nothing solved), and the next change draws again. */
+export function hubInput(opts: { beside?: boolean } = {}): HubInput {
   const w = window as any, C = w.BM_CURRICULUM, Game = w.BMGame, Ev = w.BMEvents, P = w.BMProgress, Site = w.BMSite;
-  if (!C || !Game || typeof Game.deck !== "function" || !Ev || !P || !Site) return null;
-  const list = chapters(C);
+  const withBeside = opts.beside !== false;
+  const list = chapters(C).filter(({ part }) => withBeside || !part.beside);
   const counts: Record<string, { solved: number; total: number }> = {};
   const medals: Record<string, number> = {};
   const solids: Record<string, Solid> = {};
   const order: Record<string, number> = {};
   let i = 0;
   list.forEach(({ ch, part }) => {
-    const c = P.count(ch.id) || {};
-    counts[ch.id] = { solved: c.solved || 0, total: c.total || 0 };
-    try { medals[ch.id] = Game.medal(ch.id, "practice") || 0; } catch { medals[ch.id] = 0; }
+    let c: any = null;
+    try { c = P && typeof P.count === "function" ? P.count(ch.id) : null; } catch { c = null; }
+    counts[ch.id] = { solved: (c && c.solved) || 0, total: (c && c.total) || 0 };
+    try { medals[ch.id] = (Game && Game.medal(ch.id, "practice")) || 0; } catch { medals[ch.id] = 0; }
     const s = w.BM_QUEST?.regions?.[part.id]?.solid;
     if (s) solids[part.id] = s;
-    ch.sections.forEach((sec: any) => { order[ch.id + "#" + sec.id] = i++; });
+    (ch.sections || []).forEach((sec: any) => { order[ch.id + "#" + sec.id] = i++; });
   });
-  const arena = new Set<string>(ARENA_SECTIONS);
-  const rows = (Game.deck({}) || [])
-    .filter((r: any) => r.id in order)
-    .map((r: any) => ({ id: r.id, due: !!r.due, box: r.box, last: r.last, seen: r.seen, arena: arena.has(r.id), index: order[r.id] }));
+  let due: HubInput["due"] = { arena: [], page: [] };
+  let bands: Record<string, Band> = {};
+  try {
+    const arena = new Set<string>(ARENA_SECTIONS);
+    const rows = ((Game && typeof Game.deck === "function" && Game.deck({})) || [])
+      .map((r: any) => ({ id: r.id, due: !!r.due, box: r.box, last: r.last, seen: r.seen, arena: arena.has(r.id), index: order[r.id] || 0 }));
+    due = dueSplit(rows, Site && typeof Site.dayKey === "function" ? Site.dayKey() : undefined);
+    if (Ev && typeof Ev.bands === "function") bands = Ev.bands() || {};
+  } catch { /* no review data: no beacons, no mastery */ }
   return {
-    isles: list.map(({ ch, part }) => ({ id: ch.id, part: part.id, sections: ch.sections.map((s: any) => ch.id + "#" + s.id) })),
-    counts, medals,
-    due: dueSplit(rows, Site.dayKey()),
-    bands: Ev.bands() as Record<string, Band>,
-    solids,
+    isles: list.map(({ ch, part }) => ({ id: ch.id, part: part.id, sections: (ch.sections || []).map((s: any) => ch.id + "#" + s.id) })),
+    counts, medals, due, bands, solids,
     calm: document.documentElement.hasAttribute("data-calm")
   };
 }
@@ -79,13 +84,13 @@ function sectionName(ref: string): { text: string; href: string } | null {
   return { text: (owner.label === "Interlude" ? "" : num + " ") + title, href: root + owner.path + "#" + sid };
 }
 
-/** the mastery words: "2 strong · 1 building · 1 weak", or the not-yet line */
+/** the mastery words: "2 strong · 1 building · 1 weak", or "" when no section has a band */
 export function masteryLine(m: IsleState["mastery"]): string {
   const parts: string[] = [];
   if (m.strong) parts.push(m.strong + " strong");
   if (m.building) parts.push(m.building + " building");
   if (m.weak) parts.push(m.weak + " weak");
-  return parts.length ? parts.join(" · ") : "not enough answers yet";
+  return parts.join(" · ");
 }
 
 /** Draw states (one per chapter, in `ids` order, hubIds() by default) into the list under `root`. */
@@ -125,22 +130,30 @@ export function decorate(root: ParentNode, states: readonly IsleState[], ids: re
       }
       p.appendChild(line);
     }
-    const mastery = doc.createElement("span");
-    mastery.className = "stop-mastery";
-    mastery.textContent = "Mastery: " + masteryLine(st.mastery);
-    p.appendChild(mastery);
+    /* a chapter with no evidence has no mastery line: twenty identical "not yet" lines say nothing */
+    const words = masteryLine(st.mastery);
+    if (words) {
+      const mastery = doc.createElement("span");
+      mastery.className = "stop-mastery";
+      mastery.textContent = "Mastery: " + words;
+      p.appendChild(mastery);
+    }
+    /* nothing due and no evidence: no paragraph at all */
+    if (!due.length && !words) return;
     li.insertBefore(p, link.nextSibling);
   });
 }
 
-/** Read the stores and draw; false when they are not all there yet. */
+/** Read the stores and draw; false when the game layer or the event log is not all there yet (a chapter
+    with no evidence has no line, so drawing before they load would only draw the due part). */
 export function redraw(root: ParentNode = document): boolean {
+  const w = window as any;
+  if (!w.BMGame || !w.BMEvents || !w.BMProgress || !w.BMSite) return false;
   const inp = hubInput();
-  if (!inp) return false;
   decorate(root, hubState(inp), inp.isles.map((s) => s.id));
   return true;
 }
 
-export const api = { decorate, hubInput, hubIds, redraw, masteryLine };
+export const api = { decorate, hubInput, hubIds, redraw, masteryLine, hubState };
 
 if (typeof window !== "undefined") (window as any).BMHubList = api;

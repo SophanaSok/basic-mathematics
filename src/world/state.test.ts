@@ -63,6 +63,15 @@ describe("hubState", () => {
     expect(hubState(input({ bands: { "ch01#a": "building" } }))).not.toBe(two);
   });
 
+  it("two island sets alternate without evicting each other", () => {
+    const list = input({ isles: [...input().isles, { id: "pk01", part: "pk", sections: ["pk01#a"] }] });
+    const m1 = hubState(input()), l1 = hubState(list);
+    expect(l1).not.toBe(m1);
+    expect(hubState(input())).toBe(m1);
+    expect(hubState(list)).toBe(l1);
+    expect(hubState(input())).toBe(m1);
+  });
+
   it("each field of the input misses the cache", () => {
     const base = hubState(input());
     expect(hubState(input({ medals: { ch02: 3 } }))).not.toBe(base);

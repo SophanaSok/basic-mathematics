@@ -517,7 +517,13 @@
     try { if (window.BMHubList) window.BMHubList.redraw(host); } catch (e) { /* the list stays as it was */ }
     if (hubWatching) return;
     hubWatching = true;
-    Store.on(function (c) { if (c.type === "event") decorateHub(); });
+    /* trailing debounce: a burst of events ends in one draw that reads the final state */
+    var hubTimer = 0;
+    Store.on(function (c) {
+      if (c.type !== "event") return;
+      clearTimeout(hubTimer);
+      hubTimer = setTimeout(decorateHub, 60);
+    });
     window.addEventListener("load", decorateHub);
   }
 

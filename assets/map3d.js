@@ -280,53 +280,22 @@ import { detectTier, readProbe, stepDown, lower, pixelRatio, TIERS, AMBIENT_MS, 
 
   /* ---------------------------------------------- progress (the dynamic bits) -- */
 
-  function medalFor(id) {
-    try {
-      if (window.BMGame && typeof window.BMGame.medal === "function") return window.BMGame.medal(id, "practice") || 0;
-    } catch (e) { /* no medal data: one star for complete */ }
-    return 0;
-  }
-
-  /* what hubState reads, gathered once per refresh (deck() is a full read: never per island) */
-  function hubInput(P) {
-    var C = window.BM_CURRICULUM, Q = window.BM_QUEST, G = window.BMGame, R = window.BMReview, E = window.BMEvents;
-    var counts = {}, medals = {}, solids = {}, order = {}, n = 0;
-    ISLES.forEach(function (isle) {
-      counts[isle.id] = P && P.count ? P.count(isle.id) : { solved: 0, total: 0 };
-      medals[isle.id] = medalFor(isle.id);
-      var r = Q && Q.regions && Q.regions[isle.part.id];
-      if (r && r.solid) solids[isle.part.id] = r.solid;
-    });
-    ((C && C.chapters) || []).forEach(function (ch) { ch.sections.forEach(function (s) { order[ch.id + "#" + s.id] = n++; }); });
-    var due = { arena: [], page: [] }, bands = {};
-    try {
-      var deck = G && typeof G.deck === "function" ? G.deck({}) || [] : [];
-      /* the sections with an Arena generator; the map cannot load the generators themselves, and
-         src/data/arena-sections.test.ts holds this list to them (assets/arena.js asks Gen.forSection) */
-      var arena = (R && R.ARENA_SECTIONS) || [];
-      var rows = deck.map(function (d) {
-        return { id: d.id, due: !!d.due, box: d.box, last: d.last, seen: d.seen, arena: arena.indexOf(d.id) > -1, index: order[d.id] || 0 };
-      });
-      if (R && R.review) due = R.review.dueSplit(rows, window.BMSite && window.BMSite.dayKey ? window.BMSite.dayKey() : undefined);
-      if (E && typeof E.bands === "function") bands = E.bands() || {};
-    } catch (e) { /* no review data: no beacons, no mastery */ }
-    return {
-      isles: ISLES.map(function (isle) {
-        return { id: isle.id, part: isle.part.id, sections: isle.ch.sections.map(function (s) { return isle.id + "#" + s.id; }) };
-      }),
-      counts: counts, medals: medals, due: due, bands: bands, solids: solids,
-      calm: document.documentElement.hasAttribute("data-calm")
-    };
+  /* what hubState reads, gathered once per refresh (deck() is a full read: never per island). The
+     one builder is src/ui/hub-list.ts, which the list reads too; `beside: false` is these islands. */
+  function hubInput() {
+    return window.BMHubList.hubInput({ beside: false });
   }
 
   function refresh(quiet) {
-    if (!M) return;
-    var P = window.BMProgress;
+    /* the hub's builder and pure state are src/ui/hub-list.ts's (home.js imports it, and src/world/state.ts
+       it reads, into the page's own bundle: the world chunk must not import them, or it would pull the
+       contents page's bundle onto every page that fetches it); a page without them draws no progress */
+    if (!M || !window.BMHubList) return;
     var curId = currentId();
     M.cur = curId ? isleIndex(curId) : -1;
     M.done = {};
-    var input = hubInput(P);
-    var states = W.hubState(input), ahead = [];
+    var input = hubInput();
+    var states = window.BMHubList.hubState(input), ahead = [];
     ISLES.forEach(function (isle, i) {
       var st = states[i];
       M.done[isle.id] = st.done;

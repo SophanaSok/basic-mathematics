@@ -23,7 +23,6 @@ import { buildForm, type FormLook } from "./forms.ts";
 export const MARKER_SCALE = 0.75;
 
 export { DECK, ROW_Z, ROW_Y, STEP_X, rowAt };
-export { hubState } from "./state.ts";
 export type { IsleState, WorldLayout };
 
 export interface WorldScene {
