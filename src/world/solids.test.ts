@@ -27,23 +27,39 @@ describe("solids", () => {
     want.forEach((v, i) => expect(seen[i]).toBeCloseTo(v, 4));
   });
 
+  it.each(SOLIDS)("%s: every flat face has its own normal-y", (s) => {
+    const ys = faceNormalsY(s);
+    const groups: number[] = [];
+    ys.forEach((v) => { if (!groups.length || groups[groups.length - 1] - v > 1e-3) groups.push(v); });
+    expect(groups.length).toBe(s === "cube" ? 6 : TRIS[s]);
+    for (let i = 1; i < groups.length; i++) expect(groups[i - 1] - groups[i]).toBeGreaterThan(0.05);
+  });
+
   it.each(SOLIDS)("%s: hollowPaint empties the top fraction", (s) => {
-    for (const h of [0, 0.25, 0.5, 0.75, 0.9, 1]) {
+    let last = 0;
+    for (const h of [0, 0.05, 0.1, 0.25, 0.5, 0.75, 0.9, 0.99, 1]) {
       const b = new Batch();
       const ranges = b.add(solidGeometry(T, s, 1), null, hollowPaint(s, h, "solid", "hollow"));
       const hollow = ranges.filter((r) => r.key === "hollow").reduce((n, r) => n + r.count / 3, 0);
       expect(hollow).toBe(hollowCount(s, h));
-      expect(hollow).toBeLessThanOrEqual(Math.floor(TRIS[s] * h + 1e-9));
+      expect(hollow).toBeGreaterThanOrEqual(last);
+      last = hollow;
       if (h === 0) expect(hollow).toBe(0);
+      if (h > 0 && h < 1) { expect(hollow).toBeGreaterThan(0); expect(hollow).toBeLessThan(TRIS[s]); }
       if (h === 1) expect(hollow).toBe(TRIS[s]);
     }
   });
 
-  it("exact counts where the normals allow", () => {
+  it("the count rule: nearest achievable, at least one group", () => {
+    expect(hollowCount("tetra", 0.1)).toBe(1);
+    expect(hollowCount("octa", 0.3)).toBe(2);
+    expect(hollowCount("cube", 0.5)).toBe(6);   /* three squares */
     expect(hollowCount("octa", 0.5)).toBe(4);
-    expect(hollowCount("tetra", 0.5)).toBe(2);
-    expect(hollowCount("cube", 0.5)).toBe(2);   /* top pair, then the eight sides tie */
-    expect(hollowCount("icosa", 0.5)).toBe(8);   /* ties: the nearest step below 10 */
+    expect(hollowCount("icosa", 0.5)).toBe(10);
+    expect(hollowCount("cube", 0.01)).toBe(2);
+    expect(hollowCount("cube", NaN)).toBe(0);
+    expect(hollowCount("cube", -1)).toBe(0);
+    expect(hollowCount("cube", 2)).toBe(12);
   });
 
   it("hollow faces are the upper ones", () => {

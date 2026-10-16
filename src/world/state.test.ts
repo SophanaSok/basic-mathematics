@@ -30,12 +30,12 @@ describe("hubState", () => {
       counts: { ch01: { solved: 0, total: 0 }, ch02: { solved: 9, total: 4 } },
       medals: { ch01: 0, ch02: 4 }
     }));
-    expect(s[0]).toMatchObject({ pct: 0, done: false, stars: 1, boss: null });
+    expect(s[0]).toMatchObject({ pct: 0, done: false, stars: 1, boss: { solid: "cube", hollow: 0 } });
     expect(s[1]).toMatchObject({ pct: 1, done: true, stars: 3, boss: null });
   });
 
   it("missing count is empty", () => {
-    expect(hubState(input({ counts: {} }))[0]).toMatchObject({ pct: 0, done: false, boss: null });
+    expect(hubState(input({ counts: {} }))[0]).toMatchObject({ pct: 0, done: false, boss: { solid: "cube", hollow: 0 } });
   });
 
   it("calm hides the boss", () => {
@@ -61,5 +61,23 @@ describe("hubState", () => {
     expect(two).not.toBe(one);
     expect(hubState(input({ calm: true }))).toBe(two);
     expect(hubState(input({ bands: { "ch01#a": "building" } }))).not.toBe(two);
+  });
+
+  it("each field of the input misses the cache", () => {
+    const base = hubState(input());
+    expect(hubState(input({ medals: { ch02: 3 } }))).not.toBe(base);
+    expect(hubState(input({ solids: { p1: "tetra", p2: "octa" } }))).not.toBe(hubState(input({ solids: { p1: "icosa", p2: "octa" } })));
+    expect(hubState(input({ bands: { "ch01#a": "weak" } }))).not.toBe(hubState(input({ bands: { "ch01#a": "strong" } })));
+    expect(hubState(input({ calm: true }))).not.toBe(hubState(input()));
+  });
+
+  it("the output is frozen", () => {
+    const out = hubState(input());
+    expect(Object.isFrozen(out)).toBe(true);
+    expect(Object.isFrozen(out[0])).toBe(true);
+    expect(Object.isFrozen(out[0].boss)).toBe(true);
+    expect(Object.isFrozen(out[0].due)).toBe(true);
+    expect(Object.isFrozen(out[0].due.arena)).toBe(true);
+    expect(Object.isFrozen(out[0].mastery)).toBe(true);
   });
 });

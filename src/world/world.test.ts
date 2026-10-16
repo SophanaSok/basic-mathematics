@@ -12,6 +12,7 @@ import { placeProps } from "./props.ts";
 import { makeMaterials, type PaletteMap } from "./materials.ts";
 import { buildStatic, puffAt, PUFFS, PUFF_MS } from "./regions.ts";
 import { buildMarks, type IsleState } from "./marks.ts";
+import { hollowCount, TRIS } from "./solids.ts";
 import { Batch, EdgeBatch, repaint } from "./batch.ts";
 import { TIERS, type Quality } from "./tiers.ts";
 import { course, motifs } from "./course.test-helper.ts";
@@ -52,10 +53,21 @@ function drawn(objects: Object3D[]): { calls: number; triangles: number } {
   return { calls, triangles };
 }
 
-/* every chapter finished with three stars: the most marks the islands can carry */
-const finished: IsleState[] = L.isles.map(() => ({ pct: 1, done: true, stars: 3 }));
-const untouched: IsleState[] = L.isles.map(() => ({ pct: 0, done: false, stars: 1 }));
-const halfway: IsleState[] = L.isles.map((_, i) => ({ pct: (i % 5) / 5, done: false, stars: 1 }));
+/* the states hubState makes, built by hand: a boss in the Part's solid, a beacon when a section is due */
+const SOLIDS = ["cube", "tetra", "octa", "icosa"] as const;
+const MASTERY = { strong: 0, building: 0, weak: 0, none: 0 };
+const mk = (i: number, pct: number, done: boolean, stars: number, boss: boolean, due: boolean): IsleState => ({
+  pct, done, stars, mastery: MASTERY,
+  boss: boss ? { solid: SOLIDS[L.isles[i].p], hollow: pct } : null,
+  due: { arena: due ? ["x#y"] : [], page: [] }
+});
+/* every chapter finished with three stars (and a beacon each): the most flags the islands can carry */
+const finished: IsleState[] = L.isles.map((_, i) => mk(i, 1, true, 3, false, true));
+const untouched: IsleState[] = L.isles.map((_, i) => mk(i, 0, false, 1, true, false));
+const halfway: IsleState[] = L.isles.map((_, i) => mk(i, (i % 5) / 5, false, 1, true, false));
+/* every island unfinished with a boss (the largest solid, the icosa, in every Part) AND a beacon */
+const worst: IsleState[] = L.isles.map((_, i) => ({ ...mk(i, 0.5, false, 1, true, true), boss: { solid: "icosa" as const, hollow: 0.5 } }));
+const worstMixed: IsleState[] = L.isles.map((_, i) => mk(i, (i % 5) / 5, false, 1, true, true));
 
 describe("each tier's budget", () => {
   for (const tier of ["low", "medium", "high"] as Quality[]) {
@@ -65,7 +77,7 @@ describe("each tier's budget", () => {
       const pal = palette();
       const still = buildStatic(T, L, placeProps(L, MOT, budget.detail), mats, pal);
       if (still.puffs) still.puffs.mesh.visible = budget.ambient;
-      for (const states of [finished, untouched, halfway]) {
+      for (const states of [finished, untouched, halfway, worst, worstMixed]) {
         const marks = buildMarks(T, L, states, mats, pal);
         /* plus the marker (the largest form, two draws) and the selection ring */
         const form = buildForm(T, 5, mats, pal, "algebra", { live: false });
@@ -218,11 +230,35 @@ describe("the idle motion", () => {
 
   it("marks each island with what its progress shows", () => {
     const mats = makeMaterials(T);
-    const marks = buildMarks(T, L, L.isles.map((_, i) => (i === 0 ? { pct: 1, done: true, stars: 2 } : i === 1 ? { pct: 0.5, done: false, stars: 1 } : { pct: 0, done: false, stars: 1 })), mats, palette());
+    const marks = buildMarks(T, L, L.isles.map((_, i) => (i === 0 ? mk(i, 1, true, 2, false, false) : i === 1 ? mk(i, 0.5, false, 1, true, true) : i === 2 ? mk(i, 0, false, 1, false, false) : mk(i, 0, false, 1, true, false))), mats, palette());
     expect(marks.kinds.ch01).toBe("ring,flag,star,star");
-    expect(marks.kinds.ch02).toBe("ring,boss");
-    expect(marks.kinds.ch03).toBe("boss");
+    expect(marks.kinds.ch02).toBe("ring,boss:cube,beacon");
+    expect(marks.kinds.ch03).toBe("");
+    expect(marks.kinds.ch04).toBe("boss:cube");
     marks.dispose();
+    mats.dispose();
+  });
+
+  it("hollows as many faces of the stamped boss as hollowCount says", () => {
+    const mats = makeMaterials(T);
+    const pal = palette();
+    for (const solid of SOLIDS) for (const h of [0, 0.25, 0.5, 0.9]) {
+      const states = L.isles.map((_, i) => (i === 0 ? { ...mk(i, h, false, 1, true, false), boss: { solid, hollow: h } } : mk(i, 0, true, 1, false, false)));
+      const marks = buildMarks(T, L, states, mats, pal);
+      const col = marks.mesh.geometry.attributes.color;
+      const under = pal.get("under")!, deep = pal.get("deep:" + L.isles[0].part)!;
+      let hollow = 0, tris = 0;
+      for (let v = 0; v < col.count; v += 3) {
+        const c = [col.getX(v), col.getY(v), col.getZ(v)];
+        const is = (k: { r: number; g: number; b: number }) => Math.abs(c[0] - k.r) + Math.abs(c[1] - k.g) + Math.abs(c[2] - k.b) < 1e-4;
+        if (is(under)) hollow++;
+        if (is(deep)) tris++;
+      }
+      /* the island's one boss: hollow + solid faces are all of its triangles */
+      expect(hollow).toBe(hollowCount(solid, h));
+      expect(hollow + tris).toBe(TRIS[solid]);
+      marks.dispose();
+    }
     mats.dispose();
   });
 });

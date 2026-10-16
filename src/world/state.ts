@@ -30,7 +30,7 @@ export interface IsleMark {
 }
 
 export interface IsleState extends IsleMark {
-  /** null when done, when calm, or when the chapter has no problems; hollow = pct */
+  /** null when done or when calm; a chapter whose page was never opened has no total yet and still has its boss, whole; hollow = pct */
   boss: { solid: Solid; hollow: number } | null;
   /** this chapter's due section refs, most overdue first (input order) */
   due: { arena: string[]; page: string[] };
@@ -68,18 +68,19 @@ export function hubState(input: HubInput): IsleState[] {
     const pct = clamp(total ? solved / total : 0, 0, 1);
     const stars = clamp(input.medals[isle.id] || 1, 1, 3);
     const solid = input.solids[isle.part];
-    const boss = !done && !input.calm && total > 0 && solid ? { solid, hollow: pct } : null;
+    const boss = !done && !input.calm && solid ? Object.freeze({ solid, hollow: pct }) : null;
     const mastery = { strong: 0, building: 0, weak: 0, none: 0 };
     for (const ref of isle.sections) mastery[input.bands[ref] || "none"]++;
-    return {
+    return Object.freeze({
       pct, done, stars, boss,
-      due: {
-        arena: input.due.arena.map((d) => d.id).filter((r) => chapterOf(r) === isle.id),
-        page: input.due.page.map((d) => d.id).filter((r) => chapterOf(r) === isle.id)
-      },
-      mastery
-    };
+      due: Object.freeze({
+        arena: Object.freeze(input.due.arena.map((d) => d.id).filter((r) => chapterOf(r) === isle.id)) as string[],
+        page: Object.freeze(input.due.page.map((d) => d.id).filter((r) => chapterOf(r) === isle.id)) as string[]
+      }),
+      mastery: Object.freeze(mastery)
+    });
   });
+  Object.freeze(out);
   lastKey = key; lastOut = out;
   return out;
 }

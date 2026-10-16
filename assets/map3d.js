@@ -287,21 +287,49 @@ import { detectTier, readProbe, stepDown, lower, pixelRatio, TIERS, AMBIENT_MS, 
     return 0;
   }
 
+  /* what hubState reads, gathered once per refresh (deck() is a full read: never per island) */
+  function hubInput(P) {
+    var C = window.BM_CURRICULUM, Q = window.BM_QUEST, G = window.BMGame, R = window.BMReview, E = window.BMEvents;
+    var counts = {}, medals = {}, solids = {}, order = {}, n = 0;
+    ISLES.forEach(function (isle) {
+      counts[isle.id] = P && P.count ? P.count(isle.id) : { solved: 0, total: 0 };
+      medals[isle.id] = medalFor(isle.id);
+      var r = Q && Q.regions && Q.regions[isle.part.id];
+      if (r && r.solid) solids[isle.part.id] = r.solid;
+    });
+    ((C && C.chapters) || []).forEach(function (ch) { ch.sections.forEach(function (s) { order[ch.id + "#" + s.id] = n++; }); });
+    var due = { arena: [], page: [] }, bands = {};
+    try {
+      var deck = G && typeof G.deck === "function" ? G.deck({}) || [] : [];
+      var arena = (R && R.ARENA_SECTIONS) || [];
+      var rows = deck.map(function (d) {
+        return { id: d.id, due: !!d.due, box: d.box, last: d.last, seen: d.seen, arena: arena.indexOf(d.id) > -1, index: order[d.id] || 0 };
+      });
+      if (R && R.review) due = R.review.dueSplit(rows, window.BMSite && window.BMSite.dayKey ? window.BMSite.dayKey() : undefined);
+      if (E && typeof E.bands === "function") bands = E.bands() || {};
+    } catch (e) { /* no review data: no beacons, no mastery */ }
+    return {
+      isles: ISLES.map(function (isle) {
+        return { id: isle.id, part: isle.part.id, sections: isle.ch.sections.map(function (s) { return isle.id + "#" + s.id; }) };
+      }),
+      counts: counts, medals: medals, due: due, bands: bands, solids: solids,
+      calm: document.documentElement.hasAttribute("data-calm")
+    };
+  }
+
   function refresh(quiet) {
     if (!M) return;
     var P = window.BMProgress;
     var curId = currentId();
     M.cur = curId ? isleIndex(curId) : -1;
     M.done = {};
-    var states = [], ahead = [];
+    var input = hubInput(P);
+    var states = W.hubState(input), ahead = [];
     ISLES.forEach(function (isle, i) {
-      var c = P && P.count ? P.count(isle.id) : { solved: 0, total: 0 };
-      var total = c.total || 0, solved = Math.min(c.solved || 0, total);
-      var done = total > 0 && solved >= total;
-      M.done[isle.id] = done;
+      var st = states[i];
+      M.done[isle.id] = st.done;
       /* "ahead" is only a colour: the cap fades toward the ground, nothing is locked */
-      ahead.push(!done && i !== M.cur && !solved);
-      states.push({ pct: total ? solved / total : 0, done: done, stars: clamp(medalFor(isle.id) || 1, 1, 3) });
+      ahead.push(!st.done && i !== M.cur && !input.counts[isle.id].solved);
     });
     var gates = M.world.layout.gates.map(function (g) { return !!M.done[ISLES[g.isle].id]; });
     M.world.setProgress(states, ahead, gates);
@@ -915,7 +943,7 @@ import { detectTier, readProbe, stepDown, lower, pixelRatio, TIERS, AMBIENT_MS, 
       }
       if (!M) return;
       var K = window.BMStore.keys || {};
-      if (c.type === "home" || c.type === "form" || c.type === "sync" || c.type === "reset" ||
+      if (c.type === "home" || c.type === "form" || c.type === "event" || c.type === "sync" || c.type === "reset" ||
           (c.type === "state" && (c.key === K.progress || c.key === K.last || c.key === K.game))) later();
     });
   }
@@ -929,6 +957,8 @@ import { detectTier, readProbe, stepDown, lower, pixelRatio, TIERS, AMBIENT_MS, 
       if (!M) return;
       var theme = list.some(function (m) { return m.attributeName === "data-theme" || m.attributeName === "data-panel"; });
       if (theme) { M.world.repaint(); place(); }
+      /* Study mode hides the bosses: the marks are built again */
+      if (list.some(function (m) { return m.attributeName === "data-calm"; })) later();
       if (still()) rest();
       if (M.flight && still()) jump(M.flight.v);
       request();
