@@ -26,19 +26,25 @@ synthetic email, and a child who could set an email and leave the guardian link;
 added on top later), and learners as a map inside the account's own row (one row per family,
 shared caps, broken merge laws).
 
-The owner's answers to the design's six questions go here as rules once given:
+The owner answered the design's six questions on 2026-10-16, choosing the recommended option on
+each. Each answer is now a rule:
 
-- **Q1 Consent mechanism** for an under-13 learner. _Recommended (a): a profile under the
-  signed-in parent's account with a recorded, versioned consent confirmation; counsel to
-  confirm it meets COPPA for data used only to run the course._
-- **Q2 Managed learners per account.** _Recommended (a): 8._
-- **Q3 The Daily board for managed learners.** _Recommended (a): never._
-- **Q4 Step-up for delete and export.** _Recommended (a): a sign-in within 10 minutes, enforced
-  on the server through the token's sign-in timestamp, verified on the live project first._
-- **Q5 Managed learners who are 13 or older.** _Recommended (a): allowed; the under-13 flag is
-  a protection, not the only reason for a managed learner._
-- **Q6 One subscription for several children** (0001's open question). _Recommended (a): the
-  paying account's entitlement covers every learner it guards._
+- **Q1 (a). Consent is a profile under the signed-in parent's account** with a recorded,
+  versioned consent confirmation (`consent_v`, `consent_at`). Counsel confirms before the
+  age-policy page ships that this meets COPPA for data used only to run the course; a stronger
+  method, if required, is added at `learner_add` without changing a row.
+- **Q2 (a). At most 8 managed learners per account** (`LEARNERS_MAX`).
+- **Q3 (a). A managed learner is never on the Daily board.** `submit_daily` keys on the account,
+  the Arena hides the board for a managed learner, and the board switch shows only for the self
+  learner.
+- **Q4 (a). Deleting a learner or the account, and exporting, need a sign-in within the last 10
+  minutes**, enforced on the server through the token's sign-in timestamp
+  (`private.fresh_auth()`), verified on the live project before the check is enabled and added
+  through an access-token hook if absent, never failing open.
+- **Q5 (a). A managed learner may be 13 or older.** The under-13 flag is a protection, not the
+  only reason for a managed learner; it is set at creation or later, never cleared.
+- **Q6 (a). One subscription covers every learner the paying account guards.** Billing's design
+  (R5 item 26) reads `learners.guardian`.
 
 ## Why
 
@@ -76,5 +82,5 @@ which one applies, so a stronger method can be added at the add-learner step lat
 
 ## Status
 
-Proposed, 2026-10-16. Waits on the owner's answers to Q1 to Q6; counsel's answer on Q1 is due
-before the age-policy page ships, not before PA-1.
+Decided, 2026-10-16: the owner approved the recommended answers on Q1 to Q6. Counsel's answer on
+Q1 is due before the age-policy page ships, not before PA-1.
