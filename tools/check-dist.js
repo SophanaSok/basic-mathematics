@@ -14,6 +14,7 @@
 
 const fs = require("fs");
 const path = require("path");
+const zlib = require("zlib");
 
 const site = require("./lib/site");
 const shell = require("./lib/shell");
@@ -87,8 +88,15 @@ const ON_DEMAND = [
   { chunk: BUNDLE + "supabase.js", module: vendor.DIR + "/supabase.js", by: "assets/account.js" },
   { chunk: BUNDLE + "world.js", module: "src/world/index.ts", by: ["assets/map3d.js", "src/ui/form-view.ts"], dir: "src/world/" },
   { chunk: BUNDLE + "three-model.js", module: vendor.DIR + "/three-model.js", by: "src/model/index.ts" },
-  { chunk: BUNDLE + "form-model.js", module: "src/model/index.ts", by: "src/ui/form-view.ts", dir: "src/model/" }
+  { chunk: BUNDLE + "form-model.js", module: "src/model/index.ts", by: "src/ui/form-view.ts", dir: "src/model/" },
+  { chunk: BUNDLE + "post.js", module: "src/world/post.ts", by: "assets/map3d.js" },
+  { chunk: BUNDLE + "three-post.js", module: vendor.DIR + "/three-post.js", by: "assets/map3d.js" }
 ];
+/* the bloom's two chunks, bundle/post.js (src/world/post.ts) and bundle/three-post.js (the Three.js
+   post-processing code it uses), fetched only when the bloom is on (R2 design 3.14). Together they
+   are held to this many bytes gzipped (zlib level 9): every byte the bloom adds to the map. */
+const BLOOM_CHUNKS = [BUNDLE + "post.js", BUNDLE + "three-post.js"];
+const BLOOM_GZIP_MAX = 15 * 1024;
 /* The generator chunk is the one on-demand chunk that two kinds of page also load statically:
    the Arena and the placement check import the generators (data/gen/*.js) themselves, and the
    build puts them in one chunk, bundle/arena-diagnostic.js. A chapter page may reach it only
@@ -583,6 +591,14 @@ function checkScripts(ctx, r) {
     });
     if (strays.length) r.fail(d.chunk + " holds more than " + d.module + (d.module.startsWith(vendor.DIR + "/") ? " and the files of its packages" : d.dir ? " and the modules of " + d.dir + " no entry imports" : "") + ": " + strays.join(", "));
   });
+  /* the bloom's size budget */
+  {
+    r.count++;
+    const sizes = BLOOM_CHUNKS.filter(f => ctx.files.includes(f)).map(f => ({ f, bytes: zlib.gzipSync(fs.readFileSync(path.join(DIST, f)), { level: 9 }).length }));
+    const total = sizes.reduce((n, s) => n + s.bytes, 0);
+    if (total > BLOOM_GZIP_MAX) r.fail("the bloom's chunks are " + total + " bytes gzipped (" + sizes.map(s => s.f + " " + s.bytes).join(", ") + "), over the " + BLOOM_GZIP_MAX + " the design allows; every byte the bloom adds counts");
+    else r.note("the bloom's chunks: " + total + " of " + BLOOM_GZIP_MAX + " bytes gzipped (" + sizes.map(s => s.f + " " + s.bytes).join(", ") + ")");
+  }
   /* the copies are gone */
   formerCopies().forEach(f => {
     r.count++;

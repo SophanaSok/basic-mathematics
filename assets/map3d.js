@@ -866,6 +866,17 @@ import { detectTier, readProbe, stepDown, lower, pixelRatio, TIERS, AMBIENT_MS, 
     return importing;
   }
 
+  /* The bloom's two chunks (src/world/post.ts, src/vendor/three-post.js), imported only when
+     the bloom is on, which a later card turns on (the high tier). Until then nothing calls
+     this: the guard is a value the bundler cannot fold, so the build still makes the chunks,
+     and check-dist holds them to 15 KB gzipped together. */
+  var bloomImports = null;
+  function loadBloom() {
+    if (!bloomImports) bloomImports = Promise.all([import("../src/world/post.ts"), import("../src/vendor/three-post.js")]);
+    return bloomImports;
+  }
+  if (window.BM_BLOOM_PROBE === "never") loadBloom();
+
   function boot() {
     if (M || starting) return;
     var c = decide();
