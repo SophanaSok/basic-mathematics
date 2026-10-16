@@ -124,6 +124,61 @@ create table if not exists public.event_meta (
   day_calls integer not null default 0
 );
 
+-- Managed learners (docs/decisions/0010-parent-managed-accounts.md). A parent account holds
+-- learners that have no sign-in of their own. From here on `user_id` in user_state, events and
+-- event_meta means "learner id". Every account has a self learner whose id is its account id, so
+-- no existing row moves. Written only through the learner_* functions.
+create table if not exists public.learners (
+  id         uuid primary key default gen_random_uuid(),
+  guardian   uuid not null references auth.users (id) on delete cascade,
+  self       boolean not null default false,
+  name       text check (name is null or char_length(name) between 1 and 40),
+  under13    boolean not null default false,
+  consent_v  smallint,
+  consent_at timestamptz,
+  created_at timestamptz not null default now(),
+  check (self = (id = guardian)),
+  check (not self or not under13),
+  check (not under13 or consent_v is not null)
+);
+comment on table public.learners is 'A person who learns: an account''s self learner (id = account id) or a managed learner. user_id in user_state, events and event_meta is a learners.id.';
+create index if not exists learners_guardian_idx on public.learners (guardian);
+alter table public.learners enable row level security;
+revoke all on table public.learners from anon, authenticated;
+grant select on table public.learners to authenticated;   -- writes only through the learner_* functions
+drop policy if exists "own learners" on public.learners;
+create policy "own learners" on public.learners for select to authenticated
+  using (guardian = (select auth.uid()));
+
+-- every existing account gets its self learner
+insert into public.learners (id, guardian, self) select id, id, true from auth.users on conflict (id) do nothing;
+
+-- and every new account, in the same transaction; it does nothing else, so sign-up cannot fail on it
+create schema if not exists private;
+create or replace function private.learner_self()
+returns trigger
+language plpgsql security definer set search_path = ''
+as $$
+begin
+  insert into public.learners (id, guardian, self) values (new.id, new.id, true) on conflict do nothing;
+  return new;
+end;
+$$;
+drop trigger if exists learners_self on auth.users;
+create trigger learners_self after insert on auth.users
+  for each row execute function private.learner_self();
+
+-- the three data tables now hang on learners (cascade: removing a learner removes its data)
+alter table public.user_state drop constraint if exists user_state_user_id_fkey;
+alter table public.user_state add constraint user_state_user_id_fkey
+  foreign key (user_id) references public.learners (id) on delete cascade;
+alter table public.events drop constraint if exists events_user_id_fkey;
+alter table public.events add constraint events_user_id_fkey
+  foreign key (user_id) references public.learners (id) on delete cascade;
+alter table public.event_meta drop constraint if exists event_meta_user_id_fkey;
+alter table public.event_meta add constraint event_meta_user_id_fkey
+  foreign key (user_id) references public.learners (id) on delete cascade;
+
 -- ------------------------------------------------------- row-level security --
 
 alter table public.profiles enable row level security;
@@ -142,7 +197,8 @@ create policy "own profile" on public.profiles
 drop policy if exists "own state" on public.user_state;
 create policy "own state" on public.user_state
   for all to authenticated
-  using (user_id = (select auth.uid())) with check (user_id = (select auth.uid()));
+  using (user_id in (select l.id from public.learners l where l.guardian = (select auth.uid())))
+  with check (user_id in (select l.id from public.learners l where l.guardian = (select auth.uid())));
 
 alter table public.events enable row level security;
 alter table public.event_meta enable row level security;   -- no policies: only the event functions touch it
@@ -152,7 +208,7 @@ grant select on table public.events to authenticated;   -- the browser may read 
 drop policy if exists "read own events" on public.events;
 create policy "read own events" on public.events
   for select to authenticated
-  using (user_id = (select auth.uid()));
+  using (user_id in (select l.id from public.learners l where l.guardian = (select auth.uid())));
 
 -- --------------------------------------------------------------- functions --
 
@@ -237,6 +293,22 @@ as $$
   order by c.chapter;
 $$;
 
+-- True when the caller's JWT shows a sign-in (an amr entry) within the last 10 minutes. Fails
+-- closed: no claim (read from request.jwt.claims, as auth.jwt() does), a claim that is not an array, or entries without a number timestamp -> false.
+create or replace function private.fresh_auth()
+returns boolean
+language sql stable security definer set search_path = ''
+as $$
+  select coalesce((
+    select max((a.value->>'timestamp')::numeric) between extract(epoch from pg_catalog.now()) - 600
+                                                     and extract(epoch from pg_catalog.now()) + 60
+    from jsonb_array_elements(case when jsonb_typeof(j.amr) = 'array' then j.amr else '[]'::jsonb end) a
+    where jsonb_typeof(a.value) = 'object' and jsonb_typeof(a.value->'timestamp') = 'number'
+  ), false)
+  from (select nullif(pg_catalog.current_setting('request.jwt.claims', true), '')::jsonb -> 'amr' as amr) j;
+$$;
+revoke all on function private.fresh_auth() from public, anon, authenticated;
+
 -- Lets a reader remove their own account; every table above cascades from auth.users.
 create or replace function public.delete_my_account()
 returns void
@@ -244,6 +316,150 @@ language sql security definer set search_path = ''
 as $$
   delete from auth.users where id = (select auth.uid());
 $$;
+
+-- Managed learners: the only way to read-write public.learners. LEARNERS_MAX and consent_current (the
+-- consent version, CONSENT_V) are constants inside the functions; bump it when the consent wording changes.
+create or replace function public.learner_list()
+returns table (id uuid, self boolean, name text, under13 boolean, consent_v smallint, created_at timestamptz)
+language plpgsql security definer set search_path = ''
+as $$
+declare
+  uid uuid := (select auth.uid());
+begin
+  if uid is null then
+    raise exception 'not signed in';
+  end if;
+  insert into public.learners (id, guardian, self) values (uid, uid, true) on conflict do nothing;
+  return query
+    select l.id, l.self, l.name, l.under13, l.consent_v, l.created_at
+    from public.learners l where l.guardian = uid
+    order by l.self desc, l.created_at, l.id;
+end;
+$$;
+
+create or replace function public.learner_add(name text, under13 boolean, consent_v smallint)
+returns uuid
+language plpgsql security definer set search_path = ''
+as $$
+declare
+  LEARNERS_MAX constant integer := 8;
+  consent_current constant smallint := 1;   -- the current consent version (CONSENT_V)
+  uid uuid := (select auth.uid());
+  nm text := btrim(learner_add.name);
+  u13 boolean := coalesce(learner_add.under13, false);
+  new_id uuid;
+begin
+  if uid is null then
+    raise exception 'not signed in';
+  end if;
+  if nm is null or char_length(nm) not between 1 and 40 then
+    raise exception 'bad name';
+  end if;
+  if u13 and learner_add.consent_v is distinct from consent_current then
+    raise exception 'consent required';
+  end if;
+  -- one add at a time per guardian: lock the self learner row
+  insert into public.learners (id, guardian, self) values (uid, uid, true) on conflict do nothing;
+  perform 1 from public.learners l where l.id = uid for no key update;
+  if (select count(*) from public.learners l where l.guardian = uid and not l.self) >= LEARNERS_MAX then
+    raise exception 'too many learners';
+  end if;
+  insert into public.learners (guardian, self, name, under13, consent_v, consent_at)
+    values (uid, false, nm, u13, case when u13 then consent_current end, case when u13 then pg_catalog.now() end)
+    returning learners.id into new_id;
+  return new_id;
+end;
+$$;
+
+create or replace function public.learner_rename(id uuid, name text)
+returns void
+language plpgsql security definer set search_path = ''
+as $$
+declare
+  uid uuid := (select auth.uid());
+  nm text := btrim(learner_rename.name);
+begin
+  if uid is null then
+    raise exception 'not signed in';
+  end if;
+  if nm is null or char_length(nm) not between 1 and 40 then
+    raise exception 'bad name';
+  end if;
+  update public.learners l set name = nm
+    where l.id = learner_rename.id and l.guardian = uid and not l.self;
+  if not found then
+    raise exception 'not your learner';
+  end if;
+end;
+$$;
+
+create or replace function public.learner_mark_under13(id uuid, consent_v smallint)
+returns void
+language plpgsql security definer set search_path = ''
+as $$
+declare
+  consent_current constant smallint := 1;   -- the current consent version (CONSENT_V)
+  uid uuid := (select auth.uid());
+begin
+  if uid is null then
+    raise exception 'not signed in';
+  end if;
+  if learner_mark_under13.consent_v is distinct from consent_current then
+    raise exception 'consent required';
+  end if;
+  update public.learners l set under13 = true, consent_v = learner_mark_under13.consent_v, consent_at = pg_catalog.now()
+    where l.id = learner_mark_under13.id and l.guardian = uid and not l.self;
+  if not found then
+    raise exception 'not your learner';
+  end if;
+end;
+$$;
+
+create or replace function public.learner_delete(id uuid)
+returns void
+language plpgsql security definer set search_path = ''
+as $$
+declare
+  uid uuid := (select auth.uid());
+begin
+  if uid is null then
+    raise exception 'not signed in';
+  end if;
+  if not private.fresh_auth() then
+    raise exception 'stale sign-in';
+  end if;
+  delete from public.learners l where l.id = learner_delete.id and l.guardian = uid and not l.self;
+  if not found then
+    raise exception 'not your learner';
+  end if;
+end;
+$$;
+
+create or replace function public.learner_export(id uuid)
+returns jsonb
+language plpgsql security definer set search_path = ''
+as $$
+declare
+  uid uuid := (select auth.uid());
+  lr public.learners%rowtype;
+begin
+  if uid is null then
+    raise exception 'not signed in';
+  end if;
+  if not private.fresh_auth() then
+    raise exception 'stale sign-in';
+  end if;
+  select * into lr from public.learners l where l.id = learner_export.id and l.guardian = uid;
+  if not found then
+    raise exception 'not your learner';
+  end if;
+  return jsonb_build_object(
+    'learner', row_to_json(lr),
+    'state', (select to_jsonb(s) from public.user_state s where s.user_id = lr.id),
+    'events', coalesce((select jsonb_agg(to_jsonb(e) order by e.seq) from public.events e where e.user_id = lr.id), '[]'::jsonb));
+end;
+$$;
+
 
 -- The Daily board (docs/decisions/0006-keyboard-and-speedruns.md). The ordering everywhere:
 -- score desc, ms asc nulls last, submitted_at asc. Only readers whose profiles.board is true
@@ -520,12 +736,13 @@ $$;
 --   bm-reset   epoch is not the current one        bm-full   the table is over its ceiling, or 25000 rows
 --   bm-quota   more than 3000 new rows today       bm-error  an unexpected failure (logged)
 -- An empty batch is the handshake: it returns the current epoch and seq.
-create or replace function public.events_put(batch jsonb, epoch integer)
+drop function if exists public.events_put(jsonb, integer);   -- replaced by the three-argument form; the default keeps two-argument calls working
+create or replace function public.events_put(batch jsonb, epoch integer, learner uuid default null)
 returns jsonb
 language plpgsql security definer set search_path = ''
 as $$
 declare
-  uid uuid := (select auth.uid());
+  uid uuid := coalesce(learner, (select auth.uid()));
   meta public.event_meta%rowtype;
   -- the UTC day, never current_date: that follows the session's TimeZone, which a request can set
   today date := (pg_catalog.now() at time zone 'UTC')::date;
@@ -536,8 +753,11 @@ declare
   n_new integer;
   added integer;
 begin
-  if uid is null then
+  if (select auth.uid()) is null then
     raise exception 'not signed in';
+  end if;
+  if learner is not null and not exists (select 1 from public.learners l where l.id = learner and l.guardian = (select auth.uid())) then
+    raise exception 'not your learner';
   end if;
   insert into public.event_meta (user_id) values (uid) on conflict do nothing;
   select * into meta from public.event_meta m where m.user_id = uid for update;   -- one call at a time per reader
@@ -736,6 +956,10 @@ revoke execute on function public.leave_board() from public, anon;
 grant execute on function public.submit_daily(text, integer, integer, integer, integer) to authenticated;
 grant execute on function public.daily_board(text) to authenticated;
 grant execute on function public.leave_board() to authenticated;
-revoke all on function public.events_put(jsonb, integer), public.events_usage() from public, anon, authenticated;
-grant execute on function public.events_put(jsonb, integer), public.events_usage() to authenticated;
+revoke all on function public.events_put(jsonb, integer, uuid), public.events_usage() from public, anon, authenticated;
+grant execute on function public.events_put(jsonb, integer, uuid), public.events_usage() to authenticated;
+revoke all on function public.learner_list(), public.learner_add(text, boolean, smallint), public.learner_rename(uuid, text),
+  public.learner_mark_under13(uuid, smallint), public.learner_delete(uuid), public.learner_export(uuid) from public, anon;
+grant execute on function public.learner_list(), public.learner_add(text, boolean, smallint), public.learner_rename(uuid, text),
+  public.learner_mark_under13(uuid, smallint), public.learner_delete(uuid), public.learner_export(uuid) to authenticated;
 revoke all on all functions in schema private from public, anon, authenticated;
