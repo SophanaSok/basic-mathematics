@@ -91,6 +91,10 @@ function skipped(name, why) {
 const twice = (f) => f() || f();
 
 const PART_TIMEOUT_MS = 20 * 60 * 1000; // CI's timeout-minutes for a browser job
+/* the live parts' process groups: a detached child does not get the terminal's Ctrl-C,
+   so an interrupted gate takes its parts down itself */
+const groups = new Set();
+["SIGINT", "SIGTERM"].forEach((sig) => process.on(sig, () => { groups.forEach((kill) => kill()); process.exit(130); }));
 
 /* the browser parts, side by side; each part's output goes to its own log */
 function runParts(names, jobs, env) {
@@ -113,12 +117,16 @@ function runParts(names, jobs, env) {
         const log = fs.openSync(path.join(dir, p + ".log"), "w");
         const t = Date.now();
         live++;
-        const c = cp.spawn(cmd, args, { cwd: ROOT, env: penv, stdio: ["ignore", log, log], shell: false });
+        // its own process group, so a kill reaches npm's and Playwright's children too
+        const c = cp.spawn(cmd, args, { cwd: ROOT, env: penv, stdio: ["ignore", log, log], shell: false, detached: true });
+        const killGroup = () => { try { process.kill(-c.pid, "SIGKILL"); } catch (e) { /* already gone */ } };
+        groups.add(killGroup);
         let timedOut = false;
-        const timer = setTimeout(() => { timedOut = true; c.kill("SIGKILL"); }, PART_TIMEOUT_MS);
+        const timer = setTimeout(() => { timedOut = true; killGroup(); }, PART_TIMEOUT_MS);
         const done = (ok) => {
           if (results[p]) return;
           clearTimeout(timer);
+          groups.delete(killGroup);
           if (timedOut) { ok = false; fs.writeSync(log, "\ntimed out after 20 min\n"); }
           fs.closeSync(log);
           results[p] = { ok, s: secs(t) };
@@ -141,11 +149,12 @@ function writeReceipt(ok, reason) {
     if (opts.part !== undefined) console.log("no receipt for a partial run");
     return ok;
   }
+  // a tree that changed under the run was not the one tested: no receipt at all, so an
+  // earlier passing receipt for the tree that was tested is not overwritten
   const now = out(["git", "status", "--porcelain", "--untracked-files=all"]).out === "" ? git("rev-parse", "HEAD^{tree}").out : null;
   if (now !== receipt.tree) {
-    ok = false;
-    reason = "the tree changed during the run (edited files, or a different commit)";
-    console.error("gate: " + reason);
+    console.error("gate: the tree changed during the run (edited files, or a different commit); no receipt written");
+    return false;
   }
   if (reason) receipt.reason = reason;
   const dir = path.join(path.resolve(ROOT, git("rev-parse", "--git-common-dir").out), "gate");
