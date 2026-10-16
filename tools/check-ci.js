@@ -18,6 +18,8 @@ const SQL_FILE = ".github/workflows/sql.yml";
 const LABEL = "ci";
 /* what deploy and cloudflare wait for: the build, and the browser parts where they ran (a
    push to main skips them: `npm run gate` ran them on the dev box), never after a cancellation */
+const CI_GROUP = "ci-${{ github.ref }}${{ github.event_name == 'pull_request' && format('-{0}', github.event.label.name) || '' }}";
+const SQL_GROUP = "sql-${{ github.ref }}-${{ github.event.label.name }}";
 const GATE = "!cancelled() && needs.build.result == 'success' && (needs.browser.result == 'success' || (github.event_name == 'push' && needs.browser.result == 'skipped'))";
 
 function result() {
@@ -196,7 +198,11 @@ function checkSqlPins(ci, r, sql) {
 /* (k) a pull request runs only when the label is added (the `labeled` event, and build
    goes on only for the label), and a push to main never runs the browser or webgl jobs:
    the dev box's `npm run gate` did, and the merge guard requires its receipt */
-function checkLabel(ci, r) {
+function checkLabel(ci, r, sql) {
+  r.count++;
+  const group = (s) => ((s || "").match(/^concurrency:\n  group: (.*)$/m) || [])[1];
+  if (group(ci) !== CI_GROUP) r.fail(FILE + ": concurrency group is " + JSON.stringify(group(ci)) + ", not " + CI_GROUP + " (another label would cancel a run)");
+  if (sql !== null && group(sql) !== SQL_GROUP) r.fail(SQL_FILE + ": concurrency group is " + JSON.stringify(group(sql)) + ", not " + SQL_GROUP);
   r.count++;
   const buildIf = "if: github.event_name != 'pull_request' || github.event.label.name == '" + LABEL + "'";
   if (!jobOf(ci, "build").split("\n").includes("    " + buildIf)) r.fail(FILE + ": the build job has no job-level `" + buildIf + "`, so a pull request would run without the label");
@@ -216,12 +222,17 @@ function checkGate(ci, r) {
     r.count++;
     const job = jobOf(ci, name);
     const ifs = job.split("\n").filter(l => /^ {4}if:/.test(l));
-    if (ifs.length !== 1 || !ifs[0].startsWith("    if: ${{ ") || !ifs[0].includes(GATE)) r.fail(FILE + ": the " + name + " job does not have exactly one job-level `if: ${{ ... }}` holding the gate " + GATE + " (found " + JSON.stringify(ifs.map(s => s.trim())) + ")");
-    if (name === "deploy" && !(ifs[0] || "").includes("needs.pages-source.outputs.build_type == 'workflow'")) r.fail(FILE + ": the deploy job's if: does not wait for the Pages source to be 'workflow'");
+    const want = "    if: ${{ " + GATE + (name === "deploy" ? " && needs.pages-source.outputs.build_type == 'workflow'" : "") + " }}";
+    if (ifs.length !== 1 || ifs[0] !== want) r.fail(FILE + ": the " + name + " job does not have exactly one job-level line `" + want.trim() + "` (found " + JSON.stringify(ifs.map(s => s.trim())) + ")");
     const needs = /^ {4}needs: \[([^\]]*)\]\s*$/m.exec(job);
     const list = needs ? needs[1].split(",").map(x => x.trim()) : [];
     if (!list.includes("build") || !list.includes("browser")) r.fail(FILE + ": the " + name + " job's needs: does not name build and browser (found " + JSON.stringify(list) + ")");
   });
+  r.count++;
+  const buildLines = jobOf(ci, "build").split("\n");
+  ["      - run: npm run check", "      - run: npm run build", "      - run: npm run check:dist"].forEach(l => { if (!buildLines.includes(l)) r.fail(FILE + ": the build job lacks the line `" + l.trim() + "`: it is the only check on a push to main before production"); });
+  r.count++;
+  jobs(ci).forEach(j => j.code.split("\n").filter(l => /^ {4}continue-on-error:/.test(l)).forEach(l => r.fail(FILE + ": the " + j.name + " job has a job-level `" + l.trim() + "`: a failed job would not hold the deploys back")));
   r.count++;
   jobs(ci).forEach(j => j.code.split("\n").filter(l => /^ {4}if:/.test(l) && /always\(\)/.test(l)).forEach(l => r.fail(FILE + ": the " + j.name + " job has a job-level `" + l.trim() + "`: always() would run it over a failed gate")));
 }
@@ -238,7 +249,7 @@ const CHECKS = [
   { name: "sql-trigger", run: checkSqlTrigger, what: "sql.yml runs on a labeled pull_request alone, only for the label ci, for supabase/** and src/sync/events.ts" },
   { name: "sql-pins", run: checkSqlPins, what: "sql.yml pins every action by SHA and its database image by the digest of tools/sql-test.js" },
   { name: "label", run: checkLabel, what: "a pull request runs only when the label " + LABEL + " is added, and a push to main never runs the browser or webgl jobs" },
-  { name: "gate", run: checkGate, what: "deploy and cloudflare wait for build, and for every browser part where browser ran, and never run after a cancellation" }
+  { name: "gate", run: checkGate, what: "deploy and cloudflare wait for build, and for every browser part where browser ran, and never run after a cancellation; build keeps its checks and no job continues on error" }
 ];
 
 module.exports = { checkInstall };

@@ -1,8 +1,9 @@
 # Runs nothing on a pull request unless the pull request carries the label `ci`. A push
-# to main runs `build` and the deploys only. "Run workflow" (workflow_dispatch) runs
-# everything. The browser parts of a push to main ran on the dev box before the merge,
-# through `npm run gate` (tools/gate.js), and the merge guard requires its receipt, so
-# the runners do not repeat them. A change to only Markdown and docs/ starts no run (the
+# to main runs `build`, `pages-source` and the deploys only. "Run workflow"
+# (workflow_dispatch) runs everything. When a pull request is merged through the merge
+# guard (a local hook; a merge made another way deploys after build alone), the browser
+# parts of the push to main ran on the dev box through `npm run gate` (tools/gate.js) and
+# the guard required its receipt, so the runners do not repeat them. A change to only Markdown and docs/ starts no run (the
 # `on:` block says which paths count).
 #
 #   build       the Node checks (npm run check, the Vitest unit tests and
@@ -86,13 +87,14 @@ on:
 permissions:
   contents: read
 
-# One run at a time for a branch or a pull request. A second labeling of a pull request
-# replaces the run in progress (in a private repository every minute of a run counts against the
+# One run at a time for a branch or a pull request. A second `ci` labeling of a pull request
+# replaces the run in progress; another label (any `labeled` event starts a run, and the
+# label's name is part of the group on a pull request) touches nothing. (In a private repository every minute of a run counts against the
 # account's Actions minutes, so a superseded run is not left to finish). On main nothing in
 # progress is cancelled: runs go one after another in the order of the pushes (of several
 # waiting, only the newest is kept), so an older commit is never deployed after a newer one.
 concurrency:
-  group: ci-${{ github.ref }}
+  group: ci-${{ github.ref }}${{ github.event_name == 'pull_request' && format('-{0}', github.event.label.name) || '' }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
