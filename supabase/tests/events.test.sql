@@ -1,6 +1,8 @@
 -- pgTAP suite for the event log (supabase/migrations/*_events.sql). Run by tools/sql-test.js
--- (npm run test:sql) against a throwaway Postgres in Docker, after the schema as it is on main,
--- the migration (twice) and supabase/tests/prune_cases.sql (generated: do not edit it).
+-- (npm run test:sql) against a throwaway Postgres in Docker, after either the schema as it is on
+-- main plus the new migrations (twice) or the working tree's schema.sql (twice), then
+-- supabase/tests/prune_cases.sql (generated: do not edit it). The runner passes the path it took
+-- and the migrations it applied as the settings bm.sql_path and bm.migrations.
 -- The whole file is one transaction and rolls back.
 --
 -- To act as a signed-in user the suite switches role inside small helper functions (pg_temp.*)
@@ -183,8 +185,8 @@ insert into hv values
   ('a checkpoint with s = today + 2', pg_temp.setp(pg_temp.setp(pg_temp.setx(pg_temp.setx(pg_temp.vz(), 's', '20802'), 'l', '20790'), 1, '20801'), 0, '29953440'), true),
   ('a checkpoint with s = today + 3', pg_temp.setp(pg_temp.setp(pg_temp.setx(pg_temp.setx(pg_temp.vz(), 's', '20803'), 'l', '20790'), 1, '20802'), 0, '29954880'), false);
 
--- 154 hand-counted tests below, plus one per row of the three tables
-select plan(154 + (select count(*)::integer from hv) + (select count(*)::integer from private.valid_cases)
+-- 155 hand-counted tests below, plus one per row of the three tables
+select plan(156 + (select count(*)::integer from hv) + (select count(*)::integer from private.valid_cases)
   + (select count(*)::integer from private.prune_expected));
 
 -- 1. tables, row-level security, policies, grants
@@ -417,10 +419,15 @@ select is((select count(*) from pg_class c join pg_namespace n on n.oid = c.reln
 -- 15. the fresh start (P7): public.attempts is gone, private.fresh_start runs once per key
 select hasnt_table('public', 'attempts', 'public.attempts is dropped');
 select has_table('private', 'once', 'private.once exists');
--- the runner applies the migration only while it is newer than origin/main (the "migration" path
--- of tools/sql-test.js); after that it applies schema.sql alone, which defines private.once and
--- private.fresh_start but runs no fresh start, so private.once is empty. The suite says which it saw.
-create temp table migrated as select exists (select 1 from private.once where key = 'r2-fresh-start') as yes;
+-- the runner says what it applied (settings bm.sql_path and bm.migrations, set in the same session),
+-- so this does not read the answer from private.once, the table under test. The migration writes
+-- the key 'r2-fresh-start'; schema.sql alone defines private.once and private.fresh_start but runs
+-- no fresh start, so on the schema path (and on a migration path without that migration) the table
+-- must be empty. The next assertion checks that both ways. The key is expected only on a run whose
+-- base ref is older than that migration (P7, 2026-10-15): with origin/main current, never.
+select ok(current_setting('bm.sql_path', true) in ('schema', 'migration'), 'the runner said which path it ran (bm.sql_path)');
+select ok((current_setting('bm.sql_path', true) = 'schema') = (coalesce(current_setting('bm.migrations', true), '') = ''), 'the schema path applied no migration and the migration path at least one (bm.migrations)');
+create temp table migrated as select '20261015201142_drop_attempts.sql' = any(string_to_array(coalesce(current_setting('bm.migrations', true), ''), ',')) as yes;
 select is((select string_agg(key, ',' order by key) from private.once), case when (select yes from migrated) then 'r2-fresh-start' end, 'private.once holds r2-fresh-start when the migration ran, and nothing from schema.sql alone');
 select has_function('private', 'fresh_start', array['text'], 'private.fresh_start exists');
 select is(has_function_privilege('authenticated', 'private.fresh_start(text)', 'execute'), false, 'authenticated cannot execute private.fresh_start');
