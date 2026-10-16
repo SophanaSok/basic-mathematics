@@ -17,8 +17,8 @@ Procedure:
 2. Make the smallest change inside the allowed file list. Generators own their output:
    change the generator and re-run it, never hand-edit generated files. If question
    text changes, move `DEFAULT_BASE` in `tools/lib/site.js` as `AGENTS.md` says.
-3. Run the done-when until green, then `npm run check`. Run `npm run check:all` only
-   when the brief says so (normally the final fix pass).
+3. Run the done-when until green, then `npm run check`. Never run `npm run gate` or
+   `npm run check:all`: the runner does, after the commit (the gate needs a clean, committed tree).
 4. Never commit, branch, push or touch `.env`.
 
 Finish what you start: before your report, nothing you started may still be running. A command

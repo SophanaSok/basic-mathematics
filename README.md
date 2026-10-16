@@ -473,8 +473,8 @@ vitest.config.ts        for `npm run test:unit`: the src/ unit tests, in Node, a
 src/types/state.ts      the shapes of what the site keeps in localStorage (types only, so far)
 src/types/globals.d.ts  the window.BM* globals the scripts share, each `any` until its file is converted
 public/.nojekyll        copied into dist/
-.github/workflows/      CI: the checks on every pull request, the deploys to Cloudflare Pages, and
-                        main's redirect site to GitHub Pages
+.github/workflows/      CI: the checks and deploys on a push to main, and the full checks on a pull request labeled `ci`; the deploys to
+                        Cloudflare Pages and main's redirect site to GitHub Pages
 .nojekyll               left from when GitHub Pages published the branch itself; nothing needs it now
 ```
 
@@ -1385,7 +1385,7 @@ that was already there was edited, renamed or removed.
 
 The browser scripts load the build, `dist/`, over http, and refuse to run when it is missing or
 older than anything it is built from (`run npm run build first`): the source tree is not a site,
-so there is nothing else to test. CI runs all of this on every pull request
+so there is nothing else to test. `npm run gate` runs all of this before a merge, the parts in parallel and the WebGL checks when a 3D path changed, with a receipt; CI runs it on a pull request labeled `ci` and on Run workflow
 ([`.github/workflows/ci.yml`](.github/workflows/ci.yml)).
 
 Still checked by hand: a clue (`data-hint`, `data-hint2`, `data-hint3`) names the next idea and
@@ -1396,15 +1396,16 @@ names; a new `order` list is authored in the right order; a new puzzle's temptin
 ### Deploying
 
 The course is served from one place: **Cloudflare Pages, at `https://learn.groundupmath.org`**.
-A push to `main` runs the checks and the build in GitHub Actions (unless it changes only
+The browser checks run on the dev box before a merge (`npm run gate`; the merge guard requires its
+receipt, so a merge made another way skips them). A push to `main` runs `npm run check` and the build in GitHub Actions (unless it changes only
 Markdown and `docs/`, which the site is not built from: OPERATIONS.md, "When CI runs"), and once
-the `build` and `browser` jobs have passed, the `cloudflare` job publishes that run's `dist/` there as production
+the `build` job has passed, the `cloudflare` job publishes that run's `dist/` there as production
 (`cloudflare/wrangler-action`, with the repository secrets `CLOUDFLARE_API_TOKEN` and
-`CLOUDFLARE_ACCOUNT_ID`). Each pull request from a branch of this repository is published the
+`CLOUDFLARE_ACCOUNT_ID`). Each pull request labeled `ci`, from a branch of this repository, is published the
 same way as a preview, under `pr-<number>`, whose address the job writes into its summary and one
 comment on the pull request; without the secrets, and for a pull request from a fork, it deploys
-nothing and says so in a notice. The WebGL checks run in a job of their own, retried, and do not
-hold a deploy back. Runs on `main` go one at a time, in the order of the pushes, so an older
+nothing and says so in a notice. On a pull request labeled `ci` the WebGL checks run in a job of their own, retried; on main
+neither they nor the `browser` job run, and no deploy waits for them. Runs on `main` go one at a time, in the order of the pushes, so an older
 commit is never published over a newer one; for the same reason a re-run of an old run refuses
 to deploy once `main` has moved on (re-run the newest run, or use Run workflow, which also
 publishes again without a new commit).

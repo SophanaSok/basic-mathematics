@@ -27,8 +27,8 @@ npm run gate                               # the deploy gate on this machine, pa
 ```
 
 `node tools/<script>.js` works just as well, and `npm run <name> -- --flag` passes a flag through.
-Every script exits 1 on any failure. Run `npm run check` on every edit and the rest before a
-push; CI (`.github/workflows/ci.yml`) runs all of it on every pull request.
+Every script exits 1 on any failure. Run `npm run check` on every edit and `npm run gate` before a
+merge; CI (`.github/workflows/ci.yml`) runs all of it on a pull request labeled `ci` and on Run workflow, and `build` alone on a push to main.
 
 ## What the browser scripts load: the build
 
