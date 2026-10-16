@@ -95,7 +95,7 @@
     },
     {
       "file": "assets/game.css",
-      "selector": "html:not([data-calm]):not([data-motion=\"reduce\"]) .ex[data-state=\"correct\"]:not([data-restored]) .tick path",
+      "selector": "html:not([data-calm]):not([data-motion=\"reduce\"]) .ex[data-state=\"correct\"]:not([data-restored]) .tick",
       "kinds": [
         "animation"
       ],

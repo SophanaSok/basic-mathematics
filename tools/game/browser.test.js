@@ -820,7 +820,7 @@ async function run() {
         };
       });
       eq([st.medal, st.chip], [["1 of 3 stars", 1, 3], "1 of 3 stars"], "the finale and the banner draw the medal's stars, with words");
-      check(!/★/.test(st.text.replace(/★ \d+ \/ \d+ missions/, "")), "no star characters left for the medal");
+      check(!/★/.test(st.text), "no star characters left for the medal or the missions");
       eq(errors, [], "no errors in the toast and hearts run");
       await context.close();
     }
@@ -1137,20 +1137,21 @@ async function run() {
       await type("FORM");
       s = await ar();
       eq([s.phase, s.hearts, s.streak, s.ans && s.ans.miss, s.ans && s.ans.lost, s.nudge, s.verdict],
-        ["retry", 2, 0, true, true, "", ["no", "form", "✗ Right values. Write it as (6, -2). That cost a heart."]],
+        ["retry", 2, 0, true, true, "", ["no", "form", "Right values. Write it as (6, -2). That cost a heart."]],
         "form in the Arena is a miss (heart, streak), and its reason stands in for the miss text");
       await a.page.reload();
       await a.page.waitForFunction(() => document.readyState === "complete");
       s = await ar();
-      eq([s.phase, s.verdict && s.verdict[2]], ["retry", "✗ Right values. Write it as (6, -2). That cost a heart."], "the reason survives a reload with the run");
+      eq([s.phase, s.verdict && s.verdict[2]], ["retry", "Right values. Write it as (6, -2). That cost a heart."], "the reason survives a reload with the run");
       await a.page.evaluate(INJECT, VERDICTS);
       await type("FORM");
       s = await ar();
-      eq([s.phase, s.hearts, s.verdict], ["done", 2, ["no", "form", "✗ Right values. Write it as (6, -2). Here is how it goes."]], "form on the retry: the second miss, with its reason");
+      eq([s.phase, s.hearts, s.verdict], ["done", 2, ["no", "form", "Right values. Write it as (6, -2). Here is how it goes."]], "form on the retry: the second miss, with its reason");
       await a.page.click('.arena-feedback [data-act="next"]');
       await type("987654321");
       s = await ar();
-      eq([s.phase, s.hearts, s.verdict], ["retry", 1, ["no", null, "✗ Not right, and that cost a heart."]], "a wrong answer still reads as before");
+      eq([s.phase, s.hearts, s.verdict], ["retry", 1, ["no", null, "Not right, and that cost a heart."]], "a wrong answer still reads as before");
+      check(await a.page.$(".arena-feedback .arena-verdict[data-kind=\"no\"] svg.icon-cross") !== null, "the miss verdict carries the cross icon");
       eq(a.errors, [], "no errors through the injected verdicts in the Arena");
       await a.context.close();
     }
@@ -1291,7 +1292,7 @@ async function run() {
       await type(decimal3(s.key));
       s = await ar();
       eq([s.phase, s.hearts, s.streak, s.ans && s.ans.miss, s.ans && s.ans.lost, s.nudge, s.verdict],
-        ["retry", 2, 0, true, true, "", ["no", "form", "✗ That is rounded. Give the exact value. That cost a heart."]],
+        ["retry", 2, 0, true, true, "", ["no", "form", "That is rounded. Give the exact value. That cost a heart."]],
         "a rounded decimal for a fraction key is form/rounded: a miss in the Arena (Q1(c)), heart and streak, with its reason");
       await type(s.key);
       s = await ar();

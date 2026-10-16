@@ -13,6 +13,12 @@
   var Insights = window.BMInsights, Account = window.BMAccount, Game = window.BMGame;
   if (!C || !Site || !Store) return;
   var esc = Site.escapeHtml;
+  /* An icon from src/ui/icon.ts (window.BMIcon), as markup; a page whose entry does not load it
+     gets the old glyph, never a blank. */
+  function ico(name, glyph, cls) {
+    var svg = window.BMIcon && window.BMIcon.svg(name, cls);
+    return svg || glyph;
+  }
 
   function pct(a, b) { return b ? Math.round((a / b) * 100) : 0; }
   function plural(n, word) { return n + " " + word + (n === 1 ? "" : "s"); }
@@ -101,12 +107,12 @@
         html += '<td class="cell-meter">' + (c.total
           ? meter(pct(c.solved, c.total), "part") + "<span>" + c.solved + " / " + c.total + "</span>"
           : '<span class="muted">not opened</span>') + "</td>";
-        html += '<td class="num">' + (m.total ? "★ " + Math.min(m.done, m.total) + " / " + m.total : "—") + "</td>";
+        html += '<td class="num">' + (m.total ? ico("star", "★") + " " + Math.min(m.done, m.total) + " / " + m.total : "—") + "</td>";
         html += '<td class="num">' + (tried[ch.id] ? pct(first[ch.id], tried[ch.id]) + "%" : "—") + "</td>";
         if (Game) {
           var md = Game.medal(ch.id, "practice");
           html += '<td class="num cell-medal"' + (md ? ' data-medal="' + md + '"' : "") + ">" +
-            (md ? (Game.stars ? Game.stars(md, true) : '<span aria-hidden="true">' + new Array(md + 1).join("★") + "</span>") +
+            (md ? (Game.stars ? Game.stars(md, true) : '<span aria-hidden="true">' + new Array(md + 1).join(ico("star", "★")) + "</span>") +
               " " + Game.MEDALS[md] : "—") + "</td>";
         }
         html += "</tr>";
@@ -260,7 +266,7 @@
     }
     html += tile("Exercises solved", solved, plural(done, "chapter") + " finished");
     html += tile("Right the first time", tried ? pct(first, tried) + "%" : "—", tried ? "of " + tried + " questions tried" : "nothing tried yet");
-    html += tile("Missions", "★ " + stars, "on the figures");
+    html += tile("Missions", ico("star", "★") + " " + stars, "on the figures");
     html += "</div>";
 
     html += '<section class="panel"><div class="panel-head"><h2>Last 14 days</h2>' +

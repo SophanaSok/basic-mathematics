@@ -154,6 +154,29 @@ const NOTES = {
   katex: "The fonts beside the bundle (KaTeX_*.woff2, .woff and .ttf) are not under the MIT licence above. Each carries this notice in its name table: \"Copyright (c) 2009-2010, Design Science, Inc. (<www.mathjax.org>) Copyright (c) 2014-2018 Khan Academy (<www.khanacademy.org>), with Reserved Font Name KaTeX_<Family>. This Font Software is licensed under the SIL Open Font License, Version 1.1. This license available with a FAQ at: http://scripts.sil.org/OFL\". The text of that licence is below, in the sections of the @fontsource packages, whose fonts are under it too."
 };
 
+/* Packages the build reads but the bundle does not import: a generator's input whose
+   output is committed (tools/gen-icons.js reads Phosphor's SVG files into src/data/icons.json).
+   Each gets a section after the others, from its installed package.json and licence file. */
+const GENERATOR_PACKAGES = [
+  { name: "@phosphor-icons/core", by: "tools/gen-icons.js" }
+];
+
+function generatorSection(g, rule) {
+  const dir = path.join(ROOT, "node_modules", g.name);
+  if (!fs.existsSync(path.join(dir, "package.json"))) throw new Error(g.name + " is not installed; run `npm ci`");
+  const meta = JSON.parse(fs.readFileSync(path.join(dir, "package.json"), "utf8"));
+  const file = fs.readdirSync(dir).filter(f => /^licen[cs]e(\.(md|txt))?$/i.test(f)).sort()[0] || null;
+  const text = file ? fs.readFileSync(path.join(dir, file), "utf8").replace(/\r\n/g, "\n").trim() : "";
+  return [
+    rule,
+    g.name + " " + meta.version + " — " + meta.license + " — brought in by " + g.by,
+    rule,
+    text ? file + ":\n\n" + text : "(the package ships no licence file; its package.json names the licence above)",
+    "",
+    "Note: only its icon outlines (SVG path data) are in the site, copied into src/data/icons.json by " + g.by + "."
+  ].join("\n");
+}
+
 /* the text of bundle/LICENSES.txt: what the bundle holds that is not the site's own,
    and under what terms, from the installed packages */
 function licenseNotice() {
@@ -176,7 +199,7 @@ function licenseNotice() {
     rule,
     p.text ? p.file + ":\n\n" + p.text : "(the package ships no licence file; its package.json names the licence above)"
   ].concat(NOTES[p.name] ? ["", "Note: " + NOTES[p.name]] : []).join("\n"));
-  return head.concat([""], sections.join("\n\n")).join("\n") + "\n";
+  return head.concat([""], sections.concat(GENERATOR_PACKAGES.map(g => generatorSection(g, rule))).join("\n\n")).join("\n") + "\n";
 }
 
 module.exports = { DIR, NOTICE, packageName, packageOf, closure, vendorModules, vendorOf, packages, licenseNotice };

@@ -313,7 +313,7 @@ function refusal(fn) { try { fn(); return null; } catch (e) { return e.message; 
   check(out.endsWith(src.slice(src.indexOf("\n\n<div class=\"wrap\">"))), "everything after the top-bar marker is the source's, byte for byte");
   eq(parse(out).query("head").children_elements.slice(0, 4).map(el => el.name + ":" + (el.getAttribute("charset") || el.getAttribute("name") || el.textContent)),
     ["meta:utf-8", "meta:viewport", "title:A title", "meta:description"], "the head opens with charset, viewport, then the page's own title and description");
-  eq(sheets(out), ["src/vendor/fonts.css", "src/vendor/katex.css", "src/styles/tokens.css", "assets/site.css", "assets/game.css"], "a page links the fonts' and KaTeX's stylesheets, then the tokens, site.css and game.css");
+  eq(sheets(out), ["src/vendor/fonts.css", "src/vendor/katex.css", "src/styles/icons.css", "src/styles/tokens.css", "assets/site.css", "assets/game.css"], "a page links the fonts' and KaTeX's stylesheets, then the icon masks, the tokens, site.css and game.css");
   eq(scripts(out), ["src/entries/page.js"], "… and loads the one module entry of its kind, and no other script by URL");
   check(!/https?:\/\//.test(parse(out).query("head").children_elements.map(el => Object.values(el.attrs).join(" ")).join(" ")), "nothing in <head> names another server");
   const outDoc = parse(out), all = outDoc.queryAll("script");
@@ -601,7 +601,7 @@ function refusal(fn) { try { fn(); return null; } catch (e) { return e.message; 
   eq(shellDiff(base, base), [], "the same shell is no difference");
   const expanded = render('data-depth="2" data-chapter="ch99" data-part="algebra"', "parts/p/c.html");
   const fontsLink = '<link rel="stylesheet" href="../../src/vendor/fonts.css">', katexLink = '<link rel="stylesheet" href="../../src/vendor/katex.css">';
-  check(expanded.includes(fontsLink + "\n" + katexLink + '\n<link rel="stylesheet" href="../../src/styles/tokens.css">\n<link rel="stylesheet" href="../../assets/site.css">'), "the vendor stylesheets are linked in order, before the site's own, the tokens first of those");
+  check(expanded.includes(fontsLink + "\n" + katexLink + '\n<link rel="stylesheet" href="../../src/styles/icons.css">\n<link rel="stylesheet" href="../../src/styles/tokens.css">\n<link rel="stylesheet" href="../../assets/site.css">'), "the vendor stylesheets are linked in order, before the site's own, the icon masks and the tokens first of those");
   check(/^head entry \d+ is now `<link rel='stylesheet' href='..\/..\/src\/vendor\/fonts.css' media='print'>`, accepted `<link rel='stylesheet' href='..\/..\/src\/vendor\/fonts.css'>`/.test(shellDiff(facts(expanded.replace(fontsLink, fontsLink.replace(">", ' media="print">'))), base)[0] || ""), "an attribute added to a link shows");
   const swapped = expanded.replace(fontsLink + "\n" + katexLink, katexLink + "\n" + fontsLink);
   check(swapped !== expanded && /^head entry \d+ is now `<link rel='stylesheet' href='..\/..\/src\/vendor\/katex.css'>`/.test(shellDiff(facts(swapped), base)[0] || ""), "two stylesheets in the other order show");
@@ -1221,6 +1221,82 @@ function refusal(fn) { try { fn(); return null; } catch (e) { return e.message; 
   const real = us.check();
   eq(real.problems, [], "us-english: the real tree passes against tools/us-english-allow.json");
   check(CHECKS.some(c => c.name === "us-english"), "us-english: check-static runs it");
+}
+
+/* ------------------------------------------------------------------ icons -- */
+{
+  const gen = require("./gen-icons");
+  const il = require("./lib/icons");
+  const { checkIcons } = require("./check-static");
+  const wrap = (inner, attrs) => '<svg xmlns="http://www.w3.org/2000/svg" viewBox="' + ((attrs && attrs.viewBox) || "0 0 256 256") + '" fill="currentColor">' + inner + "</svg>";
+  const rejects = (svg, re, what) => {
+    let msg = "";
+    try { il.parseSvg(svg, "x.svg"); } catch (e) { msg = e.message; }
+    check(re.test(msg), "icons whitelist rejects " + what + " — got " + JSON.stringify(msg));
+  };
+  rejects(wrap('<script>alert(1)</script>'), /script.*not allowed|not self-closed/, "a <script>");
+  rejects(wrap('<path onload="x" d="M0 0"/>'), /`onload` is not allowed/, "a <path onload>");
+  rejects(wrap('<path style="x" d="M0 0"/>'), /`style` is not allowed/, "a style attribute");
+  rejects(wrap('<g><path d="M0 0"/></g>'), /<g> is not allowed/, "a <g>");
+  rejects(wrap('<path d="url(#a)"/>'), /url\(/, "a d containing url(");
+  rejects(wrap('<path d="M0 0"/>', { viewBox: "0 0 24 24" }), /viewBox/, "a wrong viewBox");
+  rejects(wrap('hello<path d="M0 0"/>'), /text content/, "text content");
+  rejects(wrap('<path d="M0 0 <b>"/>'), /not allowed, or is not self-closed/, "markup in an attribute");
+  rejects(wrap('<path d="M0 0 q;x"/>'), /characters beyond/, "a d with other characters");
+  rejects(wrap('<path d="M0 0"/><!-- c -->'), /comment/, "a comment");
+  rejects(wrap('<path href="x" d="M0 0"/>'), /`href` is not allowed/, "an href");
+  rejects(wrap('<rect width="10" height="256" fill="none"/><path d="M0 0"/>'), /bounding rect/, "another rect");
+  eq(il.parseSvg(wrap('<rect width="256" height="256" fill="none"/><path d="M0,0L1.5e2-3Z"/><path fill="currentColor" d="M1 1h2z"/>')), ["M0,0L1.5e2-3Z", "M1 1h2z"], "icons whitelist accepts a two-path SVG and drops the bounding rect");
+
+  rejects(wrap('<path fill="none" d="M0 0"/>'), /fill must be currentColor/, "a path with fill none");
+  rejects(wrap('<path fill="red" d="M0 0"/>'), /fill must be currentColor/, "a path with another fill");
+  rejects(wrap('<path d="M0 0"/>' + " ".repeat(33 * 1024)), /larger than/, "an SVG over 32 KB");
+  {
+    const t0 = Date.now();
+    rejects(wrap("<path" + " ".repeat(50000) + "x"), /larger than|not allowed|malformed/, "a long whitespace run");
+    rejects("<svg" + " ".repeat(20000) + "x", /does not start|does not end/, "a long whitespace run in <svg>");
+    rejects(wrap("<path" + " ".repeat(20000) + 'x="1"/>'), /malformed|not allowed/, "a long whitespace run before an attribute");
+    check(Date.now() - t0 < 1000, "icons whitelist: whitespace runs are rejected in well under a second (took " + (Date.now() - t0) + " ms)");
+  }
+  {
+    const throws = (f, re, what) => { let m = ""; try { f(); } catch (e) { m = e.message; } check(re.test(m), what + " — got " + JSON.stringify(m)); };
+    throws(() => gen.fileOf({ package: "@phosphor-icons/core" }, "regular/check"), /weight bold or fill/, "icons: fileOf rejects a weight other than bold/fill");
+    throws(() => gen.fileOf({ package: "@phosphor-icons/core" }, "bold/../x"), /weight bold or fill/, "icons: fileOf rejects a name with a path in it");
+    throws(() => gen.render({ package: "@phosphor-icons/not-installed-here", version: "1.0.0", icons: {} }), /is not installed; run `npm ci`/, "icons: render() says to run npm ci when the package is missing");
+  }
+  {
+    const shell = require("./lib/shell");
+    const data = JSON.parse(fs.readFileSync(gen.FILE, "utf8"));
+    const src = fs.readFileSync(path.join(__dirname, "lib/shell.js"), "utf8");
+    const used = Array.from(new Set(Array.from(src.matchAll(/\bicon\("([a-z-]+)"\)/g)).map(m => m[1]))).sort();
+    check(used.length >= 5, "shell icons: found the icon() calls (" + used.join(", ") + ")");
+    used.forEach(n => {
+      const to = shell.ICON_OF[n];
+      check(to && data.icons[to], "shell icons: icon(\"" + n + "\") maps to a generated icon (" + to + ")");
+      check(shell.icon(n).includes('viewBox="0 0 256 256"') && shell.icon(n).includes('class="icon icon-' + n + '"') && !/stroke/.test(shell.icon(n)), "shell icons: icon(\"" + n + "\") is 256-grid, keeps its class, is all fills");
+    });
+    const css = fs.readFileSync(gen.CSS_FILE, "utf8");
+    Object.keys(data.icons).forEach(n => check(css.includes("--icon-" + n + ": url("), "icons.css has --icon-" + n));
+  }
+
+  check(gen.render() === gen.render(), "icons: render() is deterministic");
+  const real = fs.readFileSync(gen.FILE, "utf8");
+  check(real === gen.render(), "icons: the live src/data/icons.json is the generator's output");
+  let r = result();
+  checkIcons({}, r);
+  eq(r.fails, [], "icons: the real tree passes");
+  const data = JSON.parse(real);
+  data.icons.tick.paths[0] += "<script>";
+  r = result();
+  checkIcons({}, r, JSON.stringify(data, null, 2) + "\n");
+  check(r.fails.some(m => /holds characters beyond path data/.test(m)), "icons: markup hand-edited into a path fails from the committed file alone");
+  delete data.icons.tick;
+  r = result();
+  checkIcons({}, r, JSON.stringify(data, null, 2) + "\n");
+  check(r.fails.some(m => /`tick` is in tools\/icons.json but not in src\/data\/icons.json/.test(m)), "icons: a mapped name missing from the output fails");
+  check(CHECKS.some(c => c.name === "icons"), "icons: check-static runs it");
+  const n = vendor.licenseNotice();
+  check(n.includes("\n@phosphor-icons/core 2.1.1 — MIT — brought in by tools/gen-icons.js\n") && /MIT License[\s\S]*Copyright \(c\) 2023 Phosphor Icons/.test(n), "licenseNotice() has the Phosphor section with its MIT text");
 }
 
 /* ------------------------------------------------------------------ scope -- */

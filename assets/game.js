@@ -1348,6 +1348,13 @@
 
   /* ------------------------------------------------------ banner chips ---- */
 
+  /* An icon from src/ui/icon.ts (window.BMIcon), as markup; a page whose entry does not load it
+     gets the old glyph, never a blank. */
+  function ico(name, glyph, cls) {
+    var svg = window.BMIcon && window.BMIcon.svg(name, cls);
+    return svg || glyph;
+  }
+
   /* A medal as three drawn stars (game.css paints each <i>, lit ones with data-on) and
      its count in words. `compact` sizes them to a line of text: a chip, a table cell. */
   function starsHtml(m, compact) {
@@ -1370,7 +1377,7 @@
     if (m) html += '<span class="banner-stat" data-medal="' + m + '">' + starsHtml(m, true) + " " + MEDALS[m] + " medal</span>";
     var miss = Play.count(ch.id);
     if (miss.total) {
-      html += '<span class="banner-stat"><b>★ ' + Math.min(miss.done, miss.total) + " / " + miss.total + "</b> missions</span>";
+      html += '<span class="banner-stat"><b>' + ico("star", "★") + " " + Math.min(miss.done, miss.total) + " / " + miss.total + "</b> missions</span>";
     }
     setText(host, html);
   }

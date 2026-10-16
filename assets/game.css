@@ -391,7 +391,6 @@ html[data-calm] .hud-sound { opacity: .5; cursor: not-allowed; }
 /* the right value in a form the key does not take: a hint's ink, no cross and no tick */
 .ex-verdict.form { color: var(--hint-ink); font-family: var(--sans); font-weight: 500; font-size: .92rem; }
 .ex-verdict .tick, .ex-feedback .tick { width: 1.15em; height: 1.15em; flex: none; }
-.ex-feedback .tick path { fill: none; stroke: currentColor; stroke-width: 2.6; stroke-linecap: round; stroke-linejoin: round; }
 
 .ex-hint {
   margin: 0 0 .6rem; padding: .85rem 1.1rem .95rem;
@@ -801,10 +800,10 @@ html[data-motion="reduce"] *, html[data-motion="reduce"] *::before, html[data-mo
    Nothing here lasts more than 900ms, and nothing loops. */
 
 @media (prefers-reduced-motion: no-preference) {
-  /* a correct answer: the card pops, the tick draws, the stamp lands, the XP rises */
+  /* a correct answer: the card pops, the tick pops in, the stamp lands, the XP rises */
   html:not([data-calm]):not([data-motion="reduce"]) .ex[data-state="correct"]:not([data-restored]) { animation: pop 320ms var(--ease-spring); }
-  html:not([data-calm]):not([data-motion="reduce"]) .ex[data-state="correct"]:not([data-restored]) .tick path {
-    stroke-dasharray: 22; stroke-dashoffset: 22; animation: tick-draw 400ms 100ms var(--ease-out) forwards;
+  html:not([data-calm]):not([data-motion="reduce"]) .ex[data-state="correct"]:not([data-restored]) .tick {
+    animation: pop 320ms 100ms var(--ease-spring) both;
   }
   html:not([data-calm]):not([data-motion="reduce"]) .ex[data-state="correct"]:not([data-restored]) .ex-stamp { animation: stamp 280ms 120ms var(--ease-spring) both; }
   html:not([data-calm]):not([data-motion="reduce"]) .ex[data-state="correct"]:not([data-restored]) .ex-reward { animation: rise 600ms var(--ease-out) both; }
@@ -923,7 +922,6 @@ html[data-motion="reduce"] *, html[data-motion="reduce"] *::before, html[data-mo
   @keyframes reveal { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
   @keyframes fade { from { opacity: 0; } to { opacity: 1; } }
   @keyframes fade-out { to { opacity: 0; } }
-  @keyframes tick-draw { to { stroke-dashoffset: 0; } }
   @keyframes rise { from { opacity: 0; transform: translateY(18px); } to { opacity: 1; transform: none; } }
   @keyframes stamp { 0% { opacity: 0; transform: scale(1.5) rotate(-8deg); } 100% { opacity: 1; transform: scale(1) rotate(-3deg); } }
   @keyframes flash { 0% { filter: brightness(1.35); } 100% { filter: none; } }
@@ -1009,7 +1007,7 @@ html[data-motion="reduce"] *, html[data-motion="reduce"] *::before, html[data-mo
 }
 .form-tile-name { font-size: 1rem; }
 .form-tile-level { display: inline-flex; align-items: center; gap: .3rem; font-size: .85rem; color: var(--muted); }
-.form-lock { flex: none; }
+.form-lock, svg.icon.form-lock { flex: none; width: 14px; height: 14px; }
 .form-tile-tag { font-size: .75rem; font-weight: 600; color: var(--muted); min-height: 1em; }
 .form-tile-tag:empty { display: none; }
 .form-view.is-anticipating::after {

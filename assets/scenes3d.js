@@ -723,7 +723,7 @@
     var canvas = h("canvas", { class: "s3d-canvas", "aria-hidden": "true" });
     var over = el("svg", { class: "s3d-over", viewBox: "0 0 " + VW + " " + VH, "aria-hidden": "true", focusable: "false" });
     var tools = h("div", { class: "s3d-tools" });
-    var resetBtn = h("button", { type: "button", class: "icon-btn s3d-reset", "aria-label": "Reset view", title: "Reset view" }, "↺");
+    var resetBtn = h("button", { type: "button", class: "icon-btn s3d-reset", "aria-label": "Reset view", title: "Reset view" }, (window.BMIcon && window.BMIcon.svg("reset")) || "↺");
     var status = h("p", { class: "s3d-status" });
     status.hidden = true;
     tools.appendChild(resetBtn);
