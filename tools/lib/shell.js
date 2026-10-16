@@ -186,7 +186,7 @@ const TIMER_ON = ["arena"];
 const ICON_DATA = require("../../src/data/icons.json");
 const ICON_OF = { flame: "flame", close: "close", "sound-on": "sound", "sound-off": "mute", menu: "menu" };
 function icon(name) {
-  const from = ICON_OF[name], e = from && ICON_DATA.icons[from];
+  const from = ICON_OF[name] || (ICON_DATA.icons[name] ? name : undefined), e = from && ICON_DATA.icons[from];
   if (!e) throw new Error("shell icon `" + name + "` has no icon in src/data/icons.json");
   return '<svg class="icon icon-' + name + '" viewBox="' + ICON_DATA.viewBox + '" aria-hidden="true" focusable="false">' +
     e.paths.map(d => '<path d="' + d + '" fill="currentColor"/>').join("") + "</svg>";

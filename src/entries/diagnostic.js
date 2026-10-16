@@ -32,6 +32,9 @@ import "../sync/json.ts";
 import "../sync/events.ts";
 import "../sync/merge.ts";
 import "../ui/core.ts";
+/* the icons site.js draws (window.BMIcon): their data, then the helper, before it */
+import "../data/icons.json";
+import "../ui/icon.ts";
 import "../../assets/site.js";
 /* the event log's schedule, checkpoint, mastery and bands, and the recorder, which
    src/ui/events.ts (window.BMEvents) puts up: the pure modules first */

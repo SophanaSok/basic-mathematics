@@ -26,6 +26,7 @@ import { XP } from "../core/rules.ts";
 import { createFormView, type FormView } from "./form-view.ts";
 import { mountEmotes } from "./form-emotes.ts";
 import { modelFor } from "../data/form-models.ts";
+import { iconSvg } from "./icon.ts";
 
 const WATCH = ["sync", "reset", "level", "xp", "form", "theme", "prefs"];
 /* 2100-01-01 in ms: the latest `at` of a stored wear that is believed */
@@ -92,9 +93,7 @@ function xpRules(): string {
     "</ul>";
 }
 
-const LOCK = '<svg class="form-lock" viewBox="0 0 16 16" width="14" height="14" aria-hidden="true" focusable="false">' +
-  '<rect x="3" y="7" width="10" height="7" rx="1.5" fill="currentColor"/>' +
-  '<path d="M5.5 7V5a2.5 2.5 0 0 1 5 0v2" fill="none" stroke="currentColor" stroke-width="1.6"/></svg>';
+const LOCK = iconSvg("lock", "form-lock").replace("<svg ", '<svg width="14" height="14" ');
 
 /* the strip's picture of a stage: the rendered thumbnail the manifest names, under the site's root */
 function thumbSrc(n: number): string {

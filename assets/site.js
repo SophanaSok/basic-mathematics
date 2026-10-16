@@ -339,14 +339,14 @@
     html += '<div class="sidebar-body">';
     html += '<h2>In this chapter</h2><ol>';
     if (document.getElementById("warmup")) {
-      html += '<li><a href="#warmup"><span class="counter">↺</span>Warm-up</a></li>';
+      html += '<li><a href="#warmup"><span class="counter">' + ico("reset", "↺") + '</span>Warm-up</a></li>';
     }
     chapter.sections.forEach(function (s, i) {
       html += '<li><a href="#' + s.id + '"><span class="counter">' + (i + 1) + "</span>" +
         escapeHtml(s.title) + "</a></li>";
     });
     if (document.getElementById("practice")) {
-      html += '<li><a href="#practice"><span class="counter">★</span>Practice</a></li>';
+      html += '<li><a href="#practice"><span class="counter">' + ico("star", "★") + '</span>Practice</a></li>';
     }
     html += "</ol>";
     if (document.getElementById("practice")) {
@@ -366,7 +366,7 @@
     html += "</div>";
 
     host.innerHTML =
-      '<button class="icon-btn sidebar-toggle ui" type="button" aria-expanded="false">☰ Chapter contents</button>' + html;
+      '<button class="icon-btn sidebar-toggle ui" type="button" aria-expanded="false">' + ico("menu", "☰") + ' Chapter contents</button>' + html;
 
     var toggle = host.querySelector(".sidebar-toggle");
     var collapsedOnSmall = window.matchMedia("(max-width: 999px)").matches;
@@ -478,7 +478,7 @@
         html += '<li class="stop" data-state="' + state + '" data-chapter="' + escapeHtml(ch.id) + '">';
         html += '<a class="stop-link" href="' + escapeHtml(ch.path) + '">';
         html += '<span class="stop-node" style="--pct:' + pct + '" aria-hidden="true"><span>' +
-          (c.done ? "✓" : escapeHtml(ch.label === "Interlude" ? "§" : ch.label)) + "</span></span>";
+          (c.done ? ico("tick", "✓") : escapeHtml(ch.label === "Interlude" ? "§" : ch.label)) + "</span></span>";
         html += '<span class="stop-card">';
         html += '<span class="row"><span class="label">' + escapeHtml(chapterName(ch)) + "</span>";
         if (state === "current") html += '<span class="badge here">You are here</span>';
@@ -492,8 +492,8 @@
           html += "<span>" + (c.total ? c.solved + " / " + c.total + " exercises" : ch.sections.length + " sections") + "</span>";
           var m = Play.count(ch.id);
           if (m.total) {
-            html += '<span class="stars" title="Missions completed on this chapter\'s figures">★ ' +
-              Math.min(m.done, m.total) + " / " + m.total + "</span>";
+            html += '<span class="stars" title="Missions completed on this chapter\'s figures">' + ico("star", "★") +
+              ' <span class="visually-hidden">Missions: </span>' + Math.min(m.done, m.total) + " / " + m.total + "</span>";
           }
         } else {
           html += "<span>" + ch.sections.length + " sections planned</span>";
@@ -713,6 +713,13 @@
 
   /* --------------------------------------------------- exercise engine --- */
 
+  /* An icon from src/ui/icon.ts (window.BMIcon, put up by the page's entry), as markup. A page
+     whose entry does not load it, or a name it does not know, gets the old glyph, never a blank. */
+  function ico(name, glyph, cls) {
+    var svg = window.BMIcon && window.BMIcon.svg(name, cls);
+    return svg || glyph;
+  }
+
   function escapeHtml(s) {
     return String(s).replace(/[&<>"']/g, function (ch) {
       return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[ch];
@@ -733,7 +740,7 @@
     return "";
   }
 
-  var TICK = '<svg class="tick" viewBox="0 0 20 20" aria-hidden="true"><path d="M4 10.5l4 4 8-9"/></svg>';
+  var TICK = ico("tick", "✓", "tick");
 
   function slice(list) { return Array.prototype.slice.call(list); }
 
@@ -947,23 +954,23 @@
             var grip = document.createElement("span");
             grip.className = "order-grip";
             grip.setAttribute("aria-hidden", "true");
-            grip.textContent = "⋮⋮";
+            grip.innerHTML = ico("grip", "⋮⋮");
             function mover(label, glyph, fn) {
               var b = document.createElement("button");
               b.type = "button";
               b.className = "order-move";
               b.setAttribute("aria-label", label);
-              b.textContent = glyph;
+              b.innerHTML = glyph;
               b.addEventListener("click", function () { fn(); b.focus(); });
               return b;
             }
             li.appendChild(grip);
             li.appendChild(text);
-            li.appendChild(mover("Move this line up", "↑", function () {
+            li.appendChild(mover("Move this line up", ico("up", "↑"), function () {
               var prev = li.previousElementSibling;
               if (prev) orderList.insertBefore(li, prev);
             }));
-            li.appendChild(mover("Move this line down", "↓", function () {
+            li.appendChild(mover("Move this line down", ico("down", "↓"), function () {
               var next = li.nextElementSibling;
               if (next) orderList.insertBefore(next, li);
             }));
@@ -1381,7 +1388,7 @@
             : '<p class="ex-next hint">Not yet. Work it through once more' + (solution ? ", or open the solution." : ".") + "</p>";
           /* every clue open (or none to open): the solution button is the suggestion */
           if (solution && !(ladder && Learn.ladder.canOpen(ladder.state))) showBtn.setAttribute("data-suggested", "true");
-          say(verdict("no", "✗ Not right.") + readLine(readOf(r, v), v, typeOf(v)) + after);
+          say(verdict("no", ico("cross", "✗") + " Not right.") + readLine(readOf(r, v), v, typeOf(v)) + after);
           renderMath(feedback);
         }
       }
