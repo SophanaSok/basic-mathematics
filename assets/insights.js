@@ -20,7 +20,6 @@
     return svg || glyph;
   }
 
-
   function pct(a, b) { return b ? Math.round((a / b) * 100) : 0; }
   function plural(n, word) { return n + " " + word + (n === 1 ? "" : "s"); }
 

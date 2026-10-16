@@ -1348,8 +1348,6 @@
 
   /* ------------------------------------------------------ banner chips ---- */
 
-  /* A medal as three drawn stars (game.css paints each <i>, lit ones with data-on) and
-     its count in words. `compact` sizes them to a line of text: a chip, a table cell. */
   /* An icon from src/ui/icon.ts (window.BMIcon), as markup; a page whose entry does not load it
      gets the old glyph, never a blank. */
   function ico(name, glyph, cls) {
@@ -1357,6 +1355,8 @@
     return svg || glyph;
   }
 
+  /* A medal as three drawn stars (game.css paints each <i>, lit ones with data-on) and
+     its count in words. `compact` sizes them to a line of text: a chip, a table cell. */
   function starsHtml(m, compact) {
     m = Math.max(0, Math.min(3, Math.floor(num(m))));
     var size = compact ? ' style="width:1.15em;height:1.15em"' : "";

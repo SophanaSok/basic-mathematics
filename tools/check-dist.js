@@ -515,8 +515,10 @@ function checkScripts(ctx, r) {
        as many of them as its imports reach. grade.ts itself is a facade of re-exports, so
        rolldown maps no code to it: it counts as built when a module of the grader is */
     const graderBuilt = Array.from(built).some(ofGrader);
-    /* a .json import (src/data/icons.json) is inlined as data: rolldown maps no code to it */
-    const missing = wanted.filter(s => !built.has(s) && !(s === GRADER && graderBuilt) && !/\.json$/.test(s));
+    /* the icon data (src/data/icons.json) is inlined as data, so rolldown maps no code to it;
+       src/ui/icon.ts, which imports it, is in the wanted list and checked like any module */
+    const ICONS_DATA = "src/data/icons.json";
+    const missing = wanted.filter(s => !built.has(s) && !(s === GRADER && graderBuilt) && s !== ICONS_DATA);
     const extra = Array.from(built).filter(s => !wanted.includes(s) && !(ofGrader(s) && wanted.includes(GRADER)));
     if (missing.length || extra.length) r.fail(p + ": the bundle behind " + mod.file + " is not " + entry + "'s" + (missing.length ? "; not in it: " + missing.join(", ") : "") + (extra.length ? "; in it but not imported: " + extra.join(", ") : ""));
     const strangers = [];
