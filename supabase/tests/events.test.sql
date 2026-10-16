@@ -185,8 +185,8 @@ insert into hv values
   ('a checkpoint with s = today + 2', pg_temp.setp(pg_temp.setp(pg_temp.setx(pg_temp.setx(pg_temp.vz(), 's', '20802'), 'l', '20790'), 1, '20801'), 0, '29953440'), true),
   ('a checkpoint with s = today + 3', pg_temp.setp(pg_temp.setp(pg_temp.setx(pg_temp.setx(pg_temp.vz(), 's', '20803'), 'l', '20790'), 1, '20802'), 0, '29954880'), false);
 
--- 155 hand-counted tests below, plus one per row of the three tables
-select plan(156 + (select count(*)::integer from hv) + (select count(*)::integer from private.valid_cases)
+-- 224 hand-counted tests below, plus one per row of the three tables
+select plan(225 + (select count(*)::integer from hv) + (select count(*)::integer from private.valid_cases)
   + (select count(*)::integer from private.prune_expected));
 
 -- 1. tables, row-level security, policies, grants
@@ -208,8 +208,8 @@ select is(
 select is((select count(*) from pg_indexes where schemaname = 'public' and indexname = 'events_seq_idx' and indexdef like 'CREATE UNIQUE%'), 1::bigint, 'events_seq_idx is unique');
 
 -- 2. definer settings and privileges
-select is((select prosecdef from pg_proc where oid = 'public.events_put(jsonb, integer)'::regprocedure), true, 'events_put is security definer');
-select ok((select proconfig::text like '%search_path=%' from pg_proc where oid = 'public.events_put(jsonb, integer)'::regprocedure), 'events_put pins search_path');
+select is((select prosecdef from pg_proc where oid = 'public.events_put(jsonb, integer, uuid)'::regprocedure), true, 'events_put is security definer');
+select ok((select proconfig::text like '%search_path=%' from pg_proc where oid = 'public.events_put(jsonb, integer, uuid)'::regprocedure), 'events_put pins search_path');
 select is((select prosecdef from pg_proc where oid = 'public.events_usage()'::regprocedure), true, 'events_usage is security definer');
 select ok((select proconfig::text like '%search_path=%' from pg_proc where oid = 'public.events_usage()'::regprocedure), 'events_usage pins search_path');
 select is((select prosecdef from pg_proc where oid = 'private.events_on_reset()'::regprocedure), true, 'events_on_reset is security definer');
@@ -224,8 +224,8 @@ select is(has_function_privilege('authenticated', 'private.events_valid(jsonb, i
 select is(has_function_privilege('authenticated', 'private.events_on_reset()', 'execute'), false, 'authenticated cannot run events_on_reset');
 select is(has_function_privilege('authenticated', 'private.events_ceiling()', 'execute'), false, 'authenticated cannot run events_ceiling');
 select is(has_schema_privilege('authenticated', 'private', 'usage'), false, 'authenticated has no usage on schema private');
-select is(has_function_privilege('anon', 'public.events_put(jsonb, integer)', 'execute'), false, 'anon cannot run events_put');
-select is(has_function_privilege('authenticated', 'public.events_put(jsonb, integer)', 'execute'), true, 'authenticated can run events_put');
+select is(has_function_privilege('anon', 'public.events_put(jsonb, integer, uuid)', 'execute'), false, 'anon cannot run events_put');
+select is(has_function_privilege('authenticated', 'public.events_put(jsonb, integer, uuid)', 'execute'), true, 'authenticated can run events_put');
 select is(has_function_privilege('anon', 'public.events_usage()', 'execute'), false, 'anon cannot run events_usage');
 select is(has_function_privilege('authenticated', 'public.events_usage()', 'execute'), true, 'authenticated can run events_usage');
 
@@ -412,8 +412,8 @@ select is(pg_temp.count_as('a0000000-0000-4000-8000-00000000000a', 'select count
 select is(pg_temp.count_as('b0000000-0000-4000-8000-00000000000b', 'select count(*) from public.events_usage()'), 0::bigint, 'a reader who is not an admin gets none');
 select is(pg_temp.count_as('a0000000-0000-4000-8000-00000000000a', 'select rows from public.events_usage()'), (select count(*) from public.events), 'events_usage counts every row');
 
--- 14. the migration is complete: five functions in private (it was applied twice by the runner)
-select is((select count(*) from pg_proc p join pg_namespace n on n.oid = p.pronamespace where n.nspname = 'private'), 5::bigint, 'schema private holds exactly five functions');
+-- 14. the migration is complete: seven functions in private (it was applied twice by the runner)
+select is((select count(*) from pg_proc p join pg_namespace n on n.oid = p.pronamespace where n.nspname = 'private'), 7::bigint, 'schema private holds exactly seven functions');
 select is((select count(*) from pg_class c join pg_namespace n on n.oid = c.relnamespace where n.nspname = 'public' and c.relname in ('events', 'event_meta') and c.relkind = 'r'), 2::bigint, 'both tables exist once');
 
 -- 15. the fresh start (P7): public.attempts is gone, private.fresh_start runs once per key
@@ -539,6 +539,163 @@ insert into public.events (user_id, id, t, d, src, sec, ref, k, ok, n, r, f, seq
   from generate_series(1, 130) g;
 select is(pg_temp.rows_as('a0000000-0000-4000-8000-00000000000a', 'select count(*) from public.exercise_stats() where chapter = ''ch07'''), '(100)', 'exercise_stats counts at most 100 exercises per reader per chapter');
 select is(pg_temp.rows_as('a0000000-0000-4000-8000-00000000000a', 'select * from public.chapter_stats() where chapter = ''ch07'''), '(ch07,1,100,1)', 'chapter_stats applies the same cap');
+
+-- 17. managed learners (PA-1): B and C are parents, D an adult, E is deleted at the end
+create function pg_temp.as_user_amr(uid uuid, ts bigint) returns void language plpgsql as $$
+begin
+  perform set_config('request.jwt.claim.sub', coalesce(uid::text, ''), true);
+  perform set_config('request.jwt.claims', json_build_object('sub', uid, 'role', 'authenticated',
+    'amr', json_build_array(json_build_object('method', 'password', 'timestamp', ts)))::text, true);
+  execute 'set local role authenticated';
+end $$;
+/* run stmt as uid with a sign-in at ts (null: no amr claim); returns 'ok' or the error message */
+create function pg_temp.msg_as(uid uuid, ts bigint, stmt text) returns text language plpgsql as $$
+declare m text := 'ok';
+begin
+  if ts is null then perform pg_temp.as_user(uid); else perform pg_temp.as_user_amr(uid, ts); end if;
+  begin
+    execute stmt;
+  exception when others then
+    m := sqlerrm;
+  end;
+  execute 'reset role';
+  return m;
+end $$;
+create function pg_temp.now_s() returns bigint language sql as $$ select floor(extract(epoch from now()))::bigint $$;
+create function pg_temp.put3(uid uuid, batch jsonb, epoch integer, learner uuid) returns jsonb language plpgsql as $$
+declare r jsonb;
+begin
+  perform pg_temp.as_user(uid);
+  r := public.events_put(batch, epoch, learner);
+  execute 'reset role';
+  return r;
+end $$;
+create function pg_temp.export_as(uid uuid, ts bigint, learner uuid) returns jsonb language plpgsql as $$
+declare r jsonb;
+begin
+  perform pg_temp.as_user_amr(uid, ts);
+  r := public.learner_export(learner);
+  execute 'reset role';
+  return r;
+end $$;
+create function pg_temp.val_as(uid uuid, stmt text) returns text language plpgsql as $$
+declare r text;
+begin
+  perform pg_temp.as_user(uid);
+  execute stmt into r;
+  execute 'reset role';
+  return r;
+end $$;
+
+select has_function('private', 'fresh_auth', 'private.fresh_auth exists');
+select is(has_function_privilege('authenticated', 'private.fresh_auth()', 'execute'), false, 'authenticated cannot execute private.fresh_auth');
+select is(has_function_privilege('anon', 'public.learner_add(text, boolean, smallint)', 'execute'), false, 'anon cannot run learner_add');
+select is(has_function_privilege('authenticated', 'public.learner_add(text, boolean, smallint)', 'execute'), true, 'authenticated can run learner_add');
+
+-- backfill and trigger
+select is((select count(*) from public.learners where self and id = guardian), (select count(*) from auth.users), 'every auth.users row has a self learner with id = guardian');
+select is((select count(*) from public.learners where self), (select count(*) from public.learners where id = guardian), 'a learner is self exactly when its id is its guardian');
+insert into auth.users (id, email) values ('f0000000-0000-4000-8000-00000000000f', 'f@example.test');
+select is((select count(*) from public.learners where id = 'f0000000-0000-4000-8000-00000000000f' and self), 1::bigint, 'inserting an account creates its self learner');
+delete from public.learners where id = 'f0000000-0000-4000-8000-00000000000f';
+select is(pg_temp.count_as('f0000000-0000-4000-8000-00000000000f', 'select count(*) from public.learner_list()'), 1::bigint, 'learner_list restores a missing self learner');
+select is((select count(*) from public.learners where id = 'f0000000-0000-4000-8000-00000000000f' and self), 1::bigint, 'and the row is back');
+
+-- the table is read-only from the browser
+select is(pg_temp.sqlstate_as('b0000000-0000-4000-8000-00000000000b', $$insert into public.learners (guardian, name) values ('b0000000-0000-4000-8000-00000000000b', 'x')$$), '42501', 'B cannot insert into learners');
+select is(pg_temp.sqlstate_as('b0000000-0000-4000-8000-00000000000b', $$insert into public.learners (guardian, name) values ('c0000000-0000-4000-8000-00000000000c', 'x')$$), '42501', 'B cannot insert a learner under another guardian');
+select is(pg_temp.sqlstate_as('b0000000-0000-4000-8000-00000000000b', $$update public.learners set name = 'x'$$), '42501', 'B cannot update learners');
+select is(pg_temp.sqlstate_as('b0000000-0000-4000-8000-00000000000b', $$delete from public.learners$$), '42501', 'B cannot delete from learners');
+
+-- learner_add and learner_list
+create temp table lk (k text primary key, id uuid);
+insert into lk values
+  ('b13', (select pg_temp.val_as('b0000000-0000-4000-8000-00000000000b', $$select public.learner_add('Kid One', true, 1::smallint)$$)::uuid)),
+  ('b18', (select pg_temp.val_as('b0000000-0000-4000-8000-00000000000b', $$select public.learner_add('  Kid Two  ', false, 5::smallint)$$)::uuid));
+select is(pg_temp.count_as('b0000000-0000-4000-8000-00000000000b', 'select count(*) from public.learner_list()'), 3::bigint, 'B: learner_list returns three rows');
+select is(pg_temp.val_as('b0000000-0000-4000-8000-00000000000b', 'select self::text from public.learner_list() limit 1'), 'true', 'B: the self learner comes first');
+select is((select row(name, under13, consent_v, consent_at is not null)::text from public.learners where id = (select id from lk where k = 'b13')), '("Kid One",t,1,t)', 'under-13 learner: consent stored with a time');
+select is((select row(name, under13, consent_v, consent_at is not null)::text from public.learners where id = (select id from lk where k = 'b18')), '("Kid Two",f,,f)', 'other learner: name trimmed, consent_v null');
+select is(pg_temp.msg_as('b0000000-0000-4000-8000-00000000000b', null, $$select public.learner_add('K', true, 0::smallint)$$), 'consent required', 'learner_add under13 with consent 0 raises consent required');
+select is(pg_temp.msg_as('b0000000-0000-4000-8000-00000000000b', null, $$select public.learner_add('K', true, null)$$), 'consent required', 'learner_add under13 with null consent raises consent required');
+select is(pg_temp.msg_as('b0000000-0000-4000-8000-00000000000b', null, 'select public.learner_add(repeat(''a'', 41), false, null)'), 'bad name', 'a 41-character name raises bad name');
+select is(pg_temp.msg_as('b0000000-0000-4000-8000-00000000000b', null, $$select public.learner_add('   ', false, null)$$), 'bad name', 'a blank name raises bad name');
+do $$ begin for i in 3..8 loop perform pg_temp.val_as('b0000000-0000-4000-8000-00000000000b', 'select public.learner_add(''K' || i || ''', false, null)'); end loop; end $$;
+select is((select count(*) from public.learners where guardian = 'b0000000-0000-4000-8000-00000000000b' and not self), 8::bigint, 'B holds eight managed learners');
+select is(pg_temp.msg_as('b0000000-0000-4000-8000-00000000000b', null, $$select public.learner_add('K9', false, null)$$), 'too many learners', 'the ninth managed learner raises too many learners');
+select is(pg_temp.msg_as(null, null, $$select public.learner_add('K', false, null)$$), 'not signed in', 'learner_add with nobody signed in raises not signed in');
+
+-- cross-family (T1): C against B's learner
+insert into public.user_state (user_id, progress) values ((select id from lk where k = 'b13'), '{"k":1}');
+select is(pg_temp.count_as('c0000000-0000-4000-8000-00000000000c', format('select count(*) from public.user_state where user_id = %L', (select id from lk where k = 'b13'))), 0::bigint, 'C cannot see the state of B''s learner');
+select is(pg_temp.count_as('b0000000-0000-4000-8000-00000000000b', format('select count(*) from public.user_state where user_id = %L', (select id from lk where k = 'b13'))), 1::bigint, 'B sees the state of their learner');
+select is(pg_temp.sqlstate_as('c0000000-0000-4000-8000-00000000000c', format('insert into public.user_state (user_id) values (%L)', (select id from lk where k = 'b18'))), '42501', 'C cannot insert user_state for B''s learner');
+select is(pg_temp.msg_as('c0000000-0000-4000-8000-00000000000c', null, format('select public.events_put(%L::jsonb, 0, %L)', '[]', (select id from lk where k = 'b13'))), 'not your learner', 'C: events_put for B''s learner raises not your learner');
+select is(pg_temp.msg_as('c0000000-0000-4000-8000-00000000000c', null, format('select public.learner_rename(%L, ''z'')', (select id from lk where k = 'b13'))), 'not your learner', 'C: learner_rename on B''s learner raises not your learner');
+select is(pg_temp.msg_as('c0000000-0000-4000-8000-00000000000c', null, format('select public.learner_mark_under13(%L, 1::smallint)', (select id from lk where k = 'b18'))), 'not your learner', 'C: learner_mark_under13 on B''s learner raises not your learner');
+select is(pg_temp.msg_as('c0000000-0000-4000-8000-00000000000c', pg_temp.now_s() - 60, format('select public.learner_delete(%L)', (select id from lk where k = 'b13'))), 'not your learner', 'C: learner_delete on B''s learner raises not your learner');
+select is(pg_temp.msg_as('c0000000-0000-4000-8000-00000000000c', pg_temp.now_s() - 60, format('select public.learner_export(%L)', (select id from lk where k = 'b13'))), 'not your learner', 'C: learner_export on B''s learner raises not your learner');
+select is(pg_temp.count_as('c0000000-0000-4000-8000-00000000000c', format('select count(*) from public.learners where id = %L', (select id from lk where k = 'b13'))), 0::bigint, 'C cannot see B''s learner rows');
+
+-- rename and mark under 13 as B
+select is(pg_temp.msg_as('b0000000-0000-4000-8000-00000000000b', null, format('select public.learner_rename(%L, ''Renamed'')', (select id from lk where k = 'b18'))), 'ok', 'B renames a managed learner');
+select is((select name from public.learners where id = (select id from lk where k = 'b18')), 'Renamed', 'and the name changed');
+select is(pg_temp.msg_as('b0000000-0000-4000-8000-00000000000b', null, $$select public.learner_rename('b0000000-0000-4000-8000-00000000000b', 'Me')$$), 'not your learner', 'B cannot rename their own self learner');
+select is(pg_temp.msg_as('b0000000-0000-4000-8000-00000000000b', null, format('select public.learner_mark_under13(%L, 2::smallint)', (select id from lk where k = 'b18'))), 'consent required', 'learner_mark_under13 with the wrong consent version raises consent required');
+select is(pg_temp.msg_as('b0000000-0000-4000-8000-00000000000b', null, format('select public.learner_mark_under13(%L, 1::smallint)', (select id from lk where k = 'b18'))), 'ok', 'B marks a managed learner under 13');
+select is((select row(under13, consent_v, consent_at is not null)::text from public.learners where id = (select id from lk where k = 'b18')), '(t,1,t)', 'and the consent is recorded');
+select is(pg_temp.msg_as('b0000000-0000-4000-8000-00000000000b', null, $$select public.learner_mark_under13('b0000000-0000-4000-8000-00000000000b', 1::smallint)$$), 'not your learner', 'the self learner cannot be marked under 13');
+
+-- events_put with a learner
+select is(pg_temp.msg_as('b0000000-0000-4000-8000-00000000000b', null, 'select public.events_put(''[]'', 0)'), 'ok', 'events_put with two arguments still resolves');
+create temp table lput as select pg_temp.put3('b0000000-0000-4000-8000-00000000000b', jsonb_build_array(pg_temp.el('lp1', pg_temp.nowmin() - 15, 'lp1')), 0, (select id from lk where k = 'b13')) as r;
+select is((select r->>'added' from lput), '1', 'B: events_put for a managed learner adds the entry');
+select is((select user_id from public.events where id = pg_temp.el('lp1', 0)->>'id'), (select id from lk where k = 'b13'), 'and it lands under the learner id');
+select is((select count(*) from public.events where id = pg_temp.el('lp1', 0)->>'id' and user_id = 'b0000000-0000-4000-8000-00000000000b'), 0::bigint, 'and not under B''s own id');
+select is(pg_temp.put('b0000000-0000-4000-8000-00000000000b', jsonb_build_array(pg_temp.el('lp2', pg_temp.nowmin() - 14, 'lp2')), pg_temp.epoch_of('b0000000-0000-4000-8000-00000000000b'))->>'added', '1', 'B: the two-argument call adds an entry');
+select is((select user_id from public.events where id = pg_temp.el('lp2', 0)->>'id'), 'b0000000-0000-4000-8000-00000000000b'::uuid, 'and it lands under B''s own id');
+select is(pg_temp.count_as('b0000000-0000-4000-8000-00000000000b', format('select count(*) from public.events where user_id = %L', (select id from lk where k = 'b13'))), 1::bigint, 'B reads the events of their learner through the policy');
+
+-- step-up (T4): learner_delete
+select is(pg_temp.msg_as('b0000000-0000-4000-8000-00000000000b', null, format('select public.learner_delete(%L)', (select id from lk where k = 'b13'))), 'stale sign-in', 'learner_delete with no amr raises stale sign-in');
+select is(pg_temp.msg_as('b0000000-0000-4000-8000-00000000000b', pg_temp.now_s() - 660, format('select public.learner_delete(%L)', (select id from lk where k = 'b13'))), 'stale sign-in', 'learner_delete with a sign-in 11 minutes old raises stale sign-in');
+select is(pg_temp.msg_as('b0000000-0000-4000-8000-00000000000b', pg_temp.now_s() - 60, format('select public.learner_delete(%L)', (select id from lk where k = 'b13'))), 'ok', 'learner_delete with a sign-in 1 minute old succeeds');
+select is((select count(*) from public.user_state where user_id = (select id from lk where k = 'b13')) + (select count(*) from public.events where user_id = (select id from lk where k = 'b13')) + (select count(*) from public.event_meta where user_id = (select id from lk where k = 'b13')), 0::bigint, 'and the learner''s state, events and meta are gone');
+select is(pg_temp.msg_as('b0000000-0000-4000-8000-00000000000b', pg_temp.now_s() - 60, $$select public.learner_delete('b0000000-0000-4000-8000-00000000000b')$$), 'not your learner', 'the self learner cannot be deleted with learner_delete');
+select is(pg_temp.msg_as('b0000000-0000-4000-8000-00000000000b', pg_temp.now_s() - 60, 'select public.learner_delete(gen_random_uuid())'), 'not your learner', 'an unknown learner raises not your learner');
+
+-- step-up: learner_export (b18 holds a state row and an event)
+insert into public.user_state (user_id, progress) values ((select id from lk where k = 'b18'), '{"k":2}');
+select is(pg_temp.put3('b0000000-0000-4000-8000-00000000000b', jsonb_build_array(pg_temp.el('lx1', pg_temp.nowmin() - 13, 'lx1'), pg_temp.el('lx2', pg_temp.nowmin() - 12, 'lx2')), 0, (select id from lk where k = 'b18'))->>'added', '2', 'B: two entries for a second managed learner');
+select is(pg_temp.msg_as('b0000000-0000-4000-8000-00000000000b', null, format('select public.learner_export(%L)', (select id from lk where k = 'b18'))), 'stale sign-in', 'learner_export with no amr raises stale sign-in');
+select is(pg_temp.msg_as('b0000000-0000-4000-8000-00000000000b', pg_temp.now_s() - 660, format('select public.learner_export(%L)', (select id from lk where k = 'b18'))), 'stale sign-in', 'learner_export with a sign-in 11 minutes old raises stale sign-in');
+create temp table lexp as select pg_temp.export_as('b0000000-0000-4000-8000-00000000000b', pg_temp.now_s() - 60, (select id from lk where k = 'b18')) as j;
+select is((select row(j->'learner'->>'name', j->'state'->'progress', jsonb_array_length(j->'events'))::text from lexp), '(Renamed,"{""k"": 2}",2)', 'learner_export with a sign-in 1 minute old returns the learner, its state and its two events');
+select is(pg_temp.msg_as('b0000000-0000-4000-8000-00000000000b', pg_temp.now_s() - 60, $$select public.learner_export('b0000000-0000-4000-8000-00000000000b')$$), 'ok', 'learner_export of one''s own self learner is allowed');
+
+-- fresh_auth fails closed on a malformed claim
+do $x$ begin perform set_config('request.jwt.claims', '{"sub":"x","amr":"password"}', true); end $x$;
+select is(private.fresh_auth(), false, 'a non-array amr claim is not fresh');
+do $x$ begin perform set_config('request.jwt.claims', '{"sub":"x","amr":[{"method":"password","timestamp":"soon"},5,null]}', true); end $x$;
+select is(private.fresh_auth(), false, 'an amr without a numeric timestamp is not fresh');
+do $x$ begin perform set_config('request.jwt.claims', '{"sub":"x"}', true); end $x$;
+select is(private.fresh_auth(), false, 'no amr claim is not fresh');
+
+-- reset isolation (T5): resetting one learner leaves the other's events
+insert into public.learners (guardian, name) values ('b0000000-0000-4000-8000-00000000000b', 'iso1'), ('b0000000-0000-4000-8000-00000000000b', 'iso2');
+insert into public.user_state (user_id) select id from public.learners where name in ('iso1', 'iso2');
+do $x$ begin perform pg_temp.put3('b0000000-0000-4000-8000-00000000000b', jsonb_build_array(pg_temp.el('iso' || name, pg_temp.nowmin() - 11, 'iso')), 0, id) from public.learners where name in ('iso1', 'iso2'); end $x$;
+select is((select count(*) from public.events e join public.learners l on l.id = e.user_id where l.name in ('iso1', 'iso2')), 2::bigint, 'two learners of B each hold an event');
+update public.user_state set reset_at = 5 where user_id = (select id from public.learners where name = 'iso1');
+select is((select string_agg(l.name, ',') from public.events e join public.learners l on l.id = e.user_id where l.name in ('iso1', 'iso2')), 'iso2', 'resetting one learner removes only its events');
+select is((select epoch from public.event_meta where user_id = (select id from public.learners where name = 'iso2')), 0, 'and leaves the other''s epoch');
+
+-- delete_my_account (E): step-up, then the learners go with the account
+select is(pg_temp.msg_as('e0000000-0000-4000-8000-00000000000e', null, 'select public.delete_my_account()'), 'stale sign-in', 'delete_my_account with no amr raises stale sign-in');
+select is(pg_temp.msg_as('e0000000-0000-4000-8000-00000000000e', pg_temp.now_s() - 660, 'select public.delete_my_account()'), 'stale sign-in', 'delete_my_account with a sign-in 11 minutes old raises stale sign-in');
+select is((select count(*) from auth.users where id = 'e0000000-0000-4000-8000-00000000000e'), 1::bigint, 'E still exists after the refusals');
+select is(pg_temp.msg_as('e0000000-0000-4000-8000-00000000000e', pg_temp.now_s() - 60, 'select public.delete_my_account()'), 'ok', 'delete_my_account with a sign-in 1 minute old succeeds');
+select is((select count(*) from auth.users where id = 'e0000000-0000-4000-8000-00000000000e') + (select count(*) from public.learners where guardian = 'e0000000-0000-4000-8000-00000000000e') + (select count(*) from public.events where user_id = 'e0000000-0000-4000-8000-00000000000e'), 0::bigint, 'E, their learners and their events are gone');
 
 select * from finish();
 rollback;
