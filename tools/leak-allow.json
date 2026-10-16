@@ -1,1 +1,34 @@
-[]
+[
+  {
+    "page": "parts/3-coordinates/08-coordinates.html",
+    "key": "e4",
+    "field": "data-hint2",
+    "token": "4",
+    "textSha256": "3351d8eb58569603883c9d45dbe3040336e9451ec8ca320521ae8c7c9d538710",
+    "reason": "the 4 is the centre's y in (y + 4)²; the radius still has to come from r² = 16"
+  },
+  {
+    "page": "parts/4-topics/13-mappings.html",
+    "key": "e4",
+    "field": "data-hint2",
+    "token": "3",
+    "textSha256": "824d1842f9752571fdf3afc4fdb1ccb5b0c716238fc86bf62a90c94899fa6540",
+    "reason": "the 3 is f(1), an intermediate step; g(3) = 9 − 6 still has to be worked out"
+  },
+  {
+    "page": "parts/4-topics/15-induction-and-summations.html",
+    "key": "e3",
+    "field": "data-hint",
+    "token": "2",
+    "textSha256": "075b6e54d21a4b3b445f03b1333c212a387f73bdf50dfbec83781c9709aea66f",
+    "reason": "the 2 is the denominator of r = 1/2; 1/(1 − 1/2) still has to be worked out"
+  },
+  {
+    "page": "parts/5-packs/pk-data.html",
+    "key": "t7",
+    "field": "data-hint2",
+    "token": "3",
+    "textSha256": "08eff76be28f25fc67c5952cc04bc917230e672e7700dfdfef3e3c3f1c1bd770",
+    "reason": "the 3 is the line's slope; the residual 38 − 35 still has to be worked out"
+  }
+]
