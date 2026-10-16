@@ -11,7 +11,7 @@ exercises, a 3D world and an account/sync layer) served from
 paths from this file, never retype them.
 - Stack: Vite + TypeScript, Vitest, Playwright, Three.js, KaTeX, Supabase.
 - Run: `npm run dev`
-- Test: `npm run check` (fast, ~1 min) · `npm run check:all` (full, 10–15 min)
+- Test: `npm run check` (fast, ~2 min) · `npm run gate` (the deploy gate here, ~9 min, writes the receipt a merge needs) · `npm run check:all` (the same, serial, no receipt)
 
 ## Which model does what
 The main session is the judge; subagents do the bounded work. Every task card has a
@@ -43,20 +43,26 @@ in one line which task and why before launching, and name each Fable use in the 
    runs the done-when and `npm run check`, and never commits.
 2. Read the diff. Commit on the topic branch and push it (non-main pushes are
    allowed; main, force and delete pushes are denied in `.claude/settings.local.json`).
-   CI then runs in parallel with local review.
+   The `runner` then runs `npm run gate` in the worktree (once, foreground, ~9 min) in
+   parallel with the reviews; Actions runs nothing on the pull request unless it is given
+   the label `ci`.
 3. Two independent `reviewer` runs, each given the diff and the brief, not the
    conversation. Reviewers run targeted tests only. On a risky card the second
    reviewer runs with `model: opus`.
-4. Blockers and majors get a fix pass now, then the implementer runs `check:all`.
+4. Blockers and majors get a fix pass now, then the `runner` runs
+   `npm run gate` again (the tree changed, so the receipt must too).
    Minor-only findings roll into the next card's brief.
-5. Merge through a PR once CI is green, and green means a foreground tool result in
-   this session: `gh pr checks <n>` or `gh run watch <id> --exit-status` exiting 0.
-   Never wait on CI in a background command, and never act on a completion notice that
-   did not arrive as a tool result. The merge guard in `~/.claude/hooks/gh-merge-guard.sh`
-   (a PreToolUse hook in `~/.claude/settings.json`) refuses `gh pr merge` unless GitHub
-   reports every check passed; a run longer than the 10-minute foreground limit is
-   handed to the `runner`. Then remove the worktree and delete the local branch in the
-   same session (GitHub deletes the remote branch on merge).
+5. Merge through a PR once the gate receipt exists for the pushed head (`npm run gate`
+   writes `.git/gate/<tree>.json`; the merge guard in `~/.claude/hooks/gh-merge-guard.sh`,
+   a PreToolUse hook in `~/.claude/settings.json`, refuses `gh pr merge` without one, when
+   main has moved since, or when any check on GitHub failed or is still running). Ask for a
+   full Actions run with `gh pr edit <n> --add-label ci` when the card is risky, touches
+   `.github/workflows/`, `tools/check-ci.js`, `tools/check-browser.js`, `tools/gate.js` or
+   Playwright, when the gate could not run here, or when the PR comes from a fork; then also
+   wait for it in the foreground: `gh pr checks <n> --watch` or `gh run watch <id>
+   --exit-status` exiting 0 as a tool result in this session, never a background command or
+   a completion notice. Then remove the worktree and delete the local branch in the same
+   session (GitHub deletes the remote branch on merge).
 
 ## Budget rules
 - One implementer, two reviewers, a fix pass only when something survives. No critic

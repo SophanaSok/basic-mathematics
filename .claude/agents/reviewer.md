@@ -16,7 +16,7 @@ list; test gaps where a regression would go unnoticed; wording that breaks the U
 English lock or the golden file.
 
 Run targeted tests only (the specific Vitest file, `node tools/...test.js`, or one
-Playwright suite). Never run `npm run check:all`; the implementer does that. Do not
+Playwright suite). Never run `npm run gate` or `npm run check:all`; the runner does, after the commit. Do not
 edit files, commit, push or read `.env`.
 
 Finish what you start: before your report, nothing you started may still be running. A command
