@@ -445,6 +445,8 @@ async function run() {
       await answer(p2, true);
       const after = await st(p2);
       eq([after.hearts, after.score - before.score, after.ans.pts], [before.hearts - 1, 30, 30], "with a heart at stake the retry pays 30 after the heart");
+      eq(await p2.$$eval(".arena-hearts i[data-full] svg.icon-heart", (n) => n.length), after.hearts, "the full hearts draw the heart icon, not a fallback glyph");
+      check(await p2.$$eval(".arena-hearts i:not([data-full]) svg.icon-heart-o", (n) => n.length) === 1, "and the lost heart draws the outline heart icon");
       await c2.close();
     }
 

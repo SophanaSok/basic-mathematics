@@ -101,6 +101,7 @@ async function resetButton(browser) {
   const { context, page, errors } = await open(browser, { context: { reducedMotion: "reduce" } });
   await scene(page, "dist3");
   const stage = page.locator(H("dist3") + " .s3d-stage").first();
+  check(await page.$(H("dist3") + " .s3d-reset svg.icon-reset") !== null, "the Reset view button draws the reset icon, not a fallback glyph");
   await stage.scrollIntoViewIfNeeded();
   await stage.focus();
   const home = await view(page, "dist3");

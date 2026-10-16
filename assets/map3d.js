@@ -280,31 +280,34 @@ import { detectTier, readProbe, stepDown, lower, pixelRatio, TIERS, AMBIENT_MS, 
 
   /* ---------------------------------------------- progress (the dynamic bits) -- */
 
-  function medalFor(id) {
-    try {
-      if (window.BMGame && typeof window.BMGame.medal === "function") return window.BMGame.medal(id, "practice") || 0;
-    } catch (e) { /* no medal data: one star for complete */ }
-    return 0;
+  /* what hubState reads, gathered once per refresh (deck() is a full read: never per island). The
+     one builder is src/ui/hub-list.ts, which the list reads too; `beside: false` is these islands. */
+  function hubInput() {
+    return window.BMHubList.hubInput({ beside: false });
   }
 
   function refresh(quiet) {
-    if (!M) return;
-    var P = window.BMProgress;
+    /* the hub's builder and pure state are src/ui/hub-list.ts's (home.js imports it, and src/world/state.ts
+       it reads, into the page's own bundle: the world chunk must not import them, or it would pull the
+       contents page's bundle onto every page that fetches it); a page without them draws no progress */
+    if (!M || !window.BMHubList) return;
     var curId = currentId();
     M.cur = curId ? isleIndex(curId) : -1;
     M.done = {};
-    var states = [], ahead = [];
+    var input = hubInput();
+    var states = window.BMHubList.hubState(input), ahead = [];
     ISLES.forEach(function (isle, i) {
-      var c = P && P.count ? P.count(isle.id) : { solved: 0, total: 0 };
-      var total = c.total || 0, solved = Math.min(c.solved || 0, total);
-      var done = total > 0 && solved >= total;
-      M.done[isle.id] = done;
+      var st = states[i];
+      M.done[isle.id] = st.done;
       /* "ahead" is only a colour: the cap fades toward the ground, nothing is locked */
-      ahead.push(!done && i !== M.cur && !solved);
-      states.push({ pct: total ? solved / total : 0, done: done, stars: clamp(medalFor(isle.id) || 1, 1, 3) });
+      ahead.push(!st.done && i !== M.cur && !input.counts[isle.id].solved);
     });
     var gates = M.world.layout.gates.map(function (g) { return !!M.done[ISLES[g.isle].id]; });
-    M.world.setProgress(states, ahead, gates);
+    /* hubState returns the same array for the same state: an event that changed nothing the hub
+       shows (most of them) rebuilds no marks */
+    var same = states === M.states && ahead.join() === M.ahead && gates.join() === M.gates;
+    M.states = states; M.ahead = ahead.join(); M.gates = gates.join();
+    if (!same) M.world.setProgress(states, ahead, gates);
 
     if (M.cur > -1) {
       /* the marker is the learner's form, in the hue of the Part they are in */
@@ -915,7 +918,7 @@ import { detectTier, readProbe, stepDown, lower, pixelRatio, TIERS, AMBIENT_MS, 
       }
       if (!M) return;
       var K = window.BMStore.keys || {};
-      if (c.type === "home" || c.type === "form" || c.type === "sync" || c.type === "reset" ||
+      if (c.type === "home" || c.type === "form" || c.type === "event" || c.type === "sync" || c.type === "reset" ||
           (c.type === "state" && (c.key === K.progress || c.key === K.last || c.key === K.game))) later();
     });
   }
@@ -929,6 +932,8 @@ import { detectTier, readProbe, stepDown, lower, pixelRatio, TIERS, AMBIENT_MS, 
       if (!M) return;
       var theme = list.some(function (m) { return m.attributeName === "data-theme" || m.attributeName === "data-panel"; });
       if (theme) { M.world.repaint(); place(); }
+      /* Study mode hides the bosses: the marks are built again */
+      if (list.some(function (m) { return m.attributeName === "data-calm"; })) later();
       if (still()) rest();
       if (M.flight && still()) jump(M.flight.v);
       request();

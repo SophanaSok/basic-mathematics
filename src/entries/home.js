@@ -48,6 +48,10 @@ import "../ui/core.ts";
 /* the icons site.js draws (window.BMIcon): their data, then the helper, before it */
 import "../data/icons.json";
 import "../ui/icon.ts";
+/* the hub's due sections and mastery line under each chapter on the list (window.BMHubList), for site.js */
+/* src/world/state.ts, which hub-list.ts reads, named here as tiers.ts is: it is in this page's bundle, not in the 3D world chunk */
+import "../world/state.ts";
+import "../ui/hub-list.ts";
 import "../../assets/site.js";
 /* the event log's schedule, checkpoint, mastery and bands, and the recorder, which
    src/ui/events.ts (window.BMEvents) puts up: the pure modules first */

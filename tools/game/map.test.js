@@ -547,6 +547,61 @@ async function run() {
     }
     console.log("map: budgets measured at 1280x900, one device pixel per CSS pixel, in SwiftShader (a software renderer: frame times are this machine's real gaps between animation frames over four flights; the world's watchdog saw the steady clock, so tierAfter, the tier after them, is the tier chosen):");
     measured.forEach((m) => console.log("  " + JSON.stringify(m)));
+    /* -------------------------------------------- 5b: the hub marks on the islands */
+    {
+      /* sections placed in box 1 forty days ago are due: an island with one gets a beacon */
+      const seedDue = (page, allSections) => page.evaluate((all) => {
+        var day = window.BMSite.dayKey(), old = window.BMReview.recall.addDays(day, -40), isles = Object.keys(window.BMMap3D.info().isles);
+        var g = JSON.parse(localStorage.getItem("bm.game.v1") || "{}"); g.sec = g.sec || {};
+        var seeds = {}, put = {}, att = JSON.parse(localStorage.getItem("bm.attempts.v1") || "{}");
+        window.BMReview.ARENA_SECTIONS.forEach(function (id) {
+          var ch = id.split("#")[0];
+          if (isles.indexOf(ch) < 0 || (!all && put[ch])) return;
+          put[ch] = id; g.sec[id] = { n: 1, ok: 1 }; seeds[id] = { box: 1, last: old };
+          /* deck() lists only sections with a solved exercise in the attempt log (Insights.sections), so
+             the log seed alone is not enough: this row is what makes the section a deck row at all */
+          att[ch] = att[ch] || {};
+          att[ch]["x" + id] = { section: id.split("#")[1], solved: Date.now() - 40 * 864e5, first: false, tries: 3 };
+        });
+        localStorage.setItem("bm.game.v1", JSON.stringify(g));
+        localStorage.setItem("bm.attempts.v1", JSON.stringify(att));
+        window.BMEvents.seed(seeds);
+        return put;
+      }, allSections);
+      const kindsAfter = async (page) => { await wait(400); return (await info(page)).isles || {}; };
+      const hasKind = (isles, re) => Object.keys(isles).filter((id) => re.test(isles[id]));
+      const { context, page } = await openMap(browser, MEDIUM);
+      await settled(page);
+      const first = await info(page);
+      const quest = await page.evaluate(() => { const o = {}; Object.keys(window.BM_QUEST.regions).forEach((k) => { o[k] = window.BM_QUEST.regions[k].solid; }); return o; });
+      const partOf = await page.evaluate(() => { const o = {}; window.BM_CURRICULUM.chapters.forEach((c) => { o[c.id] = c.part.id; }); return o; });
+      const bosses = hasKind(first.isles, /boss:/);
+      check(bosses.length > 0 && bosses.every((id) => first.isles[id].split(",").some((k) => k === "boss:" + quest[partOf[id]])), "an unfinished island's boss is its region's solid (" + JSON.stringify(first.isles) + ")");
+      check(hasKind(first.isles, /beacon/).length === 0, "no island has a beacon before a section is due");
+      await page.evaluate(() => document.documentElement.setAttribute("data-calm", ""));
+      let calm = await kindsAfter(page);
+      check(hasKind(calm, /boss/).length === 0, "with Study mode on no island has a boss (" + JSON.stringify(calm) + ")");
+      await page.evaluate(() => document.documentElement.removeAttribute("data-calm"));
+      check(hasKind(await kindsAfter(page), /boss:/).length === bosses.length, "and with it off the bosses are back");
+      const put = await seedDue(page, false);
+      const due = await kindsAfter(page);
+      const beacons = hasKind(due, /beacon/);
+      check(Object.keys(put).length > 0 && Object.keys(put).every((ch) => beacons.indexOf(ch) > -1) && beacons.length === Object.keys(put).length, "a seeded due section gives its island a beacon, and only those do (" + JSON.stringify({ put, beacons }) + ")");
+      await context.close();
+      /* the worst state: every island with a boss and a beacon, against each tier's caps */
+      for (const [gfx, tier] of [["low", "low"], ["mid", "medium"], ["high", "high"]]) {
+        const w = await openMap(browser, { "bm.prefs.v1": JSON.stringify({ gfx }) });
+        await settled(w.page);
+        await seedDue(w.page, true);
+        await wait(500);
+        const i = await info(w.page);
+        const nb = hasKind(i.isles || {}, /beacon/).length;
+        check(!i.gone && nb > 0 && i.calls <= i.budget.calls && i.triangles <= i.budget.triangles, tier + ": the worst state (" + nb + " beacons, " + hasKind(i.isles || {}, /boss:/).length + " bosses) is " + i.calls + " calls and " + i.triangles + " triangles, within " + (i.budget && i.budget.calls) + " and " + (i.budget && i.budget.triangles));
+        console.log("map: worst state " + tier + " " + JSON.stringify({ calls: i.calls, triangles: i.triangles }));
+        await w.context.close();
+      }
+    }
+
     {
       const { context, asked, world } = await newContext(browser, { seed: { "bm.prefs.v1": '{"map":"list"}' } });
       const page = await context.newPage();
