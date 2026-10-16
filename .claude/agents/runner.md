@@ -12,7 +12,7 @@ Rules:
 - Run exactly the command you were given. Do not fix anything, edit files, commit,
   push or read `.env`.
 - `npm run gate` takes about 9 minutes and `npm run check:all` 10–15: set a long timeout
-  (600000 ms) and run it once; if the tool refuses the timeout, run it in the background
+  (600000 ms) and run it once; if the tool refuses the timeout, run it (a local gate, not GitHub CI) in the background
   to a log file in the scratchpad and wait with a sleep loop, reading only the tail. Never
   run either concurrently with another suite or with a second gate.
 - Cleanup requests (`git worktree remove`, `git branch -d`) only for the paths and

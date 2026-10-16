@@ -1385,7 +1385,7 @@ that was already there was edited, renamed or removed.
 
 The browser scripts load the build, `dist/`, over http, and refuse to run when it is missing or
 older than anything it is built from (`run npm run build first`): the source tree is not a site,
-so there is nothing else to test. `npm run gate` runs all of this but the WebGL checks before a merge, in parallel, with a receipt; CI runs it on a pull request labeled `ci` and on Run workflow
+so there is nothing else to test. `npm run gate` runs all of this before a merge, the parts in parallel and the WebGL checks when a 3D path changed, with a receipt; CI runs it on a pull request labeled `ci` and on Run workflow
 ([`.github/workflows/ci.yml`](.github/workflows/ci.yml)).
 
 Still checked by hand: a clue (`data-hint`, `data-hint2`, `data-hint3`) names the next idea and
@@ -1396,7 +1396,8 @@ names; a new `order` list is authored in the right order; a new puzzle's temptin
 ### Deploying
 
 The course is served from one place: **Cloudflare Pages, at `https://learn.groundupmath.org`**.
-A push to `main` runs the checks and the build in GitHub Actions (unless it changes only
+The browser checks run on the dev box before a merge (`npm run gate`; the merge guard requires its
+receipt, so a merge made another way skips them). A push to `main` runs `npm run check` and the build in GitHub Actions (unless it changes only
 Markdown and `docs/`, which the site is not built from: OPERATIONS.md, "When CI runs"), and once
 the `build` job has passed, the `cloudflare` job publishes that run's `dist/` there as production
 (`cloudflare/wrangler-action`, with the repository secrets `CLOUDFLARE_API_TOKEN` and

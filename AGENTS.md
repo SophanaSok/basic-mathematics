@@ -11,7 +11,7 @@ exercises, a 3D world and an account/sync layer) served from
 paths from this file, never retype them.
 - Stack: Vite + TypeScript, Vitest, Playwright, Three.js, KaTeX, Supabase.
 - Run: `npm run dev`
-- Test: `npm run check` (fast, ~2 min) · `npm run gate` (the deploy gate here, ~9 min, writes the receipt a merge needs) · `npm run check:all` (the same, serial, no receipt)
+- Test: `npm run check` (fast, ~2 min) · `npm run gate` (the deploy gate here, ~9 min, writes the receipt a merge needs) · `npm run check:all` (the browser checks serial, WebGL always, no migrations or SQL stage, no receipt)
 
 ## Which model does what
 The main session is the judge; subagents do the bounded work. Every task card has a
@@ -49,20 +49,24 @@ in one line which task and why before launching, and name each Fable use in the 
 3. Two independent `reviewer` runs, each given the diff and the brief, not the
    conversation. Reviewers run targeted tests only. On a risky card the second
    reviewer runs with `model: opus`.
-4. Blockers and majors get a fix pass now, then the `runner` runs
-   `npm run gate` again (the tree changed, so the receipt must too).
-   Minor-only findings roll into the next card's brief.
-5. Merge through a PR once the gate receipt exists for the pushed head (`npm run gate`
-   writes `.git/gate/<tree>.json`; the merge guard in `~/.claude/hooks/gh-merge-guard.sh`,
-   a PreToolUse hook in `~/.claude/settings.json`, refuses `gh pr merge` without one, when
-   main has moved since, or when any check on GitHub failed or is still running). Ask for a
-   full Actions run with `gh pr edit <n> --add-label ci` when the card is risky, touches
-   `.github/workflows/`, `tools/check-ci.js`, `tools/check-browser.js`, `tools/gate.js` or
-   Playwright, when the gate could not run here, or when the PR comes from a fork; then also
-   wait for it in the foreground: `gh pr checks <n> --watch` or `gh run watch <id>
-   --exit-status` exiting 0 as a tool result in this session, never a background command or
-   a completion notice. Then remove the worktree and delete the local branch in the same
-   session (GitHub deletes the remote branch on merge).
+4. Blockers and majors, and a failed gate stage, get a fix pass now; read the diff,
+   commit, push, then the `runner` runs `npm run gate` again: a receipt is for one tree,
+   so every new commit needs one. Minor-only findings roll into the next card's brief.
+5. Merge through a PR once the gate receipt exists for the pushed head. The gate needs a
+   clean, committed tree that contains `origin/main` (when main moved: merge it in, push,
+   run again) and writes `<git common dir>/gate/<tree>.json` (`git rev-parse
+   --path-format=absolute --git-common-dir`; `--part` and `--no-receipt` write none). The
+   merge guard in `~/.claude/hooks/gh-merge-guard.sh` (a PreToolUse hook in
+   `~/.claude/settings.json`) refuses `gh pr merge` without that receipt, when main has
+   moved since, or when any check on GitHub failed or is still running; a PR that changes
+   only Markdown or `docs/` needs no receipt and no label. Ask for a full Actions run with
+   `gh pr edit <n> --add-label ci` when the card is risky, touches `.github/workflows/`,
+   `tools/check-ci.js`, `tools/check-browser.js`, `tools/gate.js` or Playwright, when the
+   gate could not run here, or when the PR comes from a fork (a later push starts no run:
+   remove and add the label again); then also wait for it in the foreground, `gh pr checks
+   <n> --watch` or `gh run watch <id> --exit-status` exiting 0 as a tool result in this
+   session, never a background command or a completion notice. Then remove the worktree and
+   delete the local branch in the same session (GitHub deletes the remote branch on merge).
 
 ## Budget rules
 - One implementer, two reviewers, a fix pass only when something survives. No critic

@@ -39,8 +39,9 @@ The `migrations` check compares against the commit the branch left `main` at, no
 needs nothing extra. Where `main` does not resolve, as in a shallow checkout, it falls back to
 `--base` and prints a warning, because against that base it lets a schema change through.
 Continuous integration must therefore pass the commit being merged into as
-`--migrations-base=<ref>`: the build job of `.github/workflows/ci.yml` does, on every pull
-request, as `--migrations-base="origin/$BASE_REF"`, with the branch the request merges into.
+`--migrations-base=<ref>`: the build job of `.github/workflows/ci.yml` does, on a pull request
+labeled `ci`, as `--migrations-base="origin/$BASE_REF"`, with the branch the request merges into,
+and `npm run gate` does the same here against `origin/main` before a merge.
 
 A change that also needs an Edge Function **[not yet: R5]** goes database, then function, then
 site. The function deploy step will be written here by the release that adds the first function.
@@ -652,11 +653,11 @@ again, remove the label and add it again: a push to the pull request starts no r
 another label cancels nothing. **Run workflow** on `main` runs everything too. All of it
 **except a change that only touches Markdown and `docs/`** (`paths-ignore: ["**/*.md",
 "docs/**"]` on both events, the `labeled` event included). Such a change costs no Actions minutes
-(a full run is about 30), gets no Cloudflare preview, and deploys nothing, which is right:
+(a full run is about 45 billed, a push to main about 4), gets no Cloudflare preview, and deploys nothing, which is right:
 `dist/` and `dist-redirects/` are built from none of those files, so production already matches
 it.
 
-A full run takes about 8 minutes of wall time (2026-10-13: `build` about 1, then the
+A full run takes 11 to 12 minutes of wall time (2026-10-16, runs 38859933138 and 38857637066; on 2026-10-13 it was about 8: `build` about 1, then the
 `browser` parts and `webgl` side by side, the longest about 6.5: `axe`, one suite that cannot be
 split, plus the Chromium install and setup, about a minute). The parts are balanced by the
 suites' seconds, written beside `PARTS` in `tools/check-browser.js`; move a suite when a job
