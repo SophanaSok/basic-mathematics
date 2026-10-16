@@ -1020,7 +1020,8 @@ import { detectTier, readProbe, stepDown, lower, pixelRatio, TIERS, AMBIENT_MS, 
     new MutationObserver(function (list) {
       if (!M) return;
       var theme = list.some(function (m) { return m.attributeName === "data-theme" || m.attributeName === "data-panel"; });
-      if (theme) { M.world.repaint(); place(); if (M.bloom) M.bloom.setTheme(themeNow()); syncBloom(); }
+      /* bloom first: a flip to light drops it (and its lifted glow colours) before the repaint reads the palette */
+      if (theme) { syncBloom(); M.world.repaint(); place(); if (M.bloom) M.bloom.setTheme(themeNow()); }
       /* Study mode hides the bosses: the marks are built again */
       if (list.some(function (m) { return m.attributeName === "data-calm"; })) later();
       if (still()) rest();
@@ -1089,6 +1090,8 @@ import { detectTier, readProbe, stepDown, lower, pixelRatio, TIERS, AMBIENT_MS, 
     draw: function (viaBloom) {
       if (!M || !M.bloom) return false;
       if (viaBloom) M.bloom.render(); else M.renderer.render(M.scene, M.camera);
+      /* a later frame draws the map as it should look again (an idle map asks for none itself) */
+      request();
       return true;
     },
     /* where an island sits on screen, in client pixels */
