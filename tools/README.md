@@ -23,6 +23,7 @@ npm run build:redirects && npm run check:redirects  # dist-redirects/, what the 
 npm run test:browser                       # the tools/game Chromium scripts, ~2 min
 npm run check:browser                      # check-browser.js on dist/, ~8 min
 npm run check:all                          # all of it, in that order
+npm run gate                               # the deploy gate on this machine, parts side by side, with a receipt
 ```
 
 `node tools/<script>.js` works just as well, and `npm run <name> -- --flag` passes a flag through.
@@ -484,6 +485,29 @@ suites of the gate do draw on the GL painter where the runner's SwiftShader give
 they did before; the one thing held to it, the `widgets` suite's painter result, is a warning
 there and a failure everywhere else.
 Nothing here needs a GPU or a display.
+
+## gate.js
+
+Usage: `npm run gate -- [--with-webgl] [--part=<part>] [--jobs=N] [--no-receipt]`
+
+CI's gate (the `build` and `browser` jobs of ci.yml) run locally. It needs a clean tree that
+contains `origin/main` (a receipt describes a commit), then runs, stopping at the first
+failure and printing one line per stage with its seconds: `npm run check`; the migrations
+check against `origin/main`; build, `check:dist`, redirects; every browser part from
+`check-browser.js --parts` at once (`--jobs=N` caps it), each part's output in
+`.cache/gate/<part>.log` and its report in `.cache/gate/<part>/` (`check-browser.js
+--out=<dir>` keeps parallel parts from sharing `.cache/check`); the webgl stage (the
+`test:browser:3d` scripts and the `webgl` suite, two tries each) when the branch touches
+`WEBGL_PATHS` or with `--with-webgl`; the SQL test (needs Docker) when it touches sql.yml's
+paths. The receipt is `<git common dir>/gate/<tree sha>.json`: tree, head, branch, base, `ok`,
+per-stage seconds, versions and host, written on failure too, shared by every worktree, and
+pruned after 30 days. `BM_GATE_FAKE_FAIL=<part>` makes that part fail at once (a test hook).
+
+First full run (2026-10-16, Ryzen 5 5600X, 12 threads, all six parts at once, no webgl or sql
+stage): `check` 109 s, migrations 0.3 s, build with `check:dist` and redirects 3 s, then the parts
+`pages` 232 s, `exercises` 261 s, `widgets` 276 s, `rest` 343 s, `core` 348 s, `axe` 415 s;
+total 527 s. Beside CI's 4 to 6 minutes a job, the parts here run slower for sharing the cores,
+and `axe` sets the floor in both.
 
 ## check-dist.js
 

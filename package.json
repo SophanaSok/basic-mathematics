@@ -29,6 +29,7 @@
     "test:sql": "node tools/sql-test.js",
     "check:browser": "node tools/check-browser.js --root=dist",
     "check": "npm run typecheck && npm run check:static && npm run check:ci && npm run check:gen && npm run check:scenes && npm run test:node && npm run test:unit",
+    "gate": "node tools/gate.js",
     "check:all": "npm run check && npm run build && npm run check:dist && npm run build:redirects && npm run check:redirects && npm run test:browser && npm run check:browser"
   },
   "devDependencies": {
