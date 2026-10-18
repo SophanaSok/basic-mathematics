@@ -225,8 +225,8 @@
       section, the day and whether it was right the first time; never what you typed), the ids
       of entries not yet copied to your account (<code>bm.events.out.v1</code>) and what
       identifies this browser to the log (<code>bm.device.v1</code>: an id for this browser and,
-      once you sign in, your account's id; the id is drawn afresh, and your account's id
-      dropped, when you reset or sign out). Without
+      once you sign in, the learner's id, which is your account's id for your own progress; the
+      id is drawn afresh, and the learner's id dropped, when you reset or sign out). Without
       an account nothing is sent anywhere, so progress does not follow you to another browser,
       and clearing site data clears it. If storage is blocked, everything still works — it just
       is not remembered.
@@ -267,6 +267,20 @@
       too hard get found and fixed; the course's statistics use only totals across readers.
       Resetting your progress deletes the log; you can download or delete everything from the
       account page.
+    </p>
+    <p>
+      A parent's account can also hold learners: profiles with a name the parent chose and no
+      sign-in of their own. For each one the database keeps the same records as an account's (the
+      solved exercises, the attempts, XP per day, the place in each chapter, the game record and
+      the short answer log, with the same limits and none of what was typed), plus the name, whether
+      the learner is under 13 and, if so, which version of the consent statement was agreed to and
+      when. A parent can add up to eight. On the account page the parent switches to a learner to
+      see their progress, and can download or delete it there; deleting a learner deletes their
+      records, and deleting the account deletes the learners with it. The course's author sees a
+      learner's records as any reader's, under a random id, and never the name. A learner is never
+      on the Daily board. When a parent adds an under-13 learner, the account page shows this
+      statement, headed &ldquo;What is kept about this learner&rdquo;, which is the full account of what is
+      kept: &ldquo;The name you give here, that they are under 13, the exercises they solve, how many tries each took, whether a hint or the solution was used, missions, XP per day, where they are in each chapter, their game record, and a short log of their answers (which exercise and section, right or wrong, which try, how many clues were open, and the minute; never what they typed). It is used only to run the course and to show you their progress. It is never sold or shared beyond the hosts named on the about page. It is kept until you delete the learner or your account. You can download or delete it from this page at any time.&rdquo;
     </p>
     <p>
       The account service and its database are run by Supabase, a hosting company, and the

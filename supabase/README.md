@@ -124,16 +124,17 @@ redirect list), add the id to `providers` locally, and open `account.html`.
 
 | Table | Contents |
 | --- | --- |
-| `user_state` | One row per reader, holding the same JSON the site keeps in `localStorage`: solved exercises, missions, per-exercise attempt records, XP per day, lesson position, and the game record (achievements, compared solutions, Arena bests, rematch medals, review boxes), and the placement-check results (for each finished check: the day, the class the reader said they finished last, the items asked and whether each was right, wrong or skipped, the course band it placed them in, and whether many answers came very fast; never typed answers or timings), which survive Reset all progress. Play settings and the combo meter stay in the browser. |
+| `learners` | One row per learner: an account's own (its id is the account's id, `self`) or one the account manages: `guardian` (the account), `name` (1 to 40 characters, chosen by the parent, shown only to the guardian), `under13`, and when under 13 `consent_v` and `consent_at` (the version of the consent text agreed to, and when). At most 8 managed learners per account. |
+| `user_state` | One row per learner (an account's own, or one it manages), holding the same JSON the site keeps in `localStorage`: solved exercises, missions, per-exercise attempt records, XP per day, lesson position, and the game record (achievements, compared solutions, Arena bests, rematch medals, review boxes), and the placement-check results (for each finished check: the day, the class the reader said they finished last, the items asked and whether each was right, wrong or skipped, the course band it placed them in, and whether many answers came very fast; never typed answers or timings), which survive Reset all progress. Play settings and the combo meter stay in the browser. |
 | `attempts` | One row per answer check by a signed-in reader: chapter, exercise key, section, right or wrong, try number, hint level, whether the solution was open. Typed answers are never stored. Gone: nothing has written it since P6 (the event log replaced it) and P7 dropped the table. |
 | `profiles` | An optional display name, and `board`: whether the reader joined the Daily board (off unless they turn it on). |
 | `board_secret` | One row: a random key made when the SQL is first run, which the Daily board's generated names are hashed with. Only `daily_board()` reads it. |
 | `daily_runs` | One row per reader per day they played the Arena's Daily while on the Daily board: `day` (their local date, `YYYY-MM-DD`), `score`, `n` (questions asked, at most 5), `firsts` (right first time), `ms` (the run's time in milliseconds, kept only when every answer was right first time, and between 250 ms and 10 minutes per question), and `submitted_at`. The first result for a day is the one kept. The numbers are reported by the page and only bounds-checked here (the score at most what its first-try answers and retries can pay, 700 for 5 right first time). |
-| `events` | A copy of the browser's own log (`bm.events.v1`), pruned the same way on both sides: one row per learner action: which exercise or Arena section, the UTC minute or the day, right or wrong, the try number, the clue level, flags, and for a checkpoint a small optional object; and `rd`, the UTC day the row reached the database. Never typed text. |
-| `event_meta` | Per reader: the write counter `seq`, the reset `epoch`, and the day's counters. |
+| `events` | Per learner (an account's own, or one it manages): a copy of the browser's own log (`bm.events.v1`), pruned the same way on both sides: one row per learner action: which exercise or Arena section, the UTC minute or the day, right or wrong, the try number, the clue level, flags, and for a checkpoint a small optional object; and `rd`, the UTC day the row reached the database. Never typed text. |
+| `event_meta` | Per learner (an account's own, or one it manages): the write counter `seq`, the reset `epoch`, and the day's counters. |
 | `admins` | The user ids allowed to call the aggregate functions. |
 
-Row-level security restricts every row to its owner. `exercise_stats()` and `chapter_stats()`
+Row-level security restricts every row to its owner (for a learner's rows, the learner's guardian). `exercise_stats()` and `chapter_stats()`
 return aggregates only, and only to admins. `daily_runs` and `board_secret` have row-level
 security on, no policies and no grants to the browser's roles, so the browser can neither read
 nor write them, not even a reader's own rows; only `submit_daily()`, `daily_board()` and
@@ -145,7 +146,23 @@ changes every day), the score and the time, and never a user id, email or displa
 the hash is keyed, even someone who learns a reader's user id cannot work out their names, and so
 cannot link that person's days on the board. `leave_board()` turns `board` off and deletes the
 caller's `daily_runs` rows. `delete_my_account()` removes the caller's auth user, and every table
-cascades from it.
+cascades from it, through `learners` for the three tables that hang on it.
+
+`user_id` in `user_state`, `events` and `event_meta` is a learner id. The policies on those
+tables say a row belongs to the learner's guardian (`guardian = auth.uid()`), and `learners`
+itself can only be read, by its guardian. Learners are written only through `learner_list()`,
+`learner_add()`, `learner_rename()`, `learner_mark_under13()` (never cleared), `learner_delete()`
+and `learner_export()`; `learner_delete()` and `learner_export()` also need a sign-in within the
+last 10 minutes, read from the token's `amr` timestamp by `private.fresh_auth()`, which fails
+closed. `delete_my_account()` does not ask for it yet. Deleting a learner deletes its rows in the
+three tables. The browser still writes `user_state` directly through the "own state" policy, which
+admits any of the guardian's learners, so a stale session on a shared device can reset or overwrite
+a managed learner's `user_state`; only the learner row itself is behind the step-up (accepted in
+docs/decisions/0010, PA-5). The site never puts a managed learner on the Daily board and never
+hashes its name into a board name; on the server `submit_daily()` keys on the signed-in account, so
+nothing of a learner can reach the board except as the parent's own opt-in. The author sees a managed learner's rows as any reader's, under a random id; the name
+is in `learners`, which `exercise_stats()` and `chapter_stats()` do not read (their `users` counts
+learners).
 
 The browser cannot read or write `event_meta`, and can only read its own `events` rows; every
 write goes through `events_put()`. One known loss (T14): a device that stays offline across twelve
