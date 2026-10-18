@@ -67,7 +67,15 @@
   17. the account page as a managed learner draws no #acct-board switch; as self it does
   18. the progress page as a managed learner shows the "Showing Kim's progress" line with
       the account link; as self it does not
-  19. a learner named <b>x</b> renders as text in the chip and the line */
+  19. a learner named <b>x</b> renders as text in the chip and the line
+  20. a learner dropped on load returns the chip to "Your account" and the board switch;
+      renaming the active learner updates the chip
+  21. a Daily started as a learner, then the other tab switches to self: the stale tab
+      writes nothing, the reload drops the run with a "not counted" line, nothing is paid
+      and submit_daily is never sent
+  22. a result drawn before the session is read (restored) has no board slot, and the
+      tile no Today: line
+  23. the progress page's line is there on first paint; the initial is a whole character */
 "use strict";
 const site = require("../lib/site");
 const target = require("../lib/target");
@@ -115,7 +123,7 @@ window.supabase = { createClient: function () {
             res = answer(null);
           } else res = answer(S.profileNoBoard ? { display_name: "Reader" } : { display_name: "Reader", board: onBoard() });
         } else if (table === "learners") {
-          res = answer({ id: "L1" });
+          res = answer(S.learnerGone ? null : { id: "L1" });
         } else res = answer(write ? [{ updated_at: new Date().toISOString() }] : null);
         return Promise.resolve(res).then(ok, bad);
       }
@@ -145,7 +153,10 @@ window.supabase = { createClient: function () {
     },
     auth: {
       onAuthStateChange: function (cb) { subs.push(cb); return { data: { subscription: { unsubscribe: function () {} } } }; },
-      getSession: function () { return Promise.resolve(answer({ session: window.__session || null })); },
+      getSession: function () {
+        var wait = Number(localStorage.getItem("__sessdelay")) || 0;
+        return new Promise(function (r) { setTimeout(function () { r(answer({ session: window.__session || null })); }, wait); });
+      },
       signOut: function () { window.__session = null; subs.forEach(function (cb) { cb("SIGNED_OUT", null); }); return Promise.resolve({ error: null }); }
     }
   };
@@ -182,12 +193,6 @@ function twelve() {
       window.__session = seed.session || null;
       window.__stub = seed.stub || {};
     }, { config, session: opts.signedIn ? SESSION : null, stub: opts.stub || {} });
-    /* a managed learner chosen on this browser: the sync meta account.js keeps, before it runs */
-    if (opts.learner) {
-      await c.addInitScript((name) => {
-        localStorage.setItem("bm.sync.v1", JSON.stringify({ learner: "L1", acct: "u1", learnerName: name }));
-      }, opts.learner);
-    }
     return c;
   }
   async function page(c) {
@@ -215,6 +220,8 @@ function twelve() {
       });
       localStorage.setItem("bm.attempts.v1", JSON.stringify(all));
       if (o.signedIn) localStorage.setItem("sb-testref-auth-token", "{}");
+      /* a managed learner chosen on this browser: the sync meta account.js keeps (seeded once, so its own writes survive) */
+      if (o.learner) localStorage.setItem("bm.sync.v1", JSON.stringify({ learner: "L1", acct: "u1", learnerName: o.learner }));
       if (o.onBoard) localStorage.setItem("__onboard", "1");
     }, opts);
     await p.goto(server.url + "arena.html");
@@ -645,7 +652,7 @@ function twelve() {
     /* 15. a managed learner is never on the Daily board */
     {
       const c = await context({}, { signedIn: true, learner: "Kim", stub: { board: twelve() } });
-      const p = await arena(c, { signedIn: true, onBoard: true });
+      const p = await arena(c, { signedIn: true, onBoard: true, learner: "Kim" });
       const res = await play(p);
       check(res.mode === "daily" && res.finished && !res.replay, "15 a finished Daily as a managed learner", res);
       check(await p.evaluate(() => window.BMAccount.learner()) === "L1", "15 the page runs as the learner");
@@ -672,7 +679,7 @@ function twelve() {
         name: (a.querySelector(".acct-name") || {}).textContent, learner: a.getAttribute("data-learner"), href: a.getAttribute("href")
       }));
       const c = await context({}, { signedIn: true, learner: "Kim" });
-      const p = await arena(c, { signedIn: true });
+      const p = await arena(c, { signedIn: true, learner: "Kim" });
       await p.waitForSelector(".topbar .acct[data-learner]");
       const k = await chip(p);
       check(k.title === "Playing as Kim" && k.hidden === "Playing as Kim" && k.initial === "K" && k.name === "Kim" && k.learner === "true" && /account\.html$/.test(k.href),
@@ -691,7 +698,10 @@ function twelve() {
       const c = await context({}, { signedIn: true, learner: "Kim" });
       const a = await page(c);
       await a.goto(server.url + "account.html");
-      await a.evaluate(() => localStorage.setItem("sb-testref-auth-token", "{}"));
+      await a.evaluate(() => {
+        localStorage.setItem("sb-testref-auth-token", "{}");
+        localStorage.setItem("bm.sync.v1", JSON.stringify({ learner: "L1", acct: "u1", learnerName: "Kim" }));
+      });
       await a.reload();
       await a.waitForSelector("#acct-save");
       await a.waitForFunction(() => window.BMAccount.learner() === "L1");
@@ -710,7 +720,11 @@ function twelve() {
         const c = await context({}, Object.assign({ signedIn: true }, opts));
         const p = await page(c);
         await p.goto(server.url + "progress.html");
-        await p.evaluate(() => localStorage.setItem("sb-testref-auth-token", "{}"));
+        await p.evaluate((o) => {
+          localStorage.setItem("sb-testref-auth-token", "{}");
+          if (o.learner) localStorage.setItem("bm.sync.v1", JSON.stringify({ learner: "L1", acct: "u1", learnerName: o.learner }));
+          if (o.delay) localStorage.setItem("__sessdelay", String(o.delay));
+        }, { learner: opts.learner || null, delay: opts.delay || 0 });
         await p.reload();
         await p.waitForSelector("[data-progress] .stats");
         return { c, p };
@@ -740,6 +754,124 @@ function twelve() {
       check(t.chipTags === 0 && t.lineTags === 0 && /<b>x<\/b>/.test(t.chip) && /<b>x<\/b>/.test(t.line) && t.title === "Playing as <b>x</b>",
         "19 a learner named <b>x</b> is text in the chip and the line", t);
       await x.c.close();
+    }
+
+    /* 20. a learner dropped on load: the chip and the switch are the account's again; a rename follows the chip */
+    {
+      const c = await context({}, { signedIn: true, stub: { learnerGone: true } });
+      const a = await page(c);
+      await a.goto(server.url + "account.html");
+      await a.evaluate(() => {
+        localStorage.setItem("sb-testref-auth-token", "{}");
+        localStorage.setItem("bm.sync.v1", JSON.stringify({ learner: "L1", acct: "u1", learnerName: "Kim" }));
+      });
+      await a.reload();
+      await a.waitForSelector("#acct-board", { timeout: 8000 });
+      const gone = await a.evaluate(() => {
+        var l = document.querySelector(".topbar .acct");
+        return { hidden: (l.querySelector(".visually-hidden") || {}).textContent, learner: l.getAttribute("data-learner"), meta: JSON.parse(localStorage.getItem("bm.sync.v1") || "{}") };
+      });
+      check(gone.hidden === "Your account" && gone.learner === null && !gone.meta.learner && !gone.meta.learnerName,
+        "20 a learner dropped on load returns the chip to Your account, with the board switch back", gone);
+      await c.close();
+
+      const c2 = await context({}, { signedIn: true });
+      const r = await page(c2);
+      await r.goto(server.url + "account.html");
+      await r.evaluate(() => {
+        localStorage.setItem("sb-testref-auth-token", "{}");
+        localStorage.setItem("bm.sync.v1", JSON.stringify({ learner: "L1", acct: "u1", learnerName: "Kim" }));
+      });
+      await r.reload();
+      await r.waitForFunction(() => window.BMAccount.learner() === "L1");
+      await r.evaluate(() => window.BMAccount.renameLearnerLabel("L1", "Zed"));
+      check(await r.$eval(".topbar .acct", (e) => e.getAttribute("title")) === "Playing as Zed", "20 renaming the active learner updates the chip");
+      await c2.close();
+    }
+
+    /* 21. a Daily started as a learner is not the parent's after the other tab switches (T10) */
+    {
+      const c = await context({}, { signedIn: true, learner: "Kim" });
+      const t1 = await arena(c, { signedIn: true, onBoard: true, learner: "Kim" });
+      await t1.click('[data-act="start"][data-mode="daily"]');
+      await t1.waitForSelector(".arena-run");
+      const run = await t1.evaluate(() => JSON.parse(localStorage.getItem("bm.run.v1")).arena.as);
+      check(run === "L1", "21 the run records its reader", run);
+      const t2 = await page(c);
+      await t2.goto(server.url + "account.html");
+      await t2.waitForFunction(() => window.BMAccount && window.BMAccount.status().state === "synced");
+      await t2.evaluate(() => window.BMAccount.switchLearner(null));
+      await t1.waitForFunction(() => !document.querySelector(".arena-run") && document.querySelector('[data-act="start"][data-mode="daily"]'), null, { timeout: 8000 });
+      await t1.waitForTimeout(300);
+      const after = await t1.evaluate(() => ({
+        arena: JSON.parse(localStorage.getItem("bm.run.v1") || "{}").arena || null,
+        paid: (JSON.parse(localStorage.getItem("bm.run.v1") || "{}").paid || []).length,
+        game: localStorage.getItem("bm.game.v1"), running: !!document.querySelector(".arena-run"), result: !!document.querySelector(".arena-result")
+      }));
+      check(!after.arena && after.paid === 0 && !after.running && !after.result && Object.keys(JSON.parse(after.game || "{}").daily || {}).length === 0,
+        "21 the stale tab reloads to the lobby, nothing paid, and its pagehide put no run into the store", after);
+      const got = await calls(t1);
+      check(rpcs(got, "submit_daily").length === 0, "21 submit_daily is never sent", got);
+      await c.close();
+
+      /* the run is still in the store but its reader is not this one's (a learner dropped, a sign-out and in elsewhere) */
+      const c2 = await context({}, { signedIn: true, learner: "Kim" });
+      const u = await arena(c2, { signedIn: true, onBoard: true, learner: "Kim" });
+      await u.click('[data-act="start"][data-mode="daily"]');
+      await u.waitForSelector(".arena-run");
+      await u.evaluate(() => localStorage.setItem("bm.sync.v1", JSON.stringify({ ev: {}, user: "u1", resetAt: 0 })));
+      await u.reload();
+      await u.waitForSelector(".arena-fine[role=status]");
+      const note = await u.evaluate(() => ({ text: document.querySelector(".arena-fine[role=status]").textContent, run: JSON.parse(localStorage.getItem("bm.run.v1") || "{}").arena || null, running: !!document.querySelector(".arena-run") }));
+      check(note.text === "That run was started as a different learner, so it was not counted." && !note.run && !note.running, "21 a run of another reader is cleared on resume, with the not-counted line", note);
+      check(rpcs(await calls(u), "submit_daily").length === 0, "21 … and nothing is submitted");
+      await c2.close();
+    }
+
+    /* 22. the result is drawn before the session is read: the meta already keeps the board away */
+    {
+      const c = await context({}, { signedIn: true, learner: "Kim", stub: { board: twelve() } });
+      const p = await arena(c, { signedIn: true, onBoard: true, learner: "Kim" });
+      await play(p);
+      await p.evaluate(() => localStorage.setItem("__sessdelay", "4000"));
+      await p.reload();
+      await p.waitForSelector(".arena-result");
+      await p.waitForTimeout(500);
+      const early = await p.evaluate(() => ({ user: !!window.BMAccount.user(), slot: !!document.querySelector("[data-arena-board]"), section: !!document.querySelector(".arena-board") }));
+      check(!early.user && !early.slot && !early.section, "22 before the session is read, a restored result has no board slot", early);
+      await p.evaluate(() => {
+        var all = JSON.parse(localStorage.getItem("bm.run.v1") || "{}");
+        all.board = { day: window.BMSite.dayKey(), sent: 1, rank: 4, size: 12 };
+        localStorage.setItem("bm.run.v1", JSON.stringify(all));
+      });
+      await p.goto(server.url + "arena.html");
+      await p.waitForSelector('[data-act="start"][data-mode="daily"]');
+      await p.waitForTimeout(500);
+      const tile = await p.evaluate(() => ({ user: !!window.BMAccount.user(), text: document.querySelector('[data-act="start"][data-mode="daily"]').textContent }));
+      check(!tile.user && !/Today:/.test(tile.text), "22 … and the Daily tile has no Today: line", tile);
+      await c.close();
+    }
+
+    /* 23. the progress page's line is there on the first dashboard draw, before any sync, and a name is one code point's initial */
+    {
+      const k = await (async () => {
+        const c = await context({}, { signedIn: true });
+        const p = await page(c);
+        await p.goto(server.url + "progress.html");
+        await p.evaluate(() => {
+          localStorage.setItem("sb-testref-auth-token", "{}");
+          localStorage.setItem("bm.sync.v1", JSON.stringify({ learner: "L1", acct: "u1", learnerName: "\u{1F600}Kim" }));
+          localStorage.setItem("__sessdelay", "4000");
+        });
+        await p.reload();
+        await p.waitForSelector("[data-playing-as]", { timeout: 2000 });
+        return { c, p };
+      })();
+      const early = await k.p.evaluate(() => ({ user: !!window.BMAccount.user(), text: document.querySelector("[data-playing-as]").textContent }));
+      check(!early.user && /^Showing \u{1F600}Kim's progress/u.test(early.text), "23 the line is there on first paint, before the session is read", early);
+      await k.p.waitForSelector(".topbar .acct[data-learner]", { timeout: 8000 });
+      check(await k.p.$eval(".topbar .acct .avatar", (e) => e.textContent) === "\u{1F600}", "23 the avatar initial is the whole first character");
+      await k.c.close();
     }
 
     check(errors.length === 0, "8 no page errors, console errors or CSP violations", errors);

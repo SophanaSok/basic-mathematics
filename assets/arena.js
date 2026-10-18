@@ -384,8 +384,35 @@
     return out;
   }
 
+  /* Another tab chose a different learner: this page's run is not the store's reader's, so it writes
+     nothing from here on (account.js says so before it reloads the page). */
+  var staleTab = false;
+  /* The reader a run belongs to: the managed learner's id, or null for the account's own (and a
+     visitor). account.js may not have settled who this page runs as yet, so the sync meta it keeps
+     is read as well (account.js starts after this file, so at load the meta alone is all there is). */
+  function readerId() {
+    var A = window.BMAccount;
+    try {
+      if (A && typeof A.learner === "function" && A.learner()) return A.learner();
+      var m = Store.read("bm.sync.v1", {});
+      if (m && typeof m === "object" && typeof m.learner === "string" && m.learner && (!A || (typeof A.hasSession === "function" && A.hasSession()))) return m.learner;
+    } catch (e) { /* self */ }
+    return null;
+  }
+  /* a run with no `as` (an older store, or a visitor's) is the account's own */
+  function ownRun(r) { return (r && typeof r.as === "string" ? r.as : null) === readerId(); }
+  var FOREIGN = "That run was started as a different learner, so it was not counted.";
+  var lobbyFine = "";
+  function dropForeign() {
+    if (run) stopClock();
+    run = null;
+    clearRun();
+    lobbyFine = FOREIGN;
+    renderLobby();
+  }
   /* a run settled in another tab is never written back over the settled copy */
   function saveRun(silent) {
+    if (staleTab) return;
     var all = runStore();
     if (run && !run.done && paidIds(all).indexOf(runId(run)) > -1) return;
     all.arena = run;
@@ -405,6 +432,7 @@
     return true;
   }
   function clearRun() {
+    if (staleTab) return;
     var all = runStore();
     all.arena = null;
     Store.write(RUN_KEY, all, true);
@@ -418,8 +446,10 @@
   function freshCur() { return { el: 0, phase: "ask", paused: false, given: "" }; }
 
   function startRun(mode, opt) {
+    lobbyFine = "";
     if (mode === "daily" && dailyDone()) { renderLobby(); return; }
     var old = runStore().arena;
+    if (old && !ownRun(old)) { clearRun(); old = null; }
     /* today's Daily, left unfinished, is picked up again rather than dealt a second time */
     if (mode === "daily" && openRun(old) && old.mode === "daily" && old.day === today()) {
       run = old; run.cur.paused = false; renderRun(); return;
@@ -436,6 +466,7 @@
       hearts: plan.heartsOn ? HEARTS : null, max: HEARTS, score: 0, streak: 0, bestStreak: 0,
       qs: plan.qs, i: 0, ans: [], cur: freshCur(), done: false, paid: false, ended: null
     };
+    if (window.BMAccount) run.as = readerId();
     saveRun(false);
     Store.emit({ type: "arena", phase: "start", mode: mode });
     renderRun();
@@ -757,6 +788,7 @@
      tab) is closed without paying and returns null. */
   function settle(r, reason) {
     if (r.paid) return r.result;
+    if (!ownRun(r)) return null;
     var all = runStore(), ledger = paidIds(all), id = runId(r);
     if (ledger.indexOf(id) > -1) { r.done = true; r.paid = true; r.ended = reason; return null; }
     /* a Daily dealt before that day's was spent (another tab, another device) pays nothing */
@@ -882,6 +914,7 @@
 
   function finish(reason) {
     stopClock();
+    if (!ownRun(run)) { dropForeign(); return; }
     if (!settle(run, reason)) { leaveSettled(); return; }
     sfx("run-end");
     hud(null);
@@ -1132,6 +1165,7 @@
     setScreen("lobby");
     var d = deck(), saved = runStore().arena, dk = deckHtml(d);
     var html = '<div class="arena-lobby">';
+    if (lobbyFine) { html += '<p class="arena-fine" role="status">' + esc(lobbyFine) + "</p>"; }
     if (lobbyNote) { html += '<p class="arena-card arena-notice" role="status">' + esc(lobbyNote) + "</p>"; lobbyNote = ""; }
     html += resumeHtml(saved);
     html += contextHtml(d);
@@ -1540,17 +1574,9 @@
     var A = window.BMAccount;
     return A && typeof A === "object" && A.configured && typeof A.rpc === "function" ? A : null;
   }
-  /* A managed learner is never on the Daily board (T10). account.js may not have settled who this
-     page runs as yet, so the sync meta it keeps is read as well. */
-  function managed() {
-    var A = window.BMAccount;
-    try {
-      if (A && typeof A.learner === "function" && A.learner()) return true;
-      var m = Store.read("bm.sync.v1", {});
-      return !!(m && typeof m === "object" && typeof m.learner === "string" && m.learner && A && typeof A.hasSession === "function" && A.hasSession());
-    } catch (e) { return false; }
-  }
-  function boardWanted(res) { return !!(res && res.mode === "daily" && res.finished && !res.replay && boardOn() && !managed()); }
+  /* A managed learner is never on the Daily board (T10). */
+  function managed() { return !!readerId(); }
+  function boardWanted(res) { return !!(res && res.mode === "daily" && res.finished && !res.replay && boardOn() && !managed() && (!run || ownRun(run))); }
   function boardRec(day) {
     var b = runStore().board;
     return b && typeof b === "object" && b.day === day ? b : null;
@@ -1713,11 +1739,13 @@
       startRun(mode, { boss: params.boss, section: params.repair });
     } else if (act === "resume") {
       var saved = runStore().arena;
-      if (openRun(saved)) { run = saved; run.cur.paused = false; renderRun(); }
+      if (openRun(saved) && !ownRun(saved)) dropForeign();
+      else if (openRun(saved)) { run = saved; run.cur.paused = false; renderRun(); }
       else renderLobby();
     } else if (act === "bank") {
       var r = runStore().arena;
-      if (openRun(r)) { run = r; if (settle(run, "banked")) renderResult(); else leaveSettled(); }
+      if (openRun(r) && !ownRun(r)) dropForeign();
+      else if (openRun(r)) { run = r; if (settle(run, "banked")) renderResult(); else leaveSettled(); }
       else renderLobby();
     } else if (act === "check") check();
     else if (act === "pass") pass();
@@ -1785,7 +1813,8 @@
 
   Store.on(function (c) {
     if (!c) return;
-    if (c.type === "reset") {
+    if (c.type === "stale") staleTab = true;
+    else if (c.type === "reset") {
       stopClock();
       run = null;
       renderLobby();
@@ -1817,7 +1846,11 @@
 
   host.innerHTML = '<div class="arena-live visually-hidden" role="status" aria-live="polite"></div><div class="arena-screen"></div>';
   var saved0 = runStore().arena;
-  if (validRun(saved0)) {
+  if (validRun(saved0) && !ownRun(saved0)) {
+    clearRun();
+    lobbyFine = FOREIGN;
+    renderLobby();
+  } else if (validRun(saved0)) {
     if (saved0.done) {
       if (wasReload() && saved0.result) { run = saved0; renderResult(true); }
       else { clearRun(); renderLobby(); }

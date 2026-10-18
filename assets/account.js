@@ -175,7 +175,8 @@
   /* the learner this page runs as (null for the account's own), and a second tab's switch */
   var runsAs = null, stale = false;
   /* the managed learner's name as the switch saved it, or "" */
-  function learnerNameOf() { var n = meta().learnerName; return typeof n === "string" ? n.trim().slice(0, 40) : ""; }
+  function capName(n) { return typeof n === "string" ? Array.from(n.trim()).slice(0, 40).join("") : ""; }
+  function learnerNameOf() { return capName(meta().learnerName); }
   function learnerOf(u) { return u && u.id !== u.acct ? u.id : null; }
   function staleError() { return new Error("Reload: a different learner was chosen in another tab."); }
   var pushTimer = null, watchers = [];
@@ -696,6 +697,8 @@
     if (l === user.id) l = null;
     if (l !== runsAs && !stale) {
       stale = true;
+      /* the page's own scripts write nothing more (the Arena's pagehide would put this tab's run into the new reader's store) */
+      try { Store.emit({ type: "stale" }); } catch (err) { /* the reload follows */ }
       setStatus("reload", staleError());
       /* this tab's page and recorder would keep writing into the new learner's store: start over as the new learner */
       if (window.location && typeof window.location.reload === "function") window.location.reload();
@@ -721,13 +724,14 @@
       clearTimeout(pushTimer);
       pushTimer = null;
     }
+    /* who this page runs as is known before anything is drawn or announced */
+    var first = user && changed ? reader() : null;
+    if (first) { runsAs = learnerOf(first); stale = false; }
     if (!user) setStatus("off");
     drawButton();
     notify();
     if (user && changed) {
-      var captured = { id: user.id }, first = reader();
-      runsAs = learnerOf(first);
-      stale = false;
+      var captured = { id: user.id };
       if (!runsAs) { events("stamp", first.id); pull(); }
       else {
         settleReader(captured).then(function () {
@@ -813,6 +817,15 @@
     learner: function () { return runsAs; },
     /* the name the parent gave that learner, kept with the switch; null for the account's own */
     learnerName: function () { return runsAs ? learnerNameOf() : null; },
+    /* a rename of the learner this page runs as: the chip and the progress line follow */
+    renameLearnerLabel: function (id, name) {
+      if (!runsAs || id !== runsAs) return;
+      var nm = capName(name);
+      if (!nm) return;
+      setMeta(function (m) { m.learnerName = nm; });
+      drawButton();
+      notify();
+    },
     /* Choose whose progress this browser holds: a managed learner's id, or null for the
        account's own. Nothing of the old learner may reach the new one, so it saves first and
        refuses ("Finish syncing first.") while anything is unsent; then the browser's copy is
@@ -856,7 +869,7 @@
               setMeta(function (m) {
                 if (target) {
                   m.learner = target; m.acct = user.id;
-                  var nm = typeof name === "string" ? name.trim().slice(0, 40) : "";
+                  var nm = capName(name);
                   if (nm) m.learnerName = nm; else delete m.learnerName;
                 } else { delete m.learner; delete m.learnerName; delete m.acct; }
                 delete m.user; delete m.resetAt;
@@ -1032,7 +1045,7 @@
     }
     var rd = user ? reader() : null, playing = rd && learnerOf(rd) ? (learnerNameOf() || "this learner") : "";
     if (playing) {
-      a.innerHTML = '<span class="avatar" aria-hidden="true">' + Site.escapeHtml(playing.charAt(0).toUpperCase()) + "</span>" +
+      a.innerHTML = '<span class="avatar" aria-hidden="true">' + Site.escapeHtml(Array.from(playing)[0].toUpperCase()) + "</span>" +
         '<span class="acct-name" aria-hidden="true">' + Site.escapeHtml(playing) + "</span>" +
         '<span class="visually-hidden">Playing as ' + Site.escapeHtml(playing) + "</span>";
       a.setAttribute("title", "Playing as " + playing);
@@ -1433,6 +1446,7 @@
       renameBusy = null;
       var l = learnerById(id);
       if (l) l.name = nm;
+      Account.renameLearnerLabel(id, nm);
       renaming = null;
       focusAfter = "lrn-r-" + id;
       lsay("Renamed to " + nm + ".");
@@ -1467,7 +1481,7 @@
       if (switched) armed = id;
       else if (e && STALE_RE.test(e.message || "")) armed = id;
       learnerProblem(e, "Delete", "lrn-del-" + id, switched ? "Switched back to your own progress. " : "");
-      if (switched) draw();
+      draw();
     });
   }
 
