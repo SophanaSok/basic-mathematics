@@ -174,6 +174,8 @@
   }
   /* the learner this page runs as (null for the account's own), and a second tab's switch */
   var runsAs = null, stale = false;
+  /* the managed learner's name as the switch saved it, or "" */
+  function learnerNameOf() { var n = meta().learnerName; return typeof n === "string" ? n.trim().slice(0, 40) : ""; }
   function learnerOf(u) { return u && u.id !== u.acct ? u.id : null; }
   function staleError() { return new Error("Reload: a different learner was chosen in another tab."); }
   var pushTimer = null, watchers = [];
@@ -665,13 +667,14 @@
      never merged into the account's own progress */
   function dropLearner(u) {
     clearLocal(true);
-    setMeta(function (m) { delete m.learner; delete m.acct; delete m.user; delete m.resetAt; m.ev = {}; });
+    setMeta(function (m) { delete m.learner; delete m.learnerName; delete m.acct; delete m.user; delete m.resetAt; m.ev = {}; });
     /* nothing will ever merge what was set aside for a learner that is gone */
     setPending(function (p) { delete p[u.id]; });
     runsAs = null;
     stale = false;
     seen = undefined; owned = false; ahead = false;
     evAhead = false; evFull = false; evAfter = 0; evChunk = 500;
+    drawButton();
   }
   /* verify the active managed learner (page load); resolves once the reader is settled */
   function settleReader(captured) {
@@ -705,7 +708,7 @@
     /* a learner left by another account is not this account's (T6) */
     if (next) {
       var held = meta();
-      if ((held.learner || held.acct) && held.acct !== next.id) setMeta(function (m) { delete m.learner; delete m.acct; });
+      if ((held.learner || held.acct) && held.acct !== next.id) setMeta(function (m) { delete m.learner; delete m.learnerName; delete m.acct; });
     }
     user = next;
     /* what this page knew of the previous reader's row and log is not this reader's */
@@ -808,11 +811,13 @@
     user: function () { return user; },
     /* the managed learner this browser is playing as, or null for the account's own */
     learner: function () { return runsAs; },
+    /* the name the parent gave that learner, kept with the switch; null for the account's own */
+    learnerName: function () { return runsAs ? learnerNameOf() : null; },
     /* Choose whose progress this browser holds: a managed learner's id, or null for the
        account's own. Nothing of the old learner may reach the new one, so it saves first and
        refuses ("Finish syncing first.") while anything is unsent; then the browser's copy is
        cleared and the new learner's is pulled. */
-    switchLearner: function (id) {
+    switchLearner: function (id, name) {
       if (!user) return Promise.reject(new Error("Sign in first."));
       if (stale) return Promise.reject(staleError());
       if (id !== null && id !== undefined && (typeof id !== "string" || !id)) return Promise.reject(new Error("Unknown learner."));
@@ -849,7 +854,11 @@
               if (again) refuse(again);
               clearLocal(true);
               setMeta(function (m) {
-                if (target) { m.learner = target; m.acct = user.id; } else { delete m.learner; delete m.acct; }
+                if (target) {
+                  m.learner = target; m.acct = user.id;
+                  var nm = typeof name === "string" ? name.trim().slice(0, 40) : "";
+                  if (nm) m.learnerName = nm; else delete m.learnerName;
+                } else { delete m.learner; delete m.learnerName; delete m.acct; }
                 delete m.user; delete m.resetAt;
                 m.ev = {};
               });
@@ -862,7 +871,7 @@
               return sync(r, 0).then(function () { setStatus(ahead ? "reload" : "synced"); }, function (e) { setStatus("error", e); });
             });
           });
-        }).then(function () { notify(); });
+        }).then(function () { drawButton(); notify(); });
       });
     },
     status: function () { return { state: status.state, at: status.at, error: status.error, log: evFull ? "full" : "" }; },
@@ -932,7 +941,7 @@
         });
       }).then(function () {
         if (!saved) setAside(u);
-        setMeta(function (m) { delete m.user; delete m.resetAt; delete m.learner; delete m.acct; m.ev = {}; });
+        setMeta(function (m) { delete m.user; delete m.resetAt; delete m.learner; delete m.learnerName; delete m.acct; m.ev = {}; });
         runsAs = null;
         clearLocal();
         return { saved: saved, error: why };
@@ -972,7 +981,7 @@
     deleteAccount: function () {
       return Account.ready().then(function (c) {
         return c.rpc("delete_my_account").then(unwrap).then(function () {
-          setMeta(function (m) { delete m.user; delete m.resetAt; delete m.learner; delete m.acct; m.ev = {}; });
+          setMeta(function (m) { delete m.user; delete m.resetAt; delete m.learner; delete m.learnerName; delete m.acct; m.ev = {}; });
           runsAs = null;
           events("clear", true);
           /* the account's place on the Daily board went with it */
@@ -1021,7 +1030,16 @@
       a.href = Site.rootPrefix() + "account.html";
       nav.appendChild(a);
     }
-    if (user) {
+    var rd = user ? reader() : null, playing = rd && learnerOf(rd) ? (learnerNameOf() || "this learner") : "";
+    if (playing) {
+      a.innerHTML = '<span class="avatar" aria-hidden="true">' + Site.escapeHtml(playing.charAt(0).toUpperCase()) + "</span>" +
+        '<span class="acct-name" aria-hidden="true">' + Site.escapeHtml(playing) + "</span>" +
+        '<span class="visually-hidden">Playing as ' + Site.escapeHtml(playing) + "</span>";
+      a.setAttribute("title", "Playing as " + playing);
+      a.setAttribute("data-in", "true");
+      a.setAttribute("data-learner", "true");
+    } else if (user) {
+      a.removeAttribute("data-learner");
       var who = label(user), initial = (who || "?").charAt(0).toUpperCase();
       a.innerHTML = '<span class="avatar" aria-hidden="true">' + Site.escapeHtml(initial) + "</span>" +
         '<span class="visually-hidden">Your account</span>';
@@ -1031,6 +1049,7 @@
       a.textContent = "Sign in";
       a.removeAttribute("title");
       a.removeAttribute("data-in");
+      a.removeAttribute("data-learner");
     }
   }
 
@@ -1331,7 +1350,7 @@
   }
   function switchTo(id) {
     armed = null;
-    Account.switchLearner(id).then(function () {
+    Account.switchLearner(id, id ? (learnerById(id) || {}).name : null).then(function () {
       focusAfter = "lrn-h";
       lsay("");
       draw();
@@ -1414,7 +1433,7 @@
           esc(listOf(ways)) + ".</p>" : "") +
         '<p class="sync-state" data-state="' + status.state + '">' + esc(st) + "</p>" +
         field("acct-name", "Display name (optional)", "text", 'autocomplete="nickname" maxlength="60"') +
-        (boardOn && board !== null ? '<label class="switch acct-board"><input id="acct-board" type="checkbox" role="switch"' + (boardShown() ? " checked" : "") +
+        (boardOn && board !== null && !Account.learner() ? '<label class="switch acct-board"><input id="acct-board" type="checkbox" role="switch"' + (boardShown() ? " checked" : "") +
           (boardBusy ? ' disabled aria-busy="true"' : "") +
           ' aria-checked="' + (boardShown() ? "true" : "false") + '" aria-labelledby="acct-board-name" aria-describedby="acct-board-note">' +
           '<span id="acct-board-name">Daily board</span><small id="acct-board-note">Signed-in readers see a made-up name that changes daily, ' +

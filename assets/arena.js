@@ -1540,7 +1540,17 @@
     var A = window.BMAccount;
     return A && typeof A === "object" && A.configured && typeof A.rpc === "function" ? A : null;
   }
-  function boardWanted(res) { return !!(res && res.mode === "daily" && res.finished && !res.replay && boardOn()); }
+  /* A managed learner is never on the Daily board (T10). account.js may not have settled who this
+     page runs as yet, so the sync meta it keeps is read as well. */
+  function managed() {
+    var A = window.BMAccount;
+    try {
+      if (A && typeof A.learner === "function" && A.learner()) return true;
+      var m = Store.read("bm.sync.v1", {});
+      return !!(m && typeof m === "object" && typeof m.learner === "string" && m.learner && A && typeof A.hasSession === "function" && A.hasSession());
+    } catch (e) { return false; }
+  }
+  function boardWanted(res) { return !!(res && res.mode === "daily" && res.finished && !res.replay && boardOn() && !managed()); }
   function boardRec(day) {
     var b = runStore().board;
     return b && typeof b === "object" && b.day === day ? b : null;
@@ -1560,7 +1570,7 @@
      expired browser never shows a stale place */
   function boardLine() {
     var A = account();
-    if (!boardOn() || !A || typeof A.hasSession !== "function" || !A.hasSession()) return "";
+    if (!boardOn() || managed() || !A || typeof A.hasSession !== "function" || !A.hasSession()) return "";
     var b = boardRec(today());
     if (!b || !b.sent || !(Number(b.size) >= 3)) return "";
     return "Today: " + (rankOf(b.rank) ? ordinal(b.rank) + " of " + Number(b.size) : "unranked");
@@ -1671,6 +1681,7 @@
     if (typeof A.hasSession === "function" && !A.hasSession()) { drawBoard(boardSignIn()); return; }
     A.ready().then(function () {
       if (!boardSlot()) return;
+      if (managed()) { var gone = boardSlot(); if (gone && gone.parentNode) gone.parentNode.removeChild(gone); return; }
       if (!A.user()) { drawBoard(boardSignIn()); return; }
       sendAndShow(A, res);
     }, function (e) { boardWarn(e); });

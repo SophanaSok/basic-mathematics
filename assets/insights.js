@@ -253,7 +253,14 @@
     var tried = 0, first = 0;
     rows.forEach(function (r) { tried += r.n; first += r.first; });
 
-    var html = '<div class="stats">';
+    var html = "";
+    /* whose progress this is, when the browser runs as a managed learner (the parent's text, so escaped) */
+    if (Account && typeof Account.learner === "function" && Account.learner()) {
+      var lname = (typeof Account.learnerName === "function" && Account.learnerName()) || "this learner";
+      html += '<p class="fine" data-playing-as>Showing ' + esc(lname) + '\'s progress. <a href="' + esc(Site.rootPrefix() + "account.html") +
+        '">Switch learners on your account page.</a></p>';
+    }
+    html += '<div class="stats">';
     html += tile("Streak", streak, streak === 1 ? "day" : "days", streak ? ' data-on="true"' : "");
     html += tile("Today", today + '<small> / ' + goal + " XP</small>",
       today >= goal ? "Goal reached" : (goal - today) + " XP to go");

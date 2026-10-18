@@ -57,7 +57,17 @@
       size and the Daily tile silent
   13. a sign-out, and an account deleted, forget bm.run.v1.board
   14. a clean time of 900 ms over 5 questions (under a quarter second each) is sent as
-      p_ms null, with the score */
+      p_ms null, with the score
+  A managed learner is seeded in the sync meta ({ learner: "L1", acct: "u1", learnerName })
+  before account.js runs; the stand-in's learners select answers { id: "L1" }.
+  15. a finished, non-replay Daily as a managed learner draws no board section, calls
+      neither submit_daily nor daily_board, and the Daily tile shows no "Today:" line
+  16. the top bar chip reads "Playing as Kim" (title and hidden text), shows the initial K
+      and data-learner; signed in as self it is unchanged
+  17. the account page as a managed learner draws no #acct-board switch; as self it does
+  18. the progress page as a managed learner shows the "Showing Kim's progress" line with
+      the account link; as self it does not
+  19. a learner named <b>x</b> renders as text in the chip and the line */
 "use strict";
 const site = require("../lib/site");
 const target = require("../lib/target");
@@ -104,6 +114,8 @@ window.supabase = { createClient: function () {
             if (args && args.board === true) localStorage.setItem("__onboard", "1");
             res = answer(null);
           } else res = answer(S.profileNoBoard ? { display_name: "Reader" } : { display_name: "Reader", board: onBoard() });
+        } else if (table === "learners") {
+          res = answer({ id: "L1" });
         } else res = answer(write ? [{ updated_at: new Date().toISOString() }] : null);
         return Promise.resolve(res).then(ok, bad);
       }
@@ -170,6 +182,12 @@ function twelve() {
       window.__session = seed.session || null;
       window.__stub = seed.stub || {};
     }, { config, session: opts.signedIn ? SESSION : null, stub: opts.stub || {} });
+    /* a managed learner chosen on this browser: the sync meta account.js keeps, before it runs */
+    if (opts.learner) {
+      await c.addInitScript((name) => {
+        localStorage.setItem("bm.sync.v1", JSON.stringify({ learner: "L1", acct: "u1", learnerName: name }));
+      }, opts.learner);
+    }
     return c;
   }
   async function page(c) {
@@ -622,6 +640,106 @@ function twelve() {
       await d.waitForFunction(() => document.getElementById("acct-in"));
       check(await d.evaluate(() => !(JSON.parse(localStorage.getItem("bm.run.v1") || "{}")).board), "13 deleting the account forgets bm.run.v1.board");
       await c2.close();
+    }
+
+    /* 15. a managed learner is never on the Daily board */
+    {
+      const c = await context({}, { signedIn: true, learner: "Kim", stub: { board: twelve() } });
+      const p = await arena(c, { signedIn: true, onBoard: true });
+      const res = await play(p);
+      check(res.mode === "daily" && res.finished && !res.replay, "15 a finished Daily as a managed learner", res);
+      check(await p.evaluate(() => window.BMAccount.learner()) === "L1", "15 the page runs as the learner");
+      const seen = await slotAfter(p, 600);
+      check(!seen.slot && !seen.section && !seen.join, "15 the result has no board slot, section or join button", seen);
+      await p.evaluate(() => {
+        var all = JSON.parse(localStorage.getItem("bm.run.v1") || "{}");
+        all.board = { day: window.BMSite.dayKey(), sent: 1, rank: 4, size: 12 };
+        localStorage.setItem("bm.run.v1", JSON.stringify(all));
+      });
+      await toLobby(p);
+      const tile = await dailyTile(p);
+      check(!/Today:/.test(tile), "15 the Daily tile shows no place on the board", tile);
+      const got = await calls(p);
+      check(rpcs(got, "submit_daily").length === 0 && rpcs(got, "daily_board").length === 0 && !got.some((x) => x.from === "profiles"),
+        "15 submit_daily, daily_board and the profile are never asked", got);
+      await c.close();
+    }
+
+    /* 16. the chip */
+    {
+      const chip = (p) => p.$eval(".topbar .acct", (a) => ({
+        title: a.getAttribute("title"), hidden: (a.querySelector(".visually-hidden") || {}).textContent, initial: (a.querySelector(".avatar") || {}).textContent,
+        name: (a.querySelector(".acct-name") || {}).textContent, learner: a.getAttribute("data-learner"), href: a.getAttribute("href")
+      }));
+      const c = await context({}, { signedIn: true, learner: "Kim" });
+      const p = await arena(c, { signedIn: true });
+      await p.waitForSelector(".topbar .acct[data-learner]");
+      const k = await chip(p);
+      check(k.title === "Playing as Kim" && k.hidden === "Playing as Kim" && k.initial === "K" && k.name === "Kim" && k.learner === "true" && /account\.html$/.test(k.href),
+        "16 the chip reads Playing as Kim, with the initial K and data-learner", k);
+      await c.close();
+      const c2 = await context({}, { signedIn: true });
+      const q = await arena(c2, { signedIn: true });
+      await q.waitForSelector(".topbar .acct[data-in]");
+      const me = await chip(q);
+      check(me.learner === null && me.name === undefined && me.hidden === "Your account" && me.initial === "R" && /^Signed in as reader@example\.com$/.test(me.title), "16 as self the chip is unchanged", me);
+      await c2.close();
+    }
+
+    /* 17. the account page's board switch */
+    {
+      const c = await context({}, { signedIn: true, learner: "Kim" });
+      const a = await page(c);
+      await a.goto(server.url + "account.html");
+      await a.evaluate(() => localStorage.setItem("sb-testref-auth-token", "{}"));
+      await a.reload();
+      await a.waitForSelector("#acct-save");
+      await a.waitForFunction(() => window.BMAccount.learner() === "L1");
+      await a.waitForTimeout(400);
+      check(await a.evaluate(() => !document.getElementById("acct-board")), "17 the account page as a managed learner draws no Daily board switch");
+      await c.close();
+      const c2 = await context({}, { signedIn: true });
+      const b = await account(c2, true);
+      check(await b.evaluate(() => !!document.getElementById("acct-board")), "17 as self the switch is there");
+      await c2.close();
+    }
+
+    /* 18 and 19. the progress page's line, and names as text */
+    {
+      async function progress(opts) {
+        const c = await context({}, Object.assign({ signedIn: true }, opts));
+        const p = await page(c);
+        await p.goto(server.url + "progress.html");
+        await p.evaluate(() => localStorage.setItem("sb-testref-auth-token", "{}"));
+        await p.reload();
+        await p.waitForSelector("[data-progress] .stats");
+        return { c, p };
+      }
+      const line = (p) => p.evaluate(() => {
+        var l = document.querySelector("[data-playing-as]"), a = l && l.querySelector("a");
+        return { text: l && l.textContent, href: a && a.getAttribute("href"), cls: l && l.className };
+      });
+      const k = await progress({ learner: "Kim" });
+      await k.p.waitForSelector("[data-playing-as]");
+      const got = await line(k.p);
+      check(got.text === "Showing Kim's progress. Switch learners on your account page." && /account\.html$/.test(got.href || "") && got.cls === "fine",
+        "18 the progress page shows whose progress it is, with the account link", got);
+      await k.c.close();
+      const s = await progress({});
+      await s.p.waitForTimeout(500);
+      check((await line(s.p)).text === null, "18 as self there is no such line");
+      await s.c.close();
+
+      const x = await progress({ learner: "<b>x</b>" });
+      await x.p.waitForSelector("[data-playing-as]");
+      await x.p.waitForSelector(".topbar .acct[data-learner]");
+      const t = await x.p.evaluate(() => {
+        var a = document.querySelector(".topbar .acct"), l = document.querySelector("[data-playing-as]");
+        return { chip: a.textContent, chipTags: a.querySelectorAll("b").length, title: a.getAttribute("title"), line: l.textContent, lineTags: l.querySelectorAll("b").length };
+      });
+      check(t.chipTags === 0 && t.lineTags === 0 && /<b>x<\/b>/.test(t.chip) && /<b>x<\/b>/.test(t.line) && t.title === "Playing as <b>x</b>",
+        "19 a learner named <b>x</b> is text in the chip and the line", t);
+      await x.c.close();
     }
 
     check(errors.length === 0, "8 no page errors, console errors or CSP violations", errors);
