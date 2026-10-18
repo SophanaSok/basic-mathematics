@@ -207,6 +207,9 @@ body[data-part] .topbar { border-bottom-color: var(--part-frame); }
 }
 .acct:hover { background: var(--hud-chip); }
 .acct[data-in] { padding: 0; border: 0; }
+.acct[data-learner] { gap: .45rem; padding-right: .6rem; border: 1px solid var(--hud-line); }
+.acct-name { max-width: 7rem; overflow: hidden; text-overflow: ellipsis; }
+@media (max-width: 479px) { .acct-name { display: none; } .acct[data-learner] { padding-right: 0; border: 0; } }
 .avatar {
   display: grid; place-items: center; width: 2.25rem; height: 2.25rem; border-radius: 50%;
   background: var(--accent); color: var(--on-accent); font-weight: 700; font-size: .9rem;
