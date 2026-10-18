@@ -458,7 +458,7 @@ Providers; off by default), since with it a stale session could link a sign-in s
 controls and sign in through it for a fresh `oauth` entry; and leave `web3` and SAML off unless
 `fresh_auth`'s method list is judged again when they are turned on.
 
-applied: ____ (date, filled in by the owner or the session that applies it; only after #192 is live)
+applied: 2026-10-18 (Claude in Chrome, after #192 deployed; verified: delete_my_account is plpgsql and calls fresh_auth, fresh_auth carries the first-factor list, grants unchanged)
 
 ## 2. Deploys
 
