@@ -38,7 +38,13 @@
   16. rename opens an inline field, Enter calls learner_rename, Escape cancels, focus returns
   17. delete needs two presses; a stale sign-in says to sign in again and shows the sign-in controls
   18. download calls learner_export and the page offers a file named after the learner
-  19. the panel fits a 360px screen with no horizontal scroll; every control is reachable by Tab */
+   19. the panel fits a 360px screen with no horizontal scroll; every control is reachable by Tab
+   20. deleting the active learner switches to the own progress first; a stale refusal says so
+   21. the step-up signs in again in place: its own note, the Learners note keeps the instruction,
+       and the retried Delete works with the focus on it
+   22. unticking Under 13 clears the consent tick; another account's sign-in shows a clean panel
+   23. two quick Enters add once; a rename keeps typed text through a sync redraw
+   24. a sync-status redraw keeps the keyboard focus on the button that had it */
 "use strict";
 const site = require("../lib/site");
 const target = require("../lib/target");
@@ -78,7 +84,9 @@ window.supabase = { createClient: function () {
   return {
     from: query,
     rpc: function (name, args) {
-      window.__rpc.push({ name: name, args: args });
+      var meta = {}; try { meta = JSON.parse(localStorage.getItem("bm.sync.v1") || "{}"); } catch (e) { meta = {}; }
+      window.__rpc.push({ name: name, args: args, learner: meta.learner || null });
+      if (name === "learner_add" && opts.addDelay) return new Promise(function (ok) { setTimeout(function () { rows().push({ id: "L-new", self: false, name: args.name, under13: !!args.under13, consent_v: args.consent_v, created_at: "2026-10-18T00:00:00Z" }); ok(answer("L-new")); }, opts.addDelay); });
       if (name === "learner_list") return Promise.resolve(answer(rows().slice()));
       if (name === "learner_add") {
         rows().push({ id: "L-new", self: false, name: args.name, under13: !!args.under13, consent_v: args.consent_v, created_at: "2026-10-18T00:00:00Z" });
@@ -100,7 +108,13 @@ window.supabase = { createClient: function () {
         if (opts.oauthFails) return Promise.resolve({ data: null, error: { message: "Unsupported provider: provider is not enabled" } });
         return Promise.resolve(answer({ provider: a.provider }));
       },
-      signInWithPassword: function () { return Promise.resolve({ data: null, error: { message: "Invalid login credentials" } }); },
+      signInWithPassword: function () {
+        if (!opts.signInOk) return Promise.resolve({ data: null, error: { message: "Invalid login credentials" } });
+        var as = opts.signInAs || (window.__session && window.__session.user.id) || "u1";
+        window.__session = { user: { id: as, email: as + "@example.com", app_metadata: { provider: "email", providers: ["email"] } } };
+        subs.forEach(function (cb) { cb("SIGNED_IN", window.__session); });
+        return Promise.resolve(answer({ session: window.__session }));
+      },
       signUp: function () {
         if (opts.signUpRefused) return Promise.resolve({ data: null, error: { code: "email_address_not_authorized", message: "Email address not authorized" } });
         return Promise.resolve(answer({ session: null }));
@@ -538,10 +552,10 @@ const ALL = ["google", "github", "discord", "facebook", "azure"];
     await context.close();
 
     const st = await open_({ learners: roster(), stale: true });
-    check(await st.page.evaluate(() => !document.getElementById("acct-in")), "17 no sign-in controls before they are needed");
+    check(await st.page.evaluate(() => !document.getElementById("acct-stepin")), "17 no sign-in controls before they are needed");
     await st.page.click("#lrn-del-L2");
     await st.page.click("#lrn-del-L2");
-    await st.page.waitForSelector("#acct-in");
+    await st.page.waitForSelector("#acct-stepin");
     const note = await text(st.page, "[data-note-l]");
     check(note === "To confirm it is you, sign in again, then press Delete again.", "17 a stale sign-in says to sign in again", note);
     check(await st.page.evaluate(() => !!document.getElementById("acct-oauth-google") && !!document.getElementById("acct-email") && !!document.getElementById("acct-pass") && !!document.getElementById("lrn-del-L2")),
@@ -582,6 +596,133 @@ const ALL = ["google", "github", "discord", "facebook", "azure"];
     }
     check(wanted.length > 8 && wanted.every((id) => reached.includes(id)), "19 every control in the panel is reached by Tab", wanted.filter((id) => !reached.includes(id)));
     check(await page.evaluate(() => Array.from(document.querySelectorAll(".learners button, .learners input")).every((el) => !el.disabled)), "19 no control is disabled");
+    await context.close();
+  }
+
+  /* 20 */
+  {
+    const local = { "bm.sync.v1": { learner: "L1", acct: "u1" } };
+    const { page, context } = await open_({ learners: roster() }, { local });
+    await page.waitForFunction(() => /Synced at/.test(document.querySelector("[data-account]").textContent));
+    await page.click("#lrn-del-L1");
+    await page.click("#lrn-del-L1");
+    await page.waitForFunction(() => window.__rpc.some((c) => c.name === "learner_delete"));
+    const del = (await calls(page, "learner_delete"))[0];
+    check(del.args.id === "L1" && del.learner === null, "20 the switch to the own progress happened before learner_delete", del);
+    await page.waitForFunction(() => !document.getElementById("lrn-del-L1"));
+    const fin = await page.evaluate(() => ({ who: window.BMAccount.learner(), current: Array.from(document.querySelectorAll(".learner-row")).map((r) => r.getAttribute("aria-current")) }));
+    check(fin.who === null && fin.current[0] === "true", "20 the page is on the own progress", fin);
+    check(/^Switched back to your own progress, and deleted/.test(await text(page, "[data-note-l]")), "20 and says so", await text(page, "[data-note-l]"));
+    await context.close();
+
+    const st = await open_({ learners: roster(), stale: true }, { local });
+    await st.page.waitForFunction(() => /Synced at/.test(document.querySelector("[data-account]").textContent));
+    await st.page.click("#lrn-del-L1");
+    await st.page.click("#lrn-del-L1");
+    await st.page.waitForSelector("#acct-stepin");
+    const note = await text(st.page, "[data-note-l]");
+    check(note === "Switched back to your own progress. To confirm it is you, sign in again, then press Delete again.", "20 a stale refusal after the switch says both", note);
+    const on = await st.page.evaluate(() => ({ who: window.BMAccount.learner(), first: document.querySelector(".learner-row").getAttribute("aria-current") }));
+    check(on.who === null && on.first === "true", "20 … and the page is on the own progress", on);
+    await st.context.close();
+  }
+
+  /* 21 */
+  {
+    const { page, context } = await open_({ learners: roster(), stale: true });
+    await page.click("#lrn-del-L2");
+    await page.click("#lrn-del-L2");
+    await page.waitForSelector("#acct-stepin");
+    const email = await page.evaluate(() => ({ v: document.getElementById("acct-email").value, ro: document.getElementById("acct-email").readOnly }));
+    check(email.v === "parent@example.com" && email.ro, "21 the step-up email is the account's, and read-only", email);
+    await page.fill("#acct-pass", "wrong-password");
+    await page.keyboard.press("Enter");
+    await page.waitForFunction(() => /Invalid login/.test((document.querySelector("[data-note-s]") || {}).textContent || ""));
+    check(/sign in again, then press Delete again/.test(await text(page, "[data-note-l]")) && !/Invalid/.test(await text(page, "[data-note-l]")), "21 a wrong password reports in the form's own slot and the instruction stays", await text(page, "[data-note-l]"));
+    await page.evaluate(() => { window.__opts.signInOk = true; window.__opts.stale = false; });
+    await page.fill("#acct-pass", "right-password");
+    await page.keyboard.press("Enter");
+    await page.waitForFunction(() => !document.getElementById("acct-stepin"));
+    check(await text(page, "[data-note-l]") === "Signed in again. Now press Delete again.", "21 a right password removes the form and says to press again", await text(page, "[data-note-l]"));
+    check(await page.evaluate(() => document.activeElement.id === "lrn-del-L2"), "21 the focus is on that Delete button", await page.evaluate(() => document.activeElement.id));
+    await page.keyboard.press("Enter");
+    await page.waitForFunction(() => window.__rpc.filter((c) => c.name === "learner_delete").length === 2);
+    await page.waitForFunction(() => !document.getElementById("lrn-del-L2"));
+    await context.close();
+  }
+
+  /* 22 */
+  {
+    const { page, context } = await open_({ learners: roster(), stale: true });
+    await page.check("#lrn-u13");
+    await page.check("#lrn-consent");
+    await page.uncheck("#lrn-u13");
+    await page.check("#lrn-u13");
+    check(await page.evaluate(() => document.getElementById("lrn-consent").checked === false), "22 unticking Under 13 clears the consent tick");
+    await page.click("#lrn-del-L2");
+    await page.click("#lrn-del-L2");
+    await page.waitForSelector("#acct-stepin");
+    await page.click("#lrn-r-L1");
+    await page.click("#acct-out");
+    await page.waitForSelector("#acct-in");
+    await page.evaluate(() => {
+      window.__opts.signInOk = true; window.__opts.signInAs = "u2"; window.__opts.stale = false;
+      window.__opts.learners = [{ id: "u2", self: true, name: null, under13: false, consent_v: null, created_at: "x" }, { id: "M1", self: false, name: "Zed", under13: true, consent_v: 1, created_at: "y" }];
+    });
+    await page.fill("#acct-email", "u2@example.com");
+    await page.fill("#acct-pass", "right-password");
+    await page.click("#acct-in");
+    await page.waitForSelector("#lrn-h");
+    await page.waitForFunction(() => Array.from(document.querySelectorAll(".learner-name")).some((n) => n.textContent === "Zed"));
+    const seen = await page.evaluate(() => ({
+      names: Array.from(document.querySelectorAll(".learner-name")).map((n) => n.textContent),
+      armed: /Press again/.test(document.querySelector(".learners").textContent), rename: !!document.querySelector("[id^=lrn-ri-]"),
+      step: !!document.getElementById("acct-stepin"), consent: !!document.getElementById("lrn-consent"), u13: document.getElementById("lrn-u13").checked,
+      note: document.querySelector("[data-note-l]").textContent
+    }));
+    check(JSON.stringify(seen.names) === JSON.stringify(["Your own progress", "Zed"]) && !seen.armed && !seen.rename && !seen.step && !seen.consent && !seen.u13 && seen.note === "",
+      "22 another account shows its own list with nothing armed, open or ticked", seen);
+    await context.close();
+  }
+
+  /* 23 */
+  {
+    const { page, context } = await open_({ learners: roster(), addDelay: 400 });
+    await page.fill("#lrn-name", "Quick");
+    await page.keyboard.press("Enter");
+    await page.keyboard.press("Enter");
+    await page.waitForFunction(() => Array.from(document.querySelectorAll(".learner-name")).some((n) => n.textContent === "Quick"));
+    check((await calls(page, "learner_add")).length === 1, "23 two quick Enters send one learner_add", (await calls(page, "learner_add")).length);
+    await page.click("#lrn-r-L2");
+    await page.fill("#lrn-ri-L2", "Samuel");
+    await page.click("#acct-sync");
+    await page.waitForFunction(() => /Synced at/.test(document.querySelector("[data-account]").textContent));
+    const kept = await page.evaluate(() => document.getElementById("lrn-ri-L2").value);
+    check(kept === "Samuel", "23 a rename field keeps the typed text across a sync redraw", kept);
+    await page.click("#lrn-rs-L2");
+    await page.waitForFunction(() => window.__rpc.some((c) => c.name === "learner_rename"));
+    check((await calls(page, "learner_rename"))[0].args.name === "Samuel", "23 Save sends the typed name");
+    await context.close();
+  }
+
+  /* 24 */
+  {
+    const { page, context } = await open_({ learners: roster() });
+    await page.waitForFunction(() => /Synced at/.test(document.querySelector("[data-account]").textContent));
+    await page.focus("#lrn-r-L2");
+    await page.evaluate(() => { document.getElementById("lrn-r-L2").__old = true; window.BMAccount.syncNow(); });
+    await page.waitForFunction(() => !document.getElementById("lrn-r-L2").__old);
+    check(await page.evaluate(() => document.activeElement.id === "lrn-r-L2"), "24 a sync redraw keeps the focus on the Rename button", await page.evaluate(() => document.activeElement.id));
+    await page.waitForFunction(() => /Synced at/.test(document.querySelector(".sync-state").textContent));
+    await page.waitForTimeout(200);
+    check(await page.evaluate(() => document.activeElement.id === "lrn-r-L2"), "24 … and after it settles");
+    await page.focus("#lrn-h");
+    await page.keyboard.press("Tab");
+    check(await page.evaluate(() => document.activeElement.id === "lrn-sw-L1"), "24 Tab from the heading reaches Switch to", await page.evaluate(() => document.activeElement.id));
+    await page.keyboard.press("Enter");
+    await page.waitForFunction(() => window.BMAccount.learner() === "L1");
+    await page.waitForFunction(() => /Synced at/.test(document.querySelector(".sync-state").textContent));
+    check(await page.evaluate(() => !!document.activeElement.closest(".learners")), "24 after the switch the focus is still inside the Learners panel", await page.evaluate(() => document.activeElement.tagName));
     await context.close();
   }
 

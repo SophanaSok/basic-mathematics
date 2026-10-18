@@ -1077,7 +1077,7 @@
   var host = document.querySelector("[data-account]");
   if (!host) return;
   var esc = Site.escapeHtml;
-  var notice = "", NOTE = "<!--note-->", NOTE_L = "<!--note-learners-->", noteAt = "";
+  var notice = "", NOTE = "<!--note-->", NOTE_L = "<!--note-learners-->", NOTE_S = "<!--note-step-->", noteAt = "";
 
   /* s•••@example.com: enough for a reader to recognise, little for the next person to read */
   function mask(email) {
@@ -1201,9 +1201,18 @@
   /* what the Learners panel is doing: the add form, the row being renamed, the row armed for deletion,
      whether a step-up sign-in is wanted, and where the focus goes after the next draw */
   var addUnder = false, addConsent = false, renaming = null, armed = null, needSignIn = false, focusAfter = null;
+  /* the step-up: which action asked for it (and the button to return to), what its own form last said,
+     and the calls in flight (a second press while one is out sends nothing) */
+  var stepAction = null, stepNote = "", addBusy = false, renameBusy = null;
 
+  /* a reply that arrives after a different account is signed in belongs to nobody on this page */
+  function uidNow() { return user ? user.id : null; }
   function learnerRpc(name, args) {
-    return Account.rpc(name, args).then(function (d) { needSignIn = false; return d; });
+    return Account.rpc(name, args);
+  }
+  function renameHasFocus() {
+    var a = document.activeElement;
+    return !!(a && a.id && a.id.indexOf("lrn-ri-") === 0 && host.contains(a));
   }
   /* read (or re-read) the list; `focus` is the id to focus once it is drawn */
   function loadLearners(focus) {
@@ -1213,7 +1222,8 @@
       if (!user || user.id !== id) return;
       learners = Array.isArray(rows) ? rows : [];
       learnersErr = "";
-      if (focus) focusAfter = focus;
+      /* a rename field being typed in keeps its focus and text through this redraw (draw keeps both) */
+      if (focus && !renameHasFocus()) focusAfter = focus;
       draw();
     }, function (e) {
       if (!user || user.id !== id) return;
@@ -1224,6 +1234,7 @@
   function resetLearners() {
     learners = null; learnersFor = null; learnersErr = "";
     addUnder = false; addConsent = false; renaming = null; armed = null; needSignIn = false; focusAfter = null;
+    stepAction = null; stepNote = ""; addBusy = false; renameBusy = null;
   }
   function learnerById(id) {
     var found = null;
@@ -1244,25 +1255,27 @@
     document.body.removeChild(a);
   }
   /* a refusal that asks for a fresh sign-in is not an error to show, but a step to take */
-  function learnerProblem(e, action, focus) {
+  function learnerProblem(e, action, focus, prefix) {
+    prefix = prefix || "";
     if (e && STALE_RE.test(e.message || "")) {
-      needSignIn = true; armed = null; focusAfter = focus || null;
-      lsay("To confirm it is you, sign in again, then press " + action + " again.", true);
+      needSignIn = true; focusAfter = focus || null;
+      stepAction = { action: action, focus: focus || null }; stepNote = "";
+      lsay(prefix + "To confirm it is you, sign in again, then press " + action + " again.", true);
       draw();
       return;
     }
-    lproblem(e);
+    lsay(prefix + (e && e.message ? e.message : "Something went wrong. Try again in a moment."), true);
   }
 
   function learnersPanel() {
     var cur = Account.learner();
-    var h = '<div class="panel learners" aria-labelledby="lrn-h"><h2 id="lrn-h" tabindex="-1">Learners</h2>' +
+    var h = '<section class="panel learners" aria-labelledby="lrn-h"><h2 id="lrn-h" tabindex="-1">Learners</h2>' +
       "<p>Add a younger learner to keep their progress apart from yours. They get no sign-in of their own: you switch to them here.</p>";
     if (learners === null) {
       h += learnersErr
         ? '<p class="form-note bad">' + esc(learnersErr) + '</p><p class="actions"><button class="btn ghost small" id="lrn-retry" type="button">Try again</button></p>'
         : '<p class="fine" role="status">Loading learners…</p>';
-      return h + "</div>";
+      return h + "</section>";
     }
     function rowHtml(l) {
       var self = !l, id = self ? "" : esc(l.id);
@@ -1272,7 +1285,7 @@
       if (!self && renaming === l.id) {
         return out + '<label class="field" for="lrn-ri-' + id + '"><span>New name for ' + esc(nm) + '</span>' +
           '<input id="lrn-ri-' + id + '" type="text" maxlength="40" autocomplete="off" value="' + esc(l.name || "") + '"></label>' +
-          '<p class="actions"><button class="btn small" id="lrn-rs-' + id + '" type="button">Save</button>' +
+          '<p class="actions"><button class="btn small" id="lrn-rs-' + id + '" type="button"' + (renameBusy === l.id ? ' disabled aria-busy="true"' : "") + '>Save</button>' +
           '<button class="btn ghost small" id="lrn-rc-' + id + '" type="button">Cancel</button></p></li>';
       }
       out += '<p class="learner-name">' + esc(nm) + "</p><p class=\"actions\">";
@@ -1296,15 +1309,37 @@
         "<p>" + esc(CONSENT_TEXT) + "</p>" +
         '<label class="check"><input id="lrn-consent" type="checkbox"' + (addConsent ? " checked" : "") + "><span>" + esc(CONSENT_BOX) + "</span></label></div>";
     }
-    h += '<p class="actions"><button class="btn" id="lrn-add" type="button">Add learner</button></p>' + NOTE_L + "</div>";
+    h += '<p class="actions"><button class="btn" id="lrn-add" type="button"' + (addBusy ? ' disabled aria-busy="true"' : "") + '>Add learner</button></p>' + NOTE_L + "</section>";
     return h;
   }
   /* the sign-in controls a step-up asks for, under the Learners panel */
   function stepUpPanel() {
+    /* an account with an email address is asked for that address, not another: the step-up cannot change accounts */
+    var em = user && user.email ? String(user.email) : "";
     return '<form class="panel auth" novalidate><h2>Sign in again</h2>' + providerButtons() +
-      field("acct-email", "Email", "email", 'autocomplete="email" required') +
+      field("acct-email", "Email", "email", 'autocomplete="email" required' + (em ? ' readonly value="' + esc(em) + '"' : "")) +
       field("acct-pass", "Password", "password", 'autocomplete="current-password" minlength="8"') +
-      '<p class="actions"><button class="btn" id="acct-in" type="submit">Sign in</button></p></form>';
+      '<p class="actions"><button class="btn" id="acct-stepin" type="submit">Sign in</button></p>' + NOTE_S + "</form>";
+  }
+  function stepSay(text) {
+    stepNote = text ? '<p class="form-note bad">' + esc(text) + "</p>" : "";
+    var slot = host.querySelector("[data-note-s]");
+    if (slot) slot.innerHTML = stepNote;
+  }
+  function stepIn() {
+    var uid = uidNow(), em = val("acct-email"), pw = val("acct-pass");
+    if (!em || !pw) return stepSay("Enter your email and password.");
+    Account.signIn(em, pw).then(function () {
+      if (uidNow() !== uid) return;
+      var a = stepAction;
+      needSignIn = false; stepNote = ""; stepAction = null;
+      lsay("Signed in again. Now press " + (a ? a.action : "the button") + " again.");
+      focusAfter = a ? a.focus : "lrn-h";
+      draw();
+    }, function (e) {
+      if (uidNow() !== uid) return;
+      stepSay(e && e.message ? e.message : "Something went wrong. Try again in a moment.");
+    });
   }
 
   function wireLearners() {
@@ -1323,10 +1358,14 @@
       });
       on("lrn-dl-" + id, function () {
         armed = null;
+        var uid = uidNow();
         learnerRpc("learner_export", { id: id }).then(function (data) {
+          if (uidNow() !== uid) return;
+          needSignIn = false; stepNote = "";
           download(data, "basic-mathematics-" + slug(l.name) + ".json");
           lsay("Downloaded " + nm + "'s data.");
-        }, function (e) { learnerProblem(e, "Download", "lrn-dl-" + id); });
+          draw();
+        }, function (e) { if (uidNow() === uid) learnerProblem(e, "Download", "lrn-dl-" + id); });
       });
       on("lrn-del-" + id, function () {
         /* two presses, so a slip of the hand deletes nothing */
@@ -1347,6 +1386,7 @@
     var nameIn = document.getElementById("lrn-name");
     if (nameIn) nameIn.addEventListener("keydown", function (e) { if (e.key === "Enter") { e.preventDefault(); addLearner(); } });
     on("lrn-add", addLearner);
+    on("acct-stepin", stepIn);
   }
   function switchTo(id) {
     armed = null;
@@ -1357,22 +1397,40 @@
     }, function (e) { lproblem(e); draw(); });
   }
   function addLearner() {
-    var nm = val("lrn-name");
+    var nm = val("lrn-name"), uid = uidNow(), from = document.activeElement && document.activeElement.id;
+    if (addBusy) return;
     armed = null;
     if (!nm || nm.length > 40) return lsay("Enter a name of 1 to 40 characters.", true);
     if (addUnder && !addConsent) return lsay("Tick the box to confirm you are this learner's parent or guardian.", true);
+    addBusy = true;
+    var btn = document.getElementById("lrn-add");
+    if (btn) { btn.disabled = true; btn.setAttribute("aria-busy", "true"); }
     learnerRpc("learner_add", { name: nm, under13: addUnder, consent_v: addUnder ? CONSENT_V : null }).then(function () {
+      if (uidNow() !== uid) return;
+      addBusy = false;
       var el = document.getElementById("lrn-name");
       if (el) el.value = "";
       addUnder = false; addConsent = false;
       lsay("Added " + nm + ".");
       loadLearners("lrn-h");
-    }, lproblem);
+    }, function (e) {
+      if (uidNow() !== uid) return;
+      addBusy = false;
+      lproblem(e);
+      if (from) focusAfter = from;
+      draw();
+    });
   }
   function saveRename(id) {
-    var nm = val("lrn-ri-" + id);
+    var nm = val("lrn-ri-" + id), uid = uidNow(), from = document.activeElement && document.activeElement.id;
+    if (renameBusy) return;
     if (!nm || nm.length > 40) return lsay("Enter a name of 1 to 40 characters.", true);
+    renameBusy = id;
+    var btn = document.getElementById("lrn-rs-" + id);
+    if (btn) { btn.disabled = true; btn.setAttribute("aria-busy", "true"); }
     learnerRpc("learner_rename", { id: id, name: nm }).then(function () {
+      if (uidNow() !== uid) return;
+      renameBusy = null;
       var l = learnerById(id);
       if (l) l.name = nm;
       renaming = null;
@@ -1380,21 +1438,37 @@
       lsay("Renamed to " + nm + ".");
       draw();
       loadLearners("lrn-r-" + id);
-    }, lproblem);
+    }, function (e) {
+      if (uidNow() !== uid) return;
+      renameBusy = null;
+      lproblem(e);
+      if (from) focusAfter = from;
+      draw();
+    });
   }
   function removeLearner(id, nm) {
     armed = null;
-    var was = Account.learner() === id;
-    var first = was ? Account.switchLearner(null) : Promise.resolve();
+    var uid = uidNow(), was = Account.learner() === id, switched = false, GONE = {};
+    var first = was ? Account.switchLearner(null).then(function () { switched = true; }) : Promise.resolve();
     first.then(function () {
+      if (uidNow() !== uid) throw GONE;
       return learnerRpc("learner_delete", { id: id });
     }).then(function () {
+      if (uidNow() !== uid) return;
+      needSignIn = false; stepNote = ""; stepAction = null;
       learners = (learners || []).filter(function (l) { return l.id !== id; });
       focusAfter = "lrn-h";
-      lsay((was ? "Switched back to your own progress, and deleted " : "Deleted ") + nm + ".");
+      lsay((switched ? "Switched back to your own progress, and deleted " : "Deleted ") + nm + ".");
       draw();
       loadLearners("lrn-h");
-    }, function (e) { learnerProblem(e, "Delete", "lrn-del-" + id); });
+    }, function (e) {
+      if (e === GONE || uidNow() !== uid) return;
+      /* the delete was asked for and is still wanted: the next press goes through */
+      if (switched) armed = id;
+      else if (e && STALE_RE.test(e.message || "")) armed = id;
+      learnerProblem(e, "Delete", "lrn-del-" + id, switched ? "Switched back to your own progress. " : "");
+      if (switched) draw();
+    });
   }
 
   function draw() {
@@ -1461,21 +1535,32 @@
     }
     /* a redraw keeps whatever is in the fields that survive it */
     var kept = {}, held = document.activeElement && document.activeElement.id === "acct-returned";
+    /* so does the keyboard: whatever had the focus gets it back, with the caret where it was */
+    var act = document.activeElement, here = act && act !== document.body && host.contains(act) && act.id ? act.id : "", hereSel = null;
+    try { if (here && typeof act.selectionStart === "number") hereSel = [act.selectionStart, act.selectionEnd]; } catch (e) { hereSel = null; }
     Array.prototype.forEach.call(host.querySelectorAll("input[id]"), function (el) {
       if (el.type !== "password") kept[el.id] = el.value;
     });
     host.innerHTML = html.replace(NOTE, '<div data-note role="status" aria-live="polite">' + (noteAt === "L" ? "" : notice) + "</div>")
-      .replace(NOTE_L, '<div data-note-l role="status" aria-live="polite">' + (noteAt === "L" ? notice : "") + "</div>");
+      .replace(NOTE_L, '<div data-note-l role="status" aria-live="polite">' + (noteAt === "L" ? notice : "") + "</div>")
+      .replace(NOTE_S, '<div data-note-s role="status" aria-live="polite">' + stepNote + "</div>");
     Object.keys(kept).forEach(function (id) {
       var el = document.getElementById(id);
-      if (el && !el.value) el.value = kept[id];
+      /* a name being edited in a row keeps what was typed, not the old name it was prefilled with */
+      if (el && (!el.value || id.indexOf("lrn-ri-") === 0) && !el.readOnly) el.value = kept[id];
     });
     wire();
     wireLearners();
-    if (focusAfter) {
-      var fel = document.getElementById(focusAfter);
-      focusAfter = null;
-      if (fel) { try { fel.focus(); } catch (e) { /* still on the page */ } }
+    var target = focusAfter || here;
+    focusAfter = null;
+    if (target) {
+      var fel = document.getElementById(target);
+      if (fel && fel !== document.activeElement) {
+        try {
+          fel.focus();
+          if (target === here && hereSel && typeof fel.setSelectionRange === "function") fel.setSelectionRange(hereSel[0], hereSel[1]);
+        } catch (e) { /* still on the page */ }
+      }
     }
     /* focused when first shown, and again if a redraw took the focus away from it */
     var back = document.getElementById("acct-returned");
@@ -1495,7 +1580,7 @@
 
     on("acct-in", function () {
       if (!val("acct-email") || !val("acct-pass")) return say("Enter your email and password.", true);
-      Account.signIn(val("acct-email"), val("acct-pass")).then(function () { needSignIn = false; say(""); }, function (e) {
+      Account.signIn(val("acct-email"), val("acct-pass")).then(function () { say(""); }, function (e) {
         /* an account made with one of the buttons has no password to get wrong */
         if (providers.length && e && /invalid login credentials/i.test(e.message || "")) {
           return say(e.message + ". If you made your account with one of the buttons above, use that button.", true);
