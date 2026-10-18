@@ -85,16 +85,16 @@ which one applies, so a stronger method can be added at the add-learner step lat
 
 Decided, 2026-10-16: the owner approved the recommended answers on Q1 to Q6.
 
-Built, 2026-10-18: PA-1 to PA-4 are merged (#187 bca26f1, #188 cd95d24, #189 baca969, #190). The
-migration was applied and verified live on 2026-10-18 (steps in `OPERATIONS.md`, "The learners
-(PA-1)") and the `amr` check passed. PA-5 is this note and the wording in `about.html`,
-`supabase/README.md` and `OPERATIONS.md`. Open:
+Built, 2026-10-18: PA-1 to PA-7 are merged (#187 bca26f1, #188 cd95d24, #189 baca969, #190 ad8925e,
+#191 cc6b8b1, #192 82a2852, #193 8f1439b, #194 285eac6). Both migrations were applied and verified
+live on 2026-10-18 (steps in `OPERATIONS.md`, "The learners (PA-1)" and "The account-delete
+step-up, and first-factor sign-ins only (PA-6a)") and the `amr` check passed. PA-5 is this note and
+the wording in `about.html`, `supabase/README.md` and `OPERATIONS.md`; PA-6 is the `learners: "off"`
+kill switch and the step-up on `delete_my_account()`, with `fresh_auth` counting first-factor
+sign-ins only; PA-7 gives a browser playing as a learner a way back to the parent's own progress
+while the switch is off. Open:
 
-- PA-6: the `learners: "off"` kill switch (code in `src/core/config.ts` and `assets/account.js`;
-  the server stop is in `OPERATIONS.md` section 6 under "Planned") and the step-up on
-  `delete_my_account()` (PA-6a, #193: it asks for it, and `fresh_auth` counts first-factor sign-ins
-  only, because a stale session could enrol a second factor to mint a fresh `amr` entry).
-- "Keep this device on <name>" is deferred.
+- "Keep this device on <name>" (PA-8, in progress).
 - Counsel's answer on Q1 is still due before the age-policy page ships.
 
 Two departures from the design, pinned by the build:
