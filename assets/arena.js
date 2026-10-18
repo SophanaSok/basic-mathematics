@@ -390,12 +390,23 @@
   /* The reader a run belongs to: the managed learner's id, or null for the account's own (and a
      visitor). account.js may not have settled who this page runs as yet, so the sync meta it keeps
      is read as well (account.js starts after this file, so at load the meta alone is all there is). */
+  /* a stored sign-in (the SDK keeps it under sb-<project>-auth-token): without it the meta's learner is a
+     leftover from a session that ended without a sign-out */
+  function storedSession() {
+    try {
+      var ref = "";
+      try { ref = new URL(String((window.BM_CONFIG || {}).supabaseUrl || "")).hostname.split(".")[0]; } catch (e) { ref = ""; }
+      if (ref) return !!localStorage.getItem("sb-" + ref + "-auth-token");
+      for (var i = 0; i < localStorage.length; i++) if (/^sb-.*-auth-token$/.test(localStorage.key(i) || "")) return true;
+    } catch (e) { /* none */ }
+    return false;
+  }
   function readerId() {
     var A = window.BMAccount;
     try {
       if (A && typeof A.learner === "function" && A.learner()) return A.learner();
       var m = Store.read("bm.sync.v1", {});
-      if (m && typeof m === "object" && typeof m.learner === "string" && m.learner && (!A || (typeof A.hasSession === "function" && A.hasSession()))) return m.learner;
+      if (m && typeof m === "object" && typeof m.learner === "string" && m.learner && (A ? (typeof A.hasSession === "function" && A.hasSession()) : storedSession())) return m.learner;
     } catch (e) { /* self */ }
     return null;
   }
