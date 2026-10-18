@@ -828,6 +828,48 @@ function twelve() {
       await c2.close();
     }
 
+    /* 21b. the in-memory guards: the page's reader becomes self without a reload, mid-run (finish and settle
+       check ownRun, so the run is not paid and not submitted) */
+    {
+      const c = await context({}, { signedIn: true, learner: "Kim", stub: { board: twelve() } });
+      const p = await arena(c, { signedIn: true, onBoard: true, learner: "Kim" });
+      await p.click('[data-act="start"][data-mode="daily"]');
+      await p.waitForSelector(".arena-run");
+      check(await p.evaluate(() => JSON.parse(localStorage.getItem("bm.run.v1")).arena.as) === "L1", "21 the run is the learner's");
+      await p.evaluate(() => {
+        var r = window.BMArena.state();
+        r.qs.forEach(function (q) { q.timed = true; q.hf = false; q.par = Math.max(q.par, 120); });
+        var m = JSON.parse(localStorage.getItem("bm.sync.v1") || "{}");
+        delete m.learner; delete m.acct; delete m.learnerName;
+        localStorage.setItem("bm.sync.v1", JSON.stringify(m));
+        window.BMAccount.learner = function () { return null; };
+      });
+      for (let k = 0; k < 14; k++) {
+        if (!(await p.$(".arena-run"))) break;
+        const more = await p.evaluate(() => {
+          var r = window.BMArena.state();
+          if (!r || !r.qs) return false;
+          var q = r.qs[r.i];
+          document.getElementById("arena-answer").value = String(window.BMGen.make(q.g, q.s).answer).split("|")[0];
+          return true;
+        }).catch(() => false);
+        if (!more) break;
+        await p.click('.arena-run [data-act="check"]');
+        const nx = await p.$('.arena-feedback [data-act="next"]');
+        if (nx) await nx.click();
+      }
+      await p.waitForSelector(".arena-fine[role=status]", { timeout: 4000 }).catch(() => null);
+      const end = await p.evaluate(() => {
+        var st = JSON.parse(localStorage.getItem("bm.run.v1") || "{}");
+        return { text: (document.querySelector(".arena-fine[role=status]") || {}).textContent, result: !!document.querySelector(".arena-result"),
+          paid: (st.paid || []).length, daily: Object.keys(JSON.parse(localStorage.getItem("bm.game.v1") || "{}").daily || {}).length, run: st.arena || null };
+      });
+      check(end.text === "That run was started as a different learner, so it was not counted." && !end.result && end.paid === 0 && end.daily === 0 && !end.run,
+        "21 a run whose reader became self mid-page says not counted and pays nothing", end);
+      check(rpcs(await calls(p), "submit_daily").length === 0, "21 … and submits nothing");
+      await c.close();
+    }
+
     /* 22. the result is drawn before the session is read: the meta already keeps the board away */
     {
       const c = await context({}, { signedIn: true, learner: "Kim", stub: { board: twelve() } });

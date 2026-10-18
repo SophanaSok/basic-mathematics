@@ -67,6 +67,9 @@
      switch on the account page, and setBoard sends nothing. Without the settings reader
      the board is off, as arena.js has it. */
   var boardOn = configured && !!(window.BMCore && window.BMCore.config) && window.BMCore.config.readConfig(cfg).board === "on";
+  /* The Learners panel's kill switch (BM_CONFIG.learners "off"): the panel is not drawn and the
+     list is never read. Without the settings reader the panel stays on, as before. */
+  var learnersOn = !(configured && window.BMCore && window.BMCore.config && window.BMCore.config.readConfig(cfg).learners === "off");
   /* this browser's note of the day's board (arena.js keeps it in bm.run.v1.board): `all`
      forgets it whatever it holds, otherwise only a refusal noted before the reader joined */
   function forgetBoard(all) {
@@ -1217,6 +1220,9 @@
   /* the step-up: which action asked for it (and the button to return to), what its own form last said,
      and the calls in flight (a second press while one is out sends nothing) */
   var stepAction = null, stepNote = "", addBusy = false, renameBusy = null;
+  /* "Delete my account": armed by its first press (kept across a redraw and a step-up), and in flight */
+  var deleteArmed = false, deleteBusy = false;
+  var DELETE_ACTION = "Delete my account";
 
   /* a reply that arrives after a different account is signed in belongs to nobody on this page */
   function uidNow() { return user ? user.id : null; }
@@ -1230,7 +1236,7 @@
   /* read (or re-read) the list; `focus` is the id to focus once it is drawn */
   function loadLearners(focus) {
     var id = user ? user.id : null;
-    if (!id) return;
+    if (!id || !learnersOn) return;
     learnerRpc("learner_list").then(function (rows) {
       if (!user || user.id !== id) return;
       learners = Array.isArray(rows) ? rows : [];
@@ -1248,6 +1254,7 @@
     learners = null; learnersFor = null; learnersErr = "";
     addUnder = false; addConsent = false; renaming = null; armed = null; needSignIn = false; focusAfter = null;
     stepAction = null; stepNote = ""; addBusy = false; renameBusy = null;
+    deleteArmed = false; deleteBusy = false;
   }
   function learnerById(id) {
     var found = null;
@@ -1346,7 +1353,8 @@
       if (uidNow() !== uid) return;
       var a = stepAction;
       needSignIn = false; stepNote = ""; stepAction = null;
-      lsay("Signed in again. Now press " + (a ? a.action : "the button") + " again.");
+      var msg = "Signed in again. Now press " + (a ? a.action : "the button") + " again.";
+      if (a && a.acct) say(msg); else lsay(msg);
       focusAfter = a ? a.focus : "lrn-h";
       draw();
     }, function (e) {
@@ -1531,7 +1539,7 @@
         '<button class="btn ghost" id="acct-out" type="button">Sign out</button></p>' + NOTE +
         '<p class="fine">Signing out saves your progress to your account, then clears this browser\'s copy. ' +
         "If it cannot be saved, it is set aside in this browser and saved the next time you sign in here.</p></div>" +
-        learnersPanel() + (needSignIn ? stepUpPanel() : "") +
+        (learnersOn ? learnersPanel() + (needSignIn ? stepUpPanel() : "") : "") +
         '<div class="panel"><h2>Your data</h2>' +
         "<p>What is stored: the exercises you have solved, how many tries each took, whether a hint or the " +
         "solution was used, missions, XP per day, where you are in each chapter, and your game record " +
@@ -1545,7 +1553,8 @@
         "that service, which signing out removes; to cut the link completely, remove this site from the connected " +
         "apps in that service's settings.</p>" +
         '<p class="actions"><button class="btn ghost" id="acct-export" type="button">Download my data</button>' +
-        '<button class="btn ghost danger" id="acct-delete" type="button">Delete my account</button></p></div>';
+        '<button class="btn ghost danger" id="acct-delete" type="button"' + (deleteArmed ? ' data-armed="true">Press again to delete everything' : ">Delete my account") + "</button></p></div>" +
+        (!learnersOn && needSignIn ? stepUpPanel() : "");
     }
     /* a redraw keeps whatever is in the fields that survive it */
     var kept = {}, held = document.activeElement && document.activeElement.id === "acct-returned";
@@ -1653,12 +1662,28 @@
     on("acct-delete", function (btn) {
       /* two presses, so a slip of the hand deletes nothing */
       if (btn.getAttribute("data-armed") !== "true") {
+        deleteArmed = true;
         btn.setAttribute("data-armed", "true");
         btn.textContent = "Press again to delete everything";
         return;
       }
+      if (deleteBusy) return;
+      deleteBusy = true;
+      var uid = uidNow();
       /* shown by the redraw that follows the sign-out, which would otherwise clear it */
-      Account.deleteAccount().then(function () { carry = "Your account and its data have been deleted."; }, problem);
+      Account.deleteAccount().then(function () { deleteBusy = false; carry = "Your account and its data have been deleted."; }, function (e) {
+        deleteBusy = false;
+        if (uidNow() !== uid) return;
+        /* the delete is still wanted (the button stays armed): sign in again, then one press retries */
+        if (e && STALE_RE.test(e.message || "")) {
+          needSignIn = true; stepNote = "";
+          stepAction = { action: DELETE_ACTION, focus: "acct-delete", acct: true };
+          say("To confirm it is you, sign in again, then press " + DELETE_ACTION + " again.", true);
+          draw();
+          return;
+        }
+        problem(e);
+      });
     });
     var nameEl = document.getElementById("acct-name");
     if (nameEl && name !== null) nameEl.value = name;
