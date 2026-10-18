@@ -327,6 +327,80 @@ no other learners yet).
 
 applied: ____ (date, filled in by the owner)
 
+### The learners (PA-1)
+
+Decision 0010: a parent's account can hold managed learners, and progress is keyed on a learner
+id. Apply `supabase/migrations/20261016194703_learners.sql` in Dashboard → SQL → New query. Do
+this before merging the pull request that carries the site's side: the deployed site keeps
+working through it (the two-argument `events_put` call and the `user_state` upsert still work,
+because every account's self learner has the account's id).
+
+It creates `public.learners` and gives every existing account its self learner, adds the trigger
+`learners_self` on `auth.users` (a new account gets its self learner in the same transaction and
+nothing else), re-points the foreign keys of `user_state`, `events` and `event_meta` to
+`learners (id) on delete cascade`, widens their policies to the caller's learners, gives
+`events_put` an optional third argument, and adds `learner_list`, `learner_add`, `learner_rename`,
+`learner_mark_under13`, `learner_delete`, `learner_export` and `private.fresh_auth()`. Running it
+again is harmless.
+
+1. **Before applying, check the live token carries `amr` with timestamps**, because the step-up
+   (`learner_delete`, `learner_export`) fails closed without them. On the live site, signed in,
+   in the browser console:
+
+   ```js
+   JSON.parse(atob(JSON.parse(localStorage.getItem(Object.keys(localStorage).find(k => /^sb-.*-auth-token$/.test(k))).access_token.split(".")[1].replace(/-/g,"+").replace(/_/g,"/"))).amr
+   ```
+
+   Expected: an array like `[{"method":"password","timestamp":1760...}]`. If it is missing, do not
+   apply: the step-up needs a custom access token hook first (design 0010, T4).
+2. Apply the migration.
+3. Verify, each in its own query (they only read):
+
+   ```sql
+   -- every account has exactly its self learner: true
+   select (select count(*) from auth.users) = (select count(*) from public.learners where self);
+
+   -- managed learners so far
+   select count(*) from public.learners where not self;
+
+   -- rows with no learner: 0, 0, 0
+   select count(*) from public.user_state s where not exists (select 1 from public.learners l where l.id = s.user_id);
+   select count(*) from public.events e where not exists (select 1 from public.learners l where l.id = e.user_id);
+   select count(*) from public.event_meta m where not exists (select 1 from public.learners l where l.id = m.user_id);
+
+   -- the three foreign keys on learners
+   select conrelid::regclass as tbl, conname, confrelid::regclass as refs
+   from pg_constraint
+   where contype = 'f' and confrelid = 'public.learners'::regclass
+   order by 1;
+
+   -- the trigger on auth.users
+   select tgname from pg_trigger where tgrelid = 'auth.users'::regclass and tgname = 'learners_self';
+
+   -- the functions
+   select proname from pg_proc
+   where pronamespace in ('public'::regnamespace, 'private'::regnamespace)
+     and proname in ('learner_list', 'learner_add', 'learner_rename', 'learner_mark_under13',
+                     'learner_delete', 'learner_export', 'fresh_auth', 'learner_self', 'events_put')
+   order by 1;
+
+   -- row-level security on learners, and its policy (select, to authenticated only)
+   select relrowsecurity from pg_class where oid = 'public.learners'::regclass;
+   select policyname, cmd, roles from pg_policies where schemaname = 'public' and tablename = 'learners';
+   ```
+
+   Then open the live account page signed in and confirm it does not say "Sync failed".
+4. Merge the pull request. The Learners panel arrives with it.
+
+**Rollback.** While every learner is a self learner, swap the three foreign keys back to
+`auth.users (id) on delete cascade` (drop `user_state_user_id_fkey`, `events_user_id_fkey` and
+`event_meta_user_id_fkey`, add them again against `auth.users`) and the old policies; no row
+moves, because the ids are the same. Once managed learners have rows this loses them: have the
+parent download each learner's progress first (`learner_export`, from the account page), or
+leave the migration in place, which the old site tolerates.
+
+applied: 2026-10-18 (Claude in Chrome, verified; PR #187 merged bca26f1)
+
 ## 2. Deploys
 
 The course is served from one place: **Cloudflare Pages, at <https://learn.groundupmath.org>**
@@ -701,8 +775,8 @@ GitHub's page, read 2026-10-06:
 See "What is stored" in [`supabase/README.md`](supabase/README.md). It is not repeated here so
 the two cannot drift apart.
 
-One fact from it matters for operations: `user_state` is a copy of what each reader's browser
-already holds, and sync is a merge, so a reader's browser can put their row back. The `attempts`
+One fact from it matters for operations: `user_state` is a copy of what each learner's browser
+already holds (a row is per learner now, an account's own or one it manages), and sync is a merge, so a reader's browser can put their row back. The `attempts`
 table was no longer written from P6 and was dropped in P7; the event log (`events`) is a copy of the browser's `bm.events.v1`, pruned the same way on both sides, so a reader's browser can put it back too.
 
 Unlike every other `user_state` column, `diag` (the placement-check results) survives a reset;
@@ -873,7 +947,13 @@ without removing its code.
 | `board: "off"` | No Daily board: nothing is submitted or fetched, the Arena shows no board and the account page hides the switch (from K-10g). This is the site's side only; a tab from before the deploy, or anything else holding a session, can still call the functions. For a full stop run `revoke execute on function public.submit_daily(text, integer, integer, integer, integer), public.daily_board(text) from authenticated;` in the SQL editor (leave `leave_board()` callable so readers can still leave), and `grant` them back to switch it on |
 | `learn.events: "off"` | The site sends no events and pulls none; the browser's own log is still kept and read. This is the site's side only; a tab from before the deploy, or anything else holding a session, can still call `events_put()`. For a full stop run `revoke execute on function public.events_put(jsonb, integer) from authenticated;` in the SQL editor, and `grant execute on function public.events_put(jsonb, integer) to authenticated;` to switch it on |
 
-**Planned [not yet]:** the plan adds `tutor.enabled` (R5; the tutor is built with it `false`) and
+**Planned [not yet]:**
+
+| Flag | Effect of turning it off |
+| --- | --- |
+| `learners: "off"` (PA-6; needs code in `src/core/config.ts` and `assets/account.js`) | No Learners panel and no adding of managed learners on the site's side only; a tab from before the deploy, or anything else holding a session, can still call the functions. For a full stop run `revoke execute on function public.learner_add(text, boolean, smallint) from authenticated;` in the SQL editor, and `grant execute on function public.learner_add(text, boolean, smallint) to authenticated;` to switch it on |
+
+The plan also adds `tutor.enabled` (R5; the tutor is built with it `false`) and
 one flag each for leagues (R4), the shop (R3), gates (R3) and streak reminders (R3). Only
 `tutor.enabled` has a settled name; the others are named by the release that adds them, which
 also adds a row to the table above.
@@ -977,6 +1057,18 @@ reaches `events` for one account while progress still syncs. Causes, in order:
    `notify pgrst, 'reload schema';`.
 
 Nothing is lost while this lasts: the browser keeps its log and its outbox.
+
+### 7.5 A learner's progress looks wrong
+
+Symptom: a parent says a learner's progress is missing, or shows another learner's. First check
+whose progress the page is showing: the top bar says "Playing as <name>" for a managed learner,
+and the progress page says whose progress it shows. The account page's Learners panel switches
+learners; switching saves first, refuses while anything is unsent, clears the browser's copy and
+pulls the chosen learner's. A tab that is open on another learner reloads itself when it sees
+another tab switch; if it did not, reload it. If a switch is refused, let the sync finish (or
+see 7.1) and press it again. For a copy of a learner's records before anything else is tried,
+the parent presses Download on that learner (`learner_export`, which needs a sign-in within the
+last 10 minutes); do not delete the learner to fix it, because that removes the records.
 
 ## 8. Hosting
 

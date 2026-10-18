@@ -59,12 +59,13 @@ which one applies, so a stronger method can be added at the add-learner step lat
 
 ## What this changes
 
-- Five cards, in order: PA-1 the SQL (risky: Sonnet build, Sonnet and Opus review, pgTAP with
+- Six cards, in order: PA-1 the SQL (risky: Sonnet build, Sonnet and Opus review, pgTAP with
   three accounts), the owner applies the migration and checks the token's sign-in timestamp
   live, then PA-2 sync, PA-3 the account page, PA-4 the pages that show who is playing and hide
-  the board, PA-5 wording and this note's final text.
+  the board, PA-5 wording and this note's final text, PA-6 the `learners` kill switch and the
+  step-up on `delete_my_account` (client first, then the SQL: rule 5).
 - `OPERATIONS.md` section 6 gains `learners: "off"` and its server stop (revoke execute on
-  `learner_add`).
+  `learner_add`), planned until PA-6 ships the flag.
 - `about.html#progress` and `supabase/README.md` "What is stored" say what a learner is and what
   a parent and the author see.
 - The author's aggregate functions now count learners, not accounts.
@@ -82,5 +83,27 @@ which one applies, so a stronger method can be added at the add-learner step lat
 
 ## Status
 
-Decided, 2026-10-16: the owner approved the recommended answers on Q1 to Q6. Counsel's answer on
-Q1 is due before the age-policy page ships, not before PA-1.
+Decided, 2026-10-16: the owner approved the recommended answers on Q1 to Q6.
+
+Built, 2026-10-18: PA-1 to PA-4 are merged (#187 bca26f1, #188 cd95d24, #189 baca969, #190). The
+migration was applied and verified live on 2026-10-18 (steps in `OPERATIONS.md`, "The learners
+(PA-1)") and the `amr` check passed. PA-5 is this note and the wording in `about.html`,
+`supabase/README.md` and `OPERATIONS.md`. Open:
+
+- PA-6: the `learners: "off"` kill switch (code in `src/core/config.ts` and `assets/account.js`;
+  the server stop is in `OPERATIONS.md` section 6 under "Planned") and the step-up on
+  `delete_my_account()`, which does not ask for it yet.
+- "Keep this device on <name>" is deferred.
+- Counsel's answer on Q1 is still due before the age-policy page ships.
+
+Two departures from the design, pinned by the build:
+
+- The active learner lives in `bm.sync.v1` (`learner`, with `acct` and `learnerName`), not in
+  `bm.device.v1`, whose uid is the learner id the device was stamped for.
+- The step-up retry is manual: after a stale sign-in the parent signs in again and presses the
+  button again; nothing is retried on their behalf.
+
+The plans live outside the repository, in `~/.claude/plans/`, named here by file only:
+`parent-accounts-design.md` (the design and threat model), `pa2-threat-model.md` and
+`pa5-learner-words.md`. The cards between them are `pa3-learner-page.md` and
+`pa4-learner-shown.md`.
