@@ -80,6 +80,10 @@ window.supabase = { createClient: function () {
           var hit = (opts.learners || []).filter(function (l) { return l.id === wanted; })[0];
           return Promise.resolve(answer(hit ? { id: hit.id } : null)).then(ok, bad);
         }
+        if (table === "user_state" && write) {
+          window.__writes = (window.__writes || 0) + 1;
+          if (opts.holdState) return Promise.resolve({ data: null, error: { message: "Held for the test" } }).then(ok, bad);
+        }
         return Promise.resolve(answer(write ? [{ updated_at: new Date().toISOString() }] : null)).then(ok, bad);
       }
     };
@@ -839,14 +843,31 @@ const ALL = ["google", "github", "discord", "facebook", "azure"];
     const st = await r.page.evaluate(() => ({ line: (document.querySelector("[data-playing-as]") || {}).textContent, panel: !!document.querySelector(".learners") || !!document.getElementById("lrn-h"), board: !!document.getElementById("acct-board") }));
     check(/^Playing as Kim\./.test(st.line || ""), "28 the Playing as line names the learner", st.line);
     check(!st.panel && !st.board, "28 … no Learners panel and no Daily board switch", st);
-    await r.page.click("#acct-own");
+    await r.page.evaluate(() => { const f = window.BMAccount.switchLearner; window.__sw = 0; window.BMAccount.switchLearner = function () { window.__sw++; return f.apply(this, arguments); }; });
+    await r.page.evaluate(() => { const b = document.getElementById("acct-own"); b.click(); b.click(); });
     await r.page.waitForFunction(() => !document.getElementById("acct-own"));
+    await r.page.waitForTimeout(300);
+    check(await r.page.evaluate(() => document.activeElement.id) === "acct-sync", "28 the focus lands on Sync now after the switch", await r.page.evaluate(() => document.activeElement.id));
+    check(await r.page.evaluate(() => window.__sw) === 1, "28 two quick presses send one switch", await r.page.evaluate(() => window.__sw));
     const after = await r.page.evaluate(() => ({ meta: JSON.parse(localStorage.getItem("bm.sync.v1") || "{}"), line: !!document.querySelector("[data-playing-as]"), note: (document.querySelector("[data-note]") || {}).textContent, learner: window.BMAccount.learner() }));
     check(!after.meta.learner && !after.learner, "28 the switch clears the meta's learner", after);
     check(!after.line, "28 … the line and the button are gone");
     check(after.note === "Switched to your own progress.", "28 … and the note says so", after.note);
     check((await calls(r.page, "learner_list")).length === 0, "28 … with no learners read");
     await r.context.close();
+    /* a refusal: the push cannot land */
+    const h = await open({ providers: ["google"], learners: "off" }, { session: LS, local: seed, stub: { learners: roster() } });
+    await h.page.waitForSelector("#acct-own");
+    await h.page.waitForFunction(() => /Synced at/.test(document.querySelector("[data-account]").textContent));
+    await h.page.evaluate(() => { window.__opts.holdState = true; window.BMAccount.syncNow(); });
+    await h.page.waitForFunction(() => /Sync failed|Synced at/.test(document.querySelector(".sync-state").textContent));
+    await h.page.click("#acct-own");
+    await h.page.waitForFunction(() => /Finish syncing first/.test((document.querySelector("[data-note]") || {}).textContent || ""), null, { timeout: 5000 });
+    const ref = await h.page.evaluate(() => ({ learner: JSON.parse(localStorage.getItem("bm.sync.v1") || "{}").learner, btn: !!document.getElementById("acct-own"), focus: document.activeElement.id }));
+    check(ref.learner === "L1" && ref.btn && ref.focus === "acct-own", "28 a refusal keeps the learner, the button and its focus", ref);
+    await h.page.evaluate(() => { window.__opts.holdState = false; window.BMAccount.syncNow(); });
+    await h.page.waitForFunction(() => /Synced at/.test(document.querySelector(".sync-state").textContent));
+    await h.context.close();
     const on = await open({ providers: ["google"] }, { session: LS, local: seed, stub: { learners: roster() } });
     await on.page.waitForSelector("#lrn-h");
     check(await on.page.evaluate(() => !document.getElementById("acct-own") && !document.querySelector("[data-playing-as]")), "28 with learners on there is no Switch to your own progress button");
