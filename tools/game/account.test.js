@@ -30,7 +30,15 @@
       printed; the account page with no stand-in fetches bundle/supabase.js, the real
       library, and draws the form with it, with nothing sent to Supabase
   12. the drawn page says accounts are for people 13 or older, signed out and signed in
-  13. signed in, the data panel names the answer log, and the export carries it */
+  13. signed in, the data panel names the answer log, and the export carries it
+  14. the Learners panel lists "Your own progress" and the managed learners with their four
+      buttons, the active one as "Playing as" with aria-current; Switch to moves the mark
+  15. adding with "Under 13" ticked is refused until the consent box is ticked, then sends
+      consent_v 1; without the tick, consent_v null
+  16. rename opens an inline field, Enter calls learner_rename, Escape cancels, focus returns
+  17. delete needs two presses; a stale sign-in says to sign in again and shows the sign-in controls
+  18. download calls learner_export and the page offers a file named after the learner
+  19. the panel fits a 360px screen with no horizontal scroll; every control is reachable by Tab */
 "use strict";
 const site = require("../lib/site");
 const target = require("../lib/target");
@@ -46,15 +54,22 @@ function check(cond, what, detail) {
    only if the case gave one, and a record of every hand-over to a sign-in service. */
 const SDK = `
 window.__oauth = [];
+window.__rpc = [];
 window.supabase = { createClient: function () {
   var opts = window.__opts || {}, subs = [];
   function answer(data) { return { data: data, error: null }; }
-  function query() {
-    var write = false, api = {
-      select: function () { return api; }, eq: function () { return api; },
+  function self() { var s = window.__session; return { id: s && s.user ? s.user.id : "u1", self: true, name: null, under13: false, consent_v: null, created_at: "2026-10-01T00:00:00Z" }; }
+  function rows() { if (!opts.learners) opts.learners = [self()]; return opts.learners; }
+  function query(table) {
+    var write = false, wanted = null, api = {
+      select: function () { return api; }, eq: function (col, v) { if (col === "id") wanted = v; return api; },
       insert: function () { write = true; return api; }, update: function () { write = true; return api; },
       upsert: function () { write = true; return api; }, maybeSingle: function () { return api; },
       then: function (ok, bad) {
+        if (table === "learners") {
+          var hit = (opts.learners || []).filter(function (l) { return l.id === wanted; })[0];
+          return Promise.resolve(answer(hit ? { id: hit.id } : null)).then(ok, bad);
+        }
         return Promise.resolve(answer(write ? [{ updated_at: new Date().toISOString() }] : null)).then(ok, bad);
       }
     };
@@ -62,7 +77,21 @@ window.supabase = { createClient: function () {
   }
   return {
     from: query,
-    rpc: function () { return Promise.resolve(answer(null)); },
+    rpc: function (name, args) {
+      window.__rpc.push({ name: name, args: args });
+      if (name === "learner_list") return Promise.resolve(answer(rows().slice()));
+      if (name === "learner_add") {
+        rows().push({ id: "L-new", self: false, name: args.name, under13: !!args.under13, consent_v: args.consent_v, created_at: "2026-10-18T00:00:00Z" });
+        return Promise.resolve(answer("L-new"));
+      }
+      if (/^learner_(rename|delete|export)$/.test(name)) {
+        if (opts.stale && name !== "learner_rename") return Promise.resolve({ data: null, error: { message: "stale sign-in", code: "P0001" } });
+        if (name === "learner_rename") rows().forEach(function (l) { if (l.id === args.id) l.name = args.name; });
+        if (name === "learner_delete") opts.learners = rows().filter(function (l) { return l.id !== args.id; });
+        return Promise.resolve(answer(name === "learner_export" ? { learner: args.id, events: [] } : null));
+      }
+      return Promise.resolve(answer(null));
+    },
     auth: {
       onAuthStateChange: function (cb) { subs.push(cb); return { data: { subscription: { unsubscribe: function () {} } } }; },
       getSession: function () { return Promise.resolve(answer({ session: window.__session || null })); },
@@ -116,11 +145,12 @@ const ALL = ["google", "github", "discord", "facebook", "azure"];
       window.__session = seed.session || null;
       window.__opts = seed.stub;
       if (seed.pending) localStorage.setItem("bm.sync.pending.v1", JSON.stringify(seed.pending));
+      if (seed.local) Object.keys(seed.local).forEach((k) => localStorage.setItem(k, JSON.stringify(seed.local[k])));
       /* was the returned-error message ever on the page as an alert? */
       new MutationObserver(() => {
         if (document.querySelector('#acct-returned[role="alert"]')) window.__alerted = true;
       }).observe(document, { childList: true, subtree: true });
-    }, { config, session: opts.session || null, pending: opts.pending || null, stub: opts.stub || {} });
+    }, { config, session: opts.session || null, pending: opts.pending || null, local: opts.local || null, stub: opts.stub || {} });
     const page = await context.newPage();
     page.on("pageerror", (e) => errors.push(String(e)));
     await page.goto(server.url + (opts.page || "account.html") + (opts.tail || ""));
@@ -299,11 +329,11 @@ const ALL = ["google", "github", "discord", "facebook", "azure"];
   {
     const out = await open({ providers: ["google"] });
     const outText = await text(out.page, "main");
-    check(/13 or older/.test(outText) && /A parent can make one/.test(outText), "12 signed out, the page says accounts are for people 13 or older, or made by a parent", outText);
+    check(/13 or older/.test(outText) && /Add a younger learner/.test(outText), "12 signed out, the page says accounts are for people 13 or older, and where to add a younger learner", outText);
     await out.context.close();
     const inn = await open({ providers: ["google"] }, { session: { user: { id: "u1", email: "reader@example.com", app_metadata: { provider: "google", providers: ["google"] } } } });
     const inText = await text(inn.page, "main");
-    check(/13 or older/.test(inText) && /A parent can make one/.test(inText), "12 signed in, the page says accounts are for people 13 or older, or made by a parent", inText);
+    check(/13 or older/.test(inText) && /Add a younger learner/.test(inText), "12 signed in, the page says accounts are for people 13 or older, and where to add a younger learner", inText);
     await inn.context.close();
   }
 
@@ -400,6 +430,158 @@ const ALL = ["google", "github", "discord", "facebook", "azure"];
     check(outside.length === 0, "11 … which a signed-out visitor to the account page does not contact either", outside);
     const drawn = await page.evaluate(() => ({ button: !!document.getElementById("acct-oauth-github"), form: !!document.getElementById("acct-in"), stub: !!window.supabase }));
     check(drawn.button && drawn.form && !drawn.stub, "11 the form is drawn with the real library, no stand-in on the page", drawn);
+    await context.close();
+  }
+
+  /* 14-19. the Learners panel */
+  const LS = { user: { id: "u1", email: "parent@example.com", app_metadata: { provider: "google", providers: ["google"] } } };
+  const mk = (id, name) => ({ id, self: false, name, under13: true, consent_v: 1, created_at: "2026-10-02T00:00:00Z" });
+  const roster = () => [
+    { id: "u1", self: true, name: null, under13: false, consent_v: null, created_at: "2026-10-01T00:00:00Z" },
+    mk("L1", "Maya <b>"), mk("L2", "Sam")
+  ];
+  const open_ = (stub, extra) => open({ providers: ["google"] }, Object.assign({ session: LS, stub }, extra || {}))
+    .then(async (r) => { await r.page.waitForSelector("#lrn-h"); await r.page.waitForSelector("#lrn-add"); return r; });
+  const calls = (page, name) => page.evaluate((n) => window.__rpc.filter((c) => c.name === n), name);
+
+  /* 14 */
+  {
+    const { page, context } = await open_({ learners: roster() }, { local: { "bm.sync.v1": { learner: "L1", acct: "u1" } } });
+    const seen = await page.evaluate(() => {
+      const rows = Array.from(document.querySelectorAll(".learner-row"));
+      return {
+        n: rows.length, first: rows[0].querySelector(".learner-name").textContent,
+        names: rows.map((r) => r.querySelector(".learner-name").textContent),
+        buttons: rows.map((r) => Array.from(r.querySelectorAll("button")).map((b) => b.textContent)),
+        current: rows.map((r) => r.getAttribute("aria-current")),
+        on: rows.map((r) => (r.querySelector(".learner-on") || {}).textContent || null),
+        injected: document.querySelectorAll(".learner-row b").length,
+        order: document.getElementById("lrn-h").compareDocumentPosition(document.getElementById("acct-export")) & Node.DOCUMENT_POSITION_FOLLOWING
+      };
+    });
+    check(seen.n === 3 && seen.first === "Your own progress" && seen.names[1] === "Maya <b>" && seen.names[2] === "Sam", "14 the panel lists the own progress first, then the learners by name", seen.names);
+    check(JSON.stringify(seen.buttons[0]) === JSON.stringify(["Switch to"]), "14 the own-progress row only offers Switch to", seen.buttons[0]);
+    check(JSON.stringify(seen.buttons[2]) === JSON.stringify(["Switch to", "Rename", "Download", "Delete"]), "14 a learner has the four buttons", seen.buttons[2]);
+    check(JSON.stringify(seen.buttons[1]) === JSON.stringify(["Rename", "Download", "Delete"]) && seen.on[1] === "Playing as" && seen.current[1] === "true" && !seen.current[0] && !seen.current[2],
+      "14 the active learner shows Playing as and aria-current", seen);
+    check(seen.injected === 0 && seen.order, "14 names are escaped, and the panel is above Your data", seen);
+    check((await calls(page, "learner_list")).length === 1, "14 the list is read once", await calls(page, "learner_list"));
+    await page.waitForFunction(() => /Synced at/.test(document.querySelector("[data-account]").textContent));
+    await page.click("#lrn-sw-self");
+    await page.waitForFunction(() => document.querySelector(".learner-row .learner-on") && document.querySelector(".learner-row").getAttribute("aria-current") === "true", null, { timeout: 8000 })
+      .catch(() => {});
+    const after = await page.evaluate(() => ({ current: Array.from(document.querySelectorAll(".learner-row")).map((r) => r.getAttribute("aria-current")), who: window.BMAccount.learner(), note: (document.querySelector("[data-note-l]") || {}).textContent }));
+    check(after.who === null && after.current[0] === "true", "14 Switch to moves the mark to the own progress", after);
+    await context.close();
+  }
+
+  /* 15 */
+  {
+    const { page, context } = await open_({ learners: roster() });
+    await page.fill("#lrn-name", "Ana");
+    check(await page.evaluate(() => !document.getElementById("lrn-consent")), "15 the consent text is hidden until Under 13 is ticked");
+    await page.check("#lrn-u13");
+    const box = await page.evaluate(() => ({ name: document.getElementById("lrn-name").value, text: document.querySelector(".consent").textContent.replace(/\s+/g, " "), checked: document.getElementById("lrn-u13").checked }));
+    check(box.name === "Ana" && box.checked && /What is kept about this learner/.test(box.text) && /never what they typed/.test(box.text) && /parent or guardian and I agree/.test(box.text),
+      "15 ticking Under 13 reveals the consent text and keeps the typed name", box);
+    await page.click("#lrn-add");
+    check((await calls(page, "learner_add")).length === 0, "15 without the consent box nothing is sent");
+    check(/parent or guardian/.test(await text(page, "[data-note-l]")), "15 the refusal is said in the panel", await text(page, "[data-note-l]"));
+    await page.check("#lrn-consent");
+    await page.click("#lrn-add");
+    await page.waitForFunction(() => window.__rpc.some((c) => c.name === "learner_add"));
+    const first = (await calls(page, "learner_add"))[0].args;
+    check(first.name === "Ana" && first.under13 === true && first.consent_v === 1, "15 with the consent the call carries consent_v 1", first);
+    await page.waitForFunction(() => Array.from(document.querySelectorAll(".learner-name")).some((n) => n.textContent === "Ana"));
+    check(await page.evaluate(() => document.getElementById("lrn-name").value === "" && !document.getElementById("lrn-consent") && document.activeElement.id === "lrn-h"),
+      "15 the form is cleared and the focus goes to the heading");
+    await page.fill("#lrn-name", "Ben");
+    await page.click("#lrn-add");
+    await page.waitForFunction(() => window.__rpc.filter((c) => c.name === "learner_add").length === 2);
+    const second = (await calls(page, "learner_add"))[1].args;
+    check(second.name === "Ben" && second.under13 === false && second.consent_v === null, "15 without the tick, consent_v is null", second);
+    await context.close();
+  }
+
+  /* 16 */
+  {
+    const { page, context } = await open_({ learners: roster() });
+    await page.click("#lrn-r-L2");
+    check(await page.evaluate(() => document.activeElement.id === "lrn-ri-L2" && document.activeElement.value === "Sam"), "16 Rename opens a prefilled field with the focus in it");
+    await page.keyboard.press("Escape");
+    check(await page.evaluate(() => document.activeElement.id === "lrn-r-L2" && !document.getElementById("lrn-ri-L2")), "16 Escape cancels and the focus returns to Rename");
+    check((await calls(page, "learner_rename")).length === 0, "16 Escape sends nothing");
+    await page.click("#lrn-r-L2");
+    await page.fill("#lrn-ri-L2", "Samir");
+    await page.keyboard.press("Enter");
+    await page.waitForFunction(() => window.__rpc.some((c) => c.name === "learner_rename"));
+    const call = (await calls(page, "learner_rename"))[0].args;
+    check(call.id === "L2" && call.name === "Samir", "16 Enter calls learner_rename", call);
+    await page.waitForFunction(() => Array.from(document.querySelectorAll(".learner-name")).some((n) => n.textContent === "Samir"));
+    check(await page.evaluate(() => document.activeElement.id === "lrn-r-L2"), "16 after saving the focus is on Rename");
+    await page.click("#lrn-r-L2");
+    await page.click("#lrn-rc-L2");
+    check(await page.evaluate(() => document.activeElement.id === "lrn-r-L2" && !document.getElementById("lrn-ri-L2")), "16 Cancel works the same");
+    await context.close();
+  }
+
+  /* 17 */
+  {
+    const { page, context } = await open_({ learners: roster() });
+    await page.click("#lrn-del-L2");
+    check((await calls(page, "learner_delete")).length === 0 && /Press again to delete Sam/.test(await text(page, "#lrn-del-L2")), "17 the first press only arms", await text(page, "#lrn-del-L2"));
+    await page.click("#lrn-del-L2");
+    await page.waitForFunction(() => window.__rpc.some((c) => c.name === "learner_delete"));
+    check((await calls(page, "learner_delete"))[0].args.id === "L2", "17 the second press calls learner_delete");
+    await page.waitForFunction(() => !document.getElementById("lrn-del-L2"));
+    check(/Deleted Sam/.test(await text(page, "[data-note-l]")), "17 the list redraws and says so", await text(page, "[data-note-l]"));
+    await context.close();
+
+    const st = await open_({ learners: roster(), stale: true });
+    check(await st.page.evaluate(() => !document.getElementById("acct-in")), "17 no sign-in controls before they are needed");
+    await st.page.click("#lrn-del-L2");
+    await st.page.click("#lrn-del-L2");
+    await st.page.waitForSelector("#acct-in");
+    const note = await text(st.page, "[data-note-l]");
+    check(note === "To confirm it is you, sign in again, then press Delete again.", "17 a stale sign-in says to sign in again", note);
+    check(await st.page.evaluate(() => !!document.getElementById("acct-oauth-google") && !!document.getElementById("acct-email") && !!document.getElementById("acct-pass") && !!document.getElementById("lrn-del-L2")),
+      "17 the sign-in controls appear and the learner is still listed");
+    await st.page.click("#lrn-dl-L1");
+    await st.page.waitForFunction(() => /press Download again/.test(document.querySelector("[data-note-l]").textContent));
+    await st.context.close();
+  }
+
+  /* 18 */
+  {
+    const { page, context } = await open_({ learners: roster() });
+    const [dl] = await Promise.all([page.waitForEvent("download"), page.click("#lrn-dl-L2")]);
+    const call = (await calls(page, "learner_export"))[0].args;
+    check(call.id === "L2", "18 Download calls learner_export", call);
+    check(dl.suggestedFilename() === "basic-mathematics-sam.json", "18 the file is named after the learner", dl.suggestedFilename());
+    const odd = await Promise.all([page.waitForEvent("download"), page.click("#lrn-dl-L1")]);
+    check(odd[0].suggestedFilename() === "basic-mathematics-maya-b.json", "18 a name with punctuation becomes a plain file name", odd[0].suggestedFilename());
+    await context.close();
+  }
+
+  /* 19 */
+  {
+    const { page, context } = await open_({ learners: roster() }, { width: 360 });
+    await page.check("#lrn-u13");
+    const over = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+    check(over <= 0, "19 the Learners panel does not overflow a 360px screen", over);
+    await page.click("#lrn-r-L2");
+    check(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth) <= 0, "19 … nor with a rename field open");
+    await page.keyboard.press("Escape");
+    await page.focus("#lrn-h");
+    const wanted = await page.evaluate(() => Array.from(document.querySelectorAll(".learners button, .learners input")).map((el) => el.id));
+    const reached = [];
+    for (let i = 0; i < wanted.length + 3; i++) {
+      await page.keyboard.press("Tab");
+      const id = await page.evaluate(() => document.activeElement.id);
+      if (wanted.includes(id) && !reached.includes(id)) reached.push(id);
+    }
+    check(wanted.length > 8 && wanted.every((id) => reached.includes(id)), "19 every control in the panel is reached by Tab", wanted.filter((id) => !reached.includes(id)));
+    check(await page.evaluate(() => Array.from(document.querySelectorAll(".learners button, .learners input")).every((el) => !el.disabled)), "19 no control is disabled");
     await context.close();
   }
 

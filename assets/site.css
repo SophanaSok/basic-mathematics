@@ -1028,6 +1028,21 @@ table.owner th[aria-sort="none"] .link::after { content: none; }
 .field input { font-family: var(--sans); width: 100%; }
 .form-note { font-family: var(--sans); font-size: .88rem !important; margin: 1rem 0 0; padding: .6rem .8rem; border-radius: var(--radius-sm); background: var(--accent-soft); color: var(--text); }
 .form-note.bad { background: var(--bad-soft); color: var(--bad); }
+.learner-list { list-style: none; margin: 1rem 0 0; padding: 0; display: grid; gap: .6rem; }
+.learner-row { border: 1px solid var(--border-strong); border-radius: var(--radius-sm); padding: .7rem .9rem; min-width: 0; }
+.learner-row[aria-current="true"] { border-color: var(--accent); background: var(--accent-soft); }
+.learner-row .learner-name { margin: 0; font-family: var(--sans); font-weight: 700; font-size: 1.02rem; overflow-wrap: anywhere; }
+.learner-row .actions { margin-top: .6rem; gap: .5rem; }
+.learner-row .field { margin: 0 0 .6rem; }
+.learner-on { font-family: var(--sans); font-size: .82rem; font-weight: 700; color: var(--accent-deep); padding: .35rem .2rem; }
+.learner-add-h { margin: 1.6rem 0 .6rem; font-size: 1.05rem; }
+.check { display: flex; gap: .6rem; align-items: flex-start; font-family: var(--sans); margin: 0 0 .9rem; min-width: 0; }
+.check input { margin-top: .25rem; flex: none; }
+.check span { overflow-wrap: anywhere; }
+.consent { border: 1px solid var(--border-strong); border-radius: var(--radius-sm); padding: .8rem 1rem; margin: 0 0 .9rem; }
+.consent h4 { margin: 0 0 .4rem; font-size: .95rem; }
+.consent p { font-size: .9rem; margin: 0 0 .8rem; }
+.learners .btn { max-width: 100%; }
 .sync-state { font-family: var(--sans); font-size: .84rem !important; color: var(--muted); }
 .sync-state[data-state="error"] { color: var(--bad); }
 .sync-state[data-state="synced"]::before {
