@@ -47,7 +47,8 @@
    24. a sync-status redraw keeps the keyboard focus on the button that had it
    25. learners "off" draws no Learners panel and asks for no learner_list
    26. a stale refusal of Delete my account shows its note and the step-up form, the button stays
-       armed, a right password says to press again, and the next press deletes once */
+       armed, a right password says to press again, and the next press deletes once
+   27. a sign-out, another account and a server error disarm Delete my account; a held call takes one press */
 "use strict";
 const site = require("../lib/site");
 const target = require("../lib/target");
@@ -95,6 +96,8 @@ window.supabase = { createClient: function () {
         rows().push({ id: "L-new", self: false, name: args.name, under13: !!args.under13, consent_v: args.consent_v, created_at: "2026-10-18T00:00:00Z" });
         return Promise.resolve(answer("L-new"));
       }
+      if (name === "delete_my_account" && opts.deleteDelay) return new Promise(function (ok) { setTimeout(function () { ok(answer(null)); }, opts.deleteDelay); });
+      if (name === "delete_my_account" && opts.deleteError) return Promise.resolve({ data: null, error: { message: opts.deleteError, code: "XX000" } });
       if (name === "delete_my_account" && opts.staleDelete) return Promise.resolve({ data: null, error: { message: "stale sign-in", code: "P0001" } });
       if (/^learner_(rename|delete|export)$/.test(name)) {
         if (opts.stale && name !== "learner_rename") return Promise.resolve({ data: null, error: { message: "stale sign-in", code: "P0001" } });
@@ -761,6 +764,14 @@ const ALL = ["google", "github", "discord", "facebook", "azure"];
       check(st.note === "To confirm it is you, sign in again, then press Delete my account again.", tag + "the note is in the Your account slot", st.note);
       check(st.armed === "true" && /Press again/.test(st.label), tag + "the button stays armed", st);
       check(st.email === "parent@example.com", tag + "the step-up form is drawn with the account's email", st.email);
+      const place = await page.evaluate(() => {
+        const form = document.getElementById("acct-stepin").closest("form"), prev = form.previousElementSibling;
+        const h = prev && prev.querySelector("h2");
+        return { prev: prev ? prev.className + "|" + (h ? h.textContent : "") : null, learners: !!document.querySelector(".learners"),
+          follows: !!document.querySelector(".learners") && !!(document.querySelector(".learners").compareDocumentPosition(form) & Node.DOCUMENT_POSITION_FOLLOWING) };
+      });
+      if (off) check(!place.learners && /\|Your data$/.test(place.prev), tag + "the form follows Your data", place);
+      else check(place.learners && place.follows && /^panel learners\|/.test(place.prev), tag + "the form follows the Learners panel", place);
       check((await calls(page, "delete_my_account")).length === 1, tag + "one delete_my_account so far");
       await page.evaluate(() => { window.__opts.signInOk = true; window.__opts.staleDelete = false; });
       await page.fill("#acct-pass", "right-password");
@@ -774,6 +785,49 @@ const ALL = ["google", "github", "discord", "facebook", "azure"];
       check((await calls(page, "delete_my_account")).length === 2, tag + "the next press called delete_my_account once more", (await calls(page, "delete_my_account")).length);
       await r.context.close();
     }
+  }
+
+  /* 27. the account delete's arming ends with a sign-out, another account, and a server error; a held call takes one press */
+  {
+    const label = (page) => page.evaluate(() => (document.getElementById("acct-delete") || {}).textContent);
+    const r = await open({ providers: ["google"] }, { session: LS, stub: { learners: roster() } });
+    await r.page.waitForSelector("#acct-delete");
+    await r.page.click("#acct-delete");
+    check(/Press again/.test(await label(r.page)), "27 one press arms");
+    await r.page.click("#acct-out");
+    await r.page.waitForFunction(() => !document.getElementById("acct-delete"));
+    await r.page.evaluate(() => { window.__opts.signInOk = true; return window.BMAccount.signIn("parent@example.com", "right-password"); });
+    await r.page.waitForSelector("#acct-delete");
+    check(await label(r.page) === "Delete my account", "27 a sign-out disarms Delete", await label(r.page));
+    await r.page.click("#acct-delete");
+    check(/Press again/.test(await label(r.page)), "27 … and one press arms again");
+    await r.page.evaluate(() => { window.__opts.signInAs = "u2"; return window.BMAccount.signIn("other@example.com", "right-password"); });
+    await r.page.waitForFunction(() => window.BMAccount.user() && window.BMAccount.user().id === "u2");
+    await r.page.waitForSelector("#acct-delete");
+    check(await label(r.page) === "Delete my account", "27 a sign-in as another account disarms Delete", await label(r.page));
+    await r.context.close();
+
+    const h = await open({ providers: ["google"] }, { session: LS, stub: { learners: roster(), deleteDelay: 1500 } });
+    await h.page.waitForSelector("#acct-delete");
+    await h.page.click("#acct-delete");
+    await h.page.click("#acct-delete");
+    await h.page.click("#acct-delete").catch(() => null);
+    await h.page.click("#acct-delete").catch(() => null);
+    await h.page.waitForTimeout(500);
+    check((await calls(h.page, "delete_my_account")).length === 1, "27 presses while the delete is held send one delete_my_account", (await calls(h.page, "delete_my_account")).length);
+    await h.context.close();
+
+    const e = await open({ providers: ["google"] }, { session: LS, stub: { learners: roster(), deleteError: "Server broke" } });
+    await e.page.waitForSelector("#acct-delete");
+    await e.page.click("#acct-delete");
+    await e.page.click("#acct-delete");
+    await e.page.waitForFunction(() => /Server broke/.test((document.querySelector("[data-note]") || {}).textContent || ""));
+    await e.page.waitForTimeout(100);
+    check(await label(e.page) === "Delete my account" && await e.page.evaluate(() => document.getElementById("acct-delete").getAttribute("data-armed") !== "true"), "27 a server error disarms Delete", await label(e.page));
+    check(/Server broke/.test(await text(e.page, "[data-note]")) && await e.page.evaluate(() => !document.getElementById("acct-stepin")), "27 … shows the error and no step-up form");
+    await e.page.click("#acct-delete");
+    check((await calls(e.page, "delete_my_account")).length === 1, "27 … and the next press only arms");
+    await e.context.close();
   }
 
   check(errors.length === 0, "no uncaught page errors", errors);

@@ -870,6 +870,31 @@ function twelve() {
       await c.close();
     }
 
+    /* 21c. a page with no account service: the meta's learner counts only while a sign-in is stored */
+    {
+      /* [key stored, the project's url set, what the page does with the run] */
+      for (const [key, url, stored] of [[null, "", false], ["sb-testref-auth-token", "", true], ["sb-testref-auth-token", "https://testref.supabase.co", true], ["sb-other-auth-token", "https://testref.supabase.co", false]]) {
+        const tag = "21 (no account service, " + (key ? key : "no session key") + (url ? ", url set" : "") + ") ";
+        const c = await context({ supabaseUrl: url, supabaseAnonKey: url ? "k" : "" }, {});
+        /* the page as if account.js had not run: nothing answers to BMAccount */
+        await c.addInitScript(() => { Object.defineProperty(window, "BMAccount", { get: () => undefined, set: () => {}, configurable: false }); });
+        const p = await arena(c, { learner: "Kim" });
+        check(await p.evaluate(() => !window.BMAccount), tag + "BMAccount is absent");
+        await p.evaluate((k) => { if (k) localStorage.setItem(k, "{}"); }, key);
+        await p.reload();
+        await p.waitForSelector('[data-act="start"][data-mode="daily"]');
+        await p.click('[data-act="start"][data-mode="daily"]');
+        await p.waitForSelector(".arena-run");
+        await p.reload();
+        await p.waitForSelector('.arena-run, [data-act="start"][data-mode="daily"]');
+        await p.waitForTimeout(300);
+        const got = await p.evaluate(() => ({ running: !!document.querySelector(".arena-run"), note: (document.querySelector(".arena-fine[role=status]") || {}).textContent || "" }));
+        if (stored) check(!got.running && /not counted/.test(got.note), tag + "the run is the learner's, so a visitor's run is not counted", got);
+        else check(got.running && !/not counted/.test(got.note), tag + "the run resumes with no not-counted line", got);
+        await c.close();
+      }
+    }
+
     /* 22. the result is drawn before the session is read: the meta already keeps the board away */
     {
       const c = await context({}, { signedIn: true, learner: "Kim", stub: { board: twelve() } });

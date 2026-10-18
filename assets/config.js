@@ -29,7 +29,8 @@ window.BM_CONFIG = {
      browser's own log is still kept. */
   /* The Learners panel on the account page is on by default. To hide it, add  learners: "off"
      as a setting here (with a comma after the previous setting's value): the panel is not
-     drawn and nothing is read from or written to learners; the browser keeps playing as
-     whoever it already runs as. A server stop is  revoke execute on function
+     drawn and the account page makes no learner_* calls; a browser already playing as a
+     managed learner keeps doing so (its learner is still checked on load) until it signs
+     out. A server stop is  revoke execute on function
      public.learner_add(text, boolean, smallint) from authenticated  (docs/OPERATIONS.md). */
 };

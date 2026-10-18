@@ -394,6 +394,9 @@
      leftover from a session that ended without a sign-out */
   function storedSession() {
     try {
+      var ref = "";
+      try { ref = new URL(String((window.BM_CONFIG || {}).supabaseUrl || "")).hostname.split(".")[0]; } catch (e) { ref = ""; }
+      if (ref) return !!localStorage.getItem("sb-" + ref + "-auth-token");
       for (var i = 0; i < localStorage.length; i++) if (/^sb-.*-auth-token$/.test(localStorage.key(i) || "")) return true;
     } catch (e) { /* none */ }
     return false;

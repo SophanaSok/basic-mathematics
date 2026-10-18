@@ -1682,7 +1682,10 @@
           draw();
           return;
         }
+        /* any other refusal ends the arming: the next press only arms again */
+        deleteArmed = false;
         problem(e);
+        draw();
       });
     });
     var nameEl = document.getElementById("acct-name");
