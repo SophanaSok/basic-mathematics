@@ -309,12 +309,20 @@ as $$
 $$;
 revoke all on function private.fresh_auth() from public, anon, authenticated;
 
--- Lets a reader remove their own account; every table above cascades from auth.users.
+-- Lets a reader remove their own account, after a fresh sign-in (private.fresh_auth, T4); every table above cascades from auth.users.
 create or replace function public.delete_my_account()
 returns void
-language sql security definer set search_path = ''
+language plpgsql security definer set search_path = ''
 as $$
+begin
+  if (select auth.uid()) is null then
+    raise exception 'not signed in';
+  end if;
+  if not private.fresh_auth() then
+    raise exception 'stale sign-in';
+  end if;
   delete from auth.users where id = (select auth.uid());
+end;
 $$;
 
 -- Managed learners: the only way to read-write public.learners. LEARNERS_MAX and consent_current (the
