@@ -424,6 +424,37 @@ leave the migration in place, which the old site tolerates.
 
 applied: 2026-10-18 (Claude in Chrome, verified; PR #187 merged bca26f1)
 
+### The account-delete step-up, and first-factor sign-ins only (PA-6a)
+
+`delete_my_account()` now refuses a sign-in older than 10 minutes with `stale sign-in`, as
+`learner_delete` and `learner_export` do, and `private.fresh_auth()` counts only first-factor
+sign-ins (`password`, `oauth`, `otp`, `magiclink`, `sso/saml`, `recovery`, `invite`, `web3`): a
+second factor enrolled from a stale session is not a sign-in. **Rule 5 order**: the site that
+asks the parent to sign in again and retries (PA-6b, #192) must be deployed first; before it,
+the Delete my account button would show a bare "stale sign-in".
+
+1. Confirm #192 is deployed: on the live account page, signed in, the Learners panel is there
+   and `assets/config.js` served by the site carries the `learners` comment block.
+2. Apply `supabase/migrations/20261018223454_delete_stepup.sql` in Dashboard → SQL → New query.
+   Re-running it does nothing more.
+3. Verify, each in its own query (they only read):
+   - `select prosrc like '%fresh_auth%' from pg_proc where proname = 'delete_my_account';` → true.
+   - `select prosrc like '%''password'', ''oauth''%' from pg_proc p join pg_namespace n on n.oid = p.pronamespace where n.nspname = 'private' and p.proname = 'fresh_auth';` → true.
+   - On the live site, signed in for more than 10 minutes, press Delete my account twice: the page
+     says to sign in again and offers the sign-in; do not go on (or do, with a throwaway account).
+4. Rollback: paste the `delete_my_account` of `20261004000000_baseline.sql` (the one-line
+   `language sql` body) and the `fresh_auth` of `20261016194703_learners.sql`; both are
+   `create or replace`.
+
+A token with no `amr` entries, or none of a first-factor method (a provider that records none,
+or a custom access token hook that drops them), is never fresh: that parent cannot delete a
+learner, export one or delete the account from the page. The way out is the owner: Dashboard →
+Authentication → Users → the user → Delete, which cascades through `learners` as the function
+would. Check `select auth.jwt() -> 'amr';` from a signed-in browser (section 1's snippet) before
+changing a sign-in provider or adding an access token hook.
+
+applied: ____ (date, filled in by the owner or the session that applies it; only after #192 is live)
+
 ## 2. Deploys
 
 The course is served from one place: **Cloudflare Pages, at <https://learn.groundupmath.org>**
