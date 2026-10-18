@@ -348,7 +348,7 @@ again is harmless.
    in the browser console:
 
    ```js
-   JSON.parse(atob(JSON.parse(localStorage.getItem(Object.keys(localStorage).find(k => /^sb-.*-auth-token$/.test(k))).access_token.split(".")[1].replace(/-/g,"+").replace(/_/g,"/"))).amr
+   JSON.parse(atob(JSON.parse(localStorage.getItem(Object.keys(localStorage).find(k => /^sb-.*-auth-token$/.test(k)))).access_token.split(".")[1].replace(/-/g,"+").replace(/_/g,"/"))).amr
    ```
 
    Expected: an array like `[{"method":"password","timestamp":1760...}]`. If it is missing, do not
