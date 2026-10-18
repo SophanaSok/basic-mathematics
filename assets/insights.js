@@ -237,6 +237,24 @@
     page.insertBefore(sec, page.firstChild);
   }
 
+  /* the managed learner this page runs as, or null. account.js settles it only once the session is
+     read, so the first draw takes it from the sync meta it keeps, as the Arena does. */
+  function playingAs() {
+    if (!Account) return null;
+    var id = typeof Account.learner === "function" ? Account.learner() : null, name = "";
+    if (id && typeof Account.learnerName === "function") name = Account.learnerName() || "";
+    if (!id) {
+      try {
+        var m = Store.read("bm.sync.v1", {});
+        if (m && typeof m.learner === "string" && m.learner && typeof Account.hasSession === "function" && Account.hasSession()) {
+          id = m.learner;
+          name = typeof m.learnerName === "string" ? Array.from(m.learnerName.trim()).slice(0, 40).join("") : "";
+        }
+      } catch (e) { /* the account's own */ }
+    }
+    return id ? { id: id, name: name || "this learner" } : null;
+  }
+
   function drawProgress() {
     /* the slot goes in once, ahead of the dashboard, and is never moved: a redraw of the
        dashboard does not touch it, so focus inside the panel stays and the canvas stays */
@@ -253,7 +271,14 @@
     var tried = 0, first = 0;
     rows.forEach(function (r) { tried += r.n; first += r.first; });
 
-    var html = '<div class="stats">';
+    var html = "";
+    /* whose progress this is, when the browser runs as a managed learner (the parent's text, so escaped) */
+    var who = playingAs();
+    if (who) {
+      html += '<p class="fine" data-playing-as>Showing ' + esc(who.name) + '\'s progress. <a href="' + esc(Site.rootPrefix() + "account.html") +
+        '">Switch learners on your account page.</a></p>';
+    }
+    html += '<div class="stats">';
     html += tile("Streak", streak, streak === 1 ? "day" : "days", streak ? ' data-on="true"' : "");
     html += tile("Today", today + '<small> / ' + goal + " XP</small>",
       today >= goal ? "Goal reached" : (goal - today) + " XP to go");

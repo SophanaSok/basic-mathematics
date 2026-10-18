@@ -56,6 +56,8 @@ export type StoreChange =
   | { type: "reset" }
   /** an account merged another device's progress into this one */
   | { type: "sync" }
+  /** another tab chose a different learner: this page is about to reload and must write nothing more */
+  | { type: "stale" }
   | { type: "theme"; theme: string }
   /** the contents page drew its cards; `current` is the chapter to continue */
   | { type: "home"; current: ChapterId | null }
