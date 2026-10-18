@@ -1332,12 +1332,12 @@ module.exports = {
       return p;
     });
 
-    await kase("launch precondition: account.html, signed out, says accounts are for people 13 or older, or made by a parent", {}, async (page) => {
+    await kase("launch precondition: account.html, signed out, says accounts are for people 13 or older, and a younger learner is added from the page", {}, async (page) => {
       const p = [];
       await h.open(page, "account.html");
       const text = await page.evaluate(() => document.body.innerText.replace(/\s+/g, " "));
       check(p, /13 or older/.test(text), "the rendered account page does not say \"13 or older\"");
-      check(p, /A parent can make one/.test(text), "the rendered account page does not say a parent can make one");
+      check(p, /Add a younger learner from this page/.test(text), "the rendered account page does not say a younger learner is added from the page");
       return p;
     });
   }

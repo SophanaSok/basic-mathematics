@@ -820,7 +820,7 @@
       if (target === user.id) target = null;
       return Account.ready().then(function (c) {
         var captured = { id: user.id };
-        /* why nothing may be switched yet, or null; a log that is switched off never sends, so it never blocks */
+        /* why nothing may be switched yet, or null; a log that is switched off still blocks while it holds unsent entries */
         function unsent() {
           var E = window.BMEvents, left = E && typeof E.outbox === "function" ? E.outbox() : [];
           /* a log that is switched off still sends what it queued once it is back on, so it blocks too */
@@ -1058,7 +1058,7 @@
   var host = document.querySelector("[data-account]");
   if (!host) return;
   var esc = Site.escapeHtml;
-  var notice = "", NOTE = "<!--note-->";
+  var notice = "", NOTE = "<!--note-->", NOTE_L = "<!--note-learners-->", NOTE_S = "<!--note-step-->", noteAt = "";
 
   /* s•••@example.com: enough for a reader to recognise, little for the next person to read */
   function mask(email) {
@@ -1131,16 +1131,24 @@
       (extra || "") + "></label>";
   }
   /* a message under the form; set in place, so nothing already typed is lost */
-  function say(text, bad) {
+  function say(text, bad, at) {
+    noteAt = at || "";
     /* a new message replaces the one about the sign-in that did not go through */
     var old = document.getElementById("acct-returned");
     if (old) old.parentNode.removeChild(old);
     returnedText = "";
     sayHere("");
     notice = text ? '<p class="form-note' + (bad ? " bad" : "") + '">' + esc(text) + "</p>" : "";
-    var slot = host.querySelector("[data-note]");
+    var slot = host.querySelector(noteAt === "L" ? "[data-note-l]" : "[data-note]");
+    var other = host.querySelector(noteAt === "L" ? "[data-note]" : "[data-note-l]");
+    if (other) other.innerHTML = "";
     if (slot) slot.innerHTML = notice;
     else draw();
+  }
+  /* the same, in the Learners panel, where the buttons that cause it are */
+  function lsay(text, bad) { say(text, bad, "L"); }
+  function lproblem(e) {
+    lsay(e && e.message ? e.message : "Something went wrong. Try again in a moment.", true);
   }
   function problem(e) {
     say(e && e.message ? e.message : "Something went wrong. Try again in a moment.", true);
@@ -1152,6 +1160,296 @@
   function on(id, fn) {
     var el = document.getElementById(id);
     if (el) el.addEventListener("click", function (e) { e.preventDefault(); fn(el); });
+  }
+
+  /* ----------------------------------------------------------- learners -- */
+
+  /* The version of the consent text below; learner_add records it (the server's consent_current is 1 too) */
+  var CONSENT_V = 1;
+  var CONSENT_HEAD = "What is kept about this learner";
+  var CONSENT_TEXT = "The name you give here, that they are under 13, the exercises they solve, how many tries each took, " +
+    "whether a hint or the solution was used, missions, XP per day, where they are in each chapter, their game record, " +
+    "and a short log of their answers (which exercise and section, right or wrong, which try, how many clues were open, " +
+    "and the minute; never what they typed). It is used only to run the course and to show you their progress. It is " +
+    "never sold or shared beyond the hosts named on the about page. It is kept until you delete the learner or your " +
+    "account. You can download or delete it from this page at any time.";
+  var CONSENT_BOX = "I am this learner's parent or guardian and I agree to this.";
+  var STALE_RE = /stale sign-in/;
+
+  /* the list as learner_list last gave it (null until read), and whose it is; like name and board, it is
+     read once per account and kept, so a redraw while typing does not ask again */
+  var learners = null, learnersFor = null, learnersErr = "";
+  /* what the Learners panel is doing: the add form, the row being renamed, the row armed for deletion,
+     whether a step-up sign-in is wanted, and where the focus goes after the next draw */
+  var addUnder = false, addConsent = false, renaming = null, armed = null, needSignIn = false, focusAfter = null;
+  /* the step-up: which action asked for it (and the button to return to), what its own form last said,
+     and the calls in flight (a second press while one is out sends nothing) */
+  var stepAction = null, stepNote = "", addBusy = false, renameBusy = null;
+
+  /* a reply that arrives after a different account is signed in belongs to nobody on this page */
+  function uidNow() { return user ? user.id : null; }
+  function learnerRpc(name, args) {
+    return Account.rpc(name, args);
+  }
+  function renameHasFocus() {
+    var a = document.activeElement;
+    return !!(a && a.id && a.id.indexOf("lrn-ri-") === 0 && host.contains(a));
+  }
+  /* read (or re-read) the list; `focus` is the id to focus once it is drawn */
+  function loadLearners(focus) {
+    var id = user ? user.id : null;
+    if (!id) return;
+    learnerRpc("learner_list").then(function (rows) {
+      if (!user || user.id !== id) return;
+      learners = Array.isArray(rows) ? rows : [];
+      learnersErr = "";
+      /* a rename field being typed in keeps its focus and text through this redraw (draw keeps both) */
+      if (focus && !renameHasFocus()) focusAfter = focus;
+      draw();
+    }, function (e) {
+      if (!user || user.id !== id) return;
+      learnersErr = e && e.message ? e.message : "Something went wrong. Try again in a moment.";
+      draw();
+    });
+  }
+  function resetLearners() {
+    learners = null; learnersFor = null; learnersErr = "";
+    addUnder = false; addConsent = false; renaming = null; armed = null; needSignIn = false; focusAfter = null;
+    stepAction = null; stepNote = ""; addBusy = false; renameBusy = null;
+  }
+  function learnerById(id) {
+    var found = null;
+    (learners || []).forEach(function (l) { if (l && l.id === id) found = l; });
+    return found;
+  }
+  function slug(text) {
+    var out = String(text || "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 40).replace(/-+$/, "");
+    return out || "learner";
+  }
+  function download(data, file) {
+    var blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+    var a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = file;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+  }
+  /* a refusal that asks for a fresh sign-in is not an error to show, but a step to take */
+  function learnerProblem(e, action, focus, prefix) {
+    prefix = prefix || "";
+    if (e && STALE_RE.test(e.message || "")) {
+      needSignIn = true; focusAfter = focus || null;
+      stepAction = { action: action, focus: focus || null }; stepNote = "";
+      lsay(prefix + "To confirm it is you, sign in again, then press " + action + " again.", true);
+      draw();
+      return;
+    }
+    lsay(prefix + (e && e.message ? e.message : "Something went wrong. Try again in a moment."), true);
+  }
+
+  function learnersPanel() {
+    var cur = Account.learner();
+    var h = '<section class="panel learners" aria-labelledby="lrn-h"><h2 id="lrn-h" tabindex="-1">Learners</h2>' +
+      "<p>Add a younger learner to keep their progress apart from yours. They get no sign-in of their own: you switch to them here.</p>";
+    if (learners === null) {
+      h += learnersErr
+        ? '<p class="form-note bad">' + esc(learnersErr) + '</p><p class="actions"><button class="btn ghost small" id="lrn-retry" type="button">Try again</button></p>'
+        : '<p class="fine" role="status">Loading learners…</p>';
+      return h + "</section>";
+    }
+    function rowHtml(l) {
+      var self = !l, id = self ? "" : esc(l.id);
+      var nm = self ? "Your own progress" : (typeof l.name === "string" && l.name ? l.name : "Unnamed learner");
+      var active = self ? !cur : cur === l.id;
+      var out = '<li class="learner-row"' + (active ? ' aria-current="true"' : "") + ">";
+      if (!self && renaming === l.id) {
+        return out + '<label class="field" for="lrn-ri-' + id + '"><span>New name for ' + esc(nm) + '</span>' +
+          '<input id="lrn-ri-' + id + '" type="text" maxlength="40" autocomplete="off" value="' + esc(l.name || "") + '"></label>' +
+          '<p class="actions"><button class="btn small" id="lrn-rs-' + id + '" type="button"' + (renameBusy === l.id ? ' disabled aria-busy="true"' : "") + '>Save</button>' +
+          '<button class="btn ghost small" id="lrn-rc-' + id + '" type="button">Cancel</button></p></li>';
+      }
+      out += '<p class="learner-name">' + esc(nm) + "</p><p class=\"actions\">";
+      out += active ? '<span class="learner-on">Playing as</span>'
+        : '<button class="btn ghost small" id="lrn-sw-' + (self ? "self" : id) + '" type="button" aria-label="Switch to ' + esc(nm) + '">Switch to</button>';
+      if (!self) {
+        out += '<button class="btn ghost small" id="lrn-r-' + id + '" type="button" aria-label="Rename ' + esc(nm) + '">Rename</button>' +
+          '<button class="btn ghost small" id="lrn-dl-' + id + '" type="button" aria-label="Download ' + esc(nm) + '">Download</button>' +
+          '<button class="btn ghost small danger" id="lrn-del-' + id + '" type="button"' +
+          (armed === l.id ? ">Press again to delete " + esc(nm) : ' aria-label="Delete ' + esc(nm) + '">Delete') + "</button>";
+      }
+      return out + "</p></li>";
+    }
+    h += '<ul class="learner-list">' + rowHtml(null) +
+      learners.filter(function (l) { return l && l.self !== true && typeof l.id === "string"; }).map(rowHtml).join("") + "</ul>";
+    h += '<h3 class="learner-add-h">Add a learner</h3>' +
+      field("lrn-name", "Name (a first name or nickname; only you see it)", "text", 'maxlength="40" autocomplete="off"') +
+      '<label class="check"><input id="lrn-u13" type="checkbox"' + (addUnder ? " checked" : "") + "><span>Under 13</span></label>";
+    if (addUnder) {
+      h += '<div class="consent" role="group" aria-labelledby="lrn-consent-h"><h4 id="lrn-consent-h">' + esc(CONSENT_HEAD) + "</h4>" +
+        "<p>" + esc(CONSENT_TEXT) + "</p>" +
+        '<label class="check"><input id="lrn-consent" type="checkbox"' + (addConsent ? " checked" : "") + "><span>" + esc(CONSENT_BOX) + "</span></label></div>";
+    }
+    h += '<p class="actions"><button class="btn" id="lrn-add" type="button"' + (addBusy ? ' disabled aria-busy="true"' : "") + '>Add learner</button></p>' + NOTE_L + "</section>";
+    return h;
+  }
+  /* the sign-in controls a step-up asks for, under the Learners panel */
+  function stepUpPanel() {
+    /* an account with an email address is asked for that address, not another: the step-up cannot change accounts */
+    var em = user && user.email ? String(user.email) : "";
+    return '<form class="panel auth" novalidate><h2>Sign in again</h2>' + providerButtons() +
+      field("acct-email", "Email", "email", 'autocomplete="email" required' + (em ? ' readonly value="' + esc(em) + '"' : "")) +
+      field("acct-pass", "Password", "password", 'autocomplete="current-password" minlength="8"') +
+      '<p class="actions"><button class="btn" id="acct-stepin" type="submit">Sign in</button></p>' + NOTE_S + "</form>";
+  }
+  function stepSay(text) {
+    stepNote = text ? '<p class="form-note bad">' + esc(text) + "</p>" : "";
+    var slot = host.querySelector("[data-note-s]");
+    if (slot) slot.innerHTML = stepNote;
+  }
+  function stepIn() {
+    var uid = uidNow(), em = val("acct-email"), pw = val("acct-pass");
+    if (!em || !pw) return stepSay("Enter your email and password.");
+    Account.signIn(em, pw).then(function () {
+      if (uidNow() !== uid) return;
+      var a = stepAction;
+      needSignIn = false; stepNote = ""; stepAction = null;
+      lsay("Signed in again. Now press " + (a ? a.action : "the button") + " again.");
+      focusAfter = a ? a.focus : "lrn-h";
+      draw();
+    }, function (e) {
+      if (uidNow() !== uid) return;
+      stepSay(e && e.message ? e.message : "Something went wrong. Try again in a moment.");
+    });
+  }
+
+  function wireLearners() {
+    on("lrn-retry", function () { learnersErr = ""; loadLearners(); });
+    (learners || []).forEach(function (l) {
+      if (!l || l.self === true || typeof l.id !== "string") return;
+      var id = l.id, nm = l.name || "this learner";
+      on("lrn-sw-" + id, function () { switchTo(id); });
+      on("lrn-r-" + id, function () { armed = null; renaming = id; focusAfter = "lrn-ri-" + id; draw(); });
+      on("lrn-rc-" + id, function () { renaming = null; focusAfter = "lrn-r-" + id; draw(); });
+      on("lrn-rs-" + id, function () { saveRename(id); });
+      var input = document.getElementById("lrn-ri-" + id);
+      if (input) input.addEventListener("keydown", function (e) {
+        if (e.key === "Enter") { e.preventDefault(); saveRename(id); }
+        else if (e.key === "Escape") { e.preventDefault(); renaming = null; focusAfter = "lrn-r-" + id; draw(); }
+      });
+      on("lrn-dl-" + id, function () {
+        armed = null;
+        var uid = uidNow();
+        learnerRpc("learner_export", { id: id }).then(function (data) {
+          if (uidNow() !== uid) return;
+          needSignIn = false; stepNote = "";
+          download(data, "basic-mathematics-" + slug(l.name) + ".json");
+          lsay("Downloaded " + nm + "'s data.");
+          draw();
+        }, function (e) { if (uidNow() === uid) learnerProblem(e, "Download", "lrn-dl-" + id); });
+      });
+      on("lrn-del-" + id, function () {
+        /* two presses, so a slip of the hand deletes nothing */
+        if (armed !== id) { armed = id; focusAfter = "lrn-del-" + id; draw(); return; }
+        removeLearner(id, nm);
+      });
+    });
+    on("lrn-sw-self", function () { switchTo(null); });
+    var u13 = document.getElementById("lrn-u13");
+    if (u13) u13.addEventListener("change", function () {
+      addUnder = u13.checked;
+      if (!addUnder) addConsent = false;
+      focusAfter = "lrn-u13";
+      draw();
+    });
+    var cons = document.getElementById("lrn-consent");
+    if (cons) cons.addEventListener("change", function () { addConsent = cons.checked; });
+    var nameIn = document.getElementById("lrn-name");
+    if (nameIn) nameIn.addEventListener("keydown", function (e) { if (e.key === "Enter") { e.preventDefault(); addLearner(); } });
+    on("lrn-add", addLearner);
+    on("acct-stepin", stepIn);
+  }
+  function switchTo(id) {
+    armed = null;
+    Account.switchLearner(id).then(function () {
+      focusAfter = "lrn-h";
+      lsay("");
+      draw();
+    }, function (e) { lproblem(e); draw(); });
+  }
+  function addLearner() {
+    var nm = val("lrn-name"), uid = uidNow(), from = document.activeElement && document.activeElement.id;
+    if (addBusy) return;
+    armed = null;
+    if (!nm || nm.length > 40) return lsay("Enter a name of 1 to 40 characters.", true);
+    if (addUnder && !addConsent) return lsay("Tick the box to confirm you are this learner's parent or guardian.", true);
+    addBusy = true;
+    var btn = document.getElementById("lrn-add");
+    if (btn) { btn.disabled = true; btn.setAttribute("aria-busy", "true"); }
+    learnerRpc("learner_add", { name: nm, under13: addUnder, consent_v: addUnder ? CONSENT_V : null }).then(function () {
+      if (uidNow() !== uid) return;
+      addBusy = false;
+      var el = document.getElementById("lrn-name");
+      if (el) el.value = "";
+      addUnder = false; addConsent = false;
+      lsay("Added " + nm + ".");
+      loadLearners("lrn-h");
+    }, function (e) {
+      if (uidNow() !== uid) return;
+      addBusy = false;
+      lproblem(e);
+      if (from) focusAfter = from;
+      draw();
+    });
+  }
+  function saveRename(id) {
+    var nm = val("lrn-ri-" + id), uid = uidNow(), from = document.activeElement && document.activeElement.id;
+    if (renameBusy) return;
+    if (!nm || nm.length > 40) return lsay("Enter a name of 1 to 40 characters.", true);
+    renameBusy = id;
+    var btn = document.getElementById("lrn-rs-" + id);
+    if (btn) { btn.disabled = true; btn.setAttribute("aria-busy", "true"); }
+    learnerRpc("learner_rename", { id: id, name: nm }).then(function () {
+      if (uidNow() !== uid) return;
+      renameBusy = null;
+      var l = learnerById(id);
+      if (l) l.name = nm;
+      renaming = null;
+      focusAfter = "lrn-r-" + id;
+      lsay("Renamed to " + nm + ".");
+      draw();
+      loadLearners("lrn-r-" + id);
+    }, function (e) {
+      if (uidNow() !== uid) return;
+      renameBusy = null;
+      lproblem(e);
+      if (from) focusAfter = from;
+      draw();
+    });
+  }
+  function removeLearner(id, nm) {
+    armed = null;
+    var uid = uidNow(), was = Account.learner() === id, switched = false, GONE = {};
+    var first = was ? Account.switchLearner(null).then(function () { switched = true; }) : Promise.resolve();
+    first.then(function () {
+      if (uidNow() !== uid) throw GONE;
+      return learnerRpc("learner_delete", { id: id });
+    }).then(function () {
+      if (uidNow() !== uid) return;
+      needSignIn = false; stepNote = ""; stepAction = null;
+      learners = (learners || []).filter(function (l) { return l.id !== id; });
+      focusAfter = "lrn-h";
+      lsay((switched ? "Switched back to your own progress, and deleted " : "Deleted ") + nm + ".");
+      draw();
+      loadLearners("lrn-h");
+    }, function (e) {
+      if (e === GONE || uidNow() !== uid) return;
+      /* the delete was asked for and is still wanted: the next press goes through */
+      if (switched) armed = id;
+      else if (e && STALE_RE.test(e.message || "")) armed = id;
+      learnerProblem(e, "Delete", "lrn-del-" + id, switched ? "Switched back to your own progress. " : "");
+      if (switched) draw();
+    });
   }
 
   function draw() {
@@ -1200,6 +1498,7 @@
         '<button class="btn ghost" id="acct-out" type="button">Sign out</button></p>' + NOTE +
         '<p class="fine">Signing out saves your progress to your account, then clears this browser\'s copy. ' +
         "If it cannot be saved, it is set aside in this browser and saved the next time you sign in here.</p></div>" +
+        learnersPanel() + (needSignIn ? stepUpPanel() : "") +
         '<div class="panel"><h2>Your data</h2>' +
         "<p>What is stored: the exercises you have solved, how many tries each took, whether a hint or the " +
         "solution was used, missions, XP per day, where you are in each chapter, and your game record " +
@@ -1217,15 +1516,33 @@
     }
     /* a redraw keeps whatever is in the fields that survive it */
     var kept = {}, held = document.activeElement && document.activeElement.id === "acct-returned";
+    /* so does the keyboard: whatever had the focus gets it back, with the caret where it was */
+    var act = document.activeElement, here = act && act !== document.body && host.contains(act) && act.id ? act.id : "", hereSel = null;
+    try { if (here && typeof act.selectionStart === "number") hereSel = [act.selectionStart, act.selectionEnd]; } catch (e) { hereSel = null; }
     Array.prototype.forEach.call(host.querySelectorAll("input[id]"), function (el) {
       if (el.type !== "password") kept[el.id] = el.value;
     });
-    host.innerHTML = html.replace(NOTE, '<div data-note role="status" aria-live="polite">' + notice + "</div>");
+    host.innerHTML = html.replace(NOTE, '<div data-note role="status" aria-live="polite">' + (noteAt === "L" ? "" : notice) + "</div>")
+      .replace(NOTE_L, '<div data-note-l role="status" aria-live="polite">' + (noteAt === "L" ? notice : "") + "</div>")
+      .replace(NOTE_S, '<div data-note-s role="status" aria-live="polite">' + stepNote + "</div>");
     Object.keys(kept).forEach(function (id) {
       var el = document.getElementById(id);
-      if (el && !el.value) el.value = kept[id];
+      /* a name being edited in a row keeps what was typed, not the old name it was prefilled with */
+      if (el && (!el.value || id.indexOf("lrn-ri-") === 0) && !el.readOnly) el.value = kept[id];
     });
     wire();
+    wireLearners();
+    var target = focusAfter || here;
+    focusAfter = null;
+    if (target) {
+      var fel = document.getElementById(target);
+      if (fel && fel !== document.activeElement) {
+        try {
+          fel.focus();
+          if (target === here && hereSel && typeof fel.setSelectionRange === "function") fel.setSelectionRange(hereSel[0], hereSel[1]);
+        } catch (e) { /* still on the page */ }
+      }
+    }
     /* focused when first shown, and again if a redraw took the focus away from it */
     var back = document.getElementById("acct-returned");
     if (back && (!returnedShown || held)) {
@@ -1296,15 +1613,9 @@
       Account.saveProfile(val("acct-name")).then(function () { name = val("acct-name"); say("Saved."); }, problem);
     });
     on("acct-sync", function () { Account.syncNow(); });
-    on("acct-out", function () { notice = ""; Account.signOut().catch(problem); });
+    on("acct-out", function () { notice = ""; needSignIn = false; Account.signOut().catch(problem); });
     on("acct-export", function () {
-      var blob = new Blob([JSON.stringify(Account.exportData(), null, 2)], { type: "application/json" });
-      var a = document.createElement("a");
-      a.href = URL.createObjectURL(blob);
-      a.download = "basic-mathematics-progress.json";
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
+      download(Account.exportData(), "basic-mathematics-progress.json");
     });
     on("acct-delete", function (btn) {
       /* two presses, so a slip of the hand deletes nothing */
@@ -1363,7 +1674,8 @@
         draw();
       }, function () { name = ""; });
     }
-    if (!user) { name = null; nameFor = null; board = null; }
+    if (!user) { name = null; nameFor = null; board = null; resetLearners(); }
+    else if (learnersFor !== user.id) { resetLearners(); learnersFor = user.id; loadLearners(); }
     /* a message about a sign-in that did not go through is no use to a reader who is signed in */
     if (user) returnedText = "";
     /* a redraw would wipe what is being typed — unless who is signed in has changed */
@@ -1371,6 +1683,7 @@
     var typing = active && host.contains(active) && active.tagName === "INPUT";
     if (typing && who === drawnFor) return;
     if (who !== drawnFor) {
+      noteAt = "";
       notice = carry ? '<p class="form-note">' + esc(carry) + "</p>" : "";
       carry = null;
     }
