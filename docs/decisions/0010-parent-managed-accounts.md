@@ -92,7 +92,8 @@ migration was applied and verified live on 2026-10-18 (steps in `OPERATIONS.md`,
 
 - PA-6: the `learners: "off"` kill switch (code in `src/core/config.ts` and `assets/account.js`;
   the server stop is in `OPERATIONS.md` section 6 under "Planned") and the step-up on
-  `delete_my_account()`, which does not ask for it yet.
+  `delete_my_account()` (PA-6a, #193: it asks for it, and `fresh_auth` counts first-factor sign-ins
+  only, because a stale session could enrol a second factor to mint a fresh `amr` entry).
 - "Keep this device on <name>" is deferred.
 - Counsel's answer on Q1 is still due before the age-policy page ships.
 

@@ -154,7 +154,8 @@ itself can only be read, by its guardian. Learners are written only through `lea
 `learner_add()`, `learner_rename()`, `learner_mark_under13()` (never cleared), `learner_delete()`
 and `learner_export()`; `learner_delete()` and `learner_export()` also need a sign-in within the
 last 10 minutes, read from the token's `amr` timestamp by `private.fresh_auth()`, which fails
-closed. `delete_my_account()` does not ask for it yet. Deleting a learner deletes its rows in the
+closed, and counts first-factor sign-ins only (a second factor is not a sign-in). `delete_my_account()`
+asks for it too (PA-6a). Deleting a learner deletes its rows in the
 three tables. The browser still writes `user_state` directly through the "own state" policy, which
 admits any of the guardian's learners, so a stale session on a shared device can reset or overwrite
 a managed learner's `user_state`; only the learner row itself is behind the step-up (accepted in
