@@ -118,7 +118,13 @@ class Server {
     this.oldAuth = false;    /* sign-out keeps the session when it cannot reach the server */
     this.held = null;        /* while set, requests wait here (hold / release) */
     this.log = [];
+    this.learners = {};      /* managed learner id -> guardian account id (every account is its own self learner) */
+    this.learnersError = null; /* the learners read fails with this code (a transient error, not a verdict) */
+    this.puts = [];          /* the arguments of every events_put call, as sent */
   }
+  addLearner(guardian, id) { this.learners[id] = guardian; }
+  /* the ids a caller may act as: itself and the learners it is guardian of (PA-1's policies) */
+  allowed(uid, id) { return id === uid || this.learners[id] === uid; }
   hold() {
     let open;
     this.held = new Promise((r) => { open = r; });
@@ -207,12 +213,15 @@ class Server {
     if (name !== "events_put") return Promise.resolve({ data: null, error: null });
     return Promise.resolve(this.held).then(() => {
       this.log.push("rpc events_put " + (Array.isArray(args.batch) ? args.batch.length : "?"));
+      this.puts.push(clone(args));
       if (this.offline || this.eventsDown) return { data: null, error: { message: "TypeError: Failed to fetch", code: "" }, status: 0 };
       if (!uid) return { data: null, error: { message: "not signed in", code: "P0001" }, status: 400 };
       if (this.missing.events_put) {
         return { data: null, error: { message: "Could not find the function public.events_put(batch, epoch) in the schema cache", code: "PGRST202" }, status: 404 };
       }
-      return { data: clone(this.put(uid, clone(args.batch), args.epoch)), error: null, status: 200 };
+      const target = args.learner === undefined || args.learner === null ? uid : args.learner;
+      if (!this.allowed(uid, target)) return { data: null, error: { message: "not your learner", code: "P0001" }, status: 400 };
+      return { data: clone(this.put(target, clone(args.batch), args.epoch)), error: null, status: 200 };
     });
   }
   exec(q, uid) {
@@ -224,10 +233,20 @@ class Server {
     if (this.missing[q.table]) {
       return { data: null, error: { message: "Could not find the table 'public." + q.table + "' in the schema cache", code: "PGRST205" }, status: 404 };
     }
+    if (q.table === "learners") {
+      if (this.learnersError) return { data: null, error: { message: "temporarily unavailable", code: this.learnersError }, status: 503 };
+      if (q.op !== "select") throw new Error("fake server: learners is read with select only");
+      const id = (q.filters.find(([c]) => c === "id") || [])[1];
+      /* the select policy: a guardian sees their own learners */
+      return { data: id !== undefined && this.learners[id] === uid ? { id } : null, error: null, status: 200 };
+    }
     if (q.table === "events") {
       if (q.op !== "select") throw new Error("fake server: events is read with select only");
       const cols = q.cols.split(",").map((c) => c.trim());
-      const rows = (this.events[uid] || []).filter((r) => q.filters.every(([c, v]) => String(r[c]) === String(v)) && q.after.every(([c, v]) => r[c] > v))
+      /* the policy admits the caller's learners' rows; without a user_id filter all of them come back */
+      const want = (q.filters.find(([c]) => c === "user_id") || [])[1];
+      const owners = want === undefined ? Object.keys(this.events).filter((id) => this.allowed(uid, id)) : this.allowed(uid, want) ? [want] : [];
+      const rows = [].concat(...owners.map((o) => this.events[o] || [])).filter((r) => q.filters.every(([c, v]) => c === "user_id" || String(r[c]) === String(v)) && q.after.every(([c, v]) => r[c] > v))
         .sort((a, b) => a.seq - b.seq).slice(0, q.limit === null ? Infinity : q.limit);
       return { data: rows.map((r) => { const o = {}; cols.forEach((c) => { o[c] = r[c] === undefined ? null : clone(r[c]); }); return o; }), error: null, status: 200 };
     }
@@ -238,7 +257,7 @@ class Server {
     }
     if (q.table !== "user_state") throw new Error("fake server: unknown table " + q.table);
     /* row-level security: a reader sees and writes only their own row */
-    const mine = (r) => r.user_id === uid;
+    const mine = (r) => this.allowed(uid, r.user_id);
     if (q.op === "select") {
       const found = Object.values(this.rows).filter((r) => mine(r) && this.matches(r, q.filters));
       if (q.single) return { data: found.length ? this.out(found[0], q.cols) : null, error: null, status: 200 };
@@ -250,15 +269,15 @@ class Server {
       this.refused++;
       return { data: null, error: { message: "Could not find the '" + extra + "' column of 'user_state' in the schema cache", code: "PGRST204" }, status: 400 };
     }
-    if (p.user_id !== uid) return { data: null, error: { message: "new row violates row-level security policy", code: "42501" }, status: 403 };
+    if (!this.allowed(uid, p.user_id)) return { data: null, error: { message: "new row violates row-level security policy", code: "42501" }, status: 403 };
     const ret = (rows) => ({ data: q.returning ? rows.map((r) => this.out(r, q.returning)) : null, error: null, status: q.op === "update" ? 200 : 201 });
     if (q.op === "insert") {
-      if (this.rows[uid]) {
+      if (this.rows[p.user_id]) {
         return { data: null, error: { message: 'duplicate key value violates unique constraint "user_state_pkey"', code: "23505" }, status: 409 };
       }
       p.updated_at = this.stamp(p.updated_at);
-      this.rows[uid] = p;
-      if (Number(p.reset_at) > 0) this.resetTrigger(uid);
+      this.rows[p.user_id] = p;
+      if (Number(p.reset_at) > 0) this.resetTrigger(p.user_id);
       return ret([p]);
     }
     if (q.op === "upsert") {
@@ -271,7 +290,7 @@ class Server {
       hit.forEach((r) => {
         const was = Number(r.reset_at) || 0;
         Object.assign(r, p, { user_id: r.user_id, updated_at: this.stamp(p.updated_at) });
-        if ((Number(r.reset_at) || 0) > was) this.resetTrigger(uid);
+        if ((Number(r.reset_at) || 0) > was) this.resetTrigger(r.user_id);
       });
       return ret(hit);
     }
@@ -357,6 +376,7 @@ class Page {
     opts = opts || {};
     this.device = device;
     this.closed = false;
+    this.reloads = 0;
     const page = this, storage = device.storage, server = device.server;
     /* `account: true` is account.html: the page has the element account.js draws the
        account page into, so that half of the file runs too. What it draws is in shown(). */
@@ -411,7 +431,7 @@ class Page {
       supabase: { createClient: () => client },
       BMStore: Store,
       BMSite: { rootPrefix: () => "", escapeHtml: (s) => String(s) },
-      location: { hash: "", search: "", href: opts.href || "http://localhost:8000/" + (host ? "account.html" : "parts/1-algebra/01-numbers.html") },
+      location: { hash: "", search: "", reload: () => { page.reloads++; }, href: opts.href || "http://localhost:8000/" + (host ? "account.html" : "parts/1-algebra/01-numbers.html") },
       localStorage: {
         getItem: (k) => (storage.has(k) ? storage.get(k) : null),
         setItem: (k, v) => storage.set(k, String(v)),
@@ -475,6 +495,12 @@ class Page {
     this.Store.emit({ type: "reset" });
   }
   user() { const u = this.Account.user(); return u ? u.id : null; }
+  async switchLearner(id) {
+    let result, error = null;
+    this.Account.switchLearner(id).then((r) => { result = r; }, (e) => { error = e; });
+    await settle();
+    return { result, error };
+  }
   async signOut() {
     let result, error = null;
     this.Account.signOut().then((r) => { result = r; }, (e) => { error = e; });
@@ -1779,6 +1805,347 @@ scenario("a stale send on pagehide gets bm-reset and the entry is dropped", asyn
   now += 60000; phone.page.check("ch01", "e3", true); await settle();
   expect((server.events.u1 || []).length === 1 && outbox(phone).length === 0, "a further check did not land", { rows: server.events.u1, out: outbox(phone) });
   expect(noAttempts(server), "attempts touched");
+});
+
+/* ------------------------------------------- parent-managed learners (PA-2) -- */
+
+const SYNC_KEY = "bm.sync.v1";
+const syncMeta = (dev) => dev.read(SYNC_KEY, {}) || {};
+/* the account signs in on a device, adds a managed learner on the server and switches to it */
+async function asLearner(server, dev, acct, id) {
+  server.addLearner(acct, id);
+  dev.remember(acct);
+  dev.open(); await settle();
+  const r = await dev.page.switchLearner(id);
+  expect(!r.error, "setup: the switch to " + id + " failed", r.error && r.error.message);
+  expect(dev.page.Account.learner() === id && syncMeta(dev).learner === id && syncMeta(dev).acct === acct, "setup: the browser is not on " + id, syncMeta(dev));
+  return r;
+}
+const putArgs = (server) => server.puts.filter((a) => Array.isArray(a.batch) && a.batch.length);
+
+scenario("a learner left by another account is dropped when a different account signs in", async () => {
+  const server = new Server();
+  const d = new Device("shared", server);
+  await asLearner(server, d, "u1", "L1");
+  d.page.solve("ch01", "e1"); d.page.check("ch01", "e1", true); await settle();
+  expect(has(server.solved("L1"), "ch01/e1") && !has(server.solved("u1"), "ch01/e1"), "setup: L1's work is not in L1's row only", { l1: server.solved("L1"), u1: server.solved("u1") });
+  /* the session ends without the sign-out path, then a different account signs in */
+  d.storage.delete(SESSION_KEY);
+  d.remember("u2"); d.open(); await settle();
+  const m = syncMeta(d);
+  expect(m.learner === undefined && m.acct === undefined, "the learner survived into u2's session", m);
+  expect(m.user === "u2" && d.page.Account.learner() === null, "u2 is not running as itself", { m, learner: d.page.Account.learner() });
+  expect(server.rows.u2 && server.rows.u2.user_id === "u2" && !has(server.solved("u2"), "ch01/e1"), "L1's progress reached u2's row", server.rows.u2);
+  expect(canon(server.solved("L1")) === canon(["ch01/e1"]) && !has(d.solved(), "ch01/e1"), "L1's row changed or its copy stayed on the browser", { l1: server.solved("L1"), local: d.solved() });
+  expect(putArgs(server).every((a) => !("learner" in a) || a.learner === "L1") && server.puts.slice(-1).every((a) => !("learner" in a)), "u2's calls named a learner", server.puts);
+  expect(noAttempts(server), "attempts touched");
+});
+
+scenario("a switch with an unsent entry refuses and changes nothing", async () => {
+  const server = new Server();
+  const d = new Device("laptop", server);
+  server.addLearner("u1", "L1");
+  d.remember("u1"); d.open(); await settle();
+  server.eventsDown = true;
+  d.page.solve("ch01", "e1"); d.page.check("ch01", "e1", true); await settle();
+  const before = { out: outbox(d).slice(), dev: deviceId(d), ids: logIds(d), solved: d.solved(), meta: syncMeta(d) };
+  expect(before.out.length === 1, "setup: the entry is not queued", before.out);
+  const r = await d.page.switchLearner("L1");
+  expect(r.error && r.error.message === "Finish syncing first.", "the switch was not refused", r.error && r.error.message);
+  expect(canon(outbox(d)) === canon(before.out) && deviceId(d) === before.dev && canon(logIds(d)) === canon(before.ids), "the log or outbox changed", { out: outbox(d), dev: deviceId(d) });
+  expect(canon(d.solved()) === canon(before.solved) && canon(syncMeta(d).learner) === canon(undefined) && syncMeta(d).acct === undefined && d.page.Account.learner() === null, "the browser changed", syncMeta(d));
+  expect(!server.log.includes("select learners") && !server.rows.L1 && !(server.events.L1 || []).length, "the server was asked about or given the learner", server.log);
+  expect(noAttempts(server), "attempts touched");
+});
+
+scenario("after a switch the old outbox is gone and a later check lands under the new learner only", async () => {
+  const server = new Server();
+  const d = new Device("laptop", server);
+  server.addLearner("u1", "L1");
+  d.remember("u1"); d.open(); await settle();
+  d.page.check("ch01", "e1", true); await settle();
+  expect((server.events.u1 || []).length === 1 && outbox(d).length === 0, "setup: u1's entry did not land", { rows: server.events.u1, out: outbox(d) });
+  const first = deviceId(d), u1Rows = canon(serverSet(server, "u1"));
+  const r = await d.page.switchLearner("L1");
+  expect(!r.error, "the switch failed", r.error && r.error.message);
+  expect(logIds(d).length === 0 && outbox(d).length === 0 && deviceId(d) !== first, "the old log, outbox or device id survived", { ids: logIds(d), out: outbox(d), dev: deviceId(d), first });
+  expect((d.read(DEV_KEY, {}) || {}).uid === "L1", "the device record is not stamped L1", d.read(DEV_KEY, null));
+  /* a stale writer leaves an id under the old device id in the outbox store: it must never be sent */
+  const stale = first + "-0000stale";
+  d.storage.set(OUT_KEY, JSON.stringify({ ids: [stale] }));
+  now += 60000; d.page.check("ch01", "e2", true); await settle();
+  expect(!server.puts.some((a) => JSON.stringify(a.batch || []).indexOf(stale) > -1) && outbox(d).indexOf(stale) < 0, "the stale id was sent or kept", { puts: server.puts, out: outbox(d) });
+  expect((server.events.L1 || []).length === 1 && outbox(d).length === 0, "the check did not land under L1", { rows: server.events.L1, out: outbox(d) });
+  expect(canon(serverSet(server, "u1")) === u1Rows, "u1's log changed", serverSet(server, "u1"));
+  const sentArgs = putArgs(server);
+  expect(sentArgs.length === 2 && !("learner" in sentArgs[0]) && sentArgs[1].learner === "L1" && Object.keys(sentArgs[0]).sort().join() === "batch,epoch", "the rpc arguments are not self: two, managed: learner", server.puts);
+  expect(server.puts.filter((a) => !a.batch.length && !("learner" in a)).length >= 1 && server.puts.filter((a) => a.learner === "L1").length >= 2, "the handshakes did not follow the reader", server.puts);
+  expect(noAttempts(server), "attempts touched");
+});
+
+scenario("a learner deleted elsewhere is dropped on the next page load and its local progress is not merged into the parent's", async () => {
+  const server = new Server();
+  const d = new Device("laptop", server);
+  server.rows.u1 = { user_id: "u1", progress: { ch02: { solved: { s: true }, total: 10 } }, reset_at: 0, updated_at: now - 1000 };
+  await asLearner(server, d, "u1", "L1");
+  server.offline = true;
+  d.page.solve("ch01", "e1"); d.page.check("ch01", "e1", true); await settle();
+  d.page.close();
+  server.offline = false;
+  delete server.learners.L1;               /* deleted on another device */
+  d.open(); await settle();
+  expect(server.log.includes("select learners"), "the learner was not verified", server.log);
+  const m = syncMeta(d);
+  expect(m.learner === undefined && m.acct === undefined && m.user === "u1" && d.page.Account.learner() === null, "the browser did not fall back to u1", m);
+  expect(!has(d.solved(), "ch01/e1") && has(d.solved(), "ch02/s"), "the learner's copy stayed or u1's progress is missing", d.solved());
+  expect(!has(server.solved("u1"), "ch01/e1") && !has(server.solved("L1"), "ch01/e1"), "the learner's local progress went to a row", { u1: server.solved("u1"), l1: server.solved("L1") });
+  expect(logIds(d).length === 0 && outbox(d).length === 0, "the learner's log stayed", logIds(d));
+  expect(server.puts.every((a) => !("learner" in a) || a.learner === "L1") && server.puts.slice(-1).every((a) => !("learner" in a)), "a call still named the learner after the fall back", server.puts.slice(-3));
+  expect(noAttempts(server), "attempts touched");
+});
+
+scenario("a learner id of another account is refused by the server and the browser falls back to the parent", async () => {
+  const server = new Server();
+  const d = new Device("laptop", server);
+  server.addLearner("u2", "L2");
+  d.storage.set(SYNC_KEY, JSON.stringify({ user: "L2", acct: "u1", learner: "L2", resetAt: 0 }));
+  d.storage.set(KEYS.progress, JSON.stringify({ ch01: { solved: { e9: true }, total: 10 }, }));
+  d.remember("u1"); d.open(); await settle();
+  expect(server.log.includes("select learners"), "the learner was not verified", server.log);
+  expect(syncMeta(d).learner === undefined && syncMeta(d).user === "u1" && d.page.Account.learner() === null, "the browser did not fall back to u1", syncMeta(d));
+  expect(!server.rows.L2 && !has(server.solved("u1"), "ch01/e9") && !has(d.solved(), "ch01/e9"), "L2's row was written or the copy was merged", { rows: Object.keys(server.rows), u1: server.solved("u1"), local: d.solved() });
+  expect(server.puts.every((a) => !("learner" in a)), "a call named L2", server.puts);
+  /* with no client check at all the server still refuses */
+  let err = null;
+  await d.page.Account.rpc("events_put", { batch: [], epoch: 0, learner: "L2" }).catch((e) => { err = e; });
+  expect(err && err.message === "not your learner", "the server did not refuse", err && err.message);
+  const sw = await d.page.switchLearner("L2");
+  expect(sw.error && /not on this account/.test(sw.error.message) && syncMeta(d).learner === undefined && d.page.Account.learner() === null, "a switch to another account's learner went through", sw.error && sw.error.message);
+  expect(noAttempts(server), "attempts touched");
+});
+
+scenario("a sync that finishes after a switch does not write the old learner's progress into the browser", async () => {
+  const server = new Server();
+  const d = new Device("laptop", server);
+  server.addLearner("u1", "L1");
+  d.remember("u1"); d.open(); await settle();
+  server.rows.u1 = { user_id: "u1", progress: { ch09: { solved: { z: true }, total: 10 } }, reset_at: 0, updated_at: now + 1000 };
+  const written = server.writes();
+  server.hold();
+  d.page.Account.syncNow();
+  for (let i = 0; i < 5; i++) await tick();
+  /* the switch is made while u1's read is in flight: the browser is L1's now, as another tab's switch leaves it */
+  /* `user` stays u1's: only the learner check separates this from "signed out in another tab" */
+  const m = syncMeta(d); m.learner = "L1"; m.acct = "u1";
+  expect(m.user === "u1", "setup: the meta does not name u1 as owner", m);
+  d.storage.set(SYNC_KEY, JSON.stringify(m));
+  server.release(); await settle();
+  expect(!has(d.solved(), "ch09/z"), "u1's progress was written into the browser", d.solved());
+  expect(syncMeta(d).user === "u1" && syncMeta(d).learner === "L1" && !server.rows.L1, "u1's sync changed the meta or wrote L1's row", { m: syncMeta(d), rows: Object.keys(server.rows) });
+  expect(server.writes() === written, "a row was written", server.log);
+  expect(noAttempts(server), "attempts touched");
+});
+
+scenario("a tab that missed a switch in another tab does not write into the new learner's row", async () => {
+  const server = new Server();
+  const laptop = new Device("laptop", server);
+  server.addLearner("u1", "L1");
+  laptop.remember("u1"); laptop.open(); await settle();
+  const tabA = laptop.page, tabB = laptop.openTab(); await settle();
+  const r = await tabA.switchLearner("L1");
+  expect(!r.error, "setup: the switch failed", r.error && r.error.message);
+  tabB.fire("storage");                    /* the browser tells the other tab */
+  expect(tabB.status() === "reload" && /Reload/.test(tabB.Account.status().error.message), "the stale tab does not ask for a reload", tabB.Account.status());
+  const rows = canon(server.rows), writes = server.writes();
+  tabB.solve("ch01", "e5"); await settle();
+  tabB.close(); await settle();
+  expect(tabB.status() === "reload", "the stale tab left the reload state", tabB.Account.status());
+  expect(server.writes() === writes && canon(server.rows) === rows && !has(server.solved("L1"), "ch01/e5") && !has(server.solved("u1"), "ch01/e5"), "the stale tab wrote", { rows: server.rows, log: server.log.slice(-4) });
+  expect(await tabB.Account.syncNow() === false && tabA.status() !== "reload", "the stale flag spread or syncNow ran", tabA.Account.status());
+  expect(noAttempts(server), "attempts touched");
+});
+
+scenario("sign-out while a managed learner is active clears the learner and the next sign-in is the parent's own progress", async () => {
+  const server = new Server();
+  const d = new Device("laptop", server);
+  server.rows.u1 = { user_id: "u1", progress: { ch02: { solved: { s: true }, total: 10 } }, reset_at: 0, updated_at: now - 1000 };
+  await asLearner(server, d, "u1", "L1");
+  d.page.solve("ch01", "e1"); await settle();
+  const { error, result } = await d.page.signOut();
+  expect(!error && result.saved === true, "sign-out failed", error && error.message);
+  const m = syncMeta(d);
+  expect(m.learner === undefined && m.acct === undefined && m.user === undefined && m.resetAt === undefined && !(m.ev && m.ev.L1), "sign-out left the learner in the meta", m);
+  expect(has(server.solved("L1"), "ch01/e1") && d.solved().length === 0 && d.setAside("L1").length === 0, "L1's progress was not saved and cleared", { l1: server.solved("L1"), local: d.solved() });
+  d.remember("u1"); d.open(); await settle();
+  expect(d.page.Account.learner() === null && syncMeta(d).user === "u1", "the next sign-in is not the parent's own", syncMeta(d));
+  expect(has(d.solved(), "ch02/s") && !has(d.solved(), "ch01/e1") && !has(server.solved("u1"), "ch01/e1"), "L1's progress is in the parent's", { local: d.solved(), u1: server.solved("u1") });
+  expect(noAttempts(server), "attempts touched");
+});
+
+scenario("progress set aside for a managed learner is saved when the parent switches to that learner again", async () => {
+  const server = new Server();
+  const d = new Device("laptop", server);
+  await asLearner(server, d, "u1", "L1");
+  server.offline = true;
+  d.page.solve("ch01", "e1"); await settle();
+  const out = await d.page.signOut();
+  server.offline = false;
+  expect(!out.error && out.result.saved === false, "setup: the sign-out saved", out);
+  expect(has(d.setAside("L1"), "ch01/e1") && d.setAside("u1").length === 0 && d.solved().length === 0, "the progress is not set aside under L1 alone", { l1: d.setAside("L1"), u1: d.setAside("u1"), local: d.solved() });
+  d.remember("u1"); d.open(); await settle();
+  expect(d.page.Account.learner() === null && !has(d.solved(), "ch01/e1") && !has(server.solved("u1"), "ch01/e1") && d.setAside("L1").length === 1, "the parent's session took L1's progress", { local: d.solved(), u1: server.solved("u1"), aside: d.setAside("L1") });
+  const r = await d.page.switchLearner("L1");
+  expect(!r.error, "the switch failed", r.error && r.error.message);
+  expect(has(server.solved("L1"), "ch01/e1") && has(d.solved(), "ch01/e1") && d.setAside("L1").length === 0 && !has(server.solved("u1"), "ch01/e1"), "the set-aside progress was not saved to L1 alone", { l1: server.solved("L1"), local: d.solved(), aside: d.setAside("L1") });
+  expect(noAttempts(server), "attempts touched");
+});
+
+scenario("a managed learner's page load verifies, stamps and pulls when the session is re-announced during the read", async () => {
+  for (const gone of [false, true]) {
+    const server = new Server();
+    const d = new Device("laptop", server);
+    server.rows.L1 = { user_id: "L1", progress: { ch03: { solved: { x: true }, total: 10 } }, reset_at: 0, updated_at: now - 1000 };
+    await asLearner(server, d, "u1", "L1");
+    d.page.close();
+    server.log.length = 0;
+    server.hold();
+    /* the timers run while the learners read is held: the session is re-announced (auth-js hands a
+       new user object for the same account) before the read answers, as on any real network */
+    d.open(); await settle();
+    d.page.switchTo("u1"); await settle();
+    if (gone) delete server.learners.L1;
+    server.release(); await settle();
+    const at = server.log.indexOf("select learners");
+    expect(at > -1 && server.log.indexOf("select user_state", at) > at, "the page did not verify and then pull", server.log);
+    if (!gone) {
+      expect(d.page.Account.learner() === "L1" && syncMeta(d).learner === "L1" && has(d.solved(), "ch03/x") && (d.read(DEV_KEY, {}) || {}).uid === "L1", "the learner was not kept, pulled and stamped", { m: syncMeta(d), local: d.solved(), dev: d.read(DEV_KEY, null) });
+    } else {
+      expect(d.page.Account.learner() === null && syncMeta(d).learner === undefined && !has(d.solved(), "ch03/x"), "a deleted learner was not dropped", { m: syncMeta(d), local: d.solved() });
+    }
+  }
+});
+
+scenario("a token refresh during a switch lets the switch complete", async () => {
+  const server = new Server();
+  const d = new Device("laptop", server);
+  server.addLearner("u1", "L1");
+  d.remember("u1"); d.open(); await settle();
+  d.page.solve("ch01", "e1");
+  server.hold();
+  let res = {};
+  d.page.Account.switchLearner("L1").then((r) => { res.ok = true; }, (e) => { res.error = e; });
+  await settle();                        /* the switch's first save is held at the server */
+  d.page.switchTo("u1"); await settle();  /* a token refresh: the same account, a new user object */
+  server.release(); await settle();
+  expect(res.ok && !res.error, "the switch did not complete", res.error && res.error.message);
+  expect(d.page.Account.learner() === "L1" && syncMeta(d).learner === "L1" && has(server.solved("u1"), "ch01/e1") && !has(d.solved(), "ch01/e1"), "the browser is not on L1 with u1's work saved", { m: syncMeta(d), local: d.solved() });
+});
+
+scenario("an answer given while the target learner is being verified is not wiped by the switch", async () => {
+  const server = new Server();
+  const d = new Device("laptop", server);
+  server.addLearner("u1", "L1");
+  d.remember("u1"); d.open(); await settle();
+  let res = {}, once = false;
+  /* the answer lands while the learners read is on its way */
+  const exec = server.exec.bind(server);
+  server.exec = (q, uid) => { if (q.table === "learners" && !once) { once = true; d.page.solve("ch07", "late"); d.page.check("ch07", "late", true); } return exec(q, uid); };
+  d.page.Account.switchLearner("L1").then(() => { res.ok = true; }, (e) => { res.error = e; });
+  await settle();
+  expect(res.error && res.error.message === "Finish syncing first.", "the switch went through over a late answer", res);
+  expect(d.page.Account.learner() === null && has(d.solved(), "ch07/late"), "the late answer was wiped", { learner: d.page.Account.learner(), local: d.solved() });
+  d.page.Account.syncNow(); await settle();
+  const again = await d.page.switchLearner("L1");
+  expect(!again.error && has(server.solved("u1"), "ch07/late") && !has(server.solved("L1"), "ch07/late"), "after syncing, the switch did not go through with the answer in u1's row only", { err: again.error && again.error.message, u1: server.solved("u1"), l1: server.solved("L1") });
+});
+
+scenario("with the log switched off, a switch waits for entries that would send once it is back on", async () => {
+  const server = new Server();
+  const d = new Device("laptop", server);
+  server.addLearner("u1", "L1");
+  d.remember("u1"); d.open({ config: { learn: { events: "off" } } }); await settle();
+  d.page.check("ch01", "e1", true); await settle();
+  expect(outbox(d).length === 1, "setup: the entry was not queued", outbox(d));
+  const r = await d.page.switchLearner("L1");
+  expect(r.error && /cannot be sent right now/.test(r.error.message), "the switch did not refuse with the honest message", r.error && r.error.message);
+  expect(outbox(d).length === 1 && d.page.Account.learner() === null && !(server.events.u1 || []).length, "the queued entry was wiped or sent", { out: outbox(d), events: server.events });
+});
+
+scenario("the log is pulled back in full after a switch to a learner and back", async () => {
+  const { server, laptop, phone } = await twoDevices();
+  server.addLearner("u1", "L1");
+  phone.page.check("ch01", "e1", true); await settle();
+  laptop.open(); await settle();
+  expect(Object.keys(evSet(laptop.page)).length === 1, "setup: the laptop did not pull the entry", evSet(laptop.page));
+  let r = await laptop.page.switchLearner("L1");
+  expect(!r.error && Object.keys(evSet(laptop.page)).length === 0 && !evMeta(laptop).u1, "the switch did not clear the log and its cursor", { e: r.error && r.error.message, m: evMeta(laptop) });
+  r = await laptop.page.switchLearner(null);
+  expect(!r.error && laptop.page.Account.learner() === null, "the switch back failed", r.error && r.error.message);
+  expect(canon(evSet(laptop.page)) === canon(serverSet(server, "u1")) && Object.keys(evSet(laptop.page)).length === 1, "the log was not pulled back in full", { l: evSet(laptop.page), s: serverSet(server, "u1") });
+});
+
+scenario("the log is pulled back in full after sign-out and sign-in", async () => {
+  const { server, laptop, phone } = await twoDevices();
+  phone.page.check("ch01", "e1", true); await settle();
+  laptop.open(); await settle();
+  expect(Object.keys(evSet(laptop.page)).length === 1, "setup: the laptop did not pull the entry", evSet(laptop.page));
+  const r = await laptop.page.signOut();
+  expect(!r.error && Object.keys(evSet(laptop.page)).length === 0 && isEmpty(syncMeta(laptop).ev), "sign-out left the log or cursor", syncMeta(laptop));
+  laptop.remember("u1"); laptop.open(); await settle();
+  expect(canon(evSet(laptop.page)) === canon(serverSet(server, "u1")) && Object.keys(evSet(laptop.page)).length === 1, "the log was not pulled back in full", { l: evSet(laptop.page), s: serverSet(server, "u1") });
+});
+
+scenario("a transient error on the learners read keeps the learner and its work, a definitive no drops it", async () => {
+  const server = new Server();
+  const d = new Device("laptop", server);
+  await asLearner(server, d, "u1", "L1");
+  server.offline = true;
+  d.page.solve("ch01", "e1"); await settle();
+  d.page.close();
+  server.offline = false;
+  server.learnersError = "PGRST002";
+  d.open(); await settle();
+  expect(d.page.Account.learner() === "L1" && syncMeta(d).learner === "L1" && has(d.solved(), "ch01/e1"), "the learner or its work was dropped on a transient error", { m: syncMeta(d), local: d.solved() });
+  expect(has(server.solved("L1"), "ch01/e1") && !has(server.solved("u1"), "ch01/e1"), "the work did not reach L1's row", { l1: server.solved("L1"), u1: server.solved("u1") });
+  /* now it is a verdict: aside progress for L1 goes too */
+  server.learnersError = null;
+  d.storage.set("bm.sync.pending.v1", JSON.stringify({ L1: { email: "", via: [], resetAt: 0, state: { progress: {} }, at: 1 } }));
+  delete server.learners.L1;
+  d.open(); await settle();
+  expect(d.page.Account.learner() === null && syncMeta(d).learner === undefined && d.solved().length === 0 && !("L1" in (d.read("bm.sync.pending.v1", {}) || {})), "a deleted learner was kept", { m: syncMeta(d), local: d.solved() });
+});
+
+scenario("a held log channel refuses the switch with the honest message and wipes nothing", async () => {
+  const server = new Server();
+  const d = new Device("laptop", server);
+  server.addLearner("u1", "L1");
+  d.remember("u1"); d.open(); await settle();
+  server.full = true;
+  d.page.check("ch01", "e1", true); d.page.solve("ch01", "e1"); await settle();
+  const before = { dev: deviceId(d), ids: logIds(d), out: outbox(d).slice() };
+  expect(before.out.length === 1, "setup: the entry is not queued", before.out);
+  const r = await d.page.switchLearner("L1");
+  const msg = "The learning log cannot be sent right now; switching waits until it is.";
+  expect(r.error && r.error.message === msg, "the refusal is not the honest message", r.error && r.error.message);
+  const st = d.page.Account.status();
+  expect(st.error && st.error.message === msg && st.state === "synced", "status does not carry the message", st);
+  expect(deviceId(d) === before.dev && canon(logIds(d)) === canon(before.ids) && canon(outbox(d)) === canon(before.out) && d.page.Account.learner() === null && syncMeta(d).learner === undefined && has(d.solved(), "ch01/e1"), "something was wiped or switched", syncMeta(d));
+  expect(!server.log.includes("select learners"), "the target was verified", server.log);
+});
+
+scenario("a tab that sees another tab's switch reloads itself once and refuses to switch", async () => {
+  const server = new Server();
+  const laptop = new Device("laptop", server);
+  server.addLearner("u1", "L1");
+  laptop.remember("u1"); laptop.open(); await settle();
+  const tabA = laptop.page, tabB = laptop.openTab(); await settle();
+  const r = await tabA.switchLearner("L1");
+  expect(!r.error && tabB.reloads === 0, "setup", r.error && r.error.message);
+  tabB.fire("storage"); tabB.fire("storage");
+  expect(tabB.status() === "reload" && tabB.reloads === 1 && tabA.reloads === 0, "the stale tab did not reload exactly once", { s: tabB.status(), n: tabB.reloads, a: tabA.reloads });
+  expect(tabB.Account.learner() === null && tabA.Account.learner() === "L1", "learner() does not report the learner each page runs as", { b: tabB.Account.learner(), a: tabA.Account.learner() });
+  const sw = await tabB.switchLearner("L1");
+  expect(sw.error && /Reload/.test(sw.error.message) && syncMeta(laptop).learner === "L1", "the stale tab could switch", sw.error && sw.error.message);
 });
 
 /* --------------------------------------------------------------- runner -- */

@@ -319,5 +319,5 @@ export interface SyncedState {
 export type { EventsStore } from "../sync/events.ts";
 /** bm.events.out.v1: entries waiting to be sent */
 export type OutboxStore = Record<string, unknown>;
-/** bm.device.v1: this device's id for the log, and the account it was stamped for */
+/** bm.device.v1: this device's id for the log, and the learner id it was stamped for (the account id for the account's own learner) */
 export interface DeviceStore { id: string; uid?: string }

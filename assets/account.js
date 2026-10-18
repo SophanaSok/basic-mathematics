@@ -99,10 +99,12 @@
     FIELDS.forEach(function (f) { Store.write(Store.keys[f], state[f], true); });
     Store.emit({ type: "sync" });
   }
-  function clearLocal() {
+  /* keepAcct: the account stays signed in (a switch of learner), so the log's device record
+     keeps its uid; the device id is redrawn either way */
+  function clearLocal(keepAcct) {
     var empty = {};
     FIELDS.forEach(function (f) { empty[f] = f === "last" ? null : {}; });
-    events("clear", true);
+    if (keepAcct) events("clear"); else events("clear", true);
     writeLocal(empty, true);
   }
   function meta() { return obj(Store.read(META_KEY, {})); }
@@ -155,6 +157,25 @@
   /* ----------------------------------------------------------------- sync -- */
 
   var user = null, status = { state: "off", at: null, error: null };
+  /* The reader every sync belongs to: the learner whose progress this browser holds. Its id keys
+     the data (user_state, the log, the cursors, what is set aside); `acct` is the signed-in
+     account that owns it. For the account's own learner the two are the same. A managed learner
+     is chosen in the sync meta (`learner`, with `acct` saying whose it is) and counts only
+     while that account is the one signed in. */
+  function reader() {
+    if (!user) return null;
+    var m = meta(), l = m.learner;
+    var managed = typeof l === "string" && l && l !== user.id && m.acct === user.id;
+    var out = {};
+    Object.keys(user).forEach(function (k) { out[k] = user[k]; });
+    out.id = managed ? l : user.id;
+    out.acct = user.id;
+    return out;
+  }
+  /* the learner this page runs as (null for the account's own), and a second tab's switch */
+  var runsAs = null, stale = false;
+  function learnerOf(u) { return u && u.id !== u.acct ? u.id : null; }
+  function staleError() { return new Error("Reload: a different learner was chosen in another tab."); }
   var pushTimer = null, watchers = [];
   /* The account row as this page last read or wrote it: undefined until then, null
      when the account has no row yet, otherwise its updated_at exactly as the server
@@ -249,13 +270,18 @@
   /* Every step of a sync belongs to the reader it started for. If the session has
      ended (signed out here or in another tab) or someone else has signed in since, it
      stops rather than read as nobody or write into the wrong account. */
+  function sameReader(u) {
+    if (!user || user.id !== u.acct) return false;
+    var r = reader();
+    return !!r && r.id === u.id;
+  }
   function stillSignedIn(u) {
-    if (!user || user.id !== u.id) throw new Error("The signed-in account changed.");
+    if (!sameReader(u)) throw new Error("The signed-in account changed.");
   }
   function confirmSession(u) {
     return client.auth.getSession().then(function (res) {
       var s = res && res.data ? res.data.session : null;
-      if (!s || !s.user || s.user.id !== u.id) throw new Error("You are no longer signed in on this page.");
+      if (!s || !s.user || s.user.id !== u.acct) throw new Error("You are no longer signed in on this page.");
       stillSignedIn(u);
     });
   }
@@ -284,7 +310,7 @@
         throw res.error;
       }
       if (!res.data || !res.data.length) return false;  /* the row has moved on since this page read it */
-      if (user && user.id === u.id) seen = res.data[0].updated_at;
+      if (sameReader(u)) seen = res.data[0].updated_at;
       return true;
     });
   }
@@ -405,6 +431,12 @@
     else if (hint === "bm-full") { evAfter = Date.now() + EV_DAY; evFull = true; notify(); }
     else evAfter = Date.now() + LOG_RETRY;
   }
+  /* the self path sends exactly the two arguments the deployed site always has */
+  function putArgs(u, batch, epoch) {
+    var a = { batch: batch, epoch: epoch };
+    if (u.id !== u.acct) a.learner = u.id;
+    return a;
+  }
   function pullRow(r) {
     var P = [r.t, r.d, r.src, r.sec, r.ref, r.k, r.ok, r.n, r.r, r.f];
     if (r.x !== null && r.x !== undefined) P.push(r.x);
@@ -417,7 +449,7 @@
     var k = evCursor(u.id);
     return Promise.resolve().then(function () {
       stillSignedIn(u);
-      return client.rpc("events_put", { batch: [], epoch: k.epoch === null ? 0 : k.epoch });
+      return client.rpc("events_put", putArgs(u, [], k.epoch === null ? 0 : k.epoch));
     }).then(function (res) {
       if (res.error) { if (noFunction(res.error)) evAfter = Date.now() + LOG_RETRY; else throw res.error; return false; }
       var d = res.data;
@@ -445,7 +477,7 @@
     function page() {
       stillSignedIn(u);
       pages++;
-      return client.from("events").select("id,v,t,d,src,sec,ref,k,ok,n,r,f,x,seq").gt("seq", k.seq).order("seq").limit(EV_PAGE).then(function (res) {
+      return client.from("events").select("id,v,t,d,src,sec,ref,k,ok,n,r,f,x,seq").eq("user_id", u.id).gt("seq", k.seq).order("seq").limit(EV_PAGE).then(function (res) {
         if (res.error) throw res.error;
         stillSignedIn(u);
         var rows = Array.isArray(res.data) ? res.data : [], ev = {}, v = 1, top = k.seq;
@@ -486,8 +518,8 @@
       ids.forEach(function (id) { if (pay[id]) batch.push({ id: id, p: pay[id] }); else gone.push(id); });
       if (gone.length) E.dequeue(gone);
       if (!batch.length) return next();
-      return client.rpc("events_put", { batch: batch, epoch: k.epoch }).then(function (res) {
-        if (user && user.id !== u.id) return stop();
+      return client.rpc("events_put", putArgs(u, batch, k.epoch)).then(function (res) {
+        if (user && !sameReader(u)) return stop();
         if (res.error) {
           if (noFunction(res.error)) evAfter = Date.now() + LOG_RETRY;
           else if (window.console) console.warn("[BM] events", res.error);
@@ -520,9 +552,10 @@
      not: it could not be saved (the reason is in status.error), or this file may not
      write it (status.state is "reload"). Neither ever rejects. */
   function pull() {
-    var u = user;
+    var u = reader();
     return serial(function () {
-      if (!u || !user || user.id !== u.id) return false;
+      if (stale) { setStatus("reload", staleError()); return false; }
+      if (!u || !sameReader(u)) return false;
       setStatus("syncing");
       return sync(u, 0).then(function (ok) { setStatus(ahead ? "reload" : "synced"); return ok; },
         function (e) { setStatus("error", e); return false; });
@@ -533,9 +566,10 @@
     clearTimeout(pushTimer);
     pushTimer = null;
     if (!client || !user) return Promise.resolve(false);
-    var u = user;
+    var u = reader();
     return serial(function () {
-      if (!user || user.id !== u.id) return false;
+      if (stale) { setStatus("reload", staleError()); return false; }
+      if (!sameReader(u)) return false;
       setStatus("syncing");
       /* a page that has not read the row yet merges with it before writing anything */
       var save = seen === undefined ? sync(u, 0) : confirmSession(u).then(function () {
@@ -573,8 +607,9 @@
     clearTimeout(pushTimer);
     pushTimer = null;
     if (!client || !user || seen === undefined) return;
-    var u = user, state = readLocal();
-    if (meta().user !== u.id) return;
+    if (stale) { setStatus("reload", staleError()); return; }
+    var u = reader(), state = readLocal();
+    if (!sameReader(u) || meta().user !== u.id) return;
     write(u, state, Number(meta().resetAt) || 0).then(noop, noop);
     /* bounded, and whatever it cannot send stays in the outbox for the next page */
     if (!ahead) sendEvents(u);
@@ -601,9 +636,9 @@
          another device saved after it) the account's entries must be pulled back */
       setMeta(function (m) {
         if (!user) return;
-        var e = obj(m.ev), cur = obj(e[user.id]);
-        e[user.id] = { seq: 0, init: true };
-        if (typeof cur.epoch === "number") e[user.id].epoch = cur.epoch;
+        var rid = reader().id, e = obj(m.ev), cur = obj(e[rid]);
+        e[rid] = { seq: 0, init: true };
+        if (typeof cur.epoch === "number") e[rid].epoch = cur.epoch;
         m.ev = e;
       });
       push();
@@ -614,9 +649,64 @@
     if (document.visibilityState === "hidden") flush();
   });
 
+  /* A managed learner is the account's own only if the learners table says so (its select
+     policy shows a guardian their own). Resolves false only on a definitive answer: no row
+     (deleted on another device, another account's, or a note edited by hand) or a malformed
+     id (22P02). Any other error is not a verdict and counts as fine; the sync that follows
+     reports it. */
+  function learnerExists(id) {
+    return client.from("learners").select("id").eq("id", id).maybeSingle().then(function (res) {
+      if (res && res.error) return res.error.code === "22P02" ? false : true;
+      return !!(res && res.data);
+    });
+  }
+  function sameAccount(a) { return !!(user && a && user.id === a.id); }
+  /* the learner is gone: its copy in this browser belongs to nobody who is signed in, and is
+     never merged into the account's own progress */
+  function dropLearner(u) {
+    clearLocal(true);
+    setMeta(function (m) { delete m.learner; delete m.acct; delete m.user; delete m.resetAt; m.ev = {}; });
+    /* nothing will ever merge what was set aside for a learner that is gone */
+    setPending(function (p) { delete p[u.id]; });
+    runsAs = null;
+    stale = false;
+    seen = undefined; owned = false; ahead = false;
+    evAhead = false; evFull = false; evAfter = 0; evChunk = 500;
+  }
+  /* verify the active managed learner (page load); resolves once the reader is settled */
+  function settleReader(captured) {
+    var u = reader();
+    if (!u || !learnerOf(u)) return Promise.resolve();
+    return serial(function () {
+      if (!sameAccount(captured)) return null;
+      var now = reader();
+      if (!now || now.id !== u.id) return null;
+      return learnerExists(u.id).then(function (ok) { if (!ok && sameAccount(captured) && sameReader(u)) dropLearner(u); });
+    }).then(noop, noop);
+  }
+
+  /* another tab chose a different learner: this page's data is no longer the browser's (T16) */
+  window.addEventListener("storage", function (e) {
+    if (e && e.key && e.key !== META_KEY) return;
+    if (!user) return;
+    var m = meta(), l = m.acct === user.id && typeof m.learner === "string" ? m.learner : null;
+    if (l === user.id) l = null;
+    if (l !== runsAs && !stale) {
+      stale = true;
+      setStatus("reload", staleError());
+      /* this tab's page and recorder would keep writing into the new learner's store: start over as the new learner */
+      if (window.location && typeof window.location.reload === "function") window.location.reload();
+    }
+  });
+
   function onSession(session) {
     var next = session && session.user ? session.user : null;
     var changed = (next && next.id) !== (user && user.id);
+    /* a learner left by another account is not this account's (T6) */
+    if (next) {
+      var held = meta();
+      if ((held.learner || held.acct) && held.acct !== next.id) setMeta(function (m) { delete m.learner; delete m.acct; });
+    }
     user = next;
     /* what this page knew of the previous reader's row and log is not this reader's */
     if (changed) {
@@ -631,7 +721,19 @@
     if (!user) setStatus("off");
     drawButton();
     notify();
-    if (user && changed) { events("stamp", user.id); pull(); }
+    if (user && changed) {
+      var captured = { id: user.id }, first = reader();
+      runsAs = learnerOf(first);
+      stale = false;
+      if (!runsAs) { events("stamp", first.id); pull(); }
+      else {
+        settleReader(captured).then(function () {
+          if (!sameAccount(captured)) return;
+          events("stamp", reader().id);
+          pull();
+        });
+      }
+    }
   }
 
   function start() {
@@ -704,6 +806,65 @@
     methods: methodIds,
     urlError: urlError,
     user: function () { return user; },
+    /* the managed learner this browser is playing as, or null for the account's own */
+    learner: function () { return runsAs; },
+    /* Choose whose progress this browser holds: a managed learner's id, or null for the
+       account's own. Nothing of the old learner may reach the new one, so it saves first and
+       refuses ("Finish syncing first.") while anything is unsent; then the browser's copy is
+       cleared and the new learner's is pulled. */
+    switchLearner: function (id) {
+      if (!user) return Promise.reject(new Error("Sign in first."));
+      if (stale) return Promise.reject(staleError());
+      if (id !== null && id !== undefined && (typeof id !== "string" || !id)) return Promise.reject(new Error("Unknown learner."));
+      var target = id || null;
+      if (target === user.id) target = null;
+      return Account.ready().then(function (c) {
+        var captured = { id: user.id };
+        /* why nothing may be switched yet, or null; a log that is switched off never sends, so it never blocks */
+        function unsent() {
+          var E = window.BMEvents, left = E && typeof E.outbox === "function" ? E.outbox() : [];
+          /* a log that is switched off still sends what it queued once it is back on, so it blocks too */
+          if (left.length && (!evOn() || evHeld() || evFull)) return new Error("The learning log cannot be sent right now; switching waits until it is.");
+          if (pushTimer || left.length || status.state !== "synced") return new Error("Finish syncing first.");
+          return null;
+        }
+        /* the reason goes on the status for the page to show, without moving the "synced at" time */
+        function refuse(e) {
+          if (e.message !== "Finish syncing first.") { status.error = e; notify(); }
+          throw e;
+        }
+        return push().then(function () {
+          return serial(function () {
+            if (stale) throw staleError();
+            if (!sameAccount(captured)) throw new Error("The signed-in account changed.");
+            var why = unsent();
+            if (why) refuse(why);
+            var old = reader();
+            if (learnerOf(old) === target) return null;
+            return (target ? learnerExists(target) : Promise.resolve(true)).then(function (ok) {
+              if (!ok) throw new Error("That learner is not on this account.");
+              if (stale) throw staleError();
+              if (!sameAccount(captured) || !sameReader(old)) throw new Error("The signed-in account changed.");
+              var again = unsent();
+              if (again) refuse(again);
+              clearLocal(true);
+              setMeta(function (m) {
+                if (target) { m.learner = target; m.acct = user.id; } else { delete m.learner; delete m.acct; }
+                delete m.user; delete m.resetAt;
+                m.ev = {};
+              });
+              runsAs = target;
+              stale = false;
+              seen = undefined; owned = false; ahead = false;
+              evAhead = false; evFull = false; evAfter = 0; evChunk = 500;
+              var r = reader();
+              events("stamp", r.id);
+              return sync(r, 0).then(function () { setStatus(ahead ? "reload" : "synced"); }, function (e) { setStatus("error", e); });
+            });
+          });
+        }).then(function () { notify(); });
+      });
+    },
     status: function () { return { state: status.state, at: status.at, error: status.error, log: evFull ? "full" : "" }; },
     onChange: function (fn) { watchers.push(fn); },
     /* resolves once it is known whether anyone is signed in */
@@ -754,7 +915,7 @@
        even when the server cannot be reached. Resolves { saved, error }; rejects, with
        nothing removed, only when the reader is still signed in. */
     signOut: function () {
-      var u = user, saved = false, why = null;
+      var u = reader(), saved = false, why = null;
       if (!u) return Promise.resolve({ saved: true, error: null });
       return Account.ready().then(function (c) {
         return push().then(function (ok) {
@@ -771,7 +932,8 @@
         });
       }).then(function () {
         if (!saved) setAside(u);
-        setMeta(function (m) { delete m.user; delete m.resetAt; if (m.ev) delete m.ev[u.id]; });
+        setMeta(function (m) { delete m.user; delete m.resetAt; delete m.learner; delete m.acct; m.ev = {}; });
+        runsAs = null;
         clearLocal();
         return { saved: saved, error: why };
       });
@@ -808,10 +970,10 @@
     },
     /* removes the account and every row belonging to it; this browser keeps its local copy */
     deleteAccount: function () {
-      var gone = user && user.id;
       return Account.ready().then(function (c) {
         return c.rpc("delete_my_account").then(unwrap).then(function () {
-          setMeta(function (m) { delete m.user; delete m.resetAt; if (m.ev && gone) delete m.ev[gone]; });
+          setMeta(function (m) { delete m.user; delete m.resetAt; delete m.learner; delete m.acct; m.ev = {}; });
+          runsAs = null;
           events("clear", true);
           /* the account's place on the Daily board went with it */
           forgetBoard(true);
