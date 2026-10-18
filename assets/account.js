@@ -1525,6 +1525,8 @@
       var who = label(user), ways = methodNames(user);
       html = '<div class="panel"><h2>Your account</h2>' +
         "<p>Signed in" + (who ? " as <b>" + esc(who) + "</b>" : "") + ".</p>" +
+        (!learnersOn && Account.learner() ? '<p class="fine" data-playing-as>Playing as <b>' + esc(Account.learnerName() || "a learner") +
+          "</b>. Adding and switching learners is switched off on this site, but you can go back to your own progress.</p>" : "") +
         (ways.length ? '<p class="fine">' + (ways.length > 1 ? "You can sign in to this account with " : "You sign in with ") +
           esc(listOf(ways)) + ".</p>" : "") +
         '<p class="sync-state" data-state="' + status.state + '">' + esc(st) + "</p>" +
@@ -1536,6 +1538,7 @@
           "your Daily score and your time. Off removes your rows.</small></label>" : "") +
         '<p class="actions"><button class="btn" id="acct-save" type="button">Save name</button>' +
         '<button class="btn ghost" id="acct-sync" type="button">Sync now</button>' +
+        (!learnersOn && Account.learner() ? '<button class="btn ghost" id="acct-own" type="button">Switch to your own progress</button>' : "") +
         '<button class="btn ghost" id="acct-out" type="button">Sign out</button></p>' + NOTE +
         '<p class="fine">Signing out saves your progress to your account, then clears this browser\'s copy. ' +
         "If it cannot be saved, it is set aside in this browser and saved the next time you sign in here.</p></div>" +
@@ -1655,6 +1658,10 @@
       Account.saveProfile(val("acct-name")).then(function () { name = val("acct-name"); say("Saved."); }, problem);
     });
     on("acct-sync", function () { Account.syncNow(); });
+    on("acct-own", function () {
+      var uid = uidNow();
+      Account.switchLearner(null).then(function () { if (uidNow() === uid) { say("Switched to your own progress."); draw(); } }, function (e) { problem(e); draw(); });
+    });
     on("acct-out", function () { notice = ""; needSignIn = false; Account.signOut().catch(problem); });
     on("acct-export", function () {
       download(Account.exportData(), "basic-mathematics-progress.json");

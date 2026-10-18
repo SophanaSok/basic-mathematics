@@ -830,6 +830,29 @@ const ALL = ["google", "github", "discord", "facebook", "azure"];
     await e.context.close();
   }
 
+  /* 28. learners off, a browser still playing as a managed learner: a way back to the parent's own progress */
+  {
+    const seed = { "bm.sync.v1": { learner: "L1", acct: "u1", learnerName: "Kim" } };
+    const r = await open({ providers: ["google"], learners: "off" }, { session: LS, local: seed, stub: { learners: roster() } });
+    await r.page.waitForSelector("#acct-own");
+    await r.page.waitForFunction(() => /Synced at/.test(document.querySelector("[data-account]").textContent));
+    const st = await r.page.evaluate(() => ({ line: (document.querySelector("[data-playing-as]") || {}).textContent, panel: !!document.querySelector(".learners") || !!document.getElementById("lrn-h"), board: !!document.getElementById("acct-board") }));
+    check(/^Playing as Kim\./.test(st.line || ""), "28 the Playing as line names the learner", st.line);
+    check(!st.panel && !st.board, "28 … no Learners panel and no Daily board switch", st);
+    await r.page.click("#acct-own");
+    await r.page.waitForFunction(() => !document.getElementById("acct-own"));
+    const after = await r.page.evaluate(() => ({ meta: JSON.parse(localStorage.getItem("bm.sync.v1") || "{}"), line: !!document.querySelector("[data-playing-as]"), note: (document.querySelector("[data-note]") || {}).textContent, learner: window.BMAccount.learner() }));
+    check(!after.meta.learner && !after.learner, "28 the switch clears the meta's learner", after);
+    check(!after.line, "28 … the line and the button are gone");
+    check(after.note === "Switched to your own progress.", "28 … and the note says so", after.note);
+    check((await calls(r.page, "learner_list")).length === 0, "28 … with no learners read");
+    await r.context.close();
+    const on = await open({ providers: ["google"] }, { session: LS, local: seed, stub: { learners: roster() } });
+    await on.page.waitForSelector("#lrn-h");
+    check(await on.page.evaluate(() => !document.getElementById("acct-own") && !document.querySelector("[data-playing-as]")), "28 with learners on there is no Switch to your own progress button");
+    await on.context.close();
+  }
+
   check(errors.length === 0, "no uncaught page errors", errors);
   await browser.close();
   await server.close();
