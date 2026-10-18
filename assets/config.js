@@ -27,4 +27,10 @@ window.BM_CONFIG = {
      learn: { events: "off" }  as a setting here (with a comma after the previous setting's
      value, as the board's comment says): nothing is sent to or pulled from events; the
      browser's own log is still kept. */
+  /* The Learners panel on the account page is on by default. To hide it, add  learners: "off"
+     as a setting here (with a comma after the previous setting's value): the panel is not
+     drawn and the account page makes no learner_* calls; a browser already playing as a
+     managed learner keeps doing so (its learner is still checked on load) until it signs
+     out. A server stop is  revoke execute on function
+     public.learner_add(text, boolean, smallint) from authenticated  (docs/OPERATIONS.md). */
 };

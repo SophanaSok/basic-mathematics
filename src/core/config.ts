@@ -18,6 +18,9 @@ export interface Config {
   /** "off" is the Daily board's kill switch (nothing submitted or fetched, no board in the
       Arena, no switch on the account page); any other value means "on" */
   board: "on" | "off";
+  /** "off" hides the Learners panel on the account page (no learner is listed, added, switched or
+      deleted from there); any other value means "on" */
+  learners: "on" | "off";
 }
 
 function obj(x: unknown): Record<string, unknown> { return x && typeof x === "object" && !Array.isArray(x) ? x as Record<string, unknown> : {}; }
@@ -36,6 +39,7 @@ export function readConfig(raw: unknown): Config {
     providers: Array.isArray(c.providers) ? c.providers.filter((p): p is string => typeof p === "string") : [],
     emailDelivery: c.emailDelivery !== false,
     learn: { events: learn.events === "off" ? "off" : "on" },
-    board: c.board === "off" ? "off" : "on"
+    board: c.board === "off" ? "off" : "on",
+    learners: c.learners === "off" ? "off" : "on"
   };
 }
