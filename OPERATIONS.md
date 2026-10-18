@@ -453,6 +453,11 @@ Authentication → Users → the user → Delete, which cascades through `learne
 would. Check `select auth.jwt() -> 'amr';` from a signed-in browser (section 1's snippet) before
 changing a sign-in provider or adding an access token hook.
 
+Two Supabase settings the list depends on: keep **Allow manual linking** off (Authentication →
+Providers; off by default), since with it a stale session could link a sign-in service the child
+controls and sign in through it for a fresh `oauth` entry; and leave `web3` and SAML off unless
+`fresh_auth`'s method list is judged again when they are turned on.
+
 applied: ____ (date, filled in by the owner or the session that applies it; only after #192 is live)
 
 ## 2. Deploys

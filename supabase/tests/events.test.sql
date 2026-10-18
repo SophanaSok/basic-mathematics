@@ -680,7 +680,7 @@ do $x$ begin perform set_config('request.jwt.claims', '{"sub":"x","amr":[{"metho
 select is(private.fresh_auth(), false, 'an amr without a numeric timestamp is not fresh');
 do $x$ begin perform set_config('request.jwt.claims', '{"sub":"x"}', true); end $x$;
 select is(private.fresh_auth(), false, 'no amr claim is not fresh');
-do $x$ begin perform set_config('request.jwt.claims', json_build_object('sub', 'x', 'amr', json_build_array(json_build_object('timestamp', floor(extract(epoch from now())) + 31536000)))::text, true); end $x$;
+do $x$ begin perform set_config('request.jwt.claims', json_build_object('sub', 'x', 'amr', json_build_array(json_build_object('method', 'password', 'timestamp', floor(extract(epoch from now())) + 31536000)))::text, true); end $x$;
 select is(private.fresh_auth(), false, 'a timestamp one year ahead is not fresh');
 do $x$ begin perform set_config('request.jwt.claims', '{"sub":"x","amr":[{"method":"password","timestamp":1e300}]}', true); end $x$;
 select is(private.fresh_auth(), false, 'a timestamp of 1e300 is not fresh');
