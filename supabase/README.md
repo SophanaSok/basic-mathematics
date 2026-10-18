@@ -134,7 +134,7 @@ redirect list), add the id to `providers` locally, and open `account.html`.
 | `event_meta` | Per learner (an account's own, or one it manages): the write counter `seq`, the reset `epoch`, and the day's counters. |
 | `admins` | The user ids allowed to call the aggregate functions. |
 
-Row-level security restricts every row to its owner. `exercise_stats()` and `chapter_stats()`
+Row-level security restricts every row to its owner (for a learner's rows, the learner's guardian). `exercise_stats()` and `chapter_stats()`
 return aggregates only, and only to admins. `daily_runs` and `board_secret` have row-level
 security on, no policies and no grants to the browser's roles, so the browser can neither read
 nor write them, not even a reader's own rows; only `submit_daily()`, `daily_board()` and
@@ -155,8 +155,12 @@ itself can only be read, by its guardian. Learners are written only through `lea
 and `learner_export()`; `learner_delete()` and `learner_export()` also need a sign-in within the
 last 10 minutes, read from the token's `amr` timestamp by `private.fresh_auth()`, which fails
 closed. `delete_my_account()` does not ask for it yet. Deleting a learner deletes its rows in the
-three tables. A managed learner is never on the Daily board, and its name is never hashed into a
-board name. The author sees a managed learner's rows as any reader's, under a random id; the name
+three tables. The browser still writes `user_state` directly through the "own state" policy, which
+admits any of the guardian's learners, so a stale session on a shared device can reset or overwrite
+a managed learner's `user_state`; only the learner row itself is behind the step-up (accepted in
+docs/decisions/0010, PA-5). The site never puts a managed learner on the Daily board and never
+hashes its name into a board name; on the server `submit_daily()` keys on the signed-in account, so
+nothing of a learner can reach the board except as the parent's own opt-in. The author sees a managed learner's rows as any reader's, under a random id; the name
 is in `learners`, which `exercise_stats()` and `chapter_stats()` do not read (their `users` counts
 learners).
 

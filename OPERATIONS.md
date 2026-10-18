@@ -192,9 +192,9 @@ browser's role may not run the private helpers or enter their schema, `anon` may
 ```sql
 select has_function_privilege('authenticated', 'private.events_valid(jsonb, integer)', 'execute') as valid_exec,
        has_function_privilege('authenticated', 'private.events_prune(uuid)', 'execute') as prune_exec,
-       has_function_privilege('anon', 'public.events_put(jsonb, integer)', 'execute') as anon_put,
+       has_function_privilege('anon', 'public.events_put(jsonb, integer, uuid)', 'execute') as anon_put,
        has_schema_privilege('authenticated', 'private', 'usage') as private_usage,
-       has_function_privilege('authenticated', 'public.events_put(jsonb, integer)', 'execute') as auth_put;
+       has_function_privilege('authenticated', 'public.events_put(jsonb, integer, uuid)', 'execute') as auth_put;
 ```
 
 The two reset triggers on `user_state`: **two rows**, `events_on_reset_insert` and
@@ -394,8 +394,31 @@ again is harmless.
 
 **Rollback.** While every learner is a self learner, swap the three foreign keys back to
 `auth.users (id) on delete cascade` (drop `user_state_user_id_fkey`, `events_user_id_fkey` and
-`event_meta_user_id_fkey`, add them again against `auth.users`) and the old policies; no row
-moves, because the ids are the same. Once managed learners have rows this loses them: have the
+`event_meta_user_id_fkey`, add them again against `auth.users`) and put the two old policies
+back, in that order, with `learners`, its trigger `learners_self` and the `learner_*` functions
+left in place (they do no harm); no row moves, because the ids are the same:
+
+```sql
+alter table public.user_state drop constraint if exists user_state_user_id_fkey;
+alter table public.user_state add constraint user_state_user_id_fkey
+  foreign key (user_id) references auth.users (id) on delete cascade;
+alter table public.events drop constraint if exists events_user_id_fkey;
+alter table public.events add constraint events_user_id_fkey
+  foreign key (user_id) references auth.users (id) on delete cascade;
+alter table public.event_meta drop constraint if exists event_meta_user_id_fkey;
+alter table public.event_meta add constraint event_meta_user_id_fkey
+  foreign key (user_id) references auth.users (id) on delete cascade;
+drop policy if exists "own state" on public.user_state;
+create policy "own state" on public.user_state
+  for all to authenticated
+  using (user_id = (select auth.uid())) with check (user_id = (select auth.uid()));
+drop policy if exists "read own events" on public.events;
+create policy "read own events" on public.events
+  for select to authenticated
+  using (user_id = (select auth.uid()));
+```
+
+(the policies as `20261004000000_baseline.sql` and `20261015004752_events.sql` define them). Once managed learners have rows this loses them: have the
 parent download each learner's progress first (`learner_export`, from the account page), or
 leave the migration in place, which the old site tolerates.
 
@@ -945,7 +968,7 @@ without removing its code.
 | an id removed from `providers` | That sign-in button disappears. Remove it here first, then disable the service in Supabase |
 | `emailDelivery: false` | No "Email me a sign-in link", no "Forgot password" |
 | `board: "off"` | No Daily board: nothing is submitted or fetched, the Arena shows no board and the account page hides the switch (from K-10g). This is the site's side only; a tab from before the deploy, or anything else holding a session, can still call the functions. For a full stop run `revoke execute on function public.submit_daily(text, integer, integer, integer, integer), public.daily_board(text) from authenticated;` in the SQL editor (leave `leave_board()` callable so readers can still leave), and `grant` them back to switch it on |
-| `learn.events: "off"` | The site sends no events and pulls none; the browser's own log is still kept and read. This is the site's side only; a tab from before the deploy, or anything else holding a session, can still call `events_put()`. For a full stop run `revoke execute on function public.events_put(jsonb, integer) from authenticated;` in the SQL editor, and `grant execute on function public.events_put(jsonb, integer) to authenticated;` to switch it on |
+| `learn.events: "off"` | The site sends no events and pulls none; the browser's own log is still kept and read. This is the site's side only; a tab from before the deploy, or anything else holding a session, can still call `events_put()`. For a full stop run `revoke execute on function public.events_put(jsonb, integer, uuid) from authenticated;` in the SQL editor, and `grant execute on function public.events_put(jsonb, integer, uuid) to authenticated;` to switch it on |
 
 **Planned [not yet]:**
 
@@ -1067,8 +1090,12 @@ learners; switching saves first, refuses while anything is unsent, clears the br
 pulls the chosen learner's. A tab that is open on another learner reloads itself when it sees
 another tab switch; if it did not, reload it. If a switch is refused, let the sync finish (or
 see 7.1) and press it again. For a copy of a learner's records before anything else is tried,
-the parent presses Download on that learner (`learner_export`, which needs a sign-in within the
-last 10 minutes); do not delete the learner to fix it, because that removes the records.
+the parent signs in again, then presses Download on that learner in the account page's Learners
+panel (`learner_export` needs a sign-in within the last 10 minutes; the page says so and asks for
+it); do not delete the learner to fix it, because that removes the records. To look at the rows
+yourself, with the learner's id from the parent's download:
+`select count(*) from public.events where user_id = '<learner id>';` and
+`select updated_at, reset_at from public.user_state where user_id = '<learner id>';`.
 
 ## 8. Hosting
 

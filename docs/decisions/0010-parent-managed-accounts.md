@@ -102,6 +102,9 @@ Two departures from the design, pinned by the build:
   `bm.device.v1`, whose uid is the learner id the device was stamped for.
 - The step-up retry is manual: after a stale sign-in the parent signs in again and presses the
   button again; nothing is retried on their behalf.
+- An accepted residual from PA-1's review (design T4): the "own state" policy is `for all`, so a
+  stale session can still reset or overwrite a managed learner's `user_state`; only the learner
+  row is behind the step-up. Guarding it would put the step-up on every sync.
 
 The plans live outside the repository, in `~/.claude/plans/`, named here by file only:
 `parent-accounts-design.md` (the design and threat model), `pa2-threat-model.md` and
