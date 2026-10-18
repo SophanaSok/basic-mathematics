@@ -822,13 +822,15 @@
         var captured = { id: user.id };
         /* why nothing may be switched yet, or null; a log that is switched off never sends, so it never blocks */
         function unsent() {
-          var E = window.BMEvents, left = evOn() && E && typeof E.outbox === "function" ? E.outbox() : [];
-          if (left.length && (evHeld() || evFull)) return new Error("The learning log cannot be sent right now; switching waits until it is.");
+          var E = window.BMEvents, left = E && typeof E.outbox === "function" ? E.outbox() : [];
+          /* a log that is switched off still sends what it queued once it is back on, so it blocks too */
+          if (left.length && (!evOn() || evHeld() || evFull)) return new Error("The learning log cannot be sent right now; switching waits until it is.");
           if (pushTimer || left.length || status.state !== "synced") return new Error("Finish syncing first.");
           return null;
         }
+        /* the reason goes on the status for the page to show, without moving the "synced at" time */
         function refuse(e) {
-          if (e.message !== "Finish syncing first.") setStatus(status.state, e);
+          if (e.message !== "Finish syncing first.") { status.error = e; notify(); }
           throw e;
         }
         return push().then(function () {

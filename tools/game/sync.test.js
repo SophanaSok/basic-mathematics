@@ -2009,10 +2009,10 @@ scenario("a managed learner's page load verifies, stamps and pulls when the sess
     d.page.close();
     server.log.length = 0;
     server.hold();
-    d.open();
-    for (let i = 0; i < 8; i++) await tick();
-    d.page.switchTo("u1");                 /* auth-js hands a new user object for the same account */
-    for (let i = 0; i < 3; i++) await tick();
+    /* the timers run while the learners read is held: the session is re-announced (auth-js hands a
+       new user object for the same account) before the read answers, as on any real network */
+    d.open(); await settle();
+    d.page.switchTo("u1"); await settle();
     if (gone) delete server.learners.L1;
     server.release(); await settle();
     const at = server.log.indexOf("select learners");
@@ -2034,11 +2034,41 @@ scenario("a token refresh during a switch lets the switch complete", async () =>
   server.hold();
   let res = {};
   d.page.Account.switchLearner("L1").then((r) => { res.ok = true; }, (e) => { res.error = e; });
-  for (let i = 0; i < 5; i++) await tick();
-  d.page.switchTo("u1");
+  await settle();                        /* the switch's first save is held at the server */
+  d.page.switchTo("u1"); await settle();  /* a token refresh: the same account, a new user object */
   server.release(); await settle();
   expect(res.ok && !res.error, "the switch did not complete", res.error && res.error.message);
   expect(d.page.Account.learner() === "L1" && syncMeta(d).learner === "L1" && has(server.solved("u1"), "ch01/e1") && !has(d.solved(), "ch01/e1"), "the browser is not on L1 with u1's work saved", { m: syncMeta(d), local: d.solved() });
+});
+
+scenario("an answer given while the target learner is being verified is not wiped by the switch", async () => {
+  const server = new Server();
+  const d = new Device("laptop", server);
+  server.addLearner("u1", "L1");
+  d.remember("u1"); d.open(); await settle();
+  let res = {}, once = false;
+  /* the answer lands while the learners read is on its way */
+  const exec = server.exec.bind(server);
+  server.exec = (q, uid) => { if (q.table === "learners" && !once) { once = true; d.page.solve("ch07", "late"); d.page.check("ch07", "late", true); } return exec(q, uid); };
+  d.page.Account.switchLearner("L1").then(() => { res.ok = true; }, (e) => { res.error = e; });
+  await settle();
+  expect(res.error && res.error.message === "Finish syncing first.", "the switch went through over a late answer", res);
+  expect(d.page.Account.learner() === null && has(d.solved(), "ch07/late"), "the late answer was wiped", { learner: d.page.Account.learner(), local: d.solved() });
+  d.page.Account.syncNow(); await settle();
+  const again = await d.page.switchLearner("L1");
+  expect(!again.error && has(server.solved("u1"), "ch07/late") && !has(server.solved("L1"), "ch07/late"), "after syncing, the switch did not go through with the answer in u1's row only", { err: again.error && again.error.message, u1: server.solved("u1"), l1: server.solved("L1") });
+});
+
+scenario("with the log switched off, a switch waits for entries that would send once it is back on", async () => {
+  const server = new Server();
+  const d = new Device("laptop", server);
+  server.addLearner("u1", "L1");
+  d.remember("u1"); d.open({ config: { learn: { events: "off" } } }); await settle();
+  d.page.check("ch01", "e1", true); await settle();
+  expect(outbox(d).length === 1, "setup: the entry was not queued", outbox(d));
+  const r = await d.page.switchLearner("L1");
+  expect(r.error && /cannot be sent right now/.test(r.error.message), "the switch did not refuse with the honest message", r.error && r.error.message);
+  expect(outbox(d).length === 1 && d.page.Account.learner() === null && !(server.events.u1 || []).length, "the queued entry was wiped or sent", { out: outbox(d), events: server.events });
 });
 
 scenario("the log is pulled back in full after a switch to a learner and back", async () => {
