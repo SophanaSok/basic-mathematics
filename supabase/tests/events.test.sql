@@ -185,8 +185,8 @@ insert into hv values
   ('a checkpoint with s = today + 2', pg_temp.setp(pg_temp.setp(pg_temp.setx(pg_temp.setx(pg_temp.vz(), 's', '20802'), 'l', '20790'), 1, '20801'), 0, '29953440'), true),
   ('a checkpoint with s = today + 3', pg_temp.setp(pg_temp.setp(pg_temp.setx(pg_temp.setx(pg_temp.vz(), 's', '20803'), 'l', '20790'), 1, '20802'), 0, '29954880'), false);
 
--- 237 hand-counted tests below, plus one per row of the three tables
-select plan(237 + (select count(*)::integer from hv) + (select count(*)::integer from private.valid_cases)
+-- 250 hand-counted tests below, plus one per row of the three tables
+select plan(250 + (select count(*)::integer from hv) + (select count(*)::integer from private.valid_cases)
   + (select count(*)::integer from private.prune_expected));
 
 -- 1. tables, row-level security, policies, grants
@@ -680,12 +680,25 @@ do $x$ begin perform set_config('request.jwt.claims', '{"sub":"x","amr":[{"metho
 select is(private.fresh_auth(), false, 'an amr without a numeric timestamp is not fresh');
 do $x$ begin perform set_config('request.jwt.claims', '{"sub":"x"}', true); end $x$;
 select is(private.fresh_auth(), false, 'no amr claim is not fresh');
-do $x$ begin perform set_config('request.jwt.claims', json_build_object('sub', 'x', 'amr', json_build_array(json_build_object('timestamp', floor(extract(epoch from now())) + 31536000)))::text, true); end $x$;
+do $x$ begin perform set_config('request.jwt.claims', json_build_object('sub', 'x', 'amr', json_build_array(json_build_object('method', 'password', 'timestamp', floor(extract(epoch from now())) + 31536000)))::text, true); end $x$;
 select is(private.fresh_auth(), false, 'a timestamp one year ahead is not fresh');
 do $x$ begin perform set_config('request.jwt.claims', '{"sub":"x","amr":[{"method":"password","timestamp":1e300}]}', true); end $x$;
 select is(private.fresh_auth(), false, 'a timestamp of 1e300 is not fresh');
-do $x$ begin perform set_config('request.jwt.claims', json_build_object('sub', 'x', 'amr', json_build_array(json_build_object('timestamp', floor(extract(epoch from now())) - 599)))::text, true); end $x$;
+do $x$ begin perform set_config('request.jwt.claims', json_build_object('sub', 'x', 'amr', json_build_array(json_build_object('method', 'password', 'timestamp', floor(extract(epoch from now())) - 599)))::text, true); end $x$;
 select is(private.fresh_auth(), true, 'a timestamp 599 seconds ago is fresh');
+
+-- fresh_auth counts first-factor sign-ins only: a second factor is not a sign-in
+create function pg_temp.fa(amr jsonb) returns boolean language plpgsql as $$
+begin
+  perform set_config('request.jwt.claims', jsonb_build_object('sub', 'x', 'amr', amr)::text, true);
+  return private.fresh_auth();
+end $$;
+select is(pg_temp.fa(jsonb_build_array(jsonb_build_object('method', 'totp', 'timestamp', pg_temp.now_s() - 5))), false, 'a lone fresh totp entry is not fresh');
+select is(pg_temp.fa(jsonb_build_array(jsonb_build_object('method', 'totp', 'timestamp', pg_temp.now_s() - 5), jsonb_build_object('method', 'password', 'timestamp', pg_temp.now_s() - 660))), false, 'a fresh totp over a password 11 minutes old is not fresh');
+select is(pg_temp.fa(jsonb_build_array(jsonb_build_object('method', 'mfa/totp', 'timestamp', pg_temp.now_s() - 5))), false, 'a fresh mfa/totp entry is not fresh');
+select is(pg_temp.fa(jsonb_build_array(jsonb_build_object('method', 'mfa/phone', 'timestamp', pg_temp.now_s() - 5))), false, 'a fresh mfa/phone entry is not fresh');
+select is(pg_temp.fa(jsonb_build_array(jsonb_build_object('method', 'password', 'timestamp', pg_temp.now_s() - 5))), true, 'a fresh password entry is fresh');
+select is(pg_temp.fa(jsonb_build_array(jsonb_build_object('method', 'oauth', 'timestamp', pg_temp.now_s() - 5))), true, 'a fresh oauth entry is fresh');
 
 -- reset isolation (T5): resetting one learner leaves the other's events
 insert into public.learners (guardian, name) values ('b0000000-0000-4000-8000-00000000000b', 'iso1'), ('b0000000-0000-4000-8000-00000000000b', 'iso2');
@@ -723,8 +736,30 @@ select is(pg_temp.msg_as('b0000000-0000-4000-8000-00000000000b', null, format('s
 select is(pg_temp.msg_as('b0000000-0000-4000-8000-00000000000b', null, format('select public.learner_rename(%L, repeat(''a'', 40))', (select id from lk where k = 'b18'))), 'ok', 'learner_rename with 40 characters passes');
 select is(pg_temp.msg_as('c0000000-0000-4000-8000-00000000000c', null, 'select public.learner_add(repeat(''b'', 40), false, null)'), 'ok', 'learner_add with 40 characters passes');
 
--- delete_my_account is unchanged (no step-up yet): deleting E removes E's learners and data
-select is(pg_temp.msg_as('e0000000-0000-4000-8000-00000000000e', null, 'select public.delete_my_account()'), 'ok', 'E deletes their account');
+-- step-up (T4): delete_my_account, on its own account G (a managed learner, state, events, meta, profile)
+insert into auth.users (id, email) values ('90000000-0000-4000-8000-000000000009', 'g@example.test');
+create temp table gk as select pg_temp.val_as('90000000-0000-4000-8000-000000000009', $$select public.learner_add('G Kid', false, null)$$)::uuid as id;
+insert into public.user_state (user_id, progress) select id, '{"k":1}' from gk;
+insert into public.profiles (id) values ('90000000-0000-4000-8000-000000000009');
+select is(pg_temp.put3('90000000-0000-4000-8000-000000000009', jsonb_build_array(pg_temp.el('gd1', pg_temp.nowmin() - 9, 'gd1')), 0, (select id from gk))->>'added', '1', 'G: an entry for a managed learner');
+create function pg_temp.g_rows() returns bigint language sql as $$
+  select (select count(*) from auth.users where id = '90000000-0000-4000-8000-000000000009')
+    + (select count(*) from public.learners where guardian = '90000000-0000-4000-8000-000000000009')
+    + (select count(*) from public.user_state where user_id in ((select id from gk), '90000000-0000-4000-8000-000000000009'))
+    + (select count(*) from public.events where user_id in ((select id from gk), '90000000-0000-4000-8000-000000000009'))
+    + (select count(*) from public.event_meta where user_id in ((select id from gk), '90000000-0000-4000-8000-000000000009'))
+    + (select count(*) from public.profiles where id = '90000000-0000-4000-8000-000000000009')
+$$;
+create temp table g_before as select pg_temp.g_rows() as n;
+select cmp_ok((select n from g_before), '>=', 5::bigint, 'G holds rows to lose: the account, learners, state, events, meta and profile');
+select is(pg_temp.msg_as('90000000-0000-4000-8000-000000000009', null, 'select public.delete_my_account()'), 'stale sign-in', 'delete_my_account with no amr raises stale sign-in');
+select is(pg_temp.msg_as('90000000-0000-4000-8000-000000000009', pg_temp.now_s() - 660, 'select public.delete_my_account()'), 'stale sign-in', 'delete_my_account with a sign-in 11 minutes old raises stale sign-in');
+select is(pg_temp.g_rows(), (select n from g_before), 'and the account, its learners, state, events, meta and profile remain');
+select is(pg_temp.msg_as('90000000-0000-4000-8000-000000000009', pg_temp.now_s() - 60, 'select public.delete_my_account()'), 'ok', 'delete_my_account with a sign-in 1 minute old succeeds');
+select is(pg_temp.g_rows(), 0::bigint, 'and the account, its learners, state, events, meta and profile are gone');
+
+-- E deletes their account (fresh sign-in): their learners and data go
+select is(pg_temp.msg_as('e0000000-0000-4000-8000-00000000000e', pg_temp.now_s() - 60, 'select public.delete_my_account()'), 'ok', 'E deletes their account');
 select is((select count(*) from auth.users where id = 'e0000000-0000-4000-8000-00000000000e') + (select count(*) from public.learners where guardian = 'e0000000-0000-4000-8000-00000000000e') + (select count(*) from public.events where user_id = 'e0000000-0000-4000-8000-00000000000e'), 0::bigint, 'E, their learners and their events are gone');
 
 select * from finish();
