@@ -1464,7 +1464,7 @@
       " · " + esc(TEMPO_LABEL[res.tempo] || "") + " tempo</p>";
     html += '<h2 id="arena-result-h" tabindex="-1">' + title + "</h2>";
     var wInfo = weak.length ? secInfo(weak[0].id) : null;
-    html += '<p class="arena-lead" data-step="1"><span><b>' + res.firstTry + " of " + res.n + "</b> right the first time" +
+    html += '<p class="arena-lead" data-step="1"><span>' + (res.n === 0 ? "No questions answered." : "<b>" + res.firstTry + " of " + res.n + "</b> right the first time") +
       (weak.length ? " · weakest <b>" + esc(secName(weak[0].id)) + "</b>" : "") + "</span>" +
       (wInfo ? '<a class="btn small" href="' + esc(root() + wInfo.path) + '">Reread ' + esc(wInfo.label) + "</a>" : "") + "</p>";
     html += '<p class="arena-bigscore" data-step="2"><b>' + cnt(res.score) + "</b> points" +
