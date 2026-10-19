@@ -97,6 +97,7 @@ import "../../assets/config.js";
 import "../../assets/account.js";
 /* the "next best step" card, drawn once the scripts above have run */
 /* where each section stands and the one continue resolver (src/learn/status.ts): next.ts and plan.ts read it */
+import "../data/section-work.ts";
 import "../learn/status.ts";
 import "../learn/next.ts";
 import "../ui/next.ts";
