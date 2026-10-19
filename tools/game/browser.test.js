@@ -1027,8 +1027,8 @@ async function run() {
             n: document.querySelectorAll(".toast:not([data-out])").length, first: document.querySelector(".toast").textContent };
         });
         check(g.top >= g.barBottom - 1, w + "px: the toast stack starts under the top bar (" + g.top + " vs " + g.barBottom + ")");
-        eq(g.n, 2, w + "px: two toasts after one right answer");
-        check(/\+\d+ XP/.test(g.first), w + "px: the XP card is first");
+        eq(g.n, 1, w + "px: one toast after a plain right answer (the level card; the pill and chip carry the XP)");
+        check(!/\+\d+ XP/.test(g.first) && /Level/.test(g.first), w + "px: no +N XP card when a pill flew and there is no combo or goal (" + g.first + ")");
         if (w === 1280) check(g.vw - g.right <= 24 && g.vw - g.right >= 0, "1280px: the stack's right edge is within 24px of the viewport (" + (g.vw - g.right) + ")");
         else check(g.left <= 17 && g.vw - g.right <= 17, "400px: the stack spans the width under the HUD (" + g.left + ", " + (g.vw - g.right) + ")");
         if (w === 1280) {
@@ -1051,7 +1051,8 @@ async function run() {
         await answer(page, '#practice .ex[data-key="e1"]', true);
         await wait(100);
         check(await page.evaluate(() => window.__fly > 0), "an .xp-fly is on screen within 100 ms of a right answer");
-        await wait(1300);
+        await wait(1400);
+        eq(await page.evaluate(() => Array.prototype.filter.call(document.querySelectorAll(".toast"), function (t) { return /\+\d+ XP/.test(t.textContent); }).length), 0, "a plain flown answer makes no +N XP card");
         const e = await page.evaluate(() => ({ fly: document.querySelectorAll(".xp-fly").length, flash: window.__flash }));
         eq(e.fly, 0, "the pill is gone within 1.2 s");
         check(e.flash > 0, "the HUD XP bar flashed when it landed");
@@ -1070,6 +1071,7 @@ async function run() {
         await wait(100);
         const r = await page.evaluate(() => ({ fly: window.__fly, anims: document.getAnimations().length }));
         eq(r, { fly: 0, anims: 0 }, "under reduced motion no pill is made and nothing animates");
+        check(await page.evaluate(() => Array.prototype.some.call(document.querySelectorAll(".toast"), function (t) { return /\+\d+ XP/.test(t.textContent); })), "under reduced motion the +N XP card still appears after a plain answer");
         eq(errors, [], "no errors in the reduced-motion run");
         await context.close();
       }
