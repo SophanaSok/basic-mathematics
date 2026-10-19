@@ -81,6 +81,8 @@ import "../ui/hub-mode.ts";
 /* the one selected chapter, in the hash, shared by the List and the Map (read by map3d.js) */
 import "../core/hub.ts";
 import "../ui/hub-select.ts";
+/* the contents page's search field (src/ui/hub-search.ts), which filters the list the map shares; src/ui/palette.ts (ranking) is named below */
+import "../ui/hub-search.ts";
 /* the "next best step" card, drawn once the scripts above have run */
 /* where each section stands and the one continue resolver (src/learn/status.ts): next.ts and plan.ts read it */
 import "../data/section-work.ts";
