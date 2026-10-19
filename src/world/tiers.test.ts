@@ -3,13 +3,21 @@ import { detectTier, FrameWatch, isSoftware, lower, MIN_SAMPLES, PAUSE_MS, pixel
 
 /* a capable desktop: WebGL 2, a mouse, eight cores, a hardware renderer */
 const desk: Probe = { supported: true, unsupportedWhy: "", lowEnd: false, coarse: false, cores: 8, renderer: "ANGLE (NVIDIA, NVIDIA GeForce RTX 3060 Direct3D11 vs_5_0 ps_5_0, D3D11)" };
-const tier = (probe: Partial<Probe>, prefs: Record<string, string> = {}) => detectTier({ ...desk, ...probe }, prefs);
+const tier = (probe: Partial<Probe>, prefs: Record<string, string> = {}) => detectTier({ ...desk, ...probe }, { map: "3d", ...prefs });
 
 describe("the tier a device gets", () => {
   it("is the list without WebGL 2, on Save-Data and with ?3d=off, whatever was chosen", () => {
     for (const why of ["no-webgl", "save-data", "off"]) {
       expect(tier({ supported: false, unsupportedWhy: why }, { gfx: "high" })).toEqual({ tier: "list", why, chosen: false });
     }
+  });
+
+  it("is the list, not chosen, until the learner chooses the map", () => {
+    const c = detectTier(desk, {});
+    expect([c.tier, c.why, c.chosen]).toEqual(["list", "list", false]);
+    expect(detectTier(desk, { gfx: "high" }).tier).toBe("list");
+    expect(detectTier(desk, { map: "list" }).chosen).toBe(true);
+    expect(detectTier(desk, { map: "3d" }).tier).toBe("medium");
   });
 
   it("is the list when the 3D map switch is off", () => {

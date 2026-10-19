@@ -223,7 +223,7 @@
      switched it off or where the world gave up as too slow (src/world/tiers.ts holds the
      world to both); switching it on clears the second */
   function map3dOn(p) {
-    return p.map !== "list" && p.gfxAuto !== "list";
+    return p.map === "3d" && p.gfxAuto !== "list";
   }
   function applyPrefs(p) {
     var root = document.documentElement;

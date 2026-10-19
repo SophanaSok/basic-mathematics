@@ -4,12 +4,12 @@
    must be current):
      node tools/game/hub.test.js
    Every request off the local server is aborted. Cases:
-   a. a fresh load with WebGL: Map is checked, the one-time note shows, Dismiss hides it and
+   a. a fresh load with WebGL: List is checked, prefs.map is unset, no 3D chunk is fetched, the one-time note shows, Dismiss hides it and
       writes run.seen.hubHint, a reload shows no note
    b. choosing List tears the world down without a reload (BMMap3D.on() false, [data-map3d]
       hidden, html[data-world] gone), prefs.map is "list"; a reload keeps List and fetches
       neither bundle/three.js nor bundle/world.js
-   c. choosing Map boots the world again (BMMap3D.on() within 10 s), prefs.map is "3d"
+   c. choosing Map (from the fresh List) boots the world (BMMap3D.on() within 20 s), prefs.map is "3d"
    d. with ?3d=off, and in a context with no WebGL: Map is aria-disabled with a title, List
       reads checked, prefs.map is untouched
    e. the sheet's [data-pref="map3d"] switch and the control agree after either changes
@@ -90,9 +90,9 @@ async function open(browser, o) {
       delete window.WebGL2RenderingContext;
     });
   }
-  await context.addInitScript(() => {
-    try { if (!sessionStorage.getItem("__seeded")) { localStorage.setItem("bm.guide.v1", '{"v":1,"seen":1}'); sessionStorage.setItem("__seeded", "1"); } } catch (e) { /* fine */ }
-  });
+  await context.addInitScript((map) => {
+    try { if (!sessionStorage.getItem("__seeded")) { localStorage.setItem("bm.guide.v1", '{"v":1,"seen":1}'); if (map) localStorage.setItem("bm.prefs.v1", '{"map":"3d"}'); sessionStorage.setItem("__seeded", "1"); } } catch (e) { /* fine */ }
+  }, o.fresh ? false : true);
   const page = await context.newPage();
   const errors = [];
   page.on("pageerror", (e) => errors.push("pageerror: " + e.message));
@@ -115,16 +115,17 @@ async function run() {
   try {
     /* -------------------------------------------- a, b, c, e: fresh load, List, Map */
     {
-      const { context, page, errors, chunks } = await open(browser);
+      const { context, page, errors, chunks } = await open(browser, { fresh: true });
       await go(page);
-      await worldUp(page);
+      await wait(1500);
       const g = await page.evaluate(() => {
         const grp = document.querySelector("[data-hub-mode] [role=radiogroup]");
         const rs = Array.prototype.map.call(grp.querySelectorAll("[role=radio]"), (b) => b.textContent);
         return { label: grp.getAttribute("aria-label"), rs };
       });
       check(g.label === "Show the course as" && g.rs.join() === "List,Map", "a: a radiogroup 'Show the course as' with List and Map (" + JSON.stringify(g) + ")");
-      check((await checked(page)).join() === "Map", "a: a fresh load with WebGL shows Map checked");
+      check((await checked(page)).join() === "List", "a: a fresh load with WebGL shows List checked");
+      check(chunks.length === 0 && !(await page.evaluate(() => window.BMMap3D.on())), "a: a fresh load fetches no 3D chunk (" + chunks.join() + ")");
       check(await page.locator("[data-hub-note]").count() === 1, "a: the note shows the first time");
       await page.locator("[data-hub-note] button", { hasText: "Dismiss" }).click();
       check(await page.locator("[data-hub-note]").count() === 0, "a: Dismiss hides the note");
@@ -133,7 +134,11 @@ async function run() {
       await page.reload();
       await page.waitForFunction(() => window.BMHubMode && window.BMHubMode.state().mounted);
       check(await page.locator("[data-hub-note]").count() === 0, "a: a reload shows no note");
+
+      /* c: Map */
+      await radio(page, "map").click();
       await worldUp(page);
+      check((await prefsOf(page)).map === "3d" && (await checked(page)).join() === "Map", "c: choosing Map boots the world and prefs.map is 3d");
 
       /* b: List */
       await radio(page, "list").click();
@@ -148,11 +153,8 @@ async function run() {
       await wait(1500);
       check((await checked(page)).join() === "List" && !(await page.evaluate(() => window.BMMap3D.on())), "b: a reload keeps List");
       check(chunks.length === 0, "b: a reload with List fetches neither three.js nor world.js (" + chunks.join() + ")");
-
-      /* c: Map */
       await radio(page, "map").click();
       await worldUp(page);
-      check((await prefsOf(page)).map === "3d" && (await checked(page)).join() === "Map", "c: choosing Map boots the world and prefs.map is 3d");
 
       /* e: the sheet's switch and the control agree */
       const sw = async () => page.evaluate(() => {
@@ -175,7 +177,7 @@ async function run() {
     }
 
     /* -------------------------------------------- d: the device cannot draw the map */
-    for (const [label, o, search] of [["?3d=off", {}, "?3d=off"], ["no WebGL", { noGl: true }, ""]]) {
+    for (const [label, o, search] of [["?3d=off", { fresh: true }, "?3d=off"], ["no WebGL", { noGl: true, fresh: true }, ""]]) {
       const { context, page, errors } = await open(browser, o);
       await go(page, search);
       await wait(2300);
@@ -574,7 +576,7 @@ async function run() {
     /* -------------------------------------------- k: keyboard travel on the map */
     {
       const { context, page, errors } = await open(browser);
-      await context.addInitScript(() => { try { localStorage.setItem("bm.prefs.v1", JSON.stringify({ motion: "full" })); } catch (e) { /* fine */ } });
+      await context.addInitScript(() => { try { localStorage.setItem("bm.prefs.v1", JSON.stringify({ map: "3d", motion: "full" })); } catch (e) { /* fine */ } });
       await go(page);
       await worldUp(page);
       await page.waitForFunction(() => window.BMMap3D.info() && document.querySelector(".map3d-part:not([disabled])"), null, { timeout: 15000 });

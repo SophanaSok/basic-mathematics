@@ -38,7 +38,7 @@
      world is not drawn after all. No other page has a world, and nothing there reads it. */
   var conn = window.navigator && window.navigator.connection;
   if (window.WebGL2RenderingContext && !(conn && conn.saveData) && !/[?&]3d=off\b/.test(window.location.search) &&
-      prefs.map !== "list" && prefs.gfxAuto !== "list") root.setAttribute("data-world", "3d");
+      prefs.map === "3d" && prefs.gfxAuto !== "list") root.setAttribute("data-world", "3d");
   /* Between pages: where the browser has cross-document view transitions, every page
      opts in (the inline <style> after this script) and the next page fades in under a
      top bar that stays put (game.css, "Between pages"). Study mode and Reduce motion are
