@@ -671,7 +671,7 @@
      never merged into the account's own progress */
   function dropLearner(u) {
     clearLocal(true);
-    setMeta(function (m) { delete m.learner; delete m.learnerName; delete m.acct; delete m.user; delete m.resetAt; m.ev = {}; });
+    setMeta(function (m) { delete m.learner; delete m.keep; delete m.learnerName; delete m.acct; delete m.user; delete m.resetAt; m.ev = {}; });
     /* nothing will ever merge what was set aside for a learner that is gone */
     setPending(function (p) { delete p[u.id]; });
     runsAs = null;
@@ -714,7 +714,7 @@
     /* a learner left by another account is not this account's (T6) */
     if (next) {
       var held = meta();
-      if ((held.learner || held.acct) && held.acct !== next.id) setMeta(function (m) { delete m.learner; delete m.learnerName; delete m.acct; });
+      if ((held.learner || held.acct) && held.acct !== next.id) setMeta(function (m) { delete m.learner; delete m.keep; delete m.learnerName; delete m.acct; });
     }
     user = next;
     /* what this page knew of the previous reader's row and log is not this reader's */
@@ -820,6 +820,13 @@
     learner: function () { return runsAs; },
     /* the name the parent gave that learner, kept with the switch; null for the account's own */
     learnerName: function () { return runsAs ? learnerNameOf() : null; },
+    /* "Keep this device on <name>": a convenience on a shared device, not a lock. The id of the
+       managed learner the account page collapses to, or null; it is dropped wherever `learner` is. */
+    keptLearner: function () { var k = meta().keep; return typeof k === "string" && k ? k : null; },
+    keepLearner: function (id) {
+      if (id !== null && id !== undefined && (typeof id !== "string" || !id)) return;
+      setMeta(function (m) { if (id) m.keep = id; else delete m.keep; });
+    },
     /* a rename of the learner this page runs as: the chip and the progress line follow */
     renameLearnerLabel: function (id, name) {
       if (!runsAs || id !== runsAs) return;
@@ -871,10 +878,11 @@
               clearLocal(true);
               setMeta(function (m) {
                 if (target) {
+                  delete m.keep; /* a switch away from the kept learner ends the keep */
                   m.learner = target; m.acct = user.id;
                   var nm = capName(name);
                   if (nm) m.learnerName = nm; else delete m.learnerName;
-                } else { delete m.learner; delete m.learnerName; delete m.acct; }
+                } else { delete m.learner; delete m.keep; delete m.learnerName; delete m.acct; }
                 delete m.user; delete m.resetAt;
                 m.ev = {};
               });
@@ -957,7 +965,7 @@
         });
       }).then(function () {
         if (!saved) setAside(u);
-        setMeta(function (m) { delete m.user; delete m.resetAt; delete m.learner; delete m.learnerName; delete m.acct; m.ev = {}; });
+        setMeta(function (m) { delete m.user; delete m.resetAt; delete m.learner; delete m.keep; delete m.learnerName; delete m.acct; m.ev = {}; });
         runsAs = null;
         clearLocal();
         return { saved: saved, error: why };
@@ -997,7 +1005,7 @@
     deleteAccount: function () {
       return Account.ready().then(function (c) {
         return c.rpc("delete_my_account").then(unwrap).then(function () {
-          setMeta(function (m) { delete m.user; delete m.resetAt; delete m.learner; delete m.learnerName; delete m.acct; m.ev = {}; });
+          setMeta(function (m) { delete m.user; delete m.resetAt; delete m.learner; delete m.keep; delete m.learnerName; delete m.acct; m.ev = {}; });
           runsAs = null;
           events("clear", true);
           /* the account's place on the Daily board went with it */
@@ -1213,7 +1221,13 @@
 
   /* the list as learner_list last gave it (null until read), and whose it is; like name and board, it is
      read once per account and kept, so a redraw while typing does not ask again */
-  var learners = null, learnersFor = null, learnersErr = "";
+  var learners = null, learnersFor = null, learnersErr = "", learnersLoading = false;
+  /* "I'm the parent" was pressed: the full panel shows for this page view only */
+  var keepOpen = false;
+  function keptView() {
+    var k = Account.keptLearner(), cur = Account.learner();
+    return !!(k && cur && k === cur && !keepOpen);
+  }
   /* what the Learners panel is doing: the add form, the row being renamed, the row armed for deletion,
      whether a step-up sign-in is wanted, and where the focus goes after the next draw */
   var addUnder = false, addConsent = false, renaming = null, armed = null, needSignIn = false, focusAfter = null;
@@ -1237,8 +1251,10 @@
   function loadLearners(focus) {
     var id = user ? user.id : null;
     if (!id || !learnersOn) return;
+    learnersLoading = true;
     learnerRpc("learner_list").then(function (rows) {
       if (!user || user.id !== id) return;
+      learnersLoading = false;
       learners = Array.isArray(rows) ? rows : [];
       learnersErr = "";
       /* a rename field being typed in keeps its focus and text through this redraw (draw keeps both) */
@@ -1246,12 +1262,17 @@
       draw();
     }, function (e) {
       if (!user || user.id !== id) return;
+      learnersLoading = false;
       learnersErr = e && e.message ? e.message : "Something went wrong. Try again in a moment.";
       draw();
     });
   }
+  /* the full panel needs the list: read it once, unless it is read, failed (Try again) or on its way; a collapsed view reads nothing */
+  function ensureLearners() {
+    if (user && learners === null && !learnersErr && !learnersLoading && !keptView()) loadLearners();
+  }
   function resetLearners() {
-    learners = null; learnersFor = null; learnersErr = "";
+    learners = null; learnersFor = null; learnersErr = ""; learnersLoading = false; keepOpen = false;
     addUnder = false; addConsent = false; renaming = null; armed = null; needSignIn = false; focusAfter = null;
     stepAction = null; stepNote = ""; addBusy = false; renameBusy = null; ownBusy = false;
     deleteArmed = false; deleteBusy = false;
@@ -1289,6 +1310,12 @@
 
   function learnersPanel() {
     var cur = Account.learner();
+    if (keptView()) {
+      var row = learnerById(cur), kn = row && typeof row.name === "string" && row.name ? row.name : (Account.learnerName() || "this learner");
+      return '<section class="panel learners" aria-labelledby="lrn-h"><h2 id="lrn-h" tabindex="-1">Learners</h2>' +
+        '<p data-kept>Playing as <b>' + esc(kn) + '</b>. This device is kept on ' + esc(kn) + '.</p>' +
+        '<p class="actions"><button class="btn ghost small" id="lrn-parent" type="button">I\'m the parent</button></p></section>';
+    }
     var h = '<section class="panel learners" aria-labelledby="lrn-h"><h2 id="lrn-h" tabindex="-1">Learners</h2>' +
       "<p>Add a younger learner to keep their progress apart from yours. They get no sign-in of their own: you switch to them here.</p>";
     if (learners === null) {
@@ -1312,6 +1339,8 @@
       out += active ? '<span class="learner-on">Playing as</span>'
         : '<button class="btn ghost small" id="lrn-sw-' + (self ? "self" : id) + '" type="button" aria-label="Switch to ' + esc(nm) + '">Switch to</button>';
       if (!self) {
+        if (active) out += "</p>" + '<label class="check"><input id="lrn-keep" type="checkbox"' + (Account.keptLearner() === l.id ? " checked" : "") +
+          '> <span>Keep this device on ' + esc(nm) + "</span></label><p class=\"actions\">";
         out += '<button class="btn ghost small" id="lrn-r-' + id + '" type="button" aria-label="Rename ' + esc(nm) + '">Rename</button>' +
           '<button class="btn ghost small" id="lrn-dl-' + id + '" type="button" aria-label="Download ' + esc(nm) + '">Download</button>' +
           '<button class="btn ghost small danger" id="lrn-del-' + id + '" type="button"' +
@@ -1365,6 +1394,19 @@
 
   function wireLearners() {
     on("lrn-retry", function () { learnersErr = ""; loadLearners(); });
+    on("lrn-parent", function () {
+      keepOpen = true; focusAfter = "lrn-h";
+      draw();
+      ensureLearners();
+    });
+    var keepBox = document.getElementById("lrn-keep");
+    if (keepBox) keepBox.addEventListener("change", function () {
+      var cur = Account.learner();
+      if (!cur) return;
+      Account.keepLearner(keepBox.checked ? cur : null);
+      focusAfter = keptView() ? "lrn-parent" : "lrn-keep";
+      draw();
+    });
     (learners || []).forEach(function (l) {
       if (!l || l.self === true || typeof l.id !== "string") return;
       var id = l.id, nm = l.name || "this learner";
@@ -1479,6 +1521,7 @@
       if (uidNow() !== uid) return;
       needSignIn = false; stepNote = ""; stepAction = null;
       learners = (learners || []).filter(function (l) { return l.id !== id; });
+      if (Account.keptLearner() === id) Account.keepLearner(null);
       focusAfter = "lrn-h";
       lsay((switched ? "Switched back to your own progress, and deleted " : "Deleted ") + nm + ".");
       draw();
@@ -1760,7 +1803,10 @@
       }, function () { name = ""; });
     }
     if (!user) { name = null; nameFor = null; board = null; resetLearners(); }
-    else if (learnersFor !== user.id) { resetLearners(); learnersFor = user.id; loadLearners(); }
+    else {
+      if (learnersFor !== user.id) { resetLearners(); learnersFor = user.id; }
+      ensureLearners();
+    }
     /* a message about a sign-in that did not go through is no use to a reader who is signed in */
     if (user) returnedText = "";
     /* a redraw would wipe what is being typed — unless who is signed in has changed */
