@@ -10,10 +10,12 @@
 
      - On mount: arrival() from the page's state, then the bus events are mapped to Recent
        and handed to react(). Every other event is ignored.
-     - A caption shows only when the throttle allows it and clears after 6 s. A line that
-       cannot be said now is dropped, except due, back, form, chapter and regroup, which wait
-       for the next chance (one slot, the latest wins). A shown line is announced politely
-       (low priority). The first time ever, the intro line is shown (run.seen.companion).
+     - A caption shows only when the throttle allows it and clears after 6 s (12 s for an
+       arrival's). A line that cannot be said now is dropped, except the ones that wait for
+       the next chance (one slot, the latest wins). A line said during work is announced
+       politely (low priority); the arrival's and the intro's are shown only, so the page's
+       own first words keep the live region. The first time ever, the intro line is shown
+       (run.seen.companion).
      - A new form adds is-evolving for 900 ms; the flourish is CSS, under the motion rules.
      - On a phone-sized screen the sprite steps aside while an exercise field has focus.
    Never writes anything but run.seen.companion. window.BMCompanion is a test handle. */
@@ -29,6 +31,10 @@ const SHOW_MS = 6000, ARRIVAL_MS = 12000, EVOLVE_MS = 900;
 const AT_REST: Reaction = { mood: "content", pose: "rest", line: null, key: null, href: null };
 /* lines that wait for a quiet moment rather than being dropped (one slot, the latest wins) */
 const WAITS = ["due", "back", "form", "chapter", "regroup", "goal", "level", "boss"];
+/* said on the page only, never to the live region: at load the region belongs to the page's own
+   first words (the exercise count, the chapter's banner), and one message there holds the next
+   back for seconds (assets/game.js announce); these three are also on the page elsewhere */
+const QUIET = ["intro", "due", "back"];
 
 let fig: HTMLElement | null = null;
 let pic: HTMLElement | null = null;
@@ -177,7 +183,9 @@ function show(r: Reaction, now: number): void {
     current = r;
     setLine(r.line, r.href);
     throttle = said(throttle, now);
-    try { w().BMGame.announce(r.line, { priority: "low", key: "companion:" + (r.key || "line") }); } catch { /* a note */ }
+    if (QUIET.indexOf(r.key || "") < 0) {
+      try { w().BMGame.announce(r.line, { priority: "low", key: "companion:" + (r.key || "line") }); } catch { /* a note */ }
+    }
     const hold = r.key && WAITS.indexOf(r.key) > -1 ? ARRIVAL_MS : SHOW_MS;
     window.clearTimeout(settleTimer);
     settleTimer = window.setTimeout(settle, hold);
