@@ -25,6 +25,11 @@
       a right first answer after clue 2 pays 6 and moves no pip; the finale says how many
       were solved with the solution open, beside the hearts kept; the keyboard path through
       clue, check and solution
+   8a. the worked solution opens by itself after a right answer (card U-1): the button reads "Hide
+      solution", the line says so, XP, hearts and pips are as before and no "opened first" is recorded;
+      in view for four seconds it earns the shield (bm.game.v1.cmp), scrolled past it earns none; a
+      reload restores the card solved with the solution closed and a line that invites opening it; the
+      twin button is there without a click
    8b. the change-approach card (src/learn/approach.ts): once every clue is open, the second miss shows one card
       after the verdict (not the first, not a third), a Reread link into the curriculum, Keep going hides it;
       the encounter's Regroup still names a section
@@ -490,6 +495,53 @@ async function run() {
       eq((await ladder(keys.two)).offer, "solution", "with every clue open, a miss offers the solution");
       check(await page.$eval(sel2 + " .ex-show", (b) => b.getAttribute("data-suggested") === "true"), "and the solution button is the suggestion");
       eq(errors, [], "no errors around the ladder");
+      await context.close();
+    }
+
+    /* ------------- the solution opens by itself after a right answer (U-1) */
+    {
+      const { context, page, errors } = await open(browser, CH05, { "bm.lesson.v1": '{"mode":"page"}' });
+      const E1 = '#practice .ex[data-key="e1"]', E2 = '#practice .ex[data-key="e2"]';
+      const view = (sel, how) => page.evaluate(({ sel, how }) => {
+        var s = document.querySelector(sel + " .ex-solution");
+        if (how === "in") s.scrollIntoView({ block: "center" });
+        else window.scrollTo(0, 0);
+      }, { sel, how });
+      const cmp = () => page.evaluate(() => (JSON.parse(localStorage.getItem("bm.game.v1") || "{}").cmp || {}).ch05 || {});
+      const shield = () => page.evaluate(() => !!(JSON.parse(localStorage.getItem("bm.run.v1") || "{}").combo || {}).shield);
+      const solShown = (sel) => page.$eval(sel, (ex) => ({
+        show: ex.querySelector(".ex-solution").getAttribute("data-show"),
+        btn: ex.querySelector(".ex-show").textContent.trim(),
+        line: (ex.querySelector(".ex-feedback .ex-next") || {}).textContent || ""
+      }));
+      check(await page.$(E1 + " .ex-solution") !== null && await page.$(E2 + " .ex-solution") !== null, "ch05 e1 and e2 have solutions");
+      const x0 = (await state(page)).xp;
+      await answer(page, E1, true);
+      const s1 = await state(page);
+      eq([s1.xp - x0, s1.hearts, s1.pips], [10, 3, 1], "a right first answer pays 10, keeps 3 hearts and gains a pip");
+      const sh = await solShown(E1);
+      eq([sh.show, sh.btn], ["true", "Hide solution"], "the solution opened by itself");
+      check(/The solution is open below\. Compare your route with it\./.test(sh.line), "the line says the solution is open (" + sh.line + ")");
+      const rec = await page.evaluate(() => JSON.parse(localStorage.getItem("bm.attempts.v1")).ch05.e1);
+      check(rec.solved && !rec.opened, "no solution-opened-first mark in the attempt record: " + JSON.stringify(rec));
+      await view(E1, "in");
+      await wait(4500);
+      check(!!(await cmp()).e1, "in view for four seconds: the comparison is recorded");
+      check(await shield(), "and the shield is ready");
+      /* a second one, scrolled past at once */
+      await answer(page, E2, true);
+      await view(E2, "out");
+      await wait(4500);
+      check(!(await cmp()).e2, "scrolled past: no comparison recorded for the second card");
+      /* the twin button needs no click on Show solution */
+      check(await page.$eval(E1 + " .ex-twin-btn", (b) => !b.hidden).catch(() => false), "the Try one like it button is there after the auto-open");
+      /* a reload restores solved, closed, with an invitation */
+      await page.reload();
+      await page.waitForFunction(() => document.readyState === "complete");
+      const rs = await solShown(E1);
+      eq([rs.show, rs.btn], [null, "Show solution"], "after a reload the solved card's solution is closed");
+      check(/Open the solution below to compare your route\./.test(rs.line), "and the line invites opening it (" + rs.line + ")");
+      eq(errors, [], "no errors around the auto-open");
       await context.close();
     }
 

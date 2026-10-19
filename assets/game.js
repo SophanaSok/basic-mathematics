@@ -1390,6 +1390,15 @@
     var r = el.getBoundingClientRect();
     return r.height > 0 && r.bottom > 0 && r.top < (window.innerHeight || 0);
   }
+  /* the whole box is in view, or (when taller than the window) at least 60% of its height is.
+     An auto-opened solution the learner scrolled past must not earn a shield. */
+  function mostlyOnScreen(el) {
+    if (!el || !el.getBoundingClientRect) return false;
+    var r = el.getBoundingClientRect(), vh = window.innerHeight || 0;
+    if (!(r.height > 0)) return false;
+    if (r.height <= vh) return r.top >= 0 && r.bottom <= vh;
+    return (Math.min(r.bottom, vh) - Math.max(r.top, 0)) >= 0.6 * r.height;
+  }
   /* a solution opened after a correct answer and still open (and seen) four seconds later */
   function watchCompare(c) {
     var ex = c.ex, sol = ex && ex.querySelector(".ex-solution");
@@ -1402,6 +1411,7 @@
     cmpTimers[id] = setTimeout(function () {
       delete cmpTimers[id];
       seen = seen || onScreen(sol);
+      if (c.auto) seen = mostlyOnScreen(sol);
       if (sol.getAttribute("data-show") !== "true" || !seen) return;
       var fresh = false;
       updateGame(function (g) {
