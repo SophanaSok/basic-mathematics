@@ -10,7 +10,7 @@
    - a small non-modal popover on the level badge: a plain click (or Enter, or Space)
      opens it instead of going to progress.html; it holds level and rank, XP into the
      level with a bar, the streak, the last 30 days' consistency, the form worn and the
-     next one, and a "Your progress" link (the old destination, one click away). A modified
+     next one, and a full-width "Your progress" button (the old destination, one tap away). A modified
      click (ctrl, cmd, shift, alt, or the middle button) is the browser's: the link stays a
      link. Escape closes it and gives the focus back to the badge, so does a click
      outside, or Tab out of it.
@@ -173,7 +173,7 @@ function openPop(badge: HTMLAnchorElement): void {
     el("p", "pop-line", "Active " + activeDays(activity) + " of the last 30 days"),
     el("p", "pop-line", "Form: " + wearing.name + (next ? ". Next: " + next.name + " at level " + next.level + "." : ". The last form."))
   );
-  const more = el("a", "pop-link", "Your progress →");
+  const more = el("a", "btn pop-link", "Your progress →");
   more.setAttribute("href", href);
   box.appendChild(more);
 
