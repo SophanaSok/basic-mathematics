@@ -301,11 +301,14 @@ async function run() {
         return { href: a.href, meta: a.querySelector(".meta").textContent };
       }, id);
       check((await panelOf(page)).hidden, "z1: no panel before anything is selected");
+      const prompt = await page.evaluate(() => { const e = document.querySelector(".map3d-panel-empty"); return e && getComputedStyle(e).display !== "none" && /Select a chapter/.test(e.textContent); });
+      check(prompt, "z1: the prompt shows in the column before a selection (1280)");
       /* z1 */
       await page.evaluate(() => document.querySelector('li.stop[data-chapter="ch03"] .stop-link').focus());
       await page.waitForFunction(() => !document.querySelector("[data-map3d-panel]").hidden, null, { timeout: 5000 });
       let pn = await panelOf(page), card = await cardOf(page, "ch03");
       check(/Chapter 3/.test(pn.title), "z1: the title names Chapter 3 (" + pn.title + ")");
+      check(await page.evaluate(() => getComputedStyle(document.querySelector(".map3d-panel-empty")).display === "none"), "z1: the panel replaces the prompt after a selection");
       check(pn.open === card.href, "z1: the Open link is the card's (" + pn.open + " vs " + card.href + ")");
       const ex = /(\d+) \/ (\d+) exercises/.exec(card.meta), sec = /(\d+) sections/.exec(card.meta);
       check(ex ? pn.text.indexOf(ex[1] + " of " + ex[2] + " exercises") > -1 : !!sec && pn.text.indexOf(sec[1] + " sections") > -1,

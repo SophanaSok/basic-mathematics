@@ -205,7 +205,6 @@ function go(): void {
 function mount(): void {
   form = document.querySelector<HTMLFormElement>("[data-hub-search]");
   if (!form || input) return;
-  form.hidden = false;
   input = form.querySelector("input");
   status = form.querySelector("[data-hub-count]");
   if (!input) return;

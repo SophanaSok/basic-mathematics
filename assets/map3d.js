@@ -198,6 +198,7 @@ import { detectTier, readProbe, stepDown, lower, pixelRatio, TIERS, AMBIENT_MS, 
       "</div>" +
       '<div class="map3d-panel" data-map3d-panel hidden><p class="map3d-panel-title" aria-live="polite"></p>' +
         '<div class="map3d-panel-body"></div></div>' +
+      '<p class="map3d-panel-empty">Select a chapter on the map to see its details.</p>' +
       '<div class="map3d-probe" aria-hidden="true">' + probes + "</div>";
     box.hidden = false;
     document.documentElement.setAttribute("data-world", "3d");
@@ -746,6 +747,19 @@ import { detectTier, readProbe, stepDown, lower, pixelRatio, TIERS, AMBIENT_MS, 
     if (c.solved > 0) return "In progress · " + c.solved + " of " + c.total + " exercises";
     return "Not started · " + ch.sections.length + (ch.sections.length === 1 ? " section" : " sections") + mins;
   }
+  /* the goal cut at the end of a sentence, else after a clause mark, else at a word (never mid-clause) */
+  function goalLine(text, max) {
+    var full = plainGoal(text, 100000);
+    if (full.length <= max) return full;
+    var head = full.slice(0, max + 1), k = -1, m, re = /[.!?](?=\s)/g;
+    while ((m = re.exec(head))) k = m.index + 1;
+    if (k < max * 0.4) {
+      re = /[;:,](?=\s)/g;
+      while ((m = re.exec(head))) k = m.index;
+    }
+    if (k >= max * 0.4) return full.slice(0, k).replace(/[\s,;:]+$/, "") + (/[.!?]$/.test(full.slice(0, k)) ? "" : "…");
+    return plainGoal(text, max);
+  }
   /* the selected island's chapter, or the hovered one while the mouse is over another */
   function panel() {
     if (!M) return;
@@ -754,17 +768,18 @@ import { detectTier, readProbe, stepDown, lower, pixelRatio, TIERS, AMBIENT_MS, 
     var ch = ISLES[i].ch, id = ISLES[i].id, link = linkFor(i);
     var title = chapterName(ch) + " · " + ch.title;
     var st = M.states && M.states[i];
-    var html = '<p class="map3d-panel-state">' + esc(panelState(i)) + "</p>";
+    var segs = panelState(i).split(" · ").map(function (t) { return '<span class="map3d-seg">' + esc(t) + "</span>"; });
+    var html = '<p class="map3d-panel-state">' + segs.join(" · ") + "</p>";
     var fm = window.BMHubList && window.BMHubList.meta && window.BMHubList.meta[id];
-    var goal = fm && fm.goal ? plainGoal(fm.goal, 140) : "";
+    var goal = fm && fm.goal ? goalLine(fm.goal, 140) : "";
     if (goal) html += '<p class="map3d-panel-goal">' + esc(goal) + "</p>";
     var reqs = chapterRequires(C, id), on = "";
     reqs.forEach(function (rid) {
       var a = linkById(rid), rc = C.chapterById ? C.chapterById(rid) : null;
       if (!a || !rc) return;
-      on += (on ? ", " : "") + '<a href="' + esc(a.href) + '">' + esc(chapterName(rc) + " · " + rc.title) + "</a>";
+      on += '<a class="map3d-panel-req" href="' + esc(a.href) + '">' + esc(chapterName(rc) + " · " + rc.title) + "</a>";
     });
-    if (on) html += '<p class="map3d-panel-builds">Builds on: ' + on + "</p>";
+    if (on) html += '<p class="map3d-panel-builds">Builds on:' + on + "</p>";
     var due = st ? st.due.arena.concat(st.due.page) : [];
     if (due.length) {
       var card = host.querySelector('li.stop[data-chapter="' + id + '"] .stop-due');
@@ -773,6 +788,7 @@ import { detectTier, readProbe, stepDown, lower, pixelRatio, TIERS, AMBIENT_MS, 
     html += '<p class="map3d-panel-actions">';
     if (link) html += '<a class="btn" data-map3d-open href="' + esc(link.href) + '">Open chapter</a>';
     var cont = i === M.cur ? document.querySelector("a[data-continue]") : null;
+    if (cont && link && cont.href === link.href) cont = null;
     if (cont) html += '<a class="btn ghost" data-map3d-continue href="' + esc(cont.href) + '">Continue</a>';
     html += "</p>";
     var key = title + "\n" + html;
