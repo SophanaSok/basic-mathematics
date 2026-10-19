@@ -734,6 +734,56 @@ async function run() {
       await context.close();
     }
 
+    /* ------------------- U-8: one progress story in the sidebar, a steady puzzle, a phone row */
+    {
+      const side = (page) => page.evaluate(() => {
+        var el = document.querySelector("[data-side-progress]");
+        return { text: el.textContent.replace(/\s+/g, " ").trim(), width: el.querySelector(".bar span").style.width };
+      });
+      const { context, page, errors } = await open(browser, CH05, { "bm.lesson.v1": '{"mode":"page"}' });
+      const N = await page.evaluate(() => document.querySelectorAll("#main .ex[data-inline]").length);
+      const T = await page.evaluate(() => document.querySelectorAll("#main .ex:not([data-inline])").length);
+      check(N > 0 && T > 0, "CH05 has inline checks and a practice set");
+      const s0 = await side(page);
+      check(s0.text.indexOf("Practice: 0 of " + T + " solved") > -1 && s0.text.indexOf("Checks: 0 of " + N) > -1, "the sidebar opens with both counts: " + s0.text);
+      await answer(page, "#t1", true);
+      const s1 = await side(page);
+      check(s1.text.indexOf("Checks: 1 of " + N) > -1 && s1.text.indexOf("Practice: 0 of " + T) > -1, "a solved Your turn moves the Checks count only: " + s1.text);
+      eq(s1.width, s0.width, "the bar still tracks the practice set");
+      await answer(page, '#practice .ex[data-key="e1"]', true);
+      const s2 = await side(page);
+      check(s2.text.indexOf("Practice: 1 of " + T) > -1 && s2.text.indexOf("Checks: 1 of " + N) > -1, "a solved exercise moves the Practice count: " + s2.text);
+      await page.reload();
+      await page.waitForFunction(() => document.readyState === "complete");
+      const s3 = await side(page);
+      check(s3.text.indexOf("Practice: 1 of " + T) > -1 && s3.text.indexOf("Checks: 1 of " + N) > -1, "both counts are restored on reload: " + s3.text);
+      eq(errors, [], "no errors on the sidebar counts");
+      await context.close();
+    }
+    {
+      const { context, page, errors } = await open(browser, CH05, { "bm.lesson.v1": '{"mode":"steps"}' });
+      const top = () => page.evaluate(() => { var n = document.querySelector(".lesson-next"); return n ? n.getBoundingClientRect().top : null; });
+      const t0 = await top();
+      check(t0 !== null, "the Continue card is on the opening step");
+      await page.click(".puzzle .guess-chip");
+      const t1 = await top();
+      check(t0 !== null && t1 !== null && Math.abs(t1 - t0) <= 1, "picking a guess does not move the Continue card (" + t0 + " -> " + t1 + ")");
+      eq(errors, [], "no errors on the opening puzzle");
+      await context.close();
+    }
+    {
+      const { context, page, errors } = await open(browser, CH05, { "bm.lesson.v1": '{"mode":"page"}' }, { width: 390 });
+      const g = await page.evaluate(() => {
+        var ex = Array.prototype.filter.call(document.querySelectorAll("#practice .ex[data-kind='text']"), function (e) { return e.querySelector(".ex-show"); })[0];
+        var r = function (el) { var b = el.getBoundingClientRect(); return { l: b.left, r: b.right, t: b.top, b: b.bottom }; };
+        return { input: r(ex.querySelector(".ex-form > input")), check: r(ex.querySelector(".ex-form .btn:not(.ghost)")), show: r(ex.querySelector(".ex-show")) };
+      });
+      check(g.show.t >= g.input.b - 0.5, "on a phone, Show solution sits below the answer box");
+      check(g.show.l > g.check.r, "on a phone, Show solution is beside Check, not under the box's left half (" + g.show.l + " > " + g.check.r + ")");
+      eq(errors, [], "no errors on the phone row");
+      await context.close();
+    }
+
     /* ------------------------------- the theme choice with storage that throws */
     {
       const { context, page, errors } = await open(browser, "index.html", {}, { blockStorage: true });

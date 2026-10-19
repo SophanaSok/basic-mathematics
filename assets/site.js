@@ -832,6 +832,15 @@
     var total = scored.length;
     Progress.setTotal(chapterId, total);
 
+    /* the inline checks' keys, as the loop below assigns them (an id, else "i" + position) */
+    var checkKeys = [], inlineSeen = 0;
+    Array.prototype.forEach.call(exs, function (ex) {
+      if (!ex.hasAttribute("data-inline")) return;
+      inlineSeen++;
+      checkKeys.push(ex.id || "i" + inlineSeen);
+    });
+    var checkTotal = checkKeys.length;
+
     var scoreEl = document.querySelector("[data-practice-score]");
     var sideEl = document.querySelector("[data-side-progress]");
     function solvedCount() {
@@ -843,7 +852,18 @@
       if (sideEl && total) {
         sideEl.hidden = false;
         sideEl.querySelector(".bar span").style.width = Math.round((n / total) * 100) + "%";
-        sideEl.querySelector("p").textContent = n + " of " + total + " exercises solved";
+        sideEl.querySelector("p").textContent = "Practice: " + n + " of " + total + " solved";
+      }
+      if (sideEl && checkTotal) {
+        var done = 0;
+        checkKeys.forEach(function (k) { if (Attempts.get(chapterId, k).solved) done++; });
+        var cp = sideEl.querySelector(".side-checks");
+        if (!cp) {
+          cp = document.createElement("p");
+          cp.className = "side-checks";
+          sideEl.appendChild(cp);
+        }
+        cp.textContent = "Checks: " + done + " of " + checkTotal;
       }
     }
 
@@ -1237,6 +1257,7 @@
           (solution ? '<p class="ex-next hint">' + (solutionOpen || !fromStorage
             ? "The solution is open below. Compare your route with it."
             : "Open the solution below to compare your route.") + "</p>" : ""));
+        if (!fromStorage && inline) updateScore();
         if (!fromStorage && !inline) {
           var before = solvedCount();
           Progress.markSolved(chapterId, key);
