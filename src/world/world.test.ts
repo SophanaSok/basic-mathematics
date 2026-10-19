@@ -85,7 +85,7 @@ describe("each tier's budget", () => {
         form.group.scale.setScalar(MARKER_SCALE);
         const marker = form.group;
         const ring = new THREE.Mesh(new THREE.TorusGeometry(1.66, 0.03, 4, 28));
-        /* and the selected chapter's links (one line mesh) */
+        /* and the selected chapter's links (one mesh) */
         const links = buildLinks(T, L, 10, [8, 9], pal);
         const objects: Object3D[] = [still.mesh, still.edges, marks.mesh, marks.edges, marker, ring, links.mesh];
         if (still.puffs) objects.push(still.puffs.mesh);
@@ -116,25 +116,46 @@ describe("each tier's budget", () => {
   });
 });
 
+describe("the links ribbon", () => {
+  it("repaints the ink with the palette and leaves the halo", () => {
+    const pal = palette();
+    const links = buildLinks(T, L, 10, [8, 9], pal);
+    const col = links.mesh.geometry.attributes.color;
+    expect(col.count).toBe(links.segments * 12);
+    const rgb = (i: number) => [col.getX(i), col.getY(i), col.getZ(i)];
+    const halo0 = rgb(0), ink0 = rgb(6);
+    expect(halo0[0]).toBeCloseTo(pal.get("paper")!.r, 5);
+    expect(ink0).not.toEqual(halo0);
+    const pal2: PaletteMap = new Map(pal);
+    pal2.set("rink:" + L.isles[10].part, new THREE.Color(0.01, 0.02, 0.03));
+    links.paint(pal2);
+    expect(rgb(6)[0]).toBeCloseTo(0.01, 5);
+    expect(rgb(0)).toEqual(halo0);
+    links.dispose();
+  });
+});
+
 describe("the marker", () => {
-  it("draws the links as one line mesh, clears them, and frees them with the world", () => {
+  it("draws the links as one ribbon mesh, clears them, and frees them with the world", () => {
     vi.stubGlobal("window", { getComputedStyle: () => ({ getPropertyValue: () => "" }) });
     try {
       const probe = { querySelectorAll: () => [] } as unknown as Element;
       const world = createWorld(T, { course: C, motifs: MOT, probe, detail: 0 });
-      const count = () => world.scene.children.filter((o) => (o as THREE.LineSegments).isLineSegments && (o as THREE.LineSegments).material instanceof THREE.LineBasicMaterial && (o as THREE.LineSegments).renderOrder === 5).length;
+      const count = () => world.scene.children.filter((o) => (o as THREE.Mesh).isMesh && (o as THREE.Mesh).material instanceof THREE.MeshBasicMaterial && (o as THREE.Mesh).renderOrder === 5).length;
       expect(count()).toBe(0);
       world.setLinks(10, [8, 9]);
       expect(count()).toBe(1);
-      const mesh = world.scene.children.find((o) => (o as THREE.LineSegments).material instanceof THREE.LineBasicMaterial && (o as THREE.LineSegments).renderOrder === 5) as THREE.LineSegments;
-      expect(mesh.geometry.attributes.position.count).toBe(2 * 2 * (ARC_SEGMENTS / 2));
+      const mesh = world.scene.children.find((o) => (o as THREE.Mesh).material instanceof THREE.MeshBasicMaterial && (o as THREE.Mesh).renderOrder === 5) as THREE.Mesh;
+      const verts = 2 * (ARC_SEGMENTS / 2) * 2 * 6;
+      expect(mesh.geometry.attributes.position.count).toBe(verts);
+      expect(mesh.geometry.attributes.color.array.length).toBe(verts * 3);
       world.setLinks(11, [10]);
       expect(count()).toBe(1);
       world.setLinks(-1, []);
       expect(count()).toBe(0);
       world.setLinks(10, [9]);
       let freed = false;
-      (world.scene.children.find((o) => (o as THREE.LineSegments).material instanceof THREE.LineBasicMaterial && (o as THREE.LineSegments).renderOrder === 5) as THREE.LineSegments).geometry.addEventListener("dispose", () => { freed = true; });
+      (world.scene.children.find((o) => (o as THREE.Mesh).material instanceof THREE.MeshBasicMaterial && (o as THREE.Mesh).renderOrder === 5) as THREE.Mesh).geometry.addEventListener("dispose", () => { freed = true; });
       world.dispose();
       expect(count()).toBe(0);
       expect(freed).toBe(true);
