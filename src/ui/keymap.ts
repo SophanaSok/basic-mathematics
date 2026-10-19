@@ -232,7 +232,7 @@ export const BINDINGS: Binding[] = [
   { keys: ["s"], label: "Show or hide the solution", kinds: ["chapter"], where: ["card"], group: "Exercise" },
   { keys: ["1-9"], label: "Pick an option", kinds: ["chapter"], where: ["card"], group: "Exercise" },
   { keys: ["Esc"], label: "Leave the box, or drop the cursor", kinds: "all", where: ["card", "item"], group: "Move" },
-  { keys: ["←", "→"], label: "Previous or next chapter on the map", kinds: ["home"], where: "any", group: "Course map", stage: true },
+  { keys: ["← → ↑ ↓"], label: "Previous or next chapter on the map", kinds: ["home"], where: "any", group: "Course map", stage: true },
   { keys: ["Home", "End"], label: "First or last chapter", kinds: ["home"], where: "any", group: "Course map", stage: true },
   { keys: ["Enter"], label: "Open the chapter", kinds: ["home"], where: "any", group: "Course map", stage: true },
   { keys: ["Esc"], label: "Leave the map", kinds: ["home"], where: "any", group: "Course map", stage: true },

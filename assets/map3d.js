@@ -190,6 +190,7 @@ import { detectTier, readProbe, stepDown, lower, pixelRatio, TIERS, AMBIENT_MS, 
         '<p id="map3d-keys" class="visually-hidden">Arrow keys move along the path. Enter opens the chapter. Escape leaves the map.</p>' +
         '<p class="map3d-wait" aria-hidden="true">Loading the map…</p>' +
         '<div class="map3d-labels" aria-hidden="true"></div>' +
+        '<p class="map3d-keyhint" aria-hidden="true">Arrow keys move along the path · Enter opens · ? for all keys</p>' +
         '<ul class="map3d-legend" aria-hidden="true">' +
           '<li data-mark="ring"><i></i>Ring: practice solved</li>' +
           '<li data-mark="boss"><i></i>Solid: the boss, unsolved problems</li>' +
@@ -870,6 +871,10 @@ import { detectTier, readProbe, stepDown, lower, pixelRatio, TIERS, AMBIENT_MS, 
       e.preventDefault(); e.stopPropagation();
       var href = M.hot > -1 ? hrefFor({ isle: M.hot }) : null;
       if (href) go(href, e);
+      return;
+    } else if (k === "?") {
+      e.preventDefault(); e.stopPropagation();
+      if (window.BMKeys && window.BMKeys.open) window.BMKeys.open();
       return;
     } else if (k === "Escape") {
       e.preventDefault(); e.stopPropagation();

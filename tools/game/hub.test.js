@@ -587,6 +587,12 @@ async function run() {
       await page.keyboard.press("ArrowLeft");
       const h2 = await st();
       check(h.hot !== e1.hot && h.hot === h2.hot && h.hash === "#" + h.hot, "k2: Home selects the first island, and ArrowLeft stays there (" + h.hot + ")");
+      const ring = () => page.evaluate(() => getComputedStyle(document.querySelector("[data-map3d-stage]"), "::after").boxShadow);
+      check((await ring()) !== "none", "k1: the focus ring overlay is drawn while the stage is focused");
+      await page.keyboard.press("?");
+      check(await page.evaluate(() => document.getElementById("keys-sheet").open), "k7: ? on the focused stage opens the sheet");
+      await page.keyboard.press("Escape");
+      await page.locator("[data-map3d-stage]").focus();
       await page.keyboard.press("j");
       const kb = await page.evaluate(() => ({ c: !!window.BMKeys.cursor(), m: document.querySelectorAll("[data-keys-cursor]").length, onStage: document.activeElement.hasAttribute("data-map3d-stage") }));
       check(!kb.c && kb.m === 0 && kb.onStage, "k5: j moves no cursor with the stage focused (" + JSON.stringify(kb) + ")");
@@ -602,6 +608,7 @@ async function run() {
       check(ax.length === 0, "k8: axe finds no violation with the stage focusable (" + JSON.stringify(ax) + ")");
       /* k7: the sheet */
       await page.locator("body").click({ position: { x: 2, y: 2 } });
+      check((await ring()) === "none", "k1: the ring is gone when the stage is not focused");
       await page.keyboard.press("?");
       const groups = await page.evaluate(() => Array.prototype.map.call(document.querySelectorAll("#keys-sheet h3"), (x) => x.textContent));
       check(groups.indexOf("Course map") > -1, "k7: the ? sheet lists the Course map group (" + groups.join() + ")");
