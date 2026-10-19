@@ -2,8 +2,11 @@
    answers what just happened, as a mood, a pose from the form's pose sheet and a sparse
    caption. The companion UI reads it: arrival() when a page opens, react() for each bus
    event the caller maps to a Recent, and the throttle to keep captions rare. It never
-   touches the page or storage, never speaks of the streak, and never scolds: a quiet
+   touches the page or anything saved, never speaks of the streak, and never scolds: a quiet
    learner gets a welcome, not a reproach.
+
+   react() returns reaction null to mean "leave the companion as it is"; a content/rest
+   reaction means "relax" (the pose and mood go back to rest).
 
    Pure: everything comes in as plain data, so the tests can hand it any state. */
 
@@ -70,8 +73,9 @@ export function noteVerdict(t: Throttle, now: number): Throttle {
   return { lastSaid: t.lastSaid, lastVerdict: now };
 }
 export function canSay(t: Throttle, now: number): boolean {
-  const gap = t.lastSaid === 0 || now - t.lastSaid >= SAY_GAP_MS;
-  const quiet = t.lastVerdict === 0 || now - t.lastVerdict >= QUIET_AFTER_VERDICT_MS;
+  /* a clock that went backwards counts as allowed */
+  const gap = t.lastSaid === 0 || now < t.lastSaid || now - t.lastSaid >= SAY_GAP_MS;
+  const quiet = t.lastVerdict === 0 || now < t.lastVerdict || now - t.lastVerdict >= QUIET_AFTER_VERDICT_MS;
   return gap && quiet;
 }
 export function said(t: Throttle, now: number): Throttle {
@@ -105,8 +109,9 @@ export function arrival(input: MoodInput): Reaction {
   return REST();
 }
 
+/** reaction null: leave the companion as it is; a content/rest reaction: relax it */
 export function react(memory: MoodMemory, recent: Recent, input: MoodInput): { memory: MoodMemory; reaction: Reaction | null } {
-  const none = { memory, reaction: null };
+  const none: { memory: MoodMemory; reaction: Reaction | null } = { memory, reaction: null };
   if (input.calm) return none;
   const joy = (line: string | null, key: string | null): { memory: MoodMemory; reaction: Reaction | null } =>
     ({ memory, reaction: make("delighted", "delighted", line, key, null) });
@@ -121,8 +126,12 @@ export function react(memory: MoodMemory, recent: Recent, input: MoodInput): { m
         if (recent.tryNo === 1) return joy("First try.", "first-try");
         return { memory, reaction: REST() };
       }
-      const n = (memory.misses[recent.key] || 0) + 1;
-      const next: MoodMemory = { misses: Object.assign({}, memory.misses, { [recent.key]: n }) };
+      const seen = Object.hasOwn(memory.misses, recent.key) ? memory.misses[recent.key] : 0;
+      const n = seen + 1;
+      const misses: Record<string, number> = Object.create(null);
+      for (const k of Object.keys(memory.misses)) misses[k] = memory.misses[k];
+      misses[recent.key] = n;
+      const next: MoodMemory = { misses };
       const again = n === 2;
       return { memory: next, reaction: make("curious", "curious", again ? "Let's look again." : null, again ? "again" : null, null) };
     }
@@ -152,5 +161,6 @@ export function react(memory: MoodMemory, recent: Recent, input: MoodInput): { m
     case "form":
       return joy(recent.from + " became " + recent.to + "!", "form");
   }
-  return none;
+  const _never: never = recent;
+  return _never;
 }

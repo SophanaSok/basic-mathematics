@@ -79,6 +79,9 @@ import "../../assets/map3d.js";
 /* the contents page's List / Map control, drawn once the scripts above have run */
 import "../ui/hub-mode.ts";
 /* the "next best step" card, drawn once the scripts above have run */
+/* where each section stands and the one continue resolver (src/learn/status.ts): next.ts and plan.ts read it */
+import "../data/section-work.ts";
+import "../learn/status.ts";
 import "../learn/next.ts";
 import "../ui/next.ts";
 /* the first-run guide (shown once on a chapter page) and its replay button in the settings sheet */
