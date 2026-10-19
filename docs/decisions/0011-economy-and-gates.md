@@ -1,6 +1,6 @@
-# 0011: Economy and gates (R3) — proposed
+# 0011: Economy and gates (R3)
 
-## Decision (proposed)
+## Decision
 
 R3 of the master plan adds an earned currency ("facets"), a shop of procedural cosmetics, streak
 freezes, boss and region gates, and achievements re-aimed at learning behaviours. The design, with
@@ -30,20 +30,21 @@ This note **supersedes the sentence in 0007** that R2's forms come with "no new 
 system, no currency, no shop": that was R2's scope; the master plan's R3 (approved 2026-10-04)
 adds them, with the guardrail above.
 
-## Owner questions
+## The owner's answers (2026-10-18)
 
-- **Q1 Supersede 0007's "no currency, no shop".** (a) Yes, with 0001's guardrail kept; (b) no
-  currency: R3 ships gates, freezes and achievements only. Recommended: (a).
-- **Q2 Boss gates change `assets/encounter.js`'s promise that bosses are never locked.** (a) Sealed
-  presentation only, always fightable; (b) gate regions only, leave bosses unsealed. Recommended: (a).
-- **Q3 Daily cap on review facets.** (a) 25; (b) none; (c) 50. Recommended: (a).
-- **Q4 Overdraft after a merge.** (a) Allowed, nothing revoked, no new purchase while negative;
-  (b) revoke the later purchase. Recommended: (a).
-- **Q5 Where the shop lives.** (a) The progress page beside "Your form"; (b) the hub. Recommended: (a).
-- **Q6 Streak at-risk line.** (a) In-app only (the master plan's default); (b) an email digest too
-  (needs email delivery, not available). Recommended: (a).
+The owner took the recommended answer on every question, so each is now a rule:
 
-## What this changes (once decided)
+- **Q1** 0007's "no currency, no shop" is superseded: R3 adds facets and a shop, and 0001's
+  guardrail stands (facets are never purchasable).
+- **Q2** A boss gate seals presentation only; a boss is always fightable. `assets/encounter.js`'s
+  header is rewritten by the card that seals it.
+- **Q3** Review facets are capped at 25 a day.
+- **Q4** An overdraft after a merge is allowed; nothing is revoked; no new purchase while the
+  balance is negative.
+- **Q5** The shop and locker live on the progress page beside "Your form".
+- **Q6** The streak at-risk line is in-app only.
+
+## What this changes
 
 Nine cards, R3-0 (this note, final) to R3-9 (wording), listed in the design with their files and
 done-whens; one migration (three columns) applied by the owner's session after the client that
@@ -51,4 +52,6 @@ tolerates their absence is live (rule 5); `OPERATIONS.md` section 6 gains three 
 
 ## Status
 
-Proposed, 2026-10-18. Waits on the owner's answers to Q1 to Q6 before any card is briefed.
+Decided, 2026-10-18: the owner approved the recommended answers on Q1 to Q6. The first card,
+R3-1 `wallet-core` (the ledger, its merge laws and their property tests), can be briefed from
+the design.
