@@ -1345,12 +1345,12 @@
     }
   });
   function flyXp(ex, xp) {
-    if (still() || calm() || !ex || !ex.querySelector || !document.body || !document.body.animate) return;
+    if (still() || calm() || !ex || !ex.querySelector || !document.body || !document.body.animate) return false;
     var chip = ex.querySelector(".ex-reward"), bar = document.querySelector(".hud-xpbar");
-    if (!chip || !bar || !chip.getClientRects().length || !bar.getClientRects().length) return;
+    if (!chip || !bar || !chip.getClientRects().length || !bar.getClientRects().length) return false;
     var a = chip.getBoundingClientRect(), b = bar.getBoundingClientRect();
     /* a chip scrolled out of view (or under the sticky bar) has nowhere to lift off from */
-    if (a.bottom < 0 || a.top > (window.innerHeight || 0) || a.top < b.bottom) return;
+    if (a.bottom < 0 || a.top > (window.innerHeight || 0) || a.top < b.bottom) return false;
     var el = document.createElement("span");
     el.className = "xp-fly";
     el.setAttribute("aria-hidden", "true");
@@ -1371,7 +1371,7 @@
         { transform: "translate(0, 0) scale(1)", opacity: 1 },
         { transform: "translate(" + dx + "px, " + dy + "px) scale(.5)", opacity: .2 }
       ], { duration: dur, easing: ease, fill: "forwards" });
-    } catch (e) { if (el.parentNode) el.parentNode.removeChild(el); return; }
+    } catch (e) { if (el.parentNode) el.parentNode.removeChild(el); return false; }
     var done = false;
     function end(landed) {
       if (done) return;
@@ -1387,6 +1387,7 @@
     }
     anim.onfinish = function () { end(true); };
     anim.oncancel = function () { end(false); };
+    return true;
   }
   var STAMPS = { first: "First try", retry: "Solved", assisted: "With help" };
   function stamp(ex) {
@@ -1494,8 +1495,10 @@
       if (!c.inline && c.tryNo === 1 && (!c.correct || c.solutionOpen || c.faded)) onMiss();
       schedule();
     } else if (t === "xp") {
-      if (pendingEx && (c.why === "exercise" || c.why === "check")) { reward(pendingEx, c.xp); flyXp(pendingEx, c.xp); }
-      xpToast(c);
+      var flew = false;
+      if (pendingEx && (c.why === "exercise" || c.why === "check")) { reward(pendingEx, c.xp); flew = flyXp(pendingEx, c.xp); }
+      /* the chip, the pill and the bar flash already say "+N XP"; the card stays for what they do not: a combo, the daily goal, or no flight */
+      if (!flew || c.bonus || c.goalMet) xpToast(c);
       /* XP and the goal are carried until spoken, so a quick next answer cannot drop them */
       xpOwed += c.xp;
       goalOwed = goalOwed || !!c.goalMet;
