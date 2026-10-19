@@ -2350,6 +2350,21 @@ async function run() {
           const portrait = await page.$eval(".hud-pop .hud-pop-form", (e) => ({ bg: e.style.backgroundImage, hidden: e.getAttribute("aria-hidden"), size: getComputedStyle(e).backgroundSize }));
           check(/models\/forms\/form-2-poses\.webp/.test(portrait.bg) && portrait.hidden === "true", "the popover shows the worn form's pose sheet: " + portrait.bg);
           eq(portrait.size, "600% 100%", "the portrait shows one of the sheet's six frames");
+          /* a toast raised while the popover is open must not paint over it: park the toast on the popover's box */
+          await page.evaluate(() => {
+            const r = document.querySelector(".hud-pop").getBoundingClientRect();
+            window.BMToast("A toast over the popover", "");
+            const host = document.querySelector(".toasts"), t = host.querySelector(".toast");
+            host.style.cssText += ";left:" + r.left + "px;top:" + r.top + "px;right:auto;width:" + r.width + "px;max-width:none";
+            t.style.cssText += ";pointer-events:auto;min-height:" + r.height + "px";
+          });
+          await page.waitForSelector(".toasts .toast");
+          const covered = await page.evaluate(() => {
+            const r = document.querySelector(".hud-pop").getBoundingClientRect();
+            const e = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+            return { inPop: !!e && !!e.closest(".hud-pop"), tag: e && e.className };
+          });
+          check(covered.inPop, "a toast does not paint over the open popover: " + covered.tag);
           await page.waitForTimeout(300);
           const formReqs = await page.evaluate(() => [...new Set(performance.getEntriesByType("resource").map((e) => e.name).filter((u) => /\/models\/forms\//.test(u)).map((u) => u.replace(/^.*\/models\/forms\//, "")))]);
           eq(formReqs, ["form-2-poses.webp"], "the pose sheet is the only form request on a chapter page");
@@ -2386,6 +2401,17 @@ async function run() {
           check(page.url() === start && !!tab && /\/progress\.html/.test(tab.url()), "Ctrl+click opens progress.html in a new tab (" + (tab && tab.url()) + ")");
           eq(await page.$$eval(".hud-pop", (n) => n.length), 0, "Ctrl+click opens no popover");
           eq(errors, [], "no errors with the popover");
+          await context.close();
+        }
+        {
+          const { context, page, errors } = await open(browser, "parts/4-topics/16-determinants.html", seed);
+          await page.waitForSelector(".topbar .hud-level");
+          await page.click(".topbar .hud-level");
+          await page.waitForSelector(".hud-pop");
+          const portrait = await page.$eval(".hud-pop .hud-pop-form", (e) => ({ bg: e.style.backgroundImage, hidden: e.getAttribute("aria-hidden"), size: getComputedStyle(e).backgroundSize }));
+          check(/models\/forms\/form-2-poses\.webp/.test(portrait.bg) && portrait.hidden === "true", "a later Part's page: the popover shows the pose sheet: " + portrait.bg);
+          eq(portrait.size, "600% 100%", "a later Part's page: the portrait shows one of six frames");
+          eq(errors, [], "no errors with the popover on a later Part's page");
           await context.close();
         }
       }
