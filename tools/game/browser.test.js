@@ -309,6 +309,86 @@ async function run() {
       await context.close();
     }
 
+    /* ------------------ the boss bar follows the practice set (U-3) */
+    {
+      const { context, page, errors } = await open(browser, CH05, { "bm.lesson.v1": '{"mode":"page"}' });
+      await page.evaluate(() => {
+        window.__att = [];
+        window.BMStore.on(function (c) { if (c.type === "attempt") window.__att.push([c.correct, c.detector === undefined ? "undef" : c.detector]); });
+      });
+      const k = await page.evaluate(() => {
+        var all = Array.prototype.slice.call(document.querySelectorAll("#practice .ex"));
+        var ex = all.filter(function (e, i) { return i >= 5 && e.getAttribute("data-type") === "number" && /^[1-9]\d*$/.test(e.getAttribute("data-answer") || ""); })[0];
+        return ex && ex.getAttribute("data-key");
+      });
+      check(!!k, "ch05 has a whole-number exercise from the sixth on (" + k + ")");
+      const sel = '#practice .ex[data-key="' + k + '"]';
+      const bar = () => page.evaluate(() => {
+        var b = document.querySelector(".bossbar");
+        if (!b) return null;
+        return {
+          hidden: b.hidden, aria: b.getAttribute("aria-hidden"), inMain: !!b.closest("main"), html: document.documentElement.hasAttribute("data-bossbar"),
+          segs: b.querySelectorAll(".bossbar-seg").length, solved: b.querySelectorAll('.bossbar-seg[data-how="solved"],.bossbar-seg[data-how="first"]').length,
+          full: b.querySelectorAll(".bossbar-hearts i[data-full]").length, brk: b.querySelectorAll("i[data-break]").length,
+          hit: b.hasAttribute("data-hit"), say: b.querySelector(".bossbar-say").textContent
+        };
+      });
+      const toEx = () => page.evaluate((s) => { window.scrollTo({ top: document.querySelector(s).getBoundingClientRect().top + window.scrollY - 180, behavior: "instant" }); }, sel);
+      eq((await bar()).hidden, true, "at the top of the page the card is in view and the bar is hidden");
+      await toEx();
+      await wait(300);
+      const b0 = await bar();
+      eq([b0.hidden, b0.aria, b0.inMain, b0.html, b0.segs, b0.full], [false, "true", false, true, 10, 3], "with the card out of view the bar shows: aria-hidden, outside main, ten segments, three hearts");
+      await page.evaluate(() => window.scrollTo({ top: 0, behavior: "instant" }));
+      await wait(300);
+      eq((await bar()).hidden, true, "back at the top, hidden again");
+      await toEx();
+      await wait(300);
+      await page.fill(sel + " .ex-form input[type=text]", "-" + (await page.$eval(sel, (e) => e.getAttribute("data-answer").split("|")[0])));
+      await page.press(sel + " .ex-form input[type=text]", "Enter");
+      await wait(520);
+      const b1 = await bar();
+      eq([b1.full, b1.brk, b1.say], [2, 1, "A sign slipped past you. I like it that way."], "a sign slip: two hearts, one breaking, the sign taunt");
+      await wait(500);
+      await answer(page, sel, true);
+      await wait(520);
+      const b2 = await bar();
+      eq([b2.solved, b2.hit, b2.say], [b0.solved + 1, true, ""], "a right answer: one more segment, the hit, the taunt gone");
+      await wait(1100);
+      const b3 = await page.evaluate(() => ({ brk: document.querySelectorAll("[data-break]").length, hit: document.querySelectorAll("[data-hit]").length, fresh: document.querySelectorAll(".bossbar [data-fresh]").length }));
+      eq(b3, { brk: 0, hit: 0, fresh: 0 }, "the break, hit and fresh marks clear on their own");
+      eq(await page.evaluate(() => window.__att), [[false, "sign"], [true, null]], "the attempt event carries the detector, null when right");
+      eq(errors, [], "no errors with the boss bar");
+      await context.close();
+    }
+
+    {
+      const { context, page } = await open(browser, CH05, { "bm.lesson.v1": '{"mode":"page"}', "bm.prefs.v1": '{"calm":true}' });
+      const seen = [];
+      for (const y of [0, 900, 2200, 4000, 6000]) {
+        await page.evaluate((y) => window.scrollTo({ top: y, behavior: "instant" }), y);
+        await wait(250);
+        seen.push(await page.evaluate(() => { var b = document.querySelector(".bossbar"); return !b || b.hidden; }));
+      }
+      eq(seen, [true, true, true, true, true], "Study mode: the boss bar is hidden at every scroll position");
+      await context.close();
+    }
+
+    {
+      const { context, page } = await open(browser, CH05, { "bm.lesson.v1": '{"mode":"page"}' });
+      await page.emulateMedia({ reducedMotion: "reduce" });
+      await page.evaluate(() => { document.documentElement.setAttribute("data-motion", "reduce"); });
+      const sel = '#practice .ex[data-key="e7"]';
+      await page.evaluate((s) => { window.scrollTo({ top: document.querySelector(s).getBoundingClientRect().top + window.scrollY - 180, behavior: "instant" }); }, sel);
+      await wait(300);
+      await answer(page, sel, true);
+      await wait(520);
+      check(await page.evaluate(() => !document.querySelector(".bossbar").hidden), "reduced motion: the bar is shown");
+      await wait(100);
+      eq(await page.evaluate(() => document.getAnimations().filter((a) => a.effect && a.effect.target && a.effect.target.closest && a.effect.target.closest(".bossbar")).length), 0, "reduced motion: the bar runs no animation after a solve");
+      await context.close();
+    }
+
     /* ------------------------------------------------------ 4: calm mode */
     {
       const { context, page, errors } = await open(browser, CH05, { "bm.lesson.v1": '{"mode":"page"}', "bm.prefs.v1": '{"calm":true,"sound":true}' });
@@ -877,6 +957,67 @@ async function run() {
       check(await page.$(".banner-meta svg.icon-star") !== null, "the banner's missions stat draws the star icon");
       eq(errors, [], "no errors in the toast and hearts run");
       await context.close();
+    }
+
+    /* ------------------- card U-2: rewards land top-right, the XP pill flies, the level card says what is next */
+    {
+      const seed = { "bm.lesson.v1": '{"mode":"page"}', "bm.activity.v1": JSON.stringify({ days: { [dayAgo(0)]: 20 }, goal: 500 }), "bm.run.v1": JSON.stringify({ seen: { level: 1, ach: 1 } }) };
+      for (const w of [1280, 400]) {
+        const { context, page, errors } = await open(browser, CH05, seed, { width: w });
+        await answer(page, '#practice .ex[data-key="e1"]', true);
+        await wait(200);
+        const g = await page.evaluate(() => {
+          var t = document.querySelector(".toasts").getBoundingClientRect(), bar = document.querySelector(".topbar").getBoundingClientRect();
+          return { top: t.top, right: t.right, left: t.left, barBottom: bar.bottom, vw: window.innerWidth,
+            n: document.querySelectorAll(".toast:not([data-out])").length, first: document.querySelector(".toast").textContent };
+        });
+        check(g.top >= g.barBottom - 1, w + "px: the toast stack starts under the top bar (" + g.top + " vs " + g.barBottom + ")");
+        eq(g.n, 2, w + "px: two toasts after one right answer");
+        check(/\+\d+ XP/.test(g.first), w + "px: the XP card is first");
+        if (w === 1280) check(g.vw - g.right <= 24 && g.vw - g.right >= 0, "1280px: the stack's right edge is within 24px of the viewport (" + (g.vw - g.right) + ")");
+        else check(g.left <= 17 && g.vw - g.right <= 17, "400px: the stack spans the width under the HUD (" + g.left + ", " + (g.vw - g.right) + ")");
+        if (w === 1280) {
+          const lv = await page.evaluate(() => { var c = document.querySelector(".toast.level"); return c && { kicker: c.querySelector(".toast-kicker").textContent, rank: c.querySelector("b").textContent, text: c.querySelector(".toast-text").textContent }; });
+          check(lv && lv.kicker === "Level 2" && lv.rank.length > 0 && /^\d+ XP to level 3\.$/.test(lv.text), "the level card holds the kicker, the rank and what is next (" + JSON.stringify(lv) + ")");
+        }
+        eq(errors, [], "no errors in the U-2 toast run at " + w);
+        await context.close();
+      }
+      /* the pill flies with motion, and never exists without it */
+      {
+        const { context, page, errors } = await open(browser, CH05, seed);
+        await page.evaluate(() => {
+          window.__fly = 0; window.__flash = 0;
+          setInterval(function () {
+            if (document.querySelector(".xp-fly")) window.__fly++;
+            if (document.querySelector(".hud-xpbar[data-flash]")) window.__flash++;
+          }, 10);
+        });
+        await answer(page, '#practice .ex[data-key="e1"]', true);
+        await wait(100);
+        check(await page.evaluate(() => window.__fly > 0), "an .xp-fly is on screen within 100 ms of a right answer");
+        await wait(1300);
+        const e = await page.evaluate(() => ({ fly: document.querySelectorAll(".xp-fly").length, flash: window.__flash }));
+        eq(e.fly, 0, "the pill is gone within 1.2 s");
+        check(e.flash > 0, "the HUD XP bar flashed when it landed");
+        eq(errors, [], "no errors in the XP flight run");
+        await context.close();
+      }
+      {
+        const { context, page, errors } = await open(browser, CH05, Object.assign({}, seed, { "bm.prefs.v1": JSON.stringify({ motion: "reduce" }) }));
+        check(await page.evaluate(() => document.documentElement.getAttribute("data-motion") === "reduce"), "the seeded preference sets html[data-motion=reduce]");
+        await page.evaluate(() => {
+          window.__fly = 0;
+          new MutationObserver(function (ms) { ms.forEach(function (m) { m.addedNodes.forEach(function (n) { if (n.classList && n.classList.contains("xp-fly")) window.__fly++; }); }); })
+            .observe(document.body, { childList: true, subtree: true });
+        });
+        await answer(page, '#practice .ex[data-key="e1"]', true);
+        await wait(100);
+        const r = await page.evaluate(() => ({ fly: window.__fly, anims: document.getAnimations().length }));
+        eq(r, { fly: 0, anims: 0 }, "under reduced motion no pill is made and nothing animates");
+        eq(errors, [], "no errors in the reduced-motion run");
+        await context.close();
+      }
     }
 
     /* ------------------------- the sheet carries theme and account, on a phone and wide */
