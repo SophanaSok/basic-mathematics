@@ -3,7 +3,7 @@
    built site (dist/, which must be current):
      node tools/game/companion.test.js
    Chapter page parts/1-algebra/01-numbers.html; 2D only, no WebGL.
-   1. first visit: the intro line, seen.companion is 1, the live region says it, a reload is silent
+   1. first visit: the intro line, seen.companion is 1, the live region does not say it, a reload is silent
    2. mounted in the sidebar with form-1-poses.webp, rest pose, "Pip"; no GLB, model script or Three.js
    3. a correct first-try answer: delighted pose; "First try." at once, then it settles to rest
    4. a wrong answer: curious, no line; a second: "Let's look again." at once
@@ -142,7 +142,9 @@ async function run() {
       const c = await open(seeds({}, { intro: true }));
       eq((await st(c.page)).line, LINES.intro, "intro: the line shows on a first visit");
       eq((await runOf(c.page)).seen.companion, 1, "intro: seen.companion becomes 1");
-      check(await until(c.page, (t) => (document.querySelector("#bm-live") || {}).textContent.indexOf(t) > -1, LINES.intro, 6000), "intro: the live region carries the line");
+      /* the page's own first words keep the live region at load: the intro is shown, never announced */
+      await wait(2500);
+      check(await c.page.evaluate((t) => ((document.querySelector("#bm-live") || {}).textContent || "").indexOf(t) < 0, LINES.intro), "intro: the live region does not carry the line");
       await c.page.reload({ waitUntil: "load" });
       await until(c.page, () => window.BMCompanion && window.BMCompanion.state().mounted, null, 10000);
       await wait(300);   /* an intro, if one were coming, would be said by now */
