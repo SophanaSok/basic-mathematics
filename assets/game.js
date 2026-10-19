@@ -1334,6 +1334,16 @@
     ex.insertBefore(span, numEl ? numEl.nextSibling : ex.firstChild);
   }
   /* the +N XP chip lifts off and travels to the HUD's XP bar; nothing at all when motion is off */
+  var flashTimer = 0;
+  if (document.addEventListener) document.addEventListener("visibilitychange", function () {
+    if (!document.hidden) return;
+    var left = document.querySelectorAll(".xp-fly");
+    for (var i = 0; i < left.length; i++) {
+      var f = left[i], anims = f.getAnimations ? f.getAnimations() : [];
+      if (anims.length) anims.forEach(function (a) { a.cancel(); });
+      if (f.parentNode) f.parentNode.removeChild(f);
+    }
+  });
   function flyXp(ex, xp) {
     if (still() || calm() || !ex || !ex.querySelector || !document.body || !document.body.animate) return;
     var chip = ex.querySelector(".ex-reward"), bar = document.querySelector(".hud-xpbar");
@@ -1363,18 +1373,20 @@
       ], { duration: dur, easing: ease, fill: "forwards" });
     } catch (e) { if (el.parentNode) el.parentNode.removeChild(el); return; }
     var done = false;
-    function end() {
+    function end(landed) {
       if (done) return;
       done = true;
       if (el.parentNode) el.parentNode.removeChild(el);
-      if (still()) return;
+      /* a cancelled flight (the tab went away) never landed, so the bar does not flash */
+      if (still() || landed !== true) return;
       bar.removeAttribute("data-flash");
       void bar.offsetWidth;
       bar.setAttribute("data-flash", "");
-      setTimeout(function () { bar.removeAttribute("data-flash"); }, 300);
+      clearTimeout(flashTimer);
+      flashTimer = setTimeout(function () { bar.removeAttribute("data-flash"); }, 300);
     }
-    anim.onfinish = end;
-    anim.oncancel = end;
+    anim.onfinish = function () { end(true); };
+    anim.oncancel = function () { end(false); };
   }
   var STAMPS = { first: "First try", retry: "Solved", assisted: "With help" };
   function stamp(ex) {
@@ -1417,7 +1429,7 @@
     if (!host || !ch || !Progress || !Play) return;
     var html = '<span class="banner-stat"><b>' + ch.sections.length + "</b> sections</span>";
     var c = Progress.count(ch.id);
-    if (c.total) html += '<span class="banner-stat"><b>' + Math.min(c.solved, c.total) + " / " + c.total + "</b> solved</span>";
+    if (c.total) html += '<span class="banner-stat">Practice <b>' + Math.min(c.solved, c.total) + " / " + c.total + "</b></span>";
     var m = medal(ch.id, "practice");
     if (m) html += '<span class="banner-stat" data-medal="' + m + '">' + starsHtml(m, true) + " " + MEDALS[m] + " medal</span>";
     var miss = Play.count(ch.id);

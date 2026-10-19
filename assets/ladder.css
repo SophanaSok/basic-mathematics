@@ -83,3 +83,6 @@
 .ex-support { margin: .2rem 0 .7rem; padding: .5rem .8rem; border-left: 3px solid var(--border-strong); background: var(--surface-2); border-radius: var(--radius); font-size: .95rem; color: var(--text); }
 .ex-support .btn { margin-left: .4rem; }
 @media print { .ex-support { display: none !important; } }
+
+/* a narrow screen drops the "(1 of 2)" suffix; the button's aria-label keeps the full text */
+@media (max-width: 400px) { .ex-clue-btn .ex-clue-of { display: none; } }

@@ -345,6 +345,8 @@ export function mount(opts: LadderOptions): LadderController {
       return;
     }
     button.innerHTML = html;
+    /* the "(1 of 2)" suffix is hidden on a narrow screen; the name keeps it */
+    button.setAttribute("aria-label", (button.textContent || "").replace(/\s+/g, " ").trim());
   }
 
   /* the card, once, after the verdict; focus stays where it is */

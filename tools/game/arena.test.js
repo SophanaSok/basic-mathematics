@@ -340,6 +340,16 @@ async function run() {
       eq((await runStore(p2)).daily.ended, "banked", "a banked Daily is kept as the day's attempt");
       await c2.close();
 
+      /* banked before any answer: the lead says so instead of "0 of 0" */
+      const c2b = await ctx(browser);
+      const p2b = await open(c2b, errors, "arena.html", {}, true);
+      await p2b.click('[data-act="start"][data-mode="daily"]');
+      await p2b.goto(url("arena.html"));
+      await p2b.click('[data-act="bank"]');
+      const lead0 = await p2b.$eval(".arena-result .arena-lead", (e) => e.textContent);
+      check(/No questions answered\./.test(lead0) && !/0 of 0/.test(lead0), "a run banked before any answer says no questions were answered (" + lead0 + ")");
+      await c2b.close();
+
       /* played on another device: the synced record alone spends it */
       const c3 = await ctx(browser);
       const p3 = await open(c3, errors, "arena.html", {}, true);

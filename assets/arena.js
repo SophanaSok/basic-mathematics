@@ -1464,7 +1464,7 @@
       " · " + esc(TEMPO_LABEL[res.tempo] || "") + " tempo</p>";
     html += '<h2 id="arena-result-h" tabindex="-1">' + title + "</h2>";
     var wInfo = weak.length ? secInfo(weak[0].id) : null;
-    html += '<p class="arena-lead" data-step="1"><span><b>' + res.firstTry + " of " + res.n + "</b> right the first time" +
+    html += '<p class="arena-lead" data-step="1"><span>' + (res.n === 0 ? "No questions answered." : "<b>" + res.firstTry + " of " + res.n + "</b> right the first time") +
       (weak.length ? " · weakest <b>" + esc(secName(weak[0].id)) + "</b>" : "") + "</span>" +
       (wInfo ? '<a class="btn small" href="' + esc(root() + wInfo.path) + '">Reread ' + esc(wInfo.label) + "</a>" : "") + "</p>";
     html += '<p class="arena-bigscore" data-step="2"><b>' + cnt(res.score) + "</b> points" +
@@ -1536,7 +1536,7 @@
     /* the short reveal: the rows above are already final, so this only dresses them; it plays
        once per run, never on a result put back after a reload (src/ui/results.ts) */
     if (window.BMResults) window.BMResults.playResults(screenEl().querySelector(".arena-result"), { key: runId(run), restored: !!restored, heading: h });
-    say(title + ". " + res.firstTry + " of " + res.n + " right the first time. " + res.score + " points, " + res.xp + " XP." +
+    say(title + ". " + (res.n ? res.firstTry + " of " + res.n + " right the first time. " : "No questions answered. ") + res.score + " points, " + res.xp + " XP." +
       (res.reduced && res.reduced.length ? " Less XP than usual for a section practiced a lot today; spaced practice tomorrow counts more." : "") +
       (weak.length ? " Worth rereading: " + secName(weak[0].id) + "." : ""));
   }

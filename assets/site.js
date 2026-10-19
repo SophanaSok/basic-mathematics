@@ -1174,6 +1174,7 @@
         solution.setAttribute("data-show", "true");
         showBtn.textContent = "Hide solution";
         showBtn.removeAttribute("data-suggested");
+        solvedHint("The solution is open below. Compare your route with it.");
         /* for a put-in-order question the solution is the order itself */
         if (orderList) orderItems.forEach(function (li) { orderList.appendChild(li); });
         /* opening the solution before solving is worth knowing about */
@@ -1191,6 +1192,13 @@
         if (!solution) return;
         solution.removeAttribute("data-show");
         showBtn.textContent = "Show solution";
+        solvedHint("Open the solution below to compare your route.");
+      }
+      /* a solved card's hint line follows the solution; nothing else in the feedback changes */
+      function solvedHint(text) {
+        if (ex.getAttribute("data-state") !== "correct") return;
+        var line = feedback.querySelector(".ex-next.hint");
+        if (line && /compare your route/i.test(line.textContent)) line.textContent = text;
       }
       showBtn.addEventListener("click", function () {
         if (solution.getAttribute("data-show") === "true") hide(); else reveal();

@@ -602,6 +602,11 @@ async function run() {
       const sh = await solShown(E1);
       eq([sh.show, sh.btn], ["true", "Hide solution"], "the solution opened by itself");
       check(/The solution is open below\. Compare your route with it\./.test(sh.line), "the line says the solution is open (" + sh.line + ")");
+      /* hiding it by hand changes the hint line; showing it again changes it back */
+      await page.click(E1 + " .ex-show");
+      check(/Open the solution below to compare your route\./.test((await solShown(E1)).line), "hiding the auto-opened solution turns the line into an invitation");
+      await page.click(E1 + " .ex-show");
+      check(/The solution is open below\./.test((await solShown(E1)).line), "and showing it again says it is open");
       const rec = await page.evaluate(() => JSON.parse(localStorage.getItem("bm.attempts.v1")).ch05.e1);
       check(rec.solved && !rec.opened, "no solution-opened-first mark in the attempt record: " + JSON.stringify(rec));
       await view(E1, "in");
