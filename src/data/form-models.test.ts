@@ -38,9 +38,7 @@ describe("FORM_MODELS", () => {
 
   it("names a pose sheet for its own stage", () => {
     for (const m of FORM_MODELS) {
-      expect(m.poses.startsWith("models/forms/")).toBe(true);
-      expect(m.poses.endsWith("-poses.webp")).toBe(true);
-      expect(m.poses).toContain("form-" + m.n + "-");
+      expect(m.poses).toBe("models/forms/form-" + m.n + "-poses.webp");
     }
   });
 

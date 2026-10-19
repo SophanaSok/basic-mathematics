@@ -452,7 +452,7 @@ function refusal(fn) { try { fn(); return null; } catch (e) { return e.message; 
       const pngNamedPoses = Buffer.concat([Buffer.from("89504e470d0a1a0a", "hex"), Buffer.alloc(40)]);
       const probs = (name, files, embedded) => fm2.entryProblems(room(name, files, embedded), path.join(base, name)).join("\n");
       /* the pose sheet: the room's own sheet passes; a changed sheet or entry fails */
-      const poseProbs = (name, change) => { const e = room(name); const dir = path.join(base, name, "public/models/forms"); const r = change(e, path.join(dir, "form-1-poses.webp")); return fm2.entryProblems(e, path.join(base, name)).join("\n"); };
+      const poseProbs = (name, change) => { const e = room(name); const dir = path.join(base, name, "public/models/forms"); change(e, path.join(dir, "form-1-poses.webp")); return fm2.entryProblems(e, path.join(base, name)).join("\n"); };
       check(!/poses/.test(probs("posesok")), "form-models: a 1536x320 pose sheet within the cap passes");
       check(/form 1: has no poses sheet/.test(poseProbs("noposes", e => { delete e.poses; })), "form-models: an entry with no poses field fails");
       check(/form 1: models\/forms\/form-1-poses.webp does not exist/.test(poseProbs("gonposes", (e, f) => { fs.unlinkSync(f); })), "form-models: a missing pose sheet fails");
