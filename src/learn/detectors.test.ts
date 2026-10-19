@@ -2,9 +2,13 @@ import fs from "node:fs";
 import path from "node:path";
 import vm from "node:vm";
 import { createRequire } from "node:module";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { candidates, detect, ORDER, QUESTIONS, type DetectInput, type DetectorId } from "./detectors.ts";
 import { core } from "../ui/core.ts";
+
+/* the two course-wide loops below take 30 s alone and longer beside a browser suite on this
+   box: the limit is per file, well clear of what a loaded machine needs */
+vi.setConfig({ testTimeout: 180000 });
 
 /* ------------------------------------------------- the site's own grading -- */
 

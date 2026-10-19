@@ -29,6 +29,7 @@ import { COURSE_LABELS, CONTAINERS, skillOf as realSkillOf, type Course } from "
 import { PLAN_REVIEW_ITEMS, PLAN_START_ITEMS, DIAG_HOLD_FROM } from "./constants.ts";
 import { L, PRE, isPlaceable } from "./diagnostic.ts";
 import { perOf } from "./diag-seed.ts";
+import { doneForPlan, isReadOnly, type DoneContext, type PlanRow } from "./status.ts";
 
 /** A section's mark in the plan. */
 export type PlanTag = "missed" | "skim-shown" | "not-asked-skim" | "not-asked-work" | "not-asked";
@@ -53,7 +54,7 @@ export interface PlanPack {
 
 /** The most packs the plan lists. */
 export const PLAN_PACK_ITEMS = 3;
-export interface PlanRow { solved: number }
+export type { PlanRow };
 
 export interface PlanInput {
   /** the latest readable take (latestTake), or null */
@@ -159,28 +160,16 @@ export function planOf(input: PlanInput): Plan | null {
   });
   const secs = (c: Course): SectionRef[] => inCourse.get(c) ?? [];
 
-  /* the last index in reading order with an attempt row, for the reading sections */
+  const idx = new Map<SectionRef, number>();
+  input.refs.forEach((r, i) => idx.set(r, i));
+  const doneCtx: DoneContext = { refs: input.refs, status: input.status, row: input.row, work, hasGenerator: gen };
+  const isRead = (r: SectionRef) => isReadOnly(doneCtx, r);
+  const done = (r: SectionRef): boolean => doneForPlan(doneCtx, r);
+  /* rows for the packs, read once */
   const rows = new Map<SectionRef, PlanRow | null | undefined>();
   const rowOf = (r: SectionRef) => {
     if (!rows.has(r)) rows.set(r, input.row(r));
     return rows.get(r);
-  };
-  let lastRow = -1;
-  input.refs.forEach((r, i) => { if (rowOf(r)) lastRow = i; });
-  const idx = new Map<SectionRef, number>();
-  input.refs.forEach((r, i) => idx.set(r, i));
-  const isRead = (r: SectionRef) => !gen(r) && ws(r) === 0;
-  /* memoized: BMGame.sectionStatus rebuilds every section row per call */
-  const doneMemo = new Map<SectionRef, boolean>();
-  const done = (r: SectionRef): boolean => {
-    const known = doneMemo.get(r);
-    if (known !== undefined) return known;
-    let d: boolean;
-    if (isRead(r)) d = lastRow > idx.get(r)!;
-    else if (input.status(r) === "solid") d = true;
-    else { const w = ws(r), row = rowOf(r); d = w > 0 && !!row && row.solved >= w; }
-    doneMemo.set(r, d);
-    return d;
   };
 
   const item = (r: SectionRef, tag: PlanTag | null = null): PlanItem => {
