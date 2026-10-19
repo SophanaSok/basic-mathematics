@@ -131,9 +131,12 @@ html[data-world] .map3d:empty::after {
 }
 .map3d-legend li { display: flex; align-items: center; gap: .4rem; }
 .map3d-legend i { flex: none; display: inline-block; width: .6rem; height: .6rem; box-sizing: border-box; }
-.map3d-legend [data-mark="ring"] i { border: 2px solid var(--accent); border-radius: 50%; }
-.map3d-legend [data-mark="boss"] i { background: var(--text); border-radius: 2px; }
-.map3d-legend [data-mark="beacon"] i { width: .25rem; height: .8rem; background: var(--accent); border-radius: 2px; margin: 0 .175rem; }
+/* each glyph takes the token the world draws that mark with (src/world/marks.ts): the ring and the
+   flag in --ok, the boss in the Part's --part-deep, the beacon in the Part's --region-glow; the
+   stage carries the shown Part (data-part), so the Part tokens resolve to its hues */
+.map3d-legend [data-mark="ring"] i { border: 2px solid var(--ok); border-radius: 50%; }
+.map3d-legend [data-mark="boss"] i { background: var(--part-deep); border-radius: 2px; }
+.map3d-legend [data-mark="beacon"] i { width: .25rem; height: .8rem; background: var(--region-glow); border-radius: 2px; margin: 0 .175rem; }
 .map3d-legend [data-mark="flag"] i { background: var(--ok); clip-path: polygon(0 0, 100% 30%, 0 60%); height: .8rem; }
 html[data-calm] .map3d-legend [data-mark="boss"], html[data-calm] .map3d-legend-sr [data-mark="boss"] { display: none; }
 @media (max-width: 640px) { .map3d-legend { display: none; } }
