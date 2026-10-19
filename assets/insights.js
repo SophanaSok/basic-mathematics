@@ -196,9 +196,9 @@
   /* the groups the achievements are shown in, by catalogue id; an id not listed lands in "Other",
      so a new achievement never vanishes (tools/game/rules.test.js checks every id is listed) */
   var ACH_GROUPS = [
-    ["Habits and streaks", ["streak-3", "streak-7", "streak-30", "regular", "returning-champion"]],
+    ["Habits and streaks", ["streak-3", "streak-7", "streak-30", "regular", "returning-champion", "hands-off"]],
     ["First try and accuracy", ["first-light", "steady-hand", "sure-hand", "full-meter", "second-wind", "flawless"]],
-    ["Careful study", ["second-opinion", "studied", "committed", "hands-on", "no-stone", "hands-off"]],
+    ["Careful study", ["second-opinion", "studied", "committed", "hands-on", "no-stone"]],
     ["Arena", ["took-your-time", "under-par", "personal-best", "boss-down", "mixed-bag", "echo-hunter"]],
     ["Review and repair", ["comeback", "rebuilder", "keeper"]],
     ["Completion", ["region-cleared", "ground-up"]]
@@ -226,7 +226,7 @@
       return list.length ? '<h3 class="ach-group">' + esc(name) + '</h3><ul class="achievements">' +
         list.map(function (id) { return cards[id]; }).join("") + "</ul>" : "";
     }
-    var body = group("Nearest", near);
+    var body = group("Closest to done", near);
     ACH_GROUPS.forEach(function (g) { body += group(g[0], g[1]); });
     body += group("Other", Game.ACHIEVEMENTS.map(function (a) { return a.id; }));
     return '<section class="panel" id="achievements"><div class="panel-head"><h2>Achievements</h2>' +
@@ -385,7 +385,11 @@
     drawProgress();
     /* src/ui/next.ts comes after this file in the entry: once the page's scripts have run, draw again
        so "Your next steps" has the reader's real items rather than the two fixed ones */
-    if (!window.BMNext) document.addEventListener("DOMContentLoaded", function () { if (window.BMNext) drawProgress(); });
+    if (!window.BMNext) {
+      var again = function () { if (window.BMNext) drawProgress(); };
+      if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", again);
+      else setTimeout(again, 0);
+    }
     Store.on(function (c) {
       if (c.type === "sync" || c.type === "reset" || c.type === "achievement" || c.type === "level") drawProgress();
     });

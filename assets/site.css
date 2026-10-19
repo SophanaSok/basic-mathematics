@@ -936,7 +936,7 @@ body:not([data-part]) .lesson-progress span { background: var(--frame-accent); }
 
 /* the game layer's tiles and lists on the progress page (assets/insights.js) */
 .stat[data-level] { border-color: color-mix(in srgb, var(--xp-ink) 45%, var(--border)); box-shadow: inset 4px 0 0 var(--xp); }
-.stat[data-on="true"] { border-color: color-mix(in srgb, var(--xp-ink) 45%, var(--border)); box-shadow: inset 4px 0 0 var(--xp); }
+.stat[data-on="true"] { border-color: color-mix(in srgb, var(--flame) 45%, var(--border)); box-shadow: inset 4px 0 0 var(--flame); }
 #recall .stats { margin-bottom: 1rem; }
 td.cell-medal[data-medal] span { color: var(--xp-ink); letter-spacing: .05em; }
 .ach-group { margin: 1.4rem 0 .6rem; font-family: var(--display); font-size: .72rem; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); }

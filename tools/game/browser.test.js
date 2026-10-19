@@ -1066,7 +1066,7 @@ async function run() {
       check(f.hrefs[0].endsWith("parts/1-algebra/01-numbers.html") && f.hrefs[1].endsWith("diagnostic.html"), "fresh: the next steps link to Chapter 1 and the check");
       eq([f.chips, f.chart, /^Active on 0 days/.test(f.note)], [4, false, true], "fresh: goal chips and the note stay, the chart is gone");
       eq(f.ach, 28, "fresh: 28 achievements");
-      check(!f.groups.includes("Nearest") && !f.groups.includes("Other"), "fresh: no Nearest and no Other group");
+      check(!f.groups.includes("Closest to done") && !f.groups.includes("Other"), "fresh: no Closest to done and no Other group");
       eq(f.groups, ["Habits and streaks", "First try and accuracy", "Careful study", "Arena", "Review and repair", "Completion"], "fresh: the group headings in order");
       eq(errors, [], "no errors on a fresh progress page");
       await context.close();
@@ -1089,7 +1089,7 @@ async function run() {
       }));
       eq([g.chart, g.next, g.chips], [true, false, 4], "active on 3 days: the chart is back, the next steps are gone");
       eq(g.ach, 28, "seeded: still 28 achievements");
-      eq(g.groups, ["Nearest", "Habits and streaks", "First try and accuracy", "Careful study", "Arena", "Review and repair", "Completion"], "seeded: Nearest first, then the groups in order");
+      eq(g.groups, ["Closest to done", "Habits and streaks", "First try and accuracy", "Careful study", "Arena", "Review and repair", "Completion"], "seeded: Closest to done first, then the groups in order");
       eq(g.near[0], "steady-hand", "seeded: steady-hand leads Nearest");
       check(g.near.length >= 1 && g.near.length <= 3, "seeded: Nearest lists at most three");
       eq(g.steady, 1, "seeded: steady-hand appears once");
