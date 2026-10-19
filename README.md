@@ -332,7 +332,8 @@ fetched on that page only and only once its form view nears the screen: `bundle/
 they cost, with the sizes measured when they landed, is in
 [`docs/decisions/0008-form-models.md`](docs/decisions/0008-form-models.md). So no
 stylesheet, script or font of a page comes from another server (`npm run check:dist`,
-`offline`), and the browser checks fail any page that asks one for anything.
+`offline`), and the browser checks fail any page that asks one for anything. The pose sheets are the one model file a chapter page fetches: a 35-54 KB WebP per
+stage, `public/models/forms/form-<n>-poses.webp`, drawn by the companion.
 
 **Third-party licences.** What the bundle holds that is not the site's own is published under its
 package's licence: KaTeX, supabase-js (and what supabase-js depends on) and Three.js under MIT,
@@ -380,8 +381,10 @@ src/vendor/fonts.css    Inter, Newsreader and Bricolage Grotesque from the fonts
 src/vendor/supabase.js  supabase-js from npm, imported on demand by assets/account.js: bundle/supabase.js
 src/vendor/three.js     Three.js from npm, the names the site uses, imported on demand by assets/three-loader.js: bundle/three.js
 src/vendor/three-model.js  Three's GLTF loader and room environment, imported on demand by src/model/: bundle/three-model.js
+src/learn/mood.ts       the companion's mood model: events in, a mood and a caption out; no DOM, with its Vitest test
+src/ui/companion.ts     the companion in the chapter pages' sidebar: a 2D still from the pose sheet, captions, the Companion switch
 src/model/              the form models' loader, look and clips, imported on demand by src/ui/form-view.ts: bundle/form-model.js
-public/models/forms/    the five GLB models, their two baked WebP textures each and their PNG thumbnails, written (with the manifest `src/data/form-models.ts`) by tools/gen-forms.js;
+public/models/forms/    the five GLB models, their two baked WebP textures each, their PNG thumbnails and the pose sheets, written (with the manifest `src/data/form-models.ts`) by tools/gen-forms.js;
                         served under /models/* with the revalidate rule
 src/styles/tokens.css   every colour, duration and shape token: the paper (light, and the dark panel a
                         reader can choose), the frame (each theme), the four Parts and their 3D
@@ -842,6 +845,12 @@ The files:
   marker and the fallback), `setForm` in `src/world/index.ts` stands it on the current island
   in place of the marker, and `src/ui/forms.ts`, `src/ui/form-view.ts` and `src/world/form-scene.ts`
   show it on the progress page, and `src/ui/form-unlock.ts` (every page) records a stage reached in `form.got` and announces it once. Decision: [`docs/decisions/0007-evolving-forms.md`](docs/decisions/0007-evolving-forms.md).
+- The form is also the learner's companion on every chapter page: a 2D still from its pose sheet
+  (`public/models/forms/form-<n>-poses.webp`, six stills; no Three.js and no model chunk) in the sidebar,
+  answering what happens through the pure mood model in `src/learn/mood.ts`, drawn by
+  `src/ui/companion.ts`. The Companion switch in the settings sheet, Study mode and
+  `companion: "off"` in `assets/config.js` turn it off. Decision:
+  [`docs/decisions/0012-companion.md`](docs/decisions/0012-companion.md).
 - The progress page shows each form as a model (a GLB in `public/models/forms/`), not the drawn
   figure. `src/ui/form-view.ts` (its header has the states) shows the drawn form first, in the
   scene of `src/world/form-scene.ts`, and swaps the stage's model in when `bundle/form-model.js`
