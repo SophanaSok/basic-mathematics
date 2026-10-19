@@ -10,6 +10,8 @@ import { SECTION_WORK } from "../data/section-work.ts";
 import { chapterById, type Curriculum } from "../core/curriculum.ts";
 import type { ChapterId, SectionRef } from "../types/state.ts";
 
+/** a section's attempt row: BMInsights.sections() gives `solved` and the attempt count as `n`,
+    which the caller maps to `tries` */
 export interface PlanRow { solved: number; tries?: number }
 
 /** What the done rule reads, built from the plan's input fields. */
@@ -89,6 +91,7 @@ export interface SectionStatus {
   /** the sections this one builds on */
   buildsOn: SectionRef[];
   /** those not done yet */
+  /** the required sections not yet done, for the words only: a started or done section may carry some; never a lock */
   unmet: SectionRef[];
 }
 
@@ -118,7 +121,7 @@ export function sectionStates(input: StatesInput): Record<SectionRef, SectionSta
     else if (!unmet.length) { state = "ready"; text = "Ready"; }
     else {
       state = "ahead";
-      text = "Builds on " + lab(unmet[0]) + (unmet.length > 1 ? " and " + (unmet.length - 1) + " more" : "");
+      text = "Builds on " + (lab(unmet[0]) || "an earlier section") + (unmet.length > 1 ? " and " + (unmet.length - 1) + " more" : "");
     }
     out[ref] = { ref, state, text, buildsOn, unmet };
   });
