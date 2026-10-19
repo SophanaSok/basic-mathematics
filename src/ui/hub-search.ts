@@ -118,8 +118,18 @@ let timer = 0;
 let redrawTimer = 0;
 /* the open state a card's Sections had before a query opened it */
 const saved = new Map<string, boolean>();
+/* apply() is setting details.open: the toggle events that follow are not the learner's */
+let applying = false;
+let applyingTimer = 0;
 
 function w(): any { return window as any; }
+
+/* toggle events fire a task after details.open is set: ignore them for a moment */
+function quiet(): void {
+  applying = true;
+  window.clearTimeout(applyingTimer);
+  applyingTimer = window.setTimeout(() => { applying = false; }, 50);
+}
 
 function apply(): void {
   if (!input) return;
@@ -144,9 +154,10 @@ function apply(): void {
     if (!details) return;
     if (filtering && keep && partial) {
       if (!saved.has(id)) saved.set(id, details.open);
-      details.open = true;
+      if (!details.open) { quiet(); details.open = true; }
     } else if (saved.has(id)) {
-      details.open = !!saved.get(id);
+      const was = !!saved.get(id);
+      if (details.open !== was) { quiet(); details.open = was; }
       saved.delete(id);
     }
   });
@@ -217,9 +228,19 @@ function mount(): void {
   /* site.js and hub-list.ts draw the list again; the query is put back over the new one */
   if (host && typeof MutationObserver !== "undefined") {
     new MutationObserver(() => {
+      /* with a query up, the new cards are filtered before they paint: no debounce */
       window.clearTimeout(redrawTimer);
-      redrawTimer = window.setTimeout(() => { if (input && input.value.trim()) apply(); }, 60);
+      if (input && input.value.trim()) apply();
     }).observe(host, { childList: true, subtree: true });
+    /* a card opened or closed by hand during a query keeps that choice when the query clears */
+    host.addEventListener("toggle", (e) => {
+      if (applying || !input || !input.value.trim()) return;
+      const d = e.target as HTMLElement;
+      if (!(d instanceof HTMLDetailsElement) || !d.classList.contains("stop-sections")) return;
+      const li = d.closest("li.stop");
+      const id = li && li.getAttribute("data-chapter");
+      if (id && saved.has(id)) saved.set(id, d.open);
+    }, true);
   }
   if (input.value.trim()) apply();
 }

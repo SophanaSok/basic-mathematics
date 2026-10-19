@@ -77,8 +77,19 @@ export function mountSettings(doc: Document = document): boolean {
 
   const inputs = () => Array.from(dialog.querySelectorAll<HTMLInputElement>("input[data-pref]"));
 
+  /* a device that cannot draw the map (no WebGL, Save-Data, ?3d=off): the map switch is
+     disabled and its note says why, and both go back when the reason clears */
+  const mapNote = doc.getElementById("pref-map3d-note");
+  const mapNoteText = mapNote ? mapNote.textContent : "";
+  function cannotDrawMap(): boolean {
+    const m = (window as any).BMMap3D;
+    try { return !!(m && typeof m.why === "function" && /^(no-webgl|save-data|off)$/.test(String(m.why()))); } catch { return false; }
+  }
+
   /* the inputs as the preferences are now */
   function sync() {
+    const noMap = cannotDrawMap();
+    if (mapNote) mapNote.textContent = noMap ? "This device cannot draw the map." : mapNoteText;
     const p = game!.prefs();
     const soundOn = p.sound && !p.calm;
     const forced = {
@@ -92,7 +103,7 @@ export function mountSettings(doc: Document = document): boolean {
           : name === "sound" ? soundOn
           : name === "motion" || name === "transparency" ? p[name] === "reduce" || forced[name]
           : !!(p as unknown as Record<string, unknown>)[name];
-        input.disabled = (name === "sound" && p.calm) || ((name === "motion" || name === "transparency") && forced[name]);
+        input.disabled = (name === "sound" && p.calm) || (name === "map3d" && noMap) || ((name === "motion" || name === "transparency") && forced[name]);
         input.setAttribute("aria-checked", input.checked ? "true" : "false");
       } else if (input.type === "radio") {
         const value = name === "theme" ? (site && site.theme ? site.theme() : "system")
@@ -209,6 +220,7 @@ export function mountSettings(doc: Document = document): boolean {
       if (c && (c.type === "prefs" || c.type === "theme" || c.type === "reset" || c.type === "sync")) sync();
     });
   }
+  window.addEventListener("bm:map3d", sync);
   sync();
   return true;
 }
