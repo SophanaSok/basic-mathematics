@@ -177,8 +177,25 @@ export function sectionInput(): StatesInput {
 
 /** whether each chapter's Sections list was open at the last draw, so a redraw keeps it so */
 const openState = new Map<string, boolean>();
+/** hosts already listening for a Sections list opening or closing */
+const watched = new WeakSet<object>();
+
+/** Record each Sections list's open state as it changes (toggle does not bubble: capture), so a
+    rebuild that destroyed the details before decorateSections could read it still restores it. */
+export function watchOpen(host: any): void {
+  if (!host || typeof host.addEventListener !== "function" || watched.has(host)) return;
+  watched.add(host);
+  host.addEventListener("toggle", (e: any) => {
+    const d = e && e.target;
+    if (!d || d.className !== "stop-sections") return;
+    const li = d.parentNode;
+    const id = li && (typeof li.getAttribute === "function" ? li.getAttribute("data-chapter") : null);
+    if (id) openState.set(id, !!d.open);
+  }, true);
+}
+
 const GLYPH: Record<string, [string, string]> = {
-  done: ["tick", "\u2713"], started: ["reset", "\u21BB"], ready: ["next", "\u2192"], ahead: ["chevron", "\u203A"]
+  done: ["tick", "\u2713"], started: ["reset", "\u21BB"], ready: ["next", "\u2192"], ahead: ["", "\u00B7"]
 };
 
 /** Draw the Sections list under each chapter card (after its hub line): a sibling of the card's
@@ -218,7 +235,7 @@ export function decorateSections(root: ParentNode, statuses: Record<string, Sect
       const glyph = doc.createElement("span");
       glyph.className = "stop-glyph";
       glyph.setAttribute("aria-hidden", "true");
-      const svg = w.BMIcon && w.BMIcon.svg ? w.BMIcon.svg(g[0]) : "";
+      const svg = g[0] && w.BMIcon && w.BMIcon.svg ? w.BMIcon.svg(g[0]) : "";
       if (svg) glyph.innerHTML = svg; else glyph.textContent = g[1];
       row.appendChild(glyph);
       const a = doc.createElement("a");
@@ -233,9 +250,12 @@ export function decorateSections(root: ParentNode, statuses: Record<string, Sect
         st.unmet.forEach((r, i) => {
           if (i) state.appendChild(doc.createTextNode(", "));
           const n = sectionName(r);
+          const words = labelOf(r, C) || (n ? n.text : r);
+          /* a ref that names no section is plain text, never a link to nowhere */
+          if (!n) { state.appendChild(doc.createTextNode(words)); return; }
           const b = doc.createElement("a");
-          b.setAttribute("href", n ? n.href : "#");
-          b.textContent = labelOf(r, C) || (n ? n.text : r);
+          b.setAttribute("href", n.href);
+          b.textContent = words;
           state.appendChild(b);
         });
       } else {
@@ -254,19 +274,24 @@ export function decorateSections(root: ParentNode, statuses: Record<string, Sect
 /** Read the stores and draw; false when the game layer or the event log is not all there yet (a chapter
     with no evidence has no line, so drawing before they load would only draw the due part). The
     Sections lists draw regardless: with no game layer they read "Ready" or "Builds on". */
+let warned = false;
 export function redraw(root: ParentNode = document): boolean {
   const w = window as any;
+  watchOpen(root);
   const ready = !!(w.BMGame && w.BMEvents && w.BMProgress && w.BMSite);
   const inp = hubInput();
   const ids = inp.isles.map((s) => s.id);
   if (ready) decorate(root, hubState(inp), ids);
-  try { decorateSections(root, sectionStates(sectionInput()), ids); } catch { /* the list stays as it was */ }
+  try { decorateSections(root, sectionStates(sectionInput()), ids); } catch (e) {
+    /* the list stays as it was, but a bad curriculum entry is not silent (once per page) */
+    if (!warned) { warned = true; console.warn("[BM] sections list", e); }
+  }
   return ready;
 }
 
 /** per-chapter facts for the legacy scripts (assets/site.js reads this for the chapter cards) */
 export const meta = CHAPTER_META;
 
-export const api = { decorate, decorateSections, sectionInput, continueTarget, hubInput, hubIds, redraw, masteryLine, hubState, meta };
+export const api = { decorate, decorateSections, watchOpen, sectionInput, continueTarget, hubInput, hubIds, redraw, masteryLine, hubState, meta };
 
 if (typeof window !== "undefined") (window as any).BMHubList = api;

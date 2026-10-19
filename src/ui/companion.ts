@@ -2,7 +2,8 @@
    and answers what happens, through the mood model (src/learn/mood.ts).
 
    Mounted once the page's scripts have run (as src/ui/next.ts does), only on a page with
-   body[data-chapter] and a sidebar, with window.BMGame up, the kill switch (config
+   body[data-chapter] and a sidebar, or on the Arena (body[data-mode="arena"], docked at the
+   bottom right at every width, at rest on arrival with no intro, reacting to its arena events), with window.BMGame up, the kill switch (config
    companion) and the preference (prefs.companion) not "off"/false; an absent field is on.
    Study mode (html[data-calm] or prefs.calm) hides it. The sprite is the form's pose sheet,
    models/forms/form-<n>-poses.webp (six stills in the order of POSES), drawn as a CSS
@@ -30,11 +31,11 @@ import { worn } from "../core/forms.ts";
 const SHOW_MS = 6000, ARRIVAL_MS = 12000, EVOLVE_MS = 900;
 const AT_REST: Reaction = { mood: "content", pose: "rest", line: null, key: null, href: null };
 /* lines that wait for a quiet moment rather than being dropped (one slot, the latest wins) */
-const WAITS = ["due", "back", "form", "chapter", "regroup", "goal", "level", "boss"];
+const WAITS = ["due", "back", "form", "chapter", "regroup", "goal", "level", "boss", "stuck", "arena-end"];
 /* said on the page only, never to the live region: at load the region belongs to the page's own
    first words (the exercise count, the chapter's banner), and one message there holds the next
-   back for seconds (assets/game.js announce); these three are also on the page elsewhere */
-const QUIET = ["intro", "due", "back"];
+   back for seconds (assets/game.js announce); these are also on the page elsewhere (the Arena says its own result) */
+const QUIET = ["intro", "due", "back", "arena-end"];
 
 let fig: HTMLElement | null = null;
 let pic: HTMLElement | null = null;
@@ -237,6 +238,7 @@ function toRecent(c: any): Recent | null {
   switch (c.type) {
     case "attempt": return { type: "attempt", key: String(c.key), correct: !!c.correct, tryNo: Number(c.tryNo) || 1 };
     case "solved": return { type: "solved", fresh: !!c.fresh };
+    case "stuck": return { type: "stuck", key: String(c.key), signal: String(c.signal || ""), offer: String(c.offer || "none") };
     case "opened": return { type: "opened" };
     case "ladder": return { type: "ladder" };
     case "twin": return { type: "twin" };
@@ -246,6 +248,11 @@ function toRecent(c: any): Recent | null {
     case "chapterDone": return { type: "chapterDone", fresh: !!c.fresh };
     case "level": return { type: "level", level: Number(c.level) || 1 };
     case "achievement": return { type: "achievement", title: String(c.title || "") };
+    case "arena": {
+      const phase = c.phase;
+      if (phase !== "start" && phase !== "answer" && phase !== "end") return null;
+      return { type: "arena", phase, correct: !!c.correct, pass: !!c.pass, timeout: !!c.timeout };
+    }
     case "form": {
       /* only a stage the learner now wears, reached live: a quiet settle (load, sync, reset)
          or a new stage behind a pinned lower one changes the sprite without a word */
@@ -266,6 +273,8 @@ function onChange(c: any): void {
   if (c.type === "reset" || c.type === "sync") { if (fig) unbuild(); evaluate(); return; }
   if (!fig) return;
   /* built before the sprite is redrawn: a new stage's "from" is the name shown until now */
+  /* a nudge never arrives after the learner has answered */
+  if ((c.type === "solved" || (c.type === "attempt" && c.correct)) && pending && pending.key === "stuck") pending = null;
   const rc = toRecent(c);
   if (c.type === "form") drawSprite();
   if (!rc) return;
@@ -286,8 +295,16 @@ function sidebar(): HTMLElement | null {
   return document.querySelector<HTMLElement>("aside[data-sidebar]");
 }
 
+/** the Arena has no sidebar: the figure is docked on the page itself (game.css, body[data-mode="arena"]) */
+function onArena(): boolean {
+  return !!(document.body && document.body.getAttribute("data-mode") === "arena");
+}
+function onChapter(): boolean {
+  return !!(document.body && document.body.hasAttribute("data-chapter"));
+}
+
 function build(): void {
-  const side = sidebar();
+  const side = onArena() ? document.body : sidebar();
   if (!side || fig) return;
   fig = document.createElement("figure");
   fig.className = "companion";
@@ -332,6 +349,13 @@ function intro(): void {
 }
 
 function arrive(): void {
+  /* the Arena: at rest, no line; the intro and the due line belong to the chapter pages */
+  if (onArena()) {
+    memory = EMPTY_MEMORY;
+    throttle = EMPTY_THROTTLE;
+    mood = AT_REST.mood; pose = AT_REST.pose; drawSprite();
+    return;
+  }
   const inp = input(true);
   const r = arrival(inp);
   memory = EMPTY_MEMORY;
@@ -349,7 +373,7 @@ function arrive(): void {
 }
 
 function evaluate(): void {
-  const should = !!(document.body && document.body.hasAttribute("data-chapter")) && !!w().BMGame && allowed() && !calm();
+  const should = (onChapter() || onArena()) && !!w().BMGame && allowed() && !calm();
   if (!should) { if (fig) unbuild(); return; }
   if (fig) { drawSprite(); return; }
   build();
@@ -365,8 +389,8 @@ function fieldFocus(): void {
 }
 
 function mount(): void {
-  if (!document.body || !document.body.hasAttribute("data-chapter")) return;
-  if (!w().BMGame || !w().BMStore || !sidebar()) return;
+  if (!onChapter() && !onArena()) return;
+  if (!w().BMGame || !w().BMStore || (!onArena() && !sidebar())) return;
   if (!listening) {
     listening = true;
     w().BMStore.on(onChange);
