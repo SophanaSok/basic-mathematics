@@ -178,6 +178,16 @@ export function mount(opts: LadderOptions): LadderController {
   let awaitingFocus = false;
   let missesAfterLadder = 0;
   let approachShown = false;
+  /* the stuck signals already announced on the bus, one per signal per exercise per page view */
+  const announced = new Set<string>();
+  function announce(sig: StuckSignal): void {
+    if (announced.has(sig)) return;
+    announced.add(sig);
+    const key = opts.ex.getAttribute("data-key");
+    const chapter = document.body.getAttribute("data-chapter");
+    if (!key || !chapter) return;
+    try { (window as any).BMStore?.emit({ type: "stuck", chapter, key, signal: sig }); } catch { /* the bus is optional */ }
+  }
   let approachCard: HTMLElement | null = null;
 
   /* The support level (src/learn/support.ts) may arrive after the mount: the event log it is read
@@ -250,7 +260,7 @@ export function mount(opts: LadderOptions): LadderController {
       idleTimer = null;
       const focusIn = opts.ex.contains(document.activeElement);
       const sig = watch.idle(now(), focusIn);
-      if (sig) showIdle(sig);
+      if (sig) { announce(sig); showIdle(sig); }
       else if (!focusIn && watch.idleIn(now()) !== null) {
         /* focus is elsewhere: wait for it to come back rather than polling */
         if (!awaitingFocus) {
@@ -384,6 +394,7 @@ export function mount(opts: LadderOptions): LadderController {
     },
     afterWrong(given, detection, note) {
       const sig = watch.check(now(), false, given);
+      if (sig) announce(sig);
       arm();
       const offer = offerAfterWrong(state, opts.hasSolution);
       let spoken = "";

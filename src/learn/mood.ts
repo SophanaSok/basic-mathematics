@@ -37,6 +37,7 @@ export interface MoodInput {
 export type Recent =
   | { type: "attempt"; key: string; correct: boolean; tryNo: number }
   | { type: "solved"; fresh: boolean }
+  | { type: "stuck"; key: string; signal: string }
   | { type: "opened" }
   | { type: "ladder" }
   | { type: "twin" }
@@ -58,8 +59,12 @@ export interface Reaction {
 }
 
 /** wrong attempts per exercise key, this visit */
-export interface MoodMemory { misses: Readonly<Record<string, number>> }
-export const EMPTY_MEMORY: MoodMemory = Object.freeze({ misses: Object.freeze({}) });
+export interface MoodMemory {
+  misses: Readonly<Record<string, number>>;
+  /** exercise keys the companion has already nudged toward a clue, this visit */
+  nudged: Readonly<Record<string, true>>;
+}
+export const EMPTY_MEMORY: MoodMemory = Object.freeze({ misses: Object.freeze({}), nudged: Object.freeze({}) });
 
 /** at most one caption per SAY_GAP_MS, and none within QUIET_AFTER_VERDICT_MS of a graded answer (the exercise's own feedback speaks first) */
 export const SAY_GAP_MS = 2600;
@@ -131,9 +136,18 @@ export function react(memory: MoodMemory, recent: Recent, input: MoodInput): { m
       const misses: Record<string, number> = Object.create(null);
       for (const k of Object.keys(memory.misses)) misses[k] = memory.misses[k];
       misses[recent.key] = n;
-      const next: MoodMemory = { misses };
+      const next: MoodMemory = { misses, nudged: memory.nudged };
       const again = n === 2;
       return { memory: next, reaction: make("curious", "curious", again ? "Let's look again." : null, again ? "again" : null, null) };
+    }
+    case "stuck": {
+      /* a learner answering fast is not stuck */
+      if (recent.signal === "rapid") return none;
+      if (Object.hasOwn(memory.nudged, recent.key)) return none;
+      const nudged: Record<string, true> = Object.create(null);
+      for (const k of Object.keys(memory.nudged)) nudged[k] = true;
+      nudged[recent.key] = true;
+      return { memory: { misses: memory.misses, nudged }, reaction: make("curious", "curious", "A clue might help.", "stuck", null) };
     }
     case "solved":
       return recent.fresh ? { memory, reaction: REST() } : none;

@@ -59,12 +59,42 @@ describe("react", () => {
     expect(d.memory.misses).toEqual({ k: 3, other: 1 });
   });
   it("does not mutate the memory", () => {
-    const m: MoodMemory = Object.freeze({ misses: Object.freeze({ k: 1 }) });
+    const m: MoodMemory = Object.freeze({ misses: Object.freeze({ k: 1 }), nudged: Object.freeze({}) });
     const out = go({ type: "attempt", key: "k", correct: false, tryNo: 2 }, {}, m);
     expect(m.misses).toEqual({ k: 1 });
     expect(out.memory).not.toBe(m);
     expect(out.memory.misses).toEqual({ k: 2 });
     expect(EMPTY_MEMORY.misses).toEqual({});
+  });
+  describe("stuck", () => {
+    const stuck = (key: string, signal: string) => ({ type: "stuck", key, signal }) as Recent;
+    it("nudges toward a clue once per exercise key", () => {
+      const a = go(stuck("k", "repeat"));
+      expect(a.reaction).toEqual({ mood: "curious", pose: "curious", line: "A clue might help.", key: "stuck", href: null });
+      expect(a.memory.nudged).toEqual({ k: true });
+      expect(go(stuck("k", "idle"), {}, a.memory).reaction).toBeNull();
+      expect(go(stuck("other", "misses"), {}, a.memory).reaction?.line).toBe("A clue might help.");
+    });
+    it("stays quiet for rapid answers and in Study mode", () => {
+      const r = go(stuck("k", "rapid"));
+      expect(r.reaction).toBeNull();
+      expect(r.memory).toBe(EMPTY_MEMORY);
+      expect(go(stuck("k", "idle"), { calm: true }).reaction).toBeNull();
+    });
+    it("does not mutate the memory and keeps the misses", () => {
+      const m: MoodMemory = Object.freeze({ misses: Object.freeze({ k: 2 }), nudged: Object.freeze({}) });
+      const out = go(stuck("k", "idle"), {}, m);
+      expect(m.nudged).toEqual({});
+      expect(out.memory.misses).toEqual({ k: 2 });
+      expect(EMPTY_MEMORY.nudged).toEqual({});
+    });
+    it("works for keys like __proto__ and may follow the again line", () => {
+      const out = go(stuck("__proto__", "idle"));
+      expect(Object.hasOwn(out.memory.nudged, "__proto__")).toBe(true);
+      const again = go({ type: "attempt", key: "k", correct: false, tryNo: 2 }, {}, { misses: { k: 1 }, nudged: {} });
+      expect(again.reaction?.line).toBe("Let's look again.");
+      expect(go(stuck("k", "repeat"), {}, again.memory).reaction?.line).toBe("A clue might help.");
+    });
   });
   it("keys like constructor and __proto__ count like any other", () => {
     for (const key of ["constructor", "__proto__", "toString", "hasOwnProperty"]) {
@@ -148,7 +178,7 @@ describe("react", () => {
     expect(rx({ type: "form", from: "Pip", to: "Sprig" })).toEqual(R("delighted", "delighted", "Pip became Sprig!", "form"));
   });
   it("calm is always null and keeps the memory", () => {
-    const m: MoodMemory = { misses: { k: 1 } };
+    const m: MoodMemory = { misses: { k: 1 }, nudged: {} };
     const out = go({ type: "attempt", key: "k", correct: false, tryNo: 1 }, { calm: true }, m);
     expect(out.reaction).toBeNull();
     expect(out.memory).toBe(m);
@@ -165,7 +195,7 @@ describe("react", () => {
       rx({ type: "chapterDone", fresh: true })?.line ?? null,
       rx({ type: "level", level: 3 })?.line ?? null,
       rx({ type: "form", from: "A", to: "B" })?.line ?? null,
-      go({ type: "attempt", key: "k", correct: false, tryNo: 1 }, {}, { misses: { k: 1 } }).reaction?.line ?? null
+      go({ type: "attempt", key: "k", correct: false, tryNo: 1 }, {}, { misses: { k: 1 }, nudged: {} }).reaction?.line ?? null
     ];
     for (const l of lines) if (l) expect(l.toLowerCase()).not.toContain("streak");
   });

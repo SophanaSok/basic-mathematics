@@ -30,7 +30,7 @@ import { worn } from "../core/forms.ts";
 const SHOW_MS = 6000, ARRIVAL_MS = 12000, EVOLVE_MS = 900;
 const AT_REST: Reaction = { mood: "content", pose: "rest", line: null, key: null, href: null };
 /* lines that wait for a quiet moment rather than being dropped (one slot, the latest wins) */
-const WAITS = ["due", "back", "form", "chapter", "regroup", "goal", "level", "boss"];
+const WAITS = ["due", "back", "form", "chapter", "regroup", "goal", "level", "boss", "stuck"];
 /* said on the page only, never to the live region: at load the region belongs to the page's own
    first words (the exercise count, the chapter's banner), and one message there holds the next
    back for seconds (assets/game.js announce); these three are also on the page elsewhere */
@@ -237,6 +237,7 @@ function toRecent(c: any): Recent | null {
   switch (c.type) {
     case "attempt": return { type: "attempt", key: String(c.key), correct: !!c.correct, tryNo: Number(c.tryNo) || 1 };
     case "solved": return { type: "solved", fresh: !!c.fresh };
+    case "stuck": return { type: "stuck", key: String(c.key), signal: String(c.signal || "") };
     case "opened": return { type: "opened" };
     case "ladder": return { type: "ladder" };
     case "twin": return { type: "twin" };

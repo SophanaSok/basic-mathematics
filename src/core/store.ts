@@ -50,6 +50,8 @@ export type StoreChange =
   | ({ type: "ladder"; rung: number } & ExerciseChange)
   /** a near-transfer twin was checked; never an `attempt`, and the event log ignores it */
   | ({ type: "twin"; correct: boolean; paid: boolean; xp: number } & ExerciseChange)
+  /** the stuck watch fired on an exercise (src/ui/ladder.ts), at most once per signal per exercise per page view */
+  | { type: "stuck"; chapter: ChapterId; key: ExerciseKey; signal: "rapid" | "repeat" | "idle" | "misses" }
   /** an exercise was marked correct; `fresh` is true on its first solve, false on a re-check */
   | { type: "solved"; chapter: ChapterId; key: ExerciseKey; inline: boolean; fresh?: boolean }
   /** XP was added to today (BMActivity.add); bonus and mult when the combo added a share */
