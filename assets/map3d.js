@@ -39,6 +39,7 @@
    below does not drop when this script arrives; whenever the box goes, so does that.
    =========================================================================== */
 import { worn } from "../src/core/forms.ts";
+import { chapterRequires } from "../src/core/hub.ts";
 import { detectTier, readProbe, stepDown, lower, pixelRatio, TIERS, AMBIENT_MS, FrameWatch } from "../src/world/tiers.ts";
 
 (function () {
@@ -64,7 +65,8 @@ import { detectTier, readProbe, stepDown, lower, pixelRatio, TIERS, AMBIENT_MS, 
   var M = null;             /* the live world, or null while the list stands alone */
   var W = null;             /* the world chunk's exports, once imported */
   var ISLES = [];           /* one per chapter, in reading order (the world's layout, with the chapter and Part) */
-  var failed = "";          /* why 3D gave up for this visit (lost context, an error); sticky */
+  var failed = "";          /* why 3D gave up for this visit (lost context, an error); sticky until the Map preference is chosen again */
+  var announcedOff = false; /* the "could not start" line is spoken once per visit */
   var slowCap = null;       /* the tier the watchdog stepped down to on this visit, if it did */
   var bloomWhy = "";       /* why it is off when bloomOff is: "watchdog" or "unsupported" */
   var bloomOff = false;     /* the watchdog (or a renderer that cannot) turned the bloom off for this visit */
@@ -183,6 +185,7 @@ import { detectTier, readProbe, stepDown, lower, pixelRatio, TIERS, AMBIENT_MS, 
       "Beacon: sections due for a check. Flag: chapter finished, stars for the medal.</p>";
     box.innerHTML = sr +
       '<div class="map3d-parts" role="group" aria-label="Show a Part on the course map">' + parts + "</div>" +
+      '<div class="map3d-tools"><button type="button" class="btn ghost small" data-map3d-recenter disabled>Where I am</button></div>' +
       '<div class="map3d-stage" data-state="loading">' +
         '<p class="map3d-wait" aria-hidden="true">Loading the map…</p>' +
         '<div class="map3d-labels" aria-hidden="true"></div>' +
@@ -193,6 +196,9 @@ import { detectTier, readProbe, stepDown, lower, pixelRatio, TIERS, AMBIENT_MS, 
           '<li data-mark="flag"><i></i>Flag: chapter finished, stars for the medal</li>' +
         "</ul>" +
       "</div>" +
+      '<div class="map3d-panel" data-map3d-panel hidden><p class="map3d-panel-title" aria-live="polite"></p>' +
+        '<div class="map3d-panel-body"></div></div>' +
+      '<p class="map3d-panel-empty">Select a chapter on the map to see its details.</p>' +
       '<div class="map3d-probe" aria-hidden="true">' + probes + "</div>";
     box.hidden = false;
     document.documentElement.setAttribute("data-world", "3d");
@@ -261,6 +267,8 @@ import { detectTier, readProbe, stepDown, lower, pixelRatio, TIERS, AMBIENT_MS, 
       flight: null, raf: 0, dirty: true, watch: new FrameWatch(),
       ambientUntil: 0, amb: { t: 0, last: 0, end: 0 }, bobbing: false, frames: 0,
       onscreen: true, hot: -1, hotHow: "", hover: -1, cur: -1, press: null, aux: null, drag: false,
+      panel: box.querySelector("[data-map3d-panel]"), panelKey: "", counts: null,
+      recenter: box.querySelector("[data-map3d-recenter]"),
       observers: [], firstRender: false, done: {}, noFog: false,
       bloom: null, bloomLoading: false, sceneCalls: null
     };
@@ -282,6 +290,7 @@ import { detectTier, readProbe, stepDown, lower, pixelRatio, TIERS, AMBIENT_MS, 
     });
     box.querySelector(".map3d-parts").addEventListener("click", onPartButton);
     Array.prototype.forEach.call(box.querySelectorAll(".map3d-part"), function (b) { b.disabled = false; });
+    M.recenter.addEventListener("click", recenter);
 
     box.hidden = false;
     host.setAttribute("data-map", "3d");
@@ -423,6 +432,9 @@ import { detectTier, readProbe, stepDown, lower, pixelRatio, TIERS, AMBIENT_MS, 
       M.world.marker.visible = false;
     }
     markList();
+    M.counts = input.counts;
+    M.recenter.disabled = M.cur < 0;
+    panel();
     if (!quiet) request();
   }
 
@@ -556,6 +568,8 @@ import { detectTier, readProbe, stepDown, lower, pixelRatio, TIERS, AMBIENT_MS, 
     if (!M.firstRender) {
       M.firstRender = true;
       M.stage.setAttribute("data-state", "ready");
+      /* src/ui/hub-mode.ts reads the control again */
+      window.dispatchEvent(new CustomEvent("bm:map3d", { detail: { on: true, why: "" } }));
     }
   }
 
@@ -717,6 +731,81 @@ import { detectTier, readProbe, stepDown, lower, pixelRatio, TIERS, AMBIENT_MS, 
     });
   }
 
+  /* -------------------------------------------------------- the panel ------ */
+
+  function linkById(id) {
+    var li = host.querySelector('li.stop[data-chapter="' + id + '"]');
+    return li ? li.querySelector(".stop-link") : null;
+  }
+  /* the facts of one chapter in words, from the same state the list reads (no second source) */
+  function panelState(i) {
+    var st = M.states && M.states[i], id = ISLES[i].id, ch = ISLES[i].ch;
+    var c = (M.counts && M.counts[id]) || { solved: 0, total: 0 };
+    var fm = window.BMHubList && window.BMHubList.meta && window.BMHubList.meta[id];
+    var mins = fm && fm.minutes ? " · about " + fm.minutes + " min" : "";
+    if (st && st.done) return "Complete · " + st.stars + (st.stars === 1 ? " star" : " stars");
+    if (c.solved > 0) return "In progress · " + c.solved + " of " + c.total + " exercises";
+    return "Not started · " + ch.sections.length + (ch.sections.length === 1 ? " section" : " sections") + mins;
+  }
+  /* the goal cut at the end of a sentence, else after a clause mark, else at a word (never mid-clause) */
+  function goalLine(text, max) {
+    var full = plainGoal(text, 100000);
+    if (full.length <= max) return full;
+    var head = full.slice(0, max + 1), k = -1, m, re = /[.!?](?=\s)/g;
+    while ((m = re.exec(head))) k = m.index + 1;
+    if (k < max * 0.4) {
+      re = /[;:,](?=\s)/g;
+      while ((m = re.exec(head))) k = m.index;
+    }
+    if (k >= max * 0.4) return full.slice(0, k).replace(/[\s,;:]+$/, "") + (/[.!?]$/.test(full.slice(0, k)) ? "" : "…");
+    return plainGoal(text, max);
+  }
+  /* the selected island's chapter, or the hovered one while the mouse is over another */
+  function panel() {
+    if (!M) return;
+    var el = M.panel, i = M.hover > -1 ? M.hover : M.hot;
+    if (i < 0 || !ISLES[i]) { el.hidden = true; M.panelKey = ""; return; }
+    var ch = ISLES[i].ch, id = ISLES[i].id, link = linkFor(i);
+    var title = chapterName(ch) + " · " + ch.title;
+    var st = M.states && M.states[i];
+    var segs = panelState(i).split(" · ").map(function (t) { return '<span class="map3d-seg">' + esc(t) + "</span>"; });
+    var html = '<p class="map3d-panel-state">' + segs.join(" · ") + "</p>";
+    var fm = window.BMHubList && window.BMHubList.meta && window.BMHubList.meta[id];
+    var goal = fm && fm.goal ? goalLine(fm.goal, 140) : "";
+    if (goal) html += '<p class="map3d-panel-goal">' + esc(goal) + "</p>";
+    var reqs = chapterRequires(C, id), on = "";
+    reqs.forEach(function (rid) {
+      var a = linkById(rid), rc = C.chapterById ? C.chapterById(rid) : null;
+      if (!a || !rc) return;
+      on += '<a class="map3d-panel-req" href="' + esc(a.href) + '">' + esc(chapterName(rc) + " · " + rc.title) + "</a>";
+    });
+    if (on) html += '<p class="map3d-panel-builds">Builds on:' + on + "</p>";
+    var due = st ? st.due.arena.concat(st.due.page) : [];
+    if (due.length) {
+      var card = host.querySelector('li.stop[data-chapter="' + id + '"] .stop-due');
+      if (card) html += '<p class="map3d-panel-due">' + card.innerHTML + "</p>";
+    }
+    html += '<p class="map3d-panel-actions">';
+    if (link) html += '<a class="btn" data-map3d-open href="' + esc(link.href) + '">Open chapter</a>';
+    var cont = i === M.cur ? document.querySelector("a[data-continue]") : null;
+    if (cont && link && cont.href === link.href) cont = null;
+    if (cont) html += '<a class="btn ghost" data-map3d-continue href="' + esc(cont.href) + '">Continue</a>';
+    html += "</p>";
+    var key = title + "\n" + html;
+    el.hidden = false;
+    if (M.panelKey === key) return;
+    M.panelKey = key;
+    var t = el.querySelector(".map3d-panel-title");
+    if (t.textContent !== title) t.textContent = title;
+    el.querySelector(".map3d-panel-body").innerHTML = html;
+  }
+  function recenter() {
+    if (!M || M.cur < 0) return;
+    flyTo(isleView(M.cur));
+    select(M.cur, "recenter");
+    shareSelection(M.cur);
+  }
+
   /* -------------------------------------------------------- selection ------ */
 
   function highlight(i) {
@@ -734,6 +823,7 @@ import { detectTier, readProbe, stepDown, lower, pixelRatio, TIERS, AMBIENT_MS, 
     M.hotHow = how;
     highlight(M.hover > -1 ? M.hover : i);
     markList();
+    panel();
     if (!same || !M.viewKind || M.viewKind.i !== i) {
       if (cut) jump(isleView(i)); else flyTo(isleView(i));
     }
@@ -744,6 +834,7 @@ import { detectTier, readProbe, stepDown, lower, pixelRatio, TIERS, AMBIENT_MS, 
     M.hot = -1;
     highlight(M.hover);
     markList();
+    panel();
     request();
   }
 
@@ -857,6 +948,7 @@ import { detectTier, readProbe, stepDown, lower, pixelRatio, TIERS, AMBIENT_MS, 
         M.hoverReview = review;
         M.canvas.style.cursor = i > -1 ? "pointer" : "";
         highlight(i > -1 ? i : M.hot);
+        panel();
         request();
       }
       stir();
@@ -925,6 +1017,7 @@ import { detectTier, readProbe, stepDown, lower, pixelRatio, TIERS, AMBIENT_MS, 
     M.hover = -1;
     M.canvas.style.cursor = "";
     highlight(M.hot);
+    panel();
     request();
   }
 
@@ -992,6 +1085,18 @@ import { detectTier, readProbe, stepDown, lower, pixelRatio, TIERS, AMBIENT_MS, 
       var to = host.querySelector("li.stop[data-selected] .stop-link") || host.querySelector('li.stop[data-state="current"] .stop-link') || host.querySelector(".stop-link");
       if (to) { try { to.focus({ preventScroll: true }); } catch (e) { to.focus(); } }
     }
+    /* the control and the page hear of it; a crash (not a choice of List, a tier or the device) is spoken once
+       and the selected card is shown and focused, as the list stands alone from here */
+    window.dispatchEvent(new CustomEvent("bm:map3d", { detail: { on: false, why: failed || "" } }));
+    if (failed) {
+      if (!announcedOff && window.BMGame && typeof window.BMGame.announce === "function") {
+        announcedOff = true;
+        try { window.BMGame.announce("The course map could not start; showing the list.", { priority: "normal", key: "map3d-off" }); } catch (e) { /* a note */ }
+      }
+      if (window.BMHubSelect && window.BMHubSelect.apply) {
+        try { window.BMHubSelect.apply("return"); } catch (e) { /* the list stays as it is */ }
+      }
+    }
   }
 
   /* the world's chunk, imported once (a second call shares the first) */
@@ -1053,6 +1158,7 @@ import { detectTier, readProbe, stepDown, lower, pixelRatio, TIERS, AMBIENT_MS, 
   /* the gfx and map settings last seen, so a choice the learner makes lifts the watchdog's cap */
   function asked() { var p = prefs(); return String(p.gfx || "") + "/" + String(p.map || ""); }
   var lastAsked = asked();
+  var lastMap = String(prefs().map || "");
   if (window.BMStore && window.BMStore.on) {
     window.BMStore.on(function (c) {
       if (!c) return;
@@ -1060,6 +1166,10 @@ import { detectTier, readProbe, stepDown, lower, pixelRatio, TIERS, AMBIENT_MS, 
         var seen = asked();
         if (seen !== lastAsked) { slowCap = null; bloomOff = false; bloomWhy = ""; }
         lastAsked = seen;
+        /* choosing Map again lifts a crash's hold, so it is tried afresh instead of waiting for a reload */
+        var mapNow = String(prefs().map || "");
+        if (mapNow !== lastMap && mapNow === "3d" && failed) { failed = ""; importing = null; }
+        lastMap = mapNow;
         var next = decide();
         if (next.tier === "list") { if (M || starting) teardown(); return; }
         if (M) applyTier(next);
