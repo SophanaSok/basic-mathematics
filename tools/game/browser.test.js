@@ -308,6 +308,86 @@ async function run() {
       await context.close();
     }
 
+    /* ------------------ the boss bar follows the practice set (U-3) */
+    {
+      const { context, page, errors } = await open(browser, CH05, { "bm.lesson.v1": '{"mode":"page"}' });
+      await page.evaluate(() => {
+        window.__att = [];
+        window.BMStore.on(function (c) { if (c.type === "attempt") window.__att.push([c.correct, c.detector === undefined ? "undef" : c.detector]); });
+      });
+      const k = await page.evaluate(() => {
+        var all = Array.prototype.slice.call(document.querySelectorAll("#practice .ex"));
+        var ex = all.filter(function (e, i) { return i >= 5 && e.getAttribute("data-type") === "number" && /^[1-9]\d*$/.test(e.getAttribute("data-answer") || ""); })[0];
+        return ex && ex.getAttribute("data-key");
+      });
+      check(!!k, "ch05 has a whole-number exercise from the sixth on (" + k + ")");
+      const sel = '#practice .ex[data-key="' + k + '"]';
+      const bar = () => page.evaluate(() => {
+        var b = document.querySelector(".bossbar");
+        if (!b) return null;
+        return {
+          hidden: b.hidden, aria: b.getAttribute("aria-hidden"), inMain: !!b.closest("main"), html: document.documentElement.hasAttribute("data-bossbar"),
+          segs: b.querySelectorAll(".bossbar-seg").length, solved: b.querySelectorAll('.bossbar-seg[data-how="solved"],.bossbar-seg[data-how="first"]').length,
+          full: b.querySelectorAll(".bossbar-hearts i[data-full]").length, brk: b.querySelectorAll("i[data-break]").length,
+          hit: b.hasAttribute("data-hit"), say: b.querySelector(".bossbar-say").textContent
+        };
+      });
+      const toEx = () => page.evaluate((s) => { window.scrollTo({ top: document.querySelector(s).getBoundingClientRect().top + window.scrollY - 180, behavior: "instant" }); }, sel);
+      eq((await bar()).hidden, true, "at the top of the page the card is in view and the bar is hidden");
+      await toEx();
+      await wait(300);
+      const b0 = await bar();
+      eq([b0.hidden, b0.aria, b0.inMain, b0.html, b0.segs, b0.full], [false, "true", false, true, 10, 3], "with the card out of view the bar shows: aria-hidden, outside main, ten segments, three hearts");
+      await page.evaluate(() => window.scrollTo({ top: 0, behavior: "instant" }));
+      await wait(300);
+      eq((await bar()).hidden, true, "back at the top, hidden again");
+      await toEx();
+      await wait(300);
+      await page.fill(sel + " .ex-form input[type=text]", "-" + (await page.$eval(sel, (e) => e.getAttribute("data-answer").split("|")[0])));
+      await page.press(sel + " .ex-form input[type=text]", "Enter");
+      await wait(520);
+      const b1 = await bar();
+      eq([b1.full, b1.brk, b1.say], [2, 1, "A sign slipped past you. I like it that way."], "a sign slip: two hearts, one breaking, the sign taunt");
+      await wait(500);
+      await answer(page, sel, true);
+      await wait(520);
+      const b2 = await bar();
+      eq([b2.solved, b2.hit, b2.say], [b0.solved + 1, true, ""], "a right answer: one more segment, the hit, the taunt gone");
+      await wait(1100);
+      const b3 = await page.evaluate(() => ({ brk: document.querySelectorAll("[data-break]").length, hit: document.querySelectorAll("[data-hit]").length, fresh: document.querySelectorAll(".bossbar [data-fresh]").length }));
+      eq(b3, { brk: 0, hit: 0, fresh: 0 }, "the break, hit and fresh marks clear on their own");
+      eq(await page.evaluate(() => window.__att), [[false, "sign"], [true, null]], "the attempt event carries the detector, null when right");
+      eq(errors, [], "no errors with the boss bar");
+      await context.close();
+    }
+
+    {
+      const { context, page } = await open(browser, CH05, { "bm.lesson.v1": '{"mode":"page"}', "bm.prefs.v1": '{"calm":true}' });
+      const seen = [];
+      for (const y of [0, 900, 2200, 4000, 6000]) {
+        await page.evaluate((y) => window.scrollTo({ top: y, behavior: "instant" }), y);
+        await wait(250);
+        seen.push(await page.evaluate(() => { var b = document.querySelector(".bossbar"); return !b || b.hidden; }));
+      }
+      eq(seen, [true, true, true, true, true], "Study mode: the boss bar is hidden at every scroll position");
+      await context.close();
+    }
+
+    {
+      const { context, page } = await open(browser, CH05, { "bm.lesson.v1": '{"mode":"page"}' });
+      await page.emulateMedia({ reducedMotion: "reduce" });
+      await page.evaluate(() => { document.documentElement.setAttribute("data-motion", "reduce"); });
+      const sel = '#practice .ex[data-key="e7"]';
+      await page.evaluate((s) => { window.scrollTo({ top: document.querySelector(s).getBoundingClientRect().top + window.scrollY - 180, behavior: "instant" }); }, sel);
+      await wait(300);
+      await answer(page, sel, true);
+      await wait(520);
+      check(await page.evaluate(() => !document.querySelector(".bossbar").hidden), "reduced motion: the bar is shown");
+      await wait(100);
+      eq(await page.evaluate(() => document.getAnimations().filter((a) => a.effect && a.effect.target && a.effect.target.closest && a.effect.target.closest(".bossbar")).length), 0, "reduced motion: the bar runs no animation after a solve");
+      await context.close();
+    }
+
     /* ------------------------------------------------------ 4: calm mode */
     {
       const { context, page, errors } = await open(browser, CH05, { "bm.lesson.v1": '{"mode":"page"}', "bm.prefs.v1": '{"calm":true,"sound":true}' });
