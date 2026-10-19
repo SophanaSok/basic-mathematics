@@ -1057,6 +1057,42 @@ const ALL = ["google", "github", "discord", "facebook", "azure"];
     await f.context.close();
   }
 
+  /* 31 */
+  {
+    const r31 = () => [
+      { id: "u1", self: true, name: null, under13: false, consent_v: null, created_at: "2026-10-01T00:00:00Z" },
+      { id: "S1", self: false, name: "Old", under13: true, consent_v: 0, created_at: "2026-10-02T00:00:00Z" },
+      mk("F1", "Fresh")
+    ];
+    const { page, context } = await open_({ learners: r31() });
+    await page.waitForFunction(() => /Synced at/.test(document.querySelector("[data-account]").textContent));
+    await page.evaluate(() => { const f = window.BMAccount.switchLearner; window.__sw = 0; window.BMAccount.switchLearner = function () { window.__sw++; return f.apply(this, arguments); }; });
+    const st = () => page.evaluate(() => ({
+      tags: Array.from(document.querySelectorAll("#lrn-n-S1 + .learner-tagline .learner-tag")).map((e) => e.textContent),
+      btn: (document.getElementById("lrn-u13-S1") || {}).textContent, label: (document.getElementById("lrn-u13-S1") || { getAttribute() {} }).getAttribute("aria-label"),
+      dis: document.getElementById("lrn-sw-S1").disabled, aria: document.getElementById("lrn-sw-S1").getAttribute("aria-disabled"), title: document.getElementById("lrn-sw-S1").title,
+      ftags: document.querySelectorAll("#lrn-n-F1 + .learner-tagline .learner-tag").length, fbtn: !!document.getElementById("lrn-u13-F1"),
+      fdis: document.getElementById("lrn-sw-F1").disabled
+    }));
+    let s = await st();
+    check(s.tags.join("|") === "Under 13|Consent to confirm" && s.btn === "Confirm consent" && s.label === "Confirm consent for Old", "31 a stale row shows both tags and the Confirm consent button", s);
+    check(s.dis && s.aria === "true" && s.title === "Confirm consent first", "31 the stale row's Switch to is disabled with aria-disabled and a title", s);
+    check(s.ftags === 1 && !s.fbtn && !s.fdis, "31 a current row shows neither the stale tag nor the button, and can be switched to", s);
+    await page.evaluate(() => { const b = document.getElementById("lrn-sw-S1"); b.disabled = false; b.click(); });
+    await page.waitForTimeout(200);
+    check(await page.evaluate(() => window.__sw) === 0 && /Confirm the consent statement for Old first\./.test(await text(page, ".learners .form-note")), "31 a forced switch is refused with the note and no switchLearner call", await text(page, ".learners .form-note"));
+    await page.click("#lrn-u13-S1");
+    await page.check("#lrn-u13c-S1");
+    await page.click("#lrn-u13s-S1");
+    await page.waitForFunction(() => !document.querySelector("#lrn-n-S1 + .learner-tagline .learner-tag-stale"));
+    const c = await page.evaluate(() => window.__rpc.filter((x) => x.name === "learner_mark_under13"));
+    s = await st();
+    check(c.length === 1 && c[0].args.id === "S1" && c[0].args.consent_v === 1, "31 Confirm sends learner_mark_under13 with consent_v 1", c);
+    check(s.tags.join("|") === "Under 13" && !s.btn && !s.dis && s.aria === null, "31 the row loses the stale tag and Switch to is enabled", s);
+    check(/Old's consent is confirmed\./.test(await text(page, ".learners .form-note")), "31 the note names the learner", await text(page, ".learners .form-note"));
+    await context.close();
+  }
+
   check(errors.length === 0, "no uncaught page errors", errors);
   await browser.close();
   await server.close();

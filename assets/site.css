@@ -1040,6 +1040,7 @@ table.owner th[aria-sort="none"] .link::after { content: none; }
 .learner-tagline { margin: 0; }
 .learner-tag,
 .learner-on { font-family: var(--sans); font-size: .82rem; font-weight: 700; color: var(--accent-deep); padding: .35rem .2rem; }
+.learner-tag-stale { color: var(--muted); }
 .learner-add-h { margin: 1.6rem 0 .6rem; font-size: 1.05rem; }
 .check { display: flex; gap: .6rem; align-items: flex-start; font-family: var(--sans); margin: 0 0 .9rem; min-width: 0; }
 .check input { margin-top: .25rem; flex: none; }
