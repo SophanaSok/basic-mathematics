@@ -334,6 +334,8 @@
     var host = document.querySelector("[data-sidebar]");
     if (!host || !chapter) return;
     var root = rootPrefix();
+    /* the contents page opens on this chapter: the string src/core/hub.ts returnHash(chapter.id) gives */
+    var back = root + "index.html#" + chapter.id;
     var html = "";
 
     html += '<div class="sidebar-body">';
@@ -362,7 +364,7 @@
         escapeHtml(ch.title) + "</a></li>";
     });
     html += "</ol>";
-    html += '<p><a href="' + root + 'index.html">← All chapters</a></p>';
+    html += '<p><a href="' + escapeHtml(back) + '">← All chapters</a></p>';
     html += "</div>";
 
     host.innerHTML =
@@ -420,6 +422,8 @@
     var i = -1;
     list.forEach(function (ch, k) { if (ch.id === chapter.id) i = k; });
     var root = rootPrefix();
+    /* the same hash as the sidebar's link: src/core/hub.ts returnHash(chapter.id) */
+    var back = root + "index.html#" + chapter.id;
     var html = "";
     function link(ch, dir, cls) {
       var href = root + ch.path;
@@ -428,9 +432,9 @@
         escapeHtml(ch.title) + "</b></a>";
     }
     if (i > 0) html += link(list[i - 1], "← Previous", "prev");
-    else html += '<a class="prev" href="' + root + 'index.html"><span class="dir">← Back</span><b>Course contents</b></a>';
+    else html += '<a class="prev" href="' + escapeHtml(back) + '"><span class="dir">← Back</span><b>Course contents</b></a>';
     if (i > -1 && i < list.length - 1) html += link(list[i + 1], "Next →", "next");
-    else html += '<a class="next" href="' + root + 'index.html"><span class="dir">Done →</span><b>Course contents</b></a>';
+    else html += '<a class="next" href="' + escapeHtml(back) + '"><span class="dir">Done →</span><b>Course contents</b></a>';
     host.innerHTML = html;
   }
 
