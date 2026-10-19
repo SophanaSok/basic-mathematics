@@ -160,6 +160,22 @@ html[data-calm] .hud-sound { opacity: .5; cursor: not-allowed; }
 .keys-sheet dt, .keys-sheet dd { margin: 0; }
 .keys-sheet dt { white-space: nowrap; }
 .keys-sheet [data-keys-close] { margin-top: 1rem; }
+/* the first-run guide (src/ui/first-run.ts): five cards in a modal on paper, no motion; the
+   part of the bar a card names gets a ring by outline, which moves nothing */
+.guide-sheet {
+  width: min(28rem, calc(100vw - 32px)); max-width: 28rem; max-height: min(88vh, 44rem); overflow-y: auto;
+  padding: 1rem 1.25rem 1.1rem; background: var(--surface); color: var(--text);
+  border: 1px solid var(--border); border-radius: var(--radius);
+}
+.guide-sheet::backdrop { background: var(--scrim-glass); }
+.guide-sheet .guide-title { margin: 0 0 .5rem; font-size: 1.25rem; }
+.guide-sheet .guide-body { margin: 0 0 .75rem; line-height: 1.5; }
+.guide-sheet .guide-step { margin: 0 0 .75rem; font-size: .875rem; opacity: .8; }
+.guide-sheet .guide-actions { display: flex; flex-wrap: wrap; gap: .5rem; }
+.guide-sheet .guide-actions [data-guide-skip] { margin-right: auto; }
+.guide-sheet .guide-actions [hidden] { display: none; }
+[data-guide-spot] { outline: 3px solid var(--focus); outline-offset: 2px; border-radius: var(--radius); }
+[data-guide-replay] { margin-top: .5rem; }
 /* the go-to palette "/" opens: the same paper, a full-width box and a plain list; the
    selected row as the Arena board marks the reader's own row */
 .keys-palette input {
