@@ -77,6 +77,10 @@ import "../../assets/insights.js";
 import "../ui/form-orbit.ts";
 import "../ui/form-emotes.ts";
 import "../ui/form-view.ts";
+/* the companion's mood model and handle (window.BMCompanion.input); its sidebar figure mounts only on a chapter
+   page, so here the import only gives the "Your form" panel its mood line. Before forms.ts */
+import "../learn/mood.ts";
+import "../ui/companion.ts";
 import "../ui/forms.ts";
 import "../ui/form-unlock.ts";
 /* BMNext.items(), which insights.js asks for the empty chart's "Your next steps": mount() finds no

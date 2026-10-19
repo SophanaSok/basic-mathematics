@@ -377,6 +377,8 @@ function mount(): void {
 }
 
 export const api = {
+  /** the model's input from the page's state (the progress page reads it for its own mood line) */
+  input: (withDue: boolean): MoodInput => input(withDue),
   mood: (): Mood => mood,
   say: (line: string): void => { if (fig) apply({ mood: "delighted", pose: "delighted", line, key: "test", href: null }); },
   state: () => ({
