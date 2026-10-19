@@ -489,7 +489,11 @@
         html += "<p>" + escapeHtml(ch.blurb) + "</p>";
         html += '<span class="meta">';
         if (ch.status === "full") {
-          html += "<span>" + (c.total ? c.solved + " / " + c.total + " exercises" : ch.sections.length + " sections") + "</span>";
+          /* the generated facts (src/data/chapter-meta.ts) tell a chapter's size before it has been opened */
+          var fm = window.BMHubList && window.BMHubList.meta && window.BMHubList.meta[ch.id];
+          var mins = fm && fm.minutes ? " · about " + fm.minutes + " min" : "";
+          html += "<span>" + (c.total ? c.solved + " / " + c.total + " exercises" + mins :
+            ch.sections.length + " sections" + (fm ? " · " + fm.scored + " exercises" + mins : "")) + "</span>";
           var m = Play.count(ch.id);
           if (m.total) {
             html += '<span class="stars" title="Missions completed on this chapter\'s figures">' + ico("star", "★") +

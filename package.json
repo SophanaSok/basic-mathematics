@@ -12,6 +12,7 @@
     "preview": "vite preview",
     "typecheck": "tsc --noEmit",
     "gen:exercise-keys": "node tools/gen-exercise-keys.js",
+    "gen:chapter-meta": "node tools/gen-chapter-meta.js",
     "gen:fonts": "node tools/gen-fonts.js",
     "gen:icons": "node tools/gen-icons.js",
     "gen:forms": "node tools/gen-forms.js",
