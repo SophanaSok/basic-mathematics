@@ -6,6 +6,8 @@
    Every request off the local server is aborted. Cases:
    a. a fresh load with WebGL: List is checked, prefs.map is unset, no 3D chunk is fetched, the one-time note shows, Dismiss hides it and
       writes run.seen.hubHint, a reload shows no note
+   a2. at 400 px wide the note sits below the control and nothing covers the Map radio
+   a3. with the note shown, choosing Map removes it, writes run.seen.hubHint and leaves the focus on the Map radio; a reload shows no note
    b. choosing List tears the world down without a reload (BMMap3D.on() false, [data-map3d]
       hidden, html[data-world] gone), prefs.map is "list"; a reload keeps List and fetches
       neither bundle/three.js nor bundle/world.js
@@ -173,6 +175,32 @@ async function run() {
       s = await sw();
       check(s.checked && s.mode === "map" && (await checked(page)).join() === "Map", "e: and Map again when it is turned on (" + JSON.stringify(s) + ")");
       check(errors.length === 0, "i: no page errors: " + errors.join("; "));
+      await context.close();
+    }
+
+    /* -------------------------------------------- a2, a3: the note is in flow and a choice dismisses it */
+    {
+      const { context, page, errors } = await open(browser, { fresh: true, viewport: { width: 400, height: 800 } });
+      await go(page);
+      await page.locator("[data-hub-note]").waitFor();
+      const g = await page.evaluate(() => {
+        const note = document.querySelector("[data-hub-note]").getBoundingClientRect();
+        const grp = document.querySelector("[data-hub-mode] [role=radiogroup]").getBoundingClientRect();
+        const m = document.querySelector('[data-mode="map"]');
+        const r = m.getBoundingClientRect();
+        const top = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+        return { noteTop: note.top, groupBottom: grp.bottom, covered: !(top === m || m.contains(top)) };
+      });
+      check(g.noteTop >= g.groupBottom - 1, "a2: at 400 px the note sits below the control (" + JSON.stringify(g) + ")");
+      check(!g.covered, "a2: nothing covers the Map radio while the note shows");
+      await radio(page, "map").click();
+      check(await page.locator("[data-hub-note]").count() === 0, "a3: choosing Map removes the note");
+      check(await page.evaluate(() => !!JSON.parse(localStorage.getItem("bm.run.v1") || "{}").seen.hubHint), "a3: choosing Map writes seen.hubHint");
+      check(await page.evaluate(() => document.activeElement && document.activeElement.getAttribute("data-mode") === "map"), "a3: the focus is on the Map radio");
+      await page.reload();
+      await page.waitForFunction(() => window.BMHubMode && window.BMHubMode.state().mounted);
+      check(await page.locator("[data-hub-note]").count() === 0, "a3: a reload shows no note");
+      check(errors.length === 0, "i: no page errors (a2, a3): " + errors.join("; "));
       await context.close();
     }
 
