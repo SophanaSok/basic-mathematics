@@ -248,7 +248,7 @@ describe("over the course", () => {
     /* every detector met real keys, so none of them is outside this check */
     expect(Array.from(fired).sort()).toEqual(ORDER.slice().sort());
     expect(asked).toBeGreaterThan(500);
-  }, 60_000);
+  }, 180_000);   /* the course-wide sweep: the file limit above does not reach a test with its own */
 
   it("a slip run forwards on a real key is caught, and the question is one of the questions", () => {
     let caught = 0, tried = 0;
