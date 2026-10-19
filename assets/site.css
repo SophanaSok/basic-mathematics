@@ -490,6 +490,13 @@ figcaption b { color: var(--text); font-weight: 650; }
   transition: border-color .15s;
 }
 .ex-form input[type="text"] { width: min(16rem, 100%); }
+/* phone: the answer box has a row of its own, the buttons follow under it */
+@media (max-width: 640px) {
+  .ex-form > input[type="text"] { flex-basis: 100%; width: 100%; }
+  .ex-form .ex-show { font-size: .9rem; }
+  /* when the row wraps, the solution button ends it at the right, away from where a thumb rests on the box */
+  .ex-form .ex-show { margin-left: auto; }
+}
 .ex-form input[type="text"]:focus, input.blank:focus, .field input:focus { border-color: var(--accent); }
 .ex-form input::placeholder, .field input::placeholder { color: var(--muted); }
 
@@ -770,6 +777,8 @@ footer.site p { margin: 0 0 .5em; max-width: 62ch; }
   transform: translateY(2px); box-shadow: none;
 }
 .puzzle-after { font-family: var(--sans); font-size: .88rem; color: var(--text); }
+/* keep the line's space while hidden, so the guess does not move what is below */
+.puzzle-after[hidden] { display: block !important; visibility: hidden; }
 .puzzle-answer { border-left: 4px solid var(--part); padding-left: .9rem; margin-bottom: 1rem; }
 .puzzle-answer [data-your-guess] { font-family: var(--sans); font-size: .86rem; color: var(--muted); margin-bottom: .4rem; }
 
