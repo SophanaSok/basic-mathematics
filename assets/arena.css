@@ -227,6 +227,9 @@ html[data-calm] .arena-hearts { display: none; }
 .arena-stat-value small { font-family: var(--sans); font-weight: 500; font-size: .85rem; color: var(--muted); }
 .arena-stat-sub { font-size: .76rem; color: var(--muted); }
 .arena-stat-sub .arena-hearts i { width: 1rem; height: 1rem; }
+.arena-lead { margin: 0 0 .4rem; font-size: 1.1rem; display: flex; flex-wrap: wrap; align-items: center; gap: .4rem .7rem; }
+.arena-bigscore-sub { display: block; color: var(--muted); font-size: .85rem; }
+.arena-part-hint { margin: .3rem 0 .5rem; color: var(--muted); font-size: .9rem; }
 .arena-weakest { margin: 0 0 .4rem; display: flex; flex-wrap: wrap; align-items: center; gap: .4rem .7rem; }
 .arena-weak { list-style: none; margin: 0; padding: 0; }
 .arena-weak li {

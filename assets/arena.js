@@ -1145,17 +1145,20 @@
       var open = ready || (!anyReady && !html);
       html += '<details class="arena-part" data-part="' + part.id + '"' + (open ? " open" : "") + ">" +
         "<summary><span>" + (part.beside ? "" : "Part " + part.num + " — ") + esc(part.name) + '</span><span class="arena-part-count">' + ready + " of " + total + " ready</span></summary>" +
+        (ready ? "" : '<p class="arena-part-hint">A section is ready once you have answered one of its scored exercises right the first time or solved two of its problems on the chapter page.</p>') +
         '<ul class="arena-secs">' + rows + "</ul></details>";
     });
     var sum = counts.solid + counts.shaky + counts.picked;
     var line = sum
       ? "<b>" + plural(sum, "section") + "</b> ready: " + [counts.solid ? counts.solid + " solid" : "", counts.shaky ? counts.shaky + " shaky" : "", counts.picked ? counts.picked + " picked by hand" : ""].filter(Boolean).join(", ") + "."
       : "No sections ready yet.";
+    line += " Tick a section that is not ready yet to practice it untimed and without hearts.";
     return { html: html, count: sum, hard: counts.solid, line: line };
   }
 
   function rulesHtml() {
     return '<details class="arena-rules"><summary>How a run is scored</summary><ul>' +
+      "<li>Points are a run's score: they rank the Daily board and set your Best. XP is separate and is what levels you up.</li>" +
       "<li>Right the first time within par: <b>100</b>, plus 20 for each answer in your current streak (up to +100).</li>" +
       "<li>Right the first time after par, before the time runs out at twice par: <b>60</b>, and the streak holds.</li>" +
       "<li>Wrong: the clock stops, the hint appears, and you get one untimed retry worth <b>30</b>. A wrong answer costs a heart, at most one per question.</li>" +
@@ -1460,17 +1463,22 @@
     html += '<p class="arena-kicker">' + esc(MODES[res.mode].label) + (res.mode === "boss" && res.boss ? " · " + esc(Site.chapterName(C.chapterById(res.boss))) : "") +
       " · " + esc(TEMPO_LABEL[res.tempo] || "") + " tempo</p>";
     html += '<h2 id="arena-result-h" tabindex="-1">' + title + "</h2>";
-    html += '<p class="arena-bigscore" data-step="1"><b>' + cnt(res.score) + "</b> points</p>";
+    var wInfo = weak.length ? secInfo(weak[0].id) : null;
+    html += '<p class="arena-lead" data-step="1"><span><b>' + res.firstTry + " of " + res.n + "</b> right the first time" +
+      (weak.length ? " · weakest <b>" + esc(secName(weak[0].id)) + "</b>" : "") + "</span>" +
+      (wInfo ? '<a class="btn small" href="' + esc(root() + wInfo.path) + '">Reread ' + esc(wInfo.label) + "</a>" : "") + "</p>";
+    html += '<p class="arena-bigscore" data-step="2"><b>' + cnt(res.score) + "</b> points" +
+      '<span class="arena-bigscore-sub">this run\'s score</span></p>';
     if (res.mode === "boss") {
       html += res.medal
-        ? '<p class="arena-medal" data-step="2" data-medal="' + res.medal + '">' + (res.medal === 3 ? "Gold medal: all three hearts kept." : res.medal === 2 ? "Silver medal: finished with a heart to spare." : "Bronze medal: you saw the rematch through.") + "</p>"
-        : '<p class="arena-fine" data-step="2">' + (!res.ranked ? "Untimed rematches are practice only and win no medal."
+        ? '<p class="arena-medal" data-step="3" data-medal="' + res.medal + '">' + (res.medal === 3 ? "Gold medal: all three hearts kept." : res.medal === 2 ? "Silver medal: finished with a heart to spare." : "Bronze medal: you saw the rematch through.") + "</p>"
+        : '<p class="arena-fine" data-step="3">' + (!res.ranked ? "Untimed rematches are practice only and win no medal."
           : res.ended === "banked" ? "A banked rematch wins no medal."
           : res.uncleared ? "No medal: a rematch can only raise the medal of a cleared set. Clear this chapter's practice set on its page, and a rematch like this one will count."
           : "No medal this time: finish with at least one heart to earn one.") + "</p>";
     }
     if (res.mode === "repair") {
-      html += '<p data-step="3">' + res.firstTry + " of " + res.n + " right the first time. " +
+      html += '<p data-step="4">' +
         (res.repaired ? "That is enough to mark " + esc(secName(res.section)) + " as repaired."
           : res.finished ? "Every answer right, four of them first time, marks it repaired; reread it and try again whenever you like."
           : "A repair counts once all " + res.planned + " questions are answered, every one right and four of them first time. Start it again whenever you like.") + "</p>";
@@ -1478,17 +1486,17 @@
     if (res.mode === "review" && res.n) {
       var checked = {};
       res.answers.forEach(function (a) { checked[a.section] = 1; });
-      html += '<p data-step="3">' + plural(Object.keys(checked).length, "section") + " checked. A section answered right the first time each time goes further into its schedule; one with a miss comes back sooner.</p>";
+      html += '<p data-step="4">' + plural(Object.keys(checked).length, "section") + " checked. A section answered right the first time each time goes further into its schedule; one with a miss comes back sooner.</p>";
     }
-    if (res.replay) html += '<p class="arena-fine" data-step="3">That day\'s Daily had already been played, here or in another tab or on another device, so this one pays no XP and keeps no best.</p>';
+    if (res.replay) html += '<p class="arena-fine" data-step="4">That day\'s Daily had already been played, here or in another tab or on another device, so this one pays no XP and keeps no best.</p>';
     html += '<div class="arena-stats">';
-    /* the tiles take 4.., then the board, the review block and the actions take the next three numbers */
-    var ts = 4;
+    /* the tiles take 5.., then the board, the review block and the actions take the next three numbers */
+    var ts = 5;
     if (res.hearts !== null) html += tile("Hearts left", cnt(res.hearts) + " <small>of " + res.maxHearts + "</small>", heartsHtml(res.hearts, res.maxHearts), ts++);
     /* the first-try count and rate, as information: no target to hit */
     var rate = res.n ? Math.round((100 * res.firstTry) / res.n) + "% right the first time" : "";
     html += tile("First try", cnt(res.firstTry) + " <small>of " + res.n + "</small>", [rate, res.n < res.planned ? plural(res.planned - res.n, "question") + " not reached" : ""].filter(Boolean).join(" · "), ts++);
-    html += tile("XP earned", "+" + cnt(res.xp), xpNote(res), ts++);
+    html += tile("XP earned", "+" + cnt(res.xp), "what levels you up" + (xpNote(res) ? " · " + xpNote(res) : ""), ts++);
     html += tile("Best streak", cnt(res.bestStreak), "", ts++);
     if (res.ranked && res.finished) {
       /* the fastest clean run: this run's time, and what is on record for the mode */
@@ -1506,9 +1514,6 @@
     html += reducedHtml(res);
     html += '<div class="arena-review" data-step="' + (ts + 1) + '">';
     if (weak.length) {
-      var w = weak[0], info = secInfo(w.id);
-      html += '<p class="arena-weakest"><span>Weakest this run: <b>' + esc(secName(w.id)) + "</b></span>" +
-        (info ? '<a class="btn small" href="' + esc(root() + info.path) + '">Reread ' + esc(info.label) + "</a>" : "") + "</p>";
       html += '<h3>Worth another look</h3><ul class="arena-weak">';
       weak.forEach(function (b) {
         var inf = secInfo(b.id);
@@ -1531,7 +1536,7 @@
     /* the short reveal: the rows above are already final, so this only dresses them; it plays
        once per run, never on a result put back after a reload (src/ui/results.ts) */
     if (window.BMResults) window.BMResults.playResults(screenEl().querySelector(".arena-result"), { key: runId(run), restored: !!restored, heading: h });
-    say(title + ". " + res.score + " points, " + res.firstTry + " of " + res.n + " right the first time, " + res.xp + " XP." +
+    say(title + ". " + res.firstTry + " of " + res.n + " right the first time. " + res.score + " points, " + res.xp + " XP." +
       (res.reduced && res.reduced.length ? " Less XP than usual for a section practiced a lot today; spaced practice tomorrow counts more." : "") +
       (weak.length ? " Worth rereading: " + secName(weak[0].id) + "." : ""));
   }
