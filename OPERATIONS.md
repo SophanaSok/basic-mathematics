@@ -468,10 +468,14 @@ version, and two places must hold the same number: `CONSENT_V` in `assets/accoun
 them together: one migration that `create or replace`s both functions (copy them from
 `supabase/schema.sql`, which changes in the same PR), and the page constant in the same PR.
 
-**Order**: the migration first, in the same hour as the deploy. In the gap, an old tab still
-sends the old number and the server answers `consent required`; the page maps that to "The
-consent statement on this page is out of date. Reload the page and try again." (only when the box
-was ticked, so a missed tick keeps its own text). Reloading loads the new page. The deploy then
+**Order**: the migration first, then the deploy right after it. Why this order: deployed first,
+the page would mark every under-13 row stale while the server still refuses the new number, so
+every Confirm would fail with a "Reload" that cannot help until the migration runs. Migration
+first, the gap is short: an old tab still sends the old number and the server answers
+`consent required`; the page maps that to "The consent statement on this page is out of date.
+Reload the page and try again." (only when the box was ticked, so a missed tick keeps its own
+text; a tab loaded before PA-11 shows the server's bare text). A reload helps only once the
+deploy is out; until then under-13 adds and confirmations wait. The deploy then
 makes every under-13 row stale on the account page (`consent_v` below `CONSENT_V`): the row shows
 "Consent to confirm", its "Switch to" refuses with a note, and a kept or active learner gets the
 full panel with "Confirm it to keep playing as them" until their parent confirms. Nothing is
@@ -483,10 +487,11 @@ deleted or switched by the bump.
    shows "Consent to confirm"; press Confirm consent, tick the box, Confirm; the tag goes and
    `select consent_v, consent_at from public.learners where id = '<id>';` shows the new number
    and a new `consent_at`.
-4. Rollback: set both constants back (`consent_current` in a new migration that `create or
-   replace`s both functions with the old number, and `CONSENT_V` in the page). Rows confirmed
-   under the new number then read as stale until confirmed again, since the check is
-   "not equal", not "older"; confirming sends the old number back.
+4. Rollback: set both constants back, in the same order and with the same gap (`consent_current`
+   in a new migration that `create or replace`s both functions with the old number, applied
+   first; then `CONSENT_V` in the page, deployed right after). Rows confirmed under the new
+   number then read as stale until confirmed again, since the check is "not equal", not
+   "older"; confirming sends the old number back.
 
 ## 2. Deploys
 
