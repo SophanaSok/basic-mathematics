@@ -37,7 +37,7 @@ export interface MoodInput {
 export type Recent =
   | { type: "attempt"; key: string; correct: boolean; tryNo: number }
   | { type: "solved"; fresh: boolean }
-  | { type: "stuck"; key: string; signal: string }
+  | { type: "stuck"; key: string; signal: string; offer: string }
   | { type: "opened" }
   | { type: "ladder" }
   | { type: "twin" }
@@ -141,13 +141,17 @@ export function react(memory: MoodMemory, recent: Recent, input: MoodInput): { m
       return { memory: next, reaction: make("curious", "curious", again ? "Let's look again." : null, again ? "again" : null, null) };
     }
     case "stuck": {
-      /* a learner answering fast is not stuck */
-      if (recent.signal === "rapid") return none;
+      /* only a learner sitting on a miss; the attempt path and the card cover the other signals */
+      if (recent.signal !== "idle") return none;
       if (Object.hasOwn(memory.nudged, recent.key)) return none;
+      /* "Let's look again." was already said for this exercise */
+      if (Object.hasOwn(memory.misses, recent.key) && memory.misses[recent.key] >= 2) return none;
+      const line = recent.offer === "clue" ? "There's a clue below." : recent.offer === "steps" ? "The worked steps are below." : null;
+      if (!line) return none;
       const nudged: Record<string, true> = Object.create(null);
       for (const k of Object.keys(memory.nudged)) nudged[k] = true;
       nudged[recent.key] = true;
-      return { memory: { misses: memory.misses, nudged }, reaction: make("curious", "curious", "A clue might help.", "stuck", null) };
+      return { memory: { misses: memory.misses, nudged }, reaction: make("curious", "curious", line, "stuck", null) };
     }
     case "solved":
       return recent.fresh ? { memory, reaction: REST() } : none;

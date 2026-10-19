@@ -182,11 +182,13 @@ export function mount(opts: LadderOptions): LadderController {
   const announced = new Set<string>();
   function announce(sig: StuckSignal): void {
     if (announced.has(sig)) return;
-    announced.add(sig);
+    const next = offerAfterWrong(state, opts.hasSolution);
+    const offer = next === "retry" ? "none" : next;
     const key = opts.ex.getAttribute("data-key");
     const chapter = document.body.getAttribute("data-chapter");
     if (!key || !chapter) return;
-    try { (window as any).BMStore?.emit({ type: "stuck", chapter, key, signal: sig }); } catch { /* the bus is optional */ }
+    announced.add(sig);
+    try { (window as any).BMStore?.emit({ type: "stuck", chapter, key, signal: sig, offer }); } catch { /* the bus is optional */ }
   }
   let approachCard: HTMLElement | null = null;
 

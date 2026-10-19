@@ -237,7 +237,7 @@ function toRecent(c: any): Recent | null {
   switch (c.type) {
     case "attempt": return { type: "attempt", key: String(c.key), correct: !!c.correct, tryNo: Number(c.tryNo) || 1 };
     case "solved": return { type: "solved", fresh: !!c.fresh };
-    case "stuck": return { type: "stuck", key: String(c.key), signal: String(c.signal || "") };
+    case "stuck": return { type: "stuck", key: String(c.key), signal: String(c.signal || ""), offer: String(c.offer || "none") };
     case "opened": return { type: "opened" };
     case "ladder": return { type: "ladder" };
     case "twin": return { type: "twin" };
@@ -267,6 +267,8 @@ function onChange(c: any): void {
   if (c.type === "reset" || c.type === "sync") { if (fig) unbuild(); evaluate(); return; }
   if (!fig) return;
   /* built before the sprite is redrawn: a new stage's "from" is the name shown until now */
+  /* a nudge never arrives after the learner has answered */
+  if ((c.type === "solved" || (c.type === "attempt" && c.correct)) && pending && pending.key === "stuck") pending = null;
   const rc = toRecent(c);
   if (c.type === "form") drawSprite();
   if (!rc) return;
