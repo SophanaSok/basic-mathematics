@@ -445,10 +445,20 @@ function refusal(fn) { try { fn(); return null; } catch (e) { return e.message; 
           images: embedded ? [{ bufferView: 0, mimeType: "image/webp" }] : names.map(n => ({ uri: n })),
           textures: (embedded ? [0] : names.map((n, i) => i)).map(i => ({ extensions: { EXT_texture_webp: { source: i } } })) };
         if (embedded) doc.bufferViews = [{ buffer: 0, byteOffset: 0, byteLength: embedded.length }];
+        fs.writeFileSync(path.join(dir, "form-1-poses.webp"), vp8x(1536, 320));
         fs.writeFileSync(path.join(dir, "form-1.glb"), glb.writeGlb(doc, embedded || null));
-        return { n: 1, file: "models/forms/form-1.glb", thumb: "models/forms/form-1.png", bytes: 1, triangles: 1, slots: fm2.SLOTS, clips: fm2.CLIPS, compression: "none", images: names.map(n => "models/forms/" + n) };
+        return { n: 1, file: "models/forms/form-1.glb", thumb: "models/forms/form-1.png", poses: "models/forms/form-1-poses.webp", bytes: 1, triangles: 1, slots: fm2.SLOTS, clips: fm2.CLIPS, compression: "none", images: names.map(n => "models/forms/" + n) };
       };
+      const pngNamedPoses = Buffer.concat([Buffer.from("89504e470d0a1a0a", "hex"), Buffer.alloc(40)]);
       const probs = (name, files, embedded) => fm2.entryProblems(room(name, files, embedded), path.join(base, name)).join("\n");
+      /* the pose sheet: the room's own sheet passes; a changed sheet or entry fails */
+      const poseProbs = (name, change) => { const e = room(name); const dir = path.join(base, name, "public/models/forms"); change(e, path.join(dir, "form-1-poses.webp")); return fm2.entryProblems(e, path.join(base, name)).join("\n"); };
+      check(!/poses/.test(probs("posesok")), "form-models: a 1536x320 pose sheet within the cap passes");
+      check(/form 1: has no poses sheet/.test(poseProbs("noposes", e => { delete e.poses; })), "form-models: an entry with no poses field fails");
+      check(/form 1: models\/forms\/form-1-poses.webp does not exist/.test(poseProbs("gonposes", (e, f) => { fs.unlinkSync(f); })), "form-models: a missing pose sheet fails");
+      check(/form 1: models\/forms\/form-1-poses.webp is not a WebP/.test(poseProbs("pngposes", (e, f) => { fs.writeFileSync(f, pngNamedPoses); })), "form-models: a PNG named .webp as the pose sheet fails");
+      check(/form 1: models\/forms\/form-1-poses.webp is 1536x321, not 1536x320/.test(poseProbs("sizeposes", (e, f) => { fs.writeFileSync(f, vp8x(1536, 321)); })), "form-models: a pose sheet of the wrong canvas fails");
+      check(/form 1: models\/forms\/form-1-poses.webp is 120001 bytes, over 120000/.test(poseProbs("bigposes", (e, f) => { fs.writeFileSync(f, vp8x(1536, 320, 120001)); })), "form-models: a pose sheet over the byte cap fails");
       check(/form 1: texture 0 is embedded/.test(probs("embedded", null, vp8x(1024, 1024))), "form-models: an embedded texture fails");
       const pngNamed = Buffer.concat([Buffer.from("89504e470d0a1a0a", "hex"), Buffer.alloc(40)]);
       check(/form 1: texture 0 form-1-color.webp is not a WebP/.test(probs("notwebp", { "form-1-color.webp": pngNamed })), "form-models: a PNG named .webp fails");
