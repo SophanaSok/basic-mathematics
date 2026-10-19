@@ -9,7 +9,8 @@
        gave up (its chunks failed, an error), Map is aria-disabled with the reason in
        plain words and List reads checked for the visit; the preference is not written.
      - The control is read again on the bus events (prefs, reset, sync), on the window's
-       load and once 2 s after it mounts (the world's chunks arrive late).
+       load, on assets/map3d.js's bm:map3d event (the world up or down) and once 2 s after it mounts
+       (the world's chunks arrive late). A reason shows as a visible line, p.hub-mode-why, under the control.
      - A one-time note says what the two are. Dismissing it is kept in bm.run.v1.seen.hubHint
        (device-local, as seen.companion is), through BMGame.updateRun.
 
@@ -27,6 +28,7 @@ const DEVICE = ["no-webgl", "save-data", "off"];
 let group: HTMLElement | null = null;
 let radios: Record<Mode, HTMLButtonElement> | null = null;
 let noteEl: HTMLElement | null = null;
+let whyEl: HTMLElement | null = null;
 let listening = false;
 let current: Mode = "list";
 let reason = "";
@@ -65,6 +67,25 @@ function paint(): void {
       b.removeAttribute("title");
     }
   });
+  paintWhy();
+}
+
+/** the reason as one visible line under the control (touch has no title), gone when the map is on */
+function paintWhy(): void {
+  const host = group && group.parentElement;
+  if (!host) return;
+  if (!reason) {
+    if (whyEl && whyEl.parentNode) whyEl.parentNode.removeChild(whyEl);
+    whyEl = null;
+    return;
+  }
+  if (!whyEl) {
+    whyEl = document.createElement("p");
+    whyEl.className = "hub-mode-why";
+    whyEl.setAttribute("role", "status");
+    host.appendChild(whyEl);
+  }
+  if (whyEl.textContent !== reason) whyEl.textContent = reason;
 }
 
 function set(m: Mode): void {
@@ -155,6 +176,8 @@ function mount(): void {
       if (c && (c.type === "prefs" || c.type === "reset" || c.type === "sync")) paint();
     });
     window.addEventListener("load", paint);
+    /* assets/map3d.js says when the world comes up or goes down */
+    window.addEventListener("bm:map3d", paint);
     window.setTimeout(paint, 2000);
   }
 }
@@ -162,7 +185,7 @@ function mount(): void {
 export const api = {
   mode: (): Mode => current,
   set: (m: Mode): void => set(m),
-  state: () => ({ mounted: !!group, mode: current, disabled: !!reason, reason, note: !!noteEl })
+  state: () => ({ mounted: !!group, mode: current, disabled: !!reason, reason, note: !!noteEl, why: !!whyEl })
 };
 
 if (typeof window !== "undefined" && typeof document !== "undefined") {

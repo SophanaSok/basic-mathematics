@@ -23,6 +23,16 @@
    n. a chapter page's "All chapters" and "Course contents" links carry #<chapter>; following one marks the card
    o. a reload keeps the selection
    p. a load with an unknown hash marks nothing and throws nothing
+   z1. selecting ch03 by focusing its card shows the panel: "Chapter 3" in the title, the Open link equal to the
+      card's, the state text matching the card's meta
+   z2. a chapter that requires another shows "Builds on" links to the named chapters' links
+   z3. hovering another island with the mouse replaces the panel's title, leaving restores it
+   z4. Where I am selects the current chapter and sets the hash to it
+   z5. ?3d=off: no panel, List checked, the .hub-mode-why line reads the reason
+   z6. a forced failure (world.js blocked) announces into #bm-live, focuses the selected card, and the line reads
+   z7. 360x740: the panel is below the stage, its buttons at least 44 px tall and not overlapping
+   z8. axe finds no violation with the panel open
+   z9. no page errors
    i/q. no page errors */
 "use strict";
 const site = require("../lib/site");
@@ -50,6 +60,7 @@ async function open(browser, o) {
     const u = r.request().url();
     if (!server.owns(u)) return r.abort();
     if (THREE_CHUNK.test(u) || WORLD_CHUNK.test(u)) chunks.push(u);
+    if (o.blockWorld && WORLD_CHUNK.test(u)) return r.abort();
     return r.continue();
   });
   if (o.noGl) {
@@ -260,6 +271,137 @@ async function run() {
       await wait(500);
       check((await marked(page)).length === 0 && (await page.evaluate(() => window.BMHubSelect.current())) === null, "p: an unknown hash marks nothing");
       check(errors.length === 0, "q: no page errors (selection in List): " + errors.join("; "));
+      await context.close();
+    }
+
+    /* -------------------------------------------- z: the selection panel, Where I am, failure */
+    {
+      const { context, page, errors } = await open(browser);
+      await page.goto(server.url + "index.html");
+      await page.waitForFunction(() => window.BMHubMode && window.BMHubMode.state().mounted, null, { timeout: 15000 });
+      await worldUp(page);
+      const panelOf = (pg) => pg.evaluate(() => {
+        const el = document.querySelector("[data-map3d-panel]");
+        const t = el && el.querySelector(".map3d-panel-title");
+        const open = el && el.querySelector("[data-map3d-open]");
+        return { hidden: !el || el.hidden, title: t ? t.textContent : "", text: el ? el.textContent : "", open: open ? open.href : null,
+          heads: el ? el.querySelectorAll("h1,h2,h3,h4,h5,h6").length : -1,
+          builds: el ? Array.prototype.map.call(el.querySelectorAll(".map3d-panel-builds a"), (a) => a.href) : [] };
+      });
+      const cardOf = (pg, id) => pg.evaluate((cid) => {
+        const a = document.querySelector('li.stop[data-chapter="' + cid + '"] .stop-link');
+        return { href: a.href, meta: a.querySelector(".meta").textContent };
+      }, id);
+      check((await panelOf(page)).hidden, "z1: no panel before anything is selected");
+      /* z1 */
+      await page.evaluate(() => document.querySelector('li.stop[data-chapter="ch03"] .stop-link').focus());
+      await page.waitForFunction(() => !document.querySelector("[data-map3d-panel]").hidden, null, { timeout: 5000 });
+      let pn = await panelOf(page), card = await cardOf(page, "ch03");
+      check(/Chapter 3/.test(pn.title), "z1: the title names Chapter 3 (" + pn.title + ")");
+      check(pn.open === card.href, "z1: the Open link is the card's (" + pn.open + " vs " + card.href + ")");
+      const ex = /(\d+) \/ (\d+) exercises/.exec(card.meta), sec = /(\d+) sections/.exec(card.meta);
+      check(ex ? pn.text.indexOf(ex[1] + " of " + ex[2] + " exercises") > -1 : !!sec && pn.text.indexOf(sec[1] + " sections") > -1,
+        "z1: the state matches the card's meta (" + card.meta + " / " + pn.text + ")");
+      check(pn.heads === 0, "z1: no heading in the panel");
+      /* z2 */
+      const wantB = await page.evaluate(() => ["ch01", "ch02"].map((id) => document.querySelector('li.stop[data-chapter="' + id + '"] .stop-link').href));
+      check(pn.builds.join() === wantB.join(), "z2: Builds on names ch01 and ch02 by the cards' links (" + pn.builds + ")");
+      await page.evaluate(() => document.querySelector('li.stop[data-chapter="ch06"] .stop-link').focus());
+      await page.waitForFunction(() => /Chapter 6/.test(document.querySelector(".map3d-panel-title").textContent), null, { timeout: 5000 });
+      pn = await panelOf(page);
+      const want5 = await cardOf(page, "ch05");
+      check(pn.builds.join() === want5.href, "z2: ch06 builds on ch05 (" + pn.builds + ")");
+      /* z3: the pointer */
+      await page.evaluate(() => document.querySelector('li.stop[data-chapter="ch03"] .stop-link').focus());
+      await page.waitForFunction(() => /Chapter 3/.test(document.querySelector(".map3d-panel-title").textContent), null, { timeout: 5000 });
+      await page.evaluate(() => document.querySelector("[data-map3d] .map3d-stage").scrollIntoView({ block: "center" }));
+      await wait(1200);
+      let pos = null;
+      for (const id of ["ch04", "ch05", "ch02"]) {
+        pos = await page.evaluate((cid) => window.BMMap3D.where(cid), id);
+        const inside = pos && await page.evaluate((q) => { const r = document.querySelector(".map3d-canvas").getBoundingClientRect(); return q.x > r.left && q.x < r.right && q.y > r.top && q.y < r.bottom; }, pos);
+        if (!inside) { pos = null; continue; }
+        await page.mouse.move(pos.x - 40, pos.y - 40);
+        await page.mouse.move(pos.x, pos.y, { steps: 4 });
+        try {
+          await page.waitForFunction((n) => !/Chapter 3/.test(document.querySelector(".map3d-panel-title").textContent) && document.querySelector(".map3d-panel-title").textContent.length > 0, id, { timeout: 2500 });
+          break;
+        } catch (e) { pos = null; }
+      }
+      pn = await panelOf(page);
+      check(pos && !/Chapter 3/.test(pn.title), "z3: hovering another island replaces the title (" + pn.title + ")");
+      const cv = await page.evaluate(() => { const r = document.querySelector(".map3d-canvas").getBoundingClientRect(); return { x: r.left + 4, y: r.top + 4 }; });
+      await page.mouse.move(cv.x, cv.y, { steps: 6 });
+      await page.mouse.move(cv.x + 1, cv.y + 1);
+      await page.waitForFunction(() => /Chapter 3/.test(document.querySelector(".map3d-panel-title").textContent), null, { timeout: 4000 }).catch(() => {});
+      pn = await panelOf(page);
+      check(/Chapter 3/.test(pn.title), "z3: leaving restores the selection's title (" + pn.title + ")");
+      /* z4: Where I am */
+      await page.evaluate(() => document.querySelector('li.stop[data-chapter="ch05"] .stop-link').focus());
+      await page.waitForFunction(() => location.hash === "#ch05");
+      const curId = await page.evaluate(() => window.BMMap3D.info().current);
+      check(await page.locator("[data-map3d-recenter]").isEnabled(), "z4: Where I am is enabled when there is a current chapter");
+      await page.locator("[data-map3d-recenter]").click();
+      await page.waitForFunction((id) => location.hash === "#" + id, curId, { timeout: 5000 }).catch(() => {});
+      check((await page.evaluate(() => location.hash)) === "#" + curId && (await hotOf(page)) === curId, "z4: Where I am selects the current chapter " + curId + " (" + (await page.evaluate(() => location.hash)) + ")");
+      /* z8: axe with the panel open */
+      const axeSrc = require("../lib/pw").resolvePlaywright().axeSource;
+      await page.evaluate(axeSrc);
+      const ax = await page.evaluate(async () => {
+        const res = await window.axe.run(document, { resultTypes: ["violations"] });
+        return res.violations.map((x) => ({ id: x.id, nodes: x.nodes.map((n) => n.target.join(" ")) }));
+      });
+      check(!(await panelOf(page)).hidden && ax.length === 0, "z8: axe finds no violation with the panel open (" + JSON.stringify(ax) + ")");
+      check(errors.length === 0, "z9: no page errors (panel): " + errors.join("; "));
+      await context.close();
+    }
+    /* z5: the device cannot draw it */
+    {
+      const { context, page, errors } = await open(browser);
+      await go(page, "?3d=off");
+      await page.waitForSelector(".hub-mode-why", { timeout: 5000 });
+      const d = await page.evaluate(() => ({ why: document.querySelector(".hub-mode-why").textContent, role: document.querySelector(".hub-mode-why").getAttribute("role"),
+        panel: document.querySelectorAll("[data-map3d-panel]").length, checked: window.BMHubMode.mode() }));
+      check(d.panel === 0 && d.checked === "list" && d.role === "status" && /cannot draw the map/.test(d.why), "z5: ?3d=off shows no panel, List, and the reason line (" + JSON.stringify(d) + ")");
+      check(errors.length === 0, "z9: no page errors (3d=off): " + errors.join("; "));
+      await context.close();
+    }
+    /* z6: a failure to fetch the world */
+    {
+      const { context, page, errors } = await open(browser, { blockWorld: true });
+      await page.goto(server.url + "index.html#ch03");
+      await page.waitForFunction(() => window.BMHubMode && window.BMHubMode.state().mounted, null, { timeout: 15000 });
+      await page.waitForSelector(".hub-mode-why", { timeout: 15000 });
+      await page.waitForFunction(() => /could not start/.test((document.getElementById("bm-live") || {}).textContent || ""), null, { timeout: 8000 }).catch(() => {});
+      const f = await page.evaluate(() => ({
+        live: (document.getElementById("bm-live") || {}).textContent || "", why: document.querySelector(".hub-mode-why").textContent,
+        focused: document.activeElement === document.querySelector('li.stop[data-chapter="ch03"] .stop-link'), reason: window.BMMap3D.why(), mode: window.BMHubMode.mode()
+      }));
+      check(/could not start/.test(f.live), "z6: the failure is announced in #bm-live (" + f.live + ")");
+      check(f.focused, "z6: the selected card is focused (" + JSON.stringify(f) + ")");
+      check(/could not start/.test(f.why) && f.mode === "list", "z6: the control shows List with the reason line (" + f.why + ")");
+      check(errors.length === 0, "z9: no page errors (failure): " + errors.join("; "));
+      await context.close();
+    }
+    /* z7: a phone */
+    {
+      const { context, page, errors } = await open(browser, { viewport: { width: 360, height: 740 } });
+      await page.goto(server.url + "index.html#ch03");
+      await page.waitForFunction(() => window.BMHubMode && window.BMHubMode.state().mounted, null, { timeout: 15000 });
+      await worldUp(page);
+      await page.waitForFunction(() => !document.querySelector("[data-map3d-panel]").hidden, null, { timeout: 5000 });
+      const g = await page.evaluate(() => {
+        const st = document.querySelector(".map3d-stage").getBoundingClientRect(), pn = document.querySelector("[data-map3d-panel]").getBoundingClientRect();
+        const btns = Array.prototype.map.call(document.querySelectorAll("[data-map3d-recenter], [data-map3d-panel] a.btn"), (b) => { const r = b.getBoundingClientRect(); return { l: r.left, t: r.top, r: r.right, b: r.bottom, h: r.height }; });
+        let overlap = false;
+        for (let i = 0; i < btns.length; i++) for (let j = i + 1; j < btns.length; j++) {
+          const a = btns[i], c = btns[j];
+          if (a.l < c.r - 0.5 && c.l < a.r - 0.5 && a.t < c.b - 0.5 && c.t < a.b - 0.5) overlap = true;
+        }
+        return { below: pn.top >= st.bottom - 0.5, minH: Math.min.apply(null, btns.map((x) => x.h)), n: btns.length, overlap, inside: pn.right <= window.innerWidth + 0.5 };
+      });
+      check(g.below && g.minH >= 44 && g.n >= 2 && !g.overlap && g.inside, "z7: at 360x740 the panel is below the stage, buttons >= 44 px, not overlapping (" + JSON.stringify(g) + ")");
+      check(errors.length === 0, "z9: no page errors (phone): " + errors.join("; "));
       await context.close();
     }
 
