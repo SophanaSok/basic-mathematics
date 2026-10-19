@@ -210,7 +210,7 @@ async function newContext(browser, opts) {
   await context.addInitScript(PIXELS);
   if (opts.hardware || opts.renderer) await context.addInitScript(RENDERER, opts.renderer || HARDWARE);
   await context.addInitScript((seed) => {
-    try { if (!sessionStorage.getItem("__seeded")) { Object.keys(seed).forEach(function (k) { localStorage.setItem(k, seed[k]); }); sessionStorage.setItem("__seeded", "1"); } } catch (e) { /* fine */ }
+    try { if (!sessionStorage.getItem("__seeded")) { if (!("bm.guide.v1" in seed)) localStorage.setItem("bm.guide.v1", '{"v":1,"seen":1}'); Object.keys(seed).forEach(function (k) { localStorage.setItem(k, seed[k]); }); sessionStorage.setItem("__seeded", "1"); } } catch (e) { /* fine */ }
   }, opts.seed || {});
   return { context, asked, world, post };
 }

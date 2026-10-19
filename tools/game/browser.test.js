@@ -158,6 +158,7 @@ async function open(browser, page0, seed, opts) {
   if (!opts.blockStorage) {
     await page.evaluate((seed) => {
       localStorage.clear();
+      if (!("bm.guide.v1" in seed)) localStorage.setItem("bm.guide.v1", '{"v":1,"seen":1}');
       Object.keys(seed).forEach(function (k) { localStorage.setItem(k, seed[k]); });
     }, seed || {});
     await page.goto(url(page0));

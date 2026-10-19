@@ -110,7 +110,7 @@ module.exports = {
       page.setDefaultTimeout(15000);
       const errors = track(page, server.url);
       await page.goto(server.url + rel, { waitUntil: "load" });
-      await page.evaluate((seed) => { localStorage.clear(); Object.keys(seed).forEach(k => localStorage.setItem(k, JSON.stringify(seed[k]))); }, seed || {});
+      await page.evaluate((seed) => { localStorage.clear(); if (!("bm.guide.v1" in seed)) localStorage.setItem("bm.guide.v1", JSON.stringify({ v: 1, seen: 1 })); Object.keys(seed).forEach(k => localStorage.setItem(k, JSON.stringify(seed[k]))); }, seed || {});
       await page.reload({ waitUntil: "load" });
       await h.settle(page);
       return { context, page, errors, close: () => context.close() };
