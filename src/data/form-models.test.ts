@@ -36,6 +36,14 @@ describe("FORM_MODELS", () => {
     expect(new Set(paths).size).toBe(paths.length);
   });
 
+  it("names a pose sheet for its own stage", () => {
+    for (const m of FORM_MODELS) {
+      expect(m.poses.startsWith("models/forms/")).toBe(true);
+      expect(m.poses.endsWith("-poses.webp")).toBe(true);
+      expect(m.poses).toContain("form-" + m.n + "-");
+    }
+  });
+
   it("lists at most four textures, each named for its own stage", () => {
     for (const m of FORM_MODELS) {
       expect(m.images.length).toBeLessThanOrEqual(4);

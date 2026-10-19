@@ -7,7 +7,7 @@
    the files hold is acceptable: size and triangle caps (src/data/form-limits.ts, read
    through Node's own TypeScript loading, as check-static.js reads src/data/skills.ts),
    the five material slots, the five clips, the idle's length, the extensions the page can
-   decode, any textures, and the thumbnail. */
+   decode, any textures, the thumbnail and the pose sheet. */
 const fs = require("fs");
 const path = require("path");
 const glb = require("./glb");
@@ -24,6 +24,7 @@ const IMAGES_MAX = 4;
 const IMAGE_EDGES = [1024, 2048];
 const WEBP_MIME = "image/webp";
 const THUMB_SIZE = [512, 640];
+const POSES_SIZE = [1536, 320];
 const PNG_RGBA = 6;
 const PNG_MAGIC = "89504e470d0a1a0a";
 
@@ -82,6 +83,20 @@ function entryProblems(e, root) {
       if (b[25] !== PNG_RGBA) out.push(w + e.thumb + " has colour type " + b[25] + ", not " + PNG_RGBA + " (RGBA)");
     }
     if (b.length > limits.THUMB_BYTES_MAX) out.push(w + e.thumb + " is " + b.length + " bytes, over " + limits.THUMB_BYTES_MAX);
+  }
+  if (!e.poses) out.push(w + "has no poses sheet");
+  else {
+    const f = path.join(root, "public", e.poses);
+    if (!fs.existsSync(f)) out.push(w + e.poses + " does not exist");
+    else {
+      const b = fs.readFileSync(f);
+      if (b.length < 12 || b.toString("latin1", 0, 4) !== "RIFF" || b.toString("latin1", 8, 12) !== "WEBP") out.push(w + e.poses + " is not a WebP");
+      else {
+        const s = glb.imageSize(b);
+        if (!s || s.width !== POSES_SIZE[0] || s.height !== POSES_SIZE[1]) out.push(w + e.poses + " is " + (s ? s.width + "x" + s.height : "of unknown size") + ", not " + POSES_SIZE.join("x"));
+      }
+      if (b.length > limits.POSES_BYTES_MAX) out.push(w + e.poses + " is " + b.length + " bytes, over " + limits.POSES_BYTES_MAX);
+    }
   }
   return out;
 }
