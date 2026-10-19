@@ -41,7 +41,16 @@
    z6. a forced failure (world.js blocked) announces into #bm-live, focuses the selected card, and the line reads
    z7. 360x740: the panel is below the stage, its buttons at least 44 px tall and not overlapping
    z8. axe finds no violation with the panel open
-   z9. no page errors */
+   z9. no page errors
+   k1. Tab from the last Part button lands on the course map's stage, named for the current chapter, which is selected
+   k2. ArrowRight/ArrowLeft/End/Home move the selection, the hash and the panel's title follow
+   k3. Enter opens the selected chapter's page
+   k4. Escape moves the focus to the checked List/Map radio
+   k5. with the stage focused j moves no cursor and g h goes nowhere
+   k6. under reduced motion a step is a cut
+   k7. the ? sheet lists the Course map group on the contents page
+   k8. axe passes with the stage focusable
+   k9. no page errors */
 "use strict";
 const site = require("../lib/site");
 const target = require("../lib/target");
@@ -535,6 +544,92 @@ async function run() {
       await page.waitForFunction(() => document.querySelectorAll("li.stop[hidden]").length > 0, null, { timeout: 3000 });
       check((await page.inputValue("#hub-q")) === "linear", "y: the field takes typing");
       check(errors.length === 0, "i: no page errors (search 360): " + errors.join("; "));
+      await context.close();
+    }
+    /* -------------------------------------------- k: keyboard travel on the map */
+    {
+      const { context, page, errors } = await open(browser);
+      await context.addInitScript(() => { try { localStorage.setItem("bm.prefs.v1", JSON.stringify({ motion: "full" })); } catch (e) { /* fine */ } });
+      await go(page);
+      await worldUp(page);
+      await page.waitForFunction(() => window.BMMap3D.info() && document.querySelector(".map3d-part:not([disabled])"), null, { timeout: 15000 });
+      const st = () => page.evaluate(() => {
+        const s = document.querySelector("[data-map3d-stage]"), i = window.BMMap3D.info();
+        const sel = document.querySelector("li.stop[data-selected]");
+        return { focus: document.activeElement === s, label: s.getAttribute("aria-label"), hot: i.hot, cur: i.current, flying: i.flying,
+          hash: location.hash, title: document.querySelector(".map3d-panel-title").textContent, sel: sel ? sel.getAttribute("data-chapter") : null,
+          role: s.getAttribute("role"), described: s.getAttribute("aria-describedby") };
+      });
+      const parts = await page.locator(".map3d-part").count();
+      await page.locator(".map3d-part").nth(parts - 1).focus();
+      await page.keyboard.press("Tab");
+      const k1 = await st();
+      check(k1.focus && k1.hot !== null && k1.hot === k1.cur && /^Course map: /.test(k1.label) && k1.sel === k1.cur, "k1: Tab from the last Part button lands on the stage, naming and selecting the current chapter (" + JSON.stringify(k1) + ")");
+      check(k1.role === "group" && await page.evaluate(() => /Arrow keys/.test(document.getElementById("map3d-keys").textContent)), "k1: role group, described by the key hint");
+      await page.keyboard.press("Tab");
+      check(await page.evaluate(() => document.activeElement.hasAttribute("data-map3d-recenter")), "k1: the next Tab reaches Where I am");
+      await page.keyboard.press("Shift+Tab");
+      const ids = await page.evaluate(() => Array.prototype.map.call(document.querySelectorAll("li.stop[data-chapter]"), (l) => l.getAttribute("data-chapter")));
+      await page.keyboard.press("ArrowRight");
+      const a = await st();
+      const ni = Math.min(ids.indexOf(k1.hot) + 1, ids.length - 1);
+      check(a.hot === ids[ni] && a.hash === "#" + ids[ni] && a.title !== k1.title && a.focus, "k2: ArrowRight selects the next chapter, the hash and the panel follow (" + JSON.stringify(a) + ")");
+      await page.keyboard.press("ArrowLeft");
+      const b = await st();
+      check(b.hot === k1.hot && b.hash === "#" + k1.hot && b.title === k1.title, "k2: ArrowLeft goes back (" + JSON.stringify(b) + ")");
+      await page.keyboard.press("End");
+      const e1 = await st();
+      await page.keyboard.press("ArrowRight");
+      const e2 = await st();
+      check(e1.hot !== k1.hot && e1.hot === e2.hot && e1.hash === "#" + e1.hot, "k2: End selects the last island, and ArrowRight stays there (" + e1.hot + ")");
+      await page.keyboard.press("Home");
+      const h = await st();
+      await page.keyboard.press("ArrowLeft");
+      const h2 = await st();
+      check(h.hot !== e1.hot && h.hot === h2.hot && h.hash === "#" + h.hot, "k2: Home selects the first island, and ArrowLeft stays there (" + h.hot + ")");
+      await page.keyboard.press("j");
+      const kb = await page.evaluate(() => ({ c: !!window.BMKeys.cursor(), m: document.querySelectorAll("[data-keys-cursor]").length, onStage: document.activeElement.hasAttribute("data-map3d-stage") }));
+      check(!kb.c && kb.m === 0 && kb.onStage, "k5: j moves no cursor with the stage focused (" + JSON.stringify(kb) + ")");
+      await page.keyboard.press("g"); await page.keyboard.press("h");
+      await wait(300);
+      check(/index\.html$|\/$/.test(new URL(page.url()).pathname), "k5: g h does not navigate");
+      /* k8: axe with the stage focusable */
+      await page.evaluate(require("../lib/pw").resolvePlaywright().axeSource);
+      const ax = await page.evaluate(async () => {
+        const res = await window.axe.run(document, { resultTypes: ["violations"] });
+        return res.violations.map((v) => v.id + ": " + v.nodes.map((n) => n.target.join(" ")).join(", "));
+      });
+      check(ax.length === 0, "k8: axe finds no violation with the stage focusable (" + JSON.stringify(ax) + ")");
+      /* k7: the sheet */
+      await page.locator("body").click({ position: { x: 2, y: 2 } });
+      await page.keyboard.press("?");
+      const groups = await page.evaluate(() => Array.prototype.map.call(document.querySelectorAll("#keys-sheet h3"), (x) => x.textContent));
+      check(groups.indexOf("Course map") > -1, "k7: the ? sheet lists the Course map group (" + groups.join() + ")");
+      await page.keyboard.press("Escape");
+      /* k4, k3 */
+      await page.locator("[data-map3d-stage]").focus();
+      await page.keyboard.press("Escape");
+      check(await page.evaluate(() => document.activeElement.getAttribute("role") === "radio" && document.activeElement.getAttribute("aria-checked") === "true"), "k4: Escape moves the focus to the checked radio");
+      await page.locator("[data-map3d-stage]").focus();
+      await page.keyboard.press("ArrowRight");
+      const want = (await st()).hot;
+      const file = await page.evaluate((id) => new URL(document.querySelector('li.stop[data-chapter="' + id + '"] .stop-link').href).pathname, want);
+      await Promise.all([page.waitForURL((u) => u.pathname === file, { timeout: 10000 }), page.keyboard.press("Enter")]);
+      check(new URL(page.url()).pathname === file, "k3: Enter opens the selected chapter's page (" + file + ")");
+      check(errors.length === 0, "k9: no page errors (keys): " + errors.join("; "));
+      await context.close();
+    }
+    {
+      const { context, page, errors } = await open(browser);
+      await page.emulateMedia({ reducedMotion: "reduce" });
+      await go(page);
+      await worldUp(page);
+      await page.waitForFunction(() => window.BMMap3D.info(), null, { timeout: 15000 });
+      await page.locator("[data-map3d-stage]").focus();
+      await page.keyboard.press("ArrowRight");
+      await page.keyboard.press("ArrowRight");
+      check(await page.evaluate(() => window.BMMap3D.info().flying === false), "k6: under reduced motion a step is a cut");
+      check(errors.length === 0, "k9: no page errors (reduced): " + errors.join("; "));
       await context.close();
     }
   } finally {

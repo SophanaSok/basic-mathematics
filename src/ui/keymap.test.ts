@@ -297,6 +297,7 @@ describe("BINDINGS", () => {
     for (const kind of KINDS) {
       const seen = new Map<string, true>();
       for (const b of BINDINGS) {
+        if (b.stage) continue;
         if (b.kinds !== "all" && !b.kinds.includes(kind)) continue;
         for (const key of b.keys) {
           for (const at of places(b.where)) {
@@ -311,6 +312,7 @@ describe("BINDINGS", () => {
   it("never binds keys the browser needs", () => {
     const banned = new Set(["Space", "Tab", "Home", "End", "PageUp", "PageDown"]);
     for (const b of BINDINGS) {
+      if (b.stage) continue; /* the map's stage owns these while it has the focus */
       for (const key of b.keys) {
         expect(banned.has(key)).toBe(false);
         if (key === "↓" || key === "↑") {
@@ -338,11 +340,15 @@ describe("BINDINGS", () => {
     expect(first("home")).toBe("Next or previous item");
     expect(first("arena")).toBe("Next or previous item");
   });
+  it("shows the Course map group on the contents page only", () => {
+    expect(cheatSheet("home").map((g) => g.group)).toContain("Course map");
+    for (const kind of KINDS) if (kind !== "home") expect(cheatSheet(kind).map((g) => g.group)).not.toContain("Course map");
+  });
   it("orders the groups Move, Exercise, Go, Help", () => {
     expect(cheatSheet("chapter").map((g) => g.group)).toEqual(["Move", "Exercise", "Go", "Help"]);
     for (const kind of KINDS) {
       const order = cheatSheet(kind).map((g) => g.group);
-      const rank = order.map((g) => ["Move", "Exercise", "Go", "Help"].indexOf(g));
+      const rank = order.map((g) => ["Move", "Exercise", "Course map", "Go", "Help"].indexOf(g));
       expect(rank).toEqual([...rank].sort((a, b) => a - b));
     }
   });
@@ -373,6 +379,7 @@ describe("BINDINGS against step", () => {
   };
   it("fires where the row says it does", () => {
     for (const b of BINDINGS) {
+      if (b.stage) continue;
       const kinds = b.kinds === "all" ? KINDS : b.kinds;
       const ats = b.where === "any" ? ATS : b.where;
       for (const kind of kinds) for (const at of ats) for (const k of b.keys) {
@@ -382,6 +389,7 @@ describe("BINDINGS against step", () => {
   });
   it("stays quiet where the row says it does not", () => {
     for (const b of BINDINGS) {
+      if (b.stage) continue;
       if (b.kinds === "all" && b.where === "any") continue;
       const kinds = b.kinds === "all" ? KINDS : b.kinds;
       const ats = b.where === "any" ? ATS : b.where;

@@ -210,7 +210,9 @@ export interface Binding {
   label: string;
   kinds: Kind[] | "all";
   where: At[] | "any";
-  group: "Move" | "Exercise" | "Go" | "Help";
+  group: "Move" | "Exercise" | "Course map" | "Go" | "Help";
+  /* keys the map's stage handles itself (assets/map3d.js); step() never sees them */
+  stage?: true;
 }
 
 const WITH_ITEMS: Kind[] = ["chapter", "home", "arena", "progress", "account", "page"];
@@ -230,6 +232,10 @@ export const BINDINGS: Binding[] = [
   { keys: ["s"], label: "Show or hide the solution", kinds: ["chapter"], where: ["card"], group: "Exercise" },
   { keys: ["1-9"], label: "Pick an option", kinds: ["chapter"], where: ["card"], group: "Exercise" },
   { keys: ["Esc"], label: "Leave the box, or drop the cursor", kinds: "all", where: ["card", "item"], group: "Move" },
+  { keys: ["←", "→"], label: "Previous or next chapter on the map", kinds: ["home"], where: "any", group: "Course map", stage: true },
+  { keys: ["Home", "End"], label: "First or last chapter", kinds: ["home"], where: "any", group: "Course map", stage: true },
+  { keys: ["Enter"], label: "Open the chapter", kinds: ["home"], where: "any", group: "Course map", stage: true },
+  { keys: ["Esc"], label: "Leave the map", kinds: ["home"], where: "any", group: "Course map", stage: true },
   { keys: ["1", "2", "3"], label: "Start a Standard, Daily or Review run", kinds: ["arena"], where: ["body"], group: "Go" },
   { keys: ["g h"], label: "Home", kinds: "all", where: "any", group: "Go" },
   { keys: ["g a"], label: "Arena", kinds: "all", where: "any", group: "Go" },
@@ -240,7 +246,7 @@ export const BINDINGS: Binding[] = [
   { keys: ["?"], label: "This list", kinds: "all", where: "any", group: "Help" },
 ];
 
-const ORDER = ["Move", "Exercise", "Go", "Help"] as const;
+const ORDER = ["Move", "Exercise", "Course map", "Go", "Help"] as const;
 
 export function cheatSheet(
   kind: Kind,

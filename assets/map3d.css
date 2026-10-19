@@ -73,6 +73,8 @@ html[data-world] .map3d:empty::after {
 }
 /* a flat placeholder until the first frame is drawn; then the canvas, which paints its
    own sky, covers it */
+.map3d-stage:focus { outline: none; }
+.map3d-stage:focus-visible { outline: var(--focus-width, 3px) solid var(--focus); outline-offset: -3px; }
 .map3d-stage[data-state="loading"] { background: var(--surface-2); }
 .map3d-wait {
   position: absolute; inset: 0; display: grid; place-items: center; margin: 0;
@@ -143,6 +145,14 @@ html[data-calm] .map3d-legend [data-mark="boss"], html[data-calm] .map3d-legend-
 .map3d-panel a:not(.btn) { color: var(--accent); }
 .map3d-panel-actions { display: flex; flex-wrap: wrap; gap: .6rem; margin-top: .2rem !important; }
 .map3d-panel-actions .btn { min-height: 2.75rem; }
+/* narrow: the tools row stands above the stage though it follows it in the markup (the stage is first in the tab order) */
+@media (max-width: 999.98px) {
+  .map3d:not([hidden]) { display: flex; flex-direction: column; }
+  .map3d > .map3d-parts { order: 1; }
+  .map3d > .map3d-tools { order: 2; }
+  .map3d > .map3d-stage { order: 3; }
+  .map3d > .map3d-panel { order: 4; }
+}
 /* wide: the panel is a column beside the stage (the stage keeps its 16:9); the column is kept while the panel is
    hidden, so the stage does not change width when a chapter is first hovered or selected */
 @media (min-width: 1000px) {
