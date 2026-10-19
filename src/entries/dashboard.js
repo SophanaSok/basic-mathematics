@@ -78,6 +78,8 @@ import "../ui/form-emotes.ts";
 import "../ui/form-view.ts";
 import "../ui/forms.ts";
 import "../ui/form-unlock.ts";
+/* the first-run guide (shown once on a chapter page) and its replay button in the settings sheet */
+import "../ui/first-run.ts";
 /* the keyboard layer: the pure keymap, then the DOM half, last, once everything it
    drives is up */
 import "../ui/keymap.ts";
