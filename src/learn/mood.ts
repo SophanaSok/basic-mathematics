@@ -47,7 +47,8 @@ export type Recent =
   | { type: "chapterDone"; fresh: boolean }
   | { type: "level"; level: number }
   | { type: "achievement"; title: string }
-  | { type: "form"; from: string; to: string };
+  | { type: "form"; from: string; to: string }
+  | { type: "arena"; phase: "start" | "answer" | "end"; correct?: boolean; pass?: boolean; timeout?: boolean };
 
 export interface Reaction {
   mood: Mood;
@@ -176,6 +177,11 @@ export function react(memory: MoodMemory, recent: Recent, input: MoodInput): { m
       return joy("Level " + recent.level + ".", "level");
     case "achievement":
       return joy(null, null);
+    case "arena":
+      /* a run has many answers: a pose for each, a word only at the end, and nothing about score, hearts or time */
+      if (recent.phase === "end") return joy("Run done.", "arena-end");
+      if (recent.phase === "answer" && recent.correct && !recent.pass && !recent.timeout) return joy(null, null);
+      return wonder();
     case "form":
       return joy(recent.from + " became " + recent.to + "!", "form");
   }

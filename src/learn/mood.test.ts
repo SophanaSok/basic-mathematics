@@ -249,3 +249,26 @@ describe("constants and intro", () => {
     expect(introLine("Pip")).toBe("This is Pip, your form. It keeps you company while you work.");
   });
 });
+
+describe("arena", () => {
+  it("a start is curious, no line", () => {
+    expect(rx({ type: "arena", phase: "start" })).toEqual(R("curious", "curious", null, null));
+  });
+  it("a correct answer is delighted, no line", () => {
+    expect(rx({ type: "arena", phase: "answer", correct: true })).toEqual(R("delighted", "delighted", null, null));
+  });
+  it("a wrong answer, a pass and a timeout are curious, no line", () => {
+    expect(rx({ type: "arena", phase: "answer", correct: false })).toEqual(R("curious", "curious", null, null));
+    expect(rx({ type: "arena", phase: "answer", correct: false, pass: true })).toEqual(R("curious", "curious", null, null));
+    expect(rx({ type: "arena", phase: "answer", correct: false, timeout: true })).toEqual(R("curious", "curious", null, null));
+  });
+  it("the end is delighted with 'Run done.'", () => {
+    expect(rx({ type: "arena", phase: "end" })).toEqual(R("delighted", "delighted", "Run done.", "arena-end"));
+  });
+  it("leaves the memory alone and says nothing in Study mode", () => {
+    for (const phase of ["start", "answer", "end"] as const) {
+      expect(go({ type: "arena", phase, correct: true }).memory).toBe(EMPTY_MEMORY);
+      expect(rx({ type: "arena", phase, correct: true }, { calm: true })).toBeNull();
+    }
+  });
+});
