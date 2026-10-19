@@ -120,7 +120,7 @@ html[data-world] .map3d:empty::after {
 .map3d-legend [data-mark="beacon"] i { width: .25rem; height: .8rem; background: var(--accent); border-radius: 2px; margin: 0 .175rem; }
 .map3d-legend [data-mark="flag"] i { background: var(--ok); clip-path: polygon(0 0, 100% 30%, 0 60%); height: .8rem; }
 html[data-calm] .map3d-legend [data-mark="boss"], html[data-calm] .map3d-legend-sr [data-mark="boss"] { display: none; }
-@media (max-width: 480px) { .map3d-legend { display: none; } }
+@media (max-width: 640px) { .map3d-legend { display: none; } }
 
 .map3d-probe { position: absolute; width: 0; height: 0; overflow: hidden; visibility: hidden; }
 
