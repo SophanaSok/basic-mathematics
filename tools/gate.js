@@ -52,6 +52,7 @@ const WEBGL_PATHS = [
   "src/ui/hub-mode.ts",          // the List / Map control
   "src/ui/hub-select.ts",        // the selection the world starts on
   "src/ui/hub-search.ts",        // the search that hides cards the world mirrors
+  "src/entries/home.js",         // what the contents page loads, and in which order
   "src/model/",                  // the loader and look the forms script uses
   "src/ui/form-view.ts",         // the view that draws a form in the page
   "src/vendor/",                 // three.js, three-model.js and three-post.js are vendored here
