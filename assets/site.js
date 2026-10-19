@@ -540,13 +540,18 @@
     var btn = document.querySelector("[data-continue]");
     if (!btn) return;
     var last = readStore(LAST_KEY, null);
-    var ch = last && last.id && C.chapterById ? C.chapterById(last.id) : null;
-    if (!ch) return;
-    var sec = ch.sections.filter(function (s) { return s.id === last.section; })[0];
-    var anchor = sec ? "#" + sec.id : (last.section === "practice" || last.section === "warmup" ? "#" + last.section : "");
-    btn.setAttribute("href", ch.path + anchor);
-    btn.textContent = "Continue: " + chapterName(ch) +
-      (sec ? " · " + sec.title : last.section === "practice" ? " · Practice" : "") + " →";
+    var hub = window.BMHubList;
+    if (!hub || !hub.continueTarget) return;
+    var all = [];
+    C.parts.forEach(function (part) {
+      part.chapters.forEach(function (ch) {
+        all.push({ id: ch.id, name: chapterName(ch), path: ch.path, sections: ch.sections });
+      });
+    });
+    var t = hub.continueTarget(last, all);
+    if (!t) return;
+    btn.setAttribute("href", t.href);
+    btn.textContent = t.text + " →";
   }
 
   function buildCourseStats() {
