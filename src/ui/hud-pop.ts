@@ -32,6 +32,7 @@ function plural(n: number, one: string, many: string): string {
 /* the reader's HUD view, from the stores as stored (the same input the HUD script reads) */
 function view() {
   const doc = document;
+  if (!window.BMHud || typeof window.BMHud.hudView !== "function") return null;
   return window.BMHud.hudView({
     activity: read("bm.activity.v1"), run: read("bm.run.v1"), prefs: read("bm.prefs.v1"),
     calm: doc.documentElement.hasAttribute("data-calm"),
@@ -43,6 +44,7 @@ function view() {
 function tipText(part: HTMLElement): string | null {
   if (part.hidden || part.closest("[hidden]")) return null;
   const v = view();
+  if (!v) return null;
   const levelText = "Level " + v.level + " · " + v.rank + ". " + v.into + " of " + v.span + " XP to level " + (v.level + 1) + ".";
   if (part.classList.contains("hud-level") || part.classList.contains("hud-xp")) return levelText;
   if (part.classList.contains("hud-streak")) return "Streak: " + plural(v.streak, "day", "days") + ". Today: " + v.today + " of " + v.goal + " XP.";
@@ -125,7 +127,7 @@ function closePop(refocus: boolean): void {
   const badge = document.querySelector<HTMLElement>(".topbar .hud-level");
   pop.remove();
   pop = null;
-  if (badge) badge.removeAttribute("aria-expanded");
+  if (badge) { badge.removeAttribute("aria-expanded"); badge.removeAttribute("aria-controls"); }
   if (refocus && badge) { quiet = true; badge.focus(); quiet = false; }
 }
 
@@ -134,6 +136,7 @@ function openPop(badge: HTMLAnchorElement): void {
   if (!bar) return;
   hideTip();
   const v = view();
+  if (!v) return;
   const activity = read("bm.activity.v1"), game = read("bm.game.v1");
   const form = game && typeof game === "object" ? (game as { form?: unknown }).form : null;
   const xp = window.BMHud.totalXp(activity);
@@ -166,6 +169,8 @@ function openPop(badge: HTMLAnchorElement): void {
   badge.after(box);
   pop = box;
   badge.setAttribute("aria-expanded", "true");
+  badge.setAttribute("aria-haspopup", "dialog");
+  badge.setAttribute("aria-controls", "hud-pop");
   place(box, badge, bar);
 }
 
