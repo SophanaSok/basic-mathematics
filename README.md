@@ -326,13 +326,14 @@ course world nears the screen, so it is a chunk of its own, `bundle/three.js`, t
 neither never downloads, and the namespace it loads is `BM3D.THREE`; if the chunk cannot be
 fetched, or the browser has no WebGL 2, which the library requires, every 3D picture is drawn
 flat with the same controls). The progress page's form models add two more on-demand chunks,
-fetched on that page only and only once its form view nears the screen (the pose sheets are the one exception: a 35-54 KB WebP per stage, `public/models/forms/form-<n>-poses.webp`, loaded on chapter pages by the companion): `bundle/three-model.js`
+fetched on that page only and only once its form view nears the screen: `bundle/three-model.js`
 (`src/vendor/three-model.js`: Three's GLTF loader and room environment) and
 `bundle/form-model.js` (`src/model/`: the loader, the look and the clips of a model); what
 they cost, with the sizes measured when they landed, is in
 [`docs/decisions/0008-form-models.md`](docs/decisions/0008-form-models.md). So no
 stylesheet, script or font of a page comes from another server (`npm run check:dist`,
-`offline`), and the browser checks fail any page that asks one for anything.
+`offline`), and the browser checks fail any page that asks one for anything. The pose sheets are the one model file a chapter page fetches: a 35-54 KB WebP per
+stage, `public/models/forms/form-<n>-poses.webp`, drawn by the companion.
 
 **Third-party licences.** What the bundle holds that is not the site's own is published under its
 package's licence: KaTeX, supabase-js (and what supabase-js depends on) and Three.js under MIT,

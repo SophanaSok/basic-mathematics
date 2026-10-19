@@ -8,11 +8,11 @@ Decided by the owner on 2026-10-19.
 - The still comes from the form's pose sheet, `public/models/forms/form-N-poses.webp`: six stills (rest, curious, delighted, steady, sleepy, waiting), rendered by the Blender pipeline from clip frames and three hand-keyed render-time poses. No Three.js and no model chunk load on chapter pages.
 - A pure mood model, `src/learn/mood.ts`, picks the mood: content, curious, delighted, steady, waiting, sleepy.
 - Triggers: a first-try correct answer, a second miss on one exercise, today's goal met, a boss down, a chapter done, a level, a new form. A heart lost and a Regroup read steady. A due review on arrival reads waiting. Three or more days away reads sleepy.
-- Captions are sparse: one per 2.6 s; a line that follows a verdict waits 4 s or is dropped; a line clears after 6 s; arrival lines last 12 s. They are announced to the live region at low priority. An intro line shows once (`bm.run.v1.seen.companion`). A new stage gets a flourish.
-- On the progress page the "Your form" panel shows the arrival line, and the model greets once a day when motion is allowed (a bow after days away, a wave otherwise).
+- Captions are sparse: one per 2.6 s, and an answer's own line is said at once. A line from what follows within 4 s of a verdict waits for a quiet moment if it is one of the waiting kinds (a due review, a return, a new form, a chapter done, a Regroup, the day's goal, a level, a boss; one slot, the latest wins) and is dropped otherwise. A line holds 6 s, the waiting kinds 12 s, then the form is at rest. A line said during work is announced to the live region at low priority; the intro's and an arrival's lines are shown only, so the page's own first words keep the live region. An intro line shows once (`bm.run.v1.seen.companion`). A new stage gets a flourish.
+- On the progress page the "Your form" panel shows the arrival line, and the model greets once a day when motion is allowed (`bm.run.v1.seen.greeted`): a bow when the mood is sleepy, a wave when it is content or waiting, nothing in any other mood and never during the evolution scene. A due review wins over days away, so a learner back after a week with a review due gets the due line and a wave.
 - Never punitive: nothing decays, there is no streak talk (R3 owns the streak), no sound of its own, and no new store beyond two `seen` flags.
 - Off: the Companion switch in the settings sheet (`prefs.companion`, unset means on), Study mode, and the `companion: "off"` kill switch in `assets/config.js`.
-- Hidden in print, under the settings sheet, and while a phone's field has focus. The sprite is decorative (`role=img` with the mood in its label) and every caption is also on the page elsewhere.
+- Hidden in print, under the settings sheet, and while a narrow screen's field has focus; in forced-colors mode the still is hidden and the name and caption stay. The still is a `role=img` labelled with the form's name and its mood ("Pip, your form, delighted"); the captions said during work reach a screen reader through the live region at low priority (dropped first under load), the intro's and the arrival's do not. Nothing the companion says is the only way to learn something: the due review is on the progress page, the rest is encouragement.
 
 ## Why
 
@@ -33,7 +33,9 @@ The owner chose the game feel through a character present while the learner work
 
 ## Deferred
 
-- The Plain and Explore navigation modes (Part 2 of the owner's plan).
+- The Plain and Explore navigation modes (Part 2 of the owner's plan file, `~/.claude/plans/pasted-content-id-69bc-you-are-recursive-flask.md`, which also holds this feature's run log).
+
+The owner's defaults, taken with the approval: the poses come from existing clip frames first (three needed hand-keyed render-time poses after the eye test); the voice is short, warm and plain; the stage names Pip, Sprig, Wayfinder, Surveyor and Luminary stay; the companion is on by default.
 - A Part-hue sprite set.
 - The Arena presence.
 - A level-popover portrait.
