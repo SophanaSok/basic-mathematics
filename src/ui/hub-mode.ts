@@ -44,7 +44,7 @@ function unable(): string {
   if (!why) return "";
   if (DEVICE.indexOf(why) > -1) return CANNOT;
   /* the world gave up while the preference says Map */
-  if (why !== "list" && why !== "query" && prefMap()) return FAILED;
+  if (why !== "list" && prefMap()) return FAILED;
   return "";
 }
 
@@ -70,7 +70,9 @@ function paint(): void {
 function set(m: Mode): void {
   if (!radios) return;
   if (m === "map" && reason) return;
-  if (m !== current) {
+  /* a choice of List is kept even where List already shows for the visit because the world gave
+     up: the preference still says Map until the learner says otherwise */
+  if (m !== current || (m === "list" && prefMap())) {
     try { w().BMGame.setPref("map", m === "map" ? "3d" : "list"); } catch { /* the page does without */ }
   }
   paint();
