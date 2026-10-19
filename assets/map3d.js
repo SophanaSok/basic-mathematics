@@ -827,6 +827,9 @@ import { detectTier, readProbe, stepDown, lower, pixelRatio, TIERS, AMBIENT_MS, 
     M.hotHow = how;
     M.stage.setAttribute("aria-label", "Course map: " + chapterName(ISLES[i].ch) + " · " + ISLES[i].ch.title);
     highlight(M.hover > -1 ? M.hover : i);
+    var req = [];
+    chapterRequires(C, ISLES[i].id).forEach(function (rid) { var k = isleIndex(rid); if (k > -1) req.push(k); });
+    M.world.setLinks(i, req);
     markList();
     panel();
     if (!same || !M.viewKind || M.viewKind.i !== i) {
@@ -838,6 +841,7 @@ import { detectTier, readProbe, stepDown, lower, pixelRatio, TIERS, AMBIENT_MS, 
     if (!M) return;
     M.hot = -1;
     M.stage.setAttribute("aria-label", "Course map");
+    M.world.setLinks(-1, []);
     highlight(M.hover);
     markList();
     panel();
