@@ -21,6 +21,8 @@ export interface Config {
   /** "off" hides the Learners panel on the account page (no learner is listed, added, switched or
       deleted from there); any other value means "on" */
   learners: "on" | "off";
+  /** "off" hides the companion on every chapter page; any other value means "on" */
+  companion: "on" | "off";
 }
 
 function obj(x: unknown): Record<string, unknown> { return x && typeof x === "object" && !Array.isArray(x) ? x as Record<string, unknown> : {}; }
@@ -40,6 +42,7 @@ export function readConfig(raw: unknown): Config {
     emailDelivery: c.emailDelivery !== false,
     learn: { events: learn.events === "off" ? "off" : "on" },
     board: c.board === "off" ? "off" : "on",
-    learners: c.learners === "off" ? "off" : "on"
+    learners: c.learners === "off" ? "off" : "on",
+    companion: c.companion === "off" ? "off" : "on"
   };
 }
