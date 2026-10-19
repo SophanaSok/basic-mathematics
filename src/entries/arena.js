@@ -67,6 +67,8 @@ import "../../data/gen/packs.js";
 import "../../assets/arena.js";
 import "../../assets/config.js";
 import "../../assets/account.js";
+/* the first-run guide (shown once on a chapter page) and its replay button in the settings sheet */
+import "../ui/first-run.ts";
 /* the keyboard layer: the pure keymap, then the DOM half, last, once everything it
    drives is up */
 import "../ui/keymap.ts";
