@@ -34,12 +34,13 @@ The owner chose the game feel through a character present while the learner work
 ## Deferred
 
 - The Plain and Explore navigation modes (Part 2 of the owner's plan file, `~/.claude/plans/pasted-content-id-69bc-you-are-recursive-flask.md`, which also holds this feature's run log).
-
-The owner's defaults, taken with the approval: the poses come from existing clip frames first (three needed hand-keyed render-time poses after the eye test); the voice is short, warm and plain; the stage names Pip, Sprig, Wayfinder, Surveyor and Luminary stay; the companion is on by default.
 - A Part-hue sprite set.
 - The Arena presence.
 - A level-popover portrait.
 - The `stuck` bus event.
+
+The owner's defaults, taken with the approval: the poses come from existing clip frames first (three needed hand-keyed render-time poses after the eye test); the voice is short, warm and plain; the stage names Pip, Sprig, Wayfinder, Surveyor and Luminary stay; the companion is on by default.
+
 
 ## Status
 
