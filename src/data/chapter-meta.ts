@@ -26,7 +26,7 @@ export const CHAPTER_META: Record<string, ChapterMeta> = {
     "sections": 4,
     "scored": 10,
     "inline": 11,
-    "words": 1985,
+    "words": 2056,
     "minutes": 40,
     "goal": "solve a linear equation in one unknown and justify each step, solve systems in two and three unknowns by elimination, recognize from the arithmetic alone whether a system has one solution, none, or infinitely many, and turn a word problem into equations."
   },
@@ -66,8 +66,8 @@ export const CHAPTER_META: Record<string, ChapterMeta> = {
     "sections": 5,
     "scored": 16,
     "inline": 10,
-    "words": 1078,
-    "minutes": 45,
+    "words": 2070,
+    "minutes": 50,
     "goal": "derive the triangle formula from the rectangle rather than recall it, apply the scaling law (lengths $\\times r$, areas $\\times r^2$) to real questions, explain why the area of a disk is $\\pi r^2$ by way of inscribed polygons, and say precisely what $\\pi$ is and why the same $\\pi$ appears in both $2\\pi r$ and $\\pi r^2$."
   },
   "ch08": {
@@ -162,32 +162,32 @@ export const CHAPTER_META: Record<string, ChapterMeta> = {
     "sections": 4,
     "scored": 29,
     "inline": 13,
-    "words": 3271,
-    "minutes": 85,
+    "words": 3813,
+    "minutes": 90,
     "goal": "find the mean, median and mode of a list and say which of them an extreme value moves, find the range, the quartiles and the interquartile range by the course's rule, tell which of two lists is more spread out without computing anything, and read a dot plot, a histogram, a box plot and a two-way table, saying what each one shows and what it hides, then use a line of fit to predict and to find a residual, tell a random sample from a convenience sample, estimate a population from a sample proportion, and say what a claim from a sample can and cannot show."
   },
   "pk-growth": {
     "sections": 4,
     "scored": 28,
     "inline": 15,
-    "words": 2733,
-    "minutes": 85,
+    "words": 3625,
+    "minutes": 90,
     "goal": "tell an arithmetic sequence from a geometric one by taking differences and then ratios, write the rule both ways (from step to step, and as a formula for the $n$th term), and use the formula to find a far term, to find which position holds a value, to fill in a missing middle term and to add a short arithmetic list by pairing its ends. You can tell linear change from exponential change, turn a percent increase or decrease into a multiplier, read the starting value and the multiplier from a model or a table and the percent per period from the multiplier, write a growth or decay model from a story, say why an exponential quantity overtakes a linear one however the two begin, and count the periods until a value is reached by listing. You can find a balance under compound interest and set it against simple interest, apply a yearly rate compounded more often than yearly, read the principal and the rate from a formula, estimate a doubling time, evaluate a logarithm as an exponent, and solve $a \\cdot b^t = c$ exactly or with a calculator, choosing the expression that gives $t$."
   },
   "pk-linear": {
     "sections": 4,
     "scored": 28,
     "inline": 15,
-    "words": 2295,
-    "minutes": 80,
+    "words": 3467,
+    "minutes": 90,
     "goal": "find the slope of a line from two points or from a table, even when the table's steps are uneven, say what a slope means in a sentence with its units, tell from its sign whether a quantity rises, falls or stays flat, read the rate and the starting value from $y = mx + b$, write the model from a story, from two points or from a table and check it at a point you did not use, predict a value with it, solve $mx + b = T$ to find when a quantity reaches a target, and say where a model stops making sense. You can also solve an inequality in one unknown, turn the sign around when you multiply or divide by a negative number, test the answer on both sides of the boundary, and find the least or greatest whole number that works. In two unknowns you can tell which side of a line an inequality describes, settle it with a test point, and find the corner and the whole-number points of a system."
   },
   "pk-percent": {
     "sections": 4,
     "scored": 29,
     "inline": 15,
-    "words": 2374,
-    "minutes": 85,
+    "words": 3084,
+    "minutes": 90,
     "goal": "write a ratio in lowest terms and tell a part-to-part ratio from a part-to-whole one, find and compare unit rates, solve a proportion and say why cross-multiplying works, find a percent of a quantity, the whole from a part, or the percent itself, work out a percent change and undo it, combine repeated changes by multiplying their multipliers, and spot the number in a word problem that does not belong to the question."
   },
   "pk-rational": {
@@ -202,16 +202,16 @@ export const CHAPTER_META: Record<string, ChapterMeta> = {
     "sections": 4,
     "scored": 28,
     "inline": 15,
-    "words": 2156,
-    "minutes": 80,
+    "words": 3373,
+    "minutes": 90,
     "goal": "write a measurement with its unit, build a conversion factor from a known fact and put it the right way up so the unit you are leaving cancels, convert one-step and two-step measurements in the US customary and metric systems, check an answer by asking whether a smaller unit should give a bigger number, find a unit rate, use distance equals rate times time with the units lined up, convert a rate by converting its top and its bottom, compare offers given in different units, read the units of an answer to catch a setup that is upside down, convert square and cubic units with the length factor squared or cubed, find the cost of covering an area, and use a scale to move between a drawing and the real thing, remembering that areas change by the square of the scale factor."
   },
   "pk-words": {
     "sections": 4,
     "scored": 28,
     "inline": 15,
-    "words": 2227,
-    "minutes": 80,
+    "words": 3907,
+    "minutes": 90,
     "goal": "name an unknown with its unit, write every other quantity in terms of it, write one equation for each fact of a story, solve it and answer the question that was asked, with units, checking against the story and not only against the equation. You can turn phrases such as “5 less than twice a number” into expressions, write consecutive integers and consecutive even or odd integers, and solve age and perimeter problems. For motion you can fill a row of rate, time and distance for each mover, tie the rows with the right sentence (the distances add to the gap, are equal, or the times add), change minutes to hours before multiplying, and find an average speed as total distance over total time. You can add the rates of two workers (and subtract a drain), add or take away a current from a boat's still-water speed, follow the pure amount through a mixture, and check an answer against every fact of the story, its units and kind, the question asked and an estimate."
   }
 };

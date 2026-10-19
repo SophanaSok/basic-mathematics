@@ -26,7 +26,9 @@ function wordsOf(main) {
       }
     }
   })(main);
-  s = s.replace(/\$\$[\s\S]*?\$\$/g, " ").replace(/\$[^$]*\$/g, " ")
+  /* a formula's body may hold the escaped dollar of a price ($\$3.00$, tools/us-english.js), so
+     an escaped character never closes it */
+  s = s.replace(/\$\$[\s\S]*?\$\$/g, " ").replace(/\$(?:\\.|[^$\\])*\$/g, " ")
     .replace(/\\\([\s\S]*?\\\)/g, " ").replace(/\\\[[\s\S]*?\\\]/g, " ");
   s = normText(s);
   return s ? s.split(" ").filter((w) => /[A-Za-z0-9]/.test(w)).length : 0;
