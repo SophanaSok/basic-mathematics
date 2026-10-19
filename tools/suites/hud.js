@@ -411,7 +411,7 @@ module.exports = {
       const problems = [];
       try {
         await page.click(".hud-menu");
-        const want = { calm: "Study mode", sound: "Sound", motion: "Reduce motion", transparency: "Reduce transparency", companion: "Companion", map3d: "3D course map" };
+        const want = { calm: "Study mode", sound: "Sound", motion: "Reduce motion", transparency: "Reduce transparency", companion: "Companion", map3d: "Map view" };
         for (const [pref, name] of Object.entries(want)) {
           const n = await page.getByRole("switch", { name, exact: true }).count();
           const d = await page.evaluate((pref) => {

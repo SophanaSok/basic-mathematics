@@ -199,8 +199,9 @@ going well. A short version appears above each chapter's recap.
 - **The settings sheet** also holds sound and its volume, Reduce motion and Reduce transparency
   (on top of what the device asks for: while the device asks, or Study mode is on for motion, the
   switch shows on and cannot be turned off), the theme (light, dark or match the system), the
-  reading panel, graphics quality and the 3D course map. Every setting stays on the device.
-- **The course world.** The contents page opens on the List; the Map (a small 3D world of the course) is one click away, and the choice is remembered on the device. The world has four regions,
+  reading panel, graphics quality and the Map view. Every setting stays on the device.
+- **The course world.** The contents page opens on the List; the Map, a small 3D world of the
+  course, is one click away, and the choice stays on the device. The world has four regions,
   one per Part (the Foundry for algebra, the Fields for geometry, the Grid for coordinates, the
   Observatory for the rest), each a terrace with its chapters standing on it as islands, a ring
   for how much of each is solved, a shrinking boss for what is left and a flag once it is done.
@@ -209,7 +210,9 @@ going well. A short version appears above each chapter's recap.
   there and is the same course in words; it is what a screen reader and the keyboard use, and
   focusing a chapter in it picks that chapter's island, so the world is on it when you scroll back
   up (where the world is on screen too, you see it fly there). Graphics quality in the settings sheet picks how
-  much the world draws (Auto, Low, Medium, High); the 3D course map switch (or the List / Map control on the contents page) picks the world or the list. The world moves for a few seconds after you touch it and then holds still; in Study mode
+  much the world draws (Auto, Low, Medium, High); the Map view switch, or the List / Map control
+  on the contents page, picks the world or the list. The world moves for a few seconds after you
+  touch it and then holds still; in Study mode
   and with Reduce motion it never moves at all.
 - **Between pages**, in a browser that can (Chrome and Edge 126 and later, Chrome for Android,
   Safari 18.2 and later), the next page fades in under a header that stays where it is. The fade
@@ -933,7 +936,7 @@ fetched, which **tier** the device gets (`src/world/tiers.ts`):
 
 | Tier | Chosen when | Pixel ratio | Draw calls | Triangles | Props per region | Idle motion |
 | --- | --- | --- | --- | --- | --- | --- |
-| list | no WebGL 2, Save-Data, `?3d=off`, the 3D course map switch off, or the watchdog gave up | — | — | — | — | — |
+| list | no WebGL 2, Save-Data, `?3d=off`, the Map view switch off, or the watchdog gave up | — | — | — | — | — |
 | low | Graphics quality Low; or a software renderer (SwiftShader, llvmpipe, WARP), a coarse pointer with four cores or fewer, or a low-end device (2 GB of memory or less) | 1 | 10 | 9,500 | the fewest | none |
 | medium | Graphics quality Medium; everything else | 1.5 | 12 | 11,000 | more | 5 s after input |
 | high | only Graphics quality High | 2 | 12 | 14,000 | the most | 5 s after input |
