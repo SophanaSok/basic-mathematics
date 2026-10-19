@@ -5,5 +5,6 @@
 export const MODEL_BYTES_MAX = 1500000;
 export const MODEL_TRIANGLES_MAX = 30000;
 export const THUMB_BYTES_MAX = 160000;   // the baked look compresses worse than flat colour
+export const POSES_BYTES_MAX = 120000;   // one sheet of six transparent stills, WebP
 export const IMAGE_BYTES_MAX = 400000;
 export const STAGE_BYTES_MAX = 1500000;   // one stage's whole download: the GLB plus its textures
