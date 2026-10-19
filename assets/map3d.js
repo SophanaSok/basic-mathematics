@@ -185,10 +185,12 @@ import { detectTier, readProbe, stepDown, lower, pixelRatio, TIERS, AMBIENT_MS, 
       "Beacon: sections due for a check. Flag: chapter finished, stars for the medal.</p>";
     box.innerHTML = sr +
       '<div class="map3d-parts" role="group" aria-label="Show a Part on the course map">' + parts + "</div>" +
-      '<div class="map3d-tools"><button type="button" class="btn ghost small" data-map3d-recenter disabled>Where I am</button></div>' +
-      '<div class="map3d-stage" data-state="loading">' +
+      '<div class="map3d-stage" data-state="loading" data-map3d-stage tabindex="0" role="group" aria-roledescription="course map" ' +
+        'aria-label="Course map" aria-describedby="map3d-keys">' +
+        '<p id="map3d-keys" class="visually-hidden">Arrow keys move along the path. Enter opens the chapter. Escape leaves the map.</p>' +
         '<p class="map3d-wait" aria-hidden="true">Loading the map…</p>' +
         '<div class="map3d-labels" aria-hidden="true"></div>' +
+        '<p class="map3d-keyhint" aria-hidden="true">Arrow keys move along the path · Enter opens · ? for all keys</p>' +
         '<ul class="map3d-legend" aria-hidden="true">' +
           '<li data-mark="ring"><i></i>Ring: practice solved</li>' +
           '<li data-mark="boss"><i></i>Solid: the boss, unsolved problems</li>' +
@@ -196,6 +198,8 @@ import { detectTier, readProbe, stepDown, lower, pixelRatio, TIERS, AMBIENT_MS, 
           '<li data-mark="flag"><i></i>Flag: chapter finished, stars for the medal</li>' +
         "</ul>" +
       "</div>" +
+      /* after the stage in the markup so the stage comes first in the tab order; the stylesheet puts it above */
+      '<div class="map3d-tools"><button type="button" class="btn ghost small" data-map3d-recenter disabled>Where I am</button></div>' +
       '<div class="map3d-panel" data-map3d-panel hidden><p class="map3d-panel-title" aria-live="polite"></p>' +
         '<div class="map3d-panel-body"></div></div>' +
       '<p class="map3d-panel-empty">Select a chapter on the map to see its details.</p>' +
@@ -821,6 +825,7 @@ import { detectTier, readProbe, stepDown, lower, pixelRatio, TIERS, AMBIENT_MS, 
     var same = M.hot === i;
     M.hot = i;
     M.hotHow = how;
+    M.stage.setAttribute("aria-label", "Course map: " + chapterName(ISLES[i].ch) + " · " + ISLES[i].ch.title);
     highlight(M.hover > -1 ? M.hover : i);
     markList();
     panel();
@@ -832,6 +837,7 @@ import { detectTier, readProbe, stepDown, lower, pixelRatio, TIERS, AMBIENT_MS, 
   function unselect() {
     if (!M) return;
     M.hot = -1;
+    M.stage.setAttribute("aria-label", "Course map");
     highlight(M.hover);
     markList();
     panel();
@@ -867,6 +873,43 @@ import { detectTier, readProbe, stepDown, lower, pixelRatio, TIERS, AMBIENT_MS, 
     if (fi < 0) { if (M.hotHow === "focus" || M.hotHow === "hover") unselect(); return; }
     select(fi, "focus", !(linkInView(a) && stageInView()));
     shareSelection(fi);
+  });
+  /* keyboard travel: the stage is a tab stop; arrows step along the path, Enter opens, Escape leaves */
+  function stageKey(e) {
+    if (!M || e.target !== M.stage || e.altKey || e.ctrlKey || e.metaKey) return;
+    var n = ISLES.length, k = e.key, i = -1;
+    var from = M.hot > -1 ? M.hot : M.cur > -1 ? M.cur : -1;
+    if (k === "ArrowRight" || k === "ArrowDown") i = M.hot > -1 ? Math.min(n - 1, M.hot + 1) : from > -1 ? from : 0;
+    else if (k === "ArrowLeft" || k === "ArrowUp") i = M.hot > -1 ? Math.max(0, M.hot - 1) : from > -1 ? from : 0;
+    else if (k === "Home") i = 0;
+    else if (k === "End") i = n - 1;
+    else if (k === "Enter") {
+      e.preventDefault(); e.stopPropagation();
+      var href = M.hot > -1 ? hrefFor({ isle: M.hot }) : null;
+      if (href) go(href, e);
+      return;
+    } else if (k === "?") {
+      e.preventDefault(); e.stopPropagation();
+      if (window.BMKeys && window.BMKeys.open) window.BMKeys.open();
+      return;
+    } else if (k === "Escape") {
+      e.preventDefault(); e.stopPropagation();
+      var r = document.querySelector('[data-hub-mode] [aria-checked="true"]');
+      if (r) { try { r.focus({ preventScroll: true }); } catch (err) { r.focus(); } } else M.stage.blur();
+      return;
+    } else return;
+    e.preventDefault(); e.stopPropagation();
+    if (i < 0 || !ISLES[i]) return;
+    select(i, "keys");
+    shareSelection(i);
+  }
+  box.addEventListener("keydown", stageKey);
+  /* tabbing to the stage with nothing selected starts on the current chapter, a cut (no flight to watch) */
+  box.addEventListener("focusin", function (e) {
+    if (!M || e.target !== M.stage || M.hot > -1 || M.cur < 0) return;
+    try { if (!M.stage.matches(":focus-visible")) return; } catch (err) { /* no :focus-visible: select anyway */ }
+    select(M.cur, "keys", true);
+    shareSelection(M.cur);
   });
   /* the contents page's selection follows what is chosen here; "map" tells the listener below it is ours */
   function shareSelection(i) {

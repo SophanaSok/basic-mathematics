@@ -30,8 +30,8 @@ import { labelOfExercise, rank, targetsOf, type Target } from "./palette.ts";
 const ATTR = "data-keys-cursor";
 /* a box that takes typing or arrow keys; a checkbox, radio or button-type input takes neither,
    so the cursor keys keep moving over them (the Arena deck, the account page); the form's turnable stage (src/ui/form-orbit.ts) keeps
-   its arrows to turn the form, as a slider does */
-const INSERT = 'input:not([type=checkbox]):not([type=radio]):not([type=button]):not([type=submit]):not([type=reset]), textarea, select, [contenteditable=""], [contenteditable="true"], [role=slider], [role=application], svg[tabindex], [data-scrolls], [data-form-orbit]';
+   its arrows to turn the form, as a slider does; so do the course map's stage (assets/map3d.js) */
+const INSERT = 'input:not([type=checkbox]):not([type=radio]):not([type=button]):not([type=submit]):not([type=reset]), textarea, select, [contenteditable=""], [contenteditable="true"], [role=slider], [role=application], svg[tabindex], [data-scrolls], [data-form-orbit], [data-map3d-stage]';
 /* focus the reader put on a control of the page's own: Enter and Space stay native */
 const NATIVE = "a, button, summary, [role=button], label";
 
