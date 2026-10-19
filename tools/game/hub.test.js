@@ -267,6 +267,14 @@ async function run() {
       check(u.sel || u.ch === "ch04", "u: Enter on 'quadratic' focuses Chapter 4's card (" + JSON.stringify(u) + ")");
       check(page.url().indexOf("?") < 0, "u: Enter does not submit the form");
 
+      /* Enter on a query with no kept hit does nothing */
+      await page.fill("#hub-q", "fns");
+      await page.waitForFunction(() => document.querySelector("[data-hub-count]").textContent === "No match", null, { timeout: 3000 });
+      const before = await page.evaluate(() => ({ hash: location.hash, active: document.activeElement && document.activeElement.id }));
+      await page.press("#hub-q", "Enter");
+      const after = await page.evaluate(() => ({ hash: location.hash, active: document.activeElement && document.activeElement.id }));
+      check(before.hash === after.hash && after.active === "hub-q" && before.active === after.active, "u: Enter on 'fns' (no match) changes neither the hash nor the focus (" + JSON.stringify([before, after]) + ")");
+
       /* v: Escape */
       await page.focus("#hub-q");
       await page.press("#hub-q", "Escape");
@@ -277,6 +285,8 @@ async function run() {
       await page.waitForFunction(() => document.querySelectorAll("li.stop[hidden]").length > 0, null, { timeout: 3000 });
       const w = await page.evaluate(() => ({ on: window.BMMap3D.on(), here: document.querySelector('li.stop[data-state="current"]') && document.querySelector('li.stop[data-state="current"]').getAttribute("data-chapter"), mapShown: !document.querySelector("[data-map3d]").hidden }));
       check(w.on && w.mapShown && w.here === curBefore && (await cur()) === curBefore, "w: in Map view the map still runs and the current island is the same while cards are hidden (" + JSON.stringify(w) + ")");
+
+      check(await page.evaluate(() => { const c = document.querySelector("[data-hub-count]"); return c.textContent.length > 0 && c.getBoundingClientRect().height > 0; }), "w: the count line is visible after typing in Map view");
 
       /* x: axe */
       const axeSrc = require("../lib/pw").resolvePlaywright().axeSource;

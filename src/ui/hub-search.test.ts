@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Chapter, Curriculum, Part } from "../core/curriculum.ts";
-import { countText, match, targets } from "./hub-search.ts";
+import { countText, match, targets, top } from "./hub-search.ts";
 
 const sec = (id: string, title: string) => ({ id, title });
 const part = (id: string, name: string, chapters: Chapter[], beside = false): Part =>
@@ -81,6 +81,19 @@ describe("hub-search match", () => {
     expect(m.chapters.has("ch03")).toBe(true);
     expect(m.sections.has("ch03#factoring")).toBe(true);
     expect(m.chapters.has("ch01")).toBe(false);
+  });
+  it("reads a bare number as a chapter number only", () => {
+    for (const q of ["2", "ch2", "chapter 2"]) {
+      const m = match(q, all);
+      expect([...m.chapters]).toEqual(["ch02"]);
+      expect([...m.sections].sort()).toEqual(["ch02#one-unknown", "ch02#two-unknowns"]);
+    }
+  });
+  it("takes the top hit from the kept ones only", () => {
+    expect(top("fns", all)).toBeUndefined();
+    expect(top("", all)).toBeUndefined();
+    expect(top("linear", all)!.chapter).toBe("ch02");
+    expect(top("factoring", all)!.section).toBe("ch03#factoring");
   });
   it("counts in words", () => {
     expect(countText("", match("", all))).toBe("");

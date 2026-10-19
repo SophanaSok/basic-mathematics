@@ -62,8 +62,14 @@ export function targets(c: Curriculum | null | undefined): HubTarget[] {
    order for a palette and noise for a filter: a hit stays only when the words are in its label or
    hint, or when the query is the number of a chapter ("3", "ch3", "chapter 3") */
 function plain(t: HubTarget, q: string): boolean {
+  /* a chapter number names that chapter and its sections ("§3.2"), not every title with a 3 in it */
+  const num = /^(?:ch(?:apter)? ?)?(\d+)$/.exec(q);
+  if (num) {
+    const n = String(Number(num[1]));
+    return t.kind === "chapter" ? t.label.startsWith("Chapter " + n + " ") : (t.hint || "").startsWith("\u00A7" + n + ".");
+  }
   if (t.label.toLowerCase().includes(q) || (t.hint || "").toLowerCase().includes(q)) return true;
-  return t.kind === "chapter" && /^(ch(apter)? ?)?\d+$/.test(q);
+  return false;
 }
 
 /** which cards and rows a query keeps; a chapter hit keeps its card and all its rows, a section
@@ -85,6 +91,13 @@ export function match(query: string, all: HubTarget[]): Matched {
     else for (const t of all) if (t.section && t.chapter === h.chapter) res.sections.add(t.section);
   }
   return res;
+}
+
+/** the first ranked hit the list keeps (the same rule as match), or undefined when it keeps none */
+export function top(query: string, all: HubTarget[]): HubTarget | undefined {
+  const q = (query || "").trim().toLowerCase().replace(/\s+/g, " ");
+  if (!q) return undefined;
+  return (rank(query, all, all.length + 1) as HubTarget[]).find((h) => plain(h, q));
 }
 
 /** "4 chapters, 7 sections match", "No match", or "" for an empty query */
@@ -168,7 +181,7 @@ function go(): void {
   window.clearTimeout(timer);
   apply();
   if (!all.length) all = targets(w().BM_CURRICULUM);
-  const hit = rank(input.value, all, 1)[0] as HubTarget | undefined;
+  const hit = top(input.value, all);
   if (!hit) return;
   const sel = w().BMHubSelect;
   if (sel && typeof sel.set === "function") {
@@ -192,6 +205,7 @@ function go(): void {
 function mount(): void {
   form = document.querySelector<HTMLFormElement>("[data-hub-search]");
   if (!form || input) return;
+  form.hidden = false;
   input = form.querySelector("input");
   status = form.querySelector("[data-hub-count]");
   if (!input) return;

@@ -647,6 +647,8 @@ input.blank { width: auto; min-height: 0; padding: .2rem .45rem; margin: 0 .15em
   font: inherit; font-family: var(--sans); font-size: 1rem; background: var(--bg); color: var(--text);
   border: 2px solid var(--line-ui); border-radius: var(--radius-sm); transition: border-color .15s;
 }
+.hub-search-status { margin: .35rem 0 0; font-size: .85rem; color: var(--muted); }
+.hub-search-status:empty { display: none; }
 .hub-search input::placeholder { color: var(--muted); }
 .hub-search input:focus { border-color: var(--accent); }
 .hub-search input:focus-visible { outline: var(--focus-width) solid var(--focus); outline-offset: 2px; }
