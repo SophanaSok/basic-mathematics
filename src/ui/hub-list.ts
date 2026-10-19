@@ -195,7 +195,7 @@ export function watchOpen(host: any): void {
 }
 
 const GLYPH: Record<string, [string, string]> = {
-  done: ["tick", "\u2713"], started: ["reset", "\u21BB"], ready: ["next", "\u2192"], ahead: ["up", "\u21B3"]
+  done: ["tick", "\u2713"], started: ["reset", "\u21BB"], ready: ["next", "\u2192"], ahead: ["", "\u00B7"]
 };
 
 /** Draw the Sections list under each chapter card (after its hub line): a sibling of the card's
@@ -235,7 +235,7 @@ export function decorateSections(root: ParentNode, statuses: Record<string, Sect
       const glyph = doc.createElement("span");
       glyph.className = "stop-glyph";
       glyph.setAttribute("aria-hidden", "true");
-      const svg = w.BMIcon && w.BMIcon.svg ? w.BMIcon.svg(g[0]) : "";
+      const svg = g[0] && w.BMIcon && w.BMIcon.svg ? w.BMIcon.svg(g[0]) : "";
       if (svg) glyph.innerHTML = svg; else glyph.textContent = g[1];
       row.appendChild(glyph);
       const a = doc.createElement("a");

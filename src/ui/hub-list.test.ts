@@ -227,7 +227,7 @@ describe("decorateSections", () => {
     const r1 = root.find(".stop-row");
     expect(r1.map((r) => stat(r).words)).toEqual(["Ready", "Builds on Rules for addition".replace("Rules", "\u00A71.1 Rules"), "Builds on \u00A71.1 Rules for addition, \u00A71.2 Integers"]);
     expect(r1[0].all().find((e) => e.className === "stop-glyph")!.innerHTML).toContain("icon-next");
-    expect(r1[1].all().find((e) => e.className === "stop-glyph")!.innerHTML).toContain("icon-up");
+    expect(r1[1].all().find((e) => e.className === "stop-glyph")!.textContent).toBe("\u00B7");
     expect(r1[0].all().find((e) => e.className === "stop-title")!.attrs.href).toBe("parts/1/01.html#addition");
     expect(stat(r1[2]).all().filter((e) => e.tag === "a").map((e) => e.attrs.href)).toEqual(["parts/1/01.html#addition", "parts/1/01.html#integers"]);
     expect(r1[0].all().find((e) => e.className === "stop-glyph")!.attrs["aria-hidden"]).toBe("true");
