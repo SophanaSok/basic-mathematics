@@ -153,6 +153,10 @@ html[data-calm] .map3d-legend [data-mark="boss"], html[data-calm] .map3d-legend-
 .map3d-panel-state { font: 600 .9rem/1.4 var(--sans); color: var(--muted); }
 .map3d-panel-goal, .map3d-panel-builds, .map3d-panel-due { font: 400 .9rem/1.45 var(--sans); }
 .map3d-panel a:not(.btn) { color: var(--accent); }
+.map3d-seg { white-space: nowrap; }
+.map3d-panel-req { display: block; }
+/* the column's prompt while nothing is selected: only where the column is kept (below, ≥1000 px) */
+.map3d-panel-empty { display: none; margin: 0; font: 400 .9rem/1.45 var(--sans); color: var(--muted); }
 .map3d-panel-actions { display: flex; flex-wrap: wrap; gap: .6rem; margin-top: .2rem !important; }
 .map3d-panel-actions .btn { min-height: 2.75rem; }
 /* narrow: the tools row stands above the stage though it follows it in the markup (the stage is first in the tab order) */
@@ -171,6 +175,7 @@ html[data-calm] .map3d-legend [data-mark="boss"], html[data-calm] .map3d-legend-
   .map3d:has(.map3d-panel) > .map3d-tools { grid-column: 1 / -1; grid-row: 2; }
   .map3d:has(.map3d-panel) > .map3d-stage { grid-column: 1; grid-row: 3; }
   .map3d:has(.map3d-panel) > .map3d-panel { grid-column: 2; grid-row: 3; margin: 0; }
+  .map3d-panel[hidden] + .map3d-panel-empty { display: block; grid-column: 2; grid-row: 3; }
 }
 
 /* The List / Map control's reason line (src/ui/hub-mode.ts). The rule is here because this sheet loads
