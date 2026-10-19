@@ -191,6 +191,7 @@ async function run() {
         return { disabled: i.disabled, note: n && n.textContent };
       });
       check(sw.disabled && sw.note === "This device cannot draw the map.", label + ": the sheet's map switch is disabled with 'This device cannot draw the map.' (" + JSON.stringify(sw) + ")");
+      await page.evaluate(() => { const m = document.querySelector(".topbar .hud-menu"); if (m) m.click(); });   /* closed again: the next click must not be the outside click that closes it */
       await radio(page, "map").click({ force: true });
       await wait(300);
       check((await prefsOf(page)).map === undefined && (await checked(page)).join() === "List", label + ": clicking the disabled Map writes nothing");
