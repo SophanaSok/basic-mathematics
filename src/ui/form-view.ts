@@ -431,7 +431,11 @@ export function createFormView(box: HTMLElement, probe: Element, onState?: (s: "
     try {
       const B = window.BM3D;
       if (!B || typeof B.load !== "function" || !B.supported()) { flat(); return; }
-      const choice = detectTier(readProbe(B), prefs());
+      /* The map choice is the contents page's (unset there means the List, src/world/tiers.ts).
+         This page has no map: with no choice made the form is drawn, as it always was; the Map
+         view switch off still keeps it flat, the one 3D switch a learner has. */
+      const p = prefs();
+      const choice = detectTier(readProbe(B), p.map === undefined ? { ...p, map: "3d" } : p);
       if (choice.tier === "list") { flat(); return; }
       tier = choice.tier;
       if (!(await B.load()) || !B.THREE) { flat(); return; }

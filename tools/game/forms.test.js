@@ -28,7 +28,9 @@
    18. a thumbnail 404 shows that tile's pip; the other four load
    19. pagehide disposes the view
    20. progress.html fetches form-model.js, three-model.js and three.js once each
-   21. several stages at once end on the highest with no more memory than one */
+   21. several stages at once end on the highest with no more memory than one
+   25. the Map view switch: never set (a fresh visit, the contents page's List) still draws the
+       model; switched off keeps the form flat with no Three.js request */
 "use strict";
 const site = require("../lib/site");
 const target = require("../lib/target");
@@ -544,6 +546,19 @@ async function main() {
       check(!writtenEarly, "24: greeted is unset before the caption");
       check(await until(page, () => !!document.querySelector("[data-emote][data-playing]"), null, 15000), "24: the greeting plays after the caption");
       check(await until(page, (d) => { const r = JSON.parse(localStorage.getItem("bm.run.v1") || "{}"); return r.seen && r.seen.greeted === d; }, TODAY, 3000), "24: greeted is today");
+    }
+    /* 25: the Map view switch is the contents page's; unset draws the form, off keeps it flat */
+    {
+      const { page } = await open("progress.html", seeds(300, SEED3));
+      check(await modelIn(page), "25: with no map choice made the model arrives");
+      check((await store(page, "bm.prefs.v1") || {}).map === undefined, "25: the page wrote no map choice");
+    }
+    {
+      const { page, requests } = await open("progress.html", seeds(300, Object.assign({ "bm.prefs.v1": JSON.stringify({ map: "list" }) }, SEED3)));
+      await wait(1500);
+      const view = await page.evaluate(() => document.querySelector("[data-form-view]").getAttribute("data-state"));
+      check(view === "flat", "25: Map view off keeps the form flat", view);
+      check(requests.length === 0, "25: no Three.js or model request", requests);
     }
   } finally {
     for (const c of contexts) { try { await c.close(); } catch (e) { /* closed already */ } }
