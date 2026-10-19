@@ -680,9 +680,12 @@ html[data-bossbar] .toasts { top: calc(var(--hud-h) + 2.75rem + .75rem); }
 /* toasts are ink cards, like the rail; game.js hides them from screen readers */
 
 .toasts {
-  position: fixed; left: 50%; bottom: max(1.5rem, env(safe-area-inset-bottom)); z-index: 70;
-  transform: translateX(-50%); width: max-content; max-width: calc(100vw - 32px);
-  display: flex; flex-direction: column; align-items: center; gap: .5rem; pointer-events: none;
+  position: fixed; top: calc(var(--hud-h) + .75rem); right: 1rem; left: auto; bottom: auto; z-index: 44;
+  width: max-content; max-width: calc(100vw - 32px);
+  display: flex; flex-direction: column; align-items: flex-end; gap: .5rem; pointer-events: none;
+}
+@media (max-width: 479px) {
+  .toasts { left: 1rem; right: 1rem; width: auto; max-width: none; align-items: stretch; }
 }
 .toast {
   display: block; max-width: 100%;
@@ -700,25 +703,25 @@ html[data-bossbar] .toasts { top: calc(var(--hud-h) + 2.75rem + .75rem); }
 }
 /* achievement and level cards: a badge, a title, a line */
 /* achievement and level cards: a gold badge drawn beside kicker, title, line */
-.toast.ach, .toast.level {
-  display: grid; grid-template-columns: 2.5rem minmax(0, 1fr); column-gap: .8rem; align-items: start;
+.toast.ach, .toast.level, .toast.form {
+  display: grid; grid-template-columns: 3rem minmax(0, 1fr); column-gap: .8rem; align-items: start;
   max-width: min(26rem, 100%); padding: .75rem 1.05rem .75rem .75rem;
 }
-.toast.ach { border-color: var(--hud-xp); }
-.toast.ach::before, .toast.level::before {
-  content: ""; grid-column: 1; grid-row: 1 / span 4; width: 2.5rem; height: 2.5rem; align-self: center;
+.toast.ach, .toast.form { border-color: var(--hud-xp); }
+.toast.ach::before, .toast.level::before, .toast.form::before {
+  content: ""; grid-column: 1; grid-row: 1 / span 4; width: 3rem; height: 3rem; align-self: center;
   border-radius: var(--radius-xs); background: var(--hud-xp);
   box-shadow: 0 3px 0 color-mix(in srgb, var(--hud-xp) 50%, var(--ink-shadow));
 }
-.toast.ach::after, .toast.level::after {
+.toast.ach::after, .toast.level::after, .toast.form::after {
   content: ""; grid-column: 1; grid-row: 1 / span 4; justify-self: center; align-self: center;
-  width: 1.35rem; height: 1.35rem; background: var(--on-xp);
+  width: 1.6rem; height: 1.6rem; background: var(--on-xp);
   -webkit-mask: var(--icon-star) center / contain no-repeat; mask: var(--icon-star) center / contain no-repeat;
 }
 .toast.level::after { transform: rotate(-90deg); -webkit-mask-image: var(--icon-next); mask-image: var(--icon-next); }
-.toast.ach > *, .toast.level > * { grid-column: 2; }
+.toast.ach > *, .toast.level > *, .toast.form > * { grid-column: 2; }
 .toast-kicker { display: block; font: 700 .7rem/1.3 var(--display); text-transform: uppercase; letter-spacing: .08em; color: var(--hud-muted); }
-.toast.ach > b, .toast.level > b, .toast-title { display: block; font: 700 1rem/1.25 var(--display); color: var(--hud-text); }
+.toast.ach > b, .toast.level > b, .toast.form > b, .toast-title { display: block; font: 700 1.05rem/1.25 var(--display); color: var(--hud-text); }
 .toast-text, .toast-more { display: block; font-size: .84rem; color: var(--hud-muted); }
 .toast-more { font-style: italic; }
 
@@ -901,6 +904,12 @@ html[data-motion="reduce"] *, html[data-motion="reduce"] *::before, html[data-mo
   /* toasts */
   html:not([data-calm]):not([data-motion="reduce"]) .toast { animation: toast-in 280ms var(--ease-out) both; }
   html:not([data-calm]):not([data-motion="reduce"]) .toast[data-out] { animation: toast-out 280ms ease-in both; }
+  /* the XP pill that flies from the solved card to the HUD bar (game.js flyXp; never made when still) */
+  html:not([data-calm]):not([data-motion="reduce"]) .xp-fly {
+    position: fixed; z-index: 44; margin: 0; pointer-events: none; transform-origin: center;
+    padding: .15rem .55rem; border-radius: var(--radius-xs); background: var(--hud-xp); color: var(--on-xp);
+    font: 700 .85rem/1.3 var(--display); font-variant-numeric: tabular-nums; white-space: nowrap;
+  }
 
   /* a result screen's reveal (src/ui/results.ts): rows fade in one after another, the
      numbers count up under an aria-hidden overlay, the medal stamps once. The module sets
@@ -984,8 +993,8 @@ html[data-motion="reduce"] *, html[data-motion="reduce"] *::before, html[data-mo
   @keyframes form-ring { from { transform: translateX(-50%) scale(.4); opacity: .9; } to { transform: translateX(-50%) scale(1.5); opacity: 0; } }
   @keyframes form-flash { 0%, 100% { opacity: 0; } 50% { opacity: .9; } }
   @keyframes form-grow { from { transform: scale(.6); } to { transform: scale(1); } }
-  @keyframes toast-in { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }
-  @keyframes toast-out { to { opacity: 0; transform: translateY(-8px); } }
+  @keyframes toast-in { from { opacity: 0; transform: translateY(-12px); } to { opacity: 1; transform: none; } }
+  @keyframes toast-out { to { opacity: 0; transform: translateY(8px); } }
 }
 
 /* ================================================================ your form === */

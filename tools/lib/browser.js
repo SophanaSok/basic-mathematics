@@ -146,7 +146,7 @@ function makeHelpers(ctx) {
       deviceScaleFactor: 1,
       serviceWorkers: "block"
     });
-    const seeds = Object.assign({ [THEME_KEY]: theme }, o.storage || {});
+    const seeds = Object.assign({ [THEME_KEY]: theme, "bm.guide.v1": { v: 1, seen: 1 } }, o.storage || {});
     await context.addInitScript((seeds) => {
       try { Object.keys(seeds).forEach(k => localStorage.setItem(k, JSON.stringify(seeds[k]))); } catch (e) { /* storage blocked */ }
     }, seeds);

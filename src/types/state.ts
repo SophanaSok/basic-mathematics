@@ -265,6 +265,15 @@ export interface DiagRun {
   pending: { u: number; r?: string };
 }
 
+/** bm.guide.v1: whether the first-run guide has been shown. This device only: never synced, exported or cleared. */
+export interface GuideStore {
+  v: 1;
+  /** set once the guide was shown or skipped: a day key, or 1 */
+  seen?: number;
+  /** set when the reader asks to see it again */
+  replay?: number;
+}
+
 /** bm.prefs.v1: this device only, never cleared. */
 export interface PrefsStore {
   sound: boolean;
@@ -299,6 +308,7 @@ export interface StoredState {
   "bm.game.v1": GameStore;
   "bm.run.v1": RunStore;
   "bm.prefs.v1": PrefsStore;
+  "bm.guide.v1": GuideStore;
   "bm.diag.v1": DiagStore;
 }
 

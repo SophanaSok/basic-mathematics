@@ -76,6 +76,7 @@ async function open(path, seed, opts) {
   await context.addInitScript((s) => {
     if (sessionStorage.getItem("__seeded")) return;
     sessionStorage.setItem("__seeded", "1");
+    if (!("bm.guide.v1" in s)) localStorage.setItem("bm.guide.v1", '{"v":1,"seen":1}');
     Object.keys(s).forEach((k) => localStorage.setItem(k, s[k]));
   }, seed);
   /* a case's own routes, added after the catch-all so they run first (route.fallback() passes on) */

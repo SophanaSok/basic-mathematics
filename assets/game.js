@@ -1102,7 +1102,9 @@
     }
     if (inf.level > seen.level) {
       updateRun(function (r) { r.seen.level = inf.level; });
-      cardToast('<span class="toast-kicker">Level ' + inf.level + "</span> <b>" + esc(inf.rank) + "</b>", "level");
+      var nx = info(inf.xp);
+      cardToast('<span class="toast-kicker">Level ' + inf.level + "</span> <b>" + esc(inf.rank) + "</b>" +
+        '<span class="toast-text">' + Math.max(0, nx.next - nx.xp) + " XP to level " + (inf.level + 1) + ".</span>", "level");
       announce("Level " + inf.level + " reached: " + inf.rank + ".", { priority: "high" });
       Store.emit({ type: "level", level: inf.level, rank: inf.rank });
     }
@@ -1331,6 +1333,49 @@
     var numEl = ex.querySelector(".ex-num");
     ex.insertBefore(span, numEl ? numEl.nextSibling : ex.firstChild);
   }
+  /* the +N XP chip lifts off and travels to the HUD's XP bar; nothing at all when motion is off */
+  function flyXp(ex, xp) {
+    if (still() || calm() || !ex || !ex.querySelector || !document.body || !document.body.animate) return;
+    var chip = ex.querySelector(".ex-reward"), bar = document.querySelector(".hud-xpbar");
+    if (!chip || !bar || !chip.getClientRects().length || !bar.getClientRects().length) return;
+    var a = chip.getBoundingClientRect(), b = bar.getBoundingClientRect();
+    /* a chip scrolled out of view (or under the sticky bar) has nowhere to lift off from */
+    if (a.bottom < 0 || a.top > (window.innerHeight || 0) || a.top < b.bottom) return;
+    var el = document.createElement("span");
+    el.className = "xp-fly";
+    el.setAttribute("aria-hidden", "true");
+    el.textContent = "+" + xp + " XP";
+    el.style.left = a.left + "px"; el.style.top = a.top + "px";
+    document.body.appendChild(el);
+    var dur = 700, ease = "cubic-bezier(.65, 0, .35, 1)";
+    try {
+      var cs = getComputedStyle(document.documentElement);
+      var d = parseFloat(cs.getPropertyValue("--dur-move"));
+      if (d > 0) dur = /ms\s*$/.test(cs.getPropertyValue("--dur-move")) ? d : d * 1000;
+      ease = cs.getPropertyValue("--ease-inout").trim() || ease;
+    } catch (e) { /* the fallbacks */ }
+    var dx = (b.left + b.width / 2) - (a.left + a.width / 2), dy = (b.top + b.height / 2) - (a.top + a.height / 2);
+    var anim;
+    try {
+      anim = el.animate([
+        { transform: "translate(0, 0) scale(1)", opacity: 1 },
+        { transform: "translate(" + dx + "px, " + dy + "px) scale(.5)", opacity: .2 }
+      ], { duration: dur, easing: ease, fill: "forwards" });
+    } catch (e) { if (el.parentNode) el.parentNode.removeChild(el); return; }
+    var done = false;
+    function end() {
+      if (done) return;
+      done = true;
+      if (el.parentNode) el.parentNode.removeChild(el);
+      if (still()) return;
+      bar.removeAttribute("data-flash");
+      void bar.offsetWidth;
+      bar.setAttribute("data-flash", "");
+      setTimeout(function () { bar.removeAttribute("data-flash"); }, 300);
+    }
+    anim.onfinish = end;
+    anim.oncancel = end;
+  }
   var STAMPS = { first: "First try", retry: "Solved", assisted: "With help" };
   function stamp(ex) {
     if (!ex || ex.getAttribute("data-state") !== "correct") return;
@@ -1437,7 +1482,7 @@
       if (!c.inline && c.tryNo === 1 && (!c.correct || c.solutionOpen || c.faded)) onMiss();
       schedule();
     } else if (t === "xp") {
-      if (pendingEx && (c.why === "exercise" || c.why === "check")) reward(pendingEx, c.xp);
+      if (pendingEx && (c.why === "exercise" || c.why === "check")) { reward(pendingEx, c.xp); flyXp(pendingEx, c.xp); }
       xpToast(c);
       /* XP and the goal are carried until spoken, so a quick next answer cannot drop them */
       xpOwed += c.xp;

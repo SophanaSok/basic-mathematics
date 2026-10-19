@@ -20,6 +20,8 @@ export const STORE_KEYS = {
   game: "bm.game.v1",
   run: "bm.run.v1",
   prefs: "bm.prefs.v1",
+  /* the first-run guide: device-only, never synced, kept through a reset (U-6) */
+  guide: "bm.guide.v1",
   /* assets/account.js: what was last synced, and what waits to be sent */
   sync: "bm.sync.v1",
   syncPending: "bm.sync.pending.v1"
