@@ -1339,6 +1339,8 @@
     var chip = ex.querySelector(".ex-reward"), bar = document.querySelector(".hud-xpbar");
     if (!chip || !bar || !chip.getClientRects().length || !bar.getClientRects().length) return;
     var a = chip.getBoundingClientRect(), b = bar.getBoundingClientRect();
+    /* a chip scrolled out of view (or under the sticky bar) has nowhere to lift off from */
+    if (a.bottom < 0 || a.top > (window.innerHeight || 0) || a.top < b.bottom) return;
     var el = document.createElement("span");
     el.className = "xp-fly";
     el.setAttribute("aria-hidden", "true");
