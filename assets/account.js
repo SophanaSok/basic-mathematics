@@ -1207,8 +1207,11 @@
 
   /* ----------------------------------------------------------- learners -- */
 
-  /* The version of the consent text below; learner_add records it (the server's consent_current is 1 too) */
+  /* The version of the consent text below; learner_add records it (the server's consent_current is 1 too).
+     Bumping it here alone makes every under-13 row with an older consent_v "stale" (see isStale): the server's
+     consent_current in learner_add and learner_mark_under13 must be bumped in the same release. */
   var CONSENT_V = 1;
+  function isStale(l) { return !!l && l.under13 === true && l.consent_v !== CONSENT_V; }
   var CONSENT_HEAD = "What is kept about this learner";
   var CONSENT_TEXT = "The name you give here, that they are under 13, the exercises they solve, how many tries each took, " +
     "whether a hint or the solution was used, missions, XP per day, where they are in each chapter, their game record, " +
@@ -1338,21 +1341,25 @@
           '<p class="actions"><button class="btn small" id="lrn-rs-' + id + '" type="button"' + (renameBusy === l.id ? ' disabled aria-busy="true"' : "") + '>Save</button>' +
           '<button class="btn ghost small" id="lrn-rc-' + id + '" type="button">Cancel</button></p></li>';
       }
+      var stale = !self && isStale(l);
       out += '<p class="learner-name"' + (self ? "" : ' id="lrn-n-' + id + '" tabindex="-1"') + ">" + esc(nm) + "</p>" +
-        (!self && l.under13 === true ? '<p class="learner-tagline"><span class="learner-tag">Under 13</span></p>' : "") + "<p class=\"actions\">";
+        (!self && l.under13 === true ? '<p class="learner-tagline"><span class="learner-tag">Under 13</span>' +
+          (stale ? ' <span class="learner-tag learner-tag-stale">Consent to confirm</span>' : "") + "</p>" : "") + "<p class=\"actions\">";
       out += active ? '<span class="learner-on">Playing as</span>'
-        : '<button class="btn ghost small" id="lrn-sw-' + (self ? "self" : id) + '" type="button" aria-label="Switch to ' + esc(nm) + '">Switch to</button>';
+        : '<button class="btn ghost small" id="lrn-sw-' + (self ? "self" : id) + '" type="button"' +
+          (stale ? ' disabled aria-disabled="true" title="Confirm consent first"' : "") + ' aria-label="Switch to ' + esc(nm) + '">Switch to</button>';
       if (!self) {
         if (active) out += "</p>" + '<label class="check"><input id="lrn-keep" type="checkbox"' + (Account.keptLearner() === l.id ? " checked" : "") +
           '> <span>Keep this device on ' + esc(nm) + "</span></label><p class=\"actions\">";
         out += '<button class="btn ghost small" id="lrn-r-' + id + '" type="button" aria-label="Rename ' + esc(nm) + '">Rename</button>' +
-          (l.under13 === true ? "" : '<button class="btn ghost small" id="lrn-u13-' + id + '" type="button" aria-label="Mark ' + esc(nm) + ' as under 13">Mark as under 13</button>') +
+          (stale ? '<button class="btn ghost small" id="lrn-u13-' + id + '" type="button" aria-label="Confirm consent for ' + esc(nm) + '">Confirm consent</button>'
+            : l.under13 === true ? "" : '<button class="btn ghost small" id="lrn-u13-' + id + '" type="button" aria-label="Mark ' + esc(nm) + ' as under 13">Mark as under 13</button>') +
           '<button class="btn ghost small" id="lrn-dl-' + id + '" type="button" aria-label="Download ' + esc(nm) + '">Download</button>' +
           '<button class="btn ghost small danger" id="lrn-del-' + id + '" type="button"' +
           (armed === l.id ? ">Press again to delete " + esc(nm) : ' aria-label="Delete ' + esc(nm) + '">Delete') + "</button>";
       }
       out += "</p>";
-      if (!self && marking === l.id && l.under13 !== true) {
+      if (!self && marking === l.id && (l.under13 !== true || stale)) {
         out += '<div class="consent" id="lrn-u13b-' + id + '" role="group" aria-labelledby="lrn-u13h-' + id + '"><h4 id="lrn-u13h-' + id + '">' + esc(CONSENT_HEAD) + "</h4>" +
           "<p>" + esc(CONSENT_TEXT) + "</p>" +
           '<label class="check"><input id="lrn-u13c-' + id + '" type="checkbox"' + (u13Ticked ? " checked" : "") + "><span>" + esc(CONSENT_BOX) + "</span></label>" +
@@ -1475,6 +1482,7 @@
   }
   function switchTo(id) {
     armed = null;
+    if (id && isStale(learnerById(id))) return lsay("Confirm the consent statement for " + (learnerById(id).name || "this learner") + " first.", true);
     Account.switchLearner(id, id ? (learnerById(id) || {}).name : null).then(function () {
       marking = null; u13Ticked = false;
       focusAfter = "lrn-h";
@@ -1513,6 +1521,7 @@
     if (!box || !box.checked || !u13Ticked) return lsay("Tick the box to confirm you are this learner's parent or guardian.", true);
     var uid = uidNow(), from = document.activeElement && document.activeElement.id;
     u13Busy = true;
+    var wasStale = isStale(learnerById(id));
     var btn = document.getElementById("lrn-u13s-" + id);
     if (btn) { btn.disabled = true; btn.setAttribute("aria-busy", "true"); }
     learnerRpc("learner_mark_under13", { id: id, consent_v: CONSENT_V }).then(function () {
@@ -1524,7 +1533,7 @@
       var ae = document.activeElement, mine = document.getElementById("lrn-n-" + id), row = mine && mine.closest("li");
       var focus = (!ae || ae === document.body || (row && row.contains(ae))) ? "lrn-n-" + id : null;
       if (focus) focusAfter = focus;
-      lsay((l && l.name ? l.name : "This learner") + " is now marked as under 13.");
+      lsay(wasStale ? (l && l.name ? l.name : "This learner") + "'s consent is confirmed." : (l && l.name ? l.name : "This learner") + " is now marked as under 13.");
       draw();
       loadLearners(focus);
     }, function (e) {
