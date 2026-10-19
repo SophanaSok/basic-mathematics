@@ -34,8 +34,8 @@ const AT_REST: Reaction = { mood: "content", pose: "rest", line: null, key: null
 const WAITS = ["due", "back", "form", "chapter", "regroup", "goal", "level", "boss", "stuck", "arena-end"];
 /* said on the page only, never to the live region: at load the region belongs to the page's own
    first words (the exercise count, the chapter's banner), and one message there holds the next
-   back for seconds (assets/game.js announce); these three are also on the page elsewhere */
-const QUIET = ["intro", "due", "back"];
+   back for seconds (assets/game.js announce); these are also on the page elsewhere (the Arena says its own result) */
+const QUIET = ["intro", "due", "back", "arena-end"];
 
 let fig: HTMLElement | null = null;
 let pic: HTMLElement | null = null;
