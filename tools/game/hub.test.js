@@ -16,7 +16,15 @@
    f. the keyboard: Tab reaches the checked radio only, ArrowRight moves the check, Space chooses
    g. at 360x740 the control is visible and does not overlap the button
    h. axe finds no violation on the control
-   i. no page errors */
+   i. no page errors
+   r. typing "linear" hides every card but Chapter 2's and the status reads the counts
+   s. typing a section title opens that card's Sections and shows only that row
+   t. clearing restores every card, row and the open state
+   u. Enter on "quadratic" focuses Chapter 4's card (or sets the selection when BMHubSelect exists)
+   v. Escape clears the field
+   w. in Map view the map still shows the current island while cards are hidden
+   x. axe finds no violation on the field
+   y. at 360x740 the field is full width and usable */
 "use strict";
 const site = require("../lib/site");
 const target = require("../lib/target");
@@ -202,6 +210,98 @@ async function run() {
       });
       check(v.length === 0, "h: axe finds no violation on the control (" + JSON.stringify(v) + ")");
       check(errors.length === 0, "i: no page errors (360): " + errors.join("; "));
+      await context.close();
+    }
+
+    /* -------------------------------------------- r-w: the search */
+    {
+      const { context, page, errors } = await open(browser);
+      await go(page);
+      await worldUp(page);
+      await page.waitForFunction(() => window.BMHubSearch && document.querySelector("li.stop-row"), null, { timeout: 10000 });
+      const shown = () => page.evaluate(() => Array.prototype.filter.call(document.querySelectorAll("li.stop"), (l) => !l.hidden).map((l) => l.getAttribute("data-chapter")));
+      const status = () => page.evaluate(() => document.querySelector("[data-hub-count]").textContent);
+      const allCards = await shown();
+      check(allCards.length > 5, "r: the list has its cards (" + allCards.length + ")");
+      const openOf = () => page.evaluate(() => Array.prototype.map.call(document.querySelectorAll("details.stop-sections"), (d) => d.open ? 1 : 0).join(""));
+      const openBefore = await openOf();
+      const cur = () => page.evaluate(() => { const l = document.querySelector('li.stop[data-state="current"]'); return l && l.getAttribute("data-chapter"); });
+      const curBefore = await cur();
+
+      /* r */
+      await page.fill("#hub-q", "linear");
+      await page.waitForFunction(() => document.querySelectorAll("li.stop[hidden]").length > 0, null, { timeout: 3000 });
+      const r = await shown();
+      /* Chapter 2 stays, and so does any other card with "linear" in its title or a section's: nothing else */
+      const lin = await page.evaluate(() => window.BM_CURRICULUM.chapters.filter((c) => /linear/i.test(c.title) || c.sections.some((x) => /linear/i.test(x.title))).map((c) => c.id));
+      check(r.indexOf("ch02") > -1 && r.length < allCards.length && r.every((id) => lin.indexOf(id) > -1 || id === "ch02") && r.indexOf("ch01") < 0, "r: 'linear' keeps Chapter 2's card and hides the others (" + r + ")");
+      const rows = await page.evaluate(() => document.querySelectorAll("li.stop:not([hidden]) li.stop-row:not([hidden])").length);
+      check((await status()) === r.length + (r.length === 1 ? " chapter, " : " chapters, ") + rows + (rows === 1 ? " section" : " sections") + " match", "r: the status reads the counts (" + (await status()) + ", " + r.length + "/" + rows + ")");
+      check(await page.evaluate(() => Array.prototype.every.call(document.querySelectorAll("section.part"), (p) => p.hidden === !p.querySelector("li.stop:not([hidden])"))), "r: a Part with no card left is hidden");
+      check(await page.evaluate(() => Array.prototype.every.call(document.querySelectorAll('li.stop[data-chapter="ch02"] li.stop-row'), (x) => !x.hidden)), "r: a chapter hit keeps all its rows");
+
+      /* s: a section title */
+      const sec = await page.evaluate(() => {
+        const ch = window.BM_CURRICULUM.chapterById("ch04"), sct = ch.sections[ch.sections.length - 1];
+        return { id: sct.id, title: sct.title };
+      });
+      await page.fill("#hub-q", sec.title);
+      await page.waitForFunction(() => document.querySelector('li.stop[data-chapter="ch04"]:not([hidden]) li.stop-row[hidden]'), null, { timeout: 3000 });
+      const s = await page.evaluate((id) => {
+        const li = document.querySelector('li.stop[data-chapter="ch04"]');
+        return { card: !li.hidden, open: li.querySelector("details.stop-sections").open,
+          rows: Array.prototype.filter.call(li.querySelectorAll("li.stop-row"), (x) => !x.hidden).map((x) => x.querySelector("a.stop-title").getAttribute("href").split("#")[1]) };
+      }, sec.id);
+      check(s.card && s.open && s.rows.length === 1 && s.rows[0] === sec.id, "s: a section title opens its card's Sections and shows only that row (" + JSON.stringify(s) + ")");
+
+      /* t: clear */
+      await page.fill("#hub-q", "");
+      await page.waitForFunction(() => !document.querySelector("li.stop[hidden], li.stop-row[hidden]"), null, { timeout: 3000 });
+      check((await shown()).join() === allCards.join() && (await openOf()) === openBefore, "t: clearing restores every card and the open state (" + (await openOf()) + " vs " + openBefore + ")");
+      check((await status()) === "" && await page.evaluate(() => !document.querySelector("section.part[hidden]")), "t: and empties the status and shows every Part");
+
+      /* u: Enter */
+      await page.fill("#hub-q", "quadratic");
+      await page.press("#hub-q", "Enter");
+      const u = await page.evaluate(() => ({ ch: document.activeElement && document.activeElement.closest("li.stop") && document.activeElement.closest("li.stop").getAttribute("data-chapter"), sel: !!window.BMHubSelect }));
+      check(u.sel || u.ch === "ch04", "u: Enter on 'quadratic' focuses Chapter 4's card (" + JSON.stringify(u) + ")");
+      check(page.url().indexOf("?") < 0, "u: Enter does not submit the form");
+
+      /* v: Escape */
+      await page.focus("#hub-q");
+      await page.press("#hub-q", "Escape");
+      check((await page.inputValue("#hub-q")) === "" && !(await page.evaluate(() => document.querySelector("li.stop[hidden]"))), "v: Escape clears the field and the filter");
+
+      /* w: Map view with cards hidden */
+      await page.fill("#hub-q", "linear");
+      await page.waitForFunction(() => document.querySelectorAll("li.stop[hidden]").length > 0, null, { timeout: 3000 });
+      const w = await page.evaluate(() => ({ on: window.BMMap3D.on(), here: document.querySelector('li.stop[data-state="current"]') && document.querySelector('li.stop[data-state="current"]').getAttribute("data-chapter"), mapShown: !document.querySelector("[data-map3d]").hidden }));
+      check(w.on && w.mapShown && w.here === curBefore && (await cur()) === curBefore, "w: in Map view the map still runs and the current island is the same while cards are hidden (" + JSON.stringify(w) + ")");
+
+      /* x: axe */
+      const axeSrc = require("../lib/pw").resolvePlaywright().axeSource;
+      await page.evaluate(axeSrc);
+      const v = await page.evaluate(async () => {
+        const res = await window.axe.run(document, { resultTypes: ["violations"] });
+        return res.violations.map((x) => ({ id: x.id, nodes: x.nodes.map((n) => n.target.join(" ")) })).filter((x) => x.nodes.some((t) => /hub-q|hub-search/.test(t)));
+      });
+      check(v.length === 0, "x: axe finds no violation on the field (" + JSON.stringify(v) + ")");
+      check(errors.length === 0, "i: no page errors (search): " + errors.join("; "));
+      await context.close();
+    }
+    {
+      const { context, page, errors } = await open(browser, { viewport: { width: 360, height: 740 } });
+      await go(page);
+      await page.waitForFunction(() => window.BMHubSearch, null, { timeout: 10000 });
+      const y = await page.evaluate(() => {
+        const b = document.querySelector("#hub-q").getBoundingClientRect(), m = document.querySelector(".hub-mode-group").getBoundingClientRect(), h = document.querySelector(".hub-head").getBoundingClientRect();
+        return { left: b.left, right: b.right, w: b.width, top: b.top, modeBottom: m.bottom, headW: h.width, vw: window.innerWidth };
+      });
+      check(y.top >= y.modeBottom - 0.5 && y.left >= 0 && y.right <= y.vw && y.w >= y.headW - 2, "y: at 360x740 the field is full width, below the control (" + JSON.stringify(y) + ")");
+      await page.fill("#hub-q", "linear");
+      await page.waitForFunction(() => document.querySelectorAll("li.stop[hidden]").length > 0, null, { timeout: 3000 });
+      check((await page.inputValue("#hub-q")) === "linear", "y: the field takes typing");
+      check(errors.length === 0, "i: no page errors (search 360): " + errors.join("; "));
       await context.close();
     }
   } finally {
