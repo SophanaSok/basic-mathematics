@@ -11,7 +11,7 @@
 
 import type { Three } from "./three.ts";
 import type { Group, Mesh, Object3D, Scene } from "three";
-import { layout, rowAt, worldParts, DECK, ROW_Z, ROW_Y, STEP_X, type CourseShape, type WorldLayout } from "./layout.ts";
+import { layout, rowAt, worldParts, DECK, ISLE_R, ROW_Z, ROW_Y, STEP_X, type CourseShape, type WorldLayout } from "./layout.ts";
 import { placeProps } from "./props.ts";
 import { makeMaterials, readPalette, type PaletteMap } from "./materials.ts";
 import { makeLights, atmosphere } from "./lighting.ts";
@@ -23,7 +23,7 @@ import { buildForm, type FormLook } from "./forms.ts";
 /** the form on the map stands this much smaller than the figure the progress page shows */
 export const MARKER_SCALE = 0.75;
 
-export { DECK, ROW_Z, ROW_Y, STEP_X, rowAt };
+export { DECK, ISLE_R, ROW_Z, ROW_Y, STEP_X, rowAt };
 export type { IsleState, WorldLayout };
 
 export interface WorldScene {

@@ -56,8 +56,9 @@
       there while the stage is in view and leaves the world as it was when not; a Part
       button focused when the world goes hands the focus to the list
    7b. Escape on the stage clears a selection first (focus stays) and leaves the map second;
-      a plate never covers its island; the legend's glyphs resolve to the tokens the world
-      draws the marks with
+      a plate never covers its island, and one with no room above goes below it, under the
+      island's lowest point; the legend's glyphs resolve to the tokens the world draws the
+      marks with
    8. what is left behind: tier changes back and forth leave no GL buffer behind and the
       map switched off frees them all; in the dark theme the selection ring is each
       region's --region-ink
@@ -950,6 +951,32 @@ async function run() {
       });
       check(!!plate && !(plate.at[0] >= plate.box[0] && plate.at[0] <= plate.box[2] && plate.at[1] >= plate.box[1] && plate.at[1] <= plate.box[3]),
         "the selected island's plate does not cover the island (" + JSON.stringify(plate) + ")");
+      /* the flip: walk the selection along the path and drag the camera until an island sits so
+         close to the stage's top that its plate has no room above; that plate goes below the
+         island, starting under its lowest point, so neither the body nor the marks are covered */
+      for (let k = 0; k < 5; k++) { await page.keyboard.press("ArrowRight"); await wait(500); }
+      const box = await page.locator("[data-map3d-stage]").boundingBox();
+      let flipped = null;
+      for (const dx of [-250, -250, -250, -250, -250, -250, 500, 500, 500, 500, 500, 500, 500, 500]) {
+        await page.mouse.move(box.x + box.width / 2, box.y + 40);
+        await page.mouse.down();
+        await page.mouse.move(box.x + box.width / 2 + dx, box.y + 40, { steps: 8 });
+        await page.mouse.up();
+        await wait(700);
+        flipped = await page.evaluate(() => {
+          var out = null;
+          Array.prototype.forEach.call(document.querySelectorAll(".map3d-label[data-below]"), function (el) {
+            if (out || el.style.visibility === "hidden") return;
+            var r = el.getBoundingClientRect(), a = window.BMMap3D.plates().filter((q) => q.i === +el.getAttribute("data-i"))[0];
+            out = { i: a.i, top: r.top, bottom: r.bottom, deck: [a.x, a.y], isleBottom: a.bottom };
+          });
+          return out;
+        });
+        if (flipped) break;
+      }
+      check(!!flipped, "dragging the camera puts an island near the top and its plate goes below it (data-below)");
+      check(!!flipped && flipped.top >= flipped.isleBottom - 1 && flipped.top > flipped.deck[1],
+        "the plate below starts under the island's lowest point (" + JSON.stringify(flipped) + ")");
       await page.keyboard.press("Escape");
       await wait(400);
       const esc1 = await page.evaluate(() => ({

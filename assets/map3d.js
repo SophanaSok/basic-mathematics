@@ -698,6 +698,18 @@ import { detectTier, readProbe, stepDown, lower, pixelRatio, TIERS, AMBIENT_MS, 
     applyTier({ tier: next, why: "slow", chosen: M.chosen });
   }
 
+  /* the lowest point of an island on the stage, in stage pixels: the deck's near and far
+     edges, its sides and its base, whichever projects lowest; a plate put below the island
+     starts under this, so it covers neither the body nor the marks standing on the deck */
+  function isleBottom(s, w, h) {
+    var R = W.ISLE_R, low = -Infinity, pts = [[0, W.DECK, R], [0, W.DECK, -R], [R, W.DECK, 0], [-R, W.DECK, 0], [0, 0, 0]];
+    for (var k = 0; k < pts.length; k++) {
+      var v = new M.T.Vector3(s.x + pts[k][0], s.y + pts[k][1], s.z + pts[k][2]).project(M.camera);
+      if (v.z <= 1) low = Math.max(low, (1 - v.y) / 2 * h);
+    }
+    return low;
+  }
+
   /* labels: only the selected or hovered island and the current one, as HTML plates */
   function placeLabels() {
     var want = [];
@@ -740,9 +752,11 @@ import { detectTier, readProbe, stepDown, lower, pixelRatio, TIERS, AMBIENT_MS, 
       var room = sizes[n].half + 8, top = sizes[n].tall + 8;
       var px = Math.round(2 * room < w ? clamp(x, room, w - room) : w / 2);
       /* no room above the island (its point is closer to the top than the plate is tall):
-         the plate goes below it instead of being clamped down over it, kept inside the stage */
+         the plate goes below the island instead of being clamped down over it, its top under
+         the island's lowest point (the marks stand on the deck, between the anchor and the
+         island, so the anchor itself is no use here), kept inside the stage */
       if (y < top) {
-        var by = Math.round(clamp(y + 12, 0, Math.max(0, h - sizes[n].tall - 2)));
+        var by = Math.round(clamp(isleBottom(s, w, h) + 8, 0, Math.max(0, h - sizes[n].tall - 2)));
         el.setAttribute("data-below", "");
         el.style.transform = "translate(" + px + "px," + by + "px) translate(-50%,0)";
         return;
@@ -857,6 +871,7 @@ import { detectTier, readProbe, stepDown, lower, pixelRatio, TIERS, AMBIENT_MS, 
   function unselect() {
     if (!M) return;
     M.hot = -1;
+    M.hotHow = "";
     M.stage.setAttribute("aria-label", "Course map");
     M.world.setLinks(-1, []);
     highlight(M.hover);
@@ -1341,14 +1356,16 @@ import { detectTier, readProbe, stepDown, lower, pixelRatio, TIERS, AMBIENT_MS, 
       return true;
     },
     /* where the plates sit, for the check that none covers its island (tools/game/map.test.js):
-       [{ i, x, y, below }], the island's index and its point in client pixels, and whether
-       the plate went below it */
+       [{ i, x, y, bottom, below }], the island's index, its deck point and its lowest point
+       in client pixels, and whether the plate went below it */
     plates: function () {
       if (!M) return [];
+      var r = M.canvas.getBoundingClientRect();
       return Array.prototype.map.call(M.labels.children, function (el) {
-        var i = +el.getAttribute("data-i"), s = ISLES[i], r = M.canvas.getBoundingClientRect();
+        var i = +el.getAttribute("data-i"), s = ISLES[i];
         var v = new M.T.Vector3(s.x, s.y + W.DECK, s.z).project(M.camera);
-        return { i: i, x: r.left + (v.x + 1) / 2 * r.width, y: r.top + (1 - v.y) / 2 * r.height, below: el.hasAttribute("data-below") };
+        return { i: i, x: r.left + (v.x + 1) / 2 * r.width, y: r.top + (1 - v.y) / 2 * r.height,
+          bottom: r.top + isleBottom(s, r.width, r.height), below: el.hasAttribute("data-below") };
       });
     },
     /* where an island sits on screen, in client pixels */
