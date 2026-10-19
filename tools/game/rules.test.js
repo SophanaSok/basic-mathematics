@@ -495,6 +495,19 @@ function world(seedStores) {
     check(Array.isArray(p) && p.length === 2 && p[0] < p[1] && typeof a.title === "string" && a.text, a.id + " is false on an empty store");
   });
 
+  /* the progress page's groups (ACH_GROUPS in assets/insights.js) name every catalogue id once, so none
+     falls into "Other" */
+  {
+    const src = fs.readFileSync(path.join(ROOT, "assets/insights.js"), "utf8");
+    const m = /var ACH_GROUPS = (\[[\s\S]*?\n  \]);/.exec(src);
+    const groups = m ? vm.runInNewContext(m[1]) : [];
+    const listed = groups.reduce((acc, g) => acc.concat(g[1]), []);
+    check(groups.length === 6, "insights.js lists six achievement groups");
+    eq(listed.filter((id) => !ids.includes(id)), [], "every grouped achievement id is in the catalogue");
+    eq(ids.filter((id) => !listed.includes(id)), [], "every catalogue achievement is in a progress-page group");
+    eq(listed.length, new Set(listed).size, "no achievement is in two groups");
+  }
+
   /* a rich fixture */
   const firsts = {};
   for (let i = 1; i <= 30; i++) firsts["e" + i] = { tries: 1, solved: 1700000000000 + i, first: 1, section: "angles" };

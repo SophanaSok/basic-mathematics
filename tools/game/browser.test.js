@@ -1096,6 +1096,57 @@ async function run() {
       await wide.context.close();
     }
 
+    /* ------------------------------ U-12: the progress page's shape */
+    {
+      const { context, page, errors } = await open(browser, "progress.html", {});
+      await wait(200);
+      const f = await page.evaluate(() => ({
+        labels: Array.from(document.querySelectorAll("[data-progress] > .stats:first-of-type .stat-label")).map((e) => e.textContent),
+        next: Array.from(document.querySelectorAll(".next-list a")).map((a) => a.textContent),
+        head: (document.querySelector(".next-list h3") || {}).textContent,
+        hrefs: Array.from(document.querySelectorAll(".next-list a")).map((a) => a.getAttribute("href")),
+        chips: document.querySelectorAll(".goal-pick .chip").length,
+        chart: !!document.querySelector(".daychart"),
+        note: (document.querySelector(".chart-note") || {}).textContent,
+        ach: document.querySelectorAll("#achievements .ach").length,
+        groups: Array.from(document.querySelectorAll("#achievements h3.ach-group")).map((h) => h.textContent)
+      }));
+      eq(f.labels.slice(0, 3), ["Level", "Streak", "Today"], "fresh: the tiles lead with Level, Streak, Today");
+      eq([f.head, f.next], ["Your next steps", ["Start with Chapter 1", "Find your starting point"]], "fresh: the empty chart is the next steps");
+      check(f.hrefs[0].endsWith("parts/1-algebra/01-numbers.html") && f.hrefs[1].endsWith("diagnostic.html"), "fresh: the next steps link to Chapter 1 and the check");
+      eq([f.chips, f.chart, /^Active on 0 days/.test(f.note)], [4, false, true], "fresh: goal chips and the note stay, the chart is gone");
+      eq(f.ach, 28, "fresh: 28 achievements");
+      check(!f.groups.includes("Closest to done") && !f.groups.includes("Other"), "fresh: no Closest to done and no Other group");
+      eq(f.groups, ["Habits and streaks", "First try and accuracy", "Careful study", "Arena", "Review and repair", "Completion"], "fresh: the group headings in order");
+      eq(errors, [], "no errors on a fresh progress page");
+      await context.close();
+
+      const recs = {};
+      for (let i = 1; i <= 20; i++) recs["e" + i] = { tries: 1, solved: 1000 + i, first: 1, section: "angles" };
+      const b = await open(browser, "progress.html", {
+        "bm.attempts.v1": JSON.stringify({ ch05: recs }),
+        "bm.activity.v1": JSON.stringify({ days: { [dayAgo(0)]: 20, [dayAgo(2)]: 20, [dayAgo(4)]: 20 } })
+      });
+      await wait(200);
+      const g = await b.page.evaluate(() => ({
+        chart: !!document.querySelector(".daychart"), next: !!document.querySelector(".next-list"),
+        chips: document.querySelectorAll(".goal-pick .chip").length,
+        ach: document.querySelectorAll("#achievements .ach").length,
+        groups: Array.from(document.querySelectorAll("#achievements h3.ach-group")).map((h) => h.textContent),
+        near: Array.from(document.querySelectorAll("#achievements ul.achievements:first-of-type li.ach")).map((l) => l.getAttribute("data-id")),
+        steady: document.querySelectorAll('#achievements [data-id="steady-hand"]').length,
+        levels: Array.from(document.querySelectorAll("#achievements, #achievements h2, #achievements h3")).map((e) => e.tagName)
+      }));
+      eq([g.chart, g.next, g.chips], [true, false, 4], "active on 3 days: the chart is back, the next steps are gone");
+      eq(g.ach, 28, "seeded: still 28 achievements");
+      eq(g.groups, ["Closest to done", "Habits and streaks", "First try and accuracy", "Careful study", "Arena", "Review and repair", "Completion"], "seeded: Closest to done first, then the groups in order");
+      eq(g.near[0], "steady-hand", "seeded: steady-hand leads Nearest");
+      check(g.near.length >= 1 && g.near.length <= 3, "seeded: Nearest lists at most three");
+      eq(g.steady, 1, "seeded: steady-hand appears once");
+      eq(b.errors, [], "no errors on a seeded progress page");
+      await b.context.close();
+    }
+
     /* --------------- review fixes: medals, recall, streaks and repairs off the chapter page */
     {
       const solved = {}, recs = {};
