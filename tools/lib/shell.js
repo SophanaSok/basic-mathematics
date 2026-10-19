@@ -272,7 +272,7 @@ function sheet(info) {
     '    <fieldset class="sheet-group sheet-choice">',
     "      <legend>Graphics quality</legend>",
     '      <div class="sheet-options">' + choice("bm-gfx", "gfx", "auto", "Auto") + choice("bm-gfx", "gfx", "low", "Low") + choice("bm-gfx", "gfx", "mid", "Medium") + choice("bm-gfx", "gfx", "high", "High") + "</div>",
-    "      " + toggle("map3d", "Map view", "The contents page opens on the course world, the Map view; off, it opens on the List. The List / Map control there sets the same choice."),
+    "      " + toggle("map3d", "Map view", "Opens the contents page on the course world. Off, it opens on the List. The List / Map control there sets the same choice."),
     "    </fieldset>",
     "  </dialog>"
   ];
