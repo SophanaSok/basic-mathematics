@@ -72,6 +72,8 @@ import "../ui/diag-result.ts";
 /* the study plan the result and the return view draw: what it reads, the pure rules, then the
    installer */
 import "../data/section-work.ts";
+/* where each section stands and the one continue resolver (src/learn/status.ts): next.ts and plan.ts read it */
+import "../learn/status.ts";
 import "../learn/plan.ts";
 import "../ui/plan.ts";
 /* the first-run guide (shown once on a chapter page) and its replay button in the settings sheet */
