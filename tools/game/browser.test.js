@@ -2347,6 +2347,12 @@ async function run() {
           const here = new URL(page.url()).pathname;
           await page.click(".topbar .hud-level");
           await page.waitForSelector(".hud-pop");
+          const portrait = await page.$eval(".hud-pop .hud-pop-form", (e) => ({ bg: e.style.backgroundImage, hidden: e.getAttribute("aria-hidden"), size: getComputedStyle(e).backgroundSize }));
+          check(/models\/forms\/form-2-poses\.webp/.test(portrait.bg) && portrait.hidden === "true", "the popover shows the worn form's pose sheet: " + portrait.bg);
+          eq(portrait.size, "600% 100%", "the portrait shows one of the sheet's six frames");
+          await page.waitForTimeout(300);
+          const formReqs = await page.evaluate(() => [...new Set(performance.getEntriesByType("resource").map((e) => e.name).filter((u) => /\/models\/forms\//.test(u)).map((u) => u.replace(/^.*\/models\/forms\//, "")))]);
+          eq(formReqs, ["form-2-poses.webp"], "the pose sheet is the only form request on a chapter page");
           eq(new URL(page.url()).pathname, here, "a plain click on the badge does not navigate");
           const txt = await page.textContent(".hud-pop");
           check(/Level \d+ · \w+/.test(txt) && /XP to level/.test(txt), "the popover names the level and rank and the XP to level: " + txt);

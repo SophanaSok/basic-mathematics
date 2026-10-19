@@ -155,6 +155,19 @@ function openPop(badge: HTMLAnchorElement): void {
   const next = nextInfo(form, xp).next;
   const href = badge.getAttribute("href") || "progress.html";
 
+  /* the worn form's rest pose beside its sentence. Decorative (the sentence names the form),
+     so aria-hidden. Only the pose sheet may load here: the popover opens on every page kind
+     and the other form models are not allowed on them. The URL is built as companion.ts
+     sheetUrl does (duplicated: that module is for chapter pages; mood.ts stays URL-free);
+     POSES[0] is the rest pose, the first of six equal frames. */
+  let root = "";
+  try { root = String(window.BMSite.rootPrefix()); } catch { /* no helper */ }
+  const portrait = el("span", "hud-pop-form");
+  portrait.setAttribute("aria-hidden", "true");
+  portrait.style.backgroundImage = 'url("' + root + "models/forms/form-" + worn(form, xp) + '-poses.webp")';
+  const row = el("div", "pop-form");
+  row.append(portrait, el("p", "pop-line", "Form: " + wearing.name + (next ? ". Next: " + next.name + " at level " + next.level + "." : ". The last form.")));
+
   const box = el("div", "hud-pop");
   box.id = "hud-pop";
   box.setAttribute("role", "dialog");
@@ -171,7 +184,7 @@ function openPop(badge: HTMLAnchorElement): void {
     bars,
     el("p", "pop-line", "Streak: " + plural(v.streak, "day", "days") + ". Today: " + v.today + " of " + v.goal + " XP."),
     el("p", "pop-line", "Active " + activeDays(activity) + " of the last 30 days"),
-    el("p", "pop-line", "Form: " + wearing.name + (next ? ". Next: " + next.name + " at level " + next.level + "." : ". The last form."))
+    row
   );
   const more = el("a", "btn pop-link", "Your progress →");
   more.setAttribute("href", href);
