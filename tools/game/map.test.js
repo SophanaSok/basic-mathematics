@@ -918,7 +918,7 @@ async function run() {
       await wait(900);
       const foc = await plates();
       const hot = foc.filter((l) => l.kind === "hot"), cur = foc.filter((l) => l.kind === "current");
-      check(hot.length === 1 && /^\d+ exercises? · about \d+ min$/.test(hot[0].meta || "") && hot[0].goal && hot[0].goal.length <= 95 && !hot[0].dollars && cur.every((l) => l.meta === null && l.goal === null),
+      check(hot.length === 1 && /^\d+ exercises? · about \d+ min$/.test(hot[0].meta || "") && hot[0].goal && hot[0].goal.length <= 95 && !hot[0].dollars && !/[\\^{}]/.test(hot[0].goal) && cur.every((l) => l.meta === null && l.goal === null),
         "Tab to a chapter: the plate shows the facts and a goal in plain text, and the current plate stays one line (" + JSON.stringify(foc) + ")");
       const lg = await page.evaluate(() => {
         var l = document.querySelector(".map3d-stage > .map3d-legend");

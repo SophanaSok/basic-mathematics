@@ -200,8 +200,22 @@ import { detectTier, readProbe, stepDown, lower, pixelRatio, TIERS, AMBIENT_MS, 
 
   /* the goal as plain text for a plate: $…$ spans lose their dollar signs, the line is
      clipped at a word boundary */
+  /* the few commands the goals use, as the characters a plate can show; anything else
+     keeps its letters without the backslash, braces or caret */
+  function plainMath(m) {
+    var SUP = { "0": "⁰", "1": "¹", "2": "²", "3": "³", "4": "⁴", "5": "⁵", "6": "⁶", "7": "⁷", "8": "⁸", "9": "⁹", "n": "ⁿ" };
+    return m.replace(/\\sqrt\{([^}]*)\}/g, "√$1").replace(/\\sqrt\s*(\w)/g, "√$1")
+      .replace(/\\frac\{([^}]*)\}\{([^}]*)\}/g, "$1/$2")
+      .replace(/\\(times|cdot|pi|theta|le|ge|ne|infty|pm)\b/g, function (_, c) {
+        return { times: "×", cdot: "·", pi: "π", theta: "θ", le: "≤", ge: "≥", ne: "≠", infty: "∞", pm: "±" }[c];
+      })
+      .replace(/\^\{([^}]*)\}|\^(\w)/g, function (_, a, b) {
+        return String(a || b).split("").map(function (ch) { return SUP[ch] || ch; }).join("");
+      })
+      .replace(/\\[a-zA-Z]+/g, "").replace(/[{}]/g, "").replace(/\s*=\s*/g, " = ");
+  }
   function plainGoal(text, max) {
-    var t = String(text || "").replace(/\$((?:\\.|[^$\\])*)\$/g, "$1").replace(/\s+/g, " ").trim();
+    var t = String(text || "").replace(/\$((?:\\.|[^$\\])*)\$/g, function (_, m) { return plainMath(m); }).replace(/\s+/g, " ").trim();
     if (!t) return "";
     t = t.charAt(0).toUpperCase() + t.slice(1);
     if (t.length <= max) return t;
