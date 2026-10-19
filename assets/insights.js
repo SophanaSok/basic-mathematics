@@ -384,7 +384,7 @@
   if (page && Progress && Play && Activity && Insights) {
     drawProgress();
     /* src/ui/next.ts comes after this file in the entry: once the page's scripts have run, draw again
-       so "Your next steps" has the reader's real items rather than the two fixed ones */
+       so "Your next steps" has the reader's real items rather than the fixed one */
     if (!window.BMNext) {
       var again = function () { if (window.BMNext) drawProgress(); };
       if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", again);
