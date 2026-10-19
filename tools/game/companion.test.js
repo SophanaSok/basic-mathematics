@@ -29,7 +29,7 @@ const CHAPTER = "parts/1-algebra/01-numbers.html";
 const THREE_CHUNK = /\/bundle\/three\.js(?:[?#]|$)/;
 const LINES = {
   intro: "This is Pip, your form. It keeps you company while you work.", first: "First try.", again: "Let's look again.",
-  due: "I'd like to look at", back: "Good to see you.", chapter: "Chapter done!", level: "Level 2.", evolve: "Pip became Sprig!"
+  due: "I'd like to look at", back: "Good to see you.", chapter: "Chapter done!", level: "Level 2.", evolve: "Pip became Sprig!", stuck: "There's a clue below."
 };
 let server, browser, fails = 0, passes = 0, cases = 0;
 function check(cond, what) {
@@ -385,6 +385,30 @@ async function run() {
       }));
       check(d.pic === "none" && d.cap !== "none", "forced colors: the picture drops, the caption stays " + JSON.stringify(d));
       await done(c, "print and forced colors");
+    }
+    /* 18 */
+    cases++;
+    {
+      const c = await open(seeds());
+      await answer(c.page, E1, false);
+      await c.page.evaluate(() => window.BMStore.emit({ type: "stuck", chapter: "ch01", key: "e1", signal: "idle", offer: "clue" }));
+      await wait(1500);
+      const s = await st(c.page);
+      eq(s.pending, "stuck", "stuck: the nudge waits in the pending slot inside the quiet window");
+      check(await lineIs(c.page, LINES.stuck, 9000), "stuck: 'There's a clue below.' shows after the window");
+      await done(c, "stuck");
+    }
+    {
+      const c = await open(seeds());
+      await answer(c.page, E1, false);
+      await c.page.evaluate(() => window.BMStore.emit({ type: "stuck", chapter: "ch01", key: "e1", signal: "idle", offer: "clue" }));
+      await wait(500);
+      eq((await st(c.page)).pending, "stuck", "stuck then solved: the nudge is pending");
+      await answer(c.page, E1, true);
+      await wait(6500);
+      const s = await st(c.page);
+      check(s.pending !== "stuck" && s.line !== LINES.stuck, "stuck then solved: a correct answer drops the nudge: " + JSON.stringify([s.pending, s.line]));
+      await done(c, "stuck then solved");
     }
   } finally {
     try { await browser.close(); } catch (e) { console.error("browser close: " + e.message); }

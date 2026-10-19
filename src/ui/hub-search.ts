@@ -118,6 +118,10 @@ let timer = 0;
 let redrawTimer = 0;
 /* the open state a card's Sections had before a query opened it */
 const saved = new Map<string, boolean>();
+/* the open state apply() last set per card: the toggle event that follows (a task, so it
+   may arrive late under load) carries that value and is not the learner's; a learner's
+   toggle always flips away from it */
+const expected = new Map<string, boolean>();
 
 function w(): any { return window as any; }
 
@@ -144,9 +148,10 @@ function apply(): void {
     if (!details) return;
     if (filtering && keep && partial) {
       if (!saved.has(id)) saved.set(id, details.open);
-      details.open = true;
+      if (!details.open) { expected.set(id, true); details.open = true; }
     } else if (saved.has(id)) {
-      details.open = !!saved.get(id);
+      const was = !!saved.get(id);
+      if (details.open !== was) { expected.set(id, was); details.open = was; }
       saved.delete(id);
     }
   });
@@ -217,9 +222,21 @@ function mount(): void {
   /* site.js and hub-list.ts draw the list again; the query is put back over the new one */
   if (host && typeof MutationObserver !== "undefined") {
     new MutationObserver(() => {
+      /* with a query up, the new cards are filtered before they paint: no debounce */
       window.clearTimeout(redrawTimer);
-      redrawTimer = window.setTimeout(() => { if (input && input.value.trim()) apply(); }, 60);
+      if (input && input.value.trim()) apply();
     }).observe(host, { childList: true, subtree: true });
+    /* a card opened or closed by hand during a query keeps that choice when the query clears */
+    host.addEventListener("toggle", (e) => {
+      const d = e.target as HTMLElement;
+      if (!(d instanceof HTMLDetailsElement) || !d.classList.contains("stop-sections")) return;
+      const li = d.closest("li.stop");
+      const id = li && li.getAttribute("data-chapter");
+      if (!id) return;
+      if (expected.has(id) && expected.get(id) === d.open) { expected.delete(id); return; }
+      expected.delete(id);
+      if (input && input.value.trim() && saved.has(id)) saved.set(id, d.open);
+    }, true);
   }
   if (input.value.trim()) apply();
 }
