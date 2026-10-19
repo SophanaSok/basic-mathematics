@@ -1006,6 +1006,11 @@ async function run() {
           focus: document.activeElement && document.activeElement.id
         };
       });
+      const lead = await p.evaluate(() => {
+        var r = document.querySelector(".arena-result"), l = r.querySelector(".arena-lead"), b = r.querySelector(".arena-bigscore"), s = r.querySelector(".arena-bigscore-sub");
+        return { step: l && l.getAttribute("data-step"), text: l ? l.textContent : "", big: b.getAttribute("data-step"), sub: s ? s.textContent : "", reread: !!l.querySelector("a") };
+      });
+      eq([lead.step, lead.big, lead.sub, /^\d+ of \d+ right the first time/.test(lead.text), lead.reread], ["1", "2", "this run's score", true, false], "the result leads with the first-try line, then the score and what it is: " + lead.text);
       eq([playing.seq, playing.skip, playing.hidden, playing.afterHeading, playing.focus], ["play", true, true, true, "arena-result-h"], "a finished run's result plays, with Skip after the heading and focus still on the heading");
       check(playing.overlays > 0 && playing.real === playing.want, "the real score is in the text while the overlay counts " + JSON.stringify(playing));
       await p.evaluate(() => document.querySelector(".arena-result [data-skip]").click());
@@ -1034,6 +1039,38 @@ async function run() {
       eq([restored.seq, restored.skip, restored.overlays], [false, false, 0], "a reload at the result shows no sequence");
       check(/^\d+$/.test(restored.score), "and the final score " + restored.score);
       check(restored.html === skippedHtml, "and a skipped result is the same markup as the restored one");
+      await context.close();
+    }
+    /* 17: a run with a miss names its weakest section in the lead, once */
+    {
+      const context = await ctx(browser);
+      const p = await open(context, errors, "arena.html", {}, true);
+      await p.click('[data-act="start"][data-mode="standard"]');
+      await answer(p, false);
+      await answer(p, true);
+      await next(p);
+      await playOut(p);
+      await p.waitForSelector(".arena-result");
+      await p.waitForTimeout(150);
+      const r = await p.evaluate(() => {
+        var r = document.querySelector(".arena-result"), l = r.querySelector(".arena-lead");
+        return { lead: l.textContent, reread: !!l.querySelector("a.btn"), step: l.getAttribute("data-step"), review: r.querySelector(".arena-review").textContent,
+          weakLines: r.querySelectorAll(".arena-weakest").length, live: document.querySelector(".arena-live").textContent };
+      });
+      check(/^\d+ of \d+ right the first time · weakest .+Reread/.test(r.lead) && r.reread && r.step === "1", "the lead names the weakest section with its Reread button: " + r.lead);
+      check(r.weakLines === 0 && /Worth another look/.test(r.review) && !/Weakest this run/.test(r.review), "the review block no longer repeats the weakest line");
+      check(/^(Run complete|Out of hearts)\. \d+ of \d+ right the first time\. \d+ points/.test(r.live), "the announcement leads with the first-try line: " + r.live);
+      await context.close();
+    }
+
+    /* 18: the deck explains its ticks and how a section becomes ready */
+    {
+      const context = await ctx(browser);
+      const p = await open(context, errors, "arena.html", {});
+      check(/Tick a section/.test(await p.$eval(".arena-deck-head", (e) => e.textContent)), "the deck header says what ticking does");
+      const parts = await p.$$eval("details.arena-part", (ds) => ds.map((d) => ({ ready: parseInt(d.querySelector(".arena-part-count").textContent, 10), hint: !!d.querySelector(":scope > .arena-part-hint") })));
+      check(parts.length > 0 && parts.every((x) => x.hint === (x.ready === 0)), "only a Part with nothing ready carries the hint: " + JSON.stringify(parts));
+      check(/XP is separate/.test(await p.$eval(".arena-rules", (e) => e.textContent)), "the rules explain points and XP");
       await context.close();
     }
     eq(errors, [], "no page errors");
