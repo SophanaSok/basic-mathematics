@@ -42,6 +42,16 @@ const WEBGL_PATHS = [
   "tools/game/scenes.test.js",   // 3D script
   "tools/game/map.test.js",      // 3D script
   "tools/game/forms.test.js",    // 3D script
+  "tools/game/hub.test.js",      // 3D script: the contents page's views, selection and search, with the world drawn
+  "assets/map3d.js",             // the course world's controller
+  "assets/map3d.css",            // the stage's sizing and the plates the map tests measure
+  "index.html",                  // the page the world stands on: its layout is what the map tests' geometry assumes
+  "assets/site.js",              // buildHome draws the list the world mirrors
+  "assets/site.css",             // the list's and the head's layout, under the stage
+  "src/ui/hub-list.ts",          // the list's rows and lines under each card
+  "src/ui/hub-mode.ts",          // the List / Map control
+  "src/ui/hub-select.ts",        // the selection the world starts on
+  "src/ui/hub-search.ts",        // the search that hides cards the world mirrors
   "src/model/",                  // the loader and look the forms script uses
   "src/ui/form-view.ts",         // the view that draws a form in the page
   "src/vendor/",                 // three.js, three-model.js and three-post.js are vendored here
