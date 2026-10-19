@@ -1,10 +1,12 @@
 import { afterEach, describe, expect, it } from "vitest";
-import { decorate, hubInput, masteryLine } from "./hub-list.ts";
+import { decorate, decorateSections, hubInput, masteryLine, sectionInput } from "./hub-list.ts";
+import { sectionStates } from "../learn/status.ts";
 import { hubState } from "../world/state.ts";
 import { ARENA_SECTIONS } from "../data/arena-sections.ts";
 
 /* a just-enough DOM: elements with children, text, attributes, and the two selectors decorate uses */
 class El {
+  innerHTML = ""; open = false;
   tag: string; className = ""; textContent = ""; attrs: Record<string, string> = {}; kids: El[] = []; parent: El | null = null; text = false;
   ownerDocument: any;
   get parentNode() { return this.parent; }
@@ -188,5 +190,83 @@ describe("hubInput", () => {
     expect(inp.due).toEqual({ arena: [], page: [] });
     expect(inp.bands).toEqual({});
     expect(inp.medals.ch01).toBe(0);
+  });
+});
+
+describe("decorateSections", () => {
+  /* ch01#integers requires ch01#addition; ch02#one requires ch01#integers (so it builds on two when neither is done) */
+  const CS = {
+    parts: [{ id: "algebra", chapters: [
+      { id: "ch01", label: "1", path: "parts/1/01.html", sections: [
+        { id: "addition", title: "Rules for addition" }, { id: "integers", title: "Integers", requires: ["ch01#addition"] }] },
+      { id: "ch02", label: "2", path: "parts/1/02.html", sections: [
+        { id: "one", title: "One unknown", requires: ["ch01#addition", "ch01#integers"] }] }
+    ] }],
+    chapterById(id: string) { return this.parts[0].chapters.find((c) => c.id === id); }
+  };
+  function wire(over: Record<string, unknown> = {}) {
+    (globalThis as any).window = {
+      BM_CURRICULUM: CS, BMSite: { rootPrefix: () => "" },
+      BMIcon: { svg: (n: string) => '<svg class="icon icon-' + n + '"></svg>' }, ...over
+    };
+  }
+  const rowsOf = (root: El, id: string) => root.querySelectorAll("li.stop[data-chapter=\"" + id + "\"] .stop-row");
+  const stat = (r: El) => r.all().find((e) => e.className === "stop-state")!;
+
+  it("draws the states, glyphs and links without a game layer", () => {
+    wire();
+    const root = list(["ch01", "ch02"]);
+    decorateSections(root as any, sectionStates(sectionInput()), ["ch01", "ch02"]);
+    const d = root.querySelectorAll(".stop-sections");
+    expect(d.length).toBe(2);
+    expect(d[0].kids[0].tag).toBe("summary");
+    expect(d[0].kids[0].textContent).toBe("2 sections \u00B7 0 done");
+    const r1 = root.find(".stop-row");
+    expect(r1.map((r) => stat(r).words)).toEqual(["Ready", "Builds on Rules for addition".replace("Rules", "\u00A71.1 Rules"), "Builds on \u00A71.1 Rules for addition, \u00A71.2 Integers"]);
+    expect(r1[0].all().find((e) => e.className === "stop-glyph")!.innerHTML).toContain("icon-next");
+    expect(r1[1].all().find((e) => e.className === "stop-glyph")!.innerHTML).toContain("icon-chevron");
+    expect(r1[0].all().find((e) => e.className === "stop-title")!.attrs.href).toBe("parts/1/01.html#addition");
+    expect(stat(r1[2]).all().filter((e) => e.tag === "a").map((e) => e.attrs.href)).toEqual(["parts/1/01.html#addition", "parts/1/01.html#integers"]);
+    expect(r1[0].all().find((e) => e.className === "stop-glyph")!.attrs["aria-hidden"]).toBe("true");
+  });
+
+  it("words done and in progress, and counts the done sections", () => {
+    wire({
+      BMGame: { sectionStatus: (r: string) => (r === "ch01#addition" ? "solid" : "new") },
+      BMInsights: { sections: () => [{ id: "ch01#integers", n: 3, solved: 1 }] }
+    });
+    const root = list(["ch01"]);
+    decorateSections(root as any, sectionStates(sectionInput()), ["ch01"]);
+    expect(root.querySelector(".stop-sections")!.kids[0].textContent).toBe("2 sections \u00B7 1 done");
+    const rows = root.find(".stop-row");
+    expect(rows.map((r) => stat(r).words)).toEqual(["Done", "In progress"]);
+    expect(rows[0].all().find((e) => e.className === "stop-glyph")!.innerHTML).toContain("icon-tick");
+    expect(rows[1].all().find((e) => e.className === "stop-glyph")!.innerHTML).toContain("icon-reset");
+  });
+
+  it("sits after the hub line, never inside the card's link, and a redraw keeps it open", () => {
+    wire();
+    const root = list(["ch01"]);
+    const s = sectionStates(sectionInput());
+    decorate(root as any, states({ bands: { "ch01#addition": "weak" } }), ["ch01"]);
+    decorateSections(root as any, s, ["ch01"]);
+    const li = root.all().find((e) => e.tag === "li" && e.attrs["data-chapter"] === "ch01")!;
+    expect(li.kids.map((k) => k.className)).toEqual(["stop-link", "stop-hub", "stop-sections"]);
+    expect(root.querySelectorAll(".stop-link")[0].all().filter((e) => e.tag === "a" || e.className === "stop-sections").length).toBe(0);
+    root.querySelector(".stop-sections")!.open = true;
+    decorateSections(root as any, s, ["ch01"]);
+    expect(root.querySelectorAll(".stop-sections").length).toBe(1);
+    expect(root.querySelector(".stop-sections")!.open).toBe(true);
+    root.querySelector(".stop-sections")!.open = false;
+    decorateSections(root as any, s, ["ch01"]);
+    expect(root.querySelector(".stop-sections")!.open).toBe(false);
+  });
+
+  it("no row is disabled", () => {
+    wire();
+    const root = list(["ch01", "ch02"]);
+    decorateSections(root as any, sectionStates(sectionInput()), ["ch01", "ch02"]);
+    expect(root.all().filter((e) => "disabled" in e.attrs || "aria-disabled" in e.attrs).length).toBe(0);
+    expect(rowsOf(root, "ch02").length).toBe(1);
   });
 });

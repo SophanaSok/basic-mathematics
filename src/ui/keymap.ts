@@ -187,7 +187,7 @@ export function detectKind(has: (selector: string) => boolean): Kind {
 
 export const ITEMS: Record<Kind, string> = {
   chapter: ".ex",
-  home: "a.stop-link, a.next-step-link",
+  home: "a.stop-link, a.next-step-link, .stop-sections[open] .stop-rows a",
   arena: ".arena-mode, input[data-pick]",
   progress: "li.area a.area-title",
   account: "main input:not([type=hidden]), main button",
