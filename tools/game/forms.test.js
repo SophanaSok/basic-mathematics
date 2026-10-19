@@ -527,6 +527,24 @@ async function main() {
       const run = await store(page, "bm.run.v1");
       check(!(run && run.seen && run.seen.greeted), "23: greeted is not written", run && run.seen);
     }
+    /* 24: a pending evolution goes first; the greeting follows its caption */
+    {
+      const { page } = await open("progress.html", seeds(300, PENDING, true));
+      let early = false, writtenEarly = false;
+      for (let t = 0; t < 20000; t += 50) {
+        const st = await seqAttr(page);
+        if (st === "done") break;
+        if (await page.evaluate(() => !!document.querySelector("[data-emote][data-playing]"))) early = true;
+        const run = await store(page, "bm.run.v1");
+        if (run && run.seen && run.seen.greeted) writtenEarly = true;
+        await wait(50);
+      }
+      check(await seqAttr(page) === "done", "24: the caption lands");
+      check(!early, "24: no emote during the sequence");
+      check(!writtenEarly, "24: greeted is unset before the caption");
+      check(await until(page, () => !!document.querySelector("[data-emote][data-playing]"), null, 15000), "24: the greeting plays after the caption");
+      check(await until(page, (d) => { const r = JSON.parse(localStorage.getItem("bm.run.v1") || "{}"); return r.seen && r.seen.greeted === d; }, TODAY, 3000), "24: greeted is today");
+    }
   } finally {
     for (const c of contexts) { try { await c.close(); } catch (e) { /* closed already */ } }
     await browser.close();

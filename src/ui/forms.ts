@@ -278,6 +278,12 @@ function moodLine(): void {
     reduced motion or Study mode, and the day is written only when the emote was played */
 function greet(): boolean {
   if (!view || stillNow()) return false;
+  /* an evolution under way, or owed and not yet begun, goes first: the greeting follows its caption */
+  if (seq && seq.step !== "done") return false;
+  if (!seq) {
+    const ev = evolvedNow();
+    if (typeof ev === "number" && now().hi > Math.max(ev, played)) return false;
+  }
   let day = "";
   try { day = String(window.BMSite.dayKey()); } catch { return false; }
   try { if (window.BMGame.run().seen.greeted === day) return true; } catch { return false; }
@@ -400,6 +406,8 @@ function caption(): void {
     window.BMGame.updateRun((r: { seen: Record<string, unknown> }) => { r.seen.evolved = Math.max(num(r.seen.evolved), s.hi); });
   } catch { /* the sequence just plays again next time */ }
   refresh();
+  /* the greeting waits for the new form's model if it is not shown yet (the watcher in watchArrival) */
+  try { greet(); } catch { /* no greeting */ }
 }
 
 /* the sequence taken down without a word: timers, the key listener, the classes, the step */
