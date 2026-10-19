@@ -1193,6 +1193,8 @@ function refusal(fn) { try { fn(); return null; } catch (e) { return e.message; 
   eq(forms(page("<p>It costs &pound;9 or &#163;2.</p>"), PAGE), ["£@3", "£@3"], "… &pound; and &#163; are the pound sign");
   eq(forms('var a = "5p", b = "2.5p:", c = "p5";\nvar s = n + "p each", t = "Costs " + q + "p", u = `${n}p`, v = n + "pt", w = "$" + n + "p$";', GEN), ["5p@1", "2.5p@1", "<n>p@2", "<n>p@2", "<n>p@2"],
     "… a one-word price in pence is money, not a key, and so is a \"p\" after an operand of a chain (counted as <n>p), but not in a formula");
+  eq(forms(page("<p>About $9.99 to $14.99 a month. $x = 9.99$, $2 + x$, $1, i, -1, -i$, $\\$9.99$ to $\\$14.99$ and $12\\text{ metres}$ pass the price rule.</p>"), PAGE), ["$<n> in a formula@3", "metres@3"],
+    "… a dollar price that opens a formula ($9.99 to $14.99 reads as one) fails once; a formula that starts with a letter, a number and an operator or a comma, \\$ or a command passes it");
 
   /* wording is report-only */
   const words = 'var g = { id: "lin-brackets", c: "par-tick" };\nvar h = "Expand the brackets towards the end, then tick it; square brackets stay.";';

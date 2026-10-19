@@ -19,9 +19,11 @@
                the original's capitals (Centre -> Center).
      MONEY     the pound sign (in math too, and as &pound;), "pound", "pounds", "pence" and a
                price in pence ("10p", or a "p" right after an operand of a chain, n + "p each",
-               counted as the form "<n>p"). Counted by the check; never written: a dollar in
-               prose is $\$9$, not $9 (KaTeX would open a formula), so each one is rewritten by
-               hand.
+               counted as the form "<n>p"), and a dollar price that opens a formula ("$9.99 to
+               $14.99" reads as one, shown as "9.99to": a $…$ whose body starts with a number
+               and goes on to a word, counted as the form "$<n> in a formula"). Counted by the
+               check; never written: a dollar in prose is $\$9$, not $9 (KaTeX would open a
+               formula), so each one is rewritten by hand.
      WORDING   British words that are not misspellings (brackets, towards, tick ...).
                Report-only: never in the check or the allow file, never written.
 
@@ -413,6 +415,17 @@ function wordsOf(text, from, to, math, kinds) {
   }
   const live = (k) => !skip[k - from] && !math[k];
   if (kinds.money) for (let k = from; k < to; k++) if (text[k] === "£" && !skip[k - from]) out.push({ kind: "money", form: "£", us: "$", i: k, len: 1 });
+  /* a dollar price that opens a formula: the $…$ KaTeX pairs from a "$9.99" on to the next
+     "$" ("$9.99 to $14.99" shows as "9.99to"). Its body starts with a number and goes on to
+     a word; a formula that starts with a number and goes on with an operator ("$2 + x$"), a
+     comma ("$1, i, -1, -i$") or a command ("$12\\text{ m}$") does not. Write $\\$9.99$ instead. */
+  if (kinds.money) for (let k = from; k < to; k++) {
+    if (text[k] !== "$" || !math[k] || skip[k - from] || (k > from && math[k - 1]) || text[k + 1] === "$") continue;
+    const end = endOfMath("$", text, k + 1, to);
+    if (end === -1) continue;
+    if (/^\s*\d[\d.]*(?:,\d{3})*\s+[A-Za-z]/.test(text.slice(k + 1, end))) out.push({ kind: "money", form: "$<n> in a formula", us: "$\\$<n>$", i: k, len: end - k + 1 });
+    k = end;
+  }
   if (kinds.spelling || kinds.money) {
     const W = /[A-Za-z]+/g;
     W.lastIndex = from;
