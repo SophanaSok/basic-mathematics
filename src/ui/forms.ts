@@ -27,6 +27,7 @@ import { createFormView, type FormView } from "./form-view.ts";
 import { mountEmotes } from "./form-emotes.ts";
 import { modelFor } from "../data/form-models.ts";
 import { iconSvg } from "./icon.ts";
+import { arrival, type Mood } from "../learn/mood.ts";
 
 const WATCH = ["sync", "reset", "level", "xp", "form", "theme", "prefs"];
 /* 2100-01-01 in ms: the latest `at` of a stored wear that is believed */
@@ -127,6 +128,7 @@ function build(): HTMLElement {
       '<div class="form-info">' +
         '<p class="form-name"><b data-f="name"></b> <span class="muted" data-f="tag"></span></p>' +
         '<p data-f="blurb"></p>' +
+        '<p class="muted form-mood" data-f="mood" hidden></p>' +
         '<p class="form-next" data-f="next"></p>' +
         '<div class="form-seq" data-form-seq-box></div>' +
         '<span class="meter form-meter" data-tone="part" role="progressbar" aria-label="Progress to the next form" ' +
@@ -179,6 +181,7 @@ export function refresh(): void {
   setText('[data-f="name"]', cur.name);
   setText('[data-f="tag"]', wo === hi ? "Equipped" : "Wearing stage " + wo);
   setText('[data-f="blurb"]', cur.blurb);
+  moodLine();
   setText('[data-f="next"]', nx.next
     ? "Next: " + nx.next.name + " at level " + nx.next.level + ", " + fmt(nx.toGo) + " XP to go"
     : "Fully evolved. Level " + nx.level + ", " + fmt(nx.xp) + " XP.");
@@ -242,6 +245,55 @@ function stillNow(): boolean {
 }
 function evolvedNow(): unknown {
   try { return window.BMGame.run().seen.evolved; } catch { return undefined; }
+}
+let arrivalMood: Mood = "content";
+/** the companion's arrival line under the blurb (the due review as a link); none under Study mode */
+function moodLine(): void {
+  const p = q<HTMLElement>('[data-f="mood"]');
+  if (!p || !panel) return;
+  let r: ReturnType<typeof arrival> | null = null;
+  try { if ((window as any).BMCompanion && (window as any).BMCompanion.input) r = arrival((window as any).BMCompanion.input(true)); } catch { r = null; }
+  if (!r || !r.line) {
+    p.textContent = "";
+    p.hidden = true;
+    panel.removeAttribute("data-mood");
+    return;
+  }
+  arrivalMood = r.mood;
+  if (r.href) {
+    const cur = p.firstElementChild as HTMLAnchorElement | null;
+    if (!(cur && cur.tagName === "A" && cur.textContent === r.line && cur.getAttribute("href") === r.href)) {
+      p.textContent = "";
+      const a = document.createElement("a");
+      a.href = r.href;
+      a.textContent = r.line;
+      p.appendChild(a);
+    }
+  } else if (p.textContent !== r.line || p.firstElementChild) p.textContent = r.line;
+  p.hidden = false;
+  panel.setAttribute("data-mood", r.mood);
+}
+/** once a day, when the model has arrived: a bow if the form is sleepy, otherwise a wave. Never under
+    reduced motion or Study mode, and the day is written only when the emote was played */
+function greet(): boolean {
+  if (!view || stillNow()) return false;
+  let day = "";
+  try { day = String(window.BMSite.dayKey()); } catch { return false; }
+  try { if (window.BMGame.run().seen.greeted === day) return true; } catch { return false; }
+  const i = view.info();
+  if (!(i && i.model === "model" && i.state === "3d")) return false;
+  if (!panel || !panel.hasAttribute("data-mood")) moodLine();
+  if (arrivalMood === "sleepy") view.play("bow");
+  else if (arrivalMood === "content" || arrivalMood === "waiting") view.play("wave");
+  else return true;
+  window.BMGame.updateRun((r: { seen: Record<string, unknown> }) => { r.seen.greeted = day; });
+  return true;
+}
+function watchArrival(boxEl: HTMLElement): void {
+  if (greet()) return;
+  const mo = new MutationObserver(() => { try { if (greet()) mo.disconnect(); } catch { mo.disconnect(); } });
+  mo.observe(boxEl, { attributes: true, attributeFilter: ["data-model", "data-state"] });
+  window.setTimeout(() => mo.disconnect(), 60000);
 }
 function box(): HTMLElement | null { return panel ? q(".form-view") : null; }
 /* the step on the panel, and a log of the steps passed, so a test can read the whole path
@@ -477,6 +529,7 @@ function mount(): void {
       }
     }, { set: row.set, enable: row.enable, show: (on) => { if (emoteRow) emoteRow.hidden = !on; } });
   } catch { view = null; box.setAttribute("data-state", "flat"); }
+  if (view) watchArrival(box);
   panel.addEventListener("click", (e) => {
     const t = e.target as Element | null;
     const eq = t && t.closest ? (t.closest("[data-equip]") as HTMLElement | null) : null;
