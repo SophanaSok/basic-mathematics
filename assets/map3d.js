@@ -286,7 +286,11 @@ import { detectTier, readProbe, stepDown, lower, pixelRatio, TIERS, AMBIENT_MS, 
     box.hidden = false;
     host.setAttribute("data-map", "3d");
     size();
-    firstView();
+    /* the contents page's selection (#ch03 in the hash, src/ui/hub-select.ts): the view starts on it, a cut */
+    var hs = window.BMHubSelect && window.BMHubSelect.current();
+    var hi = hs ? isleIndex(hs.chapter) : -1;
+    if (hi > -1) select(hi, "hash", true);
+    else firstView();
 
     if (window.ResizeObserver) {
       var ro = new ResizeObserver(function () { if (M) { size(); reframe(); request(); } });
@@ -771,6 +775,16 @@ import { detectTier, readProbe, stepDown, lower, pixelRatio, TIERS, AMBIENT_MS, 
     /* a pack has no island: clear what an earlier focus ringed rather than leave it */
     if (fi < 0) { if (M.hotHow === "focus" || M.hotHow === "hover") unselect(); return; }
     select(fi, "focus", !(linkInView(a) && stageInView()));
+    shareSelection(fi);
+  });
+  /* the contents page's selection follows what is chosen here; "map" tells the listener below it is ours */
+  function shareSelection(i) {
+    if (window.BMHubSelect) window.BMHubSelect.set(ISLES[i].id, null, "map");
+  }
+  host.addEventListener("bm:hub-select", function (e) {
+    if (!M || !e.detail || e.detail.how === "map") return;
+    var i = isleIndex(e.detail.chapter);
+    if (i > -1) select(i, "hash", !stageInView());
   });
   host.addEventListener("focusout", function (e) {
     if (!M) return;
@@ -876,6 +890,7 @@ import { detectTier, readProbe, stepDown, lower, pixelRatio, TIERS, AMBIENT_MS, 
     M.tapReview = !!hit.review;
     var a = linkFor(hit.isle);
     select(hit.isle, "tap");
+    shareSelection(hit.isle);
     M.hotHow = "tap";
     if (a) {
       try { a.focus({ preventScroll: true }); } catch (err) { a.focus(); }
@@ -974,7 +989,7 @@ import { detectTier, readProbe, stepDown, lower, pixelRatio, TIERS, AMBIENT_MS, 
     box.removeAttribute("data-drag");
     host.removeAttribute("data-map");
     if (had) {
-      var to = host.querySelector('li.stop[data-state="current"] .stop-link') || host.querySelector(".stop-link");
+      var to = host.querySelector("li.stop[data-selected] .stop-link") || host.querySelector('li.stop[data-state="current"] .stop-link') || host.querySelector(".stop-link");
       if (to) { try { to.focus({ preventScroll: true }); } catch (e) { to.focus(); } }
     }
   }

@@ -16,7 +16,14 @@
    f. the keyboard: Tab reaches the checked radio only, ArrowRight moves the check, Space chooses
    g. at 360x740 the control is visible and does not overlap the button
    h. axe finds no violation on the control
-   i. no page errors
+   j. a load with #ch03 in Map: that island is selected (BMMap3D.info().hot) and its card is marked
+   k. the same in List: the card is focused and inside the viewport
+   l. focusing a card in Map writes the hash through replaceState (history.length unchanged)
+   m. Map -> List keeps the hash and the marked card; List -> Map frames the island again
+   n. a chapter page's "All chapters" and "Course contents" links carry #<chapter>; following one marks the card
+   o. a reload keeps the selection
+   p. a load with an unknown hash marks nothing and throws nothing
+   q. no page errors
    r. typing "linear" hides every card but Chapter 2's and the status reads the counts
    s. typing a section title opens that card's Sections and shows only that row
    t. clearing restores every card, row and the open state
@@ -210,6 +217,80 @@ async function run() {
       });
       check(v.length === 0, "h: axe finds no violation on the control (" + JSON.stringify(v) + ")");
       check(errors.length === 0, "i: no page errors (360): " + errors.join("; "));
+      await context.close();
+    }
+
+    /* -------------------------------------------- j, l, m, o, p: the shared selection */
+    const marked = (page) => page.evaluate(() => Array.prototype.map.call(document.querySelectorAll("li.stop[data-selected]"), (li) => li.getAttribute("data-chapter")));
+    const hotOf = (page) => page.evaluate(() => (window.BMMap3D.info() || {}).hot);
+    {
+      const { context, page, errors } = await open(browser);
+      await page.goto(server.url + "index.html#ch03");
+      await page.waitForFunction(() => window.BMHubMode && window.BMHubMode.state().mounted, null, { timeout: 15000 });
+      await worldUp(page);
+      check((await hotOf(page)) === "ch03", "j: a load with #ch03 selects that island (" + (await hotOf(page)) + ")");
+      check((await marked(page)).join() === "ch03", "j: and marks its card (" + (await marked(page)) + ")");
+      /* o: a reload keeps it */
+      await page.reload();
+      await worldUp(page);
+      check((await hotOf(page)) === "ch03" && (await marked(page)).join() === "ch03", "o: a reload keeps the selection");
+      /* l: focus writes the hash through replaceState */
+      const len = await page.evaluate(() => history.length);
+      await page.evaluate(() => document.querySelector('li.stop[data-chapter="ch05"] .stop-link').focus());
+      await page.waitForFunction(() => location.hash === "#ch05", null, { timeout: 5000 });
+      check((await page.evaluate(() => history.length)) === len, "l: focusing a card adds no history entry");
+      check((await marked(page)).join() === "ch05" && (await hotOf(page)) === "ch05", "l: the mark and the island follow the focus");
+      /* m: Map -> List -> Map */
+      await radio(page, "list").click();
+      await page.waitForFunction(() => !window.BMMap3D.on(), null, { timeout: 10000 });
+      check((await page.evaluate(() => location.hash)) === "#ch05" && (await marked(page)).join() === "ch05", "m: Map -> List keeps the hash and the marked card");
+      await radio(page, "map").click();
+      await worldUp(page);
+      check((await hotOf(page)) === "ch05", "m: List -> Map frames the island again (" + (await hotOf(page)) + ")");
+      check(errors.length === 0, "q: no page errors (selection in Map): " + errors.join("; "));
+      await context.close();
+    }
+    {
+      const { context, page, errors } = await open(browser, { viewport: { width: 1280, height: 600 } });
+      await context.addInitScript(() => { try { localStorage.setItem("bm.prefs.v1", '{"map":"list"}'); } catch (e) { /* fine */ } });
+      await page.goto(server.url + "index.html#ch07");
+      await page.waitForFunction(() => window.BMHubMode && window.BMHubMode.state().mounted, null, { timeout: 15000 });
+      await wait(1500);
+      const k = await page.evaluate(() => {
+        const li = document.querySelector('li.stop[data-chapter="ch07"]'), r = li.getBoundingClientRect();
+        return { on: window.BMMap3D.on(), focused: document.activeElement === li.querySelector(".stop-link"), marked: li.hasAttribute("data-selected"), top: r.top, bottom: r.bottom, vh: window.innerHeight };
+      });
+      check(!k.on && k.marked && k.focused && k.top >= 0 && k.bottom <= k.vh, "k: in List the card is marked, focused and in the viewport (" + JSON.stringify(k) + ")");
+      /* p: an unknown hash, on a load (a hash changed in place to one that names no chapter keeps the mark) */
+      await page.goto(server.url + "index.html#nope");
+      await page.reload();
+      await page.waitForFunction(() => window.BMHubMode && window.BMHubMode.state().mounted, null, { timeout: 15000 });
+      await wait(500);
+      check((await marked(page)).length === 0 && (await page.evaluate(() => window.BMHubSelect.current())) === null, "p: an unknown hash marks nothing");
+      check(errors.length === 0, "q: no page errors (selection in List): " + errors.join("; "));
+      await context.close();
+    }
+
+    /* -------------------------------------------- n: the return links */
+    {
+      const { context, page, errors } = await open(browser);
+      await context.addInitScript(() => { try { localStorage.setItem("bm.prefs.v1", '{"map":"list"}'); } catch (e) { /* fine */ } });
+      await page.goto(server.url + "index.html");
+      await page.waitForFunction(() => window.BMHubMode && window.BMHubMode.state().mounted, null, { timeout: 15000 });
+      const href = await page.evaluate(() => document.querySelector('li.stop[data-chapter="ch01"] .stop-link').getAttribute("href"));
+      await page.goto(server.url + href);
+      await page.waitForSelector("[data-sidebar] a", { timeout: 15000 });
+      const links = await page.evaluate(() => ({
+        side: Array.prototype.map.call(document.querySelectorAll("[data-sidebar] a"), (a) => a.getAttribute("href")).filter((h) => /index\.html/.test(h)),
+        nav: Array.prototype.map.call(document.querySelectorAll("[data-chapter-nav] a"), (a) => a.getAttribute("href")).filter((h) => /index\.html/.test(h))
+      }));
+      check(links.side.length === 1 && /index\.html#ch01$/.test(links.side[0]), "n: the sidebar's All chapters link ends with index.html#ch01 (" + JSON.stringify(links.side) + ")");
+      check(links.nav.length >= 1 && links.nav.every((h) => /index\.html#ch01$/.test(h)), "n: the chapter nav's Course contents link carries it (" + JSON.stringify(links.nav) + ")");
+      await page.locator('[data-sidebar] a', { hasText: "All chapters" }).click();
+      await page.waitForFunction(() => window.BMHubSelect, null, { timeout: 15000 });
+      await wait(1000);
+      check((await marked(page)).join() === "ch01", "n: following it lands with the card marked (" + (await marked(page)) + ")");
+      check(errors.length === 0, "q: no page errors (return links): " + errors.join("; "));
       await context.close();
     }
 

@@ -732,6 +732,8 @@ input.blank { width: auto; min-height: 0; padding: .2rem .45rem; margin: 0 .15em
 }
 .stop[data-state="current"] .stop-card { border-color: var(--part); --edge: var(--part-deep); }
 .stop-link:hover .stop-card { border-color: var(--part); --edge: var(--part-deep); }
+/* the contents page's selected chapter (src/ui/hub-select.ts): a quiet mark that outlasts the focus ring */
+.stop[data-selected] .stop-card { border-color: var(--part); box-shadow: inset 4px 0 0 var(--part), var(--shadow-tile-sm); }
 .stop-link:active .stop-card { transform: translateY(4px); box-shadow: none; }
 .stop-card .row { display: flex; align-items: center; flex-wrap: wrap; gap: .5rem; }
 .stop-card .label {

@@ -838,8 +838,10 @@ async function run() {
       await wait(1200);
       const away = await view();
       check(away.hot === null && !away.flying && !away.mark && away.at.join() === before.at.join(), "hovering a chapter in the list while the stage is out of view leaves the world where it was (" + JSON.stringify({ before, away }) + ")");
-      /* on a screen tall enough for both, hover flies to the island and marks the item */
-      await page.setViewportSize({ width: 1280, height: 2400 });
+      /* on a screen tall enough for both, hover flies to the island and marks the item (the
+         page above the fifth chapter's card has grown: the view control, the search, the
+         section lists; the height is what keeps the stage and that card on screen together) */
+      await page.setViewportSize({ width: 1280, height: 4000 });
       await page.evaluate(() => { document.activeElement && document.activeElement.blur(); window.scrollTo(0, 0); });
       await wait(600);
       await page.hover('li.stop[data-chapter="ch05"] .stop-link');

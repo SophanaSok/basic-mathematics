@@ -78,6 +78,9 @@ import "../ui/form-unlock.ts";
 import "../../assets/map3d.js";
 /* the contents page's List / Map control, drawn once the scripts above have run */
 import "../ui/hub-mode.ts";
+/* the one selected chapter, in the hash, shared by the List and the Map (read by map3d.js) */
+import "../core/hub.ts";
+import "../ui/hub-select.ts";
 /* the contents page's search field (src/ui/hub-search.ts), which filters the list the map shares; src/ui/palette.ts (ranking) is named below */
 import "../ui/hub-search.ts";
 /* the "next best step" card, drawn once the scripts above have run */
