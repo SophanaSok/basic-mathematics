@@ -118,18 +118,12 @@ let timer = 0;
 let redrawTimer = 0;
 /* the open state a card's Sections had before a query opened it */
 const saved = new Map<string, boolean>();
-/* apply() is setting details.open: the toggle events that follow are not the learner's */
-let applying = false;
-let applyingTimer = 0;
+/* the open state apply() last set per card: the toggle event that follows (a task, so it
+   may arrive late under load) carries that value and is not the learner's; a learner's
+   toggle always flips away from it */
+const expected = new Map<string, boolean>();
 
 function w(): any { return window as any; }
-
-/* toggle events fire a task after details.open is set: ignore them for a moment */
-function quiet(): void {
-  applying = true;
-  window.clearTimeout(applyingTimer);
-  applyingTimer = window.setTimeout(() => { applying = false; }, 50);
-}
 
 function apply(): void {
   if (!input) return;
@@ -154,10 +148,10 @@ function apply(): void {
     if (!details) return;
     if (filtering && keep && partial) {
       if (!saved.has(id)) saved.set(id, details.open);
-      if (!details.open) { quiet(); details.open = true; }
+      if (!details.open) { expected.set(id, true); details.open = true; }
     } else if (saved.has(id)) {
       const was = !!saved.get(id);
-      if (details.open !== was) { quiet(); details.open = was; }
+      if (details.open !== was) { expected.set(id, was); details.open = was; }
       saved.delete(id);
     }
   });
@@ -234,12 +228,14 @@ function mount(): void {
     }).observe(host, { childList: true, subtree: true });
     /* a card opened or closed by hand during a query keeps that choice when the query clears */
     host.addEventListener("toggle", (e) => {
-      if (applying || !input || !input.value.trim()) return;
       const d = e.target as HTMLElement;
       if (!(d instanceof HTMLDetailsElement) || !d.classList.contains("stop-sections")) return;
       const li = d.closest("li.stop");
       const id = li && li.getAttribute("data-chapter");
-      if (id && saved.has(id)) saved.set(id, d.open);
+      if (!id) return;
+      if (expected.has(id) && expected.get(id) === d.open) { expected.delete(id); return; }
+      expected.delete(id);
+      if (input && input.value.trim() && saved.has(id)) saved.set(id, d.open);
     }, true);
   }
   if (input.value.trim()) apply();
