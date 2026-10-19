@@ -55,6 +55,7 @@ import "../data/forms.ts";
 import "../core/forms.ts";
 import "../ui/form-unlock.ts";
 import "../ui/settings.ts";
+import "../ui/hud-pop.ts";
 /* the skippable reveal of the result screen (window.BMResults), found by arena.js */
 import "../ui/results.ts";
 import "../../data/gen/core.js";

@@ -85,6 +85,7 @@ import "../data/forms.ts";
 import "../core/forms.ts";
 import "../ui/form-unlock.ts";
 import "../ui/settings.ts";
+import "../ui/hud-pop.ts";
 /* the skippable reveal of the chapter finale (window.BMResults), found by encounter.js */
 import "../ui/results.ts";
 import "../../assets/encounter.js";

@@ -52,6 +52,7 @@ import "../data/forms.ts";
 import "../core/forms.ts";
 import "../ui/form-unlock.ts";
 import "../ui/settings.ts";
+import "../ui/hud-pop.ts";
 import "../../assets/config.js";
 import "../../assets/account.js";
 /* the keyboard layer: the pure keymap, then the DOM half, last, once everything it

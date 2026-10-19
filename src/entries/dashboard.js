@@ -57,6 +57,7 @@ import "../ui/events.ts";
 import "../../assets/sfx.js";
 import "../../assets/game.js";
 import "../ui/settings.ts";
+import "../ui/hud-pop.ts";
 import "../../assets/config.js";
 import "../../assets/account.js";
 /* the placement check's study plan, which insights.js draws when a take exists: the pure

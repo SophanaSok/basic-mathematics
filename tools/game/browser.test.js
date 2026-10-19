@@ -2131,6 +2131,61 @@ async function run() {
         await context.close();
       }
     }
+      /* 10. the HUD explains itself (card U-7): a chip on hover, a popover on the level badge */
+      {
+        const days = {}; days[dayAgo(0)] = 13; days[dayAgo(1)] = 140; days[dayAgo(3)] = 20;
+        const seed = { "bm.lesson.v1": '{"mode":"page"}', "bm.activity.v1": JSON.stringify({ days }) };
+        const boxes = (page) => page.evaluate(() => Array.from(document.querySelectorAll(".topbar .hud > *")).map((e) => { const r = e.getBoundingClientRect(); return [e.className, r.x, r.y, r.width, r.height].join(" "); }));
+        for (const reduced of ["no-preference", "reduce"]) {
+          const { context, page, errors } = await open(browser, CH05, seed, { reducedMotion: reduced });
+          await page.waitForSelector(".topbar .hud-streak");
+          const before = await boxes(page);
+          await page.hover(".topbar .hud-streak");
+          await page.waitForSelector(".hud-tip:not([hidden])", { timeout: 400 + 250 });
+          const tip = await page.$$eval(".hud-tip", (n) => n.map((e) => ({ t: e.textContent, hidden: e.getAttribute("aria-hidden") })));
+          eq(tip.length, 1, reduced + ": one chip");
+          check(/Streak: 2 days\. Today: 13 of 30 XP\./.test(tip[0].t) && tip[0].hidden === "true", reduced + ": the streak chip says " + tip[0].t);
+          eq(await boxes(page), before, reduced + ": the chip moves no part of the bar");
+          if (reduced === "reduce") eq(await page.evaluate(() => document.getAnimations().length), 0, "reduce motion: no animation while the chip shows");
+          await page.mouse.move(600, 600);
+          await page.waitForTimeout(300);
+          eq(await page.$$eval(".hud-tip:not([hidden])", (n) => n.length), 0, reduced + ": the chip is gone after the pointer leaves");
+          eq(errors, [], reduced + ": no errors with the chip");
+          await context.close();
+        }
+        {
+          const { context, page, errors } = await open(browser, CH05, seed);
+          await page.waitForSelector(".topbar .hud-level");
+          const here = new URL(page.url()).pathname;
+          await page.click(".topbar .hud-level");
+          await page.waitForSelector(".hud-pop");
+          eq(new URL(page.url()).pathname, here, "a plain click on the badge does not navigate");
+          const txt = await page.textContent(".hud-pop");
+          check(/Level \d+ · \w+/.test(txt) && /XP to level/.test(txt), "the popover names the level and rank and the XP to level: " + txt);
+          check(/Form: \w+/.test(txt), "the popover names the form: " + txt);
+          check(/Active 3 of the last 30 days/.test(txt), "the popover counts the active days");
+          eq(await page.getAttribute(".hud-pop a", "href"), "../../progress.html", "the popover links to the progress page");
+          await page.keyboard.press("Tab");
+          check(await page.evaluate(() => !!document.activeElement && document.activeElement.classList.contains("pop-link")), "Tab goes into the popover");
+          await page.keyboard.press("Escape");
+          eq(await page.$$eval(".hud-pop", (n) => n.length), 0, "Escape closes the popover");
+          check(await page.evaluate(() => !!document.activeElement && document.activeElement.classList.contains("hud-level")), "focus is back on the badge");
+          await page.keyboard.press("Enter");
+          await page.waitForSelector(".hud-pop");
+          eq(new URL(page.url()).pathname, here, "Enter on the badge opens the popover too");
+          await page.mouse.click(600, 600);
+          eq(await page.$$eval(".hud-pop", (n) => n.length), 0, "a click outside closes it");
+          const start = page.url();
+          const popup = context.waitForEvent("page", { timeout: 4000 }).catch(() => null);
+          await page.click(".topbar .hud-level", { modifiers: ["Control"] });
+          const tab = await popup;
+          if (tab) await tab.waitForLoadState().catch(() => {});
+          check(page.url() === start && !!tab && /\/progress\.html/.test(tab.url()), "Ctrl+click opens progress.html in a new tab (" + (tab && tab.url()) + ")");
+          eq(await page.$$eval(".hud-pop", (n) => n.length), 0, "Ctrl+click opens no popover");
+          eq(errors, [], "no errors with the popover");
+          await context.close();
+        }
+      }
   } finally {
     await browser.close();
     await server.close();

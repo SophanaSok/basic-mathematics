@@ -122,6 +122,37 @@ html[data-calm] .hud-sound { opacity: .5; cursor: not-allowed; }
 /* the account chip: one width signed in or out, so turning into the avatar moves nothing */
 .topbar nav > .acct { flex: none; justify-content: center; width: 5.25rem; padding: 0; }
 
+/* ------------------------------------- what the HUD parts say (src/ui/hud-pop.ts) -- */
+/* A chip under a hovered or focused part and a small popover under the level badge, both
+   absolute inside the sticky bar, so neither takes room or moves a thing. The chip is for
+   the eye only (aria-hidden; the parts carry the labels) and never takes the pointer. */
+.hud-tip {
+  position: absolute; z-index: 46; max-width: min(20rem, calc(100vw - 16px)); padding: .35rem .6rem;
+  background: var(--hud-bg); color: var(--hud-text); border: 1.5px solid var(--hud-line);
+  border-radius: var(--radius-xs); box-shadow: 0 2px 0 var(--hud-edge);
+  font-family: var(--sans); font-size: .78rem; font-weight: 500; line-height: 1.35; white-space: normal;
+  pointer-events: none;
+}
+.hud-tip[hidden] { display: none; }
+.hud-pop {
+  --focus: var(--hud-focus);
+  position: absolute; z-index: 46; width: min(19rem, calc(100vw - 16px)); padding: .7rem .8rem .8rem;
+  background: var(--hud-bg); color: var(--hud-text); border: 2px solid var(--hud-line);
+  border-radius: var(--radius-sm); box-shadow: 0 4px 0 var(--hud-edge);
+  font-family: var(--sans); font-size: .88rem; line-height: 1.4; white-space: normal;
+}
+.hud-pop p { margin: 0 0 .4rem; }
+.hud-pop .pop-title { font-family: var(--display); font-weight: 800; font-size: 1.02rem; }
+.hud-pop .pop-line { color: var(--hud-muted); }
+.hud-pop .pop-bar { display: block; height: 6px; margin: 0 0 .55rem; border-radius: 3px; background: var(--hud-track); overflow: hidden; }
+.hud-pop .pop-bar i { display: block; height: 100%; border-radius: 3px; background: var(--hud-xp); }
+.hud-pop .pop-link {
+  display: inline-flex; align-items: center; min-height: 40px; margin-top: .15rem; padding: 0 .6rem;
+  border-radius: var(--radius-xs); background: var(--hud-chip); border: 1px solid var(--hud-line);
+  color: var(--hud-text); font-weight: 700; text-decoration: none;
+}
+.hud-pop .pop-link:hover { border-color: var(--hud-muted); }
+
 /* -------------------------------------------------- the settings sheet --- */
 /* A native <dialog> (src/ui/settings.ts): on a wide screen it hangs from the rail and is
    not modal; on a narrow one it is a modal sheet from the bottom over the scrim. Frame
@@ -782,7 +813,7 @@ html[data-motion="reduce"] *, html[data-motion="reduce"] *::before, html[data-mo
 
 @media print {
   .hud, .hud-level, .hud-streak, .hud-combo, .hud-hearts, .hud-timer, .hud-sheet, .hud-strip,
-  .hud-sound, .hud-menu, .toasts, .ex-form .btn, .ex-reward, .ex-stamp, .s3d-canvas,
+  .hud-sound, .hud-menu, .hud-tip, .hud-pop, .toasts, .ex-form .btn, .ex-reward, .ex-stamp, .s3d-canvas,
   .encounter-sigil, .encounter-kicker, .encounter-boss, .encounter-bar, .encounter-wards,
   .encounter-hearts, .encounter-regroup, .encounter-result .actions, .encounter-actions,
   .banner-meta:empty, .burst, .fx-burst, .fx-canvas { display: none !important; }
@@ -823,6 +854,9 @@ html[data-motion="reduce"] *, html[data-motion="reduce"] *::before, html[data-mo
   html:not([data-calm]):not([data-motion="reduce"]) .hud-sheet,
   html:not([data-calm]):not([data-motion="reduce"]) .encounter-result:not([data-revisit]) { animation: reveal 220ms var(--ease-out) both; }
   html:not([data-calm]):not([data-motion="reduce"]) .encounter-regroup { animation: fade 220ms ease-out both; }
+  /* the HUD chip fades in (src/ui/hud-pop.ts); it has no state of its own without this */
+  html:not([data-calm]):not([data-motion="reduce"]) .hud-tip { opacity: 0; transition: opacity var(--dur-state) ease-out; }
+  html:not([data-calm]):not([data-motion="reduce"]) .hud-tip[data-show] { opacity: 1; }
   html:not([data-calm]):not([data-motion="reduce"]) details.reveal > summary::after { transition: transform var(--t-2) var(--ease-out); }
 
   /* step-by-step reading: the bar pops once when Continue is ready */
