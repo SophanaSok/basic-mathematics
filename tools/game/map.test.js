@@ -878,6 +878,64 @@ async function run() {
       await context.close();
     }
     {
+      /* the plate says what a chapter holds: facts on hover, the goal too on focus; the
+         current chapter's plate stays one line; a legend sits inside the stage */
+      const { context, page } = await openMap(browser, {}, { context: { viewport: { width: 1280, height: 800 } } });
+      const plates = () => page.evaluate(() => Array.prototype.map.call(document.querySelectorAll(".map3d-label"), (el) => ({
+        kind: el.getAttribute("data-kind"), meta: (el.querySelector(".map3d-label-meta") || {}).textContent || null,
+        goal: (el.querySelector(".map3d-label-goal") || {}).textContent || null, hidden: el.closest("[aria-hidden=true]") !== null,
+        pe: getComputedStyle(el).pointerEvents, dollars: /\$/.test(el.textContent) })));
+      await wait(1500);
+      const pt = await islandPoint(page);
+      check(!!pt, "found an island to hover for its plate");
+      if (pt) {
+        await page.mouse.move(pt.x - 3, pt.y);
+        await page.mouse.move(pt.x, pt.y);
+        await wait(900);
+        const hov = (await plates()).filter((l) => l.meta);
+        check(hov.length === 1 && /^\d+ exercises? · about \d+ min$/.test(hov[0].meta || "") && hov[0].goal === null && hov[0].hidden && hov[0].pe === "none",
+          "hovering an island: the plate adds the facts line, not the goal (" + JSON.stringify(hov) + ")");
+        await page.mouse.move(2, 2);
+      }
+      await page.evaluate(() => { document.activeElement && document.activeElement.blur(); window.scrollTo(0, 0); });
+      await wait(300);
+      let tabbed = null;
+      for (let k = 0; k < 40 && !tabbed; k++) {
+        await page.keyboard.press("Tab");
+        tabbed = await page.evaluate(() => { var li = document.activeElement && document.activeElement.closest && document.activeElement.closest("li.stop"); return li && li.getAttribute("data-chapter"); });
+      }
+      await wait(900);
+      /* the first chapter is the current one: its plate takes the facts and the goal while it is looked at */
+      const first = (await plates()).filter((l) => l.meta && l.goal);
+      check(tabbed === "ch01" && first.length === 1, "Tab to the current chapter: its plate shows the facts and the goal (" + JSON.stringify(first) + ")");
+      for (let k = 0; k < 12; k++) {
+        await page.keyboard.press("Tab");
+        const now = await page.evaluate(() => { var li = document.activeElement && document.activeElement.closest && document.activeElement.closest("li.stop"); return li && li.getAttribute("data-chapter"); });
+        if (now && now !== tabbed) break;
+      }
+      /* the stage is drawn again once it is back on screen */
+      await page.evaluate(() => window.scrollTo(0, 0));
+      await wait(900);
+      const foc = await plates();
+      const hot = foc.filter((l) => l.kind === "hot"), cur = foc.filter((l) => l.kind === "current");
+      check(hot.length === 1 && /^\d+ exercises? · about \d+ min$/.test(hot[0].meta || "") && hot[0].goal && hot[0].goal.length <= 95 && !hot[0].dollars && cur.every((l) => l.meta === null && l.goal === null),
+        "Tab to a chapter: the plate shows the facts and a goal in plain text, and the current plate stays one line (" + JSON.stringify(foc) + ")");
+      const lg = await page.evaluate(() => {
+        var l = document.querySelector(".map3d-stage > .map3d-legend");
+        var items = l ? Array.prototype.filter.call(l.querySelectorAll("li"), (li) => li.offsetParent !== null).length : -1;
+        return { in: !!l, hidden: l && l.getAttribute("aria-hidden"), pe: l && getComputedStyle(l).pointerEvents, items, sr: !!document.querySelector(".map3d-legend-sr") };
+      });
+      check(lg.in && lg.hidden === "true" && lg.pe === "none" && lg.items === 4 && lg.sr, "the legend is inside the stage, aria-hidden, click-through, with four items and a screen-reader copy (" + JSON.stringify(lg) + ")");
+      await context.close();
+    }
+    {
+      const { context, page } = await openMap(browser, { "bm.prefs.v1": '{"calm":true,"gfx":"mid"}' }, { context: { viewport: { width: 1280, height: 800 } } });
+      const n = await page.evaluate(() => Array.prototype.filter.call(document.querySelectorAll(".map3d-legend li"), (li) => li.offsetParent !== null).length);
+      check(n === 3, "in Study mode the legend has three items, no boss (" + n + ")");
+      await context.close();
+    }
+
+    {
       /* a Part button that holds the focus when the world goes (here its context is lost)
          hands the focus to the list, not to <body> */
       const { context, page } = await openMap(browser, {});

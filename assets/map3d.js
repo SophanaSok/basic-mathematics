@@ -177,15 +177,36 @@ import { detectTier, readProbe, stepDown, lower, pixelRatio, TIERS, AMBIENT_MS, 
     });
     var probes = "";
     MAP_PARTS.forEach(function (part) { probes += '<i data-part="' + esc(part.id) + '"></i>'; });
-    box.innerHTML =
+    /* the same four marks for a screen reader, once, ahead of the Part buttons */
+    var sr = '<p class="map3d-legend-sr visually-hidden">Marks on the course map. Ring: practice solved. ' +
+      '<span data-mark="boss">Solid: the boss, unsolved problems. </span>' +
+      "Beacon: sections due for a check. Flag: chapter finished, stars for the medal.</p>";
+    box.innerHTML = sr +
       '<div class="map3d-parts" role="group" aria-label="Show a Part on the course map">' + parts + "</div>" +
       '<div class="map3d-stage" data-state="loading">' +
         '<p class="map3d-wait" aria-hidden="true">Loading the map…</p>' +
         '<div class="map3d-labels" aria-hidden="true"></div>' +
+        '<ul class="map3d-legend" aria-hidden="true">' +
+          '<li data-mark="ring"><i></i>Ring: practice solved</li>' +
+          '<li data-mark="boss"><i></i>Solid: the boss, unsolved problems</li>' +
+          '<li data-mark="beacon"><i></i>Beacon: sections due for a check</li>' +
+          '<li data-mark="flag"><i></i>Flag: chapter finished, stars for the medal</li>' +
+        "</ul>" +
       "</div>" +
       '<div class="map3d-probe" aria-hidden="true">' + probes + "</div>";
     box.hidden = false;
     document.documentElement.setAttribute("data-world", "3d");
+  }
+
+  /* the goal as plain text for a plate: $…$ spans lose their dollar signs, the line is
+     clipped at a word boundary */
+  function plainGoal(text, max) {
+    var t = String(text || "").replace(/\$((?:\\.|[^$\\])*)\$/g, "$1").replace(/\s+/g, " ").trim();
+    if (!t) return "";
+    t = t.charAt(0).toUpperCase() + t.slice(1);
+    if (t.length <= max) return t;
+    var cut = t.slice(0, max + 1), sp = cut.lastIndexOf(" ");
+    return cut.slice(0, sp > max * 0.5 ? sp : max).replace(/[\s,;:.]+$/, "") + "…";
   }
 
   /* --------------------------------------------------------------- build ---- */
@@ -639,12 +660,23 @@ import { detectTier, readProbe, stepDown, lower, pixelRatio, TIERS, AMBIENT_MS, 
     if (M.cur > -1) want.push({ i: M.cur, kind: "current" });
     var sel = M.hover > -1 ? M.hover : M.hot;
     if (sel > -1 && sel !== M.cur) want.push({ i: sel, kind: "hot", review: M.hover > -1 ? M.hoverReview : false });
+    /* the current plate stays one line, unless it is the island being looked at */
+    if (sel > -1 && sel === M.cur) want[0].facts = true;
     var html = "";
     want.forEach(function (w) {
       var ch = ISLES[w.i].ch;
       var text = w.review ? "Mixed review · " + regionName(ISLES[w.i].part) : chapterName(ch) + " · " + ch.title;
+      var more = "";
+      var fm = (w.kind === "hot" || w.facts) && !w.review && window.BMHubList && window.BMHubList.meta && window.BMHubList.meta[ch.id];
+      if (fm) {
+        more = '<span class="map3d-label-meta">' + fm.scored + (fm.scored === 1 ? " exercise" : " exercises") +
+          " · about " + fm.minutes + " min</span>";
+        if ((M.hotHow === "focus" || M.hotHow === "tap") && M.hover < 0 && fm.goal) {
+          more += '<span class="map3d-label-goal">' + esc(plainGoal(fm.goal, 90)) + "</span>";
+        }
+      }
       html += '<span class="map3d-label" data-kind="' + w.kind + '" data-part="' + esc(ISLES[w.i].part.id) +
-        '" data-i="' + w.i + '">' + esc(text) + "</span>";
+        '" data-i="' + w.i + '"><span class="map3d-label-name">' + esc(text) + "</span>" + more + "</span>";
     });
     if (M.labels.getAttribute("data-key") !== html) {
       M.labels.innerHTML = html;
