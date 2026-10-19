@@ -53,8 +53,16 @@ const CARD_MS = 2600 + 400, TOAST_WAIT = 2 * CARD_MS + 500;
 let server, browser;
 const contexts = [];
 
-function seeds(xp, extra) {
+/* today's local day key, as BMSite.dayKey() makes it */
+const TODAY = (() => { const d = new Date(), z = (n) => String(n).padStart(2, "0"); return d.getFullYear() + "-" + z(d.getMonth() + 1) + "-" + z(d.getDate()); })();
+/* the arrival emote plays once a day; every case but the last two has already been greeted today,
+   so its "frozen before input" assertions hold. `greet` leaves the day out */
+function seeds(xp, extra, greet) {
   const s = Object.assign({ "bm.activity.v1": JSON.stringify({ days: { "2026-10-10": xp } }) }, extra || {});
+  const run = JSON.parse(s["bm.run.v1"] || '{"seen":{}}');
+  run.seen = run.seen || {};
+  if (!greet) run.seen.greeted = TODAY;
+  s["bm.run.v1"] = JSON.stringify(run);
   return s;
 }
 
@@ -495,6 +503,47 @@ async function main() {
       await frozen(p2, 500, 8000);
       const single = (await info(p2)).memory;
       check(multi && single && multi.geometries <= single.geometries && multi.textures <= single.textures, "21: memory is no higher than after one stage", [multi, single]);
+    }
+    /* 22: the arrival emote, once a day */
+    {
+      const { page } = await open("progress.html", seeds(300, SEED3, true));
+      check(await until(page, () => (document.querySelector('[data-f="mood"]') || {}).textContent === "Good to see you.", null, 5000), "22: the mood line greets");
+      check(await page.evaluate(() => document.querySelector("#form").getAttribute("data-mood")) === "sleepy", "22: the panel is sleepy");
+      check(await modelIn(page), "22: the model arrives");
+      check(await until(page, () => !!document.querySelector('[data-emote="bow"][data-playing]'), null, 3000), "22: a bow plays");
+      check(await until(page, (d) => { const r = JSON.parse(localStorage.getItem("bm.run.v1") || "{}"); return r.seen && r.seen.greeted === d; }, TODAY, 3000), "22: greeted is today");
+      await page.reload({ waitUntil: "load" });
+      check(await modelIn(page), "22: the model arrives again");
+      check(await frozen(page, 1500, 8000), "22: no emote on the reload, frames stop");
+      check(await page.evaluate(() => !document.querySelector("[data-emote][data-playing]")), "22: nothing playing");
+    }
+    /* 23: reduced motion: the line shows, no emote, the day is not written */
+    {
+      const { page } = await open("progress.html", seeds(300, SEED3, true), { reduced: true });
+      check(await until(page, () => (document.querySelector('[data-f="mood"]') || {}).textContent === "Good to see you.", null, 5000), "23: the mood line shows");
+      check(await modelIn(page), "23: the model arrives");
+      check(await frozen(page, 1500, 8000), "23: frames stop");
+      check(await page.evaluate(() => !document.querySelector("[data-emote][data-playing]")), "23: no emote plays");
+      const run = await store(page, "bm.run.v1");
+      check(!(run && run.seen && run.seen.greeted), "23: greeted is not written", run && run.seen);
+    }
+    /* 24: a pending evolution goes first; the greeting follows its caption */
+    {
+      const { page } = await open("progress.html", seeds(300, PENDING, true));
+      let early = false, writtenEarly = false;
+      for (let t = 0; t < 20000; t += 50) {
+        const st = await seqAttr(page);
+        if (st === "done") break;
+        if (await page.evaluate(() => !!document.querySelector("[data-emote][data-playing]"))) early = true;
+        const run = await store(page, "bm.run.v1");
+        if (run && run.seen && run.seen.greeted) writtenEarly = true;
+        await wait(50);
+      }
+      check(await seqAttr(page) === "done", "24: the caption lands");
+      check(!early, "24: no emote during the sequence");
+      check(!writtenEarly, "24: greeted is unset before the caption");
+      check(await until(page, () => !!document.querySelector("[data-emote][data-playing]"), null, 15000), "24: the greeting plays after the caption");
+      check(await until(page, (d) => { const r = JSON.parse(localStorage.getItem("bm.run.v1") || "{}"); return r.seen && r.seen.greeted === d; }, TODAY, 3000), "24: greeted is today");
     }
   } finally {
     for (const c of contexts) { try { await c.close(); } catch (e) { /* closed already */ } }

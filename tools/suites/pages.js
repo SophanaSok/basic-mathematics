@@ -19,7 +19,7 @@ const { slug } = require("../lib/browser");
 
 const THREE_CHUNK = /\/bundle\/three\.js(?:[?#]|$)/;
 const WORLD_CHUNK = /\/bundle\/world\.js(?:[?#]|$)/;
-const MODEL_CHUNK = /\/bundle\/(?:three-model|form-model)\.js(?:[?#]|$)|\/models\/forms\//;
+const MODEL_CHUNK = /\/bundle\/(?:three-model|form-model)\.js(?:[?#]|$)|\/models\/forms\/(?!form-\d-poses\.webp)/;
 
 /* runs before any script of the page: the theme as it stands at the first animation
    frame, which comes before the first paint */
@@ -100,7 +100,9 @@ module.exports = {
             if (!hasMap && world.length) problems.push("fetched bundle/world.js with no course map or form view on the page; only assets/map3d.js and src/ui/form-view.ts are to import it");
             /* and the model viewer's chunks (bundle/form-model.js, bundle/three-model.js) and
                its files (/models/forms/) only where the form view is: index.html has the
-               map but no form view, and must not fetch them */
+               map but no form view, and must not fetch them. The pose sheets
+               (form-N-poses.webp) are the one exception: the companion draws them on
+               chapter pages */
             const model = errors.own.filter(u => MODEL_CHUNK.test(u));
             const hasForm = await page.evaluate(() => !!document.querySelector("[data-form-view]"));
             if (!hasForm && model.length) problems.push("fetched " + model[0].replace(/^.*?\/(bundle|models)\//, "$1/") + " with no form view on the page; only src/ui/form-view.ts is to import the model viewer");

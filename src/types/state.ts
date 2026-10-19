@@ -166,6 +166,10 @@ export interface RunStore {
     form?: number;
     /** the highest stage whose evolution the progress page has played */
     evolved?: number;
+    /** the companion's intro line has been shown on a chapter page */
+    companion?: number;
+    /** the day ("YYYY-MM-DD") the form last greeted on the progress page */
+    greeted?: string;
   };
   /** which exercises make up each set of a chapter this device has opened */
   sets: Record<ChapterId, { practice?: ExerciseKey[]; review?: ExerciseKey[]; inline: ExerciseKey[] }>;
