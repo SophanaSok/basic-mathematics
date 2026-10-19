@@ -146,6 +146,13 @@ html[data-calm] .hud-sound { opacity: .5; cursor: not-allowed; }
 .hud-pop .pop-line { color: var(--hud-muted); }
 .hud-pop .pop-bar { display: block; height: 6px; margin: 0 0 .55rem; border-radius: 3px; background: var(--hud-track); overflow: hidden; }
 .hud-pop .pop-bar i { display: block; height: 100%; border-radius: 3px; background: var(--hud-xp); }
+.hud-pop .pop-form { display: flex; align-items: center; gap: .6rem; margin: 0 0 .4rem; }
+.hud-pop .pop-form p { margin: 0; }
+.hud-pop-form {
+  flex: none; display: block; width: 3rem; height: 3.75rem;
+  background-repeat: no-repeat; background-size: 600% 100%; background-position: 0 0;
+}
+@media (forced-colors: active) { .hud-pop-form { display: none; } }
 .hud-pop .pop-link { display: flex; justify-content: center; align-items: center; width: 100%; margin-top: .6rem; box-sizing: border-box; }
 
 /* -------------------------------------------------- the settings sheet --- */
