@@ -259,6 +259,7 @@ function sheet(info) {
     "      " + toggle("motion", "Reduce motion", "No animation and no smooth scrolling. Always on in Study mode and when your device asks for less motion."),
     "      " + toggle("transparency", "Reduce transparency", "Solid surfaces in place of see-through glass. Always on when your device asks for less transparency."),
     "      " + toggle("keys", "Keyboard shortcuts", "Single keys move between exercises and pages; press ? for the list."),
+    "      " + toggle("companion", "Companion", "Your form keeps you company on chapter pages and reacts as you work. Off in Study mode."),
     "    </fieldset>",
     '    <fieldset class="sheet-group sheet-choice">',
     "      <legend>Theme</legend>",
