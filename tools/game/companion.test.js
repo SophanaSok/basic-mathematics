@@ -19,7 +19,11 @@
    14. a reset or sync event rebuilds the figure from today's state; no second intro
    15. level then chapterDone inside the quiet window: the pending slot holds the chapter line, latest wins
    16. at 360 px the due link is visible, points at the section, and the bubble clears the field
-   17. print hides it; forced colors drop the picture but keep the caption */
+   17. print hides it; forced colors drop the picture but keep the caption
+   18. the stuck nudge waits out the quiet window; a correct answer drops it
+   19. arena.html: docked (fixed, 4rem, outside any sidebar) at 1280 and 360, at rest with no intro, clear of the
+       Arena's inputs and buttons in the lobby and in a run; a correct answer event is delighted with no line;
+       the end event says "Run done."; no GLB or Three.js; the preference off removes it */
 "use strict";
 const site = require("../lib/site");
 const target = require("../lib/target");
@@ -409,6 +413,66 @@ async function run() {
       const s = await st(c.page);
       check(s.pending !== "stuck" && s.line !== LINES.stuck, "stuck then solved: a correct answer drops the nudge: " + JSON.stringify([s.pending, s.line]));
       await done(c, "stuck then solved");
+    }
+    /* 19 */
+    cases++;
+    for (const width of [1280, 360]) {
+      const c = await open(seeds({}, { intro: true }), { path: "arena.html", width, height: 800 });
+      const tag = "arena " + width;
+      await wait(400);
+      const s = await st(c.page);
+      eq([s.mood, s.line, s.pending], ["content", "", null], tag + ": at rest on arrival, no intro, no line");
+      eq(((await runOf(c.page)) || {}).seen && (await runOf(c.page)).seen.companion, undefined, tag + ": seen.companion is untouched by the Arena");
+      await c.page.evaluate(() => {
+        const all = JSON.parse(localStorage.getItem("bm.attempts.v1") || "{}"), t = Date.now() - 864e5 * 2;
+        window.BMGen.list().forEach((s) => {
+          const ch = s.section.split("#")[0], sec = s.section.split("#")[1], recs = all[ch] = all[ch] || {};
+          recs["z" + sec + "1"] = { tries: 1, first: 1, solved: t, section: sec };
+          recs["z" + sec + "2"] = { tries: 1, first: 1, solved: t + 1, section: sec };
+        });
+        localStorage.setItem("bm.attempts.v1", JSON.stringify(all));
+      });
+      await c.page.reload({ waitUntil: "load" });
+      await until(c.page, () => window.BMCompanion && window.BMCompanion.state().mounted, null, 10000);
+      await wait(400);
+      const d = await c.page.evaluate(() => {
+        const f = document.querySelector("figure[data-companion]"), r = f.getBoundingClientRect();
+        return { position: getComputedStyle(f).position, w: r.width, side: !!f.closest("aside"), inBody: f.parentNode === document.body, name: getComputedStyle(f.querySelector(".companion-name")).display };
+      });
+      eq([d.position, d.w, d.side, d.inBody, d.name], ["fixed", 64, false, true, "none"], tag + ": docked, 4rem, outside a sidebar");
+      const clear = (when) => c.page.evaluate(() => {
+        const f = document.querySelector("figure[data-companion]");
+        if (!f || f.hasAttribute("data-hidden") || getComputedStyle(f).display === "none") return [];
+        const bad = [];
+        Array.from(document.querySelectorAll("[data-arena] input, [data-arena] button")).forEach((e) => {
+          if (e.disabled || !e.getClientRects().length) return;
+          e.scrollIntoView({ block: "nearest" });
+          const a = f.querySelector(".companion-pic").getBoundingClientRect(), b = e.getBoundingClientRect();
+          if (a.left < b.right && b.left < a.right && a.top < b.bottom && b.top < a.bottom) bad.push((e.getAttribute("data-act") || e.id || e.tagName) + " " + JSON.stringify([a.left, a.top, b.left, b.top, b.right, b.bottom]));
+        });
+        return bad;
+      });
+      eq(await clear(), [], tag + ": clear of the lobby's inputs and buttons");
+      await c.page.click('[data-arena] [data-act="start"]:not([disabled])');
+      await c.page.waitForSelector(".arena-run");
+      await until(c.page, () => window.BMCompanion.state().mood === "curious", null, 3000);
+      eq((await st(c.page)).mood, "curious", tag + ": a start is curious");
+      eq(await clear(), [], tag + ": clear of the run's input and buttons");
+      await c.page.evaluate(() => {
+        const r = window.BMArena.state(), q = r.qs[r.i];
+        document.getElementById("arena-answer").value = String(window.BMGen.make(q.g, q.s).answer).split("|")[0];
+      });
+      await c.page.click('.arena-run [data-act="check"]');
+      check(await until(c.page, () => window.BMCompanion.state().mood === "delighted", null, 3000), tag + ": a correct answer is delighted");
+      eq((await st(c.page)).line, "", tag + ": no caption for an answer");
+      eq(await clear(), [], tag + ": clear after an answer");
+      await c.page.evaluate(() => window.BMStore.emit({ type: "arena", phase: "end", result: {} }));
+      check(await lineIs(c.page, "Run done.", 9000), tag + ": the end says Run done.");
+      eq((await st(c.page)).key, "arena-end", tag + ": key");
+      eq(c.requests.filter((u) => /\.glb(?:[?#]|$)|-color\.webp|-surface\.webp|\/bundle\/(?:three|form-model|three-model)\.js/.test(u)), [], tag + ": no GLB or model script requested");
+      await c.page.evaluate(() => window.BMGame.setPref("companion", false));
+      check(await until(c.page, () => !document.querySelector("figure[data-companion]"), null, 3000), tag + ": the preference off removes it");
+      await done(c, tag);
     }
   } finally {
     try { await browser.close(); } catch (e) { console.error("browser close: " + e.message); }

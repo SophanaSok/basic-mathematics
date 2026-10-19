@@ -814,6 +814,18 @@ html[data-bossbar] .toasts { top: calc(var(--hud-h) + 2.75rem + .75rem); }
     border: 1px solid var(--border); border-radius: var(--radius-sm); box-shadow: var(--shadow);
   }
 }
+/* the Arena has no sidebar (arena.js marks its body data-mode="arena" once the generators are up): the same small docked figure at every width, and the page's own controls
+   scroll to clear it (scroll-margin) rather than lie under it */
+body[data-mode="arena"] .companion { position: fixed; right: max(12px, 4vw); bottom: 12px; z-index: 38; margin: 0; padding: 0; width: 4rem; max-width: none; }
+body[data-mode="arena"] .companion-pic { width: 4rem; height: 5rem; pointer-events: none; }
+body[data-mode="arena"] .companion-name { display: none; }
+body[data-mode="arena"] .companion figcaption { position: absolute; right: 0; bottom: 100%; margin-bottom: .35rem; width: max-content; max-width: min(15rem, calc(100vw - 24px)); }
+body[data-mode="arena"] .companion-line { pointer-events: none;
+  padding: .45rem .7rem; text-align: left; background: var(--surface); color: var(--text);
+  border: 1px solid var(--border); border-radius: var(--radius-sm); box-shadow: var(--shadow);
+}
+body[data-mode="arena"] [data-arena] input, body[data-mode="arena"] [data-arena] button { scroll-margin-bottom: 7rem; }
+body[data-mode="arena"] .wrap { padding-bottom: 6.5rem; }
 html:has(#hud-sheet:modal) .companion { display: none; }
 .companion[data-hidden] { display: none; }
 @media (forced-colors: active) { .companion-pic { display: none; } }

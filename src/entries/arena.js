@@ -67,6 +67,9 @@ import "../../data/gen/packs.js";
 import "../../assets/arena.js";
 import "../../assets/config.js";
 import "../../assets/account.js";
+/* the form as a 2D companion, docked on the page (window.BMCompanion): the mood model first */
+import "../learn/mood.ts";
+import "../ui/companion.ts";
 /* the first-run guide (shown once on a chapter page) and its replay button in the settings sheet */
 import "../ui/first-run.ts";
 /* the keyboard layer: the pure keymap, then the DOM half, last, once everything it
