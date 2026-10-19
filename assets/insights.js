@@ -54,8 +54,8 @@
     return out;
   }
 
-  /* "Your next steps", in the place of an empty chart: up to three of BMNext's items, or two fixed
-     ones for a brand-new learner (no last place, no deck) */
+  /* "Your next steps", in the place of an empty chart: up to three of BMNext's items, or Chapter 1
+     for a brand-new learner (no last place, no deck) */
   function nextSteps() {
     var items = [], root = Site.rootPrefix();
     try { items = window.BMNext && typeof window.BMNext.items === "function" ? window.BMNext.items().slice(0, 3) : []; }
