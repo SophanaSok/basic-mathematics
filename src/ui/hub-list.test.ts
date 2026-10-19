@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from "vitest";
-import { decorate, decorateSections, hubInput, masteryLine, sectionInput } from "./hub-list.ts";
+import { decorate, decorateSections, watchOpen, hubInput, masteryLine, sectionInput } from "./hub-list.ts";
 import { sectionStates } from "../learn/status.ts";
 import { hubState } from "../world/state.ts";
 import { ARENA_SECTIONS } from "../data/arena-sections.ts";
@@ -12,6 +12,9 @@ class El {
   get parentNode() { return this.parent; }
   constructor(tag: string, doc: any) { this.tag = tag; this.ownerDocument = doc; }
   setAttribute(k: string, v: string) { this.attrs[k] = v; }
+  getAttribute(k: string) { return this.attrs[k] ?? null; }
+  listeners: Record<string, ((e: any) => void)[]> = {};
+  addEventListener(t: string, f: (e: any) => void) { (this.listeners[t] ||= []).push(f); }
   appendChild(c: El) { c.parent = this; this.kids.push(c); return c; }
   remove() { if (this.parent) this.parent.kids = this.parent.kids.filter((k) => k !== this); this.parent = null; }
   get nextSibling() { const s = this.parent!.kids; return s[s.indexOf(this) + 1] || null; }
@@ -224,7 +227,7 @@ describe("decorateSections", () => {
     const r1 = root.find(".stop-row");
     expect(r1.map((r) => stat(r).words)).toEqual(["Ready", "Builds on Rules for addition".replace("Rules", "\u00A71.1 Rules"), "Builds on \u00A71.1 Rules for addition, \u00A71.2 Integers"]);
     expect(r1[0].all().find((e) => e.className === "stop-glyph")!.innerHTML).toContain("icon-next");
-    expect(r1[1].all().find((e) => e.className === "stop-glyph")!.innerHTML).toContain("icon-chevron");
+    expect(r1[1].all().find((e) => e.className === "stop-glyph")!.innerHTML).toContain("icon-up");
     expect(r1[0].all().find((e) => e.className === "stop-title")!.attrs.href).toBe("parts/1/01.html#addition");
     expect(stat(r1[2]).all().filter((e) => e.tag === "a").map((e) => e.attrs.href)).toEqual(["parts/1/01.html#addition", "parts/1/01.html#integers"]);
     expect(r1[0].all().find((e) => e.className === "stop-glyph")!.attrs["aria-hidden"]).toBe("true");
@@ -268,5 +271,53 @@ describe("decorateSections", () => {
     decorateSections(root as any, sectionStates(sectionInput()), ["ch01", "ch02"]);
     expect(root.all().filter((e) => "disabled" in e.attrs || "aria-disabled" in e.attrs).length).toBe(0);
     expect(rowsOf(root, "ch02").length).toBe(1);
+  });
+
+  it("keeps the order link, hub line, sections whichever is drawn first", () => {
+    wire();
+    const order = (root: El) => root.all().find((e) => e.tag === "li" && e.attrs["data-chapter"] === "ch01")!.kids.map((k) => k.className);
+    const s = sectionStates(sectionInput());
+    const a = list(["ch01"]);
+    decorateSections(a as any, s, ["ch01"]);
+    decorate(a as any, states({ bands: { "ch01#addition": "weak" } }), ["ch01"]);
+    expect(order(a)).toEqual(["stop-link", "stop-hub", "stop-sections"]);
+    const b = list(["ch01"]);
+    decorate(b as any, states({ bands: { "ch01#addition": "weak" } }), ["ch01"]);
+    decorateSections(b as any, s, ["ch01"]);
+    expect(order(b)).toEqual(["stop-link", "stop-hub", "stop-sections"]);
+  });
+
+  it("a toggle heard on the host survives a rebuild that removed the details", () => {
+    wire();
+    const s = sectionStates(sectionInput());
+    const root = list(["ch01"]);
+    watchOpen(root);
+    watchOpen(root);
+    expect(root.listeners.toggle.length).toBe(1);
+    decorateSections(root as any, s, ["ch01"]);
+    const d = root.querySelector(".stop-sections")!;
+    d.open = true;
+    root.listeners.toggle[0]({ target: d });
+    /* buildHome rewrote the list: the details is gone before decorateSections can read it */
+    d.remove();
+    decorateSections(root as any, s, ["ch01"]);
+    expect(root.querySelector(".stop-sections")!.open).toBe(true);
+    const d2 = root.querySelector(".stop-sections")!;
+    d2.open = false;
+    root.listeners.toggle[0]({ target: d2 });
+    d2.remove();
+    decorateSections(root as any, s, ["ch01"]);
+    expect(root.querySelector(".stop-sections")!.open).toBe(false);
+  });
+
+  it("an unmet ref that names no section is plain text, not a link", () => {
+    const C3 = { parts: [{ id: "a", chapters: [{ id: "ch01", label: "1", path: "p.html", sections: [{ id: "x", title: "X", requires: ["zz#gone"] }] }] }],
+      chapterById(id: string) { return this.parts[0].chapters.find((c) => c.id === id); } };
+    wire({ BM_CURRICULUM: C3 });
+    const root = list(["ch01"]);
+    decorateSections(root as any, { "ch01#x": { state: "ahead", text: "Builds on zz#gone", unmet: ["zz#gone"] } } as any, ["ch01"]);
+    const st = stat(root.find(".stop-row")[0]);
+    expect(st.all().filter((e) => e.tag === "a").length).toBe(0);
+    expect(st.words).toContain("Builds on ");
   });
 });

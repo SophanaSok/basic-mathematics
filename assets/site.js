@@ -532,7 +532,9 @@
       clearTimeout(hubTimer);
       hubTimer = setTimeout(decorateHub, 60);
     });
-    window.addEventListener("load", decorateHub);
+    window.addEventListener("load", function () { decorateHub(); buildContinue(); });
+    /* the first buildContinue can run before BMHubList is there: try again on the events that rebuild the page */
+    Store.on(function (c) { if (c.type === "sync" || c.type === "reset") buildContinue(); });
   }
 
   /* turn the "Start" button into "Continue" once there is somewhere to continue to */

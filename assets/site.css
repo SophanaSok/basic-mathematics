@@ -759,15 +759,15 @@ input.blank { width: auto; min-height: 0; padding: .2rem .45rem; margin: 0 .15em
 }
 .stop-sections[open] > summary::after { transform: rotate(180deg); }
 .stop-rows { list-style: none; margin: .35rem 0 0; padding: 0; display: grid; gap: .3rem; }
-.stop-row { display: grid; grid-template-columns: 1.25rem minmax(0, 1fr) auto; gap: .2rem .6rem; align-items: baseline; }
+.stop-row { display: grid; grid-template-columns: 1.25rem minmax(0, 1fr) minmax(0, max-content); gap: .2rem .6rem; align-items: baseline; }
 .stop-glyph { color: var(--muted); display: inline-flex; align-self: center; }
 .stop-glyph svg { width: 1em; height: 1em; }
 .stop-row[data-state="done"] .stop-glyph { color: var(--part); }
-.stop-state { color: var(--muted); font-size: .78rem; text-align: right; overflow-wrap: anywhere; max-width: 22rem; }
+.stop-state { color: var(--muted); font-size: .78rem; text-align: right; overflow-wrap: anywhere; max-width: 14rem; white-space: normal; }
 .stop-sections a { text-decoration: underline; color: var(--text); }
 .stop-state a { color: var(--muted); }
 .stop-sections a:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; border-radius: 2px; }
-@media (max-width: 600px) {
+@media (max-width: 900px) {
   .stop-row { grid-template-columns: 1.25rem minmax(0, 1fr); }
   .stop-state { grid-column: 2; text-align: left; max-width: none; }
 }
