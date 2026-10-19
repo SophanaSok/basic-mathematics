@@ -171,17 +171,22 @@ function settle(): void {
 }
 
 function show(r: Reaction, now: number): void {
-  mood = r.mood; pose = r.pose; current = r;
+  mood = r.mood; pose = r.pose;
   drawSprite();
-  const hold = r.key && WAITS.indexOf(r.key) > -1 ? ARRIVAL_MS : SHOW_MS;
-  window.clearTimeout(clearTimer); clearTimer = 0;
   if (r.line) {
+    current = r;
     setLine(r.line, r.href);
     throttle = said(throttle, now);
     try { w().BMGame.announce(r.line, { priority: "low", key: "companion:" + (r.key || "line") }); } catch { /* a note */ }
-  } else setLine("", null);
+    const hold = r.key && WAITS.indexOf(r.key) > -1 ? ARRIVAL_MS : SHOW_MS;
+    window.clearTimeout(settleTimer);
+    settleTimer = window.setTimeout(settle, hold);
+    return;
+  }
+  /* a pose alone: a caption still showing keeps its words and its hold */
+  if (shownLine) return;
   window.clearTimeout(settleTimer);
-  settleTimer = window.setTimeout(settle, hold);
+  settleTimer = window.setTimeout(settle, SHOW_MS);
 }
 
 function evolve(): void {
@@ -346,7 +351,7 @@ function evaluate(): void {
 function fieldFocus(): void {
   if (!fig) return;
   const a = document.activeElement as Element | null;
-  const field = !!(a && a.matches && a.matches("main input:not([type=checkbox]):not([type=radio]):not([type=button]):not([type=submit]), main textarea, main select"));
+  const field = !!(a && a.matches && a.matches("input:not([type=checkbox]):not([type=radio]):not([type=button]):not([type=submit]), textarea, select"));
   const small = !!(window.matchMedia && window.matchMedia("(max-width: 999px)").matches);
   if (field && small) fig.setAttribute("data-hidden", ""); else fig.removeAttribute("data-hidden");
 }
