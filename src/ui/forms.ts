@@ -254,6 +254,7 @@ function moodLine(): void {
   let r: ReturnType<typeof arrival> | null = null;
   try { if ((window as any).BMCompanion && (window as any).BMCompanion.input) r = arrival((window as any).BMCompanion.input(true)); } catch { r = null; }
   if (!r || !r.line) {
+    arrivalMood = "content";
     p.textContent = "";
     p.hidden = true;
     panel.removeAttribute("data-mood");
