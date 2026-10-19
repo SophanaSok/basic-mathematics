@@ -80,6 +80,7 @@ async function open(browser, opts) {
   await context.addInitScript((theme) => {
     try {
       localStorage.setItem("bm.lesson.v1", '{"mode":"page"}');
+      localStorage.setItem("bm.guide.v1", '{"v":1,"seen":1}');
       if (theme) localStorage.setItem("bm.theme", JSON.stringify(theme));
     } catch (e) { /* fine */ }
   }, opts.theme || null);
