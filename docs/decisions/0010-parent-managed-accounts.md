@@ -99,9 +99,11 @@ any switch away from that learner); PA-9 draws the "Mark as under 13" control fo
 marked under an older `consent_v` shows "Consent to confirm" and cannot be switched to until the
 statement is confirmed again; dormant while `CONSENT_V` is 1). Open:
 
-- PA-11, in progress: the readiness work before anyone bumps the consent version (the kept view
-  re-asks, an out-of-date message when the page and the server disagree, the `OPERATIONS.md` step).
 - Counsel's answer on Q1 is still due before the age-policy page ships.
+
+PA-11 (#202) is the readiness work before anyone bumps the consent version: the kept view re-asks a
+stale learner, an out-of-date message when the page and the server disagree on the version, and
+the `OPERATIONS.md` step "Bumping the consent version".
 
 Two departures from the design, pinned by the build:
 
