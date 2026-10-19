@@ -820,7 +820,7 @@ body[data-mode="arena"] .companion { position: fixed; right: max(12px, 4vw); bot
 body[data-mode="arena"] .companion-pic { width: 4rem; height: 5rem; pointer-events: none; }
 body[data-mode="arena"] .companion-name { display: none; }
 body[data-mode="arena"] .companion figcaption { position: absolute; right: 0; bottom: 100%; margin-bottom: .35rem; width: max-content; max-width: min(15rem, calc(100vw - 24px)); }
-body[data-mode="arena"] .companion-line {
+body[data-mode="arena"] .companion-line { pointer-events: none;
   padding: .45rem .7rem; text-align: left; background: var(--surface); color: var(--text);
   border: 1px solid var(--border); border-radius: var(--radius-sm); box-shadow: var(--shadow);
 }
