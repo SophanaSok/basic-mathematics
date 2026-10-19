@@ -85,16 +85,17 @@ which one applies, so a stronger method can be added at the add-learner step lat
 
 Decided, 2026-10-16: the owner approved the recommended answers on Q1 to Q6.
 
-Built, 2026-10-18: PA-1 to PA-7 are merged (#187 bca26f1, #188 cd95d24, #189 baca969, #190 ad8925e,
-#191 cc6b8b1, #192 82a2852, #193 8f1439b, #194 285eac6). Both migrations were applied and verified
+Built, 2026-10-18: PA-1 to PA-8 are merged (#187 bca26f1, #188 cd95d24, #189 baca969, #190 ad8925e,
+#191 cc6b8b1, #192 82a2852, #193 8f1439b, #194 285eac6, #196 8c7ec6c). Both migrations were applied and verified
 live on 2026-10-18 (steps in `OPERATIONS.md`, "The learners (PA-1)" and "The account-delete
 step-up, and first-factor sign-ins only (PA-6a)") and the `amr` check passed. PA-5 is this note and
 the wording in `about.html`, `supabase/README.md` and `OPERATIONS.md`; PA-6 is the `learners: "off"`
 kill switch and the step-up on `delete_my_account()`, with `fresh_auth` counting first-factor
 sign-ins only; PA-7 gives a browser playing as a learner a way back to the parent's own progress
-while the switch is off. Open:
+while the switch is off; PA-8 is "Keep this device on <name>" (`bm.sync.v1.keep`: the account page
+collapses to "Playing as <name>" behind "I'm the parent"; a convenience, not a boundary; it ends on
+any switch away from that learner). Open:
 
-- "Keep this device on <name>" (PA-8, in progress).
 - Counsel's answer on Q1 is still due before the age-policy page ships.
 
 Two departures from the design, pinned by the build:
