@@ -78,6 +78,11 @@ import "../ui/form-emotes.ts";
 import "../ui/form-view.ts";
 import "../ui/forms.ts";
 import "../ui/form-unlock.ts";
+/* BMNext.items(), which insights.js asks for the empty chart's "Your next steps": mount() finds no
+   placeholder on this page, so the import draws nothing. It comes after insights.js (whose first
+   draw is already made), which redraws once when it finds BMNext on the page's load */
+import "../learn/next.ts";
+import "../ui/next.ts";
 /* the keyboard layer: the pure keymap, then the DOM half, last, once everything it
    drives is up */
 import "../ui/keymap.ts";

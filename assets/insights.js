@@ -54,8 +54,32 @@
     return out;
   }
 
+  /* "Your next steps", in the place of an empty chart: up to three of BMNext's items, or two fixed
+     ones for a brand-new learner (no last place, no deck) */
+  function nextSteps() {
+    var items = [], root = Site.rootPrefix();
+    try { items = window.BMNext && typeof window.BMNext.items === "function" ? window.BMNext.items().slice(0, 3) : []; }
+    catch (e) { items = []; }
+    if (!items.length) {
+      items = [
+        { text: "Start with Chapter 1", href: "parts/1-algebra/01-numbers.html", why: "The first chapter builds everything after it." },
+        { text: "Find your starting point", href: "diagnostic.html", why: "A short placement check with no timer." }
+      ];
+      /* a reader who has taken the check has the plan above, and no link back to it (plan.js asserts) */
+      if (hasTake()) items.pop();
+    }
+    return '<div class="next-list"><h3>Your next steps</h3>' + items.map(function (it) {
+      return '<div class="next-item"><a href="' + esc(root + it.href) + '">' + esc(it.text) + "</a>" +
+        '<p class="fine">' + esc(it.why) + "</p></div>";
+    }).join("") + "</div>";
+  }
+
   function activityChart() {
     var days = lastDays(14), goal = Activity.goal();
+    var active = days.filter(function (d) { return d.xp > 0; }).length;
+    var met = days.filter(function (d) { return d.xp >= goal; }).length;
+    var note = '<p class="chart-note">Active on ' + plural(active, "day") + " of the last 14; daily goal met on " + met + ".</p>";
+    if (active <= 1) return nextSteps() + note;
     var top = Math.max(goal, Math.max.apply(null, days.map(function (d) { return d.xp; }))) * 1.1;
     var html = '<div class="daychart" role="img" aria-label="XP earned on each of the last 14 days">';
     html += '<span class="daychart-goal" style="bottom:' + (goal / top) * 100 + '%"><i>goal ' + goal + "</i></span>";
@@ -67,10 +91,7 @@
         '<span class="day-name">' + esc(d.date.toLocaleDateString(undefined, { weekday: "narrow" })) + "</span></span>";
     });
     html += "</div>";
-    var active = days.filter(function (d) { return d.xp > 0; }).length;
-    var met = days.filter(function (d) { return d.xp >= goal; }).length;
-    html += '<p class="chart-note">Active on ' + plural(active, "day") + " of the last 14; daily goal met on " + met + ".</p>";
-    return html;
+    return html + note;
   }
 
   function sectionRow(r, weak) {
@@ -172,21 +193,44 @@
     return html + "</section>";
   }
 
+  /* the groups the achievements are shown in, by catalogue id; an id not listed lands in "Other",
+     so a new achievement never vanishes (tools/game/rules.test.js checks every id is listed) */
+  var ACH_GROUPS = [
+    ["Habits and streaks", ["streak-3", "streak-7", "streak-30", "regular", "returning-champion"]],
+    ["First try and accuracy", ["first-light", "steady-hand", "sure-hand", "full-meter", "second-wind", "flawless"]],
+    ["Careful study", ["second-opinion", "studied", "committed", "hands-on", "no-stone", "hands-off"]],
+    ["Arena", ["took-your-time", "under-par", "personal-best", "boss-down", "mixed-bag", "echo-hunter"]],
+    ["Review and repair", ["comeback", "rebuilder", "keeper"]],
+    ["Completion", ["region-cleared", "ground-up"]]
+  ];
+
   function achievementsPanel() {
-    var S = Game.stores(), ach = S.game.ach, got = 0;
-    var items = Game.ACHIEVEMENTS.map(function (a) {
+    var S = Game.stores(), ach = S.game.ach, got = 0, cards = {}, locked = [];
+    Game.ACHIEVEMENTS.forEach(function (a, i) {
       var at = ach[a.id], p = a.progress(S);
       if (at) got++;
-      return '<li class="ach" data-id="' + esc(a.id) + '"' + (at ? ' data-unlocked="true"' : "") + ">" +
+      else if (p[0] > 0 && p[1] > 1) locked.push({ id: a.id, frac: p[0] / p[1], i: i });
+      cards[a.id] = '<li class="ach" data-id="' + esc(a.id) + '"' + (at ? ' data-unlocked="true"' : "") + ">" +
         '<span class="ach-title">' + esc(a.title) + "</span>" +
         '<span class="ach-text">' + esc(a.text) + "</span>" +
         '<span class="ach-meta">' + (at
           ? "Unlocked " + esc(new Date(at).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" }))
           : meter(pct(p[0], p[1])) + "<span>" + p[0] + " / " + p[1] + "</span>") + "</span></li>";
     });
+    locked.sort(function (x, y) { return y.frac - x.frac || x.i - y.i; });
+    var near = locked.slice(0, 3).map(function (x) { return x.id; });
+    var used = {};
+    function group(name, ids) {
+      var list = ids.filter(function (id) { return cards[id] && !used[id]; });
+      list.forEach(function (id) { used[id] = true; });
+      return list.length ? '<h3 class="ach-group">' + esc(name) + '</h3><ul class="achievements">' +
+        list.map(function (id) { return cards[id]; }).join("") + "</ul>" : "";
+    }
+    var body = group("Nearest", near);
+    ACH_GROUPS.forEach(function (g) { body += group(g[0], g[1]); });
+    body += group("Other", Game.ACHIEVEMENTS.map(function (a) { return a.id; }));
     return '<section class="panel" id="achievements"><div class="panel-head"><h2>Achievements</h2>' +
-      '<span class="muted">' + got + " of " + items.length + " unlocked</span></div>" +
-      '<ul class="achievements">' + items.join("") + "</ul></section>";
+      '<span class="muted">' + got + " of " + Game.ACHIEVEMENTS.length + " unlocked</span></div>" + body + "</section>";
   }
 
   /* "Your plan", first on the page when a take exists. BMPlan.render leaves the slot empty
@@ -279,9 +323,6 @@
         '">Switch learners on your account page.</a></p>';
     }
     html += '<div class="stats">';
-    html += tile("Streak", streak, streak === 1 ? "day" : "days", streak ? ' data-on="true"' : "");
-    html += tile("Today", today + '<small> / ' + goal + " XP</small>",
-      today >= goal ? "Goal reached" : (goal - today) + " XP to go");
     if (Game) {
       var lv = Game.info();
       html += tile("Level", lv.level, esc(lv.rank) + " · " + lv.into + " / " + lv.span + " XP to level " + (lv.level + 1),
@@ -289,6 +330,9 @@
     } else {
       html += tile("Total XP", Activity.total(), "");
     }
+    html += tile("Streak", streak, streak === 1 ? "day" : "days", streak ? ' data-on="true"' : "");
+    html += tile("Today", today + '<small> / ' + goal + " XP</small>",
+      today >= goal ? "Goal reached" : (goal - today) + " XP to go");
     html += tile("Exercises solved", solved, plural(done, "chapter") + " finished");
     html += tile("Right the first time", tried ? pct(first, tried) + "%" : "—", tried ? "of " + tried + " questions tried" : "nothing tried yet");
     html += tile("Missions", ico("star", "★") + " " + stars, "on the figures");
@@ -339,6 +383,9 @@
 
   if (page && Progress && Play && Activity && Insights) {
     drawProgress();
+    /* src/ui/next.ts comes after this file in the entry: once the page's scripts have run, draw again
+       so "Your next steps" has the reader's real items rather than the two fixed ones */
+    if (!window.BMNext) document.addEventListener("DOMContentLoaded", function () { if (window.BMNext) drawProgress(); });
     Store.on(function (c) {
       if (c.type === "sync" || c.type === "reset" || c.type === "achievement" || c.type === "level") drawProgress();
     });
