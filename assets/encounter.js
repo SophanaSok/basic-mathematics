@@ -347,6 +347,13 @@
 
     if (fresh && prev && st.hearts === 0 && prev.hearts > 0 && !st.won && !isCalm) regroup(set, opts.missKey);
 
+    /* the boss answers a lost heart in the voice of the slip; the next solve ends it */
+    if (st.hp < (prev ? prev.hp : st.hp) || st.won) set.say = "";
+    if (cue === "heart") {
+      set.say = (set.detector && Object.prototype.hasOwnProperty.call(TAUNTS, set.detector) ? TAUNTS[set.detector] : "") ||
+        (!set.review && boss && boss.taunt) || "Not yet. I can wait.";
+    }
+    if (fresh) set.detector = null;
     var changed = !prev || prev.hp !== st.hp || prev.hearts !== st.hearts || prev.medal !== medal || prev.state !== state;
     set.prev = { hp: st.hp, total: st.total, hearts: st.hearts, won: st.won, medal: medal, state: state, done: w.done, first: st.first, solved: st.solved };
     /* the medal is derived, not stored, but listeners such as the course map watch the
@@ -359,6 +366,8 @@
       });
     }
     hudHearts();
+    /* the shake and the break belong to the set the bar shows; another set's event paints it still */
+    barRefresh(set === barSet && fresh && !!prev, set === barSet && hit);
   }
 
   function rematchHref() { return root + "arena.html?boss=" + encodeURIComponent(chapterId); }
@@ -527,6 +536,118 @@
     Game.hudHearts(live && !calm() ? { lives: live.prev.hearts, max: 3, id: live.id } : null);
   }
 
+
+  /* ------------------------------------------------------------ boss bar --- */
+
+  /* A compact copy of the fight, fixed under the HUD while the set is in view and its
+     card is not, so the boss is present where the learner works. It mirrors what the card
+     already exposes to a screen reader, so it is aria-hidden and speaks nowhere; it is
+     appended to the body, never to main (the lesson steps are cut from main's children). */
+  var TAUNTS = {
+    unreduced: "Not in lowest terms. Not finished.",
+    missing: "You stopped early. Most do.",
+    "missing-option": "You stopped early. Most do.",
+    sign: "A sign slipped past you. I like it that way.",
+    reciprocal: "Upside down suits me.",
+    double: "Twice, or half? You tell me.",
+    decimal: "The point wandered. So do you."
+  };
+  var bossbar = null, barSet = null, barSeq = 0;
+
+  function barEl(set) {
+    if (bossbar) return bossbar;
+    if (!document.body) return null;
+    bossbar = document.createElement("div");
+    bossbar.className = "bossbar";
+    bossbar.hidden = true;
+    bossbar.setAttribute("aria-hidden", "true");
+    document.body.appendChild(bossbar);
+    return bossbar;
+  }
+
+  function barBuild(set) {
+    var segs = "";
+    set.exs.forEach(function () { segs += '<i class="bossbar-seg" data-how="open"></i>'; });
+    bossbar.innerHTML = '<div class="bossbar-in"><b class="bossbar-name">' + esc(set.name) + "</b>" +
+      '<span class="bossbar-bar">' + segs + "</span>" +
+      '<span class="bossbar-hearts">' + heartsHtml(0) + "</span>" +
+      '<span class="bossbar-say"></span></div>';
+    bossbar.setAttribute("data-set", set.id);
+  }
+
+  function barPaint(set, fresh, hit) {
+    var segs = slice(bossbar.querySelectorAll(".bossbar-seg"));
+    var hearts = slice(bossbar.querySelectorAll(".bossbar-hearts i"));
+    var lives = set.prev ? set.prev.hearts : 3;
+    set.segs.forEach(function (src, i) {
+      var seg = segs[i];
+      if (!seg) return;
+      var how = src.getAttribute("data-how");
+      if (fresh && seg.getAttribute("data-how") === "open" && how !== "open") flag(seg, "data-fresh", 900);
+      seg.setAttribute("data-how", how);
+    });
+    var before = hearts.filter(function (h) { return h.hasAttribute("data-full"); }).length;
+    hearts.forEach(function (h, i) {
+      if (i < lives) h.setAttribute("data-full", "");
+      else h.removeAttribute("data-full");
+    });
+    if (fresh && lives < before) {
+      var lost = hearts.slice(lives, before);
+      lost.forEach(function (h) { h.setAttribute("data-break", ""); });
+      setTimeout(function () { lost.forEach(function (h) { h.removeAttribute("data-break"); }); }, 400);
+    }
+    if (hit) flag(bossbar, "data-hit", 700);
+    var say = bossbar.querySelector(".bossbar-say");
+    say.textContent = set.say || "";
+    if (set.say) bossbar.setAttribute("data-say", "true");
+    else bossbar.removeAttribute("data-say");
+  }
+
+  /* shown while a set not yet won has its section in view and its card out of it; of two, the one entered last */
+  function barRefresh(fresh, hit) {
+    var el = barEl();
+    if (!el) return;
+    var want = null, best = -1;
+    if (!calm()) {
+      sets.forEach(function (s) {
+        if (s.secIn && !s.cardIn && !(s.prev && s.prev.won) && s.inAt > best) { want = s; best = s.inAt; }
+      });
+    }
+    if (!want) {
+      barSet = null;
+      if (!el.hidden) el.hidden = true;
+      document.documentElement.removeAttribute("data-bossbar");
+      return;
+    }
+    if (want !== barSet) { barSet = want; barBuild(want); fresh = false; hit = false; }
+    barPaint(want, fresh, hit);
+    if (el.hidden) el.hidden = false;
+    document.documentElement.setAttribute("data-bossbar", "");
+  }
+
+  function barWatch() {
+    sets.forEach(function (s) { s.secIn = false; s.cardIn = false; s.inAt = 0; s.say = ""; s.detector = null; });
+    if (barEl()) { barSet = sets[0]; barBuild(sets[0]); barSet = null; }
+    if (!("IntersectionObserver" in window)) return;
+    var byEl = [];
+    var io = new IntersectionObserver(function (entries) {
+      entries.forEach(function (en) {
+        byEl.forEach(function (m) {
+          if (m.el !== en.target) return;
+          var was = m.set[m.prop];
+          m.set[m.prop] = en.isIntersecting;
+          if (m.prop === "secIn" && en.isIntersecting && !was) m.set.inAt = ++barSeq;
+        });
+      });
+      barRefresh(false, false);
+    }, { rootMargin: "-104px 0px 0px 0px", threshold: 0 });
+    sets.forEach(function (s) {
+      byEl.push({ set: s, prop: "secIn", el: s.el }, { set: s, prop: "cardIn", el: s.box });
+      io.observe(s.el);
+      io.observe(s.box);
+    });
+  }
+
   /* --------------------------------------------------------------- go ----- */
 
   function queue(set, opts) {
@@ -561,6 +682,7 @@
     if (Game.settle) Game.settle();
   }
 
+  barWatch();
   sets.forEach(function (s) { render(s, {}); });
 
   Store.on(function (c) {
@@ -570,6 +692,7 @@
       sets.forEach(function (s) {
         if (s.keys.indexOf(c.key) < 0) return;
         s.lastTouched = Date.now();
+        if (t === "attempt" && !c.correct) s.detector = c.detector || null;
         queue(s, { fresh: true, missKey: t === "attempt" && !c.correct ? c.key : null });
       });
     } else if (t === "reset" || t === "sync") {
@@ -580,6 +703,7 @@
           if (s.regroupEl && s.regroupEl.parentNode) s.regroupEl.parentNode.removeChild(s.regroupEl);
           s.regroupEl = null;
           s.regroupShown = false;
+          s.say = "";
           s.cue.hidden = true;
         }
         queue(s, {});

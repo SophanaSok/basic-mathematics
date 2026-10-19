@@ -160,6 +160,22 @@ html[data-calm] .hud-sound { opacity: .5; cursor: not-allowed; }
 .keys-sheet dt, .keys-sheet dd { margin: 0; }
 .keys-sheet dt { white-space: nowrap; }
 .keys-sheet [data-keys-close] { margin-top: 1rem; }
+/* the first-run guide (src/ui/first-run.ts): five cards in a modal on paper, no motion; the
+   part of the bar a card names gets a ring by outline, which moves nothing */
+.guide-sheet {
+  width: min(28rem, calc(100vw - 32px)); max-width: 28rem; max-height: min(88vh, 44rem); overflow-y: auto;
+  padding: 1rem 1.25rem 1.1rem; background: var(--surface); color: var(--text);
+  border: 1px solid var(--border); border-radius: var(--radius);
+}
+.guide-sheet::backdrop { background: var(--scrim-glass); }
+.guide-sheet .guide-title { margin: 0 0 .5rem; font-size: 1.25rem; }
+.guide-sheet .guide-body { margin: 0 0 .75rem; line-height: 1.5; }
+.guide-sheet .guide-step { margin: 0 0 .75rem; font-size: .875rem; opacity: .8; }
+.guide-sheet .guide-actions { display: flex; flex-wrap: wrap; gap: .5rem; }
+.guide-sheet .guide-actions [data-guide-skip] { margin-right: auto; }
+.guide-sheet .guide-actions [hidden] { display: none; }
+[data-guide-spot] { outline: 3px solid var(--focus); outline-offset: 2px; }
+[data-guide-replay] { margin-top: .5rem; }
 /* the go-to palette "/" opens: the same paper, a full-width box and a plain list; the
    selected row as the Arena board marks the reader's own row */
 .keys-palette input {
@@ -643,13 +659,49 @@ input.blank[data-ok="false"] { border-color: var(--bad); background-image: var(-
 .encounter-result[data-revisit] > p span[aria-hidden] { color: var(--xp-ink); letter-spacing: .05em; }
 .encounter-result[data-revisit] > * { margin: 0; }
 
+/* ------------------------------------------------------------ boss bar --- */
+/* The fight in one line, fixed under the HUD while the set is in view and its card is not
+   (assets/encounter.js). A dark frame surface; its classes are its own, outside the reading column. */
+
+/* while the bar shows, the sticky sidebar and a top toast stack start below it (the bar sits under
+   the top bar's stacking context, so the settings sheet paints over it) */
+html[data-bossbar] .sidebar { top: calc(var(--hud-h) + 2.75rem + .5rem); }
+html[data-bossbar] .toasts { top: calc(var(--hud-h) + 2.75rem + .75rem); }
+.bossbar {
+  position: fixed; top: var(--hud-h); left: 0; right: 0; z-index: 39; height: 2.75rem;
+  background: var(--hud-bg); color: var(--hud-text); border-bottom: 1px solid var(--hud-line);
+  font-family: var(--sans); font-size: .84rem; pointer-events: none;
+}
+.bossbar[hidden] { display: none; }
+.bossbar-in {
+  display: flex; align-items: center; gap: .75rem; height: 100%; max-width: 1180px; margin: 0 auto; padding: 0 1rem;
+}
+.bossbar-name { flex: none; max-width: 30%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: var(--display); font-weight: 700; }
+.bossbar-bar { display: flex; flex: 1 1 8rem; gap: 3px; height: .6rem; min-width: 5rem; }
+.bossbar-seg { display: block; flex: 1 1 0; min-width: 3px; border-radius: 2px; background: var(--hud-track); }
+.bossbar-seg[data-how="first"], .bossbar-seg[data-how="solved"] { background: var(--hud-ok); }
+.bossbar-seg[data-how="opened"] { background: var(--hud-xp); }
+.bossbar-seg[data-how="unknown"] { background: var(--hud-muted); }
+.bossbar-hearts { display: inline-flex; flex: none; gap: 3px; color: var(--hud-heart); }
+.bossbar-hearts i {
+  display: block; width: 1.05rem; height: 1.05rem; background: currentColor;
+  -webkit-mask: var(--icon-heart-o) center / contain no-repeat; mask: var(--icon-heart-o) center / contain no-repeat;
+}
+.bossbar-hearts i[data-full] { -webkit-mask-image: var(--icon-heart); mask-image: var(--icon-heart); }
+.bossbar-say { flex: 0 1 auto; min-width: 0; max-width: 45%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--hud-muted); font-style: italic; }
+.bossbar-say:empty { display: none; }
+@media (max-width: 640px) { .bossbar[data-say] .bossbar-name { display: none; } .bossbar-say { max-width: none; } }
+
 /* -------------------------------------------------------------- toasts --- */
 /* toasts are ink cards, like the rail; game.js hides them from screen readers */
 
 .toasts {
-  position: fixed; left: 50%; bottom: max(1.5rem, env(safe-area-inset-bottom)); z-index: 70;
-  transform: translateX(-50%); width: max-content; max-width: calc(100vw - 32px);
-  display: flex; flex-direction: column; align-items: center; gap: .5rem; pointer-events: none;
+  position: fixed; top: calc(var(--hud-h) + .75rem); right: 1rem; left: auto; bottom: auto; z-index: 44;
+  width: max-content; max-width: calc(100vw - 32px);
+  display: flex; flex-direction: column; align-items: flex-end; gap: .5rem; pointer-events: none;
+}
+@media (max-width: 479px) {
+  .toasts { left: 1rem; right: 1rem; width: auto; max-width: none; align-items: stretch; }
 }
 .toast {
   display: block; max-width: 100%;
@@ -667,25 +719,25 @@ input.blank[data-ok="false"] { border-color: var(--bad); background-image: var(-
 }
 /* achievement and level cards: a badge, a title, a line */
 /* achievement and level cards: a gold badge drawn beside kicker, title, line */
-.toast.ach, .toast.level {
-  display: grid; grid-template-columns: 2.5rem minmax(0, 1fr); column-gap: .8rem; align-items: start;
+.toast.ach, .toast.level, .toast.form {
+  display: grid; grid-template-columns: 3rem minmax(0, 1fr); column-gap: .8rem; align-items: start;
   max-width: min(26rem, 100%); padding: .75rem 1.05rem .75rem .75rem;
 }
-.toast.ach { border-color: var(--hud-xp); }
-.toast.ach::before, .toast.level::before {
-  content: ""; grid-column: 1; grid-row: 1 / span 4; width: 2.5rem; height: 2.5rem; align-self: center;
+.toast.ach, .toast.form { border-color: var(--hud-xp); }
+.toast.ach::before, .toast.level::before, .toast.form::before {
+  content: ""; grid-column: 1; grid-row: 1 / span 4; width: 3rem; height: 3rem; align-self: center;
   border-radius: var(--radius-xs); background: var(--hud-xp);
   box-shadow: 0 3px 0 color-mix(in srgb, var(--hud-xp) 50%, var(--ink-shadow));
 }
-.toast.ach::after, .toast.level::after {
+.toast.ach::after, .toast.level::after, .toast.form::after {
   content: ""; grid-column: 1; grid-row: 1 / span 4; justify-self: center; align-self: center;
-  width: 1.35rem; height: 1.35rem; background: var(--on-xp);
+  width: 1.6rem; height: 1.6rem; background: var(--on-xp);
   -webkit-mask: var(--icon-star) center / contain no-repeat; mask: var(--icon-star) center / contain no-repeat;
 }
 .toast.level::after { transform: rotate(-90deg); -webkit-mask-image: var(--icon-next); mask-image: var(--icon-next); }
-.toast.ach > *, .toast.level > * { grid-column: 2; }
+.toast.ach > *, .toast.level > *, .toast.form > * { grid-column: 2; }
 .toast-kicker { display: block; font: 700 .7rem/1.3 var(--display); text-transform: uppercase; letter-spacing: .08em; color: var(--hud-muted); }
-.toast.ach > b, .toast.level > b, .toast-title { display: block; font: 700 1rem/1.25 var(--display); color: var(--hud-text); }
+.toast.ach > b, .toast.level > b, .toast.form > b, .toast-title { display: block; font: 700 1.05rem/1.25 var(--display); color: var(--hud-text); }
 .toast-text, .toast-more { display: block; font-size: .84rem; color: var(--hud-muted); }
 .toast-more { font-style: italic; }
 
@@ -765,6 +817,9 @@ html[data-motion="reduce"] *, html[data-motion="reduce"] *::before, html[data-mo
   }
   .hud-combo i { border-color: CanvasText; }
   .hud-combo i[data-on] { forced-color-adjust: none; background: CanvasText; }
+  .bossbar { border-bottom-color: CanvasText; }
+  .bossbar-seg { forced-color-adjust: none; background: Canvas; box-shadow: inset 0 0 0 1px CanvasText; }
+  .bossbar-seg:not([data-how="open"]) { background: CanvasText; }
   .encounter-seg { forced-color-adjust: none; background: Canvas; box-shadow: inset 0 0 0 1px CanvasText; }
   .encounter-seg:not([data-how="open"]) { background: CanvasText; }
   .encounter-seg[data-how="solved"], .encounter-seg[data-how="opened"] {
@@ -780,7 +835,7 @@ html[data-motion="reduce"] *, html[data-motion="reduce"] *::before, html[data-mo
 @media print {
   .hud, .hud-level, .hud-streak, .hud-combo, .hud-hearts, .hud-timer, .hud-sheet, .hud-strip,
   .hud-sound, .hud-menu, .toasts, .ex-form .btn, .ex-reward, .ex-stamp, .s3d-canvas,
-  .encounter-sigil, .encounter-kicker, .encounter-boss, .encounter-bar, .encounter-wards,
+  .bossbar, .encounter-sigil, .encounter-kicker, .encounter-boss, .encounter-bar, .encounter-wards,
   .encounter-hearts, .encounter-regroup, .encounter-result .actions, .encounter-actions,
   .banner-meta:empty, .burst, .fx-burst, .fx-canvas { display: none !important; }
   /* the encounter shrinks to its one-line status */
@@ -842,10 +897,13 @@ html[data-motion="reduce"] *, html[data-motion="reduce"] *::before, html[data-mo
   html:not([data-calm]):not([data-motion="reduce"]) .sigil-face[data-fresh] { animation: face-break 600ms var(--ease-out); }
   html:not([data-calm]):not([data-motion="reduce"]) .encounter-wards li[data-fresh] { --mag: var(--mag-m); animation: pop 320ms var(--ease-spring); }
   html:not([data-calm]):not([data-motion="reduce"]) .encounter-cue:not([hidden]) { animation: fade 220ms ease-out; }
+  html:not([data-calm]):not([data-motion="reduce"]) .bossbar[data-hit] .bossbar-name { animation: hit 360ms var(--ease-out); }
+  html:not([data-calm]):not([data-motion="reduce"]) .bossbar-seg[data-fresh],
   html:not([data-calm]):not([data-motion="reduce"]) .encounter-seg[data-fresh],
   html:not([data-calm]):not([data-motion="reduce"]) [data-flash] { animation: flash 180ms ease-out; }
   html:not([data-calm]):not([data-motion="reduce"]) .hud-hearts i[data-break],
-  html:not([data-calm]):not([data-motion="reduce"]) .encounter-hearts i[data-break] { animation: heart-break 360ms var(--ease-out); }
+  html:not([data-calm]):not([data-motion="reduce"]) .encounter-hearts i[data-break],
+  html:not([data-calm]):not([data-motion="reduce"]) .bossbar-hearts i[data-break] { animation: heart-break 360ms var(--ease-out); }
 
   /* the chapter's finish, the contents page, the progress page */
   html:not([data-calm]):not([data-motion="reduce"]) .burst i { --a: calc(var(--i, 0) * 30deg); animation: burst 800ms var(--ease-out) forwards; }
@@ -862,6 +920,12 @@ html[data-motion="reduce"] *, html[data-motion="reduce"] *::before, html[data-mo
   /* toasts */
   html:not([data-calm]):not([data-motion="reduce"]) .toast { animation: toast-in 280ms var(--ease-out) both; }
   html:not([data-calm]):not([data-motion="reduce"]) .toast[data-out] { animation: toast-out 280ms ease-in both; }
+  /* the XP pill that flies from the solved card to the HUD bar (game.js flyXp; never made when still) */
+  html:not([data-calm]):not([data-motion="reduce"]) .xp-fly {
+    position: fixed; z-index: 44; margin: 0; pointer-events: none; transform-origin: center;
+    padding: .15rem .55rem; border-radius: var(--radius-xs); background: var(--hud-xp); color: var(--on-xp);
+    font: 700 .85rem/1.3 var(--display); font-variant-numeric: tabular-nums; white-space: nowrap;
+  }
 
   /* a result screen's reveal (src/ui/results.ts): rows fade in one after another, the
      numbers count up under an aria-hidden overlay, the medal stamps once. The module sets
@@ -945,8 +1009,8 @@ html[data-motion="reduce"] *, html[data-motion="reduce"] *::before, html[data-mo
   @keyframes form-ring { from { transform: translateX(-50%) scale(.4); opacity: .9; } to { transform: translateX(-50%) scale(1.5); opacity: 0; } }
   @keyframes form-flash { 0%, 100% { opacity: 0; } 50% { opacity: .9; } }
   @keyframes form-grow { from { transform: scale(.6); } to { transform: scale(1); } }
-  @keyframes toast-in { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }
-  @keyframes toast-out { to { opacity: 0; transform: translateY(-8px); } }
+  @keyframes toast-in { from { opacity: 0; transform: translateY(-12px); } to { opacity: 1; transform: none; } }
+  @keyframes toast-out { to { opacity: 0; transform: translateY(8px); } }
 }
 
 /* ================================================================ your form === */

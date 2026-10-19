@@ -1379,10 +1379,13 @@
         var level = ok ? 0 : misses === 1 && hint ? 1 : misses === 2 && hint2 ? 2 : 0;
         /* only the road to the first correct answer is recorded; re-solving changes nothing */
         var fresh = !solvedBefore();
+        /* the slip a wrong answer looks like, asked once: the attempt event names it and the ladder reuses it */
+        var slip = ok ? null : question(r.given);
         if (fresh) {
           var rec = Attempts.update(chapterId, key, function (a) { Road.check(a, ok, level, inline, section); });
           Store.emit({
             type: "attempt", chapter: chapterId, key: key, section: section, inline: inline,
+            detector: slip ? slip.id : null,
             correct: ok, tryNo: rec.tries, hintLevel: rec.hints || 0, solutionOpen: !!rec.opened, rung: rec.rung || 0, faded: Rules.fadedOf(rec)
           });
           if (ok) {
@@ -1418,7 +1421,7 @@
             ? Learn.misses.matchMiss({ given: r.given, kind: kind, type: type, blanks: blanks.map(function (b) { return { type: b.getAttribute("data-type") }; }) }, missNotes, matches)
             : null;
           var after = ladder
-            ? ladder.afterWrong(r.given, mi === null ? question(r.given) : null, mi === null ? null : missNotes[mi].html)
+            ? ladder.afterWrong(r.given, mi === null ? slip : null, mi === null ? null : missNotes[mi].html)
             : '<p class="ex-next hint">Not yet. Work it through once more' + (solution ? ", or open the solution." : ".") + "</p>";
           /* every clue open (or none to open): the solution button is the suggestion */
           if (solution && !(ladder && Learn.ladder.canOpen(ladder.state))) showBtn.setAttribute("data-suggested", "true");
