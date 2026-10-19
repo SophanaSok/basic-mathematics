@@ -22,7 +22,7 @@ interface Card { title: string; body: string; calm?: string; spot?: string }
 
 const CARDS: Card[] = [
   { title: "Read, then do.",
-    body: "A chapter opens one piece at a time. Each piece ends in a question; answer it to go on, or skip it and the course brings you back." },
+    body: "A chapter opens one piece at a time. Each piece ends in a question; answer it to go on, or skip it and the course brings you back. Press ? any time for the keyboard shortcuts." },
   { title: "Clues are free.",
     body: "Every problem has Show a clue from the start. A clue never costs anything. A wrong answer on a lesson question costs nothing either: it tells you which slip to look for." },
   { title: "Right? Compare.",
@@ -31,7 +31,7 @@ const CARDS: Card[] = [
     body: "Your level, XP toward the next level, and a flame for days in a row. In a practice set you also see three hearts; a wrong answer costs one, a clue or the solution never does.",
     calm: "Your level, XP toward the next level, and a flame for days in a row. Study mode is on, so hearts and the combo are off: nothing here is lost by a wrong answer." },
   { title: "Make it yours.", spot: ".hud-menu",
-    body: "Study mode removes hearts, bosses, motion and sound and keeps every hint. Reduce motion, sound and theme live in the menu (top right). Press ? for keyboard shortcuts. You can see this guide again from the menu." }
+    body: "Study mode removes hearts, bosses, motion and sound and keeps every hint. Reduce motion, sound and theme live in the menu (top right), and so does this guide." }
 ];
 
 let dlg: HTMLDialogElement | null = null;
