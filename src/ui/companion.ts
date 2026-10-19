@@ -382,7 +382,7 @@ export const api = {
   mood: (): Mood => mood,
   say: (line: string): void => { if (fig) apply({ mood: "delighted", pose: "delighted", line, key: "test", href: null }); },
   state: () => ({
-    mounted: !!fig, mood, pose, line: shownLine, key: current ? current.key : null,
+    mounted: !!fig, mood, pose, line: shownLine, key: current && shownLine ? current.key : null,
     pending: pending ? pending.key : null, stage
   })
 };
