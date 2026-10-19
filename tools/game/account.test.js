@@ -874,6 +874,49 @@ const ALL = ["google", "github", "discord", "facebook", "azure"];
     await on.context.close();
   }
 
+  /* 29. keep this device on a learner: the panel collapses until "I'm the parent" */
+  {
+    const keepOf = (page) => page.evaluate(() => JSON.parse(localStorage.getItem("bm.sync.v1") || "{}").keep);
+    const seed = { "bm.sync.v1": { learner: "L1", acct: "u1", learnerName: "Maya <b>" } };
+    const r = await open_({ learners: roster() }, { local: seed });
+    check(await r.page.evaluate(() => { const b = document.getElementById("lrn-keep"); return !!b && !b.checked && /Keep this device on Maya <b>/.test(b.parentNode.textContent) && document.querySelectorAll("#lrn-keep").length === 1 && b.closest("li").getAttribute("aria-current") === "true"; }), "29 the Playing as row has an unticked keep box, named and escaped");
+    await r.page.click("#lrn-keep");
+    await r.page.waitForSelector("#lrn-parent");
+    check(await keepOf(r.page) === "L1", "29 ticking writes keep", await keepOf(r.page));
+    check(/Playing as Maya <b>\. This device is kept on Maya <b>\./.test(await text(r.page, "[data-kept]")) && await r.page.evaluate(() => !document.getElementById("lrn-add") && !document.querySelector("#lrn-h ~ b, [data-kept] b b")), "29 the panel collapses to the kept line (escaped)", await text(r.page, "[data-kept]"));
+    const m1 = await r.page.evaluate(() => JSON.parse(localStorage.getItem("bm.sync.v1")));
+    check(m1.learner === "L1" && m1.acct === "u1" && m1.learnerName === "Maya <b>", "29 … and nothing else in the meta changed", m1);
+    await r.context.close();
+    /* a reload re-runs the seed, so the kept state is seeded (as a page load would find it) */
+    const k = await open({ providers: ["google"] }, { session: LS, stub: { learners: roster() }, local: { "bm.sync.v1": Object.assign({ keep: "L1" }, seed["bm.sync.v1"]) } });
+    r.page = k.page; r.context = k.context;
+    await r.page.waitForSelector("#lrn-parent");
+    await r.page.waitForTimeout(400);
+    check(!(await r.page.evaluate(() => !!document.getElementById("lrn-add"))) && (await calls(r.page, "learner_list")).length === 0, "29 after a reload it is still collapsed and reads no list", (await calls(r.page, "learner_list")).length);
+    await r.page.click("#lrn-parent");
+    await r.page.waitForSelector("#lrn-add");
+    await r.page.waitForSelector("#lrn-keep");
+    check((await calls(r.page, "learner_list")).length === 1 && await r.page.evaluate(() => document.getElementById("lrn-keep").checked && !document.getElementById("lrn-parent")), "29 I'm the parent reads the list once and shows the full panel, box ticked");
+    check(await r.page.evaluate(() => document.activeElement.id) === "lrn-h", "29 … with the focus on the heading");
+    await r.page.click("#lrn-keep");
+    await r.page.waitForTimeout(200);
+    check(await keepOf(r.page) === undefined && await r.page.evaluate(() => !!document.getElementById("lrn-add") && !document.getElementById("lrn-keep").checked), "29 unticking deletes keep and the panel stays expanded", await keepOf(r.page));
+    await r.page.click("#lrn-keep");
+    await r.page.waitForTimeout(200);
+    check(await keepOf(r.page) === "L1" && await r.page.evaluate(() => !!document.getElementById("lrn-add")), "29 ticking again in an expanded view keeps it expanded");
+    await r.page.click("#acct-out");
+    await r.page.waitForFunction(() => !document.querySelector("[data-account] #acct-out"));
+    check(await keepOf(r.page) === undefined, "29 sign-out deletes keep", await keepOf(r.page));
+    await r.context.close();
+    /* as the account's own progress there is no box; a kept id of another learner leaves the full panel */
+    const o = await open_({ learners: roster() }, { local: { "bm.sync.v1": { keep: "L1" } } });
+    check(await o.page.evaluate(() => !document.getElementById("lrn-keep") && !document.getElementById("lrn-parent") && !!document.getElementById("lrn-add")), "29 as self there is no keep box and no collapse");
+    await o.page.click("#lrn-sw-L2");
+    await o.page.waitForSelector("#lrn-keep");
+    check(await keepOf(o.page) === "L1" && await o.page.evaluate(() => !document.getElementById("lrn-keep").checked && !!document.getElementById("lrn-add")), "29 playing as a different learner leaves keep and the box unticked");
+    await o.context.close();
+  }
+
   check(errors.length === 0, "no uncaught page errors", errors);
   await browser.close();
   await server.close();
