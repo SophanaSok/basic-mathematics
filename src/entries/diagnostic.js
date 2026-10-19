@@ -51,6 +51,7 @@ import "../data/forms.ts";
 import "../core/forms.ts";
 import "../ui/form-unlock.ts";
 import "../ui/settings.ts";
+import "../ui/hud-pop.ts";
 /* the problem generators */
 import "../../data/gen/core.js";
 import "../../data/gen/part1.js";
@@ -73,6 +74,8 @@ import "../ui/diag-result.ts";
 import "../data/section-work.ts";
 import "../learn/plan.ts";
 import "../ui/plan.ts";
+/* the first-run guide (shown once on a chapter page) and its replay button in the settings sheet */
+import "../ui/first-run.ts";
 /* the keyboard layer: the pure keymap, then the DOM half, last, once everything it
    drives is up */
 import "../ui/keymap.ts";

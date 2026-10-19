@@ -489,7 +489,11 @@
         html += "<p>" + escapeHtml(ch.blurb) + "</p>";
         html += '<span class="meta">';
         if (ch.status === "full") {
-          html += "<span>" + (c.total ? c.solved + " / " + c.total + " exercises" : ch.sections.length + " sections") + "</span>";
+          /* the generated facts (src/data/chapter-meta.ts) tell a chapter's size before it has been opened */
+          var fm = window.BMHubList && window.BMHubList.meta && window.BMHubList.meta[ch.id];
+          var mins = fm && fm.minutes ? " · about " + fm.minutes + " min" : "";
+          html += "<span>" + (c.total ? c.solved + " / " + c.total + " exercises" + mins :
+            ch.sections.length + " sections" + (fm ? " · " + fm.scored + " exercises" + mins : "")) + "</span>";
           var m = Play.count(ch.id);
           if (m.total) {
             html += '<span class="stars" title="Missions completed on this chapter\'s figures">' + ico("star", "★") +
@@ -832,6 +836,15 @@
     var total = scored.length;
     Progress.setTotal(chapterId, total);
 
+    /* the inline checks' keys, as the loop below assigns them (an id, else "i" + position) */
+    var checkKeys = [], inlineSeen = 0;
+    Array.prototype.forEach.call(exs, function (ex) {
+      if (!ex.hasAttribute("data-inline")) return;
+      inlineSeen++;
+      checkKeys.push(ex.id || "i" + inlineSeen);
+    });
+    var checkTotal = checkKeys.length;
+
     var scoreEl = document.querySelector("[data-practice-score]");
     var sideEl = document.querySelector("[data-side-progress]");
     function solvedCount() {
@@ -843,7 +856,18 @@
       if (sideEl && total) {
         sideEl.hidden = false;
         sideEl.querySelector(".bar span").style.width = Math.round((n / total) * 100) + "%";
-        sideEl.querySelector("p").textContent = n + " of " + total + " exercises solved";
+        sideEl.querySelector("p").textContent = "Practice: " + n + " of " + total + " solved";
+      }
+      if (sideEl && checkTotal) {
+        var done = 0;
+        checkKeys.forEach(function (k) { if (Attempts.get(chapterId, k).solved) done++; });
+        var cp = sideEl.querySelector(".side-checks");
+        if (!cp) {
+          cp = document.createElement("p");
+          cp.className = "side-checks";
+          sideEl.appendChild(cp);
+        }
+        cp.textContent = "Checks: " + done + " of " + checkTotal;
       }
     }
 
@@ -1237,6 +1261,7 @@
           (solution ? '<p class="ex-next hint">' + (solutionOpen || !fromStorage
             ? "The solution is open below. Compare your route with it."
             : "Open the solution below to compare your route.") + "</p>" : ""));
+        if (!fromStorage && inline) updateScore();
         if (!fromStorage && !inline) {
           var before = solvedCount();
           Progress.markSolved(chapterId, key);

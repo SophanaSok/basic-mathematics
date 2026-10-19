@@ -814,6 +814,56 @@ async function run() {
       await context.close();
     }
 
+    /* ------------------- U-8: one progress story in the sidebar, a steady puzzle, a phone row */
+    {
+      const side = (page) => page.evaluate(() => {
+        var el = document.querySelector("[data-side-progress]");
+        return { text: el.textContent.replace(/\s+/g, " ").trim(), width: el.querySelector(".bar span").style.width };
+      });
+      const { context, page, errors } = await open(browser, CH05, { "bm.lesson.v1": '{"mode":"page"}' });
+      const N = await page.evaluate(() => document.querySelectorAll("#main .ex[data-inline]").length);
+      const T = await page.evaluate(() => document.querySelectorAll("#main .ex:not([data-inline])").length);
+      check(N > 0 && T > 0, "CH05 has inline checks and a practice set");
+      const s0 = await side(page);
+      check(s0.text.indexOf("Practice: 0 of " + T + " solved") > -1 && s0.text.indexOf("Checks: 0 of " + N) > -1, "the sidebar opens with both counts: " + s0.text);
+      await answer(page, "#t1", true);
+      const s1 = await side(page);
+      check(s1.text.indexOf("Checks: 1 of " + N) > -1 && s1.text.indexOf("Practice: 0 of " + T) > -1, "a solved Your turn moves the Checks count only: " + s1.text);
+      eq(s1.width, s0.width, "the bar still tracks the practice set");
+      await answer(page, '#practice .ex[data-key="e1"]', true);
+      const s2 = await side(page);
+      check(s2.text.indexOf("Practice: 1 of " + T) > -1 && s2.text.indexOf("Checks: 1 of " + N) > -1, "a solved exercise moves the Practice count: " + s2.text);
+      await page.reload();
+      await page.waitForFunction(() => document.readyState === "complete");
+      const s3 = await side(page);
+      check(s3.text.indexOf("Practice: 1 of " + T) > -1 && s3.text.indexOf("Checks: 1 of " + N) > -1, "both counts are restored on reload: " + s3.text);
+      eq(errors, [], "no errors on the sidebar counts");
+      await context.close();
+    }
+    {
+      const { context, page, errors } = await open(browser, CH05, { "bm.lesson.v1": '{"mode":"steps"}' });
+      const top = () => page.evaluate(() => { var n = document.querySelector(".lesson-next"); return n ? n.getBoundingClientRect().top : null; });
+      const t0 = await top();
+      check(t0 !== null, "the Continue card is on the opening step");
+      await page.click(".puzzle .guess-chip");
+      const t1 = await top();
+      check(t0 !== null && t1 !== null && Math.abs(t1 - t0) <= 1, "picking a guess does not move the Continue card (" + t0 + " -> " + t1 + ")");
+      eq(errors, [], "no errors on the opening puzzle");
+      await context.close();
+    }
+    {
+      const { context, page, errors } = await open(browser, CH05, { "bm.lesson.v1": '{"mode":"page"}' }, { width: 390 });
+      const g = await page.evaluate(() => {
+        var ex = Array.prototype.filter.call(document.querySelectorAll("#practice .ex[data-kind='text']"), function (e) { return e.querySelector(".ex-show"); })[0];
+        var r = function (el) { var b = el.getBoundingClientRect(); return { l: b.left, r: b.right, t: b.top, b: b.bottom }; };
+        return { input: r(ex.querySelector(".ex-form > input")), check: r(ex.querySelector(".ex-form .btn:not(.ghost)")), show: r(ex.querySelector(".ex-show")) };
+      });
+      check(g.show.t >= g.input.b - 0.5, "on a phone, Show solution sits below the answer box");
+      check(g.show.l > g.check.r, "on a phone, Show solution is beside Check, not under the box's left half (" + g.show.l + " > " + g.check.r + ")");
+      eq(errors, [], "no errors on the phone row");
+      await context.close();
+    }
+
     /* ------------------------------- the theme choice with storage that throws */
     {
       const { context, page, errors } = await open(browser, "index.html", {}, { blockStorage: true });
@@ -2259,6 +2309,158 @@ async function run() {
         await answer(page, sel, false);
         eq(await page.$$eval(sel + " .ex-offer", (n) => n.length), 1, "the second wrong check has its offer line");
         eq(errors, [], "no errors in the light case");
+        await context.close();
+      }
+    }
+      /* 10. the HUD explains itself (card U-7): a chip on hover, a popover on the level badge */
+      {
+        const days = {}; days[dayAgo(0)] = 13; days[dayAgo(1)] = 140; days[dayAgo(3)] = 20;
+        const seed = { "bm.lesson.v1": '{"mode":"page"}', "bm.activity.v1": JSON.stringify({ days }) };
+        const boxes = (page) => page.evaluate(() => Array.from(document.querySelectorAll(".topbar .hud > *")).map((e) => { const r = e.getBoundingClientRect(); return [e.className, r.x, r.y, r.width, r.height].join(" "); }));
+        for (const reduced of ["no-preference", "reduce"]) {
+          const { context, page, errors } = await open(browser, CH05, seed, { reducedMotion: reduced });
+          await page.waitForSelector(".topbar .hud-streak");
+          const before = await boxes(page);
+          await page.hover(".topbar .hud-streak");
+          await page.waitForSelector(".hud-tip:not([hidden])", { timeout: 400 + 250 });
+          const tip = await page.$$eval(".hud-tip", (n) => n.map((e) => ({ t: e.textContent, hidden: e.getAttribute("aria-hidden") })));
+          eq(tip.length, 1, reduced + ": one chip");
+          check(/Streak: 2 days\. Today: 13 of 30 XP\./.test(tip[0].t) && tip[0].hidden === "true", reduced + ": the streak chip says " + tip[0].t);
+          eq(await boxes(page), before, reduced + ": the chip moves no part of the bar");
+          if (reduced === "reduce") eq(await page.evaluate(() => document.getAnimations().length), 0, "reduce motion: no animation while the chip shows");
+          await page.mouse.move(600, 600);
+          await page.waitForTimeout(300);
+          eq(await page.$$eval(".hud-tip:not([hidden])", (n) => n.length), 0, reduced + ": the chip is gone after the pointer leaves");
+          eq(errors, [], reduced + ": no errors with the chip");
+          await context.close();
+        }
+        {
+          const { context, page, errors } = await open(browser, CH05, seed);
+          await page.waitForSelector(".topbar .hud-level");
+          const here = new URL(page.url()).pathname;
+          await page.click(".topbar .hud-level");
+          await page.waitForSelector(".hud-pop");
+          eq(new URL(page.url()).pathname, here, "a plain click on the badge does not navigate");
+          const txt = await page.textContent(".hud-pop");
+          check(/Level \d+ · \w+/.test(txt) && /XP to level/.test(txt), "the popover names the level and rank and the XP to level: " + txt);
+          check(/Form: \w+/.test(txt), "the popover names the form: " + txt);
+          check(/Active 3 of the last 30 days/.test(txt), "the popover counts the active days");
+          eq(await page.getAttribute(".hud-pop a", "href"), "../../progress.html", "the popover links to the progress page");
+          await page.keyboard.press("Tab");
+          check(await page.evaluate(() => !!document.activeElement && document.activeElement.classList.contains("pop-link")), "Tab goes into the popover");
+          await page.keyboard.press("Escape");
+          eq(await page.$$eval(".hud-pop", (n) => n.length), 0, "Escape closes the popover");
+          check(await page.evaluate(() => !!document.activeElement && document.activeElement.classList.contains("hud-level")), "focus is back on the badge");
+          await page.keyboard.press("Enter");
+          await page.waitForSelector(".hud-pop");
+          eq(new URL(page.url()).pathname, here, "Enter on the badge opens the popover too");
+          await page.mouse.click(600, 600);
+          eq(await page.$$eval(".hud-pop", (n) => n.length), 0, "a click outside closes it");
+          const start = page.url();
+          const popup = context.waitForEvent("page", { timeout: 4000 }).catch(() => null);
+          await page.click(".topbar .hud-level", { modifiers: ["Control"] });
+          const tab = await popup;
+          if (tab) await tab.waitForLoadState().catch(() => {});
+          check(page.url() === start && !!tab && /\/progress\.html/.test(tab.url()), "Ctrl+click opens progress.html in a new tab (" + (tab && tab.url()) + ")");
+          eq(await page.$$eval(".hud-pop", (n) => n.length), 0, "Ctrl+click opens no popover");
+          eq(errors, [], "no errors with the popover");
+          await context.close();
+        }
+      }
+    /* ------------------------------------------------ U-6b: the first-run guide */
+    {
+      const UNSEEN = { "bm.guide.v1": '{"v":1}' };
+      const guideKey = (page) => page.evaluate(() => JSON.parse(localStorage.getItem("bm.guide.v1") || "null"));
+      const step = (page) => page.$eval("#guide-sheet .guide-step", (e) => e.textContent);
+      const isOpen = (page) => page.evaluate(() => { const d = document.getElementById("guide-sheet"); return !!d && d.open; });
+      {
+        const { context, page, errors } = await open(browser, CH05, UNSEEN);
+        await page.waitForSelector("#guide-sheet[open]", { timeout: 1500 });
+        eq(await page.evaluate(() => document.activeElement && document.activeElement.id), "guide-sheet-title", "guide: the title is focused");
+        eq(await step(page), "1 of 5", "guide: opens on card 1 of 5");
+        await page.click("#guide-sheet [data-guide-next]");
+        eq(await step(page), "2 of 5", "guide: Next goes to 2 of 5");
+        await page.click("#guide-sheet [data-guide-back]");
+        eq(await step(page), "1 of 5", "guide: Back goes to 1 of 5");
+        /* j and k do nothing while it is open */
+        await page.keyboard.press("j");
+        await page.keyboard.press("k");
+        eq(await page.$$eval("[data-keys-cursor]", (n) => n.length), 0, "guide: j and k do not move the shortcut cursor");
+        /* Tab stays inside the modal */
+        let inside = true;
+        for (let i = 0; i < 8; i++) { await page.keyboard.press("Tab"); inside = inside && await page.evaluate(() => { const a = document.activeElement; return a === document.body || !!a.closest("#guide-sheet"); }); }
+        check(inside, "guide: Tab stays inside the dialog");
+        await page.keyboard.press("Escape");
+        check(!(await isOpen(page)), "guide: Escape closes it");
+        check(!!(await guideKey(page)).seen, "guide: Escape writes seen");
+        await page.reload();
+        await page.waitForFunction(() => document.readyState === "complete");
+        await wait(400);
+        check(!(await isOpen(page)), "guide: a reload shows no dialog");
+        eq(errors, [], "guide: no errors");
+        await context.close();
+      }
+      {
+        const { context, page } = await open(browser, CH05, UNSEEN);
+        await page.waitForSelector("#guide-sheet[open]", { timeout: 1500 });
+        await page.click("#guide-sheet [data-guide-next]");
+        await page.click("#guide-sheet [data-guide-next]");
+        eq(await step(page), "3 of 5", "guide: card 3");
+        await page.click("#guide-sheet [data-guide-skip]");
+        check(!(await isOpen(page)) && !!(await guideKey(page)).seen, "guide: Skip on card 3 sets seen");
+        await context.close();
+      }
+      {
+        const { context, page } = await open(browser, CH05, UNSEEN);
+        await page.waitForSelector("#guide-sheet[open]", { timeout: 1500 });
+        for (let i = 0; i < 4; i++) await page.click("#guide-sheet [data-guide-next]");
+        eq(await step(page), "5 of 5", "guide: card 5");
+        check(await page.$eval("#guide-sheet [data-guide-next]", (b) => b.hidden), "guide: no Next on the last card");
+        await page.click("#guide-sheet [data-guide-done]");
+        check(!(await isOpen(page)) && !!(await guideKey(page)).seen, "guide: Done on card 5 sets seen");
+        await context.close();
+      }
+      {
+        const { context, page } = await open(browser, "index.html", UNSEEN);
+        await wait(600);
+        check(!(await isOpen(page)), "guide: index.html shows no dialog");
+        await context.close();
+      }
+      {
+        const { context, page } = await open(browser, CH05, UNSEEN);
+        await page.waitForSelector("#guide-sheet[open]", { timeout: 1500 });
+        await page.click("#guide-sheet [data-guide-skip]");
+        const seen = (await guideKey(page)).seen;
+        await page.click(".topbar .hud-menu");
+        await page.click("#hud-sheet [data-guide-replay]");
+        await page.waitForSelector("#guide-sheet[open]");
+        eq(await step(page), "1 of 5", "guide: replay opens on card 1");
+        await page.keyboard.press("Escape");
+        eq(await page.evaluate(() => document.activeElement && document.activeElement.className.indexOf("hud-menu") >= 0), true, "guide: closing restores focus to the menu button");
+        const k = await guideKey(page);
+        check(k.seen === seen && !!k.replay, "guide: replay writes replay and keeps seen");
+        await context.close();
+      }
+      {
+        const { context, page } = await open(browser, "index.html");
+        await page.click(".topbar .hud-menu");
+        await page.click("#hud-sheet [data-guide-replay]");
+        await page.waitForSelector("#guide-sheet[open]");
+        eq(await step(page), "1 of 5", "guide: replay opens on a non-chapter page");
+        await context.close();
+      }
+      {
+        const { context, page } = await open(browser, CH05, Object.assign({ "bm.prefs.v1": '{"calm":true}' }, UNSEEN));
+        await page.waitForSelector("#guide-sheet[open]", { timeout: 1500 });
+        for (let i = 0; i < 3; i++) await page.click("#guide-sheet [data-guide-next]");
+        check(/hearts and the combo are off/.test(await page.$eval("#guide-sheet .guide-body", (e) => e.textContent)), "guide: Study mode card 4 says hearts and the combo are off");
+        eq(await page.evaluate(() => document.getAnimations().length), 0, "guide: no animations in Study mode");
+        await context.close();
+      }
+      {
+        const { context, page } = await open(browser, CH05, { "bm.guide.v1": null, "bm.progress.v1": JSON.stringify({ ch05: { solved: { e1: 1 }, total: 5 } }) });
+        await wait(700);
+        check(!(await isOpen(page)) && !!(await guideKey(page)).seen, "guide: an existing learner gets no dialog and seen is written");
         await context.close();
       }
     }

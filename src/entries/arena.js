@@ -55,6 +55,7 @@ import "../data/forms.ts";
 import "../core/forms.ts";
 import "../ui/form-unlock.ts";
 import "../ui/settings.ts";
+import "../ui/hud-pop.ts";
 /* the skippable reveal of the result screen (window.BMResults), found by arena.js */
 import "../ui/results.ts";
 import "../../data/gen/core.js";
@@ -66,6 +67,8 @@ import "../../data/gen/packs.js";
 import "../../assets/arena.js";
 import "../../assets/config.js";
 import "../../assets/account.js";
+/* the first-run guide (shown once on a chapter page) and its replay button in the settings sheet */
+import "../ui/first-run.ts";
 /* the keyboard layer: the pure keymap, then the DOM half, last, once everything it
    drives is up */
 import "../ui/keymap.ts";

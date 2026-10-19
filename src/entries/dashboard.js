@@ -57,6 +57,7 @@ import "../ui/events.ts";
 import "../../assets/sfx.js";
 import "../../assets/game.js";
 import "../ui/settings.ts";
+import "../ui/hud-pop.ts";
 import "../../assets/config.js";
 import "../../assets/account.js";
 /* the placement check's study plan, which insights.js draws when a take exists: the pure
@@ -83,6 +84,8 @@ import "../ui/form-unlock.ts";
    draw is already made), which redraws once when it finds BMNext on the page's load */
 import "../learn/next.ts";
 import "../ui/next.ts";
+/* the first-run guide (shown once on a chapter page) and its replay button in the settings sheet */
+import "../ui/first-run.ts";
 /* the keyboard layer: the pure keymap, then the DOM half, last, once everything it
    drives is up */
 import "../ui/keymap.ts";

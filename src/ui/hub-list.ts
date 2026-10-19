@@ -16,6 +16,7 @@
 import { hubState, type Band, type HubInput, type IsleState, type Solid } from "../world/state.ts";
 import { dueSplit } from "../learn/review.ts";
 import { ARENA_SECTIONS } from "../data/arena-sections.ts";
+import { CHAPTER_META } from "../data/chapter-meta.ts";
 
 const REVIEW_HREF = "arena.html?mode=review";
 
@@ -154,6 +155,9 @@ export function redraw(root: ParentNode = document): boolean {
   return true;
 }
 
-export const api = { decorate, hubInput, hubIds, redraw, masteryLine, hubState };
+/** per-chapter facts for the legacy scripts (assets/site.js reads this for the chapter cards) */
+export const meta = CHAPTER_META;
+
+export const api = { decorate, hubInput, hubIds, redraw, masteryLine, hubState, meta };
 
 if (typeof window !== "undefined") (window as any).BMHubList = api;

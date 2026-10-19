@@ -26,6 +26,7 @@ import "../learn/recall.ts";
 import "../learn/review.ts";
 import "../learn/practice.ts";
 import "../data/arena-sections.ts";
+import "../data/chapter-meta.ts";
 import "../ui/review.ts";
 /* names for the buttons, labels, table headers and headings whose content is a
    formula, which site.js gives after every renderMath (window.BMMathNames): the pure
@@ -65,6 +66,7 @@ import "../ui/events.ts";
 import "../../assets/sfx.js";
 import "../../assets/game.js";
 import "../ui/settings.ts";
+import "../ui/hud-pop.ts";
 import "../../assets/config.js";
 import "../../assets/account.js";
 import "../world/tiers.ts";
@@ -77,6 +79,8 @@ import "../../assets/map3d.js";
 /* the "next best step" card, drawn once the scripts above have run */
 import "../learn/next.ts";
 import "../ui/next.ts";
+/* the first-run guide (shown once on a chapter page) and its replay button in the settings sheet */
+import "../ui/first-run.ts";
 /* the keyboard layer: the pure keymap, then the DOM half, last, once everything it
    drives is up */
 import "../ui/keymap.ts";

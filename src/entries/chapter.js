@@ -85,6 +85,7 @@ import "../data/forms.ts";
 import "../core/forms.ts";
 import "../ui/form-unlock.ts";
 import "../ui/settings.ts";
+import "../ui/hud-pop.ts";
 /* the skippable reveal of the chapter finale (window.BMResults), found by encounter.js */
 import "../ui/results.ts";
 import "../../assets/encounter.js";
@@ -94,6 +95,8 @@ import "../../assets/account.js";
 /* the "next best step" card, drawn once the scripts above have run */
 import "../learn/next.ts";
 import "../ui/next.ts";
+/* the first-run guide (shown once on a chapter page) and its replay button in the settings sheet */
+import "../ui/first-run.ts";
 /* the keyboard layer: the pure keymap, then the DOM half, last, once everything it
    drives is up */
 import "../ui/keymap.ts";
