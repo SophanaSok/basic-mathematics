@@ -76,6 +76,8 @@ import "../core/forms.ts";
 /* records a new form and says so on every page: see the header of ../ui/form-unlock.ts */
 import "../ui/form-unlock.ts";
 import "../../assets/map3d.js";
+/* the contents page's List / Map control, drawn once the scripts above have run */
+import "../ui/hub-mode.ts";
 /* the "next best step" card, drawn once the scripts above have run */
 /* where each section stands and the one continue resolver (src/learn/status.ts): next.ts and plan.ts read it */
 import "../data/section-work.ts";
