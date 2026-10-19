@@ -22,7 +22,7 @@
    m. Map -> List keeps the hash and the marked card; List -> Map frames the island again
    n. a chapter page's "All chapters" and "Course contents" links carry #<chapter>; following one marks the card
    o. a reload keeps the selection
-   p. an unknown hash marks nothing and throws nothing
+   p. a load with an unknown hash marks nothing and throws nothing
    i/q. no page errors */
 "use strict";
 const site = require("../lib/site");
@@ -253,8 +253,9 @@ async function run() {
         return { on: window.BMMap3D.on(), focused: document.activeElement === li.querySelector(".stop-link"), marked: li.hasAttribute("data-selected"), top: r.top, bottom: r.bottom, vh: window.innerHeight };
       });
       check(!k.on && k.marked && k.focused && k.top >= 0 && k.bottom <= k.vh, "k: in List the card is marked, focused and in the viewport (" + JSON.stringify(k) + ")");
-      /* p: an unknown hash */
+      /* p: an unknown hash, on a load (a hash changed in place to one that names no chapter keeps the mark) */
       await page.goto(server.url + "index.html#nope");
+      await page.reload();
       await page.waitForFunction(() => window.BMHubMode && window.BMHubMode.state().mounted, null, { timeout: 15000 });
       await wait(500);
       check((await marked(page)).length === 0 && (await page.evaluate(() => window.BMHubSelect.current())) === null, "p: an unknown hash marks nothing");

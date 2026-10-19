@@ -85,11 +85,27 @@ export function set(chapterId: string, section?: string | null, how?: string): v
   tell(sel, how || "set");
 }
 
+/** whether the map is drawn now (it shares the choices made on it itself) */
+function mapOn(): boolean {
+  try { return !!w().BMMap3D.on(); } catch { return false; }
+}
+
 function mount(): void {
-  if (!host() || !w().BMStore || listening) return;
+  const h = host();
+  if (!h || !w().BMStore || listening) return;
   listening = true;
   w().BMStore.on((c: { type?: string }) => { if (c && c.type === "home") mark(read()); });
+  /* in List view a card focused is the choice (the map does this itself while it is drawn) */
+  h.addEventListener("focusin", (e) => {
+    if (mapOn()) return;
+    const a = (e.target as Element | null)?.closest?.("a.stop-link");
+    const li = a?.closest?.("li.stop");
+    const id = li?.getAttribute("data-chapter");
+    if (id) set(id, null, "list");
+  });
   window.addEventListener("hashchange", () => {
+    /* a hash that names no chapter (an in-page anchor) leaves the mark as it was */
+    if (location.hash && !read()) return;
     apply("hash");
     const sel = read();
     if (sel) tell(sel, "hash");
