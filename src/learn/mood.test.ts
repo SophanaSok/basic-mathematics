@@ -31,6 +31,9 @@ describe("arrival", () => {
   it("a new learner is content with no line", () => {
     expect(arrival(inp({ lastActiveDay: null }))).toEqual(R("content", "rest", null, null));
   });
+  it("a malformed lastActiveDay gives no line", () => {
+    for (const d of ["", "garbage", "2026-13-45x"]) expect(arrival(inp({ lastActiveDay: d })).line).toBeNull();
+  });
   it("otherwise content", () => {
     expect(arrival(inp())).toEqual(R("content", "rest", null, null));
   });
@@ -62,6 +65,53 @@ describe("react", () => {
     expect(out.memory).not.toBe(m);
     expect(out.memory.misses).toEqual({ k: 2 });
     expect(EMPTY_MEMORY.misses).toEqual({});
+  });
+  it("keys like constructor and __proto__ count like any other", () => {
+    for (const key of ["constructor", "__proto__", "toString", "hasOwnProperty"]) {
+      const wrong: Recent = { type: "attempt", key, correct: false, tryNo: 1 };
+      const a = go(wrong);
+      expect(a.reaction?.line).toBeNull();
+      expect(Object.hasOwn(a.memory.misses, key)).toBe(true);
+      expect(a.memory.misses[key]).toBe(1);
+      const b = go(wrong, {}, a.memory);
+      expect(b.reaction).toEqual(R("curious", "curious", "Let's look again.", "again"));
+      expect(b.memory.misses[key]).toBe(2);
+    }
+  });
+  it("an empty-string key counts like any other", () => {
+    const wrong: Recent = { type: "attempt", key: "", correct: false, tryNo: 1 };
+    const a = go(wrong);
+    const b = go(wrong, {}, a.memory);
+    expect(b.reaction?.key).toBe("again");
+  });
+  it("tryNo 0 or missing is not a first try", () => {
+    expect(rx({ type: "attempt", key: "k", correct: true, tryNo: 0 })).toEqual(R("content", "rest", null, null));
+    expect(rx({ type: "attempt", key: "k", correct: true } as unknown as Recent)).toEqual(R("content", "rest", null, null));
+  });
+  it("a varied comboMax moves the pip threshold", () => {
+    expect(rx({ type: "combo", pips: 3, why: "hit" }, { comboMax: 3 })).toEqual(R("delighted", "delighted", null, null));
+    expect(rx({ type: "combo", pips: 5, why: "hit" }, { comboMax: 8 })).toBeNull();
+  });
+  it("an unfresh ward is quiet", () => {
+    expect(rx({ type: "encounter", cue: "ward", hearts: 3, fresh: false })).toBeNull();
+  });
+  it("calm silences combo and encounter", () => {
+    expect(rx({ type: "combo", pips: 5, why: "max" }, { calm: true })).toBeNull();
+    expect(rx({ type: "encounter", cue: "down", hearts: 3, fresh: true }, { calm: true })).toBeNull();
+  });
+  it("every reaction's pose is in POSES", () => {
+    const all: Recent[] = [
+      { type: "attempt", key: "k", correct: true, tryNo: 1 }, { type: "attempt", key: "k", correct: true, tryNo: 2 },
+      { type: "attempt", key: "k", correct: false, tryNo: 1 }, { type: "solved", fresh: true },
+      { type: "opened" }, { type: "ladder" }, { type: "twin" }, { type: "xp", goalMet: true },
+      { type: "combo", pips: 5, why: "max" }, { type: "encounter", cue: "down", hearts: 1, fresh: true },
+      { type: "encounter", cue: "ward", hearts: 1, fresh: true }, { type: "encounter", cue: "heart", hearts: 1, fresh: true },
+      { type: "encounter", cue: "x", hearts: 0, fresh: true }, { type: "chapterDone", fresh: true },
+      { type: "level", level: 2 }, { type: "achievement", title: "t" }, { type: "form", from: "A", to: "B" }
+    ];
+    for (const r of all) expect(POSES).toContain(rx(r)?.pose);
+    const due = { ref: "r", title: "T", href: "h" };
+    for (const a of [arrival(inp()), arrival(inp({ due })), arrival(inp({ lastActiveDay: "2026-01-01" }))]) expect(POSES).toContain(a.pose);
   });
   it("solved", () => {
     expect(rx({ type: "solved", fresh: true })).toEqual(R("content", "rest", null, null));
@@ -139,6 +189,10 @@ describe("throttle", () => {
     expect(canSay(t, 10000 + SAY_GAP_MS - 1)).toBe(false);
     expect(canSay(t, 10000 + SAY_GAP_MS)).toBe(true);
     expect(EMPTY_THROTTLE.lastSaid).toBe(0);
+  });
+  it("a clock that went backwards is allowed", () => {
+    expect(canSay(said(EMPTY_THROTTLE, 10000), 5000)).toBe(true);
+    expect(canSay(noteVerdict(EMPTY_THROTTLE, 10000), 5000)).toBe(true);
   });
   it("is quiet after a verdict", () => {
     const t = noteVerdict(EMPTY_THROTTLE, 10000);
