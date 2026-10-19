@@ -1117,9 +1117,9 @@ async function run() {
         groups: Array.from(document.querySelectorAll("#achievements h3.ach-group")).map((h) => h.textContent)
       }));
       eq(f.labels.slice(0, 3), ["Level", "Streak", "Today"], "fresh: the tiles lead with Level, Streak, Today");
-      eq([f.head, f.next], ["Your next steps", ["Start with Chapter 1", "Find your starting point"]], "fresh: the empty chart is the next steps");
-      check(f.hrefs[0].endsWith("parts/1-algebra/01-numbers.html") && f.hrefs[1].endsWith("diagnostic.html"), "fresh: the next steps link to Chapter 1 and the check");
-      eq([f.chips, f.chart, /^Active on 0 days/.test(f.note)], [4, false, true], "fresh: goal chips and the note stay, the chart is gone");
+      eq([f.head, f.next], ["Your next steps", ["Start with Chapter 1"]], "fresh: the empty chart is the next steps, without the check (the invitation panel has it)");
+      check(f.hrefs.length === 1 && f.hrefs[0].endsWith("parts/1-algebra/01-numbers.html"), "fresh: the next steps link to Chapter 1");
+      eq([f.chips, f.chart, f.note], [4, false, "Your 14-day chart appears once you have studied on two days."], "fresh: goal chips and the note stay, the chart is gone");
       eq(f.ach, 28, "fresh: 28 achievements");
       check(!f.groups.includes("Closest to done") && !f.groups.includes("Other"), "fresh: no Closest to done and no Other group");
       eq(f.groups, ["Habits and streaks", "First try and accuracy", "Careful study", "Arena", "Review and repair", "Completion"], "fresh: the group headings in order");
@@ -2393,7 +2393,11 @@ async function run() {
         eq(await page.$$eval("[data-keys-cursor]", (n) => n.length), 0, "guide: j and k do not move the shortcut cursor");
         /* Tab stays inside the modal */
         let inside = true;
-        for (let i = 0; i < 8; i++) { await page.keyboard.press("Tab"); inside = inside && await page.evaluate(() => { const a = document.activeElement; return a === document.body || !!a.closest("#guide-sheet"); }); }
+        const seen = [];
+        for (let i = 0; i < 8; i++) { await page.keyboard.press("Tab"); seen.push(await page.evaluate(() => { const a = document.activeElement; return a ? a.tagName + "#" + a.id + (a.closest("#guide-sheet") ? " in" : " out") : "none"; })); }
+        /* headless Chromium hands focus to the frame (BODY) once, after the last button, and the next Tab is back inside: allow that hand-off, never an element of the page */
+        inside = seen.every((x, i) => / in$/.test(x) || (/^BODY#/.test(x) && i < seen.length - 1 && / in$/.test(seen[i + 1])));
+        if (!inside) console.log("guide Tab trail:", seen.join(", "));
         check(inside, "guide: Tab stays inside the dialog");
         await page.keyboard.press("Escape");
         check(!(await isOpen(page)), "guide: Escape closes it");

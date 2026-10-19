@@ -54,19 +54,19 @@
     return out;
   }
 
-  /* "Your next steps", in the place of an empty chart: up to three of BMNext's items, or two fixed
-     ones for a brand-new learner (no last place, no deck) */
+  /* "Your next steps", in the place of an empty chart: up to three of BMNext's items, or Chapter 1
+     for a brand-new learner (no last place, no deck) */
   function nextSteps() {
     var items = [], root = Site.rootPrefix();
     try { items = window.BMNext && typeof window.BMNext.items === "function" ? window.BMNext.items().slice(0, 3) : []; }
     catch (e) { items = []; }
     if (!items.length) {
       items = [
-        { text: "Start with Chapter 1", href: "parts/1-algebra/01-numbers.html", why: "The first chapter builds everything after it." },
-        { text: "Find your starting point", href: "diagnostic.html", why: "A short placement check with no timer." }
+        { text: "Start with Chapter 1", href: "parts/1-algebra/01-numbers.html", why: "The first chapter builds everything after it." }
       ];
-      /* a reader who has taken the check has the plan above, and no link back to it (plan.js asserts) */
-      if (hasTake()) items.pop();
+      /* "Find your starting point" is not listed here: with no take the invitation panel above
+         (#start-check) already says it, and a reader who has taken the check has the plan and no
+         link back to it (plan.js asserts) */
     }
     return '<div class="next-list"><h3>Your next steps</h3>' + items.map(function (it) {
       return '<div class="next-item"><a href="' + esc(root + it.href) + '">' + esc(it.text) + "</a>" +
@@ -78,8 +78,8 @@
     var days = lastDays(14), goal = Activity.goal();
     var active = days.filter(function (d) { return d.xp > 0; }).length;
     var met = days.filter(function (d) { return d.xp >= goal; }).length;
+    if (active <= 1) return nextSteps() + '<p class="chart-note">Your 14-day chart appears once you have studied on two days.</p>';
     var note = '<p class="chart-note">Active on ' + plural(active, "day") + " of the last 14; daily goal met on " + met + ".</p>";
-    if (active <= 1) return nextSteps() + note;
     var top = Math.max(goal, Math.max.apply(null, days.map(function (d) { return d.xp; }))) * 1.1;
     var html = '<div class="daychart" role="img" aria-label="XP earned on each of the last 14 days">';
     html += '<span class="daychart-goal" style="bottom:' + (goal / top) * 100 + '%"><i>goal ' + goal + "</i></span>";
@@ -384,7 +384,7 @@
   if (page && Progress && Play && Activity && Insights) {
     drawProgress();
     /* src/ui/next.ts comes after this file in the entry: once the page's scripts have run, draw again
-       so "Your next steps" has the reader's real items rather than the two fixed ones */
+       so "Your next steps" has the reader's real items rather than the fixed one */
     if (!window.BMNext) {
       var again = function () { if (window.BMNext) drawProgress(); };
       if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", again);

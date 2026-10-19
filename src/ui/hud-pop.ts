@@ -86,6 +86,7 @@ function el<K extends keyof HTMLElementTagNameMap>(tag: K, cls?: string, text?: 
 
 let tip: HTMLElement | null = null;
 let timer = 0;
+let live = 0;
 let current: HTMLElement | null = null;
 let pop: HTMLElement | null = null;
 let quiet = false;
@@ -100,6 +101,8 @@ function place(box: HTMLElement, anchor: HTMLElement, bar: HTMLElement): void {
 
 function hideTip(): void {
   window.clearTimeout(timer);
+  window.clearInterval(live);
+  live = 0;
   current = null;
   if (tip) { tip.removeAttribute("data-show"); tip.hidden = true; }
 }
@@ -120,6 +123,14 @@ function showTip(part: HTMLElement): void {
   place(tip, part, bar);
   void tip.offsetWidth;
   tip.setAttribute("data-show", "true");
+  /* the clock chip follows the clock; every other chip, and the popover, stay snapshots */
+  if (part.classList.contains("hud-timer")) {
+    live = window.setInterval(() => {
+      const t = tipText(part);
+      if (!t || !tip || current !== part) { hideTip(); return; }
+      tip.textContent = t;
+    }, 500);
+  }
 }
 
 function closePop(refocus: boolean): void {

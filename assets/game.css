@@ -206,7 +206,9 @@ html[data-calm] .hud-sound { opacity: .5; cursor: not-allowed; }
 .guide-sheet .guide-actions [data-guide-skip] { margin-right: auto; }
 .guide-sheet .guide-actions [hidden] { display: none; }
 [data-guide-spot] { outline: 3px solid var(--focus); outline-offset: 2px; }
-[data-guide-replay] { margin-top: .5rem; }
+/* in the Comfort group it sits on the switch rows' left edge (their .75rem padding) */
+.hud-sheet [data-guide-replay] { margin: .6rem 0 .25rem .75rem; }
+@media (max-width: 520px) { .hud-sheet [data-guide-replay] { display: block; width: calc(100% - 1.5rem); } }
 /* the go-to palette "/" opens: the same paper, a full-width box and a plain list; the
    selected row as the Arena board marks the reader's own row */
 .keys-palette input {
