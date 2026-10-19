@@ -350,7 +350,8 @@
     /* the boss answers a lost heart in the voice of the slip; the next solve ends it */
     if (st.hp < (prev ? prev.hp : st.hp) || st.won) set.say = "";
     if (cue === "heart") {
-      set.say = TAUNTS[set.detector] || (!set.review && boss && boss.taunt) || "Not yet. I can wait.";
+      set.say = (set.detector && Object.prototype.hasOwnProperty.call(TAUNTS, set.detector) ? TAUNTS[set.detector] : "") ||
+        (!set.review && boss && boss.taunt) || "Not yet. I can wait.";
     }
     if (fresh) set.detector = null;
     var changed = !prev || prev.hp !== st.hp || prev.hearts !== st.hearts || prev.medal !== medal || prev.state !== state;
@@ -365,7 +366,8 @@
       });
     }
     hudHearts();
-    barRefresh(fresh && !!prev, hit);
+    /* the shake and the break belong to the set the bar shows; another set's event paints it still */
+    barRefresh(set === barSet && fresh && !!prev, set === barSet && hit);
   }
 
   function rematchHref() { return root + "arena.html?boss=" + encodeURIComponent(chapterId); }

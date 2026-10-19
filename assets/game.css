@@ -647,8 +647,12 @@ input.blank[data-ok="false"] { border-color: var(--bad); background-image: var(-
 /* The fight in one line, fixed under the HUD while the set is in view and its card is not
    (assets/encounter.js). A dark frame surface; its classes are its own, outside the reading column. */
 
+/* while the bar shows, the sticky sidebar and a top toast stack start below it (the bar sits under
+   the top bar's stacking context, so the settings sheet paints over it) */
+html[data-bossbar] .sidebar { top: calc(var(--hud-h) + 2.75rem + .5rem); }
+html[data-bossbar] .toasts { top: calc(var(--hud-h) + 2.75rem + .75rem); }
 .bossbar {
-  position: fixed; top: var(--hud-h); left: 0; right: 0; z-index: 43; height: 2.75rem;
+  position: fixed; top: var(--hud-h); left: 0; right: 0; z-index: 39; height: 2.75rem;
   background: var(--hud-bg); color: var(--hud-text); border-bottom: 1px solid var(--hud-line);
   font-family: var(--sans); font-size: .84rem; pointer-events: none;
 }
