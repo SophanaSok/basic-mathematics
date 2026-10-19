@@ -1246,8 +1246,9 @@
         if (!fromStorage) Store.emit({ type: "solved", chapter: chapterId, key: key, inline: inline, fresh: !!fresh });
         /* a live correct check opens the worked solution so the learner compares routes; the
            card is already "correct", so this costs nothing. Not on restore: a reload must not
-           expand every solved card. */
-        if (!fromStorage && solution && !solutionOpen) reveal(true);
+           expand every solved card; and only on the first solve, so a re-check of a solved card
+           does not reopen a solution the learner chose to hide. */
+        if (!fromStorage && fresh && solution && !solutionOpen) reveal(true);
       }
 
       /* what the reader has put in: { given } or { empty: a nudge to finish answering } */
