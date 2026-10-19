@@ -878,6 +878,67 @@ async function run() {
       await context.close();
     }
 
+    /* ------------------- card U-2: rewards land top-right, the XP pill flies, the level card says what is next */
+    {
+      const seed = { "bm.lesson.v1": '{"mode":"page"}', "bm.activity.v1": JSON.stringify({ days: { [dayAgo(0)]: 20 }, goal: 500 }), "bm.run.v1": JSON.stringify({ seen: { level: 1, ach: 1 } }) };
+      for (const w of [1280, 400]) {
+        const { context, page, errors } = await open(browser, CH05, seed, { width: w });
+        await answer(page, '#practice .ex[data-key="e1"]', true);
+        await wait(200);
+        const g = await page.evaluate(() => {
+          var t = document.querySelector(".toasts").getBoundingClientRect(), bar = document.querySelector(".topbar").getBoundingClientRect();
+          return { top: t.top, right: t.right, left: t.left, barBottom: bar.bottom, vw: window.innerWidth,
+            n: document.querySelectorAll(".toast:not([data-out])").length, first: document.querySelector(".toast").textContent };
+        });
+        check(g.top >= g.barBottom - 1, w + "px: the toast stack starts under the top bar (" + g.top + " vs " + g.barBottom + ")");
+        eq(g.n, 2, w + "px: two toasts after one right answer");
+        check(/\+\d+ XP/.test(g.first), w + "px: the XP card is first");
+        if (w === 1280) check(g.vw - g.right <= 24 && g.vw - g.right >= 0, "1280px: the stack's right edge is within 24px of the viewport (" + (g.vw - g.right) + ")");
+        else check(g.left <= 17 && g.vw - g.right <= 17, "400px: the stack spans the width under the HUD (" + g.left + ", " + (g.vw - g.right) + ")");
+        if (w === 1280) {
+          const lv = await page.evaluate(() => { var c = document.querySelector(".toast.level"); return c && { kicker: c.querySelector(".toast-kicker").textContent, rank: c.querySelector("b").textContent, text: c.querySelector(".toast-text").textContent }; });
+          check(lv && lv.kicker === "Level 2" && lv.rank.length > 0 && /^\d+ XP to level 3\.$/.test(lv.text), "the level card holds the kicker, the rank and what is next (" + JSON.stringify(lv) + ")");
+        }
+        eq(errors, [], "no errors in the U-2 toast run at " + w);
+        await context.close();
+      }
+      /* the pill flies with motion, and never exists without it */
+      {
+        const { context, page, errors } = await open(browser, CH05, seed);
+        await page.evaluate(() => {
+          window.__fly = 0; window.__flash = 0;
+          setInterval(function () {
+            if (document.querySelector(".xp-fly")) window.__fly++;
+            if (document.querySelector(".hud-xpbar[data-flash]")) window.__flash++;
+          }, 10);
+        });
+        await answer(page, '#practice .ex[data-key="e1"]', true);
+        await wait(100);
+        check(await page.evaluate(() => window.__fly > 0), "an .xp-fly is on screen within 100 ms of a right answer");
+        await wait(1300);
+        const e = await page.evaluate(() => ({ fly: document.querySelectorAll(".xp-fly").length, flash: window.__flash }));
+        eq(e.fly, 0, "the pill is gone within 1.2 s");
+        check(e.flash > 0, "the HUD XP bar flashed when it landed");
+        eq(errors, [], "no errors in the XP flight run");
+        await context.close();
+      }
+      {
+        const { context, page, errors } = await open(browser, CH05, Object.assign({}, seed, { "bm.prefs.v1": JSON.stringify({ motion: "reduce" }) }));
+        check(await page.evaluate(() => document.documentElement.getAttribute("data-motion") === "reduce"), "the seeded preference sets html[data-motion=reduce]");
+        await page.evaluate(() => {
+          window.__fly = 0;
+          new MutationObserver(function (ms) { ms.forEach(function (m) { m.addedNodes.forEach(function (n) { if (n.classList && n.classList.contains("xp-fly")) window.__fly++; }); }); })
+            .observe(document.body, { childList: true, subtree: true });
+        });
+        await answer(page, '#practice .ex[data-key="e1"]', true);
+        await wait(100);
+        const r = await page.evaluate(() => ({ fly: window.__fly, anims: document.getAnimations().length }));
+        eq(r, { fly: 0, anims: 0 }, "under reduced motion no pill is made and nothing animates");
+        eq(errors, [], "no errors in the reduced-motion run");
+        await context.close();
+      }
+    }
+
     /* ------------------------- the sheet carries theme and account, on a phone and wide */
     {
       const { context, page, errors } = await open(browser, "parts/1-algebra/01-numbers.html", { "bm.lesson.v1": '{"mode":"page"}', "bm.theme": '"light"' }, { width: 360 });
