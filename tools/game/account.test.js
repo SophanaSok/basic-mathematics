@@ -103,6 +103,12 @@ window.supabase = { createClient: function () {
       if (name === "delete_my_account" && opts.deleteDelay) return new Promise(function (ok) { setTimeout(function () { ok(answer(null)); }, opts.deleteDelay); });
       if (name === "delete_my_account" && opts.deleteError) return Promise.resolve({ data: null, error: { message: opts.deleteError, code: "XX000" } });
       if (name === "delete_my_account" && opts.staleDelete) return Promise.resolve({ data: null, error: { message: "stale sign-in", code: "P0001" } });
+      if (name === "learner_mark_under13") {
+        if (opts.markRefused) return Promise.resolve({ data: null, error: { message: "consent required", code: "P0001" } });
+        if (opts.markDelay) return new Promise(function (ok) { setTimeout(function () { rows().forEach(function (l) { if (l.id === args.id) { l.under13 = true; l.consent_v = args.consent_v; } }); ok(answer(null)); }, opts.markDelay); });
+        rows().forEach(function (l) { if (l.id === args.id) { l.under13 = true; l.consent_v = args.consent_v; } });
+        return Promise.resolve(answer(null));
+      }
       if (/^learner_(rename|delete|export)$/.test(name)) {
         if (opts.stale && name !== "learner_rename") return Promise.resolve({ data: null, error: { message: "stale sign-in", code: "P0001" } });
         if (name === "learner_rename") rows().forEach(function (l) { if (l.id === args.id) l.name = args.name; });
@@ -898,6 +904,13 @@ const ALL = ["google", "github", "discord", "facebook", "azure"];
     await r.page.waitForSelector("#lrn-keep");
     check((await calls(r.page, "learner_list")).length === 1 && await r.page.evaluate(() => document.getElementById("lrn-keep").checked && !document.getElementById("lrn-parent")), "29 I'm the parent reads the list once and shows the full panel, box ticked");
     check(await r.page.evaluate(() => document.activeElement.id) === "lrn-h", "29 … with the focus on the heading");
+    await r.page.focus("#lrn-keep");
+    await r.page.keyboard.press("Space");
+    await r.page.waitForTimeout(200);
+    check(await r.page.evaluate(() => document.activeElement.id) === "lrn-keep" && await keepOf(r.page) === undefined, "29 unticking with Space in the expanded view leaves the focus on the box", await r.page.evaluate(() => document.activeElement.id));
+    await r.page.keyboard.press("Space");
+    await r.page.waitForTimeout(200);
+    check(await r.page.evaluate(() => document.activeElement.id) === "lrn-keep" && await keepOf(r.page) === "L1", "29 ticking with Space in the expanded view leaves the focus on the box", await r.page.evaluate(() => document.activeElement.id));
     await r.page.click("#lrn-keep");
     await r.page.waitForTimeout(200);
     check(await keepOf(r.page) === undefined && await r.page.evaluate(() => !!document.getElementById("lrn-add") && !document.getElementById("lrn-keep").checked), "29 unticking deletes keep and the panel stays expanded", await keepOf(r.page));
@@ -921,7 +934,7 @@ const ALL = ["google", "github", "discord", "facebook", "azure"];
     /* keep for a learner that is gone: the list is read once, the full panel appears, keep is dropped (no endless Loading) */
     {
       const g = await open({ providers: ["google"] }, { session: LS, stub: { learners: roster() }, local: { "bm.sync.v1": { learner: "L9", acct: "u1", keep: "L9", learnerName: "Gone" } } });
-      await g.page.waitForSelector("#lrn-add", { timeout: 8000 }).catch(() => {});
+      await g.page.waitForSelector("#lrn-add", { timeout: 8000 });
       await g.page.waitForTimeout(400);
       check(await g.page.evaluate(() => !!document.getElementById("lrn-add") && !/Loading learners/.test(document.querySelector(".learners").textContent)) && (await calls(g.page, "learner_list")).length === 1 && await keepOf(g.page) === undefined,
         "29 a kept learner deleted elsewhere: the full panel, one list read, keep dropped", { lists: (await calls(g.page, "learner_list")).length, keep: await keepOf(g.page) });
@@ -974,6 +987,74 @@ const ALL = ["google", "github", "discord", "facebook", "azure"];
       check(await keepOf(a.page) === undefined, "29 deleting the account clears keep", await keepOf(a.page));
       await a.context.close();
     }
+  }
+
+  /* 30 */
+  {
+    const r30 = () => [
+      { id: "u1", self: true, name: null, under13: false, consent_v: null, created_at: "2026-10-01T00:00:00Z" },
+      { id: "M1", self: false, name: "Te\"en", under13: false, consent_v: null, created_at: "2026-10-02T00:00:00Z" },
+      mk("L2", "Sam"),
+      { id: "M2", self: false, name: "Ann", under13: false, consent_v: null, created_at: "2026-10-03T00:00:00Z" }
+    ];
+    const { page, context } = await open_({ learners: r30(), markDelay: 300 }, { width: 360 });
+    await page.waitForFunction(() => /Synced at/.test(document.querySelector("[data-account]").textContent));
+    const st = () => page.evaluate(() => ({
+      btn: !!document.getElementById("lrn-u13-M1"), tag: !!document.querySelector("#lrn-n-M1 + .learner-tagline .learner-tag"),
+      btn2: !!document.getElementById("lrn-u13-L2"), tag2: !!document.querySelector("#lrn-n-L2 + .learner-tagline .learner-tag"),
+      block: !!document.getElementById("lrn-u13b-M1"), active: document.activeElement.id
+    }));
+    let s = await st();
+    check(s.btn && !s.tag && !s.btn2 && s.tag2, "30 under13 false: button, no tag; under13 true: tag, no button", s);
+    check(await page.getAttribute("#lrn-u13-M1", "aria-label") === "Mark Te\"en as under 13" && await text(page, "#lrn-n-L2 + .learner-tagline .learner-tag") === "Under 13", "30 the button is named, the tag says Under 13");
+    await page.click("#lrn-u13-M1");
+    check(/What is kept about this learner/.test(await text(page, "#lrn-u13b-M1")) && /never sold or shared/.test(await text(page, "#lrn-u13b-M1")) && await page.getAttribute("#lrn-u13c-M1", "type") === "checkbox", "30 pressing opens the consent block");
+    check(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth) <= 0, "30 no horizontal scroll at 360px with the block open");
+    await page.click("#lrn-u13s-M1");
+    check(/Tick the box to confirm you are this learner's parent or guardian\./.test(await text(page, "[data-note-l]") || await text(page, ".learners .form-note") || "") && (await calls(page, "learner_mark_under13")).length === 0, "30 Confirm unticked refuses and sends nothing", await text(page, ".learners .form-note"));
+    await page.click("#lrn-u13x-M1");
+    s = await st();
+    check(!s.block && s.active === "lrn-u13-M1", "30 Cancel closes the block, focus on the button", s);
+    await page.click("#lrn-u13-M1");
+    await page.keyboard.press("Escape");
+    s = await st();
+    check(!s.block && s.active === "lrn-u13-M1", "30 Escape closes the block, focus on the button", s);
+    await page.click("#lrn-u13-M1");
+    check(await page.evaluate(() => document.activeElement.id) === "lrn-u13c-M1", "30 opening the block puts the focus on the checkbox");
+    await page.check("#lrn-u13c-M1");
+    await page.focus("#lrn-u13s-M1");
+    await page.evaluate(() => { document.getElementById("lrn-u13c-M1").__old = true; window.BMAccount.syncNow(); });
+    await page.waitForFunction(() => { const c = document.getElementById("lrn-u13c-M1"); return c && !c.__old; }, null, { timeout: 8000 });
+    check(await page.evaluate(() => !!document.getElementById("lrn-u13b-M1") && document.getElementById("lrn-u13c-M1").checked), "30 a redraw keeps the block open and the box ticked");
+    await page.evaluate(() => { const b = document.getElementById("lrn-u13s-M1"); b.click(); b.disabled = false; b.click(); });
+    await page.waitForFunction(() => !document.getElementById("lrn-u13b-M1"));
+    const c = await calls(page, "learner_mark_under13");
+    check(c.length === 1 && c[0].args.id === "M1" && c[0].args.consent_v === 1, "30 ticked Confirm sends learner_mark_under13 with consent_v 1, once for a double press", c);
+    await page.waitForTimeout(300);
+    s = await st();
+    check(!s.btn && s.tag && s.active === "lrn-n-M1", "30 the row shows the tag and no button, focus on the name", s);
+    check(/Te\"en is now marked as under 13\./.test(await text(page, ".learners .form-note")), "30 the note names the learner", await text(page, ".learners .form-note"));
+    await context.close();
+    {
+      const d = await open_({ learners: r30(), markDelay: 600 });
+      await d.page.click("#lrn-u13-M1");
+      await d.page.check("#lrn-u13c-M1");
+      await d.page.click("#lrn-u13s-M1");
+      await d.page.click("#lrn-u13-M2");
+      await d.page.check("#lrn-u13c-M2");
+      await d.page.waitForFunction(() => document.querySelector("#lrn-n-M1 + .learner-tagline .learner-tag"), null, { timeout: 8000 });
+      await d.page.waitForTimeout(300);
+      const k = await d.page.evaluate(() => ({ open: !!document.getElementById("lrn-u13b-M2"), ticked: !!(document.getElementById("lrn-u13c-M2") || {}).checked, active: document.activeElement.id }));
+      check(k.open && k.ticked && k.active !== "lrn-n-M1", "30 a late reply for one row leaves another row's open, ticked block and the focus alone", k);
+      await d.context.close();
+    }
+    const f = await open_({ learners: r30(), markRefused: true });
+    await f.page.click("#lrn-u13-M1");
+    await f.page.check("#lrn-u13c-M1");
+    await f.page.click("#lrn-u13s-M1");
+    await f.page.waitForFunction(() => /consent required/.test(document.body.textContent));
+    check(await f.page.evaluate(() => !!document.getElementById("lrn-u13-M1") || !!document.getElementById("lrn-u13b-M1")) && await f.page.evaluate(() => !document.querySelector("#lrn-n-M1 + .learner-tagline .learner-tag")), "30 a refused call shows the server's message and leaves the row unchanged");
+    await f.context.close();
   }
 
   check(errors.length === 0, "no uncaught page errors", errors);

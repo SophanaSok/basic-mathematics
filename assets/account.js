@@ -1234,6 +1234,8 @@
   /* the step-up: which action asked for it (and the button to return to), what its own form last said,
      and the calls in flight (a second press while one is out sends nothing) */
   var stepAction = null, stepNote = "", addBusy = false, renameBusy = null, ownBusy = false;
+  /* the row whose "Mark as under 13" consent block is open, and that call in flight */
+  var marking = null, u13Busy = false, u13Ticked = false;
   /* "Delete my account": armed by its first press (kept across a redraw and a step-up), and in flight */
   var deleteArmed = false, deleteBusy = false;
   var DELETE_ACTION = "Delete my account";
@@ -1256,6 +1258,7 @@
       if (!user || user.id !== id) return;
       learnersLoading = false;
       learners = Array.isArray(rows) ? rows : [];
+      if (marking && !learnerById(marking)) { marking = null; u13Ticked = false; }
       learnersErr = "";
       /* a rename field being typed in keeps its focus and text through this redraw (draw keeps both) */
       if (focus && !renameHasFocus()) focusAfter = focus;
@@ -1274,7 +1277,7 @@
   function resetLearners() {
     learners = null; learnersFor = null; learnersErr = ""; learnersLoading = false; keepOpen = false;
     addUnder = false; addConsent = false; renaming = null; armed = null; needSignIn = false; focusAfter = null;
-    stepAction = null; stepNote = ""; addBusy = false; renameBusy = null; ownBusy = false;
+    stepAction = null; stepNote = ""; addBusy = false; renameBusy = null; ownBusy = false; marking = null; u13Ticked = false; u13Busy = false;
     deleteArmed = false; deleteBusy = false;
   }
   function learnerById(id) {
@@ -1335,18 +1338,28 @@
           '<p class="actions"><button class="btn small" id="lrn-rs-' + id + '" type="button"' + (renameBusy === l.id ? ' disabled aria-busy="true"' : "") + '>Save</button>' +
           '<button class="btn ghost small" id="lrn-rc-' + id + '" type="button">Cancel</button></p></li>';
       }
-      out += '<p class="learner-name">' + esc(nm) + "</p><p class=\"actions\">";
+      out += '<p class="learner-name"' + (self ? "" : ' id="lrn-n-' + id + '" tabindex="-1"') + ">" + esc(nm) + "</p>" +
+        (!self && l.under13 === true ? '<p class="learner-tagline"><span class="learner-tag">Under 13</span></p>' : "") + "<p class=\"actions\">";
       out += active ? '<span class="learner-on">Playing as</span>'
         : '<button class="btn ghost small" id="lrn-sw-' + (self ? "self" : id) + '" type="button" aria-label="Switch to ' + esc(nm) + '">Switch to</button>';
       if (!self) {
         if (active) out += "</p>" + '<label class="check"><input id="lrn-keep" type="checkbox"' + (Account.keptLearner() === l.id ? " checked" : "") +
           '> <span>Keep this device on ' + esc(nm) + "</span></label><p class=\"actions\">";
         out += '<button class="btn ghost small" id="lrn-r-' + id + '" type="button" aria-label="Rename ' + esc(nm) + '">Rename</button>' +
+          (l.under13 === true ? "" : '<button class="btn ghost small" id="lrn-u13-' + id + '" type="button" aria-label="Mark ' + esc(nm) + ' as under 13">Mark as under 13</button>') +
           '<button class="btn ghost small" id="lrn-dl-' + id + '" type="button" aria-label="Download ' + esc(nm) + '">Download</button>' +
           '<button class="btn ghost small danger" id="lrn-del-' + id + '" type="button"' +
           (armed === l.id ? ">Press again to delete " + esc(nm) : ' aria-label="Delete ' + esc(nm) + '">Delete') + "</button>";
       }
-      return out + "</p></li>";
+      out += "</p>";
+      if (!self && marking === l.id && l.under13 !== true) {
+        out += '<div class="consent" id="lrn-u13b-' + id + '" role="group" aria-labelledby="lrn-u13h-' + id + '"><h4 id="lrn-u13h-' + id + '">' + esc(CONSENT_HEAD) + "</h4>" +
+          "<p>" + esc(CONSENT_TEXT) + "</p>" +
+          '<label class="check"><input id="lrn-u13c-' + id + '" type="checkbox"' + (u13Ticked ? " checked" : "") + "><span>" + esc(CONSENT_BOX) + "</span></label>" +
+          '<p class="actions"><button class="btn small" id="lrn-u13s-' + id + '" type="button"' + (u13Busy ? ' disabled aria-busy="true"' : "") + '>Confirm</button>' +
+          '<button class="btn ghost small" id="lrn-u13x-' + id + '" type="button">Cancel</button></p></div>';
+      }
+      return out + "</li>";
     }
     h += '<ul class="learner-list">' + rowHtml(null) +
       learners.filter(function (l) { return l && l.self !== true && typeof l.id === "string"; }).map(rowHtml).join("") + "</ul>";
@@ -1414,6 +1427,15 @@
       on("lrn-r-" + id, function () { armed = null; renaming = id; focusAfter = "lrn-ri-" + id; draw(); });
       on("lrn-rc-" + id, function () { renaming = null; focusAfter = "lrn-r-" + id; draw(); });
       on("lrn-rs-" + id, function () { saveRename(id); });
+      on("lrn-u13-" + id, function () { armed = null; renaming = null; marking = id; u13Ticked = false; focusAfter = "lrn-u13c-" + id; draw(); });
+      on("lrn-u13x-" + id, function () { marking = null; u13Ticked = false; focusAfter = "lrn-u13-" + id; draw(); });
+      on("lrn-u13s-" + id, function () { markUnder13(id); });
+      var u13c = document.getElementById("lrn-u13c-" + id);
+      if (u13c) u13c.addEventListener("change", function () { u13Ticked = u13c.checked; });
+      var u13b = document.getElementById("lrn-u13b-" + id);
+      if (u13b) u13b.addEventListener("keydown", function (e) {
+        if (e.key === "Escape") { e.preventDefault(); marking = null; u13Ticked = false; focusAfter = "lrn-u13-" + id; draw(); }
+      });
       var input = document.getElementById("lrn-ri-" + id);
       if (input) input.addEventListener("keydown", function (e) {
         if (e.key === "Enter") { e.preventDefault(); saveRename(id); }
@@ -1454,6 +1476,7 @@
   function switchTo(id) {
     armed = null;
     Account.switchLearner(id, id ? (learnerById(id) || {}).name : null).then(function () {
+      marking = null; u13Ticked = false;
       focusAfter = "lrn-h";
       lsay("");
       draw();
@@ -1479,6 +1502,34 @@
     }, function (e) {
       if (uidNow() !== uid) return;
       addBusy = false;
+      lproblem(e);
+      if (from) focusAfter = from;
+      draw();
+    });
+  }
+  function markUnder13(id) {
+    if (u13Busy) return;
+    var box = document.getElementById("lrn-u13c-" + id);
+    if (!box || !box.checked || !u13Ticked) return lsay("Tick the box to confirm you are this learner's parent or guardian.", true);
+    var uid = uidNow(), from = document.activeElement && document.activeElement.id;
+    u13Busy = true;
+    var btn = document.getElementById("lrn-u13s-" + id);
+    if (btn) { btn.disabled = true; btn.setAttribute("aria-busy", "true"); }
+    learnerRpc("learner_mark_under13", { id: id, consent_v: CONSENT_V }).then(function () {
+      if (uidNow() !== uid) return;
+      u13Busy = false;
+      var l = learnerById(id);
+      if (l) { l.under13 = true; l.consent_v = CONSENT_V; }
+      if (marking === id) { marking = null; u13Ticked = false; }
+      var ae = document.activeElement, mine = document.getElementById("lrn-n-" + id), row = mine && mine.closest("li");
+      var focus = (!ae || ae === document.body || (row && row.contains(ae))) ? "lrn-n-" + id : null;
+      if (focus) focusAfter = focus;
+      lsay((l && l.name ? l.name : "This learner") + " is now marked as under 13.");
+      draw();
+      loadLearners(focus);
+    }, function (e) {
+      if (uidNow() !== uid) return;
+      u13Busy = false;
       lproblem(e);
       if (from) focusAfter = from;
       draw();
@@ -1522,6 +1573,7 @@
       needSignIn = false; stepNote = ""; stepAction = null;
       learners = (learners || []).filter(function (l) { return l.id !== id; });
       if (Account.keptLearner() === id) Account.keepLearner(null);
+      if (marking === id) { marking = null; u13Ticked = false; }
       focusAfter = "lrn-h";
       lsay((switched ? "Switched back to your own progress, and deleted " : "Deleted ") + nm + ".");
       draw();
