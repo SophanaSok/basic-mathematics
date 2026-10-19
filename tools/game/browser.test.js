@@ -2211,6 +2211,103 @@ async function run() {
         await context.close();
       }
     }
+    /* ------------------------------------------------ U-6b: the first-run guide */
+    {
+      const UNSEEN = { "bm.guide.v1": '{"v":1}' };
+      const guideKey = (page) => page.evaluate(() => JSON.parse(localStorage.getItem("bm.guide.v1") || "null"));
+      const step = (page) => page.$eval("#guide-sheet .guide-step", (e) => e.textContent);
+      const isOpen = (page) => page.evaluate(() => { const d = document.getElementById("guide-sheet"); return !!d && d.open; });
+      {
+        const { context, page, errors } = await open(browser, CH05, UNSEEN);
+        await page.waitForSelector("#guide-sheet[open]", { timeout: 1500 });
+        eq(await page.evaluate(() => document.activeElement && document.activeElement.id), "guide-sheet-title", "guide: the title is focused");
+        eq(await step(page), "1 of 5", "guide: opens on card 1 of 5");
+        await page.click("#guide-sheet [data-guide-next]");
+        eq(await step(page), "2 of 5", "guide: Next goes to 2 of 5");
+        await page.click("#guide-sheet [data-guide-back]");
+        eq(await step(page), "1 of 5", "guide: Back goes to 1 of 5");
+        /* j and k do nothing while it is open */
+        await page.keyboard.press("j");
+        await page.keyboard.press("k");
+        eq(await page.$$eval("[data-keys-cursor]", (n) => n.length), 0, "guide: j and k do not move the shortcut cursor");
+        /* Tab stays inside the modal */
+        let inside = true;
+        for (let i = 0; i < 8; i++) { await page.keyboard.press("Tab"); inside = inside && await page.evaluate(() => { const a = document.activeElement; return a === document.body || !!a.closest("#guide-sheet"); }); }
+        check(inside, "guide: Tab stays inside the dialog");
+        await page.keyboard.press("Escape");
+        check(!(await isOpen(page)), "guide: Escape closes it");
+        check(!!(await guideKey(page)).seen, "guide: Escape writes seen");
+        await page.reload();
+        await page.waitForFunction(() => document.readyState === "complete");
+        await wait(400);
+        check(!(await isOpen(page)), "guide: a reload shows no dialog");
+        eq(errors, [], "guide: no errors");
+        await context.close();
+      }
+      {
+        const { context, page } = await open(browser, CH05, UNSEEN);
+        await page.waitForSelector("#guide-sheet[open]", { timeout: 1500 });
+        await page.click("#guide-sheet [data-guide-next]");
+        await page.click("#guide-sheet [data-guide-next]");
+        eq(await step(page), "3 of 5", "guide: card 3");
+        await page.click("#guide-sheet [data-guide-skip]");
+        check(!(await isOpen(page)) && !!(await guideKey(page)).seen, "guide: Skip on card 3 sets seen");
+        await context.close();
+      }
+      {
+        const { context, page } = await open(browser, CH05, UNSEEN);
+        await page.waitForSelector("#guide-sheet[open]", { timeout: 1500 });
+        for (let i = 0; i < 4; i++) await page.click("#guide-sheet [data-guide-next]");
+        eq(await step(page), "5 of 5", "guide: card 5");
+        check(await page.$eval("#guide-sheet [data-guide-next]", (b) => b.hidden), "guide: no Next on the last card");
+        await page.click("#guide-sheet [data-guide-done]");
+        check(!(await isOpen(page)) && !!(await guideKey(page)).seen, "guide: Done on card 5 sets seen");
+        await context.close();
+      }
+      {
+        const { context, page } = await open(browser, "index.html", UNSEEN);
+        await wait(600);
+        check(!(await isOpen(page)), "guide: index.html shows no dialog");
+        await context.close();
+      }
+      {
+        const { context, page } = await open(browser, CH05, UNSEEN);
+        await page.waitForSelector("#guide-sheet[open]", { timeout: 1500 });
+        await page.click("#guide-sheet [data-guide-skip]");
+        const seen = (await guideKey(page)).seen;
+        await page.click(".topbar .hud-menu");
+        await page.click("#hud-sheet [data-guide-replay]");
+        await page.waitForSelector("#guide-sheet[open]");
+        eq(await step(page), "1 of 5", "guide: replay opens on card 1");
+        await page.keyboard.press("Escape");
+        eq(await page.evaluate(() => document.activeElement && document.activeElement.className.indexOf("hud-menu") >= 0), true, "guide: closing restores focus to the menu button");
+        const k = await guideKey(page);
+        check(k.seen === seen && !!k.replay, "guide: replay writes replay and keeps seen");
+        await context.close();
+      }
+      {
+        const { context, page } = await open(browser, "index.html");
+        await page.click(".topbar .hud-menu");
+        await page.click("#hud-sheet [data-guide-replay]");
+        await page.waitForSelector("#guide-sheet[open]");
+        eq(await step(page), "1 of 5", "guide: replay opens on a non-chapter page");
+        await context.close();
+      }
+      {
+        const { context, page } = await open(browser, CH05, Object.assign({ "bm.prefs.v1": '{"calm":true}' }, UNSEEN));
+        await page.waitForSelector("#guide-sheet[open]", { timeout: 1500 });
+        for (let i = 0; i < 3; i++) await page.click("#guide-sheet [data-guide-next]");
+        check(/hearts and the combo are off/.test(await page.$eval("#guide-sheet .guide-body", (e) => e.textContent)), "guide: Study mode card 4 says hearts and the combo are off");
+        eq(await page.evaluate(() => document.getAnimations().length), 0, "guide: no animations in Study mode");
+        await context.close();
+      }
+      {
+        const { context, page } = await open(browser, CH05, { "bm.guide.v1": null, "bm.progress.v1": JSON.stringify({ ch05: { solved: { e1: 1 }, total: 5 } }) });
+        await wait(700);
+        check(!(await isOpen(page)) && !!(await guideKey(page)).seen, "guide: an existing learner gets no dialog and seen is written");
+        await context.close();
+      }
+    }
   } finally {
     await browser.close();
     await server.close();
