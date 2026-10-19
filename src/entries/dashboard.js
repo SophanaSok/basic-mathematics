@@ -57,6 +57,7 @@ import "../ui/events.ts";
 import "../../assets/sfx.js";
 import "../../assets/game.js";
 import "../ui/settings.ts";
+import "../ui/hud-pop.ts";
 import "../../assets/config.js";
 import "../../assets/account.js";
 /* the placement check's study plan, which insights.js draws when a take exists: the pure
@@ -78,6 +79,11 @@ import "../ui/form-emotes.ts";
 import "../ui/form-view.ts";
 import "../ui/forms.ts";
 import "../ui/form-unlock.ts";
+/* BMNext.items(), which insights.js asks for the empty chart's "Your next steps": mount() finds no
+   placeholder on this page, so the import draws nothing. It comes after insights.js (whose first
+   draw is already made), which redraws once when it finds BMNext on the page's load */
+import "../learn/next.ts";
+import "../ui/next.ts";
 /* the first-run guide (shown once on a chapter page) and its replay button in the settings sheet */
 import "../ui/first-run.ts";
 /* the keyboard layer: the pure keymap, then the DOM half, last, once everything it

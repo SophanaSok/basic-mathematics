@@ -814,6 +814,56 @@ async function run() {
       await context.close();
     }
 
+    /* ------------------- U-8: one progress story in the sidebar, a steady puzzle, a phone row */
+    {
+      const side = (page) => page.evaluate(() => {
+        var el = document.querySelector("[data-side-progress]");
+        return { text: el.textContent.replace(/\s+/g, " ").trim(), width: el.querySelector(".bar span").style.width };
+      });
+      const { context, page, errors } = await open(browser, CH05, { "bm.lesson.v1": '{"mode":"page"}' });
+      const N = await page.evaluate(() => document.querySelectorAll("#main .ex[data-inline]").length);
+      const T = await page.evaluate(() => document.querySelectorAll("#main .ex:not([data-inline])").length);
+      check(N > 0 && T > 0, "CH05 has inline checks and a practice set");
+      const s0 = await side(page);
+      check(s0.text.indexOf("Practice: 0 of " + T + " solved") > -1 && s0.text.indexOf("Checks: 0 of " + N) > -1, "the sidebar opens with both counts: " + s0.text);
+      await answer(page, "#t1", true);
+      const s1 = await side(page);
+      check(s1.text.indexOf("Checks: 1 of " + N) > -1 && s1.text.indexOf("Practice: 0 of " + T) > -1, "a solved Your turn moves the Checks count only: " + s1.text);
+      eq(s1.width, s0.width, "the bar still tracks the practice set");
+      await answer(page, '#practice .ex[data-key="e1"]', true);
+      const s2 = await side(page);
+      check(s2.text.indexOf("Practice: 1 of " + T) > -1 && s2.text.indexOf("Checks: 1 of " + N) > -1, "a solved exercise moves the Practice count: " + s2.text);
+      await page.reload();
+      await page.waitForFunction(() => document.readyState === "complete");
+      const s3 = await side(page);
+      check(s3.text.indexOf("Practice: 1 of " + T) > -1 && s3.text.indexOf("Checks: 1 of " + N) > -1, "both counts are restored on reload: " + s3.text);
+      eq(errors, [], "no errors on the sidebar counts");
+      await context.close();
+    }
+    {
+      const { context, page, errors } = await open(browser, CH05, { "bm.lesson.v1": '{"mode":"steps"}' });
+      const top = () => page.evaluate(() => { var n = document.querySelector(".lesson-next"); return n ? n.getBoundingClientRect().top : null; });
+      const t0 = await top();
+      check(t0 !== null, "the Continue card is on the opening step");
+      await page.click(".puzzle .guess-chip");
+      const t1 = await top();
+      check(t0 !== null && t1 !== null && Math.abs(t1 - t0) <= 1, "picking a guess does not move the Continue card (" + t0 + " -> " + t1 + ")");
+      eq(errors, [], "no errors on the opening puzzle");
+      await context.close();
+    }
+    {
+      const { context, page, errors } = await open(browser, CH05, { "bm.lesson.v1": '{"mode":"page"}' }, { width: 390 });
+      const g = await page.evaluate(() => {
+        var ex = Array.prototype.filter.call(document.querySelectorAll("#practice .ex[data-kind='text']"), function (e) { return e.querySelector(".ex-show"); })[0];
+        var r = function (el) { var b = el.getBoundingClientRect(); return { l: b.left, r: b.right, t: b.top, b: b.bottom }; };
+        return { input: r(ex.querySelector(".ex-form > input")), check: r(ex.querySelector(".ex-form .btn:not(.ghost)")), show: r(ex.querySelector(".ex-show")) };
+      });
+      check(g.show.t >= g.input.b - 0.5, "on a phone, Show solution sits below the answer box");
+      check(g.show.l > g.check.r, "on a phone, Show solution is beside Check, not under the box's left half (" + g.show.l + " > " + g.check.r + ")");
+      eq(errors, [], "no errors on the phone row");
+      await context.close();
+    }
+
     /* ------------------------------- the theme choice with storage that throws */
     {
       const { context, page, errors } = await open(browser, "index.html", {}, { blockStorage: true });
@@ -1044,6 +1094,57 @@ async function run() {
       check(await wide.page.evaluate(() => !document.getElementById("hud-sheet").open && document.querySelector(".hud-menu").getAttribute("aria-expanded") === "false"), "tabbing out of the wide sheet closes it");
       eq(wide.errors, [], "no errors around the sheet at 1280px");
       await wide.context.close();
+    }
+
+    /* ------------------------------ U-12: the progress page's shape */
+    {
+      const { context, page, errors } = await open(browser, "progress.html", {});
+      await wait(200);
+      const f = await page.evaluate(() => ({
+        labels: Array.from(document.querySelectorAll("[data-progress] > .stats:first-of-type .stat-label")).map((e) => e.textContent),
+        next: Array.from(document.querySelectorAll(".next-list a")).map((a) => a.textContent),
+        head: (document.querySelector(".next-list h3") || {}).textContent,
+        hrefs: Array.from(document.querySelectorAll(".next-list a")).map((a) => a.getAttribute("href")),
+        chips: document.querySelectorAll(".goal-pick .chip").length,
+        chart: !!document.querySelector(".daychart"),
+        note: (document.querySelector(".chart-note") || {}).textContent,
+        ach: document.querySelectorAll("#achievements .ach").length,
+        groups: Array.from(document.querySelectorAll("#achievements h3.ach-group")).map((h) => h.textContent)
+      }));
+      eq(f.labels.slice(0, 3), ["Level", "Streak", "Today"], "fresh: the tiles lead with Level, Streak, Today");
+      eq([f.head, f.next], ["Your next steps", ["Start with Chapter 1", "Find your starting point"]], "fresh: the empty chart is the next steps");
+      check(f.hrefs[0].endsWith("parts/1-algebra/01-numbers.html") && f.hrefs[1].endsWith("diagnostic.html"), "fresh: the next steps link to Chapter 1 and the check");
+      eq([f.chips, f.chart, /^Active on 0 days/.test(f.note)], [4, false, true], "fresh: goal chips and the note stay, the chart is gone");
+      eq(f.ach, 28, "fresh: 28 achievements");
+      check(!f.groups.includes("Closest to done") && !f.groups.includes("Other"), "fresh: no Closest to done and no Other group");
+      eq(f.groups, ["Habits and streaks", "First try and accuracy", "Careful study", "Arena", "Review and repair", "Completion"], "fresh: the group headings in order");
+      eq(errors, [], "no errors on a fresh progress page");
+      await context.close();
+
+      const recs = {};
+      for (let i = 1; i <= 20; i++) recs["e" + i] = { tries: 1, solved: 1000 + i, first: 1, section: "angles" };
+      const b = await open(browser, "progress.html", {
+        "bm.attempts.v1": JSON.stringify({ ch05: recs }),
+        "bm.activity.v1": JSON.stringify({ days: { [dayAgo(0)]: 20, [dayAgo(2)]: 20, [dayAgo(4)]: 20 } })
+      });
+      await wait(200);
+      const g = await b.page.evaluate(() => ({
+        chart: !!document.querySelector(".daychart"), next: !!document.querySelector(".next-list"),
+        chips: document.querySelectorAll(".goal-pick .chip").length,
+        ach: document.querySelectorAll("#achievements .ach").length,
+        groups: Array.from(document.querySelectorAll("#achievements h3.ach-group")).map((h) => h.textContent),
+        near: Array.from(document.querySelectorAll("#achievements ul.achievements:first-of-type li.ach")).map((l) => l.getAttribute("data-id")),
+        steady: document.querySelectorAll('#achievements [data-id="steady-hand"]').length,
+        levels: Array.from(document.querySelectorAll("#achievements, #achievements h2, #achievements h3")).map((e) => e.tagName)
+      }));
+      eq([g.chart, g.next, g.chips], [true, false, 4], "active on 3 days: the chart is back, the next steps are gone");
+      eq(g.ach, 28, "seeded: still 28 achievements");
+      eq(g.groups, ["Closest to done", "Habits and streaks", "First try and accuracy", "Careful study", "Arena", "Review and repair", "Completion"], "seeded: Closest to done first, then the groups in order");
+      eq(g.near[0], "steady-hand", "seeded: steady-hand leads Nearest");
+      check(g.near.length >= 1 && g.near.length <= 3, "seeded: Nearest lists at most three");
+      eq(g.steady, 1, "seeded: steady-hand appears once");
+      eq(b.errors, [], "no errors on a seeded progress page");
+      await b.context.close();
     }
 
     /* --------------- review fixes: medals, recall, streaks and repairs off the chapter page */
@@ -2211,6 +2312,61 @@ async function run() {
         await context.close();
       }
     }
+      /* 10. the HUD explains itself (card U-7): a chip on hover, a popover on the level badge */
+      {
+        const days = {}; days[dayAgo(0)] = 13; days[dayAgo(1)] = 140; days[dayAgo(3)] = 20;
+        const seed = { "bm.lesson.v1": '{"mode":"page"}', "bm.activity.v1": JSON.stringify({ days }) };
+        const boxes = (page) => page.evaluate(() => Array.from(document.querySelectorAll(".topbar .hud > *")).map((e) => { const r = e.getBoundingClientRect(); return [e.className, r.x, r.y, r.width, r.height].join(" "); }));
+        for (const reduced of ["no-preference", "reduce"]) {
+          const { context, page, errors } = await open(browser, CH05, seed, { reducedMotion: reduced });
+          await page.waitForSelector(".topbar .hud-streak");
+          const before = await boxes(page);
+          await page.hover(".topbar .hud-streak");
+          await page.waitForSelector(".hud-tip:not([hidden])", { timeout: 400 + 250 });
+          const tip = await page.$$eval(".hud-tip", (n) => n.map((e) => ({ t: e.textContent, hidden: e.getAttribute("aria-hidden") })));
+          eq(tip.length, 1, reduced + ": one chip");
+          check(/Streak: 2 days\. Today: 13 of 30 XP\./.test(tip[0].t) && tip[0].hidden === "true", reduced + ": the streak chip says " + tip[0].t);
+          eq(await boxes(page), before, reduced + ": the chip moves no part of the bar");
+          if (reduced === "reduce") eq(await page.evaluate(() => document.getAnimations().length), 0, "reduce motion: no animation while the chip shows");
+          await page.mouse.move(600, 600);
+          await page.waitForTimeout(300);
+          eq(await page.$$eval(".hud-tip:not([hidden])", (n) => n.length), 0, reduced + ": the chip is gone after the pointer leaves");
+          eq(errors, [], reduced + ": no errors with the chip");
+          await context.close();
+        }
+        {
+          const { context, page, errors } = await open(browser, CH05, seed);
+          await page.waitForSelector(".topbar .hud-level");
+          const here = new URL(page.url()).pathname;
+          await page.click(".topbar .hud-level");
+          await page.waitForSelector(".hud-pop");
+          eq(new URL(page.url()).pathname, here, "a plain click on the badge does not navigate");
+          const txt = await page.textContent(".hud-pop");
+          check(/Level \d+ · \w+/.test(txt) && /XP to level/.test(txt), "the popover names the level and rank and the XP to level: " + txt);
+          check(/Form: \w+/.test(txt), "the popover names the form: " + txt);
+          check(/Active 3 of the last 30 days/.test(txt), "the popover counts the active days");
+          eq(await page.getAttribute(".hud-pop a", "href"), "../../progress.html", "the popover links to the progress page");
+          await page.keyboard.press("Tab");
+          check(await page.evaluate(() => !!document.activeElement && document.activeElement.classList.contains("pop-link")), "Tab goes into the popover");
+          await page.keyboard.press("Escape");
+          eq(await page.$$eval(".hud-pop", (n) => n.length), 0, "Escape closes the popover");
+          check(await page.evaluate(() => !!document.activeElement && document.activeElement.classList.contains("hud-level")), "focus is back on the badge");
+          await page.keyboard.press("Enter");
+          await page.waitForSelector(".hud-pop");
+          eq(new URL(page.url()).pathname, here, "Enter on the badge opens the popover too");
+          await page.mouse.click(600, 600);
+          eq(await page.$$eval(".hud-pop", (n) => n.length), 0, "a click outside closes it");
+          const start = page.url();
+          const popup = context.waitForEvent("page", { timeout: 4000 }).catch(() => null);
+          await page.click(".topbar .hud-level", { modifiers: ["Control"] });
+          const tab = await popup;
+          if (tab) await tab.waitForLoadState().catch(() => {});
+          check(page.url() === start && !!tab && /\/progress\.html/.test(tab.url()), "Ctrl+click opens progress.html in a new tab (" + (tab && tab.url()) + ")");
+          eq(await page.$$eval(".hud-pop", (n) => n.length), 0, "Ctrl+click opens no popover");
+          eq(errors, [], "no errors with the popover");
+          await context.close();
+        }
+      }
     /* ------------------------------------------------ U-6b: the first-run guide */
     {
       const UNSEEN = { "bm.guide.v1": '{"v":1}' };
