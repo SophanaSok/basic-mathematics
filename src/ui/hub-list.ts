@@ -17,6 +17,8 @@ import { hubState, type Band, type HubInput, type IsleState, type Solid } from "
 import { dueSplit } from "../learn/review.ts";
 import { ARENA_SECTIONS } from "../data/arena-sections.ts";
 import { CHAPTER_META } from "../data/chapter-meta.ts";
+import type { SectionRef } from "../types/state.ts";
+import { continueTarget, labelOf, sectionStates, type SectionStatus, type StatesInput } from "../learn/status.ts";
 
 const REVIEW_HREF = "arena.html?mode=review";
 
@@ -145,19 +147,126 @@ export function decorate(root: ParentNode, states: readonly IsleState[], ids: re
   });
 }
 
+/** The input sectionStates reads, from the live stores: every section ref in reading order (the
+    course, then the packs), the game layer's status, the attempt rows (BMInsights.sections(): `n`
+    is the attempt count, mapped to `tries`) and the curriculum's `requires`. A store that is not on
+    the page reads as no data: every section is then "Ready" or "Builds on" from the curriculum alone. */
+export function sectionInput(): StatesInput {
+  const w = window as any, C = w.BM_CURRICULUM, Game = w.BMGame, Ins = w.BMInsights;
+  const refs: SectionRef[] = [];
+  const reqs: Record<string, SectionRef[]> = {};
+  chapters(C).forEach(({ ch }) => (ch.sections || []).forEach((s: any) => {
+    const ref = (ch.id + "#" + s.id) as SectionRef;
+    refs.push(ref);
+    reqs[ref] = Array.isArray(s.requires) ? s.requires.slice() : [];
+  }));
+  const rows: Record<string, { solved: number; tries: number }> = {};
+  try {
+    ((Ins && typeof Ins.sections === "function" && Ins.sections()) || []).forEach((r: any) => {
+      if (r && typeof r.id === "string") rows[r.id] = { solved: r.solved || 0, tries: r.n || 0 };
+    });
+  } catch { /* no attempt rows */ }
+  return {
+    refs,
+    status: (ref) => { try { return (Game && typeof Game.sectionStatus === "function" && Game.sectionStatus(ref)) || "new"; } catch { return "new"; } },
+    row: (ref) => (Object.hasOwn(rows, ref) ? rows[ref] : null),
+    requires: (ref) => reqs[ref] || [],
+    labelOf: (ref) => labelOf(ref, C)
+  };
+}
+
+/** whether each chapter's Sections list was open at the last draw, so a redraw keeps it so */
+const openState = new Map<string, boolean>();
+const GLYPH: Record<string, [string, string]> = {
+  done: ["tick", "\u2713"], started: ["reset", "\u21BB"], ready: ["next", "\u2192"], ahead: ["chevron", "\u203A"]
+};
+
+/** Draw the Sections list under each chapter card (after its hub line): a sibling of the card's
+    link, never inside it. The words are advisory: every link works. Safe to call again. */
+export function decorateSections(root: ParentNode, statuses: Record<string, SectionStatus>, ids: readonly string[] = hubIds()): void {
+  const w = window as any, C = w.BM_CURRICULUM;
+  const doc = (root as any).ownerDocument || (root as any);
+  const prefix = w.BMSite?.rootPrefix ? w.BMSite.rootPrefix() : "";
+  ids.forEach((id) => {
+    const link = root.querySelector('li.stop[data-chapter="' + id + '"] .stop-link');
+    const li = link && link.parentNode;
+    const ch = C?.chapterById ? C.chapterById(id) : null;
+    if (!link || !li) return;
+    li.querySelectorAll(".stop-sections").forEach((old: any) => {
+      openState.set(id, !!old.open);
+      old.remove();
+    });
+    if (!ch || !(ch.sections || []).length) return;
+    const details = doc.createElement("details");
+    details.className = "stop-sections";
+    if (openState.get(id)) details.open = true;
+    const secs: any[] = ch.sections;
+    const done = secs.filter((s) => statuses[id + "#" + s.id]?.state === "done").length;
+    const summary = doc.createElement("summary");
+    summary.className = "muted";
+    summary.textContent = secs.length + (secs.length === 1 ? " section" : " sections") + " \u00B7 " + done + " done";
+    details.appendChild(summary);
+    const ol = doc.createElement("ol");
+    ol.className = "stop-rows";
+    secs.forEach((s) => {
+      const ref = id + "#" + s.id;
+      const st = statuses[ref];
+      const row = doc.createElement("li");
+      row.className = "stop-row";
+      row.setAttribute("data-state", st ? st.state : "ready");
+      const g = GLYPH[st ? st.state : "ready"];
+      const glyph = doc.createElement("span");
+      glyph.className = "stop-glyph";
+      glyph.setAttribute("aria-hidden", "true");
+      const svg = w.BMIcon && w.BMIcon.svg ? w.BMIcon.svg(g[0]) : "";
+      if (svg) glyph.innerHTML = svg; else glyph.textContent = g[1];
+      row.appendChild(glyph);
+      const a = doc.createElement("a");
+      a.className = "stop-title";
+      a.setAttribute("href", prefix + ch.path + "#" + s.id);
+      a.textContent = s.title;
+      row.appendChild(a);
+      const state = doc.createElement("span");
+      state.className = "stop-state";
+      if (st && st.state === "ahead" && st.unmet.length) {
+        state.appendChild(doc.createTextNode("Builds on "));
+        st.unmet.forEach((r, i) => {
+          if (i) state.appendChild(doc.createTextNode(", "));
+          const n = sectionName(r);
+          const b = doc.createElement("a");
+          b.setAttribute("href", n ? n.href : "#");
+          b.textContent = labelOf(r, C) || (n ? n.text : r);
+          state.appendChild(b);
+        });
+      } else {
+        state.textContent = st ? st.text : "Ready";
+      }
+      row.appendChild(state);
+      ol.appendChild(row);
+    });
+    details.appendChild(ol);
+    /* after the hub line when there is one, else straight after the card's link */
+    const hub = li.querySelector(".stop-hub");
+    li.insertBefore(details, (hub || link).nextSibling);
+  });
+}
+
 /** Read the stores and draw; false when the game layer or the event log is not all there yet (a chapter
-    with no evidence has no line, so drawing before they load would only draw the due part). */
+    with no evidence has no line, so drawing before they load would only draw the due part). The
+    Sections lists draw regardless: with no game layer they read "Ready" or "Builds on". */
 export function redraw(root: ParentNode = document): boolean {
   const w = window as any;
-  if (!w.BMGame || !w.BMEvents || !w.BMProgress || !w.BMSite) return false;
+  const ready = !!(w.BMGame && w.BMEvents && w.BMProgress && w.BMSite);
   const inp = hubInput();
-  decorate(root, hubState(inp), inp.isles.map((s) => s.id));
-  return true;
+  const ids = inp.isles.map((s) => s.id);
+  if (ready) decorate(root, hubState(inp), ids);
+  try { decorateSections(root, sectionStates(sectionInput()), ids); } catch { /* the list stays as it was */ }
+  return ready;
 }
 
 /** per-chapter facts for the legacy scripts (assets/site.js reads this for the chapter cards) */
 export const meta = CHAPTER_META;
 
-export const api = { decorate, hubInput, hubIds, redraw, masteryLine, hubState, meta };
+export const api = { decorate, decorateSections, sectionInput, continueTarget, hubInput, hubIds, redraw, masteryLine, hubState, meta };
 
 if (typeof window !== "undefined") (window as any).BMHubList = api;

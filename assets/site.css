@@ -702,6 +702,31 @@ input.blank { width: auto; min-height: 0; padding: .2rem .45rem; margin: 0 .15em
 .stop-hub { position: relative; z-index: 2; margin: .45rem 0 0 calc(56px + 1rem); padding: 0 1.3rem; font-family: var(--sans); font-size: .85rem; line-height: 1.5; color: var(--text); display: grid; gap: .15rem; }
 .stop-hub .stop-mastery { color: var(--muted); font-size: .78rem; }
 .stop-hub a { text-decoration: underline; }
+/* the Sections list: a disclosure in the hub line's column, rows of glyph, title and advisory state */
+.stop-sections { position: relative; z-index: 2; margin: .45rem 0 0 calc(56px + 1rem); padding: 0 1.3rem; font-family: var(--sans); font-size: .85rem; line-height: 1.5; }
+.stop-sections > summary { cursor: pointer; color: var(--muted); font-size: .8rem; }
+.stop-sections > summary { list-style: none; }
+.stop-sections > summary::-webkit-details-marker { display: none; }
+.stop-sections > summary::after {
+  content: ""; display: inline-block; width: 1.05em; height: 1.05em; margin-left: .3em; vertical-align: -.2em;
+  background: currentColor;
+  -webkit-mask: var(--icon-chevron) center / contain no-repeat; mask: var(--icon-chevron) center / contain no-repeat;
+  transition: transform .15s;
+}
+.stop-sections[open] > summary::after { transform: rotate(180deg); }
+.stop-rows { list-style: none; margin: .35rem 0 0; padding: 0; display: grid; gap: .3rem; }
+.stop-row { display: grid; grid-template-columns: 1.25rem minmax(0, 1fr) auto; gap: .2rem .6rem; align-items: baseline; }
+.stop-glyph { color: var(--muted); display: inline-flex; align-self: center; }
+.stop-glyph svg { width: 1em; height: 1em; }
+.stop-row[data-state="done"] .stop-glyph { color: var(--part); }
+.stop-state { color: var(--muted); font-size: .78rem; text-align: right; overflow-wrap: anywhere; max-width: 22rem; }
+.stop-sections a { text-decoration: underline; color: var(--text); }
+.stop-state a { color: var(--muted); }
+.stop-sections a:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; border-radius: 2px; }
+@media (max-width: 600px) {
+  .stop-row { grid-template-columns: 1.25rem minmax(0, 1fr); }
+  .stop-state { grid-column: 2; text-align: left; max-width: none; }
+}
 .stop-card .meta { margin-top: .35rem; font-family: var(--sans); font-size: .78rem; color: var(--muted); display: flex; flex-wrap: wrap; align-items: center; gap: .5rem; }
 @media (min-width: 900px) {
   .path { gap: 0; }
