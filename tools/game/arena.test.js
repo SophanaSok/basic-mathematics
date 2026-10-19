@@ -96,6 +96,7 @@ async function open(context, errors, page0, seed, solid) {
   await p.goto(url("arena.html"));
   await p.evaluate(({ seed, solid }) => {
     localStorage.clear();
+    if (!("bm.guide.v1" in seed)) localStorage.setItem("bm.guide.v1", '{"v":1,"seen":1}');
     Object.keys(seed).forEach(function (k) { localStorage.setItem(k, seed[k]); });
     if (solid) {
       var all = JSON.parse(localStorage.getItem("bm.attempts.v1") || "{}"), t = Date.now() - 864e5 * 2;

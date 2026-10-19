@@ -165,7 +165,7 @@ async function browserPart() {
     for (const [given, right] of cases) {
       const context = await browser.newContext();
       await context.route(/^(https?|wss?):/, offline);
-      await context.addInitScript(() => { try { localStorage.setItem("bm.lesson.v1", '{"mode":"page"}'); } catch (e) { /* fine */ } });
+      await context.addInitScript(() => { try { localStorage.setItem("bm.lesson.v1", '{"mode":"page"}'); localStorage.setItem("bm.guide.v1", '{"v":1,"seen":1}'); } catch (e) { /* fine */ } });
       const page = watch(await context.newPage());
       await page.goto(server.url + CH08);
       await page.waitForFunction(() => document.readyState === "complete");
