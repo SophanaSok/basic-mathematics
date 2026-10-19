@@ -898,7 +898,7 @@ const ALL = ["google", "github", "discord", "facebook", "azure"];
     r.page = k.page; r.context = k.context;
     await r.page.waitForSelector("#lrn-parent");
     await r.page.waitForTimeout(400);
-    check(!(await r.page.evaluate(() => !!document.getElementById("lrn-add"))) && (await calls(r.page, "learner_list")).length === 0, "29 after a reload it is still collapsed and reads no list", (await calls(r.page, "learner_list")).length);
+    check(!(await r.page.evaluate(() => !!document.getElementById("lrn-add"))) && (await calls(r.page, "learner_list")).length === 1, "29 after a reload it is still collapsed and reads the list once (PA-11: to find out whether the consent is stale)", (await calls(r.page, "learner_list")).length);
     await r.page.click("#lrn-parent");
     await r.page.waitForSelector("#lrn-add");
     await r.page.waitForSelector("#lrn-keep");
@@ -1052,8 +1052,8 @@ const ALL = ["google", "github", "discord", "facebook", "azure"];
     await f.page.click("#lrn-u13-M1");
     await f.page.check("#lrn-u13c-M1");
     await f.page.click("#lrn-u13s-M1");
-    await f.page.waitForFunction(() => /consent required/.test(document.body.textContent));
-    check(await f.page.evaluate(() => !!document.getElementById("lrn-u13-M1") || !!document.getElementById("lrn-u13b-M1")) && await f.page.evaluate(() => !document.querySelector("#lrn-n-M1 + .learner-tagline .learner-tag")), "30 a refused call shows the server's message and leaves the row unchanged");
+    await f.page.waitForFunction(() => /out of date/.test(document.body.textContent));
+    check(await f.page.evaluate(() => !!document.getElementById("lrn-u13-M1") || !!document.getElementById("lrn-u13b-M1")) && await f.page.evaluate(() => !document.querySelector("#lrn-n-M1 + .learner-tagline .learner-tag")), "30 a refused call shows the out-of-date message (PA-11) and leaves the row unchanged");
     await f.context.close();
   }
 
@@ -1076,11 +1076,11 @@ const ALL = ["google", "github", "discord", "facebook", "azure"];
     }));
     let s = await st();
     check(s.tags.join("|") === "Under 13|Consent to confirm" && s.btn === "Confirm consent" && s.label === "Confirm consent for Old", "31 a stale row shows both tags and the Confirm consent button", s);
-    check(s.dis && s.aria === "true" && s.title === "Confirm consent first", "31 the stale row's Switch to is disabled with aria-disabled and a title", s);
+    check(!s.dis && s.aria === "true" && s.title === "Confirm consent first", "31 the stale row's Switch to is aria-disabled with a title, and not disabled (PA-11)", s);
     check(s.ftags === 1 && !s.fbtn && !s.fdis, "31 a current row shows neither the stale tag nor the button, and can be switched to", s);
-    await page.evaluate(() => { const b = document.getElementById("lrn-sw-S1"); b.disabled = false; b.click(); });
+    await page.focus("#lrn-sw-S1"); await page.keyboard.press("Enter");
     await page.waitForTimeout(200);
-    check(await page.evaluate(() => window.__sw) === 0 && /Confirm the consent statement for Old first\./.test(await text(page, ".learners .form-note")), "31 a forced switch is refused with the note and no switchLearner call", await text(page, ".learners .form-note"));
+    check(await page.evaluate(() => window.__sw) === 0 && /Confirm the consent statement for Old first\./.test(await text(page, ".learners .form-note")), "31 a switch is refused with the note and no switchLearner call", await text(page, ".learners .form-note"));
     await page.click("#lrn-u13-S1");
     await page.check("#lrn-u13c-S1");
     await page.click("#lrn-u13s-S1");
@@ -1091,6 +1091,69 @@ const ALL = ["google", "github", "discord", "facebook", "azure"];
     check(s.tags.join("|") === "Under 13" && !s.btn && !s.dis && s.aria === null, "31 the row loses the stale tag and Switch to is enabled", s);
     check(/Old's consent is confirmed\./.test(await text(page, ".learners .form-note")), "31 the note names the learner", await text(page, ".learners .form-note"));
     await context.close();
+  }
+
+  /* 32 (PA-11) */
+  {
+    const r32 = () => [
+      { id: "u1", self: true, name: null, under13: false, consent_v: null, created_at: "2026-10-01T00:00:00Z" },
+      { id: "S1", self: false, name: "Old", under13: true, consent_v: 0, created_at: "2026-10-02T00:00:00Z" },
+      mk("F1", "Fresh")
+    ];
+    const NOTE = "Old's consent statement has changed. Confirm it to keep playing as them.";
+    const tags = (page) => page.evaluate(() => Array.from(document.querySelectorAll("#lrn-n-S1 + .learner-tagline .learner-tag")).map((e) => e.textContent).join("|"));
+    /* (a) the active learner is stale: they stay the active one, both tags and Confirm show */
+    {
+      const { page, context } = await open_({ learners: r32() }, { local: { "bm.sync.v1": { learner: "S1", acct: "u1", learnerName: "Old" } } });
+      await page.waitForSelector("#lrn-u13-S1");
+      check(await page.evaluate(() => { const li = document.getElementById("lrn-n-S1").closest("li"); return li.getAttribute("aria-current") === "true" && /Playing as/.test(li.textContent) && !document.getElementById("lrn-sw-S1"); }) && await tags(page) === "Under 13|Consent to confirm" && await text(page, "#lrn-u13-S1") === "Confirm consent", "32a the active stale learner stays Playing as, with both tags and Confirm consent");
+      check(await text(page, "[data-stale-note]") === NOTE, "32a the panel carries the changed-statement note", await text(page, "[data-stale-note]"));
+      await page.click("#lrn-u13-S1");
+      await page.check("#lrn-u13c-S1");
+      await page.click("#lrn-u13s-S1");
+      await page.waitForFunction(() => !document.querySelector(".learner-tag-stale"));
+      const c = await calls(page, "learner_mark_under13");
+      check(c.length === 1 && c[0].args.id === "S1" && c[0].args.consent_v === 1, "32a Confirm sends consent_v 1", c);
+      check(await tags(page) === "Under 13" && !(await page.evaluate(() => !!document.querySelector("[data-stale-note]"))) && /Old's consent is confirmed\./.test(await text(page, ".learners .form-note")), "32a the tags, the note and the stale line update", await text(page, ".learners"));
+      await context.close();
+    }
+    /* (b) a refused Confirm for a number this page sent: the page is old */
+    {
+      const { page, context } = await open_({ learners: r32(), markRefused: true }, { local: { "bm.sync.v1": { learner: "F1", acct: "u1", learnerName: "Fresh" } } });
+      await page.waitForSelector("#lrn-u13-S1");
+      await page.click("#lrn-u13-S1");
+      await page.check("#lrn-u13c-S1");
+      await page.click("#lrn-u13s-S1");
+      await page.waitForFunction(() => /out of date/.test(document.body.textContent));
+      check(await text(page, ".learners .form-note") === "The consent statement on this page is out of date. Reload the page and try again." && !/consent required/.test(await text(page, ".learners")), "32b a refused Confirm says the page is out of date, not the server's text", await text(page, ".learners .form-note"));
+      check(await tags(page) === "Under 13|Consent to confirm" && await page.getAttribute("#lrn-sw-S1", "aria-disabled") === "true", "32b the row stays stale and Switch to stays refused");
+      await context.close();
+    }
+    /* (c) the kept view with a stale learner draws the full panel; Confirm then collapses it on the same draw */
+    {
+      const { page, context } = await open_({ learners: r32() }, { local: { "bm.sync.v1": { learner: "S1", acct: "u1", keep: "S1", learnerName: "Old" } } });
+      await page.waitForSelector("#lrn-u13-S1", { timeout: 8000 });
+      check(await page.evaluate(() => !document.querySelector("[data-kept]") && !document.getElementById("lrn-parent") && !!document.getElementById("lrn-add")) && await text(page, "[data-stale-note]") === NOTE, "32c a kept stale learner gets the full panel with the note, not the collapsed line", await text(page, ".learners"));
+      check((await calls(page, "learner_list")).length === 1 && await page.evaluate(() => JSON.parse(localStorage.getItem("bm.sync.v1")).keep) === "S1", "32c one list read, the keep stays");
+      await page.click("#lrn-u13-S1");
+      await page.check("#lrn-u13c-S1");
+      await page.click("#lrn-u13s-S1");
+      await page.waitForSelector("[data-kept]");
+      check(await page.evaluate(() => !document.getElementById("lrn-add") && !!document.getElementById("lrn-parent") && /Playing as Old/.test(document.querySelector("[data-kept]").textContent) && /Old's consent is confirmed\./.test(document.querySelector("[data-note-l]").textContent)), "32c after Confirm the same draw is the collapsed line, with the confirmation note", await text(page, ".learners"));
+      await context.close();
+    }
+    /* (d) the stale row's Switch to is reachable by keyboard and refuses with the note */
+    {
+      const { page, context } = await open_({ learners: r32() }, { local: { "bm.sync.v1": { learner: "F1", acct: "u1", learnerName: "Fresh" } } });
+      await page.waitForSelector("#lrn-sw-S1");
+      await page.evaluate(() => { const f = window.BMAccount.switchLearner; window.__sw = 0; window.BMAccount.switchLearner = function () { window.__sw++; return f.apply(this, arguments); }; });
+      await page.focus("#lrn-sw-S1");
+      check(await page.evaluate(() => document.activeElement.id === "lrn-sw-S1" && !document.activeElement.disabled), "32d the stale row's Switch to takes focus (not disabled)");
+      await page.keyboard.press("Enter");
+      await page.waitForTimeout(200);
+      check(await page.evaluate(() => window.__sw) === 0 && /Confirm the consent statement for Old first\./.test(await text(page, ".learners .form-note")), "32d Enter shows the refusal note and calls no switchLearner", await text(page, ".learners .form-note"));
+      await context.close();
+    }
   }
 
   check(errors.length === 0, "no uncaught page errors", errors);

@@ -460,6 +460,34 @@ controls and sign in through it for a fresh `oauth` entry; and leave `web3` and 
 
 applied: 2026-10-18 (Claude in Chrome, after #192 deployed; verified: delete_my_account is plpgsql and calls fresh_auth, fresh_auth carries the first-factor list, grants unchanged)
 
+### Bumping the consent version (when the statement changes)
+
+The text a parent agrees to for an under-13 learner (`CONSENT_TEXT` in `assets/account.js`) has a
+version, and two places must hold the same number: `CONSENT_V` in `assets/account.js`, and
+`consent_current` (a `constant smallint`) in both `learner_add` and `learner_mark_under13`. Move
+them together: one migration that `create or replace`s both functions (copy them from
+`supabase/schema.sql`, which changes in the same PR), and the page constant in the same PR.
+
+**Order**: the migration first, in the same hour as the deploy. In the gap, an old tab still
+sends the old number and the server answers `consent required`; the page maps that to "The
+consent statement on this page is out of date. Reload the page and try again." (only when the box
+was ticked, so a missed tick keeps its own text). Reloading loads the new page. The deploy then
+makes every under-13 row stale on the account page (`consent_v` below `CONSENT_V`): the row shows
+"Consent to confirm", its "Switch to" refuses with a note, and a kept or active learner gets the
+full panel with "Confirm it to keep playing as them" until their parent confirms. Nothing is
+deleted or switched by the bump.
+
+1. Apply the migration in Dashboard → SQL → New query. Re-running it does nothing more.
+2. Verify: `select prosrc like '%consent_current constant smallint := 2%' from pg_proc where proname in ('learner_add', 'learner_mark_under13');` → true for both (write the new number).
+3. After the deploy, signed in with a throwaway under-13 learner made before the bump: the row
+   shows "Consent to confirm"; press Confirm consent, tick the box, Confirm; the tag goes and
+   `select consent_v, consent_at from public.learners where id = '<id>';` shows the new number
+   and a new `consent_at`.
+4. Rollback: set both constants back (`consent_current` in a new migration that `create or
+   replace`s both functions with the old number, and `CONSENT_V` in the page). Rows confirmed
+   under the new number then read as stale until confirmed again, since the check is
+   "not equal", not "older"; confirming sends the old number back.
+
 ## 2. Deploys
 
 The course is served from one place: **Cloudflare Pages, at <https://learn.groundupmath.org>**
