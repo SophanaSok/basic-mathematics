@@ -2353,6 +2353,15 @@ async function run() {
           eq(await page.getAttribute(".hud-pop a", "href"), "../../progress.html", "the popover links to the progress page");
           await page.keyboard.press("Tab");
           check(await page.evaluate(() => !!document.activeElement && document.activeElement.classList.contains("pop-link")), "Tab goes into the popover");
+          const linkInfo = await page.evaluate(() => {
+            const a = document.querySelector(".hud-pop .pop-link"), box = document.querySelector(".hud-pop");
+            const cs = getComputedStyle(box);
+            const inner = box.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);
+            return { btn: a.classList.contains("btn"), ratio: a.getBoundingClientRect().width / inner, focused: document.activeElement === a, href: a.getAttribute("href") };
+          });
+          check(linkInfo.btn, "the progress link is a .btn");
+          check(linkInfo.ratio >= 0.9, "the progress link is full width: " + linkInfo.ratio);
+          check(linkInfo.focused && /progress\.html$/.test(linkInfo.href), "one Tab focuses the progress link: " + linkInfo.href);
           await page.keyboard.press("Escape");
           eq(await page.$$eval(".hud-pop", (n) => n.length), 0, "Escape closes the popover");
           check(await page.evaluate(() => !!document.activeElement && document.activeElement.classList.contains("hud-level")), "focus is back on the badge");

@@ -173,7 +173,7 @@ function openPop(badge: HTMLAnchorElement): void {
     el("p", "pop-line", "Active " + activeDays(activity) + " of the last 30 days"),
     el("p", "pop-line", "Form: " + wearing.name + (next ? ". Next: " + next.name + " at level " + next.level + "." : ". The last form."))
   );
-  const more = el("a", "pop-link", "Your progress →");
+  const more = el("a", "btn pop-link", "Your progress →");
   more.setAttribute("href", href);
   box.appendChild(more);
 
