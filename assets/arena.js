@@ -1145,7 +1145,7 @@
       var open = ready || (!anyReady && !html);
       html += '<details class="arena-part" data-part="' + part.id + '"' + (open ? " open" : "") + ">" +
         "<summary><span>" + (part.beside ? "" : "Part " + part.num + " — ") + esc(part.name) + '</span><span class="arena-part-count">' + ready + " of " + total + " ready</span></summary>" +
-        (ready ? "" : '<p class="arena-part-hint">A section is ready once you have answered one of its scored exercises right the first time or solved two of its problems on the chapter page.</p>') +
+        (ready ? "" : '<p class="arena-part-hint">A section is ready once you have answered one of its scored exercises right the first time, solved two of its problems on the chapter page, or answered one of its Arena questions right the first time.</p>') +
         '<ul class="arena-secs">' + rows + "</ul></details>";
     });
     var sum = counts.solid + counts.shaky + counts.picked;
