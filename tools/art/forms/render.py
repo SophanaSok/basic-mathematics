@@ -28,7 +28,35 @@ THUMB = (512, 640)
 PITCH = 0.3
 FOV = 30.0
 BACKDROP = (0.32, 0.33, 0.35, 1.0)
-KINDS = ("turntable", "thumb", "emotes")
+KINDS = ("turntable", "thumb", "emotes", "poses")
+POSE_TILE = (256, 320)
+POSE_MAX_BYTES = 120000
+POSE_MARGIN = 1.06
+# pose: (name, clip frame (clip, frame) or hand-keyed bones, glow factor); the order is the
+# site's POSES in src/learn/mood.ts. Hand-keyed: {bone: (x, y, z)} degrees in the bone's own
+# axes (see emotes.py), applied over a reset rig; a bone a stage lacks is skipped, and
+# `pip` replaces the dict for a stage with no limbs (Pip works through hips, chest, head).
+POSES = (
+    ("rest", ("idle", 0), 1.0),
+    ("curious", ("bow", 34), 1.0),
+    ("delighted", ("wave", 30), 1.3),
+    ("steady", {
+        "thigh.L": (0, 0, -7), "thigh.R": (0, 0, 7),
+        "upper_arm.L": (0, 0, -14), "upper_arm.R": (0, 0, 14),
+        "forearm.L": (12, 0, 0), "forearm.R": (12, 0, 0),
+        "chest": (-4, 0, 0), "head": (-3, 0, 0),
+        "pip": {"chest": (-6, 0, 0), "head": (-5, 0, 0)},
+    }, 0.5),
+    ("sleepy", {
+        "spine": (8, 0, 0), "chest": (14, 0, 0), "neck": (10, 0, 0), "head": (32, 0, 0),
+        "upper_arm.L": (6, 0, 0), "upper_arm.R": (6, 0, 0),
+        "pip": {"hips": (22, 0, 0), "chest": (15, 0, 0), "head": (25, 0, 0)},
+    }, 0.35),
+    ("waiting", {
+        "upper_arm.R": (0, 0, 24), "forearm.R": (-30, 0, 0), "head": (-10, 15, 0),
+        "pip": {"hips": (-8, 0, 0), "head": (-15, 0, 0)},
+    }, 1.6),
+)
 
 
 THUMB_MAX_BYTES = 160000
@@ -297,6 +325,111 @@ def emotes_sheet(objects, height, out_dir, stage, engine, cpu=False):
     return path, used
 
 
+def _glow_input():
+    """the Emission Strength socket of the `glow` material, or None"""
+    m = bpy.data.materials.get("glow")
+    n = m.node_tree.nodes.get("Principled BSDF") if m and m.use_nodes else None
+    return n.inputs["Emission Strength"] if n else None
+
+
+def _extent(objects):
+    """(low, high) corners of the evaluated parts' bounding boxes"""
+    dg = bpy.context.evaluated_depsgraph_get()
+    pts = []
+    for o in objects:
+        e = o.evaluated_get(dg)
+        pts += [e.matrix_world @ Vector(c) for c in e.bound_box]
+    return (Vector((min(p.x for p in pts), min(p.y for p in pts), min(p.z for p in pts))),
+            Vector((max(p.x for p in pts), max(p.y for p in pts), max(p.z for p in pts))))
+
+
+def _strike(arm, scene, pose):
+    """put the rig in one pose: every bone reset, then a clip frame or the keyed bones"""
+    for pb in arm.pose.bones:
+        pb.rotation_mode = "XYZ"
+        pb.rotation_euler = (0.0, 0.0, 0.0)
+        pb.location = (0.0, 0.0, 0.0)
+        pb.scale = (1.0, 1.0, 1.0)
+    ad = arm.animation_data
+    if isinstance(pose, tuple):
+        clip, fr = pose
+        act = bpy.data.actions.get(clip)
+        if act is None:
+            raise RuntimeError(f"no clip {clip!r}")
+        ad.action = act
+        if hasattr(act, "slots") and len(act.slots):
+            ad.action_slot = act.slots[0]
+        scene.frame_set(fr)
+        return
+    ad.action = None
+    scene.frame_set(0)
+    bones = pose["pip"] if "upper_arm.L" not in arm.pose.bones and "pip" in pose else pose
+    for name, rot in bones.items():
+        pb = arm.pose.bones.get(name)
+        if pb is not None and name != "pip":
+            x, y, z = rot
+            pb.rotation_euler = (math.radians(x), math.radians(y), math.radians(z))
+    bpy.context.view_layer.update()
+
+
+def poses_sheet(objects, height, path, stage, engine, cpu=False, quality=85):
+    """six transparent stills, one per pose (a clip frame or hand-keyed bones, and a glow
+    strength), from one camera that fits the union of the six poses with a 6% margin, tiled
+    left to right into one WebP sheet; the glow is put back afterwards"""
+    scene = bpy.context.scene
+    os.makedirs(os.path.dirname(os.path.abspath(path)), exist_ok=True)
+    arm = next((o for o in bpy.data.objects if o.type == "ARMATURE"), None)
+    if arm is None or arm.animation_data is None:
+        raise RuntimeError("no clips to render: build without --no-clips")
+    w, h = POSE_TILE
+    cam = _setup(scene, w, h, True)   # no judging tint: the site tints the accent itself
+    glow = _glow_input()
+    base = glow.default_value if glow is not None else None
+    yaw = math.radians(30)
+    lo = hi = None
+    for _name, pose, _factor in POSES:
+        _strike(arm, scene, pose)
+        a, b = _extent(objects)
+        lo = a if lo is None else Vector((min(lo.x, a.x), min(lo.y, a.y), min(lo.z, a.z)))
+        hi = b if hi is None else Vector((max(hi.x, b.x), max(hi.y, b.y), max(hi.z, b.z)))
+    centre = (lo + hi) / 2
+    hgt = hi.z - lo.z
+    width = (hi.x - lo.x) * math.cos(yaw) + (hi.y - lo.y) * math.sin(yaw)
+    k = POSE_MARGIN / 1.3   # _aim's own 1.3 is the viewer's margin
+    tmp = os.path.join(os.path.dirname(os.path.abspath(path)), f"form-{stage}-pose.png")
+    tiles, used = [], engine
+    try:
+        for i, (_name, pose, factor) in enumerate(POSES):
+            _strike(arm, scene, pose)
+            if glow is not None:
+                glow.default_value = base * factor
+            _aim(cam, centre, hgt * k, width * k, w, h, 30)
+            used = _render_still(scene, tmp, engine if engine != "auto" or i == 0 else used, cpu)
+            tiles.append(_pixels(tmp, w, h))
+    finally:
+        if glow is not None:
+            glow.default_value = base
+        arm.animation_data.action = None
+        scene.frame_set(0)
+        if os.path.exists(tmp):
+            os.remove(tmp)
+    sheet = np.concatenate(tiles, axis=1)
+    img = bpy.data.images.new("poses", sheet.shape[1], sheet.shape[0], alpha=True)
+    img.colorspace_settings.name = "Non-Color"
+    img.pixels.foreach_set(np.ascontiguousarray(sheet[::-1]).ravel())
+    img.filepath_raw = path
+    img.file_format = "WEBP"
+    img.save(quality=quality)
+    size = os.path.getsize(path)
+    while size > POSE_MAX_BYTES and quality > 40:
+        quality -= 10
+        img.save(quality=quality)
+        size = os.path.getsize(path)
+    if size > POSE_MAX_BYTES:
+        raise RuntimeError(f"{path} is {size} bytes, over the {POSE_MAX_BYTES} allowed")
+    return path, used
+
+
 def renders(kinds, objects, height, stage, raw_dir, engine="auto", cpu=False):
     for kind in kinds:
         if kind not in KINDS:
@@ -309,6 +442,8 @@ def renders(kinds, objects, height, stage, raw_dir, engine="auto", cpu=False):
             path, used = turntable(objects, height, out, stage, engine, cpu)
         elif kind == "thumb":
             path, used = thumbnail(objects, height, os.path.join(raw_dir, f"form-{stage}.png"), engine, cpu)
+        elif kind == "poses":
+            path, used = poses_sheet(objects, height, os.path.join(raw_dir, f"form-{stage}-poses.webp"), stage, engine, cpu)
         else:
             out = os.path.join(os.path.dirname(os.path.abspath(raw_dir)), "turntable")
             path, used = emotes_sheet(objects, height, out, stage, engine, cpu)

@@ -37,7 +37,7 @@ def main():
     ap.add_argument("--out", default=os.path.join(ROOT, ".cache", "forms", "raw"))
     ap.add_argument("--no-clips", action="store_true", help="skip the emote clips (a bare rest-pose model)")
     ap.add_argument("--no-bake", action="store_true", help="skip the texture bake (flat materials, no images)")
-    ap.add_argument("--renders", default="", help="comma list: turntable, thumb, emotes")
+    ap.add_argument("--renders", default="", help="comma list: turntable, thumb, emotes, poses")
     ap.add_argument("--engine", default="auto", choices=["auto", "eevee", "cycles", "workbench"])
     ap.add_argument("--cpu", action="store_true", help="Cycles on the CPU, fewer samples")
     a = ap.parse_args(argv)
