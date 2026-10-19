@@ -186,6 +186,14 @@ async function run() {
         return { disabled: m.getAttribute("aria-disabled"), title: m.title, checked: Array.prototype.filter.call(document.querySelectorAll("[data-hub-mode] [role=radio]"), (b) => b.getAttribute("aria-checked") === "true").map((b) => b.textContent), why: window.BMMap3D.why() };
       });
       check(d.disabled === "true" && /cannot draw the map/.test(d.title) && d.checked.join() === "List", label + ": Map is aria-disabled with a title and List reads checked (" + JSON.stringify(d) + ")");
+      /* the sheet's map switch is disabled with its reason */
+      await page.evaluate(() => { const m = document.querySelector(".topbar .hud-menu"); if (m) m.click(); });
+      const sw = await page.evaluate(() => {
+        const i = document.querySelector('input[data-pref="map3d"]'), n = document.getElementById("pref-map3d-note");
+        return { disabled: i.disabled, note: n && n.textContent };
+      });
+      check(sw.disabled && sw.note === "This device cannot draw the map.", label + ": the sheet's map switch is disabled with 'This device cannot draw the map.' (" + JSON.stringify(sw) + ")");
+      await page.evaluate(() => { const m = document.querySelector(".topbar .hud-menu"); if (m) m.click(); });   /* closed again: the next click must not be the outside click that closes it */
       await radio(page, "map").click({ force: true });
       await wait(300);
       check((await prefsOf(page)).map === undefined && (await checked(page)).join() === "List", label + ": clicking the disabled Map writes nothing");
@@ -496,6 +504,20 @@ async function run() {
       await page.waitForFunction(() => !document.querySelector("li.stop[hidden], li.stop-row[hidden]"), null, { timeout: 3000 });
       check((await shown()).join() === allCards.join() && (await openOf()) === openBefore, "t: clearing restores every card and the open state (" + (await openOf()) + " vs " + openBefore + ")");
       check((await status()) === "" && await page.evaluate(() => !document.querySelector("section.part[hidden]")), "t: and empties the status and shows every Part");
+
+      /* t2: a card closed by hand during a query stays closed when the query clears */
+      await page.evaluate(() => { document.querySelector('li.stop[data-chapter="ch04"] details.stop-sections').open = true; });
+      await wait(100);
+      await page.fill("#hub-q", sec.title);
+      await page.waitForFunction(() => document.querySelector('li.stop[data-chapter="ch04"]:not([hidden]) li.stop-row[hidden]'), null, { timeout: 3000 });
+      await wait(150);
+      await page.evaluate(() => { document.querySelector('li.stop[data-chapter="ch04"] details.stop-sections').open = false; });
+      await wait(150);
+      await page.fill("#hub-q", "");
+      await page.waitForFunction(() => !document.querySelector("li.stop[hidden], li.stop-row[hidden]"), null, { timeout: 3000 });
+      check(await page.evaluate(() => !document.querySelector('li.stop[data-chapter="ch04"] details.stop-sections').open), "t: a card closed by hand during a query stays closed after it clears");
+      await page.evaluate(() => { document.querySelector('li.stop[data-chapter="ch04"] details.stop-sections').open = false; });
+      await wait(100);
 
       /* u: Enter */
       await page.fill("#hub-q", "quadratic");

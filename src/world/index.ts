@@ -17,6 +17,7 @@ import { makeMaterials, readPalette, type PaletteMap } from "./materials.ts";
 import { makeLights, atmosphere } from "./lighting.ts";
 import { buildStatic, placePuffs, PUFF_MS, type StaticWorld } from "./regions.ts";
 import { buildMarks, type IsleState, type Marks } from "./marks.ts";
+import { buildLinks, type Links } from "./links.ts";
 import { buildForm, type FormLook } from "./forms.ts";
 
 /** the form on the map stands this much smaller than the figure the progress page shows */
@@ -47,6 +48,9 @@ export interface WorldScene {
   /** the islands' progress, in layout order; which caps are "ahead" (not started) */
   setProgress(states: IsleState[], ahead: boolean[], doneGates: boolean[]): void;
   kinds(): Record<string, string>;
+  /** draw the prerequisite arcs from each island in `to` to island `from` (layout indices);
+      (-1, []) clears them */
+  setLinks(from: number, to: number[]): void;
   /** read the tokens again and repaint (theme or panel changed) */
   repaint(): void;
   /** the bloom is on (or off): the glow colours go past 1 (or back) and the world repaints */
@@ -83,6 +87,8 @@ export function createWorld(T: Three, opts: WorldOptions): WorldScene {
 
   let still: StaticWorld = buildStatic(T, L, placeProps(L, opts.motifs, opts.detail), mats, pal);
   let marks: Marks | null = null;
+  let links: Links | null = null;
+  const clearLinks = () => { if (links) { scene.remove(links.mesh); links.dispose(); links = null; } };
   let states: IsleState[] = [];
   let idleShown = true;
   const addStatic = () => {
@@ -160,6 +166,13 @@ export function createWorld(T: Three, opts: WorldOptions): WorldScene {
       scene.add(marks.mesh, marks.edges);
       capsAndGates();
     },
+    setLinks(from, to) {
+      clearLinks();
+      if (!to.length || from < 0) return;
+      links = buildLinks(T, L, from, to, pal);
+      if (!links.segments) { clearLinks(); return; }
+      scene.add(links.mesh);
+    },
     kinds: () => (marks ? marks.kinds : {}),
     setBloom(on) {
       if (on === bloom) return;
@@ -172,6 +185,7 @@ export function createWorld(T: Three, opts: WorldOptions): WorldScene {
       if (form) form.paint(pal);
       still.paint(pal);
       if (marks) marks.paint(pal);
+      if (links) links.paint(pal);
     },
     atmosphere(z, dist, fog = true) { atmosphere(T, scene, pal, parts, rowAt(z, parts.length), dist, fog); },
     idle,
@@ -179,6 +193,7 @@ export function createWorld(T: Three, opts: WorldOptions): WorldScene {
     dispose() {
       removeStatic();
       still.dispose();
+      clearLinks();
       if (marks) marks.dispose();
       if (form) form.dispose();
       selectGeo.dispose();
