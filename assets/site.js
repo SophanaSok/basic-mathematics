@@ -1145,7 +1145,7 @@
         missNotes.forEach(function (n, k) { n.html = kept[k] ? kept[k].html : ""; });
       }
 
-      function reveal() {
+      function reveal(auto) {
         if (!solution) return;
         solution.setAttribute("data-show", "true");
         showBtn.textContent = "Hide solution";
@@ -1159,7 +1159,8 @@
         }
         Store.emit({
           type: "opened", chapter: chapterId, key: key, section: section, inline: inline,
-          solved: done || ex.getAttribute("data-state") === "correct", tries: already.tries || 0, ex: ex
+          solved: done || ex.getAttribute("data-state") === "correct", tries: already.tries || 0, ex: ex,
+          auto: auto === true
         });
       }
       function hide() {
@@ -1231,8 +1232,11 @@
         if (orderList) orderItems.forEach(function (li) { orderList.appendChild(li); });
         blanks.forEach(function (b) { b.setAttribute("data-ok", "true"); b.removeAttribute("aria-invalid"); b.removeAttribute("data-verdict"); });
         if (solution) showBtn.removeAttribute("data-suggested");
+        var solutionOpen = !!solution && solution.getAttribute("data-show") === "true";
         say(verdict("ok", TICK + " Correct.") + (note || "") +
-          (solution ? '<p class="ex-next hint">Compare your reasoning with the solution below.</p>' : ""));
+          (solution ? '<p class="ex-next hint">' + (solutionOpen || !fromStorage
+            ? "The solution is open below. Compare your route with it."
+            : "Open the solution below to compare your route.") + "</p>" : ""));
         if (!fromStorage && !inline) {
           var before = solvedCount();
           Progress.markSolved(chapterId, key);
@@ -1240,6 +1244,10 @@
           if (total && before < total && solvedCount() >= total) chapterDone(chapter, true);
         }
         if (!fromStorage) Store.emit({ type: "solved", chapter: chapterId, key: key, inline: inline, fresh: !!fresh });
+        /* a live correct check opens the worked solution so the learner compares routes; the
+           card is already "correct", so this costs nothing. Not on restore: a reload must not
+           expand every solved card. */
+        if (!fromStorage && solution && !solutionOpen) reveal(true);
       }
 
       /* what the reader has put in: { given } or { empty: a nudge to finish answering } */
