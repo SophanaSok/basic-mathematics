@@ -66,6 +66,8 @@ import "../data/skills.ts";
 import "../data/section-work.ts";
 import "../learn/diagnostic.ts";
 import "../learn/diag-seed.ts";
+/* where each section stands and the one continue resolver (src/learn/status.ts): next.ts and plan.ts read it */
+import "../learn/status.ts";
 import "../learn/plan.ts";
 import "../ui/plan.ts";
 /* the exercises the site has, which insights.js uses to leave out stale statistics rows */
