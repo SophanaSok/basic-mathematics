@@ -465,8 +465,9 @@ systemd-run --user --scope -q -p CPUQuota=150% -- taskset -c 0,1,6,7 npm run che
 (`0,1,6,7` is two cores and their second threads, as a runner's four vCPUs are; `lscpu -e`
 gives the pairs.) Without the clock, the map script failed here as it did on CI.
 Software WebGL is slow and can lose its context under load, which is why CI runs the 3D checks
-(`npm run test:browser:3d`: `game/map.test.js`, and `game/scenes.test.js`, whose painter check
-runs under the same flags while the rest of it draws on the SVG painter) and the `webgl` suite
+(`npm run test:browser:3d`: `game/scenes.test.js`, whose painter check runs under the same
+flags while the rest of it draws on the SVG painter, `game/map.test.js`, `game/forms.test.js` and
+`game/hub.test.js`) and the `webgl` suite
 in a job of their own, retried, outside the gate a deploy waits for; `npm run test:browser:core`
 and `check-browser.js --skip=webgl` are the gate. In a full run (a pull request given the label
 `ci`, or Run workflow) the gate runs as one `browser` job per part of
