@@ -12,6 +12,9 @@
 /* first in <main>, the world starts where the hero did, at main's own padding */
 .map3d { margin-top: 1.75rem; --map3d-row: 3.25rem; }
 .map3d:first-child { margin-top: 0; }
+/* the contents page's head (the call to action) comes first; the world sits close under it */
+.hub-head + .map3d { margin-top: 1rem; }
+@media (max-width: 600px) { .hub-head + .map3d { margin-top: .8rem; } }
 /* the hero follows the world, closer than it stands at the top of a page */
 .map3d:not([hidden]) + .hero, html[data-world] .map3d + .hero { padding-top: 2.25rem; }
 

@@ -950,10 +950,17 @@ async function run() {
       const r = await page.evaluate(() => {
         var main = document.querySelector("main"), cs = getComputedStyle(main);
         return { parsed: window.__parsed, hero: Math.round(document.querySelector("section.hero").getBoundingClientRect().top), shifts: window.__shifts,
-          gap: Math.round(document.querySelector(".map3d-parts").getBoundingClientRect().top - main.getBoundingClientRect().top - parseFloat(cs.paddingTop)) };
+          gap: Math.round(document.querySelector(".hub-head").getBoundingClientRect().top - main.getBoundingClientRect().top - parseFloat(cs.paddingTop)),
+          under: Math.round(document.querySelector(".map3d-parts").getBoundingClientRect().top - document.querySelector(".hub-head").getBoundingClientRect().bottom - parseFloat(getComputedStyle(document.querySelector(".map3d")).marginTop)),
+          cta: (function (b) { return { top: b.top, bottom: b.bottom, left: b.left, right: b.right }; })(document.querySelector("a[data-continue]").getBoundingClientRect()),
+          lede: (function (b) { return { top: b.top, bottom: b.bottom }; })(document.querySelector(".hub-lede").getBoundingClientRect()),
+          vh: window.innerHeight, vw: window.innerWidth };
       });
       check(r.parsed && r.parsed.world === "3d" && Math.abs(r.hero - r.parsed.hero) <= 1 && r.shifts.length === 0, viewport.width + " wide, the page's module 1.5 s late: the world's place is kept from the first paint and the hero does not move when it arrives (" + JSON.stringify(r) + ")");
-      check(r.gap === 0, viewport.width + " wide: the world starts at main's own padding, as the hero did (" + r.gap + " px more)");
+      check(r.gap === 0, viewport.width + " wide: the contents page's head starts at main's own padding (" + r.gap + " px more)");
+      check(Math.abs(r.under) <= 1, viewport.width + " wide: the Part buttons start at the head's bottom plus the map's margin (" + r.under + " px off)");
+      check(r.cta.top >= 0 && r.cta.bottom <= r.vh && r.cta.left >= 0 && r.cta.right <= r.vw, viewport.width + " wide: the primary call to action is inside the first screen, unscrolled (" + JSON.stringify(r.cta) + ")");
+      check(r.lede.top >= 0 && r.lede.bottom <= r.vh, viewport.width + " wide: the head's line is inside the first screen, unscrolled (" + JSON.stringify(r.lede) + ")");
       await context.close();
     }
 
