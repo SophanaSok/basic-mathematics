@@ -200,7 +200,7 @@ going well. A short version appears above each chapter's recap.
   (on top of what the device asks for: while the device asks, or Study mode is on for motion, the
   switch shows on and cannot be turned off), the theme (light, dark or match the system), the
   reading panel, graphics quality and the 3D course map. Every setting stays on the device.
-- **The course world.** The contents page opens on a small 3D world of the course: four regions,
+- **The course world.** The contents page opens on the List; the Map (a small 3D world of the course) is one click away, and the choice is remembered on the device. The world has four regions,
   one per Part (the Foundry for algebra, the Fields for geometry, the Grid for coordinates, the
   Observatory for the rest), each a terrace with its chapters standing on it as islands, a ring
   for how much of each is solved, a shrinking boss for what is left and a flag once it is done.
@@ -209,8 +209,7 @@ going well. A short version appears above each chapter's recap.
   there and is the same course in words; it is what a screen reader and the keyboard use, and
   focusing a chapter in it picks that chapter's island, so the world is on it when you scroll back
   up (where the world is on screen too, you see it fly there). Graphics quality in the settings sheet picks how
-  much the world draws (Auto, Low, Medium, High); switch the 3D course map off to have the list
-  alone. The world moves for a few seconds after you touch it and then holds still; in Study mode
+  much the world draws (Auto, Low, Medium, High); the 3D course map switch (or the List / Map control on the contents page) picks the world or the list. The world moves for a few seconds after you touch it and then holds still; in Study mode
   and with Reduce motion it never moves at all.
 - **Between pages**, in a browser that can (Chrome and Edge 126 and later, Chrome for Android,
   Safari 18.2 and later), the next page fades in under a header that stays where it is. The fade

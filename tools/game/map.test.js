@@ -210,7 +210,7 @@ async function newContext(browser, opts) {
   await context.addInitScript(PIXELS);
   if (opts.hardware || opts.renderer) await context.addInitScript(RENDERER, opts.renderer || HARDWARE);
   await context.addInitScript((seed) => {
-    try { if (!sessionStorage.getItem("__seeded")) { if (!("bm.guide.v1" in seed)) localStorage.setItem("bm.guide.v1", '{"v":1,"seen":1}'); Object.keys(seed).forEach(function (k) { localStorage.setItem(k, seed[k]); }); sessionStorage.setItem("__seeded", "1"); } } catch (e) { /* fine */ }
+    try { if (!sessionStorage.getItem("__seeded")) { if (!("bm.guide.v1" in seed)) localStorage.setItem("bm.guide.v1", '{"v":1,"seen":1}'); var pf = {}; try { pf = JSON.parse(seed["bm.prefs.v1"] || "{}"); } catch (e) { pf = {}; } if (!("map" in pf)) pf.map = "3d"; seed = Object.assign({}, seed, { "bm.prefs.v1": JSON.stringify(pf) }); Object.keys(seed).forEach(function (k) { localStorage.setItem(k, seed[k]); }); sessionStorage.setItem("__seeded", "1"); } } catch (e) { /* fine */ }
   }, opts.seed || {});
   return { context, asked, world, post };
 }
@@ -990,6 +990,7 @@ async function run() {
       /* the page's module (which draws the world) held back 1.5 s, as on a slow network:
          where the hero is once the page is parsed, and where it is once the world is drawn */
       const context = await browser.newContext({ viewport, deviceScaleFactor: 1 });
+      await context.addInitScript(() => { try { if (!sessionStorage.getItem("__seeded")) { localStorage.setItem("bm.prefs.v1", '{"map":"3d"}'); sessionStorage.setItem("__seeded", "1"); } } catch (e) { /* fine */ } });
       await context.route(/^(https?|wss?):/, async (r) => {
         const u = r.request().url();
         if (!server.owns(u)) return r.abort();

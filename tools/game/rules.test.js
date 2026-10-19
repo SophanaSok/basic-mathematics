@@ -836,8 +836,11 @@ function world(seedStores) {
     "switched off, the attributes go and the store keeps nothing: the device's own setting rules again");
   /* graphics quality is the course world's tier (src/world/tiers.ts): Low is its low
      tier, still 3D; the 3D map switch is what keeps the list */
+  eq(w.Game.map3dOn(w.Game.prefs()), false, "with no choice made the contents page opens on the List");
   w.Game.setPref("gfx", "low");
-  eq([w.read("bm.prefs.v1").gfx, w.Game.map3dOn(w.Game.prefs())], ["low", true], "Graphics quality Low is stored, and the course map stays 3D (its low tier)");
+  eq([w.read("bm.prefs.v1").gfx, w.Game.map3dOn(w.Game.prefs())], ["low", false], "Graphics quality Low is stored and does not choose the map");
+  w.Game.setPref("map3d", true);
+  eq([w.read("bm.prefs.v1").map, w.Game.map3dOn(w.Game.prefs())], ["3d", true], "the 3D map switch on chooses the map, at its low tier");
   w.Game.setPref("map3d", false);
   eq([w.read("bm.prefs.v1").map, w.Game.map3dOn(w.Game.prefs())], ["list", false], "the 3D map switch off keeps the list");
   w.Game.setPref("map3d", true);

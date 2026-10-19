@@ -118,7 +118,7 @@ const CHOSEN: Record<string, Quality> = { low: "low", mid: "medium", high: "high
 
 /**
  * The tier for this device and these settings. In order: no WebGL 2, Save-Data or
- * ?3d=off is the list; so is the 3D course map switch off, and a world that was too slow
+ * ?3d=off is the list; so is a course map not chosen (unset or "list"), and a world that was too slow
  * even on the low tier on an earlier visit (gfxAuto "list", whether or not the quality
  * was the learner's choice: a new choice clears it); then a quality the learner chose;
  * then a software renderer, a coarse pointer with four cores or fewer, or a low-end
@@ -128,7 +128,7 @@ const CHOSEN: Record<string, Quality> = { low: "low", mid: "medium", high: "high
  */
 export function detectTier(probe: Probe, prefs: TierPrefs): Choice {
   if (!probe.supported) return { tier: "list", why: probe.unsupportedWhy || "no-webgl", chosen: false };
-  if (prefs.map === "list") return { tier: "list", why: "list", chosen: true };
+  if (prefs.map !== "3d") return { tier: "list", why: "list", chosen: prefs.map === "list" };
   if (prefs.gfxAuto === "list") return { tier: "list", why: "slow", chosen: false };
   const chosen = prefs.gfx ? CHOSEN[prefs.gfx] : undefined;
   if (chosen) return { tier: chosen, why: "chosen", chosen: true };

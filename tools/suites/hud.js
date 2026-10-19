@@ -501,6 +501,10 @@ module.exports = {
       const { page, errors, close } = await fresh("index.html", {});
       const problems = [];
       try {
+        /* a fresh visit opens on the List, so the first switch turns the map on */
+        await set(page, '[data-pref="map3d"]');
+        await reload(page);
+        if ((await prefs(page)).map !== "3d") problems.push("the 3D map switch does not turn the map on from a fresh visit: " + JSON.stringify((await prefs(page)).map));
         await set(page, '[data-pref="map3d"]');
         await reload(page);
         const off = [(await prefs(page)).map, await page.evaluate(() => window.BMMap3D.why())];
