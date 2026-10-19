@@ -12,6 +12,7 @@ import { placeProps } from "./props.ts";
 import { GLOW_LUMA, GLOW_MAX, glowFactor, luminance, makeMaterials, readPalette, type PaletteMap } from "./materials.ts";
 import { buildStatic, puffAt, PUFFS, PUFF_MS } from "./regions.ts";
 import { buildMarks, type IsleState } from "./marks.ts";
+import { buildLinks, ARC_SEGMENTS } from "./links.ts";
 import { hollowCount, TRIS } from "./solids.ts";
 import { Batch, EdgeBatch, repaint } from "./batch.ts";
 import { TIERS, type Quality } from "./tiers.ts";
@@ -84,7 +85,9 @@ describe("each tier's budget", () => {
         form.group.scale.setScalar(MARKER_SCALE);
         const marker = form.group;
         const ring = new THREE.Mesh(new THREE.TorusGeometry(1.66, 0.03, 4, 28));
-        const objects: Object3D[] = [still.mesh, still.edges, marks.mesh, marks.edges, marker, ring];
+        /* and the selected chapter's links (one line mesh) */
+        const links = buildLinks(T, L, 10, [8, 9], pal);
+        const objects: Object3D[] = [still.mesh, still.edges, marks.mesh, marks.edges, marker, ring, links.mesh];
         if (still.puffs) objects.push(still.puffs.mesh);
         if (still.telescope) objects.push(still.telescope.group);
         const d = drawn(objects);
@@ -92,6 +95,7 @@ describe("each tier's budget", () => {
         expect(d.triangles).toBeLessThanOrEqual(budget.triangles);
         marks.dispose();
         form.dispose();
+        links.dispose();
       }
       still.dispose();
       mats.dispose();
@@ -113,6 +117,32 @@ describe("each tier's budget", () => {
 });
 
 describe("the marker", () => {
+  it("draws the links as one line mesh, clears them, and frees them with the world", () => {
+    vi.stubGlobal("window", { getComputedStyle: () => ({ getPropertyValue: () => "" }) });
+    try {
+      const probe = { querySelectorAll: () => [] } as unknown as Element;
+      const world = createWorld(T, { course: C, motifs: MOT, probe, detail: 0 });
+      const count = () => world.scene.children.filter((o) => (o as THREE.LineSegments).isLineSegments && (o as THREE.LineSegments).material instanceof THREE.LineBasicMaterial && (o as THREE.LineSegments).renderOrder === 5).length;
+      expect(count()).toBe(0);
+      world.setLinks(10, [8, 9]);
+      expect(count()).toBe(1);
+      const mesh = world.scene.children.find((o) => (o as THREE.LineSegments).material instanceof THREE.LineBasicMaterial && (o as THREE.LineSegments).renderOrder === 5) as THREE.LineSegments;
+      expect(mesh.geometry.attributes.position.count).toBe(2 * 2 * (ARC_SEGMENTS / 2));
+      world.setLinks(11, [10]);
+      expect(count()).toBe(1);
+      world.setLinks(-1, []);
+      expect(count()).toBe(0);
+      world.setLinks(10, [9]);
+      let freed = false;
+      (world.scene.children.find((o) => (o as THREE.LineSegments).material instanceof THREE.LineBasicMaterial && (o as THREE.LineSegments).renderOrder === 5) as THREE.LineSegments).geometry.addEventListener("dispose", () => { freed = true; });
+      world.dispose();
+      expect(count()).toBe(0);
+      expect(freed).toBe(true);
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
   it("is the learner's form: one mesh and one set of edges under it, freed with the world", () => {
     /* the tokens are read from a probe element; Node has neither, so a stand-in answers with none */
     vi.stubGlobal("window", { getComputedStyle: () => ({ getPropertyValue: () => "" }) });
