@@ -913,8 +913,67 @@ const ALL = ["google", "github", "discord", "facebook", "azure"];
     check(await o.page.evaluate(() => !document.getElementById("lrn-keep") && !document.getElementById("lrn-parent") && !!document.getElementById("lrn-add")), "29 as self there is no keep box and no collapse");
     await o.page.click("#lrn-sw-L2");
     await o.page.waitForSelector("#lrn-keep");
-    check(await keepOf(o.page) === "L1" && await o.page.evaluate(() => !document.getElementById("lrn-keep").checked && !!document.getElementById("lrn-add")), "29 playing as a different learner leaves keep and the box unticked");
+    check(await keepOf(o.page) === undefined && await o.page.evaluate(() => !document.getElementById("lrn-keep").checked && !!document.getElementById("lrn-add")), "29 a switch away from the kept learner ends the keep (box unticked)", await keepOf(o.page));
+    await o.page.click("#lrn-sw-L1");
+    await o.page.waitForFunction(() => { const b = document.getElementById("lrn-keep"); return b && b.closest("li").getAttribute("aria-current") === "true" && b.closest("li").textContent.indexOf("Maya") >= 0; });
+    check(await keepOf(o.page) === undefined && await o.page.evaluate(() => !document.getElementById("lrn-keep").checked), "29 … and switching back to L1 shows the box unticked");
     await o.context.close();
+    /* keep for a learner that is gone: the list is read once, the full panel appears, keep is dropped (no endless Loading) */
+    {
+      const g = await open({ providers: ["google"] }, { session: LS, stub: { learners: roster() }, local: { "bm.sync.v1": { learner: "L9", acct: "u1", keep: "L9", learnerName: "Gone" } } });
+      await g.page.waitForSelector("#lrn-add", { timeout: 8000 }).catch(() => {});
+      await g.page.waitForTimeout(400);
+      check(await g.page.evaluate(() => !!document.getElementById("lrn-add") && !/Loading learners/.test(document.querySelector(".learners").textContent)) && (await calls(g.page, "learner_list")).length === 1 && await keepOf(g.page) === undefined,
+        "29 a kept learner deleted elsewhere: the full panel, one list read, keep dropped", { lists: (await calls(g.page, "learner_list")).length, keep: await keepOf(g.page) });
+      await g.context.close();
+    }
+    /* "I'm the parent" lasts one sign-in: after a sign-out and back in, ticking collapses again */
+    {
+      const q = await open({ providers: ["google"] }, { session: LS, stub: { learners: roster() }, local: { "bm.sync.v1": { learner: "L1", acct: "u1", keep: "L1", learnerName: "Maya <b>" } } });
+      await q.page.click("#lrn-parent");
+      await q.page.waitForSelector("#lrn-add");
+      await q.page.click("#acct-out");
+      await q.page.waitForSelector("#acct-in");
+      await q.page.evaluate(() => { window.__opts.signInOk = true; return window.BMAccount.signIn("parent@example.com", "right-password"); });
+      await q.page.waitForSelector("#lrn-sw-L1");
+      await q.page.click("#lrn-sw-L1");
+      await q.page.waitForSelector("#lrn-keep");
+      await q.page.click("#lrn-keep");
+      await q.page.waitForSelector("#lrn-parent", { timeout: 5000 }).catch(() => {});
+      check(await q.page.evaluate(() => !!document.getElementById("lrn-parent") && !document.getElementById("lrn-add")), "29 the parent view lasts one sign-in only");
+      await q.context.close();
+    }
+    /* deleting the kept (not active) learner clears keep */
+    {
+      const d = await open({ providers: ["google"] }, { session: LS, stub: { learners: roster() }, local: { "bm.sync.v1": { learner: "L1", acct: "u1", keep: "L2", learnerName: "Maya <b>" } } });
+      await d.page.waitForSelector("#lrn-del-L2");
+      await d.page.click("#lrn-del-L2");
+      await d.page.click("#lrn-del-L2");
+      await d.page.waitForFunction(() => window.__rpc.some((c) => c.name === "learner_delete"));
+      await d.page.waitForTimeout(300);
+      check(await keepOf(d.page) === undefined && await d.page.evaluate(() => JSON.parse(localStorage.getItem("bm.sync.v1")).learner === "L1"), "29 deleting the kept learner clears keep", await keepOf(d.page));
+      await d.context.close();
+    }
+    /* another account signing in (T6) drops a keep it does not own */
+    {
+      const t = await open({ providers: ["google"] }, { stub: { learners: roster() }, local: { "bm.sync.v1": { learner: "L1", acct: "u1", keep: "L1" } } });
+      await t.page.evaluate(() => { window.__opts.signInOk = true; window.__opts.signInAs = "u2"; return window.BMAccount.signIn("other@example.com", "right-password"); });
+      await t.page.waitForFunction(() => window.BMAccount.user() && window.BMAccount.user().id === "u2");
+      check(await keepOf(t.page) === undefined, "29 another account's sign-in drops keep", await keepOf(t.page));
+      await t.context.close();
+    }
+    /* delete my account clears keep */
+    {
+      const a = await open({ providers: ["google"] }, { session: LS, stub: { learners: roster() }, local: { "bm.sync.v1": { learner: "L1", acct: "u1", keep: "L1" } } });
+      await a.page.click("#lrn-parent");
+      await a.page.waitForSelector("#acct-delete");
+      await a.page.click("#acct-delete");
+      await a.page.click("#acct-delete");
+      await a.page.waitForFunction(() => window.__rpc.some((c) => c.name === "delete_my_account"));
+      await a.page.waitForTimeout(400);
+      check(await keepOf(a.page) === undefined, "29 deleting the account clears keep", await keepOf(a.page));
+      await a.context.close();
+    }
   }
 
   check(errors.length === 0, "no uncaught page errors", errors);

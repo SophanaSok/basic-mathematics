@@ -878,6 +878,7 @@
               clearLocal(true);
               setMeta(function (m) {
                 if (target) {
+                  delete m.keep; /* a switch away from the kept learner ends the keep */
                   m.learner = target; m.acct = user.id;
                   var nm = capName(name);
                   if (nm) m.learnerName = nm; else delete m.learnerName;
@@ -1220,7 +1221,7 @@
 
   /* the list as learner_list last gave it (null until read), and whose it is; like name and board, it is
      read once per account and kept, so a redraw while typing does not ask again */
-  var learners = null, learnersFor = null, learnersErr = "";
+  var learners = null, learnersFor = null, learnersErr = "", learnersLoading = false;
   /* "I'm the parent" was pressed: the full panel shows for this page view only */
   var keepOpen = false;
   function keptView() {
@@ -1250,8 +1251,10 @@
   function loadLearners(focus) {
     var id = user ? user.id : null;
     if (!id || !learnersOn) return;
+    learnersLoading = true;
     learnerRpc("learner_list").then(function (rows) {
       if (!user || user.id !== id) return;
+      learnersLoading = false;
       learners = Array.isArray(rows) ? rows : [];
       learnersErr = "";
       /* a rename field being typed in keeps its focus and text through this redraw (draw keeps both) */
@@ -1259,12 +1262,17 @@
       draw();
     }, function (e) {
       if (!user || user.id !== id) return;
+      learnersLoading = false;
       learnersErr = e && e.message ? e.message : "Something went wrong. Try again in a moment.";
       draw();
     });
   }
+  /* the full panel needs the list: read it once, unless it is read, failed (Try again) or on its way; a collapsed view reads nothing */
+  function ensureLearners() {
+    if (user && learners === null && !learnersErr && !learnersLoading && !keptView()) loadLearners();
+  }
   function resetLearners() {
-    learners = null; learnersFor = null; learnersErr = ""; keepOpen = false;
+    learners = null; learnersFor = null; learnersErr = ""; learnersLoading = false; keepOpen = false;
     addUnder = false; addConsent = false; renaming = null; armed = null; needSignIn = false; focusAfter = null;
     stepAction = null; stepNote = ""; addBusy = false; renameBusy = null; ownBusy = false;
     deleteArmed = false; deleteBusy = false;
@@ -1331,7 +1339,7 @@
       out += active ? '<span class="learner-on">Playing as</span>'
         : '<button class="btn ghost small" id="lrn-sw-' + (self ? "self" : id) + '" type="button" aria-label="Switch to ' + esc(nm) + '">Switch to</button>';
       if (!self) {
-        if (active) out = out.replace(/<\/p>$/, "") + "</p>" + '<label class="check"><input id="lrn-keep" type="checkbox"' + (Account.keptLearner() === l.id ? " checked" : "") +
+        if (active) out += "</p>" + '<label class="check"><input id="lrn-keep" type="checkbox"' + (Account.keptLearner() === l.id ? " checked" : "") +
           '> <span>Keep this device on ' + esc(nm) + "</span></label><p class=\"actions\">";
         out += '<button class="btn ghost small" id="lrn-r-' + id + '" type="button" aria-label="Rename ' + esc(nm) + '">Rename</button>' +
           '<button class="btn ghost small" id="lrn-dl-' + id + '" type="button" aria-label="Download ' + esc(nm) + '">Download</button>' +
@@ -1388,15 +1396,15 @@
     on("lrn-retry", function () { learnersErr = ""; loadLearners(); });
     on("lrn-parent", function () {
       keepOpen = true; focusAfter = "lrn-h";
-      if (learners === null) loadLearners("lrn-h");
       draw();
+      ensureLearners();
     });
     var keepBox = document.getElementById("lrn-keep");
     if (keepBox) keepBox.addEventListener("change", function () {
       var cur = Account.learner();
       if (!cur) return;
       Account.keepLearner(keepBox.checked ? cur : null);
-      focusAfter = keepBox.checked ? "lrn-parent" : "lrn-keep";
+      focusAfter = keptView() ? "lrn-parent" : "lrn-keep";
       draw();
     });
     (learners || []).forEach(function (l) {
@@ -1795,7 +1803,10 @@
       }, function () { name = ""; });
     }
     if (!user) { name = null; nameFor = null; board = null; resetLearners(); }
-    else if (learnersFor !== user.id) { resetLearners(); learnersFor = user.id; if (!keptView()) loadLearners(); }
+    else {
+      if (learnersFor !== user.id) { resetLearners(); learnersFor = user.id; }
+      ensureLearners();
+    }
     /* a message about a sign-in that did not go through is no use to a reader who is signed in */
     if (user) returnedText = "";
     /* a redraw would wipe what is being typed — unless who is signed in has changed */
