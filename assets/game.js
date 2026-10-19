@@ -1373,19 +1373,20 @@
       ], { duration: dur, easing: ease, fill: "forwards" });
     } catch (e) { if (el.parentNode) el.parentNode.removeChild(el); return; }
     var done = false;
-    function end() {
+    function end(landed) {
       if (done) return;
       done = true;
       if (el.parentNode) el.parentNode.removeChild(el);
-      if (still()) return;
+      /* a cancelled flight (the tab went away) never landed, so the bar does not flash */
+      if (still() || landed !== true) return;
       bar.removeAttribute("data-flash");
       void bar.offsetWidth;
       bar.setAttribute("data-flash", "");
       clearTimeout(flashTimer);
       flashTimer = setTimeout(function () { bar.removeAttribute("data-flash"); }, 300);
     }
-    anim.onfinish = end;
-    anim.oncancel = end;
+    anim.onfinish = function () { end(true); };
+    anim.oncancel = function () { end(false); };
   }
   var STAMPS = { first: "First try", retry: "Solved", assisted: "With help" };
   function stamp(ex) {
