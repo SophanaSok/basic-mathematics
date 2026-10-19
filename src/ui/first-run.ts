@@ -24,7 +24,7 @@ const CARDS: Card[] = [
   { title: "Read, then do.",
     body: "A chapter opens one piece at a time. Each piece ends in a question; answer it to go on, or skip it and the course brings you back." },
   { title: "Clues are free.",
-    body: "Every problem has Show a clue from the start. A clue never costs anything. Wrong answers here cost nothing either: they tell you which slip to look for." },
+    body: "Every problem has Show a clue from the start. A clue never costs anything. A wrong answer on a lesson question costs nothing either: it tells you which slip to look for." },
   { title: "Right? Compare.",
     body: "Once you are right the worked solution opens by itself. Reading it with the box in view earns a shield that absorbs your next miss." },
   { title: "The bar at the top.", spot: ".hud-level, .hud-xp, .hud-streak, .hud-hearts",
@@ -95,7 +95,7 @@ function render(): void {
   if (card.spot) {
     document.querySelectorAll<HTMLElement>(".topbar").forEach((bar) => {
       bar.querySelectorAll<HTMLElement>(card.spot!).forEach((el) => {
-        if (el.getClientRects().length > 0) el.setAttribute("data-guide-spot", "");
+        if (el.getClientRects().length > 0 && getComputedStyle(el).visibility !== "hidden") el.setAttribute("data-guide-spot", "");
       });
     });
   }
