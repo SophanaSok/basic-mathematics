@@ -1273,9 +1273,21 @@
       draw();
     });
   }
-  /* the full panel needs the list: read it once, unless it is read, failed (Try again) or on its way; a collapsed view reads nothing */
+  /* the list is read once, unless it is read, failed (Try again) or on its way. A kept view reads it too: it has to
+     find out whether the kept learner's consent is out of date (a reload of the kept page costs one learner_list) */
   function ensureLearners() {
-    if (user && learners === null && !learnersErr && !learnersLoading && !keptView()) loadLearners();
+    if (user && learners === null && !learnersErr && !learnersLoading) loadLearners();
+  }
+  /* the kept learner's consent statement has changed: the collapsed line gives way to the full panel and its Confirm */
+  function keptStale() {
+    var cur = Account.learner();
+    return !!cur && isStale(learnerById(cur));
+  }
+  var OUT_OF_DATE = "The consent statement on this page is out of date. Reload the page and try again.";
+  /* the server's `consent required` for a number this page sent means the page is old, not that the box was missed */
+  function consentProblem(e, sentCurrent) {
+    if (sentCurrent && e && e.message === "consent required") return lsay(OUT_OF_DATE, true);
+    lproblem(e);
   }
   function resetLearners() {
     learners = null; learnersFor = null; learnersErr = ""; learnersLoading = false; keepOpen = false;
@@ -1316,14 +1328,18 @@
 
   function learnersPanel() {
     var cur = Account.learner();
-    if (keptView()) {
+    if (keptView() && !keptStale()) {
       var row = learnerById(cur), kn = row && typeof row.name === "string" && row.name ? row.name : (Account.learnerName() || "this learner");
       return '<section class="panel learners" aria-labelledby="lrn-h"><h2 id="lrn-h" tabindex="-1">Learners</h2>' +
         '<p data-kept>Playing as <b>' + esc(kn) + '</b>. This device is kept on ' + esc(kn) + '.</p>' +
-        '<p class="actions"><button class="btn ghost small" id="lrn-parent" type="button">I\'m the parent</button></p></section>';
+        '<p class="actions"><button class="btn ghost small" id="lrn-parent" type="button">I\'m the parent</button></p>' + NOTE_L + "</section>";
     }
     var h = '<section class="panel learners" aria-labelledby="lrn-h"><h2 id="lrn-h" tabindex="-1">Learners</h2>' +
       "<p>Add a younger learner to keep their progress apart from yours. They get no sign-in of their own: you switch to them here.</p>";
+    if (learners !== null && keptStale()) {
+      var sn = learnerById(cur);
+      h += '<p class="form-note" data-stale-note>' + esc((typeof sn.name === "string" && sn.name ? sn.name : "This learner") + "'s consent statement has changed. Confirm it to keep playing as them.") + "</p>";
+    }
     if (learners === null) {
       h += learnersErr
         ? '<p class="form-note bad">' + esc(learnersErr) + '</p><p class="actions"><button class="btn ghost small" id="lrn-retry" type="button">Try again</button></p>'
@@ -1347,7 +1363,7 @@
           (stale ? ' <span class="learner-tag learner-tag-stale">Consent to confirm</span>' : "") + "</p>" : "") + "<p class=\"actions\">";
       out += active ? '<span class="learner-on">Playing as</span>'
         : '<button class="btn ghost small" id="lrn-sw-' + (self ? "self" : id) + '" type="button"' +
-          (stale ? ' disabled aria-disabled="true" title="Confirm consent first"' : "") + ' aria-label="Switch to ' + esc(nm) + '">Switch to</button>';
+          (stale ? ' aria-disabled="true" title="Confirm consent first"' : "") + ' aria-label="Switch to ' + esc(nm) + '">Switch to</button>';
       if (!self) {
         if (active) out += "</p>" + '<label class="check"><input id="lrn-keep" type="checkbox"' + (Account.keptLearner() === l.id ? " checked" : "") +
           '> <span>Keep this device on ' + esc(nm) + "</span></label><p class=\"actions\">";
@@ -1510,7 +1526,7 @@
     }, function (e) {
       if (uidNow() !== uid) return;
       addBusy = false;
-      lproblem(e);
+      consentProblem(e, addUnder && addConsent);
       if (from) focusAfter = from;
       draw();
     });
@@ -1531,7 +1547,7 @@
       if (l) { l.under13 = true; l.consent_v = CONSENT_V; }
       if (marking === id) { marking = null; u13Ticked = false; }
       var ae = document.activeElement, mine = document.getElementById("lrn-n-" + id), row = mine && mine.closest("li");
-      var focus = (!ae || ae === document.body || (row && row.contains(ae))) ? "lrn-n-" + id : null;
+      var focus = (!ae || ae === document.body || (row && row.contains(ae))) ? (keptView() ? "lrn-h" : "lrn-n-" + id) : null;
       if (focus) focusAfter = focus;
       lsay(wasStale ? (l && l.name ? l.name : "This learner") + "'s consent is confirmed." : (l && l.name ? l.name : "This learner") + " is now marked as under 13.");
       draw();
@@ -1539,7 +1555,7 @@
     }, function (e) {
       if (uidNow() !== uid) return;
       u13Busy = false;
-      lproblem(e);
+      consentProblem(e, true);
       if (from) focusAfter = from;
       draw();
     });
