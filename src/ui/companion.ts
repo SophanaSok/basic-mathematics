@@ -23,10 +23,12 @@ import type { Mood, Pose, MoodInput, MoodMemory, Throttle, Reaction, Recent } fr
 import { dueSplit } from "../learn/review.ts";
 import { ARENA_SECTIONS } from "../data/arena-sections.ts";
 import { FORMS } from "../data/forms.ts";
-import { worn, highest } from "../core/forms.ts";
+import { worn } from "../core/forms.ts";
 
-const SHOW_MS = 6000, EVOLVE_MS = 900;
-const WAITS = ["due", "back", "form", "chapter", "regroup"];
+const SHOW_MS = 6000, ARRIVAL_MS = 12000, EVOLVE_MS = 900;
+const AT_REST: Reaction = { mood: "content", pose: "rest", line: null, key: null, href: null };
+/* lines that wait for a quiet moment rather than being dropped (one slot, the latest wins) */
+const WAITS = ["due", "back", "form", "chapter", "regroup", "goal", "level", "boss"];
 
 let fig: HTMLElement | null = null;
 let pic: HTMLElement | null = null;
@@ -38,7 +40,7 @@ let mood: Mood = "content";
 let pose: Pose = "rest";
 let current: Reaction | null = null;
 let pending: Reaction | null = null;
-let clearTimer = 0, evolveTimer = 0, pendingTimer = 0, introTimer = 0;
+let clearTimer = 0, evolveTimer = 0, pendingTimer = 0, introTimer = 0, settleTimer = 0;
 let listening = false;
 let stage = 0;
 let shownLine = "";
@@ -84,7 +86,8 @@ function sectionName(ref: string): { text: string; href: string } | null {
   } catch { return null; }
 }
 
-function input(): MoodInput {
+/** the model's input from the page's state; the due review is looked up only for an arrival (a full read of the deck) */
+function input(withDue: boolean): MoodInput {
   const S = w().BMStore, Site = w().BMSite, Game = w().BMGame;
   const day = (() => { try { return Site.dayKey() as string; } catch { return ""; } })();
   let activity: any = {};
@@ -101,7 +104,7 @@ function input(): MoodInput {
     if (H && typeof H.goalOf === "function") goal = H.goalOf(activity);
   } catch { /* defaults */ }
   let due: MoodInput["due"] = null;
-  try {
+  if (withDue) try {
     const order: Record<string, number> = {};
     let i = 0;
     ((w().BM_CURRICULUM?.parts) || []).forEach((p: any) => (p.chapters || []).forEach((ch: any) =>
@@ -156,19 +159,29 @@ function setLine(text: string, href: string | null): void {
 function clearLine(): void {
   clearTimer = 0;
   setLine("", null);
-  /* back to the mood's silent state; the pose stays */
+}
+
+/* a reaction holds for a while, then the form is at rest again (content, no line) */
+function settle(): void {
+  settleTimer = 0;
+  if (!fig) return;
+  mood = AT_REST.mood; pose = AT_REST.pose; current = null;
+  clearLine();
+  drawSprite();
 }
 
 function show(r: Reaction, now: number): void {
   mood = r.mood; pose = r.pose; current = r;
   drawSprite();
+  const hold = r.key && WAITS.indexOf(r.key) > -1 ? ARRIVAL_MS : SHOW_MS;
+  window.clearTimeout(clearTimer); clearTimer = 0;
   if (r.line) {
     setLine(r.line, r.href);
     throttle = said(throttle, now);
-    window.clearTimeout(clearTimer);
-    clearTimer = window.setTimeout(clearLine, SHOW_MS);
     try { w().BMGame.announce(r.line, { priority: "low", key: "companion:" + (r.key || "line") }); } catch { /* a note */ }
-  }
+  } else setLine("", null);
+  window.clearTimeout(settleTimer);
+  settleTimer = window.setTimeout(settle, hold);
 }
 
 function evolve(): void {
@@ -221,10 +234,11 @@ function toRecent(c: any): Recent | null {
     case "level": return { type: "level", level: Number(c.level) || 1 };
     case "achievement": return { type: "achievement", title: String(c.title || "") };
     case "form": {
-      if (!Array.isArray(c.fresh) || !c.fresh.length) return null;
-      let to = formName();
-      try { const G = w().BMGame; const hi = highest(G.game().form, G.info().xp); if (FORMS[hi - 1]) to = FORMS[hi - 1].name; } catch { /* keep */ }
-      return { type: "form", from: shownFrom, to };
+      /* only a stage the learner now wears, reached live: a quiet settle (load, sync, reset)
+         or a new stage behind a pinned lower one changes the sprite without a word */
+      if (!Array.isArray(c.fresh) || !c.fresh.length || c.quiet) return null;
+      const from = shownFrom, to = formName();
+      return from === to ? null : { type: "form", from, to };
     }
   }
   return null;
@@ -234,14 +248,15 @@ let shownFrom = "";
 
 function onChange(c: any): void {
   if (!c || typeof c.type !== "string") return;
-  if (c.type === "prefs" || c.type === "reset" || c.type === "sync") { evaluate(); return; }
+  if (c.type === "prefs") { evaluate(); return; }
+  /* another state altogether: the mood is derived again from it (the intro stays seen) */
+  if (c.type === "reset" || c.type === "sync") { if (fig) unbuild(); evaluate(); return; }
   if (!fig) return;
-  if (c.type === "attempt") throttle = noteVerdict(throttle, Date.now());
   /* built before the sprite is redrawn: a new stage's "from" is the name shown until now */
   const rc = toRecent(c);
   if (c.type === "form") drawSprite();
   if (!rc) return;
-  const input_ = input();
+  const input_ = input(false);
   if (input_.calm) return;
   const out = react(memory, rc, input_);
   memory = out.memory;
@@ -249,6 +264,9 @@ function onChange(c: any): void {
     if (c.type === "form") evolve();
     apply(out.reaction);
   }
+  /* the verdict's own feedback has the next moments: a line from what follows waits or is dropped;
+     the attempt's own line (above) is said at once, the live region keeps its own order */
+  if (c.type === "attempt") throttle = noteVerdict(throttle, Date.now());
 }
 
 function sidebar(): HTMLElement | null {
@@ -283,7 +301,7 @@ function build(): void {
 
 function unbuild(): void {
   window.clearTimeout(clearTimer); window.clearTimeout(evolveTimer);
-  window.clearTimeout(pendingTimer); window.clearTimeout(introTimer);
+  window.clearTimeout(pendingTimer); window.clearTimeout(introTimer); window.clearTimeout(settleTimer); settleTimer = 0;
   pendingTimer = 0; pending = null;
   if (fig && fig.parentNode) fig.parentNode.removeChild(fig);
   fig = null; pic = null; lineEl = null; nameEl = null; current = null; shownLine = "";
@@ -301,7 +319,7 @@ function intro(): void {
 }
 
 function arrive(): void {
-  const inp = input();
+  const inp = input(true);
   const r = arrival(inp);
   memory = EMPTY_MEMORY;
   throttle = EMPTY_THROTTLE;
@@ -328,7 +346,7 @@ function evaluate(): void {
 function fieldFocus(): void {
   if (!fig) return;
   const a = document.activeElement as Element | null;
-  const field = !!(a && a.matches && a.matches(".ex-form input, .ex-form textarea"));
+  const field = !!(a && a.matches && a.matches("main input:not([type=checkbox]):not([type=radio]):not([type=button]):not([type=submit]), main textarea, main select"));
   const small = !!(window.matchMedia && window.matchMedia("(max-width: 999px)").matches);
   if (field && small) fig.setAttribute("data-hidden", ""); else fig.removeAttribute("data-hidden");
 }
