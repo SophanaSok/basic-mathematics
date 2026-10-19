@@ -8,6 +8,8 @@ export interface Section {
   id: SectionId;
   title: string;
   summary?: string;
+  /** earlier sections this one builds on, as refs ("ch01#integers") */
+  requires?: readonly string[];
 }
 
 export interface Chapter {

@@ -20,6 +20,7 @@
 
 import { NEXT_MAX_ITEMS } from "./constants.ts";
 import { dueSplit } from "./review.ts";
+import { continueTarget } from "./status.ts";
 
 /** One row of BMGame.deck(): a section the reader has met well enough for the Arena. */
 export interface DeckRow {
@@ -128,22 +129,8 @@ function weakItem(input: NextInput): NextItem | null {
 }
 
 function continueItem(input: NextInput): NextItem | null {
-  const last = input.last && typeof input.last === "object" ? (input.last as { id?: unknown; section?: unknown }) : null;
-  const ch = last ? input.chapters.find((c) => c.id === last.id) ?? (input.packs || []).find((c) => c.id === last.id) : undefined;
-  const here = input.here || null;
-  /* nowhere to continue from yet: a reader who has not started has the contents page's own
-     "Start with Chapter 1" button, and the card does not repeat it */
-  if (!ch) return null;
-  const sid = typeof last!.section === "string" ? last!.section : "";
-  const sec = ch.sections.find((s) => s.id === sid);
-  const anchor = sec ? "#" + sec.id : sid === "practice" || sid === "warmup" ? "#" + sid : "";
-  const place = sec ? sec.title : sid === "practice" ? "Practice" : "";
-  if (here) {
-    /* on a chapter page the reader is already in a chapter: only a place further in this one */
-    if (ch.id !== here || !anchor) return null;
-    return { kind: "continue", text: "Back to " + (place || "where you were"), why: "This is where you were reading in this chapter.", href: ch.path + anchor };
-  }
-  return { kind: "continue", text: "Continue: " + ch.name + (place ? " · " + place : ""), why: "This is where you left off.", href: ch.path + anchor };
+  const t = continueTarget(input.last, input.chapters, input.packs, input.here);
+  return t ? { kind: "continue", text: t.text, why: t.why, href: t.href } : null;
 }
 
 /** The card's items, in order, at most NEXT_MAX_ITEMS. */

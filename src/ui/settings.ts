@@ -30,6 +30,10 @@ interface Prefs {
   gfx?: "low" | "mid" | "high";
   /** the tier the course world's watchdog settled on (src/world/tiers.ts) */
   gfxAuto?: "list" | "low" | "medium";
+  /** keyboard shortcuts; unset means on */
+  keys?: boolean;
+  /** the companion; unset means on */
+  companion?: boolean;
 }
 interface Game {
   prefs(): Prefs;
