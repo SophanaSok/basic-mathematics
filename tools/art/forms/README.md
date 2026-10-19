@@ -62,6 +62,11 @@ edges and bolts, not from polygon count: the Wayfinder is under 9,000 triangles.
   thumbnail, 400 KB a texture, 1.5 MB a stage with its textures). The other constants (the idle at 3 s, the thumbnail at 512x640 RGBA, the
   allowed extensions, at most four textures, each a WebP file square at 1024 or 2048) live in
   `tools/lib/form-models.js`.
+- Each stage also has a pose sheet, `form-N-poses.webp`: 1536x320, six 256x320 transparent
+  stills in the order rest, curious, delighted, steady, sleepy, waiting, at most 120 KB
+  (`POSES_BYTES_MAX`). `--renders poses` is part of `gen:forms`, so a full run writes the
+  sheets; they are not in the restore list below, because a re-run rewrites them and they
+  are the changed output.
 - The rule runs in `check:static` as `form-models`:
   `node tools/check-static.js --only=form-models`.
 - After any edit under `tools/art/forms/`, run `npm run gen:forms` and commit its
