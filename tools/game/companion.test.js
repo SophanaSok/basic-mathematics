@@ -29,7 +29,8 @@
    21. prefs.mochi "lilac" requests the lilac sheet
    22. a fast first try (field focused, answered at once) is surprised, then happy
    23. the boss's events arrive in the answer's task
-   24. under ?3d=off the mode stays "2d": no data-3d after 2 s, no mochi chunk and no GLB requested */
+   24. under ?3d=off the mode stays "2d": no data-3d after 2 s, no mochi chunk and no GLB requested
+   25. pk-words.html (longest sidebar) at 1280x900: the figure is pinned fully in view under a scrolling contents list, and stays so after the window scrolls 600 px */
 "use strict";
 const site = require("../lib/site");
 const target = require("../lib/target");
@@ -555,6 +556,27 @@ async function run() {
       check(await c.page.evaluate(() => !document.querySelector("figure[data-companion]").hasAttribute("data-3d")), "3d off: no data-3d on the figure");
       eq(c.requests.filter((u) => /\/bundle\/mochi\.js(?:[?#]|$)|\/models\/mochi\/[^/]*\.glb(?:[?#]|$)/.test(u)), [], "3d off: no mochi chunk or GLB requested");
       await done(c, "3d off");
+    }
+    /* 25: the contents scroll inside the sidebar, the figure stays pinned under them */
+    cases++;
+    {
+      const c = await open(seeds(), { path: "parts/5-packs/pk-words.html" });
+      const probe = () => c.page.evaluate(() => {
+        const f = document.querySelector("figure[data-companion]"), a = f.closest("aside[data-sidebar]"), b = a && a.querySelector(".sidebar-body");
+        const r = f.getBoundingClientRect();
+        return { inAside: !!a, top: r.top, bottom: r.bottom, h: innerHeight, bodyScrolls: !!b && b.scrollHeight > b.clientHeight, asideFits: !!a && a.scrollHeight <= a.clientHeight + 1 };
+      });
+      let p = await probe();
+      console.log("pk-words figure rect at 1280x900: top " + Math.round(p.top) + ", bottom " + Math.round(p.bottom));
+      check(p.inAside, "pinned: the figure is in the aside");
+      check(p.top >= 0 && p.bottom <= p.h, "pinned: the figure is fully in view with nothing scrolled: " + JSON.stringify(p));
+      check(p.bodyScrolls, "pinned: the contents list scrolls inside the sidebar");
+      check(p.asideFits, "pinned: the aside itself does not overflow");
+      await c.page.evaluate(() => window.scrollTo(0, 600));
+      await wait(300);
+      p = await probe();
+      check(p.top >= 0 && p.bottom <= p.h, "pinned: still fully in view after scrolling the window 600 px: " + JSON.stringify(p));
+      await done(c, "pinned");
     }
   } finally {
     try { await browser.close(); } catch (e) { console.error("browser close: " + e.message); }

@@ -254,7 +254,9 @@ main > [data-step] { scroll-margin-top: calc(var(--hud-h) + 1.5rem); }
 
 .sidebar { font-family: var(--sans); font-size: .87rem; padding-block: 2.5rem 0; }
 @media (min-width: 1000px) {
-  .sidebar { position: sticky; top: calc(var(--hud-h) + .5rem); max-height: calc(100vh - var(--hud-h) - 1rem); overflow-y: auto; padding-bottom: 2rem; }
+  .sidebar { position: sticky; top: calc(var(--hud-h) + .5rem); max-height: calc(100vh - var(--hud-h) - 1rem); display: flex; flex-direction: column; padding-bottom: 2rem; }
+  /* the contents list scrolls inside its card; the companion under it stays in view */
+  .sidebar-body { flex: 1 1 auto; min-height: 0; overflow-y: auto; }
 }
 .sidebar-body {
   background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
