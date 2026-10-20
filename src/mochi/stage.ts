@@ -48,6 +48,7 @@ export function createStage(T: any, host: HTMLElement, avatar: Avatar, opts: Moc
 
   let disposed = false, onscreen = true, pageHidden = false, lost = false;
   let raf = 0, last = 0, lastDraw = 0, pending = 0, frames = 0;
+  let swayed = false;   /* the last drawn frame carried the bob, so a stop under still() draws the rest pose first */
   let ro: ResizeObserver | null = null, io: IntersectionObserver | null = null;
 
   const paused = (): boolean => document.hidden || pageHidden;
@@ -88,16 +89,23 @@ export function createStage(T: any, host: HTMLElement, avatar: Avatar, opts: Moc
       lastDraw = t;
       /* still() holds the rest pose, so a held frame never sits mid-bob */
       const moving = !still();
-      const s = moving ? sway(t) : { y: 0, rz: 0 };
-      avatar.object.position.y = restY + s.y;
-      avatar.object.rotation.z = restRz + s.rz;
+      pose(moving ? sway(t) : null);
       draw();
-      if (moving && typeof opts.tick === "function") { try { opts.tick(t); } catch { /* the caller's */ } }
+      if (moving && !disposed && typeof opts.tick === "function") { try { opts.tick(t); } catch { /* the caller's */ } }
     }
     /* under reduced motion only a crossfade, or a variation already under way, keeps the loop going; the frame is then held */
     if (still() ? avatar.busy() : true) { raf = window.requestAnimationFrame(loop); return; }
+    /* a stop between throttled frames (the switch flipped since the last draw) would hold a frame mid-bob */
+    if (swayed) { pose(null); draw(); }
     last = 0;
     pending = 0;
+  }
+
+  /* the group at rest plus the bob (s), or at rest alone */
+  function pose(s: { y: number; rz: number } | null): void {
+    avatar.object.position.y = restY + (s ? s.y : 0);
+    avatar.object.rotation.z = restRz + (s ? s.rz : 0);
+    swayed = !!s;
   }
 
   function request(): void {

@@ -12,10 +12,13 @@ describe("mochi stage sway", () => {
       expect(Math.abs(s.rz)).toBeLessThanOrEqual(0.02);
     }
   });
-  it("peaks at a quarter period", () => {
+  it("peaks at a quarter period, each axis at its own", () => {
     expect(Math.abs(sway(900 * Math.PI / 2).y - 0.025)).toBeLessThan(1e-9);
+    expect(Math.abs(sway(1400 * Math.PI / 2).rz - 0.02)).toBeLessThan(1e-9);
   });
-  it("is deterministic", () => {
-    expect(sway(1234)).toEqual(sway(1234));
+  it("repeats with the bob's and the roll's own periods", () => {
+    const a = sway(1234), b = sway(1234 + 2 * Math.PI * 900), c = sway(1234 + 2 * Math.PI * 1400);
+    expect(Math.abs(b.y - a.y)).toBeLessThan(1e-9);
+    expect(Math.abs(c.rz - a.rz)).toBeLessThan(1e-9);
   });
 });
