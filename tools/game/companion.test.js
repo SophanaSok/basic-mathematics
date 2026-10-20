@@ -27,7 +27,9 @@
        the end event says "Run done."; no GLB or Three.js; the preference off removes it
    20. setMood("sleeping") puts the sheet at 100% 0 and data-mood sleeping; an unknown name is false
    21. prefs.mochi "lilac" requests the lilac sheet
-   22. a fast first try (field focused, answered at once) is surprised, then happy */
+   22. a fast first try (field focused, answered at once) is surprised, then happy
+   23. the boss's events arrive in the answer's task
+   24. under ?3d=off the mode stays "2d": no data-3d after 2 s, no mochi chunk and no GLB requested */
 "use strict";
 const site = require("../lib/site");
 const target = require("../lib/target");
@@ -543,6 +545,16 @@ async function run() {
       await wait(400);
       eq((await st(c.page)).mood, "happy", "boss: a hint opened in the answer's task leaves happy playing");
       await done(c, "boss");
+    }
+    /* 24: ?3d=off keeps the 2D still: no stage, no chunk, no GLB */
+    cases++;
+    {
+      const c = await open(seeds());
+      await wait(2000);
+      eq((await c.page.evaluate(() => window.BMCompanion.info().mode)), "2d", "3d off: the mode is 2d");
+      check(await c.page.evaluate(() => !document.querySelector("figure[data-companion]").hasAttribute("data-3d")), "3d off: no data-3d on the figure");
+      eq(c.requests.filter((u) => /\/bundle\/mochi\.js(?:[?#]|$)|\/models\/mochi\/[^/]*\.glb(?:[?#]|$)/.test(u)), [], "3d off: no mochi chunk or GLB requested");
+      await done(c, "3d off");
     }
   } finally {
     try { await browser.close(); } catch (e) { console.error("browser close: " + e.message); }

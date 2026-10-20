@@ -33,6 +33,8 @@ import { dueSplit } from "../learn/review.ts";
 import { ARENA_SECTIONS } from "../data/arena-sections.ts";
 import { FORMS } from "../data/forms.ts";
 import { worn } from "../core/forms.ts";
+import { detectTier, readProbe, pixelRatio, TIERS } from "../world/tiers.ts";
+import type { MochiStage } from "../mochi/index.ts";
 
 const EVOLVE_MS = 900;
 /* lines that wait for a quiet moment rather than being dropped (one slot, the latest wins) */
@@ -50,6 +52,15 @@ let memory: MoodMemory = EMPTY_MEMORY;
 let throttle: Throttle = EMPTY_THROTTLE;
 let mood: Mood = "idle";
 let variant = "";
+/* the 3D stage (src/mochi/, one chunk, fetched here and nowhere else): at most one alive; stageGen
+   voids a promise or a notification from a stage that is no longer the current one; no3d = no retry on this page */
+let stage: MochiStage | null = null;
+let stageReady = false;
+let stageGen = 0;
+let no3d = false;
+let why3d = "";
+let lastSent = "";
+let stillTimer = 0;
 let current: Reaction | null = null;
 let pending: Reaction | null = null;
 let clearTimer = 0, evolveTimer = 0, pendingTimer = 0, introTimer = 0, stepTimer = 0, idleTimer = 0;
@@ -160,15 +171,80 @@ function drawSprite(): void {
   if (v !== variant) {
     variant = v;
     pic.style.backgroundImage = 'url("' + sheetUrl(v) + '")';
+    /* a new variant is a new avatar: the old stage goes first, so two are never alive */
+    drop3d();
+    maybe3d();
   }
-  /* nine stills side by side: the sheet is nine boxes wide, one high, and the box is square (the CSS height is a later card's) */
+  /* nine stills side by side: the sheet is nine boxes wide, one high, and the box is square (game.css sizes it) */
   pic.style.backgroundSize = "900% 100%";
   pic.style.backgroundPosition = (MOODS.indexOf(mood) * 100 / 8) + "% 0";
-  pic.style.aspectRatio = "1";
-  pic.style.height = "auto";
+  if (stage && stageReady && lastSent !== mood) { lastSent = mood; try { stage.setMood(mood); } catch { /* the still stays */ } }
   if (nameEl) nameEl.textContent = "Mochi";
   pic.setAttribute("aria-label", "Mochi, your companion, " + mood);
   fig.setAttribute("data-mood", mood);
+}
+
+function reducedMotion(): boolean {
+  try {
+    if (w().BMFx && typeof w().BMFx.still === "function") return !!w().BMFx.still();
+  } catch { /* fall back below */ }
+  return !!(window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches);
+}
+
+function glbUrl(v: string): string {
+  let root = "";
+  try { root = String(w().BMSite.rootPrefix()); } catch { /* no helper */ }
+  return root + "models/mochi/mochi-" + v + ".glb";   /* src/data/mochi-model.ts's file name, spelled as sheetUrl() spells the sheet's */
+}
+
+/** ends the 3D stage and its notifications; the still is drawn again by the caller if it is wanted */
+function drop3d(): void {
+  stageGen++;
+  window.clearTimeout(stillTimer); stillTimer = 0;
+  const s = stage;
+  stage = null; stageReady = false; lastSent = "";
+  if (fig) fig.removeAttribute("data-3d");
+  if (s) { try { s.dispose(); } catch { /* gone */ } }
+}
+
+/** the 3D figure over the still, when the device, the tier and the learner's settings allow it; otherwise nothing happens */
+function maybe3d(): void {
+  if (!fig || !pic || stage || no3d) return;
+  const B = w().BM3D;
+  try {
+    if (!B || typeof B.supported !== "function" || !B.supported()) return;
+    if (calm() || (window.matchMedia && window.matchMedia("(forced-colors: active)").matches)) return;
+    const p = prefs();
+    const tier = detectTier(readProbe(B), p.map ? p : { ...p, map: "3d" }).tier;
+    if (tier === "list") return;
+    const budget = TIERS[tier];
+    const gen = ++stageGen;
+    const host = pic, figure = fig, v = variant;
+    const current = (): boolean => gen === stageGen && fig === figure && pic === host;
+    const fail = (why?: string): void => {
+      if (!current()) return;
+      no3d = true; why3d = why || "failed";
+      drop3d();
+      variant = "";
+      drawSprite();
+    };
+    import("../mochi/index.ts").then((M) => M.createMochiStage(host, {
+      url: glbUrl(v), budget,
+      pixelRatio: (cw, ch) => pixelRatio(budget, window.devicePixelRatio || 1, cw, ch),
+      still: reducedMotion,
+      onState: (state, why) => {
+        if (!current()) return;
+        if (state === "failed" || state === "lost") fail(why || state);
+        else if (state === "disposed" && !stageReady) { /* ours, nothing to do */ }
+      }
+    })).then((st) => {
+      if (!current()) { try { st.dispose(); } catch { /* gone */ } return; }
+      stage = st; stageReady = true; why3d = ""; lastSent = mood;
+      try { st.setMood(mood); } catch { /* the still stays */ }
+      figure.setAttribute("data-3d", "");
+      stillTimer = window.setTimeout(() => { stillTimer = 0; if (current() && stageReady) host.style.backgroundImage = "none"; }, 450);
+    }, (e) => { fail(e && e.message ? String(e.message) : "failed"); });
+  } catch (e) { no3d = true; why3d = String((e as Error)?.message || e); }
 }
 
 function setLine(text: string, href: string | null): void {
@@ -396,7 +472,10 @@ function build(): void {
   mood = "idle"; variant = "";
   lastInput = Date.now(); focusAt = 0; focusForm = null;
   shownFrom = formName();
-  drawSprite();
+  drawSprite();   /* a new variant starts the 3D figure (maybe3d) */
+  if (import.meta.env.DEV && new URLSearchParams(location.search).get("mochi") === "qa") {
+    import("../mochi/qa.ts").then((m) => m.mountQa(api)).catch(() => { /* a dev aid */ });
+  }
 }
 
 function unbuild(): void {
@@ -404,6 +483,7 @@ function unbuild(): void {
   window.clearTimeout(pendingTimer); window.clearTimeout(introTimer); window.clearTimeout(stepTimer); window.clearTimeout(idleTimer);
   stepTimer = 0; idleTimer = 0; clearTimer = 0; playing = false; queue = []; qi = 0;
   pendingTimer = 0; pending = null;
+  drop3d();
   if (fig && fig.parentNode) fig.parentNode.removeChild(fig);
   fig = null; pic = null; lineEl = null; nameEl = null; current = null; shownLine = "";
 }
@@ -463,6 +543,7 @@ function fieldFocus(): void {
 function onInput(): void {
   lastInput = Date.now();
   if (!fig) return;
+  if (stage && stageReady) { try { stage.wake(); } catch { /* gone */ } }
   if (!playing && (mood === "sleepy" || mood === "sleeping")) {
     const r = wake(mood);
     if (r) { play(r.steps); return; }
@@ -504,8 +585,12 @@ export const api = {
   moods: (): string[] => MOODS.slice(),
   /** mode "2d" here; steps = the steps not yet finished, the one showing included; idleSince in ms */
   info: () => ({
-    mode: "2d", mood, steps: playing ? queue.length - qi + 1 : 0, variant, idleSince: lastInput ? Math.max(0, Date.now() - lastInput) : 0
+    mode: stage && stageReady ? "3d" : "2d", mood, steps: playing ? queue.length - qi + 1 : 0, variant,
+    idleSince: lastInput ? Math.max(0, Date.now() - lastInput) : 0, why: why3d,
+    ...(stage && stageReady ? { stage: stage.info() } : {})
   }),
+  /** QA: plays an idle variation on the 3D figure; false in 2D */
+  variation: (name?: string): boolean => (stage && stageReady ? stage.playIdleVariation(name) : false),
   state: () => ({
     mounted: !!fig, mood, line: shownLine, key: current && shownLine ? current.key : null,
     pending: pending ? pending.key : null, stage: stageNo()
