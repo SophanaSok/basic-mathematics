@@ -6,7 +6,7 @@
    Every request off the local server is aborted. Cases:
    a. a fresh load with WebGL: List is checked, prefs.map is unset, no 3D chunk is fetched, the one-time note shows, Dismiss hides it and
       writes run.seen.hubHint, a reload shows no note
-   a2. at 400 px wide the note sits below the control and nothing covers the Map radio
+   a2. at 400 px wide the note sits below the control (at the viewport's foot) and nothing covers the Map radio
    a3. with the note shown, choosing Map removes it, writes run.seen.hubHint and leaves the focus on the Map radio; a reload shows no note
    b. choosing List tears the world down without a reload (BMMap3D.on() false, [data-map3d]
       hidden, html[data-world] gone), prefs.map is "list"; a reload keeps List and fetches
@@ -178,7 +178,7 @@ async function run() {
       await context.close();
     }
 
-    /* -------------------------------------------- a2, a3: the note is in flow and a choice dismisses it */
+    /* -------------------------------------------- a2, a3: the note never covers the control and a choice dismisses it */
     {
       const { context, page, errors } = await open(browser, { fresh: true, viewport: { width: 400, height: 800 } });
       await go(page);
