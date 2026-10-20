@@ -502,6 +502,31 @@ function refusal(fn) { try { fn(); return null; } catch (e) { return e.message; 
     check(/form 2: models\/forms\/form-2-nope.webp does not exist/.test(tamper(c => { c.entries[1].images = c.entries[1].images.concat(["models/forms/form-2-nope.webp"]); })), "form-models: a listed texture that does not exist fails");
     check(/form 3: the file's textures are form-3-surface.webp,form-3-color.webp, the manifest lists form-3-color.webp/.test(tamper(c => { c.entries[2].images = c.entries[2].images.slice(1); })), "form-models: a texture the manifest does not list fails");
     check(/form 1: the file's textures are form-1-surface.webp,form-1-color.webp, the manifest lists none/.test(tamper(c => { c.entries[0].images = []; })), "form-models: textures the manifest lists as none fail");
+    /* the mochi-model rule's caps, on the committed manifest and on tampered copies of it */
+    const mm = require("./lib/mochi-model");
+    const mman = require("./gen-mochi").readManifest();
+    eq(mm.manifestProblems(mman), [], "mochi-model: the committed manifest is within the caps");
+    const mtamper = (f) => { const c = JSON.parse(JSON.stringify(mman)); f(c); return mm.manifestProblems(c).join("\n"); };
+    check(new RegExp("mochi pink: " + (mm.limits.MOCHI_BYTES_MAX + 1) + " bytes is over " + mm.limits.MOCHI_BYTES_MAX).test(mtamper(c => { c.entries[0].bytes = mm.limits.MOCHI_BYTES_MAX + 1; })), "mochi-model: a model over the byte cap fails");
+    check(new RegExp("mochi lilac: " + (mm.limits.MOCHI_TRIANGLES_MAX + 1) + " triangles is over " + mm.limits.MOCHI_TRIANGLES_MAX).test(mtamper(c => { c.entries[1].triangles = mm.limits.MOCHI_TRIANGLES_MAX + 1; })), "mochi-model: a model over the triangle cap fails");
+    check(/mochi pink: clips .* are not idle/.test(mtamper(c => { c.entries[0].clips = c.entries[0].clips.slice(1); })), "mochi-model: a missing clip fails");
+    /* the morph count and the primitive count live in the file: a copy of the files with one name dropped and one primitive dropped */
+    {
+      const root = fs.mkdtempSync(path.join(require("os").tmpdir(), "mochi-"));
+      try {
+        fs.mkdirSync(path.join(root, "public/models"), { recursive: true });
+        fs.cpSync(path.join(site.ROOT, "public/models/mochi"), path.join(root, "public/models/mochi"), { recursive: true });
+        const gf = path.join(root, "public/models/mochi/mochi-pink.glb");
+        const parts = glb.readGlb(fs.readFileSync(gf));
+        parts.json.meshes[0].extras.targetNames = parts.json.meshes[0].extras.targetNames.slice(1);
+        fs.writeFileSync(gf, glb.writeGlb(parts.json, parts.bin));
+        check(/mochi pink: 32 morph target names, not 33/.test(mm.manifestProblems(mman, root).join("\n")), "mochi-model: a morph count of 32 fails");
+        parts.json.meshes[0].extras.targetNames = mman.entries[0].morphs;
+        parts.json.meshes[0].primitives.pop();
+        fs.writeFileSync(gf, glb.writeGlb(parts.json, parts.bin));
+        check(/mochi pink: 4 primitives, not 5/.test(mm.manifestProblems(mman, root).join("\n")), "mochi-model: a mesh with 4 primitives fails");
+      } finally { fs.rmSync(root, { recursive: true, force: true }); }
+    }
   }
   const faces = Array.from(fs.readFileSync(path.join(site.ROOT, genFonts.FILE), "utf8").matchAll(/@font-face\s*\{([^}]*)\}/g)).map(m => m[1]);
   const decl = (block, name) => (new RegExp(name + ":\\s*([^;]+)").exec(block) || [])[1];
