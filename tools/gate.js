@@ -62,6 +62,8 @@ const WEBGL_PATHS = [
   "src/learn/mood.ts",           // the mood the companion's Mochi acts out
   "src/data/mochi-model.ts",     // the Mochi model manifest the renderer loads
   "tools/gen-mochi.js",          // the generator that writes the Mochi model
+  "tools/gen-water.js",          // the generator that writes the water backdrop
+  "tools/lib/png.js",            // the PNG encoder it uses
   "tools/lib/mochi-model.js",    // what that generator and its checks share
   "tools/game/mochi.test.js",    // 3D script: Mochi in the companion
   "src/entries/chapter.js",      // what chapter pages load, and in which order: the companion pulls Three.js in here
