@@ -106,7 +106,7 @@ const fig0 = (page) => page.evaluate(() => {
     inSidebar: !!f.closest("aside[data-sidebar]"), mood: f.getAttribute("data-mood"),
     line: line ? line.textContent : "", links: line ? Array.from(line.querySelectorAll("a")).map((a) => a.getAttribute("href")) : [],
     name: f.querySelector(".companion-name").textContent, label: pic.getAttribute("aria-label"),
-    image: pic.style.backgroundImage, pos: getComputedStyle(pic).backgroundPosition,
+    image: f.querySelector(".companion-still").style.backgroundImage, pos: getComputedStyle(f.querySelector(".companion-still")).backgroundPosition,
     anim: getComputedStyle(pic).animationName, evolving: f.classList.contains("is-evolving"),
     position: getComputedStyle(f).position, hidden: f.hasAttribute("data-hidden"), display: getComputedStyle(f).display
   };
@@ -493,7 +493,7 @@ async function run() {
       eq(await c.page.evaluate(() => window.BMCompanion.setMood("sleeping")), true, "setMood: sleeping is accepted");
       const f = await c.page.evaluate(() => {
         const fg = document.querySelector("figure[data-companion]"), pic = fg.querySelector(".companion-pic");
-        return { mood: fg.getAttribute("data-mood"), pos: pic.style.backgroundPosition, size: pic.style.backgroundSize, label: pic.getAttribute("aria-label"), moods: window.BMCompanion.moods(), info: window.BMCompanion.info() };
+        return { mood: fg.getAttribute("data-mood"), pos: fg.querySelector(".companion-still").style.backgroundPosition, size: fg.querySelector(".companion-still").style.backgroundSize, label: pic.getAttribute("aria-label"), moods: window.BMCompanion.moods(), info: window.BMCompanion.info() };
       });
       eq([f.mood, f.pos.replace(/(0)(px|%)$/, "$1"), f.size], ["sleeping", "100% 0", "900% 100%"], "setMood: data-mood and the last column");
       eq(f.label, "Mochi, your companion, sleeping", "setMood: the label");
@@ -509,7 +509,7 @@ async function run() {
       check(c.requests.some((u) => /\/models\/mochi\/mochi-lilac-poses\.webp(?:[?#]|$)/.test(u)), "lilac: the lilac sheet was requested");
       /* the pref itself is a later card: seed the key and send the change */
       await c.page.evaluate(() => { localStorage.setItem("bm.prefs.v1", '{"mochi":"pink"}'); window.BMStore.emit({ type: "prefs" }); });
-      check(await until(c.page, () => /mochi-pink-poses/.test(document.querySelector(".companion-pic").style.backgroundImage), null, 3000), "lilac: changing the pref redraws the sheet");
+      check(await until(c.page, () => /mochi-pink-poses/.test(document.querySelector(".companion-still").style.backgroundImage), null, 3000), "lilac: changing the pref redraws the sheet");
       await done(c, "lilac");
     }
     /* 22 */
