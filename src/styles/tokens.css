@@ -71,6 +71,10 @@
   --shadow: 0 1px 2px rgba(23, 24, 28, .05), 0 8px 24px -6px rgba(23, 24, 28, .08);
   --shadow-2: var(--shadow-float);
 
+  /* Mochi's porthole (companion.ts, game.css): brass rim, glass glare, water tint and vignette */
+  --porthole-rim-light: #d9b063; --porthole-rim: #b8863b; --porthole-rim-deep: #6e4a1a; --porthole-edge: #2a1d0d;
+  --porthole-glare: rgba(255, 255, 255, .30); --water-tint: rgba(28, 140, 172, .16); --water-vignette: rgba(0, 32, 52, .45);
+
   /* figures and 3D scenes; WebGL reads these, so keep them plain six-digit hex */
   --plot-bg: #fffdf8;
   --plot-grid: #e7e0d0;
@@ -206,6 +210,8 @@
   --shadow-float: 0 10px 30px -10px rgba(0, 0, 0, .6);
   --shadow-1: 0 1px 2px rgba(0, 0, 0, .4);
   --shadow: 0 1px 2px rgba(0, 0, 0, .4), 0 10px 28px -8px rgba(0, 0, 0, .5);
+  --porthole-rim-light: #c49a52; --porthole-rim: #8f6a2e; --porthole-rim-deep: #4a3212; --porthole-edge: #0d0a05;
+  --porthole-glare: rgba(255, 255, 255, .18); --water-tint: rgba(12, 90, 120, .28); --water-vignette: rgba(0, 16, 30, .6);
   --plot-bg: #1b1f2c;
   --plot-grid: #2b3144;
   --plot-axis: #7b839b;
@@ -434,6 +440,8 @@
     --plot-point: #171923; --plot-ink: #171923; --plot-face-a: #c9d3fb; --plot-face-b: #f6d3ae;
     --plot-face-c: #d3efdc; --plot-ground: #f1ebdd; --plot-hot: #f6b40e;
     --frame-bg: #ffffff; --frame-text: #171923;
+    --porthole-rim-light: #d9b063; --porthole-rim: #b8863b; --porthole-rim-deep: #6e4a1a; --porthole-edge: #2a1d0d;
+    --porthole-glare: rgba(255, 255, 255, .30); --water-tint: rgba(28, 140, 172, .16); --water-vignette: rgba(0, 32, 52, .45);
     --panel-scheme: light;
     color-scheme: light;
   }

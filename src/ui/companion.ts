@@ -7,8 +7,11 @@
    companion) and the preference (prefs.companion) not "off"/false; an absent field is on.
    Study mode (html[data-calm] or prefs.calm) hides it. The sprite is Mochi's sheet,
    models/mochi/mochi-<variant>-poses.webp (nine 320 px stills in the order of MOODS; the
-   variant is prefs.mochi, "lilac" or else "pink"), drawn as a CSS background: a missing sheet
-   fails silently and no model code is loaded.
+   variant is prefs.mochi, "lilac" or else "pink"), drawn as a CSS background on span.companion-still: a missing
+   sheet fails silently and no model code is loaded. The still sits in span.companion-window (a round porthole
+   opening inside span.companion-pic, whose rim and glass are CSS), whose background is the water strip
+   models/mochi/water.png (eight 64 px frames); the 3D stage's tick steps the frame every 300 ms, so the water
+   holds on frame 0 in 2D and under reduced motion.
 
      - On mount: arrival() from the page's state, then the bus events are mapped to Recent
        and handed to react(). Every other event is ignored.
@@ -46,6 +49,9 @@ const QUIET = ["intro", "due", "back", "arena-end"];
 
 let fig: HTMLElement | null = null;
 let pic: HTMLElement | null = null;
+let win: HTMLElement | null = null;
+let still: HTMLElement | null = null;
+let waterFrame = 0;
 let lineEl: HTMLElement | null = null;
 let nameEl: HTMLElement | null = null;
 let memory: MoodMemory = EMPTY_MEMORY;
@@ -165,19 +171,33 @@ function sheetUrl(v: string): string {
   return root + "models/mochi/mochi-" + v + "-poses.webp";
 }
 
+function waterUrl(): string {
+  let root = "";
+  try { root = String(w().BMSite.rootPrefix()); } catch { /* no helper */ }
+  return root + "models/mochi/water.png";
+}
+
+/** the water strip's frame for the stage clock; written only when it changes */
+function stepWater(t: number): void {
+  const i = Math.floor(t / 300) % 8;
+  if (i === waterFrame || !win) return;
+  waterFrame = i;
+  win.style.backgroundPosition = (i * 100 / 7) + "% 0";
+}
+
 function drawSprite(): void {
-  if (!fig || !pic) return;
+  if (!fig || !pic || !still) return;
   const v = variantOf();
   if (v !== variant) {
     variant = v;
-    pic.style.backgroundImage = 'url("' + sheetUrl(v) + '")';
+    still.style.backgroundImage = 'url("' + sheetUrl(v) + '")';
     /* a new variant is a new avatar: the old stage goes first, so two are never alive */
     drop3d();
     maybe3d();
   }
   /* nine stills side by side: the sheet is nine boxes wide, one high, and the box is square (game.css sizes it) */
-  pic.style.backgroundSize = "900% 100%";
-  pic.style.backgroundPosition = (MOODS.indexOf(mood) * 100 / 8) + "% 0";
+  still.style.backgroundSize = "900% 100%";
+  still.style.backgroundPosition = (MOODS.indexOf(mood) * 100 / 8) + "% 0";
   if (stage && stageReady && lastSent !== mood) { lastSent = mood; try { stage.setMood(mood); } catch { /* the still stays */ } }
   if (nameEl) nameEl.textContent = "Mochi";
   pic.setAttribute("aria-label", "Mochi, your companion, " + mood);
@@ -205,11 +225,14 @@ function drop3d(): void {
   stage = null; stageReady = false; lastSent = "";
   if (fig) fig.removeAttribute("data-3d");
   if (s) { try { s.dispose(); } catch { /* gone */ } }
+  /* the water goes back to its first frame, as it is in 2D */
+  waterFrame = 0;
+  if (win) win.style.backgroundPosition = "0% 0";
 }
 
 /** the 3D figure over the still, when the device, the tier and the learner's settings allow it; otherwise nothing happens */
 function maybe3d(): void {
-  if (!fig || !pic || stage || no3d) return;
+  if (!fig || !pic || !win || !still || stage || no3d) return;
   const B = w().BM3D;
   try {
     if (!B || typeof B.supported !== "function" || !B.supported()) return;
@@ -219,8 +242,8 @@ function maybe3d(): void {
     if (tier === "list") return;
     const budget = TIERS[tier];
     const gen = ++stageGen;
-    const host = pic, figure = fig, v = variant;
-    const live = (): boolean => gen === stageGen && fig === figure && pic === host;
+    const host = win, stillEl = still, figure = fig, v = variant;
+    const live = (): boolean => gen === stageGen && fig === figure && win === host;
     const fail = (why?: string): void => {
       if (!live()) return;
       no3d = true; why3d = why || "failed";
@@ -232,6 +255,7 @@ function maybe3d(): void {
       url: glbUrl(v), budget,
       pixelRatio: (cw, ch) => pixelRatio(budget, window.devicePixelRatio || 1, cw, ch),
       still: reducedMotion,
+      tick: (t) => stepWater(t),
       onState: (state, why) => {
         if (!live()) return;
         if (state === "failed" || state === "lost") fail(why || state);
@@ -241,7 +265,7 @@ function maybe3d(): void {
       stage = st; stageReady = true; why3d = ""; lastSent = mood;
       try { st.setMood(mood); } catch { /* the still stays */ }
       figure.setAttribute("data-3d", "");
-      stillTimer = window.setTimeout(() => { stillTimer = 0; if (live() && stageReady) host.style.backgroundImage = "none"; }, 450);
+      stillTimer = window.setTimeout(() => { stillTimer = 0; if (live() && stageReady) stillEl.style.backgroundImage = "none"; }, 450);
     }, (e) => { fail(e && e.message ? String(e.message) : "failed"); });
   } catch (e) { no3d = true; why3d = String((e as Error)?.message || e); }
 }
@@ -458,6 +482,14 @@ function build(): void {
   pic = document.createElement("span");
   pic.className = "companion-pic";
   pic.setAttribute("role", "img");
+  win = document.createElement("span");
+  win.className = "companion-window";
+  win.style.backgroundImage = 'url("' + waterUrl() + '")';
+  still = document.createElement("span");
+  still.className = "companion-still";
+  win.appendChild(still);
+  pic.appendChild(win);
+  waterFrame = 0;
   const cap = document.createElement("figcaption");
   nameEl = document.createElement("b");
   nameEl.className = "companion-name";
@@ -484,7 +516,7 @@ function unbuild(): void {
   pendingTimer = 0; pending = null;
   drop3d();
   if (fig && fig.parentNode) fig.parentNode.removeChild(fig);
-  fig = null; pic = null; lineEl = null; nameEl = null; current = null; shownLine = "";
+  fig = null; pic = null; win = null; still = null; lineEl = null; nameEl = null; current = null; shownLine = "";
 }
 
 function intro(): void {

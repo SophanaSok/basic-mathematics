@@ -15,7 +15,9 @@
    8. pagehide disposes the stage
    9. arena.html: the docked 64 px figure gets the model too
    10. two wrong attempts: sad at once with "Let's look again.", then thinking
-   11. throughout: no page errors and no Content Security Policy violations */
+   11. throughout: no page errors and no Content Security Policy violations
+   12. the porthole's water steps in 3D (the window's background-position changes) and holds under
+       reduced motion */
 "use strict";
 const site = require("../lib/site");
 const target = require("../lib/target");
@@ -93,15 +95,18 @@ async function main() {
       check(early.fig, "1: the figure is there at load", early);
       check(await threeD(c.page, 15000), "1: data-3d within 15 s");
       /* the still clears 450 ms after the canvas is ready; polled, since a slow runner stretches that */
-      check(await until(c.page, () => getComputedStyle(document.querySelector("figure[data-companion] .companion-pic")).backgroundImage === "none", null, 5000), "1: the still's background clears after the fade");
+      check(await until(c.page, () => getComputedStyle(document.querySelector("figure[data-companion] .companion-still")).backgroundImage === "none", null, 5000), "1: the still's background clears after the fade");
       const st = await c.page.evaluate(() => ({
         aria: (document.querySelector("canvas.companion-canvas") || { getAttribute: () => null }).getAttribute("aria-hidden"),
-        bg: getComputedStyle(document.querySelector("figure[data-companion] .companion-pic")).backgroundImage,
+        bg: getComputedStyle(document.querySelector("figure[data-companion] .companion-still")).backgroundImage,
+        win: (() => { const e = document.querySelector("figure[data-companion] .companion-window"); return e ? getComputedStyle(e).backgroundSize : null; })(),
         canvases: document.querySelectorAll("canvas.companion-canvas").length
       }));
       const inf = await info(c.page);
       check(st.aria === "true", "1: the canvas is aria-hidden", st);
       check(st.canvases === 1, "1: one canvas", st);
+      check(st.win === "800% 100%", "1: the porthole window exists with the water strip sized 800% 100%", st);
+      check(count(c.requests, /\/models\/mochi\/water\.png$/) === 1, "1: water.png once", c.requests.filter((u) => /water/.test(u)));
       check(inf.mode === "3d", "1: mode is 3d", inf);
       check(inf.stage && inf.stage.triangles === 18762 && inf.stage.morphs === 33, "1: 18762 triangles and 33 morphs", inf.stage && [inf.stage.triangles, inf.stage.morphs]);
       const r = c.requests;
@@ -181,7 +186,7 @@ async function main() {
       check(await threeD(c.page), "6: data-3d");
       await c.page.evaluate(() => { document.querySelector(".companion-canvas").getContext("webgl2").getExtension("WEBGL_lose_context").loseContext(); });
       check(await until(c.page, () => !document.querySelector("figure[data-companion]").hasAttribute("data-3d"), null, 3000), "6: data-3d goes");
-      const st = await c.page.evaluate(() => ({ mode: window.BMCompanion.info().mode, why: window.BMCompanion.info().why, bg: document.querySelector("figure[data-companion] .companion-pic").style.backgroundImage }));
+      const st = await c.page.evaluate(() => ({ mode: window.BMCompanion.info().mode, why: window.BMCompanion.info().why, bg: document.querySelector("figure[data-companion] .companion-still").style.backgroundImage }));
       check(st.mode === "2d", "6: mode is 2d", st);
       check(!!st.why, "6: a reason is given", st);
       check(/mochi-pink-poses\.webp/.test(st.bg), "6: the sheet is the background again", st);
@@ -240,12 +245,27 @@ async function main() {
       check(await until(c.page, () => window.BMCompanion.info().stage.mood === "thinking", null, 1000), "10: the stage follows to thinking");
       noErrors(c, "10");
     }
+    /* 12 */
+    {
+      const pos = (c) => c.page.evaluate(() => document.querySelector("figure[data-companion] .companion-window").style.backgroundPosition);
+      const c = await open(CHAPTER);
+      check(await threeD(c.page), "12: data-3d");
+      const a = await pos(c);
+      check(await until(c.page, (p0) => document.querySelector("figure[data-companion] .companion-window").style.backgroundPosition !== p0, a, 3000), "12: the water steps in 3D", a);
+      noErrors(c, "12");
+      const r = await open(CHAPTER, { "bm.prefs.v1": JSON.stringify({ motion: "reduce" }) }, { reduced: true });
+      check(await threeD(r.page), "12: data-3d under reduced motion");
+      await wait(1500);
+      const x = await pos(r); await wait(1000); const y = await pos(r);
+      check(x === y, "12: the water holds under reduced motion", [x, y]);
+      noErrors(r, "12r");
+    }
   } finally {
     for (const c of contexts) { try { await c.close(); } catch (e) { /* closed already */ } }
     await browser.close();
     await server.close();
   }
-  console.log((fails ? "FAILED" : "ok") + " mochi: 11 cases, " + passes + " checks passed" + (fails ? ", " + fails + " failed" : "") + " in " + Math.round((Date.now() - t0) / 1000) + " s");
+  console.log((fails ? "FAILED" : "ok") + " mochi: 12 cases, " + passes + " checks passed" + (fails ? ", " + fails + " failed" : "") + " in " + Math.round((Date.now() - t0) / 1000) + " s");
   process.exit(fails ? 1 : 0);
 }
 
