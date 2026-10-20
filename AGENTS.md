@@ -82,6 +82,8 @@ in one line which task and why before launching, and name each Fable use in the 
   `tools/lib/site.js`) in the same PR, pointing at the content commit.
 - The form models (`public/models/forms/`, `src/data/form-models.ts`) are what `npm run gen:forms`
   writes from `tools/art/forms/`: edit the scripts, re-run, commit the outputs.
+- Mochi's files (`public/models/mochi/`, `src/data/mochi-model.ts`) are what `npm run gen:mochi` writes from
+  the Blender project's `site/` output: re-run it, never edit them.
 - `tutor.enabled` stays `false` until the owner completes the go-live checklist.
 - Secrets live only in `.env` (gitignored). Never read, print or paste it.
 

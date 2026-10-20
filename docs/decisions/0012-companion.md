@@ -35,7 +35,7 @@ The owner chose the game feel through a character present while the learner work
 
 - The Plain and Explore navigation modes (Part 2 of the owner's plan file, `~/.claude/plans/pasted-content-id-69bc-you-are-recursive-flask.md`, which also holds this feature's run log).
 - A Part-hue sprite set.
-- The Arena presence.
+- The Arena presence (done in 0013).
 - A level-popover portrait.
 - The `stuck` bus event.
 
@@ -45,3 +45,5 @@ The owner's defaults, taken with the approval: the poses come from existing clip
 ## Status
 
 Decided 2026-10-19. C-1 to C-5 shipped 2026-10-19; C-6 is this record.
+
+Superseded in part by 0013 (2026-10-20): Mochi takes the companion slot; the form keeps the progress page, the unlock toast and the level popover.
