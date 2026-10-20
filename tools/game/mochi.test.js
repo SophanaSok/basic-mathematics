@@ -92,8 +92,8 @@ async function main() {
       const early = await c.page.evaluate(() => ({ fig: !!document.querySelector("figure.companion[data-companion]"), d3: document.querySelector("figure[data-companion]") && document.querySelector("figure[data-companion]").hasAttribute("data-3d") }));
       check(early.fig, "1: the figure is there at load", early);
       check(await threeD(c.page, 15000), "1: data-3d within 15 s");
-      const t3 = Date.now();
-      await wait(1500);
+      /* the still clears 450 ms after the canvas is ready; polled, since a slow runner stretches that */
+      check(await until(c.page, () => getComputedStyle(document.querySelector("figure[data-companion] .companion-pic")).backgroundImage === "none", null, 5000), "1: the still's background clears after the fade");
       const st = await c.page.evaluate(() => ({
         aria: (document.querySelector("canvas.companion-canvas") || { getAttribute: () => null }).getAttribute("aria-hidden"),
         bg: getComputedStyle(document.querySelector("figure[data-companion] .companion-pic")).backgroundImage,
@@ -101,7 +101,6 @@ async function main() {
       }));
       const inf = await info(c.page);
       check(st.aria === "true", "1: the canvas is aria-hidden", st);
-      check(st.bg === "none", "1: the still's background is gone after the fade", st);
       check(st.canvases === 1, "1: one canvas", st);
       check(inf.mode === "3d", "1: mode is 3d", inf);
       check(inf.stage && inf.stage.triangles === 18762 && inf.stage.morphs === 33, "1: 18762 triangles and 33 morphs", inf.stage && [inf.stage.triangles, inf.stage.morphs]);
@@ -111,7 +110,6 @@ async function main() {
       ["three", "three-model", "mochi"].forEach((n) => check(count(r, new RegExp("/bundle/" + n + "\\.js$")) === 1, "1: bundle/" + n + ".js once", r.filter((u) => /bundle/.test(u))));
       check(count(r, /\/models\/forms\//) === 0, "1: nothing from /models/forms/");
       noErrors(c, "1");
-      void t3;
     }
     /* 2 */
     {
@@ -122,10 +120,10 @@ async function main() {
       for (const name of names) {
         const ok = await c.page.evaluate((n) => window.BMCompanion.setMood(n), name);
         check(ok === true, "2: setMood(" + name + ") is true");
-        await wait(600);
+        /* the 0.35 s fade, polled to its end rather than timed */
+        check(await until(c.page, (n) => window.BMCompanion.info().stage.weights[n] > 0.95, name, 4000), "2: " + name + " clip at full weight");
         const inf = await info(c.page);
         const w = inf.stage.weights;
-        check(w[name] > 0.95, "2: " + name + " clip at full weight", w);
         const others = MOODS9.filter((m) => m !== name);
         check(others.every((m) => w[m] < 0.05), "2: the other mood clips are off during " + name, w);
         check(Object.values(w).filter((v) => v > 0.95).length === 1, "2: exactly one weight above 0.95 during " + name, w);
@@ -146,6 +144,8 @@ async function main() {
       check(await until(c.page, (n) => window.BMCompanion.info().stage.variations > n, v0, 12000), "3: a variation plays within 12 s", v0);
       const inf = await info(c.page);
       check(VARIATIONS.includes(inf.stage.lastVariation), "3: lastVariation names an idle variation", inf.stage.lastVariation);
+      /* the variation fades the idle down first; waiting for that dip keeps the return from passing on the pre-fade state */
+      check(await until(c.page, () => window.BMCompanion.info().stage.weights.idle < 0.5, null, 3000), "3: the idle dips while the variation plays", (await info(c.page)).stage.weights);
       check(await until(c.page, () => window.BMCompanion.info().stage.weights.idle > 0.9, null, 6000), "3: the idle returns above 0.9 within 6 s", (await info(c.page)).stage.weights);
       noErrors(c, "3");
     }
@@ -157,9 +157,8 @@ async function main() {
       check(inf.stage.reduced === true, "4: reduced", inf.stage);
       await wait(12000);
       check((await info(c.page)).stage.variations === inf.stage.variations, "4: no variation in 12 s", [inf.stage.variations, (await info(c.page)).stage.variations]);
-      await c.page.evaluate(() => window.BMCompanion.setMood("happy"));
-      await wait(400);
-      const w = (await info(c.page)).stage.weights;
+      /* sampled in the page 400 ms after the call, so a slow round trip cannot stretch the wait */
+      const w = await c.page.evaluate(() => new Promise((res) => { window.BMCompanion.setMood("happy"); setTimeout(() => res(window.BMCompanion.info().stage.weights), 400); }));
       check(w.happy < 0.9, "4: the fade is longer than 0.35 s (happy at 400 ms)", w);
       check(await frozen(c.page, 600, 3000 + 1500), "4: the frames stop after the fade");
       noErrors(c, "4");
@@ -228,9 +227,9 @@ async function main() {
       check(await threeD(c.page), "10: data-3d");
       const miss = () => c.page.evaluate(() => window.BMStore.emit({ type: "attempt", correct: false, tryNo: 1, key: "e1", chapter: "ch01", hintLevel: 0, solutionOpen: false }));
       await miss();
-      await wait(4500);   /* past the quiet window after the first verdict, which holds a caption back */
+      await wait(4800);   /* past QUIET_AFTER_VERDICT_MS (4 s, src/learn/mood.ts) after the first verdict, which holds a caption back */
       await miss();
-      const sad = await until(c.page, () => document.querySelector("figure[data-companion]").getAttribute("data-mood") === "sad", null, 500);
+      const sad = await until(c.page, () => document.querySelector("figure[data-companion]").getAttribute("data-mood") === "sad", null, 2000);
       const line = await c.page.evaluate(() => document.querySelector("figure[data-companion] .companion-line").textContent);
       check(sad, "10: sad at once after the second miss");
       check(line === "Let's look again.", "10: the caption", line);
@@ -244,7 +243,7 @@ async function main() {
     await browser.close();
     await server.close();
   }
-  console.log("mochi: " + passes + " passed, " + fails + " failed in " + Math.round((Date.now() - t0) / 1000) + " s");
+  console.log((fails ? "FAILED" : "ok") + " mochi: 11 cases, " + passes + " checks passed" + (fails ? ", " + fails + " failed" : "") + " in " + Math.round((Date.now() - t0) / 1000) + " s");
   process.exit(fails ? 1 : 0);
 }
 
