@@ -109,7 +109,7 @@ export function createAvatar(M: ThreeModel, gltf: GLTF, o: AvatarOptions): Avata
   let moodName: string | null = null;
   let nextVariation = interval(o.idleIntervalS, rand());
   let fadeLeft = 0;
-  let lastFade = 0, lastReduced = false, started = 0, lastVariation: string | null = null;
+  let lastFade = 0, started = 0, lastVariation: string | null = null;
   let dead = false;
 
   function play(next: AnimationAction, duration: number): void {
@@ -131,7 +131,6 @@ export function createAvatar(M: ThreeModel, gltf: GLTF, o: AvatarOptions): Avata
     mood = next;
     moodName = clip;
     lastFade = d;
-    lastReduced = still;
     play(next, d);
     nextVariation = interval(o.idleIntervalS, rand());
     return true;
@@ -191,7 +190,7 @@ export function createAvatar(M: ThreeModel, gltf: GLTF, o: AvatarOptions): Avata
     fading: () => fadeLeft > 0,
     busy: () => fadeLeft > 0 || (!!mood && current !== mood),
     stats: () => ({
-      mood: moodName, fade: lastFade, reduced: lastReduced, variations: started, lastVariation,
+      mood: moodName, fade: lastFade, reduced: o.still(), variations: started, lastVariation,
       weights: Object.fromEntries(Object.entries(actions).map(([n, a]) => [n, a.getEffectiveWeight()])),
       triangles,
       morphs: Object.keys(meshes[0]?.morphTargetDictionary ?? {}).length,

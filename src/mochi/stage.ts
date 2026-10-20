@@ -36,7 +36,7 @@ export function createStage(T: any, host: HTMLElement, avatar: Avatar, opts: Moc
   camera.position.set(-0.3, 1.1, 3.9);
   camera.lookAt(0, 0.72, 0);
 
-  let disposed = false, onscreen = true, pageHidden = false;
+  let disposed = false, onscreen = true, pageHidden = false, lost = false;
   let raf = 0, last = 0, lastDraw = 0, pending = 0, frames = 0;
   let ro: ResizeObserver | null = null, io: IntersectionObserver | null = null;
 
@@ -78,8 +78,8 @@ export function createStage(T: any, host: HTMLElement, avatar: Avatar, opts: Moc
       lastDraw = t;
       draw();
     }
-    /* under reduced motion only a crossfade keeps the loop going; the frame is then held */
-    if (still() ? avatar.fading() : true) { raf = window.requestAnimationFrame(loop); return; }
+    /* under reduced motion only a crossfade, or a variation already under way, keeps the loop going; the frame is then held */
+    if (still() ? avatar.busy() : true) { raf = window.requestAnimationFrame(loop); return; }
     last = 0;
     pending = 0;
   }
@@ -105,13 +105,15 @@ export function createStage(T: any, host: HTMLElement, avatar: Avatar, opts: Moc
     canvas.removeEventListener("webglcontextlost", onLost, false);
     avatar.dispose();
     try { scene.clear(); } catch { /* gone */ }
-    try { renderer.dispose(); renderer.forceContextLoss(); } catch { /* gone */ }
+    /* a context the browser already took is not lost again (Chrome would log it) */
+    try { renderer.dispose(); if (!lost) renderer.forceContextLoss(); } catch { /* gone */ }
     if (canvas.parentNode) canvas.parentNode.removeChild(canvas);
     setState("disposed");
   }
 
   function onLost(e: Event): void {
     e.preventDefault();
+    lost = true;
     setState("lost");
     dispose();
   }
@@ -125,26 +127,32 @@ export function createStage(T: any, host: HTMLElement, avatar: Avatar, opts: Moc
     if (e.persisted) { pageHidden = false; last = 0; request(); }
   }
 
-  canvas.addEventListener("webglcontextlost", onLost, false);
-  document.addEventListener("visibilitychange", onVisible);
-  window.addEventListener("pagehide", onHide);
-  window.addEventListener("pageshow", onShow);
-  host.appendChild(canvas);
-  if (window.ResizeObserver) {
-    ro = new ResizeObserver(() => { size(); if (canDraw()) draw(); request(); });
-    ro.observe(host);
+  /* a throw from here on (a shader that fails on the first frame, say) leaves nothing behind:
+     the listeners, observers, renderer and canvas go with dispose() before the caller hears */
+  try {
+    canvas.addEventListener("webglcontextlost", onLost, false);
+    document.addEventListener("visibilitychange", onVisible);
+    window.addEventListener("pagehide", onHide);
+    window.addEventListener("pageshow", onShow);
+    host.appendChild(canvas);
+    if (window.ResizeObserver) {
+      ro = new ResizeObserver(() => { size(); if (canDraw()) draw(); request(); });
+      ro.observe(host);
+    }
+    if (window.IntersectionObserver) {
+      io = new IntersectionObserver((entries) => {
+        onscreen = entries[entries.length - 1].isIntersecting;
+        if (onscreen) request(); else cancel();
+      }, { rootMargin: "120px" });
+      io.observe(host);
+    }
+    size();
+    avatar.update(0);
+    draw();
+  } catch (e) {
+    dispose();
+    throw e;
   }
-  if (window.IntersectionObserver) {
-    io = new IntersectionObserver((entries) => {
-      onscreen = entries[entries.length - 1].isIntersecting;
-      if (onscreen) request(); else cancel();
-    }, { rootMargin: "120px" });
-    io.observe(host);
-  }
-
-  size();
-  avatar.update(0);
-  draw();
 
   return {
     canvas,
