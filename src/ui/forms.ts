@@ -246,7 +246,7 @@ function stillNow(): boolean {
 function evolvedNow(): unknown {
   try { return window.BMGame.run().seen.evolved; } catch { return undefined; }
 }
-let arrivalMood: Mood = "content";
+let arrivalMood: Mood = "idle";
 /** the companion's arrival line under the blurb (the due review as a link); none under Study mode */
 function moodLine(): void {
   const p = q<HTMLElement>('[data-f="mood"]');
@@ -254,13 +254,13 @@ function moodLine(): void {
   let r: ReturnType<typeof arrival> | null = null;
   try { if ((window as any).BMCompanion && (window as any).BMCompanion.input) r = arrival((window as any).BMCompanion.input(true)); } catch { r = null; }
   if (!r || !r.line) {
-    arrivalMood = "content";
+    arrivalMood = "idle";
     p.textContent = "";
     p.hidden = true;
     panel.removeAttribute("data-mood");
     return;
   }
-  arrivalMood = r.mood;
+  arrivalMood = r.steps[0].mood;
   if (r.href) {
     const cur = p.firstElementChild as HTMLAnchorElement | null;
     if (!(cur && cur.tagName === "A" && cur.textContent === r.line && cur.getAttribute("href") === r.href)) {
@@ -272,7 +272,7 @@ function moodLine(): void {
     }
   } else if (p.textContent !== r.line || p.firstElementChild) p.textContent = r.line;
   p.hidden = false;
-  panel.setAttribute("data-mood", r.mood);
+  panel.setAttribute("data-mood", r.steps[0].mood);
 }
 /** once a day, when the model has arrived: a bow if the form is sleepy, otherwise a wave. Never under
     reduced motion or Study mode, and the day is written only when the emote was played */
@@ -291,7 +291,7 @@ function greet(): boolean {
   if (!(i && i.model === "model" && i.state === "3d")) return false;
   if (!panel || !panel.hasAttribute("data-mood")) moodLine();
   if (arrivalMood === "sleepy") view.play("bow");
-  else if (arrivalMood === "content" || arrivalMood === "waiting") view.play("wave");
+  else if (arrivalMood === "idle" || arrivalMood === "thinking") view.play("wave");
   else return true;
   window.BMGame.updateRun((r: { seen: Record<string, unknown> }) => { r.seen.greeted = day; });
   return true;
