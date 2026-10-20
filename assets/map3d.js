@@ -185,9 +185,9 @@ import { detectTier, readProbe, stepDown, lower, pixelRatio, TIERS, AMBIENT_MS, 
       "Beacon: sections due for a check. Flag: chapter finished, stars for the medal.</p>";
     box.innerHTML = sr +
       '<div class="map3d-parts" role="group" aria-label="Show a Part on the course map">' + parts + "</div>" +
-      '<div class="map3d-stage" data-state="loading" data-map3d-stage tabindex="0" role="group" aria-roledescription="course map" ' +
+      '<div class="map3d-stage" data-state="loading" data-map3d-stage data-part="' + esc(MAP_PARTS[0].id) + '" tabindex="0" role="group" aria-roledescription="course map" ' +
         'aria-label="Course map" aria-describedby="map3d-keys">' +
-        '<p id="map3d-keys" class="visually-hidden">Arrow keys move along the path. Enter opens the chapter. Escape leaves the map.</p>' +
+        '<p id="map3d-keys" class="visually-hidden">Arrow keys move along the path. Enter opens the chapter. Escape clears the selection, then leaves the map.</p>' +
         '<p class="map3d-wait" aria-hidden="true">Loading the map…</p>' +
         '<div class="map3d-labels" aria-hidden="true"></div>' +
         '<p class="map3d-keyhint" aria-hidden="true">Arrow keys move along the path · Enter opens · ? for all keys</p>' +
@@ -223,6 +223,12 @@ import { detectTier, readProbe, stepDown, lower, pixelRatio, TIERS, AMBIENT_MS, 
         return String(a || b).split("").map(function (ch) { return SUP[ch] || ch; }).join("");
       })
       .replace(/\\[a-zA-Z]+/g, "").replace(/[{}]/g, "").replace(/\s*=\s*/g, " = ");
+  }
+  /* the plate asks for the same goal every frame it is shown: the regex chain runs once per chapter and length */
+  var goalCache = {};
+  function plainGoalFor(id, text, max) {
+    var key = id + ":" + max;
+    return key in goalCache ? goalCache[key] : (goalCache[key] = plainGoal(text, max));
   }
   function plainGoal(text, max) {
     var t = String(text || "").replace(/\$((?:\\.|[^$\\])*)\$/g, function (_, m) { return plainMath(m); }).replace(/\s+/g, " ").trim();
@@ -546,6 +552,8 @@ import { detectTier, readProbe, stepDown, lower, pixelRatio, TIERS, AMBIENT_MS, 
       if (+b.getAttribute("data-p") === p) b.setAttribute("data-on", "true");
       else b.removeAttribute("data-on");
     });
+    /* the stage carries the shown Part, so the legend's marks take that Part's tokens */
+    M.stage.setAttribute("data-part", MAP_PARTS[p].id);
   }
 
   /* ------------------------------------------------------------ rendering -- */
@@ -690,6 +698,18 @@ import { detectTier, readProbe, stepDown, lower, pixelRatio, TIERS, AMBIENT_MS, 
     applyTier({ tier: next, why: "slow", chosen: M.chosen });
   }
 
+  /* the lowest point of an island on the stage, in stage pixels: the deck's near and far
+     edges, its sides and its base, whichever projects lowest; a plate put below the island
+     starts under this, so it covers neither the body nor the marks standing on the deck */
+  function isleBottom(s, w, h) {
+    var R = W.ISLE_R, low = -Infinity, pts = [[0, W.DECK, R], [0, W.DECK, -R], [R, W.DECK, 0], [-R, W.DECK, 0], [0, 0, 0]];
+    for (var k = 0; k < pts.length; k++) {
+      var v = new M.T.Vector3(s.x + pts[k][0], s.y + pts[k][1], s.z + pts[k][2]).project(M.camera);
+      if (v.z <= 1) low = Math.max(low, (1 - v.y) / 2 * h);
+    }
+    return low;
+  }
+
   /* labels: only the selected or hovered island and the current one, as HTML plates */
   function placeLabels() {
     var want = [];
@@ -708,7 +728,7 @@ import { detectTier, readProbe, stepDown, lower, pixelRatio, TIERS, AMBIENT_MS, 
         more = '<span class="map3d-label-meta">' + fm.scored + (fm.scored === 1 ? " exercise" : " exercises") +
           " · about " + fm.minutes + " min</span>";
         if ((M.hotHow === "focus" || M.hotHow === "tap") && M.hover < 0 && fm.goal) {
-          more += '<span class="map3d-label-goal">' + esc(plainGoal(fm.goal, 90)) + "</span>";
+          more += '<span class="map3d-label-goal">' + esc(plainGoalFor(ch.id, fm.goal, 90)) + "</span>";
         }
       }
       html += '<span class="map3d-label" data-kind="' + w.kind + '" data-part="' + esc(ISLES[w.i].part.id) +
@@ -730,8 +750,19 @@ import { detectTier, readProbe, stepDown, lower, pixelRatio, TIERS, AMBIENT_MS, 
       var off = v.z > 1 || x < -40 || x > w + 40 || y < 0 || y > h + 20;
       el.style.visibility = off ? "hidden" : "visible";
       var room = sizes[n].half + 8, top = sizes[n].tall + 8;
-      el.style.transform = "translate(" + Math.round(2 * room < w ? clamp(x, room, w - room) : w / 2) + "px," +
-        Math.round(top < h ? clamp(y, top, h + 4) : y) + "px) translate(-50%,-100%)";
+      var px = Math.round(2 * room < w ? clamp(x, room, w - room) : w / 2);
+      /* no room above the island (its point is closer to the top than the plate is tall):
+         the plate goes below the island instead of being clamped down over it, its top under
+         the island's lowest point (the marks stand on the deck, between the anchor and the
+         island, so the anchor itself is no use here), kept inside the stage */
+      if (y < top) {
+        var by = Math.round(clamp(isleBottom(s, w, h) + 8, 0, Math.max(0, h - sizes[n].tall - 2)));
+        el.setAttribute("data-below", "");
+        el.style.transform = "translate(" + px + "px," + by + "px) translate(-50%,0)";
+        return;
+      }
+      el.removeAttribute("data-below");
+      el.style.transform = "translate(" + px + "px," + Math.round(top < h ? clamp(y, top, h + 4) : y) + "px) translate(-50%,-100%)";
     });
   }
 
@@ -840,6 +871,7 @@ import { detectTier, readProbe, stepDown, lower, pixelRatio, TIERS, AMBIENT_MS, 
   function unselect() {
     if (!M) return;
     M.hot = -1;
+    M.hotHow = "";
     M.stage.setAttribute("aria-label", "Course map");
     M.world.setLinks(-1, []);
     highlight(M.hover);
@@ -898,6 +930,16 @@ import { detectTier, readProbe, stepDown, lower, pixelRatio, TIERS, AMBIENT_MS, 
       return;
     } else if (k === "Escape") {
       e.preventDefault(); e.stopPropagation();
+      /* the first Escape takes a selection away, the focus stays; the next leaves the map */
+      if (M.hot > -1) {
+        unselect();
+        var hs = window.BMHubSelect;
+        if (hs && hs.current && hs.current()) {
+          try { history.replaceState(history.state, "", location.pathname + location.search); } catch (err) { /* the mark still goes */ }
+          if (hs.apply) hs.apply();
+        }
+        return;
+      }
       var r = document.querySelector('[data-hub-mode] [aria-checked="true"]');
       if (r) { try { r.focus({ preventScroll: true }); } catch (err) { r.focus(); } } else M.stage.blur();
       return;
@@ -1095,6 +1137,7 @@ import { detectTier, readProbe, stepDown, lower, pixelRatio, TIERS, AMBIENT_MS, 
     Array.prototype.forEach.call(box.querySelectorAll(".map3d-part"), function (x) {
       if (x === b) x.setAttribute("data-on", "true"); else x.removeAttribute("data-on");
     });
+    M.stage.setAttribute("data-part", MAP_PARTS[p].id);
   }
 
   /* -------------------------------------------------------- lifecycle ------ */
@@ -1311,6 +1354,19 @@ import { detectTier, readProbe, stepDown, lower, pixelRatio, TIERS, AMBIENT_MS, 
       /* a later frame draws the map as it should look again (an idle map asks for none itself) */
       request();
       return true;
+    },
+    /* where the plates sit, for the check that none covers its island (tools/game/map.test.js):
+       [{ i, x, y, bottom, below }], the island's index, its deck point and its lowest point
+       in client pixels, and whether the plate went below it */
+    plates: function () {
+      if (!M) return [];
+      var r = M.canvas.getBoundingClientRect();
+      return Array.prototype.map.call(M.labels.children, function (el) {
+        var i = +el.getAttribute("data-i"), s = ISLES[i];
+        var v = new M.T.Vector3(s.x, s.y + W.DECK, s.z).project(M.camera);
+        return { i: i, x: r.left + (v.x + 1) / 2 * r.width, y: r.top + (1 - v.y) / 2 * r.height,
+          bottom: r.top + isleBottom(s, r.width, r.height), below: el.hasAttribute("data-below") };
+      });
     },
     /* where an island sits on screen, in client pixels */
     where: function (id) {

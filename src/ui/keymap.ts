@@ -235,7 +235,7 @@ export const BINDINGS: Binding[] = [
   { keys: ["← → ↑ ↓"], label: "Previous or next chapter on the map", kinds: ["home"], where: "any", group: "Course map", stage: true },
   { keys: ["Home", "End"], label: "First or last chapter", kinds: ["home"], where: "any", group: "Course map", stage: true },
   { keys: ["Enter"], label: "Open the chapter", kinds: ["home"], where: "any", group: "Course map", stage: true },
-  { keys: ["Esc"], label: "Leave the map", kinds: ["home"], where: "any", group: "Course map", stage: true },
+  { keys: ["Esc"], label: "Clear the selection, then leave the map", kinds: ["home"], where: "any", group: "Course map", stage: true },
   { keys: ["1", "2", "3"], label: "Start a Standard, Daily or Review run", kinds: ["arena"], where: ["body"], group: "Go" },
   { keys: ["g h"], label: "Home", kinds: "all", where: "any", group: "Go" },
   { keys: ["g a"], label: "Arena", kinds: "all", where: "any", group: "Go" },

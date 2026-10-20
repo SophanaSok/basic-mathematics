@@ -55,6 +55,10 @@
       it, and the world is on it when the learner scrolls back up; hovering a chapter flies
       there while the stage is in view and leaves the world as it was when not; a Part
       button focused when the world goes hands the focus to the list
+   7b. Escape on the stage clears a selection first (focus stays) and leaves the map second;
+      a plate never covers its island, and one with no room above goes below it, under the
+      island's lowest point; the legend's glyphs resolve to the tokens the world draws the
+      marks with
    8. what is left behind: tier changes back and forth leave no GL buffer behind and the
       map switched off frees them all; in the dark theme the selection ring is each
       region's --region-ink
@@ -928,6 +932,78 @@ async function run() {
         return { in: !!l, hidden: l && l.getAttribute("aria-hidden"), pe: l && getComputedStyle(l).pointerEvents, items, sr: !!document.querySelector(".map3d-legend-sr") };
       });
       check(lg.in && lg.hidden === "true" && lg.pe === "none" && lg.items === 4 && lg.sr, "the legend is inside the stage, aria-hidden, click-through, with four items and a screen-reader copy (" + JSON.stringify(lg) + ")");
+      await context.close();
+    }
+    {
+      /* Escape clears a selection first and leaves the map second; the plate never covers its
+         island; the legend's glyphs wear the tokens the world draws the marks with */
+      const { context, page } = await openMap(browser, {}, { context: { viewport: { width: 1280, height: 800 } } });
+      await wait(1500);
+      await page.focus(".map3d-stage");
+      await page.keyboard.press("ArrowRight");
+      await wait(900);
+      const sel = await page.evaluate(() => ({ hot: window.BMMap3D.info().hot, panel: !document.querySelector("[data-map3d-panel]").hidden }));
+      check(!!sel.hot && sel.panel, "ArrowRight on the stage selects an island and opens the panel (" + JSON.stringify(sel) + ")");
+      const plate = await page.evaluate(() => {
+        var el = document.querySelector('.map3d-label[data-kind="hot"]'), r = el && el.getBoundingClientRect();
+        var a = window.BMMap3D.plates().filter((q) => el && q.i === +el.getAttribute("data-i"))[0];
+        return r && a ? { box: [r.left, r.top, r.right, r.bottom], at: [a.x, a.y], below: a.below, shown: el.style.visibility } : null;
+      });
+      check(!!plate && !(plate.at[0] >= plate.box[0] && plate.at[0] <= plate.box[2] && plate.at[1] >= plate.box[1] && plate.at[1] <= plate.box[3]),
+        "the selected island's plate does not cover the island (" + JSON.stringify(plate) + ")");
+      /* the flip: walk the selection along the path and drag the camera until an island sits so
+         close to the stage's top that its plate has no room above; that plate goes below the
+         island, starting under its lowest point, so neither the body nor the marks are covered */
+      for (let k = 0; k < 5; k++) { await page.keyboard.press("ArrowRight"); await wait(500); }
+      const box = await page.locator("[data-map3d-stage]").boundingBox();
+      let flipped = null;
+      for (const dx of [-250, -250, -250, -250, -250, -250, 500, 500, 500, 500, 500, 500, 500, 500]) {
+        await page.mouse.move(box.x + box.width / 2, box.y + 40);
+        await page.mouse.down();
+        await page.mouse.move(box.x + box.width / 2 + dx, box.y + 40, { steps: 8 });
+        await page.mouse.up();
+        await wait(700);
+        flipped = await page.evaluate(() => {
+          var out = null;
+          Array.prototype.forEach.call(document.querySelectorAll(".map3d-label[data-below]"), function (el) {
+            if (out || el.style.visibility === "hidden") return;
+            var r = el.getBoundingClientRect(), a = window.BMMap3D.plates().filter((q) => q.i === +el.getAttribute("data-i"))[0];
+            out = { i: a.i, top: r.top, bottom: r.bottom, deck: [a.x, a.y], isleBottom: a.bottom };
+          });
+          return out;
+        });
+        if (flipped) break;
+      }
+      check(!!flipped, "dragging the camera puts an island near the top and its plate goes below it (data-below)");
+      check(!!flipped && flipped.top >= flipped.isleBottom - 1 && flipped.top > flipped.deck[1],
+        "the plate below starts under the island's lowest point (" + JSON.stringify(flipped) + ")");
+      await page.keyboard.press("Escape");
+      await wait(400);
+      const esc1 = await page.evaluate(() => ({
+        hot: window.BMMap3D.info().hot, stage: document.activeElement === document.querySelector(".map3d-stage"),
+        panelHidden: document.querySelector("[data-map3d-panel]").hidden,
+        empty: getComputedStyle(document.querySelector(".map3d-panel-empty")).display !== "none",
+        marked: !!document.querySelector("li.stop[data-selected]"), hash: location.hash }));
+      check(esc1.hot === null && esc1.stage && esc1.panelHidden && esc1.empty && !esc1.marked && !esc1.hash,
+        "Escape with a selection clears it, the panel is empty again and the focus stays on the stage (" + JSON.stringify(esc1) + ")");
+      await page.keyboard.press("Escape");
+      const esc2 = await page.evaluate(() => ({ radio: !!document.activeElement && document.activeElement.getAttribute("aria-checked") === "true", stage: document.activeElement === document.querySelector(".map3d-stage") }));
+      check(esc2.radio && !esc2.stage, "a second Escape moves the focus to the checked mode radio (" + JSON.stringify(esc2) + ")");
+      const lg = await page.evaluate(() => {
+        var stage = document.querySelector(".map3d-stage"), out = {};
+        var want = { ring: "--ok", flag: "--ok", boss: "--part-deep", beacon: "--region-glow" };
+        Object.keys(want).forEach((m) => {
+          var probe = document.createElement("i");
+          probe.style.cssText = "color: var(" + want[m] + ")";
+          stage.appendChild(probe);
+          var expect = getComputedStyle(probe).color;
+          probe.remove();
+          var cs = getComputedStyle(document.querySelector('.map3d-legend [data-mark="' + m + '"] i'));
+          out[m] = { token: want[m], expect, got: m === "ring" ? cs.borderTopColor : cs.backgroundColor };
+        });
+        return out;
+      });
+      check(Object.keys(lg).every((m) => lg[m].got === lg[m].expect), "each legend glyph resolves to its world token (" + JSON.stringify(lg) + ")");
       await context.close();
     }
     {

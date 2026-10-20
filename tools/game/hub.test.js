@@ -668,10 +668,14 @@ async function run() {
       const groups = await page.evaluate(() => Array.prototype.map.call(document.querySelectorAll("#keys-sheet h3"), (x) => x.textContent));
       check(groups.indexOf("Course map") > -1, "k7: the ? sheet lists the Course map group (" + groups.join() + ")");
       await page.keyboard.press("Escape");
-      /* k4, k3 */
+      /* k4, k3: the stage still holds the selection made above, so the first Escape clears it and
+         the next leaves (map.test.js 7b has the full sequence) */
       await page.locator("[data-map3d-stage]").focus();
+      check((await st()).hot !== null, "k4: the stage still holds a selection");
       await page.keyboard.press("Escape");
-      check(await page.evaluate(() => document.activeElement.getAttribute("role") === "radio" && document.activeElement.getAttribute("aria-checked") === "true"), "k4: Escape moves the focus to the checked radio");
+      check((await st()).hot === null && (await st()).focus, "k4: Escape clears the selection first and the focus stays");
+      await page.keyboard.press("Escape");
+      check(await page.evaluate(() => document.activeElement.getAttribute("role") === "radio" && document.activeElement.getAttribute("aria-checked") === "true"), "k4: Escape with nothing selected moves the focus to the checked radio");
       await page.locator("[data-map3d-stage]").focus();
       await page.keyboard.press("ArrowRight");
       const want = (await st()).hot;
