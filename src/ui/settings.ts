@@ -28,6 +28,7 @@ interface Prefs {
   motion?: "reduce";
   transparency?: "reduce";
   gfx?: "low" | "mid" | "high";
+  mochi?: "pink" | "lilac";
   /** the tier the course world's watchdog settled on (src/world/tiers.ts) */
   gfxAuto?: "list" | "low" | "medium";
   /** keyboard shortcuts; unset means on */
@@ -108,7 +109,8 @@ export function mountSettings(doc: Document = document): boolean {
       } else if (input.type === "radio") {
         const value = name === "theme" ? (site && site.theme ? site.theme() : "system")
           : name === "panel" ? p.panel || "light"
-          : name === "gfx" ? p.gfx || "auto" : "";
+          : name === "gfx" ? p.gfx || "auto"
+          : name === "mochi" ? p.mochi || "pink" : "";
         input.checked = input.value === value;
       } else if (input.type === "range") {
         const v = String(game!.volume(p));
