@@ -28,6 +28,8 @@ export interface MochiStageOptions {
   pixelRatio(w: number, h: number): number;
   /** reduced motion now (the caller reads window.BMFx.still()) */
   still(): boolean;
+  /** called after each drawn frame while motion is allowed (never under still()); the companion steps the water backdrop on it */
+  tick?(tMs: number): void;
   fadeS?: number;
   fadeStillS?: number;
   idleIntervalS?: [number, number];
