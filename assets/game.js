@@ -24,7 +24,7 @@
                   Hands off the mouse counters (pb, kb), and the Arena's own fields
                   and the next-step card's (which this file keeps as it finds them)
      bm.prefs.v1  this device only, never cleared: sound, calm, map, tempo, panel,
-                  volume, motion, transparency, gfx (the settings sheet,
+                  volume, motion, transparency, gfx, mochi (the settings sheet,
                   src/ui/settings.ts)
 
    A later version of the site may keep fields in these stores that this file has never
@@ -186,6 +186,7 @@
        gfx           "auto"; or "low", "mid", "high": the course world's quality tier
                      (src/world/tiers.ts; "mid" is its medium). The 3D course map switch
                      (map: "list") is what keeps the list.
+       mochi         Mochi's color: "lilac"; unset is pink (src/ui/companion.ts)
        gfxAuto       not the reader's: the tier the course world's watchdog settled on
                      when its frames were slow ("list", "low", "medium"), so the next
                      visit starts there ("list" even when the quality was chosen: Low
@@ -215,6 +216,8 @@
     if (GFX.indexOf(p.gfx) > 0) out.gfx = p.gfx;
     else delete out.gfx;
     if (SETTLED.indexOf(p.gfxAuto) === -1) delete out.gfxAuto;
+    if (p.mochi === "pink" || p.mochi === "lilac") out.mochi = p.mochi;
+    else delete out.mochi;
     return out;
   }
   /* the volume the sound plays at, 0 to 100 */
@@ -256,6 +259,9 @@
     } else if (name === "gfx") {
       if (GFX.indexOf(value) > 0) p.gfx = value;
       else delete p.gfx;
+    } else if (name === "mochi") {
+      if (value === "lilac") p.mochi = "lilac";
+      else delete p.mochi;
     } else if (name === "gfxAuto") {
       if (SETTLED.indexOf(value) !== -1) p.gfxAuto = value;
       else delete p.gfxAuto;

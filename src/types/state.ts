@@ -296,6 +296,8 @@ export interface PrefsStore {
   transparency?: "reduce";
   /** graphics quality: unset is Auto; the course map keeps the list on "low" */
   gfx?: "low" | "mid" | "high";
+  /** Mochi's color: unset means pink */
+  mochi?: "pink" | "lilac";
   /** keyboard shortcuts: unset means on */
   keys?: boolean;
   /** the companion on chapter pages: unset means on */
