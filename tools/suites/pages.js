@@ -22,8 +22,8 @@ const WORLD_CHUNK = /\/bundle\/world\.js(?:[?#]|$)/;
 /* the form viewer's files, for the progress page only; Mochi's, for any page with the companion;
    and the model loader both share (bundle/three-model.js), for either */
 const SHARED_MODEL_CHUNK = /\/bundle\/three-model\.js(?:[?#]|$)/;
-const FORM_CHUNK = /\/bundle\/form-model\.js(?:[?#]|$)|\/models\/forms\/(?!form-\d-poses\.webp)/;
-const MOCHI_CHUNK = /\/bundle\/mochi\.js(?:[?#]|$)|\/models\/mochi\/(?!mochi-[\w-]+-poses\.webp)/;
+const FORM_CHUNK = /\/bundle\/form-model\.js(?:[?#]|$)|\/models\/forms\/(?!form-\d+-poses\.webp(?:[?#]|$))/;
+const MOCHI_CHUNK = /\/bundle\/mochi\.js(?:[?#]|$)|\/models\/mochi\/(?!mochi-[\w-]+-poses\.webp(?:[?#]|$))/;
 
 /* runs before any script of the page: the theme as it stands at the first animation
    frame, which comes before the first paint */
