@@ -13,7 +13,7 @@
    4. the same under reduced motion: a cut, no animation, the caption at once
    5. Skip jumps to the caption; Escape with no dialog open does the same and counts it played
    6. progress.html?3d=off: the flat card, the PNG strip still showing, no Three.js or GLB request
-   7. a chapter page: crossing a stage gives one toast, records got, no Three.js; no
+   7. a chapter page: crossing a stage gives one toast, records got, no form GLB or texture; no
       second toast; none after a reload
    8. several stages at once: one toast naming the highest, all recorded
    9-11. the model arrives, the buttons match the manifest's clips, a drag turns it, frames
@@ -44,6 +44,9 @@ function check(cond, what, detail) {
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 const THREE = /\/bundle\/three\.js(?:[?#]|$)/;
 /* the model viewer's files: the GLBs and the model chunks (src/model/index.ts, the three-model vendor chunk) */
+/* what a chapter page must not fetch: a form GLB, a form texture or the form viewer (Three.js and
+   three-model.js are the companion's now) */
+const FORM_ONLY = /\/models\/forms\/[^?#]*(?:\.glb|-color\.webp|-surface\.webp)(?:[?#]|$)|\/bundle\/form-model\.js(?:[?#]|$)/;
 const MODEL = /\/models\/forms\/[^?#]*\.glb(?:[?#]|$)|\/bundle\/(?:form-model|three-model)\.js(?:[?#]|$)/;
 const CHAPTER = "parts/1-algebra/01-numbers.html";
 /* assets/game.js shows cards one at a time, each up for 2600 ms and 400 ms leaving, and
@@ -75,10 +78,12 @@ async function open(path, seed, opts) {
   const context = await browser.newContext({ viewport: { width: 1280, height: 900 }, reducedMotion: opts.reduced ? "reduce" : "no-preference" });
   contexts.push(context);
   const requests = [];
+  const formFiles = [];
   await context.route(/^(https?|wss?):/, (r) => {
     const u = r.request().url();
     if (!server.owns(u)) return r.abort();
     if (THREE.test(u) || MODEL.test(u)) requests.push(u);
+    if (FORM_ONLY.test(u)) formFiles.push(u);
     return r.continue();
   });
   /* seeded once per context, on the first load only, so a reload keeps what the page wrote */
@@ -93,7 +98,7 @@ async function open(path, seed, opts) {
   const page = await context.newPage();
   page.on("pageerror", (e) => { if (opts.errors) opts.errors.push(e.message); else check(false, "page error: " + e.message); });
   await page.goto(server.url + path, { waitUntil: "load" });
-  return { context, page, requests };
+  return { context, page, requests, formFiles };
 }
 const store = (page, key) => page.evaluate((k) => JSON.parse(localStorage.getItem(k) || "null"), key);
 const seqAttr = (page) => page.evaluate(() => { const p = document.querySelector("#form"); return p ? p.getAttribute("data-form-seq") : null; });
@@ -296,7 +301,7 @@ async function main() {
     }
     /* 7 */
     {
-      const { page, requests } = await open(CHAPTER, seeds(50, { "bm.run.v1": JSON.stringify({ seen: { form: 1, evolved: 1 } }) }));
+      const { page, formFiles } = await open(CHAPTER, seeds(50, { "bm.run.v1": JSON.stringify({ seen: { form: 1, evolved: 1 } }) }));
       await wait(500);
       await page.evaluate(() => window.BMActivity.add(20, "test"));
       let timedOut = false;
@@ -307,7 +312,7 @@ async function main() {
       check(game.form && game.form.got["2"] > 0, "7: got[2] is recorded", game.form);
       const run = await store(page, "bm.run.v1");
       check(run.seen.form === 2, "7: seen.form is 2", run.seen);
-      check(requests.length === 0, "7: no Three.js on a chapter page", requests);
+      check(formFiles.length === 0, "7: no form GLB, form texture or form-model.js on a chapter page", formFiles);
       await page.evaluate(() => window.BMActivity.add(5, "test"));
       /* fixed wait on purpose: it asserts the absence of a second toast, which needs time to pass */
       await wait(600);

@@ -88,6 +88,8 @@ import "../ui/settings.ts";
 import "../ui/hud-pop.ts";
 /* the form as a 2D companion in the sidebar, drawn from its pose sheet (window.BMCompanion): the mood model first */
 import "../learn/mood.ts";
+/* the quality tiers the companion draws Mochi at */
+import "../world/tiers.ts";
 import "../ui/companion.ts";
 /* the skippable reveal of the chapter finale (window.BMResults), found by encounter.js */
 import "../ui/results.ts";
