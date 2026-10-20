@@ -22,6 +22,8 @@ const IDLE_SECONDS = 3.75;
 const IDLE_TOLERANCE = 1 / 60;
 const EXTENSIONS_OK = ["KHR_mesh_quantization", "EXT_texture_webp"];
 const IMAGES = 5;
+/* the mesh is five primitives, one per texture */
+const PRIMITIVES = 5;
 const IMAGE_EDGES = [128, 256, 512, 1024];
 const POSES_SIZE = [2880, 320];
 
@@ -71,6 +73,7 @@ function entryProblems(e, root) {
     const names = (mesh.extras && mesh.extras.targetNames) || [];
     if (names.length !== MORPHS) out.push(w + names.length + " morph target names, not " + MORPHS);
     MOODS.forEach(x => { if (!names.includes("mood_" + x)) out.push(w + "no morph target mood_" + x); });
+    if ((mesh.primitives || []).length !== PRIMITIVES) out.push(w + (mesh.primitives || []).length + " primitives, not " + PRIMITIVES);
     (mesh.primitives || []).forEach((p, i) => {
       const n = (p.targets || []).length;
       if (n !== MORPHS) out.push(w + "primitive " + i + " has " + n + " morph targets, not " + MORPHS);

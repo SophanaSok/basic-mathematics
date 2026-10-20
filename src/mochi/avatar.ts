@@ -191,7 +191,7 @@ export function createAvatar(M: ThreeModel, gltf: GLTF, o: AvatarOptions): Avata
     busy: () => fadeLeft > 0 || (!!mood && current !== mood),
     stats: () => ({
       mood: moodName, fade: lastFade, reduced: o.still(), variations: started, lastVariation,
-      weights: Object.fromEntries(Object.entries(actions).map(([n, a]) => [n, a.getEffectiveWeight()])),
+      weights: Object.fromEntries(Object.entries(actions).map(([n, a]) => [n, a.isRunning() ? a.getEffectiveWeight() : 0])),
       triangles,
       morphs: Object.keys(meshes[0]?.morphTargetDictionary ?? {}).length,
     }),
