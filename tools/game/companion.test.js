@@ -524,6 +524,26 @@ async function run() {
       eq((await st(c.page)).line, LINES.first, "fast: the first-try line");
       await done(c, "fast");
     }
+    /* 23: the boss's events arrive in the task of the answer they follow (assets/encounter.js renders on the
+       attempt); a heart lost still shows, where a hint opened in that task would not cut the answer's mood */
+    cases++;
+    {
+      const c = await open(seeds());
+      const moodIs = (m, ms) => until(c.page, (x) => document.querySelector("figure[data-companion]").getAttribute("data-mood") === x, m, ms);
+      await c.page.evaluate(() => {
+        window.BMStore.emit({ type: "attempt", correct: false, tryNo: 1, key: "e1", chapter: "ch01", hintLevel: 0, solutionOpen: false });
+        window.BMStore.emit({ type: "encounter", chapter: "ch01", set: "s1", hp: 2, total: 3, hearts: 2, medal: 0, state: "active", cue: "heart", fresh: true });
+      });
+      check(await moodIs("angry", 1500), "boss: a heart lost in the answer's task shows angry");
+      check(await moodIs("idle", 4000), "boss: and settles to idle after its 2 s");
+      await c.page.evaluate(() => {
+        window.BMStore.emit({ type: "attempt", correct: true, tryNo: 2, key: "e1", chapter: "ch01", hintLevel: 0, solutionOpen: false });
+        window.BMStore.emit({ type: "opened" });
+      });
+      await wait(400);
+      eq((await st(c.page)).mood, "happy", "boss: a hint opened in the answer's task leaves happy playing");
+      await done(c, "boss");
+    }
   } finally {
     try { await browser.close(); } catch (e) { console.error("browser close: " + e.message); }
     try { await server.close(); } catch (e) { console.error("server close: " + e.message); }

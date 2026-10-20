@@ -60,11 +60,15 @@ let queue: readonly Step[] = [];
 let qi = 0;
 let playing = false;
 /* events that follow one action arrive in one task (an answer, then combo, xp, opened, achievement): a silent
-   mood that comes in the task the playing one began in does not cut it short */
+   mood of the WEAK kinds that comes in the task the playing one began in does not cut it short; the boss's
+   (encounter), the Arena's and the rest always show */
 let sameTask = false;
-/* ms of the learner's last input, and of the focus of the exercise field being answered (0 = none) */
+const WEAK = ["opened", "ladder", "twin", "combo", "xp", "achievement"];
+/* ms of the learner's last input, and of the first focus of the exercise form being answered (0 = none;
+   a later field of the same form keeps the first stamp, another form starts a new one) */
 let lastInput = 0;
 let focusAt = 0;
+let focusForm: Element | null = null;
 
 function w(): any { return window as any; }
 
@@ -273,8 +277,9 @@ function schedulePending(): void {
 
 function together(): boolean { return playing && sameTask; }
 
-/** a reaction arrives: the mood changes at once; the line is said, waits, or is dropped */
-function apply(r: Reaction): void {
+/** a reaction arrives: the mood changes at once; the line is said, waits, or is dropped. A weak one
+    (WEAK) that arrives in the task a reaction began in leaves that reaction playing. */
+function apply(r: Reaction, weak = false): void {
   if (!fig) return;
   const now = Date.now();
   if (r.line && r.key) {
@@ -282,11 +287,11 @@ function apply(r: Reaction): void {
     /* the mood alone, held no longer than an ordinary reaction while the line waits */
     const cut = r.steps.map((x, i) => (i === r.steps.length - 1 ? { mood: x.mood, ms: Math.min(x.ms, HOLD_MS) } : x));
     const silent: Reaction = { steps: cut, line: null, key: null, href: null };
-    if (!together()) show(silent, now);
+    if (!(weak && together())) show(silent, now);
     if (WAITS.indexOf(r.key) > -1) { pending = r; schedulePending(); }
     return;
   }
-  if (!r.line && together()) return;
+  if (!r.line && weak && together()) return;
   show(r, now);
 }
 
@@ -296,7 +301,7 @@ function toRecent(c: any): Recent | null {
     case "attempt": {
       /* how long the learner took, from the field's focus; any attempt closes that clock */
       const elapsedMs = focusAt ? Math.max(0, Date.now() - focusAt) : null;
-      focusAt = 0;
+      focusAt = 0; focusForm = null;
       return { type: "attempt", key: String(c.key), correct: !!c.correct, tryNo: Number(c.tryNo) || 1, elapsedMs };
     }
     case "solved": return { type: "solved", fresh: !!c.fresh };
@@ -349,7 +354,7 @@ function onChange(c: any): void {
   memory = out.memory;
   if (out.reaction) {
     if (c.type === "form") evolve();
-    apply(out.reaction);
+    apply(out.reaction, WEAK.indexOf(c.type) > -1);
   }
   /* the verdict's own feedback has the next moments: a line from what follows waits or is dropped;
      the attempt's own line (above) is said at once, the live region keeps its own order */
@@ -389,7 +394,7 @@ function build(): void {
   fig.appendChild(cap);
   side.appendChild(fig);
   mood = "idle"; variant = "";
-  lastInput = Date.now(); focusAt = 0;
+  lastInput = Date.now(); focusAt = 0; focusForm = null;
   shownFrom = formName();
   drawSprite();
 }
@@ -473,7 +478,10 @@ function mount(): void {
     w().BMStore.on(onChange);
     document.addEventListener("focusin", fieldFocus);
     document.addEventListener("focusout", () => window.setTimeout(() => { fieldFocus(); applyIdle(); }, 0));
-    document.addEventListener("focusin", () => { if (fieldFocused()) focusAt = Date.now(); });
+    document.addEventListener("focusin", (e) => {
+      const t = e.target instanceof Element ? e.target.closest(".ex-form") : null;
+      if (t && fieldFocused() && t !== focusForm) { focusForm = t; focusAt = Date.now(); }
+    });
     ["pointerdown", "keydown", "wheel", "touchstart", "focusin"].forEach((t) => document.addEventListener(t, onInput, { passive: true }));
   }
   evaluate();
