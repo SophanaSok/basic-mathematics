@@ -75,7 +75,8 @@ function htmlPages(): Record<string, string> {
    the modules of src/world/ it imports that no entry does) is bundle/world.js, and the model
    viewer (src/ui/form-view.ts's import of src/model/index.ts, with the modules of src/model/
    it imports) is bundle/form-model.js, with its Three.js (src/vendor/three-model.js: the GLTF
-   loader, the room environment and more of three's core) as bundle/three-model.js. The typed
+   loader, the room environment and more of three's core) as bundle/three-model.js, and Mochi's
+   3D stage (src/ui/companion.ts's import of src/mochi/index.ts, with its modules) is bundle/mochi.js. The typed
    grader's modules (src/core/answer/, which src/ui/core.ts imports) are named by no
    entry: each goes where src/core/grade.ts goes, which every entry imports, so all.js,
    and a module of it that comes into use later needs no entry's edit. A file
@@ -94,7 +95,7 @@ function htmlPages(): Record<string, string> {
    This is the split rolldown makes on its own; what it adds is the names.
    tools/check-dist.js reads the same sources and holds every chunk and stylesheet in
    dist to the name its contents call for. */
-const WORLD_DIR = "src/world/", MODEL_DIR = "src/model/";
+const WORLD_DIR = "src/world/", MODEL_DIR = "src/model/", MOCHI_DIR = "src/mochi/";
 const GRADER = "src/core/grade.ts", GRADER_DIR = "src/core/answer/";
 function bundleNames(): (id: string) => string | null {
   const kinds = Object.keys(PAGE_KINDS) as (keyof typeof PAGE_KINDS)[];
@@ -117,6 +118,7 @@ function bundleNames(): (id: string) => string | null {
     if (rel === WORLD_DIR + "post.ts") return "post";                               /* the bloom, map3d.js's import(): a chunk of its own, apart from the world */
     if (rel.startsWith(WORLD_DIR)) return "world";                                  /* the course world, map3d.js's import() */
     if (rel.startsWith(MODEL_DIR)) return "form-model";                             /* the model viewer, form-view.ts's import() */
+    if (rel.startsWith(MOCHI_DIR)) return "mochi";                                  /* Mochi's 3D stage, the companion's import() */
     /* the grader's modules, with grade.ts: after `by`, so one an entry named itself would
        go by that entry (tools/check-dist.js kindsLoading reads them in the same order) */
     if (rel.startsWith(GRADER_DIR)) return nameOf(GRADER, id);
