@@ -274,7 +274,7 @@ async function main() {
   /* the WebGL probe decides how Chromium is launched for everything else */
   const webgl = allSuites.find(s => s.name === "webgl");
   ctx.launch = webgl && webgl.probe ? await webgl.probe(ctx) : { args: [], webgl: null };
-  ctx.browser = await pw.chromium.launch({ headless: !opts.headed, args: ctx.launch.args, env: gl.env(pw.chromium) });
+  ctx.browser = await pw.chromium.launch(gl.opts(pw.chromium, { headless: !opts.headed, args: ctx.launch.args }));
   ctx.h = browserLib.makeHelpers(ctx);
 
   for (const s of suites) {
