@@ -18,9 +18,10 @@
    drawn there. env() points the loader at Chromium's own SwiftShader driver
    (vk_swiftshader_icd.json, shipped beside the browser) and nothing else, so the
    machine's graphics driver is never loaded and the run sees the devices a runner sees.
-   Measured with Playwright 1.63.0 (Chromium 153 headless shell) on Arch Linux with an
-   RTX 5060 Ti: without it the GPU process holds /dev/nvidiactl and /dev/dri/renderD128;
-   with it, no device file, and the same SwiftShader context.
+   Measured first on the headless shell (Playwright 1.63.0, Chromium 153) on Arch Linux with
+   an RTX 5060 Ti: without it the GPU process holds /dev/nvidiactl and /dev/dri/renderD128;
+   with it, no device file, and the same SwiftShader context. Measured again on the full
+   build (Playwright 1.64.0, build 1248) on 2026-10-20: no device file, SwiftShader.
 
    opts(chromium, extra) is the launch options every script passes (the channel, env(),
    and its own extra such as headless or args); launch() is chromium.launch with those
