@@ -2,17 +2,18 @@
 /* Headless Chromium checks of the companion (src/ui/companion.ts, src/learn/mood.ts) on the
    built site (dist/, which must be current):
      node tools/game/companion.test.js
-   Chapter page parts/1-algebra/01-numbers.html; 2D only, no WebGL.
-   1. first visit: the intro line, seen.companion is 1, the live region does not say it, a reload is silent
-   2. mounted in the sidebar with form-1-poses.webp, rest pose, "Pip"; no GLB, model script or Three.js
-   3. a correct first-try answer: delighted pose; "First try." at once, then it settles to rest
-   4. a wrong answer: curious, no line; a second: "Let's look again." at once
-   5. a section due on load: waiting pose, "I'd like to look at" with a link to the section
-   6. activity only 4+ days ago: sleepy pose, "Good to see you."
+   Chapter page parts/1-algebra/01-numbers.html; every page opens with ?3d=off, so the suite stays 2D
+   (no WebGL) whatever the 3D path does.
+   1. first visit: the intro line (Mochi), seen.companion is 1, the live region does not say it, a reload is silent
+   2. mounted in the sidebar with mochi-pink-poses.webp, idle, "Mochi"; no GLB, form sheet, model script or Three.js
+   3. a correct first-try answer: happy; "First try." at once, then it settles to idle
+   4. a wrong answer: thinking, no line; a second: sad at once with "Let's look again.", then thinking
+   5. a section due on load: thinking, "I'd like to look at" with a link to the section
+   6. activity only 4+ days ago: sleepy, "Good to see you."
    7. Study mode hides it; turning it off shows it
    8. the companion preference off hides it; on shows it
    9. at 360 px: fixed, steps aside while an exercise field has focus, clear of the field otherwise
-   10. reduced motion: is-evolving without an animation (a control with motion allowed animates), "Pip became Sprig!", the second sheet
+   10. reduced motion: is-evolving without an animation (a control with motion allowed animates), "Pip became Sprig!"
    11. the quiet window: "Chapter done!" waits in the pending slot, then shows
    12. no page errors in any case
    13. the kill switch (config companion "off") removes it, "on" brings it back
@@ -22,8 +23,11 @@
    17. print hides it; forced colors drop the picture but keep the caption
    18. the stuck nudge waits out the quiet window; a correct answer drops it
    19. arena.html: docked (fixed, 4rem, outside any sidebar) at 1280 and 360, at rest with no intro, clear of the
-       Arena's inputs and buttons in the lobby and in a run; a correct answer event is delighted with no line;
-       the end event says "Run done."; no GLB or Three.js; the preference off removes it */
+       Arena's inputs and buttons in the lobby and in a run; a correct answer event is happy with no line;
+       the end event says "Run done."; no GLB or Three.js; the preference off removes it
+   20. setMood("sleeping") puts the sheet at 100% 0 and data-mood sleeping; an unknown name is false
+   21. prefs.mochi "lilac" requests the lilac sheet
+   22. a fast first try (field focused, answered at once) is surprised, then happy */
 "use strict";
 const site = require("../lib/site");
 const target = require("../lib/target");
@@ -32,7 +36,7 @@ const { chromium } = require("../lib/pw").playwright();
 const CHAPTER = "parts/1-algebra/01-numbers.html";
 const THREE_CHUNK = /\/bundle\/three\.js(?:[?#]|$)/;
 const LINES = {
-  intro: "This is Pip, your form. It keeps you company while you work.", first: "First try.", again: "Let's look again.",
+  intro: "This is Mochi, your companion. It keeps you company while you work.", first: "First try.", again: "Let's look again.",
   due: "I'd like to look at", back: "Good to see you.", chapter: "Chapter done!", level: "Level 2.", evolve: "Pip became Sprig!", stuck: "There's a clue below."
 };
 let server, browser, fails = 0, passes = 0, cases = 0;
@@ -80,7 +84,7 @@ async function open(seed, opts) {
     if (/Failed to load resource|net::ERR_/.test(m.text())) return;
     errors.push("console: " + m.text());
   });
-  await page.goto(server.url + (opts.path || CHAPTER), { waitUntil: "load" });
+  await page.goto(server.url + (opts.path || CHAPTER) + "?3d=off", { waitUntil: "load" });
   const mounted = () => window.BMCompanion && window.BMCompanion.state().mounted;
   if (!opts.absent) check(await until(page, mounted, null, 10000), "the companion mounts on " + (opts.path || CHAPTER));
   else {
@@ -96,7 +100,7 @@ const fig0 = (page) => page.evaluate(() => {
   if (!f) return null;
   const pic = f.querySelector(".companion-pic"), line = f.querySelector(".companion-line");
   return {
-    inSidebar: !!f.closest("aside[data-sidebar]"), mood: f.getAttribute("data-mood"), pose: f.getAttribute("data-pose"),
+    inSidebar: !!f.closest("aside[data-sidebar]"), mood: f.getAttribute("data-mood"),
     line: line ? line.textContent : "", links: line ? Array.from(line.querySelectorAll("a")).map((a) => a.getAttribute("href")) : [],
     name: f.querySelector(".companion-name").textContent, label: pic.getAttribute("aria-label"),
     image: pic.style.backgroundImage, pos: getComputedStyle(pic).backgroundPosition,
@@ -162,11 +166,13 @@ async function run() {
       const c = await open(seeds());
       const f = await fig(c.page);
       check(f && f.inSidebar, "mounted: figure[data-companion] is in aside[data-sidebar]");
-      check(f && /form-1-poses\.webp"?\)$/.test(f.image), "mounted: the sheet is form-1-poses.webp: " + (f && f.image));
-      eq([f.pose, f.name], ["rest", "Pip"], "mounted: rest pose, named Pip");
+      check(f && /mochi-pink-poses\.webp"?\)$/.test(f.image), "mounted: the sheet is mochi-pink-poses.webp: " + (f && f.image));
+      eq([f.mood, f.name], ["idle", "Mochi"], "mounted: idle, named Mochi");
+      eq(f.label, "Mochi, your companion, idle", "mounted: the label");
       const reqs = c.requests;
-      check(reqs.some((u) => /\/models\/forms\/form-1-poses\.webp(?:[?#]|$)/.test(u)), "mounted: the sheet was requested");
-      eq(reqs.filter((u) => /\.glb(?:[?#]|$)|-color\.webp|-surface\.webp|\/bundle\/(?:three|form-model|three-model)\.js/.test(u)), [], "mounted: no GLB, textures or model script requested");
+      check(reqs.some((u) => /\/models\/mochi\/mochi-pink-poses\.webp(?:[?#]|$)/.test(u)), "mounted: the sheet was requested");
+      eq(reqs.filter((u) => /\/models\/forms\//.test(u)), [], "mounted: nothing under /models/forms/ requested");
+      eq(reqs.filter((u) => /\.glb(?:[?#]|$)|-color\.webp|-surface\.webp|\/bundle\/(?:three|three-model|form-model|mochi)\.js/.test(u)), [], "mounted: no GLB, textures or model script requested");
       await done(c, "mounted");
     }
     /* 3 */
@@ -174,12 +180,12 @@ async function run() {
     {
       const c = await open(seeds());
       await answer(c.page, E1, true);
-      check(await until(c.page, () => document.querySelector("figure[data-companion]").getAttribute("data-pose") === "delighted", null, 3000), "first try: delighted pose");
+      check(await until(c.page, () => document.querySelector("figure[data-companion]").getAttribute("data-mood") === "happy", null, 3000), "first try: happy");
       check(await lineIs(c.page, LINES.first, 3000), "first try: the line shows at once");
       eq((await st(c.page)).key, "first-try", "first try: key");
       await wait(3000);   /* the solved, xp and combo events that follow leave the caption up for its 6 s hold */
       eq((await st(c.page)).line, LINES.first, "first try: the caption is still up 3 s after it shows");
-      check(await until(c.page, () => window.BMCompanion.state().line === "" && document.querySelector("figure[data-companion]").getAttribute("data-pose") === "rest", null, 8000), "first try: the line clears and the pose settles to rest within 8 s");
+      check(await until(c.page, () => window.BMCompanion.state().line === "" && document.querySelector("figure[data-companion]").getAttribute("data-mood") === "idle", null, 8000), "first try: the line clears and Mochi settles to idle within 8 s");
       await done(c, "first try");
     }
     /* 4 */
@@ -187,13 +193,16 @@ async function run() {
     {
       const c = await open(seeds());
       await answer(c.page, E1, false);
-      check(await until(c.page, () => document.querySelector("figure[data-companion]").getAttribute("data-pose") === "curious", null, 3000), "wrong: curious pose");
+      check(await until(c.page, () => document.querySelector("figure[data-companion]").getAttribute("data-mood") === "thinking", null, 3000), "wrong: thinking");
       await wait(4300);   /* past the quiet window after the first verdict */
       eq((await st(c.page)).line, "", "wrong: no line after one miss");
       /* a different wrong value: the engine does not count the same one twice */
       await c.page.fill(E1 + " .ex-form input", "-8");
       await c.page.click(E1 + " .ex-form .btn:not(.ghost)");
       const ok4 = await lineIs(c.page, LINES.again, 3000); check(ok4, "wrong twice: the line shows at once ");
+      eq((await fig(c.page)).mood, "sad", "wrong twice: sad at once");
+      check(await until(c.page, () => document.querySelector("figure[data-companion]").getAttribute("data-mood") === "thinking", null, 2500), "wrong twice: thinking within 2.5 s");
+      eq((await st(c.page)).line, LINES.again, "wrong twice: the line stays");
       await done(c, "wrong");
     }
     /* 5 */
@@ -208,7 +217,7 @@ async function run() {
       await c.page.reload({ waitUntil: "load" });
       await until(c.page, () => window.BMCompanion && window.BMCompanion.state().mounted, null, 10000);
       const f = await fig(c.page);
-      eq(f && f.pose, "waiting", "due: waiting pose");
+      eq(f && f.mood, "thinking", "due: thinking");
       check(f && f.line.indexOf(LINES.due) === 0, "due: the line starts with the invitation: " + (f && f.line));
       check(f && f.links.some((h) => /#one-unknown$/.test(h)), "due: the line links to the section: " + (f && JSON.stringify(f.links)));
       await done(c, "due");
@@ -218,7 +227,7 @@ async function run() {
     {
       const c = await open(seeds({ "bm.activity.v1": activity({ [dayAgo(5)]: 12 }) }));
       const f = await fig(c.page);
-      eq([f.pose, f.line], ["sleepy", LINES.back], "sleepy: pose and line on load");
+      eq([f.mood, f.line], ["sleepy", LINES.back], "sleepy: mood and line on load");
       await done(c, "sleepy");
     }
     /* 7 */
@@ -277,7 +286,6 @@ async function run() {
       check(r.level >= 3, "evolve: the level is 3 or more: " + r.level);
       const s = await st(c.page);
       eq(s.stage, 2, "evolve: the worn stage is 2");
-      check(/form-2-poses\.webp/.test((await fig(c.page)).image), "evolve: the second sheet");
       check(await lineIs(c.page, LINES.evolve, 4000), "evolve: the line names the change");
       await done(c, "evolve");
     }
@@ -325,7 +333,7 @@ async function run() {
       await c.page.evaluate((t) => window.BMStore.emit({ type: t }), kind);
       check(await until(c.page, () => { const f = document.querySelector("figure[data-companion]"); return !!f && !f.hasAttribute("data-probe"); }, null, 3000), kind + ": the figure is a new element");
       const s = await st(c.page);
-      eq([s.mounted, s.line, s.mood, s.pose], [true, "", "content", "rest"], kind + ": empty line, mood derived again");
+      eq([s.mounted, s.line, s.mood], [true, "", "idle"], kind + ": empty line, mood derived again");
       await wait(300);
       eq((await st(c.page)).line, "", kind + ": no intro again");
       await done(c, kind);
@@ -421,7 +429,7 @@ async function run() {
       const tag = "arena " + width;
       await wait(400);
       const s = await st(c.page);
-      eq([s.mood, s.line, s.pending], ["content", "", null], tag + ": at rest on arrival, no intro, no line");
+      eq([s.mood, s.line, s.pending], ["idle", "", null], tag + ": at rest on arrival, no intro, no line");
       eq(((await runOf(c.page)) || {}).seen && (await runOf(c.page)).seen.companion, undefined, tag + ": seen.companion is untouched by the Arena");
       await c.page.evaluate(() => {
         const all = JSON.parse(localStorage.getItem("bm.attempts.v1") || "{}"), t = Date.now() - 864e5 * 2;
@@ -455,24 +463,66 @@ async function run() {
       eq(await clear(), [], tag + ": clear of the lobby's inputs and buttons");
       await c.page.click('[data-arena] [data-act="start"]:not([disabled])');
       await c.page.waitForSelector(".arena-run");
-      await until(c.page, () => window.BMCompanion.state().mood === "curious", null, 3000);
-      eq((await st(c.page)).mood, "curious", tag + ": a start is curious");
+      await until(c.page, () => window.BMCompanion.state().mood === "thinking", null, 3000);
+      eq((await st(c.page)).mood, "thinking", tag + ": a start is thinking");
       eq(await clear(), [], tag + ": clear of the run's input and buttons");
       await c.page.evaluate(() => {
         const r = window.BMArena.state(), q = r.qs[r.i];
         document.getElementById("arena-answer").value = String(window.BMGen.make(q.g, q.s).answer).split("|")[0];
       });
       await c.page.click('.arena-run [data-act="check"]');
-      check(await until(c.page, () => window.BMCompanion.state().mood === "delighted", null, 3000), tag + ": a correct answer is delighted");
+      check(await until(c.page, () => window.BMCompanion.state().mood === "happy", null, 3000), tag + ": a correct answer is happy");
       eq((await st(c.page)).line, "", tag + ": no caption for an answer");
       eq(await clear(), [], tag + ": clear after an answer");
       await c.page.evaluate(() => window.BMStore.emit({ type: "arena", phase: "end", result: {} }));
       check(await lineIs(c.page, "Run done.", 9000), tag + ": the end says Run done.");
       eq((await st(c.page)).key, "arena-end", tag + ": key");
-      eq(c.requests.filter((u) => /\.glb(?:[?#]|$)|-color\.webp|-surface\.webp|\/bundle\/(?:three|form-model|three-model)\.js/.test(u)), [], tag + ": no GLB or model script requested");
+      eq(c.requests.filter((u) => /\.glb(?:[?#]|$)|-color\.webp|-surface\.webp|\/bundle\/(?:three|three-model|form-model|mochi)\.js/.test(u)), [], tag + ": no GLB or model script requested");
       await c.page.evaluate(() => window.BMGame.setPref("companion", false));
       check(await until(c.page, () => !document.querySelector("figure[data-companion]"), null, 3000), tag + ": the preference off removes it");
       await done(c, tag);
+    }
+    /* 20 */
+    cases++;
+    {
+      const c = await open(seeds());
+      eq(await c.page.evaluate(() => window.BMCompanion.setMood("nope")), false, "setMood: an unknown name is false");
+      eq(await c.page.evaluate(() => window.BMCompanion.setMood("sleeping")), true, "setMood: sleeping is accepted");
+      const f = await c.page.evaluate(() => {
+        const fg = document.querySelector("figure[data-companion]"), pic = fg.querySelector(".companion-pic");
+        return { mood: fg.getAttribute("data-mood"), pos: pic.style.backgroundPosition, size: pic.style.backgroundSize, label: pic.getAttribute("aria-label"), moods: window.BMCompanion.moods(), info: window.BMCompanion.info() };
+      });
+      eq([f.mood, f.pos.replace(/(0)(px|%)$/, "$1"), f.size], ["sleeping", "100% 0", "900% 100%"], "setMood: data-mood and the last column");
+      eq(f.label, "Mochi, your companion, sleeping", "setMood: the label");
+      eq(f.moods.length, 9, "setMood: nine moods");
+      eq([f.info.mode, f.info.mood, f.info.variant], ["2d", "sleeping", "pink"], "info: mode, mood, variant");
+      await done(c, "setMood");
+    }
+    /* 21 */
+    cases++;
+    {
+      const c = await open(seeds({ "bm.prefs.v1": '{"mochi":"lilac"}' }));
+      check(/mochi-lilac-poses\.webp"?\)$/.test((await fig(c.page)).image), "lilac: the figure draws the lilac sheet");
+      check(c.requests.some((u) => /\/models\/mochi\/mochi-lilac-poses\.webp(?:[?#]|$)/.test(u)), "lilac: the lilac sheet was requested");
+      /* the pref itself is a later card: seed the key and send the change */
+      await c.page.evaluate(() => { localStorage.setItem("bm.prefs.v1", '{"mochi":"pink"}'); window.BMStore.emit({ type: "prefs" }); });
+      check(await until(c.page, () => /mochi-pink-poses/.test(document.querySelector(".companion-pic").style.backgroundImage), null, 3000), "lilac: changing the pref redraws the sheet");
+      await done(c, "lilac");
+    }
+    /* 22 */
+    cases++;
+    {
+      const c = await open(seeds());
+      await c.page.focus(E1 + " .ex-form input");
+      await c.page.evaluate((sel) => {
+        const ex = document.querySelector(sel);
+        ex.querySelector(".ex-form input").value = (ex.getAttribute("data-answer") || "").split("|")[0];
+      }, E1);
+      await c.page.click(E1 + " .ex-form .btn:not(.ghost)");
+      check(await until(c.page, () => document.querySelector("figure[data-companion]").getAttribute("data-mood") === "surprised", null, 3000), "fast: surprised first");
+      check(await until(c.page, () => document.querySelector("figure[data-companion]").getAttribute("data-mood") === "happy", null, 3000), "fast: then happy");
+      eq((await st(c.page)).line, LINES.first, "fast: the first-try line");
+      await done(c, "fast");
     }
   } finally {
     try { await browser.close(); } catch (e) { console.error("browser close: " + e.message); }
