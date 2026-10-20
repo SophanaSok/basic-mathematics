@@ -220,9 +220,9 @@ function maybe3d(): void {
     const budget = TIERS[tier];
     const gen = ++stageGen;
     const host = pic, figure = fig, v = variant;
-    const current = (): boolean => gen === stageGen && fig === figure && pic === host;
+    const live = (): boolean => gen === stageGen && fig === figure && pic === host;
     const fail = (why?: string): void => {
-      if (!current()) return;
+      if (!live()) return;
       no3d = true; why3d = why || "failed";
       drop3d();
       variant = "";
@@ -233,16 +233,15 @@ function maybe3d(): void {
       pixelRatio: (cw, ch) => pixelRatio(budget, window.devicePixelRatio || 1, cw, ch),
       still: reducedMotion,
       onState: (state, why) => {
-        if (!current()) return;
+        if (!live()) return;
         if (state === "failed" || state === "lost") fail(why || state);
-        else if (state === "disposed" && !stageReady) { /* ours, nothing to do */ }
       }
     })).then((st) => {
-      if (!current()) { try { st.dispose(); } catch { /* gone */ } return; }
+      if (!live()) { try { st.dispose(); } catch { /* gone */ } return; }
       stage = st; stageReady = true; why3d = ""; lastSent = mood;
       try { st.setMood(mood); } catch { /* the still stays */ }
       figure.setAttribute("data-3d", "");
-      stillTimer = window.setTimeout(() => { stillTimer = 0; if (current() && stageReady) host.style.backgroundImage = "none"; }, 450);
+      stillTimer = window.setTimeout(() => { stillTimer = 0; if (live() && stageReady) host.style.backgroundImage = "none"; }, 450);
     }, (e) => { fail(e && e.message ? String(e.message) : "failed"); });
   } catch (e) { no3d = true; why3d = String((e as Error)?.message || e); }
 }
