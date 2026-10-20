@@ -322,9 +322,9 @@ chunk of its own, `bundle/supabase.js`, that a signed-out reader on an ordinary 
 downloads), and [Three.js](https://threejs.org) for the 3D scenes and the course world (`three`,
 at its current release; `src/vendor/three.js` re-exports, by name, exactly the classes and
 constants `assets/map3d.js`, `src/world/*.ts` and `assets/scenes3d-gl.js` use, so the rest of the
-library is shaken out; `assets/three-loader.js` imports that file on demand, only when a 3D scene or the
-course world nears the screen, so it is a chunk of its own, `bundle/three.js`, that a page with
-neither never downloads, and the namespace it loads is `BM3D.THREE`; if the chunk cannot be
+library is shaken out; `assets/three-loader.js` imports that file on demand, only when a 3D scene, the
+course world or Mochi, the companion, nears the screen, so it is a chunk of its own, `bundle/three.js`, that a page with
+none of them never downloads, and the namespace it loads is `BM3D.THREE`; if the chunk cannot be
 fetched, or the browser has no WebGL 2, which the library requires, every 3D picture is drawn
 flat with the same controls). The progress page's form models add two more on-demand chunks,
 fetched on that page only and only once its form view nears the screen: `bundle/three-model.js`

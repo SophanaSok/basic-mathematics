@@ -5,7 +5,8 @@
 Decided by the owner on 2026-10-19.
 
 **Mochi is the learner's companion.** Mochi is an original axolotl mood avatar the owner built in Blender (outside this repo). It replaces the learner's form in the companion slot on chapter pages and the Arena. The form keeps the progress page, the unlock toast and the level popover.
-- Three decisions: (1) the model is repacked for the site's Content Security Policy rather than changing the policy: no `'wasm-unsafe-eval'`, no `blob:`, so decision 0008's stance holds. The repack is gltf-transform quantize (16-bit positions), sparse morph accessors and WebP textures kept external, with no meshopt. (2) Mochi replaces the form in the companion slot. (3) The voice stays never-punitive.
+- The model is repacked for the site's Content Security Policy rather than the policy changed: no `'wasm-unsafe-eval'`, no `blob:`, so decision 0008's stance holds. The repack is gltf-transform quantize (16-bit positions), sparse morph accessors and WebP textures kept external, with no meshopt; the `mochi-model` rule fails a meshopt file.
+- Mochi replaces the form in the companion slot. The voice stays never-punitive.
 - Moods: nine looping ones (idle, happy, excited, sad, angry, surprised, thinking, sleepy, sleeping) and three idle one-shots (idle_look, idle_stretch, idle_wiggle).
 - A miss is thinking. A second miss on the same exercise is sad for 2 s, then thinking with "Let's look again." Angry only faces the boss (its first appearance in a set, a heart lost), never the learner.
 - Idle after 8 s at a field reads thinking, 60 s sleepy, 120 s sleeping; input wakes Mochi with surprised. A first-try correct answer under 5 s from the field's focus is surprised, then happy; three correct in a row is excited; the count is never voiced (R3 owns the streak).
@@ -47,4 +48,4 @@ A character with a face reads as company; the form, a figure without one, does n
 
 ## Status
 
-Decided 2026-10-19. M-1 to M-5 shipped 2026-10-20; M-4b, M-6 and this record follow.
+Decided 2026-10-19. M-1 to M-5 shipped 2026-10-19; M-4b, M-6 and this record follow.

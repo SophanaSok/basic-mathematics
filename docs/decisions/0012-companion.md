@@ -4,7 +4,7 @@
 
 Decided by the owner on 2026-10-19.
 
-**The form is the learner's companion.** On every chapter page (chapters, the interlude, the packs) it stands in the sidebar as a 2D still and answers what happens.
+**The form is the learner's companion** (superseded by 0013: Mochi has the slot now, the rest of this record stands). On every chapter page (chapters, the interlude, the packs) it stands in the sidebar as a 2D still and answers what happens.
 - The still comes from the form's pose sheet, `public/models/forms/form-N-poses.webp`: six stills (rest, curious, delighted, steady, sleepy, waiting), rendered by the Blender pipeline from clip frames and three hand-keyed render-time poses. No Three.js and no model chunk load on chapter pages.
 - A pure mood model, `src/learn/mood.ts`, picks the mood: content, curious, delighted, steady, waiting, sleepy.
 - Triggers: a first-try correct answer, a second miss on one exercise, today's goal met, a boss down, a chapter done, a level, a new form. A heart lost and a Regroup read steady. A due review on arrival reads waiting. Three or more days away reads sleepy.
@@ -46,4 +46,4 @@ The owner's defaults, taken with the approval: the poses come from existing clip
 
 Decided 2026-10-19. C-1 to C-5 shipped 2026-10-19; C-6 is this record.
 
-Superseded in part by 0013 (2026-10-20): Mochi takes the companion slot; the form keeps the progress page, the unlock toast and the level popover.
+Superseded in part by 0013 (2026-10-19): Mochi takes the companion slot; the form keeps the progress page, the unlock toast and the level popover.
