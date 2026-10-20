@@ -225,6 +225,9 @@ function drop3d(): void {
   stage = null; stageReady = false; lastSent = "";
   if (fig) fig.removeAttribute("data-3d");
   if (s) { try { s.dispose(); } catch { /* gone */ } }
+  /* the water goes back to its first frame, as it is in 2D */
+  waterFrame = 0;
+  if (win) win.style.backgroundPosition = "0% 0";
 }
 
 /** the 3D figure over the still, when the device, the tier and the learner's settings allow it; otherwise nothing happens */

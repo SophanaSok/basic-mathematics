@@ -250,8 +250,8 @@ async function main() {
       const pos = (c) => c.page.evaluate(() => document.querySelector("figure[data-companion] .companion-window").style.backgroundPosition);
       const c = await open(CHAPTER);
       check(await threeD(c.page), "12: data-3d");
-      const a = await pos(c); await wait(700); const b = await pos(c);
-      check(a !== b, "12: the water steps in 3D", [a, b]);
+      const a = await pos(c);
+      check(await until(c.page, (p0) => document.querySelector("figure[data-companion] .companion-window").style.backgroundPosition !== p0, a, 3000), "12: the water steps in 3D", a);
       noErrors(c, "12");
       const r = await open(CHAPTER, { "bm.prefs.v1": JSON.stringify({ motion: "reduce" }) }, { reduced: true });
       check(await threeD(r.page), "12: data-3d under reduced motion");
