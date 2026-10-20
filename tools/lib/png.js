@@ -1,7 +1,7 @@
 "use strict";
 /* A minimal, deterministic PNG encoder: Node's zlib and Buffer only, no dependency.
    tools/gen-water.js calls encode() to write the water backdrop strip; checks.test.js
-   calls readHeader() to see the size of the file it wrote. The same input gives the
+   calls readHeader() to see the size of the file it wrote; decode() reads such a file back. The same input gives the
    same bytes (fixed filter, fixed deflate level, no ancillary chunks).
    encode({ width, height, palette, pixels }): an indexed PNG (colour type 3) with a PLTE
    chunk, and a tRNS chunk when some palette entry has alpha < 255. palette is an array of
@@ -61,4 +61,41 @@ function readHeader(buf) {
   return { width: buf.readUInt32BE(16), height: buf.readUInt32BE(20), colorType: buf[25] };
 }
 
-module.exports = { encode, readHeader, crc32 };
+/* the inverse of encode(): { width, height, colorType, palette: [[r, g, b, a], ...], pixels }. Reads
+   only what encode() writes (8-bit indexed, filter 0 on every row, no interlace) and throws on the rest. */
+function decode(buf) {
+  if (buf.length < 8 || !buf.subarray(0, 8).equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]))) throw new Error("png: not a PNG");
+  let pos = 8, ihdr = null, plte = null, trns = null, ended = false;
+  const idat = [];
+  while (pos < buf.length && !ended) {
+    if (pos + 12 > buf.length) throw new Error("png: truncated chunk");
+    const len = buf.readUInt32BE(pos), type = buf.toString("latin1", pos + 4, pos + 8);
+    if (pos + 12 + len > buf.length) throw new Error("png: truncated " + type + " chunk");
+    const data = buf.subarray(pos + 8, pos + 8 + len);
+    if (crc32(buf.subarray(pos + 4, pos + 8 + len)) !== buf.readUInt32BE(pos + 8 + len)) throw new Error("png: bad CRC in " + type);
+    if (type === "IHDR") ihdr = data;
+    else if (type === "PLTE") plte = data;
+    else if (type === "tRNS") trns = data;
+    else if (type === "IDAT") idat.push(data);
+    else if (type === "IEND") ended = true;
+    pos += 12 + len;
+  }
+  if (!ihdr || ihdr.length !== 13) throw new Error("png: no IHDR");
+  if (!plte) throw new Error("png: no PLTE");
+  if (!idat.length) throw new Error("png: no IDAT");
+  if (!ended) throw new Error("png: no IEND");
+  const width = ihdr.readUInt32BE(0), height = ihdr.readUInt32BE(4), colorType = ihdr[9];
+  if (ihdr[8] !== 8 || colorType !== 3 || ihdr[12] !== 0) throw new Error("png: not 8-bit indexed without interlace");
+  const palette = [];
+  for (let i = 0; i + 2 < plte.length; i += 3) palette.push([plte[i], plte[i + 1], plte[i + 2], trns && i / 3 < trns.length ? trns[i / 3] : 255]);
+  const raw = zlib.inflateSync(Buffer.concat(idat));
+  if (raw.length !== (width + 1) * height) throw new Error("png: " + raw.length + " bytes of rows for " + width + "x" + height);
+  const pixels = new Uint8Array(width * height);
+  for (let y = 0; y < height; y++) {
+    if (raw[y * (width + 1)] !== 0) throw new Error("png: row " + y + " uses filter " + raw[y * (width + 1)] + ", only 0 is read");
+    for (let x = 0; x < width; x++) pixels[y * width + x] = raw[y * (width + 1) + 1 + x];
+  }
+  return { width, height, colorType, palette, pixels };
+}
+
+module.exports = { encode, decode, readHeader, crc32 };

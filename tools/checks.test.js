@@ -516,8 +516,30 @@ function refusal(fn) { try { fn(); return null; } catch (e) { return e.message; 
       const w1 = gw.render(), w2 = gw.render(), hd = pngLib.readHeader(w1);
       check(w1.equals(w2), "mochi-water: render() twice gives the same bytes");
       eq([hd.width, hd.height], [512, 64], "mochi-water: the strip is 512x64");
-      check(w1.length < require("../src/data/mochi-limits.ts").MOCHI_WATER_BYTES_MAX, "mochi-water: the strip is under the byte cap");
+      const cap = require("../src/data/mochi-limits.ts").MOCHI_WATER_BYTES_MAX;
+      check(w1.length <= cap, "mochi-water: the strip is within the byte cap");
       eq(gw.problems(), [], "mochi-water: the committed file is current and within the cap");
+      const sc = gw.scene(), dec = pngLib.decode(w1);
+      eq([dec.width, dec.height, dec.colorType], [512, 64, 3], "mochi-water: decode(render()) is a 512x64 indexed image");
+      eq(dec.palette, sc.palette.map(c => c.slice()), "mochi-water: decode(render()) gives the generator's palette");
+      check(Buffer.from(dec.pixels).equals(Buffer.from(sc.pixels)), "mochi-water: decode(render()) gives the generator's pixels");
+      /* a copy with one pixel changed, one with a trailing chunk past the cap, and one that is not a PNG */
+      const wroot = fs.mkdtempSync(path.join(require("os").tmpdir(), "water-"));
+      try {
+        const wf = path.join(wroot, "water.png");
+        const px = Uint8Array.from(sc.pixels);
+        px[0] = px[0] === 1 ? 2 : 1;
+        fs.writeFileSync(wf, pngLib.encode({ width: sc.width, height: sc.height, palette: sc.palette, pixels: px }));
+        check(gw.problems(wf).some(m => /is stale/.test(m)), "mochi-water: a file with one pixel changed is stale");
+        const junk = Buffer.alloc(12 + cap); /* an ancillary chunk, valid, that only adds bytes */
+        junk.writeUInt32BE(cap, 0); junk.write("zzZz", 4, "latin1");
+        junk.writeUInt32BE(pngLib.crc32(junk.subarray(4, 8 + cap)), 8 + cap);
+        fs.writeFileSync(wf, Buffer.concat([w1.subarray(0, w1.length - 12), junk, w1.subarray(w1.length - 12)]));
+        check(gw.problems(wf).some(m => /bytes, over/.test(m)), "mochi-water: a file over the cap fails");
+        fs.writeFileSync(wf, w1.subarray(0, 40));
+        check(gw.problems(wf).some(m => /not a PNG this generator wrote/.test(m)), "mochi-water: a truncated file is not a PNG this generator wrote");
+        check(gw.problems(path.join(wroot, "none.png")).length === 1, "mochi-water: a missing file fails");
+      } finally { fs.rmSync(wroot, { recursive: true, force: true }); }
     }
     /* the morph count and the primitive count live in the file: a copy of the files with one name dropped and one primitive dropped */
     {

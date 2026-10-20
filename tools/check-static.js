@@ -1924,7 +1924,12 @@ function checkMochiModels(ctx, r) {
 
 /* The water backdrop strip is what tools/gen-water.js writes, within MOCHI_WATER_BYTES_MAX. */
 function checkMochiWater(ctx, r) {
-  require("./gen-water").problems().forEach(m => r.fail(m));
+  const gw = require("./gen-water");
+  gw.problems().forEach(m => r.fail(m));
+  try {
+    const d = require("./lib/png").decode(fs.readFileSync(gw.FILE));
+    if (d.width !== gw.WIDTH || d.height !== gw.HEIGHT) r.fail("public/models/mochi/water.png is " + d.width + "x" + d.height + ", not " + gw.WIDTH + "x" + gw.HEIGHT);
+  } catch (e) { /* unreadable or missing: problems() has said so */ }
   r.count = 1;
 }
 

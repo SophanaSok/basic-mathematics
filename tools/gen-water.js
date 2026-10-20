@@ -6,7 +6,8 @@
    (512x64, frame f at x = 64*f); frame 7 leads back to frame 0, so it loops. Plain arithmetic,
    no randomness: the same bytes every run. Generators own their output: change this file
    (the palette below is the place to tune colours) and re-run, never edit the PNG.
-   check-static `mochi-water` fails when the file differs from render() or is over
+   check-static `mochi-water` fails when the file's pixels or palette differ from render()'s (decoded,
+   so a zlib change in Node is no false alarm), when it is not 512x64, or when it is over
    MOCHI_WATER_BYTES_MAX (src/data/mochi-limits.ts).
    Usage: node tools/gen-water.js [--check] */
 "use strict";
@@ -47,10 +48,15 @@ const TURTLE_SPRITE = ["....HHHHH..", "...SHHHHHHS", ".SSSSSSSSSS", "...........
 const TURTLE_KEY = { S: TURTLE, H: SHELL };
 const TURTLE_FLIPPERS = [[[3, 3], [8, 3]], [[4, 3], [4, 4], [9, 3]]];
 
-function render() {
+/* the strip as data: what render() encodes */
+function scene() {
   const px = new Uint8Array(WIDTH * HEIGHT);
   for (let f = 0; f < FRAMES; f++) frame(px, f);
-  return png.encode({ width: WIDTH, height: HEIGHT, palette: PALETTE, pixels: px });
+  return { width: WIDTH, height: HEIGHT, palette: PALETTE, pixels: px };
+}
+
+function render() {
+  return png.encode(scene());
 }
 
 function frame(px, f) {
@@ -79,8 +85,9 @@ function frame(px, f) {
     }
   });
 
-  /* the turtle drifts one pixel left for half the cycle; its flippers swap every two frames */
-  const tx = 40 - (f >= 4 ? 1 : 0), ty = 24;
+  /* the turtle drifts up to two pixels left and back (0,0,1,1,2,1,1,0), so frame 7 leads into frame 0
+     without a snap; its flippers swap every two frames */
+  const tx = 40 - (f <= 4 ? f >> 1 : (8 - f) >> 1), ty = 24;
   blit(TURTLE_SPRITE, TURTLE_KEY, tx, ty);
   TURTLE_FLIPPERS[(f >> 1) & 1].forEach(([x, y]) => pixel(tx + x, ty + y, TURTLE));
 
@@ -123,11 +130,17 @@ function frame(px, f) {
   });
 }
 
-/* what is wrong with the committed file, as messages (none when it is current and within the cap) */
-function problems() {
-  if (!fs.existsSync(FILE)) return [STALE];
-  const have = fs.readFileSync(FILE), out = [];
-  if (!have.equals(render())) out.push(STALE);
+/* what is wrong with the committed file, as messages (none when its pixels are current and it is within the cap) */
+function problems(file = FILE) {
+  if (!fs.existsSync(file)) return [STALE];
+  const have = fs.readFileSync(file), out = [];
+  let got;
+  try { got = png.decode(have); } catch (e) { return ["public/models/mochi/water.png is not a PNG this generator wrote: " + e.message]; }
+  const want = scene();
+  const same = got.width === want.width && got.height === want.height && got.colorType === 3
+    && JSON.stringify(got.palette) === JSON.stringify(want.palette.map(c => c.slice()))
+    && Buffer.compare(Buffer.from(got.pixels), Buffer.from(want.pixels)) === 0;
+  if (!same) out.push(STALE);
   if (have.length > limits.MOCHI_WATER_BYTES_MAX) out.push("public/models/mochi/water.png is " + have.length + " bytes, over " + limits.MOCHI_WATER_BYTES_MAX);
   return out;
 }
@@ -144,4 +157,4 @@ function main() {
 }
 
 if (require.main === module) main();
-module.exports = { render, problems, FILE, WIDTH, HEIGHT, FRAMES };
+module.exports = { render, scene, problems, FILE, WIDTH, HEIGHT, FRAMES };
