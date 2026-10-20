@@ -510,6 +510,15 @@ function refusal(fn) { try { fn(); return null; } catch (e) { return e.message; 
     check(new RegExp("mochi pink: " + (mm.limits.MOCHI_BYTES_MAX + 1) + " bytes is over " + mm.limits.MOCHI_BYTES_MAX).test(mtamper(c => { c.entries[0].bytes = mm.limits.MOCHI_BYTES_MAX + 1; })), "mochi-model: a model over the byte cap fails");
     check(new RegExp("mochi lilac: " + (mm.limits.MOCHI_TRIANGLES_MAX + 1) + " triangles is over " + mm.limits.MOCHI_TRIANGLES_MAX).test(mtamper(c => { c.entries[1].triangles = mm.limits.MOCHI_TRIANGLES_MAX + 1; })), "mochi-model: a model over the triangle cap fails");
     check(/mochi pink: clips .* are not idle/.test(mtamper(c => { c.entries[0].clips = c.entries[0].clips.slice(1); })), "mochi-model: a missing clip fails");
+    /* the water backdrop: deterministic, 512x64, under the cap, and the committed file is current */
+    {
+      const gw = require("./gen-water"), pngLib = require("./lib/png");
+      const w1 = gw.render(), w2 = gw.render(), hd = pngLib.readHeader(w1);
+      check(w1.equals(w2), "mochi-water: render() twice gives the same bytes");
+      eq([hd.width, hd.height], [512, 64], "mochi-water: the strip is 512x64");
+      check(w1.length < require("../src/data/mochi-limits.ts").MOCHI_WATER_BYTES_MAX, "mochi-water: the strip is under the byte cap");
+      eq(gw.problems(), [], "mochi-water: the committed file is current and within the cap");
+    }
     /* the morph count and the primitive count live in the file: a copy of the files with one name dropped and one primitive dropped */
     {
       const root = fs.mkdtempSync(path.join(require("os").tmpdir(), "mochi-"));

@@ -91,7 +91,8 @@ function problems() {
     if (r.morphs.join(",") !== e.morphs.join(",")) out.push(w + "morphs " + r.morphs.length + " in the file, manifest says " + e.morphs.length + " (or the names differ)");
   }
   const dir = abs(OUT_DIR);
-  if (fs.existsSync(dir)) fs.readdirSync(dir).forEach(f => { if (!named.has(f)) out.push(OUT_DIR + "/" + f + " is not in the manifest"); });
+  /* water.png is tools/gen-water.js's (the porthole backdrop), the one file here that is not Mochi's */
+  if (fs.existsSync(dir)) fs.readdirSync(dir).forEach(f => { if (!named.has(f) && f !== "water.png") out.push(OUT_DIR + "/" + f + " is not in the manifest"); });
   return out;
 }
 

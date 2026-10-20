@@ -17,6 +17,7 @@
     "gen:icons": "node tools/gen-icons.js",
     "gen:forms": "node tools/gen-forms.js",
     "gen:mochi": "node tools/gen-mochi.js",
+    "gen:water": "node tools/gen-water.js",
     "check:static": "node tools/check-static.js",
     "check:gen": "node tools/check-gen.js",
     "check:scenes": "node tools/smoke-scenes.js",

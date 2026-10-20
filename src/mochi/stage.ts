@@ -11,7 +11,9 @@
    else from src/ (src/world/tiers.ts would drag it onto another chunk).
 
    Who calls it: src/mochi/index.ts (createMochiStage); the companion (a later card) holds
-   the MochiStage it returns. Nothing is written to the console. */
+   the MochiStage it returns. While motion is allowed the avatar group bobs and rolls a hair
+   (sway) and opts.tick(t) is called after each drawn frame; under still() it rests and no tick.
+   Nothing is written to the console. */
 import type { WebGLRenderer, Scene, PerspectiveCamera } from "three";
 import type { Avatar } from "./avatar.ts";
 import { drawDue } from "./avatar.ts";
@@ -21,6 +23,13 @@ import type { MochiInfo, MochiStage, MochiStageOptions, MochiState } from "./ind
 const SRGB = "srgb" as WebGLRenderer["outputColorSpace"];
 const FRAME_GAP_MS = 33;
 const DT_CAP_MS = 100;
+/* scene units: Mochi is about 1.4 tall, so 0.025 is a hair under 2 % of its height; periods are 2*pi*ms (about 5.7 s and 8.8 s) */
+const BOB_AMP = 0.025, BOB_DIV_MS = 900, ROLL_AMP = 0.02, ROLL_DIV_MS = 1400;
+
+/** the swim bob (y, scene units) and roll (rz, radians) at time t; both zero at 0 */
+export function sway(tMs: number): { y: number; rz: number } {
+  return { y: BOB_AMP * Math.sin(tMs / BOB_DIV_MS), rz: ROLL_AMP * Math.sin(tMs / ROLL_DIV_MS) };
+}
 
 export function createStage(T: any, host: HTMLElement, avatar: Avatar, opts: MochiStageOptions): MochiStage {
   const renderer = new T.WebGLRenderer({ antialias: opts.budget.antialias, alpha: true, powerPreference: "low-power" }) as WebGLRenderer;
@@ -32,12 +41,14 @@ export function createStage(T: any, host: HTMLElement, avatar: Avatar, opts: Moc
 
   const scene = new T.Scene() as Scene;
   scene.add(avatar.object);
+  const restY = avatar.object.position.y, restRz = avatar.object.rotation.z;
   const camera = new T.PerspectiveCamera(32, 1, 0.1, 50) as PerspectiveCamera;
   camera.position.set(-0.3, 1.1, 3.9);
   camera.lookAt(0, 0.72, 0);
 
   let disposed = false, onscreen = true, pageHidden = false, lost = false;
   let raf = 0, last = 0, lastDraw = 0, pending = 0, frames = 0;
+  let swayed = false;   /* the last drawn frame carried the bob, so a stop under still() draws the rest pose first */
   let ro: ResizeObserver | null = null, io: IntersectionObserver | null = null;
 
   const paused = (): boolean => document.hidden || pageHidden;
@@ -76,12 +87,25 @@ export function createStage(T: any, host: HTMLElement, avatar: Avatar, opts: Moc
       avatar.update(pending / 1000);
       pending = 0;
       lastDraw = t;
+      /* still() holds the rest pose, so a held frame never sits mid-bob */
+      const moving = !still();
+      pose(moving ? sway(t) : null);
       draw();
+      if (moving && !disposed && typeof opts.tick === "function") { try { opts.tick(t); } catch { /* the caller's */ } }
     }
     /* under reduced motion only a crossfade, or a variation already under way, keeps the loop going; the frame is then held */
     if (still() ? avatar.busy() : true) { raf = window.requestAnimationFrame(loop); return; }
+    /* a stop between throttled frames (the switch flipped since the last draw) would hold a frame mid-bob */
+    if (swayed) { pose(null); draw(); }
     last = 0;
     pending = 0;
+  }
+
+  /* the group at rest plus the bob (s), or at rest alone */
+  function pose(s: { y: number; rz: number } | null): void {
+    avatar.object.position.y = restY + (s ? s.y : 0);
+    avatar.object.rotation.z = restRz + (s ? s.rz : 0);
+    swayed = !!s;
   }
 
   function request(): void {

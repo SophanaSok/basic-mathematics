@@ -1922,6 +1922,12 @@ function checkMochiModels(ctx, r) {
   r.note(m.entries.length + " variants, " + sum("bytes") + " bytes, " + sum("triangles") + " triangles");
 }
 
+/* The water backdrop strip is what tools/gen-water.js writes, within MOCHI_WATER_BYTES_MAX. */
+function checkMochiWater(ctx, r) {
+  require("./gen-water").problems().forEach(m => r.fail(m));
+  r.count = 1;
+}
+
 /* ---------------------------------------------------------- help-markup -- */
 
 /* Help that sits on an exercise card (a clue ladder in data-hint/-hint2/-hint3, a
@@ -2303,6 +2309,7 @@ const CHECKS = [
   { name: "us-english", run: checkUsEnglish, what: "no British spelling or pound money in reader-facing text beyond tools/us-english-allow.json, whose counts only fall" },
   { name: "form-models", run: checkFormModels, what: "public/models/forms/*.glb are what tools/gen-forms.js wrote from tools/art/forms/: size, triangle and texture caps, the five material slots, the five clips" },
   { name: "mochi-model", run: checkMochiModels, what: "public/models/mochi/*.glb are what tools/gen-mochi.js packed from the Blender project: size, triangle and texture caps, the twelve clips, the 33 morph targets, the pose sheet" },
+  { name: "mochi-water", run: checkMochiWater, what: "public/models/mochi/water.png is what tools/gen-water.js writes: 8 frames of 64x64, under MOCHI_WATER_BYTES_MAX" },
   { name: "contrast", run: checkContrast, what: "WCAG contrast of token pairs in tools/contrast-pairs.json, both themes × both panels, all Parts; print restates the dark panel" }
 ];
 
