@@ -11,7 +11,7 @@
      - The control is read again on the bus events (prefs, reset, sync), on the window's
        load, on assets/map3d.js's bm:map3d event (the world up or down) and once 2 s after it mounts
        (the world's chunks arrive late). A reason shows as a visible line, p.hub-mode-why, under the control.
-     - A one-time note says what the two are. Dismissing it is kept in bm.run.v1.seen.hubHint
+     - A one-time note says what the two are. Dismissing it, or choosing List or Map, is kept in bm.run.v1.seen.hubHint
        (device-local, as seen.companion is), through BMGame.updateRun.
 
    Mounted once the page's scripts have run (as src/ui/next.ts does).
@@ -101,6 +101,8 @@ function set(m: Mode): void {
 
 function choose(m: Mode, focus: boolean): void {
   set(m);
+  /* choosing counts as having read the note; dismiss() after set() lands the focus on the new choice */
+  if (noteEl && !(m === "map" && reason)) dismiss();
   if (focus && radios) radios[m].focus();
 }
 
