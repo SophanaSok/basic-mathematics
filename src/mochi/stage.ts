@@ -23,8 +23,8 @@ import type { MochiInfo, MochiStage, MochiStageOptions, MochiState } from "./ind
 const SRGB = "srgb" as WebGLRenderer["outputColorSpace"];
 const FRAME_GAP_MS = 33;
 const DT_CAP_MS = 100;
-/* scene units: Mochi is about 1.4 tall, so 0.025 is a hair under 2 % of its height; periods are 2*pi*ms (about 5.7 s and 8.8 s) */
-const BOB_AMP = 0.025, BOB_DIV_MS = 900, ROLL_AMP = 0.02, ROLL_DIV_MS = 1400;
+/* scene units: Mochi is about 1.4 tall, so 0.045 is about 3 % of its height (2 px at 8rem); periods are 2*pi*ms (about 5.7 s and 8.8 s) */
+const BOB_AMP = 0.045, BOB_DIV_MS = 900, ROLL_AMP = 0.02, ROLL_DIV_MS = 1400;
 
 /** the swim bob (y, scene units) and roll (rz, radians) at time t; both zero at 0 */
 export function sway(tMs: number): { y: number; rz: number } {
