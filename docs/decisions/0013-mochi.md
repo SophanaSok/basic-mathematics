@@ -11,7 +11,7 @@ Decided by the owner on 2026-10-19.
 - A miss is thinking. A second miss on the same exercise is sad for 2 s, then thinking with "Let's look again." Angry only faces the boss (its first appearance in a set, a heart lost), never the learner.
 - Idle after 8 s at a field reads thinking, 60 s sleepy, 120 s sleeping; input wakes Mochi with surprised. A first-try correct answer under 5 s from the field's focus is surprised, then happy; three correct in a row is excited; the count is never voiced (R3 owns the streak).
 - The intro line: "This is Mochi, your companion. It keeps you company while you work."
-- The stage is 3D over the 2D still, with a 0.4 s fade. Failure, context loss, `?3d=off`, Save-Data, no WebGL 2, the list tier, Study mode and forced colors keep the still. There is no retry on that page after a failure.
+- The stage is 3D over the 2D still, with a 0.4 s fade (both inside a porthole with water behind since 0014). Failure, context loss, `?3d=off`, Save-Data, no WebGL 2, the list tier, Study mode and forced colors keep the still. There is no retry on that page after a failure.
 - Off and hidden rules carry over from 0012: the Companion switch, the `companion: "off"` kill switch, Study mode, print, the settings sheet, a narrow screen's focused field. The captions, the throttle and the never-punitive rules of 0012 still hold.
 - Accessibility: the canvas is `aria-hidden`; the still is a `role=img` labelled "Mochi, your companion, <mood>". Reduced motion (the Reduce motion switch or the device) gives no idle variations and 0.9 s fades instead of 0.35 s, and frames stop once a fade ends.
 
