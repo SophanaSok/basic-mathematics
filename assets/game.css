@@ -134,6 +134,9 @@ html[data-calm] .hud-sound { opacity: .5; cursor: not-allowed; }
   pointer-events: none;
 }
 .hud-tip[hidden] { display: none; }
+/* The bar is sticky at z-index 40, so the popover (46) only stacks inside it, below the toasts (44).
+   While one is open the bar goes above them, so a toast never paints over its words. */
+.topbar:has(.hud-pop:not([hidden])) { z-index: 45; }
 .hud-pop {
   --focus: var(--hud-focus);
   position: absolute; z-index: 46; width: min(19rem, calc(100vw - 16px)); padding: .7rem .8rem .8rem;
