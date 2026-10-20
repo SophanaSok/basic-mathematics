@@ -6,6 +6,8 @@ import "../hud/view.js";
 import "../hud/install.js";
 import "../../data/curriculum.js";
 import "../../data/quest.js";
+/* the companion draws Mochi with Three.js, which the Arena had no loader for (window.BM3D) */
+import "../../assets/three-loader.js";
 /* the spaced-review schedule and the Arena's XP rules, which game.js (and the Arena)
    find on window.BMReview: the pure modules first, then the one that puts them up */
 import "../learn/constants.ts";
@@ -69,6 +71,7 @@ import "../../assets/config.js";
 import "../../assets/account.js";
 /* the form as a 2D companion, docked on the page (window.BMCompanion): the mood model first */
 import "../learn/mood.ts";
+import "../world/tiers.ts";
 import "../ui/companion.ts";
 /* the first-run guide (shown once on a chapter page) and its replay button in the settings sheet */
 import "../ui/first-run.ts";

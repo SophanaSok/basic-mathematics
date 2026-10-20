@@ -57,6 +57,15 @@ const WEBGL_PATHS = [
   "src/ui/form-view.ts",         // the view that draws a form in the page
   "src/vendor/",                 // three.js, three-model.js and three-post.js are vendored here
   "assets/three-loader.js",      // how the pages load three.js
+  "src/mochi/",                  // the Mochi companion's renderer and loader
+  "src/ui/companion.ts",         // draws Mochi into the companion figure on chapter pages and the Arena
+  "src/learn/mood.ts",           // the mood the companion's Mochi acts out
+  "src/data/mochi-model.ts",     // the Mochi model manifest the renderer loads
+  "tools/gen-mochi.js",          // the generator that writes the Mochi model
+  "tools/lib/mochi-model.js",    // what that generator and its checks share
+  "tools/game/mochi.test.js",    // 3D script: Mochi in the companion
+  "src/entries/chapter.js",      // what chapter pages load, and in which order: the companion pulls Three.js in here
+  "src/entries/arena.js",        // the same for the Arena
   "package-lock.json"            // a Three.js bump arrives through the lockfile
 ];
 /* sql.yml's path list: what the SQL test reads */
