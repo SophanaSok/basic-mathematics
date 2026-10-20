@@ -87,8 +87,9 @@ const ON_DEMAND = [
   { chunk: BUNDLE + "three.js", module: vendor.DIR + "/three.js", by: "assets/three-loader.js" },
   { chunk: BUNDLE + "supabase.js", module: vendor.DIR + "/supabase.js", by: "assets/account.js" },
   { chunk: BUNDLE + "world.js", module: "src/world/index.ts", by: ["assets/map3d.js", "src/ui/form-view.ts"], dir: "src/world/" },
-  { chunk: BUNDLE + "three-model.js", module: vendor.DIR + "/three-model.js", by: "src/model/index.ts" },
+  { chunk: BUNDLE + "three-model.js", module: vendor.DIR + "/three-model.js", by: ["src/model/index.ts", "src/mochi/index.ts"] },
   { chunk: BUNDLE + "form-model.js", module: "src/model/index.ts", by: "src/ui/form-view.ts", dir: "src/model/" },
+  { chunk: BUNDLE + "mochi.js", module: "src/mochi/index.ts", by: "src/ui/companion.ts", dir: "src/mochi/" },
   { chunk: BUNDLE + "post.js", module: "src/world/post.ts", by: "assets/map3d.js" },
   { chunk: BUNDLE + "three-post.js", module: vendor.DIR + "/three-post.js", by: "assets/map3d.js" }
 ];
