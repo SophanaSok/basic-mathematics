@@ -499,7 +499,7 @@ async function run() {
   server = await target.start(site.parseArgs(process.argv.slice(2)));
   console.log("scenes: " + server.where);
   try {
-    const browser = await chromium.launch({ env: gl.env(chromium) });
+    const browser = await chromium.launch(gl.opts(chromium));
     try {
       await resetButton(browser);
       await swipes(browser);

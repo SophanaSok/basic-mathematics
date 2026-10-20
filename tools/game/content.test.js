@@ -147,7 +147,7 @@ async function browserPart() {
   console.log("content: " + server.where);
   const THREE_CHUNK = /\/bundle\/three\.js(?:[?#]|$)/;
   const offline = (r) => server.owns(r.request().url()) && !THREE_CHUNK.test(r.request().url()) ? r.continue() : r.abort();
-  const browser = await chromium.launch({ env: require("../lib/gl").env(chromium) });   /* off the machine's GPU: lib/gl.js */
+  const browser = await chromium.launch(require("../lib/gl").opts(chromium));   /* off the machine's GPU: lib/gl.js */
   /* every page error and console error, but the requests aborted above */
   const errors = [];
   const watch = (page) => {

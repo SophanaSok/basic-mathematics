@@ -145,7 +145,7 @@ const E1 = '#practice .ex[data-key="e1"]';
 
 async function run() {
   server = await target.start(site.parseArgs(process.argv.slice(2)));
-  browser = await chromium.launch({ env: require("../lib/gl").env(chromium) });
+  browser = await chromium.launch(require("../lib/gl").opts(chromium));
   try {
     /* 1 */
     cases++;

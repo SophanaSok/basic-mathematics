@@ -364,15 +364,15 @@ module.exports = {
     /* --------------------------------------------- back and forward ---- */
     /* A page left by a link stays in the back/forward cache, and going back or forward
        restores it (pageshow.persisted) and is offered a transition like any other
-       navigation. Playwright launches Chromium with that cache off, and its headless shell
-       has none, so this part runs on a browser of its own: the full Chromium, the cache
-       on. Forward by links through three pages, then back, back and forward: each of
+       navigation. Playwright launches Chromium with that cache off, so this part runs on
+       a browser of its own (lib/gl.js's full Chromium, as every other launch now) with the
+       cache on. Forward by links through three pages, then back, back and forward: each of
        those must restore the page from the cache, and run the transition with the HUD
        still, or skip it in Study mode, stored or switched on on the page being left. */
     if (pages.length >= 3) {
       const route = pages.slice(0, 3);
       let bf = null;
-      try { bf = await ctx.pw.chromium.launch({ channel: "chromium", headless: !ctx.opts.headed, args: ctx.launch.args, env: gl.env(ctx.pw.chromium), ignoreDefaultArgs: ["--disable-back-forward-cache"] }); }
+      try { bf = await ctx.pw.chromium.launch(gl.opts(ctx.pw.chromium, { headless: !ctx.opts.headed, args: ctx.launch.args, ignoreDefaultArgs: ["--disable-back-forward-cache"] })); }
       catch (e) { report.fail("back and forward: launch", "the full Chromium (channel \"chromium\", from npx playwright install chromium) did not start with the back/forward cache on: " + (e && e.message || e)); }
       if (bf) {
         const hb = browserLib.makeHelpers(Object.assign({}, ctx, { browser: bf }));

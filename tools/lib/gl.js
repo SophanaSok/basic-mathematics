@@ -1,6 +1,13 @@
 "use strict";
-/* How every Chromium of the harness is launched as far as graphics go: WebGL 2 on
+/* How every Chromium of the harness is launched: the full Chromium build (Playwright's
+   channel "chromium", new headless mode), never the headless shell, with WebGL 2 on
    SwiftShader (software, on the CPU), on every machine, and never the machine's GPU.
+
+   Why the full build: the headless shell segfaults the popup tab's first renderer on a
+   Ctrl+click in the site's pages (every run left a core dump, and once in a while the
+   popup stayed about:blank and failed the check); the full build does not, in five
+   harness runs and a whole-suite run on 2026-10-19 (Playwright 1.63/1.64, builds 1243 and
+   1248). `npx playwright install chromium` installs both, here and on CI.
 
    A GitHub runner has no GPU, so there the only WebGL is SwiftShader. A developer's
    machine has one, and a run that drew on it would be faster than CI and pass checks CI
@@ -15,25 +22,37 @@
    RTX 5060 Ti: without it the GPU process holds /dev/nvidiactl and /dev/dri/renderD128;
    with it, no device file, and the same SwiftShader context.
 
-   launch() is chromium.launch with both, and then asks a blank page for its WebGL 2
-   renderer: anything but SwiftShader (or no WebGL 2 at all, when `gl` is wanted) is an
-   error that says so, rather than checks that quietly measure another machine. */
+   opts(chromium, extra) is the launch options every script passes (the channel, env(),
+   and its own extra such as headless or args); launch() is chromium.launch with those
+   and ARGS, and then asks a blank page for its WebGL 2 renderer: anything but SwiftShader
+   (or no WebGL 2 at all, when `gl` is wanted) is an error that says so, rather than
+   checks that quietly measure another machine. */
 const fs = require("fs");
 const path = require("path");
 
 const ARGS = ["--enable-unsafe-swiftshader", "--use-angle=swiftshader", "--ignore-gpu-blocklist"];
 const SOFTWARE = /swiftshader/i;
+const CHANNEL = "chromium";   /* the full build; a headless launch without it runs the headless shell */
 
-/* Chromium's own SwiftShader Vulkan driver: the headless shell's (what a headless
-   launch runs) or, failing that, the full browser's of the same revision */
+/* Chromium's own SwiftShader Vulkan driver: the full build's (beside its executable) or,
+   failing that, the headless shell's of the same revision */
 function icd(chromium) {
   let exe = "";
-  try { exe = chromium.executablePath() || ""; } catch (e) { return null; }
+  try { exe = chromium.executablePath({ channel: CHANNEL }) || ""; } catch (e) { /* an older Playwright */ }
+  if (!exe) { try { exe = chromium.executablePath() || ""; } catch (e) { return null; } }
   const out = [];
+  if (exe) out.push(path.join(path.dirname(exe), "vk_swiftshader_icd.json"));
   const m = /^(.*)[\\/]chromium-(\d+)[\\/]/.exec(exe);
   if (m) out.push(path.join(m[1], "chromium_headless_shell-" + m[2], "chrome-headless-shell-linux64", "vk_swiftshader_icd.json"));
-  if (exe) out.push(path.join(path.dirname(exe), "vk_swiftshader_icd.json"));
   return out.find((f) => fs.existsSync(f)) || null;
+}
+
+/* the launch options every script passes: the full build, env(), then the script's own */
+function opts(chromium, extra) {
+  const o = Object.assign({ channel: CHANNEL }, extra || {});
+  const e = env(chromium);
+  if (e) o.env = Object.assign({}, e, o.env || {});
+  return o;
 }
 
 /* the environment for a launch: the loader held to SwiftShader where its driver file is
@@ -61,10 +80,8 @@ async function renderer(browser) {
    renderer must be SwiftShader, without it only "not a hardware renderer" (a launch
    with no WebGL at all is fine for a check that takes the flat fallbacks) */
 async function launch(chromium, options, gl) {
-  const o = Object.assign({}, options || {});
+  const o = opts(chromium, options);
   o.args = ARGS.concat(o.args || []);
-  const e = env(chromium);
-  if (e) o.env = Object.assign({}, e, o.env || {});
   const browser = await chromium.launch(o);
   const r = await renderer(browser).catch((x) => "?" + (x && x.message || x));
   if ((gl && !SOFTWARE.test(r)) || (r && !SOFTWARE.test(r))) {
@@ -74,4 +91,4 @@ async function launch(chromium, options, gl) {
   return browser;
 }
 
-module.exports = { ARGS, SOFTWARE, env, icd, renderer, launch };
+module.exports = { ARGS, SOFTWARE, CHANNEL, env, icd, opts, renderer, launch };
