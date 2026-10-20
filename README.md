@@ -322,9 +322,9 @@ chunk of its own, `bundle/supabase.js`, that a signed-out reader on an ordinary 
 downloads), and [Three.js](https://threejs.org) for the 3D scenes and the course world (`three`,
 at its current release; `src/vendor/three.js` re-exports, by name, exactly the classes and
 constants `assets/map3d.js`, `src/world/*.ts` and `assets/scenes3d-gl.js` use, so the rest of the
-library is shaken out; `assets/three-loader.js` imports that file on demand, only when a 3D scene or the
-course world nears the screen, so it is a chunk of its own, `bundle/three.js`, that a page with
-neither never downloads, and the namespace it loads is `BM3D.THREE`; if the chunk cannot be
+library is shaken out; `assets/three-loader.js` imports that file on demand, only when a 3D scene, the
+course world or Mochi, the companion, nears the screen, so it is a chunk of its own, `bundle/three.js`, that a page with
+none of them never downloads, and the namespace it loads is `BM3D.THREE`; if the chunk cannot be
 fetched, or the browser has no WebGL 2, which the library requires, every 3D picture is drawn
 flat with the same controls). The progress page's form models add two more on-demand chunks,
 fetched on that page only and only once its form view nears the screen: `bundle/three-model.js`
@@ -333,8 +333,8 @@ fetched on that page only and only once its form view nears the screen: `bundle/
 they cost, with the sizes measured when they landed, is in
 [`docs/decisions/0008-form-models.md`](docs/decisions/0008-form-models.md). So no
 stylesheet, script or font of a page comes from another server (`npm run check:dist`,
-`offline`), and the browser checks fail any page that asks one for anything. The pose sheets are the one model file a chapter page fetches: a 35-54 KB WebP per
-stage, `public/models/forms/form-<n>-poses.webp`, drawn by the companion.
+`offline`), and the browser checks fail any page that asks one for anything. Chapter pages and the Arena fetch Mochi's files for the companion (`public/models/mochi/`: the
+GLB, five textures and the pose sheet) when WebGL is allowed, and the pose sheet alone otherwise.
 
 **Third-party licences.** What the bundle holds that is not the site's own is published under its
 package's licence: KaTeX, supabase-js (and what supabase-js depends on) and Three.js under MIT,
@@ -382,8 +382,9 @@ src/vendor/fonts.css    Inter, Newsreader and Bricolage Grotesque from the fonts
 src/vendor/supabase.js  supabase-js from npm, imported on demand by assets/account.js: bundle/supabase.js
 src/vendor/three.js     Three.js from npm, the names the site uses, imported on demand by assets/three-loader.js: bundle/three.js
 src/vendor/three-model.js  Three's GLTF loader and room environment, imported on demand by src/model/: bundle/three-model.js
-src/learn/mood.ts       the companion's mood model: events in, a mood and a caption out; no DOM, with its Vitest test
-src/ui/companion.ts     the companion in the chapter pages' sidebar: a 2D still from the pose sheet, captions, the Companion switch
+src/learn/mood.ts       the companion's mood model: events in, a mood and a caption out; nine moods, no DOM, with its Vitest test
+src/ui/companion.ts     Mochi in the chapter pages' sidebar and the Arena: the 2D still from the pose sheet, captions, the Companion switch
+src/mochi/              Mochi's 3D stage over the still: the renderer, the fixed camera, the avatar: bundle/mochi.js
 src/model/              the form models' loader, look and clips, imported on demand by src/ui/form-view.ts: bundle/form-model.js
 public/models/forms/    the five GLB models, their two baked WebP textures each, their PNG thumbnails and the pose sheets, written (with the manifest `src/data/form-models.ts`) by tools/gen-forms.js;
                         served under /models/* with the revalidate rule
@@ -463,6 +464,7 @@ tools/lib/vendor.js     which src/vendor/ module brings in each npm package (and
                         licence notice the build writes into dist/bundle/LICENSES.txt from them
 tools/gen-fonts.js      writes src/vendor/fonts.css from the fontsource packages (npm run gen:fonts)
 tools/gen-forms.js      writes public/models/forms/ from the Blender scripts in tools/art/forms/ (npm run gen:forms; needs this box's Blender, never run by CI)
+tools/gen-mochi.js      writes public/models/mochi/ and src/data/mochi-model.ts from the Blender project's site/ output (npm run gen:mochi; BM_MOCHI_SRC); never run by CI
 tools/shell.json        what that comes to on each page, as readers have it (the `shell` check)
 parts/<part>/<nn>-<slug>.html
 package.json            the npm scripts, the dev dependencies (Vite, TypeScript, Vitest, Playwright,
@@ -846,12 +848,14 @@ The files:
   marker and the fallback), `setForm` in `src/world/index.ts` stands it on the current island
   in place of the marker, and `src/ui/forms.ts`, `src/ui/form-view.ts` and `src/world/form-scene.ts`
   show it on the progress page, and `src/ui/form-unlock.ts` (every page) records a stage reached in `form.got` and announces it once. Decision: [`docs/decisions/0007-evolving-forms.md`](docs/decisions/0007-evolving-forms.md).
-- The form is also the learner's companion on every chapter page: a 2D still from its pose sheet
-  (`public/models/forms/form-<n>-poses.webp`, six stills; no Three.js and no model chunk) in the sidebar,
-  answering what happens through the pure mood model in `src/learn/mood.ts`, drawn by
-  `src/ui/companion.ts`. The Companion switch in the settings sheet, Study mode and
-  `companion: "off"` in `assets/config.js` turn it off. Decision:
-  [`docs/decisions/0012-companion.md`](docs/decisions/0012-companion.md).
+- Mochi, an axolotl the owner built, is the learner's companion on every chapter page and in the
+  Arena: a 2D still from its pose sheet (`public/models/mochi/mochi-<pink|lilac>-poses.webp`, nine
+  stills) in the sidebar, with a 3D stage over it when WebGL is allowed (`src/mochi/`, chunk
+  `bundle/mochi.js`), answering what happens through the pure mood model in `src/learn/mood.ts`,
+  drawn by `src/ui/companion.ts`. The Companion switch in the settings sheet, Study mode and
+  `companion: "off"` in `assets/config.js` turn it off. Decisions:
+  [`docs/decisions/0013-mochi.md`](docs/decisions/0013-mochi.md), and
+  [`docs/decisions/0012-companion.md`](docs/decisions/0012-companion.md) for the captions and rules.
 - The progress page shows each form as a model (a GLB in `public/models/forms/`), not the drawn
   figure. `src/ui/form-view.ts` (its header has the states) shows the drawn form first, in the
   scene of `src/world/form-scene.ts`, and swaps the stage's model in when `bundle/form-model.js`
@@ -1108,7 +1112,7 @@ memory but keeps the site:
 | `bm.game.v1` | achievements, compared solutions, recall per section, Arena bests, medals, Daily days, and `form` (the stages reached and the one worn) (synced) |
 | `bm.diag.v1` | placement-check takes: class finished last, day, questions asked, right or wrong, whether many answers were very fast, suggested course; never typed text or timings (synced; kept through "Reset all progress"; cleared from this browser on sign-out; the account copy is removed only by Delete my account) |
 | `bm.run.v1` | the combo meter, an unfinished Arena run or placement check (with per-answer timings, deleted when the check ends), the day's Arena XP counts (`arenaDay`) and the day the next-step card was hidden (`nextHide`), and `seen.form` and `seen.evolved`, the stage whose unlock was announced and the one whose evolution the progress page played (this device only; cleared by reset and sign-out) |
-| `bm.prefs.v1` | the settings sheet's and the Arena's settings: `calm` (Study mode), `sound`, `volume` (0 to 100, unset is 50), `motion` and `transparency` (`"reduce"`, unset follows the device), `panel` (`"dark"`, unset for light paper), `gfx` (`"low"`, `"mid"`, `"high"`, unset is Auto: the course world's tier), `map` (`"list"` keeps the chapter list alone), `gfxAuto` (not a setting: the tier the world's watchdog settled on, `"list"`, `"low"` or `"medium"`; cleared by a choice of `gfx` or `map`), `tempo` (this device only; survives a reset; keys the site does not know are kept; a value it does not know reads as unset) |
+| `bm.prefs.v1` | the settings sheet's and the Arena's settings: `calm` (Study mode), `sound`, `volume` (0 to 100, unset is 50), `motion` and `transparency` (`"reduce"`, unset follows the device), `panel` (`"dark"`, unset for light paper), `gfx` (`"low"`, `"mid"`, `"high"`, unset is Auto: the course world's tier), `map` (`"list"` keeps the chapter list alone), `gfxAuto` (not a setting: the tier the world's watchdog settled on, `"list"`, `"low"` or `"medium"`; cleared by a choice of `gfx` or `map`), `mochi` (`"lilac"`; unset is pink), `tempo` (this device only; survives a reset; keys the site does not know are kept; a value it does not know reads as unset) |
 | `bm.sync.v1` | with accounts on: whose progress this browser holds and the last reset it knows of |
 | `bm.sync.pending.v1` | with accounts on: progress that could not be saved when its reader signed out, kept aside per reader until they sign in here again |
 

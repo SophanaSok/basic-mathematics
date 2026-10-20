@@ -33,9 +33,9 @@ window.BM_CONFIG = {
      managed learner keeps doing so (its learner is still checked on load) until it signs
      out. A server stop is  revoke execute on function
      public.learner_add(text, boolean, smallint) from authenticated  (docs/OPERATIONS.md). */
-  /* The companion (docs/decisions/0012-companion.md), the learner's form in the chapter pages'
-     sidebar, is on by default. To hide it everywhere, add  companion: "off"  as a setting
-     here (with a comma after the previous setting's value): no figure is drawn and no pose
-     sheet is fetched, and the settings sheet's Companion switch then changes nothing. It uses
+  /* The companion (docs/decisions/0013-mochi.md), Mochi, on the chapter pages and in the
+     Arena, is on by default. To hide it everywhere, add  companion: "off"  as a setting
+     here (with a comma after the previous setting's value): no figure is drawn and no model
+     or pose sheet is fetched, and the settings sheet's Companion switch then changes nothing. It uses
      no network and no account. */
 };
