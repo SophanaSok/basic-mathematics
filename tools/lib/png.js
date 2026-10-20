@@ -1,8 +1,9 @@
 "use strict";
 /* A minimal, deterministic PNG encoder: Node's zlib and Buffer only, no dependency.
    tools/gen-water.js calls encode() to write the water backdrop strip; checks.test.js
-   calls readHeader() to see the size of the file it wrote; decode() reads such a file back. The same input gives the
-   same bytes (fixed filter, fixed deflate level, no ancillary chunks).
+   calls readHeader() to see the size of the file it wrote; decode() reads such a file
+   back (gen-water.js problems() and the mochi-water rule compare its pixels). The same
+   input gives the same bytes (fixed filter, fixed deflate level, no ancillary chunks).
    encode({ width, height, palette, pixels }): an indexed PNG (colour type 3) with a PLTE
    chunk, and a tRNS chunk when some palette entry has alpha < 255. palette is an array of
    [r, g, b, a]; pixels is width*height palette indices, row by row. */

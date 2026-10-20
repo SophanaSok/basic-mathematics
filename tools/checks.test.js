@@ -523,14 +523,20 @@ function refusal(fn) { try { fn(); return null; } catch (e) { return e.message; 
       eq([dec.width, dec.height, dec.colorType], [512, 64, 3], "mochi-water: decode(render()) is a 512x64 indexed image");
       eq(dec.palette, sc.palette.map(c => c.slice()), "mochi-water: decode(render()) gives the generator's palette");
       check(Buffer.from(dec.pixels).equals(Buffer.from(sc.pixels)), "mochi-water: decode(render()) gives the generator's pixels");
-      /* a copy with one pixel changed, one with a trailing chunk past the cap, and one that is not a PNG */
-      const wroot = fs.mkdtempSync(path.join(require("os").tmpdir(), "water-"));
+      /* copies: one pixel changed, one palette entry changed, another shape, a trailing chunk past the cap, not a PNG, missing */
+      const wroot = fs.mkdtempSync(path.join(os.tmpdir(), "water-"));
       try {
         const wf = path.join(wroot, "water.png");
         const px = Uint8Array.from(sc.pixels);
         px[0] = px[0] === 1 ? 2 : 1;
         fs.writeFileSync(wf, pngLib.encode({ width: sc.width, height: sc.height, palette: sc.palette, pixels: px }));
         check(gw.problems(wf).some(m => /is stale/.test(m)), "mochi-water: a file with one pixel changed is stale");
+        /* the same pixels under one changed palette entry, and the same pixel count as 256x128: each stale by its own term */
+        const pal = sc.palette.map(c => c.slice()); pal[0][0] = (pal[0][0] + 1) % 256;
+        fs.writeFileSync(wf, pngLib.encode({ width: sc.width, height: sc.height, palette: pal, pixels: sc.pixels }));
+        check(gw.problems(wf).some(m => /is stale/.test(m)), "mochi-water: a file with one palette entry changed is stale");
+        fs.writeFileSync(wf, pngLib.encode({ width: 256, height: 128, palette: sc.palette, pixels: sc.pixels }));
+        check(gw.problems(wf).some(m => /is stale/.test(m)), "mochi-water: a 256x128 file of the same pixels is stale");
         const junk = Buffer.alloc(12 + cap); /* an ancillary chunk, valid, that only adds bytes */
         junk.writeUInt32BE(cap, 0); junk.write("zzZz", 4, "latin1");
         junk.writeUInt32BE(pngLib.crc32(junk.subarray(4, 8 + cap)), 8 + cap);
