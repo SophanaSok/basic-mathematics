@@ -118,10 +118,12 @@ async function main() {
       const names = await c.page.evaluate(() => window.BMCompanion.moods());
       check(JSON.stringify(names) === JSON.stringify(MOODS9), "2: moods() lists the nine", names);
       for (const name of names) {
+        const f0 = (await info(c.page)).stage.frames;
         const ok = await c.page.evaluate((n) => window.BMCompanion.setMood(n), name);
         check(ok === true, "2: setMood(" + name + ") is true");
-        /* the 0.35 s fade, polled to its end rather than timed */
-        check(await until(c.page, (n) => window.BMCompanion.info().stage.weights[n] > 0.95, name, 4000), "2: " + name + " clip at full weight");
+        /* the 0.35 s fade, polled to its end rather than timed: the new clip's weight reads 1 before the first
+           frame, so the poll also asks for a few frames and for every other mood clip to have faded out */
+        check(await until(c.page, (a) => { const s = window.BMCompanion.info().stage; return s.frames >= a.f + 3 && s.weights[a.n] > 0.95 && a.others.every((m) => s.weights[m] < 0.05); }, { n: name, f: f0, others: MOODS9.filter((m) => m !== name) }, 4000), "2: " + name + " clip at full weight after its fade");
         const inf = await info(c.page);
         const w = inf.stage.weights;
         const others = MOODS9.filter((m) => m !== name);
