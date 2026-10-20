@@ -406,8 +406,13 @@ grows a case, so each old shape keeps a test.
 
 ### WebGL in headless Chromium
 
-Measured on this repo's pinned Playwright (1.63.0, Chromium 153 headless shell) on Arch Linux
-with an NVIDIA card: the first argument set the `webgl` suite tries,
+Every suite launches the headless shell through `lib/gl.js`, except `game/browser.test.js`
+and the transitions suite's back/forward browser, which run the full build (Playwright's
+channel "chromium", new headless mode): the shell segfaults a popup's renderer on that
+script's Ctrl+click and has no back/forward cache, while the full build fails the map's tier
+watchdog and the forms viewer's memory counts that were measured on the shell. Measured first
+on the headless shell (Playwright 1.63.0, Chromium 153) and again on the full build (1.64.0,
+build 1248) on Arch Linux with an NVIDIA card: the first argument set the `webgl` suite tries,
 `--enable-unsafe-swiftshader --use-angle=swiftshader --ignore-gpu-blocklist`, gives a WebGL 2
 context on SwiftShader (software, "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero)
 …)"), and that is what every suite then launches with; `game/map.test.js` and the painter check

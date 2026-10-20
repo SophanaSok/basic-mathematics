@@ -150,7 +150,7 @@ const ALL = ["google", "github", "discord", "facebook", "azure"];
 (async () => {
   const server = await target.start(site.parseArgs(process.argv.slice(2)));
   console.log("account: " + server.where);
-  const browser = await chromium.launch({ env: require("../lib/gl").env(chromium) });   /* off the machine's GPU: lib/gl.js */
+  const browser = await chromium.launch(require("../lib/gl").opts(chromium));   /* off the machine's GPU: lib/gl.js */
   const errors = [];
 
   /* the chunk only account.js's import() fetches (tools/check-dist.js ON_DEMAND) */

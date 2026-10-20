@@ -212,7 +212,9 @@ const state = (page) => page.evaluate(() => {
 async function run() {
   server = await target.start(site.parseArgs(process.argv.slice(2)));
   console.log("browser: " + server.where);
-  const browser = await chromium.launch({ env: require("../lib/gl").env(chromium) });   /* off the machine's GPU: lib/gl.js */
+  const gl = require("../lib/gl");
+  /* the full build: the headless shell segfaults the popup's renderer on this script's Ctrl+click (lib/gl.js); off the machine's GPU either way */
+  const browser = await chromium.launch(gl.opts(chromium, { channel: gl.FULL }));
   try {
     /* -------------------------------------------- 1–3: ch05, whole page */
     {

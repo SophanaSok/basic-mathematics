@@ -176,7 +176,7 @@ function twelve() {
 (async () => {
   const server = await target.start(site.parseArgs(process.argv.slice(2)));
   console.log("board: " + server.where);
-  const browser = await chromium.launch({ env: require("../lib/gl").env(chromium) });   /* off the machine's GPU: lib/gl.js */
+  const browser = await chromium.launch(require("../lib/gl").opts(chromium));   /* off the machine's GPU: lib/gl.js */
   const errors = [];
   const contexts = [];
 

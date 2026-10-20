@@ -19,7 +19,7 @@ const ARG_SETS = [
 const FIXTURE = "tools/fixtures/webgl-probe.html";
 
 async function probeWith(pw, args, url, headed, noWebGL) {
-  const browser = await pw.chromium.launch({ headless: !headed, args, env: gl.env(pw.chromium) });
+  const browser = await pw.chromium.launch(gl.opts(pw.chromium, { headless: !headed, args }));
   try {
     const context = await browser.newContext();
     if (noWebGL) await context.addInitScript(() => {
