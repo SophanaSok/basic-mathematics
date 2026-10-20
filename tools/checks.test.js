@@ -364,7 +364,8 @@ function refusal(fn) { try { fn(); return null; } catch (e) { return e.message; 
   const threeVendor = fs.readFileSync(path.join(site.ROOT, "src/vendor/three.js"), "utf8").replace(/\/\*[\s\S]*?\*\//g, "");
   const exported = threeVendor.match(/^export \{[^}]*\} from "three";$/gm).flatMap(line => line.replace(/^export \{|\} from "three";$/g, "").split(",").map(s => s.trim()).filter(Boolean));
   const used = new Set();
-  const worldFiles = fs.readdirSync(path.join(site.ROOT, "src/world")).filter(f => /\.ts$/.test(f) && !/\.(test|test-helper|d)\.ts$/.test(f)).map(f => "src/world/" + f);
+  const worldFiles = fs.readdirSync(path.join(site.ROOT, "src/world")).filter(f => /\.ts$/.test(f) && !/\.(test|test-helper|d)\.ts$/.test(f)).map(f => "src/world/" + f)
+    .concat(fs.readdirSync(path.join(site.ROOT, "src/mochi")).filter(f => /\.ts$/.test(f) && !/\.(test|test-helper|d)\.ts$/.test(f)).map(f => "src/mochi/" + f));
   check(worldFiles.length > 0, "src/world/ holds the world's modules");
   ["assets/map3d.js", "assets/scenes3d-gl.js"].concat(worldFiles).forEach(f => {
     for (const m of fs.readFileSync(path.join(site.ROOT, f), "utf8").replace(/\/\*[\s\S]*?\*\//g, "").matchAll(/\b(?:T|THREE|M\.T)\.([A-Z]\w*)/g)) used.add(m[1]);
@@ -397,7 +398,8 @@ function refusal(fn) { try { fn(); return null; } catch (e) { return e.message; 
   eq(missingModel, [], "every name src/vendor/three-model.js exports is exported by the installed three (or the addon file it names), by a scan of their export statements");
   /* … and the names are exactly what src/model/*.ts uses: every M.<Name> there */
   const modelUsed = new Set();
-  const modelFiles = fs.readdirSync(path.join(site.ROOT, "src/model")).filter(f => /\.ts$/.test(f) && !/\.(test|test-helper|d)\.ts$/.test(f)).map(f => "src/model/" + f);
+  const modelFiles = fs.readdirSync(path.join(site.ROOT, "src/model")).filter(f => /\.ts$/.test(f) && !/\.(test|test-helper|d)\.ts$/.test(f)).map(f => "src/model/" + f)
+    .concat(fs.readdirSync(path.join(site.ROOT, "src/mochi")).filter(f => /\.ts$/.test(f) && !/\.(test|test-helper|d)\.ts$/.test(f)).map(f => "src/mochi/" + f));
   check(modelFiles.length > 0, "src/model/ holds the model kit's modules");
   modelFiles.forEach(f => {
     for (const m of fs.readFileSync(path.join(site.ROOT, f), "utf8").replace(/\/\*[\s\S]*?\*\//g, "").matchAll(/\bM\.([A-Z]\w*)/g)) modelUsed.add(m[1]);
