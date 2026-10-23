@@ -70,8 +70,6 @@ export type StoreChange =
   /** the Arena: a run started, an answer given, a run ended or was recorded */
   | { type: "arena"; phase: "start" | "answer" | "end" | "recorded"; [field: string]: unknown }
   | { type: "chapterDone"; chapter: ChapterId | null; fresh: boolean }
-  /** the learner's form: `fresh` are the stages newly recorded (empty when only the worn form changed) */
-  | { type: "form"; highest: number; worn: number; fresh: number[] }
   | { type: "achievement"; id: string; title: string }
   | { type: "level"; level: number; rank: string }
   /** a practice or review set's boss changed (assets/encounter.js) */
