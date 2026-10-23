@@ -48,11 +48,11 @@ export interface Budget {
 /* The caps are what the world measured at each tier (BMMap3D.info() in headless
    Chromium, README "The course world") with room for a state that shows more marks:
    every chapter finished draws a flag, a pole and three stars on each island where an
-   untouched course draws one boss, and the marker is the learner's form (src/world/
-   forms.ts), up to 832 triangles at its last stage. One call each is the selected
+   untouched course draws one boss, and the marker is the Mochi buoy (src/world/
+   marker.ts, 304 triangles). One call each is the selected
    chapter's prerequisite links (src/world/links.ts), a line mesh that adds no triangles. */
 export const TIERS: Readonly<Record<Quality, Readonly<Budget>>> = {
-  low: { dpr: 1, pixels: 1.2e6, calls: 11, triangles: 9500, detail: 0, ambient: false, antialias: false, bloom: false },
+  low: { dpr: 1, pixels: 1.2e6, calls: 11, triangles: 9000, detail: 0, ambient: false, antialias: false, bloom: false },
   medium: { dpr: 1.5, pixels: 2.1e6, calls: 13, triangles: 11000, detail: 1, ambient: true, antialias: true, bloom: false },
   high: { dpr: 2, pixels: 4.2e6, calls: 13, triangles: 14000, detail: 2, ambient: true, antialias: true, bloom: true }
 };
