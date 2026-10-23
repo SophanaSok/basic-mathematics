@@ -49,3 +49,5 @@ A character with a face reads as company; the form, a figure without one, does n
 ## Status
 
 Decided 2026-10-19. M-1 to M-6 shipped 2026-10-19 (PRs #252 to #259); M-7 is this record.
+
+0015 (2026-10-23): the form no longer keeps the progress page, the toast or the popover; Mochi's pool takes them, and clicking Mochi opens it.
