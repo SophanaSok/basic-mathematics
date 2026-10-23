@@ -70,11 +70,6 @@ import "../ui/hud-pop.ts";
 import "../../assets/config.js";
 import "../../assets/account.js";
 import "../world/tiers.ts";
-/* the pure modules map3d.js reads the worn form from */
-import "../data/forms.ts";
-import "../core/forms.ts";
-/* records a new form and says so on every page: see the header of ../ui/form-unlock.ts */
-import "../ui/form-unlock.ts";
 import "../../assets/map3d.js";
 /* the contents page's List / Map control, drawn once the scripts above have run */
 import "../ui/hub-mode.ts";

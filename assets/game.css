@@ -149,13 +149,6 @@ html[data-calm] .hud-sound { opacity: .5; cursor: not-allowed; }
 .hud-pop .pop-line { color: var(--hud-muted); }
 .hud-pop .pop-bar { display: block; height: 6px; margin: 0 0 .55rem; border-radius: 3px; background: var(--hud-track); overflow: hidden; }
 .hud-pop .pop-bar i { display: block; height: 100%; border-radius: 3px; background: var(--hud-xp); }
-.hud-pop .pop-form { display: flex; align-items: center; gap: .6rem; margin: 0 0 .4rem; }
-.hud-pop .pop-form p { margin: 0; }
-.hud-pop-form {
-  flex: none; display: block; width: 3rem; height: 3.75rem;
-  background-repeat: no-repeat; background-size: 600% 100%; background-position: 0 0;
-}
-@media (forced-colors: active) { .hud-pop-form { display: none; } }
 .hud-pop .pop-link { display: flex; justify-content: center; align-items: center; width: 100%; margin-top: .6rem; box-sizing: border-box; }
 
 /* -------------------------------------------------- the settings sheet --- */
@@ -757,25 +750,25 @@ html[data-bossbar] .toasts { top: calc(var(--hud-h) + 2.75rem + .75rem); }
 }
 /* achievement and level cards: a badge, a title, a line */
 /* achievement and level cards: a gold badge drawn beside kicker, title, line */
-.toast.ach, .toast.level, .toast.form {
+.toast.ach, .toast.level {
   display: grid; grid-template-columns: 3rem minmax(0, 1fr); column-gap: .8rem; align-items: start;
   max-width: min(26rem, 100%); padding: .75rem 1.05rem .75rem .75rem;
 }
-.toast.ach, .toast.form { border-color: var(--hud-xp); }
-.toast.ach::before, .toast.level::before, .toast.form::before {
+.toast.ach { border-color: var(--hud-xp); }
+.toast.ach::before, .toast.level::before {
   content: ""; grid-column: 1; grid-row: 1 / span 4; width: 3rem; height: 3rem; align-self: center;
   border-radius: var(--radius-xs); background: var(--hud-xp);
   box-shadow: 0 3px 0 color-mix(in srgb, var(--hud-xp) 50%, var(--ink-shadow));
 }
-.toast.ach::after, .toast.level::after, .toast.form::after {
+.toast.ach::after, .toast.level::after {
   content: ""; grid-column: 1; grid-row: 1 / span 4; justify-self: center; align-self: center;
   width: 1.6rem; height: 1.6rem; background: var(--on-xp);
   -webkit-mask: var(--icon-star) center / contain no-repeat; mask: var(--icon-star) center / contain no-repeat;
 }
 .toast.level::after { transform: rotate(-90deg); -webkit-mask-image: var(--icon-next); mask-image: var(--icon-next); }
-.toast.ach > *, .toast.level > *, .toast.form > * { grid-column: 2; }
+.toast.ach > *, .toast.level > * { grid-column: 2; }
 .toast-kicker { display: block; font: 700 .7rem/1.3 var(--display); text-transform: uppercase; letter-spacing: .08em; color: var(--hud-muted); }
-.toast.ach > b, .toast.level > b, .toast.form > b, .toast-title { display: block; font: 700 1.05rem/1.25 var(--display); color: var(--hud-text); }
+.toast.ach > b, .toast.level > b, .toast-title { display: block; font: 700 1.05rem/1.25 var(--display); color: var(--hud-text); }
 .toast-text, .toast-more { display: block; font-size: .84rem; color: var(--hud-muted); }
 .toast-more { font-style: italic; }
 
@@ -911,8 +904,6 @@ html[data-motion="reduce"] *, html[data-motion="reduce"] *::before, html[data-mo
   .ex-hint[data-prev] { border-left-color: var(--text); }
   .banner-stat, .encounter-wards li, .encounter-result .stat { border-color: var(--text); }
   .hud-xptext, .hud-streak, .toast-text { color: var(--hud-text); }
-  /* the viewer's vignette ends on --border-strong, which more-contrast maps to --text: keep it flat */
-  .form-view, .form-dialog-box { background: var(--surface-2); }
 }
 @media (forced-colors: active) {
   /* the count-up overlay cannot be drawn over transparent text here; the real number shows */
@@ -1028,15 +1019,7 @@ html[data-motion="reduce"] *, html[data-motion="reduce"] *::before, html[data-mo
   html:not([data-calm]):not([data-motion="reduce"]) :not([data-map="3d"]) > .part .stop[data-state="current"] .stop-node { animation: here 700ms ease-in-out 3; }
   html:not([data-calm]):not([data-motion="reduce"]) .ring { animation: ring-in 600ms var(--ease-out) both; }
 
-  /* the evolution moment on the progress page (src/ui/forms.ts): a ring widens under the
-     figure, a flash covers the view, the new form grows in; each once */
-  html:not([data-calm]):not([data-motion="reduce"]) .form-view.is-anticipating::after { animation: form-ring 700ms var(--ease-out) both; }
-  html:not([data-calm]):not([data-motion="reduce"]) .form-flash { animation: form-flash 500ms ease-in-out both; }
-  html:not([data-calm]):not([data-motion="reduce"]) .form-view.is-revealing .form-canvas,
-  html:not([data-calm]):not([data-motion="reduce"]) .form-view.is-revealing .form-fallback { animation: form-grow 700ms var(--ease-out) both; }
-
-  /* the companion: a new form flourishes once, the bubble arrives (a pose swap is a cut) */
-  html:not([data-calm]):not([data-motion="reduce"]) .companion.is-evolving .companion-pic { animation: pop 900ms var(--ease-spring); filter: drop-shadow(0 0 .6rem var(--hud-xp)); }
+  /* the companion: the bubble arrives (a pose swap is a cut) */
   html:not([data-calm]):not([data-motion="reduce"]) .companion-line:not(:empty) { animation: fade 220ms ease-out both; }
 
   /* toasts */
@@ -1128,114 +1111,6 @@ html[data-motion="reduce"] *, html[data-motion="reduce"] *::before, html[data-mo
     0%, 100% { box-shadow: 0 0 0 6px var(--bg), 0 0 0 9px var(--part-soft); }
     50% { box-shadow: 0 0 0 6px var(--bg), 0 0 0 13px var(--part-soft); }
   }
-  @keyframes form-ring { from { transform: translateX(-50%) scale(.4); opacity: .9; } to { transform: translateX(-50%) scale(1.5); opacity: 0; } }
-  @keyframes form-flash { 0%, 100% { opacity: 0; } 50% { opacity: .9; } }
-  @keyframes form-grow { from { transform: scale(.6); } to { transform: scale(1); } }
   @keyframes toast-in { from { opacity: 0; transform: translateY(-12px); } to { opacity: 1; transform: none; } }
   @keyframes toast-out { to { opacity: 0; transform: translateY(8px); } }
-}
-
-/* ================================================================ your form === */
-/* The progress page's "Your form" panel (src/ui/forms.ts, with the 3D view of
-   src/ui/form-view.ts): the view on the left, the form's name and next step on the right,
-   the path of five forms below. The view box keeps its 4:5 shape whether it holds the
-   canvas or the card that stands in for it, so nothing moves when the canvas arrives. No
-   animation. */
-
-.form-slot { display: block; margin-top: 1rem; max-width: none; }
-.form-slot:empty { display: none; }
-.form-panel { margin-bottom: 1.4rem; }
-.form-body { display: grid; grid-template-columns: minmax(0, 300px) minmax(0, 1fr); gap: 1.2rem 1.6rem; align-items: start; }
-.form-view, .form-dialog-box {
-  position: relative; box-sizing: border-box; width: 100%; max-width: 100%; aspect-ratio: 4 / 5;
-  background: radial-gradient(ellipse 72% 62% at 50% 44%, var(--surface-2), var(--border-strong)); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden;
-}
-.form-view .form-canvas, .form-dialog-box .form-canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
-.form-fallback {
-  position: absolute; inset: 14%; display: flex; align-items: center; justify-content: center;
-  background: var(--part-soft); border: 3px solid var(--part-frame); border-radius: var(--radius);
-  color: var(--part-deep); font-family: var(--sans);
-}
-.form-fallback b { font-size: clamp(3rem, 22vw, 5.5rem); line-height: 1; font-weight: 800; }
-.form-view[data-state="3d"] .form-fallback, .form-dialog-box[data-state="3d"] .form-fallback { display: none; }
-.form-info > * { margin-top: 0; }
-.form-info p { margin: 0 0 .7rem; }
-.form-name { font-size: 1.25rem; }
-.form-name .muted { font-size: .9rem; font-weight: 400; }
-.form-meter { display: block; margin: 0 0 .9rem; }
-.form-counts { margin: 0 0 .9rem; }
-.form-counts summary { cursor: pointer; font-weight: 600; }
-.form-counts ul { margin: .5rem 0 0; padding-left: 1.2rem; }
-.form-counts li { margin: .15rem 0; font-size: .95rem; }
-.form-probe { position: absolute; width: 0; height: 0; overflow: hidden; visibility: hidden; }
-
-.form-path {
-  list-style: none; margin: 1.3rem 0 0; padding: 0; display: grid; gap: .7rem;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
-}
-.form-tile {
-  display: flex; flex-direction: column; align-items: center; gap: .3rem; padding: .6rem .4rem .7rem;
-  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm);
-  text-align: center; min-width: 0;
-}
-.form-tile[data-state="equipped"] { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
-.form-tile[data-state="locked"] { background: var(--surface-2); color: var(--muted); }
-.form-tile[data-locked] .form-pic img { opacity: .35; filter: grayscale(1); }
-.form-pic {
-  display: flex; align-items: center; justify-content: center; width: 100%; max-width: 96px; aspect-ratio: 4 / 5;
-  background: var(--surface-2); border-radius: var(--radius-xs); overflow: hidden;
-}
-.form-pic img { display: block; width: 100%; height: 100%; object-fit: contain; }
-.form-pic img[hidden], .form-pip[hidden] { display: none; }
-.form-pip {
-  display: inline-flex; align-items: center; justify-content: center; width: 2rem; height: 2rem; border-radius: 50%;
-  border: 2px solid var(--border-strong); font-family: var(--sans); font-size: 1rem;
-}
-.form-tile-name { font-size: 1rem; }
-.form-tile-level { display: inline-flex; align-items: center; gap: .3rem; font-size: .85rem; color: var(--muted); }
-.form-lock, svg.icon.form-lock { flex: none; width: 14px; height: 14px; }
-.form-tile-tag { font-size: .75rem; font-weight: 600; color: var(--muted); min-height: 1em; }
-.form-tile-tag:empty { display: none; }
-.form-view.is-anticipating::after {
-  content: ""; position: absolute; left: 50%; bottom: 10%; width: 60%; aspect-ratio: 3 / 1; border-radius: 50%;
-  border: 3px solid var(--accent); transform: translateX(-50%); pointer-events: none;
-}
-.form-flash { position: absolute; inset: 0; z-index: 2; background: var(--surface); opacity: 0; pointer-events: none; }
-.form-seq { margin: 0 0 .9rem; }
-.form-seq:empty { display: none; }
-.form-caption { margin: 0 0 .6rem; font-weight: 600; }
-.form-equip[hidden] { display: none; }
-
-.form-dialog {
-  width: min(26rem, calc(100vw - 32px)); max-width: 26rem; max-height: min(92vh, 44rem); overflow-y: auto;
-  box-sizing: border-box; padding: 1rem 1.25rem 1.1rem; background: var(--surface); color: var(--text);
-  border: 1px solid var(--border); border-radius: var(--radius);
-}
-.form-dialog::backdrop { background: var(--scrim-glass); }
-.form-dialog h2 { margin: 0 0 .7rem; font-size: 1.25rem; }
-.form-dialog [data-form-close] { margin-top: 1rem; }
-
-/* the turnable stage over the canvas (src/ui/form-orbit.ts): a vertical swipe still scrolls
-   the page in the panel, and belongs to the form in the dialog */
-.form-stage { position: absolute; inset: 0; touch-action: pan-y; cursor: grab; user-select: none; outline: none; }
-.form-stage:focus-visible { box-shadow: inset 0 0 0 var(--focus-width) var(--focus); }
-.form-stage[data-drag] { cursor: grabbing; }
-/* the thin bar of the model's download (src/ui/form-view.ts sets the inner width), shown only
-   while the model loads; no animation */
-.form-left { min-width: 0; }
-.form-load { position: absolute; left: 14%; right: 14%; bottom: 8%; height: 4px; background: var(--border); border-radius: 2px; }
-.form-load > span { display: block; height: 100%; width: 0; background: var(--accent); border-radius: 2px; }
-.form-view:not([data-model="loading"]) .form-load, .form-dialog-box:not([data-model="loading"]) .form-load { display: none; }
-.form-dialog-box .form-stage { touch-action: none; }
-/* The emote buttons under the form's view (src/ui/form-emotes.ts): a row of ghost buttons;
-   the one whose clip is playing shows as pressed. No motion of their own. */
-.form-emotes { display: flex; flex-wrap: wrap; gap: .4rem; margin: .6rem 0 0; }
-.form-emotes [data-playing] { border-color: var(--accent); color: var(--accent); background: var(--surface-2); }
-.form-emotes[hidden] { display: none; }
-.form-emotes [aria-disabled="true"] { opacity: .55; cursor: default; }
-
-@media (max-width: 600px) {
-  .form-body { grid-template-columns: minmax(0, 1fr); }
-  .form-view { max-width: min(300px, 100%); margin: 0 auto; }
-  .form-path { grid-template-columns: repeat(auto-fill, minmax(8.5rem, 1fr)); }
 }

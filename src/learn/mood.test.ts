@@ -6,7 +6,7 @@ import {
   type Mood, type MoodInput, type MoodMemory, type Recent
 } from "./mood.ts";
 
-const base: MoodInput = { day: "2026-10-19", lastActiveDay: "2026-10-19", todayXp: 0, goal: 50, due: null, comboMax: 5, formName: "Pip", calm: false };
+const base: MoodInput = { day: "2026-10-19", lastActiveDay: "2026-10-19", todayXp: 0, goal: 50, due: null, comboMax: 5, calm: false };
 const inp = (x?: Partial<MoodInput>): MoodInput => Object.assign({}, base, x || {});
 const go = (r: Recent, x?: Partial<MoodInput>, m: MoodMemory = EMPTY_MEMORY) => react(m, r, inp(x));
 const rx = (r: Recent, x?: Partial<MoodInput>) => go(r, x).reaction;
@@ -176,7 +176,7 @@ describe("react", () => {
       { type: "opened" }, { type: "ladder" }, { type: "twin" }, { type: "xp", goalMet: true },
       { type: "combo", pips: 5, why: "max" }, enc("down", 1), enc("ward", 1), enc("heart", 1), enc("x", 0),
       enc("", 2, true, "s9", "active"), { type: "chapterDone", fresh: true },
-      { type: "level", level: 2 }, { type: "achievement", title: "t" }, { type: "form", from: "A", to: "B" },
+      { type: "level", level: 2 }, { type: "achievement", title: "t" },
       { type: "arena", phase: "start" }, { type: "arena", phase: "end" }, { type: "arena", phase: "answer", correct: true }
     ];
     const due = { ref: "r", title: "T", href: "h" };
@@ -194,7 +194,6 @@ describe("react", () => {
     const hold = (r: Recent) => rx(r)!.steps.reduce((n, s) => n + s.ms, 0);
     expect(hold({ type: "chapterDone", fresh: true })).toBe(LONG_HOLD_MS);
     expect(hold({ type: "level", level: 2 })).toBe(LONG_HOLD_MS);
-    expect(hold({ type: "form", from: "A", to: "B" })).toBe(LONG_HOLD_MS);
     expect(hold(att("k", true, 1))).toBe(HOLD_MS);
   });
   it("solved says nothing, so it cannot cut the attempt's reaction short", () => {
@@ -241,10 +240,9 @@ describe("react", () => {
     expect(rx({ type: "chapterDone", fresh: true })).toEqual(R([["excited", LONG_HOLD_MS]], "Chapter done!", "chapter"));
     expect(rx({ type: "chapterDone", fresh: false })).toBeNull();
   });
-  it("level, achievement, form", () => {
+  it("level, achievement", () => {
     expect(rx({ type: "level", level: 7 })).toEqual(R([["excited", LONG_HOLD_MS]], "Level 7.", "level"));
     expect(rx({ type: "achievement", title: "Big" })).toEqual(R([["happy", SHORT_MS]], null, null));
-    expect(rx({ type: "form", from: "Pip", to: "Sprig" })).toEqual(R([["excited", LONG_HOLD_MS]], "Pip became Sprig!", "form"));
   });
   it("calm is always null and keeps the memory", () => {
     const m = mem({ misses: { k: 1 } });
@@ -256,14 +254,13 @@ describe("react", () => {
   it("no caption mentions the streak", () => {
     const due = { ref: "r", title: "T", href: "h" };
     const lines: (string | null)[] = [
-      arrival(inp({ due })).line, arrival(inp({ lastActiveDay: "2026-01-01" })).line, introLine("Pip"),
+      arrival(inp({ due })).line, arrival(inp({ lastActiveDay: "2026-01-01" })).line, introLine(),
       rx(att("k", true, 1))?.line ?? null,
       rx({ type: "xp", goalMet: true })?.line ?? null,
       rx(enc("down", 1))?.line ?? null,
       rx(enc("x", 0))?.line ?? null,
       rx({ type: "chapterDone", fresh: true })?.line ?? null,
       rx({ type: "level", level: 3 })?.line ?? null,
-      rx({ type: "form", from: "A", to: "B" })?.line ?? null,
       go(att("k", false), {}, mem({ misses: { k: 1 } })).reaction?.line ?? null
     ];
     for (const l of lines) if (l) expect(l.toLowerCase()).not.toContain("streak");
@@ -370,7 +367,7 @@ describe("constants and intro", () => {
     expect(new Set(MOODS).size).toBe(9);
   });
   it("introLine names Mochi", () => {
-    expect(introLine("Pip")).toBe("This is Mochi, your companion. It keeps you company while you work.");
+    expect(introLine()).toBe("This is Mochi, your companion. It keeps you company while you work.");
   });
 });
 

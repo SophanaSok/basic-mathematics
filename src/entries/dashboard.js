@@ -8,13 +8,9 @@ import "../../data/curriculum.js";
 import "../../data/quest.js";
 import "../ui/chart.ts";
 import "../../assets/widgets.js";
-/* Three.js's loader (the "Your form" view asks for it when it nears the screen), the
-   quality tiers it draws at, and the forms' data and stage logic: the pure modules first */
+/* Three.js's loader and the quality tiers it draws at: the pure modules first */
 import "../../assets/three-loader.js";
 import "../world/tiers.ts";
-import "../data/forms.ts";
-import "../data/form-models.ts";
-import "../core/forms.ts";
 /* the spaced-review schedule and the Arena's XP rules, which game.js (and the Arena)
    find on window.BMReview: the pure modules first, then the one that puts them up */
 import "../learn/constants.ts";
@@ -74,17 +70,10 @@ import "../ui/plan.ts";
 import "../data/exercise-keys.ts";
 import "../ui/exercise-keys.ts";
 import "../../assets/insights.js";
-/* the "Your form" panel insights.js leaves a place for: the turning and the emotes of the
-   view (pure logic), the 3D view, then the panel */
-import "../ui/form-orbit.ts";
-import "../ui/form-emotes.ts";
-import "../ui/form-view.ts";
 /* the companion's mood model and handle (window.BMCompanion.input); its sidebar figure mounts only on a chapter
-   page, so here the import only gives the "Your form" panel its mood line. Before forms.ts */
+   page, so here the import only gives the handle */
 import "../learn/mood.ts";
 import "../ui/companion.ts";
-import "../ui/forms.ts";
-import "../ui/form-unlock.ts";
 /* BMNext.items(), which insights.js asks for the empty chart's "Your next steps": mount() finds no
    placeholder on this page, so the import draws nothing. It comes after insights.js (whose first
    draw is already made), which redraws once when it finds BMNext on the page's load */

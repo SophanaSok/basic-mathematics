@@ -3,8 +3,7 @@
 
      - Shows only on a chapter page (body[data-chapter]), after load, when bm.guide.v1 has no
        `seen`, and not while another dialog is open. A learner who already has progress is
-       an existing learner: `seen` is written quietly and nothing shows (the same quiet first
-       visit as form-unlock.ts).
+       an existing learner: `seen` is written quietly and nothing shows (a quiet first visit).
      - Skip, Done and Escape all close it and write { v: 1, seen: <day key> }. A replay writes
        `replay` and keeps `seen`. The key is this device's only (store.ts), written silent.
      - Where a card names a part of the bar, that part wears data-guide-spot while the card is

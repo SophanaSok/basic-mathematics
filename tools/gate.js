@@ -41,7 +41,6 @@ const WEBGL_PATHS = [
   "tools/suites/webgl.js",       // the webgl suite
   "tools/game/scenes.test.js",   // 3D script
   "tools/game/map.test.js",      // 3D script
-  "tools/game/forms.test.js",    // 3D script
   "tools/game/hub.test.js",      // 3D script: the contents page's views, selection and search, with the world drawn
   "assets/map3d.js",             // the course world's controller
   "assets/map3d.css",            // the stage's sizing and the plates the map tests measure
@@ -53,8 +52,6 @@ const WEBGL_PATHS = [
   "src/ui/hub-select.ts",        // the selection the world starts on
   "src/ui/hub-search.ts",        // the search that hides cards the world mirrors
   "src/entries/home.js",         // what the contents page loads, and in which order
-  "src/model/",                  // the loader and look the forms script uses
-  "src/ui/form-view.ts",         // the view that draws a form in the page
   "src/vendor/",                 // three.js, three-model.js and three-post.js are vendored here
   "assets/three-loader.js",      // how the pages load three.js
   "src/mochi/",                  // the Mochi companion's renderer and loader

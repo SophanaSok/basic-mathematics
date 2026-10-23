@@ -26,7 +26,6 @@
        focused field, sleepy and then sleeping after a quiet minute; input wakes it (wake). One
        timer, set from nextIdleAt, no polling. An answer within FAST_MS of the field's focus
        is a surprise (the attempt carries elapsedMs).
-     - A new form adds is-evolving for 900 ms; the flourish is CSS, under the motion rules.
      - On a phone-sized screen the sprite steps aside while an exercise field has focus.
    Never writes anything but run.seen.companion. window.BMCompanion is a test handle. */
 
@@ -34,14 +33,11 @@ import { arrival, react, introLine, idleMood, nextIdleAt, wake, MOODS, HOLD_MS, 
 import type { Mood, MoodInput, MoodMemory, Throttle, Reaction, Recent, Step } from "../learn/mood.ts";
 import { dueSplit } from "../learn/review.ts";
 import { ARENA_SECTIONS } from "../data/arena-sections.ts";
-import { FORMS } from "../data/forms.ts";
-import { worn } from "../core/forms.ts";
 import { detectTier, readProbe, pixelRatio, TIERS } from "../world/tiers.ts";
 import type { MochiStage } from "../mochi/index.ts";
 
-const EVOLVE_MS = 900;
 /* lines that wait for a quiet moment rather than being dropped (one slot, the latest wins) */
-const WAITS = ["due", "back", "form", "chapter", "regroup", "goal", "level", "boss", "stuck", "arena-end"];
+const WAITS = ["due", "back", "chapter", "regroup", "goal", "level", "boss", "stuck", "arena-end"];
 /* said on the page only, never to the live region: at load the region belongs to the page's own
    first words (the exercise count, the chapter's banner), and one message there holds the next
    back for seconds (assets/game.js announce); these are also on the page elsewhere (the Arena says its own result) */
@@ -69,7 +65,7 @@ let lastSent = "";
 let stillTimer = 0;
 let current: Reaction | null = null;
 let pending: Reaction | null = null;
-let clearTimer = 0, evolveTimer = 0, pendingTimer = 0, introTimer = 0, stepTimer = 0, idleTimer = 0;
+let clearTimer = 0, pendingTimer = 0, introTimer = 0, stepTimer = 0, idleTimer = 0;
 let listening = false;
 let shownLine = "";
 /* the steps in progress, the next to play, and whether any is */
@@ -88,17 +84,6 @@ let focusAt = 0;
 let focusForm: Element | null = null;
 
 function w(): any { return window as any; }
-
-function formName(): string {
-  try {
-    const G = w().BMGame;
-    const n = worn(G.game().form, G.info().xp);
-    return FORMS[n - 1] ? FORMS[n - 1].name : FORMS[0].name;
-  } catch { return FORMS[0].name; }
-}
-function stageNo(): number {
-  try { const G = w().BMGame; return worn(G.game().form, G.info().xp); } catch { return 1; }
-}
 
 function prefs(): any { try { return w().BMGame.prefs() || {}; } catch { return {}; } }
 function calm(): boolean {
@@ -161,7 +146,7 @@ function input(withDue: boolean): MoodInput {
       if (n) due = { ref: first.id, title: n.text, href: n.href };
     }
   } catch { /* no review data */ }
-  return { day, lastActiveDay, todayXp, goal, due, comboMax: 5, formName: formName(), calm: calm() };
+  return { day, lastActiveDay, todayXp, goal, due, comboMax: 5, calm: calm() };
 }
 
 function variantOf(): string { return prefs().mochi === "lilac" ? "lilac" : "pink"; }
@@ -353,13 +338,6 @@ function show(r: Reaction, now: number): void {
   play(r.steps);
 }
 
-function evolve(): void {
-  if (!fig) return;
-  fig.classList.add("is-evolving");
-  window.clearTimeout(evolveTimer);
-  evolveTimer = window.setTimeout(() => { if (fig) fig.classList.remove("is-evolving"); }, EVOLVE_MS);
-}
-
 function flushPending(): void {
   pendingTimer = 0;
   if (!pending || !fig) return;
@@ -422,18 +400,9 @@ function toRecent(c: any): Recent | null {
       if (phase !== "start" && phase !== "answer" && phase !== "end") return null;
       return { type: "arena", phase, correct: !!c.correct, pass: !!c.pass, timeout: !!c.timeout };
     }
-    case "form": {
-      /* only a stage the learner now wears, reached live: a quiet settle (load, sync, reset)
-         or a new stage behind a pinned lower one changes the sprite without a word */
-      if (!Array.isArray(c.fresh) || !c.fresh.length || c.quiet) return null;
-      const from = shownFrom, to = formName();
-      return from === to ? null : { type: "form", from, to };
-    }
   }
   return null;
 }
-
-let shownFrom = "";
 
 function onChange(c: any): void {
   if (!c || typeof c.type !== "string") return;
@@ -441,18 +410,15 @@ function onChange(c: any): void {
   /* another state altogether: the mood is derived again from it (the intro stays seen) */
   if (c.type === "reset" || c.type === "sync") { if (fig) unbuild(); evaluate(); return; }
   if (!fig) return;
-  /* built before the sprite is redrawn: a new stage's "from" is the name shown until now */
   /* a nudge never arrives after the learner has answered */
   if ((c.type === "solved" || (c.type === "attempt" && c.correct)) && pending && pending.key === "stuck") pending = null;
   const rc = toRecent(c);
-  if (c.type === "form") shownFrom = formName();
   if (!rc) return;
   const input_ = input(false);
   if (input_.calm) return;
   const out = react(memory, rc, input_);
   memory = out.memory;
   if (out.reaction) {
-    if (c.type === "form") evolve();
     apply(out.reaction, WEAK.indexOf(c.type) > -1);
   }
   /* the verdict's own feedback has the next moments: a line from what follows waits or is dropped;
@@ -502,7 +468,6 @@ function build(): void {
   side.appendChild(fig);
   mood = "idle"; variant = "";
   lastInput = Date.now(); focusAt = 0; focusForm = null;
-  shownFrom = formName();
   drawSprite();   /* a new variant starts the 3D figure (maybe3d) */
   if (import.meta.env.DEV && new URLSearchParams(location.search).get("mochi") === "qa") {
     import("../mochi/qa.ts").then((m) => m.mountQa(api)).catch(() => { /* a dev aid */ });
@@ -510,7 +475,7 @@ function build(): void {
 }
 
 function unbuild(): void {
-  window.clearTimeout(clearTimer); window.clearTimeout(evolveTimer);
+  window.clearTimeout(clearTimer);
   window.clearTimeout(pendingTimer); window.clearTimeout(introTimer); window.clearTimeout(stepTimer); window.clearTimeout(idleTimer);
   stepTimer = 0; idleTimer = 0; clearTimer = 0; playing = false; queue = []; qi = 0;
   pendingTimer = 0; pending = null;
@@ -524,7 +489,7 @@ function intro(): void {
   let seen: any = null;
   try { seen = G.run().seen; } catch { return; }
   if (!seen || seen.companion) return;
-  const line = introLine(formName());
+  const line = introLine();
   const r: Reaction = { steps: [{ mood: "idle", ms: HOLD_MS }], line, key: "intro", href: null };
   show(r, Date.now());
   try { G.updateRun((run: any) => { run.seen.companion = 1; }); } catch { /* a note */ }
@@ -624,7 +589,7 @@ export const api = {
   variation: (name?: string): boolean => (stage && stageReady ? stage.playIdleVariation(name) : false),
   state: () => ({
     mounted: !!fig, mood, line: shownLine, key: current && shownLine ? current.key : null,
-    pending: pending ? pending.key : null, stage: stageNo()
+    pending: pending ? pending.key : null
   })
 };
 
