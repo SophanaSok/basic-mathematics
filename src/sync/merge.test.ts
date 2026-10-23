@@ -479,12 +479,21 @@ describe("mergeWear", () => {
 });
 
 describe("game.form (no longer a known field)", () => {
-  it("is carried through whole by later, and the three laws hold for the pair", () => {
-    const a = { form: { got: { "1": 9 } } }, b = { form: { got: { "1": 4 } } };
+  it("is carried through whole by later, and the three laws hold", () => {
+    const a = { form: { got: { "1": 9 } } }, b = { form: { got: { "1": 4 } } }, c = { form: "x" };
     const r = mergeGame(a, b);
     expect([canon(a.form), canon(b.form)]).toContain(canon(r.form));
     expect(canon(mergeGame(a, b))).toBe(canon(mergeGame(b, a)));
-    expect(canon(mergeGame(r, a))).toBe(canon(r));
+    expect(canon(mergeGame(mergeGame(a, b), c))).toBe(canon(mergeGame(a, mergeGame(b, c))));
     expect(canon(mergeGame(r, r))).toBe(canon(r));
+    /* absorption: merging the result with one of its inputs changes nothing */
+    expect(canon(mergeGame(r, a))).toBe(canon(r));
+  });
+
+  it("keeps a form held by one side only", () => {
+    expect(mergeGame(a1(), {}).form).toEqual({ got: { "1": 9 } });
+    expect(mergeGame({}, a1()).form).toEqual({ got: { "1": 9 } });
+    expect(Object.prototype.hasOwnProperty.call(mergeGame({}, {}), "form")).toBe(false);
+    function a1() { return { form: { got: { "1": 9 } } }; }
   });
 });
