@@ -53,9 +53,6 @@ import "../learn/seed-entries.ts";
 import "../ui/events.ts";
 import "../../assets/sfx.js";
 import "../../assets/game.js";
-import "../data/forms.ts";
-import "../core/forms.ts";
-import "../ui/form-unlock.ts";
 import "../ui/settings.ts";
 import "../ui/hud-pop.ts";
 /* the skippable reveal of the result screen (window.BMResults), found by arena.js */
@@ -69,7 +66,7 @@ import "../../data/gen/packs.js";
 import "../../assets/arena.js";
 import "../../assets/config.js";
 import "../../assets/account.js";
-/* the form as a 2D companion, docked on the page (window.BMCompanion): the mood model first */
+/* Mochi as a 2D companion, docked on the page (window.BMCompanion): the mood model first */
 import "../learn/mood.ts";
 import "../world/tiers.ts";
 import "../ui/companion.ts";

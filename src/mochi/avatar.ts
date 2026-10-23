@@ -6,7 +6,7 @@
    one crossfade changes the body and the face. While the mood is idle, a variation is blended
    in every few seconds and the mood comes back when it ends; never under reduced motion.
 
-   The Three.js addons come in as `M` (src/vendor/three-model.js, as src/model/ does); nothing
+   The Three.js addons come in as `M` (src/vendor/three-model.js); nothing
    is imported from "three" at run time. Nothing is written to the console: an unknown mood
    returns false. Who calls it: src/mochi/index.ts builds it, src/mochi/stage.ts updates and
    draws it, and the companion (a later card) drives it through the stage.
@@ -16,7 +16,7 @@
    material, map and bone texture, which the loader's cache does not own here. */
 import type { Group, Mesh, Material, Texture, BufferGeometry, SkinnedMesh, AnimationAction, AnimationMixer } from "three";
 import type { GLTF } from "three/examples/jsm/loaders/GLTFLoader.js";
-import type { ThreeModel } from "../model/three.ts";
+import type { ThreeModel } from "./three.ts";
 
 /** An idle variation is a clip named idle_*; every other clip is a looping mood. */
 export const isVariation = (clip: string): boolean => clip.startsWith("idle_");

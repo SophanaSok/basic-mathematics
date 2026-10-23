@@ -9,15 +9,13 @@
      absolutely inside the (sticky) bar, so it takes no room and moves nothing;
    - a small non-modal popover on the level badge: a plain click (or Enter, or Space)
      opens it instead of going to progress.html; it holds level and rank, XP into the
-     level with a bar, the streak, the last 30 days' consistency, the form worn and the
-     next one, and a full-width "Your progress" button (the old destination, one tap away). A modified
+     level with a bar, the streak, the last 30 days' consistency, and a full-width "Your
+     progress" button (the old destination, one tap away). A modified
      click (ctrl, cmd, shift, alt, or the middle button) is the browser's: the link stays a
      link. Escape closes it and gives the focus back to the badge, so does a click
      outside, or Tab out of it.
    The popover is built under the badge in the HUD (so Tab reaches it next) when it opens
    and removed when it closes: nothing of it is in the bar otherwise. */
-
-import { worn, stageOf, nextInfo } from "../core/forms.ts";
 
 const PARTS = ".topbar .hud-level, .topbar .hud-xp, .topbar .hud-streak, .topbar .hud-combo, .topbar .hud-hearts, .topbar .hud-timer";
 const DELAY = 250;
@@ -148,25 +146,8 @@ function openPop(badge: HTMLAnchorElement): void {
   hideTip();
   const v = view();
   if (!v) return;
-  const activity = read("bm.activity.v1"), game = read("bm.game.v1");
-  const form = game && typeof game === "object" ? (game as { form?: unknown }).form : null;
-  const xp = window.BMHud.totalXp(activity);
-  const wearing = stageOf(worn(form, xp));
-  const next = nextInfo(form, xp).next;
+  const activity = read("bm.activity.v1");
   const href = badge.getAttribute("href") || "progress.html";
-
-  /* the worn form's rest pose beside its sentence. Decorative (the sentence names the form),
-     so aria-hidden. Only the pose sheet may load here: the popover opens on every page kind
-     and the other form models are not allowed on them. The URL is built as companion.ts
-     sheetUrl does (duplicated: that module is for chapter pages; mood.ts stays URL-free);
-     POSES[0] is the rest pose, the first of six equal frames. */
-  let root = "";
-  try { root = String(window.BMSite.rootPrefix()); } catch { /* no helper */ }
-  const portrait = el("span", "hud-pop-form");
-  portrait.setAttribute("aria-hidden", "true");
-  portrait.style.backgroundImage = 'url("' + root + "models/forms/form-" + worn(form, xp) + '-poses.webp")';
-  const row = el("div", "pop-form");
-  row.append(portrait, el("p", "pop-line", "Form: " + wearing.name + (next ? ". Next: " + next.name + " at level " + next.level + "." : ". The last form.")));
 
   const box = el("div", "hud-pop");
   box.id = "hud-pop";
@@ -183,8 +164,7 @@ function openPop(badge: HTMLAnchorElement): void {
     el("p", "pop-line", v.into + " of " + v.span + " XP · " + (v.span - v.into) + " XP to level " + (v.level + 1)),
     bars,
     el("p", "pop-line", "Streak: " + plural(v.streak, "day", "days") + ". Today: " + v.today + " of " + v.goal + " XP."),
-    el("p", "pop-line", "Active " + activeDays(activity) + " of the last 30 days"),
-    row
+    el("p", "pop-line", "Active " + activeDays(activity) + " of the last 30 days")
   );
   const more = el("a", "btn pop-link", "Your progress →");
   more.setAttribute("href", href);

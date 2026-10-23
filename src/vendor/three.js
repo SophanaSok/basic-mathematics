@@ -18,7 +18,7 @@ export { Scene, Group, Object3D, Mesh, InstancedMesh, LineSegments, Fog } from "
 export { PerspectiveCamera, OrthographicCamera, Raycaster } from "three";
 export { Color, Vector2, Vector3, Box3, CatmullRomCurve3 } from "three";
 export { BufferGeometry, BufferAttribute, EdgesGeometry } from "three";
-export { BoxGeometry, ConeGeometry, CylinderGeometry, SphereGeometry, TorusGeometry, OctahedronGeometry, TetrahedronGeometry, IcosahedronGeometry, DodecahedronGeometry } from "three";
+export { BoxGeometry, ConeGeometry, CylinderGeometry, SphereGeometry, TorusGeometry, OctahedronGeometry, TetrahedronGeometry, IcosahedronGeometry } from "three";
 export { MeshBasicMaterial, MeshToonMaterial, LineBasicMaterial } from "three";
 export { DataTexture, RedFormat, NearestFilter } from "three";
 export { WebGLRenderTarget, HalfFloatType } from "three";

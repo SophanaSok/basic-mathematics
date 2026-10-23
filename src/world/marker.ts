@@ -1,10 +1,8 @@
 /* The "you are here" marker on the course map: Mochi's buoy, a small axolotl afloat on the
    island (decision 0015). A rounded body over a pale belly, a flat wide head with two dark
    dot eyes, a laterally flat tail curling up, and three gill fans a side.
-
-   It is built the way a baked stage of the learner's form was (src/world/forms.ts, live
-   off): the Kit's own primitives stamped into one toon mesh with vertex colours and one set
-   of ink edges (src/world/batch.ts), everything in the matrices, so two draw calls and
+   It is one baked figure: the Kit's own primitives stamped into one toon mesh with vertex
+   colours and one set of ink edges (src/world/batch.ts), everything in the matrices, so two draw calls and
    nothing that moves; the map's own bob moves the whole marker. Colours are the world's
    palette names (src/world/materials.ts), never literals, so it repaints with the theme.
 

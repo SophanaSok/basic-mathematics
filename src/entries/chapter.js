@@ -81,12 +81,9 @@ import "../learn/seed-entries.ts";
 import "../ui/events.ts";
 import "../../assets/sfx.js";
 import "../../assets/game.js";
-import "../data/forms.ts";
-import "../core/forms.ts";
-import "../ui/form-unlock.ts";
 import "../ui/settings.ts";
 import "../ui/hud-pop.ts";
-/* the form as a 2D companion in the sidebar, drawn from its pose sheet (window.BMCompanion): the mood model first */
+/* Mochi as a 2D companion in the sidebar (window.BMCompanion): the mood model first */
 import "../learn/mood.ts";
 /* the quality tiers the companion draws Mochi at */
 import "../world/tiers.ts";

@@ -72,10 +72,10 @@ const RUNTIME = BUNDLE + "rolldown-runtime.js";
    src/vendor/three.js; supabase-js, which account.js imports when it first wants a
    client (on the account page, or where a session is stored), through
    src/vendor/supabase.js; and the course world, which map3d.js imports once the
-   contents page is to draw it in 3D, and src/ui/form-view.ts imports on the progress page: src/world/index.ts with the modules of src/world/
+   contents page is to draw it in 3D: src/world/index.ts with the modules of src/world/
    it imports (`dir`: those may be in the chunk too, all but one an entry imports, which
-   goes with that entry's chunks); the model viewer, which only src/ui/form-view.ts imports
-   (src/model/index.ts, and the Three.js beside it, src/vendor/three-model.js, which only
+   goes with that entry's chunks); Mochi's stage, which only src/ui/companion.ts imports
+   (src/mochi/index.ts, and the Three.js beside it, src/vendor/three-model.js, which only
    that index imports). `by` is the importer (or a list of them): a page whose entry imports one
    must reach the chunk through the import(), and no page's HTML may name the chunk,
    since only that import() is to fetch it (a signed-out reader on an ordinary page
@@ -86,9 +86,8 @@ const ON_DEMAND = [
   { chunk: BUNDLE + "scenes3d-gl.js", module: "assets/scenes3d-gl.js", by: "assets/scenes3d.js" },
   { chunk: BUNDLE + "three.js", module: vendor.DIR + "/three.js", by: "assets/three-loader.js" },
   { chunk: BUNDLE + "supabase.js", module: vendor.DIR + "/supabase.js", by: "assets/account.js" },
-  { chunk: BUNDLE + "world.js", module: "src/world/index.ts", by: ["assets/map3d.js", "src/ui/form-view.ts"], dir: "src/world/" },
-  { chunk: BUNDLE + "three-model.js", module: vendor.DIR + "/three-model.js", by: ["src/model/index.ts", "src/mochi/index.ts"] },
-  { chunk: BUNDLE + "form-model.js", module: "src/model/index.ts", by: "src/ui/form-view.ts", dir: "src/model/" },
+  { chunk: BUNDLE + "world.js", module: "src/world/index.ts", by: "assets/map3d.js", dir: "src/world/" },
+  { chunk: BUNDLE + "three-model.js", module: vendor.DIR + "/three-model.js", by: "src/mochi/index.ts" },
   { chunk: BUNDLE + "mochi.js", module: "src/mochi/index.ts", by: "src/ui/companion.ts", dir: "src/mochi/" },
   { chunk: BUNDLE + "post.js", module: "src/world/post.ts", by: "assets/map3d.js" },
   { chunk: BUNDLE + "three-post.js", module: vendor.DIR + "/three-post.js", by: "assets/map3d.js" }
@@ -107,8 +106,7 @@ const BLOOM_GZIP_MAX = 15 * 1024;
    import() by nothing else. The arena's and the placement check's own pages keep the checks
    every static chunk gets. The ON_DEMAND checks above are not changed by it. */
 const GENERATORS = { chunk: BUNDLE + "arena-diagnostic.js", module: "data/gen/core.js", by: "src/ui/twin.ts", staticKinds: ["arena", "diagnostic"], twin: ["src/ui/twin.ts", "src/learn/twin.ts"] };
-/* `by` is one importer or a list of them (the course world has two: the map and the
-   "Your form" view), as a list and as words */
+/* `by` is one importer or a list of them, as a list and as words */
 const importers = (d) => [].concat(d.by);
 const importersOf = (d) => importers(d).join(" or ");
 const onDemand = (f) => ON_DEMAND.some(d => d.chunk === f);

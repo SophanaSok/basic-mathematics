@@ -2349,9 +2349,6 @@ async function run() {
           const here = new URL(page.url()).pathname;
           await page.click(".topbar .hud-level");
           await page.waitForSelector(".hud-pop");
-          const portrait = await page.$eval(".hud-pop .hud-pop-form", (e) => ({ bg: e.style.backgroundImage, hidden: e.getAttribute("aria-hidden"), size: getComputedStyle(e).backgroundSize }));
-          check(/models\/forms\/form-2-poses\.webp/.test(portrait.bg) && portrait.hidden === "true", "the popover shows the worn form's pose sheet: " + portrait.bg);
-          eq(portrait.size, "600% 100%", "the portrait shows one of the sheet's six frames");
           /* a toast raised while the popover is open must not paint over it: park the toast on the popover's box */
           await page.evaluate(() => {
             const r = document.querySelector(".hud-pop").getBoundingClientRect();
@@ -2369,11 +2366,10 @@ async function run() {
           check(covered.inPop, "a toast does not paint over the open popover: " + covered.tag);
           await page.waitForTimeout(300);
           const formReqs = await page.evaluate(() => [...new Set(performance.getEntriesByType("resource").map((e) => e.name).filter((u) => /\/models\/forms\//.test(u)).map((u) => u.replace(/^.*\/models\/forms\//, "")))]);
-          eq(formReqs, ["form-2-poses.webp"], "the pose sheet is the only form request on a chapter page");
+          eq(formReqs, [], "nothing under /models/forms/ is requested on a chapter page");
           eq(new URL(page.url()).pathname, here, "a plain click on the badge does not navigate");
           const txt = await page.textContent(".hud-pop");
           check(/Level \d+ · \w+/.test(txt) && /XP to level/.test(txt), "the popover names the level and rank and the XP to level: " + txt);
-          check(/Form: \w+/.test(txt), "the popover names the form: " + txt);
           check(/Active 3 of the last 30 days/.test(txt), "the popover counts the active days");
           eq(await page.getAttribute(".hud-pop a", "href"), "../../progress.html", "the popover links to the progress page");
           await page.keyboard.press("Tab");
@@ -2410,9 +2406,6 @@ async function run() {
           await page.waitForSelector(".topbar .hud-level");
           await page.click(".topbar .hud-level");
           await page.waitForSelector(".hud-pop");
-          const portrait = await page.$eval(".hud-pop .hud-pop-form", (e) => ({ bg: e.style.backgroundImage, hidden: e.getAttribute("aria-hidden"), size: getComputedStyle(e).backgroundSize }));
-          check(/models\/forms\/form-2-poses\.webp/.test(portrait.bg) && portrait.hidden === "true", "a later Part's page: the popover shows the pose sheet: " + portrait.bg);
-          eq(portrait.size, "600% 100%", "a later Part's page: the portrait shows one of six frames");
           eq(errors, [], "no errors with the popover on a later Part's page");
           await context.close();
         }

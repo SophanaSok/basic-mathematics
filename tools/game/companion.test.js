@@ -13,7 +13,6 @@
    7. Study mode hides it; turning it off shows it
    8. the companion preference off hides it; on shows it
    9. at 360 px: fixed, steps aside while an exercise field has focus, clear of the field otherwise
-   10. reduced motion: is-evolving without an animation (a control with motion allowed animates), "Pip became Sprig!"
    11. the quiet window: "Chapter done!" waits in the pending slot, then shows
    12. no page errors in any case
    13. the kill switch (config companion "off") removes it, "on" brings it back
@@ -40,7 +39,7 @@ const CHAPTER = "parts/1-algebra/01-numbers.html";
 const THREE_CHUNK = /\/bundle\/three\.js(?:[?#]|$)/;
 const LINES = {
   intro: "This is Mochi, your companion. It keeps you company while you work.", first: "First try.", again: "Let's look again.",
-  due: "I'd like to look at", back: "Good to see you.", chapter: "Chapter done!", level: "Level 2.", evolve: "Pip became Sprig!", stuck: "There's a clue below."
+  due: "I'd like to look at", back: "Good to see you.", chapter: "Chapter done!", level: "Level 2.", stuck: "There's a clue below."
 };
 let server, browser, fails = 0, passes = 0, cases = 0;
 function check(cond, what) {
@@ -107,7 +106,7 @@ const fig0 = (page) => page.evaluate(() => {
     line: line ? line.textContent : "", links: line ? Array.from(line.querySelectorAll("a")).map((a) => a.getAttribute("href")) : [],
     name: f.querySelector(".companion-name").textContent, label: pic.getAttribute("aria-label"),
     image: f.querySelector(".companion-still").style.backgroundImage, pos: getComputedStyle(f.querySelector(".companion-still")).backgroundPosition,
-    anim: getComputedStyle(pic).animationName, evolving: f.classList.contains("is-evolving"),
+    anim: getComputedStyle(pic).animationName,
     position: getComputedStyle(f).position, hidden: f.hasAttribute("data-hidden"), display: getComputedStyle(f).display
   };
 });
@@ -271,34 +270,6 @@ async function run() {
       check(await until(c.page, () => !document.querySelector("figure[data-companion]").hasAttribute("data-hidden"), null, 2000), "phone: blur shows it again");
       check(!hit(await rect("figure[data-companion]"), await rect(".ex-form input")), "phone: clear of the field after blur");
       await done(c, "phone");
-    }
-    /* 10 */
-    cases++;
-    /* the class lasts 900 ms: the emit and the reads are one synchronous step in the page */
-    const evolveNow = (page) => page.evaluate((a) => {
-      localStorage.setItem("bm.activity.v1", a);
-      window.BMStore.emit({ type: "form", highest: 2, worn: 2, fresh: [2] });
-      const f = document.querySelector("figure[data-companion]"), pic = f.querySelector(".companion-pic");
-      return { evolving: f.classList.contains("is-evolving"), anim: getComputedStyle(pic).animationName, level: window.BMGame.info().level };
-    }, activity({ [TODAY]: 80 }));
-    {
-      const c = await open(seeds({ "bm.prefs.v1": '{"motion":"reduce"}' }), { reducedMotion: "reduce" });
-      const r = await evolveNow(c.page);
-      eq(r.evolving, true, "evolve: is-evolving is added");
-      eq(r.anim, "none", "evolve: no animation under reduced motion");
-      check(r.level >= 3, "evolve: the level is 3 or more: " + r.level);
-      const s = await st(c.page);
-      eq(s.stage, 2, "evolve: the worn stage is 2");
-      check(await lineIs(c.page, LINES.evolve, 4000), "evolve: the line names the change");
-      await done(c, "evolve");
-    }
-    {
-      /* the control: the same step with motion allowed does animate */
-      const c = await open(seeds());
-      const r = await evolveNow(c.page);
-      eq(r.evolving, true, "evolve control: is-evolving is added");
-      check(r.anim !== "none", "evolve control: the flourish animates when motion is allowed: " + r.anim);
-      await done(c, "evolve control");
     }
     /* 11 */
     cases++;

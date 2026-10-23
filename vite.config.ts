@@ -71,11 +71,10 @@ function htmlPages(): Record<string, string> {
    is a chunk under its own name: the WebGL painter (scenes3d.js's dynamic import) is
    bundle/scenes3d-gl.js, supabase-js (account.js's, through src/vendor/supabase.js) is
    bundle/supabase.js, Three.js (three-loader.js's, through src/vendor/three.js) is
-   bundle/three.js, and the course world (map3d.js's and src/ui/form-view.ts's import of src/world/index.ts, with
-   the modules of src/world/ it imports that no entry does) is bundle/world.js, and the model
-   viewer (src/ui/form-view.ts's import of src/model/index.ts, with the modules of src/model/
-   it imports) is bundle/form-model.js, with its Three.js (src/vendor/three-model.js: the GLTF
-   loader, the room environment and more of three's core) as bundle/three-model.js, and Mochi's
+   bundle/three.js, and the course world (map3d.js's import of src/world/index.ts, with
+   the modules of src/world/ it imports that no entry does) is bundle/world.js, and Mochi's
+   Three.js (src/vendor/three-model.js: the GLTF loader and more of
+   three's core) is bundle/three-model.js, and Mochi's
    3D stage (src/ui/companion.ts's import of src/mochi/index.ts, with its modules) is bundle/mochi.js. The typed
    grader's modules (src/core/answer/, which src/ui/core.ts imports) are named by no
    entry: each goes where src/core/grade.ts goes, which every entry imports, so all.js,
@@ -95,7 +94,7 @@ function htmlPages(): Record<string, string> {
    This is the split rolldown makes on its own; what it adds is the names.
    tools/check-dist.js reads the same sources and holds every chunk and stylesheet in
    dist to the name its contents call for. */
-const WORLD_DIR = "src/world/", MODEL_DIR = "src/model/", MOCHI_DIR = "src/mochi/";
+const WORLD_DIR = "src/world/", MOCHI_DIR = "src/mochi/";
 const GRADER = "src/core/grade.ts", GRADER_DIR = "src/core/answer/";
 function bundleNames(): (id: string) => string | null {
   const kinds = Object.keys(PAGE_KINDS) as (keyof typeof PAGE_KINDS)[];
@@ -117,7 +116,6 @@ function bundleNames(): (id: string) => string | null {
     if (/^assets\/[^/]+\.js$/.test(rel)) return path.posix.basename(rel, ".js");   /* a dynamic import of a script's own */
     if (rel === WORLD_DIR + "post.ts") return "post";                               /* the bloom, map3d.js's import(): a chunk of its own, apart from the world */
     if (rel.startsWith(WORLD_DIR)) return "world";                                  /* the course world, map3d.js's import() */
-    if (rel.startsWith(MODEL_DIR)) return "form-model";                             /* the model viewer, form-view.ts's import() */
     if (rel.startsWith(MOCHI_DIR)) return "mochi";                                  /* Mochi's 3D stage, the companion's import() */
     /* the grader's modules, with grade.ts: after `by`, so one an entry named itself would
        go by that entry (tools/check-dist.js kindsLoading reads them in the same order) */

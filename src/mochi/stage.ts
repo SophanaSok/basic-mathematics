@@ -1,5 +1,5 @@
 /* Mochi's stage: the renderer, camera, frame loop and observers around an avatar
-   (src/mochi/avatar.ts). It follows src/ui/form-view.ts: a transparent canvas appended to a
+   (src/mochi/avatar.ts). It draws a transparent canvas appended to a
    host element, drawn only while the host is on screen (an IntersectionObserver with a
    120 px margin), the page is visible and the stage is not disposed; dt capped at 100 ms;
    a lost graphics context disposes the stage (the caller then shows its still image).

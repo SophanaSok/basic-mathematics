@@ -42,8 +42,6 @@ export interface MoodInput {
   due: { ref: string; title: string; href: string } | null;
   /** the combo meter's pip cap */
   comboMax: number;
-  /** the worn form's name, e.g. "Pip" */
-  formName: string;
   /** Study mode: the companion is hidden; arrival() returns content with no line and react() returns null */
   calm: boolean;
 }
@@ -62,7 +60,6 @@ export type Recent =
   | { type: "chapterDone"; fresh: boolean }
   | { type: "level"; level: number }
   | { type: "achievement"; title: string }
-  | { type: "form"; from: string; to: string }
   | { type: "arena"; phase: "start" | "answer" | "end"; correct?: boolean; pass?: boolean; timeout?: boolean };
 
 export interface Reaction {
@@ -116,12 +113,12 @@ export function daysBetween(a: string, b: string): number {
   return Math.round((at(b) - at(a)) / 86400000);
 }
 
-export function introLine(_formName: string): string {
+export function introLine(): string {
   return "This is Mochi, your companion. It keeps you company while you work.";
 }
 
 /** lines that wait for a quiet moment hold longest */
-const LONG_KEYS = ["due", "back", "form", "chapter", "regroup", "goal", "level", "boss", "stuck", "arena-end"];
+const LONG_KEYS = ["due", "back", "chapter", "regroup", "goal", "level", "boss", "stuck", "arena-end"];
 
 function make(steps: readonly Step[], line: string | null, key: string | null, href: string | null): Reaction {
   return { steps, line, key, href };
@@ -255,8 +252,6 @@ export function react(memory: MoodMemory, recent: Recent, input: MoodInput): Out
         return say([st(gladOf(m), SHORT_MS)], null, null, m);
       }
       return say([st("thinking", SHORT_MS)], null, null, recent.phase === "answer" ? missed() : memory);
-    case "form":
-      return say([st("excited", LONG_HOLD_MS)], recent.from + " became " + recent.to + "!", "form");
   }
   const _never: never = recent;
   return _never;
