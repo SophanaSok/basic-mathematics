@@ -116,7 +116,7 @@ describe("each tier's budget", () => {
 });
 
 describe("the Mochi buoy", () => {
-  it("is two draws, small, repainted with the palette, and falls back to accent for an unknown Part", () => {
+  it("is two draws, small, repainted with the palette, and falls back to paper for an unknown Part", () => {
     const mats = makeMaterials(T);
     const pal = palette();
     const buoy = buildMarker(T, mats, pal, "algebra");
@@ -126,15 +126,15 @@ describe("the Mochi buoy", () => {
     expect(buoy.height).toBeLessThan(0.7);
     const col = (buoy.group.children[0] as THREE.Mesh).geometry.attributes.color;
     const rgb = (i: number) => [col.getX(i), col.getY(i), col.getZ(i)];
-    /* the body is stamped first: its first vertex is the Part's hue */
-    expect(rgb(0)[0]).toBeCloseTo(pal.get("part:algebra")!.r, 5);
+    /* the body is stamped first: its first vertex is the Part's soft tint */
+    expect(rgb(0)[0]).toBeCloseTo(pal.get("soft:algebra")!.r, 5);
     const pal2: PaletteMap = new Map(pal);
-    pal2.set("part:algebra", new THREE.Color(0.01, 0.02, 0.03));
+    pal2.set("soft:algebra", new THREE.Color(0.01, 0.02, 0.03));
     buoy.paint(pal2);
     expect(rgb(0)[0]).toBeCloseTo(0.01, 5);
     const stray = buildMarker(T, mats, pal, "no-such-part");
     const col2 = (stray.group.children[0] as THREE.Mesh).geometry.attributes.color;
-    expect(col2.getX(0)).toBeCloseTo(pal.get("accent")!.r, 5);
+    expect(col2.getX(0)).toBeCloseTo(pal.get("paper")!.r, 5);
     buoy.dispose();
     stray.dispose();
     mats.dispose();

@@ -8,9 +8,11 @@
    nothing that moves; the map's own bob moves the whole marker. Colours are the world's
    palette names (src/world/materials.ts), never literals, so it repaints with the theme.
 
-   It is Part-hued so the marker says which Part the learner is in at a glance: the body is
-   the Part's hue (`part:<part>`, else `accent` where the palette lacks it), the belly its
-   soft tint, the gill fans its deep tone. The buoy floats with its belly at y = 0, facing
+   It is Part-tinted so the marker says which Part the learner is in at a glance, and it
+   stands off the island it sits on: the cap under it is the Part's own hue (`part:`), so
+   the body is the Part's soft tint (`soft:<part>`, else `paper` where the palette lacks
+   it), the belly paper (`paper`, else `under`), the gill fans the Part's deep tone
+   (`deep:<part>`, else `stone`), the eyes ink. The buoy floats with its belly at y = 0, facing
    +z, about 0.5 tall and 0.9 long in the units of the world (an island is about 2.6
    across); the caller does not scale it. */
 
@@ -38,8 +40,8 @@ export interface MarkerLook {
 function keys(pal: PaletteMap, part: string) {
   const pick = (k: string, fb: string) => (pal.has(k) ? k : fb);
   return {
-    body: pick("part:" + part, "accent"),
-    belly: pick("soft:" + part, "paper"),
+    body: pick("soft:" + part, "paper"),
+    belly: pick("paper", "under"),
     gill: pick("deep:" + part, "stone")
   };
 }
