@@ -6,12 +6,11 @@
    formula rendered where the page has one (it comes in the bundle, ahead of site.js),
    no request to any server but the site's own (a signed-out reader's browser contacts
    no one else), the Three.js chunk not fetched by a page with no 3D scene, no course
-   map and no form view (bundle/three.js is loaded on demand, by assets/three-loader.js,
+   map and no companion (bundle/three.js is loaded on demand, by assets/three-loader.js,
    only when one of those nears the screen), the course world's chunk (bundle/world.js,
-   imported by assets/map3d.js and by src/ui/form-view.ts) not fetched by a page with
-   neither the map nor the form view, the model viewer's chunks (bundle/form-model.js,
-   bundle/three-model.js) and /models/forms/ not fetched by a page with no form view, no horizontal overflow at phone width, lesson mode
-   initialised on chapter pages, and a full-page screenshot of each cell for the contact
+   imported by assets/map3d.js) not fetched by a page with no map, Mochi's chunks and
+   /models/mochi/ not fetched by a page with no companion, no horizontal overflow at
+   phone width, lesson mode initialised on chapter pages, and a full-page screenshot of each cell for the contact
    sheet. Chapter pages are shot in whole-page mode (after the mode switch has been
    clicked, which also exercises it) so the sheet shows the content, not just the first
    step. */
@@ -19,10 +18,8 @@ const { slug } = require("../lib/browser");
 
 const THREE_CHUNK = /\/bundle\/three\.js(?:[?#]|$)/;
 const WORLD_CHUNK = /\/bundle\/world\.js(?:[?#]|$)/;
-/* the form viewer's files, for the progress page only; Mochi's, for any page with the companion;
-   and the model loader both share (bundle/three-model.js), for either */
+/* the model loader (bundle/three-model.js) and Mochi's files, for any page with the companion */
 const SHARED_MODEL_CHUNK = /\/bundle\/three-model\.js(?:[?#]|$)/;
-const FORM_CHUNK = /\/bundle\/form-model\.js(?:[?#]|$)|\/models\/forms\/(?!form-\d+-poses\.webp(?:[?#]|$))/;
 const MOCHI_CHUNK = /\/bundle\/mochi\.js(?:[?#]|$)|\/models\/mochi\/(?!mochi-[\w-]+-poses\.webp(?:[?#]|$))/;
 
 /* runs before any script of the page: the theme as it stands at the first animation
@@ -92,23 +89,16 @@ module.exports = {
             await page.evaluate(() => new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r))));
             shot = await h.screenshot(page, "pages/" + slug(rel) + "--" + theme + "--" + vw);
             /* Three.js is fetched by the loader when a scene stage, the course map or the
-               progress page's form view nears the screen, and by nothing else: a page
-               with none of them (its scenes are hosts carrying data-painter once
-               mounted) must not have asked for it */
-            const has3D = await page.evaluate(() => !!document.querySelector("[data-map3d], [data-form-view], [data-companion], [data-widget][data-painter]"));
+               companion nears the screen, and by nothing else: a page with none of them
+               (its scenes are hosts carrying data-painter once mounted) must not have
+               asked for it */
+            const has3D = await page.evaluate(() => !!document.querySelector("[data-map3d], [data-companion], [data-widget][data-painter]"));
             const three = errors.own.filter(u => THREE_CHUNK.test(u));
-            if (!has3D && three.length) problems.push("fetched " + three[0].replace(/^.*\/bundle\//, "bundle/") + " with no 3D scene, course map, form view or companion on the page; only assets/three-loader.js is to import it, for one of those");
-            /* and the course world's own chunk only where the course map or the form view is */
+            if (!has3D && three.length) problems.push("fetched " + three[0].replace(/^.*\/bundle\//, "bundle/") + " with no 3D scene, course map or companion on the page; only assets/three-loader.js is to import it, for one of those");
+            /* and the course world's own chunk only where the course map is */
             const world = errors.own.filter(u => WORLD_CHUNK.test(u));
-            const hasMap = await page.evaluate(() => !!document.querySelector("[data-map3d], [data-form-view]"));
-            if (!hasMap && world.length) problems.push("fetched bundle/world.js with no course map or form view on the page; only assets/map3d.js and src/ui/form-view.ts are to import it");
-            /* and the form viewer's chunk (bundle/form-model.js) and files (/models/forms/) only
-               where the form view is: index.html has the map but no form view, and must not
-               fetch them. The pose sheets (form-N-poses.webp) are the one exception: the
-               companion draws them on chapter pages */
-            const formFiles = errors.own.filter(u => FORM_CHUNK.test(u));
-            const hasForm = await page.evaluate(() => !!document.querySelector("[data-form-view]"));
-            if (!hasForm && formFiles.length) problems.push("fetched " + formFiles[0].replace(/^.*?\/(bundle|models)\//, "$1/") + " with no form view on the page; only src/ui/form-view.ts is to import the form viewer");
+            const hasMap = await page.evaluate(() => !!document.querySelector("[data-map3d]"));
+            if (!hasMap && world.length) problems.push("fetched bundle/world.js with no course map on the page; only assets/map3d.js is to import it");
             /* and Mochi's chunks (bundle/mochi.js, bundle/three-model.js) and files (/models/mochi/)
                only where the companion is (chapter pages and the Arena). Its pose sheets
                (mochi-<variant>-poses.webp) are the exception */
@@ -116,7 +106,7 @@ module.exports = {
             const hasCompanion = await page.evaluate(() => !!document.querySelector("[data-companion]"));
             if (!hasCompanion && mochiFiles.length) problems.push("fetched " + mochiFiles[0].replace(/^.*?\/(bundle|models)\//, "$1/") + " with no companion on the page; only src/ui/companion.ts is to import Mochi");
             const shared = errors.own.filter(u => SHARED_MODEL_CHUNK.test(u));
-            if (!hasForm && !hasCompanion && shared.length) problems.push("fetched bundle/three-model.js with no form view or companion on the page; only src/ui/form-view.ts and src/ui/companion.ts are to import the model loader");
+            if (!hasCompanion && shared.length) problems.push("fetched bundle/three-model.js with no companion on the page; only src/ui/companion.ts is to import the model loader");
           } catch (e) {
             problems.push("driver error: " + (e && e.message || e));
           }

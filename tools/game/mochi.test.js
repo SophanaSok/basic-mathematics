@@ -3,7 +3,7 @@
    SwiftShader WebGL on the built site (dist/, which must be current, served under its _headers):
      node tools/game/mochi.test.js
    1. a chapter page: the still first, then data-3d; the GLB, five textures and three chunks once
-      each; nothing from /models/forms/; the canvas hidden from the tree; the still's background
+      each; the canvas hidden from the tree; the still's background
       gone after the fade; 18762 triangles and 33 morphs
    2. the nine moods: setMood returns true, the mood clip reaches full weight and the other eight
       fall to nothing, data-mood and the aria-label name it; an unknown name is refused
@@ -37,8 +37,7 @@ const TEXTURES = ["body", "gill", "eye", "pupil", "face"];
 
 let server, browser;
 const contexts = [];
-const TODAY = (() => { const d = new Date(), z = (n) => String(n).padStart(2, "0"); return d.getFullYear() + "-" + z(d.getMonth() + 1) + "-" + z(d.getDate()); })();
-const SEEN = JSON.stringify({ seen: { companion: 1, greeted: TODAY } });
+const SEEN = JSON.stringify({ seen: { companion: 1 } });
 const until = (page, fn, arg, ms) => page.waitForFunction(fn, arg, { timeout: ms || 15000, polling: 100 }).then(() => true, () => false);
 
 async function open(path, extra, opts) {
@@ -113,7 +112,6 @@ async function main() {
       check(count(r, /\/models\/mochi\/mochi-pink\.glb$/) === 1, "1: mochi-pink.glb once", r.filter((u) => /mochi/.test(u)));
       TEXTURES.forEach((t) => check(count(r, new RegExp("/models/mochi/mochi-pink-" + t + "\\.webp$")) === 1, "1: pink " + t + " texture once"));
       ["three", "three-model", "mochi"].forEach((n) => check(count(r, new RegExp("/bundle/" + n + "\\.js$")) === 1, "1: bundle/" + n + ".js once", r.filter((u) => /bundle/.test(u))));
-      check(count(r, /\/models\/forms\//) === 0, "1: nothing from /models/forms/");
       noErrors(c, "1");
     }
     /* 2 */

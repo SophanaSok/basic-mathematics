@@ -66,8 +66,8 @@
 	"images":[
 		{
 			"mimeType":"image/webp",
-			"name":"form-9-color",
-			"uri":"form-9-color.webp"
+			"name":"sample-color",
+			"uri":"sample-color.webp"
 		}
 	],
 	"accessors":[
@@ -141,7 +141,7 @@
 	"buffers":[
 		{
 			"byteLength":840,
-			"uri":"form-9.bin"
+			"uri":"sample.bin"
 		}
 	]
 }

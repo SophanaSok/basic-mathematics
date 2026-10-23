@@ -2365,8 +2365,6 @@ async function run() {
           });
           check(covered.inPop, "a toast does not paint over the open popover: " + covered.tag);
           await page.waitForTimeout(300);
-          const formReqs = await page.evaluate(() => [...new Set(performance.getEntriesByType("resource").map((e) => e.name).filter((u) => /\/models\/forms\//.test(u)).map((u) => u.replace(/^.*\/models\/forms\//, "")))]);
-          eq(formReqs, [], "nothing under /models/forms/ is requested on a chapter page");
           eq(new URL(page.url()).pathname, here, "a plain click on the badge does not navigate");
           const txt = await page.textContent(".hud-pop");
           check(/Level \d+ · \w+/.test(txt) && /XP to level/.test(txt), "the popover names the level and rank and the XP to level: " + txt);

@@ -34,9 +34,7 @@ const opts = site.parseArgs(process.argv.slice(2));
    them without breaking the gate CI waits for */
 const WEBGL_PATHS = [
   "src/world/",                  // the 3D world the scripts load
-  "src/data/form-models.ts",     // the form models the world draws
   "public/models/",              // the GLBs those models load
-  "tools/art/forms/",            // the scripts that write the GLBs
   "tools/lib/gl.js",             // the WebGL probe and launch arguments
   "tools/suites/webgl.js",       // the webgl suite
   "tools/game/scenes.test.js",   // 3D script

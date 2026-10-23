@@ -411,10 +411,10 @@ function refusal(fn) { try { fn(); return null; } catch (e) { return e.message; 
   const genFonts = require("./gen-fonts");
   eq(genFonts.FACES.map(f => f.family + " " + f.style + " " + f.weights.join(",")), ["Bricolage Grotesque normal 700,800", "Inter normal 400,500,600,700", "Newsreader italic 400", "Newsreader normal 400,600"], "gen-fonts.js declares the faces the Google Fonts link asked for, and no other");
   eq(genFonts.problem(), "", "src/vendor/fonts.css is what tools/gen-fonts.js writes (run it after a fontsource update)");
-  /* the form models: lib/glb.js reads a GLB, gen-forms.js writes the manifest from the files */
+  /* lib/glb.js reads a GLB, gen-mochi.js writes the manifest from the files */
   {
     const glb = require("./lib/glb");
-    const tiny = fs.readFileSync(path.join(site.ROOT, "tools/fixtures/forms/tiny.glb"));
+    const tiny = fs.readFileSync(path.join(site.ROOT, "tools/fixtures/mochi/tiny.glb"));
     const d = glb.describeGlb(tiny);
     eq([d.triangles, d.materials, d.animations, d.images, d.extensionsRequired, d.meshes, d.nodes], [1, ["armor"], [{ name: "idle", seconds: 3 }], [], [], 1, 1], "glb: the fixture is one triangle, the material armor, the clip idle of 3 s, no images");
     check(/shorter than a header/.test(refusal(() => glb.readGlb(tiny.subarray(0, 10))) || ""), "glb: a buffer cut inside the header is refused with a reason");
@@ -431,76 +431,18 @@ function refusal(fn) { try { fn(); return null; } catch (e) { return e.message; 
     check(made.subarray(20, 20 + made.readUInt32LE(12)).toString("utf8").endsWith("}") || /^ +$/.test(made.subarray(20, 20 + made.readUInt32LE(12)).toString("utf8").replace(/^.*\}/, "")), "glb: the JSON chunk is padded with spaces");
     eq(glb.readGlb(glb.writeGlb({ asset: { version: "2.0" } }, null)).json.buffers, [{ byteLength: 0 }], "glb: a GLB without a bin still gets buffers[0]");
     check(/2 buffers; a GLB holds one/.test(refusal(() => glb.writeGlb({ asset: { version: "2.0" }, buffers: [{}, {}] }, null)) || ""), "glb: writeGlb refuses a document with two buffers");
-    /* the texture problems, on crafted roots in a temporary directory, removed after */
-    const base = fs.mkdtempSync(path.join(os.tmpdir(), "bm-form-roots-"));
-    try {
-      const fm2 = require("./lib/form-models");
-      const vp8x = (w, h, total) => { const b = Buffer.alloc(Math.max(total || 30, 30)); b.write("RIFF", 0, "latin1"); b.writeUInt32LE(b.length - 8, 4); b.write("WEBP", 8, "latin1"); b.write("VP8X", 12, "latin1"); b.writeUIntLE(w - 1, 24, 3); b.writeUIntLE(h - 1, 27, 3); return b; };
-      /* a root holding one GLB whose images are `files` ({ name: bytes }) by uri, or the bin's WebP embedded */
-      const room = (name, files, embedded) => {
-        const dir = path.join(base, name, "public/models/forms");
-        fs.mkdirSync(dir, { recursive: true });
-        const names = Object.keys(files || {});
-        names.forEach(n => fs.writeFileSync(path.join(dir, n), files[n]));
-        const doc = { asset: { version: "2.0" }, extensionsUsed: ["EXT_texture_webp"], materials: [{ name: "armor" }],
-          images: embedded ? [{ bufferView: 0, mimeType: "image/webp" }] : names.map(n => ({ uri: n })),
-          textures: (embedded ? [0] : names.map((n, i) => i)).map(i => ({ extensions: { EXT_texture_webp: { source: i } } })) };
-        if (embedded) doc.bufferViews = [{ buffer: 0, byteOffset: 0, byteLength: embedded.length }];
-        fs.writeFileSync(path.join(dir, "form-1-poses.webp"), vp8x(1536, 320));
-        fs.writeFileSync(path.join(dir, "form-1.glb"), glb.writeGlb(doc, embedded || null));
-        return { n: 1, file: "models/forms/form-1.glb", thumb: "models/forms/form-1.png", poses: "models/forms/form-1-poses.webp", bytes: 1, triangles: 1, slots: fm2.SLOTS, clips: fm2.CLIPS, compression: "none", images: names.map(n => "models/forms/" + n) };
-      };
-      const pngNamedPoses = Buffer.concat([Buffer.from("89504e470d0a1a0a", "hex"), Buffer.alloc(40)]);
-      const probs = (name, files, embedded) => fm2.entryProblems(room(name, files, embedded), path.join(base, name)).join("\n");
-      /* the pose sheet: the room's own sheet passes; a changed sheet or entry fails */
-      const poseProbs = (name, change) => { const e = room(name); const dir = path.join(base, name, "public/models/forms"); change(e, path.join(dir, "form-1-poses.webp")); return fm2.entryProblems(e, path.join(base, name)).join("\n"); };
-      check(!/poses/.test(probs("posesok")), "form-models: a 1536x320 pose sheet within the cap passes");
-      check(/form 1: has no poses sheet/.test(poseProbs("noposes", e => { delete e.poses; })), "form-models: an entry with no poses field fails");
-      check(/form 1: models\/forms\/form-1-poses.webp does not exist/.test(poseProbs("gonposes", (e, f) => { fs.unlinkSync(f); })), "form-models: a missing pose sheet fails");
-      check(/form 1: models\/forms\/form-1-poses.webp is not a WebP/.test(poseProbs("pngposes", (e, f) => { fs.writeFileSync(f, pngNamedPoses); })), "form-models: a PNG named .webp as the pose sheet fails");
-      check(/form 1: models\/forms\/form-1-poses.webp is 1536x321, not 1536x320/.test(poseProbs("sizeposes", (e, f) => { fs.writeFileSync(f, vp8x(1536, 321)); })), "form-models: a pose sheet of the wrong canvas fails");
-      check(/form 1: models\/forms\/form-1-poses.webp is 120001 bytes, over 120000/.test(poseProbs("bigposes", (e, f) => { fs.writeFileSync(f, vp8x(1536, 320, 120001)); })), "form-models: a pose sheet over the byte cap fails");
-      check(/form 1: texture 0 is embedded/.test(probs("embedded", null, vp8x(1024, 1024))), "form-models: an embedded texture fails");
-      const pngNamed = Buffer.concat([Buffer.from("89504e470d0a1a0a", "hex"), Buffer.alloc(40)]);
-      check(/form 1: texture 0 form-1-color.webp is not a WebP/.test(probs("notwebp", { "form-1-color.webp": pngNamed })), "form-models: a PNG named .webp fails");
-      check(/form 1: texture 0 form-1-color.webp is 400001 bytes, over 400000/.test(probs("bigimage", { "form-1-color.webp": vp8x(1024, 1024, 400001) })), "form-models: a texture over the byte cap fails");
-      check(/form 1: texture 0 is 512x1024, not square/.test(probs("notsquare", { "form-1-color.webp": vp8x(512, 1024) })), "form-models: a texture that is not square fails");
-      const four = {}; ["a", "b", "c", "d"].forEach(k => { four["form-1-" + k + ".webp"] = vp8x(1024, 1024, 400000); });
-      check(/form 1: the model and its textures are \d+ bytes, over 1500000/.test(probs("stage", four)), "form-models: a stage whose model and textures pass the whole-download cap fails");
-      check(!/the model and its textures/.test(probs("stageok", { "form-1-a.webp": vp8x(1024, 1024, 400000) })), "form-models: a stage within the whole-download cap passes");
-    } finally {
-      fs.rmSync(base, { recursive: true, force: true });
-    }
-    /* a baked stage: the glTF, its bin and an external WebP, assembled */
-    const baked = path.join(site.ROOT, "tools/fixtures/forms/baked");
-    const bakedDoc = JSON.parse(fs.readFileSync(path.join(baked, "form-9.gltf"), "utf8"));
-    const bakedGlb = glb.writeGlb(bakedDoc, fs.readFileSync(path.join(baked, "form-9.bin")));
-    const webp = fs.readFileSync(path.join(baked, "form-9-color.webp"));
+    /* a baked sample (a textured mesh exported by Blender): the glTF, its bin and an external WebP, assembled */
+    const baked = path.join(site.ROOT, "tools/fixtures/mochi/baked");
+    const bakedDoc = JSON.parse(fs.readFileSync(path.join(baked, "sample.gltf"), "utf8"));
+    const bakedGlb = glb.writeGlb(bakedDoc, fs.readFileSync(path.join(baked, "sample.bin")));
+    const webp = fs.readFileSync(path.join(baked, "sample-color.webp"));
     const bare = glb.describeGlb(bakedGlb);
-    eq(bare.images, [{ width: 0, height: 0, mime: "image/webp", uri: "form-9-color.webp", bytes: 0 }], "glb: an image named by uri reads 0x0 without a resolve");
+    eq(bare.images, [{ width: 0, height: 0, mime: "image/webp", uri: "sample-color.webp", bytes: 0 }], "glb: an image named by uri reads 0x0 without a resolve");
     const seen = [];
-    const withIt = glb.describeGlb(bakedGlb, (u) => { seen.push(u); return u === "form-9-color.webp" ? webp : null; });
-    eq([withIt.images, seen], [[{ width: 256, height: 256, mime: "image/webp", uri: "form-9-color.webp", bytes: webp.length }], ["form-9-color.webp"]], "glb: an assembled baked stage describes with one 256x256 external WebP");
+    const withIt = glb.describeGlb(bakedGlb, (u) => { seen.push(u); return u === "sample-color.webp" ? webp : null; });
+    eq([withIt.images, seen], [[{ width: 256, height: 256, mime: "image/webp", uri: "sample-color.webp", bytes: webp.length }], ["sample-color.webp"]], "glb: an assembled baked sample describes with one 256x256 external WebP");
     eq(glb.describeGlb(bakedGlb, () => null).images[0].width, 0, "glb: a uri the resolve cannot find reads 0x0");
-    eq([withIt.triangles, withIt.extensionsRequired], [12, ["EXT_texture_webp"]], "glb: the assembled stage keeps its triangles and extensions");
-    const genForms = require("./gen-forms");
-    eq(genForms.problems(), [], "src/data/form-models.ts and public/models/forms/ are what tools/gen-forms.js wrote from tools/art/forms/ (run `npm run gen:forms` after editing the art scripts)");
-    /* the form-models rule's caps, on the committed manifest and on tampered copies of it */
-    const fm = require("./lib/form-models");
-    const man = genForms.readManifest();
-    eq(fm.manifestProblems(man), [], "form-models: the committed manifest is within the caps");
-    const tamper = (f) => { const c = JSON.parse(JSON.stringify(man)); f(c); return fm.manifestProblems(c).join("\n"); };
-    check(/stages 1,2,3,4, not/.test(tamper(c => c.entries.pop())), "form-models: four stages fail, naming the stages held");
-    check(/form 2: 1500001 bytes is over 1500000/.test(tamper(c => { c.entries[1].bytes = 1500001; })), "form-models: a model over the byte cap fails");
-    check(/form 3: 30001 triangles is over 30000/.test(tamper(c => { c.entries[2].triangles = 30001; })), "form-models: a model over the triangle cap fails");
-    check(/form 1: slots .* are not armor/.test(tamper(c => { c.entries[0].slots = c.entries[0].slots.slice(1); })), "form-models: a missing slot fails");
-    check(/form 4: clips .* are not idle/.test(tamper(c => { c.entries[3].clips = c.entries[3].clips.slice(1); })), "form-models: a missing clip fails");
-    check(/form 5: compression "meshopt" but the file does not require/.test(tamper(c => { c.entries[4].compression = "meshopt"; })), "form-models: compression that the file does not use fails");
-    check(/form 1: models\/forms\/nope.png does not exist/.test(tamper(c => { c.entries[0].thumb = "models/forms/nope.png"; })), "form-models: a missing thumbnail fails");
-    check(/form 1: models\/forms\/form-1.glb is not a PNG/.test(tamper(c => { c.entries[0].thumb = c.entries[0].file; })), "form-models: a thumbnail that is not a PNG fails");
-    check(/form 2: models\/forms\/form-2-nope.webp does not exist/.test(tamper(c => { c.entries[1].images = c.entries[1].images.concat(["models/forms/form-2-nope.webp"]); })), "form-models: a listed texture that does not exist fails");
-    check(/form 3: the file's textures are form-3-surface.webp,form-3-color.webp, the manifest lists form-3-color.webp/.test(tamper(c => { c.entries[2].images = c.entries[2].images.slice(1); })), "form-models: a texture the manifest does not list fails");
-    check(/form 1: the file's textures are form-1-surface.webp,form-1-color.webp, the manifest lists none/.test(tamper(c => { c.entries[0].images = []; })), "form-models: textures the manifest lists as none fail");
+    eq([withIt.triangles, withIt.extensionsRequired], [12, ["EXT_texture_webp"]], "glb: the assembled sample keeps its triangles and extensions");
     /* the mochi-model rule's caps, on the committed manifest and on tampered copies of it */
     const mm = require("./lib/mochi-model");
     const mman = require("./gen-mochi").readManifest();
