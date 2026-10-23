@@ -5,8 +5,8 @@
 import { describe, expect, it, vi } from "vitest";
 import * as THREE from "three";
 import type { Object3D } from "three";
-import { createWorld, MARKER_SCALE } from "./index.ts";
-import { buildForm } from "./forms.ts";
+import { createWorld } from "./index.ts";
+import { buildMarker } from "./marker.ts";
 import { layout } from "./layout.ts";
 import { placeProps } from "./props.ts";
 import { GLOW_LUMA, GLOW_MAX, glowFactor, luminance, makeMaterials, readPalette, type PaletteMap } from "./materials.ts";
@@ -80,10 +80,9 @@ describe("each tier's budget", () => {
       if (still.puffs) still.puffs.mesh.visible = budget.ambient;
       for (const states of [finished, untouched, halfway, worst, worstMixed]) {
         const marks = buildMarks(T, L, states, mats, pal);
-        /* plus the marker (the largest form, two draws) and the selection ring */
-        const form = buildForm(T, 5, mats, pal, "algebra", { live: false });
-        form.group.scale.setScalar(MARKER_SCALE);
-        const marker = form.group;
+        /* plus the marker (the Mochi buoy, two draws) and the selection ring */
+        const buoy = buildMarker(T, mats, pal, "algebra");
+        const marker = buoy.group;
         const ring = new THREE.Mesh(new THREE.TorusGeometry(1.66, 0.03, 4, 28));
         /* and the selected chapter's links (one mesh) */
         const links = buildLinks(T, L, 10, [8, 9], pal);
@@ -94,7 +93,7 @@ describe("each tier's budget", () => {
         expect(d.calls).toBeLessThanOrEqual(budget.calls);
         expect(d.triangles).toBeLessThanOrEqual(budget.triangles);
         marks.dispose();
-        form.dispose();
+        buoy.dispose();
         links.dispose();
       }
       still.dispose();
@@ -112,6 +111,32 @@ describe("each tier's budget", () => {
     expect(still.caps.length).toBe(17);
     expect(still.arches.length).toBe(4);
     still.dispose();
+    mats.dispose();
+  });
+});
+
+describe("the Mochi buoy", () => {
+  it("is two draws, small, repainted with the palette, and falls back to accent for an unknown Part", () => {
+    const mats = makeMaterials(T);
+    const pal = palette();
+    const buoy = buildMarker(T, mats, pal, "algebra");
+    expect(buoy.calls).toBe(2);
+    expect(buoy.triangles).toBeLessThanOrEqual(320);
+    expect(buoy.height).toBeGreaterThan(0.4);
+    expect(buoy.height).toBeLessThan(0.7);
+    const col = (buoy.group.children[0] as THREE.Mesh).geometry.attributes.color;
+    const rgb = (i: number) => [col.getX(i), col.getY(i), col.getZ(i)];
+    /* the body is stamped first: its first vertex is the Part's hue */
+    expect(rgb(0)[0]).toBeCloseTo(pal.get("part:algebra")!.r, 5);
+    const pal2: PaletteMap = new Map(pal);
+    pal2.set("part:algebra", new THREE.Color(0.01, 0.02, 0.03));
+    buoy.paint(pal2);
+    expect(rgb(0)[0]).toBeCloseTo(0.01, 5);
+    const stray = buildMarker(T, mats, pal, "no-such-part");
+    const col2 = (stray.group.children[0] as THREE.Mesh).geometry.attributes.color;
+    expect(col2.getX(0)).toBeCloseTo(pal.get("accent")!.r, 5);
+    buoy.dispose();
+    stray.dispose();
     mats.dispose();
   });
 });
@@ -164,13 +189,13 @@ describe("the marker", () => {
     }
   });
 
-  it("is the learner's form: one mesh and one set of edges under it, freed with the world", () => {
+  it("is the Mochi buoy: one mesh and one set of edges under it, freed with the world", () => {
     /* the tokens are read from a probe element; Node has neither, so a stand-in answers with none */
     vi.stubGlobal("window", { getComputedStyle: () => ({ getPropertyValue: () => "" }) });
     try {
       const probe = { querySelectorAll: () => [] } as unknown as Element;
       const world = createWorld(T, { course: C, motifs: MOT, probe, detail: 0 });
-      world.setForm(3, "geometry");
+      world.setPart("geometry");
       expect(world.marker.children.length).toBe(1);
       const group = world.marker.children[0];
       expect(group.children.filter((o) => (o as THREE.Mesh).isMesh).length).toBe(1);

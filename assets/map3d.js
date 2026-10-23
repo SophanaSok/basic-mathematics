@@ -38,7 +38,6 @@
    paint where src/boot.js expects 3D (html[data-world], assets/map3d.css), so the hero
    below does not drop when this script arrives; whenever the box goes, so does that.
    =========================================================================== */
-import { worn } from "../src/core/forms.ts";
 import { chapterRequires } from "../src/core/hub.ts";
 import { detectTier, readProbe, stepDown, lower, pixelRatio, TIERS, AMBIENT_MS, FrameWatch } from "../src/world/tiers.ts";
 
@@ -432,10 +431,9 @@ import { detectTier, readProbe, stepDown, lower, pixelRatio, TIERS, AMBIENT_MS, 
     if (!same) M.world.setProgress(states, ahead, gates);
 
     if (M.cur > -1) {
-      /* the marker is the learner's form, in the hue of the Part they are in */
-      var G = window.BMGame, game = G && G.game ? G.game() : {}, xp = G && G.info ? G.info().xp : 0;
-      var stage = worn(game.form, xp), part = ISLES[M.cur].part;
-      if (M.formKey !== stage + "/" + part) { M.formKey = stage + "/" + part; M.world.setForm(stage, part); }
+      /* the marker is the Mochi buoy, in the hue of the Part the learner is in */
+      var part = ISLES[M.cur].part;
+      if (M.partKey !== part) { M.partKey = part; M.world.setPart(part); }
       M.world.marker.visible = true;
       markerAt(0);
     } else {
@@ -448,10 +446,10 @@ import { detectTier, readProbe, stepDown, lower, pixelRatio, TIERS, AMBIENT_MS, 
     if (!quiet) request();
   }
 
-  /* b: how far through the hop, 0 (at rest) to 1. The marker is the learner's form and
+  /* b: how far through the hop, 0 (at rest) to 1. The marker is the Mochi buoy and
      stands at the front of the island, a little right of the middle: clear of the boss at
      the centre, the flag at the back-left and the stars across the front half (z 0.3, out
-     to x 0.78), and inside the cap (radius 1.28) with the last form's base (0.3) and body;
+     to x 0.78), and inside the cap (radius 1.28) with the buoy's body (about 0.45 long each way);
      it faces the camera side (+z), and in the idle window it hops a little */
   function markerAt(b) {
     var isle = ISLES[M.cur];
@@ -1268,7 +1266,7 @@ import { detectTier, readProbe, stepDown, lower, pixelRatio, TIERS, AMBIENT_MS, 
       }
       if (!M) return;
       var K = window.BMStore.keys || {};
-      if (c.type === "home" || c.type === "form" || c.type === "event" || c.type === "sync" || c.type === "reset" ||
+      if (c.type === "home" || c.type === "event" || c.type === "sync" || c.type === "reset" ||
           (c.type === "state" && (c.key === K.progress || c.key === K.last || c.key === K.game))) later();
     });
   }
