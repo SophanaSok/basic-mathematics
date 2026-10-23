@@ -845,7 +845,7 @@ The files:
   by the level at 1, 3, 6, 10 and 15 (`src/data/forms.ts`; the stage logic is `src/core/forms.ts`).
   A reached stage is recorded in `bm.game.v1.form.got` and the stage worn in `form.wear`; the merge
   is `mergeForm` in `src/sync/merge.ts`. `src/world/forms.ts` builds it (`buildForm`, procedural; the
-  marker and the fallback), `setForm` in `src/world/index.ts` stands it on the current island
+  marker and the fallback), `setPart` in `src/world/index.ts` stands the Mochi buoy (`marker.ts`, since 0015) on the current island
   in place of the marker, and `src/ui/forms.ts`, `src/ui/form-view.ts` and `src/world/form-scene.ts`
   show it on the progress page, and `src/ui/form-unlock.ts` (every page) records a stage reached in `form.got` and announces it once. Decision: [`docs/decisions/0007-evolving-forms.md`](docs/decisions/0007-evolving-forms.md).
 - Mochi, an axolotl the owner built, is the learner's companion on every chapter page and in the
@@ -940,7 +940,7 @@ fetched, which **tier** the device gets (`src/world/tiers.ts`):
 | Tier | Chosen when | Pixel ratio | Draw calls | Triangles | Props per region | Idle motion |
 | --- | --- | --- | --- | --- | --- | --- |
 | list | no WebGL 2, Save-Data, `?3d=off`, the map not chosen (the Map view switch off or never set), or the watchdog gave up | — | — | — | — | — |
-| low | Graphics quality Low; or a software renderer (SwiftShader, llvmpipe, WARP), a coarse pointer with four cores or fewer, or a low-end device (2 GB of memory or less) | 1 | 10 | 9,500 | the fewest | none |
+| low | Graphics quality Low; or a software renderer (SwiftShader, llvmpipe, WARP), a coarse pointer with four cores or fewer, or a low-end device (2 GB of memory or less) | 1 | 10 | 9,000 | the fewest | none |
 | medium | Graphics quality Medium; everything else | 1.5 | 12 | 11,000 | more | 5 s after input |
 | high | only Graphics quality High | 2 | 12 | 14,000 | the most | 5 s after input |
 
@@ -993,7 +993,7 @@ the path's stones and the review gates. All of that is **one mesh and one set of
 (`batch.ts` merges the primitives with vertex colours and flat normals), so the still world is two
 draw calls; the progress marks (`marks.ts`: ring, boss, flag, stars) are two more, rebuilt only
 when progress changes; the marker, the selection ring, the smoke and the telescope are the rest.
-The marker is the learner's form (`forms.ts`, drawn at three quarters of its size), standing on
+The marker is the Mochi buoy (`marker.ts`, unscaled), standing on
 the current island and baked into two draw calls; it hops a little in the idle window.
 The course map before the world took 109 draw calls a frame at rest and up to 139 in flight; the
 world took at most 9 at any tier, width or Part in headless Chromium (7 at 1280 wide, where

@@ -432,7 +432,7 @@ import { detectTier, readProbe, stepDown, lower, pixelRatio, TIERS, AMBIENT_MS, 
 
     if (M.cur > -1) {
       /* the marker is the Mochi buoy, in the hue of the Part the learner is in */
-      var part = ISLES[M.cur].part;
+      var part = ISLES[M.cur].part.id;
       if (M.partKey !== part) { M.partKey = part; M.world.setPart(part); }
       M.world.marker.visible = true;
       markerAt(0);
@@ -454,7 +454,7 @@ import { detectTier, readProbe, stepDown, lower, pixelRatio, TIERS, AMBIENT_MS, 
   function markerAt(b) {
     var isle = ISLES[M.cur];
     if (!isle) return;
-    M.world.marker.position.set(isle.x + 0.2, isle.y + W.DECK + Math.max(0, Math.sin(b * Math.PI * 2)) * 0.06, isle.z + 0.9);
+    M.world.marker.position.set(isle.x + 0.2, isle.y + W.DECK + Math.max(0, Math.sin(b * Math.PI * 2)) * 0.06, isle.z + 0.8);
     M.world.marker.rotation.y = 0;
   }
 

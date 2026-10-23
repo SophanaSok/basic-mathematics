@@ -47,10 +47,10 @@ function keys(pal: PaletteMap, part: string) {
 export function buildMarker(T: Three, mats: WorldMaterials, pal: PaletteMap, part: string): MarkerLook {
   const K = keys(pal, part);
   const k = new Kit(T);
-  k.shape("ball", () => new T.SphereGeometry(1, 8, 6));
-  k.shape("head", () => new T.SphereGeometry(1, 8, 5));
-  k.shape("link", () => new T.SphereGeometry(1, 6, 3));
-  k.shape("eye", () => new T.OctahedronGeometry(0.035, 0), 0);
+  k.shape("ball", () => new T.SphereGeometry(1, 8, 6), 40);
+  k.shape("head", () => new T.SphereGeometry(1, 8, 5), 40);
+  k.shape("link", () => new T.SphereGeometry(1, 6, 3), 40);
+  k.shape("eye", () => new T.OctahedronGeometry(0.05, 0), 0);
   /* a gill fan, a thin triangle reaching out (+x) or the other way (-x) */
   k.shape("fanR", () => prism(T, [[0, -0.03], [0.2, 0], [0, 0.03]], 0.03));
   k.shape("fanL", () => prism(T, [[0, -0.03], [-0.2, 0], [0, 0.03]], 0.03));
