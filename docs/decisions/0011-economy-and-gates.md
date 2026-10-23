@@ -55,3 +55,5 @@ tolerates their absence is live (rule 5); `OPERATIONS.md` section 6 gains three 
 Decided, 2026-10-18: the owner approved the recommended answers on Q1 to Q6. The first card,
 R3-1 `wallet-core` (the ledger, its merge laws and their property tests), can be briefed from
 the design.
+
+0015 (2026-10-23) moves the facets, the shop and the locker into Mochi's pool and replaces the cosmetic slots with Mochi's; the wallet laws, amounts, guardrails and Q3/Q4 stand. Gates and streak freezes remain future work.

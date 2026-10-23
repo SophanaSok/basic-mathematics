@@ -43,3 +43,5 @@ Threat model, stated plainly:
 ## Status
 
 Decided by the owner, 2026-10-12. Cards F-1 to F-6 built (F-6 as PR #107); the names and the about-page sentence await the owner.
+
+Superseded by 0015 (2026-10-23): the forms are removed; Mochi's pool is the progression.

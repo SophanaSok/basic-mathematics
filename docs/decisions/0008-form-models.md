@@ -74,3 +74,5 @@ Decided by the owner, 2026-10-14. Built the same day: the pipeline and all five 
   - A stage's download grows by about 70 to 180 KB for the color texture and 130 to 240 KB for the surface texture.
   - The GLBs grow with their UVs (stage 4 went from 351 KB to about 505 KB).
 - Unchanged: no CSP change, no new storage key, no account or sync path, and the threat model above.
+
+Superseded by 0015 (2026-10-23): the form models and their pipeline are removed with the forms.
