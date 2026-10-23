@@ -115,26 +115,6 @@ function attemptRec(ch, k) {
   return fields(r);
 }
 
-/* bm.game.v1.form: stage times and a wear, few values so two sides often tie, and now and
-   then damage (a form, got or wear of the wrong shape, an `at` that is no number) */
-const FORM_ODD = [null, "x", 7, [1], [], { at: "5", n: 2 }, { n: 3 }, { at: 4, n: "z" }, JSON.parse('{"__proto__":{"at":9},"n":1}'), { n: 4, at: 9e15 }];
-function formState() {
-  if (chance(0.1)) return JSON.parse(JSON.stringify(pick(FORM_ODD)));
-  const f = {};
-  if (chance(0.7)) {
-    f.got = {};
-    for (let st = 1; st <= 5; st++) if (chance(0.5)) f.got[String(st)] = chance(0.15) ? pick(["x", 0, -4, null, 1e308, [2]]) : 1700000000000 + int(4) * 1000;
-    if (chance(0.1)) f.got = JSON.parse(JSON.stringify(pick(FORM_ODD)));
-    if (chance(0.1)) f.got = JSON.parse('{"__proto__":5,"2":9}');
-  }
-  if (chance(0.7)) {
-    f.wear = chance(0.15) ? JSON.parse(JSON.stringify(pick(FORM_ODD))) : { n: 1 + int(5), at: 1700000000000 + int(3) * 1000 };
-    if (f.wear && typeof f.wear === "object" && !Array.isArray(f.wear) && chance(0.2)) f.wear.extra = pick([1, "a", { k: 2 }]);
-  }
-  if (chance(0.2)) f.next = pick([1, "a", [2]]);
-  return f;
-}
-
 function gameState() {
   const g = {};
   if (chance(0.8)) {
@@ -187,7 +167,6 @@ function gameState() {
     for (let i = 0; i < n; i++) g.daily["2026-" + String(1 + int(9)).padStart(2, "0") + "-" + String(1 + int(28)).padStart(2, "0")] = 1;
   }
   if (chance(0.5)) g.maxed = int(6);
-  if (chance(0.6)) g.form = formState();
   if (chance(0.3)) g.v = 1 + int(3);
   return fields(g);
 }
@@ -307,8 +286,6 @@ if (canon(merge({}, {}).game) !== canon(mo.game)) fail("empty inputs", -1);
 
 /* spot checks of the per-field rules */
 const mg = Account.mergeGame;
-const fm = mg({ form: { got: { 1: 9, 2: 5 }, wear: { n: 2, at: 10 } } }, { form: { got: { 1: 4, 3: 0 }, wear: { n: 1, at: 20 } } }).form;
-if (canon(fm) !== canon({ got: { 1: 4, 2: 5 }, wear: { n: 1, at: 20 } })) fail("form: got union with the lowest time, the later wear", -2, JSON.stringify(fm));
 const r1 = mg({ ach: { x: 5 } }, { ach: { x: 3, y: 9 } });
 if (r1.ach.x !== 3 || r1.ach.y !== 9) fail("ach keeps the earliest time", -2, JSON.stringify(r1.ach));
 const r2 = mg({ sec: { s: { n: 4, ok: 4, box: 3, last: "2026-03-01" } } }, { sec: { s: { n: 6, ok: 2, box: 0, last: "2026-03-05", fix: 7 } } });

@@ -891,28 +891,11 @@ function canon(x) {
 const EVENTS = require(path.join(ROOT, "src/sync/events.ts"));
 const { EVENT_COLLISION } = require(path.join(ROOT, "tools/lib/random-state.js"));
 
-/* the bound on a wear's `at`, read off src/sync/merge.ts so this check and the merge agree */
+/* the bound on a later-wins record's `at` (mergeWear), read off src/sync/merge.ts so this check and
+   the merge agree; nothing here uses it until the pet's needs and wear (0015, X-1) */
 const WEAR_AT_MAX = Number((/export const WEAR_AT_MAX = (\d+);/.exec(read("src/sync/merge.ts")) || [])[1]);
 if (!(WEAR_AT_MAX > 0)) throw new Error("tools/check-static.js: src/sync/merge.ts no longer declares WEAR_AT_MAX as a plain number");
 
-/* a form for the merge check: stages and times, a wear, and now and then damage */
-function randomForm(S) {
-  const odd = [null, "x", 7, [1], [], { at: "5", n: 2 }, { at: 1e999 }, { n: 4, at: 9e15 }, { n: 3 }, JSON.parse('{"__proto__":{"at":9}}'), 1e308];
-  if (S.maybe(0.1)) return JSON.parse(JSON.stringify(S.pick(odd)));
-  const f = {};
-  if (S.maybe(0.7)) {
-    f.got = {};
-    for (let st = 1; st <= 5; st++) if (S.maybe(0.5)) f.got[String(st)] = S.maybe(0.15) ? JSON.parse(JSON.stringify(S.pick(["x", 0, -4, null, 1e308, [2]]))) : 1700000000000 + S.int(4) * 1000;
-    if (S.maybe(0.1)) f.got = JSON.parse(JSON.stringify(S.pick(odd)));
-    if (S.maybe(0.1)) f.got = JSON.parse('{"__proto__":5,"2":9}');
-  }
-  if (S.maybe(0.7)) {
-    f.wear = S.maybe(0.15) ? JSON.parse(JSON.stringify(S.pick(odd))) : { n: 1 + S.int(5), at: 1700000000000 + S.int(3) * 1000 };
-    if (f.wear && typeof f.wear === "object" && !Array.isArray(f.wear) && S.maybe(0.2)) f.wear.extra = S.pick([1, "a", { k: 2 }]);
-  }
-  if (S.maybe(0.2)) f.next = S.pick([1, "a", [2]]);
-  return f;
-}
 function checkMerge(ctx, r) {
   /* the merge is src/sync/merge.ts, one copy: account.js takes it from BMMerge */
   const own = /\bfunction\s+mergeGame\b/.exec(read("assets/account.js"));
@@ -929,8 +912,6 @@ function checkMerge(ctx, r) {
     const S = rng(seed);
     /* two devices sometimes disagree about an attempt's section (mergeAttempt's maxSection) */
     const a = randomState(S), b = randomState(S), c = randomState(S);
-    /* the generator (tools/lib/random-state.js) has no form yet: add one here, some of them damaged */
-    [a, b, c].forEach(st => { if (S.maybe(0.6)) st.game.form = randomForm(S); });
     r.count++;
     let ab, ba, abc, abc2, m;
     try {
@@ -995,28 +976,6 @@ function checkMerge(ctx, r) {
       /* once mergeGame exists: unions, maxima, earliest achievement time */
       Object.keys(a.game.ach).forEach(k => { if (!ab.game.ach || !(k in ab.game.ach)) { if (!gameChecked) r.fail("seed " + seed + ": game.ach lost " + k); gameChecked = true; } });
       ["maxed"].forEach(k => { if (ab.game[k] !== undefined && ab.game[k] < Math.max(a.game[k] || 0, b.game[k] || 0)) r.fail("seed " + seed + ": game." + k + " should be the maximum"); });
-      /* form: wear.at is the larger of the two when both sides hold a wear record, and got
-         holds every stage either side reached with a positive time, at its lowest */
-      {
-        const fm = f => f && typeof f === "object" && !Array.isArray(f) ? f : {};
-        const ow = (o, k) => o && typeof o === "object" && !Array.isArray(o) && Object.prototype.hasOwnProperty.call(o, k) ? o[k] : undefined;
-        /* a wear counts only with an `at` from 0 to WEAR_AT_MAX, read off merge.ts so the two cannot drift */
-        const rec = w => w && typeof w === "object" && !Array.isArray(w) && typeof w.at === "number" && w.at >= 0 && w.at <= WEAR_AT_MAX;
-        const wa = ow(fm(ow(a.game, "form")), "wear"), wb = ow(fm(ow(b.game, "form")), "wear");
-        const mf = fm(ow(ab.game, "form"));
-        if (rec(wa) && rec(wb) && (!rec(mf.wear) || mf.wear.at !== Math.max(wa.at, wb.at))) r.fail("seed " + seed + ": game.form.wear.at should be the larger of the two");
-        /* one side counts and the other does not: the one that counts is kept, whole */
-        if (!!rec(wa) !== !!rec(wb)) {
-          const keep = rec(wa) ? wa : wb;
-          const numOf = x => { const n = Number(x); return isFinite(n) ? n : 0; };  /* merge.ts num() */
-          if (!rec(mf.wear) || mf.wear.at !== keep.at || mf.wear.n !== numOf(keep.n)) r.fail("seed " + seed + ": game.form.wear should be the one side's that counts " + JSON.stringify([wa, wb, mf.wear]));
-        }
-        const ga = fm(ow(fm(ow(a.game, "form")), "got")), gb = fm(ow(fm(ow(b.game, "form")), "got")), gm = fm(mf.got);
-        Object.keys(ga).concat(Object.keys(gb)).filter(k => k !== "__proto__").forEach(k => {
-          const t = [ow(ga, k), ow(gb, k)].map(Number).filter(x => isFinite(x) && x > 0); /* num(): a value that reads as a number counts, as in ach */
-          if (t.length && ow(gm, k) !== Math.min.apply(null, t)) r.fail("seed " + seed + ": game.form.got." + k + " should be the lowest positive time of the two");
-        });
-      }
       /* the shape marker: the larger of the two, and not invented where neither has one */
       if (ab.game.v !== (Math.max(a.game.v || 0, b.game.v || 0) || undefined)) r.fail("seed " + seed + ": game.v should be the maximum, and absent when neither side has one");
       /* a key this version has never heard of is never dropped, at whatever level it sits:

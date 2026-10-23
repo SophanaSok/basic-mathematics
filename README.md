@@ -841,13 +841,11 @@ and to the SVG fallback where it is not.
 The files:
 - `assets/game.js` holds the combo meter, levels (derived from total XP, never stored),
   achievements, the recall model, play settings and the HUD.
-- The form is the learner's avatar, five stages (Pip, Sprig, Wayfinder, Surveyor, Luminary) unlocked
-  by the level at 1, 3, 6, 10 and 15 (`src/data/forms.ts`; the stage logic is `src/core/forms.ts`).
-  A reached stage is recorded in `bm.game.v1.form.got` and the stage worn in `form.wear`; the merge
-  is `mergeForm` in `src/sync/merge.ts`. `src/world/forms.ts` builds it (`buildForm`, procedural; the
-  marker and the fallback), `setPart` in `src/world/index.ts` stands the Mochi buoy (`marker.ts`, since 0015) on the current island
-  in place of the marker, and `src/ui/forms.ts`, `src/ui/form-view.ts` and `src/world/form-scene.ts`
-  show it on the progress page, and `src/ui/form-unlock.ts` (every page) records a stage reached in `form.got` and announces it once. Decision: [`docs/decisions/0007-evolving-forms.md`](docs/decisions/0007-evolving-forms.md).
+- The forms (the five-stage avatar of 0007 and 0008) are gone: decision
+  [`docs/decisions/0015-mochi-pool.md`](docs/decisions/0015-mochi-pool.md). `setPart` in `src/world/index.ts`
+  stands the Mochi buoy (`src/world/marker.ts`) on the current island. A stale `bm.game.v1.form` is an
+  unknown field the merge carries whole (`later`); `mergeWear` and `WEAR_AT_MAX` in `src/sync/merge.ts`
+  stay as the bounded later-wins law Mochi's pool will use.
 - Mochi, an axolotl the owner built, is the learner's companion on every chapter page and in the
   Arena: a 2D still from its pose sheet (`public/models/mochi/mochi-<pink|lilac>-poses.webp`, nine
   stills) in the sidebar, with a 3D stage over it when WebGL is allowed (`src/mochi/`, chunk

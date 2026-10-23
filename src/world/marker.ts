@@ -34,7 +34,7 @@ export interface MarkerLook {
   dispose(): void;
 }
 
-/* the Part's colour names, each falling back as forms.ts's keysFor does */
+/* the Part's colour names, each falling back to a plain token when the palette lacks the tinted one */
 function keys(pal: PaletteMap, part: string) {
   const pick = (k: string, fb: string) => (pal.has(k) ? k : fb);
   return {
