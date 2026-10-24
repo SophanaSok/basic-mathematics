@@ -295,7 +295,9 @@
   }
 
   /* Mochi's pool inline (src/ui/pet/pool.ts, the lazy pet chunk through BMCompanion.openPool): the panel is an empty
-     section the pool fills. Not emitted when the pool is switched off or in Study mode. */
+     section the pool fills. Not emitted when the pool is switched off or in Study mode. It reads window.BMCompanion, which
+     src/ui/companion.ts puts up: src/entries/dashboard.js imports that before this file, or the first draw would leave the
+     panel out until a redraw. */
   function mochiWanted() {
     try {
       var cfg = window.BMCore && window.BMCore.config && window.BMCore.config.readConfig(window.BM_CONFIG);
@@ -325,7 +327,7 @@
     try {
       window.BMCompanion.openPool().then(function (M) {
         if (gen !== poolGen || !section.isConnected) return;
-        try { pool = M.mountPool(section, { mode: "inline" }); } catch (e) { fail(); }
+        try { pool = M.mountPool(section, { mode: "inline" }); } catch (e) { section.removeAttribute("data-pet"); fail(); }
       }, fail);
     } catch (e) { fail(); }
   }

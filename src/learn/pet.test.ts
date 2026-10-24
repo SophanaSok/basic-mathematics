@@ -576,3 +576,30 @@ describe("growth: the look and growPet", () => {
     expect(mergePet(b, a).grew.fry).toBe(400);
   });
 });
+
+describe("T5: size", () => {
+  it("a year of play stays small", () => {
+    const earned: Record<string, number> = {}, spent: Record<string, number> = {}, care: Record<string, any> = {}, gift: Record<string, number> = {};
+    const owned: Record<string, string> = {};
+    const buys = PET_ITEMS.filter((it) => it.kind !== "snack");
+    for (let i = 0; i < 365; i++) {
+      const d = dayAt(i);
+      care[d] = { feed: { pellet: 1, "snack:kelp-chip": 1 }, play: 1, clean: 1, spark: 1 };
+      gift[d] = 1;
+      earned["review:" + d + ":ch01#s1"] = 5;
+      earned["review:" + d + ":ch02#s2"] = 5;
+      if (i % 10 === 0) earned["strong:ch0" + (1 + (i % 9)) + "#s" + i] = 20;
+      // one spend a day, on alternating devices: a feed, and a purchase on the first days of the year
+      const dev = i % 2 ? "dev00002" : "dev00001";
+      if (i < buys.length) { spent["buy:" + d + ":" + buys[i].id + ":" + dev + ":1"] = buys[i].price; owned[buys[i].id] = d; }
+      else spent["feed:" + d + ":snack:kelp-chip:" + dev + ":1"] = 5;
+    }
+    const pet = prunePet({ v: 1, earned, spent, care, gift, owned, needs: { tummy: { n: 5, at: 1e12 }, play: { n: 4, at: 1e12 }, clean: { n: 3, at: 1e12 }, spark: { n: 2, at: 1e12 } }, grew: { fry: 1e12, juvenile: 1e12 } }) as any;
+    const size = JSON.stringify(pet).length;
+    // measured 76,419 bytes when written; the sim is deterministic, so the bound is the next round number
+    expect(size).toBeLessThan(80_000);
+    const sum = (ids: Record<string, number>, price: (id: string, n: number) => number) => Object.keys(ids).reduce((a, id) => a + price(id, ids[id]), 0);
+    expect(balance(pet)).toBe(sum(pet.earned, (id) => earnAmount(id)) - sum(pet.spent, (_id, n) => n));
+    expect(Object.keys(pet.earned).length).toBe(Object.keys(earned).length);
+  });
+});

@@ -102,13 +102,15 @@ module.exports = {
             if (!hasMap && world.length) problems.push("fetched bundle/world.js with no course map on the page; only assets/map3d.js is to import it");
             /* and Mochi's chunks (bundle/mochi.js, bundle/three-model.js) and files (/models/mochi/)
                only where the companion is (chapter pages and the Arena). Its pose sheets
-               (mochi-<variant>-poses.webp) are the exception */
+               (mochi-<variant>-poses.webp) are the exception. decor.png and water.png are not: the
+               pool and the window are the only places that fetch them, and both carry [data-pet] or
+               [data-companion], so a page without either that fetches them is flagged on purpose */
             const mochiFiles = errors.own.filter(u => MOCHI_CHUNK.test(u));
             const hasCompanion = await page.evaluate(() => !!document.querySelector("[data-companion], [data-pet]"));
             if (!hasCompanion && mochiFiles.length) problems.push("fetched " + mochiFiles[0].replace(/^.*?\/(bundle|models)\//, "$1/") + " with no companion on the page; only src/ui/companion.ts is to import Mochi");
             const shared = errors.own.filter(u => SHARED_MODEL_CHUNK.test(u));
             if (!hasCompanion && shared.length) problems.push("fetched bundle/three-model.js with no companion on the page; only src/ui/companion.ts is to import the model loader");
-            /* and the pool's chunk only where a pool is (the dialog opens on a click, so no page fetches it unasked) */
+            /* and the pool's chunk only where a pool is (a page fetches the chunk only if it carries [data-pet]: the dialog opens on a click, and progress.html mounts the pool inline) */
             const petFiles = errors.own.filter(u => PET_CHUNK.test(u));
             const hasPet = await page.evaluate(() => !!document.querySelector("[data-pet]"));
             if (!hasPet && petFiles.length) problems.push("fetched bundle/pet.js with no pool on the page; only the import() of src/ui/companion.ts is to fetch it");
