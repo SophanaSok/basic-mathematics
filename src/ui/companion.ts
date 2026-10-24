@@ -89,6 +89,14 @@ function prefs(): any { try { return w().BMGame.prefs() || {}; } catch { return 
 function calm(): boolean {
   return document.documentElement.hasAttribute("data-calm") || prefs().calm === true;
 }
+/** the pool switch (config pet): off leaves the picture a plain image with no click */
+function poolWanted(): boolean {
+  try {
+    const cfg = w().BMCore?.config?.readConfig(w().BM_CONFIG);
+    if (cfg && cfg.pet === "off") return false;
+  } catch { /* an absent field is on */ }
+  return true;
+}
 function allowed(): boolean {
   try {
     const cfg = w().BMCore?.config?.readConfig(w().BM_CONFIG);
@@ -185,7 +193,7 @@ function drawSprite(): void {
   still.style.backgroundPosition = (MOODS.indexOf(mood) * 100 / 8) + "% 0";
   if (stage && stageReady && lastSent !== mood) { lastSent = mood; try { stage.setMood(mood); } catch { /* the still stays */ } }
   if (nameEl) nameEl.textContent = "Mochi";
-  pic.setAttribute("aria-label", "Mochi, your companion, " + mood);
+  pic.setAttribute("aria-label", "Mochi, your companion, " + mood + (pic.tagName === "BUTTON" ? ". Open Mochi's pool" : ""));
   fig.setAttribute("data-mood", mood);
 }
 
@@ -217,7 +225,7 @@ function drop3d(): void {
 
 /** the 3D figure over the still, when the device, the tier and the learner's settings allow it; otherwise nothing happens */
 function maybe3d(): void {
-  if (!fig || !pic || !win || !still || stage || no3d) return;
+  if (!fig || !pic || !win || !still || stage || no3d || pool) return;   /* the open pool holds the one avatar */
   const B = w().BM3D;
   try {
     if (!B || typeof B.supported !== "function" || !B.supported()) return;
@@ -445,9 +453,15 @@ function build(): void {
   fig.className = "companion";
   fig.setAttribute("data-companion", "");
   fig.setAttribute("data-mood", "idle");
-  pic = document.createElement("span");
+  if (poolWanted()) {
+    pic = document.createElement("button");
+    pic.setAttribute("type", "button");
+    pic.addEventListener("click", clickPic);
+  } else {
+    pic = document.createElement("span");
+    pic.setAttribute("role", "img");
+  }
   pic.className = "companion-pic";
-  pic.setAttribute("role", "img");
   win = document.createElement("span");
   win.className = "companion-window";
   win.style.backgroundImage = 'url("' + waterUrl() + '")';
@@ -472,6 +486,25 @@ function build(): void {
   if (import.meta.env.DEV && new URLSearchParams(location.search).get("mochi") === "qa") {
     import("../mochi/qa.ts").then((m) => m.mountQa(api)).catch(() => { /* a dev aid */ });
   }
+}
+
+/* the open pool (src/ui/pet/pool.ts): while its dialog is up the sidebar's stage is dropped, so two avatars are never
+   in memory, and rebuilt when the dialog closes; info() reads "2d" meanwhile */
+let pool: { close(): void; dispose(): void } | null = null;
+let opening = false;
+
+function clickPic(): void {
+  if (pool || opening || !fig || calm() || !poolWanted()) return;
+  opening = true;
+  openPool().then((M) => {
+    opening = false;
+    if (pool || !fig || calm()) return;
+    drop3d();
+    pool = M.mountPool(document.body, {
+      mode: "dialog",
+      onClose: () => { pool = null; if (fig) maybe3d(); }
+    });
+  }, () => { opening = false; });
 }
 
 function unbuild(): void {
@@ -523,7 +556,11 @@ function arrive(): void {
 function evaluate(): void {
   const should = (onChapter() || onArena()) && !!w().BMGame && allowed() && !calm();
   if (!should) { if (fig) unbuild(); return; }
-  if (fig) { drawSprite(); return; }
+  if (fig) {
+    /* the pool switch changed under a built figure: the picture is rebuilt as a button or a plain image */
+    if ((pic && pic.tagName === "BUTTON") !== poolWanted() && !pool) { unbuild(); build(); if (fig) arrive(); return; }
+    drawSprite(); return;
+  }
   build();
   if (fig) arrive();
 }
@@ -564,11 +601,11 @@ function mount(): void {
   evaluate();
 }
 
-/* the pool (src/ui/pet/, the `pet` chunk): the one import() of it, called by nothing yet (X-5b wires the click) */
+/* the pool (src/ui/pet/, the `pet` chunk): the one import() of it, called by the picture's click */
 function openPool(): Promise<typeof import("./pet/pool.ts")> { return import("./pet/pool.ts"); }
 
 export const api = {
-  /** loads the pool's chunk and resolves to its module; X-5b opens it from Mochi's click */
+  /** loads the pool's chunk and resolves to its module; the picture's click opens it */
   openPool,
   /** the model's input from the page's state (the progress page reads it for its own mood line) */
   input: (withDue: boolean): MoodInput => input(withDue),

@@ -19,7 +19,7 @@
    14. a reset or sync event rebuilds the figure from today's state; no second intro
    15. level then chapterDone inside the quiet window: the pending slot holds the chapter line, latest wins
    16. at 360 px the due link is visible, points at the section, and the bubble clears the field
-   17. print hides it; forced colors drop the picture but keep the caption
+   17. print hides it; forced colors drop the window but keep the caption and show the button's border
    18. the stuck nudge waits out the quiet window; a correct answer drops it
    19. arena.html: docked (fixed, 4rem, outside any sidebar) at 1280 and 360, at rest with no intro, clear of the
        Arena's inputs and buttons in the lobby and in a run; a correct answer event is happy with no line;
@@ -170,7 +170,8 @@ async function run() {
       check(f && f.inSidebar, "mounted: figure[data-companion] is in aside[data-sidebar]");
       check(f && /mochi-pink-poses\.webp"?\)$/.test(f.image), "mounted: the sheet is mochi-pink-poses.webp: " + (f && f.image));
       eq([f.mood, f.name], ["idle", "Mochi"], "mounted: idle, named Mochi");
-      eq(f.label, "Mochi, your companion, idle", "mounted: the label");
+      eq(f.label, "Mochi, your companion, idle. Open Mochi's pool", "mounted: the label");
+      eq(await c.page.evaluate(() => { const p = document.querySelector(".companion-pic"); return [p.tagName, p.getAttribute("type"), p.getAttribute("role")]; }), ["BUTTON", "button", null], "mounted: the picture is a button of type button");
       const reqs = c.requests;
       check(reqs.some((u) => /\/models\/mochi\/mochi-pink-poses\.webp(?:[?#]|$)/.test(u)), "mounted: the sheet was requested");
       eq(reqs.filter((u) => /\.glb(?:[?#]|$)|-color\.webp|-surface\.webp|\/bundle\/(?:three|three-model|mochi)\.js/.test(u)), [], "mounted: no GLB, textures or model script requested");
@@ -366,9 +367,11 @@ async function run() {
       eq((await fig(c.page)).display, "none", "print: the figure is hidden");
       await c.page.emulateMedia({ media: "screen", forcedColors: "active" });
       const d = await c.page.evaluate(() => ({
-        pic: getComputedStyle(document.querySelector(".companion-pic")).display, cap: getComputedStyle(document.querySelector("figure[data-companion] figcaption")).display
+        pic: getComputedStyle(document.querySelector(".companion-window")).display, cap: getComputedStyle(document.querySelector("figure[data-companion] figcaption")).display
       }));
-      check(d.pic === "none" && d.cap !== "none", "forced colors: the picture drops, the caption stays " + JSON.stringify(d));
+      const bd = await c.page.evaluate(() => getComputedStyle(document.querySelector(".companion-pic")).borderTopStyle);
+      check(bd === "solid", "forced colors: the button shows a border " + bd);
+      check(d.pic === "none" && d.cap !== "none", "forced colors: the window drops, the caption stays " + JSON.stringify(d));
       await done(c, "print and forced colors");
     }
     /* 18 */
@@ -466,7 +469,7 @@ async function run() {
         return { mood: fg.getAttribute("data-mood"), pos: fg.querySelector(".companion-still").style.backgroundPosition, size: fg.querySelector(".companion-still").style.backgroundSize, label: pic.getAttribute("aria-label"), moods: window.BMCompanion.moods(), info: window.BMCompanion.info() };
       });
       eq([f.mood, f.pos.replace(/(0)(px|%)$/, "$1"), f.size], ["sleeping", "100% 0", "900% 100%"], "setMood: data-mood and the last column");
-      eq(f.label, "Mochi, your companion, sleeping", "setMood: the label");
+      eq(f.label, "Mochi, your companion, sleeping. Open Mochi's pool", "setMood: the label");
       eq(f.moods.length, 9, "setMood: nine moods");
       eq([f.info.mode, f.info.mood, f.info.variant], ["2d", "sleeping", "pink"], "info: mode, mood, variant");
       await done(c, "setMood");
