@@ -6,7 +6,8 @@ import vm from "node:vm";
 import { describe, expect, it } from "vitest";
 import { merge as installed } from "../ui/core.ts";
 import { isValid, mergeEvents, prune } from "./events.ts";
-import { maxSection, merge, mergeAttempt, mergeDiag, mergeGame, mergeWear, WEAR_AT_MAX } from "./merge.ts";
+import { maxSection, merge, mergeAttempt, mergeDiag, mergeGame, mergePet, mergeWear, WEAR_AT_MAX } from "./merge.ts";
+import { balance, bag, PRUNE_CARE_DAYS, PRUNE_LEDGER_DAYS } from "../learn/pet.ts";
 
 const ROOT = path.resolve(import.meta.dirname, "../..");
 /* the random states of tools/check-static.js's `merge` check, shared with it */
@@ -495,5 +496,195 @@ describe("game.form (no longer a known field)", () => {
     expect(mergeGame({}, a1()).form).toEqual({ got: { "1": 9 } });
     expect(Object.prototype.hasOwnProperty.call(mergeGame({}, {}), "form")).toBe(false);
     function a1() { return { form: { got: { "1": 9 } } }; }
+  });
+});
+
+/* ---------------------------------------------------------------- mergePet -- */
+
+type Rng = any;
+const DAY0 = Date.UTC(2025, 0, 1);
+const dayAt = (i: number) => new Date(DAY0 + i * 86_400_000).toISOString().slice(0, 10);
+const ITEMS = ["pellet", "fish", "ball", "hat"];
+const STAGES_ = ["hatchling", "fry", "juvenile", "adult", "elder"];
+const NEED_KEYS = ["tummy", "play", "clean", "spark"];
+const hostile = (json: string) => JSON.parse(json);
+
+/* a number that is sometimes damaged: a string, a negative, past any bound, a fraction */
+function junkNum(R: Rng, n: number): any {
+  const r = R.int(40);
+  if (r === 0) return String(n);
+  if (r === 1) return -n;
+  if (r === 2) return 1e308;
+  if (r === 3) return "x";
+  if (r === 4) return null;
+  if (r === 5) return n + 0.5;
+  return n;
+}
+/* a whole value replaced by damage now and then */
+function junk(R: Rng, v: any): any {
+  if (!R.maybe(0.03)) return v;
+  return R.pick([null, "x", 7, [1, 2], true, {}, hostile('{"__proto__":{"polluted":1},"z":1}')]);
+}
+function addUnknown(R: Rng, o: any) {
+  if (R.maybe(0.15)) o["u" + R.int(2)] = R.pick(["a", "b", 1, { k: R.int(2) }, [R.int(3)]]);
+}
+
+/* one device's own doing on top of the base, in a day window that reaches past the prunes */
+function profile(R: Rng, base: any, dev: string, span: number): any {
+  const pet: any = JSON.parse(JSON.stringify(base));
+  pet.earned = pet.earned || {}; pet.spent = pet.spent || {}; pet.care = pet.care || {};
+  pet.owned = pet.owned || {}; pet.needs = pet.needs || {}; pet.grew = pet.grew || {}; pet.gift = pet.gift || {};
+  const k = R.int(25);
+  for (let i = 0; i < k; i++) {
+    const d = dayAt(R.int(span)), sec = "ch0" + R.int(3) + "#s" + R.int(8);
+    const r = R.int(8);
+    if (r === 0) pet.earned["strong:" + sec] = junkNum(R, 20);
+    else if (r === 1) pet.earned["medal:ch01:practice:" + (1 + R.int(3))] = 10;
+    else if (r <= 3) pet.earned["review:" + d + ":" + sec] = junkNum(R, 5);
+    else if (r === 4) pet.earned[R.pick(["compare:ch01/e1", "mission:ch02/m1", "bogus:1", "review:nope:x"])] = 5;
+    else if (r <= 6) pet.spent["buy:" + d + ":" + R.pick(ITEMS) + ":" + dev + ":" + R.int(4)] = junkNum(R, R.pick([5, 10, 40]));
+    else pet.owned[R.pick(ITEMS)] = R.maybe(0.05) ? 7 : d;
+  }
+  for (let i = 0; i < R.int(20); i++) {
+    const d = dayAt(R.int(span));
+    const day: any = pet.care[d] && typeof pet.care[d] === "object" ? pet.care[d] : (pet.care[d] = {});
+    const r = R.int(5);
+    if (r === 0) { day.feed = day.feed && typeof day.feed === "object" ? day.feed : {}; day.feed[R.pick(ITEMS)] = junkNum(R, 1 + R.int(3)); }
+    else day[["play", "clean", "spark", "play"][r - 1] || "play"] = junkNum(R, 1 + R.int(2));
+    addUnknown(R, day);
+    pet.care[d] = junk(R, day);
+  }
+  for (let i = 0; i < R.int(4); i++) {
+    const nk = R.pick(NEED_KEYS);
+    pet.needs[nk] = junk(R, { n: junkNum(R, R.int(6)), at: R.maybe(0.05) ? R.pick([1e308, WEAR_AT_MAX + 1, -5, "9"]) : 1000 * R.int(50) });
+  }
+  if (R.maybe(0.1)) pet.needs.mystery = R.pick([1, "m", { a: 1 }]);
+  if (R.maybe(0.5)) pet.grew[R.pick(STAGES_)] = junkNum(R, 1 + R.int(500));
+  if (R.maybe(0.4)) pet.gift[dayAt(R.int(span))] = 1;
+  if (R.maybe(0.4)) {
+    pet.wear = junk(R, { head: R.pick(["hat", "cap"]), decor: R.maybe(0.5) ? ["weed"] : undefined, at: R.maybe(0.1) ? R.pick([1e308, "5", -1]) : 100 * R.int(30) });
+    if (pet.wear && typeof pet.wear === "object") addUnknown(R, pet.wear);
+  }
+  if (R.maybe(0.3)) pet.v = R.pick([1, 1, "1", 2]);
+  addUnknown(R, pet);
+  if (R.maybe(0.05)) Object.assign(pet, hostile('{"__proto__":{"polluted":1}}'));
+  if (R.maybe(0.03)) pet.earned = R.pick(["x", [1], null, 5]);
+  if (R.maybe(0.03)) pet.care = R.pick(["x", [1], null]);
+  return pet;
+}
+/* three offline profiles of one base: the same history, then each device's own */
+function petTriple(R: Rng): any[] {
+  const wide = R.maybe(0.4), span = wide ? 520 : 120;
+  const base: any = wide ? { v: 1, care: {}, spent: {}, earned: {} } : {};
+  if (wide) {
+    for (let i = 0; i < 400 + R.int(50); i++) base.care[dayAt(i)] = { play: 1 };
+    for (let i = 0; i < 100 + R.int(20); i++) { base.spent["buy:" + dayAt(i) + ":fish:z:1"] = 5; base.earned["review:" + dayAt(i) + ":ch01#a"] = 5; }
+  }
+  return [0, 1, 2].map((i) => profile(R, base, "abc"[i], span));
+}
+
+describe("mergePet", () => {
+  const J = (x: unknown) => canon(x);
+  it("is commutative, associative and idempotent over 600 seeded triples of offline profiles, pruned", () => {
+    const R = rng(20261023);
+    let pruned = 0, damaged = 0;
+    for (let i = 0; i < 600; i++) {
+      const seed = R.int(2 ** 31), S = rng(seed);
+      const [a, b, c] = petTriple(S);
+      const ab = mergePet(a, b);
+      expect(J(ab), "seed " + seed + ": commutative").toBe(J(mergePet(b, a)));
+      expect(J(mergePet(ab, c)), "seed " + seed + ": associative").toBe(J(mergePet(a, mergePet(b, c))));
+      expect(J(mergePet(ab, ab)), "seed " + seed + ": idempotent").toBe(J(ab));
+      expect(J(mergePet(ab, a)), "seed " + seed + ": absorbs an input").toBe(J(ab));
+      expect(Object.keys(ab.care).length).toBeLessThanOrEqual(PRUNE_CARE_DAYS);
+      if (Object.keys(ab.care).length === PRUNE_CARE_DAYS) pruned++;
+      expect(new Set(Object.keys(ab.spent).map((k) => k.split(":")[1])).size).toBeLessThanOrEqual(PRUNE_CARE_DAYS);
+      if (a.earned === null || typeof a.earned !== "object" || a.wear === null) damaged++;
+      expect(({} as any).polluted).toBeUndefined();
+    }
+    expect(pruned).toBeGreaterThan(100);
+    expect(damaged).toBeGreaterThan(5);
+  }, LONG);
+
+  it("T1: the same cause earned on two devices is one id, and counts once in the balance", () => {
+    const id = "strong:ch01#one-unknown";
+    const r = mergePet({ v: 1, earned: { [id]: 20 } }, { v: 1, earned: { [id]: 20 } });
+    expect(Object.keys(r.earned)).toEqual([id]);
+    expect(balance(r)).toBe(20);
+  });
+
+  it("T2: a buy on A and a feed on B both survive; later needs, earliest grew and earlier owned win", () => {
+    const buy = (k: number) => "buy:2026-10-01:fish:a:" + k;
+    const A = { v: 1, spent: { [buy(1)]: 10, [buy(2)]: 10 }, needs: { tummy: { n: 4, at: 100 } }, grew: { fry: 50 }, owned: { hat: "2026-10-03" } };
+    const B = { v: 1, care: { "2026-10-01": { feed: { fish: 1 } } }, needs: { tummy: { n: 2, at: 200 } }, grew: { fry: 30 }, owned: { hat: "2026-10-02" } };
+    const r = mergePet(A, B);
+    expect(Object.keys(r.spent).length).toBe(2);
+    expect(r.care["2026-10-01"].feed.fish).toBe(1);
+    expect(bag(r, (i) => i === "fish")).toEqual({ fish: 1 });
+    expect(r.needs.tummy).toEqual({ n: 2, at: 200 });
+    expect(r.grew.fry).toBe(30);
+    expect(r.owned.hat).toBe("2026-10-02");
+  });
+
+  it("T5: two states of 500 care days each come out at 400, and the laws hold on the pruned inputs", () => {
+    const mk = (from: number) => {
+      const care: any = {};
+      for (let i = 0; i < 500; i++) care[dayAt(from + i)] = { play: 1 + (i % 3) };
+      return { v: 1, care };
+    };
+    const a = mk(0), b = mk(250), c = mk(100);
+    const ab = mergePet(a, b);
+    expect(Object.keys(ab.care).length).toBe(PRUNE_CARE_DAYS);
+    expect(Object.keys(ab.care).sort()[0]).toBe(dayAt(750 - PRUNE_CARE_DAYS));
+    expect(J(mergePet(ab, c))).toBe(J(mergePet(a, mergePet(b, c))));
+    const pa = mergePet(a, {}), pb = mergePet(b, {});
+    expect(Object.keys(pa.care).length).toBe(PRUNE_CARE_DAYS);
+    expect(J(mergePet(pa, pb))).toBe(J(ab));
+    expect(J(mergePet(pb, pa))).toBe(J(ab));
+    expect(J(mergePet(ab, ab))).toBe(J(ab));
+  });
+
+  it("keeps the newest 400 days of buys and 90 of review earns, and drops a key with no valid day", () => {
+    const spent: any = { "buy:nope:fish:a:1": 5 }, earned: any = { "review:x:s": 5, "strong:ch01#a": 20 };
+    for (let i = 0; i < 450; i++) spent["buy:" + dayAt(i) + ":fish:a:1"] = 5;
+    for (let i = 0; i < 120; i++) earned["review:" + dayAt(i) + ":ch01#a"] = 5;
+    const r = mergePet({ v: 1, spent, earned }, {});
+    expect(Object.keys(r.spent).length).toBe(PRUNE_CARE_DAYS);
+    expect(r.spent["buy:nope:fish:a:1"]).toBeUndefined();
+    expect(Object.keys(r.earned).length).toBe(PRUNE_LEDGER_DAYS + 1);
+    expect(r.earned["strong:ch01#a"]).toBe(20);
+  });
+
+  it("ignores a need at past the bound and carries unknown fields", () => {
+    const r = mergePet({ needs: { tummy: { n: 5, at: 1e308 }, odd: 1 }, x: "a" }, { needs: { tummy: { n: 2, at: 20 } }, x: "b" });
+    expect(r.needs.tummy).toEqual({ n: 2, at: 20 });
+    expect(r.needs.odd).toBe(1);
+    expect(r.x).toBe("b");
+  });
+
+  it("takes the whole wear of the later at, and later when none qualifies", () => {
+    expect(mergePet({ wear: { head: "hat", at: 10 } }, { wear: { back: "cape", at: 20, z: 1 } }).wear).toEqual({ back: "cape", at: 20, z: 1 });
+    expect(mergePet({ wear: { head: "hat", at: 1e308 } }, { wear: { back: "cape", at: 20 } }).wear).toEqual({ back: "cape", at: 20 });
+    expect("wear" in mergePet({}, {})).toBe(false);
+  });
+
+  it("treats __proto__ as data that never reaches a prototype", () => {
+    const evil = hostile('{"v":1,"earned":{"__proto__":{"polluted":1},"constructor":5,"strong:ch01#a":20},"care":{"__proto__":{"play":1},"2026-10-01":{"__proto__":{"polluted":1},"play":2}},"grew":{"__proto__":9}}');
+    const out = mergePet(evil, evil);
+    expect(Object.getPrototypeOf(out.earned)).toBe(Object.prototype);
+    expect(Object.getPrototypeOf(out.care)).toBe(Object.prototype);
+    expect(({} as any).polluted).toBeUndefined();
+    expect(out.earned.polluted).toBeUndefined();
+    expect(out.earned.constructor).toBe(5);
+    expect(out.care["2026-10-01"].play).toBe(2);
+  });
+});
+
+describe("merge() and the pet", () => {
+  it("adds pet only when a side has one", () => {
+    expect(Object.prototype.hasOwnProperty.call(merge({}, {}), "pet")).toBe(false);
+    expect(Object.prototype.hasOwnProperty.call(merge({ game: {} }, { events: {} }), "pet")).toBe(false);
+    expect(merge({ pet: { v: 1, gift: { "2026-10-01": 1 } } }, {}).pet.gift).toEqual({ "2026-10-01": 1 });
+    expect(Object.prototype.hasOwnProperty.call(merge({}, { pet: {} }), "pet")).toBe(true);
   });
 });
