@@ -80,8 +80,8 @@
     Store.write(Store.keys.run, r, true);
   }
   var META_KEY = "bm.sync.v1";
-  /* "game" and "diag" only where site.js knows the key, so an older site.js still syncs cleanly */
-  var FIELDS = ["progress", "play", "attempts", "activity", "lesson", "last", "game", "diag"].filter(function (f) {
+  /* "game", "diag" and "pet" only where site.js knows the key, so an older site.js still syncs cleanly */
+  var FIELDS = ["progress", "play", "attempts", "activity", "lesson", "last", "game", "diag", "pet"].filter(function (f) {
     return !!Store.keys[f];
   });
 

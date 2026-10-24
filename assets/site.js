@@ -30,6 +30,8 @@
   var LESSON_KEY = "bm.lesson.v1";
   var DIAG_KEY = "bm.diag.v1";
   var GAME_KEY = "bm.game.v1";
+  /* Mochi's pool: synced, cleared by a reset (decision 0015) */
+  var PET_KEY = "bm.pet.v1";
   var RUN_KEY = "bm.run.v1";
   var PREFS_KEY = "bm.prefs.v1";
   var C = window.BM_CURRICULUM || { parts: [], chapters: [] };
@@ -69,7 +71,9 @@
       /* the placement check: synced, and not cleared by a reset (decision 0003) */
       diag: DIAG_KEY,
       /* the game layer (assets/game.js): game is synced, run and prefs stay on this device */
-      game: GAME_KEY, run: RUN_KEY, prefs: PREFS_KEY
+      game: GAME_KEY, run: RUN_KEY, prefs: PREFS_KEY,
+      /* Mochi's pool: synced, cleared by a reset (decision 0015) */
+      pet: PET_KEY
     },
     read: readStore,
     write: writeStore,
@@ -735,6 +739,7 @@
         Activity.reset();
         writeStore(LESSON_KEY, {});
         writeStore(GAME_KEY, {});
+        writeStore(PET_KEY, {});
         writeStore(RUN_KEY, {});
         /* DIAG_KEY stays: a reset keeps the placement-check results (decision 0003) */
         Store.emit({ type: "reset" });

@@ -20,7 +20,9 @@
    ones that are this device's own, and now and then an invalid one (a wrong hash, a time
    out of range, a count past its bound, a checkpoint from a device, a payload that is not
    an array, an id of the wrong shape), a damaged store or `ev`, a `v` of 2 or junk, and one
-   id (EVENT_COLLISION) that may hold either of two valid payloads. */
+   id (EVENT_COLLISION) that may hold either of two valid payloads.
+   pet (default true) adds Mochi's pool (bm.pet.v1, randomPet) as the very last thing drawn,
+   after events, the same way: false gives exactly the stream before. */
 
 /* a small seeded PRNG so a failing case can be reproduced by seed */
 function rng(seed) {
@@ -179,6 +181,50 @@ function randomEvents(R) {
   return unknown(st);
 }
 const pickSomeOf = (arr, p, R) => arr.filter(() => R.maybe(p));
+/* Mochi's pool (bm.pet.v1, src/types/state.ts PetStore): few ids and few days, so two devices
+   often share keys and disagree; now and then a damaged field or a whole pet that is no record. */
+const PET_SECS = ["ch01#a", "ch01#b", "ch02#a"];
+function randomPet(R) {
+  if (R.maybe(1 / 30)) return JSON.parse(JSON.stringify(R.pick(TAKE_DAMAGED)));
+  const some = (arr, p) => pickSomeOf(arr, p === undefined ? 0.4 : p, R);
+  const p = { v: 1 }, put = (k, map) => { if (R.maybe(0.85)) p[k] = map; };
+  const earned = {};
+  some(PET_SECS).forEach(s => { earned["strong:" + s] = 20; });
+  some(["1", "2", "3"]).forEach(n => { earned["medal:ch01:practice:" + n] = 10; });
+  some(DAYS).forEach(d => { earned["review:" + d + ":" + R.pick(PET_SECS)] = 5; });
+  if (R.maybe(0.3)) earned["compare:ch01/e1"] = 5;
+  if (R.maybe(0.3)) earned["mission:ch02/k1"] = 5;
+  if (R.maybe(0.3)) earned["j" + R.int(5)] = R.int(30);
+  put("earned", R.maybe(0.03) ? R.pick(["x", [1], null]) : earned);
+  const spent = {};
+  some(DAYS, 0.3).forEach(d => { spent["buy:" + d + ":hat:" + R.pick(["a", "b"]) + ":" + R.int(3)] = R.pick([5, 10, 40]); });
+  some(DAYS, 0.3).forEach(d => { spent["feed:" + d + ":fish:" + R.pick(["a", "b"]) + ":" + R.int(3)] = 10; });
+  put("spent", spent);
+  const owned = {}; some(["hat", "cap"], 0.3).forEach(i => { owned[i] = R.pick(DAYS); }); put("owned", owned);
+  const needs = {};
+  some(["tummy", "play", "clean", "spark"], 0.5).forEach(n => {
+    needs[n] = { n: R.int(6), at: R.maybe(0.1) ? R.pick([4102444800001, "9", -5]) : 1000 * R.int(50) };
+  });
+  put("needs", needs);
+  const care = {};
+  some(DAYS, 0.5).forEach(d => {
+    care[d] = {};
+    if (R.maybe(0.5)) care[d].feed = { fish: 1 + R.int(3) };
+    some(["play", "clean", "spark"], 0.4).forEach(k => { care[d][k] = 1 + R.int(2); });
+    if (R.maybe(0.05)) care[d] = R.pick(["x", 7, null]);
+  });
+  put("care", R.maybe(0.03) ? R.pick(["x", [1]]) : care);
+  const grew = {}; some(["fry", "koi"], 0.3).forEach(g => { grew[g] = 1 + R.int(500); }); put("grew", grew);
+  if (R.maybe(0.4)) {
+    p.wear = { at: R.maybe(0.1) ? R.pick([4102444800001, "5", -1]) : 100 * R.int(30) };
+    if (R.maybe(0.6)) p.wear.head = R.pick(["hat", "cap"]);
+    if (R.maybe(0.5)) p.wear.decor = some(["weed", "shell", "pearl"], 0.5);
+  }
+  if (R.maybe(0.4)) { p.gift = {}; some(DAYS, 0.4).forEach(d => { p.gift[d] = 1; }); }
+  some(UNKNOWN_KEYS, 0.2).forEach(k => { p[k] = JSON.parse(JSON.stringify(R.pick(UNKNOWN_VALUES))); });
+  return p;
+}
+
 function randomState(R, opts) {
   const conflicts = !opts || opts.sectionConflicts !== false;
   const st = {};
@@ -264,7 +310,9 @@ function randomState(R, opts) {
   if (!opts || opts.diag !== false) st.diag = randomDiag(R);
   /* and after that, so the same holds for diag */
   if (!opts || opts.events !== false) st.events = randomEvents(R);
+  /* and after that, so the same holds for events */
+  if (!opts || opts.pet !== false) st.pet = randomPet(R);
   return st;
 }
 
-module.exports = { rng, randomState, randomDiag, randomEvents, EVENT_SECTIONS, EVENT_REFS, EVENT_COLLISION, POOL_P, POOL_S, POOL_Z, TAKE_IDS, TAKE_BODIES, TAKE_DAMAGED, CHAPTERS, KEYS, DAYS, UNKNOWN_KEYS, UNKNOWN_VALUES, RUNG_VALUES, SECTIONS, OTHER_SECTIONS, SECTION_DAMAGED };
+module.exports = { rng, randomState, randomDiag, randomEvents, randomPet, EVENT_SECTIONS, EVENT_REFS, EVENT_COLLISION, POOL_P, POOL_S, POOL_Z, TAKE_IDS, TAKE_BODIES, TAKE_DAMAGED, CHAPTERS, KEYS, DAYS, UNKNOWN_KEYS, UNKNOWN_VALUES, RUNG_VALUES, SECTIONS, OTHER_SECTIONS, SECTION_DAMAGED };
