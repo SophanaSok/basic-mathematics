@@ -26,14 +26,21 @@
   16. decor: Buy decor:castle, Place it (a span.companion-decor[data-decor] with the castle cell), Remove hides it,
       wear.decor and wear.at follow
   17. two devices: a merged record with two ball buys shows one Owned, two spends, and the balance down by both
-  18. config shop "off": no Shop tab and no shop panel, the Pool tab still works
+  18. config shop "off": no Shop tab and no shop panel (Pool and Growth remain), the Pool tab still works
   19. keyboard: Enter on the porthole pets Mochi; Feed's click moves focus to the line
   20. growth: two days of all four acts with XP (8 points) stamp grew.fry on opening, the porthole carries
       data-pet-stage="fry", the line is "Mochi grew into a fry!", run.seen.grew.fry is 1, and a reload shows the
       idle line with grew.fry unchanged
   21. T7: the same care on days without XP stamps nothing and the stage stays hatchling
   22. look: with 3D on the stage's scale is 0.8 at hatchling and 0.875 at fry (data-pet-scale, read from the stage)
-  23. no page errors in any case */
+  23. growth tab: "Mochi is a fry.", "16 more good-day points to Juvenile.", the path marks fry as the current step
+      and hatchling and fry as reached, 28 calendar days with the two seeded days at 4 and the rest at 0
+  24. shop "off": the strip shows Pool and Growth; shop "on" shows Pool, Shop, Growth in that order
+  25. keyboard: ArrowLeft from Pool lands on Growth, End then Home return; panels are tabpanels labelled by their tab
+  26. T7 in the calendar: a day with care but no XP shows 0 points
+  27. X-7 minors: a Place that changes nothing writes nothing and says nothing; a snack that does not fit is disabled with
+      the room in its row, and the cheapest snack that fits stays enabled
+  28. no page errors in any case */
 "use strict";
 const site = require("../lib/site");
 const target = require("../lib/target");
@@ -318,8 +325,8 @@ async function run() {
         groups: Array.from(document.querySelectorAll(".pet-panel[data-panel=shop] h3")).map((h) => h.textContent),
         items: Array.from(document.querySelectorAll("li.pet-item")).map((li) => li.getAttribute("data-item") + "=" + li.querySelector(".pet-item-price").textContent)
       }));
-      eq(d.tabs, ["Pool:false", "Shop:true"], "shop: the tabs");
-      eq(d.panels, ["pool:true", "shop:false"], "shop: the panels");
+      eq(d.tabs, ["Pool:false", "Shop:true", "Growth:false"], "shop: the tabs");
+      eq(d.panels, ["pool:true", "shop:false", "growth:true"], "shop: the panels");
       eq(d.groups, ["Snacks", "Toys", "Decor"], "shop: the groups");
       eq(d.items.length, 11, "shop: eleven items");
       eq(d.items.slice(0, 4), ["snack:kelp-chip=5 facets", "snack:shrimp-puff=8 facets", "snack:berry-bite=12 facets", "toy:ball=25 facets"], "shop: the first prices");
@@ -441,8 +448,8 @@ async function run() {
       const c = await open(seedPet({ earned: FIVE }));
       await c.page.evaluate(() => { window.BM_CONFIG = Object.assign({}, window.BM_CONFIG, { shop: "off" }); });
       await openPool(c.page);
-      const d = await c.page.evaluate(() => ({ tabs: document.querySelectorAll(".pet-tabs, [data-tab]").length, shop: document.querySelectorAll("[data-panel=shop], li.pet-item").length, pool: !document.querySelector("[data-panel=pool]").hidden }));
-      eq(d, { tabs: 0, shop: 0, pool: true }, "shop off: no tab, no panel, the pool shows");
+      const d = await c.page.evaluate(() => ({ tabs: Array.from(document.querySelectorAll(".pet-tabs [data-tab]")).map((b) => b.getAttribute("data-tab")), shop: document.querySelectorAll("[data-panel=shop], li.pet-item").length, pool: !document.querySelector("[data-panel=pool]").hidden }));
+      eq(d, { tabs: ["pool", "growth"], shop: 0, pool: true }, "shop off: no Shop tab, no shop panel, the pool shows");
       await c.page.click(".pet-porthole");
       eq(await lineOf(c.page), "Mochi nuzzles your hand.", "shop off: the pool still works");
       check(await c.page.evaluate(() => { const b = document.querySelector('button[data-act="play"]'); return !b.disabled && !b.hasAttribute("aria-disabled"); }), "shop off: Play is enabled without a toy");
@@ -465,7 +472,10 @@ async function run() {
       const before = await stored(c.page);
       await c.page.click('li[data-item="toy:ball"] button[data-shop="buy"]');
       await c.page.click('li[data-item="snack:berry-bite"] button[data-shop="feed"]');
-      eq(await stored(c.page), before, "stale: nothing is written");
+      await c.page.click('[data-tab="pool"]');
+      await c.page.click('button[data-act="feed"]');
+      await c.page.dispatchEvent('button[data-act="play"]', "click");   // aria-disabled without a toy: only the handler's own guard
+      eq(await stored(c.page), before, "stale: nothing is written, the care row included");
       await done(c, "stale");
     }
     /* 19: keyboard */
@@ -484,7 +494,7 @@ async function run() {
       check(await c.page.evaluate(() => document.activeElement === document.querySelector(".pet-line")), "keys: focus moves to the line when Feed goes away");
       await done(c, "keys");
     }
-    /* 21: growth */
+    /* 20: growth */
     cases++;
     {
       const D1 = "2026-10-01", D2 = "2026-10-02";
@@ -509,7 +519,7 @@ async function run() {
       eq(await c.page.evaluate(() => document.querySelector(".pet-porthole").getAttribute("data-pet-stage")), "fry", "growth: still fry after the reload");
       await done(c, "growth");
     }
-    /* 22: T7, care without XP */
+    /* 21: T7, care without XP */
     cases++;
     {
       const D1 = "2026-10-01", D2 = "2026-10-02";
@@ -522,7 +532,7 @@ async function run() {
       eq(await lineOf(c.page), "Mochi is glad to see you.", "T7: no moment");
       await done(c, "T7");
     }
-    /* 23: the look on the stage */
+    /* 22: the look on the stage */
     cases++;
     {
       const D1 = "2026-10-01", D2 = "2026-10-02";
@@ -538,6 +548,113 @@ async function run() {
         else check(await until(c.page, (v) => document.querySelector(".pet-porthole").getAttribute("data-pet-scale") === v, want, 4000), "look: scale " + want + " at " + name);
         await done(c, "look " + name);
       }
+    }
+    /* 23: the growth tab */
+    cases++;
+    {
+      const days = [1, 2].map((n) => { const d = new Date(); d.setDate(d.getDate() - n); const p = (x) => (x < 10 ? "0" : "") + x; return d.getFullYear() + "-" + p(d.getMonth() + 1) + "-" + p(d.getDate()); });
+      const ACTS = { feed: { pellet: 1 }, play: 1, clean: 1, spark: 1 };
+      const care = { [days[0]]: ACTS, [days[1]]: ACTS };
+      const act = { "bm.activity.v1": JSON.stringify({ days: { [days[0]]: 10, [days[1]]: 10 } }) };
+      const c = await open(Object.assign(seedPet({ v: 1, care }), act));
+      await openPool(c.page);
+      await c.page.click('button[data-tab="growth"]');
+      const d = await c.page.evaluate(() => {
+        const p = document.querySelector('.pet-panel[data-panel="growth"]');
+        const cur = p.querySelector('.pet-path li[aria-current="step"]');
+        return {
+          visible: !p.hidden,
+          stage: p.querySelector(".pet-growth-stage").textContent, next: p.querySelector(".pet-growth-next").textContent,
+          current: cur && cur.getAttribute("data-stage"),
+          reached: Array.from(p.querySelectorAll(".pet-path li[data-reached]")).map((l) => l.getAttribute("data-stage")),
+          days: p.querySelectorAll("ol.pet-days li[data-day]").length,
+          fours: Array.from(p.querySelectorAll('li[data-points="4"]')).map((l) => l.getAttribute("data-day")),
+          zeros: p.querySelectorAll('li[data-points="0"]').length,
+          label: p.querySelector('li[data-points="4"]').getAttribute("aria-label"),
+          zeroLabel: p.querySelector('li[data-points="0"]').getAttribute("aria-label"),
+          last: p.querySelector("ol.pet-days li:last-child").getAttribute("data-day"),
+          hint: p.querySelector(".pet-line").textContent
+        };
+      });
+      check(d.visible, "growth tab: the panel shows");
+      eq(d.stage, "Mochi is a fry.", "growth tab: the stage line");
+      eq(d.next, "16 more good-day points to Juvenile.", "growth tab: the next line");
+      eq(d.current, "fry", "growth tab: fry is the current step");
+      eq(d.reached, ["hatchling", "fry"], "growth tab: hatchling and fry are reached");
+      eq(d.days, 28, "growth tab: 28 days");
+      eq(d.fours, [days[1], days[0]], "growth tab: the two seeded days are at 4");
+      eq(d.zeros, 26, "growth tab: the rest are at 0");
+      check(/^[A-Z][a-z]+ \d{1,2}: 4 care points$/.test(d.label), "growth tab: the day label (" + d.label + ")");
+      check(/^[A-Z][a-z]+ \d{1,2}: no care points$/.test(d.zeroLabel), "growth tab: the zero label (" + d.zeroLabel + ")");
+      eq(d.last, await today(c.page), "growth tab: the calendar ends today");
+      eq(d.hint, "Good days help Mochi grow: learn something and care for the pool.", "growth tab: the hint");
+      await done(c, "growth tab");
+    }
+    /* 24: the strip with the shop on and off */
+    cases++;
+    {
+      const tabsOf = (page) => page.evaluate(() => ({ strip: !document.querySelector(".pet-tabs").hidden, tabs: Array.from(document.querySelectorAll(".pet-tabs [role=tab]")).map((b) => b.getAttribute("data-tab")) }));
+      const on = await open(seedPet({ v: 1 }));
+      await openPool(on.page);
+      eq(await tabsOf(on.page), { strip: true, tabs: ["pool", "shop", "growth"] }, "tabs: shop on shows three");
+      await done(on, "tabs on");
+      const off = await open(seedPet({ v: 1 }));
+      await off.page.evaluate(() => { window.BM_CONFIG = Object.assign({}, window.BM_CONFIG, { shop: "off" }); });
+      await openPool(off.page);
+      eq(await tabsOf(off.page), { strip: true, tabs: ["pool", "growth"] }, "tabs: shop off shows Pool and Growth");
+      await done(off, "tabs off");
+    }
+    /* 25: tab keyboard */
+    cases++;
+    {
+      const c = await open(seedPet({ v: 1 }));
+      await openPool(c.page);
+      const focused = (page) => page.evaluate(() => document.activeElement && document.activeElement.getAttribute("data-tab"));
+      await c.page.focus('button[data-tab="pool"]');
+      await c.page.keyboard.press("ArrowLeft");
+      eq(await focused(c.page), "growth", "tab keys: ArrowLeft from Pool lands on Growth");
+      await c.page.keyboard.press("ArrowRight");
+      eq(await focused(c.page), "pool", "tab keys: ArrowRight wraps to Pool");
+      await c.page.keyboard.press("End");
+      eq(await focused(c.page), "growth", "tab keys: End");
+      await c.page.keyboard.press("Home");
+      eq(await focused(c.page), "pool", "tab keys: Home");
+      const d = await c.page.evaluate(() => Array.from(document.querySelectorAll(".pet-tabs [role=tab]")).map((t) => {
+        const p = document.getElementById(t.getAttribute("aria-controls"));
+        return [p.getAttribute("role"), p.getAttribute("aria-labelledby") === t.id, t.getAttribute("aria-selected"), t.tabIndex, p.hidden];
+      }));
+      eq(d, [["tabpanel", true, "true", 0, false], ["tabpanel", true, "false", -1, true], ["tabpanel", true, "false", -1, true]], "tab keys: roles, labels and the roving tabindex");
+      await done(c, "tab keys");
+    }
+    /* 26: T7 in the calendar */
+    cases++;
+    {
+      const d1 = await (async () => { const d = new Date(); d.setDate(d.getDate() - 1); const p = (x) => (x < 10 ? "0" : "") + x; return d.getFullYear() + "-" + p(d.getMonth() + 1) + "-" + p(d.getDate()); })();
+      const ACTS = { feed: { pellet: 1 }, play: 1, clean: 1, spark: 1 };
+      const c = await open(Object.assign(seedPet({ v: 1, care: { [d1]: ACTS } }), { "bm.activity.v1": JSON.stringify({ days: { [d1]: 0 } }) }));
+      await openPool(c.page);
+      await c.page.click('button[data-tab="growth"]');
+      eq(await c.page.evaluate((k) => document.querySelector('li[data-day="' + k + '"]').getAttribute("data-points"), d1), "0", "T7 calendar: care without XP is 0");
+      await done(c, "T7 calendar");
+    }
+    /* 27: the X-7 minors */
+    cases++;
+    {
+      const c = await open(seedPet({ earned: FIVE, owned: { "decor:castle": "2025-01-01" }, needs: { tummy: { n: 4, at: Date.now() } } }));
+      await openShop(c.page);
+      /* the item is no longer owned in the record (another tab); the button still shows: the click changes nothing */
+      await c.page.evaluate(() => { const r = JSON.parse(localStorage.getItem("bm.pet.v1")); delete r.owned; localStorage.setItem("bm.pet.v1", JSON.stringify(r)); });
+      const rec0 = await stored(c.page);
+      await c.page.click('li[data-item="decor:castle"] button[data-shop="place"]');
+      eq(await stored(c.page), rec0, "minors: a Place that changes nothing writes nothing");
+      check(!/in the pool/.test(await shopLine(c.page)), "minors: and does not claim the castle is in the pool");
+      const sn = await c.page.evaluate(() => ["snack:kelp-chip", "snack:shrimp-puff", "snack:berry-bite"].map((id) => {
+        const li = document.querySelector('li[data-item="' + id + '"]');
+        const n = li.querySelector(".pet-item-note");
+        return [id, li.querySelector("button").disabled, n.hidden ? "" : n.textContent, li.querySelector(".pet-item-price").textContent];
+      }));
+      eq(sn, [["snack:kelp-chip", false, "", "5 facets"], ["snack:shrimp-puff", true, "Mochi has room for 1 heart", "8 facets"], ["snack:berry-bite", true, "Mochi has room for 1 heart", "12 facets"]], "minors: snacks that do not fit are disabled with the room in the row");
+      await done(c, "minors");
     }
   } finally {
     try { await browser.close(); } catch (e) { console.error("browser close: " + e.message); }

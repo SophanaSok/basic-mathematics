@@ -2,7 +2,7 @@
    Only src/ui/companion.ts's openPool() imports this module, with import(), and nothing
    fetches the chunk until then. This card (X-5b) is the shell: a porthole with the 3D stage, the four
    needs as hearts, the facets line and Close. The care row is X-6; the shop (X-7, ./shop.ts) is a second tab
-   (absent when config shop is "off"); the wardrobe and growth come with X-8.
+   (absent when config shop is "off") and Growth (X-8b, ./growth.ts) a third; ./tabs.ts owns the strip.
 
    mountPool(host, { mode }) returns { close, dispose }.
      "dialog"  a <dialog class="pet-dialog"> on host: showModal(), focus on the title, Escape and Close shut it,
@@ -18,8 +18,10 @@ import type { MochiStage } from "../../mochi/index.ts";
 import { NEEDS, HEARTS_MAX, heartsOf, balance, placedDecor, growPet, growthPoints, stageOf, STAGE_LOOK } from "../../learn/pet.ts";
 import type { Need, Stage } from "../../learn/pet.ts";
 import { mountActions, isStale } from "./actions.ts";
-import { grewLine } from "./lines.ts";
+import { grewLine, lineFor } from "./lines.ts";
 import { mountShop } from "./shop.ts";
+import { mountGrowth } from "./growth.ts";
+import { mountTabs } from "./tabs.ts";
 import { DECOR_SIZE, itemOf } from "../../data/pet-items.ts";
 import { MOODS } from "../../learn/mood.ts";
 import { detectTier, readProbe, pixelRatio, TIERS } from "../../world/tiers.ts";
@@ -117,6 +119,11 @@ function paintFacets(shell: HTMLElement, pet: any): void {
 function paintDecor(shell: HTMLElement, pet: any): void {
   const win = shell.querySelector(".pet-window") as HTMLElement | null;
   if (!win) return;
+  /* rebuilt only when the placed list (as drawn) changed */
+  const owned0 = (pet && typeof pet.owned === "object" && pet.owned) || {};
+  const sig = placedDecor(pet).filter((id) => { const it = itemOf(id); return !!it && it.kind === "decor" && typeof owned0[id] === "string"; }).join(",");
+  if (win.getAttribute("data-decor-sig") === sig) return;
+  win.setAttribute("data-decor-sig", sig);
   win.querySelectorAll(".companion-decor").forEach((el) => el.remove());
   const owned = (pet && typeof pet.owned === "object" && pet.owned) || {};
   const before = win.querySelector(".companion-still");
@@ -266,21 +273,31 @@ export function mountPool(host: Element, opts: PoolOptions): PoolHandle {
     if (g.fresh.length) onGrown(g.fresh);
   };
   actions = mountActions(shell, { stage: () => stage, alive: () => live, reduced: reducedMotion, shop: shopWanted, repaint });
-  /* a sync or a write from another tab can change the balance under an open dialog */
-  current = () => { if (!live) return; const pet = petStore(), now = Date.now(); repaint(pet, now); if (shop) shop.refresh(pet, now); };
-  listen();
   applyLook(pet0, true);
-  const shop = shopWanted() ? mountShop(shell, { alive: () => live, repaint }) : null;
-  /* after the shop's mount, which sets the pool tab's idle line */
+  /* the tabs: Pool first (its first show sets the idle line), the shop when wanted, then Growth */
+  const tabs = mountTabs(shell, id);
+  tabs.add("pool", "Pool", shell.querySelector('.pet-panel[data-panel="pool"]') as HTMLElement, () => {
+    const l = shell.querySelector('.pet-panel[data-panel="pool"] .pet-line');
+    if (l) l.textContent = lineFor(petStore(), Date.now());
+  });
+  const shop = shopWanted() ? mountShop(shell, { alive: () => live, repaint }, tabs) : null;
+  const growth = mountGrowth(shell, { alive: () => live, repaint }, tabs);
+  /* a sync or a write from another tab can change the balance under an open dialog; assigned once every
+     handle it touches exists, and cleared only if it is still this pool's */
+  const mine = (): void => { if (!live) return; const pet = petStore(), now = Date.now(); repaint(pet, now); if (shop) shop.refresh(pet, now); growth.refresh(pet, now); };
+  current = mine;
+  listen();
+  /* after the tabs' mount, which sets the pool tab's idle line */
   onGrown(g0.fresh);
 
   /* the one way out: idempotent; the dialog's close event, Close, close() and dispose() all end here */
   function finish(): void {
     if (!live) return;
     live = false;
-    if (current) current = null;
+    if (current === mine) current = null;
     if (actions) actions.dispose();
     if (shop) shop.dispose();
+    growth.dispose();
     if (stage) { try { stage.dispose(); } catch { /* gone */ } stage = null; }
     host.removeAttribute("data-pet");
     const d = dialog;

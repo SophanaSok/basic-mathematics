@@ -8,9 +8,8 @@
    button is aria-disabled (it stays focusable and a click says why) and snacks are fed from the shop only.
    Under reduced motion no clip plays; the line still changes. */
 import { canAct, applyAct } from "../../learn/pet.ts";
-import type { Act } from "../../learn/pet.ts";
+import type { Act, Stage } from "../../learn/pet.ts";
 import type { MochiStage } from "../../mochi/index.ts";
-import type { Stage } from "../../learn/pet.ts";
 import { LINES, grewLine, lineFor } from "./lines.ts";
 
 /** the clip each act plays on the stage; B-2 swaps in eat / play / splash / nuzzle (and splash for grew) */

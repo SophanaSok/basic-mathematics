@@ -8,11 +8,12 @@
    second one-time buy, a buy at a negative balance (after a merge: nothing is revoked, learning earns it back)
    and a snack at a full Tummy, so a replayed click spends again only when the fresh balance allows it. After a
    `stale` bus event (isStale()) nothing is written. Accessories wait for the Blender cards (X-7b). */
-import { balance, buy, canBuy, feedSnack, HEARTS_MAX, heartsOf, placeDecor, placedDecor } from "../../learn/pet.ts";
+import { balance, buy, canBuy, feedSnack, HEARTS_MAX, heartsOf, placeDecor, placedDecor, snackFits } from "../../learn/pet.ts";
 import { PET_ITEMS } from "../../data/pet-items.ts";
 import type { PetItem } from "../../data/pet-items.ts";
 import { bought, LINES, lineFor, placed, removed } from "./lines.ts";
 import { isStale, readPet, today } from "./actions.ts";
+import type { TabsHandle } from "./tabs.ts";
 
 export interface ShopCtx {
   alive(): boolean;
@@ -41,29 +42,13 @@ function el<K extends keyof HTMLElementTagNameMap>(tag: K, cls?: string, text?: 
   return e;
 }
 
-export function mountShop(shell: HTMLElement, ctx: ShopCtx): ShopHandle {
-  const title = shell.querySelector(".pet-title") as HTMLElement;
+export function mountShop(shell: HTMLElement, ctx: ShopCtx, tabs: TabsHandle): ShopHandle {
   const poolPanel = shell.querySelector('.pet-panel[data-panel="pool"]') as HTMLElement;
   const poolLine = poolPanel.querySelector(".pet-line") as HTMLElement;
   let done = false;
 
-  /* the tab strip */
-  const tabs = el("div", "pet-tabs");
-  tabs.setAttribute("role", "tablist");
-  tabs.setAttribute("aria-label", "Pool and shop");
   const shopPanel = el("div", "pet-panel");
   shopPanel.setAttribute("data-panel", "shop");
-  shopPanel.hidden = true;
-  const tabOf: Record<string, HTMLButtonElement> = {};
-  (["pool", "shop"] as const).forEach((name) => {
-    const b = el("button", "pet-tab", name === "pool" ? "Pool" : "Shop");
-    b.type = "button";
-    b.setAttribute("role", "tab");
-    b.setAttribute("data-tab", name);
-    tabOf[name] = b;
-    tabs.appendChild(b);
-  });
-  title.parentNode!.insertBefore(tabs, title.nextSibling);
 
   /* the shop panel */
   const line = el("p", "pet-line", "");
@@ -72,7 +57,7 @@ export function mountShop(shell: HTMLElement, ctx: ShopCtx): ShopHandle {
   line.setAttribute("aria-live", "polite");
   const facets = el("p", "pet-facets", "");
   shopPanel.appendChild(facets);
-  const rows: Record<string, { li: HTMLLIElement; act: HTMLButtonElement | null; owned: HTMLElement | null; place: HTMLButtonElement | null; item: PetItem }> = {};
+  const rows: Record<string, { li: HTMLLIElement; note: HTMLElement | null; act: HTMLButtonElement | null; owned: HTMLElement | null; place: HTMLButtonElement | null; item: PetItem }> = {};
   GROUPS.forEach((g) => {
     const h = el("h3", "pet-group", g.title);
     const ul = el("ul", "pet-items");
@@ -81,6 +66,8 @@ export function mountShop(shell: HTMLElement, ctx: ShopCtx): ShopHandle {
       li.setAttribute("data-item", item.id);
       li.appendChild(el("span", "pet-item-name", item.name));
       li.appendChild(el("span", "pet-item-price", item.price + " facets"));
+      const note = item.kind === "snack" ? el("span", "pet-item-note", "") : null;
+      if (note) { note.hidden = true; li.appendChild(note); }
       const act = el("button", "btn", item.kind === "snack" ? "Feed" : "Buy");
       act.type = "button";
       act.setAttribute("data-shop", item.kind === "snack" ? "feed" : "buy");
@@ -102,7 +89,7 @@ export function mountShop(shell: HTMLElement, ctx: ShopCtx): ShopHandle {
         li.appendChild(place);
       }
       ul.appendChild(li);
-      rows[item.id] = { li, act, owned, place, item };
+      rows[item.id] = { li, note, act, owned, place, item };
     });
     shopPanel.appendChild(h);
     shopPanel.appendChild(ul);
@@ -121,13 +108,19 @@ export function mountShop(shell: HTMLElement, ctx: ShopCtx): ShopHandle {
     facets.textContent = shell.querySelector(".pet-panel[data-panel='pool'] .pet-facets")!.textContent;
     const owned = (pet && typeof pet.owned === "object" && pet.owned) || {};
     const out = placedDecor(pet);
-    const full = heartsOf("tummy", pet && pet.needs ? pet.needs.tummy : undefined, now) >= HEARTS_MAX;
+    const room = HEARTS_MAX - heartsOf("tummy", pet && pet.needs ? pet.needs.tummy : undefined, now);
     PET_ITEMS.forEach((item) => {
       const r = rows[item.id];
       const has = item.kind !== "snack" && typeof owned[item.id] === "string";
       if (r.act) {
         r.act.hidden = has;
-        r.act.disabled = item.kind === "snack" ? full || !canBuy(pet, item.price) : !canBuy(pet, item.price);
+        r.act.disabled = item.kind === "snack" ? !snackFits(pet, item, now) || !canBuy(pet, item.price) : !canBuy(pet, item.price);
+      }
+      if (r.note) {
+        /* a snack with more hearts than Tummy has room for is refused, and the row says why */
+        const short = item.kind === "snack" && room < Math.floor(item.hearts || 0);
+        r.note.hidden = !short;
+        r.note.textContent = short ? "Mochi has room for " + room + " heart" + (room === 1 ? "" : "s") : "";
       }
       if (r.owned) r.owned.hidden = !has;
       if (r.place) {
@@ -153,12 +146,12 @@ export function mountShop(shell: HTMLElement, ctx: ShopCtx): ShopHandle {
     if (what === "place") {
       const on = placedDecor(pet).indexOf(item.id) < 0;
       next = placeDecor(pet, item.id, on, now);
-      if (next === pet) next = null;
-      kind = "wear"; text = on ? placed(item.name) : removed(item.name);
+      if (next === pet) { next = null; text = ""; }
+      kind = "wear"; if (next) text = on ? placed(item.name) : removed(item.name);
     } else if (item.kind === "snack") {
       next = feedSnack(pet, item, day, deviceId(), now);
       kind = "care"; text = LINES.fed;
-      if (!next) text = heartsOf("tummy", pet.needs ? pet.needs.tummy : undefined, now) >= HEARTS_MAX ? LINES.full : balance(pet) < 0 ? LINES.behind : LINES.notEnough;
+      if (!next) text = !snackFits(pet, item, now) ? LINES.full : balance(pet) < 0 ? LINES.behind : LINES.notEnough;
     } else {
       next = buy(pet, item, day, deviceId());
       text = bought(item.name);
@@ -170,7 +163,7 @@ export function mountShop(shell: HTMLElement, ctx: ShopCtx): ShopHandle {
     if (next) {
       /* a full quota answers false and does not throw: nothing was kept, so nothing is announced */
       let kept = true;
-      try { kept = w().BMStore.write(w().BMStore.keys.pet, next) !== false; } catch { return; }
+      try { kept = w().BMStore.write(w().BMStore.keys.pet, next) !== false; } catch { kept = false; }
       if (!kept) {
         const cur = readPet();
         ctx.repaint(cur, now);
@@ -193,36 +186,12 @@ export function mountShop(shell: HTMLElement, ctx: ShopCtx): ShopHandle {
     if (r.place) { const b = r.place; b.addEventListener("click", () => onClick(r, "place", b)); }
   });
 
-  /* the tabs */
-  function select(name: "pool" | "shop", focus: boolean): void {
-    (Object.keys(tabOf) as ("pool" | "shop")[]).forEach((k) => {
-      const on = k === name;
-      tabOf[k].setAttribute("aria-selected", on ? "true" : "false");
-      tabOf[k].tabIndex = on ? 0 : -1;
-    });
-    poolPanel.hidden = name !== "pool";
-    shopPanel.hidden = name !== "shop";
+  tabs.add("shop", "Shop", shopPanel, () => {
     const pet = readPet(), now = Date.now();
     ctx.repaint(pet, now);
-    if (name === "shop") { paint(pet, now); say(status(pet)); }
-    else poolLine.textContent = lineFor(pet, now);
-    if (focus) tabOf[name].focus({ preventScroll: true });
-  }
-  const order: ("pool" | "shop")[] = ["pool", "shop"];
-  order.forEach((name, i) => {
-    tabOf[name].addEventListener("click", () => select(name, false));
-    tabOf[name].addEventListener("keydown", (e: KeyboardEvent) => {
-      const to = e.key === "ArrowRight" ? (i + 1) % 2 : e.key === "ArrowLeft" ? (i + 1) % 2 : e.key === "Home" ? 0 : e.key === "End" ? 1 : -1;
-      if (to < 0) return;
-      e.preventDefault();
-      select(order[to], true);
-    });
+    paint(pet, now);
+    say(status(pet));
   });
-  poolPanel.id = poolPanel.id || "pet-panel-pool-" + title.id;
-  shopPanel.id = "pet-panel-shop-" + title.id;
-  tabOf.pool.setAttribute("aria-controls", poolPanel.id);
-  tabOf.shop.setAttribute("aria-controls", shopPanel.id);
-  select("pool", false);
   paint(readPet(), Date.now());
 
   return {
