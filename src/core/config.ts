@@ -23,6 +23,10 @@ export interface Config {
   learners: "on" | "off";
   /** "off" hides the companion on every chapter page; any other value means "on" */
   companion: "on" | "off";
+  /** "off" hides the pool and Mochi's button; earns keep accruing; any other value means "on" */
+  pet: "on" | "off";
+  /** "off" hides the shop tab and refuses buys (decision 0011); any other value means "on" */
+  shop: "on" | "off";
 }
 
 function obj(x: unknown): Record<string, unknown> { return x && typeof x === "object" && !Array.isArray(x) ? x as Record<string, unknown> : {}; }
@@ -43,6 +47,8 @@ export function readConfig(raw: unknown): Config {
     learn: { events: learn.events === "off" ? "off" : "on" },
     board: c.board === "off" ? "off" : "on",
     learners: c.learners === "off" ? "off" : "on",
-    companion: c.companion === "off" ? "off" : "on"
+    companion: c.companion === "off" ? "off" : "on",
+    pet: c.pet === "off" ? "off" : "on",
+    shop: c.shop === "off" ? "off" : "on"
   };
 }
