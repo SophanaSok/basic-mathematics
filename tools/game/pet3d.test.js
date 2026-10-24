@@ -16,7 +16,11 @@
    6. accessories (X-7b-b, T12): with nothing worn the pool fetches no acc/ file; with acc:party-hat owned and worn the pool
       fetches acc/party-hat.glb exactly once and the stage holds socket_head (the porthole's data-pet-on); Nothing in the
       Wardrobe takes it off with no new request
-   7. no page errors in any case */
+   7. companion wears (X-7c): with acc:party-hat owned and worn and the pool never opened, the sidebar stage holds
+      socket_head (BMCompanion.info().stage.worn) from one request for acc/party-hat.glb; a pet "wear" change with nothing worn
+      empties it with no request; worn again it holds the hat; after the pool opens and closes the rebuilt stage wears it again;
+      a page with nothing worn requests no acc/ file
+   8. no page errors in any case */
 "use strict";
 const site = require("../lib/site");
 const target = require("../lib/target");
@@ -183,14 +187,51 @@ async function run() {
       check(await until(w.page, PORTHOLE), "acc: the stage is up with a hat worn");
       check(await until(w.page, () => document.querySelector(".pet-porthole").getAttribute("data-pet-on") === "socket_head"), "acc: the stage holds socket_head");
       eq(await w.page.evaluate(() => document.querySelector(".pet-porthole").getAttribute("data-pet-worn")), "head=acc:party-hat", "acc: the porthole names the hat");
-      eq(w.requests.filter((u) => ACC.test(u)).length, 1, "acc: one request for the hat");
-      check(/\/acc\/party-hat\.glb$/.test(w.requests.filter((u) => ACC.test(u))[0] || ""), "acc: the file is party-hat.glb");
+      /* the sidebar stage (X-7c) fetches the worn hat too, before or after the click: one request, or two when it won the race */
+      const hatReqs = () => w.requests.filter((u) => ACC.test(u));
+      check(hatReqs().length >= 1 && hatReqs().length <= 2, "acc: one request for the hat (two when the sidebar stage fetched it first)");
+      check(hatReqs().every((u) => /\/acc\/party-hat\.glb$/.test(u)), "acc: the file is party-hat.glb");
+      const before = hatReqs().length;
       await w.page.click('button[data-tab="wardrobe"]');
       await w.page.click('fieldset[data-slot="head"] button.pet-wear[data-wear="none"]');
       check(await until(w.page, () => document.querySelector(".pet-porthole").getAttribute("data-pet-on") === ""), "acc: Nothing takes the hat off");
       eq(await w.page.evaluate(() => document.querySelector(".pet-porthole").getAttribute("data-pet-worn")), "", "acc: the porthole names nothing");
-      eq(w.requests.filter((u) => ACC.test(u)).length, 1, "acc: taking it off requests nothing");
+      eq(hatReqs().length, before, "acc: taking it off requests nothing");
       await done(w, "acc worn");
+    }
+    /* 7: the sidebar companion wears what the pool wears */
+    cases++;
+    {
+      const ACC = /\/models\/mochi\/acc\//;
+      const HAT = { owned: { "acc:party-hat": "2025-01-01" }, wear: { head: "acc:party-hat", at: 5 } };
+      const n = await open(seedPet({ owned: { "acc:party-hat": "2025-01-01" } }));
+      check(await until(n.page, () => window.BMCompanion.info().mode === "3d"), "wears: the sidebar stage is up with nothing worn");
+      await new Promise((r) => setTimeout(r, 800));
+      eq(n.requests.filter((u) => ACC.test(u)), [], "wears: nothing worn fetches no accessory file");
+      await done(n, "wears none");
+      const c = await open(seedPet(HAT));
+      const onHead = () => { const i = window.BMCompanion.info(); return !!(i.stage && i.stage.worn && /models\/mochi\/acc\/party-hat\.glb$/.test(i.stage.worn.socket_head || "")); };
+      const noneWorn = () => { const i = window.BMCompanion.info(); return !!(i.stage && i.stage.worn && Object.keys(i.stage.worn).length === 0); };
+      check(await until(c.page, () => window.BMCompanion.info().mode === "3d"), "wears: the sidebar stage is up");
+      check(await until(c.page, onHead), "wears: the sidebar stage holds the hat on socket_head");
+      eq(c.requests.filter((u) => ACC.test(u)).length, 1, "wears: one request for the hat");
+      check(/\/acc\/party-hat\.glb$/.test(c.requests.filter((u) => ACC.test(u))[0] || ""), "wears: the file is party-hat.glb");
+      const setWear = (wear, id) => c.page.evaluate(([wear, id, hat]) => {
+        const S = window.BMStore;
+        S.write(S.keys.pet, wear ? hat : { owned: hat.owned });
+        S.emit({ type: "pet", what: "wear", id });
+      }, [wear, id, HAT]);
+      await setWear(false, "none");
+      check(await until(c.page, noneWorn), "wears: taking it off empties the sockets");
+      eq(c.requests.filter((u) => ACC.test(u)).length, 1, "wears: taking it off requests nothing");
+      await setWear(true, "acc:party-hat");
+      check(await until(c.page, onHead), "wears: wearing it again holds the hat");
+      await openPool(c.page);
+      check(await until(c.page, PORTHOLE), "wears: the pool opens");
+      await c.page.keyboard.press("Escape");
+      check(await until(c.page, () => window.BMCompanion.info().mode === "3d"), "wears: the sidebar stage is back after the pool");
+      check(await until(c.page, onHead), "wears: the rebuilt stage wears the hat again");
+      await done(c, "wears worn");
     }
   } finally {
     try { await browser.close(); } catch (e) { console.error("browser close: " + e.message); }
