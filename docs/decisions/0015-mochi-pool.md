@@ -31,10 +31,16 @@ same pool sits inline on the progress page where "Your form" was.
   `spent`, `owned`, `grew`, `gift`) merge by union; `needs` and `wear` take the later `at`,
   bounded by `WEAR_AT_MAX`; `care` counters per day merge by max per leaf. There are no rollups,
   because a rollup on one device and the ids on another double-count: the record is bounded by
-  deterministic prunes over the merged key set only (review earns and spends keep the newest 90
-  days, care and gift the newest 400). The snack bag is derived (buys plus gifts minus feeds),
-  never stored, so a buy on one device and a feed on another both survive a merge. Balance is
-  derived too.
+  deterministic rules over the merged key set only. Balance is derived, never stored.
+  *Amended at X-1 (2026-10-23), after review:* the two ledgers are never pruned by time. The
+  plan's windows (review earns and spends at 90 days) let the balance drift, since an earn could
+  age out while the spend it paid for stayed, down to a lockout at a negative balance for good,
+  against "nothing revoked"; so a balance is exact or it is nothing, and the ledgers are bounded
+  by counts instead (ids worth nothing dropped, five review ids a day, a key cap on every map
+  with the known keys never the ones cut). `care` and `gift` keep the newest 400 days. There is
+  no snack bag either: feeding is a purchase in one act (a `feed:<day>:<item>:<device>:<k>`
+  spend and the day's care counter), and the free daily pellet is a free feed recorded in
+  `gift[day]`, so nothing bought on one device has to be found on another.
 - **Click to enter.** The companion picture becomes a button on every layout, labelled "Mochi,
   your companion, <mood>. Open Mochi's pool". The pool is a modal dialog on chapter pages and the
   Arena (Escape and Close, focus returned) and an inline section on the progress page. It never
@@ -92,7 +98,16 @@ hungry-looking, growth requires learning days, and no money path exists.
   outfit choice. Property tests over two offline profiles hold the laws, with the prunes applied.
 - A hostile client editing `bm.pet.v1` is accepted, as editing XP is today: facets buy only pet
   cosmetics, and the Daily board never reads the pet. The server stores what the browser writes,
-  with no cap on the column, so the bounds are the client's prunes.
+  with no cap on the column, so the bounds are the client's prunes and key caps (X-1). Those
+  bound an honest client: unknown fields are carried whole for forward compatibility, as in
+  every synced store, so a hostile client can bloat its own row and only its own. The earn
+  table in `src/learn/pet.ts` is part of the merge law (an id worth nothing is dropped): adding
+  an earn kind or changing an id shape is a law change, and the card that writes earns (X-3b)
+  must write ids that `earnAmount` prices.
+- Clock skew across devices: a care act stamps its `at` just after the stored one when that is
+  later than now, so a device whose clock ran ahead cannot win every merge until that date and
+  freeze a need (X-1, after review); drift still pauses until real time passes that stamp,
+  which only favours the learner.
 - Clock games: a future `at` reads as now and above `WEAR_AT_MAX` is ignored; moving the day
   gains at most four care points, and only on a day with XP.
 - Children: no money path (a static rule keeps `pet` and facets out of every SQL write path and

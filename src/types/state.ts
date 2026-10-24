@@ -9,6 +9,7 @@
      assets/game.js     the game, run and prefs stores (readGame, readRun, prefs, recordRun,
                         bankMedals)
      assets/arena.js    the run-store fields game.js carries through untouched
+     src/learn/pet.ts   the pet store (bm.pet.v1), Mochi's pool: model and prunes
      assets/account.js  merge(): which stores sync, and how each field combines
 
    Every value is stored as JSON (so the theme is the string "\"dark\"", quotes included),
@@ -149,6 +150,31 @@ export interface GameStore {
   daily: Record<DayKey, Flag>;
   /** how often the combo meter filled. Merge: max */
   maxed: number;
+}
+
+/** bm.pet.v1: Mochi's pool (decision 0015, src/learn/pet.ts). Every field is optional but
+    `v`, since a merge may see partial records; mergePet (src/sync/merge.ts) holds the laws,
+    then prunePet bounds the result. */
+export interface PetStore {
+  /** shape version. Merge: max, left out until a version sets it */
+  v: 1;
+  /** facet earn ids ("strong:<section>", "medal:<chapter>:<set>:<1-3>", ...) -> n. Merge:
+      union, max n per id. The balance counts the id, not n (the table in pet.ts) */
+  earned?: Record<string, number>;
+  /** purchase ids ("buy:<day>:<item>:<device>:<k>") -> price. Merge: union, max per id */
+  spent?: Record<string, number>;
+  /** item -> the day it was bought. Merge: union, the earlier day */
+  owned?: Record<string, DayKey>;
+  /** hearts as of `at`, per need. Merge: per need the later `at` within WEAR_AT_MAX (mergeWear) */
+  needs?: Partial<Record<"tummy" | "play" | "clean" | "spark", { n: number; at: Timestamp }>>;
+  /** care counters per day. Merge: union of days, max per leaf */
+  care?: Record<DayKey, { feed?: Record<string, number>; play?: number; clean?: number; spark?: number }>;
+  /** stage -> when it was reached. Merge: union, the earliest time; never lost */
+  grew?: Record<string, Timestamp>;
+  /** what Mochi wears. Merge: the record with the later `at` (within WEAR_AT_MAX) wins whole */
+  wear?: { head?: string; back?: string; tail?: string; decor?: string[]; at: Timestamp };
+  /** days the free pellet was granted. Merge: union */
+  gift?: Record<DayKey, 1>;
 }
 
 /** bm.run.v1: this device's scratchpad. Never synced; emptied by a reset or a sign-out. */
@@ -310,6 +336,7 @@ export interface StoredState {
   "bm.prefs.v1": PrefsStore;
   "bm.guide.v1": GuideStore;
   "bm.diag.v1": DiagStore;
+  "bm.pet.v1": PetStore;
 }
 
 /** What an account carries between devices: the argument and result of BMAccount.merge.
@@ -323,6 +350,8 @@ export interface SyncedState {
   last: LastStore;
   game: GameStore;
   diag?: DiagStore;
+  /** Mochi's pool (decision 0015); absent until a side has one */
+  pet?: PetStore;
 }
 
 /** bm.events.v1: the event log (src/sync/events.ts) */

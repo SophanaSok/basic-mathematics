@@ -13,6 +13,7 @@
 
 import { at, canon, carryOver, keysOf, later, num, obj, plain, str } from "./json.ts";
 import { mergeEvents } from "./events.ts";
+import { normWear, prunePet } from "../learn/pet.ts";
 export { obj, keysOf, at, plain, canon, later, carryOver, num, str } from "./json.ts";
 
 /* ------------------------------------------------------------- merging -- */
@@ -274,6 +275,96 @@ export function mergeDiag(a: any, b: any) {
   return carryOver({ takes: takes }, A, B, ["takes"]);
 }
 
+/* Mochi's pool (bm.pet.v1, decision 0015). Every field merges so that order, grouping and
+   repetition never matter, and the result is pruned (prunePet) by the keys alone, which
+   commutes with the union below: the newest N keys of a union are the newest N of the
+   newest N of its parts, and a key's value is the maximum over every side that held it.
+     earned  union of ids, each the max n; an id whose max is not above 0 is dropped
+     spent   the same
+     owned   union, the earlier day (a string compare) of the sides whose value is a
+             string; a key with no string value is dropped
+     needs   per need (tummy, play, clean, spark) mergeWear: the later `at`, then the
+             higher n, within WEAR_AT_MAX; a need on neither side stays absent; any other key
+             under needs is carried (later)
+     care    union of days; per day the feed counts per snack and play, clean and spark by
+             max, kept only above 0; a day that is no record on either side goes through
+             later; unknown fields of a day are carried
+     grew    union, each stage the lowest positive time; a stage with none is dropped
+     wear    of the sides that are records with a number `at` from 0 to WEAR_AT_MAX
+             (wearOf), each held to a size first (normWear: head, back, tail as strings,
+             decor as at most 16 strings, at most 8 other fields), the later `at` wins whole
+             (a tie goes to the greater canonical JSON); none qualifies: no wear. Never
+             merged field by field, so an outfit is always one device's
+     gift    union of days, set to 1
+     v       max, left out until a version sets it
+   Anything else in the record is carried (later). prunePet then drops what is worth
+   nothing and holds every map to a key count, by the keys alone and with the known keys
+   first, which commutes with the union; the ledgers are never pruned by time, so the
+   balance is exact. There is no snack bag: a feed is a spent id plus a care counter. A pet
+   on neither side is no pet:
+   merge() adds one only when a side has one. */
+export const PET = ["earned", "spent", "owned", "needs", "care", "grew", "wear", "gift", "v"];
+const NEEDS_KNOWN = ["tummy", "play", "clean", "spark"];
+function maxCounts(x: any, y: any) {
+  var out: any = {};
+  keysOf(x, y).forEach(function (k) {
+    var n = Math.max(num(at(x, k)), num(at(y, k)));
+    if (n > 0) out[k] = n;
+  });
+  return out;
+}
+export function mergeCareDay(p: any, q: any) {
+  if (opaque(p, q)) return later(p, q);
+  var x = obj(p), y = obj(q), out: any = {};
+  var feed = maxCounts(obj(x.feed), obj(y.feed));
+  if (Object.keys(feed).length) out.feed = feed;
+  ["play", "clean", "spark"].forEach(function (k) {
+    var n = Math.max(num(at(x, k)), num(at(y, k)));
+    if (n > 0) out[k] = n;
+  });
+  return carryOver(out, x, y, ["feed", "play", "clean", "spark"]);
+}
+export function mergePet(p: any, q: any) {
+  if (opaque(p, q)) return later(p, q);
+  var a = obj(p), b = obj(q), out: any = {};
+  out.earned = maxCounts(obj(at(a, "earned")), obj(at(b, "earned")));
+  out.spent = maxCounts(obj(at(a, "spent")), obj(at(b, "spent")));
+  out.owned = {};
+  var oa = obj(at(a, "owned")), ob = obj(at(b, "owned"));
+  keysOf(oa, ob).forEach(function (k) {
+    var d = [at(oa, k), at(ob, k)].filter(function (v) { return typeof v === "string"; }).sort();
+    if (d.length) out.owned[k] = d[0];
+  });
+  var na = obj(at(a, "needs")), nb = obj(at(b, "needs"));
+  out.needs = {};
+  keysOf(na, nb).forEach(function (k) {
+    var x = at(na, k), y = at(nb, k);
+    out.needs[k] = NEEDS_KNOWN.indexOf(k) >= 0 ? mergeWear(x, y) : later(x, y);
+  });
+  out.care = {};
+  var ca = obj(at(a, "care")), cb = obj(at(b, "care"));
+  keysOf(ca, cb).forEach(function (d) { out.care[d] = mergeCareDay(at(ca, d), at(cb, d)); });
+  out.grew = {};
+  var ga = obj(at(a, "grew")), gb = obj(at(b, "grew"));
+  keysOf(ga, gb).forEach(function (s) {
+    var t = [num(at(ga, s)), num(at(gb, s))].filter(function (v) { return v > 0; });
+    if (t.length) out.grew[s] = Math.min.apply(null, t);
+  });
+  /* both sides are held to a size first, then the later at is picked, so the pick is a
+     maximum over one total order whatever the grouping */
+  var wear = [wearOf(at(a, "wear")), wearOf(at(b, "wear"))].filter(Boolean).map(normWear);
+  if (wear.length) {
+    wear.sort(function (r, s) { return (s.at - r.at) || (canon(r) < canon(s) ? 1 : canon(r) > canon(s) ? -1 : 0); });
+    out.wear = wear[0];
+  }
+  out.gift = {};
+  var fa = obj(at(a, "gift")), fb = obj(at(b, "gift"));
+  keysOf(fa, fb).forEach(function (d) { if (at(fa, d) || at(fb, d)) out.gift[d] = 1; });
+  var v = Math.max(num(at(a, "v")), num(at(b, "v")));
+  if (v > 0) out.v = v;
+  return prunePet(carryOver(out, a, b, PET));
+}
+
 /* local first: where two devices simply disagree (the reading mode, the daily goal,
    the place to continue from), this device keeps its own */
 export function merge(local: any, remote: any) {
@@ -290,6 +381,8 @@ export function merge(local: any, remote: any) {
   };
   /* the event log (bm.events.v1), only when a side has one: the merge never invents it */
   if (at(local, "events") !== undefined || at(remote, "events") !== undefined) out.events = mergeEvents(local.events, remote.events);
+  /* Mochi's pool (bm.pet.v1), only when a side has one: the merge never invents it */
+  if (at(local, "pet") !== undefined || at(remote, "pet") !== undefined) out.pet = mergePet(local.pet, remote.pet);
   return out;
 }
 
