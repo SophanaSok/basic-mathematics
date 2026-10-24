@@ -9,6 +9,7 @@
    copy is installed on load. */
 
 import { balance, earnAmount, prunePet } from "../learn/pet.ts";
+import { secRef } from "../learn/recorder.ts";
 
 const DAY_RE = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -40,17 +41,20 @@ export function install(win: any) {
       const doc = win && win.document;
       const el = doc && doc.querySelector(".hud-facets");
       if (!el) return;
-      const pet = petNow(), n = balance(pet);
+      /* a balance below zero (two devices spent the same facets offline, decision 0015) shows
+         as 0: never a debt in a child's top bar; canBuy reads the real number */
+      const pet = petNow(), n = balance(pet), shown = Math.max(0, n);
       const b = el.querySelector("b");
-      if (b) b.textContent = String(n);
-      el.setAttribute("aria-label", n + " facets for Mochi's pool.");
+      if (b) b.textContent = String(shown);
+      el.setAttribute("aria-label", shown + " facets for Mochi's pool.");
       const earned = pet.earned;
       if (n > 0 || (isObj(earned) && Object.keys(earned).length > 0)) el.removeAttribute("hidden");
       else el.setAttribute("hidden", "");
     } catch (e) { warn(e); }
   }
 
-  /* one earn id: true when it was newly written */
+  /* one earn id: true when it was newly written and the balance moved (an id that only
+     replaces another under the five-reviews-a-day cap is stored but announced as nothing) */
   function earn(id: string): boolean {
     if (!Store || stale || !str(id) || earnAmount(id) === 0) return false;
     const pet = petNow();
@@ -60,6 +64,7 @@ export function install(win: any) {
     const next = prunePet({ v: 1, ...pet, earned });
     if (!next.earned || !next.earned[id]) return false;    /* cut by a cap (five reviews a day): nothing to store */
     if (Store.write(key(), next) === false) return false;
+    if (balance(next) === balance(pet)) return false;
     if (typeof Store.emit === "function") Store.emit({ type: "pet", what: "earn", id });
     return true;
   }
@@ -92,11 +97,15 @@ export function install(win: any) {
         return;
       }
       case "attempt": {
-        if (!(c.correct && c.tryNo === 1 && c.hintLevel === 0 && !c.solutionOpen) || !str(c.section)) return;
+        if (!(c.correct && c.tryNo === 1 && c.hintLevel === 0 && !c.solutionOpen)) return;
+        /* site.js sends the bare section id ("distance"); the log, the schedule and the Arena's
+           due list key it as "ch05#distance", and so must the id, or the two paths pay twice */
+        const sec = secRef(c.chapter, c.section);
+        if (sec === "") return;
         const ev = win.BMEvents, rc = win.BMReview && win.BMReview.recall;
         if (!ev || !rc || typeof ev.schedule !== "function") return;
-        const day = today(), s = ev.schedule(c.section, day);
-        if (rc.isPlaced(s) && rc.dueOn(s, day)) earn("review:" + day + ":" + c.section);
+        const day = today(), s = ev.schedule(sec, day);
+        if (rc.isPlaced(s) && rc.dueOn(s, day)) earn("review:" + day + ":" + sec);
         return;
       }
       case "compare": if (str(c.chapter) && str(c.key)) earn("compare:" + c.chapter + "/" + c.key); return;

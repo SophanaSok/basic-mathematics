@@ -27,7 +27,7 @@ function fake(o: { strong?: (s: string) => boolean; placed?: boolean; due?: bool
   };
   const win: any = {
     BMStore: Store,
-    BMEvents: { bandOf: o.strong || ((s: string) => (/^ch\d+#strong/.test(s) ? "strong" : "building")), schedule: (s: string) => ({ sec: s }) },
+    BMEvents: { asked: [] as string[], bandOf: o.strong || ((s: string) => (/^ch\d+#strong/.test(s) ? "strong" : "building")), schedule(s: string) { this.asked.push(s); return { sec: s }; } },
     BMReview: { recall: { isPlaced: () => o.placed !== false, dueOn: () => o.due !== false } },
     BMSite: { dayKey: () => TODAY },
     console: { warn: () => {} }
@@ -37,7 +37,8 @@ function fake(o: { strong?: (s: string) => boolean; placed?: boolean; due?: bool
   const earned = (): string[] => Object.keys((Store.read(KEY, {}) as any).earned || {}).sort();
   return { win, api, Store, emitted, el, b, earned, emit: Store.emit };
 }
-const att = (extra: object = {}) => ({ type: "attempt", chapter: "ch02", key: "e3", section: "ch02#a", correct: true, tryNo: 1, hintLevel: 0, solutionOpen: false, ...extra });
+/* what site.js sends: the bare section id, the chapter beside it */
+const att = (extra: object = {}) => ({ type: "attempt", chapter: "ch02", key: "e3", section: "a", correct: true, tryNo: 1, hintLevel: 0, solutionOpen: false, ...extra });
 
 describe("pet earns", () => {
   it("strong once: the same strong section pays one id, a building band none", () => {
@@ -78,7 +79,9 @@ describe("pet earns", () => {
     const f = fake();
     f.emit(att());
     f.emit(att());
+    f.emit(att({ section: "ch02#a" }));    /* an already qualified id is the same review */
     expect(f.earned()).toEqual(["review:" + TODAY + ":ch02#a"]);
+    expect(f.win.BMEvents.asked).toEqual(["ch02#a", "ch02#a", "ch02#a"]);
     const cases: [string, object, any?][] = [
       ["never placed", {}, { placed: false }],
       ["not due", {}, { due: false }],
@@ -86,7 +89,9 @@ describe("pet earns", () => {
       ["hinted", { hintLevel: 1 }],
       ["solution open", { solutionOpen: true }],
       ["wrong", { correct: false }],
-      ["empty section", { section: "" }]
+      ["empty section", { section: "" }],
+      ["no chapter", { chapter: "" }],
+      ["a section of another shape", { section: "not a ref!" }]
     ];
     for (const [, extra, o] of cases) {
       const g = fake(o || {});
@@ -113,6 +118,24 @@ describe("pet earns", () => {
     expect(f.el.hasAttribute("hidden")).toBe(false);
     expect(f.el.getAttribute("aria-label")).toBe("20 facets for Mochi's pool.");
     expect(f.api.balance()).toBe(20);
+  });
+  it("a balance below zero shows as 0, and the slot stays shown", () => {
+    const f = fake();
+    f.Store.write(KEY, { v: 1, earned: { "strong:ch02#x": 1 }, spent: { "buy:2026-10-01:hat:d1:1": 30 } });
+    expect(f.api.balance()).toBe(-10);
+    expect(f.b.textContent).toBe("0");
+    expect(f.el.getAttribute("aria-label")).toBe("0 facets for Mochi's pool.");
+    expect(f.el.hasAttribute("hidden")).toBe(false);
+  });
+  it("a sixth review id of a day is stored under the cap but announced as nothing", () => {
+    const f = fake();
+    const secs = ["ch02#b", "ch02#c", "ch02#d", "ch02#e", "ch02#f"];
+    f.emit({ type: "arena", phase: "recorded", set: undefined, medal: 0, day: TODAY, due: secs });
+    expect(f.api.balance()).toBe(25);
+    const before = f.emitted.filter((c) => c.type === "pet").length;
+    expect(f.api.earn("review:" + TODAY + ":ch02#a")).toBe(false);
+    expect(f.api.balance()).toBe(25);
+    expect(f.emitted.filter((c) => c.type === "pet").length).toBe(before);
   });
   it("earned never gains a key with earnAmount 0", () => {
     const f = fake();
