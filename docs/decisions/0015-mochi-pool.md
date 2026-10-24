@@ -140,4 +140,4 @@ spend a day on alternating devices, the shop's toys and decor bought first), pru
 `JSON.stringify` of the record under 80,000 bytes. Measured: 76,419 bytes (the plan's guess of 60,000
 was low). The balance of the pruned record is the earned ids minus the spent ones.
 Proof of T9 (X-11): the `pet-money` rule of `tools/check-static.js` keeps `price` and `facet` out of
-`assets/account.js` and out of all SQL, and `pet = '{}'` in `private.fresh_start` is the only write to the column.
+`assets/account.js` and out of all SQL, and `pet = '{}'` is the only write to the column (the rule does not check the enclosing function).

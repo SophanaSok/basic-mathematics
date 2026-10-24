@@ -908,6 +908,10 @@ function refusal(fn) { try { fn(); return null; } catch (e) { return e.message; 
   check(run(Object.assign({}, clean, { "supabase/migrations/20270101000000_x.sql": "update public.user_state\n  set pet = jsonb_set(pet, '{earned,x}', '1');\n" })).some(m => /writes pet/.test(m)),
     "… a planted set pet = jsonb_set(...) line fails");
   check(run(Object.assign({}, clean, { "supabase/migrations/20270101000000_x.sql": "update u set pet=pet || '{}';" })).length >= 1, "… pet=pet || ... fails");
+  [["set pet\n = pet", "a break before the ="], ["set \"pet\" = x", "a quoted column"], ["set (pet) = (x)", "a parenthesised column"],
+    ["set pet = '{}' || x", "'{}' followed by more"], ["update u set a = '--', pet = jsonb_set(pet, '{x}', '1');", "a '--' string before the write"]]
+    .forEach(([sql, what]) => check(run(Object.assign({}, clean, { "supabase/migrations/20270101000000_x.sql": "update u " + sql.replace(/^update u /, "") + (/;$/.test(sql) ? "" : ";") })).some(m => /writes pet/.test(m)), "… " + what + " fails (" + JSON.stringify(sql) + ")"));
+  eq(run(Object.assign({}, clean, { "supabase/migrations/20270101000000_x.sql": "update u set pet = '{}'::jsonb;\nupdate u set pet = '{}')" })), [], "… '{}'::jsonb before ; and ) passes");
   check(run(Object.assign({}, clean, { "supabase/migrations/20270101000000_x.sql": "insert into public.user_state (user_id, pet) values (1, '{}');" })).some(m => /inserts/.test(m)), "… an insert naming pet fails");
   check(run(Object.assign({}, clean, { "supabase/schema.sql": "create function buy() returns void as $$ select facets from t; $$;" })).some(m => /facets/.test(m)), "… SQL that names facets fails");
   check(run(Object.assign({}, clean, { "supabase/schema.sql": "select price from t;" })).some(m => /price/.test(m)), "… SQL that names price fails");

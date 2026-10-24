@@ -54,6 +54,7 @@ const WEBGL_PATHS = [
   "assets/three-loader.js",      // how the pages load three.js
   "src/mochi/",                  // the Mochi companion's renderer and loader
   "src/ui/companion.ts",         // draws Mochi into the companion figure on chapter pages and the Arena
+  "src/ui/pet/",                 // the pool, whose porthole draws the same stage
   "src/learn/mood.ts",           // the mood the companion's Mochi acts out
   "src/data/mochi-model.ts",     // the Mochi model manifest the renderer loads
   "tools/gen-mochi.js",          // the generator that writes the Mochi model
@@ -61,6 +62,7 @@ const WEBGL_PATHS = [
   "tools/lib/png.js",            // the PNG encoder it uses
   "tools/lib/mochi-model.js",    // what that generator and its checks share
   "tools/game/mochi.test.js",    // 3D script: Mochi in the companion
+  "tools/game/pet3d.test.js",    // 3D script: the pool's stage
   "src/entries/chapter.js",      // what chapter pages load, and in which order: the companion pulls Three.js in here
   "src/entries/arena.js",        // the same for the Arena
   "package-lock.json"            // a Three.js bump arrives through the lockfile

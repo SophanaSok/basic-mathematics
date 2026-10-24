@@ -1921,8 +1921,10 @@ function checkMochiDecor(ctx, r) {
    name price, prices, facet or facets, even in a comment; no SQL under supabase/ (schema.sql and
    the migrations; supabase/tests/ holds assertions about the once-keys, not write paths, so it is
    left out) may name facet, facets, price, prices or spent in code, after `--` and block comments
-   are cut; and the only write the SQL may make to the pet column is `pet = '{}'` (the fresh start)
-   and its definition. A write is `pet =` followed by anything else, `pet :=`, or an insert whose
+   are cut; and the only write the SQL may make to the pet column is `pet = '{}'` (the fresh start, the
+   value followed by `::jsonb`, then `,`, `;`, `)` or the end of the line) and its definition; the rule does not
+   check which function holds it. A write is `pet =` (also `"pet" =`, `(pet) =`, a break before the `=`) followed by
+   anything else, `pet :=`, or an insert whose
    column list names pet. Reads (`select pet`, `select *`, `comment on column ... pet`, the column
    definition `pet jsonb ...`) are not writes. Returns [message]. */
 const PET_MONEY_JS = "assets/account.js";
@@ -1937,13 +1939,20 @@ function petMoneyProblems(sources) {
       });
       return;
     }
-    const code = src.replace(/\/\*[\s\S]*?\*\//g, m => m.replace(/[^\n]/g, " ")).replace(/--[^\n]*/g, "");
+    /* comments are cut, but a string literal is read first, so a '--' inside one starts no comment */
+    const code = src.replace(/'(?:[^']|'')*'|\/\*[\s\S]*?\*\/|--[^\n]*/g, m => m[0] === "'" ? m : m.replace(/[^\n]/g, " "));
     code.split("\n").forEach((line, i) => {
-      const at = file + ":" + (i + 1);
       const w = /\b(facets?|prices?|spent)\b/i.exec(line);
-      if (w) out.push(at + " names \"" + w[1] + "\": no SQL path reads or prices Mochi's facets");
-      if (/\bpet\s*:?=(?!\s*'\{\}')/i.test(line)) out.push(at + " writes pet other than '{}': only private.fresh_start clears it, nothing sets it");
+      if (w) out.push(file + ":" + (i + 1) + " names \"" + w[1] + "\": no SQL path reads or prices Mochi's facets");
     });
+    /* a write is read over the whole text, so `set pet\n = pet`, `"pet" =`, `(pet) =` and `pet :=` are found wherever they break */
+    const assign = /(?<!\w)"?pet"?\s*\)?\s*:?=/gi;
+    let a;
+    while ((a = assign.exec(code))) {
+      const rest = code.slice(a.index + a[0].length);
+      if (/^\s*'\{\}'(?:::jsonb)?[ \t]*(?:[,;)]|\r?\n|$)/.test(rest)) continue;
+      out.push(file + ":" + (code.slice(0, a.index).split("\n").length) + " writes pet other than '{}': only private.fresh_start clears it, nothing sets it");
+    }
     (code.match(/insert\s+into[^;]*\bpet\b/gi) || []).forEach(() => out.push(file + " inserts into a column list naming pet"));
   });
   return out;
@@ -2342,7 +2351,7 @@ const CHECKS = [
   { name: "reading-column", run: checkReadingColumn, what: "no animation, moving transition or decoration in the reading column but tools/reading-column-allow.json's" },
   { name: "us-english", run: checkUsEnglish, what: "no British spelling or pound money in reader-facing text beyond tools/us-english-allow.json, whose counts only fall" },
   { name: "mochi-model", run: checkMochiModels, what: "public/models/mochi/*.glb are what tools/gen-mochi.js packed from the Blender project: size, triangle and texture caps, the twelve clips, the 33 morph targets, the pose sheet" },
-  { name: "pet-money", run: checkPetMoney, what: "facets are not money (0015, T9): assets/account.js never names price or facets; no supabase/ SQL (schema.sql, migrations) names facet, price or spent in code, and the only write to the pet column is pet = '{}' in private.fresh_start" },
+  { name: "pet-money", run: checkPetMoney, what: "facets are not money (0015, T9): assets/account.js never names price or facets; no supabase/ SQL (schema.sql, migrations) names facet, price or spent in code, and the only write to the pet column is pet = '{}'" },
   { name: "mochi-decor", run: checkMochiDecor, what: "public/models/mochi/decor.png is what tools/gen-water.js writes: 8 cells of 32x32, under MOCHI_DECOR_BYTES_MAX" },
   { name: "mochi-water", run: checkMochiWater, what: "public/models/mochi/water.png is what tools/gen-water.js writes: 8 frames of 64x64, under MOCHI_WATER_BYTES_MAX" },
   { name: "contrast", run: checkContrast, what: "WCAG contrast of token pairs in tools/contrast-pairs.json, both themes × both panels, all Parts; print restates the dark panel" }
