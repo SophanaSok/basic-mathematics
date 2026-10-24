@@ -836,7 +836,7 @@ function loadMerge() {
     createElement: el, body: el(), head: el(), visibilityState: "visible", activeElement: null
   };
   const window = {
-    BMStore: { keys: { progress: "bm.progress.v1", play: "bm.play.v1", last: "bm.last", attempts: "bm.attempts.v1", activity: "bm.activity.v1", lesson: "bm.lesson.v1" },
+    BMStore: { keys: { progress: "bm.progress.v1", play: "bm.play.v1", last: "bm.last", attempts: "bm.attempts.v1", activity: "bm.activity.v1", lesson: "bm.lesson.v1", pet: "bm.pet.v1" },
       read: (k, fb) => fb, write: noop, on: noop, emit: noop },
     BMSite: { rootPrefix: () => "", escapeHtml: s => String(s), chapterName: () => "", dayKey: () => "2026-01-01" },
     BM_CONFIG: {}, localStorage: { getItem: () => null, setItem: noop }, location: { hash: "", search: "", href: "http://localhost/" },
@@ -889,6 +889,7 @@ function canon(x) {
 }
 
 const EVENTS = require(path.join(ROOT, "src/sync/events.ts"));
+const PET = require(path.join(ROOT, "src/learn/pet.ts"));
 const { EVENT_COLLISION } = require(path.join(ROOT, "tools/lib/random-state.js"));
 
 /* the bound on a later-wins record's `at` (mergeWear), read off src/sync/merge.ts so this check and
@@ -971,6 +972,29 @@ function checkMerge(ctx, r) {
         if (EVENT_COLLISION.id in got && canon(got[EVENT_COLLISION.id]) !== want && !seen.evCollision) { r.fail("seed " + seed + ": an id both sides hold with two payloads should have the greater, " + want + ", got " + canon(got[EVENT_COLLISION.id])); seen.evCollision = 1; }
       }
     }
+    /* Mochi's pool (bm.pet.v1): present exactly when a side has one; when both sides are
+       records, every earned id a side holds with a positive count and a worth is in the result,
+       every grew stage with a positive time is there at the lowest positive time, and the care
+       days are held to 400 */
+    if ((ab.pet !== undefined) !== (a.pet !== undefined || b.pet !== undefined) && !seen.petPresent) { r.fail("seed " + seed + ": pet should be present exactly when a side has it"); seen.petPresent = 1; }
+    if (ab.pet !== undefined) {
+      const isObj = o => !!o && typeof o === "object" && !Array.isArray(o);
+      const own = (o, k) => isObj(o) && Object.prototype.hasOwnProperty.call(o, k) ? o[k] : undefined;
+      const sub = (p, k) => { const v = own(p, k); return isObj(v) ? v : {}; };
+      if (isObj(a.pet) && isObj(b.pet)) {
+        const got = sub(ab.pet, "earned");
+        [a.pet, b.pet].forEach(p => Object.keys(sub(p, "earned")).forEach(id => {
+          const n = own(sub(p, "earned"), id);
+          if (id !== "__proto__" && typeof n === "number" && n > 0 && PET.earnAmount(id) !== 0 && own(got, id) === undefined && !seen.petEarned) { r.fail("seed " + seed + ": pet.earned lost " + id); seen.petEarned = 1; }
+        }));
+        const grew = sub(ab.pet, "grew");
+        [a.pet, b.pet].forEach(p => Object.keys(sub(p, "grew")).forEach(st => {
+          const times = [own(sub(a.pet, "grew"), st), own(sub(b.pet, "grew"), st)].filter(t => typeof t === "number" && t > 0);
+          if (st !== "__proto__" && times.length && own(grew, st) !== Math.min.apply(null, times) && !seen.petGrew) { r.fail("seed " + seed + ": pet.grew." + st + " should be the lowest positive time " + Math.min.apply(null, times) + ", got " + canon(own(grew, st))); seen.petGrew = 1; }
+        }));
+      }
+      if (Object.keys(sub(ab.pet, "care")).length > 400 && !seen.petCare) { r.fail("seed " + seed + ": pet.care holds more than 400 days"); seen.petCare = 1; }
+    }
     if (ab.game !== undefined) {
       gameSeen = true;
       /* once mergeGame exists: unions, maxima, earliest achievement time */
@@ -1022,6 +1046,11 @@ function checkMerge(ctx, r) {
   const dm = merge({ diag: { takes: { a: t1, c: t1 } } }, { diag: { takes: { b: t2, c: t2 } } });
   if (canon(dm.diag) !== canon({ takes: { a: t1, b: t2, c: t1 } })) r.fail("hand case: diag takes are not a union by id with the later copy kept whole: " + JSON.stringify(dm.diag));
   if (canon(merge({ diag: { takes: { a: t1 } } }, {}).diag) !== canon({ takes: { a: t1 } }) || canon(merge({}, { diag: { takes: { a: t1 } } }).diag) !== canon({ takes: { a: t1 } })) r.fail("hand case: a take held by one side only was dropped");
+  /* and Mochi's pool: one side's earn kept, none made up from nothing, a damaged pet and a record
+     meeting in either order give the same result */
+  if (merge({ pet: { earned: { "strong:ch01#a": 20 } } }, {}).pet.earned["strong:ch01#a"] !== 20) r.fail("hand case: an earn held by one side only was dropped from the pet");
+  if (Object.prototype.hasOwnProperty.call(merge({}, {}), "pet")) r.fail("hand case: merge made up a pet when neither side had one");
+  if (canon(merge({ pet: "x" }, { pet: { v: 1 } }).pet) !== canon(merge({ pet: { v: 1 } }, { pet: "x" }).pet)) r.fail("hand case: a damaged pet and a record merge differently by side");
   /* and the ladder's rung, which has a rule: the larger number, where the fallback for
      unknown fields would have kept "9" over 10 */
   const z = merge({ attempts: { ch01: { e1: { tries: 1, rung: 10 } } } }, { attempts: { ch01: { e1: { rung: 9 } } } });

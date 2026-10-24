@@ -126,7 +126,7 @@ describe("the merge moved from assets/account.js", () => {
       const seed = R.int(2 ** 31), S = rng(seed);
       /* the states the old merge's laws were held to: two devices never disagree about a
          section, which the old merge took from either side */
-      const [a, b, c] = [0, 1, 2].map(() => randomState(S, { sectionConflicts: false, diag: false, events: false }));
+      const [a, b, c] = [0, 1, 2].map(() => randomState(S, { sectionConflicts: false, diag: false, events: false, pet: false }));
       const pairs: [string, (m: any) => unknown][] = [
         ["merge(a, b)", (m) => m.merge(a, b)],
         ["merge(b, a)", (m) => m.merge(b, a)],

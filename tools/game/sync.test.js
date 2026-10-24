@@ -50,7 +50,7 @@ const REF = "testref";
 const SESSION_KEY = "sb-" + REF + "-auth-token";
 const KEYS = {
   progress: "bm.progress.v1", play: "bm.play.v1", last: "bm.last", attempts: "bm.attempts.v1",
-  activity: "bm.activity.v1", lesson: "bm.lesson.v1", diag: "bm.diag.v1", game: "bm.game.v1", run: "bm.run.v1", prefs: "bm.prefs.v1"
+  activity: "bm.activity.v1", lesson: "bm.lesson.v1", diag: "bm.diag.v1", pet: "bm.pet.v1", game: "bm.game.v1", run: "bm.run.v1", prefs: "bm.prefs.v1"
 };
 const clone = (x) => (x === undefined ? undefined : JSON.parse(JSON.stringify(x)));
 
@@ -95,7 +95,7 @@ function pgTime(ms) {
 
 /* user_state as supabase/schema.sql makes it: each column a save may leave out, and what
    it then holds */
-const DEFAULTS = { progress: {}, play: {}, attempts: {}, activity: {}, lesson: {}, last: null, game: {}, diag: {}, reset_at: 0 };
+const DEFAULTS = { progress: {}, play: {}, attempts: {}, activity: {}, lesson: {}, last: null, game: {}, diag: {}, pet: {}, reset_at: 0 };
 
 class Server {
   constructor() {
@@ -491,7 +491,7 @@ class Page {
   }
   /* what the "Reset all progress" button on about.html does (site.js initResetButtons) */
   resetAll() {
-    ["progress", "play", "attempts", "activity", "lesson", "game", "run"].forEach((f) => this.Store.write(KEYS[f], {}));
+    ["progress", "play", "attempts", "activity", "lesson", "game", "pet", "run"].forEach((f) => this.Store.write(KEYS[f], {}));
     this.Store.emit({ type: "reset" });
   }
   user() { const u = this.Account.user(); return u ? u.id : null; }
@@ -1293,6 +1293,72 @@ scenario("a server without the diag column still syncs, and the take stays local
   expect(onDevice(d) === "t1", "the take was lost from this browser", onDevice(d));
   d.open(); await settle();
   expect(onDevice(d) === "t1" && d.page.status() === "synced", "a re-open lost the take or failed", onDevice(d));
+});
+
+/* ----------------------------------------------- Mochi's pool (bm.pet.v1, X-2b) -- */
+
+const petOf = (dev) => dev.read(KEYS.pet, {}) || {};
+const earnedIds = (pet) => Object.keys((pet && pet.earned) || {}).sort().join();
+const earn = (id, n) => ({ v: 1, earned: { [id]: n } });
+
+scenario("T8: a pet written on one learner's device does not follow a learner switch", async () => {
+  const server = new Server();
+  const d = new Device("laptop", server);
+  server.addLearner("u1", "L1");
+  d.remember("u1"); d.open(); await settle();
+  d.page.Store.write(KEYS.pet, earn("strong:ch01#a", 20)); await settle();
+  expect(earnedIds(server.rows.u1.pet) === "strong:ch01#a", "setup: the earn did not reach the account", server.rows.u1 && server.rows.u1.pet);
+  const r = await d.page.switchLearner("L1");
+  expect(!r.error, "the switch failed", r.error && r.error.message);
+  expect(earnedIds(petOf(d)) === "", "the first learner's pet is in the new learner's browser", petOf(d));
+  expect(earnedIds(server.rows.u1.pet) === "strong:ch01#a", "the first learner's earn left the account", server.rows.u1.pet);
+  expect(earnedIds((server.rows.L1 || {}).pet) === "", "the first learner's pet reached the new learner's row", server.rows.L1);
+});
+
+scenario("T8: a sign-out clears the pet from the browser", async () => {
+  const { server, laptop } = await twoDevices();
+  laptop.page.Store.write(KEYS.pet, earn("strong:ch01#a", 20)); await settle();
+  const { error } = await laptop.page.signOut();
+  expect(!error, "sign-out failed", error && error.message);
+  expect(earnedIds(petOf(laptop)) === "", "this browser still holds the pet after a sign-out", petOf(laptop));
+  expect(earnedIds(server.rows.u1.pet) === "strong:ch01#a", "the account lost the pet", server.rows.u1.pet);
+});
+
+scenario("a reset clears the pet locally and in the account", async () => {
+  const { server, laptop } = await twoDevices();
+  laptop.page.Store.write(KEYS.pet, earn("strong:ch01#a", 20)); await settle();
+  expect(earnedIds(server.rows.u1.pet) === "strong:ch01#a", "setup: the earn did not reach the account", server.rows.u1.pet);
+  now += 60000;
+  laptop.page.resetAll(); await settle();
+  expect(earnedIds(petOf(laptop)) === "", "the reset left the pet in this browser", petOf(laptop));
+  expect(canon(server.rows.u1.pet) === "{}", "the reset left the pet in the account", server.rows.u1.pet);
+});
+
+scenario("a server without the pet column still syncs, and the pet stays local", async () => {
+  const server = new Server();
+  server.columns = server.columns.filter((c) => c !== "pet");
+  const d = new Device("laptop", server);
+  d.storage.set(KEYS.pet, JSON.stringify(earn("strong:ch01#a", 20)));
+  /* a new account: there is no row to learn the columns from, so the first save is refused once */
+  d.remember("u1"); d.open(); await settle();
+  d.page.solve("ch01", "e1"); await settle();
+  expect(d.page.status() === "synced", "the sync failed", String((d.page.Account.status().error || {}).message));
+  expect(has(server.solved("u1"), "ch01/e1"), "progress did not reach the account", server.solved("u1"));
+  expect(!("pet" in server.rows.u1), "the fake server took a column it does not have");
+  expect(earnedIds(petOf(d)) === "strong:ch01#a", "the pet was lost from this browser", petOf(d));
+  expect(server.refused === 1, "expected the first save, and only that one, to be refused", server.refused);
+  d.open(); await settle();
+  expect(server.refused === 1 && earnedIds(petOf(d)) === "strong:ch01#a" && d.page.status() === "synced", "a re-open named the missing column or lost the pet", { refused: server.refused, pet: petOf(d) });
+});
+
+scenario("two devices' pets merge by union", async () => {
+  const { server, laptop, phone } = await twoDevices();
+  laptop.page.Store.write(KEYS.pet, earn("strong:ch01#a", 20)); await settle();
+  phone.page.Store.write(KEYS.pet, earn("medal:ch01:practice:1", 10)); await settle();
+  laptop.open(); phone.open(); await settle();
+  const want = "medal:ch01:practice:1,strong:ch01#a";
+  expect(earnedIds(server.rows.u1.pet) === want, "the account does not hold both earns", server.rows.u1.pet);
+  expect(earnedIds(petOf(laptop)) === want && earnedIds(petOf(phone)) === want, "a device lacks the other's earn", { laptop: petOf(laptop), phone: petOf(phone) });
 });
 
 scenario("the page can tell a stored session without loading the SDK", async () => {
