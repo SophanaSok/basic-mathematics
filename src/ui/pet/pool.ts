@@ -1,7 +1,7 @@
 /* Mochi's pool (docs/decisions/0015-mochi-pool.md), the lazy `pet` chunk (bundle/pet.js).
    Only src/ui/companion.ts's openPool() imports this module, with import(), and nothing
    fetches the chunk until then. This card (X-5b) is the shell: a porthole with the 3D stage, the four
-   needs as hearts, the facets line and Close. No actions, shop, wardrobe or growth yet (X-6, X-7, X-8).
+   needs as hearts, the facets line and Close. The care row is X-6; the shop, wardrobe and growth come with X-7, X-8.
 
    mountPool(host, { mode }) returns { close, dispose }.
      "dialog"  a <dialog class="pet-dialog"> on host: showModal(), focus on the title, Escape and Close shut it,
@@ -9,11 +9,12 @@
      "inline"  the same shell in the host, no dialog (the progress page, X-9).
    The host carries data-pet while the pool is mounted. The stage is made only where the companion would make
    one (WebGL, a tier above "list", not Study mode, no forced colors); otherwise, or when it fails, the pose
-   sheet's still is the picture. Reads bm.pet.v1 and prefs; writes nothing. */
+   sheet's still is the picture. Reads bm.pet.v1 and prefs; the care row (./actions.ts, X-6) is the only writer. */
 import { createMochiStage } from "../../mochi/index.ts";
 import type { MochiStage } from "../../mochi/index.ts";
 import { NEEDS, HEARTS_MAX, START_HEARTS, heartsOf, balance } from "../../learn/pet.ts";
 import type { Need } from "../../learn/pet.ts";
+import { mountActions } from "./actions.ts";
 import { MOODS } from "../../learn/mood.ts";
 import { detectTier, readProbe, pixelRatio, TIERS } from "../../world/tiers.ts";
 
@@ -37,14 +38,31 @@ function petStore(): unknown {
 
 let uid = 0;
 
+function heartMarks(h: number): string {
+  let marks = "";
+  for (let i = 0; i < HEARTS_MAX; i++) marks += "<i" + (i < h ? " data-on" : "") + "></i>";
+  return marks;
+}
+
+/** the hearts and the facets line again, from this record */
+function paintHearts(shell: HTMLElement, pet: any, now: number): void {
+  const needs = (pet && typeof pet.needs === "object" && pet.needs) || {};
+  NEEDS.forEach((n) => {
+    const li = shell.querySelector('li[data-need="' + n + '"]');
+    if (!li) return;
+    const h = heartsOf(n, needs[n], now);
+    li.setAttribute("aria-label", NAMES[n] + ": " + h + " of " + HEARTS_MAX + " hearts");
+    li.innerHTML = '<span class="pet-need-name">' + NAMES[n] + "</span>" + heartMarks(h);
+  });
+}
+
 /** the shell's markup: title, porthole, hearts, facets, line */
 function buildShell(titleId: string, pet: any): HTMLElement {
   const now = Date.now();
   const needs = (pet && typeof pet.needs === "object" && pet.needs) || {};
   const items = NEEDS.map((n) => {
     const h = heartsOf(n, needs[n], now);
-    let marks = "";
-    for (let i = 0; i < HEARTS_MAX; i++) marks += "<i" + (i < h ? " data-on" : "") + "></i>";
+    const marks = heartMarks(h);
     return '<li data-need="' + n + '" aria-label="' + NAMES[n] + ": " + h + " of " + HEARTS_MAX + ' hearts"><span class="pet-need-name">' + NAMES[n] + "</span>" + marks + "</li>";
   }).join("");
   const facets = Math.max(0, Math.floor(balance(pet)));
@@ -125,11 +143,13 @@ export function mountPool(host: Element, opts: PoolOptions): PoolHandle {
   shell.appendChild(closeBtn);
 
   host.setAttribute("data-pet", "");
+  const stopActions = mountActions(shell, { stage: () => stage, alive: () => live, reduced: reducedMotion, repaint: (pet, now) => paintHearts(shell, pet, now) });
 
   /* the one way out: idempotent; the dialog's close event, Close, close() and dispose() all end here */
   function finish(): void {
     if (!live) return;
     live = false;
+    stopActions();
     if (stage) { try { stage.dispose(); } catch { /* gone */ } stage = null; }
     host.removeAttribute("data-pet");
     const d = dialog;

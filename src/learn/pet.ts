@@ -293,3 +293,51 @@ export function prunePet(pet: unknown): PetStore {
   if (v > 0) out.v = v; else delete out.v;
   return capKeys(out, PET_KEYS_MAX, PET);
 }
+
+/* ------------------------------------------------------------------ acts -- */
+
+export type Act = "feed" | "play" | "clean";
+export const PLAY_PER_DAY = 3;
+export type ActWhy = "" | "gift-taken" | "play-cap" | "clean-full";
+
+/** whether an act is allowed now: feed is the free daily pellet (snacks come with the shop), play is
+    capped per day, and clean needs a need that is not already full */
+export function canAct(pet: unknown, act: Act, day: DayKey, now: Timestamp): { ok: boolean; why: ActWhy } {
+  if (act === "feed") return giftTaken(pet, day) ? { ok: false, why: "gift-taken" } : { ok: true, why: "" };
+  if (act === "play") return careOf(pet, day).play >= PLAY_PER_DAY ? { ok: false, why: "play-cap" } : { ok: true, why: "" };
+  if (act === "clean") return heartsOf("clean", at(obj(obj(pet).needs), "clean"), now) >= HEARTS_MAX ? { ok: false, why: "clean-full" } : { ok: true, why: "" };
+  return { ok: false, why: "" };
+}
+
+/** the record after an act: a new object (the input is never touched), or the same one when the act is
+    refused. Spark is not an act (only due reviews fill it) and petting writes nothing. */
+export function applyAct(pet: unknown, act: Act, day: DayKey, now: Timestamp): PetStore {
+  if (!canAct(pet, act, day, now).ok) return pet as PetStore;
+  const p = obj(pet), out: any = {};
+  keysOf(p, {}).forEach((k) => { out[k] = at(p, k); });
+  out.v = 1;
+  const need: Need = act === "feed" ? "tummy" : act === "play" ? "play" : "clean";
+  const nd: any = {}, old = obj(at(p, "needs"));
+  keysOf(old, {}).forEach((k) => { nd[k] = at(old, k); });
+  nd[need] = touch(nd[need], need, now, act === "clean" ? HEARTS_MAX : 1);
+  out.needs = nd;
+  const care: any = {}, oc = obj(at(p, "care"));
+  keysOf(oc, {}).forEach((k) => { care[k] = at(oc, k); });
+  const d: any = {}, od = obj(at(oc, day));
+  keysOf(od, {}).forEach((k) => { d[k] = at(od, k); });
+  if (act === "feed") {
+    const f: any = {}, of = obj(at(od, "feed"));
+    keysOf(of, {}).forEach((k) => { f[k] = at(of, k); });
+    f.pellet = count(f.pellet) + 1;
+    d.feed = f;
+  } else d[act] = count(d[act]) + 1;
+  care[day] = d;
+  out.care = care;
+  if (act === "feed") {
+    const g: any = {}, og = obj(at(p, "gift"));
+    keysOf(og, {}).forEach((k) => { g[k] = at(og, k); });
+    g[day] = 1;
+    out.gift = g;
+  }
+  return prunePet(out);
+}

@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { mergePet, WEAR_AT_MAX } from "../sync/merge.ts";
 import {
-  balance, canBuy, capKeys, careOf, carePoints, DRIFT, earnAmount, EARNED_MAX, giftTaken, growthPoints, heartsOf, laterStamp,
-  newlyGrown, prunePet, PRUNE_CARE_DAYS, REVIEW_CAP_IDS, SPENT_MAX, stageOf, START_HEARTS, touch
+  applyAct, balance, canAct, canBuy, capKeys, careOf, carePoints, DRIFT, earnAmount, EARNED_MAX, giftTaken, growthPoints, heartsOf, laterStamp,
+  newlyGrown, PLAY_PER_DAY, prunePet, PRUNE_CARE_DAYS, REVIEW_CAP_IDS, SPENT_MAX, stageOf, START_HEARTS, touch
 } from "./pet.ts";
 
 const H = 3_600_000;
@@ -259,5 +259,65 @@ describe("prunePet", () => {
     const t = Date.now();
     expect(Object.keys((prunePet({ care }) as any).care).length).toBe(PRUNE_CARE_DAYS);
     expect(Date.now() - t).toBeLessThan(1500);
+  });
+});
+
+describe("acts", () => {
+  const day = "2025-03-04", now = Date.UTC(2025, 2, 4, 12);
+  it("feed adds a tummy heart, bumps the pellet and sets the gift; play adds a play heart", () => {
+    const a = applyAct({ needs: { tummy: { n: 3, at: now } } }, "feed", day, now) as any;
+    expect(heartsOf("tummy", a.needs.tummy, now)).toBe(4);
+    expect(a.care[day].feed.pellet).toBe(1);
+    expect(a.gift[day]).toBe(1);
+    expect(a.v).toBe(1);
+    const b = applyAct({ needs: { play: { n: 2, at: now } } }, "play", day, now) as any;
+    expect(heartsOf("play", b.needs.play, now)).toBe(3);
+    expect(b.care[day].play).toBe(1);
+  });
+  it("clean fills to five; hearts never pass five", () => {
+    const c = applyAct({ needs: { clean: { n: 2, at: now } } }, "clean", day, now) as any;
+    expect(heartsOf("clean", c.needs.clean, now)).toBe(5);
+    expect(c.care[day].clean).toBe(1);
+    const f = applyAct({ needs: { tummy: { n: 5, at: now } } }, "feed", day, now) as any;
+    expect(heartsOf("tummy", f.needs.tummy, now)).toBe(5);
+  });
+  it("a second feed on the same day is refused as gift-taken, with the same record back", () => {
+    const a = applyAct({}, "feed", day, now);
+    expect(canAct(a, "feed", day, now)).toEqual({ ok: false, why: "gift-taken" });
+    expect(applyAct(a, "feed", day, now)).toBe(a);
+    expect(canAct(a, "feed", "2025-03-05", now).ok).toBe(true);
+  });
+  it("four plays give three", () => {
+    let p: any = {};
+    for (let i = 0; i < 4; i++) p = applyAct(p, "play", day, now);
+    expect(p.care[day].play).toBe(PLAY_PER_DAY);
+    expect(canAct(p, "play", day, now)).toEqual({ ok: false, why: "play-cap" });
+  });
+  it("clean at five hearts is refused", () => {
+    const p = { needs: { clean: { n: 5, at: now } } };
+    expect(canAct(p, "clean", day, now)).toEqual({ ok: false, why: "clean-full" });
+    expect(applyAct(p, "clean", day, now)).toBe(p);
+  });
+  it("a damaged record still yields a valid record", () => {
+    const out = applyAct({ needs: "x", care: [1], gift: 5 }, "feed", day, now) as any;
+    expect(out.care[day].feed.pellet).toBe(1);
+    expect(heartsOf("tummy", out.needs.tummy, now)).toBe(4);
+    expect(out.gift[day]).toBe(1);
+    expect(applyAct("junk", "play", day, now).care?.[day]).toEqual({ play: 1 });
+  });
+  it("is pure: the input is untouched", () => {
+    const p = { needs: { tummy: { n: 3, at: now } }, care: { [day]: { play: 1 } } };
+    const before = JSON.stringify(p);
+    applyAct(p, "play", day, now);
+    applyAct(p, "feed", day, now);
+    expect(JSON.stringify(p)).toBe(before);
+  });
+  it("two devices that each feed once the same day merge to pellet 1", () => {
+    const a = applyAct({}, "feed", day, now), b = applyAct({}, "feed", day, now + 5);
+    const m = mergePet(a, b) as any;
+    expect(m.care[day].feed.pellet).toBe(1);
+    expect(m.gift[day]).toBe(1);
+    const x = applyAct({}, "play", day, now), y = applyAct(applyAct({}, "play", day, now), "play", day, now);
+    expect((mergePet(x, y) as any).care[day].play).toBe(2);
   });
 });
