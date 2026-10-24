@@ -175,7 +175,9 @@ export function createAvatar(M: ThreeModel, gltf: GLTF, o: AvatarOptions): Avata
   function setGrowth(look: Growth): void {
     if (dead) return;
     const sc = typeof look.scale === "number" && isFinite(look.scale) && look.scale > 0 ? look.scale : growth.scale;
-    growth = { scale: sc, morphs: { ...look.morphs } };
+    const morphs: Record<string, number> = {};
+    Object.keys(look.morphs || {}).forEach((k) => { const v = (look.morphs as any)[k]; if (typeof v === "number" && isFinite(v)) morphs[k] = Math.min(1, Math.max(0, v)); });
+    growth = { scale: sc, morphs };
     object.scale.setScalar(sc);
     applyGrowth();
   }

@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { mergePet, WEAR_AT_MAX } from "../sync/merge.ts";
 import { DECOR_SIZE, itemOf, PET_ITEMS, priceOf } from "../data/pet-items.ts";
 import {
-  applyAct, balance, buy, canAct, feedSnack, ownsToy, placeDecor, placedDecor, spendId, DECOR_MAX, canBuy, capKeys, careOf, carePoints, DRIFT, earnAmount, EARNED_MAX, giftTaken, growthPoints, heartsOf, laterStamp,
+  applyAct, balance, buy, canAct, feedSnack, snackFits, ownsToy, placeDecor, placedDecor, spendId, DECOR_MAX, canBuy, capKeys, careOf, carePoints, DRIFT, earnAmount, EARNED_MAX, giftTaken, growthPoints, heartsOf, laterStamp,
   newlyGrown, growPet, GROWTH_MORPHS, STAGE_LOOK, STAGES, PLAY_PER_DAY, prunePet, PRUNE_CARE_DAYS, REVIEW_CAP_IDS, SPENT_MAX, stageOf, START_HEARTS, touch
 } from "./pet.ts";
 
@@ -421,6 +421,16 @@ describe("the shop", () => {
     expect(again.care[day].feed["snack:kelp-chip"]).toBe(2);
     expect(feedSnack(rich(), ball, day, "dev00001", now)).toBeNull();
     expect(applyAct({}, "feed", day, now).gift?.[day]).toBe(1);
+  });
+  it("snackFits: all of a snack's hearts must fit in the room left; feedSnack refuses a partial fill", () => {
+    const at4 = { ...rich(), needs: { tummy: { n: 4, at: now } } };
+    expect(snackFits(at4, kelp, now)).toBe(true);
+    expect(snackFits(at4, berry, now)).toBe(false);
+    expect(snackFits({ ...rich(), needs: { tummy: { n: 5, at: now } } }, kelp, now)).toBe(false);
+    expect(snackFits({}, berry, now)).toBe(false);   // a fresh record is full
+    expect(snackFits(at4, ball, now)).toBe(false);
+    expect(feedSnack(at4, berry, day, "dev00001", now)).toBeNull();
+    expect(feedSnack(at4, kelp, day, "dev00001", now)).not.toBeNull();
   });
   it("placeDecor places and removes owned decor only, stamps the wear later, and caps at DECOR_MAX", () => {
     const owned = buy(rich(7), castle, day, "dev00001")!;

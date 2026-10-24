@@ -933,6 +933,27 @@ dialog.pet-dialog::backdrop { background: var(--scrim-glass); }
 .pet-owned { color: var(--muted); font-weight: 700; font-size: .85rem; }
 .pet-item .btn[hidden], .pet-owned[hidden] { display: none; }
 .pet-item .btn:disabled { opacity: .55; }
+.pet-item-note { grid-column: 1 / -1; color: var(--muted); font-size: .8rem; }
+.pet-item-note[hidden] { display: none; }
+/* the Growth tab (X-8b): the stage, the five-step path and the 28-day calendar; nothing here animates */
+.pet-growth-stage { margin: .5rem 0 .15rem; font-weight: 700; }
+.pet-growth-next { margin: 0 0 .75rem; font-size: .9rem; color: var(--muted); }
+.pet-path { list-style: none; margin: 0 0 .9rem; padding: 0; display: grid; grid-template-columns: repeat(5, 1fr); gap: .25rem; font-size: .8rem; }
+.pet-path li { display: flex; flex-direction: column; align-items: center; gap: .1rem; padding: .35rem .1rem; color: var(--muted); border-top: 3px solid var(--hud-track); }
+.pet-path li[data-reached] { color: var(--text); border-top-color: var(--accent); }
+.pet-path li[aria-current="step"] { font-weight: 700; border-top-color: var(--accent); background: color-mix(in srgb, var(--accent) 14%, var(--surface)); }
+.pet-path-at { font-size: .72rem; }
+.pet-days { list-style: none; margin: 0 0 .6rem; padding: 0; display: grid; grid-template-columns: repeat(7, 1fr); gap: .2rem; }
+.pet-days li { aspect-ratio: 1; border-radius: var(--radius-sm); background: var(--hud-track); }
+.pet-days li[data-points="1"] { background: color-mix(in srgb, var(--accent) 25%, var(--surface)); }
+.pet-days li[data-points="2"] { background: color-mix(in srgb, var(--accent) 50%, var(--surface)); }
+.pet-days li[data-points="3"] { background: color-mix(in srgb, var(--accent) 75%, var(--surface)); }
+.pet-days li[data-points="4"] { background: var(--accent); }
+@media (forced-colors: active) {
+  .pet-days li { border: 1px solid CanvasText; background: Canvas; }
+  .pet-days li:not([data-points="0"]) { background: Highlight; }
+  .pet-path li[aria-current="step"] { text-decoration: underline; }
+}
 @media (forced-colors: active) {
   .pet-needs i { border: 1px solid CanvasText; background: Canvas; }
   .pet-needs i[data-on] { background: CanvasText; }

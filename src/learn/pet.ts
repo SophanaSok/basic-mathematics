@@ -417,12 +417,19 @@ export function buy(pet: unknown, item: PetItem, day: DayKey, device: string): P
   return prunePet(out);
 }
 
+/** whether a snack's hearts all fit in the room Tummy has left (a snack that would only half fill it is refused) */
+export function snackFits(pet: unknown, item: PetItem, now: Timestamp): boolean {
+  if (item.kind !== "snack") return false;
+  const room = HEARTS_MAX - heartsOf("tummy", at(obj(at(obj(pet), "needs")), "tummy"), now);
+  return Math.floor(num(item.hearts)) <= room;
+}
+
 /** a snack eaten in the act of buying it: the spend, the care count and the Tummy hearts in one new record,
-    or null when the balance does not cover it, it is not a snack, or Tummy is already full */
+    or null when the balance does not cover it, it is not a snack, or its hearts do not all fit in Tummy */
 export function feedSnack(pet: unknown, item: PetItem, day: DayKey, device: string, now: Timestamp): PetStore | null {
   if (!sellable(item) || item.kind !== "snack" || !canBuy(pet, item.price)) return null;
   const p = obj(pet), needs = copyMap(at(p, "needs"));
-  if (heartsOf("tummy", needs.tummy, now) >= HEARTS_MAX) return null;
+  if (!snackFits(pet, item, now)) return null;
   const out: any = {};
   keysOf(p, {}).forEach((k) => { out[k] = at(p, k); });
   out.v = 1;
