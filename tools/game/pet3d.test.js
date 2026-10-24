@@ -13,7 +13,10 @@
       exactly one (dispose, then mount again)
    5. memory: ten open/close rounds on a chapter page leave at most one stage and Mochi canvas, and the JS heap
       (performance.memory, where there is one) grows by under 50 MB; the figure is logged
-   6. no page errors in any case */
+   6. accessories (X-7b-b, T12): with nothing worn the pool fetches no acc/ file; with acc:party-hat owned and worn the pool
+      fetches acc/party-hat.glb exactly once and the stage holds socket_head (the porthole's data-pet-on); Nothing in the
+      Wardrobe takes it off with no new request
+   7. no page errors in any case */
 "use strict";
 const site = require("../lib/site");
 const target = require("../lib/target");
@@ -37,7 +40,8 @@ const PORTHOLE = () => document.querySelector(".pet-porthole").hasAttribute("dat
 async function open(seed, opts) {
   opts = opts || {};
   const context = await browser.newContext({ viewport: { width: 1280, height: 900 }, reducedMotion: opts.reduced ? "reduce" : "no-preference" });
-  const errors = [];
+  const errors = [], requests = [];
+  context.on("request", (r) => requests.push(r.url()));
   await context.route(/^(https?|wss?):/, (r) => server.owns(r.request().url()) ? r.continue() : r.abort());
   await context.addInitScript((s) => {
     if (sessionStorage.getItem("__seeded")) return;
@@ -54,7 +58,7 @@ async function open(seed, opts) {
   });
   await page.goto(server.url + (opts.path || CHAPTER), { waitUntil: "load" });
   if (!opts.path) check(await until(page, () => window.BMCompanion && window.BMCompanion.state().mounted, null, 10000), "the companion mounts");
-  return { context, page, errors };
+  return { context, page, errors, requests };
 }
 async function done(c, what) {
   eq(c.errors, [], what + ": no page errors");
@@ -130,6 +134,31 @@ async function run() {
       check(await until(c.page, PORTHOLE), "inline: the rebuilt porthole has data-3d");
       eq(await canvases(c.page), 1, "inline: exactly one canvas after the redraw");
       await done(c, "inline");
+    }
+    /* 6: accessories load on wear */
+    cases++;
+    {
+      const ACC = /\/models\/mochi\/acc\//;
+      const c = await open(seedPet({ owned: { "acc:party-hat": "2025-01-01" } }));
+      await openPool(c.page);
+      check(await until(c.page, PORTHOLE), "acc: the stage is up with nothing worn");
+      check(await until(c.page, () => document.querySelector(".pet-porthole").getAttribute("data-pet-on") === ""), "acc: nothing is on the stage");
+      await new Promise((r) => setTimeout(r, 800));
+      eq(c.requests.filter((u) => ACC.test(u)), [], "acc: nothing worn fetches no accessory file");
+      await done(c, "acc none");
+      const w = await open(seedPet({ owned: { "acc:party-hat": "2025-01-01" }, wear: { head: "acc:party-hat", at: 5 } }));
+      await openPool(w.page);
+      check(await until(w.page, PORTHOLE), "acc: the stage is up with a hat worn");
+      check(await until(w.page, () => document.querySelector(".pet-porthole").getAttribute("data-pet-on") === "socket_head"), "acc: the stage holds socket_head");
+      eq(await w.page.evaluate(() => document.querySelector(".pet-porthole").getAttribute("data-pet-worn")), "head=acc:party-hat", "acc: the porthole names the hat");
+      eq(w.requests.filter((u) => ACC.test(u)).length, 1, "acc: one request for the hat");
+      check(/\/acc\/party-hat\.glb$/.test(w.requests.filter((u) => ACC.test(u))[0] || ""), "acc: the file is party-hat.glb");
+      await w.page.click('button[data-tab="wardrobe"]');
+      await w.page.click('fieldset[data-slot="head"] button.pet-wear[data-wear="none"]');
+      check(await until(w.page, () => document.querySelector(".pet-porthole").getAttribute("data-pet-on") === ""), "acc: Nothing takes the hat off");
+      eq(await w.page.evaluate(() => document.querySelector(".pet-porthole").getAttribute("data-pet-worn")), "", "acc: the porthole names nothing");
+      eq(w.requests.filter((u) => ACC.test(u)).length, 1, "acc: taking it off requests nothing");
+      await done(w, "acc worn");
     }
     /* 5: memory */
     cases++;

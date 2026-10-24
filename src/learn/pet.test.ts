@@ -657,6 +657,14 @@ describe("accessories", () => {
     const ahead = wearAcc({ ...p, wear: { at: now + 9000 } }, "head", "acc:party-hat", now) as any;
     expect(ahead.wear.at).toBe(now + 9001);
   });
+  it("wearAcc(null) clears a stale non-owned id sitting in the slot and stamps the wear later", () => {
+    const p = { ...ownAll(["acc:party-hat"]), wear: { head: "acc:crown", at: now } };
+    expect(wornAcc(p).head).toBeUndefined();
+    const off = wearAcc(p, "head", null, now + 3) as any;
+    expect(off).not.toBe(p);
+    expect(off.wear.head).toBeUndefined();
+    expect(off.wear.at).toBe(now + 3);
+  });
   it("wearAcc keeps the decor already out", () => {
     const p = ownAll(["acc:party-hat", "decor:rock"]);
     const placed = placeDecor(p, "decor:rock", true, now) as any;

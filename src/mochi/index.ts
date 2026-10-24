@@ -45,7 +45,9 @@ export interface MochiInfo {
   growth: { scale: number; morphs: Record<string, number> };
   /** socket name to the URL of the accessory on it, only while attached */
   worn: Record<string, string>;
-  /** the world-space box of each attachment (by socket) and of the figure's own meshes, for the tests */
+}
+
+export interface MochiBoxes {
   wornBox: Record<string, { min: number[]; max: number[] }>;
   bodyBox: { min: number[]; max: number[] } | null;
 }
@@ -66,6 +68,9 @@ export interface MochiStage {
   /** the nine mood clip names in the file */
   moods(): string[];
   info(): MochiInfo;
+  /** rest-pose world boxes of each attachment (by socket) and of the figure's own meshes, for the tests; not live
+      bounds (a skinned mesh's world matrix does not follow the bones) and rebuilt per call, so never per frame */
+  boxes(): MochiBoxes;
   /** ask for frames again */
   wake(): void;
   dispose(): void;

@@ -66,10 +66,14 @@ export interface Avatar {
   fading(): boolean;
   /** a mood is not the idle (so a variation is playing) or a crossfade is running */
   busy(): boolean;
-  stats(): { mood: string | null; fade: number; reduced: boolean; variations: number; lastVariation: string | null; weights: Record<string, number>; triangles: number; morphs: number; morphWeights: Record<string, number>; growth: Growth; worn: Record<string, string>; wornBox: Record<string, WorldBox>; bodyBox: WorldBox | null };
+  stats(): { mood: string | null; fade: number; reduced: boolean; variations: number; lastVariation: string | null; weights: Record<string, number>; triangles: number; morphs: number; morphWeights: Record<string, number>; growth: Growth; worn: Record<string, string> };
+  /** rest-pose world boxes for the tests (a skinned mesh's world matrix does not follow the bones, so these are not live bounds): the attachments by socket, and the figure's own meshes. Rebuilt on every call; never call per frame */
+  boxes(): { wornBox: Record<string, WorldBox>; bodyBox: WorldBox | null };
   /** hang an accessory GLB on a socket bone (socket_head, socket_back, socket_tail); null takes it off.
       Resolves false for an unknown socket or a load that failed (the socket is left as it was), true
-      otherwise. A call that is no longer the latest for its socket frees what it loaded and resolves false. */
+      otherwise. A call that is no longer the latest for its socket frees what it loaded and resolves false;
+      attach(socket, null) counts as a later call too, so it also cancels a load in flight for that socket
+      (the earlier call resolves false). */
   attach(socket: string, url: string | null): Promise<boolean>;
   dispose(): void;
 }
@@ -284,9 +288,11 @@ export function createAvatar(M: ThreeModel, gltf: GLTF, o: AvatarOptions): Avata
       morphWeights: Object.fromEntries(Object.entries(meshes[0]?.morphTargetDictionary ?? {}).filter(([n]) => n.startsWith("Grow")).map(([n, i]) => [n, meshes[0].morphTargetInfluences?.[i] ?? 0])),
       growth: { scale: growth.scale, morphs: { ...growth.morphs } },
       worn: Object.fromEntries(Object.entries(worn).map(([k, w]) => [k, w.url])),
-      /* world boxes for the tests: the attachments by socket, and the figure's own meshes */
+    }),
+    /* rest-pose boxes, not live bounds: a skinned mesh's world matrix does not follow the bones */
+    boxes: () => ({
       wornBox: Object.fromEntries(Object.keys(worn).map((k) => [k, worldBox(worn[k].root, () => true)]).filter((e) => e[1])) as Record<string, WorldBox>,
-      bodyBox: worldBox(object, (m) => meshes.indexOf(m) >= 0),
+      bodyBox: worldBox(object, (m) => meshes.indexOf(m) >= 0)
     }),
   };
 }

@@ -917,9 +917,9 @@ dialog.pet-dialog::backdrop { background: var(--scrim-glass); }
 .pet-line:focus { outline: none; }
 .pet-actions [aria-disabled="true"] { opacity: .55; cursor: default; }
 /* the pool and shop tabs, and the shop's rows (X-7); nothing here animates */
-.pet-tabs { display: flex; justify-content: center; gap: .25rem; margin: 0 0 .75rem; border-bottom: 1px solid var(--border); }
+.pet-tabs { display: flex; flex-wrap: wrap; justify-content: center; gap: .25rem; margin: 0 0 .75rem; border-bottom: 1px solid var(--border); }
 .pet-tab {
-  font: inherit; font-weight: 700; padding: .4rem 1rem; background: transparent; color: var(--muted);
+  font: inherit; font-weight: 700; padding: .4rem .75rem; background: transparent; color: var(--muted);
   border: 0; border-bottom: 3px solid transparent; cursor: pointer;
 }
 .pet-tab[aria-selected="true"] { color: var(--text); border-bottom-color: var(--accent); }
@@ -938,6 +938,13 @@ dialog.pet-dialog::backdrop { background: var(--scrim-glass); }
 .pet-item .btn:disabled { opacity: .55; }
 .pet-item-note { grid-column: 1 / -1; color: var(--muted); font-size: .8rem; }
 .pet-item-note[hidden] { display: none; }
+/* the Wardrobe tab (X-7b-b): a fieldset per slot, a row of chips; the checked chip takes the accent border; nothing animates */
+.pet-slots[hidden], .pet-wardrobe-empty[hidden] { display: none; }
+.pet-slot { display: flex; flex-wrap: wrap; align-items: center; gap: .35rem; margin: .6rem 0; padding: 0; border: 0; text-align: left; }
+.pet-slot legend { width: 100%; padding: 0; font-weight: 700; font-size: .9rem; }
+.pet-wear { border: 2px solid var(--border); }
+.pet-wear[aria-checked="true"] { border-color: var(--accent); font-weight: 700; }
+@media (forced-colors: active) { .pet-wear[aria-checked="true"] { border-style: double; border-width: 4px; } }
 /* the Growth tab (X-8b): the stage, the five-step path and the 28-day calendar; nothing here animates */
 .pet-growth-stage { margin: .5rem 0 .15rem; font-weight: 700; }
 .pet-growth-next { margin: 0 0 .75rem; font-size: .9rem; color: var(--muted); }

@@ -343,16 +343,20 @@ async function main() {
         const a = await c.page.evaluate(() => window.__wear.info());
         check(a.worn.socket_head === hat && Object.keys(a.worn).length === 1, "15: info().worn names the url", a.worn);
         check(count(c.requests, /\/models\/mochi\/acc\/party-hat\.glb$/) === 1, "15: one request for the hat", c.requests.filter((u) => /acc\//.test(u)));
-        const hb = a.wornBox.socket_head, bb = a.bodyBox;
+        const bx = await c.page.evaluate(() => window.__wear.boxes());
+        const hb = bx.wornBox.socket_head, bb = bx.bodyBox;
         check(!!hb && !!bb && hb.min[1] > 0.9 * bb.max[1], "15: the hat's lowest point is above 0.9 of the figure's top", { hat: hb, body: bb });
         await c.page.evaluate(() => { window.__wear.setMood("happy"); });
-        await wait(600);
-        const h = await c.page.evaluate(() => window.__wear.info());
-        const moved = h.wornBox.socket_head && hb && [0, 1, 2].some((k) => Math.abs(h.wornBox.socket_head.min[k] - hb.min[k]) > 1e-4 || Math.abs(h.wornBox.socket_head.max[k] - hb.max[k]) > 1e-4);
+        const changed = await until(c.page, (b) => {
+          const n = window.__wear.boxes().wornBox.socket_head;
+          return !!n && [0, 1, 2].some((k) => Math.abs(n.min[k] - b.min[k]) > 1e-4 || Math.abs(n.max[k] - b.max[k]) > 1e-4);
+        }, hb, 8000);
+        const h = await c.page.evaluate(() => ({ ...window.__wear.info(), ...window.__wear.boxes() }));
+        const moved = changed && h.wornBox.socket_head && hb && [0, 1, 2].some((k) => Math.abs(h.wornBox.socket_head.min[k] - hb.min[k]) > 1e-4 || Math.abs(h.wornBox.socket_head.max[k] - hb.max[k]) > 1e-4);
         check(moved === true, "15: the hat rides the head in happy", { before: hb, after: h.wornBox.socket_head });
         check(h.worn.socket_head === hat, "15: worn is unchanged after the mood", h.worn);
         const off = await c.page.evaluate(() => window.__wear.attach("socket_head", null));
-        const e = await c.page.evaluate(() => window.__wear.info());
+        const e = await c.page.evaluate(() => ({ ...window.__wear.info(), ...window.__wear.boxes() }));
         check(off === true && Object.keys(e.worn).length === 0 && Object.keys(e.wornBox).length === 0, "15: attach(null) takes it off", { off, worn: e.worn });
         const miss = await c.page.evaluate(() => window.__wear.attach("socket_head", new URL(window.BMSite.rootPrefix() + "models/mochi/acc/nope.glb", location.href).href));
         const f = await c.page.evaluate(() => window.__wear.info());
