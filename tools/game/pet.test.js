@@ -28,7 +28,12 @@
   17. two devices: a merged record with two ball buys shows one Owned, two spends, and the balance down by both
   18. config shop "off": no Shop tab and no shop panel, the Pool tab still works
   19. keyboard: Enter on the porthole pets Mochi; Feed's click moves focus to the line
-  20. no page errors in any case */
+  20. growth: two days of all four acts with XP (8 points) stamp grew.fry on opening, the porthole carries
+      data-pet-stage="fry", the line is "Mochi grew into a fry!", run.seen.grew.fry is 1, and a reload shows the
+      idle line with grew.fry unchanged
+  21. T7: the same care on days without XP stamps nothing and the stage stays hatchling
+  22. look: with 3D on the stage's scale is 0.8 at hatchling and 0.875 at fry (data-pet-scale, read from the stage)
+  23. no page errors in any case */
 "use strict";
 const site = require("../lib/site");
 const target = require("../lib/target");
@@ -478,6 +483,61 @@ async function run() {
       await c.page.click('button[data-act="feed"]');
       check(await c.page.evaluate(() => document.activeElement === document.querySelector(".pet-line")), "keys: focus moves to the line when Feed goes away");
       await done(c, "keys");
+    }
+    /* 21: growth */
+    cases++;
+    {
+      const D1 = "2026-10-01", D2 = "2026-10-02";
+      const ACTS = { feed: { pellet: 1 }, play: 1, clean: 1, spark: 1 };
+      const care = { [D1]: ACTS, [D2]: ACTS };
+      const act = { "bm.activity.v1": JSON.stringify({ days: { [D1]: 10, [D2]: 10 } }) };
+      const c = await open(Object.assign(seedPet({ v: 1, care }), act));
+      await busLog(c.page);
+      await openPool(c.page);
+      const rec = () => c.page.evaluate(() => JSON.parse(localStorage.getItem("bm.pet.v1")));
+      const g1 = (await rec()).grew;
+      check(g1 && typeof g1.fry === "number" && g1.fry > 0, "growth: opening stamps grew.fry");
+      eq(await c.page.evaluate(() => document.querySelector(".pet-porthole").getAttribute("data-pet-stage")), "fry", "growth: the porthole is at fry");
+      eq(await lineOf(c.page), "Mochi grew into a fry!", "growth: the moment line");
+      eq(await c.page.evaluate(() => JSON.parse(localStorage.getItem("bm.run.v1")).seen.grew), { fry: 1 }, "growth: run.seen.grew.fry is 1");
+      eq(await c.page.evaluate(() => window.__pet), ["grew:fry"], "growth: one grew event");
+      await c.page.reload({ waitUntil: "load" });
+      await until(c.page, () => window.BMCompanion && window.BMCompanion.state().mounted, null, 10000);
+      await openPool(c.page);
+      eq(await lineOf(c.page), "Mochi is glad to see you.", "growth: a reload shows the idle line, not the moment");
+      eq((await rec()).grew.fry, g1.fry, "growth: grew.fry is unchanged after the reload");
+      eq(await c.page.evaluate(() => document.querySelector(".pet-porthole").getAttribute("data-pet-stage")), "fry", "growth: still fry after the reload");
+      await done(c, "growth");
+    }
+    /* 22: T7, care without XP */
+    cases++;
+    {
+      const D1 = "2026-10-01", D2 = "2026-10-02";
+      const ACTS = { feed: { pellet: 1 }, play: 1, clean: 1, spark: 1 };
+      const c = await open(Object.assign(seedPet({ v: 1, care: { [D1]: ACTS, [D2]: ACTS } }), { "bm.activity.v1": JSON.stringify({ days: { [D1]: 0 } }) }));
+      await openPool(c.page);
+      const r = JSON.parse(await stored(c.page));
+      check(!(r.grew && r.grew.fry), "T7: no grew.fry without XP");
+      eq(await c.page.evaluate(() => document.querySelector(".pet-porthole").getAttribute("data-pet-stage")), "hatchling", "T7: the stage stays hatchling");
+      eq(await lineOf(c.page), "Mochi is glad to see you.", "T7: no moment");
+      await done(c, "T7");
+    }
+    /* 23: the look on the stage */
+    cases++;
+    {
+      const D1 = "2026-10-01", D2 = "2026-10-02";
+      const ACTS = { feed: { pellet: 1 }, play: 1, clean: 1, spark: 1 };
+      for (const [name, pet, act, want] of [
+        ["hatchling", { v: 1 }, {}, "0.8"],
+        ["fry", { v: 1, care: { [D1]: ACTS, [D2]: ACTS } }, { "bm.activity.v1": JSON.stringify({ days: { [D1]: 10, [D2]: 10 } }) }, "0.875"]
+      ]) {
+        const c = await open(Object.assign(seedPet(pet), act), { three: true });
+        await openPool(c.page);
+        const up = await until(c.page, () => document.querySelector(".pet-porthole").hasAttribute("data-3d"), null, 12000);
+        if (!up) console.log("pet: pool 3D did not start here (look asserts skipped for " + name + ")");
+        else check(await until(c.page, (v) => document.querySelector(".pet-porthole").getAttribute("data-pet-scale") === v, want, 4000), "look: scale " + want + " at " + name);
+        await done(c, "look " + name);
+      }
     }
   } finally {
     try { await browser.close(); } catch (e) { console.error("browser close: " + e.message); }

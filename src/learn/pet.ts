@@ -202,6 +202,35 @@ export function newlyGrown(pet: unknown, points: unknown, now: Timestamp): Recor
   return out;
 }
 
+/** The growth morph targets the model will carry (Blender card B-2). Until B-2 ships them only `scale`
+    shows: the stage ignores a morph the file does not have, so the table below needs no change then. */
+export const GROWTH_MORPHS = ["GrowGills", "GrowCrest", "GrowTail"] as const;
+export interface Look { scale: number; morphs: Record<string, number> }
+
+/** how each stage looks: the figure's scale and the weight of each growth morph (0 to 1) */
+export const STAGE_LOOK: Record<Stage, Look> = {
+  hatchling: { scale: 0.8, morphs: { GrowGills: 0, GrowCrest: 0, GrowTail: 0 } },
+  fry: { scale: 0.875, morphs: { GrowGills: 0.35, GrowCrest: 0, GrowTail: 0 } },
+  juvenile: { scale: 0.95, morphs: { GrowGills: 0.7, GrowCrest: 0.4, GrowTail: 0 } },
+  adult: { scale: 1.0, morphs: { GrowGills: 1, GrowCrest: 0.8, GrowTail: 0.5 } },
+  elder: { scale: 1.1, morphs: { GrowGills: 1, GrowCrest: 1, GrowTail: 1 } }
+};
+
+/** The record with every stage the points reach stamped `now` in `grew`, and the stages stamped just
+    now (hatchling never counts) in order; a stamped stage is never stamped again. When nothing is new
+    it returns the same record and []. A new record otherwise: the input is never touched. */
+export function growPet(pet: unknown, activity: ActivityStore | unknown, now: Timestamp): { pet: PetStore; grown: Stage[] } {
+  const before = obj(obj(pet).grew);
+  const next = newlyGrown(pet, growthPoints(pet, activity), now);
+  const grown = STAGES.filter((s) => s !== "hatchling" && s in next && !(num(at(before, s)) > 0));
+  if (!grown.length) return { pet: pet as PetStore, grown: [] };
+  const p = obj(pet), out: any = {};
+  keysOf(p, {}).forEach((k) => { out[k] = at(p, k); });
+  out.v = 1;
+  out.grew = next;
+  return { pet: prunePet(out), grown };
+}
+
 /* ---------------------------------------------------------------- prunes -- */
 
 export const PRUNE_CARE_DAYS = 400;

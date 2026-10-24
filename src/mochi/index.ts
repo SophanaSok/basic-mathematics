@@ -40,6 +40,7 @@ export interface MochiStageOptions {
 export interface MochiInfo {
   state: MochiState; mood: string | null; frames: number; fade: number; reduced: boolean; paused: boolean;
   variations: number; lastVariation: string | null; weights: Record<string, number>; triangles: number; morphs: number;
+  growth: { scale: number; morphs: Record<string, number> };
 }
 
 export interface MochiStage {
@@ -47,6 +48,8 @@ export interface MochiStage {
   /** false on an unknown name; "neutral" is idle */
   setMood(name: string, fadeS?: number): boolean;
   setMorph(name: string, weight: number): void;
+  /** the stage's look (scale and growth morph weights), kept across clips */
+  setGrowth(look: { scale: number; morphs: Record<string, number> }): void;
   /** only while idle and not still() */
   playIdleVariation(name?: string): boolean;
   /** the nine mood clip names in the file */

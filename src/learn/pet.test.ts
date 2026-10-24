@@ -3,7 +3,7 @@ import { mergePet, WEAR_AT_MAX } from "../sync/merge.ts";
 import { DECOR_SIZE, itemOf, PET_ITEMS, priceOf } from "../data/pet-items.ts";
 import {
   applyAct, balance, buy, canAct, feedSnack, ownsToy, placeDecor, placedDecor, spendId, DECOR_MAX, canBuy, capKeys, careOf, carePoints, DRIFT, earnAmount, EARNED_MAX, giftTaken, growthPoints, heartsOf, laterStamp,
-  newlyGrown, PLAY_PER_DAY, prunePet, PRUNE_CARE_DAYS, REVIEW_CAP_IDS, SPENT_MAX, stageOf, START_HEARTS, touch
+  newlyGrown, growPet, GROWTH_MORPHS, STAGE_LOOK, STAGES, PLAY_PER_DAY, prunePet, PRUNE_CARE_DAYS, REVIEW_CAP_IDS, SPENT_MAX, stageOf, START_HEARTS, touch
 } from "./pet.ts";
 
 const H = 3_600_000;
@@ -489,5 +489,72 @@ describe("the shop", () => {
     expect(balance({ earned: { "strong:a": 1 }, spent: { "buy:2025-03-04:toy:ball:dev00001:1": 1e9 } })).toBe(20 - 1000);
     expect(balance({ earned: { "strong:a": 1 }, spent: { "buy:2025-03-04:toy:ball:dev00001:1": -500 } })).toBe(20);
     expect(balance({ earned: { "strong:a": 1 }, owned: { "decor:castle": day } })).toBe(20);
+  });
+});
+
+describe("growth: the look and growPet", () => {
+  const care8 = { "2026-10-01": { feed: { pellet: 1 }, play: 1, clean: 1, spark: 1 }, "2026-10-02": { feed: { pellet: 1 }, play: 1, clean: 1, spark: 1 } };
+  const xp8 = { days: { "2026-10-01": 10, "2026-10-02": 10 } };
+
+  it("the look table has every stage, scales rise and every morph weight is in [0, 1]", () => {
+    expect(Object.keys(STAGE_LOOK)).toEqual([...STAGES]);
+    let prev = 0;
+    STAGES.forEach((s) => {
+      expect(STAGE_LOOK[s].scale).toBeGreaterThan(prev);
+      prev = STAGE_LOOK[s].scale;
+      Object.entries(STAGE_LOOK[s].morphs).forEach(([name, wt]) => {
+        expect(GROWTH_MORPHS as readonly string[]).toContain(name);
+        expect(wt).toBeGreaterThanOrEqual(0);
+        expect(wt).toBeLessThanOrEqual(1);
+      });
+    });
+    expect(STAGE_LOOK.hatchling.scale).toBe(0.8);
+    expect(STAGE_LOOK.elder.scale).toBe(1.1);
+  });
+  it("stamps fry at 8 points and never stamps it again", () => {
+    const pet = { v: 1, care: care8 };
+    const a = growPet(pet, xp8, 1000);
+    expect(a.grown).toEqual(["fry"]);
+    expect(a.pet.grew!.fry).toBe(1000);
+    const b = growPet(a.pet, xp8, 5000);
+    expect(b.grown).toEqual([]);
+    expect(b.pet).toBe(a.pet);
+    expect(b.pet.grew!.fry).toBe(1000);
+  });
+  it("writes nothing below the first stage", () => {
+    const pet = { v: 1, care: { "2026-10-01": care8["2026-10-01"] } };
+    const r = growPet(pet, xp8, 1000);
+    expect(r.grown).toEqual([]);
+    expect(r.pet).toBe(pet);
+  });
+  it("a stamped stage survives when the care window later prunes", () => {
+    const a = growPet({ v: 1, care: care8 }, xp8, 1000);
+    const later = prunePet({ ...a.pet, care: {} });
+    expect(growthPoints(later, xp8)).toBe(0);
+    expect(stageOf(growthPoints(later, xp8), later.grew)).toBe("fry");
+    expect(growPet(later, xp8, 9000).grown).toEqual([]);
+  });
+  it("T7: a day with care but no XP adds no point and no stage", () => {
+    const r = growPet({ v: 1, care: care8 }, { days: { "2026-10-01": 0 } }, 1000);
+    expect(r.grown).toEqual([]);
+    expect(stageOf(growthPoints({ care: care8 }, { days: {} }), r.pet.grew)).toBe("hatchling");
+  });
+  it("stamps several stages at once, in order, without hatchling", () => {
+    const care: any = {}, days: any = {};
+    for (let i = 0; i < 8; i++) { const d = dayAt(i); care[d] = care8["2026-10-01"]; days[d] = 5; }
+    expect(growPet({ v: 1, care }, { days }, 7).grown).toEqual(["fry", "juvenile"]);
+  });
+  it("is pure: the input is untouched and a second call gives an equal result", () => {
+    const pet = { v: 1, care: care8, grew: {} };
+    const snap = JSON.stringify(pet);
+    const a = growPet(pet, xp8, 1000), b = growPet(pet, xp8, 1000);
+    expect(JSON.stringify(pet)).toBe(snap);
+    expect(a.pet).not.toBe(pet);
+    expect(a).toEqual(b);
+  });
+  it("mergePet keeps the earliest stamp of two devices", () => {
+    const a = growPet({ v: 1, care: care8 }, xp8, 900).pet, b = growPet({ v: 1, care: care8 }, xp8, 400).pet;
+    expect(mergePet(a, b).grew.fry).toBe(400);
+    expect(mergePet(b, a).grew.fry).toBe(400);
   });
 });
