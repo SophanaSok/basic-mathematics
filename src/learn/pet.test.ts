@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { mergePet, WEAR_AT_MAX } from "../sync/merge.ts";
 import { DECOR_SIZE, itemOf, PET_ITEMS, priceOf } from "../data/pet-items.ts";
 import {
-  applyAct, balance, buy, canAct, feedSnack, snackFits, ownsToy, placeDecor, placedDecor, spendId, DECOR_MAX, canBuy, capKeys, careOf, carePoints, DRIFT, earnAmount, EARNED_MAX, giftTaken, growthPoints, heartsOf, laterStamp,
+  applyAct, balance, buy, canAct, feedSnack, snackFits, ownsToy, placeDecor, placedDecor, wearAcc, wornAcc, slotOfSocket, WEAR_SLOTS, ACC_SLOT, spendId, DECOR_MAX, canBuy, capKeys, careOf, carePoints, DRIFT, earnAmount, EARNED_MAX, giftTaken, growthPoints, heartsOf, laterStamp,
   newlyGrown, growPet, GROWTH_MORPHS, STAGE_LOOK, STAGES, PLAY_PER_DAY, prunePet, PRUNE_CARE_DAYS, REVIEW_CAP_IDS, SPENT_MAX, stageOf, START_HEARTS, touch
 } from "./pet.ts";
 
@@ -328,10 +328,11 @@ describe("the shop", () => {
   const day = "2025-03-04", now = Date.UTC(2025, 2, 4, 12);
   const rich = (n = 5) => ({ earned: Object.fromEntries(Array.from({ length: n }, (_, i) => ["strong:s" + i, 1])) });   // 20 each
   const ball = itemOf("toy:ball")!, castle = itemOf("decor:castle")!, berry = itemOf("snack:berry-bite")!, kelp = itemOf("snack:kelp-chip")!;
-  it("the catalogue: eleven items, namespaced ids, fixed prices, decor cells and bottom-band spots that never overlap", () => {
+  it("the catalogue: seventeen items, namespaced ids, fixed prices, decor cells and bottom-band spots that never overlap", () => {
     expect(PET_ITEMS.map((i) => i.id + "=" + i.price)).toEqual([
       "snack:kelp-chip=5", "snack:shrimp-puff=8", "snack:berry-bite=12", "toy:ball=25", "toy:ring=40", "toy:boat=60",
-      "decor:plant=30", "decor:rock=20", "decor:shell=35", "decor:chest=80", "decor:castle=120"
+      "decor:plant=30", "decor:rock=20", "decor:shell=35", "decor:chest=80", "decor:castle=120",
+      "acc:party-hat=50", "acc:crown=90", "acc:flower=35", "acc:backpack=60", "acc:ribbon=30", "acc:bell=45"
     ]);
     PET_ITEMS.forEach((i) => expect(i.id.startsWith(i.kind + ":")).toBe(true));
     expect(PET_ITEMS.filter((i) => i.kind === "snack").map((i) => i.hearts)).toEqual([1, 2, 3]);
@@ -601,5 +602,85 @@ describe("T5: size", () => {
     const sum = (ids: Record<string, number>, price: (id: string, n: number) => number) => Object.keys(ids).reduce((a, id) => a + price(id, ids[id]), 0);
     expect(balance(pet)).toBe(sum(pet.earned, (id) => earnAmount(id)) - sum(pet.spent, (_id, n) => n));
     expect(Object.keys(pet.earned).length).toBe(Object.keys(earned).length);
+  });
+});
+
+describe("accessories", () => {
+  const day = "2025-03-04", now = Date.UTC(2025, 2, 4, 12);
+  const rich = { earned: Object.fromEntries(Array.from({ length: 30 }, (_, i) => ["strong:s" + i, 1])) };
+  const ownAll = (ids: string[]) => ids.reduce((p: any, id) => buy(p, itemOf(id)!, day, "dev00001")!, rich) as any;
+  it("slotOfSocket maps the three sockets and nothing else", () => {
+    expect(WEAR_SLOTS).toEqual(["head", "back", "tail"]);
+    expect(slotOfSocket("socket_head")).toBe("head");
+    expect(slotOfSocket("socket_back")).toBe("back");
+    expect(slotOfSocket("socket_tail")).toBe("tail");
+    expect(slotOfSocket("socket_x")).toBeUndefined();
+    expect(slotOfSocket("head")).toBeUndefined();
+    expect(slotOfSocket(3)).toBeUndefined();
+  });
+  it("ACC_SLOT is the catalogue's accessories and their slots, no more and no fewer", () => {
+    const acc = PET_ITEMS.filter((i) => i.kind === "acc");
+    expect(Object.keys(ACC_SLOT).sort()).toEqual(acc.map((i) => i.id).sort());
+    acc.forEach((i) => expect(ACC_SLOT[i.id]).toBe(slotOfSocket(i.socket)));
+  });
+  it("buy of an acc item is bought once, like a toy", () => {
+    const hat = itemOf("acc:party-hat")!;
+    const once = buy(rich, hat, day, "dev00001") as any;
+    expect(once.owned["acc:party-hat"]).toBe(day);
+    expect(balance(once)).toBe(balance(rich) - 50);
+    expect(buy(once, hat, day, "dev00001")).toBeNull();
+  });
+  it("wearAcc refuses an unowned id, a wrong slot and a non-acc id, and gives the same record back", () => {
+    const p = ownAll(["acc:party-hat", "acc:backpack", "toy:ball"]);
+    expect(wearAcc(p, "head", "acc:crown", now)).toBe(p);
+    expect(wearAcc(p, "back", "acc:party-hat", now)).toBe(p);
+    expect(wearAcc(p, "head", "toy:ball", now)).toBe(p);
+    expect(wearAcc(p, "head", "acc:nope", now)).toBe(p);
+    expect(wearAcc(p, "head", 5 as any, now)).toBe(p);
+    expect(wearAcc(p, "eyes" as any, "acc:party-hat", now)).toBe(p);
+    expect(wearAcc(p, "head", null, now)).toBe(p);
+  });
+  it("wearAcc writes and clears a slot without mutating, and stamps the wear later", () => {
+    const p = ownAll(["acc:party-hat", "acc:backpack"]), before = JSON.stringify(p);
+    const on = wearAcc(p, "head", "acc:party-hat", now) as any;
+    expect(JSON.stringify(p)).toBe(before);
+    expect(on).not.toBe(p);
+    expect(on.wear.head).toBe("acc:party-hat");
+    expect(on.wear.at).toBe(now);
+    expect(wearAcc(on, "head", "acc:party-hat", now + 1)).toBe(on);
+    const both = wearAcc(on, "back", "acc:backpack", now + 5) as any;
+    expect(both.wear).toEqual({ head: "acc:party-hat", back: "acc:backpack", at: now + 5 });
+    const off = wearAcc(both, "head", null, now + 9) as any;
+    expect(off.wear.head).toBeUndefined();
+    expect(off.wear.back).toBe("acc:backpack");
+    expect(off.wear.at).toBe(now + 9);
+    const ahead = wearAcc({ ...p, wear: { at: now + 9000 } }, "head", "acc:party-hat", now) as any;
+    expect(ahead.wear.at).toBe(now + 9001);
+  });
+  it("wearAcc keeps the decor already out", () => {
+    const p = ownAll(["acc:party-hat", "decor:rock"]);
+    const placed = placeDecor(p, "decor:rock", true, now) as any;
+    expect((wearAcc(placed, "head", "acc:party-hat", now + 1) as any).wear.decor).toEqual(["decor:rock"]);
+  });
+  it("mergePet keeps the later wear whole: two devices in different hats, the later wins", () => {
+    const base = ownAll(["acc:party-hat", "acc:crown", "acc:backpack"]);
+    const a = wearAcc(wearAcc(base, "head", "acc:party-hat", now), "back", "acc:backpack", now + 1);
+    const b = wearAcc(base, "head", "acc:crown", now + 100) as any;
+    const m = mergePet(a, b) as any;
+    expect(m.wear.head).toBe("acc:crown");
+    expect(m.wear.back).toBeUndefined();
+    expect(mergePet(b, a)).toEqual(m);
+  });
+  it("wornAcc reads only owned, catalogued acc ids on the matching slot", () => {
+    const p = ownAll(["acc:party-hat", "acc:ribbon", "toy:ball"]);
+    expect(wornAcc(p)).toEqual({});
+    const w = wearAcc(wearAcc(p, "head", "acc:party-hat", now), "tail", "acc:ribbon", now + 1);
+    expect(wornAcc(w)).toEqual({ head: "acc:party-hat", tail: "acc:ribbon" });
+    const bad = { ...(w as any), wear: { head: "acc:crown", back: "acc:party-hat", tail: "toy:ball", at: now } };
+    expect(wornAcc(bad)).toEqual({});
+    expect(wornAcc({ ...(w as any), owned: {} })).toEqual({});
+    expect(wornAcc({ ...(w as any), wear: { head: "acc:nope", at: now } })).toEqual({});
+    expect(wornAcc(null)).toEqual({});
+    expect(wornAcc("x")).toEqual({});
   });
 });

@@ -129,6 +129,7 @@ function manifestProblems(m, root) {
   const have = m.entries.map(e => e.variant);
   if (have.join(",") !== VARIANTS.join(",")) out.push("the manifest holds variants " + have.join(",") + ", not " + VARIANTS.join(","));
   m.entries.forEach(e => entryProblems(e, root || ROOT).forEach(p => out.push(p)));
+  if (!(m.accessories || []).length) out.push("the manifest holds no accessories (at least one is needed)");
   (m.accessories || []).forEach(a => accessoryProblems(a, root || ROOT).forEach(p => out.push(p)));
   return out;
 }

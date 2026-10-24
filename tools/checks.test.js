@@ -448,6 +448,7 @@ function refusal(fn) { try { fn(); return null; } catch (e) { return e.message; 
     const mman = require("./gen-mochi").readManifest();
     eq(mm.manifestProblems(mman), [], "mochi-model: the committed manifest is within the caps");
     const mtamper = (f) => { const c = JSON.parse(JSON.stringify(mman)); f(c); return mm.manifestProblems(c).join("\n"); };
+    check(/holds no accessories/.test(mtamper((c) => { c.accessories = []; })), "mochi-model: a manifest with no accessories fails");
     check(new RegExp("mochi pink: " + (mm.limits.MOCHI_BYTES_MAX + 1) + " bytes is over " + mm.limits.MOCHI_BYTES_MAX).test(mtamper(c => { c.entries[0].bytes = mm.limits.MOCHI_BYTES_MAX + 1; })), "mochi-model: a model over the byte cap fails");
     check(new RegExp("mochi lilac: " + (mm.limits.MOCHI_TRIANGLES_MAX + 1) + " triangles is over " + mm.limits.MOCHI_TRIANGLES_MAX).test(mtamper(c => { c.entries[1].triangles = mm.limits.MOCHI_TRIANGLES_MAX + 1; })), "mochi-model: a model over the triangle cap fails");
     check(/mochi pink: clips .* are not idle/.test(mtamper(c => { c.entries[0].clips = c.entries[0].clips.slice(1); })), "mochi-model: a missing clip fails");

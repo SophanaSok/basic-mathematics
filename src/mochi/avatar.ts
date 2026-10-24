@@ -14,7 +14,7 @@
    The pure helpers (clip names, the fade, the next idle interval) are exported for the
    tests; the rest needs a loaded file. dispose() stops the mixer and frees every geometry,
    material, map and bone texture, which the loader's cache does not own here. */
-import type { Group, Mesh, Material, Texture, BufferGeometry, SkinnedMesh, AnimationAction, AnimationMixer } from "three";
+import type { Group, Mesh, Material, Texture, BufferGeometry, SkinnedMesh, AnimationAction, AnimationMixer, Object3D, Matrix4 } from "three";
 import type { GLTF } from "three/examples/jsm/loaders/GLTFLoader.js";
 import type { ThreeModel } from "./three.ts";
 
@@ -49,6 +49,9 @@ export interface AvatarOptions {
 /** a stage's look (src/learn/pet.ts STAGE_LOOK): a scale and the weight of each growth morph */
 export interface Growth { scale: number; morphs: Record<string, number> }
 
+/** a world-space box, as plain numbers */
+export interface WorldBox { min: [number, number, number]; max: [number, number, number] }
+
 export interface Avatar {
   readonly object: Group;
   readonly meshes: Mesh[];
@@ -63,8 +66,33 @@ export interface Avatar {
   fading(): boolean;
   /** a mood is not the idle (so a variation is playing) or a crossfade is running */
   busy(): boolean;
-  stats(): { mood: string | null; fade: number; reduced: boolean; variations: number; lastVariation: string | null; weights: Record<string, number>; triangles: number; morphs: number; morphWeights: Record<string, number>; growth: Growth };
+  stats(): { mood: string | null; fade: number; reduced: boolean; variations: number; lastVariation: string | null; weights: Record<string, number>; triangles: number; morphs: number; morphWeights: Record<string, number>; growth: Growth; worn: Record<string, string>; wornBox: Record<string, WorldBox>; bodyBox: WorldBox | null };
+  /** hang an accessory GLB on a socket bone (socket_head, socket_back, socket_tail); null takes it off.
+      Resolves false for an unknown socket or a load that failed (the socket is left as it was), true
+      otherwise. A call that is no longer the latest for its socket frees what it loaded and resolves false. */
+  attach(socket: string, url: string | null): Promise<boolean>;
   dispose(): void;
+}
+
+/** the world-space box of the meshes under `root` that pass `keep`, from each geometry's own box
+    (the rest pose for a skinned mesh), or null when there are none */
+function worldBox(root: Object3D, keep: (m: Mesh) => boolean): WorldBox | null {
+  root.updateMatrixWorld(true);
+  const min: [number, number, number] = [Infinity, Infinity, Infinity], max: [number, number, number] = [-Infinity, -Infinity, -Infinity];
+  root.traverse((n) => {
+    const m = n as Mesh;
+    if (!(m as { isMesh?: boolean }).isMesh || !m.geometry || !keep(m)) return;
+    if (!m.geometry.boundingBox) m.geometry.computeBoundingBox();
+    const b = m.geometry.boundingBox, e = m.matrixWorld.elements;
+    if (!b) return;
+    for (let i = 0; i < 8; i++) {
+      const x = i & 1 ? b.max.x : b.min.x, y = i & 2 ? b.max.y : b.min.y, z = i & 4 ? b.max.z : b.min.z;
+      const w = e[3] * x + e[7] * y + e[11] * z + e[15] || 1;
+      const v = [(e[0] * x + e[4] * y + e[8] * z + e[12]) / w, (e[1] * x + e[5] * y + e[9] * z + e[13]) / w, (e[2] * x + e[6] * y + e[10] * z + e[14]) / w];
+      for (let k = 0; k < 3; k++) { if (v[k] < min[k]) min[k] = v[k]; if (v[k] > max[k]) max[k] = v[k]; }
+    }
+  });
+  return min[0] === Infinity ? null : { min, max };
 }
 
 function freeTree(root: Group): void {
@@ -98,6 +126,15 @@ export function createAvatar(M: ThreeModel, gltf: GLTF, o: AvatarOptions): Avata
     if (g) triangles += g.index ? g.index.count / 3 : (g.attributes.position ? g.attributes.position.count / 3 : 0);
   });
   triangles = Math.round(triangles);
+
+  /* the socket bones and their rest: the file's rest pose is the bind pose, read before the mixer first steps */
+  object.updateMatrixWorld(true);
+  const sockets: Record<string, { bone: Object3D; restInv: Matrix4 }> = {};
+  object.traverse((n) => {
+    if (n.name.startsWith("socket_") && !sockets[n.name]) sockets[n.name] = { bone: n, restInv: n.matrixWorld.clone().invert() };
+  });
+  const worn: Record<string, { url: string; root: Group }> = {};
+  const latest: Record<string, number> = {};
 
   const mixer: AnimationMixer = new M.AnimationMixer(object);
   const actions: Record<string, AnimationAction> = {};
@@ -194,9 +231,37 @@ export function createAvatar(M: ThreeModel, gltf: GLTF, o: AvatarOptions): Avata
     }
   }
 
+  function takeOff(socket: string): void {
+    const w = worn[socket];
+    if (!w) return;
+    delete worn[socket];
+    if (w.root.parent) w.root.parent.remove(w.root);
+    try { freeTree(w.root); } catch { /* gone */ }
+  }
+
+  async function attach(socket: string, url: string | null): Promise<boolean> {
+    const sk = Object.prototype.hasOwnProperty.call(sockets, socket) ? sockets[socket] : undefined;
+    if (dead || !sk) return false;
+    const mine = (latest[socket] = (latest[socket] || 0) + 1);
+    if (url === null) { takeOff(socket); return true; }
+    let loaded: GLTF;
+    try { loaded = await new M.GLTFLoader().loadAsync(url); } catch { return false; }
+    const root = loaded.scene;
+    if (dead || latest[socket] !== mine) { try { freeTree(root); } catch { /* gone */ } return false; }
+    root.traverse((n) => { if ((n as { isMesh?: boolean }).isMesh) (n as Mesh).frustumCulled = false; });
+    takeOff(socket);
+    root.matrix.copy(sk.restInv);
+    root.matrixAutoUpdate = false;
+    root.matrixWorldNeedsUpdate = true;
+    sk.bone.add(root);
+    worn[socket] = { url, root };
+    return true;
+  }
+
   function dispose(): void {
     if (dead) return;
     dead = true;
+    Object.keys(worn).forEach(takeOff);
     try { mixer.stopAllAction(); mixer.uncacheRoot(object); } catch { /* gone */ }
     if (object.parent) object.parent.remove(object);
     try { freeTree(object); } catch { /* gone */ }
@@ -206,7 +271,7 @@ export function createAvatar(M: ThreeModel, gltf: GLTF, o: AvatarOptions): Avata
   setMood("idle", 0);
 
   return {
-    object, meshes, setMood, setMorph, setGrowth, playIdleVariation, update, dispose,
+    object, meshes, setMood, setMorph, setGrowth, playIdleVariation, update, attach, dispose,
     /* the nine moods: a mood clip has a mood_* morph target of its name (idle's is mood_neutral); the care acts (eat, play, ...) are clips setMood plays that have none */
     moods: () => Object.keys(actions).filter((n) => !isVariation(n) && !!meshes[0]?.morphTargetDictionary?.["mood_" + (n === "idle" ? "neutral" : n)]),
     fading: () => fadeLeft > 0,
@@ -218,6 +283,10 @@ export function createAvatar(M: ThreeModel, gltf: GLTF, o: AvatarOptions): Avata
       morphs: Object.keys(meshes[0]?.morphTargetDictionary ?? {}).length,
       morphWeights: Object.fromEntries(Object.entries(meshes[0]?.morphTargetDictionary ?? {}).filter(([n]) => n.startsWith("Grow")).map(([n, i]) => [n, meshes[0].morphTargetInfluences?.[i] ?? 0])),
       growth: { scale: growth.scale, morphs: { ...growth.morphs } },
+      worn: Object.fromEntries(Object.entries(worn).map(([k, w]) => [k, w.url])),
+      /* world boxes for the tests: the attachments by socket, and the figure's own meshes */
+      wornBox: Object.fromEntries(Object.keys(worn).map((k) => [k, worldBox(worn[k].root, () => true)]).filter((e) => e[1])) as Record<string, WorldBox>,
+      bodyBox: worldBox(object, (m) => meshes.indexOf(m) >= 0),
     }),
   };
 }

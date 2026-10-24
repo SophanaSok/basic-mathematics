@@ -6,7 +6,9 @@
    once. A decor item's `cell` is its column in public/models/mochi/decor.png (tools/gen-water.js
    DECOR_CELLS) and `pos` is where it sits in the pool window, in percent of the window, left edge and
    bottom edge, so the five sit in a bottom band from left to right and never overlap at DECOR_SIZE. */
-export type PetItemKind = "snack" | "toy" | "decor";
+import { MOCHI_ACCESSORIES } from "./mochi-model.ts";
+
+export type PetItemKind = "snack" | "toy" | "decor" | "acc";
 export interface PetItem {
   id: string;
   kind: PetItemKind;
@@ -18,10 +20,20 @@ export interface PetItem {
   cell?: number;
   /** decor: left and bottom, percent of the window */
   pos?: { x: number; y: number };
+  /** acc: the socket it hangs on (socket_head, socket_back or socket_tail) */
+  socket?: string;
+  /** acc: the GLB, relative to the site root */
+  file?: string;
 }
 
 /** the side of a decor box, percent of the window (so the positions below never overlap) */
 export const DECOR_SIZE = 16;
+
+/** fixed accessory prices by manifest id; a manifest id without a price here is not for sale */
+export const ACC_PRICES: Readonly<Record<string, number>> = { "party-hat": 50, crown: 90, flower: 35, backpack: 60, ribbon: 30, bell: 45 };
+
+const ACC_ITEMS: PetItem[] = MOCHI_ACCESSORIES.filter((a) => typeof ACC_PRICES[a.id] === "number")
+  .map((a) => ({ id: "acc:" + a.id, kind: "acc" as const, name: a.name, price: ACC_PRICES[a.id], socket: a.socket, file: a.file }));
 
 export const PET_ITEMS: readonly PetItem[] = [
   { id: "snack:kelp-chip", kind: "snack", name: "Kelp chip", price: 5, hearts: 1 },
@@ -34,7 +46,8 @@ export const PET_ITEMS: readonly PetItem[] = [
   { id: "decor:rock", kind: "decor", name: "Rock", price: 20, cell: 1, pos: { x: 25, y: 11 } },
   { id: "decor:shell", kind: "decor", name: "Shell", price: 35, cell: 2, pos: { x: 42, y: 5 } },
   { id: "decor:chest", kind: "decor", name: "Chest", price: 80, cell: 3, pos: { x: 59, y: 11 } },
-  { id: "decor:castle", kind: "decor", name: "Castle", price: 120, cell: 4, pos: { x: 76, y: 22 } }
+  { id: "decor:castle", kind: "decor", name: "Castle", price: 120, cell: 4, pos: { x: 76, y: 22 } },
+  ...ACC_ITEMS
 ];
 
 /** the item with this id, or undefined */
