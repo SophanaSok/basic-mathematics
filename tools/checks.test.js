@@ -898,6 +898,25 @@ function refusal(fn) { try { fn(); return null; } catch (e) { return e.message; 
   check(refusal(() => scheduleProblems("var = ;", "x.js")) !== null, "… a module that does not parse is refused, not passed");
 }
 
+/* ------------------------------------------------------------- pet-money -- */
+/* T9 of 0015: facets are not money; no SQL prices them and no SQL writes pet but the fresh start's '{}' */
+{
+  const rule = CHECKS.filter(c => c.name === "pet-money")[0];
+  const run = (sources) => { const r = result(); rule.run({ petMoneySources: sources }, r); return r.fails; };
+  const clean = { "assets/account.js": "var a = pet;\n", "supabase/schema.sql": "create table t (\n  pet jsonb not null default '{}'::jsonb, -- facets, spent and price in a comment\n);\nupdate u set game = '{}', pet = '{}',\n  x = 1;\n/* price\n facets */\nselect pet from u;\n" };
+  eq(run(clean), [], "pet-money: facets in a comment, the column definition, a read and pet = '{}' pass");
+  check(run(Object.assign({}, clean, { "supabase/migrations/20270101000000_x.sql": "update public.user_state\n  set pet = jsonb_set(pet, '{earned,x}', '1');\n" })).some(m => /writes pet/.test(m)),
+    "… a planted set pet = jsonb_set(...) line fails");
+  check(run(Object.assign({}, clean, { "supabase/migrations/20270101000000_x.sql": "update u set pet=pet || '{}';" })).length >= 1, "… pet=pet || ... fails");
+  check(run(Object.assign({}, clean, { "supabase/migrations/20270101000000_x.sql": "insert into public.user_state (user_id, pet) values (1, '{}');" })).some(m => /inserts/.test(m)), "… an insert naming pet fails");
+  check(run(Object.assign({}, clean, { "supabase/schema.sql": "create function buy() returns void as $$ select facets from t; $$;" })).some(m => /facets/.test(m)), "… SQL that names facets fails");
+  check(run(Object.assign({}, clean, { "supabase/schema.sql": "select price from t;" })).some(m => /price/.test(m)), "… SQL that names price fails");
+  check(run(Object.assign({}, clean, { "supabase/schema.sql": "select spent from t;" })).some(m => /spent/.test(m)), "… SQL that names spent fails");
+  check(run({ "assets/account.js": "var price = 1; // x\n" }).some(m => /price/.test(m)), "… account.js naming price fails");
+  check(run({ "assets/account.js": "// the facets travel whole\n" }).some(m => /facets/.test(m)), "… account.js naming facets fails, in a comment too");
+  eq(((r) => { rule.run({}, r); return r.fails; })(result()), [], "… today's tree passes");
+}
+
 /* ----------------------------------------------------------------- charts -- */
 /* the widgets check's chart rules: a good figure passes, each bad one says why */
 {

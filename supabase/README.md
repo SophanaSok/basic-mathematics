@@ -58,6 +58,12 @@ the same instant. Running the SQL first is still the rule; these are what happen
   keeps it through a reset on every device, and only Delete my account removes the account's
   copy. `pet` (Mochi's pool) is the opposite: a reset and the fresh start clear it, and it is
   tolerated when missing until the migration is applied.
+  The pet record is the learner's own, and a learner can edit it as they can edit their XP.
+  Facets buy only cosmetics for their own Mochi (nothing is sold for money, and the Daily board
+  never reads the pet). The server stores the column as sent: the bounds on its size and keys are
+  applied by the client (T13 of decision 0015), and nothing on the server reads it. A static rule
+  (`pet-money`) keeps `facet` and `price` out of the sync and out of every SQL file, and the only
+  write to the column in SQL is the fresh start's `'{}'`.
 - **Columns the server does not have are left out.** The site reads its row with `select *`, sees
   which columns exist, and sends only those. A new account has no row to read, so its first save
   may be refused once (PostgREST `PGRST204`, "Could not find the '…' column of 'user_state' in the

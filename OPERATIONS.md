@@ -1019,8 +1019,8 @@ without removing its code.
 | `emailDelivery: false` | No "Email me a sign-in link", no "Forgot password" |
 | `board: "off"` | No Daily board: nothing is submitted or fetched, the Arena shows no board and the account page hides the switch (from K-10g). This is the site's side only; a tab from before the deploy, or anything else holding a session, can still call the functions. For a full stop run `revoke execute on function public.submit_daily(text, integer, integer, integer, integer), public.daily_board(text) from authenticated;` in the SQL editor (leave `leave_board()` callable so readers can still leave), and `grant` them back to switch it on |
 | `learn.events: "off"` | The site sends no events and pulls none; the browser's own log is still kept and read. This is the site's side only; a tab from before the deploy, or anything else holding a session, can still call `events_put()`. For a full stop run `revoke execute on function public.events_put(jsonb, integer, uuid) from authenticated;` in the SQL editor, and `grant execute on function public.events_put(jsonb, integer, uuid) to authenticated;` to switch it on |
-| `pet: "off"` | No pool and no button on Mochi; the pool's chunk is not fetched. What readers earn keeps accruing in their browsers. Nothing is sent anywhere |
-| `shop: "off"` | No shop tab in the pool, and a buy is refused (decision 0011). Nothing is sent anywhere |
+| `pet: "off"` | No pool: the button on Mochi (chapter pages, the Arena) and the inline panel on the progress page are gone, and the pool's chunk is not fetched. Earns keep accruing in each browser, so switching it on again shows what was earned meanwhile |
+| `shop: "off"` | No shop tab in the pool, no buys, and the Play act no longer needs a toy (none can be bought). Earns keep accruing; what is owned stays owned (decision 0011) |
 
 **Planned [not yet]:**
 

@@ -313,7 +313,7 @@ export function mountPool(host: Element, opts: PoolOptions): PoolHandle {
       opener = null;
       if (back && back.isConnected) { try { back.focus({ preventScroll: true }); } catch { back.focus(); } }
     }
-    if (opts.onClose) { try { opts.onClose(); } catch { /* the caller's */ } }
+    if (d && opts.onClose) { try { opts.onClose(); } catch { /* the caller's */ } }
   }
   const dispose = finish;
 
