@@ -907,6 +907,8 @@ dialog.pet-dialog::backdrop { background: var(--scrim-glass); }
 .pet-need-name { flex-basis: 100%; font-weight: 700; color: var(--muted); }
 .pet-needs i { display: inline-block; width: .7rem; height: .7rem; border-radius: 50%; background: var(--hud-track); }
 .pet-needs i[data-on] { background: var(--hud-flame); }
+.pet-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: .5rem; margin: 0 0 .75rem; }
+.pet-porthole { cursor: pointer; }
 .pet-facets { margin: 0 0 .9rem; font-size: .9rem; }
 @media (forced-colors: active) {
   .pet-needs i { border: 1px solid CanvasText; background: Canvas; }

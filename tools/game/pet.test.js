@@ -10,7 +10,13 @@
    4. with 3D on, the sidebar stage is dropped while the dialog is open (mode 2d, no data-3d) and comes back after
    5. hidden: Study mode opens nothing; config pet "off" makes the picture a plain image with no dialog
    6. a seeded bm.pet.v1 tummy of 1 heart reads "Tummy: 1 of 5 hearts" with one filled mark
-   7. no page errors in any case */
+   7. feed: Tummy 3 -> 4, the line, gift and care.feed.pellet written, Feed disabled and a second click changes nothing
+   8. play cap: three plays raise Play by three and care.play is 3; the fourth is disabled with the cap line
+   9. clean: seeded 2 hearts shows Clean; a click gives 5 of 5 and hides it
+  10. pet: a click on the porthole writes nothing and the line reads "Mochi nuzzles your hand."
+  11. acts earn nothing (the facets line stays) and the pet bus events are "gift" then "care"
+  12. reduced motion: acts still write and the line changes
+  13. no page errors in any case */
 "use strict";
 const site = require("../lib/site");
 const target = require("../lib/target");
@@ -60,6 +66,13 @@ const state = (page) => page.evaluate(() => ({
   dialog: !!document.querySelector("dialog.pet-dialog"), pet: document.body.hasAttribute("data-pet"),
   focusPic: document.activeElement === document.querySelector(".companion-pic")
 }));
+
+const stored = (page) => page.evaluate(() => localStorage.getItem("bm.pet.v1"));
+const today = (page) => page.evaluate(() => window.BMSite.dayKey(new Date()));
+const openPool = async (page) => { await page.click(".companion-pic"); await until(page, () => !!document.querySelector("dialog.pet-dialog[open]")); };
+const hearts = (page, need) => page.evaluate((n) => document.querySelector('li[data-need="' + n + '"]').querySelectorAll("i[data-on]").length, need);
+const lineOf = (page) => page.evaluate(() => document.querySelector(".pet-line").textContent);
+const busLog = (page) => page.evaluate(() => { window.__pet = []; window.BMStore.on((c) => { if (c && c.type === "pet") window.__pet.push(c.what + ":" + c.id); }); });
 
 async function run() {
   server = await target.start(site.parseArgs(process.argv.slice(2)));
@@ -171,6 +184,89 @@ async function run() {
       const t = await c.page.evaluate(() => { const l = document.querySelector('li[data-need="tummy"]'); return { label: l.getAttribute("aria-label"), on: l.querySelectorAll("i[data-on]").length, all: l.querySelectorAll("i").length }; });
       eq(t, { label: "Tummy: 1 of 5 hearts", on: 1, all: 5 }, "seeded: the tummy row");
       await done(c, "seeded");
+    }
+
+    /* 7: feed */
+    cases++;
+    {
+      const c = await open({ "bm.pet.v1": JSON.stringify({ needs: { tummy: { n: 3, at: Date.now() } } }) });
+      await openPool(c.page);
+      await busLog(c.page);
+      await c.page.click('button[data-act="feed"]');
+      const day = await today(c.page);
+      eq(await hearts(c.page, "tummy"), 4, "feed: the tummy row shows 4");
+      eq(await lineOf(c.page), "Mochi munches happily.", "feed: the line");
+      const rec = JSON.parse(await stored(c.page));
+      eq([rec.gift[day], rec.care[day].feed.pellet], [1, 1], "feed: gift and pellet written");
+      check(await c.page.evaluate(() => document.querySelector('button[data-act="feed"]').disabled), "feed: Feed is disabled");
+      const before = await stored(c.page);
+      await c.page.click('button[data-act="feed"]', { force: true }).catch(() => {});
+      eq(await stored(c.page), before, "feed: a second click changes nothing");
+      eq(await c.page.evaluate(() => window.__pet), ["gift:feed:" + day], "feed: one gift event");
+      await done(c, "feed");
+    }
+    /* 8: play cap */
+    cases++;
+    {
+      const c = await open({ "bm.pet.v1": JSON.stringify({ needs: { play: { n: 1, at: Date.now() } } }) });
+      await openPool(c.page);
+      for (let i = 0; i < 3; i++) await c.page.click('button[data-act="play"]');
+      const day = await today(c.page);
+      eq(await hearts(c.page, "play"), 4, "play: hearts rose by three");
+      eq(JSON.parse(await stored(c.page)).care[day].play, 3, "play: care.play is 3");
+      check(await c.page.evaluate(() => document.querySelector('button[data-act="play"]').disabled), "play: the fourth is disabled");
+      eq(await lineOf(c.page), "Mochi has played enough for today. The Arena is always open.", "play: the cap line");
+      check(await c.page.evaluate(() => !!document.querySelector(".pet-line a[href$='arena.html']")), "play: the cap line links to the Arena");
+      await done(c, "play");
+    }
+    /* 9: clean */
+    cases++;
+    {
+      const c = await open({ "bm.pet.v1": JSON.stringify({ needs: { clean: { n: 2, at: Date.now() } } }) });
+      await openPool(c.page);
+      check(await c.page.evaluate(() => !document.querySelector('button[data-act="clean"]').hidden), "clean: shown at 2 hearts");
+      await c.page.click('button[data-act="clean"]');
+      eq(await hearts(c.page, "clean"), 5, "clean: 5 of 5");
+      check(await c.page.evaluate(() => document.querySelector('button[data-act="clean"]').hidden), "clean: hidden at 5");
+      eq(await lineOf(c.page), "The water sparkles again.", "clean: the line");
+      await done(c, "clean");
+    }
+    /* 10: pet */
+    cases++;
+    {
+      const c = await open({ "bm.pet.v1": JSON.stringify({ needs: { tummy: { n: 4, at: Date.now() } } }) });
+      await openPool(c.page);
+      const before = await stored(c.page);
+      await c.page.click(".pet-porthole");
+      eq(await lineOf(c.page), "Mochi nuzzles your hand.", "pet: the line");
+      eq(await stored(c.page), before, "pet: nothing written");
+      await done(c, "pet");
+    }
+    /* 11: no earn, bus order */
+    cases++;
+    {
+      const c = await open();
+      await openPool(c.page);
+      await busLog(c.page);
+      await c.page.click('button[data-act="feed"]');
+      await c.page.click('button[data-act="play"]');
+      const day = await today(c.page);
+      eq(await c.page.evaluate(() => window.__pet), ["gift:feed:" + day, "care:play:" + day], "bus: gift then care");
+      eq(await c.page.evaluate(() => document.querySelector(".pet-facets").textContent), "You have 0 facets.", "bus: the facets are unchanged");
+      eq(JSON.parse(await stored(c.page)).earned || {}, {}, "bus: nothing earned");
+      await done(c, "bus");
+    }
+    /* 12: reduced motion */
+    cases++;
+    {
+      const c = await open();
+      await c.page.emulateMedia({ reducedMotion: "reduce" });
+      await openPool(c.page);
+      await c.page.click('button[data-act="play"]');
+      const day = await today(c.page);
+      eq(JSON.parse(await stored(c.page)).care[day].play, 1, "reduced: the act writes");
+      eq(await lineOf(c.page), "Mochi zooms around the pool.", "reduced: the line changes");
+      await done(c, "reduced");
     }
   } finally {
     try { await browser.close(); } catch (e) { console.error("browser close: " + e.message); }
