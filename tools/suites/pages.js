@@ -20,6 +20,7 @@ const THREE_CHUNK = /\/bundle\/three\.js(?:[?#]|$)/;
 const WORLD_CHUNK = /\/bundle\/world\.js(?:[?#]|$)/;
 /* the model loader (bundle/three-model.js) and Mochi's files, for any page with the companion */
 const SHARED_MODEL_CHUNK = /\/bundle\/three-model\.js(?:[?#]|$)/;
+const PET_CHUNK = /\/bundle\/pet\.js(?:[?#]|$)/;
 const MOCHI_CHUNK = /\/bundle\/mochi\.js(?:[?#]|$)|\/models\/mochi\/(?!mochi-[\w-]+-poses\.webp(?:[?#]|$))/;
 
 /* runs before any script of the page: the theme as it stands at the first animation
@@ -92,7 +93,7 @@ module.exports = {
                companion nears the screen, and by nothing else: a page with none of them
                (its scenes are hosts carrying data-painter once mounted) must not have
                asked for it */
-            const has3D = await page.evaluate(() => !!document.querySelector("[data-map3d], [data-companion], [data-widget][data-painter]"));
+            const has3D = await page.evaluate(() => !!document.querySelector("[data-map3d], [data-companion], [data-pet], [data-widget][data-painter]"));
             const three = errors.own.filter(u => THREE_CHUNK.test(u));
             if (!has3D && three.length) problems.push("fetched " + three[0].replace(/^.*\/bundle\//, "bundle/") + " with no 3D scene, course map or companion on the page; only assets/three-loader.js is to import it, for one of those");
             /* and the course world's own chunk only where the course map is */
@@ -103,10 +104,14 @@ module.exports = {
                only where the companion is (chapter pages and the Arena). Its pose sheets
                (mochi-<variant>-poses.webp) are the exception */
             const mochiFiles = errors.own.filter(u => MOCHI_CHUNK.test(u));
-            const hasCompanion = await page.evaluate(() => !!document.querySelector("[data-companion]"));
+            const hasCompanion = await page.evaluate(() => !!document.querySelector("[data-companion], [data-pet]"));
             if (!hasCompanion && mochiFiles.length) problems.push("fetched " + mochiFiles[0].replace(/^.*?\/(bundle|models)\//, "$1/") + " with no companion on the page; only src/ui/companion.ts is to import Mochi");
             const shared = errors.own.filter(u => SHARED_MODEL_CHUNK.test(u));
             if (!hasCompanion && shared.length) problems.push("fetched bundle/three-model.js with no companion on the page; only src/ui/companion.ts is to import the model loader");
+            /* and the pool's chunk only where a pool is (the dialog opens on a click, so no page fetches it unasked) */
+            const petFiles = errors.own.filter(u => PET_CHUNK.test(u));
+            const hasPet = await page.evaluate(() => !!document.querySelector("[data-pet]"));
+            if (!hasPet && petFiles.length) problems.push("fetched bundle/pet.js with no pool on the page; only the import() of src/ui/companion.ts is to fetch it");
           } catch (e) {
             problems.push("driver error: " + (e && e.message || e));
           }

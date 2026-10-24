@@ -564,7 +564,12 @@ function mount(): void {
   evaluate();
 }
 
+/* the pool (src/ui/pet/, the `pet` chunk): the one import() of it, called by nothing yet (X-5b wires the click) */
+function openPool(): Promise<typeof import("./pet/pool.ts")> { return import("./pet/pool.ts"); }
+
 export const api = {
+  /** loads the pool's chunk and resolves to its module; X-5b opens it from Mochi's click */
+  openPool,
   /** the model's input from the page's state (the progress page reads it for its own mood line) */
   input: (withDue: boolean): MoodInput => input(withDue),
   mood: (): Mood => mood,

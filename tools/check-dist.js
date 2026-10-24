@@ -76,7 +76,8 @@ const RUNTIME = BUNDLE + "rolldown-runtime.js";
    it imports (`dir`: those may be in the chunk too, all but one an entry imports, which
    goes with that entry's chunks); Mochi's stage, which only src/ui/companion.ts imports
    (src/mochi/index.ts, and the Three.js beside it, src/vendor/three-model.js, which only
-   that index imports). `by` is the importer (or a list of them): a page whose entry imports one
+   that index imports; the pool, src/ui/pet/pool.ts, is a chunk of its own that
+   src/ui/companion.ts imports and that imports Mochi's stage in its turn). `by` is the importer (or a list of them): a page whose entry imports one
    must reach the chunk through the import(), and no page's HTML may name the chunk,
    since only that import() is to fetch it (a signed-out reader on an ordinary page
    never downloads supabase-js, and a page with no 3D never downloads Three.js or the
@@ -87,8 +88,9 @@ const ON_DEMAND = [
   { chunk: BUNDLE + "three.js", module: vendor.DIR + "/three.js", by: "assets/three-loader.js" },
   { chunk: BUNDLE + "supabase.js", module: vendor.DIR + "/supabase.js", by: "assets/account.js" },
   { chunk: BUNDLE + "world.js", module: "src/world/index.ts", by: "assets/map3d.js", dir: "src/world/" },
-  { chunk: BUNDLE + "three-model.js", module: vendor.DIR + "/three-model.js", by: "src/mochi/index.ts" },
-  { chunk: BUNDLE + "mochi.js", module: "src/mochi/index.ts", by: "src/ui/companion.ts", dir: "src/mochi/" },
+  { chunk: BUNDLE + "three-model.js", module: vendor.DIR + "/three-model.js", by: ["src/mochi/index.ts", "src/ui/pet/pool.ts"] },
+  { chunk: BUNDLE + "mochi.js", module: "src/mochi/index.ts", by: ["src/ui/companion.ts", "src/ui/pet/pool.ts"], dir: "src/mochi/" },
+  { chunk: BUNDLE + "pet.js", module: "src/ui/pet/pool.ts", by: "src/ui/companion.ts", dir: "src/ui/pet/" },
   { chunk: BUNDLE + "post.js", module: "src/world/post.ts", by: "assets/map3d.js" },
   { chunk: BUNDLE + "three-post.js", module: vendor.DIR + "/three-post.js", by: "assets/map3d.js" }
 ];
