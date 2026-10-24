@@ -302,11 +302,11 @@ export const PLAY_PER_DAY = 3;
 export type ActWhy = "" | "gift-taken" | "play-cap" | "clean-full" | "no-toy";
 
 /** whether an act is allowed now: feed is the free daily pellet (snacks go through feedSnack), play needs
-    a toy and is capped per day, and clean needs a need that is not already full */
-export function canAct(pet: unknown, act: Act, day: DayKey, now: Timestamp): { ok: boolean; why: ActWhy } {
+    a toy (unless opts.toy is false: the shop is off) and is capped per day, and clean needs a need that is not already full */
+export function canAct(pet: unknown, act: Act, day: DayKey, now: Timestamp, opts?: { toy?: boolean }): { ok: boolean; why: ActWhy } {
   if (act === "feed") return giftTaken(pet, day) ? { ok: false, why: "gift-taken" } : { ok: true, why: "" };
   if (act === "play") {
-    if (!ownsToy(pet)) return { ok: false, why: "no-toy" };
+    if (!(opts && opts.toy === false) && !ownsToy(pet)) return { ok: false, why: "no-toy" };
     return careOf(pet, day).play >= PLAY_PER_DAY ? { ok: false, why: "play-cap" } : { ok: true, why: "" };
   }
   if (act === "clean") return heartsOf("clean", at(obj(obj(pet).needs), "clean"), now) >= HEARTS_MAX ? { ok: false, why: "clean-full" } : { ok: true, why: "" };
@@ -315,8 +315,8 @@ export function canAct(pet: unknown, act: Act, day: DayKey, now: Timestamp): { o
 
 /** the record after an act: a new object (the input is never touched), or the same one when the act is
     refused. Spark is not an act (only due reviews fill it) and petting writes nothing. */
-export function applyAct(pet: unknown, act: Act, day: DayKey, now: Timestamp): PetStore {
-  if (!canAct(pet, act, day, now).ok) return pet as PetStore;
+export function applyAct(pet: unknown, act: Act, day: DayKey, now: Timestamp, opts?: { toy?: boolean }): PetStore {
+  if (!canAct(pet, act, day, now, opts).ok) return pet as PetStore;
   const p = obj(pet), out: any = {};
   keysOf(p, {}).forEach((k) => { out[k] = at(p, k); });
   out.v = 1;
@@ -421,8 +421,8 @@ export function placedDecor(pet: unknown): string[] {
 export function placeDecor(pet: unknown, id: string, on: boolean, now: Timestamp): PetStore {
   const p = obj(pet), owned = obj(at(p, "owned"));
   if (typeof id !== "string" || !id.startsWith("decor:") || typeof at(owned, id) !== "string") return pet as PetStore;
-  const list = placedDecor(pet), has = list.indexOf(id) >= 0;
-  if (on === has) return pet as PetStore;
+  const list = placedDecor(pet).filter((x) => x.startsWith("decor:") && typeof at(owned, x) === "string"), has = list.indexOf(id) >= 0;
+  if (on === has || (on && list.length >= DECOR_MAX)) return pet as PetStore;
   const decor = on ? list.concat(id) : list.filter((x) => x !== id);
   const out: any = {};
   keysOf(p, {}).forEach((k) => { out[k] = at(p, k); });

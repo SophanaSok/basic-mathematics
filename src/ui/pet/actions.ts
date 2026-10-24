@@ -20,6 +20,8 @@ export interface ActionsCtx {
   stage(): MochiStage | null;
   alive(): boolean;
   reduced(): boolean;
+  /** whether the shop is on (config shop): without it no toy can be owned, so Play needs none */
+  shop(): boolean;
   /** repaint the hearts from this record */
   repaint(pet: any, now: number): void;
 }
@@ -89,8 +91,9 @@ export function mountActions(shell: HTMLElement, ctx: ActionsCtx): ActionsHandle
       if (!done && t) { try { t.setMood("idle"); } catch { /* gone */ } }
     }, CLIP_MS);
   }
+  const o = (): { toy: boolean } => ({ toy: ctx.shop() });
   function refresh(pet: any, now: number, day: string): void {
-    const feed = canAct(pet, "feed", day, now), play = canAct(pet, "play", day, now), clean = canAct(pet, "clean", day, now);
+    const feed = canAct(pet, "feed", day, now, o()), play = canAct(pet, "play", day, now, o()), clean = canAct(pet, "clean", day, now, o());
     btns.feed.disabled = !feed.ok;
     btns.play.disabled = play.why === "play-cap";
     if (play.why === "no-toy") btns.play.setAttribute("aria-disabled", "true"); else btns.play.removeAttribute("aria-disabled");
@@ -99,22 +102,22 @@ export function mountActions(shell: HTMLElement, ctx: ActionsCtx): ActionsHandle
   ORDER.forEach((a) => btns[a].addEventListener("click", () => {
     if (done || !ctx.alive() || isStale()) return;
     const day = today(), now = Date.now(), pet = readPet();
-    const can = canAct(pet, a, day, now);
+    const can = canAct(pet, a, day, now, o());
     if (!can.ok) {
-      if (can.why === "gift-taken") setLine(LINES.giftTaken);
+      if (can.why === "gift-taken") setLine(ctx.shop() ? LINES.giftTakenShop : LINES.giftTaken);
       else if (can.why === "play-cap") setLine(LINES.playCap, true);
       else if (can.why === "no-toy") setLine(LINES.noToy);
       refresh(pet, now, day);
       return;
     }
-    const next = applyAct(pet, a, day, now);
-    try { w().BMStore.write(w().BMStore.keys.pet, next); } catch { return; }
+    const next = applyAct(pet, a, day, now, o());
+    try { if (w().BMStore.write(w().BMStore.keys.pet, next) === false) { const cur = readPet(); ctx.repaint(cur, now); refresh(cur, now, day); setLine(lineFor(cur, now)); return; } } catch { return; }
     try { w().BMStore.emit({ type: "pet", what: a === "feed" ? "gift" : "care", id: a + ":" + day }); } catch { /* no bus */ }
     ctx.repaint(next, now);
     refresh(next, now, day);
     clip(ACT_CLIP[a]);
     if (a === "feed") setLine(LINES.fed);
-    else if (a === "play") { if (canAct(next, "play", day, now).ok) setLine(LINES.played); else setLine(LINES.playCap, true); }
+    else if (a === "play") { if (canAct(next, "play", day, now, o()).ok) setLine(LINES.played); else setLine(LINES.playCap, true); }
     else setLine(LINES.cleaned);
     /* a button that just went away would drop focus to the dialog body: the line takes it */
     if (btns[a].disabled || btns[a].hidden) { try { lineEl.focus({ preventScroll: true }); } catch { lineEl.focus(); } }

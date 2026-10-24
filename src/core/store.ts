@@ -80,7 +80,7 @@ export type StoreChange =
   | { type: "compare"; chapter: ChapterId; key: ExerciseKey; fresh: boolean }
   /** a mission was marked done; `fresh` is true on its first completion */
   | { type: "mission"; chapter: ChapterId; key: string; fresh: boolean }
-  /** the pet changed: an earn (src/ui/pet-earns.ts), a care act or the daily gift (src/ui/pet/actions.ts); buy, wear and grew come with later cards */
+  /** the pet changed: an earn (src/ui/pet-earns.ts), a care act or the daily gift (src/ui/pet/actions.ts); the shop (src/ui/pet/shop.ts) emits buy, care and wear; grew comes with X-8 */
   | { type: "pet"; what: "earn" | "care" | "buy" | "wear" | "grew" | "gift"; id?: string }
   | { type: "chapterDone"; chapter: ChapterId | null; fresh: boolean }
   | { type: "achievement"; id: string; title: string }

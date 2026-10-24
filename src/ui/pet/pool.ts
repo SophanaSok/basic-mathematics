@@ -42,6 +42,13 @@ function petStore(): unknown {
 }
 
 let uid = 0;
+/* one bus listener for the page; it repaints the pool that is open, if any */
+let current: (() => void) | null = null, listening = false;
+function listen(): void {
+  if (listening) return;
+  listening = true;
+  try { w().BMStore.on((c: any) => { if (c && (c.type === "pet" || c.type === "sync") && current) current(); }); } catch { /* no bus */ }
+}
 
 function heartMarks(h: number): string {
   let marks = "";
@@ -203,13 +210,17 @@ export function mountPool(host: Element, opts: PoolOptions): PoolHandle {
     paintDecor(shell, pet);
     if (actions) actions.refresh(pet, now);
   };
-  actions = mountActions(shell, { stage: () => stage, alive: () => live, reduced: reducedMotion, repaint });
+  actions = mountActions(shell, { stage: () => stage, alive: () => live, reduced: reducedMotion, shop: shopWanted, repaint });
+  /* a sync or a write from another tab can change the balance under an open dialog */
+  current = () => { if (!live) return; const pet = petStore(), now = Date.now(); repaint(pet, now); if (shop) shop.refresh(pet, now); };
+  listen();
   const shop = shopWanted() ? mountShop(shell, { alive: () => live, repaint }) : null;
 
   /* the one way out: idempotent; the dialog's close event, Close, close() and dispose() all end here */
   function finish(): void {
     if (!live) return;
     live = false;
+    if (current) current = null;
     if (actions) actions.dispose();
     if (shop) shop.dispose();
     if (stage) { try { stage.dispose(); } catch { /* gone */ } stage = null; }

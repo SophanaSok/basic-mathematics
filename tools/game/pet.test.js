@@ -440,7 +440,28 @@ async function run() {
       eq(d, { tabs: 0, shop: 0, pool: true }, "shop off: no tab, no panel, the pool shows");
       await c.page.click(".pet-porthole");
       eq(await lineOf(c.page), "Mochi nuzzles your hand.", "shop off: the pool still works");
+      check(await c.page.evaluate(() => { const b = document.querySelector('button[data-act="play"]'); return !b.disabled && !b.hasAttribute("aria-disabled"); }), "shop off: Play is enabled without a toy");
+      const h0 = await hearts(c.page, "play");
+      await c.page.click('button[data-act="play"]');
+      eq(await hearts(c.page, "play"), Math.min(5, h0 + 1), "shop off: Play raises Play hearts");
+      eq(await lineOf(c.page), "Mochi zooms around the pool.", "shop off: the play line");
+      /* another tab took today's pellet: the button still looks open, the click reads the record fresh and refuses */
+      await c.page.evaluate(() => { const r = JSON.parse(localStorage.getItem("bm.pet.v1")); r.gift = Object.assign({}, r.gift, { [window.BMSite.dayKey(new Date())]: 1 }); localStorage.setItem("bm.pet.v1", JSON.stringify(r)); });
+      await c.page.click('button[data-act="feed"]');
+      eq(await lineOf(c.page), "Mochi has had today's pellet.", "shop off: the pellet line has no shop clause");
       await done(c, "shop off");
+    }
+    /* 19b: stale */
+    cases++;
+    {
+      const c = await open(seedPet({ earned: FIVE, needs: { tummy: { n: 2, at: Date.now() } } }));
+      await openShop(c.page);
+      await c.page.evaluate(() => window.BMStore.emit({ type: "stale" }));
+      const before = await stored(c.page);
+      await c.page.click('li[data-item="toy:ball"] button[data-shop="buy"]');
+      await c.page.click('li[data-item="snack:berry-bite"] button[data-shop="feed"]');
+      eq(await stored(c.page), before, "stale: nothing is written");
+      await done(c, "stale");
     }
     /* 19: keyboard */
     cases++;

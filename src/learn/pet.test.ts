@@ -436,9 +436,8 @@ describe("the shop", () => {
     expect(off.wear.at).toBe(now + 5);
     expect(placedDecor(on)).toEqual(["decor:castle"]);
     const crowded = { ...owned, wear: { decor: Array.from({ length: DECOR_MAX }, (_, i) => "decor:x" + i), at: now } };
-    const capped = placeDecor(crowded, "decor:castle", true, now + 1) as any;
-    expect(capped.wear.decor.length).toBe(DECOR_MAX);
-    expect(capped.wear.decor).not.toContain("decor:castle");
+    const placedNow = placeDecor(crowded, "decor:castle", true, now + 1) as any;
+    expect(placedNow.wear.decor).toEqual(["decor:castle"]);   // forged, unowned ids are dropped
     const ahead = placeDecor({ ...owned, wear: { decor: [], at: now + 9000 } }, "decor:castle", true, now) as any;
     expect(ahead.wear.at).toBe(now + 9001);
   });
@@ -449,6 +448,23 @@ describe("the shop", () => {
     expect(canAct(p, "play", day, now)).toEqual({ ok: true, why: "" });
     expect(ownsToy({ owned: { "decor:rock": day } })).toBe(false);
     expect(ownsToy({ owned: { "toy:ring": 5 } })).toBe(false);
+  });
+  it("play needs no toy when the shop is off (opts.toy false); the default still refuses", () => {
+    expect(canAct({}, "play", day, now, { toy: false })).toEqual({ ok: true, why: "" });
+    expect(canAct({}, "play", day, now, {})).toEqual({ ok: false, why: "no-toy" });
+    expect((applyAct({}, "play", day, now, { toy: false }) as any).care[day].play).toBe(1);
+    expect(applyAct({}, "play", day, now)).toEqual({});
+  });
+  it("placeDecor at DECOR_MAX owned decor returns the same record, and drops placed ids that are not owned", () => {
+    const owned: Record<string, string> = {};
+    const ids = Array.from({ length: DECOR_MAX }, (_, i) => "decor:x" + i);
+    ids.forEach((i) => { owned[i] = day; });
+    owned["decor:castle"] = day;
+    const full = { owned, wear: { decor: ids, at: now } };
+    expect(placeDecor(full, "decor:castle", true, now + 1)).toBe(full);
+    const junk = { owned: { "decor:castle": day }, wear: { decor: ids, at: now } };
+    const out = placeDecor(junk, "decor:castle", true, now + 1) as any;
+    expect(out.wear.decor).toEqual(["decor:castle"]);
   });
   it("every helper is pure: the input is untouched", () => {
     const p = { ...rich(7), needs: { tummy: { n: 2, at: now } }, owned: { "decor:castle": day }, wear: { decor: [] as string[], at: 5 } };

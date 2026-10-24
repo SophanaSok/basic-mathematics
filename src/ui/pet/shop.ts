@@ -19,7 +19,7 @@ export interface ShopCtx {
   /** repaint hearts, facets, decor and the care row from this record */
   repaint(pet: any, now: number): void;
 }
-export interface ShopHandle { dispose(): void }
+export interface ShopHandle { dispose(): void; /** repaint the buttons from this record (a sync or another tab changed it) */ refresh(pet: any, now: number): void }
 
 const GROUPS: { kind: PetItem["kind"]; title: string }[] = [
   { kind: "snack", title: "Snacks" }, { kind: "toy", title: "Toys" }, { kind: "decor", title: "Decor" }
@@ -162,16 +162,29 @@ export function mountShop(shell: HTMLElement, ctx: ShopCtx): ShopHandle {
     } else {
       next = buy(pet, item, day, deviceId());
       text = bought(item.name);
-      if (!next) text = balance(pet) < 0 ? LINES.behind : LINES.notEnough;
+      if (!next) {
+        const have = pet.owned && typeof pet.owned[item.id] === "string";
+        text = have ? "" : balance(pet) < 0 ? LINES.behind : LINES.notEnough;
+      }
     }
     if (next) {
-      try { w().BMStore.write(w().BMStore.keys.pet, next); } catch { return; }
+      /* a full quota answers false and does not throw: nothing was kept, so nothing is announced */
+      let kept = true;
+      try { kept = w().BMStore.write(w().BMStore.keys.pet, next) !== false; } catch { return; }
+      if (!kept) {
+        const cur = readPet();
+        ctx.repaint(cur, now);
+        paint(cur, now);
+        say(lineFor(cur, now));
+        keepFocus(btn);
+        return;
+      }
       try { w().BMStore.emit({ type: "pet", what: kind, id: item.id }); } catch { /* no bus */ }
     }
     const fresh = next || pet;
     ctx.repaint(fresh, now);
     paint(fresh, now);
-    say(text);
+    if (text) say(text);
     keepFocus(btn);
   }
   PET_ITEMS.forEach((item) => {
@@ -212,5 +225,8 @@ export function mountShop(shell: HTMLElement, ctx: ShopCtx): ShopHandle {
   select("pool", false);
   paint(readPet(), Date.now());
 
-  return { dispose: () => { done = true; } };
+  return {
+    dispose: () => { done = true; },
+    refresh: (pet, now) => { if (done) return; paint(pet, now); if (!shopPanel.hidden) say(status(pet)); }
+  };
 }
