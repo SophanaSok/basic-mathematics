@@ -50,6 +50,7 @@ const TWIN = require("../../src/learn/twin.ts");
    an opened solution and an opened clue change an exercise's record), from the file run
    under a stub window, as tools/check-static.js runs it for grading. */
 function loadSite() {
+  const mem = new Map();
   const noop = () => {};
   const el = {
     getAttribute: () => null, setAttribute: noop, removeAttribute: noop, hasAttribute: () => false,
@@ -57,21 +58,23 @@ function loadSite() {
     addEventListener: noop, classList: { add: noop, remove: noop }, style: {}
   };
   const win = {
-    console, addEventListener: noop, matchMedia: () => ({ matches: false, addEventListener: noop }),
+    console, setTimeout, clearTimeout, addEventListener: noop, matchMedia: () => ({ matches: false, addEventListener: noop }),
     document: {
       readyState: "complete", body: el, documentElement: el, querySelector: () => null, querySelectorAll: () => [],
       getElementById: () => null, createElement: () => el, addEventListener: noop
     },
-    localStorage: { getItem: () => null, setItem: noop, removeItem: noop },
+    localStorage: { getItem: (k) => (mem.has(k) ? mem.get(k) : null), setItem: (k, v) => { mem.set(k, String(v)); }, removeItem: (k) => { mem.delete(k); } },
     BMCore: CORE
   };
   win.window = win;
   win.self = win;
   vm.createContext(win);
   vm.runInContext(fs.readFileSync(path.join(ROOT, "assets/site.js"), "utf8"), win, { filename: "assets/site.js" });
+  loadSite.win = win;
   return win.BMSite;
 }
 const SITE = loadSite();
+const SITE_WIN = loadSite.win;
 /* src/ui/review.ts, the module the pages import ahead of game.js for window.BMReview, read by
    Node itself (it strips the types): the same rules the browser runs */
 const REVIEW = require("../../src/ui/review.ts").api;
@@ -689,6 +692,31 @@ function world(seedStores) {
   const w2 = world({ "bm.run.v1": { arenaDay: { day: dayKey(), sec: { "ch05#angles": "x", "ch05#parallels": -3 }, finishes: "lots" } } });
   r = w2.Game.recordRun({ mode: "standard", hearts: 3, score: 100, day: dayKey(), answers: first("ch05#angles", 1).concat(first("ch05#parallels", 1)) });
   eq([r.xp, r.reduced], [3 + 3 + 5, []], "counts that are not numbers start from nothing");
+}
+
+/* ------------------------------------------- bus payloads the pet turns into earn ids (X-3a) */
+{
+  const w = world();
+  const G = w.Game;
+  const recorded = () => w.events.filter((e) => e.type === "arena" && e.phase === "recorded");
+  /* nothing was played yet, so every section is due: first-try answers on it list it once, sorted */
+  G.recordRun({ mode: "standard", hearts: 3, score: 100, day: dayKey(),
+    answers: [{ section: "ch05#pythagoras", first: true }, { section: "ch05#angles", first: true }, { section: "ch05#angles", first: true }, { section: "ch05#parallels", retry: true }] });
+  eq(recorded().pop(), { type: "arena", phase: "recorded", mode: "standard", xp: recorded().pop().xp, medal: 0, set: undefined, day: dayKey(), due: ["ch05#angles", "ch05#pythagoras"] },
+    "arena recorded carries set, day and the sorted unique due list");
+  G.recordRun({ mode: "standard", hearts: 3, score: 100, day: dayKey(), answers: [{ section: "ch05#angles", first: true }] });
+  eq(recorded().pop().due, [], "a section answered right the second time that day is no longer due");
+  G.recordRun({ mode: "boss", boss: "ch05", hearts: 2, ranked: true, finished: true, score: 500, day: dayKey(), answers: [{ section: "ch05#angles", retry: true }] });
+  eq([recorded().pop().set, recorded().pop().day], ["ch05/practice", dayKey()], "a boss run names its medal set");
+
+  /* a mission marked done announces itself, fresh only the first time */
+  const seen = [];
+  SITE_WIN.BMHud = { goalOf: () => 30, prefill: () => {} };
+  SITE_WIN.BMStore.on((c) => { if (c.type === "mission") seen.push(c); });
+  SITE_WIN.BMPlay.markDone("ch05", "m1");
+  SITE_WIN.BMPlay.markDone("ch05", "m1");
+  eq(seen, [{ type: "mission", chapter: "ch05", key: "m1", fresh: true }, { type: "mission", chapter: "ch05", key: "m1", fresh: false }],
+    "markDone emits mission with fresh true, then false");
 }
 
 /* ------------------------------------------- review fixes: runs and medals */

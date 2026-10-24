@@ -69,8 +69,19 @@ export type StoreChange =
   | { type: "home"; current: ChapterId | null }
   | { type: "combo"; pips: number; shield: boolean; mult: number; why: string }
   | { type: "prefs"; prefs: Record<string, unknown> }
-  /** the Arena: a run started, an answer given, a run ended or was recorded */
+  /** the Arena: a run started, an answer given, a run ended or was recorded. `phase: "recorded"` carries
+      `mode`, `xp`, `medal`, `set` (the medal set id `<boss>/practice`, undefined when the run was not a boss
+      fight), `day` (the run's day key) and `due: string[]` (section ids answered right first try while due,
+      sorted, no duplicates) */
   | { type: "arena"; phase: "start" | "answer" | "end" | "recorded"; [field: string]: unknown }
+  /** the event log changed; `n` is its size, `sec` the section just recorded (absent when absorbed or pruned) */
+  | { type: "event"; n: number; sec?: string }
+  /** a solution was compared after a correct answer; `fresh` is true the first time for that exercise */
+  | { type: "compare"; chapter: ChapterId; key: ExerciseKey; fresh: boolean }
+  /** a mission was marked done; `fresh` is true on its first completion */
+  | { type: "mission"; chapter: ChapterId; key: string; fresh: boolean }
+  /** the pet changed (reserved for X-3b and X-6; no emitter yet) */
+  | { type: "pet"; what: "earn" | "care" | "buy" | "wear" | "grew" | "gift"; id?: string }
   | { type: "chapterDone"; chapter: ChapterId | null; fresh: boolean }
   | { type: "achievement"; id: string; title: string }
   | { type: "level"; level: number; rank: string }
