@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   EMPTY_MEMORY, EMPTY_THROTTLE, FAST_MS, HOLD_MS, LONG_HOLD_MS, MOODS, QUIET_AFTER_VERDICT_MS, REST, SAD_MS, SAY_GAP_MS,
   SHORT_MS, SLEEPY_AFTER_MS, SLEEP_AFTER_MS, SURPRISE_MS, THINK_AFTER_MS,
-  arrival, canSay, daysBetween, idleMood, introLine, nextIdleAt, noteVerdict, react, said, wake,
+  arrival, canSay, daysBetween, idleMood, introLine, lowArrival, LOW_LINES, nextIdleAt, noteVerdict, react, said, wake,
   type Mood, type MoodInput, type MoodMemory, type Recent
 } from "./mood.ts";
 
@@ -395,5 +395,39 @@ describe("arena", () => {
   it("start and end leave the memory alone and say nothing in Study mode", () => {
     for (const phase of ["start", "end"] as const) expect(go({ type: "arena", phase }).memory).toBe(EMPTY_MEMORY);
     for (const phase of ["start", "answer", "end"] as const) expect(rx({ type: "arena", phase, correct: true }, { calm: true })).toBeNull();
+  });
+});
+
+describe("pet changes and low hearts", () => {
+  const pet = (what: string): Recent => ({ type: "pet", what, id: "x" });
+  it("earn, care and gift are a short happy with no line; grew is a long excited with no line", () => {
+    for (const w of ["earn", "care", "gift"]) expect(rx(pet(w))).toEqual(R([["happy", SHORT_MS]], null, null));
+    expect(rx(pet("grew"))).toEqual(R([["excited", LONG_HOLD_MS]], null, null));
+  });
+  it("any other pet change, and Study mode, are none", () => {
+    for (const w of ["buy", "wear", "", "other"]) expect(rx(pet(w))).toBeNull();
+    expect(rx(pet("earn"), { calm: true })).toBeNull();
+  });
+  it("idleMood shows a low need only when it would be idle; the sleep thresholds win", () => {
+    expect(idleMood(0, false, "tummy")).toBe("sleepy");
+    expect(idleMood(0, false, "spark")).toBe("thinking");
+    expect(idleMood(0, false, null)).toBe("idle");
+    expect(idleMood(0, false)).toBe("idle");
+    expect(idleMood(THINK_AFTER_MS, true, "tummy")).toBe("thinking");
+    expect(idleMood(SLEEPY_AFTER_MS, false, "spark")).toBe("sleepy");
+    expect(idleMood(SLEEP_AFTER_MS, false, "tummy")).toBe("sleeping");
+    expect(nextIdleAt(0, false)).toBe(SLEEPY_AFTER_MS);
+  });
+  it("the low captions are pinned, said once a day per need, and never in Study mode", () => {
+    expect(LOW_LINES.tummy).toBe("Mochi could use a snack.");
+    expect(LOW_LINES.spark).toBe("Mochi could use a review.");
+    expect(lowArrival("tummy", "2026-10-24", {}, false)).toEqual({ steps: [{ mood: "sleepy", ms: LONG_HOLD_MS }], line: "Mochi could use a snack.", key: "low", href: null });
+    expect(lowArrival("spark", "2026-10-24", {}, false)).toEqual({ steps: [{ mood: "thinking", ms: LONG_HOLD_MS }], line: "Mochi could use a review.", key: "low", href: null });
+    expect(lowArrival("tummy", "2026-10-24", { tummy: "2026-10-24" }, false)).toBeNull();
+    expect(lowArrival("tummy", "2026-10-25", { tummy: "2026-10-24" }, false)).not.toBeNull();
+    expect(lowArrival("spark", "2026-10-24", { tummy: "2026-10-24" }, false)).not.toBeNull();
+    expect(lowArrival(null, "2026-10-24", {}, false)).toBeNull();
+    expect(lowArrival("tummy", "2026-10-24", {}, true)).toBeNull();
+    for (const l of Object.values(LOW_LINES)) expect(l).not.toMatch(/missed|day/i);
   });
 });

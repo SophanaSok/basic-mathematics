@@ -375,6 +375,36 @@ export function applyAct(pet: unknown, act: Act, day: DayKey, now: Timestamp, op
   return prunePet(out);
 }
 
+/** a loop guard, not a rule: learning fills per need per day */
+export const FILL_PER_DAY = 10;
+
+/** Learning fills a need directly (a due review fills Spark, an Arena run fills Play): one heart and one
+    care count, no toy and no Play cap (that cap is the pool's Play button). A new record, or the same one
+    when the day already holds FILL_PER_DAY fills of this need. Never mutates. */
+export function fillNeed(pet: unknown, need: "play" | "spark", day: DayKey, now: Timestamp): PetStore {
+  if (need !== "play" && need !== "spark") return pet as PetStore;
+  if (careOf(pet, day)[need] >= FILL_PER_DAY) return pet as PetStore;
+  const p = obj(pet), out: any = {};
+  keysOf(p, {}).forEach((k) => { out[k] = at(p, k); });
+  out.v = 1;
+  const nd = copyMap(at(p, "needs"));
+  nd[need] = touch(nd[need], need, now, 1);
+  out.needs = nd;
+  const care = copyMap(at(p, "care")), d = copyMap(at(care, day));
+  d[need] = count(d[need]) + 1;
+  care[day] = d;
+  out.care = care;
+  return prunePet(out);
+}
+
+/** the need that is low (one heart or fewer), Tummy first, or null: the pose cue ("sleepy" or "thinking") */
+export function lowNeed(pet: unknown, now: Timestamp): "tummy" | "spark" | null {
+  const nd = obj(at(obj(pet), "needs"));
+  if (heartsOf("tummy", at(nd, "tummy"), now) <= 1) return "tummy";
+  if (heartsOf("spark", at(nd, "spark"), now) <= 1) return "spark";
+  return null;
+}
+
 /* ------------------------------------------------------------------ shop -- */
 
 function copyMap(x: unknown): any { const out: any = {}, r = obj(x); keysOf(r, {}).forEach((k) => { out[k] = at(r, k); }); return out; }

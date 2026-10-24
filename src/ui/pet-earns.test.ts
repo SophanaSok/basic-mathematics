@@ -137,6 +137,35 @@ describe("pet earns", () => {
     expect(f.api.balance()).toBe(25);
     expect(f.emitted.filter((c) => c.type === "pet").length).toBe(before);
   });
+  it("learning fills: a recorded Arena run fills Play once, a due section fills Spark once, a bare set neither blocks the other", () => {
+    const f = fake();
+    f.emit({ type: "arena", phase: "recorded", set: "ch05/practice", medal: 0, day: TODAY, due: ["ch05#a", "ch05#b"] });
+    const pet = () => f.Store.read(KEY, {}) as any;
+    expect(pet().care[TODAY].play).toBe(1);
+    expect(pet().care[TODAY].spark).toBe(2);
+    expect(f.emitted.filter((c) => c.type === "pet" && c.what === "care").map((c) => c.id)).toEqual(["spark", "spark", "play"]);
+    f.emit({ type: "arena", phase: "answer", set: "ch05/practice", day: TODAY, due: ["ch05#a"] });
+    expect(pet().care[TODAY].play).toBe(1);
+    f.emit({ type: "arena", phase: "recorded", set: undefined, medal: 0, day: TODAY, due: [] });
+    expect(pet().care[TODAY].play).toBe(2);
+  });
+  it("Spark fills from a page attempt even when the earn cap pays nothing, and not for a section that is not due", () => {
+    const f = fake();
+    for (let i = 1; i <= 7; i++) f.emit(att({ section: "ch02#s" + i }));
+    expect(f.earned()).toHaveLength(5);
+    expect((f.Store.read(KEY, {}) as any).care[TODAY].spark).toBe(7);
+    const g = fake({ due: false });
+    g.emit(att());
+    expect(g.Store.read(KEY, null)).toBe(null);
+  });
+  it("fills stop at ten a day and write nothing after stale", () => {
+    const f = fake();
+    for (let i = 0; i < 12; i++) f.api.fill("play");
+    expect((f.Store.read(KEY, {}) as any).care[TODAY].play).toBe(10);
+    f.emit({ type: "stale" });
+    expect(f.api.fill("spark")).toBe(false);
+    expect((f.Store.read(KEY, {}) as any).care[TODAY].spark).toBeUndefined();
+  });
   it("earned never gains a key with earnAmount 0", () => {
     const f = fake();
     expect(f.api.earn("nonsense:x")).toBe(false);

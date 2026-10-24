@@ -3,12 +3,15 @@
    comparison, a mission) into ids in bm.pet.v1 `earned`, and paints the facets slot of the
    HUD. The id is the cause and the dedupe: the same id written twice, or by two devices, is
    one id (mergePet is a union by key), so it pays once. earned[id] is always 1; what an id
-   is worth lives in the table in src/learn/pet.ts. Nothing here spends. Ignored on purpose:
+   is worth lives in the table in src/learn/pet.ts. Nothing here spends. Learning also fills two
+   of the pool's needs directly (fillNeed): Play from every recorded Arena run and Spark from
+   every due review attempted, whether or not the review paid a facet (the five-a-day earn cap
+   does not starve Spark); no toy and no Play cap, the cap belongs to the pool's button. Ignored on purpose:
    twin, xp, combo, the Daily board, Arena time and speed (decision 0006).
    install(win) builds the api over a window-like object so a test can put one up; the page's
    copy is installed on load. */
 
-import { balance, earnAmount, prunePet } from "../learn/pet.ts";
+import { balance, earnAmount, fillNeed, prunePet } from "../learn/pet.ts";
 import { secRef } from "../learn/recorder.ts";
 
 const DAY_RE = /^\d{4}-\d{2}-\d{2}$/;
@@ -69,6 +72,17 @@ export function install(win: any) {
     return true;
   }
 
+  /* one learning fill (Play or Spark): hearts and the day's care count through fillNeed, announced as care */
+  function fill(need: "play" | "spark"): boolean {
+    if (!Store || stale) return false;
+    const pet = petNow();
+    const next = fillNeed(pet, need, today(), Date.now());
+    if ((next as unknown) === pet) return false;
+    if (Store.write(key(), next) === false) return false;
+    if (typeof Store.emit === "function") Store.emit({ type: "pet", what: "care", id: need });
+    return true;
+  }
+
   const medals = (ch: unknown, set: unknown, medal: unknown): void => {
     if (!str(ch) || !str(set) || typeof medal !== "number") return;
     for (let k = 1; k <= Math.min(3, Math.floor(medal)); k++) earn("medal:" + ch + ":" + set + ":" + k);
@@ -92,8 +106,9 @@ export function install(win: any) {
         const set = c.set, m = typeof set === "string" ? /^([^/]+)\/([^/]+)$/.exec(set) : null;
         if (m && typeof c.medal === "number" && c.medal >= 1) medals(m[1], m[2], c.medal);
         if (Array.isArray(c.due) && typeof c.day === "string" && DAY_RE.test(c.day)) {
-          c.due.forEach((sec: unknown) => { if (str(sec)) earn("review:" + c.day + ":" + sec); });
+          c.due.forEach((sec: unknown) => { if (str(sec)) { earn("review:" + c.day + ":" + sec); fill("spark"); } });
         }
+        fill("play");
         return;
       }
       case "attempt": {
@@ -105,7 +120,7 @@ export function install(win: any) {
         const ev = win.BMEvents, rc = win.BMReview && win.BMReview.recall;
         if (!ev || !rc || typeof ev.schedule !== "function") return;
         const day = today(), s = ev.schedule(sec, day);
-        if (rc.isPlaced(s) && rc.dueOn(s, day)) earn("review:" + day + ":" + sec);
+        if (rc.isPlaced(s) && rc.dueOn(s, day)) { earn("review:" + day + ":" + sec); fill("spark"); }
         return;
       }
       case "compare": if (str(c.chapter) && str(c.key)) earn("compare:" + c.chapter + "/" + c.key); return;
@@ -116,6 +131,7 @@ export function install(win: any) {
   const api = {
     balance: (): number => balance(petNow()),
     earn,
+    fill,
     repaint
   };
   if (Store && typeof Store.on === "function") {

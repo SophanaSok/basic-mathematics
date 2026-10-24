@@ -79,7 +79,12 @@ export function mountWardrobe(shell: HTMLElement, ctx: WardrobeCtx, tabs: TabsHa
   function paint(pet: any): void {
     const have = ownedAcc(pet);
     const key = have.map((i) => i.id).join(",");
+    let refocus: { slot: string; wear: string } | null = null;
     if (key !== sig) {
+      /* a rebuild while focus is inside the panel: the same chip gets it back (or the slot's first) */
+      const a = document.activeElement as HTMLElement | null;
+      const fs = a && panel.contains(a) && a.closest ? a.closest("fieldset") : null;
+      if (a && fs && a.hasAttribute("data-wear")) refocus = { slot: fs.getAttribute("data-slot") || "", wear: a.getAttribute("data-wear") || "" };
       sig = key;
       slots.textContent = "";
       if (have.length) {
@@ -105,9 +110,17 @@ export function mountWardrobe(shell: HTMLElement, ctx: WardrobeCtx, tabs: TabsHa
       b.setAttribute("aria-checked", on ? "true" : "false");
       b.tabIndex = on ? 0 : -1;
     });
+    if (refocus) {
+      const set = slots.querySelector('fieldset[data-slot="' + refocus.slot + '"]');
+      const chips = set ? Array.from(set.querySelectorAll<HTMLButtonElement>("button.pet-wear")) : [];
+      const to = chips.find((b) => b.getAttribute("data-wear") === refocus!.wear) || chips[0];
+      if (to) { try { to.focus({ preventScroll: true }); } catch { to.focus(); } }
+    }
   }
   /* arrows move among the chips of a slot and choose, as a radio group does */
   function onKey(e: KeyboardEvent, set: HTMLElement): void {
+    /* a held arrow or a chord is not a choice: one press writes once */
+    if (e.repeat || e.ctrlKey || e.altKey || e.metaKey || e.shiftKey) return;
     const dir = e.key === "ArrowRight" || e.key === "ArrowDown" ? 1 : e.key === "ArrowLeft" || e.key === "ArrowUp" ? -1 : 0;
     if (!dir) return;
     const all = Array.from(set.querySelectorAll<HTMLButtonElement>("button.pet-wear"));
@@ -122,6 +135,9 @@ export function mountWardrobe(shell: HTMLElement, ctx: WardrobeCtx, tabs: TabsHa
   function onClick(slot: WearSlot, id: string, btn: HTMLButtonElement): void {
     if (done || !ctx.alive()) return;
     if (isStale()) { say(LINES.behind); return; }
+    /* the chip already shows as chosen (a stale unowned id paints as Nothing): nothing to write, nothing to say.
+       The stale id stays in the record until a real change replaces it. */
+    if (btn.getAttribute("aria-checked") === "true") return;
     const now = Date.now(), pet = readPet();
     const item = id === "none" ? null : ACC.find((i) => i.id === id) || null;
     const next: any = wearAcc(pet, slot, item ? item.id : null, now);

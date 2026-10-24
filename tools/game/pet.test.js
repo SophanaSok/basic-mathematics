@@ -49,14 +49,25 @@
       absent with pet "off"
   32. a Feed click in the inline pool writes bm.pet.v1 as the dialog does, and the line changes
   33. two pools (the page-level hooks are a set): both facets lines repaint after one write
-  34. no page errors in any case
   35. accessories (X-7b-b): the shop lists six accessory rows; Buy on acc:flower (35) writes owned and a buy: spend of 35, the
       row shows Owned, the line is "Mochi has a new flower!", and a second Buy is not offered
   36. wardrobe: with acc:flower and acc:bell owned the tab lists Head (Nothing, Flower), Back (Nothing) and Tail (Nothing, Bell);
       Flower writes wear.head with a stamp, moves aria-checked, sets data-pet-worn and says "Mochi is wearing the flower.";
       Nothing clears it and says "Mochi took it off."; the 2D page requests no /models/mochi/acc/ file
   37. wardrobe with nothing owned: the empty line and no fieldset
-  38. wardrobe after a stale event: a click writes nothing and the line says the facets are catching up */
+  38. wardrobe after a stale event: a click writes nothing and the line says the facets are catching up
+  39. wardrobe keys (X-7b-b minors): ArrowRight from Nothing checks the next chip, moves focus and writes; the roving tabindex is 0 on
+      the checked chip and -1 elsewhere; a repeat event and a Ctrl chord write nothing; a click on the chip already checked, and on
+      Nothing over a stale unowned id, writes nothing and says nothing; a rebuild keeps focus on the same chip
+  40. the Wardrobe tab with the shop off: present with an accessory owned, absent with none
+  41. a quota-refused wear (BMStore.write returns false): no line, nothing stored, the chips repainted from the record
+  42. learning fill, Play (X-10): a recorded Arena run raises needs.play.n by 1 and care[today].play to 1, a second to 2, no toy needed
+  43. learning fill, Spark (X-10): a first-try correct answer on a placed, due section earns the review id and fills Spark; a second
+      identical attempt fills it again (Spark 2 hearts up, care.spark 2)
+  44. low pose (X-10): Tummy at 1 heart reads "sleepy" at mount with "Mochi could use a snack." said once; a reload says nothing and
+      the pose stays; with the pool off the mood is "idle"
+  45. bus reaction (X-10): a pet earn change turns the companion happy briefly with no line
+  46. no page errors in any case */
 "use strict";
 const site = require("../lib/site");
 const target = require("../lib/target");
@@ -776,7 +787,7 @@ async function run() {
     /* 36: the wardrobe */
     cases++;
     {
-      const c = await open(seedPet({ earned: FIVE, owned: { "acc:flower": "2025-01-01", "acc:bell": "2025-01-01" } }));
+      const c = await open(seedPet({ earned: FIVE, owned: { "acc:flower": "2025-01-01", "acc:bell": "2025-01-01" }, wear: { at: 5 } }));
       await openPool(c.page);
       await c.page.click('button[data-tab="wardrobe"]');
       const slots = () => c.page.evaluate(() => Array.from(document.querySelectorAll("fieldset.pet-slot")).map((f) => f.getAttribute("data-slot") + ":" + f.querySelector("legend").textContent + ":" +
@@ -787,16 +798,17 @@ async function run() {
       await c.page.click('button.pet-wear[data-wear="acc:flower"]');
       const rec = JSON.parse(await stored(c.page));
       eq(rec.wear.head, "acc:flower", "wardrobe: wear.head is written");
-      check(typeof rec.wear.at === "number" && rec.wear.at > 1, "wardrobe: wear.at is stamped");
+      check(typeof rec.wear.at === "number" && rec.wear.at > 5, "wardrobe: wear.at is stamped later than the seeded 5");
       eq((await slots())[0], "head:Head:none=Nothing/false,acc:flower=Flower/true", "wardrobe: aria-checked moves");
       eq(await c.page.evaluate(() => document.querySelector(".pet-porthole").getAttribute("data-pet-worn")), "head=acc:flower", "wardrobe: the porthole names what is worn");
       eq(await c.page.evaluate(() => document.querySelector("[data-wardrobe-line]").textContent), "Mochi is wearing the flower.", "wardrobe: the wear line");
       await c.page.click('button.pet-wear[data-wear="acc:bell"]');
       eq(await c.page.evaluate(() => document.querySelector(".pet-porthole").getAttribute("data-pet-worn")), "head=acc:flower,tail=acc:bell", "wardrobe: two slots, in slot order");
       const at1 = JSON.parse(await stored(c.page)).wear.at;
+      check(at1 > rec.wear.at, "wardrobe: the second wear is stamped later than the first");
       await c.page.click('fieldset[data-slot="head"] button.pet-wear[data-wear="none"]');
       const off = JSON.parse(await stored(c.page));
-      check(off.wear.head === undefined && off.wear.tail === "acc:bell" && off.wear.at >= at1, "wardrobe: Nothing clears the head and keeps the tail");
+      check(off.wear.head === undefined && off.wear.tail === "acc:bell" && off.wear.at > at1, "wardrobe: Nothing clears the head and keeps the tail");
       eq(await c.page.evaluate(() => document.querySelector("[data-wardrobe-line]").textContent), "Mochi took it off.", "wardrobe: the took-off line");
       eq(await c.page.evaluate(() => document.querySelector(".pet-porthole").getAttribute("data-pet-worn")), "tail=acc:bell", "wardrobe: the porthole follows");
       eq(await c.page.evaluate(() => window.__pet), ["wear:acc:flower", "wear:acc:bell", "wear:none"], "wardrobe: the bus events");
@@ -825,6 +837,151 @@ async function run() {
       eq(await stored(c.page), before, "wardrobe stale: nothing is written");
       eq(await c.page.evaluate(() => document.querySelector("[data-wardrobe-line]").textContent), "Mochi's facets are catching up after a sync.", "wardrobe stale: the line");
       await done(c, "wardrobe stale");
+    }
+    /* 39: the wardrobe's keys and minors */
+    cases++;
+    {
+      const c = await open(seedPet({ earned: FIVE, owned: { "acc:flower": "2025-01-01" }, wear: { head: "acc:crown", at: 5 } }));
+      await openPool(c.page);
+      await c.page.click('button[data-tab="wardrobe"]');
+      const head = (sel) => 'fieldset[data-slot="head"] ' + (sel || "");
+      await busLog(c.page);
+      const lineW = () => c.page.evaluate(() => document.querySelector("[data-wardrobe-line]").textContent);
+      /* the stale unowned crown paints as Nothing; clicking Nothing writes and says nothing */
+      const before = await stored(c.page);
+      eq(await c.page.evaluate(() => document.querySelector('fieldset[data-slot="head"] button[data-wear="none"]').getAttribute("aria-checked")), "true", "keys: a stale unowned id paints as Nothing");
+      await c.page.click(head('button[data-wear="none"]'));
+      eq([await stored(c.page), await lineW(), await c.page.evaluate(() => window.__pet)], [before, "", []], "keys: Nothing over a stale id writes nothing and says nothing");
+      /* ArrowRight from Nothing */
+      await c.page.focus(head('button[data-wear="none"]'));
+      await c.page.keyboard.press("ArrowRight");
+      const rec = JSON.parse(await stored(c.page));
+      eq(rec.wear.head, "acc:flower", "keys: ArrowRight from Nothing wears the flower");
+      const chips = () => c.page.evaluate(() => ({
+        focus: document.activeElement.getAttribute("data-wear"),
+        tab: Array.from(document.querySelectorAll('fieldset[data-slot="head"] button.pet-wear')).map((b) => b.getAttribute("data-wear") + ":" + b.tabIndex + ":" + b.getAttribute("aria-checked"))
+      }));
+      eq(await chips(), { focus: "acc:flower", tab: ["none:-1:false", "acc:flower:0:true"] }, "keys: focus moves, the roving tabindex follows the checked chip");
+      eq(await c.page.evaluate(() => window.__pet), ["wear:acc:flower"], "keys: one wear event");
+      /* a repeat and a chord write nothing */
+      const kept = await stored(c.page);
+      await c.page.evaluate(() => document.activeElement.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowLeft", repeat: true, bubbles: true, cancelable: true })));
+      await c.page.keyboard.press("Control+ArrowLeft");
+      await c.page.keyboard.press("Shift+ArrowLeft");
+      eq([await stored(c.page), (await chips()).focus], [kept, "acc:flower"], "keys: a repeat and a chord write nothing and move nothing");
+      /* clicking the checked chip: nothing */
+      await c.page.click(head('button[data-wear="acc:flower"]'));
+      eq([await stored(c.page), await lineW(), await c.page.evaluate(() => window.__pet.length)], [kept, "Mochi is wearing the flower.", 1], "keys: the checked chip again writes nothing and the line is unchanged");
+      /* a rebuild while focus is inside keeps focus on the same chip */
+      await c.page.evaluate(() => {
+        const r = JSON.parse(localStorage.getItem("bm.pet.v1"));
+        r.owned["acc:crown"] = "2025-01-01";
+        window.BMStore.write(window.BMStore.keys.pet, r);
+        window.BMStore.emit({ type: "pet", what: "sync" });
+      });
+      check(await until(c.page, () => document.querySelectorAll('fieldset[data-slot="head"] button.pet-wear').length === 3), "keys: the chips are rebuilt with the crown");
+      eq((await chips()).focus, "acc:flower", "keys: focus is back on the same chip after the rebuild");
+      await c.page.keyboard.press("ArrowLeft");
+      eq(JSON.parse(await stored(c.page)).wear.head, "acc:crown", "keys: ArrowLeft moves to the previous chip in catalogue order (the crown)");
+      await done(c, "wardrobe keys");
+    }
+    /* 40: the Wardrobe tab with the shop off */
+    cases++;
+    {
+      const tabsOf = (page) => page.evaluate(() => Array.from(document.querySelectorAll(".pet-tabs [data-tab]")).map((b) => b.getAttribute("data-tab")));
+      const c = await open(seedPet({ owned: { "acc:flower": "2025-01-01" } }));
+      await c.page.evaluate(() => { window.BM_CONFIG = Object.assign({}, window.BM_CONFIG, { shop: "off" }); });
+      await openPool(c.page);
+      eq(await tabsOf(c.page), ["pool", "wardrobe", "growth"], "shop off with an accessory: the Wardrobe tab is there");
+      await done(c, "wardrobe shop off owned");
+      const o = await open(seedPet({ v: 1 }));
+      await o.page.evaluate(() => { window.BM_CONFIG = Object.assign({}, window.BM_CONFIG, { shop: "off" }); });
+      await openPool(o.page);
+      eq(await tabsOf(o.page), ["pool", "growth"], "shop off with none: no Wardrobe tab");
+      await done(o, "wardrobe shop off none");
+    }
+    /* 41: a refused wear */
+    cases++;
+    {
+      const c = await open(seedPet({ earned: FIVE, owned: { "acc:flower": "2025-01-01" } }));
+      await openPool(c.page);
+      await c.page.click('button[data-tab="wardrobe"]');
+      await busLog(c.page);
+      await c.page.evaluate(() => { const S = window.BMStore, w = S.write; S.write = (k, v, q) => (k === S.keys.pet ? false : w.call(S, k, v, q)); });
+      const before = await stored(c.page);
+      await c.page.click('button.pet-wear[data-wear="acc:flower"]');
+      const d = await c.page.evaluate(() => ({
+        line: document.querySelector("[data-wardrobe-line]").textContent,
+        chips: Array.from(document.querySelectorAll('fieldset[data-slot="head"] button.pet-wear')).map((b) => b.getAttribute("data-wear") + ":" + b.getAttribute("aria-checked")),
+        events: window.__pet
+      }));
+      eq(d, { line: "", chips: ["none:true", "acc:flower:false"], events: [] }, "refused wear: no line, no event, the chips from the record");
+      eq(await stored(c.page), before, "refused wear: nothing stored");
+      await done(c, "refused wear");
+    }
+    /* 42: Arena fill */
+    cases++;
+    {
+      const c = await open(seedPet({ needs: { play: { n: 2, at: Date.now() } } }));
+      const day = await today(c.page);
+      await busLog(c.page);
+      const emit = () => c.page.evaluate((d) => window.BMStore.emit({ type: "arena", phase: "recorded", set: "ch01/practice", day: d, due: [], medal: 0 }), day);
+      await emit();
+      let rec = JSON.parse(await stored(c.page));
+      eq([rec.needs.play.n, rec.care[day].play], [3, 1], "arena fill: Play rose by 1 and care.play is 1");
+      await emit();
+      rec = JSON.parse(await stored(c.page));
+      eq([rec.needs.play.n, rec.care[day].play, rec.owned || {}], [4, 2, {}], "arena fill: a second run makes it 2, and no toy applied");
+      eq([rec.care[day].spark, rec.needs.spark], [undefined, undefined], "arena fill: Spark is untouched without a due review");
+      eq(await c.page.evaluate(() => window.__pet), ["care:play", "care:play"], "arena fill: one care event per run");
+      await done(c, "arena fill");
+    }
+    /* 43: Spark fill */
+    cases++;
+    {
+      const c = await open(seedPet({ needs: { spark: { n: 2, at: Date.now() } } }));
+      const day = await today(c.page);
+      const seeded = await c.page.evaluate(() => {
+        const d = window.BMSite.dayKey(new Date(Date.now() - 10 * 86400000));
+        return window.BMEvents.seed({ "ch01#numbers": { box: 0, last: d } });
+      });
+      eq(seeded, 1, "spark fill: the placed, due schedule is seeded");
+      const attempt = () => c.page.evaluate(() => window.BMStore.emit({ type: "attempt", chapter: "ch01", key: "e1", section: "numbers", correct: true, tryNo: 1, hintLevel: 0, solutionOpen: false }));
+      await attempt();
+      let rec = JSON.parse(await stored(c.page));
+      eq([rec.needs.spark.n, rec.care[day].spark], [3, 1], "spark fill: Spark rose by 1 and care.spark is 1");
+      eq(Object.keys(rec.earned || {}), ["review:" + day + ":ch01#numbers"], "spark fill: the review id was earned too");
+      await attempt();
+      rec = JSON.parse(await stored(c.page));
+      eq([rec.needs.spark.n, rec.care[day].spark, Object.keys(rec.earned).length], [4, 2, 1], "spark fill: a second attempt fills again, the id pays once");
+      await done(c, "spark fill");
+    }
+    /* 44: low pose */
+    cases++;
+    {
+      const c = await open(seedPet({ needs: { tummy: { n: 1, at: Date.now() } } }));
+      const day = await today(c.page);
+      const read = (page) => page.evaluate(() => ({ mood: window.BMCompanion.info().mood, line: window.BMCompanion.state().line }));
+      check(await until(c.page, () => window.BMCompanion.state().line === "Mochi could use a snack."), "low pose: the snack line is said");
+      eq((await read(c.page)).mood, "sleepy", "low pose: Tummy at 1 heart reads sleepy");
+      eq(JSON.parse(await c.page.evaluate(() => localStorage.getItem("bm.run.v1"))).seen.lowSaid, { tummy: day }, "low pose: the day is kept in run.seen.lowSaid");
+      await c.page.reload({ waitUntil: "load" });
+      check(await until(c.page, () => window.BMCompanion && window.BMCompanion.state().mounted, null, 10000), "low pose: the companion mounts again");
+      await new Promise((r) => setTimeout(r, 600));
+      eq(await read(c.page), { mood: "sleepy", line: "" }, "low pose: a reload keeps the pose and says nothing again today");
+      await c.page.evaluate(() => { window.BM_CONFIG = Object.assign({}, window.BM_CONFIG, { pet: "off" }); window.BMStore.emit({ type: "prefs" }); });
+      check(await until(c.page, () => window.BMCompanion.info().mood === "idle"), "low pose: with the pool off the mood is idle");
+      await done(c, "low pose");
+    }
+    /* 45: a pet change on the bus */
+    cases++;
+    {
+      const c = await open(seedPet({ v: 1 }));
+      await c.page.evaluate(() => window.BMStore.emit({ type: "pet", what: "earn", id: "strong:x" }));
+      const d = await c.page.evaluate(() => ({ mood: window.BMCompanion.info().mood, line: window.BMCompanion.state().line }));
+      eq(d, { mood: "happy", line: "" }, "bus reaction: a pet earn turns the companion happy with no line");
+      check(await until(c.page, () => window.BMCompanion.info().mood === "idle", null, 7000), "bus reaction: it settles back to idle");
+      await done(c, "bus reaction");
     }
   } finally {
     try { await browser.close(); } catch (e) { console.error("browser close: " + e.message); }

@@ -942,9 +942,10 @@ dialog.pet-dialog::backdrop { background: var(--scrim-glass); }
 .pet-slots[hidden], .pet-wardrobe-empty[hidden] { display: none; }
 .pet-slot { display: flex; flex-wrap: wrap; align-items: center; gap: .35rem; margin: .6rem 0; padding: 0; border: 0; text-align: left; }
 .pet-slot legend { width: 100%; padding: 0; font-weight: 700; font-size: .9rem; }
-.pet-wear { border: 2px solid var(--border); }
-.pet-wear[aria-checked="true"] { border-color: var(--accent); font-weight: 700; }
-@media (forced-colors: active) { .pet-wear[aria-checked="true"] { border-style: double; border-width: 4px; } }
+/* every chip has the same border width so a change moves nothing; the checked one is told apart by colour and a double line,
+   and beats .btn.ghost:hover (site.css) by being more specific */
+.pet-slot .pet-wear { border-width: 3px; border-style: solid; border-color: var(--border); }
+.pet-slot .pet-wear[aria-checked="true"], .pet-slot .pet-wear[aria-checked="true"]:hover { border-color: var(--accent); border-style: double; font-weight: 700; }
 /* the Growth tab (X-8b): the stage, the five-step path and the 28-day calendar; nothing here animates */
 .pet-growth-stage { margin: .5rem 0 .15rem; font-weight: 700; }
 .pet-growth-next { margin: 0 0 .75rem; font-size: .9rem; color: var(--muted); }
