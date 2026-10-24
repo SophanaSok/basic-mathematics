@@ -18,7 +18,7 @@ import { MOODS } from "../../learn/mood.ts";
 import { detectTier, readProbe, pixelRatio, TIERS } from "../../world/tiers.ts";
 
 export interface PoolHandle { close(): void; dispose(): void }
-export interface PoolOptions { mode: "dialog" | "inline"; onClose?: () => void }
+export interface PoolOptions { mode: "dialog" | "inline"; onClose?: () => void; /** where focus returns on close (else the element focused at open, else .companion-pic) */ opener?: HTMLElement | null }
 
 const NAMES: Record<Need, string> = { tummy: "Tummy", play: "Play", clean: "Clean", spark: "Spark" };
 const LINE = "Mochi is glad to see you.";
@@ -78,10 +78,12 @@ function startStage(shell: HTMLElement, alive: () => boolean, hold: (s: MochiSta
     const tier = detectTier(readProbe(B), p.map ? p : { ...p, map: "3d" }).tier;
     if (tier === "list") return;
     const budget = TIERS[tier];
-    let gone = false;
+    let gone = false, held: MochiStage | null = null;
+    /* the fail-over, also for a stage lost after it was up: the stage is disposed here, not only dropped */
     const fail = (): void => {
       if (gone) return;
       gone = true;
+      if (held) { try { held.dispose(); } catch { /* gone */ } held = null; }
       porthole.removeAttribute("data-3d");
       still.style.backgroundImage = 'url("' + root() + "models/mochi/mochi-" + v + '-poses.webp")';
       win.style.backgroundPosition = "0% 0";
@@ -96,9 +98,10 @@ function startStage(shell: HTMLElement, alive: () => boolean, hold: (s: MochiSta
         if (i === frame) return;
         frame = i; win.style.backgroundPosition = (i * 100 / 7) + "% 0";
       },
-      onState: (state) => { if (alive() && (state === "failed" || state === "lost")) { hold(null); fail(); } }
+      onState: (state) => { if (alive() && (state === "failed" || state === "lost")) fail(); }
     }).then((st) => {
       if (!alive() || gone) { try { st.dispose(); } catch { /* gone */ } return; }
+      held = st;
       hold(st);
       try { st.setMood("idle"); } catch { /* the still stays */ }
       porthole.setAttribute("data-3d", "");
@@ -135,7 +138,8 @@ export function mountPool(host: Element, opts: PoolOptions): PoolHandle {
       if (d.open) d.close();
       if (d.parentNode) d.parentNode.removeChild(d);
     } else if (shell.parentNode) shell.parentNode.removeChild(shell);
-    const back = opener;
+    /* focus goes back to the opener; when that is gone (the figure was rebuilt), to the live pic */
+    const back = opener && opener.isConnected ? opener : (document.querySelector(".companion-pic") as HTMLElement | null);
     opener = null;
     if (back && back.isConnected) { try { back.focus({ preventScroll: true }); } catch { back.focus(); } }
     if (opts.onClose) { try { opts.onClose(); } catch { /* the caller's */ } }
@@ -150,9 +154,15 @@ export function mountPool(host: Element, opts: PoolOptions): PoolHandle {
     closeBtn.addEventListener("click", finish);
     d.addEventListener("close", finish);
     dialog = d;
-    opener = (document.activeElement as HTMLElement) || null;
+    /* Safari and Firefox on macOS do not focus a clicked button, so the caller names the opener */
+    opener = opts.opener || (document.activeElement as HTMLElement) || null;
     document.body.appendChild(d);
-    d.showModal();
+    try {
+      d.showModal();
+    } catch {
+      finish();   /* no dialog support, or a modal already open: nothing is left behind */
+      return { close: finish, dispose };
+    }
     (shell.querySelector(".pet-title") as HTMLElement).focus({ preventScroll: true });
   } else {
     closeBtn.addEventListener("click", finish);

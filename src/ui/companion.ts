@@ -499,10 +499,12 @@ function clickPic(): void {
   openPool().then((M) => {
     opening = false;
     if (pool || !fig || calm()) return;
+    const opener = pic;
     drop3d();
     pool = M.mountPool(document.body, {
-      mode: "dialog",
-      onClose: () => { pool = null; if (fig) maybe3d(); }
+      mode: "dialog", opener,
+      /* the still is drawn again (drop3d left it blank) and the stage rebuilt where it is allowed */
+      onClose: () => { pool = null; if (fig) { variant = ""; drawSprite(); } }
     });
   }, () => { opening = false; });
 }
