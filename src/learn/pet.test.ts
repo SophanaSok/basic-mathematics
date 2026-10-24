@@ -432,6 +432,14 @@ describe("the shop", () => {
     expect(feedSnack(at4, berry, day, "dev00001", now)).toBeNull();
     expect(feedSnack(at4, kelp, day, "dev00001", now)).not.toBeNull();
   });
+  it("snackFits: a snack with no hearts (undefined, 0, NaN) never fits, so it never spends for nothing", () => {
+    const at4 = { ...rich(), needs: { tummy: { n: 4, at: now } } };
+    [undefined, 0, NaN, 0.5].forEach((hearts) => {
+      const odd = { ...kelp, hearts } as any;
+      expect(snackFits(at4, odd, now)).toBe(false);
+      expect(feedSnack(at4, odd, day, "dev00001", now)).toBeNull();
+    });
+  });
   it("placeDecor places and removes owned decor only, stamps the wear later, and caps at DECOR_MAX", () => {
     const owned = buy(rich(7), castle, day, "dev00001")!;
     expect(placeDecor(owned, "decor:rock", true, now)).toBe(owned);

@@ -294,6 +294,42 @@
     return id ? { id: id, name: name || "this learner" } : null;
   }
 
+  /* Mochi's pool inline (src/ui/pet/pool.ts, the lazy pet chunk through BMCompanion.openPool): the panel is an empty
+     section the pool fills. Not emitted when the pool is switched off or in Study mode. */
+  function mochiWanted() {
+    try {
+      var cfg = window.BMCore && window.BMCore.config && window.BMCore.config.readConfig(window.BM_CONFIG);
+      if (cfg && cfg.pet === "off") return false;
+    } catch (e) { /* an absent field is on */ }
+    if (document.documentElement.hasAttribute("data-calm")) return false;
+    try { if (Game && Game.prefs().calm === true) return false; } catch (e) { /* not calm */ }
+    return !!(window.BMCompanion && typeof window.BMCompanion.openPool === "function");
+  }
+  var pool = null, poolGen = 0;
+  /* the old pool goes first (its stage is disposed) and a pending import is outdated, so at most one stage is alive */
+  function dropMochi() {
+    poolGen++;
+    if (pool) { try { pool.dispose(); } catch (e) { /* gone */ } pool = null; }
+  }
+  function mountMochi() {
+    var section = page.querySelector("#mochi");
+    if (!section) return;
+    var gen = poolGen;
+    var fail = function () {
+      if (gen !== poolGen || !section.isConnected) return;
+      var p = document.createElement("p");
+      p.className = "muted";
+      p.textContent = "Mochi's pool could not load.";
+      section.appendChild(p);
+    };
+    try {
+      window.BMCompanion.openPool().then(function (M) {
+        if (gen !== poolGen || !section.isConnected) return;
+        try { pool = M.mountPool(section, { mode: "inline" }); } catch (e) { fail(); }
+      }, fail);
+    } catch (e) { fail(); }
+  }
+
   function drawProgress() {
     var solved = 0, total = 0, done = 0, stars = 0;
     C.chapters.forEach(function (ch) {
@@ -330,6 +366,7 @@
     html += tile("Missions", ico("star", "★") + " " + stars, "on the figures");
     html += "</div>";
 
+    if (mochiWanted()) html += '<section class="panel" id="mochi" data-pet-host></section>';
     html += '<section class="panel"><div class="panel-head"><h2>Last 14 days</h2>' +
       '<div class="goal-pick ui" role="group" aria-label="Daily goal">Daily goal ';
     [15, 30, 50, 80].forEach(function (g) {
@@ -363,8 +400,10 @@
     if (Account && Account.configured && !Account.user()) {
       html += '<p class="muted">This page is built from what this browser has saved.</p>';
     }
+    dropMochi();
     page.innerHTML = html;
     planPanel();
+    mountMochi();
     Array.prototype.forEach.call(page.querySelectorAll("[data-goal]"), function (b) {
       b.addEventListener("click", function () {
         Activity.setGoal(b.getAttribute("data-goal"));

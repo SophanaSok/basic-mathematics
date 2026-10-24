@@ -421,7 +421,8 @@ export function buy(pet: unknown, item: PetItem, day: DayKey, device: string): P
 export function snackFits(pet: unknown, item: PetItem, now: Timestamp): boolean {
   if (item.kind !== "snack") return false;
   const room = HEARTS_MAX - heartsOf("tummy", at(obj(at(obj(pet), "needs")), "tummy"), now);
-  return Math.floor(num(item.hearts)) <= room;
+  const h = Math.floor(num(item.hearts));
+  return h >= 1 && h <= room;
 }
 
 /** a snack eaten in the act of buying it: the spend, the care count and the Tummy hearts in one new record,

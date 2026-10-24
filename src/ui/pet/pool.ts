@@ -71,12 +71,13 @@ function grow(pet: unknown): { pet: any; fresh: Stage[] } {
 }
 
 let uid = 0;
-/* one bus listener for the page; it repaints the pool that is open, if any */
-let current: (() => void) | null = null, listening = false;
+/* one bus listener for the page; it repaints every pool that is open (the dialog may stand over the inline one) */
+const hooks = new Set<() => void>();
+let listening = false;
 function listen(): void {
   if (listening) return;
   listening = true;
-  try { w().BMStore.on((c: any) => { if (c && (c.type === "pet" || c.type === "sync") && current) current(); }); } catch { /* no bus */ }
+  try { w().BMStore.on((c: any) => { if (c && (c.type === "pet" || c.type === "sync") && hooks.size) Array.from(hooks).forEach((f) => { try { f(); } catch { /* one pool's */ } }); }); } catch { /* no bus */ }
 }
 
 function heartMarks(h: number): string {
@@ -234,7 +235,6 @@ export function mountPool(host: Element, opts: PoolOptions): PoolHandle {
   closeBtn.className = "btn ghost";
   closeBtn.setAttribute("data-pet-close", "");
   closeBtn.textContent = "Close";
-  shell.appendChild(closeBtn);
 
   host.setAttribute("data-pet", "");
   let actions: ReturnType<typeof mountActions> | null = null;
@@ -279,13 +279,14 @@ export function mountPool(host: Element, opts: PoolOptions): PoolHandle {
   tabs.add("pool", "Pool", shell.querySelector('.pet-panel[data-panel="pool"]') as HTMLElement, () => {
     const l = shell.querySelector('.pet-panel[data-panel="pool"] .pet-line');
     if (l) l.textContent = lineFor(petStore(), Date.now());
+    repaint(petStore(), Date.now());
   });
   const shop = shopWanted() ? mountShop(shell, { alive: () => live, repaint }, tabs) : null;
   const growth = mountGrowth(shell, { alive: () => live, repaint }, tabs);
   /* a sync or a write from another tab can change the balance under an open dialog; assigned once every
      handle it touches exists, and cleared only if it is still this pool's */
   const mine = (): void => { if (!live) return; const pet = petStore(), now = Date.now(); repaint(pet, now); if (shop) shop.refresh(pet, now); growth.refresh(pet, now); };
-  current = mine;
+  hooks.add(mine);
   listen();
   /* after the tabs' mount, which sets the pool tab's idle line */
   onGrown(g0.fresh);
@@ -294,7 +295,7 @@ export function mountPool(host: Element, opts: PoolOptions): PoolHandle {
   function finish(): void {
     if (!live) return;
     live = false;
-    if (current === mine) current = null;
+    hooks.delete(mine);
     if (actions) actions.dispose();
     if (shop) shop.dispose();
     growth.dispose();
@@ -306,10 +307,12 @@ export function mountPool(host: Element, opts: PoolOptions): PoolHandle {
       if (d.open) d.close();
       if (d.parentNode) d.parentNode.removeChild(d);
     } else if (shell.parentNode) shell.parentNode.removeChild(shell);
-    /* focus goes back to the opener; when that is gone (the figure was rebuilt), to the live pic */
-    const back = opener && opener.isConnected ? opener : (document.querySelector(".companion-pic") as HTMLElement | null);
-    opener = null;
-    if (back && back.isConnected) { try { back.focus({ preventScroll: true }); } catch { back.focus(); } }
+    /* focus goes back to the opener; when that is gone (the figure was rebuilt), to the live pic; an inline pool never took focus */
+    if (d) {
+      const back = opener && opener.isConnected ? opener : (document.querySelector(".companion-pic") as HTMLElement | null);
+      opener = null;
+      if (back && back.isConnected) { try { back.focus({ preventScroll: true }); } catch { back.focus(); } }
+    }
     if (opts.onClose) { try { opts.onClose(); } catch { /* the caller's */ } }
   }
   const dispose = finish;
@@ -318,6 +321,7 @@ export function mountPool(host: Element, opts: PoolOptions): PoolHandle {
     const d = document.createElement("dialog");
     d.className = "pet-dialog";
     d.setAttribute("aria-labelledby", id);
+    shell.appendChild(closeBtn);
     d.appendChild(shell);
     closeBtn.addEventListener("click", finish);
     d.addEventListener("close", finish);
@@ -333,7 +337,6 @@ export function mountPool(host: Element, opts: PoolOptions): PoolHandle {
     }
     (shell.querySelector(".pet-title") as HTMLElement).focus({ preventScroll: true });
   } else {
-    closeBtn.addEventListener("click", finish);
     host.appendChild(shell);
   }
 
