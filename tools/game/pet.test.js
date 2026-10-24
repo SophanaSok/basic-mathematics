@@ -70,8 +70,8 @@
       the pose stays; with the pool off the mood is "idle"
   44. bus reaction (X-10): a pet earn change turns the companion happy briefly with no line
   45. no page errors in any case
-  The footer counts the blocks that run: every number above except 22 and 34 (which live in pet3d.test.js or are gone), plus 19b,
-  41b and the two unnumbered blocks inside 5 and 14; 47 in all. */
+  The footer counts the blocks that run: every number above except 22 (which lives in pet3d.test.js), plus 19b, 41b and
+  the two unnumbered blocks inside 5 and 14; 47 in all. */
 "use strict";
 const site = require("../lib/site");
 const target = require("../lib/target");

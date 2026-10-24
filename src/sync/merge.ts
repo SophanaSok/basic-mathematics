@@ -287,8 +287,9 @@ export function mergeDiag(a: any, b: any) {
              higher n, within WEAR_AT_MAX; a need on neither side stays absent; any other key
              under needs is carried (later)
      care    union of days; per day the feed counts per snack and play, clean, spark and runs
-             (Arena runs, apart from the Play button's count) by max, kept only above 0; a day that is no record on either side goes through
-             later; unknown fields of a day are carried
+             (Arena runs, apart from the Play button's count) by max, kept only above 0; a day
+             that is no record on either side goes through later; unknown fields of a day are
+             carried
      grew    union, each stage the lowest positive time; a stage with none is dropped
      wear    of the sides that are records with a number `at` from 0 to WEAR_AT_MAX
              (wearOf), each held to a size first (normWear: head, back, tail as strings,

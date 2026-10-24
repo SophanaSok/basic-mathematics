@@ -147,9 +147,9 @@ long as the pool is left (the free daily pellet fixes it in one click), and the 
 items left by choice are in the plan file.
 
 Proof of T5 (X-11): `src/learn/pet.test.ts`, "a year of play stays small", builds 365 days (a pellet, a
-play, a clean and a spark counter a day, two review earns a day, a strong earn every ten days, one
-spend a day on alternating devices, the shop's toys and decor bought first), prunes it, and holds
-`JSON.stringify` of the record under 80,000 bytes. Measured: 76,419 bytes (the plan's guess of 60,000
-was low). The balance of the pruned record is the earned ids minus the spent ones.
+play, a clean and a spark counter a day, the daily maximum of ten Arena runs since X-10b, two review earns a day, a
+strong earn every ten days, one spend a day on alternating devices, the shop's toys and decor bought first), prunes
+it, and holds `JSON.stringify` of the record under 88,000 bytes. Measured: 80,199 bytes (76,419 before the runs leaf;
+the plan's guess of 60,000 was low). The balance of the pruned record is the earned ids minus the spent ones.
 Proof of T9 (X-11): the `pet-money` rule of `tools/check-static.js` keeps `price` and `facet` out of
 `assets/account.js` and out of all SQL, and `pet = '{}'` is the only write to the column (the rule does not check the enclosing function).
