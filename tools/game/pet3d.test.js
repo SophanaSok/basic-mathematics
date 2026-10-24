@@ -187,13 +187,16 @@ async function run() {
       check(await until(w.page, PORTHOLE), "acc: the stage is up with a hat worn");
       check(await until(w.page, () => document.querySelector(".pet-porthole").getAttribute("data-pet-on") === "socket_head"), "acc: the stage holds socket_head");
       eq(await w.page.evaluate(() => document.querySelector(".pet-porthole").getAttribute("data-pet-worn")), "head=acc:party-hat", "acc: the porthole names the hat");
-      eq(w.requests.filter((u) => ACC.test(u)).length, 1, "acc: one request for the hat");
-      check(/\/acc\/party-hat\.glb$/.test(w.requests.filter((u) => ACC.test(u))[0] || ""), "acc: the file is party-hat.glb");
+      /* the sidebar stage (X-7c) fetches the worn hat too, before or after the click: one request, or two when it won the race */
+      const hatReqs = () => w.requests.filter((u) => ACC.test(u));
+      check(hatReqs().length >= 1 && hatReqs().length <= 2, "acc: one request for the hat (two when the sidebar stage fetched it first)");
+      check(hatReqs().every((u) => /\/acc\/party-hat\.glb$/.test(u)), "acc: the file is party-hat.glb");
+      const before = hatReqs().length;
       await w.page.click('button[data-tab="wardrobe"]');
       await w.page.click('fieldset[data-slot="head"] button.pet-wear[data-wear="none"]');
       check(await until(w.page, () => document.querySelector(".pet-porthole").getAttribute("data-pet-on") === ""), "acc: Nothing takes the hat off");
       eq(await w.page.evaluate(() => document.querySelector(".pet-porthole").getAttribute("data-pet-worn")), "", "acc: the porthole names nothing");
-      eq(w.requests.filter((u) => ACC.test(u)).length, 1, "acc: taking it off requests nothing");
+      eq(hatReqs().length, before, "acc: taking it off requests nothing");
       await done(w, "acc worn");
     }
     /* 7: the sidebar companion wears what the pool wears */
