@@ -173,8 +173,7 @@ async function run() {
       eq(f.label, "Mochi, your companion, idle", "mounted: the label");
       const reqs = c.requests;
       check(reqs.some((u) => /\/models\/mochi\/mochi-pink-poses\.webp(?:[?#]|$)/.test(u)), "mounted: the sheet was requested");
-      eq(reqs.filter((u) => /\/models\/forms\//.test(u)), [], "mounted: nothing under /models/forms/ requested");
-      eq(reqs.filter((u) => /\.glb(?:[?#]|$)|-color\.webp|-surface\.webp|\/bundle\/(?:three|three-model|form-model|mochi)\.js/.test(u)), [], "mounted: no GLB, textures or model script requested");
+      eq(reqs.filter((u) => /\.glb(?:[?#]|$)|-color\.webp|-surface\.webp|\/bundle\/(?:three|three-model|mochi)\.js/.test(u)), [], "mounted: no GLB, textures or model script requested");
       await done(c, "mounted");
     }
     /* 3 */
@@ -451,7 +450,7 @@ async function run() {
       await c.page.evaluate(() => window.BMStore.emit({ type: "arena", phase: "end", result: {} }));
       check(await lineIs(c.page, "Run done.", 9000), tag + ": the end says Run done.");
       eq((await st(c.page)).key, "arena-end", tag + ": key");
-      eq(c.requests.filter((u) => /\.glb(?:[?#]|$)|-color\.webp|-surface\.webp|\/bundle\/(?:three|three-model|form-model|mochi)\.js/.test(u)), [], tag + ": no GLB or model script requested");
+      eq(c.requests.filter((u) => /\.glb(?:[?#]|$)|-color\.webp|-surface\.webp|\/bundle\/(?:three|three-model|mochi)\.js/.test(u)), [], tag + ": no GLB or model script requested");
       await c.page.evaluate(() => window.BMGame.setPref("companion", false));
       check(await until(c.page, () => !document.querySelector("figure[data-companion]"), null, 3000), tag + ": the preference off removes it");
       await done(c, tag);

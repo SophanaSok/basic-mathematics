@@ -1847,23 +1847,6 @@ function checkIcons(ctx, r, text) {
   diff(cssHave, gen.renderCss(want), gen.STALE_CSS);
 }
 
-/* ---------------------------------------------------------- form models -- */
-
-/* The five form models are what tools/gen-forms.js wrote from tools/art/forms/ (its
-   problems(): manifest against files and scripts) and are within the caps of
-   src/data/form-limits.ts (tools/lib/form-models.js). */
-function checkFormModels(ctx, r) {
-  const genForms = require("./gen-forms");
-  const fm = require("./lib/form-models");
-  genForms.problems().forEach(m => r.fail(m));
-  const m = genForms.readManifest();
-  if (!m) return;
-  r.count = m.entries.length;
-  fm.manifestProblems(m).forEach(p => r.fail(p));
-  const sum = (k) => m.entries.reduce((a, e) => a + e[k], 0);
-  r.note(m.entries.length + " models, " + sum("bytes") + " bytes, " + sum("triangles") + " triangles, clips " + fm.CLIPS.join(", "));
-}
-
 /* ---------------------------------------------------------- mochi model -- */
 
 /* The two Mochi variants are what tools/gen-mochi.js packed from the Blender project (its
@@ -2271,7 +2254,6 @@ const CHECKS = [
   { name: "colours", run: checkColours, what: "colour literals only in src/styles/tokens.css; answer marks carry their tokens; WebGL tokens plain hex" },
   { name: "reading-column", run: checkReadingColumn, what: "no animation, moving transition or decoration in the reading column but tools/reading-column-allow.json's" },
   { name: "us-english", run: checkUsEnglish, what: "no British spelling or pound money in reader-facing text beyond tools/us-english-allow.json, whose counts only fall" },
-  { name: "form-models", run: checkFormModels, what: "public/models/forms/*.glb are what tools/gen-forms.js wrote from tools/art/forms/: size, triangle and texture caps, the five material slots, the five clips" },
   { name: "mochi-model", run: checkMochiModels, what: "public/models/mochi/*.glb are what tools/gen-mochi.js packed from the Blender project: size, triangle and texture caps, the twelve clips, the 33 morph targets, the pose sheet" },
   { name: "mochi-water", run: checkMochiWater, what: "public/models/mochi/water.png is what tools/gen-water.js writes: 8 frames of 64x64, under MOCHI_WATER_BYTES_MAX" },
   { name: "contrast", run: checkContrast, what: "WCAG contrast of token pairs in tools/contrast-pairs.json, both themes × both panels, all Parts; print restates the dark panel" }

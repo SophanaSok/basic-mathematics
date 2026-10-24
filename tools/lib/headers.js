@@ -42,8 +42,8 @@
         bundle/*.js, *.css, *.map, *.svg, *.txt        revalidated on every request: their
             names carry no hash (vite.config.ts says why), so a deploy changes a file
             under the same name, and a browser must ask
-        models/* (the form models and their thumbnails,
-            public/models/forms/, written by tools/gen-forms.js)  revalidated, the same way
+        models/* (Mochi's models, public/models/mochi/,
+            written by tools/gen-mochi.js)  revalidated, the same way
         the fonts, KaTeX's (bundle/KaTeX_*) and the typefaces (bundle/inter-*,
             newsreader-*, bricolage-*)                 a week, and not immutable: each is
             named by its package's file and not by its content (KaTeX_Main-Regular.woff2

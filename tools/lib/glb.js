@@ -1,5 +1,5 @@
 "use strict";
-/* A reader for the one thing the form-model checks need of a GLB: what is in it. No
+/* A reader for the one thing the Mochi model checks need of a GLB: what is in it. No
    dependency and no decoding of meshes: a GLB is a 12-byte header (the magic "glTF",
    version 2, the length), a JSON chunk (the glTF document) and usually a BIN chunk (the
    buffer the document's accessors and images point into). readGlb splits those;
@@ -7,7 +7,7 @@
    file in a viewer to learn: triangles, material names, animation lengths, the size of
    each image, the extensions the file needs. writeGlb is the other way: a glTF document
    and its one buffer made into a GLB, with the document's images left as the external
-   files they are (gltfpack embeds external images when it writes a .glb, so gen-forms.js
+   files they are (gltfpack embeds external images when it writes a .glb, so gen-mochi.js
    packs to .gltf and assembles the GLB here).
 
    A file that is cut short, has the wrong magic or version, or whose chunks do not add
@@ -16,7 +16,7 @@
    VP8X), so a texture is not decoded to be measured. An image the document names by uri
    is measured only when describeGlb is given a resolve(uri) that returns its bytes.
 
-   Used by tools/gen-forms.js, which writes src/data/form-models.ts from what it finds,
+   Used by tools/gen-mochi.js, which writes src/data/mochi-model.ts from what it finds,
    and by its --check, which holds the manifest to the files. */
 const crypto = require("crypto");
 

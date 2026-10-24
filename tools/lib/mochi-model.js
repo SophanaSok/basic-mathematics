@@ -4,9 +4,8 @@
 
    gen-mochi.js problems() says whether the manifest and the files agree. This module says
    whether what the files hold is acceptable: size and triangle caps
-   (src/data/mochi-limits.ts, read through Node's own TypeScript loading as
-   form-models.js does), the twelve clips, the idle's length, the extensions the page can
-   decode, five external square WebP textures, the 33 morph targets with the nine moods,
+   (src/data/mochi-limits.ts, read through Node's own TypeScript loading), the twelve
+   clips, the idle's length, the extensions the page can decode, five external square WebP textures, the 33 morph targets with the nine moods,
    the pose sheet and the whole download of a variant. */
 const fs = require("fs");
 const path = require("path");
