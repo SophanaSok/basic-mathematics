@@ -808,6 +808,14 @@ html[data-bossbar] .toasts { top: calc(var(--hud-h) + 2.75rem + .75rem); }
   background: linear-gradient(155deg, var(--porthole-glare), transparent 30%),
     radial-gradient(circle at 50% 50%, transparent 55%, var(--water-vignette) 100%), var(--water-tint);
 }
+/* the decor layer (public/models/mochi/decor.png, eight 32 px cells, tools/gen-water.js): a cell-sized box, half the
+   window, so a cell draws at 2x at 8rem and 1x at 4rem; a later card places it and sets [data-decor] */
+.companion-decor {
+  display: none; position: absolute; width: 50%; height: 50%; pointer-events: none;
+  background-image: url("/models/mochi/decor.png"); background-repeat: no-repeat; background-size: 800% 100%; background-position: 0 0;
+  image-rendering: pixelated;
+}
+.companion-decor[data-decor] { display: block; }
 .companion-still { position: absolute; inset: 0; background-repeat: no-repeat; }
 .companion-still, .companion-canvas { image-rendering: auto; }
 /* the rim: a dark line, a light bevel, the brass, a deep bevel, a dark line, then the page shadow outside */
