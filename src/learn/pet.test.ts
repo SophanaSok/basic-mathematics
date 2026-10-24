@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { mergePet, WEAR_AT_MAX } from "../sync/merge.ts";
 import { DECOR_SIZE, itemOf, PET_ITEMS, priceOf } from "../data/pet-items.ts";
 import {
-  applyAct, balance, buy, canAct, feedSnack, snackFits, ownsToy, placeDecor, placedDecor, wearAcc, wornAcc, slotOfSocket, WEAR_SLOTS, ACC_SLOT, spendId, DECOR_MAX, canBuy, capKeys, careOf, carePoints, DRIFT, earnAmount, EARNED_MAX, giftTaken, growthPoints, heartsOf, laterStamp,
+  applyAct, balance, buy, fillNeed, lowNeed, FILL_PER_DAY, canAct, feedSnack, snackFits, ownsToy, placeDecor, placedDecor, wearAcc, wornAcc, slotOfSocket, WEAR_SLOTS, ACC_SLOT, spendId, DECOR_MAX, canBuy, capKeys, careOf, carePoints, DRIFT, earnAmount, EARNED_MAX, giftTaken, growthPoints, heartsOf, laterStamp,
   newlyGrown, growPet, GROWTH_MORPHS, STAGE_LOOK, STAGES, PLAY_PER_DAY, prunePet, PRUNE_CARE_DAYS, REVIEW_CAP_IDS, SPENT_MAX, stageOf, START_HEARTS, touch
 } from "./pet.ts";
 
@@ -690,5 +690,62 @@ describe("accessories", () => {
     expect(wornAcc({ ...(w as any), wear: { head: "acc:nope", at: now } })).toEqual({});
     expect(wornAcc(null)).toEqual({});
     expect(wornAcc("x")).toEqual({});
+  });
+});
+
+describe("fillNeed and lowNeed (learning hooks)", () => {
+  const day = "2026-10-24", t = 100 * H;
+  it("fillNeed is pure: a new record, the input untouched", () => {
+    const p = { v: 1, needs: { play: { n: 2, at: t } }, care: {} };
+    const copy = JSON.parse(JSON.stringify(p));
+    const q = fillNeed(p, "play", day, t) as any;
+    expect(q).not.toBe(p);
+    expect(p).toEqual(copy);
+    expect(q.v).toBe(1);
+  });
+  it("adds one heart and one care count, with no toy and no Play cap", () => {
+    const p = { v: 1, needs: { play: { n: 2, at: t } } };
+    const q = fillNeed(p, "play", day, t + 1) as any;
+    expect(heartsOf("play", q.needs.play, t + 1)).toBe(3);
+    expect(careOf(q, day).play).toBe(1);
+    expect(ownsToy(q)).toBe(false);
+    let r: any = p;
+    for (let i = 0; i < PLAY_PER_DAY + 2; i++) r = fillNeed(r, "play", day, t + 2 + i);
+    expect(careOf(r, day).play).toBe(PLAY_PER_DAY + 2);
+    const s = fillNeed({}, "spark", day, t) as any;
+    expect(heartsOf("spark", s.needs.spark, t)).toBe(START_HEARTS + 1);
+    expect(careOf(s, day).spark).toBe(1);
+  });
+  it("clamps the hearts at 5", () => {
+    let p: any = { v: 1, needs: { spark: { n: 5, at: t } } };
+    p = fillNeed(p, "spark", day, t + 1) as any;
+    expect(heartsOf("spark", p.needs.spark, t + 1)).toBe(5);
+    expect(careOf(p, day).spark).toBe(1);
+  });
+  it("stops at FILL_PER_DAY fills a day per need and returns the same reference", () => {
+    let p: any = {};
+    for (let i = 0; i < FILL_PER_DAY; i++) p = fillNeed(p, "play", day, t + i);
+    expect(careOf(p, day).play).toBe(FILL_PER_DAY);
+    expect(fillNeed(p, "play", day, t + 99)).toBe(p);
+    expect(fillNeed(p, "spark", day, t + 99)).not.toBe(p);
+    expect(careOf(fillNeed(p, "play", "2026-10-25", t + 99), "2026-10-25").play).toBe(1);
+  });
+  it("merges by max per leaf with mergePet", () => {
+    const a = fillNeed({}, "play", day, t) as any, b = fillNeed(a, "play", day, t + 5) as any;
+    const m = mergePet(a, b) as any;
+    expect(careOf(m, day).play).toBe(2);
+    expect(mergePet(b, a)).toEqual(m);
+    expect(m.needs.play.at).toBe(b.needs.play.at);
+  });
+  it("lowNeed: tummy and spark at their floors, null at full, tummy wins", () => {
+    const full = { needs: { tummy: { n: 5, at: t }, spark: { n: 5, at: t } } };
+    expect(lowNeed(full, t)).toBeNull();
+    expect(lowNeed({}, t)).toBeNull();
+    expect(lowNeed({ needs: { tummy: { n: 1, at: t } } }, t)).toBe("tummy");
+    expect(lowNeed({ needs: { tummy: { n: 5, at: t }, spark: { n: 1, at: t } } }, t)).toBe("spark");
+    expect(lowNeed({ needs: { tummy: { n: 2, at: t }, spark: { n: 5, at: t } } }, t)).toBeNull();
+    expect(lowNeed({ needs: { tummy: { n: 1, at: t }, spark: { n: 1, at: t } } }, t)).toBe("tummy");
+    expect(lowNeed({ needs: { tummy: { n: 5, at: 0 }, spark: { n: 5, at: t } } }, 4 * 12 * H)).toBe("tummy");
+    expect(lowNeed(null, t)).toBeNull();
   });
 });

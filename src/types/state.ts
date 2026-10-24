@@ -186,6 +186,8 @@ export interface RunStore {
     ach?: Flag;
     /** the companion's intro line has been shown on a chapter page */
     companion?: number;
+    /** the day each low-need caption of the companion was last said ("YYYY-MM-DD"), so it comes once a day */
+    lowSaid?: { tummy?: string; spark?: string };
     /** the pool's growth moments already shown, by stage */
     grew?: Record<string, 1>;
   };

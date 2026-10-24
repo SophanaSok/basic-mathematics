@@ -60,7 +60,8 @@ export type Recent =
   | { type: "chapterDone"; fresh: boolean }
   | { type: "level"; level: number }
   | { type: "achievement"; title: string }
-  | { type: "arena"; phase: "start" | "answer" | "end"; correct?: boolean; pass?: boolean; timeout?: boolean };
+  | { type: "arena"; phase: "start" | "answer" | "end"; correct?: boolean; pass?: boolean; timeout?: boolean }
+  | { type: "pet"; what: string; id: string };
 
 export interface Reaction {
   /** played in order, each held for its ms; the last one's ms is how long the line stays */
@@ -118,7 +119,7 @@ export function introLine(): string {
 }
 
 /** lines that wait for a quiet moment hold longest */
-const LONG_KEYS = ["due", "back", "chapter", "regroup", "goal", "level", "boss", "stuck", "arena-end"];
+const LONG_KEYS = ["due", "low", "back", "chapter", "regroup", "goal", "level", "boss", "stuck", "arena-end"];
 
 function make(steps: readonly Step[], line: string | null, key: string | null, href: string | null): Reaction {
   return { steps, line, key, href };
@@ -127,12 +128,28 @@ const st = (mood: Mood, ms: number): Step => ({ mood, ms });
 export const REST: readonly Step[] = Object.freeze([st("idle", 0)]);
 const rest = (): Reaction => make(REST, null, null, null);
 
-/** the mood while nothing is happening: asleep after a long quiet, thinking over a focused field */
-export function idleMood(msSinceInput: number, fieldFocused: boolean): Mood {
+/** which need of the pool is low (one heart or fewer), Tummy first; src/learn/pet.ts lowNeed works it out */
+export type Low = "tummy" | "spark" | null;
+
+/** the mood while nothing is happening: asleep after a long quiet, thinking over a focused field; when
+    that would be plain idle, a low need shows (Tummy as sleepy, Spark as thinking) */
+export function idleMood(msSinceInput: number, fieldFocused: boolean, low: Low = null): Mood {
   if (msSinceInput >= SLEEP_AFTER_MS) return "sleeping";
   if (msSinceInput >= SLEEPY_AFTER_MS) return "sleepy";
   if (fieldFocused && msSinceInput >= THINK_AFTER_MS) return "thinking";
-  return "idle";
+  return low === "tummy" ? "sleepy" : low === "spark" ? "thinking" : "idle";
+}
+
+/** the one caption a low need earns on arrival; never blames, never counts days */
+export const LOW_LINES = Object.freeze({ tummy: "Mochi could use a snack.", spark: "Mochi could use a review." });
+
+/** days (device-local, run.seen.lowSaid) each low caption was last said */
+export type LowSaid = Readonly<{ tummy?: string; spark?: string }>;
+
+/** the caption for a low need, or null when none is low, it was said today, or the page is calm */
+export function lowArrival(low: Low, day: string, saidOn: LowSaid, calm: boolean): Reaction | null {
+  if (calm || !low || !day || saidOn[low] === day) return null;
+  return make([st(low === "tummy" ? "sleepy" : "thinking", LONG_HOLD_MS)], LOW_LINES[low], "low", null);
 }
 
 /** ms until the next threshold would change idleMood's answer, or null when none is left */
@@ -244,6 +261,11 @@ export function react(memory: MoodMemory, recent: Recent, input: MoodInput): Out
       return say([st("excited", LONG_HOLD_MS)], "Level " + recent.level + ".", "level");
     case "achievement":
       return say([st("happy", SHORT_MS)], null, null);
+    case "pet":
+      /* the pool says its own words (the stage line, the announcement); here only a face, never a toast */
+      if (recent.what === "earn" || recent.what === "care" || recent.what === "gift") return say([st("happy", SHORT_MS)], null, null);
+      if (recent.what === "grew") return say([st("excited", LONG_HOLD_MS)], null, null);
+      return none;
     case "arena":
       /* a run has many answers: a mood for each, a word only at the end, and nothing about score, hearts or time */
       if (recent.phase === "end") return say([st("happy", LONG_HOLD_MS)], "Run done.", "arena-end");

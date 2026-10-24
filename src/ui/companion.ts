@@ -27,11 +27,12 @@
        timer, set from nextIdleAt, no polling. An answer within FAST_MS of the field's focus
        is a surprise (the attempt carries elapsedMs).
      - On a phone-sized screen the sprite steps aside while an exercise field has focus.
-   Never writes anything but run.seen.companion. window.BMCompanion is a test handle. */
+   Writes only run.seen.companion and run.seen.lowSaid (the day each low caption was said). window.BMCompanion is a test handle. */
 
-import { arrival, react, introLine, idleMood, nextIdleAt, wake, MOODS, HOLD_MS, canSay, said, noteVerdict, EMPTY_MEMORY, EMPTY_THROTTLE } from "../learn/mood.ts";
-import type { Mood, MoodInput, MoodMemory, Throttle, Reaction, Recent, Step } from "../learn/mood.ts";
+import { arrival, react, introLine, idleMood, lowArrival, nextIdleAt, wake, MOODS, HOLD_MS, canSay, said, noteVerdict, EMPTY_MEMORY, EMPTY_THROTTLE } from "../learn/mood.ts";
+import type { Low, Mood, MoodInput, MoodMemory, Throttle, Reaction, Recent, Step } from "../learn/mood.ts";
 import { dueSplit } from "../learn/review.ts";
+import { lowNeed } from "../learn/pet.ts";
 import { ARENA_SECTIONS } from "../data/arena-sections.ts";
 import { detectTier, readProbe, pixelRatio, TIERS } from "../world/tiers.ts";
 import type { MochiStage } from "../mochi/index.ts";
@@ -41,7 +42,7 @@ const WAITS = ["due", "back", "chapter", "regroup", "goal", "level", "boss", "st
 /* said on the page only, never to the live region: at load the region belongs to the page's own
    first words (the exercise count, the chapter's banner), and one message there holds the next
    back for seconds (assets/game.js announce); these are also on the page elsewhere (the Arena says its own result) */
-const QUIET = ["intro", "due", "back", "arena-end"];
+const QUIET = ["intro", "due", "low", "back", "arena-end"];
 
 let fig: HTMLElement | null = null;
 let pic: HTMLElement | null = null;
@@ -76,7 +77,9 @@ let playing = false;
    mood of the WEAK kinds that comes in the task the playing one began in does not cut it short; the boss's
    (encounter), the Arena's and the rest always show */
 let sameTask = false;
-const WEAK = ["opened", "ladder", "twin", "combo", "xp", "achievement"];
+const WEAK = ["opened", "ladder", "twin", "combo", "xp", "achievement", "pet"];
+/* a need of the pool that reads one heart or fewer (null with the pool off): idle shows it as sleepy or thinking */
+let low: Low = null;
 /* ms of the learner's last input, and of the first focus of the exercise form being answered (0 = none;
    a later field of the same form keeps the first stamp, another form starts a new one) */
 let lastInput = 0;
@@ -300,10 +303,31 @@ function applyIdle(): void {
   idleTimer = 0;
   if (!fig || playing) return;
   const since = Math.max(0, Date.now() - lastInput), focused = fieldFocused();
-  const m = idleMood(since, focused);
+  const m = idleMood(since, focused, low);
   if (m !== mood) { mood = m; drawSprite(); }
   const next = nextIdleAt(since, focused);
   if (next !== null) idleTimer = window.setTimeout(applyIdle, next + 10);
+}
+
+/** the low need, from the saved pet and the clock; the pool switch off means none */
+function refreshLow(): void {
+  low = null;
+  if (!poolWanted()) return;
+  try {
+    const S = w().BMStore;
+    low = lowNeed(S.read(S.keys.pet, {}), Date.now());
+  } catch { low = null; }
+}
+
+/** the low caption, at most once a day per need: the day is kept in run.seen.lowSaid (this device) */
+function lowCaption(inp: MoodInput): Reaction | null {
+  let saidOn: any = {};
+  try { saidOn = w().BMGame.run().seen.lowSaid || {}; } catch { return null; }
+  const r = lowArrival(low, inp.day, saidOn, inp.calm);
+  if (!r || !low) return null;
+  const need = low;
+  try { w().BMGame.updateRun((run: any) => { run.seen.lowSaid = { ...(run.seen.lowSaid || {}), [need]: inp.day }; }); } catch { return null; }
+  return r;
 }
 
 function advance(): void {
@@ -409,6 +433,7 @@ function toRecent(c: any): Recent | null {
     case "chapterDone": return { type: "chapterDone", fresh: !!c.fresh };
     case "level": return { type: "level", level: Number(c.level) || 1 };
     case "achievement": return { type: "achievement", title: String(c.title || "") };
+    case "pet": return { type: "pet", what: typeof c.what === "string" ? c.what : "", id: typeof c.id === "string" ? c.id : "" };
     case "arena": {
       const phase = c.phase;
       if (phase !== "start" && phase !== "answer" && phase !== "end") return null;
@@ -423,6 +448,7 @@ function onChange(c: any): void {
   if (c.type === "prefs") { evaluate(); return; }
   /* another state altogether: the mood is derived again from it (the intro stays seen) */
   if (c.type === "reset" || c.type === "sync") { if (fig) unbuild(); evaluate(); return; }
+  if (c.type === "pet") { refreshLow(); if (fig && !playing) applyIdle(); }
   if (!fig) return;
   /* a nudge never arrives after the learner has answered */
   if ((c.type === "solved" || (c.type === "attempt" && c.correct)) && pending && pending.key === "stuck") pending = null;
@@ -546,7 +572,7 @@ function arrive(): void {
     return;
   }
   const inp = input(true);
-  const r = arrival(inp);
+  let r = arrival(inp);
   memory = EMPTY_MEMORY;
   throttle = EMPTY_THROTTLE;
   let first = false;
@@ -557,11 +583,17 @@ function arrive(): void {
     if (r.line && r.key && WAITS.indexOf(r.key) > -1) { pending = r; schedulePending(); }
     return;
   }
+  if (!r.line) {
+    /* nothing else to say: a low need gets its one caption (a due review or a welcome back comes first) */
+    const lr = lowCaption(inp);
+    if (lr) { r = lr; }
+  }
   if (r.line) apply(r);
   else { mood = r.steps[0].mood; drawSprite(); applyIdle(); }
 }
 
 function evaluate(): void {
+  refreshLow();
   const should = (onChapter() || onArena()) && !!w().BMGame && allowed() && !calm();
   if (!should) { if (fig) unbuild(); return; }
   if (fig) {

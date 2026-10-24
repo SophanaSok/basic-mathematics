@@ -9,7 +9,7 @@
    2. reduced motion: with the pool's stage up an act writes and plays no clip (data-clip never appears); with
       motion allowed the same act plays "play"
    3. growth look: data-pet-scale is "0.8" at hatchling and "0.875" at fry
-   4. progress.html inline: the porthole has data-3d, exactly one canvas on the page, and a level redraw leaves
+   4. progress.html inline: the porthole has data-3d, exactly one canvas in #mochi, and a level redraw leaves
       exactly one (dispose, then mount again)
    5. memory: ten open/close rounds on a chapter page leave at most one stage and Mochi canvas, and the JS heap
       (performance.memory, where there is one) grows by under 50 MB; the figure is logged
@@ -128,37 +128,12 @@ async function run() {
       const c = await open(seedPet({ v: 1 }), { path: "progress.html" });
       check(await until(c.page, () => !!document.querySelector("#mochi .pet-pool")), "inline: the pool is there");
       check(await until(c.page, PORTHOLE), "inline: the porthole has data-3d");
-      eq(await canvases(c.page), 1, "inline: exactly one canvas");
+      eq(await canvases(c.page, "#mochi canvas"), 1, "inline: exactly one canvas in the pool's host");
       await c.page.evaluate(() => { window.__old = document.querySelector("#mochi"); window.BMStore.emit({ type: "level" }); });
       check(await until(c.page, () => window.__old !== document.querySelector("#mochi") && !!document.querySelector("#mochi .pet-pool")), "inline: the panel is rebuilt after a level redraw");
       check(await until(c.page, PORTHOLE), "inline: the rebuilt porthole has data-3d");
-      eq(await canvases(c.page), 1, "inline: exactly one canvas after the redraw");
+      eq(await canvases(c.page, "#mochi canvas"), 1, "inline: exactly one canvas in the pool's host after the redraw");
       await done(c, "inline");
-    }
-    /* 6: accessories load on wear */
-    cases++;
-    {
-      const ACC = /\/models\/mochi\/acc\//;
-      const c = await open(seedPet({ owned: { "acc:party-hat": "2025-01-01" } }));
-      await openPool(c.page);
-      check(await until(c.page, PORTHOLE), "acc: the stage is up with nothing worn");
-      check(await until(c.page, () => document.querySelector(".pet-porthole").getAttribute("data-pet-on") === ""), "acc: nothing is on the stage");
-      await new Promise((r) => setTimeout(r, 800));
-      eq(c.requests.filter((u) => ACC.test(u)), [], "acc: nothing worn fetches no accessory file");
-      await done(c, "acc none");
-      const w = await open(seedPet({ owned: { "acc:party-hat": "2025-01-01" }, wear: { head: "acc:party-hat", at: 5 } }));
-      await openPool(w.page);
-      check(await until(w.page, PORTHOLE), "acc: the stage is up with a hat worn");
-      check(await until(w.page, () => document.querySelector(".pet-porthole").getAttribute("data-pet-on") === "socket_head"), "acc: the stage holds socket_head");
-      eq(await w.page.evaluate(() => document.querySelector(".pet-porthole").getAttribute("data-pet-worn")), "head=acc:party-hat", "acc: the porthole names the hat");
-      eq(w.requests.filter((u) => ACC.test(u)).length, 1, "acc: one request for the hat");
-      check(/\/acc\/party-hat\.glb$/.test(w.requests.filter((u) => ACC.test(u))[0] || ""), "acc: the file is party-hat.glb");
-      await w.page.click('button[data-tab="wardrobe"]');
-      await w.page.click('fieldset[data-slot="head"] button.pet-wear[data-wear="none"]');
-      check(await until(w.page, () => document.querySelector(".pet-porthole").getAttribute("data-pet-on") === ""), "acc: Nothing takes the hat off");
-      eq(await w.page.evaluate(() => document.querySelector(".pet-porthole").getAttribute("data-pet-worn")), "", "acc: the porthole names nothing");
-      eq(w.requests.filter((u) => ACC.test(u)).length, 1, "acc: taking it off requests nothing");
-      await done(w, "acc worn");
     }
     /* 5: memory */
     cases++;
@@ -190,6 +165,32 @@ async function run() {
         check(mb < 50, "memory: the heap grew " + mb.toFixed(1) + " MB, under 50");
       }
       await done(c, "memory");
+    }
+    /* 6: accessories load on wear */
+    cases++;
+    {
+      const ACC = /\/models\/mochi\/acc\//;
+      const c = await open(seedPet({ owned: { "acc:party-hat": "2025-01-01" } }));
+      await openPool(c.page);
+      check(await until(c.page, PORTHOLE), "acc: the stage is up with nothing worn");
+      check(await until(c.page, () => document.querySelector(".pet-porthole").getAttribute("data-pet-on") === ""), "acc: nothing is on the stage");
+      /* a negative wait: it can only false-pass (a late request after 800 ms is missed), it never false-fails */
+      await new Promise((r) => setTimeout(r, 800));
+      eq(c.requests.filter((u) => ACC.test(u)), [], "acc: nothing worn fetches no accessory file");
+      await done(c, "acc none");
+      const w = await open(seedPet({ owned: { "acc:party-hat": "2025-01-01" }, wear: { head: "acc:party-hat", at: 5 } }));
+      await openPool(w.page);
+      check(await until(w.page, PORTHOLE), "acc: the stage is up with a hat worn");
+      check(await until(w.page, () => document.querySelector(".pet-porthole").getAttribute("data-pet-on") === "socket_head"), "acc: the stage holds socket_head");
+      eq(await w.page.evaluate(() => document.querySelector(".pet-porthole").getAttribute("data-pet-worn")), "head=acc:party-hat", "acc: the porthole names the hat");
+      eq(w.requests.filter((u) => ACC.test(u)).length, 1, "acc: one request for the hat");
+      check(/\/acc\/party-hat\.glb$/.test(w.requests.filter((u) => ACC.test(u))[0] || ""), "acc: the file is party-hat.glb");
+      await w.page.click('button[data-tab="wardrobe"]');
+      await w.page.click('fieldset[data-slot="head"] button.pet-wear[data-wear="none"]');
+      check(await until(w.page, () => document.querySelector(".pet-porthole").getAttribute("data-pet-on") === ""), "acc: Nothing takes the hat off");
+      eq(await w.page.evaluate(() => document.querySelector(".pet-porthole").getAttribute("data-pet-worn")), "", "acc: the porthole names nothing");
+      eq(w.requests.filter((u) => ACC.test(u)).length, 1, "acc: taking it off requests nothing");
+      await done(w, "acc worn");
     }
   } finally {
     try { await browser.close(); } catch (e) { console.error("browser close: " + e.message); }
