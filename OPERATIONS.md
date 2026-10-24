@@ -460,6 +460,21 @@ controls and sign in through it for a fresh `oauth` entry; and leave `web3` and 
 
 applied: 2026-10-18 (Claude in Chrome, after #192 deployed; verified: delete_my_account is plpgsql and calls fresh_auth, fresh_auth carries the first-factor list, grants unchanged)
 
+### The pet column (X-2a, then X-2b)
+
+1. Deploy X-2b first. The client tolerates the missing column: `lacks` in `assets/account.js`
+   leaves `pet` out until it exists, so the pool stays in the browser.
+2. The owner applies `supabase/migrations/20261024011814_pet.sql` in Dashboard → SQL → New query and
+   confirms with the Q-columns query that `user_state.pet` is `jsonb`, not nullable, default
+   `'{}'::jsonb`, and that `select key, at from private.once;` is unchanged. The migration
+   replaces `private.fresh_start` so a fresh start clears `pet`; running it twice changes nothing.
+3. Check the live account page still syncs, and that a care act on one signed-in browser appears
+   on another after a reload.
+4. Rollback: leave the column. Nothing deployed is harmed by it. A reset clears `pet` (unlike
+   `diag`).
+
+applied: ____ (date, filled in by the owner)
+
 ### Bumping the consent version (when the statement changes)
 
 The text a parent agrees to for an under-13 learner (`CONSENT_TEXT` in `assets/account.js`) has a

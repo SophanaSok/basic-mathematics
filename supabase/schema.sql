@@ -34,6 +34,7 @@ create table if not exists public.user_state (
   last jsonb,                                    -- bm.last
   game jsonb not null default '{}'::jsonb,       -- bm.game.v1: achievements, medals, Arena review boxes
   diag jsonb not null default '{}'::jsonb,       -- bm.diag.v1: placement-check takes; kept through a reset
+  pet jsonb not null default '{}'::jsonb,        -- bm.pet.v1: Mochi's pool (facets, needs, care, outfit); cleared by a reset
   reset_at bigint not null default 0,            -- ms timestamp of the last deliberate reset
   updated_at timestamptz not null default now()
 );
@@ -45,6 +46,10 @@ alter table public.user_state add column if not exists game jsonb not null defau
 -- columns, a reset (reset_at) does not clear it: only deleting the account does
 -- (docs/decisions/0003-placement-check.md, owner Q1(a)).
 alter table public.user_state add column if not exists diag jsonb not null default '{}'::jsonb;
+-- Added with Mochi's pool (docs/decisions/0015-mochi-pool.md). A project created before it gets
+-- the column here; it must exist on the live project before the site that syncs it (X-2b) is
+-- deployed, or `lacks` in assets/account.js leaves it out. Unlike diag, a reset clears it.
+alter table public.user_state add column if not exists pet jsonb not null default '{}'::jsonb;
 
 -- The Daily board: one row per reader per Arena Daily (the reader's local day, 5 questions).
 -- Scores are reported by the page and only bounds-checked here; nothing in the course hangs
@@ -926,7 +931,7 @@ begin
   delete from public.events e
    where not exists (select 1 from public.user_state s where s.user_id = e.user_id and s.reset_at < 9223372036854775807);
   update public.user_state
-     set progress = '{}', play = '{}', attempts = '{}', activity = '{}', lesson = '{}', last = null, game = '{}',
+     set progress = '{}', play = '{}', attempts = '{}', activity = '{}', lesson = '{}', last = null, game = '{}', pet = '{}',
          updated_at = now(),
          reset_at = greatest(least(reset_at, 9223372036854775806) + 1, (extract(epoch from clock_timestamp()) * 1000)::bigint);   -- least(): a reset_at at the bigint maximum must not overflow
   insert into private.once (key) values (fresh_start.key);
