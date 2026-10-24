@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { bought, LINES, lineFor, placed, removed } from "./lines.ts";
+import { bought, grewLine, LINES, STAGE_NAMES, lineFor, placed, removed } from "./lines.ts";
 
 const now = 1_000_000_000_000;
 const need = (n: number) => ({ n, at: now });
@@ -22,13 +22,22 @@ describe("pool lines", () => {
       noToy: "Mochi needs a toy to play. The shop has some.",
       notEnough: "Not enough facets yet. Learning earns them.",
       behind: "Mochi's facets are catching up after a sync.",
-      full: "Mochi is full for now."
+      full: "Mochi is full for now.",
+      growthHint: "Good days help Mochi grow: learn something and care for the pool."
     });
   });
   it("pins the lines that carry an item name", () => {
     expect(bought("Ball")).toBe("Mochi has a new ball!");
     expect(placed("Castle")).toBe("The castle is in the pool.");
     expect(removed("Castle")).toBe("The castle is put away.");
+  });
+  it("pins the stage names and the growth line", () => {
+    expect(STAGE_NAMES).toEqual({ hatchling: "Hatchling", fry: "Fry", juvenile: "Juvenile", adult: "Adult", elder: "Elder" });
+    expect(grewLine("hatchling")).toBe("Mochi grew into a hatchling!");
+    expect(grewLine("fry")).toBe("Mochi grew into a fry!");
+    expect(grewLine("juvenile")).toBe("Mochi grew into a juvenile!");
+    expect(grewLine("adult")).toBe("Mochi grew into an adult!");
+    expect(grewLine("elder")).toBe("Mochi grew into an elder!");
   });
   it("idle line follows the lowest need, and is glad otherwise", () => {
     expect(lineFor({}, now)).toBe(LINES.glad);

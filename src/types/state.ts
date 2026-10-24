@@ -186,6 +186,8 @@ export interface RunStore {
     ach?: Flag;
     /** the companion's intro line has been shown on a chapter page */
     companion?: number;
+    /** the pool's growth moments already shown, by stage */
+    grew?: Record<string, 1>;
   };
   /** which exercises make up each set of a chapter this device has opened */
   sets: Record<ChapterId, { practice?: ExerciseKey[]; review?: ExerciseKey[]; inline: ExerciseKey[] }>;

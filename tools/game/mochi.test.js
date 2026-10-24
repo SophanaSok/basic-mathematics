@@ -17,7 +17,10 @@
    10. two wrong attempts: sad at once with "Let's look again.", then thinking
    11. throughout: no page errors and no Content Security Policy violations
    12. the porthole's water steps in 3D (the window's background-position changes) and holds under
-       reduced motion */
+       reduced motion
+   13. growth: a stage made from bundle/mochi.js takes setGrowth({ scale: 1.1, morphs: { GrowGills: 1 } }); after a
+       few frames info().growth has the scale and the morph weights, the clip weights stay clips only (no
+       GrowGills among them, today or when B-2 ships the morph), and a mood change keeps the growth */
 "use strict";
 const site = require("../lib/site");
 const target = require("../lib/target");
@@ -258,12 +261,40 @@ async function main() {
       check(x === y, "12: the water holds under reduced motion", [x, y]);
       noErrors(r, "12r");
     }
+    /* 13 */
+    {
+      const c = await open(CHAPTER);
+      check(await threeD(c.page), "13: data-3d");
+      const made = await c.page.evaluate(async () => {
+        const m = await import(new URL(window.BMSite.rootPrefix() + "bundle/mochi.js", location.href).href);
+        const host = document.createElement("div");
+        host.style.cssText = "position:fixed;left:0;top:0;width:128px;height:128px";
+        document.body.appendChild(host);
+        const st = await m.createMochiStage(host, { url: new URL(window.BMSite.rootPrefix() + "models/mochi/mochi-pink.glb", location.href).href, budget: { dpr: 1, antialias: false }, pixelRatio: () => 1, still: () => false });
+        window.__growth = st;
+        st.setGrowth({ scale: 1.1, morphs: { GrowGills: 1 } });
+        return true;
+      }).catch((e) => String(e));
+      check(made === true, "13: a second stage is made and takes setGrowth", made);
+      if (made === true) {
+        check(await until(c.page, () => window.__growth.info().frames >= 3, null, 8000), "13: frames drawn after setGrowth");
+        const g = await c.page.evaluate(() => window.__growth.info());
+        check(g.growth.scale === 1.1 && g.growth.morphs.GrowGills === 1, "13: info().growth has the look", g.growth);
+        check(!("GrowGills" in g.weights), "13: the clip weights hold clips only", g.weights);
+        await c.page.evaluate(() => { window.__growth.setMood("happy"); });
+        await wait(600);
+        const h = await c.page.evaluate(() => window.__growth.info());
+        check(h.growth.scale === 1.1 && h.growth.morphs.GrowGills === 1, "13: a mood change keeps the growth", h.growth);
+        await c.page.evaluate(() => window.__growth.dispose());
+      }
+      noErrors(c, "13");
+    }
   } finally {
     for (const c of contexts) { try { await c.close(); } catch (e) { /* closed already */ } }
     await browser.close();
     await server.close();
   }
-  console.log((fails ? "FAILED" : "ok") + " mochi: 12 cases, " + passes + " checks passed" + (fails ? ", " + fails + " failed" : "") + " in " + Math.round((Date.now() - t0) / 1000) + " s");
+  console.log((fails ? "FAILED" : "ok") + " mochi: 13 cases, " + passes + " checks passed" + (fails ? ", " + fails + " failed" : "") + " in " + Math.round((Date.now() - t0) / 1000) + " s");
   process.exit(fails ? 1 : 0);
 }
 

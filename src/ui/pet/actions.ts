@@ -10,10 +10,11 @@
 import { canAct, applyAct } from "../../learn/pet.ts";
 import type { Act } from "../../learn/pet.ts";
 import type { MochiStage } from "../../mochi/index.ts";
-import { LINES, lineFor } from "./lines.ts";
+import type { Stage } from "../../learn/pet.ts";
+import { LINES, grewLine, lineFor } from "./lines.ts";
 
-/** the clip each act plays on the stage; B-2 swaps in eat / play / splash / nuzzle */
-export const ACT_CLIP = { feed: "happy", play: "excited", clean: "surprised", pet: "happy" } as const;
+/** the clip each act plays on the stage; B-2 swaps in eat / play / splash / nuzzle (and splash for grew) */
+export const ACT_CLIP = { feed: "happy", play: "excited", clean: "surprised", pet: "happy", grew: "excited" } as const;
 
 export interface ActionsCtx {
   /** the live stage, or null while there is none (the still sheet is the picture) */
@@ -26,7 +27,14 @@ export interface ActionsCtx {
   repaint(pet: any, now: number): void;
 }
 
-export interface ActionsHandle { dispose(): void; refresh(pet: any, now: number): void }
+export interface ActionsHandle {
+  dispose(): void;
+  refresh(pet: any, now: number): void;
+  /** Mochi has grown into `stage`: the line says so and the clip plays (no clip under reduced motion or
+      without a stage). `clipOnly` plays the clip alone, for a stage that came up after the line was set.
+      During an act's click the act's own line and clip go first and this follows them. */
+  moment(stage: Stage, clipOnly?: boolean): void;
+}
 
 const LABEL: Record<Act, string> = { feed: "Feed", play: "Play", clean: "Clean" };
 const ORDER: Act[] = ["feed", "play", "clean"];
@@ -61,7 +69,7 @@ export function mountActions(shell: HTMLElement, ctx: ActionsCtx): ActionsHandle
   const lineEl = shell.querySelector(".pet-line") as HTMLElement;
 
   const porthole = shell.querySelector(".pet-porthole") as HTMLElement | null;
-  let lastPet = 0, timer = 0, done = false;
+  let lastPet = 0, timer = 0, done = false, inAct = false, pendingStage: Stage | null = null;
   isStale();
 
   function setLine(text: string, arena?: boolean): void {
@@ -91,6 +99,12 @@ export function mountActions(shell: HTMLElement, ctx: ActionsCtx): ActionsHandle
       if (!done && t) { try { t.setMood("idle"); } catch { /* gone */ } }
     }, CLIP_MS);
   }
+  function moment(stage: Stage, clipOnly?: boolean): void {
+    if (done) return;
+    if (inAct) { pendingStage = stage; return; }
+    if (!clipOnly) setLine(grewLine(stage));
+    clip(ACT_CLIP.grew);
+  }
   const o = (): { toy: boolean } => ({ toy: ctx.shop() });
   function refresh(pet: any, now: number, day: string): void {
     const feed = canAct(pet, "feed", day, now, o()), play = canAct(pet, "play", day, now, o()), clean = canAct(pet, "clean", day, now, o());
@@ -101,6 +115,11 @@ export function mountActions(shell: HTMLElement, ctx: ActionsCtx): ActionsHandle
   }
   ORDER.forEach((a) => btns[a].addEventListener("click", () => {
     if (done || !ctx.alive() || isStale()) return;
+    inAct = true;
+    try { act(a); } finally { inAct = false; }
+    if (pendingStage) { const g = pendingStage; pendingStage = null; moment(g); }
+  }));
+  function act(a: Act): void {
     const day = today(), now = Date.now(), pet = readPet();
     const can = canAct(pet, a, day, now, o());
     if (!can.ok) {
@@ -121,7 +140,7 @@ export function mountActions(shell: HTMLElement, ctx: ActionsCtx): ActionsHandle
     else setLine(LINES.cleaned);
     /* a button that just went away would drop focus to the dialog body: the line takes it */
     if (btns[a].disabled || btns[a].hidden) { try { lineEl.focus({ preventScroll: true }); } catch { lineEl.focus(); } }
-  }));
+  }
 
   const onPet = (): void => {
     if (done || !ctx.alive()) return;
@@ -152,6 +171,7 @@ export function mountActions(shell: HTMLElement, ctx: ActionsCtx): ActionsHandle
 
   return {
     refresh: (pet, now) => refresh(pet, now, today()),
+    moment,
     dispose: () => {
       done = true; window.clearTimeout(timer);
       if (porthole) { porthole.removeEventListener("click", onPet); porthole.removeEventListener("keydown", onKey); porthole.removeAttribute("data-clip"); }

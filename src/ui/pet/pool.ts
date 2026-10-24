@@ -15,9 +15,10 @@
    the stage in the window, their image set from JS (a url() in CSS would be rewritten by the build). */
 import { createMochiStage } from "../../mochi/index.ts";
 import type { MochiStage } from "../../mochi/index.ts";
-import { NEEDS, HEARTS_MAX, heartsOf, balance, placedDecor } from "../../learn/pet.ts";
-import type { Need } from "../../learn/pet.ts";
-import { mountActions } from "./actions.ts";
+import { NEEDS, HEARTS_MAX, heartsOf, balance, placedDecor, growPet, growthPoints, stageOf, STAGE_LOOK } from "../../learn/pet.ts";
+import type { Need, Stage } from "../../learn/pet.ts";
+import { mountActions, isStale } from "./actions.ts";
+import { grewLine } from "./lines.ts";
 import { mountShop } from "./shop.ts";
 import { DECOR_SIZE, itemOf } from "../../data/pet-items.ts";
 import { MOODS } from "../../learn/mood.ts";
@@ -39,6 +40,32 @@ function reducedMotion(): boolean {
 }
 function petStore(): unknown {
   try { return w().BMStore.read(w().BMStore.keys.pet, {}) || {}; } catch { return {}; }
+}
+
+function activityStore(): unknown {
+  try { return w().BMStore.read(w().BMStore.keys.activity, {}) || {}; } catch { return {}; }
+}
+
+/** the growth moments this device has already shown (bm.run.v1.seen.grew) */
+function seenGrew(): Record<string, unknown> {
+  try { const g = w().BMGame.run().seen.grew; return g && typeof g === "object" ? g : {}; } catch { return {}; }
+}
+function markSeen(stages: Stage[]): void {
+  try { w().BMGame.updateRun((r: any) => { const g: Record<string, 1> = { ...(r.seen.grew || {}) }; stages.forEach((s) => { g[s] = 1; }); r.seen.grew = g; }); } catch { /* a note */ }
+}
+function announce(text: string): void {
+  try { w().BMGame.announce(text, { key: "pet-grew" }); } catch { /* no live region */ }
+}
+
+/** Growth, stamped: any stage the care points now reach and `grew` lacks is written (one write, one bus
+    event per stage) unless another tab chose another learner. Returns the record to paint and the stages
+    this call stamped; a refused write stamps nothing. */
+function grow(pet: unknown): { pet: any; fresh: Stage[] } {
+  const g = growPet(pet, activityStore(), Date.now());
+  if (!g.grown.length || isStale()) return { pet, fresh: [] };
+  try { if (w().BMStore.write(w().BMStore.keys.pet, g.pet) === false) return { pet, fresh: [] }; } catch { return { pet, fresh: [] }; }
+  g.grown.forEach((s) => { try { w().BMStore.emit({ type: "pet", what: "grew", id: s }); } catch { /* no bus */ } });
+  return { pet: g.pet, fresh: g.grown };
 }
 
 let uid = 0;
@@ -188,7 +215,8 @@ function startStage(shell: HTMLElement, alive: () => boolean, hold: (s: MochiSta
 
 export function mountPool(host: Element, opts: PoolOptions): PoolHandle {
   const id = "pet-title-" + (++uid);
-  const pet0 = petStore();
+  const g0 = grow(petStore());
+  const pet0 = g0.pet;
   const shell = buildShell(id, pet0);
   let stage: MochiStage | null = null;
   let live = true;
@@ -203,18 +231,48 @@ export function mountPool(host: Element, opts: PoolOptions): PoolHandle {
 
   host.setAttribute("data-pet", "");
   let actions: ReturnType<typeof mountActions> | null = null;
+  const porthole = shell.querySelector(".pet-porthole") as HTMLElement;
+  /* the stage's look follows the stage Mochi is at: the attribute always, the figure once it is up */
+  let shownStage: Stage | null = null, lastPet: any = pet0, momentStage: Stage | null = null;
+  const applyLook = (pet: any, force?: boolean): void => {
+    const st = stageOf(growthPoints(pet, activityStore()), pet && pet.grew);
+    if (!force && st === shownStage) return;
+    shownStage = st;
+    porthole.setAttribute("data-pet-stage", st);
+    if (stage) {
+      try { stage.setGrowth(STAGE_LOOK[st]); porthole.setAttribute("data-pet-scale", String(stage.info().growth.scale)); } catch { /* gone */ }
+    } else porthole.removeAttribute("data-pet-scale");
+  };
+  /* the one-time moment: only for a stage stamped just now that this device has not shown */
+  const onGrown = (fresh: Stage[]): void => {
+    const seen = seenGrew(), unseen = fresh.filter((s) => seen[s] !== 1);
+    if (!unseen.length || !actions) return;
+    const top = unseen[unseen.length - 1];
+    markSeen(unseen);
+    momentStage = stage ? null : top;
+    actions.moment(top);
+    announce(grewLine(top));
+  };
   /* one repaint for every writer: hearts, facets, decor and the buttons that depend on them */
   const repaint = (pet: any, now: number): void => {
+    const g = grow(pet);
+    pet = g.pet;
+    lastPet = pet;
+    applyLook(pet);
     paintHearts(shell, pet, now);
     paintFacets(shell, pet);
     paintDecor(shell, pet);
     if (actions) actions.refresh(pet, now);
+    if (g.fresh.length) onGrown(g.fresh);
   };
   actions = mountActions(shell, { stage: () => stage, alive: () => live, reduced: reducedMotion, shop: shopWanted, repaint });
   /* a sync or a write from another tab can change the balance under an open dialog */
   current = () => { if (!live) return; const pet = petStore(), now = Date.now(); repaint(pet, now); if (shop) shop.refresh(pet, now); };
   listen();
+  applyLook(pet0, true);
   const shop = shopWanted() ? mountShop(shell, { alive: () => live, repaint }) : null;
+  /* after the shop's mount, which sets the pool tab's idle line */
+  onGrown(g0.fresh);
 
   /* the one way out: idempotent; the dialog's close event, Close, close() and dispose() all end here */
   function finish(): void {
@@ -262,6 +320,15 @@ export function mountPool(host: Element, opts: PoolOptions): PoolHandle {
     host.appendChild(shell);
   }
 
-  startStage(shell, () => live, (s) => { if (s && !live) { try { s.dispose(); } catch { /* gone */ } return; } stage = s; });
+  startStage(shell, () => live, (s) => {
+    if (s && !live) { try { s.dispose(); } catch { /* gone */ } return; }
+    stage = s;
+    if (s) {
+      applyLook(lastPet, true);
+      /* the stage came up after the moment began: the clip plays now, the line is already set */
+      if (momentStage && actions) { actions.moment(momentStage, true); }
+      momentStage = null;
+    } else applyLook(lastPet, true);
+  });
   return { close: finish, dispose };
 }
