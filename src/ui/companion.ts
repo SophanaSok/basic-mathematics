@@ -27,12 +27,13 @@
        timer, set from nextIdleAt, no polling. An answer within FAST_MS of the field's focus
        is a surprise (the attempt carries elapsedMs).
      - On a phone-sized screen the sprite steps aside while an exercise field has focus.
+   The stage wears the pool's accessories (worn ids from wornAcc, files by the generator's name rule models/mochi/acc/<name>.glb).
    Writes only run.seen.companion and run.seen.lowSaid (the day each low caption was said). window.BMCompanion is a test handle. */
 
 import { arrival, react, introLine, idleMood, lowArrival, nextIdleAt, wake, MOODS, HOLD_MS, canSay, said, noteVerdict, EMPTY_MEMORY, EMPTY_THROTTLE } from "../learn/mood.ts";
 import type { Low, Mood, MoodInput, MoodMemory, Throttle, Reaction, Recent, Step } from "../learn/mood.ts";
 import { dueSplit } from "../learn/review.ts";
-import { lowNeed } from "../learn/pet.ts";
+import { lowNeed, wornAcc, WEAR_SLOTS } from "../learn/pet.ts";
 import { ARENA_SECTIONS } from "../data/arena-sections.ts";
 import { detectTier, readProbe, pixelRatio, TIERS } from "../world/tiers.ts";
 import type { MochiStage } from "../mochi/index.ts";
@@ -63,6 +64,7 @@ let stageGen = 0;
 let no3d = false;
 let why3d = "";
 let lastSent = "";
+let wornDrawn: Record<string, string> = {};   /* what was last asked of each socket ("" = nothing); cleared with the stage */
 let stillTimer = 0;
 let current: Reaction | null = null;
 let pending: Reaction | null = null;
@@ -219,12 +221,36 @@ function glbUrl(v: string): string {
   return root + "models/mochi/mochi-" + v + ".glb";   /* src/data/mochi-model.ts's file name, spelled as sheetUrl() spells the sheet's */
 }
 
+/** an accessory's file by the generator's rule (an id that passed wornAcc, so a fixed table's key, never a hostile name) */
+function accUrl(id: string): string {
+  let root = "";
+  try { root = String(w().BMSite.rootPrefix()); } catch { /* no helper */ }
+  return root + "models/mochi/acc/" + id.slice(4) + ".glb";
+}
+
+/** the stage's sockets again from the pet record (nothing worn while the pool is off); a socket is touched only when
+    what is asked of it differs from what was last asked, so nothing is fetched while nothing is worn */
+function wearOnCompanion(): void {
+  if (!stage || !stageReady) return;
+  const s = stage;
+  let worn: Record<string, string | undefined> = {};
+  if (poolWanted()) {
+    try { const S = w().BMStore; worn = wornAcc(S.read(S.keys.pet, {})) as Record<string, string | undefined>; } catch { worn = {}; }
+  }
+  WEAR_SLOTS.forEach((slot) => {
+    const id = worn[slot] || "";
+    if (wornDrawn[slot] === id) return;
+    wornDrawn[slot] = id;
+    try { void s.attach("socket_" + slot, id ? accUrl(id) : null).catch(() => false); } catch { /* gone */ }
+  });
+}
+
 /** ends the 3D stage and its notifications; the still is drawn again by the caller if it is wanted */
 function drop3d(): void {
   stageGen++;
   window.clearTimeout(stillTimer); stillTimer = 0;
   const s = stage;
-  stage = null; stageReady = false; lastSent = "";
+  stage = null; stageReady = false; lastSent = ""; wornDrawn = {};
   if (fig) fig.removeAttribute("data-3d");
   if (s) { try { s.dispose(); } catch { /* gone */ } }
   /* the water goes back to its first frame, as it is in 2D */
@@ -266,6 +292,7 @@ function maybe3d(): void {
       if (!live()) { try { st.dispose(); } catch { /* gone */ } return; }
       stage = st; stageReady = true; why3d = ""; lastSent = mood;
       try { st.setMood(mood); } catch { /* the still stays */ }
+      wornDrawn = {}; wearOnCompanion();
       figure.setAttribute("data-3d", "");
       stillTimer = window.setTimeout(() => { stillTimer = 0; if (live() && stageReady) stillEl.style.backgroundImage = "none"; }, 450);
     }, (e) => { fail(e && e.message ? String(e.message) : "failed"); });
@@ -448,7 +475,7 @@ function onChange(c: any): void {
   if (c.type === "prefs") { evaluate(); return; }
   /* another state altogether: the mood is derived again from it (the intro stays seen) */
   if (c.type === "reset" || c.type === "sync") { if (fig) unbuild(); evaluate(); return; }
-  if (c.type === "pet") { refreshLow(); if (fig && !playing) applyIdle(); }
+  if (c.type === "pet") { wearOnCompanion(); refreshLow(); if (fig && !playing) applyIdle(); }
   if (!fig) return;
   /* a nudge never arrives after the learner has answered */
   if ((c.type === "solved" || (c.type === "attempt" && c.correct)) && pending && pending.key === "stuck") pending = null;
