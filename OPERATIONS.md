@@ -468,7 +468,12 @@ columns it names, so an extra column is never read or overwritten, and X-2b leav
 browser until the server can hold it, which is the plan's order (0015), not rule 4 of
 `supabase/migrations/README.md`.
 
-1. Deploy X-2b first.
+1. Deploy X-2b first, at a quiet hour and never in the same deploy as a pet writer (X-3b or
+   later). A tab loaded before X-2b builds its key list from the old `site.js`, so it does not
+   clear `bm.pet.v1` at sign-out, at a learner switch or on a reset seen from another device;
+   until old tabs reload, the next reader on that browser would merge a pet left behind as their
+   own. X-2b itself writes no pet (only the reset's `{}`), so the window closes once old tabs are
+   gone, before X-3b ships.
 2. Before applying, take a reading: `select key, at from private.once;` (the keys spent so far).
 3. The owner applies `supabase/migrations/20261024011814_pet.sql` in Dashboard → SQL → New query,
    then runs it a second time: the second run changes nothing (a NOTICE that the column exists is
@@ -485,6 +490,10 @@ browser until the server can hold it, which is the plan's order (0015), not rule
    care act in the pool can only be tried once X-6 ships.) A reset on the account page then
    empties it: the same query shows `{}`.
 5. Rollback: leave the column and the replaced function; nothing deployed is harmed by either.
+6. Apply the migration before X-3b deploys. While the column is missing, the client leaves `pet`
+   out of its writes and treats a sign-out or learner switch as saved, then clears the local pet,
+   so a pet that never reached the server is gone. Nothing writes a pet until X-3b, so the gap
+   is harmless only until then.
 
 applied: ____ (date, filled in by the owner)
 
