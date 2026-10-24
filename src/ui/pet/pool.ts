@@ -12,14 +12,16 @@
    one (WebGL, a tier above "list", not Study mode, no forced colors); otherwise, or when it fails, the pose
    sheet's still is the picture. Reads bm.pet.v1 and prefs; the care row (./actions.ts) and the shop (./shop.ts) are the only writers.
    Decor Mochi has out (wear.decor, owned decor only) is drawn as span.companion-decor[data-decor] layers under
-   the stage in the window, their image set from JS (a url() in CSS would be rewritten by the build). */
+   the stage in the window, their image set from JS (a url() in CSS would be rewritten by the build).
+   Accessories Mochi wears (wear.head/back/tail, owned ones only, X-7b-b) hang on the stage's sockets: see wearOnStage. */
 import { createMochiStage } from "../../mochi/index.ts";
 import type { MochiStage } from "../../mochi/index.ts";
-import { NEEDS, HEARTS_MAX, heartsOf, balance, placedDecor, growPet, growthPoints, stageOf, STAGE_LOOK } from "../../learn/pet.ts";
+import { NEEDS, HEARTS_MAX, heartsOf, balance, placedDecor, wornAcc, WEAR_SLOTS, slotOfSocket, growPet, growthPoints, stageOf, STAGE_LOOK } from "../../learn/pet.ts";
 import type { Need, Stage } from "../../learn/pet.ts";
 import { mountActions, isStale } from "./actions.ts";
 import { grewLine, lineFor } from "./lines.ts";
 import { mountShop } from "./shop.ts";
+import { mountWardrobe } from "./wardrobe.ts";
 import { mountGrowth } from "./growth.ts";
 import { mountTabs } from "./tabs.ts";
 import { DECOR_SIZE, itemOf } from "../../data/pet-items.ts";
@@ -143,6 +145,29 @@ function paintDecor(shell: HTMLElement, pet: any): void {
   });
 }
 
+/** the accessories worn as one "slot=id" string per slot, in slot order (empty when none), the porthole's
+    data-pet-worn and the key that says whether the stage needs touching */
+function wornKey(pet: any): string {
+  const worn = wornAcc(pet) as Record<string, string | undefined>;
+  return WEAR_SLOTS.filter((s) => worn[s]).map((s) => s + "=" + worn[s]).join(",");
+}
+/** the stage's three sockets again from this record: each slot's accessory (its socket and file from the
+    catalogue, never from the record) or null. `drawn` is what was last asked of each slot ("" for nothing,
+    absent for never asked): only a slot that differs is touched, so nothing is fetched while nothing is
+    worn and a slot already drawn is not reloaded. `settled` runs after each attach call finishes. */
+function wearOnStage(stage: MochiStage, pet: any, drawn: Record<string, string>, settled: () => void): void {
+  const worn = wornAcc(pet) as Record<string, string | undefined>;
+  WEAR_SLOTS.forEach((slot) => {
+    const id = worn[slot] || "";
+    if (drawn[slot] === id) return;
+    drawn[slot] = id;
+    const item = id ? itemOf(id) : undefined;
+    const socket = item && item.kind === "acc" && item.file && slotOfSocket(item.socket) === slot ? item.socket : undefined;
+    if (item && socket) void stage.attach(socket, root() + item.file).catch(() => false).then(settled);
+    else void stage.attach("socket_" + slot, null).catch(() => false).then(settled);
+  });
+}
+
 /** the shell's markup: title, tabs, the pool panel (porthole, line, hearts, facets) and the shop panel */
 function buildShell(titleId: string, pet: any): HTMLElement {
   const now = Date.now();
@@ -241,6 +266,22 @@ export function mountPool(host: Element, opts: PoolOptions): PoolHandle {
   const porthole = shell.querySelector(".pet-porthole") as HTMLElement;
   /* the stage's look follows the stage Mochi is at: the attribute always, the figure once it is up */
   let shownStage: Stage | null = null, lastPet: any = pet0, momentStage: Stage | null = null;
+  /* the accessories: the porthole names what is worn; the stage is touched only when that changed, or when it came up */
+  let shownWorn: string | null = null;
+  const drawn: Record<string, string> = {};
+  const applyWorn = (pet: any, force?: boolean): void => {
+    const key = wornKey(pet);
+    if (force || key !== shownWorn) {
+      shownWorn = key;
+      porthole.setAttribute("data-pet-worn", key);
+      if (stage) {
+        const s = stage;
+        /* data-pet-on names the sockets the stage really holds, read once per settled attach (never per frame) */
+        const settled = (): void => { if (live && stage === s) { try { porthole.setAttribute("data-pet-on", Object.keys(s.info().worn).join(",")); } catch { /* gone */ } } };
+        try { wearOnStage(s, pet, drawn, settled); } catch { /* gone */ }
+      }
+    }
+  };
   const applyLook = (pet: any, force?: boolean): void => {
     const st = stageOf(growthPoints(pet, activityStore()), pet && pet.grew);
     if (!force && st === shownStage) return;
@@ -266,6 +307,7 @@ export function mountPool(host: Element, opts: PoolOptions): PoolHandle {
     pet = g.pet;
     lastPet = pet;
     applyLook(pet);
+    applyWorn(pet);
     paintHearts(shell, pet, now);
     paintFacets(shell, pet);
     paintDecor(shell, pet);
@@ -274,7 +316,8 @@ export function mountPool(host: Element, opts: PoolOptions): PoolHandle {
   };
   actions = mountActions(shell, { stage: () => stage, alive: () => live, reduced: reducedMotion, shop: shopWanted, repaint });
   applyLook(pet0, true);
-  /* the tabs: Pool first (its first show sets the idle line), the shop when wanted, then Growth */
+  applyWorn(pet0, true);
+  /* the tabs: Pool first (its first show sets the idle line), the shop when wanted, the Wardrobe, then Growth */
   const tabs = mountTabs(shell, id);
   tabs.add("pool", "Pool", shell.querySelector('.pet-panel[data-panel="pool"]') as HTMLElement, () => {
     const l = shell.querySelector('.pet-panel[data-panel="pool"] .pet-line');
@@ -282,10 +325,11 @@ export function mountPool(host: Element, opts: PoolOptions): PoolHandle {
     repaint(petStore(), Date.now());
   });
   const shop = shopWanted() ? mountShop(shell, { alive: () => live, repaint }, tabs) : null;
+  const wardrobe = mountWardrobe(shell, { alive: () => live, shop: shopWanted(), repaint }, tabs);
   const growth = mountGrowth(shell, { alive: () => live, repaint }, tabs);
   /* a sync or a write from another tab can change the balance under an open dialog; assigned once every
      handle it touches exists, and cleared only if it is still this pool's */
-  const mine = (): void => { if (!live) return; const pet = petStore(), now = Date.now(); repaint(pet, now); if (shop) shop.refresh(pet, now); growth.refresh(pet, now); };
+  const mine = (): void => { if (!live) return; const pet = petStore(), now = Date.now(); repaint(pet, now); if (shop) shop.refresh(pet, now); if (wardrobe) wardrobe.refresh(pet, now); growth.refresh(pet, now); };
   hooks.add(mine);
   listen();
   /* after the tabs' mount, which sets the pool tab's idle line */
@@ -298,6 +342,7 @@ export function mountPool(host: Element, opts: PoolOptions): PoolHandle {
     hooks.delete(mine);
     if (actions) actions.dispose();
     if (shop) shop.dispose();
+    if (wardrobe) wardrobe.dispose();
     growth.dispose();
     if (stage) { try { stage.dispose(); } catch { /* gone */ } stage = null; }
     host.removeAttribute("data-pet");
@@ -345,6 +390,8 @@ export function mountPool(host: Element, opts: PoolOptions): PoolHandle {
     stage = s;
     if (s) {
       applyLook(lastPet, true);
+      for (const k of Object.keys(drawn)) delete drawn[k];
+      applyWorn(lastPet, true);
       /* the stage came up after the moment began: the clip plays now, the line is already set */
       if (momentStage && actions) { actions.moment(momentStage, true); }
       momentStage = null;

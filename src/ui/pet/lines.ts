@@ -20,6 +20,8 @@ export const LINES = {
   notEnough: "Not enough facets yet. Learning earns them.",
   behind: "Mochi's facets are catching up after a sync.",
   full: "Mochi is full for now.",
+  wardrobeEmpty: "Nothing to wear yet. The shop has hats and more.",
+  tookOff: "Mochi took it off.",
   growthHint: "Good days help Mochi grow: learn something and care for the pool."
 } as const;
 
@@ -34,6 +36,7 @@ export const grewLine = (stage: Stage): string => {
 
 /** the shop's lines that carry an item's name (lower case inside a sentence) */
 export const bought = (name: string): string => "Mochi has a new " + name.toLowerCase() + "!";
+export const wore = (name: string): string => "Mochi is wearing the " + name.toLowerCase() + ".";
 export const placed = (name: string): string => "The " + name.toLowerCase() + " is in the pool.";
 export const removed = (name: string): string => "The " + name.toLowerCase() + " is put away.";
 

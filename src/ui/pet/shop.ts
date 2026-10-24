@@ -7,7 +7,8 @@
    decor), "care" (a snack fed) or "wear" (decor placed or put away), id: "<item id>" }. The helper refuses a
    second one-time buy, a buy at a negative balance (after a merge: nothing is revoked, learning earns it back)
    and a snack at a full Tummy, so a replayed click spends again only when the fresh balance allows it. After a
-   `stale` bus event (isStale()) nothing is written. Accessories wait for the Blender cards (X-7b). */
+   `stale` bus event (isStale()) nothing is written. An accessory is bought like a toy (once, through `buy`); wearing
+   it is the Wardrobe tab's (./wardrobe.ts). */
 import { balance, buy, canBuy, feedSnack, HEARTS_MAX, heartsOf, placeDecor, placedDecor, snackFits } from "../../learn/pet.ts";
 import { PET_ITEMS } from "../../data/pet-items.ts";
 import type { PetItem } from "../../data/pet-items.ts";
@@ -23,7 +24,8 @@ export interface ShopCtx {
 export interface ShopHandle { dispose(): void; /** repaint the buttons from this record (a sync or another tab changed it) */ refresh(pet: any, now: number): void }
 
 const GROUPS: { kind: PetItem["kind"]; title: string }[] = [
-  { kind: "snack", title: "Snacks" }, { kind: "toy", title: "Toys" }, { kind: "decor", title: "Decor" }
+  { kind: "snack", title: "Snacks" }, { kind: "toy", title: "Toys" }, { kind: "decor", title: "Decor" },
+  { kind: "acc", title: "Accessories" }
 ];
 const CHEAPEST = Math.min(...PET_ITEMS.map((i) => i.price));
 
@@ -111,7 +113,7 @@ export function mountShop(shell: HTMLElement, ctx: ShopCtx, tabs: TabsHandle): S
     const room = HEARTS_MAX - heartsOf("tummy", pet && pet.needs ? pet.needs.tummy : undefined, now);
     PET_ITEMS.forEach((item) => {
       const r = rows[item.id];
-      if (!r) return;   /* a kind with no group here (accessories until the wardrobe ships) */
+      if (!r) return;   /* a kind with no group here (every kind has one now; a future kind may not) */
       const has = item.kind !== "snack" && typeof owned[item.id] === "string";
       if (r.act) {
         r.act.hidden = has;

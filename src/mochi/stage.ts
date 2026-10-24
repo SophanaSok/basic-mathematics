@@ -201,6 +201,7 @@ export function createStage(T: any, host: HTMLElement, avatar: Avatar, opts: Moc
     info(): MochiInfo {
       return { state: disposed ? "disposed" : "ready", frames, paused: paused() || !onscreen, ...avatar.stats() };
     },
+    boxes() { return avatar.boxes(); },
     wake() { request(); },
     dispose,
   };

@@ -18,7 +18,7 @@
   11. acts earn nothing (the facets line stays) and the pet bus events are "gift" then "care"
   12. reduced motion: acts still write and the line changes, and the 2D porthole carries no data-clip (the clips are pet3d.test.js case 2)
   Play needs a toy: cases 8, 11 and 12 seed one, and a click without one only says so (aria-disabled, nothing written).
-  13. shop tab: eleven items with prices; Buy on toy:ball writes one buy: id worth 25, "You have 75 facets.", the
+  13. shop tab: seventeen items with prices; Buy on toy:ball writes one buy: id worth 25, "You have 75 facets.", the
       toy shows Owned, Play is enabled
   14. refusals: at 10 facets Buy on toy:boat is disabled; at a negative balance every Buy is disabled and the line
       says the facets are catching up
@@ -49,7 +49,14 @@
       absent with pet "off"
   32. a Feed click in the inline pool writes bm.pet.v1 as the dialog does, and the line changes
   33. two pools (the page-level hooks are a set): both facets lines repaint after one write
-  34. no page errors in any case */
+  34. no page errors in any case
+  35. accessories (X-7b-b): the shop lists six accessory rows; Buy on acc:flower (35) writes owned and a buy: spend of 35, the
+      row shows Owned, the line is "Mochi has a new flower!", and a second Buy is not offered
+  36. wardrobe: with acc:flower and acc:bell owned the tab lists Head (Nothing, Flower), Back (Nothing) and Tail (Nothing, Bell);
+      Flower writes wear.head with a stamp, moves aria-checked, sets data-pet-worn and says "Mochi is wearing the flower.";
+      Nothing clears it and says "Mochi took it off."; the 2D page requests no /models/mochi/acc/ file
+  37. wardrobe with nothing owned: the empty line and no fieldset
+  38. wardrobe after a stale event: a click writes nothing and the line says the facets are catching up */
 "use strict";
 const site = require("../lib/site");
 const target = require("../lib/target");
@@ -318,10 +325,10 @@ async function run() {
         groups: Array.from(document.querySelectorAll(".pet-panel[data-panel=shop] h3")).map((h) => h.textContent),
         items: Array.from(document.querySelectorAll("li.pet-item")).map((li) => li.getAttribute("data-item") + "=" + li.querySelector(".pet-item-price").textContent)
       }));
-      eq(d.tabs, ["Pool:false", "Shop:true", "Growth:false"], "shop: the tabs");
-      eq(d.panels, ["pool:true", "shop:false", "growth:true"], "shop: the panels");
-      eq(d.groups, ["Snacks", "Toys", "Decor"], "shop: the groups");
-      eq(d.items.length, 11, "shop: eleven items");
+      eq(d.tabs, ["Pool:false", "Shop:true", "Wardrobe:false", "Growth:false"], "shop: the tabs");
+      eq(d.panels, ["pool:true", "shop:false", "wardrobe:true", "growth:true"], "shop: the panels");
+      eq(d.groups, ["Snacks", "Toys", "Decor", "Accessories"], "shop: the groups");
+      eq(d.items.length, 17, "shop: seventeen items");
       eq(d.items.slice(0, 4), ["snack:kelp-chip=5 facets", "snack:shrimp-puff=8 facets", "snack:berry-bite=12 facets", "toy:ball=25 facets"], "shop: the first prices");
       eq(await itemState(c.page, "toy:ball"), { btn: "enabled", owned: false }, "shop: Buy is enabled at 100");
       check(await c.page.evaluate(() => document.querySelector('button[data-act="play"]').getAttribute("aria-disabled") === "true"), "shop: Play is unavailable without a toy");
@@ -365,7 +372,7 @@ async function run() {
       const c = await open(seedPet({ earned: { "strong:a": 1 }, spent: { "buy:2025-01-01:toy:ring:dev00001:1": 50 } }));
       await openShop(c.page);
       const all = await c.page.evaluate(() => Array.from(document.querySelectorAll("li.pet-item button")).filter((b) => !b.hidden).map((b) => b.disabled));
-      check(all.length === 11 && all.every((x) => x), "negative: every button is disabled");
+      check(all.length === 17 && all.every((x) => x), "negative: every button is disabled");
       eq(await shopLine(c.page), "Mochi's facets are catching up after a sync.", "negative: the line");
       eq(await c.page.evaluate(() => document.querySelector(".pet-facets").textContent), "You have 0 facets.", "negative: shown as 0, never below");
       await done(c, "negative");
@@ -574,7 +581,7 @@ async function run() {
       const tabsOf = (page) => page.evaluate(() => ({ strip: !document.querySelector(".pet-tabs").hidden, tabs: Array.from(document.querySelectorAll(".pet-tabs [role=tab]")).map((b) => b.getAttribute("data-tab")) }));
       const on = await open(seedPet({ v: 1 }));
       await openPool(on.page);
-      eq(await tabsOf(on.page), { strip: true, tabs: ["pool", "shop", "growth"] }, "tabs: shop on shows three");
+      eq(await tabsOf(on.page), { strip: true, tabs: ["pool", "shop", "wardrobe", "growth"] }, "tabs: shop on shows four");
       await done(on, "tabs on");
       const off = await open(seedPet({ v: 1 }));
       await off.page.evaluate(() => { window.BM_CONFIG = Object.assign({}, window.BM_CONFIG, { shop: "off" }); });
@@ -601,7 +608,7 @@ async function run() {
         const p = document.getElementById(t.getAttribute("aria-controls"));
         return [p.getAttribute("role"), p.getAttribute("aria-labelledby") === t.id, t.getAttribute("aria-selected"), t.tabIndex, p.hidden];
       }));
-      eq(d, [["tabpanel", true, "true", 0, false], ["tabpanel", true, "false", -1, true], ["tabpanel", true, "false", -1, true]], "tab keys: roles, labels and the roving tabindex");
+      eq(d, [["tabpanel", true, "true", 0, false], ["tabpanel", true, "false", -1, true], ["tabpanel", true, "false", -1, true], ["tabpanel", true, "false", -1, true]], "tab keys: roles, labels and the roving tabindex");
       await done(c, "tab keys");
     }
     /* 26: T7 in the calendar */
@@ -745,6 +752,79 @@ async function run() {
       await c.page.evaluate(() => { const r = JSON.parse(localStorage.getItem("bm.pet.v1")); r.earned = { "strong:a": 1, "strong:b": 1 }; window.BMStore.write(window.BMStore.keys.pet, r); window.BMStore.emit({ type: "pet", what: "sync" }); });
       check(await until(c.page, () => /You have 40 facets/.test(document.querySelector("#mochi .pet-facets").textContent)), "two pools: the first still repaints after the second is gone");
       await done(c, "two pools");
+    }
+    /* 35: accessories in the shop */
+    cases++;
+    {
+      const c = await open(seedPet({ earned: FIVE }));
+      await openShop(c.page);
+      eq(await c.page.evaluate(() => Array.from(document.querySelectorAll('.pet-panel[data-panel=shop] li.pet-item[data-item^="acc:"]')).map((li) => li.getAttribute("data-item") + "=" + li.querySelector(".pet-item-price").textContent)),
+        ["acc:party-hat=50 facets", "acc:crown=90 facets", "acc:flower=35 facets", "acc:backpack=60 facets", "acc:ribbon=30 facets", "acc:bell=45 facets"], "acc shop: six rows with prices");
+      await busLog(c.page);
+      await c.page.click('li[data-item="acc:flower"] button[data-shop="buy"]');
+      const rec = JSON.parse(await stored(c.page)), day = await today(c.page);
+      const ids = Object.keys(rec.spent);
+      eq(ids.length, 1, "acc shop: one spend");
+      check(/^buy:\d{4}-\d{2}-\d{2}:acc:flower:[0-9a-z]{8}:1$/.test(ids[0]) && rec.spent[ids[0]] === 35, "acc shop: a buy: spend of 35 (" + ids[0] + ")");
+      eq(rec.owned["acc:flower"], day, "acc shop: owned from today");
+      eq(await itemState(c.page, "acc:flower"), { btn: "hidden", owned: true }, "acc shop: the row shows Owned and no second Buy");
+      eq(await shopLine(c.page), "Mochi has a new flower!", "acc shop: the line");
+      eq(await c.page.evaluate(() => document.querySelectorAll('li[data-item="acc:flower"] button[data-shop="place"]').length), 0, "acc shop: no Place button");
+      eq(await c.page.evaluate(() => window.__pet), ["buy:acc:flower"], "acc shop: one buy event");
+      await done(c, "acc shop");
+    }
+    /* 36: the wardrobe */
+    cases++;
+    {
+      const c = await open(seedPet({ earned: FIVE, owned: { "acc:flower": "2025-01-01", "acc:bell": "2025-01-01" } }));
+      await openPool(c.page);
+      await c.page.click('button[data-tab="wardrobe"]');
+      const slots = () => c.page.evaluate(() => Array.from(document.querySelectorAll("fieldset.pet-slot")).map((f) => f.getAttribute("data-slot") + ":" + f.querySelector("legend").textContent + ":" +
+        Array.from(f.querySelectorAll('button.pet-wear[role="radio"]')).map((b) => b.getAttribute("data-wear") + "=" + b.textContent + "/" + b.getAttribute("aria-checked")).join(",")));
+      eq(await slots(), ["head:Head:none=Nothing/true,acc:flower=Flower/false", "back:Back:none=Nothing/true", "tail:Tail:none=Nothing/true,acc:bell=Bell/false"], "wardrobe: the slots and chips");
+      eq(await c.page.evaluate(() => document.querySelector(".pet-porthole").getAttribute("data-pet-worn")), "", "wardrobe: nothing worn at first");
+      await busLog(c.page);
+      await c.page.click('button.pet-wear[data-wear="acc:flower"]');
+      const rec = JSON.parse(await stored(c.page));
+      eq(rec.wear.head, "acc:flower", "wardrobe: wear.head is written");
+      check(typeof rec.wear.at === "number" && rec.wear.at > 1, "wardrobe: wear.at is stamped");
+      eq((await slots())[0], "head:Head:none=Nothing/false,acc:flower=Flower/true", "wardrobe: aria-checked moves");
+      eq(await c.page.evaluate(() => document.querySelector(".pet-porthole").getAttribute("data-pet-worn")), "head=acc:flower", "wardrobe: the porthole names what is worn");
+      eq(await c.page.evaluate(() => document.querySelector("[data-wardrobe-line]").textContent), "Mochi is wearing the flower.", "wardrobe: the wear line");
+      await c.page.click('button.pet-wear[data-wear="acc:bell"]');
+      eq(await c.page.evaluate(() => document.querySelector(".pet-porthole").getAttribute("data-pet-worn")), "head=acc:flower,tail=acc:bell", "wardrobe: two slots, in slot order");
+      const at1 = JSON.parse(await stored(c.page)).wear.at;
+      await c.page.click('fieldset[data-slot="head"] button.pet-wear[data-wear="none"]');
+      const off = JSON.parse(await stored(c.page));
+      check(off.wear.head === undefined && off.wear.tail === "acc:bell" && off.wear.at >= at1, "wardrobe: Nothing clears the head and keeps the tail");
+      eq(await c.page.evaluate(() => document.querySelector("[data-wardrobe-line]").textContent), "Mochi took it off.", "wardrobe: the took-off line");
+      eq(await c.page.evaluate(() => document.querySelector(".pet-porthole").getAttribute("data-pet-worn")), "tail=acc:bell", "wardrobe: the porthole follows");
+      eq(await c.page.evaluate(() => window.__pet), ["wear:acc:flower", "wear:acc:bell", "wear:none"], "wardrobe: the bus events");
+      eq(c.requests.filter((u) => /\/models\/mochi\/acc\//.test(u)), [], "wardrobe: a 2D page requests no accessory file");
+      await done(c, "wardrobe");
+    }
+    /* 37: nothing to wear */
+    cases++;
+    {
+      const c = await open(seedPet({ earned: FIVE }));
+      await openPool(c.page);
+      await c.page.click('button[data-tab="wardrobe"]');
+      const d = await c.page.evaluate(() => ({ fieldsets: document.querySelectorAll(".pet-panel[data-panel=wardrobe] fieldset").length, text: document.querySelector(".pet-wardrobe-empty").textContent, shown: !document.querySelector(".pet-wardrobe-empty").hidden }));
+      eq(d, { fieldsets: 0, text: "Nothing to wear yet. The shop has hats and more.", shown: true }, "wardrobe empty: the line and no fieldset");
+      await done(c, "wardrobe empty");
+    }
+    /* 38: stale */
+    cases++;
+    {
+      const c = await open(seedPet({ earned: FIVE, owned: { "acc:flower": "2025-01-01" } }));
+      await openPool(c.page);
+      await c.page.click('button[data-tab="wardrobe"]');
+      await c.page.evaluate(() => window.BMStore.emit({ type: "stale" }));
+      const before = await stored(c.page);
+      await c.page.click('button.pet-wear[data-wear="acc:flower"]');
+      eq(await stored(c.page), before, "wardrobe stale: nothing is written");
+      eq(await c.page.evaluate(() => document.querySelector("[data-wardrobe-line]").textContent), "Mochi's facets are catching up after a sync.", "wardrobe stale: the line");
+      await done(c, "wardrobe stale");
     }
   } finally {
     try { await browser.close(); } catch (e) { console.error("browser close: " + e.message); }
