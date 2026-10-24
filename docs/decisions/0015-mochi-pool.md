@@ -136,6 +136,15 @@ client that tolerates its absence is deployed.
 
 B-1 shipped 2026-10-24: 16 clips, 36 morphs, 3 sockets, 6 accessories (`public/models/mochi/acc/`, 3.7 to 7.6 KB each); the packed GLB is 1.17 MB a colourway (the plan's 1.11 MB estimate; four sampled clips and three more weights per frame account for the rest), 283 KB under `MOCHI_BYTES_MAX`, and the whole download 1.27 MB against 1.6 MB.
 
+Shipped 2026-10-24: every card above is merged (R-1a to R-2, X-1 to X-12, X-3b, X-7b-a `acc-attach`, X-7b-b
+`wardrobe`, X-10 `learning-hooks`, and the follow-up X-7c `companion-wears`: the sidebar companion wears what the pool
+wears, found in the real-Chrome pass). The `pet` column and the `fresh_start` change are applied live. The Chrome pass
+on a built tree covered open, focus, the four acts and their clips, a buy, a wear on the head socket, Escape and no
+console errors. Two interactions were accepted as they are and are the owner's to revisit: Arena runs and the pool's
+Play button share the day's play count, so three runs use up the button's three-a-day cap; and a Tummy that drifted to
+its floor reads low until fed, so "Mochi could use a snack." comes once a day for as long as the pool is left, and the
+Spark caption waits behind it. Smaller items left by choice are in the plan file.
+
 Proof of T5 (X-11): `src/learn/pet.test.ts`, "a year of play stays small", builds 365 days (a pellet, a
 play, a clean and a spark counter a day, two review earns a day, a strong earn every ten days, one
 spend a day on alternating devices, the shop's toys and decor bought first), prunes it, and holds
