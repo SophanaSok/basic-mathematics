@@ -185,8 +185,8 @@ insert into hv values
   ('a checkpoint with s = today + 2', pg_temp.setp(pg_temp.setp(pg_temp.setx(pg_temp.setx(pg_temp.vz(), 's', '20802'), 'l', '20790'), 1, '20801'), 0, '29953440'), true),
   ('a checkpoint with s = today + 3', pg_temp.setp(pg_temp.setp(pg_temp.setx(pg_temp.setx(pg_temp.vz(), 's', '20803'), 'l', '20790'), 1, '20802'), 0, '29954880'), false);
 
--- 250 hand-counted tests below, plus one per row of the three tables
-select plan(250 + (select count(*)::integer from hv) + (select count(*)::integer from private.valid_cases)
+-- 254 hand-counted tests below, plus one per row of the three tables
+select plan(254 + (select count(*)::integer from hv) + (select count(*)::integer from private.valid_cases)
   + (select count(*)::integer from private.prune_expected));
 
 -- 1. tables, row-level security, policies, grants
@@ -454,7 +454,7 @@ end $$;
 create function pg_temp.epoch_of(uid uuid) returns integer language sql as $$ select epoch from public.event_meta where user_id = uid $$;
 
 update public.user_state set progress = '{"a":1}', reset_at = 5 where user_id = 'b0000000-0000-4000-8000-00000000000b';
-update public.user_state set play = '{"p":1}', attempts = '{"p":1}', activity = '{"p":1}', lesson = '{"p":1}', last = '{"p":1}', game = '{"p":1}', diag = '{"d":1}'
+update public.user_state set play = '{"p":1}', attempts = '{"p":1}', activity = '{"p":1}', lesson = '{"p":1}', last = '{"p":1}', game = '{"p":1}', diag = '{"d":1}', pet = '{"x":1}'
   where user_id in ('b0000000-0000-4000-8000-00000000000b', 'd0000000-0000-4000-8000-00000000000d');
 update public.user_state set progress = '{"a":1}', reset_at = 9223372036854775807 where user_id = 'd0000000-0000-4000-8000-00000000000d';
 create temp table fs_e as select (select epoch from public.event_meta where user_id = 'e0000000-0000-4000-8000-00000000000e') as epoch,
@@ -473,6 +473,10 @@ select is((select count(*) from public.user_state where user_id in ('b0000000-00
   and play = '{}' and attempts = '{}' and activity = '{}' and lesson = '{}' and game = '{}' and last is null and progress = '{}'), 2::bigint,
   'B and D: progress, play, attempts, activity, lesson, game are {} and last is null');
 select is((select count(*) from public.user_state where user_id in ('b0000000-0000-4000-8000-00000000000b', 'd0000000-0000-4000-8000-00000000000d') and diag = '{"d":1}'), 2::bigint, 'B and D: diag is unchanged');
+select is((select count(*) from public.user_state where user_id in ('b0000000-0000-4000-8000-00000000000b', 'd0000000-0000-4000-8000-00000000000d') and pet = '{}'), 2::bigint, 'B and D: pet is {}');
+select has_column('public', 'user_state', 'pet', 'user_state.pet exists');
+select col_not_null('public', 'user_state', 'pet', 'user_state.pet is not null');
+select is((select pg_get_expr(d.adbin, d.adrelid) from pg_attrdef d join pg_attribute a on a.attrelid = d.adrelid and a.attnum = d.adnum where d.adrelid = 'public.user_state'::regclass and a.attname = 'pet'), '''{}''::jsonb', 'user_state.pet defaults to {}');
 select is((select reset_at from public.user_state where user_id = 'd0000000-0000-4000-8000-00000000000d'), 9223372036854775807::bigint, 'D: a reset_at at the bigint maximum does not overflow the fresh start');
 select is((select count(*) from public.events where user_id = 'e0000000-0000-4000-8000-00000000000e'), 0::bigint, 'E (no user_state row): events are gone');
 select is((select epoch from public.event_meta where user_id = 'e0000000-0000-4000-8000-00000000000e'), (select epoch + 1 from fs_e), 'E: epoch grew by one');
