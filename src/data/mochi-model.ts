@@ -3,8 +3,12 @@
 
 export const MOCHI_VARIANTS = ["pink", "lilac"] as const;
 export type MochiVariant = typeof MOCHI_VARIANTS[number];
-export const MOCHI_CLIPS = ["idle", "idle_look", "idle_stretch", "idle_wiggle", "happy", "excited", "sad", "angry", "surprised", "thinking", "sleepy", "sleeping"] as const;
+export const MOCHI_CLIPS = ["idle", "idle_look", "idle_stretch", "idle_wiggle", "happy", "excited", "sad", "angry", "surprised", "thinking", "sleepy", "sleeping", "eat", "play", "nuzzle", "splash"] as const;
 export const MOCHI_MOODS = ["idle", "happy", "excited", "sad", "angry", "surprised", "thinking", "sleepy", "sleeping"] as const;
+/* the care clips: neither an idle nor a mood, in file order */
+export const MOCHI_ACTS = ["eat", "play", "nuzzle", "splash"] as const;
+/* the joints an accessory hangs from */
+export const MOCHI_SOCKETS = ["socket_head", "socket_back", "socket_tail"] as const;
 
 export interface MochiModel {
   variant: MochiVariant;
@@ -18,9 +22,28 @@ export interface MochiModel {
   sha: string;
 }
 
+export interface MochiAccessory {
+  id: string;
+  socket: typeof MOCHI_SOCKETS[number];
+  name: string;
+  file: string;
+  bytes: number;
+  triangles: number;
+  sha: string;
+}
+
 export const MOCHI_MODELS: readonly MochiModel[] = [
-  { variant: "pink", file: "models/mochi/mochi-pink.glb", poses: "models/mochi/mochi-pink-poses.webp", images: ["models/mochi/mochi-pink-body.webp", "models/mochi/mochi-pink-gill.webp", "models/mochi/mochi-pink-eye.webp", "models/mochi/mochi-pink-pupil.webp", "models/mochi/mochi-pink-face.webp"], bytes: 1014664, triangles: 18762, clips: ["idle", "idle_look", "idle_stretch", "idle_wiggle", "happy", "excited", "sad", "angry", "surprised", "thinking", "sleepy", "sleeping"], morphs: ["EyesClosed", "EyesHappy", "EyesHalf", "EyesAngry", "EyesSad", "PupilsBig", "PupilsSmall", "LookUp", "LookDown", "HighlightBig", "Tears", "Sweat", "Blush", "BrowsAngry", "BrowsSad", "BrowsUp", "BrowOneUp", "MouthSmile", "MouthFrown", "MouthFlat", "MouthWavy", "MouthOpen", "MouthO", "CheeksPuff", "mood_neutral", "mood_happy", "mood_excited", "mood_sad", "mood_angry", "mood_surprised", "mood_thinking", "mood_sleepy", "mood_sleeping"], sha: "ec9133796af6f42556ec582c2ae88160c19c4089ca26ad071779d8441f860773" },
-  { variant: "lilac", file: "models/mochi/mochi-lilac.glb", poses: "models/mochi/mochi-lilac-poses.webp", images: ["models/mochi/mochi-lilac-body.webp", "models/mochi/mochi-lilac-gill.webp", "models/mochi/mochi-lilac-eye.webp", "models/mochi/mochi-lilac-pupil.webp", "models/mochi/mochi-lilac-face.webp"], bytes: 1013892, triangles: 18762, clips: ["idle", "idle_look", "idle_stretch", "idle_wiggle", "happy", "excited", "sad", "angry", "surprised", "thinking", "sleepy", "sleeping"], morphs: ["EyesClosed", "EyesHappy", "EyesHalf", "EyesAngry", "EyesSad", "PupilsBig", "PupilsSmall", "LookUp", "LookDown", "HighlightBig", "Tears", "Sweat", "Blush", "BrowsAngry", "BrowsSad", "BrowsUp", "BrowOneUp", "MouthSmile", "MouthFrown", "MouthFlat", "MouthWavy", "MouthOpen", "MouthO", "CheeksPuff", "mood_neutral", "mood_happy", "mood_excited", "mood_sad", "mood_angry", "mood_surprised", "mood_thinking", "mood_sleepy", "mood_sleeping"], sha: "e976833e1a18452ca0a4d258746d165938f3ad086dc1e9c4abc0f1dfef5a6a92" }
+  { variant: "pink", file: "models/mochi/mochi-pink.glb", poses: "models/mochi/mochi-pink-poses.webp", images: ["models/mochi/mochi-pink-body.webp", "models/mochi/mochi-pink-gill.webp", "models/mochi/mochi-pink-eye.webp", "models/mochi/mochi-pink-pupil.webp", "models/mochi/mochi-pink-face.webp"], bytes: 1167472, triangles: 18762, clips: ["idle", "idle_look", "idle_stretch", "idle_wiggle", "happy", "excited", "sad", "angry", "surprised", "thinking", "sleepy", "sleeping", "eat", "play", "nuzzle", "splash"], morphs: ["EyesClosed", "EyesHappy", "EyesHalf", "EyesAngry", "EyesSad", "PupilsBig", "PupilsSmall", "LookUp", "LookDown", "HighlightBig", "Tears", "Sweat", "Blush", "BrowsAngry", "BrowsSad", "BrowsUp", "BrowOneUp", "MouthSmile", "MouthFrown", "MouthFlat", "MouthWavy", "MouthOpen", "MouthO", "CheeksPuff", "mood_neutral", "mood_happy", "mood_excited", "mood_sad", "mood_angry", "mood_surprised", "mood_thinking", "mood_sleepy", "mood_sleeping", "GrowGills", "GrowCrest", "GrowTail"], sha: "46b783fd6cbf0ef4665707846448d00790bc1f0ed5ac2c22ce6313d1297fed42" },
+  { variant: "lilac", file: "models/mochi/mochi-lilac.glb", poses: "models/mochi/mochi-lilac-poses.webp", images: ["models/mochi/mochi-lilac-body.webp", "models/mochi/mochi-lilac-gill.webp", "models/mochi/mochi-lilac-eye.webp", "models/mochi/mochi-lilac-pupil.webp", "models/mochi/mochi-lilac-face.webp"], bytes: 1166984, triangles: 18762, clips: ["idle", "idle_look", "idle_stretch", "idle_wiggle", "happy", "excited", "sad", "angry", "surprised", "thinking", "sleepy", "sleeping", "eat", "play", "nuzzle", "splash"], morphs: ["EyesClosed", "EyesHappy", "EyesHalf", "EyesAngry", "EyesSad", "PupilsBig", "PupilsSmall", "LookUp", "LookDown", "HighlightBig", "Tears", "Sweat", "Blush", "BrowsAngry", "BrowsSad", "BrowsUp", "BrowOneUp", "MouthSmile", "MouthFrown", "MouthFlat", "MouthWavy", "MouthOpen", "MouthO", "CheeksPuff", "mood_neutral", "mood_happy", "mood_excited", "mood_sad", "mood_angry", "mood_surprised", "mood_thinking", "mood_sleepy", "mood_sleeping", "GrowGills", "GrowCrest", "GrowTail"], sha: "e3b995d1f5bd6de21ed550321333a8279ebea99c239bb36481529205a098869d" }
+];
+
+export const MOCHI_ACCESSORIES: readonly MochiAccessory[] = [
+  { id: "party-hat", socket: "socket_head", name: "Party hat", file: "models/mochi/acc/party-hat.glb", bytes: 6432, triangles: 318, sha: "74c33fb9e389108b3228439023ed019d78c64bb5b5e9331be6aa55427b43a821" },
+  { id: "crown", socket: "socket_head", name: "Crown", file: "models/mochi/acc/crown.glb", bytes: 4632, triangles: 174, sha: "7495d29fde99e8c72c6745504b32d69f51d293293e1f34dfa5a384f249ea9cc2" },
+  { id: "flower", socket: "socket_head", name: "Flower", file: "models/mochi/acc/flower.glb", bytes: 7504, triangles: 384, sha: "5201fc52405098f77ee4e10e268aeb929132f5d00e4c75405ca7fefc51823ff5" },
+  { id: "backpack", socket: "socket_back", name: "Backpack", file: "models/mochi/acc/backpack.glb", bytes: 3684, triangles: 80, sha: "471fb0181bf36999218a935f28b40e9cbbcf9bb780799d97f7d78531bcf0d9ab" },
+  { id: "ribbon", socket: "socket_tail", name: "Ribbon", file: "models/mochi/acc/ribbon.glb", bytes: 5740, triangles: 264, sha: "59091ebe60c5dd3e4c0739f94a6afe1c4cd08be3476ea4eba34e6315348636fe" },
+  { id: "bell", socket: "socket_tail", name: "Bell", file: "models/mochi/acc/bell.glb", bytes: 6680, triangles: 332, sha: "98967b0fc7dfdbc924fc47f41020155a0e7ab92b67be649dc346ed0baa4ad337" }
 ];
 
 export function mochiModel(variant: MochiVariant): MochiModel {

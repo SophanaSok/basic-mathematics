@@ -7,7 +7,7 @@
    1. T11: with 3D on the sidebar has data-3d; the click drops it (mode 2d, no data-3d) and the porthole gains
       data-3d; Close brings the sidebar stage back
    2. reduced motion: with the pool's stage up an act writes and plays no clip (data-clip never appears); with
-      motion allowed the same act plays "excited"
+      motion allowed the same act plays "play"
    3. growth look: data-pet-scale is "0.8" at hatchling and "0.875" at fry
    4. progress.html inline: the porthole has data-3d, exactly one canvas on the page, and a level redraw leaves
       exactly one (dispose, then mount again)
@@ -99,7 +99,7 @@ async function run() {
       await openPool(k.page);
       check(await until(k.page, PORTHOLE), "motion: the pool's stage is up");
       await k.page.click('button[data-act="play"]');
-      check(await until(k.page, () => document.querySelector(".pet-porthole").getAttribute("data-clip") === "excited", null, 4000), "motion: a clip plays when motion is allowed");
+      check(await until(k.page, () => document.querySelector(".pet-porthole").getAttribute("data-clip") === "play", null, 4000), "motion: a clip plays when motion is allowed");
       await done(k, "motion");
     }
     /* 3: the look */

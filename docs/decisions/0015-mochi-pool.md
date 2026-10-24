@@ -134,6 +134,8 @@ Decided 2026-10-23. This record is card X-0; the removal cards R-1a to R-2 and t
 X-1 to X-12 follow in the plan's order. The `pet` migration is applied live only after the
 client that tolerates its absence is deployed.
 
+B-1 shipped 2026-10-24: 16 clips, 36 morphs, 3 sockets, 6 accessories (`public/models/mochi/acc/`, 3.7 to 7.6 KB each); the packed GLB is 1.17 MB a colourway (the plan's 1.11 MB estimate; four sampled clips and three more weights per frame account for the rest), 283 KB under `MOCHI_BYTES_MAX`, and the whole download 1.27 MB against 1.6 MB.
+
 Proof of T5 (X-11): `src/learn/pet.test.ts`, "a year of play stays small", builds 365 days (a pellet, a
 play, a clean and a spark counter a day, two review earns a day, a strong earn every ten days, one
 spend a day on alternating devices, the shop's toys and decor bought first), prunes it, and holds

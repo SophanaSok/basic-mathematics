@@ -2350,7 +2350,7 @@ const CHECKS = [
   { name: "colours", run: checkColours, what: "colour literals only in src/styles/tokens.css; answer marks carry their tokens; WebGL tokens plain hex" },
   { name: "reading-column", run: checkReadingColumn, what: "no animation, moving transition or decoration in the reading column but tools/reading-column-allow.json's" },
   { name: "us-english", run: checkUsEnglish, what: "no British spelling or pound money in reader-facing text beyond tools/us-english-allow.json, whose counts only fall" },
-  { name: "mochi-model", run: checkMochiModels, what: "public/models/mochi/*.glb are what tools/gen-mochi.js packed from the Blender project: size, triangle and texture caps, the twelve clips, the 33 morph targets, the pose sheet" },
+  { name: "mochi-model", run: checkMochiModels, what: "public/models/mochi/*.glb are what tools/gen-mochi.js packed from the Blender project: size, triangle and texture caps, the sixteen clips, the 36 morph targets, the sockets, the accessories under acc/, the pose sheet" },
   { name: "pet-money", run: checkPetMoney, what: "facets are not money (0015, T9): assets/account.js never names price or facets; no supabase/ SQL (schema.sql, migrations) names facet, price or spent in code, and the only write to the pet column is pet = '{}'" },
   { name: "mochi-decor", run: checkMochiDecor, what: "public/models/mochi/decor.png is what tools/gen-water.js writes: 8 cells of 32x32, under MOCHI_DECOR_BYTES_MAX" },
   { name: "mochi-water", run: checkMochiWater, what: "public/models/mochi/water.png is what tools/gen-water.js writes: 8 frames of 64x64, under MOCHI_WATER_BYTES_MAX" },

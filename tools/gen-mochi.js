@@ -9,7 +9,9 @@
    textures and poses.webp. This script only packs: it rewrites the texture uris to bare
    names (mochi-<variant>-<part>.webp), writes mochi-<variant>.glb with the textures kept
    external (tools/lib/glb.js writeGlb), copies the textures and the pose sheet beside it,
-   and deletes whatever else is in public/models/mochi/. EXT_meshopt_compression is
+   and deletes whatever else is in public/models/mochi/. The accessories (BM_MOCHI_SRC/acc/manifest.json
+   and the GLBs it lists) are copied to public/models/mochi/acc/<id>.glb; acc/ is owned too, so a file
+   there that the manifest does not list is a problem and is removed. EXT_meshopt_compression is
    refused: the site's CSP cannot decode it.
 
    src/data/mochi-model.ts is then written from what the files hold: bytes, a sha-256 of the
@@ -29,17 +31,27 @@ const PARTS = ["body", "gill", "eye", "pupil", "face"];
 const EXTENSIONS_OK = ["KHR_mesh_quantization", "EXT_texture_webp"];
 const BLENDER_PROJECT = "/home/ssok/Projects/BLENDER/axolotl";
 
-const abs = (rel) => path.join(ROOT, rel);
+let root = ROOT;   /* problems(dir) points the file reads at a copy of the tree */
+const abs = (rel) => path.join(root, rel);
 const base = (v) => OUT_DIR + "/mochi-" + v;
 
-/* the entries of the manifest as written in FILE, or null when there is no file */
+const MOODS = ["idle", "happy", "excited", "sad", "angry", "surprised", "thinking", "sleepy", "sleeping"];
+const ACC_DIR = OUT_DIR + "/acc";
+
+/* one array of one-line objects as render() writes them */
+function readLines(text, name, type) {
+  const body = new RegExp("export const " + name + ": " + type + " = \\[\n([\\s\\S]*?)\n\\];").exec(text);
+  if (!body) throw new Error(FILE + " is not in the shape tools/gen-mochi.js writes");
+  return JSON.parse("[" + body[1].replace(/(\{ |, )(\w+): /g, '$1"$2": ') + "]");
+}
+
+/* the entries and accessories of the manifest as written in FILE, or null when there is no file */
 function readManifest() {
   if (!fs.existsSync(abs(FILE))) return null;
   const text = fs.readFileSync(abs(FILE), "utf8");
-  const body = /export const MOCHI_MODELS: readonly MochiModel\[\] = \[\n([\s\S]*?)\n\];/.exec(text);
-  if (!body) throw new Error(FILE + " is not in the shape tools/gen-mochi.js writes");
-  const entries = JSON.parse("[" + body[1].replace(/(\{ |, )(\w+): /g, '$1"$2": ') + "]");
-  return { entries };
+  const entries = readLines(text, "MOCHI_MODELS", "readonly MochiModel\\[\\]");
+  const accessories = readLines(text, "MOCHI_ACCESSORIES", "readonly MochiAccessory\\[\\]");
+  return { entries, accessories };
 }
 
 /* the part a texture holds: its name minus the axolotl_ or axolotl_lilac_ prefix */
@@ -61,8 +73,19 @@ function describe(variant) {
   return { buf, d, morphs, json };
 }
 
+/* an accessory GLB as the file holds it */
+function describeAcc(file) {
+  const buf = fs.readFileSync(abs(file));
+  return { buf, d: glb.describeGlb(buf) };
+}
+
 /* what is wrong with the manifest against the files: a list of lines */
-function problems() {
+function problems(dir) {
+  root = dir || ROOT;
+  try { return problemsHere(); } finally { root = ROOT; }
+}
+
+function problemsHere() {
   const out = [];
   let m;
   try { m = readManifest(); } catch (e) { return [e.message]; }
@@ -90,17 +113,33 @@ function problems() {
     if (clips.join(",") !== e.clips.join(",")) out.push(w + "clips " + clips.join(",") + ", manifest says " + e.clips.join(","));
     if (r.morphs.join(",") !== e.morphs.join(",")) out.push(w + "morphs " + r.morphs.length + " in the file, manifest says " + e.morphs.length + " (or the names differ)");
   }
+  const accNamed = new Set();
+  for (const a of m.accessories) {
+    const w = "accessory " + a.id + ": ";
+    accNamed.add(path.basename(a.file));
+    if (!fs.existsSync(abs("public/" + a.file))) { out.push(w + a.file + " does not exist"); continue; }
+    let r;
+    try { r = describeAcc("public/" + a.file); } catch (err) { out.push(w + err.message); continue; }
+    if (r.buf.length !== a.bytes) out.push(w + r.buf.length + " bytes, manifest says " + a.bytes);
+    if (glb.sha256(r.buf) !== a.sha) out.push(w + "sha " + glb.sha256(r.buf) + ", manifest says " + a.sha);
+    if (r.d.triangles !== a.triangles) out.push(w + r.d.triangles + " triangles, manifest says " + a.triangles);
+  }
   const dir = abs(OUT_DIR);
-  if (fs.existsSync(dir)) fs.readdirSync(dir).forEach(f => { if (!named.has(f) && !OTHERS.has(f)) out.push(OUT_DIR + "/" + f + " is not in the manifest"); });
+  if (fs.existsSync(dir)) fs.readdirSync(dir).forEach(f => { if (!named.has(f) && !OTHERS.has(f) && f !== "acc") out.push(OUT_DIR + "/" + f + " is not in the manifest"); });
+  if (fs.existsSync(abs(ACC_DIR))) fs.readdirSync(abs(ACC_DIR)).forEach(f => { if (!accNamed.has(f)) out.push(ACC_DIR + "/" + f + " is not in the manifest"); });
   return out;
 }
 
 /* the files here that are not Mochi's: tools/gen-water.js owns water.png (the porthole backdrop) and decor.png (the pool's decor sheet) */
 const OTHERS = new Set(["water.png", "decor.png"]);
 
-function render(entries) {
+function render(entries, accessories, sockets) {
   const order = ["variant", "file", "poses", "images", "bytes", "triangles", "clips", "morphs", "sha"];
-  const lines = entries.map(e => "  " + JSON.stringify(Object.fromEntries(order.map(k => [k, e[k]]))).replace(/"(\w+)":/g, "$1: ").replace(/,(?=["\w])/g, ", ").replace(/^\{/, "{ ").replace(/\}$/, " }"));
+  const line = (o, keys) => "  " + JSON.stringify(Object.fromEntries(keys.map(k => [k, o[k]]))).replace(/"(\w+)":/g, "$1: ").replace(/,(?=["\w])/g, ", ").replace(/^\{/, "{ ").replace(/\}$/, " }");
+  const lines = entries.map(e => line(e, order));
+  const accLines = accessories.map(a => line(a, ["id", "socket", "name", "file", "bytes", "triangles", "sha"]));
+  const acts = entries[0].clips.filter(c => !c.startsWith("idle") && !MOODS.includes(c));
+  const arr = (a) => JSON.stringify(a).replace(/,/g, ", ");
   return [
     "/* GENERATED by tools/gen-mochi.js: do not edit; change the Blender project (" + BLENDER_PROJECT + ") and run `npm run gen:mochi`.",
     "   Pure data: Mochi's files, sizes and the names the viewer binds to. */",
@@ -108,7 +147,11 @@ function render(entries) {
     'export const MOCHI_VARIANTS = ["pink", "lilac"] as const;',
     "export type MochiVariant = typeof MOCHI_VARIANTS[number];",
     "export const MOCHI_CLIPS = " + JSON.stringify(entries[0].clips).replace(/,/g, ", ") + " as const;",
-    'export const MOCHI_MOODS = ["idle", "happy", "excited", "sad", "angry", "surprised", "thinking", "sleepy", "sleeping"] as const;',
+    "export const MOCHI_MOODS = " + arr(MOODS) + " as const;",
+    "/* the care clips: neither an idle nor a mood, in file order */",
+    "export const MOCHI_ACTS = " + arr(acts) + " as const;",
+    "/* the joints an accessory hangs from */",
+    "export const MOCHI_SOCKETS = " + arr(sockets) + " as const;",
     "",
     "export interface MochiModel {",
     "  variant: MochiVariant;",
@@ -122,8 +165,22 @@ function render(entries) {
     "  sha: string;",
     "}",
     "",
+    "export interface MochiAccessory {",
+    "  id: string;",
+    "  socket: typeof MOCHI_SOCKETS[number];",
+    "  name: string;",
+    "  file: string;",
+    "  bytes: number;",
+    "  triangles: number;",
+    "  sha: string;",
+    "}",
+    "",
     "export const MOCHI_MODELS: readonly MochiModel[] = [",
     lines.join(",\n"),
+    "];",
+    "",
+    "export const MOCHI_ACCESSORIES: readonly MochiAccessory[] = [",
+    accLines.join(",\n"),
     "];",
     "",
     "export function mochiModel(variant: MochiVariant): MochiModel {",
@@ -165,6 +222,31 @@ function pack(variant) {
   fs.copyFileSync(poses, abs(base(variant) + "-poses.webp"));
 }
 
+/* BM_MOCHI_SRC/acc/manifest.json read and each GLB copied to public/models/mochi/acc/<id>.glb */
+function packAccessories() {
+  const mf = path.join(SRC, "acc", "manifest.json");
+  if (!fs.existsSync(mf)) fail(mf + " is missing");
+  const doc = JSON.parse(fs.readFileSync(mf, "utf8"));
+  if (!Array.isArray(doc.sockets) || !Array.isArray(doc.accessories)) fail(mf + " holds no sockets and accessories");
+  fs.rmSync(abs(ACC_DIR), { recursive: true, force: true });
+  fs.mkdirSync(abs(ACC_DIR), { recursive: true });
+  const ids = new Set();
+  const accessories = doc.accessories.map(a => {
+    if (!/^[a-z][a-z0-9-]*$/.test(a.id || "")) fail("accessory id " + JSON.stringify(a.id) + " is not lowercase letters, digits and dashes");
+    if (ids.has(a.id)) fail("accessory " + a.id + " is listed twice");
+    ids.add(a.id);
+    if (!doc.sockets.includes(a.socket)) fail("accessory " + a.id + " names socket " + a.socket + ", not one of " + doc.sockets.join(", "));
+    if (typeof a.file !== "string" || path.basename(a.file) !== a.file) fail("accessory " + a.id + ": " + JSON.stringify(a.file) + " is not a bare file name");
+    const from = path.join(SRC, "acc", a.file);
+    if (!fs.existsSync(from)) fail(from + " is missing");
+    const file = "models/mochi/acc/" + a.id + ".glb";
+    fs.copyFileSync(from, abs("public/" + file));
+    const r = describeAcc("public/" + file);
+    return { id: a.id, socket: a.socket, name: String(a.name), file, bytes: r.buf.length, triangles: r.d.triangles, sha: glb.sha256(r.buf) };
+  });
+  return { sockets: doc.sockets, accessories };
+}
+
 function main() {
   const argv = process.argv.slice(2);
   if (argv.includes("--check")) {
@@ -183,12 +265,14 @@ function main() {
       clips: r.d.animations.map(a => a.name), morphs: r.morphs, sha: glb.sha256(r.buf)
     };
   });
-  fs.writeFileSync(abs(FILE), render(entries));
+  const acc = packAccessories();
+  fs.writeFileSync(abs(FILE), render(entries, acc.accessories, acc.sockets));
   const named = new Set();
   entries.forEach(e => { named.add(path.basename(e.file)); named.add(path.basename(e.poses)); e.images.forEach(im => named.add(path.basename(im))); });
-  fs.readdirSync(abs(OUT_DIR)).forEach(f => { if (!named.has(f) && !OTHERS.has(f)) { fs.rmSync(abs(OUT_DIR + "/" + f), { recursive: true, force: true }); console.log("removed stale " + OUT_DIR + "/" + f); } });
+  fs.readdirSync(abs(OUT_DIR)).forEach(f => { if (!named.has(f) && !OTHERS.has(f) && f !== "acc") { fs.rmSync(abs(OUT_DIR + "/" + f), { recursive: true, force: true }); console.log("removed stale " + OUT_DIR + "/" + f); } });
   entries.forEach(e => console.log("mochi-" + e.variant + ": " + e.triangles + " triangles, " + e.bytes.toLocaleString("en-US") + " bytes, " + e.clips.length + " clips, " + e.morphs.length + " morphs"));
+  acc.accessories.forEach(a => console.log("acc/" + a.id + ": " + a.socket + ", " + a.triangles + " triangles, " + a.bytes.toLocaleString("en-US") + " bytes"));
 }
 
-module.exports = { problems, readManifest, FILE, OUT_DIR, VARIANTS };
+module.exports = { problems, readManifest, FILE, OUT_DIR, ACC_DIR, VARIANTS };
 if (require.main === module) { try { main(); } catch (e) { console.error("gen-mochi: " + (e.stack || e)); process.exit(1); } }
