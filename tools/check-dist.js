@@ -90,7 +90,7 @@ const ON_DEMAND = [
   { chunk: BUNDLE + "world.js", module: "src/world/index.ts", by: "assets/map3d.js", dir: "src/world/" },
   { chunk: BUNDLE + "three-model.js", module: vendor.DIR + "/three-model.js", by: ["src/mochi/index.ts", "src/ui/pet/pool.ts"] },
   { chunk: BUNDLE + "mochi.js", module: "src/mochi/index.ts", by: ["src/ui/companion.ts", "src/ui/pet/pool.ts"], dir: "src/mochi/" },
-  { chunk: BUNDLE + "pet.js", module: "src/ui/pet/pool.ts", by: "src/ui/companion.ts", dir: "src/ui/pet/" },
+  { chunk: BUNDLE + "pet.js", module: "src/ui/pet/pool.ts", by: "src/ui/companion.ts", dir: ["src/ui/pet/", "src/data/pet-items.ts"] },
   { chunk: BUNDLE + "post.js", module: "src/world/post.ts", by: "assets/map3d.js" },
   { chunk: BUNDLE + "three-post.js", module: vendor.DIR + "/three-post.js", by: "assets/map3d.js" }
 ];
@@ -586,11 +586,11 @@ function checkScripts(ctx, r) {
     if (!inside.includes(d.module)) r.fail(d.chunk + " is not built from " + d.module + " (its source map names " + inside.join(", ") + ")");
     const strays = inside.filter(s => {
       if (s === d.module) return false;
-      if (d.dir && s.startsWith(d.dir) && !IN_NODE_MODULES.test(s)) return !!loadedAnywhere(s);
+      if (d.dir && [].concat(d.dir).some(x => s.startsWith(x)) && !IN_NODE_MODULES.test(s)) return !!loadedAnywhere(s);
       if (!IN_NODE_MODULES.test(s) || !d.module.startsWith(vendor.DIR + "/")) return true;
       try { return vendor.vendorOf(s).file !== d.module; } catch (e) { return true; }
     });
-    if (strays.length) r.fail(d.chunk + " holds more than " + d.module + (d.module.startsWith(vendor.DIR + "/") ? " and the files of its packages" : d.dir ? " and the modules of " + d.dir + " no entry imports" : "") + ": " + strays.join(", "));
+    if (strays.length) r.fail(d.chunk + " holds more than " + d.module + (d.module.startsWith(vendor.DIR + "/") ? " and the files of its packages" : d.dir ? " and the modules of " + [].concat(d.dir).join(", ") + " no entry imports" : "") + ": " + strays.join(", "));
   });
   /* the bloom's size budget */
   {

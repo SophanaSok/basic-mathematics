@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { LINES, lineFor } from "./lines.ts";
+import { bought, LINES, lineFor, placed, removed } from "./lines.ts";
 
 const now = 1_000_000_000_000;
 const need = (n: number) => ({ n, at: now });
@@ -16,9 +16,18 @@ describe("pool lines", () => {
       played: "Mochi zooms around the pool.",
       cleaned: "The water sparkles again.",
       petted: "Mochi nuzzles your hand.",
-      giftTaken: "Mochi has had today's pellet. Snacks come to the shop soon.",
-      playCap: "Mochi has played enough for today. The Arena is always open."
+      giftTaken: "Mochi has had today's pellet. The shop has snacks.",
+      playCap: "Mochi has played enough for today. The Arena is always open.",
+      noToy: "Mochi needs a toy to play. The shop has some.",
+      notEnough: "Not enough facets yet. Learning earns them.",
+      behind: "Mochi's facets are catching up after a sync.",
+      full: "Mochi is full for now."
     });
+  });
+  it("pins the lines that carry an item name", () => {
+    expect(bought("Ball")).toBe("Mochi has a new ball!");
+    expect(placed("Castle")).toBe("The castle is in the pool.");
+    expect(removed("Castle")).toBe("The castle is put away.");
   });
   it("idle line follows the lowest need, and is glad otherwise", () => {
     expect(lineFor({}, now)).toBe(LINES.glad);

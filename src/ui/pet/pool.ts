@@ -1,7 +1,8 @@
 /* Mochi's pool (docs/decisions/0015-mochi-pool.md), the lazy `pet` chunk (bundle/pet.js).
    Only src/ui/companion.ts's openPool() imports this module, with import(), and nothing
    fetches the chunk until then. This card (X-5b) is the shell: a porthole with the 3D stage, the four
-   needs as hearts, the facets line and Close. The care row is X-6; the shop, wardrobe and growth come with X-7, X-8.
+   needs as hearts, the facets line and Close. The care row is X-6; the shop (X-7, ./shop.ts) is a second tab
+   (absent when config shop is "off"); the wardrobe and growth come with X-8.
 
    mountPool(host, { mode }) returns { close, dispose }.
      "dialog"  a <dialog class="pet-dialog"> on host: showModal(), focus on the title, Escape and Close shut it,
@@ -9,12 +10,16 @@
      "inline"  the same shell in the host, no dialog (the progress page, X-9).
    The host carries data-pet while the pool is mounted. The stage is made only where the companion would make
    one (WebGL, a tier above "list", not Study mode, no forced colors); otherwise, or when it fails, the pose
-   sheet's still is the picture. Reads bm.pet.v1 and prefs; the care row (./actions.ts, X-6) is the only writer. */
+   sheet's still is the picture. Reads bm.pet.v1 and prefs; the care row (./actions.ts) and the shop (./shop.ts) are the only writers.
+   Decor Mochi has out (wear.decor, owned decor only) is drawn as span.companion-decor[data-decor] layers under
+   the stage in the window, their image set from JS (a url() in CSS would be rewritten by the build). */
 import { createMochiStage } from "../../mochi/index.ts";
 import type { MochiStage } from "../../mochi/index.ts";
-import { NEEDS, HEARTS_MAX, START_HEARTS, heartsOf, balance } from "../../learn/pet.ts";
+import { NEEDS, HEARTS_MAX, heartsOf, balance, placedDecor } from "../../learn/pet.ts";
 import type { Need } from "../../learn/pet.ts";
 import { mountActions } from "./actions.ts";
+import { mountShop } from "./shop.ts";
+import { DECOR_SIZE, itemOf } from "../../data/pet-items.ts";
 import { MOODS } from "../../learn/mood.ts";
 import { detectTier, readProbe, pixelRatio, TIERS } from "../../world/tiers.ts";
 
@@ -56,7 +61,47 @@ function paintHearts(shell: HTMLElement, pet: any, now: number): void {
   });
 }
 
-/** the shell's markup: title, porthole, hearts, facets, line */
+function shopWanted(): boolean {
+  try {
+    const cfg = w().BMCore?.config?.readConfig(w().BM_CONFIG);
+    if (cfg && cfg.shop === "off") return false;
+  } catch { /* an absent field is on */ }
+  return true;
+}
+
+function facetsText(pet: any): string {
+  const n = Math.max(0, Math.floor(balance(pet)));
+  return "You have " + n + " facet" + (n === 1 ? "" : "s") + ".";
+}
+/** every facets line (the pool's and the shop's) again, from this record */
+function paintFacets(shell: HTMLElement, pet: any): void {
+  shell.querySelectorAll(".pet-facets").forEach((el) => { el.textContent = facetsText(pet); });
+}
+
+/** the decor Mochi has out: one layer per placed id that is owned decor in the catalogue, left to right as
+    placed; each is under the still and the stage, sized and set from the catalogue, never from the record */
+function paintDecor(shell: HTMLElement, pet: any): void {
+  const win = shell.querySelector(".pet-window") as HTMLElement | null;
+  if (!win) return;
+  win.querySelectorAll(".companion-decor").forEach((el) => el.remove());
+  const owned = (pet && typeof pet.owned === "object" && pet.owned) || {};
+  const before = win.querySelector(".companion-still");
+  placedDecor(pet).forEach((id) => {
+    const item = itemOf(id);
+    if (!item || item.kind !== "decor" || typeof owned[id] !== "string" || item.cell === undefined || !item.pos) return;
+    const span = document.createElement("span");
+    span.className = "companion-decor";
+    span.setAttribute("data-decor", id);
+    span.style.backgroundImage = 'url("' + root() + "models/mochi/decor.png" + '")';
+    span.style.backgroundPosition = (item.cell * 100 / 7) + "% 0";
+    span.style.width = span.style.height = DECOR_SIZE + "%";
+    span.style.left = item.pos.x + "%";
+    span.style.bottom = item.pos.y + "%";
+    win.insertBefore(span, before);
+  });
+}
+
+/** the shell's markup: title, tabs, the pool panel (porthole, line, hearts, facets) and the shop panel */
 function buildShell(titleId: string, pet: any): HTMLElement {
   const now = Date.now();
   const needs = (pet && typeof pet.needs === "object" && pet.needs) || {};
@@ -65,15 +110,21 @@ function buildShell(titleId: string, pet: any): HTMLElement {
     const marks = heartMarks(h);
     return '<li data-need="' + n + '" aria-label="' + NAMES[n] + ": " + h + " of " + HEARTS_MAX + ' hearts"><span class="pet-need-name">' + NAMES[n] + "</span>" + marks + "</li>";
   }).join("");
-  const facets = Math.max(0, Math.floor(balance(pet)));
   const box = document.createElement("div");
   box.className = "pet-pool";
   box.innerHTML =
     '<h2 id="' + titleId + '" class="pet-title" tabindex="-1">Mochi\'s pool</h2>' +
-    '<div class="pet-porthole" data-pet-stage><div class="pet-window"><span class="companion-still"></span><span class="companion-decor"></span></div></div>' +
-    '<p class="pet-line">' + LINE + "</p>" +
+    '<div class="pet-porthole" data-pet-stage><div class="pet-window"><span class="companion-still"></span></div></div>' +
+    '<p class="pet-line" tabindex="-1">' + LINE + "</p>" +
     '<ul class="pet-needs">' + items + "</ul>" +
-    '<p class="pet-facets">You have ' + facets + " facet" + (facets === 1 ? "" : "s") + ".</p>";
+    '<p class="pet-facets">' + facetsText(pet) + "</p>";
+  /* the pool panel holds all of it; the tab strip and the shop panel come with the shop */
+  const panel = document.createElement("div");
+  panel.className = "pet-panel";
+  panel.setAttribute("data-panel", "pool");
+  while (box.childNodes.length > 1) panel.appendChild(box.childNodes[1]);
+  box.appendChild(panel);
+  paintDecor(box, pet);
   return box;
 }
 
@@ -130,7 +181,8 @@ function startStage(shell: HTMLElement, alive: () => boolean, hold: (s: MochiSta
 
 export function mountPool(host: Element, opts: PoolOptions): PoolHandle {
   const id = "pet-title-" + (++uid);
-  const shell = buildShell(id, petStore());
+  const pet0 = petStore();
+  const shell = buildShell(id, pet0);
   let stage: MochiStage | null = null;
   let live = true;
   let dialog: HTMLDialogElement | null = null;
@@ -143,13 +195,23 @@ export function mountPool(host: Element, opts: PoolOptions): PoolHandle {
   shell.appendChild(closeBtn);
 
   host.setAttribute("data-pet", "");
-  const stopActions = mountActions(shell, { stage: () => stage, alive: () => live, reduced: reducedMotion, repaint: (pet, now) => paintHearts(shell, pet, now) });
+  let actions: ReturnType<typeof mountActions> | null = null;
+  /* one repaint for every writer: hearts, facets, decor and the buttons that depend on them */
+  const repaint = (pet: any, now: number): void => {
+    paintHearts(shell, pet, now);
+    paintFacets(shell, pet);
+    paintDecor(shell, pet);
+    if (actions) actions.refresh(pet, now);
+  };
+  actions = mountActions(shell, { stage: () => stage, alive: () => live, reduced: reducedMotion, repaint });
+  const shop = shopWanted() ? mountShop(shell, { alive: () => live, repaint }) : null;
 
   /* the one way out: idempotent; the dialog's close event, Close, close() and dispose() all end here */
   function finish(): void {
     if (!live) return;
     live = false;
-    stopActions();
+    if (actions) actions.dispose();
+    if (shop) shop.dispose();
     if (stage) { try { stage.dispose(); } catch { /* gone */ } stage = null; }
     host.removeAttribute("data-pet");
     const d = dialog;
